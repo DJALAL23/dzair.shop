@@ -69,6 +69,9 @@ const productsQuerySchema = z.object({
   limit: z.coerce.number().int().max(100).default(24).openapi({
     description: "Maximum number of products to return. Server cap: 100.",
   }),
+  offset: z.coerce.number().int().min(0).default(0).openapi({
+    description: "Products to skip, for paging through the whole catalog (e.g. a sitemap).",
+  }),
   locale: localeQuery,
 });
 

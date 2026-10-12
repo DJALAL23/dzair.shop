@@ -227,7 +227,7 @@ async function translateProducts<T extends { id: string; description: string | n
 
 export async function getStoreProducts(
   db: AppDb,
-  params: { featured?: boolean; categoryId?: string; limit?: number },
+  params: { featured?: boolean; categoryId?: string; limit?: number; offset?: number },
   locale: StoreLocale | null = null,
 ) {
   const conditions: any[] = [
@@ -248,8 +248,11 @@ export async function getStoreProducts(
     })
     .from(products)
     .where(and(...conditions))
-    .orderBy(desc(products.storeFeatured), desc(products.createdAt))
+    // The id breaks ties, so paging with `offset` never repeats or skips a
+    // product that shares a creation time with another.
+    .orderBy(desc(products.storeFeatured), desc(products.createdAt), asc(products.id))
     .limit(params.limit ?? 24)
+    .offset(params.offset ?? 0)
     .all();
 
   if (sourceRows.length === 0) return [];
