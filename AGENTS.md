@@ -149,6 +149,11 @@ other is how these drift.
   flag, and only published ones reach `/store/config`. The supported list
   lives once, in `cod-shared/i18n/locales.ts` — the SDKs never mirror it; the
   server sends each language's code, name and direction.
+- **Merchant data is translated in one `translations` table** (resource,
+  language, key — `cod-shared/i18n/translations.ts`). The resource's own
+  columns hold the primary language; there is never a translation row for it.
+  It has no foreign keys: migration 0037's triggers delete a resource's rows
+  with it. A new translatable resource needs its own trigger.
 - **Theme text edits are keyed by theme** (`store_content_overrides`,
   `defineTheme({ key })`), and a storefront only receives them when its SDK
   client passes `theme`. Renaming a theme's key orphans its merchant edits.
