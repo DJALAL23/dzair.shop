@@ -189,10 +189,25 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   see `__tests__/contracts/home-adsorption.test.ts`); copy fields use the
   `contentKey` bridge (`copyOverrides` in `catalog/shared.ts`); other surfaces
   are NOT
-  migrated — do not copy the pattern to them without a slice. Consumption is
-  by package name; `dist` must be built first (see Commands). Design + report:
-  `cod-sdk/theme-sdk/15-theme-00-home-adsorption.md`,
-  `cod-sdk/theme-sdk/16-theme-00-home-adsorption-report.md`.
+  migrated — do not copy the pattern to them without a slice
+  ([`docs/editable-surfaces.md`](./docs/editable-surfaces.md) is the plan).
+  Consumption is by package name; `dist` must be built first (see Commands).
+- **Every word a home section renders is editable (2026-10-12).** Section copy
+  is a field whose `key` equals its `contentKey`; store-wide UI vocabulary
+  ("View all", aria labels) stays in the pack. Links are `url` fields (the SDK
+  rejects unsafe targets) and counts are bounded `number` fields, typed in the
+  component with `Pick<InferProps<typeof definition>, …>`.
+  `__tests__/contracts/editor-coverage-contracts.test.ts` fails on frozen copy,
+  a renamed copy field, or a declared setting the component ignores;
+  `home-settings-contracts.test.ts` proves the settings through the real
+  renderer.
+- **The order form's outcome lives in `src/theme/pages/order-outcome.ts`.**
+  Product, landing and checkout pages call `orderOutcome(...)`; it owns the
+  thank-you query that `thank-you.astro` reads back with `readThankYou`. Do not
+  rebuild the redirect URL in a page.
+- **Guards share one collector, `__tests__/guards/theme-source.ts`:** shipped
+  `.ts`/`.astro` under `src/`, never test code. Test support lives in
+  `__tests__/support/`.
 - **The catalog is split one file per section (DX slice, 2026-10-01).** Each
   definition lives in `src/theme/catalog/home/<type>.def.ts`, next to the model
   it describes; `src/theme/catalog/shared.ts` owns the read keys and the
