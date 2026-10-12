@@ -14,7 +14,8 @@ import CustomerFields from "@/theme/components/order/CustomerFields.astro";
 import OtpStep from "@/theme/components/order/OtpStep.astro";
 import TurnstileField from "@/theme/components/order/TurnstileField.astro";
 import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
-import { actions, isInputError } from "astro:actions";
+import { actions } from "astro:actions";
+import { orderOutcome } from "@/theme/pages/order-outcome";
 import { Icon } from "astro-icon/components";
 
 // Store context comes from middleware (Astro.locals.store — Theme Zero S2).
@@ -26,15 +27,9 @@ if (!config.cartEnabled) return Astro.redirect("/", 302);
 // Same single PRG redirect the product form uses: the browser follows the 303
 // straight to the thank-you page, so this page never re-renders behind it and
 // the abandonment-conversion signal fires there.
-const result = Astro.getActionResult(actions.placeOrder);
-if (result?.data?.orderNumber) {
-  return Astro.redirect(
-    `/thank-you?order=${encodeURIComponent(result.data.orderNumber)}&total=${result.data.total}&oid=${encodeURIComponent(result.data.orderId ?? "")}`,
-    303,
-  );
-}
-const fieldErrors = isInputError(result?.error) ? result.error.fields : {};
-const serverError = result?.error && !isInputError(result.error) ? result.error.message : null;
+const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder));
+if (outcome.redirect) return Astro.redirect(outcome.redirect, 303);
+const { fieldErrors, serverError } = outcome;
 
 const otpEnabled = config.otpEnabled === true;
 const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turnstileSiteKey);

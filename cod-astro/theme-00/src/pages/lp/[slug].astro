@@ -14,7 +14,7 @@ import { getProductView } from "@codflow/storefront";
 import { pageDataCopy } from "@/theme/bridges/island-props";
 import { PRODUCT_PAGE_DATA_ID, buildProductPageData } from "@/theme/bridges/product-page-data";
 import { actions } from "astro:actions";
-import { isInputError } from "astro:actions";
+import { orderOutcome } from "@/theme/pages/order-outcome";
 
 const { slug } = Astro.params;
 
@@ -29,15 +29,9 @@ const lp = await getStoreClient().pages.landing(slug ?? "");
 // re-renders — no reload flash, no client-side redirect. The
 // abandonment-conversion signal fires on the thank-you page (sessionStorage
 // survives the redirect).
-const result = Astro.getActionResult(actions.placeOrder);
-if (result?.data?.orderNumber) {
-  return Astro.redirect(
-    `/thank-you?order=${encodeURIComponent(result.data.orderNumber)}&total=${result.data.total}&oid=${encodeURIComponent(result.data.orderId ?? "")}`,
-    303,
-  );
-}
-const fieldErrors  = isInputError(result?.error) ? result.error.fields : {};
-const serverError  = result?.error && !isInputError(result.error) ? result.error.message : null;
+const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder));
+if (outcome.redirect) return Astro.redirect(outcome.redirect, 303);
+const { fieldErrors, serverError } = outcome;
 
 // Landing page data (from the parallel fetch above): published only.
 // Draft/archived/unknown → the store home (same contract as the product

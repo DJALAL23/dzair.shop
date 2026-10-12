@@ -3,10 +3,10 @@ import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import { getStoreClient } from "@/theme/sdk";
 import { buildWhatsAppHref, resolvePrefillText } from "@codflow/storefront";
 import { formatAmount } from "@/theme/utils/money";
+import { readThankYou } from "@/theme/pages/order-outcome";
 import { Icon } from "astro-icon/components";
 
-const orderNumber = Astro.url.searchParams.get("order") ?? "";
-const orderId = Astro.url.searchParams.get("oid") ?? "";
+const { orderNumber, orderId, total } = readThankYou(Astro.url);
 
 // Which pixel this ORDER belongs to, and whether a browser event fires for it.
 //
@@ -22,8 +22,7 @@ const orderId = Astro.url.searchParams.get("oid") ?? "";
 const { config, content, isRTL } = Astro.locals.store;
 const tracking = await getStoreClient().orders.tracking(orderId);
 
-const total = Astro.url.searchParams.get("total");
-const totalFormatted = total ? formatAmount(parseInt(total)) : null;
+const totalFormatted = total !== null ? formatAmount(total) : null;
 
 if (!orderNumber) {
   return Astro.redirect("/");
@@ -34,7 +33,7 @@ if (!orderNumber) {
 // here re-derives that rule.
 const pixelId = tracking?.pixelId ?? null;
 const checkoutEvent = tracking?.event ?? null;
-const totalNum = total ? parseInt(total) : null;
+const totalNum = total;
 
 // The head must load the pixel the sale is fired at, not the store's:
 // trackSingle at a pixel that was never fbq('init')-ed does nothing at all.
