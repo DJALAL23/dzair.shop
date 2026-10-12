@@ -20,7 +20,8 @@ import {
   seedStoreDefaultPages,
 } from "@/features/store-pages/api";
 import { pageNeedsReview, storePagesErrorMessage } from "@/features/store-pages/model";
-import type { PageLocale, StoreLegalProfile, StorePageSummary } from "@/features/store-pages/types";
+import type { StoreLegalProfile, StorePageSummary } from "@/features/store-pages/types";
+import type { StoreLanguage } from "@/features/settings/types";
 import { notify } from "@/lib/notify";
 import { PageList } from "@/features/store-pages/components/PageList";
 import { PageEditor } from "@/features/store-pages/components/PageEditor";
@@ -36,7 +37,7 @@ function StorePagesContent() {
   const canManage = canScope(identity, SCOPES.STORE_PAGES_MANAGE);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("pages");
-  const [storeLang, setStoreLang] = useState<PageLocale | null>(null);
+  const [languages, setLanguages] = useState<StoreLanguage[] | null>(null);
   const [storefrontBaseUrl, setStorefrontBaseUrl] = useState("");
   const [pages, setPages] = useState<StorePageSummary[] | null>(null);
   const [legalProfile, setLegalProfile] = useState<StoreLegalProfile | null>(null);
@@ -52,7 +53,7 @@ function StorePagesContent() {
         listStorePages(),
         getStoreLegalProfile(),
       ]);
-      setStoreLang(store.lang as PageLocale);
+      setLanguages(store.languages);
       setStorefrontBaseUrl(store.domain ? `https://${store.domain}` : "");
       setPages(pageList);
       setLegalProfile(profile);
@@ -111,7 +112,7 @@ function StorePagesContent() {
     );
   }
 
-  if (pages === null || storeLang === null) {
+  if (pages === null || languages === null) {
     return (
       <div role="status" aria-busy="true" className="flex min-h-60 items-center justify-center">
         <Loader2 size={24} className="animate-spin text-primary" />
@@ -120,7 +121,9 @@ function StorePagesContent() {
   }
 
   const legalPages = pages.filter((p) => p.kind !== "custom");
-  const needsReviewCount = legalPages.filter(pageNeedsReview).length;
+  const storeLang = languages.find((language) => language.primary)?.locale ?? languages[0]!.locale;
+  const locales = languages.map((language) => language.locale);
+  const needsReviewCount = legalPages.filter((page) => pageNeedsReview(page, locales)).length;
   const isProfileIncomplete = Boolean(
     !legalProfile?.contactEmail?.trim() && !legalProfile?.contactPhone?.trim(),
   );
@@ -235,6 +238,7 @@ function StorePagesContent() {
           <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
             <PageList
               pages={pages}
+              locales={locales}
               selectedId={selectedId}
               onSelect={setSelectedId}
               onSeedDefaults={() => void handleSeedDefaults()}
@@ -245,7 +249,7 @@ function StorePagesContent() {
                 <PageEditor
                   key={selectedId}
                   pageId={selectedId}
-                  storeLang={storeLang}
+                  languages={languages}
                   storefrontBaseUrl={storefrontBaseUrl}
                   onChanged={handlePageChanged}
                   onDeleted={handlePageDeleted}

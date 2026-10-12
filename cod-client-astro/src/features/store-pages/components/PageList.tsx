@@ -15,11 +15,13 @@ import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { orderStorePages, pageKindLabelKey, pageNeedsReview } from "@/features/store-pages/model";
-import type { StorePageKind, StorePageSummary } from "@/features/store-pages/types";
+import type { PageLocale, StorePageKind, StorePageSummary } from "@/features/store-pages/types";
 import { Badge, Button, EmptyState } from "@/components/ui";
 
 interface PageListProps {
   pages: StorePageSummary[];
+  /** The store's languages: a page needs review while any of them is unwritten or still the template. */
+  locales: readonly PageLocale[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onSeedDefaults: () => void;
@@ -36,6 +38,7 @@ const KIND_ICONS: Record<StorePageKind, LucideIcon> = {
 
 export function PageList({
   pages,
+  locales,
   selectedId,
   onSelect,
   onSeedDefaults,
@@ -87,7 +90,7 @@ export function PageList({
 
         <ul className="p-1.5 space-y-1">
           {legalPages.map((page) => {
-            const needsReview = pageNeedsReview(page);
+            const needsReview = pageNeedsReview(page, locales);
             const active = page.id === selectedId;
             const Icon = KIND_ICONS[page.kind] ?? FileText;
 

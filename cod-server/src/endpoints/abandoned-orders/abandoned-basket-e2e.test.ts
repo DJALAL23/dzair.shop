@@ -324,3 +324,48 @@ describe("reading records back", () => {
     expect(rows[0].items).toHaveLength(1);
   });
 });
+
+describe("names come from the catalog, in the store's language", () => {
+  beforeEach(async () => {
+    await db.delete(schema.productVariants);
+    await db.delete(schema.products);
+    const now = new Date().toISOString();
+    await db.insert(schema.products).values([
+      { id: "p1", name: "سويتر كلاسيك", handle: "hoodie", price: 2400, hasVariants: true, createdAt: now, updatedAt: now },
+      { id: "p2", name: "قميص", handle: "tshirt", price: 1000, createdAt: now, updatedAt: now },
+    ]);
+    await db.insert(schema.productVariants).values({
+      id: "v-black-l",
+      productId: "p1",
+      variations: JSON.stringify({ اللون: "أسود", المقاس: "L" }),
+      price: 2400,
+      sku: "H-BL",
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  it("names a French shopper's basket in the catalog's own words", async () => {
+    const sessionId = crypto.randomUUID();
+    await track(shopper({ sessionId, items: [hoodie, tshirt] }));
+
+    const row = await rowFor(sessionId);
+    expect(row).toMatchObject({ productName: "سويتر كلاسيك", variantLabel: "أسود / L" });
+    expect(JSON.parse(row!.itemsJson!)).toMatchObject([
+      { productName: "سويتر كلاسيك", variantLabel: "أسود / L", unitPrice: 2400 },
+      { productName: "قميص" },
+    ]);
+  });
+
+  it("names a single-product checkout the same way", async () => {
+    const sessionId = crypto.randomUUID();
+    await track(shopper({ sessionId, productId: "p1", productName: "Sweat", variantId: "v-black-l", variantLabel: "Noir / L", price: 2400 }));
+    expect(await rowFor(sessionId)).toMatchObject({ productName: "سويتر كلاسيك", variantLabel: "أسود / L" });
+  });
+
+  it("keeps the storefront's text for anything the catalog no longer has", async () => {
+    const sessionId = crypto.randomUUID();
+    await track(shopper({ sessionId, items: [{ ...hoodie, productId: "gone", variantId: "gone-v" }] }));
+    expect(await rowFor(sessionId)).toMatchObject({ productName: "Hoodie Classic", variantLabel: "Noir / L" });
+  });
+});

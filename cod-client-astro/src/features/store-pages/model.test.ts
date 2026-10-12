@@ -10,7 +10,6 @@
 import { describe, expect, it } from "vitest";
 import {
   localeLabelKey,
-  orderedLocales,
   orderStorePages,
   pageKindLabelKey,
   pageNeedsReview,
@@ -74,50 +73,25 @@ describe("orderStorePages", () => {
   });
 });
 
-describe("orderedLocales", () => {
-  it("puts the store's own language first", () => {
-    expect(orderedLocales("fr")).toEqual(["fr", "ar", "en"]);
-    // The registry order (cod-shared/i18n/locales.ts): Arabic, French, English.
-    expect(orderedLocales("ar")).toEqual(["ar", "fr", "en"]);
-    expect(orderedLocales("en")).toEqual(["en", "ar", "fr"]);
+describe("pageNeedsReview — judged in the store's own languages", () => {
+  const translated = (entries: Array<[string, "merchant" | "template"]>) =>
+    page({ translations: entries.map(([locale, source]) => ({ locale: locale as "ar", title: "t", source, updatedAt: "x" })) });
+
+  it("is false when every store language has been merchant-reviewed", () => {
+    expect(pageNeedsReview(translated([["ar", "merchant"], ["fr", "merchant"], ["en", "template"]]), ["ar", "fr"])).toBe(false);
   });
 
-  it("always includes all three locales — none are ever dropped", () => {
-    for (const locale of ["ar", "en", "fr"] as const) {
-      expect(orderedLocales(locale).sort()).toEqual(["ar", "en", "fr"]);
-    }
-  });
-});
-
-describe("pageNeedsReview", () => {
-  it("is false when every saved locale has been merchant-reviewed", () => {
-    expect(
-      pageNeedsReview(
-        page({
-          translations: [
-            { locale: "ar", title: "t", source: "merchant", updatedAt: "x" },
-            { locale: "en", title: "t", source: "merchant", updatedAt: "x" },
-          ],
-        }),
-      ),
-    ).toBe(false);
+  it("is true when a store language is still the untouched template", () => {
+    expect(pageNeedsReview(translated([["ar", "merchant"], ["fr", "template"]]), ["ar", "fr"])).toBe(true);
   });
 
-  it("is true when at least one locale is still the untouched template", () => {
-    expect(
-      pageNeedsReview(
-        page({
-          translations: [
-            { locale: "ar", title: "t", source: "merchant", updatedAt: "x" },
-            { locale: "en", title: "t", source: "template", updatedAt: "x" },
-          ],
-        }),
-      ),
-    ).toBe(true);
+  it("is true when a store language has no text at all", () => {
+    expect(pageNeedsReview(translated([["ar", "merchant"]]), ["ar", "fr"])).toBe(true);
+    expect(pageNeedsReview(page({ translations: [] }), ["ar"])).toBe(true);
   });
 
-  it("is true for a page with no translations at all (defensive)", () => {
-    expect(pageNeedsReview(page({ translations: [] }))).toBe(true);
+  it("ignores languages the store has not added — their seeded text is never shown", () => {
+    expect(pageNeedsReview(translated([["ar", "merchant"], ["en", "template"], ["fr", "template"]]), ["ar"])).toBe(false);
   });
 });
 

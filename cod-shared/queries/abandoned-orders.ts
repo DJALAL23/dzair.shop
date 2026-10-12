@@ -2,10 +2,13 @@
  * Abandoned Orders Queries
  */
 
-import { eq, and, desc, lt, sql, like, or } from "drizzle-orm";
-import { abandonedOrders, wilayas, communes } from "../db/schema";
+import { eq, and, desc, lt, sql, like, or, inArray } from "drizzle-orm";
+import { abandonedOrders, wilayas, communes, products, productVariants } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { safeLikeTerm } from "./search";
+import { chunkIds } from "./d1-limits";
+import { variantSelection } from "./catalog-snapshot";
+import { variantLabel } from "../i18n/translations";
 
 /** One line of an abandoned basket, as the storefront captured it. */
 export interface AbandonedItem {
@@ -129,6 +132,76 @@ export function parseAbandonedItems(raw: string | null | undefined): AbandonedIt
   }
 }
 
+/** The catalog's own names: each product's name and each variant's label, in the store's primary language. */
+export interface CatalogNames {
+  products: ReadonlyMap<string, string>;
+  variants: ReadonlyMap<string, string>;
+}
+
+/**
+ * What the shopper was buying, named by the catalog — as an order line is —
+ * so the merchant follows up in the store's language whatever language the
+ * shopper browsed in. Anything the catalog cannot name — a product or variant
+ * it no longer has, a label sent without a variant — keeps the storefront's
+ * text: this is a lead to follow up, so nothing the shopper chose is dropped.
+ */
+export function withCatalogNames<T extends Pick<UpsertAbandonedOrderData, "items" | "productId" | "productName" | "variantId" | "variantLabel">>(
+  data: T,
+  catalog: CatalogNames,
+): T {
+  const name = (productId: string | undefined, fallback: string | undefined) =>
+    (productId === undefined ? undefined : catalog.products.get(productId)) ?? fallback;
+  const label = (variantId: string | null | undefined, fallback: string | null | undefined) =>
+    (variantId ? catalog.variants.get(variantId) : undefined) ?? fallback;
+  return {
+    ...data,
+    ...(data.productId === undefined ? {} : { productName: name(data.productId, data.productName) }),
+    ...(data.variantId === undefined ? {} : { variantLabel: label(data.variantId, data.variantLabel) ?? undefined }),
+    ...(data.items === undefined
+      ? {}
+      : {
+          items: data.items.map((item) => ({
+            ...item,
+            productName: name(item.productId, item.productName)!,
+            variantLabel: label(item.variantId, item.variantLabel),
+          })),
+        }),
+  };
+}
+
+/** The catalog names for the products and variants a checkout mentions. */
+async function loadCatalogNames(
+  db: AppDb,
+  data: Pick<UpsertAbandonedOrderData, "items" | "productId" | "variantId">,
+): Promise<CatalogNames> {
+  const productIds = [...new Set([data.productId, ...(data.items ?? []).map((item) => item.productId)])].filter(
+    (id): id is string => !!id,
+  );
+  const variantIds = [...new Set([data.variantId, ...(data.items ?? []).map((item) => item.variantId)])].filter(
+    (id): id is string => !!id,
+  );
+  const [productRows, variantRows] = await Promise.all([
+    Promise.all(
+      chunkIds(productIds).map((chunk) =>
+        db.select({ id: products.id, name: products.name }).from(products).where(inArray(products.id, chunk)).all(),
+      ),
+    ),
+    Promise.all(
+      chunkIds(variantIds).map((chunk) =>
+        db
+          .select({ id: productVariants.id, variations: productVariants.variations })
+          .from(productVariants)
+          .where(inArray(productVariants.id, chunk))
+          .all(),
+      ),
+    ),
+  ]);
+  return {
+    products: new Map(productRows.flat().map((row) => [row.id, row.name])),
+    variants: new Map(variantRows.flat().map((row) => [row.id, variantLabel(variantSelection(row))])),
+  };
+}
+
 export interface AbandonedOrderFilters {
   status?: (typeof abandonedOrders.$inferSelect)["status"];
   search?: string;
@@ -142,7 +215,7 @@ export async function upsertAbandonedOrder(
 ): Promise<string> {
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
-  const product = deriveAbandonedProductColumns(data);
+  const product = deriveAbandonedProductColumns(withCatalogNames(data, await loadCatalogNames(db, data)));
 
   await db
     .insert(abandonedOrders)

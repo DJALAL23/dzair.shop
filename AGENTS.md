@@ -160,8 +160,8 @@ other is how these drift.
   with it. A new translatable resource needs its own trigger. Variant options
   are translated on their product, keyed by source text (`option:[…]`); a
   language renames `variantOptions` and `variations` together
-  (`translateOptions`), and order lines always take the catalog's
-  primary-language names, never the storefront's text.
+  (`translateOptions`), and order lines and abandoned checkouts always take
+  the catalog's primary-language names, never the storefront's text.
 - **Theme text edits are keyed by theme** (`store_content_overrides`,
   `defineTheme({ key })`), and a storefront only receives them when its SDK
   client passes `theme`. Renaming a theme's key orphans its merchant edits.

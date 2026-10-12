@@ -38,24 +38,14 @@ export function orderStorePages(pages: StorePageSummary[]): StorePageSummary[] {
 }
 
 /**
- * The store's own language first, then the other two — never omitted. Seeding
- * always writes all three locales, so every tab has *something* to show; the
- * store's own language is simply the one that matters, and the other two are
- * "used only if you switch your store language" (plan §7/§10).
+ * A page needs the merchant's attention while any of the store's languages
+ * still shows the untouched template, or has no text written yet. Languages
+ * the store has not added never count: their seeded text is never shown.
  */
-export function orderedLocales(storeLocale: PageLocale): PageLocale[] {
-  return [storeLocale, ...PAGE_LOCALES.filter((l) => l !== storeLocale)];
-}
-
-/**
- * A page still needs the merchant's attention when ANY of its saved locales
- * is still the untouched template (source='template') — plan D8. A page with
- * zero translations (should not happen post-seed, but a defensive read)
- * counts as needing attention too, since there is nothing to show yet.
- */
-export function pageNeedsReview(page: StorePageSummary): boolean {
-  if (page.translations.length === 0) return true;
-  return page.translations.some((t) => t.source === "template");
+export function pageNeedsReview(page: StorePageSummary, locales: readonly PageLocale[]): boolean {
+  return locales.some(
+    (locale) => page.translations.find((translation) => translation.locale === locale)?.source !== "merchant",
+  );
 }
 
 const KIND_LABEL_KEYS: Record<StorePageKind, string> = {

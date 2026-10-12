@@ -22,7 +22,6 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { RICH_TEXT_MAX_CHARS } from "../../../../../cod-shared/lib/rich-text";
 import {
   isValidPageSlug,
-  orderedLocales,
   pageKindLabelKey,
   localeLabelKey,
   storePagesErrorMessage,
@@ -35,6 +34,7 @@ import {
   updateStorePage,
 } from "@/features/store-pages/api";
 import type { PageLocale, StorePageDetail, StorePageKind } from "@/features/store-pages/types";
+import type { StoreLanguage } from "@/features/settings/types";
 import {
   Alert,
   Badge,
@@ -52,7 +52,8 @@ const PageBodyEditor = lazy(() => import("./PageBodyEditor"));
 
 interface PageEditorProps {
   pageId: string;
-  storeLang: PageLocale;
+  /** The store's languages, primary first: one tab each. */
+  languages: StoreLanguage[];
   storefrontBaseUrl: string;
   onChanged: (page: StorePageDetail) => void;
   onDeleted: (pageId: string) => void;
@@ -89,7 +90,7 @@ function stripHtml(html: string): string {
 
 export function PageEditor({
   pageId,
-  storeLang,
+  languages,
   storefrontBaseUrl,
   onChanged,
   onDeleted,
@@ -99,6 +100,7 @@ export function PageEditor({
   const identity = useIdentity();
   const confirm = useConfirmDialog();
   const canManage = canScope(identity, SCOPES.STORE_PAGES_MANAGE);
+  const storeLang = languages.find((language) => language.primary)?.locale ?? languages[0]!.locale;
 
   const [page, setPage] = useState<StorePageDetail | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
@@ -143,6 +145,8 @@ export function PageEditor({
       }
     })();
   }, [pageId, storeLang]);
+
+  const activeLanguage = languages.find((language) => language.locale === locale);
 
   const currentDraft = drafts[locale];
 
@@ -381,9 +385,8 @@ export function PageEditor({
             {/* Language Segmented Control Bar */}
             <div className="border-b border-border/70 bg-muted/20 p-2 sm:px-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-1 rounded-lg bg-card p-1 border border-border/70 shadow-2xs">
-                {orderedLocales(storeLang).map((l) => {
+                {languages.map(({ locale: l, primary: isStorePrimary, published }) => {
                   const isActive = locale === l;
-                  const isStorePrimary = l === storeLang;
                   const bodyState = page.bodies[l]?.source ?? "template";
 
                   return (
@@ -407,6 +410,11 @@ export function PageEditor({
                           {t("editor.primary_language_badge")}
                         </span>
                       )}
+                      {!published && (
+                        <span className="rounded bg-muted px-1.5 py-0.2 text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {t("editor.unpublished_language_badge")}
+                        </span>
+                      )}
                       {!isActive && (
                         <span
                           className={`size-1.5 rounded-full ${
@@ -423,7 +431,9 @@ export function PageEditor({
               <div className="text-xs text-muted-foreground hidden sm:block">
                 {locale === storeLang
                   ? t("editor.body_own_language_hint")
-                  : t("editor.body_optional_hint", { locale: t(localeLabelKey(locale)) })}
+                  : activeLanguage?.published
+                    ? t("editor.body_published_hint", { locale: t(localeLabelKey(locale)) })
+                    : t("editor.body_unpublished_hint", { locale: t(localeLabelKey(locale)) })}
               </div>
             </div>
 

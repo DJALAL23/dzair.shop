@@ -1528,8 +1528,9 @@ export const storePages = sqliteTable("store_pages", {
 /**
  * One locale of one page. Composite primary key `(pageId, locale)`.
  *
- * A store serves exactly one locale — `stores.lang` — but all three are seeded
- * so switching the store language never reveals a blank policy page.
+ * Legal pages are seeded in every supported language, so adding or publishing
+ * a store language never reveals a blank policy page. The storefront serves a
+ * page in the requested published language, else the primary.
  */
 export const storePageTranslations = sqliteTable("store_page_translations", {
   pageId: text("page_id")
