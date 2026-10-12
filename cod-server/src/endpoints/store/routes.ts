@@ -11,6 +11,7 @@ import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import * as h from "./handlers";
+import { THEME_KEY_RE } from "../../../../cod-shared/i18n/content-overrides";
 import { storeOrderSchema, storeReviewSchema, validateCartSchema } from "./validation";
 import {
   StoreConfigSchema,
@@ -37,6 +38,14 @@ const countEnvelope = <T extends z.ZodType>(itemSchema: T) =>
   );
 
 // ─── Request schemas ──────────────────────────────────────────────────────────
+
+const configQuerySchema = z.object({
+  theme: z.string().regex(THEME_KEY_RE).optional().openapi({
+    description:
+      "The requesting theme's key (`defineTheme({ key })`). Its text edits ride along as `contentOverrides`; without it there are none.",
+    example: "theme-00",
+  }),
+});
 
 const productsQuerySchema = z.object({
   featured: z.enum(["true", "false"]).optional().openapi({
@@ -95,6 +104,7 @@ const getStoreConfigRoute = defineRoute({
   description:
     "Get store settings used by the storefront (theme, locale, branding).",
   operationId: "getStoreConfig",
+  query: configQuerySchema,
   responses: {
     200: {
       description: "Store configuration",

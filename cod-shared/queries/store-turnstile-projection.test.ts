@@ -44,6 +44,7 @@ function makeDb(rows: unknown[]) {
       innerJoin: () => c,
       orderBy: () => c,
       get: vi.fn(async () => value),
+      all: vi.fn(async () => value),
       then: (resolve: (v: unknown) => void) => resolve(value),
     };
     return c;
@@ -61,6 +62,7 @@ describe("getStoreConfig turnstile projection", () => {
       undefined,
       [],
       undefined,
+      [], // store_locales: the primary only
     ]);
 
     const config = await getStoreConfig(db, "store-1");
@@ -78,6 +80,7 @@ describe("getStoreConfig turnstile projection", () => {
       { enabled: true, siteKey: "0x4AAA-site" },
       [],
       undefined,
+      [], // store_locales: the primary only
     ]);
 
     const config = await getStoreConfig(db, "store-1");
@@ -87,7 +90,7 @@ describe("getStoreConfig turnstile projection", () => {
   });
 
   it("disabled turnstile row → turnstileEnabled=false and siteKey hidden", async () => {
-    const db = makeDb([STORE_ROW, undefined, undefined, { enabled: false, siteKey: "0x4AAA-site" }, [], undefined]);
+    const db = makeDb([STORE_ROW, undefined, undefined, { enabled: false, siteKey: "0x4AAA-site" }, [], undefined, []]);
 
     const config = await getStoreConfig(db, "store-1");
 
@@ -103,6 +106,7 @@ describe("getStoreConfig turnstile projection", () => {
       { enabled: true, siteKey: "0x4AAA-site", secretKey: "0x4AAA-secret" },
       [],
       undefined,
+      [], // store_locales: the primary only
     ]);
 
     const config = await getStoreConfig(db, "store-1");

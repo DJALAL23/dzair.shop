@@ -1,69 +1,77 @@
 /**
- * A store's overrides of its theme's storefront text, one map per language
- * (ADR 0005): `{ "ar": { "heroTitle": "…" }, "fr": { "heroTitle": "…" } }`.
+ * A store's edits to a theme's storefront text, per theme and per language
+ * (ADR 0005): the merchant's wording for a key the theme's content pack
+ * declares, such as `heroTitle`.
  *
- * The theme owns the vocabulary (its content pack's keys); the store owns the
- * values. Stored as JSON in `stores.content_overrides_json`. Switching or adding
- * a language never mixes languages: each language reads only its own map.
+ * Like Shopify's theme content, edits belong to the theme that declared the
+ * key: switching themes never applies one theme's wording to another theme's
+ * keys. Stored one row per key (`store_content_overrides`), so two editors
+ * changing different keys never overwrite each other.
  */
-import { STORE_LOCALES, type StoreLocale } from "./locales";
+import type { StoreLocale } from "./locales";
 
-export type ContentOverrides = Partial<Record<StoreLocale, Record<string, string>>>;
+/** One language's edits: key → text. */
+export type LocaleOverrides = Record<string, string>;
 
-/** Caps that keep one store row small; a pack has a few hundred keys. */
+/** Every served language's edits: `{ ar: { heroTitle: "…" } }`. */
+export type ContentOverrides = Partial<Record<StoreLocale, LocaleOverrides>>;
+
+/** A pack has a few hundred keys; the caps leave room and bound one read. */
 export const CONTENT_OVERRIDE_LIMITS = { keysPerLocale: 1000, keyLength: 100, valueLength: 5000 } as const;
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 /**
- * Read the stored column. Never throws: malformed JSON, unknown languages,
- * non-string values, over-long entries and `__proto__` are dropped, so a bad
- * row degrades to the theme's pack instead of breaking a storefront.
+ * A theme's key (`defineTheme({ key })` in `@codflow/theme`): lowercase
+ * kebab-case, at most 64 characters. Mirrored by `@codflow/theme` and guarded
+ * by `scripts/check-platform-parity.mjs`.
  */
-export function parseContentOverrides(json: string | null | undefined): ContentOverrides {
-  if (!json) return {};
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch {
-    return {};
-  }
-  if (!isPlainObject(parsed)) return {};
-  const result: ContentOverrides = {};
-  for (const locale of STORE_LOCALES) {
-    const entries = Object.hasOwn(parsed, locale) ? parsed[locale] : undefined;
-    if (!isPlainObject(entries)) continue;
-    const kept: Record<string, string> = {};
-    let count = 0;
-    for (const [key, value] of Object.entries(entries)) {
-      if (count >= CONTENT_OVERRIDE_LIMITS.keysPerLocale) break;
-      if (
-        key === "__proto__" ||
-        key.length === 0 ||
-        key.length > CONTENT_OVERRIDE_LIMITS.keyLength ||
-        typeof value !== "string" ||
-        value.length > CONTENT_OVERRIDE_LIMITS.valueLength
-      ) {
-        continue;
-      }
-      kept[key] = value;
-      count += 1;
-    }
-    result[locale] = kept;
-  }
-  return result;
+export const THEME_KEY_RE = /^(?=.{1,64}$)[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
+export function isThemeKey(value: unknown): value is string {
+  return typeof value === "string" && THEME_KEY_RE.test(value);
 }
 
-/** Only the languages a store serves reach its storefront. */
-export function overridesForLocales(
-  overrides: ContentOverrides,
+/** Whether `key` may name an override: non-empty, bounded, never a prototype key. */
+export function isOverrideKey(key: string): boolean {
+  return key.length > 0 && key.length <= CONTENT_OVERRIDE_LIMITS.keyLength && key !== "__proto__";
+}
+
+/**
+ * Group stored rows into one map per language, in the order `locales` lists
+ * them. Rows for any other language are left out — an unpublished language's
+ * drafts never reach a shopper.
+ */
+export function groupOverrides(
+  rows: readonly { locale: string; key: string; value: string }[],
   locales: readonly StoreLocale[],
 ): ContentOverrides {
   const result: ContentOverrides = {};
   for (const locale of locales) {
-    const entries = overrides[locale];
-    if (entries !== undefined) result[locale] = entries;
+    const entries = rows.filter((row) => row.locale === locale).map((row) => [row.key, row.value] as const);
+    if (entries.length > 0) result[locale] = Object.fromEntries(entries);
   }
   return result;
+}
+
+/**
+ * Apply a JSON Merge Patch (RFC 7396) to one language's edits: a string sets
+ * the key, `null` removes it, an absent key is untouched. Returns the keys to
+ * write and to delete, and the language's key count afterwards so a caller can
+ * enforce `keysPerLocale` before writing anything.
+ */
+export function planOverridePatch(
+  existingKeys: readonly string[],
+  patch: Readonly<Record<string, string | null>>,
+): { set: [string, string][]; remove: string[]; keyCount: number } {
+  const keys = new Set(existingKeys);
+  const set: [string, string][] = [];
+  const remove: string[] = [];
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) {
+      if (keys.delete(key)) remove.push(key);
+    } else {
+      keys.add(key);
+      set.push([key, value]);
+    }
+  }
+  return { set, remove, keyCount: keys.size };
 }

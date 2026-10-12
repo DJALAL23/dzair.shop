@@ -139,6 +139,10 @@ export {
 // ─── Store & Storefront ───────────────────────────────────────────────────────
 
 export {
+  StoreLocaleEnum,
+  ContentOverridesSchema,
+  StoreLanguageSchema,
+  StorefrontLanguageSchema,
   StoreSchema,
   StorePixelConfigSchema,
   StoreProductImageSchema,

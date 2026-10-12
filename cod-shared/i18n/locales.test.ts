@@ -6,9 +6,8 @@ import {
   STORE_LOCALE_INFO,
   isStoreLocale,
   localeChain,
+  orderLocales,
   pickByLocale,
-  storeLocales,
-  textDirection,
   type StoreLocale,
 } from "./locales";
 
@@ -21,9 +20,9 @@ describe("the language registry", () => {
   });
 
   it("knows Arabic is right-to-left and the others are not", () => {
-    expect(textDirection("ar")).toBe("rtl");
-    expect(textDirection("fr")).toBe("ltr");
-    expect(textDirection("en")).toBe("ltr");
+    expect(STORE_LOCALE_INFO.ar.direction).toBe("rtl");
+    expect(STORE_LOCALE_INFO.fr.direction).toBe("ltr");
+    expect(STORE_LOCALE_INFO.en.direction).toBe("ltr");
   });
 
   it("accepts only supported codes", () => {
@@ -38,23 +37,22 @@ describe("the language registry", () => {
   });
 });
 
-describe("storeLocales", () => {
-  it("is the primary alone when nothing else is enabled", () => {
-    expect(storeLocales("fr", null)).toEqual(["fr"]);
-    expect(storeLocales("fr", [])).toEqual(["fr"]);
+describe("orderLocales", () => {
+  it("is the primary alone when nothing else is listed", () => {
+    expect(orderLocales("fr", [])).toEqual(["fr"]);
   });
 
   it("puts the primary first, then the others in registry order", () => {
-    expect(storeLocales("en", ["fr", "ar", "en"])).toEqual(["en", "ar", "fr"]);
+    expect(orderLocales("en", ["fr", "ar", "en"])).toEqual(["en", "ar", "fr"]);
   });
 
-  it("always serves the primary, drops unknown and repeated entries", () => {
+  it("always includes the primary, drops unknown and repeated entries", () => {
     fc.assert(
       fc.property(locale, fc.array(fc.oneof(locale, fc.string(), fc.integer())), (primary, enabled) => {
-        const result = storeLocales(primary, enabled);
+        const result = orderLocales(primary, enabled);
         expect(result[0]).toBe(primary);
         expect(new Set(result).size).toBe(result.length);
-        expect(result.every((code) => isStoreLocale(code))).toBe(true);
+        expect(result.every((code: string) => isStoreLocale(code))).toBe(true);
         for (const code of result.slice(1)) expect(enabled).toContain(code);
       }),
       { numRuns: 1000 },
@@ -63,8 +61,8 @@ describe("storeLocales", () => {
 });
 
 describe("localeChain and pickByLocale", () => {
-  it("looks at the requested language, then the primary, then the platform default", () => {
-    expect(localeChain("en", "fr")).toEqual(["en", "fr", "ar"]);
+  it("looks at the requested language, then the primary, each once", () => {
+    expect(localeChain("en", "fr")).toEqual(["en", "fr"]);
     expect(localeChain("ar", "ar")).toEqual(["ar"]);
   });
 

@@ -1,59 +1,99 @@
 /**
- * The store row as settings: what the dashboard reads and how a settings save
- * becomes a column update. Pure — no database access — so every caller (route
- * handlers, tests, future editors) shares one mapping.
+ * A store's settings and languages as the dashboard and storefront see them.
+ * Pure — no database access — so every caller (route handlers, tests, future
+ * editors) shares one set of rules (ADR 0005).
+ *
+ * The rules, after Shopify's shop locales: a store has one primary language
+ * (`stores.lang`), always published; any other language it has added is
+ * published (shown to shoppers) or not (being translated).
  */
 import type { stores } from "../db/schema";
-import { parseContentOverrides, type ContentOverrides } from "../i18n/content-overrides";
-import { parseEnabledLocales, storeLocales, type StoreLocale } from "../i18n/locales";
+import { STORE_LOCALE_INFO, isStoreLocale, orderLocales, type StoreLocale, type StoreLocaleInfo } from "../i18n/locales";
 
-type StoreUpdate = Partial<typeof stores.$inferInsert>;
 type StoreRow = typeof stores.$inferSelect;
 
+/** One stored `store_locales` row, as written. */
+export interface LocaleRow {
+  locale: StoreLocale;
+  published: boolean;
+}
+
+/** A language as the dashboard lists it. */
+export interface StoreLanguage extends LocaleRow {
+  primary: boolean;
+}
+
+export type StoreSettings = StoreRow & { languages: StoreLanguage[] };
+
 /**
- * The store as the dashboard sees it: the language columns parsed, never raw
- * JSON. `enabledLocales` always starts with the primary language.
+ * The store's languages: the primary first and always published, then the
+ * others in registry order. Unknown codes are dropped, so a stray row can
+ * never add a language the platform does not support or hide the primary.
  */
-export type StoreSettings = Omit<StoreRow, "enabledLocalesJson" | "contentOverridesJson"> & {
-  enabledLocales: StoreLocale[];
-  contentOverrides: ContentOverrides;
-};
+export function storeLanguages(
+  primary: StoreLocale,
+  rows: readonly { locale: string; published: boolean }[],
+): StoreLanguage[] {
+  const published = new Map<StoreLocale, boolean>();
+  for (const row of rows) if (isStoreLocale(row.locale)) published.set(row.locale, row.published);
+  return orderLocales(primary, [...published.keys()]).map((locale) => ({
+    locale,
+    published: locale === primary || published.get(locale) === true,
+    primary: locale === primary,
+  }));
+}
+
+/** What shoppers are served: the published languages, primary first. */
+export function servedLocales(languages: readonly StoreLanguage[]): StoreLocale[] {
+  return languages.filter((language) => language.published).map((language) => language.locale);
+}
+
+/** The served languages as a storefront needs them: code, name, direction. */
+export function servedLanguageInfo(languages: readonly StoreLanguage[]): StoreLocaleInfo[] {
+  return servedLocales(languages).map((locale) => STORE_LOCALE_INFO[locale]);
+}
+
+export function toStoreSettings(
+  row: StoreRow,
+  localeRows: readonly { locale: string; published: boolean }[],
+): StoreSettings {
+  return { ...row, languages: storeLanguages(row.lang, localeRows) };
+}
 
 /** What a settings save may change about languages, beside the plain columns. */
 export interface StoreLanguageInput {
   lang?: StoreLocale;
-  enabledLocales?: readonly StoreLocale[];
-  contentOverrides?: ContentOverrides;
+  /** The store's whole language list; replaces the stored one. */
+  languages?: readonly LocaleRow[];
 }
 
-export function toStoreSettings(row: StoreRow): StoreSettings {
-  const { enabledLocalesJson, contentOverridesJson, ...settings } = row;
-  return {
-    ...settings,
-    enabledLocales: storeLocales(row.lang, parseEnabledLocales(enabledLocalesJson)),
-    contentOverrides: parseContentOverrides(contentOverridesJson),
-  };
-}
+export type LanguagePlan =
+  | { ok: true; rows: LocaleRow[] | null }
+  | { ok: false; reason: "primary-not-published" };
 
 /**
- * The column update for a settings save. The primary language is always
- * served: changing `lang` adds it to the enabled languages, and an
- * `enabledLocales` list that leaves it out gets it back. `contentOverrides`
- * replaces the whole map, like every other settings object.
+ * The `store_locales` rows a settings save leaves behind, or `null` when it
+ * does not touch languages.
+ *
+ * - A `languages` list replaces the stored one, and must publish the primary
+ *   (the new one when `lang` changes in the same save): a list that would
+ *   leave shoppers without the store's own language is refused, never fixed
+ *   up silently.
+ * - `lang` alone keeps every language and publishes the new primary.
  */
-export function storeSettingsUpdate<T extends StoreLanguageInput>(
-  input: T,
-  current: Pick<StoreRow, "lang" | "enabledLocalesJson">,
-): Omit<T, "enabledLocales" | "contentOverrides"> & StoreUpdate {
-  const { enabledLocales, contentOverrides, ...columns } = input;
-  const update: Omit<T, "enabledLocales" | "contentOverrides"> & StoreUpdate = { ...columns };
-  if (input.lang !== undefined || enabledLocales !== undefined) {
-    const primary = input.lang ?? current.lang;
-    const wanted = enabledLocales ?? storeLocales(current.lang, parseEnabledLocales(current.enabledLocalesJson));
-    update.enabledLocalesJson = JSON.stringify(storeLocales(primary, wanted));
+export function planStoreLanguages(
+  input: StoreLanguageInput,
+  current: { lang: StoreLocale; rows: readonly LocaleRow[] },
+): LanguagePlan {
+  if (input.lang === undefined && input.languages === undefined) return { ok: true, rows: null };
+  const primary = input.lang ?? current.lang;
+  if (input.languages !== undefined) {
+    const wanted = new Map(input.languages.map((row) => [row.locale, row.published]));
+    if (wanted.get(primary) !== true) return { ok: false, reason: "primary-not-published" };
+    return { ok: true, rows: rowsOf(storeLanguages(primary, input.languages)) };
   }
-  if (contentOverrides !== undefined) {
-    update.contentOverridesJson = JSON.stringify(contentOverrides);
-  }
-  return update;
+  return { ok: true, rows: rowsOf(storeLanguages(primary, current.rows)) };
 }
+
+const rowsOf = (languages: readonly StoreLanguage[]): LocaleRow[] =>
+  languages.map(({ locale, published }) => ({ locale, published }));

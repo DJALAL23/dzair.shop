@@ -59,10 +59,6 @@ function storeRow(overrides: Record<string, any> = {}) {
     // The widget config sits after it, again last in schema order. NULL is
     // "no widget", which is what every store reads until it configures one.
     whatsappWidgetJson: null,
-    // The language columns close the table (migration 0035): NULL is "the
-    // primary language only, no overrides".
-    enabledLocalesJson: null,
-    contentOverridesJson: null,
     ...overrides,
   };
 }
@@ -107,6 +103,7 @@ describe("Stores routes (OpenAPIHono)", () => {
     app.onError(errorHandler);
     app.route("/api/stores", storesRouter);
     vi.clearAllMocks();
+    vi.mocked(queries.listStoreLocales).mockResolvedValue([{ locale: "ar", published: true }]);
   });
 
   describe("GET /api/stores/me", () => {
@@ -175,6 +172,7 @@ describe("Stores routes (OpenAPIHono)", () => {
         expect.anything(),
         expect.anything(),
         expect.objectContaining({ cartEnabled: true }),
+        null,
       );
     });
 
@@ -198,6 +196,7 @@ describe("Stores routes (OpenAPIHono)", () => {
           freeShippingThreshold: 5000,
           cartShippingMode: "default_profile",
         }),
+        null,
       );
     });
 
@@ -220,6 +219,7 @@ describe("Stores routes (OpenAPIHono)", () => {
         expect.anything(),
         expect.anything(),
         expect.objectContaining({ domain: "shop.example.com" }),
+        null,
       );
     });
 

@@ -18,8 +18,9 @@ import {
   asc,
   inArray,
 } from "drizzle-orm";
-import { overridesForLocales, parseContentOverrides } from "../i18n/content-overrides";
-import { parseEnabledLocales, storeLocales } from "../i18n/locales";
+import { groupOverrides } from "../i18n/content-overrides";
+import { servedLanguageInfo, servedLocales, storeLanguages } from "../stores/settings";
+import { listContentOverrides, listStoreLocales } from "./stores";
 import {
   products,
   productCategories,
@@ -111,10 +112,15 @@ export interface StoreOrderData {
   userAgent?: string;
 }
 
-export async function getStoreConfig(db: AppDb, storeId: string) {
+/**
+ * The storefront's view of the store. `themeKey` names the theme asking: its
+ * text edits ride along as `contentOverrides`. Without one there are none —
+ * edits belong to the theme that declares their keys (ADR 0005).
+ */
+export async function getStoreConfig(db: AppDb, storeId: string, themeKey?: string) {
   const store = await db.select().from(stores).where(eq(stores.id, storeId)).get();
   if (!store) return null;
-  const [tracking, otpRow, turnstileRow, pages, legalContact] = await Promise.all([
+  const [tracking, otpRow, turnstileRow, pages, legalContact, localeRows, overrideRows] = await Promise.all([
     // Which pixel this storefront loads is resolved in one place for every
     // sender — see queries/tracking-config.ts. The public accessor cannot
     // return the Conversions API token, which is what keeps it out of the
@@ -136,6 +142,8 @@ export async function getStoreConfig(db: AppDb, storeId: string) {
     // rather than costing a second round trip per page view (plan D6/R7).
     getFooterPages(db, storeId, store.lang as PageLocale),
     getPublicLegalContact(db, storeId),
+    listStoreLocales(db, storeId),
+    themeKey === undefined ? [] : listContentOverrides(db, storeId, themeKey),
   ]);
   // The raw policy column never leaves the server. This function spreads the
   // whole store row, so a column is public the moment it exists unless it is
@@ -144,22 +152,16 @@ export async function getStoreConfig(db: AppDb, storeId: string) {
   //
   // The storefront API key is the credential the caller already presented; it
   // has no business in a payload a theme may hand to templates.
-  const {
-    checkoutFormJson,
-    whatsappWidgetJson,
-    enabledLocalesJson,
-    contentOverridesJson,
-    storeApiKey,
-    ...publicStore
-  } = store;
-  // The languages the storefront serves, primary first, and only their text
-  // overrides — a disabled language's drafts never reach a shopper (ADR 0005).
-  const locales = storeLocales(store.lang, parseEnabledLocales(enabledLocalesJson));
+  const { checkoutFormJson, whatsappWidgetJson, storeApiKey, ...publicStore } = store;
+  // The published languages, primary first, with what a theme needs to render
+  // each, and only their edits — an unpublished language's drafts never reach
+  // a shopper (ADR 0005).
+  const languages = storeLanguages(store.lang, localeRows);
 
   return {
     ...publicStore,
-    locales,
-    contentOverrides: overridesForLocales(parseContentOverrides(contentOverridesJson), locales),
+    locales: servedLanguageInfo(languages),
+    contentOverrides: groupOverrides(overrideRows, servedLocales(languages)),
     checkoutForm: parseCheckoutFormPolicy(checkoutFormJson),
     // Null whenever there is nothing to render — switched off, no number, or a
     // number that no longer normalises. The theme holds one rule about this

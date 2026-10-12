@@ -1,64 +1,71 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { CONTENT_OVERRIDE_LIMITS, overridesForLocales, parseContentOverrides } from "./content-overrides";
+import { groupOverrides, isOverrideKey, isThemeKey, planOverridePatch } from "./content-overrides";
 
-describe("parseContentOverrides", () => {
-  it("reads one map per supported language", () => {
-    expect(
-      parseContentOverrides('{"ar":{"heroTitle":"توصيل مجاني"},"fr":{"heroTitle":"Livraison gratuite"}}'),
-    ).toEqual({ ar: { heroTitle: "توصيل مجاني" }, fr: { heroTitle: "Livraison gratuite" } });
+describe("isThemeKey", () => {
+  it("accepts lowercase kebab-case keys up to 64 characters", () => {
+    for (const key of ["theme-00", "aurora", "a1-b2-c3", "x".repeat(64)]) expect(isThemeKey(key)).toBe(true);
   });
 
-  it.each([
-    ["null", null],
-    ["empty", ""],
-    ["malformed JSON", "{"],
-    ["an array", "[]"],
-    ["a string", '"hello"'],
-  ])("degrades %s to no overrides", (_name, json) => {
-    expect(parseContentOverrides(json)).toEqual({});
-  });
-
-  it("drops unknown languages, non-string values, empty and over-long keys and values, and __proto__", () => {
-    const long = "x".repeat(CONTENT_OVERRIDE_LIMITS.valueLength + 1);
-    const parsed = parseContentOverrides(
-      JSON.stringify({
-        de: { heroTitle: "Kostenlos" },
-        FR: { heroTitle: "Gratuit" },
-        ar: { heroTitle: "عنوان", count: 3, nested: { a: "b" }, "": "empty key", long },
-        fr: "not a map",
-      }).replace('"ar":{', '"ar":{"__proto__":"polluted",'),
-    );
-    expect(parsed).toEqual({ ar: { heroTitle: "عنوان" } });
-    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
-  });
-
-  it("never throws, and every kept value is a string under a supported language", () => {
-    fc.assert(
-      fc.property(fc.oneof(fc.string(), fc.json(), fc.jsonValue().map((v) => JSON.stringify(v))), (json) => {
-        const parsed = parseContentOverrides(json);
-        for (const [locale, entries] of Object.entries(parsed)) {
-          expect(["ar", "fr", "en"]).toContain(locale);
-          for (const value of Object.values(entries ?? {})) expect(typeof value).toBe("string");
-        }
-      }),
-      { numRuns: 2000 },
-    );
-  });
-
-  it("caps the number of keys per language", () => {
-    const many = Object.fromEntries(
-      Array.from({ length: CONTENT_OVERRIDE_LIMITS.keysPerLocale + 5 }, (_, i) => [`k${i}`, "v"]),
-    );
-    const parsed = parseContentOverrides(JSON.stringify({ ar: many }));
-    expect(Object.keys(parsed.ar ?? {})).toHaveLength(CONTENT_OVERRIDE_LIMITS.keysPerLocale);
+  it("refuses anything else", () => {
+    for (const key of ["", "Theme-00", "theme 00", "-theme", "theme-", "theme--00", "00-theme", "x".repeat(65), 7, null]) {
+      expect(isThemeKey(key)).toBe(false);
+    }
   });
 });
 
-describe("overridesForLocales", () => {
-  it("keeps only the languages a store serves", () => {
-    expect(
-      overridesForLocales({ ar: { a: "1" }, fr: { a: "2" }, en: { a: "3" } }, ["fr", "ar"]),
-    ).toEqual({ fr: { a: "2" }, ar: { a: "1" } });
+describe("isOverrideKey", () => {
+  it("refuses empty, over-long and prototype keys", () => {
+    expect(isOverrideKey("heroTitle")).toBe(true);
+    expect(isOverrideKey("x".repeat(100))).toBe(true);
+    for (const key of ["", "x".repeat(101), "__proto__"]) expect(isOverrideKey(key)).toBe(false);
+  });
+});
+
+describe("groupOverrides", () => {
+  it("groups rows per language, in the order given, leaving other languages out", () => {
+    const grouped = groupOverrides(
+      [
+        { locale: "ar", key: "heroTitle", value: "عنوان" },
+        { locale: "en", key: "heroTitle", value: "Draft" },
+        { locale: "fr", key: "heroTitle", value: "Titre" },
+        { locale: "fr", key: "promo", value: "Promo" },
+      ],
+      ["fr", "ar"],
+    );
+    expect(grouped).toEqual({ fr: { heroTitle: "Titre", promo: "Promo" }, ar: { heroTitle: "عنوان" } });
+    expect(Object.keys(grouped)).toEqual(["fr", "ar"]);
+  });
+
+  it("keeps a __proto__ row as data, never as a prototype", () => {
+    const grouped = groupOverrides([{ locale: "ar", key: "__proto__", value: "x" }], ["ar"]);
+    expect(Object.hasOwn(grouped.ar!, "__proto__")).toBe(true);
+    expect(({} as Record<string, unknown>).x).toBeUndefined();
+  });
+});
+
+describe("planOverridePatch — a JSON Merge Patch over one language", () => {
+  const key = fc.constantFrom<string>("a", "b", "c", "d", "e");
+
+  it("matches applying the patch to a plain map", () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(key),
+        fc.dictionary(key, fc.option(fc.string(), { nil: null })),
+        (existing, patch) => {
+          const plan = planOverridePatch(existing, patch);
+          const after = new Set(existing);
+          for (const [k, v] of Object.entries(patch)) v === null ? after.delete(k) : after.add(k);
+          expect(plan.keyCount).toBe(after.size);
+          expect(new Set(plan.set.map(([k]) => k))).toEqual(
+            new Set(Object.entries(patch).filter(([, v]) => v !== null).map(([k]) => k)),
+          );
+          expect(new Set(plan.remove)).toEqual(
+            new Set(Object.entries(patch).filter(([k, v]) => v === null && existing.includes(k)).map(([k]) => k)),
+          );
+        },
+      ),
+      { numRuns: 1000 },
+    );
   });
 });

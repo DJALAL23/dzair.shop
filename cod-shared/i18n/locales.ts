@@ -1,11 +1,13 @@
 /**
  * The storefront languages the platform supports — the single declaration
  * (ADR 0005). Every enum, validator and fallback rule for a *store's* language
- * reads this list; `@codflow/storefront` mirrors it, guarded by
- * `scripts/check-platform-parity.mjs`.
+ * reads this list. Storefronts never mirror it: `/store/config` sends each
+ * served language's code, name and direction, so a theme or SDK learns a new
+ * language from the server instead of from a release (ADR 0005).
  *
  * Adding a language is adding a row (then shipping its theme packs and
- * translations). Order is the order an editor or switcher lists them.
+ * translations). Codes are BCP 47 tags in canonical case. Order is the order
+ * an editor or switcher lists them.
  */
 export const STORE_LOCALES = ["ar", "fr", "en"] as const;
 
@@ -13,7 +15,7 @@ export type StoreLocale = (typeof STORE_LOCALES)[number];
 
 export interface StoreLocaleInfo {
   code: StoreLocale;
-  /** The language's name in itself, for a language switcher. */
+  /** The language's name in itself (its endonym), for a language switcher. */
   nativeName: string;
   direction: "rtl" | "ltr";
 }
@@ -24,49 +26,29 @@ export const STORE_LOCALE_INFO: Readonly<Record<StoreLocale, StoreLocaleInfo>> =
   en: { code: "en", nativeName: "English", direction: "ltr" },
 };
 
-/**
- * The platform's last-resort language: where a lookup lands when neither the
- * requested language nor the store's primary has a value. Matches the
- * `stores.lang` column default.
- */
+/** A new store's primary language. Matches the `stores.lang` column default. */
 export const DEFAULT_STORE_LOCALE: StoreLocale = "ar";
 
 export function isStoreLocale(value: unknown): value is StoreLocale {
   return typeof value === "string" && (STORE_LOCALES as readonly string[]).includes(value);
 }
 
-export function textDirection(locale: StoreLocale): "rtl" | "ltr" {
-  return STORE_LOCALE_INFO[locale].direction;
-}
-
 /**
- * The languages a store serves: its primary first, then every other enabled
- * language in registry order. The primary is always included, unknown or
- * repeated entries are dropped — a stored list can never take the primary
- * language away or add one the platform does not support.
+ * A store's languages in display order: the primary first, then the others in
+ * registry order. Unknown and repeated codes are dropped.
  */
-export function storeLocales(primary: StoreLocale, enabled: readonly unknown[] | null | undefined): StoreLocale[] {
-  const wanted = new Set<StoreLocale>((enabled ?? []).filter(isStoreLocale));
+export function orderLocales(primary: StoreLocale, locales: readonly unknown[]): StoreLocale[] {
+  const wanted = new Set<StoreLocale>(locales.filter(isStoreLocale));
   return [primary, ...STORE_LOCALES.filter((locale) => locale !== primary && wanted.has(locale))];
-}
-
-/** Read `stores.enabled_locales_json`; anything but a JSON array reads as "none stored". */
-export function parseEnabledLocales(json: string | null | undefined): unknown[] | null {
-  if (!json) return null;
-  try {
-    const parsed: unknown = JSON.parse(json);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
 }
 
 /**
  * Where to look, in order, when serving `requested` in a store: the requested
- * language, the store's primary, then the platform default — each once.
+ * language, then the store's primary — each once. `pickByLocale` continues
+ * with any language that has a value.
  */
 export function localeChain(requested: StoreLocale, primary: StoreLocale): StoreLocale[] {
-  return [...new Set<StoreLocale>([requested, primary, DEFAULT_STORE_LOCALE])];
+  return requested === primary ? [requested] : [requested, primary];
 }
 
 /**

@@ -33,8 +33,7 @@ Retrieve the current store's configuration. In this single-tenant architecture, 
 - **Branding:** `logoUrl`, `primaryColor`, `accentColor`, `bgColor`.
 - **Theme:** `themeId` (active theme slug).
 - **Typography:** `fontFamily`, `fontUrl`.
-- **Localization:** `lang` (primary language), `enabledLocales` (primary first), `currency`, `currencySymbol`.
-- **Content:** `contentOverrides` — storefront text overrides per language, `{ "ar": { "heroTitle": "…" } }`.
+- **Localization:** `lang` (primary language), `languages` — every language the store has added, primary first: `[{ "locale": "fr", "published": true, "primary": true }, …]` — `currency`, `currencySymbol`.
 - **SEO:** `metaTitle`, `metaDescription`, `ogImage`.
 - **Settings:** `announcementBar`, `reviewsEnabled`, `status`.
 - **Storefront key:** `storeApiKey` (plaintext; visible to the merchant in settings).
@@ -53,7 +52,23 @@ Update store configuration. Partial updates are supported; set nullable fields t
 }
 ```
 
-Field rules: hex colors accept 3–8 characters (including alpha); `lang` and `enabledLocales` take `"ar"`, `"fr"` or `"en"` (the primary is always kept enabled); `contentOverrides` replaces the stored map whole; URLs are validated; `metaTitle` ≤ 200, `metaDescription`/`announcementBar` ≤ 500 chars.
+Field rules: hex colors accept 3–8 characters (including alpha); `lang` takes `"ar"`, `"fr"` or `"en"` — set alone, it also adds and publishes that language; `languages` (`[{ "locale", "published" }]`) replaces the store's list, must publish the primary (the new one when `lang` changes in the same save), and removing a language removes its theme text edits; URLs are validated; `metaTitle` ≤ 200, `metaDescription`/`announcementBar` ≤ 500 chars.
+
+### GET /api/stores/me/content-overrides?theme=theme-00
+The store's edits to one theme's storefront text, per language, for every language it has added (drafts included): `{ "theme": "theme-00", "overrides": { "ar": { "heroTitle": "…" } } }`. Edits belong to the theme whose content pack declares the keys.
+
+**Authorization:** Admin role required (`requireAdmin()`)
+
+### PATCH /api/stores/me/content-overrides
+A JSON Merge Patch (RFC 7396) of one theme's text in one language — a string sets a key, `null` removes it, other keys are untouched:
+
+```json
+{ "theme": "theme-00", "locale": "fr", "values": { "heroTitle": "Livraison gratuite", "promoTitle": null } }
+```
+
+The language must be one the store has added. Caps: keys 1–100 characters, values ≤ 5000, at most 1000 edited keys per theme and language. Returns that language's edits after the patch.
+
+**Authorization:** Admin role required (`requireAdmin()`)
 
 ### GET /api/stores/pixel-config
 Retrieve the store's Meta pixel tracking configuration, or `null` when none has been configured yet.

@@ -141,6 +141,7 @@ const statements = [];
 
 // Store + API key
 statements.push(`INSERT OR REPLACE INTO stores (id, name, domain, theme_id, primary_color, accent_color, bg_color, font_family, lang, currency, currency_symbol, reviews_enabled, status, created_at, updated_at) VALUES ('${storeId}', 'متجر التطوير', NULL, 'theme01', '#7c3aed', '#f59e0b', '#f8f8f8', 'Cairo, sans-serif', 'ar', 'DZD', 'دج', 1, 'active', '${ts}', '${ts}')`);
+statements.push(`INSERT OR IGNORE INTO store_locales (store_id, locale, published, created_at) VALUES ('${storeId}', 'ar', 1, '${ts}')`);
 statements.push(`INSERT OR REPLACE INTO store_api_keys (id, store_id, key_hash, name, created_at) VALUES ('${keyId}', '${storeId}', '${keyHash}', 'default', '${ts}')`);
 
 // Categories

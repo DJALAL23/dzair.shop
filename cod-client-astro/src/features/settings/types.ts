@@ -1,5 +1,5 @@
 import type { StoreLocale } from "../../../../cod-shared/i18n/locales";
-import type { ContentOverrides } from "../../../../cod-shared/i18n/content-overrides";
+import type { LocaleRow, StoreLanguage } from "../../../../cod-shared/stores/settings";
 
 /** A store language (`cod-shared/i18n/locales.ts`). */
 export type StoreLang = StoreLocale;
@@ -19,10 +19,8 @@ export interface StoreConfig {
   fontUrl: string | null;
   /** The primary language: the storefront's language and first fallback. */
   lang: StoreLang;
-  /** The languages the store serves, primary first. */
-  enabledLocales: StoreLang[];
-  /** Storefront text overrides, one map per language. */
-  contentOverrides: ContentOverrides;
+  /** Every language the store has added, primary first, published or not. */
+  languages: StoreLanguage[];
   currency: string;
   currencySymbol: string;
   metaTitle: string | null;
@@ -53,8 +51,6 @@ export type UpdateStoreData = Partial<
     | "fontUrl"
     | "lang"
     | "currencySymbol"
-    | "enabledLocales"
-    | "contentOverrides"
     | "metaTitle"
     | "metaDescription"
     | "ogImage"
@@ -65,7 +61,10 @@ export type UpdateStoreData = Partial<
     | "cartShippingMode"
     | "status"
   >
->;
+> & {
+  /** Replaces the store's languages; must publish the primary. */
+  languages?: LocaleRow[];
+};
 
 /** Meta pixel tracking configuration. Absent until first saved. */
 export interface PixelConfig {

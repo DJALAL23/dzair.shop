@@ -12,15 +12,33 @@ import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
 export const StoreLocaleEnum = z.enum(STORE_LOCALES);
 
 /**
- * The store's overrides of its theme's storefront text, one map per language
- * (ADR 0005). Keys are the theme's content-pack keys.
+ * A store's edits to one theme's storefront text, one map per language
+ * (ADR 0005). Keys are that theme's content-pack keys.
  */
 export const ContentOverridesSchema = z
   .partialRecord(StoreLocaleEnum, z.record(z.string(), z.string()))
   .openapi({
-    description: "Storefront text overrides per language: { [language]: { [contentKey]: text } }",
+    description: "One theme's text edits per language: { [language]: { [contentKey]: text } }",
     example: { ar: { heroTitle: "توصيل مجاني لكل الولايات" }, fr: { heroTitle: "Livraison gratuite" } },
   });
+
+/** A language the store has added (`store_locales`). */
+export const StoreLanguageSchema = z
+  .object({
+    locale: StoreLocaleEnum,
+    published: z.boolean().openapi({ description: "Shown to shoppers. Always true for the primary." }),
+    primary: z.boolean(),
+  })
+  .openapi("StoreLanguage");
+
+/** A served language as a storefront needs it. */
+export const StorefrontLanguageSchema = z
+  .object({
+    code: z.string().openapi({ description: "BCP 47 language tag", example: "ar" }),
+    nativeName: z.string().openapi({ description: "The language's name in itself", example: "العربية" }),
+    direction: z.enum(["rtl", "ltr"]),
+  })
+  .openapi("StorefrontLanguage");
 
 export const StoreSchema = z
   .object({
@@ -77,11 +95,9 @@ export const StoreSchema = z
     }),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
-    enabledLocales: z.array(StoreLocaleEnum).openapi({
-      description: "The languages the store serves, primary first. Always contains `lang`.",
-      example: ["ar", "fr"],
+    languages: z.array(StoreLanguageSchema).openapi({
+      description: "Every language the store has added, primary first, published or not.",
     }),
-    contentOverrides: ContentOverridesSchema,
   })
   .openapi("Store", {
     description:
@@ -451,11 +467,12 @@ export const StoreConfigSchema = z
       description: "Google Fonts CSS URL override",
     }),
     lang: StoreLocaleEnum.openapi({ description: "The store's primary language", example: "ar" }),
-    locales: z.array(StoreLocaleEnum).openapi({
-      description: "The languages the storefront serves, primary first",
-      example: ["ar", "fr"],
+    locales: z.array(StorefrontLanguageSchema).openapi({
+      description: "The published languages, primary first",
     }),
-    contentOverrides: ContentOverridesSchema,
+    contentOverrides: ContentOverridesSchema.openapi({
+      description: "The requesting theme's text edits for the published languages; empty without `theme`",
+    }),
     currency: z.string().openapi({ example: "DZD" }),
     currencySymbol: z.string().openapi({ example: "دج" }),
     metaTitle: z.string().nullable(),

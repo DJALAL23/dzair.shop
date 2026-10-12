@@ -33,7 +33,8 @@ import type { PageLocale } from "../../../../cod-shared/legal/kinds";
 export async function getStoreConfig(c: Context<AppContext>) {
   const storeId = c.get("storeId")!;
   const db = getDb(c.env.DB);
-  const store = await queries.getStoreConfig(db, storeId);
+  const theme = (c.req as any).valid?.("query")?.theme ?? c.req.query("theme");
+  const store = await queries.getStoreConfig(db, storeId, theme);
   if (!store) {
     throw new NotFoundError("Store", storeId);
   }

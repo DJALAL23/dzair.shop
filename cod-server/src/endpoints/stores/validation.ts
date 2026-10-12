@@ -1,22 +1,46 @@
 import { z } from "zod";
 import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
-import { CONTENT_OVERRIDE_LIMITS } from "../../../../cod-shared/i18n/content-overrides";
+import {
+  CONTENT_OVERRIDE_LIMITS,
+  THEME_KEY_RE,
+  isOverrideKey,
+} from "../../../../cod-shared/i18n/content-overrides";
 
 const storeLocale = z.enum(STORE_LOCALES);
 
+export const themeKeySchema = z.string().regex(THEME_KEY_RE, "A theme key is lowercase kebab-case, at most 64 characters");
+
 /**
- * One language's text overrides: the theme's pack keys to strings, capped so a
- * store row stays small. The same caps the reader enforces
- * (`parseContentOverrides`), so nothing accepted here is dropped on read.
+ * The store's whole language list. Each language once; whether the primary is
+ * in it and published is checked against the primary the save leaves behind
+ * (`planStoreLanguages`), since `lang` may change in the same save.
  */
-const localeOverrides = z
-  .record(
-    z.string().min(1).max(CONTENT_OVERRIDE_LIMITS.keyLength).refine((key) => key !== "__proto__"),
-    z.string().max(CONTENT_OVERRIDE_LIMITS.valueLength),
-  )
-  .refine((entries) => Object.keys(entries).length <= CONTENT_OVERRIDE_LIMITS.keysPerLocale, {
-    message: `At most ${CONTENT_OVERRIDE_LIMITS.keysPerLocale} overrides per language`,
+const storeLanguages = z
+  .array(z.object({ locale: storeLocale, published: z.boolean() }))
+  .min(1)
+  .max(STORE_LOCALES.length)
+  .refine((rows) => new Set(rows.map((row) => row.locale)).size === rows.length, {
+    message: "Each language may appear once",
   });
+
+/**
+ * A JSON Merge Patch (RFC 7396) of one theme's text in one language: a string
+ * sets a key, `null` removes it.
+ */
+export const contentOverridesPatchSchema = z.object({
+  theme: themeKeySchema,
+  locale: storeLocale,
+  values: z
+    .record(
+      z.string().refine(isOverrideKey, `Keys are 1–${CONTENT_OVERRIDE_LIMITS.keyLength} characters`),
+      z.string().max(CONTENT_OVERRIDE_LIMITS.valueLength).nullable(),
+    )
+    .refine((values) => Object.keys(values).length <= CONTENT_OVERRIDE_LIMITS.keysPerLocale, {
+      message: `At most ${CONTENT_OVERRIDE_LIMITS.keysPerLocale} keys per language`,
+    }),
+});
+
+export const contentOverridesQuerySchema = z.object({ theme: themeKeySchema });
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{3,8}$/, "Invalid hex color");
 
@@ -40,15 +64,10 @@ export const updateStoreSchema = z.object({
   bgColor: hexColor.optional(),
   fontFamily: z.string().min(1).max(200).optional(),
   fontUrl: z.string().url().nullable().optional(),
-  /** The primary language. Changing it also enables it (it is always served). */
+  /** The primary language. Changing it alone also adds and publishes it. */
   lang: storeLocale.optional(),
-  /**
-   * The languages the store serves. The primary language is always served, so
-   * a list that leaves it out gets it back rather than failing.
-   */
-  enabledLocales: z.array(storeLocale).min(1).max(STORE_LOCALES.length).optional(),
-  /** Storefront text overrides per language; replaces the whole map. */
-  contentOverrides: z.partialRecord(storeLocale, localeOverrides).optional(),
+  /** Replaces the store's languages; must publish the primary. */
+  languages: storeLanguages.optional(),
   currencySymbol: z.string().min(1).max(10).optional(),
   metaTitle: z.string().max(200).nullable().optional(),
   metaDescription: z.string().max(500).nullable().optional(),

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, uniqueIndex, index, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index, primaryKey, foreignKey } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
 
@@ -858,7 +858,7 @@ export const stores = sqliteTable("stores", {
   /**
    * The store's primary language (`i18n/locales.ts`): the language its
    * storefront is served in, and the first fallback for every translated
-   * value. Always one of `enabledLocalesJson`'s languages (ADR 0005).
+   * value. Always a published row of `store_locales` (ADR 0005).
    */
   lang: text("lang", { enum: STORE_LOCALES }).notNull().default("ar"),
   currency: text("currency").notNull().default("DZD"),
@@ -940,25 +940,46 @@ export const stores = sqliteTable("stores", {
    * Last for the same positional reason as the columns above.
    */
   whatsappWidgetJson: text("whatsapp_widget_json"),
-
-  // ── Languages (ADR 0005, migration 0035) ─────────────────────────────────
-  /**
-   * The languages the store serves, as a JSON array of `STORE_LOCALES` codes.
-   * Read through `storeLocales(lang, …)`: the primary language is always
-   * served, and unknown entries are ignored. Null means "the primary only".
-   */
-  enabledLocalesJson: text("enabled_locales_json"),
-  /**
-   * The store's overrides of its theme's storefront text, one map per
-   * language: `{ "ar": { "heroTitle": "…" } }` (`i18n/content-overrides.ts`).
-   * Replaces the single-language `content_json` blob, which mixed languages
-   * the moment a store switched. Never exposed raw: `getStoreConfig` sends the
-   * parsed maps of the languages the store serves.
-   *
-   * Last, after `enabledLocalesJson`, for the positional reason above.
-   */
-  contentOverridesJson: text("content_overrides_json"),
 });
+
+/**
+ * The languages a store has added (ADR 0005, migration 0036) — Shopify's
+ * shop locales. A language is added unpublished, translated, then published;
+ * only published languages reach shoppers. The primary (`stores.lang`) always
+ * has a published row: the write path (`stores/languages.ts`) refuses
+ * anything else, and readers serve the primary regardless.
+ */
+export const storeLocales = sqliteTable("store_locales", {
+  storeId: text("store_id")
+    .notNull()
+    .references(() => stores.id, { onDelete: "cascade" }),
+  locale: text("locale", { enum: STORE_LOCALES }).notNull(),
+  published: integer("published", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.storeId, t.locale] }),
+}));
+
+/**
+ * A store's edits to a theme's storefront text, one row per theme, language
+ * and key (`i18n/content-overrides.ts`). Removing a language from the store
+ * removes its edits; unpublishing it only hides them.
+ */
+export const storeContentOverrides = sqliteTable("store_content_overrides", {
+  storeId: text("store_id").notNull(),
+  /** The theme that declares `key` (`@codflow/theme` `defineTheme({ key })`). */
+  themeKey: text("theme_key").notNull(),
+  locale: text("locale", { enum: STORE_LOCALES }).notNull(),
+  key: text("key").notNull(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.storeId, t.themeKey, t.locale, t.key] }),
+  language: foreignKey({
+    columns: [t.storeId, t.locale],
+    foreignColumns: [storeLocales.storeId, storeLocales.locale],
+  }).onDelete("cascade"),
+}));
 
 /**
  * API keys issued to Astro storefronts.
