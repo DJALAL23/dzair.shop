@@ -1,0 +1,69 @@
+---
+// ── Home page layout ────────────────────────────────────────────────────────
+// The home surface is composed: section order comes from the store's saved
+// page document, or the theme's shipped default when the store has none
+// (Phase 6 — cod-sdk/theme-sdk/20). The store's document is written by the
+// Codflow Cloud control plane (Studio phase), never by this runtime; the read
+// is `store.pageData.get("home")` (null = absent/failed → default).
+//
+// This file keeps the fixed chrome (StoreLayout) and the page's data graph:
+// ONE `reads` cache per render, shared by every section's `load` — the catalog
+// and the categories are still read once each no matter how many sections
+// consume them (`"catalog.products"` / `"catalog.categories"` in theme.ts).
+// ─────────────────────────────────────────────────────────────────────────────
+import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import InstanceView from "@codflow/theme/astro/InstanceView.astro";
+import { createReadCache } from "@codflow/theme/astro";
+import type { ThemeRenderContext } from "@codflow/theme";
+import { theme00 } from "@/theme/theme";
+import { resolveHomeDocument } from "@/theme/pages/home-document";
+import { getStoreClient } from "@/theme/sdk";
+
+// The store context comes from middleware (Astro.locals.store — Theme Zero S2).
+const { config, content, isRTL } = Astro.locals.store;
+const storefront = getStoreClient();
+
+// The store's saved home document, or null (absent / degraded read). The
+// decision — saved vs shipped default, including the zero-overlap fallback —
+// is one pure, unit-tested function (`home-document.ts`).
+const saved = await storefront.pageData.get("home");
+const decision = resolveHomeDocument(saved, theme00, content);
+if (decision.reason !== null) {
+  console.warn(
+    `[theme-00] home document: ${decision.source} (${decision.reason}); ` +
+      `issues: ${decision.issues.length}`,
+  );
+}
+if (decision.issues.length > 0) {
+  // Per-section reasons, not a count: "sections[3] unknown-type" is actionable,
+  // "the page degraded" is not.
+  console.warn(
+    `[theme-00] home page data degraded (${decision.issues.length}):`,
+    decision.issues.map(
+      (issue) => `${issue.path || "<document>"} ${issue.code}: ${issue.message}`,
+    ),
+  );
+}
+
+const context: ThemeRenderContext = {
+  store: config,
+  content,
+  isRTL,
+  url: Astro.url.pathname,
+};
+const reads = createReadCache();
+const sections = decision.result.page?.sections ?? [];
+---
+
+<StoreLayout>
+  {sections.map((section) => (
+    <InstanceView
+      instance={section}
+      theme={theme00}
+      context={context}
+      storefront={storefront}
+      reads={reads}
+    />
+  ))}
+</StoreLayout>
+

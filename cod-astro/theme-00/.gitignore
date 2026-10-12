@@ -1,0 +1,10 @@
+dist/
+node_modules/
+.astro/
+.wrangler/
+.wrangler-output/
+.dev.vars
+.vercel/
+.vercel
+.env*
+.DS_Store

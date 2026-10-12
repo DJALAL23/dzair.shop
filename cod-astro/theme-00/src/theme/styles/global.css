@@ -1,0 +1,560 @@
+/*
+ * ╔══════════════════════════════════════════════════════════════════════╗
+ * ║  CUSTOMIZE HERE                                                      ║
+ * ║  This is your main stylesheet. Feel free to edit any rule here.      ║
+ * ║  - Change radius, shadows, animations in @theme {}                   ║
+ * ║  - CSS custom properties in :root {} are overridden at runtime by    ║
+ * ║    StoreLayout (managed mode) — edit DEFAULT_CONFIG in lib/store.ts  ║
+ * ║    for the fallback values instead of changing :root directly.       ║
+ * ║  - All layout / utility classes below are safe to edit.              ║
+ * ╚══════════════════════════════════════════════════════════════════════╝
+ */
+@import "tailwindcss";
+
+@theme {
+  --color-primary: var(--clr-primary);
+  --color-accent: var(--clr-accent);
+  --color-bg: var(--clr-bg);
+  --color-surface: var(--clr-surface);
+  --color-border: var(--clr-border);
+  --color-text-main: var(--clr-text);
+  --color-text-muted: var(--clr-text-2);
+
+  --font-body: var(--font-body), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-card: 1.25rem;
+  --radius-input: 1rem;
+  --radius-btn: 1rem;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.03);
+  --shadow-lg: 0 12px 24px rgba(0,0,0,.08), 0 4px 8px rgba(0,0,0,.04);
+  --shadow-primary: 0 8px 24px color-mix(in srgb, var(--clr-primary) 25%, transparent);
+
+  --animate-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
+}
+
+/* ── CSS custom properties ───────────────────────────────────────────────── */
+/*
+ * --clr-primary, --clr-accent, --clr-bg, --font-body are injected at runtime
+ * by StoreLayout from the store config. DO NOT define them here — this CSS
+ * bundle is injected AFTER StoreLayout's inline <style>, so hardcoding them
+ * here would override the dynamic values and break managed-mode theming.
+ *
+ * To change defaults, edit DEFAULT_CONFIG in src/lib/store.ts.
+ *
+ * ╔══════════════════════════════════════════════════════════════════════════╗
+ * ║  ACCESSIBILITY REQUIREMENTS - CONTRAST VALIDATION                        ║
+ * ╚══════════════════════════════════════════════════════════════════════════╝
+ *
+ * CRITICAL: --clr-primary must provide at least 4.5:1 contrast ratio with 
+ * white text when used on small badges (9px-11px font sizes). This ensures
+ * WCAG AA compliance for accessibility.
+ *
+ * RECOMMENDED COLOR VALUES (luminance ≤0.4 for compliance):
+ * ✅ Safe choices:
+ *    - #0066cc (Blue, 7.2:1 contrast)    - Professional, trustworthy
+ *    - #059669 (Green, 4.6:1 contrast)   - Success, eco-friendly  
+ *    - #dc2626 (Red, 5.3:1 contrast)     - Urgent, sale pricing
+ *    - #7c2d12 (Brown, 8.9:1 contrast)   - Warm, premium feel
+ *    - #1e40af (Dark Blue, 8.6:1 contrast) - Corporate, reliable
+ *
+ * ⚠️  Borderline (use with caution):
+ *    - #ea580c (Orange, 4.5:1 contrast)  - Energetic but minimal compliance
+ *    - #9333ea (Purple, 4.7:1 contrast)  - Creative but close to threshold
+ *
+ * ❌ Avoid (insufficient contrast):
+ *    - #fbbf24 (Yellow, 1.4:1 contrast)  - Fails accessibility standards
+ *    - #06b6d4 (Cyan, 3.1:1 contrast)    - Too light for small text
+ *    - #f97316 (Light Orange, 3.4:1 contrast) - Insufficient for badges
+ *
+ * VALIDATION: Test any custom colors using WebAIM Contrast Checker
+ * (https://webaim.org/resources/contrastchecker/) with white (#ffffff) text
+ * to ensure ≥4.5:1 ratio before deployment.
+ */
+:root {
+  /* Static UI tokens — not managed from the dashboard */
+  --clr-surface: #ffffff;
+  --clr-border: rgba(0, 0, 0, 0.06);
+  --clr-text: #0f172a;
+  --clr-text-2: #64748b;
+  
+  /* Semantic tokens for consistent theming */
+  --clr-success: #047857;
+  --clr-disabled: #94a3b8;
+  --clr-error: #ef4444;
+  --clr-error-bg: #fef2f2;
+  --clr-nav-bg: rgba(255, 255, 255, 0.9);
+  --clr-surface-alt: #f9fafb;
+  --clr-overlay: rgba(0, 0, 0, 0.45);
+  --overlay-dark: rgba(0, 0, 0, 0.7);
+
+  /* App safe areas */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* WhatsApp brand tokens */
+  --clr-whatsapp: #25d366;
+  --clr-whatsapp-deep: #128c7e;
+  --wa-gap: 0.75rem;
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html {
+  scroll-behavior: smooth;
+  height: -webkit-fill-available;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  line-height: 1.5;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Sticky footer — main grows so short pages still push the footer down ── */
+body > main { flex: 1 0 auto; }
+
+/* ── View transition animations — more app-like ─────────────────────────── */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+::view-transition-old(root) { animation: 200ms ease fade-out; }
+::view-transition-new(root) { animation: 400ms var(--animate-spring) slide-up; }
+
+/* ── Announcement bar ────────────────────────────────────────────────────── */
+.store-announce {
+  background: var(--clr-primary);
+  color: white;
+  text-align: center;
+  padding: calc(0.5rem + var(--safe-top)) 1.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.store-announce svg {
+  width: 1rem;
+  height: 1rem;
+  opacity: 0.9;
+}
+
+/* ── Hero Backgrounds ────────────────────────────────────────────────────── */
+.hero-bg-subtle {
+  background-color: #f6f5f3; /* Warm, premium neutral */
+  position: relative;
+}
+.hero-bg-subtle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 70% 30%, color-mix(in srgb, var(--clr-primary) 8%, transparent) 0%, transparent 60%);
+  pointer-events: none;
+}
+.hero-bg-subtle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.02;
+  pointer-events: none;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--clr-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--clr-border);
+  overflow: hidden;
+}
+
+/* ── Form controls ───────────────────────────────────────────────────────── */
+.form-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--clr-text);
+  margin-bottom: 0.5rem;
+  padding-inline: 0.25rem;
+}
+
+.form-input {
+  width: 100%;
+  height: 3.5rem;
+  padding-inline: 1.125rem;
+  background: var(--clr-surface);
+  border: 1.5px solid var(--clr-border);
+  border-radius: var(--radius-input);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--clr-text);
+  transition: all 0.2s var(--animate-spring);
+  appearance: none;
+  -webkit-appearance: none;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+  background: var(--clr-surface);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--clr-primary) 10%, transparent);
+  transform: translateY(-1px);
+}
+.form-input.error {
+  border-color: var(--clr-error, #ef4444);
+  background: var(--clr-error-bg, #fef2f2);
+}
+textarea.form-input {
+  height: auto;
+  padding-block: 1rem;
+  resize: none;
+}
+
+/* ── Btn primary ─────────────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding-inline: 1.75rem;
+  height: 3.5rem;
+  border-radius: var(--radius-btn);
+  background: var(--clr-primary);
+  color: white;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s var(--animate-spring);
+  box-shadow: var(--shadow-primary);
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary:active { transform: scale(0.96); opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ── Gallery ─────────────────────────────────────────────────────────────── */
+.gallery-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  border-radius: var(--radius-card);
+  background: var(--clr-surface);
+}
+.gallery-track::-webkit-scrollbar { display: none; }
+.gallery-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gallery-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+
+
+/* ── Native bottom nav ── */
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  z-index: 45;
+  background: var(--clr-nav-bg);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-top: 1px solid var(--clr-border);
+  padding-bottom: var(--safe-bottom);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: calc(4rem + var(--safe-bottom));
+}
+
+@media (min-width: 640px) {
+  .mobile-nav { display: none !important; }
+}
+
+.has-mobile-nav {
+  padding-bottom: 4rem; /* Match mobile-nav height */
+}
+@media (min-width: 640px) {
+  .has-mobile-nav { padding-bottom: 0; }
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  color: var(--clr-text-2);
+  font-size: 0.625rem;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.mobile-nav-item.active { color: var(--clr-primary); }
+.mobile-nav-item svg { width: 1.5rem; height: 1.5rem; }
+
+/* ── Product card ────────────────────────────────────────────────────────── */
+.product-card {
+  box-shadow: 0 2px 12px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.03);
+  transition: box-shadow 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.product-card:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.05);
+}
+
+/* ── Scrollbar hide util ─────────────────────────────────────────────────── */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Text Utilities ──────────────────────────────────────────────────────── */
+.text-balance { text-wrap: balance; }
+.text-pretty { text-wrap: pretty; }
+
+/* ── WhatsApp Widget Layering & Collisions ───────────────────────────────── */
+.wa-widget {
+  --wa-bottom: calc(var(--safe-bottom) + var(--wa-gap));
+  position: fixed;
+  bottom: var(--wa-bottom);
+  z-index: 40;
+}
+
+.wa-widget[data-position="right"] {
+  right: var(--wa-gap);
+  left: auto;
+}
+
+.wa-widget[data-position="left"] {
+  left: var(--wa-gap);
+  right: auto;
+}
+
+body.has-mobile-nav .wa-widget {
+  --wa-bottom: calc(4rem + var(--safe-bottom) + var(--wa-gap));
+}
+
+@media (min-width: 640px) {
+  body.has-mobile-nav .wa-widget {
+    --wa-bottom: calc(var(--safe-bottom) + var(--wa-gap));
+  }
+}
+
+body[data-sticky-cta="visible"] .wa-widget {
+  --wa-bottom: calc(var(--safe-bottom) + var(--wa-gap) + 3.5rem);
+}
+
+body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
+  --wa-bottom: calc(4rem + var(--safe-bottom) + var(--wa-gap) + 3.5rem);
+}
+
+@media (min-width: 1024px) {
+  body[data-sticky-cta="visible"] .wa-widget {
+    --wa-bottom: calc(var(--safe-bottom) + var(--wa-gap));
+  }
+  body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
+    --wa-bottom: calc(var(--safe-bottom) + var(--wa-gap));
+  }
+}
+
+/* ── WhatsApp Panel Positioning ──────────────────────────────────────────── */
+.wa-panel {
+  /* Mobile: fixed positioning centered horizontally, anchored to bottom with safe spacing */
+  position: fixed;
+  bottom: calc(var(--wa-bottom) + 4.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100vw - 2rem);
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+/* Desktop: absolute positioning relative to launcher, positioned above it */
+@media (min-width: 640px) {
+  .wa-panel {
+    position: absolute;
+    bottom: calc(100% + 0.75rem);
+    left: auto;
+    transform: none;
+    width: 20rem;
+  }
+  
+  /* Right-aligned widget: panel aligns to the right edge */
+  .wa-widget[data-position="right"] .wa-panel {
+    right: 0;
+    left: auto;
+  }
+  
+  /* Left-aligned widget: panel aligns to the left edge */
+  .wa-widget[data-position="left"] .wa-panel {
+    left: 0;
+    right: auto;
+  }
+}
+
+/* Ensure panel doesn't exceed viewport on mobile */
+.wa-panel {
+  max-height: calc(100vh - var(--wa-bottom) - 5.5rem);
+}
+
+/* ── Rich description (merchant-authored HTML) ───────────────────────────── */
+/*
+ * Rendered with set:html when a product's descriptionFormat is "html". The
+ * markup is sanitised at the write chokepoint against the allow-list in
+ * cod-shared/lib/rich-text.ts (ADR 0002); this section only styles the tags
+ * that allow-list permits, using theme tokens (never raw design values).
+ * Anything not listed here cannot reach the DOM, because it is stripped
+ * upstream — so there is no need for defensive `all: unset` resets.
+ */
+.rich-description > :first-child { margin-top: 0; }
+.rich-description > :last-child { margin-bottom: 0; }
+
+.rich-description p { margin: 0 0 0.85em; }
+.rich-description strong, .rich-description b { font-weight: 800; color: var(--clr-text); }
+.rich-description em, .rich-description i { font-style: italic; }
+.rich-description u { text-decoration: underline; }
+.rich-description s, .rich-description strike { text-decoration: line-through; }
+.rich-description sub, .rich-description sup { font-size: 0.75em; line-height: 0; }
+.rich-description hr { border: 0; border-top: 1px solid var(--clr-border); margin: 1.25em 0; }
+
+.rich-description h2, .rich-description h3, .rich-description h4,
+.rich-description h5, .rich-description h6 {
+  font-weight: 800; color: var(--clr-text); line-height: 1.3; margin: 1.2em 0 0.5em;
+}
+.rich-description h2 { font-size: 1.35em; }
+.rich-description h3 { font-size: 1.2em; }
+.rich-description h4 { font-size: 1.1em; }
+.rich-description h5 { font-size: 1em; }
+.rich-description h6 { font-size: 0.95em; }
+
+.rich-description ul, .rich-description ol { margin: 0 0 0.85em; padding-inline-start: 1.4em; }
+.rich-description ul { list-style: disc; }
+.rich-description ol { list-style: decimal; }
+.rich-description li { margin: 0.25em 0; }
+.rich-description li > ul, .rich-description li > ol { margin-top: 0.25em; margin-bottom: 0; }
+
+.rich-description blockquote {
+  margin: 1em 0; padding-inline-start: 1em;
+  border-inline-start: 3px solid var(--clr-border); color: var(--clr-text-2);
+}
+
+.rich-description a {
+  color: var(--clr-primary); text-decoration: underline; text-underline-offset: 2px;
+}
+.rich-description a:hover { opacity: 0.85; }
+
+.rich-description img {
+  max-width: 100%; height: auto; margin: 0.5em 0;
+  border-radius: var(--radius-input); background: var(--clr-surface-alt);
+}
+.rich-description figure { margin: 1em 0; }
+.rich-description figcaption {
+  font-size: 0.85em; color: var(--clr-text-2); text-align: center; margin-top: 0.4em;
+}
+
+.rich-description code {
+  font-family: var(--font-mono); font-size: 0.9em;
+  background: var(--clr-surface-alt); border: 1px solid var(--clr-border);
+  border-radius: 0.35rem; padding: 0.1em 0.35em;
+}
+.rich-description pre {
+  background: var(--clr-surface-alt); border: 1px solid var(--clr-border);
+  border-radius: var(--radius-input); padding: 0.85em 1em;
+  overflow-x: auto; margin: 0 0 0.85em;
+}
+.rich-description pre code { background: none; border: 0; padding: 0; }
+
+/* display:block + overflow-x lets wide tables scroll instead of overflowing. */
+.rich-description table {
+  display: block; width: 100%; overflow-x: auto;
+  border-collapse: collapse; margin: 0 0 0.85em; font-size: 0.95em;
+}
+.rich-description th, .rich-description td {
+  border: 1px solid var(--clr-border); padding: 0.5em 0.65em;
+  text-align: start; vertical-align: top;
+}
+.rich-description th { background: var(--clr-surface-alt); font-weight: 800; color: var(--clr-text); }
+.rich-description thead th { border-bottom-width: 2px; }
+
+/* Rich text: the three features the editor template writes as attributes.
+   Each is allowed at the write chokepoint (see ADR 0002) and rendered here —
+   the storefront is the only place a merchant's intent becomes visual. */
+
+/* Highlight — the merchant's colour travels as an inline background, a hex or
+   the rgb() a browser re-serialises it into; `data-color` carries the hex. That
+   inline declaration outranks the one below, which is only the fallback for a
+   mark stored without a colour. The text colour is set here rather than stored,
+   so a highlight reads against the storefront palette instead of inheriting
+   whatever colour surrounds it. */
+.rich-description mark {
+  background-color: color-mix(in srgb, var(--clr-accent) 45%, transparent);
+  color: var(--clr-text);
+  border-radius: var(--radius-input);
+  padding: 0 0.15em;
+}
+
+/* Text alignment — written as an inline text-align on paragraphs and headings,
+   so the browser applies it; nothing to restate here. */
+
+/* Checklists — a task list is a `ul[data-type="taskList"]` whose items carry
+   `data-checked`. The sanitiser drops the editor's checkbox input, so the box
+   is drawn here from the attribute. */
+.rich-description ul[data-type="taskList"] {
+  list-style: none;
+  padding-inline-start: 0;
+}
+
+.rich-description ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+
+.rich-description ul[data-type="taskList"] li::before {
+  content: "";
+  flex: none;
+  width: 1em;
+  height: 1em;
+  margin-top: 0.3em;
+  border: 1px solid var(--clr-border);
+  background: var(--clr-surface-alt);
+  border-radius: var(--radius-input);
+}
+
+.rich-description ul[data-type="taskList"] li[data-checked="true"]::before {
+  background: var(--clr-primary);
+  border-color: var(--clr-primary);
+}
+
+/* The editor's list schema wraps item content in a paragraph; without this the
+   last line of every list item would carry a trailing gap. */
+.rich-description li > p {
+  margin-bottom: 0;
+}

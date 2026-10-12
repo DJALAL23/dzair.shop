@@ -1,0 +1,20 @@
+/**
+ * French (fr) - layout.
+ */
+
+import type { LayoutStrings } from "../types/layout";
+
+export const frLayout: LayoutStrings = {
+  announcementText: "Paiement à la livraison disponible dans toutes les wilayas",
+
+  navHome: "Accueil",
+  navProducts: "Produits",
+  navNewArrivals: "Nouveautés",
+  navBestSellers: "Meilleures ventes",
+  navCategories: "Catégories",
+
+  footerAbout: "Votre boutique en ligne de confiance en Algérie avec paiement à la livraison",
+  footerQuickLinks: "Liens rapides",
+  footerSupport: "Support client",
+  footerRights: "Tous droits réservés",
+};

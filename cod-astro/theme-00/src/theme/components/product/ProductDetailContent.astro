@@ -1,0 +1,224 @@
+---
+// ── STREAMING COMPONENT ──
+// This component handles the product fetch and rendering
+// Allows the parent page to stream layout/head immediately
+import OrderForm from "@/theme/components/order/OrderForm.astro";
+import AddToCartButton from "@/theme/components/cart/AddToCartButton.astro";
+import ProductGallery from "@/theme/components/product/ProductGallery.astro";
+import ProductInfo from "@/theme/components/product/ProductInfo.astro";
+import ReviewsIsland from "@/theme/components/product/ReviewsIsland.astro";
+import RelatedProducts from "@/theme/components/product/RelatedProducts.astro";
+import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
+import { getProductJsonLd } from "@/theme/utils/seo";
+import { getStoreClient } from "@/theme/sdk";
+import { getProductView, productImageSource } from "@codflow/storefront";
+import type { StoreConfig } from "@codflow/storefront";
+import type { StoreFrontContent } from "@/theme/content";
+import type { FieldErrors } from "@/theme/types";
+import { getThumbnailImage } from "@/theme/utils/images";
+import { pageDataCopy, relatedProductsCopy, reviewsIslandCopy } from "@/theme/bridges/island-props";
+import { PRODUCT_PAGE_DATA_ID, buildProductPageData } from "@/theme/bridges/product-page-data";
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  slug: string;
+  config: StoreConfig;
+  content: StoreFrontContent;
+  isRTL: boolean;
+  fieldErrors: FieldErrors;
+  serverError: string | null;
+}
+
+const { slug, config, content, isRTL, fieldErrors, serverError } = Astro.props;
+
+// Fetch product data (this component streams when ready)
+const product = await getStoreClient().products.get(slug);
+
+if (!product) return Astro.redirect("/");
+
+const cur = config.currencySymbol;
+
+const view = getProductView(product);
+const { defaultVariant, basePrice, comparePrice, hasDiscount, discountPct, isOutOfStock, isLowStock } = view;
+
+// Thumbnail for the cart drawer and the checkout summary. Resized to 80px
+// because it renders at 64 — shipping a full gallery image for a thumbnail is
+// wasted bandwidth on a phone. The cover→gallery fallback is the SDK's
+// `productImageSource`.
+const cartImageSrc = productImageSource(product);
+const cartImage = cartImageSrc ? getThumbnailImage(cartImageSrc) : null;
+
+const lowStockText = content.lowStock.replace("{n}", String(product.inventory));
+
+const defaultVariantId = defaultVariant?.id ?? null;
+const jsonLd = getProductJsonLd(product, basePrice);
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+<!-- Data bridge: server-computed values → client script. The contract (writer
+     and reader) lives in `theme/bridges/product-page-data.ts`. -->
+<div
+  id={PRODUCT_PAGE_DATA_ID}
+  class="sr-only"
+  {...buildProductPageData({
+    product,
+    currencySymbol: cur,
+    isRTL,
+    basePrice,
+    pixelId: config.pixelId,
+    copy: pageDataCopy(content),
+  })}
+/>
+
+<!-- Dynamic data Island (Deferred) -->
+<ShippingIsland server:defer />
+
+<div class="max-w-5xl mx-auto px-0 sm:px-5 py-0 sm:py-8">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-12">
+
+    <!-- ── LEFT: Images ── -->
+    <div>
+      <ProductGallery
+        product={product}
+        hasDiscount={hasDiscount}
+        discountPct={discountPct}
+        isRTL={isRTL}
+        content={content}
+      />
+      <ProductInfo
+        product={product}
+        basePrice={basePrice}
+        comparePrice={comparePrice}
+        cur={cur}
+        isLowStock={isLowStock}
+        lowStockText={lowStockText}
+        isDesktop={true}
+      />
+    </div>
+
+    <!-- ── RIGHT: Product info + Order form ──
+         Sticky on desktop so the buy box stays reachable while the left
+         column (gallery + description) scrolls. `self-start` lets a grid
+         child stick instead of stretching to the row height. -->
+    <div class="px-5 sm:px-0 py-6 sm:py-0 lg:sticky lg:top-6 lg:self-start">
+
+      <!-- Mobile Info -->
+      <ProductInfo
+        product={product}
+        basePrice={basePrice}
+        comparePrice={comparePrice}
+        cur={cur}
+        isLowStock={isLowStock}
+        lowStockText={lowStockText}
+      />
+
+      <OrderForm
+        product={product}
+        content={content}
+        fieldErrors={fieldErrors}
+        serverError={serverError}
+        basePrice={basePrice}
+        defaultVariant={defaultVariant ?? null}
+        cur={cur}
+        isRTL={isRTL}
+        offers={product.offers}
+        defaultVariantId={defaultVariantId}
+        isOutOfStock={isOutOfStock}
+        otpEnabled={config.otpEnabled === true}
+        turnstileEnabled={config.turnstileEnabled === true}
+        turnstileSiteKey={config.turnstileSiteKey ?? null}
+        pages={config.pages ?? []}
+        formPolicy={config.checkoutForm}
+      >
+        {/* Sits inside the order card, directly under the confirm button.
+            Secondary by design: the direct order form stays the primary
+            action. This serves the shopper who wants more than one product and
+            never competes with the one-step checkout that converts. */}
+        {config.cartEnabled && !isOutOfStock && (
+          <Fragment slot="secondary-action">
+            <AddToCartButton
+              product={product}
+              content={content}
+              basePrice={basePrice}
+              defaultVariant={defaultVariant ?? null}
+              image={cartImage}
+            />
+          </Fragment>
+        )}
+      </OrderForm>
+    </div>
+  </div>
+</div>
+
+<!-- Reviews section (Deferred Server Island) -->
+{config.reviewsEnabled && (
+  <div class="max-w-5xl mx-auto px-5 pb-12">
+    <ReviewsIsland productId={product.id} copy={reviewsIslandCopy(content)} server:defer>
+      <!-- Skeleton fallback while loading -->
+      <div slot="fallback" class="animate-pulse space-y-8 mt-12 pt-10" style="border-top: 1px solid var(--clr-border)">
+        <div class="h-8 rounded-lg w-1/4" style="background: var(--clr-surface-alt)"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div class="space-y-4">
+            {[1,2,3].map(() => (
+              <div class="h-32 rounded-2xl" style="background: var(--clr-surface-alt); border: 1px solid var(--clr-border)"></div>
+            ))}
+          </div>
+          <div class="h-64 rounded-2xl" style="background: var(--clr-surface-alt); border: 1px solid var(--clr-border)"></div>
+        </div>
+      </div>
+    </ReviewsIsland>
+  </div>
+)}
+
+{/* Exit rescue, last on the page. Deferred so the fetch happens after the
+    product is already on screen — it can never cost the page its LCP, and a
+    failed request simply means no section. */}
+<RelatedProducts
+  productId={product.id}
+  categoryId={product.category?.id ?? null}
+  currencySymbol={cur}
+  copy={relatedProductsCopy(content)}
+  server:defer
+/>
+
+{/* ── STICKY ORDER CTA — fixed to the bottom on mobile while the order form is out of
+     view; sticky-cta.ts hides it via IntersectionObserver the moment the form enters the
+     viewport. Mobile-only: hidden on desktop where the form is already sticky in column 2. ── */}
+{!isOutOfStock && (
+  <a
+    href="#order-section"
+    id="product-sticky-cta"
+    class="btn-primary product-sticky-cta lg:hidden"
+  >
+    <span>{content.orderCta}</span>
+    <Icon name="heroicons:chevron-down" class="w-5 h-5 shrink-0" />
+  </a>
+)}
+
+<style>
+  /* Sticky CTA — floats above content on mobile until the form scrolls into
+     view (sticky-cta.ts toggles .is-hidden). Colors/radius/shadow come
+     from .btn-primary + tokens; sizes/offsets are layout, not design. */
+  .product-sticky-cta {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 0.75rem);
+    inset-inline: 0;
+    margin-inline: auto;
+    width: min(24rem, calc(100% - 2rem));
+    z-index: 45;
+    box-shadow: var(--shadow-primary);
+    font-weight: 800;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+  .product-sticky-cta.is-hidden {
+    transform: translateY(150%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (min-width: 1024px) {
+    .product-sticky-cta {
+      display: none !important;
+    }
+  }
+</style>
