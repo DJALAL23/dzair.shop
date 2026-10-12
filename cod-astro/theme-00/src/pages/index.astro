@@ -17,11 +17,10 @@ import { createReadCache } from "@codflow/theme/astro";
 import type { ThemeRenderContext } from "@codflow/theme";
 import { theme00 } from "@/theme/theme";
 import { logHomeDecision, resolveHomeDocument } from "@/theme/pages/home-document";
-import { getStoreClient } from "@/theme/sdk";
 
 // The store context comes from middleware (Astro.locals.store — Theme Zero S2).
 const { config, content, locale, fallbackLocales, isRTL } = Astro.locals.store;
-const storefront = getStoreClient();
+const storefront = Astro.locals.store.client;
 
 // The store's saved home document, or null (absent / degraded read). The
 // decision — saved vs shipped default, including the zero-overlap fallback —

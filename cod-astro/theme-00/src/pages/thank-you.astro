@@ -1,6 +1,5 @@
 ---
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
-import { getStoreClient } from "@/theme/sdk";
 import { buildWhatsAppHref, resolvePrefillText } from "@codflow/storefront";
 import { formatAmount } from "@/theme/utils/money";
 import { readThankYou } from "@/theme/pages/order-outcome";
@@ -20,12 +19,12 @@ const { orderNumber, orderId, total } = readThankYou(Astro.url);
 // The store context is on `Astro.locals` (middleware — Theme Zero S2); the
 // tracking lookup is independent — it only needs the order id.
 const { config, content, isRTL } = Astro.locals.store;
-const tracking = await getStoreClient().orders.tracking(orderId);
+const tracking = await Astro.locals.store.client.orders.tracking(orderId);
 
 const totalFormatted = total !== null ? formatAmount(total) : null;
 
 if (!orderNumber) {
-  return Astro.redirect("/");
+  return Astro.redirect(Astro.locals.store.href("/"));
 }
 
 // The server returns the DECISION, not the configuration — `event` is already
@@ -145,7 +144,7 @@ const steps = [
     </div>
 
     <a
-      href="/"
+      href={Astro.locals.store.href("/")}
       class="btn-primary !h-[3.75rem] !text-[1rem] active:scale-95 shadow-xl shadow-[var(--clr-primary)]/20"
     >
       {content.backToStore}

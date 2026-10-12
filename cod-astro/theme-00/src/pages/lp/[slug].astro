@@ -9,7 +9,6 @@ import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import OrderForm from "@/theme/components/order/OrderForm.astro";
 import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
 import { Icon } from "astro-icon/components";
-import { getStoreClient } from "@/theme/sdk";
 import { getProductView } from "@codflow/storefront";
 import { pageDataCopy } from "@/theme/bridges/island-props";
 import { PRODUCT_PAGE_DATA_ID, buildProductPageData } from "@/theme/bridges/product-page-data";
@@ -21,7 +20,7 @@ const { slug } = Astro.params;
 // Store context comes from middleware (Astro.locals.store — Theme Zero S2);
 // the landing page (and its linked product) comes from the same SDK client.
 const { config, content, isRTL } = Astro.locals.store;
-const lp = await getStoreClient().pages.landing(slug ?? "");
+const lp = await Astro.locals.store.client.pages.landing(slug ?? "");
 
 // Action result (must be checked before rendering — same as product page).
 // Order success → single PRG redirect to the thank-you page. The browser
@@ -30,14 +29,14 @@ const lp = await getStoreClient().pages.landing(slug ?? "");
 // abandonment-conversion signal fires on the thank-you page (sessionStorage
 // survives the redirect).
 const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder));
-if (outcome.redirect) return Astro.redirect(outcome.redirect, 303);
+if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
 const { fieldErrors, serverError } = outcome;
 
 // Landing page data (from the parallel fetch above): published only.
 // Draft/archived/unknown → the store home (same contract as the product
 // page's missing-product path — ad traffic lands on the store instead of
 // a dead end).
-if (!lp) return Astro.redirect("/");
+if (!lp) return Astro.redirect(Astro.locals.store.href("/"));
 
 const product = lp.product;
 const cur = config.currencySymbol;

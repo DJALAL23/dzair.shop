@@ -24,6 +24,7 @@ export const arMisc: MiscStrings = {
   offerSavingsText: "توفير {amount} {currency}",
   offerUnitLabel: "الوحدة {n}",
   ariaMainNavigation: "التنقل الرئيسي",
+  ariaLanguageSwitcher: "اللغة",
   ariaQuantity: "الكمية",
   ariaGoToImage: "الانتقال إلى الصورة {n} من {total}",
   ariaBrowseAllProducts: "تصفح جميع المنتجات",

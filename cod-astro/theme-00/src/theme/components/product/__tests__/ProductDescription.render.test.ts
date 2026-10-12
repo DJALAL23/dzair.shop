@@ -17,6 +17,7 @@
  */
 /// <reference types="vitest/globals" />
 
+import { testLocals } from "../../../__tests__/support/locals";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import ProductDescription from "../ProductDescription.astro";
 import { ProductSchema, type ProductDetail } from "@codflow/storefront";
@@ -66,6 +67,7 @@ async function renderProps(props: {
 }): Promise<string> {
   const container = await AstroContainer.create();
   return container.renderToString(ProductDescription, {
+    locals: testLocals(),
     props: { ...props, isDesktop: true },
   });
 }

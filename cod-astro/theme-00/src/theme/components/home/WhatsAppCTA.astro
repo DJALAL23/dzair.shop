@@ -35,7 +35,7 @@ const { content, ctaHref } = Astro.props;
         {content.promoSub}
       </p>
       <a
-        href={ctaHref}
+        href={Astro.locals.store.href(ctaHref)}
         class="group inline-flex items-center justify-center gap-3 px-10 py-5 font-black text-lg transition-all duration-300 active:scale-95 shadow-2xl"
         style={`background: var(--clr-accent); color: var(--clr-text); border-radius: var(--radius-btn)`}
       >

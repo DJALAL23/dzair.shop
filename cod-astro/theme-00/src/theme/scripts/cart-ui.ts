@@ -50,8 +50,8 @@ import {
 } from "./cart-render";
 import { trackAddToCart } from "./pixel";
 
-/** Where the basket is actually ordered. */
-const CHECKOUT_URL = "/checkout";
+/** Where the basket is actually ordered, in the page's language (set by the server). */
+const checkoutHref = (root: HTMLElement) => root.dataset.checkoutHref || "/checkout";
 
 /** How long the sheet takes to slide out; mirrors the transition in the markup. */
 const CLOSE_MS = 200;
@@ -450,7 +450,7 @@ export function initCart(): () => void {
         close();
         return;
       }
-      window.location.href = CHECKOUT_URL;
+      window.location.href = checkoutHref(root);
     },
     { signal },
   );

@@ -24,16 +24,13 @@ import type {
 } from "@codflow/theme";
 import { theme00 } from "@/theme/theme";
 import { makeProduct } from "../support/home-render";
+import { testLocals } from "../support/locals";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en } from "@/theme/content/en";
 import homePage from "@/theme/pages/home.page.json";
 
-// CustomerTestimonials fetches its reviews through the theme's ONE adapter
-// seam (`@/theme/sdk`) — the documented in-section read. The same stub serves
-// both sides: `getStoreClient()` for the section's own read, and the
-// `storefront` prop the renderer hands to `load`.
-const { mockStore } = vi.hoisted(() => ({ mockStore: { current: null as unknown } }));
-vi.mock("@/theme/sdk", () => ({ getStoreClient: () => mockStore.current }));
+// Every section reads through the `storefront` the renderer hands to its
+// `load` — CustomerTestimonials' reviews included — so one stub serves them all.
 
 /** Decoded text for copy assertions (Astro escapes `&` etc. in markup). */
 function decode(html: string): string {
@@ -99,7 +96,6 @@ function createStorefrontStub(products: ProductList[] = []) {
     products: { list: productsList, reviews: { list: reviewsList } },
     categories: { list: categoriesList },
   } as unknown as StoreClient;
-  mockStore.current = client;
   return { client, productsList, categoriesList, reviewsList };
 }
 
@@ -123,6 +119,7 @@ function createHarness(
       const container = await containerPromise;
       return container.renderToString(InstanceView, {
         props: { instance, theme: theme00, context, storefront, reads },
+        locals: testLocals({ client: storefront }),
       });
     },
   };

@@ -120,7 +120,15 @@ export default defineConfig({
           // vite.environments.ssr — the legacy vite.ssr.optimizeDeps key is
           // ignored by Vite 8 here.
           noDiscovery: true,
-          exclude: ["astro/assets/services/noop", "astro-icon/components"],
+          // The adapter's worker entry is excluded too: pre-bundled, a later
+          // re-bundle (Tailwind regenerating CSS after an edit is enough)
+          // leaves the runner asking for the entry under a stale version
+          // hash, and every request 500s until the dev server restarts.
+          exclude: [
+            "astro/assets/services/noop",
+            "astro-icon/components",
+            "@astrojs/cloudflare/entrypoints/server",
+          ],
         },
       },
     },

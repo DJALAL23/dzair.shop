@@ -22,13 +22,13 @@ import { Icon } from "astro-icon/components";
 const { config, content, isRTL } = Astro.locals.store;
 
 // A merchant with the cart switched off has no basket to check out.
-if (!config.cartEnabled) return Astro.redirect("/", 302);
+if (!config.cartEnabled) return Astro.redirect(Astro.locals.store.href("/"), 302);
 
 // Same single PRG redirect the product form uses: the browser follows the 303
 // straight to the thank-you page, so this page never re-renders behind it and
 // the abandonment-conversion signal fires there.
 const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder));
-if (outcome.redirect) return Astro.redirect(outcome.redirect, 303);
+if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
 const { fieldErrors, serverError } = outcome;
 
 const otpEnabled = config.otpEnabled === true;
@@ -101,7 +101,7 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
         {content.cartEmptyHint}
       </p>
       <a
-        href="/"
+        href={Astro.locals.store.href("/")}
         class="mt-2 text-[0.8125rem] font-black underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2"
         style="color: var(--clr-primary); --tw-ring-color: var(--clr-primary)"
       >

@@ -9,7 +9,6 @@
  * takes a copy *pick* — the strings it actually renders, never the pack (see
  * bridges/island-props.ts and `server-islands.test.ts` for the 2048-byte budget).
  */
-import { getStoreClient } from "@/theme/sdk";
 import ReviewsList from "./ReviewsList.astro";
 import ReviewForm from "./ReviewForm.astro";
 import type { ReviewsIslandCopy } from "@/theme/bridges/island-props";
@@ -22,7 +21,7 @@ interface Props {
 const { productId, copy } = Astro.props;
 
 // Fetch reviews dynamically on the server
-const reviewsData = await getStoreClient().products.reviews.list(productId, { limit: 10 });
+const reviewsData = await Astro.locals.store.client.products.reviews.list(productId, { limit: 10 });
 const hasReviews = reviewsData.rows.length > 0;
 ---
 

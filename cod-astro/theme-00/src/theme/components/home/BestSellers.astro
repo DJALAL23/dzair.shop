@@ -36,7 +36,7 @@ const showViewAll = allProducts.length > limit;
       </div>
       {showViewAll && (
         <a
-          href="/products"
+          href={Astro.locals.store.href("/products")}
           class="inline-flex items-center gap-2 text-[1rem] font-black transition-all hover:text-primary group"
           style="color: var(--clr-text)"
           aria-label={`${content.viewAllCta} - ${content.bestSellersSection}`}

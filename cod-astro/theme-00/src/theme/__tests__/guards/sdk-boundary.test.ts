@@ -328,9 +328,7 @@ describe("S10 platform rule bindings", () => {
   it("the layout asks the SDK's gate, and its special case is a contract path", () => {
     const layout = files.find((f) => f.relPath === "theme/layouts/StoreLayout.astro");
 
-    expect(layout?.content).toContain(
-      'import { showsWidgetOn } from "@codflow/storefront"',
-    );
+    expect(layout?.content).toMatch(/import \{[^}]*\bshowsWidgetOn\b[^}]*\} from "@codflow\/storefront"/);
 
     // The floating widget is suppressed on the thank-you page (that page renders
     // its own inline WhatsApp button). Suppressing it on a path outside the

@@ -10,7 +10,6 @@ import ReviewsIsland from "@/theme/components/product/ReviewsIsland.astro";
 import RelatedProducts from "@/theme/components/product/RelatedProducts.astro";
 import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
 import { getProductJsonLd } from "@/theme/utils/seo";
-import { getStoreClient } from "@/theme/sdk";
 import { getProductView, productImageSource } from "@codflow/storefront";
 import type { StoreConfig } from "@codflow/storefront";
 import type { StoreFrontContent } from "@/theme/content";
@@ -32,9 +31,9 @@ interface Props {
 const { slug, config, content, isRTL, fieldErrors, serverError } = Astro.props;
 
 // Fetch product data (this component streams when ready)
-const product = await getStoreClient().products.get(slug);
+const product = await Astro.locals.store.client.products.get(slug);
 
-if (!product) return Astro.redirect("/");
+if (!product) return Astro.redirect(Astro.locals.store.href("/"));
 
 const cur = config.currencySymbol;
 

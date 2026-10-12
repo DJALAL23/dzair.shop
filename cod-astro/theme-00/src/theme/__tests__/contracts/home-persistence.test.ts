@@ -11,6 +11,7 @@
  * Plus one container render: a saved override reaches real HTML through the
  * real renderer, with the shipped default providing everything else.
  */
+import { testLocals } from "../support/locals";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it, vi } from "vitest";
 import type { ProductList } from "@codflow/storefront";
@@ -217,6 +218,7 @@ describe("home persistence — the saved document through the real renderer", ()
     for (const section of decision.result.page?.sections ?? []) {
       html += await container.renderToString(InstanceView, {
         props: { instance: section as ComponentInstance, theme: theme00, context, storefront, reads },
+        locals: testLocals({ client: storefront }),
       });
     }
 

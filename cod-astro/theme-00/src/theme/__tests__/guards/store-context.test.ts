@@ -1,10 +1,11 @@
 /**
  * Store-context seam (Theme Zero S2).
  *
- * `getStoreContext()` is the middleware's dependency: middleware runs once per
- * request and puts the result on `Astro.locals.store`; pages and layouts read
- * that. These guards keep the seam single so a new page (or a new theme) has
- * exactly one pattern to copy, and a second acquisition point fails here.
+ * `resolveStoreRequest()` is the middleware's dependency: middleware runs once
+ * per request and puts the result on `Astro.locals.store`; pages, layouts and
+ * components read that — its language, links and SDK client included. These
+ * guards keep the seam single so a new page (or a new theme) has exactly one
+ * pattern to copy, and a second acquisition point fails here.
  */
 import { describe, expect, it } from "vitest";
 
@@ -19,12 +20,39 @@ describe("Theme Zero — one store-context acquisition point", () => {
 
   it("only middleware acquires the store context", () => {
     const owners = files
-      .filter((f) => f.content.includes("getStoreContext("))
+      .filter((f) => f.content.includes("resolveStoreRequest("))
       .map((f) => f.relPath)
       .sort();
 
     // store.ts defines it; middleware calls it. Anyone else is a second seam.
     expect(owners).toEqual(["middleware.ts", "theme/runtime/store.ts"]);
+  });
+
+  it("only the adapter and the middleware's own store module create SDK clients; pages use the request's", () => {
+    const creators = files
+      .filter((f) => /getStoreClient\(/.test(f.content))
+      .map((f) => f.relPath)
+      .filter((path) => !path.startsWith("pages/api/") && !path.startsWith("actions/"))
+      .sort();
+
+    // Endpoints and actions are language-neutral writes; everything that
+    // renders reads `Astro.locals.store.client`, the request's language.
+    expect(creators).toEqual(["theme/runtime/store.ts", "theme/sdk.ts"]);
+  });
+
+  it("every internal link is built in the request's language", () => {
+    const raw = files
+      .filter((f) => f.relPath.endsWith(".astro"))
+      .flatMap((f) =>
+        [...f.content.matchAll(/(?:href|data-[a-z-]*href)=(?:"\/(?!\/)[^"]*"|\{`\/[^`]*`\})/g)]
+          .map((m) => m[0])
+          .filter((attr) => !/\.[a-z0-9]+"$/.test(attr))
+          .map((attr) => `${f.relPath}: ${attr}`),
+      );
+
+    // `Astro.locals.store.href(...)` — never a bare "/path" that drops a
+    // `/fr/` shopper back into the primary language.
+    expect(raw).toEqual([]);
   });
 
   it("the layout reads context from locals and takes no content prop", () => {

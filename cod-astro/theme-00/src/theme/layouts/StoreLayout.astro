@@ -6,7 +6,7 @@ import Footer from "@/theme/components/layout/Footer.astro";
 import CartDrawer from "@/theme/components/cart/CartDrawer.astro";
 import MobileNav from "@/theme/components/layout/MobileNav.astro";
 import WhatsAppWidget from "@/theme/components/chat/WhatsAppWidget.astro";
-import { showsWidgetOn } from "@codflow/storefront";
+import { alternateLinks, showsWidgetOn } from "@codflow/storefront";
 import type { StoreConfig } from "@codflow/storefront";
 import { Icon } from "astro-icon/components";
 
@@ -39,6 +39,12 @@ const content = store.content;
 const locale = store.locale;
 const isRTL = store.isRTL;
 
+// This page's own URL in its language, and its other language versions —
+// computed from the store context, never from Astro.url, which a `/fr/…`
+// request reaches only after the middleware rewrote it.
+const canonical = new URL(`${store.href(store.pathname)}${Astro.url.search}`, Astro.url.origin).href;
+const alternates = store.routing.published.length > 1 ? alternateLinks(store.pathname, store.routing, Astro.url.origin) : [];
+
 const pageTitle = title ?? config.metaTitle ?? config.name;
 const pageDesc = description ?? config.metaDescription ?? (content.defaultMetaDescription?.replace("{storeName}", config.name) ?? `Shop from ${config.name}`);
 const pageOg = ogImage ?? config.ogImage ?? "";
@@ -64,6 +70,8 @@ const fontHref = config.fontUrl?.replace(/["<>]/g, "")
     noindex={noindex}
     config={config}
     locale={locale}
+    canonical={canonical}
+    alternates={alternates}
     primary={primary}
     accent={accent}
     bg={bg}
@@ -107,7 +115,7 @@ const fontHref = config.fontUrl?.replace(/["<>]/g, "")
     {/* WhatsApp Chat Widget — merchant-configurable contact handoff.
         Rendered only when configured, non-null, and enabled on the current surface. 
         EXCEPTION: On thank-you page, we show an inline button instead of the floating widget. */}
-    {config.whatsapp && showsWidgetOn(config.whatsapp.surfaces, Astro.url.pathname) && Astro.url.pathname !== "/thank-you" && (
+    {config.whatsapp && showsWidgetOn(config.whatsapp.surfaces, store.pathname) && store.pathname !== "/thank-you" && (
       <>
         <WhatsAppWidget widget={config.whatsapp} content={content} config={config} />
         {/* Imported for side effect: self-initialises on DOM ready */}

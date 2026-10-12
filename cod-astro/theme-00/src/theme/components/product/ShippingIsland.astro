@@ -4,11 +4,10 @@
  * Fetches shipping rates on the server and injects them as a JSON bridge
  * for the client-side product script.
  */
-import { getStoreClient } from "@/theme/sdk";
 
 // No props: the island renders the rate table straight from the SDK, so there
 // is nothing in the encrypted island URL but the id of the island itself.
-const shippingRates = await getStoreClient().shipping.rates();
+const shippingRates = await Astro.locals.store.client.shipping.rates();
 ---
 
 <div

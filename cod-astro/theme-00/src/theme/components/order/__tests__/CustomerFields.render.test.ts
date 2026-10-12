@@ -16,6 +16,7 @@
  */
 /// <reference types="vitest/globals" />
 
+import { testLocals } from "../../../__tests__/support/locals";
 import { Window } from "happy-dom";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import CustomerFields from "../CustomerFields.astro";
@@ -33,6 +34,7 @@ const DEFAULTS: CheckoutFormPolicy = {
 async function render(formPolicy?: Partial<CheckoutFormPolicy>) {
   const container = await AstroContainer.create();
   return container.renderToString(CustomerFields, {
+    locals: testLocals(),
     props: {
       content: enContent,
       fieldErrors: {},

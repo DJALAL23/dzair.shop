@@ -28,7 +28,7 @@ const topCategories = [...categories]
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
       {topCategories.map((cat) => (
         <a
-          href={`/category/${cat.slug}`}
+          href={Astro.locals.store.href(`/category/${cat.slug}`)}
           class="group relative overflow-hidden aspect-[4/5] sm:aspect-[3/4] active:scale-[0.98] transition-all duration-500 shadow-md hover:shadow-2xl"
           style="border-radius: var(--radius-card)"
           aria-label={content.ariaBrowseCategoryProducts?.replace("{category}", cat.name)}

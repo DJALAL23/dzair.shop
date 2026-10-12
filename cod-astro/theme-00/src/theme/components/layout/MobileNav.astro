@@ -9,18 +9,19 @@ interface Props {
 }
 
 const { config, content } = Astro.props;
-const path = Astro.url.pathname;
+// The route's own path: a `/fr/…` request is matched without its prefix.
+const path = Astro.locals.store.pathname;
 
 const items = [
   {
     label: content?.navHome ?? "Home",
-    href: "/",
+    href: Astro.locals.store.href("/"),
     active: path === "/",
     icon: "heroicons:home",
   },
   {
     label: content?.navProducts ?? "Products",
-    href: "/products",
+    href: Astro.locals.store.href("/products"),
     active: path.startsWith("/products"),
     icon: "heroicons:squares-2x2",
   },

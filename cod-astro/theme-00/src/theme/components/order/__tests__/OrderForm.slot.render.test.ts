@@ -21,6 +21,7 @@
  * into the checkout card. A composition slot is for the cases where the
  * merchant decides — and theme-00 has none.
  */
+import { testLocals } from "../../../__tests__/support/locals";
 import { describe, expect, it, vi } from "vitest";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { ProductSchema, type ProductDetail } from "@codflow/storefront";
@@ -79,6 +80,7 @@ const SECONDARY = '<span data-testid="secondary-action">Add to cart</span>';
 async function render(slots?: Record<string, string>): Promise<string> {
   const container = await AstroContainer.create();
   return container.renderToString(OrderForm, {
+    locals: testLocals(),
     props: {
       product: product(),
       content: enContent,

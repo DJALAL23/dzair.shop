@@ -40,6 +40,7 @@ const { content, currency } = Astro.props;
 <div
   id="cart-root"
   data-currency={currency}
+  data-checkout-href={Astro.locals.store.href("/checkout")}
   data-copy-items={content.cartItemsLabel}
   data-copy-out-of-stock={content.cartLineOutOfStock}
   data-copy-unavailable={content.cartLineUnavailable}

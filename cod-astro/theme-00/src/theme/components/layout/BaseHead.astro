@@ -18,6 +18,10 @@ interface Props {
   config: StoreConfig;
   /** The language the page is rendered in. */
   locale: string;
+  /** This page's own absolute URL, in its language. */
+  canonical: string;
+  /** Its other language versions (`hreflang`), empty while the store serves one language. */
+  alternates: { hreflang: string; href: string }[];
   primary: string;
   fontHref: string;
   font: string;
@@ -28,7 +32,7 @@ interface Props {
   preloadImages?: string[];
 }
 
-const { title, description, ogImage, noindex, config, locale, primary, fontHref, font, bg, accent, preloadImages } = Astro.props;
+const { title, description, ogImage, noindex, config, locale, canonical, alternates, primary, fontHref, font, bg, accent, preloadImages } = Astro.props;
 
 import { MEDIA_DOMAIN } from "astro:env/server";
 ---
@@ -46,13 +50,14 @@ import { MEDIA_DOMAIN } from "astro:env/server";
   {noindex && <meta name="robots" content="noindex,nofollow" />}
 
   <!-- SEO -->
-  <link rel="canonical" href={Astro.url.href} />
+  <link rel="canonical" href={canonical} />
+  {alternates.map((alternate) => <link rel="alternate" hreflang={alternate.hreflang} href={alternate.href} />)}
   <meta name="author" content={config.name} />
 
   <!-- OG -->
   <meta property="og:title" content={title} />
   <meta property="og:site_name" content={config.name} />
-  <meta property="og:url" content={Astro.url.href} />
+  <meta property="og:url" content={canonical} />
   <meta property="og:description" content={description} />
   {ogImage && <meta property="og:image" content={ogImage} />}
   <meta property="og:type" content="website" />

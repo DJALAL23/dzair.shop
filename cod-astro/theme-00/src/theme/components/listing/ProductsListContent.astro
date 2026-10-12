@@ -4,7 +4,6 @@
 // Allows parent page to stream this after layout renders
 import ProductCard from "@/theme/components/product/ProductCard.astro";
 import { Icon } from "astro-icon/components";
-import { getStoreClient } from "@/theme/sdk";
 import type { StoreFrontContent } from "@/theme/content";
 
 interface Props {
@@ -15,7 +14,7 @@ interface Props {
 const { currencySymbol, content } = Astro.props;
 
 // Fetch products and categories in parallel (this component streams when ready)
-const store = getStoreClient();
+const store = Astro.locals.store.client;
 const [products, categories] = await Promise.all([
   store.products.list(),
   store.categories.list(),
@@ -36,7 +35,7 @@ const [products, categories] = await Promise.all([
   {categories.length > 0 && (
     <div class="flex items-center gap-2.5 overflow-x-auto scrollbar-hide pb-4 mb-8 touch-pan-x">
       <a
-        href="/products"
+        href={Astro.locals.store.href("/products")}
         data-astro-prefetch="hover"
         class="shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm bg-[var(--clr-primary)] border-[var(--clr-primary)] text-white"
       >
@@ -44,7 +43,7 @@ const [products, categories] = await Promise.all([
       </a>
       {categories.map((cat) => (
         <a
-          href={`/category/${cat.slug}`}
+          href={Astro.locals.store.href(`/category/${cat.slug}`)}
           data-astro-prefetch="hover"
           class="shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm"
           style="border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text-2)"

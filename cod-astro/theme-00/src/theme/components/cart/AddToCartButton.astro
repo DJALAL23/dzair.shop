@@ -50,7 +50,7 @@ const defaultVariantLabel = defaultVariant?.variations
   data-add-to-cart
   data-product-id={product.id}
   data-product-name={product.name}
-  data-product-href={`/products/${product.handle}`}
+  data-product-href={Astro.locals.store.href(`/products/${product.handle}`)}
   data-unit-price={basePrice}
   data-variant-id={defaultVariant?.id ?? ""}
   data-variant-label={defaultVariantLabel}

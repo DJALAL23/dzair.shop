@@ -3,7 +3,6 @@
 // Fetches category products and all categories, renders the category page
 // Allows parent page to stream this after layout renders
 import ProductCard from "@/theme/components/product/ProductCard.astro";
-import { getStoreClient } from "@/theme/sdk";
 import type { StoreFrontContent } from "@/theme/content";
 
 interface Props {
@@ -15,11 +14,11 @@ interface Props {
 const { slug, currencySymbol, content } = Astro.props;
 
 // Fetch categories first to find the current one
-const store = getStoreClient();
+const store = Astro.locals.store.client;
 const categories = await store.categories.list();
 const category = categories.find((c) => c.slug === slug);
 
-if (!category) return Astro.redirect("/");
+if (!category) return Astro.redirect(Astro.locals.store.href("/"));
 
 // Fetch products for this category
 const products = await store.products.list({ categoryId: category.id });
@@ -40,7 +39,7 @@ const products = await store.products.list({ categoryId: category.id });
   {categories.length > 1 && (
     <div class="flex items-center gap-2.5 overflow-x-auto scrollbar-hide pb-4 mb-8 touch-pan-x">
       <a
-        href="/products"
+        href={Astro.locals.store.href("/products")}
         data-astro-prefetch="hover"
         class="shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 active:scale-95 shadow-sm"
         style="border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text-2)"
@@ -49,7 +48,7 @@ const products = await store.products.list({ categoryId: category.id });
       </a>
       {categories.map((cat) => (
         <a
-          href={`/category/${cat.slug}`}
+          href={Astro.locals.store.href(`/category/${cat.slug}`)}
           data-astro-prefetch="hover"
           class:list={[
             "shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm",
@@ -83,7 +82,7 @@ const products = await store.products.list({ categoryId: category.id });
         {content.noProductsTitle}
       </h2>
       <a
-        href="/products"
+        href={Astro.locals.store.href("/products")}
         data-astro-prefetch="hover"
         class="btn-primary !w-auto !px-8 mt-6"
         aria-label={content.ariaBrowseAllProducts}

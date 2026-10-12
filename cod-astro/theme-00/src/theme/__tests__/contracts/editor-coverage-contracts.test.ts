@@ -38,15 +38,28 @@ function componentSourceOf(type: string): string {
   return readFileSync(path.resolve(process.cwd(), "src", match[1] as string), "utf8");
 }
 
+/**
+ * The section's `load` hook, as written in its definition file — a setting
+ * can be consumed there (e.g. deciding whether to read anything at all)
+ * rather than by the component. The field declarations come before it, so
+ * they never count as a read.
+ */
+function loadSourceOf(type: string): string {
+  const definitionFile = readFileSync(path.join(CATALOG_DIR, `${type}.def.ts`), "utf8");
+  const start = definitionFile.indexOf("load:");
+  return start === -1 ? "" : definitionFile.slice(start);
+}
+
 const sections = Object.entries(theme00.components).map(([type, definition]) => {
   const fields: readonly FieldDefinition[] = definition.fields ?? [];
   const source = componentSourceOf(type);
+  const loadSource = loadSourceOf(type);
   const rendered = new Set([...source.matchAll(/\bcontent\.(\w+)/g)].map((m) => m[1] as string));
   const copyFields = fields.filter(
     (field): field is FieldDefinition & { contentKey: string } =>
       (field.kind === "text" || field.kind === "textarea") && field.contentKey !== undefined,
   );
-  return { type, fields, source, rendered, copyFields };
+  return { type, fields, source, loadSource, rendered, copyFields };
 });
 
 describe("home sections expose their copy to the editor", () => {
@@ -66,11 +79,11 @@ describe("home sections expose their copy to the editor", () => {
     expect(renamed).toEqual([]);
   });
 
-  it.each(sections)("$type component reads every setting it declares", ({ fields, source }) => {
+  it.each(sections)("$type component reads every setting it declares", ({ fields, source, loadSource }) => {
     const settings = fields.filter((field) => !("contentKey" in field && field.contentKey));
     const unused = settings
       .map((field) => field.key)
-      .filter((key) => !new RegExp(`\\b${key}\\b`).test(source));
+      .filter((key) => !new RegExp(`\\b${key}\\b`).test(source) && !new RegExp(`\\bprops\\.${key}\\b`).test(loadSource));
     expect(unused).toEqual([]);
   });
 

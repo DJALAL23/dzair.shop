@@ -10,6 +10,7 @@ interface Props {
   content?: StoreFrontContent;
 }
 const { config, content } = Astro.props;
+import LanguageSwitcher from "@/theme/components/layout/LanguageSwitcher.astro";
 ---
 
 <header
@@ -20,7 +21,7 @@ const { config, content } = Astro.props;
 
     {/* Logo — start */}
     <div class="flex items-center gap-2.5 shrink-0">
-      <a href="/" class="flex items-center gap-2.5 active:scale-95 transition-transform" aria-label={config.name}>
+      <a href={Astro.locals.store.href("/")} class="flex items-center gap-2.5 active:scale-95 transition-transform" aria-label={config.name}>
         {config.logoUrl ? (
           <Image
             src={config.logoUrl}
@@ -49,24 +50,25 @@ const { config, content } = Astro.props;
       class="hidden md:flex items-center gap-1 lg:gap-2 text-[0.9375rem] font-bold flex-1 justify-center"
       aria-label={content?.ariaMainNavigation}
     >
-      <a href="/" class="px-4 py-2 rounded-xl transition-all hover:text-primary active:scale-95" style="color: var(--clr-text)">
+      <a href={Astro.locals.store.href("/")} class="px-4 py-2 rounded-xl transition-all hover:text-primary active:scale-95" style="color: var(--clr-text)">
         {content?.navHome}
       </a>
-      <a href="/products" class="px-4 py-2 rounded-xl transition-all hover:text-primary active:scale-95" style="color: var(--clr-text)">
+      <a href={Astro.locals.store.href("/products")} class="px-4 py-2 rounded-xl transition-all hover:text-primary active:scale-95" style="color: var(--clr-text)">
         {content?.navProducts}
       </a>
-      <a href="/#best-sellers" class="px-4 py-2 rounded-xl transition-all hover:text-primary active:scale-95" style="color: var(--clr-text)">
+      <a href={Astro.locals.store.href("/#best-sellers")} class="px-4 py-2 rounded-xl transition-all hover:text-primary active:scale-95" style="color: var(--clr-text)">
         {content?.navBestSellers}
       </a>
-      <a href="/#new-arrivals" class="px-4 py-2 rounded-xl transition-all hover:text-primary active:scale-95" style="color: var(--clr-text)">
+      <a href={Astro.locals.store.href("/#new-arrivals")} class="px-4 py-2 rounded-xl transition-all hover:text-primary active:scale-95" style="color: var(--clr-text)">
         {content?.navNewArrivals}
       </a>
     </nav>
 
-    {/* Search icon — end */}
+    {/* Language switcher + search icon — end */}
     <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+      <LanguageSwitcher />
       <a
-        href="/products"
+        href={Astro.locals.store.href("/products")}
         class="p-2.5 rounded-full hover:bg-black/5 active:scale-90 transition-all"
         style="color: var(--clr-text)"
         aria-label={content?.searchLabel}

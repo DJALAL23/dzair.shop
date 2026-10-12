@@ -1,0 +1,33 @@
+---
+// The store's published languages as plain links to this same page in each —
+// crawlable, no script, and absent while a store serves one language.
+// Shoppers choose; nothing is ever redirected by browser language.
+import { localizeHref, servedLanguage } from "@codflow/storefront";
+
+const store = Astro.locals.store;
+const languages = store.routing.published.map((code) => ({
+  code,
+  name: servedLanguage(store.config, code)?.nativeName ?? code,
+  href: `${localizeHref(store.pathname, code, store.routing)}${Astro.url.search}`,
+}));
+---
+
+{languages.length > 1 && (
+  <nav aria-label={store.content.ariaLanguageSwitcher} class="flex items-center gap-0.5 text-[0.8125rem] font-bold">
+    {languages.map((language) => (
+      <a
+        href={language.href}
+        hreflang={language.code}
+        lang={language.code}
+        aria-current={language.code === store.locale ? "true" : undefined}
+        class:list={[
+          "rounded-lg px-2 py-1.5 transition-colors",
+          language.code === store.locale ? "text-primary" : "hover:text-primary",
+        ]}
+        style={language.code === store.locale ? undefined : "color: var(--clr-text-2)"}
+      >
+        {language.name}
+      </a>
+    ))}
+  </nav>
+)}

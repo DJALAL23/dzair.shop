@@ -13,9 +13,16 @@
  * successful read is cached for the client's lifetime (one fetch per isolate,
  * not one per render) and any failure still falls back to DEFAULT_CONFIG.
  */
-import { getStoreClient } from "@/theme/sdk";
+import { getStoreClient, type StoreClient } from "@/theme/sdk";
 import { resolveContent } from "@/theme/content";
-import { servedLanguage, type StoreConfig } from "@codflow/storefront";
+import {
+  localeRouting,
+  localizeHref,
+  resolveLocalePath,
+  servedLanguage,
+  type LocaleRouting,
+  type StoreConfig,
+} from "@codflow/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 
 export const DEFAULT_CONFIG: StoreConfig = {
@@ -69,24 +76,91 @@ export interface StoreContext {
   config: StoreConfig;
   /** The theme's pack for `locale`, with the store's overrides merged. */
   content: StoreFrontContent;
-  /** The language this request renders: today, the store's primary language. */
+  /** The language this request renders: the URL's (`/fr/…`), else the primary. */
   locale: string;
   /**
-   * Languages to try after `locale` for a translated page value (ADR 0005).
-   * Empty while a store serves one language: its pack, already in the right
-   * language, is a better fallback than another language's text.
+   * Languages to try after `locale` for a translated page value (ADR 0005):
+   * the primary, when the request is in another language. Empty for the
+   * primary itself — its pack, already in the right language, is a better
+   * fallback than another language's text.
    */
   fallbackLocales: readonly string[];
   isRTL: boolean;
+  /** The SDK client for this request's language — every page read goes through it. */
+  client: StoreClient;
+  /** The store's languages as URLs need them. */
+  routing: LocaleRouting;
+  /** This page's path without its language prefix — what the page route matched. */
+  pathname: string;
+  /** An internal link in this request's language: `href("/products")` → `/fr/products`. */
+  href: (path: string) => string;
 }
 
-export async function getStoreContext(): Promise<StoreContext> {
-  const config = (await getStoreClient().config.get()) ?? DEFAULT_CONFIG;
-  const locale = config.lang;
+/**
+ * The path a request takes its language from. A page takes it from its own
+ * path. A server island (`/_server-islands/…`) renders part of a page in a
+ * separate request with no language in its URL, so it takes the language of
+ * the page that asked for it — Astro's island loader sends that page as a
+ * same-origin `Referer`. An island without one renders in the primary.
+ */
+export function languageSource(url: URL, referer: string | null): { path: string; island: boolean } {
+  if (!url.pathname.startsWith("/_server-islands/")) return { path: url.pathname, island: false };
+  if (referer === null) return { path: "/", island: true };
+  try {
+    const page = new URL(referer);
+    return { path: page.origin === url.origin ? page.pathname : "/", island: true };
+  } catch {
+    return { path: "/", island: true };
+  }
+}
+
+/**
+ * What a request resolves to: a page in one language, or a redirect —
+ * permanent for the primary's prefix (it has one address), temporary for a
+ * language the store stopped publishing (it may publish it again).
+ */
+export type StoreRequest =
+  | { kind: "page"; store: StoreContext }
+  | { kind: "redirect"; location: string; status: 301 | 302 };
+
+/**
+ * Resolve a request's language from its path and build its store context.
+ * The primary config decides which languages exist; the request's own client
+ * then serves the config in that language. If the server no longer publishes
+ * the language (a stale cached list), the shopper is sent to the primary URL
+ * rather than shown a page that claims a language it does not carry.
+ */
+export async function resolveStoreRequest(requestPath: string): Promise<StoreRequest> {
+  const primaryConfig = (await getStoreClient().config.get()) ?? DEFAULT_CONFIG;
+  const routing = localeRouting(primaryConfig);
+  const path = resolveLocalePath(requestPath, routing);
+  if (path.kind === "redirect") return { kind: "redirect", location: path.location, status: 301 };
+
+  const translated = path.locale !== routing.primary;
+  const client = getStoreClient(translated ? path.locale : undefined);
+  const config = translated ? (await client.config.get()) ?? primaryConfig : primaryConfig;
+  if (translated && config.locale !== path.locale) {
+    return { kind: "redirect", location: path.pathname, status: 302 };
+  }
+
+  const locale = path.locale;
   // Only this language's overrides: another language's map would mix languages.
   const content = resolveContent(locale, config.contentOverrides[locale]);
   // The server describes every language it serves; a config that somehow
-  // lacks the primary renders left-to-right rather than failing the page.
+  // lacks this one renders left-to-right rather than failing the page.
   const isRTL = servedLanguage(config, locale)?.direction === "rtl";
-  return { config, content, locale, fallbackLocales: [], isRTL };
+  return {
+    kind: "page",
+    store: {
+      config,
+      content,
+      locale,
+      fallbackLocales: translated ? [routing.primary] : [],
+      isRTL,
+      client,
+      routing,
+      pathname: path.pathname,
+      href: (target) => localizeHref(target, locale, routing),
+    },
+  };
 }

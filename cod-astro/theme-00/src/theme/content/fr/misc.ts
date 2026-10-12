@@ -24,6 +24,7 @@ export const frMisc: MiscStrings = {
   offerSavingsText: "Économie de {amount} {currency}",
   offerUnitLabel: "Unité {n}",
   ariaMainNavigation: "Navigation principale",
+  ariaLanguageSwitcher: "Langue",
   ariaQuantity: "Quantité",
   ariaGoToImage: "Aller à l'image {n} sur {total}",
   ariaBrowseAllProducts: "Parcourir tous les produits",

@@ -23,7 +23,6 @@
  * suggestion could not be loaded.
  */
 import ProductCard from "@/theme/components/product/ProductCard.astro";
-import { getStoreClient } from "@/theme/sdk";
 import type { ProductList } from "@codflow/storefront";
 import {
   usableRelated,
@@ -53,7 +52,7 @@ let related: ProductList[] = [];
 
 if (categoryId) {
   related = usableRelated(
-    await getStoreClient().products.list({ categoryId, limit: MAX_RELATED + 1 }),
+    await Astro.locals.store.client.products.list({ categoryId, limit: MAX_RELATED + 1 }),
     productId,
   );
 }
@@ -62,7 +61,7 @@ if (categoryId) {
 // to go, so fall back to the catalog at large rather than showing nothing.
 // Fetched only when needed: a rich category costs one request, not two.
 if (related.length < MIN_RELATED) {
-  related = usableRelated(await getStoreClient().products.list({ limit: MAX_RELATED + 1 }), productId);
+  related = usableRelated(await Astro.locals.store.client.products.list({ limit: MAX_RELATED + 1 }), productId);
 }
 
 const show = shouldShowRelated(related.length);

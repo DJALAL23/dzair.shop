@@ -24,6 +24,8 @@ export type MiscStrings = {
   offerSavingsText: string;
   offerUnitLabel: string;
   ariaMainNavigation: string;
+  /** The language switcher's accessible name (shown only when the store publishes several). */
+  ariaLanguageSwitcher: string;
   ariaQuantity: string;
   ariaGoToImage: string;
   ariaBrowseAllProducts: string;

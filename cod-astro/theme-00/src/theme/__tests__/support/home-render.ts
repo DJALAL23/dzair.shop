@@ -12,6 +12,8 @@ import type { ComponentInstance, ThemeRenderContext } from "@codflow/theme";
 import { theme00 } from "@/theme/theme";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en } from "@/theme/content/en";
+import type { LocaleRouting } from "@codflow/storefront";
+import { testLocals } from "./locals";
 
 export function makeProduct(overrides: Partial<ProductList>): ProductList {
   return {
@@ -63,6 +65,8 @@ export async function renderSections(
   options: {
     content?: Record<string, string>;
     locale?: string;
+    /** The store's languages, for links: `/products` → `/fr/products` in French. */
+    routing?: LocaleRouting;
     onIssue?: (issue: RendererIssue) => void;
   } = {},
 ): Promise<string> {
@@ -81,6 +85,7 @@ export async function renderSections(
   for (const instance of sections) {
     html += await container.renderToString(InstanceView, {
       props: { instance, theme: theme00, context, storefront, reads, onIssue: options.onIssue },
+      locals: testLocals({ locale: context.locale, routing: options.routing ?? { primary: context.locale, published: [context.locale] } }),
     });
   }
   return html;

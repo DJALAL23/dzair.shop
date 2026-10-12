@@ -46,8 +46,14 @@ const storeContext = {
   isRTL: false,
 };
 
-vi.mock("@/theme/runtime/store", () => ({
-  getStoreContext: async () => storeContext,
+// A store whose primary is Arabic and which also publishes French: `/fr/…`
+// renders the unprefixed route, `/ar/…` is the primary's second address.
+vi.mock("@/theme/runtime/store", async (importOriginal) => ({
+  languageSource: ((await importOriginal()) as typeof import("@/theme/runtime/store")).languageSource,
+  resolveStoreRequest: async (path: string) =>
+    /^\/ar(?:\/|$)/.test(path)
+      ? { kind: "redirect", location: path.slice(3) || "/", status: 301 }
+      : { kind: "page", store: { ...storeContext, pathname: path.replace(/^\/fr(?=\/|$)/, "") || "/" } },
 }));
 
 const { server } = await import("@/actions/index");
@@ -155,7 +161,7 @@ type Middleware = (
     url: URL;
     redirect: (location: string, status: number) => Response;
   },
-  next: () => Promise<Response>,
+  next: (rewrite?: URL) => Promise<Response>,
 ) => Promise<Response>;
 
 const middleware = onRequest as unknown as Middleware;
@@ -172,7 +178,8 @@ const makeContext = (request: Request) => ({
     new Response(null, { status, headers: { location } }),
 });
 
-const next = () => Promise.resolve(new Response("page"));
+const next = (rewrite?: URL) =>
+  Promise.resolve(new Response(rewrite ? `page ${rewrite.pathname}${rewrite.search}` : "page"));
 
 describe("onRequest binding (src/middleware.ts)", () => {
   beforeEach(() => {
@@ -270,7 +277,70 @@ describe("onRequest binding (src/middleware.ts)", () => {
 
     // The layout, the pages and the action handlers all read this one value;
     // a second acquisition point is what store-context.test.ts forbids.
-    expect(context.locals.store).toBe(storeContext);
+    expect(context.locals.store).toMatchObject({ ...storeContext, pathname: "/checkout" });
+  });
+
+  it("renders /fr/… as the unprefixed route, keeping its query", async () => {
+    wireAction(undefined);
+    const context = makeContext(new Request("http://shop.example/fr/products?page=2"));
+
+    const response = await middleware(context, next);
+
+    expect(await response.text()).toBe("page /products?page=2");
+    expect(context.locals.store).toMatchObject({ pathname: "/products" });
+  });
+
+  it("sends the primary's prefixed address to its one URL, permanently", async () => {
+    wireAction(undefined);
+
+    const response = await middleware(makeContext(new Request("http://shop.example/ar/products?page=2")), next);
+
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe("/products?page=2");
+  });
+
+  it("renders a server island in the language of the page that asked for it, without rewriting it", async () => {
+    wireAction(undefined);
+    const context = makeContext(
+      new Request("http://shop.example/_server-islands/RelatedProducts?e=1", {
+        headers: { Referer: "http://shop.example/fr/products/phone" },
+      }),
+    );
+
+    const response = await middleware(context, next);
+
+    expect(await response.text()).toBe("page");
+    expect(context.locals.store).toMatchObject({ pathname: "/products/phone" });
+  });
+
+  it("never redirects a server island, even when its page's address would", async () => {
+    wireAction(undefined);
+    const context = makeContext(
+      new Request("http://shop.example/_server-islands/ReviewsIsland", {
+        headers: { Referer: "http://shop.example/ar/products/phone" },
+      }),
+    );
+
+    const response = await middleware(context, next);
+
+    expect(response.status).toBe(200);
+    expect(context.locals.store).toMatchObject({ pathname: "/products/phone" });
+  });
+
+  it("returns a failed French form post to the French page", async () => {
+    wireAction({
+      calledFrom: "form",
+      name: "placeOrder",
+      handler: async () => ({ error: { code: "BAD_REQUEST" } }),
+    });
+
+    const response = await middleware(
+      makeContext(new Request("http://shop.example/fr/checkout", { method: "POST" })),
+      next,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/fr/checkout");
   });
 
   it("skips the store-context read for /api/* — those endpoints never render the shell", async () => {

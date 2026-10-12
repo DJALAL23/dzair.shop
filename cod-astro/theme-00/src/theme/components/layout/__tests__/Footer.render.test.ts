@@ -13,6 +13,7 @@
  */
 /// <reference types="vitest/globals" />
 
+import { testLocals } from "../../../__tests__/support/locals";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import Footer from "../Footer.astro";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
@@ -32,7 +33,7 @@ function page(overrides: Partial<StorePageLink> = {}): StorePageLink {
 
 async function render(config: StoreConfig): Promise<string> {
   const container = await AstroContainer.create();
-  return container.renderToString(Footer, { props: { config, content: en } });
+  return container.renderToString(Footer, { props: { config, content: en }, locals: testLocals() });
 }
 
 describe("Footer — the policy links column", () => {

@@ -1,43 +1,19 @@
 ---
 // ── SECTION ──
-// Customer testimonials from real product reviews.
-// Presentational about the catalog — the page passes the products read; the
-// section fetches the review pages it shows (one per product, capped at 3).
-import type { ProductList, Review } from "@codflow/storefront";
+// Customer testimonials from real product reviews. Presentational: the
+// section's `load` (customer-testimonials.def.ts) reads the reviews through
+// the storefront the renderer hands it, and passes none when the merchant
+// switched reviews off.
+import type { Review } from "@codflow/storefront";
 import type { StoreFrontContent } from "@/theme/content";
-import { getStoreClient } from "@/theme/sdk";
 import { Icon } from "astro-icon/components";
 
 interface Props {
-  products: ProductList[];
-  /** `config.reviewsEnabled` — the merchant's switch for the whole section. */
-  enabled: boolean;
+  reviews: Review[];
   content: StoreFrontContent;
 }
 
-const { products, enabled, content } = Astro.props;
-
-// Only render if reviews are enabled
-let reviews: Review[] = [];
-
-if (enabled) {
-  const store = getStoreClient();
-
-  // Products that have reviews — the ones worth asking the reviews endpoint about
-  const withReviews = products
-    .filter((p) => p.reviewStats && p.reviewStats.reviewCount > 0)
-    .sort((a, b) => (b.reviewStats?.reviewCount ?? 0) - (a.reviewStats?.reviewCount ?? 0))
-    .slice(0, 3);
-
-  // Fetch actual reviews from top-reviewed products
-  const results = await Promise.all(
-    withReviews.map((p) => store.products.reviews.list(p.id, { limit: 2 }))
-  );
-  reviews = results
-    .flatMap((r) => r.rows)
-    .filter((r) => r.rating >= 4)
-    .slice(0, 3);
-}
+const { reviews, content } = Astro.props;
 ---
 
 {reviews.length > 0 && (

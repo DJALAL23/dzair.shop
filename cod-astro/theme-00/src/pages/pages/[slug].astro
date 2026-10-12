@@ -13,13 +13,12 @@
 // HTTP 404 status, not a soft 200 with empty content) — see plan §9.
 // ─────────────────────────────────────────────────────────────────────────────
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
-import { getStoreClient } from "@/theme/sdk";
 
 const { slug } = Astro.params;
 
 // Store context comes from middleware (Astro.locals.store — Theme Zero S2).
 const { config } = Astro.locals.store;
-const page = await getStoreClient().pages.get(slug ?? "");
+const page = await Astro.locals.store.client.pages.get(slug ?? "");
 
 if (!page) return Astro.rewrite("/404");
 

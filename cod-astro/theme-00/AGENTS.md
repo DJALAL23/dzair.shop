@@ -98,6 +98,18 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
 
 ## Conventions & traps
 
+- **Every internal link goes through `Astro.locals.store.href(path)`** (ADR
+  0005, phase D): a shopper on `/fr/…` must stay in French. A bare
+  `href="/products"` fails `store-context.test.ts`. Links merchants type into a
+  section (`url` fields) go through it too; external URLs and fragments pass
+  through unchanged. Browser scripts read server-rendered hrefs (e.g. the cart's
+  `data-checkout-href`), never build one.
+- **Pages and components read through `Astro.locals.store.client`** — the
+  request's SDK client, in its language. Only `src/theme/sdk.ts`, the store
+  runtime, endpoints (`/api/*`) and actions create clients.
+- **Server islands take the language of the page that loaded them** (its
+  `Referer`); the middleware never redirects or rewrites `/_server-islands/*`.
+
 - **No hardcoded user-facing strings** — add content keys to the language packs.
 - **No hardcoded design tokens** (colors, radii, fonts) in component styles.
   See `THEME_GUIDE.md`.

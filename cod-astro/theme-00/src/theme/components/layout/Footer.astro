@@ -23,7 +23,7 @@ const badges = [
     <div class="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8">
       {/* Brand Column */}
       <div class="md:col-span-4 space-y-3">
-        <a href="/" class="flex items-center gap-3 active:scale-95 transition-transform">
+        <a href={Astro.locals.store.href("/")} class="flex items-center gap-3 active:scale-95 transition-transform">
           {config.logoUrl ? (
             <Image
               src={config.logoUrl}
@@ -52,10 +52,10 @@ const badges = [
           </h3>
           <ul class="space-y-2.5">
             {[
-              { label: content?.navHome, href: "/" },
-              { label: content?.navProducts, href: "/products" },
-              { label: content?.navBestSellers, href: "/#best-sellers" },
-              { label: content?.navNewArrivals, href: "/#new-arrivals" },
+              { label: content?.navHome, href: Astro.locals.store.href("/") },
+              { label: content?.navProducts, href: Astro.locals.store.href("/products") },
+              { label: content?.navBestSellers, href: Astro.locals.store.href("/#best-sellers") },
+              { label: content?.navNewArrivals, href: Astro.locals.store.href("/#new-arrivals") },
             ].map((link) => (
               <li>
                 <a href={link.href} class="text-[0.8125rem] sm:text-[0.875rem] font-bold transition-all hover:text-primary" style="color: var(--clr-text-2)">
@@ -73,7 +73,7 @@ const badges = [
           <ul class="space-y-2.5">
             {config.pages.map((page) => (
               <li>
-                <a href={`/pages/${page.slug}`} class="text-[0.8125rem] sm:text-[0.875rem] font-bold transition-all hover:text-primary" style="color: var(--clr-text-2)">
+                <a href={Astro.locals.store.href(`/pages/${page.slug}`)} class="text-[0.8125rem] sm:text-[0.875rem] font-bold transition-all hover:text-primary" style="color: var(--clr-text-2)">
                   {page.title}
                 </a>
               </li>

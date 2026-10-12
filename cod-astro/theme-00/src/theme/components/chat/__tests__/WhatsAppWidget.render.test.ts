@@ -63,7 +63,17 @@ async function renderWidget(widgetPartial: Partial<StoreWhatsAppWidget> = {}, co
 
 async function renderLayout(pathname: string, config: StoreConfig) {
   const container = await AstroContainer.create();
-  const store: StoreContext = { config, content: enContent, locale: "en", fallbackLocales: [], isRTL: false };
+  const store: StoreContext = {
+    config,
+    content: enContent,
+    locale: "en",
+    fallbackLocales: [],
+    isRTL: false,
+    client: undefined as never,
+    routing: { primary: "en", published: ["en"] },
+    pathname: new URL(`https://example.dz${pathname}`).pathname,
+    href: (path) => path,
+  };
   const html = await container.renderToString(StoreLayout, {
     // StoreLayout reads the store context from `Astro.locals.store` — set by
     // middleware in production (Theme Zero S2). The Container API takes
