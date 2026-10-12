@@ -1,14 +1,7 @@
 import { z } from "zod";
 import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
-import {
-  CONTENT_OVERRIDE_LIMITS,
-  THEME_KEY_RE,
-  isOverrideKey,
-} from "../../../../cod-shared/i18n/content-overrides";
 
 const storeLocale = z.enum(STORE_LOCALES);
-
-export const themeKeySchema = z.string().regex(THEME_KEY_RE, "A theme key is lowercase kebab-case, at most 64 characters");
 
 /**
  * The store's whole language list. Each language once; whether the primary is
@@ -22,25 +15,6 @@ const storeLanguages = z
   .refine((rows) => new Set(rows.map((row) => row.locale)).size === rows.length, {
     message: "Each language may appear once",
   });
-
-/**
- * A JSON Merge Patch (RFC 7396) of one theme's text in one language: a string
- * sets a key, `null` removes it.
- */
-export const contentOverridesPatchSchema = z.object({
-  theme: themeKeySchema,
-  locale: storeLocale,
-  values: z
-    .record(
-      z.string().refine(isOverrideKey, `Keys are 1–${CONTENT_OVERRIDE_LIMITS.keyLength} characters`),
-      z.string().max(CONTENT_OVERRIDE_LIMITS.valueLength).nullable(),
-    )
-    .refine((values) => Object.keys(values).length <= CONTENT_OVERRIDE_LIMITS.keysPerLocale, {
-      message: `At most ${CONTENT_OVERRIDE_LIMITS.keysPerLocale} keys per language`,
-    }),
-});
-
-export const contentOverridesQuerySchema = z.object({ theme: themeKeySchema });
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{3,8}$/, "Invalid hex color");
 

@@ -7,9 +7,10 @@
  *     under the reference theme — junk the old columns could hold is dropped.
  *  2. The storefront config serves only published languages, with what a theme
  *     needs to render each, and only the asking theme's edits.
- *  3. The dashboard reads every added language, replaces the list only when
- *     the primary stays published, and merge-patches one theme's text in one
- *     language — removing a language removes its text.
+ *  3. The dashboard reads every added language and replaces the list only
+ *     when the primary stays published — removing a language removes its
+ *     theme text. (That text is written by CodFlow Cloud, not by this server;
+ *     the tests seed it directly.)
  */
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { and, eq, sql } from "drizzle-orm";
@@ -287,96 +288,6 @@ describe("store languages through the real routes", () => {
     it("leaves languages alone when a save does not mention them", async () => {
       await request("/api/stores/me", { method: "PATCH", body: { name: "Renamed" } });
       expect((await request("/api/stores/me")).body.data.languages).toHaveLength(3);
-    });
-  });
-
-  describe("theme text edits", () => {
-    const patch = (body: unknown) => request("/api/stores/me/content-overrides", { method: "PATCH", body });
-
-    it("lists one theme's edits in every added language, drafts included", async () => {
-      const { body } = await request("/api/stores/me/content-overrides?theme=theme-00");
-      expect(body.data).toEqual({
-        theme: "theme-00",
-        overrides: {
-          fr: { heroTitle: "Livraison gratuite" },
-          ar: { heroTitle: "توصيل مجاني" },
-          en: { heroTitle: "Free delivery (draft)" },
-        },
-      });
-    });
-
-    it("merge-patches one language of one theme: set, remove, leave the rest", async () => {
-      const { status, body } = await patch({
-        theme: "theme-00",
-        locale: "fr",
-        values: { promoTitle: "Promo", heroTitle: null, neverSet: null },
-      });
-      expect(status).toBe(200);
-      expect(body.data).toEqual({ theme: "theme-00", locale: "fr", overrides: { promoTitle: "Promo" } });
-      expect(await storedEdits("theme-00")).toEqual([
-        { locale: "ar", key: "heroTitle" },
-        { locale: "en", key: "heroTitle" },
-        { locale: "fr", key: "promoTitle" },
-      ]);
-      expect(await storedEdits("other-theme")).toEqual([{ locale: "fr", key: "heroTitle" }]);
-    });
-
-    it("overwrites an existing key", async () => {
-      const { body } = await patch({ theme: "theme-00", locale: "ar", values: { heroTitle: "جديد" } });
-      expect(body.data.overrides).toEqual({ heroTitle: "جديد" });
-    });
-
-    it("refuses a language the store has not added", async () => {
-      await request("/api/stores/me", {
-        method: "PATCH",
-        body: { languages: [{ locale: "fr", published: true }] },
-      });
-      expect((await patch({ theme: "theme-00", locale: "ar", values: { heroTitle: "x" } })).status).toBe(400);
-    });
-
-    it("edits the primary even when a seed never gave it a row, and publishes it", async () => {
-      await harness.db.delete(schema.storeLocales).where(eq(schema.storeLocales.locale, "fr"));
-      const { status } = await patch({ theme: "theme-00", locale: "fr", values: { heroTitle: "Nouveau" } });
-      expect(status).toBe(200);
-      const row = await harness.db
-        .select()
-        .from(schema.storeLocales)
-        .where(and(eq(schema.storeLocales.storeId, STORE_ID), eq(schema.storeLocales.locale, "fr")))
-        .get();
-      expect(row?.published).toBe(true);
-    });
-
-    it("caps the keys per theme and language, while still letting existing keys change", async () => {
-      await harness.raw
-        .prepare(
-          `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 999)
-           INSERT INTO store_content_overrides (store_id, theme_key, locale, key, value, updated_at)
-           SELECT ?, 'theme-00', 'fr', 'k' || i, 'v', ? FROM n`,
-        )
-        .bind(STORE_ID, now())
-        .run();
-      expect((await patch({ theme: "theme-00", locale: "fr", values: { oneMore: "x" } })).status).toBe(400);
-      expect((await patch({ theme: "theme-00", locale: "fr", values: { k1: "changed" } })).status).toBe(200);
-      expect(
-        (await patch({ theme: "theme-00", locale: "fr", values: { k1: null, oneMore: "x" } })).status,
-      ).toBe(200);
-    });
-
-    it.each([
-      ["a malformed theme key", { theme: "Theme 00", locale: "fr", values: { a: "b" } }],
-      ["an unsupported language", { theme: "theme-00", locale: "de", values: { a: "b" } }],
-      ["a non-string value", { theme: "theme-00", locale: "fr", values: { a: 3 } }],
-      ["an over-long value", { theme: "theme-00", locale: "fr", values: { a: "x".repeat(5001) } }],
-      ["an empty key", { theme: "theme-00", locale: "fr", values: { "": "x" } }],
-    ])("refuses %s", async (_name, body) => {
-      expect((await patch(body)).status).toBe(400);
-    });
-
-    it("never stores a __proto__ key: refused, or dropped before it is saved", async () => {
-      const body = JSON.parse('{"theme":"theme-00","locale":"fr","values":{"__proto__":"x","ok":"y"}}');
-      await patch(body);
-      expect((await storedEdits("theme-00")).map((row) => row.key)).not.toContain("__proto__");
-      expect(({} as Record<string, unknown>).x).toBeUndefined();
     });
   });
 });

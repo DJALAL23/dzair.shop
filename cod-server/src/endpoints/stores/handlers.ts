@@ -2,13 +2,8 @@ import { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import * as queries from "./queries";
-import { contentOverridesPatchSchema, contentOverridesQuerySchema, updateStoreSchema } from "./validation";
+import { updateStoreSchema } from "./validation";
 import { planStoreLanguages, storeLanguages, toStoreSettings } from "../../../../cod-shared/stores/settings";
-import {
-  CONTENT_OVERRIDE_LIMITS,
-  groupOverrides,
-  planOverridePatch,
-} from "../../../../cod-shared/i18n/content-overrides";
 import { NotFoundError, SystemError, ValidationError, ExternalApiError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { getPixelConfig as queryPixelConfig, upsertPixelConfig } from "../../../../cod-shared/queries/pixel-config";
@@ -63,53 +58,6 @@ export async function updateMyStore(c: Context<AppContext>) {
   }
   const localeRows = plan.rows ?? current;
   return c.json({ success: true, data: toStoreSettings(updated, localeRows) }, 200);
-}
-
-/** One theme's text edits, every language the store has added. */
-export async function getContentOverrides(c: Context<AppContext>) {
-  const db = getDb(c.env.DB);
-  const store = await queries.getStore(db);
-  if (!store) {
-    throw new NotFoundError("Store");
-  }
-  const { theme } = ((c.req as any).valid?.("query") ??
-    contentOverridesQuerySchema.parse({ theme: c.req.query("theme") })) as z.infer<typeof contentOverridesQuerySchema>;
-  const [localeRows, rows] = await Promise.all([
-    queries.listStoreLocales(db, store.id),
-    queries.listContentOverrides(db, store.id, theme),
-  ]);
-  const locales = storeLanguages(store.lang, localeRows).map((language) => language.locale);
-  return c.json({ success: true, data: { theme, overrides: groupOverrides(rows, locales) } }, 200);
-}
-
-/**
- * Merge-patch one theme's text in one language. The language must be one the
- * store has added (published or not), and the result stays within the caps.
- */
-export async function patchContentOverrides(c: Context<AppContext>) {
-  const db = getDb(c.env.DB);
-  const store = await queries.getStore(db);
-  if (!store) {
-    throw new NotFoundError("Store");
-  }
-  const { theme, locale, values } = ((c.req as any).valid?.("json") ??
-    contentOverridesPatchSchema.parse(await c.req.json())) as z.infer<typeof contentOverridesPatchSchema>;
-  const added = storeLanguages(store.lang, await queries.listStoreLocales(db, store.id));
-  if (!added.some((language) => language.locale === locale)) {
-    throw new ValidationError(`Add ${locale} to the store's languages before editing its text`, ERROR_CODES.VALIDATION_FAILED);
-  }
-  const scope = { storeId: store.id, themeKey: theme, locale };
-  const change = planOverridePatch(await queries.listContentOverrideKeys(db, scope), values);
-  if (change.keyCount > CONTENT_OVERRIDE_LIMITS.keysPerLocale) {
-    throw new ValidationError(
-      `At most ${CONTENT_OVERRIDE_LIMITS.keysPerLocale} edited keys per theme and language`,
-      ERROR_CODES.VALIDATION_FAILED,
-    );
-  }
-  await queries.writeContentOverrides(db, scope, change);
-  const rows = await queries.listContentOverrides(db, store.id, theme);
-  const overrides = groupOverrides(rows, [locale])[locale] ?? {};
-  return c.json({ success: true, data: { theme, locale, overrides } }, 200);
 }
 
 /**

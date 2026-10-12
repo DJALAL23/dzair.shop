@@ -152,6 +152,9 @@ other is how these drift.
 - **Theme text edits are keyed by theme** (`store_content_overrides`,
   `defineTheme({ key })`), and a storefront only receives them when its SDK
   client passes `theme`. Renaming a theme's key orphans its merchant edits.
+  This repo only reads them: theme editing (text edits, page documents) is
+  written by CodFlow Cloud's visual editor, which is closed source and lives
+  outside this repository — never add theme-writing endpoints or UI here.
 - The **shopping cart is off by default, per store** (`stores.cart_enabled`).
   A store that never enables it ships no cart markup at all. Rollback for the
   whole feature is `UPDATE stores SET cart_enabled = 0` — there is no data

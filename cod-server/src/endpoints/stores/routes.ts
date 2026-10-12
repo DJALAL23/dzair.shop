@@ -14,10 +14,8 @@ import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import * as handlers from "./handlers";
-import { contentOverridesPatchSchema, contentOverridesQuerySchema, updateStoreSchema } from "./validation";
+import { updateStoreSchema } from "./validation";
 import {
-  ContentOverridesSchema,
-  StoreLocaleEnum,
   StoreSchema,
   StorePixelConfigSchema,
   SuccessResponseSchema,
@@ -76,50 +74,6 @@ const updateMyStoreRoute = defineRoute({
     },
   },
   handler: handlers.updateMyStore,
-});
-
-const getContentOverridesRoute = defineRoute({
-  method: "get",
-  path: "/me/content-overrides",
-  auth: "admin",
-  tags: ["Store Settings"],
-  summary: "Get a theme's text edits",
-  description:
-    "Returns the store's edits to one theme's storefront text, per language, for every language the store has added (published or not).",
-  operationId: "getContentOverrides",
-  query: contentOverridesQuerySchema,
-  responses: {
-    200: {
-      description: "The theme's text edits per language",
-      content: jsonContent(
-        SuccessResponseSchema(z.object({ theme: z.string(), overrides: ContentOverridesSchema })),
-      ),
-    },
-  },
-  handler: handlers.getContentOverrides,
-});
-
-const patchContentOverridesRoute = defineRoute({
-  method: "patch",
-  path: "/me/content-overrides",
-  auth: "admin",
-  tags: ["Store Settings"],
-  summary: "Edit a theme's text in one language",
-  description:
-    "Applies a JSON Merge Patch (RFC 7396) to one theme's text in one language: a string sets a key, `null` removes it, other keys are untouched. The language must be one the store has added.",
-  operationId: "patchContentOverrides",
-  body: contentOverridesPatchSchema,
-  responses: {
-    200: {
-      description: "The language's edits after the patch",
-      content: jsonContent(
-        SuccessResponseSchema(
-          z.object({ theme: z.string(), locale: StoreLocaleEnum, overrides: z.record(z.string(), z.string()) }),
-        ),
-      ),
-    },
-  },
-  handler: handlers.patchContentOverrides,
 });
 
 const getPixelConfigRoute = defineRoute({
@@ -387,8 +341,6 @@ const router = new OpenAPIHono<AppContext>();
 
 router.openapi(getMyStoreRoute.route, getMyStoreRoute.handler);
 router.openapi(updateMyStoreRoute.route, updateMyStoreRoute.handler);
-router.openapi(getContentOverridesRoute.route, getContentOverridesRoute.handler);
-router.openapi(patchContentOverridesRoute.route, patchContentOverridesRoute.handler);
 router.openapi(getPixelConfigRoute.route, getPixelConfigRoute.handler);
 router.openapi(savePixelConfigRoute.route, savePixelConfigRoute.handler);
 router.openapi(getOtpConfigRoute.route, getOtpConfigRoute.handler);

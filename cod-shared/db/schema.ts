@@ -964,6 +964,10 @@ export const storeLocales = sqliteTable("store_locales", {
  * A store's edits to a theme's storefront text, one row per theme, language
  * and key (`i18n/content-overrides.ts`). Removing a language from the store
  * removes its edits; unpublishing it only hides them.
+ *
+ * Read here for the storefront (`/store/config?theme=`); written by CodFlow
+ * Cloud's visual editor, outside this repository. A writer must make sure the
+ * language has its `store_locales` row first (the foreign key below).
  */
 export const storeContentOverrides = sqliteTable("store_content_overrides", {
   storeId: text("store_id").notNull(),
