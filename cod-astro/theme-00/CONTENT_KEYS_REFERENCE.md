@@ -203,7 +203,8 @@ and the SDK client names that key, so they arrive as
 `StoreConfig.contentOverrides` (→ `resolveContent(lang, overrides)` in
 `src/theme/content/index.ts`). Only the store's own language is applied;
 unknown keys and non-string values are ignored and the locale defaults are
-used. The dashboard writes them with `PATCH /api/stores/me/content-overrides`:
+used. The visual editor (Studio) — not the merchant dashboard — writes them
+with `PATCH /api/stores/me/content-overrides`:
 
 ```json
 { "theme": "theme-00", "locale": "ar", "values": { "heroTitle": "عرض اليوم", "orderCta": null } }

@@ -60,6 +60,8 @@ The store's edits to one theme's storefront text, per language, for every langua
 **Authorization:** Admin role required (`requireAdmin()`)
 
 ### PATCH /api/stores/me/content-overrides
+Written by the visual editor (Studio); the merchant dashboard has no theme-editing UI.
+
 A JSON Merge Patch (RFC 7396) of one theme's text in one language — a string sets a key, `null` removes it, other keys are untouched:
 
 ```json
