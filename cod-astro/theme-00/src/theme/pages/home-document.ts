@@ -105,3 +105,28 @@ export function resolveHomeDocument(
     issues: savedResult.issues,
   };
 }
+
+/**
+ * Report a home decision that did not render the saved document cleanly, for
+ * the operator's logs: why the default won, and each section-level reason
+ * ("sections[3] unknown-type" is actionable; "the page degraded" is not).
+ */
+export function logHomeDecision(
+  decision: HomeDocumentDecision,
+  warn: (...data: unknown[]) => void = console.warn,
+): void {
+  if (decision.reason !== null) {
+    warn(
+      `[theme-00] home document: ${decision.source} (${decision.reason}); ` +
+        `issues: ${decision.issues.length}`,
+    );
+  }
+  if (decision.issues.length > 0) {
+    warn(
+      `[theme-00] home page data degraded (${decision.issues.length}):`,
+      decision.issues.map(
+        (issue) => `${issue.path || "<document>"} ${issue.code}: ${issue.message}`,
+      ),
+    );
+  }
+}

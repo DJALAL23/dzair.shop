@@ -23,6 +23,7 @@ import type {
   ThemeRenderContext,
 } from "@codflow/theme";
 import { theme00 } from "@/theme/theme";
+import { makeProduct } from "../support/home-render";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en } from "@/theme/content/en";
 import homePage from "@/theme/pages/home.page.json";
@@ -46,40 +47,6 @@ function decode(html: string): string {
 
 // ── Fixtures (shape-faithful; see ProductListSchema / CategorySchema) ────────
 
-function makeProduct(overrides: Partial<ProductList>): ProductList {
-  return {
-    id: "prod_x",
-    name: "Fixture Product",
-    description: null,
-    descriptionFormat: "text",
-    descriptionPlain: null,
-    handle: "fixture-product",
-    currency: "DZD",
-    price: 4500,
-    compareAtPrice: null,
-    costPrice: null,
-    type: "PHYSICAL",
-    hasVariants: false,
-    variantOptions: null,
-    sku: null,
-    inventory: 12,
-    trackInventory: true,
-    lowStockThreshold: 5,
-    categoryId: null,
-    tags: null,
-    visibility: true,
-    status: "ACTIVE",
-    showInStore: true,
-    storeFeatured: false,
-    deletedAt: null,
-    publishedAt: "2026-08-03T10:00:00.000Z",
-    createdAt: "2026-08-03T09:58:12.000Z",
-    updatedAt: "2026-09-19T14:21:44.000Z",
-    coverImage: null,
-    reviewStats: null,
-    ...overrides,
-  };
-}
 
 const FEATURED = makeProduct({
   id: "prod_featured",

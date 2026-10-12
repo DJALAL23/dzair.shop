@@ -5,20 +5,22 @@
 import ProductCard from "@/theme/components/product/ProductCard.astro";
 import { Icon } from "astro-icon/components";
 import type { ProductList } from "@codflow/storefront";
+import type { InferProps } from "@codflow/theme";
 import type { StoreFrontContent } from "@/theme/content";
+import type { newArrivals } from "@/theme/catalog/home/new-arrivals.def";
 
-interface Props {
+type Props = Pick<InferProps<typeof newArrivals>, "limit"> & {
   products: ProductList[];
   currencySymbol: string;
   content: StoreFrontContent;
-}
+};
 
-const { products: allProducts, currencySymbol, content } = Astro.props;
+const { products: allProducts, currencySymbol, content, limit } = Astro.props;
 
 // Exclude featured products to avoid duplication with BestSellers section
 const nonFeatured = allProducts.filter((p) => !p.storeFeatured);
-const products = nonFeatured.length ? nonFeatured.slice(0, 8) : allProducts.slice(0, 8);
-const showViewAll = allProducts.length > 8;
+const products = nonFeatured.length ? nonFeatured.slice(0, limit) : allProducts.slice(0, limit);
+const showViewAll = allProducts.length > limit;
 ---
 
 {products.length > 0 && (

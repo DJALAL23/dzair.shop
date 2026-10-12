@@ -1,12 +1,14 @@
 ---
+import type { InferProps } from "@codflow/theme";
 import type { StoreFrontContent } from "@/theme/content";
+import type { hero } from "@/theme/catalog/home/hero.def";
 import { Icon } from "astro-icon/components";
 
-interface Props {
+type Props = Pick<InferProps<typeof hero>, "ctaPrimaryHref" | "ctaSecondaryHref"> & {
   content: StoreFrontContent;
-}
+};
 
-const { content } = Astro.props;
+const { content, ctaPrimaryHref, ctaSecondaryHref } = Astro.props;
 ---
 
 <section class="hero-bg-subtle overflow-hidden relative -mt-[calc(4.5rem+var(--safe-top))] pt-[calc(4.5rem+var(--safe-top))]">
@@ -43,14 +45,14 @@ const { content } = Astro.props;
           {/* CTA buttons */}
           <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in-up [animation-delay:300ms]">
             <a
-              href="/products"
+              href={ctaPrimaryHref}
               class="btn-primary group !w-full sm:!w-auto !px-10 h-14 sm:h-16 text-base"
             >
               {content.heroCtaPrimary}
               <Icon name="heroicons:arrow-right" class="w-5 h-5 transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1" />
             </a>
             <a
-              href="#best-sellers"
+              href={ctaSecondaryHref}
               class="inline-flex items-center justify-center px-10 h-14 sm:h-16 font-black text-sm transition-all duration-300 active:scale-95 border-2 border-black/[0.08] hover:bg-white/50 w-full sm:w-auto bg-white/20 backdrop-blur-sm rounded-2xl"
               style="color: var(--clr-text)"
             >

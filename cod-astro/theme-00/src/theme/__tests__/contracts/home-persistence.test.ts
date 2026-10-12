@@ -12,16 +12,17 @@
  * real renderer, with the shipped default providing everything else.
  */
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ProductList } from "@codflow/storefront";
 import type { StoreClient } from "@codflow/storefront/server";
 import InstanceView from "@codflow/theme/astro/InstanceView.astro";
 import { createReadCache } from "@codflow/theme/astro";
 import type { ComponentInstance, ThemeRenderContext } from "@codflow/theme";
 import { theme00 } from "@/theme/theme";
+import { makeProduct } from "../support/home-render";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en as enContent } from "@/theme/content/en";
-import { resolveHomeDocument } from "@/theme/pages/home-document";
+import { logHomeDecision, resolveHomeDocument } from "@/theme/pages/home-document";
 import shippedHome from "@/theme/pages/home.page.json";
 
 const SAVED_OVERRIDE = {
@@ -115,6 +116,30 @@ describe("resolveHomeDocument — what the home surface renders", () => {
   });
 });
 
+describe("logHomeDecision — what the operator sees", () => {
+  it("says nothing when the saved document rendered cleanly", () => {
+    const warn = vi.fn();
+    logHomeDecision(resolveHomeDocument({ version: 1, surface: "home", sections: [] }, theme00), warn);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("names why the default won and each section-level reason", () => {
+    const warn = vi.fn();
+    logHomeDecision(
+      resolveHomeDocument(
+        { version: 1, surface: "home", sections: [{ id: "x", type: "not-in-this-catalog" }] },
+        theme00,
+      ),
+      warn,
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("default (no-overlap)"));
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("home page data degraded"),
+      [expect.stringContaining("sections[0].type unknown-type")],
+    );
+  });
+});
+
 // ── The report is the catalog's, not a hand-rolled yes/no ───────────────────
 
 describe("resolveHomeDocument — the degradation report names what is wrong", () => {
@@ -173,19 +198,6 @@ describe("resolveHomeDocument — the degradation report names what is wrong", (
 
 // ── One container render: the saved document reaches real HTML ──────────────
 
-function makeProduct(overrides: Partial<ProductList>): ProductList {
-  return {
-    id: "prod_x", name: "Fixture Product", description: null, descriptionFormat: "text",
-    descriptionPlain: null, handle: "fixture-product", currency: "DZD", price: 4500,
-    compareAtPrice: null, costPrice: null, type: "PHYSICAL", hasVariants: false,
-    variantOptions: null, sku: null, inventory: 12, trackInventory: true,
-    lowStockThreshold: 5, categoryId: null, tags: null, visibility: true,
-    status: "ACTIVE", showInStore: true, storeFeatured: false, deletedAt: null,
-    publishedAt: null, createdAt: "2026-08-03T09:58:12.000Z",
-    updatedAt: "2026-09-19T14:21:44.000Z", coverImage: null, reviewStats: null,
-    ...overrides,
-  };
-}
 
 describe("home persistence — the saved document through the real renderer", () => {
   it("renders the saved override, and only the saved sections", async () => {

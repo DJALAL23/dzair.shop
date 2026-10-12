@@ -11,6 +11,7 @@ export const whatsappCta = defineComponent({
     { key: "promoTitle", kind: "text", label: "Title", contentKey: "promoTitle" },
     { key: "promoSub", kind: "textarea", label: "Subtitle", contentKey: "promoSub" },
     { key: "promoCtaText", kind: "text", label: "Button", contentKey: "promoCtaText" },
+    { key: "ctaHref", kind: "url", label: "Button link", default: "/products" },
   ],
   load: async ({ context, props }) => ({
     content: copyOverrides(context.content, props),

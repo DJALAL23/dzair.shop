@@ -1,12 +1,14 @@
 ---
+import type { InferProps } from "@codflow/theme";
 import type { StoreFrontContent } from "@/theme/content";
+import type { whatsappCta } from "@/theme/catalog/home/whatsapp-cta.def";
 import { Icon } from "astro-icon/components";
 
-interface Props {
+type Props = Pick<InferProps<typeof whatsappCta>, "ctaHref"> & {
   content: StoreFrontContent;
-}
+};
 
-const { content } = Astro.props;
+const { content, ctaHref } = Astro.props;
 ---
 
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -33,7 +35,7 @@ const { content } = Astro.props;
         {content.promoSub}
       </p>
       <a
-        href="/products"
+        href={ctaHref}
         class="group inline-flex items-center justify-center gap-3 px-10 py-5 font-black text-lg transition-all duration-300 active:scale-95 shadow-2xl"
         style={`background: var(--clr-accent); color: var(--clr-text); border-radius: var(--radius-btn)`}
       >

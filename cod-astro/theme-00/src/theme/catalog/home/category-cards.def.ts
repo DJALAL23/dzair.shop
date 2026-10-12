@@ -7,6 +7,9 @@ export const categoryCards = defineComponent({
   component: CategoryCards,
   label: "Category cards",
   group: "Home",
+  fields: [
+    { key: "limit", kind: "number", label: "Categories shown", default: 4, min: 1, max: 12 },
+  ],
   load: async ({ storefront, reads, context, props }) => ({
     categories: await reads.get(CATEGORIES_READ, () => storefront.categories.list()),
     content: copyOverrides(context.content, props),

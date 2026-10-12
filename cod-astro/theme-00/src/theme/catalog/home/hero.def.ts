@@ -13,6 +13,8 @@ export const hero = defineComponent({
     { key: "heroSubtitle", kind: "textarea", label: "Subtitle", contentKey: "heroSubtitle" },
     { key: "heroCtaPrimary", kind: "text", label: "Primary button", contentKey: "heroCtaPrimary" },
     { key: "heroCtaSecondary", kind: "text", label: "Secondary button", contentKey: "heroCtaSecondary" },
+    { key: "ctaPrimaryHref", kind: "url", label: "Primary button link", default: "/products" },
+    { key: "ctaSecondaryHref", kind: "url", label: "Secondary button link", default: "#best-sellers" },
   ],
   load: async ({ context, props }) => ({
     content: copyOverrides(context.content, props),

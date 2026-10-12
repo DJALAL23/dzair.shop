@@ -30,7 +30,7 @@ export function copyOverrides(
 ): Record<string, string> {
   const merged: Record<string, string> = { ...content };
   for (const [key, value] of Object.entries(props)) {
-    if (typeof value === "string" && key in merged) {
+    if (typeof value === "string" && Object.hasOwn(merged, key)) {
       merged[key] = value;
     }
   }

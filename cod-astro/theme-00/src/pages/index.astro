@@ -16,7 +16,7 @@ import InstanceView from "@codflow/theme/astro/InstanceView.astro";
 import { createReadCache } from "@codflow/theme/astro";
 import type { ThemeRenderContext } from "@codflow/theme";
 import { theme00 } from "@/theme/theme";
-import { resolveHomeDocument } from "@/theme/pages/home-document";
+import { logHomeDecision, resolveHomeDocument } from "@/theme/pages/home-document";
 import { getStoreClient } from "@/theme/sdk";
 
 // The store context comes from middleware (Astro.locals.store — Theme Zero S2).
@@ -28,28 +28,14 @@ const storefront = getStoreClient();
 // is one pure, unit-tested function (`home-document.ts`).
 const saved = await storefront.pageData.get("home");
 const decision = resolveHomeDocument(saved, theme00, content);
-if (decision.reason !== null) {
-  console.warn(
-    `[theme-00] home document: ${decision.source} (${decision.reason}); ` +
-      `issues: ${decision.issues.length}`,
-  );
-}
-if (decision.issues.length > 0) {
-  // Per-section reasons, not a count: "sections[3] unknown-type" is actionable,
-  // "the page degraded" is not.
-  console.warn(
-    `[theme-00] home page data degraded (${decision.issues.length}):`,
-    decision.issues.map(
-      (issue) => `${issue.path || "<document>"} ${issue.code}: ${issue.message}`,
-    ),
-  );
-}
+logHomeDecision(decision);
 
 const context: ThemeRenderContext = {
   store: config,
   content,
   isRTL,
   url: Astro.url.pathname,
+  params: Astro.params,
 };
 const reads = createReadCache();
 const sections = decision.result.page?.sections ?? [];

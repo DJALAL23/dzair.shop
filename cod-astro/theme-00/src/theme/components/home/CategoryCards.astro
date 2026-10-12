@@ -1,24 +1,26 @@
 ---
 // ── SECTION ──
-// Category image cards grid (first 4 categories, position order).
+// Category image cards grid (position order; how many is the `limit` field).
 // Presentational: the page passes the catalog's categories. The slice rule —
-// sort by merchant position, take 4 — is theme merchandising policy and stays
-// here.
+// sort by merchant position, take `limit` — is theme merchandising policy and
+// stays here.
 import { Image } from "astro:assets";
 import type { Category } from "@codflow/storefront";
+import type { InferProps } from "@codflow/theme";
 import type { StoreFrontContent } from "@/theme/content";
+import type { categoryCards } from "@/theme/catalog/home/category-cards.def";
 
-interface Props {
+type Props = Pick<InferProps<typeof categoryCards>, "limit"> & {
   categories: Category[];
   content: StoreFrontContent;
-}
+};
 
-const { categories, content } = Astro.props;
+const { categories, content, limit } = Astro.props;
 // A copy: the page shares this array with other sections, so sorting in place
 // would reorder their reads too.
 const topCategories = [...categories]
   .sort((a, b) => a.position - b.position)
-  .slice(0, 4);
+  .slice(0, limit);
 ---
 
 {topCategories.length > 0 && (
