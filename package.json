@@ -6,7 +6,10 @@
     "cod-shared",
     "cod-server",
     "cod-client-astro",
-    "cod-astro/theme01"
+    "cod-astro/theme01",
+    "cod-astro/theme-00",
+    "cod-sdk/storefront",
+    "cod-sdk/theme"
   ],
   "engines": {
     "node": ">=22.12.0"
