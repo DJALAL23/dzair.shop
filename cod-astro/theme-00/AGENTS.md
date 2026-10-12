@@ -201,6 +201,14 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   a renamed copy field, or a declared setting the component ignores;
   `home-settings-contracts.test.ts` proves the settings through the real
   renderer.
+- **Languages (ADR 0005, 2026-10-12).** The store context carries `locale`
+  and `fallbackLocales` (empty while a store serves one language: the pack is
+  the right fallback); the home page passes both into the render context and
+  the resolution scope. The catalog declares `locales: ["ar", "fr", "en"]`, and
+  every editor label, group and surface label comes from
+  `src/theme/catalog/labels.ts` in all three. Add a label there, never inline.
+  `home-languages-contracts.test.ts` proves saved copy follows the store's
+  language and that every label is translated.
 - **The order form's outcome lives in `src/theme/pages/order-outcome.ts`.**
   Product, landing and checkout pages call `orderOutcome(...)`; it owns the
   thank-you query that `thank-you.astro` reads back with `readThankYou`. Do not
