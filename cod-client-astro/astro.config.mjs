@@ -94,17 +94,21 @@ export default defineConfig({
     // The server half has the same race on a cold start: these are discovered
     // after the first scan, the worker re-bundles, and the dev server can exit
     // before it is ready — or briefly hold two copies of React, which breaks
-    // every hook. Declared up front, they are bundled with the rest.
-    ssr: {
-      optimizeDeps: {
-        include: [
-          "astro/assets/services/noop",
-          "astro/logger/console",
-          "drizzle-orm/d1",
-          "better-auth",
-          "better-auth/plugins",
-          "better-auth-cloudflare",
-        ],
+    // every hook. Declared up front, they are bundled with the rest. Vite 8
+    // reads this under `environments.ssr`; the legacy `vite.ssr.optimizeDeps`
+    // key is ignored with the Cloudflare adapter (Theme-00 hit the same).
+    environments: {
+      ssr: {
+        optimizeDeps: {
+          include: [
+            "astro/assets/services/noop",
+            "astro/logger/console",
+            "drizzle-orm/d1",
+            "better-auth",
+            "better-auth/plugins",
+            "better-auth-cloudflare",
+          ],
+        },
       },
     },
     resolve: {
