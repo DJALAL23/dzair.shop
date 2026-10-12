@@ -48,6 +48,12 @@ const orderDetailFallback = {
 
 // Static-first: every page prerenders at build time except routes that opt out
 // with `export const prerender = false` (currently only /api/auth/*).
+// `astro dev` keeps its own dependency cache. `astro check` and `astro build`
+// run Vite against this same project and rewrite a shared cache with their own,
+// smaller scan — under a running dev server that leaves every open page
+// importing deleted files (404s, islands that never hydrate, a blank page).
+const devServer = process.argv.includes("dev");
+
 export default defineConfig({
   output: "static",
   // No Astro.session usage (auth is better-auth + its own KV) — docs:
@@ -69,6 +75,7 @@ export default defineConfig({
     persistState: { path: "../.wrangler-shared" },
   }),
   vite: {
+    cacheDir: devServer ? "node_modules/.vite-dev" : undefined,
     // Mirror production's assets.not_found_handling = "single-page-application"
     // (wrangler.toml): Vite's first-class SPA fallback serves the client index
     // for unmatched HTML requests during astro dev only.

@@ -19,6 +19,13 @@ describe("dev-server dependency pre-bundling", () => {
     expect(config).toMatch(/optimizeDeps:\s*\{\s*entries:\s*\[\s*"src\/\*\*\/\*\.\{ts,tsx\}"/);
   });
 
+  it("gives the dev server its own cache, so `astro check` and builds never overwrite it mid-session", () => {
+    // Proven: with one shared cache, `astro check` rewrote 38 pre-bundled
+    // dependencies down to 14 under a running dev server, and every island
+    // of the open dashboard 404'd.
+    expect(config).toMatch(/cacheDir:\s*devServer \? "node_modules\/\.vite-dev"/);
+  });
+
   it("declares the server modules a cold start would otherwise discover late", () => {
     for (const module of [
       "astro/assets/services/noop",

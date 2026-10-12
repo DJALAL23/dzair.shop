@@ -14,6 +14,12 @@ const cacheProvider = isVercel
   ? (await import("@astrojs/vercel/cache")).cacheVercel()
   : (await import("@astrojs/cloudflare/cache")).cacheCloudflare();
 
+// `astro dev` keeps its own dependency cache. `astro check` and `astro build`
+// run Vite against this same project and rewrite a shared cache with their own,
+// smaller scan — under a running dev server that leaves every open page
+// importing deleted files (404s, islands that never hydrate, a blank page).
+const devServer = process.argv.includes("dev");
+
 export default defineConfig({
   output: "server",
   compressHTML: true,
@@ -109,6 +115,7 @@ export default defineConfig({
     }),
   ],
   vite: {
+    cacheDir: devServer ? "node_modules/.vite-dev" : undefined,
     plugins: [tailwindcss()],
     environments: {
       ssr: {
