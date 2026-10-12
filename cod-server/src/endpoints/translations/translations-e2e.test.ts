@@ -144,6 +144,10 @@ describe("editing translations", () => {
       resource: "product",
       id: "p-1",
       sourceLocale: "ar",
+      targetLocales: [
+        { locale: "fr", published: true },
+        { locale: "en", published: false },
+      ],
       source: { name: "هاتف", description: "<p>وصف الهاتف</p>" },
       translations: {},
     });
@@ -186,7 +190,7 @@ describe("editing translations", () => {
     ["an unsupported language", "de", { name: "x" }],
     ["a field that is not translatable", "fr", { price: "1" }],
     ["an empty translation", "fr", { name: "  " }],
-    ["an over-long translation", "fr", { name: "x".repeat(501) }],
+    ["an over-long translation", "fr", { name: "x".repeat(256) }],
     ["a non-string value", "fr", { name: 3 }],
   ])("refuses %s", async (_name, locale, values) => {
     expect((await translate("/api/products/p-1/translations", locale, values)).status).toBe(400);

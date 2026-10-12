@@ -24,15 +24,16 @@ export interface TranslatableField {
 /**
  * Every translatable field, by resource type. Keys are the resource's own
  * field names, so a translation overlays its source by name. Caps match the
- * source's write validation where it has one, and bound the rest.
+ * source's write validation where it has one, and bound the rest (titles at
+ * 255, Shopify's product and collection title limit).
  */
 export const TRANSLATABLE = {
   product: {
-    name: { kind: "text", maxLength: 500 },
+    name: { kind: "text", maxLength: 255 },
     description: { kind: "html", maxLength: RICH_TEXT_MAX_CHARS },
   },
   category: {
-    name: { kind: "text", maxLength: 200 },
+    name: { kind: "text", maxLength: 255 },
     description: { kind: "text", maxLength: 5000 },
     metaTitle: { kind: "text", maxLength: 60 },
     metaDescription: { kind: "text", maxLength: 160 },

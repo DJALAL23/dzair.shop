@@ -20,7 +20,7 @@ import { defineRoute, type AuthStrategy } from "@/lib/route-builder";
 import { NotFoundError, ValidationError } from "@/lib/errors/classes";
 import type { AppContext } from "@/types";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
+import { STORE_LOCALES, type StoreLocale } from "../../../../cod-shared/i18n/locales";
 import {
   TRANSLATABLE,
   sourceDigest,
@@ -64,6 +64,12 @@ const TranslationViewSchema = z.object({
   resource: z.string(),
   id: z.string(),
   sourceLocale: z.enum(STORE_LOCALES),
+  /**
+   * The languages this resource can be translated into: every language the
+   * store has added except the primary, published or not — so an editor
+   * without access to store settings still knows what to offer.
+   */
+  targetLocales: z.array(z.object({ locale: z.enum(STORE_LOCALES), published: z.boolean() })),
   source: z.record(z.string(), z.string().nullable()),
   translations: z.partialRecord(
     z.enum(STORE_LOCALES),
@@ -85,10 +91,24 @@ export function registerTranslationRoutes(router: OpenAPIHono<AppContext>, optio
     return { db, record, store };
   }
 
-  async function respond(c: Context<AppContext>, db: AppDb, record: { id: string } & Record<string, unknown>, primary: string) {
-    const rows = await listResourceTranslations(db, resource, record.id);
+  async function respond(
+    c: Context<AppContext>,
+    db: AppDb,
+    record: { id: string } & Record<string, unknown>,
+    store: { id: string; lang: StoreLocale },
+  ) {
+    const [rows, localeRows] = await Promise.all([
+      listResourceTranslations(db, resource, record.id),
+      listStoreLocales(db, store.id),
+    ]);
     const view = await translationView(resource, record, rows);
-    return c.json({ success: true, data: { resource, id: record.id, sourceLocale: primary, ...view } }, 200);
+    const targetLocales = storeLanguages(store.lang, localeRows)
+      .filter((language) => !language.primary)
+      .map(({ locale, published }) => ({ locale, published }));
+    return c.json(
+      { success: true, data: { resource, id: record.id, sourceLocale: store.lang, targetLocales, ...view } },
+      200,
+    );
   }
 
   const getRoute = defineRoute({
@@ -104,7 +124,7 @@ export function registerTranslationRoutes(router: OpenAPIHono<AppContext>, optio
     responses: { 200: { description: "Source and translations", content: { "application/json": { schema: z.object({ success: z.boolean(), data: TranslationViewSchema }) } } } },
     handler: async (c) => {
       const { db, record, store } = await loadView(c);
-      return respond(c, db, record, store.lang);
+      return respond(c, db, record, store);
     },
   });
 
@@ -147,7 +167,7 @@ export function registerTranslationRoutes(router: OpenAPIHono<AppContext>, optio
         set.push({ key, value: stored, sourceDigest: await sourceDigest(typeof source === "string" ? source : null) });
       }
       await writeTranslations(db, { resource, resourceId: record.id, locale }, { set, remove });
-      return respond(c, db, record, store.lang);
+      return respond(c, db, record, store);
     },
   });
 

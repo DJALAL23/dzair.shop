@@ -15,12 +15,15 @@ router, guarded by that router's scopes:
 | offer | `/api/offers/{id}/translations` | `offers:read` | `offers:manage` |
 | store | `/api/stores/me/translations` | admin | admin |
 
-**GET** returns the source fields (primary language) and every stored
+**GET** returns the source fields (primary language), the languages it can be
+translated into (`targetLocales`: every added language but the primary, so an
+editor without access to store settings still knows them), and every stored
 translation, each flagged `outdated` when its source changed after it was
 written:
 
 ```json
 { "resource": "product", "id": "p-1", "sourceLocale": "ar",
+  "targetLocales": [{ "locale": "fr", "published": true }],
   "source": { "name": "هاتف", "description": "<p>…</p>" },
   "translations": { "fr": { "name": { "value": "Téléphone", "outdated": false } } } }
 ```
