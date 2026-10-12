@@ -1,6 +1,8 @@
 import type { StoreLocale } from "../../../../cod-shared/i18n/locales";
 import type { LocaleRow, StoreLanguage } from "../../../../cod-shared/stores/settings";
 
+export type { StoreLanguage };
+
 /** A store language (`cod-shared/i18n/locales.ts`). */
 export type StoreLang = StoreLocale;
 export type StoreStatus = "active" | "inactive";

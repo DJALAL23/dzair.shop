@@ -1,0 +1,34 @@
+{
+  "title": "الترجمات",
+  "subtitle": "هذا النص بلغات متجرك الأخرى. الحقول غير المترجمة تظهر بلغتك الافتراضية.",
+  "languages_label": "اللغات",
+  "no_languages": "لمتجرك لغة واحدة. أضف لغة أخرى من الإعدادات ← اللغات لترجمة هذا المحتوى.",
+  "draft": "غير منشورة",
+  "outdated": "قديمة",
+  "source_empty": "(فارغ بلغتك الافتراضية)",
+  "save": "حفظ الترجمة",
+  "saving": "جارٍ الحفظ…",
+  "saved": "تم حفظ الترجمة",
+  "save_error": "تعذر حفظ الترجمة",
+  "error_load": "تعذر تحميل الترجمات",
+  "fields": {
+    "product": {
+      "name": "الاسم",
+      "description": "الوصف"
+    },
+    "category": {
+      "name": "الاسم",
+      "description": "الوصف",
+      "metaTitle": "عنوان SEO",
+      "metaDescription": "وصف SEO"
+    },
+    "offer": {
+      "name": "اسم العرض"
+    },
+    "store": {
+      "announcementBar": "شريط الإعلانات",
+      "metaTitle": "عنوان SEO",
+      "metaDescription": "وصف SEO"
+    }
+  }
+}

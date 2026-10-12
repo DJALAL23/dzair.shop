@@ -6,10 +6,6 @@
     "general_subtitle": "Basic store information and visibility",
     "name_label": "Store Name",
     "name_placeholder": "e.g. My Store",
-    "lang_label": "Store Language",
-    "lang_ar": "Arabic (العربية)",
-    "lang_en": "English",
-    "lang_fr": "French",
     "status_label": "Store Status",
     "status_active": "Active",
     "status_inactive": "Inactive",
@@ -174,7 +170,9 @@
     "cart_enabled_note": "\"Add to cart\" appears next to your order form — it does not replace it. Customers buying a single product keep the same one-step checkout. A customer with several products confirms them together on a checkout page.",
     "tracking_per_page_label": "Per-landing-page pixels",
     "tracking_per_page_hint": "Let an individual landing page report to its own pixel instead of this one. While this is off, every page uses the pixel above.",
-    "tracking_per_page_next_step": "Now open a landing page in the Studio and give it its own pixel. Pages you don't change keep using the store pixel."
+    "tracking_per_page_next_step": "Now open a landing page in the Studio and give it its own pixel. Pages you don't change keep using the store pixel.",
+    "languages_title": "Languages",
+    "languages_subtitle": "The languages your storefront is offered in. Add a language, translate, then publish it."
   },
   "shipping": {
     "title": "Shipping Rates",
@@ -247,5 +245,22 @@
     "toggle_on": "ON",
     "toggle_off": "OFF",
     "bulk_fill_success": "Rates applied to all wilayas"
+  },
+  "languages": {
+    "default": "Default",
+    "published": "Published",
+    "unpublished": "Not published",
+    "publish": "Publish",
+    "unpublish": "Unpublish",
+    "make_default": "Make default",
+    "remove": "Remove",
+    "remove_title": "Remove {language}?",
+    "remove_description": "Its translations of your products, categories, offers and store text are deleted when you save.",
+    "default_title": "Make {language} your default language?",
+    "default_description": "Your storefront opens in it. Content isn't translated automatically: your products' own text stays as you wrote it, so check it reads well in this language.",
+    "add_label": "Add a language",
+    "add_hint": "It starts unpublished, so shoppers don't see it until you publish it.",
+    "add_placeholder": "Choose a language",
+    "add": "Add"
   }
 }

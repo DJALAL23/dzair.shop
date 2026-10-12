@@ -6,6 +6,7 @@ import { Field, Input, Textarea } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
+import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 import { createProductGroup, getProductGroup, listProductGroups, updateProductGroup } from "@/features/product-groups/api";
 import { productGroupErrorMessage, toSlug } from "@/features/product-groups/model";
 import type { ProductCategory, ProductCategoryFormValues } from "@/features/product-groups/types";
@@ -129,6 +130,7 @@ function ProductGroupForm({ groupId }: { groupId?: string }) {
           </Field>
         </div>
       </Card>
+      {groupId && <TranslationsCard resource="category" id={groupId} canEdit={canManage} />}
     </div>
     <StickyFormActions>
       <LinkButton href={backHref} variant="secondary">{common("cancel")}</LinkButton>

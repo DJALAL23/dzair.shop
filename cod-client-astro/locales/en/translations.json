@@ -1,0 +1,34 @@
+{
+  "title": "Translations",
+  "subtitle": "This text in your store's other languages. Untranslated fields show in your default language.",
+  "languages_label": "Languages",
+  "no_languages": "Your store has one language. Add another in Settings → Languages to translate this.",
+  "draft": "Not published",
+  "outdated": "Outdated",
+  "source_empty": "(empty in your default language)",
+  "save": "Save translation",
+  "saving": "Saving…",
+  "saved": "Translation saved",
+  "save_error": "Couldn't save the translation",
+  "error_load": "Couldn't load translations",
+  "fields": {
+    "product": {
+      "name": "Name",
+      "description": "Description"
+    },
+    "category": {
+      "name": "Name",
+      "description": "Description",
+      "metaTitle": "SEO title",
+      "metaDescription": "SEO description"
+    },
+    "offer": {
+      "name": "Offer name"
+    },
+    "store": {
+      "announcementBar": "Announcement bar",
+      "metaTitle": "SEO title",
+      "metaDescription": "SEO description"
+    }
+  }
+}

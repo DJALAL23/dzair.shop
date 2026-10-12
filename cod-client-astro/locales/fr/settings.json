@@ -6,10 +6,6 @@
     "general_subtitle": "Informations de base et visibilité de la boutique",
     "name_label": "Nom de la boutique",
     "name_placeholder": "ex: Ma Boutique",
-    "lang_label": "Langue de la boutique",
-    "lang_ar": "Arabe (العربية)",
-    "lang_en": "Anglais",
-    "lang_fr": "Français",
     "status_label": "Statut de la boutique",
     "status_active": "Active",
     "status_inactive": "Inactive",
@@ -174,7 +170,9 @@
     "cart_enabled_note": "« Ajouter au panier » apparaît à côté de votre formulaire de commande, sans le remplacer. Les clients qui achètent un seul produit conservent la même commande en une étape. Un client avec plusieurs produits les confirme ensemble sur une page de commande.",
     "tracking_per_page_label": "Pixels par page de destination",
     "tracking_per_page_hint": "Permet à une page de destination d'envoyer ses données à son propre pixel plutôt qu'à celui-ci. Tant que c'est désactivé, toutes les pages utilisent le pixel ci-dessus.",
-    "tracking_per_page_next_step": "Ouvrez maintenant une page de destination dans le Studio et donnez-lui son propre pixel. Les pages que vous ne modifiez pas continuent d'utiliser le pixel de la boutique."
+    "tracking_per_page_next_step": "Ouvrez maintenant une page de destination dans le Studio et donnez-lui son propre pixel. Les pages que vous ne modifiez pas continuent d'utiliser le pixel de la boutique.",
+    "languages_title": "Langues",
+    "languages_subtitle": "Les langues dans lesquelles votre boutique est proposée. Ajoutez une langue, traduisez, puis publiez-la."
   },
   "shipping": {
     "title": "Tarifs de livraison",
@@ -247,5 +245,22 @@
     "toggle_on": "Activé",
     "toggle_off": "Désactivé",
     "bulk_fill_success": "Tarifs appliqués à toutes les wilayas"
+  },
+  "languages": {
+    "default": "Par défaut",
+    "published": "Publiée",
+    "unpublished": "Non publiée",
+    "publish": "Publier",
+    "unpublish": "Dépublier",
+    "make_default": "Définir par défaut",
+    "remove": "Supprimer",
+    "remove_title": "Supprimer {language} ?",
+    "remove_description": "Ses traductions de vos produits, catégories, offres et textes de boutique sont supprimées à l'enregistrement.",
+    "default_title": "Définir {language} comme langue par défaut ?",
+    "default_description": "Votre boutique s'ouvrira dans cette langue. Le contenu n'est pas traduit automatiquement : le texte de vos produits reste tel que vous l'avez écrit, vérifiez qu'il convient à cette langue.",
+    "add_label": "Ajouter une langue",
+    "add_hint": "Elle démarre non publiée : vos clients ne la voient qu'une fois publiée.",
+    "add_placeholder": "Choisir une langue",
+    "add": "Ajouter"
   }
 }

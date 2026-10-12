@@ -10,6 +10,7 @@ import { Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
+import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 import { createOffer, getOffer, updateOffer } from "@/features/offers/api";
 import { offerErrorMessage } from "@/features/offers/model";
 import type { CreateOfferData, OfferFormValues } from "@/features/offers/types";
@@ -442,6 +443,7 @@ function OfferForm({ offerId }: { offerId?: string }) {
             />
           </label>
         </Card>
+        {offerId && <TranslationsCard resource="offer" id={offerId} canEdit={canManage} />}
       </div>
     </div>
   );

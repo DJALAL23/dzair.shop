@@ -44,6 +44,7 @@ import type {
 import { StockHistoryDrawer } from "@/features/products/components/StockHistoryDrawer";
 import { ProductVariantsTableCard } from "@/features/products/components/ProductVariantsTableCard";
 import { ProductImagesCard } from "@/features/products/components/ProductImagesCard";
+import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 
 function Loading() {
   return (
@@ -260,6 +261,12 @@ export function ProductDetail({ productId }: { productId: string }) {
       <ProductImagesCard
         productName={product.name}
         images={product.images ?? []}
+      />
+
+      <TranslationsCard
+        resource="product"
+        id={product.id}
+        canEdit={canScope(identity, SCOPES.PRODUCTS_UPDATE)}
       />
 
       <StockHistoryDrawer

@@ -10,6 +10,8 @@ import type { CategoryId } from "@/features/settings/model";
 import type { StoreConfig, UpdateStoreData } from "@/features/settings/types";
 import { SettingsSidebar } from "@/features/settings/components/SettingsSidebar";
 import { GeneralSettings } from "@/features/settings/components/GeneralSettings";
+import { LanguagesSettings } from "@/features/settings/components/LanguagesSettings";
+import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 import { BrandingSettings } from "@/features/settings/components/BrandingSettings";
 import { SeoSettings } from "@/features/settings/components/SeoSettings";
 import { ReviewsSettings } from "@/features/settings/components/ReviewsSettings";
@@ -91,6 +93,22 @@ function SettingsContent() {
     switch (activeCategory) {
       case "general":
         return <GeneralSettings storeConfig={storeConfig} onSave={handleSave} />;
+      case "languages":
+        return (
+          <div className="space-y-6">
+            <LanguagesSettings
+              key={`${storeConfig.lang}:${storeConfig.languages.map((l) => `${l.locale}${l.published ? "+" : "-"}`).join(",")}`}
+              storeConfig={storeConfig}
+              onSave={handleSave}
+            />
+            <TranslationsCard
+              key={storeConfig.languages.map((l) => l.locale).join(",")}
+              resource="store"
+              id="me"
+              canEdit
+            />
+          </div>
+        );
       case "branding":
         return <BrandingSettings storeConfig={storeConfig} onSave={handleSave} />;
       case "seo":

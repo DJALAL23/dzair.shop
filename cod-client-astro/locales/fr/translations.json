@@ -1,0 +1,34 @@
+{
+  "title": "Traductions",
+  "subtitle": "Ce texte dans les autres langues de votre boutique. Les champs non traduits s'affichent dans votre langue par défaut.",
+  "languages_label": "Langues",
+  "no_languages": "Votre boutique a une seule langue. Ajoutez-en une dans Paramètres → Langues pour traduire ce contenu.",
+  "draft": "Non publiée",
+  "outdated": "Obsolète",
+  "source_empty": "(vide dans votre langue par défaut)",
+  "save": "Enregistrer la traduction",
+  "saving": "Enregistrement…",
+  "saved": "Traduction enregistrée",
+  "save_error": "Impossible d'enregistrer la traduction",
+  "error_load": "Impossible de charger les traductions",
+  "fields": {
+    "product": {
+      "name": "Nom",
+      "description": "Description"
+    },
+    "category": {
+      "name": "Nom",
+      "description": "Description",
+      "metaTitle": "Titre SEO",
+      "metaDescription": "Description SEO"
+    },
+    "offer": {
+      "name": "Nom de l'offre"
+    },
+    "store": {
+      "announcementBar": "Barre d'annonce",
+      "metaTitle": "Titre SEO",
+      "metaDescription": "Description SEO"
+    }
+  }
+}
