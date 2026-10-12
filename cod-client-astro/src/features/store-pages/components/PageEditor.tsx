@@ -45,6 +45,7 @@ import {
   Select,
   StickyFormActions,
   useConfirmDialog,
+  ErrorBoundary,
 } from "@/components/ui";
 
 const PageBodyEditor = lazy(() => import("./PageBodyEditor"));
@@ -298,6 +299,15 @@ export function PageEditor({
     currentDraft.metaDescription.trim() ||
     (cleanSnippet ? cleanSnippet.slice(0, 160) + (cleanSnippet.length > 160 ? "..." : "") : "");
   const domainOnly = storefrontBaseUrl ? storefrontBaseUrl.replace(/^https?:\/\//, "") : "store.codflow.store";
+  const plainBody = (
+    <textarea
+      value={currentDraft.bodyHtml}
+      onChange={(event) => updateCurrentDraft({ bodyHtml: event.currentTarget.value })}
+      rows={14}
+      disabled={busy || !canManage}
+      className="w-full rounded-lg border border-border/80 bg-card p-3.5 text-sm"
+    />
+  );
 
   return (
     <div className="space-y-6">
@@ -430,24 +440,30 @@ export function PageEditor({
               </Field>
 
               <Field label={t("editor.body_label")} as="div" error={errors.body}>
-                <Suspense
+                {/* The body stays editable as plain HTML while the editor loads, and
+                    if its chunk fails to load the page says so instead of going blank. */}
+                <ErrorBoundary
                   fallback={
-                    <textarea
-                      value={currentDraft.bodyHtml}
-                      onChange={(event) => updateCurrentDraft({ bodyHtml: event.currentTarget.value })}
-                      rows={14}
-                      disabled={busy || !canManage}
-                      className="w-full rounded-lg border border-border/80 bg-card p-3.5 text-sm"
-                    />
+                    <div className="space-y-1.5">
+                      <p role="alert" className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                        {common("editor_load_failed")}{" "}
+                        <button type="button" onClick={() => window.location.reload()} className="underline underline-offset-2">
+                          {common("reload_page")}
+                        </button>
+                      </p>
+                      {plainBody}
+                    </div>
                   }
                 >
-                  <PageBodyEditor
-                    value={currentDraft.bodyHtml}
-                    onChange={(html) => updateCurrentDraft({ bodyHtml: html })}
-                    disabled={!canManage}
-                    busy={busy}
-                  />
-                </Suspense>
+                  <Suspense fallback={plainBody}>
+                    <PageBodyEditor
+                      value={currentDraft.bodyHtml}
+                      onChange={(html) => updateCurrentDraft({ bodyHtml: html })}
+                      disabled={!canManage}
+                      busy={busy}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
               </Field>
             </div>
           </div>

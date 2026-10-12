@@ -74,6 +74,39 @@ export default defineConfig({
     // for unmatched HTML requests during astro dev only.
     appType: "spa",
     plugins: [orderDetailFallback, tailwindcss()],
+    // Pre-bundle the dependencies of every source module at startup, not only
+    // the ones Vite's scan reaches from the pages. A component loaded with
+    // `lazy(() => import(...))` (the rich-text editors) is otherwise
+    // discovered on first use, mid-request: Vite re-bundles, and the editor's
+    // in-flight imports point at files that no longer exist (404, the editor
+    // never loads). Dev only — the production build bundles everything.
+    optimizeDeps: {
+      entries: ["src/**/*.{ts,tsx}", "!src/**/*.test.{ts,tsx}"],
+      // Astro's own client modules, reached from its generated page scripts
+      // rather than from any source file the scan reads.
+      include: [
+        "astro/virtual-modules/transitions-events.js",
+        "astro/virtual-modules/transitions-router.js",
+        "astro/virtual-modules/transitions-swap-functions.js",
+        "astro/virtual-modules/transitions-types.js",
+      ],
+    },
+    // The server half has the same race on a cold start: these are discovered
+    // after the first scan, the worker re-bundles, and the dev server can exit
+    // before it is ready — or briefly hold two copies of React, which breaks
+    // every hook. Declared up front, they are bundled with the rest.
+    ssr: {
+      optimizeDeps: {
+        include: [
+          "astro/assets/services/noop",
+          "astro/logger/console",
+          "drizzle-orm/d1",
+          "better-auth",
+          "better-auth/plugins",
+          "better-auth-cloudflare",
+        ],
+      },
+    },
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),

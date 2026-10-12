@@ -82,5 +82,8 @@
     "upload_failed": "Impossible de téléverser le fichier. Veuillez réessayer.",
     "unsupported_file": "Ce type de fichier n'est pas pris en charge.",
     "file_too_large": "Ce fichier est trop volumineux."
-  }
+  },
+  "load_failed": "Une partie de cette page n'a pas pu se charger.",
+  "reload_page": "Recharger la page",
+  "editor_load_failed": "L'éditeur ne s'est pas chargé — vous pouvez continuer en texte brut, ou recharger la page."
 }

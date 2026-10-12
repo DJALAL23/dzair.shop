@@ -82,5 +82,8 @@
     "upload_failed": "The file could not be uploaded. Please try again.",
     "unsupported_file": "This file type is not supported.",
     "file_too_large": "This file is too large."
-  }
+  },
+  "load_failed": "Something on this page failed to load.",
+  "reload_page": "Reload the page",
+  "editor_load_failed": "The editor didn't load — you can keep editing as plain text, or reload the page."
 }

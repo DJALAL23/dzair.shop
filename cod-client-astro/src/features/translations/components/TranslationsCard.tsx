@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Languages, Loader2, Save } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, Input, Skeleton, Textarea } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
+import { RichTextField } from "@/features/products/components/RichTextField";
 import { getTranslations, saveTranslations } from "@/features/translations/api";
 import {
   draftFor,
@@ -14,7 +15,6 @@ import {
 } from "@/features/translations/model";
 import type { StoreLocale, TranslatableResource, TranslationView } from "@/features/translations/types";
 
-const RichTextDescriptionEditor = lazy(() => import("@/features/products/components/RichTextDescriptionEditor"));
 
 /** The source's text without markup, for the read-only reference beside a translation. */
 function plainText(value: string | null, kind: TranslationFieldSpec["kind"]): string {
@@ -174,16 +174,14 @@ export function TranslationsCard({
             return (
               <Field key={field.key} label={label} as="div">
                 {sourceReference}
-                <Suspense fallback={<Skeleton className="h-32 w-full" />}>
-                  <div lang={active} dir={target.direction}>
-                    <RichTextDescriptionEditor
-                      value={draft[field.key] ?? ""}
-                      onChange={(html) => edit(field.key, html)}
-                      busy={saving}
-                      disabled={!canEdit}
-                    />
-                  </div>
-                </Suspense>
+                <div lang={active} dir={target.direction}>
+                  <RichTextField
+                    value={draft[field.key] ?? ""}
+                    onChange={(html) => edit(field.key, html)}
+                    busy={saving}
+                    disabled={!canEdit}
+                  />
+                </div>
               </Field>
             );
           }

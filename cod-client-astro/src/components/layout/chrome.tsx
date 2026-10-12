@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useT } from "@/i18n/react";
-import { ConfirmDialogProvider } from "@/components/ui";
+import { Alert, ConfirmDialogProvider, ErrorBoundary } from "@/components/ui";
 import { DashboardSidebar } from "@/components/layout/Sidebar";
 import { DashboardTopbar } from "@/components/layout/Topbar";
 import { MobileChrome } from "@/components/layout/MobileChrome";
@@ -15,6 +15,7 @@ export function DashboardChrome({
   wide?: boolean;
 }) {
   const tN = useT("navigation");
+  const common = useT("common");
   return (
     <ConfirmDialogProvider>
       <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
@@ -37,7 +38,27 @@ export function DashboardChrome({
             tabIndex={-1}
             className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-10 pt-6 outline-none sm:px-6 md:px-8 md:pt-8"
           >
-            <div className={`mx-auto ${wide ? "max-w-[1600px]" : "max-w-[1120px]"}`}>{children}</div>
+            <div className={`mx-auto ${wide ? "max-w-[1600px]" : "max-w-[1120px]"}`}>
+              {/* A page that fails to render shows this, inside the chrome — never a blank screen. */}
+              <ErrorBoundary
+                fallback={
+                  <Alert role="alert" tone="critical">
+                    <div className="flex-1">
+                      <p className="font-semibold">{common("load_failed")}</p>
+                      <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="mt-2 text-xs font-semibold underline underline-offset-4"
+                      >
+                        {common("reload_page")}
+                      </button>
+                    </div>
+                  </Alert>
+                }
+              >
+                {children}
+              </ErrorBoundary>
+            </div>
           </div>
         </div>
       </div>
