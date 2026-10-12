@@ -30,6 +30,7 @@ const LIVE_CONFIG = {
   fontFamily: "Cairo, sans-serif",
   fontUrl: null,
   lang: "ar",
+  locale: "ar",
   currency: "DZD",
   currencySymbol: "دج",
   locales: [

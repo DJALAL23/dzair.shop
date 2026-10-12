@@ -30,6 +30,7 @@ export const DEFAULT_CONFIG: StoreConfig = {
   fontFamily: "Cairo, sans-serif",
   fontUrl: null,
   lang: "ar",
+  locale: "ar",
   currency: "DZD",
   currencySymbol: "دج",
   locales: [{ code: "ar", nativeName: "العربية", direction: "rtl" }],
