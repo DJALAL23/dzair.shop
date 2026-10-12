@@ -40,6 +40,11 @@ Same for `cod-client-astro` (`npm run typecheck`, `npm test`, `npm run dev`
 — astro dev on :4321). Admin bootstrap: `cd cod-client-astro &&
 npm run seed:admin` (sign-up is disabled by design).
 
+The SDKs (`cod-sdk/storefront`, `cod-sdk/theme`) and Theme-00 as their
+reference consumer are checked together by `npm run verify:sdks` at the repo
+root. Theme-00 may import the SDKs only through their published entry points;
+`sdk-boundary-contracts.test.ts` enforces it.
+
 `cod-astro/theme01` has extra validators — see
 `cod-astro/theme01/AGENTS.md` for its commands.
 

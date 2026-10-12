@@ -14,6 +14,9 @@
   "engines": {
     "node": ">=22.12.0"
   },
+  "scripts": {
+    "verify:sdks": "node scripts/verify-sdks.mjs"
+  },
   "overrides": {
     "vite": "^8.2.2"
   }
