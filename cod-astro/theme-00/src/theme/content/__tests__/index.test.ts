@@ -1,13 +1,12 @@
 /**
  * `resolveContent` — the content-override contract.
  *
- * The merchant override blob (`stores.content_json`) arrives from the platform
- * as free-form JSON. These tests pin the rule the theme now enforces: the
- * override vocabulary is the pack's key set, values must be strings, and
- * anything else degrades to the pack instead of leaking into a component or
- * replacing a headline with a nested object.
+ * The store's overrides for the rendered language (`StoreConfig.contentOverrides[lang]`)
+ * arrive parsed from the SDK. These tests pin the rule the theme enforces on
+ * top: the override vocabulary is the pack's key set, values must be strings,
+ * and anything else degrades to the pack instead of leaking into a component.
  */
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { resolveContent, type SupportedLanguage } from "../index";
 import { ar } from "../ar";
 import { fr } from "../fr";
@@ -24,18 +23,15 @@ describe("resolveContent", () => {
   });
 
   it("applies a string override whose key the pack declares", () => {
-    const content = resolveContent("ar", JSON.stringify({ heroTitle: "عرض اليوم" }));
+    const content = resolveContent("ar", { heroTitle: "عرض اليوم" });
 
     expect(content.heroTitle).toBe("عرض اليوم");
     // Untouched keys survive the merge.
     expect(content.heroSubtitle).toBe(ar.heroSubtitle);
   });
 
-  it("ignores the nested shape a live store carries", () => {
-    // Captured from a live store config fixture: {"hero":{"title":…,"cta":…}}.
-    // It matches no flat pack key; before this rule it was merged in as an
-    // unknown key and silently did nothing (or worse, polluted the object).
-    const nested = JSON.stringify({ hero: { title: "عرض اليوم", cta: "اطلب الآن" } });
+  it("ignores a nested shape that matches no pack key", () => {
+    const nested = { hero: { title: "عرض اليوم", cta: "اطلب الآن" } };
     const content = resolveContent("ar", nested) as unknown as Record<string, unknown>;
 
     expect(content.heroTitle).toBe(ar.heroTitle);
@@ -43,7 +39,7 @@ describe("resolveContent", () => {
   });
 
   it("ignores non-string values instead of rendering them", () => {
-    const bad = JSON.stringify({ heroTitle: 42, heroSubtitle: null, promoTitle: ["a"] });
+    const bad = { heroTitle: 42, heroSubtitle: null, promoTitle: ["a"] };
     const content = resolveContent("ar", bad);
 
     expect(content.heroTitle).toBe(ar.heroTitle);
@@ -52,7 +48,7 @@ describe("resolveContent", () => {
   });
 
   it("ignores unknown keys", () => {
-    const extra = JSON.stringify({ totallyUnknown: "x", heroTitle: "عنوان" });
+    const extra = { totallyUnknown: "x", heroTitle: "عنوان" };
     const content = resolveContent("ar", extra) as unknown as Record<string, unknown>;
 
     expect(content.totallyUnknown).toBeUndefined();
@@ -60,16 +56,11 @@ describe("resolveContent", () => {
   });
 
   it("keeps an intentional empty string (a merchant clearing a headline)", () => {
-    expect(resolveContent("ar", JSON.stringify({ heroEyebrow: "" })).heroEyebrow).toBe("");
+    expect(resolveContent("ar", { heroEyebrow: "" }).heroEyebrow).toBe("");
   });
 
-  it("falls back to the pack on malformed JSON", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const content = resolveContent("ar", "{not json");
-
-    expect(content).toBe(ar);
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+  it("returns the pack itself when the language has no overrides", () => {
+    expect(resolveContent("ar", undefined)).toBe(ar);
+    expect(resolveContent("ar", null)).toBe(ar);
   });
 });

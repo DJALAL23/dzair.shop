@@ -1,4 +1,4 @@
-import type { ProductDetail } from "@codflow/storefront";
+import type { ProductDetail, StoreLocale } from "@codflow/storefront";
 import { getProductView } from "@codflow/storefront";
 
 /**
@@ -13,6 +13,17 @@ import { getProductView } from "@codflow/storefront";
  *   3. an `html` row with no `descriptionPlain` → `undefined`, so markup can
  *      never leak into structured data.
  */
+const OPEN_GRAPH_LOCALES: Readonly<Record<StoreLocale, string>> = {
+  ar: "ar_DZ",
+  fr: "fr_DZ",
+  en: "en_US",
+};
+
+/** `og:locale` for the language a page is rendered in (language_TERRITORY). */
+export function openGraphLocale(locale: StoreLocale): string {
+  return OPEN_GRAPH_LOCALES[locale];
+}
+
 export function productMetaDescription(product: ProductDetail): string | undefined {
   if (product.descriptionPlain) return product.descriptionPlain;
   if (product.descriptionFormat === "html") return undefined;

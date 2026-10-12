@@ -63,8 +63,9 @@ catalog/category read. See `docs/history/PRODUCT_ZERO_AUDIT.md` §3.
 - `types.ts` - The `StoreFrontContent` interface (155 keys, enforced exactly)
 - `ar.ts` / `fr.ts` / `en.ts` - Arabic, French, English packs. All three must
   stay in sync — TypeScript fails the build if one misses a key.
-- `index.ts` - `resolveContent(lang, contentJson)` + `getSupportedLanguages()`.
-  Overrides from `content_json` are merged per key: only values that are
+- `index.ts` - `resolveContent(lang, overrides)` + `getSupportedLanguages()`.
+  The store language's overrides (`StoreConfig.contentOverrides[lang]`) are
+  merged per key: only values that are
   strings, and only for keys the pack declares — anything else is ignored.
 - `index.test.ts` - Pins the override contract (nested/unknown/non-string
   shapes degrade to the pack)

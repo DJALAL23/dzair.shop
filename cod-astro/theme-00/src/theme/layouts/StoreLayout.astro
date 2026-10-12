@@ -36,6 +36,7 @@ const hideMobileNav = marketing || Astro.props.hideMobileNav;
 const store = Astro.locals.store;
 const config = Astro.props.config ?? store.config;
 const content = store.content;
+const locale = store.locale;
 const isRTL = store.isRTL;
 
 const pageTitle = title ?? config.metaTitle ?? config.name;
@@ -55,13 +56,14 @@ const fontHref = config.fontUrl?.replace(/["<>]/g, "")
 ---
 
 <!doctype html>
-<html lang={config.lang} dir={isRTL ? "rtl" : "ltr"}>
+<html lang={locale} dir={isRTL ? "rtl" : "ltr"}>
   <BaseHead 
     title={pageTitle}
     description={pageDesc}
     ogImage={pageOg}
     noindex={noindex}
     config={config}
+    locale={locale}
     primary={primary}
     accent={accent}
     bg={bg}

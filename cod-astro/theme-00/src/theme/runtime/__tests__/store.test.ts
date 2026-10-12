@@ -32,7 +32,8 @@ const LIVE_CONFIG = {
   lang: "ar",
   currency: "DZD",
   currencySymbol: "دج",
-  contentJson: "{\"hero\":{\"title\":\"عرض اليوم\",\"cta\":\"اطلب الآن\"}}",
+  locales: ["ar", "fr"],
+  contentOverrides: { ar: { heroTitle: "عرض اليوم" }, fr: { heroTitle: "L'offre du jour" } },
   metaTitle: "متجر الجزائر",
   metaDescription: "الدفع عند الاستلام في كل ولايات الوطن",
   ogImage: null,
@@ -121,12 +122,12 @@ vi.mock("astro:env/server", () => ({
   },
 }));
 
-function stubConfigServer(): string[] {
+function stubConfigServer(overrides: Record<string, unknown> = {}): string[] {
   const calls: string[] = [];
   vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
     calls.push(String(input));
     return new Response(
-      JSON.stringify({ success: true, data: LIVE_CONFIG }),
+      JSON.stringify({ success: true, data: { ...LIVE_CONFIG, ...overrides } }),
       { status: 200, headers: { "content-type": "application/json" } },
     );
   });
@@ -158,7 +159,20 @@ describe("getStoreContext() — through the S5 adapter", () => {
     expect(ctx.config.currencySymbol).toBe("دج");
     expect(ctx.config.announcementBar).toBe("توصيل مجاني للطلبات فوق 8000 دج");
     expect(ctx.isRTL).toBe(true);
-    expect(ctx.content).toBeDefined();
+    expect(ctx.locale).toBe("ar");
+    expect(ctx.content.heroTitle).toBe("عرض اليوم");
+  });
+
+  it("resolves the store language's own overrides, never another language's", async () => {
+    stubConfigServer({ lang: "fr", locales: ["fr", "ar"] });
+
+    const { getStoreContext } = await import("@/theme/runtime/store");
+    const ctx = await getStoreContext();
+
+    expect(ctx.locale).toBe("fr");
+    expect(ctx.isRTL).toBe(false);
+    expect(ctx.content.heroTitle).toBe("L'offre du jour");
+    expect(ctx.content.heroTitle).not.toBe("عرض اليوم");
   });
 
   it("fetches config once per client — the second render reuses the SDK cache", async () => {

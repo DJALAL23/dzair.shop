@@ -32,13 +32,14 @@ export type SupportedLanguage = keyof typeof languages;
  * Keep only the overrides the pack actually has a slot for, and only when the
  * value is a string.
  *
- * The blob is written by the dashboard (`stores.content_json`) and used to be
- * merged unvalidated. A live store carries `{"hero":{"title":"…"}}` — a nested
- * shape that matches none of the flat pack keys, so it silently did nothing;
- * unknown keys polluted the resolved object; and a non-string value could
- * reach a component that renders `string`. The override vocabulary IS the
- * pack's key set. Everything else is ignored, never thrown: a malformed blob
- * degrades to the pack instead of breaking the storefront.
+ * The overrides are the store language's entry in
+ * `StoreConfig.contentOverrides`. They used to be one unvalidated blob, and a
+ * live store carried `{"hero":{"title":"…"}}` — a nested shape that matches
+ * none of the flat pack keys, so it silently did nothing; unknown keys
+ * polluted the resolved object; and a non-string value could reach a
+ * component that renders `string`. The override vocabulary IS the pack's key
+ * set. Everything else is ignored, never thrown: a malformed entry degrades to
+ * the pack instead of breaking the storefront.
  */
 function pickStringOverrides(
   defaults: StoreFrontContent,
@@ -58,8 +59,9 @@ function pickStringOverrides(
 /**
  * Resolve content for a given language with optional dashboard overrides
  * 
- * @param lang - Language code ("ar" or "en")
- * @param contentJson - Optional JSON string from dashboard with content overrides
+ * @param lang - The language being rendered
+ * @param overrides - The store's overrides for that same language
+ *   (`StoreConfig.contentOverrides[lang]`), already parsed by the SDK
  * @returns Complete StoreFrontContent object with all required keys
  * 
  * @example
@@ -67,31 +69,20 @@ function pickStringOverrides(
  * // Use default Arabic content
  * const content = resolveContent("ar");
  * 
- * // Use Arabic with dashboard overrides
- * const content = resolveContent("ar", '{"heroTitle": "Custom Title"}');
+ * // Use Arabic with the store's Arabic overrides
+ * const content = resolveContent("ar", { heroTitle: "Custom Title" });
  * ```
  */
 export function resolveContent(
   lang: SupportedLanguage,
-  contentJson?: string | null
+  overrides?: Readonly<Record<string, unknown>> | null
 ): StoreFrontContent {
-  // Get default content for language
   const defaults = languages[lang] || languages.ar;
-
-  // No overrides - return defaults
-  if (!contentJson) {
+  if (!overrides) {
     return defaults;
   }
-
-  // Parse and merge overrides — only string values for keys the pack declares
-  try {
-    const overrides = JSON.parse(contentJson) as unknown;
-    return { ...defaults, ...pickStringOverrides(defaults, overrides) };
-  } catch (error) {
-    // Invalid JSON - return defaults
-    console.warn("Failed to parse content JSON, using defaults:", error);
-    return defaults;
-  }
+  // Only string values for keys the pack declares: the pack owns the vocabulary.
+  return { ...defaults, ...pickStringOverrides(defaults, overrides) };
 }
 
 /**

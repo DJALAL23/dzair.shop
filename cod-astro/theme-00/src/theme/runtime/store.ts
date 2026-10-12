@@ -15,7 +15,7 @@
  */
 import { getStoreClient } from "@/theme/sdk";
 import { resolveContent } from "@/theme/content";
-import type { StoreConfig } from "@codflow/storefront";
+import { textDirection, type StoreConfig, type StoreLocale } from "@codflow/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 
 export const DEFAULT_CONFIG: StoreConfig = {
@@ -32,7 +32,8 @@ export const DEFAULT_CONFIG: StoreConfig = {
   lang: "ar",
   currency: "DZD",
   currencySymbol: "دج",
-  contentJson: null,
+  locales: ["ar"],
+  contentOverrides: {},
   metaTitle: null,
   metaDescription: null,
   ogImage: null,
@@ -67,8 +68,8 @@ export interface StoreContext {
   config: StoreConfig;
   /** The theme's pack for `locale`, with the store's overrides merged. */
   content: StoreFrontContent;
-  /** The language this request renders (BCP 47): today, the store's language. */
-  locale: string;
+  /** The language this request renders: today, the store's primary language. */
+  locale: StoreLocale;
   /**
    * Languages to try after `locale` for a translated page value (ADR 0005).
    * Empty while a store serves one language: its pack, already in the right
@@ -80,7 +81,9 @@ export interface StoreContext {
 
 export async function getStoreContext(): Promise<StoreContext> {
   const config = (await getStoreClient().config.get()) ?? DEFAULT_CONFIG;
-  const content = resolveContent(config.lang, config.contentJson);
-  const isRTL = config.lang === "ar";
-  return { config, content, locale: config.lang, fallbackLocales: [], isRTL };
+  const locale = config.lang;
+  // Only this language's overrides: another language's map would mix languages.
+  const content = resolveContent(locale, config.contentOverrides[locale]);
+  const isRTL = textDirection(locale) === "rtl";
+  return { config, content, locale, fallbackLocales: [], isRTL };
 }

@@ -7,7 +7,8 @@
 // We don't actually navigate between pages on the storefront — full page
 // loads are fine and removed the regression entirely.
 
-import type { StoreConfig } from "@codflow/storefront";
+import type { StoreConfig, StoreLocale } from "@codflow/storefront";
+import { openGraphLocale } from "@/theme/utils/seo";
 
 interface Props {
   title: string;
@@ -15,6 +16,8 @@ interface Props {
   ogImage: string;
   noindex?: boolean;
   config: StoreConfig;
+  /** The language the page is rendered in. */
+  locale: StoreLocale;
   primary: string;
   fontHref: string;
   font: string;
@@ -25,7 +28,7 @@ interface Props {
   preloadImages?: string[];
 }
 
-const { title, description, ogImage, noindex, config, primary, fontHref, font, bg, accent, preloadImages } = Astro.props;
+const { title, description, ogImage, noindex, config, locale, primary, fontHref, font, bg, accent, preloadImages } = Astro.props;
 
 import { MEDIA_DOMAIN } from "astro:env/server";
 ---
@@ -53,7 +56,7 @@ import { MEDIA_DOMAIN } from "astro:env/server";
   <meta property="og:description" content={description} />
   {ogImage && <meta property="og:image" content={ogImage} />}
   <meta property="og:type" content="website" />
-  <meta property="og:locale" content={config.lang === "ar" ? "ar_DZ" : "en_US"} />
+  <meta property="og:locale" content={openGraphLocale(locale)} />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
