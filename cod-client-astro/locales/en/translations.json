@@ -11,6 +11,9 @@
   "saved": "Translation saved",
   "save_error": "Couldn't save the translation",
   "error_load": "Couldn't load translations",
+  "options_title": "Variant options",
+  "options_hint": "Shoppers choose these on the product page. Each value must read differently from the others.",
+  "option_name": "Option name",
   "fields": {
     "product": {
       "name": "Name",

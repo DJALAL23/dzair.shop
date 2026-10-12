@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertCircle, Languages, Loader2, Save } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, Input, Skeleton, Textarea } from "@/components/ui";
 import { useT } from "@/i18n/react";
@@ -62,7 +62,7 @@ export function TranslationsCard({
     void load();
   }, [resource, id]);
 
-  const fields = useMemo(() => translationFields(resource), [resource]);
+  const fields = useMemo(() => (view ? translationFields(view) : []), [view]);
 
   if (loadError) {
     return (
@@ -98,6 +98,27 @@ export function TranslationsCard({
   const patch = patchFor(view, active, draft);
   const target = languageInfo(active);
   const source = languageInfo(view.sourceLocale);
+
+  /** A field's label, flagged when its translation is older than its source. */
+  function labelFor(key: string, text: ReactNode) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        {text}
+        {view!.translations[active!]?.[key]?.outdated && <Badge tone="warning" size="sm">{t("outdated")}</Badge>}
+      </span>
+    );
+  }
+
+  function controlProps({ key }: { key: string }) {
+    const field = fields.find((candidate) => candidate.key === key);
+    return {
+      value: draft[key] ?? "",
+      maxLength: field?.maxLength,
+      lang: active!,
+      dir: target.direction,
+      disabled: saving || !canEdit,
+    };
+  }
 
   function edit(key: string, value: string) {
     setDrafts((current) => ({ ...current, [active!]: { ...draft, [key]: value } }));
@@ -152,24 +173,17 @@ export function TranslationsCard({
       </div>
 
       <div role="tabpanel" className="space-y-5">
-        {fields.map((field) => {
-          const stored = view.translations[active]?.[field.key];
-          const reference = plainText(view.source[field.key] ?? null, field.kind);
-          const label = (
-            <span className="inline-flex items-center gap-2">
-              {t(`fields.${resource}.${field.key}`)}
-              {stored?.outdated && <Badge tone="warning" size="sm">{t("outdated")}</Badge>}
-            </span>
-          );
+        {fields.filter((field) => field.part.kind === "field").map((field) => {
           const sourceReference = (
             <p
               lang={view.sourceLocale}
               dir={source.direction}
               className="line-clamp-3 rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground"
             >
-              {reference || t("source_empty")}
+              {plainText(view.source[field.key] ?? null, field.kind) || t("source_empty")}
             </p>
           );
+          const label = labelFor(field.key, t(`fields.${resource}.${field.key}`));
           if (field.control === "rich") {
             return (
               <Field key={field.key} label={label} as="div">
@@ -185,24 +199,46 @@ export function TranslationsCard({
               </Field>
             );
           }
-          const controlProps = {
-            value: draft[field.key] ?? "",
-            maxLength: field.maxLength,
-            lang: active,
-            dir: target.direction,
-            disabled: saving || !canEdit,
-          };
           return (
             <Field key={field.key} label={label}>
               {sourceReference}
               {field.control === "textarea" ? (
-                <Textarea {...controlProps} rows={3} onChange={(event) => edit(field.key, event.currentTarget.value)} />
+                <Textarea {...controlProps(field)} rows={3} onChange={(event) => edit(field.key, event.currentTarget.value)} />
               ) : (
-                <Input {...controlProps} onChange={(event) => edit(field.key, event.currentTarget.value)} />
+                <Input {...controlProps(field)} onChange={(event) => edit(field.key, event.currentTarget.value)} />
               )}
             </Field>
           );
         })}
+
+        {view.options.length > 0 && (
+          <section className="space-y-3 border-t border-border pt-5">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">{t("options_title")}</h3>
+              <p className="text-xs text-muted-foreground">{t("options_hint")}</p>
+            </div>
+            {view.options.map((option) => (
+              <div key={option.key} className="space-y-3 rounded-lg border border-border p-3">
+                <Field label={labelFor(option.key, t("option_name"))}>
+                  <p lang={view.sourceLocale} dir={source.direction} className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                    {option.name}
+                  </p>
+                  <Input {...controlProps(option)} onChange={(event) => edit(option.key, event.currentTarget.value)} />
+                </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {option.values.map((value) => (
+                    <Field
+                      key={value.key}
+                      label={labelFor(value.key, <span lang={view.sourceLocale} dir={source.direction}>{value.value}</span>)}
+                    >
+                      <Input {...controlProps(value)} onChange={(event) => edit(value.key, event.currentTarget.value)} />
+                    </Field>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
       </div>
 
       {canEdit && (

@@ -521,8 +521,12 @@ export async function validateCart(c: Context<AppContext>) {
   }
 
   const now = new Date().toISOString();
-  const snapshot = await queries.loadCatalogSnapshot(db, lines, now);
+  const [snapshot, served] = await Promise.all([
+    queries.loadCatalogSnapshot(db, lines, now),
+    servedLanguage(c, db),
+  ]);
   const resolved = queries.resolveCartLines(snapshot, lines);
+  const names = await queries.cartNames(db, snapshot, served.translate);
 
   // Only orderable lines count toward the subtotal and the offers. A line the
   // shopper must fix should not inflate a free-delivery promise it cannot keep.
@@ -552,8 +556,7 @@ export async function validateCart(c: Context<AppContext>) {
         lines: resolved.map((entry) => ({
           productId: entry.line.productId,
           variantId: entry.line.variantId,
-          variantLabel: entry.line.variantLabel,
-          productName: entry.productName,
+          ...names.line(entry),
           quantity: entry.line.quantity,
           unitPrice: entry.unitPrice,
           lineTotal: entry.lineTotal,
@@ -564,10 +567,7 @@ export async function validateCart(c: Context<AppContext>) {
         rewards: earned.map((item) => ({
           offerId: item.offer.id,
           productId: item.offer.rewardProductId,
-          productName:
-            (item.offer.rewardProductId
-              ? snapshot.products.get(item.offer.rewardProductId)?.name
-              : null) ?? null,
+          productName: item.offer.rewardProductId ? names.product(item.offer.rewardProductId) : null,
           quantity: item.offer.rewardQuantity,
         })),
         freeDelivery: {

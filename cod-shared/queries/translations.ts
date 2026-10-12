@@ -1,11 +1,17 @@
 /**
  * Translations of merchant data — reads and writes (`i18n/translations.ts`).
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { translations } from "../db/schema";
 import type { AppDb } from "../db/client";
 import type { StoreLocale } from "../i18n/locales";
-import type { TranslatableResource, TranslationRow } from "../i18n/translations";
+import {
+  OPTION_KEY_PREFIX,
+  optionKey,
+  type TranslatableResource,
+  type TranslationRow,
+  type VariantOption,
+} from "../i18n/translations";
 import { chunkIds } from "./d1-limits";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
@@ -88,4 +94,30 @@ export async function writeTranslations(
     statements.push(db.delete(translations).where(and(where, inArray(translations.key, [...change.remove]))));
   }
   if (statements.length > 0) await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+}
+
+/**
+ * Deletes of a product's option translations that its options no longer
+ * have, in every language — run with the write that changes the options, so
+ * a renamed or removed option never leaves text behind.
+ */
+export async function pruneOptionTranslations(
+  db: AppDb,
+  productId: string,
+  options: readonly VariantOption[] | null,
+): Promise<BatchStatement[]> {
+  const live = new Set(
+    (options ?? []).flatMap((option) => [
+      optionKey(option.name),
+      ...option.values.map(({ value }) => optionKey(option.name, value)),
+    ]),
+  );
+  const product = and(eq(translations.resourceType, "product"), eq(translations.resourceId, productId));
+  const stored = await db
+    .selectDistinct({ key: translations.key })
+    .from(translations)
+    .where(and(product, like(translations.key, `${OPTION_KEY_PREFIX}%`)))
+    .all();
+  const stale = stored.map(({ key }) => key).filter((key) => !live.has(key));
+  return chunkIds(stale).map((chunk) => db.delete(translations).where(and(product, inArray(translations.key, chunk))));
 }

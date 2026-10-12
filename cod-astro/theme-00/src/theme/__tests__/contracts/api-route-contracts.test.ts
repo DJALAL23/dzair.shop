@@ -61,8 +61,10 @@ function post(
   });
 }
 
+// The middleware gives every /api request its store context, in the language
+// of the page that called it (see action-middleware-contracts).
 function ctx(request: Request, params: Record<string, string> = {}) {
-  return { request, params };
+  return { request, params, locals: { store: { client: mockStore } } } as any;
 }
 
 beforeEach(() => {

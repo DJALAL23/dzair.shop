@@ -12,6 +12,8 @@ export interface TranslationView {
   /** The languages this resource can be translated into, published or not. */
   targetLocales: { locale: StoreLocale; published: boolean }[];
   source: Record<string, string | null>;
+  /** A product's variant options and the keys that translate them; empty for other resources. */
+  options: { name: string; key: string; values: { value: string; key: string }[] }[];
   translations: Partial<Record<StoreLocale, Record<string, { value: string; outdated: boolean }>>>;
 }
 

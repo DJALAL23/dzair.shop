@@ -41,6 +41,15 @@ over-long value. `html` fields are sanitised exactly like their source.
 Translating into an added but unpublished language is allowed — that is how a
 store prepares a language before publishing it.
 
+A product's variant options are translated on the product too, keyed by
+their source text — `option:["اللون"]` for an option's name,
+`option:["اللون","أحمر"]` for one of its values. GET lists them in `options`
+(each with its key), so an editor never builds a key itself. PATCH refuses an
+option the product does not have, and a translation that would make two
+options, or two values of one option, read the same in that language. When
+the product's options change, the keys it no longer has are deleted in every
+language.
+
 Storefront reads (`/store/config`, `/store/products`, `/store/products/{handle}`,
-`/store/categories`, `/store/pages/{slug}`) take `?locale=` and answer with
+`/store/categories`, `/store/pages/{slug}`, `POST /store/cart/validate`) take `?locale=` and answer with
 `Content-Language`; see `cod-shared/stores/settings.ts` (`servedLocale`).

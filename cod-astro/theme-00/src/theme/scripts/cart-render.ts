@@ -102,8 +102,10 @@ export function renderCartLine(
     img.hidden = false;
   }
 
+  // The server's names are the catalog's, in this page's language; the
+  // basket's are whatever page the line was added on.
   const name = node.querySelector<HTMLElement>("[data-cart-name]")!;
-  name.textContent = line.productName;
+  name.textContent = server?.productName ?? line.productName;
 
   // The drawer links back to the product; the checkout page does not. Sending
   // a shopper away from a half-filled order form loses what they typed, and on
@@ -115,8 +117,9 @@ export function renderCartLine(
   }
 
   const variantEl = node.querySelector<HTMLElement>("[data-cart-variant]")!;
-  if (line.variantLabel) {
-    variantEl.textContent = line.variantLabel;
+  const variantLabel = server?.variantLabel ?? line.variantLabel;
+  if (variantLabel) {
+    variantEl.textContent = variantLabel;
     variantEl.hidden = false;
   }
 

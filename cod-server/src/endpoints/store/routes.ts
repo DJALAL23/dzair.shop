@@ -397,8 +397,11 @@ const validateCartRoute = defineRoute({
     "Blocked lines are excluded from `subtotal`, from offer evaluation and from the free-delivery calculation, so the basket never promises something checkout would refuse.",
     "",
     "`freeDelivery` is subtotal-based and therefore answerable before the shopper types an address: use `remaining` for a \"spend X more\" prompt. The delivery fee itself depends on the wilaya and is resolved at checkout.",
+    "",
+    "Product names and variant labels come from the catalog, in the language `?locale=` asks for (the store's primary when it does not publish that language), announced in `Content-Language`. The order itself records the catalog's names in the store's primary language.",
   ].join("\n"),
   operationId: "validateStoreCart",
+  query: localeQuerySchema,
   body: validateCartSchema,
   responses: {
     200: {

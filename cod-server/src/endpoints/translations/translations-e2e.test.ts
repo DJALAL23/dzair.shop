@@ -149,6 +149,7 @@ describe("editing translations", () => {
         { locale: "en", published: false },
       ],
       source: { name: "هاتف", description: "<p>وصف الهاتف</p>" },
+      options: [],
       translations: {},
     });
   });
@@ -355,5 +356,120 @@ describe("translations leave with what they translate", () => {
       body: { languages: [{ locale: "ar", published: true }, { locale: "fr", published: false }, { locale: "en", published: false }] },
     });
     expect(await storedKeys("product")).toEqual(["p-1:en:name", "p-1:fr:name", "p-2:fr:name"]);
+  });
+});
+
+describe("variant options", () => {
+  const options = [
+    { name: "اللون", values: [{ value: "أحمر", hexColor: "#ff0000" }, { value: "أزرق" }] },
+    { name: "المقاس", values: [{ value: "M" }, { value: "XL" }] },
+  ];
+  const key = (name: string, value?: string) => `option:${JSON.stringify(value === undefined ? [name] : [name, value])}`;
+  const french = {
+    [key("اللون")]: "Couleur",
+    [key("اللون", "أحمر")]: "Rouge",
+    [key("اللون", "أزرق")]: "Bleu",
+    [key("المقاس")]: "Taille",
+  };
+
+  beforeEach(async () => {
+    await harness.db.insert(schema.products).values({
+      id: "p-3",
+      name: "قميص",
+      handle: "shirt",
+      price: 2500,
+      hasVariants: true,
+      variantOptions: JSON.stringify(options),
+      createdAt: now(),
+      updatedAt: now(),
+    });
+    await harness.db.insert(schema.productVariants).values([
+      { id: "v-red-m", productId: "p-3", variations: JSON.stringify({ اللون: "أحمر", المقاس: "M" }), price: 2500, sku: "SH-RM", inventory: 5, createdAt: now(), updatedAt: now() },
+      { id: "v-blue-xl", productId: "p-3", variations: JSON.stringify({ اللون: "أزرق", المقاس: "XL" }), price: 2700, sku: "SH-BXL", inventory: 5, position: 2, createdAt: now(), updatedAt: now() },
+    ]);
+    await harness.db.insert(schema.offers).values({
+      id: "o-2",
+      name: "قميص هدية",
+      triggerProductId: "p-1",
+      rewardProductId: "p-3",
+      rewardVariantId: "v-red-m",
+      createdAt: now(),
+      updatedAt: now(),
+    });
+  });
+
+  it("are edited with the product: each option and value beside its source", async () => {
+    const { status, body } = await translate("/api/products/p-3/translations", "fr", { name: "Chemise", ...french });
+    expect(status).toBe(200);
+    expect(body.data.options).toEqual([
+      { name: "اللون", key: key("اللون"), values: [{ value: "أحمر", key: key("اللون", "أحمر") }, { value: "أزرق", key: key("اللون", "أزرق") }] },
+      { name: "المقاس", key: key("المقاس"), values: [{ value: "M", key: key("المقاس", "M") }, { value: "XL", key: key("المقاس", "XL") }] },
+    ]);
+    expect(body.data.source[key("اللون", "أزرق")]).toBe("أزرق");
+    expect(body.data.translations.fr[key("اللون", "أحمر")]).toEqual({ value: "Rouge", outdated: false });
+    expect(body.data.translations.fr.name).toEqual({ value: "Chemise", outdated: false });
+  });
+
+  it("refuses an option the product does not have, an over-long text, and a field no product translates", async () => {
+    for (const values of [{ [key("الخامة")]: "Matière" }, { [key("اللون", "أخضر")]: "Vert" }, { [key("اللون")]: "x".repeat(256) }, { price: "1" }]) {
+      expect((await translate("/api/products/p-3/translations", "fr", values)).status).toBe(400);
+    }
+    expect(await storedKeys("product")).toEqual([]);
+  });
+
+  it("refuses translations that would make two choices read the same — nothing is saved", async () => {
+    const values = await translate("/api/products/p-3/translations", "fr", { [key("اللون", "أحمر")]: "Rouge", [key("اللون", "أزرق")]: "Rouge" });
+    expect(values.status).toBe(400);
+    expect(JSON.stringify(values.body)).toContain("اللون");
+    await translate("/api/products/p-3/translations", "fr", { [key("اللون")]: "Couleur" });
+    expect((await translate("/api/products/p-3/translations", "fr", { [key("المقاس")]: "Couleur" })).status).toBe(400);
+    expect(await storedKeys("product")).toEqual([`p-3:fr:${key("اللون")}`]);
+  });
+
+  it("serve the product page in the language: options, every variant's selection and an offer's reward variant agree", async () => {
+    await translate("/api/products/p-3/translations", "fr", { name: "Chemise", ...french, [key("المقاس", "XL")]: "TG" });
+    const { language, body } = await request("/store/products/shirt?locale=fr");
+    expect(language).toBe("fr");
+    expect(body.data.variantOptions).toEqual([
+      { name: "Couleur", values: [{ value: "Rouge", hexColor: "#ff0000" }, { value: "Bleu" }] },
+      { name: "Taille", values: [{ value: "M" }, { value: "TG" }] },
+    ]);
+    expect(body.data.variants.map((variant: any) => [variant.id, variant.variations])).toEqual([
+      ["v-red-m", { Couleur: "Rouge", Taille: "M" }],
+      ["v-blue-xl", { Couleur: "Bleu", Taille: "TG" }],
+    ]);
+    const reward = (await request("/store/products/phone?locale=fr")).body.data.offers.find((offer: any) => offer.id === "o-2");
+    expect(reward).toMatchObject({ rewardProductName: "Chemise", rewardVariantLabel: "Rouge / M" });
+
+    const listed = (await request("/store/products?locale=fr")).body.data.find((product: any) => product.id === "p-3");
+    expect(JSON.parse(listed.variantOptions)[0].name).toBe("Couleur");
+
+    const primary = (await request("/store/products/shirt")).body.data;
+    expect(primary.variantOptions[0].name).toBe("اللون");
+    expect(primary.variants[0].variations).toEqual({ اللون: "أحمر", المقاس: "M" });
+  });
+
+  it("cart validation names each line in the shopper's language, from the catalog — never the browser's text", async () => {
+    await translate("/api/products/p-3/translations", "fr", { name: "Chemise", ...french });
+    const basket = { items: [{ productId: "p-3", productName: "anything", variantId: "v-blue-xl", variantLabel: "forged", quantity: 1 }] };
+    const fr = await request("/store/cart/validate?locale=fr", { method: "POST", body: basket });
+    expect(fr.status).toBe(200);
+    expect(fr.language).toBe("fr");
+    expect(fr.body.data.lines[0]).toMatchObject({ productName: "Chemise", variantLabel: "Bleu / XL", unitPrice: 2700 });
+    const ar = await request("/store/cart/validate", { method: "POST", body: basket });
+    expect(ar.language).toBe("ar");
+    expect(ar.body.data.lines[0]).toMatchObject({ productName: "قميص", variantLabel: "أزرق / XL" });
+  });
+
+  it("are pruned when the product's options change, in every language", async () => {
+    await translate("/api/products/p-3/translations", "fr", { name: "Chemise", ...french });
+    await translate("/api/products/p-3/translations", "en", { [key("اللون")]: "Color", [key("المقاس")]: "Size" });
+    const renamed = [{ name: "اللون", values: [{ value: "أحمر" }] }, { name: "القياس", values: [{ value: "M" }] }];
+    expect((await request("/api/products/p-3", { method: "PATCH", body: { variantOptions: renamed } })).status).toBe(200);
+    expect((await storedKeys("product")).sort()).toEqual(
+      [`p-3:en:${key("اللون")}`, `p-3:fr:${key("اللون")}`, `p-3:fr:${key("اللون", "أحمر")}`, "p-3:fr:name"].sort(),
+    );
+    expect((await request("/api/products/p-3", { method: "PATCH", body: { name: "قميص قطن" } })).status).toBe(200);
+    expect(await storedKeys("product")).toHaveLength(4);
   });
 });

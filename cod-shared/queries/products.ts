@@ -3,15 +3,14 @@ import { products, productCategories, productVariants, productImages, reviews, s
 import type { AppDb } from "../db/client";
 import { sanitizeRichText, toPlainText } from "../lib/rich-text";
 import { safeLikeTerm } from "./search";
+import type { VariantOption } from "../i18n/translations";
+import { pruneOptionTranslations } from "./translations";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 
 export type DescriptionFormat = "text" | "html";
 
-export interface VariantOption {
-  name: string;
-  values: { value: string; hexColor?: string | null }[];
-}
+export type { VariantOption } from "../i18n/translations";
 
 export interface ProductFilters {
   categoryId?: string;
@@ -323,6 +322,9 @@ export async function updateProduct(db: AppDb, productId: string, data: UpdatePr
   const statements: BatchStatement[] = [
     db.update(products).set(updates).where(eq(products.id, productId)),
   ];
+  if (data.variantOptions !== undefined) {
+    statements.push(...(await pruneOptionTranslations(db, productId, data.variantOptions)));
+  }
 
   // Simple-product inventory edits are manual adjustments — log them so the
   // movement ledger keeps reconciling to real stock. Variant products keep

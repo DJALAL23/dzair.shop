@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { RICH_TEXT_MAX_CHARS } from "../../../../cod-shared/lib/rich-text";
+import { OPTION_TEXT } from "../../../../cod-shared/i18n/translations";
 
+// Capped like their translations, so every option can be translated in full.
 const variantOptionSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(OPTION_TEXT.maxLength),
   values: z.array(z.object({
-    value: z.string().min(1),
+    value: z.string().min(1).max(OPTION_TEXT.maxLength),
     hexColor: z.string().optional().nullable(),
   })).min(1),
 });

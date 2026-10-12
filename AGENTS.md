@@ -157,7 +157,11 @@ other is how these drift.
   language, key — `cod-shared/i18n/translations.ts`). The resource's own
   columns hold the primary language; there is never a translation row for it.
   It has no foreign keys: migration 0037's triggers delete a resource's rows
-  with it. A new translatable resource needs its own trigger.
+  with it. A new translatable resource needs its own trigger. Variant options
+  are translated on their product, keyed by source text (`option:[…]`); a
+  language renames `variantOptions` and `variations` together
+  (`translateOptions`), and order lines always take the catalog's
+  primary-language names, never the storefront's text.
 - **Theme text edits are keyed by theme** (`store_content_overrides`,
   `defineTheme({ key })`), and a storefront only receives them when its SDK
   client passes `theme`. Renaming a theme's key orphans its merchant edits.

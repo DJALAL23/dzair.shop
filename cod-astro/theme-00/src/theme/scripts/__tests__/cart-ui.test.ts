@@ -468,6 +468,39 @@ describe("server reconciliation", () => {
     expect(document.querySelector<HTMLElement>("[data-cart-warning]")!.textContent).toBe("Only 0 left");
   });
 
+  it("names each line as the server does — the catalog, in this page's language", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        validationResponse({
+          lines: [
+            {
+              productId: "p1",
+              variantId: "v-blue",
+              productName: "Chemise",
+              variantLabel: "Bleu / TG",
+              quantity: 1,
+              unitPrice: 1000,
+              lineTotal: 1000,
+              maxQuantity: null,
+              blocker: null,
+            },
+          ],
+          subtotal: 1000,
+          freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+        }),
+      ),
+    );
+    await boot();
+    el<HTMLInputElement>("variant-id-input").value = "v-blue";
+    el<HTMLInputElement>("variant-label-input").value = "أزرق / XL";
+
+    click(addButton());
+
+    await vi.waitFor(() => expect(document.querySelector("[data-cart-name]")!.textContent).toBe("Chemise"));
+    expect(document.querySelector("[data-cart-variant]")!.textContent).toBe("Bleu / TG");
+  });
+
   it("leaves the optimistic view intact when validation fails", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
     await boot();

@@ -11,8 +11,15 @@ const view = (overrides: Partial<TranslationView> = {}): TranslationView => ({
   sourceLocale: "ar",
   targetLocales: [{ locale: "fr", published: true }],
   source: { name: "هاتف", description: "<p>وصف</p>" },
+  options: [],
   translations: { fr: { name: { value: "Téléphone", outdated: false } } },
   ...overrides,
+});
+
+const color = { name: "اللون", key: 'option:["اللون"]', values: [{ value: "أحمر", key: 'option:["اللون","أحمر"]' }] };
+const withOptions = view({
+  source: { name: "هاتف", description: null, [color.key]: "اللون", [color.values[0]!.key]: "أحمر" },
+  options: [color],
 });
 
 describe("translationsPath", () => {
@@ -26,12 +33,28 @@ describe("translationsPath", () => {
 
 describe("translationFields", () => {
   it("lists every translatable field, with the control its kind needs", () => {
-    expect(translationFields("product").map(({ key, control }) => [key, control])).toEqual([
+    expect(translationFields(view()).map(({ key, control }) => [key, control])).toEqual([
       ["name", "input"],
       ["description", "rich"],
     ]);
-    expect(translationFields("category").find(({ key }) => key === "metaTitle")?.control).toBe("input");
-    expect(translationFields("store").find(({ key }) => key === "announcementBar")?.control).toBe("textarea");
+    expect(translationFields(view({ resource: "category" })).find(({ key }) => key === "metaTitle")?.control).toBe("input");
+    expect(translationFields(view({ resource: "store" })).find(({ key }) => key === "announcementBar")?.control).toBe("textarea");
+  });
+
+  it("follows the product's fields with each option's name and values, as short inputs", () => {
+    expect(translationFields(withOptions).slice(2)).toEqual([
+      { key: color.key, kind: "text", maxLength: 255, control: "input", part: { kind: "option", option: "اللون" } },
+      { key: color.values[0]!.key, kind: "text", maxLength: 255, control: "input", part: { kind: "value", option: "اللون" } },
+    ]);
+  });
+
+  it("drafts, patches and counts option fields like any other", () => {
+    expect(draftFor(withOptions, "fr")).toEqual({ name: "Téléphone", description: "", [color.key]: "", [color.values[0]!.key]: "" });
+    expect(pendingCount(withOptions, "fr")).toBe(2);
+    expect(patchFor(withOptions, "fr", { ...draftFor(withOptions, "fr"), [color.values[0]!.key]: " Rouge " })).toEqual({
+      locale: "fr",
+      values: { [color.values[0]!.key]: "Rouge" },
+    });
   });
 
   it("has a label for every translatable field in every dashboard language", () => {

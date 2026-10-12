@@ -286,21 +286,27 @@ describe("languageSource — where a request's language comes from", () => {
 
   it("a page takes it from its own path", async () => {
     const { languageSource } = await import("@/theme/runtime/store");
-    expect(languageSource(page("/fr/products/x"), "https://shop.dz/ar/")).toEqual({ path: "/fr/products/x", island: false });
+    expect(languageSource(page("/fr/products/x"), "https://shop.dz/ar/")).toEqual({ path: "/fr/products/x", embedded: false });
   });
 
   it("a server island takes it from the page that asked for it", async () => {
     const { languageSource } = await import("@/theme/runtime/store");
     expect(languageSource(page("/_server-islands/RelatedProducts?e=1"), "https://shop.dz/fr/products/x")).toEqual({
       path: "/fr/products/x",
-      island: true,
+      embedded: true,
     });
+  });
+
+  it("an /api endpoint takes it from the page that called it", async () => {
+    const { languageSource } = await import("@/theme/runtime/store");
+    expect(languageSource(page("/api/cart/validate"), "https://shop.dz/fr/checkout")).toEqual({ path: "/fr/checkout", embedded: true });
+    expect(languageSource(page("/apiary"), null)).toEqual({ path: "/apiary", embedded: false });
   });
 
   it("an island without a same-origin referer renders in the primary", async () => {
     const { languageSource } = await import("@/theme/runtime/store");
     for (const referer of [null, "https://evil.example/fr/x", "not a url"]) {
-      expect(languageSource(page("/_server-islands/ReviewsIsland"), referer)).toEqual({ path: "/", island: true });
+      expect(languageSource(page("/_server-islands/ReviewsIsland"), referer)).toEqual({ path: "/", embedded: true });
     }
   });
 });

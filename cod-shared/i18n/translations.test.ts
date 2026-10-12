@@ -3,10 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   TRANSLATABLE,
   TRANSLATABLE_RESOURCES,
+  indistinctOptions,
+  optionKey,
   overlayTranslations,
+  parseVariantOptions,
   sourceDigest,
   translatableField,
+  translatableSources,
+  translateOptions,
   translationView,
+  variantLabel,
+  type VariantOption,
 } from "./translations";
 
 describe("the translatable registry", () => {
@@ -83,9 +90,164 @@ describe("translationView", () => {
     );
     expect(view).toEqual({
       source: { name: "هاتف جديد", description: null },
+      options: [],
       translations: {
         fr: { name: { value: "Téléphone", outdated: true }, description: { value: "<p>D</p>", outdated: false } },
       },
     });
+  });
+});
+
+const shirt: VariantOption[] = [
+  { name: "اللون", values: [{ value: "أحمر", hexColor: "#f00" }, { value: "أزرق" }] },
+  { name: "المقاس", values: [{ value: "M" }, { value: "XL" }] },
+];
+
+describe("option keys", () => {
+  it("never give two different names, or name-value pairs, the same key", () => {
+    fc.assert(
+      fc.property(fc.string(), fc.option(fc.string(), { nil: undefined }), fc.string(), fc.option(fc.string(), { nil: undefined }), (a, av, b, bv) => {
+        if (a === b && av === bv) return;
+        expect(optionKey(a, av)).not.toBe(optionKey(b, bv));
+      }),
+      { numRuns: 2000 },
+    );
+    expect(optionKey("Size/Color", "M")).not.toBe(optionKey("Size", "Color/M"));
+  });
+
+  it("are never a registry field, so the field overlay cannot spread them onto a product", () => {
+    expect(translatableField("product", optionKey("Color"))).toBeNull();
+    expect(overlayTranslations("product", [{ id: "p", name: "x" }], [{ resourceId: "p", key: optionKey("Color"), value: "Couleur" }])).toEqual([
+      { id: "p", name: "x" },
+    ]);
+  });
+});
+
+describe("parseVariantOptions", () => {
+  it("reads stored JSON or an array, and reads anything malformed as no options", () => {
+    expect(parseVariantOptions(JSON.stringify(shirt))).toEqual(shirt);
+    expect(parseVariantOptions(shirt)).toEqual(shirt);
+    for (const raw of [null, undefined, "", "{", "{}", "[1]", JSON.stringify([{ name: "x" }]), JSON.stringify([{ name: "x", values: [{}] }])]) {
+      expect(parseVariantOptions(raw)).toEqual([]);
+    }
+  });
+});
+
+describe("translatableSources", () => {
+  it("adds a product's option names and values to its registry fields", () => {
+    const fields = translatableSources("product", { name: "قميص", description: null, variantOptions: JSON.stringify(shirt) });
+    expect(fields.map(({ key, source, field }) => [key, source, field.maxLength])).toEqual([
+      ["name", "قميص", 255],
+      ["description", null, TRANSLATABLE.product.description.maxLength],
+      [optionKey("اللون"), "اللون", 255],
+      [optionKey("اللون", "أحمر"), "أحمر", 255],
+      [optionKey("اللون", "أزرق"), "أزرق", 255],
+      [optionKey("المقاس"), "المقاس", 255],
+      [optionKey("المقاس", "M"), "M", 255],
+      [optionKey("المقاس", "XL"), "XL", 255],
+    ]);
+  });
+
+  it("gives no other resource option fields", () => {
+    expect(translatableSources("category", { name: "x", variantOptions: JSON.stringify(shirt) }).map(({ key }) => key)).toEqual(
+      Object.keys(TRANSLATABLE.category),
+    );
+  });
+});
+
+describe("translateOptions", () => {
+  const french = {
+    [optionKey("اللون")]: "Couleur",
+    [optionKey("اللون", "أحمر")]: "Rouge",
+    [optionKey("المقاس", "XL")]: "TG",
+  };
+
+  it("translates names and values field by field, keeping colours and untranslated text", () => {
+    const { options, variations } = translateOptions(shirt, french);
+    expect(options).toEqual([
+      { name: "Couleur", values: [{ value: "Rouge", hexColor: "#f00" }, { value: "أزرق" }] },
+      { name: "المقاس", values: [{ value: "M" }, { value: "TG" }] },
+    ]);
+    expect(variations({ اللون: "أحمر", المقاس: "XL" })).toEqual({ Couleur: "Rouge", المقاس: "TG" });
+    expect(variantLabel(variations({ اللون: "أحمر", المقاس: "XL" }))).toBe("Rouge / TG");
+  });
+
+  it("keeps a set in its source text when a translation would make two read the same", () => {
+    const clash = { ...french, [optionKey("المقاس")]: "Couleur", [optionKey("اللون", "أزرق")]: "Rouge" };
+    expect(indistinctOptions(shirt, clash)).toEqual([null, "اللون"]);
+    const { options, variations } = translateOptions(shirt, clash);
+    expect(options.map((option) => option.name)).toEqual(["اللون", "المقاس"]);
+    expect(options[0]!.values.map(({ value }) => value)).toEqual(["أحمر", "أزرق"]);
+    expect(options[1]!.values.map(({ value }) => value)).toEqual(["M", "TG"]);
+    expect(variations({ اللون: "أزرق", المقاس: "XL" })).toEqual({ اللون: "أزرق", المقاس: "TG" });
+  });
+
+  it("leaves an option or value it does not know as it is", () => {
+    expect(translateOptions(shirt, french).variations({ Material: "Coton", اللون: "أخضر" })).toEqual({ Material: "Coton", Couleur: "أخضر" });
+  });
+
+  const optionsArb = fc
+    .uniqueArray(fc.string({ maxLength: 3 }), { minLength: 1, maxLength: 3 })
+    .chain((names) =>
+      fc.tuple(...names.map((name) => fc.uniqueArray(fc.string({ maxLength: 3 }), { minLength: 1, maxLength: 4 }).map((values) => ({ name, values: values.map((value) => ({ value })) })))),
+    );
+
+  it("keeps every variant findable: a selection matches the translated options exactly when it matched the source", () => {
+    fc.assert(
+      fc.property(
+        optionsArb,
+        fc.dictionary(fc.string({ maxLength: 3 }), fc.string({ maxLength: 3 })),
+        fc.array(fc.nat(), { maxLength: 3 }),
+        (options, words, picks) => {
+          const translated: Record<string, string> = {};
+          options.forEach((option, index) => {
+            const name = words[option.name];
+            if (name !== undefined) translated[optionKey(option.name)] = name;
+            option.values.forEach(({ value }) => {
+              const text = words[`${index}:${value}`] ?? words[value];
+              if (text !== undefined) translated[optionKey(option.name, value)] = text;
+            });
+          });
+          const served = translateOptions(options, translated);
+          const selection = Object.fromEntries(options.map((option, index) => [option.name, option.values[(picks[index] ?? 0) % option.values.length]!.value]));
+          const renamed = served.variations(selection);
+          expect(Object.keys(renamed).sort()).toEqual(served.options.map((option) => option.name).sort());
+          served.options.forEach((option, index) => {
+            const chosen = renamed[option.name]!;
+            expect(option.values.filter(({ value }) => value === chosen)).toHaveLength(1);
+            expect(option.values.findIndex(({ value }) => value === chosen)).toBe(
+              options[index]!.values.findIndex(({ value }) => value === selection[options[index]!.name]),
+            );
+          });
+          expect(new Set(served.options.map((option) => option.name)).size).toBe(options.length);
+        },
+      ),
+      { numRuns: 2000 },
+    );
+  });
+
+  it("never reads Object.prototype as a translation", () => {
+    expect(translateOptions([{ name: "constructor", values: [{ value: "toString" }] }], {}).options).toEqual([
+      { name: "constructor", values: [{ value: "toString" }] },
+    ]);
+  });
+});
+
+describe("translationView — options", () => {
+  it("lists a product's options with their keys and pairs option translations with their source", async () => {
+    const view = await translationView("product", { id: "p", name: "قميص", description: null, variantOptions: JSON.stringify(shirt) }, [
+      { locale: "fr", key: optionKey("اللون", "أحمر"), value: "Rouge", sourceDigest: await sourceDigest("أحمر") },
+      { locale: "fr", key: optionKey("Ancien"), value: "Old", sourceDigest: await sourceDigest("Ancien") },
+    ]);
+    expect(view.options[0]).toEqual({
+      name: "اللون",
+      key: optionKey("اللون"),
+      values: [
+        { value: "أحمر", key: optionKey("اللون", "أحمر") },
+        { value: "أزرق", key: optionKey("اللون", "أزرق") },
+      ],
+    });
+    expect(view.source[optionKey("المقاس", "XL")]).toBe("XL");
+    expect(view.translations).toEqual({ fr: { [optionKey("اللون", "أحمر")]: { value: "Rouge", outdated: false } } });
   });
 });

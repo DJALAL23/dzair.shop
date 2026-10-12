@@ -22,8 +22,13 @@ import type { AppContext } from "@/types";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { STORE_LOCALES, type StoreLocale } from "../../../../cod-shared/i18n/locales";
 import {
+  OPTION_KEY_PREFIX,
+  OPTION_TEXT,
   TRANSLATABLE,
+  indistinctOptions,
+  parseVariantOptions,
   sourceDigest,
+  translatableSources,
   translationView,
   type TranslatableResource,
 } from "../../../../cod-shared/i18n/translations";
@@ -45,18 +50,24 @@ export interface TranslationRoutesOptions {
   tag: string;
 }
 
-/** The PATCH body for one resource type: only its translatable keys, each capped like its source. */
+const translationValue = (maxLength: number) => z.string().trim().min(1).max(maxLength).nullable();
+
+/**
+ * The PATCH body for one resource type: its translatable keys, each capped
+ * like its source. A product also takes its option names and values, keyed
+ * `option:[…]` — which ones exist depends on the product, so the handler
+ * checks them against its options.
+ */
 export function translationPatchSchema(resource: TranslatableResource) {
   const fields = TRANSLATABLE[resource];
-  const values = Object.fromEntries(
-    Object.entries(fields).map(([key, field]) => [
-      key,
-      z.string().trim().min(1).max(field.maxLength).nullable().optional(),
-    ]),
+  const values = z.object(
+    Object.fromEntries(
+      Object.entries(fields).map(([key, field]) => [key, translationValue(field.maxLength).optional()]),
+    ),
   );
   return z.object({
     locale: z.enum(STORE_LOCALES),
-    values: z.object(values).strict(),
+    values: resource === "product" ? values.catchall(translationValue(OPTION_TEXT.maxLength)) : values.strict(),
   });
 }
 
@@ -71,6 +82,13 @@ const TranslationViewSchema = z.object({
    */
   targetLocales: z.array(z.object({ locale: z.enum(STORE_LOCALES), published: z.boolean() })),
   source: z.record(z.string(), z.string().nullable()),
+  options: z.array(
+    z.object({
+      name: z.string(),
+      key: z.string(),
+      values: z.array(z.object({ value: z.string(), key: z.string() })),
+    }),
+  ),
   translations: z.partialRecord(
     z.enum(STORE_LOCALES),
     z.record(z.string(), z.object({ value: z.string(), outdated: z.boolean() })),
@@ -153,18 +171,40 @@ export function registerTranslationRoutes(router: OpenAPIHono<AppContext>, optio
       if (!languages.some((language) => language.locale === locale)) {
         throw new ValidationError(`Add ${locale} to the store's languages before translating into it`, ERROR_CODES.VALIDATION_FAILED);
       }
+      const sources = new Map(translatableSources(resource, record).map((field) => [field.key, field]));
       const set: { key: string; value: string; sourceDigest: string }[] = [];
       const remove: string[] = [];
       for (const [key, value] of Object.entries(values)) {
         if (value === undefined) continue;
+        const target = sources.get(key);
+        if (!target && !(value === null && key.startsWith(OPTION_KEY_PREFIX))) {
+          throw new ValidationError(`${key} is not a translatable field of this ${label.toLowerCase()}`, ERROR_CODES.VALIDATION_FAILED, { field: key });
+        }
         if (value === null) {
           remove.push(key);
           continue;
         }
-        const field = TRANSLATABLE[resource][key as keyof (typeof TRANSLATABLE)[typeof resource]] as { kind: string };
-        const stored = field.kind === "html" ? (await sanitizeRichText(value)).html : value;
-        const source = record[key];
-        set.push({ key, value: stored, sourceDigest: await sourceDigest(typeof source === "string" ? source : null) });
+        const stored = target!.field.kind === "html" ? (await sanitizeRichText(value)).html : value;
+        set.push({ key, value: stored, sourceDigest: await sourceDigest(target!.source) });
+      }
+      const options = parseVariantOptions(record.variantOptions);
+      if (options.length > 0 && set.length + remove.length > 0) {
+        const merged: Record<string, string> = {};
+        for (const row of await listResourceTranslations(db, resource, record.id)) {
+          if (row.locale === locale) merged[row.key] = row.value;
+        }
+        for (const key of remove) delete merged[key];
+        for (const { key, value } of set) merged[key] = value;
+        const [indistinct] = indistinctOptions(options, merged);
+        if (indistinct !== undefined) {
+          throw new ValidationError(
+            indistinct === null
+              ? "Two options would read the same in this language — give each its own name"
+              : `Two values of "${indistinct}" would read the same in this language — give each its own text`,
+            ERROR_CODES.VALIDATION_FAILED,
+            { option: indistinct },
+          );
+        }
       }
       await writeTranslations(db, { resource, resourceId: record.id, locale }, { set, remove });
       return respond(c, db, record, store);

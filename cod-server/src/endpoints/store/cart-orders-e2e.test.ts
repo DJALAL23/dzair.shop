@@ -235,6 +235,23 @@ describe("createStoreOrder — multi-product basket", () => {
     expect(await linesOf(order.id)).toHaveLength(2);
   });
 
+  it("records the catalog's names, in the store's language — never the storefront's text", async () => {
+    const shirt = await seedProduct({ price: 1000, hasVariants: true, name: "قميص" });
+    const red = await seedVariant(shirt, { price: 1000, label: "أحمر" });
+    const mug = await seedProduct({ price: 500, name: "كوب" });
+
+    const order = await place({
+      items: [
+        { productId: shirt, productName: "Chemise", variantId: red, variantLabel: "Rouge", quantity: 1 },
+        { productId: mug, productName: "Mug", variantLabel: "forged", quantity: 1 },
+      ],
+    });
+
+    const lines = await linesOf(order.id);
+    expect(lines.find((l) => l.productId === shirt)).toMatchObject({ productName: "قميص", variantLabel: "أحمر" });
+    expect(lines.find((l) => l.productId === mug)).toMatchObject({ productName: "كوب", variantLabel: null });
+  });
+
   it("merges the same product+variant sent twice into one line", async () => {
     const p = await seedProduct({ price: 1000 });
 
@@ -466,13 +483,16 @@ describe("createStoreOrder — offers in a basket", () => {
     // 2 red + 1 blue = three of that product, so a "buy 3" offer must fire.
     const order = await place({
       items: [
-        { productId: p, productName: "P", variantId: red, quantity: 2 },
+        { productId: p, productName: "P", variantId: red, variantLabel: "Rouge", quantity: 2 },
         { productId: p, productName: "P", variantId: blue, quantity: 1 },
       ],
     });
 
     const lines = await linesOf(order.id);
-    expect(lines.filter((l) => l.pricePerUnit === 0)).toHaveLength(1);
+    const rewards = lines.filter((l) => l.pricePerUnit === 0);
+    expect(rewards).toHaveLength(1);
+    // The reward mirrors the first line's variant, named by the catalog.
+    expect(rewards[0]).toMatchObject({ variantId: red, variantLabel: "Red — 🎁 مجاني" });
   });
 
   it("skips the reward when its stock cannot cover it, and still places the order", async () => {

@@ -98,19 +98,22 @@ export interface StoreContext {
 
 /**
  * The path a request takes its language from. A page takes it from its own
- * path. A server island (`/_server-islands/…`) renders part of a page in a
- * separate request with no language in its URL, so it takes the language of
- * the page that asked for it — Astro's island loader sends that page as a
- * same-origin `Referer`. An island without one renders in the primary.
+ * path. A server island (`/_server-islands/…`) or an endpoint (`/api/…`)
+ * serves part of a page in a separate request with no language in its URL,
+ * so it takes the language of the page that asked for it — the browser sends
+ * that page as a same-origin `Referer`. Without one it is served in the
+ * primary. Such a request is `embedded`: never redirected, never rewritten.
  */
-export function languageSource(url: URL, referer: string | null): { path: string; island: boolean } {
-  if (!url.pathname.startsWith("/_server-islands/")) return { path: url.pathname, island: false };
-  if (referer === null) return { path: "/", island: true };
+export function languageSource(url: URL, referer: string | null): { path: string; embedded: boolean } {
+  if (!url.pathname.startsWith("/_server-islands/") && !url.pathname.startsWith("/api/")) {
+    return { path: url.pathname, embedded: false };
+  }
+  if (referer === null) return { path: "/", embedded: true };
   try {
     const page = new URL(referer);
-    return { path: page.origin === url.origin ? page.pathname : "/", island: true };
+    return { path: page.origin === url.origin ? page.pathname : "/", embedded: true };
   } catch {
-    return { path: "/", island: true };
+    return { path: "/", embedded: true };
   }
 }
 

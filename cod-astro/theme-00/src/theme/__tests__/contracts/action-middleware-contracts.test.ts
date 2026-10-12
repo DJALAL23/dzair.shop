@@ -343,12 +343,29 @@ describe("onRequest binding (src/middleware.ts)", () => {
     expect(response.headers.get("location")).toBe("/fr/checkout");
   });
 
-  it("skips the store-context read for /api/* — those endpoints never render the shell", async () => {
+  it("serves an /api/* endpoint in the language of the page that called it, never redirecting or rewriting it", async () => {
     wireAction(undefined);
-    const context = makeContext(new Request("http://shop.example/api/communes/16"));
+    const french = makeContext(
+      new Request("http://shop.example/api/cart/validate", {
+        method: "POST",
+        headers: { Referer: "http://shop.example/fr/checkout" },
+      }),
+    );
+    expect(await (await middleware(french, next)).text()).toBe("page");
+    expect(french.locals.store).toMatchObject({ pathname: "/checkout" });
 
-    await middleware(context, next);
+    const primaryPrefix = makeContext(
+      new Request("http://shop.example/api/cart/validate", { headers: { Referer: "http://shop.example/ar/checkout" } }),
+    );
+    expect((await middleware(primaryPrefix, next)).status).toBe(200);
+    expect(primaryPrefix.locals.store).toMatchObject({ pathname: "/checkout" });
 
-    expect(context.locals).toEqual({});
+    for (const referer of [undefined, "http://elsewhere.example/fr/checkout", "not a url"]) {
+      const context = makeContext(
+        new Request("http://shop.example/api/communes/16", { headers: referer ? { Referer: referer } : {} }),
+      );
+      await middleware(context, next);
+      expect(context.locals.store).toMatchObject({ pathname: "/" });
+    }
   });
 });

@@ -16,6 +16,7 @@ import { products, productVariants, offers } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { chunkIds } from "./d1-limits";
 import { productIdsOf, variantIdsOf, type CartLine } from "./cart";
+import { variantLabel } from "../i18n/translations";
 
 export interface CatalogProduct {
   id: string;
@@ -28,6 +29,8 @@ export interface CatalogProduct {
   status: string;
   visibility: boolean;
   showInStore: boolean;
+  /** Stored JSON, read to translate the product's variant labels. */
+  variantOptions: string | null;
 }
 
 export interface CatalogVariant {
@@ -60,6 +63,7 @@ const PRODUCT_COLUMNS = {
   status: products.status,
   visibility: products.visibility,
   showInStore: products.showInStore,
+  variantOptions: products.variantOptions,
 } as const;
 
 const VARIANT_COLUMNS = {
@@ -272,6 +276,18 @@ export function findStockShortfall(
   return null;
 }
 
+/** A variant's option selection, `{ Color: "Red" }`; empty when its stored JSON is unreadable. */
+export function variantSelection(variant: Pick<CatalogVariant, "variations">): Record<string, string> {
+  try {
+    const parsed: unknown = JSON.parse(variant.variations);
+    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, string>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
 /** A cart line priced from the catalog, ready to become an order line. */
 export interface PricedLine {
   line: CartLine;
@@ -279,6 +295,14 @@ export interface PricedLine {
   unitPrice: number;
   lineTotal: number;
   sku: string | null;
+  /**
+   * The catalog's own names, in the store's primary language — what the order
+   * records, so the merchant and the carrier read one language whatever the
+   * shopper browsed in. The storefront's text is a fallback for a row the
+   * catalog no longer has.
+   */
+  productName: string;
+  variantLabel: string | null;
 }
 
 /**
@@ -315,6 +339,9 @@ export function priceCartLines(
       unitPrice,
       lineTotal,
       sku: variant ? variant.sku : (product?.sku ?? null),
+      productName: product?.name ?? line.productName,
+      variantLabel:
+        line.variantId === null ? null : variant ? variantLabel(variantSelection(variant)) : line.variantLabel,
     });
   }
 
@@ -326,7 +353,6 @@ export type LineBlocker = "missing" | "unlisted" | "out_of_stock";
 
 /** A cart line as the storefront should display it right now. */
 export interface ResolvedLine extends PricedLine {
-  productName: string;
   /** Units the shopper may order. null when the product is not stock-tracked. */
   maxQuantity: number | null;
   /** null when the line is orderable as requested. */
@@ -381,7 +407,6 @@ export function resolveCartLines(
 
     return {
       ...entry,
-      productName: product?.name ?? line.productName,
       maxQuantity,
       blocker,
     };

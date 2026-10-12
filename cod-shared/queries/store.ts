@@ -19,7 +19,13 @@ import {
   inArray,
 } from "drizzle-orm";
 import { groupOverrides } from "../i18n/content-overrides";
-import { overlayTranslations } from "../i18n/translations";
+import {
+  OPTION_KEY_PREFIX,
+  overlayTranslations,
+  parseVariantOptions,
+  translateOptions,
+  variantLabel,
+} from "../i18n/translations";
 import type { StoreLocale } from "../i18n/locales";
 import { servedLanguageInfo, servedLocale, servedLocales, storeLanguages } from "../stores/settings";
 import { listContentOverrides, listStoreLocales } from "./stores";
@@ -55,7 +61,10 @@ import {
   loadCatalogSnapshot,
   extendSnapshot,
   priceCartLines,
+  variantSelection,
   type CatalogSnapshot,
+  type CatalogVariant,
+  type PricedLine,
 } from "./catalog-snapshot";
 import { resolveCartOffers } from "./offers-cart";
 import { parseCheckoutFormPolicy } from "../checkout-form/policy";
@@ -210,19 +219,58 @@ export async function resolveStorefrontLocale(db: AppDb, storeId: string, reques
 /**
  * Overlay one language's product translations. A translated description is
  * sanitised HTML (written through the same chokepoint as its source), so it
- * carries the `html` format whatever the source's format is.
+ * carries the `html` format whatever the source's format is. Option names
+ * and values are translated in `variantOptions`; `variations` renames a
+ * product's variant selections to match, so the two still agree.
  */
-async function translateProducts<T extends { id: string; description: string | null; descriptionFormat: "text" | "html" }>(
+async function translateProducts<
+  T extends { id: string; descriptionFormat?: "text" | "html"; variantOptions: string | null },
+>(
   db: AppDb,
   records: readonly T[],
   locale: StoreLocale | null,
-): Promise<T[]> {
-  if (locale === null || records.length === 0) return [...records];
+): Promise<{ products: T[]; variations: (productId: string, variations: Record<string, string>) => Record<string, string> }> {
+  const translators = new Map<string, ReturnType<typeof translateOptions>>();
+  const variations = (productId: string, selection: Record<string, string>) =>
+    translators.get(productId)?.variations(selection) ?? selection;
+  if (locale === null || records.length === 0) return { products: [...records], variations };
   const rows = await listTranslations(db, "product", records.map((record) => record.id), locale);
-  const htmlDescriptions = new Set(rows.filter((row) => row.key === "description").map((row) => row.resourceId));
-  return overlayTranslations("product", records, rows).map((record) =>
-    htmlDescriptions.has(record.id) ? { ...record, descriptionFormat: "html" as const } : record,
-  );
+  const fields = new Map<string, Record<string, string>>();
+  for (const row of rows) fields.set(row.resourceId, { ...fields.get(row.resourceId), [row.key]: row.value });
+  const products = overlayTranslations("product", records, rows).map((record) => {
+    const translated = fields.get(record.id) ?? {};
+    let product = record;
+    if (Object.hasOwn(translated, "description") && record.descriptionFormat !== undefined) {
+      product = { ...product, descriptionFormat: "html" as const };
+    }
+    if (Object.keys(translated).some((key) => key.startsWith(OPTION_KEY_PREFIX))) {
+      const translator = translateOptions(parseVariantOptions(record.variantOptions), translated);
+      translators.set(record.id, translator);
+      product = { ...product, variantOptions: JSON.stringify(translator.options) };
+    }
+    return product;
+  });
+  return { products, variations };
+}
+
+/**
+ * A basket's names in the served language — each product's name and each
+ * variant's label — for the cart to show. An order keeps the catalog's own
+ * text (`PricedLine`), whatever language the shopper browsed in.
+ */
+export async function cartNames(db: AppDb, snapshot: CatalogSnapshot, locale: StoreLocale | null) {
+  const { products: translated, variations } = await translateProducts(db, [...snapshot.products.values()], locale);
+  const names = new Map(translated.map((product) => [product.id, product.name]));
+  return {
+    product: (productId: string): string | null => names.get(productId) ?? null,
+    line: (entry: PricedLine): { productName: string; variantLabel: string | null } => {
+      const variant = entry.line.variantId ? snapshot.variants.get(entry.line.variantId) : undefined;
+      return {
+        productName: names.get(entry.line.productId) ?? entry.productName,
+        variantLabel: variant ? variantLabel(variations(variant.productId, variantSelection(variant))) : entry.variantLabel,
+      };
+    },
+  };
 }
 
 export async function getStoreProducts(
@@ -256,7 +304,7 @@ export async function getStoreProducts(
     .all();
 
   if (sourceRows.length === 0) return [];
-  const rows = await translateProducts(db, sourceRows, locale);
+  const { products: rows } = await translateProducts(db, sourceRows, locale);
 
   const ids = rows.map((p) => p.id);
 
@@ -346,7 +394,8 @@ export async function getStoreProductByHandle(
     .get();
 
   if (!source) return null;
-  const product = (await translateProducts(db, [source], locale))[0]!;
+  const translated = await translateProducts(db, [source], locale);
+  const product = translated.products[0]!;
 
   const [category, variants, images, reviewStatsRow] = await Promise.all([
     product.categoryId
@@ -395,33 +444,29 @@ export async function getStoreProductByHandle(
     .orderBy(offers.createdAt)
     .all();
 
-  // The offers' names and their reward products' names, in the served language.
-  const rewardIds = offerRows.flatMap((offer) => (offer.rewardProductId ? [offer.rewardProductId] : []));
-  const [offerTranslations, rewardTranslations, categoryTranslations] = locale === null
-    ? [[], [], []]
-    : await Promise.all([
-        listTranslations(db, "offer", offerRows.map((offer) => offer.id), locale),
-        listTranslations(db, "product", rewardIds, locale),
-        category ? listTranslations(db, "category", [category.id], locale) : [],
-      ]);
-  const rewardNames = new Map(
-    rewardTranslations.filter((row) => row.key === "name").map((row) => [row.resourceId, row.value]),
-  );
+  // The offers' names and their reward products' names and options, in the served language.
+  const rewardIds = [...new Set(offerRows.flatMap((offer) => (offer.rewardProductId ? [offer.rewardProductId] : [])))];
+  const [offerTranslations, categoryTranslations, rewardSources] = await Promise.all([
+    locale === null ? [] : listTranslations(db, "offer", offerRows.map((offer) => offer.id), locale),
+    locale === null || !category ? [] : listTranslations(db, "category", [category.id], locale),
+    rewardIds.length === 0
+      ? []
+      : db
+          .select({ id: products.id, name: products.name, variantOptions: products.variantOptions })
+          .from(products)
+          .where(inArray(products.id, rewardIds))
+          .all(),
+  ]);
+  const rewards = await translateProducts(db, rewardSources, locale);
+  const rewardProducts = new Map(rewards.products.map((reward) => [reward.id, reward]));
   const translatedCategory = category ? overlayTranslations("category", [category], categoryTranslations)[0]! : null;
 
   const resolvedOffers = await Promise.all(
     overlayTranslations("offer", offerRows, offerTranslations).map(async (offer) => {
-      const rewardProduct = offer.rewardProductId
-        ? await db
-            .select({ id: products.id, name: products.name })
-            .from(products)
-            .where(eq(products.id, offer.rewardProductId))
-            .get()
-        : null;
-
+      const rewardProduct = offer.rewardProductId ? rewardProducts.get(offer.rewardProductId) : undefined;
       const rewardVariant = offer.rewardVariantId
         ? await db
-            .select({ id: productVariants.id, variations: productVariants.variations })
+            .select({ id: productVariants.id, productId: productVariants.productId, variations: productVariants.variations })
             .from(productVariants)
             .where(eq(productVariants.id, offer.rewardVariantId))
             .get()
@@ -435,12 +480,10 @@ export async function getStoreProductByHandle(
         triggerVariantId: offer.triggerVariantId ?? null,
         rewardQuantity: offer.rewardQuantity,
         rewardProductId: offer.rewardProductId ?? null,
-        rewardProductName: (rewardProduct && rewardNames.get(rewardProduct.id)) ?? rewardProduct?.name ?? "",
+        rewardProductName: rewardProduct?.name ?? "",
         rewardVariantId: offer.rewardVariantId ?? null,
         rewardVariantLabel: rewardVariant
-          ? Object.values(
-              JSON.parse(rewardVariant.variations) as Record<string, string>,
-            ).join(" / ")
+          ? variantLabel(rewards.variations(rewardVariant.productId, variantSelection(rewardVariant)))
           : null,
       };
     }),
@@ -459,7 +502,7 @@ export async function getStoreProductByHandle(
     category: translatedCategory,
     variants: variants.map((v) => ({
       ...v,
-      variations: JSON.parse(v.variations),
+      variations: translated.variations(product.id, JSON.parse(v.variations)),
     })),
     images,
     offers: resolvedOffers,
@@ -782,9 +825,9 @@ export async function createStoreOrder(
     id: crypto.randomUUID(),
     orderId: id,
     productId: p.line.productId,
-    productName: p.line.productName,
+    productName: p.productName,
     variantId: p.line.variantId,
-    variantLabel: p.line.variantLabel,
+    variantLabel: p.variantLabel,
     sku: p.sku,
     quantity: p.line.quantity,
     pricePerUnit: p.unitPrice,
@@ -824,39 +867,20 @@ export async function createStoreOrder(
       .filter((v) => v.productId === productId && v.active)
       .sort((a, b) => a.id.localeCompare(b.id))[0];
 
-  const labelOf = (variations: string | undefined) => {
-    if (!variations) return null;
-    try {
-      return Object.values(JSON.parse(variations) as Record<string, string>).join(" / ");
-    } catch {
-      return null;
-    }
-  };
+  const labelOf = (variant: CatalogVariant | undefined) => (variant ? variantLabel(variantSelection(variant)) : null);
 
   for (const { offer, line } of earned) {
     if (!offer.rewardProductId) continue;
     const rewardProduct = snapshot.products.get(offer.rewardProductId);
     if (!rewardProduct) continue;
 
-    let rewardVariantId: string | null = offer.rewardVariantId ?? null;
-    let rewardVariantLabel: string | null = null;
-
-    if (!rewardVariantId && offer.rewardProductId === line.productId) {
-      // Reward is the product ordered — mirror the variant the shopper chose.
-      rewardVariantId = line.variantId;
-      rewardVariantLabel = line.variantLabel;
-    } else if (!rewardVariantId) {
-      const fallback = defaultVariantFor(offer.rewardProductId);
-      if (fallback) {
-        rewardVariantId = fallback.id;
-        rewardVariantLabel = labelOf(fallback.variations);
-      }
-    }
-
+    // An unset reward variant mirrors the shopper's choice when the reward is
+    // the product ordered, and is the product's default variant otherwise.
+    const rewardVariantId: string | null =
+      offer.rewardVariantId ??
+      (offer.rewardProductId === line.productId ? line.variantId : (defaultVariantFor(offer.rewardProductId)?.id ?? null));
     const rewardVariant = rewardVariantId ? snapshot.variants.get(rewardVariantId) : undefined;
-    if (rewardVariantId && !rewardVariantLabel) {
-      rewardVariantLabel = labelOf(rewardVariant?.variations);
-    }
+    const rewardVariantLabel = labelOf(rewardVariant);
 
     if (rewardProduct.trackInventory) {
       const available = rewardVariantId

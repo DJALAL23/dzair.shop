@@ -11,6 +11,9 @@
   "saved": "Traduction enregistrée",
   "save_error": "Impossible d'enregistrer la traduction",
   "error_load": "Impossible de charger les traductions",
+  "options_title": "Options de variantes",
+  "options_hint": "Les clients les choisissent sur la page produit. Chaque valeur doit se distinguer des autres.",
+  "option_name": "Nom de l'option",
   "fields": {
     "product": {
       "name": "Nom",
