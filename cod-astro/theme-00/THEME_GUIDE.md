@@ -84,7 +84,7 @@ Every string a shopper can read lives in the locale packs —
 `src/theme/content/types.ts`, assembled per locale by
 `src/theme/content/<lang>/index.ts`, and resolved at request time by
 `resolveContent()` (`src/theme/content/index.ts`) from the store's configured
-language. Components read it from the `content` prop.
+language and that language's overrides (`StoreConfig.contentOverrides`). Components read it from the `content` prop.
 
 Adding a label = add the key to the area's **type** in `content/types/`, fill it
 in **all three** locales' area files, then read it in the component — never type

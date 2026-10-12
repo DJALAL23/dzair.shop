@@ -241,4 +241,4 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   language-specific default literal inside a component is the exact violation
   the string validator is weakest against. `resolveContent` accepts only
   string values for keys the pack declares — a nested or unknown shape in
-  `content_json` is ignored by design.
+  the store's per-language overrides is ignored by design.

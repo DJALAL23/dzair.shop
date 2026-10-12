@@ -197,13 +197,14 @@ set typed in `src/theme/content/types/`.
 
 ## Override via the dashboard
 
-Store owners can override any key through the store's `contentJson` setting
-(`StoreConfig.contentJson` → `resolveContent(lang, contentJson)` in
-`src/theme/content/index.ts`). Unknown keys or invalid JSON are ignored and the
-locale defaults are used.
+Store owners can override any key per language through the store's content
+overrides (`StoreConfig.contentOverrides[lang]` →
+`resolveContent(lang, overrides)` in `src/theme/content/index.ts`). Only the
+store's own language is applied; unknown keys and non-string values are
+ignored and the locale defaults are used.
 
 ```json
-{ "heroTitle": "My Custom Title", "orderCta": "Buy Now!" }
+{ "ar": { "heroTitle": "عرض اليوم" }, "fr": { "heroTitle": "L'offre du jour" } }
 ```
 
 ## Adding a language
