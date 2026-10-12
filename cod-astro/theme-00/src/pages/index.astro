@@ -20,19 +20,24 @@ import { logHomeDecision, resolveHomeDocument } from "@/theme/pages/home-documen
 import { getStoreClient } from "@/theme/sdk";
 
 // The store context comes from middleware (Astro.locals.store — Theme Zero S2).
-const { config, content, isRTL } = Astro.locals.store;
+const { config, content, locale, fallbackLocales, isRTL } = Astro.locals.store;
 const storefront = getStoreClient();
 
 // The store's saved home document, or null (absent / degraded read). The
 // decision — saved vs shipped default, including the zero-overlap fallback —
 // is one pure, unit-tested function (`home-document.ts`).
 const saved = await storefront.pageData.get("home");
-const decision = resolveHomeDocument(saved, theme00, content);
+const decision = resolveHomeDocument(saved, theme00, {
+  content,
+  locales: [locale, ...fallbackLocales],
+});
 logHomeDecision(decision);
 
 const context: ThemeRenderContext = {
   store: config,
   content,
+  locale,
+  fallbackLocales,
   isRTL,
   url: Astro.url.pathname,
   params: Astro.params,

@@ -18,7 +18,12 @@
  */
 
 import { parsePageData, validatePageData } from "@codflow/theme";
-import type { PageDataIssue, PageDataResult, ThemeDefinition } from "@codflow/theme";
+import type {
+  PageDataIssue,
+  PageDataResult,
+  ResolutionScope,
+  ThemeDefinition,
+} from "@codflow/theme";
 import shipped from "./home.page.json";
 
 export type HomeDocumentReason = "absent" | "invalid" | "no-overlap";
@@ -67,7 +72,7 @@ export interface HomeDocumentDecision {
 export function resolveHomeDocument(
   saved: unknown,
   theme: ThemeDefinition,
-  content: Record<string, string> = {},
+  scope: ResolutionScope = {},
 ): HomeDocumentDecision {
   const hasType = (type: string): boolean => Object.hasOwn(theme.components, type);
 
@@ -76,7 +81,7 @@ export function resolveHomeDocument(
     return { result, source: "default", reason: "absent", issues: result.issues };
   }
 
-  const savedResult = validatePageData(theme, saved, content);
+  const savedResult = validatePageData(theme, saved, scope);
   if (savedResult.page === null) {
     const result = parsePageData(shipped);
     return {

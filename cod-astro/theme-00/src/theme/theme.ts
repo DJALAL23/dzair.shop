@@ -7,6 +7,7 @@
  * the shared read keys and the copy bridge live in `src/theme/catalog/shared.ts`.
  */
 import { defineTheme } from "@codflow/theme";
+import { SURFACE } from "./catalog/labels";
 import { hero } from "./catalog/home/hero.def";
 import { categoryCards } from "./catalog/home/category-cards.def";
 import { bestSellers } from "./catalog/home/best-sellers.def";
@@ -21,7 +22,10 @@ export const theme00 = defineTheme({
   version: "1.0.0",
   // The only surface this catalog serves. Declared (not enforced): page
   // parsing never consults it; the manifest carries it for future tooling.
-  surfaces: [{ key: "home", label: "Home" }],
+  // The languages this theme's content packs cover; every editor label must
+  // be translated into all of them (`catalog/labels.ts`).
+  locales: ["ar", "fr", "en"],
+  surfaces: [{ key: "home", label: SURFACE.home }],
   components: {
     hero,
     "category-cards": categoryCards,

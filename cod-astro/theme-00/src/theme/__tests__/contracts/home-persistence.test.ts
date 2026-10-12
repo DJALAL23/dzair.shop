@@ -208,7 +208,7 @@ describe("home persistence — the saved document through the real renderer", ()
 
     const decision = resolveHomeDocument(SAVED_OVERRIDE, theme00);
     const context: ThemeRenderContext = {
-      store: DEFAULT_CONFIG, content: enContent, isRTL: false, url: "/",
+      store: DEFAULT_CONFIG, content: enContent, locale: "en", isRTL: false, url: "/",
     };
     const reads = createReadCache();
     const container = await AstroContainer.create();

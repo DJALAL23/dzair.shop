@@ -113,6 +113,7 @@ function createHarness(
   const context: ThemeRenderContext = {
     store,
     content: en,
+    locale: "en",
     isRTL: false,
     url: "/",
   };

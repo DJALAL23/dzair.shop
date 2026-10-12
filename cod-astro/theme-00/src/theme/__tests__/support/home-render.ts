@@ -60,12 +60,18 @@ export function fakeStorefront(products: ProductList[], categories: Category[] =
 export async function renderSections(
   sections: ComponentInstance[],
   storefront: StoreClient,
-  options: { content?: Record<string, string>; onIssue?: (issue: RendererIssue) => void } = {},
+  options: {
+    content?: Record<string, string>;
+    locale?: string;
+    onIssue?: (issue: RendererIssue) => void;
+  } = {},
 ): Promise<string> {
   const context: ThemeRenderContext = {
     store: DEFAULT_CONFIG,
     content: options.content ?? en,
-    isRTL: false,
+    locale: options.locale ?? "en",
+    fallbackLocales: [],
+    isRTL: options.locale === "ar",
     url: "/",
     params: {},
   };

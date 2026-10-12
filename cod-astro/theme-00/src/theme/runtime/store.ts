@@ -65,7 +65,16 @@ export const DEFAULT_CONFIG: StoreConfig = {
 
 export interface StoreContext {
   config: StoreConfig;
+  /** The theme's pack for `locale`, with the store's overrides merged. */
   content: StoreFrontContent;
+  /** The language this request renders (BCP 47): today, the store's language. */
+  locale: string;
+  /**
+   * Languages to try after `locale` for a translated page value (ADR 0005).
+   * Empty while a store serves one language: its pack, already in the right
+   * language, is a better fallback than another language's text.
+   */
+  fallbackLocales: readonly string[];
   isRTL: boolean;
 }
 
@@ -73,5 +82,5 @@ export async function getStoreContext(): Promise<StoreContext> {
   const config = (await getStoreClient().config.get()) ?? DEFAULT_CONFIG;
   const content = resolveContent(config.lang, config.contentJson);
   const isRTL = config.lang === "ar";
-  return { config, content, isRTL };
+  return { config, content, locale: config.lang, fallbackLocales: [], isRTL };
 }
