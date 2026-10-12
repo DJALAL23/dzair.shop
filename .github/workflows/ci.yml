@@ -49,6 +49,21 @@ jobs:
         env:
           PUBLIC_API_URL: http://localhost:8787
 
+  sdks:
+    name: SDKs + Theme-00 (verify:sdks + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run verify:sdks
+      - run: npm run build
+        working-directory: cod-astro/theme-00
+
   theme01:
     name: theme01 (astro check + test + validate + build)
     runs-on: ubuntu-latest

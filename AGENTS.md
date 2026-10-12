@@ -70,8 +70,9 @@ other is how these drift.
 
 - After changing TypeScript: run `npm run typecheck` in the affected package.
 - After changing behavior: run `npm test` in the affected package.
-- Full CI runs typecheck + tests for cod-server and cod-client-astro, plus
-  `astro check` + tests for theme01 (`.github/workflows/ci.yml`).
+- Full CI runs typecheck + tests for cod-server and cod-client-astro,
+  `npm run verify:sdks` plus a Theme-00 production build, and `astro check` +
+  tests for theme01 (`.github/workflows/ci.yml`).
 
 ## Conventions
 
