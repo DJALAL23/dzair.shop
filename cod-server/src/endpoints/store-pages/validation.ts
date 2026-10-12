@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PAGE_SLUG_MAX, PAGE_SLUG_MIN, PAGE_SLUG_PATTERN } from "../../../../cod-shared/legal/kinds";
+import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
 
 export const slugSchema = z
   .string()
@@ -7,7 +8,7 @@ export const slugSchema = z
   .max(PAGE_SLUG_MAX)
   .regex(PAGE_SLUG_PATTERN, "Slug must be lowercase letters, digits, and single hyphens");
 
-export const localeSchema = z.enum(["ar", "en", "fr"]);
+export const localeSchema = z.enum(STORE_LOCALES);
 
 export const createCustomPageSchema = z.object({
   slug: slugSchema,

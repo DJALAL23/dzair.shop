@@ -23,6 +23,7 @@ import {
   StoreLegalProfileSchema,
   SuccessResponseSchema,
 } from "@/openapi/schemas";
+import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -34,7 +35,7 @@ const idParams = z.object({
 
 const translationParams = z.object({
   id: z.string().openapi({ description: "Store Page UUID", example: "sp_abc123" }),
-  locale: z.enum(["ar", "en", "fr"]).openapi({ example: "ar" }),
+  locale: z.enum(STORE_LOCALES).openapi({ example: "ar" }),
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────

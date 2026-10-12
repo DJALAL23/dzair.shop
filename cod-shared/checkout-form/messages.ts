@@ -10,10 +10,12 @@
  * `messages.test.ts` fails the build otherwise, the same discipline the
  * dashboard's i18n guard applies to its own locales.
  */
+import type { StoreLocale } from "../i18n/locales";
 
 import type { CheckoutPolicyRejection, CheckoutPolicyRejectionCode } from "./apply";
 
-export type StoreLanguage = "ar" | "en" | "fr";
+/** A store language (`i18n/locales.ts`). */
+export type StoreLanguage = StoreLocale;
 
 type MessageTemplate = string | ((label: string) => string);
 

@@ -77,7 +77,8 @@ describe("orderStorePages", () => {
 describe("orderedLocales", () => {
   it("puts the store's own language first", () => {
     expect(orderedLocales("fr")).toEqual(["fr", "ar", "en"]);
-    expect(orderedLocales("ar")).toEqual(["ar", "en", "fr"]);
+    // The registry order (cod-shared/i18n/locales.ts): Arabic, French, English.
+    expect(orderedLocales("ar")).toEqual(["ar", "fr", "en"]);
     expect(orderedLocales("en")).toEqual(["en", "ar", "fr"]);
   });
 

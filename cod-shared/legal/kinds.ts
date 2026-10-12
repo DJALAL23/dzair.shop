@@ -1,3 +1,5 @@
+import { DEFAULT_STORE_LOCALE, STORE_LOCALES, isStoreLocale, type StoreLocale } from "../i18n/locales";
+
 /**
  * Store page kinds, locales, and the defaults a seeded store starts with.
  *
@@ -19,20 +21,15 @@ export function isLegalPageKind(value: string): value is LegalPageKind {
 }
 
 /**
- * The locales a page body can be stored in — the same three the dashboard and
- * theme01 already ship. A store serves exactly one of them (`stores.lang`).
+ * A page body is stored in any store language (`i18n/locales.ts`); these are
+ * the registry's names under the legal-pages vocabulary.
  */
-export const PAGE_LOCALES = ["ar", "en", "fr"] as const;
-export type PageLocale = (typeof PAGE_LOCALES)[number];
-
-/**
- * Where locale resolution lands when a store's own language has no row.
- * Matches `stores.lang`'s own default, so the fallback is never a surprise.
- */
-export const DEFAULT_PAGE_LOCALE: PageLocale = "ar";
+export const PAGE_LOCALES = STORE_LOCALES;
+export type PageLocale = StoreLocale;
+export const DEFAULT_PAGE_LOCALE: PageLocale = DEFAULT_STORE_LOCALE;
 
 export function isPageLocale(value: string): value is PageLocale {
-  return (PAGE_LOCALES as readonly string[]).includes(value);
+  return isStoreLocale(value);
 }
 
 /**

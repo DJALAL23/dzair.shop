@@ -6,10 +6,11 @@
  */
 
 import { z } from "@hono/zod-openapi";
+import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
 
 export const StorePageKindEnum = z.enum(["terms", "privacy", "refund", "shipping", "custom"]);
 export const StorePageStatusEnum = z.enum(["published", "draft"]);
-export const PageLocaleEnum = z.enum(["ar", "en", "fr"]);
+export const PageLocaleEnum = z.enum(STORE_LOCALES);
 export const TranslationSourceEnum = z.enum(["template", "merchant"]);
 
 export const StorePageTranslationSummarySchema = z

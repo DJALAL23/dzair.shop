@@ -20,11 +20,11 @@ import { sanitizeRichText, toPlainText } from "../lib/rich-text";
 import {
   LEGAL_PAGE_KINDS,
   LEGAL_PAGE_DEFAULTS,
-  DEFAULT_PAGE_LOCALE,
   PAGE_LOCALES,
   TEMPLATE_VERSION,
 } from "../legal/kinds";
 import type { LegalPageKind, PageLocale, StorePageKind } from "../legal/kinds";
+import { localeChain, pickByLocale } from "../i18n/locales";
 import { legalFactsFrom, renderLegalTemplate } from "../legal/render";
 
 export type StorePageRow = typeof storePages.$inferSelect;
@@ -420,7 +420,7 @@ function summarise(page: StorePageRow, translations: StorePageTranslationRow[]):
  * The published page in the store's language, or the closest usable
  * substitute — never a placeholder, never a mix of two locales in one body.
  *
- * Resolution order: the requested locale, then `DEFAULT_PAGE_LOCALE`, then
+ * Resolution order: the requested locale, then the platform default, then
  * whichever locale the page happens to have, in `PAGE_LOCALES` order. A draft
  * page or an unknown slug resolves to null — the caller 404s (theme01 plan
  * §9 — never a soft 200 with empty content).
@@ -445,12 +445,11 @@ export async function resolvePublishedPage(
   if (translations.length === 0) return null;
 
   const byLocale = new Map(translations.map((t) => [t.locale as PageLocale, t]));
-  const resolved =
-    byLocale.get(locale) ??
-    byLocale.get(DEFAULT_PAGE_LOCALE) ??
-    translations.find((t) => byLocale.get(t.locale as PageLocale)) ??
-    translations[0];
-  if (!resolved) return null;
+  // The platform's one fallback rule (i18n/locales.ts): the store's language,
+  // then the platform default, then any translation that exists.
+  const picked = pickByLocale(byLocale, localeChain(locale, locale));
+  if (!picked) return null;
+  const resolved = picked.value;
 
   return {
     id: page.id,
