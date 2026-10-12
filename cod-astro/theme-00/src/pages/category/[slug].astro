@@ -1,0 +1,38 @@
+---
+// ── CUSTOMIZE HERE ────────────────────────────────────────────────────────────
+// Category page: sibling category pills + filtered product grid.
+// Data is fetched in streaming component for optimal performance.
+// ─────────────────────────────────────────────────────────────────────────────
+import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import CategoryPageContent from "@/theme/components/listing/CategoryPageContent.astro";
+import { getStoreClient } from "@/theme/sdk";
+
+const { slug } = Astro.params;
+
+// Store context comes from middleware (Astro.locals.store — Theme Zero S2).
+const { config, content } = Astro.locals.store;
+
+// Fetch categories for SEO meta tags (lightweight — no products)
+const categories = await getStoreClient().categories.list();
+const category = categories.find((c) => c.slug === slug);
+
+const metaTitle = category?.metaTitle || (category ? `${category.name} - ${config.name}` : config.name);
+const metaDescription = category?.metaDescription || category?.description || undefined;
+const ogImage = category?.imageUrl || undefined;
+---
+
+<StoreLayout
+  title={metaTitle}
+  description={metaDescription}
+  ogImage={ogImage}
+>
+  <!--
+    CategoryPageContent streams in after layout renders
+    Category lookup and products fetch happen inside component
+  -->
+  <CategoryPageContent
+    slug={slug!}
+    currencySymbol={config.currencySymbol}
+    content={content}
+  />
+</StoreLayout>

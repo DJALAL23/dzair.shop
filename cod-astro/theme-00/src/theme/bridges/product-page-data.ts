@@ -1,0 +1,217 @@
+/**
+ * The product page-data bridge — ONE definition of the SSR→browser contract.
+ *
+ * Product surfaces render server-computed values into a hidden element
+ * (`#page-data`) and the browser scripts read them back. Before this module
+ * that contract existed three times: twice as hand-written attribute lists
+ * (`ProductDetailContent.astro` and `lp/[slug].astro`, kept in sync by
+ * discipline) and once as a set of `dataset.*` reads with `!` assertions in
+ * `product.ts`. Adding an attribute was a three-file change; missing one of
+ * the writers failed silently at runtime.
+ *
+ * Now the writer calls `buildProductPageData` and the reader calls
+ * `readProductPageData`; the attribute names exist only here
+ * (`product-zero.test.ts` pins that). The bridge carries what the scripts
+ * *use* — the nine attributes nobody read were dropped rather than
+ * perpetuated.
+ *
+ * Trust: this is our own server-rendered markup, not user input, so the reader
+ * parses tolerantly (malformed JSON degrades to empty collections) without
+ * pulling a schema runtime into the browser bundle. Nothing here is money-
+ * bearing: the server re-prices every order.
+ *
+ * Label fields are `string | null`: a missing label means the markup did not
+ * carry it, and the UI keeps its server-rendered text instead of inventing a
+ * fallback in a language the shopper may not read.
+ */
+import type { ProductDetail } from "@codflow/storefront";
+import type { PageDataCopy } from "./island-props";
+
+/** The hidden element the product surfaces render the bridge into. */
+export const PRODUCT_PAGE_DATA_ID = "page-data";
+
+/** The variant fields the scripts use (a subset of the SDK's `ProductVariant`). */
+export interface ProductPageVariant {
+  id: string;
+  price: number;
+  compareAtPrice: number | null;
+  inventory: number;
+  variations: Record<string, string>;
+  isDefault: boolean;
+  imageId: string | null;
+}
+
+/** The offer fields the scripts use (a subset of the SDK's `Offer`). */
+export interface ProductPageOffer {
+  id: string;
+  discountType: "free" | "free_shipping";
+  triggerQuantity: number;
+  triggerVariantId: string | null;
+  rewardQuantity: number;
+  rewardProductName: string;
+  rewardVariantLabel: string | null;
+}
+
+/** What `readProductPageData` returns — the scripts' whole view of the page. */
+export interface ProductPageData {
+  productId: string;
+  /** Also used by the WhatsApp widget to pick its product prefill. */
+  productName: string;
+  currencySymbol: string;
+  isRTL: boolean;
+  basePrice: number;
+  trackInventory: boolean;
+  inventory: number;
+  variants: ProductPageVariant[];
+  offers: ProductPageOffer[];
+  pixelId: string;
+  phoneInvalid: string | null;
+  outOfStock: string | null;
+  qtyMaxStock: string | null;
+  shippingCalculated: string | null;
+  shippingFree: string | null;
+  communePlaceholder: string | null;
+  communeLoading: string | null;
+  communeDisabled: string | null;
+}
+
+export interface ProductPageDataInput {
+  product: Pick<
+    ProductDetail,
+    "id" | "name" | "trackInventory" | "inventory" | "variants" | "offers"
+  >;
+  currencySymbol: string;
+  isRTL: boolean;
+  basePrice: number;
+  pixelId: string | null;
+  copy: PageDataCopy;
+}
+
+/**
+ * The writer: the `data-*` attributes for the bridge element, spread into it:
+ *
+ * ```astro
+ * <div id={PRODUCT_PAGE_DATA_ID} class="sr-only" {...buildProductPageData({ … })} />
+ * ```
+ */
+export function buildProductPageData(input: ProductPageDataInput): Record<string, string> {
+  const { product, currencySymbol, isRTL, basePrice, pixelId, copy } = input;
+
+  return {
+    "data-product-id": product.id,
+    "data-product-name": product.name,
+    "data-cur": currencySymbol,
+    "data-is-rtl": isRTL ? "1" : "0",
+    "data-base-price": String(basePrice),
+    "data-track-inventory": product.trackInventory ? "1" : "0",
+    "data-inventory": String(product.inventory),
+    "data-variants": JSON.stringify(product.variants),
+    "data-offers": JSON.stringify(product.offers),
+    "data-pixel-id": pixelId ?? "",
+    "data-phone-invalid": copy.formPhoneInvalid,
+    "data-out-of-stock-label": copy.outOfStock,
+    "data-qty-max-stock": copy.qtyMaxStock,
+    "data-shipping-calc": copy.shippingCalculated,
+    "data-shipping-free": copy.shippingFree,
+    "data-commune-placeholder": copy.formCommunePlaceholder,
+    "data-commune-loading": copy.formCommuneLoading,
+    "data-commune-disabled": copy.formCommuneDisabled,
+  };
+}
+
+/**
+ * The reader: the bridge as a typed object, or `null` when the page carries no
+ * bridge (listings, the cart page, 404s). Malformed JSON degrades to empty
+ * collections, a missing label stays `null`, and a missing number falls back
+ * instead of leaking `NaN` into the UI.
+ */
+export function readProductPageData(root: ParentNode = document): ProductPageData | null {
+  const el = root.querySelector<HTMLElement>(`#${PRODUCT_PAGE_DATA_ID}`);
+  if (!el) return null;
+  const d = el.dataset;
+
+  return {
+    productId: d.productId ?? "",
+    productName: d.productName ?? "",
+    currencySymbol: d.cur ?? "",
+    isRTL: d.isRtl === "1",
+    basePrice: finiteNumber(d.basePrice) ?? 0,
+    trackInventory: d.trackInventory === "1",
+    inventory: finiteNumber(d.inventory) ?? 0,
+    variants: toVariants(parseJsonArray(d.variants)),
+    offers: toOffers(parseJsonArray(d.offers)),
+    pixelId: d.pixelId ?? "",
+    phoneInvalid: d.phoneInvalid ?? null,
+    outOfStock: d.outOfStockLabel ?? null,
+    qtyMaxStock: d.qtyMaxStock ?? null,
+    shippingCalculated: d.shippingCalc ?? null,
+    shippingFree: d.shippingFree ?? null,
+    communePlaceholder: d.communePlaceholder ?? null,
+    communeLoading: d.communeLoading ?? null,
+    communeDisabled: d.communeDisabled ?? null,
+  };
+}
+
+function finiteNumber(raw: unknown): number | null {
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+  if (typeof raw !== "string" || raw.trim() === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseJsonArray(raw: string | undefined): unknown[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function stringRecord(raw: unknown): Record<string, string> {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "string") out[key] = value;
+  }
+  return out;
+}
+
+function toVariants(rows: unknown[]): ProductPageVariant[] {
+  const out: ProductPageVariant[] = [];
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null) continue;
+    const r = row as Record<string, unknown>;
+    if (typeof r.id !== "string") continue;
+    out.push({
+      id: r.id,
+      price: finiteNumber(r.price) ?? 0,
+      compareAtPrice: finiteNumber(r.compareAtPrice),
+      inventory: finiteNumber(r.inventory) ?? 0,
+      variations: stringRecord(r.variations),
+      isDefault: r.isDefault === true,
+      imageId: typeof r.imageId === "string" ? r.imageId : null,
+    });
+  }
+  return out;
+}
+
+function toOffers(rows: unknown[]): ProductPageOffer[] {
+  const out: ProductPageOffer[] = [];
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null) continue;
+    const r = row as Record<string, unknown>;
+    if (typeof r.id !== "string") continue;
+    out.push({
+      id: r.id,
+      discountType: r.discountType === "free_shipping" ? "free_shipping" : "free",
+      triggerQuantity: finiteNumber(r.triggerQuantity) ?? 1,
+      triggerVariantId: typeof r.triggerVariantId === "string" ? r.triggerVariantId : null,
+      rewardQuantity: finiteNumber(r.rewardQuantity) ?? 1,
+      rewardProductName: typeof r.rewardProductName === "string" ? r.rewardProductName : "",
+      rewardVariantLabel: typeof r.rewardVariantLabel === "string" ? r.rewardVariantLabel : null,
+    });
+  }
+  return out;
+}

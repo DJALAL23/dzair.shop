@@ -1,0 +1,122 @@
+/**
+ * Copy *picks* — the keys a component actually renders.
+ *
+ * A component declares the copy it needs and nothing more. Two reasons this
+ * matters beyond tidiness:
+ *
+ * 1. **Server islands pay for their props.** Astro encrypts island props into
+ *    the island request URL; the browser caps URLs at 2048 bytes and, past the
+ *    cap, Astro switches to a POST — which is not cacheable (see
+ *    docs.astro.build → Server islands → Caching). The full pack measures
+ *    ~8.5 KB, so any island taking `content` falls off the cacheable path.
+ *    `server-islands.test.ts` pins both numbers.
+ * 2. **The interface is the contract.** `ReviewsIslandCopy` tells the next
+ *    author exactly which strings the island renders — no more "pass the whole
+ *    pack and hope".
+ *
+ * `pickCopy` keeps the pick honest at every call site: the value it returns is
+ * typed to exactly the keys requested.
+ */
+import type { StoreFrontContent } from "../content/types";
+
+/** Keep only `keys`, typed to exactly those keys (all pack values are strings). */
+export function pickCopy<const K extends readonly (keyof StoreFrontContent)[]>(
+  content: StoreFrontContent,
+  keys: K,
+): Pick<StoreFrontContent, K[number]> {
+  const picked = {} as Pick<StoreFrontContent, K[number]>;
+  for (const key of keys) {
+    (picked as Record<string, string>)[key] = content[key];
+  }
+  return picked;
+}
+
+// ── Product card ─────────────────────────────────────────────────────────────
+
+export const PRODUCT_CARD_KEYS = [
+  "orderCta",
+  "outOfStock",
+  "lowStock",
+  "ariaProductCard",
+] as const;
+
+export type ProductCardCopy = Pick<StoreFrontContent, (typeof PRODUCT_CARD_KEYS)[number]>;
+
+export const productCardCopy = (content: StoreFrontContent): ProductCardCopy =>
+  pickCopy(content, PRODUCT_CARD_KEYS);
+
+// ── Related products (island) ────────────────────────────────────────────────
+// The island renders its own heading and passes a card pick down to
+// ProductCard, so the island's pick is the union of both.
+
+export const RELATED_PRODUCTS_KEYS = [
+  "relatedTitle",
+  "relatedSub",
+  ...PRODUCT_CARD_KEYS,
+] as const;
+
+export type RelatedProductsCopy = Pick<StoreFrontContent, (typeof RELATED_PRODUCTS_KEYS)[number]>;
+
+export const relatedProductsCopy = (content: StoreFrontContent): RelatedProductsCopy =>
+  pickCopy(content, RELATED_PRODUCTS_KEYS);
+
+// ── Reviews (island + list + form) ───────────────────────────────────────────
+
+export const REVIEWS_LIST_KEYS = [
+  "reviewsTitle",
+  "reviewsVerifiedBuyer",
+  "loadMoreLabel",
+] as const;
+
+export type ReviewsListCopy = Pick<StoreFrontContent, (typeof REVIEWS_LIST_KEYS)[number]>;
+
+export const REVIEWS_FORM_KEYS = [
+  "ariaStarRating",
+  "reviewFormTitle",
+  "reviewFormTitleLabel",
+  "reviewFormTitlePlaceholder",
+  "reviewFormBodyLabel",
+  "reviewFormBodyPlaceholder",
+  "reviewFormRatingLabel",
+  "reviewFormSubmit",
+  "reviewFormSuccess",
+  "reviewFormOrderLabel",
+  "reviewFormOrderPlaceholder",
+  "reviewFormOrderHelp",
+  "reviewFormMinLengthError",
+  "reviewFormRatingRequired",
+  "reviewFormErrorDuplicate",
+  "reviewFormErrorInvalidOrder",
+  "reviewFormErrorGeneric",
+] as const;
+
+export type ReviewFormCopy = Pick<StoreFrontContent, (typeof REVIEWS_FORM_KEYS)[number]>;
+
+/** The island renders both children, so its pick is the union of theirs. */
+export const REVIEWS_ISLAND_KEYS = [...REVIEWS_LIST_KEYS, ...REVIEWS_FORM_KEYS] as const;
+
+export type ReviewsIslandCopy = Pick<StoreFrontContent, (typeof REVIEWS_ISLAND_KEYS)[number]>;
+
+export const reviewsIslandCopy = (content: StoreFrontContent): ReviewsIslandCopy =>
+  pickCopy(content, REVIEWS_ISLAND_KEYS);
+
+// ── Product page-data bridge ─────────────────────────────────────────────────
+// The labels the bridge carries from SSR into the product scripts — see
+// theme/bridges/product-page-data.ts. Everything else those scripts need is
+// already markup (buttons, labels, hints) that they leave alone when unsure.
+
+export const PAGE_DATA_KEYS = [
+  "formPhoneInvalid",
+  "outOfStock",
+  "qtyMaxStock",
+  "shippingCalculated",
+  "shippingFree",
+  "formCommunePlaceholder",
+  "formCommuneLoading",
+  "formCommuneDisabled",
+] as const;
+
+export type PageDataCopy = Pick<StoreFrontContent, (typeof PAGE_DATA_KEYS)[number]>;
+
+export const pageDataCopy = (content: StoreFrontContent): PageDataCopy =>
+  pickCopy(content, PAGE_DATA_KEYS);
