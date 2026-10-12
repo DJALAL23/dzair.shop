@@ -144,6 +144,14 @@ other is how these drift.
 - Inbound webhooks exist only for **Yalidine** and **ZR Express**. NOEST and
   EcoTrack tracking is pulled on demand via `GET /orders/:id/tracking` — there
   is no inbound receiver for them.
+- **Store languages are rows, not a column** (ADR 0005): `stores.lang` is
+  the primary, `store_locales` lists every added language with a `published`
+  flag, and only published ones reach `/store/config`. The supported list
+  lives once, in `cod-shared/i18n/locales.ts` — the SDKs never mirror it; the
+  server sends each language's code, name and direction.
+- **Theme text edits are keyed by theme** (`store_content_overrides`,
+  `defineTheme({ key })`), and a storefront only receives them when its SDK
+  client passes `theme`. Renaming a theme's key orphans its merchant edits.
 - The **shopping cart is off by default, per store** (`stores.cart_enabled`).
   A store that never enables it ships no cart markup at all. Rollback for the
   whole feature is `UPDATE stores SET cart_enabled = 0` — there is no data

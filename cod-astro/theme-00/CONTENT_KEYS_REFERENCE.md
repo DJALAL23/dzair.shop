@@ -197,15 +197,20 @@ set typed in `src/theme/content/types/`.
 
 ## Override via the dashboard
 
-Store owners can override any key per language through the store's content
-overrides (`StoreConfig.contentOverrides[lang]` →
-`resolveContent(lang, overrides)` in `src/theme/content/index.ts`). Only the
-store's own language is applied; unknown keys and non-string values are
-ignored and the locale defaults are used.
+Store owners can override any key per language. The edits belong to this
+theme: cod-server stores them under its key (`theme-00`, `src/theme/key.ts`),
+and the SDK client names that key, so they arrive as
+`StoreConfig.contentOverrides` (→ `resolveContent(lang, overrides)` in
+`src/theme/content/index.ts`). Only the store's own language is applied;
+unknown keys and non-string values are ignored and the locale defaults are
+used. The dashboard writes them with `PATCH /api/stores/me/content-overrides`:
 
 ```json
-{ "ar": { "heroTitle": "عرض اليوم" }, "fr": { "heroTitle": "L'offre du jour" } }
+{ "theme": "theme-00", "locale": "ar", "values": { "heroTitle": "عرض اليوم", "orderCta": null } }
 ```
+
+A store language this theme has no pack for (say Tamazight) still renders: its
+edits apply over the `DEFAULT_LANGUAGE` pack.
 
 ## Adding a language
 
