@@ -19,37 +19,13 @@
  * without a build.
  */
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { resolve, join, relative, sep } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve, join } from "node:path";
 import { STOREFRONT_ROUTES } from "@codflow/storefront";
 
-const THEME_ROOT = resolve(__dirname, "../../../.."); // src/theme/__tests__/guards -> theme package root
-const SRC_DIR = join(THEME_ROOT, "src");
+import { type SourceFile, SRC_DIR, themeSourceFiles } from "./theme-source";
 
-interface SourceFile {
-  /** Path relative to `src/`, `/`-separated. */
-  relPath: string;
-  content: string;
-}
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === "dist") continue;
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, out);
-    else if (
-      (entry.name.endsWith(".ts") || entry.name.endsWith(".astro")) &&
-      !entry.name.includes(".test.")
-    )
-      out.push(full);
-  }
-  return out;
-}
-
-const files: SourceFile[] = walk(SRC_DIR).map((full) => ({
-  relPath: relative(SRC_DIR, full).split(sep).join("/"),
-  content: readFileSync(full, "utf8"),
-}));
+const files: SourceFile[] = themeSourceFiles();
 
 describe("S5 boundary guard", () => {
   it("scans the whole source tree (a broken walk must not pass vacuously)", () => {

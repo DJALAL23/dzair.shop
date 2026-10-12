@@ -7,35 +7,10 @@
  * exactly one pattern to copy, and a second acquisition point fails here.
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
-import { resolve, join, relative, sep } from "node:path";
 
-const THEME_ROOT = resolve(__dirname, "../../../.."); // src/theme/__tests__/guards -> theme package root
-const SRC_DIR = join(THEME_ROOT, "src");
+import { type SourceFile, themeSourceFiles } from "./theme-source";
 
-interface SourceFile {
-  relPath: string;
-  content: string;
-}
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === "dist") continue;
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, out);
-    else if (
-      (entry.name.endsWith(".ts") || entry.name.endsWith(".astro")) &&
-      !entry.name.includes(".test.")
-    )
-      out.push(full);
-  }
-  return out;
-}
-
-const files: SourceFile[] = walk(SRC_DIR).map((full) => ({
-  relPath: relative(SRC_DIR, full).split(sep).join("/"),
-  content: readFileSync(full, "utf8"),
-}));
+const files: SourceFile[] = themeSourceFiles();
 
 describe("Theme Zero — one store-context acquisition point", () => {
   it("scans the source tree (a broken walk must not pass vacuously)", () => {

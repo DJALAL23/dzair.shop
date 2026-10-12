@@ -23,28 +23,17 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 
-const THEME_ROOT = resolve(__dirname, "../../../.."); // src/theme/__tests__/guards -> theme package root
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === "dist") continue;
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, out);
-    else if (entry.name.endsWith(".astro")) out.push(full);
-  }
-  return out;
-}
+import { THEME_ROOT, themeSourceFiles } from "./theme-source";
 
 /** Every `heroicons:<name>` literal actually referenced in the theme's markup. */
 function usedIconNames(): Set<string> {
   const names = new Set<string>();
   const pattern = /(?:name|icon)=["']heroicons:([a-z0-9-]+)["']/g;
-  for (const file of walk(join(THEME_ROOT, "src"))) {
-    const text = readFileSync(file, "utf8");
-    for (const match of text.matchAll(pattern)) names.add(match[1]);
+  for (const file of themeSourceFiles().filter((f) => f.relPath.endsWith(".astro"))) {
+    for (const match of file.content.matchAll(pattern)) names.add(match[1]);
   }
   return names;
 }
