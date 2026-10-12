@@ -141,15 +141,13 @@ updating **all three** files — TypeScript fails the build otherwise.
 | `reviewFormErrorInvalidOrder` | Order-not-found error |
 | `reviewFormErrorGeneric` | Generic error |
 
-### Offers (12)
+### Offers (10)
 | Key | Notes |
 |-----|-------|
 | `offerAutoApplied` | "Automatically applied at checkout" |
 | `offerFreeLabel` | Free-item label |
 | `offerActive` | Card header before threshold |
 | `offerUnlocked` | Card header when unlocked |
-| `offerAddMore` | Hint with `{n}` placeholder |
-| `offerAddOne` | Hint when 1 more needed |
 | `offerYouGet` | Free-item hint when unlocked |
 | `offerSectionTitle` | Offer selector heading |
 | `offerFreeShippingBadge` | Free-shipping badge |
@@ -163,22 +161,36 @@ updating **all three** files — TypeScript fails the build otherwise.
 | `breadcrumbHome` | Breadcrumb home link |
 | `required` | Required-field indicator |
 | `viewProduct`, `featured` | Link/badge text |
-| `lowStock`, `outOfStock`, `qtyMaxStock` | Stock warnings (`lowStock`/`qtyMaxStock` use `{n}`) |
+| `lowStock_*`, `outOfStock`, `qtyMaxStock_*` | Stock warnings (`lowStock` and `qtyMaxStock` are plural messages with `{count}`) |
 | `freeShippingBadge` | Badge text |
 | `searchLabel`, `noResultsLabel`, `loadMoreLabel`, `allLabel`, `productCountLabel` | Search/filter/pagination |
 | `reviewFormMinLengthError`, `reviewFormRatingRequired` | Review validation errors |
 | `offerSaveBadge`, `offerSavingsText`, `offerUnitLabel` | Offer savings UI (`offerSaveBadge` uses `{n}`; `offerSavingsText` uses `{amount}` + `{currency}`; `offerUnitLabel` uses `{n}`) |
-| `ariaMainNavigation`, `ariaQuantity`, `ariaGoToImage`, `ariaBrowseAllProducts`, `ariaBrowseCategoryProducts`, `ariaProductCard`, `ariaStarRating` | Accessibility labels |
+| `ariaMainNavigation`, `ariaLanguageSwitcher`, `ariaQuantity`, `ariaGoToImage`, `ariaBrowseAllProducts`, `ariaBrowseCategoryProducts`, `ariaProductCard`, `ariaStarRating_*` | Accessibility labels (`ariaStarRating` is a plural message) |
 | `thankYouPageTitle` | `<title>` for the thank-you page |
 | `defaultMetaDescription` | Default meta description — uses `{storeName}` |
 
-## Placeholders
+## Placeholders and plurals
 
-Some keys are templates resolved with `.replace()`:
+Every key with a placeholder or a count is read through the theme's one
+binding, `message(content, key, values, locale)` (`src/theme/content/messages.ts`,
+built on `formatMessage` from `@codflow/theme`) — never `.replace()`, which fills
+only the first placeholder and cannot pick a plural form
+(`guards/messages.test.ts` enforces it). Every `{placeholder}` is filled, and
+numbers use the theme's digits.
 
-- `{n}` — number: `lowStock`, `qtyMaxStock`, `offerAddMore`, `offerSaveBadge`, `offerUnitLabel`
-- `{amount}` + `{currency}` — `offerSavingsText`
+- **Plural messages** are one key per CLDR form, chosen by `count`:
+  `cartItems`, `cartLineOutOfStock`, `lowStock`, `qtyMaxStock`,
+  `ariaStarRating`. Each language carries exactly the forms its rules use —
+  Arabic `_zero _one _two _few _many _other`, French `_one _many _other`,
+  English `_one _other` — and an explicit `_zero` is used for 0 in any
+  language. `packs.test.ts` checks every pack against its language.
+- `{n}` — `offerSaveBadge`, `offerUnitLabel`, `ariaGoToImage` (with `{total}`)
+- `{amount}` + `{currency}` — `offerSavingsText`, `cartFreeDeliveryRemaining`
 - `{storeName}` — `defaultMetaDescription`
+
+A browser script receives a plural message as `data-*={messageData(content, key)}`
+and formats it with `embeddedMessage`, in the page's `<html lang>`.
 
 ## Sample defaults
 

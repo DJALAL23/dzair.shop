@@ -6,7 +6,8 @@ import type { CartStrings } from "../types/cart";
 
 export const enCart: CartStrings = {
   cartTitle: "Your cart",
-  cartItemsLabel: "{n} items",
+  cartItems_one: "{count} item",
+  cartItems_other: "{count} items",
   cartEmptyTitle: "Your cart is empty",
   cartEmptyHint: "Add a product and it will show up here.",
   cartAddToCart: "Add to cart",
@@ -21,7 +22,8 @@ export const enCart: CartStrings = {
   cartFreeDeliveryEarned: "Free delivery unlocked",
   cartFreeDeliveryRemaining: "Spend {amount} {currency} more for free delivery",
   cartLineUnavailable: "No longer available",
-  cartLineOutOfStock: "Only {n} left",
+  cartLineOutOfStock_one: "Only {count} left",
+  cartLineOutOfStock_other: "Only {count} left",
   cartGiftLabel: "Free gift",
   cartFixBeforeCheckout: "Remove the unavailable items to continue.",
   cartDeliveryNote: "Delivery is calculated at checkout.",

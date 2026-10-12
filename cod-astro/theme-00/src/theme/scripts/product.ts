@@ -4,6 +4,7 @@
  * shipping calculations, and commune loading.
  */
 
+import { embeddedMessage } from "@/theme/content/messages";
 import {
   bindDeliveryFields,
   watchShippingRates,
@@ -363,7 +364,7 @@ export function initProductPage() {
 
     if (qtyStockHint) {
       if (atMax && qtyMaxStockLabel != null) {
-        qtyStockHint.textContent = qtyMaxStockLabel.replace("{n}", String(currentVariantMax));
+        qtyStockHint.textContent = embeddedMessage(qtyMaxStockLabel, "qtyMaxStock", { count: currentVariantMax });
         qtyStockHint.classList.remove("hidden");
       } else {
         qtyStockHint.classList.add("hidden");

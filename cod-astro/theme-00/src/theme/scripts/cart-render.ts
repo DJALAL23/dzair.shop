@@ -11,6 +11,7 @@
  * a shopper different things about the same basket.
  */
 
+import { embeddedMessage, embeddedTemplate } from "@/theme/content/messages";
 import { getCart, lineKey, setQuantity, removeLine, toOrderItems, type CartLine } from "./cart";
 import type { CartValidation, CartValidationLine } from "@codflow/storefront";
 import { formatAmount, formatCurrency } from "../utils/money";
@@ -31,12 +32,6 @@ export interface FreeDeliveryCopy {
 
 export const VALIDATE_URL = "/api/cart/validate";
 
-/** Replace `{name}` placeholders, leaving unknown ones visible rather than blank. */
-export function fill(template: string, values: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (match, key) =>
-    key in values ? String(values[key]) : match,
-  );
-}
 
 /** Curried once per page; the formatting itself is the SDK's one money function. */
 export function moneyFormatter(currency: string): (n: number) => string {
@@ -131,7 +126,7 @@ export function renderCartLine(
 
   const warn = node.querySelector<HTMLElement>("[data-cart-warning]")!;
   if (server?.blocker === "out_of_stock" && server.maxQuantity != null) {
-    warn.textContent = fill(copy.outOfStock, { n: server.maxQuantity });
+    warn.textContent = embeddedMessage(copy.outOfStock, "cartLineOutOfStock", { count: server.maxQuantity });
     warn.hidden = false;
   } else if (server?.blocker) {
     warn.textContent = copy.unavailable;
@@ -214,7 +209,7 @@ export function renderFreeDelivery(
     return;
   }
 
-  text.textContent = fill(copy.remaining, {
+  text.textContent = embeddedTemplate(copy.remaining, {
     // Number only: the copy template owns the symbol's place in the sentence,
     // and the formatting still goes through the SDK's one money function.
     amount: formatAmount(info.remaining),

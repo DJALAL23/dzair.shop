@@ -4,14 +4,16 @@
  * Groups: misc.
  */
 
-export type MiscStrings = {
+import type { Plural } from "./plural";
+
+export type MiscStrings = Plural<"lowStock"> &
+  Plural<"qtyMaxStock"> &
+  Plural<"ariaStarRating"> & {
   breadcrumbHome: string;
   required: string;
   viewProduct: string;
   featured: string;
-  lowStock: string;
   outOfStock: string;
-  qtyMaxStock: string;
   freeShippingBadge: string;
   searchLabel: string;
   noResultsLabel: string;
@@ -31,7 +33,6 @@ export type MiscStrings = {
   ariaBrowseAllProducts: string;
   ariaBrowseCategoryProducts: string;
   ariaProductCard: string;
-  ariaStarRating: string;
   thankYouPageTitle: string;
   defaultMetaDescription: string;
 };

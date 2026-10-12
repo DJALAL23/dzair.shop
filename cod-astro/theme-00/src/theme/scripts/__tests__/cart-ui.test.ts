@@ -17,6 +17,12 @@
 import { vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { en } from "@/theme/content/en";
+import { messageData } from "@/theme/content/messages";
+
+// Built from the real English pack exactly as the server renders them.
+const CART_ITEMS = messageData(en, "cartItems");
+const OUT_OF_STOCK = messageData(en, "cartLineOutOfStock");
 
 const CART_KEY = "cod_cart_v1";
 
@@ -57,8 +63,8 @@ function buildDom(options: { currency?: string } = {}): void {
     <div
       id="cart-root"
       data-currency="${currency}"
-      data-copy-items="{n} items"
-      data-copy-out-of-stock="Only {n} left"
+      data-copy-items='${CART_ITEMS}'
+      data-copy-out-of-stock='${OUT_OF_STOCK}'
       data-copy-unavailable="No longer available"
       data-copy-free-earned="Free delivery earned"
       data-copy-free-remaining="{amount} {currency} to free delivery"

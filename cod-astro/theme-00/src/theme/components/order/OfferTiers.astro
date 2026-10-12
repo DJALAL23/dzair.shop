@@ -2,6 +2,7 @@
 import { getOfferTierView, type Offer, type ProductDetail } from "@codflow/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import { formatAmount } from "@/theme/utils/money";
+import { message } from "@/theme/content/messages";
 import { Icon } from "astro-icon/components";
 
 interface Props {
@@ -159,7 +160,7 @@ function varVal(variations: unknown, key: string): string | undefined {
                   </span>
                 ) : (
                   <span class="px-1.5 py-0.5 rounded-md text-white text-[0.5625rem] font-black uppercase tracking-wide leading-none shrink-0" style="background: var(--clr-primary)">
-                    {content.offerSaveBadge.replace("{n}", String(savePct))}
+                    {message(content, "offerSaveBadge", { n: savePct }, Astro.locals.store.locale)}
                   </span>
                 )}
               </div>
@@ -176,7 +177,7 @@ function varVal(variations: unknown, key: string): string | undefined {
                   </p>
                   {savingsAmt > 0 && (
                     <p class="text-[0.6875rem] font-bold leading-none" style="color: var(--clr-text-2)">
-                      {content.offerSavingsText.replace("{amount}", formatAmount(savingsAmt)).replace("{currency}", cur)}
+                      {message(content, "offerSavingsText", { amount: formatAmount(savingsAmt), currency: cur }, Astro.locals.store.locale)}
                     </p>
                   )}
                 </>
@@ -206,7 +207,7 @@ function varVal(variations: unknown, key: string): string | undefined {
                       {unitIndex + 1}
                     </span>
                     <span class="text-[0.625rem] font-black uppercase tracking-widest" style="color: var(--clr-text)">
-                      {content.offerUnitLabel.replace("{n}", String(unitIndex + 1))}
+                      {message(content, "offerUnitLabel", { n: unitIndex + 1 }, Astro.locals.store.locale)}
                     </span>
                   </div>
 

@@ -8,6 +8,7 @@
 // from localStorage, then re-prices everything through the validate endpoint.
 // That is why the loading and empty states are real states here, not polish.
 // ─────────────────────────────────────────────────────────────────────────────
+import { messageData } from "@/theme/content/messages";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import CheckoutSummary from "@/theme/components/cart/CheckoutSummary.astro";
 import CustomerFields from "@/theme/components/order/CustomerFields.astro";
@@ -47,8 +48,8 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
     id="checkout-root"
     class="mx-auto w-full max-w-2xl px-4 pb-16 pt-6 sm:px-6"
     data-currency={config.currencySymbol}
-    data-copy-items={content.cartItemsLabel}
-    data-copy-out-of-stock={content.cartLineOutOfStock}
+    data-copy-items={messageData(content, "cartItems")}
+    data-copy-out-of-stock={messageData(content, "cartLineOutOfStock")}
     data-copy-unavailable={content.cartLineUnavailable}
     data-copy-free-earned={content.cartFreeDeliveryEarned}
     data-copy-free-remaining={content.cartFreeDeliveryRemaining}

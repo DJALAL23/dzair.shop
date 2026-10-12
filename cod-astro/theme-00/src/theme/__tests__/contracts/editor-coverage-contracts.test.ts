@@ -54,7 +54,11 @@ const sections = Object.entries(theme00.components).map(([type, definition]) => 
   const fields: readonly FieldDefinition[] = definition.fields ?? [];
   const source = componentSourceOf(type);
   const loadSource = loadSourceOf(type);
-  const rendered = new Set([...source.matchAll(/\bcontent\.(\w+)/g)].map((m) => m[1] as string));
+  // A label is rendered as `content.key`, or through the message binding as
+  // `message(content, "key", …)` when it has placeholders or plural forms.
+  const rendered = new Set(
+    [...source.matchAll(/\bcontent\.(\w+)|\bmessage\(\s*content\s*,\s*"(\w+)"/g)].map((m) => (m[1] ?? m[2]) as string),
+  );
   const copyFields = fields.filter(
     (field): field is FieldDefinition & { contentKey: string } =>
       (field.kind === "text" || field.kind === "textarea") && field.contentKey !== undefined,

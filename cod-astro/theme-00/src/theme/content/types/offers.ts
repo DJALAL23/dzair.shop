@@ -13,10 +13,6 @@ export type OffersStrings = {
   offerActive: string;
   /** Offer card header when threshold reached */
   offerUnlocked: string;
-  /** Hint when {n} more units needed — use {n} as placeholder */
-  offerAddMore: string;
-  /** Hint when exactly 1 more unit needed */
-  offerAddOne: string;
   /** Hint shown when offer is unlocked */
   offerYouGet: string;
   /** Title above the offer tier selector section */

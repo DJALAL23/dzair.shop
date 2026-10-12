@@ -4,6 +4,7 @@
 // section's `load` (customer-testimonials.def.ts) reads the reviews through
 // the storefront the renderer hands it, and passes none when the merchant
 // switched reviews off.
+import { message } from "@/theme/content/messages";
 import type { Review } from "@codflow/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import { Icon } from "astro-icon/components";
@@ -68,7 +69,7 @@ const { reviews, content } = Astro.props;
             </div>
 
             {/* Star rating */}
-            <div class="flex gap-0.5" aria-label={content.ariaStarRating?.replace("{n}", String(review.rating)).replace("{s}", review.rating > 1 ? "s" : "")}>
+            <div class="flex gap-0.5" aria-label={message(content, "ariaStarRating", { count: review.rating }, Astro.locals.store.locale)}>
               {[1,2,3,4,5].map((s: number) => (
                 <svg
                   width="14" height="14" viewBox="0 0 24 24"

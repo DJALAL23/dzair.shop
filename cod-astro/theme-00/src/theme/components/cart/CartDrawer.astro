@@ -19,6 +19,7 @@
  * from JS inline styles is what made the drawer un-hide off-screen and never
  * arrive.
  */
+import { messageData } from "@/theme/content/messages";
 import type { StoreFrontContent } from "@/theme/content";
 import { Icon } from "astro-icon/components";
 import FreeDeliveryBar from "@/theme/components/cart/FreeDeliveryBar.astro";
@@ -41,8 +42,8 @@ const { content, currency } = Astro.props;
   id="cart-root"
   data-currency={currency}
   data-checkout-href={Astro.locals.store.href("/checkout")}
-  data-copy-items={content.cartItemsLabel}
-  data-copy-out-of-stock={content.cartLineOutOfStock}
+  data-copy-items={messageData(content, "cartItems")}
+  data-copy-out-of-stock={messageData(content, "cartLineOutOfStock")}
   data-copy-unavailable={content.cartLineUnavailable}
   data-copy-free-earned={content.cartFreeDeliveryEarned}
   data-copy-free-remaining={content.cartFreeDeliveryRemaining}

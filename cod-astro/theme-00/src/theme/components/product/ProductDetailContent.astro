@@ -2,6 +2,7 @@
 // ── STREAMING COMPONENT ──
 // This component handles the product fetch and rendering
 // Allows the parent page to stream layout/head immediately
+import { message } from "@/theme/content/messages";
 import OrderForm from "@/theme/components/order/OrderForm.astro";
 import AddToCartButton from "@/theme/components/cart/AddToCartButton.astro";
 import ProductGallery from "@/theme/components/product/ProductGallery.astro";
@@ -47,7 +48,7 @@ const { defaultVariant, basePrice, comparePrice, hasDiscount, discountPct, isOut
 const cartImageSrc = productImageSource(product);
 const cartImage = cartImageSrc ? getThumbnailImage(cartImageSrc) : null;
 
-const lowStockText = content.lowStock.replace("{n}", String(product.inventory));
+const lowStockText = message(content, "lowStock", { count: product.inventory }, Astro.locals.store.locale);
 
 const defaultVariantId = defaultVariant?.id ?? null;
 const jsonLd = getProductJsonLd(product, basePrice);

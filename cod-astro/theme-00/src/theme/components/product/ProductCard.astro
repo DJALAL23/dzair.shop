@@ -2,6 +2,7 @@
 // ── CUSTOMIZE HERE ────────────────────────────────────────────────────────────
 // Product card used on the home page, all-products page, and category pages.
 // ─────────────────────────────────────────────────────────────────────────────
+import { message } from "@/theme/content/messages";
 import { Image } from "astro:assets";
 import { getProductListView, type ProductList } from "@codflow/storefront";
 import type { ProductCardCopy } from "@/theme/bridges/island-props";
@@ -24,7 +25,7 @@ const { hasDiscount, discountPct, isOutOfStock, isLowStock, comparePrice } = vie
 
 const ctaText      = copy.orderCta;
 const outOfStockTx = copy.outOfStock;
-const lowStockTx   = copy.lowStock.replace("{n}", String(product.inventory));
+const lowStockTx   = message(copy, "lowStock", { count: product.inventory }, Astro.locals.store.locale);
 ---
 
 <a
@@ -32,10 +33,7 @@ const lowStockTx   = copy.lowStock.replace("{n}", String(product.inventory));
   data-astro-prefetch="hover"
   class="product-card group flex flex-col rounded-2xl overflow-hidden active:scale-[0.97]"
   style="background: var(--clr-surface)"
-  aria-label={copy.ariaProductCard
-    ?.replace("{name}", product.name)
-    ?.replace("{price}", formatAmount(product.price))
-    ?.replace("{currency}", currencySymbol) ?? product.name}
+  aria-label={message(copy, "ariaProductCard", { name: product.name, price: formatAmount(product.price), currency: currencySymbol }, Astro.locals.store.locale)}
 >
   <!-- ── Image ── -->
   <div class="relative aspect-square overflow-hidden shrink-0" style="background: var(--clr-surface-alt)">

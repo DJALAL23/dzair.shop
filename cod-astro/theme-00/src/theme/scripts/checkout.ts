@@ -15,6 +15,7 @@
  * sees, and it is built from the same rules so the two cannot disagree.
  */
 
+import { embeddedMessage } from "@/theme/content/messages";
 import {
   getCart,
   cartCount,
@@ -32,7 +33,6 @@ import {
   renderFreeDelivery,
   moneyFormatter,
   bindLineControls,
-  fill,
   type ValidationResult,
 } from "./cart-render";
 import {
@@ -128,7 +128,7 @@ export function initCheckout(): () => void {
       return;
     }
 
-    if (itemsLabel) itemsLabel.textContent = fill(copy.items, { n: cartCount(lines) });
+    if (itemsLabel) itemsLabel.textContent = embeddedMessage(copy.items, "cartItems", { count: cartCount(lines) });
 
     const byKey = validatedByKey(validated);
     list!.replaceChildren(

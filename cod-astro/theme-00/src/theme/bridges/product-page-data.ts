@@ -24,6 +24,7 @@
  * carry it, and the UI keeps its server-rendered text instead of inventing a
  * fallback in a language the shopper may not read.
  */
+import { messageData } from "../content/messages";
 import type { ProductDetail } from "@codflow/storefront";
 import type { PageDataCopy } from "./island-props";
 
@@ -110,7 +111,7 @@ export function buildProductPageData(input: ProductPageDataInput): Record<string
     "data-pixel-id": pixelId ?? "",
     "data-phone-invalid": copy.formPhoneInvalid,
     "data-out-of-stock-label": copy.outOfStock,
-    "data-qty-max-stock": copy.qtyMaxStock,
+    "data-qty-max-stock": messageData(copy, "qtyMaxStock"),
     "data-shipping-calc": copy.shippingCalculated,
     "data-shipping-free": copy.shippingFree,
     "data-commune-placeholder": copy.formCommunePlaceholder,

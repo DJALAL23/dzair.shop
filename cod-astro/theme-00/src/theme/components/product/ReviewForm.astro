@@ -1,4 +1,5 @@
 ---
+import { message } from "@/theme/content/messages";
 import type { ReviewFormCopy } from "@/theme/bridges/island-props";
 import { Icon } from "astro-icon/components";
 
@@ -74,7 +75,7 @@ const { productId, copy } = Astro.props;
               class="star-btn w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 border-2 border-transparent"
               style="background: var(--clr-surface-alt)"
               data-value={n}
-              aria-label={copy.ariaStarRating.replace("{n}", n.toString()).replace("{s}", n > 1 ? "s" : "")}
+              aria-label={message(copy, "ariaStarRating", { count: n }, Astro.locals.store.locale)}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="star-icon transition-colors" style="color: var(--clr-disabled)">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>

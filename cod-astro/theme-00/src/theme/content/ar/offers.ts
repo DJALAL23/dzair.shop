@@ -9,8 +9,6 @@ export const arOffers: OffersStrings = {
   offerFreeLabel: "مجاني",
   offerActive: "عرض قائم!",
   offerUnlocked: "تم فتح العرض!",
-  offerAddMore: "أضف {n} وحدة للحصول على:",
-  offerAddOne: "أضف وحدة أخرى للحصول على:",
   offerYouGet: "سيُضاف تلقائياً لطلبك",
   offerSectionTitle: "اختر كميتك",
   offerFreeShippingBadge: "شحن مجاني",

@@ -9,8 +9,6 @@ export const frOffers: OffersStrings = {
   offerFreeLabel: "Gratuit",
   offerActive: "Offre active !",
   offerUnlocked: "Offre débloquée !",
-  offerAddMore: "Ajoutez {n} unité(s) pour obtenir :",
-  offerAddOne: "Ajoutez une autre unité pour obtenir :",
   offerYouGet: "Sera ajouté automatiquement à votre commande",
   offerSectionTitle: "Choisissez votre quantité",
   offerFreeShippingBadge: "Livraison gratuite",

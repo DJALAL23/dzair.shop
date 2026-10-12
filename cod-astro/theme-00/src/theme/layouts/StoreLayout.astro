@@ -7,6 +7,7 @@ import CartDrawer from "@/theme/components/cart/CartDrawer.astro";
 import MobileNav from "@/theme/components/layout/MobileNav.astro";
 import WhatsAppWidget from "@/theme/components/chat/WhatsAppWidget.astro";
 import { alternateLinks, showsWidgetOn } from "@codflow/storefront";
+import { message } from "@/theme/content/messages";
 import type { StoreConfig } from "@codflow/storefront";
 import { Icon } from "astro-icon/components";
 
@@ -46,7 +47,7 @@ const canonical = new URL(`${store.href(store.pathname)}${Astro.url.search}`, As
 const alternates = store.routing.published.length > 1 ? alternateLinks(store.pathname, store.routing, Astro.url.origin) : [];
 
 const pageTitle = title ?? config.metaTitle ?? config.name;
-const pageDesc = description ?? config.metaDescription ?? (content.defaultMetaDescription?.replace("{storeName}", config.name) ?? `Shop from ${config.name}`);
+const pageDesc = description ?? config.metaDescription ?? message(content, "defaultMetaDescription", { storeName: config.name }, locale);
 const pageOg = ogImage ?? config.ogImage ?? "";
 
 // Sanitise theme values — never trust DB content as CSS

@@ -17,6 +17,7 @@
  * `pickCopy` keeps the pick honest at every call site: the value it returns is
  * typed to exactly the keys requested.
  */
+import { pluralKeys } from "../content/messages";
 import type { StoreFrontContent } from "../content/types";
 
 /** Keep only `keys`, typed to exactly those keys (all pack values are strings). */
@@ -26,7 +27,8 @@ export function pickCopy<const K extends readonly (keyof StoreFrontContent)[]>(
 ): Pick<StoreFrontContent, K[number]> {
   const picked = {} as Pick<StoreFrontContent, K[number]>;
   for (const key of keys) {
-    (picked as Record<string, string>)[key] = content[key];
+    // A plural form the language does not use is absent from its pack.
+    if (content[key] !== undefined) (picked as Record<string, string>)[key] = content[key]!;
   }
   return picked;
 }
@@ -36,7 +38,7 @@ export function pickCopy<const K extends readonly (keyof StoreFrontContent)[]>(
 export const PRODUCT_CARD_KEYS = [
   "orderCta",
   "outOfStock",
-  "lowStock",
+  ...pluralKeys("lowStock"),
   "ariaProductCard",
 ] as const;
 
@@ -71,7 +73,7 @@ export const REVIEWS_LIST_KEYS = [
 export type ReviewsListCopy = Pick<StoreFrontContent, (typeof REVIEWS_LIST_KEYS)[number]>;
 
 export const REVIEWS_FORM_KEYS = [
-  "ariaStarRating",
+  ...pluralKeys("ariaStarRating"),
   "reviewFormTitle",
   "reviewFormTitleLabel",
   "reviewFormTitlePlaceholder",
@@ -108,7 +110,7 @@ export const reviewsIslandCopy = (content: StoreFrontContent): ReviewsIslandCopy
 export const PAGE_DATA_KEYS = [
   "formPhoneInvalid",
   "outOfStock",
-  "qtyMaxStock",
+  ...pluralKeys("qtyMaxStock"),
   "shippingCalculated",
   "shippingFree",
   "formCommunePlaceholder",

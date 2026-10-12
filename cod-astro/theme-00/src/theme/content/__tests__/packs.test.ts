@@ -9,8 +9,14 @@
  *
  * This guard is what keeps that property true, and it is the invariant the
  * per-area content split must preserve (see the theme-00 content slice).
+ *
+ * One deliberate exception: a plural message (`cartItems_one`, `_few`, …)
+ * carries exactly the forms its language's CLDR rules use — Arabic six,
+ * French three, English two — so those keys are checked against each
+ * language instead of against Arabic.
  */
 import { describe, expect, it } from "vitest";
+import { PLURAL_CATEGORIES, pluralFormIssues } from "@codflow/theme";
 import { ar } from "../ar";
 import { en } from "../en";
 import { fr } from "../fr";
@@ -23,8 +29,12 @@ const packs: Array<readonly [string, Pack]> = [
   ["fr", fr],
 ];
 
+const PLURAL_FORM = new RegExp(`_(?:${PLURAL_CATEGORIES.join("|")})$`);
+const plainKeys = (pack: Pack) => Object.keys(pack).filter((key) => !PLURAL_FORM.test(key));
+const pluralMessages = (pack: Pack) => [...new Set(Object.keys(pack).filter((key) => PLURAL_FORM.test(key)).map((key) => key.replace(PLURAL_FORM, "")))];
+
 /** The Arabic pack is the documented fallback, so it is the reference. */
-const referenceKeys = Object.keys(ar);
+const referenceKeys = plainKeys(ar);
 
 describe("content packs — one contract across locales", () => {
   it("is not vacuously empty (a broken import must not pass)", () => {
@@ -33,7 +43,15 @@ describe("content packs — one contract across locales", () => {
 
   it("declares the same keys, in the same order, in every locale", () => {
     for (const [name, pack] of packs) {
-      expect(Object.keys(pack), `${name}: key set and order`).toEqual(referenceKeys);
+      expect(plainKeys(pack), `${name}: key set and order`).toEqual(referenceKeys);
+    }
+  });
+
+  it("declares the same plural messages in every locale, each with exactly its language's forms", () => {
+    expect(pluralMessages(ar).length).toBeGreaterThan(0);
+    for (const [name, pack] of packs) {
+      expect(pluralMessages(pack), `${name}: plural messages`).toEqual(pluralMessages(ar));
+      expect(pluralFormIssues(pack, name), `${name}: plural forms`).toEqual([]);
     }
   });
 
@@ -43,7 +61,7 @@ describe("content packs — one contract across locales", () => {
 
   it("carries a non-empty string for every key in every locale", () => {
     for (const [name, pack] of packs) {
-      const bad = referenceKeys.filter((key) => {
+      const bad = Object.keys(pack).filter((key) => {
         const value = pack[key];
         return typeof value !== "string" || value.trim().length === 0;
       });

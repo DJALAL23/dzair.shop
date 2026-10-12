@@ -4,6 +4,7 @@
 // Presentational: the page passes the catalog's categories. The slice rule —
 // sort by merchant position, take `limit` — is theme merchandising policy and
 // stays here.
+import { message } from "@/theme/content/messages";
 import { Image } from "astro:assets";
 import type { Category } from "@codflow/storefront";
 import type { InferProps } from "@codflow/theme";
@@ -31,7 +32,7 @@ const topCategories = [...categories]
           href={Astro.locals.store.href(`/category/${cat.slug}`)}
           class="group relative overflow-hidden aspect-[4/5] sm:aspect-[3/4] active:scale-[0.98] transition-all duration-500 shadow-md hover:shadow-2xl"
           style="border-radius: var(--radius-card)"
-          aria-label={content.ariaBrowseCategoryProducts?.replace("{category}", cat.name)}
+          aria-label={message(content, "ariaBrowseCategoryProducts", { category: cat.name }, Astro.locals.store.locale)}
         >
           {cat.imageUrl ? (
             <Image

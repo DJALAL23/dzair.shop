@@ -111,6 +111,10 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   `Referer`); the middleware never redirects or rewrites `/_server-islands/*`.
 
 - **No hardcoded user-facing strings** — add content keys to the language packs.
+- **Counts and placeholders go through `message()`** (`src/theme/content/messages.ts`),
+  never `.replace("{n}", …)`. A count is a plural message — one key per CLDR
+  form (`lowStock_one`, `lowStock_few`, …) — and each language carries exactly
+  the forms its grammar uses (Arabic six). `packs.test.ts` checks them.
 - **No hardcoded design tokens** (colors, radii, fonts) in component styles.
   See `THEME_GUIDE.md`.
 - The `"overrides": { "vite": "^8.2.2" }` pin lives in the **root**

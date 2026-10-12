@@ -6,7 +6,9 @@ import type { CartStrings } from "../types/cart";
 
 export const frCart: CartStrings = {
   cartTitle: "Votre panier",
-  cartItemsLabel: "{n} articles",
+  cartItems_one: "{count} article",
+  cartItems_many: "{count} d'articles",
+  cartItems_other: "{count} articles",
   cartEmptyTitle: "Votre panier est vide",
   cartEmptyHint: "Ajoutez un produit et il apparaîtra ici.",
   cartAddToCart: "Ajouter au panier",
@@ -21,7 +23,9 @@ export const frCart: CartStrings = {
   cartFreeDeliveryEarned: "Livraison gratuite débloquée",
   cartFreeDeliveryRemaining: "Ajoutez {amount} {currency} pour la livraison gratuite",
   cartLineUnavailable: "Plus disponible",
-  cartLineOutOfStock: "Il n'en reste que {n}",
+  cartLineOutOfStock_one: "Il n'en reste que {count}",
+  cartLineOutOfStock_many: "Il n'en reste que {count}",
+  cartLineOutOfStock_other: "Il n'en reste que {count}",
   cartGiftLabel: "Cadeau offert",
   cartFixBeforeCheckout: "Retirez les articles indisponibles pour continuer.",
   cartDeliveryNote: "La livraison est calculée à la commande.",

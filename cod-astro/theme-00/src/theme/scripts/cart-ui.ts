@@ -26,6 +26,7 @@
  * units, `+` stepping by two.
  */
 
+import { embeddedMessage } from "@/theme/content/messages";
 import {
   getCart,
   lineKey,
@@ -45,7 +46,6 @@ import {
   renderFreeDelivery,
   moneyFormatter,
   bindLineControls,
-  fill,
   type ValidationResult,
 } from "./cart-render";
 import { trackAddToCart } from "./pixel";
@@ -250,7 +250,7 @@ export function initCart(): () => void {
     if (emptyState) emptyState.hidden = !empty;
     if (linesWrap) linesWrap.hidden = empty;
     if (footer) footer.hidden = empty;
-    if (itemsLabel) itemsLabel.textContent = empty ? "" : fill(copy.items, { n: count });
+    if (itemsLabel) itemsLabel.textContent = empty ? "" : embeddedMessage(copy.items, "cartItems", { count });
 
     if (empty) {
       list!.replaceChildren();

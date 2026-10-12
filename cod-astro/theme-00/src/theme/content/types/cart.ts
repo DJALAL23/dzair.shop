@@ -4,9 +4,11 @@
  * Groups: cart.
  */
 
-export type CartStrings = {
+import type { Plural } from "./plural";
+
+export type CartStrings = Plural<"cartItems"> &
+  Plural<"cartLineOutOfStock"> & {
   cartTitle: string;
-  cartItemsLabel: string;
   cartEmptyTitle: string;
   cartEmptyHint: string;
   cartAddToCart: string;
@@ -21,7 +23,6 @@ export type CartStrings = {
   cartFreeDeliveryEarned: string;
   cartFreeDeliveryRemaining: string;
   cartLineUnavailable: string;
-  cartLineOutOfStock: string;
   cartGiftLabel: string;
   cartFixBeforeCheckout: string;
   cartDeliveryNote: string;
