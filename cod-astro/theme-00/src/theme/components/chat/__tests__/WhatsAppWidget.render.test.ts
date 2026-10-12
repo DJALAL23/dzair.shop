@@ -6,6 +6,7 @@ import { Window } from "happy-dom";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import WhatsAppWidget from "../WhatsAppWidget.astro";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import type { StoreContext } from "@/theme/runtime/store";
 import { en as enContent } from "@/theme/content/en";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import type { StoreWhatsAppWidget, StoreConfig } from "@codflow/storefront";
@@ -62,15 +63,14 @@ async function renderWidget(widgetPartial: Partial<StoreWhatsAppWidget> = {}, co
 
 async function renderLayout(pathname: string, config: StoreConfig) {
   const container = await AstroContainer.create();
+  const store: StoreContext = { config, content: enContent, locale: "en", fallbackLocales: [], isRTL: false };
   const html = await container.renderToString(StoreLayout, {
     // StoreLayout reads the store context from `Astro.locals.store` — set by
     // middleware in production (Theme Zero S2). The Container API takes
     // `locals` directly, so the seam stays testable. The cast satisfies the
     // full `App.Locals` shape: the Cloudflare adapter adds a required
-    // `cfContext` that the layout never touches.
-    locals: {
-      store: { config, content: enContent, isRTL: false },
-    } as unknown as App.Locals,
+    // `cfContext` that the layout never touches; `store` itself is typed.
+    locals: { store } as unknown as App.Locals,
     request: new Request(`https://example.dz${pathname}`),
   });
 

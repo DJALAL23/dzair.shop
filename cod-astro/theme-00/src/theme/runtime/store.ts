@@ -15,7 +15,7 @@
  */
 import { getStoreClient } from "@/theme/sdk";
 import { resolveContent } from "@/theme/content";
-import { textDirection, type StoreConfig, type StoreLocale } from "@codflow/storefront";
+import { servedLanguage, type StoreConfig } from "@codflow/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 
 export const DEFAULT_CONFIG: StoreConfig = {
@@ -32,7 +32,7 @@ export const DEFAULT_CONFIG: StoreConfig = {
   lang: "ar",
   currency: "DZD",
   currencySymbol: "دج",
-  locales: ["ar"],
+  locales: [{ code: "ar", nativeName: "العربية", direction: "rtl" }],
   contentOverrides: {},
   metaTitle: null,
   metaDescription: null,
@@ -69,7 +69,7 @@ export interface StoreContext {
   /** The theme's pack for `locale`, with the store's overrides merged. */
   content: StoreFrontContent;
   /** The language this request renders: today, the store's primary language. */
-  locale: StoreLocale;
+  locale: string;
   /**
    * Languages to try after `locale` for a translated page value (ADR 0005).
    * Empty while a store serves one language: its pack, already in the right
@@ -84,6 +84,8 @@ export async function getStoreContext(): Promise<StoreContext> {
   const locale = config.lang;
   // Only this language's overrides: another language's map would mix languages.
   const content = resolveContent(locale, config.contentOverrides[locale]);
-  const isRTL = textDirection(locale) === "rtl";
+  // The server describes every language it serves; a config that somehow
+  // lacks the primary renders left-to-right rather than failing the page.
+  const isRTL = servedLanguage(config, locale)?.direction === "rtl";
   return { config, content, locale, fallbackLocales: [], isRTL };
 }

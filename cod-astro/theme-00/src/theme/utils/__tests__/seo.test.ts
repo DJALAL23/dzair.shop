@@ -13,7 +13,7 @@
 /// <reference types="vitest/globals" />
 
 import { ProductSchema, type ProductDetail } from "@codflow/storefront";
-import { productMetaDescription, getProductJsonLd } from "../seo";
+import { productMetaDescription, getProductJsonLd, openGraphLocale } from "../seo";
 
 /** Built through the SDK's own schema, so the fixture cannot drift from the catalog contract. */
 function product(overrides: Partial<ProductDetail> = {}): ProductDetail {
@@ -123,5 +123,19 @@ describe("getProductJsonLd", () => {
     const p = product({ descriptionPlain: null });
     const jsonLd = JSON.stringify(getProductJsonLd(p, p.price));
     expect(jsonLd).not.toContain("\"description\"");
+  });
+});
+
+describe("openGraphLocale", () => {
+  it("advertises the territory this theme's shoppers are in", () => {
+    expect(openGraphLocale("ar")).toBe("ar_DZ");
+    expect(openGraphLocale("fr")).toBe("fr_DZ");
+    expect(openGraphLocale("en")).toBe("en_US");
+  });
+
+  it("keeps any other language's own tag, never a prototype member", () => {
+    expect(openGraphLocale("zgh")).toBe("zgh");
+    expect(openGraphLocale("pt-BR")).toBe("pt_BR");
+    expect(openGraphLocale("constructor")).toBe("constructor");
   });
 });

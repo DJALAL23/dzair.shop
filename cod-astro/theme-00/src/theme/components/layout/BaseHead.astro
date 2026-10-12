@@ -7,7 +7,7 @@
 // We don't actually navigate between pages on the storefront — full page
 // loads are fine and removed the regression entirely.
 
-import type { StoreConfig, StoreLocale } from "@codflow/storefront";
+import type { StoreConfig } from "@codflow/storefront";
 import { openGraphLocale } from "@/theme/utils/seo";
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
   noindex?: boolean;
   config: StoreConfig;
   /** The language the page is rendered in. */
-  locale: StoreLocale;
+  locale: string;
   primary: string;
   fontHref: string;
   font: string;

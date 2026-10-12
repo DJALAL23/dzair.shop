@@ -32,7 +32,10 @@ const LIVE_CONFIG = {
   lang: "ar",
   currency: "DZD",
   currencySymbol: "دج",
-  locales: ["ar", "fr"],
+  locales: [
+    { code: "ar", nativeName: "العربية", direction: "rtl" },
+    { code: "fr", nativeName: "Français", direction: "ltr" },
+  ],
   contentOverrides: { ar: { heroTitle: "عرض اليوم" }, fr: { heroTitle: "L'offre du jour" } },
   metaTitle: "متجر الجزائر",
   metaDescription: "الدفع عند الاستلام في كل ولايات الوطن",
@@ -154,7 +157,8 @@ describe("getStoreContext() — through the S5 adapter", () => {
     const { getStoreContext } = await import("@/theme/runtime/store");
     const ctx = await getStoreContext();
 
-    expect(calls).toEqual(["https://api.example.test/store/config"]);
+    // Named by its key, the theme gets the store's edits to its own text.
+    expect(calls).toEqual(["https://api.example.test/store/config?theme=theme-00"]);
     expect(ctx.config.name).toBe("متجر الجزائر");
     expect(ctx.config.currencySymbol).toBe("دج");
     expect(ctx.config.announcementBar).toBe("توصيل مجاني للطلبات فوق 8000 دج");
@@ -164,7 +168,7 @@ describe("getStoreContext() — through the S5 adapter", () => {
   });
 
   it("resolves the store language's own overrides, never another language's", async () => {
-    stubConfigServer({ lang: "fr", locales: ["fr", "ar"] });
+    stubConfigServer({ lang: "fr", locales: [...LIVE_CONFIG.locales].reverse() });
 
     const { getStoreContext } = await import("@/theme/runtime/store");
     const ctx = await getStoreContext();
@@ -175,6 +179,23 @@ describe("getStoreContext() — through the S5 adapter", () => {
     expect(ctx.content.heroTitle).not.toBe("عرض اليوم");
   });
 
+  it("serves a store language it has no pack for: the server's direction, the default pack's text", async () => {
+    stubConfigServer({
+      lang: "zgh",
+      locales: [{ code: "zgh", nativeName: "ⵜⴰⵎⴰⵣⵉⵖⵜ", direction: "ltr" }],
+      contentOverrides: { zgh: { heroTitle: "ⴰⵣⵓⵍ" } },
+    });
+
+    const { getStoreContext } = await import("@/theme/runtime/store");
+    const { resolveContent, DEFAULT_LANGUAGE } = await import("@/theme/content");
+    const ctx = await getStoreContext();
+
+    expect(ctx.locale).toBe("zgh");
+    expect(ctx.isRTL).toBe(false);
+    expect(ctx.content.heroTitle).toBe("ⴰⵣⵓⵍ");
+    expect(ctx.content.orderCta).toBe(resolveContent(DEFAULT_LANGUAGE).orderCta);
+  });
+
   it("fetches config once per client — the second render reuses the SDK cache", async () => {
     const calls = stubConfigServer();
 
@@ -182,7 +203,7 @@ describe("getStoreContext() — through the S5 adapter", () => {
     await getStoreContext();
     await getStoreContext();
 
-    expect(calls.filter((url) => url.endsWith("/store/config"))).toHaveLength(1);
+    expect(calls.filter((url) => new URL(url).pathname === "/store/config")).toHaveLength(1);
   });
 
   it("falls back to DEFAULT_CONFIG when the config read fails", async () => {

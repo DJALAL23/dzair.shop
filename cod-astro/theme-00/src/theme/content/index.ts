@@ -7,7 +7,7 @@
  * ```typescript
  * import { resolveContent } from "@/theme/content";
  * 
- * const content = resolveContent("ar", dashboardContentJson);
+ * const content = resolveContent(config.lang, config.contentOverrides[config.lang]);
  * ```
  */
 
@@ -27,6 +27,9 @@ const languages = {
 } as const;
 
 export type SupportedLanguage = keyof typeof languages;
+
+/** The pack a store language without its own pack falls back to. */
+export const DEFAULT_LANGUAGE: SupportedLanguage = "ar";
 
 /**
  * Keep only the overrides the pack actually has a slot for, and only when the
@@ -58,9 +61,11 @@ function pickStringOverrides(
 
 /**
  * Resolve content for a given language with optional dashboard overrides
- * 
- * @param lang - The language being rendered
- * @param overrides - The store's overrides for that same language
+ *
+ * @param lang - The store language being rendered. One this theme has no
+ *   pack for gets the `DEFAULT_LANGUAGE` pack, as a Shopify theme falls back
+ *   to its default locale file.
+ * @param overrides - The store's edits for that same language
  *   (`StoreConfig.contentOverrides[lang]`), already parsed by the SDK
  * @returns Complete StoreFrontContent object with all required keys
  * 
@@ -74,10 +79,10 @@ function pickStringOverrides(
  * ```
  */
 export function resolveContent(
-  lang: SupportedLanguage,
+  lang: string,
   overrides?: Readonly<Record<string, unknown>> | null
 ): StoreFrontContent {
-  const defaults = languages[lang] || languages.ar;
+  const defaults = languages[isLanguageSupported(lang) ? lang : DEFAULT_LANGUAGE];
   if (!overrides) {
     return defaults;
   }
@@ -101,7 +106,7 @@ export function getSupportedLanguages(): SupportedLanguage[] {
  * @returns true if language is supported
  */
 export function isLanguageSupported(lang: string): lang is SupportedLanguage {
-  return lang in languages;
+  return Object.hasOwn(languages, lang);
 }
 
 // Re-export types for convenience

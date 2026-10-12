@@ -7,7 +7,7 @@
  * and anything else degrades to the pack instead of leaking into a component.
  */
 import { describe, expect, it } from "vitest";
-import { resolveContent, type SupportedLanguage } from "../index";
+import { DEFAULT_LANGUAGE, isLanguageSupported, resolveContent } from "../index";
 import { ar } from "../ar";
 import { fr } from "../fr";
 
@@ -16,10 +16,18 @@ describe("resolveContent", () => {
     expect(resolveContent("fr").heroTitle).toBe(fr.heroTitle);
   });
 
-  it("falls back to Arabic for a language the packs do not carry", () => {
-    // The store's `lang` column is platform-owned; an unknown value must not
-    // produce an undefined content object at render time.
-    expect(resolveContent("de" as SupportedLanguage).heroTitle).toBe(ar.heroTitle);
+  it("falls back to the default pack for a language the packs do not carry", () => {
+    // Store languages are platform-owned and open-ended; one this theme has no
+    // pack for must still render a complete pack.
+    expect(DEFAULT_LANGUAGE).toBe("ar");
+    expect(resolveContent("zgh").heroTitle).toBe(ar.heroTitle);
+  });
+
+  it("never mistakes an Object.prototype name for a language", () => {
+    for (const name of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      expect(isLanguageSupported(name)).toBe(false);
+      expect(resolveContent(name).heroTitle).toBe(ar.heroTitle);
+    }
   });
 
   it("applies a string override whose key the pack declares", () => {

@@ -28,6 +28,7 @@
  */
 import { createStoreClient, type StoreClient } from "@codflow/storefront/server";
 import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
+import { THEME_KEY } from "@/theme/key";
 
 const clientsByScope = new Map<string, StoreClient>();
 
@@ -41,6 +42,8 @@ export function getStoreClient(): StoreClient {
     client = createStoreClient({
       serverUrl,
       apiKey: apiKey as string,
+      // The store's edits to this theme's text come back with the config.
+      theme: THEME_KEY,
       // Degraded reads (config, page data, …) are otherwise silent: the SDK's
       // reads never throw, so this is the one place the theme observes them.
       onError: (error) => {
