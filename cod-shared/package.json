@@ -6,5 +6,8 @@
   "type": "module",
   "dependencies": {
     "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.0"
   }
 }
