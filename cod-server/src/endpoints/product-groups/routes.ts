@@ -6,6 +6,9 @@
  * Built with defineRoute() — the standard route-builder pattern.
  */
 
+import { eq } from "drizzle-orm";
+import { productCategories } from "../../../../cod-shared/db/schema";
+import { registerTranslationRoutes } from "../translations/routes";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
@@ -178,5 +181,16 @@ router.openapi(createGroupRoute.route, createGroupRoute.handler);
 router.openapi(getGroupRoute.route, getGroupRoute.handler);
 router.openapi(updateGroupRoute.route, updateGroupRoute.handler);
 router.openapi(deleteGroupRoute.route, deleteGroupRoute.handler);
+
+// Translations of this resource (ADR 0005) — guarded by the resource's own scopes.
+registerTranslationRoutes(router, {
+  resource: "category",
+  path: "/{id}/translations",
+  read: { scope: SCOPES.PRODUCT_GROUPS_READ },
+  write: { scope: SCOPES.PRODUCT_GROUPS_MANAGE },
+  label: "Category",
+  tag: "Product Groups",
+  load: (db, id) => db.select().from(productCategories).where(eq(productCategories.id, id ?? "")).get(),
+});
 
 export default router;

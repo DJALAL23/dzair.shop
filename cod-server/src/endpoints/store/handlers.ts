@@ -28,16 +28,36 @@ import {
 } from "@/workflows/capi-helpers";
 import { stores, orders } from "../../../../cod-shared/db/schema";
 import { eq } from "drizzle-orm";
-import type { PageLocale } from "../../../../cod-shared/legal/kinds";
+
+/** `?name=` after route validation (or raw, when a test mounts the handler bare). */
+function queryParam(c: Context<AppContext>, name: string): string | undefined {
+  return (c.req as any).valid?.("query")?.[name] ?? c.req.query(name);
+}
+
+/**
+ * The language a read is served in (ADR 0005): `?locale=` when the store
+ * publishes it, the primary otherwise — announced in `Content-Language`, so a
+ * caller always learns which language it got.
+ */
+async function servedLanguage(c: Context<AppContext>, db: ReturnType<typeof getDb>) {
+  const storeId = c.get("storeId")!;
+  const served = await queries.resolveStorefrontLocale(db, storeId, queryParam(c, "locale"));
+  if (!served) throw new NotFoundError("Store", storeId);
+  c.header("Content-Language", served.locale);
+  return served;
+}
 
 export async function getStoreConfig(c: Context<AppContext>) {
   const storeId = c.get("storeId")!;
   const db = getDb(c.env.DB);
-  const theme = (c.req as any).valid?.("query")?.theme ?? c.req.query("theme");
-  const store = await queries.getStoreConfig(db, storeId, theme);
+  const store = await queries.getStoreConfig(db, storeId, {
+    theme: queryParam(c, "theme"),
+    locale: queryParam(c, "locale"),
+  });
   if (!store) {
     throw new NotFoundError("Store", storeId);
   }
+  c.header("Content-Language", store.locale);
   return c.json({ success: true, data: store }, 200);
 }
 
@@ -48,14 +68,16 @@ export async function listStoreProducts(c: Context<AppContext>) {
   const featured = rawFeatured === "true";
   const categoryId = queryData?.categoryId ?? c.req.query("categoryId") ?? undefined;
   const limit = Math.min(parseInt(String(queryData?.limit ?? c.req.query("limit") ?? "24")), 100);
-  const data = await queries.getStoreProducts(db, { featured, categoryId, limit });
+  const { translate } = await servedLanguage(c, db);
+  const data = await queries.getStoreProducts(db, { featured, categoryId, limit }, translate);
   return c.json({ success: true, data, count: data.length }, 200);
 }
 
 export async function getStoreProduct(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const handle = c.req.param("handle")!;
-  const data = await queries.getStoreProductByHandle(db, handle);
+  const { translate } = await servedLanguage(c, db);
+  const data = await queries.getStoreProductByHandle(db, handle, { locale: translate });
   if (!data) {
     throw new NotFoundError("Product", handle);
   }
@@ -174,20 +196,18 @@ export async function getStoreOrderTracking(c: Context<AppContext>) {
 }
 
 /**
- * A published legal or custom page, in the store's own language — the same
- * `Promise.all`-lean shape as the rest of this file: one lookup for the
- * store's locale, one resolved read. Draft, unknown, and foreign-store slugs
- * all answer the same 404, so nothing about a page's existence leaks.
+ * A published legal or custom page in the served language (`?locale=`, else
+ * the store's own) — falling back to the primary, then any translation. The
+ * page's `locale` says which one it is. Draft, unknown, and foreign-store
+ * slugs all answer the same 404, so nothing about a page's existence leaks.
  */
 export async function getStorePage(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const storeId = c.get("storeId")!;
   const slug = c.req.param("slug")!;
+  const served = await servedLanguage(c, db);
 
-  const storeRow = await db.select({ lang: stores.lang }).from(stores).where(eq(stores.id, storeId)).get();
-  if (!storeRow) throw new NotFoundError("Store", storeId);
-
-  const page = await queries.resolvePublishedPage(db, storeId, slug, storeRow.lang as PageLocale);
+  const page = await queries.resolvePublishedPage(db, storeId, slug, served.locale, served.primary);
   if (!page) throw new NotFoundError("Store Page", slug);
 
   return c.json({ success: true, data: page }, 200);
@@ -195,7 +215,8 @@ export async function getStorePage(c: Context<AppContext>) {
 
 export async function listStoreCategories(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  const data = await queries.getStoreCategories(db);
+  const { translate } = await servedLanguage(c, db);
+  const data = await queries.getStoreCategories(db, translate);
   return c.json({ success: true, data, count: data.length }, 200);
 }
 

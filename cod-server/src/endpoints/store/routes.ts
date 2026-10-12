@@ -39,7 +39,21 @@ const countEnvelope = <T extends z.ZodType>(itemSchema: T) =>
 
 // ─── Request schemas ──────────────────────────────────────────────────────────
 
+/**
+ * `?locale=` on every read that carries merchant text (ADR 0005). A language
+ * the store does not publish is not an error: the read is served in the
+ * primary, and `Content-Language` says so.
+ */
+const localeQuery = z.string().max(35).optional().openapi({
+  description:
+    "The language to serve merchant text in (BCP 47, e.g. `fr`). Served when the store publishes it, the primary language otherwise; the `Content-Language` response header names the one served. Untranslated fields fall back to the primary one by one.",
+  example: "fr",
+});
+
+const localeQuerySchema = z.object({ locale: localeQuery });
+
 const configQuerySchema = z.object({
+  locale: localeQuery,
   theme: z.string().regex(THEME_KEY_RE).optional().openapi({
     description:
       "The requesting theme's key (`defineTheme({ key })`). Its text edits ride along as `contentOverrides`; without it there are none.",
@@ -55,6 +69,7 @@ const productsQuerySchema = z.object({
   limit: z.coerce.number().int().max(100).default(24).openapi({
     description: "Maximum number of products to return. Server cap: 100.",
   }),
+  locale: localeQuery,
 });
 
 const handleParams = z.object({
@@ -145,6 +160,7 @@ const getStoreProductRoute = defineRoute({
     "Get a single product by its URL handle. Same visibility filters as the list endpoint. Returns parsed `variantOptions`, `tags`, joined `category`, active `variants`, all `images`, and `offers` — the active Buy X Get Y promotions currently applicable to this product.",
   operationId: "getStoreProduct",
   params: handleParams,
+  query: localeQuerySchema,
   responses: {
     200: {
       description: "Product details",
@@ -181,9 +197,10 @@ const getStorePageRoute = defineRoute({
   tags: ["Store API"],
   summary: "Get a published store page",
   description:
-    "Get a Terms/Privacy/Refund/Shipping/custom page by its public slug, resolved to the store's own language — the storefront serves exactly one locale per store (stores.lang). Falls back to the platform default locale, then to whichever locale exists, only when the store's own language has no translation for this page; the actual locale served is in the response's `locale` field. Draft or unknown slugs return 404 — never a soft 200 with empty content.",
+    "Get a Terms/Privacy/Refund/Shipping/custom page by its public slug, in the requested language (`?locale=`, else the store's primary). Falls back to the primary, then to whichever locale exists, only when the requested language has no translation for this page; the actual locale served is in the response's `locale` field. Draft or unknown slugs return 404 — never a soft 200 with empty content.",
   operationId: "getStorePage",
   params: pageSlugParams,
+  query: localeQuerySchema,
   responses: {
     200: {
       description: "The resolved page, already-sanitised HTML — render with set:html, never re-sanitise",
@@ -229,6 +246,7 @@ const listStoreCategoriesRoute = defineRoute({
   summary: "List store categories",
   description: "Get product categories ordered by position.",
   operationId: "listStoreCategories",
+  query: localeQuerySchema,
   responses: {
     200: {
       description: "List of categories",

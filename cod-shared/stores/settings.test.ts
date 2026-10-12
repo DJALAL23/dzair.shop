@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { STORE_LOCALES, type StoreLocale } from "../i18n/locales";
-import { planStoreLanguages, servedLanguageInfo, storeLanguages, type LocaleRow } from "./settings";
+import { planStoreLanguages, servedLanguageInfo, servedLocale, storeLanguages, type LocaleRow } from "./settings";
 
 const locale = fc.constantFrom(...STORE_LOCALES);
 const rows = fc
@@ -68,6 +68,22 @@ describe("planStoreLanguages", () => {
           for (const row of kept) if (row.locale !== primary) expect(plan.rows).toContainEqual(row);
         },
       ),
+      { numRuns: 2000 },
+    );
+  });
+});
+
+describe("servedLocale", () => {
+  it("serves the requested language only when it is published, and the primary otherwise", () => {
+    fc.assert(
+      fc.property(locale, rows, fc.option(fc.oneof(locale, fc.string()), { nil: undefined }), (primary, stored, requested) => {
+        const languages = storeLanguages(primary, stored);
+        const served = servedLocale(requested, languages);
+        const published = languages.some((language) => language.published && language.locale === requested);
+        expect(served.primary).toBe(primary);
+        expect(served.locale).toBe(published ? requested : primary);
+        expect(served.translate).toBe(served.locale === primary ? null : served.locale);
+      }),
       { numRuns: 2000 },
     );
   });

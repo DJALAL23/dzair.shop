@@ -53,6 +53,23 @@ export function servedLanguageInfo(languages: readonly StoreLanguage[]): StoreLo
   return servedLocales(languages).map((locale) => STORE_LOCALE_INFO[locale]);
 }
 
+/**
+ * The language a storefront read is served in: the requested one when the
+ * store publishes it, otherwise the primary — never an error, so a stale link
+ * to an unpublished language still renders. `translate` names the language
+ * to overlay translations from, and is null for the primary, whose text the
+ * source columns already hold.
+ */
+export function servedLocale(
+  requested: string | null | undefined,
+  languages: readonly StoreLanguage[],
+): { locale: StoreLocale; primary: StoreLocale; translate: StoreLocale | null } {
+  const primary = languages.find((language) => language.primary)!.locale;
+  const match = languages.find((language) => language.published && language.locale === requested);
+  if (match === undefined || match.locale === primary) return { locale: primary, primary, translate: null };
+  return { locale: match.locale, primary, translate: match.locale };
+}
+
 export function toStoreSettings(
   row: StoreRow,
   localeRows: readonly { locale: string; published: boolean }[],

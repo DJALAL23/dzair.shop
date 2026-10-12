@@ -1,4 +1,7 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
+import { eq } from "drizzle-orm";
+import { products } from "../../../../cod-shared/db/schema";
+import { registerTranslationRoutes } from "../translations/routes";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
@@ -396,5 +399,16 @@ router.openapi(createVariantRoute.route, createVariantRoute.handler);
 router.openapi(getVariantRoute.route, getVariantRoute.handler);
 router.openapi(updateVariantRoute.route, updateVariantRoute.handler);
 router.openapi(deleteVariantRoute.route, deleteVariantRoute.handler);
+
+// Translations of this resource (ADR 0005) — guarded by the resource's own scopes.
+registerTranslationRoutes(router, {
+  resource: "product",
+  path: "/{id}/translations",
+  read: { scope: SCOPES.PRODUCTS_READ },
+  write: { scope: SCOPES.PRODUCTS_UPDATE },
+  label: "Product",
+  tag: "Products",
+  load: (db, id) => db.select().from(products).where(eq(products.id, id ?? "")).get(),
+});
 
 export default router;

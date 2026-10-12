@@ -14,6 +14,8 @@ import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import * as handlers from "./handlers";
+import { registerTranslationRoutes } from "../translations/routes";
+import { getStore } from "../../../../cod-shared/queries/stores";
 import { updateStoreSchema } from "./validation";
 import {
   StoreSchema,
@@ -351,5 +353,16 @@ router.openapi(saveTurnstileConfigRoute.route, saveTurnstileConfigRoute.handler)
 router.openapi(getEmailConfigRoute.route, getEmailConfigRoute.handler);
 router.openapi(saveEmailConfigRoute.route, saveEmailConfigRoute.handler);
 router.openapi(testEmailConfigRoute.route, testEmailConfigRoute.handler);
+
+// The store's own translatable text (announcement bar, SEO) — ADR 0005.
+registerTranslationRoutes(router, {
+  resource: "store",
+  path: "/me/translations",
+  read: "admin",
+  write: "admin",
+  label: "Store",
+  tag: "Store Settings",
+  load: (db) => getStore(db),
+});
 
 export default router;

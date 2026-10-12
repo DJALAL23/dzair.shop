@@ -101,6 +101,8 @@ describe("Store API routes (OpenAPIHono)", () => {
     app.route("/store", storeRouter);
     mockDb = {};
     vi.clearAllMocks();
+    // No `?locale=`: every read is served in the store's primary, untranslated.
+    vi.mocked(queries.resolveStorefrontLocale).mockResolvedValue({ locale: "ar", primary: "ar", translate: null });
     // Every order goes through the store's Checkout Form Policy. The defaults
     // are the storefront's behaviour before that feature existed, so these
     // route tests keep asserting exactly what they always asserted.
@@ -149,8 +151,10 @@ describe("Store API routes (OpenAPIHono)", () => {
       expect(body.data[0].reviewStats.avgRating).toBe(4.5);
       expect(queries.getStoreProducts).toHaveBeenCalledWith(
         mockDb,
-        expect.objectContaining({ featured: true, limit: 12 })
+        expect.objectContaining({ featured: true, limit: 12 }),
+        null,
       );
+      expect(res.headers.get("Content-Language")).toBe("ar");
     });
   });
 

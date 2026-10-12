@@ -7,6 +7,9 @@
  * Built with defineRoute() — the standard route-builder pattern.
  */
 
+import { eq } from "drizzle-orm";
+import { offers } from "../../../../cod-shared/db/schema";
+import { registerTranslationRoutes } from "../translations/routes";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
@@ -138,5 +141,16 @@ router.openapi(getOfferRoute.route, getOfferRoute.handler);
 router.openapi(createOfferRoute.route, createOfferRoute.handler);
 router.openapi(updateOfferRoute.route, updateOfferRoute.handler);
 router.openapi(deleteOfferRoute.route, deleteOfferRoute.handler);
+
+// Translations of this resource (ADR 0005) — guarded by the resource's own scopes.
+registerTranslationRoutes(router, {
+  resource: "offer",
+  path: "/{id}/translations",
+  read: { scope: SCOPES.OFFERS_READ },
+  write: { scope: SCOPES.OFFERS_MANAGE },
+  label: "Offer",
+  tag: "Offers",
+  load: (db, id) => db.select().from(offers).where(eq(offers.id, id ?? "")).get(),
+});
 
 export default router;

@@ -13,6 +13,7 @@ const STORE_ROW = {
   id: "store-1",
   name: "Test Store",
   domain: null,
+  lang: "ar",
   status: "active",
 };
 
@@ -57,12 +58,12 @@ describe("getStoreConfig turnstile projection", () => {
   it("no turnstile row → turnstileEnabled=false, turnstileSiteKey=null (feature inert)", async () => {
     const db = makeDb([
       STORE_ROW,
+      [], // store_locales: the primary only
       { pixelId: "px-1", enabled: false, conversionEvent: "Purchase" },
       undefined,
       undefined,
       [],
       undefined,
-      [], // store_locales: the primary only
     ]);
 
     const config = await getStoreConfig(db, "store-1");
@@ -75,12 +76,12 @@ describe("getStoreConfig turnstile projection", () => {
   it("enabled turnstile row → turnstileEnabled=true and the public siteKey is exposed", async () => {
     const db = makeDb([
       STORE_ROW,
+      [], // store_locales: the primary only
       { pixelId: "px-1", enabled: true, conversionEvent: "Purchase" },
       { enabled: false },
       { enabled: true, siteKey: "0x4AAA-site" },
       [],
       undefined,
-      [], // store_locales: the primary only
     ]);
 
     const config = await getStoreConfig(db, "store-1");
@@ -90,7 +91,7 @@ describe("getStoreConfig turnstile projection", () => {
   });
 
   it("disabled turnstile row → turnstileEnabled=false and siteKey hidden", async () => {
-    const db = makeDb([STORE_ROW, undefined, undefined, { enabled: false, siteKey: "0x4AAA-site" }, [], undefined, []]);
+    const db = makeDb([STORE_ROW, [], undefined, undefined, { enabled: false, siteKey: "0x4AAA-site" }, [], undefined]);
 
     const config = await getStoreConfig(db, "store-1");
 
@@ -101,12 +102,12 @@ describe("getStoreConfig turnstile projection", () => {
   it("the projection never includes the secret key column", async () => {
     const db = makeDb([
       STORE_ROW,
+      [], // store_locales: the primary only
       undefined,
       undefined,
       { enabled: true, siteKey: "0x4AAA-site", secretKey: "0x4AAA-secret" },
       [],
       undefined,
-      [], // store_locales: the primary only
     ]);
 
     const config = await getStoreConfig(db, "store-1");

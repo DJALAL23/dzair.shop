@@ -45,6 +45,12 @@ export interface TestD1 {
   db: AppDb;
   raw: D1Database;
   /**
+   * A request to the worker given as `worker` (see `bundleWorker`), served by
+   * the real workerd runtime over this same database. Without a worker, a
+   * placeholder answers "ok".
+   */
+  fetch: (url: string, init?: RequestInit) => Promise<Response>;
+  /**
    * Apply the migrations held back by `createTestD1({ before })`, so a test
    * can seed rows in the old shape and watch a migration convert them.
    */
@@ -60,13 +66,48 @@ async function replay(raw: D1Database, files: readonly string[]): Promise<void> 
 }
 
 /**
- * A database with every migration applied — or, with `before`, only the ones
- * that sort before that file name (e.g. `"0035_store_locales.sql"`).
+ * Bundle a worker module for `createTestD1({ worker })`. Code that needs the
+ * Workers runtime itself — `HTMLRewriter`, which the rich-text sanitiser uses —
+ * cannot run in the Node test pool, so a test that must cover it runs its
+ * routes inside workerd instead. `source` is TypeScript resolved from
+ * `resolveDir`, with the `@/` alias of `src/`.
  */
-export async function createTestD1(options: { before?: string } = {}): Promise<TestD1> {
+export async function bundleWorker(source: string, resolveDir: string): Promise<string> {
+  const { build } = await import("esbuild");
+  const result = await build({
+    stdin: { contents: source, resolveDir, sourcefile: "worker.ts", loader: "ts" },
+    bundle: true,
+    format: "esm",
+    platform: "neutral",
+    target: "es2022",
+    mainFields: ["module", "main"],
+    conditions: ["workerd", "worker", "import"],
+    external: ["node:*", "cloudflare:*"],
+    alias: { "@": resolve(__dirname, "..") },
+    write: false,
+    logLevel: "warning",
+  });
+  return result.outputFiles[0]!.text;
+}
+
+/**
+ * A database with every migration applied — or, with `before`, only the ones
+ * that sort before that file name (e.g. `"0035_store_locales.sql"`). With
+ * `worker` (a `bundleWorker` result), requests through `fetch` run that worker
+ * over the database.
+ */
+export async function createTestD1(options: { before?: string; worker?: string } = {}): Promise<TestD1> {
   const mf = new Miniflare({
-    script: "export default { fetch() { return new Response('ok'); } }",
-    modules: true,
+    modules: [
+      {
+        type: "ESModule",
+        path: "index.mjs",
+        contents: options.worker ?? "export default { fetch() { return new Response('ok'); } }",
+      },
+    ],
+    // The deployed worker's runtime settings (wrangler.toml.example).
+    compatibilityDate: "2024-11-27",
+    compatibilityFlags: ["nodejs_compat"],
     d1Databases: { DB: "test-db" },
   });
 
@@ -79,6 +120,7 @@ export async function createTestD1(options: { before?: string } = {}): Promise<T
   return {
     db: drizzle(raw as unknown as D1Database, { schema }) as unknown as AppDb,
     raw,
+    fetch: async (url, init) => (await mf.getWorker()).fetch(url, init as never) as unknown as Response,
     applyRemaining: () => replay(raw, files.slice(cut)),
     dispose: () => mf.dispose(),
   };

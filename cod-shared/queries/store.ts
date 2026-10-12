@@ -19,8 +19,11 @@ import {
   inArray,
 } from "drizzle-orm";
 import { groupOverrides } from "../i18n/content-overrides";
-import { servedLanguageInfo, servedLocales, storeLanguages } from "../stores/settings";
+import { overlayTranslations } from "../i18n/translations";
+import type { StoreLocale } from "../i18n/locales";
+import { servedLanguageInfo, servedLocale, servedLocales, storeLanguages } from "../stores/settings";
 import { listContentOverrides, listStoreLocales } from "./stores";
+import { listTranslations } from "./translations";
 import {
   products,
   productCategories,
@@ -48,7 +51,6 @@ import { normalizeOrderLines } from "./cart";
 import { resolvePublicTracking } from "./tracking-config";
 import { chunkIds } from "./d1-limits";
 import { getFooterPages, getPublicLegalContact } from "./store-pages";
-import type { PageLocale } from "../legal/kinds";
 import {
   loadCatalogSnapshot,
   extendSnapshot,
@@ -113,14 +115,27 @@ export interface StoreOrderData {
 }
 
 /**
- * The storefront's view of the store. `themeKey` names the theme asking: its
- * text edits ride along as `contentOverrides`. Without one there are none —
- * edits belong to the theme that declares their keys (ADR 0005).
+ * The storefront's view of the store, in one language (ADR 0005).
+ *
+ * `theme` names the theme asking: its text edits ride along as
+ * `contentOverrides`; without one there are none — edits belong to the theme
+ * that declares their keys. `locale` asks for a language: the store's text
+ * and footer links come in it when the store publishes it, and in the primary
+ * otherwise. `locale` in the result says which one was served.
  */
-export async function getStoreConfig(db: AppDb, storeId: string, themeKey?: string) {
-  const store = await db.select().from(stores).where(eq(stores.id, storeId)).get();
+export async function getStoreConfig(
+  db: AppDb,
+  storeId: string,
+  request: { theme?: string; locale?: string } = {},
+) {
+  const [store, localeRows] = await Promise.all([
+    db.select().from(stores).where(eq(stores.id, storeId)).get(),
+    listStoreLocales(db, storeId),
+  ]);
   if (!store) return null;
-  const [tracking, otpRow, turnstileRow, pages, legalContact, localeRows, overrideRows] = await Promise.all([
+  const languages = storeLanguages(store.lang, localeRows);
+  const served = servedLocale(request.locale, languages);
+  const [tracking, otpRow, turnstileRow, pages, legalContact, overrideRows, storeTranslations] = await Promise.all([
     // Which pixel this storefront loads is resolved in one place for every
     // sender — see queries/tracking-config.ts. The public accessor cannot
     // return the Conversions API token, which is what keeps it out of the
@@ -140,10 +155,10 @@ export async function getStoreConfig(db: AppDb, storeId: string, themeKey?: stri
       .get(),
     // The footer renders on every page, so its link list rides along here
     // rather than costing a second round trip per page view (plan D6/R7).
-    getFooterPages(db, storeId, store.lang as PageLocale),
+    getFooterPages(db, storeId, served.locale),
     getPublicLegalContact(db, storeId),
-    listStoreLocales(db, storeId),
-    themeKey === undefined ? [] : listContentOverrides(db, storeId, themeKey),
+    request.theme === undefined ? [] : listContentOverrides(db, storeId, request.theme),
+    served.translate === null ? [] : listTranslations(db, "store", [storeId], served.translate),
   ]);
   // The raw policy column never leaves the server. This function spreads the
   // whole store row, so a column is public the moment it exists unless it is
@@ -152,14 +167,15 @@ export async function getStoreConfig(db: AppDb, storeId: string, themeKey?: stri
   //
   // The storefront API key is the credential the caller already presented; it
   // has no business in a payload a theme may hand to templates.
-  const { checkoutFormJson, whatsappWidgetJson, storeApiKey, ...publicStore } = store;
-  // The published languages, primary first, with what a theme needs to render
-  // each, and only their edits — an unpublished language's drafts never reach
-  // a shopper (ADR 0005).
-  const languages = storeLanguages(store.lang, localeRows);
+  const [translated] = overlayTranslations("store", [store], storeTranslations);
+  const { checkoutFormJson, whatsappWidgetJson, storeApiKey, ...publicStore } = translated!;
 
   return {
     ...publicStore,
+    locale: served.locale,
+    // The published languages, primary first, with what a theme needs to
+    // render each, and only their edits — an unpublished language's drafts
+    // never reach a shopper.
     locales: servedLanguageInfo(languages),
     contentOverrides: groupOverrides(overrideRows, servedLocales(languages)),
     checkoutForm: parseCheckoutFormPolicy(checkoutFormJson),
@@ -178,9 +194,41 @@ export async function getStoreConfig(db: AppDb, storeId: string, themeKey?: stri
   };
 }
 
+/**
+ * The language a storefront read is served in (`servedLocale`), from the
+ * store's own languages; null when the store does not exist.
+ */
+export async function resolveStorefrontLocale(db: AppDb, storeId: string, requested?: string | null) {
+  const [store, rows] = await Promise.all([
+    db.select({ lang: stores.lang }).from(stores).where(eq(stores.id, storeId)).get(),
+    listStoreLocales(db, storeId),
+  ]);
+  if (!store) return null;
+  return servedLocale(requested, storeLanguages(store.lang, rows));
+}
+
+/**
+ * Overlay one language's product translations. A translated description is
+ * sanitised HTML (written through the same chokepoint as its source), so it
+ * carries the `html` format whatever the source's format is.
+ */
+async function translateProducts<T extends { id: string; description: string | null; descriptionFormat: "text" | "html" }>(
+  db: AppDb,
+  records: readonly T[],
+  locale: StoreLocale | null,
+): Promise<T[]> {
+  if (locale === null || records.length === 0) return [...records];
+  const rows = await listTranslations(db, "product", records.map((record) => record.id), locale);
+  const htmlDescriptions = new Set(rows.filter((row) => row.key === "description").map((row) => row.resourceId));
+  return overlayTranslations("product", records, rows).map((record) =>
+    htmlDescriptions.has(record.id) ? { ...record, descriptionFormat: "html" as const } : record,
+  );
+}
+
 export async function getStoreProducts(
   db: AppDb,
   params: { featured?: boolean; categoryId?: string; limit?: number },
+  locale: StoreLocale | null = null,
 ) {
   const conditions: any[] = [
     eq(products.showInStore, true),
@@ -192,7 +240,7 @@ export async function getStoreProducts(
   if (params.featured) conditions.push(eq(products.storeFeatured, true));
   if (params.categoryId) conditions.push(eq(products.categoryId, params.categoryId));
 
-  const rows = await db
+  const sourceRows = await db
     .select({
       ...getTableColumns(products),
       avgRating: sql<number | null>`(SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.product_id = products.id AND r.status = 'approved')`,
@@ -204,7 +252,8 @@ export async function getStoreProducts(
     .limit(params.limit ?? 24)
     .all();
 
-  if (rows.length === 0) return [];
+  if (sourceRows.length === 0) return [];
+  const rows = await translateProducts(db, sourceRows, locale);
 
   const ids = rows.map((p) => p.id);
 
@@ -276,8 +325,9 @@ export async function getStoreProducts(
 export async function getStoreProductByHandle(
   db: AppDb,
   handle: string,
-  opts?: { allowUnlisted?: boolean },
+  opts?: { allowUnlisted?: boolean; locale?: StoreLocale | null },
 ) {
+  const locale = opts?.locale ?? null;
   const conditions = [
     eq(products.handle, handle),
     eq(products.status, "ACTIVE"),
@@ -286,13 +336,14 @@ export async function getStoreProductByHandle(
   ];
   if (!opts?.allowUnlisted) conditions.push(eq(products.showInStore, true));
 
-  const product = await db
+  const source = await db
     .select()
     .from(products)
     .where(and(...conditions))
     .get();
 
-  if (!product) return null;
+  if (!source) return null;
+  const product = (await translateProducts(db, [source], locale))[0]!;
 
   const [category, variants, images, reviewStatsRow] = await Promise.all([
     product.categoryId
@@ -341,8 +392,22 @@ export async function getStoreProductByHandle(
     .orderBy(offers.createdAt)
     .all();
 
+  // The offers' names and their reward products' names, in the served language.
+  const rewardIds = offerRows.flatMap((offer) => (offer.rewardProductId ? [offer.rewardProductId] : []));
+  const [offerTranslations, rewardTranslations, categoryTranslations] = locale === null
+    ? [[], [], []]
+    : await Promise.all([
+        listTranslations(db, "offer", offerRows.map((offer) => offer.id), locale),
+        listTranslations(db, "product", rewardIds, locale),
+        category ? listTranslations(db, "category", [category.id], locale) : [],
+      ]);
+  const rewardNames = new Map(
+    rewardTranslations.filter((row) => row.key === "name").map((row) => [row.resourceId, row.value]),
+  );
+  const translatedCategory = category ? overlayTranslations("category", [category], categoryTranslations)[0]! : null;
+
   const resolvedOffers = await Promise.all(
-    offerRows.map(async (offer) => {
+    overlayTranslations("offer", offerRows, offerTranslations).map(async (offer) => {
       const rewardProduct = offer.rewardProductId
         ? await db
             .select({ id: products.id, name: products.name })
@@ -367,7 +432,7 @@ export async function getStoreProductByHandle(
         triggerVariantId: offer.triggerVariantId ?? null,
         rewardQuantity: offer.rewardQuantity,
         rewardProductId: offer.rewardProductId ?? null,
-        rewardProductName: rewardProduct?.name ?? "",
+        rewardProductName: (rewardProduct && rewardNames.get(rewardProduct.id)) ?? rewardProduct?.name ?? "",
         rewardVariantId: offer.rewardVariantId ?? null,
         rewardVariantLabel: rewardVariant
           ? Object.values(
@@ -388,7 +453,7 @@ export async function getStoreProductByHandle(
     variantOptions: product.variantOptions ? JSON.parse(product.variantOptions) : null,
     tags: product.tags ? JSON.parse(product.tags) : [],
     descriptionPlain: await deriveDescriptionPlain(product.description, product.descriptionFormat),
-    category: category ?? null,
+    category: translatedCategory,
     variants: variants.map((v) => ({
       ...v,
       variations: JSON.parse(v.variations),
@@ -405,8 +470,11 @@ export async function getStoreProductByHandle(
   };
 }
 
-export async function getStoreCategories(db: AppDb) {
-  return db.select().from(productCategories).orderBy(productCategories.position).all();
+export async function getStoreCategories(db: AppDb, locale: StoreLocale | null = null) {
+  const rows = await db.select().from(productCategories).orderBy(productCategories.position).all();
+  if (locale === null) return rows;
+  const translated = await listTranslations(db, "category", rows.map((row) => row.id), locale);
+  return overlayTranslations("category", rows, translated);
 }
 
 export async function getStoreCommunes(db: AppDb, wilayaId: number) {

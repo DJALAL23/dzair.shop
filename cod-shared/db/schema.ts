@@ -986,6 +986,28 @@ export const storeContentOverrides = sqliteTable("store_content_overrides", {
 }));
 
 /**
+ * Translations of merchant data (ADR 0005, phase C; `i18n/translations.ts`):
+ * one row per resource, language and key — Shopify's Translations API model.
+ * `resource_type` names a `TRANSLATABLE` entry; the source (the resource's own
+ * column) stays in the primary language. `source_digest` is the SHA-256 of the
+ * source text the translation was written against: a different digest today
+ * means the translation is outdated. Triggers (migration 0037) delete a
+ * resource's translations with it, and a language's with its `store_locales`
+ * row.
+ */
+export const translations = sqliteTable("translations", {
+  resourceType: text("resource_type").notNull(),
+  resourceId: text("resource_id").notNull(),
+  locale: text("locale", { enum: STORE_LOCALES }).notNull(),
+  key: text("key").notNull(),
+  value: text("value").notNull(),
+  sourceDigest: text("source_digest").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.resourceType, t.resourceId, t.locale, t.key] }),
+}));
+
+/**
  * API keys issued to Astro storefronts.
  * The raw key is never stored — only a SHA-256 hex digest.
  */

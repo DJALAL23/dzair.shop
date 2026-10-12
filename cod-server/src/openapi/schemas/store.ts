@@ -467,6 +467,10 @@ export const StoreConfigSchema = z
       description: "Google Fonts CSS URL override",
     }),
     lang: StoreLocaleEnum.openapi({ description: "The store's primary language", example: "ar" }),
+    locale: StoreLocaleEnum.openapi({
+      description: "The language this config is served in: `?locale=` when the store publishes it, else `lang`",
+      example: "ar",
+    }),
     locales: z.array(StorefrontLanguageSchema).openapi({
       description: "The published languages, primary first",
     }),

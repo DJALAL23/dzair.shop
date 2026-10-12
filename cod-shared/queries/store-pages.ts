@@ -430,6 +430,7 @@ export async function resolvePublishedPage(
   storeId: string,
   slug: string,
   locale: PageLocale,
+  primary: PageLocale = locale,
 ): Promise<ResolvedStorePage | null> {
   const page = await db
     .select()
@@ -445,9 +446,9 @@ export async function resolvePublishedPage(
   if (translations.length === 0) return null;
 
   const byLocale = new Map(translations.map((t) => [t.locale as PageLocale, t]));
-  // The platform's one fallback rule (i18n/locales.ts): the store's language,
-  // then the platform default, then any translation that exists.
-  const picked = pickByLocale(byLocale, localeChain(locale, locale));
+  // The platform's one fallback rule (i18n/locales.ts): the requested
+  // language, then the store's primary, then any translation that exists.
+  const picked = pickByLocale(byLocale, localeChain(locale, primary));
   if (!picked) return null;
   const resolved = picked.value;
 
