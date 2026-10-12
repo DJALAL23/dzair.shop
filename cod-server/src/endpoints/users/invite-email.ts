@@ -18,6 +18,32 @@ import { sendTransactionalEmail, type TransactionalEmailOutcome } from "../../..
 
 export type InviteEmailOutcome = TransactionalEmailOutcome;
 
+// In-memory cache for store name (rarely changes, safe to cache)
+let storeNameCache: { name: string; ttl: number } | null = null;
+const STORE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Clear the store name cache. Exported for tests only.
+ * @internal
+ */
+export function clearStoreNameCache() {
+  storeNameCache = null;
+}
+
+/**
+ * Get store name with in-memory caching to avoid repeated D1 queries.
+ * The store name rarely changes, so a 5-minute TTL is safe.
+ */
+async function getStoreName(db: AppDb): Promise<string> {
+  if (storeNameCache && Date.now() < storeNameCache.ttl) {
+    return storeNameCache.name;
+  }
+  const store = await getStore(db);
+  const name = store?.name ?? "CodFlow";
+  storeNameCache = { name, ttl: Date.now() + STORE_CACHE_TTL_MS };
+  return name;
+}
+
 export interface InviteEmailInput {
   userId: string;
   name: string;
@@ -43,9 +69,9 @@ export async function sendInviteEmail(
   input: InviteEmailInput
 ): Promise<InviteEmailOutcome> {
   try {
-    const store = await getStore(db);
+    const storeName = await getStoreName(db);
     const email = renderInviteEmail({
-      storeName: store?.name ?? "CodFlow",
+      storeName,
       inviteeName: input.name,
       signInUrl: dashboardSignInUrl(env.BETTER_AUTH_URL),
       tempPassword: input.tempPassword,

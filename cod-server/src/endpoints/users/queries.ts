@@ -23,7 +23,8 @@ type Database = ReturnType<typeof getDb>;
 
 /**
  * Create new user with credential account + initial scope assignment.
- * D1 does not support transactions — sequential awaits.
+ * Uses db.batch() to reduce round-trips: 3 sequential inserts → 1 batched
+ * round-trip. Returns the constructed user object instead of re-querying.
  */
 export async function createUser(
   db: Database,
@@ -43,46 +44,67 @@ export async function createUser(
   const nowDate = new Date();
   const nowIso = nowDate.toISOString();
 
-  await db.insert(users).values({
-    id: userData.id,
-    name: userData.name,
-    email: userData.email,
-    emailVerified: true,
-    role: userData.role,
-    status: userData.status,
-    apiKey: userData.apiKey,
-    language: userData.language ?? "en",
-    createdAt: nowDate,
-    updatedAt: nowDate,
-  });
+  type BatchStatement = Parameters<Database["batch"]>[0][number];
 
-  // Credential account for better-auth password sign-in. 1.7 lookup semantics
-  // (see migration 0010 + scripts/seed-admin.mjs): issuer = 'local:credential'
-  // and account_id = USER ID — not the email. Wrong shape = every sign-in 401s.
-  await db.insert(accounts).values({
-    id: crypto.randomUUID(),
-    userId: userData.id,
-    accountId: userData.id,
-    providerId: "credential",
-    issuer: "local:credential",
-    password: userData.passwordHash,
-    createdAt: nowDate,
-    updatedAt: nowDate,
-  });
+  // Batch all inserts together (1 round-trip instead of 3)
+  const statements: BatchStatement[] = [
+    db.insert(users).values({
+      id: userData.id,
+      name: userData.name,
+      email: userData.email,
+      emailVerified: true,
+      role: userData.role,
+      status: userData.status,
+      apiKey: userData.apiKey,
+      language: userData.language ?? "en",
+      createdAt: nowDate,
+      updatedAt: nowDate,
+    }),
+    // Credential account for better-auth password sign-in. 1.7 lookup semantics
+    // (see migration 0010 + scripts/seed-admin.mjs): issuer = 'local:credential'
+    // and account_id = USER ID — not the email. Wrong shape = every sign-in 401s.
+    db.insert(accounts).values({
+      id: crypto.randomUUID(),
+      userId: userData.id,
+      accountId: userData.id,
+      providerId: "credential",
+      issuer: "local:credential",
+      password: userData.passwordHash,
+      createdAt: nowDate,
+      updatedAt: nowDate,
+    }),
+  ];
 
   if (userData.role !== "admin" && initialScopes.length > 0) {
-    await db.insert(userScopes).values(
-      initialScopes.map(scope => ({
-        id: crypto.randomUUID(),
-        userId: userData.id,
-        scope,
-        grantedBy,
-        grantedAt: nowIso,
-      }))
+    statements.push(
+      db.insert(userScopes).values(
+        initialScopes.map(scope => ({
+          id: crypto.randomUUID(),
+          userId: userData.id,
+          scope,
+          grantedBy,
+          grantedAt: nowIso,
+        }))
+      )
     );
   }
 
-  return getUserById(db, userData.id);
+  await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+
+  // Return constructed user (same shape as getUserById, no extra queries)
+  return {
+    id: userData.id,
+    email: userData.email,
+    name: userData.name,
+    role: userData.role,
+    status: userData.status,
+    scopes: userData.role === "admin" ? ["*"] : initialScopes,
+    emailVerified: true,
+    language: userData.language ?? "en",
+    apiKey: userData.apiKey,
+    createdAt: nowDate,  // Date object, not ISO string
+    updatedAt: nowDate,  // Date object, not ISO string
+  };
 }
 
 /**
