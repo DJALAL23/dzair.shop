@@ -69,7 +69,7 @@ export function resolveHomeDocument(
   theme: ThemeDefinition,
   content: Record<string, string> = {},
 ): HomeDocumentDecision {
-  const hasType = (type: string): boolean => type in theme.components;
+  const hasType = (type: string): boolean => Object.hasOwn(theme.components, type);
 
   if (saved === null || saved === undefined) {
     const result = parsePageData(shipped);

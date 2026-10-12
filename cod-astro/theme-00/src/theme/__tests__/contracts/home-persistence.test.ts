@@ -77,6 +77,16 @@ describe("resolveHomeDocument — what the home surface renders", () => {
     expect(decision.reason).toBe("no-overlap");
   });
 
+  it("a type named like an Object.prototype member is not in the catalog", () => {
+    const decision = resolveHomeDocument(
+      { version: 1, surface: "home", sections: [{ id: "x", type: "constructor" }] },
+      theme00,
+    );
+
+    expect(decision.source).toBe("default");
+    expect(decision.reason).toBe("no-overlap");
+  });
+
   it("partial overlap renders what maps (the designed degrade, not a fallback)", () => {
     const decision = resolveHomeDocument(
       {
