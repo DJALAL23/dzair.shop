@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
-import { interp, pluralize, relativeTime } from "@/features/mcp/model";
+import { relativeTime } from "@/lib/relative-time";
 import type { McpConnection } from "@/features/mcp/types";
 
 function StatusBadge({ active }: { active: boolean }) {
@@ -75,15 +75,11 @@ export function ConnectionCard({
               </span>
             )}
             <span className="text-[11px] font-semibold text-muted-foreground/40">
-              {interp(t("my_connections.connected_at"), {
-                date: relativeTime(conn.connectedAt, t, locale),
-              })}
+              {t("my_connections.connected_at", { date: relativeTime(conn.connectedAt, locale) })}
             </span>
             <span className="text-[11px] font-semibold text-muted-foreground/40">
               {conn.lastUsedAt
-                ? interp(t("my_connections.last_used"), {
-                    when: relativeTime(conn.lastUsedAt, t, locale),
-                  })
+                ? t("my_connections.last_used", { when: relativeTime(conn.lastUsedAt, locale) })
                 : t("my_connections.never_used")}
             </span>
           </div>
@@ -109,7 +105,7 @@ export function ConnectionCard({
       >
         <Lock size={11} aria-hidden="true" />
         <span>
-          {pluralize("my_connections.scope_count_one", "my_connections.scope_count_other", conn.scopes.length, t)}
+          {t("my_connections.scope_count", { count: conn.scopes.length })}
         </span>
         {scopesOpen ? <ChevronUp size={11} aria-hidden="true" /> : <ChevronDown size={11} aria-hidden="true" />}
       </button>

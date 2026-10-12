@@ -23,7 +23,8 @@
     "empty_title": "No pages yet",
     "empty_body": "Create the four pages Meta looks for before it will run your ads.",
     "seed_defaults": "Add Terms, Privacy, Refund & Shipping",
-    "seeded_toast": "{count} pages created",
+    "seeded_toast_one": "{count} page created",
+    "seeded_toast_other": "{count} pages created",
     "legal_section_title": "Legal Policies",
     "legal_section_subtitle": "Required for Meta Ads & consumer trust",
     "custom_section_title": "Custom Pages",
@@ -117,7 +118,8 @@
   "compliance": {
     "badge": "Algerian COD Standard",
     "all_reviewed": "All policies reviewed",
-    "needs_review_count": "{count} need review",
+    "needs_review_count_one": "{count} needs review",
+    "needs_review_count_other": "{count} need review",
     "configure_profile": "Configure Business Details"
   }
 }

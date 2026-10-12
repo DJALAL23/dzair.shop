@@ -236,10 +236,7 @@ function CheckoutFormContent() {
 
           <Card
             title={t("custom.section_title")}
-            subtitle={t("custom.section_subtitle").replace(
-              "{max}",
-              String(limits.MAX_CUSTOM_FIELDS),
-            )}
+            subtitle={t("custom.section_subtitle", { max: limits.MAX_CUSTOM_FIELDS })}
             action={
               draft.customFields.length > 0 ? (
                 <Badge tone="neutral">
@@ -280,7 +277,7 @@ function CheckoutFormContent() {
 
               {atFieldLimit ? (
                 <p className="text-xs text-muted-foreground">
-                  {t("custom.limit_reached").replace("{max}", String(limits.MAX_CUSTOM_FIELDS))}
+                  {t("custom.limit_reached", { max: limits.MAX_CUSTOM_FIELDS })}
                 </p>
               ) : (
                 <Button

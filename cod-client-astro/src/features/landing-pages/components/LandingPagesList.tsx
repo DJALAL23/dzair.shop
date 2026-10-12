@@ -248,7 +248,7 @@ export function LandingPagesList() {
   async function onDelete(page: LandingPageListItem) {
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace("{name}", page.name),
+        title: common("confirm_delete_title", { name: page.name }),
         description: t("actions.confirm_delete"),
         confirmLabel: common("delete"),
         tone: "danger",

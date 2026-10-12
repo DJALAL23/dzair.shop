@@ -21,7 +21,11 @@
     "connected_at": "تم الاتصال {date}",
     "last_used": "آخر استخدام {when}",
     "never_used": "لم يُستخدم بعد",
+    "scope_count_zero": "بدون صلاحيات",
     "scope_count_one": "صلاحية واحدة",
+    "scope_count_two": "صلاحيتان",
+    "scope_count_few": "{count} صلاحيات",
+    "scope_count_many": "{count} صلاحية",
     "scope_count_other": "{count} صلاحية",
     "show_permissions": "عرض الصلاحيات",
     "hide_permissions": "إخفاء الصلاحيات",
@@ -50,14 +54,5 @@
     "paragraph_1": "يسمح MCP (بروتوكول سياق النموذج) لوكلاء الذكاء الاصطناعي بالوصول إلى مساحة عملك بأمان. أنت تتحكم فيما يمكنهم فعله من خلال صلاحيات دقيقة.",
     "paragraph_2": "عندما يحاول وكيل ذكاء اصطناعي تنفيذ إجراء حساس — مثل حذف عميل أو إنشاء دفعة — سيُطلب منك التأكيد داخل تطبيق الذكاء الاصطناعي قبل تنفيذه.",
     "paragraph_3": "يمكنك إلغاء الصلاحية في أي وقت؛ يفقد الوكيل جميع صلاحيات الوصول فوراً."
-  },
-  "time": {
-    "just_now": "الآن",
-    "minutes_ago_one": "منذ دقيقة",
-    "minutes_ago_other": "منذ {count} دقيقة",
-    "hours_ago_one": "منذ ساعة",
-    "hours_ago_other": "منذ {count} ساعة",
-    "days_ago_one": "منذ يوم",
-    "days_ago_other": "منذ {count} يوم"
   }
 }

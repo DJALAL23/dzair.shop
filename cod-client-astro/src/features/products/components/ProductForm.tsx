@@ -375,8 +375,7 @@ export function ProductForm({ productId }: { productId?: string }) {
         const detail = productErrorMessage(cause, t);
         let message = detail;
         if (failedStep === "variants" && failedVariantLabel) {
-          message = `${t("form.error_variant_row")
-            .replace("{variant}", failedVariantLabel)} — ${detail}`;
+          message = `${t("form.error_variant_row", { variant: failedVariantLabel })} — ${detail}`;
         }
 
         // Partial-save trap: the product row EXISTS (created or updated) but
@@ -384,7 +383,7 @@ export function ProductForm({ productId }: { productId?: string }) {
         // send the merchant to the editor instead, where retry = update.
         if (savedId && !editing) {
           notify.error(
-            t("form.partial_save_redirect").replace("{message}", detail),
+            t("form.partial_save_redirect", { message: detail }),
           );
           window.location.assign(
             `/products/${encodeURIComponent(savedId)}/edit`,

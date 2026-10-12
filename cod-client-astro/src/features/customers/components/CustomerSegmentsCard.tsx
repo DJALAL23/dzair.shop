@@ -213,10 +213,7 @@ export function CustomerSegmentsCard({
                     onClick={async () => {
                       if (
                         await confirm({
-                          title: common("confirm_remove_title").replace(
-                            "{name}",
-                            group.name,
-                          ),
+                          title: common("confirm_remove_title", { name: group.name }),
                           description: common("remove_description"),
                           confirmLabel: common("remove"),
                           tone: "danger",
@@ -324,10 +321,7 @@ export function CustomerSegmentsCard({
                     onClick={async () => {
                       if (
                         await confirm({
-                          title: common("confirm_remove_title").replace(
-                            "{name}",
-                            tag.name,
-                          ),
+                          title: common("confirm_remove_title", { name: tag.name }),
                           description: common("remove_description"),
                           confirmLabel: common("remove"),
                           tone: "danger",

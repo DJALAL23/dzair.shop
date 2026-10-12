@@ -10,15 +10,6 @@
     "admin": "مشرف",
     "staff": "موظف"
   },
-  "time": {
-    "moments_ago": "منذ لحظات",
-    "minute_ago": "منذ دقيقة",
-    "minutes_ago": "منذ {count} دقيقة",
-    "hour_ago": "منذ ساعة",
-    "hours_ago": "منذ {count} ساعة",
-    "day_ago": "منذ يوم",
-    "days_ago": "منذ {count} يوم"
-  },
   "table": {
     "all": "الكل",
     "actions": "الإجراءات",

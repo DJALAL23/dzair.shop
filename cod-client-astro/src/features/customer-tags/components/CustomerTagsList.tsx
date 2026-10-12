@@ -147,7 +147,7 @@ export function CustomerTagsList() {
     }
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace("{name}", tag.name),
+        title: common("confirm_delete_title", { name: tag.name }),
         description: common("delete_description"),
         confirmLabel: common("delete"),
         tone: "danger",

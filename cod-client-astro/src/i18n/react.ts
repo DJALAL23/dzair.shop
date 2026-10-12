@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { detectLocale, persistLocale, applyDocumentLocale, type Locale } from "./config";
 import { getDict, type Namespace } from "./dictionaries";
-import { makeT as buildT } from "./core";
+import { makeT as buildT, type Translate } from "./core";
 
 /** Current locale, read once per island mount (client-only islands only). */
 export function useLocale(): Locale {
@@ -17,9 +17,9 @@ export function useLocale(): Locale {
 }
 
 /** Translator for a namespace. Synchronous — dictionaries are bundled. */
-export function useT(ns: Namespace): (key: string) => string {
+export function useT(ns: Namespace): Translate {
   const locale = useLocale();
-  return useMemo(() => buildT(getDict(locale, ns), getDict("en", ns)), [locale, ns]);
+  return useMemo(() => buildT(getDict(locale, ns), getDict("en", ns), locale), [locale, ns]);
 }
 
 export function switchLocale(locale: Locale): void {

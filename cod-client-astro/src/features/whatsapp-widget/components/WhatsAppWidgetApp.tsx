@@ -254,7 +254,7 @@ function WhatsAppWidgetContent() {
                 {phonePreview.isValid && phonePreview.e164 && (
                   <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                     <CircleCheck size={13} className="shrink-0" />
-                    <span>{t("phone_valid").replace("{number}", phonePreview.e164)}</span>
+                    <span>{t("phone_valid", { number: phonePreview.e164 })}</span>
                   </p>
                 )}
               </Field>

@@ -128,9 +128,7 @@ export function DriverSettlementCard({
     if (
       !(await confirm({
         title: t("payments.confirm_title"),
-        description: t("payments.confirm_body")
-          .replace("{amount}", formatDeliveryMoney(amount, locale))
-          .replace("{count}", String(eligibleOrders.length)),
+        description: t("payments.confirm_body", { amount: formatDeliveryMoney(amount, locale), count: eligibleOrders.length }),
         confirmLabel: t(
           `payments.action_${type === "fee_payment" ? "fee" : type === "cod_remittance" ? "cod" : "net"}`,
         ),

@@ -116,7 +116,6 @@
     "remove_variants_confirm": "Remove all variants?",
     "remove_variants_confirm_desc": "This will permanently delete all existing variants when you save. This cannot be undone.",
     "remove_variants_confirm_label": "Yes, remove variants",
-    "variant_delete_warning": "Saved, but {count} variant(s) could not be removed.",
     "stock_adjust_note": "To adjust stock, use the",
     "stock_adjust_link": "Stock Overview",
     "error_not_found": "Product not found",

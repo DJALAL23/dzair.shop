@@ -1,3 +1,4 @@
+import type { Translate } from "@/i18n/core";
 import type { Product, ProductStatus, StockAlertItem, StockMovement, VariantOption, VariantOptionFormState } from "./types";
 
 export type ProductSortKey = "name" | "price" | "variantsCount" | "totalInventory" | "reviewCount" | "createdAt";
@@ -88,7 +89,7 @@ function asApiError(cause: unknown): ApiLikeError | null {
   return typeof candidate.code === "string" ? candidate : null;
 }
 
-export function productErrorMessage(cause: unknown, t: (key: string) => string) {
+export function productErrorMessage(cause: unknown, t: Translate) {
   const api = asApiError(cause);
   const code = api?.code ?? "";
   const context = api?.context;
@@ -100,7 +101,7 @@ export function productErrorMessage(cause: unknown, t: (key: string) => string) 
   if (code === "DUPLICATE_SKU") {
     const sku = typeof context?.sku === "string" ? context.sku : null;
     return sku
-      ? t("error_duplicate_sku_named").replace("{sku}", sku)
+      ? t("error_duplicate_sku_named", { sku })
       : t("error_duplicate_sku");
   }
 
@@ -121,7 +122,7 @@ export function productErrorMessage(cause: unknown, t: (key: string) => string) 
     const requestId =
       typeof context?.requestId === "string" ? context.requestId : null;
     return requestId
-      ? t("error_unexpected_id").replace("{id}", requestId)
+      ? t("error_unexpected_id", { id: requestId })
       : t("error_generic");
   }
 

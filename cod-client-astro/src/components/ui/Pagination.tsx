@@ -30,10 +30,7 @@ export function Pagination({
       className={`flex flex-col gap-3 border-t border-border/70 p-3 text-xs font-medium text-muted-foreground sm:flex-row sm:items-center sm:justify-between ${className}`}
     >
       <span>
-        {common("table.showing")
-          .replace("{from}", String(from))
-          .replace("{to}", String(to))
-          .replace("{total}", String(total))}
+        {common("table.showing", { from, to, total })}
       </span>
       <div className="flex items-center gap-2">
         <button

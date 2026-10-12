@@ -123,10 +123,7 @@ export function ProductDetail({ productId }: { productId: string }) {
   async function removeProduct(productToDelete: Product) {
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace(
-          "{name}",
-          productToDelete.name,
-        ),
+        title: common("confirm_delete_title", { name: productToDelete.name }),
         description: common("delete_description"),
         confirmLabel: common("delete"),
         tone: "danger",

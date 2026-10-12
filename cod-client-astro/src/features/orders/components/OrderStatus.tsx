@@ -65,9 +65,7 @@ export function OrderStatus({
     ) {
       const accepted = await confirm({
         title: t("detail.status_change_confirm_title"),
-        description: t("detail.status_change_confirm")
-          .replace("{order}", order.orderNumber)
-          .replace("{status}", t(`status.${status}`)),
+        description: t("detail.status_change_confirm", { order: order.orderNumber, status: t(`status.${status}`) }),
         confirmLabel: common("confirm"),
         tone:
           status === "cancelled" || status === "returned"
@@ -85,12 +83,7 @@ export function OrderStatus({
       setBusy(false);
       return;
     }
-    const statusMessage = t("detail.status_updated");
-    notify.success(
-      statusMessage.includes("{status}")
-        ? statusMessage.replace("{status}", t(`status.${status}`))
-        : `${statusMessage}${t(`status.${status}`)}`,
-    );
+    notify.success(t("detail.status_updated", { status: t(`status.${status}`) }));
     try {
       await onChanged();
     } catch (cause) {

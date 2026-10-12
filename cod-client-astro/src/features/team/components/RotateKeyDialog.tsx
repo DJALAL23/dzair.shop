@@ -46,7 +46,7 @@ export function RotateKeyDialog({
             {t("rotate_key_dialog.result_title")}
             {userName && (
               <span className="ms-2 text-xs font-medium text-muted-foreground">
-                {t("rotate_key_dialog.result_subtitle").replace("{name}", userName)}
+                {t("rotate_key_dialog.result_subtitle", { name: userName })}
               </span>
             )}
           </span>

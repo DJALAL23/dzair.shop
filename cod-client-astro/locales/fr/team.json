@@ -175,7 +175,9 @@
   },
   "invite_dialog_extra": {
     "permissions_label": "Permissions",
-    "n_selected": "{{count}} sélectionné(s)",
+    "n_selected_one": "{count} sélectionnée",
+    "n_selected_many": "{count} sélectionnées",
+    "n_selected_other": "{count} sélectionnées",
     "admin_full_access": "Les administrateurs ont accès à toutes les fonctionnalités — aucune sélection de permissions nécessaire.",
     "api_key_label": "Clé API",
     "temp_password_label": "Mot de passe temporaire",

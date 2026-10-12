@@ -63,10 +63,7 @@ export function OrderRowActions({
   async function remove() {
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace(
-          "{name}",
-          order.orderNumber,
-        ),
+        title: common("confirm_delete_title", { name: order.orderNumber }),
         description: common("delete_description"),
         confirmLabel: t("actions.delete"),
         tone: "danger",

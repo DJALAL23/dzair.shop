@@ -175,7 +175,12 @@
   },
   "invite_dialog_extra": {
     "permissions_label": "الصلاحيات",
-    "n_selected": "{{count}} محدد",
+    "n_selected_zero": "لا شيء محدد",
+    "n_selected_one": "صلاحية واحدة محددة",
+    "n_selected_two": "صلاحيتان محددتان",
+    "n_selected_few": "{count} صلاحيات محددة",
+    "n_selected_many": "{count} صلاحية محددة",
+    "n_selected_other": "{count} صلاحية محددة",
     "admin_full_access": "المسؤولون لديهم وصول كامل لجميع الميزات — لا حاجة لتحديد الصلاحيات.",
     "api_key_label": "مفتاح API",
     "temp_password_label": "كلمة المرور المؤقتة",

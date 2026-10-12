@@ -175,7 +175,8 @@
   },
   "invite_dialog_extra": {
     "permissions_label": "Permissions",
-    "n_selected": "{{count}} selected",
+    "n_selected_one": "{count} selected",
+    "n_selected_other": "{count} selected",
     "admin_full_access": "Admins have full access to all features — no scope selection needed.",
     "api_key_label": "API Key",
     "temp_password_label": "Temporary Password",

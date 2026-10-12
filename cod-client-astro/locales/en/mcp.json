@@ -50,14 +50,5 @@
     "paragraph_1": "MCP (Model Context Protocol) lets AI agents securely access your workspace. You control what they can do with granular permissions.",
     "paragraph_2": "When an AI agent tries to perform a sensitive action — like deleting a customer or creating a payment — you'll be asked to confirm it inside the AI app before anything happens.",
     "paragraph_3": "You can revoke access anytime; the agent loses all access immediately."
-  },
-  "time": {
-    "just_now": "just now",
-    "minutes_ago_one": "{count} minute ago",
-    "minutes_ago_other": "{count} minutes ago",
-    "hours_ago_one": "{count} hour ago",
-    "hours_ago_other": "{count} hours ago",
-    "days_ago_one": "{count} day ago",
-    "days_ago_other": "{count} days ago"
   }
 }

@@ -1,3 +1,4 @@
+import type { Translate } from "@/i18n/core";
 import type {
   LandingPageListItem,
   LandingPageStatus,
@@ -66,7 +67,7 @@ export function landingPageCvr(page: Pick<LandingPageListItem, "views" | "orders
   return (page.orders / page.views) * 100;
 }
 
-export function landingPageErrorMessage(cause: unknown, t: (key: string) => string) {
+export function landingPageErrorMessage(cause: unknown, t: Translate) {
   const api =
     cause && typeof cause === "object" ? (cause as { code?: string; context?: Record<string, unknown> }) : null;
   const code = api?.code ?? "";
@@ -76,11 +77,11 @@ export function landingPageErrorMessage(cause: unknown, t: (key: string) => stri
     return t("error_delete_has_orders");
   if (code === "DUPLICATE_ENTITY") {
     const slug = typeof context?.slug === "string" ? context.slug : null;
-    return slug ? t("error_duplicate_slug_named").replace("{slug}", slug) : t("error_duplicate_slug");
+    return slug ? t("error_duplicate_slug_named", { slug }) : t("error_duplicate_slug");
   }
   if (code === "PRODUCT_NOT_FOUND") return t("error_product_not_found");
   if (code === "VALIDATION_FAILED") return t("error_validation");
-  if (typeof context?.requestId === "string") return t("error_unexpected_id").replace("{id}", context.requestId);
+  if (typeof context?.requestId === "string") return t("error_unexpected_id", { id: context.requestId });
   return t("error_generic");
 }
 

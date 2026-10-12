@@ -25,6 +25,7 @@ import {
   Card,
 } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
+import { relativeTime } from "@/lib/relative-time";
 import { getDashboardStats } from "@/features/dashboard/api";
 import { fillStatusStats } from "@/features/dashboard/model";
 import { listOrders } from "@/features/orders/api";
@@ -55,19 +56,6 @@ const IN_PROGRESS: OrderStatus[] = [
   "dispatched",
   "out_for_delivery",
 ];
-
-function relativeTime(value: string, tCommon: (key: string) => string): string {
-  const diff = Date.now() - new Date(value).getTime();
-  const minutes = Math.round(diff / 60000);
-  if (minutes < 1) return tCommon("time.moments_ago");
-  if (minutes < 60)
-    return tCommon("time.minutes_ago").replace("{count}", String(minutes));
-  const hours = Math.round(minutes / 60);
-  if (hours < 24)
-    return tCommon("time.hours_ago").replace("{count}", String(hours));
-  const days = Math.round(hours / 24);
-  return tCommon("time.days_ago").replace("{count}", String(days));
-}
 
 function DashboardOverview() {
   const identity = useIdentity();
@@ -250,7 +238,7 @@ function DashboardOverview() {
                       {formatMoney(orderTotal(order), locale)}
                     </span>
                     <span className="hidden w-24 shrink-0 text-end text-xs text-muted-foreground sm:block">
-                      {relativeTime(order.createdAt, common)}
+                      {relativeTime(order.createdAt, locale)}
                     </span>
                   </a>
                 </li>

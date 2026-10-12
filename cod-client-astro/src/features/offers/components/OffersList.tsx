@@ -164,7 +164,7 @@ export function OffersList() {
   async function onDelete(offer: Offer) {
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace("{name}", offer.name),
+        title: common("confirm_delete_title", { name: offer.name }),
         description: t("form.delete_confirm"),
         confirmLabel: common("delete"),
         tone: "danger",

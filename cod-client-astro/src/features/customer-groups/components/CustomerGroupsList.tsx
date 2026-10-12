@@ -147,7 +147,7 @@ export function CustomerGroupsList() {
     }
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace("{name}", group.name),
+        title: common("confirm_delete_title", { name: group.name }),
         description: common("delete_description"),
         confirmLabel: common("delete"),
         tone: "danger",

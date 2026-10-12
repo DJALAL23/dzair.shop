@@ -10,15 +10,6 @@
     "admin": "Admin",
     "staff": "Staff"
   },
-  "time": {
-    "moments_ago": "moments ago",
-    "minute_ago": "1 minute ago",
-    "minutes_ago": "{count} minutes ago",
-    "hour_ago": "1 hour ago",
-    "hours_ago": "{count} hours ago",
-    "day_ago": "1 day ago",
-    "days_ago": "{count} days ago"
-  },
   "table": {
     "all": "All",
     "actions": "Actions",

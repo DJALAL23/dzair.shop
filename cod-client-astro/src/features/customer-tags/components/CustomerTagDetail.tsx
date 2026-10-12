@@ -135,10 +135,7 @@ export function CustomerTagDetail({ tagId }: { tagId: string }) {
   async function deleteTag(tagToDelete: CustomerTagWithCustomers) {
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace(
-          "{name}",
-          tagToDelete.name,
-        ),
+        title: common("confirm_delete_title", { name: tagToDelete.name }),
         description: common("delete_description"),
         confirmLabel: common("delete"),
         tone: "danger",
@@ -159,7 +156,7 @@ export function CustomerTagDetail({ tagId }: { tagId: string }) {
   async function removeCustomer(currentTagId: string, customer: CustomerTagAssigned) {
     if (
       !(await confirm({
-        title: common("confirm_remove_title").replace("{name}", customer.name),
+        title: common("confirm_remove_title", { name: customer.name }),
         description: common("remove_description"),
         confirmLabel: t("detail.remove_customer"),
         tone: "danger",

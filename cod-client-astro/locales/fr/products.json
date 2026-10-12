@@ -116,7 +116,6 @@
     "remove_variants_confirm": "Supprimer toutes les variantes ?",
     "remove_variants_confirm_desc": "Cela supprimera définitivement toutes les variantes existantes lors de l'enregistrement. Cette action est irréversible.",
     "remove_variants_confirm_label": "Oui, supprimer les variantes",
-    "variant_delete_warning": "Enregistré, mais {count} variante(s) n'ont pas pu être supprimées.",
     "stock_adjust_note": "Pour ajuster le stock, utilisez la page",
     "stock_adjust_link": "Aperçu du stock",
     "error_not_found": "Produit non trouvé",

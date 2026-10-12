@@ -70,7 +70,7 @@ function StorePagesContent() {
     try {
       const result = await seedStoreDefaultPages();
       if (result.created.length > 0) {
-        notify.success(t("list.seeded_toast").replace("{count}", String(result.created.length)));
+        notify.success(t("list.seeded_toast", { count: result.created.length }));
       }
       await load();
     } catch (cause) {
@@ -213,7 +213,7 @@ function StorePagesContent() {
                 >
                   {needsReviewCount === 0
                     ? t("compliance.all_reviewed")
-                    : t("compliance.needs_review_count").replace("{count}", String(needsReviewCount))}
+                    : t("compliance.needs_review_count", { count: needsReviewCount })}
                 </p>
               </div>
             </div>

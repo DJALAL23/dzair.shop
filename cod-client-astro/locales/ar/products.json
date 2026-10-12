@@ -116,7 +116,6 @@
     "remove_variants_confirm": "إيقاف المتغيرات؟",
     "remove_variants_confirm_desc": "سيؤدي هذا إلى حذف جميع المتغيرات الموجودة نهائياً عند الحفظ. لا يمكن التراجع عن هذا الإجراء.",
     "remove_variants_confirm_label": "نعم، احذف المتغيرات",
-    "variant_delete_warning": "تم الحفظ، لكن تعذّر حذف {count} متغير(ات).",
     "stock_adjust_note": "لضبط المخزون، استخدم صفحة",
     "stock_adjust_link": "نظرة عامة على المخزون",
     "error_not_found": "المنتج غير موجود",

@@ -135,10 +135,7 @@ function RecoveredLink({ row }: { row: AbandonedOrder }) {
       href={`/orders/${row.convertedOrderId}`}
       className="mt-1 inline-block text-xs font-semibold text-link underline-offset-4 hover:underline"
     >
-      {t("abandoned.recovered_order").replace(
-        "{number}",
-        row.convertedOrderNumber,
-      )}
+      {t("abandoned.recovered_order", { number: row.convertedOrderNumber })}
     </a>
   );
 }
@@ -568,10 +565,7 @@ function AbandonedOrdersView() {
               placeholder={t("abandoned.search_placeholder")}
             />
             <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {t("abandoned.count_label").replace(
-                "{count}",
-                String(filtered.length),
-              )}
+              {t("abandoned.count_label", { count: filtered.length })}
             </span>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

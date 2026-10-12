@@ -23,7 +23,9 @@
     "empty_title": "Aucune page pour l'instant",
     "empty_body": "Créez les quatre pages que Meta recherche avant d'autoriser vos publicités.",
     "seed_defaults": "Ajouter Conditions, Confidentialité, Retour & Livraison",
-    "seeded_toast": "{count} pages créées",
+    "seeded_toast_one": "{count} page créée",
+    "seeded_toast_many": "{count} de pages créées",
+    "seeded_toast_other": "{count} pages créées",
     "legal_section_title": "Politiques légales",
     "legal_section_subtitle": "Requis pour Meta Ads et la confiance client",
     "custom_section_title": "Pages personnalisées",
@@ -117,7 +119,9 @@
   "compliance": {
     "badge": "Norme COD Algérie",
     "all_reviewed": "Toutes les politiques sont vérifiées",
-    "needs_review_count": "{count} à revoir",
+    "needs_review_count_one": "{count} à revoir",
+    "needs_review_count_many": "{count} à revoir",
+    "needs_review_count_other": "{count} à revoir",
     "configure_profile": "Configurer les informations d'entreprise"
   }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { Translate } from "@/i18n/core";
 import { Home, Info, Search, Store } from "lucide-react";
 import { Dialog } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
@@ -53,7 +54,7 @@ export function CommuneOverridesDrawer({
 }: Props) {
   const t = useT("delivery");
   const locale = useLocale();
-  const sp = (key: string) => t(`shipping_profiles.${key}`);
+  const sp: Translate = (key, values) => t(`shipping_profiles.${key}`, values);
   const [items, setItems] = useState<CommuneOverride[] | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -230,10 +231,7 @@ export function CommuneOverridesDrawer({
         </p>
         {overriddenCount > 0 && (
           <span className="shrink-0 rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-primary">
-            {sp("commune_overrides_count").replace(
-              "{{count}}",
-              String(overriddenCount),
-            )}
+            {sp("commune_overrides_count", { count: overriddenCount })}
           </span>
         )}
       </div>

@@ -1,7 +1,11 @@
 {
   "page_title": "Avis",
-  "total": "{n} avis",
-  "new_badge": "{n} nouveau(x)",
+  "total_one": "{count} avis",
+  "total_many": "{count} d'avis",
+  "total_other": "{count} avis",
+  "new_badge_one": "{count} nouveau",
+  "new_badge_many": "{count} nouveaux",
+  "new_badge_other": "{count} nouveaux",
   "empty_title": "Aucun avis pour l'instant",
   "empty_desc": "Lorsque les clients laissent des avis sur vos produits, ils apparaîtront ici pour modération.",
   "filter_all": "Tous",

@@ -10,15 +10,6 @@
     "admin": "Admin",
     "staff": "Personnel"
   },
-  "time": {
-    "moments_ago": "il y a quelques instants",
-    "minute_ago": "il y a 1 minute",
-    "minutes_ago": "il y a {count} minutes",
-    "hour_ago": "il y a 1 heure",
-    "hours_ago": "il y a {count} heures",
-    "day_ago": "il y a 1 jour",
-    "days_ago": "il y a {count} jours"
-  },
   "table": {
     "all": "Tous",
     "actions": "Actions",

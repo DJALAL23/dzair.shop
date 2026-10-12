@@ -149,7 +149,7 @@ export function TeamList() {
   async function onRotateApiKey(member: TeamMember) {
     if (
       !(await confirm({
-        title: t("rotate_key_dialog.confirm_title").replace("{name}", member.name),
+        title: t("rotate_key_dialog.confirm_title", { name: member.name }),
         description: t("rotate_key_dialog.confirm_description"),
         confirmLabel: t("rotate_key_dialog.confirm_button"),
         tone: "danger",

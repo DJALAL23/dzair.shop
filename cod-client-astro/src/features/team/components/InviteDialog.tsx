@@ -339,10 +339,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
                   {t("invite_dialog_extra.permissions_label")}
                 </p>
                 <span className="text-xs font-semibold text-primary">
-                  {t("invite_dialog_extra.n_selected").replace(
-                    "{{count}}",
-                    String(form.scopes.length),
-                  )}
+                  {t("invite_dialog_extra.n_selected", { count: form.scopes.length })}
                 </span>
               </div>
               <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">

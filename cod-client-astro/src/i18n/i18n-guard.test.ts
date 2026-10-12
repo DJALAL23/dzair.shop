@@ -16,6 +16,16 @@ const NAMESPACES = [
 ] as const;
 const EXTENSIONS = new Set([".astro", ".js", ".jsx", ".ts", ".tsx"]);
 
+/**
+ * Plural messages are flat keys, one per CLDR form (`total_one`, `total_few`,
+ * …) — each language carries exactly the forms its grammar uses (Arabic six,
+ * French three, English two), so these keys are checked per language rather
+ * than required to match English.
+ */
+const PLURAL_CATEGORIES = ["zero", "one", "two", "few", "many", "other"] as const;
+const PLURAL_FORM = new RegExp(`_(?:${PLURAL_CATEGORIES.join("|")})$`);
+const pluralBase = (key: string) => key.replace(PLURAL_FORM, "");
+
 const ORDER_STATUSES = [
   "new", "confirmed", "unreachable", "preparing", "ready", "assigned",
   "dispatched", "out_for_delivery", "delivered", "returned", "cancelled",
@@ -106,8 +116,9 @@ describe("i18n dictionaries", () => {
   );
 
   it("translates every static key referenced in code (no raw-key leaks)", () => {
+    // A plural message is referenced by its base key: `t("total", { count })`.
     const missing = referencedKeys().filter(
-      ({ ns, key }) => !(key in (enFlat[ns] ?? {})),
+      ({ ns, key }) => !(key in (enFlat[ns] ?? {})) && !(`${key}_other` in (enFlat[ns] ?? {})),
     );
     expect(missing).toEqual([]);
   });
@@ -116,13 +127,44 @@ describe("i18n dictionaries", () => {
     for (const lang of ["ar", "fr"] as const) {
       const drift: string[] = [];
       for (const ns of NAMESPACES) {
-        const en = new Set(Object.keys(enFlat[ns]));
-        const other = new Set(Object.keys(flatten(dicts[lang][ns])));
+        const en = new Set(Object.keys(enFlat[ns]).map((key) => (PLURAL_FORM.test(key) ? `${pluralBase(key)}_other` : key)));
+        const other = new Set(
+          Object.keys(flatten(dicts[lang][ns])).map((key) => (PLURAL_FORM.test(key) ? `${pluralBase(key)}_other` : key)),
+        );
         for (const key of en) if (!other.has(key)) drift.push(`${ns}.${key} (missing in ${lang})`);
         for (const key of other) if (!en.has(key)) drift.push(`${ns}.${key} (extra in ${lang})`);
       }
       expect(drift).toEqual([]);
     }
+  });
+
+  it("fills placeholders only through t(key, values) — never by hand", () => {
+    // `.replace("{n}", …)` fills one occurrence, skips the language's number
+    // format and cannot pick a plural form.
+    const offenders = sourceFiles(SRC)
+      .filter((file) => /\.replace\(\s*["'`]\{\{?\w+\}?\}["'`]/.test(readFileSync(file, "utf8")))
+      .map((file) => relative(SRC, file));
+    expect(offenders).toEqual([]);
+  });
+
+  it("gives every plural message exactly the forms its language's CLDR rules use", () => {
+    const issues: string[] = [];
+    for (const lang of LANGS) {
+      const needed = new Set(new Intl.PluralRules(lang).resolvedOptions().pluralCategories as string[]);
+      for (const ns of NAMESPACES) {
+        const keys = Object.keys(flatten(dicts[lang][ns]));
+        const bases = new Set(keys.filter((key) => PLURAL_FORM.test(key)).map(pluralBase));
+        for (const base of bases) {
+          for (const category of PLURAL_CATEGORIES) {
+            const present = keys.includes(`${base}_${category}`);
+            if (needed.has(category) && !present) issues.push(`${lang}:${ns}.${base}_${category} missing`);
+            if (!needed.has(category) && present && category !== "zero") issues.push(`${lang}:${ns}.${base}_${category} unused`);
+          }
+          if (keys.includes(base)) issues.push(`${lang}:${ns}.${base} is both plural and plain`);
+        }
+      }
+    }
+    expect(issues).toEqual([]);
   });
 
   it("translates every RBAC scope category and action", () => {

@@ -155,7 +155,7 @@ export function CustomersList() {
     }
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace("{name}", customer.name),
+        title: common("confirm_delete_title", { name: customer.name }),
         description: common("delete_description"),
         confirmLabel: common("delete"),
         tone: "danger",

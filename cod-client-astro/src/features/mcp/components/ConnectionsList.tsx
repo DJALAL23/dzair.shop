@@ -74,10 +74,7 @@ export function ConnectionsList({
       {totalPages > 1 && (
         <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
           <span className="text-[11px] font-medium text-muted-foreground/60">
-            {common("table.showing")
-              .replace("{from}", String(startIdx + 1))
-              .replace("{to}", String(Math.min(startIdx + PAGE_SIZE, connections.length)))
-              .replace("{total}", String(connections.length))}
+            {common("table.showing", { from: startIdx + 1, to: Math.min(startIdx + PAGE_SIZE, connections.length), total: connections.length })}
           </span>
 
           <div className="flex items-center gap-1.5">

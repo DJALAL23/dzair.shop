@@ -1,3 +1,4 @@
+import type { Translate } from "@/i18n/core";
 import type { Offer, OfferDiscountType, OfferStatus } from "./types";
 
 export type OfferSortKey = "name" | "status" | "createdAt" | "triggerQuantity";
@@ -50,11 +51,11 @@ export function paginateOffers(offers: Offer[], page: number, pageSize: number) 
   return offers.slice((safePage - 1) * safePageSize, safePage * safePageSize);
 }
 
-export function offerRuleLabel(offer: Pick<Offer, "discountType" | "triggerQuantity" | "rewardQuantity">, t: (key: string) => string) {
+export function offerRuleLabel(offer: Pick<Offer, "discountType" | "triggerQuantity" | "rewardQuantity">, t: Translate) {
   if (offer.discountType === "free_shipping") {
-    return t("buy_x_free_shipping").replace("{x}", String(offer.triggerQuantity));
+    return t("buy_x_free_shipping", { x: offer.triggerQuantity });
   }
-  return t("buy_x_get_y").replace("{x}", String(offer.triggerQuantity)).replace("{y}", String(offer.rewardQuantity));
+  return t("buy_x_get_y", { x: offer.triggerQuantity, y: offer.rewardQuantity });
 }
 
 export function offerScheduleLabel(offer: Pick<Offer, "startsAt" | "endsAt">, locale: "ar" | "en" | "fr") {
@@ -80,7 +81,7 @@ export function parseOfferRoute(pathname: string): OfferRoute {
   }
 }
 
-export function offerErrorMessage(cause: unknown, t: (key: string) => string) {
+export function offerErrorMessage(cause: unknown, t: Translate) {
   const code = cause && typeof cause === "object" && "code" in cause ? String(cause.code) : "";
   if (code === "OFFER_NOT_FOUND") return t("error_not_found");
   if (code === "OFFER_EXPIRED") return t("error_expired");

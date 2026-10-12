@@ -130,25 +130,11 @@ export function DriverDetail({ driverId }: { driverId: string }) {
         <Alert role="alert" tone="warning">
           <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">
-            {t("driver_card.cash_drift_warning")
-              .replace(
-                "{pending}",
-                formatDeliveryMoney(driver.cashReconciliation.pendingCash, locale),
-              )
-              .replace(
-                "{orders}",
-                formatDeliveryMoney(
-                  driver.cashReconciliation.pendingOrdersTotal,
-                  locale,
-                ),
-              )
-              .replace(
-                "{drift}",
-                formatDeliveryMoney(
-                  Math.abs(driver.cashReconciliation.drift),
-                  locale,
-                ),
-              )}
+            {t("driver_card.cash_drift_warning", {
+              pending: formatDeliveryMoney(driver.cashReconciliation.pendingCash, locale),
+              orders: formatDeliveryMoney(driver.cashReconciliation.pendingOrdersTotal, locale),
+              drift: formatDeliveryMoney(Math.abs(driver.cashReconciliation.drift), locale),
+            })}
           </span>
         </Alert>
       )}

@@ -220,7 +220,7 @@ export function PageEditor({
 
     const ok = await confirm({
       title: t("editor.reset_confirm_title"),
-      description: t("editor.reset_confirm_body").replace("{locale}", t(localeLabelKey(locale))),
+      description: t("editor.reset_confirm_body", { locale: t(localeLabelKey(locale)) }),
       confirmLabel: t("editor.reset_button"),
       tone: "danger",
     });
@@ -249,7 +249,7 @@ export function PageEditor({
 
     const ok = await confirm({
       title: t("editor.delete_confirm_title"),
-      description: t("editor.delete_confirm_body").replace("{title}", currentDraft.title || page.slug),
+      description: t("editor.delete_confirm_body", { title: currentDraft.title || page.slug }),
       confirmLabel: common("delete"),
       tone: "danger",
     });
@@ -423,7 +423,7 @@ export function PageEditor({
               <div className="text-xs text-muted-foreground hidden sm:block">
                 {locale === storeLang
                   ? t("editor.body_own_language_hint")
-                  : t("editor.body_optional_hint").replace("{locale}", t(localeLabelKey(locale)))}
+                  : t("editor.body_optional_hint", { locale: t(localeLabelKey(locale)) })}
               </div>
             </div>
 

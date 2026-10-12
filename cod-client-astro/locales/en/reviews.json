@@ -1,7 +1,9 @@
 {
   "page_title": "Reviews",
-  "total": "{n} review(s)",
-  "new_badge": "{n} new",
+  "total_one": "{count} review",
+  "total_other": "{count} reviews",
+  "new_badge_one": "{count} new",
+  "new_badge_other": "{count} new",
   "empty_title": "No reviews yet",
   "empty_desc": "When customers leave reviews on your products, they'll appear here for moderation.",
   "filter_all": "All",

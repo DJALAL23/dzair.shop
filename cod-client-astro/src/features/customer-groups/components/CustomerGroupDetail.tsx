@@ -135,10 +135,7 @@ export function CustomerGroupDetail({ groupId }: { groupId: string }) {
   async function deleteGroup(groupToDelete: CustomerGroupWithMembers) {
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace(
-          "{name}",
-          groupToDelete.name,
-        ),
+        title: common("confirm_delete_title", { name: groupToDelete.name }),
         description: common("delete_description"),
         confirmLabel: common("delete"),
         tone: "danger",
@@ -159,7 +156,7 @@ export function CustomerGroupDetail({ groupId }: { groupId: string }) {
   async function removeMember(currentGroupId: string, member: CustomerGroupMember) {
     if (
       !(await confirm({
-        title: common("confirm_remove_title").replace("{name}", member.name),
+        title: common("confirm_remove_title", { name: member.name }),
         description: common("remove_description"),
         confirmLabel: t("detail.remove_member"),
         tone: "danger",

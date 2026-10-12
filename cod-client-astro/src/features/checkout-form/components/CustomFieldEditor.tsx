@@ -1,3 +1,4 @@
+import type { Translate } from "@/i18n/core";
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from "lucide-react";
 import { Button, IconButton, Input, Select } from "@/components/ui";
 import type { CustomFieldDraft, CustomFieldType } from "@/features/checkout-form/types";
@@ -31,7 +32,7 @@ export function CustomFieldEditor({
   types: CustomFieldType[];
   maxOptions: number;
   maxLabelLength: number;
-  t: (key: string) => string;
+  t: Translate;
   onChange: (next: CustomFieldDraft) => void;
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
@@ -51,7 +52,7 @@ export function CustomFieldEditor({
           <span className="flex size-5 items-center justify-center rounded-md bg-card text-[11px] font-bold text-foreground shadow-xs ring-1 ring-border/60">
             {index + 1}
           </span>
-          {t("custom.question_n").replace("{n}", String(index + 1))}
+          {t("custom.question_n", { n: index + 1 })}
         </span>
         <div className="flex items-center gap-0.5">
           <IconButton

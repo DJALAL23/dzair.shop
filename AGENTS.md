@@ -12,6 +12,10 @@ TypeScript, deployed on Cloudflare (Workers, D1, R2, KV).
   islands fetch data from cod-server through `src/lib/api.ts` (the only module
   allowed to call the API). UI strings come from `locales/{ar,en,fr}` via
   `useT(namespace)` — the i18n guard test enforces three-locale parity.
+  Placeholders and counts go through `t(key, values)`: a count is a plural
+  message, one key per CLDR form (`total_one`, `total_few`, …), each language
+  carrying exactly its grammar's forms (Arabic six); never `.replace("{n}")`.
+  Relative times use `@/lib/relative-time` (`Intl.RelativeTimeFormat`).
 - `cod-shared/` — shared Drizzle schema, queries, RBAC scopes, error codes.
   Imported by the apps via relative path (`../../cod-shared/...`). **Not
   published.**

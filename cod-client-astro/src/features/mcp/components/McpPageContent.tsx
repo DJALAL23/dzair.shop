@@ -14,7 +14,6 @@ import {
 } from "@/features/mcp/api";
 import {
   connectionKey,
-  interp,
   mcpApiUrl,
   mcpErrorMessage,
   otherUsersConnections,
@@ -128,7 +127,7 @@ export function McpPageContent() {
   async function handleRevoke(conn: McpConnection, forUser: boolean) {
     const ok = await confirm({
       title: t("my_connections.revoke_confirm_title"),
-      description: interp(t("my_connections.revoke_confirm_description"), {
+      description: t("my_connections.revoke_confirm_description", {
         app: forUser && conn.user
           ? `${conn.clientName ?? conn.clientId} (${conn.user.email})`
           : (conn.clientName ?? conn.clientId),

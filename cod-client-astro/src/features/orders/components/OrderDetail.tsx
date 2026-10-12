@@ -153,10 +153,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   async function removeOrder() {
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace(
-          "{name}",
-          order?.orderNumber ?? orderId,
-        ),
+        title: common("confirm_delete_title", { name: order?.orderNumber ?? orderId }),
         description: common("delete_description"),
         confirmLabel: t("actions.delete"),
         tone: "danger",
@@ -216,22 +213,16 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     ) {
       const accepted = await confirm({
         title: t("detail.status_change_confirm_title"),
-        description: t("detail.status_change_confirm")
-          .replace("{order}", order?.orderNumber ?? orderId)
-          .replace("{status}", t(`status.${next}`)),
+        description: t("detail.status_change_confirm", { order: order?.orderNumber ?? orderId, status: t(`status.${next}`) }),
         confirmLabel: common("confirm"),
         tone:
           next === "cancelled" || next === "returned" ? "danger" : "default",
       });
       if (!accepted) return;
     }
-    const statusMessage = t("detail.status_updated");
-    const localizedStatusMessage = statusMessage.includes("{status}")
-      ? statusMessage.replace("{status}", t(`status.${next}`))
-      : `${statusMessage}${t(`status.${next}`)}`;
     await run(
       () => updateOrderStatus(orderId, next),
-      localizedStatusMessage,
+      t("detail.status_updated", { status: t(`status.${next}`) }),
       t("detail.error_status"),
       () => setStatus(next),
     );

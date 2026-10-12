@@ -162,7 +162,7 @@ export function ProductsList() {
   async function onDelete(product: Product) {
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace("{name}", product.name),
+        title: common("confirm_delete_title", { name: product.name }),
         description: common("delete_description"),
         confirmLabel: common("delete"),
         tone: "danger",

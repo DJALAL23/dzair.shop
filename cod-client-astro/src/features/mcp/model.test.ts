@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   connectionKey,
-  interp,
   mcpApiUrl,
   mcpErrorMessage,
   otherUsersConnections,
-  pluralize,
-  relativeTime,
 } from "./model";
 import type { McpConnection } from "./types";
 
@@ -28,19 +25,6 @@ describe("mcp model", () => {
   it("derives the MCP URL from the API base", () => {
     expect(mcpApiUrl("https://api.example.com")).toBe("https://api.example.com/mcp");
     expect(mcpApiUrl("https://api.example.com/")).toBe("https://api.example.com/mcp");
-  });
-
-  it("interpolates and pluralizes template strings", () => {
-    expect(interp("Hello {name}", { name: "Amel" })).toBe("Hello Amel");
-    expect(interp("Keep {unknown}", {})).toBe("Keep {unknown}");
-    expect(pluralize("time.hours_ago_one", "time.hours_ago_other", 1, t)).toBe("time.hours_ago_one");
-    expect(pluralize("time.hours_ago_one", "time.hours_ago_other", 3, () => "x")).toBe("x");
-  });
-
-  it("renders relative time buckets", () => {
-    expect(relativeTime("not-a-date", t, "en")).toBe("-");
-    expect(relativeTime(new Date().toISOString(), t, "en")).toBe("time.just_now");
-    expect(relativeTime(new Date(Date.now() - 5 * 60000).toISOString(), t, "en")).toBe("time.minutes_ago_other");
   });
 
   it("excludes the admin's own connections from the team view", () => {

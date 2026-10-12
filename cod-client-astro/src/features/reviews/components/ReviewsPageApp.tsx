@@ -192,7 +192,7 @@ function ReviewsList() {
     } finally { setBusyKey(null); }
   }
   async function runDelete(review: Review) {
-    if (!await confirm({ title: t("confirm_delete_title"), description: t("confirm_delete_desc").replace("{name}", review.customerName), confirmLabel: t("confirm_delete_label"), tone: "danger" })) return;
+    if (!await confirm({ title: t("confirm_delete_title"), description: t("confirm_delete_desc", { name: review.customerName }), confirmLabel: t("confirm_delete_label"), tone: "danger" })) return;
     setBusyKey(`delete-${review.id}`); setActionError(null);
     try {
       await deleteReview(review.id);
@@ -209,7 +209,7 @@ function ReviewsList() {
     {actionError && <Alert role="alert" tone="critical"><AlertCircle size={18} className="shrink-0" /><span className="flex-1">{actionError}</span><button type="button" onClick={() => setActionError(null)} aria-label={common("cancel")}><X size={16} /></button></Alert>}
     <div className="rounded-xl border border-border bg-card shadow-xs">
       <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 rounded-xl border border-primary/10 bg-primary/5 px-3 py-1.5"><Star size={14} className="fill-primary text-primary" /><p className="text-[11px] font-bold uppercase tracking-widest text-primary">{t("total").replace("{n}", String(result.total))}</p>{result.pendingCount > 0 && <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">{t("new_badge").replace("{n}", String(result.pendingCount))}</span>}</div>
+        <div className="flex items-center gap-2 rounded-xl border border-primary/10 bg-primary/5 px-3 py-1.5"><Star size={14} className="fill-primary text-primary" /><p className="text-[11px] font-bold uppercase tracking-widest text-primary">{t("total", { count: result.total })}</p>{result.pendingCount > 0 && <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">{t("new_badge", { count: result.pendingCount })}</span>}</div>
         <label className="relative flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 sm:flex-none">
           <FilterIcon size={14} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <Select aria-label={t("table.status")} value={status} onChange={(event) => switchStatus(event.currentTarget.value as ReviewStatus | "all")} variant="bare" size="sm" wrapperClassName="min-w-0 flex-1" triggerClassName="min-w-0 flex-1">

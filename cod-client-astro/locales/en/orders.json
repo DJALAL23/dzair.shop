@@ -132,7 +132,7 @@
     "photos": "Photos",
     "status_timeline": "Order Timeline",
     "updating": "Updating...",
-    "status_updated": "Status updated: ",
+    "status_updated": "Status updated: {status}",
     "status_change_confirm_title": "Update order status?",
     "status_change_confirm": "Change {order} to {status}? This affects delivery operations and reporting.",
     "assign_to_driver": "Assign to Driver",
@@ -285,7 +285,8 @@
     "title": "Abandoned Orders",
     "subtitle": "Shoppers who entered their details but never placed an order — reach out and recover them.",
     "search_placeholder": "Search by name, phone, or product...",
-    "count_label": "{count} checkouts",
+    "count_label_one": "{count} checkout",
+    "count_label_other": "{count} checkouts",
     "load_error": "Could not load abandoned orders",
     "status": {
       "all": "All",

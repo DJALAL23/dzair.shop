@@ -17,5 +17,5 @@ import type { Namespace } from "@/i18n/dictionaries";
  */
 export function editorT(key: string, ns: Namespace = "products"): string {
   const locale = detectLocale();
-  return makeT(getDict(locale, ns), getDict("en", ns))(key);
+  return makeT(getDict(locale, ns), getDict("en", ns), locale)(key);
 }

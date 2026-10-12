@@ -35,7 +35,7 @@ export function LanguagesSettings({
 
   async function confirmRemove(locale: StoreLocale) {
     const ok = await confirm({
-      title: t("languages.remove_title").replace("{language}", STORE_LOCALE_INFO[locale].nativeName),
+      title: t("languages.remove_title", { language: STORE_LOCALE_INFO[locale].nativeName }),
       description: t("languages.remove_description"),
       confirmLabel: t("languages.remove"),
       tone: "danger",
@@ -45,7 +45,7 @@ export function LanguagesSettings({
 
   async function confirmDefault(locale: StoreLocale) {
     const ok = await confirm({
-      title: t("languages.default_title").replace("{language}", STORE_LOCALE_INFO[locale].nativeName),
+      title: t("languages.default_title", { language: STORE_LOCALE_INFO[locale].nativeName }),
       description: t("languages.default_description"),
       confirmLabel: t("languages.make_default"),
     });
@@ -94,7 +94,7 @@ export function LanguagesSettings({
                       type="button"
                       size="sm"
                       variant="ghost"
-                      aria-label={t("languages.remove_title").replace("{language}", info.nativeName)}
+                      aria-label={t("languages.remove_title", { language: info.nativeName })}
                       onClick={() => void confirmRemove(locale)}
                     >
                       <Trash2 size={14} aria-hidden="true" />

@@ -23,7 +23,12 @@
     "empty_title": "لا توجد صفحات بعد",
     "empty_body": "أنشئ الصفحات الأربع التي يبحث عنها Meta قبل تشغيل إعلاناتك.",
     "seed_defaults": "إضافة الشروط والخصوصية والإرجاع والشحن",
-    "seeded_toast": "تم إنشاء {count} صفحات",
+    "seeded_toast_zero": "لم تُنشأ أي صفحة",
+    "seeded_toast_one": "تم إنشاء صفحة واحدة",
+    "seeded_toast_two": "تم إنشاء صفحتين",
+    "seeded_toast_few": "تم إنشاء {count} صفحات",
+    "seeded_toast_many": "تم إنشاء {count} صفحة",
+    "seeded_toast_other": "تم إنشاء {count} صفحة",
     "legal_section_title": "السياسات القانونية",
     "legal_section_subtitle": "مطلوبة لإعلانات Meta وبناء ثقة الزبائن",
     "custom_section_title": "صفحات مخصصة",
@@ -117,7 +122,12 @@
   "compliance": {
     "badge": "معيار الدفع عند الاستلام بالجزائر",
     "all_reviewed": "تمت مراجعة جميع السياسات",
-    "needs_review_count": "{count} تحتاج إلى مراجعة",
+    "needs_review_count_zero": "لا شيء يحتاج إلى مراجعة",
+    "needs_review_count_one": "صفحة واحدة تحتاج إلى مراجعة",
+    "needs_review_count_two": "صفحتان تحتاجان إلى مراجعة",
+    "needs_review_count_few": "{count} صفحات تحتاج إلى مراجعة",
+    "needs_review_count_many": "{count} صفحة تحتاج إلى مراجعة",
+    "needs_review_count_other": "{count} صفحة تحتاج إلى مراجعة",
     "configure_profile": "تهيئة بيانات النشاط التجاري"
   }
 }

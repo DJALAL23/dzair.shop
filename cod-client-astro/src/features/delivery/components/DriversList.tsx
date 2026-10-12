@@ -162,7 +162,7 @@ export function DriversList() {
     }
     if (
       !(await confirm({
-        title: common("confirm_delete_title").replace("{name}", driverFullName(driver)),
+        title: common("confirm_delete_title", { name: driverFullName(driver) }),
         description: common("delete_description"),
         confirmLabel: common("delete"),
         tone: "danger",
