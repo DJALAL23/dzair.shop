@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, real, uniqueIndex, index, primaryKey } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import { STORE_LOCALES } from "../i18n/locales";
 
 const authNow = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
@@ -855,24 +856,13 @@ export const stores = sqliteTable("stores", {
 
   // ── Locale ────────────────────────────────────────────────────────────────
   /**
-   * Store UI language. Drives `<html lang>`/`dir` in the storefront layout and
-   * selects which locale of a store page the shopper is served.
-   *
-   * `fr` is a type-only widening: the column is plain `text` with no CHECK
-   * constraint (0000_complete.sql), and theme01 has always shipped an `fr`
-   * content pack that nothing could reach.
+   * The store's primary language (`i18n/locales.ts`): the language its
+   * storefront is served in, and the first fallback for every translated
+   * value. Always one of `enabledLocalesJson`'s languages (ADR 0005).
    */
-  lang: text("lang", { enum: ["ar", "en", "fr"] }).notNull().default("ar"),
+  lang: text("lang", { enum: STORE_LOCALES }).notNull().default("ar"),
   currency: text("currency").notNull().default("DZD"),
   currencySymbol: text("currency_symbol").notNull().default("دج"),
-
-  // ── Content (all user-facing text — no hardcoding in theme) ──────────────
-  /**
-   * JSON blob of every text string shown in the storefront.
-   * Schema: StoreFrontContent (see cod-astro/theme01/src/lib/content.ts)
-   * Editable from the dashboard Store Settings page.
-   */
-  contentJson: text("content_json"),
 
   // ── SEO ───────────────────────────────────────────────────────────────────
   metaTitle: text("meta_title"),
@@ -950,6 +940,24 @@ export const stores = sqliteTable("stores", {
    * Last for the same positional reason as the columns above.
    */
   whatsappWidgetJson: text("whatsapp_widget_json"),
+
+  // ── Languages (ADR 0005, migration 0035) ─────────────────────────────────
+  /**
+   * The languages the store serves, as a JSON array of `STORE_LOCALES` codes.
+   * Read through `storeLocales(lang, …)`: the primary language is always
+   * served, and unknown entries are ignored. Null means "the primary only".
+   */
+  enabledLocalesJson: text("enabled_locales_json"),
+  /**
+   * The store's overrides of its theme's storefront text, one map per
+   * language: `{ "ar": { "heroTitle": "…" } }` (`i18n/content-overrides.ts`).
+   * Replaces the single-language `content_json` blob, which mixed languages
+   * the moment a store switched. Never exposed raw: `getStoreConfig` sends the
+   * parsed maps of the languages the store serves.
+   *
+   * Last, after `enabledLocalesJson`, for the positional reason above.
+   */
+  contentOverridesJson: text("content_overrides_json"),
 });
 
 /**
@@ -1480,7 +1488,7 @@ export const storePageTranslations = sqliteTable("store_page_translations", {
   pageId: text("page_id")
     .notNull()
     .references(() => storePages.id, { onDelete: "cascade" }),
-  locale: text("locale", { enum: ["ar", "en", "fr"] }).notNull(),
+  locale: text("locale", { enum: STORE_LOCALES }).notNull(),
   title: text("title").notNull(),
   /**
    * Sanitised at the write chokepoint (`cod-shared/queries/store-pages.ts`).

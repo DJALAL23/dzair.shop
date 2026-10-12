@@ -65,7 +65,7 @@ matched implementation exactly.
 
 1. **Store status flag has no consumer**: active/inactive writes succeed but nothing reads them. If someone expects an off-switch, that is a missing feature, not a docs bug.
 2. **Plaintext storefront key by design**: visible in settings responses for merchant convenience; the hashed `storeApiKeys` table exists precisely because this one is not.
-3. **contentJson is opaque**: stored/returned as a raw string with no server-side schema validation — malformed JSON surfaces only when the theme renders it.
+3. **Content overrides are validated per language** (ADR 0005): `contentOverrides` is a map of supported language → `{ key: string }`, capped in keys and length; the theme still ignores keys its pack does not declare.
 
 ---
 

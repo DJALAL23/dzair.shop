@@ -1,4 +1,22 @@
 import { z } from "zod";
+import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
+import { CONTENT_OVERRIDE_LIMITS } from "../../../../cod-shared/i18n/content-overrides";
+
+const storeLocale = z.enum(STORE_LOCALES);
+
+/**
+ * One language's text overrides: the theme's pack keys to strings, capped so a
+ * store row stays small. The same caps the reader enforces
+ * (`parseContentOverrides`), so nothing accepted here is dropped on read.
+ */
+const localeOverrides = z
+  .record(
+    z.string().min(1).max(CONTENT_OVERRIDE_LIMITS.keyLength).refine((key) => key !== "__proto__"),
+    z.string().max(CONTENT_OVERRIDE_LIMITS.valueLength),
+  )
+  .refine((entries) => Object.keys(entries).length <= CONTENT_OVERRIDE_LIMITS.keysPerLocale, {
+    message: `At most ${CONTENT_OVERRIDE_LIMITS.keysPerLocale} overrides per language`,
+  });
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{3,8}$/, "Invalid hex color");
 
@@ -22,9 +40,16 @@ export const updateStoreSchema = z.object({
   bgColor: hexColor.optional(),
   fontFamily: z.string().min(1).max(200).optional(),
   fontUrl: z.string().url().nullable().optional(),
-  lang: z.enum(["ar", "en", "fr"]).optional(),
+  /** The primary language. Changing it also enables it (it is always served). */
+  lang: storeLocale.optional(),
+  /**
+   * The languages the store serves. The primary language is always served, so
+   * a list that leaves it out gets it back rather than failing.
+   */
+  enabledLocales: z.array(storeLocale).min(1).max(STORE_LOCALES.length).optional(),
+  /** Storefront text overrides per language; replaces the whole map. */
+  contentOverrides: z.partialRecord(storeLocale, localeOverrides).optional(),
   currencySymbol: z.string().min(1).max(10).optional(),
-  contentJson: z.string().nullable().optional(),
   metaTitle: z.string().max(200).nullable().optional(),
   metaDescription: z.string().max(500).nullable().optional(),
   ogImage: z.string().url().nullable().optional(),

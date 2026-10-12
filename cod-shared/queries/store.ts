@@ -18,6 +18,8 @@ import {
   asc,
   inArray,
 } from "drizzle-orm";
+import { overridesForLocales, parseContentOverrides } from "../i18n/content-overrides";
+import { parseEnabledLocales, storeLocales } from "../i18n/locales";
 import {
   products,
   productCategories,
@@ -139,10 +141,25 @@ export async function getStoreConfig(db: AppDb, storeId: string) {
   // whole store row, so a column is public the moment it exists unless it is
   // removed by name here — the storefront gets the resolved projection instead,
   // which is also the only shape a theme should ever have to understand.
-  const { checkoutFormJson, whatsappWidgetJson, ...publicStore } = store;
+  //
+  // The storefront API key is the credential the caller already presented; it
+  // has no business in a payload a theme may hand to templates.
+  const {
+    checkoutFormJson,
+    whatsappWidgetJson,
+    enabledLocalesJson,
+    contentOverridesJson,
+    storeApiKey,
+    ...publicStore
+  } = store;
+  // The languages the storefront serves, primary first, and only their text
+  // overrides — a disabled language's drafts never reach a shopper (ADR 0005).
+  const locales = storeLocales(store.lang, parseEnabledLocales(enabledLocalesJson));
 
   return {
     ...publicStore,
+    locales,
+    contentOverrides: overridesForLocales(parseContentOverrides(contentOverridesJson), locales),
     checkoutForm: parseCheckoutFormPolicy(checkoutFormJson),
     // Null whenever there is nothing to render — switched off, no number, or a
     // number that no longer normalises. The theme holds one rule about this

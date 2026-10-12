@@ -6,6 +6,21 @@
 
 import { z } from "@hono/zod-openapi";
 import { ProductCategoryRowSchema } from "./products";
+import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
+
+/** A store language (`cod-shared/i18n/locales.ts`). */
+export const StoreLocaleEnum = z.enum(STORE_LOCALES);
+
+/**
+ * The store's overrides of its theme's storefront text, one map per language
+ * (ADR 0005). Keys are the theme's content-pack keys.
+ */
+export const ContentOverridesSchema = z
+  .partialRecord(StoreLocaleEnum, z.record(z.string(), z.string()))
+  .openapi({
+    description: "Storefront text overrides per language: { [language]: { [contentKey]: text } }",
+    example: { ar: { heroTitle: "توصيل مجاني لكل الولايات" }, fr: { heroTitle: "Livraison gratuite" } },
+  });
 
 export const StoreSchema = z
   .object({
@@ -25,12 +40,12 @@ export const StoreSchema = z
       description: "Google Fonts import URL (optional override)",
       example: "https://fonts.googleapis.com/css2?family=Cairo",
     }),
-    lang: z.enum(["ar", "en", "fr"]).openapi({ description: "Store UI language", example: "ar" }),
+    lang: StoreLocaleEnum.openapi({
+      description: "The store's primary language: its storefront language and first fallback",
+      example: "ar",
+    }),
     currency: z.string().openapi({ example: "DZD" }),
     currencySymbol: z.string().openapi({ example: "دج" }),
-    contentJson: z.string().nullable().openapi({
-      description: "Serialized JSON of every text string shown in the storefront",
-    }),
     metaTitle: z.string().nullable().openapi({ example: "My Shop — Best Products" }),
     metaDescription: z.string().nullable().openapi({ example: "Find the best products at My Shop." }),
     ogImage: z.string().url().nullable().openapi({ example: "https://cdn.example.com/og.png" }),
@@ -62,6 +77,11 @@ export const StoreSchema = z
     }),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
+    enabledLocales: z.array(StoreLocaleEnum).openapi({
+      description: "The languages the store serves, primary first. Always contains `lang`.",
+      example: ["ar", "fr"],
+    }),
+    contentOverrides: ContentOverridesSchema,
   })
   .openapi("Store", {
     description:
@@ -430,13 +450,14 @@ export const StoreConfigSchema = z
     fontUrl: z.string().nullable().openapi({
       description: "Google Fonts CSS URL override",
     }),
-    lang: z.enum(["ar", "en", "fr"]),
+    lang: StoreLocaleEnum.openapi({ description: "The store's primary language", example: "ar" }),
+    locales: z.array(StoreLocaleEnum).openapi({
+      description: "The languages the storefront serves, primary first",
+      example: ["ar", "fr"],
+    }),
+    contentOverrides: ContentOverridesSchema,
     currency: z.string().openapi({ example: "DZD" }),
     currencySymbol: z.string().openapi({ example: "دج" }),
-    contentJson: z.string().nullable().openapi({
-      description:
-        "JSON blob of storefront text overrides (StoreFrontContent partial). null = use theme defaults.",
-    }),
     metaTitle: z.string().nullable(),
     metaDescription: z.string().nullable(),
     ogImage: z.string().nullable(),
@@ -551,7 +572,7 @@ export const StorePagePublicSchema = z
     id: z.string(),
     kind: z.enum(["terms", "privacy", "refund", "shipping", "custom"]),
     slug: z.string().openapi({ example: "refund-policy" }),
-    locale: z.enum(["ar", "en", "fr"]).openapi({
+    locale: StoreLocaleEnum.openapi({
       description:
         "The locale actually served — the store's own language, or the fallback locale " +
         "when that translation doesn't exist (see legal/render.ts's resolution order).",

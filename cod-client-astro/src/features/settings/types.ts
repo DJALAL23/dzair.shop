@@ -1,4 +1,8 @@
-export type StoreLang = "ar" | "en" | "fr";
+import type { StoreLocale } from "../../../../cod-shared/i18n/locales";
+import type { ContentOverrides } from "../../../../cod-shared/i18n/content-overrides";
+
+/** A store language (`cod-shared/i18n/locales.ts`). */
+export type StoreLang = StoreLocale;
 export type StoreStatus = "active" | "inactive";
 
 /** The single tenant's configuration as returned by the stores API. */
@@ -13,10 +17,14 @@ export interface StoreConfig {
   bgColor: string;
   fontFamily: string;
   fontUrl: string | null;
+  /** The primary language: the storefront's language and first fallback. */
   lang: StoreLang;
+  /** The languages the store serves, primary first. */
+  enabledLocales: StoreLang[];
+  /** Storefront text overrides, one map per language. */
+  contentOverrides: ContentOverrides;
   currency: string;
   currencySymbol: string;
-  contentJson: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
   ogImage: string | null;
@@ -45,7 +53,8 @@ export type UpdateStoreData = Partial<
     | "fontUrl"
     | "lang"
     | "currencySymbol"
-    | "contentJson"
+    | "enabledLocales"
+    | "contentOverrides"
     | "metaTitle"
     | "metaDescription"
     | "ogImage"

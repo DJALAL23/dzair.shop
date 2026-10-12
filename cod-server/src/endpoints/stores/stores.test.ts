@@ -32,7 +32,6 @@ function storeRow(overrides: Record<string, any> = {}) {
     lang: "ar",
     currency: "DZD",
     currencySymbol: "دج",
-    contentJson: null,
     metaTitle: "My Shop — Best Products",
     metaDescription: "Find the best products at My Shop.",
     ogImage: "https://cdn.example.com/og.png",
@@ -56,6 +55,10 @@ function storeRow(overrides: Record<string, any> = {}) {
     // The widget config sits after it, again last in schema order. NULL is
     // "no widget", which is what every store reads until it configures one.
     whatsappWidgetJson: null,
+    // The language columns close the table (migration 0035): NULL is "the
+    // primary language only, no overrides".
+    enabledLocalesJson: null,
+    contentOverridesJson: null,
     ...overrides,
   };
 }

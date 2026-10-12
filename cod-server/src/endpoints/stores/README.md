@@ -33,8 +33,8 @@ Retrieve the current store's configuration. In this single-tenant architecture, 
 - **Branding:** `logoUrl`, `primaryColor`, `accentColor`, `bgColor`.
 - **Theme:** `themeId` (active theme slug).
 - **Typography:** `fontFamily`, `fontUrl`.
-- **Localization:** `lang`, `currency`, `currencySymbol`.
-- **Content:** `contentJson` (serialized storefront text strings).
+- **Localization:** `lang` (primary language), `enabledLocales` (primary first), `currency`, `currencySymbol`.
+- **Content:** `contentOverrides` — storefront text overrides per language, `{ "ar": { "heroTitle": "…" } }`.
 - **SEO:** `metaTitle`, `metaDescription`, `ogImage`.
 - **Settings:** `announcementBar`, `reviewsEnabled`, `status`.
 - **Storefront key:** `storeApiKey` (plaintext; visible to the merchant in settings).
@@ -53,7 +53,7 @@ Update store configuration. Partial updates are supported; set nullable fields t
 }
 ```
 
-Field rules: hex colors accept 3–8 characters (including alpha); `lang` is `"ar"` or `"en"`; URLs are validated; `metaTitle` ≤ 200, `metaDescription`/`announcementBar` ≤ 500 chars.
+Field rules: hex colors accept 3–8 characters (including alpha); `lang` and `enabledLocales` take `"ar"`, `"fr"` or `"en"` (the primary is always kept enabled); `contentOverrides` replaces the stored map whole; URLs are validated; `metaTitle` ≤ 200, `metaDescription`/`announcementBar` ≤ 500 chars.
 
 ### GET /api/stores/pixel-config
 Retrieve the store's Meta pixel tracking configuration, or `null` when none has been configured yet.

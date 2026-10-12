@@ -24,11 +24,13 @@ const MIGRATIONS_DIR = resolve(__dirname, "../db/migrations");
  */
 const BATCH_SIZE = 50;
 
-function migrationStatements(): string[] {
-  const files = readdirSync(MIGRATIONS_DIR)
+function migrationFiles(): string[] {
+  return readdirSync(MIGRATIONS_DIR)
     .filter((file) => file.endsWith(".sql"))
     .sort();
+}
 
+function migrationStatements(files: readonly string[]): string[] {
   return files.flatMap((file) =>
     readFileSync(`${MIGRATIONS_DIR}/${file}`, "utf8")
       .split("--> statement-breakpoint")
@@ -42,10 +44,26 @@ function migrationStatements(): string[] {
 export interface TestD1 {
   db: AppDb;
   raw: D1Database;
+  /**
+   * Apply the migrations held back by `createTestD1({ before })`, so a test
+   * can seed rows in the old shape and watch a migration convert them.
+   */
+  applyRemaining: () => Promise<void>;
   dispose: () => Promise<void>;
 }
 
-export async function createTestD1(): Promise<TestD1> {
+async function replay(raw: D1Database, files: readonly string[]): Promise<void> {
+  const prepared = migrationStatements(files).map((statement) => raw.prepare(statement));
+  for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
+    await raw.batch(prepared.slice(i, i + BATCH_SIZE));
+  }
+}
+
+/**
+ * A database with every migration applied — or, with `before`, only the ones
+ * that sort before that file name (e.g. `"0035_store_locales.sql"`).
+ */
+export async function createTestD1(options: { before?: string } = {}): Promise<TestD1> {
   const mf = new Miniflare({
     script: "export default { fetch() { return new Response('ok'); } }",
     modules: true,
@@ -53,14 +71,15 @@ export async function createTestD1(): Promise<TestD1> {
   });
 
   const raw = await mf.getD1Database("DB");
-  const prepared = migrationStatements().map((statement) => raw.prepare(statement));
-  for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
-    await raw.batch(prepared.slice(i, i + BATCH_SIZE));
-  }
+  const files = migrationFiles();
+  const cut = options.before === undefined ? files.length : files.findIndex((file) => file >= options.before!);
+  if (cut === -1) throw new Error(`no migration sorts at or after ${options.before}`);
+  await replay(raw, files.slice(0, cut));
 
   return {
     db: drizzle(raw as unknown as D1Database, { schema }) as unknown as AppDb,
     raw,
+    applyRemaining: () => replay(raw, files.slice(cut)),
     dispose: () => mf.dispose(),
   };
 }

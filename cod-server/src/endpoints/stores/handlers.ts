@@ -3,6 +3,7 @@ import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import * as queries from "./queries";
 import { updateStoreSchema } from "./validation";
+import { storeSettingsUpdate, toStoreSettings } from "../../../../cod-shared/stores/settings";
 import { NotFoundError, SystemError, ValidationError, ExternalApiError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { getPixelConfig as queryPixelConfig, upsertPixelConfig } from "../../../../cod-shared/queries/pixel-config";
@@ -24,7 +25,7 @@ export async function getMyStore(c: Context<AppContext>) {
     throw new NotFoundError("Store");
   }
   
-  return c.json({ success: true, data: store }, 200);
+  return c.json({ success: true, data: toStoreSettings(store) }, 200);
 }
 
 export async function updateMyStore(c: Context<AppContext>) {
@@ -37,11 +38,11 @@ export async function updateMyStore(c: Context<AppContext>) {
 
   const jsonBody: any = (c.req as any).valid?.("json");
   const validated = jsonBody ?? updateStoreSchema.parse(await c.req.json());
-  const updated = await queries.updateStore(db, store.id, validated);
+  const updated = await queries.updateStore(db, store.id, storeSettingsUpdate(validated, store));
   if (!updated) {
     throw new SystemError("Failed to update store");
   }
-  return c.json({ success: true, data: updated }, 200);
+  return c.json({ success: true, data: toStoreSettings(updated) }, 200);
 }
 
 /**
