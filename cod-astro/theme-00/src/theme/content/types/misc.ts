@@ -11,7 +11,6 @@ export type MiscStrings = Plural<"lowStock"> &
   Plural<"ariaStarRating"> & {
   breadcrumbHome: string;
   required: string;
-  viewProduct: string;
   featured: string;
   outOfStock: string;
   freeShippingBadge: string;

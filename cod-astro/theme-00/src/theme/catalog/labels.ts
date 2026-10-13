@@ -26,6 +26,8 @@ export const FIELD = {
   eyebrow: text("النص العلوي", "Surtitre", "Eyebrow"),
   title: text("العنوان", "Titre", "Title"),
   subtitle: text("العنوان الفرعي", "Sous-titre", "Subtitle"),
+  trustTitle: (n: number) => text(`عنوان الضمان ${n}`, `Titre de la garantie ${n}`, `Promise ${n} title`),
+  trustSub: (n: number) => text(`وصف الضمان ${n}`, `Texte de la garantie ${n}`, `Promise ${n} text`),
   button: text("الزر", "Bouton", "Button"),
   buttonLink: text("رابط الزر", "Lien du bouton", "Button link"),
   primaryButton: text("الزر الرئيسي", "Bouton principal", "Primary button"),

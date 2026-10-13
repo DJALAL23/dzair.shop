@@ -58,23 +58,11 @@ const comparePrice = getProductView(product).comparePrice;
 ---
 
 <!-- Order form card -->
-<div class="card !border-none !shadow-lg sm:!border sm:!shadow-md scroll-mt-20" id="order-section">
-  <!-- Card header -->
-  <div
-    class="px-4 sm:px-6 py-5 border-b border-black/[.03]"
-    style="background: color-mix(in srgb, var(--clr-primary) 4%, white)"
-  >
-    <div class="flex items-center gap-3">
-       <div class="w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm" style="background: var(--clr-surface); color: var(--clr-primary)">
-          <Icon name="heroicons:shopping-bag" class="w-5 h-5" />
-       </div>
-       <div>
-          <h2 class="font-black text-[1rem] leading-tight" style="color: var(--clr-text)">
-            {content.formTitle}
-          </h2>
-          <p class="text-[0.75rem] font-bold uppercase tracking-widest mt-0.5" style="color: var(--clr-text-2)">{content.orderCtaSubtext}</p>
-       </div>
-    </div>
+<div class="waybill scroll-mt-20" id="order-section">
+  <!-- The label's header: what is being shipped and how it is paid -->
+  <div class="waybill-head">
+    <h2 class="text-base font-bold leading-tight">{content.formTitle}</h2>
+    <p class="text-xs font-semibold opacity-85">{content.orderCtaSubtext}</p>
   </div>
 
   {serverError && (

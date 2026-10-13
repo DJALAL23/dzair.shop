@@ -8,7 +8,9 @@
 // loads are fine and removed the regression entirely.
 
 import type { StoreConfig } from "@wocart/storefront";
+import { Font } from "astro:assets";
 import { openGraphLocale } from "@/theme/utils/seo";
+import type { ThemeFont } from "@/theme/utils/brand";
 
 interface Props {
   title: string;
@@ -22,17 +24,19 @@ interface Props {
   canonical: string;
   /** Its other language versions (`hreflang`), empty while the store serves one language. */
   alternates: { hreflang: string; href: string }[];
-  primary: string;
-  fontHref: string;
-  font: string;
-  bg: string;
-  accent: string;
+  /** The merchant's validated brand colors and the text colors readable on them. */
+  brand: { primary: string; onPrimary: string; primaryInk: string; accent: string; onAccent: string; bg: string };
+  /** The store's face: one of the fonts self-hosted with the theme. */
+  font: ThemeFont;
+  /** The page's script: only that subset of the theme face is preloaded. */
+  isRTL: boolean;
   /** The page's LCP images (landing page stack top) — preloaded in <head>
    *  so their fetch starts before the parser reaches the <img> tags. */
   preloadImages?: string[];
 }
 
-const { title, description, ogImage, noindex, config, locale, canonical, alternates, primary, fontHref, font, bg, accent, preloadImages } = Astro.props;
+const { title, description, ogImage, noindex, config, locale, canonical, alternates, brand, font, isRTL, preloadImages } = Astro.props;
+const fontFamily = `var(${font.cssVariable}), system-ui, sans-serif`;
 
 import { MEDIA_DOMAIN } from "astro:env/server";
 ---
@@ -41,7 +45,7 @@ import { MEDIA_DOMAIN } from "astro:env/server";
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="generator" content={Astro.generator} />
-  <meta name="theme-color" content={primary} />
+  <meta name="theme-color" content={brand.primary} />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -69,11 +73,9 @@ import { MEDIA_DOMAIN } from "astro:env/server";
   <meta name="twitter:description" content={description} />
   {ogImage && <meta name="twitter:image" content={ogImage} />}
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href={fontHref} rel="stylesheet" media="print" onload="this.media='all'" />
-  <noscript><link href={fontHref} rel="stylesheet" /></noscript>
+  <!-- Fonts: self-hosted by Astro, served from the store's own domain. Only the
+       chosen face is declared on the page, and its script's subset is preloaded. -->
+  <Font cssVariable={font.cssVariable} preload={[{ subset: isRTL ? "arabic" : "latin" }]} />
 
   <!-- R2 media domain — early connection for product images -->
   {MEDIA_DOMAIN && <link rel="preconnect" href={`https://${MEDIA_DOMAIN}`} />}
@@ -118,25 +120,23 @@ fbq('track', 'PageView');
   <!-- Dynamic theme tokens + Critical CSS -->
   <style set:html={`
     :root {
-      --clr-primary: ${primary};
-      --clr-accent:  ${accent};
-      --clr-bg:      ${bg};
-      --font-body:   ${font};
+      --clr-primary: ${brand.primary};
+      --clr-on-primary: ${brand.onPrimary};
+      --clr-primary-ink: ${brand.primaryInk};
+      --clr-accent: ${brand.accent};
+      --clr-on-accent: ${brand.onAccent};
+      --clr-bg: ${brand.bg};
+      --font-body: ${fontFamily};
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
-    /* Critical above-the-fold styles */
     *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html { scroll-behavior: smooth; height: -webkit-fill-available; }
     body {
-      font-family: var(--font-body), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+      font-family: var(--font-body), system-ui, sans-serif;
       background: var(--clr-bg);
       color: var(--clr-text);
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
       min-height: 100vh;
-      line-height: 1.5;
-      overflow-x: hidden;
+      line-height: 1.6;
       margin: 0;
     }
   `} />

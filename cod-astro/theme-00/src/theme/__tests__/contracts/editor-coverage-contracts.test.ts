@@ -22,7 +22,6 @@ import { theme00 } from "@/theme/theme";
  */
 const SHARED_UI_LABELS = new Set([
   "viewAllCta",
-  "viewProduct",
   "ariaBrowseCategoryProducts",
   "ariaStarRating",
   "reviewsVerifiedBuyer",

@@ -1,0 +1,7 @@
+[
+  { "family": "Readex Pro", "cssVariable": "--font-readex-pro", "weights": ["400 700"], "default": true },
+  { "family": "Tajawal", "cssVariable": "--font-tajawal", "weights": [400, 500, 700] },
+  { "family": "Almarai", "cssVariable": "--font-almarai", "weights": [400, 700] },
+  { "family": "Noto Kufi Arabic", "cssVariable": "--font-noto-kufi-arabic", "weights": ["400 700"] },
+  { "family": "IBM Plex Sans Arabic", "cssVariable": "--font-ibm-plex-sans-arabic", "weights": [400, 500, 700] }
+]

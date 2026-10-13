@@ -19,26 +19,38 @@ const hasDiscount = comparePrice != null && comparePrice > basePrice;
 ---
 
 <div class:list={[isDesktop ? "hidden lg:block" : "lg:hidden", "mb-8"]}>
-  <h1 class:list={[isDesktop ? "text-3xl" : "text-2xl", "font-black leading-tight mb-3 tracking-tight"]} style="color: var(--clr-text)">
+  <h1 class:list={[isDesktop ? "text-3xl sm:text-4xl" : "text-2xl", "font-bold leading-tight text-ink"]}>
     {product.name}
   </h1>
-  
-  <div class="flex items-baseline gap-4">
-    <span class:list={[isDesktop ? "text-4xl" : "text-3xl", "font-black"]} style="color: var(--clr-primary)" id={isDesktop ? "price-display-desktop" : "price-display-mobile"}>
-      {formatAmount(basePrice)} <span class:list={[isDesktop ? "text-2xl" : "text-lg", "font-bold"]}>{cur}</span>
+
+  {product.reviewStats && product.reviewStats.reviewCount > 0 && (
+    <p class="mt-2 flex items-center gap-2 text-sm text-ink-2" aria-label={`${product.reviewStats.avgRating}/5`}>
+      <span class="flex items-center gap-0.5 text-ink" aria-hidden="true">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <Icon name={s <= Math.round(product.reviewStats!.avgRating) ? "heroicons:star-solid" : "heroicons:star"} class:list={["h-3.5 w-3.5", s <= Math.round(product.reviewStats!.avgRating) ? "text-ink" : "text-border"]} />
+        ))}
+      </span>
+      <span class="num font-semibold text-ink">{product.reviewStats.avgRating}</span>
+      <span class="num">({product.reviewStats.reviewCount})</span>
+    </p>
+  )}
+
+  <div class="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <span class:list={["price", isDesktop ? "text-3xl" : "text-2xl"]} id={isDesktop ? "price-display-desktop" : "price-display-mobile"}>
+      {formatAmount(basePrice)}<span class="price-cur">{cur}</span>
     </span>
     {hasDiscount && comparePrice != null && (
-      <span class:list={[isDesktop ? "text-xl" : "text-base", "line-through font-semibold"]} style="color: var(--clr-text-2)">
+      <span class:list={["price-was", isDesktop ? "text-lg" : "text-base"]}>
         {formatAmount(comparePrice)} {cur}
       </span>
     )}
   </div>
 
   {!isDesktop && isLowStock && (
-    <div class="mt-4 inline-flex items-center gap-2 bg-orange-50 text-orange-600 px-3 py-1.5 rounded-xl text-[0.8125rem] font-bold border border-orange-100">
-      <Icon name="heroicons:exclamation-triangle" class="w-4 h-4 shrink-0" />
+    <p class="stamp stamp-warn mt-4 py-1 px-2 text-xs">
+      <Icon name="heroicons:exclamation-triangle" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       {lowStockText}
-    </div>
+    </p>
   )}
 
   <div class="mt-6">

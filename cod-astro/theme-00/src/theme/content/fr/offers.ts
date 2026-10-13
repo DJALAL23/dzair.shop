@@ -14,5 +14,5 @@ export const frOffers: OffersStrings = {
   offerFreeShippingBadge: "Livraison gratuite",
   offerBuyOne: "Achetez 1",
   offerFullPrice: "Prix complet",
-  offerMostPopular: "Le plus demandé",
+  offerBestValue: "Meilleure offre",
 };

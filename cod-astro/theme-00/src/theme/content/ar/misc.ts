@@ -7,7 +7,6 @@ import type { MiscStrings } from "../types/misc";
 export const arMisc: MiscStrings = {
   breadcrumbHome: "الرئيسية",
   required: "*",
-  viewProduct: "عرض المنتج",
   featured: "مميز",
   lowStock_zero: "نفدت الكمية",
   lowStock_one: "آخر قطعة",

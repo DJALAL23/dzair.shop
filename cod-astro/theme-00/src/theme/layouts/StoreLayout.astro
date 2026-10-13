@@ -10,6 +10,7 @@ import { alternateLinks, showsWidgetOn } from "@wocart/storefront";
 import { message } from "@/theme/content/messages";
 import type { StoreConfig } from "@wocart/storefront";
 import { Icon } from "astro-icon/components";
+import { brandInk, onColor, safeHex, themeFont } from "@/theme/utils/brand";
 
 interface Props {
   title?: string;
@@ -50,16 +51,19 @@ const pageTitle = title ?? config.metaTitle ?? config.name;
 const pageDesc = description ?? config.metaDescription ?? message(content, "defaultMetaDescription", { storeName: config.name }, locale);
 const pageOg = ogImage ?? config.ogImage ?? "";
 
-// Sanitise theme values — never trust DB content as CSS
-const HEX = /^#[0-9a-fA-F]{3,8}$/;
-const primary = HEX.test(config.primaryColor) ? config.primaryColor : "#7c3aed";
-const accent  = HEX.test(config.accentColor)  ? config.accentColor  : "#f59e0b";
-const bg      = HEX.test(config.bgColor)      ? config.bgColor      : "#f4f4f7";
-const font    = config.fontFamily.replace(/["<>]/g, "");
-
-// Google Fonts — default: Cairo (AR) + Plus Jakarta Sans (EN fallback)
-const fontHref = config.fontUrl?.replace(/["<>]/g, "")
-  ?? "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap";
+// The merchant's brand, validated (never trusted as CSS) and paired with the
+// text colors that stay readable on it.
+const primary = safeHex(config.primaryColor, "#0b3bbd");
+const accent = safeHex(config.accentColor, "#f59e0b");
+const brand = {
+  primary,
+  onPrimary: onColor(primary),
+  primaryInk: brandInk(primary),
+  accent,
+  onAccent: onColor(accent),
+  bg: safeHex(config.bgColor, "#f4f5f7"),
+};
+const font = themeFont(config.fontFamily);
 ---
 
 <!doctype html>
@@ -73,15 +77,21 @@ const fontHref = config.fontUrl?.replace(/["<>]/g, "")
     locale={locale}
     canonical={canonical}
     alternates={alternates}
-    primary={primary}
-    accent={accent}
-    bg={bg}
+    brand={brand}
     font={font}
-    fontHref={fontHref}
+    isRTL={isRTL}
     preloadImages={preloadImages}
   />
 
   <body class:list={[!hideMobileNav && "has-mobile-nav"]}>
+    <!--
+      THESIS: The parcel. Every product is shown the way it arrives at the door: a whole photo on a carton plate, a printed facts panel, and an order form set like a courier waybill whose last line is the cash-on-delivery total. Refuses the soft rounded-card storefront.
+      OWN-WORLD: White carton faces on the merchant's ground, ink type, hairline die-cut rules, a heavy rule over every facts panel, tabular numerals, the merchant's brand color as solid bands (top band, order button, COD total), the accent as the price stamp. Corners crisp at 4–6px; no soft shadows except on things that float.
+      STORY: The shopper sees a real product and a real price at once, reads the facts like a box label, fills one waybill, and knows exactly what they pay at the door.
+      FIRST VIEWPORT: Home: headline, two actions and the delivery facts on one side, real products stacked as cartons on the other. Product page: whole photo, facts panel with price, then the waybill.
+      FORM: The Parcel — candidate 7 of 7, seed b4a0d37e.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+    -->
     <!-- Announcement bar -->
     {!marketing && (config.announcementBar || content.announcementText) && (
       <div class="store-announce">

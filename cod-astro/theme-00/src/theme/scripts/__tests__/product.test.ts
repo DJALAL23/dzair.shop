@@ -595,20 +595,17 @@ describe("Gallery", () => {
     mountGallery();
     dots()[1].click();
 
-    expect(pip(1).style.width).toBe("1.25rem");
-    expect(pip(1).style.opacity).toBe("1");
-    expect(pip(0).style.width).toBe("0.5rem");
-    expect(pip(0).style.opacity).toBe("0.3");
-    // The 44px tap target keeps its size.
-    expect(dots()[1].style.width).toBe("");
+    expect(pip(1).classList.contains("is-active")).toBe(true);
+    expect(pip(0).classList.contains("is-active")).toBe(false);
+    expect(dots()[1].classList.contains("is-active")).toBe(false);
   });
 
   it("marks the matching thumbnail active", () => {
     mountGallery();
     dots()[2].click();
 
-    expect(thumbs()[2].style.borderColor).toBe("var(--clr-primary)");
-    expect(thumbs()[0].style.borderColor).toBe("transparent");
+    expect(thumbs()[2].classList.contains("is-active")).toBe(true);
+    expect(thumbs()[0].classList.contains("is-active")).toBe(false);
   });
 
   it("scrolls the other way when the track is right-to-left", () => {

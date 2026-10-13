@@ -7,7 +7,6 @@ import type { MiscStrings } from "../types/misc";
 export const frMisc: MiscStrings = {
   breadcrumbHome: "Accueil",
   required: "*",
-  viewProduct: "Voir le produit",
   featured: "Vedette",
   lowStock_one: "Dernière pièce",
   lowStock_many: "Dernières {count} pièces",

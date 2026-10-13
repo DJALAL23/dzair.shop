@@ -7,7 +7,6 @@ import type { MiscStrings } from "../types/misc";
 export const enMisc: MiscStrings = {
   breadcrumbHome: "Home",
   required: "*",
-  viewProduct: "View product",
   featured: "Featured",
   lowStock_one: "Last one",
   lowStock_other: "{count} left",

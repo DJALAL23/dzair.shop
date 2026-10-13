@@ -1,13 +1,19 @@
-import { defineConfig, envField, passthroughImageService } from "astro/config";
+import { defineConfig, envField, fontProviders, passthroughImageService } from "astro/config";
 import tailwindcss from "@tailwindcss/vite";
 import compress from "@playform/compress";
 import icon from "astro-icon";
+import themeFonts from "./src/theme/fonts.json" with { type: "json" };
 
 const isVercel = process.env.DEPLOY_TARGET === "vercel";
 const adapter = isVercel
   ? (await import("@astrojs/vercel")).default()
   : (await import("@astrojs/cloudflare")).default({
-      imageService: "passthrough",
+      // Cloudflare Image Resizing: every <Image> becomes a /cdn-cgi/image/…
+      // URL on the store's own domain, resized and re-encoded at the edge.
+      // The adapter adds onerror=redirect, so a failed resize serves the
+      // original. Requires Images → Transformations on the store's zone.
+      // `astro dev` keeps passthrough, so local images still load.
+      imageService: "cloudflare",
     });
 
 const cacheProvider = isVercel
@@ -60,9 +66,22 @@ export default defineConfig({
   },
   prefetch: true,
   image: {
-    service: passthroughImageService(),
+    ...(isVercel ? { service: passthroughImageService() } : {}),
     remotePatterns: [{ protocol: "https" }],
   },
+  // Every font a store can use is declared here and self-hosted at build time:
+  // Astro downloads the files from Google once, serves them from the store's own
+  // domain, and the browser fetches a face only when text uses it. The list lives
+  // in fonts.json, which the theme reads too, so the two cannot drift.
+  fonts: themeFonts.map((font) => ({
+    name: font.family,
+    cssVariable: font.cssVariable,
+    provider: fontProviders.google(),
+    weights: font.weights,
+    styles: ["normal"],
+    subsets: ["arabic", "latin"],
+    fallbacks: ["system-ui", "sans-serif"],
+  })),
   build: {
     // Inline ALL stylesheets to eliminate render-blocking CSS
     inlineStylesheets: "always",
@@ -94,11 +113,13 @@ export default defineConfig({
           "chat-bubble-left",  // WhatsApp CTA
           "chat-bubble-left-ellipsis", // OTP step
           "star",              // reviews header
+          "star-solid",        // filled rating stars
           "home-modern",       // delivery: home
           "x-mark",            // cart drawer close button
           "minus",             // cart line quantity decrease
           "plus",              // cart line quantity increase
           "trash",             // cart line remove button
+          "language",          // header language switcher
         ],
       },
     }),

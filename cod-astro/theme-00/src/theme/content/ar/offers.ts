@@ -14,5 +14,5 @@ export const arOffers: OffersStrings = {
   offerFreeShippingBadge: "شحن مجاني",
   offerBuyOne: "اشتري 1",
   offerFullPrice: "السعر الكامل",
-  offerMostPopular: "الأكثر طلباً",
+  offerBestValue: "الأفضل قيمة",
 };

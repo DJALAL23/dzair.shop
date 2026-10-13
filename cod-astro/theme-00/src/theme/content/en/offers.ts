@@ -14,5 +14,5 @@ export const enOffers: OffersStrings = {
   offerFreeShippingBadge: "Free Shipping",
   offerBuyOne: "Buy 1",
   offerFullPrice: "Full Price",
-  offerMostPopular: "Most Popular",
+  offerBestValue: "Best value",
 };

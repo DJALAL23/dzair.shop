@@ -14,11 +14,7 @@ interface Props {
 const { product, basePrice, cur, offers, content } = Astro.props;
 ---
 
-<div class="relative rounded-[1.5rem] p-4 sm:p-6 border-2 border-dashed overflow-hidden" style="background: var(--clr-surface-alt); border-color: var(--clr-border)">
-  <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-r-2 border-dashed" style="background: var(--clr-surface); border-color: var(--clr-border)"></div>
-  <div class="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-l-2 border-dashed" style="background: var(--clr-surface); border-color: var(--clr-border)"></div>
-
-  <div class="space-y-3 relative z-10">
+<div class="space-y-3 border-t border-border pt-4">
     <!-- Product line: Better mobile layout -->
     <div class="flex items-start justify-between gap-2 text-[0.8125rem] sm:text-[0.875rem] font-bold" style="color: var(--clr-text)">
       <div class="flex items-start gap-1.5 min-w-0 flex-1">
@@ -57,12 +53,13 @@ const { product, basePrice, cur, offers, content } = Astro.props;
       );
     })}
     
-    <!-- Total line: Better mobile sizing -->
-    <div class="pt-3 sm:pt-4 mt-2 border-t-2 border-dashed flex items-center justify-between gap-2" style="border-color: var(--clr-border)">
-      <span class="font-black text-[0.9375rem] sm:text-[1rem]" style="color: var(--clr-text)">{content.totalLabel}</span>
-      <span id="summary-total" class="font-black text-[1.25rem] sm:text-[1.5rem] tracking-tight whitespace-nowrap" style="color: var(--clr-primary)">
-        {formatAmount(basePrice)} {cur}
-      </span>
-    </div>
   </div>
-</div>
+
+  <!-- The amount paid at the door -->
+  <div class="perforation mt-4" aria-hidden="true"></div>
+  <div class="cod-total mt-4">
+    <span class="text-sm font-bold">{content.totalLabel}</span>
+    <span id="summary-total" class="price text-xl whitespace-nowrap" style="color: inherit">
+      {formatAmount(basePrice)} {cur}
+    </span>
+  </div>

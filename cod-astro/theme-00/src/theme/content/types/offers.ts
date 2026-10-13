@@ -24,5 +24,5 @@ export type OffersStrings = {
   /** "Full Price" badge on the base tier card */
   offerFullPrice: string;
   /** "Most Popular" badge on the first offer tier */
-  offerMostPopular: string;
+  offerBestValue: string;
 };

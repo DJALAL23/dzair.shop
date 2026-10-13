@@ -1,7 +1,7 @@
 ---
-// ── CUSTOMIZE HERE ────────────────────────────────────────────────────────────
-// Product card used on the home page, all-products page, and category pages.
-// ─────────────────────────────────────────────────────────────────────────────
+// A product as a carton: the whole photo on its plate, stamps for what the
+// shopper must know first (discount, stock), the name, the price, and the
+// order action along the foot. Used on home, the catalog and category pages.
 import { message } from "@/theme/content/messages";
 import { Image } from "astro:assets";
 import { getProductListView, type ProductList } from "@wocart/storefront";
@@ -18,127 +18,101 @@ interface Props {
 }
 
 const { product, currencySymbol, eager = false, copy } = Astro.props;
+const locale = Astro.locals.store.locale;
 
 const image = product.coverImage;
 const view = getProductListView(product);
 const { hasDiscount, discountPct, isOutOfStock, isLowStock, comparePrice } = view;
-
-const ctaText      = copy.orderCta;
-const outOfStockTx = copy.outOfStock;
-const lowStockTx   = message(copy, "lowStock", { count: product.inventory }, Astro.locals.store.locale);
+const rating = product.reviewStats && product.reviewStats.reviewCount > 0 ? product.reviewStats : null;
 ---
 
 <a
   href={Astro.locals.store.href(`/products/${product.handle}`)}
   data-astro-prefetch="hover"
-  class="product-card group flex flex-col rounded-2xl overflow-hidden active:scale-[0.97]"
-  style="background: var(--clr-surface)"
-  aria-label={message(copy, "ariaProductCard", { name: product.name, price: formatAmount(product.price), currency: currencySymbol }, Astro.locals.store.locale)}
+  class="product-card carton group flex flex-col overflow-hidden"
+  aria-label={message(copy, "ariaProductCard", { name: product.name, price: formatAmount(product.price), currency: currencySymbol }, locale)}
 >
-  <!-- ── Image ── -->
-  <div class="relative aspect-square overflow-hidden shrink-0" style="background: var(--clr-surface-alt)">
+  <div class="plate aspect-square">
     {image ? (
       <Image
         src={image.src}
         alt={image.altText ?? product.name}
         width={400}
         height={400}
+        widths={[240, 400, 600]}
+        sizes="(min-width: 1280px) 296px, (min-width: 1024px) 23vw, (min-width: 640px) 31vw, 47vw"
         loading={eager ? "eager" : "lazy"}
         decoding="async"
-        format="webp"
-        quality={85}
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+        quality={82}
       />
     ) : (
-      <div class="w-full h-full flex items-center justify-center opacity-20" style="color: var(--clr-text-2)" aria-hidden="true">
-        <Icon name="heroicons:photo" class="w-12 h-12" />
+      <div class="flex h-full w-full items-center justify-center text-ink-3" aria-hidden="true">
+        <Icon name="heroicons:photo" class="h-10 w-10" />
       </div>
     )}
 
-    <!-- Discount badge -->
     {hasDiscount && (
-      <div class="absolute top-3 start-3" aria-hidden="true">
-        <span class="bg-red-600 text-white text-xs font-black px-2.5 py-1.5 rounded-lg shadow-md tracking-tight">
-          -{discountPct}%
-        </span>
-      </div>
+      <span class="stamp stamp-accent num absolute inset-s-2 top-2" aria-hidden="true">-{discountPct}%</span>
     )}
-
-    <!-- Out of stock overlay -->
-    {isOutOfStock && (
-      <div class="absolute inset-0 bg-black/50 flex items-center justify-center" aria-hidden="true">
-        <span class="bg-black/80 text-white text-sm font-black px-4 py-2 rounded-xl">
-          {outOfStockTx}
-        </span>
-      </div>
-    )}
-
-    <!-- Low stock strip at bottom of image -->
-    {!isOutOfStock && isLowStock && (
-      <div class="absolute bottom-0 inset-x-0 px-3 py-2.5"
-        style="background: linear-gradient(to top, var(--overlay-dark), transparent)"
-        aria-hidden="true">
-        <p class="text-white text-xs font-black">
-          <Icon name="heroicons:bolt" class="w-3 h-3 inline" /> {lowStockTx}
-        </p>
-      </div>
+    {isOutOfStock ? (
+      <span class="stamp stamp-ink absolute bottom-2 inset-s-2" aria-hidden="true">{copy.outOfStock}</span>
+    ) : isLowStock && (
+      <span class="stamp stamp-warn absolute bottom-2 inset-s-2" aria-hidden="true">
+        {message(copy, "lowStock", { count: product.inventory }, locale)}
+      </span>
     )}
   </div>
 
-  <!-- ── Info ── -->
-  <div class="flex flex-col flex-1 p-4 gap-2.5">
+  <div class="flex flex-1 flex-col gap-2 border-t border-border p-3 sm:p-4">
+    <p class="line-clamp-2 text-sm font-medium text-ink">{product.name}</p>
 
-    <!-- Name -->
-    <p class="font-bold text-sm leading-snug line-clamp-2 flex-1" style="color: var(--clr-text)">
-      {product.name}
+    {rating && (
+      <p class="flex items-center gap-1 text-2xs text-ink-2" aria-hidden="true">
+        <Icon name="heroicons:star" class="h-3.5 w-3.5 text-ink" />
+        <span class="num font-semibold text-ink">{rating.avgRating}</span>
+        <span class="num">({rating.reviewCount})</span>
+      </p>
+    )}
+
+    <p class="mt-auto flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <span class="price text-lg">{formatAmount(product.price)}<span class="price-cur">{currencySymbol}</span></span>
+      {hasDiscount && comparePrice != null && (
+        <span class="price-was text-xs">{formatAmount(comparePrice)}</span>
+      )}
     </p>
 
-    <!-- Rating -->
-    {product.reviewStats && product.reviewStats.reviewCount > 0 && (
-      <div class="flex items-center gap-1.5">
-        <div class="flex gap-px" aria-hidden="true">
-          {[1,2,3,4,5].map(s => (
-            <svg width="11" height="11" viewBox="0 0 24 24"
-              fill={s <= Math.round(product.reviewStats!.avgRating) ? "var(--clr-primary)" : "none"}
-              stroke="var(--clr-primary)" stroke-width="1.5"
-              stroke-linecap="round" stroke-linejoin="round"
-            >
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-          ))}
-        </div>
-        <span class="text-[0.6875rem] font-bold leading-none" style="color: var(--clr-text-2)">
-          {product.reviewStats.avgRating}
-          <span class="opacity-70">({product.reviewStats.reviewCount})</span>
-        </span>
-      </div>
-    )}
-
-    <!-- Price row -->
-    <div class="flex items-baseline justify-between gap-1.5">
-      <span class="font-black text-lg leading-none" style="color: var(--clr-primary)">
-        {formatAmount(product.price)}
-        <span class="text-[0.625rem] font-bold ms-0.5" style="color: var(--clr-primary); opacity: 0.9">{currencySymbol}</span>
-      </span>
-      {hasDiscount && comparePrice != null && (
-        <span class="text-xs line-through font-semibold leading-none shrink-0" style="color: var(--clr-text-2)">
-          {formatAmount(comparePrice)}
-        </span>
-      )}
-    </div>
-
-    <!-- CTA button -->
-    <div
-      class="w-full h-10 rounded-xl flex items-center justify-center gap-2 font-black text-sm text-white mt-0.5 transition-all duration-200 ease-out hover:brightness-110"
-      style={isOutOfStock
-        ? "background: var(--clr-disabled)"
-        : "background: var(--clr-primary)"}
+    <span
+      class:list={["card-cta", isOutOfStock && "is-off"]}
       aria-hidden="true"
     >
-      {!isOutOfStock && (
-        <Icon name="heroicons:shopping-bag" class="w-4 h-4" aria-hidden="true" />
-      )}
-      {isOutOfStock ? outOfStockTx : ctaText}
-    </div>
+      {isOutOfStock ? copy.outOfStock : copy.orderCta}
+      {!isOutOfStock && <Icon name="heroicons:arrow-right" class="flip-rtl h-4 w-4" />}
+    </span>
   </div>
 </a>
+
+<style>
+  .card-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    margin-top: 0.25rem;
+    padding-inline: 0.75rem;
+    border-radius: var(--radius-btn);
+    background: var(--clr-text);
+    color: var(--clr-surface);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .product-card:hover .card-cta:not(.is-off) {
+    background: var(--clr-primary);
+    color: var(--clr-on-primary);
+  }
+  .card-cta.is-off {
+    background: var(--clr-surface-alt);
+    color: var(--clr-text-3);
+  }
+</style>

@@ -4,7 +4,7 @@
 // the slice rule (featured first, fall back to the catalog) is theme
 // merchandising policy and stays here; how many to show is the `limit` field.
 import ProductCard from "@/theme/components/product/ProductCard.astro";
-import { Icon } from "astro-icon/components";
+import SectionHead from "@/theme/components/ui/SectionHead.astro";
 import type { ProductList } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
 import type { StoreFrontContent } from "@/theme/content";
@@ -24,37 +24,17 @@ const showViewAll = allProducts.length > limit;
 ---
 
 {products.length > 0 && (
-  <section id="best-sellers" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-      <div>
-        <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter" style="color: var(--clr-text)">
-          {content.bestSellersSection}
-        </h2>
-        <p class="text-sm sm:text-base font-bold mt-3 opacity-60" style="color: var(--clr-text)">
-          {content.bestSellersSub}
-        </p>
-      </div>
-      {showViewAll && (
-        <a
-          href={Astro.locals.store.href("/products")}
-          class="inline-flex items-center gap-2 text-[1rem] font-black transition-all hover:text-primary group"
-          style="color: var(--clr-text)"
-          aria-label={`${content.viewAllCta} - ${content.bestSellersSection}`}
-        >
-          {content.viewAllCta}
-          <Icon name="heroicons:arrow-right" class="w-5 h-5 transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1" />
-        </a>
-      )}
-    </div>
-
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+  <section id="best-sellers" class="frame py-10 sm:py-14">
+    <SectionHead
+      title={content.bestSellersSection}
+      sub={content.bestSellersSub}
+      href={showViewAll ? Astro.locals.store.href("/products") : undefined}
+      linkLabel={content.viewAllCta}
+      linkAria={`${content.viewAllCta} - ${content.bestSellersSection}`}
+    />
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
       {products.map((p, i) => (
-        <ProductCard
-          product={p}
-          currencySymbol={currencySymbol}
-          copy={content}
-          eager={i < 4}
-        />
+        <ProductCard product={p} currencySymbol={currencySymbol} copy={content} eager={i < 2} />
       ))}
     </div>
   </section>

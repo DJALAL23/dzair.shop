@@ -92,29 +92,15 @@ export function initProductPage() {
    * @param {HTMLElement} label - The clicked tier label element.
    */
   function selectTier(label: HTMLElement) {
-    // 1. Reset all tier visual states
+    // 1. Only the chosen tile is selected; the styling lives in the tile's class.
     tierLabels.forEach((l) => {
-      l.style.borderColor = "var(--clr-border)";
-      l.style.background  = "var(--clr-surface)";
-      const chk = l.querySelector<HTMLElement>(".tier-check");
-      if (chk) {
-        chk.style.borderColor = "var(--clr-border)";
-        chk.style.background  = "var(--clr-surface)";
-        chk.querySelector("svg")?.setAttribute("stroke", "transparent");
-      }
+      l.classList.remove("is-selected");
       const r = l.querySelector<HTMLInputElement>("input[type=radio]");
       if (r) r.checked = false;
     });
 
-    // 2. Set active visual state for selected tier
-    label.style.borderColor = "var(--clr-primary)";
-    label.style.background  = "color-mix(in srgb, var(--clr-primary) 5%, white)";
-    const chk = label.querySelector<HTMLElement>(".tier-check");
-    if (chk) {
-      chk.style.borderColor = "var(--clr-primary)";
-      chk.style.background  = "var(--clr-primary)";
-      chk.querySelector("svg")?.setAttribute("stroke", "white");
-    }
+    // 2. Mark the chosen tile
+    label.classList.add("is-selected");
     const r = label.querySelector<HTMLInputElement>("input[type=radio]");
     if (r) r.checked = true;
 
@@ -232,18 +218,15 @@ export function initProductPage() {
   document.querySelectorAll<HTMLButtonElement>(".tier-unit-opt").forEach((btn) => {
     btn.addEventListener("click", () => {
       const { tierId, unit, option } = btn.dataset;
-      // Deactivate siblings in the same option group
+      // Deactivate siblings in the same option group, then activate the clicked pill
       document.querySelectorAll<HTMLButtonElement>(
         `.tier-unit-opt[data-tier-id="${tierId}"][data-unit="${unit}"][data-option="${option}"]`
       ).forEach(b => {
         b.dataset.active = "0";
-        b.classList.remove("text-[var(--clr-primary)]", "bg-[var(--clr-primary)]/5", "border-[var(--clr-primary)]");
-        b.classList.add("border-[var(--clr-border)]", "bg-[var(--clr-surface)]", "text-[var(--clr-text-2)]");
+        b.classList.remove("is-selected");
       });
-      // Activate clicked pill
       btn.dataset.active = "1";
-      btn.classList.remove("border-[var(--clr-border)]", "bg-[var(--clr-surface)]", "text-[var(--clr-text-2)]");
-      btn.classList.add("text-[var(--clr-primary)]", "bg-[var(--clr-primary)]/5", "border-[var(--clr-primary)]");
+      btn.classList.add("is-selected");
       updateVariantSelectionsInput();
     });
   });
@@ -311,26 +294,17 @@ export function initProductPage() {
       if (btn.dataset.oos === "1") return; // ignore out-of-stock pills
       const opt = btn.dataset.option!;
       selectedOpts[opt] = btn.dataset.value!;
-
-      // Reset siblings (skip OOS pills)
-      document.querySelectorAll<HTMLButtonElement>(`.variant-opt[data-option="${opt}"]`).forEach((b) => {
-        b.classList.remove("text-[var(--clr-primary)]", "bg-[var(--clr-primary)]/5", "border-[var(--clr-primary)]");
-        b.classList.add("text-[var(--clr-text-2)]", "bg-[var(--clr-surface)]", "border-[var(--clr-border)]");
-        const icon = b.querySelector('.check-icon');
-        if (icon) icon.classList.replace('opacity-100', 'opacity-0');
-      });
-
       selectVariantBtn(btn);
       updateVariant();
     });
   });
 
-  /** Visual helper for active variant button */
+  /** Marks one option of its group as chosen; the group's other options are cleared. */
   function selectVariantBtn(btn: HTMLButtonElement) {
-    btn.classList.remove("text-[var(--clr-text-2)]", "bg-[var(--clr-surface)]", "border-[var(--clr-border)]");
-    btn.classList.add("text-[var(--clr-primary)]", "bg-[var(--clr-primary)]/5", "border-[var(--clr-primary)]");
-    const icon = btn.querySelector('.check-icon');
-    if (icon) icon.classList.replace('opacity-0', 'opacity-100');
+    document.querySelectorAll<HTMLButtonElement>(`.variant-opt[data-option="${btn.dataset.option}"]`).forEach((b) => {
+      b.classList.remove("is-selected");
+    });
+    btn.classList.add("is-selected");
   }
 
   /**
@@ -508,15 +482,9 @@ export function initProductPage() {
    */
   function setActive(i: number) {
     dots.forEach((d, j) => {
-      const pip = d.firstElementChild as HTMLElement | null;
-      if (!pip) return;
-      pip.style.width   = j === i ? "1.25rem" : "0.5rem";
-      pip.style.opacity = j === i ? "1" : "0.3";
+      d.firstElementChild?.classList.toggle("is-active", j === i);
     });
-    thumbs.forEach((t, j) => {
-      t.style.borderColor = j === i ? "var(--clr-primary)" : "transparent";
-      t.style.opacity     = j === i ? "1" : "0.6";
-    });
+    thumbs.forEach((t, j) => t.classList.toggle("is-active", j === i));
   }
 
   /** Scrolls the track to image `i` and marks it active. */
