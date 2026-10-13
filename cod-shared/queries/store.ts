@@ -787,6 +787,25 @@ function buildDeductStatements(
   ];
 }
 
+/** Draws are capped: a number collision is rare, so a handful of draws is ample. */
+const MAX_ORDER_NUMBER_DRAWS = 5;
+
+/** The customer-facing number: the day, then four random digits. */
+function drawOrderNumber(now: string): string {
+  const dateStr = now.split("T")[0].replace(/-/g, "");
+  const random = Math.floor(Math.random() * 10000)
+    .toString()
+    .padStart(4, "0");
+  return `ORD-${dateStr}-${random}`;
+}
+
+/** The unique order-number column refused the insert, so another number is needed. */
+function isOrderNumberCollision(error: unknown): boolean {
+  const cause = error instanceof Error ? (error as { cause?: unknown }).cause : undefined;
+  const text = `${error instanceof Error ? error.message : String(error)} ${cause ?? ""}`;
+  return /UNIQUE constraint failed: orders\.order_number/.test(text);
+}
+
 export async function createStoreOrder(
   db: AppDb,
   data: StoreOrderData & {
@@ -804,11 +823,6 @@ export async function createStoreOrder(
 ) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  const dateStr = now.split("T")[0].replace(/-/g, "");
-  const random = Math.floor(Math.random() * 10000)
-    .toString()
-    .padStart(4, "0");
-  const orderNumber = `ORD-${dateStr}-${random}`;
 
   // Every accepted request shape becomes one list here. The engine below knows
   // nothing about legacy fields, variantSelections, or carts.
@@ -940,66 +954,78 @@ export async function createStoreOrder(
 
   // ── Commit phase (one atomic batch) ──────────────────────────────────────
 
-  const statements: BatchStatement[] = [
-    db.insert(orders).values({
-      id,
-      orderNumber,
-      customerId: data.customerId,
-      customerName: data.customerName,
-      phone: data.phone,
-      wilayaId: data.wilayaId,
-      communeId: data.communeId,
-      address: data.address ?? null,
-      price,
-      notes: data.notes ?? null,
-      status: "new",
-      orderType: "online",
-      deliveryMethod: "driver",
-      deliveryType: data.deliveryType,
-      deliveryFee: finalDeliveryFee,
-      driverFee: 0,
-      codAmount: price + finalDeliveryFee,
-      fbc: data.fbc ?? null,
-      fbp: data.fbp ?? null,
-      ipAddress: data.ipAddress ?? null,
-      userAgent: data.userAgent ?? null,
-      landingPageId: data.landingPageId ?? null,
-      createdAt: now,
-      updatedAt: now,
-      // Ride the existing insert rather than adding statements: the commit is
-      // one atomic batch and D1 caps how many statements it may carry.
-      customerEmail: data.customerEmail ?? null,
-      customFieldsJson: serializeCustomFieldAnswers(data.customFieldAnswers ?? []),
-    }),
-  ];
+  // The number is random, so two orders can draw the same one. The unique column
+  // refuses the second and the batch rolls back whole, so the commit is built
+  // again with a new number. Only that collision is retried.
+  let orderNumber = drawOrderNumber(now);
+  for (let attempt = 1; ; attempt += 1) {
+    const statements: BatchStatement[] = [
+      db.insert(orders).values({
+        id,
+        orderNumber,
+        customerId: data.customerId,
+        customerName: data.customerName,
+        phone: data.phone,
+        wilayaId: data.wilayaId,
+        communeId: data.communeId,
+        address: data.address ?? null,
+        price,
+        notes: data.notes ?? null,
+        status: "new",
+        orderType: "online",
+        deliveryMethod: "driver",
+        deliveryType: data.deliveryType,
+        deliveryFee: finalDeliveryFee,
+        driverFee: 0,
+        codAmount: price + finalDeliveryFee,
+        fbc: data.fbc ?? null,
+        fbp: data.fbp ?? null,
+        ipAddress: data.ipAddress ?? null,
+        userAgent: data.userAgent ?? null,
+        landingPageId: data.landingPageId ?? null,
+        createdAt: now,
+        updatedAt: now,
+        // Ride the existing insert rather than adding statements: the commit is
+        // one atomic batch and D1 caps how many statements it may carry.
+        customerEmail: data.customerEmail ?? null,
+        customFieldsJson: serializeCustomFieldAnswers(data.customFieldAnswers ?? []),
+      }),
+    ];
 
-  for (const line of [...lineRows, ...rewardLines]) {
-    statements.push(db.insert(orderProducts).values(line));
+    for (const line of [...lineRows, ...rewardLines]) {
+      statements.push(db.insert(orderProducts).values(line));
+    }
+
+    statements.push(
+      db.insert(orderStatusHistory).values({
+        id: crypto.randomUUID(),
+        orderId: id,
+        status: "new",
+        timestamp: now,
+        by: null,
+      }),
+      db
+        .update(customers)
+        .set({
+          totalOrders: sql`${customers.totalOrders} + 1`,
+          totalSpent: sql`${customers.totalSpent} + ${price}`,
+          lastOrderAt: now,
+        })
+        .where(eq(customers.id, data.customerId)),
+    );
+
+    for (const input of deductions) {
+      statements.push(...buildDeductStatements(db, input));
+    }
+
+    try {
+      await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+      break;
+    } catch (error) {
+      if (attempt >= MAX_ORDER_NUMBER_DRAWS || !isOrderNumberCollision(error)) throw error;
+      orderNumber = drawOrderNumber(now);
+    }
   }
-
-  statements.push(
-    db.insert(orderStatusHistory).values({
-      id: crypto.randomUUID(),
-      orderId: id,
-      status: "new",
-      timestamp: now,
-      by: null,
-    }),
-    db
-      .update(customers)
-      .set({
-        totalOrders: sql`${customers.totalOrders} + 1`,
-        totalSpent: sql`${customers.totalSpent} + ${price}`,
-        lastOrderAt: now,
-      })
-      .where(eq(customers.id, data.customerId)),
-  );
-
-  for (const input of deductions) {
-    statements.push(...buildDeductStatements(db, input));
-  }
-
-  await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
 
   return {
     id,

@@ -12,7 +12,7 @@
  *     UPDATE writes 0 rows and the order is rejected whole (no partial writes)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -249,5 +249,63 @@ describe("createStoreOrder — atomic commit + guarded deduction (BC-2)", () => 
     const cust = await db.select().from(schema.customers).where(eq(schema.customers.id, customer.id)).get();
     expect(cust?.totalOrders).toBe(0);
     expect(cust?.totalSpent).toBe(0);
+  });
+});
+
+describe("createStoreOrder — a taken order number is drawn again", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("commits under a fresh number when the first draw is already taken", async () => {
+    const productId = `prod-${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    await db.insert(schema.products).values({
+      id: productId,
+      name: "Draw Product",
+      handle: `draw-${productId}`,
+      price: 1500,
+      hasVariants: false,
+      inventory: 50,
+      trackInventory: true,
+      lowStockThreshold: 2,
+      status: "ACTIVE",
+      visibility: true,
+      showInStore: true,
+      storeFeatured: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const phone = "0662345678";
+    const customer = await findOrCreateCustomer(db, { phone, name: "Draw Buyer", wilayaId: 16 });
+    const order = {
+      customerName: customer.name,
+      phone,
+      wilayaId: 16,
+      communeId: "c-16-001",
+      deliveryType: "home" as const,
+      productId,
+      productName: "Draw Product",
+      quantity: 1,
+      pricePerUnit: 1500,
+      customerId: customer.id,
+      deliveryFee: 400,
+    };
+
+    const first = await createStoreOrder(db, order);
+
+    // The next draw lands on the first order's number; the retry must draw again.
+    const taken = Number(first.orderNumber.slice(-4));
+    const random = vi.spyOn(Math, "random").mockReturnValueOnce((taken + 0.5) / 10000);
+    const second = await createStoreOrder(db, order);
+
+    expect(random.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(second.orderNumber).not.toBe(first.orderNumber);
+    expect(second.orderNumber).toMatch(/^ORD-\d{8}-\d{4}$/);
+    const saved = await db
+      .select({ orderNumber: schema.orders.orderNumber })
+      .from(schema.orders)
+      .where(eq(schema.orders.orderNumber, second.orderNumber));
+    expect(saved).toHaveLength(1);
   });
 });
