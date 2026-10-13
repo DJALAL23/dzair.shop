@@ -15,10 +15,18 @@
  * - **home-adsorption.test.ts** — the shipped *document* only references
  *   sections this catalog declares, and renders through the real pipeline.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { validateThemeDefinition } from "@codflow/theme";
 import { theme00 } from "@/theme/theme";
 import { en } from "@/theme/content/en";
+
+describe("the theme's version", () => {
+  it("is one version: package.json is the release, defineTheme the contract — they must agree", () => {
+    const pkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as { version: string };
+    expect(theme00.version).toBe(pkg.version);
+  });
+});
 
 describe("the catalog is valid", () => {
   it("passes the SDK's catalog validator with no issues", () => {
