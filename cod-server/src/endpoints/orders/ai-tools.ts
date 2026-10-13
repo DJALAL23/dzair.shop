@@ -1,3 +1,4 @@
+import { drawOrderNumber } from "../../../../cod-shared/lib/order-number";
 import { tool } from "ai";
 import { z } from "zod";
 import * as queries from "./queries";
@@ -303,11 +304,9 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        // Generate order number
+        // ORD-YYYYMMDD-NNNN; createOrder draws again if this one is taken.
         const date = new Date();
-        const dateStr = date.toISOString().split("T")[0].replace(/-/g, "");
-        const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
-        const orderNumber = `ORD-${dateStr}-${random}`;
+        const drawnNumber = drawOrderNumber(date);
         const now = date.toISOString();
         const orderId = crypto.randomUUID();
 
@@ -378,7 +377,7 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
 
         const orderData = {
           id: orderId,
-          orderNumber,
+          orderNumber: drawnNumber,
           customerId: parsed.data.customerId,
           customerName: parsed.data.customerName,
           phone: parsed.data.phone,
@@ -413,7 +412,7 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           createdAt: now,
         }));
 
-        await queries.createOrder(db, orderData, productsData, null);
+        const { orderNumber } = await queries.createOrder(db, orderData, productsData, null);
 
         return {
           success: true,

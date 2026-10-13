@@ -5,6 +5,7 @@
  * Complex operations (dispatch, status transitions) are in separate modules.
  */
 
+import { drawOrderNumber } from "../../../../cod-shared/lib/order-number";
 import { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
@@ -82,11 +83,9 @@ export async function createOrder(c: Context<AppContext>) {
     const validated: validation.CreateOrderInput =
       bodyData ?? validation.createOrderSchema.parse(await c.req.json());
 
-    // Generate order number (format: ORD-YYYYMMDD-XXXX)
+    // ORD-YYYYMMDD-NNNN; createOrder draws again if this one is taken.
     const date = new Date();
-    const dateStr = date.toISOString().split("T")[0].replace(/-/g, "");
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
-    const orderNumber = `ORD-${dateStr}-${random}`;
+    const drawnNumber = drawOrderNumber(date);
 
     const now = date.toISOString();
     const orderId = crypto.randomUUID();
@@ -163,7 +162,7 @@ export async function createOrder(c: Context<AppContext>) {
     // Prepare order data
     const orderData = {
       id: orderId,
-      orderNumber,
+      orderNumber: drawnNumber,
       customerId: validated.customerId,
       customerName: validated.customerName,
       phone: validated.phone,
@@ -202,7 +201,7 @@ export async function createOrder(c: Context<AppContext>) {
 
     const actor = c.get("user");
     // Create order — passes actor so stock movements are attributed correctly
-    await queries.createOrder(db, orderData, productsData, actor ? { id: actor.id, name: actor.name ?? "Unknown" } : null);
+    const { orderNumber } = await queries.createOrder(db, orderData, productsData, actor ? { id: actor.id, name: actor.name ?? "Unknown" } : null);
     await logActivity(db, actor, ACTIONS.ORDER_CREATED, {
       type: "order", id: orderId, label: orderNumber,
     });

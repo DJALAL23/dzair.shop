@@ -213,7 +213,7 @@ describe("Orders routes (OpenAPIHono)", () => {
     };
 
     it("creates an order and returns computed COD amount with 201", async () => {
-      vi.mocked(queries.createOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
       vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
       vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(600);
       mockDb = dbSelectReturning({ id: "cust_1" }); // existing customer
@@ -248,7 +248,7 @@ describe("Orders routes (OpenAPIHono)", () => {
      * produce invented ones.
      */
     it("stores a normalised email when staff enter one", async () => {
-      vi.mocked(queries.createOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
       vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
       vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(600);
       mockDb = dbSelectReturning({ id: "cust_1" });
@@ -268,7 +268,7 @@ describe("Orders routes (OpenAPIHono)", () => {
     });
 
     it("creates an order without one — every phone order taken today", async () => {
-      vi.mocked(queries.createOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
       vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
       vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(600);
       mockDb = dbSelectReturning({ id: "cust_1" });
@@ -287,7 +287,7 @@ describe("Orders routes (OpenAPIHono)", () => {
 
     it("treats an empty email box as no email, not as a value", async () => {
       // A form always submits its inputs; an untouched box must not become "".
-      vi.mocked(queries.createOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
       vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
       vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(600);
       mockDb = dbSelectReturning({ id: "cust_1" });

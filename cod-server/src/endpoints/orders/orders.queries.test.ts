@@ -105,7 +105,7 @@ describe("createOrder", () => {
     updatedAt: NOW,
   };
 
-  it("returns the new order id", async () => {
+  it("returns the new order id and the number it saved", async () => {
     // Queue: trackInventory check → returns false (no stock deduction needed)
     const db = makeMockDb([f({ track_inventory: 0 })]);
 
@@ -118,7 +118,7 @@ describe("createOrder", () => {
       { id: "user_1", name: "Admin" },
     );
 
-    expect(result).toBe("ord_1");
+    expect(result).toEqual({ id: "ord_1", orderNumber: "ORD-20260101-0001" });
   });
 
   it("deducts correct quantity from simple product inventory", async () => {
@@ -155,7 +155,7 @@ describe("createOrder", () => {
           variantId: null, variantLabel: null, sku: null, quantity: 5,
           pricePerUnit: 3000, lineTotal: 15000, createdAt: NOW },
       ], null)
-    ).resolves.toBe("ord_1");
+    ).resolves.toMatchObject({ id: "ord_1" });
   });
 
   it("deducts from variant inventory when variantId is set", async () => {
@@ -170,7 +170,7 @@ describe("createOrder", () => {
           variantId: "var_1", variantLabel: "أحمر / L", sku: null, quantity: 2,
           pricePerUnit: 3000, lineTotal: 6000, createdAt: NOW },
       ], null)
-    ).resolves.toBe("ord_1");
+    ).resolves.toMatchObject({ id: "ord_1" });
     // inventory=8, qty=2 → qtyAfter=6, delta=-2
   });
 
@@ -186,7 +186,7 @@ describe("createOrder", () => {
           variantId: null, variantLabel: null, sku: null, quantity: 10,
           pricePerUnit: 3000, lineTotal: 30000, createdAt: NOW },
       ], null)
-    ).resolves.toBe("ord_1");
+    ).resolves.toMatchObject({ id: "ord_1" });
   });
 
   it("handles multiple products independently", async () => {
@@ -205,7 +205,7 @@ describe("createOrder", () => {
           variantId: null, variantLabel: null, sku: null, quantity: 1,
           pricePerUnit: 2000, lineTotal: 2000, createdAt: NOW },
       ], null)
-    ).resolves.toBe("ord_1");
+    ).resolves.toMatchObject({ id: "ord_1" });
   });
 
   it("handles zero-product order (no inventory loop runs)", async () => {
@@ -213,7 +213,7 @@ describe("createOrder", () => {
 
     await expect(
       createOrder(db, baseOrder, [], null)
-    ).resolves.toBe("ord_1");
+    ).resolves.toMatchObject({ id: "ord_1" });
   });
 });
 

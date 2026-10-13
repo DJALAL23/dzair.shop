@@ -1255,7 +1255,7 @@ describe("Orders — targeted business-logic tests", () => {
       vi.mocked(resolveFee.resolveDeliveryFee).mockRejectedValue(
         new Error("No shipping profile configured")
       );
-      vi.mocked(queries.createOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
       mockDb = {
         select: vi.fn(() => ({
           from: vi.fn(() => ({
@@ -1285,7 +1285,7 @@ describe("Orders — targeted business-logic tests", () => {
       vi.mocked(resolveFee.resolveDeliveryFee).mockRejectedValue(
         new Error("No shipping profile configured")
       );
-      vi.mocked(queries.createOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
       mockDb = {
         select: vi.fn(() => ({
           from: vi.fn(() => ({
@@ -1415,7 +1415,7 @@ describe("Orders — targeted business-logic tests", () => {
       // even for offers that would be expired by date.
       vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
       vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(0); // offer applied
-      vi.mocked(queries.createOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
       mockDb = {
         select: vi.fn(() => ({
           from: vi.fn(() => ({

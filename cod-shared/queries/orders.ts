@@ -4,6 +4,7 @@
  * Centralized database operations for orders management.
  */
 
+import { MAX_ORDER_NUMBER_DRAWS, drawOrderNumber, isOrderNumberCollision } from "../lib/order-number";
 import type { AppDb } from "../db/client";
 import {
   orders,
@@ -311,10 +312,21 @@ export async function createOrder(
   // Atomic: order row, lines, history, customer stats, stock deduction, and
   // ledger commit together or not at all. Guarded deductions make the batch
   // fail (and roll back entirely) when stock is insufficient — no silent
-  // floor-at-zero, no lost-update races.
-  await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+  // floor-at-zero, no lost-update races. A taken order number rolls it back
+  // the same way, so the order row is drawn again and the batch retried.
+  let orderNumber = orderData.orderNumber;
+  for (let attempt = 1; ; attempt += 1) {
+    statements[0] = db.insert(orders).values({ ...orderData, orderNumber });
+    try {
+      await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+      break;
+    } catch (error) {
+      if (attempt >= MAX_ORDER_NUMBER_DRAWS || !isOrderNumberCollision(error)) throw error;
+      orderNumber = drawOrderNumber(now);
+    }
+  }
 
-  return orderData.id;
+  return { id: orderData.id, orderNumber };
 }
 
 export async function updateOrderStatus(

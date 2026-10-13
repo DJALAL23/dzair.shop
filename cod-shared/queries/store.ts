@@ -5,6 +5,7 @@
  * No server-only error classes here; the handlers translate results to HTTP errors.
  */
 
+import { MAX_ORDER_NUMBER_DRAWS, drawOrderNumber, isOrderNumberCollision } from "../lib/order-number";
 import {
   eq,
   and,
@@ -785,25 +786,6 @@ function buildDeductStatements(
     }),
     guardedUpdate,
   ];
-}
-
-/** Draws are capped: a number collision is rare, so a handful of draws is ample. */
-const MAX_ORDER_NUMBER_DRAWS = 5;
-
-/** The customer-facing number: the day, then four random digits. */
-function drawOrderNumber(now: string): string {
-  const dateStr = now.split("T")[0].replace(/-/g, "");
-  const random = Math.floor(Math.random() * 10000)
-    .toString()
-    .padStart(4, "0");
-  return `ORD-${dateStr}-${random}`;
-}
-
-/** The unique order-number column refused the insert, so another number is needed. */
-function isOrderNumberCollision(error: unknown): boolean {
-  const cause = error instanceof Error ? (error as { cause?: unknown }).cause : undefined;
-  const text = `${error instanceof Error ? error.message : String(error)} ${cause ?? ""}`;
-  return /UNIQUE constraint failed: orders\.order_number/.test(text);
 }
 
 export async function createStoreOrder(

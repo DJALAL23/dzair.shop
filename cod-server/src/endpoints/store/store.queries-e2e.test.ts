@@ -24,6 +24,7 @@ import {
   findOrCreateCustomer,
   createStoreOrder,
 } from "../../../../cod-shared/queries/store";
+import { createOrder } from "../../../../cod-shared/queries/orders";
 
 const registry: Miniflare[] = [];
 let db: AppDb;
@@ -307,5 +308,44 @@ describe("createStoreOrder — a taken order number is drawn again", () => {
       .from(schema.orders)
       .where(eq(schema.orders.orderNumber, second.orderNumber));
     expect(saved).toHaveLength(1);
+  });
+});
+
+describe("createOrder (dashboard) — a taken order number is drawn again", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("saves the order under a fresh number and returns the number it saved", async () => {
+    const phone = "0663456789";
+    const customer = await findOrCreateCustomer(db, { phone, name: "Desk Buyer", wilayaId: 16 });
+    const now = new Date().toISOString();
+    const row = (id: string, orderNumber: string) => ({
+      id,
+      orderNumber,
+      customerId: customer.id,
+      customerName: customer.name,
+      phone,
+      wilayaId: 16,
+      price: 1000,
+      status: "new" as const,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const taken = `ORD-${now.split("T")[0].replace(/-/g, "")}-0077`;
+    await createOrder(db, row(crypto.randomUUID(), taken), []);
+
+    const random = vi.spyOn(Math, "random").mockReturnValueOnce(0.5);
+    const second = await createOrder(db, row(crypto.randomUUID(), taken), []);
+
+    expect(random).toHaveBeenCalled();
+    expect(second.orderNumber).not.toBe(taken);
+    expect(second.orderNumber).toMatch(/^ORD-\d{8}-\d{4}$/);
+    const saved = await db
+      .select({ orderNumber: schema.orders.orderNumber })
+      .from(schema.orders)
+      .where(eq(schema.orders.id, second.id!))
+      .get();
+    expect(saved?.orderNumber).toBe(second.orderNumber);
   });
 });
