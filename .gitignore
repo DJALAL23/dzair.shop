@@ -8,7 +8,6 @@ partner-server/
 partner-client/
 .github/workflows-cloud/
 codflow-main-lp/
-cloud-scripts/
 CLOUD_MASTER_PLAN.md
 cloud-backups/
 report-md/

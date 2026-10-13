@@ -995,6 +995,24 @@ export const storeContentOverrides = sqliteTable("store_content_overrides", {
  * resource's translations with it, and a language's with its `store_locales`
  * row.
  */
+/**
+ * A store's saved composition for one storefront surface (migration 0033) —
+ * the PageData JSON verbatim, parsed (never evaluated) at read time. Written
+ * by CodFlow Cloud's editor only; this repository never writes it.
+ */
+export const pageDocuments = sqliteTable("page_documents", {
+  id: text("id").primaryKey(),
+  storeId: text("store_id")
+    .notNull()
+    .references(() => stores.id),
+  surface: text("surface").notNull(),
+  document: text("document").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  storeSurfaceUnique: uniqueIndex("idx_page_documents_store_surface").on(t.storeId, t.surface),
+}));
+
 export const translations = sqliteTable("translations", {
   resourceType: text("resource_type").notNull(),
   resourceId: text("resource_id").notNull(),
