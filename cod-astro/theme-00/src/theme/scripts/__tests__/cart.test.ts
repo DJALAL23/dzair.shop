@@ -358,7 +358,10 @@ describe("cart - order items", () => {
 
 // ─── Invariants ───────────────────────────────────────────────────────────────
 
-describe("cart - properties", () => {
+// Every run re-imports the cart for a clean module state, so these take
+// seconds — budgeted explicitly rather than racing the default timeout when
+// the whole suite runs in parallel.
+describe("cart - properties", { timeout: 30_000 }, () => {
   const lineArb = fc.record({
     productId: fc.constantFrom("p1", "p2", "p3"),
     variantId: fc.option(fc.constantFrom("red", "blue"), { nil: null }),
