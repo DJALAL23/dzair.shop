@@ -259,13 +259,17 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
     expect(ctx.content.orderCta).toBe(resolveContent(DEFAULT_LANGUAGE).orderCta);
   });
 
-  it("fetches config once per client — the second render reuses the SDK cache", async () => {
+  it("reads config once per request, and never reuses another request's read", async () => {
     const calls = stubConfigServer();
+    const configReads = () => calls.filter((url) => new URL(url).pathname === "/store/config").length;
 
     await storeFor("/");
-    await storeFor("/products");
+    expect(configReads()).toBe(1);
 
-    expect(calls.filter((url) => new URL(url).pathname === "/store/config")).toHaveLength(1);
+    // A second request reads its own: a read shared across requests is what
+    // hung pages once the request that started it was cancelled.
+    await storeFor("/products");
+    expect(configReads()).toBe(2);
   });
 
   it("falls back to DEFAULT_CONFIG when the config read fails", async () => {

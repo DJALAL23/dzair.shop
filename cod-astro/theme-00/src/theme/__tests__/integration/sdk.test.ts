@@ -164,15 +164,30 @@ describe("theme adapter — getStoreClient()", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("reuses one client per store scope and rebuilds it when the scope changes", async () => {
+  it("gives every request its own client, so a hung read never blocks another request", async () => {
     env.COD_SERVER_URL = "https://api.example.test";
     env.STORE_API_KEY = "test-key-abc";
     const { getStoreClient } = await import("@/theme/sdk");
 
-    const first = getStoreClient();
-    expect(getStoreClient()).toBe(first);
+    // The first request's read never settles, as when its shopper leaves mid-load.
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(() => {
+      calls += 1;
+      return calls === 1
+        ? new Promise<Response>(() => {})
+        : Promise.resolve(new Response(JSON.stringify({ success: true, data: [] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    }));
 
-    env.STORE_API_KEY = "test-key-other";
-    expect(getStoreClient()).not.toBe(first);
+    const first = getStoreClient();
+    void first.products.list();
+    const second = getStoreClient();
+    expect(second).not.toBe(first);
+
+    const answer = await Promise.race([
+      second.products.list().then(() => "answered"),
+      new Promise((resolve) => setTimeout(() => resolve("hung"), 1000)),
+    ]);
+    expect(answer).toBe("answered");
+    vi.unstubAllGlobals();
   });
 });

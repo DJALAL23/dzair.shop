@@ -17,13 +17,13 @@
  * - **Local dev default.** `COD_SERVER_URL` falls back to
  *   `http://localhost:8787` (parity with the legacy client), so an unset
  *   variable cannot silently point the storefront at a wrong origin.
- * - **One client per store scope and language.** A Worker isolate reuses the
- *   client for a given `(serverUrl, apiKey, locale)`, so the SDK's
- *   process-lifetime caches (store config, categories, communes) actually get
- *   reused across requests instead of refetching per request. A changed scope
- *   (a different store key, another language) gets its own client — caches
- *   are never shared across scopes, so French text never answers an Arabic
- *   request.
+ * - **A fresh client for every call, so for every request.** The SDK client
+ *   caches pending reads and merges a read with one already in flight for the
+ *   same URL. Within one request that saves calls; across requests it is a
+ *   hang: a request that waits on a read another request started never
+ *   settles once that other request is cancelled (a shopper leaving mid-load,
+ *   a click interrupting a page fetch), and every later request for the same
+ *   URL waits behind it. A request's own client lives and dies with it.
  *
  * A defect in SDK behavior is fixed in `wocart-sdk/storefront/` with a regression
  * test there — never by growing this file into a second implementation.
@@ -34,8 +34,6 @@ export type { StoreClient };
 import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
 import { THEME_KEY } from "@/theme/key";
 
-const clientsByScope = new Map<string, StoreClient>();
-
 /**
  * The client for one language. `locale` is omitted for the store's primary
  * language — merchant text comes back as written — and set for any other, so
@@ -45,11 +43,7 @@ const clientsByScope = new Map<string, StoreClient>();
 export function getStoreClient(locale?: string): StoreClient {
   const apiKey = STORE_API_KEY;
   const serverUrl = COD_SERVER_URL ?? "http://localhost:8787";
-  const scopeKey = `${serverUrl}\u0000${apiKey}\u0000${locale ?? ""}`;
-
-  let client = clientsByScope.get(scopeKey);
-  if (!client) {
-    client = createStoreClient({
+  return createStoreClient({
       serverUrl,
       apiKey: apiKey as string,
       // The store's edits to this theme's text come back with the config.
@@ -61,7 +55,4 @@ export function getStoreClient(locale?: string): StoreClient {
         console.warn(`[theme-00] degraded read: ${error.operation} (${error.code})`);
       },
     });
-    clientsByScope.set(scopeKey, client);
-  }
-  return client;
 }

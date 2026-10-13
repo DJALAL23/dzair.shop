@@ -134,13 +134,15 @@ export type StoreRequest =
  * rather than shown a page that claims a language it does not carry.
  */
 export async function resolveStoreRequest(requestPath: string): Promise<StoreRequest> {
-  const primaryConfig = (await getStoreClient().config.get()) ?? DEFAULT_CONFIG;
+  // One client per request (see theme/sdk.ts); the primary language reuses it.
+  const primaryClient = getStoreClient();
+  const primaryConfig = (await primaryClient.config.get()) ?? DEFAULT_CONFIG;
   const routing = localeRouting(primaryConfig);
   const path = resolveLocalePath(requestPath, routing);
   if (path.kind === "redirect") return { kind: "redirect", location: path.location, status: 301 };
 
   const translated = path.locale !== routing.primary;
-  const client = getStoreClient(translated ? path.locale : undefined);
+  const client = translated ? getStoreClient(path.locale) : primaryClient;
   const config = translated ? (await client.config.get()) ?? primaryConfig : primaryConfig;
   if (translated && config.locale !== path.locale) {
     return { kind: "redirect", location: path.pathname, status: 302 };
