@@ -14,13 +14,14 @@ const { slug } = Astro.params;
 // Store context comes from middleware (Astro.locals.store — Theme Zero S2).
 // Product data is fetched inside ProductDetailContent.
 const { config, content, isRTL } = Astro.locals.store;
+const turnstileOn = config.turnstileEnabled === true && Boolean(config.turnstileSiteKey);
 
 // Action result (must be checked before rendering).
 // Order success → single PRG redirect to the thank-you page. The browser
 // follows the POST response directly (303), so the form page never re-renders
 // — no reload flash, no client-side redirect. The abandonment-conversion
 // signal fires on the thank-you page (sessionStorage survives the redirect).
-const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder));
+const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
 if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
 const { fieldErrors, serverError } = outcome;
 ---
@@ -28,6 +29,7 @@ const { fieldErrors, serverError } = outcome;
 <StoreLayout
   title={`${config.name}`}
   hideMobileNav={true}
+  softNavigation={!turnstileOn}
 >
   <!-- 
     ProductDetailContent streams in after layout renders

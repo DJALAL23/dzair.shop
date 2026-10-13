@@ -78,6 +78,20 @@
   --animate-spring: var(--ease-out-expo);
 }
 
+@keyframes page-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+@keyframes page-settle {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+}
+
 :root {
   --clr-surface: #ffffff;
   --clr-surface-alt: #f1f2f4;

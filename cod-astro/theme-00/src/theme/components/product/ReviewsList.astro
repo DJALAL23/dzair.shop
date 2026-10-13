@@ -136,7 +136,7 @@ function formatDate(val: string) {
 </section>
 )}
 
-<script is:inline define:vars={{ loadMoreLabel: copy.loadMoreLabel }}>
+<script is:inline data-astro-rerun define:vars={{ loadMoreLabel: copy.loadMoreLabel }}>
   (function () {
     const btn = document.getElementById("load-more-reviews");
     if (!btn) return;

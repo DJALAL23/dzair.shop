@@ -20,6 +20,7 @@ const { slug } = Astro.params;
 // Store context comes from middleware (Astro.locals.store — Theme Zero S2);
 // the landing page (and its linked product) comes from the same SDK client.
 const { config, content, isRTL } = Astro.locals.store;
+const turnstileOn = config.turnstileEnabled === true && Boolean(config.turnstileSiteKey);
 const lp = await Astro.locals.store.client.pages.landing(slug ?? "");
 
 // Action result (must be checked before rendering — same as product page).
@@ -28,7 +29,7 @@ const lp = await Astro.locals.store.client.pages.landing(slug ?? "");
 // re-renders — no reload flash, no client-side redirect. The
 // abandonment-conversion signal fires on the thank-you page (sessionStorage
 // survives the redirect).
-const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder));
+const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
 if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
 const { fieldErrors, serverError } = outcome;
 
@@ -71,6 +72,7 @@ const metaDescription = lp.metaDescription || config.metaDescription || undefine
 
 <StoreLayout
   config={pageConfig}
+  softNavigation={!turnstileOn}
   title={metaTitle}
   description={metaDescription}
   ogImage={firstImage}

@@ -30,6 +30,8 @@ export const arOrderForm: OrderFormStrings = {
   formEmailLabel: "البريد الإلكتروني",
   formEmailPlaceholder: "you@example.com",
   formRequiredField: "يرجى اختيار أحد الخيارات",
+  formSubmitFailed: "تعذّر تأكيد طلبك. أعد المحاولة، أو تواصل مع المتجر.",
+  formFieldInvalid: "تحقق من هذا الحقل",
   formSubmit: "تأكيد الطلب",
   formConfirmNote: "سيتصل بك فريقنا لتأكيد طلبك خلال 24 ساعة",
 

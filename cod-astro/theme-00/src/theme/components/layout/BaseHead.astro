@@ -1,14 +1,13 @@
 ---
-// View transitions removed — ClientRouter caused dynamic module scripts
-// fetches on soft navigation to be served with empty Content-Type by the
-// SSR worker, breaking strict-MIME-checked module loading. After that
-// failure, product.ts never executed and every interactive element
-// (variant pills, offers, dropdowns, qty stepper) appeared "blocked".
-// We don't actually navigate between pages on the storefront — full page
-// loads are fine and removed the regression entirely.
+// ClientRouter swaps pages without reloading the document. A page opts out with
+// softNavigation={false} when a widget in it must start from a fresh document
+// (Turnstile renders once per document); a router-less page is always reached by
+// a full load. The release pipeline sets and verifies a JavaScript Content-Type on
+// every module chunk, so scripts loaded by a soft navigation pass the strict MIME check.
 
 import type { StoreConfig } from "@wocart/storefront";
 import { Font } from "astro:assets";
+import { ClientRouter } from "astro:transitions";
 import { openGraphLocale } from "@/theme/utils/seo";
 import type { ThemeFont } from "@/theme/utils/brand";
 
@@ -30,12 +29,14 @@ interface Props {
   font: ThemeFont;
   /** The page's script: only that subset of the theme face is preloaded. */
   isRTL: boolean;
+  /** Client-side navigation to and from this page. */
+  softNavigation?: boolean;
   /** The page's LCP images (landing page stack top) — preloaded in <head>
    *  so their fetch starts before the parser reaches the <img> tags. */
   preloadImages?: string[];
 }
 
-const { title, description, ogImage, noindex, config, locale, canonical, alternates, brand, font, isRTL, preloadImages } = Astro.props;
+const { title, description, ogImage, noindex, config, locale, canonical, alternates, brand, font, isRTL, preloadImages, softNavigation = true } = Astro.props;
 const fontFamily = `var(${font.cssVariable}), system-ui, sans-serif`;
 
 import { MEDIA_DOMAIN } from "astro:env/server";
@@ -48,6 +49,7 @@ import { MEDIA_DOMAIN } from "astro:env/server";
   <meta name="theme-color" content={brand.primary} />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  {softNavigation && <ClientRouter />}
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <title>{title}</title>
   <meta name="description" content={description} />

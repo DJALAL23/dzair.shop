@@ -75,7 +75,7 @@ const comparePrice = getProductView(product).comparePrice;
   <!-- Tighter gutter on phones: the product column already pads the page, so a
        full 1.5rem here was indenting the fields twice and narrowing every input
        by the width of a whole option label. -->
-  <form method="POST" action={actions.placeOrder} class="p-4 sm:p-6 space-y-6">
+  <form method="POST" action={actions.placeOrder} class="p-4 sm:p-6 space-y-6" data-astro-reload>
     <!-- Hidden product fields -->
     <input type="hidden" name="productId"          value={product.id} />
     <!-- Meta Pixel tracking (populated by JS at submit time) -->

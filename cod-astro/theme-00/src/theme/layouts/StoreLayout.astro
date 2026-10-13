@@ -30,10 +30,26 @@ interface Props {
   marketing?: boolean;
   /** LCP images (landing page stack top) — preloaded in <head>. */
   preloadImages?: string[];
+  /** Client-side navigation to and from this page. Off where a widget needs a fresh document. */
+  softNavigation?: boolean;
 }
 
-const { title, description, ogImage, noindex, marketing = false, preloadImages } = Astro.props;
+const { title, description, ogImage, noindex, marketing = false, preloadImages, softNavigation = true } = Astro.props;
 const hideMobileNav = marketing || Astro.props.hideMobileNav;
+
+// Client-side navigation: the page content lifts out and settles in, so a move
+// between pages reads as one motion. The header and footer stay in place.
+// The keyframes are defined in styles/global.css.
+const pageMotion = {
+  forwards: {
+    old: { name: "page-leave", duration: "160ms", easing: "cubic-bezier(0.4, 0, 1, 1)", fillMode: "both" },
+    new: { name: "page-settle", duration: "460ms", easing: "cubic-bezier(0.16, 1, 0.3, 1)", fillMode: "both" },
+  },
+  backwards: {
+    old: { name: "page-leave", duration: "160ms", easing: "cubic-bezier(0.4, 0, 1, 1)", fillMode: "both" },
+    new: { name: "page-settle", duration: "460ms", easing: "cubic-bezier(0.16, 1, 0.3, 1)", fillMode: "both" },
+  },
+};
 
 const store = Astro.locals.store;
 const config = Astro.props.config ?? store.config;
@@ -81,6 +97,7 @@ const font = themeFont(config.fontFamily);
     font={font}
     isRTL={isRTL}
     preloadImages={preloadImages}
+    softNavigation={softNavigation}
   />
 
   <body class:list={[!hideMobileNav && "has-mobile-nav"]}>
@@ -102,7 +119,7 @@ const font = themeFont(config.fontFamily);
 
     {!marketing && <Header config={config} content={content} />}
 
-    <main>
+    <main transition:animate={pageMotion}>
       <slot />
     </main>
 
@@ -114,9 +131,8 @@ const font = themeFont(config.fontFamily);
     {config.cartEnabled && (
       <>
         <CartDrawer content={content} currency={config.currencySymbol} />
-        {/* Imported for its side effect: the module self-initialises on
-            DOMContentLoaded, the same pattern product.ts uses. Calling
-            initCart() here as well used to bind every handler twice. */}
+        {/* Imported for its side effect: the module binds on every page through
+            onEachPage. Calling initCart() here as well would bind every handler twice. */}
         <script>
           import "@/theme/scripts/cart-ui";
         </script>
@@ -129,7 +145,7 @@ const font = themeFont(config.fontFamily);
     {config.whatsapp && showsWidgetOn(config.whatsapp.surfaces, store.pathname) && store.pathname !== "/thank-you" && (
       <>
         <WhatsAppWidget widget={config.whatsapp} content={content} config={config} />
-        {/* Imported for side effect: self-initialises on DOM ready */}
+        {/* Imported for side effect: binds on every page through onEachPage */}
         <script>
           import "@/theme/scripts/whatsapp-widget";
         </script>
@@ -137,5 +153,8 @@ const font = themeFont(config.fontFamily);
     )}
 
     {!hideMobileNav && <MobileNav config={config} content={content} />}
+    <script>
+      import "@/theme/scripts/page-view";
+    </script>
   </body>
 </html>

@@ -4,13 +4,8 @@
  */
 
 import { initStickyCta } from "./sticky-cta";
+import { onEachPage } from "./page-lifecycle";
 
 export { initStickyCta, initStickyCta as initLpStickyCta };
 
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => initStickyCta());
-  } else {
-    initStickyCta();
-  }
-}
+onEachPage(() => initStickyCta());

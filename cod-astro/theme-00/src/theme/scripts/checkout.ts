@@ -46,6 +46,7 @@ import {
 import { trackInitiateCheckout } from "./pixel";
 import { collectCustomFieldAnswers } from "./custom-fields";
 import { initRequiredSelects } from "./select-required";
+import { onEachPage } from "./page-lifecycle";
 
 /** One controller per page, so a second call is a no-op rather than a duplicate. */
 const controllers = new WeakMap<HTMLElement, () => void>();
@@ -265,10 +266,4 @@ export function initCheckout(): () => void {
   return teardown;
 }
 
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => initCheckout());
-  } else {
-    initCheckout();
-  }
-}
+onEachPage(() => initCheckout());

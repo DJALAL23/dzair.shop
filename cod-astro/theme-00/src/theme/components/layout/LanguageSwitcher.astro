@@ -35,6 +35,7 @@ const current = languages.find((language) => language.code === store.locale);
           <li>
             <a
               href={language.href}
+              data-astro-reload
               hreflang={language.code}
               lang={language.code}
               aria-current={language.code === store.locale ? "true" : undefined}

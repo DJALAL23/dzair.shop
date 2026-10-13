@@ -9,6 +9,10 @@ interface Props {
 }
 
 const { productId, copy } = Astro.props;
+
+// The server's refusal codes: how the review endpoint says why it refused.
+const ALREADY_REVIEWED = "ORDER_ALREADY_REVIEWED";
+const ORDER_MISSING = "ORDER_NOT_FOUND";
 ---
 
 <section class="review-form-section mt-10" id="write-review">
@@ -49,7 +53,7 @@ const { productId, copy } = Astro.props;
 
       <!-- Order ID -->
       <div>
-        <label for="review-order-id" class="form-label">
+        <label for="review-order-number" class="form-label">
           {copy.reviewFormOrderLabel} <span class="text-red-400">*</span>
         </label>
         <input
@@ -67,8 +71,8 @@ const { productId, copy } = Astro.props;
 
       <!-- Rating -->
       <div>
-        <label class="form-label">{copy.reviewFormRatingLabel} <span class="text-red-400">*</span></label>
-        <div class="flex gap-2 mt-1" id="star-rating-group" role="group" aria-label={copy.reviewFormRatingLabel}>
+        <span class="form-label block" id="star-rating-label">{copy.reviewFormRatingLabel} <span class="text-red-400">*</span></span>
+        <div class="flex gap-2 mt-1" id="star-rating-group" role="group" aria-labelledby="star-rating-label">
           {[1,2,3,4,5].map(n => (
             <button
               type="button"
@@ -124,7 +128,9 @@ const { productId, copy } = Astro.props;
   </div>
 </section>
 
-<script is:inline define:vars={{
+<script is:inline data-astro-rerun define:vars={{
+  codeAlreadyReviewed: ALREADY_REVIEWED,
+  codeOrderMissing: ORDER_MISSING,
   errorDuplicate: copy.reviewFormErrorDuplicate,
   errorInvalidOrder: copy.reviewFormErrorInvalidOrder,
   errorGeneric: copy.reviewFormErrorGeneric,
@@ -207,9 +213,11 @@ const { productId, copy } = Astro.props;
         });
         const json = await res.json();
 
-        if (res.status === 409) { showError(errorDuplicate); return; }
-        if (res.status === 404) { showError(errorInvalidOrder); return; }
-        if (!res.ok) { showError(json.error ?? errorGeneric); return; }
+        // The server's own sentence is English and written for the merchant:
+        // the form answers each known refusal with its own copy, by code.
+        if (json.code === codeAlreadyReviewed) { showError(errorDuplicate); return; }
+        if (json.code === codeOrderMissing) { showError(errorInvalidOrder); return; }
+        if (!res.ok) { showError(errorGeneric); return; }
 
         // Success
         form.classList.add("hidden");

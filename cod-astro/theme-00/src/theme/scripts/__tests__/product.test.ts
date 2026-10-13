@@ -3,9 +3,8 @@
  *
  * These tests verify the product page script initializes correctly on
  * initial page load (variant selection, quantity steppers, price updates).
- * Client-side navigation was removed from the storefront (full page loads
- * only — see BaseHead.astro), so navigation re-initialization no longer
- * applies and its bug-exploration tests were deleted.
+ * Client-side navigation rebinds the page through onEachPage (see
+ * page-lifecycle.test.ts); this suite covers the first load.
  */
 /// <reference types="vitest/globals" />
 

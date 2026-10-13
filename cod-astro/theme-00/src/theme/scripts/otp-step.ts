@@ -16,6 +16,7 @@
  * No-JS reality: the form POSTs directly and the server's
  * OTP_VERIFICATION_REQUIRED error renders in the existing serverError alert.
  */
+import { onEachPage } from "./page-lifecycle";
 import {
   createOtpMachine,
   createOtpTransport,
@@ -27,14 +28,6 @@ import {
   type OtpTransportResult,
 } from "@wocart/storefront";
 import type { z } from "zod";
-
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => initOtpStep());
-  } else {
-    initOtpStep();
-  }
-}
 
 async function postOtp<T>(
   path: string,
@@ -74,7 +67,7 @@ const transport = createOtpTransport({
     ),
 });
 
-export function initOtpStep(): void {
+export function initOtpStep(): () => void {
   const form = document.querySelector<HTMLFormElement>("form[method='POST']");
   const step = document.getElementById("otp-step");
   const phoneInput = document.querySelector<HTMLInputElement>("input[name='phone']");
@@ -88,7 +81,7 @@ export function initOtpStep(): void {
   const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement | null;
   // #otp-step only renders when the store enables verification — its absence
   // means the feature is off and the native submit flow stays untouched.
-  if (!form || !step || !phoneInput || !codeInput || !verifyBtn || !tokenInput) return;
+  if (!form || !step || !phoneInput || !codeInput || !verifyBtn || !tokenInput) return () => {};
 
   const strings = JSON.parse(step.dataset.strings ?? "{}") as Record<string, string>;
   // Copy comes from the markup (`data-strings`, rendered from the content
@@ -110,15 +103,19 @@ export function initOtpStep(): void {
     if (state.status !== "error" && state.status !== "code_sent") return null;
     if (state.isTerminal) return t("otpErrorExpired");
     if (state.attemptsRemaining != null) {
-      return `${t("otpErrorWrong")} (${t("otpErrorAttempts")}: ${state.attemptsRemaining})`;
+      // The copy already ends with its colon.
+      return `${t("otpErrorWrong")} (${t("otpErrorAttempts")} ${state.attemptsRemaining})`;
     }
     if (state.errorCode === "OTP_RATE_LIMITED") {
-      return `${t("otpErrorRate")} (${Math.ceil(state.cooldownRemaining / 60)}s)`;
+      // The cooldown is in seconds, the same unit as the resend countdown.
+      return `${t("otpErrorRate")} (${state.cooldownRemaining}s)`;
     }
     if (state.errorCode === "INVALID_FORMAT" || state.errorCode === "NO_REQUEST") return null;
     if (state.errorCode === "NETWORK_ERROR") {
       return t("otpErrorGeneric");
     }
+    // A sent code carries no error. Only a failed request gets the generic line.
+    if (state.status === "code_sent" && state.error == null) return null;
     return state.error ?? t("otpErrorGeneric");
   }
 
@@ -220,4 +217,8 @@ export function initOtpStep(): void {
     },
     { capture: true }
   );
+
+  return () => machine.dispose();
 }
+
+onEachPage(() => initOtpStep());

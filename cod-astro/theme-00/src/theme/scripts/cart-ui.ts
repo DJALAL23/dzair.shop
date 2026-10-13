@@ -20,8 +20,7 @@
  *
  * Every listener is bound to one AbortController, and every root is
  * initialised at most once. Binding twice is not a theoretical worry: the
- * module self-initialises on import (the pattern `product.ts` documents, since
- * ClientRouter was removed and `astro:page-load` never fires), so a layout that
+ * module binds itself on every page through `onEachPage`, so a layout that
  * also calls `initCart()` would double every handler — one tap adding two
  * units, `+` stepping by two.
  */
@@ -49,6 +48,7 @@ import {
   type ValidationResult,
 } from "./cart-render";
 import { trackAddToCart } from "./pixel";
+import { onEachPage } from "./page-lifecycle";
 
 /** Where the basket is actually ordered, in the page's language (set by the server). */
 const checkoutHref = (root: HTMLElement) => root.dataset.checkoutHref || "/checkout";
@@ -476,16 +476,7 @@ export function initCart(): () => void {
 }
 
 /**
- * Self-initialising, like `product.ts` and `turnstile-field.ts`.
- *
- * ClientRouter was removed from this theme, so `astro:page-load` never fires
- * and DOMContentLoaded is the only signal. `initCart()` guards against a second
- * call, so importing this module is all a layout needs to do.
+ * Binds on every page, including after a client-side navigation. `initCart()`
+ * guards against a second call, so importing this module is all a layout needs.
  */
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => initCart());
-  } else {
-    initCart();
-  }
-}
+onEachPage(() => initCart());

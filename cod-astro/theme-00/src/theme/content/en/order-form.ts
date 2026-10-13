@@ -30,6 +30,8 @@ export const enOrderForm: OrderFormStrings = {
   formEmailLabel: "Email",
   formEmailPlaceholder: "you@example.com",
   formRequiredField: "Please choose an option",
+  formSubmitFailed: "We could not place your order. Please try again, or contact the store.",
+  formFieldInvalid: "Check this field",
   formSubmit: "Confirm order",
   formConfirmNote: "Our team will call to confirm your order within 24 hours",
 

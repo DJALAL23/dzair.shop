@@ -118,8 +118,16 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
   )}
 </div>
 
-<script is:inline>
+<script is:inline data-astro-rerun>
 (function () {
+  const dismissers = window.__codflowSelectDismissers = window.__codflowSelectDismissers || new WeakMap();
+  if (!window.__codflowSelectDismissListening) {
+    window.__codflowSelectDismissListening = true;
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.custom-select-container').forEach((c) => dismissers.get(c)?.());
+    });
+  }
+
   // ── Per-instance init ───────────────────────────────────────────────────────
   function initSelect(container) {
     if (container.dataset.ready) return;
@@ -231,7 +239,7 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
       toggle(false);
     });
 
-    document.addEventListener('click', () => toggle(false));
+    dismissers.set(container, () => toggle(false));
   }
 
   // ── Global API for dynamic selects ─────────────────────────────────────────

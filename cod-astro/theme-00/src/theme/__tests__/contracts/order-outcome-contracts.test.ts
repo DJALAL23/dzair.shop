@@ -17,6 +17,11 @@ vi.mock("astro:actions", () => ({
 const { orderOutcome, readThankYou, thankYouHref } = await import("@/theme/pages/order-outcome");
 
 const absolute = (href: string) => new URL(href, "https://store.example");
+const COPY = {
+  formSubmitFailed: "We could not place your order.",
+  formFieldInvalid: "Check this field",
+  formRequiredField: "Please choose an option",
+};
 
 describe("the thank-you query", () => {
   it("round-trips any order the server can return", () => {
@@ -51,7 +56,7 @@ describe("the thank-you query", () => {
 
 describe("orderOutcome", () => {
   it("redirects a placed order to the thank-you page", () => {
-    const outcome = orderOutcome({ data: { orderNumber: "CF-1001", total: 4500, orderId: "ord_1" } });
+    const outcome = orderOutcome({ data: { orderNumber: "CF-1001", total: 4500, orderId: "ord_1" } }, COPY);
     expect(outcome.redirect).toBe(thankYouHref({ orderNumber: "CF-1001", total: 4500, orderId: "ord_1" }));
     expect(outcome.fieldErrors).toEqual({});
     expect(outcome.serverError).toBeNull();
@@ -60,16 +65,26 @@ describe("orderOutcome", () => {
   it("returns field errors for invalid input and keeps the shopper on the form", () => {
     const outcome = orderOutcome({
       error: { type: "AstroActionInputError", fields: { phone: ["Invalid phone"] } },
-    });
-    expect(outcome).toEqual({ redirect: null, fieldErrors: { phone: ["Invalid phone"] }, serverError: null });
+    }, COPY);
+    expect(outcome).toEqual({ redirect: null, fieldErrors: { phone: [COPY.formFieldInvalid] }, serverError: null });
   });
 
-  it("returns the server message for any other failure", () => {
-    const outcome = orderOutcome({ error: new Error("Out of stock") });
-    expect(outcome).toEqual({ redirect: null, fieldErrors: {}, serverError: "Out of stock" });
+  it("says the store's own words under each field, never the server's English", () => {
+    const outcome = orderOutcome({
+      error: { type: "AstroActionInputError", fields: { wilayaId: ["Invalid input: expected number, received NaN"], customerName: ["Too short"] } },
+    }, COPY);
+    expect(outcome.fieldErrors).toEqual({
+      wilayaId: [COPY.formRequiredField],
+      customerName: [COPY.formFieldInvalid],
+    });
+  });
+
+  it("shows the store's own sentence for any refused order, never the server's detail", () => {
+    const outcome = orderOutcome({ error: new Error("SKU is missing on product prod-2") }, COPY);
+    expect(outcome).toEqual({ redirect: null, fieldErrors: {}, serverError: COPY.formSubmitFailed });
   });
 
   it("is quiet before any submit", () => {
-    expect(orderOutcome(undefined)).toEqual({ redirect: null, fieldErrors: {}, serverError: null });
+    expect(orderOutcome(undefined, COPY)).toEqual({ redirect: null, fieldErrors: {}, serverError: null });
   });
 });

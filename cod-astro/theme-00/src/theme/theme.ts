@@ -20,7 +20,7 @@ import { customerTestimonials } from "./catalog/home/customer-testimonials.def";
 
 export const theme00 = defineTheme({
   key: THEME_KEY,
-  version: "1.0.2",
+  version: "1.0.3",
   // The languages this theme's content packs cover; every editor label must
   // be translated into all of them (`catalog/labels.ts`).
   locales: ["ar", "fr", "en"],

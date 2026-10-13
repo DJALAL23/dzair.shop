@@ -32,12 +32,11 @@ import {
   type AbandonedCheckoutSnapshot,
 } from "@wocart/storefront";
 import { getCart, cartSubtotal, subscribe } from "./cart";
+import { onEachPage } from "./page-lifecycle";
 
 const UPSERT_URL = "/api/abandoned";
 
-initAbandonmentTracking();
-
-function initAbandonmentTracking() {
+function initAbandonmentTracking(): () => void {
   const tracker = createAbandonedCheckoutTracker({
     storage: {
       getItem: (key) => sessionStorage.getItem(key),
@@ -159,12 +158,22 @@ function initAbandonmentTracking() {
   // On the checkout page the basket is part of what was abandoned, so editing
   // it has to update the record — otherwise the merchant calls back about a
   // line the shopper already removed.
-  if (document.getElementById("checkout-root")) {
-    subscribe(() => {
-      tracker.update(collectFormData());
-    });
-  }
+  const unsubscribeCart = document.getElementById("checkout-root")
+    ? subscribe(() => {
+        tracker.update(collectFormData());
+      })
+    : undefined;
 
   // Capture shoppers who close the tab or navigate away mid-checkout
-  window.addEventListener("pagehide", () => tracker.captureOnExit(collectFormData()));
+  const captureExit = () => tracker.captureOnExit(collectFormData());
+  window.addEventListener("pagehide", captureExit);
+
+  // A client-side navigation leaves the page alive, so the exit is captured here.
+  return () => {
+    window.removeEventListener("pagehide", captureExit);
+    unsubscribeCart?.();
+    captureExit();
+  };
 }
+
+onEachPage(initAbandonmentTracking);

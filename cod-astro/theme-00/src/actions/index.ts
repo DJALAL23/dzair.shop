@@ -21,14 +21,20 @@ export const server = {
 
       if (!result.success) {
         // "shape" — neither a basket nor a product — is a field error the
-        // form can render; everything else is cod-server's message.
+        // form can render. Anything else is the store refusing the order: a
+        // 422, so the page reads as a refusal and not a crash. The message is
+        // cod-server's, written for the merchant; the form shows the store's own
+        // sentence instead (see orderOutcome).
         if (result.errorKind === "shape") {
           throw new ActionError({
             code: "BAD_REQUEST",
             message: result.error,
           });
         }
-        throw new Error(result.error);
+        throw new ActionError({
+          code: "UNPROCESSABLE_CONTENT",
+          message: result.error,
+        });
       }
 
       return result.data;

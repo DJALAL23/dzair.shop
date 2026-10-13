@@ -28,7 +28,7 @@ if (!config.cartEnabled) return Astro.redirect(Astro.locals.store.href("/"), 302
 // Same single PRG redirect the product form uses: the browser follows the 303
 // straight to the thank-you page, so this page never re-renders behind it and
 // the abandonment-conversion signal fires there.
-const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder));
+const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
 if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
 const { fieldErrors, serverError } = outcome;
 
@@ -43,6 +43,7 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
   title={`${content.checkoutTitle} — ${config.name}`}
   hideMobileNav={true}
   noindex={true}
+  softNavigation={false}
 >
   <div
     id="checkout-root"
@@ -113,7 +114,7 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
     <div id="checkout-main" class="space-y-5" hidden>
       <CheckoutSummary content={content} />
 
-      <form method="POST" action={actions.placeOrder} id="checkout-form" class="space-y-5">
+      <form method="POST" action={actions.placeOrder} id="checkout-form" class="space-y-5" data-astro-reload>
         {/* The basket, serialised at submit time so it always matches what the
             summary above is showing. */}
         <input type="hidden" name="items" value="" id="cart-items-input" />

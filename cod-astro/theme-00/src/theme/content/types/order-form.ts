@@ -32,6 +32,10 @@ export type OrderFormStrings = {
   formEmailPlaceholder: string;
   /** Shown under a required dropdown the shopper submitted without answering. */
   formRequiredField: string;
+  /** Shown above the form when the store refuses an order the shopper cannot fix here. */
+  formSubmitFailed: string;
+  /** Under a field the server refused for a reason the shopper can fix by checking it. */
+  formFieldInvalid: string;
   formSubmit: string;
   formConfirmNote: string;
   /**

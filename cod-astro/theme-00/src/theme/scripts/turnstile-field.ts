@@ -24,6 +24,8 @@
  * (store has Turnstile disabled).
  */
 
+import { onEachPage } from "./page-lifecycle";
+
 export function initTurnstileField(): void {
   const field = document.getElementById("turnstile-field");
   if (!field) return;
@@ -111,10 +113,4 @@ export function initTurnstileField(): void {
   }
 }
 
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => initTurnstileField());
-  } else {
-    initTurnstileField();
-  }
-}
+onEachPage(() => initTurnstileField());

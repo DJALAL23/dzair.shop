@@ -64,7 +64,9 @@ export default defineConfig({
       }),
     },
   },
-  prefetch: true,
+  // Links prefetch only when they opt in with data-astro-prefetch, as before
+  // ClientRouter; its default would prefetch every link on the page.
+  prefetch: { prefetchAll: false },
   image: {
     ...(isVercel ? { service: passthroughImageService() } : {}),
     remotePatterns: [{ protocol: "https" }],

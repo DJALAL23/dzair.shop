@@ -1,0 +1,36 @@
+---
+// Previous and next links for a product listing. Each page is a plain address
+// (`?page=n`), so a shopper can share it, reload it, and use the back button.
+import type { StoreFrontContent } from "@/theme/content";
+
+interface Props {
+  basePath: string;
+  page: number;
+  hasNext: boolean;
+  content: StoreFrontContent;
+}
+
+const { basePath, page, hasNext, content } = Astro.props;
+const pageHref = (n: number) => (n === 1 ? basePath : `${basePath}?page=${n}`);
+const pillClass = "px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm";
+const pillStyle = "border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text-2)";
+---
+
+{(page > 1 || hasNext) && (
+  <nav aria-label={content.pagerLabel} class="mt-10 flex items-center justify-between gap-4">
+    {page > 1 ? (
+      <a href={pageHref(page - 1)} rel="prev" data-astro-prefetch="hover" class={pillClass} style={pillStyle}>
+        {content.pagerPrevious}
+      </a>
+    ) : (
+      <span></span>
+    )}
+    {hasNext ? (
+      <a href={pageHref(page + 1)} rel="next" data-astro-prefetch="hover" class={pillClass} style={pillStyle}>
+        {content.pagerNext}
+      </a>
+    ) : (
+      <span></span>
+    )}
+  </nav>
+)}

@@ -22,13 +22,14 @@ import { formatAmount } from "../utils/money";
 // The product page's one SSR→browser contract — see bridges/.
 import { readProductPageData } from "../bridges/product-page-data";
 import { getOfferTierView, toLocalAlgerianMobile } from "@wocart/storefront";
+import { onEachPage } from "./page-lifecycle";
 
-export function initProductPage() {
+export function initProductPage(): () => void {
   // ── DATA BRIDGE ────────────────────────────────────────────────────────────
   // Server-computed values arrive on one hidden element; the contract (writer
   // and reader) lives in `theme/bridges/product-page-data.ts`.
   const data = readProductPageData();
-  if (!data) return;
+  if (!data) return () => {};
 
   const variants = data.variants;
   
@@ -525,13 +526,13 @@ export function initProductPage() {
 
   // The merchant's own questions, serialised into the one hidden JSON input the
   // platform action whitelists. No-op for a store with no custom fields.
-  initCustomFields(form);
+  const unbindCustomFields = initCustomFields(form);
 
   // A required dropdown cannot rely on the browser: its value lives in a hidden
   // input, which is barred from constraint validation. Bound on document in the
   // capture phase, so it runs before the submit guard above — a blocked submit
   // must never leave the confirm button disabled.
-  initRequiredSelects();
+  const unbindRequiredSelects = initRequiredSelects();
 
   // ── ALGERIAN PHONE VALIDATION ──────────────────────────────────────────────
   // Normalizes to the canonical local form "05XXXXXXXX" on blur and blocks
@@ -637,23 +638,11 @@ export function initProductPage() {
       if (fbpInput) fbpInput.value = getCookie("_fbp") ?? "";
     });
   }
+
+  return () => {
+    unbindCustomFields();
+    unbindRequiredSelects();
+  };
 }
 
-/**
- * AUTO-INITIALIZATION
- * The storefront does not use Astro view transitions (ClientRouter
- * was removed because it caused dynamic <script type="module"> fetches
- * to be served with empty Content-Type by the SSR worker, breaking
- * strict-MIME-checked module loading and silently disabling every
- * interactive element on the page). Without ClientRouter,
- * `astro:page-load` is never fired, so we bind to DOMContentLoaded
- * instead — and run immediately if the document is already parsed
- * by the time this script evaluates.
- */
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => initProductPage());
-  } else {
-    initProductPage();
-  }
-}
+onEachPage(initProductPage);

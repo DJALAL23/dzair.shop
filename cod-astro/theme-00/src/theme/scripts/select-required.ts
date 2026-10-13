@@ -79,8 +79,8 @@ function setInvalid(container: HTMLElement, invalid: boolean): void {
 /**
  * Start enforcing required dropdowns for every form on the page.
  *
- * Idempotent, and returns a teardown. The page scripts self-initialise on
- * import, and a layout that also called this would otherwise validate twice and
+ * Idempotent, and returns a teardown. The page scripts bind through
+ * `onEachPage`, and a layout that also called this would otherwise validate twice and
  * block the same submit with two listeners.
  */
 export function initRequiredSelects(): () => void {

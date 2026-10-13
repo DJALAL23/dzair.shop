@@ -116,12 +116,12 @@ describe("placeOrder binding (src/actions/index.ts)", () => {
     expect(createOrder).not.toHaveBeenCalled();
   });
 
-  it("passes cod-server's refusal through as a plain Error carrying its message", async () => {
+  it("turns cod-server's refusal into a 422 ActionError, so the page reads it as a refusal", async () => {
     createOrder.mockResolvedValueOnce({ success: false, error: "المنتج غير متوفر" });
 
     await expect(
       action.handler(parsedSingleProductOrder, { request: orderRequest() }),
-    ).rejects.toThrow("المنتج غير متوفر");
+    ).rejects.toMatchObject({ code: "UNPROCESSABLE_CONTENT", message: "المنتج غير متوفر" });
   });
 
   it("submits the parsed order with its OTP and Turnstile proofs, forwarding attribution", async () => {
@@ -208,7 +208,7 @@ describe("onRequest binding (src/middleware.ts)", () => {
     expect(setActionResult).not.toHaveBeenCalled();
   });
 
-  it("stores the framework's token as-is and 303-redirects an errored form post to the Referer", async () => {
+  it("renders an errored form post in place and stores the framework's token as-is", async () => {
     const setActionResult = wireAction({
       calledFrom: "form",
       name: "placeOrder",
@@ -218,17 +218,17 @@ describe("onRequest binding (src/middleware.ts)", () => {
 
     const response = await middleware(makeContext(request), next);
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(
-      "http://shop.example/product/blue-t-shirt",
-    );
+    // No redirect: a 303 carried no result, so the shopper saw no error.
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.text()).toBe("page");
     // Astro 7 hands over an OBJECT token — the binding must not stringify or copy it.
     expect(setActionResult).toHaveBeenCalledWith("placeOrder", {
       serialized: { error: { code: "BAD_REQUEST", message: "الاسم مطلوب" } },
     });
   });
 
-  it("falls back to the posted path when the browser sent no Referer", async () => {
+  it("renders an errored post without a Referer in place as well", async () => {
     wireAction({
       calledFrom: "form",
       name: "placeOrder",
@@ -237,8 +237,9 @@ describe("onRequest binding (src/middleware.ts)", () => {
 
     const response = await middleware(makeContext(pageRequest()), next);
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/checkout");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.text()).toBe("page");
   });
 
   it("on success stores the result and calls next() — a redirect here would drop it", async () => {
@@ -327,7 +328,7 @@ describe("onRequest binding (src/middleware.ts)", () => {
     expect(context.locals.store).toMatchObject({ pathname: "/products/phone" });
   });
 
-  it("returns a failed French form post to the French page", async () => {
+  it("renders a failed French form post in place, on the French page", async () => {
     wireAction({
       calledFrom: "form",
       name: "placeOrder",
@@ -339,8 +340,10 @@ describe("onRequest binding (src/middleware.ts)", () => {
       next,
     );
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/fr/checkout");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    // Rendered by the French page's own route, the unprefixed checkout.
+    expect(await response.text()).toBe("page /checkout");
   });
 
   it("serves an /api/* endpoint in the language of the page that called it, never redirecting or rewriting it", async () => {

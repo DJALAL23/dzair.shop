@@ -478,22 +478,21 @@ HTML comments are removed.
 
 These are real bugs the theme shipped fixes for. Do not re-introduce them.
 
-1. **No `<ClientRouter />` (Astro view transitions).** It caused
-   `/_astro/page.<hash>.js` to be re-served with an empty Content-Type on the
-   deployed Worker, killing every interactive script. If soft navigation is
-   genuinely needed, ask the human first.
+1. **Client-side navigation (`<ClientRouter />`) is on, page by page.** A page
+   passes `softNavigation` to `StoreLayout`. Checkout and the thank-you page
+   pass `false`, and so do product and landing pages when Turnstile is enabled:
+   its widget renders once per document. Every POST form carries
+   `data-astro-reload`, and so does every language link. An earlier version
+   of the router was removed after `/_astro/*.js` chunks were served with an
+   empty Content-Type; the release pipeline now sets and verifies the
+   Content-Type of every asset. Changing this policy needs the owner's approval.
 
-2. **No `astro:page-load` event listeners.** That event is part of the
-   transitions module — it never fires without ClientRouter. Use
-   `DOMContentLoaded` (or run-now-if-already-ready):
-
-   ```js
-   if (document.readyState === "loading") {
-     document.addEventListener("DOMContentLoaded", init);
-   } else {
-     init();
-   }
-   ```
+2. **Page scripts bind through `onEachPage`** (`src/theme/scripts/page-lifecycle.ts`).
+   A soft navigation swaps the body without firing `DOMContentLoaded`, so a
+   script that binds only there goes dead on the second page. `onEachPage` runs
+   `boot` on the first load and after each navigation, and runs the teardown
+   it returns before the old body is swapped out. An inline script that binds
+   per page carries `data-astro-rerun`, or Astro skips it on a second visit.
 
 3. **Dropdown visibility uses inline `display: none`, NOT a `.hidden` class.**
    Tailwind class ordering can leave `.hidden`-classed absolutely-positioned

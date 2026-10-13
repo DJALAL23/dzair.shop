@@ -19,6 +19,9 @@ export type MiscStrings = Plural<"lowStock"> &
   loadMoreLabel: string;
   allLabel: string;
   productCountLabel: string;
+  pagerPrevious: string;
+  pagerNext: string;
+  pagerLabel: string;
   reviewFormMinLengthError: string;
   reviewFormRatingRequired: string;
   offerSaveBadge: string;

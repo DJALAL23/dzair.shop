@@ -30,6 +30,8 @@ export const frOrderForm: OrderFormStrings = {
   formEmailLabel: "E-mail",
   formEmailPlaceholder: "vous@exemple.com",
   formRequiredField: "Veuillez choisir une option",
+  formSubmitFailed: "Votre commande n'a pas pu être enregistrée. Réessayez, ou contactez la boutique.",
+  formFieldInvalid: "Vérifiez ce champ",
   formSubmit: "Confirmer la commande",
   formConfirmNote: "Notre équipe vous contactera pour confirmer votre commande dans les 24 heures",
 

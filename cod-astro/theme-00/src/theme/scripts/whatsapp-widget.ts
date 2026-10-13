@@ -1,6 +1,6 @@
 /**
  * WhatsApp chat widget client script (theme layer).
- * Self-initialising, idempotent, accessible, zero dependencies.
+ * Idempotent, accessible, zero dependencies.
  *
  * Implements:
  * - Launcher toggle + close button
@@ -15,6 +15,7 @@ import {
   buildWhatsAppHref,
 } from "@wocart/storefront";
 import { readProductPageData } from "../bridges/product-page-data";
+import { onEachPage } from "./page-lifecycle";
 
 export function initWhatsAppWidget(
   container: HTMLElement | null = document.getElementById("wa-widget"),
@@ -171,11 +172,4 @@ export function initWhatsAppWidget(
   };
 }
 
-// Self-initialisation on DOM ready
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => initWhatsAppWidget());
-  } else {
-    initWhatsAppWidget();
-  }
-}
+onEachPage(() => initWhatsAppWidget());

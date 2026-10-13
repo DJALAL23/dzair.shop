@@ -9,6 +9,8 @@
  * jump-to-form link.
  */
 
+import { onEachPage } from "./page-lifecycle";
+
 export function initStickyCta(): (() => void) | void {
   const cta = document.getElementById("product-sticky-cta") ?? document.getElementById("lp-sticky-cta");
   const form = document.getElementById("order-section") ?? document.getElementById("order-section-wrapper");
@@ -32,10 +34,4 @@ export function initStickyCta(): (() => void) | void {
   };
 }
 
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => initStickyCta());
-  } else {
-    initStickyCta();
-  }
-}
+onEachPage(() => initStickyCta());

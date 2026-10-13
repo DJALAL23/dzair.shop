@@ -189,6 +189,18 @@ describe("OTP step — checkout completion", () => {
     expect(document.querySelector<HTMLDivElement>("#otp-step")!.classList.contains("hidden")).toBe(false);
   });
 
+  it("a code that was sent shows no error banner", async () => {
+    createOtpDom();
+    mockFetch({ "/api/otp/send": { data: { status: "sent", requestId: "req-1", expiresAt: 1, maxAttempts: 5 } } });
+    initOtpStep();
+
+    userSubmitsForm();
+    await vi.waitFor(() =>
+      expect(document.querySelector<HTMLDivElement>("#otp-step")!.classList.contains("hidden")).toBe(false)
+    );
+    expect(document.querySelector<HTMLElement>("#otp-error")!.textContent).toBe("");
+  });
+
   it("rate-limited send → localized rate message, resend locked by the window, one POST", async () => {
     createOtpDom();
     const counted = mockFetchCounted({
@@ -202,7 +214,7 @@ describe("OTP step — checkout completion", () => {
 
     userSubmitsForm();
     await vi.waitFor(() =>
-      expect(document.querySelector<HTMLElement>("#otp-error")!.textContent).toContain("Too many requests")
+      expect(document.querySelector<HTMLElement>("#otp-error")!.textContent).toContain("Too many requests (120s)")
     );
 
     // The cooldown is the machine's: locked for the server's window, labeled.

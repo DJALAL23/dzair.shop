@@ -3,6 +3,8 @@
 // Fetches category products and all categories, renders the category page
 // Allows parent page to stream this after layout renders
 import ProductCard from "@/theme/components/product/ProductCard.astro";
+import ListingPager from "@/theme/components/listing/ListingPager.astro";
+import { pageRequest, pageWindow, requestedPage } from "@/theme/utils/pagination";
 import type { StoreFrontContent } from "@/theme/content";
 
 interface Props {
@@ -21,14 +23,18 @@ const category = categories.find((c) => c.slug === slug);
 if (!category) return Astro.redirect(Astro.locals.store.href("/"));
 
 // Fetch products for this category
-const products = await store.products.list({ categoryId: category.id });
+const page = requestedPage(Astro.url.searchParams.get("page"));
+const { items: products, hasNext, first, last } = pageWindow(
+  await store.products.list({ categoryId: category.id, ...pageRequest(page) }),
+  page,
+);
 ---
 
 <div class="max-w-5xl mx-auto px-5 py-8">
   <div class="mb-8">
     <h1 class="text-3xl font-black tracking-tight" style="color: var(--clr-text)">{category.name}</h1>
     <p class="text-[0.8125rem] font-bold uppercase tracking-widest mt-1" style="color: var(--clr-text-2)">
-      {products.length} {content.productCountLabel}
+      {page === 1 && !hasNext ? products.length : `${first}–${last}`} {content.productCountLabel}
     </p>
     {category.description && (
       <p class="text-sm mt-3 max-w-2xl" style="color: var(--clr-text-2)">{category.description}</p>
@@ -75,7 +81,7 @@ const products = await store.products.list({ categoryId: category.id });
         />
       ))}
     </div>
-  ) : (
+  ) : page === 1 ? (
     <div class="py-24 text-center">
       <div class="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-6" style="background: var(--clr-surface-alt)">🔍</div>
       <h2 class="text-xl font-black mb-2" style="color: var(--clr-text)">
@@ -90,5 +96,6 @@ const products = await store.products.list({ categoryId: category.id });
         {content.viewAllCta}
       </a>
     </div>
-  )}
+  ) : null}
+  <ListingPager basePath={Astro.locals.store.href(`/category/${slug}`)} page={page} hasNext={hasNext} content={content} />
 </div>

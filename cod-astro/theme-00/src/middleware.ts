@@ -8,9 +8,9 @@
 //    island or an `/api/*` endpoint from the page that asked for it. The
 //    config read behind it is cached per client scope, so this costs one
 //    fetch per isolate and language.
-// 2. The SDK's PRG decision: on an action error the shopper is sent back to
-//    the form with a 303; on success call next() so the result cookie
-//    survives — see resolveActionRedirectDecision.
+// 2. The SDK's action decision. It stores the action's result on `locals` for
+//    the page that renders next. An errored form post renders that page in the
+//    same response, so the shopper sees the error (see the note at the call).
 import { defineMiddleware } from "astro:middleware";
 import { getActionContext } from "astro:actions";
 import { resolveActionRedirectDecision } from "@wocart/storefront/astro";
@@ -42,7 +42,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const { action, setActionResult, serializeActionResult } =
     getActionContext(context);
 
-  const decision = await resolveActionRedirectDecision({
+  // An errored form post is not redirected. The SDK has already stored the result
+  // on `locals`, and the form renders in this response with it (`getActionResult`).
+  // A 303 back to the form carried no cookie or query for that result, so the
+  // shopper was returned to the page with no message at all.
+  await resolveActionRedirectDecision({
     action: action && {
       calledFrom: action.calledFrom,
       name: action.name,
@@ -54,9 +58,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
     pathname: context.url.pathname,
   });
 
-  if (decision.kind === "redirect") {
-    return context.redirect(decision.location, decision.status);
-  }
 
   return route === context.url.pathname ? next() : next(new URL(`${route}${context.url.search}`, context.url));
 });
