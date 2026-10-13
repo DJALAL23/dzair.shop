@@ -4,7 +4,7 @@
 
 This directory contains all UI components, styling, and content you can
 customize without breaking the CodFlow integration. Platform behavior comes
-from `@codflow/storefront`, bound in `src/theme/sdk.ts` (reads) and
+from `@wocart/storefront`, bound in `src/theme/sdk.ts` (reads) and
 `src/theme/utils/images.ts` (image URLs). There is no local core layer any more
 — `src/core/` was deleted; do not add one.
 
@@ -80,10 +80,10 @@ catalog/category read. See `docs/history/PRODUCT_ZERO_AUDIT.md` §3.
   `getStoreContext()` (per-request store config + resolved content)
 
 ### `sdk.ts` — the platform adapter (the ONE SDK seam)
-- `getStoreClient()` creates the `@codflow/storefront` client from server env:
+- `getStoreClient()` creates the `@wocart/storefront` client from server env:
   one client per store scope, fail-fast when `STORE_API_KEY` is missing.
   Server code only — import it in page frontmatter, actions, middleware, and
-  endpoints; browser scripts use `@codflow/storefront` directly for
+  endpoints; browser scripts use `@wocart/storefront` directly for
   browser-safe helpers. `__tests__/guards/sdk-boundary.test.ts` guards both rules, and the
   `createStoreClient` call must not appear anywhere else.
 

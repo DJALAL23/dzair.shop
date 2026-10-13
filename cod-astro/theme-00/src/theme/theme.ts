@@ -6,7 +6,7 @@
  * for the contract. Each definition lives under `src/theme/catalog/home/`;
  * the shared read keys and the copy bridge live in `src/theme/catalog/shared.ts`.
  */
-import { defineTheme } from "@codflow/theme";
+import { defineTheme } from "@wocart/theme";
 import { SURFACE } from "./catalog/labels";
 import { THEME_KEY } from "./key";
 import { hero } from "./catalog/home/hero.def";

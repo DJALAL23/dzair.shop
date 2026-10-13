@@ -6,7 +6,7 @@
  * and `lp:<slug>` are the reserved conventions. Three consumers read this
  * constant — cod-server's `GET /store/page-documents/{surface}` route, the
  * seed script in `cod-server/scripts`, and (mirrored, with a parity guard in
- * `scripts/check-platform-parity.mjs`) `@codflow/theme`'s page-data envelope
+ * `scripts/check-platform-parity.mjs`) `@wocart/theme`'s page-data envelope
  * check.
  *
  * It lives in its own module, with no imports, so a caller that only needs to

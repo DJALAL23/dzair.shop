@@ -19,8 +19,8 @@ export type LocaleOverrides = Record<string, string>;
 export type ContentOverrides = Partial<Record<StoreLocale, LocaleOverrides>>;
 
 /**
- * A theme's key (`defineTheme({ key })` in `@codflow/theme`): lowercase
- * kebab-case, at most 64 characters. Mirrored by `@codflow/theme` and guarded
+ * A theme's key (`defineTheme({ key })` in `@wocart/theme`): lowercase
+ * kebab-case, at most 64 characters. Mirrored by `@wocart/theme` and guarded
  * by `scripts/check-platform-parity.mjs`.
  */
 export const THEME_KEY_RE = /^(?=.{1,64}$)[a-z][a-z0-9]*(-[a-z0-9]+)*$/;

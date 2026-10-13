@@ -35,8 +35,8 @@ import {
   subscribe,
   isCartAvailable,
   addLine,
-  MAX_LINE_QUANTITY,
-  type CartLine,
+  MAX_BASKET_LINE_QUANTITY,
+  type BasketLine,
 } from "./cart";
 import {
   createValidator,
@@ -75,7 +75,7 @@ function toPrice(raw: string | undefined): number {
 function toQuantity(raw: string): number {
   const value = Number(raw);
   if (!Number.isFinite(value)) return 1;
-  return Math.min(Math.max(Math.trunc(value), 1), MAX_LINE_QUANTITY);
+  return Math.min(Math.max(Math.trunc(value), 1), MAX_BASKET_LINE_QUANTITY);
 }
 
 /**
@@ -113,7 +113,7 @@ function parseSelections(raw: string): Array<{ variantId: string; variantLabel?:
 }
 
 /** What one tap on an add button should put in the basket. */
-export function linesForButton(button: HTMLElement): CartLine[] {
+export function linesForButton(button: HTMLElement): BasketLine[] {
   const productId = button.dataset.productId ?? "";
   const productName = button.dataset.productName ?? "";
   if (!productId || !productName) return [];

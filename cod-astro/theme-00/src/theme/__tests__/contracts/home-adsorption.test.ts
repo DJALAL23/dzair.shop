@@ -5,23 +5,23 @@
  *
  * Runs the REAL pipeline on the REAL artifacts: the shipped document
  * (`src/theme/pages/home.page.json`), the real definitions (`@/theme/theme`),
- * the real renderer (`@codflow/theme/astro`) and the real Home components.
- * Only `@codflow/storefront` is stubbed, at its usual seam, with the shapes
- * `cod-sdk/storefront/fixtures/cod-server/products-list.json` captured live.
+ * the real renderer (`@wocart/theme/astro`) and the real Home components.
+ * Only `@wocart/storefront` is stubbed, at its usual seam, with the shapes
+ * `wocart-sdk/storefront/fixtures/cod-server/products-list.json` captured live.
  */
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it, vi } from "vitest";
-import type { Category, ProductList } from "@codflow/storefront";
-import type { StoreClient } from "@codflow/storefront/server";
-import InstanceView from "@codflow/theme/astro/InstanceView.astro";
-import { createReadCache } from "@codflow/theme/astro";
-import { parsePageData, validateThemeDefinition } from "@codflow/theme";
+import type { Category, ProductList } from "@wocart/storefront";
+import type { StoreClient } from "@wocart/storefront/server";
+import InstanceView from "@wocart/theme/astro/InstanceView.astro";
+import { createReadCache } from "@wocart/theme/astro";
+import { parsePageData, validateThemeDefinition } from "@wocart/theme";
 import type {
   ComponentDefinition,
   ComponentInstance,
   ReadCache,
   ThemeRenderContext,
-} from "@codflow/theme";
+} from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
 import { makeProduct } from "../support/home-render";
 import { testLocals } from "../support/locals";

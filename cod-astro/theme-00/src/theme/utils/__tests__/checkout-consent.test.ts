@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveCheckoutConsent } from "../checkout-consent";
-import type { StorePageLink } from "@codflow/storefront";
+import type { StorePageLink } from "@wocart/storefront";
 
 const TEXT = "By placing this order, you agree to our {terms} and {refund}.";
 

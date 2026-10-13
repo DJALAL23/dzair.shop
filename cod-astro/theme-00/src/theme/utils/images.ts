@@ -10,14 +10,14 @@
  *
  * - **Server-only.** It reads `astro:env/server`, so it may only be imported
  *   from server code (page frontmatter, components, endpoints). Browser
- *   scripts import `@codflow/storefront` directly.
+ *   scripts import `@wocart/storefront` directly.
  * - **Unset `MEDIA_DOMAIN` is a supported state** (local dev, a store without
  *   a CDN): every helper passes the original URL through unchanged, so callers
  *   never branch on it.
  * - **One binding point.** A helper missing here is a bug in this file, not a
  *   reason to re-implement it — `createImageHelpers` is the SDK's contract.
  */
-import { createImageHelpers } from "@codflow/storefront";
+import { createImageHelpers } from "@wocart/storefront";
 import { MEDIA_DOMAIN } from "astro:env/server";
 
 const images = createImageHelpers(MEDIA_DOMAIN);

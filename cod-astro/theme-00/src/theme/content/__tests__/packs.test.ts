@@ -16,7 +16,7 @@
  * language instead of against Arabic.
  */
 import { describe, expect, it } from "vitest";
-import { PLURAL_CATEGORIES, pluralFormIssues } from "@codflow/theme";
+import { PLURAL_CATEGORIES, pluralFormIssues } from "@wocart/theme";
 import { ar } from "../ar";
 import { en } from "../en";
 import { fr } from "../fr";

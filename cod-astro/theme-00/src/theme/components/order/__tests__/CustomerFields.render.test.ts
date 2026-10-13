@@ -21,7 +21,7 @@ import { Window } from "happy-dom";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import CustomerFields from "../CustomerFields.astro";
 import { en as enContent } from "@/theme/content/en";
-import type { CheckoutFormPolicy } from "@codflow/storefront";
+import type { CheckoutFormPolicy } from "@wocart/storefront";
 
 const DEFAULTS: CheckoutFormPolicy = {
   address: "optional",

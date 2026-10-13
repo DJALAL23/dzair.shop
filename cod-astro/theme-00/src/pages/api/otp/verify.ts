@@ -1,7 +1,7 @@
 // OTP step: verify the typed code. 422 on an upstream rejection preserves the
 // pre-migration contract; the SDK client's error extras (code,
 // attemptsRemaining, terminal) ride through the factory untouched.
-import { createProxyEndpoint } from "@codflow/storefront/astro";
+import { createProxyEndpoint } from "@wocart/storefront/astro";
 import { z } from "astro/zod";
 import { getStoreClient } from "@/theme/sdk";
 

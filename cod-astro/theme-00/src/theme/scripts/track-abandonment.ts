@@ -30,7 +30,7 @@
 import {
   createAbandonedCheckoutTracker,
   type AbandonedCheckoutSnapshot,
-} from "@codflow/storefront";
+} from "@wocart/storefront";
 import { getCart, cartSubtotal, subscribe } from "./cart";
 
 const UPSERT_URL = "/api/abandoned";
@@ -88,7 +88,7 @@ function initAbandonmentTracking() {
    */
   function collectBasket() {
     if (!document.getElementById("checkout-root")) return undefined;
-    // No cap needed here: getCart() already enforces MAX_CART_LINES, which is
+    // No cap needed here: getCart() already enforces MAX_BASKET_LINES, which is
     // the same bound the proxy and cod-server accept. The test that sends 25
     // and expects 20 is what keeps those three from drifting apart.
     const lines = getCart();

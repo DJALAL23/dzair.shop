@@ -1,7 +1,7 @@
 // Review submission. The body is forwarded exactly as the review form wrote
 // it — cod-server owns validation, and the pre-migration route had no schema
 // and no cross-origin check. Both are deliberate parity choices (S7).
-import { createProxyEndpoint } from "@codflow/storefront/astro";
+import { createProxyEndpoint } from "@wocart/storefront/astro";
 import { getStoreClient } from "@/theme/sdk";
 
 interface SubmitReviewInput {

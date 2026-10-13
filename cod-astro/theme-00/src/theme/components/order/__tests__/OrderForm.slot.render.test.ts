@@ -24,7 +24,7 @@
 import { testLocals } from "../../../__tests__/support/locals";
 import { describe, expect, it, vi } from "vitest";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
-import { ProductSchema, type ProductDetail } from "@codflow/storefront";
+import { ProductSchema, type ProductDetail } from "@wocart/storefront";
 import OrderForm from "../OrderForm.astro";
 import { en as enContent } from "@/theme/content/en";
 

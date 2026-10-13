@@ -7,7 +7,7 @@
  *
  * Persistence, sanitising, duplicate merging, the line and quantity caps,
  * cross-tab notifications and the `items[]` wire projection are all
- * `@codflow/storefront`'s `createBasketStore` — this module binds exactly one
+ * `@wocart/storefront`'s `createBasketStore` — this module binds exactly one
  * store per tab and re-exports the names the theme's scripts already import.
  * A rule about baskets therefore has one definition, in the SDK, and one
  * place to change it; the S9 gate forbids re-deriving any of it here.
@@ -17,20 +17,20 @@
  * `window` (SSR, tests) it falls back to memory.
  */
 import {
-  MAX_CART_LINES,
-  MAX_LINE_QUANTITY,
+  MAX_BASKET_LINES,
+  MAX_BASKET_LINE_QUANTITY,
   basketLineKey,
   createBasketStore,
   toOrderItems as projectOrderItems,
-  type CartLine,
-} from "@codflow/storefront";
+  type BasketLine,
+} from "@wocart/storefront";
 
-export { MAX_CART_LINES, MAX_LINE_QUANTITY };
-export type { CartLine };
+export { MAX_BASKET_LINES, MAX_BASKET_LINE_QUANTITY };
+export type { BasketLine };
 
 const store = createBasketStore();
 
-type Listener = (lines: CartLine[]) => void;
+type Listener = (lines: BasketLine[]) => void;
 
 /** Same identity rule the server uses: product AND variant. */
 export function lineKey(productId: string, variantId: string | null): string {
@@ -38,7 +38,7 @@ export function lineKey(productId: string, variantId: string | null): string {
 }
 
 /** A snapshot, not the store's own array — callers cannot mutate the basket by accident. */
-export function getCart(): CartLine[] {
+export function getCart(): BasketLine[] {
   return [...store.getLines()];
 }
 
@@ -47,28 +47,28 @@ export function isCartAvailable(): boolean {
   return store.isPersistent();
 }
 
-export function cartCount(lines: CartLine[] = getCart()): number {
+export function cartCount(lines: BasketLine[] = getCart()): number {
   return lines.reduce((total, line) => total + line.quantity, 0);
 }
 
-export function cartSubtotal(lines: CartLine[] = getCart()): number {
+export function cartSubtotal(lines: BasketLine[] = getCart()): number {
   return lines.reduce((total, line) => total + line.unitPrice * line.quantity, 0);
 }
 
 /** Returns the resulting cart so callers can render without a second read. */
-export function addLine(line: CartLine): CartLine[] {
+export function addLine(line: BasketLine): BasketLine[] {
   return [...store.addLine(line)];
 }
 
-export function setQuantity(key: string, quantity: number): CartLine[] {
+export function setQuantity(key: string, quantity: number): BasketLine[] {
   return [...store.setQuantity(key, quantity)];
 }
 
-export function removeLine(key: string): CartLine[] {
+export function removeLine(key: string): BasketLine[] {
   return [...store.removeLine(key)];
 }
 
-export function clearCart(): CartLine[] {
+export function clearCart(): BasketLine[] {
   return [...store.clear()];
 }
 
@@ -84,6 +84,6 @@ export function subscribe(listener: Listener): () => void {
 }
 
 /** The wire shape POST /store/cart/validate and the order form both expect. */
-export function toOrderItems(lines: CartLine[] = getCart()) {
+export function toOrderItems(lines: BasketLine[] = getCart()) {
   return projectOrderItems(lines);
 }

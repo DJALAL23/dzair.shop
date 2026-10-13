@@ -63,3 +63,6 @@ partner-client-astro/
 
 # Closed-source cloud release runbook skill — local only.
 .opencode/skills/codflow-release/
+
+# Verified SDK tarballs (npm run verify:sdks)
+.sdk-packs/

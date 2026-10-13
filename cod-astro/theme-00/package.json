@@ -1,7 +1,11 @@
 {
   "name": "cod-astro-theme-00",
+  "private": true,
   "type": "module",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -22,12 +26,13 @@
   "dependencies": {
     "@astrojs/cloudflare": "^14.3.1",
     "@astrojs/vercel": "^11.0.10",
-    "@codflow/storefront": "^0.1.0",
-    "@codflow/theme": "^0.0.0",
     "@iconify-json/heroicons": "^1.2.3",
     "@playform/compress": "^0.2.5",
+    "@wocart/storefront": "1.0.0",
+    "@wocart/theme": "1.0.0",
     "astro": "^7.3.2",
-    "astro-icon": "^1.1.5"
+    "astro-icon": "^1.1.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
@@ -36,8 +41,12 @@
     "fast-check": "^4.6.0",
     "happy-dom": "^20.9.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vitest": "^5.0.0",
     "wrangler": "^4.125.0"
+  },
+  "overrides": {
+    "vite": "^8.2.2",
+    "@cloudflare/vite-plugin": "1.53.1"
   }
 }

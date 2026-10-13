@@ -2,7 +2,7 @@
  * The theme's ONE message binding — Shopify's `t` filter for this theme.
  *
  * Every shopper-facing string with a placeholder or a count goes through
- * `message`: `formatMessage` from @codflow/theme picks the plural form the
+ * `message`: `formatMessage` from @wocart/theme picks the plural form the
  * language's CLDR rules select and fills every `{placeholder}`, and numbers
  * are written with this theme's digits (the same locale as money, so a count
  * and a price on one line never mix digit systems).
@@ -10,7 +10,7 @@
  * Browser-safe: scripts receive a message as `data-*={messageData(...)}` and
  * format it with `embeddedMessage`, in the page's `<html lang>`.
  */
-import { formatMessage, messageForms, type MessageValues } from "@codflow/theme";
+import { formatMessage, messageForms, type MessageValues } from "@wocart/theme";
 import { MONEY_LOCALE } from "@/theme/utils/money";
 
 const numbers = new Intl.NumberFormat(MONEY_LOCALE);

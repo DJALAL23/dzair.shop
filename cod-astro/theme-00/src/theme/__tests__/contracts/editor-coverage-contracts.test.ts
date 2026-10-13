@@ -13,7 +13,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import type { FieldDefinition } from "@codflow/theme";
+import type { FieldDefinition } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
 
 /**

@@ -14,11 +14,11 @@
 import { testLocals } from "../support/locals";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it, vi } from "vitest";
-import type { ProductList } from "@codflow/storefront";
-import type { StoreClient } from "@codflow/storefront/server";
-import InstanceView from "@codflow/theme/astro/InstanceView.astro";
-import { createReadCache } from "@codflow/theme/astro";
-import type { ComponentInstance, ThemeRenderContext } from "@codflow/theme";
+import type { ProductList } from "@wocart/storefront";
+import type { StoreClient } from "@wocart/storefront/server";
+import InstanceView from "@wocart/theme/astro/InstanceView.astro";
+import { createReadCache } from "@wocart/theme/astro";
+import type { ComponentInstance, ThemeRenderContext } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
 import { makeProduct } from "../support/home-render";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";

@@ -20,8 +20,8 @@ import {
   buildMetaViewContentPayload,
   createMetaPixelTracker,
   type MetaPixelFunction,
-} from "@codflow/storefront";
-import type { CartLine } from "./cart";
+} from "@wocart/storefront";
+import type { BasketLine } from "./cart";
 
 export type FbqFn = MetaPixelFunction;
 
@@ -73,7 +73,7 @@ export function trackProductInitiateCheckout(
  * Meta's AddToCart means "these items were added", so sending the full basket
  * on every tap would double-count everything already in it.
  */
-export function trackAddToCart(lines: CartLine[]): void {
+export function trackAddToCart(lines: BasketLine[]): void {
   const payload = buildMetaAddToCartPayload(lines);
   if (payload) tracker.track("AddToCart", payload);
 }
@@ -84,7 +84,7 @@ export function trackAddToCart(lines: CartLine[]): void {
  * `value` is passed in rather than computed, because the checkout page knows
  * the server-validated subtotal and that is the number worth reporting.
  */
-export function trackInitiateCheckout(lines: CartLine[], value: number): void {
+export function trackInitiateCheckout(lines: BasketLine[], value: number): void {
   const payload = buildMetaInitiateCheckoutPayload(lines, value);
   if (payload) tracker.track("InitiateCheckout", payload);
 }

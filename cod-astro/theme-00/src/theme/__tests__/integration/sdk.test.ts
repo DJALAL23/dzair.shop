@@ -14,12 +14,12 @@
  * appears in the client bundle").
  *
  * The fixture is one product entry captured from a live cod-server
- * (cod-sdk/storefront/fixtures/cod-server/products-list.json) so the shape is
+ * (wocart-sdk/storefront/fixtures/cod-server/products-list.json) so the shape is
  * evidence, not a hand-written guess. `coverImage.position` is 0-based in live
  * data — that stays pinned here too.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isStorefrontError } from "@codflow/storefront/server";
+import { isStorefrontError } from "@wocart/storefront/server";
 
 const LIVE_PRODUCT = {
   id: "prod_smart_watch",

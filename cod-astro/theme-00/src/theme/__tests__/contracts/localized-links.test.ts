@@ -7,7 +7,7 @@
  */
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
-import type { LocaleRouting } from "@codflow/storefront";
+import type { LocaleRouting } from "@wocart/storefront";
 import Footer from "@/theme/components/layout/Footer.astro";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { fr } from "@/theme/content/fr";

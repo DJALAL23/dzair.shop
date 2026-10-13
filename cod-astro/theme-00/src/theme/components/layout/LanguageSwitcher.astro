@@ -2,7 +2,7 @@
 // The store's published languages as plain links to this same page in each —
 // crawlable, no script, and absent while a store serves one language.
 // Shoppers choose; nothing is ever redirected by browser language.
-import { localizeHref, servedLanguage } from "@codflow/storefront";
+import { localizeHref, servedLanguage } from "@wocart/storefront";
 
 const store = Astro.locals.store;
 const languages = store.routing.published.map((code) => ({

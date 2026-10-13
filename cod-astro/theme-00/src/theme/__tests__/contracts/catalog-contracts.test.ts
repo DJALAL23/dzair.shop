@@ -17,7 +17,7 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { validateThemeDefinition } from "@codflow/theme";
+import { validateThemeDefinition } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
 import { en } from "@/theme/content/en";
 

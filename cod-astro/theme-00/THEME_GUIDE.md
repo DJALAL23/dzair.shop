@@ -8,9 +8,9 @@ fit any store — beauty, electronics, supplements, home goods, general retail.
 Read it as the answer to *"what does a correct CodFlow theme look like?"* A new
 theme starts from this one; the platform underneath never changes per theme.
 
-> **Two SDKs, two jobs.** `@codflow/storefront` is how a theme talks to
+> **Two SDKs, two jobs.** `@wocart/storefront` is how a theme talks to
 > `cod-server` — the source of truth for products, prices, stock, orders,
-> delivery and OTP. `@codflow/theme` is how a theme is *composed* from editable
+> delivery and OTP. `@wocart/theme` is how a theme is *composed* from editable
 > sections. Both are consumed **by package name**, never by a relative path.
 
 ---
@@ -47,7 +47,7 @@ src/
 
 | Seam | The only file | What may cross it |
 | --- | --- | --- |
-| Platform reads | `src/theme/sdk.ts` | `@codflow/storefront/server` |
+| Platform reads | `src/theme/sdk.ts` | `@wocart/storefront/server` |
 | Image URLs | `src/theme/utils/images.ts` | `createImageHelpers(MEDIA_DOMAIN)` |
 
 Everything else renders what those two hand it. A component that calls the
@@ -56,8 +56,8 @@ platform itself is a regression.
 ### Platform surface — do not touch from the theme layer
 
 ```
-@codflow/storefront          ← the SDK: reads, actions, proxies, image helpers
-@codflow/theme               ← the composition contract + Astro renderer
+@wocart/storefront          ← the SDK: reads, actions, proxies, image helpers
+@wocart/theme               ← the composition contract + Astro renderer
 src/theme/sdk.ts             ← the one platform read seam
 src/theme/utils/images.ts    ← the media-domain image binding
 src/middleware.ts            ← action redirect (SDK PRG decision)
@@ -66,8 +66,8 @@ src/pages/api/**             ← same-origin proxies (SDK bindings)
 
 If you want to change one of these it is a **platform change** (an SDK release),
 not a theme change — stop and ask. A missing capability is an SDK change in
-`cod-sdk/storefront/`, never a local re-implementation. Reference data is part of
-that line too: `WILAYAS` / `communesForWilaya` come from `@codflow/storefront`,
+`wocart-sdk/storefront/`, never a local re-implementation. Reference data is part of
+that line too: `WILAYAS` / `communesForWilaya` come from `@wocart/storefront`,
 there is no `src/theme/data/`, and the commune bundle is parity-checked against
 the server's seed rows. Everything under `components/`, `catalog/`, `content/`,
 `styles/` and the `src/pages/*` templates is yours.
@@ -130,7 +130,7 @@ component.
 
 ### 2.3 The composition rules (the theme contract)
 
-Home is *composed* through `@codflow/theme`, not hardcoded in the page:
+Home is *composed* through `@wocart/theme`, not hardcoded in the page:
 
 1. **Definitions are code; instances are data.** A definition
    (`catalog/home/<type>.def.ts`) says what a section *can* be — its type, label,
@@ -285,7 +285,7 @@ src/theme/
 > **Boundaries.** Home sections are presentational — the page
 > (`src/pages/index.astro`) owns the one catalog/category read, and the section
 > definitions live in `catalog/`. Screen-value projections come directly from
-> `@codflow/storefront` (`getProductView`, `getProductListView`, and
+> `@wocart/storefront` (`getProductView`, `getProductListView`, and
 > `getOfferTierView`). `utils/money.ts` only binds the SDK money formatter to
 > this theme's locale and symbol choice. The platform-vs-theme classification,
 > with evidence, is in
@@ -296,7 +296,7 @@ src/theme/
 ## 6. The platform boundary
 
 ```
-@codflow/storefront          ← the SDK: reads, actions, proxies, image helpers
+@wocart/storefront          ← the SDK: reads, actions, proxies, image helpers
 src/theme/sdk.ts             ← the one platform read seam
 src/theme/utils/images.ts    ← the media-domain image binding
 src/middleware.ts
@@ -306,10 +306,10 @@ src/pages/api/**
 
 The data layer is platform-owned. If you think you need to change something
 there, that is a platform change, not a theme change. A missing capability is an
-SDK change in `cod-sdk/storefront/`, never a local re-implementation.
+SDK change in `wocart-sdk/storefront/`, never a local re-implementation.
 
 Reference data is part of that line: `WILAYAS` and `communesForWilaya` come from
-`@codflow/storefront`, and there is no `src/theme/data/` to edit. The commune
+`@wocart/storefront`, and there is no `src/theme/data/` to edit. The commune
 bundle is parity-checked against the server's seed rows (`npm run check:parity`),
 so a corrected commune is a platform change on both sides, never a theme-side
 patch.
@@ -327,7 +327,7 @@ patch.
   international stores.
 - Currency: `DZD` / `دج` (`StoreConfig.currencySymbol`).
 - Phone validation: 10 digits starting `05` / `06` / `07`. Validated by
-  `@codflow/storefront` (the phone schema), never in the theme.
+  `@wocart/storefront` (the phone schema), never in the theme.
 
 ---
 
@@ -340,8 +340,8 @@ other themes copy. That rules out styling choices that only suit one niche.
 ### DO NOT TOUCH
 
 ```
-@codflow/storefront           ← the SDK owns reads, actions, proxies, images
-@codflow/theme                ← the composition contract + renderer
+@wocart/storefront           ← the SDK owns reads, actions, proxies, images
+@wocart/theme                ← the composition contract + renderer
 src/theme/sdk.ts              ← the one platform read seam
 src/theme/utils/images.ts     ← the media-domain image binding
 src/middleware.ts             ← action redirect (SDK PRG decision)
@@ -410,7 +410,7 @@ what they pass to your components. **Do not fetch inside presentational
 components — pass props.** The one documented exception is a section's catalog
 `load`, which is where reads are declared; the page owns the read cache.
 
-Key shapes (from `@codflow/storefront` — types + zod schemas):
+Key shapes (from `@wocart/storefront` — types + zod schemas):
 
 - `Product` has `id, name, description, descriptionFormat ("text" | "html"),
   descriptionPlain, price, compareAtPrice, images[], variants[], offers[],
@@ -555,12 +555,12 @@ A page is done when:
 - **Need a component pattern?** The existing components cover most cases. Read
   first, mirror the style.
 - **Need to know what an action returns?** Read `src/actions/index.ts` and the
-  SDK's `PlaceOrderResult` (`@codflow/storefront/astro`).
+  SDK's `PlaceOrderResult` (`@wocart/storefront/astro`).
 - **Need an example of token usage?** `Header.astro`, `Footer.astro`,
   `OrderForm.astro` are token-clean. Match that style.
 - **Need to add a composed section?** `src/theme/catalog/home/` — copy an
   existing `*.def.ts`, then register it in `theme.ts`.
-- **Need the platform contract?** `cod-sdk/storefront/USAGE.md` and the SDK's
+- **Need the platform contract?** `wocart-sdk/storefront/USAGE.md` and the SDK's
   shipped types.
 - **Need the boundaries?** [`PRODUCT_ZERO_AUDIT.md`](./docs/history/PRODUCT_ZERO_AUDIT.md).
 

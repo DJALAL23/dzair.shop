@@ -18,7 +18,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import Footer from "../Footer.astro";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en } from "@/theme/content/en";
-import type { StoreConfig, StorePageLink } from "@codflow/storefront";
+import type { StoreConfig, StorePageLink } from "@wocart/storefront";
 
 function page(overrides: Partial<StorePageLink> = {}): StorePageLink {
   return {

@@ -1,18 +1,18 @@
 // @vitest-environment node
 /// <reference types="vitest/globals" />
 /**
- * Theme-00 is a consumer of the SDKs, not part of them. It may reach the SDKs
- * only through what a third-party theme could install: the published entry
- * points in each package's `exports` map. A deep import or a relative path into
- * `cod-sdk/` would let Theme-00 depend on something another theme cannot have.
+ * Theme-00 is a consumer of the SDKs, not part of them. It installs them from the
+ * npm registry like any third-party theme, and reaches them only through the
+ * published entry points in each package's `exports` map. A deep import or a relative path into
+ * `wocart-sdk/` would let Theme-00 depend on something another theme cannot have.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const SOURCE_ROOT = path.resolve(process.cwd(), "src");
 const SOURCE_FILE = /\.(ts|tsx|astro|mjs|js)$/;
-const SDK_IMPORT = /(?:from\s+|import\s*\(\s*|import\s+)["'](@codflow\/[^"']+)["']/g;
+const SDK_IMPORT = /(?:from\s+|import\s*\(\s*|import\s+)["'](@wocart\/[^"']+)["']/g;
 const RELATIVE_IMPORT = /(?:from\s+|import\s*\(\s*|import\s+)["'](\.{1,2}\/[^"']+)["']/g;
 
 function sourceFiles(dir: string): string[] {
@@ -23,7 +23,7 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/** The `exports` subpaths of an installed `@codflow/*` package, as import specifiers. */
+/** The `exports` subpaths of an installed `@wocart/*` package, as import specifiers. */
 function publishedEntryPoints(packageName: string): Set<string> {
   let dir = process.cwd();
   while (true) {
@@ -46,16 +46,46 @@ function publishedEntryPoints(packageName: string): Set<string> {
 
 const files = sourceFiles(SOURCE_ROOT);
 const allowed = new Set([
-  ...publishedEntryPoints("@codflow/theme"),
-  ...publishedEntryPoints("@codflow/storefront"),
+  ...publishedEntryPoints("@wocart/theme"),
+  ...publishedEntryPoints("@wocart/storefront"),
 ]);
+
+const SDK_PACKAGES = ["@wocart/storefront", "@wocart/theme"] as const;
+
+describe("Theme-00 installs the SDKs from the npm registry", () => {
+  const manifest = JSON.parse(readFileSync(path.resolve(process.cwd(), "package.json"), "utf8")) as {
+    dependencies: Record<string, string>;
+  };
+  const lock = JSON.parse(readFileSync(path.resolve(process.cwd(), "package-lock.json"), "utf8")) as {
+    packages: Record<string, { version?: string; resolved?: string; integrity?: string; link?: boolean }>;
+  };
+
+  it.each(SDK_PACKAGES)("pins %s to one exact published version", (name) => {
+    expect(manifest.dependencies[name]).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it.each(SDK_PACKAGES)("locks %s to the registry tarball of that version", (name) => {
+    const entry = lock.packages[`node_modules/${name}`];
+    const version = manifest.dependencies[name];
+    expect(entry?.link).toBeUndefined();
+    expect(entry?.version).toBe(version);
+    expect(entry?.resolved).toBe(
+      `https://registry.npmjs.org/${name}/-/${name.split("/")[1]}-${version}.tgz`,
+    );
+    expect(entry?.integrity).toMatch(/^sha512-/);
+  });
+
+  it.each(SDK_PACKAGES)("has %s installed as a package, not a link into the repository", (name) => {
+    expect(lstatSync(path.resolve(process.cwd(), "node_modules", name)).isSymbolicLink()).toBe(false);
+  });
+});
 
 describe("Theme-00 consumes the SDKs only through published entry points", () => {
   it("scans the theme's sources", () => {
     expect(files.length).toBeGreaterThan(50);
   });
 
-  it("imports @codflow/* only by an exported subpath", () => {
+  it("imports @wocart/* only by an exported subpath", () => {
     const violations: string[] = [];
     for (const file of files) {
       for (const match of readFileSync(file, "utf8").matchAll(SDK_IMPORT)) {
@@ -73,7 +103,7 @@ describe("Theme-00 consumes the SDKs only through published entry points", () =>
     for (const file of files) {
       for (const match of readFileSync(file, "utf8").matchAll(RELATIVE_IMPORT)) {
         const target = path.resolve(path.dirname(file), match[1] as string);
-        if (target.includes(`${path.sep}cod-sdk${path.sep}`)) {
+        if (target.includes(`${path.sep}wocart-sdk${path.sep}`)) {
           violations.push(`${path.relative(SOURCE_ROOT, file)}: ${match[1]}`);
         }
       }

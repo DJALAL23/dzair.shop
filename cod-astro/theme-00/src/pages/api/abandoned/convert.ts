@@ -1,7 +1,7 @@
 // Marks an abandoned session as converted after a successful order. cod-server
 // treats this as fire-and-forget (always 200, unknown sessions succeed
 // silently), so a 204 here means "received".
-import { createProxyEndpoint } from "@codflow/storefront/astro";
+import { createProxyEndpoint } from "@wocart/storefront/astro";
 import { z } from "astro/zod";
 import { getStoreClient } from "@/theme/sdk";
 

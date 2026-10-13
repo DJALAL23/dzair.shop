@@ -1,5 +1,5 @@
-import type { ProductDetail } from "@codflow/storefront";
-import { getProductView } from "@codflow/storefront";
+import type { ProductDetail } from "@wocart/storefront";
+import { getProductView } from "@wocart/storefront";
 
 /** The territories this theme's shoppers are in, per language. */
 const OPEN_GRAPH_LOCALES: ReadonlyMap<string, string> = new Map([

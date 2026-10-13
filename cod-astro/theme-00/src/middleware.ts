@@ -13,7 +13,7 @@
 //    survives — see resolveActionRedirectDecision.
 import { defineMiddleware } from "astro:middleware";
 import { getActionContext } from "astro:actions";
-import { resolveActionRedirectDecision } from "@codflow/storefront/astro";
+import { resolveActionRedirectDecision } from "@wocart/storefront/astro";
 import { languageSource, resolveStoreRequest } from "@/theme/runtime/store";
 
 export const onRequest = defineMiddleware(async (context, next) => {

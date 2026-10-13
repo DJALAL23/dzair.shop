@@ -7,14 +7,14 @@
     "cod-server",
     "cod-client-astro",
     "cod-astro/theme01",
-    "cod-astro/theme-00",
-    "cod-sdk/storefront",
-    "cod-sdk/theme"
+    "wocart-sdk/storefront",
+    "wocart-sdk/theme"
   ],
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
+    "check:parity": "node scripts/check-platform-parity.mjs",
     "verify:sdks": "node scripts/verify-sdks.mjs"
   },
   "overrides": {

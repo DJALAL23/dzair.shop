@@ -5,12 +5,12 @@
  * fact any single unit test observes; it is a structural property of what
  * imports what. This guard pins the structure so it stays true after S5:
  *
- * 1. `@codflow/storefront/server` is imported by exactly one file —
+ * 1. `@wocart/storefront/server` is imported by exactly one file —
  *    `src/theme/sdk.ts`, the documented adapter. A second importer is how the
  *    server/client split erodes, and a `createStoreClient` call reachable from
  *    client code is one bundle away from shipping the key.
  * 2. Browser scripts (`src/theme/scripts/**`) never import the adapter. They
- *    use browser-safe helpers from `@codflow/storefront` directly. Importing
+ *    use browser-safe helpers from `@wocart/storefront` directly. Importing
  *    `@/theme/sdk` from script code drags `astro:env/server` into the client
  *    graph (Astro fails that build) and blurs the documented layer rule.
  *
@@ -21,7 +21,7 @@
 import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { STOREFRONT_ROUTES } from "@codflow/storefront";
+import { STOREFRONT_ROUTES } from "@wocart/storefront";
 
 import { type SourceFile, SRC_DIR, themeSourceFiles } from "./theme-source";
 
@@ -34,7 +34,7 @@ describe("S5 boundary guard", () => {
 
   it("only the adapter imports the SDK server entry", () => {
     const importers = files
-      .filter((f) => f.content.includes("@codflow/storefront/server"))
+      .filter((f) => f.content.includes("@wocart/storefront/server"))
       .map((f) => f.relPath)
       .sort();
 
@@ -111,7 +111,7 @@ describe("legacy core removal", () => {
  * The scripts keep DOM binding, visual state, copy, animation, focus and a11y.
  * Everything the platform decides — basket persistence and the `items[]` wire
  * projection today, phone rules / OTP transitions / tracking eligibility as
- * their bindings land — is bound from `@codflow/storefront`. These rules make a
+ * their bindings land — is bound from `@wocart/storefront`. These rules make a
  * re-implementation fail here instead of silently drifting from the server.
  *
  * Each guard is written against what the binding does, not against the old
@@ -236,7 +236,7 @@ describe("browser policy bindings", () => {
  * tracking params, the 900-character cap), the pathname→widget-surface map and
  * the 58-wilaya commune table as their bindings land. Each is a CodFlow
  * platform answer every theme would otherwise re-implement, so each is bound
- * from `@codflow/storefront` and guarded here: a copy reappearing in the theme
+ * from `@wocart/storefront` and guarded here: a copy reappearing in the theme
  * fails instead of drifting.
  */
 describe("S10 platform rule bindings", () => {
@@ -257,7 +257,7 @@ describe("S10 platform rule bindings", () => {
       (f) => f.relPath === "theme/components/product/ProductDetailContent.astro",
     );
 
-    expect(productDetail?.content).toContain('productImageSource } from "@codflow/storefront"');
+    expect(productDetail?.content).toContain('productImageSource } from "@wocart/storefront"');
   });
 
   it("the WhatsApp prefill rule is defined only in the SDK", () => {
@@ -304,9 +304,9 @@ describe("S10 platform rule bindings", () => {
     );
     const thankYou = files.find((f) => f.relPath === "pages/thank-you.astro");
 
-    expect(script?.content).toContain('from "@codflow/storefront"');
+    expect(script?.content).toContain('from "@wocart/storefront"');
     expect(component?.content).toContain(
-      'import { resolvePrefillText, buildWhatsAppHref } from "@codflow/storefront"',
+      'import { resolvePrefillText, buildWhatsAppHref } from "@wocart/storefront"',
     );
     expect(thankYou?.content).toContain("buildWhatsAppHref(");
     // A page that builds its own `?text=` skips the cap and the token rules.
@@ -328,7 +328,7 @@ describe("S10 platform rule bindings", () => {
   it("the layout asks the SDK's gate, and its special case is a contract path", () => {
     const layout = files.find((f) => f.relPath === "theme/layouts/StoreLayout.astro");
 
-    expect(layout?.content).toMatch(/import \{[^}]*\bshowsWidgetOn\b[^}]*\} from "@codflow\/storefront"/);
+    expect(layout?.content).toMatch(/import \{[^}]*\bshowsWidgetOn\b[^}]*\} from "@wocart\/storefront"/);
 
     // The floating widget is suppressed on the thank-you page (that page renders
     // its own inline WhatsApp button). Suppressing it on a path outside the
@@ -372,7 +372,7 @@ describe("S10 platform rule bindings", () => {
     );
 
     expect(delivery?.content).toContain("communesForWilaya(numericId)");
-    expect(delivery?.content).toContain('from "@codflow/storefront"');
+    expect(delivery?.content).toContain('from "@wocart/storefront"');
     // Talmine (c-01-024) has no Arabic spelling in the dataset: an RTL label
     // that drops this fallback shows an empty option.
     expect(delivery?.content).toContain("commune.nameAr || commune.name");

@@ -1,7 +1,7 @@
 // Reviews for a product (paged). The browser contract is { data, total }: the
 // rows array plus the pagination total the load-more button reads.
-import { createProxyEndpoint, type ProxyClientFn } from "@codflow/storefront/astro";
-import type { Review } from "@codflow/storefront";
+import { createProxyEndpoint, type ProxyClientFn } from "@wocart/storefront/astro";
+import type { Review } from "@wocart/storefront";
 import { z } from "astro/zod";
 import { getStoreClient } from "@/theme/sdk";
 

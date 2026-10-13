@@ -10,7 +10,7 @@
  *
  * - **Server-only.** It reads `astro:env/server`, so it may only be imported
  *   from server code (page frontmatter, actions, middleware, endpoints).
- *   Browser scripts import `@codflow/storefront` directly for browser-safe
+ *   Browser scripts import `@wocart/storefront` directly for browser-safe
  *   helpers (basket, storage, money) — never this module.
  * - **The API key never leaves the server.** The client it builds holds the
  *   key; nothing exported here is serialized into a page or a script tag.
@@ -25,10 +25,10 @@
  *   are never shared across scopes, so French text never answers an Arabic
  *   request.
  *
- * A defect in SDK behavior is fixed in `cod-sdk/storefront/` with a regression
+ * A defect in SDK behavior is fixed in `wocart-sdk/storefront/` with a regression
  * test there — never by growing this file into a second implementation.
  */
-import { createStoreClient, type StoreClient } from "@codflow/storefront/server";
+import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
 
 export type { StoreClient };
 import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";

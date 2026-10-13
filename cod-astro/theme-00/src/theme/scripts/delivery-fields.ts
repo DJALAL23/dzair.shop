@@ -19,7 +19,7 @@ import {
   type DeliverySelection,
   type ShippingRates,
   type WilayaRates,
-} from "@codflow/storefront";
+} from "@wocart/storefront";
 
 /** The rate table's shape, and the delivery-mode enum, are the SDK's. */
 export type ShippingRate = WilayaRates;

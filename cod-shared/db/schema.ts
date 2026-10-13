@@ -971,7 +971,7 @@ export const storeLocales = sqliteTable("store_locales", {
  */
 export const storeContentOverrides = sqliteTable("store_content_overrides", {
   storeId: text("store_id").notNull(),
-  /** The theme that declares `key` (`@codflow/theme` `defineTheme({ key })`). */
+  /** The theme that declares `key` (`@wocart/theme` `defineTheme({ key })`). */
   themeKey: text("theme_key").notNull(),
   locale: text("locale", { enum: STORE_LOCALES }).notNull(),
   key: text("key").notNull(),

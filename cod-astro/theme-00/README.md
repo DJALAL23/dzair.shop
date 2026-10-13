@@ -2,7 +2,7 @@
 
 theme-00 is CodFlow's **reference theme**: the complete storefront (Astro 7,
 Cloudflare Workers, AR/FR/EN) built on the platform's SDKs —
-`@codflow/storefront` (data) and `@codflow/theme` (composition). It is the
+`@wocart/storefront` (data) and `@wocart/theme` (composition). It is the
 worked example every new theme starts from.
 
 **Read [`THEME_GUIDE.md`](./THEME_GUIDE.md) before changing anything here** — it
@@ -16,8 +16,16 @@ design system, and the production gotchas.
 | `cod-server` | Backend engine — REST API, `/store/*` storefront API, webhooks, MCP |
 | `cod-client-astro` | Merchant dashboard (Astro) |
 | `cod-astro/theme-00` | **This package** — the reference theme, built on the SDKs |
-| `cod-sdk/storefront` | `@codflow/storefront` — the platform/data SDK it consumes |
-| `cod-sdk/theme` | `@codflow/theme` — the composition contract + Astro renderer |
+| `wocart-sdk/storefront` | `@wocart/storefront` — the platform/data SDK it consumes |
+| `wocart-sdk/theme` | `@wocart/theme` — the composition contract + Astro renderer |
+
+Theme-00 consumes the SDKs **from npm**, exactly as an outside theme does:
+`package.json` pins `@wocart/storefront` and `@wocart/theme` to exact
+published versions and Theme-00 keeps its own `package-lock.json` — it is not
+an npm workspace, so nothing links it to the SDK sources. Install it on its
+own with `npm ci` in this folder. `npm run verify:sdks` at the repo root runs
+this theme against freshly packed SDK tarballs before a release; after the
+release, bump the pins (`wocart-sdk/README.md` → Releasing).
 
 ## What it does (today)
 
@@ -29,7 +37,7 @@ design system, and the production gotchas.
 - Partner-overridable design tokens (colors, font) injected at request time
 - Cloudflare Image Resizing optimization for R2 images (`MEDIA_DOMAIN`)
 
-The behavior above is implemented by `@codflow/storefront`, reached through the
+The behavior above is implemented by `@wocart/storefront`, reached through the
 theme's two seams: `src/theme/sdk.ts` (reads) and `src/theme/utils/images.ts`
 (image URLs). The legacy `src/core/` engine is deleted; the theme layer
 (`src/theme/`) stays theme-owned.
@@ -41,8 +49,8 @@ and a running `cod-server` (the storefront reads all data from its `/store/*` AP
 
 ```bash
 npm ci                           # at the repo root — installs all workspaces
-npm run build --workspace @codflow/storefront   # dists the Home surface reads
-npm run build --workspace @codflow/theme
+npm run build --workspace @wocart/storefront   # dists the Home surface reads
+npm run build --workspace @wocart/theme
 cd cod-astro/theme-00
 cp .dev.vars.example .dev.vars   # fill in your values
 npm run dev                      # http://localhost:4321
@@ -124,7 +132,7 @@ inventory.
   (platform/theme/config/content) are documented and guarded by
   `src/theme/__tests__/guards/product-zero.test.ts`.
 - **Phase 5 — Home adsorption (2026-10-01):** the Home surface now renders
-  through `@codflow/theme` + `@codflow/theme/astro` from
+  through `@wocart/theme` + `@wocart/theme/astro` from
   `src/theme/pages/home.page.json` via the catalog in `src/theme/catalog/`
   (one `*.def.ts` per section, assembled by `src/theme/theme.ts`);
   all eight sections are unchanged components, the data graph still costs one
@@ -174,4 +182,4 @@ not a local `wrangler deploy`.
 - **[`src/theme/utils/images.ts`](./src/theme/utils/images.ts)** — the image-URL binding (SDK helpers + `MEDIA_DOMAIN`)
 - **[`src/theme/README.md`](./src/theme/README.md)** — customizing the theme layer
 - **[`docs/history/`](./docs/history/)** — archived migration history and audits ([`PRODUCT_ZERO_AUDIT.md`](./docs/history/PRODUCT_ZERO_AUDIT.md), [`slices-plan.md`](./docs/history/slices-plan.md), [`THEME_ZERO_PLAN.md`](./docs/history/THEME_ZERO_PLAN.md), [`PRODUCT_VIEW_BOUNDARY_ANALYSIS.md`](./docs/history/PRODUCT_VIEW_BOUNDARY_ANALYSIS.md))
-- **[`cod-sdk/storefront/USAGE.md`](../../cod-sdk/storefront/USAGE.md)** — what the SDK promises a theme author
+- **[`wocart-sdk/storefront/USAGE.md`](../../wocart-sdk/storefront/USAGE.md)** — what the SDK promises a theme author

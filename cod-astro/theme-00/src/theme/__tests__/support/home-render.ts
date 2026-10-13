@@ -4,15 +4,15 @@
  * tests exercise exactly the path `pages/index.astro` takes.
  */
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
-import type { Category, ProductList } from "@codflow/storefront";
-import type { StoreClient } from "@codflow/storefront/server";
-import InstanceView from "@codflow/theme/astro/InstanceView.astro";
-import { createReadCache, type RendererIssue } from "@codflow/theme/astro";
-import type { ComponentInstance, ThemeRenderContext } from "@codflow/theme";
+import type { Category, ProductList } from "@wocart/storefront";
+import type { StoreClient } from "@wocart/storefront/server";
+import InstanceView from "@wocart/theme/astro/InstanceView.astro";
+import { createReadCache, type RendererIssue } from "@wocart/theme/astro";
+import type { ComponentInstance, ThemeRenderContext } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en } from "@/theme/content/en";
-import type { LocaleRouting } from "@codflow/storefront";
+import type { LocaleRouting } from "@wocart/storefront";
 import { testLocals } from "./locals";
 
 export function makeProduct(overrides: Partial<ProductList>): ProductList {

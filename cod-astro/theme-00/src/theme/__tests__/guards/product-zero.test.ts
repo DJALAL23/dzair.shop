@@ -63,7 +63,7 @@ describe("Product Zero — one money formatter", () => {
     const money = find("theme/utils/money.ts");
 
     expect(money?.content).toContain("formatMoney");
-    expect(money?.content).toContain('from "@codflow/storefront"');
+    expect(money?.content).toContain('from "@wocart/storefront"');
   });
 
   it("does not bypass the theme money binding", () => {
@@ -149,7 +149,7 @@ describe("Product Zero — one commerce view", () => {
 
     expect(localPickers).toEqual([]);
     expect(find("theme/components/product/ProductCard.astro")?.content).toContain(
-      'getProductListView, type ProductList } from "@codflow/storefront"',
+      'getProductListView, type ProductList } from "@wocart/storefront"',
     );
   });
 });

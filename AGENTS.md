@@ -22,11 +22,20 @@ TypeScript, deployed on Cloudflare (Workers, D1, R2, KV).
 - `cod-astro/theme01/` — storefront theme (Astro). It is a swappable theme
   layer, not a platform package; keep engine logic out. Its commands and
   boundaries differ — read `cod-astro/theme01/AGENTS.md` before editing it.
+- `wocart-sdk/` — the published SDKs: `@wocart/storefront` (`storefront/`)
+  and `@wocart/theme` (`theme/`), on npm under the `@wocart` org.
+  Maintainer guide and release procedure: `wocart-sdk/README.md`.
+- `cod-astro/theme-00/` — the reference storefront theme and the SDKs'
+  reference consumer. **Not a workspace**: it installs `@wocart/*` from the
+  npm registry, exactly like an outside theme, and has its own lockfile.
 
 There is **one root `package.json` with npm workspaces** and ONE root
-`package-lock.json`. Never add per-package lockfiles. The root also carries the
+`package-lock.json` for every workspace. The one exception is Theme-00, which
+is deliberately outside the workspaces with its own `package-lock.json` (see
+above); never add a lockfile to a workspace member. The root also carries the
 repo-wide npm `overrides`: the single-Vite pin (keeps one Vite major across
-astro/vitest; npm ignores `overrides` inside workspace members).
+astro/vitest; npm ignores `overrides` inside workspace members). Theme-00
+carries its own copy of that pin.
 
 ## Commands
 
@@ -34,6 +43,7 @@ One install at the repo root covers every package:
 
 ```sh
 npm ci                          # at repo root — installs all workspaces
+(cd cod-astro/theme-00 && npm ci)  # Theme-00 is standalone
 
 cd cod-server && npm run typecheck
 cd cod-server && npm test
@@ -44,10 +54,14 @@ Same for `cod-client-astro` (`npm run typecheck`, `npm test`, `npm run dev`
 — astro dev on :4321). Admin bootstrap: `cd cod-client-astro &&
 npm run seed:admin` (sign-up is disabled by design).
 
-The SDKs (`cod-sdk/storefront`, `cod-sdk/theme`) and Theme-00 as their
+The SDKs (`wocart-sdk/storefront`, `wocart-sdk/theme`) and Theme-00 as their
 reference consumer are checked together by `npm run verify:sdks` at the repo
-root. Theme-00 may import the SDKs only through their published entry points;
-`sdk-boundary-contracts.test.ts` enforces it.
+root: both packages are packed, checked and installed into a clean consumer,
+then Theme-00 runs its tests, `astro check` and build against those exact
+tarballs before its locked install is restored. Theme-00 may import the SDKs
+only through their published entry points; `sdk-boundary-contracts.test.ts`
+enforces it. An SDK change reaches Theme-00 only through a release: publish,
+then bump Theme-00's pins. Releasing: `wocart-sdk/README.md`.
 
 `cod-astro/theme01` has extra validators — see
 `cod-astro/theme01/AGENTS.md` for its commands.
@@ -71,7 +85,7 @@ other is how these drift.
 - After changing TypeScript: run `npm run typecheck` in the affected package.
 - After changing behavior: run `npm test` in the affected package.
 - Full CI runs typecheck + tests for cod-server and cod-client-astro,
-  `npm run verify:sdks` plus a Theme-00 production build, and `astro check` +
+  `npm run verify:sdks` (which builds Theme-00 against the packed SDKs), and `astro check` +
   tests for theme01 (`.github/workflows/ci.yml`).
 
 ## Conventions
@@ -101,8 +115,15 @@ other is how these drift.
 
 ## Known traps
 
-- Never create per-package `package-lock.json` files (see Layout). If a
-  workspace's deps look stale, run `npm ci` at the repo root.
+- Never create per-package `package-lock.json` files in a workspace (see
+  Layout). If a workspace's deps look stale, run `npm ci` at the repo root.
+  Theme-00's own lockfile is the deliberate exception.
+- Theme-00 pins `@cloudflare/vite-plugin` to 1.53.1 in its `overrides`.
+  1.63.x makes vitest fail at startup ("There is already a server associated
+  with the config") when the Cloudflare adapter loads through
+  `getViteConfig`. Lift the pin once a newer plugin passes `npm test` there.
+- Theme-00 uses TypeScript 6, not 7: `@astrojs/check` 0.9 accepts only
+  TypeScript 5–6 as its peer. The workspaces use TypeScript 7.
 - The Vite pin lives in the **root** `package.json`
   (`"overrides": { "vite": "^8.2.2" }`) — npm ignores `overrides` inside
   workspace members. It keeps a single Vite major across astro/vitest;

@@ -25,7 +25,7 @@
  * fallback in a language the shopper may not read.
  */
 import { messageData } from "../content/messages";
-import type { ProductDetail } from "@codflow/storefront";
+import type { ProductDetail } from "@wocart/storefront";
 import type { PageDataCopy } from "./island-props";
 
 /** The hidden element the product surfaces render the bridge into. */

@@ -1,4 +1,4 @@
-import { defineComponent } from "@codflow/theme";
+import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, SECTION } from "../labels";
 import Hero from "@/theme/components/home/Hero.astro";
 import { copyOverrides } from "../shared";

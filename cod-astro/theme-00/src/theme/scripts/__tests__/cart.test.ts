@@ -133,7 +133,7 @@ describe("cart - adding", () => {
     const cart = await freshCart();
     cart.addLine(line({ quantity: 60 }));
     cart.addLine(line({ quantity: 60 }));
-    expect(cart.getCart()[0].quantity).toBe(cart.MAX_LINE_QUANTITY);
+    expect(cart.getCart()[0].quantity).toBe(cart.MAX_BASKET_LINE_QUANTITY);
   });
 });
 
@@ -159,7 +159,7 @@ describe("cart - editing", () => {
     const cart = await freshCart();
     cart.addLine(line());
     cart.setQuantity(cart.lineKey("p1", null), 5000);
-    expect(cart.getCart()[0].quantity).toBe(cart.MAX_LINE_QUANTITY);
+    expect(cart.getCart()[0].quantity).toBe(cart.MAX_BASKET_LINE_QUANTITY);
   });
 
   it("ignores a set on a line that is not there", async () => {
@@ -306,7 +306,7 @@ describe("cart - hostile storage", () => {
       ]),
     );
     const cart = await freshCart();
-    expect(cart.getCart()[0].quantity).toBe(cart.MAX_LINE_QUANTITY);
+    expect(cart.getCart()[0].quantity).toBe(cart.MAX_BASKET_LINE_QUANTITY);
   });
 
   it("truncates a stored basket that exceeds the line cap", async () => {
@@ -323,7 +323,7 @@ describe("cart - hostile storage", () => {
       ),
     );
     const cart = await freshCart();
-    expect(cart.getCart()).toHaveLength(cart.MAX_CART_LINES);
+    expect(cart.getCart()).toHaveLength(cart.MAX_BASKET_LINES);
   });
 });
 
@@ -390,9 +390,9 @@ describe("cart - properties", { timeout: 30_000 }, () => {
         for (const a of adds) cart.addLine(line(a));
 
         const lines = cart.getCart();
-        expect(lines.length).toBeLessThanOrEqual(cart.MAX_CART_LINES);
+        expect(lines.length).toBeLessThanOrEqual(cart.MAX_BASKET_LINES);
         for (const l of lines) {
-          expect(l.quantity).toBeLessThanOrEqual(cart.MAX_LINE_QUANTITY);
+          expect(l.quantity).toBeLessThanOrEqual(cart.MAX_BASKET_LINE_QUANTITY);
           expect(l.quantity).toBeGreaterThanOrEqual(1);
         }
       }),

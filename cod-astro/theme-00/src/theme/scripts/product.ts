@@ -21,7 +21,7 @@ import { initRequiredSelects } from "./select-required";
 import { formatAmount } from "../utils/money";
 // The product page's one SSR→browser contract — see bridges/.
 import { readProductPageData } from "../bridges/product-page-data";
-import { getOfferTierView, toLocalAlgerianMobile } from "@codflow/storefront";
+import { getOfferTierView, toLocalAlgerianMobile } from "@wocart/storefront";
 
 export function initProductPage() {
   // ── DATA BRIDGE ────────────────────────────────────────────────────────────

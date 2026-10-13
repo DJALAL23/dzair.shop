@@ -3,8 +3,8 @@
 // what POST /store/cart/validate accepts. The request's client is in the
 // language of the page that asked, so the lines come back named in it.
 import type { APIRoute } from "astro";
-import { createProxyEndpoint } from "@codflow/storefront/astro";
-import { BasketLineInputSchema, MAX_BASKET_LINES } from "@codflow/storefront";
+import { createProxyEndpoint } from "@wocart/storefront/astro";
+import { BasketLineInputSchema, MAX_BASKET_LINES } from "@wocart/storefront";
 import { z } from "astro/zod";
 
 const inputSchema = z.object({

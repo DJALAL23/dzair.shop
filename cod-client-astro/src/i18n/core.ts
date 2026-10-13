@@ -36,7 +36,7 @@ function numberFormat(locale: string): Intl.NumberFormat {
 
 /**
  * The template for `key` with `count` — the same convention as
- * `@codflow/theme`'s `formatMessage`, one flat key per CLDR form: `key_zero`
+ * `@wocart/theme`'s `formatMessage`, one flat key per CLDR form: `key_zero`
  * for 0 when present, then the form the language's rules select, then
  * `key_other`, then the plain key.
  */

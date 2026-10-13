@@ -174,7 +174,7 @@ updating **all three** files — TypeScript fails the build otherwise.
 
 Every key with a placeholder or a count is read through the theme's one
 binding, `message(content, key, values, locale)` (`src/theme/content/messages.ts`,
-built on `formatMessage` from `@codflow/theme`) — never `.replace()`, which fills
+built on `formatMessage` from `@wocart/theme`) — never `.replace()`, which fills
 only the first placeholder and cannot pick a plural form
 (`guards/messages.test.ts` enforces it). Every `{placeholder}` is filled, and
 numbers use the theme's digits.
@@ -233,5 +233,5 @@ edits apply over the `DEFAULT_LANGUAGE` pack.
 2. Create `xx.ts` typed as `StoreFrontContent`.
 3. Register it in the `languages` object in `src/theme/content/index.ts`.
 4. Add the code to the `lang` enum in `cod-shared` (`stores.lang`) and the SDK's
-   `StoreConfig.lang` contract (`@codflow/storefront`). Today the schema exposes
+   `StoreConfig.lang` contract (`@wocart/storefront`). Today the schema exposes
    `"ar" | "en"`.

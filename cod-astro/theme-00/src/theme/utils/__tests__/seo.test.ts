@@ -12,7 +12,7 @@
  */
 /// <reference types="vitest/globals" />
 
-import { ProductSchema, type ProductDetail } from "@codflow/storefront";
+import { ProductSchema, type ProductDetail } from "@wocart/storefront";
 import { productMetaDescription, getProductJsonLd, openGraphLocale } from "../seo";
 
 /** Built through the SDK's own schema, so the fixture cannot drift from the catalog contract. */

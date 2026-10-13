@@ -7,7 +7,7 @@
  * old language next to a pack in the new one.
  */
 import { describe, expect, it } from "vitest";
-import type { LocalizedText } from "@codflow/theme";
+import type { LocalizedText } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
 import { ar } from "@/theme/content/ar";
 import { fr } from "@/theme/content/fr";

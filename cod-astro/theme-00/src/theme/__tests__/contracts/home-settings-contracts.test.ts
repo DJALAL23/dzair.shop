@@ -6,8 +6,8 @@
  * hostile value never reaches the markup.
  */
 import { describe, expect, it } from "vitest";
-import type { Category } from "@codflow/storefront";
-import type { RendererIssue } from "@codflow/theme/astro";
+import type { Category } from "@wocart/storefront";
+import type { RendererIssue } from "@wocart/theme/astro";
 import { en } from "@/theme/content/en";
 import { fakeStorefront, makeProduct, renderSections } from "../support/home-render";
 

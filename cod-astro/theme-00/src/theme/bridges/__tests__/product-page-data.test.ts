@@ -7,7 +7,7 @@
  * degrade instead of throwing or inventing copy.
  */
 import { describe, expect, it } from "vitest";
-import { ProductSchema, type ProductDetail } from "@codflow/storefront";
+import { ProductSchema, type ProductDetail } from "@wocart/storefront";
 import { ar } from "../../content/ar";
 import { pageDataCopy } from "../island-props";
 import {

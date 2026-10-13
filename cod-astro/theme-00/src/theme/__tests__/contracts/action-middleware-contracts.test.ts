@@ -2,7 +2,7 @@
  * The S8 bindings: `src/actions/index.ts` and `src/middleware.ts`.
  *
  * The engines — the input whitelist, the basket-or-product rule, attribution
- * forwarding, the PRG decision — live in @codflow/storefront/astro and are
+ * forwarding, the PRG decision — live in @wocart/storefront/astro and are
  * tested there. What is left here is framework wiring, and that is what these
  * tests pin: the action name the form posts to, the form acceptance, that the
  * whitelist is the SDK's own object (no local copy can drift), how an engine
@@ -58,7 +58,7 @@ vi.mock("@/theme/runtime/store", async (importOriginal) => ({
 
 const { server } = await import("@/actions/index");
 const { onRequest } = await import("@/middleware");
-const { placeOrderInput } = await import("@codflow/storefront/astro");
+const { placeOrderInput } = await import("@wocart/storefront/astro");
 
 interface ActionBinding {
   accept: string;

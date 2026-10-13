@@ -2,7 +2,7 @@
 
 `cod-astro/theme-00` is CodFlow's **reference theme** — the complete storefront
 theme (Astro 7, Cloudflare Workers, AR/FR/EN) that shows how a CodFlow theme is
-built on the platform's SDKs (`@codflow/storefront` + `@codflow/theme`). New
+built on the platform's SDKs (`@wocart/storefront` + `@wocart/theme`). New
 themes start from this one; it is the worked example.
 
 - **Read [`THEME_GUIDE.md`](./THEME_GUIDE.md) first** — structure, the two hard
@@ -12,7 +12,7 @@ themes start from this one; it is the worked example.
 ## Layout
 
 - `src/core/` — **deleted** (S10's removal pulled forward). Platform behavior
-  comes from `@codflow/storefront` through the copy's seams: `src/theme/sdk.ts`
+  comes from `@wocart/storefront` through the copy's seams: `src/theme/sdk.ts`
   (reads), `src/theme/utils/images.ts` (image URLs), and the thin bindings in
   `src/actions/`, `src/middleware.ts`, `src/pages/api/*`. Do not recreate a
   local core layer — a missing capability is an SDK change.
@@ -49,10 +49,10 @@ There is no `typecheck` script; `npx astro check` is the typecheck here. The
 dashboard Worker also defaults to :4321 — run one on `--port 4322` when both
 are up. Target this package by its workspace name, `cod-astro-theme-00`.
 
-The home surface imports `@codflow/theme/astro` **by package name**, so the
+The home surface imports `@wocart/theme/astro` **by package name**, so the
 workspace dists must exist first — after a fresh install run
-`npm run build --workspace @codflow/storefront && npm run build --workspace
-@codflow/theme` (dev, tests, `astro check` and the build all read them; a
+`npm run build --workspace @wocart/storefront && npm run build --workspace
+@wocart/theme` (dev, tests, `astro check` and the build all read them; a
 stale `dist/astro/InstanceView.astro` fails confusingly).
 
 ## Definition of done
@@ -61,8 +61,8 @@ A theme is not finished until this exact sequence passes — the same gates CI
 runs in the `theme-00` job (`.github/workflows/ci.yml`), in this order:
 
 ```sh
-npm run build --workspace @codflow/storefront   # the dists the theme imports
-npm run build --workspace @codflow/theme
+npm run build --workspace @wocart/storefront   # the dists the theme imports
+npm run build --workspace @wocart/theme
 cd cod-astro/<theme>
 npx astro check      # 0 errors (hints are advisory)
 npm test             # includes the structural guard tests in __tests__/guards/
@@ -88,9 +88,9 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
 ## Boundaries
 
 - Keep engine logic out. New platform behavior must come from
-  `@codflow/storefront`, imported by package name — never a repository-relative
+  `@wocart/storefront`, imported by package name — never a repository-relative
   path — and theme code never imports `cod-shared`.
-- An SDK defect is fixed in `cod-sdk/storefront/` with a regression test there;
+- An SDK defect is fixed in `wocart-sdk/storefront/` with a regression test there;
   never solved by adding a second implementation in this copy.
 - All user-facing text needs AR/FR/EN translations and must keep RTL working.
 - The theme stays swappable: a new theme is a new folder, not edits to core.
@@ -170,7 +170,7 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
 - The same-origin proxies in `src/pages/api/*` validate with the **SDK's**
   schemas and **Zod strips unknown keys** — a field missing from an SDK schema
   never reaches cod-server, however correct the caller is. Fix the schema in
-  `cod-sdk/storefront/`, never with a local copy.
+  `wocart-sdk/storefront/`, never with a local copy.
 - **Product Zero boundaries (2026-09-30).** The homepage owns its data graph —
   as of **Phase 5 (2026-10-01)** through the catalog's keyed `load`s
   (`src/theme/catalog/`) behind the ONE `createReadCache()` in
@@ -178,7 +178,7 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   direct calls in the page; home sections still take typed props — a section
   that reads the catalog itself is a regression. Screen-value projections
   (`getProductView`, `getProductListView`, and `getOfferTierView`) come directly
-  from `@codflow/storefront`. Money goes through `src/theme/utils/money.ts`,
+  from `@wocart/storefront`. Money goes through `src/theme/utils/money.ts`,
   which only binds the SDK formatter to the theme's locale/symbol choice; no
   other file calls `toLocaleString`, re-derives a default variant, or hardcodes
   a stock threshold.
@@ -195,7 +195,7 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   --file=…` from cod-server. `sdk.ts` forwards degraded reads to
   `console.warn` (the only place the theme observes them).
 - **Home is composed through the theme contract (Phase 5, 2026-10-01).** The
-  home sections render via `@codflow/theme/astro`'s `InstanceView`, driven by
+  home sections render via `@wocart/theme/astro`'s `InstanceView`, driven by
   `src/theme/catalog/` (definitions: one `*.def.ts` per section, assembled by
   `src/theme/theme.ts`) + `src/theme/pages/home.page.json` (instances). Rules
   that keep it boring: adapt components, never rewrite them

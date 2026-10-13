@@ -16,7 +16,7 @@
  * Browser-safe: the SDK root entry point is safe for scripts, so
  * `scripts/product.ts` imports this module like any other theme util.
  */
-import { formatMoney } from "@codflow/storefront";
+import { formatMoney } from "@wocart/storefront";
 
 /** The digit/grouping locale the theme formats DZD amounts with. */
 export const MONEY_LOCALE = "ar-DZ";

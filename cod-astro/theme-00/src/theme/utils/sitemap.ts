@@ -3,7 +3,7 @@
  * Google's multilingual format: one `<url>` per page per language, each
  * listing all of that page's language versions and `x-default`.
  */
-import { alternateLinks, localizeHref, type LocaleRouting } from "@codflow/storefront";
+import { alternateLinks, localizeHref, type LocaleRouting } from "@wocart/storefront";
 
 const escapeXml = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

@@ -3,9 +3,9 @@
 // whitelist, and turning the SDK engine's result into an ActionError (shape
 // failures) or an Error (upstream refusals). Everything decision-bearing —
 // the whitelist, the basket-or-product rule, attribution forwarding, the wire
-// body — lives in @codflow/storefront/astro (S8).
+// body — lives in @wocart/storefront/astro (S8).
 import { ActionError, defineAction } from "astro:actions";
-import { executePlaceOrder, placeOrderInput } from "@codflow/storefront/astro";
+import { executePlaceOrder, placeOrderInput } from "@wocart/storefront/astro";
 import { getStoreClient } from "@/theme/sdk";
 
 export const server = {

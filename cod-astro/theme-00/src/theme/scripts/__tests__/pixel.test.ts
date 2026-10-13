@@ -22,9 +22,9 @@ import {
   trackProductInitiateCheckout,
   trackViewContent,
 } from "../pixel";
-import type { CartLine } from "../cart";
+import type { BasketLine } from "../cart";
 
-function line(overrides: Partial<CartLine> = {}): CartLine {
+function line(overrides: Partial<BasketLine> = {}): BasketLine {
   return {
     productId: "p1",
     productName: "Street Fighter 45",

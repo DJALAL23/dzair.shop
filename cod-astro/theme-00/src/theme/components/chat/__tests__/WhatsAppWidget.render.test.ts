@@ -9,7 +9,7 @@ import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import type { StoreContext } from "@/theme/runtime/store";
 import { en as enContent } from "@/theme/content/en";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
-import type { StoreWhatsAppWidget, StoreConfig } from "@codflow/storefront";
+import type { StoreWhatsAppWidget, StoreConfig } from "@wocart/storefront";
 
 const BASE_WIDGET: StoreWhatsAppWidget = {
   href: "https://wa.me/213551234567",

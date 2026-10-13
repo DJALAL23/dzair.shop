@@ -7,7 +7,7 @@
  * SDK fails the catalog (`validateThemeDefinition`) when a label misses one of
  * the declared languages.
  */
-import type { LocalizedText } from "@codflow/theme";
+import type { LocalizedText } from "@wocart/theme";
 
 const text = (ar: string, fr: string, en: string): LocalizedText => ({ ar, fr, en });
 

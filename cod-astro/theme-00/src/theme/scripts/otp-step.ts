@@ -25,7 +25,7 @@ import {
   otpTransportFailure,
   type OtpState,
   type OtpTransportResult,
-} from "@codflow/storefront";
+} from "@wocart/storefront";
 import type { z } from "zod";
 
 if (typeof document !== "undefined") {

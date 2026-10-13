@@ -13,7 +13,7 @@
 import {
   resolvePrefillText,
   buildWhatsAppHref,
-} from "@codflow/storefront";
+} from "@wocart/storefront";
 import { readProductPageData } from "../bridges/product-page-data";
 
 export function initWhatsAppWidget(

@@ -20,7 +20,7 @@
 import { testLocals } from "../../../__tests__/support/locals";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import ProductDescription from "../ProductDescription.astro";
-import { ProductSchema, type ProductDetail } from "@codflow/storefront";
+import { ProductSchema, type ProductDetail } from "@wocart/storefront";
 
 /** Built through the SDK's own schema — the fixture cannot drift from the catalog contract. */
 function product(overrides: Partial<ProductDetail> = {}): ProductDetail {

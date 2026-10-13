@@ -6,7 +6,7 @@
  * variants, OTP, Turnstile, astro:actions). The `.astro` file's job is only
  * to render the three parts this returns.
  */
-import type { StorePageLink } from "@codflow/storefront";
+import type { StorePageLink } from "@wocart/storefront";
 
 export interface CheckoutConsentParts {
   beforeTerms: string;

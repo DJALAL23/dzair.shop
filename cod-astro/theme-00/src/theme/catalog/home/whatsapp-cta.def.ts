@@ -1,4 +1,4 @@
-import { defineComponent } from "@codflow/theme";
+import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, SECTION } from "../labels";
 import WhatsAppCTA from "@/theme/components/home/WhatsAppCTA.astro";
 import { copyOverrides } from "../shared";

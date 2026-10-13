@@ -2,8 +2,8 @@
 // the browser sends no credentials, the store key stays server-side. A thin
 // binding over the SDK's proxy-endpoint factory (S7) — no local forwarding,
 // envelope, or CSRF logic lives here any more.
-import { createProxyEndpoint, type ProxyClientFn } from "@codflow/storefront/astro";
-import { WilayaIdSchema, type Commune } from "@codflow/storefront";
+import { createProxyEndpoint, type ProxyClientFn } from "@wocart/storefront/astro";
+import { WilayaIdSchema, type Commune } from "@wocart/storefront";
 import { z } from "astro/zod";
 import { getStoreClient } from "@/theme/sdk";
 

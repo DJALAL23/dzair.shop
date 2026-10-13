@@ -1,4 +1,4 @@
-import { defineComponent } from "@codflow/theme";
+import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, SECTION } from "../labels";
 import CategoryCards from "@/theme/components/home/CategoryCards.astro";
 import { CATEGORIES_READ, copyOverrides } from "../shared";

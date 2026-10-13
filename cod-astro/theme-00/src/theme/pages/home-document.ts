@@ -17,13 +17,13 @@
  *                                     emptied page renders empty)
  */
 
-import { parsePageData, validatePageData } from "@codflow/theme";
+import { parsePageData, validatePageData } from "@wocart/theme";
 import type {
   PageDataIssue,
   PageDataResult,
   ResolutionScope,
   ThemeDefinition,
-} from "@codflow/theme";
+} from "@wocart/theme";
 import shipped from "./home.page.json";
 
 export type HomeDocumentReason = "absent" | "invalid" | "no-overlap";

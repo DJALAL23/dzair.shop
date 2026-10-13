@@ -22,7 +22,7 @@ import {
   servedLanguage,
   type LocaleRouting,
   type StoreConfig,
-} from "@codflow/storefront";
+} from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 
 export const DEFAULT_CONFIG: StoreConfig = {

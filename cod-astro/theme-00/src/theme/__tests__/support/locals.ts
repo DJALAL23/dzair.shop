@@ -3,7 +3,7 @@
  * store context middleware builds for a real request, so components read
  * links, language and the SDK client exactly as they do in production.
  */
-import { localizeHref, type LocaleRouting } from "@codflow/storefront";
+import { localizeHref, type LocaleRouting } from "@wocart/storefront";
 import type { StoreClient } from "@/theme/sdk";
 import { en } from "@/theme/content/en";
 import { DEFAULT_CONFIG, type StoreContext } from "@/theme/runtime/store";

@@ -12,8 +12,8 @@
  */
 
 import { embeddedMessage, embeddedTemplate } from "@/theme/content/messages";
-import { getCart, lineKey, setQuantity, removeLine, toOrderItems, type CartLine } from "./cart";
-import type { CartValidation, CartValidationLine } from "@codflow/storefront";
+import { getCart, lineKey, setQuantity, removeLine, toOrderItems, type BasketLine } from "./cart";
+import type { CartValidation, CartValidationLine } from "@wocart/storefront";
 import { formatAmount, formatCurrency } from "../utils/money";
 
 /** The server's verdict on the basket — the SDK schema's types, not a mirror of them. */
@@ -48,7 +48,7 @@ export function moneyFormatter(currency: string): (n: number) => string {
 export function createValidator(url: string = VALIDATE_URL) {
   let latest = 0;
 
-  return async function validate(lines: CartLine[]): Promise<ValidationResult | null | undefined> {
+  return async function validate(lines: BasketLine[]): Promise<ValidationResult | null | undefined> {
     if (lines.length === 0) return null;
     const id = ++latest;
     try {
@@ -87,7 +87,7 @@ export function hasBlocker(result: ValidationResult | null): boolean {
  */
 export function renderCartLine(
   template: HTMLTemplateElement,
-  line: CartLine,
+  line: BasketLine,
   server: ValidatedLine | undefined,
   copy: LineCopy,
   money: (n: number) => string,
