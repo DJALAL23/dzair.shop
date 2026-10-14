@@ -20,6 +20,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { customers, drivers, orders, shipmentEvents, shipments } from "../db/schema";
+import { insertSelectRow } from "../db/insert-select";
 import { linesToRestock, restockStatements } from "../inventory/restock";
 import { applyEvent, type Anomaly, type DeliveryFacts, type Interpretation, type Milestone } from "./interpretation";
 import { eventKey, type ShipmentEventSource } from "./model";
@@ -166,25 +167,27 @@ async function attemptRecord(
     eventStatements.push(
       db.insert(shipmentEvents).select(
         db
-          .select({
-            id: sql`${crypto.randomUUID()}`.as("id"),
-            shipmentId: shipments.id,
-            source: sql`${event.source}`.as("source"),
-            eventKey: sql`${key}`.as("event_key"),
-            vocabulary: sql`${event.status.vocabulary}`.as("vocabulary"),
-            providerStatus: sql`${event.status.value}`.as("provider_status"),
-            providerStatusLabel: sql`${event.status.label ?? null}`.as("provider_status_label"),
-            interpretation: sql`${event.interpretation.kind}`.as("interpretation"),
-            milestone: sql`${milestone}`.as("milestone"),
-            attention: sql`${event.interpretation.kind === "exception" || (event.interpretation.kind === "milestone" && event.interpretation.attention === true) ? 1 : 0}`.as("attention"),
-            anomaly: sql`${step.anomaly}`.as("anomaly"),
-            reason: sql`${event.reason ?? null}`.as("reason"),
-            occurredAt: sql`${event.occurredAt}`.as("occurred_at"),
-            recordedAt: sql`${now}`.as("recorded_at"),
-            actorId: sql`${event.actorId ?? null}`.as("actor_id"),
-            webhookEventId: sql`${event.webhookEventId ?? null}`.as("webhook_event_id"),
-            raw: sql`${event.raw === undefined ? null : JSON.stringify(event.raw)}`.as("raw"),
-          })
+          .select(
+            insertSelectRow(shipmentEvents, {
+              id: sql`${crypto.randomUUID()}`,
+              shipmentId: shipments.id,
+              source: sql`${event.source}`,
+              eventKey: sql`${key}`,
+              vocabulary: sql`${event.status.vocabulary}`,
+              providerStatus: sql`${event.status.value}`,
+              providerStatusLabel: sql`${event.status.label ?? null}`,
+              interpretation: sql`${event.interpretation.kind}`,
+              milestone: sql`${milestone}`,
+              attention: sql`${event.interpretation.kind === "exception" || (event.interpretation.kind === "milestone" && event.interpretation.attention === true) ? 1 : 0}`,
+              anomaly: sql`${step.anomaly}`,
+              reason: sql`${event.reason ?? null}`,
+              occurredAt: sql`${event.occurredAt}`,
+              recordedAt: sql`${now}`,
+              actorId: sql`${event.actorId ?? null}`,
+              webhookEventId: sql`${event.webhookEventId ?? null}`,
+              raw: sql`${event.raw === undefined ? null : JSON.stringify(event.raw)}`,
+            }),
+          )
           .from(shipments)
           .where(and(eq(shipments.id, shipmentId), eq(shipments.revision, revision))),
       ),
