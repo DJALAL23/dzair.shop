@@ -17,13 +17,12 @@
  * - **Local dev default.** `COD_SERVER_URL` falls back to
  *   `http://localhost:8787` (parity with the legacy client), so an unset
  *   variable cannot silently point the storefront at a wrong origin.
- * - **A fresh client for every call, so for every request.** The SDK client
- *   caches pending reads and merges a read with one already in flight for the
- *   same URL. Within one request that saves calls; across requests it is a
- *   hang: a request that waits on a read another request started never
- *   settles once that other request is cancelled (a shopper leaving mid-load,
- *   a click interrupting a page fetch), and every later request for the same
- *   URL waits behind it. A request's own client lives and dies with it.
+ * - **A fresh client for every call, so for every request.** A request's own
+ *   client lives and dies with it: nothing one request starts can hold
+ *   another, and the store's config is read fresh on every page. (The SDK
+ *   itself no longer shares pending reads since @wocart/storefront 1.1.0;
+ *   before that, a client kept per isolate hung pages after a cancelled
+ *   request.)
  *
  * A defect in SDK behavior is fixed in `wocart-sdk/storefront/` with a regression
  * test there — never by growing this file into a second implementation.
