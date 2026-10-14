@@ -41,6 +41,7 @@ function buildDom(): void {
       data-copy-free-remaining="{amount} {currency} to free delivery"
       data-copy-shipping-calculated="Calculated after selecting wilaya"
       data-copy-shipping-free="Free"
+      data-copy-shipping-unavailable="Not delivered here"
       data-copy-commune-loading="Loading"
       data-copy-commune-placeholder="Choose a commune"
       data-copy-commune-disabled="Pick a wilaya first"
@@ -360,6 +361,99 @@ describe("delivery", () => {
     await vi.waitFor(() => expect(el("checkout-free-delivery").hidden).toBe(false));
 
     expect(el("checkout-free-delivery-text").textContent).toBe(`${money(1000)} to free delivery`);
+  });
+});
+
+describe("the server's delivery quote", () => {
+  /** A server that quotes by destination: `quoteFor` answers each request's body. */
+  function serverQuotes(quoteFor: (destination: any) => unknown) {
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      return validationResponse({
+        lines: [],
+        subtotal: 1000,
+        rewards: [],
+        freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+        ...(body.destination ? { delivery: quoteFor(body.destination) } : {}),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  const sentDestinations = (fetchMock: ReturnType<typeof vi.fn>) =>
+    fetchMock.mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)).destination);
+
+  function chooseCommune(value: string): void {
+    const select = el<HTMLInputElement>("f-commune");
+    select.value = value;
+    select.dispatchEvent(new window.Event("change", { bubbles: true }));
+  }
+
+  it("asks for a quote to the destination the shopper chose", async () => {
+    seedCart([line()]);
+    const fetchMock = serverQuotes(() => ({ available: true, fee: 400, total: 1400 }));
+    await boot();
+
+    chooseWilaya("16");
+    await vi.waitFor(() =>
+      expect(sentDestinations(fetchMock)).toContainEqual({ wilayaId: 16, deliveryType: "home" }),
+    );
+
+    chooseCommune("c-16-002");
+    chooseDelivery("stop_desk");
+    await vi.waitFor(() =>
+      expect(sentDestinations(fetchMock)).toContainEqual({
+        wilayaId: 16,
+        communeId: "c-16-002",
+        deliveryType: "stop_desk",
+      }),
+    );
+  });
+
+  it("shows the fee and total the order will charge, not the rate table's", async () => {
+    // The table says 400 for wilaya 16; this product ships on its own profile.
+    seedCart([line()]);
+    serverQuotes(() => ({ available: true, fee: 900, total: 1900 }));
+    await boot();
+
+    chooseWilaya("16");
+
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("900 DA"));
+    expect(el("checkout-total").textContent).toBe(money(1900));
+  });
+
+  it("says when the store does not deliver there, and holds the order back", async () => {
+    seedCart([line()]);
+    serverQuotes(() => ({ available: false, fee: null, total: null }));
+    await boot();
+
+    chooseWilaya("16");
+
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("Not delivered here"));
+    expect(el("checkout-total").textContent).toBe(money(1000));
+    expect(el<HTMLButtonElement>("submit-btn").disabled).toBe(true);
+
+    // Another wilaya the store does serve releases it.
+    serverQuotes(() => ({ available: true, fee: 600, total: 1600 }));
+    chooseWilaya("31");
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("600 DA"));
+    expect(el<HTMLButtonElement>("submit-btn").disabled).toBe(false);
+  });
+
+  it("never shows one destination's quote for another", async () => {
+    seedCart([line()]);
+    serverQuotes((d) => (d.wilayaId === 16 ? { available: true, fee: 900, total: 1900 } : undefined));
+    await boot();
+    chooseWilaya("16");
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("900 DA"));
+
+    // Wilaya 31's answer carries no quote (an older server): the 900 for wilaya
+    // 16 must not stand — the rate table's 600 for 31 is shown instead.
+    chooseWilaya("31");
+
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("600 DA"));
+    expect(el("checkout-total").textContent).toBe(money(1600));
   });
 });
 

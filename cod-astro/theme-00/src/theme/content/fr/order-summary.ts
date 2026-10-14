@@ -10,6 +10,7 @@ export const frOrderSummary: OrderSummaryStrings = {
   shippingLabel: "Frais de livraison",
   shippingCalculated: "Calculé après sélection de la wilaya",
   shippingFree: "Gratuit",
+  shippingUnavailable: "Livraison indisponible à cette adresse",
   totalLabel: "Total général",
   itemsLabel: "Produits",
 };

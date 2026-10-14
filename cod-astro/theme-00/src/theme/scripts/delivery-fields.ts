@@ -15,7 +15,9 @@
 
 import {
   ShippingRatesSchema,
+  WilayaIdSchema,
   communesForWilaya,
+  type DeliveryDestination,
   type DeliverySelection,
   type ShippingRates,
   type WilayaRates,
@@ -103,6 +105,26 @@ export function currentDeliveryType(): DeliveryType {
 export function selectedWilayaId(): string {
   const select = document.getElementById("f-wilaya") as HTMLInputElement | null;
   return select?.value ?? "";
+}
+
+export function selectedCommuneId(): string {
+  const select = document.getElementById("f-commune") as HTMLInputElement | null;
+  return select?.value ?? "";
+}
+
+/**
+ * Where the shopper has asked to be delivered, as the server quotes it — or
+ * `undefined` until a wilaya is chosen.
+ */
+export function deliveryDestination(): DeliveryDestination | undefined {
+  const wilaya = WilayaIdSchema.safeParse(Number(selectedWilayaId()));
+  if (!selectedWilayaId() || !wilaya.success) return undefined;
+  const communeId = selectedCommuneId();
+  return {
+    wilayaId: wilaya.data,
+    ...(communeId ? { communeId } : {}),
+    deliveryType: currentDeliveryType(),
+  };
 }
 
 /** NaN means "no rate known yet", which the caller shows as "to be calculated". */
@@ -209,8 +231,9 @@ async function loadCommunes(
 /**
  * Wire the delivery block. Returns a disposer.
  *
- * `onChange` fires whenever the delivery price could have moved — a new wilaya
- * or a new delivery type — and never for anything else.
+ * `onChange` fires whenever the delivery price could have moved — a new wilaya,
+ * commune (a merchant can price one apart from its wilaya) or delivery type —
+ * and never for anything else.
  */
 export function bindDeliveryFields(
   copy: DeliveryCopy,
@@ -250,6 +273,8 @@ export function bindDeliveryFields(
     },
     { signal },
   );
+
+  document.getElementById("f-commune")?.addEventListener("change", () => options.onChange(), { signal });
 
   toggleAddressFields();
 

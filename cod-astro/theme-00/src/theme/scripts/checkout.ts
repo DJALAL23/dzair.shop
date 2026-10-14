@@ -5,14 +5,15 @@
  * fills it: lines from localStorage first so there is something to look at
  * immediately, then the server's verdict on prices, stock and offers.
  *
- * Delivery is the one number neither side knows up front — it depends on the
- * wilaya and the delivery type the shopper is choosing on this very page — so
- * it is recomputed locally from the merchant's rate table as they choose, and
- * the order total follows it live.
+ * Delivery depends on where the shopper is choosing to be delivered on this
+ * very page, so each change of wilaya, commune or delivery type asks the server
+ * again: its answer carries the delivery quote, computed by the same function
+ * that charges the order, and the fee and total shown are that quote. Until it
+ * answers — or from a server that predates quotes — the merchant's wilaya rate
+ * stands in.
  *
  * Nothing here is trusted for money. The server re-prices every line and
- * re-resolves delivery when the order is placed; this is what the shopper
- * sees, and it is built from the same rules so the two cannot disagree.
+ * re-resolves delivery when the order is placed.
  */
 
 import { embeddedMessage } from "@/theme/content/messages";
@@ -41,6 +42,7 @@ import {
   rateFor,
   selectedWilayaId,
   currentDeliveryType,
+  deliveryDestination,
   type ShippingRates,
 } from "./delivery-fields";
 import { trackInitiateCheckout } from "./pixel";
@@ -95,6 +97,7 @@ export function initCheckout(): () => void {
     freeRemaining: root.dataset.copyFreeRemaining ?? "",
     shippingCalculated: root.dataset.copyShippingCalculated ?? "",
     shippingFree: root.dataset.copyShippingFree ?? "",
+    shippingUnavailable: root.dataset.copyShippingUnavailable ?? "",
   };
 
   const aborter = new AbortController();
@@ -104,13 +107,21 @@ export function initCheckout(): () => void {
   const isRTL = document.documentElement.dir === "rtl";
 
   let validated: ValidationResult | null = null;
+  /** The destination `validated` was quoted for: a quote answers only that one. */
+  let quotedFor = "";
   let rates: ShippingRates = {};
 
+  const destinationKey = () => JSON.stringify(deliveryDestination() ?? null);
+
   /**
-   * NaN until the shopper has picked a wilaya the merchant priced — shown as
-   * "calculated after selecting wilaya" rather than as free.
+   * The server's quote for the destination on screen; `null` when the store
+   * does not deliver there. Without a quote for it, the wilaya rate stands in,
+   * and NaN — no wilaya the merchant priced yet — shows as "calculated after
+   * selecting wilaya" rather than as free.
    */
-  function deliveryFee(): number {
+  function deliveryFee(): number | null {
+    const quote = validated?.delivery;
+    if (quote && quotedFor === destinationKey()) return quote.available ? quote.fee : null;
     if (validated?.freeDelivery.qualified) return 0;
     return rateFor(rates, selectedWilayaId(), currentDeliveryType());
   }
@@ -139,23 +150,31 @@ export function initCheckout(): () => void {
     );
 
     const blocked = hasBlocker(validated);
-    if (blockedNote) blockedNote.hidden = !blocked;
-    if (submitBtn) submitBtn.disabled = blocked;
-
     const subtotal = validated?.subtotal ?? cartSubtotal(lines);
     const delivery = deliveryFee();
+    // The server refuses an order to a destination the store does not serve;
+    // holding the button back says so before the shopper fills in the rest.
+    const undeliverable = delivery === null;
+
+    if (blockedNote) blockedNote.hidden = !blocked;
+    if (submitBtn) submitBtn.disabled = blocked || undeliverable;
 
     if (subtotalEl) subtotalEl.textContent = money(subtotal);
     if (deliveryEl) {
-      deliveryEl.textContent = Number.isNaN(delivery)
-        ? copy.shippingCalculated
-        : delivery === 0
-          ? copy.shippingFree
-          : money(delivery);
+      deliveryEl.textContent =
+        delivery === null
+          ? copy.shippingUnavailable
+          : Number.isNaN(delivery)
+            ? copy.shippingCalculated
+            : delivery === 0
+              ? copy.shippingFree
+              : money(delivery);
     }
-    // An unknown delivery fee adds nothing rather than guessing: the shopper
-    // sees the basket total and is told delivery is still to be calculated.
-    if (totalEl) totalEl.textContent = money(subtotal + (Number.isFinite(delivery) ? delivery : 0));
+    // An unknown or unavailable delivery fee adds nothing rather than guessing:
+    // the shopper sees the basket total and why delivery is not in it.
+    if (totalEl) {
+      totalEl.textContent = money(subtotal + (delivery !== null && Number.isFinite(delivery) ? delivery : 0));
+    }
 
     renderFreeDelivery(
       { wrap: freeWrap, text: freeText, bar: freeBar },
@@ -167,11 +186,14 @@ export function initCheckout(): () => void {
   }
 
   async function revalidate(): Promise<void> {
-    const result = await validate(getCart());
+    const destination = deliveryDestination();
+    const key = JSON.stringify(destination ?? null);
+    const result = await validate(getCart(), destination);
     // `undefined` means the answer is stale or the request failed — the
     // optimistic view stands rather than flickering to a worse one.
     if (result === undefined) return;
     validated = result;
+    quotedFor = key;
     render();
   }
 
@@ -197,7 +219,13 @@ export function initCheckout(): () => void {
       communePlaceholder: root.dataset.copyCommunePlaceholder ?? "",
       communeDisabled: root.dataset.copyCommuneDisabled ?? "",
     },
-    { isRTL, onChange: render },
+    {
+      isRTL,
+      onChange: () => {
+        render();
+        void revalidate();
+      },
+    },
   );
 
   const unwatchRates = watchShippingRates((loaded) => {

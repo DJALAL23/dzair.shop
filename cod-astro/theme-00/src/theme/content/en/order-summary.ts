@@ -10,6 +10,7 @@ export const enOrderSummary: OrderSummaryStrings = {
   shippingLabel: "Delivery fee",
   shippingCalculated: "Calculated after selecting wilaya",
   shippingFree: "Free",
+  shippingUnavailable: "Not delivered to this address",
   totalLabel: "Total",
   itemsLabel: "Items",
 };

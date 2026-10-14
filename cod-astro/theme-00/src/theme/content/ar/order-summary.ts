@@ -10,6 +10,7 @@ export const arOrderSummary: OrderSummaryStrings = {
   shippingLabel: "رسوم التوصيل",
   shippingCalculated: "يُحسب بعد اختيار الولاية",
   shippingFree: "مجاني",
+  shippingUnavailable: "التوصيل غير متوفر لهذا العنوان",
   totalLabel: "المجموع الكلي",
   itemsLabel: "المنتجات",
 };

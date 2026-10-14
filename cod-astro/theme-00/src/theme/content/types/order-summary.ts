@@ -10,6 +10,8 @@ export type OrderSummaryStrings = {
   shippingLabel: string;
   shippingCalculated: string;
   shippingFree: string;
+  /** The store does not deliver to the chosen destination. */
+  shippingUnavailable: string;
   totalLabel: string;
   itemsLabel: string;
 };

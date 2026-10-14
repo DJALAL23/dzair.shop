@@ -13,7 +13,7 @@
 
 import { embeddedMessage, embeddedTemplate } from "@/theme/content/messages";
 import { getCart, lineKey, setQuantity, removeLine, toOrderItems, type BasketLine } from "./cart";
-import type { CartValidation, CartValidationLine } from "@wocart/storefront";
+import type { CartValidation, CartValidationLine, DeliveryDestination } from "@wocart/storefront";
 import { formatAmount, formatCurrency } from "../utils/money";
 
 /** The server's verdict on the basket — the SDK schema's types, not a mirror of them. */
@@ -39,7 +39,8 @@ export function moneyFormatter(currency: string): (n: number) => string {
 }
 
 /**
- * Asks the server for the truth about a basket.
+ * Asks the server for the truth about a basket — and, given a destination,
+ * what delivering it there costs (`delivery`, the order's own quote).
  *
  * Holds its own request counter so a slow earlier answer can never overwrite a
  * newer one — the shopper tapping `+` three times must end on the third
@@ -48,14 +49,19 @@ export function moneyFormatter(currency: string): (n: number) => string {
 export function createValidator(url: string = VALIDATE_URL) {
   let latest = 0;
 
-  return async function validate(lines: BasketLine[]): Promise<ValidationResult | null | undefined> {
+  return async function validate(
+    lines: BasketLine[],
+    destination?: DeliveryDestination,
+  ): Promise<ValidationResult | null | undefined> {
     if (lines.length === 0) return null;
     const id = ++latest;
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: toOrderItems(lines) }),
+        body: JSON.stringify(
+          destination ? { items: toOrderItems(lines), destination } : { items: toOrderItems(lines) },
+        ),
       });
       if (!res.ok) return undefined;
       const payload = await res.json();
