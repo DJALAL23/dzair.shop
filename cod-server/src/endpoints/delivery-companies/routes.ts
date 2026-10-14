@@ -4,10 +4,9 @@
  * CRUD endpoints for third-party delivery company management.
  * Built with defineRoute() — the standard route-builder pattern.
  *
- * RBAC stays on router.use() path patterns (not per-route auth) to preserve
- * the existing gating exactly — including the long-standing quirk that
- * POST / and PATCH/DELETE /:id are gated by delivery:read via the "/"
- * and "/:id" patterns rather than delivery:manage.
+ * Each route declares its own scope: reading needs delivery:read; creating,
+ * editing and deleting a company need delivery:create / update / delete;
+ * anything that drives the carrier or its webhooks needs delivery:manage.
  */
 
 import { OpenAPIHono, z } from "@hono/zod-openapi";
@@ -15,7 +14,6 @@ import type { AppContext } from "@/types";
 import * as handlers from "./handlers";
 import * as webhookHandlers from "./webhook-handlers";
 import { defineRoute } from "@/lib/route-builder";
-import { requireScope } from "@/rbac/middleware";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import {
   DeliveryCompanySchema,
@@ -135,7 +133,7 @@ const saveMappingBodySchema = z.object({
 const listRoute = defineRoute({
   method: "get",
   path: "/",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_READ },
   tags: ["Delivery Companies"],
   summary: "List delivery companies",
   description: "List all delivery companies with optional filters",
@@ -152,7 +150,7 @@ const listRoute = defineRoute({
 const getRoute = defineRoute({
   method: "get",
   path: "/{id}",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_READ },
   tags: ["Delivery Companies"],
   summary: "Get delivery company",
   description: "Get a single delivery company by ID",
@@ -169,7 +167,7 @@ const getRoute = defineRoute({
 const createCompanyRoute = defineRoute({
   method: "post",
   path: "/",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_CREATE },
   tags: ["Delivery Companies"],
   summary: "Create delivery company",
   description: "Create a new delivery company integration",
@@ -187,7 +185,7 @@ const createCompanyRoute = defineRoute({
 const updateRoute = defineRoute({
   method: "patch",
   path: "/{id}",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_UPDATE },
   tags: ["Delivery Companies"],
   summary: "Update delivery company",
   description: "Update an existing delivery company",
@@ -206,7 +204,7 @@ const updateRoute = defineRoute({
 const deleteRoute = defineRoute({
   method: "delete",
   path: "/{id}",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_DELETE },
   tags: ["Delivery Companies"],
   summary: "Delete delivery company",
   description: "Delete a delivery company",
@@ -223,7 +221,7 @@ const deleteRoute = defineRoute({
 const getStopDesksRoute = defineRoute({
   method: "get",
   path: "/{id}/stop-desks",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_READ },
   tags: ["Delivery Companies"],
   summary: "Get company stop desks",
   description: "Read stop desks from DB (no live API call). Admin must sync first via POST .../sync-stop-desks",
@@ -254,7 +252,7 @@ const getStopDesksRoute = defineRoute({
 const syncStopDesksRoute = defineRoute({
   method: "post",
   path: "/{id}/sync-stop-desks",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
   summary: "Sync stop desks",
   description: "Fetch stop desks from carrier API and upsert into DB. Active flag is preserved.",
@@ -282,7 +280,7 @@ const syncStopDesksRoute = defineRoute({
 const toggleStopDeskRoute = defineRoute({
   method: "patch",
   path: "/{id}/stop-desks/{code}/toggle",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
   summary: "Toggle stop desk active flag",
   description: "Toggle the active flag on a single stop desk. Admin can deactivate stop desks that can't be serviced.",
@@ -307,7 +305,7 @@ const toggleStopDeskRoute = defineRoute({
 const syncGeoNamesRoute = defineRoute({
   method: "post",
   path: "/{id}/sync-geo",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
   summary: "Sync carrier geo names",
   description:
@@ -349,7 +347,7 @@ const syncGeoNamesRoute = defineRoute({
 const testConnectionRoute = defineRoute({
   method: "post",
   path: "/{id}/test-connection",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_READ },
   tags: ["Delivery Companies"],
   summary: "Test carrier connection",
   description:
@@ -391,7 +389,7 @@ const testConnectionRoute = defineRoute({
 const reconcileOrdersRoute = defineRoute({
   method: "post",
   path: "/{id}/reconcile-orders",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
   summary: "Reconcile order statuses from the carrier (EcoTrack only)",
   description:
@@ -436,7 +434,7 @@ const reconcileOrdersRoute = defineRoute({
 const registerWebhookRoute = defineRoute({
   method: "post",
   path: "/{id}/webhook/register",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
   summary: "Register ZR Express webhook",
   description: "Registers a webhook endpoint with ZR Express via their API. Stores the endpointId and signing secret.",
@@ -459,7 +457,7 @@ const registerWebhookRoute = defineRoute({
 const unregisterWebhookRoute = defineRoute({
   method: "delete",
   path: "/{id}/webhook/register",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
   summary: "Unregister ZR Express webhook",
   description: "Deletes the registered webhook endpoint from ZR Express and clears the DB fields.",
@@ -476,7 +474,7 @@ const unregisterWebhookRoute = defineRoute({
 const saveYalidineSecretRoute = defineRoute({
   method: "patch",
   path: "/{id}/webhook/secret",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
   summary: "Save Yalidine webhook secret",
   description: "Stores the Yalidine webhook secret key (entered manually after setting up webhook in Yalidine dashboard).",
@@ -494,7 +492,7 @@ const saveYalidineSecretRoute = defineRoute({
 const saveZrMappingRoute = defineRoute({
   method: "patch",
   path: "/{id}/webhook/mapping",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
   summary: "Save ZR status mapping",
   description: "Saves the custom ZR state name → our status mapping for this company.",
@@ -526,7 +524,7 @@ const webhookEventsQuerySchema = z.object({
 const listWebhookEventsRoute = defineRoute({
   method: "get",
   path: "/{id}/webhook/events",
-  auth: "api-key",
+  auth: { scope: SCOPES.DELIVERY_READ },
   tags: ["Delivery Companies"],
   summary: "List inbound webhook events",
   description:
@@ -575,18 +573,6 @@ const listWebhookEventsRoute = defineRoute({
 
 // ─── Route Registrations ───────────────────────────────────────────────────────
 
-// Apply RBAC middleware to all routes
-deliveryCompaniesRouter.use("/", requireScope(SCOPES.DELIVERY_READ));
-deliveryCompaniesRouter.use("/:id", requireScope(SCOPES.DELIVERY_READ));
-deliveryCompaniesRouter.use("/:id/stop-desks", requireScope(SCOPES.DELIVERY_READ));
-deliveryCompaniesRouter.use("/:id/sync-stop-desks", requireScope(SCOPES.DELIVERY_MANAGE));
-deliveryCompaniesRouter.use("/:id/test-connection", requireScope(SCOPES.DELIVERY_READ));
-deliveryCompaniesRouter.use("/:id/reconcile-orders", requireScope(SCOPES.DELIVERY_MANAGE));
-deliveryCompaniesRouter.use("/:id/stop-desks/:code/toggle", requireScope(SCOPES.DELIVERY_MANAGE));
-deliveryCompaniesRouter.use("/:id/webhook/register", requireScope(SCOPES.DELIVERY_MANAGE));
-deliveryCompaniesRouter.use("/:id/webhook/secret", requireScope(SCOPES.DELIVERY_MANAGE));
-deliveryCompaniesRouter.use("/:id/webhook/mapping", requireScope(SCOPES.DELIVERY_MANAGE));
-deliveryCompaniesRouter.use("/:id/webhook/events", requireScope(SCOPES.DELIVERY_READ));
 
 // GET /delivery-companies — list all companies
 deliveryCompaniesRouter.openapi(listRoute.route, listRoute.handler);

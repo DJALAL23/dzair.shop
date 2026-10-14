@@ -2,13 +2,14 @@
  * Delivery Companies — testCompanyConnection Handler Tests
  *
  * POST /api/delivery-companies/:id/test-connection
- * Covers: 404 unknown company, 422 no token, 422 provider without support,
- * 200 negative outcome (invalid token — check succeeded, not an error),
- * 200 positive outcome with EcoTrack enrichment passthrough,
- * 502 on carrier transport failure.
+ * Covers: 404 unknown company, 400 no token, 422 carrier without support,
+ * 409 incomplete credentials, 200 negative outcome (invalid token — the check
+ * succeeded), 200 positive outcome with EcoTrack's served wilayas, 502 when
+ * the carrier cannot be reached. The real EcoTrack adapter runs against the
+ * EcoTrack mock server.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -17,6 +18,7 @@ import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import deliveryCompaniesRouter from "./routes";
 import * as queries from "./queries";
 import * as registry from "./providers/registry";
+import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ecotrack/test/mock-server";
 
 vi.mock("@/db", () => ({ getDb: vi.fn(() => ({})) }));
 vi.mock("./queries");
@@ -103,8 +105,16 @@ describe("POST /api/delivery-companies/:id/reconcile-orders", () => {
 
 describe("POST /api/delivery-companies/:id/test-connection", () => {
   let app: OpenAPIHono<AppContext>;
+  let server: EcotrackMockServer;
+  const realFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
 
   beforeEach(() => {
+    server = createEcotrackMockServer({ token: "eco-valid" });
+    globalThis.fetch = server.fetch as unknown as typeof fetch;
     vi.clearAllMocks();
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
@@ -148,36 +158,36 @@ describe("POST /api/delivery-companies/:id/test-connection", () => {
     expect(body.code).toBe(ERROR_CODES.MISSING_API_CREDENTIALS);
   });
 
-  it("returns 422 when the provider does not support connection testing", async () => {
+  it("returns 422 when the carrier does not offer connection testing", async () => {
     vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(
-      companyRow({ code: "noest" }) as any
+      companyRow({ code: "noest", apiUserGuid: "guid-1" }) as any
     );
-    vi.mocked(registry.getProvider).mockReturnValue({
-      verifyConnection: undefined,
-    } as any);
 
-    const res = await app.request("/api/delivery-companies/comp_1/test-connection", {
-      method: "POST",
-    });
+    const res = await app.request("/api/delivery-companies/comp_1/test-connection", { method: "POST" });
 
     expect(res.status).toBe(422);
     const body: any = await res.json();
     expect(body.code).toBe(ERROR_CODES.OPERATION_NOT_SUPPORTED);
+    expect(globalThis.fetch).toBe(server.fetch);
+    expect(server.requests).toHaveLength(0);
+  });
+
+  it("returns 409 CARRIER_MISCONFIGURED when the company's credentials are incomplete", async () => {
+    vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(companyRow({ apiEndpoint: null }) as any);
+
+    const res = await app.request("/api/delivery-companies/comp_1/test-connection", { method: "POST" });
+
+    expect(res.status).toBe(409);
+    const body: any = await res.json();
+    expect(body.code).toBe(ERROR_CODES.CARRIER_MISCONFIGURED);
   });
 
   it("returns 200 with ok:false for an invalid token (negative check ≠ error)", async () => {
-    vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(companyRow() as any);
-    vi.mocked(registry.getProvider).mockReturnValue({
-      verifyConnection: vi.fn(async () => ({
-        ok: false,
-        code: "invalid_token",
-        message: "Token is invalid",
-      })),
-    } as any);
+    vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(
+      companyRow({ apiEndpoint: server.baseUrl, apiToken: "wrong" }) as any
+    );
 
-    const res = await app.request("/api/delivery-companies/comp_1/test-connection", {
-      method: "POST",
-    });
+    const res = await app.request("/api/delivery-companies/comp_1/test-connection", { method: "POST" });
 
     expect(res.status).toBe(200);
     const body: any = await res.json();
@@ -187,42 +197,31 @@ describe("POST /api/delivery-companies/:id/test-connection", () => {
     expect(body.data.companyCode).toBe("dhd_ecotrack");
   });
 
-  it("returns 200 with enrichment details for a valid EcoTrack connection", async () => {
-    vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(companyRow() as any);
-    vi.mocked(registry.getProvider).mockReturnValue({
-      verifyConnection: vi.fn(async () => ({
-        ok: true,
-        code: "valid",
-        message: "Token is valid",
-        details: { servedWilayaIds: [1, 16, 31], servedWilayaCount: 3 },
-      })),
-    } as any);
+  it("returns 200 with the served wilayas for a valid EcoTrack connection", async () => {
+    vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(
+      companyRow({ apiEndpoint: server.baseUrl, apiToken: server.token }) as any
+    );
 
-    const res = await app.request("/api/delivery-companies/comp_1/test-connection", {
-      method: "POST",
-    });
+    const res = await app.request("/api/delivery-companies/comp_1/test-connection", { method: "POST" });
 
     expect(res.status).toBe(200);
     const body: any = await res.json();
     expect(body.data.ok).toBe(true);
-    expect(body.data.details.servedWilayaCount).toBe(3);
+    expect(body.data.details.servedWilayaCount).toBeGreaterThan(0);
     expect(body.data.companyName).toBe("DHD Livraison");
   });
 
-  it("returns 502 EXTERNAL_API_FAILURE when the carrier is unreachable", async () => {
-    vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(companyRow() as any);
-    vi.mocked(registry.getProvider).mockReturnValue({
-      verifyConnection: vi.fn(async () => {
-        throw new Error("EcoTrack HTTP 502 — response is not valid JSON");
-      }),
-    } as any);
+  it("returns 502 CARRIER_UNAVAILABLE when the carrier cannot be reached", async () => {
+    vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(
+      companyRow({ apiEndpoint: server.baseUrl, apiToken: server.token }) as any
+    );
+    globalThis.fetch = (async () => { throw new TypeError("Network connection lost."); }) as unknown as typeof fetch;
 
-    const res = await app.request("/api/delivery-companies/comp_1/test-connection", {
-      method: "POST",
-    });
+    const res = await app.request("/api/delivery-companies/comp_1/test-connection", { method: "POST" });
 
     expect(res.status).toBe(502);
     const body: any = await res.json();
-    expect(body.code).toBe(ERROR_CODES.EXTERNAL_API_FAILURE);
+    expect(body.code).toBe(ERROR_CODES.CARRIER_UNAVAILABLE);
+    expect(body.context).toMatchObject({ provider: "ecotrack", kind: "unavailable", companyId: "comp_1" });
   });
 });

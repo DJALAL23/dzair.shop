@@ -48,13 +48,55 @@ export interface UpdateDeliveryCompanyData {
   notes?: string | null;
 }
 
+/** "••••" and the last four characters: enough to recognize a secret, never to use it. */
+export function maskSecret(secret: string | null | undefined): string | null {
+  if (!secret) return null;
+  return `••••${secret.slice(-4)}`;
+}
+
+/** `notes` may carry carrier settings as JSON; any secret in it is masked. */
+function maskNotes(notes: string | null): string | null {
+  if (!notes) return notes;
+  try {
+    const parsed = JSON.parse(notes) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return notes;
+    const settings = { ...(parsed as Record<string, unknown>) };
+    for (const key of Object.keys(settings)) {
+      if (/secret|token|password/i.test(key) && typeof settings[key] === "string") settings[key] = maskSecret(settings[key] as string);
+    }
+    return JSON.stringify(settings);
+  } catch {
+    return notes;
+  }
+}
+
 /**
- * Strip secret credential fields from a company record before returning it
- * in any API response. Replaces apiToken/apiUserGuid with a boolean isConnected.
+ * A company as an API response may show it: credentials leave as an
+ * `isConnected` flag, and the webhook signing secret and any secret kept in
+ * `notes` leave masked. Built field by field — a new column is invisible here
+ * until someone decides it is safe to show.
  */
 function sanitize(company: typeof deliveryCompanies.$inferSelect) {
-  const { apiToken, apiUserGuid, ...safe } = company;
-  return { ...safe, isConnected: !!apiToken };
+  return {
+    id: company.id,
+    name: company.name,
+    nameAr: company.nameAr,
+    code: company.code,
+    website: company.website,
+    active: company.active,
+    apiEndpoint: company.apiEndpoint,
+    isConnected: !!company.apiToken,
+    supportsHomeDelivery: company.supportsHomeDelivery,
+    supportsStopDesk: company.supportsStopDesk,
+    supportsTracking: company.supportsTracking,
+    webhookSecret: maskSecret(company.webhookSecret),
+    webhookEndpointId: company.webhookEndpointId,
+    webhookStatusMapping: company.webhookStatusMapping,
+    autoValidate: company.autoValidate,
+    notes: maskNotes(company.notes),
+    createdAt: company.createdAt,
+    updatedAt: company.updatedAt,
+  };
 }
 
 export async function getAllDeliveryCompanies(

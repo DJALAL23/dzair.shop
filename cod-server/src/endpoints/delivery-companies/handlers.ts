@@ -12,6 +12,9 @@ import { companyStopDesks, wilayas, webhookEvents, orders } from "@/db/schema";
 import * as queries from "./queries";
 import * as validation from "./validation";
 import { getProvider, isEcotrackCompany } from "./providers/registry";
+import { buildCarrier } from "@/carriers/registry";
+import { callCarrier, requireCapability } from "@/carriers/app-errors";
+import type { CarrierAdapter } from "@/carriers/contract";
 import { EcotrackProvider } from "./providers/ecotrack/adapter";
 import { reconcileEcotrackOrders, DEFAULT_MAX_PAGES } from "./providers/ecotrack/reconcile";
 import { NotFoundError, ValidationError, BusinessLogicError, ConflictError, ExternalApiError } from "@/lib/errors/classes";
@@ -128,133 +131,112 @@ export async function syncCompanyStopDesks(c: Context<AppContext>) {
   const company = await queries.getDeliveryCompanyRaw(db, id);
   if (!company) throw new NotFoundError("Delivery company", id);
 
-  if (!company.apiToken) {
-    throw new ValidationError(
-      `${company.name} is not connected — add API credentials first`,
-      ERROR_CODES.MISSING_API_CREDENTIALS,
-      { companyId: id }
-    );
+  const context = { companyId: id, code: company.code };
+  const carrier = await connectedCarrier(company, context);
+  requireCapability(carrier.capabilities.stopDeskList, "listing stop desks", context);
+  const desks = await callCarrier(context, () => carrier.stopDesks!());
+
+  // An empty list from a carrier that had desks is far likelier an outage
+  // dressed as success than every desk closing at once; deleting on it would
+  // wipe the merchant's desks and their on/off choices.
+  if (desks.length === 0) {
+    console.warn(`[sync-stop-desks] company=${id} code=${company.code}: carrier listed no desks — kept the synced ones`);
+    return c.json({ success: true, data: { total: 0, removed: 0, syncedAt: null } }, 200);
   }
 
-  let provider;
-  try {
-    provider = getProvider(company);
-  } catch (err) {
-    throw new BusinessLogicError(
-      err instanceof Error ? err.message : "Provider not available",
-      ERROR_CODES.PROVIDER_NOT_SUPPORTED,
-      { companyId: id, code: company.code }
-    );
-  }
+  const now = new Date().toISOString();
 
-  if (typeof provider.getStopDesks !== "function") {
-    throw new BusinessLogicError(
-      `The ${company.code} provider does not support stop desks`,
-      ERROR_CODES.OPERATION_NOT_SUPPORTED,
-      { provider: company.code }
-    );
-  }
+  // ── wilayaId safety net ──────────────────────────────────────────────────
+  // The companyStopDesks.wilayaId FK points at wilayas.id. Carrier APIs
+  // sometimes hand back wilaya numbers we don't have (e.g. ZR pickup-point
+  // territories whose `code` isn't a 1–58 wilaya, or NOEST stop-desk codes
+  // that don't begin with a parseable wilaya prefix). Provider adapters now
+  // return null in those cases, but defend at the boundary too — one bad
+  // row would otherwise abort the whole batch with FK constraint failed.
+  const validWilayaRows = await db.select({ id: wilayas.id }).from(wilayas).all();
+  const validWilayas = new Set(validWilayaRows.map((r) => r.id));
+  const safeWilayaId = (wid: number | null | undefined) =>
+    wid != null && validWilayas.has(wid) ? wid : null;
 
-  try {
-    const desks = await provider.getStopDesks();
-    const now = new Date().toISOString();
+  // ── Upsert via D1 batch ──────────────────────────────────────────────────
+  // Every desk becomes one `INSERT ... ON CONFLICT DO UPDATE` statement.
+  // D1's native batch() groups them into a single round-trip per chunk,
+  // so a 1,359-desk Packers sync goes from ~10s → ~1s.
+  //
+  // Why not db.transaction()? D1 does not support Drizzle's transaction API
+  // (see feedback_d1_no_transactions memory). batch() is the D1-native
+  // atomic alternative and is fully supported.
+  //
+  // `active` is intentionally NOT in the `set` clause so admin toggles
+  // survive re-syncs. On a brand-new row we default active=true; on an
+  // existing row we leave the admin-chosen value alone.
+  const upsertStatements = desks.map((desk) =>
+    db
+      .insert(companyStopDesks)
+      .values({
+        id: crypto.randomUUID(),
+        companyId: id,
+        code: desk.code,
+        name: desk.name,
+        commune: desk.commune ?? null,
+        wilayaId: safeWilayaId(desk.wilayaId),
+        address: desk.address ?? null,
+        phones: desk.phones ? JSON.stringify(desk.phones) : null,
+        active: true,
+        syncedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [companyStopDesks.companyId, companyStopDesks.code],
+        set: {
+          name: sql`excluded.name`,
+          commune: sql`excluded.commune`,
+          wilayaId: sql`excluded.wilaya_id`,
+          address: sql`excluded.address`,
+          phones: sql`excluded.phones`,
+          syncedAt: sql`excluded.synced_at`,
+        },
+      })
+  );
 
-    // ── wilayaId safety net ──────────────────────────────────────────────────
-    // The companyStopDesks.wilayaId FK points at wilayas.id. Carrier APIs
-    // sometimes hand back wilaya numbers we don't have (e.g. ZR pickup-point
-    // territories whose `code` isn't a 1–58 wilaya, or NOEST stop-desk codes
-    // that don't begin with a parseable wilaya prefix). Provider adapters now
-    // return null in those cases, but defend at the boundary too — one bad
-    // row would otherwise abort the whole batch with FK constraint failed.
-    const validWilayaRows = await db.select({ id: wilayas.id }).from(wilayas).all();
-    const validWilayas = new Set(validWilayaRows.map((r) => r.id));
-    const safeWilayaId = (wid: number | null | undefined) =>
-      wid != null && validWilayas.has(wid) ? wid : null;
-
-    // ── Upsert via D1 batch ──────────────────────────────────────────────────
-    // Every desk becomes one `INSERT ... ON CONFLICT DO UPDATE` statement.
-    // D1's native batch() groups them into a single round-trip per chunk,
-    // so a 1,359-desk Packers sync goes from ~10s → ~1s.
-    //
-    // Why not db.transaction()? D1 does not support Drizzle's transaction API
-    // (see feedback_d1_no_transactions memory). batch() is the D1-native
-    // atomic alternative and is fully supported.
-    //
-    // `active` is intentionally NOT in the `set` clause so admin toggles
-    // survive re-syncs. On a brand-new row we default active=true; on an
-    // existing row we leave the admin-chosen value alone.
-    const upsertStatements = desks.map((desk) =>
-      db
-        .insert(companyStopDesks)
-        .values({
-          id: crypto.randomUUID(),
-          companyId: id,
-          code: desk.code,
-          name: desk.name,
-          commune: desk.commune ?? null,
-          wilayaId: safeWilayaId(desk.wilayaId),
-          address: desk.address ?? null,
-          phones: desk.phones ? JSON.stringify(desk.phones) : null,
-          active: true,
-          syncedAt: now,
-        })
-        .onConflictDoUpdate({
-          target: [companyStopDesks.companyId, companyStopDesks.code],
-          set: {
-            name: sql`excluded.name`,
-            commune: sql`excluded.commune`,
-            wilayaId: sql`excluded.wilaya_id`,
-            address: sql`excluded.address`,
-            phones: sql`excluded.phones`,
-            syncedAt: sql`excluded.synced_at`,
-          },
-        })
-    );
-
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < upsertStatements.length; i += BATCH_SIZE) {
-      const chunk = upsertStatements.slice(i, i + BATCH_SIZE);
-      // Drizzle's batch() requires a non-empty tuple; skip the call if empty
-      // (unreachable given the outer guard, but keeps TS happy).
-      if (chunk.length > 0) {
-        await db.batch(chunk as [typeof chunk[0], ...typeof chunk]);
-      }
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < upsertStatements.length; i += BATCH_SIZE) {
+    const chunk = upsertStatements.slice(i, i + BATCH_SIZE);
+    // Drizzle's batch() requires a non-empty tuple; skip the call if empty
+    // (unreachable given the outer guard, but keeps TS happy).
+    if (chunk.length > 0) {
+      await db.batch(chunk as [typeof chunk[0], ...typeof chunk]);
     }
-
-    // ── Stale-desk cleanup ──────────────────────────────────────────────────
-    // Rows whose syncedAt is older than this run's `now` correspond to desks
-    // the carrier no longer lists (either the desk was removed or its
-    // `has_stop_desk` flag flipped to 0). Hard-delete them: the admin's
-    // `active` toggle was for a row that no longer represents a real desk.
-    //
-    // Edge case accepted: a transient API hiccup that omits a desk would
-    // cause one false removal, re-appearing on the next sync with active=true
-    // (admin toggle lost for that desk). Simpler than a soft-flag column
-    // and matches the mental model "the sync list IS the source of truth".
-    const removedResult = await db
-      .delete(companyStopDesks)
-      .where(
-        and(
-          eq(companyStopDesks.companyId, id),
-          lt(companyStopDesks.syncedAt, now),
-        ),
-      )
-      .returning({ code: companyStopDesks.code });
-
-    const removedCount = removedResult.length;
-
-    console.info(
-      `[sync-stop-desks] company=${id} code=${company.code} total=${desks.length} removed=${removedCount}`,
-    );
-    return c.json({
-      success: true,
-      data: { total: desks.length, removed: removedCount, syncedAt: now },
-    }, 200);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Failed to fetch stop desks from provider API";
-    console.error(`[sync-stop-desks] failed company=${id}:`, msg);
-    throw new ExternalApiError(company.name, msg, { companyId: id, code: company.code });
   }
+
+  // ── Stale-desk cleanup ──────────────────────────────────────────────────
+  // Rows whose syncedAt is older than this run's `now` correspond to desks
+  // the carrier no longer lists (either the desk was removed or its
+  // `has_stop_desk` flag flipped to 0). Hard-delete them: the admin's
+  // `active` toggle was for a row that no longer represents a real desk.
+  //
+  // Edge case accepted: a transient API hiccup that omits a desk would
+  // cause one false removal, re-appearing on the next sync with active=true
+  // (admin toggle lost for that desk). Simpler than a soft-flag column
+  // and matches the mental model "the sync list IS the source of truth".
+  const removedResult = await db
+    .delete(companyStopDesks)
+    .where(
+      and(
+        eq(companyStopDesks.companyId, id),
+        lt(companyStopDesks.syncedAt, now),
+      ),
+    )
+    .returning({ code: companyStopDesks.code });
+
+  const removedCount = removedResult.length;
+
+  console.info(
+    `[sync-stop-desks] company=${id} code=${company.code} total=${desks.length} removed=${removedCount}`,
+  );
+  return c.json({
+    success: true,
+    data: { total: desks.length, removed: removedCount, syncedAt: now },
+  }, 200);
 }
 
 /**
@@ -271,42 +253,11 @@ export async function testCompanyConnection(c: Context<AppContext>) {
   const company = await queries.getDeliveryCompanyRaw(db, id);
   if (!company) throw new NotFoundError("Delivery company", id);
 
-  if (!company.apiToken) {
-    throw new ValidationError(
-      `${company.name} is not connected — add API credentials first`,
-      ERROR_CODES.MISSING_API_CREDENTIALS,
-      { companyId: id }
-    );
-  }
-
-  let provider;
-  try {
-    provider = getProvider(company);
-  } catch (err) {
-    throw new BusinessLogicError(
-      err instanceof Error ? err.message : "Provider not available",
-      ERROR_CODES.PROVIDER_NOT_SUPPORTED,
-      { companyId: id, code: company.code }
-    );
-  }
-
-  if (typeof provider.verifyConnection !== "function") {
-    throw new BusinessLogicError(
-      `The ${company.code} provider does not support connection testing`,
-      ERROR_CODES.OPERATION_NOT_SUPPORTED,
-      { provider: company.code }
-    );
-  }
-
+  const context = { companyId: id, code: company.code };
+  const carrier = await connectedCarrier(company, context);
+  requireCapability(carrier.capabilities.verifyConnection, "connection testing", context);
   const startMs = Date.now();
-  let result;
-  try {
-    result = await provider.verifyConnection();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Connection check failed";
-    console.error(`[test-connection] failed company=${id}:`, msg);
-    throw new ExternalApiError(company.name, msg, { companyId: id, code: company.code });
-  }
+  const result = await callCarrier(context, () => carrier.verifyConnection!());
 
   console.info(
     `[test-connection] company=${id} code=${company.code} ok=${result.ok} (${Date.now() - startMs}ms)`,
@@ -519,48 +470,10 @@ export async function syncGeoNames(c: Context<AppContext>) {
   const company = await queries.getDeliveryCompanyRaw(db, id);
   if (!company) throw new NotFoundError("Delivery company", id);
 
-  if (!company.apiToken) {
-    throw new ValidationError(
-      `${company.name} is not connected — add API credentials first`,
-      ERROR_CODES.MISSING_API_CREDENTIALS,
-      { companyId: id }
-    );
-  }
-
-  if (company.code !== "yalidine") {
-    throw new BusinessLogicError(
-      `Geo name sync applies to carriers that match addresses by name (Yalidine). "${company.code}" does not need it.`,
-      ERROR_CODES.OPERATION_NOT_SUPPORTED,
-      { companyId: id, code: company.code }
-    );
-  }
-
-  let provider;
-  try {
-    provider = getProvider(company);
-  } catch (err) {
-    throw new BusinessLogicError(
-      err instanceof Error ? err.message : "Provider not available",
-      ERROR_CODES.PROVIDER_NOT_SUPPORTED,
-      { companyId: id, code: company.code }
-    );
-  }
-
-  if (typeof provider.getGeoNames !== "function") {
-    throw new BusinessLogicError(
-      `The ${company.code} provider does not support geo name sync`,
-      ERROR_CODES.OPERATION_NOT_SUPPORTED,
-      { companyId: id, code: company.code }
-    );
-  }
-
-  let geoNames;
-  try {
-    geoNames = await provider.getGeoNames();
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    throw new ExternalApiError(company.code, errorMessage, { companyId: id });
-  }
+  const context = { companyId: id, code: company.code };
+  const carrier = await connectedCarrier(company, context);
+  requireCapability(carrier.capabilities.geoNames, "geo name sync (only carriers that match addresses by name need it)", context);
+  const geoNames = await callCarrier(context, () => carrier.geoNames!());
 
   const result = await syncCarrierGeoNames(db, company.code, geoNames);
 
@@ -643,4 +556,23 @@ export async function listWebhookEvents(c: Context<AppContext>) {
     },
     200,
   );
+}
+
+/**
+ * The carrier adapter for a company that has credentials. A company never
+ * connected answers 400 (as before); incomplete credentials or settings
+ * answer the carrier's "misconfigured" error.
+ */
+async function connectedCarrier(
+  company: NonNullable<Awaited<ReturnType<typeof queries.getDeliveryCompanyRaw>>>,
+  context: { companyId: string; code: string },
+): Promise<CarrierAdapter> {
+  if (!company.apiToken) {
+    throw new ValidationError(
+      `${company.name} is not connected — add API credentials first`,
+      ERROR_CODES.MISSING_API_CREDENTIALS,
+      { companyId: context.companyId }
+    );
+  }
+  return callCarrier(context, () => buildCarrier(company));
 }
