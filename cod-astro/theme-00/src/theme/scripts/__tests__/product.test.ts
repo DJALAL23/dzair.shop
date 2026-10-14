@@ -11,6 +11,23 @@
 import * as fc from "fast-check";
 import { initProductPage } from "../product.ts";
 
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) }) as unknown as Response));
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+// The page asks the server for its delivery quote. A test that does not care
+// runs offline — the request is refused, not sent to a port nobody listens on.
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("offline"))));
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("Property 2: Preservation - Initial Page Load Behavior", () => {
   let container: HTMLElement;
 

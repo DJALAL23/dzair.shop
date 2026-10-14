@@ -382,7 +382,7 @@ describe("cart - properties", { timeout: 30_000 }, () => {
     );
   });
 
-  it("never exceeds the line cap or the per-line quantity cap", { timeout: 120_000 }, async () => {
+  it("never exceeds the line cap or the per-line quantity cap", async () => {
     await fc.assert(
       fc.asyncProperty(fc.array(lineArb, { maxLength: 30 }), async (adds) => {
         installStorage();
@@ -397,7 +397,7 @@ describe("cart - properties", { timeout: 30_000 }, () => {
         }
       }),
     );
-  }, 60_000); // each run reloads the cart module; a loaded machine needs longer than the default
+  }, 120_000);
 
   it("never reports a negative count or subtotal", async () => {
     await fc.assert(
