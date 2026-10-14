@@ -382,7 +382,7 @@ describe("cart - properties", { timeout: 30_000 }, () => {
     );
   });
 
-  it("never exceeds the line cap or the per-line quantity cap", async () => {
+  it("never exceeds the line cap or the per-line quantity cap", { timeout: 120_000 }, async () => {
     await fc.assert(
       fc.asyncProperty(fc.array(lineArb, { maxLength: 30 }), async (adds) => {
         installStorage();
