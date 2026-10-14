@@ -418,9 +418,11 @@ const validateCartRoute = defineRoute({
   path: "/cart/validate",
   auth: "store",
   tags: ["Store API"],
-  summary: "Re-price and check a basket",
+  summary: "Re-price and check a basket — the quote of an order",
   description: [
     "Read-only. Returns what the catalog says about a basket right now, so the cart can show the truth before the shopper commits. Nothing is written and no stock is reserved.",
+    "",
+    "The body names what is being ordered in the order's own fields: a basket (`items[]`), or one product — `productId`, `productName`, `quantity`, optionally `variantId`, a variant per unit (`variantSelections`) and an offer tier (`offerId`). A product page asks with exactly what its form will post, and the lines are built the same way the order builds them.",
     "",
     "Every line comes back with its CURRENT catalog price, the units still available (`maxQuantity`, null when the product is not stock-tracked), and a `blocker` when it cannot be ordered as requested:",
     "",

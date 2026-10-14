@@ -55,6 +55,7 @@ beforeEach(async () => {
   await harness.db.delete(schema.orders);
   await harness.db.delete(schema.customers);
   await harness.db.delete(schema.offers);
+  await harness.db.delete(schema.productVariants);
   await harness.db.delete(schema.products);
   await harness.db.delete(schema.shippingRuleCommunes);
   await harness.db.delete(schema.shippingRules);
@@ -263,5 +264,147 @@ describe("POST /store/cart/validate — the delivery quote is what the order cha
     const quoted = await quote([{ productId: p, quantity: 1 }], { wilayaId: 59, deliveryType: "home" });
 
     expect(quoted.status).toBe(400);
+  });
+});
+
+// ─── A product page's own form ──────────────────────────────────────────────
+//
+// The product page posts one product: a quantity, or a variant chosen per unit,
+// and an offer tier. The quote takes those same fields and the server builds the
+// lines from them, exactly as it does for the order — a theme never rebuilds
+// them into a basket of its own.
+
+type ProductForm = {
+  productId: string;
+  productName: string;
+  quantity?: number;
+  variantId?: string;
+  offerId?: string;
+  variantSelections?: Array<{ variantId: string; variantLabel?: string }>;
+};
+
+async function quoteForm(form: ProductForm, destination?: Destination) {
+  const res = await app.request("/store/cart/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(destination ? { ...form, destination } : form),
+  });
+  return { status: res.status, json: (await res.json()) as any };
+}
+
+async function orderForm(form: ProductForm, destination: Destination) {
+  const res = await app.request("/store/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      customerName: "Ahmed Benali",
+      phone: "0551234567",
+      wilayaId: destination.wilayaId,
+      communeId: destination.communeId ?? COMMUNE,
+      deliveryType: destination.deliveryType,
+      pricePerUnit: 1,
+      ...form,
+    }),
+  });
+  return { status: res.status, json: (await res.json()) as any };
+}
+
+async function seedVariant(productId: string, price: number, colour: string) {
+  const id = uid("var");
+  await harness.db.insert(schema.productVariants).values({
+    id,
+    productId,
+    variations: JSON.stringify({ colour }),
+    currency: "DZD",
+    price,
+    sku: `SKU-${id}`,
+    inventory: 50,
+    isDefault: false,
+    active: true,
+    position: seq,
+    createdAt: NOW(),
+    updatedAt: NOW(),
+  });
+  return id;
+}
+
+async function expectFormQuoteIsCharged(form: ProductForm, subtotal: number, fee: number) {
+  const quoted = await quoteForm(form, HOME);
+  expect(quoted.status).toBe(200);
+  expect(quoted.json.data.subtotal).toBe(subtotal);
+  expect(quoted.json.data.delivery).toEqual({ available: true, fee, total: subtotal + fee });
+
+  const placed = await orderForm(form, HOME);
+  expect(placed.status).toBe(201);
+  expect(placed.json.data.price).toBe(subtotal);
+  expect(placed.json.data.deliveryFee).toBe(fee);
+  expect(placed.json.data.total).toBe(subtotal + fee);
+}
+
+describe("POST /store/cart/validate — a product form's quote is what its order charges", () => {
+  it("for a quantity of one product", async () => {
+    await seedProfile(true, 600, 300);
+    const p = await seedProduct(2500);
+
+    await expectFormQuoteIsCharged({ productId: p, productName: "Shirt", quantity: 3 }, 7500, 600);
+  });
+
+  it("for a variant chosen per unit, each at its own price", async () => {
+    await seedProfile(true, 600, 300);
+    const p = await seedProduct(2000);
+    const black = await seedVariant(p, 2000, "black");
+    const gold = await seedVariant(p, 2600, "gold");
+
+    await expectFormQuoteIsCharged(
+      {
+        productId: p,
+        productName: "Watch",
+        quantity: 3,
+        variantSelections: [{ variantId: black }, { variantId: gold }, { variantId: gold }],
+      },
+      2000 + 2 * 2600,
+      600,
+    );
+  });
+
+  it("for an offer tier that ships free", async () => {
+    await seedProfile(true, 600, 300);
+    const p = await seedProduct(2500);
+    const offerId = uid("offer");
+    await harness.db.insert(schema.offers).values({
+      id: offerId,
+      name: "Two ship free",
+      triggerProductId: p,
+      triggerQuantity: 2,
+      rewardProductId: null,
+      rewardQuantity: 0,
+      discountType: "free_shipping",
+      status: "active",
+      createdAt: NOW(),
+      updatedAt: NOW(),
+    });
+
+    await expectFormQuoteIsCharged({ productId: p, productName: "Shirt", quantity: 2, offerId }, 5000, 0);
+  });
+
+  it("refuses a request that names neither a basket nor a product", async () => {
+    const quoted = await quoteForm({ quantity: 1 } as unknown as ProductForm, HOME);
+
+    expect(quoted.status).toBe(400);
+  });
+
+  it("refuses more per-unit selections than a line may hold, for the quote and the order", async () => {
+    await seedProfile(true, 600, 300);
+    const p = await seedProduct(2000);
+    const v = await seedVariant(p, 2000, "black");
+    const form: ProductForm = {
+      productId: p,
+      productName: "Watch",
+      quantity: 1,
+      variantSelections: Array.from({ length: 101 }, () => ({ variantId: v })),
+    };
+
+    expect((await quoteForm(form, HOME)).status).toBe(400);
+    expect((await orderForm(form, HOME)).status).toBe(400);
   });
 });

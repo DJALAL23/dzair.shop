@@ -539,12 +539,7 @@ export async function validateCart(c: Context<AppContext>) {
 
   let lines: CartLine[];
   try {
-    lines = normalizeOrderLines({
-      productId: data.items[0].productId,
-      productName: data.items[0].productName,
-      quantity: data.items[0].quantity,
-      items: data.items,
-    });
+    lines = normalizeOrderLines(data);
   } catch (err) {
     if (err instanceof CartValidationError) {
       throw new ValidationError(err.message, ERROR_CODES.VALUE_OUT_OF_RANGE, err.detail);
