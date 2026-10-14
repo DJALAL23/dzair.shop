@@ -203,11 +203,19 @@ export type StoreReviewInput = z.infer<typeof storeReviewSchema>;
  * Cart validation request.
  *
  * Deliberately narrow: this endpoint prices and checks a basket, so it needs
- * the basket and nothing else. No customer details, no address, nothing the
- * shopper has not typed yet.
+ * the basket and nothing else — no customer details. `destination` is the one
+ * optional addition: where the basket would be delivered, so the answer can
+ * carry the delivery fee and total the order would charge there.
  */
 export const validateCartSchema = z.object({
   items: z.array(cartItemSchema).min(1).max(20),
+  destination: z
+    .object({
+      wilayaId: z.number().int().min(1).max(58),
+      communeId: z.string().min(1).max(200).optional(),
+      deliveryType: z.enum(["home", "stop_desk"]).default("home"),
+    })
+    .optional(),
 });
 
 export type ValidateCartInput = z.infer<typeof validateCartSchema>;

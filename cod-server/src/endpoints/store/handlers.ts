@@ -22,7 +22,8 @@ import {
 // Pure, like normalizeOrderLines: imported directly rather than through
 // ./queries so there is nothing for a test to stub and no way for the priced
 // subtotal to diverge from what the engine charges.
-import { priceCartLines } from "../../../../cod-shared/queries/catalog-snapshot";
+import { priceCartLines, type CatalogSnapshot } from "../../../../cod-shared/queries/catalog-snapshot";
+import { resolveCartOffers } from "../../../../cod-shared/queries/offers-cart";
 import {
   resolveConversionForStage,
   getCapiWorkflowId,
@@ -340,21 +341,12 @@ export async function createStoreOrder(c: Context<AppContext>) {
 
   await assertOtpVerification(c, db, data);
 
-  // Resolves each product's own shipping profile and the commune-level
-  // override, not just the default profile's wilaya rate. A basket spanning
-  // two profiles pays the highest applicable rate (plan Q1).
-  // Priced from the same snapshot the engine will use, so the number the
-  // free-delivery threshold is judged against is the number the customer is
-  // charged — they cannot drift apart.
-  const { subtotal } = priceCartLines(snapshot, lines);
-
-  const deliveryFee = await queries.resolveDeliveryFee(db, {
-    productIds: [...new Set(lines.map((l) => l.productId))],
+  // The same quote the cart answers before checkout (see quoteDelivery), so
+  // the fee a shopper was shown is the fee charged.
+  const deliveryFee = await quoteDelivery(db, c.get("storeId"), snapshot, lines, {
     wilayaId: data.wilayaId,
     communeId: data.communeId,
     deliveryType: data.deliveryType,
-    storeId: c.get("storeId"),
-    subtotal,
   });
 
   if (deliveryFee === null) {
@@ -493,6 +485,37 @@ export async function createStoreOrder(c: Context<AppContext>) {
 }
 
 /**
+ * What delivering these lines to this destination costs — the one answer both
+ * the order and the cart's quote use, so the fee a shopper is shown and the fee
+ * they are charged cannot differ.
+ *
+ * Each product's own shipping profile and the commune override apply (a basket
+ * spanning two profiles pays the highest rate, plan Q1), judged against the
+ * subtotal priced from the same snapshot the engine uses, and a single-product
+ * free-shipping offer makes it 0. `null` means the store does not deliver
+ * there.
+ */
+async function quoteDelivery(
+  db: ReturnType<typeof getDb>,
+  storeId: string | undefined,
+  snapshot: CatalogSnapshot,
+  lines: CartLine[],
+  destination: { wilayaId: number; communeId?: string | null; deliveryType: "home" | "stop_desk" },
+): Promise<number | null> {
+  const { subtotal } = priceCartLines(snapshot, lines);
+  const fee = await queries.resolveDeliveryFee(db, {
+    productIds: [...new Set(lines.map((l) => l.productId))],
+    wilayaId: destination.wilayaId,
+    communeId: destination.communeId ?? null,
+    deliveryType: destination.deliveryType,
+    storeId,
+    subtotal,
+  });
+  if (fee === null) return null;
+  return resolveCartOffers(lines, snapshot.offers).freeShipping ? 0 : fee;
+}
+
+/**
  * POST /store/cart/validate
  *
  * Re-prices and re-checks a basket so the cart drawer can tell the truth
@@ -504,8 +527,9 @@ export async function createStoreOrder(c: Context<AppContext>) {
  * and the charged total identical by construction rather than by agreement.
  *
  * The free-delivery figure is subtotal-based, so it can be answered before the
- * shopper has typed an address. Delivery itself still depends on the wilaya
- * and is resolved at checkout.
+ * shopper has typed an address. With a `destination`, the answer also carries
+ * `delivery`: the fee and total the order would charge there, from the same
+ * quote the order uses.
  */
 export async function validateCart(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -557,6 +581,17 @@ export async function validateCart(c: Context<AppContext>) {
   const threshold = store?.freeShippingThreshold ?? null;
   const thresholdActive = threshold != null && threshold > 0;
 
+  // Quoted for the lines that can be ordered — the ones `subtotal` counts.
+  const deliveryFee = data.destination
+    ? await quoteDelivery(
+        db,
+        storeId ?? undefined,
+        snapshot,
+        orderable.map((entry) => entry.line),
+        data.destination,
+      )
+    : undefined;
+
   return c.json(
     {
       success: true,
@@ -587,6 +622,14 @@ export async function validateCart(c: Context<AppContext>) {
           remaining:
             thresholdActive && subtotal < threshold ? threshold - subtotal : 0,
         },
+        ...(deliveryFee === undefined
+          ? {}
+          : {
+              delivery:
+                deliveryFee === null
+                  ? { available: false, fee: null, total: null }
+                  : { available: true, fee: deliveryFee, total: subtotal + deliveryFee },
+            }),
       },
     },
     200,

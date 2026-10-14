@@ -430,7 +430,9 @@ const validateCartRoute = defineRoute({
     "",
     "Blocked lines are excluded from `subtotal`, from offer evaluation and from the free-delivery calculation, so the basket never promises something checkout would refuse.",
     "",
-    "`freeDelivery` is subtotal-based and therefore answerable before the shopper types an address: use `remaining` for a \"spend X more\" prompt. The delivery fee itself depends on the wilaya and is resolved at checkout.",
+    "`freeDelivery` is subtotal-based and therefore answerable before the shopper types an address: use `remaining` for a \"spend X more\" prompt.",
+    "",
+    "Send `destination` (`wilayaId`, optional `communeId`, `deliveryType`) and the answer carries `delivery`: the fee and the total the order would charge there, from the same quote the order itself uses — product shipping profiles, commune overrides, the free-delivery threshold and free-shipping offers included. `available: false` (fee and total null) means the store does not deliver there, and an order to it is refused with DELIVERY_NOT_AVAILABLE. Without `destination`, there is no `delivery` field.",
     "",
     "Product names and variant labels come from the catalog, in the language `?locale=` asks for (the store's primary when it does not publish that language), announced in `Content-Language`. The order itself records the catalog's names in the store's primary language.",
   ].join("\n"),
@@ -474,6 +476,14 @@ const validateCartRoute = defineRoute({
               qualified: z.boolean(),
               remaining: z.number(),
             }),
+            delivery: z
+              .object({
+                available: z.boolean(),
+                fee: z.number().nullable(),
+                total: z.number().nullable(),
+              })
+              .optional()
+              .openapi({ description: "Present only when the request names a destination." }),
           }),
         }),
       ),
