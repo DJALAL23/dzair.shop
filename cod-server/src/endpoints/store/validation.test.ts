@@ -81,6 +81,30 @@ describe("storeOrderSchema — basket orders", () => {
     if (result.success) expect(result.data.productId).toBe("prod-1");
   });
 
+  it("accepts a single product the merchant prices at 0 — the price is display-only", () => {
+    const result = storeOrderSchema.safeParse({
+      ...customer,
+      productId: "prod-1",
+      productName: "Sample",
+      quantity: 1,
+      pricePerUnit: 0,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("still refuses a negative display price", () => {
+    const result = storeOrderSchema.safeParse({
+      ...customer,
+      productId: "prod-1",
+      productName: "Sample",
+      quantity: 1,
+      pricePerUnit: -1,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("rejects a request that names neither a basket nor a product", () => {
     const result = storeOrderSchema.safeParse({ ...customer });
 

@@ -143,6 +143,14 @@ describe("Store API routes (OpenAPIHono)", () => {
   });
 
   describe("GET /store/products", () => {
+    it("refuses a page size below 1 — SQLite reads LIMIT -1 as no limit", async () => {
+      for (const limit of ["-1", "0"]) {
+        const res = await app.request(`/store/products?limit=${limit}`);
+        expect(res.status).toBe(400);
+      }
+      expect(queries.getStoreProducts).not.toHaveBeenCalled();
+    });
+
     it("returns 200 with catalog and count", async () => {
       vi.mocked(queries.getStoreProducts).mockResolvedValue([listProductRow()] as any);
 
@@ -352,6 +360,14 @@ describe("Store API routes (OpenAPIHono)", () => {
       expect(res.status).toBe(200);
       const body: any = await res.json();
       expect(body.total).toBe(7);
+    });
+
+    it("refuses a page size below 1 — SQLite reads LIMIT -1 as no limit", async () => {
+      for (const limit of ["-1", "0"]) {
+        const res = await app.request(`/store/reviews?productId=prod_1&limit=${limit}`);
+        expect(res.status).toBe(400);
+      }
+      expect(queries.getApprovedProductReviews).not.toHaveBeenCalled();
     });
 
     it("returns 400 when productId is missing", async () => {

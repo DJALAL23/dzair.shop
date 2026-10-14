@@ -61,7 +61,7 @@ export const storeOrderSchema = z.object({
   quantity: z.number().int().min(1).max(100).default(1),
   // Display-only: accepted for storefront UI continuity but NEVER trusted for
   // pricing — the server resolves the unit price from the catalog row.
-  pricePerUnit: z.number().positive().optional(),
+  pricePerUnit: z.number().nonnegative().optional(),
   notes: z.string().max(500).optional(),
   // Transport only. Whether the field is asked for at all, and whether it may
   // be empty, is the merchant's Checkout Form Policy — applied in the handler

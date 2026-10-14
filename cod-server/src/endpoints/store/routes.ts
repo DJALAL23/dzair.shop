@@ -67,7 +67,7 @@ const productsQuerySchema = z.object({
     description: "When true, only return products where `storeFeatured=true`.",
   }),
   categoryId: z.string().optional().openapi({ description: "Filter by category ID." }),
-  limit: z.coerce.number().int().max(100).default(24).openapi({
+  limit: z.coerce.number().int().min(1).max(100).default(24).openapi({
     description: "Maximum number of products to return. Server cap: 100.",
   }),
   offset: z.coerce.number().int().min(0).default(0).openapi({
@@ -112,7 +112,7 @@ const reviewsQuerySchema = z.object({
   productId: z.string().min(1).openapi({
     description: "Product ID to fetch reviews for.",
   }),
-  limit: z.coerce.number().int().max(50).default(20),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
