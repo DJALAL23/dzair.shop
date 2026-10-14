@@ -447,7 +447,10 @@ export async function getStoreProductByHandle(
 
   // The offers' names and their reward products' names and options, in the served language.
   const rewardIds = [...new Set(offerRows.flatMap((offer) => (offer.rewardProductId ? [offer.rewardProductId] : [])))];
-  const [offerTranslations, categoryTranslations, rewardSources] = await Promise.all([
+  // Every offer's reward variant in one read: a product with N offers pays for
+  // one lookup, not N, on the storefront's most-read page.
+  const rewardVariantIds = [...new Set(offerRows.flatMap((offer) => (offer.rewardVariantId ? [offer.rewardVariantId] : [])))];
+  const [offerTranslations, categoryTranslations, rewardSources, rewardVariantRows] = await Promise.all([
     locale === null ? [] : listTranslations(db, "offer", offerRows.map((offer) => offer.id), locale),
     locale === null || !category ? [] : listTranslations(db, "category", [category.id], locale),
     rewardIds.length === 0
@@ -457,7 +460,15 @@ export async function getStoreProductByHandle(
           .from(products)
           .where(inArray(products.id, rewardIds))
           .all(),
+    rewardVariantIds.length === 0
+      ? []
+      : db
+          .select({ id: productVariants.id, productId: productVariants.productId, variations: productVariants.variations })
+          .from(productVariants)
+          .where(inArray(productVariants.id, rewardVariantIds))
+          .all(),
   ]);
+  const rewardVariants = new Map(rewardVariantRows.map((variant) => [variant.id, variant]));
   const rewards = await translateProducts(db, rewardSources, locale);
   const rewardProducts = new Map(rewards.products.map((reward) => [reward.id, reward]));
   const translatedCategory = category ? overlayTranslations("category", [category], categoryTranslations)[0]! : null;
@@ -465,13 +476,7 @@ export async function getStoreProductByHandle(
   const resolvedOffers = await Promise.all(
     overlayTranslations("offer", offerRows, offerTranslations).map(async (offer) => {
       const rewardProduct = offer.rewardProductId ? rewardProducts.get(offer.rewardProductId) : undefined;
-      const rewardVariant = offer.rewardVariantId
-        ? await db
-            .select({ id: productVariants.id, productId: productVariants.productId, variations: productVariants.variations })
-            .from(productVariants)
-            .where(eq(productVariants.id, offer.rewardVariantId))
-            .get()
-        : null;
+      const rewardVariant = offer.rewardVariantId ? rewardVariants.get(offer.rewardVariantId) : undefined;
 
       return {
         id: offer.id,
