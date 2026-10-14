@@ -20,7 +20,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockStore } = vi.hoisted(() => ({
   mockStore: {
     geo: { communes: vi.fn() },
-    cart: { validate: vi.fn() },
+    cart: { validate: vi.fn(), quote: vi.fn() },
     orders: {
       otp: { send: vi.fn(), verify: vi.fn() },
       abandoned: { upsert: vi.fn(), convert: vi.fn() },
@@ -214,13 +214,13 @@ describe("/api/cart/validate", () => {
   const validation = { items: [], subtotal: 5000, total: 5500 };
 
   it("wraps the SDK result in the route's { success, data } envelope", async () => {
-    mockStore.cart.validate.mockResolvedValue({ success: true, data: validation });
+    mockStore.cart.quote.mockResolvedValue({ success: true, data: validation });
 
     const res = await cartValidate(ctx(post("/api/cart/validate", { items })));
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true, data: validation });
-    expect(mockStore.cart.validate).toHaveBeenCalledWith(items);
+    expect(mockStore.cart.quote).toHaveBeenCalledWith({ items }, undefined);
   });
 
   it("rejects a cross-origin POST with 403 (CSRF kept)", async () => {
@@ -230,17 +230,29 @@ describe("/api/cart/validate", () => {
 
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: "Cross-origin not allowed" });
-    expect(mockStore.cart.validate).not.toHaveBeenCalled();
+    expect(mockStore.cart.quote).not.toHaveBeenCalled();
+  });
+
+  it("quotes one product as its form posts it, with the destination", async () => {
+    mockStore.cart.quote.mockResolvedValue({ success: true, data: { lines: [] } });
+    const form = { productId: "prod-1", productName: "Watch", quantity: 2, variantSelections: [{ variantId: "v1" }] };
+
+    const res = await cartValidate(
+      ctx(post("/api/cart/validate", { ...form, destination: { wilayaId: 16, deliveryType: "home" } })),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockStore.cart.quote).toHaveBeenCalledWith(form, { destination: { wilayaId: 16, deliveryType: "home" } });
   });
 
   it("400s a schema-invalid basket without calling the SDK", async () => {
     const res = await cartValidate(ctx(post("/api/cart/validate", { items: [] })));
     expect(res.status).toBe(400);
-    expect(mockStore.cart.validate).not.toHaveBeenCalled();
+    expect(mockStore.cart.quote).not.toHaveBeenCalled();
   });
 
   it("502s an upstream failure — the drawer keeps its optimistic view", async () => {
-    mockStore.cart.validate.mockResolvedValue({ success: false, error: "Upstream down" });
+    mockStore.cart.quote.mockResolvedValue({ success: false, error: "Upstream down" });
 
     const res = await cartValidate(ctx(post("/api/cart/validate", { items })));
 

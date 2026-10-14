@@ -113,6 +113,7 @@ export const PAGE_DATA_KEYS = [
   ...pluralKeys("qtyMaxStock"),
   "shippingCalculated",
   "shippingFree",
+  "shippingUnavailable",
   "formCommunePlaceholder",
   "formCommuneLoading",
   "formCommuneDisabled",

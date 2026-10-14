@@ -11,8 +11,10 @@ import {
   rateFor,
   selectedWilayaId,
   currentDeliveryType,
+  deliveryDestination,
   toggleAddressFields,
 } from "./delivery-fields";
+import { createQuoter, type QuoteAnswer } from "./quote";
 // fbq only exists when the merchant configured a pixel — one shared guard.
 import { trackProductInitiateCheckout, trackViewContent } from "./pixel";
 import { initCustomFields } from "./custom-fields";
@@ -32,6 +34,8 @@ export function initProductPage(): () => void {
   if (!data) return () => {};
 
   const variants = data.variants;
+  const productId = data.productId;
+  const productName = data.productName;
   
   /** @type {Record<string, Object>} Shipping rates per wilaya: { wilayaId: { home, stopDesk } } */
   let rates: Record<string, { home: number; stopDesk: number }> = {};
@@ -42,6 +46,7 @@ export function initProductPage(): () => void {
   const cur                = data.currencySymbol;
   const shippingCalc       = data.shippingCalculated ?? "";
   const shippingFree       = data.shippingFree ?? "";
+  const shippingUnavailable = data.shippingUnavailable ?? shippingCalc;
   const communePlaceholder = data.communePlaceholder ?? "";
   const communeLoading     = data.communeLoading ?? "";
   const communeDisabled    = data.communeDisabled ?? "";
@@ -62,6 +67,13 @@ export function initProductPage(): () => void {
 
   /** Current calculated shipping cost */
   let currentShipping     = NaN;
+  /** The store does not deliver to the chosen destination. */
+  let undeliverable       = false;
+  /** Whether the selected variant combination is sold out. */
+  let variantOos          = false;
+  /** The server's answer for one destination and one form; a newer form never shows an older answer. */
+  let quote: { key: string; answer: QuoteAnswer } | null = null;
+  const askQuote = createQuoter();
 
   /** Currently selected offer ID (if any) */
   let currentOfferId: string | null = null;
@@ -229,6 +241,7 @@ export function initProductPage(): () => void {
       btn.dataset.active = "1";
       btn.classList.add("is-selected");
       updateVariantSelectionsInput();
+      refreshShipping();
     });
   });
 
@@ -258,7 +271,10 @@ export function initProductPage(): () => void {
 
     // 3. Handle shipping logic in summary
     if (shippingEl && totalEl) {
-      if (isNaN(currentShipping)) {
+      if (undeliverable) {
+        shippingEl.textContent = shippingUnavailable;
+        totalEl.textContent = `${formatAmount(itemTotal)} ${cur}`;
+      } else if (isNaN(currentShipping)) {
         shippingEl.textContent = shippingCalc;
         totalEl.textContent = `${formatAmount(itemTotal)} ${cur}`;
       } else if (currentShipping === 0) {
@@ -314,13 +330,19 @@ export function initProductPage(): () => void {
    */
   function setVariantOosState(oos: boolean) {
     if (!submitBtn) return;
-    submitBtn.disabled = oos;
+    variantOos = oos;
+    syncSubmit();
     submitBtn.style.background = oos ? "var(--clr-disabled)" : "";
     submitBtn.style.cursor     = oos ? "not-allowed" : "";
     // A null label means the markup did not carry one: keep the server-rendered
     // text instead of inventing copy in the script.
     if (!oos) submitBtn.textContent = submitLabel;
     else if (outOfStockLabel != null) submitBtn.textContent = outOfStockLabel;
+  }
+
+  /** The order is held back while the variant is sold out or the store does not deliver there. */
+  function syncSubmit() {
+    if (submitBtn) submitBtn.disabled = variantOos || undeliverable;
   }
 
   /**
@@ -396,6 +418,8 @@ export function initProductPage(): () => void {
       updateTierVisibility();
     }
     updatePriceUI();
+    // The threshold and the offers read the price, so the delivery moves with it.
+    refreshShipping();
   }
 
   // ── QUANTITY STEPPER ───────────────────────────────────────────────────────
@@ -403,13 +427,13 @@ export function initProductPage(): () => void {
   document.getElementById("qty-minus")?.addEventListener("click", () => {
     if (!qtyInput) return;
     const v = Math.max(1, parseInt(qtyInput.value) || 1);
-    if (v > 1) { qtyInput.value = String(v - 1); updatePriceUI(); updateQtyState(); }
+    if (v > 1) { qtyInput.value = String(v - 1); refreshShipping(); updateQtyState(); }
   });
 
   document.getElementById("qty-plus")?.addEventListener("click", () => {
     if (!qtyInput) return;
     const v = Math.max(1, parseInt(qtyInput.value) || 1);
-    if (v < currentVariantMax) { qtyInput.value = String(v + 1); updatePriceUI(); updateQtyState(); }
+    if (v < currentVariantMax) { qtyInput.value = String(v + 1); refreshShipping(); updateQtyState(); }
   });
 
   qtyInput?.addEventListener("input", () => {
@@ -418,7 +442,7 @@ export function initProductPage(): () => void {
     let v = parseInt(qtyInput.value) || 1;
     if (v > max) { v = max; qtyInput.value = String(max); }
     if (v < 1)   { v = 1;   qtyInput.value = "1"; }
-    updatePriceUI();
+    refreshShipping();
     updateQtyState();
   });
 
@@ -444,20 +468,85 @@ export function initProductPage(): () => void {
   );
 
   /**
-   * Recalculates shipping cost based on selected wilaya and delivery type.
+   * The product's order form as the order will read it: the same fields, and
+   * no others. The quote is built from these, so it prices what would be ordered.
+   */
+  function productFormBody(): Record<string, unknown> {
+    const body: Record<string, unknown> = {
+      productId,
+      productName,
+      quantity: Math.max(1, parseInt(qtyInput?.value || "1") || 1),
+    };
+    if (variantIdInput?.value) body.variantId = variantIdInput.value;
+    if (variantLabelInput?.value) body.variantLabel = variantLabelInput.value;
+    if (offerIdInput?.value) body.offerId = offerIdInput.value;
+    try {
+      const selections: unknown = JSON.parse(variantSelectionsInput?.value || "[]");
+      if (Array.isArray(selections) && selections.length > 0) body.variantSelections = selections;
+    } catch {
+      // A malformed hidden field posts no selections, as the form itself would.
+    }
+    return body;
+  }
+
+  /** What the quote depends on: the destination and the form. */
+  function shippingKey(): string {
+    return JSON.stringify({ destination: deliveryDestination() ?? null, form: productFormBody() });
+  }
+
+  /** Shows the server's answer. A server that predates quotes leaves the rate table in charge. */
+  function applyQuote(answer: QuoteAnswer): void {
+    const delivery = answer.delivery;
+    if (delivery === undefined) {
+      undeliverable = false;
+      currentShipping = rateFor(rates, selectedWilayaId(), currentDeliveryType());
+    } else {
+      undeliverable = delivery.available === false;
+      currentShipping = delivery.available === true ? delivery.fee : NaN;
+    }
+    syncSubmit();
+    updatePriceUI();
+  }
+
+  async function requestQuote(key: string): Promise<void> {
+    const destination = deliveryDestination();
+    if (!destination) return;
+    const answer = await askQuote({ ...productFormBody(), destination });
+    // Undefined: stale or failed. A key that has moved on: the shopper changed
+    // the form or the destination while this was on its way.
+    if (answer === undefined || key !== shippingKey()) return;
+    quote = { key, answer };
+    applyQuote(answer);
+  }
+
+  /**
+   * Recalculates the delivery for the destination and form on screen: the
+   * server's quote when it has answered for them, the rate table until then.
    */
   function refreshShipping() {
     // 1. Check for free shipping offers
     const selOffer = allOffers.find(o => o.id === currentOfferId);
     if (selOffer?.discountType === "free_shipping") {
+      undeliverable = false;
       currentShipping = 0;
+      syncSubmit();
       updatePriceUI();
       return;
     }
 
-    // 2. Otherwise the merchant's rate table decides.
+    // 2. The server's quote for exactly this destination and form.
+    const key = shippingKey();
+    if (quote?.key === key) {
+      applyQuote(quote.answer);
+      return;
+    }
+
+    // 3. Until it answers, the merchant's rate table stands in.
+    undeliverable = false;
     currentShipping = rateFor(rates, selectedWilayaId(), currentDeliveryType());
+    syncSubmit();
     updatePriceUI();
+    void requestQuote(key);
   }
 
 
@@ -590,7 +679,6 @@ export function initProductPage(): () => void {
 
   // ── META PIXEL EVENTS ─────────────────────────────────────────────────────
   const pixelId   = data.pixelId;
-  const productId = data.productId;
 
   function getCookie(name: string): string | null {
     return (

@@ -451,6 +451,11 @@ describe("Commune loading race protection", () => {
   function startCommuneRequests() {
     const requests: Array<{ url: string; deferred: DeferredResponse }> = [];
     window.fetch = vi.fn((input: RequestInfo | URL) => {
+      // Only commune loads are counted here. A quote for the delivery is a
+      // request too, and it has its own tests; it is refused, not held open.
+      if (!String(input).startsWith("/api/communes/")) {
+        return Promise.reject(new TypeError("not a commune request"));
+      }
       const deferred = createDeferredResponse();
       requests.push({ url: String(input), deferred });
       return deferred.promise;
@@ -664,6 +669,170 @@ describe("Shipping rates bridge", () => {
     // the pre-selected wilaya (16 → home 400).
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(document.getElementById("summary-shipping")!.textContent).toContain("400");
+  });
+});
+
+/**
+ * The product page's delivery is the server's quote for the order its form
+ * would post — the same lines, offer and destination — not the rate table's
+ * guess. These pin what the shopper sees while that answer is on its way, once
+ * it lands, and when the store does not deliver there.
+ */
+describe("Delivery quote for the product form", () => {
+  let container: HTMLElement;
+
+  function build(): void {
+    container.innerHTML = `
+      <div id="page-data"
+        data-product-id="p1"
+        data-product-name="Watch"
+        data-variants="[]"
+        data-base-price="2500"
+        data-cur="DA"
+        data-is-rtl="0"
+        data-shipping-calc="Calculated at checkout"
+        data-shipping-free="Free"
+        data-shipping-unavailable="Not delivered to this address"
+        data-commune-placeholder="Commune"
+        data-commune-loading="Loading"
+        data-commune-disabled="Pick a wilaya"
+        data-offers="[]"></div>
+      <div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div>
+      <div id="summary-shipping"></div>
+      <div id="summary-total"></div>
+      <input id="f-wilaya" value="16" />
+      <div id="delivery-type-group">
+        <label class="delivery-radio-label">
+          <input type="radio" name="deliveryType" value="home" class="delivery-radio-input" checked />
+          <div></div>
+        </label>
+        <label class="delivery-radio-label">
+          <input type="radio" name="deliveryType" value="stop_desk" class="delivery-radio-input" />
+          <div></div>
+        </label>
+      </div>
+      <div id="address-field-container"><input id="f-address" /></div>
+      <form method="POST" id="checkout-form">
+        <input type="hidden" name="pricePerUnit" id="price-input" />
+        <input type="hidden" name="variantId" id="variant-id-input" />
+        <input type="hidden" name="variantLabel" id="variant-label-input" />
+        <input type="hidden" name="variantSelections" id="variant-selections-input" value="[]" />
+        <input type="hidden" name="offerId" id="offer-id-input" value="" />
+        <input type="number" name="quantity" id="qty-input" value="1" />
+        <button type="submit" id="submit-btn">Confirm</button>
+      </form>
+    `;
+  }
+
+  /** A quote server: `answer` decides each request's reply, in the order requested. */
+  function quoteServer(answer: (body: any) => unknown) {
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      const data = answer(body);
+      return { ok: true, json: async () => ({ success: true, data }) } as unknown as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const shipping = () => document.getElementById("summary-shipping")!.textContent ?? "";
+  const total = () => document.getElementById("summary-total")!.textContent ?? "";
+  const submit = () => document.getElementById("submit-btn") as HTMLButtonElement;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    container?.parentNode?.removeChild(container);
+    vi.unstubAllGlobals();
+  });
+
+  it("asks for a quote with the product's own form and the chosen destination", async () => {
+    build();
+    const fetchMock = quoteServer(() => ({ subtotal: 2500, lines: [], delivery: { available: true, fee: 900, total: 3400 } }));
+    initProductPage();
+    await settle();
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(body).toMatchObject({
+      productId: "p1",
+      productName: "Watch",
+      quantity: 1,
+      destination: { wilayaId: 16, deliveryType: "home" },
+    });
+  });
+
+  it("shows the fee the order will charge, and the total with it", async () => {
+    build();
+    quoteServer(() => ({ subtotal: 2500, lines: [], delivery: { available: true, fee: 900, total: 3400 } }));
+    initProductPage();
+    await settle();
+
+    expect(shipping()).toContain("900");
+    expect(total()).toContain("3");
+    expect(total()).toContain("400");
+    expect(submit().disabled).toBe(false);
+  });
+
+  it("re-quotes for the new quantity, and never shows the answer to an older one", async () => {
+    build();
+    const answers: Array<() => Promise<void>> = [];
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      return new Promise<Response>((resolve) => {
+        answers.push(async () =>
+          resolve({
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: { subtotal: 0, lines: [], delivery: { available: true, fee: body.quantity === 1 ? 900 : 300, total: 0 } },
+            }),
+          } as unknown as Response),
+        );
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    initProductPage();
+    await settle();
+
+    const qty = document.getElementById("qty-input") as HTMLInputElement;
+    qty.value = "2";
+    qty.dispatchEvent(new Event("input", { bubbles: true }));
+    await settle();
+
+    // The newer answer (quantity 2) lands first; the older one (quantity 1) arrives late.
+    await answers[1]();
+    await settle();
+    await answers[0]();
+    await settle();
+
+    expect(shipping()).toContain("300");
+    expect(shipping()).not.toContain("900");
+  });
+
+  it("says when the store does not deliver there, and holds the order back", async () => {
+    build();
+    quoteServer(() => ({ subtotal: 2500, lines: [], delivery: { available: false, fee: null, total: null } }));
+    initProductPage();
+    await settle();
+
+    expect(shipping()).toBe("Not delivered to this address");
+    expect(total()).toContain("2");
+    expect(total()).not.toContain("400");
+    expect(submit().disabled).toBe(true);
+  });
+
+  it("keeps the rate table's figure when the server predates quotes", async () => {
+    build();
+    quoteServer(() => ({ subtotal: 2500, lines: [], freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 } }));
+    initProductPage();
+    await settle();
+
+    expect(shipping()).toContain("400");
+    expect(submit().disabled).toBe(false);
   });
 });
 

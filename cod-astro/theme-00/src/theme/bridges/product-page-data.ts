@@ -71,6 +71,7 @@ export interface ProductPageData {
   qtyMaxStock: string | null;
   shippingCalculated: string | null;
   shippingFree: string | null;
+  shippingUnavailable: string | null;
   communePlaceholder: string | null;
   communeLoading: string | null;
   communeDisabled: string | null;
@@ -114,6 +115,7 @@ export function buildProductPageData(input: ProductPageDataInput): Record<string
     "data-qty-max-stock": messageData(copy, "qtyMaxStock"),
     "data-shipping-calc": copy.shippingCalculated,
     "data-shipping-free": copy.shippingFree,
+    "data-shipping-unavailable": copy.shippingUnavailable,
     "data-commune-placeholder": copy.formCommunePlaceholder,
     "data-commune-loading": copy.formCommuneLoading,
     "data-commune-disabled": copy.formCommuneDisabled,
@@ -147,6 +149,7 @@ export function readProductPageData(root: ParentNode = document): ProductPageDat
     qtyMaxStock: d.qtyMaxStock ?? null,
     shippingCalculated: d.shippingCalc ?? null,
     shippingFree: d.shippingFree ?? null,
+    shippingUnavailable: d.shippingUnavailable ?? null,
     communePlaceholder: d.communePlaceholder ?? null,
     communeLoading: d.communeLoading ?? null,
     communeDisabled: d.communeDisabled ?? null,

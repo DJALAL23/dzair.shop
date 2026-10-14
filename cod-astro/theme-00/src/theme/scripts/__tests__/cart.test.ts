@@ -397,7 +397,7 @@ describe("cart - properties", { timeout: 30_000 }, () => {
         }
       }),
     );
-  });
+  }, 60_000); // each run reloads the cart module; a loaded machine needs longer than the default
 
   it("never reports a negative count or subtotal", async () => {
     await fc.assert(

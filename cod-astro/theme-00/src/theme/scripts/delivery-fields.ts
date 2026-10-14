@@ -98,7 +98,12 @@ export function watchShippingRates(onRates: (rates: ShippingRates) => void): () 
 }
 
 export function currentDeliveryType(): DeliveryType {
-  const checked = document.querySelector<HTMLInputElement>(".delivery-radio-input:checked");
+  // The live `checked` property, not the `:checked` selector: a radio's
+  // `checked` attribute can still match the selector after another radio of
+  // its group has been chosen, which would read the old choice back.
+  const checked = Array.from(document.querySelectorAll<HTMLInputElement>(".delivery-radio-input")).find(
+    (radio) => radio.checked,
+  );
   return checked?.value === "stop_desk" ? "stop_desk" : "home";
 }
 
