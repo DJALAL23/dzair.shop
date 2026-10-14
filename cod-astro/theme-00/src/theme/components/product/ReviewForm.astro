@@ -15,46 +15,32 @@ const ALREADY_REVIEWED = "ORDER_ALREADY_REVIEWED";
 const ORDER_MISSING = "ORDER_NOT_FOUND";
 ---
 
-<section class="review-form-section mt-10" id="write-review">
-  <div class="card !border-none !shadow-lg sm:!border sm:!shadow-md">
-    <!-- Header -->
-    <div
-      class="px-6 py-5 border-b border-black/[.03]"
-      style="background: color-mix(in srgb, var(--clr-primary) 4%, white)"
-    >
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm" style="background: var(--clr-surface); color: var(--clr-primary)">
-          <Icon name="heroicons:star" class="w-5 h-5" />
-        </div>
-        <h2 class="font-black text-[1rem] leading-tight" style="color: var(--clr-text)">{copy.reviewFormTitle}</h2>
-      </div>
+<section class="review-form-section" id="write-review">
+  <div class="carton overflow-hidden">
+    <div class="border-b border-border px-5 py-4 sm:px-6">
+      <h2 class="text-lg font-bold text-ink">{copy.reviewFormTitle}</h2>
     </div>
 
     <!-- Success state (hidden by default) -->
-    <div id="review-success" class="hidden p-8 text-center">
-      <div
-        class="w-16 h-16 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 shadow-sm"
-        style="background: color-mix(in srgb, var(--clr-primary) 10%, white); color: var(--clr-primary)"
-      >
-        <Icon name="heroicons:check-circle" class="w-8 h-8" />
-      </div>
-      <p class="font-black text-[1rem] leading-snug px-4" style="color: var(--clr-text)">{copy.reviewFormSuccess}</p>
+    <div id="review-success" class="hidden px-6 py-10 text-center" role="status">
+      <Icon name="heroicons:check-circle" class="mx-auto mb-3 h-10 w-10 text-success" aria-hidden="true" />
+      <p class="text-base font-bold text-ink">{copy.reviewFormSuccess}</p>
     </div>
 
     <!-- Form -->
-    <form id="review-form" class="p-6 space-y-5" novalidate>
+    <form id="review-form" class="space-y-5 p-5 sm:p-6" novalidate>
       <input type="hidden" name="productId" value={productId} />
 
       <!-- Error banner -->
-      <div id="review-error" class="hidden p-4 bg-red-50 border border-red-100 rounded-[1.25rem] text-[0.875rem] font-bold text-red-600 flex items-start gap-3">
-        <Icon name="heroicons:exclamation-triangle" class="w-5 h-5 shrink-0" />
+      <div id="review-error" role="alert" class="hidden flex items-start gap-3 rounded-[var(--radius-input)] border border-error bg-surface p-3 text-sm font-semibold text-error">
+        <Icon name="heroicons:exclamation-triangle" class="h-5 w-5 shrink-0" aria-hidden="true" />
         <p id="review-error-msg"></p>
       </div>
 
       <!-- Order ID -->
       <div>
         <label for="review-order-number" class="form-label">
-          {copy.reviewFormOrderLabel} <span class="text-red-400">*</span>
+          {copy.reviewFormOrderLabel} <span class="text-error" aria-hidden="true">*</span>
         </label>
         <input
           id="review-order-number"
@@ -66,22 +52,21 @@ const ORDER_MISSING = "ORDER_NOT_FOUND";
           class="form-input"
           dir="ltr"
         />
-        <p class="text-[0.75rem] font-bold mt-1.5 ps-1" style="color: var(--clr-text)">{copy.reviewFormOrderHelp}</p>
+        <p class="mt-1.5 text-xs text-ink-2">{copy.reviewFormOrderHelp}</p>
       </div>
 
       <!-- Rating -->
       <div>
-        <span class="form-label block" id="star-rating-label">{copy.reviewFormRatingLabel} <span class="text-red-400">*</span></span>
+        <span class="form-label block" id="star-rating-label">{copy.reviewFormRatingLabel} <span class="text-error" aria-hidden="true">*</span></span>
         <div class="flex gap-2 mt-1" id="star-rating-group" role="group" aria-labelledby="star-rating-label">
           {[1,2,3,4,5].map(n => (
             <button
               type="button"
-              class="star-btn w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 border-2 border-transparent"
-              style="background: var(--clr-surface-alt)"
+              class="star-btn flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-border bg-surface transition-colors"
               data-value={n}
               aria-label={message(copy, "ariaStarRating", { count: n }, Astro.locals.store.locale)}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="star-icon transition-colors" style="color: var(--clr-disabled)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="star-icon text-ink-3 transition-colors" aria-hidden="true">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
             </button>
@@ -106,7 +91,7 @@ const ORDER_MISSING = "ORDER_NOT_FOUND";
       <!-- Body -->
       <div>
         <label for="review-body" class="form-label">
-          {copy.reviewFormBodyLabel} <span class="text-red-400">*</span>
+          {copy.reviewFormBodyLabel} <span class="text-error" aria-hidden="true">*</span>
         </label>
         <textarea
           id="review-body"
@@ -121,7 +106,7 @@ const ORDER_MISSING = "ORDER_NOT_FOUND";
       </div>
 
       <!-- Submit -->
-      <button type="submit" id="review-submit-btn" class="btn-primary !h-[3.5rem] !text-[1rem]">
+      <button type="submit" id="review-submit-btn" class="btn-primary">
         {copy.reviewFormSubmit}
       </button>
     </form>
@@ -164,9 +149,9 @@ const ORDER_MISSING = "ORDER_NOT_FOUND";
         const v = parseInt(btn.dataset.value);
         const icon = btn.querySelector(".star-icon");
         if (v <= n) {
-          icon.style.fill = "var(--clr-primary)";
-          icon.style.stroke = "var(--clr-primary)";
-          icon.style.color = "var(--clr-primary)";
+          icon.style.fill = "var(--clr-text)";
+          icon.style.stroke = "var(--clr-text)";
+          icon.style.color = "var(--clr-text)";
         } else {
           icon.style.fill = "none";
           icon.style.stroke = "";

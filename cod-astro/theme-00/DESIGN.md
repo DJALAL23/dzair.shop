@@ -37,7 +37,7 @@ Never write a merchant value into CSS without one of these guards.
 | `--clr-surface` | `#ffffff` | cartons, waybill, inputs |
 | `--clr-surface-alt` | `#f1f2f4` | photo plates, disabled fill |
 | `--clr-border` | `#dfe2e6` | hairlines, carton edges |
-| `--clr-rule` | `#111318` | the heavy 3px rule over facts and sections |
+| `--clr-rule` | `#111318` | the heavy 3px rule over the hero's facts |
 | `--clr-text` | `#111318` | primary text (18.6:1 on white) |
 | `--clr-text-2` | `#474d57` | secondary text (8.5:1) |
 | `--clr-text-3` | `#5f656f` | tertiary text (5.2:1 on the grey plate) |
@@ -73,7 +73,7 @@ phones, 1.5rem from 640px, 2rem from 1024px, max width 80rem.
 | --- | --- |
 | `.carton` | the theme's one container: surface, 1px border, card radius. Product cards, categories, reviews |
 | `.plate` | a photo's stage: alt surface, the product shown whole (`object-fit: contain`) |
-| `.section-head` (`SectionHead.astro`) | the section opener: heavy top rule, title, sub-line, "view all" |
+| `.section-head` (`SectionHead.astro`) | the section opener: title, sub-line, "view all" — no rule; space and type separate sections |
 | `.stamp` / `.stamp-accent` / `.stamp-ink` / `.stamp-warn` / `.stamp-line` | rubber-stamp labels: discount, sold out, low stock, verified buyer |
 | `.price` / `.price-cur` / `.price-was` | prices: tabular, weight 700; the old price struck through |
 | `.btn-primary` / `.btn-secondary` | the two actions. Primary = brand color; secondary = outline in ink. Disabled = striped |
@@ -83,7 +83,7 @@ phones, 1.5rem from 640px, 2rem from 1024px, max width 80rem.
 | `.slip` (`Hero.astro`) | the hero's packing slip: the lead product's line and photo, then a list of the next products |
 | `.frame` | the page's horizontal rhythm (see Spacing) |
 | `.hero-facts` (`Hero.astro`) | the three promises under the hero: a heavy top rule, icon, label and line per row |
-| `.promises` (`FeaturesBar.astro`) | the four promises in one ruled band |
+| `.promises` (`FeaturesBar.astro`) | the four promises on one paper strip |
 | `.category-row` (`CategoryCards.astro`) | categories: a swipe row on phones, a grid from 640px |
 
 ## Layout
@@ -103,7 +103,7 @@ phones, 1.5rem from 640px, 2rem from 1024px, max width 80rem.
 ## Rules
 
 1. Colors, radii, shadows and fonts come from tokens. No literal values in components.
-2. One hairline per surface; a 3px rule only as a section opener.
+2. One hairline per surface. Sections are separated by space and by paper bands, never by lines drawn across the page.
 3. Never crop a product photo. Use `.plate` and `object-fit: contain`.
 4. Every order-critical action sits in the waybill and stays visible on phones.
 5. Never show a discount stamp or a stock warning the server did not send.

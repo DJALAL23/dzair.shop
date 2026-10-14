@@ -65,6 +65,7 @@ export const relatedProductsCopy = (content: StoreFrontContent): RelatedProducts
 // ── Reviews (island + list + form) ───────────────────────────────────────────
 
 export const REVIEWS_LIST_KEYS = [
+  ...pluralKeys("ariaStarRating"),
   "reviewsTitle",
   "reviewsVerifiedBuyer",
   "loadMoreLabel",

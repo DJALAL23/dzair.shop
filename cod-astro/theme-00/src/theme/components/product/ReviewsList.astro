@@ -1,7 +1,14 @@
 ---
+// A product's reviews: the summary a shopper reads first (the average, the
+// stars, how many reviewed, how the ratings fall), then each review as a
+// carton — the same card the home page's testimonials use. "Load more" clones
+// the card template and fills it with text only: a review is shopper-written,
+// so none of it is ever parsed as markup.
+import { message } from "@/theme/content/messages";
 import type { Review } from "@wocart/storefront";
 import type { ReviewsListCopy } from "@/theme/bridges/island-props";
 import { Icon } from "astro-icon/components";
+import SectionHead from "@/theme/components/ui/SectionHead.astro";
 
 interface Props {
   reviews: Review[];
@@ -11,185 +18,226 @@ interface Props {
 }
 
 const { reviews, total, copy, productId } = Astro.props;
+const locale = Astro.locals.store?.locale ?? "ar";
 
 const avgRating = reviews.length
   ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10
   : 0;
 
-// Star distribution
 const dist = [5, 4, 3, 2, 1].map((star) => ({
   star,
   count: reviews.filter((r) => r.rating === star).length,
 }));
 
-function formatDate(val: string) {
-  try {
-    const n = Number(val);
-    const d = isNaN(n) ? new Date(val) : new Date(n);
-    return d.toLocaleDateString("ar-DZ", { year: "numeric", month: "long", day: "numeric" });
-  } catch {
-    return val.slice(0, 10);
-  }
+const dateFormat = new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", day: "numeric" });
+
+function formatDate(val: string): string {
+  const n = Number(val);
+  const d = Number.isNaN(n) ? new Date(val) : new Date(n);
+  return Number.isNaN(d.getTime()) ? val.slice(0, 10) : dateFormat.format(d);
 }
+
+const starLabel = (count: number) => message(copy, "ariaStarRating", { count }, locale);
 ---
 
 {reviews.length > 0 && (
-<section class="reviews-section mt-12 pt-10 border-t border-black/[.05]" id="reviews" data-product-id={productId}>
-  <!-- Header row -->
-  <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
-    <h2 class="text-[1.25rem] font-black" style="color: var(--clr-text)">{copy.reviewsTitle}</h2>
-    <div class="flex items-center gap-2">
-      <!-- Average stars -->
-      <div class="flex gap-0.5" aria-label={`${avgRating} out of 5 stars`}>
-        {[1,2,3,4,5].map(s => (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill={s <= Math.round(avgRating) ? "var(--clr-primary)" : "none"} stroke="var(--clr-primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-          </svg>
-        ))}
+<section class="reviews-section" id="reviews" data-product-id={productId}>
+  <SectionHead title={copy.reviewsTitle} />
+
+  <div class="review-summary carton">
+    <div class="flex items-center gap-4">
+      <p class="num text-4xl font-bold leading-none text-ink">{avgRating.toFixed(1)}</p>
+      <div class="flex flex-col gap-1">
+        <p class="flex items-center gap-0.5" role="img" aria-label={starLabel(Math.round(avgRating))}>
+          {[1, 2, 3, 4, 5].map((s) => (
+            <Icon name="heroicons:star-solid" class:list={["h-4 w-4", s <= Math.round(avgRating) ? "text-ink" : "text-border"]} aria-hidden="true" />
+          ))}
+        </p>
+        <p class="num text-sm text-ink-2">({total})</p>
       </div>
-      <span class="font-black" style="color: var(--clr-text)">{avgRating}</span>
-      <span class="font-bold text-sm" style="color: var(--clr-text)">({total})</span>
     </div>
+
+    {total >= 3 && (
+      <ul class="review-dist" aria-hidden="true">
+        {dist.map(({ star, count }) => (
+          <li>
+            <span class="num w-3 text-xs text-ink-2">{star}</span>
+            <span class="review-bar"><span style={`inline-size: ${total > 0 ? Math.round((count / total) * 100) : 0}%`} /></span>
+            <span class="num w-6 text-end text-xs text-ink-2">{count}</span>
+          </li>
+        ))}
+      </ul>
+    )}
   </div>
 
-  {(
-    <div>
-      <!-- Distribution bar (desktop only, hidden on small screens) -->
-      {total >= 3 && (
-        <div class="hidden sm:block mb-8 space-y-2">
-          {dist.map(({ star, count }) => (
-            <div class="flex items-center gap-3">
-              <span class="text-sm font-bold w-3 shrink-0" style="color: var(--clr-text-2)">{star}</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--clr-primary)" stroke="none" class="shrink-0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              <div class="flex-1 rounded-full h-2 overflow-hidden" style="background: var(--clr-surface-alt)">
-                <div
-                  class="h-full rounded-full transition-all"
-                  style={`background: var(--clr-primary); width: ${total > 0 ? Math.round((count / total) * 100) : 0}%`}
-                />
-              </div>
-              <span class="text-xs font-bold w-5 text-end shrink-0" style="color: var(--clr-text)">{count}</span>
-            </div>
+  <ul class="mt-4 grid grid-cols-1 gap-3 sm:gap-4" id="reviews-list">
+    {reviews.map((review) => (
+      <li class="carton flex flex-col gap-3 p-5">
+        <p class="flex items-center gap-0.5" role="img" aria-label={starLabel(review.rating)}>
+          {[1, 2, 3, 4, 5].map((s) => (
+            <Icon name="heroicons:star-solid" class:list={["h-4 w-4", s <= review.rating ? "text-ink" : "text-border"]} aria-hidden="true" />
           ))}
-        </div>
-      )}
+        </p>
+        {review.title && <p class="text-base font-bold text-ink" dir="auto">{review.title}</p>}
+        <p class="text-sm leading-relaxed text-ink" dir="auto">{review.body}</p>
+        <footer class="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-3">
+          <span class="min-w-0 truncate text-sm font-semibold text-ink" dir="auto">{review.customerName}</span>
+          <span class="stamp stamp-line shrink-0">
+            <Icon name="heroicons:check-circle" class="h-3.5 w-3.5 text-success" aria-hidden="true" />
+            {copy.reviewsVerifiedBuyer}
+          </span>
+          <time class="ms-auto text-xs text-ink-2" datetime={review.createdAt}>{formatDate(review.createdAt)}</time>
+        </footer>
+      </li>
+    ))}
+  </ul>
 
-      <!-- Review cards -->
-      <div class="space-y-4" id="reviews-list">
-        {reviews.map((review) => (
-          <div class="rounded-[1.25rem] border border-black/[.05] p-5 shadow-sm" style="background: var(--clr-surface)">
-            <div class="flex items-start justify-between gap-3 mb-3">
-              <div class="flex items-center gap-3 min-w-0">
-                <!-- Avatar -->
-                <div
-                  class="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0"
-                  style="background: var(--clr-primary)"
-                  aria-hidden="true"
-                >
-                  {review.customerName.trim().charAt(0).toUpperCase()}
-                </div>
-                <div class="min-w-0">
-                  <p class="font-black text-sm truncate" style="color: var(--clr-text)">{review.customerName}</p>
-                  <span class="inline-flex items-center gap-1 text-[0.6875rem] font-bold text-[var(--clr-primary)] bg-[var(--clr-primary)]/8 px-2 py-0.5 rounded-full mt-0.5">
-                    <Icon name="heroicons:check" class="w-2.5 h-2.5" />
-                    {copy.reviewsVerifiedBuyer}
-                  </span>
-                </div>
-              </div>
-              <time class="text-xs font-bold shrink-0 mt-1" style="color: var(--clr-text-2)" datetime={review.createdAt}>
-                {formatDate(review.createdAt)}
-              </time>
-            </div>
-
-            <!-- Stars -->
-            <div class="flex gap-0.5 mb-3" aria-label={`${review.rating} out of 5 stars`}>
-              {[1,2,3,4,5].map(s => (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill={s <= review.rating ? "var(--clr-primary)" : "none"} stroke="var(--clr-primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              ))}
-            </div>
-
-            {review.title && (
-              <p class="font-black text-[0.9375rem] mb-1" style="color: var(--clr-text)">{review.title}</p>
-            )}
-            <p class="font-medium text-sm leading-relaxed" style="color: var(--clr-text)">{review.body}</p>
-          </div>
+  {/* The card a loaded review fills — text only, never markup. */}
+  <template id="review-card-template">
+    <li class="carton flex flex-col gap-3 p-5">
+      <p class="flex items-center gap-0.5" role="img" data-review-stars>
+        {[1, 2, 3, 4, 5].map((s) => (
+          <Icon name="heroicons:star-solid" class="h-4 w-4 text-border" data-star={s} aria-hidden="true" />
         ))}
-      </div>
+      </p>
+      <p class="text-base font-bold text-ink" dir="auto" data-review-title hidden></p>
+      <p class="text-sm leading-relaxed text-ink" dir="auto" data-review-body></p>
+      <footer class="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-3">
+        <span class="min-w-0 truncate text-sm font-semibold text-ink" dir="auto" data-review-name></span>
+        <span class="stamp stamp-line shrink-0">
+          <Icon name="heroicons:check-circle" class="h-3.5 w-3.5 text-success" aria-hidden="true" />
+          {copy.reviewsVerifiedBuyer}
+        </span>
+        <time class="ms-auto text-xs text-ink-2" data-review-date></time>
+      </footer>
+    </li>
+  </template>
 
-      <!-- Load more trigger (if more reviews exist) -->
-      {total > reviews.length && (
-        <div class="mt-6 text-center">
-          <button
-            type="button"
-            id="load-more-reviews"
-            data-product-id={productId}
-            data-offset={reviews.length}
-            class="px-6 py-3 rounded-2xl border-2 border-[var(--clr-primary)] text-[var(--clr-primary)] font-black text-sm hover:bg-[var(--clr-primary)]/5 active:scale-[0.97] transition-all"
-          >
-            {copy.loadMoreLabel}
-          </button>
-        </div>
-      )}
+  {total > reviews.length && (
+    <div class="mt-6 flex justify-center">
+      <button
+        type="button"
+        id="load-more-reviews"
+        data-product-id={productId}
+        data-offset={reviews.length}
+        class="btn-secondary !w-auto"
+      >
+        {copy.loadMoreLabel}
+      </button>
     </div>
   )}
 </section>
 )}
 
-<script is:inline data-astro-rerun define:vars={{ loadMoreLabel: copy.loadMoreLabel }}>
+<style>
+  .reviews-section .review-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .reviews-section .review-summary {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2rem;
+    }
+  }
+  .review-dist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    min-inline-size: 12rem;
+    flex: 1;
+    max-inline-size: 20rem;
+  }
+  .review-dist li { display: flex; align-items: center; gap: 0.5rem; }
+  .review-bar {
+    flex: 1;
+    block-size: 0.375rem;
+    background: var(--clr-surface-alt);
+    border-radius: var(--radius-tag);
+    overflow: hidden;
+  }
+  .review-bar > span {
+    display: block;
+    block-size: 100%;
+    background: var(--clr-text);
+  }
+</style>
+
+<script is:inline data-astro-rerun define:vars={{ loadMoreLabel: copy.loadMoreLabel, locale, starLabels: [1, 2, 3, 4, 5].map((n) => starLabel(n)) }}>
   (function () {
     const btn = document.getElementById("load-more-reviews");
-    if (!btn) return;
+    const template = document.getElementById("review-card-template");
+    const list = document.getElementById("reviews-list");
+    if (!btn || !template || !list) return;
+
+    let dateFormat;
+    try {
+      dateFormat = new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", day: "numeric" });
+    } catch {
+      dateFormat = null;
+    }
+    function formatDate(value) {
+      const n = Number(value);
+      const d = Number.isNaN(n) ? new Date(value) : new Date(n);
+      if (!dateFormat || Number.isNaN(d.getTime())) return String(value).slice(0, 10);
+      return dateFormat.format(d);
+    }
+
+    function card(review) {
+      const node = template.content.firstElementChild.cloneNode(true);
+      const rating = Math.max(0, Math.min(5, Number(review.rating) || 0));
+      const stars = node.querySelector("[data-review-stars]");
+      stars.setAttribute("aria-label", starLabels[Math.max(rating, 1) - 1] ?? "");
+      stars.querySelectorAll("[data-star]").forEach((star) => {
+        const on = Number(star.dataset.star) <= rating;
+        star.classList.toggle("text-ink", on);
+        star.classList.toggle("text-border", !on);
+      });
+      const title = node.querySelector("[data-review-title]");
+      if (review.title) {
+        title.textContent = review.title;
+        title.hidden = false;
+      }
+      node.querySelector("[data-review-body]").textContent = review.body ?? "";
+      node.querySelector("[data-review-name]").textContent = review.customerName ?? "";
+      const time = node.querySelector("[data-review-date]");
+      time.textContent = formatDate(review.createdAt);
+      time.setAttribute("datetime", String(review.createdAt ?? ""));
+      return node;
+    }
 
     btn.addEventListener("click", async () => {
       const productId = btn.dataset.productId;
-      const offset = parseInt(btn.dataset.offset ?? "0");
+      const offset = parseInt(btn.dataset.offset ?? "0", 10);
 
       btn.disabled = true;
-      btn.textContent = "...";
+      btn.setAttribute("aria-busy", "true");
 
       try {
-        const res = await fetch(`/api/product-reviews/${productId}?offset=${offset}&limit=10`);
+        const res = await fetch(`/api/product-reviews/${encodeURIComponent(productId)}?offset=${offset}&limit=10`);
         const json = await res.json();
-        const rows = json.data ?? [];
-
-        const list = document.getElementById("reviews-list");
-        rows.forEach((review) => {
-          const card = document.createElement("div");
-          card.className = "rounded-[1.25rem] border border-black/[.05] p-5 shadow-sm";
-          card.style.background = "var(--clr-surface)";
-          card.innerHTML = `
-            <div class="flex items-start justify-between gap-3 mb-3">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0" style="background: var(--clr-primary)">${review.customerName.trim().charAt(0).toUpperCase()}</div>
-                <div class="min-w-0">
-                  <p class="font-black text-sm truncate" style="color: var(--clr-text)">${review.customerName}</p>
-                </div>
-              </div>
-              <time class="text-xs font-bold shrink-0 mt-1" style="color: var(--clr-text-2)">${(function(v){const n=Number(v);const d=isNaN(n)?new Date(v):new Date(n);try{return d.toLocaleDateString('ar-DZ',{year:'numeric',month:'long',day:'numeric'})}catch{return v.slice(0,10)}})(review.createdAt)}</time>
-            </div>
-            <div class="flex gap-0.5 mb-3">
-              ${[1,2,3,4,5].map(s => `<svg width="16" height="16" viewBox="0 0 24 24" fill="${s <= review.rating ? 'var(--clr-primary)' : 'none'}" stroke="var(--clr-primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`).join('')}
-            </div>
-            ${review.title ? `<p class="font-black text-[0.9375rem] mb-1" style="color: var(--clr-text)">${review.title}</p>` : ''}
-            <p class="font-medium text-sm leading-relaxed" style="color: var(--clr-text)">${review.body}</p>
-          `;
-          list?.appendChild(card);
-        });
+        const rows = Array.isArray(json.data) ? json.data : [];
+        rows.forEach((review) => list.appendChild(card(review)));
 
         const newOffset = offset + rows.length;
         btn.dataset.offset = String(newOffset);
-
-        if (newOffset >= (json.total ?? 0)) {
-          btn.remove();
-        } else {
-          btn.disabled = false;
-          btn.textContent = loadMoreLabel;
+        if (rows.length === 0 || newOffset >= (json.total ?? 0)) {
+          btn.parentElement?.remove();
+          return;
         }
       } catch {
-        btn.disabled = false;
-        btn.textContent = loadMoreLabel;
+        // The button stays: the shopper can try again.
       }
+      btn.disabled = false;
+      btn.removeAttribute("aria-busy");
+      btn.textContent = loadMoreLabel;
     });
   })();
 </script>

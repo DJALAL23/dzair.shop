@@ -26,12 +26,12 @@ const { reviews, content } = Astro.props;
         <li class="carton flex flex-col gap-4 p-5">
           <p class="flex items-center gap-0.5" role="img" aria-label={message(content, "ariaStarRating", { count: review.rating }, Astro.locals.store.locale)}>
             {[1, 2, 3, 4, 5].map((s: number) => (
-              <Icon name="heroicons:star" class:list={["h-4 w-4", s <= review.rating ? "text-ink" : "text-border"]} aria-hidden="true" />
+              <Icon name="heroicons:star-solid" class:list={["h-4 w-4", s <= review.rating ? "text-ink" : "text-border"]} aria-hidden="true" />
             ))}
           </p>
-          <blockquote class="flex-1 text-base text-ink">{review.body}</blockquote>
+          <blockquote class="flex-1 text-base text-ink" dir="auto">{review.body}</blockquote>
           <footer class="flex items-center justify-between gap-3 border-t border-border pt-3">
-            <span class="truncate text-sm font-semibold text-ink">{review.customerName}</span>
+            <span class="truncate text-sm font-semibold text-ink" dir="auto">{review.customerName}</span>
             <span class="stamp stamp-line shrink-0">
               <Icon name="heroicons:check-circle" class="h-3.5 w-3.5 text-success" aria-hidden="true" />
               {content.reviewsVerifiedBuyer}

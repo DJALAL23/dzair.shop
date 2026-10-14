@@ -229,14 +229,13 @@ a { text-underline-offset: 0.2em; }
 
 /* ── Facts panel: the printed side of the box ────────────────────────────── */
 
-/* ── Section heading: rule above, title, optional link ───────────────────── */
+/* ── Section heading: title, optional line under it, optional link ───────── */
+/* Sections are told apart by space and by the type itself — no rule over them. */
 .section-head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  padding-top: 1rem;
-  border-top: 3px solid var(--clr-rule);
   margin-bottom: 1.5rem;
 }
 .section-title {

@@ -15,9 +15,15 @@ interface Props {
   eager?: boolean;
   /** The copy keys this card renders — see bridges/island-props.ts for why picks. */
   copy: ProductCardCopy;
+  /**
+   * Whether the card carries its order action. A suggestion under a product
+   * page is for browsing: the whole card is still the link, without a second
+   * row of buy buttons competing with the order form above it.
+   */
+  action?: boolean;
 }
 
-const { product, currencySymbol, eager = false, copy } = Astro.props;
+const { product, currencySymbol, eager = false, copy, action = true } = Astro.props;
 const locale = Astro.locals.store.locale;
 
 const image = product.coverImage;
@@ -81,13 +87,15 @@ const rating = product.reviewStats && product.reviewStats.reviewCount > 0 ? prod
       )}
     </p>
 
-    <span
-      class:list={["card-cta", isOutOfStock && "is-off"]}
-      aria-hidden="true"
-    >
-      {isOutOfStock ? copy.outOfStock : copy.orderCta}
-      {!isOutOfStock && <Icon name="heroicons:arrow-right" class="flip-rtl h-4 w-4" />}
-    </span>
+    {action && (
+      <span
+        class:list={["card-cta", isOutOfStock && "is-off"]}
+        aria-hidden="true"
+      >
+        {isOutOfStock ? copy.outOfStock : copy.orderCta}
+        {!isOutOfStock && <Icon name="heroicons:arrow-right" class="flip-rtl h-4 w-4" />}
+      </span>
+    )}
   </div>
 </a>
 

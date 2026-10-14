@@ -23,6 +23,7 @@
  * suggestion could not be loaded.
  */
 import ProductCard from "@/theme/components/product/ProductCard.astro";
+import SectionHead from "@/theme/components/ui/SectionHead.astro";
 import type { ProductList } from "@wocart/storefront";
 import {
   usableRelated,
@@ -68,39 +69,31 @@ const show = shouldShowRelated(related.length);
 ---
 
 {show && (
-  <section
-    class="max-w-5xl mx-auto px-5 pb-16 pt-12"
-    style="border-top: 1px solid var(--clr-border)"
-    aria-labelledby="related-products-title"
-  >
-    <div class="mb-6">
-      <h2
-        id="related-products-title"
-        class="text-[1.375rem] sm:text-[1.75rem] font-black tracking-tight"
-        style="color: var(--clr-text)"
-      >
-        {copy.relatedTitle}
-      </h2>
-      <p class="mt-1 text-[0.875rem] font-bold" style="color: var(--clr-text-2)">
-        {copy.relatedSub}
-      </p>
-    </div>
+  <section class="max-w-5xl mx-auto px-5 pb-16 pt-6" aria-labelledby="related-products-title">
+    <SectionHead id="related-products-title" title={copy.relatedTitle} sub={copy.relatedSub} />
 
     {/* A phone scrolls sideways rather than stacking eight cards below the
         order form, which would push the page length out for no gain. From
-        `sm` up it becomes an ordinary grid. */}
-    <div
-      class="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4"
+        `sm` up it becomes an ordinary grid. The cards carry no order button:
+        down here they are for browsing, and the card itself is the link. */}
+    <ul
+      class="related-row -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 lg:gap-6"
     >
       {related.map((product) => (
-        <div class="w-[44vw] max-w-[13rem] shrink-0 snap-start sm:w-auto sm:max-w-none">
+        <li class="w-[42vw] max-w-[13rem] shrink-0 snap-start sm:w-auto sm:max-w-none">
           <ProductCard
             product={product}
             currencySymbol={currencySymbol}
             copy={copy}
+            action={false}
           />
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   </section>
 )}
+
+<style>
+  .related-row { list-style: none; scrollbar-width: none; }
+  .related-row::-webkit-scrollbar { display: none; }
+</style>
