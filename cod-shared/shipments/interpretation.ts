@@ -40,14 +40,14 @@ export type Interpretation =
 
 export type InterpretationKind = Interpretation["kind"];
 
-export const INTERPRETATION_KINDS: readonly InterpretationKind[] = [
+export const INTERPRETATION_KIND_VALUES = [
   "milestone",
   "failed_attempt",
   "exception",
   "collection",
   "progress",
   "unknown",
-];
+] as const satisfies readonly InterpretationKind[];
 
 /** A shipment's delivery state, as stored. */
 export interface DeliveryFacts {

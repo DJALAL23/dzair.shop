@@ -1,4 +1,6 @@
 import { sqliteTable, text, integer, real, uniqueIndex, index, primaryKey, foreignKey } from "drizzle-orm/sqlite-core";
+import { HANDOFF_STATES, SETTLEMENT_COMPONENTS, SHIPMENT_EVENT_SOURCES, SHIPMENT_KINDS } from "../shipments/model";
+import { INTERPRETATION_KIND_VALUES, MILESTONES } from "../shipments/interpretation";
 import { CARRIER_PROVIDERS } from "../carriers/providers";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
@@ -834,6 +836,93 @@ export const companyApiLogs = sqliteTable("company_api_logs", {
   durationMs: integer("duration_ms"),
   createdAt: text("created_at").notNull(),
 });
+
+// ─── Shipments (ADR 0006; migration 0039) ──────────────────────────────────────
+
+/**
+ * One delivery execution of one order — by an integrated carrier or the
+ * store's own driver. An order has at most one. The carrier's raw status is
+ * kept as reported; CodFlow's conclusions are set-once milestone timestamps
+ * (see cod-shared/shipments/interpretation.ts), never a status column.
+ */
+export const shipments = sqliteTable("shipments", {
+  id: text("id").primaryKey(),
+  orderId: text("order_id").notNull().unique().references(() => orders.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: SHIPMENT_KINDS }).notNull(),
+  companyId: text("company_id").references(() => deliveryCompanies.id),
+  driverId: text("driver_id").references(() => drivers.id),
+  handoffState: text("handoff_state", { enum: HANDOFF_STATES }).notNull(),
+  /** The carrier's stable id for the parcel — what its updates are matched by. */
+  carrierParcelId: text("carrier_parcel_id"),
+  trackingNumber: text("tracking_number"),
+  /** Opaque to CodFlow: the adapter's own data, handed back on every call. */
+  carrierData: text("carrier_data"),
+  labelUrl: text("label_url"),
+  /** What was shipped (the order keeps what the customer asked for). */
+  deliveryType: text("delivery_type", { enum: ["home", "stop_desk"] }).notNull(),
+  stationCode: text("station_code"),
+  /** The cash the courier or driver collects, as declared at handoff. */
+  codAmount: real("cod_amount").notNull(),
+  /** A driver's pay for this delivery, frozen at handoff. */
+  driverFee: real("driver_fee").notNull().default(0),
+  weight: real("weight"),
+  isFragile: integer("is_fragile", { mode: "boolean" }),
+  providerStatus: text("provider_status"),
+  providerStatusLabel: text("provider_status_label"),
+  providerStatusKind: text("provider_status_kind", { enum: INTERPRETATION_KIND_VALUES }),
+  providerStatusAt: text("provider_status_at"),
+  validatedAt: text("validated_at"),
+  outForDeliveryAt: text("out_for_delivery_at"),
+  deliveredAt: text("delivered_at"),
+  returnStartedAt: text("return_started_at"),
+  returnedAt: text("returned_at"),
+  cancelledAt: text("cancelled_at"),
+  deliveryAttempts: integer("delivery_attempts").notNull().default(0),
+  attentionSince: text("attention_since"),
+  lastSyncedAt: text("last_synced_at"),
+  createdBy: text("created_by"),
+  /** A fresh random token per write: the guard that makes concurrent writers apply effects once. */
+  revision: text("revision").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Every status reported for a shipment: raw, as interpreted, with its reason, time and source. */
+export const shipmentEvents = sqliteTable("shipment_events", {
+  id: text("id").primaryKey(),
+  shipmentId: text("shipment_id").notNull().references(() => shipments.id, { onDelete: "cascade" }),
+  source: text("source", { enum: SHIPMENT_EVENT_SOURCES }).notNull(),
+  /** The fact's identity (vocabulary, status, time) — the same fact arriving twice is one row. */
+  eventKey: text("event_key").notNull(),
+  vocabulary: text("vocabulary"),
+  providerStatus: text("provider_status"),
+  providerStatusLabel: text("provider_status_label"),
+  /** Null only for rows carried over from the old order history. */
+  interpretation: text("interpretation", { enum: INTERPRETATION_KIND_VALUES }),
+  milestone: text("milestone", { enum: MILESTONES }),
+  attention: integer("attention", { mode: "boolean" }).notNull().default(false),
+  /** A report that contradicted the shipment, recorded and not applied. */
+  anomaly: text("anomaly"),
+  reason: text("reason"),
+  occurredAt: text("occurred_at").notNull(),
+  recordedAt: text("recorded_at").notNull(),
+  actorId: text("actor_id"),
+  webhookEventId: text("webhook_event_id").references(() => webhookEvents.id),
+  raw: text("raw"),
+}, (t) => ({
+  dedupe: uniqueIndex("shipment_events_shipment_id_event_key_unique").on(t.shipmentId, t.eventKey),
+}));
+
+/** Which driver shipment a driver payment settles, and for which part. Settlement owns the link. */
+export const driverPaymentLines = sqliteTable("driver_payment_lines", {
+  id: text("id").primaryKey(),
+  paymentId: text("payment_id").notNull().references(() => driverPayments.id, { onDelete: "cascade" }),
+  shipmentId: text("shipment_id").notNull().references(() => shipments.id),
+  component: text("component", { enum: SETTLEMENT_COMPONENTS }).notNull(),
+  amount: real("amount").notNull(),
+}, (t) => ({
+  oncePerPart: uniqueIndex("driver_payment_lines_shipment_id_component_unique").on(t.shipmentId, t.component),
+}));
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 

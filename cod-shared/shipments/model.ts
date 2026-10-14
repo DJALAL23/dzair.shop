@@ -15,3 +15,19 @@ export type ShipmentKind = (typeof SHIPMENT_KINDS)[number];
  */
 export const HANDOFF_STATES = ["submitting", "accepted", "unknown"] as const;
 export type HandoffState = (typeof HANDOFF_STATES)[number];
+
+/**
+ * Where a shipment event came from.
+ *   webhook  — pushed by the carrier;
+ *   pull     — read from the carrier's history (scheduled sync, merchant "sync");
+ *   handoff  — written by CodFlow when the parcel was created or validated;
+ *   merchant — reported by the merchant (a driver's progress, a return received);
+ *   system   — decided by CodFlow itself (a handoff resolved, a stale reservation);
+ *   legacy   — carried over from the old order status history.
+ */
+export const SHIPMENT_EVENT_SOURCES = ["webhook", "pull", "handoff", "merchant", "system", "legacy"] as const;
+export type ShipmentEventSource = (typeof SHIPMENT_EVENT_SOURCES)[number];
+
+/** How a driver payment line settles a shipment: the cash collected, or the driver's fee. */
+export const SETTLEMENT_COMPONENTS = ["cod", "fee"] as const;
+export type SettlementComponent = (typeof SETTLEMENT_COMPONENTS)[number];
