@@ -31,3 +31,12 @@ export type ShipmentEventSource = (typeof SHIPMENT_EVENT_SOURCES)[number];
 /** How a driver payment line settles a shipment: the cash collected, or the driver's fee. */
 export const SETTLEMENT_COMPONENTS = ["cod", "fee"] as const;
 export type SettlementComponent = (typeof SETTLEMENT_COMPONENTS)[number];
+
+/**
+ * The identity of a reported fact: its vocabulary, status and the instant it
+ * happened. The same fact reaching CodFlow twice — by webhook and by a pulled
+ * history — has one key, so it is recorded once.
+ */
+export function eventKey(status: { vocabulary: string; value: string }, occurredAt: string): string {
+  return `${status.vocabulary}:${status.value}@${occurredAt}`;
+}

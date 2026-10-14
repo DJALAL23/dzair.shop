@@ -14,6 +14,7 @@
  */
 
 import type { Interpretation } from "../../../cod-shared/shipments/interpretation";
+import { eventKey } from "../../../cod-shared/shipments/model";
 
 import { CARRIER_PROVIDERS, type CarrierProvider } from "../../../cod-shared/carriers/providers";
 
@@ -185,9 +186,9 @@ export interface CarrierUpdate {
   raw: unknown;
 }
 
-/** The identity of a reported fact: its status and when it happened. */
+/** The identity of a reported fact: its status and when it happened (see cod-shared eventKey). */
 export function updateKey(update: Pick<CarrierUpdate, "status" | "occurredAt">): string {
-  return `${update.status.vocabulary}:${update.status.value}@${update.occurredAt}`;
+  return eventKey(update.status, update.occurredAt);
 }
 
 export interface CarrierRemark {
