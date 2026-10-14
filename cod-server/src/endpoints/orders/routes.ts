@@ -1,7 +1,7 @@
 /**
  * Orders Routes
  *
- * CRUD, lifecycle transitions, carrier dispatch, and shipment operations.
+ * CRUD, lifecycle transitions, the handoff to delivery, and shipment operations.
  */
 
 import { OpenAPIHono, z } from "@hono/zod-openapi";
@@ -11,8 +11,8 @@ import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 
 import * as handlers from "./handlers";
 import * as statusTransitions from "./status-transitions";
-import * as dispatch from "./dispatch";
 import * as shipmentOps from "./shipment-operations";
+import { handOffOrderRoute } from "../shipments/routes";
 
 import {
   createOrderSchema,
@@ -21,7 +21,6 @@ import {
   assignDriverSchema,
   returnOrderProductSchema,
   orderFiltersSchema,
-  bulkDispatchSchema,
 } from "./validation";
 
 import {
@@ -33,9 +32,6 @@ import {
   OrderListItemSchema,
   OrderDetailSchema,
   OrderCreatedDataSchema,
-  ShipmentCreatedDataSchema,
-  BulkDispatchDataSchema,
-  BulkDispatchResultItemSchema,
   ReturnProductDataSchema,
   CarrierRecordsArraySchema,
 } from "@/openapi/schemas";
@@ -289,138 +285,6 @@ Rejected with 422 while the overall order is already \`returned\` or \`cancelled
     },
   },
   handler: handlers.returnOrderProduct,
-});
-
-// ─── Carrier dispatch ─────────────────────────────────────────────────────────
-
-const bulkDispatchRoute = defineRoute({
-  method: "post",
-  path: "/bulk-dispatch",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
-  tags: ["Orders"],
-  summary: "Bulk dispatch orders to a delivery company",
-  description: `Dispatch multiple existing orders to a delivery company in one API call using the provider's bulk creation endpoint (up to 100 orders per request).
-
-⚠️ Provider support: ecotrack adapter implemented (Packers' bulk endpoint currently returns 500 — confirmed server-side bug); others return OPERATION_NOT_SUPPORTED.
-
-Per-order results are returned; partial success is possible (HTTP 201 when at least one order dispatched, 400 when none did).`,
-  operationId: "bulkDispatch",
-  body: bulkDispatchSchema,
-  responses: {
-    201: {
-      description: "Bulk dispatch executed (at least one order dispatched)",
-      content: jsonContent(SuccessWithMessageSchema(BulkDispatchDataSchema)),
-    },
-    400: {
-      description:
-        "Validation error, or no valid orders to dispatch (returns per-order results)",
-      content: jsonContent(
-        z.object({
-          success: z.boolean(),
-          message: z.string(),
-          results: z.array(BulkDispatchResultItemSchema).optional(),
-        })
-      ),
-    },
-    422: {
-      description: "Provider does not support bulk creation (OPERATION_NOT_SUPPORTED)",
-    },
-  },
-  handler: dispatch.bulkDispatch,
-});
-
-const dispatchToCompanyRoute = defineRoute({
-  method: "post",
-  path: "/{id}/dispatch",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
-  tags: ["Orders"],
-  summary: "Dispatch order to delivery company",
-  description: `Creates a shipment via the assigned delivery company's API (NOEST, ZR Express, Yalidine, Packers/EcoTrack).
-
-**What happens:**
-1. Validates business rules (not already dispatched, wilaya + commune set, station code for stop-desk)
-2. Calls the provider adapter to create the shipment
-3. Records the tracking number on the order
-4. Auto-validates where supported (NOEST) — advances status to out_for_delivery; otherwise status becomes dispatched
-5. Logs the API call for audit
-
-**Body fields are all optional** — they override values stored on the order.`,
-  operationId: "dispatchToCompany",
-  params: IdParamSchema,
-  body: z.object({
-    companyId: z.string().optional().openapi({
-      description: "Override the order's assigned company",
-    }),
-    deliveryType: z.enum(["home", "stop_desk"]).optional().openapi({
-      description:
-        "Override the order's delivery type. Resolves the stop-desk dead end: a stop-desk " +
-        "order can be dispatched as home delivery (no station required), and a home order " +
-        "can be dispatched to a stop desk (station required). Persisted on the order on " +
-        "successful dispatch. The charged COD is unchanged — it was confirmed by the customer " +
-        "with the original type.",
-    }),
-    stationCode: z.string().optional().openapi({
-      description: "Stop-desk station code. Required when the effective deliveryType is stop_desk",
-    }),
-    remarks: z.string().optional().openapi({
-      description: "Delivery remarks passed to the provider",
-    }),
-    weight: z.number().optional().openapi({
-      description: "Parcel weight in kg override",
-    }),
-    fragile: z.boolean().optional().openapi({
-      description: "Fragile parcel flag override",
-    }),
-  }),
-  responses: {
-    201: {
-      description: "Shipment created successfully",
-      content: jsonContent(SuccessWithMessageSchema(ShipmentCreatedDataSchema)),
-    },
-    400: {
-      description:
-        "Validation error — no delivery company, missing wilaya/commune, or missing station code",
-    },
-    422: {
-      description:
-        "Already dispatched (ORDER_ALREADY_DISPATCHED), driver assigned (DRIVER_ALREADY_ASSIGNED), inactive company, unsupported provider, or shipment creation failed (SHIPMENT_CREATION_FAILED)",
-    },
-  },
-  handler: dispatch.dispatchToCompany,
-});
-
-const validateShipmentRoute = defineRoute({
-  method: "post",
-  path: "/{id}/validate-shipment",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
-  tags: ["Orders"],
-  summary: "Manually validate a dispatched shipment",
-  description: `Manually validate a dispatched order at the carrier API. Only meaningful when company.auto_validate=false (e.g. Packers). Advances status dispatched → out_for_delivery.`,
-  operationId: "validateShipmentManually",
-  params: IdParamSchema,
-  responses: {
-    200: {
-      description: "Shipment validated — order is now out for delivery",
-      content: jsonContent(MessageResponseSchema),
-    },
-    400: {
-      description: "Carrier validation returned false",
-      content: jsonContent(
-        z.object({
-          success: z.boolean().openapi({ example: false }),
-          message: z.string(),
-        })
-      ),
-    },
-    422: {
-      description:
-        "Order not in dispatched state (INVALID_STATUS_TRANSITION), inactive company, unsupported provider, or external API error (502 EXTERNAL_API_ERROR)",
-    },
-    500: {
-      description: "External API error",
-    },
-  },
-  handler: dispatch.validateShipmentManually,
 });
 
 // ─── Shipment operations ──────────────────────────────────────────────────────
@@ -695,12 +559,9 @@ Provider support: ecotrack ✅ | others ❌ OPERATION_NOT_SUPPORTED.`,
   handler: shipmentOps.confirmReturnReception,
 });
 
-// IMPORTANT: /bulk-dispatch must come before /{id} routes — otherwise
-// "bulk-dispatch" would be captured as an id param.
 const router = new OpenAPIHono<AppContext>();
 
 router.openapi(listOrdersRoute.route, listOrdersRoute.handler);
-router.openapi(bulkDispatchRoute.route, bulkDispatchRoute.handler);
 
 router.openapi(getOrderRoute.route, getOrderRoute.handler);
 router.openapi(createOrderRoute.route, createOrderRoute.handler);
@@ -710,8 +571,7 @@ router.openapi(updateStatusRoute.route, updateStatusRoute.handler);
 router.openapi(assignDriverRoute.route, assignDriverRoute.handler);
 router.openapi(unassignDriverRoute.route, unassignDriverRoute.handler);
 router.openapi(returnOrderProductRoute.route, returnOrderProductRoute.handler);
-router.openapi(dispatchToCompanyRoute.route, dispatchToCompanyRoute.handler);
-router.openapi(validateShipmentRoute.route, validateShipmentRoute.handler);
+router.openapi(handOffOrderRoute.route, handOffOrderRoute.handler);
 router.openapi(updateShipmentRoute.route, updateShipmentRoute.handler);
 router.openapi(cancelShipmentRoute.route, cancelShipmentRoute.handler);
 router.openapi(askReturnRoute.route, askReturnRoute.handler);

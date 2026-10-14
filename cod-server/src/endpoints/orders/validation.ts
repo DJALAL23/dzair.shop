@@ -146,17 +146,6 @@ export const orderFiltersSchema = z.object({
     ),
 });
 
-/**
- * POST /orders/bulk-dispatch — dispatch multiple existing orders to a delivery company.
- * Uses the provider's bulk creation API (up to 100 orders per request).
- */
-export const bulkDispatchSchema = z.object({
-  companyId: z.string().min(1),
-  orderIds: z.array(z.string().min(1)).min(1).max(100, "Maximum 100 orders per bulk dispatch"),
-});
-
-export type BulkDispatchInput = z.infer<typeof bulkDispatchSchema>;
-
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type UpdateOrderInput = z.infer<typeof updateOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;

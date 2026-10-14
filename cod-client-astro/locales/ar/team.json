@@ -95,6 +95,8 @@
       "order.driver_assigned": "عيّن سائقًا للطلب",
       "order.dispatched": "أرسل الطلب إلى شركة",
       "order.deleted": "حذف طلبًا",
+      "shipment.voided": "ألغى شحنة",
+      "shipment.released": "حرّر إرسالًا غير مؤكد",
       "customer.created": "أضاف عميلًا جديدًا",
       "customer.updated": "حدّث بيانات عميل",
       "customer.deleted": "حذف عميلًا",

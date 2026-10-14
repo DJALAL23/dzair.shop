@@ -2,50 +2,20 @@
  * Carrier payload limits — the rules, including the ones that must NOT fire.
  *
  * Pure functions, so every boundary is stated directly. The wiring — that a
- * dispatch actually refuses an over-ceiling order before calling the provider
- * — is asserted in the dispatch tests.
+ * handoff refuses an over-ceiling order before calling the carrier, single
+ * and bulk alike — is asserted in the handoff tests.
  */
 
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
-import {
-  limitsFor,
-  exceedsAmountCeiling,
-  buildProductDescription,
-  sumParcelWeight,
-  CARRIER_LIMITS,
-} from "./carrier-limits";
-
-// ─── Limit lookup ─────────────────────────────────────────────────────────────
-
-describe("limitsFor", () => {
-  it("knows Yalidine's documented 150,000 ceiling", () => {
-    expect(limitsFor("yalidine").maxAmount).toBe(150_000);
-  });
-
-  it("enforces no value ceiling for carriers that publish none", () => {
-    // Inventing a cap would refuse orders the carrier would have accepted.
-    expect(limitsFor("zr_express").maxAmount).toBeNull();
-    expect(limitsFor("noest").maxAmount).toBeNull();
-  });
-
-  it("falls back to a safe default for an unknown carrier", () => {
-    const limits = limitsFor("some_new_carrier");
-    expect(limits.maxAmount).toBeNull();
-    expect(limits.maxDescription).toBeGreaterThan(0);
-  });
-
-  it("gives every known carrier a usable description budget", () => {
-    for (const [code, limits] of Object.entries(CARRIER_LIMITS)) {
-      expect(limits.maxDescription, code).toBeGreaterThanOrEqual(64);
-    }
-  });
-});
+import { exceedsAmountCeiling, buildProductDescription, sumParcelWeight } from "./parcel-limits";
+import { YALIDINE_CAPABILITIES } from "@/carriers/yalidine/adapter";
+import { ZR_CAPABILITIES } from "@/carriers/zr_express/adapter";
 
 // ─── Amount ceiling ───────────────────────────────────────────────────────────
 
 describe("exceedsAmountCeiling", () => {
-  const yalidine = limitsFor("yalidine");
+  const yalidine = YALIDINE_CAPABILITIES.limits;
 
   it("allows an ordinary order", () => {
     expect(exceedsAmountCeiling(9_600, yalidine)).toBe(false);
@@ -61,7 +31,7 @@ describe("exceedsAmountCeiling", () => {
   });
 
   it("never rejects for a carrier with no ceiling", () => {
-    expect(exceedsAmountCeiling(10_000_000, limitsFor("zr_express"))).toBe(false);
+    expect(exceedsAmountCeiling(10_000_000, ZR_CAPABILITIES.limits)).toBe(false);
   });
 
   it("allows zero", () => {

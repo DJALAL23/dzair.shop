@@ -71,9 +71,9 @@ const PAGE = "page_size=1000";
 
 export const yalidineConfigSchema = z
   .object({
-    /** The sender's wilaya, required on every parcel, in Yalidine's spelling. */
     /** Which carrier on the platform this company is. */
     platform: z.enum(["yalidine", "guepex"]).default("yalidine"),
+    /** The sender's wilaya, required on every parcel, in Yalidine's spelling. */
     fromWilayaName: z.string().trim().min(1).default("Alger"),
     /** A relay that mirrors Yalidine's paths, for Worker egress. */
     proxyBaseUrl: z.string().url().optional(),
@@ -111,6 +111,11 @@ export const YALIDINE_CAPABILITIES: CarrierCapabilities = {
   verifyConnection: false,
 };
 
+/** Yalidine pushes updates; Guepex documents no webhooks, so its parcels are pulled. */
+export function yalidineCapabilities(platform: YalidinePlatform): CarrierCapabilities {
+  return platform === "yalidine" ? YALIDINE_CAPABILITIES : { ...YALIDINE_CAPABILITIES, updates: "pull" };
+}
+
 function splitName(fullName: string): { firstname: string; familyname: string } {
   const parts = fullName.trim().split(/\s+/);
   return { firstname: parts[0], familyname: parts.length > 1 ? parts.slice(1).join(" ") : parts[0] };
@@ -135,7 +140,7 @@ export class YalidineCarrier implements CarrierAdapter {
 
   constructor(credentials: YalidineCredentials, config: YalidineConfig) {
     const platform = YALIDINE_PLATFORMS[config.platform];
-    this.capabilities = config.platform === "yalidine" ? YALIDINE_CAPABILITIES : { ...YALIDINE_CAPABILITIES, updates: "pull" };
+    this.capabilities = yalidineCapabilities(config.platform);
     if (config.platform === "yalidine") this.webhook = yalidineWebhook;
     this.fromWilayaName = config.fromWilayaName;
     const proxySecret = config.proxySecret;

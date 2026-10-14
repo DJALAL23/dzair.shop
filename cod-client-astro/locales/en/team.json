@@ -95,6 +95,8 @@
       "order.driver_assigned": "Assigned driver to order",
       "order.dispatched": "Dispatched order to company",
       "order.deleted": "Deleted an order",
+      "shipment.voided": "Voided a shipment",
+      "shipment.released": "Released an unconfirmed dispatch",
       "customer.created": "Added a new customer",
       "customer.updated": "Updated customer info",
       "customer.deleted": "Deleted a customer",

@@ -6,9 +6,26 @@
 import { and, asc, eq } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { orders, shipmentEvents, shipments } from "../db/schema";
+import type { DeliveryFacts } from "./interpretation";
 
 export type ShipmentRow = typeof shipments.$inferSelect;
 export type ShipmentEventRow = typeof shipmentEvents.$inferSelect;
+
+/** The delivery facts a shipment row holds — what the pure rules reason about. */
+export function deliveryFactsOf(row: ShipmentRow): DeliveryFacts {
+  return {
+    providerStatus: row.providerStatus,
+    providerStatusKind: row.providerStatusKind,
+    providerStatusAt: row.providerStatusAt,
+    outForDeliveryAt: row.outForDeliveryAt,
+    deliveredAt: row.deliveredAt,
+    returnStartedAt: row.returnStartedAt,
+    returnedAt: row.returnedAt,
+    cancelledAt: row.cancelledAt,
+    deliveryAttempts: row.deliveryAttempts,
+    attentionSince: row.attentionSince,
+  };
+}
 
 export function getShipment(db: AppDb, shipmentId: string): Promise<ShipmentRow | undefined> {
   return db.select().from(shipments).where(eq(shipments.id, shipmentId)).get();

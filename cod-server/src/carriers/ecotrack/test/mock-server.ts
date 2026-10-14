@@ -14,6 +14,7 @@
  *   server.callsFor(p)  — recorded requests for one endpoint path
  *   server.parcel(t)    — internal parcel state (for stateful assertions)
  *   server.override(p)  — replace one route's response (error simulation)
+ *   server.restore(p)   — give a route its own response back
  *   server.reset()      — clear requests, overrides, and parcels
  *
  * Behavior notes:
@@ -88,6 +89,7 @@ export interface EcotrackMockServer {
   callsFor(path: string): EcotrackRecordedRequest[];
   parcel(tracking: string): MockParcelState | undefined;
   override(path: string, responder: RouteResponder): void;
+  restore(path: string): void;
   reset(): void;
   fetch(url: string | URL, init?: RequestInit): Promise<Response>;
 }
@@ -473,6 +475,10 @@ export function createEcotrackMockServer(
 
     override(path, responder) {
       overrides.set(path, responder);
+    },
+
+    restore(path) {
+      overrides.delete(path);
     },
 
     reset() {

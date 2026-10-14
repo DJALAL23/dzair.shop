@@ -1,47 +1,23 @@
 /**
- * Per-carrier payload limits, and the two things we must do about them.
+ * A carrier's payload limits, and the two things we must do about them.
  *
  * A basket can carry an order past what a carrier will accept. Discovering
  * that from a raw provider error — after the customer has been promised a
  * delivery — is the worst place to find out, so the checks run before the
  * call is made and say plainly what the merchant should do instead.
  *
- * Only limits we can point at documentation for are enforced. A carrier with
- * no published ceiling gets `maxAmount: null` and is never blocked: inventing
- * a cap would refuse orders the carrier would have accepted, which is a worse
- * failure than the one being prevented.
- *
- * This is where Q3 lives. The carrier is not known at checkout — the
- * storefront leaves `orders.company_id` null and the merchant assigns it later
- * — so dispatch is the only point in the lifecycle where these can be tested.
+ * The limits themselves are the adapter's (`capabilities.limits`), and only
+ * documented ones are declared: a carrier with no published ceiling has
+ * `maxAmount: null` and is never blocked — inventing a cap would refuse
+ * orders the carrier would have accepted.
  */
 
-export interface CarrierLimits {
-  /** Maximum parcel value in DZD, or null when the carrier documents none. */
-  maxAmount: number | null;
-  /** Maximum length of the product-description field. */
-  maxDescription: number;
-}
+import type { CarrierCapabilities } from "@/carriers/contract";
 
-/**
- * Yalidine documents `price` and `declared_value` as 0–150000 (inclusive).
- * The others publish no value ceiling, so none is enforced for them.
- *
- * 255 for descriptions is a conservative default across providers — long
- * enough for a real basket, short enough that no carrier truncates it for us
- * in a way that loses the order number.
- */
-export const CARRIER_LIMITS: Record<string, CarrierLimits> = {
-  yalidine: { maxAmount: 150_000, maxDescription: 255 },
-  zr_express: { maxAmount: null, maxDescription: 255 },
-  noest: { maxAmount: null, maxDescription: 255 },
-};
+export type CarrierLimits = CarrierCapabilities["limits"];
 
-const DEFAULT_LIMITS: CarrierLimits = { maxAmount: null, maxDescription: 255 };
-
-export function limitsFor(carrierCode: string): CarrierLimits {
-  return CARRIER_LIMITS[carrierCode] ?? DEFAULT_LIMITS;
-}
+/** Used when a carrier publishes no description limit: long enough for a basket, short enough to stay whole. */
+export const DEFAULT_MAX_DESCRIPTION = 255;
 
 /**
  * Whether a parcel value is acceptable to this carrier.

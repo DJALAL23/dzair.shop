@@ -257,43 +257,6 @@ export const OrderCreatedDataSchema = z
   })
   .openapi("OrderCreatedData");
 
-// ─── Dispatch/Shipment Responses ──────────────────────────────────────────────
-
-/**
- * Data returned after successfully dispatching an order to a carrier
- */
-export const ShipmentCreatedDataSchema = z
-  .object({
-    shipmentId: z.string().openapi({ description: "Internal shipment record ID" }),
-    trackingNumber: z.string().openapi({ example: "NE123456789DZ" }),
-    labelUrl: z.string().nullable().openapi({
-      description: "PDF label URL, if provided by the company",
-    }),
-  })
-  .openapi("ShipmentCreatedData");
-
-/**
- * Single order result in bulk dispatch operation
- */
-export const BulkDispatchResultItemSchema = z.object({
-  orderId: z.string(),
-  orderNumber: z.string().optional(),
-  trackingNumber: z.string().optional(),
-  labelUrl: z.string().optional(),
-  error: z.string().optional().openapi({
-    description: "Error message when this specific order failed to dispatch",
-  }),
-});
-
-/**
- * Response data for bulk dispatch operation
- */
-export const BulkDispatchDataSchema = z
-  .object({
-    results: z.array(BulkDispatchResultItemSchema),
-  })
-  .openapi("BulkDispatchData");
-
 // ─── Return Product Response ──────────────────────────────────────────────────
 
 /**

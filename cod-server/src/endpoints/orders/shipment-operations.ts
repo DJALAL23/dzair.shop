@@ -19,7 +19,7 @@ import { getDeliveryCompanyRaw } from "@/endpoints/delivery-companies/queries";
 import { setShipmentValidated, getShipmentByOrder, logApiCall } from "@/endpoints/delivery-companies/providers/shipments";
 import { NotFoundError, BusinessLogicError, ValidationError, ExternalApiError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-import { DEFERRED_LABEL_MARKER } from "./dispatch";
+const DEFERRED_LABEL_MARKER = "deferred";
 
 /**
  * PATCH /orders/:id/update-shipment

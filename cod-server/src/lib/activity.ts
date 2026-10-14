@@ -24,6 +24,10 @@ export const ACTIONS = {
   ORDER_PRODUCT_RETURNED:  "order.product_returned",
   ORDER_DELETED:           "order.deleted",
 
+  // Shipments
+  SHIPMENT_VOIDED:         "shipment.voided",
+  SHIPMENT_RELEASED:       "shipment.released",
+
   // Customers
   CUSTOMER_CREATED:        "customer.created",
   CUSTOMER_UPDATED:        "customer.updated",

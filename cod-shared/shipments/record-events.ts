@@ -22,8 +22,9 @@ import type { AppDb } from "../db/client";
 import { customers, drivers, orders, shipmentEvents, shipments } from "../db/schema";
 import { insertSelectRow } from "../db/insert-select";
 import { linesToRestock, restockStatements } from "../inventory/restock";
-import { applyEvent, type Anomaly, type DeliveryFacts, type Interpretation, type Milestone } from "./interpretation";
+import { applyEvent, type Anomaly, type Interpretation, type Milestone } from "./interpretation";
 import { eventKey, type ShipmentEventSource } from "./model";
+import { deliveryFactsOf } from "./queries";
 
 export interface IncomingShipmentEvent {
   source: ShipmentEventSource;
@@ -75,23 +76,6 @@ const BUSINESS_EVENT: Record<Milestone, ShipmentBusinessEvent["type"]> = {
   cancelled: "ShipmentCancelled",
 };
 
-type ShipmentRow = typeof shipments.$inferSelect;
-
-function deliveryFacts(row: ShipmentRow): DeliveryFacts {
-  return {
-    providerStatus: row.providerStatus,
-    providerStatusKind: row.providerStatusKind,
-    providerStatusAt: row.providerStatusAt,
-    outForDeliveryAt: row.outForDeliveryAt,
-    deliveredAt: row.deliveredAt,
-    returnStartedAt: row.returnStartedAt,
-    returnedAt: row.returnedAt,
-    cancelledAt: row.cancelledAt,
-    deliveryAttempts: row.deliveryAttempts,
-    attentionSince: row.attentionSince,
-  };
-}
-
 /**
  * Record reported events on a shipment. Events it already has are ignored;
  * the rest are applied in the order given (carriers' own order is not
@@ -141,7 +125,7 @@ async function attemptRecord(
   const duplicates = incoming.length - fresh.length;
   if (fresh.length === 0) return { recorded: 0, duplicates, reached: [], anomalies: [], businessEvents: [] };
 
-  let facts = deliveryFacts(row);
+  let facts = deliveryFactsOf(row);
   const reached: Milestone[] = [];
   const anomalies: Anomaly[] = [];
   const businessEvents: ShipmentBusinessEvent[] = [];

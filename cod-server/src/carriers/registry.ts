@@ -8,11 +8,11 @@
  */
 
 import { isMasked, isSecretSetting } from "../../../cod-shared/carriers/providers";
-import { CarrierError, type CarrierAdapter, type CarrierProvider } from "./contract";
-import { EcotrackCarrier, ecotrackConfigSchema } from "./ecotrack/adapter";
-import { NoestCarrier, noestConfigSchema } from "./noest/adapter";
-import { YalidineCarrier, yalidineConfigSchema } from "./yalidine/adapter";
-import { ZrExpressCarrier, zrConfigSchema, type ZrConfig } from "./zr_express/adapter";
+import { CarrierError, type CarrierAdapter, type CarrierCapabilities, type CarrierProvider } from "./contract";
+import { ECOTRACK_CAPABILITIES, EcotrackCarrier, ecotrackConfigSchema } from "./ecotrack/adapter";
+import { NOEST_CAPABILITIES, NoestCarrier, noestConfigSchema } from "./noest/adapter";
+import { YalidineCarrier, yalidineCapabilities, yalidineConfigSchema } from "./yalidine/adapter";
+import { ZR_CAPABILITIES, ZrExpressCarrier, zrConfigSchema, type ZrConfig } from "./zr_express/adapter";
 
 /** What the registry needs from a delivery-company row. */
 export interface CarrierCompany {
@@ -119,6 +119,28 @@ export function buildCarrier(company: CarrierCompany): CarrierAdapter {
         { apiToken: required(provider, company.apiToken, "The API token"), baseUrl: required(provider, company.apiEndpoint, "The EcoTrack host") },
         config(provider, ecotrackConfigSchema, settings),
       );
+  }
+}
+
+/**
+ * What a company's carrier can do — known from its provider and settings
+ * alone, without credentials, so a shipment's possible actions can be shown
+ * even while the company is disconnected. Null when it has no adapter.
+ */
+export function carrierCapabilities(company: Pick<CarrierCompany, "provider" | "providerConfig">): CarrierCapabilities | null {
+  switch (company.provider) {
+    case null:
+      return null;
+    case "yalidine": {
+      const settings = parseJson(company.providerConfig) as { platform?: unknown } | undefined;
+      return yalidineCapabilities(settings?.platform === "guepex" ? "guepex" : "yalidine");
+    }
+    case "zr_express":
+      return ZR_CAPABILITIES;
+    case "noest":
+      return NOEST_CAPABILITIES;
+    case "ecotrack":
+      return ECOTRACK_CAPABILITIES;
   }
 }
 

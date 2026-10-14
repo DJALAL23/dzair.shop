@@ -95,6 +95,8 @@
       "order.driver_assigned": "A assigné un livreur à une commande",
       "order.dispatched": "A expédié la commande à l'entreprise",
       "order.deleted": "A supprimé une commande",
+      "shipment.voided": "A annulé une expédition",
+      "shipment.released": "A libéré un envoi non confirmé",
       "customer.created": "A ajouté un nouveau client",
       "customer.updated": "A mis à jour les infos client",
       "customer.deleted": "A supprimé un client",

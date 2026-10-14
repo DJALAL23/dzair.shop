@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { CARRIER_PROVIDERS, CarrierError, OPTIONAL_MEMBER_CAPABILITY, type CarrierAdapter } from "./contract";
-import { buildCarrier, defaultProviderForCode, mergeProviderConfig, type CarrierCompany } from "./registry";
+import { buildCarrier, carrierCapabilities, defaultProviderForCode, mergeProviderConfig, type CarrierCompany } from "./registry";
 
 const companies: Record<string, CarrierCompany> = {
   yalidine: { provider: "yalidine", providerConfig: null, apiToken: "t", apiUserGuid: "id", apiEndpoint: null },
@@ -45,6 +45,23 @@ describe("the carrier contract holds for every adapter", () => {
       if (c.updates === "pull") expect(c.history).toBe(true);
     });
   }
+});
+
+describe("a company's capabilities without its credentials", () => {
+  for (const [name, company] of Object.entries(companies)) {
+    it(`${name}: are exactly what its adapter declares`, () => {
+      expect(carrierCapabilities({ provider: company.provider, providerConfig: company.providerConfig })).toEqual(buildCarrier(company).capabilities);
+    });
+  }
+
+  it("Guepex is pulled, Yalidine pushes", () => {
+    expect(carrierCapabilities(companies.guepex)!.updates).toBe("pull");
+    expect(carrierCapabilities(companies.yalidine)!.updates).toBe("webhook");
+  });
+
+  it("a company with no adapter has none", () => {
+    expect(carrierCapabilities({ provider: null, providerConfig: null })).toBeNull();
+  });
 });
 
 describe("building a company's adapter", () => {

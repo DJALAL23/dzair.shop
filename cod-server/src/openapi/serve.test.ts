@@ -31,6 +31,7 @@ import offersRouter from "@/endpoints/offers/routes";
 import driverPaymentsRouter from "@/endpoints/driver-payments/routes";
 import { uploadRouter } from "@/endpoints/images/routes";
 import ordersRouter from "@/endpoints/orders/routes";
+import shipmentsRouter from "@/endpoints/shipments/routes";
 import webhooksRouter from "@/endpoints/webhooks/routes";
 import abandonedOrdersRouter from "@/endpoints/abandoned-orders/routes";
 import storeAbandonedRouter from "@/endpoints/abandoned-orders/store-routes";
@@ -59,6 +60,7 @@ function buildApp() {
   app.route("/api/driver-payments", driverPaymentsRouter);
   app.route("/api/images", uploadRouter);
   app.route("/api/orders", ordersRouter);
+  app.route("/api/shipments", shipmentsRouter);
   app.route("/webhooks", webhooksRouter);
   app.route("/api/abandoned-orders", abandonedOrdersRouter);
   app.route("/store", storeAbandonedRouter);
@@ -743,7 +745,6 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(list.security).toEqual([{ ApiKeyAuth: [] }]);
 
     expect(spec.paths["/api/orders"]?.post?.operationId).toBe("createOrder");
-    expect(spec.paths["/api/orders/bulk-dispatch"]?.post?.operationId).toBe("bulkDispatch");
     expect(spec.paths["/api/orders/{id}"]?.get?.operationId).toBe("getOrder");
     expect(spec.paths["/api/orders/{id}"]?.patch?.operationId).toBe("updateOrder");
     expect(spec.paths["/api/orders/{id}"]?.delete?.operationId).toBe("deleteOrder");
@@ -751,8 +752,11 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(spec.paths["/api/orders/{id}/assign-driver"]?.patch?.operationId).toBe("assignDriver");
     expect(spec.paths["/api/orders/{id}/unassign"]?.patch?.operationId).toBe("unassignDriver");
     expect(spec.paths["/api/orders/{id}/products/{productLineId}/return"]?.patch?.operationId).toBe("returnOrderProduct");
-    expect(spec.paths["/api/orders/{id}/dispatch"]?.post?.operationId).toBe("dispatchToCompany");
-    expect(spec.paths["/api/orders/{id}/validate-shipment"]?.post?.operationId).toBe("validateShipmentManually");
+    expect(spec.paths["/api/orders/{id}/shipment"]?.post?.operationId).toBe("handOffOrder");
+    expect(spec.paths["/api/shipments/bulk"]?.post?.operationId).toBe("handOffOrders");
+    expect(spec.paths["/api/shipments/{id}"]?.get?.operationId).toBe("getShipment");
+    expect(spec.paths["/api/shipments/{id}/resolve"]?.post?.operationId).toBe("resolveShipmentHandoff");
+    expect(spec.components.schemas.Shipment).toBeDefined();
     expect(spec.paths["/api/orders/{id}/update-shipment"]?.patch?.operationId).toBe("updateShipmentInfo");
     expect(spec.paths["/api/orders/{id}/cancel-shipment"]?.post?.operationId).toBe("cancelShipment");
     expect(spec.paths["/api/orders/{id}/add-remark"]?.post?.operationId).toBe("addShipmentRemark");

@@ -1,7 +1,7 @@
 /**
  * The handoff protocol and shipment lookups on real D1.
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "../db/schema";
@@ -11,6 +11,8 @@ import {
   handOffToDriver,
   markHandoffUnknown,
   markValidated,
+  noteShipmentStep,
+  releaseUnknownHandoff,
   reserveCarrierShipment,
   voidShipment,
   type CarrierReservation,
@@ -85,6 +87,11 @@ describe("settling a carrier handoff", () => {
     if (!r.ok) throw new Error("reservation failed");
     return r.shipmentId;
   };
+  const reserve2 = async () => {
+    const r = await reserveCarrierShipment(d1.db, reservation({ orderId: "ready2" }));
+    if (!r.ok) throw new Error("reservation failed");
+    return r.shipmentId;
+  };
 
   it("accepted: the carrier's identity is recorded with the step", async () => {
     const id = await reserve();
@@ -147,6 +154,39 @@ describe("settling a carrier handoff", () => {
     const id = await reserve();
     await acceptCarrierHandoff(d1.db, id, parcel, { validated: true });
     expect((await shipmentOf("ready"))!.providerStatus).toBeNull();
+  });
+
+  it("released: only a handoff still unknown — never one found or attached meanwhile", async () => {
+    const id = await reserve();
+    expect(await releaseUnknownHandoff(d1.db, id)).toBe(false);
+    await markHandoffUnknown(d1.db, id, "timeout");
+    const accepted = await reserve2();
+    await acceptCarrierHandoff(d1.db, accepted, { ...parcel, carrierParcelId: "yal-2", trackingNumber: "yal-2" }, { validated: false });
+    expect(await releaseUnknownHandoff(d1.db, accepted)).toBe(false);
+    expect(await shipmentOf("ready2")).toBeDefined();
+    expect(await releaseUnknownHandoff(d1.db, id)).toBe(true);
+    expect(await shipmentOf("ready")).toBeUndefined();
+  });
+
+  it("a note keeps a step in the history without touching the shipment; the same step at the same instant is one note", async () => {
+    const id = await reserve();
+    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false });
+    const before = await shipmentOf("ready");
+    vi.useFakeTimers({ now: Date.now() + 60_000, toFake: ["Date"] });
+    try {
+      expect(await noteShipmentStep(d1.db, id, "validation_failed", { source: "handoff", reason: "refused", actorId: "u1" })).toBe(true);
+      expect(await noteShipmentStep(d1.db, id, "validation_failed", { source: "handoff", reason: "refused", actorId: "u1" })).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+    const after = await shipmentOf("ready");
+    expect(after!.revision).toBe(before!.revision);
+    const events = (await getShipmentWithEvents(d1.db, id))!.events;
+    expect(events.map((e) => [e.source, e.providerStatus, e.reason, e.actorId])).toEqual([
+      ["handoff", "created", null, null],
+      ["handoff", "validation_failed", "refused", "u1"],
+    ]);
+    expect(await noteShipmentStep(d1.db, "no-such-shipment", "x")).toBe(false);
   });
 });
 

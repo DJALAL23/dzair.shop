@@ -25,6 +25,7 @@ import type { AppDb } from "../db/client";
 import { driverCompensations, orders, shipmentEvents, shipments } from "../db/schema";
 import { checkVoid, type ShipmentRuleVerdict } from "./interpretation";
 import { eventKey, type ShipmentEventSource } from "./model";
+import { deliveryFactsOf } from "./queries";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 
@@ -145,18 +146,20 @@ export async function handOffToDriver(db: AppDb, input: DriverHandoff): Promise<
 
 /**
  * A CodFlow step in the shipment's history, written in the same batch as the
- * change it describes and only while that change's revision stands. It never
- * touches the carrier's provider status.
+ * change it describes and only while that change's revision stands (or, for
+ * a note that changes nothing, while the shipment exists). It never touches
+ * the carrier's provider status.
  */
 function codflowEvent(
   db: AppDb,
   shipmentId: string,
-  revision: string,
+  revision: string | null,
   source: ShipmentEventSource,
   step: string,
   extra: { reason?: string | null; actorId?: string | null } = {},
-): BatchStatement {
+) {
   const now = new Date().toISOString();
+  const where = revision === null ? eq(shipments.id, shipmentId) : and(eq(shipments.id, shipmentId), eq(shipments.revision, revision));
   return db.insert(shipmentEvents).select(
     db
       .select(
@@ -175,8 +178,23 @@ function codflowEvent(
         }),
       )
       .from(shipments)
-      .where(and(eq(shipments.id, shipmentId), eq(shipments.revision, revision))),
+      .where(where),
   );
+}
+
+/**
+ * Keep a CodFlow step in the shipment's history that changes none of its
+ * facts — a validation the carrier refused, a return asked for. The same
+ * step twice in one instant is one note. False when the shipment is gone.
+ */
+export async function noteShipmentStep(
+  db: AppDb,
+  shipmentId: string,
+  step: string,
+  extra: { source?: ShipmentEventSource; reason?: string | null; actorId?: string | null } = {},
+): Promise<boolean> {
+  const result = await codflowEvent(db, shipmentId, null, extra.source ?? "system", step, extra).onConflictDoNothing();
+  return changed(result);
 }
 
 const changed = (result: unknown) => ((result as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0;
@@ -231,6 +249,18 @@ export async function discardReservation(db: AppDb, shipmentId: string): Promise
   return changed(result);
 }
 
+/**
+ * The merchant attests that the carrier has no parcel for a handoff whose
+ * outcome was unknown: the reservation goes and the order is ready again.
+ * Only while still unknown — a parcel found or attached meanwhile is kept.
+ */
+export async function releaseUnknownHandoff(db: AppDb, shipmentId: string): Promise<boolean> {
+  const [result] = await db.batch([
+    db.delete(shipments).where(and(eq(shipments.id, shipmentId), eq(shipments.handoffState, "unknown"))),
+  ]);
+  return changed(result);
+}
+
 /** Nobody can tell whether the carrier created the parcel; it stays reserved until resolved. */
 export async function markHandoffUnknown(db: AppDb, shipmentId: string, reason: string): Promise<boolean> {
   const now = new Date().toISOString();
@@ -272,18 +302,7 @@ export async function voidShipment(db: AppDb, shipmentId: string): Promise<VoidO
   for (let attempt = 1; attempt <= 5; attempt++) {
     const row = await db.select().from(shipments).where(eq(shipments.id, shipmentId)).get();
     if (!row) return { ok: false, code: "SHIPMENT_NOT_FOUND" };
-    const verdict = checkVoid({
-      providerStatus: row.providerStatus,
-      providerStatusKind: row.providerStatusKind,
-      providerStatusAt: row.providerStatusAt,
-      outForDeliveryAt: row.outForDeliveryAt,
-      deliveredAt: row.deliveredAt,
-      returnStartedAt: row.returnStartedAt,
-      returnedAt: row.returnedAt,
-      cancelledAt: row.cancelledAt,
-      deliveryAttempts: row.deliveryAttempts,
-      attentionSince: row.attentionSince,
-    });
+    const verdict = checkVoid(deliveryFactsOf(row));
     if (!verdict.ok) return verdict;
     const [result] = await db.batch([
       db.delete(shipments).where(and(eq(shipments.id, shipmentId), eq(shipments.revision, row.revision))),

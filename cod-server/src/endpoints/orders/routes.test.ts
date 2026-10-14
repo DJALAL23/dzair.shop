@@ -692,52 +692,6 @@ describe("Orders routes (OpenAPIHono)", () => {
     });
   });
 
-  // ─── Carrier dispatch ───────────────────────────────────────────────────────
-
-  describe("POST /api/orders/bulk-dispatch", () => {
-    it("rejects an empty orderIds array with 400", async () => {
-      const res = await app.request("/api/orders/bulk-dispatch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId: "comp_1", orderIds: [] }),
-      });
-
-      expect(res.status).toBe(400);
-    });
-  });
-
-  describe("POST /api/orders/{id}/dispatch", () => {
-    it("returns 404 when the order does not exist", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(null as any);
-
-      const res = await app.request("/api/orders/missing/dispatch", { method: "POST" });
-
-      expect(res.status).toBe(404);
-    });
-
-    it("returns 422 when already dispatched", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ trackingNumber: "NE999DZ" }) as any
-      );
-
-      const res = await app.request("/api/orders/ord_1/dispatch", { method: "POST" });
-
-      expect(res.status).toBe(422);
-      const body: any = await res.json();
-      expect(body.code).toBe(ERROR_CODES.ORDER_ALREADY_DISPATCHED);
-    });
-
-    it("returns 400 when no company is resolvable", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ companyId: null }) as any);
-
-      const res = await app.request("/api/orders/ord_1/dispatch", { method: "POST" });
-
-      expect(res.status).toBe(400);
-      const body: any = await res.json();
-      expect(body.code).toBe(ERROR_CODES.REQUIRED_FIELD_MISSING);
-    });
-  });
-
   // ─── Shipment operations ────────────────────────────────────────────────────
 
   describe("shipment operation guards", () => {
