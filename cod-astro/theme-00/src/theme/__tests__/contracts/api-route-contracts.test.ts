@@ -1,19 +1,17 @@
 // @vitest-environment node
 /**
- * S7 — the /api surface's contracts, one test per route.
+ * The /api surface's contracts, one block per route.
  *
- * Every route is now a thin binding over the SDK's `createProxyEndpoint`
- * factory; the SDK's own tests cover the factory mechanics. These tests pin
- * what the BROWSER callers depend on: status codes, response envelopes, the
- * diagnostic fields that ride through failures (code, windowSeconds,
- * attemptsRemaining, terminal), cross-origin behavior per route, and the
- * attribution headers the abandoned proxy forwards. Each route's URL and
- * method come from Astro's file-based routing — the files did not move.
- *
- * Deliberate pre-migration parity this file pins (see slices-plan S7):
- * /api/otp/send, /api/otp/verify and /api/submit-review had NO cross-origin
- * check before the migration, and they still do not; cart, abandoned and
- * abandoned/convert keep theirs.
+ * Every route is the SDK's (`createStorefrontRoutes`), bound to the request's
+ * own client in `src/theme/api-routes.ts`; the SDK's tests cover the
+ * mechanics. These tests pin what the BROWSER callers depend on: status codes,
+ * response envelopes, the diagnostic fields that ride through failures (code,
+ * windowSeconds, attemptsRemaining, terminal), the cross-origin check on every
+ * POST, and the shopper's address forwarded where the server counts or
+ * attributes per shopper (OTP limits, abandoned checkouts). A refusal answers
+ * with the status the server's category implies; a failure the shopper cannot
+ * fix is a 502. Each route's URL and method come from Astro's file-based
+ * routing.
  */
 /// <reference types="vitest/globals" />
 
@@ -30,8 +28,6 @@ const { mockStore } = vi.hoisted(() => ({
     products: { reviews: { list: vi.fn(), submit: vi.fn() } },
   },
 }));
-
-vi.mock("@/theme/sdk", () => ({ getStoreClient: () => mockStore }));
 
 import { GET as communes } from "@/pages/api/communes/[wilayaId]";
 import { POST as otpSend } from "@/pages/api/otp/send";
@@ -108,21 +104,41 @@ describe("/api/otp/send", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ data: sent });
-    expect(mockStore.orders.otp.send).toHaveBeenCalledWith("0551234567");
+    expect(mockStore.orders.otp.send).toHaveBeenCalledWith("0551234567", {});
   });
 
-  it("502s an upstream rejection and forwards the rate-limit diagnostics", async () => {
+  it("forwards the shopper's address — the server's limits count each shopper", async () => {
+    mockStore.orders.otp.send.mockResolvedValue({ success: true, data: sent });
+
+    await otpSend(ctx(post("/api/otp/send", { phone: "0551234567" }, { "CF-Connecting-IP": "41.1.2.3" })));
+
+    expect(mockStore.orders.otp.send).toHaveBeenCalledWith(
+      "0551234567",
+      expect.objectContaining({ "X-Forwarded-For": "41.1.2.3" }),
+    );
+  });
+
+  it("429s a rate limit and forwards the wait", async () => {
     mockStore.orders.otp.send.mockResolvedValue({
       success: false,
       error: "Too many requests",
       code: "OTP_RATE_LIMITED",
       windowSeconds: 42,
+      domainError: {
+        category: "business",
+        code: "OTP_RATE_LIMITED",
+        message: "Too many requests",
+        retryable: true,
+        operation: "orders.otp.send",
+        sideEffect: "rejected",
+        retryAfterSeconds: 42,
+      },
     });
 
     const res = await otpSend(ctx(post("/api/otp/send", { phone: "0551234567" })));
 
-    expect(res.status).toBe(502);
-    expect(await res.json()).toEqual({
+    expect(res.status).toBe(429);
+    expect(await res.json()).toMatchObject({
       error: "Too many requests",
       code: "OTP_RATE_LIMITED",
       windowSeconds: 42,
@@ -135,14 +151,13 @@ describe("/api/otp/send", () => {
     expect(mockStore.orders.otp.send).not.toHaveBeenCalled();
   });
 
-  it("has no cross-origin check (pre-migration parity)", async () => {
-    mockStore.orders.otp.send.mockResolvedValue({ success: true, data: sent });
-
+  it("rejects a cross-origin POST with 403", async () => {
     const res = await otpSend(
       ctx(post("/api/otp/send", { phone: "0551234567" }, { Origin: "https://evil.example" })),
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
+    expect(mockStore.orders.otp.send).not.toHaveBeenCalled();
   });
 });
 
@@ -158,7 +173,7 @@ describe("/api/otp/verify", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ data: verified });
-    expect(mockStore.orders.otp.verify).toHaveBeenCalledWith("0551234567", "req-1", "123456");
+    expect(mockStore.orders.otp.verify).toHaveBeenCalledWith("0551234567", "req-1", "123456", {});
   });
 
   it("422s a wrong code and forwards attemptsRemaining/terminal", async () => {
@@ -168,6 +183,14 @@ describe("/api/otp/verify", () => {
       code: "OTP_INVALID",
       attemptsRemaining: 3,
       terminal: false,
+      domainError: {
+        category: "business",
+        code: "OTP_INVALID",
+        message: "Wrong code",
+        retryable: false,
+        operation: "orders.otp.verify",
+        sideEffect: "rejected",
+      },
     });
 
     const res = await otpVerify(
@@ -175,7 +198,7 @@ describe("/api/otp/verify", () => {
     );
 
     expect(res.status).toBe(422);
-    expect(await res.json()).toEqual({
+    expect(await res.json()).toMatchObject({
       error: "Wrong code",
       code: "OTP_INVALID",
       attemptsRemaining: 3,
@@ -281,29 +304,34 @@ describe("/api/submit-review", () => {
     expect(mockStore.products.reviews.submit).toHaveBeenCalledWith(body);
   });
 
-  it("400s an upstream rejection with the server's message", async () => {
+  it("answers a refusal with the server's code — the form picks its copy by it", async () => {
     mockStore.products.reviews.submit.mockResolvedValue({
       success: false,
       error: "Order not found",
+      code: "ORDER_NOT_FOUND",
+      domainError: {
+        category: "business",
+        code: "ORDER_NOT_FOUND",
+        message: "Order not found",
+        retryable: false,
+        operation: "products.reviews.submit",
+        sideEffect: "rejected",
+      },
     });
 
     const res = await submitReview(ctx(post("/api/submit-review", body)));
 
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Order not found" });
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ code: "ORDER_NOT_FOUND" });
   });
 
-  it("has no cross-origin check (pre-migration parity)", async () => {
-    mockStore.products.reviews.submit.mockResolvedValue({
-      success: true,
-      data: { id: "rev-2" },
-    });
-
+  it("rejects a cross-origin POST with 403", async () => {
     const res = await submitReview(
       ctx(post("/api/submit-review", body, { Origin: "https://evil.example" })),
     );
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(403);
+    expect(mockStore.products.reviews.submit).not.toHaveBeenCalled();
   });
 });
 

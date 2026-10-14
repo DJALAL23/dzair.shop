@@ -387,34 +387,28 @@ describe("S10 platform rule bindings", () => {
  *
  * Each route used to hand-copy the bounds cod-server enforces — the abandoned
  * body was ~30 lines mirroring `upsertSchema`, and it had already drifted on
- * `communeId` and the variant fields. These rules pin that a route validates
- * with the SDK's schema instead of a local twin, which is what keeps one
- * source of truth for the input contract (the envelopes and statuses stay
- * theme-owned, pinned by `api-route-contracts.test.ts`).
+ * `communeId` and the variant fields. Each route is now the SDK's own
+ * (`createStorefrontRoutes`): its input bounds, its cross-origin check and the
+ * headers it forwards are decided once, in the SDK. These rules pin that no
+ * route grows a local contract back (what the browser reads is pinned by
+ * `api-route-contracts.test.ts`).
  */
 describe("proxy input contracts", () => {
-  const route = (relPath: string) => files.find((f) => f.relPath === relPath);
+  const apiRoutes = files.filter((f) => f.relPath.startsWith("pages/api/"));
 
-  it("the abandoned body comes from the SDK, not a local twin", () => {
-    const abandoned = route("pages/api/abandoned/index.ts");
-
-    expect(abandoned?.content).toContain("AbandonedCheckoutInputSchema");
-    // A hand-copied schema would re-declare these bounds and import zod.
-    expect(abandoned?.content).not.toContain("customerName: z.string()");
-    expect(abandoned?.content).not.toContain("astro/zod");
+  it("every /api route is the SDK's, bound in theme/api-routes.ts", () => {
+    expect(apiRoutes.length).toBeGreaterThanOrEqual(8);
+    for (const file of apiRoutes) {
+      expect(file.content, file.relPath).toMatch(
+        /^import \{ routes \} from "@\/theme\/api-routes";\s+export const (GET|POST) = routes\.\w+;\s*$/,
+      );
+    }
   });
 
-  it("the wilaya id bound comes from the SDK's dataset", () => {
-    const communes = route("pages/api/communes/[wilayaId].ts");
-
-    expect(communes?.content).toContain("WilayaIdSchema");
-    expect(communes?.content).not.toContain(".max(58)");
-  });
-
-  it("the basket lines come from the SDK", () => {
-    const cart = route("pages/api/cart/validate.ts");
-
-    expect(cart?.content).toContain("BasketLineInputSchema");
-    expect(cart?.content).not.toContain("productName: z.string()");
+  it("no route declares its own input contract", () => {
+    for (const file of apiRoutes) {
+      expect(file.content, file.relPath).not.toContain("zod");
+      expect(file.content, file.relPath).not.toContain("createProxyEndpoint");
+    }
   });
 });

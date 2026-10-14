@@ -20,8 +20,9 @@ declare global {
       runtime?: AdvancedRuntime<Env>;
       /**
        * The store context for this request — set once in `src/middleware.ts`
-       * (Theme Zero S2). Pages and layouts read it; nothing else acquires it.
-       * Endpoints under `/api/*` are skipped (they never render the shell).
+       * (Theme Zero S2). Pages, layouts and the `/api/*` routes read it;
+       * nothing else acquires it. An `/api/*` request takes the language of
+       * the page that asked for it.
        */
       store: StoreContext;
     }
