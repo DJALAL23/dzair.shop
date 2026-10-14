@@ -257,6 +257,10 @@ export const StoreOfferSummarySchema = z.object({
     description:
       "Human-readable reward variant label (e.g. 'أزرق / 128 GB'). null when no specific variant is fixed.",
   }),
+  rewardUnitPrice: z.number().nullable().openapi({
+    description:
+      "What one gift unit is worth at list price: the reward variant's price, or the reward product's when there is no variant. The storefront states savings at this value.",
+  }),
 });
 
 export const StoreProductDetailSchema = z

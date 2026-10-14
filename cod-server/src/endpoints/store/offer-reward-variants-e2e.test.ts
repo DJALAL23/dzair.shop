@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
+import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
@@ -103,10 +104,10 @@ async function offer(id: string, trigger: string, reward: string, rewardVariantI
   });
 }
 
-// The reward lookups select the three columns a reward needs; the page's own
+// The reward lookups select the few columns a reward needs; the page's own
 // variant list selects every column, so it is not counted here.
 const variantReads = () =>
-  sqlLog.filter((q) => /^\s*select "id", "product_id", "variations" from "product_variants"/i.test(q));
+  sqlLog.filter((q) => /^\s*select "id", "product_id", "variations"(, "price")? from "product_variants"/i.test(q));
 
 describe("a product page's offer reward variants", () => {
   it("labels each offer's reward variant, from one read for all of them", async () => {
@@ -124,6 +125,34 @@ describe("a product page's offer reward variants", () => {
     const labels = Object.fromEntries(page!.offers.map((o) => [o.id, o.rewardVariantLabel]));
     expect(labels).toEqual({ "offer-a": "Red", "offer-b": "Blue" });
     expect(variantReads()).toHaveLength(1);
+  });
+
+  it("says what each gift is worth: the gift variant's price, or the gift product's", async () => {
+    await product("trigger", { hasVariants: false });
+    await product("gift-a", { hasVariants: true });
+    await product("gift-b", { hasVariants: false });
+    await variant("gift-a-red", "gift-a", "Red");
+    await harness.db.update(schema.productVariants).set({ price: 650 }).where(eq(schema.productVariants.id, "gift-a-red")).run();
+    await harness.db.update(schema.products).set({ price: 400 }).where(eq(schema.products.id, "gift-b")).run();
+    await offer("offer-a", "trigger", "gift-a", "gift-a-red");
+    await harness.db.insert(schema.offers).values({
+      id: "offer-b",
+      name: "Gift B",
+      triggerProductId: "trigger",
+      triggerQuantity: 2,
+      rewardProductId: "gift-b",
+      rewardVariantId: null,
+      rewardQuantity: 1,
+      discountType: "free",
+      status: "active",
+      createdAt: NOW(),
+      updatedAt: NOW(),
+    });
+
+    const page = await getStoreProductByHandle(db, "handle-trigger");
+
+    const worth = Object.fromEntries(page!.offers.map((o) => [o.id, o.rewardUnitPrice]));
+    expect(worth).toEqual({ "offer-a": 650, "offer-b": 400 });
   });
 
   it("answers no label for an offer whose reward has no variant", async () => {

@@ -456,14 +456,19 @@ export async function getStoreProductByHandle(
     rewardIds.length === 0
       ? []
       : db
-          .select({ id: products.id, name: products.name, variantOptions: products.variantOptions })
+          .select({ id: products.id, name: products.name, price: products.price, variantOptions: products.variantOptions })
           .from(products)
           .where(inArray(products.id, rewardIds))
           .all(),
     rewardVariantIds.length === 0
       ? []
       : db
-          .select({ id: productVariants.id, productId: productVariants.productId, variations: productVariants.variations })
+          .select({
+            id: productVariants.id,
+            productId: productVariants.productId,
+            variations: productVariants.variations,
+            price: productVariants.price,
+          })
           .from(productVariants)
           .where(inArray(productVariants.id, rewardVariantIds))
           .all(),
@@ -491,6 +496,8 @@ export async function getStoreProductByHandle(
         rewardVariantLabel: rewardVariant
           ? variantLabel(rewards.variations(rewardVariant.productId, variantSelection(rewardVariant)))
           : null,
+        // What one gift is worth: its variant's price, or the gift product's.
+        rewardUnitPrice: rewardVariant?.price ?? rewardProduct?.price ?? null,
       };
     }),
   );
