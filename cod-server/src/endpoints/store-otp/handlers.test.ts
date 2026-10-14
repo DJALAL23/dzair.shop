@@ -218,6 +218,65 @@ describe("POST /store/otp/send", () => {
   });
 });
 
+describe("POST /store/otp/send — whose IP the per-IP limit counts", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function memoryKv(): KVNamespace {
+    const store = new Map<string, string>();
+    return {
+      get: vi.fn(async (key: string) => store.get(key) ?? null),
+      put: vi.fn(async (key: string, value: string) => void store.set(key, value)),
+    } as unknown as KVNamespace;
+  }
+
+  it("counts each shopper the storefront forwards, not the storefront worker every call comes from", async () => {
+    vi.mocked(otpConfigQueries.getOtpConfigRaw).mockResolvedValue(enabledConfig as any);
+    vi.spyOn(dzverifyModule, "createDzverifyClient").mockReturnValue(dzClient({}) as any);
+    const app = makeApp(memoryKv());
+
+    // 25 shoppers on one busy hour, each through the same worker egress IP.
+    const statuses: number[] = [];
+    for (let shopper = 1; shopper <= 25; shopper += 1) {
+      const res = await app.request("/store/otp/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "CF-Connecting-IP": "2a06:98c0:3600::103",
+          "X-Forwarded-For": `105.98.10.${shopper}`,
+        },
+        body: JSON.stringify({ phone: `05510000${String(shopper).padStart(2, "0")}` }),
+      });
+      statuses.push(res.status);
+    }
+
+    expect(statuses.every((status) => status === 200)).toBe(true);
+  });
+
+  it("still limits one shopper who sends too many codes", async () => {
+    vi.mocked(otpConfigQueries.getOtpConfigRaw).mockResolvedValue(enabledConfig as any);
+    vi.spyOn(dzverifyModule, "createDzverifyClient").mockReturnValue(dzClient({}) as any);
+    const app = makeApp(memoryKv());
+
+    let last = 0;
+    for (let attempt = 1; attempt <= 21; attempt += 1) {
+      const res = await app.request("/store/otp/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "CF-Connecting-IP": "2a06:98c0:3600::103",
+          "X-Forwarded-For": "105.98.10.7",
+        },
+        body: JSON.stringify({ phone: `05520000${String(attempt).padStart(2, "0")}` }),
+      });
+      last = res.status;
+    }
+
+    expect(last).toBe(422);
+  });
+});
+
 describe("POST /store/otp/verify", () => {
   beforeEach(() => {
     vi.clearAllMocks();

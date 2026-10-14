@@ -4,6 +4,7 @@
  */
 export * from "../../../../cod-shared/queries/store";
 export { resolveDeliveryFee } from "../../../../cod-shared/queries/shipping-resolution";
+export { getPageDocument } from "../../../../cod-shared/queries/page-documents";
 export {
   loadCatalogSnapshot,
   extendSnapshot,

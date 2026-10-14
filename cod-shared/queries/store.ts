@@ -1085,6 +1085,16 @@ export async function findOrderForReview(
   return order;
 }
 
+/** Whether the order holds the product on any of its lines: a review is for something bought. */
+export async function orderContainsProduct(db: AppDb, orderId: string, productId: string): Promise<boolean> {
+  const line = await db
+    .select({ id: orderProducts.id })
+    .from(orderProducts)
+    .where(and(eq(orderProducts.orderId, orderId), eq(orderProducts.productId, productId)))
+    .get();
+  return Boolean(line);
+}
+
 export async function getExistingReviewByOrder(db: AppDb, orderId: string) {
   return db.select().from(reviews).where(eq(reviews.orderId, orderId)).get();
 }

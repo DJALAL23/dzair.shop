@@ -22,6 +22,10 @@ vi.mock("../../../../cod-shared/queries/otp-config", () => ({
 vi.mock("../../../../cod-shared/queries/turnstile-config");
 import { DEFAULT_CHECKOUT_FORM_POLICY } from "../../../../cod-shared/checkout-form/policy";
 
+// The address rule is tested against the real reference tables
+// (store.queries-e2e); this file's mocked database cannot answer it.
+vi.mock("@/lib/order-address", () => ({ assertOrderAddress: vi.fn(async () => undefined) }));
+
 function orderBody(overrides: Record<string, unknown> = {}) {
   return {
     customerName: "Karim Benali",

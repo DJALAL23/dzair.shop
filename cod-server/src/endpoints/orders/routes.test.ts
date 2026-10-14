@@ -12,7 +12,12 @@ import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import ordersRouter from "./routes";
 import * as queries from "./queries";
 import * as resolveFee from "./resolve-fee";
-import { NotFoundError, BusinessLogicError } from "@/lib/errors/classes";
+import { NotFoundError, BusinessLogicError, ValidationError } from "@/lib/errors/classes";
+import { assertOrderAddress } from "@/lib/order-address";
+
+// The address rule is tested against the real reference tables
+// (store.queries-e2e); this file's mocked database cannot answer it.
+vi.mock("@/lib/order-address", () => ({ assertOrderAddress: vi.fn(async () => undefined) }));
 
 vi.mock("@/db", () => ({ getDb: vi.fn(() => mockDb) }));
 vi.mock("./queries");
@@ -478,7 +483,9 @@ describe("Orders routes (OpenAPIHono)", () => {
 
     it("returns 400 for a commune outside the selected wilaya", async () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
-      mockDb = dbSelectReturning({ id: "c-31-001", wilayaId: 31 });
+      vi.mocked(assertOrderAddress).mockRejectedValueOnce(
+        new ValidationError("Commune does not belong to the selected wilaya", ERROR_CODES.MISSING_WILAYA_COMMUNE)
+      );
 
       const res = await app.request("/api/orders/ord_1", {
         method: "PATCH",
@@ -489,6 +496,11 @@ describe("Orders routes (OpenAPIHono)", () => {
       expect(res.status).toBe(400);
       const body: any = await res.json();
       expect(body.code).toBe(ERROR_CODES.MISSING_WILAYA_COMMUNE);
+      expect(vi.mocked(assertOrderAddress)).toHaveBeenCalledWith(
+        expect.anything(),
+        { wilayaId: 16, communeId: "c-31-001" },
+        { orderId: "ord_1" },
+      );
     });
 
     it("returns 422 when the order is already dispatched", async () => {

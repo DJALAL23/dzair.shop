@@ -23,8 +23,11 @@ import type { AppDb } from "@/db";
 import {
   findOrCreateCustomer,
   createStoreOrder,
+  orderContainsProduct,
 } from "../../../../cod-shared/queries/store";
 import { createOrder } from "../../../../cod-shared/queries/orders";
+import { assertOrderAddress } from "@/lib/order-address";
+import { getPageDocument } from "../../../../cod-shared/queries/page-documents";
 
 const registry: Miniflare[] = [];
 let db: AppDb;
@@ -347,5 +350,89 @@ describe("createOrder (dashboard) — a taken order number is drawn again", () =
       .where(eq(schema.orders.id, second.id!))
       .get();
     expect(saved?.orderNumber).toBe(second.orderNumber);
+  });
+});
+
+describe("assertOrderAddress — an order's wilaya and commune against the reference tables", () => {
+  it("accepts a commune of the selected wilaya", async () => {
+    await expect(assertOrderAddress(db, { wilayaId: 16, communeId: "c-16-001" })).resolves.toBeUndefined();
+  });
+
+  it("refuses a commune from another wilaya as a 400, not a saved contradiction", async () => {
+    await expect(assertOrderAddress(db, { wilayaId: 1, communeId: "c-16-001" })).rejects.toMatchObject({
+      statusCode: 400,
+      code: "MISSING_WILAYA_COMMUNE",
+    });
+  });
+
+  it("refuses an unknown commune as a 400, not a server error", async () => {
+    await expect(assertOrderAddress(db, { wilayaId: 1, communeId: "c-99-999" })).rejects.toMatchObject({
+      statusCode: 400,
+      code: "MISSING_WILAYA_COMMUNE",
+    });
+  });
+
+  it("refuses an unknown wilaya", async () => {
+    await expect(assertOrderAddress(db, { wilayaId: 77 })).rejects.toMatchObject({ statusCode: 400 });
+  });
+});
+
+describe("orderContainsProduct — a review is for something the order bought", () => {
+  it("is true for a product on the order and false for any other", async () => {
+    const now = new Date().toISOString();
+    const bought = `prod-${crypto.randomUUID().slice(0, 8)}`;
+    const other = `prod-${crypto.randomUUID().slice(0, 8)}`;
+    for (const id of [bought, other]) {
+      await db.insert(schema.products).values({
+        id, name: "Review Product", handle: `rev-${id}`, price: 900, hasVariants: false, inventory: 9,
+        trackInventory: false, lowStockThreshold: 1, status: "ACTIVE", visibility: true, showInStore: true,
+        storeFeatured: false, createdAt: now, updatedAt: now,
+      });
+    }
+    const customer = await findOrCreateCustomer(db, { phone: "0664567890", name: "Reviewer", wilayaId: 16 });
+    const order = await createStoreOrder(db, {
+      customerName: customer.name, phone: "0664567890", wilayaId: 16, communeId: "c-16-001",
+      deliveryType: "home", productId: bought, productName: "Review Product", quantity: 1,
+      pricePerUnit: 900, customerId: customer.id, deliveryFee: 0,
+    });
+
+    expect(await orderContainsProduct(db, order.id, bought)).toBe(true);
+    expect(await orderContainsProduct(db, order.id, other)).toBe(false);
+  });
+});
+
+describe("getPageDocument — the store's saved document for one surface", () => {
+  async function seedStore(id: string) {
+    const now = new Date().toISOString();
+    await db.insert(schema.stores).values({ id, name: id, createdAt: now, updatedAt: now } as any).onConflictDoNothing();
+  }
+  async function save(storeId: string, surface: string, document: string) {
+    const now = new Date().toISOString();
+    await db.insert(schema.pageDocuments).values({ id: `pd-${storeId}-${surface}`, storeId, surface, document, createdAt: now, updatedAt: now });
+  }
+
+  it("is null when the store has never saved one", async () => {
+    await seedStore("pd-store-empty");
+    expect(await getPageDocument(db, "pd-store-empty", "home")).toBeNull();
+  });
+
+  it("returns the saved document verbatim", async () => {
+    await seedStore("pd-store-a");
+    const doc = { version: 1, surface: "home", sections: [{ type: "hero", id: "h1" }], meta: { by: "studio" } };
+    await save("pd-store-a", "home", JSON.stringify(doc));
+    expect(await getPageDocument(db, "pd-store-a", "home")).toEqual(doc);
+  });
+
+  it("treats a row that is not a document for this surface as none", async () => {
+    await seedStore("pd-store-b");
+    await save("pd-store-b", "home", "{not json");
+    await save("pd-store-b", "lp:summer", JSON.stringify({ version: 1, surface: "home", sections: [] }));
+    expect(await getPageDocument(db, "pd-store-b", "home")).toBeNull();
+    expect(await getPageDocument(db, "pd-store-b", "lp:summer")).toBeNull();
+  });
+
+  it("never answers with another store's document", async () => {
+    await seedStore("pd-store-c");
+    expect(await getPageDocument(db, "pd-store-c", "home")).toBeNull();
   });
 });

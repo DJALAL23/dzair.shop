@@ -17,6 +17,7 @@
  * features compose.
  */
 
+import { storefrontClientIp } from "@/lib/storefront-client-ip";
 import type { Context } from "hono";
 import type { AppDb } from "@/db";
 import type { StoreOrderInput } from "./validation";
@@ -24,16 +25,6 @@ import { getTurnstileConfigRaw } from "../../../../cod-shared/queries/turnstile-
 import { verifyTurnstileToken } from "../../../../cod-shared/lib/turnstile";
 import { BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-
-function forwardedClientIp(c: Context): string | undefined {
-  // X-Forwarded-For first: the storefront worker forwards the shopper's IP
-  // there — CF-Connecting-IP on this hop is the worker itself.
-  return (
-    c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
-    c.req.header("CF-Connecting-IP") ||
-    undefined
-  );
-}
 
 export async function assertTurnstile(
   c: Context,
@@ -55,7 +46,7 @@ export async function assertTurnstile(
   let result;
   try {
     result = await verifyTurnstileToken(config.secretKey, data.turnstileToken, {
-      remoteip: forwardedClientIp(c),
+      remoteip: storefrontClientIp(c),
     });
   } catch (err) {
     console.error(

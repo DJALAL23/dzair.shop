@@ -12,6 +12,7 @@ import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import * as h from "./handlers";
 import { THEME_KEY_RE } from "../../../../cod-shared/i18n/content-overrides";
+import { PAGE_DOCUMENT_SURFACE_RE } from "../../../../cod-shared/queries/page-document-surface";
 import { storeOrderSchema, storeReviewSchema, validateCartSchema } from "./validation";
 import {
   StoreConfigSchema,
@@ -86,6 +87,19 @@ const lpSlugParams = z.object({
 const pageSlugParams = z.object({
   slug: z.string().openapi({ example: "refund-policy" }),
 });
+
+const pageDocumentParams = z.object({
+  surface: z.string().regex(PAGE_DOCUMENT_SURFACE_RE).openapi({ example: "home" }),
+});
+
+const PageDocumentSchema = z
+  .object({
+    version: z.number().int(),
+    surface: z.string(),
+    sections: z.array(z.unknown()),
+  })
+  .passthrough()
+  .openapi("PageDocument");
 
 const wilayaIdParams = z.object({
   wilayaId: z.coerce.number().int().min(1).max(58).openapi({
@@ -212,6 +226,26 @@ const getStorePageRoute = defineRoute({
     404: { description: "Page not found, or exists only as a draft" },
   },
   handler: h.getStorePage,
+});
+
+const getStorePageDocumentRoute = defineRoute({
+  method: "get",
+  path: "/page-documents/{surface}",
+  auth: "store",
+  tags: ["Store API"],
+  summary: "Get the store's saved page document",
+  description:
+    "The store's saved composition for one surface (`home` today), written by CodFlow Cloud's editor and read verbatim. `data` is `null` when the store has never saved one, or when the saved row is not a document for this surface: the theme then renders its own default. A store that has none is a normal answer, so it is a 200, not a 404.",
+  operationId: "getStorePageDocument",
+  params: pageDocumentParams,
+  responses: {
+    200: {
+      description: "The saved document, or null when there is none",
+      content: jsonContent(SuccessResponseSchema(PageDocumentSchema.nullable())),
+    },
+    400: { description: "The surface name is not a valid surface key" },
+  },
+  handler: h.getStorePageDocument,
 });
 
 const getStoreOrderTrackingRoute = defineRoute({
@@ -518,6 +552,7 @@ router.openapi(listStoreProductsRoute.route, listStoreProductsRoute.handler);
 router.openapi(getStoreProductRoute.route, getStoreProductRoute.handler);
 router.openapi(getStoreLandingPageRoute.route, getStoreLandingPageRoute.handler);
 router.openapi(getStorePageRoute.route, getStorePageRoute.handler);
+router.openapi(getStorePageDocumentRoute.route, getStorePageDocumentRoute.handler);
 router.openapi(getStoreOrderTrackingRoute.route, getStoreOrderTrackingRoute.handler);
 router.openapi(listStoreCategoriesRoute.route, listStoreCategoriesRoute.handler);
 router.openapi(getShippingRatesRoute.route, getShippingRatesRoute.handler);

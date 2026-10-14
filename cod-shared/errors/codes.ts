@@ -167,6 +167,8 @@ export const ERROR_CODES = {
   // ============================================================================
   REVIEW_NOT_FOUND: "REVIEW_NOT_FOUND",
   ORDER_ALREADY_REVIEWED: "ORDER_ALREADY_REVIEWED",
+  /** The order exists but never contained the product being reviewed. */
+  PRODUCT_NOT_IN_ORDER: "PRODUCT_NOT_IN_ORDER",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - SHIPPING PROFILES

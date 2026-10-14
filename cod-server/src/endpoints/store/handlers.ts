@@ -1,4 +1,6 @@
 import { Context } from "hono";
+import { assertOrderAddress } from "@/lib/order-address";
+import { storefrontClientIp } from "@/lib/storefront-client-ip";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import * as queries from "./queries";
@@ -214,6 +216,14 @@ export async function getStorePage(c: Context<AppContext>) {
   return c.json({ success: true, data: page }, 200);
 }
 
+export async function getStorePageDocument(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const storeId = c.get("storeId")!;
+  const surface = c.req.param("surface")!;
+  const document = await queries.getPageDocument(db, storeId, surface);
+  return c.json({ success: true, data: document }, 200);
+}
+
 export async function listStoreCategories(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const { translate } = await servedLanguage(c, db);
@@ -250,6 +260,9 @@ export async function createStoreOrder(c: Context<AppContext>) {
   // Turnstile bot gate — runs before the SKU/stock lookups so bot traffic is
   // rejected before spending D1 reads. No-op when the store has it disabled.
   await assertTurnstile(c, db, submitted);
+
+  // The destination exists and the commune is in the wilaya, before anything is priced.
+  await assertOrderAddress(db, { wilayaId: submitted.wilayaId, communeId: submitted.communeId });
 
   // ── Checkout Form Policy ─────────────────────────────────────────────────
   //
@@ -364,12 +377,7 @@ export async function createStoreOrder(c: Context<AppContext>) {
     communeId: data.communeId,
   });
 
-  // X-Forwarded-For first: the storefront worker forwards the shopper's IP
-  // there — CF-Connecting-IP on this hop is the worker itself.
-  const ipAddress =
-    c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ??
-    c.req.header("CF-Connecting-IP") ??
-    undefined;
+  const ipAddress = storefrontClientIp(c);
   const userAgent = c.req.header("User-Agent") ?? undefined;
 
   // Landing page attribution — resolve best-effort BEFORE the customer is
@@ -617,6 +625,16 @@ export async function submitReview(c: Context<AppContext>) {
   const order = await queries.findOrderForReview(db, storeId, data.orderNumber);
   if (!order) {
     throw new NotFoundError("Order", data.orderNumber);
+  }
+
+  // A review is for something the order bought: an order number alone must not
+  // let its holder review any product in the store.
+  if (!(await queries.orderContainsProduct(db, order.id, data.productId))) {
+    throw new BusinessLogicError(
+      "This order does not include the product being reviewed",
+      ERROR_CODES.PRODUCT_NOT_IN_ORDER,
+      { orderNumber: data.orderNumber, productId: data.productId }
+    );
   }
 
   // Duplicate-review check runs against the internal order.id — that's the

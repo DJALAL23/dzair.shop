@@ -35,6 +35,10 @@ vi.mock("../../../../cod-shared/queries/turnstile-config");
 vi.mock("@/lib/capi", () => ({ sendCapiEvent: vi.fn(async () => undefined) }));
 import { DEFAULT_CHECKOUT_FORM_POLICY } from "../../../../cod-shared/checkout-form/policy";
 
+// The address rule is tested against the real reference tables
+// (store.queries-e2e); this file's mocked database cannot answer it.
+vi.mock("@/lib/order-address", () => ({ assertOrderAddress: vi.fn(async () => undefined) }));
+
 const API_KEY = "dz-gate-key";
 const PHONE_LOCAL = "0551234567";
 const PHONE_E164 = "+213551234567";

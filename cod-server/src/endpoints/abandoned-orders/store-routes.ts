@@ -9,6 +9,7 @@
  * Built with defineRoute() — the standard route-builder pattern.
  */
 
+import { storefrontClientIp } from "@/lib/storefront-client-ip";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import type { AppContext } from "@/types";
@@ -85,12 +86,7 @@ async function upsertHandler(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const data = (c.req as any).valid("json");
 
-  // X-Forwarded-For first: the storefront worker forwards the shopper's IP
-  // there — CF-Connecting-IP on this hop is the worker itself.
-  const ipAddress =
-    c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ??
-    c.req.header("CF-Connecting-IP") ??
-    undefined;
+  const ipAddress = storefrontClientIp(c);
   const userAgent = c.req.header("User-Agent") ?? undefined;
 
   const id = await upsertAbandonedOrder(db, {

@@ -6,6 +6,7 @@
  * platform error contract. Fail-open only where PLAN.md §5 says so.
  */
 
+import { storefrontClientIp } from "@/lib/storefront-client-ip";
 import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
@@ -18,11 +19,7 @@ import { signOtpToken } from "./token";
 import { createOtpSendGuards, recordOtpSend } from "./guards";
 
 function clientIp(c: Context<AppContext>): string | null {
-  return (
-    c.req.header("CF-Connecting-IP") ??
-    c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ??
-    null
-  );
+  return storefrontClientIp(c) ?? null;
 }
 
 async function loadEnabledConfig(c: Context<AppContext>) {

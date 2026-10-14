@@ -13,6 +13,10 @@ import { DEFAULT_CHECKOUT_FORM_POLICY } from "../../../../cod-shared/checkout-fo
 import storeRouter from "./routes";
 import * as queries from "./queries";
 
+// The address rule is tested against the real reference tables
+// (store.queries-e2e); this file's mocked database cannot answer it.
+vi.mock("@/lib/order-address", () => ({ assertOrderAddress: vi.fn(async () => undefined) }));
+
 vi.mock("@/db", () => ({ getDb: vi.fn(() => mockDb) }));
 vi.mock("./queries");
 vi.mock("@/lib/capi", () => ({ sendCapiEvent: vi.fn(async () => ({ success: true })) }));
@@ -357,6 +361,34 @@ describe("Store API routes (OpenAPIHono)", () => {
     });
   });
 
+  describe("GET /store/page-documents/{surface}", () => {
+    it("returns the saved document", async () => {
+      const doc = { version: 1, surface: "home", sections: [{ type: "hero" }] };
+      vi.mocked(queries.getPageDocument).mockResolvedValue(doc);
+
+      const res = await app.request("/store/page-documents/home");
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ success: true, data: doc });
+    });
+
+    it("answers 200 with null when the store has none — absence is not an error", async () => {
+      vi.mocked(queries.getPageDocument).mockResolvedValue(null);
+
+      const res = await app.request("/store/page-documents/home");
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ success: true, data: null });
+    });
+
+    it("refuses a malformed surface name with 400", async () => {
+      const res = await app.request("/store/page-documents/Home%20Page!");
+
+      expect(res.status).toBe(400);
+      expect(vi.mocked(queries.getPageDocument)).not.toHaveBeenCalled();
+    });
+  });
+
   describe("POST /store/reviews", () => {
     const validReview = {
       orderNumber: "ORD-20260327-0042",
@@ -364,6 +396,11 @@ describe("Store API routes (OpenAPIHono)", () => {
       rating: 5,
       body: "منتج رائع، جودة عالية!",
     };
+
+    beforeEach(() => {
+      // The order bought the product unless a test says otherwise.
+      vi.mocked(queries.orderContainsProduct).mockResolvedValue(true);
+    });
 
     it("submits a review (pending moderation) with 201", async () => {
       vi.mocked(queries.findOrderForReview).mockResolvedValue({
@@ -405,6 +442,26 @@ describe("Store API routes (OpenAPIHono)", () => {
       });
 
       expect(res.status).toBe(404);
+    });
+
+    it("returns 422 PRODUCT_NOT_IN_ORDER when the order never held the product", async () => {
+      vi.mocked(queries.findOrderForReview).mockResolvedValue({
+        id: "ord_internal",
+        orderNumber: "ORD-20260327-0042",
+        customerName: "Ahmed Benali",
+      } as any);
+      vi.mocked(queries.orderContainsProduct).mockResolvedValue(false);
+
+      const res = await app.request("/store/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validReview),
+      });
+
+      expect(res.status).toBe(422);
+      const body: any = await res.json();
+      expect(body.code).toBe(ERROR_CODES.PRODUCT_NOT_IN_ORDER);
+      expect(vi.mocked(queries.createReview)).not.toHaveBeenCalled();
     });
 
     it("returns 409 for a duplicate review", async () => {

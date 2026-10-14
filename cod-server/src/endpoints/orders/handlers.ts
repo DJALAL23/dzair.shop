@@ -5,6 +5,7 @@
  * Complex operations (dispatch, status transitions) are in separate modules.
  */
 
+import { assertOrderAddress } from "@/lib/order-address";
 import { drawOrderNumber } from "../../../../cod-shared/lib/order-number";
 import { Context } from "hono";
 import type { AppContext } from "@/types";
@@ -82,6 +83,8 @@ export async function createOrder(c: Context<AppContext>) {
     const bodyData: any = (c.req as any).valid?.("json");
     const validated: validation.CreateOrderInput =
       bodyData ?? validation.createOrderSchema.parse(await c.req.json());
+
+    await assertOrderAddress(db, { wilayaId: validated.wilayaId, communeId: validated.communeId ?? null });
 
     // ORD-YYYYMMDD-NNNN; createOrder draws again if this one is taken.
     const date = new Date();
@@ -278,32 +281,7 @@ export async function updateOrder(c: Context<AppContext>) {
 
   // Reference-table checks: dispatch re-validates, but an edit should fail
   // with an actionable 400 instead of a per-parcel carrier rejection later.
-  if (validated.wilayaId !== undefined) {
-    const wilayaRow = await db
-      .select({ id: wilayas.id })
-      .from(wilayas)
-      .where(eq(wilayas.id, validated.wilayaId))
-      .get();
-    if (!wilayaRow) {
-      throw new ValidationError("Wilaya not found in reference tables", ERROR_CODES.MISSING_WILAYA_COMMUNE, { orderId, wilayaId: validated.wilayaId });
-    }
-  }
-  if (validated.communeId !== undefined) {
-    const communeRow = await db
-      .select({ id: communes.id, wilayaId: communes.wilayaId })
-      .from(communes)
-      .where(eq(communes.id, validated.communeId))
-      .get();
-    if (!communeRow) {
-      throw new ValidationError("Commune not found in reference tables", ERROR_CODES.MISSING_WILAYA_COMMUNE, { orderId, communeId: validated.communeId });
-    }
-    if (
-      validated.wilayaId !== undefined &&
-      communeRow.wilayaId !== validated.wilayaId
-    ) {
-      throw new ValidationError("Commune does not belong to the selected wilaya", ERROR_CODES.MISSING_WILAYA_COMMUNE, { orderId, communeId: validated.communeId, wilayaId: validated.wilayaId });
-    }
-  }
+  await assertOrderAddress(db, { wilayaId: validated.wilayaId, communeId: validated.communeId }, { orderId });
 
   // Reject a home delivery whose address the edit itself empties. Edits that
   // touch neither field pass through — a phone-collected order may legitimately

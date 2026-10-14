@@ -45,6 +45,10 @@ vi.mock("../../../../cod-shared/lib/turnstile");
 vi.mock("@/lib/capi", () => ({ sendCapiEvent: vi.fn(async () => undefined) }));
 import { DEFAULT_CHECKOUT_FORM_POLICY } from "../../../../cod-shared/checkout-form/policy";
 
+// The address rule is tested against the real reference tables
+// (store.queries-e2e); this file's mocked database cannot answer it.
+vi.mock("@/lib/order-address", () => ({ assertOrderAddress: vi.fn(async () => undefined) }));
+
 const SITE_KEY = "0x4AAA-site";
 const SECRET_KEY = "0x4AAA-secret";
 const WIDGET_TOKEN = "XXXX.DUMMY.TOKEN.XXXX";

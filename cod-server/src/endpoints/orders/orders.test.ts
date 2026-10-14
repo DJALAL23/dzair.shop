@@ -35,6 +35,10 @@ import * as shipments from "@/endpoints/delivery-companies/providers/shipments";
 import * as registry from "@/endpoints/delivery-companies/providers/registry";
 import * as carrierGeo from "../../../../cod-shared/queries/carrier-geo";
 
+// The address rule is tested against the real reference tables
+// (store.queries-e2e); this file's mocked database cannot answer it.
+vi.mock("@/lib/order-address", () => ({ assertOrderAddress: vi.fn(async () => undefined) }));
+
 vi.mock("@/db", () => ({ getDb: vi.fn(() => mockDb) }));
 vi.mock("./queries");
 vi.mock("./resolve-fee");
