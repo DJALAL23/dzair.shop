@@ -15,8 +15,9 @@
 
 import type { Interpretation } from "../../../cod-shared/shipments/interpretation";
 
-export const CARRIER_PROVIDERS = ["yalidine", "zr_express", "noest", "ecotrack"] as const;
-export type CarrierProvider = (typeof CARRIER_PROVIDERS)[number];
+import { CARRIER_PROVIDERS, type CarrierProvider } from "../../../cod-shared/carriers/providers";
+
+export { CARRIER_PROVIDERS, type CarrierProvider };
 
 // ─── Errors ───────────────────────────────────────────────────────────────────
 

@@ -7,6 +7,7 @@
 import { eq, and, like, desc, count, notInArray } from "drizzle-orm";
 import { deliveryCompanies, orders } from "../db/schema";
 import type { AppDb } from "../db/client";
+import { isSecretSetting, maskSecret, maskedSettings, type CarrierProvider } from "../carriers/providers";
 
 export interface DeliveryCompanyFilters {
   active?: boolean;
@@ -16,6 +17,9 @@ export interface DeliveryCompanyFilters {
 }
 
 export interface CreateDeliveryCompanyData {
+  provider?: CarrierProvider | null;
+  /** Already merged and validated JSON (see the carrier registry's mergeProviderConfig). */
+  providerConfig?: string | null;
   name: string;
   nameAr: string;
   code: string;
@@ -33,6 +37,9 @@ export interface CreateDeliveryCompanyData {
 }
 
 export interface UpdateDeliveryCompanyData {
+  provider?: CarrierProvider | null;
+  /** Already merged and validated JSON (see the carrier registry's mergeProviderConfig). */
+  providerConfig?: string | null;
   name?: string;
   nameAr?: string;
   code?: string;
@@ -48,12 +55,6 @@ export interface UpdateDeliveryCompanyData {
   notes?: string | null;
 }
 
-/** "••••" and the last four characters: enough to recognize a secret, never to use it. */
-export function maskSecret(secret: string | null | undefined): string | null {
-  if (!secret) return null;
-  return `••••${secret.slice(-4)}`;
-}
-
 /** `notes` may carry carrier settings as JSON; any secret in it is masked. */
 function maskNotes(notes: string | null): string | null {
   if (!notes) return notes;
@@ -62,7 +63,7 @@ function maskNotes(notes: string | null): string | null {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return notes;
     const settings = { ...(parsed as Record<string, unknown>) };
     for (const key of Object.keys(settings)) {
-      if (/secret|token|password/i.test(key) && typeof settings[key] === "string") settings[key] = maskSecret(settings[key] as string);
+      if (isSecretSetting(key) && typeof settings[key] === "string") settings[key] = maskSecret(settings[key] as string);
     }
     return JSON.stringify(settings);
   } catch {
@@ -94,6 +95,8 @@ function sanitize(company: typeof deliveryCompanies.$inferSelect) {
     webhookStatusMapping: company.webhookStatusMapping,
     autoValidate: company.autoValidate,
     notes: maskNotes(company.notes),
+    provider: company.provider,
+    providerConfig: maskedSettings(company.providerConfig),
     createdAt: company.createdAt,
     updatedAt: company.updatedAt,
   };
@@ -184,6 +187,8 @@ export async function createDeliveryCompany(
     // with all other optional columns in this insert.
     ...(data.autoValidate !== undefined ? { autoValidate: data.autoValidate } : {}),
     notes: data.notes ?? null,
+    provider: data.provider ?? null,
+    providerConfig: data.providerConfig ?? null,
     createdAt: now,
     updatedAt: now,
   });

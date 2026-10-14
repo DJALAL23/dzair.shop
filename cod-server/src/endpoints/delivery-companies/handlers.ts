@@ -12,7 +12,8 @@ import { companyStopDesks, wilayas, webhookEvents, orders } from "@/db/schema";
 import * as queries from "./queries";
 import * as validation from "./validation";
 import { getProvider, isEcotrackCompany } from "./providers/registry";
-import { buildCarrier } from "@/carriers/registry";
+import { buildCarrier, defaultProviderForCode, mergeProviderConfig } from "@/carriers/registry";
+import type { CarrierProvider } from "../../../../cod-shared/carriers/providers";
 import { callCarrier, requireCapability } from "@/carriers/app-errors";
 import type { CarrierAdapter } from "@/carriers/contract";
 import { EcotrackProvider } from "./providers/ecotrack/adapter";
@@ -73,13 +74,15 @@ export async function createDeliveryCompany(c: Context<AppContext>) {
     );
   }
 
-  // Derive a safe auto-validate default when the caller didn't specify one.
-  // EcoTrack-family carriers (Packers, etc.) lock orders at the carrier the moment
-  // validate/order is called — the team would lose the ability to edit or delete
-  // post-dispatch. Default to false there and true everywhere else.
-  const autoValidate = parsed.autoValidate ?? !isEcotrackCompany(parsed.code);
+  const provider = parsed.provider === undefined ? defaultProviderForCode(parsed.code) : parsed.provider;
+  const providerConfig = settingsFor(provider, null, parsed.providerConfig);
 
-  const company = await queries.createDeliveryCompany(db, { ...parsed, autoValidate });
+  // EcoTrack-platform carriers lock an order the moment it is validated — the
+  // team would lose the ability to edit or delete it after dispatch — so they
+  // default to manual validation; everyone else validates at once.
+  const autoValidate = parsed.autoValidate ?? provider !== "ecotrack";
+
+  const company = await queries.createDeliveryCompany(db, { ...parsed, provider, providerConfig, autoValidate });
   if (!company) {
     throw new BusinessLogicError("Failed to create delivery company", ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
@@ -109,7 +112,18 @@ export async function updateDeliveryCompany(c: Context<AppContext>) {
     }
   }
 
-  const company = await queries.updateDeliveryCompany(db, id, parsed);
+  const { provider: requestedProvider, providerConfig: settingsPatch, ...fields } = parsed;
+  let settings: { provider?: CarrierProvider | null; providerConfig?: string | null } = {};
+  if (requestedProvider !== undefined || settingsPatch !== undefined) {
+    const stored = await queries.getDeliveryCompanyRaw(db, id);
+    if (!stored) throw new NotFoundError("Delivery company", id);
+    const provider = requestedProvider === undefined ? stored.provider : requestedProvider;
+    // A different adapter starts from its own defaults, not the old one's settings.
+    const base = provider === stored.provider ? stored.providerConfig : null;
+    settings = { provider, providerConfig: settingsFor(provider, base, settingsPatch) };
+  }
+
+  const company = await queries.updateDeliveryCompany(db, id, { ...fields, ...settings });
   
   if (!company) {
     throw new NotFoundError("Delivery company", id);
@@ -575,4 +589,26 @@ async function connectedCarrier(
     );
   }
   return callCarrier(context, () => buildCarrier(company));
+}
+
+/**
+ * The settings to store for a company: the patch merged onto what is stored
+ * and validated by the provider's schema. A company with no adapter has none.
+ */
+function settingsFor(
+  provider: CarrierProvider | null,
+  stored: string | null,
+  patch: Record<string, unknown> | undefined,
+): string | null {
+  if (!provider) {
+    if (patch && Object.keys(patch).length > 0) {
+      throw new ValidationError("Carrier settings need a provider", ERROR_CODES.VALIDATION_FAILED, { field: "providerConfig" });
+    }
+    return null;
+  }
+  const merged = mergeProviderConfig(provider, stored, patch ?? {});
+  if (!merged.ok) {
+    throw new ValidationError(`Invalid ${provider} settings: ${merged.message}`, ERROR_CODES.VALIDATION_FAILED, { field: "providerConfig" });
+  }
+  return merged.json;
 }

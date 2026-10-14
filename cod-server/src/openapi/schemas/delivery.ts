@@ -5,6 +5,7 @@
  */
 
 import { z } from "@hono/zod-openapi";
+import { CARRIER_PROVIDERS } from "../../../../cod-shared/carriers/providers";
 
 export const DeliveryCompanySchema = z
   .object({
@@ -30,6 +31,11 @@ export const DeliveryCompanySchema = z
       example: true,
     }),
     notes: z.string().nullable().openapi({ example: "Primary carrier for Algiers region" }),
+    provider: z.enum(CARRIER_PROVIDERS).nullable().openapi({ description: "The carrier adapter serving this company; null = it cannot take parcels." }),
+    providerConfig: z.record(z.string(), z.unknown()).nullable().openapi({ description: "The adapter's settings; secrets masked (•••• + last 4)." }),
+    webhookSecret: z.string().nullable().openapi({ description: "Masked (•••• + last 4) when set." }),
+    webhookEndpointId: z.string().nullable(),
+    webhookStatusMapping: z.string().nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })

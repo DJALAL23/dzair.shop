@@ -15,6 +15,7 @@ import * as handlers from "./handlers";
 import * as webhookHandlers from "./webhook-handlers";
 import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
+import { CARRIER_PROVIDERS } from "../../../../cod-shared/carriers/providers";
 import {
   DeliveryCompanySchema,
   StopDeskSchema,
@@ -74,6 +75,12 @@ const createBodySchema = z.object({
       "When false, orders stay editable. If omitted, a safe default is derived per provider.",
   }),
   notes: z.string().optional().nullable(),
+  provider: z.enum(CARRIER_PROVIDERS).optional().nullable().openapi({
+    description: "Which carrier adapter serves this company. When omitted it is derived from the code.",
+  }),
+  providerConfig: z.record(z.string(), z.unknown()).optional().openapi({
+    description: "The adapter's own settings (e.g. Yalidine: platform, fromWilayaName, proxyBaseUrl, proxySecret). Merged onto the stored settings; a secret sent back masked keeps the stored one; null removes a key.",
+  }),
 });
 
 const updateBodySchema = z.object({
@@ -94,6 +101,12 @@ const updateBodySchema = z.object({
   supportsTracking: z.boolean().optional(),
   autoValidate: z.boolean().optional(),
   notes: z.string().optional().nullable(),
+  provider: z.enum(CARRIER_PROVIDERS).optional().nullable().openapi({
+    description: "Which carrier adapter serves this company. When omitted it is derived from the code.",
+  }),
+  providerConfig: z.record(z.string(), z.unknown()).optional().openapi({
+    description: "The adapter's own settings (e.g. Yalidine: platform, fromWilayaName, proxyBaseUrl, proxySecret). Merged onto the stored settings; a secret sent back masked keeps the stored one; null removes a key.",
+  }),
 });
 
 const stopDesksQuerySchema = z.object({

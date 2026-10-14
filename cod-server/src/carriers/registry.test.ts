@@ -1,24 +1,34 @@
 import { describe, it, expect } from "vitest";
 import { CARRIER_PROVIDERS, CarrierError, OPTIONAL_MEMBER_CAPABILITY, type CarrierAdapter } from "./contract";
-import { buildCarrier, providerOf, type CarrierCompany } from "./registry";
+import { buildCarrier, defaultProviderForCode, mergeProviderConfig, type CarrierCompany } from "./registry";
 
 const companies: Record<string, CarrierCompany> = {
-  yalidine: { code: "yalidine", apiToken: "t", apiUserGuid: "id", apiEndpoint: null },
-  guepex: { code: "guepex", apiToken: "t", apiUserGuid: "id", apiEndpoint: null },
-  zr_express: { code: "zr_express", apiToken: "k", apiUserGuid: "tenant", apiEndpoint: null },
-  noest: { code: "noest", apiToken: "t", apiUserGuid: "guid", apiEndpoint: null },
-  ecotrack: { code: "packers_ecotrack", apiToken: "t", apiUserGuid: null, apiEndpoint: "https://packers.ecotrack.dz" },
+  yalidine: { provider: "yalidine", providerConfig: null, apiToken: "t", apiUserGuid: "id", apiEndpoint: null },
+  guepex: { provider: "yalidine", providerConfig: JSON.stringify({ platform: "guepex" }), apiToken: "t", apiUserGuid: "id", apiEndpoint: null },
+  zr_express: { provider: "zr_express", providerConfig: null, apiToken: "k", apiUserGuid: "tenant", apiEndpoint: null },
+  noest: { provider: "noest", providerConfig: null, apiToken: "t", apiUserGuid: "guid", apiEndpoint: null },
+  ecotrack: { provider: "ecotrack", providerConfig: null, apiToken: "t", apiUserGuid: null, apiEndpoint: "https://packers.ecotrack.dz" },
 };
 
 const adapters = (): CarrierAdapter[] => Object.values(companies).map(buildCarrier);
+
+function refusal(build: () => unknown): CarrierError {
+  try {
+    build();
+  } catch (error) {
+    expect(error).toBeInstanceOf(CarrierError);
+    return error as CarrierError;
+  }
+  throw new Error("expected a refusal");
+}
 
 describe("the carrier contract holds for every adapter", () => {
   it("covers every provider", () => {
     expect([...new Set(adapters().map((a) => a.provider))].sort()).toEqual([...CARRIER_PROVIDERS].sort());
   });
 
-  for (const company of Object.values(companies)) {
-    it(`${company.code}: an optional member exists exactly when its capability says so`, () => {
+  for (const [name, company] of Object.entries(companies)) {
+    it(`${name}: an optional member exists exactly when its capability says so`, () => {
       const adapter = buildCarrier(company);
       for (const [member, enabled] of Object.entries(OPTIONAL_MEMBER_CAPABILITY)) {
         const present = (adapter as unknown as Record<string, unknown>)[member] !== undefined;
@@ -26,7 +36,7 @@ describe("the carrier contract holds for every adapter", () => {
       }
     });
 
-    it(`${company.code}: capabilities are coherent`, () => {
+    it(`${name}: capabilities are coherent`, () => {
       const c = buildCarrier(company).capabilities;
       if (c.history) expect(c.historyBatch).toBeGreaterThanOrEqual(1);
       expect(c.homeDelivery || c.stopDesk).toBe(true);
@@ -37,63 +47,34 @@ describe("the carrier contract holds for every adapter", () => {
   }
 });
 
-describe("which adapter serves a company", () => {
-  it("routes every EcoTrack-platform company to the ecotrack adapter", () => {
-    expect(providerOf("ecotrack")).toBe("ecotrack");
-    expect(providerOf("tnt_ecotrack")).toBe("ecotrack");
-    expect(providerOf("yalidine")).toBe("yalidine");
-    expect(providerOf("guepex")).toBe("yalidine");
-    expect(providerOf("maystro")).toBeNull();
+describe("building a company's adapter", () => {
+  it("a company with no provider cannot take parcels", () => {
+    expect(refusal(() => buildCarrier({ ...companies.noest, provider: null })).kind).toBe("misconfigured");
   });
 
-  it("an unknown code or missing credentials are misconfigured", () => {
-    const attempts: CarrierCompany[] = [
-      { code: "maystro", apiToken: "t", apiUserGuid: null, apiEndpoint: null },
+  it("missing credentials are misconfigured", () => {
+    for (const company of [
       { ...companies.yalidine, apiUserGuid: null },
       { ...companies.zr_express, apiToken: "  " },
       { ...companies.ecotrack, apiEndpoint: null },
       { ...companies.noest, apiUserGuid: null },
-    ];
-    for (const company of attempts) {
-      try {
-        buildCarrier(company);
-        throw new Error(`expected ${company.code} to be refused`);
-      } catch (error) {
-        expect(error).toBeInstanceOf(CarrierError);
-        expect((error as CarrierError).kind).toBe("misconfigured");
-      }
+    ]) {
+      expect(refusal(() => buildCarrier(company)).kind).toBe("misconfigured");
     }
   });
-});
 
-describe("today's settings are read until provider_config lands", () => {
-  it("Yalidine: sender wilaya and relay from notes", async () => {
-    const adapter = buildCarrier({
-      ...companies.yalidine,
-      notes: JSON.stringify({ from_wilaya_name: "Batna", proxy_base_url: "https://relay.example", proxy_secret: "s" }),
-    });
-    expect(adapter.provider).toBe("yalidine");
-    expect(() => buildCarrier({ ...companies.yalidine, notes: "free text, not JSON" })).not.toThrow();
+  it("stored settings that break the adapter's schema are misconfigured, never ignored", () => {
+    const company = { ...companies.yalidine, providerConfig: JSON.stringify({ proxyBaseUrl: "not a url" }) };
+    expect(refusal(() => buildCarrier(company)).kind).toBe("misconfigured");
   });
 
-  it("a guepex company is the Yalidine adapter on the Guepex platform", () => {
-    const guepex = buildCarrier(companies.guepex);
-    expect(guepex.provider).toBe("yalidine");
-    expect(guepex.capabilities.updates).toBe("pull");
-    expect(guepex.webhook).toBeUndefined();
+  it("reads the platform from the settings: Guepex is pulled, Yalidine pushes", () => {
+    expect(buildCarrier(companies.guepex).capabilities.updates).toBe("pull");
+    expect(buildCarrier(companies.guepex).webhook).toBeUndefined();
     expect(buildCarrier(companies.yalidine).webhook).toBeDefined();
   });
 
-  it("an invalid relay URL is misconfigured, not silently ignored", () => {
-    try {
-      buildCarrier({ ...companies.yalidine, notes: JSON.stringify({ proxy_base_url: "not a url" }) });
-      throw new Error("expected a refusal");
-    } catch (error) {
-      expect((error as CarrierError).kind).toBe("misconfigured");
-    }
-  });
-
-  it("ZR: an old order-status mapping keeps outcomes and treats the rest as progress", () => {
+  it("ZR: the old order-status mapping keeps outcomes and treats the rest as progress (until stage 5)", () => {
     const adapter = buildCarrier({
       ...companies.zr_express,
       webhookStatusMapping: JSON.stringify({ delivered: ["Livraison effectuée"], assigned: ["Au hub"], returned: ["Retourné"] }),
@@ -101,5 +82,50 @@ describe("today's settings are read until provider_config lands", () => {
     expect(adapter.interpret({ vocabulary: "state", value: "Livraison effectuée" })).toEqual({ kind: "milestone", milestone: "delivered" });
     expect(adapter.interpret({ vocabulary: "state", value: "Au hub" })).toEqual({ kind: "progress" });
     expect(adapter.interpret({ vocabulary: "state", value: "Retourné" })).toEqual({ kind: "milestone", milestone: "returned" });
+  });
+});
+
+describe("a new company's default provider", () => {
+  it("follows the dashboard's preset codes", () => {
+    expect(defaultProviderForCode("yalidine")).toBe("yalidine");
+    expect(defaultProviderForCode("guepex")).toBe("yalidine");
+    expect(defaultProviderForCode("zr_express")).toBe("zr_express");
+    expect(defaultProviderForCode("noest")).toBe("noest");
+    expect(defaultProviderForCode("ecotrack")).toBe("ecotrack");
+    expect(defaultProviderForCode("tnt_ecotrack")).toBe("ecotrack");
+    expect(defaultProviderForCode("maystro")).toBeNull();
+  });
+});
+
+describe("saving settings", () => {
+  const stored = JSON.stringify({ platform: "yalidine", fromWilayaName: "Batna", proxyBaseUrl: "https://relay.example", proxySecret: "relay-secret-1234" });
+  const merged = (patch: Record<string, unknown>, from: string | null = stored) => {
+    const result = mergeProviderConfig("yalidine", from, patch);
+    if (!result.ok) throw new Error(result.message);
+    return JSON.parse(result.json);
+  };
+
+  it("changing one setting keeps every other — the relay survives a new sender wilaya", () => {
+    expect(merged({ fromWilayaName: "Oran" })).toEqual({ platform: "yalidine", fromWilayaName: "Oran", proxyBaseUrl: "https://relay.example", proxySecret: "relay-secret-1234" });
+  });
+
+  it("a secret sent back masked keeps the stored secret", () => {
+    expect(merged({ proxySecret: "••••1234", fromWilayaName: "Oran" }).proxySecret).toBe("relay-secret-1234");
+  });
+
+  it("a new secret replaces it; null removes a setting", () => {
+    expect(merged({ proxySecret: "new-secret" }).proxySecret).toBe("new-secret");
+    expect(merged({ proxyBaseUrl: null, proxySecret: null })).toEqual({ platform: "yalidine", fromWilayaName: "Batna" });
+  });
+
+  it("starts from the adapter's defaults", () => {
+    expect(merged({}, null)).toEqual({ platform: "yalidine", fromWilayaName: "Alger" });
+  });
+
+  it("refuses settings the adapter does not know, naming the problem", () => {
+    const result = mergeProviderConfig("yalidine", stored, { proxyBaseUrl: "nope" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.message).toContain("proxyBaseUrl");
+    expect(mergeProviderConfig("ecotrack", null, { anything: 1 }).ok).toBe(false);
   });
 });

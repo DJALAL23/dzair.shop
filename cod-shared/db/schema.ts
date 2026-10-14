@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, real, uniqueIndex, index, primaryKey, foreignKey } from "drizzle-orm/sqlite-core";
+import { CARRIER_PROVIDERS } from "../carriers/providers";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
 
@@ -407,6 +408,12 @@ export const deliveryCompanies = sqliteTable("delivery_companies", {
   notes: text("notes"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+
+  // ── Appended by migration 0038 — keep last (mock-db maps columns by position) ──
+  /** Which carrier adapter serves this company. Null = no adapter: it cannot take parcels. */
+  provider: text("provider", { enum: CARRIER_PROVIDERS }),
+  /** The adapter's own settings as JSON, validated by its schema. Secrets inside are masked in responses. */
+  providerConfig: text("provider_config"),
 });
 
 // ─── Orders ───────────────────────────────────────────────────────────────────

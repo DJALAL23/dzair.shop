@@ -30,6 +30,8 @@ function companyRow(overrides: Record<string, any> = {}) {
     name: "DHD Livraison",
     nameAr: "دي إتش دي للتوصيل",
     code: "dhd_ecotrack",
+    provider: "ecotrack",
+    providerConfig: null,
     website: null,
     active: true,
     apiEndpoint: "https://dhd.ecotrack.dz",
@@ -160,7 +162,7 @@ describe("POST /api/delivery-companies/:id/test-connection", () => {
 
   it("returns 422 when the carrier does not offer connection testing", async () => {
     vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(
-      companyRow({ code: "noest", apiUserGuid: "guid-1" }) as any
+      companyRow({ code: "noest", provider: "noest", apiUserGuid: "guid-1" }) as any
     );
 
     const res = await app.request("/api/delivery-companies/comp_1/test-connection", { method: "POST" });

@@ -66,7 +66,9 @@ beforeEach(async () => {
     apiToken: API_TOKEN,
     apiUserGuid: "yal-id",
     webhookSecret: WEBHOOK_SECRET,
-    notes: JSON.stringify({ from_wilaya_name: "Batna", proxy_base_url: "https://relay.example", proxy_secret: RELAY_SECRET }),
+    provider: "yalidine",
+    providerConfig: JSON.stringify({ platform: "yalidine", fromWilayaName: "Batna", proxyBaseUrl: "https://relay.example", proxySecret: RELAY_SECRET }),
+    notes: JSON.stringify({ api_password: "legacy-pass-5555" }),
     createdAt: NOW(),
     updatedAt: NOW(),
   });
@@ -89,7 +91,7 @@ describe("what a response may reveal", () => {
       const res = await request("GET", path);
       expect(res.status).toBe(200);
       const text = await res.text();
-      for (const secret of [WEBHOOK_SECRET, RELAY_SECRET, API_TOKEN, "yal-id"]) expect(text).not.toContain(secret);
+      for (const secret of [WEBHOOK_SECRET, RELAY_SECRET, API_TOKEN, "yal-id", "legacy-pass-5555"]) expect(text).not.toContain(secret);
     }
   });
 
@@ -99,7 +101,9 @@ describe("what a response may reveal", () => {
     expect(body.data).toMatchObject({ isConnected: true, webhookSecret: "••••sign" });
     expect(body.data).not.toHaveProperty("apiToken");
     expect(body.data).not.toHaveProperty("apiUserGuid");
-    expect(JSON.parse(body.data.notes)).toEqual({ from_wilaya_name: "Batna", proxy_base_url: "https://relay.example", proxy_secret: "••••9876" });
+    expect(body.data.provider).toBe("yalidine");
+    expect(body.data.providerConfig).toEqual({ platform: "yalidine", fromWilayaName: "Batna", proxyBaseUrl: "https://relay.example", proxySecret: "••••9876" });
+    expect(JSON.parse(body.data.notes)).toEqual({ api_password: "••••5555" });
   });
 });
 
@@ -132,6 +136,41 @@ describe("who may do what", () => {
 
     scopes = ["delivery:create"];
     expect((await request("POST", "", NEW_COMPANY)).status).toBe(201);
+  });
+});
+
+describe("saving carrier settings", () => {
+  const stored = async () =>
+    JSON.parse((await harness.db.select().from(schema.deliveryCompanies).where(eq(schema.deliveryCompanies.id, "comp-yal")).get())!.providerConfig!);
+
+  it("changing the sender wilaya keeps the relay and its secret", async () => {
+    scopes = ["delivery:update"];
+    const res = await request("PATCH", "/comp-yal", { providerConfig: { fromWilayaName: "Oran", proxySecret: "••••9876" } });
+    expect(res.status).toBe(200);
+    expect(await stored()).toEqual({ platform: "yalidine", fromWilayaName: "Oran", proxyBaseUrl: "https://relay.example", proxySecret: RELAY_SECRET });
+  });
+
+  it("refuses settings the adapter does not accept, and stores nothing", async () => {
+    scopes = ["delivery:update"];
+    const res = await request("PATCH", "/comp-yal", { providerConfig: { proxyBaseUrl: "not a url" } });
+    expect(res.status).toBe(400);
+    expect((await stored()).proxyBaseUrl).toBe("https://relay.example");
+  });
+
+  it("a new company gets its provider from its code and the adapter's default settings", async () => {
+    scopes = ["delivery:create"];
+    const res = await request("POST", "", { name: "Guepex", nameAr: "قيباكس", code: "guepex" });
+    expect(res.status).toBe(201);
+    const body: any = await res.json();
+    expect(body.data.provider).toBe("yalidine");
+    expect(body.data.providerConfig).toEqual({ platform: "yalidine", fromWilayaName: "Alger" });
+    expect(body.data.autoValidate).toBe(true);
+  });
+
+  it("an EcoTrack-platform company validates by hand by default", async () => {
+    scopes = ["delivery:create"];
+    const body: any = await (await request("POST", "", { name: "Packers", nameAr: "باكرز", code: "packers_ecotrack" })).json();
+    expect(body.data).toMatchObject({ provider: "ecotrack", autoValidate: false });
   });
 });
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CARRIER_PROVIDERS } from "../../../../cod-shared/carriers/providers";
 
 export const createDeliveryCompanySchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -30,6 +31,8 @@ export const createDeliveryCompanySchema = z.object({
   autoValidate: z.boolean().optional(),
 
   notes: z.string().optional().nullable(),
+  provider: z.enum(CARRIER_PROVIDERS).optional().nullable(),
+  providerConfig: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const updateDeliveryCompanySchema = z.object({
@@ -51,6 +54,8 @@ export const updateDeliveryCompanySchema = z.object({
   /** Toggle the post-dispatch auto-validate behavior. See create schema for semantics. */
   autoValidate: z.boolean().optional(),
   notes: z.string().optional().nullable(),
+  provider: z.enum(CARRIER_PROVIDERS).optional().nullable(),
+  providerConfig: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const deliveryCompanyFiltersSchema = z.object({

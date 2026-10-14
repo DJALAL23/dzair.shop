@@ -7,6 +7,7 @@
  * companies share the `ecotrack` adapter, each with its own host and token.
  */
 
+import { isMasked, isSecretSetting } from "../../../cod-shared/carriers/providers";
 import { CarrierError, type CarrierAdapter, type CarrierProvider } from "./contract";
 import { EcotrackCarrier, ecotrackConfigSchema } from "./ecotrack/adapter";
 import { NoestCarrier, noestConfigSchema } from "./noest/adapter";
@@ -15,20 +16,30 @@ import { ZrExpressCarrier, zrConfigSchema, type ZrConfig } from "./zr_express/ad
 
 /** What the registry needs from a delivery-company row. */
 export interface CarrierCompany {
-  code: string;
+  provider: CarrierProvider | null;
+  providerConfig: string | null;
   apiToken: string | null;
   apiUserGuid: string | null;
   apiEndpoint: string | null;
-  notes?: string | null;
   webhookStatusMapping?: string | null;
 }
 
+type ConfigSchema = { safeParse(v: unknown): { success: true; data: unknown } | { success: false; error: { issues: Array<{ path: PropertyKey[]; message: string }> } } };
+
+const CONFIG_SCHEMAS: Record<CarrierProvider, ConfigSchema> = {
+  yalidine: yalidineConfigSchema,
+  zr_express: zrConfigSchema,
+  noest: noestConfigSchema,
+  ecotrack: ecotrackConfigSchema,
+};
+
 /**
- * Which adapter serves a company code. TEMPORARY until `delivery_companies.provider`
- * exists (plan stage 3): EcoTrack-platform companies are `ecotrack` or
- * `<name>_ecotrack`; Guepex runs on the Yalidine platform.
+ * The provider a new company gets when none is given, from the dashboard's
+ * preset codes. TEMPORARY until the dashboard sends `provider` (plan stage 9):
+ * EcoTrack-platform companies are `ecotrack` or `<name>_ecotrack`; Guepex runs
+ * on the Yalidine platform.
  */
-export function providerOf(code: string): CarrierProvider | null {
+export function defaultProviderForCode(code: string): CarrierProvider | null {
   if (code === "yalidine" || code === "zr_express" || code === "noest") return code;
   if (code === "guepex") return "yalidine";
   if (code === "ecotrack" || code.endsWith("_ecotrack")) return "ecotrack";
@@ -54,28 +65,9 @@ function parseJson(text: string | null | undefined): unknown {
 }
 
 /**
- * TEMPORARY until `delivery_companies.provider_config` exists (plan stage 3):
- * Yalidine settings live in `notes` JSON (snake_case keys).
- */
-function legacyYalidineConfig(company: CarrierCompany): unknown {
-  const notes = parseJson(company.notes) as Record<string, unknown> | undefined;
-  const platform = company.code === "guepex" ? { platform: "guepex" } : {};
-  if (!notes || typeof notes !== "object") return platform;
-  return {
-    ...platform,
-    ...Object.fromEntries(
-      Object.entries({
-        fromWilayaName: notes.from_wilaya_name,
-        proxyBaseUrl: notes.proxy_base_url,
-        proxySecret: notes.proxy_secret,
-      }).filter(([, v]) => typeof v === "string" && v),
-    ),
-  };
-}
-
-/**
- * TEMPORARY until `provider_config` exists (plan stage 3): the ZR mapping is
- * keyed by the old order statuses. Keys that meant a delivery outcome keep
+ * TEMPORARY until the inbound pipeline switches (plan stage 5): the ZR mapping
+ * still lives in `webhook_status_mapping`, keyed by the old order statuses,
+ * because the old webhook handler reads it there. Keys that meant a delivery outcome keep
  * their meaning; every other old order status only ever moved a parcel along.
  */
 function legacyZrConfig(company: CarrierCompany): ZrConfig {
@@ -101,15 +93,16 @@ function config<T>(provider: CarrierProvider, schema: { safeParse(v: unknown): {
 
 /** The adapter for a company. Throws `misconfigured` when its credentials or settings are incomplete. */
 export function buildCarrier(company: CarrierCompany): CarrierAdapter {
-  const provider = providerOf(company.code);
+  const provider = company.provider;
   if (!provider) {
-    throw new CarrierError("ecotrack", "misconfigured", `No carrier adapter serves company code "${company.code}"`);
+    throw new CarrierError("ecotrack", "misconfigured", "This company has no carrier adapter; it cannot take parcels");
   }
+  const settings = parseJson(company.providerConfig) ?? {};
   switch (provider) {
     case "yalidine":
       return new YalidineCarrier(
         { apiId: required(provider, company.apiUserGuid, "The API ID"), apiToken: required(provider, company.apiToken, "The API token") },
-        config(provider, yalidineConfigSchema, legacyYalidineConfig(company)),
+        config(provider, yalidineConfigSchema, settings),
       );
     case "zr_express":
       return new ZrExpressCarrier(
@@ -119,12 +112,36 @@ export function buildCarrier(company: CarrierCompany): CarrierAdapter {
     case "noest":
       return new NoestCarrier(
         { apiToken: required(provider, company.apiToken, "The API token"), userGuid: required(provider, company.apiUserGuid, "The user GUID") },
-        config(provider, noestConfigSchema, {}),
+        config(provider, noestConfigSchema, settings),
       );
     case "ecotrack":
       return new EcotrackCarrier(
         { apiToken: required(provider, company.apiToken, "The API token"), baseUrl: required(provider, company.apiEndpoint, "The EcoTrack host") },
-        config(provider, ecotrackConfigSchema, {}),
+        config(provider, ecotrackConfigSchema, settings),
       );
   }
+}
+
+export type SettingsMerge = { ok: true; json: string } | { ok: false; message: string };
+
+/**
+ * Apply a settings change from the dashboard onto the stored settings.
+ * Keys not mentioned keep their stored value; `null` removes a key; a secret
+ * sent back still masked (or omitted) keeps the stored secret — the dashboard
+ * only ever sees it masked and must never be able to overwrite it with that.
+ * The result is validated by the provider's own schema.
+ */
+export function mergeProviderConfig(provider: CarrierProvider, stored: string | null, patch: Record<string, unknown>): SettingsMerge {
+  const current = (parseJson(stored) as Record<string, unknown> | undefined) ?? {};
+  const merged: Record<string, unknown> = { ...current };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) delete merged[key];
+    else if (isSecretSetting(key) && isMasked(value)) continue;
+    else merged[key] = value;
+  }
+  const parsed = CONFIG_SCHEMAS[provider].safeParse(merged);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues.map((i) => `${i.path.join(".") || "settings"}: ${i.message}`).join("; ") };
+  }
+  return { ok: true, json: JSON.stringify(parsed.data) };
 }
