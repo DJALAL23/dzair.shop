@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { EcotrackProvider } from "./adapter";
 import type { CreateShipmentInput } from "../types";
-import { createEcotrackMockServer, type EcotrackMockServer } from "./test/mock-server";
+import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ecotrack/test/mock-server";
 import { EcoTrackApiError } from "./errors";
 
 const TOKEN = "ecotrack-test-token";

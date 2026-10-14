@@ -27,8 +27,8 @@ import {
 } from "@/endpoints/orders/queries";
 import { ORDER_STATUSES } from "../orders/validation";
 import type { OrderStatus } from "../../../../cod-shared/db/schema";
-import { verifySvixSignature } from "./svix-verify";
-import { verifyYalidineSignature } from "./yalidine-verify";
+import { verifySvixSignature } from "@/carriers/zr_express/signature";
+import { verifyYalidineSignature } from "@/carriers/yalidine/signature";
 import { mapZrStateName, parseCustomMapping } from "./zr-status-mapper";
 import { mapYalidineStatus } from "./yalidine-status-mapper";
 import { ValidationError, ExternalApiError } from "@/lib/errors/classes";

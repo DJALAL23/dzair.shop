@@ -21,7 +21,7 @@
  * Keys = our order status strings. Values = exact ZR state names.
  */
 
-import { stripAccents } from "../delivery-companies/providers/zr_express/text";
+import { stripAccents } from "@/carriers/zr_express/text";
 
 // Default workflow vocabulary (POST /workflows/search, verified live) plus the
 // legacy English aliases kept for tenants that customize names.

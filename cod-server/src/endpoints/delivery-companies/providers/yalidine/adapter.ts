@@ -36,7 +36,7 @@ import type {
   YalidineHistoryResponse,
   YalidineWilayaList,
   YalidineCommuneList,
-} from "./types";
+} from "@/carriers/yalidine/types";
 
 const DEFAULT_BASE_URL = "https://api.yalidine.app/v1";
 

@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createEcotrackMockServer, type EcotrackMockServer } from "./test/mock-server";
+import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ecotrack/test/mock-server";
 import { EcotrackProvider } from "./adapter";
 import { reconcileEcotrackOrders, DEFAULT_MAX_PAGES } from "./reconcile";
 

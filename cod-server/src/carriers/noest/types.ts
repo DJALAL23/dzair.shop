@@ -67,10 +67,15 @@ export interface NoestBulkCreateRequest {
  * ✅ VERIFIED: passed is an ARRAY, not an object
  * Real response: { "passed": [{success: true, tracking: "..."}, ...], "failed": [] }
  */
+/**
+ * Keyed by each order's index in the request (official docs v2.3): an object
+ * like `{"1": …}`, which PHP serializes as an array when the keys run 0..n.
+ */
 export interface NoestBulkCreateResponse {
   success?: boolean;
-  passed?: Array<{ success: true; tracking: string; reference?: string; regional_hub_name?: string; wilaya_rank?: string }>;
-  failed?: Array<Record<string, string[]>>;
+  passed?: Record<string, { success: true; tracking: string; reference?: string }> | Array<{ success: true; tracking: string; reference?: string }>;
+  /** Each failure is a field-error bag (it may echo `reference`) or a message. */
+  failed?: Record<string, Record<string, string[] | string> | string> | Array<Record<string, string[] | string> | string>;
 }
 
 // ─── Bulk Validate Orders ─────────────────────────────────────────────────────
@@ -129,6 +134,25 @@ export interface NoestUpdateOrderRequest {
   product?: string;
   type?: 1 | 2 | 3;
   poids?: number;
+  stop_desk?: 0 | 1;
+}
+
+// POST /api/public/update/order/before/expedition — applied at once, before shipment.
+export interface NoestUpdateBeforeExpeditionRequest {
+  tracking: string;
+  reference?: string;
+  client?: string;
+  tel?: string;
+  tel2?: string;
+  adresse?: string;
+  wilaya?: number;
+  commune?: string;
+  montant?: number;
+  remarque?: string;
+  product?: string;
+  type?: 1 | 2 | 3;
+  /** A string in the documentation. */
+  poids?: string;
   stop_desk?: 0 | 1;
 }
 

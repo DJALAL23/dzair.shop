@@ -52,7 +52,7 @@ import type {
   EcotrackMyDesk,
   EcotrackOtherDesk,
   EcotrackDesksResponse,
-} from "./types";
+} from "@/carriers/ecotrack/types";
 
 export class EcotrackProvider implements DeliveryProvider {
   readonly code = "ecotrack";

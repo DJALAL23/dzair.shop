@@ -50,7 +50,7 @@ vi.mock("@/endpoints/orders/queries", () => ({
 }));
 
 // Mock Svix verification
-vi.mock("./svix-verify", () => ({
+vi.mock("@/carriers/zr_express/signature", () => ({
   verifySvixSignature: vi.fn(),
 }));
 
@@ -80,7 +80,7 @@ import {
   getOrderByReference,
 } from "./queries";
 import { updateOrderStatusWebhook } from "@/endpoints/orders/queries";
-import { verifySvixSignature } from "./svix-verify";
+import { verifySvixSignature } from "@/carriers/zr_express/signature";
 import { mapZrStateName, parseCustomMapping } from "./zr-status-mapper";
 import { mapYalidineStatus } from "./yalidine-status-mapper";
 

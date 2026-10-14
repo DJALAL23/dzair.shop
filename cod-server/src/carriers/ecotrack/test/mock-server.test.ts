@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { createEcotrackMockServer } from "./mock-server";
-import { EcotrackProvider } from "../adapter";
+import { EcotrackCarrier } from "../adapter";
 
 const TOKEN = "ecotrack-test-token";
 
@@ -240,39 +240,41 @@ describe("createEcotrackMockServer", () => {
   });
 });
 
-describe("mock server drives the real EcotrackProvider", () => {
-  it("createShipment through the adapter creates parcel state and a label URL", async () => {
+describe("mock server drives the real EcoTrack carrier", () => {
+  it("createShipment through the adapter creates parcel state; the label is served as PDF", async () => {
     const server = createEcotrackMockServer({ token: TOKEN });
     const originalFetch = global.fetch;
     global.fetch = server.fetch as unknown as typeof fetch;
     try {
-      const provider = new EcotrackProvider(TOKEN, server.baseUrl);
+      const carrier = new EcotrackCarrier({ apiToken: TOKEN, baseUrl: server.baseUrl });
 
-      const result = await provider.createShipment({
-        orderId: "ord-1",
+      const parcel = await carrier.createShipment({
+        reference: "ORD-1",
         customerName: "Karim Benali",
         phone: "0551234567",
         address: "Rue 1, Alger",
         wilayaId: 16,
+        wilaya: "Alger",
         commune: "Alger Centre",
         amount: 4500,
         productDescription: "T-shirt",
         stopDesk: false,
       });
 
-      expect(result.trackingNumber).toMatch(/^ECMOCK\d{10}$/);
-      expect(result.labelUrl).toBe(
-        `${server.baseUrl}/api/v1/get/order/label?tracking=${result.trackingNumber}`
-      );
+      expect(parcel.carrierParcelId).toMatch(/^ECMOCK\d{10}$/);
+      expect(parcel.trackingNumber).toBe(parcel.carrierParcelId);
 
-      const parcel = server.parcel(result.trackingNumber);
-      expect(parcel).toBeDefined();
-      expect(parcel!.status).toBe("prete_a_expedier");
-      expect(parcel!.validated).toBe(false);
+      const state = server.parcel(parcel.carrierParcelId);
+      expect(state).toBeDefined();
+      expect(state!.status).toBe("prete_a_expedier");
+      expect(state!.validated).toBe(false);
 
       const call = server.callsFor("/api/v1/create/order")[0];
       expect(call.headers["authorization"]).toBe(`Bearer ${TOKEN}`);
       expect(call.body).toBeUndefined();
+
+      const label = await carrier.label({ carrierParcelId: parcel.carrierParcelId, trackingNumber: parcel.trackingNumber, carrierData: null });
+      expect(label.kind).toBe("pdf");
     } finally {
       global.fetch = originalFetch;
     }

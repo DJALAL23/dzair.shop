@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { createHmac } from "node:crypto";
-import { verifyYalidineSignature } from "./yalidine-verify";
+import { verifyYalidineSignature } from "./signature";
 
 const SECRET = "test_webhook_secret_key_2026";
 const PAYLOAD = JSON.stringify({

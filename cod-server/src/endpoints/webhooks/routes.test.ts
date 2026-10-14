@@ -15,7 +15,7 @@ vi.mock("./queries");
 vi.mock("@/endpoints/delivery-companies/queries", () => ({
   getDeliveryCompanyByCode: vi.fn(async () => null), // no ZR company configured
 }));
-vi.mock("./svix-verify", () => ({
+vi.mock("@/carriers/zr_express/signature", () => ({
   verifySvixSignature: vi.fn(async () => true),
 }));
 
@@ -80,7 +80,7 @@ describe("Webhooks routes (OpenAPIHono)", () => {
         webhookSecret: "whsec_test",
       } as any);
 
-      const { verifySvixSignature } = await import("./svix-verify");
+      const { verifySvixSignature } = await import("@/carriers/zr_express/signature");
       vi.mocked(verifySvixSignature).mockResolvedValue(false);
 
       const res = await app.request("/webhooks/zr_express", {

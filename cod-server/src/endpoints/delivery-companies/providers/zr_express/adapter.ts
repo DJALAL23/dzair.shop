@@ -58,8 +58,8 @@ import type {
   ZrGenerateLabelResponse,
   ZrHubItem,
   ZrPagedListHubs,
-} from "./types";
-import { stripAccents } from "./text";
+} from "@/carriers/zr_express/types";
+import { stripAccents } from "@/carriers/zr_express/text";
 
 const BASE_URL = "https://api.zrexpress.app";
 const API_VERSION = "1";

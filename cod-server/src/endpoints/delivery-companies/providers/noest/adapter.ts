@@ -37,7 +37,7 @@ import type {
   NoestDeleteOrderResponse,
   NoestAddRemarkResponse,
   NoestTrackingInfoResponse,
-} from "./types";
+} from "@/carriers/noest/types";
 
 const BASE_URL = "https://app.noest-dz.com";
 
@@ -177,12 +177,12 @@ export class NoestProvider implements DeliveryProvider {
 
     // ✅ VERIFIED: passed is an array, access by numeric index
     return inputs.map((input, i) => {
-      const passed = res.passed?.[i];
+      const passed = (res.passed as Record<string, { tracking?: string }> | undefined)?.[String(i)];
       if (passed?.tracking) {
         const trackingNumber = passed.tracking;
         return { input, trackingNumber, labelUrl: this.getLabelUrl(trackingNumber) };
       }
-      const failed = res.failed?.[i];
+      const failed = (res.failed as Record<string, unknown> | undefined)?.[String(i)] as Record<string, string[]> | undefined;
       if (failed) {
         const errorMsg = Object.values(failed).flat().join("; ");
         return { input, error: errorMsg };

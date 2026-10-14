@@ -183,3 +183,34 @@ export interface YalidineCommuneList {
   data: YalidineCommuneItem[];
   links?: { self: string; next?: string };
 }
+
+// ─── Parcels list ──────────────────────────────────────────────────────────────
+// GET /v1/parcels/?order_id=… | ?tracking=… — personal data comes back masked.
+export interface YalidineParcelItem {
+  tracking: string;
+  order_id: string;
+  last_status: string;
+  date_creation: string;
+  date_last_status: string | null;
+  label: string | null;
+  payment_status: string | null;
+}
+
+export interface YalidineParcelList {
+  has_more: boolean;
+  total_data: number;
+  data: YalidineParcelItem[];
+}
+
+// ─── Webhooks ──────────────────────────────────────────────────────────────────
+// One delivery carries one event type and one or more events.
+export interface YalidineWebhookEvent {
+  event_id: string;
+  occurred_at: string;
+  data: Record<string, unknown>;
+}
+
+export interface YalidineWebhookDelivery {
+  type: string;
+  events: YalidineWebhookEvent[];
+}
