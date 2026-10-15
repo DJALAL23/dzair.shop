@@ -36,6 +36,7 @@ export function shipmentsApp(d1: TestD1, scopes: () => string[]) {
 export async function seedStore(db: AppDb, ecotrack: { baseUrl: string; token: string }): Promise<string> {
   for (const table of [
     schema.shipmentEvents,
+    schema.webhookEvents,
     schema.shipments,
     schema.companyApiLogs,
     schema.activityLogs,

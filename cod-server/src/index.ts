@@ -16,6 +16,7 @@ import storeRoutes from "@/endpoints/store/routes";
 import webhooksRouter from "@/endpoints/webhooks/routes";
 import ordersRoutes from "@/endpoints/orders/routes";
 import shipmentsRoutes from "@/endpoints/shipments/routes";
+import { INBOUND_CRON, runInboundCron } from "@/inbound/cron";
 import usersRoutes from "@/endpoints/users/routes";
 import customersRoutes from "@/endpoints/customers/routes";
 import customerGroupsRoutes from "@/endpoints/customer-groups/routes";
@@ -201,10 +202,14 @@ export default {
   fetch: (request: Request, env: Env, ctx: ExecutionContext) =>
     getOAuthProvider(env).fetch(request, env, ctx),
   async scheduled(
-    _event: ScheduledEvent,
+    event: ScheduledEvent,
     env: Env,
     ctx: ExecutionContext
   ): Promise<void> {
+    if (event.cron === INBOUND_CRON) {
+      ctx.waitUntil(runInboundCron(env, (promise) => ctx.waitUntil(promise)));
+      return;
+    }
     ctx.waitUntil(sweepAbandonedOrders(env));
     ctx.waitUntil(runOrphanImageSweep(env));
     ctx.waitUntil(getOAuthProvider(env).purgeExpiredData(env, { batchSize: 50 }));

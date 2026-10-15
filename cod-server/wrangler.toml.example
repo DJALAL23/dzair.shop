@@ -61,10 +61,13 @@ binding    = "LP_IMAGE_UPLOAD_WORKFLOW"
 class_name = "CodLandingPageImageUploadWorkflow"
 
 # Cron Triggers
-# Sweeps pending abandoned orders → abandoned status every hour.
-# Maximum lag from "true abandonment" to "marked abandoned" is ~90 min (pending > 30 min).
+# Hourly: sweeps pending abandoned orders → abandoned status (maximum lag from
+#   "true abandonment" to "marked abandoned" is ~90 min, pending > 30 min).
+# Every 5 minutes: the delivery pipeline — retries webhook events whose
+#   processing failed, settles stale handoffs, looks unknown handoffs up, and
+#   syncs EcoTrack, NOEST and Guepex parcels (they send no webhooks).
 [triggers]
-crons = ["0 * * * *"]
+crons = ["0 * * * *", "*/5 * * * *"]
 
 # Environment variables (non-secret).
 #
