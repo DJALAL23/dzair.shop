@@ -19,7 +19,8 @@ import {
   listPendingSettlements,
   listShippingProfiles,
   listShippingRuleCommunes,
-  reconcileCompanyOrders,
+  retryWebhookEvent,
+  syncCompanyShipments,
   setCommuneOverride,
   setDriverCompensation,
   setShippingRules,
@@ -136,18 +137,13 @@ describe("carrier connection API adapters", () => {
     expect(seam.apiFetch).toHaveBeenCalledWith("/api/delivery-companies/comp%2F1/test-connection", { method: "POST" });
   });
 
-  it("POSTs reconcile-orders with an optional maxPages query", async () => {
-    const summary = {
-      pagesFetched: 2, ordersSeen: 80, updated: 5, unchanged: 70,
-      notFound: 3, skippedUnmapped: 2, unmappedSamples: ["mystery"],
-      morePagesRemain: false,
-    };
+  it("syncs a company's shipments now, and retries an inbox event", async () => {
+    const summary = { synced: 12, recorded: 4, reached: 2, moreRemain: false };
     seam.apiFetch.mockResolvedValue({ success: true, data: summary });
 
-    await expect(reconcileCompanyOrders("comp/1")).resolves.toEqual(summary);
-    expect(seam.apiFetch).toHaveBeenCalledWith("/api/delivery-companies/comp%2F1/reconcile-orders", { method: "POST" });
-
-    await reconcileCompanyOrders("comp/1", 5);
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/delivery-companies/comp%2F1/reconcile-orders?maxPages=5", { method: "POST" });
+    await expect(syncCompanyShipments("comp/1")).resolves.toEqual(summary);
+    expect(seam.apiFetch).toHaveBeenCalledWith("/api/delivery-companies/comp%2F1/sync-shipments", { method: "POST" });
+    await retryWebhookEvent("comp/1", "ev/1");
+    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/delivery-companies/comp%2F1/webhook/events/ev%2F1/retry", { method: "POST" });
   });
 });

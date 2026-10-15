@@ -20,19 +20,10 @@
 import type { Interpretation } from "../../../../cod-shared/shipments/interpretation";
 import type { CarrierStatus } from "../contract";
 import { stripAccents } from "./text";
+import { ZR_MAPPABLE_MEANINGS } from "../../../../cod-shared/carriers/providers";
 
-/** The meanings a merchant can map their tenant's states to. */
-export const ZR_MAPPABLE_MEANINGS = [
-  "out_for_delivery",
-  "delivered",
-  "collection",
-  "return_started",
-  "returned",
-  "cancelled",
-  "failed_attempt",
-  "exception",
-  "progress",
-] as const;
+export { ZR_MAPPABLE_MEANINGS };
+
 export type ZrMeaning = (typeof ZR_MAPPABLE_MEANINGS)[number];
 export type ZrStatusMap = Partial<Record<ZrMeaning, string[]>>;
 

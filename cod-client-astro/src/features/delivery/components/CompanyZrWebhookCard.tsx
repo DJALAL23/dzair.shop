@@ -6,54 +6,21 @@ import { cn } from "@/lib/utils";
 import { notify } from "@/lib/notify";
 import {
   registerZrWebhook,
-  saveZrStatusMapping,
   unregisterZrWebhook,
+  updateDeliveryCompany,
 } from "@/features/delivery/api";
+import { statusMapDraft, statusMapFrom, type ZrMeaning } from "@/features/delivery/model";
 import type { DeliveryCompany } from "@/features/delivery/types";
+import { ZR_MAPPABLE_MEANINGS } from "../../../../../cod-shared/carriers/providers";
 
 /**
- * ZR Express webhook management — one-click register/unregister (the svix
- * signing secret is created and stored server-side automatically, unlike
- * Yalidine's manually-pasted secret) plus the custom state-name mapping
- * editor. ZR state names are free text — the mapping layer translates them
- * into our order statuses; unmapped names are logged, never guessed.
+ * ZR Express webhook management — one-click register/unregister (the
+ * signing secret is fetched and stored server-side) — and this tenant's
+ * own state names. ZR states are free text per tenant: a name the standard
+ * workflow does not know is mapped here to what it means for the delivery,
+ * saved in the company's settings; a name nobody mapped is recorded as an
+ * unknown status in the inbox, never guessed.
  */
-
-/** Our statuses the backend accepts as mapping keys (webhook-handlers.ts). */
-const MAPPABLE_STATUSES = [
-  "delivered",
-  "returned",
-  "cancelled",
-  "out_for_delivery",
-  "assigned",
-  "preparing",
-  "new",
-] as const;
-
-/** Code-level defaults (zr-status-mapper.ts) — shown read-only as a hint. */
-const CODE_DEFAULTS: Array<{ name: string; maps: string }> = [
-  { name: "Out for Delivery", maps: "out_for_delivery" },
-  { name: "In Transit", maps: "assigned" },
-  { name: "At Hub", maps: "assigned" },
-];
-
-function parseMapping(json: string | null): Record<string, string[]> {
-  if (!json) return {};
-  try {
-    const parsed = JSON.parse(json) as Record<string, unknown>;
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
-    const out: Record<string, string[]> = {};
-    for (const [key, value] of Object.entries(parsed)) {
-      if (Array.isArray(value) && value.every((v) => typeof v === "string")) {
-        out[key] = value;
-      }
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
-
 export function CompanyZrWebhookCard({
   company,
   canManage,
@@ -66,42 +33,14 @@ export function CompanyZrWebhookCard({
   const t = useT("delivery_companies");
   const registered = !!company?.webhookEndpointId;
   const [busy, setBusy] = useState<"register" | "unregister" | "mapping" | null>(null);
-  const [mappingDraft, setMappingDraft] = useState<Record<string, string>>(() => {
-    const stored = parseMapping(company?.webhookStatusMapping ?? null);
-    const draft: Record<string, string> = {};
-    for (const status of MAPPABLE_STATUSES) {
-      const names = stored[status];
-      if (names?.length) draft[status] = names.join(", ");
-    }
-    return draft;
-  });
-
-  // Reset the draft when the company record changes (e.g. after a reload).
-  const mappingVersion = company?.webhookStatusMapping ?? "";
-  const [lastVersion, setLastVersion] = useState(mappingVersion);
-  if (mappingVersion !== lastVersion) {
-    setLastVersion(mappingVersion);
-    const stored = parseMapping(company?.webhookStatusMapping ?? null);
-    const draft: Record<string, string> = {};
-    for (const status of MAPPABLE_STATUSES) {
-      const names = stored[status];
-      if (names?.length) draft[status] = names.join(", ");
-    }
-    setMappingDraft(draft);
+  const saved = useMemo(() => statusMapDraft(company), [company?.providerConfig]);
+  const [draft, setDraft] = useState<Record<ZrMeaning, string>>(saved);
+  const [lastSaved, setLastSaved] = useState(saved);
+  if (saved !== lastSaved) {
+    setLastSaved(saved);
+    setDraft(saved);
   }
-
-  const hasDraftChanges = useMemo(() => {
-    const stored = parseMapping(company?.webhookStatusMapping ?? null);
-    for (const status of MAPPABLE_STATUSES) {
-      const draftNames = (mappingDraft[status] ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const storedNames = stored[status] ?? [];
-      if (JSON.stringify(draftNames) !== JSON.stringify(storedNames)) return true;
-    }
-    return false;
-  }, [mappingDraft, company?.webhookStatusMapping]);
+  const hasDraftChanges = JSON.stringify(statusMapFrom(draft)) !== JSON.stringify(statusMapFrom(saved));
 
   async function register() {
     if (!company) return;
@@ -139,21 +78,11 @@ export function CompanyZrWebhookCard({
     if (!company) return;
     setBusy("mapping");
     try {
-      const mapping: Record<string, string[]> = {};
-      for (const status of MAPPABLE_STATUSES) {
-        const names = (mappingDraft[status] ?? "")
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        if (names.length > 0) mapping[status] = names;
-      }
-      await saveZrStatusMapping(company.id, mapping);
+      await updateDeliveryCompany(company.id, { providerConfig: { statusMap: statusMapFrom(draft) } });
       notify.flashSuccess(t("zr_mapping_saved"));
       await onSaved();
     } catch (cause) {
-      notify.error(
-        cause instanceof Error ? cause.message : t("zr_mapping_save_failed"),
-      );
+      notify.error(cause instanceof Error ? cause.message : t("zr_mapping_save_failed"));
     } finally {
       setBusy(null);
     }
@@ -215,26 +144,17 @@ export function CompanyZrWebhookCard({
           <p className="text-xs font-medium leading-relaxed text-muted-foreground/70">
             {t("zr_mapping_hint")}
           </p>
-          <div className="flex flex-wrap gap-1.5">
-            {CODE_DEFAULTS.map((d) => (
-              <span
-                key={d.name}
-                className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"
-              >
-                {d.name} → {d.maps}
-              </span>
-            ))}
-          </div>
         </div>
 
         <div className="space-y-3">
-          {MAPPABLE_STATUSES.map((status) => (
-            <Field key={status} label={t(`zr_status_${status}`)}>
+          {ZR_MAPPABLE_MEANINGS.map((meaning) => (
+            <Field key={meaning} label={t(`zr_meaning.${meaning}`)}>
               <Input
-                value={mappingDraft[status] ?? ""}
-                onChange={(event) =>
-                  setMappingDraft((prev) => ({ ...prev, [status]: event.currentTarget.value }))
-                }
+                value={draft[meaning]}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setDraft((prev) => ({ ...prev, [meaning]: value }));
+                }}
                 placeholder={t("zr_mapping_placeholder")}
                 disabled={!canManage}
               />

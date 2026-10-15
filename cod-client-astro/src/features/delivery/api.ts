@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import type { InboxResult } from "../../../../cod-shared/inbound/results";
 import type { Driver, DriverCompensation, DriverPayment, PendingSettlement, DriverPaymentType, DriverStatus, VehicleType, Wilaya, DeliveryCompany, StopDesk, ShippingProfile, ShippingProfileWithRules, CommuneOverride } from "./types";
 
 interface ListEnvelope<T> {
@@ -184,20 +185,20 @@ export async function testCompanyConnection(companyId: string) {
   return (await apiFetch<DataEnvelope<ConnectionCheckResult>>(`/api/delivery-companies/${encodeURIComponent(companyId)}/test-connection`, { method: "POST" })).data;
 }
 
-export interface ReconcileSummary {
-  pagesFetched: number;
-  ordersSeen: number;
-  updated: number;
-  unchanged: number;
-  notFound: number;
-  skippedUnmapped: number;
-  unmappedSamples: string[];
-  morePagesRemain: boolean;
+export interface ShipmentSyncSummary {
+  /** Shipments whose history was read now. */
+  synced: number;
+  /** New statuses recorded across them. */
+  recorded: number;
+  /** Milestones reached (delivered, returned…). */
+  reached: number;
+  /** More open shipments wait for the next sync. */
+  moreRemain: boolean;
 }
 
-export async function reconcileCompanyOrders(companyId: string, maxPages?: number) {
-  const query = maxPages != null ? `?maxPages=${maxPages}` : "";
-  return (await apiFetch<DataEnvelope<ReconcileSummary>>(`/api/delivery-companies/${encodeURIComponent(companyId)}/reconcile-orders${query}`, { method: "POST" })).data;
+/** Read the carrier's history of this company's open shipments now, the longest unchecked first. */
+export async function syncCompanyShipments(companyId: string) {
+  return (await apiFetch<DataEnvelope<ShipmentSyncSummary>>(`/api/delivery-companies/${encodeURIComponent(companyId)}/sync-shipments`, { method: "POST" })).data;
 }
 
 // ─── Webhook Management ───────────────────────────────────────────────────────
@@ -214,10 +215,6 @@ export async function saveYalidineSecret(companyId: string, secret: string) {
   return await apiFetch<{ success: boolean }>(`/api/delivery-companies/${encodeURIComponent(companyId)}/webhook/secret`, json({ method: "PATCH", body: JSON.stringify({ secret }) }));
 }
 
-export async function saveZrStatusMapping(companyId: string, mapping: Record<string, string[]>) {
-  return await apiFetch<{ success: boolean }>(`/api/delivery-companies/${encodeURIComponent(companyId)}/webhook/mapping`, json({ method: "PATCH", body: JSON.stringify({ mapping }) }));
-}
-
 // ─── Webhook Events ────────────────────────────────────────────────────────────
 
 export interface WebhookEventRow {
@@ -226,12 +223,15 @@ export interface WebhookEventRow {
   eventId: string;
   tracking: string | null;
   eventType: string;
-  result: "ok" | "ignored" | "unmapped" | "error" | "pending";
-  newStatus: string | null;
+  /** What processing it came to — `unmapped` on rows from before the inbox. */
+  result: InboxResult | "unmapped";
   reason: string | null;
   errorMsg: string | null;
+  shipmentId: string | null;
   orderId: string | null;
   orderNumber: string | null;
+  attempts: number;
+  nextAttemptAt: string | null;
   processedAt: string | null;
   createdAt: string;
 }
@@ -253,6 +253,16 @@ export async function listCompanyWebhookEvents(
   return (
     await apiFetch<DataEnvelope<WebhookEventsPage>>(
       `/api/delivery-companies/${encodeURIComponent(companyId)}/webhook/events${query ? `?${query}` : ""}`,
+    )
+  ).data;
+}
+
+/** Process an event that went wrong again now — after fixing what stopped it. */
+export async function retryWebhookEvent(companyId: string, eventId: string) {
+  return (
+    await apiFetch<DataEnvelope<{ result: WebhookEventRow["result"]; errorMsg: string | null; shipmentId: string | null }>>(
+      `/api/delivery-companies/${encodeURIComponent(companyId)}/webhook/events/${encodeURIComponent(eventId)}/retry`,
+      { method: "POST" },
     )
   ).data;
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRateMap,
+  canRetryEvent,
+  companySettingsFor,
+  fromWilayaOf,
+  statusMapDraft,
+  statusMapFrom,
+  webhookSetup,
   driverErrorMessage,
   driverFullName,
   isSettled,
@@ -163,5 +169,38 @@ describe("delivery model", () => {
     expect(shippingErrorMessage({ code: "DUPLICATE_WILAYA_RULE" }, t)).toBe("shipping_profiles.error_duplicate_wilaya");
     expect(shippingErrorMessage({ code: "SHIPPING_PROFILE_NOT_FOUND" }, t)).toBe("error_not_found");
     expect(shippingErrorMessage(new Error("boom"), t)).toBe("error_generic");
+  });
+});
+
+describe("delivery company settings", () => {
+  it("sends each company's platform, and the sender's wilaya to Yalidine and Guepex", () => {
+    expect(companySettingsFor({ provider: "yalidine", platform: "guepex", requiresFromWilaya: true }, " Batna ")).toEqual({ provider: "yalidine", providerConfig: { platform: "guepex", fromWilayaName: "Batna" } });
+    expect(companySettingsFor({ provider: "yalidine", requiresFromWilaya: true }, "")).toEqual({ provider: "yalidine", providerConfig: { platform: "yalidine" } });
+    expect(companySettingsFor({ provider: "ecotrack" }, "Batna")).toEqual({ provider: "ecotrack" });
+    expect(fromWilayaOf({ providerConfig: { platform: "yalidine", fromWilayaName: "Oran" } })).toBe("Oran");
+    expect(fromWilayaOf({ providerConfig: null })).toBe("");
+  });
+
+  it("edits ZR's own state names by meaning, and saves each once", () => {
+    const draft = statusMapDraft({ providerConfig: { statusMap: { delivered: ["Livré", "Remis"], returned: ["Retour reçu"] } } });
+    expect(draft.delivered).toBe("Livré, Remis");
+    expect(draft.cancelled).toBe("");
+    expect(statusMapFrom({ ...draft, delivered: " Livré, Remis ,Livré, ", returned: "" })).toEqual({ delivered: ["Livré", "Remis"] });
+  });
+
+  it("retries only the inbox events that went wrong", () => {
+    expect(["error", "dead", "unmatched", "unknown_status", "unmapped"].every(canRetryEvent)).toBe(true);
+    expect(["ok", "ignored", "pending", "deferred_settlement"].some(canRetryEvent)).toBe(false);
+  });
+});
+
+describe("a company's webhook setup", () => {
+  it("follows its platform, never its code", () => {
+    const company = { webhookEndpointId: null, webhookSecretSet: false };
+    expect(webhookSetup({ provider: "zr_express", updates: "webhook" }, { ...company, webhookEndpointId: "ep" })).toEqual({ kind: "register", ready: true });
+    expect(webhookSetup({ provider: "yalidine", updates: "webhook" }, company)).toEqual({ kind: "secret", ready: false });
+    expect(webhookSetup({ provider: "yalidine", updates: "webhook" }, { ...company, webhookSecretSet: true })).toEqual({ kind: "secret", ready: true });
+    expect(webhookSetup({ provider: "yalidine", updates: "pull" }, company)).toEqual({ kind: "none" });
+    expect(webhookSetup({ provider: "ecotrack", updates: "pull" }, company)).toEqual({ kind: "none" });
   });
 });

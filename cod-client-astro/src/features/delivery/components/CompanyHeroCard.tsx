@@ -76,12 +76,10 @@ export function CompanyHeroCard({
                 {t("capability_desk")}
               </span>
             )}
-            {config.supportsTracking && (
-              <span className="inline-flex items-center gap-1 rounded-md border border-primary/10 bg-primary/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                <TrendingUp size={9} />
-                {t("capability_tracking")}
-              </span>
-            )}
+            <span className="inline-flex items-center gap-1 rounded-md border border-primary/10 bg-primary/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary">
+              <TrendingUp size={9} />
+              {t(config.updates === "webhook" ? "updates_live" : "updates_checked")}
+            </span>
           </div>
         </div>
 

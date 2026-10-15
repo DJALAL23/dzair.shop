@@ -1,44 +1,35 @@
 import { useEffect, useState } from "react";
-import { Inbox, Webhook } from "lucide-react";
+import { Inbox, RotateCcw, Webhook } from "lucide-react";
 import { Badge, Button, Select } from "@/components/ui";
-import { useT } from "@/i18n/react";
-import { useLocale } from "@/i18n/react";
+import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
-import {
-  listCompanyWebhookEvents,
-  type WebhookEventRow,
-} from "@/features/delivery/api";
+import { relativeTime } from "@/lib/relative-time";
+import { listCompanyWebhookEvents, retryWebhookEvent, type WebhookEventRow } from "@/features/delivery/api";
+import { canRetryEvent } from "@/features/delivery/model";
 import type { DeliveryCompany } from "@/features/delivery/types";
-
-/**
- * Inbound webhook event log — the "real info" surface for webhook-capable
- * carriers. Every delivery lands in webhook_events with its outcome; this
- * panel surfaces outcomes, not bytes: result badge, the order it moved (or
- * why it didn't), and the carrier's own reason string. Unmapped rows are
- * the actionable ones — new carrier statuses appear here first.
- */
+import { INBOX_RESULTS } from "../../../../../cod-shared/inbound/results";
 
 const RESULT_TONE: Record<WebhookEventRow["result"], "success" | "neutral" | "warning" | "critical" | "info"> = {
+  pending: "info",
   ok: "success",
   ignored: "neutral",
-  unmapped: "warning",
+  unmatched: "warning",
+  unknown_status: "warning",
+  deferred_settlement: "neutral",
   error: "critical",
-  pending: "info",
+  dead: "critical",
+  unmapped: "warning",
 };
 
 const PAGE_SIZE = 25;
 
-function formatTime(iso: string, locale: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString(locale, {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-export function CompanyWebhookEventsCard({ company }: { company: DeliveryCompany | null }) {
+/**
+ * What the carrier pushed and what came of it: each event's outcome, the
+ * order it moved, why it did not, and its tries. The ones that went wrong
+ * can be processed again once what stopped them is fixed — a status mapped,
+ * a parcel attached, the settings corrected.
+ */
+export function CompanyWebhookEventsCard({ company, canManage }: { company: DeliveryCompany | null; canManage: boolean }) {
   const t = useT("delivery_companies");
   const locale = useLocale();
   const [events, setEvents] = useState<WebhookEventRow[]>([]);
@@ -46,43 +37,52 @@ export function CompanyWebhookEventsCard({ company }: { company: DeliveryCompany
   const [filter, setFilter] = useState<"" | WebhookEventRow["result"]>("");
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [retrying, setRetrying] = useState<string | null>(null);
+
+  async function load() {
+    if (!company) return;
+    setLoading(true);
+    try {
+      const page = await listCompanyWebhookEvents(company.id, { limit: PAGE_SIZE, ...(filter ? { result: filter } : {}) });
+      setEvents(page.events);
+      setTotal(page.total);
+    } catch {
+      notify.error(t("events_load_failed"));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    if (!company) return;
-    let alive = true;
-    setLoading(true);
-    listCompanyWebhookEvents(company.id, { limit: PAGE_SIZE, ...(filter ? { result: filter } : {}) })
-      .then((page) => {
-        if (!alive) return;
-        setEvents(page.events);
-        setTotal(page.total);
-      })
-      .catch(() => {
-        if (alive) notify.error(t("events_load_failed"));
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [company?.id, filter, t]);
+    void load();
+  }, [company?.id, filter]);
 
   async function loadMore() {
     if (!company) return;
     setLoadingMore(true);
     try {
-      const page = await listCompanyWebhookEvents(company.id, {
-        limit: PAGE_SIZE,
-        offset: events.length,
-        ...(filter ? { result: filter } : {}),
-      });
+      const page = await listCompanyWebhookEvents(company.id, { limit: PAGE_SIZE, offset: events.length, ...(filter ? { result: filter } : {}) });
       setEvents((prev) => [...prev, ...page.events]);
       setTotal(page.total);
     } catch {
       notify.error(t("events_load_failed"));
     } finally {
       setLoadingMore(false);
+    }
+  }
+
+  async function retry(event: WebhookEventRow) {
+    if (!company) return;
+    setRetrying(event.id);
+    try {
+      const outcome = await retryWebhookEvent(company.id, event.id);
+      if (outcome.result === "ok") notify.success(t("events_retry_ok"));
+      else notify.error(t("events_retry_still", { result: t(`events_result_${outcome.result}`) }));
+      await load();
+    } catch (cause) {
+      notify.error(cause instanceof Error ? cause.message : t("events_load_failed"));
+    } finally {
+      setRetrying(null);
     }
   }
 
@@ -95,19 +95,14 @@ export function CompanyWebhookEventsCard({ company }: { company: DeliveryCompany
           <Webhook size={14} className="text-primary/50" aria-hidden="true" />
           {t("events_title")}
         </h2>
-        <div className="w-44">
-          <Select
-            value={filter}
-            onChange={(event) => {
-              setFilter(event.currentTarget.value as "" | WebhookEventRow["result"]);
-            }}
-            aria-label={t("events_filter_label")}
-          >
+        <div className="w-52">
+          <Select value={filter} onChange={(event) => setFilter(event.currentTarget.value as "" | WebhookEventRow["result"])} aria-label={t("events_filter_label")}>
             <option value="">{t("events_filter_all")}</option>
-            <option value="ok">{t("events_filter_ok")}</option>
-            <option value="ignored">{t("events_filter_ignored")}</option>
-            <option value="unmapped">{t("events_filter_unmapped")}</option>
-            <option value="error">{t("events_filter_error")}</option>
+            {INBOX_RESULTS.map((result) => (
+              <option key={result} value={result}>
+                {t(`events_result_${result}`)}
+              </option>
+            ))}
           </Select>
         </div>
       </div>
@@ -119,14 +114,8 @@ export function CompanyWebhookEventsCard({ company }: { company: DeliveryCompany
       ) : events.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-center">
           <Inbox size={22} className="text-muted-foreground/40" aria-hidden="true" />
-          <p className="text-sm font-semibold text-foreground">
-            {filter ? t("events_empty_filtered") : t("events_empty")}
-          </p>
-          {!filter && (
-            <p className="max-w-sm text-xs font-medium leading-relaxed text-muted-foreground/70">
-              {t("events_empty_hint")}
-            </p>
-          )}
+          <p className="text-sm font-semibold text-foreground">{filter ? t("events_empty_filtered") : t("events_empty")}</p>
+          {!filter && <p className="max-w-sm text-xs font-medium leading-relaxed text-muted-foreground/70">{t("events_empty_hint")}</p>}
         </div>
       ) : (
         <>
@@ -138,47 +127,44 @@ export function CompanyWebhookEventsCard({ company }: { company: DeliveryCompany
                 </Badge>
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-foreground">
-                    {event.orderNumber ? (
-                      <a
-                        href={`/orders/${event.orderId}`}
-                        className="text-link hover:underline"
-                      >
+                    {event.orderNumber && event.orderId ? (
+                      <a href={`/orders/${encodeURIComponent(event.orderId)}`} className="text-link hover:underline">
                         {event.orderNumber}
                       </a>
                     ) : (
-                      <span className="font-mono text-xs text-muted-foreground">
+                      <span dir="ltr" className="font-mono text-xs text-muted-foreground">
                         {event.tracking ?? "—"}
                       </span>
                     )}
-                    {event.newStatus && (
-                      <span className="text-xs font-medium text-muted-foreground">
-                        → {t(`zr_status_${event.newStatus}`)}
-                      </span>
-                    )}
+                    <span className="text-xs font-medium text-muted-foreground">{event.eventType}</span>
                   </p>
-                  <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground/70">
-                    {formatTime(event.createdAt, locale)} · {event.eventType}
+                  <p className="mt-0.5 text-xs font-medium text-muted-foreground/80">
+                    {relativeTime(event.createdAt, locale)}
                     {event.reason ? ` · ${event.reason}` : ""}
                     {event.errorMsg ? ` · ${event.errorMsg}` : ""}
                   </p>
+                  {event.attempts > 1 && (
+                    <p className="mt-0.5 text-xs font-medium text-muted-foreground/70">
+                      {t("events_tries", { count: event.attempts })}
+                      {event.result === "error" && event.nextAttemptAt ? ` · ${t("events_next_try", { when: relativeTime(event.nextAttemptAt, locale) })}` : ""}
+                    </p>
+                  )}
                 </div>
+                {canManage && canRetryEvent(event.result) && (
+                  <Button type="button" variant="secondary" size="sm" disabled={retrying !== null} onClick={() => void retry(event)}>
+                    <RotateCcw size={13} />
+                    {retrying === event.id ? t("events_retrying") : t("events_retry")}
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
           {events.length < total && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="mt-4 w-full"
-              onClick={() => void loadMore()}
-              disabled={loadingMore}
-            >
+            <Button type="button" variant="secondary" className="mt-4 w-full" onClick={() => void loadMore()} disabled={loadingMore}>
               {loadingMore ? t("events_loading") : t("events_load_more")}
             </Button>
           )}
-          <p className="mt-2 text-center text-[10px] font-semibold text-muted-foreground/50">
-            {`${events.length} / ${total}`}
-          </p>
+          <p className="mt-2 text-center text-[10px] font-semibold text-muted-foreground/50">{`${events.length} / ${total}`}</p>
         </>
       )}
     </div>

@@ -32,19 +32,6 @@ const CONFIG_SCHEMAS: Record<CarrierProvider, ConfigSchema> = {
   ecotrack: ecotrackConfigSchema,
 };
 
-/**
- * The provider a new company gets when none is given, from the dashboard's
- * preset codes. TEMPORARY until the dashboard sends `provider` (plan stage 9):
- * EcoTrack-platform companies are `ecotrack` or `<name>_ecotrack`; Guepex runs
- * on the Yalidine platform.
- */
-export function defaultProviderForCode(code: string): CarrierProvider | null {
-  if (code === "yalidine" || code === "zr_express" || code === "noest") return code;
-  if (code === "guepex") return "yalidine";
-  if (code === "ecotrack" || code.endsWith("_ecotrack")) return "ecotrack";
-  return null;
-}
-
 function misconfigured(provider: CarrierProvider, message: string): CarrierError {
   return new CarrierError(provider, "misconfigured", message);
 }

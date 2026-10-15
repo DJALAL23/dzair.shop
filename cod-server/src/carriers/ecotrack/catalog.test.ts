@@ -14,7 +14,6 @@ import {
   findEcotrackCourier,
   ecotrackCompanyCode,
 } from "../../../../cod-shared/lib/ecotrack-couriers";
-import { defaultProviderForCode } from "../registry";
 
 const KEY_PATTERN = /^[a-z0-9]+$/;
 const CODE_PATTERN = /^[a-z0-9_]+$/;
@@ -53,7 +52,6 @@ describe("ECOTRACK_COURIERS", () => {
     for (const c of ECOTRACK_COURIERS) {
       const code = ecotrackCompanyCode(c.key);
       expect(code).toMatch(CODE_PATTERN);
-      expect(defaultProviderForCode(code)).toBe("ecotrack");
     }
   });
 

@@ -158,19 +158,26 @@ describe("saving carrier settings", () => {
     expect((await stored()).proxyBaseUrl).toBe("https://relay.example");
   });
 
-  it("a new company gets its provider from its code and the adapter's default settings", async () => {
+  it("a new company takes the provider it is given, with the adapter's default settings", async () => {
     scopes = ["delivery:create"];
-    const res = await request("POST", "", { name: "Guepex", nameAr: "قيباكس", code: "guepex" });
+    const res = await request("POST", "", { name: "Guepex", nameAr: "قيباكس", code: "guepex", provider: "yalidine", providerConfig: { platform: "guepex" } });
     expect(res.status).toBe(201);
     const body: any = await res.json();
     expect(body.data.provider).toBe("yalidine");
-    expect(body.data.providerConfig).toEqual({ platform: "yalidine", fromWilayaName: "Alger" });
+    expect(body.data.providerConfig).toEqual({ platform: "guepex", fromWilayaName: "Alger" });
+    expect(body.data.capabilities).toMatchObject({ updates: "pull" });
     expect(body.data.autoValidate).toBe(true);
+  });
+
+  it("a company given no provider is never guessed one from its code: it cannot take parcels", async () => {
+    scopes = ["delivery:create"];
+    const body: any = await (await request("POST", "", { name: "Yalidine 2", nameAr: "ياليدين", code: "yalidine_2" })).json();
+    expect(body.data).toMatchObject({ provider: null, capabilities: null });
   });
 
   it("an EcoTrack-platform company validates by hand by default", async () => {
     scopes = ["delivery:create"];
-    const body: any = await (await request("POST", "", { name: "Packers", nameAr: "باكرز", code: "packers_ecotrack" })).json();
+    const body: any = await (await request("POST", "", { name: "Packers", nameAr: "باكرز", code: "packers_ecotrack", provider: "ecotrack" })).json();
     expect(body.data).toMatchObject({ provider: "ecotrack", autoValidate: false });
   });
 });

@@ -12,7 +12,7 @@ import { companyStopDesks, wilayas, webhookEvents, orders, shipments } from "@/d
 import * as queries from "./queries";
 import * as validation from "./validation";
 import { companyView } from "./view";
-import { buildCarrier, defaultProviderForCode, mergeProviderConfig } from "@/carriers/registry";
+import { buildCarrier, mergeProviderConfig } from "@/carriers/registry";
 import type { CarrierProvider } from "../../../../cod-shared/carriers/providers";
 import { callCarrier, requireCapability } from "@/carriers/app-errors";
 import type { CarrierAdapter } from "@/carriers/contract";
@@ -76,7 +76,7 @@ export async function createDeliveryCompany(c: Context<AppContext>) {
     );
   }
 
-  const provider = parsed.provider === undefined ? defaultProviderForCode(parsed.code) : parsed.provider;
+  const provider = parsed.provider ?? null;
   const providerConfig = settingsFor(provider, null, parsed.providerConfig);
 
   // EcoTrack-platform carriers lock an order the moment it is validated — the
@@ -559,8 +559,6 @@ export async function listWebhookEvents(c: Context<AppContext>) {
   );
 }
 
-/** Results an event can be processed again from, by hand. */
-const RETRYABLE = ["error", "dead", "unmatched", "unknown_status", "unmapped"];
 
 /**
  * POST /delivery-companies/:id/webhook/events/:eventId/retry
@@ -576,7 +574,7 @@ export async function retryWebhookEvent(c: Context<AppContext>) {
     .where(and(eq(webhookEvents.id, eventId), eq(webhookEvents.companyId, id)))
     .get();
   if (!event) throw new NotFoundError("Webhook event", eventId);
-  if (!RETRYABLE.includes(event.result) || !(await requeueInboxEvent(db, eventId))) {
+  if (!(await requeueInboxEvent(db, eventId))) {
     throw new ConflictError(`An event that is "${event.result}" is not processed again`, ERROR_CODES.VALIDATION_FAILED, { eventId, result: event.result });
   }
   const [outcome] = await processInbox(c.env, (p) => c.executionCtx.waitUntil(p), [eventId]);

@@ -1,8 +1,12 @@
+import { ZR_MAPPABLE_MEANINGS } from "../../../../cod-shared/carriers/providers";
+import { RETRYABLE_RESULTS } from "../../../../cod-shared/inbound/results";
 import type {
+  DeliveryCompany,
   Driver,
   DriverPaymentType,
   DriverStatus,
   PendingSettlement,
+  ProviderConfig,
   ShippingProfile,
   ShippingRateEntry,
   ShippingRateMap,
@@ -238,4 +242,65 @@ export function shippingErrorMessage(cause: unknown, t: (key: string) => string)
   if (code === "DEFAULT_PROFILE_REQUIRED") return t("shipping_profiles.error_default_required");
   if (code === "DUPLICATE_WILAYA_RULE") return t("shipping_profiles.error_duplicate_wilaya");
   return t("error_generic");
+}
+
+// ─── Delivery company settings ──────────────────────────────────────────────
+
+/**
+ * What connecting a company sends besides its credentials: its carrier
+ * platform, and that platform's settings — Yalidine and Guepex take the
+ * sender's wilaya, in their own spelling.
+ */
+export function companySettingsFor(config: Pick<ProviderConfig, "provider" | "platform" | "requiresFromWilaya">, fromWilayaName: string) {
+  const wilaya = fromWilayaName.trim();
+  if (config.provider !== "yalidine") return { provider: config.provider };
+  return { provider: config.provider, providerConfig: { platform: config.platform ?? "yalidine", ...(config.requiresFromWilaya && wilaya ? { fromWilayaName: wilaya } : {}) } };
+}
+
+/** The sender's wilaya a Yalidine-platform company has saved. */
+export function fromWilayaOf(company: Pick<DeliveryCompany, "providerConfig"> | null): string {
+  const value = company?.providerConfig?.fromWilayaName;
+  return typeof value === "string" ? value : "";
+}
+
+export type ZrMeaning = (typeof ZR_MAPPABLE_MEANINGS)[number];
+
+/** A ZR company's own state names per meaning, as the form edits them (comma separated). */
+export function statusMapDraft(company: Pick<DeliveryCompany, "providerConfig"> | null): Record<ZrMeaning, string> {
+  const stored = (company?.providerConfig?.statusMap ?? {}) as Partial<Record<string, unknown>>;
+  return Object.fromEntries(
+    ZR_MAPPABLE_MEANINGS.map((meaning) => {
+      const names = stored[meaning];
+      return [meaning, Array.isArray(names) ? names.filter((n) => typeof n === "string").join(", ") : ""];
+    }),
+  ) as Record<ZrMeaning, string>;
+}
+
+/** The status map the form's text saves: each name once, trimmed; meanings left empty are left out. */
+export function statusMapFrom(draft: Record<ZrMeaning, string>): Partial<Record<ZrMeaning, string[]>> {
+  const map: Partial<Record<ZrMeaning, string[]>> = {};
+  for (const meaning of ZR_MAPPABLE_MEANINGS) {
+    const names = [...new Set((draft[meaning] ?? "").split(",").map((name) => name.trim()).filter(Boolean))];
+    if (names.length) map[meaning] = names;
+  }
+  return map;
+}
+
+/** Inbox events that went wrong and can be processed again, after fixing what stopped them. */
+export function canRetryEvent(result: string): boolean {
+  return RETRYABLE_RESULTS.includes(result);
+}
+
+/**
+ * How a company's updates are pushed to CodFlow, if they are: ZR registers
+ * its webhook in one click, Yalidine's secret is pasted from its dashboard;
+ * every other carrier is checked every few minutes and needs nothing.
+ */
+export function webhookSetup(
+  config: Pick<ProviderConfig, "provider" | "updates">,
+  company: Pick<DeliveryCompany, "webhookEndpointId" | "webhookSecretSet"> | null,
+): { kind: "none" } | { kind: "register" | "secret"; ready: boolean } {
+  if (config.updates !== "webhook") return { kind: "none" };
+  if (config.provider === "zr_express") return { kind: "register", ready: Boolean(company?.webhookEndpointId) };
+  return { kind: "secret", ready: Boolean(company?.webhookSecretSet) };
 }

@@ -13,6 +13,7 @@ import {
 } from "@/features/delivery/api";
 import type { DeliveryCompany } from "@/features/delivery/types";
 import { getProviderConfig } from "@/features/delivery/types";
+import { companySettingsFor, fromWilayaOf, webhookSetup } from "@/features/delivery/model";
 import {
   Alert,
   PageHeader,
@@ -102,17 +103,8 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
     setApiToken("");
     setApiUserGuid("");
     setApiEndpoint(company?.apiEndpoint ?? config?.endpointDefault ?? "");
-    let parsedWilaya = "";
-    if (company?.notes) {
-      try {
-        const notes = JSON.parse(company.notes) as { from_wilaya_name?: string };
-        parsedWilaya = notes.from_wilaya_name ?? "";
-      } catch {
-        parsedWilaya = "";
-      }
-    }
-    setFromWilayaName(parsedWilaya);
-  }, [company?.id, company?.apiEndpoint, company?.notes, config?.endpointDefault]);
+    setFromWilayaName(fromWilayaOf(company ?? null));
+  }, [company?.id, company?.apiEndpoint, company?.providerConfig, config?.endpointDefault]);
 
   async function handleSave() {
     if (!config) return;
@@ -141,12 +133,7 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
           : {}),
       };
 
-      if (config.requiresFromWilaya) {
-        const notesJson: Record<string, string> = {};
-        const wilaya = fromWilayaName.trim();
-        if (wilaya) notesJson.from_wilaya_name = wilaya;
-        credentials.notes = Object.keys(notesJson).length > 0 ? JSON.stringify(notesJson) : null;
-      }
+      Object.assign(credentials, companySettingsFor(config, fromWilayaName));
 
       if (company) {
         await updateDeliveryCompany(company.id, { ...credentials, active: true });
@@ -159,7 +146,6 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
           apiEndpoint: config.apiEndpoint,
           supportsHomeDelivery: config.supportsHomeDelivery,
           supportsStopDesk: config.supportsStopDesk,
-          supportsTracking: config.supportsTracking,
           active: true,
           ...credentials,
         });
@@ -284,7 +270,7 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
         />
       </div>
 
-      {providerCode === "yalidine" && (
+      {config && webhookSetup(config, company ?? null).kind === "secret" && (
         <CompanyWebhookSetupCard
           company={company}
           canManage={canManage}
@@ -292,7 +278,7 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
         />
       )}
 
-      {providerCode === "zr_express" && (
+      {config && webhookSetup(config, company ?? null).kind === "register" && (
         <CompanyZrWebhookCard
           company={company}
           canManage={canManage}

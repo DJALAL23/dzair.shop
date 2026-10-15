@@ -121,19 +121,22 @@ export interface DeliveryCompany {
   /** True when API credentials are stored — credentials themselves are never returned by the API. */
   isConnected: boolean;
 
-  // Capabilities
+  /** The carrier platform behind it; null = it cannot take parcels. */
+  provider: CarrierProvider | null;
+  /** The platform's settings (secrets masked): Yalidine's sender wilaya, ZR's own state names… */
+  providerConfig: Record<string, unknown> | null;
+  /** What its carrier can do; null without a provider. */
+  capabilities: CarrierCapabilities | null;
   supportsHomeDelivery: boolean;
   supportsStopDesk: boolean;
-  supportsTracking: boolean;
 
   /**
-   * When true, a successful `createShipment` is immediately followed by
-   * `validateShipment` — the order is locked at the carrier (no edits/deletes).
-   * When false, the team must manually confirm each order before it ships.
-   * Defaults: false for EcoTrack-family providers, true for the rest.
+   * When true, a created parcel is sent to the courier at once. When false,
+   * the team confirms each parcel before it ships (EcoTrack companies).
    */
   autoValidate: boolean;
 
+  /** Free text for the team. */
   notes: string | null;
 
   // Webhook integration
@@ -141,8 +144,6 @@ export interface DeliveryCompany {
   webhookSecretSet: boolean;
   /** ZR only: registered endpoint UUID. null = not registered. */
   webhookEndpointId: string | null;
-  /** ZR only: custom state name → our status mapping as JSON string. null = code defaults only. */
-  webhookStatusMapping: string | null;
 
   createdAt: string;
   updatedAt: string;
@@ -169,9 +170,14 @@ export interface ProviderConfig {
   nameAr: string;
   website: string;
   apiEndpoint: string;
+  /** The carrier platform the company runs on, sent when it is connected. */
+  provider: CarrierProvider;
+  /** Yalidine-platform carriers: which one. */
+  platform?: "yalidine" | "guepex";
+  /** How its updates reach CodFlow: pushed at once, or checked every few minutes. */
+  updates: "webhook" | "pull";
   supportsHomeDelivery: boolean;
   supportsStopDesk: boolean;
-  supportsTracking: boolean;
   requiresUserGuid: boolean;
   guidLabel?: string;
   guidHint?: string;
@@ -187,6 +193,8 @@ export interface ProviderConfig {
 // ─── Shipping Profile Types ──────────────────────────────────────────────────
 
 import { ECOTRACK_COURIERS, ecotrackCompanyCode } from "../../../../cod-shared/lib/ecotrack-couriers";
+import type { CarrierProvider } from "../../../../cod-shared/carriers/providers";
+import type { CarrierCapabilities } from "@/features/orders/types";
 
 /** Per-wilaya rate within a shipping profile. */
 export interface ShippingRule {
@@ -285,7 +293,8 @@ const ECOTRACK_PROVIDER_ENTRIES: Record<string, ProviderConfig> = Object.fromEnt
       apiEndpoint: courier.baseUrl,
       supportsHomeDelivery: true,
       supportsStopDesk: true,
-      supportsTracking: true,
+      provider: "ecotrack",
+      updates: "pull",
       requiresUserGuid: false,
       requiresEndpoint: true,
       endpointDefault: courier.baseUrl,
@@ -300,9 +309,10 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     nameAr: "نوست",
     website: "https://app.noest-dz.com",
     apiEndpoint: "https://app.noest-dz.com",
+    provider: "noest",
+    updates: "pull",
     supportsHomeDelivery: true,
     supportsStopDesk: true,
-    supportsTracking: true,
     requiresUserGuid: true,
   },
   zr_express: {
@@ -311,9 +321,10 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     nameAr: "ZR إكسبريس",
     website: "https://zrexpress.app",
     apiEndpoint: "https://api.zrexpress.app",
+    provider: "zr_express",
+    updates: "webhook",
     supportsHomeDelivery: true,
     supportsStopDesk: true,
-    supportsTracking: true,
     requiresUserGuid: true,
   },
   yalidine: {
@@ -322,14 +333,34 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     nameAr: "ياليدين",
     website: "https://yalidine.app",
     apiEndpoint: "https://api.yalidine.app/v1",
+    provider: "yalidine",
+    platform: "yalidine",
+    updates: "webhook",
     supportsHomeDelivery: true,
     supportsStopDesk: true,
-    supportsTracking: true,
     requiresUserGuid: true,
     tokenLabel: "X-API-TOKEN",
     tokenHint: "Your Yalidine API token — found in dashboard → API settings",
     guidLabel: "X-API-ID",
     guidHint: "Your Yalidine API ID (numeric) — found in dashboard → API settings",
+    requiresFromWilaya: true,
+  },
+  guepex: {
+    code: "guepex",
+    name: "Guepex",
+    nameAr: "قيباكس",
+    website: "https://guepex.app",
+    apiEndpoint: "https://api.guepex.app/v1",
+    provider: "yalidine",
+    platform: "guepex",
+    updates: "pull",
+    supportsHomeDelivery: true,
+    supportsStopDesk: true,
+    requiresUserGuid: true,
+    tokenLabel: "X-API-TOKEN",
+    tokenHint: "Your Guepex API token — found in dashboard → API settings",
+    guidLabel: "X-API-ID",
+    guidHint: "Your Guepex API ID — found in dashboard → API settings",
     requiresFromWilaya: true,
   },
   ...ECOTRACK_PROVIDER_ENTRIES,

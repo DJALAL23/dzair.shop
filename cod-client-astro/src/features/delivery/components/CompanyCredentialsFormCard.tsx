@@ -96,7 +96,7 @@ export function CompanyCredentialsFormCard({
       </Field>
 
       {config.requiresUserGuid && (
-        <Field label={config.guidLabel ?? (config.code === "zr_express" ? t("tenant_id") : t("user_guid"))}>
+        <Field label={config.guidLabel ?? (config.provider === "zr_express" ? t("tenant_id") : t("user_guid"))}>
           <Input
             value={apiUserGuid}
             onChange={(event) => onApiUserGuidChange(event.currentTarget.value)}

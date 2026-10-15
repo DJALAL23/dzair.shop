@@ -9,6 +9,7 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
   listAllDeliveryCompanies,
   syncCarrierGeoNames,
+  syncCompanyShipments,
   syncCompanyStopDesks,
   updateDeliveryCompany,
 } from "@/features/delivery/api";
@@ -71,6 +72,7 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [syncingDesks, setSyncingDesks] = useState(false);
   const [syncingGeo, setSyncingGeo] = useState(false);
+  const [syncingShipments, setSyncingShipments] = useState(false);
   const [autoValidate, setAutoValidate] = useState(true);
   const [savingAutoValidate, setSavingAutoValidate] = useState(false);
 
@@ -138,6 +140,24 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
       notify.error(message);
     } finally {
       setSyncingGeo(false);
+    }
+  }
+
+  async function handleSyncShipments() {
+    if (!company) return;
+    setNotice(null);
+    setSyncingShipments(true);
+    try {
+      const result = await syncCompanyShipments(company.id);
+      const message = result.synced === 0 ? t("sync_shipments_none") : t("sync_shipments_done", { count: result.synced, recorded: result.recorded });
+      setNotice({ message: result.moreRemain ? `${message} ${t("sync_shipments_more")}` : message, tone: "success" });
+      notify.success(message);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : t("error_saving");
+      setNotice({ message, tone: "error" });
+      notify.error(message);
+    } finally {
+      setSyncingShipments(false);
     }
   }
 
@@ -237,11 +257,11 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
         onSyncDesks={() => void handleSyncDesks()}
         syncingGeo={syncingGeo}
         onSyncGeo={() => void handleSyncGeo()}
+        syncingShipments={syncingShipments}
+        onSyncShipments={() => void handleSyncShipments()}
       />
 
-      {(providerCode === "yalidine" || providerCode === "zr_express") && (
-        <CompanyWebhookEventsCard company={company} />
-      )}
+      {config.updates === "webhook" && <CompanyWebhookEventsCard company={company} canManage={canManage} />}
     </div>
   );
 }

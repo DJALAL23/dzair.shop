@@ -5,12 +5,14 @@ import {
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
+  Truck,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { cn } from "@/lib/utils";
 import type { DeliveryCompany, ProviderConfig } from "@/features/delivery/types";
+import { webhookSetup } from "@/features/delivery/model";
 
 export function CompanySettingsSection({
   config,
@@ -24,6 +26,8 @@ export function CompanySettingsSection({
   onSyncDesks,
   syncingGeo,
   onSyncGeo,
+  syncingShipments,
+  onSyncShipments,
 }: {
   config: ProviderConfig;
   company: DeliveryCompany | null;
@@ -36,20 +40,18 @@ export function CompanySettingsSection({
   onSyncDesks: () => void;
   syncingGeo: boolean;
   onSyncGeo: () => void;
+  syncingShipments: boolean;
+  onSyncShipments: () => void;
 }) {
   const t = useT("delivery_companies");
   const isConnected = company?.isConnected ?? false;
-  const hasWebhook =
-    providerCode === "zr_express"
-      ? !!company?.webhookEndpointId
-      : providerCode === "yalidine"
-        ? !!company?.webhookSecretSet
-        : false;
-  const supportsWebhook = providerCode === "zr_express" || providerCode === "yalidine";
-  const isEcotrackProvider = providerCode === "ecotrack" || providerCode.endsWith("_ecotrack");
-  // Only carriers that match parcel addresses by exact name strings need
-  // the geo-name map (Yalidine). Others dispatch with reference names.
-  const matchesByName = providerCode === "yalidine";
+  const webhook = webhookSetup(config, company);
+  const hasWebhook = webhook.kind !== "none" && webhook.ready;
+  const supportsWebhook = webhook.kind !== "none";
+  const isEcotrackProvider = config.provider === "ecotrack";
+  // Carriers that match a parcel's address by their own place names need
+  // the geo-name map; the others take reference names.
+  const matchesByName = company?.capabilities?.geoNames ?? false;
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -178,6 +180,18 @@ export function CompanySettingsSection({
               <RefreshCw size={14} className={cn(syncingDesks && "animate-spin")} />
               {t("sync_desks")}
             </Button>
+            {company?.capabilities?.history && canManage && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onSyncShipments}
+                disabled={syncingShipments || !isConnected}
+                className="justify-start"
+              >
+                <Truck size={14} className={cn(syncingShipments && "animate-pulse")} />
+                {t("sync_shipments")}
+              </Button>
+            )}
             {matchesByName && (
               <Button
                 type="button"

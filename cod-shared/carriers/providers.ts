@@ -41,3 +41,19 @@ export function maskedSettings(stored: string | null): Record<string, unknown> |
     Object.entries(settings as Record<string, unknown>).map(([k, v]) => [k, isSecretSetting(k) && typeof v === "string" ? maskSecret(v) : v]),
   );
 }
+
+/**
+ * What a ZR Express tenant's own state names can be mapped to — set per
+ * company (`providerConfig.statusMap`), winning over ZR's standard workflow.
+ */
+export const ZR_MAPPABLE_MEANINGS = [
+  "out_for_delivery",
+  "delivered",
+  "collection",
+  "return_started",
+  "returned",
+  "cancelled",
+  "failed_attempt",
+  "exception",
+  "progress",
+] as const;

@@ -18,6 +18,7 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { listAllDeliveryCompanies } from "@/features/delivery/api";
 import type { DeliveryCompany, ProviderConfig } from "@/features/delivery/types";
 import { PROVIDER_CONFIGS } from "@/features/delivery/types";
+import { webhookSetup } from "@/features/delivery/model";
 import { Alert, EmptyState, PageHeader, SearchInput } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -122,12 +123,8 @@ function DeliveryCompaniesList() {
       {visibleProviders.map((provider) => {
         const company = companies.find((item) => item.code === provider.code);
         const isConnected = company?.isConnected ?? false;
-        const hasWebhook =
-          provider.code === "zr_express"
-            ? !!company?.webhookEndpointId
-            : provider.code === "yalidine"
-              ? !!company?.webhookSecretSet
-              : false;
+        const webhook = webhookSetup(provider, company ?? null);
+        const hasWebhook = webhook.kind !== "none" && webhook.ready;
 
         return (
           <a
@@ -182,12 +179,10 @@ function DeliveryCompaniesList() {
                   {t("capability_desk")}
                 </span>
               )}
-              {provider.supportsTracking && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <TrendingUp size={9} />
-                  {t("capability_tracking")}
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <TrendingUp size={9} />
+                {t(provider.updates === "webhook" ? "updates_live" : "updates_checked")}
+              </span>
               {hasWebhook && (
                 <span className="inline-flex items-center gap-1 rounded-md border border-[var(--status-confirmed-border)] bg-[var(--status-confirmed-bg)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-confirmed-text)]">
                   <Zap size={9} />

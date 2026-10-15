@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { CARRIER_PROVIDERS, CarrierError, OPTIONAL_MEMBER_CAPABILITY, type CarrierAdapter } from "./contract";
-import { buildCarrier, carrierCapabilities, carrierWebhook, defaultProviderForCode, mergeProviderConfig, type CarrierCompany } from "./registry";
+import { buildCarrier, carrierCapabilities, carrierWebhook, mergeProviderConfig, type CarrierCompany } from "./registry";
 
 const companies: Record<string, CarrierCompany> = {
   yalidine: { provider: "yalidine", providerConfig: null, apiToken: "t", apiUserGuid: "id", apiEndpoint: null },
@@ -105,18 +105,6 @@ describe("building a company's adapter", () => {
     expect(adapter.interpret({ vocabulary: "state", value: "Livraison effectuée" })).toEqual({ kind: "milestone", milestone: "delivered" });
     expect(adapter.interpret({ vocabulary: "state", value: "Au hub" })).toEqual({ kind: "progress" });
     expect(adapter.interpret({ vocabulary: "state", value: "Retourné" })).toEqual({ kind: "milestone", milestone: "returned" });
-  });
-});
-
-describe("a new company's default provider", () => {
-  it("follows the dashboard's preset codes", () => {
-    expect(defaultProviderForCode("yalidine")).toBe("yalidine");
-    expect(defaultProviderForCode("guepex")).toBe("yalidine");
-    expect(defaultProviderForCode("zr_express")).toBe("zr_express");
-    expect(defaultProviderForCode("noest")).toBe("noest");
-    expect(defaultProviderForCode("ecotrack")).toBe("ecotrack");
-    expect(defaultProviderForCode("tnt_ecotrack")).toBe("ecotrack");
-    expect(defaultProviderForCode("maystro")).toBeNull();
   });
 });
 

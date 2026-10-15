@@ -13,8 +13,9 @@ import { and, asc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { webhookEvents } from "../db/schema";
 
-export const INBOX_RESULTS = ["pending", "ok", "ignored", "unmatched", "unknown_status", "deferred_settlement", "error", "dead"] as const;
-export type InboxResult = (typeof INBOX_RESULTS)[number];
+import { RETRYABLE_RESULTS, type InboxResult } from "./results";
+
+export { INBOX_RESULTS, RETRYABLE_RESULTS, type InboxResult } from "./results";
 
 /** What a processed event turned out to be. */
 export type InboxSettlement = Exclude<InboxResult, "pending" | "error" | "dead">;
@@ -163,7 +164,7 @@ export async function requeueInboxEvent(db: AppDb, id: string): Promise<boolean>
     db
       .update(webhookEvents)
       .set({ result: "pending", attempts: 0, nextAttemptAt: new Date().toISOString(), errorMsg: null })
-      .where(and(eq(webhookEvents.id, id), inArray(webhookEvents.result, ["error", "dead", "unmatched", "unknown_status", "unmapped"]))),
+      .where(and(eq(webhookEvents.id, id), inArray(webhookEvents.result, [...RETRYABLE_RESULTS]))),
   ]);
   return ((result as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0;
 }
