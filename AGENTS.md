@@ -182,6 +182,12 @@ other is how these drift.
   still exist in D1 but not in the Drizzle schema: SQLite cannot drop a
   column a table `FOREIGN KEY` clause names, so migration 0041 emptied them.
   Never read or write them.
+- **The dashboard never re-implements delivery rules.** It reads them from
+  cod-shared — the lifecycle, the stages, the permission each shipment
+  action takes (`shipments/actions.ts`), the reports a kind allows — and
+  offers only the actions a shipment's `actions` list opens. A carrier is
+  told apart by its `provider` and `capabilities`, never by its company code
+  (`endsWith("_ecotrack")` and the like are the old way).
 - **Store languages are rows, not a column** (ADR 0005): `stores.lang` is
   the primary, `store_locales` lists every added language with a `published`
   flag, and only published ones reach `/store/config`. The supported list

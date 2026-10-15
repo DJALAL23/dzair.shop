@@ -1,114 +1,79 @@
 # Delivery Context
 
-How CodFlow hands orders to third-party carriers in Algeria: company connections, shipment creation and validation, tracking, and stop-desk pickup.
+The carrier companies a store ships with in Algeria: how each is connected,
+what its carrier can do, how its updates reach CodFlow, and its stop desks. An
+order's delivery itself — the shipment, its handoff, history and actions —
+is the Shipments context (`shipments/CONTEXT.md`).
 
 ## Language
 
 ### Carrier Setup
 
 **Delivery Company**:
-A third-party carrier connected via API (Yalidine, NOEST, ZR Express, Packers/EcoTrack). Stores API credentials and capabilities only — never prices. What the customer pays comes from shipping rules; what the carrier invoices is settled out-of-band.
+A carrier account the store ships with (Yalidine, Guepex, ZR Express, NOEST, an EcoTrack-platform courier). Holds credentials, settings and the delivery types it offers — never prices: what the customer pays comes from shipping profiles, what the carrier invoices is settled outside CodFlow.
 _Avoid_: Shipper, logistics partner, courier account
 
-**Company Code**:
-Short lowercase unique identifier selecting the integration adapter (`yalidine`, `noest`, `zr_express`, `ecotrack`).
-_Avoid_: Provider slug, brand name, company slug
+**Provider**:
+The carrier platform a company runs on, naming the adapter that talks to it: `yalidine` (Yalidine and Guepex), `zr_express`, `noest`, `ecotrack` (the 82 EcoTrack couriers). Set when the company is created, never guessed from its code; a company with none cannot take parcels.
+_Avoid_: Company code (that only identifies the company), brand
 
-**EcoTrack Family**:
-Companies running on the EcoTrack platform — code is `ecotrack` or ends in `_ecotrack` (e.g. `packers_ecotrack`). One shared adapter; defaults to manual validation.
-_Avoid_: Packers (that is one member of the family), ecotrack carriers
+**Provider Settings** (`providerConfig`):
+What the platform needs beyond credentials, validated by the adapter: Yalidine's platform (`yalidine` | `guepex`) and sender's wilaya, ZR's own state names (`statusMap`). Secrets in it leave the server masked.
+_Avoid_: Notes (free text for the team, never settings)
 
 **Connection**:
-API credentials stored for a company. Credentials are write-only — responses expose `isConnected`, never the tokens themselves.
+API credentials stored for a company. Write-only — responses say `isConnected`, never the tokens.
 _Avoid_: Linked, paired, activated
 
-**Auto-Validate**:
-Company setting deciding what happens immediately after Dispatch: `true` = Validation runs at once (order advances Out for Delivery, parcel becomes Locked at Carrier); `false` = parcel waits as Dispatched until someone performs Manual Validation.
-_Avoid_: Auto-confirm, auto-approve, instant validation
+**Capabilities**:
+What a company's carrier can do at all, known from its provider alone: home and stop-desk delivery, separate validation, bulk creation, the parcel fields it takes, edit, cancel, remarks, label, history, find by reference, new attempts, returns, and how updates arrive. A shipment's actions are computed from them.
+_Avoid_: Features, supports flags
 
-**Locked at Carrier**:
-Carrier-side state after Validation where edits and deletes are refused. Refusal style varies: EcoTrack silently ignores late updates, NOEST and Yalidine reject them outright.
-_Avoid_: Frozen, immutable, read-only
+**Auto-Validate**:
+Whether a created parcel is sent to the courier at once (`true`) or waits for the team to validate it (`false`, the default for EcoTrack couriers, whose parcels lock once validated).
+_Avoid_: Auto-confirm, auto-approve
+
+### Updates
+
+**Webhook Carrier**:
+Yalidine and ZR Express push status updates. ZR's endpoint is registered in one click (its signing secret is fetched and stored); Yalidine's secret is pasted from its dashboard. A company is recognised by whose secret verifies the signature.
+_Avoid_: Live carrier
+
+**Pull Carrier**:
+EcoTrack couriers, NOEST and Guepex push nothing: their open parcels are read every five minutes by the cron and on demand ("Check shipments now", `sync-shipments`).
+_Avoid_: Polling carrier
+
+**Webhook Inbox**:
+Every pushed event, stored once, answered at once and processed after (`webhook_events`): `ok`, `ignored`, `unmatched` (no shipment has that parcel), `unknown_status` (recorded, but not understood), `deferred_settlement` (a money event), `error` (retried with backoff) or `dead` (tries spent). What went wrong can be processed again by hand.
+_Avoid_: Webhook log
+
+**ZR State Names**:
+ZR tenants can rename their states. A name ZR's standard workflow does not know is mapped by the merchant to what it means for the delivery (out for delivery, delivered, returned…); a name nobody mapped is an unknown status, never guessed.
+_Avoid_: Status mapping to order statuses (orders have no delivery statuses)
 
 ### Stop Desks
 
 **Stop Desk Sync**:
-Explicit admin action pulling desks from the carrier API into the local cache. Reads never call the carrier live; desks that disappeared at the carrier are deleted on the next sync.
+An explicit action pulling a carrier's desks into the local cache. Reads never call the carrier; desks the carrier dropped are removed on the next sync, and the merchant's on/off choice is kept.
 _Avoid_: Import, refresh, live lookup
 
 **Station Code**:
-Carrier-specific identifier of a pickup desk, required on every stop-desk dispatch (postal code for EcoTrack, station code for NOEST, center id for Yalidine, territory UUID for ZR Express).
-_Avoid_: Desk ID, branch code, office number
-
-### Shipment Lifecycle
-
-**Shipment Record**:
-The carrier-side handle persisted at dispatch: tracking number, label URL, validated flag. Carries deliberately no status — the Order owns the lifecycle.
-_Avoid_: Parcel record, delivery record
-
-**Manual Validation**:
-A team member confirming a dispatched parcel at the carrier. Only meaningful when Auto-Validate is false; moves the order Dispatched → Out for Delivery.
-_Avoid_: Approve shipment, confirm dispatch
-
-**Update at Carrier**:
-Editing shipment details (customer info, COD amount) before Validation; changed fields sync back onto the order record.
-_Avoid_: Edit shipment, modify parcel
-
-**Cancel Shipment**:
-Deleting the parcel at the carrier before Validation. Clears the tracking number and resets the order to Ready so it can be dispatched again. Not the same as cancelling the Order.
-_Avoid_: Cancel order, void shipment
-
-**Deferred Label**:
-Placeholder stored when the carrier returns no label URL at creation (ZR Express exposes labels later via short-lived signed URLs); the real PDF is resolved through the label proxy on demand.
-_Avoid_: Missing label, pending label
-
-**Remark**:
-Note attached to the shipment at the carrier, visible to carrier and sender, permitted any time after dispatch. Only EcoTrack truly supports remarks; Yalidine and ZR Express adapters are documented no-op stubs.
-_Avoid_: Note, comment
-
-### Tracking
-
-**Tracking Events**:
-Chronological carrier history (pickup, hub reception, transit, attempts, terminal state) pulled on demand. All four providers support pulls; only Yalidine and ZR Express push inbound webhooks.
-_Avoid_: Live tracking, tracking feed
-
-**Delivery Attempts**:
-Count of failed doorstep attempts (Yalidine's failed-attempt event). The order stays Out for Delivery; only the counter moves.
-_Avoid_: Failed deliveries, retries
-
-**Status Mapping**:
-Translation of carrier state names into CodFlow order statuses. Yalidine uses a fixed system-wide French enum; ZR Express state names are free text, so admins layer custom mappings over a small default set.
-_Avoid_: Translation table, sync rules
-
-**Regression Guard**:
-Webhook-driven status changes can only advance an order forward through ranked statuses — never backward. Delivered, Returned, Cancelled are terminal ranks.
-_Avoid_: Rollback protection
-
-**Return Signal**:
-ZR Express's `isReturn` flag — that carrier's only fully reliable terminal signal, hardcoded to Returned and bypassing all Status Mapping.
-_Avoid_: Return event, RMA
+A carrier's identifier of a pickup desk, required on a stop-desk parcel (postal code for EcoTrack, station code for NOEST, center id for Yalidine, territory UUID for ZR).
+_Avoid_: Desk ID, branch code
 
 ## Boundaries
 
 Terms owned by neighboring contexts — use them, don't redefine them here:
 
-- **Dispatch, Tracking Number, Bulk Dispatch, order statuses** (Ready, Dispatched, Out for Delivery, …): Orders context (`orders/`)
-- **Driver Assignment, Manual Delivery**: Orders context; driver records themselves live in `drivers/`
-- **Settlement, COD Remittance, Pending Cash**: Payments context (`driver-payments/`)
-- **Delivery Fee resolution, Shipping Profile, Wilaya/Commune reference data**: `shipping-profiles/` and `wilayas/` — carriers never price a delivery
+- **Shipment, handoff, milestones, a shipment's actions**: Shipments (`shipments/`)
+- **Order processing and stage**: Orders (`orders/`)
+- **The store's own drivers and their settlement**: Drivers and Payments
+- **Delivery fees**: shipping profiles — carriers never price a delivery
 
 ## Edge Cases
 
-**Mutual exclusion**: Company dispatch and driver assignment are exclusive; each side blocks the other.
+**A company that carried a shipment is never deleted**: `COMPANY_HAS_ACTIVE_SHIPMENTS` while one is open, `COMPANY_HAS_SHIPMENTS` after; set it inactive. One that never carried any goes with its call log and inbox.
 
-**Re-dispatch guard**: Dispatching again is blocked while a tracking number exists; Cancel Shipment clears it and reopens the order.
+**An inactive company keeps its parcels**: its open shipments can still be labelled, edited, cancelled and synced.
 
-**Validation failure ≠ dispatch failure**: If auto-validation errors after the parcel was created, the dispatch still succeeded — the failure is logged and the order advances anyway.
-
-**Bulk dispatch partial success**: Some parcels failing inside a bulk call is a normal outcome reported per order; only total failure is an error.
-
-**Stop desk needs a station**: A stop-desk order without a Station Code is rejected before any carrier call.
-
-**Deletion guards**: Companies with live (non-terminal) orders cannot be deleted; the same protection applies to drivers with active orders.
-
-**Webhook contract**: Receivers always answer 200 and deduplicate per event id; unrecognized states are logged as unmapped — never guessed.
+**Webhook contract**: receivers answer at once and store each event once; processing never runs before the answer.

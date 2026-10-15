@@ -1,90 +1,94 @@
 # Payments Context
 
-How cash and fees actually move between the shop and its drivers: settling delivered orders, stamping them as paid, and keeping the driver ledger honest.
+How cash and fees move between the shop and its own drivers: settling the
+shipments a driver delivered, each part once, and keeping the driver's ledger
+honest. Carrier companies' payouts are not settled here.
 
 ## Language
 
 ### Settlement Types
 
 **Settlement**:
-One payment event reconciling a batch of delivered orders between shop and driver. The only way money "moves" in the system — everything else is bookkeeping.
+One payment recording money that changed hands for a batch of a driver's delivered shipments. The only way money "moves" in the system — everything else is bookkeeping.
 _Avoid_: Payout, payoff, transaction
 
 **COD Remittance**:
-Settlement type where the driver hands collected customer cash back to the shop (Driver → Shop). Stamps each order's COD as paid.
+The driver hands the collected customer cash back to the shop (Driver → Shop). Settles each shipment's `cod` part.
 _Avoid_: Cash deposit, collection return
 
 **Fee Payment**:
-Settlement type where the shop pays the driver their earned delivery fees (Shop → Driver). Leaves COD balances untouched.
+The shop pays the driver their fees (Shop → Driver). Settles each shipment's `fee` part; the cash is untouched.
 _Avoid_: Salary, wage payment, commission payout
 
 **Net Settlement**:
-Settlement type doing both at once: the driver remits the COD total minus their earned fees (still Driver → Shop). Marks both the COD and the fee sides of every order as settled.
+Both at once: the driver remits the cash less their fees (still Driver → Shop). Settles both parts of every shipment in it — so it takes only shipments with neither part settled.
 _Avoid_: Combined payment, hybrid settlement
 
 ### Mechanics
 
 **Payment Record**:
-The permanent receipt of a settlement: type, amount, order count, audit attribution. Append-only — no endpoint edits or deletes one.
+The permanent receipt of a settlement: type, amount, shipment count, who recorded it. Append-only — no endpoint edits or deletes one.
 _Avoid_: Invoice, receipt log
 
+**Payment Line**:
+One part (`cod` or `fee`) of one shipment, settled by one payment (`driver_payment_lines`). Unique per shipment and part: a part is settled once, ever.
+_Avoid_: Stamp, paid flag
+
 **Server-Authoritative Amount**:
-The rule that settlement amounts are never accepted from the caller. The server reads each order's frozen values and computes the total from them.
+Settlement amounts are never taken from the caller: the server sums the shipments' frozen cash and fees.
 _Avoid_: Calculated total, auto amount
 
 **Frozen Driver Fee**:
-The per-order fee copied onto the order at driver assignment time; later pay-rate changes never touch it. All settlement math runs on these frozen values, so books stay deterministic.
+The driver's fee for the wilaya, copied onto the shipment when the order is given to the driver; later pay-rate changes never touch it.
 _Avoid_: Current rate, retroactive fee
 
 **Double-Settlement Guard**:
-An order can settle once per money kind — once for COD, once for fees. A second attempt naming an already-stamped order is rejected.
+A payment naming a part already settled — or settled by a payment recorded at the same moment — is refused whole, with nothing recorded (`PAYMENT_ALREADY_SETTLED`). The payment, its lines and the ledger change in one batch.
 _Avoid_: Duplicate check, replay protection
 
-**Pending Settlement Orders**:
-Delivered orders of a driver whose COD has not been remitted yet. The pre-settlement review list.
-_Avoid_: Unsettled orders, open balance, outstanding deliveries
+**Pending Settlements**:
+A driver's delivered shipments with the cash, the fee, or both still to settle (`codPaymentId` / `feePaymentId` null). The pre-settlement review list.
+_Avoid_: Unsettled orders, open balance
 
 **Audit Attribution**:
-Every Payment Record names who created it, taken from the authenticated user and impossible to override. AI-created settlements record a generic agent identity plus the declared agent name.
+Every Payment Record names who recorded it: the signed-in user, or for an AI agent the person who granted its access. Never overridable.
 _Avoid_: Created by field, user stamp
 
 ### Ledger & Balances
 
 **Pending Cash**:
-Customer cash a driver has collected but not yet remitted. Held in trust — a liability of the driver. Grows on delivery, shrinks on any COD movement.
+Customer cash a driver has collected but not yet remitted — a liability of the driver. Grows when a delivery is recorded, shrinks with a COD Remittance or Net Settlement.
 _Avoid_: Cash on hand, wallet balance
 
 **Total Earnings**:
-Cumulative frozen fees across the driver's delivered orders. A liability of the shop.
+Cumulative frozen fees of the driver's deliveries — a liability of the shop.
 _Avoid_: Salary earned, payout balance
 
 **Total Paid**:
-Cumulative customer cash the driver has handed back to the shop.
+Cumulative customer cash the driver has handed back.
 _Avoid_: Payouts received, salary paid
 
-**Fees-Paid Implicit**:
-There is no counter for fees already paid; it is derived by subtracting Fee Payment amounts from Total Earnings.
-_Avoid_: Fees balance, fees counter
+**Cash Drift**:
+Pending Cash against the cash of delivered shipments with no `cod` line. Non-zero means the counter and the shipments disagree (an old bug, a hand edit); the driver page shows it.
+_Avoid_: Discrepancy, mismatch
 
 ## Boundaries
 
 Terms owned by neighboring contexts — use them, don't redefine them here:
 
-- **Driver identity, availability status, vehicle, compensation grid**: `drivers/` folder (a sparse compensation grid silently pays 0)
-- **When Pending Cash / Total Earnings grow**: the delivered transition in the Orders context triggers those increments — manual or webhook-driven alike
-- **COD Amount composition** (items + delivery fee − discounts): Orders context
-- **What the customer pays for delivery**: shipping profiles — customer pricing and driver money are fully decoupled and never reconcile against each other
+- **Driver identity, availability, vehicle, pay grid**: `drivers/` (a wilaya with no fee in the grid pays 0)
+- **When a delivery is recorded**: the shipment's delivered milestone (`shipments/`), reported by the merchant for a driver
+- **COD Amount composition** (items + delivery fee − discounts): Orders
+- **What the customer pays for delivery**: shipping profiles — never reconciled against what drivers are paid
 
 ## Edge Cases
 
-**Eligibility is strict and oddly named**: Every selected order must belong to the driver AND be delivered; anything else surfaces as `ORDER_NOT_FOUND` even when the order merely belongs to another driver.
+**Not the driver's delivered shipment**: any shipment in the request that is not a delivered shipment of this driver refuses the whole payment (`SHIPMENT_NOT_SETTLEABLE`, naming them).
 
-**Overpayment is impossible by construction**: Since amounts are server-computed from frozen values, no balance-sufficiency check exists — none is needed.
+**Net Settlement can land at zero or below**: when fees meet or exceed the cash, the amount is ≤ 0; legal, worth watching.
 
-**Net Settlement can land at zero or below**: If frozen fees meet or exceed the COD total, the computed amount goes ≤ 0 with no guard — legal today, worth watching.
+**Counters move by the cash, never the net**: a Net Settlement lowers Pending Cash and raises Total Paid by the full cash.
 
-**Counters move by COD total, never the net**: Even a Net Settlement adjusts Pending Cash and Total Paid using the full COD sum, not the netted amount.
+**A settled delivery keeps its order**: an order whose shipment has a payment line cannot be deleted (`ORDER_HAS_SETTLEMENT`).
 
-**History forgives unknown drivers**: Listing payments or pending orders for a nonexistent driver returns an empty list, not an error.
-
-**No currency column exists**: All money is DZD by convention; nothing stores or converts currency.
+**No currency column**: all money is DZD.

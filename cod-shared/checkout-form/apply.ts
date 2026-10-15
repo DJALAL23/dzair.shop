@@ -201,7 +201,7 @@ export function applyCheckoutPolicy(
   // that still arrives is a stale page or a script posting straight at the API —
   // dropped, like a hidden note or email. The dispatch guard refuses a HOME
   // parcel with no address at the carrier boundary, so the platform never
-  // quietly ships one the carrier would bounce (orders/dispatch.ts).
+  // quietly ships one the carrier would bounce (shipments/carrier-handoff.ts).
   const address = policy.address === "hidden" ? "" : trimmed(input.address);
   // Home delivery only: a stop-desk parcel is collected at the desk, so an
   // address requirement there would block orders for no delivery benefit.

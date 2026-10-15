@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- orders & shipments: an order's delivery is its shipment — a carrier's parcel
+  or the store's own driver (ADR 0006, migrations 0038–0041). The order keeps
+  its processing (new → confirmed → preparing → ready, or cancelled); the
+  shipment carries the tracking, the history as each carrier reported it and
+  what CodFlow concluded, and milestones set once with their effects
+  (restock, customer spend, driver cash). Existing orders are migrated with a
+  preflight and a verify script (see docs/BREAKING-CHANGES.md)
+- handoff: one path for one order or many (`POST /orders/{id}/shipment`,
+  `/shipments/bulk`, `/shipments/driver-bulk`); a carrier is called once per
+  order however many clicks race, an unconfirmed creation is kept as
+  `unknown` and resolved — found by the order number, given its tracking
+  number, or released — never sent twice
+- shipments: actions computed from each carrier's capabilities and the
+  shipment's state (validate, edit the parcel, void, notes, label, ask a
+  return, request a new attempt, confirm a return, sync, report progress);
+  the routes refuse what is not open, the dashboard offers only what is
+- inbound: webhooks land in an inbox, are answered at once and processed
+  after, retried with backoff and retried by hand; pull-only carriers
+  (EcoTrack, NOEST, Guepex) are synced every five minutes and on demand
+- settlement: a driver payment settles shipments, each part (cash, fee) once
+- dashboard: the order list as the merchant's work queues with counts and a
+  "needs you" view, server-side paging and tracking-number search; shipping
+  one or many ready orders to a carrier or a driver; the order page's
+  delivery card with its history and the actions open now; units refused at
+  the door; the overview by queue with the delivery success rate; driver
+  settlement by shipment; carrier settings by platform (Guepex added), ZR's
+  own state names by meaning, the webhook inbox with retry
+- MCP: `handOffOrderToCarrier`, `handOffOrderToDriver`, `reportShipmentEvent`,
+  `getShipment`, `listDeliveryCompanies`; `getOrderDetails` returns the order
+  with its shipment and stage
+- api: the published OpenAPI document is checked against real answers
+  (strictly — an undeclared field is drift), and every error status documents
+  the error body
+
+
 - checkout-form: the storefront order form is configurable per store (migration
   0031 + `stores.checkout_form_json`) — require or hide the address, notes and
   email, turn a delivery option off, and add up to 5 questions of the
@@ -147,6 +182,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- an AI agent's writes are recorded as the person who granted the access,
+  never as "ai-agent" or a name the model chose
+- order responses no longer send the shopper's ad-click signals (IP address,
+  user agent, fbc, fbp)
+- a customer's return rate counts refused parcels again (it read an order
+  status no longer used)
+- the driver list counts open deliveries on the server instead of downloading
+  every order
+- a company named "guepex" is no longer given Yalidine's platform
 - delivery: **product-level shipping profiles were silently ignored at
   checkout** — a product assigned its own profile was charged the store
   default, so every order of that product under-collected (or over-collected)
@@ -204,8 +248,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are gone; the sharp stub override (`vendor/sharp-stub`) was a cod-client
   workaround and is removed with it
 - cod-client-astro/REFACTOR-CHECKPOINT.md (internal work log)
+- orders: the delivery routes on the order (`dispatch`, `assign-driver` and
+  the rest), `bulk-dispatch`, `reconcile-orders`, `webhook/mapping` and
+  `analytics/dashboard-stats`; the `company_shipments` and
+  `order_assignments` tables; the order's delivery statuses — all listed with
+  their replacements in docs/BREAKING-CHANGES.md
 
 ### Changed
+
+- delivery: acting on a shipment takes its kind's permission (a carrier's
+  `delivery:dispatch`, a driver's `orders:assign`); a driver or company that
+  carried a shipment is set inactive, never deleted
+- delivery companies answer `webhookSecretSet` and `capabilities`; a company
+  created without a provider gets none
 
 - dev tooling: vitest 4.1.11 → 5.0.0 (with `@vitest/ui` and
   `@vitest/coverage-v8`) across cod-server, cod-client-astro, and theme01 in

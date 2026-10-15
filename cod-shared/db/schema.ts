@@ -393,9 +393,9 @@ export const deliveryCompanies = sqliteTable("delivery_companies", {
   webhookEndpointId: text("webhook_endpoint_id"),
 
   /**
-   * If true, our dispatcher calls valid/order immediately after create/order (default).
-   * If false, the team must manually validate via POST /orders/:id/validate-shipment.
-   * Set false for Packers (ecotrack) — team controls when parcel enters courier flow.
+   * If true, a created parcel is sent to the courier at once (default).
+   * If false, the team validates each one (POST /shipments/{id}/validate) —
+   * the default for EcoTrack companies, whose parcels lock when validated.
    */
   autoValidate: integer("auto_validate", { mode: "boolean" }).notNull().default(true),
 

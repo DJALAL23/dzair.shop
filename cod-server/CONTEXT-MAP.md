@@ -8,11 +8,12 @@ Convention: one `CONTEXT.md` per endpoint folder; cross-folder terms live in the
 
 | Status | Context | File | Scope |
 |--------|---------|------|-------|
-| ✅ written | Orders | [./src/endpoints/orders/CONTEXT.md](./src/endpoints/orders/CONTEXT.md) | Order lifecycle, status transitions, COD workflow |
-| ✅ written | Delivery | [./src/endpoints/delivery-companies/CONTEXT.md](./src/endpoints/delivery-companies/CONTEXT.md) | Carrier integration, shipment tracking, dispatch, stop desks, webhook status mapping |
+| ✅ written | Orders | [./src/endpoints/orders/CONTEXT.md](./src/endpoints/orders/CONTEXT.md) | Order processing (lifecycle), the stage the merchant sees, COD workflow |
+| ✅ written | Delivery | [./src/endpoints/delivery-companies/CONTEXT.md](./src/endpoints/delivery-companies/CONTEXT.md) | Carrier companies: provider and settings, capabilities, webhook and pull updates, the inbox, stop desks |
+| ✅ written | Shipments | [./src/endpoints/shipments/CONTEXT.md](./src/endpoints/shipments/CONTEXT.md) | An order's delivery: handoff to a carrier or a driver, history, milestones, the actions open now |
 | ✅ written | Products | [./src/endpoints/products/CONTEXT.md](./src/endpoints/products/CONTEXT.md) | Product catalog, variants, inventory counting, lifecycle & storefront exposure |
 | ✅ written | Customers | [./src/endpoints/customers/CONTEXT.md](./src/endpoints/customers/CONTEXT.md) | Customer identity by phone, purchase ledger, groups & tags memberships |
-| ✅ written | Payments | [./src/endpoints/driver-payments/CONTEXT.md](./src/endpoints/driver-payments/CONTEXT.md) | Driver payouts, settlement, financial records, driver ledger |
+| ✅ written | Payments | [./src/endpoints/driver-payments/CONTEXT.md](./src/endpoints/driver-payments/CONTEXT.md) | Settling drivers' delivered shipments (cash, fees), payment lines, driver ledger |
 | ✅ written | Drivers | [./src/endpoints/drivers/CONTEXT.md](./src/endpoints/drivers/CONTEXT.md) | In-house workforce: identity, availability, per-wilaya pay grid, deletion guards |
 | ✅ written | Shipping Profiles | [./src/endpoints/shipping-profiles/CONTEXT.md](./src/endpoints/shipping-profiles/CONTEXT.md) | Customer delivery pricing: rate cards, commune overrides, fee resolution |
 | ✅ written | Wilayas | [./src/endpoints/wilayas/CONTEXT.md](./src/endpoints/wilayas/CONTEXT.md) | Algeria's 58 wilayas + communes as read-only reference geography (IDs, postal codes, bilingual names) |
@@ -20,7 +21,7 @@ Convention: one `CONTEXT.md` per endpoint folder; cross-folder terms live in the
 | ✅ written | Reviews | [./src/endpoints/reviews/CONTEXT.md](./src/endpoints/reviews/CONTEXT.md) | Moderation of order-anchored product reviews; live rating aggregates |
 | ✅ written | Stock | [./src/endpoints/stock/CONTEXT.md](./src/endpoints/stock/CONTEXT.md) | Inventory ledger: movements, manual adjustments, health alerts & valuation |
 | ✅ written | Variants | [./src/endpoints/variants/CONTEXT.md](./src/endpoints/variants/CONTEXT.md) | Sellable combinations of variable products: pricing, SKUs, deletion semantics (routes mounted via products/) |
-| ✅ written | Analytics | [./src/endpoints/analytics/CONTEXT.md](./src/endpoints/analytics/CONTEXT.md) | Dashboard metrics: order counts per lifecycle status (read-only, dashboard:view) |
+| ✅ written | Analytics | [./src/endpoints/analytics/CONTEXT.md](./src/endpoints/analytics/CONTEXT.md) | Dashboard metrics: orders by stage and needing attention (read-only) |
 | ✅ written | Abandoned Orders | [./src/endpoints/abandoned-orders/CONTEXT.md](./src/endpoints/abandoned-orders/CONTEXT.md) | Captured half-finished checkouts: session capture, 30-min sweep, recovery stats (storefront + dashboard surfaces) |
 | ✅ written | Images | [./src/endpoints/images/CONTEXT.md](./src/endpoints/images/CONTEXT.md) | R2 media pipeline: proxy & presigned uploads, immutable public serving, record linking |
 | ✅ written | Activity Logs | [./src/endpoints/activity-logs/CONTEXT.md](./src/endpoints/activity-logs/CONTEXT.md) | Admin-only audit trail: who did what across every context (fire-and-forget writes) |
@@ -35,14 +36,14 @@ Convention: one `CONTEXT.md` per endpoint folder; cross-folder terms live in the
 All endpoint folders are now documented — no candidates remain. Future folders follow the same convention: one CONTEXT.md per folder, registered here with a ✅ row.
 ## Relationships
 
-- **Orders → Delivery**: Orders are dispatched to delivery companies; tracking updates flow back
+- **Orders → Shipments**: A ready order is handed to a carrier or to the store's driver; its delivery is then its shipment
+- **Shipments → Delivery**: A carrier shipment calls its company's adapter; webhooks and pulls report back into the shipment's history
+- **Shipments → Orders, Products, Customers**: Milestones have effects — a return restocks the order, a delivery counts toward the customer's spend
+- **Shipments → Drivers**: A driver shipment freezes the driver's fee; its delivery credits the driver's ledger
+- **Drivers → Payments**: Settlements settle delivered shipments, each part (cash, fee) once; a driver who delivered is set inactive, never deleted
 - **Orders → Products**: Orders contain product lines; inventory is decremented on order creation
 - **Orders → Customers**: Each order belongs to a customer; auto-creates customer if not found
-- **Orders → Payments**: Delivered orders trigger driver payment records
 - **Store → Orders**: Public storefront creates orders; abandoned carts become abandoned orders
-- **Delivery ↔ Orders**: Bidirectional - orders push shipments, webhooks push tracking updates
-- **Orders → Drivers**: Manual delivery assigns orders to drivers; the delivered transition increments the driver ledger (delivered count, earnings, pending cash)
-- **Drivers → Payments**: Settlements are recorded per driver and stamp the settled orders; deleting a driver cascades away both compensations and payment history
 
 ## Shared Concepts
 

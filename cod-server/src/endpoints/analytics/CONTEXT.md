@@ -1,48 +1,50 @@
 # Analytics Context
 
-Ready-computed answers for dashboards: today a single status breakdown of every order in the store, designed to grow one efficient read query at a time.
+Ready-computed answers for dashboards: today the store's orders counted by
+the stage the merchant sees, designed to grow one efficient read query at a
+time.
 
 ## Language
 
 ### Metrics
 
-**Dashboard Stats**:
-The one published metric set: order counts grouped by lifecycle status, powering the summary cards.
-_Avoid_: KPIs, reports, insights
-
-**Status Breakdown**:
-The response shape — rows of `status` plus `count`, using the Orders context's lifecycle vocabulary verbatim.
-_Avoid_: Status distribution chart labels
+**Order Stages**:
+The one published metric set (`GET /analytics/order-stages`): orders counted by stage — their processing, then their shipment's delivery, the same stage as `GET /orders` — and how many need the merchant's attention. Powers the overview and the order list's queue counts.
+_Avoid_: KPIs, reports, status breakdown
 
 **Sparse Results**:
-Only statuses holding at least one order appear in the response; missing keys mean zero, and filling the gaps is the caller's job.
+Only stages holding at least one order appear; a missing stage means zero, and filling the gaps (or summing stages into queues) is the caller's job.
 _Avoid_: Zero-filled series
+
+**Needs Attention**:
+Orders whose delivery needs the merchant whatever their stage: a handoff the carrier never confirmed, a parcel the carrier cancelled, or one it flagged.
+_Avoid_: Alerts, problems
 
 **Single-Round-Trip Aggregation**:
 Every metric is one grouped database query — no stitching rows together in application code.
 _Avoid_: Multi-pass computation
 
-**Dashboard View Scope**:
-The single `dashboard:view` permission that gates everything here; no finer granularity exists.
+**Who May Read**:
+`dashboard:view` or `orders:read` — counting orders is reading them.
 
 ### Growth Rule
 
 **Query Home**:
-New reporting metrics belong as named functions beside this one in shared code — each self-contained, read-only, and individually testable.
+New reporting metrics belong as named functions beside this one in shared code (`cod-shared/queries/analytics.ts`) — each self-contained, read-only, and individually testable.
 _Avoid_: Inline SQL in handlers, cross-module metric mixing
 
 ## Boundaries
 
 Terms owned by neighboring contexts — use them, don't redefine them here:
 
-- **Status vocabulary and transitions**: Orders context — this module counts, never judges or moves
-- **Money metrics**: none exist here yet; revenue belongs to Payments/Orders when added
+- **Stages, statuses and their rules**: Orders (`cod-shared/orders/stage.ts`, `lifecycle.ts`) — this module counts, never judges or moves
+- **Money metrics**: none here yet; settlement belongs to Payments
 - **Product and stock health**: Products / Stock contexts own their own summaries
 
 ## Edge Cases
 
-**Lifetime totals only**: No date range parameters exist — counts span every order ever created, including ones placed moments ago.
+**Lifetime totals only**: no date range — counts span every order ever created.
 
-**Deleted orders vanish from history**: Since order deletion is permanent, hard-deleted orders leave these counts with no trace.
+**Deleted orders vanish**: a hard-deleted order leaves these counts with no trace.
 
-**Zeros are absent, not displayed**: A brand-new store receives an empty array rather than eleven zero rows — clients must handle the gap.
+**Zeros are absent**: a new store receives no stage rows and `needsAttention: 0`.

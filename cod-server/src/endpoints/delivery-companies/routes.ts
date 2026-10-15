@@ -594,7 +594,7 @@ deliveryCompaniesRouter.openapi(syncGeoNamesRoute.route, syncGeoNamesRoute.handl
 // POST /delivery-companies/:id/test-connection — verify stored credentials at the carrier
 deliveryCompaniesRouter.openapi(testConnectionRoute.route, testConnectionRoute.handler);
 
-// POST /delivery-companies/:id/reconcile-orders — pull-based status drift repair (EcoTrack only)
+// POST /delivery-companies/:id/sync-shipments — read the carrier's history of its open shipments now
 deliveryCompaniesRouter.openapi(syncShipmentsRoute.route, syncShipmentsRoute.handler);
 
 // PATCH /delivery-companies/:id/stop-desks/:code/toggle — toggle admin active flag
@@ -620,9 +620,7 @@ deliveryCompaniesRouter.openapi(unregisterWebhookRoute.route, unregisterWebhookR
 // PATCH /delivery-companies/:id/webhook/secret — save Yalidine webhook secret
 deliveryCompaniesRouter.openapi(saveYalidineSecretRoute.route, saveYalidineSecretRoute.handler);
 
-// PATCH /delivery-companies/:id/webhook/mapping — save ZR custom state name mapping
-
-// GET /delivery-companies/:id/webhook/events — read the inbound webhook event log
+// GET /delivery-companies/:id/webhook/events — the webhook inbox; POST …/{eventId}/retry processes one again
 deliveryCompaniesRouter.openapi(listWebhookEventsRoute.route, listWebhookEventsRoute.handler);
 deliveryCompaniesRouter.openapi(retryWebhookEventRoute.route, retryWebhookEventRoute.handler);
 

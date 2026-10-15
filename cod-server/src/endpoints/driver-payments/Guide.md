@@ -1,144 +1,94 @@
-The Financial Journey of an Order: A Beginner’s Guide to Cash and Compensation
+# The money of an order delivered by the store's own driver
 
-To the uninitiated, "delivery money" seems like a single figure. In reality, it is a sophisticated flow of data that ensures customers are charged correctly, drivers are paid fairly, and the business remains auditable. This guide explores how an order transforms from a digital request into a final physical payment.
+A beginner's guide to how cash and fees move when the shop delivers with its
+own drivers. (A carrier company collects and pays out on its own; that is not
+settled here.)
 
+---
 
---------------------------------------------------------------------------------
+## 1. Three numbers that never meet
 
+| Number | Set by | Answers |
+|---|---|---|
+| Customer delivery fee | Shipping profiles (per wilaya, per commune) | "What does the customer pay for delivery?" |
+| Driver fee | The driver's pay grid (per wilaya) | "What do I pay this driver for this region?" |
+| Payment | A settlement | "What cash or fees changed hands, for which deliveries?" |
 
-1. The Foundation: Distinguishing the Three Pillars of Delivery Finance
+A shop may charge the customer 600 DZD for delivery and pay the driver 350 DZD
+for the same run: the two are decoupled on purpose.
 
-Understanding financial systems requires separating different "buckets" of money. In delivery logistics, we track three distinct perspectives that rarely share the same numbers. These perspectives are computed at different times from different data tables.
+## 2. The order is created
 
-The Three Financial Perspectives
+The delivery fee is resolved (product profile, else the store default; the
+wilaya's rule and any commune override; then free-shipping offers), and:
 
-Perspective	Owner/Source	Key Question Answered
-Customer Delivery Fee	Shop Owner (Shipping Rules)	"What does the customer pay for delivery?"
-Driver Compensation	Shop Owner (Per Driver/Wilaya)	"What do I pay this specific driver for this region?"
-Driver Payment Record	Settlement Event (Shop & Driver)	"What cash or fees changed hands for specific orders?"
+    items + delivery fee − discounts = cash to collect (COD)
 
-The "So What?": The customer delivery fee and driver compensation are decoupled. For example, a shop might charge a customer 600 DZD for delivery but only pay the driver 350 DZD for that same route. This separation allows for business flexibility and independent margin management.
+No driver is involved yet.
 
-Now that we understand the separate buckets of money, let's follow a single order as it travels through the system.
+## 3. The order is given to a driver — the fee freezes
 
+When a ready order is given to a driver (`POST /orders/{id}/shipment` with
+`kind: "driver"`, or several at once through `/shipments/driver-bulk`), a
+**shipment** is created with the cash to collect and the driver's fee for the
+order's wilaya, copied from the pay grid. Changing the grid later never
+changes this shipment: the books stay deterministic.
 
---------------------------------------------------------------------------------
+## 4. The delivery is recorded — the ledger moves
 
+The merchant reports the driver's progress (`POST /shipments/{id}/events`):
+out for delivery, a failed attempt, delivered, or the goods back. The
+**delivered** milestone is set once, and only then the driver's ledger moves.
+Mohamed delivers an order with 2,000 DZD to collect and a 500 DZD fee:
 
-2. Phase One: Order Creation and the Initial Calculation
+| Counter | Before | After |
+|---|---|---|
+| Total delivered | 0 | 1 |
+| Total earnings | 0 DZD | 500 DZD |
+| Pending cash | 0 DZD | 2,000 DZD |
 
-When an order is first created, it enters the new status. At this stage, the system focuses solely on the customer's obligations.
+No money changed hands yet: Mohamed holds the shop's 2,000 DZD (his
+liability), and the shop owes him 500 DZD (its liability). Reporting
+"delivered" twice changes nothing — the shipment is closed after the first.
 
-The system calculates the deliveryFee using a rigorous three-step hierarchy:
+## 5. Settling up — money moves
 
-* Profile Check: The system looks for specific product overrides; if none exist, it reverts to the store default.
-* Location Rules: It consults the Wilaya (province) rules and any specific Commune (district) overrides.
-* Discounts: Finally, it applies any active "free shipping" offers to the calculated fee.
+`POST /driver-payments` settles a batch of the driver's delivered shipments
+(`shipmentIds`):
 
-Once the delivery fee is set, the system calculates the Cash on Delivery (COD) Amount using the following formula:
+| Type | Meaning | Direction | Settles |
+|---|---|---|---|
+| `cod_remittance` | The driver hands over the cash | Driver → Shop | each shipment's `cod` part |
+| `fee_payment` | The shop pays the fees | Shop → Driver | each shipment's `fee` part |
+| `net_settlement` | Cash less fees | Driver → Shop | both parts |
 
-Items + Delivery Fee - Discounts = COD Amount
+The server checks every shipment is this driver's and delivered, computes the
+amount from the frozen values (net: cash − fees), and records the payment, one
+**payment line** per part, and the ledger change in one batch. A part already
+settled — even by a payment recorded at the same moment — refuses the whole
+payment, with nothing recorded.
 
-At this stage, the order is "driver-agnostic"—no driver has been assigned, and no driver fee has yet been calculated.
+## 6. What is left to settle
 
-The order is now ready, but the most critical financial "lock" hasn't happened yet.
+`GET /driver-payments/{driverId}/pending` lists the delivered shipments with
+the cash, the fee, or both still open. The driver page shows them, the totals
+owed each way, and a warning when the pending-cash counter disagrees with the
+shipments (cash drift).
 
+### Good habits
 
---------------------------------------------------------------------------------
+- Add the driver's fee for a wilaya **before** giving them orders there; a
+  missing fee freezes as 0.
+- Never edit the ledger counters by hand; they follow the shipments.
+- A driver who has delivered is set inactive, never deleted — their history
+  stays.
 
+## 7. Where it lives
 
-3. Phase Two: The Driver Assignment (The "Financial Freeze")
-
-Once an order moves to the assigned status, the system triggers the assignDriver() query. This is a pivotal moment for the financial integrity of the system, establishing what we call Deterministic Settlement.
-
-The system looks up the specific pay grid for the assigned driver and their location. This value is immediately recorded on the order record as the driverFee.
-
-The Concept of the "Financial Freeze"
-
-When a driver is assigned, their fee is frozen on that specific order. Even if the shop owner changes the driver's pay rate in the settings later that day, the current order retains the original fee. This is intentional: it prevents retroactive price tampering, protects the agreement the driver made when accepting the run, and ensures that the final settlement remains deterministic and auditable.
-
-With the driver locked in and the fee frozen, the order moves to the field.
-
-
---------------------------------------------------------------------------------
-
-
-4. Phase Three: The Moment of Delivery (Updating the Ledger)
-
-When a driver successfully hands a package to a customer, the status flips to delivered. This change triggers Asynchronous Ledger Updates—side-effects that update the driver’s personal financial standing in the system.
-
-To visualize this, imagine a driver named Mohamed who is delivering an order with a 2,000 DZD COD Amount and a 500 DZD Driver Fee.
-
-Mohamed's Ledger: Before vs. After Delivery
-
-Metric	Before Delivery	After Delivery
-Total Delivered	0	1
-Total Earnings	0 DZD	500 DZD
-Pending Cash	0 DZD	2,000 DZD
-
-The "So What?": At this stage, the driver acts as a Bailee, holding the shop's funds in trust. These are strictly ledger updates; no physical money has changed hands between the shop and the driver. The pendingCash represents a liability for the driver, while totalEarnings represents a liability for the shop.
-
-These ledger numbers continue to grow until the reconciliation process, known as "Settling Up," occurs.
-
-
---------------------------------------------------------------------------------
-
-
-5. Phase Four: Settlement (How Physical Money Moves)
-
-Settlement is the process of reconciling the ledger. This is handled by the /api/driver-payments endpoint, which serves as the single source of truth for all money moving between the shop and the driver.
-
-Comparison of Settlement Types
-
-Type	Real-world Meaning	Money Direction	Database Impact
-cod_remittance	Driver returns the collected customer cash.	Driver → Shop	Sets codPaymentId
-fee_payment	Shop pays the driver their accumulated delivery fees.	Shop → Driver	Sets feePaymentId
-net_settlement	Driver returns cash minus their earned fees.	Driver → Shop (Net)	Sets both IDs
-
-The Settlement Sequence
-
-1. Server-Side Validation:
-  * The system verifies that every selected order is in the delivered status and belongs to the correct driver.
-  * The Double-Settlement Guard: The system checks for existing payment IDs. For COD types, codPaymentId must be NULL. For fee types, feePaymentId must be NULL. This prevents the same order from being settled twice.
-2. Execution and Stamping:
-  * Amount Computation: The server calculates the total based on the "frozen" fees. For net_settlement, the math is: amount = sum(codAmount) - sum(driverFee).
-  * Documentation: A driver_payments record is created.
-  * Order Stamping: Orders are updated with the new Payment ID to "lock" them against future settlement attempts.
-  * Total Adjustment: For COD movements, the driver's pendingCash is reduced and totalPaid is increased.
-
-The "So What?": Amounts are server-authoritative. Users cannot manually override the amount during settlement. By relying on the frozen values established in Phase Two, the system ensures the books always balance and remain audit-proof.
-
-Understanding how to settle is important, but knowing what is left to settle is the final piece of the puzzle.
-
-
---------------------------------------------------------------------------------
-
-
-6. Phase Five: Monitoring the Balance (The "What's Left" View)
-
-To maintain operational health, shop owners must monitor "unsettled" liability. The system identifies these orders by querying for any order where status = 'delivered' AND codPaymentId IS NULL.
-
-Best Practices for Humans
-
-* [ ] Monitor Coverage: Check the compensationWilayaCount on the driver detail page to ensure you have active pay rules for every region the driver enters.
-* [ ] Onboarding: Always add compensation rules before a driver starts a new region. If forgotten, the system defaults the driverFee to 0.
-* [ ] Hands-off Ledgers: Never edit "Pending Cash" or "Total Earnings" columns by hand. These are derived values; manual edits will desync the ledger from the auditable order history.
-* [ ] Respect the Freeze: Remember that changing a driver's pay rate today will not retroactively change the pay for orders already in the assigned status.
-
-By following this structured path, the complex flow of money becomes a transparent and auditable record.
-
-
---------------------------------------------------------------------------------
-
-
-7. The System Architecture Map (Appendix)
-
-For developers and technical auditors, the following table maps financial logic to the specific files within the system architecture.
-
-Financial Action	Code File Location
-Customer Fee Resolution	cod-server/src/endpoints/orders/resolve-fee.ts
-Driver Assignment & Fee Freezing	cod-server/src/endpoints/orders/queries.ts (assignDriver)
-Asynchronous Ledger Updates	cod-server/src/endpoints/orders/queries.ts (setStatus)
-Settlement Logic (Money Movement)	cod-server/src/endpoints/driver-payments/queries.ts
-Identifying Unsettled Orders	cod-server/src/endpoints/driver-payments/queries.ts (getPendingSettlementOrders)
-End-to-End Test (The Receipts)	cod-server/test-scripts/test-drivers-payments-complete.sh
+| What | Code |
+|---|---|
+| Customer fee | `cod-server/src/endpoints/orders/resolve-fee.ts` |
+| Giving orders to a driver, freezing the fee | `cod-server/src/endpoints/shipments/driver-handoff.ts`, `cod-shared/shipments/handoff.ts` |
+| Recording a delivery and its ledger effect | `cod-shared/shipments/record-events.ts` |
+| Settlement | `cod-shared/queries/driver-payments.ts` |
+| The receipts (tests) | `driver-payments/settlement.e2e.test.ts` |

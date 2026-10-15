@@ -56,7 +56,7 @@ export interface CheckoutFormPolicy {
    * Asked for home delivery only, and "hidden" is allowed: some merchants take
    * the address by phone after the order lands. Hiding it is safe because the
    * platform closes the loop it opens — dispatching a HOME order with no
-   * address is refused (orders/dispatch.ts), and the merchant adds it through
+   * address is refused (shipments/carrier-handoff.ts), and the merchant adds it through
    * the order's edit dialog, which is the same path every other data-entry
    * mistake takes. A stop-desk parcel is collected at the desk and needs none.
    */

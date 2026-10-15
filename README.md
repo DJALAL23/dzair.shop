@@ -66,7 +66,7 @@ E-commerce in Algeria is **95%+ Cash on Delivery (الدفع عند الاستل
 | **Your data locked in their system** | Can't export, can't migrate, vendor lock-in | **You own everything** — D1 database, R2 images, full control |
 | **Expensive hosting** | VPS servers, maintenance, scaling costs | **Serverless Cloudflare** — auto-scales, zero maintenance |
 | **4+ carrier portals** | Juggle Yalidine, ZR, NOEST, EcoTrack separately | **Unified carrier API** — one integration for all carriers |
-| **In-house drivers ignored** | No native driver dispatch or per-wilaya pay | **Built-in driver management** with compensation and cash settlement |
+| **In-house drivers ignored** | No native driver dispatch or per-wilaya pay | **Built-in driver management** with compensation and per-delivery cash settlement |
 | **Ads optimize for form fills, not deliveries** | Meta Pixel fires on checkout submit (30–50% refuse at door) | **Meta CAPI fires at actual delivery** — optimize ads for real buyers |
 
 **Deploy CodFlow to your own Cloudflare account in minutes. No monthly fees. No transaction cuts. 100% open-source (Apache 2.0).**
@@ -109,16 +109,18 @@ CodFlow v1.1.0 — here's what works today:
 - ✅ Trilingual: Arabic (RTL), French, English
 
 ### Delivery Engine
-- ✅ 4 Algerian carriers + EcoTrack (80+ couriers behind one API)
-- ✅ One-click shipment creation with printable labels
-- ✅ Real-time webhook tracking (Yalidine, ZR Express with HMAC verification)
-- ✅ Carrier delivery-zone name sync — dispatches carry the carrier's exact wilaya/commune spellings (Yalidine)
-- ✅ Dispatch-time delivery-type switching (home ⇄ stop desk) with wilaya-scoped desk picking
-- ✅ Webhook event log with per-event outcomes (applied / ignored / unmapped / error) per carrier
+- ✅ 4 carrier platforms behind one contract: Yalidine & Guepex, ZR Express, NOEST, and EcoTrack's 82 couriers
+- ✅ Orders as work queues — to confirm, to prepare, to ship, on the way, delivered, returns — with what needs you flagged
+- ✅ Ship one or many ready orders to a carrier or to your own driver; a carrier is never sent the same parcel twice, and an unconfirmed one is resolved, not re-sent
+- ✅ Each parcel's full history as the carrier reported it, and only the actions its carrier allows now (validate, edit, cancel, label, notes, new attempt, return)
+- ✅ Webhook updates (Yalidine, ZR Express, signature-verified) through an inbox with automatic retries; NOEST, EcoTrack and Guepex checked every 5 minutes
+- ✅ Webhook inbox per carrier with each event's outcome, and one-click retry of what went wrong
+- ✅ Carrier delivery-zone name sync — parcels carry the carrier's exact wilaya/commune spellings (Yalidine)
+- ✅ Shipping-time delivery-type switching (home ⇄ stop desk) with wilaya-scoped desk picking
 - ✅ Stop-desk catalog syncing across 58 wilayas
 - ✅ In-house driver fleet management
-- ✅ Per-wilaya driver compensation with cash settlement
-- ✅ Partial returns with automatic inventory restock
+- ✅ Per-wilaya driver compensation, frozen per delivery, with cash and fee settlement — each part settled once
+- ✅ Units refused at the door, restocked automatically
 
 ### Growth Engine
 - ✅ Meta Pixel (browser) + Conversions API (server) dual setup with event deduplication
@@ -133,7 +135,7 @@ CodFlow v1.1.0 — here's what works today:
 ### AI & Agentic (MCP)
 - ✅ RFC 9728 OAuth Protected Resource Discovery with dynamic client registration
 - ✅ OAuth login relay from the dashboard (login-ticket bridge)
-- ✅ 15 RBAC-gated tool sets (orders, products, stock, offers, landing pages, reviews, customers, drivers, etc.)
+- ✅ 17 RBAC-gated tool sets (orders, shipments, delivery companies, products, stock, offers, landing pages, reviews, customers, drivers, etc.)
 - ✅ Stateless elicitation with HMAC-sealed confirmation state
 - ✅ Compatible with Claude, Cursor, ChatGPT, LibreChat
 
@@ -303,7 +305,7 @@ wrangler secret put STORE_API_KEY
                │                     │
                │              ┌──────▼─────┐
                │              │ Carriers    │   Yalidine • ZR Express  (webhooks)
-               │              │  APIs       │   NOEST • EcoTrack       (tracking pull)
+               │              │  APIs       │   NOEST • EcoTrack • Guepex (pulled every 5 min)
                │              └─────────────┘
                │
                │        /images (R2)      /mcp (AI agents, OAuth-scoped)
