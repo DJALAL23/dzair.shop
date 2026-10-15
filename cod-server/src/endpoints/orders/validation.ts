@@ -6,7 +6,8 @@
 
 import { z } from "zod";
 import { parseOrderCursor } from "../../../../cod-shared/queries/orders";
-import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
+import { ORDER_STAGES, type OrderStage } from "../../../../cod-shared/orders/stage";
+import { SHIPMENT_KINDS } from "../../../../cod-shared/shipments/model";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
 
 export const createOrderSchema = z.object({
@@ -112,14 +113,26 @@ export const returnOrderProductSchema = z.object({
 
 export const orderFiltersSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional(),
-  stage: z.enum(ORDER_STAGES).optional().describe("Where the order stands overall: its processing, then its shipment's delivery"),
+  stage: z
+    .string()
+    .optional()
+    .transform((value, ctx) => {
+      if (!value) return undefined;
+      const stages = value.split(",").map((stage) => stage.trim());
+      const unknown = stages.filter((stage) => !(ORDER_STAGES as readonly string[]).includes(stage));
+      if (unknown.length) ctx.addIssue({ code: "custom", message: `Unknown stage: ${unknown.join(", ")}. Expected: ${ORDER_STAGES.join(", ")}` });
+      return stages as OrderStage[];
+    })
+    .describe("Where the order stands overall — its processing, then its shipment's delivery: one stage, or several separated by commas (new,unreachable)"),
   attention: z
     .enum(["true", "false"])
     .transform((v) => v === "true")
     .optional()
     .describe("true: only orders whose delivery needs the merchant (an unknown handoff, a parcel the carrier cancelled or flagged); false: only the others"),
+  kind: z.enum(SHIPMENT_KINDS).optional().describe("Only orders handed to a carrier, or to the store's driver"),
+  orderType: z.enum(["online", "offline"]).optional(),
   wilayaId: z.coerce.number().int().optional(),
-  search: z.string().optional(),
+  search: z.string().optional().describe("Order number, customer name, phone, or the parcel's tracking number"),
   limit: z.coerce.number().int().positive().max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
   cursor: z

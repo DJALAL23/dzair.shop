@@ -12,23 +12,9 @@ import type { CarrierCapabilities } from "@/carriers/contract";
 import { ERROR_CODES, type ErrorCode } from "../../../../cod-shared/errors/codes";
 import { checkVoid, isClosed, type DeliveryFacts } from "../../../../cod-shared/shipments/interpretation";
 import type { HandoffState, ShipmentKind } from "../../../../cod-shared/shipments/model";
+import { SHIPMENT_ACTIONS, type ShipmentAction } from "../../../../cod-shared/shipments/actions";
 
-export const SHIPMENT_ACTIONS = [
-  "validate",
-  "update",
-  "void",
-  "resolve",
-  "lookup",
-  "addRemark",
-  "listRemarks",
-  "label",
-  "askReturn",
-  "requestNewAttempt",
-  "confirmReturn",
-  "sync",
-  "report",
-] as const;
-export type ShipmentAction = (typeof SHIPMENT_ACTIONS)[number];
+export type { ShipmentAction };
 
 export interface ShipmentSubject {
   kind: ShipmentKind;

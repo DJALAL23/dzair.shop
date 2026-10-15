@@ -9,7 +9,8 @@ import { NOEST_CAPABILITIES } from "@/carriers/noest/adapter";
 import { YALIDINE_CAPABILITIES } from "@/carriers/yalidine/adapter";
 import { ZR_CAPABILITIES } from "@/carriers/zr_express/adapter";
 import type { CarrierCapabilities } from "@/carriers/contract";
-import { availableActions, checkAction, SHIPMENT_ACTIONS, type ShipmentAction, type ShipmentSubject } from "./actions";
+import { SHIPMENT_ACTIONS } from "../../../../cod-shared/shipments/actions";
+import { availableActions, checkAction, type ShipmentAction, type ShipmentSubject } from "./actions";
 
 const AT = "2026-10-14T09:00:00.000Z";
 

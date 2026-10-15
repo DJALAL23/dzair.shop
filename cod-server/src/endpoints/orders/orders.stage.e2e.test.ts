@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import type { OpenAPIHono } from "@hono/zod-openapi";
+import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
@@ -82,6 +83,40 @@ describe("the order list", () => {
     expect(ids(await list("?attention=false"))).toEqual(["carried", "driven", "dropped", "fresh", "waiting"]);
     expect(ids(await list("?stage=handoff_pending&attention=false"))).toEqual([]);
     expect(ids(await list("?status=ready&stage=in_transit"))).toEqual(["carried"]);
+  });
+
+  it("filters on several stages at once — a merchant's work queue", async () => {
+    expect(ids(await list("?stage=new,ready_to_ship"))).toEqual(["fresh", "waiting"]);
+    expect(ids(await list("?stage=in_transit,handoff_pending,delivered"))).toEqual(["carried", "driven", "lost"]);
+  });
+
+  it("shows each order's delivery at a glance: who carries it and its tracking number", async () => {
+    const rows = new Map((await list()).map((r) => [r.id, r]));
+    const carried = (await d1.db.select().from(schema.shipments).all()).find((s) => s.orderId === "carried")!;
+    expect(rows.get("carried")).toMatchObject({ shipmentKind: "carrier", carrierName: "Packers (manual)", trackingNumber: carried.trackingNumber });
+    const detail = (await json(await call("GET", "/api/orders/carried"))).data;
+    expect(detail.shipment).toMatchObject({ kind: "carrier", carrierName: "Packers (manual)", trackingNumber: carried.trackingNumber });
+    expect(rows.get("driven")).toMatchObject({ shipmentKind: "driver", carrierName: null, trackingNumber: null });
+    expect(rows.get("waiting")).toMatchObject({ shipmentKind: null, carrierName: null, trackingNumber: null });
+  });
+
+  it("filters by who carries it and by order type, and finds an order by its parcel's tracking number", async () => {
+    expect(ids(await list("?kind=carrier"))).toEqual(["carried", "lost"]);
+    expect(ids(await list("?kind=driver"))).toEqual(["driven"]);
+    await d1.db.update(schema.orders).set({ orderType: "offline" }).where(eq(schema.orders.id, "fresh"));
+    expect(ids(await list("?orderType=offline"))).toEqual(["fresh"]);
+    const tracking = (await d1.db.select().from(schema.shipments).all()).find((s) => s.orderId === "carried")!.trackingNumber!;
+    expect(ids(await list(`?search=${tracking}`))).toEqual(["carried"]);
+  });
+
+  it("pages with nextCursor until the last page", async () => {
+    const first = await json(await call("GET", "/api/orders?limit=4"));
+    expect(first.data).toHaveLength(4);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    const second = await json(await call("GET", `/api/orders?limit=4&cursor=${first.nextCursor}`));
+    expect(second.data).toHaveLength(2);
+    expect(second.nextCursor).toBeNull();
+    expect(new Set([...first.data, ...second.data].map((r: any) => r.id)).size).toBe(6);
   });
 
   it("refuses a stage or attention value it does not know", async () => {

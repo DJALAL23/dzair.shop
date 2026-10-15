@@ -20,6 +20,7 @@ import {
   communes,
   stockMovements,
   companyApiLogs,
+  deliveryCompanies,
   shipments,
 } from "../db/schema";
 import type { OrderStatus } from "../orders/lifecycle";
@@ -39,6 +40,7 @@ const driversAlias = aliasedTable(drivers, "d");
 import { safeLikeTerm } from "./search";
 import { orderNeedsAttentionSql, orderStageSql } from "../orders/stage-sql";
 import type { OrderStage } from "../orders/stage";
+import type { ShipmentKind } from "../shipments/model";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 import { insertSelectRow } from "../db/insert-select";
@@ -47,10 +49,13 @@ import { getCustomerByPhone, updateCustomer, type UpdateCustomerData } from "./c
 
 export interface OrderFilters {
   status?: (typeof orders.$inferSelect)["status"] | "all";
-  /** Where the order stands overall (stage.ts). */
-  stage?: OrderStage;
+  /** Where the order stands overall (stage.ts): any of these. */
+  stage?: readonly OrderStage[];
   /** Only orders whose delivery needs the merchant (true), or only the others (false). */
   attention?: boolean;
+  /** Only orders handed to a carrier, or to the store's driver. */
+  kind?: ShipmentKind;
+  orderType?: (typeof orders.$inferSelect)["orderType"];
   wilayaId?: number;
   search?: string;
   limit?: number;
@@ -105,8 +110,16 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     conditions.push(eq(orders.status, filters.status));
   }
 
-  if (filters.stage) {
-    conditions.push(sql`${orderStageSql()} = ${filters.stage}`);
+  if (filters.stage?.length) {
+    conditions.push(sql`${orderStageSql()} in (${sql.join(filters.stage.map((stage) => sql`${stage}`), sql`, `)})`);
+  }
+
+  if (filters.kind) {
+    conditions.push(eq(shipments.kind, filters.kind));
+  }
+
+  if (filters.orderType) {
+    conditions.push(eq(orders.orderType, filters.orderType));
   }
 
   if (filters.attention !== undefined) {
@@ -124,6 +137,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
         like(orders.orderNumber, term),
         like(orders.customerName, term),
         like(orders.phone, term),
+        like(shipments.trackingNumber, term),
       ),
     );
   }
@@ -152,6 +166,9 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
         string | null
       >`(SELECT by FROM order_status_history WHERE order_id = orders.id ORDER BY timestamp DESC LIMIT 1)`,
       shipmentId: sql<string | null>`${shipments.id}`,
+      shipmentKind: sql<ShipmentKind | null>`${shipments.kind}`,
+      carrierName: sql<string | null>`${deliveryCompanies.name}`,
+      trackingNumber: sql<string | null>`${shipments.trackingNumber}`,
       stage: orderStageSql(),
       needsAttention: orderNeedsAttentionSql(),
     })
@@ -160,6 +177,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     .leftJoin(communes, eq(orders.communeId, communes.id))
     .leftJoin(shipments, eq(shipments.orderId, orders.id))
     .leftJoin(driversAlias, eq(shipments.driverId, driversAlias.id))
+    .leftJoin(deliveryCompanies, eq(shipments.companyId, deliveryCompanies.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(orders.createdAt), desc(orders.id))
     .limit(filters.limit ?? 50)

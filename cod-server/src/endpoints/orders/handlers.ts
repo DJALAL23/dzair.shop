@@ -30,22 +30,16 @@ export async function listOrders(c: Context<AppContext>) {
     const db = getDb(c.env.DB);
 
     const queryData: any = (c.req as any).valid?.("query");
-    const filters = queryData ?? validation.orderFiltersSchema.parse({
-      status: c.req.query("status"),
-      stage: c.req.query("stage"),
-      attention: c.req.query("attention"),
-      wilayaId: c.req.query("wilayaId"),
-      search: c.req.query("search"),
-      limit: c.req.query("limit"),
-      offset: c.req.query("offset"),
-    });
+    const filters = queryData ?? validation.orderFiltersSchema.parse(c.req.query());
 
     const orders = await queries.getAllOrders(db, filters);
+    const last = orders.at(-1);
 
     return c.json({
       success: true,
       data: orders,
       count: orders.length,
+      nextCursor: last && orders.length === filters.limit ? queries.encodeOrderCursor(last.createdAt, last.id) : null,
     }, 200);
   } catch (error) {
     throw error;

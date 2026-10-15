@@ -40,6 +40,7 @@ const shipmentSchema = z.looseObject({
   orderId: z.string(),
   kind: z.enum(["carrier", "driver"]).describe("A carrier company's parcel, or the store's own driver"),
   companyId: z.string().nullable(),
+  carrierName: z.string().nullable().describe("The delivery company carrying it; null for the store's driver"),
   driverId: z.string().nullable(),
   handoffState: z.string().describe("submitting | accepted | unknown (the carrier did not say — resolve it, never hand off again)"),
   trackingNumber: z.string().nullable(),

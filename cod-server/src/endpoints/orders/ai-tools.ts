@@ -82,7 +82,10 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         codAmount: z.number().describe("Cash the courier collects at the door (DZD)"),
         deliveryType: z.string().describe("home | stop_desk"),
         orderType: z.string().describe("online | offline"),
-        driverName: z.string().nullable().describe("Assigned driver's name, or null"),
+        driverName: z.string().nullable().describe("The store's driver delivering it, or null"),
+        shipmentKind: z.enum(["carrier", "driver"]).nullable().describe("Handed to a carrier or to the store's driver; null before handoff"),
+        carrierName: z.string().nullable().describe("The delivery company carrying it, or null"),
+        trackingNumber: z.string().nullable().describe("The parcel's tracking number at the carrier, or null"),
         stage: z.string().nullable().describe("Where the order stands overall: processing, then delivery (in_transit, delivered, returned…)"),
         needsAttention: z.boolean().describe("Whether the order's delivery needs the merchant"),
         shipmentId: z.string().nullable().describe("The order's shipment, or null before handoff"),
@@ -168,12 +171,12 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
   listOrders: tool({
     description:
       "Search and filter orders. Returns orders ordered newest-first. " +
-      "Each order includes status, stage, needsAttention, shipmentId, customerName, phone, wilaya, price, deliveryFee, codAmount, " +
-      "driverName, orderNumber, and hasReview flag. " +
+      "Each order includes status, stage, needsAttention, its shipment (shipmentId, shipmentKind, carrierName or driverName, trackingNumber), " +
+      "customerName, phone, wilaya, price, deliveryFee, codAmount, orderNumber, and hasReview flag. " +
       "Optional filters: status (new|confirmed|unreachable|preparing|ready|cancelled), " +
-      "stage (new|confirmed|unreachable|preparing|ready_to_ship|handoff_pending|in_transit|out_for_delivery|delivered|returning|returned|delivery_cancelled|cancelled), " +
-      "attention ('true'|'false'), " +
-      "wilayaId (integer 1-58), search (matches orderNumber, customerName, or phone), " +
+      "stage — one or several comma-separated (new|confirmed|unreachable|preparing|ready_to_ship|handoff_pending|in_transit|out_for_delivery|delivered|returning|returned|delivery_cancelled|cancelled), " +
+      "attention ('true'|'false'), kind (carrier|driver), orderType (online|offline), " +
+      "wilayaId (integer 1-58), search (matches orderNumber, customerName, phone, or the tracking number), " +
       "limit (1-100, default 50), offset (default 0).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -185,7 +188,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid filter arguments: ${errorDetails}. Expected: status (${ORDER_STATUSES.join("|")}, optional), wilayaId (int 1-58, optional), search (string, optional), limit (1-100, default 50), offset (int >= 0, default 0)`,
+          error: `Invalid filter arguments: ${errorDetails}. Expected (all optional): status (${ORDER_STATUSES.join("|")}), stage (one or several comma-separated), attention (true|false), kind (carrier|driver), orderType (online|offline), wilayaId (int 1-58), search (string), limit (1-100, default 50), offset (int >= 0, default 0)`,
         };
       }
       try {
@@ -207,6 +210,9 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
             deliveryType: o.deliveryType,
             orderType: o.orderType,
             driverName: o.driverName,
+            shipmentKind: o.shipmentKind,
+            carrierName: o.carrierName,
+            trackingNumber: o.trackingNumber,
             stage: o.stage,
             needsAttention: o.needsAttention,
             shipmentId: o.shipmentId,

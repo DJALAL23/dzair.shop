@@ -84,7 +84,7 @@ describe("handing an order to a carrier", () => {
   it("creates the parcel, as the person who granted the access", async () => {
     await seed({ id: "o1" });
     const out = await call(dispatcher, "handOffOrderToCarrier", { orderId: "o1", companyId: "eco" });
-    expect(out).toMatchObject({ success: true, isError: false, handoff: { outcome: "accepted", orderNumber: "ORD-o1", shipment: { kind: "carrier", handoffState: "accepted" } } });
+    expect(out).toMatchObject({ success: true, isError: false, handoff: { outcome: "accepted", orderNumber: "ORD-o1", shipment: { kind: "carrier", carrierName: "Packers", handoffState: "accepted" } } });
     expect(out.handoff.shipment.trackingNumber).toBeTruthy();
     expect(out.message).toContain(out.handoff.shipment.trackingNumber);
     expect(await shipmentOf("o1")).toMatchObject({ createdBy: "u-ada", companyId: "eco" });
@@ -122,7 +122,7 @@ describe("giving an order to the store's driver", () => {
   it("is accepted at once with the wilaya's fee, as the granting person", async () => {
     await seed({ id: "o1", price: 2000, deliveryFee: 400 });
     const out = await call(assigner, "handOffOrderToDriver", { orderId: "o1", driverId: "dr1" });
-    expect(out).toMatchObject({ success: true, handoff: { outcome: "accepted", shipment: { kind: "driver", driverId: "dr1", codAmount: 2400, driverFee: 300 } } });
+    expect(out).toMatchObject({ success: true, handoff: { outcome: "accepted", shipment: { kind: "driver", carrierName: null, driverId: "dr1", codAmount: 2400, driverFee: 300 } } });
     expect(await shipmentOf("o1")).toMatchObject({ createdBy: "u-ada" });
   });
 
@@ -191,7 +191,7 @@ describe("reading an order's delivery", () => {
     await call(assigner, "reportShipmentEvent", { shipmentId: handoff.shipment.id, status: "out_for_delivery" });
 
     const route = ((await (await app.request(`/api/orders/${id}`)).json()) as any).data;
-    expect(route).toMatchObject({ stage: "out_for_delivery", needsAttention: false, shipment: { id: handoff.shipment.id } });
+    expect(route).toMatchObject({ stage: "out_for_delivery", needsAttention: false, shipment: { id: handoff.shipment.id, carrierName: null } });
     expect((await call(assigner, "getOrderDetails", { orderId: id })).order).toEqual(route);
 
     const shipment = await call(assigner, "getShipment", { shipmentId: handoff.shipment.id });

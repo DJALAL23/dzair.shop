@@ -6,7 +6,7 @@
 import { z } from "@hono/zod-openapi";
 import { INTERPRETATION_KIND_VALUES, MILESTONES } from "../../../../cod-shared/shipments/interpretation";
 import { HANDOFF_STATES, SHIPMENT_EVENT_SOURCES, SHIPMENT_KINDS } from "../../../../cod-shared/shipments/model";
-import { SHIPMENT_ACTIONS } from "@/endpoints/shipments/actions";
+import { SHIPMENT_ACTIONS } from "../../../../cod-shared/shipments/actions";
 
 const instant = () => z.string().nullable().openapi({ description: "UTC ISO-8601, or null", example: "2026-10-14T09:30:00.000Z" });
 
@@ -34,6 +34,7 @@ export const ShipmentSchema = z
     orderId: z.string(),
     kind: z.enum(SHIPMENT_KINDS),
     companyId: z.string().nullable(),
+    carrierName: z.string().nullable().openapi({ description: "The delivery company carrying it; null for the store's driver" }),
     driverId: z.string().nullable(),
     handoffState: z.enum(HANDOFF_STATES).openapi({
       description: "submitting: the carrier is being called · accepted: the carrier has the parcel · unknown: the outcome must be resolved",

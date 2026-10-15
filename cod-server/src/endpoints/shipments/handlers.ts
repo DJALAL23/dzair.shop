@@ -8,10 +8,9 @@
 import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb, type AppDb } from "@/db";
-import { carrierCapabilities } from "@/carriers/registry";
 import { handOffToCarrier, resolveHandoff } from "./carrier-handoff";
 import { driverFor, handOffToDriverOrders } from "./driver-handoff";
-import { bulkData, companyOrThrow, handOffOne, resultItems } from "./handoff-results";
+import { bulkData, carrierOf, companyOrThrow, handOffOne, resultItems } from "./handoff-results";
 import { loadShipmentView } from "./view";
 import type {
   bulkCarrierHandoffSchema,
@@ -51,7 +50,7 @@ export async function handOffBulk(c: Context<AppContext>) {
     body.orderIds.map((orderId) => ({ orderId, deliveryType: body.deliveryType })),
     c.get("user") ?? null,
   );
-  return c.json({ success: true, data: bulkData(await resultItems(db, carrierCapabilities(company), results), results) }, 200);
+  return c.json({ success: true, data: bulkData(await resultItems(db, carrierOf(company), results), results) }, 200);
 }
 
 /** POST /shipments/driver-bulk — give many orders to one driver; one result per order. */

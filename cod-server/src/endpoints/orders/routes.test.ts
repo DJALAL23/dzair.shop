@@ -166,13 +166,19 @@ describe("Orders routes (OpenAPIHono)", () => {
     it("passes filters through to the query", async () => {
       vi.mocked(queries.getAllOrders).mockResolvedValue([] as any);
 
-      const res = await app.request("/api/orders?status=ready&stage=in_transit&attention=false&limit=10");
+      const res = await app.request("/api/orders?status=ready&stage=in_transit,out_for_delivery&attention=false&kind=driver&orderType=offline&limit=10");
 
       expect(res.status).toBe(200);
       expect(queries.getAllOrders).toHaveBeenCalledWith(
         mockDb,
-        expect.objectContaining({ status: "ready", stage: "in_transit", attention: false, limit: 10 })
+        expect.objectContaining({ status: "ready", stage: ["in_transit", "out_for_delivery"], attention: false, kind: "driver", orderType: "offline", limit: 10 })
       );
+    });
+
+    it("returns 400 for an unknown stage among several", async () => {
+      const res = await app.request("/api/orders?stage=new,dispatched");
+      expect(res.status).toBe(400);
+      expect(await res.text()).toContain("Unknown stage: dispatched");
     });
 
     it("returns 400 for an unknown status filter", async () => {

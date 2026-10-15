@@ -37,12 +37,19 @@ function eventView(event: ShipmentEventRow) {
   };
 }
 
-export function shipmentView(row: ShipmentRow, capabilities: CarrierCapabilities | null, events?: ShipmentEventRow[]) {
+/** The company carrying a carrier shipment, as its view needs it. */
+export interface ShipmentCarrier {
+  name: string;
+  capabilities: CarrierCapabilities | null;
+}
+
+export function shipmentView(row: ShipmentRow, carrier: ShipmentCarrier | null, events?: ShipmentEventRow[]) {
   return {
     id: row.id,
     orderId: row.orderId,
     kind: row.kind,
     companyId: row.companyId,
+    carrierName: carrier?.name ?? null,
     driverId: row.driverId,
     handoffState: row.handoffState,
     carrierParcelId: row.carrierParcelId,
@@ -69,27 +76,27 @@ export function shipmentView(row: ShipmentRow, capabilities: CarrierCapabilities
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    actions: availableActions(subjectOf(row), capabilities),
+    actions: availableActions(subjectOf(row), carrier?.capabilities ?? null),
     ...(events ? { events: events.map(eventView) } : {}),
   };
 }
 
 export type ShipmentView = ReturnType<typeof shipmentView>;
 
-/** The capabilities of the carrier behind a shipment; null for a driver or a company with no adapter. */
-export async function capabilitiesFor(db: AppDb, row: Pick<ShipmentRow, "companyId">): Promise<CarrierCapabilities | null> {
+/** The company behind a shipment, with what its carrier can do; null for a driver's. */
+export async function carrierFor(db: AppDb, row: Pick<ShipmentRow, "companyId">): Promise<ShipmentCarrier | null> {
   if (!row.companyId) return null;
   const company = await db
-    .select({ provider: deliveryCompanies.provider, providerConfig: deliveryCompanies.providerConfig })
+    .select({ name: deliveryCompanies.name, provider: deliveryCompanies.provider, providerConfig: deliveryCompanies.providerConfig })
     .from(deliveryCompanies)
     .where(eq(deliveryCompanies.id, row.companyId))
     .get();
-  return company ? carrierCapabilities(company) : null;
+  return company ? { name: company.name, capabilities: carrierCapabilities(company) } : null;
 }
 
 export async function loadShipmentView(db: AppDb, shipmentId: string, options: { events: boolean }): Promise<ShipmentView> {
   const row = options.events ? await getShipmentWithEvents(db, shipmentId) : await getShipment(db, shipmentId);
   if (!row) throw new NotFoundError("Shipment", shipmentId);
   const events = "events" in row ? (row.events as ShipmentEventRow[]) : undefined;
-  return shipmentView(row, await capabilitiesFor(db, row), events);
+  return shipmentView(row, await carrierFor(db, row), events);
 }

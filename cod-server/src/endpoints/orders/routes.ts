@@ -50,8 +50,8 @@ const listOrdersRoute = defineRoute({
   responses: {
     200: {
       description:
-        "List of orders, newest first. Each item includes wilaya/commune/driverName, hasReview, lastUpdatedBy, and its shipmentId, stage and needsAttention; `stage` and `attention` filter on the last two.",
-      content: jsonContent(ListResponseSchema(OrderListItemSchema)),
+        "Orders, newest first, with their delivery at a glance: the shipment's kind, carrier or driver and tracking number, the stage and whether it needs the merchant. `nextCursor` fetches the next page (null on the last one).",
+      content: jsonContent(ListResponseSchema(OrderListItemSchema).extend({ nextCursor: z.string().nullable().openapi({ description: "Pass as `cursor` for the next page; null on the last page" }) })),
     },
   },
   handler: handlers.listOrders,

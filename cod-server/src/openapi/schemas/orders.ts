@@ -153,6 +153,9 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
       "User ID of the last status-change actor. Included in list responses only (GET /api/orders).",
   }),
   shipmentId: z.string().nullable().optional().openapi({ description: "The order's shipment, or null before handoff. List responses only." }),
+  shipmentKind: z.enum(["carrier", "driver"]).nullable().optional().openapi({ description: "Handed to a carrier, or to the store's driver; null before handoff. List responses only." }),
+  carrierName: z.string().nullable().optional().openapi({ description: "The delivery company carrying it, for a carrier shipment. List responses only." }),
+  trackingNumber: z.string().nullable().optional().openapi({ description: "The parcel's tracking number at the carrier. List responses only." }),
   stage: z.enum(ORDER_STAGES).optional().openapi({
     description: "Where the order stands overall — its processing, then its shipment's delivery. List responses only.",
   }),

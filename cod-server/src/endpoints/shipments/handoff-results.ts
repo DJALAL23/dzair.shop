@@ -10,13 +10,12 @@ import type { AppDb } from "@/db";
 import { shipments } from "@/db/schema";
 import type { Actor } from "@/types";
 import { NotFoundError } from "@/lib/errors/classes";
-import type { CarrierCapabilities } from "@/carriers/contract";
 import { carrierCapabilities } from "@/carriers/registry";
 import { getDeliveryCompanyRaw } from "../../../../cod-shared/queries/delivery-companies";
 import { handOffToCarrier, type DeliveryCompanyRow, type HandoffResult } from "./carrier-handoff";
 import { driverFor, handOffToDriverOrders, type DriverHandoffResult } from "./driver-handoff";
 import { requireKindScope } from "./guard";
-import { shipmentView, type ShipmentView } from "./view";
+import { shipmentView, type ShipmentCarrier, type ShipmentView } from "./view";
 import type { orderHandoffSchema } from "./validation";
 
 export type AnyHandoffResult = HandoffResult | DriverHandoffResult;
@@ -27,11 +26,14 @@ export async function companyOrThrow(db: AppDb, companyId: string): Promise<Deli
   return company;
 }
 
+/** A company as the carrier of the shipments handed to it. */
+export const carrierOf = (company: DeliveryCompanyRow): ShipmentCarrier => ({ name: company.name, capabilities: carrierCapabilities(company) });
+
 /** Results as the API shows them, each with its shipment when one exists. */
-export async function resultItems(db: AppDb, capabilities: CarrierCapabilities | null, results: readonly AnyHandoffResult[]) {
+export async function resultItems(db: AppDb, carrier: ShipmentCarrier | null, results: readonly AnyHandoffResult[]) {
   const ids = results.flatMap((r) => (r.outcome === "refused" ? [] : [r.shipmentId]));
   const rows = ids.length ? await db.select().from(shipments).where(inArray(shipments.id, ids)).all() : [];
-  const views = new Map<string, ShipmentView>(rows.map((row) => [row.id, shipmentView(row, capabilities)]));
+  const views = new Map<string, ShipmentView>(rows.map((row) => [row.id, shipmentView(row, carrier)]));
   return results.map((r) => {
     switch (r.outcome) {
       case "accepted":
@@ -85,6 +87,6 @@ export async function handOffOne(db: AppDb, orderId: string, request: z.infer<ty
     actor,
   );
   if (result.outcome === "refused") throw result.error;
-  const [item] = await resultItems(db, carrierCapabilities(company), [result]);
+  const [item] = await resultItems(db, carrierOf(company), [result]);
   return item as Exclude<HandoffItem, { outcome: "refused" }>;
 }

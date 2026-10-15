@@ -10,7 +10,7 @@ import { BusinessLogicError, ConflictError, PermissionError, type AppError } fro
 import type { Actor } from "@/types";
 import type { CarrierCapabilities } from "@/carriers/contract";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-import { SCOPES, type Scope } from "../../../../cod-shared/rbac/scopes";
+import { SCOPE_FOR_KIND } from "../../../../cod-shared/shipments/actions";
 import { hasPermission } from "../../../../cod-shared/rbac/utils";
 import type { ShipmentKind } from "../../../../cod-shared/shipments/model";
 import { deliveryFactsOf, type ShipmentRow } from "../../../../cod-shared/shipments/queries";
@@ -31,11 +31,6 @@ export function requireAction(row: ShipmentRow, capabilities: CarrierCapabilitie
   if (!verdict.ok) throw actionRefusal(verdict, { shipmentId: row.id, orderId: row.orderId, action });
 }
 
-/** The permission acting on a shipment of each kind takes. */
-export const SCOPE_FOR_KIND: Record<ShipmentKind, Scope> = {
-  carrier: SCOPES.DELIVERY_DISPATCH,
-  driver: SCOPES.ORDERS_ASSIGN,
-};
 
 export function requireKindScope(actor: Actor, kind: ShipmentKind, what: string): void {
   const needed = SCOPE_FOR_KIND[kind];
