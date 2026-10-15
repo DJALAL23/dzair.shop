@@ -868,12 +868,13 @@ describe("GET /api/openapi.json (merged spec)", () => {
     const res = await app.request("/api/openapi.json", {}, { WORKER_URL: "https://x" } as any);
     const spec: any = await res.json();
 
-    const stats = spec.paths["/api/analytics/dashboard-stats"]?.get;
-    expect(stats).toBeDefined();
-    expect(stats.summary).toBe("Order status statistics");
-    expect(stats.tags).toEqual(["Analytics"]);
-    expect(stats.operationId).toBe("getDashboardStats");
-    expect(stats.security).toEqual([{ ApiKeyAuth: [] }]);
+    const stages = spec.paths["/api/analytics/order-stages"]?.get;
+    expect(stages).toBeDefined();
+    expect(stages.summary).toBe("Orders by stage");
+    expect(stages.tags).toEqual(["Analytics"]);
+    expect(stages.operationId).toBe("getOrderStageStats");
+    expect(stages.security).toEqual([{ ApiKeyAuth: [] }]);
+    expect(spec.paths["/api/analytics/dashboard-stats"]).toBeUndefined();
   });
 
   it("documents the plain-Hono /images/{key} route via its documentation-only stub", async () => {

@@ -23,21 +23,17 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
   deleteDriver,
   listAllDrivers,
-  listAllOrders,
 } from "@/features/delivery/api";
 import {
   driverErrorMessage,
   driverFullName,
-  driverHasActiveOrders,
-  driverOrderCount,
   filterDrivers,
   paginateDrivers,
   sortDrivers,
   type DriverFilters,
   type DriverSortKey,
 } from "@/features/delivery/model";
-import type { Driver, DriverOrder } from "@/features/delivery/types";
-import type { OrderListItem } from "@/features/orders/types";
+import type { Driver } from "@/features/delivery/types";
 import { AssignOrdersDialog } from "@/features/delivery/components/AssignOrdersDialog";
 import {
   DriverDesktopRow,
@@ -80,7 +76,6 @@ export function DriversList() {
   const identity = useIdentity();
   const confirm = useConfirmDialog();
   const [drivers, setDrivers] = useState<Driver[] | null>(null);
-  const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [filters, setFilters] = useState<DriverFilters>(EMPTY_FILTERS);
@@ -93,12 +88,7 @@ export function DriversList() {
   async function load() {
     setLoadError(null);
     try {
-      const [nextDrivers, nextOrders] = await Promise.all([
-        listAllDrivers(),
-        listAllOrders().catch(() => []),
-      ]);
-      setDrivers(nextDrivers);
-      setOrders(nextOrders);
+      setDrivers(await listAllDrivers());
     } catch (cause) {
       setLoadError(cause);
     }
@@ -135,7 +125,6 @@ export function DriversList() {
     );
   if (drivers === null) return <DriverSkeleton />;
 
-  const readyOrders = orders.filter((order) => order.status === "ready");
   const filtered = filterDrivers(drivers, deferredFilters);
   const sorted = sortDrivers(filtered, sortKey, sortDirection);
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
@@ -143,6 +132,7 @@ export function DriversList() {
   const visible = paginateDrivers(sorted, safePage, PAGE_SIZE);
   const hasFilters = filters.query.trim() !== "" || filters.status !== "all";
   const canManage = canScope(identity, SCOPES.DELIVERY_MANAGE);
+  const canAssign = canScope(identity, SCOPES.ORDERS_ASSIGN);
 
   function onSort(key: string) {
     const cast = key as DriverSortKey;
@@ -154,7 +144,7 @@ export function DriversList() {
     }
   }
   async function onDelete(driver: Driver) {
-    if (driverHasActiveOrders(driver.id, orders as unknown as DriverOrder[])) {
+    if ((driver.openShipmentCount ?? 0) > 0) {
       const message = t("error_cannot_delete_with_orders");
       setActionError(message);
       notify.error(message);
@@ -269,11 +259,9 @@ export function DriversList() {
                 <DriverMobileCard
                   key={driver.id}
                   driver={driver}
-                  activeCount={driverOrderCount(
-                    driver.id,
-                    orders as unknown as DriverOrder[],
-                  )}
+                  activeCount={driver.openShipmentCount ?? 0}
                   canManage={canManage}
+                  canAssign={canAssign}
                   onView={(item) =>
                     window.location.assign(
                       `/delivery/drivers/${encodeURIComponent(item.id)}`,
@@ -331,11 +319,9 @@ export function DriversList() {
                     <DriverDesktopRow
                       key={driver.id}
                       driver={driver}
-                      activeCount={driverOrderCount(
-                        driver.id,
-                        orders as unknown as DriverOrder[],
-                      )}
+                      activeCount={driver.openShipmentCount ?? 0}
                       canManage={canManage}
+                      canAssign={canAssign}
                       onView={(item) =>
                         window.location.assign(
                           `/delivery/drivers/${encodeURIComponent(item.id)}`,
@@ -368,12 +354,7 @@ export function DriversList() {
           </>
         )}
       </Card>
-      <AssignOrdersDialog
-        open={assignDriverState !== null}
-        driver={assignDriverState}
-        readyOrders={readyOrders}
-        onClose={() => setAssignDriverState(null)}
-      />
+      {assignDriverState && <AssignOrdersDialog driver={assignDriverState} onClose={() => setAssignDriverState(null)} onDone={load} />}
     </div>
   );
 }

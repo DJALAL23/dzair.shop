@@ -1,4 +1,3 @@
-import type { OrderStatus } from "@/features/orders/types";
 import type { Customer, CustomerOrderSummary } from "./types";
 
 export interface CustomerFilters {
@@ -42,17 +41,19 @@ export function paginateCustomers(customers: Customer[], page: number, pageSize:
   return customers.slice((safePage - 1) * safePageSize, safePage * safePageSize);
 }
 
-export function calculateReturnRate(orders: CustomerOrderSummary[]) {
-  if (orders.length === 0) return 0;
-  return Math.round((orders.filter((order) => order.status === "returned").length / orders.length) * 100);
+/**
+ * Of the parcels that reached this customer, the share they refused (on its
+ * way back, or back) — what a merchant weighs before shipping to them again.
+ * Orders not yet delivered or refused do not count either way.
+ */
+export function calculateReturnRate(orders: Pick<CustomerOrderSummary, "stage">[]) {
+  const refused = orders.filter((order) => order.stage === "returning" || order.stage === "returned").length;
+  const reached = refused + orders.filter((order) => order.stage === "delivered").length;
+  return reached === 0 ? 0 : Math.round((refused / reached) * 100);
 }
 
 export function customerCanDelete(customer: Pick<Customer, "totalOrders">) {
   return customer.totalOrders === 0;
-}
-
-export function isOrderStatus(status: string): status is OrderStatus {
-  return ["new", "confirmed", "unreachable", "preparing", "ready", "assigned", "dispatched", "out_for_delivery", "delivered", "returned", "cancelled"].includes(status);
 }
 
 export function parseCustomerRoute(pathname: string): CustomerRoute {

@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const seam = vi.hoisted(() => ({ apiFetch: vi.fn(), listOrders: vi.fn() }));
+const seam = vi.hoisted(() => ({ apiFetch: vi.fn() }));
 vi.mock("@/lib/api", () => ({ apiFetch: seam.apiFetch }));
-vi.mock("@/features/orders/api", () => ({ listOrders: seam.listOrders }));
 
 import {
   createDriver,
@@ -17,7 +16,7 @@ import {
   listDriverCompensations,
   listDriverPayments,
   listDrivers,
-  listPendingSettlementOrders,
+  listPendingSettlements,
   listShippingProfiles,
   listShippingRuleCommunes,
   reconcileCompanyOrders,
@@ -34,7 +33,6 @@ describe("driver API adapters", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     seam.apiFetch.mockResolvedValue({ success: true, data: [] });
-    seam.listOrders.mockResolvedValue({ success: true, data: [], count: 0 });
   });
 
   it("always sends explicit pagination and encodes list filters", async () => {
@@ -62,14 +60,15 @@ describe("driver API adapters", () => {
     expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/drivers/driver%2F1/compensations/16", expect.objectContaining({ method: "PUT", body: JSON.stringify({ feePerDelivery: 350 }) }));
     await deleteDriverCompensation("driver/1", 16);
     expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/drivers/driver%2F1/compensations/16", { method: "DELETE" });
-    await createDriverPayment({ driverId: "driver/1", type: "cod_remittance", orderIds: ["o1"], notes: "batch" });
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/driver-payments", expect.objectContaining({ method: "POST", body: JSON.stringify({ driverId: "driver/1", type: "cod_remittance", orderIds: ["o1"], notes: "batch" }) }));
+    await createDriverPayment({ driverId: "driver/1", type: "cod_remittance", shipmentIds: ["s1"], notes: "batch" });
+    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/driver-payments", expect.objectContaining({ method: "POST", body: JSON.stringify({ driverId: "driver/1", type: "cod_remittance", shipmentIds: ["s1"], notes: "batch" }) }));
     seam.apiFetch.mockResolvedValue({ success: true, data: [{ id: "p1" }] });
     await expect(listDriverPayments("driver/1")).resolves.toEqual([{ id: "p1" }]);
-    await expect(listPendingSettlementOrders("driver/1")).resolves.toEqual([{ id: "p1" }]);
+    await expect(listPendingSettlements("driver/1")).resolves.toEqual([{ id: "p1" }]);
+    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/driver-payments/driver%2F1/pending");
   });
 
-  it("unwraps the detail envelope and pages through orders", async () => {
+  it("unwraps the detail envelope", async () => {
     seam.apiFetch.mockResolvedValue({ success: true, data: { id: "driver/1" } });
     await expect(getDriver("driver/1")).resolves.toEqual({ id: "driver/1" });
     expect(seam.apiFetch).toHaveBeenCalledWith("/api/drivers/driver%2F1");

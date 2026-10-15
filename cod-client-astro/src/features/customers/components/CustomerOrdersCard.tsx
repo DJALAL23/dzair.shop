@@ -9,9 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui";
-import { OrderStatusBadge } from "@/features/orders/components/OrderStatusBadge";
+import { StageBadge } from "@/features/orders/components/StageBadge";
 import { formatMoney } from "@/features/orders/model";
-import { isOrderStatus } from "@/features/customers/model";
 import { useT } from "@/i18n/react";
 import type { CustomerOrderSummary } from "@/features/customers/types";
 import type { Locale } from "@/i18n/config";
@@ -57,9 +56,7 @@ export function CustomerOrdersCard({ orders, locale }: CustomerOrdersCardProps) 
                   <span className="text-sm font-semibold">
                     {formatMoney(order.price, locale)}
                   </span>
-                  {isOrderStatus(order.status) && (
-                    <OrderStatusBadge status={order.status} />
-                  )}
+                  <StageBadge stage={order.stage} />
                 </div>
               </div>
             ))}
@@ -98,13 +95,7 @@ export function CustomerOrdersCard({ orders, locale }: CustomerOrdersCardProps) 
                       {formatMoney(order.price, locale)}
                     </TableCell>
                     <TableCell className="text-center">
-                      {isOrderStatus(order.status) ? (
-                        <OrderStatusBadge status={order.status} />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          {order.status}
-                        </span>
-                      )}
+                      <StageBadge stage={order.stage} />
                     </TableCell>
                     <TableCell className="text-end text-xs text-muted-foreground">
                       {new Intl.DateTimeFormat(

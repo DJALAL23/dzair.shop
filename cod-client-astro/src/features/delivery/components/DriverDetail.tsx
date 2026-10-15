@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Pencil, Truck, X } from "lucide-react";
+import { AlertCircle, Package, Pencil, Truck, X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -15,7 +15,7 @@ import { useLocale, useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
   getDriver,
-  listPendingSettlementOrders,
+  listPendingSettlements,
 } from "@/features/delivery/api";
 import {
   driverErrorMessage,
@@ -24,10 +24,11 @@ import {
 } from "@/features/delivery/model";
 import type {
   Driver,
-  DriverOrder,
+  PendingSettlement,
 } from "@/features/delivery/types";
 import { DriverProfileHeader } from "@/features/delivery/components/DriverProfileHeader";
-import { DriverActiveOrdersCard } from "@/features/delivery/components/DriverActiveOrdersCard";
+import { DriverShipmentsCard } from "@/features/delivery/components/DriverShipmentsCard";
+import { AssignOrdersDialog } from "@/features/delivery/components/AssignOrdersDialog";
 import { DriverSettlementCard } from "@/features/delivery/components/DriverSettlementCard";
 
 function Loading() {
@@ -46,20 +47,22 @@ export function DriverDetail({ driverId }: { driverId: string }) {
   const locale = useLocale();
   const identity = useIdentity();
   const [driver, setDriver] = useState<Driver | null>(null);
-  const [deliveredOrders, setDeliveredOrders] = useState<DriverOrder[]>([]);
+  const [pending, setPending] = useState<PendingSettlement[]>([]);
+  const [giving, setGiving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canManage = canScope(identity, SCOPES.DELIVERY_MANAGE);
+  const canAssign = canScope(identity, SCOPES.ORDERS_ASSIGN);
 
   async function load() {
     setError(null);
     try {
-      const [nextDriver, pending] = await Promise.all([
+      const [nextDriver, nextPending] = await Promise.all([
         getDriver(driverId),
-        listPendingSettlementOrders(driverId),
+        listPendingSettlements(driverId),
       ]);
       setDriver(nextDriver);
-      setDeliveredOrders(pending);
+      setPending(nextPending);
     } catch (cause) {
       setError(driverErrorMessage(cause, t));
     }
@@ -86,10 +89,6 @@ export function DriverDetail({ driverId }: { driverId: string }) {
     );
   if (!driver) return <Loading />;
 
-  const recentOrders = driver.recentOrders ?? [];
-  const activeOrders = recentOrders.filter(
-    (order) => !["delivered", "returned", "cancelled"].includes(order.status),
-  );
 
   return (
     <div className="space-y-5 pb-24 lg:pb-0">
@@ -141,7 +140,7 @@ export function DriverDetail({ driverId }: { driverId: string }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <StatCard
           label={t("driver_card.active_orders")}
-          value={activeOrders.length}
+          value={driver.openShipmentCount ?? 0}
         />
         <StatCard
           label={t("driver_card.total_delivered")}
@@ -158,6 +157,12 @@ export function DriverDetail({ driverId }: { driverId: string }) {
         />
       </div>
       <div className="flex flex-wrap gap-2">
+        {canAssign && driver.status !== "inactive" && (
+          <Button type="button" onClick={() => setGiving(true)}>
+            <Package size={15} />
+            {t("actions.assign_orders")}
+          </Button>
+        )}
         <LinkButton
           href={`/delivery/drivers/${encodeURIComponent(driver.id)}/compensations`}
           variant="secondary"
@@ -169,11 +174,9 @@ export function DriverDetail({ driverId }: { driverId: string }) {
             : ""}
         </LinkButton>
       </div>
-      <DriverActiveOrdersCard orders={activeOrders} />
-      <DriverSettlementCard
-        driverId={driver.id}
-        deliveredOrders={deliveredOrders}
-      />
+      <DriverShipmentsCard shipments={driver.recentShipments ?? []} />
+      <DriverSettlementCard driverId={driver.id} pending={pending} onSettled={load} />
+      {giving && <AssignOrdersDialog driver={driver} onClose={() => setGiving(false)} onDone={load} />}
     </div>
   );
 }

@@ -15,9 +15,11 @@ import {
   customerTagAssignments,
   wilayas,
   communes,
+  shipments,
 } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { safeLikeTerm } from "./search";
+import { orderStageSql } from "../orders/stage-sql";
 
 export interface CustomerFilters {
   wilayaId?: number;
@@ -229,10 +231,12 @@ export async function getOrdersByCustomerId(db: AppDb, customerId: string) {
       communeId: orders.communeId,
       wilayaName: wilayas.nameAr,
       communeName: communes.nameAr,
+      stage: orderStageSql(),
     })
     .from(orders)
     .leftJoin(wilayas, eq(orders.wilayaId, wilayas.id))
     .leftJoin(communes, eq(orders.communeId, communes.id))
+    .leftJoin(shipments, eq(shipments.orderId, orders.id))
     .where(eq(orders.customerId, customerId))
     .orderBy(desc(orders.createdAt))
     .all();

@@ -2,17 +2,28 @@ import { apiFetch, apiFetchBlob } from "@/lib/api";
 import type {
   AbandonedOrder,
   AbandonedStats,
+  BulkHandoff,
   Commune,
   Customer,
   DeliveryCompany,
+  DeliveryType,
   Driver,
+  HandoffItem,
   OrderDetail,
   OrderListItem,
+  OrderPage,
+  OrderStage,
+  OrderStageCounts,
+  OrderStatus,
   Product,
+  Shipment,
+  ShipmentKind,
+  ShipmentRemark,
   ShippingRule,
   StopDesk,
   Wilaya,
 } from "./types";
+import type { MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
 
 interface ListEnvelope<T> {
   success: boolean;
@@ -34,22 +45,41 @@ function json(init: RequestInit = {}): RequestInit {
   };
 }
 
-export function listOrders(params: { limit?: number; offset?: number; search?: string; status?: string; wilayaId?: number }) {
-  const query = new URLSearchParams({
-    limit: String(params.limit ?? 100),
-    offset: String(params.offset ?? 0),
-  });
-  for (const [key, value] of Object.entries(params)) {
-    if (key !== "limit" && key !== "offset" && value !== undefined && value !== "") query.set(key, String(value));
-  }
-  return apiFetch<ListEnvelope<OrderListItem>>(`/api/orders?${query}`);
+/** What narrows the order list — the server filters, so every order is reachable. */
+export interface OrderQuery {
+  /** One stage or several (a work queue). */
+  stages?: readonly OrderStage[];
+  attention?: boolean;
+  kind?: ShipmentKind;
+  orderType?: "online" | "offline";
+  wilayaId?: number;
+  search?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+export async function listOrders(params: OrderQuery = {}): Promise<OrderPage> {
+  const query = new URLSearchParams({ limit: String(params.limit ?? 25) });
+  if (params.stages?.length) query.set("stage", params.stages.join(","));
+  if (params.attention !== undefined) query.set("attention", String(params.attention));
+  if (params.kind) query.set("kind", params.kind);
+  if (params.orderType) query.set("orderType", params.orderType);
+  if (params.wilayaId) query.set("wilayaId", String(params.wilayaId));
+  if (params.search?.trim()) query.set("search", params.search.trim());
+  if (params.cursor) query.set("cursor", params.cursor);
+  const page = await apiFetch<ListEnvelope<OrderListItem> & { nextCursor: string | null }>(`/api/orders?${query}`);
+  return { orders: page.data, nextCursor: page.nextCursor };
+}
+
+export async function getOrderStageCounts() {
+  return (await apiFetch<DataEnvelope<OrderStageCounts>>("/api/analytics/order-stages")).data;
 }
 
 export async function getOrder(id: string) {
   return (await apiFetch<DataEnvelope<OrderDetail>>(`/api/orders/${encodeURIComponent(id)}`)).data;
 }
 
-export function updateOrderStatus(id: string, status: string) {
+export function updateOrderStatus(id: string, status: OrderStatus) {
   return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/status`, json({ method: "PATCH", body: JSON.stringify({ status }) }));
 }
 
@@ -61,48 +91,107 @@ export function deleteOrder(id: string) {
   return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
-export function assignDriver(id: string, driverId: string) {
-  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/assign-driver`, json({ method: "PATCH", body: JSON.stringify({ driverId }) }));
+export function setLineReturn(orderId: string, lineId: string, returnedQuantity: number) {
+  return apiFetch<DataEnvelope<unknown>>(
+    `/api/orders/${encodeURIComponent(orderId)}/products/${encodeURIComponent(lineId)}/return`,
+    json({ method: "PATCH", body: JSON.stringify({ returnedQuantity }) }),
+  );
 }
 
-export function dispatchOrder(id: string, body: Record<string, unknown>) {
-  return apiFetch<DataEnvelope<{ trackingNumber: string; labelUrl?: string | null }>>(`/api/orders/${encodeURIComponent(id)}/dispatch`, json({ method: "POST", body: JSON.stringify(body) }));
+// ─── Handing orders to delivery ─────────────────────────────────────────────
+
+export interface CarrierHandoff {
+  kind: "carrier";
+  companyId: string;
+  deliveryType?: DeliveryType;
+  stationCode?: string;
+  weight?: number;
+  fragile?: boolean;
+  remarks?: string;
 }
+
+export interface DriverHandoff {
+  kind: "driver";
+  driverId: string;
+  deliveryType?: DeliveryType;
+  stationCode?: string;
+}
+
+/** Hand one ready order to a carrier or to the store's driver. */
+export async function handOffOrder(orderId: string, handoff: CarrierHandoff | DriverHandoff) {
+  return (await apiFetch<DataEnvelope<HandoffItem>>(`/api/orders/${encodeURIComponent(orderId)}/shipment`, json({ method: "POST", body: JSON.stringify(handoff) }))).data;
+}
+
+export async function handOffToCarrier(companyId: string, orderIds: string[]) {
+  return (await apiFetch<DataEnvelope<BulkHandoff>>("/api/shipments/bulk", json({ method: "POST", body: JSON.stringify({ companyId, orderIds }) }))).data;
+}
+
+export async function handOffToDriver(driverId: string, orderIds: string[]) {
+  return (await apiFetch<DataEnvelope<BulkHandoff>>("/api/shipments/driver-bulk", json({ method: "POST", body: JSON.stringify({ driverId, orderIds }) }))).data;
+}
+
+// ─── Acting on a shipment ───────────────────────────────────────────────────
+
+const shipmentPath = (id: string, action = "") => `/api/shipments/${encodeURIComponent(id)}${action}`;
 
 export function validateShipment(id: string) {
-  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/validate-shipment`, { method: "POST" });
+  return apiFetch<DataEnvelope<unknown>>(shipmentPath(id, "/validate"), json({ method: "POST", body: "{}" }));
 }
 
-export function updateShipment(id: string, body: Record<string, unknown>) {
-  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/update-shipment`, json({ method: "PATCH", body: JSON.stringify(body) }));
+export function updateParcel(id: string, changes: Record<string, unknown>) {
+  return apiFetch<DataEnvelope<unknown>>(shipmentPath(id), json({ method: "PATCH", body: JSON.stringify(changes) }));
 }
 
-export function cancelShipment(id: string) {
-  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/cancel-shipment`, { method: "POST" });
+export function voidShipment(id: string) {
+  return apiFetch<DataEnvelope<unknown>>(shipmentPath(id, "/void"), { method: "POST" });
 }
 
-export function askShipmentReturn(id: string) {
-  return apiFetch<{ success: boolean; message: string }>(`/api/orders/${encodeURIComponent(id)}/ask-return`, { method: "POST" });
+export type Resolution = { action: "lookup" } | { action: "attach"; trackingNumber: string } | { action: "release" };
+
+/** released: no parcel, the order can be shipped again · not_found: the carrier has none under the order number · accepted / unknown: the parcel's outcome now. */
+export async function resolveHandoff(id: string, resolution: Resolution) {
+  return (
+    await apiFetch<DataEnvelope<{ outcome: "released" | "not_found" | "accepted" | "unknown"; shipment?: Shipment; message?: string }>>(
+      shipmentPath(id, "/resolve"),
+      json({ method: "POST", body: JSON.stringify(resolution) }),
+    )
+  ).data;
 }
 
-export function confirmReturnReception(id: string) {
-  return apiFetch<{ success: boolean; message: string }>(`/api/orders/${encodeURIComponent(id)}/confirm-return-reception`, { method: "POST" });
+export function reportShipmentEvent(id: string, report: { status: MerchantReport; reason?: string }) {
+  return apiFetch<DataEnvelope<unknown>>(shipmentPath(id, "/events"), json({ method: "POST", body: JSON.stringify(report) }));
 }
 
-export function addShipmentRemark(id: string, content: string) {
-  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/add-remark`, json({ method: "POST", body: JSON.stringify({ content }) }));
+export function syncShipment(id: string) {
+  return apiFetch<DataEnvelope<unknown>>(shipmentPath(id, "/sync"), { method: "POST" });
 }
 
-export async function getTracking(id: string) {
-  return (await apiFetch<DataEnvelope<Array<Record<string, unknown>>>>(`/api/orders/${encodeURIComponent(id)}/tracking-events`)).data;
+export function askReturn(id: string) {
+  return apiFetch<DataEnvelope<unknown>>(shipmentPath(id, "/ask-return"), { method: "POST" });
 }
 
-export async function downloadLabel(id: string) {
-  const blob = await apiFetchBlob(`/api/orders/${encodeURIComponent(id)}/label`);
+export function requestNewAttempt(id: string) {
+  return apiFetch<DataEnvelope<unknown>>(shipmentPath(id, "/request-new-attempt"), { method: "POST" });
+}
+
+export function confirmReturn(id: string) {
+  return apiFetch<DataEnvelope<unknown>>(shipmentPath(id, "/confirm-return"), { method: "POST" });
+}
+
+export async function listRemarks(id: string) {
+  return (await apiFetch<DataEnvelope<ShipmentRemark[]>>(shipmentPath(id, "/remarks"))).data;
+}
+
+export function addRemark(id: string, content: string) {
+  return apiFetch<DataEnvelope<unknown>>(shipmentPath(id, "/remarks"), json({ method: "POST", body: JSON.stringify({ content }) }));
+}
+
+export async function downloadLabel(shipment: Pick<Shipment, "id" | "trackingNumber">) {
+  const blob = await apiFetchBlob(shipmentPath(shipment.id, "/label"));
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${id}-label.pdf`;
+  anchor.download = `${shipment.trackingNumber ?? shipment.id}-label.pdf`;
   anchor.click();
   URL.revokeObjectURL(url);
 }

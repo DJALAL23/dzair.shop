@@ -363,6 +363,7 @@ describe("Customers routes (OpenAPIHono)", () => {
         communeName: null,
         wilaya: "الجزائر",
         commune: null,
+        stage: "new" as const,
         statusHistory: [],
       };
       vi.mocked(queries.getOrdersByCustomerId).mockResolvedValue([order]);

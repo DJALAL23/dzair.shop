@@ -1,321 +1,264 @@
 import type { Locale } from "@/i18n/config";
+import { allowedTransitions } from "../../../../cod-shared/orders/lifecycle";
+import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
+import { SCOPE_FOR_KIND, scopeForShipmentAction } from "../../../../cod-shared/shipments/actions";
+import { reportsAllowedFor, type MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
 import type {
   AbandonedOrder,
   AbandonedOrderStatus,
+  DeliveryCompany,
+  DeliveryType,
+  Driver,
+  OrderBase,
   OrderListItem,
+  OrderStage,
+  OrderStageCounts,
   OrderStatus,
+  Shipment,
+  ShipmentAction,
+  ShipmentEvent,
 } from "./types";
 
-export const FILTER_STATUSES: OrderStatus[] = [
-  "new",
-  "confirmed",
-  "unreachable",
-  "preparing",
-  "ready",
-  "assigned",
-  "dispatched",
-  "out_for_delivery",
-  "delivered",
-  "returned",
-  "cancelled",
-];
+/** Whether the person may act under a permission (the dashboard's `canScope` for the signed-in user). */
+export type May = (scope: string) => boolean;
 
-export const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  new: ["confirmed", "unreachable", "cancelled"],
-  confirmed: ["preparing", "unreachable", "cancelled"],
-  unreachable: ["confirmed", "cancelled"],
-  preparing: ["ready", "cancelled"],
-  ready: ["out_for_delivery", "dispatched", "cancelled"],
-  assigned: ["out_for_delivery", "dispatched", "cancelled"],
-  dispatched: ["out_for_delivery", "cancelled"],
-  out_for_delivery: ["delivered", "returned"],
-  delivered: [],
-  returned: [],
-  cancelled: [],
+// ─── Work queues ─────────────────────────────────────────────────────────────
+
+/**
+ * The order list as the merchant's day goes: call to confirm, prepare, ship,
+ * follow, then what was delivered, what came back, what was dropped. Every
+ * stage sits in exactly one queue; a parcel the carrier cancelled waits to be
+ * shipped again.
+ */
+export const ORDER_QUEUES = [
+  { key: "to_confirm", stages: ["new", "unreachable"] },
+  { key: "to_prepare", stages: ["confirmed", "preparing"] },
+  { key: "to_ship", stages: ["ready_to_ship", "delivery_cancelled"] },
+  { key: "on_the_way", stages: ["handoff_pending", "in_transit", "out_for_delivery"] },
+  { key: "delivered", stages: ["delivered"] },
+  { key: "returns", stages: ["returning", "returned"] },
+  { key: "cancelled", stages: ["cancelled"] },
+] as const satisfies ReadonlyArray<{ key: string; stages: readonly OrderStage[] }>;
+
+export type QueueKey = (typeof ORDER_QUEUES)[number]["key"];
+/** "all" shows every order; "attention" those whose delivery needs the merchant. */
+export type OrderView = QueueKey | "all" | "attention";
+
+export function queueOf(stage: OrderStage): QueueKey {
+  return ORDER_QUEUES.find((queue) => (queue.stages as readonly OrderStage[]).includes(stage))!.key;
+}
+
+/** The server query a view stands for. */
+export function viewQuery(view: OrderView): { stages?: readonly OrderStage[]; attention?: boolean } {
+  if (view === "all") return {};
+  if (view === "attention") return { attention: true };
+  return { stages: ORDER_QUEUES.find((queue) => queue.key === view)!.stages };
+}
+
+/** How many orders each view holds, from the counts by stage. */
+export function viewCounts(counts: OrderStageCounts): Record<OrderView, number> {
+  const byStage = new Map(counts.stages.map((entry) => [entry.stage, entry.count]));
+  const total = ORDER_STAGES.reduce((sum, stage) => sum + (byStage.get(stage) ?? 0), 0);
+  const queues = Object.fromEntries(
+    ORDER_QUEUES.map((queue) => [queue.key, queue.stages.reduce((sum, stage) => sum + (byStage.get(stage) ?? 0), 0)]),
+  ) as Record<QueueKey, number>;
+  return { all: total, attention: counts.needsAttention, ...queues };
+}
+
+// ─── What the stage looks like ───────────────────────────────────────────────
+
+/** The dashboard's status palette, written out whole so the stylesheet keeps each class. */
+const TONE = {
+  new: "bg-[var(--status-new-bg)] text-[var(--status-new-text)] border-[var(--status-new-border)]",
+  confirmed: "bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)] border-[var(--status-confirmed-border)]",
+  preparing: "bg-[var(--status-preparing-bg)] text-[var(--status-preparing-text)] border-[var(--status-preparing-border)]",
+  ready: "bg-[var(--status-ready-bg)] text-[var(--status-ready-text)] border-[var(--status-ready-border)]",
+  assigned: "bg-[var(--status-assigned-bg)] text-[var(--status-assigned-text)] border-[var(--status-assigned-border)]",
+  dispatched: "bg-[var(--status-dispatched-bg)] text-[var(--status-dispatched-text)] border-[var(--status-dispatched-border)]",
+  out: "bg-[var(--status-out-bg)] text-[var(--status-out-text)] border-[var(--status-out-border)]",
+  delivered: "bg-[var(--status-delivered-bg)] text-[var(--status-delivered-text)] border-[var(--status-delivered-border)]",
+  returned: "bg-[var(--status-returned-bg)] text-[var(--status-returned-text)] border-[var(--status-returned-border)]",
+  cancelled: "bg-[var(--status-cancelled-bg)] text-[var(--status-cancelled-text)] border-[var(--status-cancelled-border)]",
+} as const;
+
+/** Each stage's colour. */
+export const STAGE_TONE: Record<OrderStage, keyof typeof TONE> = {
+  new: "new",
+  confirmed: "confirmed",
+  unreachable: "preparing",
+  preparing: "preparing",
+  ready_to_ship: "ready",
+  handoff_pending: "assigned",
+  in_transit: "dispatched",
+  out_for_delivery: "out",
+  delivered: "delivered",
+  returning: "returned",
+  returned: "returned",
+  delivery_cancelled: "cancelled",
+  cancelled: "cancelled",
 };
 
-export function orderStatusOptions(status: OrderStatus): OrderStatus[] {
-  return [status, ...ALLOWED_TRANSITIONS[status]];
+export function stageClass(stage: OrderStage): string {
+  return TONE[STAGE_TONE[stage]];
 }
 
-export interface OrderFilters {
-  query: string;
-  status: string;
-  delivery: string;
-  wilaya: string;
-  type: string;
+/** Who carries the order, in a few words; null before its handoff. */
+export function deliveredBy(order: Pick<OrderListItem, "shipmentKind" | "carrierName" | "driverName">): { kind: "carrier" | "driver"; name: string | null } | null {
+  if (order.shipmentKind === "carrier") return { kind: "carrier", name: order.carrierName };
+  if (order.shipmentKind === "driver") return { kind: "driver", name: order.driverName };
+  return null;
 }
 
-export type DetailStatusAction = {
+// ─── The order's next step ───────────────────────────────────────────────────
+
+export interface StatusMove {
   status: OrderStatus;
   emphasis: "primary" | "secondary" | "danger";
+}
+
+/** The move the merchant usually makes next, from each status. */
+const NEXT: Partial<Record<OrderStatus, OrderStatus>> = {
+  new: "confirmed",
+  unreachable: "confirmed",
+  confirmed: "preparing",
+  preparing: "ready",
 };
 
-export function detailStatusActions(
-  status: OrderStatus,
-  order?: Pick<OrderListItem, "deliveryMethod" | "trackingNumber">,
-): DetailStatusAction[] {
-  const actions: Partial<Record<OrderStatus, DetailStatusAction[]>> = {
-    new: [
-      { status: "confirmed", emphasis: "primary" },
-      { status: "unreachable", emphasis: "secondary" },
-    ],
-    confirmed: [
-      { status: "preparing", emphasis: "primary" },
-      { status: "unreachable", emphasis: "secondary" },
-    ],
-    unreachable: [
-      { status: "confirmed", emphasis: "primary" },
-      { status: "cancelled", emphasis: "danger" },
-    ],
-    preparing: [{ status: "ready", emphasis: "primary" }],
-    assigned: [{ status: "out_for_delivery", emphasis: "primary" }],
-    dispatched: [{ status: "out_for_delivery", emphasis: "primary" }],
-    out_for_delivery: [{ status: "delivered", emphasis: "primary" }],
-  };
-  if (status === "ready") {
-    return order?.trackingNumber
-      ? [{ status: "dispatched", emphasis: "primary" }]
-      : [];
-  }
-  return actions[status] ?? [];
+/**
+ * The status moves the lifecycle allows this order now, the usual next one
+ * first and cancelling last. None once it has a shipment — its delivery is
+ * the shipment's. Shipping a ready order is a handoff, not a status.
+ */
+export function statusMoves(order: Pick<OrderBase, "status"> & { hasShipment: boolean }): StatusMove[] {
+  const allowed = allowedTransitions({ status: order.status, hasShipment: order.hasShipment });
+  const next = NEXT[order.status];
+  const moves: StatusMove[] = allowed
+    .filter((status) => status !== "cancelled")
+    .map((status) => ({ status, emphasis: status === next ? "primary" : "secondary" }));
+  moves.sort((left, right) => (left.emphasis === "primary" ? -1 : right.emphasis === "primary" ? 1 : 0));
+  if (allowed.includes("cancelled")) moves.push({ status: "cancelled", emphasis: "danger" });
+  return moves;
 }
 
-export function dispatchFieldSupport(companyCode: string): {
-  remarks: boolean;
-  weight: boolean;
-  fragile: boolean;
-} {
-  const isEcotrack =
-    companyCode === "ecotrack" || companyCode.endsWith("_ecotrack");
-  if (isEcotrack) return { remarks: true, weight: true, fragile: true };
-  if (companyCode === "noest")
-    return { remarks: true, weight: true, fragile: false };
-  // Yalidine takes a per-parcel weight (official create contract; the
-  // adapter forwards it) — over 5kg billable weight an oversize fee applies,
-  // so the merchant needs the input. No remarks endpoint, no fragile field.
-  if (companyCode === "yalidine")
-    return { remarks: false, weight: true, fragile: false };
-  return { remarks: false, weight: false, fragile: false };
+/** A ready order with no shipment waits to be handed to a carrier or a driver. */
+export function canHandOff(order: Pick<OrderBase, "status"> & { hasShipment: boolean }): boolean {
+  return order.status === "ready" && !order.hasShipment;
 }
 
-export function shipmentCapabilities(
-  companyCode: string,
-  status: OrderStatus,
-  dispatched: boolean,
-): {
-  canValidate: boolean;
-  canUpdate: boolean;
-  canCancel: boolean;
-  canRemark: boolean;
-  canTrack: boolean;
-} {
-  const isEcotrack =
-    companyCode === "ecotrack" || companyCode.endsWith("_ecotrack");
-  const supportsUpdate =
-    isEcotrack || ["noest", "yalidine", "zr_express"].includes(companyCode);
-  // ZR Express deletion works via DELETE /parcels/bulk/by-tracking-number
-  // (live-verified 2026-09-10; the earlier 405 came from a wrong POST).
-  const supportsCancel =
-    isEcotrack || ["noest", "yalidine", "zr_express"].includes(companyCode);
-  const canUpdate =
-    isEcotrack || companyCode === "zr_express"
-      ? !isTerminalStatus(status)
-      : companyCode === "yalidine"
-        ? ["dispatched", "out_for_delivery"].includes(status)
-        : companyCode === "noest"
-          ? status === "dispatched"
-          : false;
-  const canCancel =
-    supportsCancel &&
-    (companyCode === "yalidine"
-      ? ["dispatched", "out_for_delivery"].includes(status)
-      : status === "dispatched");
-
-  return {
-    canValidate: dispatched && status === "dispatched",
-    canUpdate: dispatched && supportsUpdate && canUpdate,
-    canCancel: dispatched && canCancel,
-    canRemark: dispatched && (isEcotrack || companyCode === "noest"),
-    canTrack: dispatched && Boolean(companyCode),
-  };
+/** Whether this person may hand orders to a carrier, to the store's driver, or both. */
+export function handoffKinds(may: May): Array<"carrier" | "driver"> {
+  return (["carrier", "driver"] as const).filter((kind) => may(SCOPE_FOR_KIND[kind]));
 }
 
-export function shipmentUpdateFieldSupport(companyCode: string): {
-  name: boolean;
-  phone: boolean;
-  phone2: boolean;
-  address: boolean;
-  amount: boolean;
-  weight: boolean;
-  fragile: boolean;
-  remarks: boolean;
-} {
-  const isEcotrack =
-    companyCode === "ecotrack" || companyCode.endsWith("_ecotrack");
-  if (isEcotrack || companyCode === "noest") {
-    return {
-      name: true,
-      phone: true,
-      phone2: true,
-      address: true,
-      amount: true,
-      weight: true,
-      fragile: true,
-      remarks: true,
-    };
-  }
-  if (companyCode === "yalidine") {
-    return {
-      name: true,
-      phone: true,
-      phone2: false,
-      address: true,
-      amount: true,
-      weight: true,
-      fragile: false,
-      remarks: false,
-    };
-  }
-  if (companyCode === "zr_express") {
-    return {
-      name: true,
-      phone: true,
-      phone2: false,
-      address: true,
-      amount: true,
-      weight: false,
-      fragile: false,
-      remarks: false,
-    };
-  }
-  return {
-    name: false,
-    phone: false,
-    phone2: false,
-    address: false,
-    amount: false,
-    weight: false,
-    fragile: false,
-    remarks: false,
-  };
+/** The customer's details change on the order only before its handoff; after it, through the parcel. */
+export function canEditOrder(order: Pick<OrderBase, "status"> & { hasShipment: boolean }): boolean {
+  return !order.hasShipment && order.status !== "cancelled";
 }
 
-export function canAssignOrder(
-  order: Pick<OrderListItem, "status" | "trackingNumber" | "deliveryMethod">,
-): boolean {
-  return (
-    !order.trackingNumber &&
-    order.deliveryMethod !== "company" &&
-    ![
-      "unreachable",
-      "out_for_delivery",
-      "delivered",
-      "returned",
-      "cancelled",
-    ].includes(order.status)
-  );
-}
-
-export function canDispatchOrder(
-  order: Pick<
-    OrderListItem,
-    "status" | "trackingNumber" | "driverId" | "deliveryMethod"
-  >,
-): boolean {
-  const driverCommitted =
-    order.deliveryMethod === "driver" && Boolean(order.driverId);
-  return (
-    !order.trackingNumber &&
-    !driverCommitted &&
-    ![
-      "unreachable",
-      "out_for_delivery",
-      "delivered",
-      "returned",
-      "cancelled",
-    ].includes(order.status)
-  );
-}
-
-export function canDeleteOrderFromDetail(status: OrderStatus): boolean {
-  return status === "new" || status === "preparing";
+/** An order may be deleted only before its handoff, while nothing rests on it: new, unanswered, or dropped. */
+export function canDeleteOrder(order: Pick<OrderBase, "status"> & { hasShipment: boolean }): boolean {
+  return !order.hasShipment && ["new", "unreachable", "cancelled"].includes(order.status);
 }
 
 /**
- * Whether the order's customer/destination fields can still be edited.
- * Mirrors the server's PATCH /orders/{id} guards: once a tracking number
- * exists the label is printed (edit the shipment instead), and returned /
- * cancelled orders are already reconciled.
+ * Units a customer kept back at the door are recorded on a delivered order:
+ * they come back to stock. A returned or cancelled order already put every
+ * unit back.
  */
-export function canEditOrder(
-  order: Pick<OrderListItem, "status" | "trackingNumber">,
-): boolean {
-  return (
-    !order.trackingNumber &&
-    !["returned", "cancelled"].includes(order.status)
-  );
+export function canRecordRefusedUnits(stage: OrderStage): boolean {
+  return stage === "delivered";
 }
 
-export function orderStatusFlow(
-  order: Pick<OrderListItem, "deliveryMethod" | "driverId" | "trackingNumber">,
-): OrderStatus[] {
-  const companyDelivery =
-    Boolean(order.trackingNumber) || order.deliveryMethod === "company";
-  return companyDelivery
-    ? [
-        "new",
-        "confirmed",
-        "preparing",
-        "ready",
-        "dispatched",
-        "out_for_delivery",
-        "delivered",
-      ]
-    : [
-        "new",
-        "confirmed",
-        "preparing",
-        "ready",
-        "assigned",
-        "out_for_delivery",
-        "delivered",
-      ];
-}
+// ─── Handing off ─────────────────────────────────────────────────────────────
 
-export function filterOrders(
-  orders: OrderListItem[],
-  filters: OrderFilters,
-): OrderListItem[] {
-  const query = filters.query.trim().toLocaleLowerCase();
-  return orders.filter((order) => {
-    if (
-      query &&
-      !`${order.orderNumber} ${order.customerName} ${order.phone}`
-        .toLocaleLowerCase()
-        .includes(query)
-    ) {
-      return false;
-    }
-    if (filters.status !== "all" && order.status !== filters.status)
-      return false;
-    if (filters.type !== "all" && order.orderType !== filters.type)
-      return false;
-    if (filters.wilaya !== "all" && order.wilaya !== filters.wilaya)
-      return false;
-    if (
-      filters.delivery === "driver" &&
-      (!order.driverId || order.trackingNumber)
-    )
-      return false;
-    if (filters.delivery === "company" && !order.trackingNumber) return false;
-    if (
-      filters.delivery === "unassigned" &&
-      (order.driverId || order.trackingNumber)
-    )
-      return false;
-    return true;
+/** The carriers that can take this parcel now: active, connected, and serving the delivery type. */
+export function carriersFor(companies: DeliveryCompany[], deliveryType: DeliveryType): DeliveryCompany[] {
+  return companies.filter((company) => {
+    const caps = company.capabilities;
+    if (!company.active || !company.isConnected || !company.provider || !caps) return false;
+    return deliveryType === "home" ? caps.homeDelivery && company.supportsHomeDelivery : caps.stopDesk && company.supportsStopDesk;
   });
+}
+
+/** The carriers that can take every one of several parcels, each travelling as its customer asked. */
+export function carriersForAll(companies: DeliveryCompany[], deliveryTypes: Iterable<DeliveryType>): DeliveryCompany[] {
+  const wanted = [...new Set(deliveryTypes)];
+  return companies.filter((company) => wanted.every((type) => carriersFor([company], type).length > 0));
+}
+
+/** The store's drivers who take orders. */
+export function driversFor(drivers: Driver[]): Driver[] {
+  return drivers.filter((driver) => driver.status !== "inactive");
+}
+
+// ─── Acting on a shipment ────────────────────────────────────────────────────
+
+/** What this person may do to the shipment now: what the server says is open, that their permissions allow. */
+export function offeredActions(shipment: Pick<Shipment, "kind" | "actions">, may: May): ShipmentAction[] {
+  return shipment.actions.filter((action) => may(scopeForShipmentAction(action, shipment.kind)));
+}
+
+/** What the merchant may report on this shipment: a driver's progress, or that a carrier's goods came back. */
+export function reportsFor(shipment: Pick<Shipment, "kind">): readonly MerchantReport[] {
+  return reportsAllowedFor(shipment.kind);
+}
+
+/** The steps CodFlow itself records, the driver's progress, and the delivery words of orders from before shipments. */
+const OUR_WORDS = new Set([
+  "created",
+  "created_and_validated",
+  "validated",
+  "validation_failed",
+  "handoff_outcome_unknown",
+  "parcel_updated",
+  "remark_added",
+  "return_requested",
+  "new_attempt_requested",
+  "assigned_to_driver",
+  "out_for_delivery",
+  "failed_attempt",
+  "delivered",
+  "returned",
+  "assigned",
+  "dispatched",
+]);
+const OUR_VOCABULARIES = new Set(["codflow", "driver", "merchant", "legacy"]);
+
+/**
+ * How a history entry reads: CodFlow's own steps and the driver's progress
+ * in the merchant's language (`event.<value>`); a carrier's status as the
+ * carrier writes it, the way the merchant knows it from the carrier's app.
+ */
+export function eventLabel(event: Pick<ShipmentEvent, "vocabulary" | "providerStatus" | "providerStatusLabel">): { key: string } | { text: string } {
+  const value = event.providerStatus ?? "";
+  if (OUR_VOCABULARIES.has(event.vocabulary ?? "") && OUR_WORDS.has(value)) return { key: `event.${value}` };
+  return { text: event.providerStatusLabel ?? (value || "-") };
+}
+
+/** The shipment's latest status, read like its history entry. */
+export function latestStatusLabel(shipment: Pick<Shipment, "providerStatus" | "providerStatusLabel" | "events">): { key: string } | { text: string } | null {
+  if (!shipment.providerStatus) return null;
+  const entry = deliveryTimeline(shipment).find((event) => event.providerStatus === shipment.providerStatus);
+  return entry ? eventLabel(entry) : { text: shipment.providerStatusLabel ?? shipment.providerStatus };
+}
+
+export type AttentionReason =
+  | { kind: "unknown_handoff" }
+  | { kind: "cancelled_by_carrier" }
+  | { kind: "flagged"; detail: string | null };
+
+/** Why the delivery needs the merchant, in the order they must act on it; null when it does not. */
+export function attentionReason(shipment: Pick<Shipment, "handoffState" | "cancelledAt" | "attentionSince" | "events">): AttentionReason | null {
+  if (shipment.handoffState === "unknown") return { kind: "unknown_handoff" };
+  if (shipment.cancelledAt) return { kind: "cancelled_by_carrier" };
+  if (!shipment.attentionSince) return null;
+  const flag = deliveryTimeline(shipment).find((event) => event.attention);
+  return { kind: "flagged", detail: flag ? (flag.reason ?? flag.providerStatusLabel ?? flag.providerStatus) : null };
+}
+
+/** The shipment's history, newest first. */
+export function deliveryTimeline(shipment: Pick<Shipment, "events">): ShipmentEvent[] {
+  return [...(shipment.events ?? [])].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt) || right.recordedAt.localeCompare(left.recordedAt));
 }
 
 export function formatMoney(
@@ -331,46 +274,6 @@ export function orderTotal(
   order: Pick<OrderListItem, "price" | "deliveryFee">,
 ): number {
   return order.price + order.deliveryFee;
-}
-
-export type OrderSortKey =
-  "createdAt" | "orderNumber" | "customerName" | "status" | "wilaya" | "total";
-
-export function sortOrders(
-  orders: OrderListItem[],
-  key: OrderSortKey,
-  direction: "asc" | "desc",
-): OrderListItem[] {
-  return [...orders].sort((left, right) => {
-    const leftValue = key === "total" ? orderTotal(left) : left[key];
-    const rightValue = key === "total" ? orderTotal(right) : right[key];
-    const comparison = String(leftValue ?? "").localeCompare(
-      String(rightValue ?? ""),
-      undefined,
-      {
-        numeric: true,
-        sensitivity: "base",
-      },
-    );
-    return direction === "asc" ? comparison : -comparison;
-  });
-}
-
-export function paginateOrders(
-  orders: OrderListItem[],
-  page: number,
-  pageSize: number,
-): OrderListItem[] {
-  const safePage = Math.max(1, page);
-  const safePageSize = Math.max(1, pageSize);
-  const start = (safePage - 1) * safePageSize;
-  return orders.slice(start, start + safePageSize);
-}
-
-export function isTerminalStatus(status: OrderStatus): boolean {
-  return (
-    status === "delivered" || status === "returned" || status === "cancelled"
-  );
 }
 
 const ABANDONED_TRANSITIONS: Record<

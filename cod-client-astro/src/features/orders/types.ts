@@ -1,19 +1,10 @@
-export const ORDER_STATUSES = [
-  "new",
-  "confirmed",
-  "unreachable",
-  "preparing",
-  "ready",
-  "assigned",
-  "dispatched",
-  "out_for_delivery",
-  "delivered",
-  "returned",
-  "cancelled",
-] as const;
+import type { OrderStatus } from "../../../../cod-shared/orders/lifecycle";
+import type { OrderStage } from "../../../../cod-shared/orders/stage";
+import type { HandoffState, ShipmentEventSource, ShipmentKind } from "../../../../cod-shared/shipments/model";
+import type { ShipmentAction } from "../../../../cod-shared/shipments/actions";
+import type { InterpretationKind, Milestone } from "../../../../cod-shared/shipments/interpretation";
 
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
-export type DeliveryMethod = "unassigned" | "driver" | "company";
+export type { OrderStatus, OrderStage, ShipmentAction, ShipmentKind, HandoffState, Milestone };
 export type DeliveryType = "home" | "stop_desk";
 export type OrderType = "online" | "offline";
 
@@ -56,26 +47,16 @@ export interface OrderBase {
   address: string | null;
   price: number;
   deliveryFee: number;
-  driverFee: number;
   codAmount: number | null;
+  /** The order's processing; its delivery is its shipment's — see `stage`. */
   status: OrderStatus;
   orderType: OrderType;
-  deliveryMethod: DeliveryMethod;
+  /** What the customer asked for; the shipment may travel otherwise. */
   deliveryType: DeliveryType;
-  driverId: string | null;
-  driverName: string | null;
-  companyId: string | null;
-  assignedAt: string | null;
-  assignedBy: string | null;
-  assignmentNotes: string | null;
-  trackingNumber: string | null;
-  trackingUrl: string | null;
-  externalOrderId: string | null;
   stationCode: string | null;
-  pickupTime: string | null;
-  deliveryTime: string | null;
-  deliveryAttempts: number | null;
+  driverName: string | null;
   notes: string | null;
+  landingPageId: string | null;
   /**
    * Captured at order time when the merchant enabled the email field. A
    * snapshot, like customerName — never re-read from the customer record.
@@ -83,11 +64,10 @@ export interface OrderBase {
   customerEmail?: string | null;
   /** Answers to the merchant's custom questions, as stored with the order. */
   customFieldsJson?: string | null;
-  photos: string | null;
-  weight: number | null;
-  isFragile: boolean | null;
-  codPaymentId?: string | null;
-  feePaymentId?: string | null;
+  /** Where the order stands overall: its processing, then its delivery. */
+  stage: OrderStage;
+  /** The delivery needs the merchant: an unconfirmed handoff, a parcel cancelled or flagged by the carrier. */
+  needsAttention: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -95,12 +75,97 @@ export interface OrderBase {
 export interface OrderListItem extends OrderBase {
   hasReview?: number;
   lastUpdatedBy?: string | null;
+  shipmentId: string | null;
+  shipmentKind: ShipmentKind | null;
+  carrierName: string | null;
+  trackingNumber: string | null;
+}
+
+export interface ShipmentEvent {
+  id: string;
+  source: ShipmentEventSource;
+  vocabulary: string | null;
+  providerStatus: string | null;
+  providerStatusLabel: string | null;
+  interpretation: InterpretationKind | null;
+  milestone: Milestone | null;
+  attention: boolean;
+  anomaly: string | null;
+  reason: string | null;
+  occurredAt: string;
+  recordedAt: string;
+  actorId: string | null;
+}
+
+/** An order's delivery: a carrier company's parcel, or the store's own driver. */
+export interface Shipment {
+  id: string;
+  orderId: string;
+  kind: ShipmentKind;
+  companyId: string | null;
+  carrierName: string | null;
+  driverId: string | null;
+  handoffState: HandoffState;
+  carrierParcelId: string | null;
+  trackingNumber: string | null;
+  deliveryType: DeliveryType;
+  stationCode: string | null;
+  codAmount: number;
+  driverFee: number;
+  weight: number | null;
+  isFragile: boolean | null;
+  providerStatus: string | null;
+  providerStatusLabel: string | null;
+  providerStatusKind: InterpretationKind | null;
+  providerStatusAt: string | null;
+  validatedAt: string | null;
+  outForDeliveryAt: string | null;
+  deliveredAt: string | null;
+  returnStartedAt: string | null;
+  returnedAt: string | null;
+  cancelledAt: string | null;
+  deliveryAttempts: number;
+  attentionSince: string | null;
+  lastSyncedAt: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** What can be done to it now — the server's rules. */
+  actions: ShipmentAction[];
+  events?: ShipmentEvent[];
 }
 
 export interface OrderDetail extends OrderBase {
   products: OrderProduct[];
   statusHistory: StatusHistoryItem[];
-  labelUrl?: string | null;
+  shipment: Shipment | null;
+}
+
+/** A note between the merchant and the carrier's courier. */
+export interface ShipmentRemark {
+  content: string;
+  createdAt: string | null;
+}
+
+export interface OrderPage {
+  orders: OrderListItem[];
+  nextCursor: string | null;
+}
+
+export interface OrderStageCounts {
+  stages: Array<{ stage: OrderStage; count: number }>;
+  needsAttention: number;
+}
+
+/** How one order of a handoff ended. */
+export type HandoffItem =
+  | { orderId: string; orderNumber: string; outcome: "accepted"; shipment: Shipment; validationError?: string }
+  | { orderId: string; orderNumber: string; outcome: "unknown"; shipment: Shipment; message: string }
+  | { orderId: string; orderNumber: string | null; outcome: "refused"; error: { code: string; message: string } };
+
+export interface BulkHandoff {
+  results: HandoffItem[];
+  summary: { accepted: number; unknown: number; refused: number };
 }
 
 export interface Driver {
@@ -113,6 +178,29 @@ export interface Driver {
   status: "available" | "busy" | "inactive";
 }
 
+export interface CarrierCapabilities {
+  homeDelivery: boolean;
+  stopDesk: boolean;
+  separateValidation: boolean;
+  bulkCreate: number;
+  parcelFields: { weight: boolean; fragile: boolean; remarks: boolean };
+  limits: { maxAmount: number | null; maxDescription: number | null };
+  update: boolean;
+  cancel: boolean;
+  remarks: { add: boolean; list: boolean };
+  history: boolean;
+  historyBatch: number;
+  findByReference: boolean;
+  updates: "webhook" | "pull";
+  label: boolean;
+  askReturn: boolean;
+  requestNewAttempt: boolean;
+  confirmReturn: boolean;
+  stopDeskList: boolean;
+  geoNames: boolean;
+  verifyConnection: boolean;
+}
+
 export interface DeliveryCompany {
   id: string;
   name: string;
@@ -120,10 +208,11 @@ export interface DeliveryCompany {
   code: string;
   active: boolean;
   isConnected: boolean;
+  provider: string | null;
   supportsHomeDelivery: boolean;
   supportsStopDesk: boolean;
-  supportsTracking: boolean;
   autoValidate: boolean | null;
+  capabilities: CarrierCapabilities | null;
 }
 
 export interface StopDesk {

@@ -1,64 +1,56 @@
-import { useDeferredValue, useEffect, useState } from "react";
-import { AlertCircle, Filter, PackageOpen, X } from "lucide-react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { AlertCircle, AlertTriangle, Filter, PackageOpen, Send } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
-import { ApiError } from "@/lib/api";
+import { getOrderStageCounts, listDeliveryCompanies, listDrivers, listOrders, listWilayas, type OrderQuery } from "@/features/orders/api";
+import { handoffKinds, ORDER_QUEUES, viewCounts, viewQuery, type OrderView } from "@/features/orders/model";
+import type { DeliveryCompany, Driver, OrderListItem, Wilaya } from "@/features/orders/types";
 import {
-  listDeliveryCompanies,
-  listDrivers,
-  listOrders,
-} from "@/features/orders/api";
-import {
-  FILTER_STATUSES,
-  filterOrders,
-  paginateOrders,
-  sortOrders,
-  type OrderFilters,
-  type OrderSortKey,
-} from "@/features/orders/model";
-import type {
-  DeliveryCompany,
-  Driver,
-  OrderListItem,
-} from "@/features/orders/types";
-import {
+  Alert,
+  Button,
+  Card,
   EmptyState,
   LinkButton,
-  Alert,
-  Card,
-  Pagination,
   SearchInput,
   Select,
   Table,
-  TableHeader,
   TableBody,
-  TableRow,
   TableHead,
-  SortHeader,
+  TableHeader,
+  TableRow,
 } from "@/components/ui";
 import { OrderDesktopRow, OrderMobileCard } from "@/features/orders/components/OrderRow";
+import { BulkHandoffDialog } from "@/features/orders/components/BulkHandoffDialog";
 
-const EMPTY_FILTERS: OrderFilters = {
-  query: "",
-  status: "all",
-  delivery: "all",
-  wilaya: "all",
-  type: "all",
-};
+const PAGE_SIZE = 25;
+const VIEWS: OrderView[] = ["all", ...ORDER_QUEUES.map((queue) => queue.key)];
+
+interface Filters {
+  search: string;
+  kind: "" | "carrier" | "driver";
+  orderType: "" | "online" | "offline";
+  wilayaId: string;
+}
+
+const NO_FILTERS: Filters = { search: "", kind: "", orderType: "", wilayaId: "" };
+
+function initialView(): OrderView {
+  const view = new URLSearchParams(window.location.search).get("view");
+  return view === "attention" || VIEWS.includes(view as OrderView) ? (view as OrderView) : "all";
+}
+
+function rememberView(view: OrderView) {
+  const url = new URL(window.location.href);
+  if (view === "all") url.searchParams.delete("view");
+  else url.searchParams.set("view", view);
+  window.history.replaceState(null, "", url);
+}
 
 function OrderSkeleton() {
   return (
-    <div
-      role="status"
-      aria-busy="true"
-      className="overflow-hidden rounded-xl border border-border bg-card"
-    >
-      <div className="h-14 border-b border-border bg-muted/35" />
-      {Array.from({ length: 7 }).map((_, index) => (
-        <div
-          key={index}
-          className="grid h-14 grid-cols-[1fr_1.2fr_0.8fr] items-center gap-4 border-b border-border px-4 last:border-0"
-        >
+    <div role="status" aria-busy="true" className="divide-y divide-border">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="grid h-14 grid-cols-[1fr_1.2fr_0.8fr] items-center gap-4 px-4">
           <div className="h-3 w-24 animate-pulse rounded bg-muted" />
           <div className="h-3 w-32 animate-pulse rounded bg-muted" />
           <span className="h-6 w-20 justify-self-end animate-pulse rounded-full bg-muted" />
@@ -68,24 +60,10 @@ function OrderSkeleton() {
   );
 }
 
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  children: React.ReactNode;
-}) {
+function FilterSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
   return (
     <label className="relative flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 sm:flex-none">
-      <Filter
-        size={14}
-        aria-hidden="true"
-        className="shrink-0 text-muted-foreground"
-      />
+      <Filter size={14} aria-hidden="true" className="shrink-0 text-muted-foreground" />
       <Select
         aria-label={label}
         value={value}
@@ -101,292 +79,265 @@ function FilterSelect({
   );
 }
 
+/**
+ * The orders as the merchant works through them: one queue per step of the
+ * day, each with its count, the orders whose delivery needs them, and a
+ * search that also finds a parcel by its tracking number. The server
+ * filters and pages, so every order is reachable.
+ */
 export function OrdersList() {
   const t = useT("orders");
   const common = useT("common");
-  const auth = useT("auth");
   const identity = useIdentity();
+  const may = (scope: string) => canScope(identity, scope);
+  const [view, setView] = useState<OrderView>(initialView);
+  const [filters, setFilters] = useState<Filters>(() => ({ ...NO_FILTERS, search: new URLSearchParams(window.location.search).get("search") ?? "" }));
+  const deferredFilters = useDeferredValue(filters);
   const [orders, setOrders] = useState<OrderListItem[] | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [counts, setCounts] = useState<Record<OrderView, number> | null>(null);
+  const [wilayas, setWilayas] = useState<Wilaya[]>([]);
   const [companies, setCompanies] = useState<DeliveryCompany[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [loadError, setLoadError] = useState<ApiError | Error | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<OrderFilters>(() => ({
-    ...EMPTY_FILTERS,
-    query: new URLSearchParams(window.location.search).get("search") ?? "",
-  }));
-  const [sortKey, setSortKey] = useState<OrderSortKey>("createdAt");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [page, setPage] = useState(1);
-  const deferredFilters = useDeferredValue(filters);
-  const pageSize = 10;
+  const [error, setError] = useState<Error | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const request = useRef(0);
+
+  const kinds = may("delivery:read") ? handoffKinds(may) : [];
+  const selectable = view === "to_ship" && kinds.length > 0;
+
+  function query(cursor: string | null = null): OrderQuery {
+    return {
+      ...viewQuery(view),
+      search: deferredFilters.search,
+      kind: deferredFilters.kind || undefined,
+      orderType: deferredFilters.orderType || undefined,
+      wilayaId: deferredFilters.wilayaId ? Number(deferredFilters.wilayaId) : undefined,
+      limit: PAGE_SIZE,
+      cursor,
+    };
+  }
 
   async function load() {
-    if (!canScope(identity, "orders:read")) return;
-    setLoadError(null);
+    const ticket = ++request.current;
+    setError(null);
+    setSelected(new Set());
     try {
-      const mayReadDelivery = canScope(identity, "delivery:read");
-      const [orderResponse, companyResponse, driverResponse] =
-        await Promise.all([
-          listOrders({ limit: 100, offset: 0 }),
-          mayReadDelivery ? listDeliveryCompanies(true) : Promise.resolve([]),
-          mayReadDelivery ? listDrivers() : Promise.resolve([]),
-        ]);
-      setOrders(orderResponse.data ?? []);
-      setCompanies(companyResponse);
-      setDrivers(driverResponse);
+      const [page, stageCounts] = await Promise.all([listOrders(query()), getOrderStageCounts()]);
+      if (ticket !== request.current) return;
+      setOrders(page.orders);
+      setNextCursor(page.nextCursor);
+      setCounts(viewCounts(stageCounts));
     } catch (cause) {
-      setLoadError(cause instanceof Error ? cause : new Error(String(cause)));
+      if (ticket === request.current) setError(cause instanceof Error ? cause : new Error(String(cause)));
+    }
+  }
+
+  async function loadMore() {
+    if (!nextCursor) return;
+    setLoadingMore(true);
+    try {
+      const page = await listOrders(query(nextCursor));
+      setOrders((current) => [...(current ?? []), ...page.orders]);
+      setNextCursor(page.nextCursor);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause : new Error(String(cause)));
+    } finally {
+      setLoadingMore(false);
     }
   }
 
   useEffect(() => {
+    setOrders(null);
     void load();
-  }, [identity?.role, identity?.scopes.join(",")]);
+  }, [view, deferredFilters, identity?.role, identity?.scopes.join(",")]);
 
   useEffect(() => {
-    setPage(1);
-  }, [deferredFilters, sortKey, sortDirection]);
+    listWilayas().then(setWilayas).catch(() => setWilayas([]));
+    if (!may("delivery:read")) return;
+    if (kinds.includes("carrier")) listDeliveryCompanies(true).then(setCompanies).catch(() => setCompanies([]));
+    if (kinds.includes("driver")) listDrivers().then(setDrivers).catch(() => setDrivers([]));
+  }, [identity?.role, identity?.scopes.join(",")]);
 
-  if (!canScope(identity, "orders:read")) {
-    return (
-      <Alert role="alert" tone="critical">
-        {auth("no_access")}
-      </Alert>
-    );
+  function choose(next: OrderView) {
+    setView(next);
+    rememberView(next);
   }
 
-  if (loadError) {
-    return (
-      <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="mt-0.5 shrink-0" />
-        <div>
-          <p className="font-semibold">{t("load_error")}</p>
-          <p className="mt-1 text-xs opacity-80">{loadError.message}</p>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="mt-3 text-xs font-semibold underline underline-offset-4"
-          >
-            {common("retry")}
-          </button>
-        </div>
-      </Alert>
-    );
-  }
-
-  if (orders === null) return <OrderSkeleton />;
-
-  const filteredOrders = filterOrders(orders, deferredFilters);
-  const sortedOrders = sortOrders(filteredOrders, sortKey, sortDirection);
-  const totalPages = Math.max(1, Math.ceil(sortedOrders.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const visibleOrders = paginateOrders(sortedOrders, safePage, pageSize);
-  const wilayas = [
-    ...new Set(orders.map((order) => order.wilaya).filter(Boolean)),
-  ] as string[];
-  const hasFilters = Object.values(filters).some(
-    (value) => value !== "all" && value !== "",
-  );
-
-  function setFilter(key: keyof OrderFilters, value: string) {
+  function setFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
-  function handleSort(key: string) {
-    const cast = key as OrderSortKey;
-    if (sortKey === cast)
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-    else {
-      setSortKey(cast);
-      setSortDirection("asc");
-    }
+  function toggle(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
-  const rowProps = {
-    drivers,
-    companies,
-    onChanged: load,
-    onError: setActionError,
-  };
+  const hasFilters = Object.values(filters).some(Boolean);
+  const rowProps = { companies, drivers, onChanged: load, onError: (message: string) => setError(new Error(message)) };
+  const selection = (order: OrderListItem) =>
+    selectable && order.stage === "ready_to_ship" ? { selected: selected.has(order.id), onToggle: () => toggle(order.id) } : undefined;
 
   return (
     <div className="space-y-3">
-      {actionError && (
-        <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
-          <div className="flex-1">{actionError}</div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div role="tablist" aria-label={t("queues.label")} className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto px-1 pb-1">
+          {VIEWS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={view === key}
+              onClick={() => choose(key)}
+              className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors ${
+                view === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {t(`queues.${key}`)}
+              {counts && <span className={`rounded-md px-1.5 text-xs tabular-nums ${view === key ? "bg-primary-foreground/20" : "bg-muted"}`}>{counts[key]}</span>}
+            </button>
+          ))}
+        </div>
+        {counts && counts.attention > 0 && (
           <button
             type="button"
-            onClick={() => setActionError(null)}
-            aria-label={common("cancel")}
+            onClick={() => choose(view === "attention" ? "all" : "attention")}
+            aria-pressed={view === "attention"}
+            className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold ${
+              view === "attention"
+                ? "border-[var(--status-returned-border)] bg-[var(--status-returned-bg)] text-[var(--status-returned-text)]"
+                : "border-[var(--status-returned-border)] text-[var(--status-returned-text)] hover:bg-[var(--status-returned-bg)]"
+            }`}
           >
-            <X size={16} />
+            <AlertTriangle size={14} />
+            {t("queues.attention_count", { count: counts.attention })}
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <Alert role="alert" tone="critical">
+          <AlertCircle size={18} className="mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">{t("load_error")}</p>
+            <p className="mt-1 text-xs opacity-80">{error.message}</p>
+          </div>
+          <button type="button" onClick={() => void load()} className="text-xs font-semibold underline underline-offset-4">
+            {common("retry")}
           </button>
         </Alert>
       )}
+
       <Card flush>
         <div className="space-y-3 border-b border-border p-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <SearchInput
-              value={filters.query}
-              onChange={(query) => setFilter("query", query)}
-              placeholder={t("search_placeholder")}
-            />
-            <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {filteredOrders.length} {t("orders_count")}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <FilterSelect
-              label={t("filters.status")}
-              value={filters.status}
-              onChange={(value) => setFilter("status", value)}
-            >
-              <option value="all">{t("status.all")}</option>
-              {FILTER_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {t(`status.${status}`)}
-                </option>
-              ))}
+          <SearchInput value={filters.search} onChange={(search) => setFilter("search", search)} placeholder={t("search_placeholder")} />
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <FilterSelect label={t("filters.delivered_by")} value={filters.kind} onChange={(value) => setFilter("kind", value as Filters["kind"])}>
+              <option value="">{t("filters.any_delivery")}</option>
+              <option value="carrier">{t("filters.by_carrier")}</option>
+              <option value="driver">{t("filters.by_driver")}</option>
             </FilterSelect>
-            <FilterSelect
-              label={t("filters.delivery_method")}
-              value={filters.delivery}
-              onChange={(value) => setFilter("delivery", value)}
-            >
-              <option value="all">{t("filters.all_delivery")}</option>
-              <option value="driver">{t("filters.driver")}</option>
-              <option value="company">{t("filters.company")}</option>
-              <option value="unassigned">{t("filters.unassigned")}</option>
-            </FilterSelect>
-            <FilterSelect
-              label={t("filters.type")}
-              value={filters.type}
-              onChange={(value) => setFilter("type", value)}
-            >
-              <option value="all">{t("filters.type")}</option>
+            <FilterSelect label={t("filters.type")} value={filters.orderType} onChange={(value) => setFilter("orderType", value as Filters["orderType"])}>
+              <option value="">{t("filters.any_type")}</option>
               <option value="online">{t("type.online")}</option>
               <option value="offline">{t("type.offline")}</option>
             </FilterSelect>
-            {wilayas.length > 1 && (
-              <FilterSelect
-                label={t("filters.wilaya")}
-                value={filters.wilaya}
-                onChange={(value) => setFilter("wilaya", value)}
-              >
-                <option value="all">{t("filters.all_wilayas")}</option>
+            {wilayas.length > 0 && (
+              <FilterSelect label={t("filters.wilaya")} value={filters.wilayaId} onChange={(value) => setFilter("wilayaId", value)}>
+                <option value="">{t("filters.all_wilayas")}</option>
                 {wilayas.map((wilaya) => (
-                  <option key={wilaya} value={wilaya}>
-                    {wilaya}
+                  <option key={wilaya.id} value={String(wilaya.id)}>
+                    {wilaya.id} · {wilaya.nameAr}
                   </option>
                 ))}
               </FilterSelect>
             )}
             {hasFilters && (
-              <button
-                type="button"
-                onClick={() => setFilters(EMPTY_FILTERS)}
-                className="h-10 rounded-lg px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                {common("cancel")}
+              <button type="button" onClick={() => setFilters(NO_FILTERS)} className="h-10 rounded-lg px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                {t("filters.clear")}
               </button>
+            )}
+            {selectable && (
+              <Button type="button" className="sm:ms-auto" disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
+                <Send size={15} />
+                {selected.size > 0 ? t("bulk.ship_selected", { count: selected.size }) : t("bulk.select_hint")}
+              </Button>
             )}
           </div>
         </div>
 
-        {filteredOrders.length === 0 ? (
+        {orders === null ? (
+          <OrderSkeleton />
+        ) : orders.length === 0 ? (
           <EmptyState
             icon={<PackageOpen size={22} />}
-            title={
-              hasFilters ? common("no_results_found") : t("empty_state.title")
-            }
-            description={hasFilters ? undefined : t("empty_state.description")}
+            title={hasFilters ? common("no_results_found") : t(`empty.${view}`)}
+            description={!hasFilters && view === "all" ? t("empty_state.description") : undefined}
             action={
-              !hasFilters && canScope(identity, "orders:create") ? (
-                <LinkButton href="/orders/new">
-                  {t("empty_state.action")}
-                </LinkButton>
-              ) : undefined
+              !hasFilters && view === "all" && may("orders:create") ? <LinkButton href="/orders/new">{t("empty_state.action")}</LinkButton> : undefined
             }
           />
         ) : (
           <>
             <div className="divide-y divide-border md:hidden">
-              {visibleOrders.map((order) => (
-                <OrderMobileCard key={order.id} order={order} {...rowProps} />
+              {orders.map((order) => (
+                <OrderMobileCard key={order.id} order={order} selection={selection(order)} {...rowProps} />
               ))}
             </div>
-
             <div className="hidden overflow-x-auto md:block">
-              <Table className="min-w-[940px]">
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow className="text-xs font-semibold text-muted-foreground">
-                    <SortHeader
-                      label={t("table.order_number")}
-                      sortKey="orderNumber"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <SortHeader
-                      label={t("table.customer")}
-                      sortKey="customerName"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <TableHead className="text-start">
-                      {t("table.phone")}
-                    </TableHead>
-                    <SortHeader
-                      label={t("table.status")}
-                      sortKey="status"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <SortHeader
-                      label={t("table.wilaya")}
-                      sortKey="wilaya"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <TableHead className="text-start">
-                      {t("table.delivery")}
-                    </TableHead>
-                    <SortHeader
-                      label={t("table.total")}
-                      sortKey="total"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                      align="end"
-                    />
+                    {selectable && (
+                      <TableHead className="w-10">
+                        <span className="sr-only">{t("bulk.select")}</span>
+                      </TableHead>
+                    )}
+                    <TableHead className="text-start">{t("table.order_number")}</TableHead>
+                    <TableHead className="text-start">{t("table.customer")}</TableHead>
+                    <TableHead className="text-start">{t("table.stage")}</TableHead>
+                    <TableHead className="text-start">{t("table.wilaya")}</TableHead>
+                    <TableHead className="text-start">{t("table.delivery")}</TableHead>
+                    <TableHead className="text-end">{t("table.total")}</TableHead>
                     <TableHead className="w-12">
                       <span className="sr-only">{common("table.actions")}</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visibleOrders.map((order) => (
-                    <OrderDesktopRow key={order.id} order={order} {...rowProps} />
+                  {orders.map((order) => (
+                    <OrderDesktopRow key={order.id} order={order} selection={selection(order)} selectable={selectable} {...rowProps} />
                   ))}
                 </TableBody>
               </Table>
             </div>
-
-            <Pagination
-              page={safePage}
-              totalPages={totalPages}
-              total={sortedOrders.length}
-              pageSize={pageSize}
-              onPageChange={setPage}
-            />
+            {nextCursor && (
+              <div className="border-t border-border p-3 text-center">
+                <Button type="button" variant="secondary" disabled={loadingMore} onClick={() => void loadMore()}>
+                  {loadingMore ? t("loading_more") : t("load_more")}
+                </Button>
+              </div>
+            )}
           </>
         )}
       </Card>
+
+      {bulkOpen && (
+        <BulkHandoffDialog
+          orders={(orders ?? []).filter((order) => selected.has(order.id))}
+          kinds={kinds}
+          companies={companies}
+          drivers={drivers}
+          onClose={() => setBulkOpen(false)}
+          onDone={() => void load()}
+        />
+      )}
     </div>
   );
 }

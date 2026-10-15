@@ -217,6 +217,22 @@ describe("giving many orders to the driver", () => {
   });
 });
 
+describe("the driver's open deliveries", () => {
+  it("counted in the driver list and the detail, until each is delivered", async () => {
+    scopes = [...scopes, "delivery:read"];
+    await seed({ id: "o1" });
+    await seed({ id: "o2" });
+    const first = (await (await giveToDriver("o1")).json()) as any;
+    await giveToDriver("o2");
+    const listed = async () => ((await (await call("GET", "/api/drivers")).json()) as any).data.find((d: any) => d.id === "dr1").openShipmentCount;
+    const detail = async () => ((await (await call("GET", "/api/drivers/dr1")).json()) as any).data.openShipmentCount;
+    expect([await listed(), await detail()]).toEqual([2, 2]);
+    await deliver(first.data.shipment.id);
+    expect([await listed(), await detail()]).toEqual([1, 1]);
+    expect(((await (await call("GET", "/api/drivers")).json()) as any).data.find((d: any) => d.id === "dr-off").openShipmentCount).toBe(0);
+  });
+});
+
 describe("taking an order back from the driver", () => {
   let id: string;
   beforeEach(async () => {

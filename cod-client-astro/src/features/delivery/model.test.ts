@@ -3,9 +3,10 @@ import {
   buildRateMap,
   driverErrorMessage,
   driverFullName,
-  driverHasActiveOrders,
+  isSettled,
+  pendingTotals,
+  settlementOf,
   driverInitials,
-  driverOrderCount,
   filterDrivers,
   filterShippingProfiles,
   formatDeliveryDate,
@@ -19,7 +20,7 @@ import {
   sortDrivers,
   sortShippingProfiles,
 } from "./model";
-import type { Driver, DriverOrder, ShippingProfile, ShippingRule } from "./types";
+import type { Driver, PendingSettlement, ShippingProfile, ShippingRule } from "./types";
 
 const driver = (overrides: Partial<Driver> = {}): Driver => ({
   id: "driver-1",
@@ -40,24 +41,16 @@ const driver = (overrides: Partial<Driver> = {}): Driver => ({
   ...overrides,
 });
 
-const order = (overrides: Partial<DriverOrder> = {}): DriverOrder => ({
-  id: "order-1",
-  orderNumber: "ORD-1",
-  customerName: "Salima",
-  phone: "0771234567",
-  wilaya: "الجزائر",
-  wilayaId: 16,
-  price: 9000,
-  status: "ready",
-  deliveryMethod: "driver",
-  driverId: "driver-1",
-  deliveryFee: 400,
-  driverFee: 300,
+const pending = (overrides: Partial<PendingSettlement> = {}): PendingSettlement => ({
+  shipmentId: "s1",
+  orderId: "o1",
+  orderNumber: "ORD-001",
+  customerName: "Karim",
   codAmount: 9400,
+  driverFee: 300,
+  deliveredAt: "2026-08-26T00:00:00.000Z",
   codPaymentId: null,
   feePaymentId: null,
-  createdAt: "2026-08-26T00:00:00.000Z",
-  updatedAt: "2026-08-26T00:00:00.000Z",
   ...overrides,
 });
 
@@ -76,10 +69,17 @@ describe("delivery model", () => {
     expect(paginateDrivers(rows, 2, 2).map((item) => item.id)).toEqual(["3"]);
   });
 
-  it("computes active-order state from the orders batch", () => {
-    expect(driverHasActiveOrders("driver-1", [order()])).toBe(true);
-    expect(driverHasActiveOrders("driver-1", [order({ status: "delivered" })])).toBe(false);
-    expect(driverOrderCount("driver-1", [order(), order({ id: "o2", status: "returned" })])).toBe(1);
+  it("settles each part of a delivery once, for the amount the server computes", () => {
+    const rows = [pending({ shipmentId: "a" }), pending({ shipmentId: "b", codPaymentId: "p1" }), pending({ shipmentId: "c", feePaymentId: "p2", driverFee: 500 })];
+    expect(settlementOf("cod_remittance", rows)).toEqual({ shipmentIds: ["a", "c"], amount: 18800 });
+    expect(settlementOf("fee_payment", rows)).toEqual({ shipmentIds: ["a", "b"], amount: 600 });
+    expect(settlementOf("net_settlement", rows)).toEqual({ shipmentIds: ["a"], amount: 9100 });
+    expect(pendingTotals(rows)).toEqual({ cash: 18800, cashCount: 2, fees: 600, feeCount: 2 });
+    expect(isSettled(pending({ codPaymentId: "p", feePaymentId: "q" }))).toBe(true);
+    expect(isSettled(pending({ codPaymentId: "p" }))).toBe(false);
+  });
+
+  it("names drivers", () => {
     expect(driverFullName(driver())).toBe("Ahmed Benali");
     expect(driverInitials(driver())).toBe("AB");
   });

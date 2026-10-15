@@ -7,6 +7,7 @@
 import { z } from "@hono/zod-openapi";
 import type { CarrierCapabilities } from "@/carriers/contract";
 import { CARRIER_PROVIDERS } from "../../../../cod-shared/carriers/providers";
+import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 
 export const CarrierCapabilitiesSchema = z
   .object({
@@ -242,12 +243,13 @@ export const DriverSchema = z
           deliveredAt: z.string().nullable(),
           returnedAt: z.string().nullable(),
           deliveryAttempts: z.number().int(),
+          stage: z.enum(ORDER_STAGES).openapi({ description: "Where its order stands overall (out_for_delivery, delivered, returned…)" }),
           createdAt: z.string(),
         }),
       )
       .optional()
       .openapi({ description: "The 10 most recent orders given to this driver, newest first. Detail, create and update responses only." }),
-    openShipmentCount: z.number().int().optional().openapi({ description: "Orders the driver still has out. Detail, create and update responses only." }),
+    openShipmentCount: z.number().int().optional().openapi({ description: "Orders the driver still has out (not delivered, returned or cancelled)." }),
     cashReconciliation: z
       .object({
         pendingCash: z.number(),

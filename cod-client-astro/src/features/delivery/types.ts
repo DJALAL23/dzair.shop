@@ -1,4 +1,4 @@
-import type { OrderStatus } from "@/features/orders/types";
+import type { OrderStage } from "@/features/orders/types";
 
 export type DriverStatus = "available" | "busy" | "inactive";
 export type VehicleType = "motorcycle" | "car" | "van";
@@ -25,30 +25,47 @@ export interface Driver {
   pendingCash: number;
   totalPaid: number;
   notes?: string | null;
-  recentOrders?: DriverOrder[];
+  /** Orders the driver still has out — not delivered, returned or cancelled. */
+  openShipmentCount?: number;
+  /** The orders most recently given to the driver, newest first (detail only). */
+  recentShipments?: DriverShipment[];
   cashReconciliation?: DriverCashReconciliation;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface DriverOrder {
+/** An order given to the driver, as their page lists it. */
+export interface DriverShipment {
   id: string;
+  orderId: string;
   orderNumber: string;
   customerName: string;
-  phone: string;
-  wilaya: string | null;
   wilayaId: number | null;
-  price: number;
-  status: OrderStatus;
-  deliveryMethod: "unassigned" | "driver" | "company";
-  driverId: string | null;
-  deliveryFee: number;
+  deliveryType: "home" | "stop_desk";
+  codAmount: number;
   driverFee: number;
-  codAmount: number | null;
-  codPaymentId?: string | null;
-  feePaymentId?: string | null;
+  providerStatus: string | null;
+  outForDeliveryAt: string | null;
+  deliveredAt: string | null;
+  returnedAt: string | null;
+  deliveryAttempts: number;
+  stage: OrderStage;
   createdAt: string;
-  updatedAt: string;
+}
+
+/** A delivered shipment whose cash, fee, or both the driver and the store have not settled yet. */
+export interface PendingSettlement {
+  shipmentId: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  codAmount: number;
+  driverFee: number;
+  deliveredAt: string;
+  /** The payment that settled its cash; null while the driver still holds it. */
+  codPaymentId: string | null;
+  /** The payment that settled its fee; null while the store still owes it. */
+  feePaymentId: string | null;
 }
 
 export interface DriverCompensation {

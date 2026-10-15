@@ -12,6 +12,8 @@ import * as schema from "@/db/schema";
 import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ecotrack/test/mock-server";
 import { recordShipmentEvents } from "../../../../cod-shared/shipments/record-events";
 import analyticsRouter from "../analytics/routes";
+import customersRouter from "../customers/routes";
+import driversRouter from "../drivers/routes";
 import { jsonRequest, seedOrder, seedStore, shipmentsApp, T0 } from "../shipments/test/harness";
 
 const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
@@ -25,7 +27,7 @@ const realFetch = globalThis.fetch;
 
 beforeAll(async () => {
   d1 = await createTestD1();
-  app = shipmentsApp(d1, () => scopes, { "/api/analytics": analyticsRouter });
+  app = shipmentsApp(d1, () => scopes, { "/api/analytics": analyticsRouter, "/api/customers": customersRouter, "/api/drivers": driversRouter });
 }, 120_000);
 
 afterAll(async () => {
@@ -39,7 +41,7 @@ const ids = (rows: any[]) => rows.map((r) => r.id).sort();
 
 beforeEach(async () => {
   dbModule.getDb.mockReturnValue(d1.db);
-  scopes = ["orders:read", "orders:assign", "delivery:dispatch", "dashboard:view"];
+  scopes = ["orders:read", "orders:assign", "delivery:dispatch", "dashboard:view", "customers:read", "delivery:read"];
   server = createEcotrackMockServer();
   globalThis.fetch = ((url: string | URL, init?: RequestInit) => server.fetch(url, init)) as typeof fetch;
   const commune = await seedStore(d1.db, server);
@@ -141,8 +143,35 @@ describe("orders by stage", () => {
     expect(data.needsAttention).toBe(1);
   });
 
-  it("needs the dashboard permission", async () => {
-    scopes = ["orders:read"];
+  it("is for whoever reads the orders or the dashboard", async () => {
+    for (const allowed of [["orders:read"], ["dashboard:view"]]) {
+      scopes = allowed;
+      expect((await call("GET", "/api/analytics/order-stages")).status, allowed[0]).toBe(200);
+    }
+    scopes = ["customers:read"];
     expect((await call("GET", "/api/analytics/order-stages")).status).toBe(403);
+  });
+
+  it("the old counts by order status are gone", async () => {
+    expect((await call("GET", "/api/analytics/dashboard-stats")).status).toBe(404);
+  });
+});
+
+describe("the stage wherever an order is shown", () => {
+  it("in a customer's order history — what came back is plain to see", async () => {
+    const { data } = await json(await call("GET", "/api/customers/c1/orders"));
+    expect(Object.fromEntries(data.map((o: any) => [o.id, o.stage]))).toEqual({
+      fresh: "new",
+      waiting: "ready_to_ship",
+      dropped: "cancelled",
+      carried: "in_transit",
+      driven: "delivered",
+      lost: "handoff_pending",
+    });
+  });
+
+  it("in the driver's recent shipments", async () => {
+    const { data } = await json(await call("GET", "/api/drivers/dr1"));
+    expect(data.recentShipments.map((s: any) => [s.orderId, s.stage])).toEqual([["driven", "delivered"]]);
   });
 });

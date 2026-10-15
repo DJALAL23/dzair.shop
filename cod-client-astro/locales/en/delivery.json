@@ -75,7 +75,6 @@
     "van": "Van"
   },
   "driver_card": {
-    "active_orders": "Active Orders",
     "total_delivered": "Total Delivered",
     "pending_cash": "Pending Cash",
     "cash_drift_warning": "Driver cash ledger mismatch: held {pending} but unsettled orders total {orders}. Difference: {drift}. Review settlements before paying out.",
@@ -87,23 +86,23 @@
     "status_available": "Available",
     "status_busy": "Busy",
     "status_inactive": "Inactive",
-    "view_orders": "View Orders",
-    "hide_orders": "Hide Orders",
-    "no_active_orders": "No active orders",
-    "order_delivered": "Order delivered",
     "delivered": "Delivered",
-    "order_returned": "Order returned",
     "returned": "Returned",
-    "rate_card": "Rate Card"
+    "rate_card": "Rate Card",
+    "recent_shipments": "Recent deliveries",
+    "active_orders": "Orders out"
   },
   "assign_dialog": {
     "title": "Assign Orders",
-    "select_orders": "Select orders to assign",
-    "no_ready_orders": "No ready orders available",
-    "success": "Assigned",
-    "orders_for": "orders for",
     "cancel": "Cancel",
-    "assign": "Assign"
+    "done": "Done",
+    "loading": "Loading orders ready to ship…",
+    "select_orders": "Pick the orders waiting to be shipped that this driver takes.",
+    "no_ready_orders": "No order is waiting to be shipped",
+    "given_one": "{count} order given to the driver",
+    "given_other": "{count} orders given to the driver",
+    "assign_one": "Give {count} order",
+    "assign_other": "Give {count} orders"
   },
   "driver_form": {
     "title_add": "Add New Driver",
@@ -178,10 +177,7 @@
     "title": "Driver Payments",
     "tab_pending": "Pending",
     "tab_history": "History",
-    "total_cod_pending": "COD Pending",
-    "total_fee_pending": "Fees Pending",
     "all_settled": "All orders settled — nothing pending",
-    "orders": "orders",
     "selected": "selected",
     "select_all": "Select all",
     "deselect_all": "Deselect all",
@@ -211,7 +207,11 @@
     "type_cod_remittance": "COD Received",
     "type_fee_payment": "Driver Fee",
     "type_net_settlement": "Net Settlement",
-    "net_label": "Net"
+    "net_label": "Net",
+    "cash_to_collect_one": "Cash the driver holds ({count} delivery)",
+    "cash_to_collect_other": "Cash the driver holds ({count} deliveries)",
+    "fees_to_pay_one": "Fees the store owes ({count} delivery)",
+    "fees_to_pay_other": "Fees the store owes ({count} deliveries)"
   },
   "company_profile": {
     "rate_card": "Rate Card",

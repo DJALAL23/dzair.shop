@@ -1,21 +1,27 @@
-import type { OrderStatusStat } from "../../../../cod-shared/queries/analytics";
-import type { OrderStatus } from "@/features/orders/types";
+import { ORDER_QUEUES, viewCounts, type QueueKey } from "@/features/orders/model";
+import type { OrderStageCounts } from "@/features/orders/types";
 
-export const DASHBOARD_STATUSES: OrderStatus[] = [
-  "new",
-  "confirmed",
-  "unreachable",
-  "preparing",
-  "ready",
-  "assigned",
-  "dispatched",
-  "out_for_delivery",
-  "delivered",
-  "returned",
-  "cancelled",
-];
+export interface QueueShare {
+  key: QueueKey;
+  count: number;
+  /** Of all orders, rounded to a whole percent. */
+  share: number;
+}
 
-export function fillStatusStats(stats: OrderStatusStat[]): Array<{ status: OrderStatus; count: number }> {
-  const counts = new Map<string, number>(stats.map((stat) => [stat.status, stat.count]));
-  return DASHBOARD_STATUSES.map((status) => ({ status, count: counts.get(status) ?? 0 }));
+/** Every work queue with its orders, in the order of the merchant's day. */
+export function queueBreakdown(counts: OrderStageCounts): QueueShare[] {
+  const views = viewCounts(counts);
+  return ORDER_QUEUES.map(({ key }) => ({ key, count: views[key], share: views.all === 0 ? 0 : Math.round((views[key] / views.all) * 100) }));
+}
+
+/**
+ * Of the parcels that reached their customer, the share delivered — refused
+ * ones count against it, those still on the way do not count yet. Null
+ * before any parcel reached anyone.
+ */
+export function deliverySuccessRate(counts: OrderStageCounts): number | null {
+  const byStage = new Map(counts.stages.map((entry) => [entry.stage, entry.count]));
+  const delivered = byStage.get("delivered") ?? 0;
+  const refused = (byStage.get("returning") ?? 0) + (byStage.get("returned") ?? 0);
+  return delivered + refused === 0 ? null : Math.round((delivered / (delivered + refused)) * 100);
 }

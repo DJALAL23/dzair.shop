@@ -1,8 +1,8 @@
 import type {
   Driver,
-  DriverOrder,
   DriverPaymentType,
   DriverStatus,
+  PendingSettlement,
   ShippingProfile,
   ShippingRateEntry,
   ShippingRateMap,
@@ -71,12 +71,41 @@ export function paginateDrivers(drivers: Driver[], page: number, pageSize: numbe
   return drivers.slice((safePage - 1) * safePageSize, safePage * safePageSize);
 }
 
-export function driverHasActiveOrders(driverId: string, orders: DriverOrder[]) {
-  return orders.some((order) => order.driverId === driverId && !["delivered", "returned", "cancelled"].includes(order.status));
+/** What the driver and the store still owe each other on these deliveries. */
+export function pendingTotals(rows: PendingSettlement[]) {
+  const cash = rows.filter((row) => !row.codPaymentId);
+  const fees = rows.filter((row) => !row.feePaymentId);
+  return {
+    cash: cash.reduce((sum, row) => sum + row.codAmount, 0),
+    cashCount: cash.length,
+    fees: fees.reduce((sum, row) => sum + row.driverFee, 0),
+    feeCount: fees.length,
+  };
 }
 
-export function driverOrderCount(driverId: string, orders: DriverOrder[]) {
-  return orders.filter((order) => order.driverId === driverId && !["delivered", "returned", "cancelled"].includes(order.status)).length;
+/**
+ * The payment a settlement of these deliveries would record, as the server
+ * computes it: the cash the driver hands over, the fees the store pays, or
+ * both at once (cash less fees). Each part settles once, so only the
+ * deliveries whose part is still open are in it.
+ */
+export function settlementOf(type: DriverPaymentType, rows: PendingSettlement[]): { shipmentIds: string[]; amount: number } {
+  const open =
+    type === "cod_remittance"
+      ? rows.filter((row) => !row.codPaymentId)
+      : type === "fee_payment"
+        ? rows.filter((row) => !row.feePaymentId)
+        : rows.filter((row) => !row.codPaymentId && !row.feePaymentId);
+  const amount = open.reduce(
+    (sum, row) => sum + (type === "cod_remittance" ? row.codAmount : type === "fee_payment" ? row.driverFee : row.codAmount - row.driverFee),
+    0,
+  );
+  return { shipmentIds: open.map((row) => row.shipmentId), amount };
+}
+
+/** A delivery is fully settled once both its cash and its fee are. */
+export function isSettled(row: Pick<PendingSettlement, "codPaymentId" | "feePaymentId">): boolean {
+  return Boolean(row.codPaymentId && row.feePaymentId);
 }
 
 export function parseDriverRoute(pathname: string): DriverRoute {

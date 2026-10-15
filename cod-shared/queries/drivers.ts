@@ -13,6 +13,7 @@ import { eq, and, like, or, count, sql, desc, exists, inArray, isNotNull, notExi
 import { drivers, driverCompensations, driverPaymentLines, wilayas, orders, shipments } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { safeLikeTerm } from "./search";
+import { orderStageSql } from "../orders/stage-sql";
 
 export interface DriverFilters {
   wilayaId?: number;
@@ -41,6 +42,9 @@ export interface UpdateDriverData {
   vehicleType?: "motorcycle" | "car" | "van" | null;
   notes?: string | null;
 }
+
+/** A shipment still out: not delivered, returned or cancelled. */
+const OPEN_SHIPMENT = sql`${shipments.deliveredAt} is null and ${shipments.returnedAt} is null and ${shipments.cancelledAt} is null`;
 
 export async function getAllDrivers(db: AppDb, filters?: DriverFilters) {
   const conditions = [];
@@ -98,11 +102,21 @@ export async function getAllDrivers(db: AppDb, filters?: DriverFilters) {
 
   const compCountMap = new Map(compRows.map((r) => [r.driverId, r.c]));
 
+  const openRows = await db
+    .select({ driverId: shipments.driverId, c: count() })
+    .from(shipments)
+    .where(and(inArray(shipments.driverId, driverRows.map((d) => d.id)), OPEN_SHIPMENT))
+    .groupBy(shipments.driverId)
+    .all();
+  const openCountMap = new Map(openRows.map((r) => [r.driverId, Number(r.c)]));
+
   return driverRows.map((d) => ({
     ...d,
     compensationWilayaCount: compCountMap.get(d.id) ?? 0,
+    openShipmentCount: openCountMap.get(d.id) ?? 0,
   }));
 }
+
 
 /**
  * Driver cash reconciliation: the driver's denormalized pendingCash counter
@@ -164,6 +178,7 @@ export function getRecentDriverShipments(db: AppDb, driverId: string, limit = RE
       deliveredAt: shipments.deliveredAt,
       returnedAt: shipments.returnedAt,
       deliveryAttempts: shipments.deliveryAttempts,
+      stage: orderStageSql(),
       createdAt: shipments.createdAt,
     })
     .from(shipments)
@@ -197,7 +212,7 @@ export async function getDriverById(db: AppDb, driverId: string) {
     db
       .select({ c: count() })
       .from(shipments)
-      .where(and(eq(shipments.driverId, driverId), sql`${shipments.deliveredAt} is null and ${shipments.returnedAt} is null and ${shipments.cancelledAt} is null`))
+      .where(and(eq(shipments.driverId, driverId), OPEN_SHIPMENT))
       .get(),
     getDriverCashReconciliation(db, driverId),
   ]);

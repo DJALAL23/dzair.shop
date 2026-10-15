@@ -1,7 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import { listOrders } from "@/features/orders/api";
-import type { OrderListItem } from "@/features/orders/types";
-import type { Driver, DriverCompensation, DriverOrder, DriverPayment, DriverPaymentType, DriverStatus, VehicleType, Wilaya, DeliveryCompany, StopDesk, ShippingProfile, ShippingProfileWithRules, CommuneOverride } from "./types";
+import type { Driver, DriverCompensation, DriverPayment, PendingSettlement, DriverPaymentType, DriverStatus, VehicleType, Wilaya, DeliveryCompany, StopDesk, ShippingProfile, ShippingProfileWithRules, CommuneOverride } from "./types";
 
 interface ListEnvelope<T> {
   success: boolean;
@@ -85,7 +83,7 @@ export function deleteDriverCompensation(driverId: string, wilayaId: number) {
   return apiFetch<DataEnvelope<null>>(`/api/drivers/${encodeURIComponent(driverId)}/compensations/${wilayaId}`, { method: "DELETE" });
 }
 
-export function createDriverPayment(body: { driverId: string; type: DriverPaymentType; orderIds: string[]; notes?: string }) {
+export function createDriverPayment(body: { driverId: string; type: DriverPaymentType; shipmentIds: string[]; notes?: string }) {
   return apiFetch<DataEnvelope<DriverPayment>>("/api/driver-payments", json({ method: "POST", body: JSON.stringify(body) }));
 }
 
@@ -93,18 +91,8 @@ export async function listDriverPayments(driverId: string) {
   return (await apiFetch<ListEnvelope<DriverPayment>>(`/api/driver-payments/${encodeURIComponent(driverId)}`)).data;
 }
 
-export async function listPendingSettlementOrders(driverId: string) {
-  return (await apiFetch<ListEnvelope<DriverOrder>>(`/api/driver-payments/${encodeURIComponent(driverId)}/pending`)).data;
-}
-
-export async function listAllOrders() {
-  const rows: OrderListItem[] = [];
-  const limit = 100;
-  for (let offset = 0; ; offset += limit) {
-    const response = await listOrders({ limit, offset });
-    rows.push(...response.data);
-    if (response.data.length < limit) return rows;
-  }
+export async function listPendingSettlements(driverId: string) {
+  return (await apiFetch<ListEnvelope<PendingSettlement>>(`/api/driver-payments/${encodeURIComponent(driverId)}/pending`)).data;
 }
 
 export async function listWilayas() {

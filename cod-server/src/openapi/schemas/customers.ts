@@ -5,6 +5,7 @@
  */
 
 import { z } from "@hono/zod-openapi";
+import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 
 export const CustomerGroupMemberSchema = z
   .object({
@@ -90,6 +91,7 @@ export const CustomerOrderSummarySchema = z
       description: "Commune Arabic name, joined from reference table",
       example: "بئر مراد رايس",
     }),
+    stage: z.enum(ORDER_STAGES).openapi({ description: "Where the order stands overall — delivered, returned… (the same stage as GET /api/orders)" }),
     statusHistory: z.array(CustomerOrderStatusSchema),
   })
   .openapi("CustomerOrderSummary", {

@@ -26,10 +26,11 @@ const customer = (overrides: Partial<Customer> = {}): Customer => ({
   ...overrides,
 });
 
-const order = (status: string): CustomerOrderSummary => ({
+const order = (stage: CustomerOrderSummary["stage"]): CustomerOrderSummary => ({
   id: crypto.randomUUID(),
   orderNumber: "ORD-001",
-  status,
+  status: "ready",
+  stage,
   price: 9000,
   createdAt: "2026-08-26T00:00:00.000Z",
   wilayaId: 16,
@@ -52,9 +53,14 @@ describe("customers model", () => {
     expect(paginateCustomers(rows, 2, 2).map((item) => item.id)).toEqual(["3"]);
   });
 
-  it("calculates return rate and deletion eligibility", () => {
+  it("the return rate is the share of the parcels that reached the customer they refused", () => {
     expect(calculateReturnRate([])).toBe(0);
-    expect(calculateReturnRate([order("returned"), order("delivered"), order("returned")])).toBe(67);
+    expect(calculateReturnRate([order("returned"), order("delivered"), order("returning")])).toBe(67);
+    expect(calculateReturnRate([order("returned"), order("delivered"), order("in_transit"), order("new"), order("cancelled")])).toBe(50);
+    expect(calculateReturnRate([order("in_transit"), order("confirmed")])).toBe(0);
+  });
+
+  it("deletes only a customer with no order", () => {
     expect(customerCanDelete(customer({ totalOrders: 0 }))).toBe(true);
     expect(customerCanDelete(customer({ totalOrders: 1 }))).toBe(false);
   });

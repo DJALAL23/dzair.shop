@@ -1,279 +1,225 @@
 import { describe, expect, it } from "vitest";
+import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
+import { SHIPMENT_ACTIONS } from "../../../../cod-shared/shipments/actions";
 import {
-  ALLOWED_TRANSITIONS,
-  detailStatusActions,
-  dispatchFieldSupport,
-  canAssignOrder,
-  canDeleteOrderFromDetail,
-  canDispatchOrder,
-  filterOrders,
-  formatMoney,
-  orderTotal,
-  orderStatusFlow,
-  orderStatusOptions,
-  paginateOrders,
-  shipmentCapabilities,
-  shipmentUpdateFieldSupport,
-  sortOrders,
   abandonedBasketView,
+  attentionReason,
+  eventLabel,
+  canDeleteOrder,
+  canEditOrder,
+  canHandOff,
+  canRecordRefusedUnits,
+  carriersFor,
+  carriersForAll,
+  deliveredBy,
+  deliveryTimeline,
+  driversFor,
+  formatMoney,
+  latestStatusLabel,
+  handoffKinds,
+  offeredActions,
+  ORDER_QUEUES,
+  orderTotal,
+  queueOf,
+  reportsFor,
+  statusMoves,
+  viewCounts,
+  viewQuery,
+  type May,
 } from "./model";
-import type { OrderListItem } from "./types";
+import type { CarrierCapabilities, DeliveryCompany, Driver, ShipmentEvent } from "./types";
 
-const order = (overrides: Partial<OrderListItem> = {}): OrderListItem => ({
-  id: "1",
-  orderNumber: "ORD-001",
-  customerId: "c1",
-  customerName: "Ahmed Benali",
-  phone: "0551234567",
-  wilayaId: 16,
-  wilaya: "الجزائر",
-  communeId: "c-16-001",
-  commune: "باب الزوار",
-  city: null,
-  address: null,
-  price: 9000,
-  deliveryFee: 400,
-  driverFee: 0,
-  codAmount: 9400,
-  status: "new",
-  orderType: "online",
-  deliveryMethod: "unassigned",
-  deliveryType: "home",
-  driverId: null,
-  driverName: null,
-  companyId: null,
-  assignedAt: null,
-  assignedBy: null,
-  assignmentNotes: null,
-  trackingNumber: null,
-  trackingUrl: null,
-  externalOrderId: null,
-  stationCode: null,
-  pickupTime: null,
-  deliveryTime: null,
-  deliveryAttempts: null,
-  notes: null,
-  photos: null,
-  weight: null,
-  isFragile: null,
-  createdAt: "2026-08-26T00:00:00.000Z",
-  updatedAt: "2026-08-26T00:00:00.000Z",
-  ...overrides,
+const scopes = (...granted: string[]): May => (scope) => granted.includes(scope);
+
+describe("the order list's work queues", () => {
+  it("puts every stage in exactly one queue", () => {
+    const placed = ORDER_QUEUES.flatMap((queue) => queue.stages);
+    expect([...placed].sort()).toEqual([...ORDER_STAGES].sort());
+    expect(new Set(placed).size).toBe(placed.length);
+  });
+
+  it("follows the merchant's day, and sends a parcel the carrier cancelled back to be shipped", () => {
+    expect(ORDER_QUEUES.map((queue) => queue.key)).toEqual(["to_confirm", "to_prepare", "to_ship", "on_the_way", "delivered", "returns", "cancelled"]);
+    expect(queueOf("unreachable")).toBe("to_confirm");
+    expect(queueOf("delivery_cancelled")).toBe("to_ship");
+    expect(queueOf("handoff_pending")).toBe("on_the_way");
+    expect(queueOf("returning")).toBe("returns");
+  });
+
+  it("asks the server for a queue's stages, or for what needs attention", () => {
+    expect(viewQuery("all")).toEqual({});
+    expect(viewQuery("attention")).toEqual({ attention: true });
+    expect(viewQuery("on_the_way")).toEqual({ stages: ["handoff_pending", "in_transit", "out_for_delivery"] });
+  });
+
+  it("counts each queue from the counts by stage", () => {
+    const counts = viewCounts({
+      stages: [
+        { stage: "new", count: 3 },
+        { stage: "unreachable", count: 2 },
+        { stage: "in_transit", count: 4 },
+        { stage: "out_for_delivery", count: 1 },
+        { stage: "delivery_cancelled", count: 1 },
+      ],
+      needsAttention: 2,
+    });
+    expect(counts).toEqual({ all: 11, attention: 2, to_confirm: 5, to_prepare: 0, to_ship: 1, on_the_way: 5, delivered: 0, returns: 0, cancelled: 0 });
+  });
 });
 
-describe("orders model", () => {
-  it("keeps the lifecycle transitions explicit", () => {
-    expect(ALLOWED_TRANSITIONS.new).toEqual([
-      "confirmed",
-      "unreachable",
-      "cancelled",
-    ]);
-    expect(ALLOWED_TRANSITIONS.delivered).toEqual([]);
-    expect(orderStatusOptions("new")).toEqual([
-      "new",
-      "confirmed",
-      "unreachable",
-      "cancelled",
-    ]);
-    expect(orderStatusOptions("delivered")).toEqual(["delivered"]);
-  });
-
-  it("filters by query and delivery assignment", () => {
-    const result = filterOrders(
-      [
-        order(),
-        order({
-          id: "2",
-          orderNumber: "ORD-002",
-          driverId: "d1",
-          status: "assigned",
-        }),
-      ],
-      {
-        query: "ahmed",
-        status: "all",
-        delivery: "driver",
-        wilaya: "all",
-        type: "all",
-      },
-    );
-    expect(result.map((item) => item.id)).toEqual(["2"]);
-  });
-
-  it("calculates the COD total from product price and delivery fee", () => {
-    expect(orderTotal(order())).toBe(9400);
-    expect(formatMoney(9400, "en")).toBe("9,400 DA");
-  });
-
-  it("exposes distinct detail actions for branching statuses", () => {
-    expect(detailStatusActions("new")).toEqual([
+describe("an order's next step", () => {
+  it("offers the usual next move first and cancelling last, as the lifecycle allows", () => {
+    expect(statusMoves({ status: "new", hasShipment: false })).toEqual([
       { status: "confirmed", emphasis: "primary" },
       { status: "unreachable", emphasis: "secondary" },
-    ]);
-    expect(detailStatusActions("unreachable")).toEqual([
-      { status: "confirmed", emphasis: "primary" },
       { status: "cancelled", emphasis: "danger" },
     ]);
-    expect(
-      detailStatusActions("ready", order({ deliveryMethod: "unassigned" })),
-    ).toEqual([]);
-    expect(
-      detailStatusActions("ready", order({ deliveryMethod: "company" })),
-    ).toEqual([]);
-    expect(
-      detailStatusActions(
-        "ready",
-        order({ trackingNumber: "TRK-1", deliveryMethod: "company" }),
-      ),
-    ).toEqual([{ status: "dispatched", emphasis: "primary" }]);
-    expect(detailStatusActions("dispatched")).toEqual([
-      { status: "out_for_delivery", emphasis: "primary" },
-    ]);
+    expect(statusMoves({ status: "confirmed", hasShipment: false }).map((move) => move.status)).toEqual(["preparing", "ready", "unreachable", "cancelled"]);
+    expect(statusMoves({ status: "ready", hasShipment: false })).toEqual([{ status: "cancelled", emphasis: "danger" }]);
+    expect(statusMoves({ status: "cancelled", hasShipment: false })).toEqual([]);
   });
 
-  it("keeps provider-specific dispatch fields explicit", () => {
-    expect(dispatchFieldSupport("packers_ecotrack")).toEqual({
-      remarks: true,
-      weight: true,
-      fragile: true,
-    });
-    expect(dispatchFieldSupport("noest")).toEqual({
-      remarks: true,
-      weight: true,
-      fragile: false,
-    });
-    // Yalidine: weight is a real create-parcel field (oversize fee past
-    // 5kg billable); no remarks endpoint; no fragile field.
-    expect(dispatchFieldSupport("yalidine")).toEqual({
-      remarks: false,
-      weight: true,
-      fragile: false,
-    });
-    // ZR Express exposes none of the three.
-    expect(dispatchFieldSupport("zr_express")).toEqual({
-      remarks: false,
-      weight: false,
-      fragile: false,
-    });
+  it("offers no status move once the order has a shipment — its delivery is the shipment's", () => {
+    expect(statusMoves({ status: "ready", hasShipment: true })).toEqual([]);
   });
 
-  it("keeps carrier actions inside each provider status window", () => {
-    expect(
-      shipmentCapabilities("packers_ecotrack", "dispatched", true),
-    ).toMatchObject({
-      canValidate: true,
-      canUpdate: true,
-      canCancel: true,
-      canRemark: true,
-      canTrack: true,
-    });
-    expect(
-      shipmentCapabilities("noest", "out_for_delivery", true),
-    ).toMatchObject({
-      canValidate: false,
-      canUpdate: false,
-      canCancel: false,
-      canRemark: true,
-      canTrack: true,
-    });
-    expect(
-      shipmentCapabilities("zr_express", "dispatched", true),
-    ).toMatchObject({
-      canUpdate: true,
-      // DELETE /parcels/bulk/by-tracking-number works (live-verified 2026-09-10;
-      // the old 405 came from wrongly using POST) — cancel is offered while the
-      // order is not in a terminal status.
-      canCancel: true,
-      canRemark: false,
-      canTrack: true,
-    });
-    expect(
-      shipmentCapabilities("yalidine", "out_for_delivery", true),
-    ).toMatchObject({
-      canUpdate: true,
-      canCancel: true,
-      canRemark: false,
-      canTrack: true,
-    });
+  it("ships only a ready order with no shipment", () => {
+    expect(canHandOff({ status: "ready", hasShipment: false })).toBe(true);
+    expect(canHandOff({ status: "ready", hasShipment: true })).toBe(false);
+    expect(canHandOff({ status: "preparing", hasShipment: false })).toBe(false);
   });
 
-  it("exposes only carrier-supported update fields", () => {
-    expect(shipmentUpdateFieldSupport("noest")).toMatchObject({
-      phone2: true,
-      weight: true,
-      fragile: true,
-      remarks: true,
-    });
-    expect(shipmentUpdateFieldSupport("yalidine")).toMatchObject({
-      phone2: false,
-      weight: true,
-      fragile: false,
-      remarks: false,
-    });
-    expect(shipmentUpdateFieldSupport("zr_express")).toMatchObject({
-      phone2: false,
-      weight: false,
-      fragile: false,
-      remarks: false,
-    });
+  it("edits the customer's details on the order only before its handoff", () => {
+    expect(canEditOrder({ status: "confirmed", hasShipment: false })).toBe(true);
+    expect(canEditOrder({ status: "ready", hasShipment: true })).toBe(false);
+    expect(canEditOrder({ status: "cancelled", hasShipment: false })).toBe(false);
   });
 
-  it("keeps assignment, dispatch, and deletion inside the legacy eligibility windows", () => {
-    const ready = order({ status: "ready" });
-    expect(canAssignOrder(ready)).toBe(true);
-    expect(canDispatchOrder(ready)).toBe(true);
-    expect(canAssignOrder(order({ status: "unreachable" }))).toBe(false);
-    expect(
-      canDispatchOrder(order({ driverId: "d1", deliveryMethod: "driver" })),
-    ).toBe(false);
-    expect(canDeleteOrderFromDetail("new")).toBe(true);
-    expect(canDeleteOrderFromDetail("preparing")).toBe(true);
-    expect(canDeleteOrderFromDetail("confirmed")).toBe(false);
+  it("records units refused at the door only on a delivered order", () => {
+    expect(ORDER_STAGES.filter(canRecordRefusedUnits)).toEqual(["delivered"]);
   });
 
-  it("uses the delivery method's full lifecycle for the detail timeline", () => {
-    expect(
-      orderStatusFlow(order({ deliveryMethod: "driver", driverId: "d1" })),
-    ).toEqual([
-      "new",
-      "confirmed",
-      "preparing",
-      "ready",
-      "assigned",
-      "out_for_delivery",
-      "delivered",
-    ]);
-    expect(
-      orderStatusFlow(
-        order({ deliveryMethod: "company", trackingNumber: "TRK-1" }),
-      ),
-    ).toEqual([
-      "new",
-      "confirmed",
-      "preparing",
-      "ready",
-      "dispatched",
-      "out_for_delivery",
-      "delivered",
-    ]);
+  it("deletes only an order nothing rests on", () => {
+    expect(canDeleteOrder({ status: "new", hasShipment: false })).toBe(true);
+    expect(canDeleteOrder({ status: "cancelled", hasShipment: false })).toBe(true);
+    expect(canDeleteOrder({ status: "confirmed", hasShipment: false })).toBe(false);
+    expect(canDeleteOrder({ status: "ready", hasShipment: true })).toBe(false);
   });
+});
 
-  it("sorts and paginates the filtered order collection", () => {
-    const rows = [
-      order({ id: "1", orderNumber: "ORD-003", price: 300 }),
-      order({ id: "2", orderNumber: "ORD-001", price: 100 }),
-      order({ id: "3", orderNumber: "ORD-002", price: 200 }),
+const CAPS: CarrierCapabilities = {
+  homeDelivery: true, stopDesk: true, separateValidation: false, bulkCreate: 50,
+  parcelFields: { weight: true, fragile: true, remarks: true }, limits: { maxAmount: null, maxDescription: null },
+  update: true, cancel: true, remarks: { add: true, list: true }, history: true, historyBatch: 50, findByReference: true,
+  updates: "pull", label: true, askReturn: true, requestNewAttempt: false, confirmReturn: true, stopDeskList: true, geoNames: false, verifyConnection: true,
+};
+
+const company = (overrides: Partial<DeliveryCompany>): DeliveryCompany => ({
+  id: "c", name: "Packers", nameAr: "-", code: "packers", active: true, isConnected: true, provider: "ecotrack",
+  supportsHomeDelivery: true, supportsStopDesk: true, autoValidate: false, capabilities: CAPS, ...overrides,
+});
+
+describe("handing an order off", () => {
+  it("offers only the carriers that can take the parcel now", () => {
+    const companies = [
+      company({ id: "ok" }),
+      company({ id: "off", active: false }),
+      company({ id: "unconnected", isConnected: false }),
+      company({ id: "no-adapter", provider: null, capabilities: null }),
+      company({ id: "home-only", capabilities: { ...CAPS, stopDesk: false } }),
+      company({ id: "desk-turned-off", supportsStopDesk: false }),
     ];
+    expect(carriersFor(companies, "home").map((c) => c.id)).toEqual(["ok", "home-only", "desk-turned-off"]);
+    expect(carriersFor(companies, "stop_desk").map((c) => c.id)).toEqual(["ok"]);
+  });
 
-    expect(
-      sortOrders(rows, "orderNumber", "asc").map((item) => item.id),
-    ).toEqual(["2", "3", "1"]);
-    expect(sortOrders(rows, "total", "desc").map((item) => item.id)).toEqual([
-      "1",
-      "3",
-      "2",
-    ]);
-    expect(paginateOrders(rows, 2, 2).map((item) => item.id)).toEqual(["3"]);
+  it("offers for several parcels only the carriers that can take each of them", () => {
+    const companies = [company({ id: "both" }), company({ id: "home-only", capabilities: { ...CAPS, stopDesk: false } }), company({ id: "desk-only", capabilities: { ...CAPS, homeDelivery: false } })];
+    expect(carriersForAll(companies, ["home", "home"]).map((c) => c.id)).toEqual(["both", "home-only"]);
+    expect(carriersForAll(companies, ["stop_desk"]).map((c) => c.id)).toEqual(["both", "desk-only"]);
+    expect(carriersForAll(companies, ["home", "stop_desk"]).map((c) => c.id)).toEqual(["both"]);
+  });
+
+  it("offers only the drivers who take orders", () => {
+    const drivers = (["available", "busy", "inactive"] as const).map((status) => ({ id: status, status }) as Driver);
+    expect(driversFor(drivers).map((d) => d.id)).toEqual(["available", "busy"]);
+  });
+
+  it("offers a carrier handoff for dispatch work, a driver handoff for assignment work", () => {
+    expect(handoffKinds(scopes("delivery:dispatch"))).toEqual(["carrier"]);
+    expect(handoffKinds(scopes("orders:assign"))).toEqual(["driver"]);
+    expect(handoffKinds(scopes("delivery:dispatch", "orders:assign"))).toEqual(["carrier", "driver"]);
+    expect(handoffKinds(scopes("orders:read"))).toEqual([]);
+  });
+
+  it("says who carries an order", () => {
+    expect(deliveredBy({ shipmentKind: "carrier", carrierName: "Yalidine", driverName: null })).toEqual({ kind: "carrier", name: "Yalidine" });
+    expect(deliveredBy({ shipmentKind: "driver", carrierName: null, driverName: "Amine B" })).toEqual({ kind: "driver", name: "Amine B" });
+    expect(deliveredBy({ shipmentKind: null, carrierName: null, driverName: null })).toBeNull();
+  });
+});
+
+describe("acting on a shipment", () => {
+  it("offers what the server says is open, that the person may do", () => {
+    const shipment = { kind: "carrier" as const, actions: ["validate", "label", "void", "sync"] as const };
+    expect(offeredActions({ ...shipment, actions: [...shipment.actions] }, scopes("orders:read"))).toEqual(["label"]);
+    expect(offeredActions({ ...shipment, actions: [...shipment.actions] }, scopes("orders:read", "delivery:dispatch"))).toEqual(["validate", "label", "void", "sync"]);
+  });
+
+  it("never offers an action the server did not open, whatever the permissions", () => {
+    expect(offeredActions({ kind: "carrier", actions: ["label"] }, () => true)).toEqual(["label"]);
+    expect(offeredActions({ kind: "carrier", actions: [] }, () => true)).toEqual([]);
+  });
+
+  it("a driver's shipment is assignment work", () => {
+    const driven = { kind: "driver" as const, actions: [...SHIPMENT_ACTIONS].filter((a) => a === "void" || a === "report") };
+    expect(offeredActions(driven, scopes("delivery:dispatch"))).toEqual([]);
+    expect(offeredActions(driven, scopes("orders:assign"))).toEqual(["void", "report"]);
+  });
+
+  it("reports a driver's progress, and on a carrier's parcel only that it came back", () => {
+    expect(reportsFor({ kind: "driver" })).toEqual(["out_for_delivery", "failed_attempt", "delivered", "returned"]);
+    expect(reportsFor({ kind: "carrier" })).toEqual(["returned"]);
+  });
+
+  it("reads our own steps and the driver's progress in the merchant's words, a carrier's status in the carrier's", () => {
+    expect(eventLabel({ vocabulary: "codflow", providerStatus: "handoff_outcome_unknown", providerStatusLabel: null })).toEqual({ key: "event.handoff_outcome_unknown" });
+    expect(eventLabel({ vocabulary: "driver", providerStatus: "failed_attempt", providerStatusLabel: null })).toEqual({ key: "event.failed_attempt" });
+    expect(eventLabel({ vocabulary: "legacy", providerStatus: "dispatched", providerStatusLabel: null })).toEqual({ key: "event.dispatched" });
+    expect(eventLabel({ vocabulary: "yalidine", providerStatus: "En attente du client", providerStatusLabel: null })).toEqual({ text: "En attente du client" });
+    expect(eventLabel({ vocabulary: "ecotrack", providerStatus: "en_hub", providerStatusLabel: "Au hub" })).toEqual({ text: "Au hub" });
+    expect(eventLabel({ vocabulary: "codflow", providerStatus: "something_new", providerStatusLabel: null })).toEqual({ text: "something_new" });
+  });
+
+  it("reads the latest status like its history entry", () => {
+    const ours = { vocabulary: "driver", providerStatus: "failed_attempt", providerStatusLabel: null, occurredAt: "2026-10-02T08:00:00Z", recordedAt: "2026-10-02T08:00:00Z" } as ShipmentEvent;
+    expect(latestStatusLabel({ providerStatus: "failed_attempt", providerStatusLabel: null, events: [ours] })).toEqual({ key: "event.failed_attempt" });
+    expect(latestStatusLabel({ providerStatus: "en_hub", providerStatusLabel: "Au hub", events: [] })).toEqual({ text: "Au hub" });
+    expect(latestStatusLabel({ providerStatus: null, providerStatusLabel: null, events: [ours] })).toBeNull();
+  });
+
+  it("says why a delivery needs the merchant, the most urgent first", () => {
+    const flagged = { id: "f", attention: true, reason: "Client injoignable", providerStatusLabel: null, providerStatus: "x", occurredAt: "2026-10-02T08:00:00Z", recordedAt: "2026-10-02T08:00:00Z" } as ShipmentEvent;
+    const base = { handoffState: "accepted" as const, cancelledAt: null, attentionSince: null, events: [] };
+    expect(attentionReason(base)).toBeNull();
+    expect(attentionReason({ ...base, handoffState: "unknown", cancelledAt: "x" })).toEqual({ kind: "unknown_handoff" });
+    expect(attentionReason({ ...base, cancelledAt: "x", attentionSince: "x" })).toEqual({ kind: "cancelled_by_carrier" });
+    expect(attentionReason({ ...base, attentionSince: "x", events: [flagged] })).toEqual({ kind: "flagged", detail: "Client injoignable" });
+    expect(attentionReason({ ...base, attentionSince: "x" })).toEqual({ kind: "flagged", detail: null });
+  });
+
+  it("shows the delivery's history newest first", () => {
+    const event = (id: string, occurredAt: string, recordedAt = occurredAt) => ({ id, occurredAt, recordedAt }) as ShipmentEvent;
+    const timeline = deliveryTimeline({ events: [event("a", "2026-10-01T08:00:00Z"), event("c", "2026-10-02T08:00:00Z"), event("b", "2026-10-01T08:00:00Z", "2026-10-01T09:00:00Z")] });
+    expect(timeline.map((e) => e.id)).toEqual(["c", "b", "a"]);
+    expect(deliveryTimeline({})).toEqual([]);
+  });
+});
+
+describe("money", () => {
+  it("calculates the COD total from product price and delivery fee", () => {
+    expect(orderTotal({ price: 9000, deliveryFee: 400 })).toBe(9400);
+    expect(formatMoney(9400, "en")).toBe("9,400 DA");
   });
 });
 

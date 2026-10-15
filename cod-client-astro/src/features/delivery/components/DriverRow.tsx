@@ -33,6 +33,7 @@ function DriverActionsMenu({
   driver,
   activeCount,
   canManage,
+  canAssign,
   onView,
   onAssign,
   onCompensations,
@@ -42,6 +43,7 @@ function DriverActionsMenu({
   driver: Driver;
   activeCount: number;
   canManage: boolean;
+  canAssign: boolean;
   onView: (driver: Driver) => void;
   onAssign: (driver: Driver) => void;
   onCompensations: (driver: Driver) => void;
@@ -60,7 +62,7 @@ function DriverActionsMenu({
         <Eye size={15} />
         {t("actions.view")}
       </DropdownItem>
-      {canManage && (
+      {canAssign && driver.status !== "inactive" && (
         <DropdownItem onClick={() => onAssign(driver)}>
           <Package size={15} />
           {t("actions.assign_orders")}
@@ -94,6 +96,7 @@ export function DriverDesktopRow({
   driver,
   activeCount,
   canManage,
+  canAssign,
   onView,
   onAssign,
   onCompensations,
@@ -103,6 +106,7 @@ export function DriverDesktopRow({
   driver: Driver;
   activeCount: number;
   canManage: boolean;
+  canAssign: boolean;
   onView: (driver: Driver) => void;
   onAssign: (driver: Driver) => void;
   onCompensations: (driver: Driver) => void;
@@ -149,6 +153,7 @@ export function DriverDesktopRow({
           driver={driver}
           activeCount={activeCount}
           canManage={canManage}
+          canAssign={canAssign}
           onView={onView}
           onAssign={onAssign}
           onCompensations={onCompensations}
@@ -164,6 +169,7 @@ export function DriverMobileCard({
   driver,
   activeCount,
   canManage,
+  canAssign,
   onView,
   onAssign,
   onCompensations,
@@ -173,6 +179,7 @@ export function DriverMobileCard({
   driver: Driver;
   activeCount: number;
   canManage: boolean;
+  canAssign: boolean;
   onView: (driver: Driver) => void;
   onAssign: (driver: Driver) => void;
   onCompensations: (driver: Driver) => void;
@@ -195,6 +202,7 @@ export function DriverMobileCard({
               driver={driver}
               activeCount={activeCount}
               canManage={canManage}
+          canAssign={canAssign}
               onView={onView}
               onAssign={onAssign}
               onCompensations={onCompensations}

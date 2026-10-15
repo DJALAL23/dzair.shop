@@ -1,4 +1,4 @@
-import type { OrderStatus } from "@/features/orders/types";
+import type { OrderStage, OrderStatus } from "@/features/orders/types";
 
 export interface Customer {
   id: string;
@@ -28,7 +28,9 @@ export interface CustomerOrderStatus {
 export interface CustomerOrderSummary {
   id: string;
   orderNumber: string;
-  status: string;
+  status: OrderStatus;
+  /** Where the order stands overall — delivered, returned… */
+  stage: OrderStage;
   price: number;
   createdAt: string;
   wilayaId: number | null;
@@ -59,7 +61,6 @@ export interface CustomerTag {
 
 export type CustomerGroupMembership = CustomerGroup & { assignedAt: string };
 export type CustomerTagMembership = CustomerTag & { assignedAt: string };
-export type CustomerOrderStatusValue = OrderStatus | string;
 
 export interface CustomerFormValues {
   name: string;

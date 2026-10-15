@@ -1,16 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { fillStatusStats } from "./model";
+import { deliverySuccessRate, queueBreakdown } from "./model";
 
-describe("fillStatusStats", () => {
-  it("fills sparse API results with zero-count lifecycle statuses", () => {
-    const result = fillStatusStats([
-      { status: "ready", count: 4 },
-      { status: "new", count: 2 },
+const counts = {
+  stages: [
+    { stage: "new" as const, count: 2 },
+    { stage: "unreachable" as const, count: 1 },
+    { stage: "in_transit" as const, count: 3 },
+    { stage: "delivered" as const, count: 6 },
+    { stage: "returned" as const, count: 1 },
+    { stage: "returning" as const, count: 1 },
+  ],
+  needsAttention: 1,
+};
+
+describe("the overview", () => {
+  it("shows every work queue with its orders and its share, in the order of the day", () => {
+    expect(queueBreakdown(counts)).toEqual([
+      { key: "to_confirm", count: 3, share: 21 },
+      { key: "to_prepare", count: 0, share: 0 },
+      { key: "to_ship", count: 0, share: 0 },
+      { key: "on_the_way", count: 3, share: 21 },
+      { key: "delivered", count: 6, share: 43 },
+      { key: "returns", count: 2, share: 14 },
+      { key: "cancelled", count: 0, share: 0 },
     ]);
+    expect(queueBreakdown({ stages: [], needsAttention: 0 }).every((queue) => queue.count === 0 && queue.share === 0)).toBe(true);
+  });
 
-    expect(result).toHaveLength(11);
-    expect(result.find((item) => item.status === "new")?.count).toBe(2);
-    expect(result.find((item) => item.status === "ready")?.count).toBe(4);
-    expect(result.find((item) => item.status === "cancelled")?.count).toBe(0);
+  it("measures delivery success over the parcels that reached their customer", () => {
+    expect(deliverySuccessRate(counts)).toBe(75);
+    expect(deliverySuccessRate({ stages: [{ stage: "in_transit", count: 4 }], needsAttention: 0 })).toBeNull();
   });
 });

@@ -75,7 +75,6 @@
     "van": "Fourgonnette"
   },
   "driver_card": {
-    "active_orders": "Commandes actives",
     "total_delivered": "Total livré",
     "pending_cash": "Espèces en attente",
     "cash_drift_warning": "Écart de caisse livreur : {pending} détenus mais {orders} de commandes non réglées. Différence : {drift}. Vérifiez les règlements avant tout paiement.",
@@ -87,23 +86,25 @@
     "status_available": "Disponible",
     "status_busy": "Occupé",
     "status_inactive": "Inactif",
-    "view_orders": "Voir les commandes",
-    "hide_orders": "Masquer les commandes",
-    "no_active_orders": "Aucune commande active",
-    "order_delivered": "Commande livrée",
     "delivered": "Livré",
-    "order_returned": "Commande retournée",
     "returned": "Retourné",
-    "rate_card": "Grille tarifaire"
+    "rate_card": "Grille tarifaire",
+    "recent_shipments": "Livraisons récentes",
+    "active_orders": "Commandes en cours"
   },
   "assign_dialog": {
     "title": "Assigner des commandes",
-    "select_orders": "Sélectionnez les commandes à assigner",
-    "no_ready_orders": "Aucune commande prête disponible",
-    "success": "Assigné",
-    "orders_for": "commandes pour",
     "cancel": "Annuler",
-    "assign": "Assigner"
+    "done": "Terminé",
+    "loading": "Chargement des commandes prêtes…",
+    "select_orders": "Choisissez les commandes prêtes que ce livreur prend.",
+    "no_ready_orders": "Aucune commande n'attend d'être expédiée",
+    "given_one": "{count} commande confiée au livreur",
+    "given_many": "{count} de commandes confiées au livreur",
+    "given_other": "{count} commandes confiées au livreur",
+    "assign_one": "Confier {count} commande",
+    "assign_many": "Confier {count} de commandes",
+    "assign_other": "Confier {count} commandes"
   },
   "driver_form": {
     "title_add": "Ajouter un nouveau livreur",
@@ -149,10 +150,7 @@
     "title": "Paiements des livreurs",
     "tab_pending": "En attente",
     "tab_history": "Historique",
-    "total_cod_pending": "COD en attente",
-    "total_fee_pending": "Frais en attente",
     "all_settled": "Toutes les commandes sont réglées — rien en attente",
-    "orders": "commandes",
     "selected": "sélectionné(s)",
     "select_all": "Tout sélectionner",
     "deselect_all": "Tout désélectionner",
@@ -183,7 +181,13 @@
     "type_cod_remittance": "COD reçu",
     "type_fee_payment": "Frais livreur",
     "type_net_settlement": "Règlement net",
-    "net_label": "Net"
+    "net_label": "Net",
+    "cash_to_collect_one": "Argent détenu par le livreur ({count} livraison)",
+    "cash_to_collect_many": "Argent détenu par le livreur ({count} de livraisons)",
+    "cash_to_collect_other": "Argent détenu par le livreur ({count} livraisons)",
+    "fees_to_pay_one": "Frais dus par la boutique ({count} livraison)",
+    "fees_to_pay_many": "Frais dus par la boutique ({count} de livraisons)",
+    "fees_to_pay_other": "Frais dus par la boutique ({count} livraisons)"
   },
   "company_profile": {
     "rate_card": "Grille tarifaire",

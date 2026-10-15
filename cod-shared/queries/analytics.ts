@@ -7,32 +7,9 @@
 
 import { count, eq, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
-import { orders, shipments, type OrderStatus } from "../db/schema";
+import { orders, shipments } from "../db/schema";
 import type { OrderStage } from "../orders/stage";
 import { orderNeedsAttentionSql, orderStageSql } from "../orders/stage-sql";
-
-export interface OrderStatusStat {
-  status: OrderStatus;
-  count: number;
-}
-
-/**
- * Returns the count of orders grouped by status in a single query.
- * Only statuses that have at least one order are returned.
- * The caller is responsible for filling in zeros for absent statuses.
- */
-export async function getOrderStatusStats(db: AppDb): Promise<OrderStatusStat[]> {
-  const rows = await db
-    .select({
-      status: orders.status,
-      count: sql<number>`count(*)`,
-    })
-    .from(orders)
-    .groupBy(orders.status)
-    .all();
-
-  return rows.map((r) => ({ status: r.status, count: Number(r.count) }));
-}
 
 export interface OrderStageStats {
   /** Orders per stage; only stages with at least one order. */

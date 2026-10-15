@@ -1,256 +1,96 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Pencil, X } from "lucide-react";
-import {
-  canScope,
-  useIdentity,
-} from "@/features/auth/components/RequireAuth";
+import { useEffect, useState } from "react";
+import { AlertCircle, Pencil, StickyNote, Trash2 } from "lucide-react";
+import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useLocale, useT } from "@/i18n/react";
-import { OrderStatusBadge } from "@/features/orders/components/OrderStatusBadge";
-import {
-  Alert,
-  Button,
-  PageHeader,
-  useConfirmDialog,
-} from "@/components/ui";
 import { notify } from "@/lib/notify";
-import {
-  addShipmentRemark,
-  assignDriver,
-  cancelShipment,
-  deleteOrder,
-  dispatchOrder,
-  downloadLabel,
-  getOrder,
-  getTracking,
-  listDeliveryCompanies,
-  listDrivers,
-  updateOrderStatus,
-  updateShipment,
-  validateShipment,
-} from "@/features/orders/api";
-import {
-  canAssignOrder,
-  canDeleteOrderFromDetail,
-  canDispatchOrder,
-  canEditOrder,
-  detailStatusActions,
-  dispatchFieldSupport,
-  orderStatusFlow,
-  shipmentCapabilities,
-  shipmentUpdateFieldSupport,
-} from "@/features/orders/model";
-import type {
-  DeliveryCompany,
-  Driver,
-  OrderDetail as OrderDetailType,
-  OrderStatus,
-} from "@/features/orders/types";
+import { Alert, Button, Card, PageHeader, useConfirmDialog } from "@/components/ui";
+import { deleteOrder, getOrder, listDeliveryCompanies, listDrivers } from "@/features/orders/api";
+import { canDeleteOrder, canEditOrder, canHandOff, canRecordRefusedUnits, handoffKinds, statusMoves } from "@/features/orders/model";
+import type { DeliveryCompany, Driver, OrderDetail as OrderDetailType, OrderStatus } from "@/features/orders/types";
+import { StageBadge } from "@/features/orders/components/StageBadge";
 import { OrderCustomerCard } from "@/features/orders/components/OrderCustomerCard";
 import { OrderCustomAnswersCard } from "@/features/orders/components/OrderCustomAnswersCard";
 import { OrderProductsCard } from "@/features/orders/components/OrderProductsCard";
-import { OrderDeliveryCard } from "@/features/orders/components/OrderDeliveryCard";
-import { OrderStatusTimelineCard } from "@/features/orders/components/OrderStatusTimelineCard";
-import { OrderShipmentActionsCard } from "@/features/orders/components/OrderShipmentActionsCard";
+import { OrderShipmentCard } from "@/features/orders/components/OrderShipmentCard";
+import { OrderNextStepCard } from "@/features/orders/components/OrderNextStepCard";
+import { OrderProgressCard } from "@/features/orders/components/OrderProgressCard";
 import { OrderMobileActionBar } from "@/features/orders/components/OrderMobileActionBar";
 import { EditOrderDialog } from "@/features/orders/components/EditOrderDialog";
+import { HandoffDialog } from "@/features/orders/components/HandoffDialog";
+import { useStatusMove } from "@/features/orders/components/useStatusMove";
 
+/**
+ * One order, as the merchant follows it: the customer and what they ordered,
+ * the next step while it is being processed, and once it is shipped its
+ * delivery — who carries it, where it stands, and what can be done now.
+ */
 export function OrderDetail({ orderId }: { orderId: string }) {
   const t = useT("orders");
   const common = useT("common");
   const auth = useT("auth");
   const locale = useLocale();
   const identity = useIdentity();
+  const may = (scope: string) => canScope(identity, scope);
   const confirm = useConfirmDialog();
-
   const [order, setOrder] = useState<OrderDetailType | null>(null);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [companies, setCompanies] = useState<DeliveryCompany[]>([]);
-  const [status, setStatus] = useState<OrderStatus | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [shipping, setShipping] = useState(false);
+  const kinds = may("delivery:read") ? handoffKinds(may) : [];
 
   async function load() {
-    setError(null);
     try {
-      const mayReadDelivery = canScope(identity, "delivery:read");
-      const [nextOrder, nextDrivers, nextCompanies] = await Promise.all([
-        getOrder(orderId),
-        mayReadDelivery ? listDrivers() : Promise.resolve([]),
-        mayReadDelivery ? listDeliveryCompanies(true) : Promise.resolve([]),
-      ]);
-      setOrder(nextOrder);
-      setStatus(nextOrder.status);
-      setDrivers(nextDrivers);
-      setCompanies(nextCompanies);
+      setOrder(await getOrder(orderId));
+      setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   }
 
+  const move = useStatusMove(load, setError);
+
   useEffect(() => {
     void load();
+    if (!may("delivery:read")) return;
+    listDeliveryCompanies(true).then(setCompanies).catch(() => setCompanies([]));
+    if (kinds.includes("driver")) listDrivers().then(setDrivers).catch(() => setDrivers([]));
   }, [orderId, identity?.role, identity?.scopes.join(",")]);
 
-  const company = companies.find((item) => item.id === (order?.companyId ?? ""));
-  const effectiveStatus = status ?? order?.status;
-  const explicitStatusActions = effectiveStatus
-    ? detailStatusActions(effectiveStatus, order ?? undefined)
-    : [];
-  const dispatched = !!order?.trackingNumber;
-  const canAssign =
-    !!order &&
-    canScope(identity, "orders:assign") &&
-    canAssignOrder(order) &&
-    drivers.length > 0;
-  const canDispatch =
-    !!order &&
-    canScope(identity, "delivery:dispatch") &&
-    companies.length > 0 &&
-    canDispatchOrder(order);
-  const caps = shipmentCapabilities(
-    company?.code ?? "",
-    effectiveStatus ?? "new",
-    dispatched,
-  );
-  const dispatchFields = dispatchFieldSupport(company?.code ?? "");
-  const updateFields = shipmentUpdateFieldSupport(company?.code ?? "");
-  const timeline = useMemo(() => order?.statusHistory ?? [], [order]);
-  const statusFlow = useMemo(
-    () => (order ? orderStatusFlow(order) : []),
-    [order],
-  );
-
-  async function run(
-    action: () => Promise<unknown>,
-    successMessage: string | (() => string),
-    errorMessage: string = common("feedback.action_failed"),
-    after?: () => void,
-  ) {
+  async function changeStatus(status: OrderStatus) {
+    if (!order) return;
     setBusy(true);
-    setError(null);
     try {
-      await action();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-      notify.error(errorMessage);
-      setBusy(false);
-      return;
-    }
-    notify.success(
-      typeof successMessage === "function" ? successMessage() : successMessage,
-    );
-    try {
-      after?.();
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      await move(order, status);
     } finally {
       setBusy(false);
     }
   }
 
-  async function removeOrder() {
-    if (
-      !(await confirm({
-        title: common("confirm_delete_title", { name: order?.orderNumber ?? orderId }),
-        description: common("delete_description"),
-        confirmLabel: t("actions.delete"),
-        tone: "danger",
-      }))
-    )
-      return;
+  async function remove() {
+    if (!order) return;
+    const accepted = await confirm({
+      title: common("confirm_delete_title", { name: order.orderNumber }),
+      description: common("delete_description"),
+      confirmLabel: t("actions.delete"),
+      tone: "danger",
+    });
+    if (!accepted) return;
     setBusy(true);
-    setError(null);
     try {
-      await deleteOrder(orderId);
+      await deleteOrder(order.id);
+      notify.flashSuccess(common("feedback.deleted"));
+      window.location.assign("/orders");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
       notify.error(common("feedback.action_failed"));
       setBusy(false);
-      return;
-    }
-    notify.flashSuccess(common("feedback.deleted"));
-    window.location.assign("/orders");
-  }
-
-  async function confirmShipmentValidation() {
-    if (
-      await confirm({
-        title: t("detail.validate_shipment_btn"),
-        description: t("detail.validate_shipment_confirm"),
-        confirmLabel: t("detail.validate_shipment_btn"),
-      })
-    ) {
-      await run(
-        () => validateShipment(orderId),
-        t("detail.validate_shipment_success"),
-        t("detail.validate_shipment_error"),
-      );
     }
   }
 
-  async function confirmShipmentCancellation() {
-    if (
-      await confirm({
-        title: t("detail.cancel_shipment"),
-        description: t("detail.cancel_shipment_confirm"),
-        confirmLabel: t("detail.cancel_shipment"),
-        tone: "danger",
-      })
-    ) {
-      await run(
-        () => cancelShipment(orderId),
-        t("detail.cancel_shipment_success"),
-        t("detail.cancel_shipment_error"),
-      );
-    }
-  }
-
-  async function changeOrderStatus(next: OrderStatus) {
-    if (
-      ["out_for_delivery", "delivered", "returned", "cancelled"].includes(next)
-    ) {
-      const accepted = await confirm({
-        title: t("detail.status_change_confirm_title"),
-        description: t("detail.status_change_confirm", { order: order?.orderNumber ?? orderId, status: t(`status.${next}`) }),
-        confirmLabel: common("confirm"),
-        tone:
-          next === "cancelled" || next === "returned" ? "danger" : "default",
-      });
-      if (!accepted) return;
-    }
-    await run(
-      () => updateOrderStatus(orderId, next),
-      t("detail.status_updated", { status: t(`status.${next}`) }),
-      t("detail.error_status"),
-      () => setStatus(next),
-    );
-  }
-
-  async function downloadOrderLabel() {
-    try {
-      await downloadLabel(orderId);
-      notify.success(common("feedback.downloaded"));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-      notify.error(common("feedback.action_failed"));
-    }
-  }
-
-  async function fetchTracking() {
-    try {
-      const events = await getTracking(orderId);
-      notify.success(t("detail.tracking_refreshed"));
-      return events;
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-      notify.error(common("feedback.action_failed"));
-      throw cause;
-    }
-  }
-
-  if (!canScope(identity, "orders:read")) {
+  if (!may("orders:read")) {
     return (
       <Alert role="alert" tone="critical">
         {auth("no_access")}
@@ -279,47 +119,30 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     );
   }
 
+  const facts = { status: order.status, hasShipment: order.shipment !== null };
+  const moves = may("orders:update") ? statusMoves(facts) : [];
+  const canShip = canHandOff(facts) && kinds.length > 0;
+
   return (
-    <div className="space-y-5 pb-20 lg:pb-0">
+    <div className="space-y-5 pb-24 lg:pb-0">
       <PageHeader
         title={order.orderNumber}
-        subtitle={
-          order.orderType === "online" ? t("type.online") : t("type.offline")
-        }
+        subtitle={order.orderType === "online" ? t("type.online") : t("type.offline")}
         backHref="/orders"
         backLabel={t("detail.back_to_orders")}
         actions={
           <div className="flex items-center gap-2">
-            <OrderStatusBadge
-              status={effectiveStatus ?? order.status}
-              webhook={order.statusHistory[0]?.by?.startsWith("webhook:")}
-            />
-            {canScope(identity, "orders:update") &&
-              canEditOrder(order) && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="size-9 min-h-9 px-0"
-                  onClick={() => setEditOpen(true)}
-                  disabled={busy}
-                  aria-label={t("actions.edit")}
-                >
-                  <Pencil size={16} />
-                </Button>
-              )}
-            {canScope(identity, "orders:delete") &&
-              canDeleteOrderFromDetail(effectiveStatus ?? order.status) && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="size-9 min-h-9 px-0 text-destructive"
-                  onClick={() => void removeOrder()}
-                  disabled={busy}
-                  aria-label={t("actions.delete")}
-                >
-                  <X size={16} />
-                </Button>
-              )}
+            <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
+            {may("orders:update") && canEditOrder(facts) && (
+              <Button type="button" variant="secondary" className="size-9 min-h-9 px-0" onClick={() => setEditing(true)} disabled={busy} aria-label={t("actions.edit")}>
+                <Pencil size={16} />
+              </Button>
+            )}
+            {may("orders:delete") && canDeleteOrder(facts) && (
+              <Button type="button" variant="secondary" className="size-9 min-h-9 px-0 text-destructive" onClick={() => void remove()} disabled={busy} aria-label={t("actions.delete")}>
+                <Trash2 size={16} />
+              </Button>
+            )}
           </div>
         }
       />
@@ -334,94 +157,31 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         <div className="space-y-5">
           <OrderCustomerCard order={order} />
           <OrderCustomAnswersCard customFieldsJson={order.customFieldsJson} />
-          <OrderProductsCard order={order} locale={locale} />
-          <OrderDeliveryCard order={order} company={company} />
+          <OrderProductsCard order={order} locale={locale} canRecordRefused={may("orders:update") && canRecordRefusedUnits(order.stage)} onChanged={load} />
+          {order.notes && (
+            <Card title={t("detail.notes")}>
+              <p className="flex gap-2 text-sm">
+                <StickyNote size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
+                {order.notes}
+              </p>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-5 lg:sticky lg:top-5 lg:self-start">
-          <OrderStatusTimelineCard
-            statusFlow={statusFlow}
-            timeline={timeline}
-            effectiveStatus={effectiveStatus ?? order.status}
-            locale={locale}
-          />
-          <OrderShipmentActionsCard
-            order={order}
-            effectiveStatus={effectiveStatus ?? order.status}
-            explicitStatusActions={explicitStatusActions}
-            canAssign={canAssign}
-            canDispatch={canDispatch}
-            dispatched={dispatched}
-            caps={caps}
-            dispatchFields={dispatchFields}
-            updateFields={updateFields}
-            drivers={drivers}
-            companies={companies}
-            busy={busy}
-            identity={identity}
-            initialDriverId={order.driverId ?? ""}
-            initialCompanyId={order.companyId ?? ""}
-            onChangeOrderStatus={changeOrderStatus}
-            onAssignDriver={(id) =>
-              run(
-                () => assignDriver(order.id, id),
-                t("assign_driver_dialog.success"),
-                t("detail.error_assign"),
-              )
-            }
-            onDispatchOrder={(params) => {
-              let trackingNumber = "";
-              return run(
-                async () => {
-                  const response = await dispatchOrder(order.id, params);
-                  trackingNumber = response.data.trackingNumber;
-                },
-                () => `${t("dispatch_dialog.success")}${trackingNumber}`,
-                t("detail.dispatch_failed"),
-              );
-            }}
-            onValidateShipment={confirmShipmentValidation}
-            onDownloadLabel={downloadOrderLabel}
-            onCancelShipment={confirmShipmentCancellation}
-            onUpdateShipment={(params) =>
-              run(
-                () => updateShipment(order.id, params),
-                t("detail.update_shipment_success"),
-                t("detail.update_shipment_error"),
-              )
-            }
-            onAddRemark={(txt) =>
-              run(
-                () => addShipmentRemark(order.id, txt),
-                t("detail.remark_success"),
-                t("detail.remark_error"),
-              )
-            }
-            onFetchTracking={fetchTracking}
-          />
+          {order.shipment ? (
+            <OrderShipmentCard order={order} shipment={order.shipment} companies={companies} onChanged={load} />
+          ) : (
+            <OrderNextStepCard moves={moves} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
+          )}
+          <OrderProgressCard history={order.statusHistory} />
         </div>
       </div>
 
-      <OrderMobileActionBar
-        order={order}
-        effectiveStatus={effectiveStatus ?? order.status}
-        explicitStatusActions={explicitStatusActions}
-        caps={caps}
-        identity={identity}
-        busy={busy}
-        onValidateShipment={confirmShipmentValidation}
-        onChangeOrderStatus={changeOrderStatus}
-        onDownloadLabel={downloadOrderLabel}
-      />
+      <OrderMobileActionBar moves={moves} canShip={canShip} busy={busy} stage={order.stage} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
 
-      {editOpen && (
-        <EditOrderDialog
-          order={order}
-          onClose={() => setEditOpen(false)}
-          onChanged={() => load()}
-          onError={(message) => setError(message)}
-        />
-      )}
+      {editing && <EditOrderDialog order={order} onClose={() => setEditing(false)} onChanged={load} onError={setError} />}
+      {shipping && <HandoffDialog order={order} kinds={kinds} companies={companies} drivers={drivers} onClose={() => setShipping(false)} onDone={load} />}
     </div>
   );
 }

@@ -1,61 +1,15 @@
 import { useEffect, useState } from "react";
-import {
-  AlertCircle,
-  BarChart3,
-  CheckCircle2,
-  PackageX,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-} from "lucide-react";
-import {
-  canScope,
-  RequireAuth,
-  useIdentity,
-} from "@/features/auth/components/RequireAuth";
+import { AlertCircle, AlertTriangle, BarChart3, CheckCircle2, Plus, RefreshCw, Send, Truck } from "lucide-react";
+import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
-import { OrderStatusBadge } from "@/features/orders/components/OrderStatusBadge";
-import {
-  Button,
-  EmptyState,
-  LinkButton,
-  Alert,
-  PageHeader,
-  StatCard,
-  Card,
-} from "@/components/ui";
+import { StageBadge } from "@/features/orders/components/StageBadge";
+import { Button, EmptyState, LinkButton, Alert, PageHeader, StatCard, Card } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { relativeTime } from "@/lib/relative-time";
-import { getDashboardStats } from "@/features/dashboard/api";
-import { fillStatusStats } from "@/features/dashboard/model";
-import { listOrders } from "@/features/orders/api";
-import { formatMoney, orderTotal } from "@/features/orders/model";
-import type { OrderListItem, OrderStatus } from "@/features/orders/types";
-
-const STATUS_TONE: Record<OrderStatus, string> = {
-  new: "bg-[var(--status-new-text)]",
-  confirmed: "bg-[var(--status-confirmed-text)]",
-  unreachable: "bg-[var(--status-preparing-text)]",
-  preparing: "bg-[var(--status-preparing-text)]",
-  ready: "bg-[var(--status-ready-text)]",
-  assigned: "bg-[var(--status-assigned-text)]",
-  dispatched: "bg-[var(--status-dispatched-text)]",
-  out_for_delivery: "bg-[var(--status-out-text)]",
-  delivered: "bg-[var(--status-delivered-text)]",
-  returned: "bg-[var(--status-returned-text)]",
-  cancelled: "bg-[var(--status-cancelled-text)]",
-};
-
-const IN_PROGRESS: OrderStatus[] = [
-  "new",
-  "confirmed",
-  "unreachable",
-  "preparing",
-  "ready",
-  "assigned",
-  "dispatched",
-  "out_for_delivery",
-];
+import { deliverySuccessRate, queueBreakdown } from "@/features/dashboard/model";
+import { getOrderStageCounts, listOrders } from "@/features/orders/api";
+import { formatMoney, orderTotal, viewCounts } from "@/features/orders/model";
+import type { OrderListItem, OrderStageCounts } from "@/features/orders/types";
 
 function DashboardOverview() {
   const identity = useIdentity();
@@ -63,9 +17,8 @@ function DashboardOverview() {
   const common = useT("common");
   const auth = useT("auth");
   const locale = useLocale();
-  const [stats, setStats] = useState<Awaited<
-    ReturnType<typeof getDashboardStats>
-  > | null>(null);
+  const ordersT = useT("orders");
+  const [stats, setStats] = useState<OrderStageCounts | null>(null);
   const [recent, setRecent] = useState<OrderListItem[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
@@ -73,13 +26,13 @@ function DashboardOverview() {
     setError(null);
     try {
       const [nextStats, nextRecent] = await Promise.all([
-        getDashboardStats(),
+        getOrderStageCounts(),
         canScope(identity, "orders:read")
           ? listOrders({ limit: 5 })
           : Promise.resolve(null),
       ]);
       setStats(nextStats);
-      setRecent(nextRecent ? nextRecent.data : []);
+      setRecent(nextRecent ? nextRecent.orders : []);
     } catch (cause) {
       setError(cause instanceof Error ? cause : new Error(String(cause)));
     }
@@ -158,43 +111,36 @@ function DashboardOverview() {
     );
   }
 
-  const rows = fillStatusStats(stats);
-  const counts = new Map(rows.map((row) => [row.status, row.count]));
-  const total = rows.reduce((sum, row) => sum + row.count, 0);
-  const delivered = counts.get("delivered") ?? 0;
-  const returned = counts.get("returned") ?? 0;
-  const active = IN_PROGRESS.reduce(
-    (sum, status) => sum + (counts.get(status) ?? 0),
-    0,
-  );
+  const views = viewCounts(stats);
+  const queues = queueBreakdown(stats);
+  const successRate = deliverySuccessRate(stats);
 
   return (
     <div className="space-y-5">
       {header}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <a href="/orders?view=attention" className="block rounded-xl focus-visible:outline-2">
+          <StatCard
+            label={t("stats.needs_attention")}
+            value={views.attention.toLocaleString(locale)}
+            tone={views.attention > 0 ? "critical" : "neutral"}
+            icon={<AlertTriangle size={20} />}
+            hint={t("stats.needs_attention_hint")}
+          />
+        </a>
+        <a href="/orders?view=to_ship" className="block rounded-xl focus-visible:outline-2">
+          <StatCard label={t("stats.to_ship")} value={views.to_ship.toLocaleString(locale)} tone="warning" icon={<Send size={20} />} hint={t("stats.to_ship_hint")} />
+        </a>
+        <a href="/orders?view=on_the_way" className="block rounded-xl focus-visible:outline-2">
+          <StatCard label={t("stats.on_the_way")} value={views.on_the_way.toLocaleString(locale)} tone="brand" icon={<Truck size={20} />} />
+        </a>
         <StatCard
-          label={t("stats.total_orders")}
-          value={total.toLocaleString(locale)}
-          icon={<BarChart3 size={20} />}
-        />
-        <StatCard
-          label={t("stats.active_orders")}
-          value={active.toLocaleString(locale)}
-          tone="warning"
-          icon={<PackageX size={20} />}
-        />
-        <StatCard
-          label={t("stats.delivered")}
-          value={delivered.toLocaleString(locale)}
+          label={t("stats.delivery_success")}
+          value={successRate === null ? "—" : `${successRate}%`}
           tone="success"
           icon={<CheckCircle2 size={20} />}
-        />
-        <StatCard
-          label={t("stats.returned")}
-          value={returned.toLocaleString(locale)}
-          tone="critical"
-          icon={<RotateCcw size={20} />}
+          hint={t("stats.delivery_success_hint", { delivered: views.delivered, refused: views.returns })}
         />
       </div>
 
@@ -233,7 +179,7 @@ function DashboardOverview() {
                         {order.customerName}
                       </span>
                     </span>
-                    <OrderStatusBadge status={order.status} />
+                    <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
                     <span className="w-24 shrink-0 text-end text-sm font-bold tabular-nums text-foreground">
                       {formatMoney(orderTotal(order), locale)}
                     </span>
@@ -247,55 +193,38 @@ function DashboardOverview() {
           )}
         </Card>
 
-        <Card flush title={t("status_breakdown.title")}>
-          <p className="border-b border-border px-4 py-3 text-sm text-muted-foreground sm:px-5">
-            {t("status_breakdown.subtitle")}
-          </p>
-          {total === 0 ? (
-            <EmptyState
-              compact
-              icon={<BarChart3 size={20} />}
-              title={t("recent_orders.empty")}
-            />
+        <Card flush title={t("queues.title")}>
+          <p className="border-b border-border px-4 py-3 text-sm text-muted-foreground sm:px-5">{t("queues.subtitle")}</p>
+          {views.all === 0 ? (
+            <EmptyState compact icon={<BarChart3 size={20} />} title={t("recent_orders.empty")} />
           ) : (
             <div className="divide-y divide-border">
-              {rows.map(({ status, count }) => {
-                const percentage = Math.round((count / total) * 100);
-                return (
-                  <div
-                    key={status}
-                    className="grid gap-3 px-4 py-3 sm:grid-cols-[160px_minmax(0,1fr)_64px] sm:items-center sm:px-5"
-                  >
-                    <div className="flex items-center justify-between gap-3 sm:justify-start">
-                      <OrderStatusBadge status={status} />
-                      <span className="text-sm font-bold tabular-nums text-foreground sm:hidden">
-                        {count.toLocaleString(locale)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
-                        role="progressbar"
-                        aria-label={common(`statuses.${status}`)}
-                        aria-valuemin={0}
-                        aria-valuemax={total}
-                        aria-valuenow={count}
-                      >
-                        <div
-                          className={`h-full rounded-full ${STATUS_TONE[status]}`}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                      <span className="w-10 text-end text-xs font-semibold tabular-nums text-muted-foreground">
-                        {percentage}%
-                      </span>
-                    </div>
-                    <span className="hidden text-end text-sm font-bold tabular-nums text-foreground sm:block">
-                      {count.toLocaleString(locale)}
-                    </span>
+              {queues.map(({ key, count, share }) => (
+                <a
+                  key={key}
+                  href={`/orders?view=${key}`}
+                  className="grid gap-3 px-4 py-3 transition-colors hover:bg-muted/50 sm:grid-cols-[150px_minmax(0,1fr)_56px] sm:items-center sm:px-5"
+                >
+                  <div className="flex items-center justify-between gap-3 sm:justify-start">
+                    <span className="text-sm font-semibold">{ordersT(`queues.${key}`)}</span>
+                    <span className="text-sm font-bold tabular-nums sm:hidden">{count.toLocaleString(locale)}</span>
                   </div>
-                );
-              })}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
+                      role="progressbar"
+                      aria-label={ordersT(`queues.${key}`)}
+                      aria-valuemin={0}
+                      aria-valuemax={views.all}
+                      aria-valuenow={count}
+                    >
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
+                    </div>
+                    <span className="w-10 text-end text-xs font-semibold tabular-nums text-muted-foreground">{share}%</span>
+                  </div>
+                  <span className="hidden text-end text-sm font-bold tabular-nums sm:block">{count.toLocaleString(locale)}</span>
+                </a>
+              ))}
             </div>
           )}
         </Card>

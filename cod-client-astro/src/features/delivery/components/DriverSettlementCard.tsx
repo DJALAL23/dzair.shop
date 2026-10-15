@@ -27,20 +27,36 @@ import {
   driverErrorMessage,
   formatDeliveryDate,
   formatDeliveryMoney,
+  isSettled,
+  pendingTotals,
+  settlementOf,
 } from "@/features/delivery/model";
 import { notify } from "@/lib/notify";
 import type {
-  DriverOrder,
   DriverPayment,
   DriverPaymentType,
+  PendingSettlement,
 } from "@/features/delivery/types";
 
+const ACTION: Record<DriverPaymentType, "cod" | "fee" | "net"> = {
+  cod_remittance: "cod",
+  fee_payment: "fee",
+  net_settlement: "net",
+};
+
+/**
+ * Settling with the driver: the delivered orders whose cash they still hold
+ * or whose fee the store still owes. Pick them, then record the cash handed
+ * over, the fees paid, or both at once — each part is settled once.
+ */
 export function DriverSettlementCard({
   driverId,
-  deliveredOrders,
+  pending,
+  onSettled,
 }: {
   driverId: string;
-  deliveredOrders: DriverOrder[];
+  pending: PendingSettlement[];
+  onSettled: () => void | Promise<void>;
 }) {
   const t = useT("delivery");
   const common = useT("common");
@@ -55,50 +71,23 @@ export function DriverSettlementCard({
   const [error, setError] = useState<string | null>(null);
 
   const canManage = canScope(identity, SCOPES.DELIVERY_MANAGE);
-  const settleableOrders = deliveredOrders.filter(
-    (order) => !order.codPaymentId || !order.feePaymentId,
-  );
-  const selected = deliveredOrders.filter((order) => selectedIds.has(order.id));
-  const selectedCodOrders = selected.filter((order) => !order.codPaymentId);
-  const selectedFeeOrders = selected.filter((order) => !order.feePaymentId);
-  const selectedNetOrders = selected.filter(
-    (order) => !order.codPaymentId && !order.feePaymentId,
-  );
-  const selectedCod = selectedCodOrders
-    .reduce((sum, order) => sum + (order.codAmount ?? 0), 0);
-  const selectedFee = selectedFeeOrders
-    .reduce((sum, order) => sum + (order.driverFee ?? 0), 0);
-  const selectedNet = selectedNetOrders.reduce(
-    (sum, order) => sum + (order.codAmount ?? 0) - (order.driverFee ?? 0),
-    0,
-  );
-  const totalPendingCod = settleableOrders
-    .filter((order) => !order.codPaymentId)
-    .reduce((sum, order) => sum + (order.codAmount ?? 0), 0);
-  const totalPendingFee = settleableOrders
-    .filter((order) => !order.feePaymentId)
-    .reduce((sum, order) => sum + (order.driverFee ?? 0), 0);
-  const allSettled = settleableOrders.length === 0;
-  const isAllSelected =
-    selectedIds.size > 0 &&
-    settleableOrders.every((order) => selectedIds.has(order.id));
+  const open = pending.filter((row) => !isSettled(row));
+  const selected = pending.filter((row) => selectedIds.has(row.shipmentId));
+  const totals = pendingTotals(open);
+  const offers = (["fee_payment", "cod_remittance", "net_settlement"] as const).map((type) => ({ type, ...settlementOf(type, selected) }));
+  const allSettled = open.length === 0;
+  const isAllSelected = selectedIds.size > 0 && open.every((row) => selectedIds.has(row.shipmentId));
 
-  function toggle(orderId: string) {
-    const order = deliveredOrders.find((item) => item.id === orderId);
-    if (order?.codPaymentId && order?.feePaymentId) return;
+  function toggle(shipmentId: string) {
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(orderId)) next.delete(orderId);
-      else next.add(orderId);
+      if (next.has(shipmentId)) next.delete(shipmentId);
+      else next.add(shipmentId);
       return next;
     });
   }
   function toggleAll() {
-    setSelectedIds(
-      isAllSelected
-        ? new Set()
-        : new Set(settleableOrders.map((order) => order.id)),
-    );
+    setSelectedIds(isAllSelected ? new Set() : new Set(open.map((row) => row.shipmentId)));
   }
   async function loadHistory() {
     if (historyLoading || history !== null) return;
@@ -112,49 +101,27 @@ export function DriverSettlementCard({
     }
   }
   async function settle(type: DriverPaymentType) {
-    const eligibleOrders =
-      type === "fee_payment"
-        ? selectedFeeOrders
-        : type === "cod_remittance"
-          ? selectedCodOrders
-          : selectedNetOrders;
-    if (eligibleOrders.length === 0) return;
-    const amount =
-      type === "fee_payment"
-        ? selectedFee
-        : type === "cod_remittance"
-          ? selectedCod
-          : selectedNet;
-    if (
-      !(await confirm({
-        title: t("payments.confirm_title"),
-        description: t("payments.confirm_body", { amount: formatDeliveryMoney(amount, locale), count: eligibleOrders.length }),
-        confirmLabel: t(
-          `payments.action_${type === "fee_payment" ? "fee" : type === "cod_remittance" ? "cod" : "net"}`,
-        ),
-      }))
-    )
-      return;
+    const { shipmentIds, amount } = settlementOf(type, selected);
+    if (shipmentIds.length === 0) return;
+    const accepted = await confirm({
+      title: t("payments.confirm_title"),
+      description: t("payments.confirm_body", { amount: formatDeliveryMoney(amount, locale), count: shipmentIds.length }),
+      confirmLabel: t(`payments.action_${ACTION[type]}`),
+    });
+    if (!accepted) return;
     setBusy(true);
     setError(null);
     try {
-      await createDriverPayment({
-        driverId,
-        type,
-        orderIds: eligibleOrders.map((order) => order.id),
-      });
+      await createDriverPayment({ driverId, type, shipmentIds });
       setSelectedIds(new Set());
       setHistory(null);
-      notify.flashSuccess(
-        t(
-          `payments.success_${type === "fee_payment" ? "fee" : type === "cod_remittance" ? "cod" : "net"}`,
-        ),
-      );
-      window.location.reload();
+      notify.success(t(`payments.success_${ACTION[type]}`));
+      await onSettled();
     } catch (cause) {
       const message = driverErrorMessage(cause, t);
       setError(message);
       notify.error(message);
+    } finally {
       setBusy(false);
     }
   }
@@ -192,12 +159,12 @@ export function DriverSettlementCard({
       {!allSettled && (
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
-            label={`${t("payments.total_cod_pending")} (${settleableOrders.filter((order) => !order.codPaymentId).length} ${t("payments.orders")})`}
-            value={formatDeliveryMoney(totalPendingCod, locale)}
+            label={t("payments.cash_to_collect", { count: totals.cashCount })}
+            value={formatDeliveryMoney(totals.cash, locale)}
           />
           <StatCard
-            label={`${t("payments.total_fee_pending")} (${settleableOrders.filter((order) => !order.feePaymentId).length} ${t("payments.orders")})`}
-            value={formatDeliveryMoney(totalPendingFee, locale)}
+            label={t("payments.fees_to_pay", { count: totals.feeCount })}
+            value={formatDeliveryMoney(totals.fees, locale)}
           />
         </div>
       )}
@@ -220,57 +187,31 @@ export function DriverSettlementCard({
             </Button>
             {selectedIds.size > 0 && canManage && (
               <div className="flex flex-wrap gap-2">
-                {selectedFee > 0 && (
-                  <Button
-                    type="button"
-                    onClick={() => void settle("fee_payment")}
-                    disabled={busy}
-                    className="min-h-8 px-3 text-xs"
-                  >
-                    {t("payments.action_fee")} ·{" "}
-                    {formatDeliveryMoney(selectedFee, locale)}
-                  </Button>
-                )}
-                {selectedCod > 0 && (
-                  <Button
-                    type="button"
-                    onClick={() => void settle("cod_remittance")}
-                    disabled={busy}
-                    className="min-h-8 px-3 text-xs"
-                  >
-                    {t("payments.action_cod")} ·{" "}
-                    {formatDeliveryMoney(selectedCod, locale)}
-                  </Button>
-                )}
-                {selectedNetOrders.length > 0 && selectedNet > 0 && (
-                  <Button
-                    type="button"
-                    onClick={() => void settle("net_settlement")}
-                    disabled={busy}
-                    className="min-h-8 px-3 text-xs"
-                  >
-                    {t("payments.action_net")} ·{" "}
-                    {formatDeliveryMoney(selectedNet, locale)}
-                  </Button>
-                )}
+                {offers
+                  .filter((offer) => offer.shipmentIds.length > 0 && offer.amount > 0)
+                  .map((offer) => (
+                    <Button key={offer.type} type="button" onClick={() => void settle(offer.type)} disabled={busy} className="min-h-8 px-3 text-xs">
+                      {t(`payments.action_${ACTION[offer.type]}`)} · {formatDeliveryMoney(offer.amount, locale)}
+                    </Button>
+                  ))}
               </div>
             )}
           </div>
           <div className="divide-y divide-border rounded-lg border border-border md:hidden">
-            {deliveredOrders.map((order) => {
+            {pending.map((order) => {
               const codSettled = !!order.codPaymentId;
               const feeSettled = !!order.feePaymentId;
               const selectable = !(codSettled && feeSettled);
               return (
                 <label
-                  key={order.id}
+                  key={order.shipmentId}
                   className={`flex min-h-16 items-center gap-3 p-3 ${selectable ? "cursor-pointer" : "opacity-60"}`}
                 >
                   {selectable && (
                     <input
                       type="checkbox"
-                      checked={selectedIds.has(order.id)}
-                      onChange={() => toggle(order.id)}
+                      checked={selectedIds.has(order.shipmentId)}
+                      onChange={() => toggle(order.shipmentId)}
                       aria-label={`${t("payments.selected")}: ${order.orderNumber}`}
                       className="size-5 shrink-0 accent-primary"
                     />
@@ -285,7 +226,7 @@ export function DriverSettlementCard({
                   </span>
                   <span className="shrink-0 text-end">
                     <span className="block text-sm font-semibold tabular-nums">
-                      {formatDeliveryMoney(order.codAmount ?? 0, locale)}
+                      {formatDeliveryMoney(order.codAmount, locale)}
                     </span>
                     <span className="block text-xs text-muted-foreground tabular-nums">
                       {t("payments.fee_badge")}: {formatDeliveryMoney(order.driverFee, locale)}
@@ -312,13 +253,13 @@ export function DriverSettlementCard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {deliveredOrders.map((order) => {
+                {pending.map((order) => {
                   const codSettled = !!order.codPaymentId;
                   const feeSettled = !!order.feePaymentId;
                   const selectable = !(codSettled && feeSettled);
                   return (
                     <TableRow
-                      key={order.id}
+                      key={order.shipmentId}
                       className={selectable ? "" : "opacity-60"}
                     >
                       <TableCell>
@@ -326,8 +267,8 @@ export function DriverSettlementCard({
                           {selectable && (
                             <input
                               type="checkbox"
-                              checked={selectedIds.has(order.id)}
-                              onChange={() => toggle(order.id)}
+                              checked={selectedIds.has(order.shipmentId)}
+                              onChange={() => toggle(order.shipmentId)}
                               aria-label={`${t("payments.selected")}: ${order.orderNumber}`}
                               className="size-4 accent-primary"
                             />
@@ -348,7 +289,7 @@ export function DriverSettlementCard({
                               : "font-semibold text-amber-600"
                           }
                         >
-                          {formatDeliveryMoney(order.codAmount ?? 0, locale)}
+                          {formatDeliveryMoney(order.codAmount, locale)}
                         </span>
                         {codSettled && (
                           <span className="ms-1 text-[10px] font-bold text-violet-600">
@@ -377,7 +318,7 @@ export function DriverSettlementCard({
                         )}
                       </TableCell>
                       <TableCell className="text-end text-muted-foreground">
-                        {formatDeliveryDate(order.createdAt, locale)}
+                        {formatDeliveryDate(order.deliveredAt, locale)}
                       </TableCell>
                     </TableRow>
                   );

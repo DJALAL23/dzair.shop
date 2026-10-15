@@ -1,35 +1,25 @@
 import { Building2, Truck } from "lucide-react";
 import { useT } from "@/i18n/react";
-import type { DeliveryCompany, OrderListItem } from "@/features/orders/types";
+import { deliveredBy } from "@/features/orders/model";
+import type { OrderListItem } from "@/features/orders/types";
 
-/** Delivery-method cell: the assigned company, driver, or "not assigned". */
-export function OrderDelivery({
-  order,
-  companies,
-}: {
-  order: OrderListItem;
-  companies: DeliveryCompany[];
-}) {
+/** Who carries the order — a carrier with its tracking number, or the store's driver — or that it is not shipped yet. */
+export function OrderDelivery({ order }: { order: Pick<OrderListItem, "shipmentKind" | "carrierName" | "driverName" | "trackingNumber"> }) {
   const t = useT("orders");
-  if (order.trackingNumber) {
-    const company = companies.find((item) => item.id === order.companyId);
-    return (
-      <span className="inline-flex max-w-36 items-center gap-1.5 truncate text-xs font-medium text-foreground">
-        <Building2 size={14} className="shrink-0 text-success" />
-        {company?.name ?? t("detail.company")}
-      </span>
-    );
-  }
-  if (order.driverName)
-    return (
-      <span className="inline-flex max-w-36 items-center gap-1.5 truncate text-xs font-medium text-foreground">
-        <Truck size={14} className="shrink-0 text-muted-foreground" />
-        {order.driverName}
-      </span>
-    );
+  const by = deliveredBy(order);
+  if (!by) return <span className="text-xs text-muted-foreground">{t("table.not_shipped")}</span>;
+  const Icon = by.kind === "carrier" ? Building2 : Truck;
   return (
-    <span className="text-xs text-muted-foreground">
-      {t("table.not_assigned")}
+    <span className="inline-flex max-w-48 flex-col text-xs font-medium text-foreground">
+      <span className="inline-flex items-center gap-1.5 truncate">
+        <Icon size={14} className="shrink-0 text-muted-foreground" />
+        {by.name ?? t(by.kind === "carrier" ? "delivery.a_carrier" : "delivery.a_driver")}
+      </span>
+      {order.trackingNumber && (
+        <span dir="ltr" className="ms-5 truncate font-mono text-[11px] text-muted-foreground">
+          {order.trackingNumber}
+        </span>
+      )}
     </span>
   );
 }
