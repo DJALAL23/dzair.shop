@@ -11,7 +11,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
-import type { AppDb } from "@/db";
+import { interleaved as interleavedDb } from "@/test-utils/interleaved";
 import { deleteOrder, updateOrderStatus, updateOrder } from "../../../../cod-shared/queries/orders";
 import { acceptCarrierHandoff, markHandoffUnknown, reserveCarrierShipment } from "../../../../cod-shared/shipments/handoff";
 import { recordShipmentEvents } from "../../../../cod-shared/shipments/record-events";
@@ -79,23 +79,7 @@ async function shipment(orderId: string, state: "submitting" | "unknown" | "acce
 /** The customer has another order of the same value, so a spend rolled back twice shows. */
 const SPEND_BEFORE = 3000;
 
-/** The same database, but its next batch first lets `meanwhile` run — another writer getting in between a read and a write. */
-function interleaved(meanwhile: () => Promise<unknown>): AppDb {
-  let pending = true;
-  return new Proxy(d1.db, {
-    get(target, prop, receiver) {
-      if (prop === "batch" && pending) {
-        return async (statements: unknown) => {
-          pending = false;
-          await meanwhile();
-          return (target.batch as (s: unknown) => Promise<unknown>)(statements);
-        };
-      }
-      const value = Reflect.get(target, prop, receiver);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  }) as AppDb;
-}
+const interleaved = (meanwhile: () => Promise<unknown>) => interleavedDb(d1.db, meanwhile);
 
 describe("changing an order's status", () => {
   it("moves the status and keeps its history", async () => {

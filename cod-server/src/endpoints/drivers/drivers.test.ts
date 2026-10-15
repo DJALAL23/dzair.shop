@@ -3,10 +3,10 @@
  *
  * Coverage:
  *  1. Validation schemas (Zod) — no DB required
- *  2. getDriverById — returns null for missing driver
- *  3. updateDriverStatus — returns null for missing driver
  *
- * deleteDriver runs against real D1 (drivers-and-companies.e2e.test.ts).
+ * The queries run against real D1: deleteDriver in
+ * shipments/driver-handoff.e2e.test.ts, the driver's detail in
+ * driver-payments/settlement.e2e.test.ts.
  */
 
 import { describe, it, expect } from "vitest";
@@ -16,8 +16,6 @@ import {
   updateDriverStatusSchema,
   driverFiltersSchema,
 } from "./validation";
-import { getDriverById, updateDriverStatus } from "./queries";
-import { makeMockDb, f, a, driverRow } from "@/test-utils/mock-db";
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
@@ -132,69 +130,5 @@ describe("driverFiltersSchema", () => {
     const result = driverFiltersSchema.parse({});
     expect(result.limit).toBe(50);
     expect(result.offset).toBe(0);
-  });
-});
-
-// ─── Query logic ───────────────────────────────────────────────────────────────
-
-describe("getDriverById", () => {
-  it("returns null when driver does not exist", async () => {
-    const db = makeMockDb([f(null)]);
-    const result = await getDriverById(db, "drv_missing");
-    expect(result).toBeNull();
-  });
-
-  it("returns the driver with compensation summary when found", async () => {
-    // drivers.get → compStats.get → orders.all
-    const db = makeMockDb([
-      f(driverRow()),
-      f({ c: 0, totalFee: 0 }),
-      a([]),
-    ]);
-    const result = await getDriverById(db, "drv_1");
-    expect(result).not.toBeNull();
-    expect(result!.id).toBe("drv_1");
-    expect(result!.compensationWilayaCount).toBe(0);
-    expect(result!.recentOrders).toEqual([]);
-  });
-
-  it("reports compensationWilayaCount from driver_compensations", async () => {
-    // drivers.get → compStats.get → orders.all
-    const db = makeMockDb([
-      f(driverRow()),
-      f({ c: 3, totalFee: 900 }),
-      a([]),
-    ]);
-    const result = await getDriverById(db, "drv_1");
-    expect(result!.compensationWilayaCount).toBe(3);
-  });
-});
-
-describe("updateDriverStatus", () => {
-  it("returns null when driver does not exist", async () => {
-    const db = makeMockDb([f(null)]);
-    const result = await updateDriverStatus(db, "drv_missing", "busy");
-    expect(result).toBeNull();
-  });
-
-  it("succeeds for an existing driver", async () => {
-    // getDriverById(1): drivers.get + compStats.get + [orders.all +
-    //   reconciliation: pendingCash.get + pending aggregate.get]
-    // UPDATE drivers (run — no queue consumption)
-    // getDriverById(2): same five reads
-    const db = makeMockDb([
-      f(driverRow()),
-      f({ c: 0, totalFee: 0 }),
-      a([]),
-      f({ pending_cash: 0 }),
-      f({ total: 0, c: 0 }),
-      f(driverRow({ status: "busy" })),
-      f({ c: 0, totalFee: 0 }),
-      a([]),
-      f({ pending_cash: 0 }),
-      f({ total: 0, c: 0 }),
-    ]);
-    const result = await updateDriverStatus(db, "drv_1", "busy");
-    expect(result).not.toBeNull();
   });
 });

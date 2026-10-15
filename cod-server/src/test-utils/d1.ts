@@ -97,6 +97,22 @@ export async function bundleWorker(source: string, resolveDir: string): Promise<
  * over the database.
  */
 export async function createTestD1(options: { before?: string; worker?: string } = {}): Promise<TestD1> {
+  try {
+    return await startTestD1(options);
+  } catch (error) {
+    // Under a full parallel run, workerd can drop the connection while a fresh
+    // database is being built; building it again gives the same database.
+    if (!isTransportFailure(error)) throw error;
+    return startTestD1(options);
+  }
+}
+
+function isTransportFailure(error: unknown): boolean {
+  const cause = (error as { cause?: { code?: string } })?.cause;
+  return (error as Error)?.message === "fetch failed" && (cause?.code === "ECONNRESET" || cause?.code === "ECONNREFUSED" || cause?.code === "UND_ERR_SOCKET");
+}
+
+async function startTestD1(options: { before?: string; worker?: string }): Promise<TestD1> {
   const mf = new Miniflare({
     modules: [
       {
@@ -111,11 +127,17 @@ export async function createTestD1(options: { before?: string; worker?: string }
     d1Databases: { DB: "test-db" },
   });
 
-  const raw = await mf.getD1Database("DB");
   const files = migrationFiles();
   const cut = options.before === undefined ? files.length : files.findIndex((file) => file >= options.before!);
   if (cut === -1) throw new Error(`no migration sorts at or after ${options.before}`);
-  await replay(raw, files.slice(0, cut));
+  let raw: D1Database;
+  try {
+    raw = await mf.getD1Database("DB");
+    await replay(raw, files.slice(0, cut));
+  } catch (error) {
+    await mf.dispose().catch(() => {});
+    throw error;
+  }
 
   return {
     db: drizzle(raw as unknown as D1Database, { schema }) as unknown as AppDb,

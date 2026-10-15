@@ -1,56 +1,33 @@
-import { Context } from "hono";
+import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
-import * as queries from "./queries";
-import * as validation from "./validation";
-import { ValidationError } from "@/lib/errors/classes";
-import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
+import {
+  createDriverPayment,
+  getDriverPayments,
+  getPendingSettlements,
+} from "../../../../cod-shared/queries/driver-payments";
+import { paymentRefusal } from "./refusals";
+import type { CreatePaymentInput } from "./validation";
 
-/**
- * POST /api/driver-payments
- * Create a payment record and settle the selected orders.
- */
+/** POST /api/driver-payments — record a payment settling delivered driver shipments. */
 export async function createPayment(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  const body: any = (c.req as any).valid?.("json");
-  const validated = body ?? validation.createPaymentSchema.parse(await c.req.json());
+  const body = (c.req as any).valid("json") as CreatePaymentInput;
   const user = c.get("user");
-
-  const payment = await queries.createDriverPayment(db, validated, user.id, user.name ?? user.id);
-  console.info(
-    `[driver-payments] type=${validated.type} driver=${validated.driverId} amount=${payment.amount} orders=${payment.orderCount} by="${user.name ?? user.id}"`
-  );
-  return c.json({ success: true, data: payment, message: "Payment recorded successfully" }, 201);
+  const outcome = await createDriverPayment(db, body, { id: user.id, name: user.name ?? user.id });
+  if (!outcome.ok) throw paymentRefusal(outcome, body.driverId);
+  console.info(`[driver-payments] type=${body.type} driver=${body.driverId} amount=${outcome.payment.amount} shipments=${outcome.payment.orderCount} by="${user.name ?? user.id}"`);
+  return c.json({ success: true, data: outcome.payment, message: "Payment recorded successfully" }, 201);
 }
 
-/**
- * GET /api/driver-payments/{driverId}
- * List all payment records for a driver.
- */
+/** GET /api/driver-payments/{driverId} — the driver's payments, newest first. */
 export async function listPayments(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  const driverId = c.req.param("driverId");
-
-  if (!driverId) {
-    throw new ValidationError("Driver ID is required", ERROR_CODES.REQUIRED_FIELD_MISSING);
-  }
-
-  const data = await queries.getDriverPayments(db, driverId);
-  return c.json({ success: true, data }, 200);
+  return c.json({ success: true, data: await getDriverPayments(db, c.req.param("driverId")!) }, 200);
 }
 
-/**
- * GET /api/driver-payments/{driverId}/pending
- * List delivered, unsettled orders for a driver (for pre-settlement review).
- */
-export async function listPendingOrders(c: Context<AppContext>) {
+/** GET /api/driver-payments/{driverId}/pending — delivered shipments with a part still to settle. */
+export async function listPending(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  const driverId = c.req.param("driverId");
-
-  if (!driverId) {
-    throw new ValidationError("Driver ID is required", ERROR_CODES.REQUIRED_FIELD_MISSING);
-  }
-
-  const data = await queries.getPendingSettlementOrders(db, driverId);
-  return c.json({ success: true, data }, 200);
+  return c.json({ success: true, data: await getPendingSettlements(db, c.req.param("driverId")!) }, 200);
 }

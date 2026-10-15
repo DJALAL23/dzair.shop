@@ -8,7 +8,6 @@
  *   P1  storefront price forging — client pricePerUnit vs variant catalog price
  *   P2  delete delivered order → driver pendingCash/totalEarnings reconciliation
  *   P3  dashboard createOrder oversell floor + concurrent double-sell race
- *   P4  driver settlement atomicity (insert → link → counters)
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Miniflare } from "miniflare";
@@ -198,39 +197,6 @@ describe("P2: delete delivered order → driver money reconciliation", () => {
     const drvAfter = (await db.select().from(schema.drivers).where(eq(schema.drivers.id, driverId)).get())!;
     // Counters stay — the money really moved; the payment row stays reconciled
     expect(drvAfter).toMatchObject({ totalDelivered: 1, totalEarnings: 500, pendingCash: 10500 });
-  });
-});
-
-describe("P4: driver settlement atomicity (real createDriverPayment)", () => {
-  it("settles atomically: payment row + links + counters in one batch", async () => {
-    const { createDriverPayment } = await import("../driver-payments/queries");
-    const driverId = await seedDriver();
-    const productId = await seedSimpleProduct(5);
-    const customerId = await seedCustomer();
-    const oid = `ord-mi-${++seq}`;
-    await createOrder(db, { ...orderInsert(oid, productId, 0, 10000, { customerId, driverId, driverFee: 500, codAmount: 10500 }), orderNumber: `ORD-MI-${seq}` }, [{
-      id: `op-${seq}`, orderId: oid, productId, productName: "MI", quantity: 1, pricePerUnit: 10000, lineTotal: 10000, createdAt: NOW(),
-    }]);
-    await updateOrderStatus(db, oid, "delivered");
-
-    const res = await createDriverPayment(
-      db as any,
-      { driverId, type: "cod_remittance", orderIds: [oid], notes: "probe" },
-      "u1", "Admin",
-    );
-
-    expect(res.amount).toBe(10500);
-    const drv = (await db.select().from(schema.drivers).where(eq(schema.drivers.id, driverId)).get())!;
-    expect(drv).toMatchObject({ pendingCash: 0, totalPaid: 10500, totalEarnings: 500 });
-    const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, oid)).get())!;
-    expect(order.codPaymentId).toBe(res.id);
-    const payments = await db.select().from(schema.driverPayments).all();
-    expect(payments.filter((p) => p.driverId === driverId)).toHaveLength(1);
-
-    // Double-settlement guard still enforced
-    await expect(
-      createDriverPayment(db as any, { driverId, type: "cod_remittance", orderIds: [oid], notes: undefined }, "u1", "Admin"),
-    ).rejects.toThrow(/already have their COD settled/);
   });
 });
 

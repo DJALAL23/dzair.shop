@@ -698,7 +698,8 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(create.security).toEqual([{ ApiKeyAuth: [] }]);
 
     expect(spec.paths["/api/driver-payments/{driverId}"]?.get?.operationId).toBe("listDriverPayments");
-    expect(spec.paths["/api/driver-payments/{driverId}/pending"]?.get?.operationId).toBe("listPendingSettlementOrders");
+    expect(spec.paths["/api/driver-payments/{driverId}/pending"]?.get?.operationId).toBe("listPendingSettlements");
+    expect(spec.components.schemas.PendingSettlement.required).toEqual(expect.arrayContaining(["shipmentId", "codPaymentId", "feePaymentId"]));
 
     const payment = spec.components.schemas.DriverPayment;
     expect(payment).toBeDefined();
@@ -706,7 +707,8 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(payment.properties.orderCount).toBeDefined();
 
     expect(create.requestBody.content["application/json"].schema.required)
-      .toEqual(expect.arrayContaining(["driverId", "type", "orderIds"]));
+      .toEqual(expect.arrayContaining(["driverId", "type", "shipmentIds"]));
+    expect(create.requestBody.content["application/json"].schema.properties.orderIds).toBeUndefined();
   });
 
   it("documents the migrated images upload/presign endpoints from Zod schemas", async () => {

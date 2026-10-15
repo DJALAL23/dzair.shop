@@ -153,7 +153,7 @@ const createDriverRoute = defineRoute({
   responses: {
     201: {
       description:
-        "Driver created. Returns full driver record including `compensationWilayaCount` and `recentOrders`.",
+        "Driver created. Returns full driver record including `compensationWilayaCount` and `recentShipments`.",
       content: jsonContent(SuccessWithMessageSchema(DriverSchema)),
     },
     409: {
@@ -170,7 +170,7 @@ const getDriverRoute = defineRoute({
   tags: ["Drivers"],
   summary: "Get driver",
   description:
-    "Returns full driver detail including `compensationWilayaCount` and `recentOrders` (up to 10 most recent orders assigned to this driver). Use `GET /{id}/compensations` for the per-wilaya pay grid.",
+    "Returns full driver detail: `compensationWilayaCount`, `recentShipments` (the 10 most recent orders given to this driver, newest first), `openShipmentCount` (orders still out) and `cashReconciliation` (the cash counter against the delivered shipments not yet handed over). Use `GET /{id}/compensations` for the per-wilaya pay grid.",
   operationId: "getDriver",
   params: idParams,
   responses: {

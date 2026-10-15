@@ -152,7 +152,7 @@ const deleteOrderRoute = defineRoute({
   tags: ["Orders"],
   summary: "Delete order",
   description:
-    "Permanently deletes the order and its records (lines, a closed shipment and its history), putting back the goods still out of stock (never those a customer received) and undoing the customer's count and spend. **409 ORDER_HAS_SHIPMENT** while the order's shipment is open — void it first.",
+    "Permanently deletes the order and its records (lines, a closed shipment and its history), putting back the goods still out of stock (never those a customer received) and undoing the customer's count and spend, and a driver's credit for a delivery not settled. **409 ORDER_HAS_SHIPMENT** while the order's shipment is open — void it first; **409 ORDER_HAS_SETTLEMENT** once a driver payment settled its delivery.",
   operationId: "deleteOrder",
   params: IdParamSchema,
   responses: {
@@ -160,7 +160,7 @@ const deleteOrderRoute = defineRoute({
       description: "Order deleted",
       content: jsonContent(MessageResponseSchema),
     },
-    409: { description: "The order's shipment is open (ORDER_HAS_SHIPMENT), or the order changed meanwhile (ORDER_CHANGED)" },
+    409: { description: "The order's shipment is open (ORDER_HAS_SHIPMENT), a driver payment settled its delivery (ORDER_HAS_SETTLEMENT), or the order changed meanwhile (ORDER_CHANGED)" },
   },
   handler: handlers.deleteOrder,
 });

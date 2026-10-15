@@ -197,13 +197,36 @@ export const DriverSchema = z
         "Number of wilayas with a configured per-delivery fee for this driver",
       example: 12,
     }),
-    recentOrders: z
-      .array(z.record(z.string(), z.unknown()))
+    recentShipments: z
+      .array(
+        z.object({
+          id: z.string(),
+          orderId: z.string(),
+          orderNumber: z.string(),
+          customerName: z.string(),
+          wilayaId: z.number().int().nullable(),
+          deliveryType: z.enum(["home", "stop_desk"]),
+          codAmount: z.number(),
+          driverFee: z.number(),
+          providerStatus: z.string().nullable().openapi({ description: "The last progress reported: out_for_delivery, failed_attempt, delivered or returned" }),
+          outForDeliveryAt: z.string().nullable(),
+          deliveredAt: z.string().nullable(),
+          returnedAt: z.string().nullable(),
+          deliveryAttempts: z.number().int(),
+          createdAt: z.string(),
+        }),
+      )
       .optional()
-      .openapi({
-        description:
-          "Up to 10 most recent orders assigned to this driver, newest first. Included only in detail/create/update responses; not present in list responses.",
-      }),
+      .openapi({ description: "The 10 most recent orders given to this driver, newest first. Detail, create and update responses only." }),
+    openShipmentCount: z.number().int().optional().openapi({ description: "Orders the driver still has out. Detail, create and update responses only." }),
+    cashReconciliation: z
+      .object({
+        pendingCash: z.number(),
+        pendingOrdersTotal: z.number().openapi({ description: "Cash of delivered shipments not yet handed over" }),
+        pendingOrdersCount: z.number().int(),
+        drift: z.number().openapi({ description: "pendingCash − pendingOrdersTotal; non-zero means the counter needs attention" }),
+      })
+      .optional(),
   })
   .openapi("Driver", {
     description: "Delivery driver profile with denormalized earnings statistics",
@@ -235,11 +258,11 @@ export const DriverPaymentSchema = z
     }),
     amount: z.number().openapi({
       description:
-        "Settled amount, computed server-side from frozen order values: COD total (`cod_remittance`), fee total (`fee_payment`), or COD − fees (`net_settlement`).",
+        "Settled amount, computed server-side from the shipments' frozen values: cash total (`cod_remittance`), fee total (`fee_payment`), or cash − fees (`net_settlement`).",
       example: 95000,
     }),
     orderCount: z.number().int().openapi({
-      description: "Number of orders included in this payment batch.",
+      description: "Number of shipments (one per order) this payment settles.",
       example: 3,
     }),
     notes: z.string().nullable().openapi({
@@ -256,3 +279,17 @@ export const DriverPaymentSchema = z
     createdAt: z.string().datetime(),
   })
   .openapi("DriverPayment");
+
+export const PendingSettlementSchema = z
+  .object({
+    shipmentId: z.string(),
+    orderId: z.string(),
+    orderNumber: z.string(),
+    customerName: z.string(),
+    codAmount: z.number().openapi({ description: "Cash the driver collected (DZD)" }),
+    driverFee: z.number().openapi({ description: "The driver's frozen fee (DZD)" }),
+    deliveredAt: z.string().datetime(),
+    codPaymentId: z.string().nullable().openapi({ description: "The payment that settled the cash; null while the driver still holds it" }),
+    feePaymentId: z.string().nullable().openapi({ description: "The payment that settled the fee; null while it is owed" }),
+  })
+  .openapi("PendingSettlement", { description: "A delivered driver shipment with a part still to settle" });

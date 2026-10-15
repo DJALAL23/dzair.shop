@@ -6,7 +6,6 @@
  *   F3  catalog inventory edits (product/variant update, create, delete) must
  *       write stock movements — the ledger has to reconcile to inventory
  *   F4  manual adjustStock must be race-free and atomic (update + ledger together)
- *   F5  driver cash reconciliation: pendingCash vs pending orders, drift visible
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Miniflare } from "miniflare";
@@ -16,11 +15,9 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq, sql } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
-import { createOrder, updateOrderStatus } from "../../../../cod-shared/queries/orders";
 import { updateVariant, createVariant, deleteVariant } from "../../../../cod-shared/queries/variants";
 import { updateProduct } from "../../../../cod-shared/queries/products";
 import { adjustStock } from "../stock/queries";
-import { getDriverById } from "../../../../cod-shared/queries/drivers";
 
 let db: AppDb;
 let rawD1: D1Database;
@@ -78,24 +75,6 @@ async function seedVariant(productId: string, inventory = 5) {
   return id;
 }
 
-async function seedCustomer() {
-  const id = `cust-fx-${++seq}`;
-  await db.insert(schema.customers).values({
-    id, name: "FX Customer", phone: `0555${String(200000 + seq).slice(-6)}`,
-    wilaya: "الجزائر", totalOrders: 0, totalSpent: 0, createdAt: NOW(),
-  });
-  return id;
-}
-
-async function seedDriver() {
-  const id = `drv-fx-${++seq}`;
-  await db.insert(schema.drivers).values({
-    id, firstName: "FX", lastName: "Driver", phone: "0666000001",
-    createdAt: NOW(), updatedAt: NOW(),
-  });
-  return id;
-}
-
 async function seedShippingProfile(rules: Array<{ wilayaId: number; home: number; homeEnabled?: number }>) {
   // Reuse the single existing default profile (the schema allows only one
   // meaningful default; creating several would make .get() pick arbitrarily).
@@ -125,22 +104,6 @@ async function movementsFor(sku: { productId: string; variantId?: string | null 
       : eq(schema.stockMovements.productId, sku.productId))
     .all();
   return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
-}
-
-async function orderWith(productId: string, qty = 1, extra: Record<string, unknown> = {}) {
-  const customerId = await seedCustomer();
-  const oid = `ord-fx-${++seq}`;
-  await createOrder(db, {
-    id: oid, orderNumber: `ORD-FX-${seq}`, customerId,
-    customerName: "FX", phone: "0555000001", price: qty * 1000,
-    status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-    deliveryFee: 0, driverFee: 0, codAmount: qty * 1000, createdAt: NOW(), updatedAt: NOW(),
-    ...extra,
-  }, [{
-    id: `op-fx-${seq}`, orderId: oid, productId, productName: "FX",
-    quantity: qty, pricePerUnit: 1000, lineTotal: qty * 1000, createdAt: NOW(),
-  }], { id: "u1", name: "A" });
-  return oid;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -303,32 +266,5 @@ describe("F4: manual adjustStock — atomic and race-free", () => {
     ).rejects.toThrow(/direction|type/i);
 
     expect(await movementsFor({ productId })).toHaveLength(0);
-  });
-});
-
-describe("F5: driver cash reconciliation", () => {
-  it("reports pendingCash, pending order total, and zero drift when consistent", async () => {
-    const driverId = await seedDriver();
-    const productId = await seedProduct();
-    const oid = await orderWith(productId, 1, { driverId, driverFee: 500, codAmount: 10500, price: 10000 });
-    await updateOrderStatus(db, oid, "delivered");
-
-    const driver = await getDriverById(db, driverId);
-    const rec = (driver as any).cashReconciliation;
-    expect(rec).toMatchObject({ pendingCash: 10500, pendingOrdersTotal: 10500, pendingOrdersCount: 1, drift: 0 });
-  });
-
-  it("surfaces drift when the ledger is corrupted (legacy damage visible)", async () => {
-    const driverId = await seedDriver();
-    const productId = await seedProduct();
-    const oid = await orderWith(productId, 1, { driverId, driverFee: 500, codAmount: 10500, price: 10000 });
-    await updateOrderStatus(db, oid, "delivered");
-
-    // Simulate historical drift (e.g. damage from the pre-fix delete bug)
-    await db.update(schema.drivers).set({ pendingCash: 15500 }).where(eq(schema.drivers.id, driverId));
-
-    const driver = await getDriverById(db, driverId);
-    const rec = (driver as any).cashReconciliation;
-    expect(rec).toMatchObject({ pendingCash: 15500, pendingOrdersTotal: 10500, pendingOrdersCount: 1, drift: 5000 });
   });
 });

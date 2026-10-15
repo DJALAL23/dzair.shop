@@ -133,17 +133,25 @@ Retrieve complete details for a single driver, including their compensation summ
     "createdAt": "2026-01-15T10:00:00.000Z",
     "updatedAt": "2026-01-20T14:30:00.000Z",
     "compensationWilayaCount": 5,
-    "recentOrders": [
+    "recentShipments": [
       {
-        "id": "ord_8b1e42",
+        "id": "shp_5c20a1",
+        "orderId": "ord_8b1e42",
         "orderNumber": "ORD-2026-0042",
-        "status": "delivered",
+        "customerName": "Karim Benali",
         "wilayaId": 16,
-        "totalAmount": 7500,
+        "deliveryType": "home",
+        "codAmount": 7500,
         "driverFee": 400,
-        "updatedAt": "2026-01-20T14:30:00.000Z"
+        "providerStatus": "delivered",
+        "outForDeliveryAt": "2026-01-20T09:10:00.000Z",
+        "deliveredAt": "2026-01-20T14:30:00.000Z",
+        "returnedAt": null,
+        "deliveryAttempts": 0,
+        "createdAt": "2026-01-20T08:00:00.000Z"
       }
-    ]
+    ],
+    "openShipmentCount": 0
   }
 }
 ```
@@ -196,7 +204,8 @@ Register a new in-house driver. Per-wilaya compensations are configured after cr
     "createdAt": "2026-01-15T10:00:00.000Z",
     "updatedAt": "2026-01-15T10:00:00.000Z",
     "compensationWilayaCount": 0,
-    "recentOrders": []
+    "recentShipments": [],
+    "openShipmentCount": 0
   }
 }
 ```
@@ -240,7 +249,8 @@ Partially update driver details. Omitted fields remain unchanged. To update driv
     "createdAt": "2026-01-15T10:00:00.000Z",
     "updatedAt": "2026-01-21T09:00:00.000Z",
     "compensationWilayaCount": 5,
-    "recentOrders": []
+    "recentShipments": [],
+    "openShipmentCount": 0
   }
 }
 ```

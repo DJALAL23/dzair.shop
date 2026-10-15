@@ -14,6 +14,7 @@ import {
   productVariants,
   products,
   drivers,
+  driverPaymentLines,
   users,
   wilayas,
   communes,
@@ -687,16 +688,18 @@ export async function setOrderProductReturn(
   };
 }
 
-export type OrderDeletion = { ok: true } | { ok: false; reason: "not_found" | "has_open_shipment" | "changed" };
+export type OrderDeletion = { ok: true } | { ok: false; reason: "not_found" | "has_open_shipment" | "settled" | "changed" };
 
 const DELETE_ATTEMPTS = 3;
 
 /**
  * Delete an order and undo what it did: the customer's order count and spend,
- * a (legacy) driver credit not yet settled, and the goods still out of stock.
+ * the driver's credit for a delivery not settled, and the goods still out of
+ * stock.
  *
  * Refused while the order has an open shipment — a parcel at a carrier would
- * be orphaned; void it first. A closed shipment goes with the order: a
+ * be orphaned; void it first — and once a driver payment settled part of its
+ * shipment: the payment keeps it. A closed shipment goes with the order: a
  * delivered one keeps its goods with the customer (no restock), a returned
  * one already restocked and rolled the spend back.
  *
@@ -719,12 +722,16 @@ async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion>
   const shipment = await db.select().from(shipments).where(eq(shipments.orderId, orderId)).get();
   const shipmentClosed = !!shipment && (shipment.deliveredAt !== null || shipment.returnedAt !== null || shipment.cancelledAt !== null);
   if (shipment && !shipmentClosed) return { ok: false, reason: "has_open_shipment" };
+  if (shipment && (await db.select({ id: driverPaymentLines.id }).from(driverPaymentLines).where(eq(driverPaymentLines.shipmentId, shipment.id)).get())) {
+    return { ok: false, reason: "settled" };
+  }
 
   const asRead = and(
     sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.status} = ${order.status} and ${orders.updatedAt} = ${order.updatedAt})`,
     shipment
       ? sql`exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId} and ${shipments.revision} = ${shipment.revision})`
       : sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
+    shipment ? sql`not exists (select 1 from ${driverPaymentLines} where ${driverPaymentLines.shipmentId} = ${shipment.id})` : undefined,
   )!;
 
   const statements: BatchStatement[] = [];
@@ -755,6 +762,21 @@ async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion>
           updatedAt: now,
         })
         .where(and(eq(drivers.id, order.driverId), asRead)),
+    );
+  }
+
+  // A delivery by the store's driver not settled: the driver no longer holds that cash, nor earned that fee.
+  if (shipment?.kind === "driver" && shipment.driverId && shipment.deliveredAt) {
+    statements.push(
+      db
+        .update(drivers)
+        .set({
+          totalDelivered: sql`MAX(0, ${drivers.totalDelivered} - 1)`,
+          totalEarnings: sql`MAX(0, ${drivers.totalEarnings} - ${shipment.driverFee})`,
+          pendingCash: sql`MAX(0, ${drivers.pendingCash} - ${shipment.codAmount})`,
+          updatedAt: now,
+        })
+        .where(and(eq(drivers.id, shipment.driverId), asRead)),
     );
   }
 

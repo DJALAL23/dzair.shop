@@ -57,7 +57,7 @@ function driverRow(overrides: Record<string, any> = {}) {
     updatedAt: NOW,
     compensationWilayaCount: 12,
     cashReconciliation: { pendingCash: 0, pendingOrdersTotal: 0, pendingOrdersCount: 0, drift: 0 },
-    recentOrders: [],
+    recentShipments: [], openShipmentCount: 0,
     ...overrides,
   };
 }
@@ -188,7 +188,7 @@ describe("Drivers routes (OpenAPIHono)", () => {
   });
 
   describe("GET /api/drivers/:id", () => {
-    it("returns 200 with driver detail including recentOrders", async () => {
+    it("returns 200 with driver detail including recentShipments", async () => {
       vi.mocked(queries.getDriverById).mockResolvedValue(driverRow());
 
       const res = await app.request("/api/drivers/drv_123");
@@ -196,7 +196,7 @@ describe("Drivers routes (OpenAPIHono)", () => {
       expect(res.status).toBe(200);
       const body: any = await res.json();
       expect(body.success).toBe(true);
-      expect(body.data.recentOrders).toEqual([]);
+      expect(body.data.recentShipments).toEqual([]);
     });
 
     it("returns 404 when driver is not found", async () => {

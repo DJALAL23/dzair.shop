@@ -90,6 +90,7 @@ export {
   DriverSchema,
   DriverCompensationRowSchema,
   DriverPaymentSchema,
+  PendingSettlementSchema,
 } from "./schemas/delivery";
 
 // ─── Products ─────────────────────────────────────────────────────────────────

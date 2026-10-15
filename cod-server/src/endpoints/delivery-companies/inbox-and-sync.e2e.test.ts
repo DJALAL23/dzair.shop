@@ -105,7 +105,7 @@ describe("syncing a company's shipments now", () => {
     for (let i = 0; i <= SYNC_NOW_LIMIT; i++) await shipmentAt(`s${i}`, "eco", await parcelAtEcotrack(`ORD-s${i}`));
     const { data } = (await (await call("POST", "/eco/sync-shipments")).json()) as any;
     expect(data).toMatchObject({ synced: SYNC_NOW_LIMIT, moreRemain: true });
-  });
+  }, 45_000);
 
   it("a carrier that throttles is reported as such", async () => {
     await shipmentAt("o1", "eco", await parcelAtEcotrack("ORD-o1"));

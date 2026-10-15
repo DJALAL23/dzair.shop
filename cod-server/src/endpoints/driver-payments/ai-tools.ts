@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import * as queries from "./queries";
+import { createDriverPayment, getDriverPayments, getPendingSettlements } from "../../../../cod-shared/queries/driver-payments";
+import { paymentRefusal } from "./refusals";
 import { createPaymentSchema } from "./validation";
 import { getDb } from "@/db";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
@@ -35,7 +36,7 @@ export const DRIVER_PAYMENT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         id: z.string().describe("Payment record UUID"),
         type: z.string().describe("Settlement type (COD remittance, fee payment, or net settlement)"),
         amount: z.number().describe("Server-computed settlement amount in DZD"),
-        orderCount: z.number().int().describe("Orders settled in this payment"),
+        orderCount: z.number().int().describe("Shipments settled in this payment"),
         createdAt: timestampSchema,
         createdByName: z.string().describe("Who created the settlement (audit attribution)"),
         notes: z.string().nullable(),
@@ -44,21 +45,22 @@ export const DRIVER_PAYMENT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
   }),
   getPendingSettlements: toolOutput({
     count: z.number().int(),
-    orders: z.array(
+    shipments: z.array(
       z.looseObject({
-        id: z.string().describe("Order UUID"),
+        shipmentId: z.string().describe("Shipment UUID — what a settlement lists"),
         orderNumber: z.string(),
-        codAmount: z.number().describe("Customer cash the driver still owes the shop (DZD)"),
-        driverFee: z.number().describe("Frozen per-delivery fee owed to the driver (DZD)"),
-        updatedAt: timestampSchema,
-        status: z.string(),
+        codAmount: z.number().describe("Cash the driver collected (DZD)"),
+        driverFee: z.number().describe("The driver's frozen fee (DZD)"),
+        deliveredAt: timestampSchema,
+        cashSettled: z.boolean().describe("Whether the driver has handed over the cash"),
+        feeSettled: z.boolean().describe("Whether the store has paid the fee"),
       }),
-    ).describe("Delivered orders awaiting settlement"),
+    ).describe("Delivered shipments with the cash, the fee, or both still to settle"),
   }),
   createDriverSettlement: toolOutput({
     settlement: z.looseObject({
       type: z.string().optional().describe("Settlement type"),
-      orderCount: z.number().int().optional().describe("Orders settled"),
+      orderCount: z.number().int().optional().describe("Shipments settled"),
       amount: z.number().optional().describe("Settled amount in DZD"),
     }).describe("The created payment record"),
     message: z.string(),
@@ -98,7 +100,7 @@ export const getDriverPaymentTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        const payments = await queries.getDriverPayments(db, parsed.data.driverId);
+        const payments = await getDriverPayments(db, parsed.data.driverId);
         return { 
           success: true,
           count: payments.length,
@@ -122,7 +124,7 @@ export const getDriverPaymentTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   getPendingSettlements: tool({
-    description: "Finds all delivered orders for a driver that have not yet been settled (COD or fees). Use this to prepare a payment or remittance. Returns orders in 'delivered' status with no COD payment linked.",
+    description: "Finds a driver's delivered shipments whose cash or fee is not settled yet. Use this to prepare a payment: pass their shipmentId values to createDriverSettlement.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -141,30 +143,31 @@ export const getDriverPaymentTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        const orders = await queries.getPendingSettlementOrders(db, parsed.data.driverId);
-        return { 
+        const pending = await getPendingSettlements(db, parsed.data.driverId);
+        return {
           success: true,
-          count: orders.length,
-          orders: orders.map(o => ({
-            id: o.id,
-            orderNumber: o.orderNumber,
-            codAmount: o.codAmount,
-            driverFee: o.driverFee,
-            updatedAt: o.updatedAt,
-            status: o.status
-          }))
+          count: pending.length,
+          shipments: pending.map((p) => ({
+            shipmentId: p.shipmentId,
+            orderNumber: p.orderNumber,
+            codAmount: p.codAmount,
+            driverFee: p.driverFee,
+            deliveredAt: p.deliveredAt,
+            cashSettled: p.codPaymentId !== null,
+            feeSettled: p.feePaymentId !== null,
+          })),
         };
       } catch (error: any) {
-        return { 
-          success: false, 
-          error: `Database error: ${error.message}` 
+        return {
+          success: false,
+          error: `Database error: ${error.message}`
         };
       }
     },
   }),
 
   createDriverSettlement: tool({
-    description: "Creates a new payment/settlement record for a driver. Use this to settle multiple delivered orders at once. Required: driverId (UUID), type (cod_remittance|fee_payment|net_settlement), orderIds (array of UUIDs), agentName (string). Optional: notes. Orders must be in 'delivered' status and not already settled.",
+    description: "Records a payment settling a driver's delivered shipments. Required: driverId (UUID), type (cod_remittance: the driver hands over the cash | fee_payment: the store pays the fees | net_settlement: both), shipmentIds (from getPendingSettlements), agentName (string). Optional: notes. The amount is computed from the shipments; a part already settled refuses the whole payment.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -178,46 +181,21 @@ export const getDriverPaymentTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid settlement data: ${errorDetails}. Required: driverId (UUID), type (cod_remittance|fee_payment|net_settlement), orderIds (array of order UUIDs, min 1), agentName (string). Optional: notes (string). Orders must be in 'delivered' status and not already settled for the requested type.`,
+          error: `Invalid settlement data: ${errorDetails}. Required: driverId (UUID), type (cod_remittance|fee_payment|net_settlement), shipmentIds (array, min 1, no repeats), agentName (string). Optional: notes (string).`,
         };
       }
 
       try {
-        const result = await queries.createDriverPayment(
-          db, 
-          {
-            driverId: parsed.data.driverId,
-            type: parsed.data.type,
-            orderIds: parsed.data.orderIds,
-            notes: parsed.data.notes,
-          }, 
-          "ai-agent", // Hardcoded agent ID or generic placeholder
-          parsed.data.agentName
-        );
-        return { 
-          success: true, 
-          settlement: result, 
-          message: `Settlement created: ${result.type} for ${result.orderCount} order(s), amount: ${result.amount} DZD` 
+        const { agentName, ...request } = parsed.data;
+        const outcome = await createDriverPayment(db, request, { id: "ai-agent", name: agentName });
+        if (!outcome.ok) return { success: false, error: paymentRefusal(outcome, request.driverId).message };
+        return {
+          success: true,
+          settlement: outcome.payment,
+          message: `Settlement created: ${outcome.payment.type} for ${outcome.payment.orderCount} shipment(s), amount: ${outcome.payment.amount} DZD`,
         };
       } catch (error: any) {
-        let errorMessage = error.message;
-        
-        // Parse BusinessLogicError with structured data
-        if (error.data) {
-          const data = error.data;
-          if (data.settledOrderIds && data.settledCount) {
-            errorMessage = `${error.message}. ${data.settledCount} order(s) are already settled. Check order settlement status before retrying.`;
-          } else if (data.requestedCount && data.foundCount) {
-            errorMessage = `${error.message}. Requested ${data.requestedCount} orders but only found ${data.foundCount} valid delivered orders for this driver. Verify order IDs, driver assignment, and order status.`;
-          } else {
-            errorMessage = `${error.message}: ${JSON.stringify(data)}`;
-          }
-        }
-        
-        return { 
-          success: false, 
-          error: errorMessage 
-        };
+        return { success: false, error: error.message };
       }
     },
   }),

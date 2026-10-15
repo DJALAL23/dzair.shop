@@ -9,8 +9,8 @@
  * deleteDriver stays in cod-server because it raises ConflictError.
  */
 
-import { eq, and, like, or, count, sql, desc, exists, inArray } from "drizzle-orm";
-import { drivers, driverCompensations, wilayas, orders } from "../db/schema";
+import { eq, and, like, or, count, sql, desc, exists, inArray, isNotNull, notExists } from "drizzle-orm";
+import { drivers, driverCompensations, driverPaymentLines, wilayas, orders, shipments } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { safeLikeTerm } from "./search";
 
@@ -105,29 +105,28 @@ export async function getAllDrivers(db: AppDb, filters?: DriverFilters) {
 }
 
 /**
- * Driver cash reconciliation: compares the driver's denormalized pendingCash
- * counter against the authoritative sum of delivered-but-unsettled orders.
- * drift ≠ 0 means the ledger and reality disagree — damage from an old bug,
- * a manual D1 edit, or a mid-settlement failure. Surfaced so ops can see it.
+ * Driver cash reconciliation: the driver's denormalized pendingCash counter
+ * against what it should be — the cash of their delivered shipments not yet
+ * handed over (no `cod` settlement line). drift ≠ 0 means the counter and the
+ * shipments disagree (an old bug, a manual D1 edit); surfaced so ops can see it.
  */
 export async function getDriverCashReconciliation(db: AppDb, driverId: string) {
   const [driverRow, pendingRow] = await Promise.all([
+    db.select({ pendingCash: drivers.pendingCash }).from(drivers).where(eq(drivers.id, driverId)).get(),
     db
-      .select({ pendingCash: drivers.pendingCash })
-      .from(drivers)
-      .where(eq(drivers.id, driverId))
-      .get(),
-    db
-      .select({
-        total: sql<number>`coalesce(sum(${orders.codAmount}), 0)`,
-        c: count(),
-      })
-      .from(orders)
+      .select({ total: sql<number>`coalesce(sum(${shipments.codAmount}), 0)`, c: count() })
+      .from(shipments)
       .where(
         and(
-          eq(orders.driverId, driverId),
-          eq(orders.status, "delivered"),
-          sql`${orders.codPaymentId} IS NULL`,
+          eq(shipments.kind, "driver"),
+          eq(shipments.driverId, driverId),
+          isNotNull(shipments.deliveredAt),
+          notExists(
+            db
+              .select({ one: sql`1` })
+              .from(driverPaymentLines)
+              .where(and(eq(driverPaymentLines.shipmentId, shipments.id), eq(driverPaymentLines.component, "cod"))),
+          ),
         ),
       )
       .get(),
@@ -143,6 +142,36 @@ export async function getDriverCashReconciliation(db: AppDb, driverId: string) {
     pendingOrdersCount,
     drift: pendingCash - pendingOrdersTotal,
   };
+}
+
+/** How many recent shipments a driver's detail lists. */
+export const RECENT_SHIPMENTS = 10;
+
+/** A driver's most recent shipments, newest first, with their order. */
+export function getRecentDriverShipments(db: AppDb, driverId: string, limit = RECENT_SHIPMENTS) {
+  return db
+    .select({
+      id: shipments.id,
+      orderId: shipments.orderId,
+      orderNumber: orders.orderNumber,
+      customerName: orders.customerName,
+      wilayaId: orders.wilayaId,
+      deliveryType: shipments.deliveryType,
+      codAmount: shipments.codAmount,
+      driverFee: shipments.driverFee,
+      providerStatus: shipments.providerStatus,
+      outForDeliveryAt: shipments.outForDeliveryAt,
+      deliveredAt: shipments.deliveredAt,
+      returnedAt: shipments.returnedAt,
+      deliveryAttempts: shipments.deliveryAttempts,
+      createdAt: shipments.createdAt,
+    })
+    .from(shipments)
+    .innerJoin(orders, eq(orders.id, shipments.orderId))
+    .where(eq(shipments.driverId, driverId))
+    .orderBy(desc(shipments.createdAt))
+    .limit(limit)
+    .all();
 }
 
 export async function getDriverById(db: AppDb, driverId: string) {
@@ -163,21 +192,21 @@ export async function getDriverById(db: AppDb, driverId: string) {
     .where(eq(driverCompensations.driverId, driverId))
     .get();
 
-  const [recentOrders, cashReconciliation] = await Promise.all([
+  const [recentShipments, openShipments, cashReconciliation] = await Promise.all([
+    getRecentDriverShipments(db, driverId),
     db
-      .select()
-      .from(orders)
-      .where(eq(orders.driverId, driverId))
-      .orderBy(desc(orders.updatedAt))
-      .limit(10)
-      .all(),
+      .select({ c: count() })
+      .from(shipments)
+      .where(and(eq(shipments.driverId, driverId), sql`${shipments.deliveredAt} is null and ${shipments.returnedAt} is null and ${shipments.cancelledAt} is null`))
+      .get(),
     getDriverCashReconciliation(db, driverId),
   ]);
 
   return {
     ...driver,
     compensationWilayaCount: compStats?.c ?? 0,
-    recentOrders,
+    recentShipments,
+    openShipmentCount: Number(openShipments?.c ?? 0),
     cashReconciliation,
   };
 }
