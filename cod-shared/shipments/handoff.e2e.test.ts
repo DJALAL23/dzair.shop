@@ -12,6 +12,8 @@ import {
   markHandoffUnknown,
   markValidated,
   noteShipmentStep,
+  recordParcelEdit,
+  recordSynced,
   releaseUnknownHandoff,
   reserveCarrierShipment,
   voidShipment,
@@ -166,6 +168,32 @@ describe("settling a carrier handoff", () => {
     expect(await shipmentOf("ready2")).toBeDefined();
     expect(await releaseUnknownHandoff(d1.db, id)).toBe(true);
     expect(await shipmentOf("ready")).toBeUndefined();
+  });
+
+  it("a parcel edit is recorded only on a shipment the carrier accepted", async () => {
+    const id = await reserve();
+    await markHandoffUnknown(d1.db, id, "timeout");
+    expect(await recordParcelEdit(d1.db, id, { codAmount: 9 }, { fields: ["amount"], actorId: "u1" })).toBe(false);
+    expect((await shipmentOf("ready"))!.codAmount).toBe(1900);
+
+    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false });
+    const before = (await shipmentOf("ready"))!.revision;
+    expect(await recordParcelEdit(d1.db, id, { codAmount: 2500, isFragile: false }, { fields: ["amount", "fragile"], actorId: "u1" })).toBe(true);
+    const after = await shipmentOf("ready");
+    expect(after).toMatchObject({ codAmount: 2500, isFragile: false, weight: 2 });
+    expect(after!.revision).not.toBe(before);
+    expect((await getShipmentWithEvents(d1.db, id))!.events.at(-1)).toMatchObject({ source: "merchant", providerStatus: "parcel_updated", reason: "amount, fragile", actorId: "u1" });
+  });
+
+  it("a sync stamps the time and adopts a tracking number the carrier assigned late — never replacing one", async () => {
+    const id = await reserve();
+    await acceptCarrierHandoff(d1.db, id, { ...parcel, trackingNumber: null }, { validated: false });
+    await recordSynced(d1.db, id, null);
+    expect(await shipmentOf("ready")).toMatchObject({ trackingNumber: null, lastSyncedAt: expect.any(String) });
+    await recordSynced(d1.db, id, "ZR-LATE-1");
+    expect((await shipmentOf("ready"))!.trackingNumber).toBe("ZR-LATE-1");
+    await recordSynced(d1.db, id, "ZR-OTHER");
+    expect((await shipmentOf("ready"))!.trackingNumber).toBe("ZR-LATE-1");
   });
 
   it("a note keeps a step in the history without touching the shipment; the same step at the same instant is one note", async () => {

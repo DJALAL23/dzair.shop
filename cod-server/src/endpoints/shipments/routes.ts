@@ -9,9 +9,24 @@ import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import { IdParamSchema, SuccessResponseSchema } from "@/openapi/schemas";
-import { BulkHandoffDataSchema, HandoffResultSchema, ResolveResultSchema, ShipmentSchema } from "@/openapi/schemas/shipments";
+import {
+  BulkHandoffDataSchema,
+  CarrierRemarkSchema,
+  HandoffResultSchema,
+  ResolveResultSchema,
+  ShipmentOperationResultSchema,
+  ShipmentSchema,
+} from "@/openapi/schemas/shipments";
 import * as handlers from "./handlers";
-import { bulkCarrierHandoffSchema, carrierHandoffSchema, resolveHandoffSchema } from "./validation";
+import {
+  bulkCarrierHandoffSchema,
+  carrierHandoffSchema,
+  merchantReportSchema,
+  remarkSchema,
+  resolveHandoffSchema,
+  updateParcelSchema,
+  validateShipmentSchema,
+} from "./validation";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({ "application/json": { schema } });
 
@@ -100,11 +115,176 @@ const resolveRoute = defineRoute({
   handler: handlers.resolveShipmentHandoff,
 });
 
+// ─── Operations on a shipment ─────────────────────────────────────────────────
+
+const OPERATION_REFUSALS = {
+  404: { description: "Shipment not found" },
+  409: { description: "Not now: the parcel is not accepted yet, already validated, on its way, or closed (the shipment's `actions` say what is possible)" },
+  422: { description: "The carrier does not support this, or refused it" },
+  429: { description: "The carrier is throttling" },
+  502: { description: "The carrier could not be reached, or did not make its answer clear" },
+};
+const operationResult = { 200: { description: "The shipment after the operation", content: jsonContent(SuccessResponseSchema(ShipmentOperationResultSchema)) }, ...OPERATION_REFUSALS };
+
+const validateRoute = defineRoute({
+  method: "post",
+  path: "/{id}/validate",
+  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  tags: ["Shipments"],
+  summary: "Validate a parcel at the carrier",
+  description: "For carriers that hold a created parcel until it is validated (EcoTrack, NOEST). After validation it can no longer be edited or cancelled.",
+  operationId: "validateShipment",
+  params: IdParamSchema,
+  body: validateShipmentSchema,
+  responses: operationResult,
+  handler: handlers.validate,
+});
+
+const updateRoute = defineRoute({
+  method: "patch",
+  path: "/{id}",
+  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  tags: ["Shipments"],
+  summary: "Edit a parcel at the carrier",
+  description: `Changes the customer's details, the destination, the cash to collect, the weight or fragility — at the carrier first, then in CodFlow: the order's contact and destination (with its customer, like an order edit) and the shipment's cash, weight and fragility. Only before the parcel leaves (and, at a carrier that validates separately, before validation). A new destination needs both \`wilayaId\` and \`communeId\`.`,
+  operationId: "updateShipment",
+  params: IdParamSchema,
+  body: updateParcelSchema,
+  responses: { ...operationResult, 400: { description: "Nothing to change, an incomplete destination, or a home delivery left without an address" } },
+  handler: handlers.update,
+});
+
+const voidRoute = defineRoute({
+  method: "post",
+  path: "/{id}/void",
+  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  tags: ["Shipments"],
+  summary: "Void a shipment",
+  description: "Undo a shipment that never reached the customer, so the order can be handed off again. A carrier parcel is cancelled at the carrier first (unless the carrier already cancelled it). Refused once the parcel is out for delivery.",
+  operationId: "voidShipment",
+  params: IdParamSchema,
+  responses: {
+    200: { description: "Voided; the order is ready to hand off again", content: jsonContent(SuccessResponseSchema(z.object({ orderId: z.string() }))) },
+    ...OPERATION_REFUSALS,
+  },
+  handler: handlers.voidOne,
+});
+
+const listRemarksRoute = defineRoute({
+  method: "get",
+  path: "/{id}/remarks",
+  auth: { scope: SCOPES.ORDERS_READ },
+  tags: ["Shipments"],
+  summary: "Read the parcel's remarks at the carrier",
+  operationId: "listShipmentRemarks",
+  params: IdParamSchema,
+  responses: { 200: { description: "Remarks from the merchant and the courier", content: jsonContent(SuccessResponseSchema(z.array(CarrierRemarkSchema))) }, ...OPERATION_REFUSALS },
+  handler: handlers.remarks,
+});
+
+const addRemarkRoute = defineRoute({
+  method: "post",
+  path: "/{id}/remarks",
+  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  tags: ["Shipments"],
+  summary: "Add a remark for the courier",
+  operationId: "addShipmentRemark",
+  params: IdParamSchema,
+  body: remarkSchema,
+  responses: operationResult,
+  handler: handlers.addRemark,
+});
+
+const labelRoute = defineRoute({
+  method: "get",
+  path: "/{id}/label",
+  auth: { scope: SCOPES.ORDERS_READ },
+  tags: ["Shipments"],
+  summary: "The parcel's label",
+  description: "Fetched from the carrier for the merchant: carrier labels sit behind the company's credentials or an expiring link.",
+  operationId: "getShipmentLabel",
+  params: IdParamSchema,
+  responses: {
+    200: { description: "The label", content: { "application/pdf": { schema: z.string().openapi({ format: "binary", type: "string" }) } } },
+    ...OPERATION_REFUSALS,
+  },
+  handler: handlers.label,
+});
+
+const askReturnRoute = defineRoute({
+  method: "post",
+  path: "/{id}/ask-return",
+  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  tags: ["Shipments"],
+  summary: "Ask the carrier to return the parcel",
+  description: "A request the courier may decline; it is noted in the history and changes nothing until the carrier reports the return.",
+  operationId: "askShipmentReturn",
+  params: IdParamSchema,
+  responses: operationResult,
+  handler: handlers.askReturn,
+});
+
+const requestNewAttemptRoute = defineRoute({
+  method: "post",
+  path: "/{id}/request-new-attempt",
+  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  tags: ["Shipments"],
+  summary: "Ask the carrier to try delivering again",
+  description: "After a failed attempt (NOEST). Noted in the history.",
+  operationId: "requestShipmentNewAttempt",
+  params: IdParamSchema,
+  responses: operationResult,
+  handler: handlers.requestNewAttempt,
+});
+
+const confirmReturnRoute = defineRoute({
+  method: "post",
+  path: "/{id}/confirm-return",
+  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  tags: ["Shipments"],
+  summary: "Confirm at the carrier that the return reached you",
+  description: "EcoTrack's return confirmation, then the return is recorded: the goods go back in stock and the customer's spend is rolled back.",
+  operationId: "confirmShipmentReturn",
+  params: IdParamSchema,
+  responses: operationResult,
+  handler: handlers.confirmReturn,
+});
+
+const syncRoute = defineRoute({
+  method: "post",
+  path: "/{id}/sync",
+  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  tags: ["Shipments"],
+  summary: "Read the carrier's history now",
+  description: "Records every status the carrier reports that the shipment does not have yet; a status already recorded (by webhook or an earlier sync) is not recorded twice.",
+  operationId: "syncShipment",
+  params: IdParamSchema,
+  responses: operationResult,
+  handler: handlers.sync,
+});
+
+const reportRoute = defineRoute({
+  method: "post",
+  path: "/{id}/events",
+  auth: { anyOf: [SCOPES.DELIVERY_DISPATCH, SCOPES.ORDERS_ASSIGN] },
+  tags: ["Shipments"],
+  summary: "Report what happened",
+  description: `What the merchant saw. On a driver's shipment: the driver's progress (\`out_for_delivery\`, \`failed_attempt\`, \`delivered\`, \`returned\`) — needs ${SCOPES.ORDERS_ASSIGN}. On a carrier shipment only \`returned\`: the goods are back with the merchant (the carrier alone can say a parcel was delivered) — needs ${SCOPES.DELIVERY_DISPATCH}.`,
+  operationId: "reportShipmentEvent",
+  params: IdParamSchema,
+  body: merchantReportSchema,
+  responses: { ...operationResult, 403: { description: "Missing the permission this shipment's kind needs" } },
+  handler: handlers.report,
+});
+
 const router = new OpenAPIHono<AppContext>();
 
 // /bulk before /{id}, so "bulk" is never read as an id.
 router.openapi(bulkHandoffRoute.route, bulkHandoffRoute.handler);
 router.openapi(getShipmentRoute.route, getShipmentRoute.handler);
 router.openapi(resolveRoute.route, resolveRoute.handler);
+for (const route of [validateRoute, updateRoute, voidRoute, listRemarksRoute, addRemarkRoute, labelRoute, askReturnRoute, requestNewAttemptRoute, confirmReturnRoute, syncRoute, reportRoute]) {
+  router.openapi(route.route, route.handler);
+}
 
 export default router;

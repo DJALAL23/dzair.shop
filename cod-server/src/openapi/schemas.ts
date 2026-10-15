@@ -183,7 +183,6 @@ export {
   // Response data schemas
   OrderCreatedDataSchema,
   ReturnProductDataSchema,
-  CarrierRecordsArraySchema,
   
   // Types
   type OrderStatus,

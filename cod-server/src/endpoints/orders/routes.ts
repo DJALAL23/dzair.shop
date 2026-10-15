@@ -11,7 +11,6 @@ import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 
 import * as handlers from "./handlers";
 import * as statusTransitions from "./status-transitions";
-import * as shipmentOps from "./shipment-operations";
 import { handOffOrderRoute } from "../shipments/routes";
 
 import {
@@ -33,7 +32,6 @@ import {
   OrderDetailSchema,
   OrderCreatedDataSchema,
   ReturnProductDataSchema,
-  CarrierRecordsArraySchema,
 } from "@/openapi/schemas";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
@@ -287,277 +285,15 @@ Rejected with 422 while the overall order is already \`returned\` or \`cancelled
   handler: handlers.returnOrderProduct,
 });
 
-// ─── Shipment operations ──────────────────────────────────────────────────────
 
-const updateShipmentRoute = defineRoute({
-  method: "patch",
-  path: "/{id}/update-shipment",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
-  tags: ["Orders"],
-  summary: "Update shipment info at carrier",
-  description: `Updates an existing shipment at the carrier API: customer info, COD amount, delivery preferences (fragile, weight, remarks). Changed fields sync back to the database.
 
-All fields are optional — omitted fields use current order values. EcoTrack requires ALL fields on every update call, so the server pre-fills from the order record and applies overrides. The COD amount sent to the carrier defaults to the order's COD total (price + delivery fee); an explicit \`amount\` overrides it and syncs back onto the order's price.
 
-**Update restrictions:** EcoTrack-family orders can only be updated before validation (status \`dispatched\`). NOEST rejects after validation; Yalidine after label print. ZR Express addresses parcels by internal parcel UUID.
 
-**Returns 422** when there is no tracking number, the provider doesn't support updates, or the EcoTrack pre-validation guard trips. External carrier failures surface as 502 EXTERNAL_API_ERROR.`,
-  operationId: "updateShipmentInfo",
-  params: IdParamSchema,
-  body: z.object({
-    customerName: z.string().optional().openapi({ description: "Customer full name" }),
-    phone: z.string().optional().openapi({
-      description: "Algerian mobile number",
-      example: "0551234567",
-    }),
-    phone2: z.string().optional().openapi({ description: "Secondary phone number" }),
-    address: z.string().optional().openapi({ description: "Delivery address" }),
-    commune: z.string().optional().openapi({
-      description:
-        "Commune name in French (required by Packers on every call — server pre-fills)",
-    }),
-    wilayaId: z.number().int().min(1).max(58).optional(),
-    amount: z.number().positive().optional().openapi({
-      description: "COD amount to collect",
-    }),
-    remarks: z.string().optional().openapi({ description: "Delivery remarks/notes" }),
-    fragile: z.boolean().optional(),
-    weight: z.number().min(0).optional().openapi({
-      description: "Package weight in kg",
-    }),
-  }),
-  responses: {
-    200: {
-      description: "Shipment updated successfully",
-      content: jsonContent(MessageResponseSchema),
-    },
-    422: {
-      description:
-        "No tracking number, provider does not support updates, or EcoTrack pre-validation guard tripped",
-    },
-    500: {
-      description: "External API error (EXTERNAL_API_ERROR)",
-    },
-  },
-  handler: shipmentOps.updateShipmentInfo,
-});
 
-const cancelShipmentRoute = defineRoute({
-  method: "post",
-  path: "/{id}/cancel-shipment",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
-  tags: ["Orders"],
-  summary: "Cancel shipment at carrier",
-  description: `Deletes/cancels a shipment at the carrier API (before validation only). On success: clears the tracking number from the order and resets status to "ready" so it can be re-dispatched.
 
-Uses POST (not DELETE) to avoid routing ambiguity with DELETE /orders/{id}.
 
-Provider support: ecotrack ✅ | others ❌ OPERATION_NOT_SUPPORTED.`,
-  operationId: "cancelShipment",
-  params: IdParamSchema,
-  responses: {
-    200: {
-      description: "Shipment cancelled — order reset to ready",
-      content: jsonContent(MessageResponseSchema),
-    },
-    422: {
-      description:
-        "No tracking number (REQUIRED_FIELD_MISSING), or provider does not support cancelling (OPERATION_NOT_SUPPORTED)",
-    },
-    500: {
-      description: "External API error (EXTERNAL_API_ERROR)",
-    },
-  },
-  handler: shipmentOps.cancelShipment,
-});
 
-const addRemarkRoute = defineRoute({
-  method: "post",
-  path: "/{id}/add-remark",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
-  tags: ["Orders"],
-  summary: "Add remark to shipment at carrier",
-  description: `Adds a remark/note to the shipment at the carrier API. Works at any time after dispatch; visible to carrier and sender.
 
-Provider support: ecotrack ✅ | others ❌ OPERATION_NOT_SUPPORTED.`,
-  operationId: "addShipmentRemark",
-  params: IdParamSchema,
-  body: z.object({
-    content: z.string().min(1).openapi({
-      description: "Remark text shown to the carrier and courier",
-      example: "Appeler le client 30 minutes avant",
-    }),
-  }),
-  responses: {
-    200: {
-      description: "Remark added",
-      content: jsonContent(MessageResponseSchema),
-    },
-    400: {
-      description: "Missing or empty remark content (REQUIRED_FIELD_MISSING)",
-    },
-    422: {
-      description: "No tracking number, or provider does not support remarks",
-    },
-    500: {
-      description: "External API error (EXTERNAL_API_ERROR)",
-    },
-  },
-  handler: shipmentOps.addShipmentRemark,
-});
-
-const getRemarksRoute = defineRoute({
-  method: "get",
-  path: "/{id}/remarks",
-  auth: { scope: SCOPES.ORDERS_READ },
-  tags: ["Orders"],
-  summary: "Fetch shipment remarks from carrier",
-  description: `Fetches the list of remarks/notes for a shipment from the carrier API — entries from both sender and courier/driver.
-
-Provider support: ecotrack ✅ (GET /api/v1/get/maj) | NOEST ❌ | Yalidine ❌ | ZR Express ❌.`,
-  operationId: "getShipmentRemarks",
-  params: IdParamSchema,
-  responses: {
-    200: {
-      description: "Remarks fetched successfully",
-      content: jsonContent(
-        z.object({
-          success: z.boolean().openapi({ example: true }),
-          data: CarrierRecordsArraySchema,
-        })
-      ),
-    },
-    422: {
-      description: "No tracking number, or provider does not support fetching remarks",
-    },
-    500: {
-      description: "External API error (EXTERNAL_API_ERROR)",
-    },
-  },
-  handler: shipmentOps.getShipmentRemarks,
-});
-
-const getTrackingRoute = defineRoute({
-  method: "get",
-  path: "/{id}/tracking-events",
-  auth: { scope: SCOPES.ORDERS_READ },
-  tags: ["Orders"],
-  summary: "Fetch tracking history from carrier",
-  description: `Fetches the full chronological tracking history for a shipment from the carrier API (pickup, hub reception, transit, delivery attempts, delivered/returned).
-
-Provider support: all four ✅ (ecotrack, noest, yalidine, zr_express).`,
-  operationId: "getShipmentTracking",
-  params: IdParamSchema,
-  responses: {
-    200: {
-      description: "Tracking events fetched successfully",
-      content: jsonContent(
-        z.object({
-          success: z.boolean().openapi({ example: true }),
-          data: CarrierRecordsArraySchema,
-        })
-      ),
-    },
-    422: {
-      description: "No tracking number, or provider does not support live tracking",
-    },
-    500: {
-      description: "External API error (EXTERNAL_API_ERROR)",
-    },
-  },
-  handler: shipmentOps.getShipmentTracking,
-});
-
-const proxyLabelRoute = defineRoute({
-  method: "get",
-  path: "/{id}/label",
-  auth: { scope: SCOPES.ORDERS_READ },
-  tags: ["Orders"],
-  summary: "Proxy shipment label PDF from carrier",
-  description: `Proxies the shipment label PDF from the carrier API. Carrier label URLs require a Bearer token and are not publicly accessible — this endpoint fetches server-side (with the stored token, or a fresh SAS URL for ZR Express) and streams the PDF to the client.
-
-Returns application/pdf with Content-Disposition: inline.`,
-  operationId: "proxyShipmentLabel",
-  params: IdParamSchema,
-  responses: {
-    200: {
-      description: "Label PDF stream",
-      content: {
-        "application/pdf": {
-          schema: z.string().openapi({ format: "binary", type: "string" }),
-        },
-      },
-    },
-    422: {
-      description:
-        "No tracking number, no API token configured (MISSING_API_CREDENTIALS), or label not yet available",
-    },
-    500: {
-      description: "Failed to fetch label from carrier (EXTERNAL_API_ERROR)",
-    },
-  },
-  handler: shipmentOps.proxyShipmentLabel,
-});
-
-// ─── Router ───────────────────────────────────────────────────────────────────
-
-const askReturnRoute = defineRoute({
-  method: "post",
-  path: "/{id}/ask-return",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
-  tags: ["Orders"],
-  summary: "Ask carrier to return the parcel",
-  description: `Requests a parcel return at the carrier API (EcoTrack: POST /api/v1/ask/for/order/return). This is a REQUEST, not a state change — the courier may take up to a day to action it and can decline (platform-documented), so the order stays out_for_delivery until the return is confirmed.
-
-Only callable while the order is out_for_delivery. Carrier error 10003 (not returnable) surfaces as 502 EXTERNAL_API_ERROR.
-
-Provider support: ecotrack ✅ | others ❌ OPERATION_NOT_SUPPORTED.`,
-  operationId: "askShipmentReturn",
-  params: IdParamSchema,
-  responses: {
-    200: {
-      description: "Return requested at the carrier",
-      content: jsonContent(MessageResponseSchema),
-    },
-    422: {
-      description:
-        "No tracking number, order not out_for_delivery, or provider does not support return requests",
-    },
-    500: {
-      description: "External API error (EXTERNAL_API_ERROR)",
-    },
-  },
-  handler: shipmentOps.askShipmentReturn,
-});
-
-const confirmReturnReceptionRoute = defineRoute({
-  method: "post",
-  path: "/{id}/confirm-return-reception",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
-  tags: ["Orders"],
-  summary: "Confirm return reception at carrier",
-  description: `Confirms at the carrier that the merchant physically received the returned parcel (EcoTrack: POST /api/v1/valid/returns), then moves the order to "returned" through the normal status path (inventory restore, customer stats, history).
-
-Forward-only: only callable from out_for_delivery. If the carrier reports nothing eligible (already confirmed, or parcel not in a return state), returns 422 without touching the order.
-
-Provider support: ecotrack ✅ | others ❌ OPERATION_NOT_SUPPORTED.`,
-  operationId: "confirmReturnReception",
-  params: IdParamSchema,
-  responses: {
-    200: {
-      description: "Return reception confirmed — order marked returned",
-      content: jsonContent(MessageResponseSchema),
-    },
-    422: {
-      description:
-        "No tracking number, order not out_for_delivery, provider unsupported, or carrier reports nothing eligible for confirmation",
-    },
-    500: {
-      description: "External API error (EXTERNAL_API_ERROR)",
-    },
-  },
-  handler: shipmentOps.confirmReturnReception,
-});
 
 const router = new OpenAPIHono<AppContext>();
 
@@ -572,13 +308,5 @@ router.openapi(assignDriverRoute.route, assignDriverRoute.handler);
 router.openapi(unassignDriverRoute.route, unassignDriverRoute.handler);
 router.openapi(returnOrderProductRoute.route, returnOrderProductRoute.handler);
 router.openapi(handOffOrderRoute.route, handOffOrderRoute.handler);
-router.openapi(updateShipmentRoute.route, updateShipmentRoute.handler);
-router.openapi(cancelShipmentRoute.route, cancelShipmentRoute.handler);
-router.openapi(askReturnRoute.route, askReturnRoute.handler);
-router.openapi(confirmReturnReceptionRoute.route, confirmReturnReceptionRoute.handler);
-router.openapi(addRemarkRoute.route, addRemarkRoute.handler);
-router.openapi(getRemarksRoute.route, getRemarksRoute.handler);
-router.openapi(getTrackingRoute.route, getTrackingRoute.handler);
-router.openapi(proxyLabelRoute.route, proxyLabelRoute.handler);
 
 export default router;

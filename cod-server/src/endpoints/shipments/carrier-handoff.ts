@@ -85,16 +85,24 @@ const NOT_CREATED: ReadonlySet<CarrierError["kind"]> = new Set(["rejected", "aut
 
 // ─── The company ──────────────────────────────────────────────────────────────
 
-/** The company's adapter, or the reason it cannot take parcels — which refuses the whole handoff. */
-export function carrierFor(company: DeliveryCompanyRow): Promise<CarrierAdapter> {
+/**
+ * The company's adapter, for parcels it already has — an inactive company's
+ * parcels can still be labelled, cancelled or synced.
+ */
+export function connectedCarrier(company: DeliveryCompanyRow): Promise<CarrierAdapter> {
   const context = { companyId: company.id, code: company.code };
-  if (!company.active) {
-    throw new BusinessLogicError(`${company.name} is inactive`, ERROR_CODES.COMPANY_INACTIVE, context);
-  }
   if (!company.apiToken) {
     throw new ValidationError(`${company.name} is not connected — add API credentials first`, ERROR_CODES.MISSING_API_CREDENTIALS, context);
   }
   return callCarrier(context, () => buildCarrier(company));
+}
+
+/** The company's adapter for new parcels, or the reason it cannot take them — which refuses the whole handoff. */
+export function carrierFor(company: DeliveryCompanyRow): Promise<CarrierAdapter> {
+  if (!company.active) {
+    throw new BusinessLogicError(`${company.name} is inactive`, ERROR_CODES.COMPANY_INACTIVE, { companyId: company.id, code: company.code });
+  }
+  return connectedCarrier(company);
 }
 
 // ─── 1. Prepare ───────────────────────────────────────────────────────────────
@@ -533,7 +541,7 @@ export async function resolveHandoff(db: AppDb, shipmentId: string, resolution: 
   }
 
   if (resolution.action === "lookup") {
-    const carrier = await carrierFor(company!);
+    const carrier = await connectedCarrier(company!);
     const parcel = await callCarrier({ ...context, companyId: company!.id }, () =>
       loggedCarrierCall(db, { companyId: company!.id, orderId: row.orderId, operation: "findByReference" }, () =>
         carrier.findByReference!(target.orderNumber, new Date(row.createdAt)),

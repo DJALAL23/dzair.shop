@@ -12,16 +12,13 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
-import { errorHandler } from "@/middleware/error";
-import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ecotrack/test/mock-server";
 import { CREATE_WILAYA_REFUSED_RESPONSE } from "@/carriers/ecotrack/test/fixtures";
 import { getShipmentWithEvents } from "../../../../cod-shared/shipments/queries";
 import { markHandoffUnknown, reserveCarrierShipment } from "../../../../cod-shared/shipments/handoff";
-import ordersRouter from "../orders/routes";
-import shipmentsRouter from "./routes";
+import { seedOrder as seedOrderIn, seedStore, shipmentsApp, T0, type OrderSeed } from "./test/harness";
 
 const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
 vi.mock("@/db", () => dbModule);
@@ -43,21 +40,12 @@ let app: OpenAPIHono<AppContext>;
 let scopes: string[] = [];
 let server: EcotrackMockServer;
 const realFetch = globalThis.fetch;
-const T0 = "2026-10-14T08:00:00.000Z";
 const CREATE = "/api/v1/create/order";
 const BULK = "/api/v1/create/orders";
 
 beforeAll(async () => {
   d1 = await createTestD1();
-  app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
-  app.use("*", async (c, next) => {
-    c.env = { DB: d1.raw } as never;
-    c.set("user", { id: "staff_1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes } as never);
-    await next();
-  });
-  app.onError(errorHandler);
-  app.route("/api/orders", ordersRouter);
-  app.route("/api/shipments", shipmentsRouter);
+  app = shipmentsApp(d1, () => scopes);
 }, 120_000);
 
 afterAll(async () => {
@@ -72,69 +60,14 @@ beforeEach(async () => {
   failures.accept = false;
   server = createEcotrackMockServer();
   globalThis.fetch = ((url: string | URL, init?: RequestInit) => server.fetch(url, init)) as typeof fetch;
-
-  const db = d1.db;
-  for (const table of [schema.shipmentEvents, schema.shipments, schema.companyApiLogs, schema.activityLogs, schema.orderProducts, schema.orderStatusHistory, schema.orders, schema.productVariants, schema.products, schema.customers, schema.carrierCommunes, schema.carrierWilayas, schema.deliveryCompanies]) {
-    await db.delete(table);
-  }
-  commune16 = (await db.select({ id: schema.communes.id }).from(schema.communes).where(eq(schema.communes.wilayaId, 16)).get())!.id;
-  await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T0 });
-  await db.insert(schema.products).values({
-    id: "p1", name: "Robe", handle: "robe", price: 1500, sku: "ROBE", hasVariants: false, inventory: 100, trackInventory: false,
-    lowStockThreshold: 2, status: "ACTIVE", visibility: true, showInStore: true, storeFeatured: false, createdAt: T0, updatedAt: T0,
-  });
-  const company = { nameAr: "-", active: true, createdAt: T0, updatedAt: T0 };
-  await db.insert(schema.deliveryCompanies).values([
-    { ...company, id: "eco", name: "Packers", code: "packers_ecotrack", provider: "ecotrack", apiEndpoint: server.baseUrl, apiToken: server.token, autoValidate: true },
-    { ...company, id: "eco-manual", name: "Packers (manual)", code: "manual_ecotrack", provider: "ecotrack", apiEndpoint: server.baseUrl, apiToken: server.token, autoValidate: false },
-    { ...company, id: "eco-home-only", name: "Home only", code: "home_ecotrack", provider: "ecotrack", apiEndpoint: server.baseUrl, apiToken: server.token, supportsStopDesk: false },
-    { ...company, id: "yal", name: "Yalidine", code: "yalidine", provider: "yalidine", apiToken: "yal-token", apiUserGuid: "yal-id" },
-    { ...company, id: "zr", name: "ZR", code: "zr_express", provider: "zr_express", apiToken: "zr-key", apiUserGuid: "tenant" },
-    { ...company, id: "off", name: "Inactive", code: "off_ecotrack", provider: "ecotrack", apiEndpoint: server.baseUrl, apiToken: server.token, active: false },
-    { ...company, id: "unconnected", name: "Unconnected", code: "new_ecotrack", provider: "ecotrack", apiEndpoint: server.baseUrl },
-  ]);
+  commune16 = await seedStore(d1.db, server);
 });
 
 afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-interface OrderSeed {
-  id: string;
-  status?: "new" | "confirmed" | "preparing" | "ready" | "cancelled";
-  price?: number;
-  deliveryFee?: number;
-  address?: string | null;
-  deliveryType?: "home" | "stop_desk";
-  stationCode?: string | null;
-  lines?: string[];
-  notes?: string | null;
-  wilayaId?: number;
-}
-
-async function seedOrder(seed: OrderSeed) {
-  await d1.db.insert(schema.orders).values({
-    id: seed.id,
-    orderNumber: `ORD-${seed.id}`,
-    customerId: "c1",
-    customerName: "Karim Benali",
-    phone: "0551234567",
-    wilayaId: seed.wilayaId ?? 16,
-    communeId: commune16,
-    address: seed.address === undefined ? "12 Rue Didouche Mourad" : seed.address,
-    deliveryType: seed.deliveryType ?? "home",
-    stationCode: seed.stationCode ?? null,
-    price: seed.price ?? 1500,
-    deliveryFee: seed.deliveryFee ?? 400,
-    notes: seed.notes ?? null,
-    status: seed.status ?? "ready",
-    createdAt: T0,
-    updatedAt: T0,
-  });
-  for (const [i, name] of (seed.lines ?? ["Robe kabyle"]).entries()) {
-    await d1.db.insert(schema.orderProducts).values({ id: `${seed.id}-l${i}`, orderId: seed.id, productId: "p1", productName: name, quantity: 1, pricePerUnit: 1500, lineTotal: 1500, createdAt: T0 });
-  }
-}
+const seedOrder = (seed: OrderSeed) => seedOrderIn(d1.db, commune16, seed);
 
 const post = (path: string, body: unknown) =>
   app.request(path, { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });

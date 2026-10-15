@@ -1,6 +1,8 @@
 /**
  * Shipment handlers: handing orders to a carrier (one or many), reading a
- * shipment, and resolving a handoff whose outcome was unknown.
+ * shipment, resolving a handoff whose outcome was unknown, and the
+ * operations on a shipment after its handoff (thin: the work is in
+ * `operations.ts`).
  */
 
 import type { Context } from "hono";
@@ -13,7 +15,17 @@ import { carrierCapabilities } from "@/carriers/registry";
 import { getDeliveryCompanyRaw } from "../../../../cod-shared/queries/delivery-companies";
 import { handOffToCarrier, resolveHandoff, type DeliveryCompanyRow, type HandoffResult } from "./carrier-handoff";
 import { loadShipmentView, shipmentView, type ShipmentView } from "./view";
-import type { bulkCarrierHandoffSchema, carrierHandoffSchema, resolveHandoffSchema } from "./validation";
+import type {
+  bulkCarrierHandoffSchema,
+  carrierHandoffSchema,
+  merchantReportSchema,
+  remarkSchema,
+  resolveHandoffSchema,
+  updateParcelSchema,
+  validateShipmentSchema,
+} from "./validation";
+import * as operations from "./operations";
+import type { RecordedEvents } from "../../../../cod-shared/shipments/record-events";
 import type { z } from "@hono/zod-openapi";
 
 async function companyOrThrow(db: AppDb, companyId: string): Promise<DeliveryCompanyRow> {
@@ -106,4 +118,98 @@ export async function resolveShipmentHandoff(c: Context<AppContext>) {
       return c.json({ success: true, data: { outcome: resolved.result.outcome, shipment, ...(message ? { message } : {}) } }, 200);
     }
   }
+}
+
+// ─── Operations on a shipment ─────────────────────────────────────────────────
+
+const shipmentIdOf = (c: Context<AppContext>) => c.req.param("id")!;
+const actorOf = (c: Context<AppContext>) => c.get("user") ?? null;
+
+async function respondWithShipment(c: Context<AppContext>, db: AppDb, extra: Record<string, unknown> = {}) {
+  const shipment = await loadShipmentView(db, shipmentIdOf(c), { events: false });
+  return c.json({ success: true, data: { shipment, ...extra } }, 200);
+}
+
+const recordedSummary = (r: RecordedEvents) => ({ recorded: r.recorded, duplicates: r.duplicates, reached: r.reached, anomalies: r.anomalies });
+
+/** POST /shipments/{id}/validate */
+export async function validate(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const body = ((c.req as any).valid("json") ?? {}) as z.infer<typeof validateShipmentSchema>;
+  await operations.validateShipment(db, shipmentIdOf(c), body, actorOf(c));
+  return respondWithShipment(c, db);
+}
+
+/** PATCH /shipments/{id} */
+export async function update(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  await operations.updateParcel(db, shipmentIdOf(c), (c.req as any).valid("json") as z.infer<typeof updateParcelSchema>, actorOf(c));
+  return respondWithShipment(c, db);
+}
+
+/** POST /shipments/{id}/void */
+export async function voidOne(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const { orderId } = await operations.voidShipmentOperation(db, shipmentIdOf(c), actorOf(c));
+  return c.json({ success: true, data: { orderId } }, 200);
+}
+
+/** GET /shipments/{id}/remarks */
+export async function remarks(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  return c.json({ success: true, data: await operations.listRemarks(db, shipmentIdOf(c)) }, 200);
+}
+
+/** POST /shipments/{id}/remarks */
+export async function addRemark(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const { content } = (c.req as any).valid("json") as z.infer<typeof remarkSchema>;
+  await operations.addRemark(db, shipmentIdOf(c), content, actorOf(c));
+  return respondWithShipment(c, db);
+}
+
+/** GET /shipments/{id}/label */
+export async function label(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const file = await operations.shipmentLabel(db, shipmentIdOf(c));
+  return new Response(file.body, {
+    status: 200,
+    headers: { "Content-Type": file.contentType, "Content-Disposition": `inline; filename="${file.name}"`, "Cache-Control": "no-store" },
+  });
+}
+
+/** POST /shipments/{id}/ask-return */
+export async function askReturn(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  await operations.askReturn(db, shipmentIdOf(c), actorOf(c));
+  return respondWithShipment(c, db);
+}
+
+/** POST /shipments/{id}/request-new-attempt */
+export async function requestNewAttempt(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  await operations.requestNewAttempt(db, shipmentIdOf(c), actorOf(c));
+  return respondWithShipment(c, db);
+}
+
+/** POST /shipments/{id}/confirm-return */
+export async function confirmReturn(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const recorded = await operations.confirmReturn(db, shipmentIdOf(c), actorOf(c));
+  return respondWithShipment(c, db, recordedSummary(recorded));
+}
+
+/** POST /shipments/{id}/sync */
+export async function sync(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const recorded = await operations.syncOne(db, shipmentIdOf(c));
+  return respondWithShipment(c, db, recordedSummary(recorded));
+}
+
+/** POST /shipments/{id}/events */
+export async function report(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const body = (c.req as any).valid("json") as z.infer<typeof merchantReportSchema>;
+  const recorded = await operations.reportShipmentEvent(db, shipmentIdOf(c), body, c.get("user"));
+  return respondWithShipment(c, db, recordedSummary(recorded));
 }

@@ -269,15 +269,6 @@ export const ReturnProductDataSchema = z
   })
   .openapi("ReturnProductData");
 
-// ─── Tracking & Shipment Operations ───────────────────────────────────────────
-
-/**
- * Generic array of records for carrier-specific responses (tracking, remarks)
- */
-export const CarrierRecordsArraySchema = z.array(z.record(z.string(), z.unknown())).openapi({
-  description: "Structure varies by carrier API.",
-});
-
 // ─── Re-exports ───────────────────────────────────────────────────────────────
 
 export type OrderStatus = z.infer<typeof OrderStatusEnum>;

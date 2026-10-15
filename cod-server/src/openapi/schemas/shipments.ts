@@ -102,3 +102,20 @@ export const ResolveResultSchema = z
     message: z.string().optional(),
   })
   .openapi("HandoffResolution");
+
+export const ShipmentOperationResultSchema = z
+  .object({
+    shipment: ShipmentSchema,
+    recorded: z.number().int().optional().openapi({ description: "Events new to the shipment" }),
+    duplicates: z.number().int().optional().openapi({ description: "Events it already had" }),
+    reached: z.array(z.enum(MILESTONES)).optional().openapi({ description: "Milestones reached for the first time" }),
+    anomalies: z.array(z.string()).optional(),
+  })
+  .openapi("ShipmentOperationResult");
+
+export const CarrierRemarkSchema = z
+  .object({
+    content: z.string(),
+    createdAt: z.string().nullable(),
+  })
+  .openapi("CarrierRemark");

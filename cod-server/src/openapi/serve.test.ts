@@ -756,13 +756,15 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(spec.paths["/api/shipments/bulk"]?.post?.operationId).toBe("handOffOrders");
     expect(spec.paths["/api/shipments/{id}"]?.get?.operationId).toBe("getShipment");
     expect(spec.paths["/api/shipments/{id}/resolve"]?.post?.operationId).toBe("resolveShipmentHandoff");
+    expect(spec.paths["/api/shipments/{id}"]?.patch?.operationId).toBe("updateShipment");
+    expect(spec.paths["/api/shipments/{id}/void"]?.post?.operationId).toBe("voidShipment");
+    expect(spec.paths["/api/shipments/{id}/validate"]?.post?.operationId).toBe("validateShipment");
+    expect(spec.paths["/api/shipments/{id}/remarks"]?.get?.operationId).toBe("listShipmentRemarks");
+    expect(spec.paths["/api/shipments/{id}/remarks"]?.post?.operationId).toBe("addShipmentRemark");
+    expect(spec.paths["/api/shipments/{id}/label"]?.get?.operationId).toBe("getShipmentLabel");
+    expect(spec.paths["/api/shipments/{id}/events"]?.post?.operationId).toBe("reportShipmentEvent");
+    expect(spec.paths["/api/shipments/{id}/sync"]?.post?.operationId).toBe("syncShipment");
     expect(spec.components.schemas.Shipment).toBeDefined();
-    expect(spec.paths["/api/orders/{id}/update-shipment"]?.patch?.operationId).toBe("updateShipmentInfo");
-    expect(spec.paths["/api/orders/{id}/cancel-shipment"]?.post?.operationId).toBe("cancelShipment");
-    expect(spec.paths["/api/orders/{id}/add-remark"]?.post?.operationId).toBe("addShipmentRemark");
-    expect(spec.paths["/api/orders/{id}/remarks"]?.get?.operationId).toBe("getShipmentRemarks");
-    expect(spec.paths["/api/orders/{id}/tracking-events"]?.get?.operationId).toBe("getShipmentTracking");
-    expect(spec.paths["/api/orders/{id}/label"]?.get?.operationId).toBe("proxyShipmentLabel");
 
     expect(spec.components.schemas.Order).toBeDefined();
     expect(spec.components.schemas.OrderProduct).toBeDefined();

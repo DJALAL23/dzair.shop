@@ -289,6 +289,48 @@ export async function markValidated(db: AppDb, shipmentId: string, actorId: stri
   return changed(result);
 }
 
+export interface ParcelEdit {
+  codAmount?: number;
+  weight?: number | null;
+  isFragile?: boolean | null;
+}
+
+/**
+ * The carrier accepted an edit of the parcel: record its new details with
+ * the step. Only on an accepted shipment. `fields` names what the merchant
+ * changed, for the history.
+ */
+export async function recordParcelEdit(
+  db: AppDb,
+  shipmentId: string,
+  edit: ParcelEdit,
+  extra: { fields: readonly string[]; actorId: string | null },
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  const revision = crypto.randomUUID();
+  const [result] = await db.batch([
+    db
+      .update(shipments)
+      .set({ ...edit, revision, updatedAt: now })
+      .where(and(eq(shipments.id, shipmentId), eq(shipments.handoffState, "accepted"))),
+    codflowEvent(db, shipmentId, revision, "merchant", "parcel_updated", { reason: extra.fields.join(", "), actorId: extra.actorId }),
+  ]);
+  return changed(result);
+}
+
+/**
+ * The carrier's history was read: when, and the tracking number if the
+ * shipment had none yet (ZR assigns it after creation). A tracking number
+ * already recorded is never replaced. Bookkeeping only — no delivery fact
+ * changes, so the revision stands.
+ */
+export async function recordSynced(db: AppDb, shipmentId: string, trackingNumber: string | null): Promise<void> {
+  await db
+    .update(shipments)
+    .set({ lastSyncedAt: new Date().toISOString(), trackingNumber: sql`coalesce(${shipments.trackingNumber}, ${trackingNumber})` })
+    .where(eq(shipments.id, shipmentId));
+}
+
 export type VoidOutcome = { ok: true; orderId: string } | Extract<ShipmentRuleVerdict, { ok: false }> | { ok: false; code: "SHIPMENT_NOT_FOUND" };
 
 /**
