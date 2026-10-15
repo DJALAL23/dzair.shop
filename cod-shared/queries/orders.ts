@@ -39,6 +39,8 @@ import {
 const driversAlias = aliasedTable(drivers, "d");
 
 import { safeLikeTerm } from "./search";
+import { orderNeedsAttentionSql, orderStageSql } from "../orders/stage-sql";
+import type { OrderStage } from "../orders/stage";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 import { insertSelectRow } from "../db/insert-select";
@@ -47,6 +49,10 @@ import { getCustomerByPhone, updateCustomer, type UpdateCustomerData } from "./c
 
 export interface OrderFilters {
   status?: (typeof orders.$inferSelect)["status"] | "all";
+  /** Where the order stands overall (stage.ts). */
+  stage?: OrderStage;
+  /** Only orders whose delivery needs the merchant (true), or only the others (false). */
+  attention?: boolean;
   wilayaId?: number;
   search?: string;
   limit?: number;
@@ -94,6 +100,14 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     conditions.push(eq(orders.status, filters.status));
   }
 
+  if (filters.stage) {
+    conditions.push(sql`${orderStageSql()} = ${filters.stage}`);
+  }
+
+  if (filters.attention !== undefined) {
+    conditions.push(filters.attention ? orderNeedsAttentionSql() : sql`not ${orderNeedsAttentionSql()}`);
+  }
+
   if (filters.wilayaId) {
     conditions.push(eq(orders.wilayaId, filters.wilayaId));
   }
@@ -132,11 +146,15 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
       lastUpdatedBy: sql<
         string | null
       >`(SELECT by FROM order_status_history WHERE order_id = orders.id ORDER BY timestamp DESC LIMIT 1)`,
+      shipmentId: sql<string | null>`${shipments.id}`,
+      stage: orderStageSql(),
+      needsAttention: orderNeedsAttentionSql(),
     })
     .from(orders)
     .leftJoin(wilayas, eq(orders.wilayaId, wilayas.id))
     .leftJoin(communes, eq(orders.communeId, communes.id))
-    .leftJoin(driversAlias, eq(orders.driverId, driversAlias.id))
+    .leftJoin(shipments, eq(shipments.orderId, orders.id))
+    .leftJoin(driversAlias, eq(sql`coalesce(${shipments.driverId}, ${orders.driverId})`, driversAlias.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(orders.createdAt), desc(orders.id))
     .limit(filters.limit ?? 50)

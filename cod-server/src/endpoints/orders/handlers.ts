@@ -36,6 +36,8 @@ export async function listOrders(c: Context<AppContext>) {
     const queryData: any = (c.req as any).valid?.("query");
     const filters = queryData ?? validation.orderFiltersSchema.parse({
       status: c.req.query("status"),
+      stage: c.req.query("stage"),
+      attention: c.req.query("attention"),
       wilayaId: c.req.query("wilayaId"),
       search: c.req.query("search"),
       limit: c.req.query("limit"),

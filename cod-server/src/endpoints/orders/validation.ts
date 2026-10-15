@@ -6,6 +6,7 @@
 
 import { z } from "zod";
 import { parseOrderCursor } from "../../../../cod-shared/queries/orders";
+import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 
 export const createOrderSchema = z.object({
   customerId: z.string().min(1),
@@ -125,6 +126,12 @@ export const returnOrderProductSchema = z.object({
 
 export const orderFiltersSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional(),
+  stage: z.enum(ORDER_STAGES).optional().describe("Where the order stands overall: its processing, then its shipment's delivery"),
+  attention: z
+    .enum(["true", "false"])
+    .transform((v) => v === "true")
+    .optional()
+    .describe("true: only orders whose delivery needs the merchant (an unknown handoff, a parcel the carrier cancelled or flagged); false: only the others"),
   wilayaId: z.coerce.number().int().optional(),
   search: z.string().optional(),
   limit: z.coerce.number().int().positive().max(100).default(50),

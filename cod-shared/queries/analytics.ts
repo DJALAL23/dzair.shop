@@ -1,14 +1,15 @@
 /**
  * Analytics Queries
  *
- * Optimized read-only queries for dashboard and reporting endpoints.
- * Each function performs a single efficient DB round-trip — no client-side
- * aggregation. Add new analytics queries here as the system grows.
+ * Read-only queries for the dashboard and reporting endpoints, each one
+ * database round-trip with no client-side aggregation.
  */
 
+import { count, eq, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
-import { orders, type OrderStatus } from "../db/schema";
-import { sql } from "drizzle-orm";
+import { orders, shipments, type OrderStatus } from "../db/schema";
+import type { OrderStage } from "../orders/stage";
+import { orderNeedsAttentionSql, orderStageSql } from "../orders/stage-sql";
 
 export interface OrderStatusStat {
   status: OrderStatus;
@@ -31,4 +32,27 @@ export async function getOrderStatusStats(db: AppDb): Promise<OrderStatusStat[]>
     .all();
 
   return rows.map((r) => ({ status: r.status, count: Number(r.count) }));
+}
+
+export interface OrderStageStats {
+  /** Orders per stage; only stages with at least one order. */
+  stages: Array<{ stage: OrderStage; count: number }>;
+  /** Orders whose delivery needs the merchant, whatever their stage. */
+  needsAttention: number;
+}
+
+/** Orders counted by the stage the merchant sees, and how many need attention. */
+export async function getOrderStageStats(db: AppDb): Promise<OrderStageStats> {
+  const stage = orderStageSql();
+  const rows = await db
+    .select({ stage, count: count(), attention: sql<number>`sum(${orderNeedsAttentionSql()})` })
+    .from(orders)
+    .leftJoin(shipments, eq(shipments.orderId, orders.id))
+    .groupBy(stage)
+    .all();
+  const staged = rows.filter((r): r is typeof r & { stage: OrderStage } => r.stage !== null);
+  return {
+    stages: staged.map((r) => ({ stage: r.stage, count: Number(r.count) })),
+    needsAttention: rows.reduce((sum, r) => sum + Number(r.attention ?? 0), 0),
+  };
 }

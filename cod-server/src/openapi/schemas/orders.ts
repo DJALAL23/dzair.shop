@@ -204,6 +204,11 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
     description:
       "User ID of the last status-change actor. Included in list responses only (GET /api/orders).",
   }),
+  shipmentId: z.string().nullable().optional().openapi({ description: "The order's shipment, or null before handoff. List responses only." }),
+  stage: z.enum(ORDER_STAGES).nullable().optional().openapi({
+    description: "Where the order stands overall — its processing, then its shipment's delivery. Null for a legacy order still in an old delivery status. List responses only.",
+  }),
+  needsAttention: z.boolean().optional().openapi({ description: "Whether the order's delivery needs the merchant. List responses only." }),
 }).openapi("OrderListItem", {
   description: "Order summary for list view - includes joins but not nested arrays",
 });

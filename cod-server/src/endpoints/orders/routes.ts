@@ -50,7 +50,7 @@ const listOrdersRoute = defineRoute({
   responses: {
     200: {
       description:
-        "List of orders (each item includes wilaya/commune/driverName joins plus hasReview and lastUpdatedBy)",
+        "List of orders, newest first. Each item includes wilaya/commune/driverName, hasReview, lastUpdatedBy, and its shipmentId, stage and needsAttention; `stage` and `attention` filter on the last two.",
       content: jsonContent(ListResponseSchema(OrderListItemSchema)),
     },
   },
