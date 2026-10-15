@@ -24,7 +24,6 @@ import { openApiValidationHook } from "@/openapi/validation-hook";
 import ordersRouter from "./routes";
 import * as queries from "./queries";
 import * as resolveFee from "./resolve-fee";
-import * as deliveryCompanyQueries from "@/endpoints/delivery-companies/queries";
 
 // The address rule is tested against the real reference tables
 // (store.queries-e2e); this file's mocked database cannot answer it.
@@ -57,7 +56,6 @@ vi.mock("@/workflows/capi-helpers", () => ({
   resolveConversionForStage: vi.fn(() => ({ shouldFire: false })),
   resolveCapiDispatch: vi.fn(() => ({ send: false, reason: "tracking-disabled", message: "mock skip" })),
 }));
-vi.mock("@/endpoints/delivery-companies/queries");
 vi.mock("../../../../cod-shared/queries/carrier-geo");
 
 const NOW = new Date().toISOString();
@@ -153,33 +151,29 @@ describe("Orders — targeted business-logic tests", () => {
       return res.status;
     }
 
-    // Valid forward moves
+    // The lifecycle's moves (cod-shared/orders/lifecycle.ts)
     it("new → confirmed is allowed", async () => expect(await transition("new", "confirmed")).toBe(200));
     it("new → unreachable is allowed", async () => expect(await transition("new", "unreachable")).toBe(200));
     it("new → cancelled is allowed", async () => expect(await transition("new", "cancelled")).toBe(200));
     it("confirmed → preparing is allowed", async () => expect(await transition("confirmed", "preparing")).toBe(200));
+    it("confirmed → ready is allowed", async () => expect(await transition("confirmed", "ready")).toBe(200));
     it("confirmed → cancelled is allowed", async () => expect(await transition("confirmed", "cancelled")).toBe(200));
     it("unreachable → confirmed is allowed", async () => expect(await transition("unreachable", "confirmed")).toBe(200));
     it("unreachable → cancelled is allowed", async () => expect(await transition("unreachable", "cancelled")).toBe(200));
     it("preparing → ready is allowed", async () => expect(await transition("preparing", "ready")).toBe(200));
     it("preparing → cancelled is allowed", async () => expect(await transition("preparing", "cancelled")).toBe(200));
-    it("ready → out_for_delivery is allowed", async () => expect(await transition("ready", "out_for_delivery")).toBe(200));
-    it("ready → dispatched is allowed", async () => expect(await transition("ready", "dispatched")).toBe(200));
     it("ready → cancelled is allowed", async () => expect(await transition("ready", "cancelled")).toBe(200));
-    it("dispatched → out_for_delivery is allowed", async () => expect(await transition("dispatched", "out_for_delivery")).toBe(200));
-    it("dispatched → cancelled is allowed", async () => expect(await transition("dispatched", "cancelled")).toBe(200));
-    it("out_for_delivery → delivered is allowed", async () => expect(await transition("out_for_delivery", "delivered")).toBe(200));
-    it("out_for_delivery → returned is allowed", async () => expect(await transition("out_for_delivery", "returned")).toBe(200));
 
-    // Invalid backward or skipped moves — all must return 400
-    it("new → delivered is blocked (skip)", async () => expect(await transition("new", "delivered")).toBe(400));
-    it("new → out_for_delivery is blocked (skip)", async () => expect(await transition("new", "out_for_delivery")).toBe(400));
+    // Anything else is refused
     it("confirmed → new is blocked (backward)", async () => expect(await transition("confirmed", "new")).toBe(400));
-    it("delivered → new is blocked (terminal)", async () => expect(await transition("delivered", "new")).toBe(400));
-    it("delivered → confirmed is blocked (terminal)", async () => expect(await transition("delivered", "confirmed")).toBe(400));
-    it("returned → confirmed is blocked (terminal)", async () => expect(await transition("returned", "confirmed")).toBe(400));
+    it("ready → preparing is blocked (backward)", async () => expect(await transition("ready", "preparing")).toBe(400));
+    it("new → ready is blocked (skip)", async () => expect(await transition("new", "ready")).toBe(400));
     it("cancelled → new is blocked (terminal)", async () => expect(await transition("cancelled", "new")).toBe(400));
     it("cancelled → preparing is blocked (terminal)", async () => expect(await transition("cancelled", "preparing")).toBe(400));
+    for (const delivery of ["assigned", "dispatched", "out_for_delivery", "delivered", "returned"]) {
+      it(`${delivery} is not an order status — delivery is the shipment's`, async () => expect(await transition("ready", delivery)).toBe(400));
+    }
+    it("an order still in an old delivery status moves nowhere", async () => expect(await transition("delivered", "cancelled")).toBe(400));
 
     // Context fields on blocked transitions
     it("blocked transition response includes currentStatus, targetStatus, allowedTransitions", async () => {
@@ -204,10 +198,7 @@ describe("Orders — targeted business-logic tests", () => {
         body: JSON.stringify({ status: "new" }),
       });
       const body: any = await res.json();
-      expect(body.context.allowedTransitions).toEqual(
-        expect.arrayContaining(["out_for_delivery", "dispatched", "cancelled"])
-      );
-      expect(body.context.allowedTransitions).not.toContain("new");
+      expect(body.context.allowedTransitions).toEqual(["cancelled"]);
     });
   });
 
@@ -424,34 +415,6 @@ describe("Orders — targeted business-logic tests", () => {
       // Fee was zeroed by the "active" offer — regardless of date
       expect(body.data.deliveryFee).toBe(0);
       expect(body.data.codAmount).toBe(9000); // price + 0 delivery
-    });
-  });
-
-  // ─── 12. createOrder: companyId not found → 404 ───────────────────────────
-
-  describe("POST /api/orders — companyId validation", () => {
-    it("returns 404 when provided companyId does not exist", async () => {
-      vi.mocked(deliveryCompanyQueries.getDeliveryCompanyById).mockResolvedValue(null as any);
-
-      const res = await app.request("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: "cust_1",
-          customerName: "Ahmed Benali",
-          phone: "0551234567",
-          wilayaId: 16,
-          communeId: "16001",
-          address: "12 Rue Didouche Mourad",
-          price: 9000,
-          companyId: "comp_missing",
-          products: [{ productId: "prod_1", productName: "Galaxy A54", quantity: 1, pricePerUnit: 9000, lineTotal: 9000 }],
-        }),
-      });
-
-      expect(res.status).toBe(404);
-      const body: any = await res.json();
-      expect(body.code).toBe("DELIVERY_COMPANY_NOT_FOUND");
     });
   });
 });

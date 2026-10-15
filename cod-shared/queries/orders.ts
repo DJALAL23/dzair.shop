@@ -24,7 +24,7 @@ import {
   webhookEvents,
   shipments,
 } from "../db/schema";
-import type { OrderStatus } from "../db/schema";
+import type { OrderStatus } from "../orders/lifecycle";
 import {
   eq,
   desc,
@@ -154,7 +154,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     .leftJoin(wilayas, eq(orders.wilayaId, wilayas.id))
     .leftJoin(communes, eq(orders.communeId, communes.id))
     .leftJoin(shipments, eq(shipments.orderId, orders.id))
-    .leftJoin(driversAlias, eq(sql`coalesce(${shipments.driverId}, ${orders.driverId})`, driversAlias.id))
+    .leftJoin(driversAlias, eq(shipments.driverId, driversAlias.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(orders.createdAt), desc(orders.id))
     .limit(filters.limit ?? 50)
@@ -171,13 +171,12 @@ export async function getOrderById(db: AppDb, orderId: string) {
       driverName: sql<
         string | null
       >`CASE WHEN ${driversAlias.firstName} IS NOT NULL THEN ${driversAlias.firstName} || ' ' || ${driversAlias.lastName} ELSE NULL END`,
-      labelUrl: companyShipments.labelUrl,
     })
     .from(orders)
     .leftJoin(wilayas, eq(orders.wilayaId, wilayas.id))
     .leftJoin(communes, eq(orders.communeId, communes.id))
-    .leftJoin(driversAlias, eq(orders.driverId, driversAlias.id))
-    .leftJoin(companyShipments, eq(companyShipments.orderId, orders.id))
+    .leftJoin(shipments, eq(shipments.orderId, orders.id))
+    .leftJoin(driversAlias, eq(shipments.driverId, driversAlias.id))
     .where(eq(orders.id, orderId))
     .get();
 
@@ -355,9 +354,9 @@ export async function createOrder(
 export type StatusChange = { ok: true } | { ok: false; reason: "not_found" | "has_shipment" | "changed" };
 
 /**
- * Move an order to a new status, with its effects: history, the driver's
- * credit on a (legacy) delivery, and on cancel/return the customer's spend
- * rolled back and the goods restocked.
+ * Move an order to a new status, with its effects: history, and on cancel the
+ * customer's spend rolled back and the goods restocked. (Delivery and return
+ * are the shipment's milestones, with their own effects — record-events.ts.)
  *
  * Exactly once, in one batch: the history row is written only while the
  * order still has the status it was read with and has no shipment — the
@@ -402,30 +401,11 @@ export async function updateOrderStatus(
     ),
     db
       .update(orders)
-      .set({
-        status: newStatus,
-        updatedAt: now,
-        ...(newStatus === "delivered" ? { deliveryTime: now } : {}),
-      })
+      .set({ status: newStatus, updatedAt: now })
       .where(and(eq(orders.id, orderId), claimed)),
   ];
 
-  if (newStatus === "delivered" && order.driverId) {
-    statements.push(
-      db
-        .update(drivers)
-        .set({
-          totalDelivered: sql`${drivers.totalDelivered} + 1`,
-          totalEarnings: sql`${drivers.totalEarnings} + ${order.driverFee ?? 0}`,
-          pendingCash: sql`${drivers.pendingCash} + ${order.codAmount ?? 0}`,
-          updatedAt: now,
-        })
-        .where(and(eq(drivers.id, order.driverId), claimed)),
-    );
-  }
-
-  const wasAlreadyTerminal = order.status === "cancelled" || order.status === "returned";
-  if (!wasAlreadyTerminal && (newStatus === "cancelled" || newStatus === "returned")) {
+  if (newStatus === "cancelled" && order.status !== "cancelled") {
     statements.push(
       db
         .update(customers)
@@ -437,7 +417,7 @@ export async function updateOrderStatus(
       ...restockStatements(
         db,
         lines,
-        newStatus === "cancelled" ? "ORDER_CANCELLED" : "ORDER_RETURNED",
+        "ORDER_CANCELLED",
         orderId,
         { id: userId ?? "system", name: userName ?? "النظام" },
         now,
@@ -756,7 +736,7 @@ async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion>
 
   // totalOrders always drops; totalSpent only while the order still counted
   // as spend — a cancelled or returned order already rolled it back.
-  const spendAlreadyRolledBack = order.status === "cancelled" || order.status === "returned" || shipment?.returnedAt != null;
+  const spendAlreadyRolledBack = order.status === "cancelled" || shipment?.returnedAt != null;
   statements.push(
     db
       .update(customers)
@@ -766,22 +746,6 @@ async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion>
       })
       .where(and(eq(customers.id, order.customerId), asRead)),
   );
-
-  // A legacy delivered order whose money is not settled: reverse the driver's
-  // credit, or the cash stays unsettleable. A settled one keeps its history.
-  if (order.driverId && order.status === "delivered" && order.codPaymentId === null) {
-    statements.push(
-      db
-        .update(drivers)
-        .set({
-          totalDelivered: sql`MAX(0, ${drivers.totalDelivered} - 1)`,
-          totalEarnings: sql`MAX(0, ${drivers.totalEarnings} - ${order.driverFee ?? 0})`,
-          pendingCash: sql`MAX(0, ${drivers.pendingCash} - ${order.codAmount ?? 0})`,
-          updatedAt: now,
-        })
-        .where(and(eq(drivers.id, order.driverId), asRead)),
-    );
-  }
 
   // A delivery by the store's driver not settled: the driver no longer holds that cash, nor earned that fee.
   if (shipment?.kind === "driver" && shipment.driverId && shipment.deliveredAt) {

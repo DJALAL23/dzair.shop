@@ -89,16 +89,13 @@ const createOrderRoute = defineRoute({
 
 **Delivery fee:** auto-resolved from shipping profiles for online orders; offline/dashboard orders may pass an explicit \`deliveryFee\` override.
 
-**companyId:** If provided, the delivery company must exist — returns 404 if not found.`,
+**Delivery** is chosen later, when the ready order is handed to a carrier or a driver (\`POST /orders/{id}/shipment\`).`,
   operationId: "createOrder",
   body: createOrderSchema,
   responses: {
     201: {
       description: "Order created successfully",
       content: jsonContent(SuccessWithMessageSchema(OrderCreatedDataSchema)),
-    },
-    404: {
-      description: "Delivery company not found when companyId provided",
     },
   },
   handler: handlers.createOrder,
@@ -138,8 +135,7 @@ The linked customer record is updated in the same operation with the fields this
       description: "The order has a shipment and the edit touches what the parcel carries (ORDER_HAS_SHIPMENT)",
     },
     422: {
-      description:
-        "Legacy order already dispatched (ORDER_ALREADY_DISPATCHED) or terminal (INVALID_STATUS_TRANSITION)",
+      description: "The order is cancelled (INVALID_STATUS_TRANSITION)",
     },
   },
   handler: handlers.updateOrder,
@@ -173,19 +169,18 @@ const updateStatusRoute = defineRoute({
   auth: { scope: SCOPES.ORDERS_UPDATE },
   tags: ["Orders"],
   summary: "Update order status",
-  description: `Updates the order status and appends a record to status history.
+  description: `Moves the order's processing and appends a record to its status history (\`cod-shared/orders/lifecycle.ts\`):
 
-**Main flow:** \`new\` → \`confirmed\` → \`preparing\` → \`ready\` → (\`assigned\` | \`dispatched\`) → \`out_for_delivery\` → \`delivered\` / \`returned\`
+- \`new\` → \`confirmed\` | \`unreachable\` | \`cancelled\`
+- \`confirmed\` → \`preparing\` | \`ready\` | \`unreachable\` | \`cancelled\`
+- \`unreachable\` → \`confirmed\` | \`cancelled\` (the customer did not answer; call again)
+- \`preparing\` → \`ready\` | \`cancelled\`
+- \`ready\` → \`cancelled\`; a ready order is handed off with \`POST /orders/{id}/shipment\`
+- \`cancelled\` is final
 
-**Branching statuses:**
-- \`unreachable\`: customer didn't answer — parks the order. Can retry back to \`confirmed\` or cancel
+Any other move returns \`400 INVALID_STATUS_TRANSITION\` with the allowed next statuses.
 
-**Transition guard:** Only forward moves in the flow are accepted. Invalid moves (e.g. \`delivered → new\`, \`cancelled → preparing\`) return \`400 INVALID_STATUS_TRANSITION\` with the list of allowed next statuses.
-
-**Side effects:**
-- **delivered**: sets \`deliveryTime\`; increments driver's \`totalDelivered\` and \`totalEarnings\` if assigned
-- **cancelled / returned**: restores inventory for products with \`trackInventory\` enabled (double-cancel/return is safe)
-- **delivered**: fires the Meta CAPI Purchase workflow when the store has tracking enabled
+**Side effects:** \`confirmed\` starts the Meta CAPI confirmed stage (when the store tracks it); \`cancelled\` restores inventory for products with \`trackInventory\` and rolls back the customer's spend. Delivery and return are the shipment's milestones, with their own effects.
 
 Each effect applies exactly once, even when the same change is sent twice at once. **An order with a shipment has no status change** (409 ORDER_HAS_SHIPMENT): its delivery is the shipment's, and cancelling it means voiding the shipment first.`,
   operationId: "updateOrderStatus",

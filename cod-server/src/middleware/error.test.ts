@@ -204,8 +204,8 @@ describe("Error Middleware", () => {
       };
 
       const error = new BusinessLogicError(
-        "Order already dispatched",
-        ERROR_CODES.ORDER_ALREADY_DISPATCHED,
+        "Order is not ready for handoff",
+        ERROR_CODES.ORDER_NOT_READY_FOR_HANDOFF,
         context
       );
 

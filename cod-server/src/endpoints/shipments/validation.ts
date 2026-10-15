@@ -11,7 +11,7 @@ const parcelChoices = {
       "Ship as home or stop-desk delivery instead of what the customer asked for — for a carrier with no desk in the wilaya, or the reverse. The cash to collect does not change.",
   }),
   stationCode: z.string().trim().min(1).optional().openapi({ description: "The stop desk, when shipping to one" }),
-  weight: z.number().positive().optional().openapi({ description: "Parcel weight in kg; otherwise the order's, else the sum of its variants'" }),
+  weight: z.number().positive().optional().openapi({ description: "Parcel weight in kg; otherwise the sum of its variants' weights" }),
   fragile: z.boolean().optional(),
   remarks: z.string().trim().max(500).optional().openapi({ description: "For the courier; otherwise the order's notes" }),
 };

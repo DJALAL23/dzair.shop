@@ -1,12 +1,11 @@
 /**
  * Money & inventory integrity — real-D1 probe matrix (audit, red-first)
  *
- * Proves or refutes the four top audit findings against real migrations on
+ * Proves or refutes the top audit findings against real migrations on
  * real D1. No mocks for the flows; fault injection only for atomicity probes.
  *
  * Probes:
  *   P1  storefront price forging — client pricePerUnit vs variant catalog price
- *   P2  delete delivered order → driver pendingCash/totalEarnings reconciliation
  *   P3  dashboard createOrder oversell floor + concurrent double-sell race
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -14,10 +13,10 @@ import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
-import { createOrder, updateOrderStatus, deleteOrder } from "../../../../cod-shared/queries/orders";
+import { createOrder } from "../../../../cod-shared/queries/orders";
 
 let db: AppDb;
 let rawD1: D1Database;
@@ -73,16 +72,6 @@ async function seedCustomer() {
   await db.insert(schema.customers).values({
     id, name: "MI Customer", phone: `0555${String(100000 + seq).slice(-6)}`,
     wilaya: "الجزائر", totalOrders: 0, totalSpent: 0, createdAt: NOW(),
-  });
-  return id;
-}
-
-async function seedDriver() {
-  const id = `drv-mi-${++seq}`;
-  const now = NOW();
-  await db.insert(schema.drivers).values({
-    id, firstName: "MI", lastName: "Driver", phone: "0666000001",
-    createdAt: now, updatedAt: now,
   });
   return id;
 }
@@ -154,49 +143,6 @@ describe("P3: dashboard createOrder — oversell guard & race", () => {
     expect(movements[0].delta).toBe(-1);
     expect(movements[0].qtyBefore).toBe(1);
     expect(movements[0].qtyAfter).toBe(0);
-  });
-});
-
-describe("P2: delete delivered order → driver money reconciliation", () => {
-  it("driver credit is fully reversed when deleting an unsettled delivered order", async () => {
-    const driverId = await seedDriver();
-    const productId = await seedSimpleProduct(5);
-    const customerId = await seedCustomer();
-    const oid = `ord-mi-${++seq}`;
-
-    await createOrder(db, { ...orderInsert(oid, productId, 0, 10000, { customerId, driverId, driverFee: 500, codAmount: 10500 }), orderNumber: `ORD-MI-${seq}` }, [{
-      id: `op-${seq}`, orderId: oid, productId, productName: "MI", quantity: 1, pricePerUnit: 10000, lineTotal: 10000, createdAt: NOW(),
-    }]);
-    await updateOrderStatus(db, oid, "delivered");
-
-    const drvBefore = (await db.select().from(schema.drivers).where(eq(schema.drivers.id, driverId)).get())!;
-    expect(drvBefore).toMatchObject({ totalDelivered: 1, totalEarnings: 500, pendingCash: 10500 });
-
-    await deleteOrder(db, oid);
-
-    // FIXED: the driver ledger reconciles — no phantom cash, no ghost credit
-    const drvAfter = (await db.select().from(schema.drivers).where(eq(schema.drivers.id, driverId)).get())!;
-    expect(drvAfter).toMatchObject({ totalDelivered: 0, totalEarnings: 0, pendingCash: 0 });
-  });
-
-  it("settled delivered order: driver counters untouched (payment history preserved)", async () => {
-    const driverId = await seedDriver();
-    const productId = await seedSimpleProduct(5);
-    const customerId = await seedCustomer();
-    const oid = `ord-mi-${++seq}`;
-
-    await createOrder(db, { ...orderInsert(oid, productId, 0, 10000, { customerId, driverId, driverFee: 500, codAmount: 10500 }), orderNumber: `ORD-MI-${seq}` }, [{
-      id: `op-${seq}`, orderId: oid, productId, productName: "MI", quantity: 1, pricePerUnit: 10000, lineTotal: 10000, createdAt: NOW(),
-    }]);
-    await updateOrderStatus(db, oid, "delivered");
-    // Simulate an existing settlement link (append-only history)
-    await db.update(schema.orders).set({ codPaymentId: "dp-hist-1" }).where(eq(schema.orders.id, oid));
-
-    await deleteOrder(db, oid);
-
-    const drvAfter = (await db.select().from(schema.drivers).where(eq(schema.drivers.id, driverId)).get())!;
-    // Counters stay — the money really moved; the payment row stays reconciled
-    expect(drvAfter).toMatchObject({ totalDelivered: 1, totalEarnings: 500, pendingCash: 10500 });
   });
 });
 

@@ -21,7 +21,6 @@ import { isOrderStatus } from "../../../../cod-shared/orders/lifecycle";
 import { orderNeedsAttention, orderStage } from "../../../../cod-shared/orders/stage";
 import { resolveDeliveryFee, applyFreeShippingOffer } from "./resolve-fee";
 import { logActivity, ACTIONS } from "@/lib/activity";
-import { getDeliveryCompanyById } from "@/endpoints/delivery-companies/queries";
 import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 
@@ -109,14 +108,6 @@ export async function createOrder(c: Context<AppContext>) {
     const now = date.toISOString();
     const orderId = crypto.randomUUID();
 
-    // Validate companyId if provided — it references a delivery_companies FK
-    if (validated.companyId) {
-      const company = await getDeliveryCompanyById(db, validated.companyId);
-      if (!company) {
-        throw new NotFoundError("Delivery company", validated.companyId);
-      }
-    }
-
     // Auto-resolve delivery fee from shipping profile.
     // Dashboard orders (orderType="offline") may pass an explicit fee override.
     // Online orders always use the shipping profile to enforce coverage rules.
@@ -194,12 +185,9 @@ export async function createOrder(c: Context<AppContext>) {
       notes: validated.notes || null,
       status: "new" as const,
       orderType: validated.orderType,
-      driverId: null,
-      companyId: validated.companyId || null,
       deliveryType: validated.deliveryType,
       deliveryFee,
-      codAmount: validated.price + deliveryFee,  // driver collects price + delivery fee
-      photos: null,
+      codAmount: validated.price + deliveryFee,
       createdAt: now,
       updatedAt: now,
     };
@@ -258,8 +246,8 @@ export async function createOrder(c: Context<AppContext>) {
  * address collected over the phone when the checkout hid the field.
  *
  * Once the order has a shipment, its delivery details are refused (the label
- * already carries them — they change through PATCH /shipments/:id); terminal
- * states are refused too, their books are already reconciled.
+ * already carries them — they change through PATCH /shipments/:id); a
+ * cancelled order is refused too, its books are already reconciled.
  */
 export async function updateOrder(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -274,16 +262,7 @@ export async function updateOrder(c: Context<AppContext>) {
     throw new NotFoundError("Order", orderId);
   }
 
-  if (order.trackingNumber) {
-    throw new BusinessLogicError(
-      `Order already dispatched — tracking number: ${order.trackingNumber}`,
-      ERROR_CODES.ORDER_ALREADY_DISPATCHED,
-      { orderId, trackingNumber: order.trackingNumber }
-    );
-  }
-
-  const terminalStatuses = ["returned", "cancelled"];
-  if (terminalStatuses.includes(order.status)) {
+  if (order.status === "cancelled") {
     throw new BusinessLogicError(
       `Cannot edit a ${order.status} order — it was already reconciled.`,
       ERROR_CODES.INVALID_STATUS_TRANSITION,

@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { parseOrderCursor } from "../../../../cod-shared/queries/orders";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
+import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
 
 export const createOrderSchema = z.object({
   customerId: z.string().min(1),
@@ -41,7 +42,6 @@ export const createOrderSchema = z.object({
   deliveryType: z.enum(["home", "stop_desk"]).default("home"),
   /** Optional explicit fee — for offline/dashboard orders. Online orders ignore this and auto-resolve from shipping profile. */
   deliveryFee: z.number().min(0).optional(),
-  companyId: z.string().min(1).nullish(),
   products: z.array(
     z.object({
       productId: z.string().min(1),
@@ -59,21 +59,7 @@ export const createOrderSchema = z.object({
   }
 });
 
-export const ORDER_STATUSES = [
-  "new",
-  "confirmed",
-  "unreachable",
-  "preparing",
-  "ready",
-  "assigned",
-  "dispatched",
-  "out_for_delivery",
-  "delivered",
-  "returned",
-  "cancelled",
-] as const;
-
-export type OrderStatus = typeof ORDER_STATUSES[number];
+export { ORDER_STATUSES, type OrderStatus } from "../../../../cod-shared/orders/lifecycle";
 
 export const updateOrderStatusSchema = z.object({
   status: z.enum(ORDER_STATUSES),

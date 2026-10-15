@@ -13,6 +13,7 @@ import { inArray } from "drizzle-orm";
 import type { AppDb } from "@/db";
 import { orders } from "@/db/schema";
 import type { Env } from "@/types";
+import type { OrderStatus } from "../../../cod-shared/orders/lifecycle";
 import { getCapiWorkflowId, shouldTriggerCapiPurchase, type ConversionStage, type MetaEventName } from "@/workflows/capi-helpers";
 import type { ShipmentBusinessEvent } from "../../../cod-shared/shipments/record-events";
 
@@ -76,18 +77,9 @@ export async function scheduleShipmentConversions(
   return scheduled;
 }
 
-/** The conversions an order status change calls for (the call centre confirming; a legacy delivery). */
-export function scheduleStatusConversion(
-  env: Pick<Env, "CAPI_WORKFLOW">,
-  waitUntil: WaitUntil,
-  order: { id: string; wilayaId: number | null },
-  status: string,
-): boolean {
-  if (status === "confirmed") {
-    startCapiWorkflow(env, waitUntil, { orderId: order.id, eventName: "Purchase", stage: "confirmed", trigger: "confirmed" });
-    return true;
-  }
-  if (!shouldTriggerCapiPurchase(status, order.wilayaId)) return false;
-  startCapiWorkflow(env, waitUntil, { orderId: order.id, eventName: "Purchase", stage: "delivered", trigger: status });
+/** The conversion an order status change calls for: the call centre confirming the order. */
+export function scheduleStatusConversion(env: Pick<Env, "CAPI_WORKFLOW">, waitUntil: WaitUntil, orderId: string, status: OrderStatus): boolean {
+  if (status !== "confirmed") return false;
+  startCapiWorkflow(env, waitUntil, { orderId, eventName: "Purchase", stage: "confirmed", trigger: "confirmed" });
   return true;
 }

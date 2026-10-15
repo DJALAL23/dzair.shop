@@ -166,12 +166,12 @@ describe("Orders routes (OpenAPIHono)", () => {
     it("passes filters through to the query", async () => {
       vi.mocked(queries.getAllOrders).mockResolvedValue([] as any);
 
-      const res = await app.request("/api/orders?status=delivered&limit=10");
+      const res = await app.request("/api/orders?status=ready&stage=in_transit&attention=false&limit=10");
 
       expect(res.status).toBe(200);
       expect(queries.getAllOrders).toHaveBeenCalledWith(
         mockDb,
-        expect.objectContaining({ status: "delivered", limit: 10 })
+        expect.objectContaining({ status: "ready", stage: "in_transit", attention: false, limit: 10 })
       );
     });
 
@@ -508,22 +508,6 @@ describe("Orders routes (OpenAPIHono)", () => {
         { wilayaId: 16, communeId: "c-31-001" },
         { orderId: "ord_1" },
       );
-    });
-
-    it("returns 422 when the order is already dispatched", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ trackingNumber: "NE123DZ" }) as any
-      );
-
-      const res = await app.request("/api/orders/ord_1", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-
-      expect(res.status).toBe(422);
-      const body: any = await res.json();
-      expect(body.code).toBe(ERROR_CODES.ORDER_ALREADY_DISPATCHED);
     });
 
     it("returns 422 on a terminal (cancelled) order", async () => {

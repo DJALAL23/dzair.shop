@@ -47,7 +47,6 @@ function detailRow(overrides: Record<string, unknown> = {}): Record<string, unkn
     wilaya: "الجزائر",
     commune: "باب الزوار",
     driver_name: "Ahmed Benali",
-    label_url: "https://example.com/label.pdf",
     ...overrides,
   };
 }
@@ -133,7 +132,6 @@ describe("getOrderById", () => {
       wilaya: "الجزائر",
       commune: "باب الزوار",
       driverName: "Ahmed Benali",
-      labelUrl: "https://example.com/label.pdf",
     });
     expect(order!.products).toHaveLength(2);
     expect(order!.products[0]).toMatchObject({ id: "op_1", quantity: 2 });
@@ -145,13 +143,12 @@ describe("getOrderById", () => {
     });
   });
 
-  it("maps null driver/wilaya/commune/label when joins miss", async () => {
+  it("maps null driver/wilaya/commune when joins miss", async () => {
     const db = makeMockDb([
       f(detailRow({
         wilaya: null,
         commune: null,
         driver_name: null,
-        label_url: null,
         driver_id: null,
         wilaya_id: null,
         commune_id: null,
@@ -166,7 +163,6 @@ describe("getOrderById", () => {
       wilaya: null,
       commune: null,
       driverName: null,
-      labelUrl: null,
     });
     expect(order!.statusHistory[0].byName).toBeNull();
   });

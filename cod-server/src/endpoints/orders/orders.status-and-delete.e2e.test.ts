@@ -93,22 +93,6 @@ describe("changing an order's status", () => {
     expect(await updateOrderStatus(db(), "nope", "confirmed")).toEqual({ ok: false, reason: "not_found" });
   });
 
-  it("a legacy delivery credits the assigned driver once; with no driver nobody is credited", async () => {
-    await seedOrder("o1", "out_for_delivery", [], { driverId: "dr1", driverFee: 300, codAmount: 1900 });
-    await updateOrderStatus(db(), "o1", "delivered");
-    expect(await db().select().from(schema.drivers).where(eq(schema.drivers.id, "dr1")).get()).toMatchObject({ totalDelivered: 1, totalEarnings: 300, pendingCash: 1900 });
-    await seedOrder("o2", "out_for_delivery", []);
-    await updateOrderStatus(db(), "o2", "delivered");
-    expect((await db().select().from(schema.drivers).where(eq(schema.drivers.id, "dr1")).get())!.totalDelivered).toBe(1);
-  });
-
-  it("a legacy delivery sent five times at once credits the driver once", async () => {
-    await seedOrder("o1", "out_for_delivery", [], { driverId: "dr1", driverFee: 300, codAmount: 1900 });
-    const outcomes = await Promise.all(Array.from({ length: 5 }, () => updateOrderStatus(db(), "o1", "delivered")));
-    expect(outcomes.filter((o) => o.ok)).toHaveLength(1);
-    expect(await db().select().from(schema.drivers).where(eq(schema.drivers.id, "dr1")).get()).toMatchObject({ totalDelivered: 1, totalEarnings: 300, pendingCash: 1900 });
-  });
-
   it("cancelling puts back what is still out — tracked products and variants only — and rolls the spend back", async () => {
     await seedOrder("o1", "confirmed", [
       { product: "tracked", quantity: 3, returned: 1 },
@@ -129,18 +113,18 @@ describe("changing an order's status", () => {
     expect(lines.filter((l) => l.productId !== "untracked").every((l) => l.status === "returned" && l.returnedQuantity === l.quantity)).toBe(true);
   });
 
-  it("a line already fully returned is not restocked again; a legacy return is a return movement", async () => {
-    await seedOrder("o1", "out_for_delivery", [{ product: "tracked", quantity: 2, returned: 2 }, { product: "varied", quantity: 1 }]);
-    await updateOrderStatus(db(), "o1", "returned");
+  it("a line already fully returned is not restocked again", async () => {
+    await seedOrder("o1", "confirmed", [{ product: "tracked", quantity: 2, returned: 2 }, { product: "varied", quantity: 1 }]);
+    await updateOrderStatus(db(), "o1", "cancelled");
     expect(await stockOf("tracked")).toBe(10);
     expect(await variantStock()).toBe(6);
-    expect((await movements()).map((m) => m.type)).toEqual(["ORDER_RETURNED"]);
+    expect((await movements()).map((m) => [m.variantId, m.type])).toEqual([["v1", "ORDER_CANCELLED"]]);
   });
 
   it("an order already cancelled gives nothing back twice", async () => {
     await seedOrder("o1", "new");
     await updateOrderStatus(db(), "o1", "cancelled");
-    await updateOrderStatus(db(), "o1", "returned");
+    await updateOrderStatus(db(), "o1", "cancelled");
     expect(await stockOf("tracked")).toBe(12);
     expect((await customer())!.totalSpent).toBe(SPEND_BEFORE - 1500);
   });

@@ -14,28 +14,17 @@ function workflow(create = vi.fn(async (_: unknown) => ({ id: "wf" }))) {
 describe("an order status change", () => {
   it("confirmed starts the confirmed stage", () => {
     const w = workflow();
-    expect(scheduleStatusConversion(w.env, w.waitUntil, { id: "o1", wilayaId: 16 }, "confirmed")).toBe(true);
+    expect(scheduleStatusConversion(w.env, w.waitUntil, "o1", "confirmed")).toBe(true);
     expect(w.create).toHaveBeenCalledWith({
       id: getCapiWorkflowId("o1", "confirmed", "Purchase"),
       params: expect.objectContaining({ orderId: "o1", stage: "confirmed", eventName: "Purchase", triggerStatus: "confirmed" }),
     });
   });
 
-  it("delivered starts the delivered stage anywhere; out for delivery only in a long-haul wilaya", () => {
+  it("other statuses start nothing — delivery conversions come from the shipment", () => {
     const w = workflow();
-    expect(scheduleStatusConversion(w.env, w.waitUntil, { id: "o1", wilayaId: 16 }, "delivered")).toBe(true);
-    expect(scheduleStatusConversion(w.env, w.waitUntil, { id: "o2", wilayaId: 16 }, "out_for_delivery")).toBe(false);
-    expect(scheduleStatusConversion(w.env, w.waitUntil, { id: "o3", wilayaId: 11 }, "out_for_delivery")).toBe(true);
-    expect(w.create.mock.calls.map(([c]) => (c as { params: { orderId: string; stage: string } }).params)).toEqual([
-      expect.objectContaining({ orderId: "o1", stage: "delivered" }),
-      expect.objectContaining({ orderId: "o3", stage: "delivered", triggerStatus: "out_for_delivery" }),
-    ]);
-  });
-
-  it("other statuses start nothing", () => {
-    const w = workflow();
-    for (const status of ["new", "preparing", "ready", "cancelled", "returned"]) {
-      expect(scheduleStatusConversion(w.env, w.waitUntil, { id: "o1", wilayaId: 1 }, status)).toBe(false);
+    for (const status of ["new", "unreachable", "preparing", "ready", "cancelled"] as const) {
+      expect(scheduleStatusConversion(w.env, w.waitUntil, "o1", status)).toBe(false);
     }
     expect(w.create).not.toHaveBeenCalled();
   });

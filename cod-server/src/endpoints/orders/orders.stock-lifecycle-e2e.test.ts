@@ -8,7 +8,6 @@
  *   I1  inventory = initial - sold + restocked-from-terminal (never double)
  *   I2  customer.totalOrders tracks non-deleted orders
  *   I3  customer.totalSpent = spend of non-terminal, non-deleted orders
- *   I4  driver credit (delivered/earnings/pendingCash) applied exactly once
  *   I5  every multi-write flow is atomic — failure leaves NO partial state
  *   I6  stock_movements ledger deltas sum to the real inventory change
  *
@@ -138,13 +137,11 @@ async function seedProduct(inventory = INITIAL_INVENTORY) {
 interface SeedOrderOpts {
   qty?: number;
   price?: number;
-  driverId?: string;
-  driverFee?: number;
   codAmount?: number;
 }
 
 async function seedOrder(opts: SeedOrderOpts = {}) {
-  const { qty = 2, price = 2000, driverId, driverFee = 350, codAmount = 2600 } = opts;
+  const { qty = 2, price = 2000, codAmount = 2600 } = opts;
   const customerId = await seedCustomer();
   const productId = await seedProduct();
   const id = `ord-lc-${++seq}`;
@@ -155,9 +152,7 @@ async function seedOrder(opts: SeedOrderOpts = {}) {
     {
       id, orderNumber: `ORD-LC-${seq}`, customerId,
       customerName: "LC Customer", phone: "0555000001", price,
-      status: "new", deliveryMethod: driverId ? "driver" : "unassigned",
-      deliveryType: "home", deliveryFee: 0, driverFee: driverId ? driverFee : 0,
-      codAmount, driverId: driverId ?? null,
+      status: "new", deliveryType: "home", deliveryFee: 0, codAmount,
       createdAt: now, updatedAt: now,
     },
     [{
@@ -198,16 +193,6 @@ async function movementsFor(productId: string) {
   return rows.sort((a, b) =>
     a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt),
   );
-}
-
-async function seedDriver() {
-  const id = `drv-lc-${++seq}`;
-  const now = new Date().toISOString();
-  await db.insert(schema.drivers).values({
-    id, firstName: "LC", lastName: "Driver", phone: "0666000001",
-    createdAt: now, updatedAt: now,
-  });
-  return id;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -270,17 +255,6 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY - 3); // I1
     expect(await lineOf(lineId)).toMatchObject({ status: "partially_returned", returnedQuantity: 1 });
     expect((await movementsFor(productId)).map((m) => m.delta)).toEqual([-4, 2, -1]); // I6
-  });
-
-  it("T7: manual delivered with driver — driver credited exactly once", async () => {
-    const driverId = await seedDriver();
-    const { orderId } = await seedOrder({ driverId, driverFee: 350, codAmount: 2600 });
-
-    await updateOrderStatus(db, orderId, "delivered");
-
-    const drv = (await db.select().from(schema.drivers)
-      .where(eq(schema.drivers.id, driverId)).get())!;
-    expect(drv).toMatchObject({ totalDelivered: 1, totalEarnings: 350, pendingCash: 2600 }); // I4
   });
 
   it("T9: deleteOrder on an active order — stats and stock fully rolled back", async () => {

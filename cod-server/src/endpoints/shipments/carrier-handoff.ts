@@ -122,8 +122,6 @@ type OrderRow = Pick<
   | "price"
   | "deliveryFee"
   | "notes"
-  | "weight"
-  | "isFragile"
 >;
 
 interface Prepared {
@@ -165,8 +163,6 @@ async function loadHandoffData(db: AppDb, company: DeliveryCompanyRow, carrier: 
         price: orders.price,
         deliveryFee: orders.deliveryFee,
         notes: orders.notes,
-        weight: orders.weight,
-        isFragile: orders.isFragile,
       })
       .from(orders)
       .where(inArray(orders.id, orderIds)),
@@ -253,8 +249,8 @@ function prepare(
   }
 
   const lines = data.lines.get(order.id) ?? [];
-  const weight = request.weight ?? order.weight ?? sumParcelWeight(lines, data.variantWeights) ?? null;
-  const fragile = request.fragile ?? order.isFragile ?? null;
+  const weight = request.weight ?? sumParcelWeight(lines, data.variantWeights) ?? null;
+  const fragile = request.fragile ?? null;
   const remarks = request.remarks ?? order.notes ?? undefined;
 
   return {

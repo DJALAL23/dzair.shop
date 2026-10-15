@@ -9,7 +9,9 @@ import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import * as queries from "./queries";
 import * as validation from "./validation";
-import { refusalFor } from "./refusals";
+import { orderHasShipment, refusalFor } from "./refusals";
+import { transitionVerdict } from "./transitions";
+import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
@@ -40,31 +42,17 @@ export async function updateStatus(c: Context<AppContext>) {
     throw new NotFoundError("Order", orderId);
   }
 
-  // Guard: enforce valid forward transitions — prevents backward moves and invalid jumps
-  const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-    new:              ["confirmed", "unreachable", "cancelled"],
-    confirmed:        ["preparing", "unreachable", "cancelled"],
-    unreachable:      ["confirmed", "cancelled"],
-    preparing:        ["ready", "cancelled"],
-    ready:            ["out_for_delivery", "dispatched", "cancelled"],
-    assigned:         ["out_for_delivery", "dispatched", "cancelled"],
-    dispatched:       ["out_for_delivery", "cancelled"],
-    out_for_delivery: ["delivered", "returned"],
-    delivered:        [],
-    returned:         [],
-    cancelled:        [],
-  };
-
-  const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
-  if (!allowed.includes(validated.status)) {
+  const verdict = transitionVerdict(order.status, Boolean(await getOrderShipment(db, orderId)), validated.status);
+  if (!verdict.ok) {
+    if (verdict.code === ERROR_CODES.ORDER_HAS_SHIPMENT) throw orderHasShipment(orderId, "its status no longer changes");
     return c.json({
       error: `Cannot transition from "${order.status}" to "${validated.status}"`,
-      code: "INVALID_STATUS_TRANSITION",
+      code: ERROR_CODES.INVALID_STATUS_TRANSITION,
       category: ERROR_CATEGORIES.BUSINESS_LOGIC,
       context: {
-        currentStatus:     order.status,
-        targetStatus:      validated.status,
-        allowedTransitions: allowed,
+        currentStatus: order.status,
+        targetStatus: validated.status,
+        allowedTransitions: verdict.allowed,
       },
     }, 400);
   }
@@ -76,7 +64,7 @@ export async function updateStatus(c: Context<AppContext>) {
   if (!change.ok) throw refusalFor(change, orderId, "its status no longer changes");
 
   // Never blocks the response; the runtime keeps the start alive with waitUntil.
-  scheduleStatusConversion(c.env, (p) => c.executionCtx.waitUntil(p), { id: orderId, wilayaId: order.wilayaId }, validated.status);
+  scheduleStatusConversion(c.env, (p) => c.executionCtx.waitUntil(p), orderId, validated.status);
 
   await logActivity(db, user, ACTIONS.ORDER_STATUS_CHANGED, {
     type: "order", id: orderId,

@@ -3,7 +3,7 @@
  *
  * Runs the real migrations on an in-memory miniflare D1 (58 wilayas + 1551
  * communes reference data included) and verifies:
- *   • getOrderById: joined resolution (wilaya/commune/driver/label) in one
+ *   • getOrderById: joined resolution (wilaya/commune/driver via the shipment) in one
  *     select + ONE read batch for lines and history
  *   • null branches: no driver / wilaya / commune / shipment / review
  *   • missing order → null (no batch executed)
@@ -97,8 +97,8 @@ beforeAll(async () => {
     id: "ord-e2e-a", orderNumber: "ORD-E2E-A", customerId: "cust-e2e",
     customerName: "Full Buyer", phone: "0770000001",
     wilayaId: 16, communeId: commune?.id ?? null,
-    price: 3000, status: "new", deliveryMethod: "driver", deliveryType: "home",
-    deliveryFee: 400, driverFee: 0, codAmount: 3400, driverId: "drv-e2e",
+    price: 3000, status: "new", deliveryType: "home",
+    deliveryFee: 400, codAmount: 3400,
     createdAt: now, updatedAt: now,
   });
   await db.insert(schema.orderProducts).values([
@@ -109,14 +109,9 @@ beforeAll(async () => {
     { id: "h-a1", orderId: "ord-e2e-a", status: "new", timestamp: earlier, by: null },
     { id: "h-a2", orderId: "ord-e2e-a", status: "confirmed", timestamp: now, by: "user-e2e" },
   ]);
-  await db.insert(schema.deliveryCompanies).values({
-    id: "co-x", name: "E2E Carrier", nameAr: "ناقل", code: "e2e-carrier",
-    createdAt: now, updatedAt: now,
-  });
-  await db.insert(schema.companyShipments).values({
-    id: "shp-a", orderId: "ord-e2e-a", companyId: "co-x",
-    trackingNumber: "TRK-A", labelUrl: "https://example.com/label-a.pdf",
-    createdAt: now, updatedAt: now,
+  await db.insert(schema.shipments).values({
+    id: "shp-a", orderId: "ord-e2e-a", kind: "driver", driverId: "drv-e2e", handoffState: "accepted",
+    deliveryType: "home", codAmount: 3400, revision: "r", createdAt: now, updatedAt: now,
   });
   await db.insert(schema.reviews).values({
     id: "rev-a", storeId: "store-e2e", productId: "prod-e2e",
@@ -129,8 +124,8 @@ beforeAll(async () => {
   await db.insert(schema.orders).values({
     id: "ord-e2e-b", orderNumber: "ORD-E2E-B", customerId: "cust-e2e-2",
     customerName: "Bare Buyer", phone: "0770000002",
-    price: 1500, status: "confirmed", deliveryMethod: "unassigned", deliveryType: "home",
-    deliveryFee: 0, driverFee: 0, codAmount: 1500,
+    price: 1500, status: "confirmed", deliveryType: "home",
+    deliveryFee: 0, codAmount: 1500,
     createdAt: earlier, updatedAt: earlier,
   });
   await db.insert(schema.orderProducts).values({
@@ -154,7 +149,6 @@ describe("getOrderById — real D1", () => {
     expect(order!.driverName).toBe("Karim Hammadi");
     expect(order!.wilaya).toBe("الجزائر");
     expect(order!.commune).toBeTruthy();
-    expect(order!.labelUrl).toBe("https://example.com/label-a.pdf");
     expect(order!.products).toHaveLength(2);
     expect(order!.statusHistory).toHaveLength(2);
     expect(order!.statusHistory[0].status).toBe("confirmed");
@@ -169,7 +163,6 @@ describe("getOrderById — real D1", () => {
     expect(order!.driverName).toBeNull();
     expect(order!.wilaya).toBeNull();
     expect(order!.commune).toBeNull();
-    expect(order!.labelUrl).toBeNull();
     expect(order!.products).toHaveLength(1);
     expect(order!.statusHistory).toHaveLength(1);
     expect(order!.statusHistory[0].byName).toBeNull();
