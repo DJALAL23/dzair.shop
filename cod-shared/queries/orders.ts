@@ -88,6 +88,13 @@ export function parseOrderCursor(
 }
 
 /**
+ * An order's columns as a response shows them. The shopper's ad-click
+ * signals (fbc, fbp, IP address, user agent) are kept for the conversions
+ * the server reports, never shown.
+ */
+const { fbc: _fbc, fbp: _fbp, ipAddress: _ipAddress, userAgent: _userAgent, ...orderResponseColumns } = getTableColumns(orders);
+
+/**
  * Get all orders with optional filtering.
  * Joins wilayas + communes to return Arabic display names.
  */
@@ -134,7 +141,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
 
   return db
     .select({
-      ...getTableColumns(orders),
+      ...orderResponseColumns,
       wilaya: wilayas.nameAr,
       commune: communes.nameAr,
       driverName: sql<
@@ -163,7 +170,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
 export async function getOrderById(db: AppDb, orderId: string) {
   const order = await db
     .select({
-      ...getTableColumns(orders),
+      ...orderResponseColumns,
       wilaya: wilayas.nameAr,
       commune: communes.nameAr,
       driverName: sql<

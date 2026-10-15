@@ -29,9 +29,15 @@ function opRow(overrides: Record<string, unknown> = {}): Record<string, unknown>
   };
 }
 
+/** An order row as the list and the detail select it: without the shopper's ad-click signals. */
+function responseColumns(): Record<string, unknown> {
+  const { fbc: _fbc, fbp: _fbp, ip_address: _ip, user_agent: _ua, ...row } = orderRow();
+  return row;
+}
+
 function listRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    ...orderRow(),
+    ...responseColumns(),
     wilaya: "الجزائر",
     commune: "باب الزوار",
     driver_name: "Ahmed Benali",
@@ -46,7 +52,7 @@ function listRow(overrides: Record<string, unknown> = {}): Record<string, unknow
 
 function detailRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    ...orderRow(),
+    ...responseColumns(),
     wilaya: "الجزائر",
     commune: "باب الزوار",
     driver_name: "Ahmed Benali",

@@ -5,7 +5,37 @@
  */
 
 import { z } from "@hono/zod-openapi";
+import type { CarrierCapabilities } from "@/carriers/contract";
 import { CARRIER_PROVIDERS } from "../../../../cod-shared/carriers/providers";
+
+export const CarrierCapabilitiesSchema = z
+  .object({
+    homeDelivery: z.boolean(),
+    stopDesk: z.boolean(),
+    separateValidation: z.boolean().openapi({ description: "A created parcel waits for a separate validation before the carrier handles it" }),
+    bulkCreate: z.number().int().openapi({ description: "Most parcels one bulk handoff sends at once; 0 = one at a time" }),
+    parcelFields: z.object({ weight: z.boolean(), fragile: z.boolean(), remarks: z.boolean() }).openapi({ description: "Parcel fields the carrier takes at creation" }),
+    limits: z.object({ maxAmount: z.number().nullable(), maxDescription: z.number().int().nullable() }).openapi({ description: "The carrier's own ceilings, checked before calling it" }),
+    update: z.boolean(),
+    cancel: z.boolean(),
+    remarks: z.object({ add: z.boolean(), list: z.boolean() }),
+    history: z.boolean().openapi({ description: "Its status history can be read (sync)" }),
+    historyBatch: z.number().int(),
+    findByReference: z.boolean().openapi({ description: "A parcel can be found by the order number — resolves an unknown handoff" }),
+    updates: z.enum(["webhook", "pull"]).openapi({ description: "How its updates reach CodFlow: pushed by webhook, or pulled every few minutes" }),
+    label: z.boolean(),
+    askReturn: z.boolean(),
+    requestNewAttempt: z.boolean(),
+    confirmReturn: z.boolean(),
+    stopDeskList: z.boolean(),
+    geoNames: z.boolean(),
+    verifyConnection: z.boolean(),
+  })
+  .openapi("CarrierCapabilities", { description: "What a company's carrier can do — known from its provider alone, without credentials" });
+
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
+const capabilitiesDocumented: Same<z.infer<typeof CarrierCapabilitiesSchema>, CarrierCapabilities> = true;
+void capabilitiesDocumented;
 
 export const DeliveryCompanySchema = z
   .object({
@@ -32,7 +62,8 @@ export const DeliveryCompanySchema = z
     notes: z.string().nullable().openapi({ example: "Primary carrier for Algiers region" }),
     provider: z.enum(CARRIER_PROVIDERS).nullable().openapi({ description: "The carrier adapter serving this company; null = it cannot take parcels." }),
     providerConfig: z.record(z.string(), z.unknown()).nullable().openapi({ description: "The adapter's settings; secrets masked (•••• + last 4)." }),
-    webhookSecret: z.string().nullable().openapi({ description: "Masked (•••• + last 4) when set." }),
+    webhookSecretSet: z.boolean().openapi({ description: "True when the webhook signing secret is stored. The secret itself is never returned." }),
+    capabilities: CarrierCapabilitiesSchema.nullable().openapi({ description: "What its carrier can do; null when it has no provider" }),
     webhookEndpointId: z.string().nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),

@@ -123,6 +123,7 @@ const OrderBaseSchema = z.object({
     description: "The name of the store's driver delivering it, when its shipment is a driver's",
   }),
   notes: z.string().nullable(),
+  landingPageId: z.string().nullable().openapi({ description: "The landing page the order was placed on, if any" }),
 
   // Timestamps
   createdAt: z.string().datetime(),

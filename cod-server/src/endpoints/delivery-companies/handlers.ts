@@ -11,6 +11,7 @@ import { eq, and, lt, sql, desc, asc, count, isNull } from "drizzle-orm";
 import { companyStopDesks, wilayas, webhookEvents, orders, shipments } from "@/db/schema";
 import * as queries from "./queries";
 import * as validation from "./validation";
+import { companyView } from "./view";
 import { buildCarrier, defaultProviderForCode, mergeProviderConfig } from "@/carriers/registry";
 import type { CarrierProvider } from "../../../../cod-shared/carriers/providers";
 import { callCarrier, requireCapability } from "@/carriers/app-errors";
@@ -37,7 +38,7 @@ export async function listDeliveryCompanies(c: Context<AppContext>) {
   };
   const parsed = validation.deliveryCompanyFiltersSchema.parse(filters);
   const data = await queries.getAllDeliveryCompanies(db, parsed);
-  return c.json({ success: true, data, count: data.length }, 200);
+  return c.json({ success: true, data: data.map(companyView), count: data.length }, 200);
 }
 
 /**
@@ -53,7 +54,7 @@ export async function getDeliveryCompany(c: Context<AppContext>) {
     throw new NotFoundError("Delivery company", id);
   }
   
-  return c.json({ success: true, data: company }, 200);
+  return c.json({ success: true, data: companyView(company) }, 200);
 }
 
 /**
@@ -88,7 +89,7 @@ export async function createDeliveryCompany(c: Context<AppContext>) {
     throw new BusinessLogicError("Failed to create delivery company", ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
   console.info(`[delivery-companies] created company=${company.id} code=${parsed.code} autoValidate=${autoValidate}`);
-  return c.json({ success: true, data: company }, 201);
+  return c.json({ success: true, data: companyView(company) }, 201);
 }
 
 /**
@@ -131,7 +132,7 @@ export async function updateDeliveryCompany(c: Context<AppContext>) {
   }
 
   console.info(`[delivery-companies] updated company=${id}`);
-  return c.json({ success: true, data: company }, 200);
+  return c.json({ success: true, data: companyView(company) }, 200);
 }
 
 /**

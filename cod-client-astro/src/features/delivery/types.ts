@@ -120,8 +120,8 @@ export interface DeliveryCompany {
   notes: string | null;
 
   // Webhook integration
-  /** ZR: "whsec_xxx" Svix secret. Yalidine: secret from dashboard. null = no verification. */
-  webhookSecret: string | null;
+  /** Whether the webhook signing secret is stored (ZR fetches it; Yalidine's is pasted). The secret never leaves the server. */
+  webhookSecretSet: boolean;
   /** ZR only: registered endpoint UUID. null = not registered. */
   webhookEndpointId: string | null;
   /** ZR only: custom state name → our status mapping as JSON string. null = code defaults only. */

@@ -126,7 +126,7 @@ function DeliveryCompaniesList() {
           provider.code === "zr_express"
             ? !!company?.webhookEndpointId
             : provider.code === "yalidine"
-              ? !!company?.webhookSecret
+              ? !!company?.webhookSecretSet
               : false;
 
         return (

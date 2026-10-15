@@ -118,6 +118,19 @@ function errorResponse(description: string) {
 }
 
 /**
+ * Every error the API answers has the error handler's body: an error status
+ * declared with a description only is documented with that body.
+ */
+function withErrorBodies(responses: Record<number, any>): Record<number, any> {
+  return Object.fromEntries(
+    Object.entries(responses).map(([status, response]) => [
+      status,
+      Number(status) >= 400 && response && !response.content ? { ...response, content: jsonContent(ErrorResponseSchema) } : response,
+    ]),
+  );
+}
+
+/**
  * Standard error responses that EVERY endpoint gets automatically.
  */
 const standardErrors: Record<number, any> = {
@@ -257,12 +270,14 @@ export function defineRoute(def: RouteDefinition): BuiltRoute {
   }
   
   // Use custom responses if provided, otherwise generate standard ones
-  const responses = def.responses
-    ? def.responses
-    : {
-        ...generateSuccessResponse(def.method),
-        ...generateErrorResponses(def.method, def.auth),
-      };
+  const responses = withErrorBodies(
+    def.responses
+      ? def.responses
+      : {
+          ...generateSuccessResponse(def.method),
+          ...generateErrorResponses(def.method, def.auth),
+        },
+  );
   
   const route = createRoute({
     method: def.method,

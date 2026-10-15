@@ -106,12 +106,17 @@ export function buildCarrier(company: CarrierCompany): CarrierAdapter {
  * even while the company is disconnected. Null when it has no adapter.
  */
 export function carrierCapabilities(company: Pick<CarrierCompany, "provider" | "providerConfig">): CarrierCapabilities | null {
-  switch (company.provider) {
+  return providerCapabilities(company.provider, parseJson(company.providerConfig));
+}
+
+/** The same, from a provider and its settings already read (a company as a response shows it). */
+export function providerCapabilities(provider: CarrierProvider | null, settings: unknown): CarrierCapabilities | null {
+  switch (provider) {
     case null:
       return null;
     case "yalidine": {
-      const settings = parseJson(company.providerConfig) as { platform?: unknown } | undefined;
-      return yalidineCapabilities(settings?.platform === "guepex" ? "guepex" : "yalidine");
+      const platform = (settings as { platform?: unknown } | null | undefined)?.platform;
+      return yalidineCapabilities(platform === "guepex" ? "guepex" : "yalidine");
     }
     case "zr_express":
       return ZR_CAPABILITIES;

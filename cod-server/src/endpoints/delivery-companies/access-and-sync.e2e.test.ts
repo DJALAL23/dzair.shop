@@ -98,7 +98,8 @@ describe("what a response may reveal", () => {
   it("still says what is configured: connected, a signing secret, the relay", async () => {
     scopes = ["delivery:read"];
     const body: any = await (await request("GET", "/comp-yal")).json();
-    expect(body.data).toMatchObject({ isConnected: true, webhookSecret: "••••sign" });
+    expect(body.data).toMatchObject({ isConnected: true, webhookSecretSet: true });
+    expect(body.data).not.toHaveProperty("webhookSecret");
     expect(body.data).not.toHaveProperty("apiToken");
     expect(body.data).not.toHaveProperty("apiUserGuid");
     expect(body.data.provider).toBe("yalidine");

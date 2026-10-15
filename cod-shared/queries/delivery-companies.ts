@@ -70,9 +70,9 @@ function maskNotes(notes: string | null): string | null {
 }
 
 /**
- * A company as an API response may show it: credentials leave as an
- * `isConnected` flag, and the webhook signing secret and any secret kept in
- * `notes` leave masked. Built field by field — a new column is invisible here
+ * A company as an API response may show it: credentials and the webhook
+ * signing secret leave as yes/no flags, the secrets in its settings and in
+ * `notes` masked. Built field by field — a new column is invisible here
  * until someone decides it is safe to show.
  */
 function sanitize(company: typeof deliveryCompanies.$inferSelect) {
@@ -87,7 +87,7 @@ function sanitize(company: typeof deliveryCompanies.$inferSelect) {
     isConnected: !!company.apiToken,
     supportsHomeDelivery: company.supportsHomeDelivery,
     supportsStopDesk: company.supportsStopDesk,
-    webhookSecret: maskSecret(company.webhookSecret),
+    webhookSecretSet: !!company.webhookSecret,
     webhookEndpointId: company.webhookEndpointId,
     autoValidate: company.autoValidate,
     notes: maskNotes(company.notes),
