@@ -39,7 +39,7 @@ export async function registerZrWebhook(c: Context<AppContext>) {
 
   const company = await getDeliveryCompanyRaw(db, id);
   if (!company) throw new NotFoundError("Delivery company", id);
-  if (company.code !== "zr_express") {
+  if (company.provider !== "zr_express") {
     throw new ValidationError("Webhook registration is only supported for ZR Express", "OPERATION_NOT_SUPPORTED", { companyId: id });
   }
   if (!company.apiToken) {
@@ -163,7 +163,7 @@ export async function unregisterZrWebhook(c: Context<AppContext>) {
 
   const company = await getDeliveryCompanyRaw(db, id);
   if (!company) throw new NotFoundError("Delivery company", id);
-  if (company.code !== "zr_express") {
+  if (company.provider !== "zr_express") {
     throw new ValidationError("Only supported for ZR Express", "OPERATION_NOT_SUPPORTED", { companyId: id });
   }
   if (!company.webhookEndpointId) {
@@ -219,7 +219,7 @@ export async function saveYalidineSecret(c: Context<AppContext>) {
 
   const company = await getDeliveryCompanyRaw(db, id);
   if (!company) throw new NotFoundError("Delivery company", id);
-  if (company.code !== "yalidine") {
+  if (company.provider !== "yalidine") {
     throw new ValidationError("This endpoint is only for Yalidine webhook secrets", "OPERATION_NOT_SUPPORTED", { companyId: id });
   }
 
@@ -257,7 +257,7 @@ export async function saveZrStatusMapping(c: Context<AppContext>) {
 
   const company = await getDeliveryCompanyRaw(db, id);
   if (!company) throw new NotFoundError("Delivery company", id);
-  if (company.code !== "zr_express") {
+  if (company.provider !== "zr_express") {
     throw new ValidationError("Status mapping is only supported for ZR Express", "OPERATION_NOT_SUPPORTED", { companyId: id });
   }
 

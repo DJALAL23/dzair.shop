@@ -7,17 +7,18 @@
 import { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
-import { eq, and, lt, sql, desc, count } from "drizzle-orm";
-import { companyStopDesks, wilayas, webhookEvents, orders } from "@/db/schema";
+import { eq, and, lt, sql, desc, asc, count, isNull } from "drizzle-orm";
+import { companyStopDesks, wilayas, webhookEvents, orders, shipments } from "@/db/schema";
 import * as queries from "./queries";
 import * as validation from "./validation";
-import { getProvider, isEcotrackCompany } from "./providers/registry";
 import { buildCarrier, defaultProviderForCode, mergeProviderConfig } from "@/carriers/registry";
 import type { CarrierProvider } from "../../../../cod-shared/carriers/providers";
 import { callCarrier, requireCapability } from "@/carriers/app-errors";
 import type { CarrierAdapter } from "@/carriers/contract";
-import { EcotrackProvider } from "./providers/ecotrack/adapter";
-import { reconcileEcotrackOrders, DEFAULT_MAX_PAGES } from "./providers/ecotrack/reconcile";
+import { syncShipments } from "@/endpoints/shipments/sync";
+import { scheduleShipmentConversions } from "@/lib/conversions";
+import { processInbox } from "@/inbound/process";
+import { requeueInboxEvent } from "../../../../cod-shared/inbound/inbox";
 import { NotFoundError, ValidationError, BusinessLogicError, ConflictError, ExternalApiError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { syncCarrierGeoNames } from "../../../../cod-shared/queries/carrier-geo";
@@ -287,71 +288,54 @@ export async function testCompanyConnection(c: Context<AppContext>) {
   }, 200);
 }
 
+/** Shipments synced per request; the rest wait for the next request or the schedule. */
+export const SYNC_NOW_LIMIT = 50;
+
 /**
- * POST /delivery-companies/:id/reconcile-orders
- * Pull-based drift repair for EcoTrack-family carriers (the platform has no
- * webhooks). Pages the carrier's order list, maps statuses, and applies
- * forward-only fixes through the shared webhook rank guard. Unmapped carrier
- * statuses are skipped and sampled — never guessed.
+ * POST /delivery-companies/:id/sync-shipments
+ * Read the carrier's history of this company's open shipments now — the
+ * longest unsynced first — and record what is new. The schedule does the
+ * same for pull-only carriers every few minutes; this is the merchant's
+ * "now", for any carrier whose history can be read.
  */
-export async function reconcileCompanyOrders(c: Context<AppContext>) {
+export async function syncCompanyShipments(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const { id } = (c.req as any).valid?.("param") ?? { id: c.req.param("id")! };
-
   const company = await queries.getDeliveryCompanyRaw(db, id);
   if (!company) throw new NotFoundError("Delivery company", id);
+  const context = { companyId: id, code: company.code };
+  const carrier = await connectedCarrier(company, context);
+  requireCapability(carrier.capabilities.history, "reading a parcel's history", context);
 
-  if (!company.apiToken) {
-    throw new ValidationError(
-      `${company.name} is not connected — add API credentials first`,
-      ERROR_CODES.MISSING_API_CREDENTIALS,
-      { companyId: id }
-    );
-  }
+  const open = await db
+    .select()
+    .from(shipments)
+    .where(
+      and(
+        eq(shipments.companyId, id),
+        eq(shipments.handoffState, "accepted"),
+        isNull(shipments.deliveredAt),
+        isNull(shipments.returnedAt),
+        isNull(shipments.cancelledAt),
+      ),
+    )
+    .orderBy(asc(shipments.lastSyncedAt), asc(shipments.createdAt))
+    .limit(SYNC_NOW_LIMIT + 1)
+    .all();
+  const due = open.slice(0, SYNC_NOW_LIMIT);
+  const recorded = await callCarrier(context, () => syncShipments(db, carrier, due));
+  const results = [...recorded.values()];
+  await scheduleShipmentConversions(c.env, (p) => c.executionCtx.waitUntil(p), db, results.flatMap((r) => r.businessEvents));
 
-  if (!isEcotrackCompany(company.code)) {
-    throw new BusinessLogicError(
-      `Reconciliation is EcoTrack-only — ${company.code} pushes status via webhooks`,
-      ERROR_CODES.OPERATION_NOT_SUPPORTED,
-      { companyId: id, code: company.code }
-    );
-  }
-
-  let provider;
-  try {
-    provider = getProvider(company);
-  } catch (err) {
-    throw new BusinessLogicError(
-      err instanceof Error ? err.message : "Provider not available",
-      ERROR_CODES.PROVIDER_NOT_SUPPORTED,
-      { companyId: id, code: company.code }
-    );
-  }
-  if (!(provider instanceof EcotrackProvider)) {
-    throw new BusinessLogicError(
-      `Provider mismatch for ${company.code}`,
-      ERROR_CODES.PROVIDER_NOT_SUPPORTED,
-      { companyId: id, code: company.code }
-    );
-  }
-
-  const maxPagesParam = c.req.query("maxPages");
-  const maxPages = maxPagesParam
-    ? Math.min(Math.max(1, Number(maxPagesParam) || DEFAULT_MAX_PAGES), DEFAULT_MAX_PAGES)
-    : DEFAULT_MAX_PAGES;
-
-  try {
-    const summary = await reconcileEcotrackOrders(db, provider, company.code, { maxPages });
-
-    console.info(
-      `[reconcile] company=${id} code=${company.code} pages=${summary.pagesFetched} seen=${summary.ordersSeen} updated=${summary.updated} unmapped=${summary.skippedUnmapped}`,
-    );
-    return c.json({ success: true, data: summary }, 200);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Reconciliation failed";
-    console.error(`[reconcile] failed company=${id}:`, msg);
-    throw new ExternalApiError(company.name, msg, { companyId: id, code: company.code });
-  }
+  return c.json({
+    success: true,
+    data: {
+      synced: recorded.size,
+      recorded: results.reduce((n, r) => n + r.recorded, 0),
+      reached: results.reduce((n, r) => n + r.reached.length, 0),
+      moreRemain: open.length > SYNC_NOW_LIMIT,
+    },
+  }, 200);
 }
 
 /**
@@ -541,13 +525,17 @@ export async function listWebhookEvents(c: Context<AppContext>) {
         newStatus: webhookEvents.newStatus,
         reason: webhookEvents.reason,
         errorMsg: webhookEvents.errorMsg,
-        orderId: webhookEvents.orderId,
+        shipmentId: webhookEvents.shipmentId,
+        orderId: sql<string | null>`coalesce(${webhookEvents.orderId}, ${shipments.orderId})`,
         orderNumber: orders.orderNumber,
+        attempts: webhookEvents.attempts,
+        nextAttemptAt: webhookEvents.nextAttemptAt,
         processedAt: webhookEvents.processedAt,
         createdAt: webhookEvents.createdAt,
       })
       .from(webhookEvents)
-      .leftJoin(orders, eq(webhookEvents.orderId, orders.id))
+      .leftJoin(shipments, eq(webhookEvents.shipmentId, shipments.id))
+      .leftJoin(orders, sql`${orders.id} = coalesce(${webhookEvents.orderId}, ${shipments.orderId})`)
       .where(where)
       .orderBy(desc(webhookEvents.createdAt), desc(webhookEvents.id))
       .limit(limit)
@@ -570,6 +558,31 @@ export async function listWebhookEvents(c: Context<AppContext>) {
     },
     200,
   );
+}
+
+/** Results an event can be processed again from, by hand. */
+const RETRYABLE = ["error", "dead", "unmatched", "unknown_status", "unmapped"];
+
+/**
+ * POST /delivery-companies/:id/webhook/events/:eventId/retry
+ * Process an inbox event again now — after fixing the company's settings,
+ * attaching its parcel, or for a dead letter. Its tries start over.
+ */
+export async function retryWebhookEvent(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const { id, eventId } = (c.req as any).valid?.("param") ?? { id: c.req.param("id")!, eventId: c.req.param("eventId")! };
+  const event = await db
+    .select({ id: webhookEvents.id, result: webhookEvents.result })
+    .from(webhookEvents)
+    .where(and(eq(webhookEvents.id, eventId), eq(webhookEvents.companyId, id)))
+    .get();
+  if (!event) throw new NotFoundError("Webhook event", eventId);
+  if (!RETRYABLE.includes(event.result) || !(await requeueInboxEvent(db, eventId))) {
+    throw new ConflictError(`An event that is "${event.result}" is not processed again`, ERROR_CODES.VALIDATION_FAILED, { eventId, result: event.result });
+  }
+  const [outcome] = await processInbox(c.env, (p) => c.executionCtx.waitUntil(p), [eventId]);
+  const row = await db.select({ result: webhookEvents.result, errorMsg: webhookEvents.errorMsg, shipmentId: webhookEvents.shipmentId }).from(webhookEvents).where(eq(webhookEvents.id, eventId)).get();
+  return c.json({ success: true, data: { result: outcome?.result ?? row?.result, errorMsg: row?.errorMsg ?? null, shipmentId: row?.shipmentId ?? null } }, 200);
 }
 
 /**

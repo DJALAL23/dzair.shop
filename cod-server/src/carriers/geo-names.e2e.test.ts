@@ -13,7 +13,7 @@ import {
   resolveCarrierCommuneName,
   countCarrierCommuneMappings,
   resolveCarrierCommuneNames,
-} from "../../../../../../cod-shared/queries/carrier-geo";
+} from "../../../cod-shared/queries/carrier-geo";
 
 let db: AppDb;
 const registry: Miniflare[] = [];
@@ -25,7 +25,7 @@ beforeAll(async () => {
     d1Databases: { DB: "test-db" },
   });
   const d1 = await mf.getD1Database("DB");
-  const dir = resolve(__dirname, "../../../../db/migrations");
+  const dir = resolve(__dirname, "../db/migrations");
   const preparedStatements: D1PreparedStatement[] = [];
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
     const statements = readFileSync(`${dir}/${file}`, "utf8")

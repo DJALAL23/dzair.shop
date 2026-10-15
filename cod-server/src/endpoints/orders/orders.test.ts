@@ -26,8 +26,6 @@ import ordersRouter from "./routes";
 import * as queries from "./queries";
 import * as resolveFee from "./resolve-fee";
 import * as deliveryCompanyQueries from "@/endpoints/delivery-companies/queries";
-import * as shipments from "@/endpoints/delivery-companies/providers/shipments";
-import * as registry from "@/endpoints/delivery-companies/providers/registry";
 import * as carrierGeo from "../../../../cod-shared/queries/carrier-geo";
 
 // The address rule is tested against the real reference tables
@@ -62,8 +60,6 @@ vi.mock("@/workflows/capi-helpers", () => ({
   resolveCapiDispatch: vi.fn(() => ({ send: false, reason: "tracking-disabled", message: "mock skip" })),
 }));
 vi.mock("@/endpoints/delivery-companies/queries");
-vi.mock("@/endpoints/delivery-companies/providers/shipments");
-vi.mock("@/endpoints/delivery-companies/providers/registry");
 vi.mock("../../../../cod-shared/queries/carrier-geo");
 
 const NOW = new Date().toISOString();

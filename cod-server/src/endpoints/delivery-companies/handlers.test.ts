@@ -17,12 +17,10 @@ import { openApiValidationHook } from "@/openapi/validation-hook";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import deliveryCompaniesRouter from "./routes";
 import * as queries from "./queries";
-import * as registry from "./providers/registry";
 import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ecotrack/test/mock-server";
 
 vi.mock("@/db", () => ({ getDb: vi.fn(() => ({})) }));
 vi.mock("./queries");
-vi.mock("./providers/registry");
 
 function companyRow(overrides: Record<string, any> = {}) {
   return {
@@ -50,60 +48,6 @@ function companyRow(overrides: Record<string, any> = {}) {
     ...overrides,
   };
 }
-
-describe("POST /api/delivery-companies/:id/reconcile-orders", () => {
-  let app: OpenAPIHono<AppContext>;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
-    app.use("*", async (c, next) => {
-      c.env = { DB: {} } as any;
-      c.set("user", {
-        id: "admin_1",
-        email: "admin@example.com",
-        name: "Admin User",
-        role: "admin",
-        status: "active",
-        apiKey: "cod_key",
-        scopes: ["*"],
-      } as any);
-      await next();
-    });
-    app.onError(errorHandler);
-    app.route("/api/delivery-companies", deliveryCompaniesRouter);
-  });
-
-  it("returns 400 when the company has no API token", async () => {
-    vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(
-      companyRow({ apiToken: null, code: "dhd_ecotrack" }) as any
-    );
-
-    const res = await app.request("/api/delivery-companies/comp_1/reconcile-orders", {
-      method: "POST",
-    });
-
-    expect(res.status).toBe(400);
-    const body: any = await res.json();
-    expect(body.code).toBe(ERROR_CODES.MISSING_API_CREDENTIALS);
-  });
-
-  it("returns 422 for a non-EcoTrack provider (webhook-driven)", async () => {
-    vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(
-      companyRow({ code: "noest" }) as any
-    );
-    vi.mocked(registry.isEcotrackCompany).mockReturnValue(false);
-
-    const res = await app.request("/api/delivery-companies/comp_1/reconcile-orders", {
-      method: "POST",
-    });
-
-    expect(res.status).toBe(422);
-    const body: any = await res.json();
-    expect(body.code).toBe(ERROR_CODES.OPERATION_NOT_SUPPORTED);
-    expect(body.error).toMatch(/EcoTrack-only/i);
-  });
-});
 
 describe("POST /api/delivery-companies/:id/test-connection", () => {
   let app: OpenAPIHono<AppContext>;

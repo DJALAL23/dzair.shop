@@ -20,7 +20,7 @@ import { writeFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { pathToFileURL } from "url";
-import { buildAllEcotrackCompanyUpserts } from "../src/endpoints/delivery-companies/providers/ecotrack/seed-sql.ts";
+import { buildAllEcotrackCompanyUpserts } from "../src/carriers/ecotrack/seed-sql.ts";
 import { ECOTRACK_COURIERS } from "../../cod-shared/lib/ecotrack-couriers.ts";
 import { getCloudEnv } from "./cloud-env.mjs";
 

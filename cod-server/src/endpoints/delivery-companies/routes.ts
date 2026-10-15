@@ -16,6 +16,10 @@ import * as webhookHandlers from "./webhook-handlers";
 import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import { CARRIER_PROVIDERS } from "../../../../cod-shared/carriers/providers";
+import { INBOX_RESULTS } from "../../../../cod-shared/inbound/inbox";
+
+/** Inbox results, and `unmapped` on rows the old handler wrote. */
+const INBOX_RESULT_FILTERS = [...INBOX_RESULTS, "unmapped"] as const;
 import {
   DeliveryCompanySchema,
   StopDeskSchema,
@@ -399,49 +403,38 @@ const testConnectionRoute = defineRoute({
   handler: handlers.testCompanyConnection,
 });
 
-const reconcileOrdersRoute = defineRoute({
+const syncShipmentsRoute = defineRoute({
   method: "post",
-  path: "/{id}/reconcile-orders",
+  path: "/{id}/sync-shipments",
   auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
-  summary: "Reconcile order statuses from the carrier (EcoTrack only)",
+  summary: "Sync this company's open shipments now",
   description:
-    "Pull-based drift repair for EcoTrack-family carriers (the platform has no webhooks). " +
-    "Pages the carrier's order list (up to 10 pages × 40 orders per run — rate-limit safe), maps carrier statuses to ours, " +
-    "and applies forward-only fixes through the shared webhook rank guard (an order can never move backwards; Delivered/Returned/Cancelled are terminal). " +
-    "Unmapped carrier statuses are skipped and sampled in the response — never guessed. " +
-    "Non-EcoTrack providers (webhook-driven) answer OPERATION_NOT_SUPPORTED.",
+    "Reads the carrier's history of the company's open shipments — up to 50 per request, the longest unsynced first — and records every status not recorded yet (a status already received by webhook or an earlier sync is not recorded twice). " +
+    "Pull-only carriers (EcoTrack platform, NOEST, Guepex) are also synced on a schedule every few minutes; this is the merchant's \"now\", for any carrier whose history can be read. Replaces reconcile-orders.",
   params: idParams,
-  query: z.object({
-    maxPages: z.coerce.number().int().min(1).max(10).optional().openapi({
-      description: "Pages to fetch per run (1 page = 40 orders = 1 API call)",
-      example: 10,
-    }),
-  }),
   responses: {
     200: {
-      description: "Reconciliation summary",
+      description: "What the sync found",
       content: jsonContent(
         z.object({
           success: z.boolean(),
           data: z.object({
-            pagesFetched: z.number().int(),
-            ordersSeen: z.number().int(),
-            updated: z.number().int(),
-            unchanged: z.number().int(),
-            notFound: z.number().int(),
-            skippedUnmapped: z.number().int(),
-            unmappedSamples: z.array(z.string()),
-            morePagesRemain: z.boolean(),
+            synced: z.number().int().openapi({ description: "Shipments read" }),
+            recorded: z.number().int().openapi({ description: "Statuses new to CodFlow" }),
+            reached: z.number().int().openapi({ description: "Milestones reached for the first time" }),
+            moreRemain: z.boolean().openapi({ description: "More open shipments wait for the next sync" }),
           }),
         })
       ),
     },
     400: { description: "Company not connected — no API token stored" },
-    422: { description: "Non-EcoTrack provider (webhook-driven — reconciliation not needed)" },
-    502: { description: "External API failure (carrier unreachable)" },
+    404: { description: "Company not found" },
+    422: { description: "The carrier's history cannot be read" },
+    429: { description: "The carrier is throttling" },
+    502: { description: "The carrier could not be reached" },
   },
-  handler: handlers.reconcileCompanyOrders,
+  handler: handlers.syncCompanyShipments,
 });
 
 const registerWebhookRoute = defineRoute({
@@ -529,8 +522,8 @@ const webhookEventsQuerySchema = z.object({
     description: "Offset for keyset-free pagination",
     example: 0,
   }),
-  result: z.enum(["ok", "ignored", "unmapped", "error", "pending"]).optional().openapi({
-    description: "Filter by processing result — the operational lens: unmapped needs mapping fixes, error needs attention",
+  result: z.enum(INBOX_RESULT_FILTERS).optional().openapi({
+    description: "Filter by processing result — the operational lens: error and dead need attention, unmatched and unknown_status may need a parcel attached or a status mapped",
   }),
 });
 
@@ -541,13 +534,10 @@ const listWebhookEventsRoute = defineRoute({
   tags: ["Delivery Companies"],
   summary: "List inbound webhook events",
   description:
-    "Reads the company's inbound webhook event log (every delivery from every webhook-capable " +
-    "carrier lands here with its processing outcome). Carrier-agnostic — the same view serves " +
-    "Yalidine and ZR Express events. Newest first. Each row carries the carrier tracking " +
-    "number, event type, processing result (ok / ignored / unmapped / error / pending), the " +
-    "mapped order + status transition when one happened, and the carrier's reason string. " +
-    "rawPayload is omitted from the list for payload size — the log's value is the outcome, " +
-    "not the bytes.",
+    "The company's webhook inbox, newest first: every event its carrier pushed, with what processing made of it — " +
+    "ok, ignored, unmatched (no shipment has that parcel), unknown_status (recorded, but a status CodFlow does not interpret), " +
+    "deferred_settlement (a money event), error (to be retried at nextAttemptAt) or dead (tries spent). " +
+    "Each row names the shipment it was recorded on and its order. rawPayload is left out: the log's value is the outcome.",
   params: idParams,
   query: webhookEventsQuerySchema,
   responses: {
@@ -564,12 +554,15 @@ const listWebhookEventsRoute = defineRoute({
                 eventId: z.string().openapi({ description: "Idempotency key (event_id / svix-id)" }),
                 tracking: z.string().nullable(),
                 eventType: z.string().openapi({ example: "parcel_status_updated" }),
-                result: z.enum(["ok", "ignored", "unmapped", "error", "pending"]),
-                newStatus: z.string().nullable().openapi({ description: "Order status set (when result=ok)" }),
+                result: z.enum(INBOX_RESULT_FILTERS),
+                newStatus: z.string().nullable().openapi({ description: "Order status set by the old webhook handler (older rows only)" }),
                 reason: z.string().nullable().openapi({ description: "Carrier reason / status string (Tentative échouée's reason, unmapped status)" }),
                 errorMsg: z.string().nullable(),
+                shipmentId: z.string().nullable().openapi({ description: "The shipment the event was recorded on" }),
                 orderId: z.string().nullable(),
                 orderNumber: z.string().nullable().openapi({ description: "Joined from orders for display" }),
+                attempts: z.number().int().openapi({ description: "Times processing was tried" }),
+                nextAttemptAt: z.string().nullable().openapi({ description: "When processing is tried again (error only)" }),
                 processedAt: z.string().nullable(),
                 createdAt: z.string().datetime(),
               })
@@ -582,6 +575,31 @@ const listWebhookEventsRoute = defineRoute({
     404: { description: "Company not found" },
   },
   handler: handlers.listWebhookEvents,
+});
+
+const retryWebhookEventRoute = defineRoute({
+  method: "post",
+  path: "/{id}/webhook/events/{eventId}/retry",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
+  tags: ["Delivery Companies"],
+  summary: "Process an inbox event again",
+  description:
+    "Processes an event that ended in error, dead, unmatched or unknown_status again, now — after fixing the company's settings, attaching its parcel, or mapping its status. Its tries start over.",
+  params: idParams.extend({ eventId: z.string().openapi({ description: "Inbox event id" }) }),
+  responses: {
+    200: {
+      description: "What processing made of it this time",
+      content: jsonContent(
+        z.object({
+          success: z.boolean(),
+          data: z.object({ result: z.string(), errorMsg: z.string().nullable(), shipmentId: z.string().nullable() }),
+        })
+      ),
+    },
+    404: { description: "No such event for this company" },
+    409: { description: "The event is not in a state that is processed again (ok, ignored, pending, deferred_settlement)" },
+  },
+  handler: handlers.retryWebhookEvent,
 });
 
 // ─── Route Registrations ───────────────────────────────────────────────────────
@@ -606,7 +624,7 @@ deliveryCompaniesRouter.openapi(syncGeoNamesRoute.route, syncGeoNamesRoute.handl
 deliveryCompaniesRouter.openapi(testConnectionRoute.route, testConnectionRoute.handler);
 
 // POST /delivery-companies/:id/reconcile-orders — pull-based status drift repair (EcoTrack only)
-deliveryCompaniesRouter.openapi(reconcileOrdersRoute.route, reconcileOrdersRoute.handler);
+deliveryCompaniesRouter.openapi(syncShipmentsRoute.route, syncShipmentsRoute.handler);
 
 // PATCH /delivery-companies/:id/stop-desks/:code/toggle — toggle admin active flag
 deliveryCompaniesRouter.openapi(toggleStopDeskRoute.route, toggleStopDeskRoute.handler);
@@ -636,5 +654,6 @@ deliveryCompaniesRouter.openapi(saveZrMappingRoute.route, saveZrMappingRoute.han
 
 // GET /delivery-companies/:id/webhook/events — read the inbound webhook event log
 deliveryCompaniesRouter.openapi(listWebhookEventsRoute.route, listWebhookEventsRoute.handler);
+deliveryCompaniesRouter.openapi(retryWebhookEventRoute.route, retryWebhookEventRoute.handler);
 
 export default deliveryCompaniesRouter;

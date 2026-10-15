@@ -26,7 +26,6 @@ import type { AppDb } from "@/db";
 import {
   createOrder,
   updateOrderStatus,
-  updateOrderStatusWebhook,
   setOrderProductReturn,
   deleteOrder,
 } from "../../../../cod-shared/queries/orders";
@@ -249,18 +248,6 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     expect((await movementsFor(productId)).map((m) => m.delta)).toEqual([-2, 2]);
   });
 
-  it("T4: webhook cancel after manual cancel — rank guard prevents double restock/stats", async () => {
-    const { orderId, productId, customerId } = await seedOrder();
-
-    await updateOrderStatus(db, orderId, "cancelled");
-    const res = await updateOrderStatusWebhook(db, orderId, "cancelled", "e2e");
-
-    expect(res).toEqual({ updated: false });
-    expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY);
-    expect(await customerOf(customerId)).toMatchObject({ totalSpent: 0 });
-    expect((await movementsFor(productId)).map((m) => m.delta)).toEqual([-2, 2]);
-  });
-
   it("T5: partial return then cancel — restock totals exactly the sold quantity", async () => {
     const { orderId, productId, lineId } = await seedOrder({ qty: 4, price: 4000 });
 
@@ -291,19 +278,6 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
 
     await updateOrderStatus(db, orderId, "delivered");
 
-    const drv = (await db.select().from(schema.drivers)
-      .where(eq(schema.drivers.id, driverId)).get())!;
-    expect(drv).toMatchObject({ totalDelivered: 1, totalEarnings: 350, pendingCash: 2600 }); // I4
-  });
-
-  it("T8: webhook delivered after manual delivered — rank guard, credit stays once", async () => {
-    const driverId = await seedDriver();
-    const { orderId } = await seedOrder({ driverId });
-
-    await updateOrderStatus(db, orderId, "delivered");
-    const res = await updateOrderStatusWebhook(db, orderId, "delivered", "e2e");
-
-    expect(res).toEqual({ updated: false });
     const drv = (await db.select().from(schema.drivers)
       .where(eq(schema.drivers.id, driverId)).get())!;
     expect(drv).toMatchObject({ totalDelivered: 1, totalEarnings: 350, pendingCash: 2600 }); // I4
@@ -412,20 +386,4 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     expect(await customerOf(customerId)).toMatchObject({ totalOrders: 0, totalSpent: 0 });
   });
 
-  it("T14: webhook cancel fault — atomic batch leaves NO partial state (control)", async () => {
-    const { orderId, productId, customerId } = await seedOrder();
-
-    const faulty = makeFaultyDb((sql) =>
-      (sql.includes('update "products"') || sql.includes('update "orders"')),
-    );
-
-    await expect(
-      updateOrderStatusWebhook(faulty, orderId, "cancelled", "e2e"),
-    ).rejects.toThrow();
-
-    // The webhook path batches everything — nothing committed.
-    expect(await orderStatus(orderId)).toBe("new");
-    expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY - 2);
-    expect(await customerOf(customerId)).toMatchObject({ totalSpent: 2000 });
-  });
 });

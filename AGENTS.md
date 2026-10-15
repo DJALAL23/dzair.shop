@@ -167,9 +167,13 @@ other is how these drift.
   MCP client token flows may need that alignment before heavy use.
 - The dashboard Worker and the storefront both default to port **4321** — run
   one on `--port 4322` when developing both at once.
-- Inbound webhooks exist only for **Yalidine** and **ZR Express**. NOEST and
-  EcoTrack tracking is pulled on demand via `GET /orders/:id/tracking` — there
-  is no inbound receiver for them.
+- Inbound webhooks exist only for **Yalidine** and **ZR Express**; they are
+  stored in the `webhook_events` inbox, answered at once and processed after
+  (`cod-server/src/inbound`). NOEST, EcoTrack-platform companies and Guepex
+  send none: their shipments are synced every five minutes by the
+  `*/5 * * * *` cron (`src/inbound/cron.ts`) and on demand with
+  `POST /shipments/{id}/sync` or `POST /delivery-companies/{id}/sync-shipments`.
+  The deployed `wrangler.toml` must list that cron beside the hourly one.
 - **Store languages are rows, not a column** (ADR 0005): `stores.lang` is
   the primary, `store_locales` lists every added language with a `published`
   flag, and only published ones reach `/store/config`. The supported list

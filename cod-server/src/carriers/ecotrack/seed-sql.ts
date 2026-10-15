@@ -8,15 +8,16 @@
  * is cross-checked against catalog.ts by seed-sql.test.ts.
  *
  * Contract:
- *   - INSERT with code={key}_ecotrack, catalog names, pattern baseUrl,
+ *   - INSERT with code={key}_ecotrack, provider=ecotrack, catalog names, pattern baseUrl,
  *     active=0 (inactive until a merchant adds a token), NO token,
  *     auto_validate=0 (mirrors the API-layer default for the EcoTrack family)
  *   - ON CONFLICT(code) refreshes ONLY name / name_ar / api_endpoint /
- *     updated_at — merchant-owned state (api_token, auto_validate, active,
- *     notes) is NEVER touched on re-runs
+ *     updated_at, and fills a missing provider — merchant-owned state
+ *     (api_token, auto_validate, active, notes, a provider already set) is
+ *     NEVER touched on re-runs
  */
 
-import type { EcotrackCourier } from "../../../../../../cod-shared/lib/ecotrack-couriers";
+import type { EcotrackCourier } from "../../../../cod-shared/lib/ecotrack-couriers";
 
 /** Deterministic row id — stable across runs and fresh databases. */
 export function ecotrackCompanyId(key: string): string {
@@ -41,7 +42,7 @@ export function buildEcotrackCompanyUpsert(courier: EcotrackCourier, timestamp: 
   const code = companyCode(courier.key);
 
   const columns =
-    "(id, name, name_ar, code, website, active, api_endpoint, api_token, api_user_guid, supports_home_delivery, supports_stop_desk, supports_tracking, webhook_secret, webhook_endpoint_id, webhook_status_mapping, auto_validate, notes, created_at, updated_at)";
+    "(id, name, name_ar, code, website, active, api_endpoint, api_token, api_user_guid, supports_home_delivery, supports_stop_desk, supports_tracking, webhook_secret, webhook_endpoint_id, webhook_status_mapping, auto_validate, notes, created_at, updated_at, provider)";
   const values = [
     sqlString(id),
     sqlString(courier.name),
@@ -62,6 +63,7 @@ export function buildEcotrackCompanyUpsert(courier: EcotrackCourier, timestamp: 
     "NULL",
     sqlString(timestamp),
     sqlString(timestamp),
+    sqlString("ecotrack"),
   ].join(", ");
 
   return [
@@ -70,6 +72,8 @@ export function buildEcotrackCompanyUpsert(courier: EcotrackCourier, timestamp: 
     `  name = excluded.name,`,
     `  name_ar = excluded.name_ar,`,
     `  api_endpoint = excluded.api_endpoint,`,
+    // A company seeded before it had a provider gets its adapter; one already set is the merchant's.
+    `  provider = coalesce(delivery_companies.provider, excluded.provider),`,
     `  updated_at = excluded.updated_at;`,
   ].join("\n");
 }

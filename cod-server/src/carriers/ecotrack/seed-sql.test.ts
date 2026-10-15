@@ -15,7 +15,7 @@ import {
 import {
   ECOTRACK_COURIERS,
   ecotrackCompanyCode,
-} from "../../../../../../cod-shared/lib/ecotrack-couriers";
+} from "../../../../cod-shared/lib/ecotrack-couriers";
 
 const TS = "2026-09-01T00:00:00.000Z";
 

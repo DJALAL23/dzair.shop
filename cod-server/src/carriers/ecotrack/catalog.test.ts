@@ -13,8 +13,8 @@ import {
   ECOTRACK_COURIERS,
   findEcotrackCourier,
   ecotrackCompanyCode,
-} from "../../../../../../cod-shared/lib/ecotrack-couriers";
-import { isEcotrackCompany } from "../registry";
+} from "../../../../cod-shared/lib/ecotrack-couriers";
+import { defaultProviderForCode } from "../registry";
 
 const KEY_PATTERN = /^[a-z0-9]+$/;
 const CODE_PATTERN = /^[a-z0-9_]+$/;
@@ -53,7 +53,7 @@ describe("ECOTRACK_COURIERS", () => {
     for (const c of ECOTRACK_COURIERS) {
       const code = ecotrackCompanyCode(c.key);
       expect(code).toMatch(CODE_PATTERN);
-      expect(isEcotrackCompany(code)).toBe(true);
+      expect(defaultProviderForCode(code)).toBe("ecotrack");
     }
   });
 

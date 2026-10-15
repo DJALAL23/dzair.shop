@@ -16,7 +16,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq, sql } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
-import { createOrder, updateOrderStatus, syncOrderAfterCarrierUpdate } from "../../../../cod-shared/queries/orders";
+import { createOrder, updateOrderStatus } from "../../../../cod-shared/queries/orders";
 import { updateVariant, createVariant, deleteVariant } from "../../../../cod-shared/queries/variants";
 import { updateProduct } from "../../../../cod-shared/queries/products";
 import { adjustStock } from "../stock/queries";
@@ -181,34 +181,6 @@ describe("F1: storefront delivery fee — uncovered/disabled wilayas", () => {
   it("rule-less wilaya under an existing profile → unavailable", async () => {
     const { getDeliveryFee } = await import("../../../../cod-shared/queries/store");
     expect(await getDeliveryFee(db, 25, "home")).toBeNull();
-  });
-});
-
-describe("F2: carrier amount sync keeps codAmount honest", () => {
-  it("syncing price recomputes codAmount = price + deliveryFee", async () => {
-    const productId = await seedProduct();
-    const oid = await orderWith(productId, 1, {
-      price: 9000, codAmount: 9600, deliveryFee: 600,
-    });
-
-    await syncOrderAfterCarrierUpdate(db, oid, { price: 12000 });
-
-    const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, oid)).get())!;
-    expect(order.price).toBe(12000);
-    // FIXED: the COD the driver is booked to collect follows the carrier amount
-    expect(Number(order.codAmount)).toBe(12600);
-  });
-
-  it("name-only sync leaves price and codAmount untouched", async () => {
-    const productId = await seedProduct();
-    const oid = await orderWith(productId, 1, { price: 9000, codAmount: 9600, deliveryFee: 600 });
-
-    await syncOrderAfterCarrierUpdate(db, oid, { customerName: "New Name" });
-
-    const order = (await db.select().from(schema.orders).where(eq(schema.orders.id, oid)).get())!;
-    expect(order.price).toBe(9000);
-    expect(Number(order.codAmount)).toBe(9600);
-    expect(order.customerName).toBe("New Name");
   });
 });
 
