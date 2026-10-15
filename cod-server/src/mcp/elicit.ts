@@ -67,6 +67,11 @@ export const DANGEROUS_TOOLS: ReadonlySet<string> = new Set<string>([
   "updateOrderStatus",
   "recordOrderProductReturn",
 
+  // Delivery — a carrier creates a real parcel; a delivered report credits the
+  // driver's cash and the customer's spend, and reports the sale to ad platforms
+  "handOffOrderToCarrier",
+  "reportShipmentEvent",
+
   // Variants — direct inventory overwrite bypasses tracked stock movements
   // (the tool's own description warns to prefer the stock adjustment tools)
   "updateVariant",

@@ -1,3 +1,5 @@
+import type { Actor } from "@/types";
+
 /**
  * McpProps — the per-request identity snapshot handed to the MCP server.
  *
@@ -28,4 +30,9 @@ export interface McpProps extends Record<string, unknown> {
   name: string;
   /** User email — useful for log correlation with the existing activity-log shape. */
   email: string;
+}
+
+/** The grant as the one acting: an admin holds every permission, as on the dashboard (`authMiddleware`). */
+export function actorOf(props: McpProps): Actor {
+  return { id: props.userId, name: props.name || props.email, role: props.role, scopes: props.role === "admin" ? ["*"] : props.scopes };
 }

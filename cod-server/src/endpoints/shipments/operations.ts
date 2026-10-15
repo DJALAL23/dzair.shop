@@ -8,7 +8,7 @@
 import { eq } from "drizzle-orm";
 import type { AppDb } from "@/db";
 import { communes, orders, wilayas } from "@/db/schema";
-import type { AuthUser } from "@/types";
+import type { Actor } from "@/types";
 import { ConflictError, NotFoundError, BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ACTIONS, logActivity } from "@/lib/activity";
 import { assertOrderAddress } from "@/lib/order-address";
@@ -39,7 +39,7 @@ interface Target {
 }
 
 /** The shipment, refused unless the action is open to it — and, when `as` is given, to this person on this kind of shipment. */
-async function target(db: AppDb, shipmentId: string, action: ShipmentAction, as?: { actor: AuthUser; what: string }): Promise<Target> {
+async function target(db: AppDb, shipmentId: string, action: ShipmentAction, as?: { actor: Actor; what: string }): Promise<Target> {
   const row = await getShipment(db, shipmentId);
   if (!row) throw new NotFoundError("Shipment", shipmentId);
   if (as) requireKindScope(as.actor, row.kind, as.what);
@@ -67,12 +67,12 @@ function ask<T>(db: AppDb, t: CarrierTarget, operation: string, call: () => Prom
   return callCarrier(t.context, () => loggedCarrierCall(db, { companyId: t.company.id, orderId: t.row.orderId, operation }, call));
 }
 
-const actorIdOf = (actor: AuthUser | null) => actor?.id ?? null;
+const actorIdOf = (actor: Actor | null) => actor?.id ?? null;
 
 // ─── Operations ──────────────────────────────────────────────────────────────
 
 /** Validate a parcel the carrier holds until it is validated. */
-export async function validateShipment(db: AppDb, shipmentId: string, options: { requestPickup?: boolean }, actor: AuthUser | null): Promise<void> {
+export async function validateShipment(db: AppDb, shipmentId: string, options: { requestPickup?: boolean }, actor: Actor | null): Promise<void> {
   const t = await carrierTarget(db, shipmentId, "validate");
   await ask(db, t, "validate", () => t.carrier.validate!(t.ref, options));
   await markValidated(db, shipmentId, actorIdOf(actor));
@@ -97,7 +97,7 @@ export interface ParcelChanges {
  * cash, weight and fragility. The carrier is always sent the full delivery
  * details with the changes applied: some replace them as a whole.
  */
-export async function updateParcel(db: AppDb, shipmentId: string, changes: ParcelChanges, actor: AuthUser | null): Promise<void> {
+export async function updateParcel(db: AppDb, shipmentId: string, changes: ParcelChanges, actor: Actor | null): Promise<void> {
   const fields = Object.entries(changes).filter(([, v]) => v !== undefined).map(([k]) => k);
   if (fields.length === 0) throw new ValidationError("Nothing to change", ERROR_CODES.VALIDATION_FAILED);
   const t = await carrierTarget(db, shipmentId, "update");
@@ -173,7 +173,7 @@ export async function updateParcel(db: AppDb, shipmentId: string, changes: Parce
  * handed off again: the carrier cancels the parcel first (unless it already
  * did); a driver's shipment has no carrier to ask.
  */
-export async function voidShipmentOperation(db: AppDb, shipmentId: string, actor: AuthUser): Promise<{ orderId: string }> {
+export async function voidShipmentOperation(db: AppDb, shipmentId: string, actor: Actor): Promise<{ orderId: string }> {
   const t = await target(db, shipmentId, "void", { actor, what: "Voiding" });
   const ref = carrierRefOf(t.row);
   if (t.row.kind === "carrier" && !t.row.cancelledAt && t.company && ref) {
@@ -200,21 +200,21 @@ export async function listRemarks(db: AppDb, shipmentId: string): Promise<Carrie
   return ask(db, t, "listRemarks", () => t.carrier.listRemarks!(t.ref));
 }
 
-export async function addRemark(db: AppDb, shipmentId: string, content: string, actor: AuthUser | null): Promise<void> {
+export async function addRemark(db: AppDb, shipmentId: string, content: string, actor: Actor | null): Promise<void> {
   const t = await carrierTarget(db, shipmentId, "addRemark");
   await ask(db, t, "addRemark", () => t.carrier.addRemark!(t.ref, content));
   await noteShipmentStep(db, shipmentId, "remark_added", { source: "merchant", reason: content, actorId: actorIdOf(actor) });
 }
 
 /** A request the courier may decline: noted, never a milestone. */
-export async function askReturn(db: AppDb, shipmentId: string, actor: AuthUser | null): Promise<void> {
+export async function askReturn(db: AppDb, shipmentId: string, actor: Actor | null): Promise<void> {
   const t = await carrierTarget(db, shipmentId, "askReturn");
   await ask(db, t, "askReturn", () => t.carrier.askReturn!(t.ref));
   await noteShipmentStep(db, shipmentId, "return_requested", { source: "merchant", actorId: actorIdOf(actor) });
 }
 
 /** A request for another delivery attempt: noted, never a milestone. */
-export async function requestNewAttempt(db: AppDb, shipmentId: string, actor: AuthUser | null): Promise<void> {
+export async function requestNewAttempt(db: AppDb, shipmentId: string, actor: Actor | null): Promise<void> {
   const t = await carrierTarget(db, shipmentId, "requestNewAttempt");
   await ask(db, t, "requestNewAttempt", () => t.carrier.requestNewAttempt!(t.ref));
   await noteShipmentStep(db, shipmentId, "new_attempt_requested", { source: "merchant", actorId: actorIdOf(actor) });
@@ -224,7 +224,7 @@ export async function requestNewAttempt(db: AppDb, shipmentId: string, actor: Au
  * Confirm at the carrier that the returned goods reached the merchant, then
  * record the return — which puts the goods back in stock.
  */
-export async function confirmReturn(db: AppDb, shipmentId: string, actor: AuthUser | null): Promise<RecordedEvents> {
+export async function confirmReturn(db: AppDb, shipmentId: string, actor: Actor | null): Promise<RecordedEvents> {
   const t = await carrierTarget(db, shipmentId, "confirmReturn");
   const confirmed = await ask(db, t, "confirmReturn", () => t.carrier.confirmReturn!([t.ref]));
   if (!confirmed) {
@@ -288,7 +288,7 @@ const CLOCK_SKEW_MS = 5 * 60_000;
  * on a carrier shipment only that the goods came back. Reporting for a
  * carrier is a dispatch permission; for a driver, an assignment permission.
  */
-export async function reportShipmentEvent(db: AppDb, shipmentId: string, report: MerchantReportInput, actor: AuthUser): Promise<RecordedEvents> {
+export async function reportShipmentEvent(db: AppDb, shipmentId: string, report: MerchantReportInput, actor: Actor): Promise<RecordedEvents> {
   const t = await target(db, shipmentId, "report", { actor, what: "Reporting on" });
   const verdict = checkMerchantReport({ kind: t.row.kind, handoffState: t.row.handoffState, delivery: deliveryFactsOf(t.row) }, report.status);
   if (!verdict.ok) {

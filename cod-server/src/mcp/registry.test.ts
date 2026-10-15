@@ -202,6 +202,14 @@ vi.mock("@/endpoints/orders/ai-tools", () => ({
   ),
 }));
 
+vi.mock("@/endpoints/shipments/ai-tools", () => ({
+  getShipmentTools: () => toolMap("getShipment", "handOffOrderToCarrier", "handOffOrderToDriver", "reportShipmentEvent"),
+}));
+
+vi.mock("@/endpoints/delivery-companies/ai-tools", () => ({
+  getDeliveryCompanyTools: () => toolMap("listDeliveryCompanies"),
+}));
+
 // getDb is called by buildToolsForUser but the stub factories ignore it.
 vi.mock("@/db", () => ({
   getDb: () => ({} as never),
@@ -279,14 +287,18 @@ const ALL_TOOLS = [
   "getProductDetails",
   "getProductGroupDetails",
   "getProductStockHistory",
+  "getShipment",
   "getShippingProfile",
   "getStockAlerts",
   "getStockOverview",
   "getVariantDetails",
+  "handOffOrderToCarrier",
+  "handOffOrderToDriver",
   "listCommuneOverrides",
   "listCustomerGroups",
   "listCustomerTags",
   "listCustomers",
+  "listDeliveryCompanies",
   "listDriverPayments",
   "listDrivers",
   "listLandingPages",
@@ -305,6 +317,7 @@ const ALL_TOOLS = [
   "removeCustomerFromGroup",
   "removeLandingPageImage",
   "reorderLandingPageImages",
+  "reportShipmentEvent",
   "resetShippingCommuneOverride",
   "setShippingCommuneOverride",
   "setShippingProfileRules",
@@ -369,6 +382,7 @@ describe("buildToolsForUser — scope gating", () => {
       "getPendingSettlements",
       "getShippingProfile",
       "listCommuneOverrides",
+      "listDeliveryCompanies",
       "listDriverPayments",
       "listDrivers",
       "listShippingProfiles",
@@ -389,6 +403,12 @@ describe("buildToolsForUser — scope gating", () => {
       "setShippingProfileRules",
       "updateShippingProfile",
     ]);
+  });
+
+  it("a shipment's tools follow its kind: a carrier's is dispatch work, a driver's assignment work", () => {
+    expect(names(makeProps({ scopes: [SCOPES.DELIVERY_DISPATCH] }))).toEqual(["handOffOrderToCarrier", "reportShipmentEvent"]);
+    expect(names(makeProps({ scopes: [SCOPES.ORDERS_ASSIGN] }))).toEqual(["handOffOrderToDriver", "reportShipmentEvent"]);
+    expect(names(makeProps({ scopes: [SCOPES.ORDERS_READ] }))).toContain("getShipment");
   });
 
   it("wildcard '*' in scopes acts like admin (matches hasPermission semantics)", () => {

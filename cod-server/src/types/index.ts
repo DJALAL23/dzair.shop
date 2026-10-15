@@ -1,2 +1,2 @@
 export type { Env } from "./env";
-export type { AuthUser, AppVariables, AppContext } from "./app";
+export type { AuthUser, Actor, AppVariables, AppContext } from "./app";

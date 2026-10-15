@@ -129,4 +129,11 @@ export const TOOL_TITLES: Record<string, string> = {
   updateOrderStatus: "Update order status",
   recordOrderProductReturn: "Record order product return",
   deleteOrder: "Delete order",
+
+  // ─── Delivery ─────────────────────────────────────────────────────────────
+  listDeliveryCompanies: "List delivery companies",
+  getShipment: "Get shipment",
+  handOffOrderToCarrier: "Hand order to carrier",
+  handOffOrderToDriver: "Give order to driver",
+  reportShipmentEvent: "Report delivery progress",
 };

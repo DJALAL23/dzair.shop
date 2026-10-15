@@ -8,6 +8,9 @@ import type { Env } from "./env";
  */
 export type AuthUser = InferSelectModel<typeof users> & { scopes: string[] };
 
+/** Who acts — a dashboard user or an MCP grant: enough to attribute the act and check a permission. */
+export type Actor = Pick<AuthUser, "id" | "name" | "role" | "scopes">;
+
 /** Typed Hono context variables (set/get on c) */
 export interface AppVariables {
   /** Set by authMiddleware on /api/* routes */

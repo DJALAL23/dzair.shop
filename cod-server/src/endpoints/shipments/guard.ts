@@ -7,7 +7,7 @@
  */
 
 import { BusinessLogicError, ConflictError, PermissionError, type AppError } from "@/lib/errors/classes";
-import type { AuthUser } from "@/types";
+import type { Actor } from "@/types";
 import type { CarrierCapabilities } from "@/carriers/contract";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { SCOPES, type Scope } from "../../../../cod-shared/rbac/scopes";
@@ -37,7 +37,7 @@ export const SCOPE_FOR_KIND: Record<ShipmentKind, Scope> = {
   driver: SCOPES.ORDERS_ASSIGN,
 };
 
-export function requireKindScope(actor: AuthUser, kind: ShipmentKind, what: string): void {
+export function requireKindScope(actor: Actor, kind: ShipmentKind, what: string): void {
   const needed = SCOPE_FOR_KIND[kind];
   if (!hasPermission(actor.scopes ?? [], needed)) throw new PermissionError(`${what} a ${kind} shipment needs ${needed}`, needed);
 }

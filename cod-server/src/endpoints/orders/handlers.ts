@@ -15,9 +15,7 @@ import { eq } from "drizzle-orm";
 import * as queries from "./queries";
 import * as validation from "./validation";
 import { lineReturnRefusal, refusalFor } from "./refusals";
-import { loadShipmentView } from "../shipments/view";
-import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
-import { orderNeedsAttention, orderStage } from "../../../../cod-shared/orders/stage";
+import { loadOrderDetail } from "./detail";
 import { resolveDeliveryFee, applyFreeShippingOffer } from "./resolve-fee";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
@@ -66,24 +64,9 @@ export async function getOrder(c: Context<AppContext>) {
     throw new ValidationError("Order ID is required", ERROR_CODES.REQUIRED_FIELD_MISSING);
   }
 
-  const order = await queries.getOrderById(db, orderId);
-
-  if (!order) {
-    throw new NotFoundError("Order", orderId);
-  }
-
-  // The order's delivery is its shipment: shown with its history and actions,
-  // and summed up as the order's stage.
-  const shipment = (await getOrderShipment(db, orderId)) ?? null;
-  return c.json({
-    success: true,
-    data: {
-      ...order,
-      shipment: shipment ? await loadShipmentView(db, shipment.id, { events: true }) : null,
-      stage: orderStage(order.status, shipment),
-      needsAttention: orderNeedsAttention(shipment),
-    },
-  }, 200);
+  const order = await loadOrderDetail(db, orderId);
+  if (!order) throw new NotFoundError("Order", orderId);
+  return c.json({ success: true, data: order }, 200);
 }
 
 /**

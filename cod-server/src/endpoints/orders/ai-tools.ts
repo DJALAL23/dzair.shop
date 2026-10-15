@@ -5,6 +5,7 @@ import * as queries from "./queries";
 import { lineReturnRefusal, orderHasShipment, refusalFor } from "./refusals";
 import { transitionVerdict } from "./transitions";
 import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
+import { loadOrderDetail } from "./detail";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import {
   createOrderSchema,
@@ -144,14 +145,14 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * shipment's (in transit, delivered, returned…), and it stays "ready".
  *
  * ─── Delivery ────────────────────────────────────────────────────────────────
- *   A ready order is handed to a carrier or to the store's driver with
- *   POST /orders/{id}/shipment; once it has a shipment, its delivery changes
- *   only through that shipment.
+ *   A ready order is handed to a carrier or to the store's driver (the
+ *   shipment tools); once it has a shipment, its delivery changes only
+ *   through that shipment, and a returned shipment restocks the order.
  *
  * ─── Stock impact ────────────────────────────────────────────────────────────
  *   createOrder       → deducts inventory (ORDER_DEDUCTED)
- *   updateOrderStatus → restores inventory on cancelled/returned (ORDER_CANCELLED/ORDER_RETURNED)
- *   recordProductReturn → restores per-line returned units (ORDER_RETURNED)
+ *   updateOrderStatus → restores inventory on cancelled (ORDER_CANCELLED)
+ *   recordOrderProductReturn → restores per-line returned units (ORDER_RETURNED)
  *   deleteOrder       → restores all remaining inventory (ORDER_CANCELLED)
  *
  * ─── COD amount ──────────────────────────────────────────────────────────────
@@ -224,8 +225,9 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
       "Fetch full details for a specific order by UUID. " +
       "Returns the complete order including products array (with quantities, prices, returnedQuantity, status), " +
       "statusHistory (chronological list of status changes with timestamps and actor names), " +
-      "driverName, wilaya/commune Arabic names, and labelUrl if a shipment label exists. " +
-      "Use this before updating status, assigning a driver, or recording a return.",
+      "wilaya/commune Arabic names, stage, needsAttention, and shipment: the order's delivery (carrier or driver, " +
+      "its tracking, its history and the actions open now), or null before handoff. " +
+      "Use this before updating status, handing the order off, reporting on its delivery, or recording a return.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       const validationSchema = getOrderDetailsSchema;
@@ -240,7 +242,7 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
         };
       }
       try {
-        const order = await queries.getOrderById(db, parsed.data.orderId);
+        const order = await loadOrderDetail(db, parsed.data.orderId);
         if (!order) {
           return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
         }
@@ -521,7 +523,8 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
 
   deleteOrder: tool({
     description:
-      "Permanently deletes an order and all its related records (products, status history, shipment records). " +
+      "Permanently deletes an order and its related records (products, status history, its shipment and that shipment's history). " +
+      "Refused while its parcel is out, and once a driver payment settled its delivery. " +
       "Automatically restores inventory for all non-returned product lines and updates customer stats. " +
       "WARNING: This is a hard delete — there is no soft-delete or recovery. " +
       "Consider updating status to 'cancelled' instead if you want to keep the order for audit purposes.",

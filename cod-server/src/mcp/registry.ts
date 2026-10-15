@@ -19,7 +19,7 @@
  *      `cod-shared/rbac/utils.ts::hasPermission`.
  *
  * The `TOOL_REGISTRY` array below holds one entry per scope requirement. Each
- * entry picks a subset of tools from one of the 14 ai-tools factories. Adding a
+ * entry picks a subset of tools from one of the ai-tools factories. Adding a
  * new tool domain is a single `TOOL_REGISTRY.push({ ... })` entry — no other
  * file needs to change.
  */
@@ -49,6 +49,8 @@ import { getReviewTools }        from "@/endpoints/reviews/ai-tools";
 import { getCustomerGroupTools } from "@/endpoints/customer-groups/ai-tools";
 import { getCustomerTagTools }   from "@/endpoints/customer-tags/ai-tools";
 import { getOrderTools }         from "@/endpoints/orders/ai-tools";
+import { getShipmentTools }      from "@/endpoints/shipments/ai-tools";
+import { getDeliveryCompanyTools } from "@/endpoints/delivery-companies/ai-tools";
 
 type ToolFactory = (
   db: ReturnType<typeof getDb>,
@@ -96,9 +98,7 @@ function pick<K extends string, T extends Record<string, Tool>>(
  * requires TWO scopes (rare), put all required scopes in `requires`.
  * Admins bypass everything via the `role === "admin"` check in
  * buildToolsForUser — no special wildcard row needed here.
- *
- * New domains (orders, products, stock, reviews, offers) are added in
- * MCP-14 when their ai-tools.ts files land.
+
  */
 export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // ─── Customers ────────────────────────────────────────────────────────────
@@ -393,6 +393,28 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   {
     requires: [SCOPES.ORDERS_DELETE],
     build: (db) => pick(getOrderTools(db), ["deleteOrder"]),
+  },
+
+  // ─── Delivery: an order's shipment ────────────────────────────────────────
+  // Acting on a shipment takes the permission of its kind, as on the routes:
+  // a carrier's is dispatch work, the store's driver's is assignment work.
+  // A report's kind is known only from the shipment, so the tool is offered
+  // under both and checks the shipment's kind when it runs.
+  {
+    requires: [SCOPES.ORDERS_READ],
+    build: (db, env, props) => pick(getShipmentTools(db, env, props), ["getShipment"]),
+  },
+  {
+    requires: [SCOPES.DELIVERY_READ],
+    build: (db) => pick(getDeliveryCompanyTools(db), ["listDeliveryCompanies"]),
+  },
+  {
+    requires: [SCOPES.DELIVERY_DISPATCH],
+    build: (db, env, props) => pick(getShipmentTools(db, env, props), ["handOffOrderToCarrier", "reportShipmentEvent"]),
+  },
+  {
+    requires: [SCOPES.ORDERS_ASSIGN],
+    build: (db, env, props) => pick(getShipmentTools(db, env, props), ["handOffOrderToDriver", "reportShipmentEvent"]),
   },
 ];
 

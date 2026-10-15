@@ -26,7 +26,7 @@ import type { AppDb } from "@/db";
 import { communes, deliveryCompanies, orderProducts, orders, productVariants, shipments, wilayas } from "@/db/schema";
 import { AppError, BusinessLogicError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ACTIONS, logActivity } from "@/lib/activity";
-import type { AuthUser } from "@/types";
+import type { Actor } from "@/types";
 import { CarrierRequestError, callCarrier } from "@/carriers/app-errors";
 import { loggedCarrierCall } from "@/carriers/call-log";
 import { CarrierError, type CarrierAdapter, type CarrierBulkItem, type CarrierParcel, type CarrierShipmentInput } from "@/carriers/contract";
@@ -366,7 +366,7 @@ async function completeAcceptance(
   carrier: Pick<CarrierAdapter, "capabilities" | "validate">,
   target: AcceptanceTarget,
   parcel: CarrierParcel,
-  actor: AuthUser | null,
+  actor: Actor | null,
   how: { source: ShipmentEventSource; autoValidate: boolean },
 ): Promise<SettledHandoff> {
   const { shipmentId, orderId, orderNumber } = target;
@@ -436,7 +436,7 @@ export async function handOffToCarrier(
   db: AppDb,
   company: DeliveryCompanyRow,
   requests: HandoffRequest[],
-  actor: AuthUser | null,
+  actor: Actor | null,
 ): Promise<HandoffResult[]> {
   const carrier = await carrierFor(company);
   const distinct = [...new Map(requests.map((r) => [r.orderId, r])).values()];
@@ -516,7 +516,7 @@ export type ResolveResult =
  *   attach  — the merchant found the parcel at the carrier and gives its tracking number;
  *   release — the merchant attests the carrier has no parcel; the order is ready again.
  */
-export async function resolveHandoff(db: AppDb, shipmentId: string, resolution: Resolution, actor: AuthUser | null): Promise<ResolveResult> {
+export async function resolveHandoff(db: AppDb, shipmentId: string, resolution: Resolution, actor: Actor | null): Promise<ResolveResult> {
   const row = await getShipment(db, shipmentId);
   if (!row) throw new NotFoundError("Shipment", shipmentId);
   const company = row.companyId ? await getDeliveryCompanyRaw(db, row.companyId) : null;

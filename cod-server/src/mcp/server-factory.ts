@@ -9,7 +9,7 @@ import {
 import { z } from "zod";
 import type { Tool } from "ai";
 import type { Env } from "@/types/env";
-import type { McpProps } from "./props";
+import { actorOf, type McpProps } from "./props";
 import { buildToolsForUser } from "./registry";
 import { TOOL_SCHEMAS, TOOL_META, TOOL_OUTPUT_SCHEMAS } from "./schemas";
 import { TOOL_ANNOTATIONS } from "./annotations";
@@ -49,11 +49,8 @@ export function createCodMcpServer(env: Env): McpServer {
   }
 
   const db = getDb(env.DB);
-  const actor: McpActor = {
-    id: props.userId,
-    name: props.name || props.email,
-    role: props.role,
-  };
+  const { id, name, role } = actorOf(props);
+  const actor: McpActor = { id, name, role };
 
   const tools = buildToolsForUser(env, props);
   for (const [name, tool] of Object.entries(tools)) {

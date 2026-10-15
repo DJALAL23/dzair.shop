@@ -6,18 +6,13 @@
  */
 
 import type { Context } from "hono";
-import { inArray } from "drizzle-orm";
 import type { AppContext } from "@/types";
 import { getDb, type AppDb } from "@/db";
-import { shipments } from "@/db/schema";
-import { NotFoundError } from "@/lib/errors/classes";
-import type { CarrierCapabilities } from "@/carriers/contract";
 import { carrierCapabilities } from "@/carriers/registry";
-import { getDeliveryCompanyRaw } from "../../../../cod-shared/queries/delivery-companies";
-import { handOffToCarrier, resolveHandoff, type DeliveryCompanyRow, type HandoffResult } from "./carrier-handoff";
-import { driverFor, handOffToDriverOrders, type DriverHandoffResult } from "./driver-handoff";
-import { requireKindScope } from "./guard";
-import { loadShipmentView, shipmentView, type ShipmentView } from "./view";
+import { handOffToCarrier, resolveHandoff } from "./carrier-handoff";
+import { driverFor, handOffToDriverOrders } from "./driver-handoff";
+import { bulkData, companyOrThrow, handOffOne, resultItems } from "./handoff-results";
+import { loadShipmentView } from "./view";
 import type {
   bulkCarrierHandoffSchema,
   bulkDriverHandoffSchema,
@@ -33,76 +28,15 @@ import { scheduleShipmentConversions } from "@/lib/conversions";
 import type { RecordedEvents } from "../../../../cod-shared/shipments/record-events";
 import type { z } from "@hono/zod-openapi";
 
-async function companyOrThrow(db: AppDb, companyId: string): Promise<DeliveryCompanyRow> {
-  const company = await getDeliveryCompanyRaw(db, companyId);
-  if (!company) throw new NotFoundError("Delivery company", companyId);
-  return company;
-}
-
-type AnyHandoffResult = HandoffResult | DriverHandoffResult;
-
-/** Results as the API shows them, each with its shipment when one exists. */
-async function resultItems(db: AppDb, capabilities: CarrierCapabilities | null, results: readonly AnyHandoffResult[]) {
-  const ids = results.flatMap((r) => (r.outcome === "refused" ? [] : [r.shipmentId]));
-  const rows = ids.length ? await db.select().from(shipments).where(inArray(shipments.id, ids)).all() : [];
-  const views = new Map<string, ShipmentView>(rows.map((row) => [row.id, shipmentView(row, capabilities)]));
-  return results.map((r) => {
-    switch (r.outcome) {
-      case "accepted":
-        return {
-          orderId: r.orderId,
-          orderNumber: r.orderNumber,
-          outcome: r.outcome,
-          shipment: views.get(r.shipmentId),
-          ...("validationError" in r ? { validationError: r.validationError } : {}),
-        };
-      case "unknown":
-        return { orderId: r.orderId, orderNumber: r.orderNumber, outcome: r.outcome, shipment: views.get(r.shipmentId), message: r.message };
-      case "refused":
-        return {
-          orderId: r.orderId,
-          orderNumber: r.orderNumber,
-          outcome: r.outcome,
-          error: { code: r.error.code, message: r.error.message, ...(r.error.context ? { context: r.error.context } : {}) },
-        };
-    }
-  });
-}
-
-function bulkData(items: Awaited<ReturnType<typeof resultItems>>, results: readonly AnyHandoffResult[]) {
-  const count = (outcome: AnyHandoffResult["outcome"]) => results.filter((r) => r.outcome === outcome).length;
-  return { results: items, summary: { accepted: count("accepted"), unknown: count("unknown"), refused: count("refused") } };
-}
-
 /**
  * POST /orders/{id}/shipment — hand one order to a carrier or to the store's driver.
  * 201 accepted · 202 unknown (a carrier's; resolve it, never re-send) · an error when refused.
  */
 export async function handOffOrder(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  const orderId = c.req.param("id")!;
   const body = (c.req as any).valid("json") as z.infer<typeof orderHandoffSchema>;
-  const actor = c.get("user");
-  requireKindScope(actor, body.kind, "Creating");
-
-  if (body.kind === "driver") {
-    const driver = await driverFor(db, body.driverId);
-    const [result] = await handOffToDriverOrders(db, driver, [{ orderId, deliveryType: body.deliveryType, stationCode: body.stationCode }], actor);
-    if (result.outcome === "refused") throw result.error;
-    const [item] = await resultItems(db, null, [result]);
-    return c.json({ success: true, data: item }, 201);
-  }
-
-  const company = await companyOrThrow(db, body.companyId);
-  const [result] = await handOffToCarrier(
-    db,
-    company,
-    [{ orderId, deliveryType: body.deliveryType, stationCode: body.stationCode, weight: body.weight, fragile: body.fragile, remarks: body.remarks }],
-    actor,
-  );
-  if (result.outcome === "refused") throw result.error;
-  const [item] = await resultItems(db, carrierCapabilities(company), [result]);
-  return c.json({ success: true, data: item }, result.outcome === "accepted" ? 201 : 202);
+  const item = await handOffOne(db, c.req.param("id")!, body, c.get("user"));
+  return c.json({ success: true, data: item }, item.outcome === "accepted" ? 201 : 202);
 }
 
 /** POST /shipments/bulk — hand many orders to one carrier; one result per order. */

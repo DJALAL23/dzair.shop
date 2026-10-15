@@ -57,6 +57,8 @@ describe("DANGEROUS_TOOLS allowlist", () => {
         "deleteOrder",
         "updateOrderStatus",
         "recordOrderProductReturn",
+        "handOffOrderToCarrier",
+        "reportShipmentEvent",
         "updateVariant",
         "deleteLandingPage",
         "removeLandingPageImage",

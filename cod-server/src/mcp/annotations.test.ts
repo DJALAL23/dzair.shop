@@ -81,8 +81,10 @@ describe("TOOL_ANNOTATIONS", () => {
     expect(TOOL_ANNOTATIONS["updateOrderStatus"]?.readOnlyHint).toBe(false);
   });
 
-  it("the upload tool is the only open-world tool (it fetches public image URLs)", () => {
+  it("only the upload tool (public image URLs) and the carrier handoff (the carrier's API) are open-world", () => {
     expect(TOOL_ANNOTATIONS["uploadLandingPageImage"]?.openWorldHint).toBe(true);
+    expect(TOOL_ANNOTATIONS["handOffOrderToCarrier"]?.openWorldHint).toBe(true);
+    expect([...OPEN_WORLD_TOOLS].sort()).toEqual(["handOffOrderToCarrier", "uploadLandingPageImage"]);
     for (const name of TOOL_NAMES) {
       if (!OPEN_WORLD_TOOLS.has(name)) {
         expect(TOOL_ANNOTATIONS[name]?.openWorldHint, `${name} is not open-world`).toBe(false);

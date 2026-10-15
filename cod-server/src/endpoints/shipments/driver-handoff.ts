@@ -12,7 +12,7 @@ import type { AppDb } from "@/db";
 import { drivers, orders } from "@/db/schema";
 import { AppError, BusinessLogicError, ConflictError, NotFoundError } from "@/lib/errors/classes";
 import { ACTIONS, logActivity } from "@/lib/activity";
-import type { AuthUser } from "@/types";
+import type { Actor } from "@/types";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { handOffToDriver, type ReservationRefusal } from "../../../../cod-shared/shipments/handoff";
 
@@ -60,7 +60,7 @@ export async function handOffToDriverOrders(
   db: AppDb,
   driver: DriverRow,
   requests: readonly DriverHandoffRequest[],
-  actor: AuthUser | null,
+  actor: Actor | null,
 ): Promise<DriverHandoffResult[]> {
   const results: DriverHandoffResult[] = [];
   for (const request of requests) {
