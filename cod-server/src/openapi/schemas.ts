@@ -164,7 +164,6 @@ export {
 export {
   // Enums
   OrderStatusEnum,
-  DeliveryMethodEnum,
   DeliveryTypeEnum,
   OrderTypeEnum,
   OrderProductStatusEnum,
@@ -187,7 +186,6 @@ export {
   
   // Types
   type OrderStatus,
-  type DeliveryMethod,
   type DeliveryType,
   type OrderType,
   type OrderProductStatus,

@@ -52,9 +52,10 @@ export interface TestD1 {
   fetch: (url: string, init?: RequestInit) => Promise<Response>;
   /**
    * Apply the migrations held back by `createTestD1({ before })`, so a test
-   * can seed rows in the old shape and watch a migration convert them.
+   * can seed rows in the old shape and watch a migration convert them —
+   * all of them, or with `until`, only those sorting before that file.
    */
-  applyRemaining: () => Promise<void>;
+  applyRemaining: (options?: { until?: string }) => Promise<void>;
   dispose: () => Promise<void>;
 }
 
@@ -143,7 +144,11 @@ async function startTestD1(options: { before?: string; worker?: string }): Promi
     db: drizzle(raw as unknown as D1Database, { schema }) as unknown as AppDb,
     raw,
     fetch: async (url, init) => (await mf.getWorker()).fetch(url, init as never) as unknown as Response,
-    applyRemaining: () => replay(raw, files.slice(cut)),
+    applyRemaining: ({ until }: { until?: string } = {}) => {
+      const end = until === undefined ? files.length : files.findIndex((file) => file >= until);
+      if (end === -1) throw new Error(`no migration sorts at or after ${until}`);
+      return replay(raw, files.slice(cut, end));
+    },
     dispose: () => mf.dispose(),
   };
 }

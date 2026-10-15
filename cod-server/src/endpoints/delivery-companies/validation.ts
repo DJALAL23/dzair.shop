@@ -19,7 +19,6 @@ export const createDeliveryCompanySchema = z.object({
   // Capabilities
   supportsHomeDelivery: z.boolean().default(true),
   supportsStopDesk: z.boolean().default(true),
-  supportsTracking: z.boolean().default(false),
 
   /**
    * When true, the server calls `validateShipment` immediately after `createShipment`
@@ -50,7 +49,6 @@ export const updateDeliveryCompanySchema = z.object({
   apiUserGuid: z.string().optional().nullable(),
   supportsHomeDelivery: z.boolean().optional(),
   supportsStopDesk: z.boolean().optional(),
-  supportsTracking: z.boolean().optional(),
   /** Toggle the post-dispatch auto-validate behavior. See create schema for semantics. */
   autoValidate: z.boolean().optional(),
   notes: z.string().optional().nullable(),

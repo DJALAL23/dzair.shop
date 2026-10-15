@@ -1,8 +1,7 @@
 /**
  * The AI tool that changes an order's status, on real D1: it decides with the
  * same order lifecycle as the route — the processing moves only, nothing once
- * the order has a shipment, nothing for an order still in an old delivery
- * status — and its effects are the route's.
+ * the order has a shipment — and its effects are the route's.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
@@ -10,6 +9,7 @@ import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import { handOffToDriver } from "../../../../cod-shared/shipments/handoff";
 import { getOrderTools } from "./ai-tools";
+import type { OrderStatus } from "../../../../cod-shared/orders/lifecycle";
 
 const T = "2026-10-14T08:00:00.000Z";
 let d1: TestD1;
@@ -28,8 +28,8 @@ beforeEach(async () => {
   await d1.db.insert(schema.drivers).values({ id: "dr1", firstName: "A", lastName: "B", phone: "0661111111", createdAt: T, updatedAt: T });
 });
 
-async function order(id: string, status: string) {
-  await d1.db.insert(schema.orders).values({ id, orderNumber: `ORD-${id}`, customerId: "c1", customerName: "K", phone: "0551234567", price: 1000, status: status as never, createdAt: T, updatedAt: T });
+async function order(id: string, status: OrderStatus) {
+  await d1.db.insert(schema.orders).values({ id, orderNumber: `ORD-${id}`, customerId: "c1", customerName: "K", phone: "0551234567", price: 1000, status, createdAt: T, updatedAt: T });
 }
 
 const statusOf = async (id: string) => (await d1.db.select().from(schema.orders).where(eq(schema.orders.id, id)).get())!.status;
@@ -70,11 +70,5 @@ describe("updateOrderStatus (AI tool)", () => {
     expect(refused).toMatchObject({ success: false });
     expect(refused.error).toContain("shipment");
     expect(await statusOf(ID)).toBe("ready");
-  });
-
-  it("moves nothing for an order still in an old delivery status", async () => {
-    await order(ID, "delivered");
-    expect((await setStatus(ID, "cancelled")).success).toBe(false);
-    expect(await statusOf(ID)).toBe("delivered");
   });
 });

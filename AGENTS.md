@@ -174,6 +174,14 @@ other is how these drift.
   `*/5 * * * *` cron (`src/inbound/cron.ts`) and on demand with
   `POST /shipments/{id}/sync` or `POST /delivery-companies/{id}/sync-shipments`.
   The deployed `wrangler.toml` must list that cron beside the hourly one.
+- **Delivery is the shipment's** (ADR 0006): an order's status is its
+  processing only (`cod-shared/orders/lifecycle.ts`); carrier, driver,
+  tracking and the delivery's milestones live in `shipments` and
+  `shipment_events`, driver settlement in `driver_payment_lines`.
+  `orders.driver_id`, `orders.company_id` and `webhook_events.order_id`
+  still exist in D1 but not in the Drizzle schema: SQLite cannot drop a
+  column a table `FOREIGN KEY` clause names, so migration 0041 emptied them.
+  Never read or write them.
 - **Store languages are rows, not a column** (ADR 0005): `stores.lang` is
   the primary, `store_locales` lists every added language with a `published`
   flag, and only published ones reach `/store/config`. The supported list

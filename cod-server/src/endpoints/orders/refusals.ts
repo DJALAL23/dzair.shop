@@ -3,7 +3,8 @@
  * the AI tools so both say the same thing.
  */
 
-import { ConflictError, NotFoundError } from "@/lib/errors/classes";
+import { BusinessLogicError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
+import type { LineReturn } from "../../../../cod-shared/queries/orders";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 
 /** The order has a shipment: its delivery is the shipment's, and its processing is finished. */
@@ -44,5 +45,24 @@ export function refusalFor(
       return orderSettled(orderId);
     case "changed":
       return orderChanged(orderId);
+  }
+}
+
+/** Why a line return was not recorded. */
+export function lineReturnRefusal(outcome: Extract<LineReturn, { ok: false }>, orderId: string, productLineId: string) {
+  const context = { orderId, productLineId };
+  switch (outcome.reason) {
+    case "line_not_found":
+      return new NotFoundError("Order line", productLineId);
+    case "out_of_range":
+      return new ValidationError(`returnedQuantity must be between 0 and ${outcome.quantity}`, ERROR_CODES.VALUE_OUT_OF_RANGE, context);
+    case "order_closed":
+      return new BusinessLogicError(
+        "The order is cancelled or its parcel came back — every remaining unit is already back in stock",
+        ERROR_CODES.INVALID_STATUS_TRANSITION,
+        context,
+      );
+    case "changed":
+      return new ConflictError("The line changed meanwhile; reload the order and try again", ERROR_CODES.ORDER_CHANGED, context);
   }
 }

@@ -231,7 +231,7 @@ const deleteDriverRoute = defineRoute({
   tags: ["Drivers"],
   summary: "Delete driver",
   description:
-    "Permanently deletes the driver. **Returns 409 if the driver has orders in `assigned` or `out_for_delivery` status** — resolve those orders first.",
+    "Permanently deletes a driver who never had an order. **409** while the driver has orders out (`DRIVER_HAS_ACTIVE_ORDERS` — finish or take them back first) or has past deliveries (`DRIVER_HAS_SHIPMENTS` — set the driver inactive instead).",
   operationId: "deleteDriver",
   params: idParams,
   responses: {

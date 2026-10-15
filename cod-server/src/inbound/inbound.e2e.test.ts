@@ -135,7 +135,8 @@ describe("receiving", () => {
     expect((await shipment(b))!.providerStatus).toBe("Sorti en livraison");
     expect((await shipment(a))!.providerStatus).toBeNull();
     const [row] = await inbox();
-    expect(row).toMatchObject({ companyId: "yal-b", provider: "yalidine", result: "ok", shipmentId: b, tracking: "yal-1", attempts: 1, nextAttemptAt: null, orderId: null });
+    expect(row).toMatchObject({ companyId: "yal-b", provider: "yalidine", result: "ok", shipmentId: b, tracking: "yal-1", attempts: 1, nextAttemptAt: null });
+    expect(row).not.toHaveProperty("orderId");
     const [event] = await events(b);
     expect(event).toMatchObject({ source: "webhook", vocabulary: "status", providerStatus: "Sorti en livraison", webhookEventId: row.id });
     expect(event.occurredAt).toBe("2026-10-14T09:00:00.000Z");

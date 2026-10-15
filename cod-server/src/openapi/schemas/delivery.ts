@@ -22,7 +22,6 @@ export const DeliveryCompanySchema = z
     }),
     supportsHomeDelivery: z.boolean().openapi({ example: true }),
     supportsStopDesk: z.boolean().openapi({ example: true }),
-    supportsTracking: z.boolean().openapi({ example: false }),
     autoValidate: z.boolean().nullable().openapi({
       description:
         "When true, the server calls `validateShipment` immediately after `createShipment` on dispatch. " +
@@ -35,7 +34,6 @@ export const DeliveryCompanySchema = z
     providerConfig: z.record(z.string(), z.unknown()).nullable().openapi({ description: "The adapter's settings; secrets masked (•••• + last 4)." }),
     webhookSecret: z.string().nullable().openapi({ description: "Masked (•••• + last 4) when set." }),
     webhookEndpointId: z.string().nullable(),
-    webhookStatusMapping: z.string().nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })

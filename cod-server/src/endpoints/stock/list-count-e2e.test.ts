@@ -70,11 +70,11 @@ beforeAll(async () => {
     { id: "cust-3", name: "C3", phone: "0770000003", wilaya: "w", createdAt: now },
   ]);
   await db.insert(schema.orders).values([
-    { id: "ord-1", orderNumber: "ORD-1", customerId: "cust-1", customerName: "C1", phone: "0770000001", price: 1000, status: "delivered", deliveryMethod: "unassigned", deliveryType: "home", deliveryFee: 0, driverFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
-    { id: "ord-2", orderNumber: "ORD-2", customerId: "cust-2", customerName: "C2", phone: "0770000002", price: 1000, status: "delivered", deliveryMethod: "unassigned", deliveryType: "home", deliveryFee: 0, driverFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
-    { id: "ord-3", orderNumber: "ORD-3", customerId: "cust-3", customerName: "C3", phone: "0770000003", price: 1000, status: "delivered", deliveryMethod: "unassigned", deliveryType: "home", deliveryFee: 0, driverFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
-    { id: "ord-4", orderNumber: "ORD-4", customerId: "cust-1", customerName: "C1", phone: "0770000001", price: 1000, status: "delivered", deliveryMethod: "unassigned", deliveryType: "home", deliveryFee: 0, driverFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
-    { id: "ord-5", orderNumber: "ORD-5", customerId: "cust-2", customerName: "C2", phone: "0770000002", price: 1000, status: "delivered", deliveryMethod: "unassigned", deliveryType: "home", deliveryFee: 0, driverFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
+    { id: "ord-1", orderNumber: "ORD-1", customerId: "cust-1", customerName: "C1", phone: "0770000001", price: 1000, status: "ready", deliveryType: "home", deliveryFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
+    { id: "ord-2", orderNumber: "ORD-2", customerId: "cust-2", customerName: "C2", phone: "0770000002", price: 1000, status: "ready", deliveryType: "home", deliveryFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
+    { id: "ord-3", orderNumber: "ORD-3", customerId: "cust-3", customerName: "C3", phone: "0770000003", price: 1000, status: "ready", deliveryType: "home", deliveryFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
+    { id: "ord-4", orderNumber: "ORD-4", customerId: "cust-1", customerName: "C1", phone: "0770000001", price: 1000, status: "ready", deliveryType: "home", deliveryFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
+    { id: "ord-5", orderNumber: "ORD-5", customerId: "cust-2", customerName: "C2", phone: "0770000002", price: 1000, status: "ready", deliveryType: "home", deliveryFee: 0, codAmount: 1000, createdAt: now, updatedAt: now },
   ]);
 
   for (let i = 1; i <= 6; i++) {

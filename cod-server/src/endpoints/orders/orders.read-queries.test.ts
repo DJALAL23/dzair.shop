@@ -37,6 +37,9 @@ function listRow(overrides: Record<string, unknown> = {}): Record<string, unknow
     driver_name: "Ahmed Benali",
     has_review: 0,
     last_updated_by: "user_1",
+    shipment_id: null,
+    stage: "ready_to_ship",
+    needs_attention: 0,
     ...overrides,
   };
 }

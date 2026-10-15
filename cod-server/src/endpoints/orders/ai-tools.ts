@@ -2,7 +2,7 @@ import { drawOrderNumber } from "../../../../cod-shared/lib/order-number";
 import { tool } from "ai";
 import { z } from "zod";
 import * as queries from "./queries";
-import { orderHasShipment, refusalFor } from "./refusals";
+import { lineReturnRefusal, orderHasShipment, refusalFor } from "./refusals";
 import { transitionVerdict } from "./transitions";
 import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -473,7 +473,7 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
       "returnedQuantity=line.quantity → line status 'returned'. " +
       "0 < returnedQuantity < line.quantity → line status 'partially_returned'. " +
       "Returned units are automatically restocked. Calls are idempotent — correcting a previous return adjusts the delta. " +
-      "Blocked on orders already in 'returned' or 'cancelled' status. " +
+      "Blocked once the order is cancelled or its parcel came back. " +
       "Use getOrderDetails first to find the productLineId (it's the id field in the products array).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -495,14 +495,6 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
         }
 
-        const terminalStatuses = ["returned", "cancelled"];
-        if (terminalStatuses.includes(order.status)) {
-          return {
-            success: false,
-            error: `Cannot edit returns on order "${order.orderNumber}" — it is already "${order.status}" and stock was already reconciled.`,
-          };
-        }
-
         const result = await queries.setOrderProductReturn(
           db,
           parsed.data.orderId,
@@ -511,10 +503,14 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           "ai-agent",
           "AI Agent",
         );
+        if (!result.ok) {
+          return { success: false, error: lineReturnRefusal(result, parsed.data.orderId, parsed.data.productLineId).message };
+        }
+        const { ok: _, ...line } = result;
 
         return {
           success: true,
-          result,
+          result: line,
           message: `Return recorded: ${parsed.data.returnedQuantity} unit(s) returned on line ${parsed.data.productLineId}. Line status: ${result.status}`,
         };
       } catch (error: any) {

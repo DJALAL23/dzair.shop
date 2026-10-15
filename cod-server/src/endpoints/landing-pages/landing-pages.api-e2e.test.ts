@@ -270,8 +270,8 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
       await db.insert(schema.orders).values({
         id: `ord-lpstats-${n}`, orderNumber: `ORD-LPSTAT-${n}`, customerId: cust,
         customerName: "Stats", phone: "0555000001", price: 5000,
-        status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-        deliveryFee: 0, driverFee: 0, codAmount: 5000, landingPageId: id,
+        status: "new", deliveryType: "home",
+        deliveryFee: 0, codAmount: 5000, landingPageId: id,
         createdAt: NOW(), updatedAt: NOW(),
       });
     }
@@ -279,8 +279,8 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
     await db.insert(schema.orders).values({
       id: "ord-lpstats-x", orderNumber: "ORD-LPSTAT-X", customerId: cust3,
       customerName: "Other", phone: "0555000002", price: 9000,
-      status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-      deliveryFee: 0, driverFee: 0, codAmount: 9000,
+      status: "new", deliveryType: "home",
+      deliveryFee: 0, codAmount: 9000,
       createdAt: NOW(), updatedAt: NOW(),
     });
 
@@ -301,8 +301,8 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
     await db.insert(schema.orders).values({
       id: "ord-guard-1", orderNumber: "ORD-GUARD-1", customerId: cust,
       customerName: "Guard", phone: "0555000003", price: 5000,
-      status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-      deliveryFee: 0, driverFee: 0, codAmount: 5000, landingPageId: withOrders.data.id,
+      status: "new", deliveryType: "home",
+      deliveryFee: 0, codAmount: 5000, landingPageId: withOrders.data.id,
       createdAt: NOW(), updatedAt: NOW(),
     });
 
@@ -469,8 +469,8 @@ describe("duplicate + shared R2-object guard", () => {
     await db.insert(schema.orders).values({
       id: `ord-dup-${crypto.randomUUID().slice(0, 6)}`, orderNumber: `ORD-DUP-${crypto.randomUUID().slice(0, 6)}`,
       customerId: cust, customerName: "Dup", phone: "0555000009", price: 5000,
-      status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-      deliveryFee: 0, driverFee: 0, codAmount: 5000, landingPageId: sourceId,
+      status: "new", deliveryType: "home",
+      deliveryFee: 0, codAmount: 5000, landingPageId: sourceId,
       createdAt: NOW(), updatedAt: NOW(),
     });
 

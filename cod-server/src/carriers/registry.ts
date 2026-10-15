@@ -12,7 +12,7 @@ import { CarrierError, type CarrierAdapter, type CarrierCapabilities, type Carri
 import { ECOTRACK_CAPABILITIES, EcotrackCarrier, ecotrackConfigSchema } from "./ecotrack/adapter";
 import { NOEST_CAPABILITIES, NoestCarrier, noestConfigSchema } from "./noest/adapter";
 import { YalidineCarrier, yalidineCapabilities, yalidineConfigSchema, yalidineWebhook } from "./yalidine/adapter";
-import { ZR_CAPABILITIES, ZrExpressCarrier, zrConfigSchema, zrWebhook, type ZrConfig } from "./zr_express/adapter";
+import { ZR_CAPABILITIES, ZrExpressCarrier, zrConfigSchema, zrWebhook } from "./zr_express/adapter";
 
 /** What the registry needs from a delivery-company row. */
 export interface CarrierCompany {
@@ -21,7 +21,6 @@ export interface CarrierCompany {
   apiToken: string | null;
   apiUserGuid: string | null;
   apiEndpoint: string | null;
-  webhookStatusMapping?: string | null;
 }
 
 type ConfigSchema = { safeParse(v: unknown): { success: true; data: unknown } | { success: false; error: { issues: Array<{ path: PropertyKey[]; message: string }> } } };
@@ -64,27 +63,6 @@ function parseJson(text: string | null | undefined): unknown {
   }
 }
 
-/**
- * TEMPORARY until the inbound pipeline switches (plan stage 5): the ZR mapping
- * still lives in `webhook_status_mapping`, keyed by the old order statuses,
- * because the old webhook handler reads it there. Keys that meant a delivery outcome keep
- * their meaning; every other old order status only ever moved a parcel along.
- */
-function legacyZrConfig(company: CarrierCompany): ZrConfig {
-  const mapping = parseJson(company.webhookStatusMapping) as Record<string, unknown> | undefined;
-  if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) return {};
-  const statusMap: NonNullable<ZrConfig["statusMap"]> = {};
-  for (const [oldKey, names] of Object.entries(mapping)) {
-    if (!Array.isArray(names)) continue;
-    const meaning =
-      oldKey === "delivered" || oldKey === "returned" || oldKey === "out_for_delivery" || oldKey === "cancelled"
-        ? oldKey
-        : "progress";
-    statusMap[meaning] = [...(statusMap[meaning] ?? []), ...names.filter((n): n is string => typeof n === "string")];
-  }
-  return Object.keys(statusMap).length > 0 ? { statusMap } : {};
-}
-
 function config<T>(provider: CarrierProvider, schema: { safeParse(v: unknown): { success: true; data: T } | { success: false; error: { message: string } } }, raw: unknown): T {
   const parsed = schema.safeParse(raw ?? {});
   if (!parsed.success) throw misconfigured(provider, `Invalid ${provider} settings: ${parsed.error.message}`);
@@ -107,7 +85,7 @@ export function buildCarrier(company: CarrierCompany): CarrierAdapter {
     case "zr_express":
       return new ZrExpressCarrier(
         { apiKey: required(provider, company.apiToken, "The API key"), tenantId: required(provider, company.apiUserGuid, "The tenant id") },
-        config(provider, zrConfigSchema, legacyZrConfig(company)),
+        config(provider, zrConfigSchema, settings),
       );
     case "noest":
       return new NoestCarrier(

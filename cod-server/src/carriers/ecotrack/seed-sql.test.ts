@@ -41,7 +41,9 @@ describe("buildEcotrackCompanyUpsert", () => {
   it("seeds inactive with no token and manual validation", () => {
     expect(stmt).toMatch(/,\s*0,/);
     expect(stmt).toContain("auto_validate");
-    expect(stmt).toMatch(/NULL,\s*NULL,\s*1,\s*1,\s*1,/);
+    expect(stmt).toMatch(/NULL,\s*NULL,\s*1,\s*1,\s*NULL,\s*NULL,\s*0,/);
+    expect(stmt).not.toContain("supports_tracking");
+    expect(stmt).not.toContain("webhook_status_mapping");
   });
 
   it("conflict-updates ONLY catalog fields — merchant state is never clobbered", () => {

@@ -41,7 +41,7 @@ describe("Analytics routes (defineRoute)", () => {
   it("returns 200 with status breakdown for a user holding dashboard:view", async () => {
     vi.mocked(getOrderStatusStats).mockResolvedValue([
       { status: "new", count: 12 },
-      { status: "delivered", count: 5 },
+      { status: "ready", count: 5 },
     ]);
     const app = makeApp({ id: "u1", name: "Viewer", role: "viewer", scopes: ["dashboard:view"] });
 
@@ -53,7 +53,7 @@ describe("Analytics routes (defineRoute)", () => {
       success: true,
       data: [
         { status: "new", count: 12 },
-        { status: "delivered", count: 5 },
+        { status: "ready", count: 5 },
       ],
     });
     expect(getOrderStatusStats).toHaveBeenCalledWith(mockDb);

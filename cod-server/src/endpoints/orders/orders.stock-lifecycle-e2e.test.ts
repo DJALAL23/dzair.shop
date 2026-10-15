@@ -277,8 +277,8 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     await createOrder(db, {
       id: orderId, orderNumber: `ORD-LC-${seq}`, customerId,
       customerName: "LC Customer", phone: "0555000001", price: 2000,
-      status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-      deliveryFee: 0, driverFee: 0, codAmount: 2000, createdAt: now, updatedAt: now,
+      status: "new", deliveryType: "home",
+      deliveryFee: 0, codAmount: 2000, createdAt: now, updatedAt: now,
     }, [{
       id: `op-lc-${seq}`, orderId, productId, productName: "LC Product",
       quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: now,
@@ -303,8 +303,8 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     await expect(createOrder(db, {
       id: orderId, orderNumber: `ORD-LC-${seq}`, customerId,
       customerName: "LC Customer", phone: "0555000001", price: 2000,
-      status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-      deliveryFee: 0, driverFee: 0, codAmount: 2000, createdAt: now, updatedAt: now,
+      status: "new", deliveryType: "home",
+      deliveryFee: 0, codAmount: 2000, createdAt: now, updatedAt: now,
     }, [{
       id: `op-lc-${seq}`, orderId, productId, productName: "LC Product",
       quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: now,
@@ -347,8 +347,8 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
       createOrder(faulty, {
         id: orderId, orderNumber: `ORD-LC-${seq}`, customerId,
         customerName: "LC Customer", phone: "0555000001", price: 2000,
-        status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-        deliveryFee: 0, driverFee: 0, codAmount: 2000, createdAt: now, updatedAt: now,
+        status: "new", deliveryType: "home",
+        deliveryFee: 0, codAmount: 2000, createdAt: now, updatedAt: now,
       }, [{
         id: `op-lc-${seq}`, orderId, productId, productName: "LC Product",
         quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: now,

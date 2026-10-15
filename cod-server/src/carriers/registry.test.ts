@@ -97,10 +97,10 @@ describe("building a company's adapter", () => {
     expect(buildCarrier(companies.yalidine).webhook).toBeDefined();
   });
 
-  it("ZR: the old order-status mapping keeps outcomes and treats the rest as progress (until stage 5)", () => {
+  it("ZR: the tenant's state names in its settings win over the default workflow", () => {
     const adapter = buildCarrier({
       ...companies.zr_express,
-      webhookStatusMapping: JSON.stringify({ delivered: ["Livraison effectuée"], assigned: ["Au hub"], returned: ["Retourné"] }),
+      providerConfig: JSON.stringify({ statusMap: { delivered: ["Livraison effectuée"], progress: ["Au hub"], returned: ["Retourné"] } }),
     });
     expect(adapter.interpret({ vocabulary: "state", value: "Livraison effectuée" })).toEqual({ kind: "milestone", milestone: "delivered" });
     expect(adapter.interpret({ vocabulary: "state", value: "Au hub" })).toEqual({ kind: "progress" });

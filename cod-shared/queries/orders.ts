@@ -19,9 +19,7 @@ import {
   wilayas,
   communes,
   stockMovements,
-  companyShipments,
   companyApiLogs,
-  webhookEvents,
   shipments,
 } from "../db/schema";
 import type { OrderStatus } from "../orders/lifecycle";
@@ -552,6 +550,21 @@ export async function updateOrder(
   return { ok: true };
 }
 
+export type LineReturn =
+  | { ok: true; id: string; status: "fulfilled" | "partially_returned" | "returned"; returnedQuantity: number; quantity: number }
+  | { ok: false; reason: "line_not_found" | "out_of_range" | "order_closed" | "changed"; quantity?: number };
+
+/**
+ * Record how many units of one order line the customer refused at the door,
+ * putting the difference back in stock (or taking it out again when a return
+ * is corrected down).
+ *
+ * Refused once the order is cancelled or its shipment came back: those
+ * already put every remaining unit back. One batch, applied only while the
+ * line still has the returned quantity it was read with and the order is
+ * still open — so a cancel, a return of the whole parcel, or the same line
+ * return sent twice can never move the same units twice.
+ */
 export async function setOrderProductReturn(
   db: AppDb,
   orderId: string,
@@ -559,131 +572,84 @@ export async function setOrderProductReturn(
   newReturnedQty: number,
   userId?: string,
   userName?: string,
-): Promise<{
-  id: string;
-  status: "fulfilled" | "partially_returned" | "returned";
-  returnedQuantity: number;
-  quantity: number;
-}> {
+): Promise<LineReturn> {
   const now = new Date().toISOString();
-
   const line = await db
-    .select()
+    .select({ line: orderProducts, trackInventory: products.trackInventory })
     .from(orderProducts)
+    .leftJoin(products, eq(products.id, orderProducts.productId))
     .where(and(eq(orderProducts.id, productLineId), eq(orderProducts.orderId, orderId)))
     .get();
+  if (!line) return { ok: false, reason: "line_not_found" };
+  const { quantity } = line.line;
+  if (newReturnedQty < 0 || newReturnedQty > quantity) return { ok: false, reason: "out_of_range", quantity };
 
-  if (!line) {
-    throw new Error(`Order line ${productLineId} not found on order ${orderId}`);
-  }
+  const before = line.line.returnedQuantity ?? 0;
+  const delta = newReturnedQty - before;
+  const status: "fulfilled" | "partially_returned" | "returned" =
+    newReturnedQty === 0 ? "fulfilled" : newReturnedQty === quantity ? "returned" : "partially_returned";
 
-  if (newReturnedQty < 0 || newReturnedQty > line.quantity) {
-    throw new Error(
-      `returnedQuantity must be between 0 and ${line.quantity} (got ${newReturnedQty})`,
+  const orderOpen = sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.status} <> 'cancelled')
+    and not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId} and ${shipments.returnedAt} is not null)`;
+  const applies = and(
+    sql`exists (select 1 from ${orderProducts} where ${orderProducts.id} = ${productLineId} and coalesce(${orderProducts.returnedQuantity}, 0) = ${before})`,
+    orderOpen,
+  )!;
+
+  const statements: BatchStatement[] = [];
+  if (delta !== 0 && line.trackInventory) {
+    const { productId, variantId } = line.line;
+    const stock = variantId
+      ? sql`(select ${productVariants.inventory} from ${productVariants} where ${productVariants.id} = ${variantId})`
+      : sql`(select ${products.inventory} from ${products} where ${products.id} = ${productId})`;
+    statements.push(
+      db.insert(stockMovements).select(
+        db
+          .select({
+            id: sql`${crypto.randomUUID()}`.as("id"),
+            productId: sql`${productId}`.as("product_id"),
+            variantId: sql`${variantId}`.as("variant_id"),
+            type: sql`'ORDER_RETURNED'`.as("type"),
+            delta: sql`${delta}`.as("delta"),
+            qtyBefore: sql`${stock}`.as("qty_before"),
+            qtyAfter: sql`max(0, ${stock} + ${delta})`.as("qty_after"),
+            reason: sql`null`.as("reason"),
+            reference: sql`${orderId}`.as("reference"),
+            createdBy: sql`${userId ?? "system"}`.as("created_by"),
+            createdByName: sql`${userName ?? "النظام"}`.as("created_by_name"),
+            createdAt: sql`${now}`.as("created_at"),
+          })
+          .from(sql`(select 1)`)
+          .where(applies),
+      ),
+      variantId
+        ? db
+            .update(productVariants)
+            .set({ inventory: sql`max(0, ${productVariants.inventory} + ${delta})`, updatedAt: now })
+            .where(and(eq(productVariants.id, variantId), applies))
+        : db
+            .update(products)
+            .set({ inventory: sql`max(0, ${products.inventory} + ${delta})`, updatedAt: now })
+            .where(and(eq(products.id, productId), applies)),
     );
   }
+  statements.push(
+    db
+      .update(orderProducts)
+      .set({ status, returnedQuantity: newReturnedQty })
+      .where(and(eq(orderProducts.id, productLineId), applies)),
+  );
 
-  const currentReturned = line.returnedQuantity ?? 0;
-  const delta = newReturnedQty - currentReturned;
-
-  if (delta !== 0) {
-    const productRow = await db
-      .select({ trackInventory: products.trackInventory })
-      .from(products)
-      .where(eq(products.id, line.productId))
-      .get();
-
-    if (productRow?.trackInventory) {
-      if (line.variantId) {
-        const variantRow = await db
-          .select({ inventory: productVariants.inventory })
-          .from(productVariants)
-          .where(eq(productVariants.id, line.variantId))
-          .get();
-
-        const qtyBefore = variantRow?.inventory ?? 0;
-        const qtyAfter = Math.max(0, qtyBefore + delta);
-
-        await db
-          .update(productVariants)
-          .set({ inventory: qtyAfter, updatedAt: now })
-          .where(eq(productVariants.id, line.variantId));
-
-        await db
-          .insert(stockMovements)
-          .values({
-            id: crypto.randomUUID(),
-            productId: line.productId,
-            variantId: line.variantId,
-            type: "ORDER_RETURNED",
-            delta,
-            qtyBefore,
-            qtyAfter,
-            reason: null,
-            reference: orderId,
-            createdBy: userId ?? "system",
-            createdByName: userName ?? "النظام",
-            createdAt: now,
-          })
-          .catch((err) =>
-            console.error("[stock] Failed to log ORDER_RETURNED movement:", err),
-          );
-      } else {
-        const productInventoryRow = await db
-          .select({ inventory: products.inventory })
-          .from(products)
-          .where(eq(products.id, line.productId))
-          .get();
-
-        const qtyBefore = productInventoryRow?.inventory ?? 0;
-        const qtyAfter = Math.max(0, qtyBefore + delta);
-
-        await db
-          .update(products)
-          .set({ inventory: qtyAfter, updatedAt: now })
-          .where(eq(products.id, line.productId));
-
-        await db
-          .insert(stockMovements)
-          .values({
-            id: crypto.randomUUID(),
-            productId: line.productId,
-            variantId: null,
-            type: "ORDER_RETURNED",
-            delta,
-            qtyBefore,
-            qtyAfter,
-            reason: null,
-            reference: orderId,
-            createdBy: userId ?? "system",
-            createdByName: userName ?? "النظام",
-            createdAt: now,
-          })
-          .catch((err) =>
-            console.error("[stock] Failed to log ORDER_RETURNED movement:", err),
-          );
-      }
-    }
+  const results = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+  if (((results.at(-1) as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0) {
+    return { ok: true, id: productLineId, status, returnedQuantity: newReturnedQty, quantity };
   }
-
-  const newStatus: "fulfilled" | "partially_returned" | "returned" =
-    newReturnedQty === 0
-      ? "fulfilled"
-      : newReturnedQty === line.quantity
-        ? "returned"
-        : "partially_returned";
-
-  await db
-    .update(orderProducts)
-    .set({ status: newStatus, returnedQuantity: newReturnedQty })
-    .where(eq(orderProducts.id, productLineId));
-
-  return {
-    id: line.id,
-    status: newStatus,
-    returnedQuantity: newReturnedQty,
-    quantity: line.quantity,
-  };
+  const open = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(and(eq(orders.id, orderId), orderOpen))
+    .get();
+  return { ok: false, reason: open ? "changed" : "order_closed" };
 }
 
 export type OrderDeletion = { ok: true } | { ok: false; reason: "not_found" | "has_open_shipment" | "settled" | "changed" };
@@ -767,12 +733,11 @@ async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion>
     statements.push(...restockStatements(db, lines, "ORDER_CANCELLED", orderId, { id: "system", name: "النظام" }, now, asRead, "Order deleted - inventory restored"));
   }
 
-  // company_api_logs and webhook_events reference orders(id) with no action on
-  // delete; shipments, their events, reviews and history cascade.
+  // company_api_logs references orders(id) with no action on delete; the
+  // shipment, its events, reviews and history cascade, and the inbox rows of
+  // the shipment are unlinked from it (shipment_id is set null).
   statements.push(
     db.delete(companyApiLogs).where(and(eq(companyApiLogs.orderId, orderId), asRead)),
-    db.delete(webhookEvents).where(and(eq(webhookEvents.orderId, orderId), asRead)),
-    db.delete(companyShipments).where(and(eq(companyShipments.orderId, orderId), asRead)),
     db.delete(orderProducts).where(and(eq(orderProducts.orderId, orderId), asRead)),
     db.delete(orders).where(and(eq(orders.id, orderId), asRead)),
   );

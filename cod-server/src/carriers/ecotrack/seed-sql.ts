@@ -42,7 +42,7 @@ export function buildEcotrackCompanyUpsert(courier: EcotrackCourier, timestamp: 
   const code = companyCode(courier.key);
 
   const columns =
-    "(id, name, name_ar, code, website, active, api_endpoint, api_token, api_user_guid, supports_home_delivery, supports_stop_desk, supports_tracking, webhook_secret, webhook_endpoint_id, webhook_status_mapping, auto_validate, notes, created_at, updated_at, provider)";
+    "(id, name, name_ar, code, website, active, api_endpoint, api_token, api_user_guid, supports_home_delivery, supports_stop_desk, webhook_secret, webhook_endpoint_id, auto_validate, notes, created_at, updated_at, provider)";
   const values = [
     sqlString(id),
     sqlString(courier.name),
@@ -55,8 +55,6 @@ export function buildEcotrackCompanyUpsert(courier: EcotrackCourier, timestamp: 
     "NULL",
     "1",
     "1",
-    "1",
-    "NULL",
     "NULL",
     "NULL",
     "0",

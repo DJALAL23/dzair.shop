@@ -210,7 +210,7 @@ const returnOrderProductRoute = defineRoute({
 
 The server computes the line status ("fulfilled" | "partially_returned" | "returned") from returnedQuantity vs. the line quantity, restocks the delta (repeated calls are idempotent), and logs an ORDER_RETURNED stock movement.
 
-Rejected with 422 while the overall order is already \`returned\` or \`cancelled\` — stock was already reconciled.`,
+Refused (422) once the order is cancelled or its parcel came back — every remaining unit is already back in stock; checked in the same write, so neither can happen in between.`,
   operationId: "returnOrderProduct",
   params: IdParamSchema.extend({
     productLineId: z.string().openapi({ description: "Order product line ID" }),
@@ -224,10 +224,9 @@ Rejected with 422 while the overall order is already \`returned\` or \`cancelled
     400: {
       description: "Validation error (VALIDATION_FAILED / VALUE_OUT_OF_RANGE)",
     },
-    422: {
-      description:
-        "Order is in a terminal state (returned/cancelled) — returns already reconciled",
-    },
+    404: { description: "Order or order line not found" },
+    409: { description: "The line changed meanwhile (ORDER_CHANGED)" },
+    422: { description: "The order is cancelled or its parcel came back (INVALID_STATUS_TRANSITION)" },
   },
   handler: handlers.returnOrderProduct,
 });

@@ -4,6 +4,7 @@ import { INTERPRETATION_KIND_VALUES, MILESTONES } from "../shipments/interpretat
 import { CARRIER_PROVIDERS } from "../carriers/providers";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
+import { ORDER_STATUSES } from "../orders/lifecycle";
 
 const authNow = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
@@ -377,9 +378,6 @@ export const deliveryCompanies = sqliteTable("delivery_companies", {
   supportsStopDesk: integer("supports_stop_desk", { mode: "boolean" })
     .notNull()
     .default(true),
-  supportsTracking: integer("supports_tracking", { mode: "boolean" })
-    .notNull()
-    .default(false),
 
   // ── Webhook Integration ───────────────────────────────────────────────────
   /**
@@ -393,12 +391,6 @@ export const deliveryCompanies = sqliteTable("delivery_companies", {
    * Used for unregister calls. null for Yalidine (manual setup, no endpoint ID).
    */
   webhookEndpointId: text("webhook_endpoint_id"),
-  /**
-   * ZR Express only: custom state name → our status mapping stored as JSON.
-   * Format: { ourStatus: [zrStateName, ...] }
-   * null = use code defaults only. null for Yalidine (statuses are hardcoded).
-   */
-  webhookStatusMapping: text("webhook_status_mapping"),
 
   /**
    * If true, our dispatcher calls valid/order immediately after create/order (default).
@@ -437,44 +429,11 @@ export const orders = sqliteTable("orders", {
   price: real("price").notNull(),
   notes: text("notes"),
   status: text("status", {
-    enum: [
-      "new",
-      "confirmed",
-      "unreachable",
-      "preparing",
-      "ready",
-      "assigned",
-      "dispatched",
-      "out_for_delivery",
-      "delivered",
-      "returned",
-      "cancelled",
-    ],
+    enum: ORDER_STATUSES,
   }).notNull().default("new"),
   orderType: text("order_type", { enum: ["online", "offline"] })
     .notNull()
     .default("online"),
-
-  // ── Delivery assignment ──────────────────────────────────────────────────
-  /**
-   * "unassigned" at creation — the customer only picks a price tier; the admin
-   * later picks how to fulfil (driver vs company). Writes to driver/company
-   * assignment endpoints flip this automatically.
-   */
-  deliveryMethod: text("delivery_method", { enum: ["unassigned", "driver", "company"] })
-    .notNull()
-    .default("unassigned"),
-  driverId: text("driver_id").references(() => drivers.id),
-  companyId: text("company_id").references(() => deliveryCompanies.id),
-
-  assignedAt: text("assigned_at"),
-  assignedBy: text("assigned_by"),
-  assignmentNotes: text("assignment_notes"),
-
-  // ── Tracking ─────────────────────────────────────────────────────────────
-  trackingNumber: text("tracking_number"),
-  trackingUrl: text("tracking_url"),
-  externalOrderId: text("external_order_id"),
 
   // ── Delivery specifics ────────────────────────────────────────────────────
   deliveryType: text("delivery_type", { enum: ["home", "stop_desk"] })
@@ -493,33 +452,8 @@ export const orders = sqliteTable("orders", {
    * Set at order creation and NEVER changed after that.
    */
   deliveryFee: real("delivery_fee").notNull().default(0),
-  /**
-   * The driver's cut for this delivery (from the driver's shipping profile for this wilaya).
-   * Set when a driver is assigned.
-   */
-  driverFee: real("driver_fee").notNull().default(0),
-  /**
-   * Cash-on-delivery amount the driver must collect from the customer.
-   * Set to order.price + delivery_fee on creation. Added to driver.pendingCash when delivered.
-   */
+  /** What the customer owes on delivery: the price and the delivery fee, set at creation. */
   codAmount: real("cod_amount").notNull().default(0),
-
-  /** Parcel weight in kg — sent to carrier API when set (optional). */
-  weight: real("weight"),
-  /** Fragile parcel flag — sent to carrier API when set (optional). */
-  isFragile: integer("is_fragile", { mode: "boolean" }),
-
-  pickupTime: text("pickup_time"),
-  deliveryTime: text("delivery_time"),
-  deliveryAttempts: integer("delivery_attempts").default(0),
-
-  photos: text("photos"), // JSON array
-
-  // ── Payment settlement tracking ───────────────────────────────────────────
-  /** Set when the COD amount of this order has been remitted to the shop. */
-  codPaymentId: text("cod_payment_id"),
-  /** Set when the driver's delivery fee for this order has been paid out. */
-  feePaymentId: text("fee_payment_id"),
 
   // ── Meta Pixel / CAPI attribution ────────────────────────────────────────
   /** _fbc cookie captured at placement — links the sale back to the ad click. */
@@ -563,50 +497,13 @@ export const orders = sqliteTable("orders", {
   customFieldsJson: text("custom_fields_json"),
 });
 
-export const orderAssignments = sqliteTable("order_assignments", {
-  id: text("id").primaryKey(),
-  orderId: text("order_id")
-    .notNull()
-    .references(() => orders.id, { onDelete: "cascade" }),
-
-  assigneeType: text("assignee_type", { enum: ["driver", "company"] }).notNull(),
-  assigneeId: text("assignee_id").notNull(),
-  assigneeName: text("assignee_name").notNull(),
-
-  assignedBy: text("assigned_by").notNull(),
-  assignedAt: text("assigned_at").notNull(),
-  unassignedAt: text("unassigned_at"),
-  reason: text("reason"),
-
-  acceptedAt: text("accepted_at"),
-  pickupAt: text("pickup_at"),
-  deliveredAt: text("delivered_at"),
-  status: text("status", {
-    enum: ["assigned", "accepted", "picked_up", "delivered", "returned", "cancelled"],
-  })
-    .notNull()
-    .default("assigned"),
-});
-
 export const orderStatusHistory = sqliteTable("order_status_history", {
   id: text("id").primaryKey(),
   orderId: text("order_id")
     .notNull()
     .references(() => orders.id, { onDelete: "cascade" }),
   status: text("status", {
-    enum: [
-      "new",
-      "confirmed",
-      "unreachable",
-      "preparing",
-      "ready",
-      "assigned",
-      "dispatched",
-      "out_for_delivery",
-      "delivered",
-      "returned",
-      "cancelled",
-    ],
+    enum: ORDER_STATUSES,
   }).notNull(),
   timestamp: text("timestamp").notNull(),
   by: text("by"),
@@ -781,35 +678,6 @@ export const companyStopDesks = sqliteTable("company_stop_desks", {
   companyCodeUnique: uniqueIndex("company_stop_desks_company_code_unique")
                        .on(t.companyId, t.code),
 }));
-
-/**
- * Tracks shipments created via third-party delivery company APIs.
- * One record per API-dispatched shipment, linked to the order.
- *
- * Intentionally carries NO status column — the order's lifecycle is owned by
- * orders.status (single source of truth). This table only stores the
- * carrier-side handle (tracking number, label, raw response) and the
- * validated flag for the provider's two-step create→validate flow.
- */
-export const companyShipments = sqliteTable("company_shipments", {
-  id: text("id").primaryKey(),
-  orderId: text("order_id")
-    .notNull()
-    .references(() => orders.id, { onDelete: "cascade" }),
-  companyId: text("company_id")
-    .notNull()
-    .references(() => deliveryCompanies.id),
-  /** Tracking number returned by the company API (e.g. "ECS12345678"). */
-  trackingNumber: text("tracking_number").notNull(),
-  /** Whether the shipment has been validated via the company's validate endpoint. */
-  validated: integer("validated", { mode: "boolean" }).notNull().default(false),
-  /** URL to the printable shipping label PDF, if available. */
-  labelUrl: text("label_url"),
-  /** Raw JSON response from the create-shipment API call. */
-  rawResponse: text("raw_response"), // JSON
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-});
 
 /**
  * Audit log for every outbound API call to delivery company APIs.
@@ -1252,14 +1120,10 @@ export const stockMovements = sqliteTable("stock_movements", {
 // ─── Webhook Events ───────────────────────────────────────────────────────────
 
 /**
- * Idempotency + audit log for every inbound webhook delivery from ZR Express or Yalidine.
- * UNIQUE(provider, event_id) prevents the same event from being processed twice.
- *
- * result values:
- *   ok       — order status was updated
- *   ignored  — event received, logged, no status change (non-status event / terminal order / same status)
- *   unmapped — state/status name not found in any mapping; admin must add it
- *   error    — exception during processing; still returned 200 to provider
+ * The webhook inbox: every delivery from ZR Express or Yalidine, stored before
+ * it is answered and processed after (cod-server/src/inbound). UNIQUE(provider,
+ * event_id) stores the same event once. `result` says what processing made of
+ * it (cod-shared/inbound/inbox.ts); a matched event links its shipment.
  */
 export const webhookEvents = sqliteTable("webhook_events", {
   id: text("id").primaryKey(),
@@ -1270,8 +1134,6 @@ export const webhookEvents = sqliteTable("webhook_events", {
   companyId: text("company_id")
     .notNull()
     .references(() => deliveryCompanies.id),
-  /** null if order not found by tracking/reference */
-  orderId: text("order_id").references(() => orders.id),
   /** raw tracking number from the provider payload */
   tracking: text("tracking"),
   /** 'parcel.state.updated' / 'parcel_status_updated' / etc. */
@@ -1280,8 +1142,6 @@ export const webhookEvents = sqliteTable("webhook_events", {
   rawPayload: text("raw_payload").notNull(),
   /** pending | ok | ignored | unmatched | unknown_status | deferred_settlement | error | dead (`unmapped` on older rows) */
   result: text("result").notNull().default("pending"),
-  /** the status we set on the order (when result='ok') */
-  newStatus: text("new_status"),
   /** Yalidine reason field / ZR situation name */
   reason: text("reason"),
   errorMsg: text("error_msg"),

@@ -173,11 +173,10 @@ describe("Orders — targeted business-logic tests", () => {
     for (const delivery of ["assigned", "dispatched", "out_for_delivery", "delivered", "returned"]) {
       it(`${delivery} is not an order status — delivery is the shipment's`, async () => expect(await transition("ready", delivery)).toBe(400));
     }
-    it("an order still in an old delivery status moves nowhere", async () => expect(await transition("delivered", "cancelled")).toBe(400));
 
     // Context fields on blocked transitions
     it("blocked transition response includes currentStatus, targetStatus, allowedTransitions", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "delivered" }) as any);
+      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "cancelled" }) as any);
       const res = await app.request("/api/orders/ord_1/status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -185,7 +184,7 @@ describe("Orders — targeted business-logic tests", () => {
       });
       const body: any = await res.json();
       expect(body.code).toBe("INVALID_STATUS_TRANSITION");
-      expect(body.context.currentStatus).toBe("delivered");
+      expect(body.context.currentStatus).toBe("cancelled");
       expect(body.context.targetStatus).toBe("confirmed");
       expect(body.context.allowedTransitions).toEqual([]);
     });
@@ -296,80 +295,36 @@ describe("Orders — targeted business-logic tests", () => {
 
   // ─── 10. returnOrderProduct: second call corrects without double-restock ──
 
-  describe("PATCH /api/orders/{id}/products/{productLineId}/return — idempotency", () => {
-    it("second call with same quantity is a no-op (returns same result)", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ status: "delivered" }) as any
-      );
-      vi.mocked(queries.setOrderProductReturn).mockResolvedValue({
-        returnedQuantity: 2,
-        status: "returned",
-        id: "op_1",
-        quantity: 2,
-      } as any);
-
-      const res = await app.request("/api/orders/ord_1/products/op_1/return", {
+  describe("PATCH /api/orders/{id}/products/{productLineId}/return — outcomes", () => {
+    const send = (returnedQuantity: number) =>
+      app.request("/api/orders/ord_1/products/op_1/return", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ returnedQuantity: 2 }),
+        body: JSON.stringify({ returnedQuantity }),
       });
 
+    it("a recorded return answers with the line's state", async () => {
+      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
+      vi.mocked(queries.setOrderProductReturn).mockResolvedValue({ ok: true, id: "op_1", status: "partially_returned", returnedQuantity: 1, quantity: 3 });
+      const res = await send(1);
       expect(res.status).toBe(200);
       const body: any = await res.json();
-      expect(body.data.returnedQuantity).toBe(2);
-      expect(body.data.status).toBe("returned");
+      expect(body.data).toEqual({ id: "op_1", status: "partially_returned", returnedQuantity: 1, quantity: 3 });
     });
 
-    it("correcting an overstated return (reducing returnedQty) is allowed", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ status: "delivered" }) as any
-      );
-      // Reduce from 3 returned to 1 returned (customer only refused 1, not 3)
-      vi.mocked(queries.setOrderProductReturn).mockResolvedValue({
-        returnedQuantity: 1,
-        status: "partially_returned",
-        id: "op_1",
-        quantity: 3,
-      } as any);
-
-      const res = await app.request("/api/orders/ord_1/products/op_1/return", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ returnedQuantity: 1 }),
-      });
-
-      expect(res.status).toBe(200);
-      const body: any = await res.json();
-      expect(body.data.status).toBe("partially_returned");
-      expect(body.data.returnedQuantity).toBe(1);
-    });
-
-    it("returns 422 when order is in cancelled state", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ status: "cancelled" }) as any
-      );
-
-      const res = await app.request("/api/orders/ord_1/products/op_1/return", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ returnedQuantity: 1 }),
-      });
-
-      expect(res.status).toBe(422);
-    });
-
-    it("returns 422 when order is already returned", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ status: "returned" }) as any
-      );
-
-      const res = await app.request("/api/orders/ord_1/products/op_1/return", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ returnedQuantity: 1 }),
-      });
-
-      expect(res.status).toBe(422);
+    it("refusals keep their meaning", async () => {
+      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
+      for (const [reason, status, code] of [
+        ["order_closed", 422, "INVALID_STATUS_TRANSITION"],
+        ["changed", 409, "ORDER_CHANGED"],
+        ["line_not_found", 404, undefined],
+        ["out_of_range", 400, "VALUE_OUT_OF_RANGE"],
+      ] as const) {
+        vi.mocked(queries.setOrderProductReturn).mockResolvedValue({ ok: false, reason, quantity: 3 });
+        const res = await send(1);
+        expect(res.status, reason).toBe(status);
+        if (code) expect(((await res.json()) as any).code, reason).toBe(code);
+      }
     });
   });
 

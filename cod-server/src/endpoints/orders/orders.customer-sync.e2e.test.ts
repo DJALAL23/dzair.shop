@@ -99,7 +99,7 @@ async function seedOrder(customerId: string, customerName: string, phone: string
     status: "new",
     deliveryType: "home",
     deliveryFee: 400,
-    driverFee: 0,
+    
     codAmount: 2500,
     createdAt: NOW(),
     updatedAt: NOW(),

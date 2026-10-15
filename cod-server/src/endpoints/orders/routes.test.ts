@@ -579,7 +579,7 @@ describe("Orders routes (OpenAPIHono)", () => {
     });
 
     it("blocks an invalid backward transition with 400 INVALID_STATUS_TRANSITION", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "delivered" }) as any);
+      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "cancelled" }) as any);
 
       const res = await app.request("/api/orders/ord_1/status", {
         method: "PATCH",
@@ -597,10 +597,7 @@ describe("Orders routes (OpenAPIHono)", () => {
   describe("PATCH /api/orders/{id}/products/{productLineId}/return", () => {
     it("records a return and reports derived status", async () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
-      vi.mocked(queries.setOrderProductReturn).mockResolvedValue({
-        returnedQuantity: 1,
-        status: "partially_returned",
-      } as any);
+      vi.mocked(queries.setOrderProductReturn).mockResolvedValue({ ok: true, id: "op_1", returnedQuantity: 1, status: "partially_returned", quantity: 2 });
 
       const res = await app.request("/api/orders/ord_1/products/op_1/return", {
         method: "PATCH",
@@ -613,8 +610,9 @@ describe("Orders routes (OpenAPIHono)", () => {
       expect(body.data.status).toBe("partially_returned");
     });
 
-    it("returns 422 on a terminal-state order", async () => {
+    it("returns 422 once the order is cancelled or its parcel came back", async () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "cancelled" }) as any);
+      vi.mocked(queries.setOrderProductReturn).mockResolvedValue({ ok: false, reason: "order_closed" });
 
       const res = await app.request("/api/orders/ord_1/products/op_1/return", {
         method: "PATCH",

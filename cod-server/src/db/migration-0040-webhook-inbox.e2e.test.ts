@@ -1,13 +1,10 @@
 /**
  * Migration 0040 on real D1: the inbox gains its processing columns, rows
  * stored before it keep everything they had and are never picked up by the
- * sweep (the old handler already processed them), and the columns match
- * their Drizzle definitions.
+ * sweep (the old handler already processed them).
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { getTableColumns } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
-import * as schema from "@/db/schema";
 import { dueInboxEvents } from "../../../cod-shared/inbound/inbox";
 
 let d1: TestD1;
@@ -24,7 +21,7 @@ beforeAll(async () => {
       .prepare("INSERT INTO webhook_events (id, provider, event_id, company_id, event_type, raw_payload, result, created_at) VALUES ('old-pending', 'yalidine', 'e2', 'co1', 'parcel_status_updated', '{}', 'pending', ?)")
       .bind(NOW),
   ]);
-  await d1.applyRemaining();
+  await d1.applyRemaining({ until: "0041_order_shipment_split.sql" });
 }, 120_000);
 
 afterAll(async () => {
@@ -33,15 +30,16 @@ afterAll(async () => {
 
 describe("migration 0040", () => {
   it("keeps every older row as it was, with no try counted and nothing due", async () => {
-    const rows = await d1.db.select().from(schema.webhookEvents).all();
-    expect(rows.find((r) => r.id === "old-ok")).toMatchObject({ result: "ok", newStatus: "delivered", tracking: "yal-1", attempts: 0, nextAttemptAt: null, shipmentId: null });
-    expect(rows.find((r) => r.id === "old-pending")).toMatchObject({ result: "pending", attempts: 0, nextAttemptAt: null });
+    // Read raw: the Drizzle schema describes the database after every migration.
+    const { results: rows } = await d1.raw.prepare("SELECT * FROM webhook_events").all<Record<string, unknown>>();
+    expect(rows.find((r) => r.id === "old-ok")).toMatchObject({ result: "ok", new_status: "delivered", tracking: "yal-1", attempts: 0, next_attempt_at: null, shipment_id: null });
+    expect(rows.find((r) => r.id === "old-pending")).toMatchObject({ result: "pending", attempts: 0, next_attempt_at: null });
     expect(await dueInboxEvents(d1.db, 10, new Date("2030-01-01T00:00:00Z"))).toEqual([]);
   });
 
-  it("has exactly the columns Drizzle defines", async () => {
+  it("adds its three columns", async () => {
     const { results } = await d1.raw.prepare("SELECT name FROM pragma_table_info('webhook_events')").all<{ name: string }>();
-    expect(results.map((r) => r.name).sort()).toEqual(Object.values(getTableColumns(schema.webhookEvents)).map((c) => c.name).sort());
+    expect(results.map((r) => r.name)).toEqual(expect.arrayContaining(["shipment_id", "attempts", "next_attempt_at"]));
   });
 
   it("indexes what the sweep and the shipment's audit read", async () => {

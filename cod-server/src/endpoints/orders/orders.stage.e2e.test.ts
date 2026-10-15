@@ -70,7 +70,7 @@ describe("the order list", () => {
       driven: ["delivered", false, true],
       lost: ["handoff_pending", true, true],
     });
-    expect(rows.get("driven")).toMatchObject({ status: "ready", driverName: "Amine Bouzid", driverId: null });
+    expect(rows.get("driven")).toMatchObject({ status: "ready", driverName: "Amine Bouzid" });
     expect(rows.get("carried")!.driverName).toBeNull();
   });
 
@@ -91,8 +91,7 @@ describe("the order list", () => {
 });
 
 describe("orders by stage", () => {
-  it("counts each stage that has orders, and how many need attention — a legacy order has no stage", async () => {
-    await d1.db.insert(schema.orders).values({ id: "legacy", orderNumber: "ORD-legacy", customerId: "c1", customerName: "K", phone: "0551234567", price: 1000, status: "delivered", createdAt: T0, updatedAt: T0 });
+  it("counts each stage that has orders, and how many need attention", async () => {
     const res = await call("GET", "/api/analytics/order-stages");
     expect(res.status).toBe(200);
     const { data } = await json(res);

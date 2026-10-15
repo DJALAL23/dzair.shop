@@ -10,15 +10,11 @@
 
 import { sql, type SQL } from "drizzle-orm";
 import { orders, shipments } from "../db/schema";
-import { ORDER_STATUSES } from "./lifecycle";
 import type { OrderStage } from "./stage";
 
-const statuses = sql.join(ORDER_STATUSES.map((s) => sql`${s}`), sql`, `);
-
-/** The order's stage; null for a legacy order still in an old delivery status. */
-export function orderStageSql(): SQL<OrderStage | null> {
-  return sql<OrderStage | null>`case
-    when ${orders.status} not in (${statuses}) then null
+/** The order's stage. */
+export function orderStageSql(): SQL<OrderStage> {
+  return sql<OrderStage>`case
     when ${orders.status} = 'cancelled' then 'cancelled'
     when ${shipments.id} is null then case when ${orders.status} = 'ready' then 'ready_to_ship' else ${orders.status} end
     when ${shipments.handoffState} <> 'accepted' then 'handoff_pending'

@@ -87,19 +87,23 @@ beforeAll(async () => {
   await realDb.insert(schema.orders).values({
     id: "ord-events-1", orderNumber: "ORD-EVT-1", customerId: "cust-events",
     customerName: "Events Customer", phone: "0555000333", price: 1000,
-    status: "delivered", deliveryMethod: "company", deliveryType: "home",
-    trackingNumber: "yal-EVT1", companyId: "comp-events",
-    deliveryFee: 0, driverFee: 0, codAmount: 1000, createdAt: now, updatedAt: now,
+    status: "ready", deliveryType: "home",
+    deliveryFee: 0, codAmount: 1000, createdAt: now, updatedAt: now,
+  });
+  await realDb.insert(schema.shipments).values({
+    id: "shp-events-1", orderId: "ord-events-1", kind: "carrier", companyId: "comp-events", handoffState: "accepted",
+    carrierParcelId: "yal-EVT1", trackingNumber: "yal-EVT1", deliveryType: "home", codAmount: 1000,
+    revision: "r", createdAt: now, updatedAt: now,
   });
 
   // Seed a spread of event outcomes — the operational lens the UI relies on.
   const events = [
-    { eventId: "evt-ok-1", result: "ok", newStatus: "delivered", reason: null, orderId: "ord-events-1", tracking: "yal-EVT1", eventType: "parcel_status_updated", offsetSec: 60 },
-    { eventId: "evt-ignored-1", result: "ignored", newStatus: null, reason: "En attente du client", orderId: "ord-events-1", tracking: "yal-EVT1", eventType: "parcel_status_updated", offsetSec: 50 },
-    { eventId: "evt-attempts-1", result: "ignored", newStatus: null, reason: "Client ne répond pas", orderId: "ord-events-1", tracking: "yal-EVT1", eventType: "parcel_status_updated", offsetSec: 40 },
-    { eventId: "evt-unmapped-1", result: "unmapped", newStatus: null, reason: "Nouveau Statut Inconnu", orderId: null, tracking: "yal-EVT2", eventType: "parcel_status_updated", offsetSec: 30 },
-    { eventId: "evt-error-1", result: "error", newStatus: null, reason: null, errorMsg: "boom", orderId: null, tracking: "yal-EVT3", eventType: "parcel_payment_updated", offsetSec: 20 },
-    { eventId: "evt-pending-1", result: "pending", newStatus: null, reason: null, orderId: null, tracking: "yal-EVT4", eventType: "parcel_created", offsetSec: 10 },
+    { eventId: "evt-ok-1", result: "ok", reason: null, shipmentId: "shp-events-1", tracking: "yal-EVT1", eventType: "parcel_status_updated", offsetSec: 60 },
+    { eventId: "evt-ignored-1", result: "ignored", reason: "En attente du client", shipmentId: "shp-events-1", tracking: "yal-EVT1", eventType: "parcel_status_updated", offsetSec: 50 },
+    { eventId: "evt-attempts-1", result: "ignored", reason: "Client ne répond pas", shipmentId: "shp-events-1", tracking: "yal-EVT1", eventType: "parcel_status_updated", offsetSec: 40 },
+    { eventId: "evt-unmapped-1", result: "unmapped", reason: "Nouveau Statut Inconnu", shipmentId: null, tracking: "yal-EVT2", eventType: "parcel_status_updated", offsetSec: 30 },
+    { eventId: "evt-error-1", result: "error", reason: null, errorMsg: "boom", shipmentId: null, tracking: "yal-EVT3", eventType: "parcel_payment_updated", offsetSec: 20 },
+    { eventId: "evt-pending-1", result: "pending", reason: null, shipmentId: null, tracking: "yal-EVT4", eventType: "parcel_created", offsetSec: 10 },
   ];
   for (const e of events) {
     await realDb.insert(schema.webhookEvents).values({
@@ -107,12 +111,11 @@ beforeAll(async () => {
       provider: "yalidine",
       eventId: e.eventId,
       companyId: "comp-events",
-      orderId: e.orderId,
+      shipmentId: e.shipmentId,
       tracking: e.tracking,
       eventType: e.eventType,
       rawPayload: "{}",
       result: e.result,
-      newStatus: e.newStatus,
       reason: e.reason,
       errorMsg: e.errorMsg ?? null,
       processedAt: e.result === "pending" ? null : new Date(Date.now() - e.offsetSec * 1000).toISOString(),
@@ -143,10 +146,10 @@ describe("GET /api/delivery-companies/:id/webhook/events — real D1", () => {
     // Newest first — the pending event (10s ago) leads.
     expect(body.data.events[0].eventId).toBe("evt-pending-1");
     expect(body.data.events[5].eventId).toBe("evt-ok-1");
-    // orderNumber joined where orderId resolves.
+    // The order, through the shipment the event was recorded on.
     const okEvent = body.data.events.find((e: any) => e.eventId === "evt-ok-1");
-    expect(okEvent.orderNumber).toBe("ORD-EVT-1");
-    expect(okEvent.newStatus).toBe("delivered");
+    expect(okEvent).toMatchObject({ shipmentId: "shp-events-1", orderId: "ord-events-1", orderNumber: "ORD-EVT-1" });
+    expect("newStatus" in okEvent).toBe(false);
     const unmapped = body.data.events.find((e: any) => e.eventId === "evt-unmapped-1");
     expect(unmapped.orderNumber).toBeNull();
     expect(unmapped.reason).toBe("Nouveau Statut Inconnu");

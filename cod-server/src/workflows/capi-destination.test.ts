@@ -173,7 +173,7 @@ async function seedOrder(scenario: Scenario = {}) {
     customerEmail: scenario.customerEmail ?? null,
     price: 5000,
     deliveryFee: 600,
-    status: "delivered",
+    status: "ready",
     createdAt: NOW(),
     updatedAt: NOW(),
   });

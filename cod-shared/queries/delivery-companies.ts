@@ -30,7 +30,6 @@ export interface CreateDeliveryCompanyData {
   apiUserGuid?: string | null;
   supportsHomeDelivery: boolean;
   supportsStopDesk: boolean;
-  supportsTracking: boolean;
   /** When omitted, the DB default (true) applies. Provider-specific defaults live at the HTTP handler. */
   autoValidate?: boolean;
   notes?: string | null;
@@ -50,7 +49,6 @@ export interface UpdateDeliveryCompanyData {
   apiUserGuid?: string | null;
   supportsHomeDelivery?: boolean;
   supportsStopDesk?: boolean;
-  supportsTracking?: boolean;
   autoValidate?: boolean;
   notes?: string | null;
 }
@@ -89,10 +87,8 @@ function sanitize(company: typeof deliveryCompanies.$inferSelect) {
     isConnected: !!company.apiToken,
     supportsHomeDelivery: company.supportsHomeDelivery,
     supportsStopDesk: company.supportsStopDesk,
-    supportsTracking: company.supportsTracking,
     webhookSecret: maskSecret(company.webhookSecret),
     webhookEndpointId: company.webhookEndpointId,
-    webhookStatusMapping: company.webhookStatusMapping,
     autoValidate: company.autoValidate,
     notes: maskNotes(company.notes),
     provider: company.provider,
@@ -181,7 +177,6 @@ export async function createDeliveryCompany(
     apiUserGuid: data.apiUserGuid ?? null,
     supportsHomeDelivery: data.supportsHomeDelivery,
     supportsStopDesk: data.supportsStopDesk,
-    supportsTracking: data.supportsTracking,
     // Only forward autoValidate when the caller supplied a value — otherwise
     // fall through to the DB column default (true). Keeps behavior symmetric
     // with all other optional columns in this insert.

@@ -129,8 +129,8 @@ describe("Slice 1 — landing pages schema on real D1", () => {
     await db.insert(schema.orders).values({
       id: "ord-lp-s3", orderNumber: "ORD-LP-S3", customerId: "cust-lp-s3",
       customerName: "LP Customer", phone: "0555000001", price: 5000,
-      status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-      deliveryFee: 0, driverFee: 0, codAmount: 5000,
+      status: "new", deliveryType: "home",
+      deliveryFee: 0, codAmount: 5000,
       landingPageId: "lp-3",
       createdAt: NOW(), updatedAt: NOW(),
     });
@@ -154,8 +154,8 @@ describe("Slice 1 — landing pages schema on real D1", () => {
     await db.insert(schema.orders).values({
       id: "ord-lp-s4", orderNumber: "ORD-LP-S4", customerId: "cust-lp-s4",
       customerName: "LP Customer 2", phone: "0555000002", price: 3000,
-      status: "new", deliveryMethod: "unassigned", deliveryType: "home",
-      deliveryFee: 0, driverFee: 0, codAmount: 3000,
+      status: "new", deliveryType: "home",
+      deliveryFee: 0, codAmount: 3000,
       createdAt: NOW(), updatedAt: NOW(),
     });
 

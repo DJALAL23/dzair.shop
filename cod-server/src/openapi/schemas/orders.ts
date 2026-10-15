@@ -16,24 +16,12 @@
 import { z } from "@hono/zod-openapi";
 import { ShipmentSchema } from "./shipments";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
+import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
 
 // ─── Enums & Constants ────────────────────────────────────────────────────────
 
-export const OrderStatusEnum = z.enum([
-  "new",
-  "confirmed",
-  "unreachable",
-  "preparing",
-  "ready",
-  "assigned",
-  "dispatched",
-  "out_for_delivery",
-  "delivered",
-  "returned",
-  "cancelled",
-]);
+export const OrderStatusEnum = z.enum(ORDER_STATUSES);
 
-export const DeliveryMethodEnum = z.enum(["unassigned", "driver", "company"]);
 export const DeliveryTypeEnum = z.enum(["home", "stop_desk"]);
 export const OrderTypeEnum = z.enum(["online", "offline"]);
 export const OrderProductStatusEnum = z.enum(["fulfilled", "partially_returned", "returned"]);
@@ -121,61 +109,20 @@ const OrderBaseSchema = z.object({
     example: 9000,
   }),
   deliveryFee: z.number().openapi({ example: 400 }),
-  driverFee: z.number().openapi({
-    description:
-      "What the store pays the driver for this delivery, looked up from driver_compensations by (driverId, wilayaId). 0 when no compensation row exists or no driver assigned.",
-    example: 250,
-  }),
   codAmount: z.number().nullable().openapi({
-    description: "Amount the driver collects from customer: price + deliveryFee",
+    description: "What the customer owes on delivery: price + deliveryFee",
     example: 9400,
   }),
 
-  // Status & workflow
-  status: OrderStatusEnum,
+  // Status
+  status: OrderStatusEnum.openapi({ description: "The order's processing; its delivery is its shipment's (see `stage`)" }),
   orderType: OrderTypeEnum,
-  deliveryMethod: DeliveryMethodEnum.openapi({
-    description:
-      "Default 'unassigned' at creation; flips to 'driver' or 'company' on assignment.",
-  }),
-  deliveryType: DeliveryTypeEnum,
-
-  // Assignment & dispatch
-  driverId: z.string().nullable(),
-  driverName: z.string().nullable().openapi({
-    description: "Driver display name, joined from drivers table",
-  }),
-  companyId: z.string().nullable(),
-  assignedAt: z.string().datetime().nullable(),
-  assignedBy: z.string().nullable(),
-  assignmentNotes: z.string().nullable(),
-  
-  // Carrier integration
-  trackingNumber: z.string().nullable(),
-  trackingUrl: z.string().nullable(),
-  externalOrderId: z.string().nullable(),
+  deliveryType: DeliveryTypeEnum.openapi({ description: "What the customer asked for; the shipment may ship otherwise" }),
   stationCode: z.string().nullable(),
-
-  // Delivery tracking
-  pickupTime: z.string().datetime().nullable(),
-  deliveryTime: z.string().datetime().nullable(),
-  deliveryAttempts: z.number().int().nullable(),
-  
-  // Metadata
+  driverName: z.string().nullable().openapi({
+    description: "The name of the store's driver delivering it, when its shipment is a driver's",
+  }),
   notes: z.string().nullable(),
-  photos: z.string().nullable().openapi({
-    description: "JSON array of photo URLs — delivery proof photos",
-  }),
-  weight: z.number().nullable().openapi({
-    description: "Parcel weight in kg — sent to carrier API when set",
-  }),
-  isFragile: z.boolean().nullable().openapi({
-    description: "Fragile parcel flag — sent to carrier API when set",
-  }),
-
-  // Payment reconciliation
-  codPaymentId: z.string().nullable(),
-  feePaymentId: z.string().nullable(),
 
   // Timestamps
   createdAt: z.string().datetime(),
@@ -205,8 +152,8 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
       "User ID of the last status-change actor. Included in list responses only (GET /api/orders).",
   }),
   shipmentId: z.string().nullable().optional().openapi({ description: "The order's shipment, or null before handoff. List responses only." }),
-  stage: z.enum(ORDER_STAGES).nullable().optional().openapi({
-    description: "Where the order stands overall — its processing, then its shipment's delivery. Null for a legacy order still in an old delivery status. List responses only.",
+  stage: z.enum(ORDER_STAGES).optional().openapi({
+    description: "Where the order stands overall — its processing, then its shipment's delivery. List responses only.",
   }),
   needsAttention: z.boolean().optional().openapi({ description: "Whether the order's delivery needs the merchant. List responses only." }),
 }).openapi("OrderListItem", {
@@ -228,8 +175,8 @@ export const OrderDetailSchema = OrderBaseSchema.extend({
   shipment: ShipmentSchema.nullable().optional().openapi({
     description: "The order's delivery, with its history and the actions available now; null before handoff. Detail view only.",
   }),
-  stage: z.enum(ORDER_STAGES).nullable().optional().openapi({
-    description: "Where the order stands overall — its processing, then its shipment's delivery. Null for a legacy order still in an old delivery status.",
+  stage: z.enum(ORDER_STAGES).optional().openapi({
+    description: "Where the order stands overall — its processing, then its shipment's delivery.",
   }),
   needsAttention: z.boolean().optional().openapi({
     description: "The merchant must act on the delivery: the carrier flagged it, the handoff outcome is unknown, or the carrier cancelled it",
@@ -288,7 +235,6 @@ export const ReturnProductDataSchema = z
 // ─── Re-exports ───────────────────────────────────────────────────────────────
 
 export type OrderStatus = z.infer<typeof OrderStatusEnum>;
-export type DeliveryMethod = z.infer<typeof DeliveryMethodEnum>;
 export type DeliveryType = z.infer<typeof DeliveryTypeEnum>;
 export type OrderType = z.infer<typeof OrderTypeEnum>;
 export type OrderProductStatus = z.infer<typeof OrderProductStatusEnum>;

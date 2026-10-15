@@ -72,7 +72,6 @@ const createBodySchema = z.object({
   apiUserGuid: z.string().optional().nullable().openapi({ description: "Tenant/user GUID for ZR Express" }),
   supportsHomeDelivery: z.boolean().default(true),
   supportsStopDesk: z.boolean().default(true),
-  supportsTracking: z.boolean().default(false),
   autoValidate: z.boolean().optional().openapi({
     description:
       "When true, orders are auto-validated on dispatch (locked at carrier). " +
@@ -102,7 +101,6 @@ const updateBodySchema = z.object({
   apiUserGuid: z.string().optional().nullable(),
   supportsHomeDelivery: z.boolean().optional(),
   supportsStopDesk: z.boolean().optional(),
-  supportsTracking: z.boolean().optional(),
   autoValidate: z.boolean().optional(),
   notes: z.string().optional().nullable(),
   provider: z.enum(CARRIER_PROVIDERS).optional().nullable().openapi({
@@ -131,18 +129,6 @@ const toggleParams = z.object({
 
 const saveSecretBodySchema = z.object({
   secret: z.string().min(1).openapi({ description: "Webhook secret key from Yalidine dashboard" }),
-});
-
-const saveMappingBodySchema = z.object({
-  mapping: z.record(z.string(), z.array(z.string())).openapi({
-    description:
-      "Keys must be valid our-status strings (new, preparing, assigned, out_for_delivery, delivered, returned, cancelled). " +
-      "Values are arrays of ZR state names.",
-    example: {
-      delivered: ["Livré", "Delivered"],
-      returned: ["Retourné", "Returned"],
-    },
-  }),
 });
 
 // ─── Route Definitions ─────────────────────────────────────────────────────────
@@ -499,24 +485,6 @@ const saveYalidineSecretRoute = defineRoute({
   handler: webhookHandlers.saveYalidineSecret,
 });
 
-const saveZrMappingRoute = defineRoute({
-  method: "patch",
-  path: "/{id}/webhook/mapping",
-  auth: { scope: SCOPES.DELIVERY_MANAGE },
-  tags: ["Delivery Companies"],
-  summary: "Save ZR status mapping",
-  description: "Saves the custom ZR state name → our status mapping for this company.",
-  params: idParams,
-  body: saveMappingBodySchema,
-  responses: {
-    200: {
-      description: "Mapping saved",
-      content: jsonContent(z.object({ success: z.boolean() })),
-    },
-  },
-  handler: webhookHandlers.saveZrStatusMapping,
-});
-
 const webhookEventsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25).openapi({
     description: "Page size (1-100)",
@@ -559,7 +527,6 @@ const listWebhookEventsRoute = defineRoute({
                 tracking: z.string().nullable(),
                 eventType: z.string().openapi({ example: "parcel_status_updated" }),
                 result: z.enum(INBOX_RESULT_FILTERS),
-                newStatus: z.string().nullable().openapi({ description: "Order status set by the old webhook handler (older rows only)" }),
                 reason: z.string().nullable().openapi({ description: "Carrier reason / status string (Tentative échouée's reason, unmapped status)" }),
                 errorMsg: z.string().nullable(),
                 shipmentId: z.string().nullable().openapi({ description: "The shipment the event was recorded on" }),
@@ -654,7 +621,6 @@ deliveryCompaniesRouter.openapi(unregisterWebhookRoute.route, unregisterWebhookR
 deliveryCompaniesRouter.openapi(saveYalidineSecretRoute.route, saveYalidineSecretRoute.handler);
 
 // PATCH /delivery-companies/:id/webhook/mapping — save ZR custom state name mapping
-deliveryCompaniesRouter.openapi(saveZrMappingRoute.route, saveZrMappingRoute.handler);
 
 // GET /delivery-companies/:id/webhook/events — read the inbound webhook event log
 deliveryCompaniesRouter.openapi(listWebhookEventsRoute.route, listWebhookEventsRoute.handler);

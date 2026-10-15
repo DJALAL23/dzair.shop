@@ -14,12 +14,10 @@ import { eq } from "drizzle-orm";
 import { deliveryCompanies } from "@/db/schema";
 import { getDeliveryCompanyRaw } from "./queries";
 import { NotFoundError, ValidationError, ExternalApiError } from "@/lib/errors/classes";
-import { ORDER_STATUSES } from "@/endpoints/orders/validation";
 
 const ZR_BASE_URL = "https://api.zrexpress.app";
 
 /** Our valid order status strings — used to validate custom mapping keys. */
-const VALID_OUR_STATUSES = new Set<string>(ORDER_STATUSES);
 
 // ─── ZR Express — Register ────────────────────────────────────────────────────
 
@@ -237,61 +235,6 @@ export async function saveYalidineSecret(c: Context<AppContext>) {
   await db
     .update(deliveryCompanies)
     .set({ webhookSecret: body.secret.trim(), updatedAt: new Date().toISOString() })
-    .where(eq(deliveryCompanies.id, id));
-
-  return c.json({ success: true }, 200);
-}
-
-// ─── ZR Express — Save Custom Mapping ────────────────────────────────────────
-
-/**
- * PATCH /api/delivery-companies/:id/webhook/mapping
- *
- * Saves the custom ZR state name → our status mapping for this company.
- * Body: { mapping: Record<string, string[]> }
- * Keys must be valid our-status strings. Values are arrays of ZR state names.
- */
-export async function saveZrStatusMapping(c: Context<AppContext>) {
-  const db = getDb(c.env.DB);
-  const { id } = (c.req as any).valid?.("param") ?? { id: c.req.param("id")! };
-
-  const company = await getDeliveryCompanyRaw(db, id);
-  if (!company) throw new NotFoundError("Delivery company", id);
-  if (company.provider !== "zr_express") {
-    throw new ValidationError("Status mapping is only supported for ZR Express", "OPERATION_NOT_SUPPORTED", { companyId: id });
-  }
-
-  let body: { mapping?: unknown };
-  try {
-    body = (c.req as any).valid?.("json") ?? await c.req.json();
-  } catch {
-    throw new ValidationError("Invalid JSON body", "VALIDATION_FAILED");
-  }
-
-  const mapping = body.mapping;
-  if (typeof mapping !== "object" || mapping === null || Array.isArray(mapping)) {
-    throw new ValidationError("mapping must be a non-null object", "VALIDATION_FAILED");
-  }
-
-  // Validate keys are valid our-status strings and values are string arrays
-  for (const [key, value] of Object.entries(mapping as Record<string, unknown>)) {
-    if (!VALID_OUR_STATUSES.has(key)) {
-      throw new ValidationError(
-        `Invalid status key: "${key}". Valid keys: ${[...VALID_OUR_STATUSES].join(", ")}`,
-        "VALIDATION_FAILED"
-      );
-    }
-    if (!Array.isArray(value) || !value.every((v) => typeof v === "string")) {
-      throw new ValidationError(`Value for key "${key}" must be an array of strings`, "VALIDATION_FAILED");
-    }
-  }
-
-  await db
-    .update(deliveryCompanies)
-    .set({
-      webhookStatusMapping: JSON.stringify(mapping),
-      updatedAt: new Date().toISOString(),
-    })
     .where(eq(deliveryCompanies.id, id));
 
   return c.json({ success: true }, 200);

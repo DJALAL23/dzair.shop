@@ -120,8 +120,8 @@ beforeAll(async () => {
       await db.insert(schema.orders).values({
         id: `ord-rev-${i}`, orderNumber: `ORD-REV-${i}`, customerId: `cust-rev-${i}`,
         customerName: `Reviewer ${i}`, phone: `07700001${String(i).padStart(2, "0")}`,
-        price: 1000, status: "delivered", deliveryMethod: "unassigned", deliveryType: "home",
-        deliveryFee: 0, driverFee: 0, codAmount: 1000, createdAt, updatedAt: now,
+        price: 1000, status: "ready", deliveryType: "home",
+        deliveryFee: 0, codAmount: 1000, createdAt, updatedAt: now,
       });
       await db.insert(schema.reviews).values({
         id: `rev-${i}`, storeId: "store-e2e", productId: id,

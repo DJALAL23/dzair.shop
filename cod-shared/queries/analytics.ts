@@ -50,9 +50,8 @@ export async function getOrderStageStats(db: AppDb): Promise<OrderStageStats> {
     .leftJoin(shipments, eq(shipments.orderId, orders.id))
     .groupBy(stage)
     .all();
-  const staged = rows.filter((r): r is typeof r & { stage: OrderStage } => r.stage !== null);
   return {
-    stages: staged.map((r) => ({ stage: r.stage, count: Number(r.count) })),
+    stages: rows.map((r) => ({ stage: r.stage, count: Number(r.count) })),
     needsAttention: rows.reduce((sum, r) => sum + Number(r.attention ?? 0), 0),
   };
 }

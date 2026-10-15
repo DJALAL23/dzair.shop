@@ -90,7 +90,7 @@ describe("giving an order to the driver", () => {
     expect(JSON.parse(logged.metadata!)).toEqual({ driverId: "dr1", shipmentId: shipment!.id });
 
     const order = await d1.db.select().from(schema.orders).where(eq(schema.orders.id, "o1")).get();
-    expect(order).toMatchObject({ status: "ready", driverId: null, driverFee: 0 });
+    expect(order).toMatchObject({ status: "ready" });
   });
 
   it("takes the customer's delivery type and desk, unless told otherwise", async () => {

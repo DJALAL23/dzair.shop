@@ -521,11 +521,10 @@ export async function listWebhookEvents(c: Context<AppContext>) {
         tracking: webhookEvents.tracking,
         eventType: webhookEvents.eventType,
         result: webhookEvents.result,
-        newStatus: webhookEvents.newStatus,
         reason: webhookEvents.reason,
         errorMsg: webhookEvents.errorMsg,
         shipmentId: webhookEvents.shipmentId,
-        orderId: sql<string | null>`coalesce(${webhookEvents.orderId}, ${shipments.orderId})`,
+        orderId: shipments.orderId,
         orderNumber: orders.orderNumber,
         attempts: webhookEvents.attempts,
         nextAttemptAt: webhookEvents.nextAttemptAt,
@@ -534,7 +533,7 @@ export async function listWebhookEvents(c: Context<AppContext>) {
       })
       .from(webhookEvents)
       .leftJoin(shipments, eq(webhookEvents.shipmentId, shipments.id))
-      .leftJoin(orders, sql`${orders.id} = coalesce(${webhookEvents.orderId}, ${shipments.orderId})`)
+      .leftJoin(orders, eq(orders.id, shipments.orderId))
       .where(where)
       .orderBy(desc(webhookEvents.createdAt), desc(webhookEvents.id))
       .limit(limit)

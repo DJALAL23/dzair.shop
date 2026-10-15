@@ -1,6 +1,6 @@
 /**
  * The SQL stage and attention flag against the pure rules, on real D1: every
- * order status (and a legacy one) with no shipment, and with a shipment in
+ * order status with no shipment, and with a shipment in
  * every handoff state and every combination of milestones and attention the
  * database accepts. They must agree on every one.
  */
@@ -8,7 +8,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "../db/schema";
-import { ORDER_STATUSES, isOrderStatus } from "./lifecycle";
+import { ORDER_STATUSES, type OrderStatus } from "./lifecycle";
 import { orderNeedsAttention, orderStage, type StageShipment } from "./stage";
 import { orderNeedsAttentionSql, orderStageSql } from "./stage-sql";
 import { HANDOFF_STATES } from "../shipments/model";
@@ -19,7 +19,7 @@ let d1: TestD1;
 type Facts = StageShipment;
 interface Case {
   id: string;
-  status: string;
+  status: OrderStatus;
   shipment: Facts | null;
 }
 
@@ -49,7 +49,7 @@ function shipmentCases(): Facts[] {
 }
 
 const cases: Case[] = [];
-for (const status of [...ORDER_STATUSES, "delivered"]) {
+for (const status of ORDER_STATUSES) {
   cases.push({ id: `${status}-none`, status, shipment: null });
   shipmentCases().forEach((shipment, i) => cases.push({ id: `${status}-${i}`, status, shipment }));
 }
@@ -61,7 +61,7 @@ beforeAll(async () => {
   const statements = cases.flatMap((c) => [
     d1.db.insert(schema.orders).values({
       id: c.id, orderNumber: `ORD-${c.id}`, customerId: "c1", customerName: "K", phone: "0551234567", price: 1000,
-      status: c.status as never, createdAt: T, updatedAt: T,
+      status: c.status, createdAt: T, updatedAt: T,
     }),
     ...(c.shipment
       ? [
@@ -90,7 +90,7 @@ describe("the order's stage in SQL", () => {
     const byId = new Map(rows.map((r) => [r.id, r]));
     const disagreements = cases.flatMap((c) => {
       const row = byId.get(c.id)!;
-      const stage = isOrderStatus(c.status) ? orderStage(c.status, c.shipment) : null;
+      const stage = orderStage(c.status, c.shipment);
       const attention = orderNeedsAttention(c.shipment);
       return row.stage === stage && row.attention === attention ? [] : [{ case: c, expected: { stage, attention }, got: { stage: row.stage, attention: row.attention } }];
     });
@@ -104,7 +104,7 @@ describe("the order's stage in SQL", () => {
       .leftJoin(schema.shipments, eq(schema.shipments.orderId, schema.orders.id))
       .all();
     const { ORDER_STAGES } = await import("./stage");
-    expect(new Set(rows.map((r) => r.stage))).toEqual(new Set([...ORDER_STAGES, null]));
+    expect(new Set(rows.map((r) => r.stage))).toEqual(new Set(ORDER_STAGES));
     expect(new Set(rows.map((r) => r.attention))).toEqual(new Set([true, false]));
   });
 });

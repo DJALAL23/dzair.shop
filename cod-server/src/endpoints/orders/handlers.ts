@@ -14,10 +14,9 @@ import { wilayas, communes, customers } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import * as queries from "./queries";
 import * as validation from "./validation";
-import { refusalFor } from "./refusals";
+import { lineReturnRefusal, refusalFor } from "./refusals";
 import { loadShipmentView } from "../shipments/view";
 import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
-import { isOrderStatus } from "../../../../cod-shared/orders/lifecycle";
 import { orderNeedsAttention, orderStage } from "../../../../cod-shared/orders/stage";
 import { resolveDeliveryFee, applyFreeShippingOffer } from "./resolve-fee";
 import { logActivity, ACTIONS } from "@/lib/activity";
@@ -74,15 +73,14 @@ export async function getOrder(c: Context<AppContext>) {
   }
 
   // The order's delivery is its shipment: shown with its history and actions,
-  // and summed up as the order's stage. A legacy order still in an old
-  // delivery status (until the split migration) has no stage.
+  // and summed up as the order's stage.
   const shipment = (await getOrderShipment(db, orderId)) ?? null;
   return c.json({
     success: true,
     data: {
       ...order,
       shipment: shipment ? await loadShipmentView(db, shipment.id, { events: true }) : null,
-      stage: isOrderStatus(order.status) ? orderStage(order.status, shipment) : null,
+      stage: orderStage(order.status, shipment),
       needsAttention: orderNeedsAttention(shipment),
     },
   }, 200);
@@ -336,10 +334,8 @@ export async function updateOrder(c: Context<AppContext>) {
  *    calls are idempotent and correcting an overstated return un-restocks
  *  - logs a stock_movement with type ORDER_RETURNED
  *
- * Only callable while the order is not already in a terminal state — once
- * the order itself is marked `returned` or `cancelled`, updateOrderStatus
- * has already restocked remaining units and further per-line edits would
- * desync inventory.
+ * Refused once the order is cancelled or its parcel came back — those put
+ * every remaining unit back already (checked inside the write).
  */
 export async function returnOrderProduct(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -355,36 +351,15 @@ export async function returnOrderProduct(c: Context<AppContext>) {
     throw new NotFoundError("Order", orderId);
   }
 
-  // Block edits on orders whose overall state has already settled the books.
-  const terminalStatuses = ["returned", "cancelled"];
-  if (terminalStatuses.includes(order.status)) {
-    throw new BusinessLogicError(
-      `Cannot edit returns on a ${order.status} order — stock was already reconciled.`,
-      ERROR_CODES.INVALID_STATUS_TRANSITION,
-      { orderId, currentStatus: order.status }
-    );
-  }
-
   const bodyData: any = (c.req as any).valid?.("json");
   const validated: validation.ReturnOrderProductInput =
     bodyData ?? validation.returnOrderProductSchema.parse(await c.req.json());
 
   const user = c.get("user");
 
-  let result;
-  try {
-    result = await queries.setOrderProductReturn(
-      db,
-      orderId,
-      productLineId,
-      validated.returnedQuantity,
-      user?.id,
-      user?.name ?? undefined,
-    );
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new ValidationError(msg, ERROR_CODES.VALUE_OUT_OF_RANGE, { orderId, productLineId });
-  }
+  const outcome = await queries.setOrderProductReturn(db, orderId, productLineId, validated.returnedQuantity, user?.id, user?.name ?? undefined);
+  if (!outcome.ok) throw lineReturnRefusal(outcome, orderId, productLineId);
+  const { ok: _, ...result } = outcome;
 
   await logActivity(db, user, ACTIONS.ORDER_PRODUCT_RETURNED, {
     type: "order", id: orderId, label: order.orderNumber,
