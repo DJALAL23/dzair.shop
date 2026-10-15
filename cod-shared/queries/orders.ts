@@ -14,7 +14,6 @@ import {
   productVariants,
   products,
   drivers,
-  driverCompensations,
   users,
   wilayas,
   communes,
@@ -686,75 +685,6 @@ export async function setOrderProductReturn(
     returnedQuantity: newReturnedQty,
     quantity: line.quantity,
   };
-}
-
-export async function assignDriver(db: AppDb, orderId: string, driverId: string) {
-  const now = new Date().toISOString();
-
-  const order = await db
-    .select({ wilayaId: orders.wilayaId, status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .get();
-
-  let driverFee = 0;
-  if (order?.wilayaId) {
-    const comp = await db
-      .select({ feePerDelivery: driverCompensations.feePerDelivery })
-      .from(driverCompensations)
-      .where(
-        and(
-          eq(driverCompensations.driverId, driverId),
-          eq(driverCompensations.wilayaId, order.wilayaId),
-        ),
-      )
-      .get();
-
-    if (comp) {
-      driverFee = comp.feePerDelivery;
-    }
-  }
-
-  const preAssignmentStatuses = ["new", "preparing", "ready"];
-  const shouldSetAssigned = preAssignmentStatuses.includes(order?.status ?? "");
-
-  await db
-    .update(orders)
-    .set({
-      driverId,
-      driverFee,
-      deliveryMethod: "driver",
-      ...(shouldSetAssigned ? { status: "assigned" } : {}),
-      updatedAt: now,
-    })
-    .where(eq(orders.id, orderId));
-
-  return true;
-}
-
-export async function unassignDriver(db: AppDb, orderId: string) {
-  const now = new Date().toISOString();
-
-  const order = await db
-    .select({ status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .get();
-
-  const shouldRollbackStatus = order?.status === "assigned";
-
-  await db
-    .update(orders)
-    .set({
-      driverId: null,
-      driverFee: 0,
-      deliveryMethod: "unassigned",
-      ...(shouldRollbackStatus ? { status: "ready" } : {}),
-      updatedAt: now,
-    })
-    .where(eq(orders.id, orderId));
-
-  return true;
 }
 
 export type OrderDeletion = { ok: true } | { ok: false; reason: "not_found" | "has_open_shipment" | "changed" };

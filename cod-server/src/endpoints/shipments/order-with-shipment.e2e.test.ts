@@ -95,10 +95,11 @@ describe("what an order with a shipment refuses", () => {
     expect((await order("PATCH", "", { notes: "Client VIP" })).status).toBe(200);
   });
 
-  it("a driver", async () => {
-    const res = await order("PATCH", "/assign-driver", { driverId: "dr1" });
+  it("a driver as well — one shipment per order", async () => {
+    const res = await order("POST", "/shipment", { kind: "driver", driverId: "dr1" });
     expect(res.status).toBe(409);
-    expect((await d1.db.select().from(schema.orders).where(eq(schema.orders.id, "o1")).get())!.driverId).toBeNull();
+    expect(await codeOf(res)).toBe("ORDER_HAS_SHIPMENT");
+    expect(await d1.db.select().from(schema.shipments).where(eq(schema.shipments.orderId, "o1")).all()).toHaveLength(1);
   });
 
   it("its deletion while the parcel is out — and allows it once the shipment is closed", async () => {

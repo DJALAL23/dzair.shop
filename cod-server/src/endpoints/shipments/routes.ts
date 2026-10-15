@@ -20,7 +20,8 @@ import {
 import * as handlers from "./handlers";
 import {
   bulkCarrierHandoffSchema,
-  carrierHandoffSchema,
+  bulkDriverHandoffSchema,
+  orderHandoffSchema,
   merchantReportSchema,
   remarkSchema,
   resolveHandoffSchema,
@@ -37,23 +38,30 @@ What the carrier's answer proves decides the outcome:
 - **refused** — the carrier refused it, the credentials failed, it was throttled, or it could not be reached: nothing was created and the order is ready again.
 - **unknown** — the carrier may have created it (a timeout, a server error). It is never sent again automatically: resolve it with \`POST /shipments/{id}/resolve\`.`;
 
+const DRIVER_HANDOFF = `The store's own driver has no carrier to call: the shipment is accepted at once, and the driver's fee for the order's wilaya (0 where none is set) is frozen on it. Only a **ready** order with no shipment, and a driver who is not inactive. The driver's progress is then reported with \`POST /shipments/{id}/events\`.`;
+
 export const handOffOrderRoute = defineRoute({
   method: "post",
   path: "/{id}/shipment",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  auth: { anyOf: [SCOPES.DELIVERY_DISPATCH, SCOPES.ORDERS_ASSIGN] },
   tags: ["Shipments"],
-  summary: "Hand an order to a carrier",
-  description: HANDOFF_OUTCOMES,
+  summary: "Hand an order to a carrier or to a driver",
+  description: `\`kind: "carrier"\` hands the order to a delivery company (needs ${SCOPES.DELIVERY_DISPATCH}); \`kind: "driver"\` gives it to the store's driver (needs ${SCOPES.ORDERS_ASSIGN}).
+
+**Carrier.** ${HANDOFF_OUTCOMES}
+
+**Driver.** ${DRIVER_HANDOFF}`,
   operationId: "handOffOrder",
   params: IdParamSchema,
-  body: carrierHandoffSchema,
+  body: orderHandoffSchema,
   responses: {
-    201: { description: "The carrier has the parcel", content: jsonContent(SuccessResponseSchema(HandoffResultSchema)) },
-    202: { description: "The outcome is unknown; resolve it", content: jsonContent(SuccessResponseSchema(HandoffResultSchema)) },
+    201: { description: "The carrier has the parcel, or the driver has the order", content: jsonContent(SuccessResponseSchema(HandoffResultSchema)) },
+    202: { description: "The carrier's outcome is unknown; resolve it", content: jsonContent(SuccessResponseSchema(HandoffResultSchema)) },
     400: { description: "The order's address, wilaya/commune or desk is incomplete, or the company is not connected" },
-    404: { description: "Order or delivery company not found" },
+    403: { description: "Missing the permission this kind of handoff needs" },
+    404: { description: "Order, delivery company or driver not found" },
     409: { description: "The order already has a shipment, or the company's carrier settings are incomplete" },
-    422: { description: "The order is not ready, the company does not offer the delivery type, the value is over the carrier's ceiling, or the carrier refused it" },
+    422: { description: "The order is not ready, the driver is inactive, the company does not offer the delivery type, the value is over the carrier's ceiling, or the carrier refused it" },
     429: { description: "The carrier is throttling; nothing was created" },
     502: { description: "The carrier could not be reached; nothing was created" },
   },
@@ -76,6 +84,25 @@ ${HANDOFF_OUTCOMES}`,
     404: { description: "Delivery company not found" },
   },
   handler: handlers.handOffBulk,
+});
+
+const driverBulkHandoffRoute = defineRoute({
+  method: "post",
+  path: "/driver-bulk",
+  auth: { scope: SCOPES.ORDERS_ASSIGN },
+  tags: ["Shipments"],
+  summary: "Give many orders to a driver",
+  description: `The same handoff as \`POST /orders/{id}/shipment\` with \`kind: "driver"\`, for up to 100 orders and one driver, with one result per order: \`accepted\` or \`refused\` (never \`unknown\`).
+
+${DRIVER_HANDOFF}`,
+  operationId: "handOffOrdersToDriver",
+  body: bulkDriverHandoffSchema,
+  responses: {
+    200: { description: "One result per order", content: jsonContent(SuccessResponseSchema(BulkHandoffDataSchema)) },
+    404: { description: "Driver not found" },
+    422: { description: "The driver is inactive" },
+  },
+  handler: handlers.handOffDriverBulk,
 });
 
 const getShipmentRoute = defineRoute({
@@ -157,15 +184,16 @@ const updateRoute = defineRoute({
 const voidRoute = defineRoute({
   method: "post",
   path: "/{id}/void",
-  auth: { scope: SCOPES.DELIVERY_DISPATCH },
+  auth: { anyOf: [SCOPES.DELIVERY_DISPATCH, SCOPES.ORDERS_ASSIGN] },
   tags: ["Shipments"],
   summary: "Void a shipment",
-  description: "Undo a shipment that never reached the customer, so the order can be handed off again. A carrier parcel is cancelled at the carrier first (unless the carrier already cancelled it). Refused once the parcel is out for delivery.",
+  description: `Undo a shipment that never reached the customer, so the order can be handed off again: a carrier parcel is cancelled at the carrier first (unless the carrier already cancelled it); a driver's order is taken back from the driver. Refused once it is out for delivery. A carrier shipment needs ${SCOPES.DELIVERY_DISPATCH}, a driver's ${SCOPES.ORDERS_ASSIGN}.`,
   operationId: "voidShipment",
   params: IdParamSchema,
   responses: {
     200: { description: "Voided; the order is ready to hand off again", content: jsonContent(SuccessResponseSchema(z.object({ orderId: z.string() }))) },
     ...OPERATION_REFUSALS,
+    403: { description: "Missing the permission this shipment's kind needs" },
   },
   handler: handlers.voidOne,
 });
@@ -279,8 +307,9 @@ const reportRoute = defineRoute({
 
 const router = new OpenAPIHono<AppContext>();
 
-// /bulk before /{id}, so "bulk" is never read as an id.
+// The bulk routes before /{id}, so "bulk" is never read as an id.
 router.openapi(bulkHandoffRoute.route, bulkHandoffRoute.handler);
+router.openapi(driverBulkHandoffRoute.route, driverBulkHandoffRoute.handler);
 router.openapi(getShipmentRoute.route, getShipmentRoute.handler);
 router.openapi(resolveRoute.route, resolveRoute.handler);
 for (const route of [validateRoute, updateRoute, voidRoute, listRemarksRoute, addRemarkRoute, labelRoute, askReturnRoute, requestNewAttemptRoute, confirmReturnRoute, syncRoute, reportRoute]) {

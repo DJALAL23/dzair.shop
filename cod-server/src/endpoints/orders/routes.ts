@@ -17,7 +17,6 @@ import {
   createOrderSchema,
   updateOrderSchema,
   updateOrderStatusSchema,
-  assignDriverSchema,
   returnOrderProductSchema,
   orderFiltersSchema,
 } from "./validation";
@@ -206,60 +205,6 @@ Each effect applies exactly once, even when the same change is sent twice at onc
   handler: statusTransitions.updateStatus,
 });
 
-const assignDriverRoute = defineRoute({
-  method: "patch",
-  path: "/{id}/assign-driver",
-  auth: { scope: SCOPES.ORDERS_ASSIGN },
-  tags: ["Orders"],
-  summary: "Assign driver to order",
-  description: `Assigns a driver for manual delivery.
-
-**Business rules — returns 422 if:**
-- The order already has a tracking number (dispatched to a company)
-- The order's \`deliveryMethod\` is \`"company"\`
-- The order status is \`out_for_delivery\`, \`delivered\`, \`returned\`, or \`cancelled\`
-- The driver does not exist (404)`,
-  operationId: "assignDriver",
-  params: IdParamSchema,
-  body: assignDriverSchema,
-  responses: {
-    200: {
-      description: "Driver assigned",
-      content: jsonContent(MessageResponseSchema),
-    },
-    422: {
-      description:
-        "Business rule violation — already dispatched / company-assigned / locked status",
-    },
-  },
-  handler: statusTransitions.assignDriver,
-});
-
-const unassignDriverRoute = defineRoute({
-  method: "patch",
-  path: "/{id}/unassign",
-  auth: { scope: SCOPES.ORDERS_ASSIGN },
-  tags: ["Orders"],
-  summary: "Unassign driver from order",
-  description: `Removes the driver currently assigned to an order. Clears driverId and driverFee, resets deliveryMethod to "unassigned", and rolls the status back from "assigned" → "ready" when applicable.
-
-**Rejected when:**
-- order has no driver assigned
-- order has already progressed past dispatch (out_for_delivery, delivered, returned, cancelled) — at that point clearing the driver would erase payroll/handoff history.`,
-  operationId: "unassignDriver",
-  params: IdParamSchema,
-  responses: {
-    200: {
-      description: "Driver unassigned",
-      content: jsonContent(MessageResponseSchema),
-    },
-    422: {
-      description: "Order has no driver assigned, or status is locked",
-    },
-  },
-  handler: statusTransitions.unassignDriver,
-});
-
 const returnOrderProductRoute = defineRoute({
   method: "patch",
   path: "/{id}/products/{productLineId}/return",
@@ -311,8 +256,6 @@ router.openapi(createOrderRoute.route, createOrderRoute.handler);
 router.openapi(updateOrderRoute.route, updateOrderRoute.handler);
 router.openapi(deleteOrderRoute.route, deleteOrderRoute.handler);
 router.openapi(updateStatusRoute.route, updateStatusRoute.handler);
-router.openapi(assignDriverRoute.route, assignDriverRoute.handler);
-router.openapi(unassignDriverRoute.route, unassignDriverRoute.handler);
 router.openapi(returnOrderProductRoute.route, returnOrderProductRoute.handler);
 router.openapi(handOffOrderRoute.route, handOffOrderRoute.handler);
 

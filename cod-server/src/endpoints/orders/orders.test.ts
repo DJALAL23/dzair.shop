@@ -21,12 +21,10 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
-import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import ordersRouter from "./routes";
 import * as queries from "./queries";
 import * as resolveFee from "./resolve-fee";
 import * as deliveryCompanyQueries from "@/endpoints/delivery-companies/queries";
-import * as carrierGeo from "../../../../cod-shared/queries/carrier-geo";
 
 // The address rule is tested against the real reference tables
 // (store.queries-e2e); this file's mocked database cannot answer it.
@@ -110,19 +108,6 @@ function orderRow(overrides: Record<string, any> = {}) {
     createdAt: NOW,
     updatedAt: NOW,
     products: [],
-    ...overrides,
-  };
-}
-
-function companyRow(overrides: Record<string, any> = {}) {
-  return {
-    id: "comp_1",
-    name: "TestCarrier",
-    code: "noest",
-    active: true,
-    apiEndpoint: "https://noest.test",
-    apiToken: "tok",
-    autoValidate: false,
     ...overrides,
   };
 }
@@ -223,180 +208,6 @@ describe("Orders — targeted business-logic tests", () => {
         expect.arrayContaining(["out_for_delivery", "dispatched", "cancelled"])
       );
       expect(body.context.allowedTransitions).not.toContain("new");
-    });
-  });
-
-  // ─── 2. Driver assignment: confirmed/unreachable do NOT auto-advance ───────
-
-  describe("PATCH /api/orders/{id}/assign-driver — status auto-advance", () => {
-    it("order in 'new' status auto-advances to 'assigned'", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "new" }) as any);
-      vi.mocked(queries.assignDriver).mockResolvedValue(undefined as any);
-      mockDb = {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(async () => ({ id: "drv_1" })),
-            })),
-          })),
-        })),
-      };
-
-      const res = await app.request("/api/orders/ord_1/assign-driver", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverId: "drv_1" }),
-      });
-
-      expect(res.status).toBe(200);
-      // queries.assignDriver is called — the auto-advance logic lives in the query,
-      // which checks preAssignmentStatuses = ["new", "preparing", "ready"]
-      expect(queries.assignDriver).toHaveBeenCalledWith(mockDb, "ord_1", "drv_1");
-    });
-
-    it("order in 'confirmed' status: handler allows it, but status does NOT auto-advance (confirmed not in preAssignmentStatuses)", async () => {
-      // The handler only blocks: trackingNumber, deliveryMethod=company, and locked statuses.
-      // "confirmed" is NOT in locked statuses, so the handler lets it through.
-      // The query's preAssignmentStatuses = ["new", "preparing", "ready"] — excludes "confirmed".
-      // This means after assignment, status stays "confirmed" (not "assigned").
-      // This is a real behavioral gap the tests never verified.
-      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "confirmed" }) as any);
-      vi.mocked(queries.assignDriver).mockResolvedValue(undefined as any);
-      mockDb = {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(async () => ({ id: "drv_1" })),
-            })),
-          })),
-        })),
-      };
-
-      const res = await app.request("/api/orders/ord_1/assign-driver", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverId: "drv_1" }),
-      });
-
-      // Handler succeeds (200) — it doesn't block confirmed orders
-      expect(res.status).toBe(200);
-      // The query IS called — proving assignment goes through
-      expect(queries.assignDriver).toHaveBeenCalledWith(mockDb, "ord_1", "drv_1");
-      // NOTE: The DB query will NOT set status="assigned" for "confirmed" orders.
-      // A confirmed order with a driver attached stays "confirmed" — this is the documented
-      // gap: the handler should either block it or the query should include "confirmed"
-      // in preAssignmentStatuses. Currently neither happens.
-    });
-
-    it("order in 'unreachable' status: handler allows it but status does NOT auto-advance", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "unreachable" }) as any);
-      vi.mocked(queries.assignDriver).mockResolvedValue(undefined as any);
-      mockDb = {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(async () => ({ id: "drv_1" })),
-            })),
-          })),
-        })),
-      };
-
-      const res = await app.request("/api/orders/ord_1/assign-driver", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverId: "drv_1" }),
-      });
-
-      expect(res.status).toBe(200);
-      expect(queries.assignDriver).toHaveBeenCalledWith(mockDb, "ord_1", "drv_1");
-    });
-
-    it("driver not found returns 404", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
-      mockDb = {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(async () => null), // driver not found
-            })),
-          })),
-        })),
-      };
-
-      const res = await app.request("/api/orders/ord_1/assign-driver", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverId: "drv_missing" }),
-      });
-
-      expect(res.status).toBe(404);
-      const body: any = await res.json();
-      expect(body.code).toBe(ERROR_CODES.DRIVER_NOT_FOUND);
-    });
-
-    it("deliveryMethod=company blocks assignment even without a trackingNumber", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ deliveryMethod: "company", trackingNumber: null }) as any
-      );
-
-      const res = await app.request("/api/orders/ord_1/assign-driver", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverId: "drv_1" }),
-      });
-
-      expect(res.status).toBe(422);
-      const body: any = await res.json();
-      expect(body.code).toBe(ERROR_CODES.ORDER_ALREADY_DISPATCHED);
-    });
-  });
-
-  // ─── 3. Unassign driver: locked-status guard + dispatched (allowed) ────────
-
-  describe("PATCH /api/orders/{id}/unassign", () => {
-    it("returns 422 when order is out_for_delivery (locked)", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ driverId: "drv_1", deliveryMethod: "driver", status: "out_for_delivery" }) as any
-      );
-
-      const res = await app.request("/api/orders/ord_1/unassign", { method: "PATCH" });
-
-      expect(res.status).toBe(422);
-      const body: any = await res.json();
-      expect(body.code).toBe(ERROR_CODES.INVALID_STATUS_TRANSITION);
-      expect(body.context.currentStatus).toBe("out_for_delivery");
-    });
-
-    it("returns 422 when order is delivered (locked)", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ driverId: "drv_1", deliveryMethod: "driver", status: "delivered" }) as any
-      );
-
-      const res = await app.request("/api/orders/ord_1/unassign", { method: "PATCH" });
-
-      expect(res.status).toBe(422);
-    });
-
-    it("returns 422 when order is cancelled (locked)", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ driverId: "drv_1", deliveryMethod: "driver", status: "cancelled" }) as any
-      );
-
-      const res = await app.request("/api/orders/ord_1/unassign", { method: "PATCH" });
-
-      expect(res.status).toBe(422);
-    });
-
-    it("allows unassign from 'dispatched' (not in locked set)", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ driverId: "drv_1", deliveryMethod: "driver", status: "dispatched" }) as any
-      );
-      vi.mocked(queries.unassignDriver).mockResolvedValue(undefined as any);
-
-      const res = await app.request("/api/orders/ord_1/unassign", { method: "PATCH" });
-
-      expect(res.status).toBe(200);
-      expect(queries.unassignDriver).toHaveBeenCalledWith(mockDb, "ord_1");
     });
   });
 

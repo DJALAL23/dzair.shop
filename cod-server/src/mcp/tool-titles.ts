@@ -127,8 +127,6 @@ export const TOOL_TITLES: Record<string, string> = {
   getOrderDetails: "Get order details",
   createOrder: "Create order",
   updateOrderStatus: "Update order status",
-  assignDriverToOrder: "Assign driver to order",
-  unassignDriverFromOrder: "Unassign driver from order",
   recordOrderProductReturn: "Record order product return",
   deleteOrder: "Delete order",
 };

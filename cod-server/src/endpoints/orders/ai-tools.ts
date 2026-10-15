@@ -2,12 +2,10 @@ import { drawOrderNumber } from "../../../../cod-shared/lib/order-number";
 import { tool } from "ai";
 import { z } from "zod";
 import * as queries from "./queries";
-import { orderHasShipment, refusalFor } from "./refusals";
-import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
+import { refusalFor } from "./refusals";
 import {
   createOrderSchema,
   updateOrderStatusSchema,
-  assignDriverSchema,
   returnOrderProductSchema,
   orderFiltersSchema,
   ORDER_STATUSES,
@@ -30,13 +28,6 @@ export const updateOrderStatusToolSchema = z.object({
   orderId: z.string().uuid().describe("UUID of the order"),
   status: updateOrderStatusSchema.shape.status,
 });
-export const assignDriverToOrderToolSchema = z.object({
-  orderId: z.string().uuid().describe("UUID of the order"),
-  driverId: assignDriverSchema.shape.driverId,
-});
-export const unassignDriverFromOrderToolSchema = z.object({
-  orderId: z.string().uuid().describe("UUID of the order"),
-});
 export const recordOrderProductReturnToolSchema = z.object({
   orderId: z.string().uuid().describe("UUID of the order"),
   productLineId: z.string().uuid().describe("UUID of the order product line (the id field in order.products array)"),
@@ -51,8 +42,6 @@ export const ORDER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
   getOrderDetails: getOrderDetailsSchema.shape,
   createOrder: createOrderToolSchema.shape,
   updateOrderStatus: updateOrderStatusToolSchema.shape,
-  assignDriverToOrder: assignDriverToOrderToolSchema.shape,
-  unassignDriverFromOrder: unassignDriverFromOrderToolSchema.shape,
   recordOrderProductReturn: recordOrderProductReturnToolSchema.shape,
   deleteOrder: deleteOrderSchema.shape,
 };
@@ -123,12 +112,6 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     previousStatus: z.string(),
     newStatus: z.string().describe("cancelled/returned restore inventory; delivered/returned/cancelled are terminal"),
   }),
-  assignDriverToOrder: toolOutput({
-    message: z.string(),
-  }),
-  unassignDriverFromOrder: toolOutput({
-    message: z.string().describe("Allowed until out_for_delivery"),
-  }),
   recordOrderProductReturn: toolOutput({
     result: z.looseObject({
       status: z.enum(["fulfilled", "partially_returned", "returned"]).optional().describe("The order's return state after this line return"),
@@ -166,10 +149,10 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  *   returned:         [] (terminal)
  *   cancelled:        [] (terminal)
  *
- * ─── Delivery methods (mutually exclusive) ───────────────────────────────────
- *   driver  → assign a driver via assignDriverToOrder
- *   company → dispatch to a carrier API via the REST endpoint (not an AI tool —
- *             requires external API calls and provider-specific logic)
+ * ─── Delivery ────────────────────────────────────────────────────────────────
+ *   A ready order is handed to a carrier or to the store's driver with
+ *   POST /orders/{id}/shipment; once it has a shipment, its delivery changes
+ *   only through that shipment.
  *
  * ─── Stock impact ────────────────────────────────────────────────────────────
  *   createOrder       → deducts inventory (ORDER_DEDUCTED)
@@ -513,126 +496,6 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
         };
       } catch (error: any) {
         return { success: false, error: `Failed to update order status: ${error.message}` };
-      }
-    },
-  }),
-
-  assignDriverToOrder: tool({
-    description:
-      "Assigns a driver to an order for manual delivery. " +
-      "Required: orderId (UUID), driverId (UUID). " +
-      "Blocked if: order already has a tracking number (dispatched to a carrier), " +
-      "order deliveryMethod is 'company', or order is in a locked status (out_for_delivery, delivered, returned, cancelled). " +
-      "Automatically sets status to 'assigned' if order was in new/preparing/ready. " +
-      "Driver fee is auto-resolved from the driver's compensation table for the order's wilaya.",
-    inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
-    execute: async (args) => {
-      const validationSchema = assignDriverToOrderToolSchema;
-      const parsed = validationSchema.safeParse(args);
-      if (!parsed.success) {
-        const errorDetails = parsed.error.issues
-          .map((e: any) => `${e.path.join(".")}: ${e.message}`)
-          .join("; ");
-        return {
-          success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: orderId (UUID), driverId (UUID)`,
-        };
-      }
-
-      try {
-        const order = await queries.getOrderById(db, parsed.data.orderId);
-        if (!order) {
-          return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
-        }
-
-        if (await getOrderShipment(db, parsed.data.orderId)) {
-          return { success: false, error: orderHasShipment(parsed.data.orderId, "it cannot be given to a driver").message };
-        }
-        if (order.trackingNumber) {
-          return {
-            success: false,
-            error: `Order "${order.orderNumber}" is already dispatched to a carrier (tracking: ${order.trackingNumber}). Driver assignment is not allowed.`,
-          };
-        }
-        if (order.deliveryMethod === "company") {
-          return {
-            success: false,
-            error: `Order "${order.orderNumber}" is assigned to a delivery company. Remove the company assignment first.`,
-          };
-        }
-        const lockedStatuses = ["out_for_delivery", "delivered", "returned", "cancelled"];
-        if (lockedStatuses.includes(order.status)) {
-          return {
-            success: false,
-            error: `Cannot assign a driver — order "${order.orderNumber}" is already "${order.status}".`,
-          };
-        }
-
-        // Verify driver exists
-        const { drivers } = await import("@/db/schema");
-        const { eq } = await import("drizzle-orm");
-        const driver = await db.select({ id: drivers.id, firstName: drivers.firstName, lastName: drivers.lastName })
-          .from(drivers).where(eq(drivers.id, parsed.data.driverId)).get();
-        if (!driver) {
-          return { success: false, error: `Driver not found with ID: ${parsed.data.driverId}` };
-        }
-
-        await queries.assignDriver(db, parsed.data.orderId, parsed.data.driverId);
-
-        return {
-          success: true,
-          message: `Driver ${driver.firstName} ${driver.lastName} assigned to order "${order.orderNumber}"`,
-        };
-      } catch (error: any) {
-        return { success: false, error: `Failed to assign driver: ${error.message}` };
-      }
-    },
-  }),
-
-  unassignDriverFromOrder: tool({
-    description:
-      "Removes the currently assigned driver from an order. " +
-      "Required: orderId (UUID). " +
-      "Blocked if: order has no driver, or order is in a locked status (out_for_delivery, delivered, returned, cancelled). " +
-      "If order was 'assigned', status rolls back to 'ready' automatically.",
-    inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
-    execute: async (args) => {
-      const validationSchema = unassignDriverFromOrderToolSchema;
-      const parsed = validationSchema.safeParse(args);
-      if (!parsed.success) {
-        const errorDetails = parsed.error.issues
-          .map((e: any) => `${e.path.join(".")}: ${e.message}`)
-          .join("; ");
-        return {
-          success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: orderId (UUID string)`,
-        };
-      }
-
-      try {
-        const order = await queries.getOrderById(db, parsed.data.orderId);
-        if (!order) {
-          return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
-        }
-        if (!order.driverId) {
-          return { success: false, error: `Order "${order.orderNumber}" has no driver assigned.` };
-        }
-        const lockedStatuses = ["out_for_delivery", "delivered", "returned", "cancelled"];
-        if (lockedStatuses.includes(order.status)) {
-          return {
-            success: false,
-            error: `Cannot unassign driver — order "${order.orderNumber}" is already "${order.status}".`,
-          };
-        }
-
-        await queries.unassignDriver(db, parsed.data.orderId);
-
-        return {
-          success: true,
-          message: `Driver unassigned from order "${order.orderNumber}"${order.status === "assigned" ? " — status rolled back to 'ready'" : ""}`,
-        };
-      } catch (error: any) {
-        return { success: false, error: `Failed to unassign driver: ${error.message}` };
       }
     },
   }),

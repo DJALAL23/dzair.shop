@@ -22,35 +22,50 @@
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { insertSelectRow } from "../db/insert-select";
 import type { AppDb } from "../db/client";
-import { driverCompensations, orders, shipmentEvents, shipments } from "../db/schema";
+import { driverCompensations, drivers, orders, shipmentEvents, shipments } from "../db/schema";
 import { checkVoid, type ShipmentRuleVerdict } from "./interpretation";
 import { eventKey, type ShipmentEventSource } from "./model";
 import { deliveryFactsOf } from "./queries";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 
-export type ReservationRefusal = "order_not_found" | "order_not_ready" | "order_has_shipment";
+/** Why an order could not be reserved for delivery. */
+export type OrderRefusal = "order_not_found" | "order_not_ready" | "order_has_shipment";
+/** Why an order could not be given to a driver: the order's reasons, or the driver no longer takes orders. */
+export type ReservationRefusal = OrderRefusal | "driver_unavailable";
 
-export type Reserved = { ok: true; shipmentId: string } | { ok: false; reason: ReservationRefusal };
+export type Reserved<R extends ReservationRefusal = OrderRefusal> = { ok: true; shipmentId: string } | { ok: false; reason: R };
 
 function isUniqueViolation(error: unknown): boolean {
   const text = `${(error as Error)?.message ?? ""} ${String((error as { cause?: unknown })?.cause ?? "")}`;
   return /UNIQUE constraint failed: shipments\.order_id/i.test(text);
 }
 
-async function refusalFor(db: AppDb, orderId: string): Promise<ReservationRefusal> {
+async function orderRefusal(db: AppDb, orderId: string): Promise<OrderRefusal> {
   const order = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).get();
   if (!order) return "order_not_found";
   const existing = await db.select({ id: shipments.id }).from(shipments).where(eq(shipments.orderId, orderId)).get();
   return existing ? "order_has_shipment" : "order_not_ready";
 }
 
-async function insertReservation(
+/** A driver who can take an order: one that exists and is not inactive. */
+const driverCanTake = (driverId: string) =>
+  sql`exists (select 1 from ${drivers} where ${drivers.id} = ${driverId} and ${drivers.status} <> 'inactive')`;
+
+interface ReservationRules<R extends ReservationRefusal> {
+  /** Another condition the order's reservation needs, checked in the same statement. */
+  also?: SQL;
+  /** Why the reservation was refused, read after the fact. */
+  refusal: () => Promise<R>;
+  history?: { source: ShipmentEventSource; step: string; actorId: string | null };
+}
+
+async function insertReservation<R extends ReservationRefusal>(
   db: AppDb,
   orderId: string,
   values: Partial<Record<keyof typeof shipments._.columns, SQL>>,
-  history?: { source: ShipmentEventSource; step: string; actorId: string | null },
-): Promise<Reserved> {
+  rules: ReservationRules<R>,
+): Promise<Reserved<R>> {
   const id = crypto.randomUUID();
   const revision = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -67,16 +82,17 @@ async function insertReservation(
       db
         .select(columns as never)
         .from(orders)
-        .where(and(eq(orders.id, orderId), eq(orders.status, "ready"))),
+        .where(and(eq(orders.id, orderId), eq(orders.status, "ready"), rules.also)),
     ),
   ];
+  const { history } = rules;
   if (history) statements.push(codflowEvent(db, id, revision, history.source, history.step, { actorId: history.actorId }));
   try {
     const [result] = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
     if (((result as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0) return { ok: true, shipmentId: id };
-    return { ok: false, reason: await refusalFor(db, orderId) };
+    return { ok: false, reason: await rules.refusal() };
   } catch (error) {
-    if (isUniqueViolation(error)) return { ok: false, reason: "order_has_shipment" };
+    if (isUniqueViolation(error)) return { ok: false, reason: "order_has_shipment" as R };
     throw error;
   }
 }
@@ -99,17 +115,22 @@ export interface CarrierReservation {
  * the same statement.
  */
 export function reserveCarrierShipment(db: AppDb, input: CarrierReservation): Promise<Reserved> {
-  return insertReservation(db, input.orderId, {
-    kind: value("carrier"),
-    companyId: value(input.companyId),
-    handoffState: value("submitting"),
-    deliveryType: value(input.deliveryType),
-    stationCode: value(input.stationCode),
-    codAmount: sql`${orders.price} + ${orders.deliveryFee}`,
-    weight: value(input.weight),
-    isFragile: value(input.isFragile === null ? null : input.isFragile ? 1 : 0),
-    createdBy: value(input.createdBy),
-  });
+  return insertReservation(
+    db,
+    input.orderId,
+    {
+      kind: value("carrier"),
+      companyId: value(input.companyId),
+      handoffState: value("submitting"),
+      deliveryType: value(input.deliveryType),
+      stationCode: value(input.stationCode),
+      codAmount: sql`${orders.price} + ${orders.deliveryFee}`,
+      weight: value(input.weight),
+      isFragile: value(input.isFragile === null ? null : input.isFragile ? 1 : 0),
+      createdBy: value(input.createdBy),
+    },
+    { refusal: () => orderRefusal(db, input.orderId) },
+  );
 }
 
 export interface DriverHandoff {
@@ -123,9 +144,11 @@ export interface DriverHandoff {
 /**
  * Give a ready order to the store's driver: the shipment is accepted at once,
  * and the driver's fee for the order's wilaya (0 when none is set) is frozen
- * with it — a later change to the driver's pay grid does not touch it.
+ * with it — a later change to the driver's pay grid does not touch it. In
+ * the same statement, the driver must exist and not be inactive, so a driver
+ * deleted or deactivated meanwhile never receives it.
  */
-export async function handOffToDriver(db: AppDb, input: DriverHandoff): Promise<Reserved> {
+export async function handOffToDriver(db: AppDb, input: DriverHandoff): Promise<Reserved<ReservationRefusal>> {
   const fee = sql`coalesce((select ${driverCompensations.feePerDelivery} from ${driverCompensations} where ${driverCompensations.driverId} = ${input.driverId} and ${driverCompensations.wilayaId} = "orders"."wilaya_id"), 0)`;
   return insertReservation(
     db,
@@ -140,7 +163,19 @@ export async function handOffToDriver(db: AppDb, input: DriverHandoff): Promise<
       driverFee: fee,
       createdBy: value(input.createdBy),
     },
-    { source: "handoff", step: "assigned_to_driver", actorId: input.createdBy },
+    {
+      also: driverCanTake(input.driverId),
+      refusal: async () => {
+        const reason = await orderRefusal(db, input.orderId);
+        if (reason !== "order_not_ready") return reason;
+        const [order, driver] = await Promise.all([
+          db.select({ status: orders.status }).from(orders).where(eq(orders.id, input.orderId)).get(),
+          db.select({ status: drivers.status }).from(drivers).where(eq(drivers.id, input.driverId)).get(),
+        ]);
+        return order?.status === "ready" && (!driver || driver.status === "inactive") ? "driver_unavailable" : reason;
+      },
+      history: { source: "handoff", step: "assigned_to_driver", actorId: input.createdBy },
+    },
   );
 }
 

@@ -79,7 +79,7 @@ export const HandoffResultSchema = z
     orderNumber: z.string().nullable(),
     outcome: z.enum(["accepted", "unknown", "refused"]).openapi({
       description:
-        "accepted: the carrier has the parcel · unknown: the carrier may or may not have it — resolve it, never re-send · refused: nothing was created; the order is unchanged",
+        "accepted: the carrier has the parcel, or the driver has the order · unknown: the carrier may or may not have it — resolve it, never re-send · refused: nothing was created; the order is unchanged",
     }),
     shipment: ShipmentSchema.optional(),
     validationError: z.string().nullable().optional().openapi({ description: "Created, but the carrier refused to validate it" }),

@@ -3,9 +3,10 @@
  *
  * Coverage:
  *  1. Validation schemas (Zod) — no DB required
- *  2. deleteDriver — throws when active orders exist, succeeds otherwise
- *  3. getDriverById — returns null for missing driver
- *  4. updateDriverStatus — returns null for missing driver
+ *  2. getDriverById — returns null for missing driver
+ *  3. updateDriverStatus — returns null for missing driver
+ *
+ * deleteDriver runs against real D1 (drivers-and-companies.e2e.test.ts).
  */
 
 import { describe, it, expect } from "vitest";
@@ -15,8 +16,8 @@ import {
   updateDriverStatusSchema,
   driverFiltersSchema,
 } from "./validation";
-import { deleteDriver, getDriverById, updateDriverStatus } from "./queries";
-import { makeMockDb, f, a, driverRow, NOW } from "@/test-utils/mock-db";
+import { getDriverById, updateDriverStatus } from "./queries";
+import { makeMockDb, f, a, driverRow } from "@/test-utils/mock-db";
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
@@ -195,26 +196,5 @@ describe("updateDriverStatus", () => {
     ]);
     const result = await updateDriverStatus(db, "drv_1", "busy");
     expect(result).not.toBeNull();
-  });
-});
-
-describe("deleteDriver", () => {
-  it("throws when driver has active orders (assigned)", async () => {
-    const db = makeMockDb([f({ count: 2 })]);
-    await expect(deleteDriver(db, "drv_1")).rejects.toThrow(
-      "Cannot delete driver with active orders"
-    );
-  });
-
-  it("throws when driver has active orders (out_for_delivery)", async () => {
-    const db = makeMockDb([f({ count: 1 })]);
-    await expect(deleteDriver(db, "drv_1")).rejects.toThrow(
-      "Cannot delete driver with active orders"
-    );
-  });
-
-  it("succeeds when driver has no active orders", async () => {
-    const db = makeMockDb([f({ count: 0 })]);
-    await expect(deleteDriver(db, "drv_1")).resolves.toEqual({ success: true });
   });
 });

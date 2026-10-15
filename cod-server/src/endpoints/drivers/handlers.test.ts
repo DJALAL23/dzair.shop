@@ -274,7 +274,7 @@ describe("Drivers Endpoint - Error Scenarios", () => {
       });
 
       // Mock deleteDriver to succeed
-      vi.mocked(queries.deleteDriver).mockResolvedValue({ success: true });
+      vi.mocked(queries.deleteDriver).mockResolvedValue(undefined);
 
       const res = await app.request("/drivers/drv_123", {
         method: "DELETE",

@@ -45,7 +45,7 @@ import {
   noteShipmentStep,
   releaseUnknownHandoff,
   reserveCarrierShipment,
-  type ReservationRefusal,
+  type OrderRefusal,
 } from "../../../../cod-shared/shipments/handoff";
 import type { ShipmentEventSource } from "../../../../cod-shared/shipments/model";
 import { buildProductDescription, DEFAULT_MAX_DESCRIPTION, exceedsAmountCeiling, sumParcelWeight } from "./parcel-limits";
@@ -289,7 +289,7 @@ function prepare(
 
 // ─── 2. Reserve ───────────────────────────────────────────────────────────────
 
-function reservationRefusal(reason: ReservationRefusal, order: OrderRow): AppError {
+function reservationRefusal(reason: OrderRefusal, order: OrderRow): AppError {
   const context = { orderId: order.id, orderNumber: order.orderNumber };
   switch (reason) {
     case "order_not_found":

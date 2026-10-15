@@ -19,7 +19,8 @@ import shipmentsRouter from "../routes";
 
 export const T0 = "2026-10-14T08:00:00.000Z";
 
-export function shipmentsApp(d1: TestD1, scopes: () => string[]) {
+/** The orders and shipments routers, plus any `more` mounted at their paths. */
+export function shipmentsApp(d1: TestD1, scopes: () => string[], more: Record<string, OpenAPIHono<AppContext>> = {}) {
   const app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: d1.raw } as never;
@@ -29,6 +30,7 @@ export function shipmentsApp(d1: TestD1, scopes: () => string[]) {
   app.onError(errorHandler);
   app.route("/api/orders", ordersRouter);
   app.route("/api/shipments", shipmentsRouter);
+  for (const [path, router] of Object.entries(more)) app.route(path, router);
   return app;
 }
 
@@ -36,6 +38,8 @@ export function shipmentsApp(d1: TestD1, scopes: () => string[]) {
 export async function seedStore(db: AppDb, ecotrack: { baseUrl: string; token: string }): Promise<string> {
   for (const table of [
     schema.shipmentEvents,
+    schema.driverPaymentLines,
+    schema.driverPayments,
     schema.webhookEvents,
     schema.shipments,
     schema.companyApiLogs,

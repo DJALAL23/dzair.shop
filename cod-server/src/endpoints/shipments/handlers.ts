@@ -1,8 +1,8 @@
 /**
- * Shipment handlers: handing orders to a carrier (one or many), reading a
- * shipment, resolving a handoff whose outcome was unknown, and the
- * operations on a shipment after its handoff (thin: the work is in
- * `operations.ts`).
+ * Shipment handlers: handing orders to a carrier or to the store's driver
+ * (one or many), reading a shipment, resolving a handoff whose outcome was
+ * unknown, and the operations on a shipment after its handoff (thin: the
+ * work is in `carrier-handoff.ts`, `driver-handoff.ts` and `operations.ts`).
  */
 
 import type { Context } from "hono";
@@ -11,13 +11,17 @@ import type { AppContext } from "@/types";
 import { getDb, type AppDb } from "@/db";
 import { shipments } from "@/db/schema";
 import { NotFoundError } from "@/lib/errors/classes";
+import type { CarrierCapabilities } from "@/carriers/contract";
 import { carrierCapabilities } from "@/carriers/registry";
 import { getDeliveryCompanyRaw } from "../../../../cod-shared/queries/delivery-companies";
 import { handOffToCarrier, resolveHandoff, type DeliveryCompanyRow, type HandoffResult } from "./carrier-handoff";
+import { driverFor, handOffToDriverOrders, type DriverHandoffResult } from "./driver-handoff";
+import { requireKindScope } from "./guard";
 import { loadShipmentView, shipmentView, type ShipmentView } from "./view";
 import type {
   bulkCarrierHandoffSchema,
-  carrierHandoffSchema,
+  bulkDriverHandoffSchema,
+  orderHandoffSchema,
   merchantReportSchema,
   remarkSchema,
   resolveHandoffSchema,
@@ -35,16 +39,23 @@ async function companyOrThrow(db: AppDb, companyId: string): Promise<DeliveryCom
   return company;
 }
 
+type AnyHandoffResult = HandoffResult | DriverHandoffResult;
+
 /** Results as the API shows them, each with its shipment when one exists. */
-async function resultItems(db: AppDb, company: DeliveryCompanyRow, results: HandoffResult[]) {
+async function resultItems(db: AppDb, capabilities: CarrierCapabilities | null, results: readonly AnyHandoffResult[]) {
   const ids = results.flatMap((r) => (r.outcome === "refused" ? [] : [r.shipmentId]));
   const rows = ids.length ? await db.select().from(shipments).where(inArray(shipments.id, ids)).all() : [];
-  const capabilities = carrierCapabilities(company);
   const views = new Map<string, ShipmentView>(rows.map((row) => [row.id, shipmentView(row, capabilities)]));
   return results.map((r) => {
     switch (r.outcome) {
       case "accepted":
-        return { orderId: r.orderId, orderNumber: r.orderNumber, outcome: r.outcome, shipment: views.get(r.shipmentId), validationError: r.validationError };
+        return {
+          orderId: r.orderId,
+          orderNumber: r.orderNumber,
+          outcome: r.outcome,
+          shipment: views.get(r.shipmentId),
+          ...("validationError" in r ? { validationError: r.validationError } : {}),
+        };
       case "unknown":
         return { orderId: r.orderId, orderNumber: r.orderNumber, outcome: r.outcome, shipment: views.get(r.shipmentId), message: r.message };
       case "refused":
@@ -58,24 +69,39 @@ async function resultItems(db: AppDb, company: DeliveryCompanyRow, results: Hand
   });
 }
 
+function bulkData(items: Awaited<ReturnType<typeof resultItems>>, results: readonly AnyHandoffResult[]) {
+  const count = (outcome: AnyHandoffResult["outcome"]) => results.filter((r) => r.outcome === outcome).length;
+  return { results: items, summary: { accepted: count("accepted"), unknown: count("unknown"), refused: count("refused") } };
+}
+
 /**
- * POST /orders/{id}/shipment — hand one order to a carrier.
- * 201 accepted · 202 unknown (resolve it; never re-send) · an error when refused.
+ * POST /orders/{id}/shipment — hand one order to a carrier or to the store's driver.
+ * 201 accepted · 202 unknown (a carrier's; resolve it, never re-send) · an error when refused.
  */
 export async function handOffOrder(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const orderId = c.req.param("id")!;
-  const body = (c.req as any).valid("json") as z.infer<typeof carrierHandoffSchema>;
-  const company = await companyOrThrow(db, body.companyId);
+  const body = (c.req as any).valid("json") as z.infer<typeof orderHandoffSchema>;
+  const actor = c.get("user");
+  requireKindScope(actor, body.kind, "Creating");
 
+  if (body.kind === "driver") {
+    const driver = await driverFor(db, body.driverId);
+    const [result] = await handOffToDriverOrders(db, driver, [{ orderId, deliveryType: body.deliveryType, stationCode: body.stationCode }], actor);
+    if (result.outcome === "refused") throw result.error;
+    const [item] = await resultItems(db, null, [result]);
+    return c.json({ success: true, data: item }, 201);
+  }
+
+  const company = await companyOrThrow(db, body.companyId);
   const [result] = await handOffToCarrier(
     db,
     company,
     [{ orderId, deliveryType: body.deliveryType, stationCode: body.stationCode, weight: body.weight, fragile: body.fragile, remarks: body.remarks }],
-    c.get("user") ?? null,
+    actor,
   );
   if (result.outcome === "refused") throw result.error;
-  const [item] = await resultItems(db, company, [result]);
+  const [item] = await resultItems(db, carrierCapabilities(company), [result]);
   return c.json({ success: true, data: item }, result.outcome === "accepted" ? 201 : 202);
 }
 
@@ -91,9 +117,16 @@ export async function handOffBulk(c: Context<AppContext>) {
     body.orderIds.map((orderId) => ({ orderId, deliveryType: body.deliveryType })),
     c.get("user") ?? null,
   );
-  const items = await resultItems(db, company, results);
-  const count = (outcome: HandoffResult["outcome"]) => results.filter((r) => r.outcome === outcome).length;
-  return c.json({ success: true, data: { results: items, summary: { accepted: count("accepted"), unknown: count("unknown"), refused: count("refused") } } }, 200);
+  return c.json({ success: true, data: bulkData(await resultItems(db, carrierCapabilities(company), results), results) }, 200);
+}
+
+/** POST /shipments/driver-bulk — give many orders to one driver; one result per order. */
+export async function handOffDriverBulk(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const body = (c.req as any).valid("json") as z.infer<typeof bulkDriverHandoffSchema>;
+  const driver = await driverFor(db, body.driverId);
+  const results = await handOffToDriverOrders(db, driver, body.orderIds.map((orderId) => ({ orderId, deliveryType: body.deliveryType })), c.get("user"));
+  return c.json({ success: true, data: bulkData(await resultItems(db, null, results), results) }, 200);
 }
 
 /** GET /shipments/{id} — the shipment with its history and what can be done now. */
@@ -156,7 +189,7 @@ export async function update(c: Context<AppContext>) {
 /** POST /shipments/{id}/void */
 export async function voidOne(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  const { orderId } = await operations.voidShipmentOperation(db, shipmentIdOf(c), actorOf(c));
+  const { orderId } = await operations.voidShipmentOperation(db, shipmentIdOf(c), c.get("user"));
   return c.json({ success: true, data: { orderId } }, 200);
 }
 

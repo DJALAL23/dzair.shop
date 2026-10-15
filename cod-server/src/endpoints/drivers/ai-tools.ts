@@ -292,7 +292,7 @@ export const getDriverTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   deleteDriver: tool({
-    description: "Removes a driver record from the CRM. Warning: This only works if the driver has no active (assigned or out for delivery) orders. Use with caution - this action is permanent.",
+    description: "Removes a driver record from the CRM. Only a driver who never had an order: one with orders still out must have them finished or taken back first, and one with past deliveries is set inactive instead (updateDriverStatus). Permanent.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -315,20 +315,7 @@ export const getDriverTools = (db: ReturnType<typeof getDb>) => ({
           message: `Driver ${parsed.data.driverId} deleted successfully` 
         };
       } catch (error: any) {
-        // Parse structured error from ConflictError
-        let errorMessage = error.message;
-        try {
-          const parsed = JSON.parse(error.message);
-          if (parsed.code === "DRIVER_HAS_ACTIVE_ORDERS") {
-            errorMessage = `Cannot delete driver because they have ${parsed.context?.activeOrderCount || 'active'} order(s) in assigned or out_for_delivery status. Complete or reassign those orders first.`;
-          }
-        } catch (e) {
-          // Not JSON, use original message
-        }
-        return { 
-          success: false, 
-          error: errorMessage 
-        };
+        return { success: false, error: error.message };
       }
     },
   }),

@@ -245,7 +245,7 @@ const deleteDriverRoute = defineRoute({
       ),
     },
     409: {
-      description: "Cannot delete driver with active orders (code: DRIVER_HAS_ACTIVE_ORDERS)",
+      description: "The driver still has orders out (DRIVER_HAS_ACTIVE_ORDERS — finish or void them), or has past deliveries (DRIVER_HAS_SHIPMENTS — set the driver inactive instead)",
     },
   },
   handler: handlers.deleteDriver,

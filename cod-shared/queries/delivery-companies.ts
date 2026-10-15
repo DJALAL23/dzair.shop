@@ -4,8 +4,8 @@
  * CRUD operations for third-party delivery company management.
  */
 
-import { eq, and, like, desc, count, notInArray } from "drizzle-orm";
-import { deliveryCompanies, orders } from "../db/schema";
+import { eq, and, like, desc, count, notExists, sql } from "drizzle-orm";
+import { companyApiLogs, deliveryCompanies, shipments, webhookEvents } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { isSecretSetting, maskSecret, maskedSettings, type CarrierProvider } from "../carriers/providers";
 
@@ -214,28 +214,35 @@ export async function updateDeliveryCompany(
   return getDeliveryCompanyById(db, id);
 }
 
+export type CompanyDeletion =
+  | { ok: true }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "has_shipments"; open: number; total: number };
+
 /**
- * Delete a delivery company by ID.
- * Throws if the company has active (non-terminal) orders assigned to it.
+ * Delete a delivery company that never carried a shipment, with its API log
+ * and inbox. A company that has carried parcels keeps them (their history,
+ * and the inbox that recorded it), so it is deactivated instead. The check is
+ * part of every statement of the delete, so a parcel handed to the company
+ * meanwhile keeps it.
  */
-export async function deleteDeliveryCompany(db: AppDb, id: string) {
-  const liveOrders = await db
-    .select({ count: count() })
-    .from(orders)
-    .where(
-      and(
-        eq(orders.companyId, id),
-        notInArray(orders.status, ["delivered", "returned", "cancelled"]),
-      ),
-    )
+export async function deleteDeliveryCompany(db: AppDb, id: string): Promise<CompanyDeletion> {
+  const noShipment = notExists(db.select({ one: sql`1` }).from(shipments).where(eq(shipments.companyId, id)));
+  const results = await db.batch([
+    db.delete(companyApiLogs).where(and(eq(companyApiLogs.companyId, id), noShipment)),
+    db.delete(webhookEvents).where(and(eq(webhookEvents.companyId, id), noShipment)),
+    db.delete(deliveryCompanies).where(and(eq(deliveryCompanies.id, id), noShipment)),
+  ]);
+  if (((results[2] as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0) return { ok: true };
+
+  const held = await db
+    .select({
+      total: count(),
+      open: sql<number>`coalesce(sum(case when ${shipments.deliveredAt} is null and ${shipments.returnedAt} is null and ${shipments.cancelledAt} is null then 1 else 0 end), 0)`,
+    })
+    .from(shipments)
+    .where(eq(shipments.companyId, id))
     .get();
-
-  if (liveOrders && liveOrders.count > 0) {
-    throw new Error(
-      `Cannot delete — this company has ${liveOrders.count} active order(s). Complete or reassign them first.`,
-    );
-  }
-
-  await db.delete(deliveryCompanies).where(eq(deliveryCompanies.id, id));
-  return true;
+  const total = Number(held?.total ?? 0);
+  return total > 0 ? { ok: false, reason: "has_shipments", open: Number(held?.open ?? 0), total } : { ok: false, reason: "not_found" };
 }

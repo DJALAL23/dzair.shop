@@ -224,12 +224,16 @@ const deleteRoute = defineRoute({
   auth: { scope: SCOPES.DELIVERY_DELETE },
   tags: ["Delivery Companies"],
   summary: "Delete delivery company",
-  description: "Delete a delivery company",
+  description: "Delete a delivery company that never carried a parcel, with its API log and webhook inbox. A company that has carried parcels keeps their history: deactivate it instead.",
   params: idParams,
   responses: {
     200: {
       description: "Delivery company deleted",
       content: jsonContent(z.object({ success: z.boolean() })),
+    },
+    404: { description: "Delivery company not found" },
+    409: {
+      description: "Parcels are still on their way (COMPANY_HAS_ACTIVE_SHIPMENTS), or the company has carried parcels (COMPANY_HAS_SHIPMENTS — deactivate it instead)",
     },
   },
   handler: handlers.deleteDeliveryCompany,

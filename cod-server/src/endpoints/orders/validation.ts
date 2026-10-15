@@ -113,10 +113,6 @@ export const updateOrderSchema = z.object({
   notes: z.string().nullish(),
 });
 
-export const assignDriverSchema = z.object({
-  driverId: z.string().min(1),
-});
-
 /**
  * PATCH /orders/:id/products/:productLineId/return
  * Records how many units on a single order line the customer refused at the door.
@@ -149,6 +145,5 @@ export const orderFiltersSchema = z.object({
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type UpdateOrderInput = z.infer<typeof updateOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
-export type AssignDriverInput = z.infer<typeof assignDriverSchema>;
 export type OrderFiltersInput = z.infer<typeof orderFiltersSchema>;
 export type ReturnOrderProductInput = z.infer<typeof returnOrderProductSchema>;

@@ -287,7 +287,7 @@ describe("Drivers routes (OpenAPIHono)", () => {
   describe("DELETE /api/drivers/:id", () => {
     it("deletes driver successfully", async () => {
       vi.mocked(queries.getDriverById).mockResolvedValue(driverRow());
-      vi.mocked(queries.deleteDriver).mockResolvedValue({ success: true });
+      vi.mocked(queries.deleteDriver).mockResolvedValue(undefined);
 
       const res = await app.request("/api/drivers/drv_123", {
         method: "DELETE",

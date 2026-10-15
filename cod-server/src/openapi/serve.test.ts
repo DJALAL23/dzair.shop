@@ -749,11 +749,12 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(spec.paths["/api/orders/{id}"]?.patch?.operationId).toBe("updateOrder");
     expect(spec.paths["/api/orders/{id}"]?.delete?.operationId).toBe("deleteOrder");
     expect(spec.paths["/api/orders/{id}/status"]?.patch?.operationId).toBe("updateOrderStatus");
-    expect(spec.paths["/api/orders/{id}/assign-driver"]?.patch?.operationId).toBe("assignDriver");
-    expect(spec.paths["/api/orders/{id}/unassign"]?.patch?.operationId).toBe("unassignDriver");
+    expect(spec.paths["/api/orders/{id}/assign-driver"]).toBeUndefined();
+    expect(spec.paths["/api/orders/{id}/unassign"]).toBeUndefined();
     expect(spec.paths["/api/orders/{id}/products/{productLineId}/return"]?.patch?.operationId).toBe("returnOrderProduct");
     expect(spec.paths["/api/orders/{id}/shipment"]?.post?.operationId).toBe("handOffOrder");
     expect(spec.paths["/api/shipments/bulk"]?.post?.operationId).toBe("handOffOrders");
+    expect(spec.paths["/api/shipments/driver-bulk"]?.post?.operationId).toBe("handOffOrdersToDriver");
     expect(spec.paths["/api/shipments/{id}"]?.get?.operationId).toBe("getShipment");
     expect(spec.paths["/api/shipments/{id}/resolve"]?.post?.operationId).toBe("resolveShipmentHandoff");
     expect(spec.paths["/api/shipments/{id}"]?.patch?.operationId).toBe("updateShipment");

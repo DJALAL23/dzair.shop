@@ -22,8 +22,23 @@ export const carrierHandoffSchema = z.object({
   ...parcelChoices,
 });
 
+export const driverHandoffSchema = z.object({
+  kind: z.literal("driver"),
+  driverId: z.string().min(1).openapi({ description: "The store's driver to give the order to" }),
+  deliveryType: parcelChoices.deliveryType,
+  stationCode: parcelChoices.stationCode,
+});
+
+export const orderHandoffSchema = z.discriminatedUnion("kind", [carrierHandoffSchema, driverHandoffSchema]);
+
 export const bulkCarrierHandoffSchema = z.object({
   companyId: z.string().min(1),
+  orderIds: z.array(z.string().min(1)).min(1).max(100),
+  deliveryType: parcelChoices.deliveryType,
+});
+
+export const bulkDriverHandoffSchema = z.object({
+  driverId: z.string().min(1),
   orderIds: z.array(z.string().min(1)).min(1).max(100),
   deliveryType: parcelChoices.deliveryType,
 });

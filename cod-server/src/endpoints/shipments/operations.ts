@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import type { AppDb } from "@/db";
 import { communes, orders, wilayas } from "@/db/schema";
 import type { AuthUser } from "@/types";
-import { ConflictError, NotFoundError, BusinessLogicError, ValidationError, PermissionError } from "@/lib/errors/classes";
+import { ConflictError, NotFoundError, BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ACTIONS, logActivity } from "@/lib/activity";
 import { assertOrderAddress } from "@/lib/order-address";
 import { callCarrier } from "@/carriers/app-errors";
@@ -17,8 +17,6 @@ import { loggedCarrierCall } from "@/carriers/call-log";
 import { CarrierError, type CarrierAdapter, type CarrierCapabilities, type CarrierLabel, type CarrierRef, type CarrierRemark, type CarrierShipmentPatch } from "@/carriers/contract";
 import { carrierCapabilities } from "@/carriers/registry";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-import { hasPermission } from "../../../../cod-shared/rbac/utils";
-import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import { getDeliveryCompanyRaw } from "../../../../cod-shared/queries/delivery-companies";
 import { resolveCarrierCommuneName, resolveCarrierWilayaName } from "../../../../cod-shared/queries/carrier-geo";
 import { updateOrder } from "../../../../cod-shared/queries/orders";
@@ -28,7 +26,7 @@ import { carrierRefOf, deliveryFactsOf, getShipment, type ShipmentRow } from "..
 import { recordShipmentEvents, type RecordedEvents } from "../../../../cod-shared/shipments/record-events";
 import type { ShipmentAction } from "./actions";
 import { connectedCarrier, type DeliveryCompanyRow } from "./carrier-handoff";
-import { actionRefusal, requireAction } from "./guard";
+import { actionRefusal, requireAction, requireKindScope } from "./guard";
 import { syncShipment } from "./sync";
 
 // ─── Loading a shipment for an operation ─────────────────────────────────────
@@ -40,9 +38,11 @@ interface Target {
   context: { shipmentId: string; orderId: string; companyId?: string };
 }
 
-async function target(db: AppDb, shipmentId: string, action: ShipmentAction): Promise<Target> {
+/** The shipment, refused unless the action is open to it — and, when `as` is given, to this person on this kind of shipment. */
+async function target(db: AppDb, shipmentId: string, action: ShipmentAction, as?: { actor: AuthUser; what: string }): Promise<Target> {
   const row = await getShipment(db, shipmentId);
   if (!row) throw new NotFoundError("Shipment", shipmentId);
+  if (as) requireKindScope(as.actor, row.kind, as.what);
   const company = row.companyId ? ((await getDeliveryCompanyRaw(db, row.companyId)) ?? null) : null;
   const capabilities = company ? carrierCapabilities(company) : null;
   requireAction(row, capabilities, action);
@@ -173,8 +173,8 @@ export async function updateParcel(db: AppDb, shipmentId: string, changes: Parce
  * handed off again: the carrier cancels the parcel first (unless it already
  * did); a driver's shipment has no carrier to ask.
  */
-export async function voidShipmentOperation(db: AppDb, shipmentId: string, actor: AuthUser | null): Promise<{ orderId: string }> {
-  const t = await target(db, shipmentId, "void");
+export async function voidShipmentOperation(db: AppDb, shipmentId: string, actor: AuthUser): Promise<{ orderId: string }> {
+  const t = await target(db, shipmentId, "void", { actor, what: "Voiding" });
   const ref = carrierRefOf(t.row);
   if (t.row.kind === "carrier" && !t.row.cancelledAt && t.company && ref) {
     const withCarrier: CarrierTarget = { ...t, company: t.company, ref, carrier: await connectedCarrier(t.company) };
@@ -185,9 +185,13 @@ export async function voidShipmentOperation(db: AppDb, shipmentId: string, actor
     if (outcome.code === ERROR_CODES.SHIPMENT_NOT_FOUND) throw new NotFoundError("Shipment", shipmentId);
     throw actionRefusal({ ok: false, code: outcome.code, reason: "The shipment changed meanwhile and can no longer be voided" }, t.context);
   }
-  if (actor) {
-    await logActivity(db, actor, ACTIONS.SHIPMENT_VOIDED, { type: "order", id: t.row.orderId }, { shipmentId, kind: t.row.kind, companyId: t.row.companyId, trackingNumber: t.row.trackingNumber });
-  }
+  await logActivity(db, actor, ACTIONS.SHIPMENT_VOIDED, { type: "order", id: t.row.orderId }, {
+    shipmentId,
+    kind: t.row.kind,
+    companyId: t.row.companyId,
+    driverId: t.row.driverId,
+    trackingNumber: t.row.trackingNumber,
+  });
   return { orderId: outcome.orderId };
 }
 
@@ -285,11 +289,7 @@ const CLOCK_SKEW_MS = 5 * 60_000;
  * carrier is a dispatch permission; for a driver, an assignment permission.
  */
 export async function reportShipmentEvent(db: AppDb, shipmentId: string, report: MerchantReportInput, actor: AuthUser): Promise<RecordedEvents> {
-  const t = await target(db, shipmentId, "report");
-  const needed = t.row.kind === "carrier" ? SCOPES.DELIVERY_DISPATCH : SCOPES.ORDERS_ASSIGN;
-  if (actor.role !== "admin" && !hasPermission(actor.scopes ?? [], needed)) {
-    throw new PermissionError(`Reporting on a ${t.row.kind} shipment needs ${needed}`, needed);
-  }
+  const t = await target(db, shipmentId, "report", { actor, what: "Reporting on" });
   const verdict = checkMerchantReport({ kind: t.row.kind, handoffState: t.row.handoffState, delivery: deliveryFactsOf(t.row) }, report.status);
   if (!verdict.ok) {
     const reason = verdict.code === ERROR_CODES.SHIPMENT_REPORT_NOT_ALLOWED ? "Only the carrier can report that; a merchant may only attest the goods came back" : "The shipment is closed";

@@ -12,7 +12,7 @@ import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import ordersRouter from "./routes";
 import * as queries from "./queries";
 import * as resolveFee from "./resolve-fee";
-import { NotFoundError, BusinessLogicError, ValidationError } from "@/lib/errors/classes";
+import { ValidationError } from "@/lib/errors/classes";
 import { assertOrderAddress } from "@/lib/order-address";
 
 // The address rule is tested against the real reference tables
@@ -607,61 +607,6 @@ describe("Orders routes (OpenAPIHono)", () => {
       const body: any = await res.json();
       expect(body.code).toBe("INVALID_STATUS_TRANSITION");
       expect(body.context.allowedTransitions).toEqual([]);
-    });
-  });
-
-  describe("PATCH /api/orders/{id}/assign-driver", () => {
-    it("assigns a driver", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
-      vi.mocked(queries.assignDriver).mockResolvedValue(undefined as any);
-      mockDb = dbSelectReturning({ id: "drv_1" });
-
-      const res = await app.request("/api/orders/ord_1/assign-driver", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverId: "drv_1" }),
-      });
-
-      expect(res.status).toBe(200);
-      expect(queries.assignDriver).toHaveBeenCalledWith(mockDb, "ord_1", "drv_1");
-    });
-
-    it("returns 422 when already dispatched to a company", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ trackingNumber: "NE123DZ" }) as any
-      );
-
-      const res = await app.request("/api/orders/ord_1/assign-driver", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverId: "drv_1" }),
-      });
-
-      expect(res.status).toBe(422);
-      const body: any = await res.json();
-      expect(body.code).toBe(ERROR_CODES.ORDER_ALREADY_DISPATCHED);
-    });
-  });
-
-  describe("PATCH /api/orders/{id}/unassign", () => {
-    it("returns 422 when no driver is assigned", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
-
-      const res = await app.request("/api/orders/ord_1/unassign", { method: "PATCH" });
-
-      expect(res.status).toBe(422);
-    });
-
-    it("unassigns successfully when a driver is set", async () => {
-      vi.mocked(queries.getOrderById).mockResolvedValue(
-        orderRow({ driverId: "drv_1", deliveryMethod: "driver", status: "assigned" }) as any
-      );
-      vi.mocked(queries.unassignDriver).mockResolvedValue(undefined as any);
-
-      const res = await app.request("/api/orders/ord_1/unassign", { method: "PATCH" });
-
-      expect(res.status).toBe(200);
-      expect(queries.unassignDriver).toHaveBeenCalledWith(mockDb, "ord_1");
     });
   });
 

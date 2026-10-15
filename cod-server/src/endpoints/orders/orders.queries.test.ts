@@ -12,36 +12,19 @@
  * What is tested here:
  *   createOrder     — inventory deduction math, floor-at-zero, stock movement delta,
  *                     variant vs simple product paths, trackInventory=false skip
- *   updateOrderStatus — delivered → driver credit, cancelled → restock + wasAlreadyTerminal
- *                       guard, returned → restock, no driver path
  *   setOrderProductReturn — status derivation (fulfilled/partial/returned), delta math,
  *                           correction (reducing returnedQty), out-of-range guard
- *   assignDriver    — fee lookup hit, fee lookup miss (0), status auto-advance for
- *                     new/preparing/ready, no auto-advance for confirmed/unreachable
- *   unassignDriver  — status rollback from "assigned" → "ready", no rollback otherwise
- *   deleteOrder     — inventory restore, skip already-returned lines, no double-restock
- *                     for cancelled orders (remaining = 0)
  */
 
 import { describe, it, expect } from "vitest";
 import {
   makeMockDb,
   f,
-  a,
-  orderRow,
-  productRow,
-  variantRow,
-  driverRow,
-  customerRow,
   NOW,
 } from "@/test-utils/mock-db";
 import {
   createOrder,
-  updateOrderStatus,
   setOrderProductReturn,
-  assignDriver,
-  unassignDriver,
-  deleteOrder,
 } from "../../../../cod-shared/queries/orders";
 
 // ─── orderProducts row fixture ────────────────────────────────────────────────
@@ -61,18 +44,6 @@ function opRow(overrides: Record<string, unknown> = {}): Record<string, unknown>
     status: "fulfilled",
     returned_quantity: 0,
     created_at: NOW,
-    ...overrides,
-  };
-}
-
-// ─── driverCompensations fixture ─────────────────────────────────────────────
-
-function compRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    id: "dc_1",
-    driver_id: "drv_1",
-    wilaya_id: 16,
-    fee_per_delivery: 350,
     ...overrides,
   };
 }
@@ -345,169 +316,6 @@ describe("setOrderProductReturn", () => {
 
     expect(result.status).toBe("returned");
     // No inventory changes made, but return recorded
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// assignDriver
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("assignDriver", () => {
-  it("sets driverFee from compensation table when a matching row exists", async () => {
-    const db = makeMockDb([
-      f({ wilaya_id: 16, status: "ready" }),   // order SELECT
-      f(compRow({ fee_per_delivery: 350 })),    // compensation lookup
-    ]);
-
-    const result = await assignDriver(db, "ord_1", "drv_1");
-
-    expect(result).toBe(true);
-    // driverFee=350 is written — verified by function completing without error
-  });
-
-  it("sets driverFee to 0 when no compensation row exists for that wilaya", async () => {
-    const db = makeMockDb([
-      f({ wilaya_id: 16, status: "ready" }),
-      f(null),  // no compensation row
-    ]);
-
-    const result = await assignDriver(db, "ord_1", "drv_1");
-
-    expect(result).toBe(true);
-    // driverFee falls back to 0
-  });
-
-  it("skips compensation lookup when wilayaId is null", async () => {
-    const db = makeMockDb([
-      f({ wilaya_id: null, status: "ready" }),
-      // No compensation SELECT should run
-    ]);
-
-    const result = await assignDriver(db, "ord_1", "drv_1");
-
-    expect(result).toBe(true);
-    // driverFee=0, no lookup
-  });
-
-  it("auto-advances status to 'assigned' when order is in 'new'", async () => {
-    const db = makeMockDb([
-      f({ wilaya_id: 16, status: "new" }),
-      f(compRow()),
-    ]);
-
-    const result = await assignDriver(db, "ord_1", "drv_1");
-
-    expect(result).toBe(true);
-    // shouldSetAssigned=true → status set to "assigned"
-  });
-
-  it("auto-advances status to 'assigned' when order is in 'preparing'", async () => {
-    const db = makeMockDb([
-      f({ wilaya_id: 16, status: "preparing" }),
-      f(compRow()),
-    ]);
-
-    const result = await assignDriver(db, "ord_1", "drv_1");
-
-    expect(result).toBe(true);
-  });
-
-  it("auto-advances status to 'assigned' when order is in 'ready'", async () => {
-    const db = makeMockDb([
-      f({ wilaya_id: 16, status: "ready" }),
-      f(compRow()),
-    ]);
-
-    const result = await assignDriver(db, "ord_1", "drv_1");
-
-    expect(result).toBe(true);
-  });
-
-  it("does NOT auto-advance status when order is in 'confirmed'", async () => {
-    // 'confirmed' is NOT in preAssignmentStatuses — status stays 'confirmed'
-    const db = makeMockDb([
-      f({ wilaya_id: 16, status: "confirmed" }),
-      f(compRow()),
-    ]);
-
-    const result = await assignDriver(db, "ord_1", "drv_1");
-
-    expect(result).toBe(true);
-    // shouldSetAssigned=false → status NOT included in the UPDATE set
-    // This is the documented gap: confirmed order stays confirmed after driver assigned
-  });
-
-  it("does NOT auto-advance status when order is in 'unreachable'", async () => {
-    const db = makeMockDb([
-      f({ wilaya_id: 16, status: "unreachable" }),
-      f(compRow()),
-    ]);
-
-    const result = await assignDriver(db, "ord_1", "drv_1");
-
-    expect(result).toBe(true);
-    // shouldSetAssigned=false — same gap as confirmed
-  });
-
-  it("does NOT auto-advance status when order is in 'dispatched'", async () => {
-    const db = makeMockDb([
-      f({ wilaya_id: 16, status: "dispatched" }),
-      f(compRow()),
-    ]);
-
-    const result = await assignDriver(db, "ord_1", "drv_1");
-
-    expect(result).toBe(true);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// unassignDriver
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("unassignDriver", () => {
-  it("rolls status back to 'ready' when order was 'assigned'", async () => {
-    const db = makeMockDb([
-      f({ status: "assigned" }),
-    ]);
-
-    const result = await unassignDriver(db, "ord_1");
-
-    expect(result).toBe(true);
-    // shouldRollbackStatus=true → status set to "ready"
-  });
-
-  it("does NOT roll back status when order was 'dispatched'", async () => {
-    const db = makeMockDb([
-      f({ status: "dispatched" }),
-    ]);
-
-    const result = await unassignDriver(db, "ord_1");
-
-    expect(result).toBe(true);
-    // shouldRollbackStatus=false → status not changed
-  });
-
-  it("does NOT roll back status when order was 'ready'", async () => {
-    const db = makeMockDb([
-      f({ status: "ready" }),
-    ]);
-
-    const result = await unassignDriver(db, "ord_1");
-
-    expect(result).toBe(true);
-  });
-
-  it("handles order not found gracefully (null status)", async () => {
-    const db = makeMockDb([
-      f(null),  // order not found
-    ]);
-
-    const result = await unassignDriver(db, "ord_missing");
-
-    expect(result).toBe(true);
-    // order?.status is undefined → shouldRollbackStatus=false
-    // Still runs UPDATE (clears driverId/driverFee) — harmless no-op
   });
 });
 

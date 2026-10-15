@@ -440,14 +440,13 @@ export async function deleteDeliveryCompany(c: Context<AppContext>) {
     throw new NotFoundError("Delivery company", id);
   }
 
-  try {
-    await queries.deleteDeliveryCompany(db, id);
-  } catch (err) {
-    throw new BusinessLogicError(
-      err instanceof Error ? err.message : "Cannot delete company",
-      ERROR_CODES.COMPANY_INACTIVE,
-      { companyId: id }
-    );
+  const deleted = await queries.deleteDeliveryCompany(db, id);
+  if (!deleted.ok) {
+    if (deleted.reason === "not_found") throw new NotFoundError("Delivery company", id);
+    const context = { companyId: id, openShipments: deleted.open, shipments: deleted.total };
+    throw deleted.open > 0
+      ? new ConflictError(`${existing.name} still has ${deleted.open} parcel(s) on their way; they must be delivered, returned or voided first`, ERROR_CODES.COMPANY_HAS_ACTIVE_SHIPMENTS, context)
+      : new ConflictError(`${existing.name} has carried parcels whose history is kept; deactivate it instead`, ERROR_CODES.COMPANY_HAS_SHIPMENTS, context);
   }
 
   console.info(`[delivery-companies] deleted company=${id}`);

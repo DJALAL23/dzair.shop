@@ -391,13 +391,6 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     ]),
   },
   {
-    requires: [SCOPES.ORDERS_ASSIGN],
-    build: (db) => pick(getOrderTools(db), [
-      "assignDriverToOrder",
-      "unassignDriverFromOrder",
-    ]),
-  },
-  {
     requires: [SCOPES.ORDERS_DELETE],
     build: (db) => pick(getOrderTools(db), ["deleteOrder"]),
   },
