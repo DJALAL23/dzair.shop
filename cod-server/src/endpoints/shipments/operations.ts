@@ -155,7 +155,7 @@ export async function updateParcel(db: AppDb, shipmentId: string, changes: Parce
     wilayaId: changes.wilayaId,
     communeId: changes.communeId,
   };
-  if (Object.values(orderFields).some((v) => v !== undefined)) await updateOrder(db, t.row.orderId, orderFields);
+  if (Object.values(orderFields).some((v) => v !== undefined)) await updateOrder(db, t.row.orderId, orderFields, { throughShipment: true });
   await recordParcelEdit(
     db,
     shipmentId,

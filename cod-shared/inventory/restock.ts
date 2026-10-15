@@ -65,7 +65,8 @@ export async function linesToRestock(db: AppDb, orderId: string): Promise<Restoc
 
 /**
  * The statements that put each line's remaining units back and mark the line
- * fully returned. `guard`, when given, must hold for any of it to apply.
+ * fully returned. `guard`, when given, must hold for any of it to apply;
+ * `note` is kept on each stock movement.
  */
 export function restockStatements(
   db: AppDb,
@@ -75,6 +76,7 @@ export function restockStatements(
   actor: RestockActor,
   now: string,
   guard?: SQL,
+  note: string | null = null,
 ): BatchStatement[] {
   const statements: BatchStatement[] = [];
   for (const line of lines) {
@@ -95,7 +97,7 @@ export function restockStatements(
             delta: sql`${line.remaining}`.as("delta"),
             qtyBefore: sql`${stock}`.as("qty_before"),
             qtyAfter: sql`${stock} + ${line.remaining}`.as("qty_after"),
-            reason: sql`null`.as("reason"),
+            reason: sql`${note}`.as("reason"),
             reference: sql`${reference}`.as("reference"),
             createdBy: sql`${actor.id}`.as("created_by"),
             createdByName: sql`${actor.name}`.as("created_by_name"),

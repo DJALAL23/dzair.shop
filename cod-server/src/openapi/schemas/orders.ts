@@ -14,6 +14,8 @@
  */
 
 import { z } from "@hono/zod-openapi";
+import { ShipmentSchema } from "./shipments";
+import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 
 // ─── Enums & Constants ────────────────────────────────────────────────────────
 
@@ -217,6 +219,15 @@ export const OrderDetailSchema = OrderBaseSchema.extend({
   }),
   statusHistory: z.array(StatusHistoryItemSchema).optional().openapi({
     description: "Full status change log. Included in GET /api/orders/{id} (detail view only).",
+  }),
+  shipment: ShipmentSchema.nullable().optional().openapi({
+    description: "The order's delivery, with its history and the actions available now; null before handoff. Detail view only.",
+  }),
+  stage: z.enum(ORDER_STAGES).nullable().optional().openapi({
+    description: "Where the order stands overall — its processing, then its shipment's delivery. Null for a legacy order still in an old delivery status.",
+  }),
+  needsAttention: z.boolean().optional().openapi({
+    description: "The merchant must act on the delivery: the carrier flagged it, the handoff outcome is unknown, or the carrier cancelled it",
   }),
 }).openapi("Order", {
   description: "Complete order record with products and status history",

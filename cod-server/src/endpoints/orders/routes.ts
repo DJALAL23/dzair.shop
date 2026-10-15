@@ -119,7 +119,7 @@ The linked customer record is updated in the same operation with the fields this
 
 \`customerEmail\` / \`address\`: an empty (or whitespace) value clears the field; a value is stored trimmed (email also lower-cased), matching POST /orders.
 
-**Rejected with 422** when the order already has a tracking number (edit the shipment via PATCH /orders/{id}/update-shipment instead) or is in a terminal state (returned/cancelled). **Rejected with 400 MISSING_ADDRESS** when the edit would leave a home delivery without a street address. Wilaya/commune are checked against the reference tables (400 MISSING_WILAYA_COMMUNE).`,
+**Rejected with 409 ORDER_HAS_SHIPMENT** when the order has a shipment and the edit touches what the parcel carries (name, phone, wilaya, commune, city, address, delivery type) — change those through PATCH /shipments/{id}; the email and notes still change. **Rejected with 422** for a legacy order that already has a tracking number, or one in a terminal state (returned/cancelled). **Rejected with 400 MISSING_ADDRESS** when the edit would leave a home delivery without a street address. Wilaya/commune are checked against the reference tables (400 MISSING_WILAYA_COMMUNE).`,
   operationId: "updateOrder",
   params: IdParamSchema,
   body: updateOrderSchema,
@@ -135,9 +135,12 @@ The linked customer record is updated in the same operation with the fields this
     404: {
       description: "Order not found",
     },
+    409: {
+      description: "The order has a shipment and the edit touches what the parcel carries (ORDER_HAS_SHIPMENT)",
+    },
     422: {
       description:
-        "Order already dispatched (ORDER_ALREADY_DISPATCHED) or terminal (INVALID_STATUS_TRANSITION)",
+        "Legacy order already dispatched (ORDER_ALREADY_DISPATCHED) or terminal (INVALID_STATUS_TRANSITION)",
     },
   },
   handler: handlers.updateOrder,
@@ -150,7 +153,7 @@ const deleteOrderRoute = defineRoute({
   tags: ["Orders"],
   summary: "Delete order",
   description:
-    "Permanently deletes the order and all child records (order products, shipments) from the database.",
+    "Permanently deletes the order and its records (lines, a closed shipment and its history), putting back the goods still out of stock (never those a customer received) and undoing the customer's count and spend. **409 ORDER_HAS_SHIPMENT** while the order's shipment is open — void it first.",
   operationId: "deleteOrder",
   params: IdParamSchema,
   responses: {
@@ -158,6 +161,7 @@ const deleteOrderRoute = defineRoute({
       description: "Order deleted",
       content: jsonContent(MessageResponseSchema),
     },
+    409: { description: "The order's shipment is open (ORDER_HAS_SHIPMENT), or the order changed meanwhile (ORDER_CHANGED)" },
   },
   handler: handlers.deleteOrder,
 });
@@ -182,7 +186,9 @@ const updateStatusRoute = defineRoute({
 **Side effects:**
 - **delivered**: sets \`deliveryTime\`; increments driver's \`totalDelivered\` and \`totalEarnings\` if assigned
 - **cancelled / returned**: restores inventory for products with \`trackInventory\` enabled (double-cancel/return is safe)
-- **delivered**: fires the Meta CAPI Purchase workflow when the store has tracking enabled`,
+- **delivered**: fires the Meta CAPI Purchase workflow when the store has tracking enabled
+
+Each effect applies exactly once, even when the same change is sent twice at once. **An order with a shipment has no status change** (409 ORDER_HAS_SHIPMENT): its delivery is the shipment's, and cancelling it means voiding the shipment first.`,
   operationId: "updateOrderStatus",
   params: IdParamSchema,
   body: updateOrderStatusSchema,
@@ -195,6 +201,7 @@ const updateStatusRoute = defineRoute({
       description:
         "Unknown status value (VALIDATION_FAILED) or transition not allowed by the flow guard (INVALID_STATUS_TRANSITION with currentStatus/targetStatus/allowedTransitions context)",
     },
+    409: { description: "The order has a shipment (ORDER_HAS_SHIPMENT), or it changed meanwhile (ORDER_CHANGED)" },
   },
   handler: statusTransitions.updateStatus,
 });

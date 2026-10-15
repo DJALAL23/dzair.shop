@@ -22,6 +22,7 @@ import {
   companyShipments,
   companyApiLogs,
   webhookEvents,
+  shipments,
 } from "../db/schema";
 import type { OrderStatus } from "../db/schema";
 import {
@@ -38,6 +39,8 @@ import {
 const driversAlias = aliasedTable(drivers, "d");
 
 import { safeLikeTerm } from "./search";
+import { insertSelectRow } from "../db/insert-select";
+import { linesToRestock, restockStatements } from "../inventory/restock";
 import { getCustomerByPhone, updateCustomer, type UpdateCustomerData } from "./customers";
 
 export interface OrderFilters {
@@ -329,18 +332,54 @@ export async function createOrder(
   return { id: orderData.id, orderNumber };
 }
 
+export type StatusChange = { ok: true } | { ok: false; reason: "not_found" | "has_shipment" | "changed" };
+
+/**
+ * Move an order to a new status, with its effects: history, the driver's
+ * credit on a (legacy) delivery, and on cancel/return the customer's spend
+ * rolled back and the goods restocked.
+ *
+ * Exactly once, in one batch: the history row is written only while the
+ * order still has the status it was read with and has no shipment — the
+ * statements of one batch run as one transaction, so that check holds for
+ * the whole batch — and every other statement applies only if that history
+ * row exists. Two cancels at once apply their effects once; a cancel racing
+ * a handoff loses to it (an order with a shipment has no status change).
+ */
 export async function updateOrderStatus(
   db: AppDb,
   orderId: string,
   newStatus: OrderStatus,
   userId?: string,
   userName?: string,
-) {
+): Promise<StatusChange> {
   const now = new Date().toISOString();
 
   const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
+  if (!order) return { ok: false, reason: "not_found" };
+
+  const historyId = crypto.randomUUID();
+  const unchanged = and(
+    sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.status} = ${order.status})`,
+    sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
+  )!;
+  const claimed = sql`exists (select 1 from ${orderStatusHistory} where ${orderStatusHistory.id} = ${historyId})`;
 
   const statements: BatchStatement[] = [
+    db.insert(orderStatusHistory).select(
+      db
+        .select(
+          insertSelectRow(orderStatusHistory, {
+            id: sql`${historyId}`,
+            orderId: sql`${orderId}`,
+            status: sql`${newStatus}`,
+            timestamp: sql`${now}`,
+            by: sql`${userId ?? null}`,
+          }) as never,
+        )
+        .from(sql`(select 1)`)
+        .where(unchanged),
+    ),
     db
       .update(orders)
       .set({
@@ -348,18 +387,10 @@ export async function updateOrderStatus(
         updatedAt: now,
         ...(newStatus === "delivered" ? { deliveryTime: now } : {}),
       })
-      .where(eq(orders.id, orderId)),
-
-    db.insert(orderStatusHistory).values({
-      id: crypto.randomUUID(),
-      orderId,
-      status: newStatus,
-      timestamp: now,
-      by: userId ?? null,
-    }),
+      .where(and(eq(orders.id, orderId), claimed)),
   ];
 
-  if (newStatus === "delivered" && order?.driverId) {
+  if (newStatus === "delivered" && order.driverId) {
     statements.push(
       db
         .update(drivers)
@@ -369,136 +400,37 @@ export async function updateOrderStatus(
           pendingCash: sql`${drivers.pendingCash} + ${order.codAmount ?? 0}`,
           updatedAt: now,
         })
-        .where(eq(drivers.id, order.driverId)),
+        .where(and(eq(drivers.id, order.driverId), claimed)),
     );
   }
 
-  const terminalStatuses = ["cancelled", "returned"];
-  const wasAlreadyTerminal = order ? terminalStatuses.includes(order.status) : false;
-
+  const wasAlreadyTerminal = order.status === "cancelled" || order.status === "returned";
   if (!wasAlreadyTerminal && (newStatus === "cancelled" || newStatus === "returned")) {
-    // Update customer totalSpent when order is cancelled/returned
     statements.push(
       db
         .update(customers)
-        .set({
-          totalSpent: sql`MAX(0, ${customers.totalSpent} - ${order?.price ?? 0})`,
-        })
-        .where(eq(customers.id, order?.customerId ?? "")),
+        .set({ totalSpent: sql`MAX(0, ${customers.totalSpent} - ${order.price ?? 0})` })
+        .where(and(eq(customers.id, order.customerId), claimed)),
     );
-
-    const movementType =
-      newStatus === "cancelled" ? "ORDER_CANCELLED" : "ORDER_RETURNED";
-
-    const ordProductRows = await db
-      .select({
-        id: orderProducts.id,
-        productId: orderProducts.productId,
-        variantId: orderProducts.variantId,
-        quantity: orderProducts.quantity,
-        returnedQuantity: orderProducts.returnedQuantity,
-      })
-      .from(orderProducts)
-      .where(eq(orderProducts.orderId, orderId))
-      .all();
-
-    for (const op of ordProductRows) {
-      const remaining = op.quantity - (op.returnedQuantity ?? 0);
-      if (remaining <= 0) continue;
-
-      const productRow = await db
-        .select({ trackInventory: products.trackInventory })
-        .from(products)
-        .where(eq(products.id, op.productId))
-        .get();
-
-      if (!productRow?.trackInventory) continue;
-
-      if (op.variantId) {
-        const variantRow = await db
-          .select({ inventory: productVariants.inventory })
-          .from(productVariants)
-          .where(eq(productVariants.id, op.variantId))
-          .get();
-
-        const qtyBefore = variantRow?.inventory ?? 0;
-        const qtyAfter = qtyBefore + remaining;
-
-        statements.push(
-          db
-            .update(productVariants)
-            .set({ inventory: qtyAfter, updatedAt: now })
-            .where(eq(productVariants.id, op.variantId)),
-        );
-
-        statements.push(
-          db.insert(stockMovements).values({
-            id: crypto.randomUUID(),
-            productId: op.productId,
-            variantId: op.variantId,
-            type: movementType,
-            delta: remaining,
-            qtyBefore,
-            qtyAfter,
-            reason: null,
-            reference: orderId,
-            createdBy: userId ?? "system",
-            createdByName: userName ?? "النظام",
-            createdAt: now,
-          }),
-        );
-      } else {
-        const productInventoryRow = await db
-          .select({ inventory: products.inventory })
-          .from(products)
-          .where(eq(products.id, op.productId))
-          .get();
-
-        const qtyBefore = productInventoryRow?.inventory ?? 0;
-        const qtyAfter = qtyBefore + remaining;
-
-        statements.push(
-          db
-            .update(products)
-            .set({ inventory: qtyAfter, updatedAt: now })
-            .where(eq(products.id, op.productId)),
-        );
-
-        statements.push(
-          db.insert(stockMovements).values({
-            id: crypto.randomUUID(),
-            productId: op.productId,
-            variantId: null,
-            type: movementType,
-            delta: remaining,
-            qtyBefore,
-            qtyAfter,
-            reason: null,
-            reference: orderId,
-            createdBy: userId ?? "system",
-            createdByName: userName ?? "النظام",
-            createdAt: now,
-          }),
-        );
-      }
-
-      statements.push(
-        db
-          .update(orderProducts)
-          .set({ status: "returned", returnedQuantity: op.quantity })
-          .where(eq(orderProducts.id, op.id)),
-      );
-    }
+    const lines = await linesToRestock(db, orderId);
+    statements.push(
+      ...restockStatements(
+        db,
+        lines,
+        newStatus === "cancelled" ? "ORDER_CANCELLED" : "ORDER_RETURNED",
+        orderId,
+        { id: userId ?? "system", name: userName ?? "النظام" },
+        now,
+        claimed,
+      ),
+    );
   }
 
-  // Atomic: status, history, driver credit, customer stats, restock, and line
-  // returns commit together or not at all. Without the batch, a mid-sequence
-  // failure committed "cancelled" without the restock — and the
-  // wasAlreadyTerminal guard then blocked every retry, permanently losing
-  // the inventory.
-  await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
-
-  return true;
+  // Atomic: a mid-sequence failure leaves no partial state, so a retry is safe.
+  const [history] = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+  if (((history as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0) return { ok: true };
+  const shipment = await db.select({ id: shipments.id }).from(shipments).where(eq(shipments.orderId, orderId)).get();
+  return { ok: false, reason: shipment ? "has_shipment" : "changed" };
 }
 
 export interface UpdateOrderData {
@@ -518,8 +450,10 @@ export interface UpdateOrderData {
 /**
  * Partial edit of an order's customer/destination fields. Identity (id,
  * orderNumber), pricing, and dispatch state are deliberately not patchable —
- * pricing is fixed at creation and post-dispatch edits go through the
- * carrier-aware shipment-operations path.
+ * pricing is fixed at creation. Once the order has a shipment its delivery
+ * details are refused here (`has_shipment`): the parcel carries them, so they
+ * change through the shipment, which edits the carrier first and then calls
+ * this with `throughShipment`.
  *
  * The linked customer record is kept in sync in the same operation: name,
  * phone, wilaya/commune, and address edits flow into `customers`, so an order
@@ -529,11 +463,17 @@ export interface UpdateOrderData {
  * the order is re-pointed to that record instead of hijacking its phone.
  * customerEmail is order-only — customers have no email column.
  */
+/** The delivery details a shipment carries: once an order has one, they change only through it. */
+export const DELIVERY_DETAIL_FIELDS = ["customerName", "phone", "wilayaId", "communeId", "city", "address", "deliveryType"] as const satisfies ReadonlyArray<keyof UpdateOrderData>;
+
+export type OrderEdit = { ok: true } | { ok: false; reason: "not_found" | "has_shipment" };
+
 export async function updateOrder(
   db: AppDb,
   orderId: string,
   updates: UpdateOrderData,
-) {
+  options: { throughShipment?: boolean } = {},
+): Promise<OrderEdit> {
   const current = await db
     .select({
       customerId: orders.customerId,
@@ -588,12 +528,28 @@ export async function updateOrder(
     }
   }
 
-  await db.update(orders).set(patch).where(eq(orders.id, orderId));
+  if (!current) return { ok: false, reason: "not_found" };
+
+  // Atomic with the handoff: a reservation and this edit can never both win.
+  const touchesDelivery = DELIVERY_DETAIL_FIELDS.some((field) => updates[field] !== undefined);
+  const locked = touchesDelivery && !options.throughShipment;
+  const [result] = await db.batch([
+    db
+      .update(orders)
+      .set(patch)
+      .where(
+        locked
+          ? and(eq(orders.id, orderId), sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`)
+          : eq(orders.id, orderId),
+      ),
+  ]);
+  if (((result as { meta?: { changes?: number } }).meta?.changes ?? 0) === 0) return { ok: false, reason: "has_shipment" };
 
   const customerTarget = (patch.customerId as string | undefined) ?? current?.customerId;
   if (customerTarget && Object.keys(customerUpdates).length > 0) {
     await updateCustomer(db, customerTarget, customerUpdates);
   }
+  return { ok: true };
 }
 
 export async function setOrderProductReturn(
@@ -860,52 +816,64 @@ export async function clearOrderTracking(db: AppDb, orderId: string) {
     .where(eq(orders.id, orderId));
 }
 
-export async function deleteOrder(db: AppDb, orderId: string) {
+export type OrderDeletion = { ok: true } | { ok: false; reason: "not_found" | "has_open_shipment" | "changed" };
+
+const DELETE_ATTEMPTS = 3;
+
+/**
+ * Delete an order and undo what it did: the customer's order count and spend,
+ * a (legacy) driver credit not yet settled, and the goods still out of stock.
+ *
+ * Refused while the order has an open shipment — a parcel at a carrier would
+ * be orphaned; void it first. A closed shipment goes with the order: a
+ * delivered one keeps its goods with the customer (no restock), a returned
+ * one already restocked and rolled the spend back.
+ *
+ * One batch, applied only while the order and its shipment are as they were
+ * read (the statements of a batch run as one transaction); if either changed
+ * meanwhile, the deletion is planned again.
+ */
+export async function deleteOrder(db: AppDb, orderId: string): Promise<OrderDeletion> {
+  for (let attempt = 1; attempt <= DELETE_ATTEMPTS; attempt++) {
+    const outcome = await attemptDelete(db, orderId);
+    if (outcome.ok || outcome.reason !== "changed") return outcome;
+  }
+  return { ok: false, reason: "changed" };
+}
+
+async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion> {
   const now = new Date().toISOString();
-
-  // Get order details first to update customer stats
   const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
+  if (!order) return { ok: false, reason: "not_found" };
+  const shipment = await db.select().from(shipments).where(eq(shipments.orderId, orderId)).get();
+  const shipmentClosed = !!shipment && (shipment.deliveredAt !== null || shipment.returnedAt !== null || shipment.cancelledAt !== null);
+  if (shipment && !shipmentClosed) return { ok: false, reason: "has_open_shipment" };
 
-  // Get order products to restore inventory
-  const orderProductsList = await db
-    .select()
-    .from(orderProducts)
-    .where(eq(orderProducts.orderId, orderId))
-    .all();
+  const asRead = and(
+    sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.status} = ${order.status} and ${orders.updatedAt} = ${order.updatedAt})`,
+    shipment
+      ? sql`exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId} and ${shipments.revision} = ${shipment.revision})`
+      : sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
+  )!;
 
   const statements: BatchStatement[] = [];
 
-  // Update customer stats BEFORE deleting the order.
-  // totalOrders always drops (the order no longer exists). totalSpent is only
-  // subtracted when the order was still counting as spend: cancelled/returned
-  // orders already rolled their spend back at status-change time —
-  // subtracting again would double-decrement (e.g. cancel + delete).
-  if (order) {
-    const spendAlreadyRolledBack =
-      order.status === "cancelled" || order.status === "returned";
+  // totalOrders always drops; totalSpent only while the order still counted
+  // as spend — a cancelled or returned order already rolled it back.
+  const spendAlreadyRolledBack = order.status === "cancelled" || order.status === "returned" || shipment?.returnedAt != null;
+  statements.push(
+    db
+      .update(customers)
+      .set({
+        totalOrders: sql`MAX(0, ${customers.totalOrders} - 1)`,
+        ...(spendAlreadyRolledBack ? {} : { totalSpent: sql`MAX(0, ${customers.totalSpent} - ${order.price ?? 0})` }),
+      })
+      .where(and(eq(customers.id, order.customerId), asRead)),
+  );
 
-    statements.push(
-      db
-        .update(customers)
-        .set({
-          totalOrders: sql`MAX(0, ${customers.totalOrders} - 1)`,
-          ...(spendAlreadyRolledBack
-            ? {}
-            : {
-                totalSpent: sql`MAX(0, ${customers.totalSpent} - ${order.price ?? 0})`,
-              }),
-        })
-        .where(eq(customers.id, order.customerId)),
-    );
-  }
-
-  // Reverse driver credit for delivered orders whose money has NOT been
-  // settled. Before this, deleting a delivered order left totalDelivered,
-  // totalEarnings and pendingCash permanently inflated — and unsettleable
-  // phantom cash (the order no longer appears in the pending list).
-  // Orders already linked to a payment keep the driver counters alone:
-  // the payment row is append-only history and must stay reconciled.
-  if (order && order.driverId && order.status === "delivered" && order.codPaymentId === null) {
+  // A legacy delivered order whose money is not settled: reverse the driver's
+  // credit, or the cash stays unsettleable. A settled one keeps its history.
+  if (order.driverId && order.status === "delivered" && order.codPaymentId === null) {
     statements.push(
       db
         .update(drivers)
@@ -915,111 +883,28 @@ export async function deleteOrder(db: AppDb, orderId: string) {
           pendingCash: sql`MAX(0, ${drivers.pendingCash} - ${order.codAmount ?? 0})`,
           updatedAt: now,
         })
-        .where(eq(drivers.id, order.driverId)),
+        .where(and(eq(drivers.id, order.driverId), asRead)),
     );
   }
 
-  // Restore inventory for products that track inventory
-  for (const op of orderProductsList) {
-    const remaining = op.quantity - (op.returnedQuantity ?? 0);
-    if (remaining <= 0) continue; // Already returned, no stock to restore
-
-    const productRow = await db
-      .select({ trackInventory: products.trackInventory })
-      .from(products)
-      .where(eq(products.id, op.productId))
-      .get();
-
-    if (!productRow?.trackInventory) continue; // Product doesn't track inventory
-
-    if (op.variantId) {
-      // Restore variant inventory
-      const variantRow = await db
-        .select({ inventory: productVariants.inventory })
-        .from(productVariants)
-        .where(eq(productVariants.id, op.variantId))
-        .get();
-
-      const qtyBefore = variantRow?.inventory ?? 0;
-      const qtyAfter = qtyBefore + remaining;
-
-      statements.push(
-        db
-          .update(productVariants)
-          .set({ inventory: qtyAfter, updatedAt: now })
-          .where(eq(productVariants.id, op.variantId)),
-      );
-
-      statements.push(
-        db.insert(stockMovements).values({
-          id: crypto.randomUUID(),
-          productId: op.productId,
-          variantId: op.variantId,
-          type: "ORDER_CANCELLED",
-          delta: remaining,
-          qtyBefore,
-          qtyAfter,
-          reason: "Order deleted - inventory restored",
-          reference: orderId,
-          createdBy: "system",
-          createdByName: "النظام",
-          createdAt: now,
-        }),
-      );
-    } else {
-      // Restore product inventory
-      const productInventoryRow = await db
-        .select({ inventory: products.inventory })
-        .from(products)
-        .where(eq(products.id, op.productId))
-        .get();
-
-      const qtyBefore = productInventoryRow?.inventory ?? 0;
-      const qtyAfter = qtyBefore + remaining;
-
-      statements.push(
-        db
-          .update(products)
-          .set({ inventory: qtyAfter, updatedAt: now })
-          .where(eq(products.id, op.productId)),
-      );
-
-      statements.push(
-        db.insert(stockMovements).values({
-          id: crypto.randomUUID(),
-          productId: op.productId,
-          variantId: null,
-          type: "ORDER_CANCELLED",
-          delta: remaining,
-          qtyBefore,
-          qtyAfter,
-          reason: "Order deleted - inventory restored",
-          reference: orderId,
-          createdBy: "system",
-          createdByName: "النظام",
-          createdAt: now,
-        }),
-      );
-    }
+  if (!shipment?.deliveredAt) {
+    const lines = await linesToRestock(db, orderId);
+    statements.push(...restockStatements(db, lines, "ORDER_CANCELLED", orderId, { id: "system", name: "النظام" }, now, asRead, "Order deleted - inventory restored"));
   }
 
-  // Delete related records. company_api_logs and webhook_events reference
-  // orders(id) with ON DELETE no action — they must be removed explicitly or
-  // the final orders delete fails the FOREIGN KEY constraint. Reviews and
-  // order_status_history cascade at the database level.
+  // company_api_logs and webhook_events reference orders(id) with no action on
+  // delete; shipments, their events, reviews and history cascade.
   statements.push(
-    db.delete(companyApiLogs).where(eq(companyApiLogs.orderId, orderId)),
-    db.delete(webhookEvents).where(eq(webhookEvents.orderId, orderId)),
-    db.delete(companyShipments).where(eq(companyShipments.orderId, orderId)),
-    db.delete(orderProducts).where(eq(orderProducts.orderId, orderId)),
-    db.delete(orders).where(eq(orders.id, orderId)),
+    db.delete(companyApiLogs).where(and(eq(companyApiLogs.orderId, orderId), asRead)),
+    db.delete(webhookEvents).where(and(eq(webhookEvents.orderId, orderId), asRead)),
+    db.delete(companyShipments).where(and(eq(companyShipments.orderId, orderId), asRead)),
+    db.delete(orderProducts).where(and(eq(orderProducts.orderId, orderId), asRead)),
+    db.delete(orders).where(and(eq(orders.id, orderId), asRead)),
   );
 
-  // Atomic: stats, restock, and deletes commit together or not at all.
-  // Without the batch, a mid-sequence failure left a gutted order behind
-  // (lines deleted, stats decremented, inventory restocked) while the
-  // order row itself survived.
-  await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+  const results = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+  const deleted = ((results.at(-1) as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0;
+  return deleted ? { ok: true } : { ok: false, reason: "changed" };
 }
 
 // ─── Webhook Status Update ────────────────────────────────────────────────────

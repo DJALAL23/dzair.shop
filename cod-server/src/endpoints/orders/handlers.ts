@@ -14,6 +14,11 @@ import { wilayas, communes, customers } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import * as queries from "./queries";
 import * as validation from "./validation";
+import { refusalFor } from "./refusals";
+import { loadShipmentView } from "../shipments/view";
+import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
+import { isOrderStatus } from "../../../../cod-shared/orders/lifecycle";
+import { orderNeedsAttention, orderStage } from "../../../../cod-shared/orders/stage";
 import { resolveDeliveryFee, applyFreeShippingOffer } from "./resolve-fee";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { getDeliveryCompanyById } from "@/endpoints/delivery-companies/queries";
@@ -67,9 +72,18 @@ export async function getOrder(c: Context<AppContext>) {
     throw new NotFoundError("Order", orderId);
   }
 
+  // The order's delivery is its shipment: shown with its history and actions,
+  // and summed up as the order's stage. A legacy order still in an old
+  // delivery status (until the split migration) has no stage.
+  const shipment = (await getOrderShipment(db, orderId)) ?? null;
   return c.json({
     success: true,
-    data: order,
+    data: {
+      ...order,
+      shipment: shipment ? await loadShipmentView(db, shipment.id, { events: true }) : null,
+      stage: isOrderStatus(order.status) ? orderStage(order.status, shipment) : null,
+      needsAttention: orderNeedsAttention(shipment),
+    },
   }, 200);
 }
 
@@ -241,9 +255,9 @@ export async function createOrder(c: Context<AppContext>) {
  * Edit customer/destination fields on an order — how a merchant records an
  * address collected over the phone when the checkout hid the field.
  *
- * Blocked once the parcel is with a carrier (the label already carries the
- * old details — route those edits through PATCH /orders/:id/update-shipment)
- * and on terminal states, whose books are already reconciled.
+ * Once the order has a shipment, its delivery details are refused (the label
+ * already carries them — they change through PATCH /shipments/:id); terminal
+ * states are refused too, their books are already reconciled.
  */
 export async function updateOrder(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -298,7 +312,7 @@ export async function updateOrder(c: Context<AppContext>) {
     }
   }
 
-  await queries.updateOrder(db, orderId, {
+  const edit = await queries.updateOrder(db, orderId, {
     customerName: validated.customerName,
     phone: validated.phone,
     customerEmail: validated.customerEmail,
@@ -309,6 +323,7 @@ export async function updateOrder(c: Context<AppContext>) {
     deliveryType: validated.deliveryType,
     notes: validated.notes,
   });
+  if (!edit.ok) throw refusalFor(edit, orderId, "its address, phone, wilaya, commune and delivery type are the parcel's");
 
   const actor = c.get("user");
   await logActivity(db, actor, ACTIONS.ORDER_UPDATED, {
@@ -400,8 +415,9 @@ export async function returnOrderProduct(c: Context<AppContext>) {
 /**
  * DELETE /orders/:id
  * Permanently delete the order: restore tracked inventory, adjust customer
- * counters, then remove the order with its lines, shipments, and cascaded
- * history/reviews. No soft-delete exists for orders.
+ * counters, then remove the order with its lines, a closed shipment, and
+ * cascaded history/reviews. Refused while a shipment is open (void it
+ * first). No soft-delete exists for orders.
  */
 export async function deleteOrder(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -417,7 +433,8 @@ export async function deleteOrder(c: Context<AppContext>) {
     throw new NotFoundError("Order", orderId);
   }
 
-  await queries.deleteOrder(db, orderId);
+  const deletion = await queries.deleteOrder(db, orderId);
+  if (!deletion.ok) throw refusalFor(deletion, orderId, "it cannot be deleted while its parcel is out");
 
   const deleteActor = c.get("user");
   await logActivity(db, deleteActor, ACTIONS.ORDER_DELETED, {

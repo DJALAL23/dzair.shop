@@ -11,6 +11,8 @@ import { drivers } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import * as queries from "./queries";
 import * as validation from "./validation";
+import { orderHasShipment, refusalFor } from "./refusals";
+import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
@@ -73,7 +75,8 @@ export async function updateStatus(c: Context<AppContext>) {
   // Get user from context (set by auth middleware)
   const user = c.get("user");
 
-  await queries.updateOrderStatus(db, orderId, validated.status, user?.id, user?.name ?? undefined);
+  const change = await queries.updateOrderStatus(db, orderId, validated.status, user?.id, user?.name ?? undefined);
+  if (!change.ok) throw refusalFor(change, orderId, "its status no longer changes");
 
   // Fire CAPI Purchase Workflow — never blocks the status response.
   // waitUntil: the runtime cancels un-awaited promises after the response,
@@ -142,6 +145,8 @@ export async function assignDriver(c: Context<AppContext>) {
       { orderId, trackingNumber: order.trackingNumber }
     );
   }
+
+  if (await getOrderShipment(db, orderId)) throw orderHasShipment(orderId, "it cannot be given to a driver");
 
   // Once the delivery method is set to "company" (even before API dispatch), block assignment.
   if (order.deliveryMethod === "company") {

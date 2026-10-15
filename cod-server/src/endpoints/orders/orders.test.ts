@@ -36,6 +36,10 @@ vi.mock("@/lib/order-address", () => ({ assertOrderAddress: vi.fn(async () => un
 
 vi.mock("@/db", () => ({ getDb: vi.fn(() => mockDb) }));
 vi.mock("./queries");
+vi.mock("../../../../cod-shared/shipments/queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../../cod-shared/shipments/queries")>()),
+  getOrderShipment: vi.fn(async () => undefined),
+}));
 vi.mock("./resolve-fee");
 vi.mock("@/lib/activity", () => ({
   logActivity: vi.fn(async () => {}),
@@ -131,6 +135,9 @@ describe("Orders — targeted business-logic tests", () => {
   let app: OpenAPIHono<AppContext>;
 
   beforeEach(() => {
+    vi.mocked(queries.updateOrderStatus).mockResolvedValue({ ok: true });
+    vi.mocked(queries.deleteOrder).mockResolvedValue({ ok: true });
+    vi.mocked(queries.updateOrder).mockResolvedValue({ ok: true });
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
       c.env = { DB: mockDb } as any;
@@ -156,7 +163,7 @@ describe("Orders — targeted business-logic tests", () => {
   describe("PATCH /api/orders/{id}/status — transition table", () => {
     async function transition(from: string, to: string) {
       vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: from }) as any);
-      vi.mocked(queries.updateOrderStatus).mockResolvedValue(undefined as any);
+      vi.mocked(queries.updateOrderStatus).mockResolvedValue({ ok: true });
       const res = await app.request("/api/orders/ord_1/status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

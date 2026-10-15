@@ -2,6 +2,8 @@ import { drawOrderNumber } from "../../../../cod-shared/lib/order-number";
 import { tool } from "ai";
 import { z } from "zod";
 import * as queries from "./queries";
+import { orderHasShipment, refusalFor } from "./refusals";
+import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
 import {
   createOrderSchema,
   updateOrderStatusSchema,
@@ -498,7 +500,10 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           };
         }
 
-        await queries.updateOrderStatus(db, parsed.data.orderId, parsed.data.status, "ai-agent", "AI Agent");
+        const change = await queries.updateOrderStatus(db, parsed.data.orderId, parsed.data.status, "ai-agent", "AI Agent");
+        if (!change.ok) {
+          return { success: false, error: refusalFor(change, parsed.data.orderId, "its status no longer changes").message };
+        }
 
         return {
           success: true,
@@ -540,6 +545,9 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
         }
 
+        if (await getOrderShipment(db, parsed.data.orderId)) {
+          return { success: false, error: orderHasShipment(parsed.data.orderId, "it cannot be given to a driver").message };
+        }
         if (order.trackingNumber) {
           return {
             success: false,
@@ -714,7 +722,10 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
         }
 
-        await queries.deleteOrder(db, parsed.data.orderId);
+        const deletion = await queries.deleteOrder(db, parsed.data.orderId);
+        if (!deletion.ok) {
+          return { success: false, error: refusalFor(deletion, parsed.data.orderId, "it cannot be deleted while its parcel is out").message };
+        }
 
         return {
           success: true,

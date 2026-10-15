@@ -21,6 +21,10 @@ vi.mock("@/lib/order-address", () => ({ assertOrderAddress: vi.fn(async () => un
 
 vi.mock("@/db", () => ({ getDb: vi.fn(() => mockDb) }));
 vi.mock("./queries");
+vi.mock("../../../../cod-shared/shipments/queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../../cod-shared/shipments/queries")>()),
+  getOrderShipment: vi.fn(async () => undefined),
+}));
 vi.mock("./resolve-fee");
 vi.mock("@/lib/activity", () => ({
   logActivity: vi.fn(async () => {}),
@@ -122,6 +126,9 @@ describe("Orders routes (OpenAPIHono)", () => {
   let app: OpenAPIHono<AppContext>;
 
   beforeEach(() => {
+    vi.mocked(queries.updateOrderStatus).mockResolvedValue({ ok: true });
+    vi.mocked(queries.deleteOrder).mockResolvedValue({ ok: true });
+    vi.mocked(queries.updateOrder).mockResolvedValue({ ok: true });
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
       c.env = { DB: mockDb } as any;
@@ -333,7 +340,7 @@ describe("Orders routes (OpenAPIHono)", () => {
   describe("DELETE /api/orders/{id}", () => {
     it("deletes an existing order", async () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
-      vi.mocked(queries.deleteOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.deleteOrder).mockResolvedValue({ ok: true });
 
       const res = await app.request("/api/orders/ord_1", { method: "DELETE" });
 
@@ -359,7 +366,7 @@ describe("Orders routes (OpenAPIHono)", () => {
 
     it("updates the order and returns the refreshed detail", async () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
-      vi.mocked(queries.updateOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.updateOrder).mockResolvedValue({ ok: true });
 
       const res = await app.request("/api/orders/ord_1", {
         method: "PATCH",
@@ -383,7 +390,7 @@ describe("Orders routes (OpenAPIHono)", () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(
         orderRow({ deliveryType: "stop_desk", address: "Old address" }) as any
       );
-      vi.mocked(queries.updateOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.updateOrder).mockResolvedValue({ ok: true });
 
       const res = await app.request("/api/orders/ord_1", {
         method: "PATCH",
@@ -404,7 +411,7 @@ describe("Orders routes (OpenAPIHono)", () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(
         orderRow({ address: null }) as any
       );
-      vi.mocked(queries.updateOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.updateOrder).mockResolvedValue({ ok: true });
 
       const res = await app.request("/api/orders/ord_1", {
         method: "PATCH",
@@ -450,7 +457,7 @@ describe("Orders routes (OpenAPIHono)", () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(
         orderRow({ address: null }) as any
       );
-      vi.mocked(queries.updateOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.updateOrder).mockResolvedValue({ ok: true });
 
       const res = await app.request("/api/orders/ord_1", {
         method: "PATCH",
@@ -468,7 +475,7 @@ describe("Orders routes (OpenAPIHono)", () => {
 
     it("checks wilaya and commune against the reference tables", async () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(orderRow() as any);
-      vi.mocked(queries.updateOrder).mockResolvedValue(undefined as any);
+      vi.mocked(queries.updateOrder).mockResolvedValue({ ok: true });
       mockDb = dbSelectReturning({ id: "c-16-001", wilayaId: 16 });
 
       const res = await app.request("/api/orders/ord_1", {
@@ -573,7 +580,7 @@ describe("Orders routes (OpenAPIHono)", () => {
   describe("PATCH /api/orders/{id}/status", () => {
     it("applies a valid forward transition", async () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "confirmed" }) as any);
-      vi.mocked(queries.updateOrderStatus).mockResolvedValue(undefined as any);
+      vi.mocked(queries.updateOrderStatus).mockResolvedValue({ ok: true });
 
       const res = await app.request("/api/orders/ord_1/status", {
         method: "PATCH",
