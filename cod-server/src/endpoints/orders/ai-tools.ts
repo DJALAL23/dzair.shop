@@ -14,7 +14,8 @@ import {
   orderFiltersSchema,
   ORDER_STATUSES,
 } from "./validation";
-import { getDb } from "@/db";
+import type { AppDb } from "@/db";
+import { actorOf, type McpProps } from "@/mcp/props";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 
 /**
@@ -162,7 +163,7 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * - Layer 1 (LLM-level): Permissive input schema accepts any object to prevent SDK crashes
  * - Layer 2 (App-level): Strict validation inside execute() with graceful error handling
  */
-export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
+export const getOrderTools = (db: AppDb, props: McpProps) => ({
 
   listOrders: tool({
     description:
@@ -257,9 +258,10 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
     description:
       "Creates a new COD order. " +
       "Required: customerId (UUID), customerName (string), phone (Algerian 0[5-7]XXXXXXXX), " +
-      "wilayaId (int 1-58), price (positive number, product total in DZD), " +
-      "products (array, min 1 item — each needs productId, productName, quantity, pricePerUnit, lineTotal). " +
-      "Optional: communeId (UUID), city, address, notes, " +
+      "wilayaId (int 1-58), communeId (c-XX-YYY, from listWilayaCommunes), price (positive number, product total in DZD), " +
+      "products (array, min 1 item — each needs productId, productName, quantity, pricePerUnit, lineTotal), " +
+      "and address for a home delivery. " +
+      "Optional: city, notes, " +
       "orderType ('online'|'offline', default 'online'), " +
       "deliveryType ('home'|'stop_desk', default 'home'), " +
       "deliveryFee (number >= 0 — for offline orders only; online orders auto-resolve from shipping profile). " +
@@ -278,9 +280,9 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           error:
             `Invalid order data: ${errorDetails}. ` +
             `Required: customerId (UUID), customerName (string), phone (0[5-7]XXXXXXXX), ` +
-            `wilayaId (int 1-58), price (positive number DZD), ` +
-            `products (array min 1: [{productId, productName, quantity (int > 0), pricePerUnit (positive), lineTotal (positive), variantId?, variantLabel?}]). ` +
-            `Optional: communeId (UUID), city, address, notes, ` +
+            `wilayaId (int 1-58), communeId (c-XX-YYY), price (positive number DZD), ` +
+            `products (array min 1: [{productId, productName, quantity (int > 0), pricePerUnit (positive), lineTotal (positive), variantId?, variantLabel?}]), ` +
+            `address (home delivery). Optional: city, notes, ` +
             `orderType (online|offline, default online), deliveryType (home|stop_desk, default home), ` +
             `deliveryFee (number >= 0, offline only).`,
         };
@@ -383,7 +385,7 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           createdAt: now,
         }));
 
-        const { orderNumber } = await queries.createOrder(db, orderData, productsData, null);
+        const { orderNumber } = await queries.createOrder(db, orderData, productsData, actorOf(props));
 
         return {
           success: true,
@@ -449,7 +451,8 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           };
         }
 
-        const change = await queries.updateOrderStatus(db, parsed.data.orderId, parsed.data.status, "ai-agent", "AI Agent");
+        const actor = actorOf(props);
+        const change = await queries.updateOrderStatus(db, parsed.data.orderId, parsed.data.status, actor.id, actor.name);
         if (!change.ok) {
           return { success: false, error: refusalFor(change, parsed.data.orderId, "its status no longer changes").message };
         }
@@ -497,13 +500,14 @@ export const getOrderTools = (db: ReturnType<typeof getDb>) => ({
           return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
         }
 
+        const actor = actorOf(props);
         const result = await queries.setOrderProductReturn(
           db,
           parsed.data.orderId,
           parsed.data.productLineId,
           parsed.data.returnedQuantity,
-          "ai-agent",
-          "AI Agent",
+          actor.id,
+          actor.name,
         );
         if (!result.ok) {
           return { success: false, error: lineReturnRefusal(result, parsed.data.orderId, parsed.data.productLineId).message };

@@ -3,7 +3,8 @@ import { z } from "zod";
 import { createDriverPayment, getDriverPayments, getPendingSettlements } from "../../../../cod-shared/queries/driver-payments";
 import { paymentRefusal } from "./refusals";
 import { createPaymentSchema } from "./validation";
-import { getDb } from "@/db";
+import type { AppDb } from "@/db";
+import { actorOf, type McpProps } from "@/mcp/props";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 
 /**
@@ -18,9 +19,7 @@ export const listDriverPaymentsSchema = z.object({
 export const getPendingSettlementsSchema = z.object({
   driverId: z.string().uuid().describe("The unique UUID of the driver"),
 });
-export const createDriverSettlementSchema = createPaymentSchema.extend({
-  agentName: z.string().min(1).describe("The name of the AI agent or staff member creating the settlement"),
-});
+export const createDriverSettlementSchema = createPaymentSchema;
 
 export const DRIVER_PAYMENT_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
   listDriverPayments: listDriverPaymentsSchema.shape,
@@ -79,7 +78,7 @@ export const DRIVER_PAYMENT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * 
  * This ensures the AI agent can recover from validation errors without breaking the conversation.
  */
-export const getDriverPaymentTools = (db: ReturnType<typeof getDb>) => ({
+export const getDriverPaymentTools = (db: AppDb, props: McpProps) => ({
   listDriverPayments: tool({
     description: "Fetch all settlement and payment records for a specific driver. Returns history of COD remittances, fee payments, and net settlements.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
@@ -167,7 +166,7 @@ export const getDriverPaymentTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   createDriverSettlement: tool({
-    description: "Records a payment settling a driver's delivered shipments. Required: driverId (UUID), type (cod_remittance: the driver hands over the cash | fee_payment: the store pays the fees | net_settlement: both), shipmentIds (from getPendingSettlements), agentName (string). Optional: notes. The amount is computed from the shipments; a part already settled refuses the whole payment.",
+    description: "Records a payment settling a driver's delivered shipments. Required: driverId (UUID), type (cod_remittance: the driver hands over the cash | fee_payment: the store pays the fees | net_settlement: both), shipmentIds (from getPendingSettlements). Optional: notes. The amount is computed from the shipments; a part already settled refuses the whole payment. Recorded as made by the person who granted the access.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -181,14 +180,13 @@ export const getDriverPaymentTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid settlement data: ${errorDetails}. Required: driverId (UUID), type (cod_remittance|fee_payment|net_settlement), shipmentIds (array, min 1, no repeats), agentName (string). Optional: notes (string).`,
+          error: `Invalid settlement data: ${errorDetails}. Required: driverId (UUID), type (cod_remittance|fee_payment|net_settlement), shipmentIds (array, min 1, no repeats). Optional: notes (string).`,
         };
       }
 
       try {
-        const { agentName, ...request } = parsed.data;
-        const outcome = await createDriverPayment(db, request, { id: "ai-agent", name: agentName });
-        if (!outcome.ok) return { success: false, error: paymentRefusal(outcome, request.driverId).message };
+        const outcome = await createDriverPayment(db, parsed.data, actorOf(props));
+        if (!outcome.ok) return { success: false, error: paymentRefusal(outcome, parsed.data.driverId).message };
         return {
           success: true,
           settlement: outcome.payment,

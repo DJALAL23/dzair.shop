@@ -98,7 +98,7 @@ Requires `delivery:read`. The driver's delivered shipments with the cash, the fe
 | :--- | :--- | :--- |
 | `listDriverPayments` | A driver's payment history | `driverId` |
 | `getPendingSettlements` | The driver's delivered shipments with the cash or fee unsettled | `driverId` |
-| `createDriverSettlement` | Record a payment for those shipments | `driverId`, `type`, `shipmentIds`, `agentName`, `notes` |
+| `createDriverSettlement` | Record a payment for those shipments, made by the person who granted the access | `driverId`, `type`, `shipmentIds`, `notes` |
 
 ---
 

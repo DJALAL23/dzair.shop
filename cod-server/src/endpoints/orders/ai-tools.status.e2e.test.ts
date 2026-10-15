@@ -34,7 +34,7 @@ async function order(id: string, status: OrderStatus) {
 
 const statusOf = async (id: string) => (await d1.db.select().from(schema.orders).where(eq(schema.orders.id, id)).get())!.status;
 const setStatus = (orderId: string, status: string) =>
-  (getOrderTools(d1.db).updateOrderStatus as unknown as { execute: (args: unknown) => Promise<{ success: boolean; error?: string; newStatus?: string }> }).execute({ orderId, status });
+  (getOrderTools(d1.db, { userId: "u-ada", role: "staff", scopes: [], name: "Ada", email: "ada@example.com" }).updateOrderStatus as unknown as { execute: (args: unknown) => Promise<{ success: boolean; error?: string; newStatus?: string }> }).execute({ orderId, status });
 
 const ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
 

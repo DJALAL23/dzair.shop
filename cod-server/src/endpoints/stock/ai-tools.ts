@@ -8,7 +8,8 @@ import {
   stockAlertsFiltersSchema,
   MOVEMENT_TYPES,
 } from "./validation";
-import { getDb } from "@/db";
+import type { AppDb } from "@/db";
+import { actorOf, type McpProps } from "@/mcp/props";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 
 /**
@@ -27,7 +28,6 @@ export const getProductStockHistoryToolSchema = z.object({
 });
 export const adjustProductStockToolSchema = z.object({
   productId: z.string().uuid().describe("UUID of the simple product to adjust"),
-  agentName: z.string().min(1).describe("Name of the AI agent or staff member making this adjustment"),
   type: z.enum(MOVEMENT_TYPES),
   delta: z.number().int().refine((v) => v !== 0, "delta must be non-zero"),
   reason: z.string().min(1).max(500).optional(),
@@ -35,7 +35,6 @@ export const adjustProductStockToolSchema = z.object({
 export const adjustVariantStockToolSchema = z.object({
   productId: z.string().uuid().describe("UUID of the parent product"),
   variantId: z.string().uuid().describe("UUID of the variant to adjust"),
-  agentName: z.string().min(1).describe("Name of the AI agent or staff member making this adjustment"),
   type: z.enum(MOVEMENT_TYPES),
   delta: z.number().int().refine((v) => v !== 0, "delta must be non-zero"),
   reason: z.string().min(1).max(500).optional(),
@@ -152,7 +151,7 @@ export const STOCK_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * - Layer 1 (LLM-level): Permissive input schema accepts any object to prevent SDK crashes
  * - Layer 2 (App-level): Strict validation inside execute() with graceful error handling
  */
-export const getStockTools = (db: ReturnType<typeof getDb>) => ({
+export const getStockTools = (db: AppDb, props: McpProps) => ({
 
   getStockOverview: tool({
     description:
@@ -253,7 +252,7 @@ export const getStockTools = (db: ReturnType<typeof getDb>) => ({
   adjustProductStock: tool({
     description:
       "Applies a signed integer delta to a simple product's inventory and records a movement log entry. " +
-      "Required: productId (UUID), type (movement type), delta (non-zero integer — positive = stock in, negative = stock out), agentName (string). " +
+      "Required: productId (UUID), type (movement type), delta (non-zero integer — positive = stock in, negative = stock out). " +
       "reason is REQUIRED for types: ADJUSTMENT_ADD, ADJUSTMENT_REMOVE, OFFLINE_SALE. " +
       "Movement types: PURCHASE (restock), ADJUSTMENT_ADD (manual correction up), ADJUSTMENT_REMOVE (manual correction down), " +
       "ORDER_RETURNED (returned stock), OFFLINE_SALE (sale outside platform). " +
@@ -274,7 +273,7 @@ export const getStockTools = (db: ReturnType<typeof getDb>) => ({
           success: false,
           error:
             `Invalid arguments: ${errorDetails}. ` +
-            `Required: productId (UUID), agentName (string), type (${MOVEMENT_TYPES.join("|")}), delta (non-zero integer). ` +
+            `Required: productId (UUID), type (${MOVEMENT_TYPES.join("|")}), delta (non-zero integer). ` +
             `reason is required for ADJUSTMENT_ADD, ADJUSTMENT_REMOVE, OFFLINE_SALE.`,
         };
       }
@@ -300,8 +299,8 @@ export const getStockTools = (db: ReturnType<typeof getDb>) => ({
         const result = await queries.adjustStock(db, {
           productId: parsed.data.productId,
           variantId: null,
-          createdBy: "ai-agent",
-          createdByName: parsed.data.agentName,
+          createdBy: actorOf(props).id,
+          createdByName: actorOf(props).name,
           type: bodyParsed.data.type,
           delta: bodyParsed.data.delta,
           reason: bodyParsed.data.reason,
@@ -335,7 +334,7 @@ export const getStockTools = (db: ReturnType<typeof getDb>) => ({
   adjustVariantStock: tool({
     description:
       "Applies a signed integer delta to a specific product variant's inventory and records a movement log entry. " +
-      "Required: productId (UUID), variantId (UUID), type (movement type), delta (non-zero integer), agentName (string). " +
+      "Required: productId (UUID), variantId (UUID), type (movement type), delta (non-zero integer). " +
       "reason is REQUIRED for types: ADJUSTMENT_ADD, ADJUSTMENT_REMOVE, OFFLINE_SALE. " +
       "Delta sign: positive = stock in, negative = stock out. " +
       "The server rejects adjustments that would result in negative inventory (INSUFFICIENT_STOCK). " +
@@ -355,7 +354,7 @@ export const getStockTools = (db: ReturnType<typeof getDb>) => ({
           success: false,
           error:
             `Invalid arguments: ${errorDetails}. ` +
-            `Required: productId (UUID), variantId (UUID), agentName (string), type (${MOVEMENT_TYPES.join("|")}), delta (non-zero integer). ` +
+            `Required: productId (UUID), variantId (UUID), type (${MOVEMENT_TYPES.join("|")}), delta (non-zero integer). ` +
             `reason is required for ADJUSTMENT_ADD, ADJUSTMENT_REMOVE, OFFLINE_SALE.`,
         };
       }
@@ -381,8 +380,8 @@ export const getStockTools = (db: ReturnType<typeof getDb>) => ({
         const result = await queries.adjustStock(db, {
           productId: parsed.data.productId,
           variantId: parsed.data.variantId,
-          createdBy: "ai-agent",
-          createdByName: parsed.data.agentName,
+          createdBy: actorOf(props).id,
+          createdByName: actorOf(props).name,
           type: bodyParsed.data.type,
           delta: bodyParsed.data.delta,
           reason: bodyParsed.data.reason,

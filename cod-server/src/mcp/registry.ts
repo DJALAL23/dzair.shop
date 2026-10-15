@@ -153,14 +153,14 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // MCP-11 via the DANGEROUS_TOOLS set.
   {
     requires: [SCOPES.DELIVERY_READ],
-    build: (db) => pick(getDriverPaymentTools(db), [
+    build: (db, _env, props) => pick(getDriverPaymentTools(db, props), [
       "listDriverPayments",
       "getPendingSettlements",
     ]),
   },
   {
     requires: [SCOPES.DELIVERY_MANAGE],
-    build: (db) => pick(getDriverPaymentTools(db), [
+    build: (db, _env, props) => pick(getDriverPaymentTools(db, props), [
       "createDriverSettlement",
     ]),
   },
@@ -282,7 +282,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // uses them; MCP now follows the REST family.)
   {
     requires: [SCOPES.PRODUCTS_READ],
-    build: (db) => pick(getStockTools(db), [
+    build: (db, _env, props) => pick(getStockTools(db, props), [
       "getStockOverview",
       "getStockAlerts",
       "getProductStockHistory",
@@ -290,7 +290,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   },
   {
     requires: [SCOPES.PRODUCTS_MANAGE],
-    build: (db) => pick(getStockTools(db), [
+    build: (db, _env, props) => pick(getStockTools(db, props), [
       "adjustProductStock",
       "adjustVariantStock",
       "updateProductStockThreshold",
@@ -374,25 +374,25 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // ─── Orders ───────────────────────────────────────────────────────────────
   {
     requires: [SCOPES.ORDERS_READ],
-    build: (db) => pick(getOrderTools(db), [
+    build: (db, _env, props) => pick(getOrderTools(db, props), [
       "listOrders",
       "getOrderDetails",
     ]),
   },
   {
     requires: [SCOPES.ORDERS_CREATE],
-    build: (db) => pick(getOrderTools(db), ["createOrder"]),
+    build: (db, _env, props) => pick(getOrderTools(db, props), ["createOrder"]),
   },
   {
     requires: [SCOPES.ORDERS_UPDATE],
-    build: (db) => pick(getOrderTools(db), [
+    build: (db, _env, props) => pick(getOrderTools(db, props), [
       "updateOrderStatus",
       "recordOrderProductReturn",
     ]),
   },
   {
     requires: [SCOPES.ORDERS_DELETE],
-    build: (db) => pick(getOrderTools(db), ["deleteOrder"]),
+    build: (db, _env, props) => pick(getOrderTools(db, props), ["deleteOrder"]),
   },
 
   // ─── Delivery: an order's shipment ────────────────────────────────────────
