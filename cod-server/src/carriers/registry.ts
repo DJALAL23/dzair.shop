@@ -8,11 +8,11 @@
  */
 
 import { isMasked, isSecretSetting } from "../../../cod-shared/carriers/providers";
-import { CarrierError, type CarrierAdapter, type CarrierCapabilities, type CarrierProvider } from "./contract";
+import { CarrierError, type CarrierAdapter, type CarrierCapabilities, type CarrierProvider, type CarrierWebhook } from "./contract";
 import { ECOTRACK_CAPABILITIES, EcotrackCarrier, ecotrackConfigSchema } from "./ecotrack/adapter";
 import { NOEST_CAPABILITIES, NoestCarrier, noestConfigSchema } from "./noest/adapter";
-import { YalidineCarrier, yalidineCapabilities, yalidineConfigSchema } from "./yalidine/adapter";
-import { ZR_CAPABILITIES, ZrExpressCarrier, zrConfigSchema, type ZrConfig } from "./zr_express/adapter";
+import { YalidineCarrier, yalidineCapabilities, yalidineConfigSchema, yalidineWebhook } from "./yalidine/adapter";
+import { ZR_CAPABILITIES, ZrExpressCarrier, zrConfigSchema, zrWebhook, type ZrConfig } from "./zr_express/adapter";
 
 /** What the registry needs from a delivery-company row. */
 export interface CarrierCompany {
@@ -141,6 +141,24 @@ export function carrierCapabilities(company: Pick<CarrierCompany, "provider" | "
       return NOEST_CAPABILITIES;
     case "ecotrack":
       return ECOTRACK_CAPABILITIES;
+  }
+}
+
+/**
+ * How a provider's webhooks are verified, split and read — the same for every
+ * company of that provider, and needed before the company is known (it is
+ * identified by whose secret verifies the signature). Null for pull-only
+ * providers.
+ */
+export function carrierWebhook(provider: CarrierProvider): CarrierWebhook | null {
+  switch (provider) {
+    case "yalidine":
+      return yalidineWebhook;
+    case "zr_express":
+      return zrWebhook;
+    case "noest":
+    case "ecotrack":
+      return null;
   }
 }
 

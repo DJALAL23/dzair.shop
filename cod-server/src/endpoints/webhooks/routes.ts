@@ -1,9 +1,9 @@
 /**
  * Webhook Routes
  *
- * Public router — NO auth middleware anywhere in this file.
- * Authentication is handled internally by each handler via signature
- * verification (Svix HMAC-SHA256 for ZR Express).
+ * Public router — NO auth middleware anywhere in this file. A delivery is
+ * authenticated by its signature, which also tells which company it is for
+ * (Svix HMAC-SHA256 for ZR Express, HMAC-SHA256 for Yalidine).
  *
  * Mount order in index.ts:
  *   app.route("/webhooks", webhooksRouter)  ← BEFORE app.use("/api/*", authMiddleware)
@@ -33,7 +33,7 @@ const jsonContent = <T extends z.ZodType>(schema: T) => ({
 // ─── Response schemas ─────────────────────────────────────────────────────────
 
 const receivedResponse = {
-  description: "Event received (always 200 — carriers retry on non-200)",
+  description: "Stored in the inbox; processed after this answer (a duplicate delivery is stored once)",
   content: jsonContent(
     z.object({
       received: z.boolean().openapi({ example: true }),
@@ -96,13 +96,11 @@ const yalidineWebhookRoute = defineRoute({
   auth: "public",
   tags: ["Webhooks"],
   summary: "Yalidine event delivery",
-  description: `Receives webhook event batches from Yalidine. One event type per request, multiple events per batch. Each event carries its own idempotency key (\`event_id\`). Always returns 200 — errors are logged internally.
+  description: `Receives webhook event batches from Yalidine (one event type per delivery, several events per batch; each \`event_id\` is its own idempotency key). The events are stored in the inbox and the request is answered at once — processing follows, so Yalidine's 10-second limit is always met — and an event that fails processing is retried with backoff.
 
-**Signature verification:** when the company's webhook secret is stored, the \`X-Yalidine-Signature\` header (HMAC-SHA256 of the raw body, hex) is verified and mismatching deliveries are rejected with \`400 INVALID_WEBHOOK_PAYLOAD\`. Without a stored secret the endpoint fail-opens (events accepted unverified, warning logged).
+**Which company:** the one whose webhook secret verifies \`X-Yalidine-Signature\` (HMAC-SHA256 of the raw body, hex), so several Yalidine companies never mix. A delivery no secret verifies is refused with **401** — unless the store has a single Yalidine company and it has no secret set (accepted, with a warning).
 
-**Payload:** \`{ type: "parcel_created" | "parcel_edited" | "parcel_deleted" | "parcel_status_updated" | "parcel_payment_updated", events: [{ event_id, occurred_at, data }] }\`
-
-Invalid payloads are rejected with \`400 INVALID_WEBHOOK_PAYLOAD\`; processing failures surface as \`502 EXTERNAL_API_FAILURE\`.`,
+**Payload:** \`{ type: "parcel_created" | "parcel_edited" | "parcel_deleted" | "parcel_status_updated" | "parcel_payment_updated", events: [{ event_id, occurred_at, data }] }\`. Status updates and deletions move the shipment; payment updates are kept for settlement; the rest is ignored. An unreadable body is refused with **400**.`,
   operationId: "yalidineWebhook",
   headers: z.object({
     "X-Yalidine-Signature": z.string().optional().openapi({
@@ -111,16 +109,8 @@ Invalid payloads are rejected with \`400 INVALID_WEBHOOK_PAYLOAD\`; processing f
   }),
   responses: {
     200: receivedResponse,
-    400: webhookErrorResponse(
-      "INVALID_WEBHOOK_PAYLOAD",
-      "VALIDATION",
-      "Invalid webhook payload or signature (INVALID_WEBHOOK_PAYLOAD)"
-    ),
-    502: webhookErrorResponse(
-      "EXTERNAL_API_FAILURE",
-      "SYSTEM",
-      "Webhook processing failed (EXTERNAL_API_FAILURE)"
-    ),
+    400: webhookErrorResponse("INVALID_WEBHOOK_PAYLOAD", "VALIDATION", "An unreadable delivery (INVALID_WEBHOOK_PAYLOAD)"),
+    401: webhookErrorResponse("INVALID_WEBHOOK_PAYLOAD", "VALIDATION", "The signature matches no company (INVALID_WEBHOOK_PAYLOAD)"),
   },
   handler: handleYalidineWebhook,
 });
@@ -131,11 +121,11 @@ const zrWebhookRoute = defineRoute({
   auth: "public",
   tags: ["Webhooks"],
   summary: "ZR Express event delivery",
-  description: `Receives webhook events from ZR Express via Svix. Signature is verified using HMAC-SHA256 with the stored whsec_ secret over the RAW request bytes. Idempotency key is the \`svix-id\` header. Always returns 200.
+  description: `Receives webhook events from ZR Express via Svix; \`svix-id\` is the idempotency key. The event is stored in the inbox and the request answered at once; processing follows, with retries.
 
-**Payload:** \`{ eventType: "parcel.state.updated" | "parcel.state.situation.created" | "parcel.isReturn.updated", occurredAt, data: ParcelWebhookDto }\`
+**Which company:** the one whose \`whsec_\` secret verifies the Svix signature over the raw bytes; none verifying is a **401** — unless the store has a single ZR company and it has no secret set.
 
-Signature/payload failures are rejected with \`400 INVALID_WEBHOOK_PAYLOAD\`; processing failures surface as \`502 EXTERNAL_API_FAILURE\`.`,
+**Payload:** \`{ eventType: "parcel.state.updated" | "parcel.state.situation.created" | "parcel.isReturn.updated", occurredAt, data: ParcelWebhookDto }\`.`,
   operationId: "zrExpressWebhook",
   headers: z.object({
     "svix-id": z.string().openapi({ description: "Svix idempotency key" }),
@@ -144,16 +134,8 @@ Signature/payload failures are rejected with \`400 INVALID_WEBHOOK_PAYLOAD\`; pr
   }),
   responses: {
     200: receivedResponse,
-    400: webhookErrorResponse(
-      "INVALID_WEBHOOK_PAYLOAD",
-      "VALIDATION",
-      "Invalid webhook payload or signature (INVALID_WEBHOOK_PAYLOAD)"
-    ),
-    502: webhookErrorResponse(
-      "EXTERNAL_API_FAILURE",
-      "SYSTEM",
-      "Webhook processing failed (EXTERNAL_API_FAILURE)"
-    ),
+    400: webhookErrorResponse("INVALID_WEBHOOK_PAYLOAD", "VALIDATION", "An unreadable delivery (INVALID_WEBHOOK_PAYLOAD)"),
+    401: webhookErrorResponse("INVALID_WEBHOOK_PAYLOAD", "VALIDATION", "The signature matches no company (INVALID_WEBHOOK_PAYLOAD)"),
   },
   handler: handleZrWebhook,
 });

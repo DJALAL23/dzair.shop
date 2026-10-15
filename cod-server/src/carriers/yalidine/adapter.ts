@@ -394,6 +394,14 @@ export const yalidineWebhook: CarrierWebhook = {
   read(envelope): WebhookReading {
     const { type, event } = JSON.parse(envelope.payload) as { type: string; event: YalidineWebhookDelivery["events"][number] };
     if (type === "parcel_payment_updated") return { kind: "settlement" };
+    if (type === "parcel_created") {
+      const { tracking, order_id: reference, label } = (event.data ?? {}) as { tracking?: unknown; order_id?: unknown; label?: unknown };
+      if (typeof tracking !== "string" || !tracking || typeof reference !== "string" || !reference) {
+        return { kind: "ignored", reason: "parcel created without tracking or order id" };
+      }
+      const labelUrl = typeof label === "string" && label ? label : null;
+      return { kind: "created", reference, parcel: { carrierParcelId: tracking, trackingNumber: tracking, carrierData: { label: labelUrl }, labelUrl } };
+    }
     if (type !== "parcel_status_updated" && type !== "parcel_deleted") {
       return { kind: "ignored", reason: `event type ${type}` };
     }

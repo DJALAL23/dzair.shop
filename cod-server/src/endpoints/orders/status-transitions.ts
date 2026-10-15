@@ -16,7 +16,7 @@ import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
-import { shouldTriggerCapiPurchase, shouldTriggerCapiConfirmed, getCapiWorkflowId } from "@/workflows/capi-helpers";
+import { scheduleStatusConversion } from "@/lib/conversions";
 
 /**
  * PATCH /orders/:id/status
@@ -78,36 +78,8 @@ export async function updateStatus(c: Context<AppContext>) {
   const change = await queries.updateOrderStatus(db, orderId, validated.status, user?.id, user?.name ?? undefined);
   if (!change.ok) throw refusalFor(change, orderId, "its status no longer changes");
 
-  // Fire CAPI Purchase Workflow — never blocks the status response.
-  // waitUntil: the runtime cancels un-awaited promises after the response,
-  // which would silently drop the workflow creation.
-  const isDeliveredTrigger = shouldTriggerCapiPurchase(validated.status, order.wilayaId);
-  const isConfirmedTrigger = shouldTriggerCapiConfirmed(validated.status);
-
-  if (isDeliveredTrigger || isConfirmedTrigger) {
-    if (!c.env.CAPI_WORKFLOW) {
-      // Binding absent — worker was provisioned before CAPI_WORKFLOW was added.
-      // Re-provision the client to activate the binding.
-      console.error("[capi-workflow] CAPI_WORKFLOW binding is undefined — worker needs re-provision");
-    } else {
-      const stage = isConfirmedTrigger ? "confirmed" : "delivered";
-      const workflowId = getCapiWorkflowId(orderId, stage, "Purchase");
-      c.executionCtx.waitUntil(
-        c.env.CAPI_WORKFLOW.create({
-          id: workflowId,
-          params: {
-            orderId,
-            eventName: "Purchase",
-            stage,
-            triggeredAt: Math.floor(Date.now() / 1000),
-            triggerStatus: validated.status,
-          },
-        }).catch((err: Error) =>
-          console.error("[capi-workflow] trigger failed:", err?.message)
-        )
-      );
-    }
-  }
+  // Never blocks the response; the runtime keeps the start alive with waitUntil.
+  scheduleStatusConversion(c.env, (p) => c.executionCtx.waitUntil(p), { id: orderId, wilayaId: order.wilayaId }, validated.status);
 
   await logActivity(db, user, ACTIONS.ORDER_STATUS_CHANGED, {
     type: "order", id: orderId,

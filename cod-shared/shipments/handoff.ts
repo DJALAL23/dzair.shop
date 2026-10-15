@@ -331,6 +331,46 @@ export async function recordSynced(db: AppDb, shipmentId: string, trackingNumber
     .where(eq(shipments.id, shipmentId));
 }
 
+/**
+ * What a carrier's own update says the parcel is called: the tracking number
+ * when the shipment had none yet, and the carrier's parcel id when the
+ * merchant attached the parcel by its tracking number (which then stood in
+ * for the id — ZR Express addresses parcels by a UUID the merchant never
+ * sees). Neither replaces an identity the carrier gave at creation.
+ * Bookkeeping only: the revision stands. False when nothing changed.
+ */
+export async function adoptCarrierIdentity(
+  db: AppDb,
+  shipmentId: string,
+  reported: { carrierParcelId?: string | null; trackingNumber?: string | null },
+): Promise<boolean> {
+  const parcelId = reported.carrierParcelId ?? null;
+  const tracking = reported.trackingNumber ?? null;
+  if (!parcelId && !tracking) return false;
+  try {
+    const [result] = await db.batch([
+      db
+        .update(shipments)
+        .set({
+          trackingNumber: sql`coalesce(${shipments.trackingNumber}, ${tracking})`,
+          carrierParcelId: sql`case when ${parcelId} is not null and ${shipments.carrierParcelId} = ${shipments.trackingNumber} then ${parcelId} else ${shipments.carrierParcelId} end`,
+        })
+        .where(
+          and(
+            eq(shipments.id, shipmentId),
+            eq(shipments.handoffState, "accepted"),
+            sql`(${shipments.trackingNumber} is null and ${tracking} is not null) or (${parcelId} is not null and ${shipments.carrierParcelId} = ${shipments.trackingNumber} and ${shipments.carrierParcelId} <> ${parcelId})`,
+          ),
+        ),
+    ]);
+    return changed(result);
+  } catch (error) {
+    // Another shipment of this company already holds that parcel id: keep ours as it is.
+    if (/UNIQUE constraint failed: shipments\.company_id, shipments\.carrier_parcel_id/i.test(`${(error as Error)?.message} ${String((error as { cause?: unknown })?.cause ?? "")}`)) return false;
+    throw error;
+  }
+}
+
 export type VoidOutcome = { ok: true; orderId: string } | Extract<ShipmentRuleVerdict, { ok: false }> | { ok: false; code: "SHIPMENT_NOT_FOUND" };
 
 /**

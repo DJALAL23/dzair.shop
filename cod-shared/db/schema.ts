@@ -1278,7 +1278,7 @@ export const webhookEvents = sqliteTable("webhook_events", {
   eventType: text("event_type").notNull(),
   /** full JSON body for debugging and future reprocessing */
   rawPayload: text("raw_payload").notNull(),
-  /** 'ok' | 'ignored' | 'unmapped' | 'error' */
+  /** pending | ok | ignored | unmatched | unknown_status | deferred_settlement | error | dead (`unmapped` on older rows) */
   result: text("result").notNull().default("pending"),
   /** the status we set on the order (when result='ok') */
   newStatus: text("new_status"),
@@ -1287,8 +1287,16 @@ export const webhookEvents = sqliteTable("webhook_events", {
   errorMsg: text("error_msg"),
   processedAt: text("processed_at"),
   createdAt: text("created_at").notNull(),
+  /** The shipment the event was matched to; null until matched, or once the shipment is voided. */
+  shipmentId: text("shipment_id").references(() => shipments.id, { onDelete: "set null" }),
+  /** Times processing was tried. */
+  attempts: integer("attempts").notNull().default(0),
+  /** When processing may be tried (again); null once settled. */
+  nextAttemptAt: text("next_attempt_at"),
 }, (t) => ({
   providerEventUnique: uniqueIndex("webhook_events_provider_event_unique").on(t.provider, t.eventId),
+  due: index("webhook_events_due").on(t.nextAttemptAt).where(sql`result IN ('pending', 'error')`),
+  byShipment: index("webhook_events_shipment").on(t.shipmentId).where(sql`shipment_id IS NOT NULL`),
 }));
 
 // ─── Offers ───────────────────────────────────────────────────────────────────

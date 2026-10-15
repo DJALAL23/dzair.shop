@@ -238,6 +238,8 @@ export interface InboxEnvelope {
 /** What one inbox event turns out to be. */
 export type WebhookReading =
   | { kind: "update"; update: CarrierUpdate }
+  /** The carrier created a parcel for our reference — proof it exists, which settles an unknown handoff. */
+  | { kind: "created"; reference: string; parcel: CarrierParcel }
   /** A money event (collection, payout) — kept for the settlement domain. */
   | { kind: "settlement" }
   /** Not about delivery (a label edit, a creation receipt). */

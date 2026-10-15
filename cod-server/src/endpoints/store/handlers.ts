@@ -24,11 +24,8 @@ import {
 // subtotal to diverge from what the engine charges.
 import { priceCartLines, type CatalogSnapshot } from "../../../../cod-shared/queries/catalog-snapshot";
 import { resolveCartOffers } from "../../../../cod-shared/queries/offers-cart";
-import {
-  resolveConversionForStage,
-  getCapiWorkflowId,
-  conversionSourceUrl,
-} from "@/workflows/capi-helpers";
+import { resolveConversionForStage, conversionSourceUrl } from "@/workflows/capi-helpers";
+import { startCapiWorkflow } from "@/lib/conversions";
 import { stores, orders } from "../../../../cod-shared/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -444,23 +441,13 @@ export async function createStoreOrder(c: Context<AppContext>) {
           }
         }
 
-        const workflowId = getCapiWorkflowId(order.id, "checkout", decision.eventName);
-
-        c.executionCtx.waitUntil(
-          c.env.CAPI_WORKFLOW.create({
-            id: workflowId,
-            params: {
-              orderId: order.id,
-              eventName: decision.eventName,
-              stage: "checkout",
-              triggeredAt: Math.floor(Date.now() / 1000),
-              triggerStatus: "order_created",
-              eventSourceUrl,
-            },
-          }).catch((err: unknown) =>
-            console.error(`[capi-workflow] checkout ${decision.eventName} trigger failed:`, (err as Error)?.message)
-          )
-        );
+        startCapiWorkflow(c.env, (p) => c.executionCtx.waitUntil(p), {
+          orderId: order.id,
+          eventName: decision.eventName,
+          stage: "checkout",
+          trigger: "order_created",
+          eventSourceUrl,
+        });
       }
     } catch (err) {
       console.error("[capi-workflow] checkout evaluation failed:", (err as Error)?.message);

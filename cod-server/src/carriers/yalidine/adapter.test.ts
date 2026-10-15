@@ -376,8 +376,17 @@ describe("webhook", () => {
 
   it("keeps payment events for settlement and ignores the rest", () => {
     expect(yalidineWebhook.read(one("parcel_payment_updated", { tracking: "yal-A", status: "ready" }))).toEqual({ kind: "settlement" });
-    expect(yalidineWebhook.read(one("parcel_created", { tracking: "yal-A" })).kind).toBe("ignored");
     expect(yalidineWebhook.read(one("parcel_edited", { tracking: "yal-A" })).kind).toBe("ignored");
+  });
+
+  it("reads a creation as proof the parcel exists for our order number, with its label", () => {
+    expect(yalidineWebhook.read(one("parcel_created", { order_id: "ORD-1", tracking: "yal-A", label: "https://yalidine.app/bordereau?t=1" }))).toEqual({
+      kind: "created",
+      reference: "ORD-1",
+      parcel: { carrierParcelId: "yal-A", trackingNumber: "yal-A", carrierData: { label: "https://yalidine.app/bordereau?t=1" }, labelUrl: "https://yalidine.app/bordereau?t=1" },
+    });
+    expect(yalidineWebhook.read(one("parcel_created", { tracking: "yal-A" })).kind).toBe("ignored");
+    expect(yalidineWebhook.read(one("parcel_created", { order_id: "ORD-1" })).kind).toBe("ignored");
   });
 
   it("refuses an event whose time cannot be read rather than inventing one", () => {

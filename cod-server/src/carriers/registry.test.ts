@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { CARRIER_PROVIDERS, CarrierError, OPTIONAL_MEMBER_CAPABILITY, type CarrierAdapter } from "./contract";
-import { buildCarrier, carrierCapabilities, defaultProviderForCode, mergeProviderConfig, type CarrierCompany } from "./registry";
+import { buildCarrier, carrierCapabilities, carrierWebhook, defaultProviderForCode, mergeProviderConfig, type CarrierCompany } from "./registry";
 
 const companies: Record<string, CarrierCompany> = {
   yalidine: { provider: "yalidine", providerConfig: null, apiToken: "t", apiUserGuid: "id", apiEndpoint: null },
@@ -61,6 +61,12 @@ describe("a company's capabilities without its credentials", () => {
 
   it("a company with no adapter has none", () => {
     expect(carrierCapabilities({ provider: null, providerConfig: null })).toBeNull();
+  });
+
+  it("a provider's webhook reader is its adapter's; pull-only providers have none", () => {
+    for (const name of ["yalidine", "zr_express", "noest", "ecotrack"] as const) {
+      expect(carrierWebhook(name) ?? undefined).toBe(buildCarrier(companies[name]).webhook);
+    }
   });
 });
 

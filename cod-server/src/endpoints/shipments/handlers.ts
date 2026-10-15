@@ -25,6 +25,7 @@ import type {
   validateShipmentSchema,
 } from "./validation";
 import * as operations from "./operations";
+import { scheduleShipmentConversions } from "@/lib/conversions";
 import type { RecordedEvents } from "../../../../cod-shared/shipments/record-events";
 import type { z } from "@hono/zod-openapi";
 
@@ -132,6 +133,11 @@ async function respondWithShipment(c: Context<AppContext>, db: AppDb, extra: Rec
 
 const recordedSummary = (r: RecordedEvents) => ({ recorded: r.recorded, duplicates: r.duplicates, reached: r.reached, anomalies: r.anomalies });
 
+/** The conversions newly reached milestones call for — scheduled after the answer is ready, never blocking it. */
+async function scheduleConversions(c: Context<AppContext>, db: AppDb, recorded: RecordedEvents) {
+  await scheduleShipmentConversions(c.env, (p) => c.executionCtx.waitUntil(p), db, recorded.businessEvents);
+}
+
 /** POST /shipments/{id}/validate */
 export async function validate(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -196,6 +202,7 @@ export async function requestNewAttempt(c: Context<AppContext>) {
 export async function confirmReturn(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const recorded = await operations.confirmReturn(db, shipmentIdOf(c), actorOf(c));
+  await scheduleConversions(c, db, recorded);
   return respondWithShipment(c, db, recordedSummary(recorded));
 }
 
@@ -203,6 +210,7 @@ export async function confirmReturn(c: Context<AppContext>) {
 export async function sync(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const recorded = await operations.syncOne(db, shipmentIdOf(c));
+  await scheduleConversions(c, db, recorded);
   return respondWithShipment(c, db, recordedSummary(recorded));
 }
 
@@ -211,5 +219,6 @@ export async function report(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const body = (c.req as any).valid("json") as z.infer<typeof merchantReportSchema>;
   const recorded = await operations.reportShipmentEvent(db, shipmentIdOf(c), body, c.get("user"));
+  await scheduleConversions(c, db, recorded);
   return respondWithShipment(c, db, recordedSummary(recorded));
 }
