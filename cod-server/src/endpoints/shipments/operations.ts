@@ -112,7 +112,7 @@ export async function updateParcel(db: AppDb, shipmentId: string, changes: Parce
   }
 
   const order = await db
-    .select({ customerName: orders.customerName, phone: orders.phone, address: orders.address, wilayaId: orders.wilayaId, communeId: orders.communeId })
+    .select({ orderNumber: orders.orderNumber, customerName: orders.customerName, phone: orders.phone, address: orders.address, wilayaId: orders.wilayaId, communeId: orders.communeId })
     .from(orders)
     .where(eq(orders.id, t.row.orderId))
     .get();
@@ -135,6 +135,7 @@ export async function updateParcel(db: AppDb, shipmentId: string, changes: Parce
     : [null, null];
 
   const patch: CarrierShipmentPatch = {
+    reference: order.orderNumber,
     customerName: changes.customerName ?? order.customerName,
     phone: changes.phone ?? order.phone,
     address,

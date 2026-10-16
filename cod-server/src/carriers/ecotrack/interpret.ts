@@ -64,6 +64,49 @@ export const ECOTRACK_STATUSES: Readonly<Record<string, Interpretation>> = {
   annule: { kind: "milestone", milestone: "cancelled" },
 };
 
+/**
+ * EcoTrack answers with keys only; these are the words its sender dashboard
+ * shows for them, so the merchant reads a parcel's history as they know it.
+ */
+export const ECOTRACK_LABELS: Readonly<Record<string, string>> = {
+  order_information_received_by_carrier: "Informations reçues par le transporteur",
+  picked: "Ramassé",
+  accepted_by_carrier: "Accepté par le transporteur",
+  dispatched_to_driver: "Confié au livreur",
+  attempt_delivery: "Tentative de livraison",
+  return_asked: "Retour demandé",
+  return_in_transit: "Retour en transit",
+  Return_received: "Retour reçu",
+  livred: "Livré",
+  encaissed: "Encaissé",
+  payed: "Payé",
+  notification_on_order: "Note ajoutée",
+  prete_a_expedier: "Prête à expédier",
+  en_ramassage: "En ramassage",
+  en_preparation_stock: "En préparation (stock)",
+  vers_hub: "Vers le hub",
+  en_hub: "Au hub",
+  vers_wilaya: "Vers la wilaya",
+  en_preparation: "En préparation",
+  en_livraison: "En livraison",
+  suspendu: "Suspendu",
+  livre_non_encaisse: "Livré non encaissé",
+  encaisse_non_paye: "Encaissé non payé",
+  paiements_prets: "Paiement prêt",
+  paye_et_archive: "Payé et archivé",
+  retour_chez_livreur: "Retour chez le livreur",
+  retour_transit_entrepot: "Retour en transit vers l'entrepôt",
+  retour_en_traitement: "Retour en traitement",
+  retour_recu: "Retour reçu",
+  retour_archive: "Retour archivé",
+  annule: "Annulé",
+};
+
+/** The French words for an EcoTrack key; a key EcoTrack adds later stays as it came. */
+export function ecotrackLabel(value: string): string | null {
+  return Object.hasOwn(ECOTRACK_LABELS, value) ? ECOTRACK_LABELS[value] : null;
+}
+
 export function interpretEcotrack(status: CarrierStatus): Interpretation {
   const table = status.vocabulary === "activity" ? ECOTRACK_ACTIVITIES : status.vocabulary === "status" ? ECOTRACK_STATUSES : null;
   return (table && Object.hasOwn(table, status.value) ? table[status.value] : null) ?? { kind: "unknown" };

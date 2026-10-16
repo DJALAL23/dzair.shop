@@ -88,6 +88,12 @@ function noCarrierCalls() {
   return calls;
 }
 
+/** A time as EcoTrack writes it (Algiers, UTC+1), this far from now. */
+const algiersNow = (offsetMs = 0) => {
+  const [date, time] = new Date(Date.now() + offsetMs + 3_600_000).toISOString().slice(0, 19).split("T");
+  return { date, time };
+};
+
 describe("validating", () => {
   it("validates at the carrier, then records it — once", async () => {
     const { id, tracking } = await handedOff("o1");
@@ -138,6 +144,20 @@ describe("editing the parcel", () => {
     expect(await row(id)).toMatchObject({ codAmount: 2500, isFragile: true });
     const events = (await getShipmentWithEvents(d1.db, id))!.events;
     expect(events.at(-1)).toMatchObject({ source: "merchant", providerStatus: "parcel_updated", reason: "phone, address, amount, fragile", actorId: "staff_1" });
+  });
+
+  it("keeps the parcel's reference at the carrier — EcoTrack clears what an update leaves out", async () => {
+    const { id, tracking } = await handedOff("o1");
+    expect(server.parcel(tracking)!.params.reference).toBe("ORD-o1");
+    expect((await req("PATCH", `/${id}`, { phone: "0661112233" })).status).toBe(200);
+    expect(server.parcel(tracking)!.params.reference).toBe("ORD-o1");
+  });
+
+  it("a stop-desk parcel with no address is edited with its desk's commune as the address", async () => {
+    const { id, tracking } = await handedOff("o1", "eco-manual", { deliveryType: "stop_desk", stationCode: "16001", address: null });
+    expect(server.parcel(tracking)!.params.adresse).toBeTruthy();
+    expect((await req("PATCH", `/${id}`, { phone: "0661112233" })).status).toBe(200);
+    expect(server.parcel(tracking)!.params).toMatchObject({ tel: "0661112233", adresse: expect.stringMatching(/\S/) });
   });
 
   it("a carrier refusal changes nothing in CodFlow", async () => {
@@ -329,14 +349,31 @@ describe("confirming a return at the carrier", () => {
 
 describe("syncing with the carrier", () => {
   it("records what the carrier reports that is new, once", async () => {
-    const { id } = await handedOff("o1", "eco");
+    const { id, tracking } = await handedOff("o1", "eco");
+    server.parcel(tracking)!.activity.push({ ...algiersNow(60_000), status: "picked", station: "" });
     const first = (await (await req("POST", `/${id}/sync`)).json()) as any;
-    expect(first.data).toMatchObject({ recorded: 2, duplicates: 0 });
-    expect((await steps(id)).filter(([source]) => source === "pull").map(([, s]) => s)).toEqual(["order_information_received_by_carrier", "picked"]);
+    expect(first.data).toMatchObject({ recorded: 3, duplicates: 0 });
+    expect((await steps(id)).filter(([source]) => source === "pull").map(([, s]) => s).sort()).toEqual(["order_information_received_by_carrier", "picked", "vers_hub"].sort());
+    const bucket = (await getShipmentWithEvents(d1.db, id))!.events.find((e) => e.vocabulary === "status");
+    expect(bucket).toMatchObject({ providerStatus: "vers_hub", providerStatusLabel: "Vers le hub" });
     expect(first.data.shipment.lastSyncedAt).not.toBeNull();
 
     const second = (await (await req("POST", `/${id}/sync`)).json()) as any;
     expect(second.data).toMatchObject({ recorded: 0, duplicates: 2 });
+  });
+
+  it("reads the carrier's bucket too: a parcel EcoTrack suspends needs the merchant, one it cancels goes back to be shipped", async () => {
+    const { id, tracking } = await handedOff("o1", "eco");
+    server.parcel(tracking)!.status = "suspendu";
+    await req("POST", `/${id}/sync`);
+    let order = ((await (await jsonRequest(app, "GET", "/api/orders/o1")).json()) as any).data;
+    expect(order).toMatchObject({ needsAttention: true, shipment: { providerStatus: "suspendu", providerStatusLabel: "Suspendu" } });
+
+    server.parcel(tracking)!.status = "annule";
+    await req("POST", `/${id}/sync`);
+    order = ((await (await jsonRequest(app, "GET", "/api/orders/o1")).json()) as any).data;
+    expect(order).toMatchObject({ stage: "delivery_cancelled", needsAttention: true });
+    expect(order.shipment.actions).toContain("void");
   });
 
   it("an unreachable carrier changes nothing", async () => {

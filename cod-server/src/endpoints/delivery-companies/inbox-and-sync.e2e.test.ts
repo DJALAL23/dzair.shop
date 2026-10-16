@@ -89,10 +89,11 @@ describe("syncing a company's shipments now", () => {
     const tB = await parcelAtEcotrack("ORD-o2");
     const b = await shipmentAt("o2", "eco", tB);
     server.parcel(tB)!.activity.push({ date: "2026-10-14", time: "16:00:00", status: "livred", station: "" });
+    server.parcel(tB)!.status = "livre_non_encaisse";
 
     const res = await call("POST", "/eco/sync-shipments");
     expect(res.status).toBe(200);
-    expect(((await res.json()) as any).data).toEqual({ synced: 2, recorded: 3, reached: 1, moreRemain: false });
+    expect(((await res.json()) as any).data).toEqual({ synced: 2, recorded: 5, reached: 1, moreRemain: false });
     expect((await d1.db.select().from(schema.shipments).where(eq(schema.shipments.id, b)).get())!.deliveredAt).not.toBeNull();
     expect((await d1.db.select().from(schema.shipments).where(eq(schema.shipments.id, a)).get())!.lastSyncedAt).not.toBeNull();
     expect(created).toHaveBeenCalledTimes(1);

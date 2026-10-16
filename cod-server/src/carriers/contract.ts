@@ -150,6 +150,8 @@ export interface CarrierRef {
 }
 
 export interface CarrierShipmentPatch {
+  /** Our reference — the order number. Sent again because a carrier may clear what an update leaves out. */
+  reference?: string;
   customerName?: string;
   phone?: string;
   phone2?: string;
@@ -184,6 +186,12 @@ export interface CarrierUpdate {
   /** Canonical UTC ISO-8601 (`toISOString()` form). */
   occurredAt: string;
   raw: unknown;
+  /**
+   * The carrier's current state, which it reports with no time of its own:
+   * `occurredAt` is when CodFlow read it, so it is recorded only when it
+   * differs from the last snapshot of its vocabulary.
+   */
+  snapshot?: true;
 }
 
 /** The identity of a reported fact: its status and when it happened (see cod-shared eventKey). */

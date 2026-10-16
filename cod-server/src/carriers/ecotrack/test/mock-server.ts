@@ -260,6 +260,8 @@ export function createEcotrackMockServer(
       if (!parcel) return jsonResponse(TRACKING_INVALID_422, 422);
       if (parcel.validated) return jsonResponse(NOT_MODIFIABLE_RESPONSE);
 
+      // Observed live: an update that leaves the reference out clears it.
+      if (!req.searchParams.has("reference")) delete parcel.params.reference;
       for (const [field, value] of req.searchParams.entries()) {
         if (field !== "tracking") parcel.params[field] = value;
       }
@@ -281,10 +283,9 @@ export function createEcotrackMockServer(
       const parcel = tracking ? parcels.get(tracking) : undefined;
       if (!parcel) return jsonResponse(TRACKING_INVALID_422, 422);
 
+      // Observed live: validation writes no activity; only the dashboard bucket moves on.
       parcel.validated = true;
-      parcel.status = "en_livraison";
-      const { date, time } = nowDateTime();
-      parcel.activity.push({ date, time, status: "picked", station: "" });
+      parcel.status = "vers_hub";
       return jsonResponse(VALIDATE_SUCCESS_RESPONSE);
     },
 
@@ -410,6 +411,8 @@ export function createEcotrackMockServer(
     },
 
     "GET /api/v1/get/orders/status": (req) => {
+      // Observed live: without a status filter EcoTrack answers nothing.
+      if (!req.searchParams.get("status")) return jsonResponse({ success: false, message: "Aucun status soumis" });
       const trackings = (req.searchParams.get("trackings") ?? "")
         .split(",")
         .map((t) => t.trim())
@@ -421,7 +424,7 @@ export function createEcotrackMockServer(
         data[tracking] = parcel
           ? {
               status: parcel.status,
-              order_id: "",
+              order_id: parcel.params.reference ?? "",
               desk_phone: "",
               desk_commune: "",
               desk_map_link: "",

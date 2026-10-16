@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { CarrierError, type CarrierAdapter, type CarrierRef, type CarrierShipmentInput } from "../contract";
 import { EcotrackCarrier, ecotrackConfigSchema } from "./adapter";
-import { ECOTRACK_ACTIVITIES, ECOTRACK_STATUSES, interpretEcotrack } from "./interpret";
+import { ECOTRACK_ACTIVITIES, ECOTRACK_STATUSES, ecotrackLabel, interpretEcotrack } from "./interpret";
 import { createEcotrackMockServer, type EcotrackMockServer } from "./test/mock-server";
 
 const TOKEN = "eco-token";
@@ -44,6 +44,12 @@ async function failure(promise: Promise<unknown>): Promise<CarrierError> {
 
 const fullDetails = { phone: "0551234567", address: "Rue 2", wilayaId: 16, commune: "Alger Centre", amount: 5000 };
 
+/** A time as EcoTrack writes it (Algiers, UTC+1), this far from now. */
+const algiersNow = (offsetMs = 0) => {
+  const [date, time] = new Date(Date.now() + offsetMs + 3_600_000).toISOString().slice(0, 19).split("T");
+  return { date, time };
+};
+
 describe("createShipment", () => {
   it("sends the order as query parameters with our reference and type 1", async () => {
     const parcel = await carrier().createShipment({ ...input, phone2: "0661111111", weight: 2, fragile: true, remarks: "Fragile" });
@@ -74,6 +80,13 @@ describe("createShipment", () => {
     expect(desk.searchParams.get("code_postal")).toBe("16001");
     expect(desk.searchParams.get("stop_desk")).toBe("1");
     expect(home.searchParams.has("code_postal")).toBe(false);
+  });
+
+  it("always sends an address: a stop-desk parcel without one takes the desk's commune (EcoTrack requires it)", async () => {
+    const desk = await carrier().createShipment({ ...input, address: "", stopDesk: true, stationCode: "16001" });
+    await carrier().update!(refOf(desk.carrierParcelId), { customerName: "K", phone: "0551234567", address: "  ", wilayaId: 16, commune: "Ain Benian", amount: 1000 });
+    expect(server.callsFor("/api/v1/create/order")[0].searchParams.get("adresse")).toBe("Alger Centre");
+    expect(server.callsFor("/api/v1/update/order")[0].searchParams.get("adresse")).toBe("Ain Benian");
   });
 
   it("a wilaya the company does not serve is rejected with EcoTrack's code", async () => {
@@ -125,11 +138,18 @@ describe("fetchHistory", () => {
   it("reads each parcel's activity with exact Algiers times", async () => {
     const a = refOf((await carrier().createShipment(input)).carrierParcelId);
     await carrier().validate!(a);
+    server.parcel(a.carrierParcelId)!.activity.push({ ...algiersNow(60_000), status: "picked", station: "" });
     const history = (await carrier().fetchHistory!([a])).get(a.carrierParcelId)!;
     expect(history.map((u) => u.status)).toEqual([
-      { vocabulary: "activity", value: "order_information_received_by_carrier" },
-      { vocabulary: "activity", value: "picked" },
+      { vocabulary: "activity", value: "order_information_received_by_carrier", label: "Informations reçues par le transporteur" },
+      { vocabulary: "activity", value: "picked", label: "Ramassé" },
+      { vocabulary: "status", value: "vers_hub", label: "Vers le hub" },
     ]);
+    expect(history.map((u) => u.snapshot ?? false)).toEqual([false, false, true]);
+    for (const u of history) expect(u.reason).toBeNull();
+    const statusCall = server.callsFor("/api/v1/get/orders/status")[0];
+    expect(statusCall.searchParams.get("status")).toBe("all");
+    expect(statusCall.searchParams.get("trackings")).toBe(a.carrierParcelId);
     for (const u of history) expect(u.occurredAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/);
   });
 });
@@ -164,7 +184,8 @@ describe("label, desks, connection", () => {
   it("lists only communes with a stop desk, keyed by postal code", async () => {
     const desks = await carrier().stopDesks!();
     expect(desks.length).toBeGreaterThan(0);
-    for (const d of desks) expect(d).toMatchObject({ code: expect.any(String), commune: null, phones: [] });
+    for (const d of desks) expect(d).toMatchObject({ code: expect.any(String), commune: d.name, phones: [] });
+    for (const d of desks) expect(d.commune).toBeTruthy();
   });
 
   it("checks the token by query parameter and reports what it learns", async () => {
@@ -176,6 +197,18 @@ describe("label, desks, connection", () => {
   it("a wrong token is a check result, not an error", async () => {
     const check = await new EcotrackCarrier({ apiToken: "wrong", baseUrl: server.baseUrl }).verifyConnection();
     expect(check.ok).toBe(false);
+  });
+});
+
+describe("place names", () => {
+  it("gives EcoTrack's own wilaya and commune spellings, each commune in its wilaya", async () => {
+    const names = await carrier().geoNames!();
+    expect(names.wilayas.length).toBeGreaterThan(0);
+    expect(names.wilayas[0]).toEqual({ id: expect.any(Number), name: expect.any(String) });
+    expect(names.communes.length).toBeGreaterThan(0);
+    for (const c of names.communes) expect(c).toEqual({ id: expect.any(Number), name: expect.any(String), wilayaId: expect.any(Number) });
+    expect(new Set(names.communes.map((c) => c.id)).size).toBe(names.communes.length);
+    expect(carrier().capabilities.geoNames).toBe(true);
   });
 });
 
@@ -225,6 +258,11 @@ describe("interpretation", () => {
     for (const s of DOCUMENTED_STATUSES) expect(status(s).kind, s).not.toBe("unknown");
     expect(Object.keys(ECOTRACK_STATUSES).sort()).toEqual([...DOCUMENTED_STATUSES].sort());
     expect(Object.keys(ECOTRACK_ACTIVITIES).filter((k) => k !== "notification_on_order").sort()).toEqual([...DOCUMENTED_ACTIVITIES].sort());
+  });
+
+  it("gives every activity and status EcoTrack's own French words", () => {
+    for (const key of [...Object.keys(ECOTRACK_ACTIVITIES), ...Object.keys(ECOTRACK_STATUSES)]) expect(ecotrackLabel(key), key).toBeTruthy();
+    expect(ecotrackLabel("a_key_ecotrack_adds_later")).toBeNull();
   });
 
   it("money states are collection signals, never a delivery status", () => {

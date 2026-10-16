@@ -6,7 +6,9 @@
  */
 
 import type { AppDb } from "@/db";
-import type { CarrierAdapter } from "@/carriers/contract";
+import { and, desc, eq } from "drizzle-orm";
+import { shipmentEvents } from "@/db/schema";
+import type { CarrierAdapter, CarrierUpdate } from "@/carriers/contract";
 import { recordSynced } from "../../../../cod-shared/shipments/handoff";
 import { carrierRefOf, type ShipmentRow } from "../../../../cod-shared/shipments/queries";
 import { recordShipmentEvents, type RecordedEvents } from "../../../../cod-shared/shipments/record-events";
@@ -26,7 +28,7 @@ export async function syncShipments(db: AppDb, carrier: SyncCarrier, rows: reado
     const chunk = addressable.slice(start, start + batch);
     const histories = await carrier.fetchHistory(chunk.map((c) => c.ref));
     for (const { row, ref } of chunk) {
-      const updates = histories.get(ref.carrierParcelId) ?? [];
+      const updates = await withoutRepeatedSnapshots(db, row.id, histories.get(ref.carrierParcelId) ?? []);
       recorded.set(
         row.id,
         await recordShipmentEvents(
@@ -46,6 +48,26 @@ export async function syncShipments(db: AppDb, carrier: SyncCarrier, rows: reado
     }
   }
   return recorded;
+}
+
+/** A snapshot equal to the last one of its vocabulary says nothing new, and is left out. */
+async function withoutRepeatedSnapshots(db: AppDb, shipmentId: string, updates: readonly CarrierUpdate[]): Promise<CarrierUpdate[]> {
+  if (!updates.some((update) => update.snapshot)) return [...updates];
+  const kept: CarrierUpdate[] = [];
+  for (const update of updates) {
+    if (update.snapshot) {
+      const last = await db
+        .select({ value: shipmentEvents.providerStatus })
+        .from(shipmentEvents)
+        .where(and(eq(shipmentEvents.shipmentId, shipmentId), eq(shipmentEvents.vocabulary, update.status.vocabulary)))
+        .orderBy(desc(shipmentEvents.occurredAt), desc(shipmentEvents.recordedAt))
+        .limit(1)
+        .get();
+      if (last?.value === update.status.value) continue;
+    }
+    kept.push(update);
+  }
+  return kept;
 }
 
 export async function syncShipment(db: AppDb, carrier: SyncCarrier, row: ShipmentRow): Promise<RecordedEvents> {

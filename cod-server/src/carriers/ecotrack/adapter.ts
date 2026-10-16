@@ -36,10 +36,11 @@ import {
   type CarrierStatus,
   type CarrierStopDesk,
   type CarrierUpdate,
+  type CarrierGeoNames,
 } from "../contract";
 import { createCarrierHttp, flattenErrorBag, type CarrierHttp } from "../http";
 import { carrierInstant } from "../time";
-import { interpretEcotrack } from "./interpret";
+import { ecotrackLabel, interpretEcotrack } from "./interpret";
 import type {
   EcotrackBulkCreateResult,
   EcotrackCommunesResponse,
@@ -50,6 +51,7 @@ import type {
   EcotrackTrackingInfoResponse,
   EcotrackValidateTokenResponse,
   EcotrackWilayasResponse,
+  EcotrackOrdersStatusResponse,
 } from "./types";
 
 /** EcoTrack has no settings beyond its credentials. */
@@ -73,7 +75,7 @@ export const ECOTRACK_CAPABILITIES: CarrierCapabilities = {
   cancel: true,
   remarks: { add: true, list: true },
   history: true,
-  historyBatch: 1,
+  historyBatch: 20,
   findByReference: true,
   updates: "pull",
   label: true,
@@ -81,7 +83,7 @@ export const ECOTRACK_CAPABILITIES: CarrierCapabilities = {
   requestNewAttempt: false,
   confirmReturn: true,
   stopDeskList: true,
-  geoNames: false,
+  geoNames: true,
   verifyConnection: true,
 };
 
@@ -118,6 +120,14 @@ const query = (params: Record<string, string | number | undefined>) => {
 
 const day = (date: Date) => date.toISOString().slice(0, 10);
 
+/** Parcels per `get/orders/status` call (EcoTrack's limit). */
+const STATUS_BATCH = 100;
+
+/** EcoTrack requires an address on every parcel; a stop-desk one may have none, so the desk's commune stands in. */
+function addressOf(address: string | undefined, commune: string | undefined): string | undefined {
+  return address?.trim() || commune;
+}
+
 export class EcotrackCarrier implements CarrierAdapter {
   readonly provider = "ecotrack" as const;
   readonly capabilities = ECOTRACK_CAPABILITIES;
@@ -146,7 +156,7 @@ export class EcotrackCarrier implements CarrierAdapter {
       nom_client: input.customerName,
       telephone: input.phone,
       telephone_2: input.phone2,
-      adresse: input.address,
+      adresse: addressOf(input.address, input.commune),
       code_wilaya: input.wilayaId,
       commune: input.commune,
       code_postal: input.stopDesk ? input.stationCode : undefined,
@@ -205,11 +215,12 @@ export class EcotrackCarrier implements CarrierAdapter {
     }
     const params = query({
       tracking: ref.carrierParcelId,
+      reference: patch.reference,
       type: 1,
       client: patch.customerName,
       tel: patch.phone,
       tel2: patch.phone2,
-      adresse: patch.address,
+      adresse: addressOf(patch.address, patch.commune),
       wilaya: patch.wilayaId,
       commune: patch.commune,
       montant: patch.amount,
@@ -247,13 +258,32 @@ export class EcotrackCarrier implements CarrierAdapter {
         if (!activity.status || !occurredAt) continue;
         updates.push({
           match: { carrierParcelId: ref.carrierParcelId, trackingNumber: ref.carrierParcelId },
-          status: { vocabulary: "activity", value: activity.status },
-          reason: activity.station ?? null,
+          status: { vocabulary: "activity", value: activity.status, label: ecotrackLabel(activity.status) },
+          reason: activity.station || null,
           occurredAt,
           raw: activity,
         });
       }
       byParcel.set(ref.carrierParcelId, updates);
+    }
+    // The dashboard bucket says what the history may not: a parcel the
+    // carrier suspended or cancelled has no activity for it.
+    const seenAt = new Date(Math.floor(Date.now() / 1000) * 1000).toISOString();
+    for (let start = 0; start < refs.length; start += STATUS_BATCH) {
+      const trackings = refs.slice(start, start + STATUS_BATCH).map((ref) => ref.carrierParcelId);
+      const res = await this.http.read<EcotrackOrdersStatusResponse>("GET", `/get/orders/status?${query({ api_token: this.apiToken, trackings: trackings.join(","), status: "all" })}`);
+      for (const tracking of trackings) {
+        const bucket = res.data?.[tracking]?.status;
+        if (!bucket || bucket === "all") continue;
+        byParcel.get(tracking)?.push({
+          match: { carrierParcelId: tracking, trackingNumber: tracking },
+          status: { vocabulary: "status", value: bucket, label: ecotrackLabel(bucket) },
+          reason: null,
+          occurredAt: seenAt,
+          raw: res.data?.[tracking],
+          snapshot: true,
+        });
+      }
     }
     return byParcel;
   }
@@ -314,7 +344,24 @@ export class EcotrackCarrier implements CarrierAdapter {
     const res = await this.http.read<EcotrackCommunesResponse>("GET", "/get/communes");
     return Object.values(res ?? {})
       .filter((c) => c != null && c.has_stop_desk === 1)
-      .map((c) => ({ code: c.code_postal, name: c.nom, commune: null, address: null, phones: [], wilayaId: c.wilaya_id }));
+      .map((c) => ({ code: c.code_postal, name: c.nom, commune: c.nom, address: null, phones: [], wilayaId: c.wilaya_id }));
+  }
+
+  /**
+   * EcoTrack checks a parcel's commune by its own spelling, within the
+   * wilaya: its names, mapped once per company, are what parcels carry.
+   */
+  async geoNames(): Promise<CarrierGeoNames> {
+    const [wilayas, communes] = await Promise.all([
+      this.http.read<EcotrackWilayasResponse>("GET", "/get/wilayas"),
+      this.http.read<EcotrackCommunesResponse>("GET", "/get/communes"),
+    ]);
+    return {
+      wilayas: (Array.isArray(wilayas) ? wilayas : []).map((w) => ({ id: w.wilaya_id, name: w.wilaya_name })),
+      communes: Object.values(communes ?? {})
+        .filter((c) => c != null)
+        .map((c, index) => ({ id: index + 1, name: c.nom, wilayaId: c.wilaya_id })),
+    };
   }
 
   /** `validate/token` authenticates by query parameter; a bad token is a check result, not an error. */
