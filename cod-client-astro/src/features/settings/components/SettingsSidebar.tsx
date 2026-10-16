@@ -44,7 +44,7 @@ export function SettingsSidebar({
     <aside className="w-[220px] shrink-0">
       <nav
         aria-label="Settings navigation"
-        className="sticky top-6 space-y-1 rounded-xl border border-border bg-card p-3"
+        className="sticky top-6 space-y-1 rounded-xl bg-card p-3 shadow-card"
       >
         {SETTINGS_CATEGORIES.map((category) => {
           const Icon = category.icon;

@@ -1,16 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  AlertCircle,
-  Building2,
-  ChevronRight,
-  FilePlus,
-  Loader2,
-  Scale,
-  ShieldCheck,
-} from "lucide-react";
+import { Building2, ChevronRight, FilePlus, ShieldCheck } from "lucide-react";
 import { RequireAuth, canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
-import { Alert, Button, PageHeader } from "@/components/ui";
+import { Alert, Button, PageHeader, TableSkeleton, Tabs } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { getMyStore } from "@/features/settings/api";
@@ -41,7 +33,7 @@ function StorePagesContent() {
   const [storefrontBaseUrl, setStorefrontBaseUrl] = useState("");
   const [pages, setPages] = useState<StorePageSummary[] | null>(null);
   const [legalProfile, setLegalProfile] = useState<StoreLegalProfile | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(pageFromUrl);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
 
@@ -57,7 +49,6 @@ function StorePagesContent() {
       setStorefrontBaseUrl(store.domain ? `https://${store.domain}` : "");
       setPages(pageList);
       setLegalProfile(profile);
-      setSelectedId((current) => current ?? pageList[0]?.id ?? null);
     } catch (cause) {
       setLoadError(cause);
     }
@@ -65,7 +56,16 @@ function StorePagesContent() {
 
   useEffect(() => {
     void load();
+    const onPop = () => setSelectedId(pageFromUrl());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  function open(id: string | null) {
+    window.history.pushState(null, "", id ? `/pages?page=${encodeURIComponent(id)}` : "/pages");
+    setSelectedId(id);
+    document.getElementById("dashboard-main")?.scrollTo({ top: 0 });
+  }
 
   async function handleSeedDefaults() {
     try {
@@ -85,38 +85,67 @@ function StorePagesContent() {
 
   function handlePageDeleted(pageId: string) {
     setPages((current) => current?.filter((p) => p.id !== pageId) ?? current);
-    setSelectedId((current) => (current === pageId ? null : current));
+    open(null);
   }
 
   function handlePageCreated(page: { id: string }) {
     setShowNewDialog(false);
-    setSelectedId(page.id);
+    open(page.id);
     void load();
   }
 
+  const header = (
+    <PageHeader
+      title={t("page_title")}
+      actions={
+        canManage && activeTab === "pages" ? (
+          <Button onClick={() => setShowNewDialog(true)}>
+            <FilePlus size={15} aria-hidden="true" />
+            {t("list.new_page")}
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+
   if (loadError) {
     return (
-      <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
-        <div className="flex-1">
-          <p className="font-semibold">{t("errors.load_failed")}</p>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="mt-3 text-xs font-semibold underline underline-offset-4"
-          >
-            {common("retry")}
-          </button>
-        </div>
-      </Alert>
+      <>
+        {header}
+        <Alert role="alert" tone="critical">
+          <div className="flex-1">
+            <p className="font-semibold">{t("errors.load_failed")}</p>
+            <button type="button" onClick={() => void load()} className="mt-3 text-xs font-semibold underline underline-offset-4">
+              {common("retry")}
+            </button>
+          </div>
+        </Alert>
+      </>
     );
   }
 
   if (pages === null || languages === null) {
     return (
-      <div role="status" aria-busy="true" className="flex min-h-60 items-center justify-center">
-        <Loader2 size={24} className="animate-spin text-primary" />
-      </div>
+      <>
+        {header}
+        <div role="status" aria-busy="true" className="overflow-hidden rounded-xl shadow-card">
+          <TableSkeleton rows={4} columns={4} />
+        </div>
+      </>
+    );
+  }
+
+  if (selectedId) {
+    return (
+      <PageEditor
+        key={selectedId}
+        pageId={selectedId}
+        languages={languages}
+        storefrontBaseUrl={storefrontBaseUrl}
+        onBack={() => open(null)}
+        onChanged={handlePageChanged}
+        onDeleted={handlePageDeleted}
+      />
     );
   }
 
@@ -129,162 +158,65 @@ function StorePagesContent() {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Top Tab Switcher */}
-      <div className="flex items-center justify-between border-b border-border/80 pb-px">
-        <div className="flex gap-2 sm:gap-6">
-          <button
-            type="button"
-            onClick={() => setActiveTab("pages")}
-            className={`group relative flex items-center gap-2 pb-3 pt-1 text-sm font-semibold transition-colors select-none ${
-              activeTab === "pages"
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <ShieldCheck size={16} className={activeTab === "pages" ? "text-primary" : "text-muted-foreground group-hover:text-foreground"} />
-            <span>{t("tabs.pages")}</span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-bold transition-colors ${
-                activeTab === "pages"
-                  ? "bg-primary/10 text-primary"
-                  : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {pages.length}
-            </span>
-            {activeTab === "pages" && (
-              <span className="absolute bottom-0 inset-x-0 h-0.5 bg-primary rounded-full" />
-            )}
-          </button>
+    <>
+      {header}
+      <div className="space-y-4">
+        <Tabs
+          label={t("tabs.pages")}
+          value={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { key: "pages" as ActiveTab, label: t("tabs.pages"), icon: ShieldCheck, count: pages.length },
+            { key: "business_details" as ActiveTab, label: isProfileIncomplete ? <>{t("tabs.business_details")}<span className="size-1.5 rounded-full bg-[var(--chart-to_confirm)]" title={t("legal_profile.incomplete_banner")} /></> : t("tabs.business_details"), icon: Building2 },
+          ]}
+        />
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("business_details")}
-            className={`group relative flex items-center gap-2 pb-3 pt-1 text-sm font-semibold transition-colors select-none ${
-              activeTab === "business_details"
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Building2 size={16} className={activeTab === "business_details" ? "text-primary" : "text-muted-foreground group-hover:text-foreground"} />
-            <span>{t("tabs.business_details")}</span>
-            {isProfileIncomplete && (
-              <span
-                className="size-2 rounded-full bg-amber-500"
-                title={t("legal_profile.incomplete_banner")}
-              />
+        {activeTab === "pages" && (
+          <>
+            {needsReviewCount > 0 && (
+              <Alert tone="warning">
+                <span className="flex flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <span>{t("compliance.needs_review_count", { count: needsReviewCount })}</span>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("business_details")}
+                      className="inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
+                    >
+                      {t("compliance.configure_profile")}
+                      <ChevronRight size={14} aria-hidden="true" className="rtl:rotate-180" />
+                    </button>
+                  )}
+                </span>
+              </Alert>
             )}
-            {activeTab === "business_details" && (
-              <span className="absolute bottom-0 inset-x-0 h-0.5 bg-primary rounded-full" />
-            )}
-          </button>
-        </div>
+            <PageList pages={pages} locales={locales} onOpen={open} onSeedDefaults={() => void handleSeedDefaults()} />
+          </>
+        )}
 
-        {activeTab === "pages" && canManage && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowNewDialog(true)}
-            className="gap-1.5 text-xs font-semibold shadow-2xs mb-2"
-          >
-            <FilePlus size={14} />
-            <span>{t("list.new_page")}</span>
-          </Button>
+        {activeTab === "business_details" && (
+          <LegalProfileCard profile={legalProfile} onSaved={setLegalProfile} />
+        )}
+
+        {showNewDialog && (
+          <NewCustomPageDialog
+            storeLang={storeLang}
+            onClose={() => setShowNewDialog(false)}
+            onCreated={handlePageCreated}
+          />
         )}
       </div>
-
-      {/* Tab 1: Policies & Pages */}
-      {activeTab === "pages" && (
-        <div className="space-y-6">
-          {/* Compliance Banner — one line: what this is, review status, way in */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-3 shadow-xs">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-card text-primary shadow-2xs">
-                <Scale size={17} />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-[13px] font-bold text-foreground">
-                  {t("compliance.badge")}
-                </h3>
-                <p
-                  className={`text-xs ${
-                    needsReviewCount === 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-amber-600 dark:text-amber-400"
-                  }`}
-                >
-                  {needsReviewCount === 0
-                    ? t("compliance.all_reviewed")
-                    : t("compliance.needs_review_count", { count: needsReviewCount })}
-                </p>
-              </div>
-            </div>
-
-            {canManage && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab("business_details")}
-                className="gap-1.5 text-xs font-semibold shadow-2xs"
-              >
-                <span>{t("compliance.configure_profile")}</span>
-                <ChevronRight size={13} />
-              </Button>
-            )}
-          </div>
-
-          {/* Master-Detail Grid */}
-          <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-            <PageList
-              pages={pages}
-              locales={locales}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onSeedDefaults={() => void handleSeedDefaults()}
-              onOpenBusinessDetails={() => setActiveTab("business_details")}
-            />
-            <div className="min-w-0">
-              {selectedId ? (
-                <PageEditor
-                  key={selectedId}
-                  pageId={selectedId}
-                  languages={languages}
-                  storefrontBaseUrl={storefrontBaseUrl}
-                  onChanged={handlePageChanged}
-                  onDeleted={handlePageDeleted}
-                />
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 2: Business Details */}
-      {activeTab === "business_details" && (
-        <LegalProfileCard
-          profile={legalProfile}
-          onSaved={setLegalProfile}
-          onBackToPages={() => setActiveTab("pages")}
-        />
-      )}
-
-      {showNewDialog && (
-        <NewCustomPageDialog
-          storeLang={storeLang}
-          onClose={() => setShowNewDialog(false)}
-          onCreated={handlePageCreated}
-        />
-      )}
-    </div>
+    </>
   );
 }
 
+function pageFromUrl() {
+  return new URLSearchParams(window.location.search).get("page");
+}
+
 function Gated() {
-  const t = useT("store-pages");
   return (
-    <DashboardChrome currentPath="/pages" wide>
-      <PageHeader title={t("page_title")} subtitle={t("page_subtitle")} />
+    <DashboardChrome currentPath="/pages">
       <StorePagesContent />
     </DashboardChrome>
   );

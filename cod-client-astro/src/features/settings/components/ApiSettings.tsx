@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Copy, Eye, EyeOff, Key } from "lucide-react";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
+import { Button, inputClass } from "@/components/ui";
 import type { StoreConfig } from "@/features/settings/types";
 
 export function ApiSettings({ storeConfig }: { storeConfig: StoreConfig }) {
@@ -26,22 +27,20 @@ export function ApiSettings({ storeConfig }: { storeConfig: StoreConfig }) {
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card">
+    <section className="rounded-xl bg-card shadow-card">
       <div className="flex items-start gap-3 border-b border-border px-5 py-4">
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
           <Key size={18} aria-hidden="true" />
         </span>
         <div>
-          <h2 className="text-sm font-bold text-foreground">{t("store.api_key_title")}</h2>
-          <p className="text-xs text-muted-foreground">{t("store.api_key_subtitle")}</p>
+          <h2 className="text-sm font-semibold text-foreground">{t("store.api_key_title")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("store.api_key_subtitle")}</p>
         </div>
       </div>
       <div className="px-5 py-5">
         {apiKey ? (
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-foreground">
-              {t("store.api_key_label")}
-            </label>
+            <span className="text-sm font-medium text-foreground">{t("store.api_key_label")}</span>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <input
@@ -49,7 +48,8 @@ export function ApiSettings({ storeConfig }: { storeConfig: StoreConfig }) {
                   dir="ltr"
                   type={revealed ? "text" : "password"}
                   value={apiKey}
-                  className="h-10 w-full cursor-default select-all rounded-lg border border-border bg-background pe-10 ps-3 pr-10 font-mono text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  aria-label={t("store.api_key_label")}
+                  className={`${inputClass} cursor-default select-all pe-10 font-mono`}
                 />
                 <button
                   type="button"
@@ -61,15 +61,10 @@ export function ApiSettings({ storeConfig }: { storeConfig: StoreConfig }) {
                   {revealed ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => void handleCopy()}
-                title={t("store.api_key_copy")}
-                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-muted px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
-              >
+              <Button type="button" variant="secondary" onClick={() => void handleCopy()}>
                 {copied ? (
                   <>
-                    <Check size={14} className="text-violet-500" aria-hidden="true" />
+                    <Check size={14} className="text-[var(--tone-success-text)]" aria-hidden="true" />
                     {t("store.api_key_copied")}
                   </>
                 ) : (
@@ -78,7 +73,7 @@ export function ApiSettings({ storeConfig }: { storeConfig: StoreConfig }) {
                     {t("store.api_key_copy")}
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (

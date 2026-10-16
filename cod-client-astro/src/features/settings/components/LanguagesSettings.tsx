@@ -108,7 +108,7 @@ export function LanguagesSettings({
       </ul>
 
       {addable.length > 0 && (
-        <FieldRow label={t("languages.add_label")} hint={t("languages.add_hint")}>
+        <FieldRow label={t("languages.add_label")} help={t("languages.add_hint")}>
           <div className="flex gap-2">
             <Select value={toAdd} onChange={(event) => setToAdd(event.currentTarget.value as StoreLocale | "")}>
               <option value="">{t("languages.add_placeholder")}</option>

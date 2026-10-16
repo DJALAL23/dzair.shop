@@ -39,7 +39,7 @@ export function GeneralSettings({
           placeholder={t("store.name_placeholder")}
         />
       </FieldRow>
-      <FieldRow label={t("store.domain_label")} hint={t("store.domain_hint")}>
+      <FieldRow label={t("store.domain_label")} help={t("store.domain_hint")}>
         <Input
           value={domain}
           onChange={(event) => setDomain(event.currentTarget.value)}

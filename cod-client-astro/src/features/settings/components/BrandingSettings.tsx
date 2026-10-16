@@ -45,19 +45,19 @@ export function BrandingSettings({
 
       <ColorField
         label={t("store.primary_color_label")}
-        hint={t("store.primary_color_hint")}
+        help={t("store.primary_color_hint")}
         value={primaryColor}
         onChange={setPrimaryColor}
       />
       <ColorField
         label={t("store.accent_color_label")}
-        hint={t("store.accent_color_hint")}
+        help={t("store.accent_color_hint")}
         value={accentColor}
         onChange={setAccentColor}
       />
       <ColorField
         label={t("store.bg_color_label")}
-        hint={t("store.bg_color_hint")}
+        help={t("store.bg_color_hint")}
         value={bgColor}
         onChange={setBgColor}
       />

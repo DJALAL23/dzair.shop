@@ -1,17 +1,4 @@
 import { useState } from "react";
-import {
-  AlertCircle,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Mail,
-  MapPin,
-  Phone,
-  RotateCcw,
-  Shield,
-  Truck,
-} from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
@@ -19,12 +6,11 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { storePagesErrorMessage } from "@/features/store-pages/model";
 import { saveStoreLegalProfile } from "@/features/store-pages/api";
 import type { StoreLegalProfile } from "@/features/store-pages/types";
-import { Alert, Button, Card, Field, Input, StickyFormActions } from "@/components/ui";
+import { Alert, Button, Card, Field, InfoTip, Input, StickyFormActions } from "@/components/ui";
 
 interface LegalProfileCardProps {
   profile: StoreLegalProfile | null;
   onSaved: (profile: StoreLegalProfile) => void;
-  onBackToPages?: () => void;
 }
 
 function textField(value: string): string | null {
@@ -37,7 +23,7 @@ function dayField(value: string, fallback: number): number {
   return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : fallback;
 }
 
-export function LegalProfileCard({ profile, onSaved, onBackToPages }: LegalProfileCardProps) {
+export function LegalProfileCard({ profile, onSaved }: LegalProfileCardProps) {
   const t = useT("store-pages");
   const identity = useIdentity();
   const canManage = canScope(identity, SCOPES.STORE_PAGES_MANAGE);
@@ -79,67 +65,18 @@ export function LegalProfileCard({ profile, onSaved, onBackToPages }: LegalProfi
   }
 
   return (
-    <div className="space-y-6">
-      {/* Overview Banner */}
-      <div className="rounded-xl border border-border/80 bg-card p-5 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-2xs">
-              <Building2 size={20} />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-foreground">
-                {t("legal_profile.title")}
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground max-w-2xl leading-relaxed">
-                {t("legal_profile.subtitle")}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {onBackToPages && (
-              <Button variant="outline" size="sm" onClick={onBackToPages} className="text-xs">
-                ← {t("tabs.pages")}
-              </Button>
-            )}
-            {canManage && (
-              <Button
-                variant="primary"
-                size="default"
-                onClick={() => void handleSave()}
-                disabled={busy}
-                className="font-semibold shadow-xs px-5"
-              >
-                {t("legal_profile.save_button")}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {!isComplete && (
-          <div className="mt-4">
-            <Alert tone="warning">
-              <div className="flex items-center gap-2">
-                <AlertCircle size={16} className="shrink-0" />
-                <span className="text-xs font-medium">
-                  {t("legal_profile.incomplete_banner")}
-                </span>
-              </div>
-            </Alert>
-          </div>
-        )}
-      </div>
+    <div className="space-y-4">
+      {!isComplete && <Alert tone="warning">{t("legal_profile.incomplete_banner")}</Alert>}
 
       {/* 3 Structured Sections */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Section 1: Company & Legal Identity */}
         <Card
           title={t("legal_profile.company_section_title")}
-          subtitle={t("legal_profile.company_section_subtitle")}
+          help={t("legal_profile.company_section_subtitle")}
           className="md:col-span-2"
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label={t("legal_profile.legal_name_label")}>
               <Input
                 value={legalName}
@@ -185,7 +122,7 @@ export function LegalProfileCard({ profile, onSaved, onBackToPages }: LegalProfi
         {/* Section 2: Customer Contact Channels */}
         <Card
           title={t("legal_profile.contact_section_title")}
-          subtitle={t("legal_profile.contact_section_subtitle")}
+          help={t("legal_profile.contact_section_subtitle")}
         >
           <div className="space-y-4">
             <Field label={t("legal_profile.contact_email_label")}>
@@ -218,12 +155,12 @@ export function LegalProfileCard({ profile, onSaved, onBackToPages }: LegalProfi
         {/* Section 3: COD Delivery & Return Settings */}
         <Card
           title={t("legal_profile.cod_section_title")}
-          subtitle={t("legal_profile.cod_section_subtitle")}
+          help={t("legal_profile.cod_section_subtitle")}
         >
           <div className="space-y-4">
             <Field
               label={t("legal_profile.return_window_label")}
-              hint={t("legal_profile.return_window_hint")}
+              help={t("legal_profile.return_window_hint")}
             >
               <Input
                 type="number"
@@ -272,18 +209,16 @@ export function LegalProfileCard({ profile, onSaved, onBackToPages }: LegalProfi
       {canManage && (
         <StickyFormActions
           info={
-            <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
-              {t("legal_profile.apply_hint")}
-            </p>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {t("legal_profile.title")}
+              <InfoTip>
+                <span className="block">{t("legal_profile.subtitle")}</span>
+                <span className="mt-1.5 block">{t("legal_profile.apply_hint")}</span>
+              </InfoTip>
+            </span>
           }
         >
-          <Button
-            variant="primary"
-            size="default"
-            onClick={() => void handleSave()}
-            disabled={busy}
-            className="font-semibold shadow-xs px-6"
-          >
+          <Button type="button" onClick={() => void handleSave()} disabled={busy}>
             {t("legal_profile.save_button")}
           </Button>
         </StickyFormActions>

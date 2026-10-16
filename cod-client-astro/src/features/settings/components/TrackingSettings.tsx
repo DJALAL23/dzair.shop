@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BarChart2, Eye, EyeOff } from "lucide-react";
-import { Input } from "@/components/ui";
+import { Alert, InfoTip, Input, SwitchField } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import {
   ConversionEventPicker,
@@ -80,36 +80,20 @@ export function TrackingSettings() {
 
   return (
     <SettingsSection
+      savedAt={lastSaved}
       icon={BarChart2}
       title={t("store.tracking_title")}
       subtitle={t("store.tracking_subtitle")}
       onSave={handleSave}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <span className="text-sm font-semibold text-foreground">
-            {t("store.tracking_enabled_label")}
-          </span>
-          <p className="text-xs text-muted-foreground">{t("store.tracking_enabled_hint")}</p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          onClick={() => setEnabled((current) => !current)}
-          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            enabled ? "bg-primary" : "bg-muted-foreground/30"
-          }`}
-        >
-          <span
-            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform ${
-              enabled ? "translate-x-5 rtl:-translate-x-5" : "translate-x-0.5"
-            }`}
-          />
-        </button>
-      </div>
+      <SwitchField
+        label={t("store.tracking_enabled_label")}
+        help={t("store.tracking_enabled_hint")}
+        checked={enabled}
+        onChange={setEnabled}
+      />
 
-      <FieldRow label={t("store.tracking_ad_account_label")} hint={t("store.tracking_ad_account_hint")}>
+      <FieldRow label={t("store.tracking_ad_account_label")} help={t("store.tracking_ad_account_hint")}>
         <Input
           dir="ltr"
           value={adAccountName}
@@ -118,7 +102,7 @@ export function TrackingSettings() {
         />
       </FieldRow>
 
-      <FieldRow label={t("store.tracking_pixel_id_label")} hint={t("store.tracking_pixel_id_hint")}>
+      <FieldRow label={t("store.tracking_pixel_id_label")} help={t("store.tracking_pixel_id_hint")}>
         <Input
           dir="ltr"
           value={pixelId}
@@ -127,7 +111,7 @@ export function TrackingSettings() {
         />
       </FieldRow>
 
-      <FieldRow label={t("store.tracking_token_label")} hint={t("store.tracking_token_hint")}>
+      <FieldRow label={t("store.tracking_token_label")} help={t("store.tracking_token_hint")}>
         <div className="relative">
           <Input
             type={showToken ? "text" : "password"}
@@ -147,22 +131,13 @@ export function TrackingSettings() {
             {showToken ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
-        {accessTokenMasked && !accessToken && (
-          <p className="text-xs text-muted-foreground">
-            {t("store.otp_key_stored")}: <span dir="ltr">{accessTokenMasked}</span>
-          </p>
-        )}
       </FieldRow>
 
-      <div className="space-y-2.5">
-        <div>
-          <label className="text-xs font-semibold text-foreground">
-            {t("store.tracking_event_label")}
-          </label>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {t("store.tracking_event_description")}
-          </p>
-        </div>
+      <div className="space-y-2">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <span>{t("store.tracking_event_label")}</span>
+          <InfoTip>{t("store.tracking_event_description")}</InfoTip>
+        </span>
 
         <ConversionEventPicker
           value={conversionEvent}
@@ -173,68 +148,31 @@ export function TrackingSettings() {
       {/* Per-landing-page pixels. Off is the default and the rollback: while
           it is off, every landing page reports to the pixel above no matter
           what is saved against it. */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <span className="text-sm font-semibold text-foreground">
-            {t("store.tracking_per_page_label")}
-          </span>
-          <p className="text-xs text-muted-foreground">{t("store.tracking_per_page_hint")}</p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={perPageTracking}
-          onClick={() => setPerPageTracking((current) => !current)}
-          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            perPageTracking ? "bg-primary" : "bg-muted-foreground/30"
-          }`}
-        >
-          <span
-            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform ${
-              perPageTracking ? "translate-x-5 rtl:-translate-x-5" : "translate-x-0.5"
-            }`}
-          />
-        </button>
-      </div>
+      <SwitchField
+        label={t("store.tracking_per_page_label")}
+        help={
+          <>
+            <span className="block">{t("store.tracking_per_page_hint")}</span>
+            <span className="mt-1.5 block">{t("store.tracking_per_page_next_step")}</span>
+          </>
+        }
+        checked={perPageTracking}
+        onChange={setPerPageTracking}
+      />
 
-      {perPageTracking && (
-        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          {t("store.tracking_per_page_next_step")}
-        </p>
-      )}
-
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <span className="text-sm font-semibold text-foreground">
-            {t("store.tracking_test_mode_label")}
-          </span>
-          <p className="text-xs text-muted-foreground">{t("store.tracking_test_mode_hint")}</p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={testMode}
-          onClick={() => setTestMode((current) => !current)}
-          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            testMode ? "bg-primary" : "bg-muted-foreground/30"
-          }`}
-        >
-          <span
-            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform ${
-              testMode ? "translate-x-5 rtl:-translate-x-5" : "translate-x-0.5"
-            }`}
-          />
-        </button>
-      </div>
+      <SwitchField
+        label={t("store.tracking_test_mode_label")}
+        help={t("store.tracking_test_mode_hint")}
+        checked={testMode}
+        onChange={setTestMode}
+      />
 
       {testMode && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-600">
-          {t("store.tracking_test_mode_warning")}
-        </p>
+        <Alert tone="warning">{t("store.tracking_test_mode_warning")}</Alert>
       )}
 
       {testMode && (
-        <FieldRow label={t("store.tracking_test_code_label")} hint={t("store.tracking_test_code_hint")}>
+        <FieldRow label={t("store.tracking_test_code_label")} help={t("store.tracking_test_code_hint")}>
           <Input
             dir="ltr"
             value={testEventCode}
@@ -242,12 +180,6 @@ export function TrackingSettings() {
             placeholder={t("store.tracking_test_code_placeholder")}
           />
         </FieldRow>
-      )}
-
-      {lastSaved && (
-        <p className="text-xs text-muted-foreground">
-          {t("store.tracking_last_saved")}: {new Date(lastSaved).toLocaleString()}
-        </p>
       )}
     </SettingsSection>
   );

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Truck } from "lucide-react";
 import { useT } from "@/i18n/react";
 import type { StoreConfig } from "@/features/settings/types";
-import { SettingsSection } from "@/features/settings/components/SettingsSection";
+import { FieldRow, SettingsSection } from "@/features/settings/components/SettingsSection";
+import { InfoTip, Input } from "@/components/ui";
 
 type ShippingMode = "highest" | "default_profile";
 
@@ -52,71 +53,55 @@ export function DeliveryPricingSettings({
         await onSave({ freeShippingThreshold: parsed, cartShippingMode: mode });
       }}
     >
-      <div className="space-y-6">
-        <div className="space-y-1.5">
-          <label
-            htmlFor="free-shipping-threshold"
-            className="text-sm font-semibold text-foreground"
-          >
-            {t("store.free_shipping_threshold_label")}
-          </label>
-          <input
-            id="free-shipping-threshold"
-            type="number"
-            inputMode="numeric"
-            min={1}
-            step={1}
-            value={threshold}
-            onChange={(event) => setThreshold(event.target.value)}
-            placeholder={t("store.free_shipping_threshold_placeholder")}
-            aria-invalid={invalid || undefined}
-            aria-describedby="free-shipping-threshold-hint"
-            className="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <p
-            id="free-shipping-threshold-hint"
-            className={`text-xs ${invalid ? "text-destructive" : "text-muted-foreground"}`}
-          >
-            {invalid
-              ? t("store.free_shipping_threshold_invalid")
-              : t("store.free_shipping_threshold_hint")}
+      <FieldRow label={t("store.free_shipping_threshold_label")} help={t("store.free_shipping_threshold_hint")}>
+        <Input
+          id="free-shipping-threshold"
+          type="number"
+          inputMode="numeric"
+          min={1}
+          step={1}
+          value={threshold}
+          onChange={(event) => setThreshold(event.currentTarget.value)}
+          placeholder={t("store.free_shipping_threshold_placeholder")}
+          aria-label={t("store.free_shipping_threshold_label")}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? "free-shipping-threshold-error" : undefined}
+          className="max-w-xs tabular-nums"
+        />
+        {invalid && (
+          <p id="free-shipping-threshold-error" role="alert" className="text-xs font-medium text-destructive">
+            {t("store.free_shipping_threshold_invalid")}
           </p>
-        </div>
+        )}
+      </FieldRow>
 
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-semibold text-foreground">
-            {t("store.cart_shipping_mode_label")}
-          </legend>
-          <p className="text-xs text-muted-foreground">
-            {t("store.cart_shipping_mode_hint")}
-          </p>
-          <div className="space-y-2 pt-1">
-            {(["highest", "default_profile"] as const).map((value) => (
-              <label
-                key={value}
-                className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 text-sm"
-              >
-                <input
-                  type="radio"
-                  name="cartShippingMode"
-                  value={value}
-                  checked={mode === value}
-                  onChange={() => setMode(value)}
-                  className="mt-0.5"
-                />
-                <span className="space-y-0.5">
-                  <span className="block font-medium text-foreground">
-                    {t(`store.cart_shipping_mode_${value}_label`)}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {t(`store.cart_shipping_mode_${value}_hint`)}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      </div>
+      <fieldset className="space-y-2">
+        <legend className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <span>{t("store.cart_shipping_mode_label")}</span>
+          <InfoTip>{t("store.cart_shipping_mode_hint")}</InfoTip>
+        </legend>
+        <div className="grid gap-2 pt-1 sm:grid-cols-2">
+          {(["highest", "default_profile"] as const).map((value) => (
+            <label
+              key={value}
+              className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                mode === value ? "border-primary bg-subtle" : "border-border hover:bg-subtle"
+              }`}
+            >
+              <input
+                type="radio"
+                name="cartShippingMode"
+                value={value}
+                checked={mode === value}
+                onChange={() => setMode(value)}
+                className="accent-[var(--primary)]"
+              />
+              <span className="min-w-0 flex-1 font-medium text-foreground">{t(`store.cart_shipping_mode_${value}_label`)}</span>
+              <InfoTip>{t(`store.cart_shipping_mode_${value}_hint`)}</InfoTip>
+            </label>
+          ))}
+        </div>
+      </fieldset>
     </SettingsSection>
   );
 }

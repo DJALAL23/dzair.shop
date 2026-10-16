@@ -21,7 +21,7 @@ function BodyLength({ value }: { value: string }) {
   const over = value.length > RICH_TEXT_MAX_CHARS;
 
   return (
-    <p className="flex items-center justify-end gap-1 text-[12px] text-muted-foreground">
+    <p className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
       <span className={over ? "font-medium text-destructive" : undefined}>
         {value.length.toLocaleString(locale)}
       </span>

@@ -1,10 +1,8 @@
 import { useState, type ReactNode } from "react";
-import { Check, Loader2, Save, type LucideIcon } from "lucide-react";
-import { useT } from "@/i18n/react";
+import { Check, Loader2, type LucideIcon } from "lucide-react";
+import { Button, InfoTip } from "@/components/ui";
+import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
-
-export const inputCls =
-  "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20";
 
 /** Section card with icon header and a save action that reports inline status. */
 export function SettingsSection({
@@ -13,14 +11,18 @@ export function SettingsSection({
   subtitle,
   children,
   onSave,
+  savedAt,
 }: {
   icon: LucideIcon;
   title: string;
   subtitle: string;
   children: ReactNode;
   onSave: () => Promise<void>;
+  /** When this section was last saved, for settings stored on their own. */
+  savedAt?: string | null;
 }) {
   const t = useT("settings");
+  const locale = useLocale();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [error, setError] = useState("");
@@ -48,60 +50,58 @@ export function SettingsSection({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card">
+    <section className="rounded-xl bg-card shadow-card">
       <div className="flex items-start gap-3 border-b border-border px-5 py-4">
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
           <Icon size={18} aria-hidden="true" />
         </span>
         <div>
-          <h2 className="text-sm font-bold text-foreground">{title}</h2>
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
         </div>
       </div>
       <div className="space-y-5 px-5 py-5">{children}</div>
       <div className="flex items-center justify-end gap-3 border-t border-border px-5 py-4">
+        {savedAt && status === "idle" && (
+          <span className="me-auto text-xs text-muted-foreground">
+            {t("store.tracking_last_saved")}: {new Date(savedAt).toLocaleString(locale)}
+          </span>
+        )}
         {status === "saved" && (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--tone-success-text)]">
             <Check size={14} aria-hidden="true" />
             {t("store.saved")}
           </span>
         )}
         {status === "error" && (
-          <span className="text-xs font-semibold text-destructive">{error}</span>
+          <span className="text-xs font-medium text-destructive">{error}</span>
         )}
-        <button
-          type="button"
-          onClick={() => void handleSave()}
-          disabled={busy}
-          className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {busy ? (
-            <Loader2 size={15} className="animate-spin" aria-hidden="true" />
-          ) : (
-            <Save size={15} aria-hidden="true" />
-          )}
+        <Button type="button" onClick={() => void handleSave()} disabled={busy}>
+          {busy && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
           {busy ? t("store.saving") : t("store.save")}
-        </button>
+        </Button>
       </div>
     </section>
   );
 }
 
-/** Label + control row with optional hint below the control. */
+/** Label + control; the label's ⓘ holds the explanation. */
 export function FieldRow({
   label,
-  hint,
+  help,
   children,
 }: {
   label: string;
-  hint?: string;
+  help?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-semibold text-foreground">{label}</label>
+      <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+        <span>{label}</span>
+        {help && <InfoTip>{help}</InfoTip>}
+      </span>
       {children}
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -109,35 +109,37 @@ export function FieldRow({
 /** Color swatch + hex text input pair. */
 export function ColorField({
   label,
-  hint,
+  help,
   value,
   onChange,
 }: {
   label: string;
-  hint: string;
+  help?: ReactNode;
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex items-start gap-4">
-      <div className="flex-1 space-y-1">
-        <span className="text-sm font-semibold text-foreground">{label}</span>
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      </div>
+    <div className="flex items-center gap-4">
+      <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium text-foreground">
+        <span>{label}</span>
+        {help && <InfoTip>{help}</InfoTip>}
+      </span>
       <div className="flex shrink-0 items-center gap-2">
         <input
           type="color"
           value={value}
+          aria-label={label}
           onChange={(event) => onChange(event.currentTarget.value)}
-          className="h-9 w-14 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
+          className="h-9 w-12 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
         />
         <input
           type="text"
           value={value}
+          aria-label={label}
           onChange={(event) => onChange(event.currentTarget.value)}
           maxLength={9}
           dir="ltr"
-          className="h-9 w-28 rounded-lg border border-border bg-muted px-3 font-mono text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+          className="h-9 w-28 rounded-lg border border-border bg-card px-3 font-mono text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
         />
       </div>
     </div>

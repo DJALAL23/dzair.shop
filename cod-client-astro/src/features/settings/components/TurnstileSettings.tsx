@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, Shield } from "lucide-react";
-import { Input } from "@/components/ui";
+import { Input, SwitchField } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { getTurnstileConfig, saveTurnstileConfig } from "@/features/settings/api";
 import { FieldRow, SettingsSection } from "@/features/settings/components/SettingsSection";
@@ -50,36 +50,28 @@ export function TurnstileSettings() {
 
   return (
     <SettingsSection
+      savedAt={lastSaved}
       icon={Shield}
       title={t("store.turnstile_title")}
       subtitle={t("store.turnstile_subtitle")}
       onSave={handleSave}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <span className="text-sm font-semibold text-foreground">
-            {t("store.turnstile_enabled_label")}
-          </span>
-          <p className="text-xs text-muted-foreground">{t("store.turnstile_enabled_hint")}</p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          onClick={() => setEnabled((current) => !current)}
-          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            enabled ? "bg-primary" : "bg-muted-foreground/30"
-          }`}
-        >
-          <span
-            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform ${
-              enabled ? "translate-x-5 rtl:-translate-x-5" : "translate-x-0.5"
-            }`}
-          />
-        </button>
-      </div>
+      <SwitchField
+        label={t("store.turnstile_enabled_label")}
+        help={t("store.turnstile_enabled_hint")}
+        checked={enabled}
+        onChange={setEnabled}
+      />
 
-      <FieldRow label={t("store.turnstile_site_key_label")} hint={t("store.turnstile_site_key_hint")}>
+      <FieldRow
+        label={t("store.turnstile_site_key_label")}
+        help={
+          <>
+            <span className="block">{t("store.turnstile_site_key_hint")}</span>
+            <span className="mt-1.5 block">{t("store.turnstile_hostname_hint")}</span>
+          </>
+        }
+      >
         <Input
           type="text"
           dir="ltr"
@@ -89,7 +81,7 @@ export function TurnstileSettings() {
         />
       </FieldRow>
 
-      <FieldRow label={t("store.turnstile_secret_key_label")} hint={t("store.turnstile_secret_key_hint")}>
+      <FieldRow label={t("store.turnstile_secret_key_label")} help={t("store.turnstile_secret_key_hint")}>
         <div className="relative">
           <Input
             type={showSecret ? "text" : "password"}
@@ -109,19 +101,7 @@ export function TurnstileSettings() {
             {showSecret ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
-        {secretKeyMasked && !secretKey && (
-          <p className="text-xs text-muted-foreground">
-            {t("store.turnstile_key_stored")}: <span dir="ltr">{secretKeyMasked}</span>
-          </p>
-        )}
-        <p className="text-xs text-muted-foreground">{t("store.turnstile_hostname_hint")}</p>
       </FieldRow>
-
-      {lastSaved && (
-        <p className="text-xs text-muted-foreground">
-          {t("store.tracking_last_saved")}: {new Date(lastSaved).toLocaleString()}
-        </p>
-      )}
     </SettingsSection>
   );
 }

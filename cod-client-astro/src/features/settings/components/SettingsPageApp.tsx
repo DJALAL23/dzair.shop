@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
 import { Alert, PageHeader } from "@/components/ui";
@@ -19,7 +19,7 @@ import { DeliveryPricingSettings } from "@/features/settings/components/Delivery
 import { CartSettings } from "@/features/settings/components/CartSettings";
 import { TrackingSettings } from "@/features/settings/components/TrackingSettings";
 import { VerificationSettings } from "@/features/settings/components/VerificationSettings";
-import { BotProtectionSettings } from "@/features/settings/components/BotProtectionSettings";
+import { TurnstileSettings } from "@/features/settings/components/TurnstileSettings";
 import { EmailSettings } from "@/features/settings/components/EmailSettings";
 import { ApiSettings } from "@/features/settings/components/ApiSettings";
 
@@ -65,7 +65,6 @@ function SettingsContent() {
   if (loadError)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("store.error_load")}</p>
           <button
@@ -126,7 +125,7 @@ function SettingsContent() {
       case "verification":
         return <VerificationSettings />;
       case "bot_protection":
-        return <BotProtectionSettings />;
+        return <TurnstileSettings />;
       case "email":
         return <EmailSettings />;
       case "api":

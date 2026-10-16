@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, Mail, Send } from "lucide-react";
-import { Input, Select } from "@/components/ui";
+import { Button, Input, Select, SwitchField } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { getEmailConfig, saveEmailConfig, testEmailConnection } from "@/features/settings/api";
 import type { EmailConnectionCheck } from "@/features/settings/types";
@@ -120,36 +120,20 @@ export function EmailSettings() {
 
   return (
     <SettingsSection
+      savedAt={lastSaved}
       icon={Mail}
       title={t("store.email_title")}
       subtitle={t("store.email_subtitle")}
       onSave={handleSave}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <span className="text-sm font-semibold text-foreground">
-            {t("store.email_enabled_label")}
-          </span>
-          <p className="text-xs text-muted-foreground">{t("store.email_enabled_hint")}</p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          onClick={() => setEnabled((current) => !current)}
-          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            enabled ? "bg-primary" : "bg-muted-foreground/30"
-          }`}
-        >
-          <span
-            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform ${
-              enabled ? "translate-x-5 rtl:-translate-x-5" : "translate-x-0.5"
-            }`}
-          />
-        </button>
-      </div>
+      <SwitchField
+        label={t("store.email_enabled_label")}
+        help={t("store.email_enabled_hint")}
+        checked={enabled}
+        onChange={setEnabled}
+      />
 
-      <FieldRow label={t("store.email_key_label")} hint={t("store.email_key_hint")}>
+      <FieldRow label={t("store.email_key_label")} help={t("store.email_key_hint")}>
         <div className="relative">
           <Input
             type={showKey ? "text" : "password"}
@@ -171,14 +155,17 @@ export function EmailSettings() {
             {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
-        {apiKeyMasked && !apiKey && (
-          <p className="text-xs text-muted-foreground">
-            {t("store.email_key_stored")}: <span dir="ltr">{apiKeyMasked}</span>
-          </p>
-        )}
       </FieldRow>
 
-      <FieldRow label={t("store.email_from_label")} hint={t("store.email_from_hint")}>
+      <FieldRow
+        label={t("store.email_from_label")}
+        help={
+          <>
+            <span className="block">{t("store.email_from_hint")}</span>
+            <span className="mt-1.5 block">{t("store.email_domains_hint")}</span>
+          </>
+        }
+      >
         {domainOptions.length > 0 ? (
           <div className="flex items-center gap-2">
             <Input
@@ -214,7 +201,6 @@ export function EmailSettings() {
             placeholder={t("store.email_from_placeholder")}
           />
         )}
-        <p className="text-xs text-muted-foreground">{t("store.email_domains_hint")}</p>
       </FieldRow>
 
       <FieldRow label={t("store.email_from_name_label")}>
@@ -227,25 +213,20 @@ export function EmailSettings() {
 
       <div className="space-y-2 border-t border-border pt-4">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Send size={15} aria-hidden="true" />
             {t("store.email_check_title")}
           </div>
-          <button
-            type="button"
-            onClick={() => void handleTest()}
-            disabled={checking || (!apiKey.trim() && !apiKeyMasked)}
-            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <Button type="button" variant="secondary" size="sm" onClick={() => void handleTest()} disabled={checking || (!apiKey.trim() && !apiKeyMasked)}>
             {checking ? t("store.email_checking") : t("store.email_check_btn")}
-          </button>
+          </Button>
         </div>
 
         {check && (
           <div
             className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
               check.ok
-                ? "border-[var(--status-confirmed-border)] bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)]"
+                ? "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]"
                 : "border-destructive/30 bg-destructive/5 text-destructive"
             }`}
           >
@@ -267,12 +248,6 @@ export function EmailSettings() {
           </div>
         )}
       </div>
-
-      {lastSaved && (
-        <p className="text-xs text-muted-foreground">
-          {t("store.tracking_last_saved")}: {new Date(lastSaved).toLocaleString()}
-        </p>
-      )}
     </SettingsSection>
   );
 }

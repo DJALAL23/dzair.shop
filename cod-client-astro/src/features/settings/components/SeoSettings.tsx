@@ -51,7 +51,7 @@ export function SeoSettings({
           rows={3}
         />
       </FieldRow>
-      <FieldRow label={t("store.announcement_label")} hint={t("store.announcement_hint")}>
+      <FieldRow label={t("store.announcement_label")} help={t("store.announcement_hint")}>
         <div className="relative">
           <Megaphone
             size={15}
