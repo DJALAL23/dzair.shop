@@ -158,7 +158,9 @@
     "variants_count_few": "{count} متغيرات",
     "variants_count_many": "{count} متغيرًا",
     "variants_count_other": "{count} متغير",
-    "error_sku_required": "أدخل رمز SKU لهذا المنتج — يُعرّفه في المخزون والطلبات."
+    "error_sku_required": "أدخل رمز SKU لهذا المنتج — يُعرّفه في المخزون والطلبات.",
+    "shipping_profile": "ملف الشحن",
+    "shipping_profile_default": "افتراضي (إعداد المتجر)"
   },
   "status_options": {
     "active": "نشط",

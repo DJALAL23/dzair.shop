@@ -70,7 +70,8 @@
     "footer_help": "Ajoute un lien vers cette page dans le pied de page de votre boutique",
     "serp_empty": "Ajoutez du contenu pour afficher un extrait de recherche",
     "more_actions": "Plus d’actions",
-    "template_help": "Cette langue utilise encore le modèle CodFlow. Modifiez-la et enregistrez pour l’adapter."
+    "template_help": "Cette langue utilise encore le modèle CodFlow. Modifiez-la et enregistrez pour l’adapter.",
+    "url_preview": "Aperçu de l'URL"
   },
   "legal_profile": {
     "title": "Informations de l'entreprise",

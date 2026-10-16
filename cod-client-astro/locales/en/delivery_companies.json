@@ -165,5 +165,6 @@
   "error_carrier_busy": "The company is limiting requests right now. Wait a minute and try again.",
   "token_checked_hint": "The credentials are checked with the company when you save.",
   "endpoint_free_hint": "Type the address exactly as the company gave it. It is checked when you save.",
-  "error_host_refused": "That address did not answer like this company’s API. Check it and try again."
+  "error_host_refused": "That address did not answer like this company’s API. Check it and try again.",
+  "user_id_placeholder": "User ID / GUID"
 }

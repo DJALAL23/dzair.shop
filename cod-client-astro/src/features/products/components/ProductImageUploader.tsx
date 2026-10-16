@@ -115,8 +115,8 @@ export function ProductImageUploader({ existingImages, pendingImages, productId,
     >
       {uploading ? <Loader2 size={32} className="animate-spin text-primary" /> : <span className="grid size-12 place-items-center rounded-xl bg-primary/10"><UploadCloud size={24} className="text-primary" /></span>}
       <div className="text-center">
-        <p className="text-sm font-semibold text-foreground">{uploading ? "Uploading…" : dragging ? "Drop images here" : "Click or drag images here"}</p>
-        <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP, GIF · max {MAX_UPLOAD_MB} MB</p>
+        <p className="text-sm font-semibold text-foreground">{uploading ? common("image.uploading") : dragging ? common("image.drop_images") : common("image.pick_images")}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{common("image.formats", { mb: MAX_UPLOAD_MB })}</p>
       </div>
       <input ref={inputRef} type="file" accept={ACCEPTED_IMAGE_TYPES.join(",")} multiple className="hidden" onChange={(event) => event.currentTarget.files && void handleFiles(event.currentTarget.files)} disabled={disabled || uploading} />
     </div>

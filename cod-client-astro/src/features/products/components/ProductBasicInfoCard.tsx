@@ -105,7 +105,7 @@ export function ProductBasicInfoCard({
             />
           </Field>
           {shippingProfiles.length > 0 && (
-            <Field label="Shipping Profile">
+            <Field label={t("form.shipping_profile")}>
               <Select
                 value={shippingProfileId}
                 onChange={(event) =>
@@ -113,7 +113,7 @@ export function ProductBasicInfoCard({
                 }
                 disabled={busy}
               >
-                <option value="">Default (store setting)</option>
+                <option value="">{t("form.shipping_profile_default")}</option>
                 {shippingProfiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
                     {profile.name}

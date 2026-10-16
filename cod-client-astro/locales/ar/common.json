@@ -87,6 +87,12 @@
     "move_earlier": "تقديم",
     "move_later": "تأخير",
     "remove": "إزالة",
-    "category_alt": "صورة الفئة"
+    "category_alt": "صورة الفئة",
+    "uploading": "جارٍ الرفع…",
+    "drop_images": "أفلت الصور هنا",
+    "pick_images": "انقر أو اسحب الصور إلى هنا",
+    "drop_image": "أفلت الصورة هنا",
+    "pick_image": "انقر أو اسحب صورة إلى هنا",
+    "formats": "JPG وPNG وWebP وGIF · الحد الأقصى {mb} ميغابايت"
   }
 }

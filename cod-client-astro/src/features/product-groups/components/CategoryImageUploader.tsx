@@ -35,7 +35,7 @@ export function CategoryImageUploader({ value, onChange, disabled }: { value?: s
     {value && <div className="group relative aspect-video max-w-md overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
       <img src={value} alt={common("image.category_alt")} className="size-full object-cover" />
       <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-        <button type="button" disabled={disabled} onClick={() => onChange(null)} className="grid size-10 place-items-center rounded-full bg-destructive text-white hover:bg-destructive/80 disabled:opacity-50" aria-label="Remove image"><X size={20} /></button>
+        <button type="button" disabled={disabled} onClick={() => onChange(null)} className="grid size-10 place-items-center rounded-full bg-destructive text-white hover:bg-destructive/80 disabled:opacity-50" aria-label={common("image.remove")}><X size={20} /></button>
       </div>
     </div>}
     {!value && <div
@@ -47,8 +47,8 @@ export function CategoryImageUploader({ value, onChange, disabled }: { value?: s
     >
       {uploading ? <Loader2 size={40} className="animate-spin text-primary" /> : <span className="grid size-14 place-items-center rounded-xl bg-primary/10"><UploadCloud size={28} className="text-primary" /></span>}
       <div className="text-center">
-        <p className="text-sm font-semibold text-foreground">{uploading ? "Uploading…" : dragging ? "Drop image here" : "Click or drag image here"}</p>
-        <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP, GIF · max {MAX_UPLOAD_MB} MB</p>
+        <p className="text-sm font-semibold text-foreground">{uploading ? common("image.uploading") : dragging ? common("image.drop_image") : common("image.pick_image")}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{common("image.formats", { mb: MAX_UPLOAD_MB })}</p>
       </div>
       <input ref={inputRef} type="file" accept={ACCEPTED_IMAGE_TYPES.join(",")} className="hidden" onChange={(event) => event.currentTarget.files?.[0] && void handleFile(event.currentTarget.files[0])} disabled={disabled || uploading} />
     </div>}

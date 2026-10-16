@@ -117,7 +117,7 @@ export function NewCustomPageDialog({ storeLang, onClose, onCreated }: NewCustom
 
         <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground flex items-center gap-2 font-mono">
           <Globe size={13} className="shrink-0 text-primary" />
-          <span className="truncate">URL preview: /pages/{slug || "new-page"}</span>
+          <span className="truncate">{t("editor.url_preview")}: /pages/{slug || "new-page"}</span>
         </div>
       </div>
     </Dialog>

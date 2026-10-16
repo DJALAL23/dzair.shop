@@ -154,7 +154,9 @@
     "margin_value": "Margin: {value}%",
     "variants_count_one": "{count} variant",
     "variants_count_other": "{count} variants",
-    "error_sku_required": "Enter a SKU for this product — it identifies it in stock and orders."
+    "error_sku_required": "Enter a SKU for this product — it identifies it in stock and orders.",
+    "shipping_profile": "Shipping profile",
+    "shipping_profile_default": "Default (store setting)"
   },
   "status_options": {
     "active": "Active",

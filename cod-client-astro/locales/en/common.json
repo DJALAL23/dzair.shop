@@ -87,6 +87,12 @@
     "move_earlier": "Move earlier",
     "move_later": "Move later",
     "remove": "Remove",
-    "category_alt": "Category image"
+    "category_alt": "Category image",
+    "uploading": "Uploading…",
+    "drop_images": "Drop images here",
+    "pick_images": "Click or drag images here",
+    "drop_image": "Drop the image here",
+    "pick_image": "Click or drag an image here",
+    "formats": "JPG, PNG, WebP, GIF · max {mb} MB"
   }
 }

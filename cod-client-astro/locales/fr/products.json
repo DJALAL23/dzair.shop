@@ -155,7 +155,9 @@
     "variants_count_one": "{count} variante",
     "variants_count_many": "{count} variantes",
     "variants_count_other": "{count} variantes",
-    "error_sku_required": "Saisissez un SKU pour ce produit — il l'identifie dans le stock et les commandes."
+    "error_sku_required": "Saisissez un SKU pour ce produit — il l'identifie dans le stock et les commandes.",
+    "shipping_profile": "Profil d'expédition",
+    "shipping_profile_default": "Par défaut (réglage de la boutique)"
   },
   "status_options": {
     "active": "Actif",

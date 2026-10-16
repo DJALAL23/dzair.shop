@@ -104,7 +104,7 @@ export function CompanyCredentialsFormCard({
           <Input
             value={apiUserGuid}
             onChange={(event) => onApiUserGuidChange(event.currentTarget.value)}
-            placeholder={config.guidLabel ?? "User ID / GUID"}
+            placeholder={config.guidLabel ?? t("user_id_placeholder")}
             dir="ltr"
             disabled={busy}
             autoComplete="off"

@@ -69,7 +69,8 @@
     "footer_help": "Adds a link to this page in your store’s footer",
     "serp_empty": "Add content to show a search snippet",
     "more_actions": "More actions",
-    "template_help": "This language still uses the CodFlow template. Edit and save it to make it yours."
+    "template_help": "This language still uses the CodFlow template. Edit and save it to make it yours.",
+    "url_preview": "URL preview"
   },
   "legal_profile": {
     "title": "Business details",

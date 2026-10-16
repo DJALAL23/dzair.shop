@@ -33,8 +33,8 @@
   "credentials_title_configure": "Configurer",
   "api_credentials": "Identifiants API",
   "api_token": "Jeton API",
-  "user_guid": "User GUID",
-  "tenant_id": "Tenant ID",
+  "user_guid": "GUID de l'utilisateur",
+  "tenant_id": "ID du locataire (tenant)",
   "ecotrack_token": "Jeton API EcoTrack",
   "ecotrack_endpoint": "Point de terminaison API EcoTrack",
   "from_wilaya": "Wilaya de l'expéditeur",
@@ -168,5 +168,6 @@
   "error_carrier_busy": "La société limite les requêtes pour le moment. Attendez une minute et réessayez.",
   "token_checked_hint": "Les identifiants sont vérifiés auprès de la société à l’enregistrement.",
   "endpoint_free_hint": "Saisissez l’adresse exactement comme la société vous l’a donnée. Elle est vérifiée à l’enregistrement.",
-  "error_host_refused": "Cette adresse n’a pas répondu comme l’API de la société. Vérifiez-la et réessayez."
+  "error_host_refused": "Cette adresse n’a pas répondu comme l’API de la société. Vérifiez-la et réessayez.",
+  "user_id_placeholder": "Identifiant / GUID de l'utilisateur"
 }

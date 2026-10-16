@@ -33,8 +33,8 @@
   "credentials_title_configure": "تكوين",
   "api_credentials": "بيانات اعتماد API",
   "api_token": "رمز API",
-  "user_guid": "User GUID",
-  "tenant_id": "Tenant ID",
+  "user_guid": "GUID المستخدم",
+  "tenant_id": "معرّف المستأجر (Tenant)",
   "ecotrack_token": "رمز EcoTrack API",
   "ecotrack_endpoint": "نقطة نهاية EcoTrack API",
   "from_wilaya": "ولاية المرسل",
@@ -177,5 +177,6 @@
   "error_carrier_busy": "الشركة تحدّ من الطلبات حاليًا. انتظر دقيقة ثم أعد المحاولة.",
   "token_checked_hint": "يتم التحقق من البيانات لدى الشركة عند الحفظ.",
   "endpoint_free_hint": "اكتب العنوان كما أعطته لك الشركة تمامًا. يتم التحقق منه عند الحفظ.",
-  "error_host_refused": "لم يستجب هذا العنوان كواجهة API الشركة. تحقق منه وأعد المحاولة."
+  "error_host_refused": "لم يستجب هذا العنوان كواجهة API الشركة. تحقق منه وأعد المحاولة.",
+  "user_id_placeholder": "معرّف المستخدم / GUID"
 }
