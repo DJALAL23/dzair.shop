@@ -1,6 +1,6 @@
 import type { Translate } from "@/i18n/core";
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from "lucide-react";
-import { Button, IconButton, Input, Select } from "@/components/ui";
+import { Button, IconButton, Input, Select, Switch } from "@/components/ui";
 import type { CustomFieldDraft, CustomFieldType } from "@/features/checkout-form/types";
 
 /**
@@ -46,12 +46,9 @@ export function CustomFieldEditor({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl bg-card shadow-card">
-      <header className="flex items-center justify-between gap-2 border-b border-border/70 bg-muted/30 px-3 py-2">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <header className="flex items-center justify-between gap-2 border-b border-border bg-subtle px-3 py-2">
         <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-          <span className="flex size-5 items-center justify-center rounded-md bg-card text-[11px] font-semibold text-foreground shadow-xs ring-1 ring-border/60">
-            {index + 1}
-          </span>
           {t("custom.question_n", { n: index + 1 })}
         </span>
         <div className="flex items-center gap-0.5">
@@ -110,26 +107,15 @@ export function CustomFieldEditor({
             ))}
           </Select>
 
-          <label
-            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
-              field.required
-                ? "border-primary/40 bg-primary/6 text-foreground"
-                : "border-border/80 bg-card text-muted-foreground hover:bg-muted/40"
-            }`}
-          >
-            <input
-              type="checkbox"
-              className="size-3.5 rounded border-border"
-              checked={field.required}
-              onChange={(event) => onChange({ ...field, required: event.target.checked })}
-            />
-            {t("custom.required")}
-          </label>
+          <div className="ms-auto flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <span id={`required-${index}`}>{t("custom.required")}</span>
+            <Switch checked={field.required} onChange={(required) => onChange({ ...field, required })} aria-labelledby={`required-${index}`} />
+          </div>
         </div>
 
         {field.type === "select" && (
-          <div className="space-y-2 rounded-lg border border-dashed border-border/80 bg-muted/20 p-3">
-            <span className="text-[11px] font-semibold text-muted-foreground">
+          <div className="space-y-2 rounded-lg bg-subtle p-3">
+            <span className="text-xs font-medium text-muted-foreground">
               {t("custom.options")}
             </span>
             {options.map((option, optionIndex) => (

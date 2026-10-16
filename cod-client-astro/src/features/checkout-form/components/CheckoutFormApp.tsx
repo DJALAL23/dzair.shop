@@ -20,6 +20,7 @@ import {
   Button,
   Card,
   EmptyState,
+  InfoTip,
   PageHeader,
   StickyFormActions,
 } from "@/components/ui";
@@ -155,19 +156,15 @@ function CheckoutFormContent() {
   const atFieldLimit = draft.customFields.length >= limits.MAX_CUSTOM_FIELDS;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader title={t("page_title")} subtitle={t("page_subtitle")} />
 
-      <div className="space-y-6">
-        <Alert tone="info">
-          <p className="text-xs">{t("cache_notice")}</p>
-        </Alert>
         <Card
           title={t("fields.section_title")}
-          subtitle={t("fields.section_subtitle")}
+          help={t("fields.section_subtitle")}
           flush
         >
-            <div className="divide-y divide-border/70">
+            <div className="divide-y divide-border pt-2">
               {/* Locked first, so the merchant sees what the platform holds and
                   why before reaching what they control. */}
               {(
@@ -221,7 +218,7 @@ function CheckoutFormContent() {
 
           <Card
             title={t("delivery.section_title")}
-            subtitle={t("delivery.section_subtitle")}
+            help={t("delivery.section_subtitle")}
           >
             <DeliveryOptionCards
               value={draft.deliveryOptions}
@@ -234,7 +231,12 @@ function CheckoutFormContent() {
 
           <Card
             title={t("custom.section_title")}
-            subtitle={t("custom.section_subtitle", { max: limits.MAX_CUSTOM_FIELDS })}
+            help={
+              <>
+                <span className="block">{t("custom.section_subtitle", { max: limits.MAX_CUSTOM_FIELDS })}</span>
+                <span className="mt-1.5 block">{t("custom.answers_note")}</span>
+              </>
+            }
             action={
               draft.customFields.length > 0 ? (
                 <Badge tone="neutral">
@@ -289,11 +291,8 @@ function CheckoutFormContent() {
                   <Plus size={15} /> {t("custom.add")}
                 </Button>
               )}
-
-              <p className="text-xs text-muted-foreground">{t("custom.answers_note")}</p>
             </div>
           </Card>
-      </div>
 
       {/*
         Sticky action bar (the same pattern as Pages and the product form): on a
@@ -320,26 +319,21 @@ function CheckoutFormContent() {
               </div>
             ) : dirty ? (
               <span className="flex items-center gap-2 text-xs">
-                <span className="size-2 rounded-full bg-tone-warning-bg" />
+                <span className="size-2 rounded-full bg-warning" />
                 <span className="font-semibold text-foreground">{t("status.unsaved")}</span>
+                <InfoTip>{t("cache_notice")}</InfoTip>
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <CircleCheck size={13} className="text-tone-success-text" />
                 {t("status.saved")}
+                <InfoTip>{t("cache_notice")}</InfoTip>
               </span>
             )
           }
         >
           {dirty && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setDraft(toDraft(saved))}
-              disabled={saving}
-              className="text-xs"
-            >
+            <Button type="button" variant="secondary" onClick={() => setDraft(toDraft(saved))} disabled={saving}>
               {t("reset")}
             </Button>
           )}
@@ -347,7 +341,6 @@ function CheckoutFormContent() {
             type="button"
             onClick={() => void handleSave()}
             disabled={saving || !dirty || blockers.length > 0}
-            className="gap-2 px-5 font-semibold"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             {t("save")}
