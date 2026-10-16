@@ -33,26 +33,26 @@ export function CompanyCredentialsFormCard({
   const isConnected = company?.isConnected ?? false;
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-5 lg:col-span-2">
+    <div className="space-y-4 rounded-xl bg-card p-5 lg:col-span-2 shadow-card">
       <div className="flex items-start gap-3 border-b border-border pb-4">
         <span
           className={cn(
             "grid size-10 shrink-0 place-items-center rounded-xl",
-            isConnected ? "bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)]" : "bg-primary/10 text-primary",
+            isConnected ? "bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]" : "bg-primary/10 text-primary",
           )}
         >
           {isConnected ? <ShieldCheck size={18} /> : <Key size={18} />}
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-lg font-bold text-foreground">
+            <h1 className="text-lg font-semibold text-foreground">
               {isConnected ? t("credentials_title_configure") : t("credentials_title_connect")}
             </h1>
             <span
               className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
                 isConnected
-                  ? "border-[var(--status-confirmed-border)] bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)]"
+                  ? "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]"
                   : "border-border bg-muted text-muted-foreground",
               )}
             >
@@ -73,7 +73,7 @@ export function CompanyCredentialsFormCard({
         </div>
       </div>
 
-      <h2 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+      <h2 className="text-[11px] font-semibold text-muted-foreground/60">
         {t("api_credentials")}
       </h2>
 

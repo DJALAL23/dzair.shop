@@ -72,13 +72,13 @@ export function CompanySettingsSection({
                 <span
                   className={cn(
                     "grid size-10 shrink-0 place-items-center rounded-xl",
-                    hasWebhook ? "bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)]" : "bg-muted text-muted-foreground",
+                    hasWebhook ? "bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]" : "bg-muted text-muted-foreground",
                   )}
                 >
                   <Zap size={16} aria-hidden="true" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-bold text-foreground">
+                  <span className="block text-sm font-semibold text-foreground">
                     {t("webhook_title")}
                   </span>
                   <span className="mt-0.5 block text-xs font-medium text-muted-foreground/60">
@@ -101,7 +101,7 @@ export function CompanySettingsSection({
         )}
 
         {company && canManage && (
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl bg-card p-5 shadow-card">
             <div className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 flex-1 items-center gap-2.5">
                 <span
@@ -116,7 +116,7 @@ export function CompanySettingsSection({
                     <ShieldCheck size={17} aria-hidden="true" />
                   )}
                 </span>
-                <span className="truncate text-sm font-bold text-foreground">
+                <span className="truncate text-sm font-semibold text-foreground">
                   {t("auto_validate_title")}
                 </span>
               </span>
@@ -159,12 +159,12 @@ export function CompanySettingsSection({
       {config.supportsStopDesk && canManage && (
         <div
           className={cn(
-            "h-fit rounded-xl border border-border bg-card p-5",
+            "h-fit rounded-xl bg-card p-5 shadow-card",
             !isConnected && "pointer-events-none opacity-50",
           )}
         >
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            <h2 className="text-[11px] font-semibold text-muted-foreground/60">
               {t("data_sync")}
             </h2>
             {!isConnected && <Lock size={11} className="text-muted-foreground/30" aria-hidden="true" />}
@@ -188,7 +188,7 @@ export function CompanySettingsSection({
                 disabled={syncingShipments || !isConnected}
                 className="justify-start"
               >
-                <Truck size={14} className={cn(syncingShipments && "animate-pulse")} />
+                <Truck size={14} className={cn(syncingShipments && "shimmer")} />
                 {t("sync_shipments")}
               </Button>
             )}

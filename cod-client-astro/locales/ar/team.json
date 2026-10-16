@@ -1,11 +1,10 @@
 {
   "header": {
-    "title": "إدارة الفريق",
+    "title": "الفريق",
     "subtitle": "إدارة أعضاء الفريق والأذونات والأدوار"
   },
   "error_load": "تعذر تحميل أعضاء الفريق",
   "invite_user": "دعوة مستخدم",
-  "team_members": "أعضاء الفريق",
   "joined": "انضم في",
   "manage_permissions": "إدارة الأذونات",
   "generate_api_key": "إنشاء مفتاح API",
@@ -199,5 +198,11 @@
   "error_member_not_found": "عضو الفريق غير موجود",
   "error_duplicate_email": "يوجد مستخدم بهذا البريد الإلكتروني بالفعل",
   "error_permission_denied": "مطلوب صلاحيات المدير",
-  "error_generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى."
+  "error_generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+  "count_zero": "لا أعضاء",
+  "count_one": "عضو واحد",
+  "count_two": "عضوان",
+  "count_few": "{count} أعضاء",
+  "count_many": "{count} عضوًا",
+  "count_other": "{count} عضو"
 }

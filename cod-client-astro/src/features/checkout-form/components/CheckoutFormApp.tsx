@@ -10,7 +10,6 @@ import {
   MessageSquare,
   Phone,
   Plus,
-  Truck,
   UserRound,
 } from "lucide-react";
 import { RequireAuth, canScope, useIdentity } from "@/features/auth/components/RequireAuth";
@@ -94,7 +93,6 @@ function CheckoutFormContent() {
   if (loadError) {
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("errors.load_failed")}</p>
           <button
@@ -160,7 +158,7 @@ function CheckoutFormContent() {
     <div className="space-y-6">
       <PageHeader title={t("page_title")} subtitle={t("page_subtitle")} />
 
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="space-y-6">
         <Alert tone="info">
           <p className="text-xs">{t("cache_notice")}</p>
         </Alert>
@@ -363,7 +361,7 @@ function CheckoutFormContent() {
 export default function CheckoutFormApp() {
   return (
     <RequireAuth>
-      <DashboardChrome currentPath="/checkout-form" wide>
+      <DashboardChrome narrow currentPath="/checkout-form">
         <CheckoutFormContent />
       </DashboardChrome>
     </RequireAuth>

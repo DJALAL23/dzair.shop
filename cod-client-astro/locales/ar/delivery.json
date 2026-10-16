@@ -135,8 +135,6 @@
     "notes_label": "ملاحظات",
     "notes_placeholder": "ملاحظات اختيارية...",
     "cancel": "إلغاء",
-    "save": "حفظ",
-    "saving": "جاري الحفظ...",
     "success_add": "تم إضافة السائق بنجاح",
     "success_edit": "تم تحديث السائق بنجاح",
     "error_required": "يرجى تعبئة جميع الحقول المطلوبة"
@@ -308,7 +306,6 @@
     "commune_save": "حفظ"
   },
   "driver_profile": {
-    "subtitle": "ملف وأداء موظف اللوجستيات",
     "wilaya_rates": "ولاية مدفوعة"
   },
   "compensations": {
@@ -397,5 +394,23 @@
     "col_commune": "البلدية",
     "col_code": "الرمز",
     "col_status": "الحالة"
-  }
+  },
+  "drivers_count_zero": "لا سائقين",
+  "drivers_count_one": "سائق واحد",
+  "drivers_count_two": "سائقان",
+  "drivers_count_few": "{count} سائقين",
+  "drivers_count_many": "{count} سائقًا",
+  "drivers_count_other": "{count} سائق",
+  "wilaya_count_zero": "لا ولايات",
+  "wilaya_count_one": "ولاية واحدة",
+  "wilaya_count_two": "ولايتان",
+  "wilaya_count_few": "{count} ولايات",
+  "wilaya_count_many": "{count} ولاية",
+  "wilaya_count_other": "{count} ولاية",
+  "active_count_zero": "لا طلبات جارية",
+  "active_count_one": "طلب جارٍ واحد",
+  "active_count_two": "طلبان جاريان",
+  "active_count_few": "{count} طلبات جارية",
+  "active_count_many": "{count} طلبًا جاريًا",
+  "active_count_other": "{count} طلب جارٍ"
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -27,8 +27,8 @@ import { DriverCompensationsSection } from "@/features/delivery/components/Drive
 function Loading() {
   return (
     <div role="status" aria-busy="true" className="space-y-4">
-      <div className="h-20 animate-pulse rounded-xl bg-muted" />
-      <div className="h-72 animate-pulse rounded-xl bg-muted" />
+      <div className="h-20 shimmer rounded-xl" />
+      <div className="h-72 shimmer rounded-xl" />
     </div>
   );
 }
@@ -71,7 +71,6 @@ export function DriverCompensationsDetail({ driverId }: { driverId: string }) {
   if (error && !driver)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} />
         <span className="flex-1">{error}</span>
         <Button type="button" variant="ghost" onClick={() => void load()}>
           {common("retry")}
@@ -84,24 +83,24 @@ export function DriverCompensationsDetail({ driverId }: { driverId: string }) {
     <div className="mx-auto max-w-3xl space-y-5">
       <a
         href={`/delivery/drivers/${encodeURIComponent(driver.id)}`}
-        className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60 transition-colors hover:text-foreground"
+        className="inline-flex items-center gap-2 text-[11px] font-semibold text-muted-foreground/60 transition-colors hover:text-foreground"
       >
         <X size={14} className="rotate-45" />
         {t("actions.back_to_driver")}
       </a>
       <a
         href={`/delivery/drivers/${encodeURIComponent(driver.id)}`}
-        className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-xs transition-colors hover:bg-muted/10"
+        className="flex items-center gap-3 rounded-xl bg-card p-3 transition-colors hover:bg-muted/10 shadow-card"
       >
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-sm font-bold text-primary-foreground">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground">
           {driverInitials(driver)}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-foreground">
+          <p className="truncate text-sm font-semibold text-foreground">
             {driverFullName(driver)}
           </p>
           <p
-            className="truncate text-[11px] font-bold text-muted-foreground/60"
+            className="truncate text-[11px] font-semibold text-muted-foreground/60"
             dir="ltr"
           >
             {driver.phone}

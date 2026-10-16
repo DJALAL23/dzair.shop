@@ -103,7 +103,7 @@ export function ConnectionsList({
 
             <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card px-3 py-1.5 shadow-xs">
               <span className="text-[11px] font-medium text-muted-foreground/60">{common("table.page")}</span>
-              <span className="text-[13px] font-bold tabular-nums text-primary">{safePage}</span>
+              <span className="text-sm font-medium tabular-nums text-primary">{safePage}</span>
               <span className="text-[11px] font-medium text-muted-foreground/60">
                 {common("table.of")} {totalPages}
               </span>

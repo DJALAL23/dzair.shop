@@ -37,7 +37,7 @@ export function CompanyStopDeskDesktopRow({
         </span>
       </TableCell>
       <TableCell>
-        <span className="font-mono text-[11px] font-semibold tabular-nums text-muted-foreground/60">
+        <span className="text-[11px] font-medium tabular-nums text-muted-foreground/60">
           {desk.code}
         </span>
       </TableCell>
@@ -48,10 +48,10 @@ export function CompanyStopDeskDesktopRow({
             onClick={() => onToggle(desk)}
             disabled={togglingCode === desk.code}
             className={cn(
-              "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors",
+              "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors",
               desk.active
                 ? "border-border bg-muted/20 text-muted-foreground hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-500"
-                : "border-[var(--status-confirmed-border)] bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)]",
+                : "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]",
               togglingCode === desk.code && "cursor-not-allowed opacity-40",
             )}
           >
@@ -100,10 +100,10 @@ export function CompanyStopDeskMobileCard({
               onClick={() => onToggle(desk)}
               disabled={togglingCode === desk.code}
               className={cn(
-                "mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors",
+                "mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors",
                 desk.active
                   ? "border-border bg-muted/20 text-muted-foreground"
-                  : "border-[var(--status-confirmed-border)] bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)]",
+                  : "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]",
                 togglingCode === desk.code && "cursor-not-allowed opacity-40",
               )}
             >

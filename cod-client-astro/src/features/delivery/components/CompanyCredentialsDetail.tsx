@@ -28,10 +28,10 @@ import { notify } from "@/lib/notify";
 function Loading() {
   return (
     <div role="status" aria-busy="true" className="space-y-4">
-      <div className="h-20 animate-pulse rounded-xl bg-muted" />
+      <div className="h-20 shimmer rounded-xl" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="h-64 animate-pulse rounded-xl bg-muted lg:col-span-2" />
-        <div className="h-64 animate-pulse rounded-xl bg-muted" />
+        <div className="h-64 shimmer rounded-xl lg:col-span-2" />
+        <div className="h-64 shimmer rounded-xl" />
       </div>
     </div>
   );
@@ -206,7 +206,6 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
   if (loadError) {
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button

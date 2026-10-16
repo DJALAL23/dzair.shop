@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from "react";
-import { AlertCircle, Package, Plus, X } from "lucide-react";
+import { Package, Plus, X } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import {
   Alert,
@@ -69,7 +69,6 @@ export function ShippingProfilesList() {
   if (loadError)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{delivery("error_load")}</p>
           <button
@@ -129,7 +128,6 @@ export function ShippingProfilesList() {
     <div className="space-y-3">
       {actionError && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{actionError}</span>
           <button
             type="button"
@@ -140,18 +138,12 @@ export function ShippingProfilesList() {
           </button>
         </Alert>
       )}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          placeholder={t("shipping.search_wilaya")}
-        />
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">
-          {sorted.length} {t("shipping.rate_cards")}
-        </span>
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput value={query} onChange={setQuery} placeholder={t("shipping.search_wilaya")} className="basis-full sm:basis-72" />
+        <span className="ms-auto shrink-0 px-1 text-xs tabular-nums text-muted-foreground">{t("shipping.rate_cards_count", { count: sorted.length })}</span>
       </div>
       {sorted.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card">
+        <div className="rounded-xl bg-card shadow-card">
           <EmptyState
             icon={<Package size={22} />}
             title={

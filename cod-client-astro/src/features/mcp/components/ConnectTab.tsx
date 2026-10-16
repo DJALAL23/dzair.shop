@@ -33,7 +33,7 @@ function WhatIsThis() {
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
             <HelpCircle size={16} aria-hidden="true" />
           </span>
-          <p className="text-[13px] font-bold uppercase tracking-[0.15em] text-foreground/80">
+          <p className="text-sm font-semibold text-foreground/80">
             {t("help.title")}
           </p>
         </div>
@@ -41,10 +41,10 @@ function WhatIsThis() {
           {[t("help.paragraph_1"), t("help.paragraph_2"), t("help.paragraph_3")].map(
             (paragraph, index) => (
               <div key={index} className="flex items-start gap-3">
-                <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-lg bg-primary/10 text-[9px] font-bold tabular-nums text-primary">
+                <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-lg bg-primary/10 text-[11px] font-medium tabular-nums text-primary">
                   {index + 1}
                 </span>
-                <p className="flex-1 text-[13px] font-medium leading-relaxed text-foreground/70">
+                <p className="flex-1 text-sm font-medium leading-relaxed text-foreground/70">
                   {paragraph}
                 </p>
               </div>
@@ -83,7 +83,7 @@ function UrlHeroCard({ mcpUrl }: { mcpUrl: string }) {
             <Globe size={16} aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/70">
+            <p className="text-[11px] font-semibold text-primary/70">
               {t("url_card.label")}
             </p>
             <p className="mt-1 text-xs font-semibold leading-relaxed text-muted-foreground/60">
@@ -95,14 +95,14 @@ function UrlHeroCard({ mcpUrl }: { mcpUrl: string }) {
           <div
             dir="ltr"
             title={mcpUrl}
-            className="flex h-11 min-w-0 flex-1 select-all items-center truncate rounded-xl border border-border/40 bg-background px-3.5 font-mono text-[13px] text-foreground/90"
+            className="flex h-11 min-w-0 flex-1 select-all items-center truncate rounded-xl border border-border/40 bg-background px-3.5 font-mono text-sm text-foreground/90"
           >
             {mcpUrl}
           </div>
           <Button
             type="button"
             onClick={() => void copy()}
-            className={`h-11 px-4 text-[11px] font-bold uppercase tracking-widest ${copied ? "bg-violet-600 hover:bg-violet-600" : ""}`}
+            className={`h-11 px-4 text-[11px] font-semibold ${copied ? "bg-violet-600 hover:bg-violet-600" : ""}`}
           >
             {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
             {copied ? t("url_card.copied") : t("url_card.copy")}

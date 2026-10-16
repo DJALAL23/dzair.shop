@@ -1,11 +1,10 @@
 {
   "header": {
-    "title": "Gestion de l'équipe",
+    "title": "Équipe",
     "subtitle": "Gérez les membres de l'équipe, les permissions et les rôles"
   },
   "error_load": "Impossible de charger les membres de l’équipe",
   "invite_user": "Inviter un utilisateur",
-  "team_members": "Membres de l'équipe",
   "joined": "Inscrit le",
   "manage_permissions": "Gérer les permissions",
   "generate_api_key": "Générer une clé API",
@@ -196,5 +195,8 @@
   "error_member_not_found": "Membre de l’équipe introuvable",
   "error_duplicate_email": "Un utilisateur avec cet e-mail existe déjà",
   "error_permission_denied": "Accès administrateur requis",
-  "error_generic": "Une erreur est survenue. Veuillez réessayer."
+  "error_generic": "Une erreur est survenue. Veuillez réessayer.",
+  "count_one": "{count} membre",
+  "count_many": "{count} membres",
+  "count_other": "{count} membres"
 }

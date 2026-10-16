@@ -1,4 +1,4 @@
-import { MapPin, Package, Package2, Star, Trash2 } from "lucide-react";
+import { Package, Star, Trash2 } from "lucide-react";
 import { Badge, Button, LinkButton } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import type { ShippingProfile } from "@/features/delivery/types";
@@ -63,33 +63,12 @@ export function ShippingProfileCard({
           <span className="size-5" aria-hidden="true" />
         )}
       </div>
-      <h2 className="mt-4 truncate text-base font-bold text-foreground">
+      <h2 className="mt-4 truncate text-base font-semibold text-foreground">
         {profile.name}
       </h2>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <span className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-muted/30 px-2 py-2.5 text-center">
-          <MapPin size={12} className="shrink-0 text-muted-foreground" />
-          <span className="min-w-0">
-            <span className="block text-sm font-bold tabular-nums text-foreground">
-              {profile.ruleCount}
-            </span>
-            <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-              {t("shipping.card_wilayas")}
-            </span>
-          </span>
-        </span>
-        <span className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-muted/30 px-2 py-2.5 text-center">
-          <Package2 size={12} className="shrink-0 text-muted-foreground" />
-          <span className="min-w-0">
-            <span className="block text-sm font-bold tabular-nums text-foreground">
-              {profile.productCount ?? 0}
-            </span>
-            <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-              {t("shipping.card_products")}
-            </span>
-          </span>
-        </span>
-      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {t("shipping.wilaya_count", { count: profile.ruleCount })}, {t("shipping.product_count", { count: profile.productCount ?? 0 })}
+      </p>
       <div className="mt-4 flex flex-1 items-end gap-2">
         <LinkButton
           variant="secondary"

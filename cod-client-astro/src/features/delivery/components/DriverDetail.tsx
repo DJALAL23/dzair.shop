@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Package, Pencil, Truck, X } from "lucide-react";
+import { Package, Pencil, Truck, X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -9,7 +9,7 @@ import {
   Button,
   LinkButton,
   PageHeader,
-  StatCard,
+  StatCard, StatGroup,
 } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -20,13 +20,14 @@ import {
 import {
   driverErrorMessage,
   driverFullName,
+  driverInitials,
   formatDeliveryMoney,
 } from "@/features/delivery/model";
 import type {
   Driver,
   PendingSettlement,
 } from "@/features/delivery/types";
-import { DriverProfileHeader } from "@/features/delivery/components/DriverProfileHeader";
+import { DriverStatusBadge } from "@/features/delivery/components/DriverStatusBadge";
 import { DriverShipmentsCard } from "@/features/delivery/components/DriverShipmentsCard";
 import { AssignOrdersDialog } from "@/features/delivery/components/AssignOrdersDialog";
 import { DriverSettlementCard } from "@/features/delivery/components/DriverSettlementCard";
@@ -34,8 +35,8 @@ import { DriverSettlementCard } from "@/features/delivery/components/DriverSettl
 function Loading() {
   return (
     <div role="status" aria-busy="true" className="space-y-4">
-      <div className="h-20 animate-pulse rounded-xl bg-muted" />
-      <div className="h-64 animate-pulse rounded-xl bg-muted" />
+      <div className="h-20 shimmer rounded-xl" />
+      <div className="h-64 shimmer rounded-xl" />
     </div>
   );
 }
@@ -80,7 +81,6 @@ export function DriverDetail({ driverId }: { driverId: string }) {
   if (error && !driver)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} />
         <span className="flex-1">{error}</span>
         <Button type="button" variant="ghost" onClick={() => void load()}>
           {common("retry")}
@@ -94,7 +94,19 @@ export function DriverDetail({ driverId }: { driverId: string }) {
     <div className="space-y-5 pb-24 lg:pb-0">
       <PageHeader
         title={driverFullName(driver)}
-        subtitle={t("driver_profile.subtitle")}
+        subtitle={
+          <span className="flex flex-wrap gap-x-3">
+            <span dir="ltr">{driver.phone}</span>
+            {driver.phone2 && <span dir="ltr">{driver.phone2}</span>}
+            {driver.vehicleType && <span>{t(`vehicle_type.${driver.vehicleType}`)}</span>}
+          </span>
+        }
+        media={
+          <span className="grid size-12 place-items-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+            {driverInitials(driver)}
+          </span>
+        }
+        badges={<DriverStatusBadge status={driver.status} />}
         backHref="/delivery/drivers"
         backLabel={t("tabs.drivers")}
         actions={
@@ -113,7 +125,6 @@ export function DriverDetail({ driverId }: { driverId: string }) {
       />
       {error && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{error}</span>
           <button
             type="button"
@@ -124,10 +135,9 @@ export function DriverDetail({ driverId }: { driverId: string }) {
           </button>
         </Alert>
       )}
-      <DriverProfileHeader driver={driver} />
+      {driver.notes && <p className="text-sm text-muted-foreground">{driver.notes}</p>}
       {driver.cashReconciliation && driver.cashReconciliation.drift !== 0 && (
         <Alert role="alert" tone="warning">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">
             {t("driver_card.cash_drift_warning", {
               pending: formatDeliveryMoney(driver.cashReconciliation.pendingCash, locale),
@@ -137,7 +147,7 @@ export function DriverDetail({ driverId }: { driverId: string }) {
           </span>
         </Alert>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <StatGroup columns={4}>
         <StatCard
           label={t("driver_card.active_orders")}
           value={driver.openShipmentCount ?? 0}
@@ -155,7 +165,7 @@ export function DriverDetail({ driverId }: { driverId: string }) {
           label={t("driver_card.earnings")}
           value={formatDeliveryMoney(driver.totalEarnings, locale)}
         />
-      </div>
+      </StatGroup>
       <div className="flex flex-wrap gap-2">
         {canAssign && driver.status !== "inactive" && (
           <Button type="button" onClick={() => setGiving(true)}>

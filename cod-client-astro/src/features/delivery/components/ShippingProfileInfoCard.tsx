@@ -25,7 +25,7 @@ export function ShippingProfileInfoCard({
   return (
     <Card title={t("shipping.form_info_section")}>
       <div className="grid gap-4">
-        <Field label={`${t("shipping.profile_name_label")} *`} error={errors.name}>
+        <Field label={t("shipping.profile_name_label")} error={errors.name}>
           <Input
             value={name}
             onChange={(event) => onNameChange(event.currentTarget.value)}

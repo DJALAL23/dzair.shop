@@ -1,33 +1,19 @@
+import { DollarSign, Eye, MoreHorizontal, Package, Pencil, Trash2 } from "lucide-react";
 import {
-  DollarSign,
-  Eye,
-  MoreHorizontal,
-  Package,
-  Pencil,
-  Phone,
-  Trash2,
-  Truck,
-  UserRound,
-} from "lucide-react";
-import {
-  Badge,
+  CellEmpty,
   DropdownItem,
   DropdownMenu,
+  Initial,
+  RowActions,
+  RowTitle,
   TableCell,
   TableRow,
+  openRowOnClick,
 } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { driverFullName } from "@/features/delivery/model";
+import { DriverStatusBadge } from "@/features/delivery/components/DriverStatusBadge";
 import type { Driver } from "@/features/delivery/types";
-
-function DriverStatusBadge({ status }: { status: Driver["status"] }) {
-  const t = useT("delivery");
-  if (status === "available")
-    return <Badge tone="success">{t("status.available")}</Badge>;
-  if (status === "busy")
-    return <Badge tone="warning">{t("status.busy")}</Badge>;
-  return <Badge tone="neutral">{t("status.inactive")}</Badge>;
-}
 
 function DriverActionsMenu({
   driver,
@@ -92,17 +78,7 @@ function DriverActionsMenu({
   );
 }
 
-export function DriverDesktopRow({
-  driver,
-  activeCount,
-  canManage,
-  canAssign,
-  onView,
-  onAssign,
-  onCompensations,
-  onEdit,
-  onDelete,
-}: {
+interface DriverRowProps {
   driver: Driver;
   activeCount: number;
   canManage: boolean;
@@ -112,147 +88,64 @@ export function DriverDesktopRow({
   onCompensations: (driver: Driver) => void;
   onEdit: (driver: Driver) => void;
   onDelete: (driver: Driver) => void;
-}) {
+}
+
+function driverHref(driver: Driver) {
+  return `/delivery/drivers/${encodeURIComponent(driver.id)}`;
+}
+
+export function DriverDesktopRow({ driver, activeCount, ...menu }: DriverRowProps) {
   const t = useT("delivery");
-  const hasOrders = activeCount > 0;
+  const name = driverFullName(driver);
+  const wilayas = driver.compensationWilayaCount ?? 0;
   return (
-    <TableRow>
-      <TableCell>
-        <div className="font-semibold text-foreground">
-          {driverFullName(driver)}
-        </div>
+    <TableRow onClick={openRowOnClick(driverHref(driver))} className="cursor-pointer">
+      <TableCell className="max-w-64">
+        <RowTitle href={driverHref(driver)} media={<Initial name={name} />}>
+          {name}
+        </RowTitle>
       </TableCell>
-      <TableCell className="text-sm" dir="ltr">
-        <Phone size={13} className="me-1 inline text-muted-foreground" />
-        {driver.phone}
+      <TableCell className="tabular-nums whitespace-nowrap text-muted-foreground">
+        <span dir="ltr">{driver.phone}</span>
       </TableCell>
       <TableCell>
         <DriverStatusBadge status={driver.status} />
       </TableCell>
-      <TableCell>
-        {driver.compensationWilayaCount != null &&
-        driver.compensationWilayaCount > 0 ? (
-          <span className="inline-flex items-center gap-2 text-sm font-semibold">
-            <Package size={15} className="text-primary/40" />
-            {driver.compensationWilayaCount} {t("table.wilaya")}
-          </span>
-        ) : (
-          <span className="font-mono text-xs text-muted-foreground/40">—</span>
-        )}
+      <TableCell className="text-muted-foreground">
+        {wilayas > 0 ? t("wilaya_count", { count: wilayas }) : <CellEmpty />}
       </TableCell>
-      <TableCell>
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${hasOrders ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
-        >
-          <Package size={12} />
-          {activeCount}
-        </span>
+      <TableCell numeric className={activeCount > 0 ? "" : "text-muted-foreground"}>
+        {activeCount}
       </TableCell>
-      <TableCell className="text-end">
-        <DriverActionsMenu
-          driver={driver}
-          activeCount={activeCount}
-          canManage={canManage}
-          canAssign={canAssign}
-          onView={onView}
-          onAssign={onAssign}
-          onCompensations={onCompensations}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
+      <TableCell className="w-px">
+        <RowActions>
+          <DriverActionsMenu driver={driver} activeCount={activeCount} {...menu} />
+        </RowActions>
       </TableCell>
     </TableRow>
   );
 }
 
-export function DriverMobileCard({
-  driver,
-  activeCount,
-  canManage,
-  canAssign,
-  onView,
-  onAssign,
-  onCompensations,
-  onEdit,
-  onDelete,
-}: {
-  driver: Driver;
-  activeCount: number;
-  canManage: boolean;
-  canAssign: boolean;
-  onView: (driver: Driver) => void;
-  onAssign: (driver: Driver) => void;
-  onCompensations: (driver: Driver) => void;
-  onEdit: (driver: Driver) => void;
-  onDelete: (driver: Driver) => void;
-}) {
+export function DriverMobileCard({ driver, activeCount, ...menu }: DriverRowProps) {
   const t = useT("delivery");
+  const name = driverFullName(driver);
   return (
-    <article className="border-b border-border p-4 last:border-0">
-      <div className="flex items-start gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-          <UserRound size={18} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate font-bold text-foreground">
-              {driverFullName(driver)}
-            </p>
-            <DriverActionsMenu
-              driver={driver}
-              activeCount={activeCount}
-              canManage={canManage}
-          canAssign={canAssign}
-              onView={onView}
-              onAssign={onAssign}
-              onCompensations={onCompensations}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground" dir="ltr">
-            <Phone size={12} className="me-1 inline" />
-            {driver.phone}
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <DriverStatusBadge status={driver.status} />
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2.5">
-        <span className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/30 p-3">
-          <Truck size={15} className="shrink-0 text-muted-foreground" />
-          <span className="min-w-0">
-            <span className="block text-[11px] font-semibold text-muted-foreground">
-              {t("table.vehicle")}
-            </span>
-            <span className="block truncate text-xs font-semibold">
-              {driver.vehicleType
-                ? t(`vehicle_type.${driver.vehicleType}`)
-                : "—"}
-            </span>
-          </span>
-        </span>
-        <span className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/30 p-3">
-          <Package size={15} className="shrink-0 text-muted-foreground" />
-          <span className="min-w-0">
-            <span className="block text-[11px] font-semibold text-muted-foreground">
-              {t("table.wilaya")}
-            </span>
-            <span className="block truncate text-xs font-semibold">
-              {driver.compensationWilayaCount ?? 0}
-            </span>
-          </span>
-        </span>
-      </div>
-      <div className="pt-3">
-        <a
-          href={`/delivery/drivers/${encodeURIComponent(driver.id)}`}
-          className="block w-full rounded-xl border border-border bg-card py-2.5 text-center text-[11px] font-bold uppercase tracking-widest text-foreground transition-colors hover:bg-muted/50"
-        >
-          {t("actions.view")}
+    <article
+      onClick={openRowOnClick(driverHref(driver))}
+      className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors active:bg-subtle"
+    >
+      <Initial name={name} className="size-9" />
+      <div className="min-w-0 flex-1">
+        <a href={driverHref(driver)} className="block truncate text-sm font-medium text-foreground">
+          {name}
         </a>
+        <p className="truncate text-xs text-muted-foreground">
+          <span dir="ltr">{driver.phone}</span>
+          {activeCount > 0 && <> · {t("active_count", { count: activeCount })}</>}
+        </p>
       </div>
+      <DriverStatusBadge status={driver.status} />
+      <DriverActionsMenu driver={driver} activeCount={activeCount} {...menu} />
     </article>
   );
 }

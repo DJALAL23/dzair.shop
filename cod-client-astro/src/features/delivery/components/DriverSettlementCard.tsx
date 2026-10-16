@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertCircle, History, X } from "lucide-react";
+import { History, X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -7,7 +7,7 @@ import {
 import {
   Button,
   Alert,
-  StatCard,
+  StatCard, StatGroup,
   Card,
   Table,
   TableHeader,
@@ -145,7 +145,6 @@ export function DriverSettlementCard({
     >
       {error && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{error}</span>
           <button
             type="button"
@@ -157,7 +156,7 @@ export function DriverSettlementCard({
         </Alert>
       )}
       {!allSettled && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatGroup columns={2} className="mb-4">
           <StatCard
             label={t("payments.cash_to_collect", { count: totals.cashCount })}
             value={formatDeliveryMoney(totals.cash, locale)}
@@ -166,7 +165,7 @@ export function DriverSettlementCard({
             label={t("payments.fees_to_pay", { count: totals.feeCount })}
             value={formatDeliveryMoney(totals.fees, locale)}
           />
-        </div>
+        </StatGroup>
       )}
       {allSettled ? (
         <p className="py-4 text-center text-sm text-muted-foreground">
@@ -225,7 +224,7 @@ export function DriverSettlementCard({
                     </span>
                   </span>
                   <span className="shrink-0 text-end">
-                    <span className="block text-sm font-semibold tabular-nums">
+                    <span className="block text-sm font-medium tabular-nums">
                       {formatDeliveryMoney(order.codAmount, locale)}
                     </span>
                     <span className="block text-xs text-muted-foreground tabular-nums">
@@ -292,7 +291,7 @@ export function DriverSettlementCard({
                           {formatDeliveryMoney(order.codAmount, locale)}
                         </span>
                         {codSettled && (
-                          <span className="ms-1 text-[10px] font-bold text-violet-600">
+                          <span className="ms-1 text-[11px] font-semibold text-violet-600">
                             ✓
                           </span>
                         )}
@@ -312,7 +311,7 @@ export function DriverSettlementCard({
                           <span className="text-muted-foreground/30">—</span>
                         )}
                         {feeSettled && order.driverFee > 0 && (
-                          <span className="ms-1 text-[10px] font-bold text-violet-600">
+                          <span className="ms-1 text-[11px] font-semibold text-violet-600">
                             ✓
                           </span>
                         )}
@@ -349,7 +348,7 @@ export function DriverSettlementCard({
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 p-3"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold">
+                    <span className="text-sm font-semibold">
                       {t(`payments.type_${payment.type}`)}
                     </span>
                     <span className="text-xs text-muted-foreground">
@@ -357,7 +356,7 @@ export function DriverSettlementCard({
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold tabular-nums">
+                    <span className="text-sm font-medium tabular-nums">
                       {formatDeliveryMoney(payment.amount, locale)}
                     </span>
                     <span className="text-xs text-muted-foreground">

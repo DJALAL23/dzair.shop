@@ -58,17 +58,17 @@ export function CompanyWebhookSetupCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="rounded-xl bg-card p-5 shadow-card">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+        <h2 className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground/60">
           <Zap size={14} className="text-primary/50" aria-hidden="true" />
           {t("webhook_setup_title")}
         </h2>
         <span
           className={cn(
-            "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold",
+            "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
             secretSet
-              ? "bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)]"
+              ? "bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]"
               : "bg-amber-500/10 text-amber-600",
           )}
         >
@@ -110,7 +110,7 @@ export function CompanyWebhookSetupCard({
         <ol className="space-y-2 text-sm font-medium text-foreground">
           {[1, 2, 3, 4].map((step) => (
             <li key={step} className="flex gap-2.5">
-              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
                 {step}
               </span>
               <span className="leading-5">{t(`webhook_step_${step}`)}</span>

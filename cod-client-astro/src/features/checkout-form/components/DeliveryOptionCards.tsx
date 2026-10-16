@@ -35,7 +35,7 @@ export function DeliveryOptionCards({
 
   return (
     <div className="space-y-2">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {options.map(({ key, label, icon: Icon, on }) => {
           const isLastOn = on && enabledCount === 1;
           return (

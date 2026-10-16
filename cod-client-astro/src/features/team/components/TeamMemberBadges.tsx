@@ -71,7 +71,7 @@ export function MetadataHint({
   ) {
     const label = common(`statuses.${String(meta.status)}`);
     return (
-      <span className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+      <span className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
         {label.startsWith("common.statuses.") ? String(meta.status) : label}
       </span>
     );
@@ -80,17 +80,17 @@ export function MetadataHint({
     const delta = Number(meta.delta);
     return (
       <span className="inline-flex items-center gap-1.5">
-        <span className={`text-[10px] font-bold tabular-nums ${delta >= 0 ? "text-violet-600" : "text-rose-500"}`}>
+        <span className={`text-[11px] font-semibold tabular-nums ${delta >= 0 ? "text-violet-600" : "text-rose-500"}`}>
           {delta >= 0 ? "+" : ""}
           {new Intl.NumberFormat(locale === "ar" ? "ar-DZ" : "en-DZ").format(delta)}
         </span>
         {meta.stockType != null && (
-          <span className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          <span className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
             {String(meta.stockType)}
           </span>
         )}
         {meta.reason != null && (
-          <span className="text-[10px] font-medium text-muted-foreground/60">
+          <span className="text-[11px] font-medium text-muted-foreground/60">
             · {String(meta.reason)}
           </span>
         )}
@@ -102,7 +102,7 @@ export function MetadataHint({
     meta.scope
   ) {
     return (
-      <span className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+      <span className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
         {String(meta.scope)}
       </span>
     );
@@ -110,7 +110,7 @@ export function MetadataHint({
   if (action === "user.role_changed" && meta.role) {
     const label = common(`roles.${String(meta.role)}`);
     return (
-      <span className="rounded-md bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-bold text-yellow-700">
+      <span className="rounded-md bg-yellow-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-yellow-700">
         {label.startsWith("common.roles.") ? String(meta.role) : label}
       </span>
     );

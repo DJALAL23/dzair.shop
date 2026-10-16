@@ -1,12 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Circle,
-  Package,
-  TrendingUp,
-  Zap,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronRight, SearchX, Truck } from "lucide-react";
 import {
   canScope,
   RequireAuth,
@@ -19,20 +12,48 @@ import { listAllDeliveryCompanies } from "@/features/delivery/api";
 import type { DeliveryCompany, ProviderConfig } from "@/features/delivery/types";
 import { PROVIDER_CONFIGS } from "@/features/delivery/types";
 import { webhookSetup } from "@/features/delivery/model";
-import { Alert, EmptyState, PageHeader, SearchInput } from "@/components/ui";
-import { cn } from "@/lib/utils";
+import { Alert, Badge, Card, EmptyState, ListToolbar, PageHeader, SearchInput, TableSkeleton } from "@/components/ui";
 
 function Loading() {
   return (
-    <div
-      role="status"
-      aria-busy="true"
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2"
-    >
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="h-44 animate-pulse rounded-xl border border-border bg-muted/40" />
-      ))}
+    <div role="status" aria-busy="true" className="space-y-6">
+      <div className="overflow-hidden rounded-xl shadow-card">
+        <TableSkeleton rows={2} columns={3} />
+      </div>
+      <div className="overflow-hidden rounded-xl shadow-card">
+        <TableSkeleton rows={6} columns={3} />
+      </div>
     </div>
+  );
+}
+
+function CarrierMark({ name, connected }: { name: string; connected: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`grid size-9 shrink-0 place-items-center rounded-lg text-sm font-semibold ${
+        connected ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+      }`}
+    >
+      {name.charAt(0)}
+    </span>
+  );
+}
+
+function Capabilities({ provider, webhookReady }: { provider: ProviderConfig; webhookReady: boolean }) {
+  const t = useT("delivery_companies");
+  const items = [
+    provider.supportsHomeDelivery && t("capability_home"),
+    provider.supportsStopDesk && t("capability_desk"),
+    t(provider.updates === "webhook" ? "updates_live" : "updates_checked"),
+    webhookReady && t("capability_webhook"),
+  ].filter(Boolean) as string[];
+  return (
+    <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+      {items.map((item) => (
+        <span key={item}>{item}</span>
+      ))}
+    </span>
   );
 }
 
@@ -75,7 +96,6 @@ function DeliveryCompaniesList() {
   if (loadError) {
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button
@@ -93,116 +113,67 @@ function DeliveryCompaniesList() {
   if (companies === null) return <Loading />;
 
   const providers = Object.values(PROVIDER_CONFIGS);
-  const connectedCount = companies.filter((company) => company.isConnected).length;
+  const companyOf = (provider: ProviderConfig) => companies.find((item) => item.code === provider.code) ?? null;
+  const connected = providers.filter((provider) => companyOf(provider)?.isConnected);
+  const available = providers.filter((provider) => !companyOf(provider)?.isConnected && matchesQuery(provider, search));
   const canManage = canScope(identity, SCOPES.DELIVERY_MANAGE);
-  const visibleProviders = providers.filter((provider) => matchesQuery(provider, search));
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/10 bg-primary/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary/80">
-          <CheckCircle2 size={12} aria-hidden="true" />
-          {connectedCount} / {providers.length} {t("connected")}
-        </span>
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder={t("search_placeholder")}
-          className="sm:max-w-sm"
-        />
-      </div>
+    <div className="space-y-8">
+      <Card flush title={t("yours_title")}>
+        {connected.length === 0 ? (
+          <EmptyState compact icon={<Truck />} title={t("yours_empty_title")} description={t("yours_empty_description")} />
+        ) : (
+          <ul className="divide-y divide-border border-t border-border">
+            {connected.map((provider) => {
+              const webhook = webhookSetup(provider, companyOf(provider));
+              return (
+                <li key={provider.code}>
+                  <a href={`/delivery/companies/${provider.code}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-subtle">
+                    <CarrierMark name={provider.name} connected />
+                    <span className="min-w-0 flex-1 space-y-0.5">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium text-foreground">{provider.name}</span>
+                        <Badge tone="success" dot>{t("connected")}</Badge>
+                      </span>
+                      <Capabilities provider={provider} webhookReady={webhook.kind !== "none" && webhook.ready} />
+                    </span>
+                    <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground rtl:rotate-180" />
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
 
-      {visibleProviders.length === 0 ? (
-        <EmptyState
-          icon={<Package size={20} />}
-          title={common("no_results_found")}
-          compact
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      {visibleProviders.map((provider) => {
-        const company = companies.find((item) => item.code === provider.code);
-        const isConnected = company?.isConnected ?? false;
-        const webhook = webhookSetup(provider, company ?? null);
-        const hasWebhook = webhook.kind !== "none" && webhook.ready;
-
-        return (
-          <a
-            key={provider.code}
-            href={`/delivery/companies/${provider.code}`}
-            className={cn(
-              "flex flex-col rounded-xl border bg-card p-5 transition-colors hover:bg-muted/30",
-              isConnected ? "border-primary/30" : "border-border",
-            )}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <span className="flex min-w-0 items-center gap-3">
-                <span
-                  className={cn(
-                    "grid size-12 shrink-0 place-items-center rounded-xl text-lg font-bold",
-                    isConnected
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground",
+      <Card flush title={t("add_title")} subtitle={t("available", { count: providers.length - connected.length })}>
+        <ListToolbar>
+          <SearchInput value={search} onChange={setSearch} placeholder={t("search_placeholder")} className="basis-full sm:basis-80 sm:flex-none" />
+        </ListToolbar>
+        {available.length === 0 ? (
+          <EmptyState compact icon={<SearchX />} title={common("no_results_found")} />
+        ) : (
+          <ul className="grid border-t border-border sm:grid-cols-2">
+            {available.map((provider) => (
+              <li key={provider.code} className="border-b border-border sm:odd:border-e">
+                <a href={`/delivery/companies/${provider.code}`} className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-subtle">
+                  <CarrierMark name={provider.name} connected={false} />
+                  <span className="min-w-0 flex-1 space-y-0.5">
+                    <span className="block truncate text-sm font-medium text-foreground">{provider.name}</span>
+                    <Capabilities provider={provider} webhookReady={false} />
+                  </span>
+                  {canManage && (
+                    <span className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors group-hover:bg-card group-hover:text-foreground group-hover:shadow-button">
+                      {t("connect")}
+                    </span>
                   )}
-                >
-                  {provider.name.charAt(0)}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-base font-bold text-foreground">
-                    {provider.name}
-                  </span>
-                  <span
-                    className={cn(
-                      "mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-                      isConnected
-                        ? "border-[var(--status-confirmed-border)] bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)]"
-                        : "border-border bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {isConnected ? <CheckCircle2 size={9} /> : <Circle size={9} />}
-                    {isConnected ? t("connected") : t("not_connected")}
-                  </span>
-                </span>
-              </span>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {provider.supportsHomeDelivery && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Zap size={9} />
-                  {t("capability_home")}
-                </span>
-              )}
-              {provider.supportsStopDesk && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Package size={9} />
-                  {t("capability_desk")}
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <TrendingUp size={9} />
-                {t(provider.updates === "webhook" ? "updates_live" : "updates_checked")}
-              </span>
-              {hasWebhook && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-[var(--status-confirmed-border)] bg-[var(--status-confirmed-bg)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-confirmed-text)]">
-                  <Zap size={9} />
-                  {t("capability_webhook")}
-                </span>
-              )}
-            </div>
-
-            {!isConnected && canManage && (
-              <div className="mt-4 flex flex-1 items-end border-t border-border pt-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-primary/70">
-                  {t("tap_to_connect")}
-                </span>
-              </div>
-            )}
-          </a>
-        );
-      })}
-        </div>
-      )}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

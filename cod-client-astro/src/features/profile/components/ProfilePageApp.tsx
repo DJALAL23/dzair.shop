@@ -112,14 +112,14 @@ function ProfileContent() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <form onSubmit={saveProfile} className="rounded-xl border border-border bg-card" noValidate>
+    <div className="space-y-6">
+      <form onSubmit={saveProfile} className="rounded-xl bg-card shadow-card" noValidate>
         <div className="flex items-start gap-3 border-b border-border px-5 py-4">
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
             <UserRound size={18} aria-hidden="true" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-foreground">{t("identity_title")}</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("identity_title")}</h2>
             <p className="text-xs text-muted-foreground">{t("identity_subtitle")}</p>
           </div>
         </div>
@@ -178,13 +178,13 @@ function ProfileContent() {
         </div>
       </form>
 
-      <form onSubmit={changePassword} className="rounded-xl border border-border bg-card" noValidate>
+      <form onSubmit={changePassword} className="rounded-xl bg-card shadow-card" noValidate>
         <div className="flex items-start gap-3 border-b border-border px-5 py-4">
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
             <KeyRound size={18} aria-hidden="true" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-foreground">{t("security_title")}</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("security_title")}</h2>
             <p className="text-xs text-muted-foreground">{t("security_subtitle")}</p>
           </div>
         </div>
@@ -258,7 +258,7 @@ function ProfileContent() {
 function Gated() {
   const t = useT("profile");
   return (
-    <DashboardChrome currentPath="/profile">
+    <DashboardChrome narrow currentPath="/profile">
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
       <ProfileContent />
     </DashboardChrome>

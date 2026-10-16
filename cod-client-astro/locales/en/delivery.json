@@ -13,17 +13,17 @@
   "tabs": {
     "drivers": "Drivers",
     "companies": "Companies",
-    "shipping": "Shipping Rates"
+    "shipping": "Shipping rates"
   },
-  "add_driver": "Add Driver",
-  "add_company": "Add Company",
+  "add_driver": "Add driver",
+  "add_company": "Add company",
   "search_placeholder": "Search...",
   "table": {
     "driver": "Driver",
     "phone": "Phone",
     "wilaya": "Wilaya",
     "status": "Status",
-    "active_orders": "Active Orders",
+    "active_orders": "Active orders",
     "vehicle": "Vehicle",
     "price": "Price",
     "joined": "Joined",
@@ -32,8 +32,8 @@
     "order": "Order",
     "customer": "Customer",
     "date": "Date",
-    "recent_deliveries": "Recent Deliveries",
-    "rate_card": "Rate Card"
+    "recent_deliveries": "Recent deliveries",
+    "rate_card": "Rate card"
   },
   "company_table": {
     "company": "Company",
@@ -46,8 +46,8 @@
     "view": "View",
     "edit": "Edit",
     "delete": "Delete",
-    "assign_orders": "Assign Orders",
-    "compensations": "Driver Pay",
+    "assign_orders": "Assign orders",
+    "compensations": "Driver pay",
     "back_to_driver": "Back to driver"
   },
   "status": {
@@ -60,14 +60,14 @@
   "empty_state": {
     "drivers_title": "No drivers yet",
     "drivers_description": "Onboard your first delivery driver to start managing local logistics and tracking deliveries in real-time.",
-    "drivers_action": "Add Your First Driver",
+    "drivers_action": "Add your first driver",
     "companies_title": "No delivery companies yet",
     "companies_description": "Connect with external delivery partners like Yalidine or NOEST to expand your reach across all 58 wilayas.",
-    "companies_action": "Connect a Company"
+    "companies_action": "Connect a company"
   },
   "delivery_type": {
-    "home": "Home Delivery",
-    "stop_desk": "Desk Pickup"
+    "home": "Home delivery",
+    "stop_desk": "Desk pickup"
   },
   "vehicle_type": {
     "motorcycle": "Motorcycle",
@@ -75,25 +75,25 @@
     "van": "Van"
   },
   "driver_card": {
-    "total_delivered": "Total Delivered",
-    "pending_cash": "Pending Cash",
+    "total_delivered": "Total delivered",
+    "pending_cash": "Pending cash",
     "cash_drift_warning": "Driver cash ledger mismatch: held {pending} but unsettled orders total {orders}. Difference: {drift}. Review settlements before paying out.",
     "pending_cash_hint": "COD collected, not yet remitted",
-    "total_paid": "Total Remitted",
+    "total_paid": "Total remitted",
     "total_paid_hint": "Total cash handed to shop",
     "earnings": "Earnings",
-    "assign_orders": "Assign Orders",
+    "assign_orders": "Assign orders",
     "status_available": "Available",
     "status_busy": "Busy",
     "status_inactive": "Inactive",
     "delivered": "Delivered",
     "returned": "Returned",
-    "rate_card": "Rate Card",
+    "rate_card": "Rate card",
     "recent_shipments": "Recent deliveries",
     "active_orders": "Orders out"
   },
   "assign_dialog": {
-    "title": "Assign Orders",
+    "title": "Assign orders",
     "cancel": "Cancel",
     "done": "Done",
     "loading": "Loading orders ready to ship…",
@@ -105,20 +105,20 @@
     "assign_other": "Give {count} orders"
   },
   "driver_form": {
-    "title_add": "Add New Driver",
-    "title_edit": "Edit Driver",
-    "personal_info_label": "Personal Info",
-    "first_name_label": "First Name",
+    "title_add": "Add new driver",
+    "title_edit": "Edit driver",
+    "personal_info_label": "Personal info",
+    "first_name_label": "First name",
     "first_name_placeholder": "Enter first name",
-    "last_name_label": "Last Name",
+    "last_name_label": "Last name",
     "last_name_placeholder": "Enter last name",
-    "phone_label": "Phone Number",
+    "phone_label": "Phone number",
     "phone_placeholder": "0XXXXXXXXX",
-    "phone2_label": "2nd Phone (optional)",
+    "phone2_label": "2nd phone (optional)",
     "phone2_placeholder": "0XXXXXXXXX",
-    "vehicle_label": "Vehicle Type",
+    "vehicle_label": "Vehicle type",
     "vehicle_placeholder": "Select vehicle type",
-    "rate_card_label": "Rate Card",
+    "rate_card_label": "Rate card",
     "rate_card_sublabel": "Select the shipping profile used to price this driver's deliveries",
     "rate_card_placeholder": "Select a rate card",
     "rate_card_default": "Default",
@@ -127,8 +127,6 @@
     "notes_label": "Notes",
     "notes_placeholder": "Optional notes...",
     "cancel": "Cancel",
-    "save": "Save",
-    "saving": "Saving...",
     "success_add": "Driver added successfully",
     "success_edit": "Driver updated successfully",
     "error_required": "Please fill in all required fields"
@@ -147,25 +145,25 @@
   "credentials_dialog": {
     "title_connect": "Connect",
     "title_configure": "Configure",
-    "api_credentials": "API Credentials",
+    "api_credentials": "API credentials",
     "actions": "Actions",
     "security": "Security",
     "security_note": "Credentials are stored encrypted and never returned by the API. Re-enter them each time you update.",
-    "api_token_label": "API Token",
+    "api_token_label": "API token",
     "api_token_hint": "Found in your account dashboard under API settings",
     "user_guid_label": "User GUID",
     "user_guid_hint": "Your partner GUID provided when your account was created",
     "tenant_id": "Tenant ID",
     "tenant_id_hint": "Your ZR Express tenant identifier (X-Tenant header)",
-    "ecotrack_token": "EcoTrack API Token",
+    "ecotrack_token": "EcoTrack API token",
     "ecotrack_token_hint": "Bearer token from your Packers / EcoTrack dashboard",
-    "ecotrack_endpoint": "EcoTrack API Endpoint",
+    "ecotrack_endpoint": "EcoTrack API endpoint",
     "ecotrack_endpoint_hint": "Base URL from your EcoTrack account settings (e.g. https://ecotrack.dz)",
-    "from_wilaya_label": "Sender Wilaya",
+    "from_wilaya_label": "Sender wilaya",
     "from_wilaya_hint": "Your warehouse / dispatch wilaya in French (e.g. Alger, Oran, Constantine). Used as the parcel origin. Defaults to Alger if left empty.",
     "wilaya_placeholder": "Alger",
     "connect": "Connect",
-    "save": "Save Changes",
+    "save": "Save changes",
     "saving": "Saving...",
     "cancel": "Cancel",
     "disconnect": "Disconnect",
@@ -174,7 +172,7 @@
     "success_disconnected": "Disconnected"
   },
   "payments": {
-    "title": "Driver Payments",
+    "title": "Driver payments",
     "tab_pending": "Pending",
     "tab_history": "History",
     "all_settled": "All orders settled — nothing pending",
@@ -185,9 +183,9 @@
     "fee_badge": "FEE",
     "add_notes": "Add notes (optional)",
     "notes_placeholder": "e.g. Cash in envelope, batch #3",
-    "action_net": "Net Settlement",
-    "action_cod": "Mark COD Received",
-    "action_fee": "Pay Driver Fee",
+    "action_net": "Net settlement",
+    "action_cod": "Mark COD received",
+    "action_fee": "Pay driver fee",
     "confirm_title": "Record settlement?",
     "confirm_body_one": "Record {amount} for {count} selected order? This creates an accounting record.",
     "confirm_body_other": "Record {amount} across {count} selected orders? This creates an accounting record.",
@@ -204,9 +202,9 @@
     "amount_label": "Amount",
     "by_label": "By",
     "date_label": "Date",
-    "type_cod_remittance": "COD Received",
-    "type_fee_payment": "Driver Fee",
-    "type_net_settlement": "Net Settlement",
+    "type_cod_remittance": "COD received",
+    "type_fee_payment": "Driver fee",
+    "type_net_settlement": "Net settlement",
     "net_label": "Net",
     "cash_to_collect_one": "Cash the driver holds ({count} delivery)",
     "cash_to_collect_other": "Cash the driver holds ({count} deliveries)",
@@ -214,7 +212,7 @@
     "fees_to_pay_other": "Fees the store owes ({count} deliveries)"
   },
   "company_profile": {
-    "rate_card": "Rate Card",
+    "rate_card": "Rate card",
     "no_rate_card": "No rate card linked",
     "change": "Change",
     "unlink": "Remove",
@@ -225,16 +223,16 @@
     "success_unlinked": "Rate card removed"
   },
   "webhook": {
-    "title": "Real-time Updates",
+    "title": "Real-time updates",
     "active": "Active",
-    "register": "Register Webhook",
+    "register": "Register webhook",
     "disconnect": "Disconnect",
     "webhook_url": "Your webhook URL",
     "copied": "Copied",
-    "custom_mapping": "Custom Status Mapping",
+    "custom_mapping": "Custom status mapping",
     "mapping_hint": "Map ZR state names to order statuses. Keys: delivered, returned, out_for_delivery, assigned, cancelled, preparing",
-    "save_mapping": "Save Mapping",
-    "yalidine_secret": "Webhook Secret",
+    "save_mapping": "Save mapping",
+    "yalidine_secret": "Webhook secret",
     "yalidine_secret_hint": "Copy the secret key from your Yalidine Webhooks Dashboard",
     "save_secret": "Save",
     "secret_saved": "Secret saved",
@@ -246,7 +244,7 @@
     "disconnecting": "Disconnecting...",
     "saving": "Saving...",
     "not_configured": "Not configured",
-    "setup_steps": "Setup Steps",
+    "setup_steps": "Setup steps",
     "mapping_subtitle": "Map ZR status names to order statuses",
     "add_row": "Add",
     "mapping_zr_col": "ZR sends",
@@ -255,9 +253,9 @@
     "mapping_empty_hint": "No custom mapping — using built-in detection"
   },
   "shipping_profiles": {
-    "linked_network": "Linked Network",
-    "no_linked_company": "No Linked Company",
-    "loading_rates": "Loading Rates",
+    "linked_network": "Linked network",
+    "no_linked_company": "No linked company",
+    "loading_rates": "Loading rates",
     "no_matching_wilayas": "No matching wilayas",
     "home_placeholder": "Home",
     "desk_placeholder": "Desk",
@@ -284,11 +282,10 @@
     "commune_save": "Save"
   },
   "driver_profile": {
-    "subtitle": "Logistics personnel profile & performance",
     "wilaya_rates": "wilaya rates"
   },
   "compensations": {
-    "title": "Wilaya Pay Grid",
+    "title": "Wilaya pay grid",
     "subtitle": "What you pay this driver per delivery in each wilaya",
     "add_button": "Add rate",
     "empty_title": "No wilaya rates yet",
@@ -314,23 +311,23 @@
     "total_fee_sum": "Sum across all wilayas"
   },
   "companies": {
-    "active_rate_card": "Active Rate Card",
-    "sync_fees": "Sync Fees",
-    "sync_desks": "Sync Desks",
-    "manage_desks": "Manage Desks",
+    "active_rate_card": "Active rate card",
+    "sync_fees": "Sync fees",
+    "sync_desks": "Sync desks",
+    "manage_desks": "Manage desks",
     "sync_fees_success": "Fees synced",
     "sync_desks_success": "Stop desks synced",
     "wilayas": "wilayas",
     "desks": "desks",
     "removed": "removed",
-    "data_sync": "Data Sync",
+    "data_sync": "Data sync",
     "tracking": "Tracking",
     "webhook": "Webhook",
     "tap_to_connect": "Tap to connect",
     "connect_to_link_rate_card": "Connect to link a rate card"
   },
   "auto_validate": {
-    "title": "Auto-Validate on Dispatch",
+    "title": "Auto-Validate on dispatch",
     "on_description": "Orders lock at the carrier the moment they are dispatched — you cannot edit or delete them afterwards.",
     "off_description": "Orders stay editable at the carrier after dispatch. Your team must manually confirm each order before it goes out for delivery.",
     "ecotrack_warning_prefix": "Recommended: keep",
@@ -340,7 +337,7 @@
     "disabled_toast": "Auto-validate disabled — orders stay editable until manually confirmed."
   },
   "stop_desks": {
-    "title": "Stop Desks",
+    "title": "Stop desks",
     "active_label": "Active",
     "total": "Total",
     "active_count": "active",
@@ -373,5 +370,11 @@
     "col_commune": "Commune",
     "col_code": "Code",
     "col_status": "Status"
-  }
+  },
+  "drivers_count_one": "{count} driver",
+  "drivers_count_other": "{count} drivers",
+  "wilaya_count_one": "{count} wilaya",
+  "wilaya_count_other": "{count} wilayas",
+  "active_count_one": "{count} active",
+  "active_count_other": "{count} active"
 }

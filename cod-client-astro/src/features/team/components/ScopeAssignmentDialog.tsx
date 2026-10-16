@@ -121,7 +121,7 @@ export function ScopeAssignmentDialog({ open, onClose, user, onSuccess }: Props)
       <div className="max-h-[60dvh] space-y-6 overflow-y-auto pe-1">
         {Object.entries(SCOPE_CATEGORIES).map(([key, category]) => (
           <section key={key}>
-            <h3 className="mb-3 border-b border-border pb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <h3 className="mb-3 border-b border-border pb-2 text-xs font-semibold text-muted-foreground">
               {t(`scope_categories.${key}`)}
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -155,14 +155,14 @@ export function ScopeAssignmentDialog({ open, onClose, user, onSuccess }: Props)
                         >
                           {t(`scope_actions.${action}`)}
                         </span>
-                        <span className="block truncate font-mono text-[10px] uppercase text-muted-foreground/50" dir="ltr">
+                        <span className="block truncate font-mono text-[11px] text-muted-foreground/50" dir="ltr">
                           {scope}
                         </span>
                       </span>
                     </span>
                     {changed && (
                       <span
-                        className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-tight ${
+                        className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tracking-tight ${
                           granting
                             ? "bg-violet-500/10 text-violet-600"
                             : "bg-rose-500/10 text-rose-600"

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  AlertCircle,
   Check,
   Coins,
   Info,
@@ -139,10 +138,10 @@ export function DriverCompensationsSection({
             <Coins size={16} />
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-base font-bold tracking-tight text-foreground">
+            <h2 className="truncate text-base font-semibold tracking-tight text-foreground">
               {t("compensations.title")}
             </h2>
-            <p className="mt-0.5 truncate text-[11px] font-bold text-muted-foreground/60">
+            <p className="mt-0.5 truncate text-[11px] font-semibold text-muted-foreground/60">
               {t("compensations.subtitle")}
             </p>
           </div>
@@ -163,7 +162,6 @@ export function DriverCompensationsSection({
 
       {message && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{message}</span>
           <button
             type="button"
@@ -178,23 +176,23 @@ export function DriverCompensationsSection({
       {sorted.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border border-border bg-muted/30 p-3.5">
-            <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground/40">
               <MapPin size={9} className="text-primary/40" />
               {t("compensations.total_rates")}
             </p>
-            <p className="mt-1 text-xl font-bold leading-none tabular-nums text-foreground">
+            <p className="mt-1 text-xl font-semibold leading-none tabular-nums text-foreground">
               {sorted.length}
-              <span className="ms-2 text-xs font-bold text-muted-foreground/30">
+              <span className="ms-2 text-xs font-semibold text-muted-foreground/30">
                 / 58
               </span>
             </p>
           </div>
           <div className="rounded-xl border border-primary/10 bg-primary/5 p-3.5">
-            <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-primary/50">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-primary/50">
               <Coins size={9} />
               {t("compensations.total_fee_sum")}
             </p>
-            <p className="mt-1 text-xl font-bold leading-none tabular-nums text-primary">
+            <p className="mt-1 text-xl font-semibold leading-none tabular-nums text-primary">
               {formatDeliveryMoney(totalFee, locale)}
             </p>
           </div>
@@ -211,7 +209,7 @@ export function DriverCompensationsSection({
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_180px]">
             <div className="space-y-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+              <p className="text-[11px] font-semibold text-muted-foreground/60">
                 {t("compensations.wilaya_label")}
               </p>
               <Select
@@ -238,7 +236,7 @@ export function DriverCompensationsSection({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+              <p className="text-[11px] font-semibold text-muted-foreground/60">
                 {t("compensations.fee_label")}
               </p>
               <div className="relative">
@@ -251,9 +249,9 @@ export function DriverCompensationsSection({
                   value={draftFee}
                   onChange={(event) => setDraftFee(event.currentTarget.value)}
                   placeholder="0"
-                  className="h-10 w-full rounded-xl border border-input bg-card pe-12 ps-3 text-sm font-bold tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  className="h-10 w-full rounded-xl border border-input bg-card pe-12 ps-3 text-sm font-medium tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                 />
-                <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground/40">
                   DA
                 </span>
               </div>
@@ -285,7 +283,7 @@ export function DriverCompensationsSection({
           <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-amber-500/10">
             <Info size={20} className="text-amber-500" />
           </span>
-          <p className="mt-3 text-sm font-bold text-foreground">
+          <p className="mt-3 text-sm font-semibold text-foreground">
             {t("compensations.empty_title")}
           </p>
           <p className="mx-auto mt-1.5 max-w-sm text-xs font-medium leading-relaxed text-muted-foreground/60">
@@ -330,7 +328,7 @@ export function DriverCompensationsSection({
       )}
 
       {!canAdd && sorted.length > 0 && editing !== "new" && (
-        <p className="text-center text-[11px] font-bold italic text-muted-foreground/40">
+        <p className="text-center text-[11px] font-semibold italic text-muted-foreground/40">
           {t("compensations.all_wilayas_configured")}
         </p>
       )}

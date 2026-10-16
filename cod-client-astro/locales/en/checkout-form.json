@@ -42,7 +42,7 @@
     "add": "Add a question",
     "empty": "No extra questions yet.",
     "label": "Question",
-    "label_placeholder": "e.g. Preferred delivery time",
+    "label_placeholder": "e.g. preferred delivery time",
     "type": "Answer type",
     "type_text": "Short text",
     "type_textarea": "Long text",

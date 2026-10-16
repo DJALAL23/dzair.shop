@@ -19,7 +19,7 @@ function StatusBadge({ active }: { active: boolean }) {
   const t = useT("mcp");
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
         active
           ? "border-violet-500/20 bg-violet-500/10 text-violet-600"
           : "border-border/30 bg-muted/40 text-muted-foreground/60"
@@ -52,7 +52,7 @@ export function ConnectionCard({
   const appLabel = conn.clientName?.trim() || conn.clientId;
 
   return (
-    <div className="space-y-3 rounded-2xl border border-border/40 bg-card p-4 sm:p-5">
+    <div className="space-y-3 rounded-xl bg-card p-4 sm:p-5 shadow-card">
       <div className="flex items-start gap-3">
         <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-muted/40 text-muted-foreground/70">
           {conn.clientIconUrl ? (
@@ -64,7 +64,7 @@ export function ConnectionCard({
 
         <div className="min-w-0 flex-1 space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-[14px] font-bold text-foreground">{appLabel}</p>
+            <p className="truncate text-sm font-semibold text-foreground">{appLabel}</p>
             <StatusBadge active={conn.active} />
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -90,7 +90,7 @@ export function ConnectionCard({
           variant="dangerOutline"
           onClick={onRevoke}
           disabled={pending}
-          className="h-9 shrink-0 px-3 text-[10px] font-bold uppercase tracking-widest"
+          className="h-9 shrink-0 px-3 text-[11px] font-semibold"
         >
           {pending ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
           <span className="hidden sm:inline">{t("my_connections.revoke")}</span>
@@ -115,7 +115,7 @@ export function ConnectionCard({
           {conn.scopes.map((scope) => (
             <li
               key={scope}
-              className="rounded-md border border-primary/10 bg-primary/5 px-2 py-1 font-mono text-[10px] font-bold text-primary/80"
+              className="rounded-md border border-primary/10 bg-primary/5 px-2 py-1 font-mono text-[11px] font-semibold text-primary/80"
             >
               {scope}
             </li>

@@ -1,9 +1,11 @@
-import { useDeferredValue, useEffect, useState } from "react";
-import { AlertCircle, Users, UserPlus, X } from "lucide-react";
+import { useDeferredValue, useEffect, useState, type ReactNode } from "react";
+import { UserPlus, Users, X } from "lucide-react";
 import { useIdentity } from "@/features/auth/components/RequireAuth";
 import {
   Alert,
   Button,
+  PageHeader,
+  TableSkeleton,
   Card,
   EmptyState,
   Pagination,
@@ -39,33 +41,6 @@ const ROLE_OPTIONS = ["admin", "staff"] as const;
 const STATUS_OPTIONS = ["active", "inactive"] as const;
 const PAGE_SIZE = 10;
 
-function TeamSkeleton() {
-  return (
-    <div
-      role="status"
-      aria-busy="true"
-      className="overflow-hidden rounded-xl border border-border bg-card"
-    >
-      <div className="h-14 border-b border-border bg-muted/35" />
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div
-          key={index}
-          className="grid h-16 grid-cols-[1.2fr_1.4fr_0.7fr_0.7fr_0.7fr] items-center gap-4 border-b border-border px-4 last:border-0"
-        >
-          <div className="space-y-1.5">
-            <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-            <div className="h-2.5 w-20 animate-pulse rounded bg-muted" />
-          </div>
-          <div className="h-3 w-36 animate-pulse rounded bg-muted" />
-          <span className="h-6 w-16 animate-pulse rounded-lg bg-muted" />
-          <span className="h-6 w-16 animate-pulse rounded-lg bg-muted" />
-          <div className="h-3 w-14 justify-self-end animate-pulse rounded bg-muted" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function TeamList() {
   const t = useT("team");
   const common = useT("common");
@@ -85,6 +60,23 @@ export function TeamList() {
   const deferredFilters = useDeferredValue(filters);
 
   const isAdmin = identity?.role === "admin";
+  const withHeader = (body: ReactNode) => (
+    <>
+      <PageHeader
+        title={t("header.title")}
+        actions={
+          isAdmin &&
+          members !== null && (
+            <Button type="button" onClick={() => setInviteOpen(true)}>
+              <UserPlus size={16} aria-hidden="true" />
+              {t("invite_user")}
+            </Button>
+          )
+        }
+      />
+      {body}
+    </>
+  );
 
   async function load() {
     setLoadError(null);
@@ -103,15 +95,14 @@ export function TeamList() {
   }, [deferredFilters, sortKey, sortDirection]);
 
   if (!isAdmin)
-    return (
+    return withHeader(
       <Alert role="alert" tone="critical">
         {auth("no_access")}
       </Alert>
     );
   if (loadError)
-    return (
+    return withHeader(
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button
@@ -124,7 +115,12 @@ export function TeamList() {
         </div>
       </Alert>
     );
-  if (members === null) return <TeamSkeleton />;
+  if (members === null)
+    return withHeader(
+      <div className="overflow-hidden rounded-xl shadow-card">
+        <TableSkeleton columns={5} />
+      </div>
+    );
 
   const filtered = filterTeamMembers(members, deferredFilters);
   const sorted = sortTeamMembers(filtered, sortKey, sortDirection);
@@ -173,11 +169,10 @@ export function TeamList() {
     onRotateApiKey: (item: TeamMember) => void onRotateApiKey(item),
   };
 
-  return (
+  return withHeader(
     <div className="space-y-3">
       {actionError && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{actionError}</span>
           <button
             type="button"
@@ -188,31 +183,20 @@ export function TeamList() {
           </button>
         </Alert>
       )}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="inline-flex w-fit items-center gap-1.5 rounded-xl border border-primary/10 bg-primary/5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary/80">
-          <Users size={13} aria-hidden="true" />
-          {members.length} {t("team_members")}
-        </span>
-        <Button type="button" onClick={() => setInviteOpen(true)}>
-          <UserPlus size={16} />
-          {t("invite_user")}
-        </Button>
-      </div>
       <Card flush>
-        <div className="space-y-3 border-b border-border p-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap items-center gap-2 p-2">
+          <div className="contents">
             <SearchInput
               value={filters.query}
               onChange={(query) =>
                 setFilters((current) => ({ ...current, query }))
               }
               placeholder={t("search_placeholder")}
+              className="basis-full sm:basis-72"
             />
-            <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {filtered.length} {t("team_members")}
-            </span>
+            <span className="order-last ms-auto shrink-0 px-1 text-xs tabular-nums text-muted-foreground">{t("count", { count: filtered.length })}</span>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="contents">
             <Select
               aria-label={t("filters.role")}
               value={filters.role}
@@ -222,9 +206,11 @@ export function TeamList() {
                   role: event.currentTarget.value as TeamFilters["role"],
                 }))
               }
-              wrapperClassName="sm:w-44"
+              variant="pill"
+              wrapperClassName="w-auto shrink-0"
+              triggerClassName="w-auto max-w-56"
             >
-              <option value="all">{common("table.all")}</option>
+              <option value="all">{t("filters.role")}</option>
               {ROLE_OPTIONS.map((role) => (
                 <option key={role} value={role}>
                   {common(`roles.${role}`)}
@@ -240,9 +226,11 @@ export function TeamList() {
                   status: event.currentTarget.value as TeamFilters["status"],
                 }))
               }
-              wrapperClassName="sm:w-44"
+              variant="pill"
+              wrapperClassName="w-auto shrink-0"
+              triggerClassName="w-auto max-w-56"
             >
-              <option value="all">{common("table.all")}</option>
+              <option value="all">{t("filters.status")}</option>
               {STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
                   {t(`status.${status}`)}
@@ -252,30 +240,30 @@ export function TeamList() {
             {hasFilters && (
               <Button
                 type="button"
-                variant="ghost"
+                variant="ghost" size="sm"
                 onClick={() => setFilters(EMPTY_FILTERS)}
               >
-                {common("cancel")}
+                {common("clear_filters")}
               </Button>
             )}
           </div>
         </div>
         {sorted.length === 0 ? (
           <EmptyState
-            icon={<Users size={22} />}
+            icon={<Users />}
             title={
               hasFilters ? common("no_results_found") : t("empty_state.title")
             }
           />
         ) : (
           <>
-            <div className="divide-y divide-border md:hidden">
+            <div className="divide-y divide-border border-t border-border md:hidden">
               {visible.map((member) => (
                 <TeamMobileCard key={member.id} member={member} {...rowActions} />
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
-              <Table className="min-w-[860px]">
+              <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow>
                     <SortHeader
@@ -306,9 +294,9 @@ export function TeamList() {
                       direction={sortDirection}
                       onSort={onSort}
                     />
-                    <TableHead>{t("table.permissions")}</TableHead>
-                    <TableHead className="text-end">
-                      {common("table.actions")}
+                    <TableHead numeric>{t("table.permissions")}</TableHead>
+                    <TableHead className="w-px">
+                      <span className="sr-only">{common("table.actions")}</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>

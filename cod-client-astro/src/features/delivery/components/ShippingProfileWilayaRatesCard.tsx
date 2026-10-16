@@ -68,7 +68,7 @@ export function ShippingProfileWilayaRatesCard({
               value={search}
               onChange={(event) => onSearchChange(event.currentTarget.value)}
               placeholder={t("shipping.search_wilaya")}
-              className="h-10 w-full rounded-lg border border-input bg-background ps-9 pe-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="h-10 w-full rounded-lg border border-input bg-card ps-9 pe-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
             />
           </label>
         </div>
@@ -119,7 +119,7 @@ export function ShippingProfileWilayaRatesCard({
         )}
 
         <div className="overflow-hidden rounded-xl border border-border">
-          <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 border-b border-border bg-muted/30 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+          <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 border-b border-border bg-muted/30 px-3 py-2.5 text-[11px] font-semibold text-muted-foreground/70">
             <span>{t("shipping.wilaya")}</span>
             <span className="text-center">
               {delivery("shipping_profiles.home_placeholder")}
@@ -133,7 +133,7 @@ export function ShippingProfileWilayaRatesCard({
             {wilayas.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground/40">
                 <MapPin size={26} aria-hidden="true" />
-                <p className="text-xs font-semibold uppercase tracking-wider">
+                <p className="text-xs font-semibold">
                   {delivery("shipping_profiles.no_matching_wilayas")}
                 </p>
               </div>
@@ -154,10 +154,10 @@ export function ShippingProfileWilayaRatesCard({
                     }`}
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-foreground">
+                      <p className="truncate text-sm font-semibold text-foreground">
                         {wilaya.nameAr}
                       </p>
-                      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+                      <p className="truncate text-[11px] font-semibold text-muted-foreground/60">
                         {wilaya.name}
                       </p>
                     </div>
@@ -167,7 +167,7 @@ export function ShippingProfileWilayaRatesCard({
                         onClick={() =>
                           onSetEnabled(wilaya.id, "homeEnabled", !homeEnabled)
                         }
-                        className={`inline-flex h-7 w-full items-center justify-center rounded-md border text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                        className={`inline-flex h-7 w-full items-center justify-center rounded-md border text-[11px] font-semibold transition-colors ${
                           homeEnabled
                             ? "border-primary/20 bg-primary/10 text-primary"
                             : "border-border bg-muted/20 text-muted-foreground/60"
@@ -188,7 +188,7 @@ export function ShippingProfileWilayaRatesCard({
                         }}
                         placeholder="0"
                         disabled={!homeEnabled}
-                        className="h-8 w-full rounded-md border border-input bg-background px-1 text-center text-sm font-bold tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:opacity-30"
+                        className="h-8 w-full rounded-md border border-input bg-card px-1 text-center text-sm font-medium tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:opacity-30"
                       />
                     </div>
                     <div className="flex flex-col items-center gap-1">
@@ -201,7 +201,7 @@ export function ShippingProfileWilayaRatesCard({
                             !deskEnabled,
                           )
                         }
-                        className={`inline-flex h-7 w-full items-center justify-center rounded-md border text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                        className={`inline-flex h-7 w-full items-center justify-center rounded-md border text-[11px] font-semibold transition-colors ${
                           deskEnabled
                             ? "border-primary/20 bg-primary/10 text-primary"
                             : "border-border bg-muted/20 text-muted-foreground/60"
@@ -226,7 +226,7 @@ export function ShippingProfileWilayaRatesCard({
                         }}
                         placeholder="0"
                         disabled={!deskEnabled}
-                        className="h-8 w-full rounded-md border border-input bg-background px-1 text-center text-sm font-bold tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:opacity-30"
+                        className="h-8 w-full rounded-md border border-input bg-card px-1 text-center text-sm font-medium tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:opacity-30"
                       />
                     </div>
                     <div className="flex items-center justify-center">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { AlertCircle, Languages, Loader2, Save } from "lucide-react";
+import { Languages, Loader2, Save } from "lucide-react";
 import { Alert, Badge, Button, Card, Field, Input, Skeleton, Textarea } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
@@ -67,7 +67,6 @@ export function TranslationsCard({
   if (loadError) {
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button type="button" onClick={() => void load()} className="mt-2 text-xs font-semibold underline">
@@ -225,7 +224,7 @@ export function TranslationsCard({
                   </p>
                   <Input {...controlProps(option)} onChange={(event) => edit(option.key, event.currentTarget.value)} />
                 </Field>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {option.values.map((value) => (
                     <Field
                       key={value.key}

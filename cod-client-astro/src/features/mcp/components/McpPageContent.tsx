@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Bot, Plug, Users, X, type LucideIcon } from "lucide-react";
+import { Bot, Plug, Users, X, type LucideIcon } from "lucide-react";
 import { publicApiUrl } from "@/lib/api";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
-import { Alert, useConfirmDialog } from "@/components/ui";
+import { Alert, useConfirmDialog, Tabs } from "@/components/ui";
 import {
   listMyMcpConnections,
   listTeamMcpConnections,
@@ -34,49 +34,9 @@ interface TabItem {
 function McpSkeleton() {
   return (
     <div role="status" aria-busy="true" className="space-y-4">
-      <div className="h-16 animate-pulse rounded-xl bg-muted" />
-      <div className="h-36 animate-pulse rounded-xl bg-muted" />
-      <div className="h-48 animate-pulse rounded-xl bg-muted" />
-    </div>
-  );
-}
-
-function TabBar({
-  tabs,
-  active,
-  onChange,
-}: {
-  tabs: TabItem[];
-  active: TabId;
-  onChange: (tab: TabId) => void;
-}) {
-  return (
-    <div className="flex gap-2 overflow-x-auto rounded-xl border border-border/20 bg-muted/30 p-1">
-      {tabs.map((item) => {
-        const Icon = item.icon;
-        const isActive = active === item.id;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onChange(item.id)}
-            aria-current={isActive ? "page" : undefined}
-            className={`inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-colors sm:flex-initial sm:px-4 ${
-              isActive
-                ? "bg-card text-primary shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Icon size={14} aria-hidden="true" />
-            <span className="truncate">{item.label}</span>
-            {item.count > 0 && (
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-primary">
-                {item.count}
-              </span>
-            )}
-          </button>
-        );
-      })}
+      <div className="h-16 shimmer rounded-xl" />
+      <div className="h-36 shimmer rounded-xl" />
+      <div className="h-48 shimmer rounded-xl" />
     </div>
   );
 }
@@ -170,7 +130,6 @@ export function McpPageContent() {
   if (loadError)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("my_connections.revoke_error")}</p>
           <button
@@ -195,7 +154,6 @@ export function McpPageContent() {
     <div className="space-y-5 pb-12">
       {actionError && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{actionError}</span>
           <button
             type="button"
@@ -208,7 +166,7 @@ export function McpPageContent() {
         </Alert>
       )}
 
-      <TabBar tabs={tabs} active={tab} onChange={setTab} />
+      <Tabs label={t("page_title")} value={tab} onChange={setTab} items={tabs.map((item) => ({ key: item.id, label: item.label, icon: item.icon, count: item.count > 0 ? item.count : undefined }))} />
 
       {tab === "connect" && <ConnectTab mcpUrl={mcpUrl} />}
 
@@ -225,7 +183,7 @@ export function McpPageContent() {
 
       {isAdmin && tab === "team" && (
         <div className="space-y-3">
-          <p className="px-1 text-[12px] font-semibold leading-relaxed text-muted-foreground/60">
+          <p className="px-1 text-xs font-semibold leading-relaxed text-muted-foreground/60">
             {t("team_connections.description")}
           </p>
           <ConnectionsList

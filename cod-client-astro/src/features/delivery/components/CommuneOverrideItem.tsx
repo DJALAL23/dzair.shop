@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui";
 import { Home, RotateCcw, Store } from "lucide-react";
 import { useT } from "@/i18n/react";
 import type { CommuneOverride } from "@/features/delivery/types";
@@ -47,7 +48,7 @@ export function CommuneOverrideItem({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-foreground">
+          <p className="truncate text-sm font-semibold text-foreground">
             {commune.communeNameAr}
           </p>
           <p className="truncate text-xs text-muted-foreground">
@@ -70,7 +71,7 @@ export function CommuneOverrideItem({
             {sp("commune_reset_override")}
           </button>
         ) : (
-          <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+          <span className="shrink-0 text-[11px] font-semibold text-muted-foreground/40">
             {sp("commune_inherits")}
           </span>
         )}
@@ -90,7 +91,7 @@ export function CommuneOverrideItem({
               })
             }
             disabled={saving}
-            className={`inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border text-[11px] font-bold transition-colors disabled:opacity-50 ${
+            className={`inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border text-[11px] font-semibold transition-colors disabled:opacity-50 ${
               homeToggle
                 ? "border-primary/20 bg-primary/10 text-primary"
                 : "border-border bg-muted/20 text-muted-foreground"
@@ -117,7 +118,7 @@ export function CommuneOverrideItem({
             }
             disabled={saving}
             placeholder={`${sp("commune_inherit_placeholder")} (${wilayaDefaults.homePrice})`}
-            className="h-9 w-full rounded-lg border border-input bg-background px-2 text-center text-sm font-bold tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:opacity-50"
+            className="h-9 w-full rounded-lg border border-input bg-card px-2 text-center text-sm font-medium tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:opacity-50"
           />
         </div>
         <div className="space-y-1.5">
@@ -134,7 +135,7 @@ export function CommuneOverrideItem({
               })
             }
             disabled={saving}
-            className={`inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border text-[11px] font-bold transition-colors disabled:opacity-50 ${
+            className={`inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border text-[11px] font-semibold transition-colors disabled:opacity-50 ${
               deskToggle
                 ? "border-primary/20 bg-primary/10 text-primary"
                 : "border-border bg-muted/20 text-muted-foreground"
@@ -161,20 +162,15 @@ export function CommuneOverrideItem({
             }
             disabled={saving}
             placeholder={`${sp("commune_inherit_placeholder")} (${wilayaDefaults.stopDeskPrice})`}
-            className="h-9 w-full rounded-lg border border-input bg-background px-2 text-center text-sm font-bold tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:opacity-50"
+            className="h-9 w-full rounded-lg border border-input bg-card px-2 text-center text-sm font-medium tabular-nums outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:opacity-50"
           />
         </div>
       </div>
 
       <div className="mt-2.5 flex justify-end">
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saving}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-        >
+        <Button type="button" size="sm" onClick={onSave} disabled={saving}>
           {saving ? sp("commune_saving") : sp("commune_save")}
-        </button>
+        </Button>
       </div>
     </article>
   );

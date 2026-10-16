@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Save } from "lucide-react";
 import {
   canScope,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
-import { Button, Alert, PageHeader } from "@/components/ui";
+import { Alert, FormPage } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
@@ -29,7 +28,6 @@ export function ShippingProfileForm({ profileId }: { profileId?: string }) {
   const t = useT("settings");
   const delivery = useT("delivery");
   const auth = useT("auth");
-  const common = useT("common");
   const identity = useIdentity();
   const editing = Boolean(profileId);
   const [name, setName] = useState("");
@@ -193,73 +191,58 @@ export function ShippingProfileForm({ profileId }: { profileId?: string }) {
   if (loading) {
     return (
       <div role="status" aria-busy="true" className="space-y-4">
-        <div className="h-20 animate-pulse rounded-xl bg-muted" />
-        <div className="h-72 animate-pulse rounded-xl bg-muted" />
+        <div className="h-20 shimmer rounded-xl" />
+        <div className="h-72 shimmer rounded-xl" />
       </div>
     );
   }
 
-  const backHref = "/delivery/shipping-profiles";
+  const backHref = profileId ? `/delivery/shipping-profiles/${encodeURIComponent(profileId)}` : "/delivery/shipping-profiles";
 
   return (
-    <div className="space-y-5 pb-24 lg:pb-0">
-      <PageHeader
-        title={
-          editing
-            ? t("shipping.form_save_edit")
-            : t("shipping.form_save_create")
-        }
-        backHref={backHref}
-        backLabel={common("cancel")}
-        actions={
-          <Button type="button" onClick={() => void handleSave()} disabled={busy}>
-            <Save size={16} />
-            {busy ? t("shipping.saving") : t("shipping.save_rates")}
-          </Button>
-        }
-      />
-      {message && (
-        <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
-          <span>{message}</span>
-        </Alert>
-      )}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <ShippingProfileWilayaRatesCard
-          rates={rates}
-          wilayas={filteredWilayas}
-          savedWilayaIds={savedWilayaIds}
-          search={search}
-          onSearchChange={setSearch}
-          showBulkFill={showBulkFill}
-          onToggleBulkFill={() => setShowBulkFill((current) => !current)}
-          bulkHome={bulkHome}
-          onBulkHomeChange={setBulkHome}
-          bulkDesk={bulkDesk}
-          onBulkDeskChange={setBulkDesk}
-          onBulkFill={handleBulkFill}
-          onSetRate={setRate}
-          onSetEnabled={setEnabled}
-          onOpenCommuneDrawer={setCommuneDrawer}
-          editing={editing}
+    <>
+    <FormPage
+      title={editing ? t("shipping.form_title_edit") : t("shipping.form_title_add")}
+      backHref={backHref}
+      error={message}
+      onSave={() => void handleSave()}
+      saving={busy}
+      saveLabel={editing ? t("shipping.form_save_edit") : t("shipping.form_save_create")}
+      aside={
+        <ShippingProfileInfoCard
+          name={name}
+          onNameChange={(val) => {
+            setName(val);
+            if (errors.name) setErrors((current) => ({ ...current, name: "" }));
+          }}
+          notes={notes}
+          onNotesChange={setNotes}
+          isDefault={isDefault}
+          onIsDefaultChange={setIsDefault}
+          errors={errors}
+          busy={busy}
         />
-
-        <div className="space-y-5">
-          <ShippingProfileInfoCard
-            name={name}
-            onNameChange={(val) => {
-              setName(val);
-              if (errors.name) setErrors((current) => ({ ...current, name: "" }));
-            }}
-            notes={notes}
-            onNotesChange={setNotes}
-            isDefault={isDefault}
-            onIsDefaultChange={setIsDefault}
-            errors={errors}
-            busy={busy}
-          />
-        </div>
-      </div>
+      }
+    >
+      <ShippingProfileWilayaRatesCard
+        rates={rates}
+        wilayas={filteredWilayas}
+        savedWilayaIds={savedWilayaIds}
+        search={search}
+        onSearchChange={setSearch}
+        showBulkFill={showBulkFill}
+        onToggleBulkFill={() => setShowBulkFill((current) => !current)}
+        bulkHome={bulkHome}
+        onBulkHomeChange={setBulkHome}
+        bulkDesk={bulkDesk}
+        onBulkDeskChange={setBulkDesk}
+        onBulkFill={handleBulkFill}
+        onSetRate={setRate}
+        onSetEnabled={setEnabled}
+        onOpenCommuneDrawer={setCommuneDrawer}
+        editing={editing}
+      />
+    </FormPage>
 
       {communeDrawer && profileId && (
         <CommuneOverridesDrawer
@@ -274,6 +257,6 @@ export function ShippingProfileForm({ profileId }: { profileId?: string }) {
           }
         />
       )}
-    </div>
+    </>
   );
 }

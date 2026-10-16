@@ -129,8 +129,6 @@
     "notes_label": "Notes",
     "notes_placeholder": "Notes optionnelles...",
     "cancel": "Annuler",
-    "save": "Enregistrer",
-    "saving": "Enregistrement...",
     "success_add": "Livreur ajouté avec succès",
     "success_edit": "Livreur mis à jour avec succès",
     "error_required": "Veuillez remplir tous les champs obligatoires"
@@ -290,7 +288,6 @@
     "commune_save": "Enregistrer"
   },
   "driver_profile": {
-    "subtitle": "Profil et performance du personnel logistique",
     "wilaya_rates": "tarifs wilaya"
   },
   "compensations": {
@@ -379,5 +376,14 @@
     "col_commune": "Commune",
     "col_code": "Code",
     "col_status": "Statut"
-  }
+  },
+  "drivers_count_one": "{count} livreur",
+  "drivers_count_many": "{count} livreurs",
+  "drivers_count_other": "{count} livreurs",
+  "wilaya_count_one": "{count} wilaya",
+  "wilaya_count_many": "{count} wilayas",
+  "wilaya_count_other": "{count} wilayas",
+  "active_count_one": "{count} en cours",
+  "active_count_many": "{count} en cours",
+  "active_count_other": "{count} en cours"
 }

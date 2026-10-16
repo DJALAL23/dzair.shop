@@ -199,18 +199,18 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
             <div
               className={`flex items-start gap-2.5 rounded-xl border p-3 ${
                 emailSent
-                  ? "border-[var(--status-confirmed-border)] bg-[var(--status-confirmed-bg)]"
+                  ? "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)]"
                   : "border-yellow-500/20 bg-yellow-500/5"
               }`}
             >
               {emailSent ? (
-                <MailCheck size={16} className="mt-0.5 shrink-0 text-[var(--status-confirmed-text)]" />
+                <MailCheck size={16} className="mt-0.5 shrink-0 text-[var(--tone-success-text)]" />
               ) : (
                 <MailWarning size={16} className="mt-0.5 shrink-0 text-yellow-600" />
               )}
               <div className="space-y-0.5 text-xs">
                 {emailSent ? (
-                  <p className="font-semibold text-[var(--status-confirmed-text)]">
+                  <p className="font-semibold text-[var(--tone-success-text)]">
                     {t("invite_dialog_extra.email_sent")}
                   </p>
                 ) : (
@@ -280,7 +280,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
         </>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Field label={`${t("invite_dialog.name")} *`}>
+          <Field label={t("invite_dialog.name")}>
             <Input
               value={form.name}
               onChange={(event) => update("name", event.currentTarget.value)}
@@ -289,7 +289,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
               disabled={loading}
             />
           </Field>
-          <Field label={`${t("invite_dialog.email")} *`}>
+          <Field label={t("invite_dialog.email")}>
             <Input
               type="email"
               value={form.email}
@@ -300,7 +300,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
               dir="ltr"
             />
           </Field>
-          <Field label={`${t("invite_dialog.role")} *`}>
+          <Field label={t("invite_dialog.role")}>
             <Select
               value={form.role}
               onChange={(event) => {
@@ -401,7 +401,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
                                   <span className="block truncate text-sm font-medium text-foreground/90">
                                     {t(`scope_actions.${action}`)}
                                   </span>
-                                  <span className="block truncate text-[10px] font-mono uppercase text-muted-foreground/50" dir="ltr">
+                                  <span className="block truncate text-[11px] font-mono text-muted-foreground/50" dir="ltr">
                                     {scope}
                                   </span>
                                 </span>

@@ -21,7 +21,7 @@ export function DriverShipmentsCard({ shipments }: { shipments: DriverShipment[]
               <p className="truncate text-xs text-muted-foreground">{shipment.customerName}</p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold tabular-nums">{formatDeliveryMoney(shipment.codAmount, locale)}</span>
+              <span className="text-sm font-medium tabular-nums">{formatDeliveryMoney(shipment.codAmount, locale)}</span>
               <StageBadge stage={shipment.stage} />
             </div>
           </div>

@@ -12,7 +12,6 @@ import { RequireAuth, canScope, useIdentity } from "@/features/auth/components/R
 import { DashboardChrome } from "@/components/layout/chrome";
 import {
   Alert,
-  Badge,
   Button,
   Card,
   Field,
@@ -90,7 +89,6 @@ function WhatsAppWidgetContent() {
   if (loadError) {
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("load_failed")}</p>
           <button
@@ -193,7 +191,7 @@ function WhatsAppWidgetContent() {
     <div className="space-y-6">
       <PageHeader title={t("page_title")} subtitle={t("page_subtitle")} />
 
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="space-y-6">
         <Alert tone="info">
           <p className="text-xs">{t("cache_notice")}</p>
         </Alert>
@@ -266,7 +264,7 @@ function WhatsAppWidgetContent() {
             <div className="space-y-4">
               {/* Avatar Upload */}
               <div className="space-y-2">
-                <span className="block text-[13px] font-semibold tracking-tight text-foreground select-none">
+                <span className="block text-sm font-semibold tracking-tight text-foreground select-none">
                   {t("avatar_label")}
                 </span>
                 <div className="flex items-center gap-4">
@@ -394,7 +392,7 @@ function WhatsAppWidgetContent() {
                 />
               </Field>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {/* Launcher Button Label */}
                 <Field
                   label={
@@ -463,7 +461,7 @@ function WhatsAppWidgetContent() {
                       type="button"
                       disabled={!canManage}
                       onClick={() => insertToken("prefillGeneral", token)}
-                      className="inline-flex items-center rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-foreground hover:bg-muted transition-colors"
+                      className="inline-flex items-center rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-foreground hover:bg-muted transition-colors"
                     >
                       {`{${token}}`}
                     </button>
@@ -498,7 +496,7 @@ function WhatsAppWidgetContent() {
                       type="button"
                       disabled={!canManage}
                       onClick={() => insertToken("prefillProduct", token)}
-                      className="inline-flex items-center rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-foreground hover:bg-muted transition-colors"
+                      className="inline-flex items-center rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-foreground hover:bg-muted transition-colors"
                     >
                       {`{${token}}`}
                     </button>
@@ -558,7 +556,7 @@ function WhatsAppWidgetContent() {
                       type="button"
                       disabled={!canManage}
                       onClick={() => insertToken("prefillThankYou", token)}
-                      className="inline-flex items-center rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-foreground hover:bg-muted transition-colors"
+                      className="inline-flex items-center rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-foreground hover:bg-muted transition-colors"
                     >
                       {`{${token}}`}
                     </button>
@@ -573,7 +571,6 @@ function WhatsAppWidgetContent() {
             <div className="space-y-3">
               {allSurfacesOff && (
                 <Alert tone="warning">
-                  <AlertCircle size={15} className="shrink-0" />
                   <p className="text-xs">{t("surfaces_all_off_warning")}</p>
                 </Alert>
               )}
@@ -619,7 +616,7 @@ function WhatsAppWidgetContent() {
             <div className="space-y-4">
               {/* Accent selection */}
               <div>
-                <span className="block text-[13px] font-semibold tracking-tight text-foreground select-none mb-2">
+                <span className="block text-sm font-semibold tracking-tight text-foreground select-none mb-2">
                   {t("accent_label")}
                 </span>
                 <div className="grid grid-cols-2 gap-3">
@@ -636,7 +633,7 @@ function WhatsAppWidgetContent() {
                     <span className="size-4 rounded-full bg-[#25D366] shrink-0" />
                     <div>
                       <p className="text-xs font-semibold text-foreground">{t("accent_whatsapp")}</p>
-                      <p className="text-[10px] text-muted-foreground">#25D366</p>
+                      <p className="text-[11px] text-muted-foreground">#25D366</p>
                     </div>
                   </button>
 
@@ -653,7 +650,7 @@ function WhatsAppWidgetContent() {
                     <span className="size-4 rounded-full bg-primary shrink-0" />
                     <div>
                       <p className="text-xs font-semibold text-foreground">{t("accent_primary")}</p>
-                      <p className="text-[10px] text-muted-foreground">Brand theme</p>
+                      <p className="text-[11px] text-muted-foreground">Brand theme</p>
                     </div>
                   </button>
                 </div>
@@ -661,7 +658,7 @@ function WhatsAppWidgetContent() {
 
               {/* Position selection */}
               <div>
-                <span className="block text-[13px] font-semibold tracking-tight text-foreground select-none mb-2">
+                <span className="block text-sm font-semibold tracking-tight text-foreground select-none mb-2">
                   {t("position_label")}
                 </span>
                 <div className="grid grid-cols-2 gap-3">
@@ -781,7 +778,7 @@ function WhatsAppWidgetContent() {
 export default function WhatsAppWidgetApp() {
   return (
     <RequireAuth>
-      <DashboardChrome currentPath="/whatsapp" wide>
+      <DashboardChrome narrow currentPath="/whatsapp">
         <WhatsAppWidgetContent />
       </DashboardChrome>
     </RequireAuth>

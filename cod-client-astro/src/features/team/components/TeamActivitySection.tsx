@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
-  AlertCircle,
   Clock,
   RefreshCw,
 } from "lucide-react";
@@ -52,7 +51,7 @@ export function ActivityRow({
             {config.icon}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-foreground">
+            <p className="truncate text-sm font-semibold text-foreground">
               {activityActionLabel(log.action, t)}
             </p>
             {log.entityLabel && (
@@ -64,7 +63,7 @@ export function ActivityRow({
         </div>
       </TableCell>
       <TableCell>
-        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${config.bgColor} ${config.color}`}>
+        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold ${config.bgColor} ${config.color}`}>
           {activityEntityLabel(log.entityType, t)}
         </span>
       </TableCell>
@@ -72,7 +71,7 @@ export function ActivityRow({
         <MetadataHint action={log.action} meta={meta} locale={locale} />
       </TableCell>
       <TableCell>
-        <span className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground">
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
           <Clock size={11} className="text-primary/40" />
           {formatRelativeTime(log.createdAt, locale)}
         </span>
@@ -101,10 +100,10 @@ export function ActivityMobileCard({
   return (
     <article className="border-b border-border p-4 last:border-0">
       <div className="flex items-center justify-between gap-2">
-        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${config.bgColor} ${config.color}`}>
+        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold ${config.bgColor} ${config.color}`}>
           {activityEntityLabel(log.entityType, t)}
         </span>
-        <span className="whitespace-nowrap text-[10px] font-bold text-muted-foreground/50">
+        <span className="whitespace-nowrap text-[11px] font-semibold text-muted-foreground/50">
           {formatRelativeTime(log.createdAt, locale)}
         </span>
       </div>
@@ -113,7 +112,7 @@ export function ActivityMobileCard({
           {config.icon}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-bold text-foreground">
+          <p className="text-base font-semibold text-foreground">
             {activityActionLabel(log.action, t)}
           </p>
           {log.entityLabel && (
@@ -133,7 +132,7 @@ export function ActivityMobileCard({
           </span>
         </div>
       ) : null}
-      <div className="mt-2.5 flex items-center gap-1.5 border-t border-border pt-2 text-[10px] text-muted-foreground/40">
+      <div className="mt-2.5 flex items-center gap-1.5 border-t border-border pt-2 text-[11px] text-muted-foreground/40">
         <Clock size={10} className="shrink-0" />
         <span dir="ltr">{log.createdAt}</span>
       </div>
@@ -195,7 +194,6 @@ export function TeamActivitySection({ memberId }: { memberId: string }) {
   if (loadError)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button
@@ -210,7 +208,7 @@ export function TeamActivitySection({ memberId }: { memberId: string }) {
     );
   if (logs === null)
     return (
-      <div role="status" aria-busy="true" className="h-64 animate-pulse rounded-xl bg-muted" />
+      <div role="status" aria-busy="true" className="h-64 shimmer rounded-xl" />
     );
 
   return (
@@ -242,7 +240,7 @@ export function TeamActivitySection({ memberId }: { memberId: string }) {
             value={search}
             onChange={(event) => setSearch(event.currentTarget.value)}
             placeholder={t("activity_log.search_placeholder")}
-            className="h-10 w-full rounded-lg border border-input bg-background ps-3 pe-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="h-10 w-full rounded-lg border border-input bg-card ps-3 pe-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
         </label>
       </div>

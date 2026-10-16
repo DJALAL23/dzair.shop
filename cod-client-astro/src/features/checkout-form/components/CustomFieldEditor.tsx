@@ -46,10 +46,10 @@ export function CustomFieldEditor({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-xs">
+    <div className="overflow-hidden rounded-xl bg-card shadow-card">
       <header className="flex items-center justify-between gap-2 border-b border-border/70 bg-muted/30 px-3 py-2">
         <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-          <span className="flex size-5 items-center justify-center rounded-md bg-card text-[11px] font-bold text-foreground shadow-xs ring-1 ring-border/60">
+          <span className="flex size-5 items-center justify-center rounded-md bg-card text-[11px] font-semibold text-foreground shadow-xs ring-1 ring-border/60">
             {index + 1}
           </span>
           {t("custom.question_n", { n: index + 1 })}
@@ -129,7 +129,7 @@ export function CustomFieldEditor({
 
         {field.type === "select" && (
           <div className="space-y-2 rounded-lg border border-dashed border-border/80 bg-muted/20 p-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="text-[11px] font-semibold text-muted-foreground">
               {t("custom.options")}
             </span>
             {options.map((option, optionIndex) => (

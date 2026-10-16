@@ -48,11 +48,11 @@ function Loading() {
   return (
     <div role="status" aria-busy="true" className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="h-24 animate-pulse rounded-xl bg-muted" />
-        <div className="h-24 animate-pulse rounded-xl bg-muted" />
-        <div className="h-24 animate-pulse rounded-xl bg-muted" />
+        <div className="h-24 shimmer rounded-xl" />
+        <div className="h-24 shimmer rounded-xl" />
+        <div className="h-24 shimmer rounded-xl" />
       </div>
-      <div className="h-96 animate-pulse rounded-xl bg-muted" />
+      <div className="h-96 shimmer rounded-xl" />
     </div>
   );
 }
@@ -171,7 +171,6 @@ export function CompanyStopDesksDetail({ providerCode }: { providerCode: string 
   if (loadError) {
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button
@@ -242,25 +241,25 @@ export function CompanyStopDesksDetail({ providerCode }: { providerCode: string 
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center gap-3 rounded-xl bg-card p-4 shadow-card">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
             <MapPin size={17} aria-hidden="true" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-bold text-foreground">
+            <span className="block truncate text-sm font-semibold text-foreground">
               {t("stop_desks_title")}
             </span>
-            <span className="block truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            <span className="block truncate text-[11px] font-semibold text-muted-foreground/60">
               {company.name}
             </span>
           </span>
         </div>
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between rounded-xl bg-card p-4 shadow-card">
           <span className="min-w-0">
-            <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            <span className="block text-[11px] font-semibold text-muted-foreground/60">
               {t("stop_desks_active")}
             </span>
-            <span className="mt-1 block text-2xl font-bold tabular-nums text-violet-600">
+            <span className="mt-1 block text-2xl font-semibold tabular-nums text-violet-600">
               {loading ? "—" : activeCount}
             </span>
           </span>
@@ -268,12 +267,12 @@ export function CompanyStopDesksDetail({ providerCode }: { providerCode: string 
             <ToggleRight size={17} aria-hidden="true" />
           </span>
         </div>
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between rounded-xl bg-card p-4 shadow-card">
           <span className="min-w-0">
-            <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            <span className="block text-[11px] font-semibold text-muted-foreground/60">
               {t("stop_desks_total")}
             </span>
-            <span className="mt-1 block text-2xl font-bold tabular-nums text-foreground">
+            <span className="mt-1 block text-2xl font-semibold tabular-nums text-foreground">
               {loading ? "—" : desks.length}
             </span>
           </span>

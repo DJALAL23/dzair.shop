@@ -15,8 +15,8 @@ import {
 } from "@/features/delivery/api";
 import type { DeliveryCompany } from "@/features/delivery/types";
 import { getProviderConfig } from "@/features/delivery/types";
-import { Alert, PageHeader } from "@/components/ui";
-import { CompanyHeroCard } from "@/features/delivery/components/CompanyHeroCard";
+import { Alert, Badge, LinkButton, PageHeader } from "@/components/ui";
+import { ExternalLink, Settings } from "lucide-react";
 import { CompanySettingsSection } from "@/features/delivery/components/CompanySettingsSection";
 import { CompanyWebhookEventsCard } from "@/features/delivery/components/CompanyWebhookEventsCard";
 import { notify } from "@/lib/notify";
@@ -24,11 +24,11 @@ import { notify } from "@/lib/notify";
 function Loading() {
   return (
     <div role="status" aria-busy="true" className="space-y-4">
-      <div className="h-20 animate-pulse rounded-xl bg-muted" />
-      <div className="h-32 animate-pulse rounded-xl bg-muted" />
+      <div className="h-20 shimmer rounded-xl" />
+      <div className="h-32 shimmer rounded-xl" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="h-24 animate-pulse rounded-xl bg-muted lg:col-span-2" />
-        <div className="h-24 animate-pulse rounded-xl bg-muted" />
+        <div className="h-24 shimmer rounded-xl lg:col-span-2" />
+        <div className="h-24 shimmer rounded-xl" />
       </div>
     </div>
   );
@@ -204,7 +204,6 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
   if (loadError) {
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button
@@ -232,17 +231,38 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
       )}
 
       <PageHeader
-        title={t("profile_title")}
-        subtitle={config.name}
+        title={config.name}
         backHref="/delivery/companies"
-        backLabel={common("cancel")}
-      />
-
-      <CompanyHeroCard
-        config={config}
-        company={company}
-        providerCode={providerCode}
-        canManage={canManage}
+        backLabel={t("page_title")}
+        media={
+          <span
+            className={`grid size-12 place-items-center rounded-lg text-lg font-semibold ${company?.isConnected ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}
+          >
+            {config.name.charAt(0)}
+          </span>
+        }
+        badges={
+          company?.isConnected ? <Badge tone="success" dot>{t("connected")}</Badge> : <Badge tone="neutral">{t("not_connected")}</Badge>
+        }
+        subtitle={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+            <a href={config.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
+              {new URL(config.website).hostname}
+              <ExternalLink size={11} aria-hidden="true" />
+            </a>
+            {config.supportsHomeDelivery && <span>{t("capability_home")}</span>}
+            {config.supportsStopDesk && <span>{t("capability_desk")}</span>}
+            <span>{t(config.updates === "webhook" ? "updates_live" : "updates_checked")}</span>
+          </span>
+        }
+        actions={
+          canManage ? (
+            <LinkButton href={`/delivery/companies/${providerCode}/credentials`} variant={company?.isConnected ? "secondary" : "primary"}>
+              <Settings size={15} aria-hidden="true" />
+              {company?.isConnected ? t("configure") : t("connect")}
+            </LinkButton>
+          ) : undefined
+        }
       />
 
       <CompanySettingsSection
