@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
-import { Check, ChevronDown, ChevronUp, Copy, KeyRound, MailCheck, MailWarning, UserPlus } from "lucide-react";
-import { Button, Dialog, Field, Input, Select } from "@/components/ui";
+import { Check, ChevronDown, ChevronUp, Copy, MailCheck, UserPlus } from "lucide-react";
+import { Alert, Button, Dialog, Field, Input, Select } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPE_CATEGORIES } from "../../../../../cod-shared/rbac/scopes";
@@ -15,6 +15,8 @@ interface Props {
 }
 
 type DialogState = "form" | "success";
+
+const FORM_ID = "invite-member-form";
 
 const EMPTY_FORM: TeamMemberFormValues = {
   name: "",
@@ -67,6 +69,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
   const [form, setForm] = useState<TeamMemberFormValues>(EMPTY_FORM);
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = form.role === "admin";
 
@@ -165,123 +168,90 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
     }
   }
 
+  const succeeded = dialogState === "success";
+
   return (
     <Dialog
       open={open}
-      onClose={() => {
-        if (!loading) onClose();
-      }}
-      title={
-        <span className="inline-flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
-            <UserPlus size={16} />
-          </span>
-          <span>
-            {dialogState === "success"
-              ? t("invite_dialog_extra.success_title")
-              : t("invite_dialog.title")}
-            <span className="ms-2 text-xs font-medium text-muted-foreground">
-              {dialogState === "success" ? createdName : t("invite_dialog_extra.success_subtitle")}
-            </span>
-          </span>
-        </span>
-      }
-      className="max-w-lg"
-      showClose={!loading}
-    >
-      {error && (
-        <p className="mb-4 text-sm font-semibold text-destructive">{error}</p>
-      )}
-
-      {dialogState === "success" ? (
-        <>
-          <div className="space-y-4">
-            <div
-              className={`flex items-start gap-2.5 rounded-xl border p-3 ${
-                emailSent
-                  ? "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)]"
-                  : "border-tone-warning-border bg-tone-warning-bg"
-              }`}
-            >
-              {emailSent ? (
-                <MailCheck size={16} className="mt-0.5 shrink-0 text-[var(--tone-success-text)]" />
-              ) : (
-                <MailWarning size={16} className="mt-0.5 shrink-0 text-tone-warning-text" />
-              )}
-              <div className="space-y-0.5 text-xs">
-                {emailSent ? (
-                  <p className="font-semibold text-[var(--tone-success-text)]">
-                    {t("invite_dialog_extra.email_sent")}
-                  </p>
-                ) : (
-                  <p className="font-semibold text-foreground">
-                    {emailError
-                      ? t("invite_dialog_extra.email_failed")
-                      : t("invite_dialog_extra.email_not_configured")}
-                  </p>
-                )}
-                <p className="text-muted-foreground" dir="ltr">
-                  {createdEmail}
-                </p>
-                {!emailSent && (
-                  <p className="font-semibold text-tone-warning-text">
-                    {t("invite_dialog_extra.email_share_manually")}
-                  </p>
-                )}
-              </div>
-            </div>
-            <Field label={t("invite_dialog_extra.api_key_label")}>
-              <div className="flex items-center gap-2">
-                <Input value={createdApiKey} readOnly dir="ltr" className="font-mono" />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => void copyText(createdApiKey, setCopied, t("api_key_copied"))}
-                  aria-label={t("api_key_copied")}
-                >
-                  {copied ? <Check size={15} className="text-tone-success-text" /> : <Copy size={15} />}
-                </Button>
-              </div>
-            </Field>
-            <Field label={t("invite_dialog_extra.temp_password_label")}>
-              <div className="flex items-center gap-2">
-                <Input value={createdTempPassword} readOnly dir="ltr" className="font-mono" />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() =>
-                    void copyText(
-                      createdTempPassword,
-                      setCopiedPassword,
-                      common("feedback.copied"),
-                    )
-                  }
-                  aria-label={t("api_key_copied")}
-                >
-                  {copiedPassword ? <Check size={15} className="text-tone-success-text" /> : <Copy size={15} />}
-                </Button>
-              </div>
-            </Field>
-            <div className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/5 p-3">
-              <KeyRound size={16} className="mt-0.5 shrink-0 text-destructive" />
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <p className="font-semibold">{t("invite_dialog_extra.api_key_warning")}</p>
-                <p className="font-semibold text-tone-warning-text">
-                  {t("invite_dialog_extra.temp_password_warning")}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="mt-6">
-            <Button type="button" className="w-full" onClick={handleDone}>
-              {t("rotate_key_dialog.done")}
+      onClose={onClose}
+      preventClose={loading}
+      icon={succeeded ? <MailCheck size={18} aria-hidden="true" /> : <UserPlus size={18} aria-hidden="true" />}
+      title={succeeded ? t("invite_dialog_extra.success_title") : t("invite_dialog.title")}
+      description={succeeded ? createdName : t("invite_dialog.description")}
+      initialFocusRef={nameRef}
+      footer={
+        succeeded ? (
+          <Button type="button" onClick={handleDone}>
+            {t("rotate_key_dialog.done")}
+          </Button>
+        ) : (
+          <>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+              {t("invite_dialog.cancel")}
             </Button>
-          </div>
-        </>
+            <Button type="submit" form={FORM_ID} disabled={loading}>
+              {loading ? t("invite_dialog.sending") : t("invite_dialog.send_invite")}
+            </Button>
+          </>
+        )
+      }
+    >
+      {succeeded ? (
+        <div className="space-y-4">
+          <Alert tone={emailSent ? "success" : "warning"} role="status">
+            <p className="font-semibold">
+              {emailSent
+                ? t("invite_dialog_extra.email_sent")
+                : emailError
+                  ? t("invite_dialog_extra.email_failed")
+                  : t("invite_dialog_extra.email_not_configured")}
+            </p>
+            <p className="mt-0.5 text-xs opacity-80" dir="ltr">
+              {createdEmail}
+            </p>
+            {!emailSent && <p className="mt-1 text-xs font-semibold">{t("invite_dialog_extra.email_share_manually")}</p>}
+          </Alert>
+          <Field label={t("invite_dialog_extra.api_key_label")}>
+            <div className="flex items-center gap-2">
+              <Input value={createdApiKey} readOnly dir="ltr" className="font-mono" />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void copyText(createdApiKey, setCopied, t("api_key_copied"))}
+                aria-label={t("api_key_copied")}
+              >
+                {copied ? <Check size={15} className="text-tone-success-text" /> : <Copy size={15} />}
+              </Button>
+            </div>
+          </Field>
+          <Field label={t("invite_dialog_extra.temp_password_label")}>
+            <div className="flex items-center gap-2">
+              <Input value={createdTempPassword} readOnly dir="ltr" className="font-mono" />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void copyText(createdTempPassword, setCopiedPassword, common("feedback.copied"))}
+                aria-label={t("invite_dialog_extra.temp_password_label")}
+              >
+                {copiedPassword ? <Check size={15} className="text-tone-success-text" /> : <Copy size={15} />}
+              </Button>
+            </div>
+          </Field>
+          <Alert tone="warning">
+            <p className="font-semibold">{t("invite_dialog_extra.api_key_warning")}</p>
+            <p className="mt-1 text-xs">{t("invite_dialog_extra.temp_password_warning")}</p>
+          </Alert>
+        </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <Alert tone="critical" role="alert">
+              {error}
+            </Alert>
+          )}
           <Field label={t("invite_dialog.name")}>
             <Input
+              ref={nameRef}
               value={form.name}
               onChange={(event) => update("name", event.currentTarget.value)}
               placeholder={t("invite_dialog.name_placeholder")}
@@ -300,45 +270,39 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
               dir="ltr"
             />
           </Field>
-          <Field label={t("invite_dialog.role")}>
-            <Select
-              value={form.role}
-              onChange={(event) => {
-                update("role", event.currentTarget.value as TeamRole);
-                if (event.currentTarget.value === "admin") update("scopes", []);
-              }}
-              disabled={loading}
-            >
-              <option value="staff">{common("roles.staff")}</option>
-              <option value="admin">{common("roles.admin")}</option>
-            </Select>
-          </Field>
-
-          <Field label={t("invite_dialog_extra.email_language_label")}>
-            <Select
-              value={form.language}
-              onChange={(event) => update("language", event.currentTarget.value as "ar" | "en")}
-              disabled={loading}
-            >
-              <option value="en">English</option>
-              <option value="ar">العربية</option>
-            </Select>
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t("invite_dialog.role")} help={t("invite_dialog.role_help")}>
+              <Select
+                value={form.role}
+                onChange={(event) => {
+                  update("role", event.currentTarget.value as TeamRole);
+                  if (event.currentTarget.value === "admin") update("scopes", []);
+                }}
+                disabled={loading}
+              >
+                <option value="staff">{common("roles.staff")}</option>
+                <option value="admin">{common("roles.admin")}</option>
+              </Select>
+            </Field>
+            <Field label={t("invite_dialog_extra.email_language_label")} help={t("invite_dialog.language_help")}>
+              <Select
+                value={form.language}
+                onChange={(event) => update("language", event.currentTarget.value as "ar" | "en")}
+                disabled={loading}
+              >
+                <option value="en">English</option>
+                <option value="ar">العربية</option>
+              </Select>
+            </Field>
+          </div>
 
           {isAdmin ? (
-            <div className="flex items-start gap-2.5 rounded-xl border border-tone-warning-border bg-tone-warning-bg p-3">
-              <KeyRound size={16} className="mt-0.5 shrink-0 text-tone-warning-text" />
-              <p className="text-xs text-muted-foreground">
-                {t("invite_dialog_extra.admin_full_access")}
-              </p>
-            </div>
+            <Alert tone="info">{t("invite_dialog_extra.admin_full_access")}</Alert>
           ) : (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground">
-                  {t("invite_dialog_extra.permissions_label")}
-                </p>
-                <span className="text-xs font-semibold text-primary">
+                <p className="text-sm font-medium text-foreground">{t("invite_dialog_extra.permissions_label")}</p>
+                <span className="text-xs font-semibold text-muted-foreground">
                   {t("invite_dialog_extra.n_selected", { count: form.scopes.length })}
                 </span>
               </div>
@@ -416,20 +380,6 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
               </div>
             </div>
           )}
-
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              disabled={loading}
-            >
-              {t("invite_dialog.cancel")}
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? t("invite_dialog.sending") : t("invite_dialog.send_invite")}
-            </Button>
-          </div>
         </form>
       )}
     </Dialog>

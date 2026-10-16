@@ -66,7 +66,10 @@
     "sending": "Sending...",
     "success": "Invite sent successfully",
     "error": "Failed to send invite",
-    "validation_error": "Please fill in all required fields"
+    "validation_error": "Please fill in all required fields",
+    "description": "Onboard new team member",
+    "role_help": "Admins can do everything. Staff get only the permissions you tick below.",
+    "language_help": "The language of the invitation email. It does not change the dashboard language."
   },
   "view_activity": "View activity",
   "activity_log": {
@@ -184,7 +187,6 @@
     "api_key_warning": "This API key will not be shown again. Copy it now and share it securely with the team member.",
     "temp_password_warning": "Share the temporary password with the user so they can sign in for the first time.",
     "success_title": "Member added",
-    "success_subtitle": "Onboard new team member",
     "email_sent": "Invitation email sent successfully.",
     "email_failed": "The invite email could not be sent.",
     "email_not_configured": "Email sending is not configured.",

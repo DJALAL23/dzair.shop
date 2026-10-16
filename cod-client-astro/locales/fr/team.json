@@ -66,7 +66,10 @@
     "sending": "Envoi en cours...",
     "success": "Invitation envoyée avec succès",
     "error": "Échec de l'envoi de l'invitation",
-    "validation_error": "Veuillez remplir tous les champs obligatoires"
+    "validation_error": "Veuillez remplir tous les champs obligatoires",
+    "description": "Intégration d'un nouveau membre",
+    "role_help": "Un administrateur peut tout faire. Un employé n’a que les permissions cochées ci-dessous.",
+    "language_help": "La langue de l’e-mail d’invitation. Elle ne change pas la langue du tableau de bord."
   },
   "view_activity": "Voir l'activité",
   "activity_log": {
@@ -185,7 +188,6 @@
     "api_key_warning": "Cette clé API ne sera plus affichée. Copiez-la maintenant et partagez-la de manière sécurisée avec le membre.",
     "temp_password_warning": "Partagez le mot de passe temporaire avec l'utilisateur pour qu'il puisse se connecter pour la première fois.",
     "success_title": "Membre ajouté",
-    "success_subtitle": "Intégration d'un nouveau membre",
     "email_sent": "E-mail d'invitation envoyé avec succès.",
     "email_failed": "L'e-mail d'invitation n'a pas pu être envoyé.",
     "email_not_configured": "L'envoi d'e-mails n'est pas configuré.",
