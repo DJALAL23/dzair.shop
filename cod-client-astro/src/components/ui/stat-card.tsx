@@ -55,10 +55,13 @@ const GROUP_COLUMNS: Record<number, string> = {
 };
 
 /** Stat cards joined into one strip, one column per card, like the numbers on Home. */
-export function StatGroup({ columns, children, className = "" }: { columns: 1 | 2 | 3 | 4; children: ReactNode; className?: string }) {
+const COMPACT =
+  "grid-cols-3 [&>section]:p-3 sm:[&>section]:p-4 [&_section>p:first-child]:text-xs sm:[&_section>p:first-child]:text-sm [&_section>p:nth-child(2)]:mt-1.5 [&_section>p:nth-child(2)]:text-lg sm:[&_section>p:nth-child(2)]:text-2xl";
+
+export function StatGroup({ columns, compact = false, children, className = "" }: { columns: 1 | 2 | 3 | 4; compact?: boolean; children: ReactNode; className?: string }) {
   return (
     <div
-      className={`grid gap-px overflow-hidden rounded-xl bg-border shadow-card [&>*]:min-w-0 [&>a>section]:h-full [&>a>section]:rounded-none [&>a>section]:shadow-none [&>section]:rounded-none [&>section]:shadow-none ${GROUP_COLUMNS[columns]} ${className}`}
+      className={`grid gap-px overflow-hidden rounded-xl bg-border shadow-card [&>*]:min-w-0 [&>a>section]:h-full [&>a>section]:rounded-none [&>a>section]:shadow-none [&>section]:rounded-none [&>section]:shadow-none ${compact ? COMPACT : GROUP_COLUMNS[columns]} ${className}`}
     >
       {children}
     </div>

@@ -110,19 +110,52 @@ export function ProductVariantsTableCard({
   const t = useT("products");
   const locale = useLocale();
 
-  if (variants.length === 0) {
-    return (
-      <Card>
-        <p className="py-6 text-center text-xs font-semibold text-muted-foreground/40">
-          {t("empty_state.title")}
-        </p>
-      </Card>
-    );
-  }
+  if (variants.length === 0) return null;
 
   return (
     <Card title={`${t("table.variants")} (${variants.length})`}>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <ul className="divide-y divide-border sm:hidden">
+        {variants.map((variant) => (
+          <li key={variant.id} className="space-y-3 py-3 first:pt-0 last:pb-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">{variantLabel(variant.variations)}</p>
+                {variant.sku && <p className="mt-0.5 truncate text-xs text-muted-foreground">{variant.sku}</p>}
+              </div>
+              <Badge tone={variant.active ? "success" : "neutral"}>
+                {variant.active ? t("status_options.active") : t("status_options.draft")}
+              </Badge>
+            </div>
+            <dl className="grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <dt className="text-muted-foreground">{t("table.price")}</dt>
+                <dd className="mt-1 text-sm font-medium tabular-nums">{formatMoneyValue(variant.price, locale)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">{t("stock.in_stock")}</dt>
+                <dd className="mt-1 flex items-center gap-1.5">
+                  <span className="text-sm font-medium tabular-nums">{variant.inventory}</span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenHistory(variant.id, variantLabel(variant.variations))}
+                    className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground"
+                    aria-label={t("actions.stock_history")}
+                  >
+                    <History size={14} />
+                  </button>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">{t("stock_overview.col_threshold")}</dt>
+                <dd className="mt-1">
+                  <ThresholdEditor productId={productId} variantId={variant.id} initial={variant.lowStockThreshold ?? 5} />
+                </dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-lg border border-border sm:block">
         <Table>
           <TableHeader>
             <TableRow>

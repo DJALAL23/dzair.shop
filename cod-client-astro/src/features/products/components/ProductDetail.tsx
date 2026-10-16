@@ -41,6 +41,7 @@ import type {
 } from "@/features/products/types";
 import { StockHistoryDrawer } from "@/features/products/components/StockHistoryDrawer";
 import { ProductVariantsTableCard } from "@/features/products/components/ProductVariantsTableCard";
+import { ProductMobileActionBar } from "@/features/products/components/ProductMobileActionBar";
 import { ProductImagesCard } from "@/features/products/components/ProductImagesCard";
 import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 
@@ -162,7 +163,7 @@ export function ProductDetail({ productId }: { productId: string }) {
         backLabel={t("page_title")}
         actions={
           canManage ? (
-            <div className="flex gap-2">
+            <div className="hidden gap-2 lg:flex">
               <LinkButton
                 href={`/products/${encodeURIComponent(product.id)}/edit`}
                 variant="secondary"
@@ -195,7 +196,7 @@ export function ProductDetail({ productId }: { productId: string }) {
         </Alert>
       )}
       <div className="flex items-start gap-2">
-      <StatGroup columns={3} className="flex-1">
+      <StatGroup columns={3} compact className="flex-1">
         <StatCard
           label={t("table.price")}
           value={formatMoneyValue(product.price, locale)}
@@ -212,7 +213,7 @@ export function ProductDetail({ productId }: { productId: string }) {
           icon={<Package size={20} />}
         />
       </StatGroup>
-        <div className="flex items-center justify-end gap-2">
+        <div className="hidden items-center justify-end gap-2 lg:flex">
           <IconButton
             type="button"
             aria-label={t("actions.stock_history")}
@@ -245,6 +246,13 @@ export function ProductDetail({ productId }: { productId: string }) {
         resource="product"
         id={product.id}
         canEdit={canScope(identity, SCOPES.PRODUCTS_UPDATE)}
+      />
+
+      <ProductMobileActionBar
+        editHref={`/products/${encodeURIComponent(product.id)}/edit`}
+        canManage={canManage}
+        onHistory={() => setHistory({ open: true })}
+        onDelete={() => void removeProduct(product)}
       />
 
       <StockHistoryDrawer
