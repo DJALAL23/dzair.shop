@@ -228,6 +228,19 @@ describe("place names", () => {
   });
 });
 
+describe("place names — deactivated communes", () => {
+  it("does not offer a commune the company has deactivated: EcoTrack refuses it", async () => {
+    server.override("/api/v1/get/communes", () =>
+      Response.json({
+        0: { nom: "Alger Centre", wilaya_id: 16, code_postal: "1601", has_stop_desk: 0, is_active: 1 },
+        1: { nom: "Sleeping", wilaya_id: 16, code_postal: "1699", has_stop_desk: 0, is_active: 0 },
+      }),
+    );
+    const names = await carrier().geoNames!();
+    expect(names.communes.map((c) => c.name)).toEqual(["Alger Centre"]);
+  });
+});
+
 describe("failures", () => {
   it("the rate limit is rate_limited", async () => {
     server.override("/api/v1/create/order", () => new Response(JSON.stringify({ message: "Too Many Attempts." }), { status: 429 }));

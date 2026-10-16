@@ -249,6 +249,8 @@ export interface EcotrackCommune {
   /** Used as the stop-desk station code when creating stop-desk orders */
   code_postal: string;
   has_stop_desk: 0 | 1;
+  /** 0 when the company has switched the commune off — it then refuses parcels to it. */
+  is_active?: 0 | 1;
 }
 
 /** The full /api/v1/get/communes response — object keyed by index string */

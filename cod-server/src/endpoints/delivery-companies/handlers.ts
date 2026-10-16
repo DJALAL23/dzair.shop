@@ -74,6 +74,28 @@ async function assertCredentialsAccepted(company: CarrierCompany, context: { cod
   });
 }
 
+
+/**
+ * The carrier's own spellings of our wilayas and communes, so a parcel is
+ * addressed the way the carrier checks it. Runs as part of connecting — the
+ * merchant has nothing to map — and never blocks it: without a map the
+ * reference names are sent, as before.
+ */
+async function mapCarrierPlaces(db: ReturnType<typeof getDb>, company: CarrierCompany & { code: string }): Promise<void> {
+  if (!company.apiToken?.trim()) return;
+  if (!providerCapabilities(company.provider, parseSettings(company.providerConfig))?.geoNames) return;
+  try {
+    const names = await buildCarrier(company).geoNames!();
+    const result = await syncCarrierGeoNames(db, company.code, names);
+    console.info(
+      `[delivery-companies] place names code=${company.code} ` +
+        `communes=${result.communesMatched}/${result.communesMatched + result.communesUnmapped}`,
+    );
+  } catch (error) {
+    console.warn(`[delivery-companies] place names skipped for ${company.code}:`, error instanceof Error ? error.message : error);
+  }
+}
+
 function parseSettings(text: string | null): unknown {
   try {
     return text ? JSON.parse(text) : undefined;
@@ -121,6 +143,9 @@ export async function createDeliveryCompany(c: Context<AppContext>) {
   if (!company) {
     throw new BusinessLogicError("Failed to create delivery company", ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
+  if (parsed.active) {
+    await mapCarrierPlaces(db, { provider, providerConfig, apiToken: parsed.apiToken ?? null, apiUserGuid: parsed.apiUserGuid ?? null, apiEndpoint: parsed.apiEndpoint ?? null, code: parsed.code });
+  }
   console.info(`[delivery-companies] created company=${company.id} code=${parsed.code} autoValidate=${autoValidate}`);
   return c.json({ success: true, data: companyView(company) }, 201);
 }
@@ -163,18 +188,15 @@ export async function updateDeliveryCompany(c: Context<AppContext>) {
   const wasActive = stored.active;
   const touchesCredentials =
     fields.apiToken !== undefined || fields.apiEndpoint !== undefined || requestedProvider !== undefined || (fields.active === true && !wasActive);
-  if ((fields.active ?? wasActive) && touchesCredentials) {
-    await assertCredentialsAccepted(
-      {
-        provider: settings.provider === undefined ? stored.provider : settings.provider,
-        providerConfig: settings.providerConfig === undefined ? stored.providerConfig : settings.providerConfig,
-        apiToken: fields.apiToken === undefined ? stored.apiToken : fields.apiToken,
-        apiUserGuid: fields.apiUserGuid === undefined ? stored.apiUserGuid : fields.apiUserGuid,
-        apiEndpoint: fields.apiEndpoint === undefined ? stored.apiEndpoint : fields.apiEndpoint,
-      },
-      { code: stored.code, companyId: id },
-    );
-  }
+  const connecting = (fields.active ?? wasActive) && touchesCredentials;
+  const effective: CarrierCompany = {
+    provider: settings.provider === undefined ? stored.provider : settings.provider,
+    providerConfig: settings.providerConfig === undefined ? stored.providerConfig : settings.providerConfig,
+    apiToken: fields.apiToken === undefined ? stored.apiToken : fields.apiToken,
+    apiUserGuid: fields.apiUserGuid === undefined ? stored.apiUserGuid : fields.apiUserGuid,
+    apiEndpoint: fields.apiEndpoint === undefined ? stored.apiEndpoint : fields.apiEndpoint,
+  };
+  if (connecting) await assertCredentialsAccepted(effective, { code: stored.code, companyId: id });
 
   const company = await queries.updateDeliveryCompany(db, id, { ...fields, ...settings });
   
@@ -182,6 +204,7 @@ export async function updateDeliveryCompany(c: Context<AppContext>) {
     throw new NotFoundError("Delivery company", id);
   }
 
+  if (connecting) await mapCarrierPlaces(db, { ...effective, code: company.code });
   console.info(`[delivery-companies] updated company=${id}`);
   return c.json({ success: true, data: companyView(company) }, 200);
 }
@@ -509,8 +532,8 @@ export async function deleteDeliveryCompany(c: Context<AppContext>) {
  * POST /delivery-companies/:id/sync-geo
  *
  * Builds the per-carrier wilaya/commune name map — the exact strings the
- * carrier matches parcel addresses against. Yalidine-only for now (the only
- * name-matching carrier we integrate); other carriers get 422.
+ * carrier matches parcel addresses against. Connecting a company already does
+ * this; the route refreshes it. Carriers that cannot list their places get 422.
  */
 export async function syncGeoNames(c: Context<AppContext>) {
   const db = getDb(c.env.DB);

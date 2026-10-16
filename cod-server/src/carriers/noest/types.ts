@@ -244,3 +244,23 @@ export interface NoestTrackingInfoData {
 
 /** Response is keyed by tracking number */
 export type NoestTrackingInfoResponse = Record<string, NoestTrackingInfoData>;
+
+// ─── Reference data ───────────────────────────────────────────────────────────
+// GET /api/public/get/wilayas — a list; GET /api/public/get/communes — an object keyed by index.
+
+export interface NoestWilaya {
+  code: number;
+  nom: string;
+  is_active: 0 | 1;
+}
+
+export interface NoestCommune {
+  id: number;
+  nom: string;
+  wilaya_id: number;
+  code_postal: string;
+  /** 0 when NOEST has switched the commune off — it then refuses parcels to it. */
+  is_active: 0 | 1;
+}
+
+export type NoestCommunesResponse = Record<string, NoestCommune> | NoestCommune[];

@@ -221,7 +221,8 @@ export interface CarrierStopDesk {
 
 export interface CarrierGeoNames {
   wilayas: Array<{ id: number; name: string }>;
-  communes: Array<{ id: number; name: string; wilayaId: number }>;
+  /** `postalCode` is optional corroboration for a close name, when the carrier shares our postal codes. */
+  communes: Array<{ id: number; name: string; wilayaId: number; postalCode?: string | null }>;
 }
 
 /** The outcome of checking credentials. A wrong token is a successful check with `ok: false`. */

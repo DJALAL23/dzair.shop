@@ -361,7 +361,7 @@ export class EcotrackCarrier implements CarrierAdapter {
     return {
       wilayas: (Array.isArray(wilayas) ? wilayas : []).map((w) => ({ id: w.wilaya_id, name: w.wilaya_name })),
       communes: Object.values(communes ?? {})
-        .filter((c) => c != null)
+        .filter((c) => c != null && c.is_active !== 0)
         .map((c, index) => ({ id: index + 1, name: c.nom, wilayaId: c.wilaya_id })),
     };
   }

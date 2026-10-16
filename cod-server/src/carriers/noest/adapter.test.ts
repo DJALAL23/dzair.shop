@@ -204,6 +204,26 @@ describe("verifyConnection — proves the token and the partner GUID without cre
   });
 });
 
+describe("place names — NOEST's own wilaya and commune lists", () => {
+  it("lists active wilayas and communes with NOEST's ids and postal codes; a deactivated commune is not offered", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith("/get/wilayas")) return json([{ code: 16, nom: "Alger", is_active: 1 }, { code: 10, nom: "Bouira", is_active: 0 }]);
+      return json({
+        0: { id: 1, nom: "Bab Azzouar", wilaya_id: 16, code_postal: "16111", is_active: 1 },
+        1: { id: 2, nom: "Dar El Beida", wilaya_id: 16, code_postal: "16112", is_active: 1 },
+        2: { id: 3, nom: "Ghost", wilaya_id: 16, code_postal: "16999", is_active: 0 },
+      });
+    });
+    const names = await carrier().geoNames!();
+    expect(names.wilayas).toEqual([{ id: 16, name: "Alger" }]);
+    expect(names.communes).toEqual([
+      { id: 1, name: "Bab Azzouar", wilayaId: 16, postalCode: "16111" },
+      { id: 2, name: "Dar El Beida", wilayaId: 16, postalCode: "16112" },
+    ]);
+    expect(carrier().capabilities.geoNames).toBe(true);
+  });
+});
+
 describe("limits", () => {
   it("waits longer than the 30 seconds NOEST allows a request", () => {
     expect(NOEST_TIMEOUT_MS).toBeGreaterThan(30_000);

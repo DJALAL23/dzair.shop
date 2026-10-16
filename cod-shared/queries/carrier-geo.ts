@@ -12,6 +12,7 @@
 import { eq, sql } from "drizzle-orm";
 import { carrierWilayas, carrierCommunes, wilayas, communes } from "../db/schema";
 import type { AppDb } from "../db/client";
+import { matchCommunes, normalizeGeoName } from "../carriers/commune-match";
 
 export interface CarrierGeoSyncResult {
   wilayasMatched: number;
@@ -24,50 +25,7 @@ export interface CarrierGeoSyncResult {
   syncedAt: string;
 }
 
-/**
- * Normalize a name for fuzzy matching: strip accents, case, spaces,
- * hyphens, apostrophes, and periods — the known accent/punctuation deltas
- * between our reference names and carrier spellings.
- */
-export function normalizeGeoName(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[\s\-'\u2019.]/g, "");
-}
-
-/**
- * Levenshtein edit distance ≤ 1 check (bounded, allocation-light) — catches
- * true spelling variants ("Aghabal"↔"Aghbal", "Abou El Hassen"↔"Abou El
- * Hassan") that normalization cannot. Combined with the same-wilaya scope
- * and a shared 3-char prefix, false positives are effectively ruled out.
- */
-function isNearVariant(a: string, b: string): boolean {
-  if (Math.abs(a.length - b.length) > 1) return false;
-  if (a.slice(0, 3) !== b.slice(0, 3)) return false;
-  if (a === b) return true;
-  let i = 0;
-  let j = 0;
-  let diffs = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      i++;
-      j++;
-      continue;
-    }
-    if (++diffs > 1) return false;
-    if (a.length === b.length) {
-      i++;
-      j++;
-    } else if (a.length > b.length) {
-      i++;
-    } else {
-      j++;
-    }
-  }
-  return diffs <= 1 && Math.abs(a.length - b.length) <= 1;
-}
+export { normalizeGeoName };
 
 /** Resolve one wilaya → the carrier's exact string (null = no map row). */
 export async function resolveCarrierWilayaName(
@@ -104,10 +62,10 @@ export async function resolveCarrierCommuneName(
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 
 /**
- * Full geo sync for one carrier: exact-match, then normalized, then
- * near-variant (distance ≤ 1, same wilaya) matching of the carrier's
- * wilaya/commune name lists against our reference tables, and upsert the
- * carrier's exact string for every match.
+ * Full geo sync for one carrier: wilayas by exact then normalized name;
+ * communes by `matchCommunes` (exact, normalized, transliteration-folded, then
+ * the closest unclaimed pair above a safety bar, inside the same wilaya),
+ * and upsert the carrier's exact string for every match.
  *
  * Deletes previous rows for the carrier first — a re-sync after the carrier
  * renames a commune must not leave stale strings behind.
@@ -124,7 +82,7 @@ export async function syncCarrierGeoNames(
   carrierCode: string,
   carrierNames: {
     wilayas: Array<{ id: number; name: string }>;
-    communes: Array<{ id: number; name: string; wilayaId: number }>;
+    communes: Array<{ id: number; name: string; wilayaId: number; postalCode?: string | null }>;
   },
 ): Promise<CarrierGeoSyncResult> {
   const ourWilayas = await db
@@ -132,7 +90,7 @@ export async function syncCarrierGeoNames(
     .from(wilayas)
     .all();
   const ourCommunes = await db
-    .select({ id: communes.id, name: communes.name, wilayaId: communes.wilayaId })
+    .select({ id: communes.id, name: communes.name, wilayaId: communes.wilayaId, postalCode: communes.postalCode })
     .from(communes)
     .all();
 
@@ -141,41 +99,7 @@ export async function syncCarrierGeoNames(
   const yalWilayaNorm = new Map(carrierNames.wilayas.map((w) => [normalizeGeoName(w.name), w.id]));
   const carrierWilayaNameById = new Map(carrierNames.wilayas.map((w) => [w.id, w.name]));
 
-  // Communes: normalized key grouped by wilaya (exact matches resolve in
-  // phase 1; the per-wilaya bucket also serves the near-variant phase).
-  const yalCommuneExact = new Map(carrierNames.communes.map((c) => [c.name, c.id]));
-  const yalCommuneNormByWilaya = new Map<number, Map<string, { id: number; name: string }>>();
-  for (const c of carrierNames.communes) {
-    let bucket = yalCommuneNormByWilaya.get(c.wilayaId);
-    if (!bucket) {
-      bucket = new Map();
-      yalCommuneNormByWilaya.set(c.wilayaId, bucket);
-    }
-    bucket.set(normalizeGeoName(c.name), { id: c.id, name: c.name });
-  }
-  const carrierCommuneNameById = new Map(carrierNames.communes.map((c) => [c.id, c.name]));
-
-  const resolveCarrierCommune = (
-    ourCommune: { id: string; name: string; wilayaId: number },
-  ): { id: number; name: string } | null => {
-    // 1 — exact string.
-    const exactId = yalCommuneExact.get(ourCommune.name);
-    if (exactId != null) {
-      return { id: exactId, name: ourCommune.name };
-    }
-    // 2 — normalized equality within the same wilaya.
-    const bucket = yalCommuneNormByWilaya.get(ourCommune.wilayaId);
-    if (bucket) {
-      const normHit = bucket.get(normalizeGeoName(ourCommune.name));
-      if (normHit) return normHit;
-      // 3 — distance ≤ 1 variant within the same wilaya.
-      const ourNorm = normalizeGeoName(ourCommune.name);
-      for (const [carrierNorm, hit] of bucket) {
-        if (isNearVariant(ourNorm, carrierNorm)) return hit;
-      }
-    }
-    return null;
-  };
+  const communeMatches = matchCommunes(ourCommunes, carrierNames.communes);
 
   const wilayaStatements: BatchStatement[] = [];
   const communeStatements: BatchStatement[] = [];
@@ -211,13 +135,13 @@ export async function syncCarrierGeoNames(
   }
 
   for (const c of ourCommunes) {
-    const hit = resolveCarrierCommune(c);
+    const hit = communeMatches.get(c.id);
     if (!hit) {
       result.communesUnmapped++;
       result.unmappedCommunes.push({ communeId: c.id, ourName: c.name });
       continue;
     }
-    const carrierName = carrierCommuneNameById.get(hit.id) ?? hit.name;
+    const carrierName = hit.name;
     communeStatements.push(
       db
         .insert(carrierCommunes)

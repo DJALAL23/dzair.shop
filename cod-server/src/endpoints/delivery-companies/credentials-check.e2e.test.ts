@@ -125,7 +125,7 @@ describe("connecting an EcoTrack company", () => {
   it("does not check a carrier whose adapter cannot verify a token", async () => {
     const res = await send("POST", "/api/delivery-companies", { name: "Yalidine", nameAr: "ياليدين", code: "yalidine", provider: "yalidine", apiToken: "x", apiUserGuid: "g", active: true });
     expect(res.status).toBe(201);
-    expect(server.requests).toHaveLength(0);
+    expect(server.callsFor(VALIDATE)).toHaveLength(0);
   });
 });
 
@@ -145,6 +145,42 @@ describe("connecting a NOEST company", () => {
     globalThis.fetch = (async () => Response.json({ success: false, message: "Partenaire introuvable" }, { status: 404 })) as typeof fetch;
     expect((await send("POST", "/api/delivery-companies", noest)).status).toBe(409);
     expect(await rows()).toHaveLength(0);
+  });
+});
+
+describe("place names are mapped as part of connecting", () => {
+  const mapped = () => harness.db.select().from(schema.carrierCommunes).all();
+
+  it("builds the carrier's commune map when the credentials are accepted — nothing for the merchant to run", async () => {
+    await harness.db.delete(schema.carrierCommunes);
+    expect((await send("POST", "/api/delivery-companies", newCompany())).status).toBe(201);
+    const rows = await mapped();
+    expect(rows.length).toBeGreaterThan(0);
+    expect(new Set(rows.map((r) => r.carrierCode))).toEqual(new Set(["packers_ecotrack"]));
+    expect(server.callsFor("/api/v1/get/communes")).toHaveLength(1);
+  });
+
+  it("builds it again when the credentials change", async () => {
+    await seedCompany({ apiToken: "old" });
+    await harness.db.delete(schema.carrierCommunes);
+    expect((await send("PATCH", "/api/delivery-companies/eco1", { apiToken: TOKEN, active: true })).status).toBe(200);
+    expect((await mapped()).length).toBeGreaterThan(0);
+  });
+
+  it("a failure while mapping never stops the company being saved", async () => {
+    await harness.db.delete(schema.carrierCommunes);
+    server.override("/api/v1/get/communes", () => new Response("down", { status: 503 }));
+    expect((await send("POST", "/api/delivery-companies", newCompany())).status).toBe(201);
+    expect((await rows())[0].active).toBe(true);
+    expect(await mapped()).toHaveLength(0);
+  });
+
+  it("does not map for an edit that touches no credential", async () => {
+    await seedCompany();
+    await harness.db.delete(schema.carrierCommunes);
+    await send("PATCH", "/api/delivery-companies/eco1", { name: "Packers Algérie" });
+    expect(server.requests).toHaveLength(0);
+    expect(await mapped()).toHaveLength(0);
   });
 });
 

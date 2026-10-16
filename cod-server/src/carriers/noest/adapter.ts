@@ -31,6 +31,7 @@ import {
   type CarrierBulkItem,
   type CarrierCapabilities,
   type CarrierConnectionCheck,
+  type CarrierGeoNames,
   type CarrierLabel,
   type CarrierParcel,
   type CarrierRef,
@@ -45,6 +46,8 @@ import { carrierInstant } from "../time";
 import { NOEST_ATTEMPT, interpretNoest } from "./interpret";
 import type {
   NoestBulkCreateResponse,
+  NoestCommunesResponse,
+  NoestWilaya,
   NoestCreateOrderRequest,
   NoestCreateOrderResponse,
   NoestStopDesksResponse,
@@ -83,7 +86,7 @@ export const NOEST_CAPABILITIES: CarrierCapabilities = {
   requestNewAttempt: true,
   confirmReturn: false,
   stopDeskList: true,
-  geoNames: false,
+  geoNames: true,
   verifyConnection: true,
 };
 
@@ -291,6 +294,24 @@ export class NoestCarrier implements CarrierAdapter {
   async label(ref: CarrierRef): Promise<CarrierLabel> {
     const response = await this.http.readRaw(`/get/order/label?tracking=${encodeURIComponent(ref.carrierParcelId)}`);
     return { kind: "pdf", body: await response.arrayBuffer() };
+  }
+
+  /**
+   * NOEST checks a commune by its own spelling inside the wilaya. Switched-off
+   * wilayas and communes are left out: NOEST refuses parcels to them, so they
+   * stay unmapped rather than looking served.
+   */
+  async geoNames(): Promise<CarrierGeoNames> {
+    const [wilayas, communes] = await Promise.all([
+      this.http.read<NoestWilaya[]>("GET", "/get/wilayas"),
+      this.http.read<NoestCommunesResponse>("GET", "/get/communes"),
+    ]);
+    return {
+      wilayas: (Array.isArray(wilayas) ? wilayas : []).filter((w) => w.is_active !== 0).map((w) => ({ id: w.code, name: w.nom })),
+      communes: Object.values(communes ?? {})
+        .filter((c) => c != null && c.is_active !== 0)
+        .map((c) => ({ id: c.id, name: c.nom, wilayaId: c.wilaya_id, postalCode: c.code_postal || null })),
+    };
   }
 
   /** NOEST publishes no wilaya per desk; its codes start with the wilaya number ("16A"). */
