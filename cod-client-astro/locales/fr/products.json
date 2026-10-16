@@ -154,7 +154,8 @@
     "margin_value": "Marge : {value} %",
     "variants_count_one": "{count} variante",
     "variants_count_many": "{count} variantes",
-    "variants_count_other": "{count} variantes"
+    "variants_count_other": "{count} variantes",
+    "error_sku_required": "Saisissez un SKU pour ce produit — il l'identifie dans le stock et les commandes."
   },
   "status_options": {
     "active": "Actif",
