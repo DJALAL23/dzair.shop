@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { REVIEW_AUTO_PUBLISH, REVIEW_MAX_PHOTOS } from "../../../../cod-shared/reviews/model";
 import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
 
 const storeLocale = z.enum(STORE_LOCALES);
@@ -48,6 +49,10 @@ export const updateStoreSchema = z.object({
   ogImage: z.string().url().nullable().optional(),
   announcementBar: z.string().max(500).nullable().optional(),
   reviewsEnabled: z.boolean().optional(),
+  reviewMaxPhotos: z.number().int().min(0).max(REVIEW_MAX_PHOTOS).optional(),
+  /** null turns voice notes off. */
+  reviewVoiceMaxSeconds: z.union([z.literal(30), z.literal(60), z.literal(90), z.literal(120), z.null()]).optional(),
+  reviewAutoPublish: z.enum(REVIEW_AUTO_PUBLISH).optional(),
   /**
    * Shopping cart opt-in. Strictly boolean: a form posting the string "false"
    * is truthy in JS, so the schema is what has to refuse it. Omit the field to

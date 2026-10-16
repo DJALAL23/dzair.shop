@@ -183,19 +183,27 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(list.operationId).toBe("listReviews");
     expect(list.security).toEqual([{ ApiKeyAuth: [] }]);
 
-    const update = spec.paths["/api/reviews/{id}"]?.patch;
-    expect(update).toBeDefined();
-    expect(update.summary).toBe("Update review status");
-    expect(update.operationId).toBe("updateReview");
-
-    const del = spec.paths["/api/reviews/{id}"]?.delete;
-    expect(del).toBeDefined();
-    expect(del.summary).toBe("Delete review");
-    expect(del.operationId).toBe("deleteReview");
+    const operations = {
+      "/api/reviews/{id}": { get: "getReview", patch: "updateReview", delete: "deleteReview" },
+      "/api/reviews/{id}/media/{mediaId}": { delete: "deleteReviewMedia" },
+      "/api/reviews/uploads": { post: "uploadReviewMedia" },
+      "/api/reviews/order-options": { get: "listReviewOrderOptions" },
+      "/store/reviews": { get: "listStoreReviews", post: "submitStoreReview" },
+      "/store/reviews/eligibility": { post: "checkStoreReviewEligibility" },
+      "/store/reviews/uploads": { put: "uploadStoreReviewMedia" },
+    } as const;
+    for (const [path, methods] of Object.entries(operations)) {
+      for (const [method, operationId] of Object.entries(methods)) {
+        expect(spec.paths[path]?.[method]?.operationId, `${method} ${path}`).toBe(operationId);
+      }
+    }
+    expect(list.parameters.map((p: { name: string }) => p.name)).toEqual(expect.arrayContaining(["status", "productId", "source", "withMedia"]));
+    expect(spec.paths["/api/reviews"].post.operationId).toBe("createReview");
 
     expect(spec.components.schemas.Review).toBeDefined();
     expect(spec.components.schemas.Review.properties.customerName).toBeDefined();
     expect(spec.components.schemas.Review.properties.rating).toBeDefined();
+    expect(Object.keys(spec.components.schemas.Review.properties)).toEqual(expect.arrayContaining(["source", "verified", "media", "mediaDropped"]));
   });
 
   it("documents the migrated customer-groups endpoints from Zod schemas", async () => {

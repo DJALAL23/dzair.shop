@@ -1,14 +1,19 @@
 import { tool } from "ai";
 import { z } from "zod";
-import * as queries from "./queries";
 import { getDb } from "@/db";
+import type { Env } from "@/types/env";
+import { getAllReviews, getReviewById, updateReviewStatus } from "../../../../cod-shared/queries/reviews";
+import { MODERATION_STATUSES, REVIEW_SOURCES } from "../../../../cod-shared/reviews/model";
+import { removeReview } from "@/lib/reviews/removal";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 
 /**
  * AI Tools for Review Moderation
  *
- * Reviews are submitted by customers via the storefront after placing an order.
- * They require moderation before appearing publicly on product pages.
+ * Shoppers send reviews from the storefront once their order is delivered
+ * (with photos and a voice note when the store takes them); the store can
+ * also enter reviews customers gave it. Whether a shopper's review needs
+ * moderation before it shows is the store's choice.
  *
  * Moderation statuses:
  *   pending  → newly submitted, not yet reviewed (default)
@@ -20,8 +25,9 @@ import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
  *   - pendingCount is always returned by listReviews regardless of filters —
  *     it drives the dashboard moderation badge.
  *   - Reviews cannot be edited — only their status can be changed.
- *   - deleteReview is permanent (hard delete, no soft-delete).
- *   - Each review is linked to an orderId and orderNumber for traceability.
+ *   - deleteReview is permanent (its photos and voice note go with it).
+ *   - A review rests on an order when it can; only a delivered one makes it
+ *     a verified purchase. There is deliberately no tool to enter reviews.
  *
  * Two-Layer Validation Pattern:
  * - Layer 1 (LLM-level): Permissive input schema accepts any object to prevent SDK crashes
@@ -29,11 +35,13 @@ import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
  */
 
 // Inline schemas — reviews has no separate validation.ts
-const reviewStatusEnum = z.enum(["pending", "approved", "rejected"]);
+const reviewStatusEnum = z.enum(MODERATION_STATUSES);
 
 const reviewFiltersSchema = z.object({
   status: reviewStatusEnum.optional(),
   productId: z.string().optional(),
+  source: z.enum(REVIEW_SOURCES).optional().describe("storefront (sent by a shopper) or merchant (entered by the store)"),
+  withMedia: z.boolean().optional().describe("Only reviews with a photo or a voice note"),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -77,14 +85,17 @@ export const REVIEW_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         id: z.string().describe("Review UUID"),
         productId: z.string(),
         productName: z.string(),
-        orderId: z.string().describe("The anchor order — one review per order, ever"),
-        orderNumber: z.string(),
+        orderId: z.string().nullable().describe("The order it rests on (one review per product of an order); null for a store review without one"),
+        orderNumber: z.string().nullable(),
         customerName: z.string(),
         rating: z.number().int().describe("Whole stars 1–5"),
         title: z.string().nullable(),
         body: z.string().nullable(),
         status: z.string().describe("pending | approved | rejected"),
-        helpfulCount: z.number().int(),
+        source: z.string().describe("storefront | merchant"),
+        verified: z.boolean().describe("Rests on a delivered order (verified purchase)"),
+        photos: z.number().int().describe("Photos attached"),
+        voiceNoteSeconds: z.number().nullable().describe("Length of the voice note, when there is one"),
         createdAt: timestampSchema,
         updatedAt: timestampSchema,
       }),
@@ -99,7 +110,7 @@ export const REVIEW_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
   }),
 };
 
-export const getReviewTools = (db: ReturnType<typeof getDb>) => ({
+export const getReviewTools = (db: ReturnType<typeof getDb>, env?: Pick<Env, "IMAGES">) => ({
 
   listReviews: tool({
     description:
@@ -125,7 +136,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        const { rows, total, pendingCount } = await queries.getAllReviews(db, parsed.data);
+        const { rows, total, pendingCount } = await getAllReviews(db, parsed.data);
         return {
           success: true,
           count: rows.length,
@@ -142,7 +153,13 @@ export const getReviewTools = (db: ReturnType<typeof getDb>) => ({
             title: r.title,
             body: r.body,
             status: r.status,
-            helpfulCount: r.helpfulCount,
+            source: r.source,
+            verified: r.verified,
+            photos: r.media.filter((m) => m.kind === "image").length,
+            voiceNoteSeconds: (() => {
+              const voice = r.media.find((m) => m.kind === "audio");
+              return voice ? Math.round((voice.durationMs ?? 0) / 1000) || null : null;
+            })(),
             createdAt: r.createdAt,
             updatedAt: r.updatedAt,
           })),
@@ -178,7 +195,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        const existing = await queries.getReviewById(db, parsed.data.reviewId);
+        const existing = await getReviewById(db, parsed.data.reviewId);
         if (!existing) {
           return {
             success: false,
@@ -186,7 +203,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>) => ({
           };
         }
 
-        const updated = await queries.updateReviewStatus(db, parsed.data.reviewId, parsed.data.status);
+        const updated = await updateReviewStatus(db, parsed.data.reviewId, parsed.data.status);
         return {
           success: true,
           review: updated,
@@ -200,7 +217,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>) => ({
 
   deleteReview: tool({
     description:
-      "Permanently deletes a review. This action is irreversible. " +
+      "Permanently deletes a review, with its photos and voice note. This action is irreversible. " +
       "Consider rejecting the review instead (moderateReview with status: 'rejected') " +
       "if you want to keep it for audit purposes without showing it on the storefront.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
@@ -221,18 +238,16 @@ export const getReviewTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        const existing = await queries.getReviewById(db, parsed.data.reviewId);
-        if (!existing) {
+        const removed = await removeReview(db, env?.IMAGES, parsed.data.reviewId);
+        if (!removed) {
           return {
             success: false,
             error: `Review not found with ID: ${parsed.data.reviewId}`,
           };
         }
-
-        await queries.deleteReview(db, parsed.data.reviewId);
         return {
           success: true,
-          message: `Review by "${existing.customerName}" (order: ${existing.orderNumber}, rating: ${existing.rating}/5) deleted permanently`,
+          message: `Review by "${removed.customerName}" (${removed.orderNumber ? `order: ${removed.orderNumber}, ` : ""}rating: ${removed.rating}/5) deleted permanently${removed.media.length ? `, with its ${removed.media.length} file(s)` : ""}`,
         };
       } catch (error: any) {
         return { success: false, error: `Failed to delete review: ${error.message}` };

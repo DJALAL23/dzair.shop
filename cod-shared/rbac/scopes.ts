@@ -105,8 +105,10 @@ export const SCOPES = {
   // Reviews
   /** View product reviews and their moderation status */
   REVIEWS_READ: "reviews:read",
-  /** Approve, reject, and delete product reviews */
+  /** Approve, reject, and delete product reviews, and remove a review's photo or voice note */
   REVIEWS_MANAGE: "reviews:manage",
+  /** Enter a review a customer gave the store (by WhatsApp, phone, in person) */
+  REVIEWS_CREATE: "reviews:create",
 
   // Offers
   /** View promotional offers list */
@@ -237,7 +239,7 @@ export const SCOPE_CATEGORIES = {
   },
   reviews: {
     label: "Reviews",
-    scopes: [SCOPES.REVIEWS_READ, SCOPES.REVIEWS_MANAGE],
+    scopes: [SCOPES.REVIEWS_READ, SCOPES.REVIEWS_MANAGE, SCOPES.REVIEWS_CREATE],
   },
   offers: {
     label: "Offers",

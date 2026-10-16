@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import { assertTurnstile } from "../turnstile-gate";
+import { reviewMediaUrl } from "@/lib/review-media/urls";
 import { openReview, receiveUpload, submitReview, type IntakeDeps } from "@/lib/reviews/intake";
 import { getReviewPolicy, listApprovedReviews } from "../../../../../cod-shared/queries/store-reviews";
 import type { ReviewSubmissionInput } from "./validation";
@@ -19,23 +20,12 @@ function deps(c: Context<AppContext>): IntakeDeps {
   };
 }
 
-/**
- * Where review media is served: the media domain (R2, cached at the edge) in
- * production; this server's /images route anywhere else, since local files
- * exist only in the local bucket.
- */
-export function reviewMediaUrl(c: Context<AppContext>): (key: string) => string {
-  if (c.env.ENVIRONMENT === "production" && c.env.MEDIA_DOMAIN) return (key) => `https://${c.env.MEDIA_DOMAIN}/${key}`;
-  const origin = new URL(c.req.url).origin;
-  return (key) => `${origin}/images/${key}`;
-}
-
 export async function listReviews(c: Context<AppContext>) {
   const { productId, limit, offset } = (c.req as unknown as Valid<{ productId: string; limit: number; offset: number }>).valid("query");
   const db = getDb(c.env.DB);
   const storeId = c.get("storeId")!;
   if (!(await getReviewPolicy(db, storeId)).enabled) return c.json({ success: true, data: [], count: 0, total: 0 }, 200);
-  const mediaUrl = reviewMediaUrl(c);
+  const mediaUrl = reviewMediaUrl(c.env, c.req.url);
   const { rows, total } = await listApprovedReviews(db, { storeId, productId, limit, offset, mediaUrl });
   return c.json({ success: true, data: rows, count: rows.length, total }, 200);
 }

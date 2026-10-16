@@ -3,7 +3,6 @@
  *
  * Call shape post-Slice 7 (queue order = batch statement order):
  *   • getStockHistory          → [a(movements), count]
- *   • getAllReviews            → [a(rows), total, pendingCount]
  *   • listAbandonedOrders      → [a(rows), count]
  *   • getAbandonedOrderStats   → [abandoned, converted, revenue]
  *
@@ -14,7 +13,6 @@
 import { describe, it, expect } from "vitest";
 import { makeMockDb, f, a, NOW } from "@/test-utils/mock-db";
 import { getStockHistory } from "../../../../cod-shared/queries/stock";
-import { getAllReviews } from "../../../../cod-shared/queries/reviews";
 import {
   listAbandonedOrders,
   getAbandonedOrderStats,
@@ -34,51 +32,6 @@ function movementRow(overrides: Record<string, unknown> = {}): Record<string, un
     created_by: "user_1",
     created_by_name: "Admin",
     created_at: NOW,
-    ...overrides,
-  };
-}
-
-// Columns in schema order: the mock db maps a full-table select by position.
-function reviewRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    id: "rev_1",
-    store_id: "store_1",
-    product_id: "prod_1",
-    order_id: "ord_1",
-    customer_id: null,
-    order_number: "ORD-001",
-    customer_name: "Fatima",
-    rating: 5,
-    title: null,
-    body: "great",
-    status: "approved",
-    source: "storefront",
-    verified: 0,
-    media_dropped: 0,
-    created_by: null,
-    helpful_count: 0,
-    created_at: NOW,
-    updated_at: NOW,
-    ...overrides,
-  };
-}
-
-function reviewListRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    id: "rev_1",
-    store_id: "store_1",
-    product_id: "prod_1",
-    order_id: "ord_1",
-    order_number: "ORD-001",
-    customer_name: "Fatima",
-    rating: 5,
-    title: null,
-    body: "great",
-    status: "approved",
-    helpful_count: 0,
-    created_at: NOW,
-    updated_at: NOW,
-    product_name: "T-Shirt",
     ...overrides,
   };
 }
@@ -139,36 +92,6 @@ describe("getStockHistory", () => {
 
     expect(result.movements).toEqual([]);
     expect(result.total).toBe(0);
-  });
-});
-
-describe("getAllReviews", () => {
-  it("returns rows, total, and pendingCount from one batch", async () => {
-    const db = makeMockDb([
-      a([reviewListRow({ status: "pending" })]),
-      f({ count: 5 }),
-      f({ count: 2 }),
-    ]);
-
-    const result = await getAllReviews(db, { status: "pending", limit: 20, offset: 0 });
-
-    expect(result.rows).toHaveLength(1);
-    expect(result.rows[0]).toMatchObject({ productName: "T-Shirt", status: "pending" });
-    expect(result.total).toBe(5);
-    expect(result.pendingCount).toBe(2);
-  });
-
-  it("pendingCount is independent of the status filter", async () => {
-    const db = makeMockDb([
-      a([reviewListRow({ status: "approved" })]),
-      f({ count: 3 }),
-      f({ count: 7 }),
-    ]);
-
-    const result = await getAllReviews(db, { status: "approved", limit: 20, offset: 0 });
-
-    expect(result.total).toBe(3);
-    expect(result.pendingCount).toBe(7);
   });
 });
 

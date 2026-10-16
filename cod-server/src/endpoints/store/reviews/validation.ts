@@ -35,7 +35,7 @@ export const reviewSubmissionSchema = z.object({
   productId: z.string().min(1).max(200),
   rating: z.number().int().min(1).max(5),
   title: optional(z.string().trim().max(REVIEW_TEXT.titleMax)),
-  body: z.string().trim().min(REVIEW_TEXT.bodyMin).max(REVIEW_TEXT.bodyMax),
+  body: z.string().trim().max(REVIEW_TEXT.bodyMax).default("").openapi({ description: `At least ${REVIEW_TEXT.bodyMin} characters, unless a voice note says it` }),
   grant: optional(z.string().min(1).max(2048)).openapi({ description: "The upload grant from /store/reviews/eligibility, when files are sent" }),
   uploads: z.array(z.string().regex(/^[a-f0-9]{32}$/)).max(8).optional().openapi({ description: "Upload IDs from /store/reviews/uploads" }),
 });

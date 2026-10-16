@@ -1,5 +1,5 @@
 import { eq, and, like, or, sum, sql, inArray, getTableColumns } from "drizzle-orm";
-import { products, productCategories, productVariants, productImages, reviews, stockMovements, landingPages, landingPageImages } from "../db/schema";
+import { products, productCategories, productVariants, productImages, reviews, reviewMedia, stockMovements, landingPages, landingPageImages } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { sanitizeRichText, toPlainText } from "../lib/rich-text";
 import { safeLikeTerm } from "./search";
@@ -404,13 +404,14 @@ export async function productRemoval(db: AppDb, productId: string): Promise<Prod
  * landing pages by trigger; order lines and abandoned checkouts keep what was
  * sold and lose only the link (migration 0042).
  *
- * Returns the stored image keys it showed — gallery, inline description
- * images, landing page images — for the caller to remove from storage once
+ * Returns the stored file keys it showed — gallery, inline description
+ * images, landing page images, its reviews' photos and voice notes — for the
+ * caller to remove from storage once
  * nothing else shows them (`stillReferencedImageKeys`). Null when there was no
  * such product.
  */
 export async function deleteProduct(db: AppDb, productId: string): Promise<{ name: string; imageKeys: string[] } | null> {
-  const [gallery, own, landing] = await db.batch([
+  const [gallery, own, landing, reviewFiles] = await db.batch([
     db.select({ r2Key: productImages.r2Key, src: productImages.src }).from(productImages).where(eq(productImages.productId, productId)),
     db.select({ description: products.description }).from(products).where(eq(products.id, productId)),
     db
@@ -418,6 +419,11 @@ export async function deleteProduct(db: AppDb, productId: string): Promise<{ nam
       .from(landingPageImages)
       .innerJoin(landingPages, eq(landingPages.id, landingPageImages.landingPageId))
       .where(eq(landingPages.productId, productId)),
+    db
+      .select({ r2Key: reviewMedia.r2Key, thumbKey: reviewMedia.thumbKey })
+      .from(reviewMedia)
+      .innerJoin(reviews, eq(reviews.id, reviewMedia.reviewId))
+      .where(eq(reviews.productId, productId)),
   ]);
   const deleted = await db.delete(products).where(eq(products.id, productId)).returning({ name: products.name });
   if (deleted.length === 0) return null;
@@ -429,6 +435,10 @@ export async function deleteProduct(db: AppDb, productId: string): Promise<{ nam
   }
   for (const key of imageKeysInText(own[0]?.description)) imageKeys.add(key);
   for (const image of landing) imageKeys.add(image.r2Key);
+  for (const file of reviewFiles) {
+    imageKeys.add(file.r2Key);
+    if (file.thumbKey) imageKeys.add(file.thumbKey);
+  }
   return { name: deleted[0].name, imageKeys: [...imageKeys] };
 }
 

@@ -20,9 +20,10 @@ import { BusinessLogicError, ConflictError, NotFoundError, ValidationError } fro
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { findReviewableOrder, getReviewPolicy, insertShopperReview, type PurchaseProof, type ReviewableProduct } from "../../../../cod-shared/queries/store-reviews";
 import { settleWithoutMedia } from "../../../../cod-shared/queries/reviews";
-import { REVIEW_PHOTO_MAX_BYTES, statusOnArrival, voiceMaxBytes, type ReviewPolicy } from "../../../../cod-shared/reviews/policy";
+import { REVIEW_TEXT, statusOnArrival, type ReviewPolicy } from "../../../../cod-shared/reviews/policy";
 import type { ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
-import { isMediaId, newMediaId, sniffMedia, uploadKey, uploadPrefix } from "../../../../cod-shared/reviews/media";
+import { isMediaId } from "../../../../cod-shared/reviews/media";
+import { findReceived, receiveFile, type ReceivedFile } from "@/lib/review-media/receive";
 import { issueUploadGrant, readUploadGrant, type UploadGrant } from "@/lib/review-media/grant";
 import { reviewMediaInstanceId, type ReviewMediaJob, type ReviewMediaUpload } from "@/lib/review-media/job";
 
@@ -104,70 +105,20 @@ async function grantFrom(deps: IntakeDeps, token: string | undefined): Promise<U
   return grant;
 }
 
-/** Reads at most `cap` bytes; null when the body is larger. Never buffers past the cap. */
-async function readCapped(body: ReadableStream<Uint8Array>, cap: number): Promise<Uint8Array | null> {
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > cap) {
-      await reader.cancel().catch(() => {});
-      return null;
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(size);
-  let at = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, at);
-    at += chunk.byteLength;
-  }
-  return bytes;
-}
-
 export async function receiveUpload(
   deps: IntakeDeps,
   input: { grant: string | undefined; body: ReadableStream<Uint8Array> | null; declaredBytes?: number; declaredDurationMs?: number },
-): Promise<{ uploadId: string; kind: ReviewMediaUpload["kind"]; bytes: number }> {
+): Promise<ReceivedFile> {
   const grant = await grantFrom(deps, input.grant);
-  const voiceCap = grant.voiceMaxSeconds ? voiceMaxBytes(grant.voiceMaxSeconds as ReviewVoiceLength) : 0;
-  const photoCap = grant.maxPhotos > 0 ? REVIEW_PHOTO_MAX_BYTES : 0;
-  const cap = Math.max(voiceCap, photoCap);
-  const tooLarge = () => new ValidationError("This file is too large", ERROR_CODES.FILE_TOO_LARGE, { maxBytes: cap });
-  if (!input.body) throw new ValidationError("No file was sent", ERROR_CODES.REQUIRED_FIELD_MISSING, { field: "body" });
-  if (input.declaredBytes !== undefined && input.declaredBytes > cap) throw tooLarge();
-
-  const bytes = await readCapped(input.body, cap);
-  if (!bytes) throw tooLarge();
-  if (bytes.byteLength === 0) throw new ValidationError("The file is empty", ERROR_CODES.REQUIRED_FIELD_MISSING, { field: "body" });
-  const sniffed = sniffMedia(bytes.subarray(0, 16));
-  if (!sniffed) throw new ValidationError("Send a photo (JPEG, PNG, WebP) or a voice note (WebM, Ogg, M4A, MP3)", ERROR_CODES.INVALID_FILE_TYPE);
-
-  const allowedKinds = { image: grant.maxPhotos > 0, audio: grant.voiceMaxSeconds !== null };
-  if (!allowedKinds[sniffed.kind]) {
-    throw new BusinessLogicError(sniffed.kind === "image" ? "This store does not take photos with reviews" : "This store does not take voice notes with reviews", ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: sniffed.kind, max: 0 });
-  }
-  if (bytes.byteLength > (sniffed.kind === "image" ? photoCap : voiceCap)) throw tooLarge();
-
-  const listed = await deps.bucket.list({ prefix: uploadPrefix(grant.id), include: ["customMetadata"], limit: 100 });
-  const already = listed.objects.filter((object) => object.customMetadata?.kind === sniffed.kind).length;
-  const max = sniffed.kind === "image" ? grant.maxPhotos + UPLOAD_SLACK : 1 + UPLOAD_SLACK;
-  if (already >= max) throw new BusinessLogicError("Too many files sent for this review", ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: sniffed.kind, max });
-
-  const uploadId = newMediaId();
-  await deps.bucket.put(uploadKey(grant.id, uploadId), bytes, {
-    httpMetadata: { contentType: sniffed.contentType },
-    customMetadata: {
-      kind: sniffed.kind,
-      contentType: sniffed.contentType,
-      orderId: grant.orderId,
-      ...(sniffed.kind === "audio" && input.declaredDurationMs !== undefined ? { declaredDurationMs: String(input.declaredDurationMs) } : {}),
-    },
+  return receiveFile(deps.bucket, {
+    folder: grant.id,
+    body: input.body,
+    declaredBytes: input.declaredBytes,
+    declaredDurationMs: input.declaredDurationMs,
+    allowance: grant,
+    folderLimit: { image: grant.maxPhotos + UPLOAD_SLACK, audio: 1 + UPLOAD_SLACK },
+    metadata: { orderId: grant.orderId },
   });
-  return { uploadId, kind: sniffed.kind, bytes: bytes.byteLength };
 }
 
 export interface ReviewSubmission {
@@ -189,22 +140,7 @@ async function collectUploads(deps: IntakeDeps, policy: ReviewPolicy, orderId: s
   if (grant.orderId !== orderId) throw new BusinessLogicError("The upload permission is for another order", ERROR_CODES.REVIEW_UPLOAD_GRANT_INVALID);
   if (ids.some((id) => !isMediaId(id))) throw new BusinessLogicError("A file of this review was not received", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND);
 
-  const heads = await Promise.all(ids.map((id) => deps.bucket.head(uploadKey(grant.id, id))));
-  const uploads: ReviewMediaUpload[] = [];
-  for (const [i, head] of heads.entries()) {
-    const kind = head?.customMetadata?.kind;
-    if (!head || (kind !== "image" && kind !== "audio")) {
-      throw new BusinessLogicError("A file of this review was not received — send it again", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND, { uploadId: ids[i] });
-    }
-    const declared = Number(head.customMetadata?.declaredDurationMs);
-    uploads.push({
-      key: head.key,
-      kind,
-      contentType: head.customMetadata?.contentType ?? head.httpMetadata?.contentType ?? "application/octet-stream",
-      bytes: head.size,
-      ...(Number.isInteger(declared) && declared > 0 ? { declaredDurationMs: declared } : {}),
-    });
-  }
+  const uploads: ReviewMediaUpload[] = await findReceived(deps.bucket, grant.id, ids);
   const photos = uploads.filter((upload) => upload.kind === "image").length;
   const voices = uploads.length - photos;
   if (photos > policy.maxPhotos) throw new BusinessLogicError(`At most ${policy.maxPhotos} photos`, ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: "image", max: policy.maxPhotos });
@@ -226,6 +162,10 @@ export async function submitReview(deps: IntakeDeps, submission: ReviewSubmissio
   if (product.reviewed) throw alreadyReviewed();
 
   const uploads = submission.phone === undefined ? [] : await collectUploads(deps, policy, order.id, submission);
+  const body = submission.body.trim();
+  if (body.length < REVIEW_TEXT.bodyMin && !uploads.some((upload) => upload.kind === "audio")) {
+    throw new ValidationError(`Write at least ${REVIEW_TEXT.bodyMin} characters, or add a voice note`, ERROR_CODES.VALIDATION_FAILED, { field: "body", min: REVIEW_TEXT.bodyMin });
+  }
   if (uploads.length > 0 && !deps.workflow) {
     throw new BusinessLogicError("This store does not take photos or voice notes right now", ERROR_CODES.REVIEW_MEDIA_LIMIT, { max: 0 });
   }
@@ -238,7 +178,7 @@ export async function submitReview(deps: IntakeDeps, submission: ReviewSubmissio
     order,
     rating: submission.rating,
     title: submission.title?.trim() || null,
-    body: submission.body.trim(),
+    body,
     status: uploads.length > 0 ? "processing" : statusWithoutMedia,
     verified: true,
   });

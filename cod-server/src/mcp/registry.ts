@@ -323,11 +323,11 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // ─── Reviews ──────────────────────────────────────────────────────────────
   {
     requires: [SCOPES.REVIEWS_READ],
-    build: (db) => pick(getReviewTools(db), ["listReviews"]),
+    build: (db, env) => pick(getReviewTools(db, env), ["listReviews"]),
   },
   {
     requires: [SCOPES.REVIEWS_MANAGE],
-    build: (db) => pick(getReviewTools(db), [
+    build: (db, env) => pick(getReviewTools(db, env), [
       "moderateReview",
       "deleteReview",
     ]),

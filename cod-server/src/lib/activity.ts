@@ -86,6 +86,8 @@ export const ACTIONS = {
   REVIEW_APPROVED:         "review.approved",
   REVIEW_REJECTED:         "review.rejected",
   REVIEW_DELETED:          "review.deleted",
+  REVIEW_CREATED:          "review.created",
+  REVIEW_MEDIA_REMOVED:    "review.media_removed",
 
   // Users / Team
   USER_CREATED:            "user.created",

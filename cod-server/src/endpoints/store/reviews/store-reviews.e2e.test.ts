@@ -323,8 +323,13 @@ describe("submitting", () => {
     expect(await body(await json("POST", "", { ...legacy, orderNumber: "ORD-20261016-2222" }))).toMatchObject({ code: "REVIEW_ORDER_NOT_DELIVERED" });
   });
 
-  it("refuses a body too short to say anything, and stars out of range", async () => {
-    expect((await json("POST", "", { ...review, body: "ok" })).status).toBe(400);
+  it("refuses a body too short to say anything — unless a voice note says it — and stars out of range", async () => {
+    expect(await body(await json("POST", "", { ...review, body: "ok" }))).toMatchObject({ code: "VALIDATION_FAILED", context: { field: "body", min: 10 } });
+    const opened = (await body(await open())).data;
+    const photo = (await body(await upload(opened.media.grant, JPEG))).data.uploadId;
+    expect(await body(await json("POST", "", { ...review, body: "", grant: opened.media.grant, uploads: [photo] }))).toMatchObject({ code: "VALIDATION_FAILED" });
+    const voice = (await body(await upload(opened.media.grant, WEBM))).data.uploadId;
+    expect((await json("POST", "", { ...review, body: "", grant: opened.media.grant, uploads: [voice] })).status).toBe(201);
     expect((await json("POST", "", { ...review, rating: 6 })).status).toBe(400);
     expect((await json("POST", "", { ...review, orderNumber: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" })).status).toBe(400);
   });
