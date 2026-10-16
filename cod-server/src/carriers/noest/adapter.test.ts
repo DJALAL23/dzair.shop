@@ -148,6 +148,62 @@ describe("2. create/orders — results by request index", () => {
   });
 });
 
+describe("what NOEST does that its documentation does not say (live, 2026-10-16)", () => {
+  it("a bulk order always carries a weight — NOEST refuses a bulk order without one — a single order does not need it", async () => {
+    fetchMock.mockResolvedValueOnce(json({ success: true, passed: { 0: { success: true, tracking: "A" }, 1: { success: true, tracking: "B" } }, failed: {} }));
+    await carrier().createShipments!([{ ...input, reference: "REF001" }, { ...input, reference: "REF002", weight: 2.5 }]);
+    expect(call().body.orders.map((o: { poids?: number }) => o.poids)).toEqual([0, 2.5]);
+    fetchMock.mockResolvedValueOnce(json({ success: true, tracking: "T" }));
+    await carrier().createShipment(input);
+    expect(call(1).body).not.toHaveProperty("poids");
+  });
+
+  it("a stop-desk order without a street address is sent with its commune as the address (NOEST requires one)", async () => {
+    fetchMock.mockResolvedValueOnce(json({ success: true, tracking: "T" }));
+    await carrier().createShipment({ ...input, stopDesk: true, stationCode: "16A", address: "  " });
+    expect(call().body).toMatchObject({ adresse: "Bab Ezzouar", stop_desk: 1 });
+    fetchMock.mockResolvedValueOnce(json({ success: true, passed: { 0: { success: true, tracking: "A" } }, failed: {} }));
+    await carrier().createShipments!([{ ...input, stopDesk: true, stationCode: "16A", address: "" }]);
+    expect(call(1).body.orders[0].adresse).toBe("Bab Ezzouar");
+  });
+
+  it("a repeated reference is not always refused: the answer is read as a parcel, never assumed to be a duplicate", async () => {
+    fetchMock.mockResolvedValue(json({ success: true, tracking: "NEW" }));
+    expect((await carrier().createShipment(input)).trackingNumber).toBe("NEW");
+  });
+});
+
+describe("verifyConnection — proves the token and the partner GUID without creating anything", () => {
+  it("sends an order that cannot be created: the GUID alone", async () => {
+    fetchMock.mockResolvedValueOnce(json({ message: "The given data was invalid.", errors: { client: ["Le champ client est obligatoire."] } }, 422));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: true, code: "valid" });
+    expect(call().url).toBe("https://app.noest-dz.com/api/public/create/order");
+    expect(call().body).toEqual({ user_guid: "guid-1" });
+  });
+
+  it("a refused token is a check result (401)", async () => {
+    fetchMock.mockResolvedValue(json({ error: "Unauthenticated." }, 401));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: false, code: "invalid_token" });
+  });
+
+  it("an unknown GUID is told apart from a refused token (404 Partenaire introuvable, or a user_guid field error)", async () => {
+    fetchMock.mockResolvedValueOnce(json({ success: false, message: "Partenaire introuvable" }, 404));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: false, code: "invalid_user_guid" });
+    fetchMock.mockResolvedValueOnce(json({ message: "invalid", errors: { user_guid: ["Le champ user_guid sélectionné est invalide."] } }, 422));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: false, code: "invalid_user_guid" });
+  });
+
+  it("a suspended account is reported, not called valid", async () => {
+    fetchMock.mockResolvedValueOnce(json({ success: false, message: "Compte partenaire suspendu" }, 422));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: false, code: "account_suspended" });
+  });
+
+  it("an outage is an error, never a verdict on the credentials", async () => {
+    fetchMock.mockImplementation(async () => new Response("down", { status: 503 }));
+    expect((await failure(carrier().verifyConnection!())).kind).toBe("unavailable");
+  });
+});
+
 describe("limits", () => {
   it("waits longer than the 30 seconds NOEST allows a request", () => {
     expect(NOEST_TIMEOUT_MS).toBeGreaterThan(30_000);

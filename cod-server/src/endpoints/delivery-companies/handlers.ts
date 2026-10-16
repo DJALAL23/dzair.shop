@@ -104,10 +104,11 @@ export async function createDeliveryCompany(c: Context<AppContext>) {
   const provider = parsed.provider ?? null;
   const providerConfig = settingsFor(provider, null, parsed.providerConfig);
 
-  // EcoTrack-platform carriers lock an order the moment it is validated — the
-  // team would lose the ability to edit or delete it after dispatch — so they
-  // default to manual validation; everyone else validates at once.
-  const autoValidate = parsed.autoValidate ?? provider !== "ecotrack";
+  // A carrier with a separate validation step (EcoTrack, NOEST) locks an order
+  // the moment it is validated — the team would lose the ability to edit or
+  // delete it after dispatch — so it defaults to manual validation; everyone
+  // else validates at once.
+  const autoValidate = parsed.autoValidate ?? !providerCapabilities(provider, parseSettings(providerConfig))?.separateValidation;
 
   if (parsed.active) {
     await assertCredentialsAccepted(

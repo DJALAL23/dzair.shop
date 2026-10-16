@@ -106,7 +106,7 @@ describe("POST /api/delivery-companies/:id/test-connection", () => {
 
   it("returns 422 when the carrier does not offer connection testing", async () => {
     vi.mocked(queries.getDeliveryCompanyRaw).mockResolvedValue(
-      companyRow({ code: "noest", provider: "noest", apiUserGuid: "guid-1" }) as any
+      companyRow({ code: "yalidine", provider: "yalidine", apiUserGuid: "id-1" }) as any
     );
 
     const res = await app.request("/api/delivery-companies/comp_1/test-connection", { method: "POST" });

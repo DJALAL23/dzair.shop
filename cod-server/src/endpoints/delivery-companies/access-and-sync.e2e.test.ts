@@ -175,10 +175,14 @@ describe("saving carrier settings", () => {
     expect(body.data).toMatchObject({ provider: null, capabilities: null });
   });
 
-  it("an EcoTrack-platform company validates by hand by default", async () => {
+  it("a carrier that locks a parcel at validation (EcoTrack, NOEST) validates by hand by default; the others validate at once", async () => {
     scopes = ["delivery:create"];
-    const body: any = await (await request("POST", "", { name: "Packers", nameAr: "باكرز", code: "packers_ecotrack", provider: "ecotrack" })).json();
-    expect(body.data).toMatchObject({ provider: "ecotrack", autoValidate: false });
+    const create = async (provider: string) =>
+      ((await (await request("POST", "", { name: provider, nameAr: provider, code: `${provider}_default`, provider })).json()) as any).data.autoValidate;
+    expect(await create("ecotrack")).toBe(false);
+    expect(await create("noest")).toBe(false);
+    expect(await create("yalidine")).toBe(true);
+    expect(await create("zr_express")).toBe(true);
   });
 });
 

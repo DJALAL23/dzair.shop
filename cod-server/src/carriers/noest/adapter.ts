@@ -7,8 +7,12 @@
  *   - A created parcel waits for `valid/order`; after it, no deletion and no
  *     direct edit. Editing before shipment is `update/order/before/expedition`
  *     (applied at once); `update/order` only files a change *request*.
- *   - A reference already used answers `duplicate_order` ("Colis déja
- *     existant"), so a repeated creation can never ship twice.
+ *   - The documentation says a reference already used answers `duplicate_order`
+ *     ("Colis déja existant"). Live (2026-10-16) a repeated reference created a
+ *     second parcel, so nothing here relies on it: an unknown outcome is
+ *     resolved by the merchant, never re-sent.
+ *   - Live: a bulk order without `poids` is refused (a single one is not), and
+ *     `adresse` is required even for a stop desk.
  *   - Bulk answers are keyed by the index of each order in the request
  *     (`passed` / `failed`, an object, or an array when PHP's keys run 0..n).
  *   - History: `get/trackings/info` (active and archived), with `activity[]`
@@ -26,6 +30,7 @@ import {
   type CarrierAdapter,
   type CarrierBulkItem,
   type CarrierCapabilities,
+  type CarrierConnectionCheck,
   type CarrierLabel,
   type CarrierParcel,
   type CarrierRef,
@@ -79,7 +84,7 @@ export const NOEST_CAPABILITIES: CarrierCapabilities = {
   confirmReturn: false,
   stopDeskList: true,
   geoNames: false,
-  verifyConnection: false,
+  verifyConnection: true,
 };
 
 interface NoestAnswer {
@@ -135,13 +140,13 @@ export class NoestCarrier implements CarrierAdapter {
     return interpretNoest(status);
   }
 
-  private order(input: CarrierShipmentInput): Omit<NoestCreateOrderRequest, "user_guid"> {
+  private order(input: CarrierShipmentInput, bulk = false): Omit<NoestCreateOrderRequest, "user_guid"> {
     return {
       reference: input.reference,
       client: input.customerName,
       phone: input.phone,
       ...(input.phone2 ? { phone_2: input.phone2 } : {}),
-      adresse: input.address,
+      adresse: input.address.trim() || input.commune,
       wilaya_id: input.wilayaId,
       commune: input.commune,
       montant: input.amount,
@@ -150,7 +155,7 @@ export class NoestCarrier implements CarrierAdapter {
       stop_desk: input.stopDesk ? 1 : 0,
       ...(input.stopDesk && input.stationCode ? { station_code: input.stationCode } : {}),
       ...(input.remarks ? { remarque: input.remarks } : {}),
-      ...(input.weight !== undefined ? { poids: input.weight } : {}),
+      ...(input.weight !== undefined ? { poids: input.weight } : bulk ? { poids: 0 } : {}),
     };
   }
 
@@ -169,7 +174,7 @@ export class NoestCarrier implements CarrierAdapter {
   async createShipments(inputs: CarrierShipmentInput[]): Promise<CarrierBulkItem[]> {
     const res = await this.http.write<NoestBulkCreateResponse>("POST", "/create/orders", {
       user_guid: this.userGuid,
-      orders: inputs.map((input) => this.order(input)),
+      orders: inputs.map((input) => this.order(input, true)),
     });
     const passed = byIndex(res.passed);
     const failed = byIndex(res.failed);
@@ -183,6 +188,29 @@ export class NoestCarrier implements CarrierAdapter {
       }
       return { reference, ok: false, error: new CarrierError("noest", "ambiguous", "NOEST's answer does not say what happened to this order") };
     });
+  }
+
+  /**
+   * NOEST has no read that takes the partner GUID, so the check posts an order
+   * that cannot be created — the GUID alone — and reads how it is refused: 401
+   * is the token, 404 "Partenaire introuvable" the GUID, and field errors for
+   * the missing client mean both were accepted.
+   */
+  async verifyConnection(): Promise<CarrierConnectionCheck> {
+    try {
+      await this.http.read("POST", "/create/order", { user_guid: this.userGuid });
+      return { ok: true, code: "valid", message: "Token and partner GUID are valid" };
+    } catch (error) {
+      if (!(error instanceof CarrierError)) throw error;
+      if (error.kind === "auth" || error.httpStatus === 401) return { ok: false, code: "invalid_token", message: "The API token was refused" };
+      if (error.httpStatus === 404 && /partenaire/i.test(error.message)) return { ok: false, code: "invalid_user_guid", message: "The partner GUID was refused" };
+      if (error.httpStatus === 422) {
+        if (/user_guid/i.test(error.message)) return { ok: false, code: "invalid_user_guid", message: "The partner GUID was refused" };
+        if (/suspen/i.test(error.message)) return { ok: false, code: "account_suspended", message: "The NOEST partner account is suspended" };
+        return { ok: true, code: "valid", message: "Token and partner GUID are valid" };
+      }
+      throw error;
+    }
   }
 
   /** Validating an order NOEST already validated changes nothing — it counts as done. */

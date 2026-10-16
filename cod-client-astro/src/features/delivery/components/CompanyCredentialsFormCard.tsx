@@ -89,7 +89,7 @@ export function CompanyCredentialsFormCard({
           autoComplete="off"
           className="font-mono"
         />
-        {(config.provider === "ecotrack" || config.provider === "zr_express") && (
+        {(config.provider === "ecotrack" || config.provider === "zr_express" || config.provider === "noest") && (
           <p className="mt-1 text-xs font-medium text-muted-foreground/60">{t("token_checked_hint")}</p>
         )}
         {config.tokenHint && (

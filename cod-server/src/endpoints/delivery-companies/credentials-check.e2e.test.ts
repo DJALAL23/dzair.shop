@@ -122,10 +122,29 @@ describe("connecting an EcoTrack company", () => {
     expect((await rows())[0].autoValidate).toBe(true);
   });
 
-  it("does not check other carriers, whose adapters cannot verify a token", async () => {
-    const res = await send("POST", "/api/delivery-companies", { name: "NOEST", nameAr: "نوست", code: "noest", provider: "noest", apiToken: "x", apiUserGuid: "g", active: true });
+  it("does not check a carrier whose adapter cannot verify a token", async () => {
+    const res = await send("POST", "/api/delivery-companies", { name: "Yalidine", nameAr: "ياليدين", code: "yalidine", provider: "yalidine", apiToken: "x", apiUserGuid: "g", active: true });
     expect(res.status).toBe(201);
     expect(server.requests).toHaveLength(0);
+  });
+});
+
+describe("connecting a NOEST company", () => {
+  const noest = { name: "NOEST", nameAr: "نوست", code: "noest", provider: "noest", apiToken: "noest-token", apiUserGuid: "guid-1", active: true };
+
+  it("stores credentials NOEST accepts, with manual validation", async () => {
+    globalThis.fetch = (async () => Response.json({ message: "invalid", errors: { client: ["required"] } }, { status: 422 })) as typeof fetch;
+    const res = await send("POST", "/api/delivery-companies", noest);
+    expect(res.status).toBe(201);
+    expect((await rows())[0]).toMatchObject({ provider: "noest", autoValidate: false });
+  });
+
+  it("refuses a refused token, or an unknown partner GUID, storing nothing", async () => {
+    globalThis.fetch = (async () => Response.json({ error: "Unauthenticated." }, { status: 401 })) as typeof fetch;
+    expect((await send("POST", "/api/delivery-companies", noest)).status).toBe(409);
+    globalThis.fetch = (async () => Response.json({ success: false, message: "Partenaire introuvable" }, { status: 404 })) as typeof fetch;
+    expect((await send("POST", "/api/delivery-companies", noest)).status).toBe(409);
+    expect(await rows()).toHaveLength(0);
   });
 });
 
