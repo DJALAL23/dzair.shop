@@ -5,6 +5,9 @@ const dict = { table: { total: "Total" }, deep: { a: { b: "x" } } };
 
 describe("resolve", () => {
   it("resolves nested dot-paths", () => expect(resolve(dict, "table.total")).toBe("Total"));
+  it("resolves a leaf key that itself contains dots", () => {
+    expect(resolve({ actions: { "order.created": "Created" } }, "actions.order.created")).toBe("Created");
+  });
   it("returns undefined for missing paths / non-strings", () => {
     expect(resolve(dict, "table.missing")).toBeUndefined();
     expect(resolve(dict, "deep")).toBeUndefined();

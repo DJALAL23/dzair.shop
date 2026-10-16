@@ -2,15 +2,19 @@ import type { Dict } from "./dictionaries";
 
 /** Resolve a dot-path ("table.total") inside a nested dictionary. */
 export function resolve(dict: Dict, key: string): string | undefined {
-  let node: unknown = dict;
-  for (const part of key.split(".")) {
-    if (node && typeof node === "object" && Object.hasOwn(node as Dict, part)) {
-      node = (node as Dict)[part];
-    } else {
-      return undefined;
-    }
+  return walk(dict, key.split("."), 0);
+}
+
+function walk(node: unknown, parts: string[], from: number): string | undefined {
+  if (from === parts.length) return typeof node === "string" ? node : undefined;
+  if (!node || typeof node !== "object") return undefined;
+  for (let end = from + 1; end <= parts.length; end++) {
+    const part = parts.slice(from, end).join(".");
+    if (!Object.hasOwn(node as Dict, part)) continue;
+    const found = walk((node as Dict)[part], parts, end);
+    if (found !== undefined) return found;
   }
-  return typeof node === "string" ? node : undefined;
+  return undefined;
 }
 
 export type MessageValues = Readonly<Record<string, string | number>>;
