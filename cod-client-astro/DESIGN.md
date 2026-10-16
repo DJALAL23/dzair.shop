@@ -65,8 +65,11 @@ needs a `dark:` colour override is using the wrong token.
 
 ## Typography
 
-- Latin: Geist Variable. Arabic: IBM Plex Sans Arabic (the fallback in the same
-  stack, so mixed Arabic/Latin data renders in one run).
+- Latin: Plus Jakarta Sans Variable. Arabic: Cairo Variable. French and English
+  put Plus Jakarta Sans first and Cairo behind it; Arabic puts Cairo first, so
+  its digits and Latin words match the Arabic around them. Both are in
+  `src/styles/fonts.css`. Arabic gets taller line heights (`html[lang="ar"]` in
+  `globals.css`) because Cairo's marks need the room.
 - Base size is 15px in Arabic and 14px in English and French
   (`html[lang]` rule in `globals.css`); small text is 12px.
 - Page titles are 20px semibold (`PageHeader`). Card titles are 14px semibold.

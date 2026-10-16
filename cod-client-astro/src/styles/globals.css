@@ -225,6 +225,19 @@ html[lang="fr"] {
   --fs-base: 0.875rem;
 }
 
+/* Cairo's Arabic marks sit higher and lower than a Latin face's: give each size more line. */
+html[lang="ar"] {
+  --text-xs--line-height: 1.25rem;
+  --text-sm--line-height: 1.4rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl--line-height: 1.875rem;
+}
+
+html[lang="ar"] body {
+  line-height: 1.4rem;
+}
+
 .dark {
   /* The same ladder inverted: each elevation one step lighter. */
   --background: #0f0f10;
