@@ -88,6 +88,9 @@ export function CompanyCredentialsFormCard({
           autoComplete="off"
           className="font-mono"
         />
+        {config.provider === "ecotrack" && (
+          <p className="mt-1 text-xs font-medium text-muted-foreground/60">{t("token_checked_hint")}</p>
+        )}
         {config.tokenHint && (
           <p className="mt-1 text-xs font-medium text-muted-foreground/60">
             {config.tokenHint}
@@ -141,6 +144,9 @@ export function CompanyCredentialsFormCard({
             autoComplete="off"
             className="font-mono"
           />
+          {config.provider === "ecotrack" && (
+            <p className="mt-1 text-xs font-medium text-muted-foreground/60">{t("endpoint_free_hint")}</p>
+          )}
           {config.endpointHint && (
             <p className="mt-1 text-xs font-medium text-muted-foreground/60">
               {config.endpointHint}

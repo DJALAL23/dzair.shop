@@ -304,3 +304,24 @@ export function webhookSetup(
   if (config.provider === "zr_express") return { kind: "register", ready: Boolean(company?.webhookEndpointId) };
   return { kind: "secret", ready: Boolean(company?.webhookSecretSet) };
 }
+
+/** A carrier host the merchant typed: an http(s) address without trailing slashes, or null. */
+export function carrierHostFrom(value: string): string | null {
+  const text = value.trim().replace(/\/+$/, "");
+  try {
+    const url = new URL(text);
+    return (url.protocol === "https:" || url.protocol === "http:") && url.hostname ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The message that explains a failed connect, by what the server said. */
+export function connectErrorKey(cause: unknown): "error_token_refused" | "error_carrier_unreachable" | "error_carrier_busy" | "error_host_refused" | "error_saving" {
+  const code = typeof cause === "object" && cause !== null ? (cause as { code?: unknown }).code : undefined;
+  if (code === "CARRIER_AUTH_FAILED") return "error_token_refused";
+  if (code === "CARRIER_UNAVAILABLE" || code === "CARRIER_OUTCOME_UNKNOWN") return "error_carrier_unreachable";
+  if (code === "CARRIER_RATE_LIMITED") return "error_carrier_busy";
+  if (code === "CARRIER_REJECTED") return "error_host_refused";
+  return "error_saving";
+}

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildRateMap,
   canRetryEvent,
+  carrierHostFrom,
+  connectErrorKey,
   companySettingsFor,
   fromWilayaOf,
   statusMapDraft,
@@ -202,5 +204,31 @@ describe("a company's webhook setup", () => {
     expect(webhookSetup({ provider: "yalidine", updates: "webhook" }, { ...company, webhookSecretSet: true })).toEqual({ kind: "secret", ready: true });
     expect(webhookSetup({ provider: "yalidine", updates: "pull" }, company)).toEqual({ kind: "none" });
     expect(webhookSetup({ provider: "ecotrack", updates: "pull" }, company)).toEqual({ kind: "none" });
+  });
+});
+
+describe("a carrier host typed by hand", () => {
+  it("accepts an http(s) address and drops what trails it", () => {
+    expect(carrierHostFrom("  https://mono2.ecotrack.dz/  ")).toBe("https://mono2.ecotrack.dz");
+    expect(carrierHostFrom("http://localhost:9000///")).toBe("http://localhost:9000");
+    expect(carrierHostFrom("https://x.ecotrack.dz/api/v1")).toBe("https://x.ecotrack.dz/api/v1");
+  });
+
+  it("refuses anything else, including a bare host without a scheme", () => {
+    for (const value of ["", "   ", "mono2.ecotrack.dz", "ftp://x.dz", "https://", "not a url"]) expect(carrierHostFrom(value), value).toBeNull();
+  });
+});
+
+describe("why connecting a carrier failed", () => {
+  const api = (_status: number, code: string) => Object.assign(new Error("x"), { code });
+
+  it("tells a refused token from an unreachable carrier from anything else", () => {
+    expect(connectErrorKey(api(409, "CARRIER_AUTH_FAILED"))).toBe("error_token_refused");
+    expect(connectErrorKey(api(502, "CARRIER_UNAVAILABLE"))).toBe("error_carrier_unreachable");
+    expect(connectErrorKey(api(502, "CARRIER_OUTCOME_UNKNOWN"))).toBe("error_carrier_unreachable");
+    expect(connectErrorKey(api(429, "CARRIER_RATE_LIMITED"))).toBe("error_carrier_busy");
+    expect(connectErrorKey(api(422, "CARRIER_REJECTED"))).toBe("error_host_refused");
+    expect(connectErrorKey(api(409, "CARRIER_MISCONFIGURED"))).toBe("error_saving");
+    expect(connectErrorKey(new Error("boom"))).toBe("error_saving");
   });
 });

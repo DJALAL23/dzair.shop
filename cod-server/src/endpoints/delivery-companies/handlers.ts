@@ -12,7 +12,8 @@ import { companyStopDesks, wilayas, webhookEvents, orders, shipments } from "@/d
 import * as queries from "./queries";
 import * as validation from "./validation";
 import { companyView } from "./view";
-import { buildCarrier, mergeProviderConfig } from "@/carriers/registry";
+import { buildCarrier, mergeProviderConfig, providerCapabilities, type CarrierCompany } from "@/carriers/registry";
+import { CarrierError } from "@/carriers/contract";
 import type { CarrierProvider } from "../../../../cod-shared/carriers/providers";
 import { callCarrier, requireCapability } from "@/carriers/app-errors";
 import type { CarrierAdapter } from "@/carriers/contract";
@@ -57,6 +58,30 @@ export async function getDeliveryCompany(c: Context<AppContext>) {
   return c.json({ success: true, data: companyView(company) }, 200);
 }
 
+
+/**
+ * A carrier that can check a token must accept it before the company is saved
+ * as connected: a typo would otherwise show "Connected" and fail on the first
+ * parcel. A carrier that cannot be reached is refused too, with its own error,
+ * so the merchant knows the token is not the problem.
+ */
+async function assertCredentialsAccepted(company: CarrierCompany, context: { code: string; companyId?: string }): Promise<void> {
+  if (!company.apiToken?.trim()) return;
+  if (!providerCapabilities(company.provider, parseSettings(company.providerConfig))?.verifyConnection) return;
+  await callCarrier(context, async () => {
+    const check = await buildCarrier(company).verifyConnection!();
+    if (!check.ok) throw new CarrierError(company.provider!, "auth", check.message);
+  });
+}
+
+function parseSettings(text: string | null): unknown {
+  try {
+    return text ? JSON.parse(text) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * POST /delivery-companies
  * Create a new delivery company.
@@ -83,6 +108,13 @@ export async function createDeliveryCompany(c: Context<AppContext>) {
   // team would lose the ability to edit or delete it after dispatch — so they
   // default to manual validation; everyone else validates at once.
   const autoValidate = parsed.autoValidate ?? provider !== "ecotrack";
+
+  if (parsed.active) {
+    await assertCredentialsAccepted(
+      { provider, providerConfig, apiToken: parsed.apiToken ?? null, apiUserGuid: parsed.apiUserGuid ?? null, apiEndpoint: parsed.apiEndpoint ?? null },
+      { code: parsed.code },
+    );
+  }
 
   const company = await queries.createDeliveryCompany(db, { ...parsed, provider, providerConfig, autoValidate });
   if (!company) {
@@ -123,6 +155,24 @@ export async function updateDeliveryCompany(c: Context<AppContext>) {
     // A different adapter starts from its own defaults, not the old one's settings.
     const base = provider === stored.provider ? stored.providerConfig : null;
     settings = { provider, providerConfig: settingsFor(provider, base, settingsPatch) };
+  }
+
+  const stored = await queries.getDeliveryCompanyRaw(db, id);
+  if (!stored) throw new NotFoundError("Delivery company", id);
+  const wasActive = stored.active;
+  const touchesCredentials =
+    fields.apiToken !== undefined || fields.apiEndpoint !== undefined || requestedProvider !== undefined || (fields.active === true && !wasActive);
+  if ((fields.active ?? wasActive) && touchesCredentials) {
+    await assertCredentialsAccepted(
+      {
+        provider: settings.provider === undefined ? stored.provider : settings.provider,
+        providerConfig: settings.providerConfig === undefined ? stored.providerConfig : settings.providerConfig,
+        apiToken: fields.apiToken === undefined ? stored.apiToken : fields.apiToken,
+        apiUserGuid: fields.apiUserGuid === undefined ? stored.apiUserGuid : fields.apiUserGuid,
+        apiEndpoint: fields.apiEndpoint === undefined ? stored.apiEndpoint : fields.apiEndpoint,
+      },
+      { code: stored.code, companyId: id },
+    );
   }
 
   const company = await queries.updateDeliveryCompany(db, id, { ...fields, ...settings });

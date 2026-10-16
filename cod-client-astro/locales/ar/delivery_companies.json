@@ -170,5 +170,12 @@
   "available_two": "شركتان متاحتان",
   "available_few": "{count} شركات متاحة",
   "available_many": "{count} شركةً متاحة",
-  "available_other": "{count} شركة متاحة"
+  "available_other": "{count} شركة متاحة",
+  "error_endpoint_invalid": "أدخل عنوان الشركة بدءًا بـ https://",
+  "error_token_refused": "رفضت الشركة هذا الرمز. تحقق منه ومن العنوان ثم أعد المحاولة.",
+  "error_carrier_unreachable": "تعذر الوصول إلى الشركة للتحقق من الرمز. لم يتم حفظ أي شيء — أعد المحاولة بعد قليل.",
+  "error_carrier_busy": "الشركة تحدّ من الطلبات حاليًا. انتظر دقيقة ثم أعد المحاولة.",
+  "token_checked_hint": "يتم التحقق من الرمز لدى الشركة عند الحفظ.",
+  "endpoint_free_hint": "اكتب العنوان كما أعطته لك الشركة تمامًا. يتم التحقق منه عند الحفظ.",
+  "error_host_refused": "لم يستجب هذا العنوان كواجهة API الشركة. تحقق منه وأعد المحاولة."
 }

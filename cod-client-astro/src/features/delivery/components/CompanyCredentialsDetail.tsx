@@ -13,7 +13,7 @@ import {
 } from "@/features/delivery/api";
 import type { DeliveryCompany } from "@/features/delivery/types";
 import { getProviderConfig } from "@/features/delivery/types";
-import { companySettingsFor, fromWilayaOf, webhookSetup } from "@/features/delivery/model";
+import { carrierHostFrom, companySettingsFor, connectErrorKey, fromWilayaOf, webhookSetup } from "@/features/delivery/model";
 import {
   Alert,
   PageHeader,
@@ -102,7 +102,7 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
   useEffect(() => {
     setApiToken("");
     setApiUserGuid("");
-    setApiEndpoint(company?.apiEndpoint ?? config?.endpointDefault ?? "");
+    setApiEndpoint(company?.apiEndpoint ?? "");
     setFromWilayaName(fromWilayaOf(company ?? null));
   }, [company?.id, company?.apiEndpoint, company?.providerConfig, config?.endpointDefault]);
 
@@ -122,15 +122,23 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
       return;
     }
 
+    const host = config.requiresEndpoint ? carrierHostFrom(apiEndpoint) : null;
+    if (config.requiresEndpoint && !host) {
+      const message = apiEndpoint.trim()
+        ? t("error_endpoint_invalid")
+        : `${config.endpointLabel ?? t("ecotrack_endpoint")} ${t("error_required")}`;
+      setNotice({ message, tone: "error" });
+      notify.error(message);
+      return;
+    }
+
     setNotice(null);
     setLoading(true);
     try {
       const credentials: Record<string, unknown> = {
         apiToken: apiToken.trim(),
         ...(config.requiresUserGuid ? { apiUserGuid: apiUserGuid.trim() } : {}),
-        ...(config.requiresEndpoint
-          ? { apiEndpoint: apiEndpoint.trim() || config.endpointDefault || config.apiEndpoint }
-          : {}),
+        ...(host ? { apiEndpoint: host } : {}),
       };
 
       Object.assign(credentials, companySettingsFor(config, fromWilayaName));
@@ -142,6 +150,7 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
           name: config.name,
           nameAr: config.nameAr,
           code: config.code,
+          provider: config.provider,
           website: config.website,
           apiEndpoint: config.apiEndpoint,
           supportsHomeDelivery: config.supportsHomeDelivery,
@@ -154,8 +163,8 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
         company?.isConnected ? t("success_updated") : t("success_connected"),
       );
       window.location.assign(`/delivery/companies/${providerCode}`);
-    } catch {
-      const message = t("error_saving");
+    } catch (cause) {
+      const message = t(connectErrorKey(cause));
       setNotice({ message, tone: "error" });
       notify.error(message);
       setLoading(false);
