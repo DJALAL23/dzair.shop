@@ -8,23 +8,12 @@ import { LOCALES, type Locale } from "@/i18n/config";
 import { switchLocale, useLocale, useT } from "@/i18n/react";
 import { persistTheme } from "@/theme/config";
 import { useTheme } from "@/theme/react";
-import { Logo } from "@/components/brand/Logo";
 import {
   DropdownItem,
   DropdownLink,
   DropdownMenu,
   DropdownSeparator,
 } from "@/components/ui";
-
-export function Brand() {
-  const tN = useT("navigation");
-  return (
-    <a href="/" className="flex min-w-0 items-center rounded-md" aria-label={tN("home_link")}>
-      <Logo variant="dark" height={22} className="dark:hidden" />
-      <Logo variant="light" height={22} className="hidden dark:block" />
-    </a>
-  );
-}
 
 function initialOf(text: string): string {
   return text.trim().charAt(0).toUpperCase() || "?";
@@ -169,17 +158,14 @@ export function DashboardTopbar({ onMenu }: { onMenu?: () => void }) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 px-3 md:px-4">
       {onMenu && (
-        <>
-          <button
-            type="button"
-            onClick={onMenu}
-            aria-label={tN("menu.open")}
-            className="grid size-10 place-items-center rounded-full text-foreground transition-colors hover:bg-foreground/[0.06]"
-          >
-            <Menu size={20} aria-hidden="true" />
-          </button>
-          <Brand />
-        </>
+        <button
+          type="button"
+          onClick={onMenu}
+          aria-label={tN("menu.open")}
+          className="grid size-10 place-items-center rounded-full text-foreground transition-colors hover:bg-foreground/[0.06]"
+        >
+          <Menu size={20} aria-hidden="true" />
+        </button>
       )}
       <div className="hidden min-w-0 flex-1 justify-center md:flex">
         <div className="w-full max-w-md">
