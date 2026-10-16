@@ -17,6 +17,9 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  /* Takes the width its card gives it and never asks for more: the toolbar's
+     row of buttons would otherwise widen every grid track up the tree. */
+  contain: inline-size;
   display: flex;
   flex-direction: column;
 }

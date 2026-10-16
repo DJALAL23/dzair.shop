@@ -58,22 +58,22 @@ function parseOptions(children: ReactNode): Option[] {
 }
 
 const triggerBase =
-  "group/select relative flex w-full items-center gap-2 rounded-lg outline-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 select-none";
+  "group/select relative flex w-full items-center gap-2 rounded-lg outline-none transition-[border-color,box-shadow,background-color] duration-150 disabled:cursor-not-allowed disabled:opacity-50 select-none";
 
 function triggerClasses(variant: SelectVariant, size: SelectSize): string {
   const dimensions =
     variant === "default"
       ? size === "sm"
-        ? "h-8 text-xs px-2.5 pe-7"
-        : "h-9 text-[13.5px] px-3 pe-8"
+        ? "h-7 text-xs px-2.5 pe-7 pointer-coarse:h-9"
+        : "h-8 text-sm px-3 pe-8 pointer-coarse:h-10"
       : "";
   const perVariant: Record<SelectVariant, string> = {
     default:
-      "border border-input/80 bg-card text-foreground shadow-2xs hover:border-input focus:border-ring focus:ring-2 focus:ring-ring/20",
-    bare: "h-9 bg-transparent ps-0.5 pe-6 text-sm text-foreground focus:ring-2 focus:ring-ring/20",
+      "border border-input bg-card text-foreground hover:border-foreground/45 focus:border-ring focus:shadow-[0_0_0_1px_var(--ring)]",
+    bare: "h-8 bg-transparent ps-0.5 pe-6 text-sm text-foreground focus:ring-2 focus:ring-ring/20",
     inverted:
-      "h-9 border border-white/15 bg-white/10 px-2.5 pe-8 text-xs font-semibold text-white hover:bg-white/15 focus:ring-2 focus:ring-white/30",
-    pill: "h-auto min-w-0 rounded-full border border-border/80 px-2.5 pe-6 py-1 text-xs font-semibold focus:ring-2 focus:ring-ring/20 bg-card",
+      "h-8 bg-white/10 px-2.5 pe-8 text-xs font-medium text-white hover:bg-white/15 focus:ring-2 focus:ring-white/30",
+    pill: "h-7 min-w-0 rounded-lg border border-dashed border-input px-2.5 pe-7 text-xs font-medium text-foreground hover:bg-foreground/[0.04] hover:border-foreground/45 focus:border-ring focus:shadow-[0_0_0_1px_var(--ring)] pointer-coarse:h-9",
   };
   return `${triggerBase} ${perVariant[variant]} ${dimensions}`;
 }
@@ -284,7 +284,7 @@ export function Select({
             ? { left: pos.left, top: pos.top, width: Math.max(pos.width, 180) }
             : undefined
         }
-        className="fixed z-[80] max-h-72 overflow-y-auto overscroll-contain rounded-xl border border-border/80 bg-popover p-1 text-popover-foreground shadow-xl shadow-black/10 backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-150"
+        className="fixed z-[80] max-h-72 animate-pop overflow-y-auto overscroll-contain rounded-xl bg-popover p-1.5 text-popover-foreground shadow-popover"
       >
         {options.map((option, index) => {
           const isSelected = option.value === value;
@@ -302,12 +302,10 @@ export function Select({
                 event.preventDefault();
                 commit(index);
               }}
-              className={`flex min-h-[34px] cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium outline-none transition-colors ${
-                isActive ? "bg-muted/80 text-foreground" : ""
+              className={`flex min-h-8 cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm outline-none transition-colors pointer-coarse:min-h-10 ${
+                isActive ? "bg-foreground/[0.06] text-foreground" : ""
               } ${
-                isSelected
-                  ? "bg-brand/[0.08] font-semibold text-brand dark:bg-brand/15 dark:text-brand"
-                  : "text-foreground/85"
+                isSelected ? "font-semibold text-foreground" : "text-foreground"
               } ${option.disabled ? "cursor-not-allowed opacity-40" : ""}`}
             >
               <span className="min-w-0 flex-1 truncate text-start">
@@ -317,7 +315,7 @@ export function Select({
                 <Check
                   size={14}
                   strokeWidth={2.2}
-                  className="shrink-0 text-brand"
+                  className="shrink-0 text-foreground"
                   aria-hidden="true"
                 />
               )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { applyTheme, detectTheme, persistTheme, type Theme } from "./config";
+import { applyTheme, detectTheme, type Theme } from "./config";
 
 export function useTheme(): Theme {
   const [theme, setTheme] = useState<Theme>(() => detectTheme());
@@ -15,8 +15,4 @@ export function useTheme(): Theme {
   }, [theme]);
 
   return theme;
-}
-
-export function toggleTheme(theme: Theme): void {
-  persistTheme(theme === "dark" ? "light" : "dark");
 }

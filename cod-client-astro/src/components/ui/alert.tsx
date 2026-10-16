@@ -9,22 +9,22 @@ const tones: Record<
 > = {
   info: {
     container:
-      "border-[var(--status-ready-border)] bg-[var(--status-ready-bg)] text-[var(--status-ready-text)]",
+      "border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] text-[var(--tone-info-text)]",
     icon: Info,
   },
   critical: {
     container:
-      "border-[var(--status-returned-border)] bg-[var(--status-returned-bg)] text-[var(--status-returned-text)]",
+      "border-[var(--tone-critical-border)] bg-[var(--tone-critical-bg)] text-[var(--tone-critical-text)]",
     icon: AlertCircle,
   },
   warning: {
     container:
-      "border-[var(--status-preparing-border)] bg-[var(--status-preparing-bg)] text-[var(--status-preparing-text)]",
+      "border-[var(--tone-warning-border)] bg-[var(--tone-warning-bg)] text-[var(--tone-warning-text)]",
     icon: AlertTriangle,
   },
   success: {
     container:
-      "border-[var(--status-confirmed-border)] bg-[var(--status-confirmed-bg)] text-[var(--status-confirmed-text)]",
+      "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]",
     icon: CheckCircle2,
   },
 };
@@ -45,11 +45,11 @@ export function Alert({
   return (
     <div
       role={role}
-      className={`flex items-start gap-3 rounded-xl border p-3.5 text-sm shadow-2xs ${config.container} ${className}`}
+      className={`flex animate-rise items-start gap-2.5 rounded-xl border p-3 text-sm ${config.container} ${className}`}
     >
       <Icon
-        size={18}
-        className="mt-0.5 shrink-0 opacity-90"
+        size={16}
+        className="mt-0.5 shrink-0"
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1 leading-relaxed">{children}</div>

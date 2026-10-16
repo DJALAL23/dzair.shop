@@ -7,9 +7,15 @@ export function PageHeader({
   backHref,
   backLabel,
   actions,
+  badges,
+  media,
   className = "",
 }: {
   title: ReactNode;
+  /** Status marks shown beside the title. */
+  badges?: ReactNode;
+  /** A small picture of the record: its image or initial. */
+  media?: ReactNode;
   subtitle?: ReactNode;
   backHref?: string;
   backLabel?: string;
@@ -18,14 +24,14 @@ export function PageHeader({
 }) {
   return (
     <header
-      className={`mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${className}`}
+      className={`mb-6 flex min-h-9 flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-border pb-4 ${className}`}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         {backHref && (
           <a
             href={backHref}
             aria-label={backLabel}
-            className="grid size-9 shrink-0 place-items-center rounded-lg border border-border/80 bg-card text-muted-foreground shadow-2xs transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+            className="-ms-1.5 grid size-8 shrink-0 place-items-center rounded-lg text-foreground/80 transition-colors hover:bg-foreground/[0.06] hover:text-foreground pointer-coarse:size-10"
           >
             <ArrowLeft
               size={16}
@@ -34,19 +40,21 @@ export function PageHeader({
             />
           </a>
         )}
+        {media && <div className="me-1 shrink-0">{media}</div>}
         <div className="min-w-0">
-          <h1 className="text-[22px] font-bold tracking-tight text-foreground">
-            {title}
-          </h1>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+            {badges}
+          </div>
           {subtitle && (
-            <p className="mt-0.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground">
               {subtitle}
             </p>
           )}
         </div>
       </div>
       {actions && (
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {actions}
         </div>
       )}

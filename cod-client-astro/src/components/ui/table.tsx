@@ -1,4 +1,4 @@
-import type { HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
 export function Table({
   className = "",
@@ -7,7 +7,7 @@ export function Table({
   return (
     <table
       {...props}
-      className={`w-full caption-bottom text-start text-[13.5px] ${className}`}
+      className={`w-full caption-bottom text-start text-sm ${className}`}
     />
   );
 }
@@ -19,7 +19,7 @@ export function TableHeader({
   return (
     <thead
       {...props}
-      className={`border-b border-border/80 bg-muted/35 text-[11px] font-bold uppercase tracking-wider text-muted-foreground select-none ${className}`}
+      className={`border-y border-border bg-subtle text-xs font-medium text-muted-foreground select-none ${className}`}
     />
   );
 }
@@ -31,7 +31,7 @@ export function TableBody({
   return (
     <tbody
       {...props}
-      className={`divide-y divide-border/60 ${className}`}
+      className={`divide-y divide-border ${className}`}
     />
   );
 }
@@ -43,7 +43,7 @@ export function TableRow({
   return (
     <tr
       {...props}
-      className={`transition-colors hover:bg-muted/25 ${className}`}
+      className={`group/row transition-colors duration-100 hover:bg-subtle ${className}`}
     />
   );
 }
@@ -55,25 +55,85 @@ const HAS_EXPLICIT_ALIGN = /\btext-(start|end|center|left|right)\b/;
 
 export function TableHead({
   className = "",
+  numeric = false,
   ...props
-}: ThHTMLAttributes<HTMLTableCellElement>) {
+}: ThHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean }) {
+  const align = numeric ? "text-end" : HAS_EXPLICIT_ALIGN.test(className) ? "" : "text-start";
   return (
     <th
       scope="col"
       {...props}
-      className={`px-4 py-2.5 ${HAS_EXPLICIT_ALIGN.test(className) ? "" : "text-start"} font-semibold align-middle ${className}`}
+      className={`h-10 px-3 first:ps-4 last:pe-4 ${align} whitespace-nowrap font-medium align-middle ${className}`}
     />
   );
 }
 
+/** One fact per cell, on a 52px row. `numeric` right-aligns money and counts on tabular figures. */
 export function TableCell({
   className = "",
+  numeric = false,
   ...props
-}: TdHTMLAttributes<HTMLTableCellElement>) {
+}: TdHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean }) {
   return (
     <td
       {...props}
-      className={`px-4 py-3 align-middle text-foreground/90 ${className}`}
+      className={`h-13 px-3 py-2 first:ps-4 last:pe-4 align-middle text-foreground ${numeric ? "text-end tabular-nums whitespace-nowrap" : ""} ${className}`}
     />
   );
+}
+
+/** A cell with nothing to say: one quiet dash. */
+export function CellEmpty() {
+  return <span className="text-subtle-foreground" aria-hidden="true">—</span>;
+}
+
+/** The fact a merchant scans a row for — a name or a number — with an optional thumbnail or initial before it. */
+export function RowTitle({
+  href,
+  media,
+  children,
+}: {
+  href?: string;
+  media?: ReactNode;
+  children: ReactNode;
+}) {
+  const text = href ? (
+    <a href={href} className="truncate font-medium text-foreground underline-offset-2 hover:underline">
+      {children}
+    </a>
+  ) : (
+    <span className="truncate font-medium text-foreground">{children}</span>
+  );
+  return (
+    <span className="flex min-w-0 items-center gap-3">
+      {media}
+      {text}
+    </span>
+  );
+}
+
+/** A round initial standing in for a person or company without a picture. */
+export function Initial({ name, className = "" }: { name: string; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`grid size-7 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-muted-foreground ${className}`}
+    >
+      {name.trim().charAt(0).toUpperCase() || "?"}
+    </span>
+  );
+}
+
+const INTERACTIVE = "a, button, input, select, textarea, label, [role='menu'], [role='dialog']";
+
+/** Lets a whole row open its record, while the row's own links and controls keep their click. */
+export function openRowOnClick(href: string) {
+  return (event: { target: EventTarget; currentTarget: EventTarget; metaKey: boolean; ctrlKey: boolean }) => {
+    if (!(event.target instanceof Node) || !(event.currentTarget instanceof Node)) return;
+    if (!event.currentTarget.contains(event.target)) return;
+    if (event.target instanceof Element && event.target.closest(INTERACTIVE)) return;
+    if (window.getSelection()?.toString()) return;
+    if (event.metaKey || event.ctrlKey) window.open(href, "_blank", "noopener");
+    else window.location.assign(href);
+  };
 }

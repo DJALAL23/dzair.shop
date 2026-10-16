@@ -60,8 +60,8 @@ export function StickyFormActions({
   return (
     <div
       ref={barRef}
-      className={`sticky bottom-0 z-30 flex flex-wrap items-center justify-end gap-2 rounded-xl border bg-card/95 px-3 py-2.5 backdrop-blur-sm transition-shadow duration-200 supports-[backdrop-filter]:bg-card/85 ${
-        pinned ? "border-border shadow-lg" : "border-border/70 shadow-xs"
+      className={`sticky bottom-3 z-30 flex flex-wrap items-center justify-end gap-2 rounded-xl bg-card px-3 py-2.5 transition-shadow duration-200 ${
+        pinned ? "shadow-popover" : "shadow-card"
       } ${className}`}
       style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
     >

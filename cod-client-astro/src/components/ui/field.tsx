@@ -1,16 +1,21 @@
 import type { ReactNode } from "react";
+import { InfoTip } from "./tooltip";
 
 export function Field({
   label,
   error,
   hint,
+  help,
   children,
   className = "",
   as: Tag = "label",
 }: {
   label: ReactNode;
   error?: string;
+  /** Shown under the control: only what the merchant must see to fill it in. */
   hint?: ReactNode;
+  /** The longer why and how, behind an ⓘ beside the label. */
+  help?: ReactNode;
   children: ReactNode;
   className?: string;
   /**
@@ -22,19 +27,20 @@ export function Field({
   as?: "label" | "div";
 }) {
   return (
-    <Tag className={`block space-y-1.5 ${className}`}>
-      <span className="block text-[13px] font-semibold tracking-tight text-foreground select-none">
+    <Tag className={`block space-y-1 ${className}`}>
+      <span className="flex items-center gap-1.5 text-sm font-medium text-foreground select-none">
         {label}
+        {help && <InfoTip>{help}</InfoTip>}
       </span>
       {children}
       {hint && (
-        <span className="block text-xs font-medium text-muted-foreground/75">
+        <span className="block text-xs text-muted-foreground">
           {hint}
         </span>
       )}
       {error && (
         <span
-          className="block text-xs font-medium text-destructive animate-in fade-in-0 duration-150"
+          className="block animate-fade text-xs font-medium text-destructive"
           role="alert"
         >
           {error}

@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import { InfoTip } from "./tooltip";
 
 export function Card({
   title,
   subtitle,
+  help,
   action,
   children,
   className = "",
@@ -10,31 +12,35 @@ export function Card({
 }: {
   title?: string;
   subtitle?: string;
+  /** The why behind this card, behind an ⓘ beside its title. */
+  help?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
   flush?: boolean;
 }) {
+  const hasHeader = !!(title || subtitle || action);
   return (
-    <section
-      className={`rounded-xl border border-border/80 bg-card shadow-xs transition-shadow ${className}`}
-    >
-      {(title || subtitle || action) && (
-        <header className="flex min-h-[48px] flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-3 sm:px-5">
+    <section className={`rounded-xl bg-card shadow-card ${className}`}>
+      {hasHeader && (
+        <header
+          className={`flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-4 pt-4 ${flush ? "pb-3" : ""}`}
+        >
           <div className="min-w-0">
             {title && (
-              <h2 className="text-[15px] font-semibold tracking-tight text-card-foreground">
-                {title}
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-card-foreground">
+                <span>{title}</span>
+                {help && <InfoTip>{help}</InfoTip>}
               </h2>
             )}
             {subtitle && (
               <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
             )}
           </div>
-          {action && <div className="shrink-0">{action}</div>}
+          {action && <div className="-my-1 shrink-0">{action}</div>}
         </header>
       )}
-      <div className={flush ? "" : "p-4 sm:p-5"}>{children}</div>
+      <div className={flush ? "" : hasHeader ? "px-4 pb-4 pt-3" : "p-4"}>{children}</div>
     </section>
   );
 }

@@ -8,37 +8,37 @@ import { MobileChrome } from "@/components/layout/MobileChrome";
 export function DashboardChrome({
   currentPath,
   children,
-  wide,
+  narrow = false,
 }: {
   currentPath: string;
   children: ReactNode;
-  wide?: boolean;
+  narrow?: boolean;
 }) {
   const tN = useT("navigation");
   const common = useT("common");
   return (
     <ConfirmDialogProvider>
-      <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
+      <div className="flex h-[100dvh] overflow-hidden bg-background text-foreground">
         <a
           href="#dashboard-main"
-          className="fixed start-3 top-3 z-[80] -translate-y-20 rounded-lg bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-lg transition-transform focus:translate-y-0"
+          className="fixed start-3 top-3 z-[80] -translate-y-20 rounded-lg bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-popover transition-transform focus:translate-y-0"
         >
           {tN("skip_to_content")}
         </a>
-        <div className="hidden md:block">
-          <DashboardTopbar />
-        </div>
-        <div className="md:hidden">
-          <MobileChrome currentPath={currentPath} />
-        </div>
-        <div className="flex min-h-0 flex-1">
-          <DashboardSidebar currentPath={currentPath} />
-          <div
+        <DashboardSidebar currentPath={currentPath} />
+        <div className="flex min-w-0 flex-1 flex-col md:pe-2 md:pb-2">
+          <div className="hidden md:block">
+            <DashboardTopbar />
+          </div>
+          <div className="md:hidden">
+            <MobileChrome currentPath={currentPath} />
+          </div>
+          <main
             id="dashboard-main"
             tabIndex={-1}
-            className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-10 pt-6 outline-none sm:px-6 md:px-8 md:pt-8"
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain bg-card outline-none md:rounded-2xl md:border md:border-border"
           >
-            <div className={`mx-auto ${wide ? "max-w-[1600px]" : "max-w-[1120px]"}`}>
+            <div className={`mx-auto animate-rise px-4 pb-16 pt-5 sm:px-8 sm:pt-8 ${narrow ? "max-w-[784px]" : "max-w-[1144px]"}`}>
               {/* A page that fails to render shows this, inside the chrome — never a blank screen. */}
               <ErrorBoundary
                 fallback={
@@ -59,7 +59,7 @@ export function DashboardChrome({
                 {children}
               </ErrorBoundary>
             </div>
-          </div>
+          </main>
         </div>
       </div>
     </ConfirmDialogProvider>

@@ -8,16 +8,14 @@ export type StatCardTone =
   | "brand";
 
 const tones: Record<StatCardTone, string> = {
-  neutral: "border-border/60 bg-muted/60 text-muted-foreground",
-  success:
-    "border-[var(--status-delivered-border)] bg-[var(--status-delivered-bg)] text-[var(--status-delivered-text)]",
-  warning:
-    "border-[var(--status-preparing-border)] bg-[var(--status-preparing-bg)] text-[var(--status-preparing-text)]",
-  critical:
-    "border-[var(--status-returned-border)] bg-[var(--status-returned-bg)] text-[var(--status-returned-text)]",
-  brand: "border-brand/25 bg-brand/10 text-brand",
+  neutral: "text-muted-foreground",
+  success: "text-[var(--tone-success-text)]",
+  warning: "text-[var(--tone-warning-text)]",
+  critical: "text-[var(--tone-critical-text)]",
+  brand: "text-[var(--tone-magic-text)]",
 };
 
+/** One number the merchant watches: its name, the figure, and what it is made of. */
 export function StatCard({
   label,
   value,
@@ -32,25 +30,37 @@ export function StatCard({
   tone?: StatCardTone;
 }) {
   return (
-    <section className="flex items-center gap-3.5 rounded-xl border border-border/80 bg-card p-4 shadow-xs transition-all hover:border-border">
-      {icon && (
-        <span
-          className={`grid size-10 shrink-0 place-items-center rounded-lg border shadow-2xs ${tones[tone]}`}
-        >
-          {icon}
-        </span>
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {label}
-        </p>
-        <p className="mt-1 text-2xl font-bold leading-none tabular-nums tracking-tight text-foreground">
-          {value}
-        </p>
-        {hint && (
-          <p className="mt-1.5 truncate text-xs text-muted-foreground">{hint}</p>
+    <section className="min-w-0 rounded-xl bg-card p-4 shadow-card">
+      <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+        {icon && (
+          <span className={`shrink-0 [&_svg]:size-4 ${tones[tone]}`} aria-hidden="true">
+            {icon}
+          </span>
         )}
-      </div>
+        <span className="truncate">{label}</span>
+      </p>
+      <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-foreground">
+        {value}
+      </p>
+      {hint && <p className="mt-2 truncate text-xs text-muted-foreground">{hint}</p>}
     </section>
+  );
+}
+
+const GROUP_COLUMNS: Record<number, string> = {
+  1: "",
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "grid-cols-2 lg:grid-cols-4",
+};
+
+/** Stat cards joined into one strip, one column per card, like the numbers on Home. */
+export function StatGroup({ columns, children, className = "" }: { columns: 1 | 2 | 3 | 4; children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={`grid gap-px overflow-hidden rounded-xl bg-border shadow-card [&>*]:min-w-0 [&>a>section]:h-full [&>a>section]:rounded-none [&>a>section]:shadow-none [&>section]:rounded-none [&>section]:shadow-none ${GROUP_COLUMNS[columns]} ${className}`}
+    >
+      {children}
+    </div>
   );
 }

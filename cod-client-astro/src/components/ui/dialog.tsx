@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useT } from "@/i18n/react";
 
@@ -87,9 +88,9 @@ export function Dialog({
   }, [initialFocusRef, open, preventClose]);
 
   if (!open) return null;
-  return (
+  return createPortal(
     <div
-      className={`fixed inset-0 z-[70] flex bg-[var(--overlay)] backdrop-blur-2xs ${
+      className={`fixed inset-0 z-[70] flex animate-fade bg-[var(--overlay)] ${
         placement === "end"
           ? "items-end justify-center sm:items-stretch sm:justify-end"
           : "items-end justify-center p-3 sm:items-center sm:p-4"
@@ -105,30 +106,30 @@ export function Dialog({
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
-        className={`relative w-full overflow-y-auto border border-border/80 bg-card shadow-2xl ${
+        className={`relative w-full overflow-y-auto bg-card shadow-2xl ${
           placement === "end"
-            ? "max-h-[85dvh] rounded-t-2xl border-b-0 p-4 sm:h-full sm:max-h-full sm:w-[440px] sm:rounded-none sm:border-y-0 sm:border-e-0 sm:p-6"
-            : "max-h-[calc(100dvh-1.5rem)] max-w-lg rounded-2xl p-5 sm:max-h-[calc(100dvh-2rem)] sm:p-6"
+            ? "max-h-[85dvh] animate-sheet rounded-t-2xl p-4 sm:h-full sm:max-h-full sm:w-[440px] sm:animate-drawer sm:rounded-none sm:p-5 sm:[--drawer-from:1] rtl:sm:[--drawer-from:-1]"
+            : "max-h-[calc(100dvh-1.5rem)] max-w-lg animate-sheet rounded-2xl p-4 sm:max-h-[calc(100dvh-2rem)] sm:p-5"
         } ${className}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3.5">
             {icon && (
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-border/60 bg-muted/60 text-muted-foreground shadow-2xs">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
                 {icon}
               </span>
             )}
             <div className="min-w-0 pt-0.5">
               <h2
                 id={titleId}
-                className="text-base font-bold tracking-tight text-foreground"
+                className="text-base font-semibold text-foreground"
               >
                 {title}
               </h2>
               {description && (
                 <p
                   id={descriptionId}
-                  className="mt-1 text-[13px] leading-relaxed text-muted-foreground"
+                  className="mt-1 text-sm text-muted-foreground"
                 >
                   {description}
                 </p>
@@ -147,13 +148,14 @@ export function Dialog({
             </button>
           )}
         </div>
-        {children && <div className="mt-5">{children}</div>}
+        {children && <div className="mt-4">{children}</div>}
         {footer && (
-          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

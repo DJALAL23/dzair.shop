@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { useLocale, useT } from "@/i18n/react";
-import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
-import { AccountControl, DashboardTopbar } from "@/components/layout/Topbar";
-import { SidebarNav, SidebarWorkspaceCard } from "@/components/layout/Sidebar";
+import { useT } from "@/i18n/react";
+import { DashboardTopbar, GlobalSearch } from "@/components/layout/Topbar";
+import { SidebarContent } from "@/components/layout/Sidebar";
 
 export function MobileChrome({ currentPath }: { currentPath: string }) {
   const [open, setOpen] = useState(false);
   const tN = useT("navigation");
-  const locale = useLocale();
   const closeRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLButtonElement | null>(null);
   const drawerRef = useRef<HTMLElement>(null);
@@ -23,7 +21,7 @@ export function MobileChrome({ currentPath }: { currentPath: string }) {
       if (event.key !== "Tab") return;
       const items = Array.from(
         drawerRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), a[href], select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
         ) ?? [],
       );
       if (items.length === 0) {
@@ -63,42 +61,31 @@ export function MobileChrome({ currentPath }: { currentPath: string }) {
           <div
             aria-hidden="true"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 cursor-default bg-foreground/25 backdrop-blur-xs"
+            className="absolute inset-0 animate-fade bg-[var(--overlay)]"
           />
           <aside
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
             aria-label={tN("sidebar.general")}
-            className="absolute inset-y-0 start-0 flex w-[min(300px,86vw)] flex-col border-e border-sidebar-border bg-sidebar shadow-2xl"
+            className="absolute inset-y-0 start-0 flex w-[min(300px,86vw)] animate-drawer flex-col bg-sidebar shadow-2xl rtl:[--drawer-from:1]"
           >
-            <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
-              <span className="text-sm font-semibold text-foreground">
-                {tN("sidebar.general")}
-              </span>
+            <div className="flex items-center gap-2 p-3">
+              <GlobalSearch large />
               <button
                 ref={closeRef}
                 type="button"
                 aria-label={tN("menu.close")}
                 onClick={() => setOpen(false)}
-                className="grid size-10 place-items-center rounded-lg border border-input text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
-            <SidebarWorkspaceCard />
-            <SidebarNav
-              currentPath={currentPath}
-              onNavigate={() => setOpen(false)}
-            />
-            <div className="space-y-3 border-t border-sidebar-border p-3">
-              <LanguageSwitcher locale={locale} />
-              <AccountControl />
-            </div>
+            <SidebarContent currentPath={currentPath} onNavigate={() => setOpen(false)} />
           </aside>
         </div>
       )}
     </>
   );
 }
-

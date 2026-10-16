@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { Check } from "lucide-react";
 
 const DropdownCloseContext = createContext<() => void>(() => undefined);
 
@@ -17,11 +18,15 @@ export function DropdownMenu({
   triggerLabel,
   children,
   align = "end",
+  triggerClassName,
+  menuClassName = "",
 }: {
   trigger: ReactNode;
   triggerLabel: string;
   children: ReactNode;
   align?: "start" | "end";
+  triggerClassName?: string;
+  menuClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -129,7 +134,10 @@ export function DropdownMenu({
         title={triggerLabel}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="grid size-9 place-items-center rounded-lg border border-border/80 bg-card text-muted-foreground shadow-2xs transition-all hover:bg-muted hover:text-foreground active:scale-[0.98]"
+        className={
+          triggerClassName ??
+          "grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground aria-expanded:bg-foreground/[0.08] aria-expanded:text-foreground pointer-coarse:size-10"
+        }
       >
         {trigger}
       </button>
@@ -143,7 +151,7 @@ export function DropdownMenu({
               role="menu"
               aria-label={triggerLabel}
               style={position}
-              className="fixed z-[80] max-h-72 min-w-44 overflow-y-auto overscroll-contain rounded-xl border border-border/80 bg-popover p-1 shadow-xl shadow-black/10 backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-150"
+              className={`fixed z-[80] max-h-[min(28rem,calc(100dvh-5rem))] min-w-48 animate-pop overflow-y-auto overscroll-contain rounded-xl bg-popover p-1.5 shadow-popover ${menuClassName}`}
             >
               {children}
             </div>
@@ -159,17 +167,20 @@ export function DropdownItem({
   onClick,
   disabled,
   danger,
+  checked,
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   danger?: boolean;
+  checked?: boolean;
 }) {
   const close = useContext(DropdownCloseContext);
   return (
     <button
       type="button"
-      role="menuitem"
+      role={checked === undefined ? "menuitem" : "menuitemradio"}
+      aria-checked={checked}
       tabIndex={-1}
       onClick={() => {
         if (!disabled) {
@@ -178,15 +189,21 @@ export function DropdownItem({
         }
       }}
       disabled={disabled}
-      className={`flex min-h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-start text-[13px] font-medium transition-colors disabled:opacity-40 select-none ${
+      className={`flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-start text-sm transition-colors disabled:opacity-40 select-none pointer-coarse:min-h-10 [&_svg]:size-4 [&_svg]:shrink-0 ${
         danger
-          ? "text-destructive hover:bg-destructive/10"
-          : "text-foreground hover:bg-muted/80"
+          ? "text-destructive hover:bg-[var(--tone-critical-bg)] focus-visible:bg-[var(--tone-critical-bg)]"
+          : "text-foreground hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06]"
       }`}
     >
       {children}
+      {checked && <Check className="ms-auto" aria-hidden="true" />}
     </button>
   );
+}
+
+/** A quiet line between groups of menu items. */
+export function DropdownSeparator() {
+  return <div role="separator" className="-mx-1.5 my-1.5 h-px bg-border" />;
 }
 
 export function DropdownLink({
@@ -204,7 +221,7 @@ export function DropdownLink({
         props.onClick?.(event);
         close();
       }}
-      className={`flex min-h-[34px] w-full items-center gap-2.5 rounded-lg px-2.5 text-start text-[13px] font-medium text-foreground transition-colors hover:bg-muted/80 select-none ${className}`}
+      className={`flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-start text-sm text-foreground transition-colors hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] select-none pointer-coarse:min-h-10 [&_svg]:size-4 [&_svg]:shrink-0 ${className}`}
     >
       {children}
     </a>

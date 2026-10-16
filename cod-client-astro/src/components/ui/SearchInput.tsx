@@ -19,7 +19,7 @@ export function SearchInput({
       <Search
         size={15}
         strokeWidth={1.9}
-        className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground/70"
+        className="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
         aria-hidden="true"
       />
       <input
@@ -27,7 +27,7 @@ export function SearchInput({
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
         placeholder={placeholder}
-        className="h-9 w-full rounded-lg border border-input/80 bg-card ps-9 pe-8 text-sm outline-none transition-all placeholder:text-muted-foreground/60 hover:border-input focus:border-ring focus:ring-2 focus:ring-ring/20 shadow-2xs"
+        className="h-8 w-full ps-8 pe-8 pointer-coarse:h-10 rounded-lg border border-input bg-card text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-subtle-foreground hover:border-foreground/45 focus:border-ring focus:shadow-[0_0_0_1px_var(--ring)] disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60"
       />
       {value && (
         <button

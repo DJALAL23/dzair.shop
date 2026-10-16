@@ -4,18 +4,17 @@ import {
   FileText,
   FolderOpen,
   Gift,
+  Home,
+  Inbox,
   Layers,
   Megaphone,
   MessageCircle,
-  LayoutDashboard,
   Package,
   PackageX,
   Settings,
   Shield,
-  ShoppingCart,
   Sparkles,
   Star,
-  Store,
   Tag,
   Truck,
   Users,
@@ -47,7 +46,8 @@ export type NavGroup = {
 export type NavNode = NavLeaf | NavGroup;
 
 export type NavSection = {
-  label: string;
+  id: "main" | "store" | "admin";
+  label?: string;
   items: NavNode[];
 };
 
@@ -56,29 +56,23 @@ export function useNavSections(): NavSection[] {
   const tN = useT("navigation");
   const sections: NavSection[] = [
     {
-      label: tN("sidebar.general"),
+      id: "main",
       items: [
         {
           kind: "leaf",
           href: "/dashboard",
           label: tN("sidebar.dashboard"),
-          icon: LayoutDashboard,
+          icon: Home,
           scope: "dashboard:view",
         },
         {
           kind: "group",
           id: "orders",
           label: tN("sidebar.orders"),
-          icon: ShoppingCart,
+          icon: Inbox,
+          href: "/orders",
           scope: "orders:read",
           children: [
-            {
-              kind: "leaf",
-              href: "/orders",
-              label: tN("sidebar.orders_all"),
-              icon: ShoppingCart,
-              scope: "orders:read",
-            },
             {
               kind: "leaf",
               href: "/orders/abandoned",
@@ -90,51 +84,9 @@ export function useNavSections(): NavSection[] {
         },
         {
           kind: "group",
-          id: "customers",
-          label: tN("sidebar.customers"),
-          icon: Users,
-          scope: "customers:read",
-          children: [
-            {
-              kind: "leaf",
-              href: "/customers",
-              label: tN("sidebar.customers"),
-              icon: Users,
-              scope: "customers:read",
-            },
-            {
-              kind: "leaf",
-              href: "/customer-groups",
-              label: tN("sidebar.customer_groups"),
-              icon: Layers,
-              scope: "customer_groups:read",
-            },
-            {
-              kind: "leaf",
-              href: "/customer-tags",
-              label: tN("sidebar.customer_tags"),
-              icon: Tag,
-              scope: "customer_tags:read",
-            },
-          ],
-        },
-        {
-          kind: "leaf",
-          href: "/reviews",
-          label: tN("sidebar.reviews"),
-          icon: Star,
-          scope: "reviews:read",
-        },
-      ],
-    },
-    {
-      label: tN("sidebar.inventory"),
-      items: [
-        {
-          kind: "group",
           id: "products",
           label: tN("sidebar.products"),
-          icon: Layers,
+          icon: Tag,
           href: "/products",
           scope: "products:read",
           children: [
@@ -159,12 +111,29 @@ export function useNavSections(): NavSection[] {
               icon: Gift,
               scope: "offers:read",
             },
+          ],
+        },
+        {
+          kind: "group",
+          id: "customers",
+          label: tN("sidebar.customers"),
+          icon: Users,
+          href: "/customers",
+          scope: "customers:read",
+          children: [
             {
               kind: "leaf",
-              href: "/landing-pages",
-              label: tN("sidebar.landing_pages"),
-              icon: Megaphone,
-              scope: "landing_pages:read",
+              href: "/customer-groups",
+              label: tN("sidebar.customer_groups"),
+              icon: Layers,
+              scope: "customer_groups:read",
+            },
+            {
+              kind: "leaf",
+              href: "/customer-tags",
+              label: tN("sidebar.customer_tags"),
+              icon: Tag,
+              scope: "customer_tags:read",
             },
           ],
         },
@@ -173,19 +142,13 @@ export function useNavSections(): NavSection[] {
           id: "delivery",
           label: tN("sidebar.delivery"),
           icon: Truck,
+          href: "/delivery/companies",
           scope: "delivery:read",
           children: [
             {
               kind: "leaf",
               href: "/delivery/drivers",
               label: tN("sidebar.delivery_drivers"),
-              icon: Truck,
-              scope: "delivery:read",
-            },
-            {
-              kind: "leaf",
-              href: "/delivery/companies",
-              label: tN("sidebar.delivery_companies"),
               icon: Building2,
               scope: "delivery:read",
             },
@@ -198,24 +161,25 @@ export function useNavSections(): NavSection[] {
             },
           ],
         },
+        {
+          kind: "leaf",
+          href: "/reviews",
+          label: tN("sidebar.reviews"),
+          icon: Star,
+          scope: "reviews:read",
+        },
       ],
     },
     {
-      label: tN("sidebar.system"),
+      id: "store",
+      label: tN("sidebar.online_store"),
       items: [
         {
           kind: "leaf",
-          href: "/team",
-          label: tN("sidebar.team"),
-          icon: Shield,
-          scope: "admin",
-        },
-        {
-          kind: "leaf",
-          href: "/mcp",
-          label: tN("sidebar.mcp"),
-          icon: Sparkles,
-          scope: "mcp:view",
+          href: "/landing-pages",
+          label: tN("sidebar.landing_pages"),
+          icon: Megaphone,
+          scope: "landing_pages:read",
         },
         {
           kind: "leaf",
@@ -238,6 +202,25 @@ export function useNavSections(): NavSection[] {
           icon: MessageCircle,
           scope: "whatsapp_widget:read",
         },
+      ],
+    },
+    {
+      id: "admin",
+      items: [
+        {
+          kind: "leaf",
+          href: "/team",
+          label: tN("sidebar.team"),
+          icon: Shield,
+          scope: "admin",
+        },
+        {
+          kind: "leaf",
+          href: "/mcp",
+          label: tN("sidebar.mcp"),
+          icon: Sparkles,
+          scope: "mcp:view",
+        },
         {
           kind: "leaf",
           href: "/settings",
@@ -257,12 +240,10 @@ export function useNavSections(): NavSection[] {
           item.kind === "group"
             ? {
                 ...item,
-                children: item.children.filter(
-                  (child) =>
-                    !child.scope ||
-                    child.scope === "admin"
-                      ? identity?.role === "admin"
-                      : canScope(identity, child.scope),
+                children: item.children.filter((child) =>
+                  child.scope === "admin"
+                    ? identity?.role === "admin"
+                    : !child.scope || canScope(identity, child.scope),
                 ),
               }
             : item,
@@ -275,7 +256,6 @@ export function useNavSections(): NavSection[] {
               return false;
             }
           }
-          if (item.kind === "group") return item.children.length > 0;
           return true;
         }),
     }))

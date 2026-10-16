@@ -27,7 +27,7 @@ export function Pagination({
 
   return (
     <div
-      className={`flex flex-col gap-3 border-t border-border/70 p-3 text-xs font-medium text-muted-foreground sm:flex-row sm:items-center sm:justify-between ${className}`}
+      className={`flex flex-col gap-2 border-t border-border px-4 py-2.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between ${className}`}
     >
       <span>
         {common("table.showing", { from, to, total })}
@@ -37,12 +37,12 @@ export function Pagination({
           type="button"
           disabled={safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
-          className="grid size-8 place-items-center rounded-lg border border-border/80 bg-card text-foreground shadow-2xs transition-all hover:bg-muted active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
+          className="grid size-7 place-items-center rounded-lg bg-card text-foreground shadow-button transition-colors hover:bg-subtle active:translate-y-px disabled:pointer-events-none disabled:opacity-40 pointer-coarse:size-10"
           aria-label={common("table.page")}
         >
           <ChevronLeft size={15} className="rtl:rotate-180" />
         </button>
-        <span className="px-1 text-[13px] font-semibold text-foreground">
+        <span className="px-1 text-sm font-medium tabular-nums text-foreground">
           {safePage}{" "}
           <span className="font-normal text-muted-foreground">
             {common("table.of")}
@@ -53,7 +53,7 @@ export function Pagination({
           type="button"
           disabled={safePage >= totalPages}
           onClick={() => onPageChange(safePage + 1)}
-          className="grid size-8 place-items-center rounded-lg border border-border/80 bg-card text-foreground shadow-2xs transition-all hover:bg-muted active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
+          className="grid size-7 place-items-center rounded-lg bg-card text-foreground shadow-button transition-colors hover:bg-subtle active:translate-y-px disabled:pointer-events-none disabled:opacity-40 pointer-coarse:size-10"
           aria-label={common("table.page")}
         >
           <ChevronRight size={15} className="rtl:rotate-180" />

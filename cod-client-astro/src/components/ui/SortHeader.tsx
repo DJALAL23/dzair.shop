@@ -36,14 +36,14 @@ export function SortHeader({
             : "descending"
           : "none"
       }
-      className={align === "end" ? "text-end" : "text-start"}
+      numeric={align === "end"}
     >
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        className={`group inline-flex min-h-7 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors hover:text-foreground ${
+        className={`group inline-flex min-h-7 items-center gap-1 text-xs font-medium transition-colors hover:text-foreground ${
           isSorted ? "text-foreground" : "text-muted-foreground"
-        } ${align === "end" ? "justify-end" : "justify-start"}`}
+        } ${align === "end" ? "flex-row-reverse" : ""}`}
       >
         <span>{label}</span>
         <Icon
@@ -52,7 +52,7 @@ export function SortHeader({
           className={`shrink-0 transition-all ${
             isSorted
               ? "text-brand opacity-100"
-              : "opacity-40 group-hover:opacity-80"
+              : "opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60"
           }`}
           aria-hidden="true"
         />

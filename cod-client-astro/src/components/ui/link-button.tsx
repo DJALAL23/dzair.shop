@@ -26,20 +26,19 @@ export function IconButton({
   size?: "default" | "sm";
 }) {
   const variants = {
-    ghost: "text-muted-foreground hover:bg-muted/70 hover:text-foreground active:bg-muted",
-    solid: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 active:bg-primary/95",
-    secondary:
-      "border border-border/90 bg-card text-foreground shadow-xs hover:bg-muted/70 hover:border-input active:bg-muted",
-    danger: "text-destructive hover:bg-destructive/10 active:bg-destructive/15",
+    ghost: "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground active:bg-foreground/[0.09]",
+    solid: "bg-primary text-primary-foreground shadow-button-primary hover:bg-primary/88",
+    secondary: "bg-card text-foreground shadow-button hover:bg-subtle active:bg-muted",
+    danger: "text-muted-foreground hover:bg-[var(--tone-critical-bg)] hover:text-destructive active:bg-[var(--tone-critical-bg)]",
   };
   const sizeClasses = {
-    default: "size-9 rounded-lg",
-    sm: "size-8 rounded-md",
+    default: "size-8 rounded-lg pointer-coarse:size-10",
+    sm: "size-7 rounded-md pointer-coarse:size-9",
   };
   return (
     <button
       {...props}
-      className={`grid shrink-0 place-items-center transition-all duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 select-none outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${sizeClasses[size]} ${variants[variant]} ${className}`}
+      className={`grid shrink-0 place-items-center transition-[background-color,color,transform] duration-150 active:translate-y-px disabled:pointer-events-none disabled:opacity-45 select-none outline-none focus-visible:ring-2 focus-visible:ring-ring ${sizeClasses[size]} ${variants[variant]} ${className}`}
     />
   );
 }

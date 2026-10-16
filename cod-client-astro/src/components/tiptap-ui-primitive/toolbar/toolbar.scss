@@ -49,13 +49,10 @@
       display: none;
     }
 
+    // The upstream demo docks this toolbar to the bottom of a full-screen page
+    // on phones. Inside a dashboard card that unpins it from the card's width,
+    // so it stays sticky everywhere and scrolls sideways on its own instead.
     @media (max-width: 480px) {
-      position: absolute;
-      top: auto;
-      height: calc(var(--tt-toolbar-height) + var(--tt-safe-area-bottom));
-      border-top: 1px solid var(--tt-toolbar-border-color);
-      border-bottom: none;
-      padding: 0 0.5rem var(--tt-safe-area-bottom);
       flex-wrap: nowrap;
       justify-content: flex-start;
 

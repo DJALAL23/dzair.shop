@@ -1,530 +1,219 @@
 import { useEffect, useState } from "react";
-import {
-  ChevronDown,
-  Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Store,
-  Sun,
-} from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useIdentity } from "@/features/auth/components/RequireAuth";
+import { getMyStore } from "@/features/settings/api";
 import { useT } from "@/i18n/react";
-import { toggleTheme, useTheme } from "@/theme/react";
-import { isCurrentPath, useNavSections } from "@/components/layout/nav";
+import { Logo } from "@/components/brand/Logo";
+import {
+  isCurrentPath,
+  useNavSections,
+  type NavGroup,
+  type NavNode,
+} from "@/components/layout/nav";
 
-function ActiveAccent({ show }: { show: boolean }) {
-  if (!show) return null;
-  return (
-    <span
-      aria-hidden="true"
-      className="absolute inset-y-1.5 start-0 w-[3px] rounded-full bg-brand shadow-[0_0_8px_rgba(109,40,217,0.4)]"
-    />
-  );
+interface StoreSummary {
+  name: string;
+  domain: string | null;
+  logoUrl: string | null;
 }
 
+const STORE_CACHE = "codflow:store-summary";
 
-export function SidebarWorkspaceCard({
-  isCollapsed,
-  onToggleCollapse,
-}: {
-  isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
-}) {
+function cachedStore(): StoreSummary | null {
+  try {
+    const raw = sessionStorage.getItem(STORE_CACHE);
+    return raw ? (JSON.parse(raw) as StoreSummary) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The store the merchant runs, and a way to open its storefront. Admins only: the store's record is theirs. */
+function StoreBlock() {
   const identity = useIdentity();
-  const tN = useT("navigation");
+  const isAdmin = identity?.role === "admin";
+  const [store, setStore] = useState<StoreSummary | null>(() => (isAdmin ? cachedStore() : null));
 
-  if (isCollapsed) {
+  useEffect(() => {
+    if (!isAdmin) return;
+    getMyStore()
+      .then(({ name, domain, logoUrl }) => {
+        const summary = { name, domain, logoUrl };
+        setStore(summary);
+        try {
+          sessionStorage.setItem(STORE_CACHE, JSON.stringify(summary));
+        } catch {
+          /* storage unavailable */
+        }
+      })
+      .catch(() => undefined);
+  }, [isAdmin]);
+
+  if (!isAdmin || !store) {
     return (
-      <div className="flex shrink-0 items-center justify-center border-b border-sidebar-border/60 p-2.5">
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          aria-label={tN("menu.expand")}
-          title={tN("menu.expand")}
-          className="grid size-9 place-items-center rounded-lg border border-brand/20 bg-brand/10 text-brand transition-colors hover:bg-brand/20"
-        >
-          <Store size={18} strokeWidth={2.2} />
-        </button>
+      <div className="flex h-14 shrink-0 items-center px-5">
+        <a href="/" aria-label="CodFlow" className="rounded-md">
+          <Logo variant="dark" height={22} className="dark:hidden" />
+          <Logo variant="light" height={22} className="hidden dark:block" />
+        </a>
       </div>
     );
   }
 
-  return (
-    <div className="shrink-0 border-b border-sidebar-border/60 p-2.5">
-      <div className="flex items-center justify-between gap-2.5 rounded-xl border border-sidebar-border/70 bg-card/60 p-2 shadow-xs transition-colors hover:bg-card/90">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <div className="grid size-8 shrink-0 place-items-center rounded-lg border border-brand/20 bg-brand/10 text-brand shadow-xs">
-            <Store size={16} strokeWidth={2.2} />
-          </div>
-          <div className="min-w-0 flex-1 text-start">
-            <div className="truncate text-[13px] font-semibold leading-snug text-foreground">
-              {identity?.user.name || tN("sidebar.store")}
-            </div>
-          </div>
-        </div>
-        {onToggleCollapse && (
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            aria-label={tN("menu.collapse")}
-            title={tN("menu.collapse")}
-            className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <PanelLeftClose size={15} className="rtl:rotate-180" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-export function SidebarNav({
-  currentPath,
-  isCollapsed = false,
-  onNavigate,
-}: {
-  currentPath: string;
-  isCollapsed?: boolean;
-  onNavigate?: () => void;
-}) {
-  const sections = useNavSections();
-  const tN = useT("navigation");
-
-  const initialOpen = new Set<string>();
-  for (const section of sections) {
-    for (const item of section.items) {
-      if (
-        item.kind === "group" &&
-        item.children.some(
-          (child) => !!child.href && isCurrentPath(currentPath, child.href),
-        )
-      ) {
-        initialOpen.add(item.id);
-      }
-    }
-  }
-  const [openGroups, setOpenGroups] = useState<Set<string>>(initialOpen);
-
-  function toggleGroup(id: string) {
-    setOpenGroups((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  if (isCollapsed) {
-    return (
-      <nav
-        aria-label={tN("sidebar.general")}
-        className="flex-1 overflow-y-auto overflow-x-hidden p-2"
-      >
-        <div className="space-y-3">
-          {sections.map((section, idx) => (
-            <div key={section.label} className="space-y-1">
-              {idx > 0 && (
-                <div className="mx-auto my-2 w-6 border-t border-sidebar-border/60" />
-              )}
-              {section.items.map((item) => {
-                if (item.kind === "leaf") {
-                  const Icon = item.icon;
-                  const active = isCurrentPath(currentPath, item.href);
-                  return (
-                    <a
-                      key={item.href}
-                      href={item.href}
-                      onClick={onNavigate}
-                      title={item.label}
-                      aria-label={item.label}
-                      aria-current={active ? "page" : undefined}
-                      className={[
-                        "group relative mx-auto grid size-10 place-items-center rounded-lg transition-colors",
-                        active
-                          ? "bg-brand/[0.08] text-brand dark:bg-brand/15 dark:text-brand"
-                          : "text-sidebar-foreground/80 hover:bg-card/70 hover:text-foreground",
-                      ].join(" ")}
-                    >
-                      <ActiveAccent show={active} />
-                      <Icon
-                        size={19}
-                        strokeWidth={active ? 2.1 : 1.8}
-                        className={`transition-colors ${
-                          active
-                            ? "text-brand dark:text-brand"
-                            : "text-muted-foreground/80 group-hover:text-foreground"
-                        }`}
-                      />
-                    </a>
-                  );
-                }
-
-                const groupActive =
-                  item.children.some(
-                    (child) =>
-                      !!child.href && isCurrentPath(currentPath, child.href),
-                  ) ||
-                  (!!item.href && isCurrentPath(currentPath, item.href));
-                const GroupIcon = item.icon;
-                const targetHref = item.href ?? item.children[0]?.href ?? "/";
-
-                return (
-                  <a
-                    key={item.id}
-                    href={targetHref}
-                    onClick={onNavigate}
-                    title={item.label}
-                    aria-label={item.label}
-                    aria-current={groupActive ? "page" : undefined}
-                    className={[
-                      "group relative mx-auto grid size-10 place-items-center rounded-lg transition-colors",
-                      groupActive
-                        ? "bg-brand/[0.08] text-brand dark:bg-brand/15 dark:text-brand"
-                        : "text-sidebar-foreground/80 hover:bg-card/70 hover:text-foreground",
-                    ].join(" ")}
-                  >
-                    <ActiveAccent show={groupActive} />
-                    <GroupIcon
-                      size={19}
-                      strokeWidth={groupActive ? 2.1 : 1.8}
-                      className={`transition-colors ${
-                        groupActive
-                          ? "text-brand dark:text-brand"
-                          : "text-muted-foreground/80 group-hover:text-foreground"
-                      }`}
-                    />
-                  </a>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </nav>
-    );
-  }
+  const words = store.name.split(/\s+/).filter(Boolean);
+  const latin = /^[A-Za-z]/.test(store.name.trim());
+  const initials = (latin ? words.slice(0, 2) : words.slice(0, 1)).map((word) => word.charAt(0).toUpperCase()).join("");
 
   return (
-    <nav
-      aria-label={tN("sidebar.general")}
-      className="flex-1 overflow-y-auto px-3 py-3"
-    >
-      <div className="space-y-4">
-        {sections.map((section, idx) => (
-          <section key={section.label} className="space-y-1">
-            {idx > 0 && (
-              <div className="my-2 border-t border-sidebar-border/60" />
-            )}
-            <h2 className="px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted-foreground/75 select-none">
-              {section.label}
-            </h2>
-            <div className="space-y-0.5">
-              {section.items.map((item) => {
-                if (item.kind === "leaf") {
-                  const Icon = item.icon;
-                  const active = isCurrentPath(currentPath, item.href);
-                  return (
-                    <a
-                      key={item.href}
-                      href={item.href}
-                      onClick={onNavigate}
-                      aria-current={active ? "page" : undefined}
-                      className={[
-                        "group relative flex min-h-[36px] items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium transition-all duration-150 active:scale-[0.99]",
-                        active
-                          ? "bg-brand/[0.08] font-semibold text-foreground dark:bg-brand/15"
-                          : "text-sidebar-foreground/85 hover:bg-card/70 hover:text-foreground",
-                      ].join(" ")}
-                    >
-                      <ActiveAccent show={active} />
-                      <Icon
-                        size={18}
-                        strokeWidth={active ? 2.1 : 1.8}
-                        className={`shrink-0 transition-colors ${
-                          active
-                            ? "text-brand dark:text-brand"
-                            : "text-muted-foreground/80 group-hover:text-foreground"
-                        }`}
-                      />
-                      <span className="min-w-0 flex-1 truncate text-start">
-                        {item.label}
-                      </span>
-                      {item.badge && (
-                        <span className="ms-auto shrink-0 rounded border border-brand/20 bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand">
-                          {item.badge}
-                        </span>
-                      )}
-                    </a>
-                  );
-                }
-
-                const groupActive =
-                  item.children.some(
-                    (child) =>
-                      !!child.href && isCurrentPath(currentPath, child.href),
-                  ) ||
-                  (!!item.href && isCurrentPath(currentPath, item.href));
-                const expanded = openGroups.has(item.id);
-                const GroupIcon = item.icon;
-                const groupButtonClass = [
-                  "group relative flex min-h-[36px] w-full items-center justify-between rounded-lg px-2.5 text-[13.5px] font-medium transition-all duration-150 active:scale-[0.99]",
-                  groupActive
-                    ? "bg-brand/[0.08] font-semibold text-foreground dark:bg-brand/15"
-                    : "text-sidebar-foreground/85 hover:bg-card/70 hover:text-foreground",
-                ].join(" ");
-
-                return (
-                  <div key={item.id} className="space-y-0.5">
-                    {item.href ? (
-                      <div className={groupButtonClass}>
-                        <ActiveAccent show={groupActive && !expanded} />
-                        <a
-                          href={item.href}
-                          onClick={onNavigate}
-                          aria-current={groupActive ? "page" : undefined}
-                          className="flex min-w-0 flex-1 items-center gap-2.5"
-                        >
-                          <GroupIcon
-                            size={18}
-                            strokeWidth={groupActive ? 2.1 : 1.8}
-                            className={`shrink-0 transition-colors ${
-                              groupActive
-                                ? "text-brand dark:text-brand"
-                                : "text-muted-foreground/80 group-hover:text-foreground"
-                            }`}
-                          />
-                          <span className="min-w-0 flex-1 truncate text-start">
-                            {item.label}
-                          </span>
-                        </a>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            toggleGroup(item.id);
-                          }}
-                          aria-expanded={expanded}
-                          aria-label={`${expanded ? tN("menu.collapse") : tN("menu.expand")}: ${item.label}`}
-                          className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        >
-                          <ChevronDown
-                            size={14}
-                            strokeWidth={2}
-                            className={`transition-transform duration-200 ${
-                              expanded ? "rotate-0" : "-rotate-90 rtl:rotate-90"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(item.id)}
-                        aria-expanded={expanded}
-                        className={groupButtonClass}
-                      >
-                        <ActiveAccent show={groupActive && !expanded} />
-                        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                          <GroupIcon
-                            size={18}
-                            strokeWidth={groupActive ? 2.1 : 1.8}
-                            className={`shrink-0 transition-colors ${
-                              groupActive
-                                ? "text-brand dark:text-brand"
-                                : "text-muted-foreground/80 group-hover:text-foreground"
-                            }`}
-                          />
-                          <span className="min-w-0 flex-1 truncate text-start">
-                            {item.label}
-                          </span>
-                        </div>
-                        {item.badge && (
-                          <span className="me-2 shrink-0 rounded border border-brand/20 bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand">
-                            {item.badge}
-                          </span>
-                        )}
-                        <ChevronDown
-                          size={14}
-                          strokeWidth={2}
-                          className={`shrink-0 text-muted-foreground transition-transform duration-200 ${
-                            expanded ? "rotate-0" : "-rotate-90 rtl:rotate-90"
-                          }`}
-                        />
-                      </button>
-                    )}
-                    {expanded && (
-                      <div className="my-1 ms-4 space-y-0.5 border-s border-sidebar-border/80 ps-2.5">
-                        {item.children.map((child) => {
-                          const childActive = isCurrentPath(
-                            currentPath,
-                            child.href,
-                          );
-                          return (
-                            <a
-                              key={child.href}
-                              href={child.href}
-                              onClick={onNavigate}
-                              aria-current={childActive ? "page" : undefined}
-                              className={[
-                                "group relative flex min-h-[32px] items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors duration-150",
-                                childActive
-                                  ? "bg-brand/[0.08] font-semibold text-brand dark:bg-brand/15 dark:text-brand"
-                                  : "font-medium text-muted-foreground hover:bg-card/70 hover:text-foreground",
-                              ].join(" ")}
-                            >
-                              {childActive ? (
-                                <span className="size-1.5 shrink-0 rounded-full bg-brand" />
-                              ) : (
-                                <span className="size-1 shrink-0 rounded-full bg-muted-foreground/40 transition-colors group-hover:bg-muted-foreground/70" />
-                              )}
-                              <span className="min-w-0 flex-1 truncate text-start">
-                                {child.label}
-                              </span>
-                              {child.badge && (
-                                <span className="ms-auto shrink-0 rounded border border-brand/20 bg-brand/10 px-1.5 py-0.2 text-[9.5px] font-bold uppercase text-brand">
-                                  {child.badge}
-                                </span>
-                              )}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-
-function SidebarFooter({
-  isCollapsed = false,
-  onToggleCollapse,
-}: {
-  isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
-}) {
-  const theme = useTheme();
-  const isDark = theme === "dark";
-  const tN = useT("navigation");
-
-  if (isCollapsed) {
-    return (
-      <div className="flex shrink-0 flex-col items-center space-y-1.5 border-t border-sidebar-border/60 p-2">
-        <button
-          type="button"
-          onClick={() => toggleTheme(theme)}
-          title={isDark ? tN("theme.light") : tN("theme.dark")}
-          aria-label={tN("theme.toggle")}
-          className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-card/70 hover:text-foreground"
-        >
-          {isDark ? <Sun size={17} /> : <Moon size={17} />}
-        </button>
-        {onToggleCollapse && (
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            title={tN("menu.expand")}
-            aria-label={tN("menu.expand")}
-            className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-card/70 hover:text-foreground"
-          >
-            <PanelLeftOpen size={17} className="rtl:rotate-180" />
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="shrink-0 space-y-1 border-t border-sidebar-border/60 bg-sidebar/80 p-2.5">
-      <div className="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] text-sidebar-foreground transition-colors hover:bg-card/70">
-        <div className="flex items-center gap-2.5 text-muted-foreground">
-          {isDark ? (
-            <Sun size={16} strokeWidth={1.8} />
-          ) : (
-            <Moon size={16} strokeWidth={1.8} />
-          )}
-          <span className="text-[13px] font-medium text-foreground">
-            {isDark ? tN("theme.dark") : tN("theme.light")}
+    <div className="flex shrink-0 flex-col items-center gap-2 px-4 pb-4 pt-6 text-center">
+      <a href="/settings" className="rounded-2xl" aria-label={store.name}>
+        {store.logoUrl ? (
+          <img src={store.logoUrl} alt="" className="size-12 rounded-2xl bg-card object-contain shadow-card" />
+        ) : (
+          <span className="grid size-12 place-items-center rounded-2xl bg-[var(--tone-magic-bg)] text-base font-semibold text-[var(--tone-magic-text)] shadow-[inset_0_0_0_1px_var(--tone-magic-border)]">
+            {initials || "·"}
           </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => toggleTheme(theme)}
-          aria-label={tN("theme.toggle")}
-          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            isDark ? "bg-brand" : "bg-muted"
-          }`}
+        )}
+      </a>
+      <p className="max-w-full truncate text-sm font-semibold text-foreground">{store.name}</p>
+      {store.domain && (
+        <a
+          href={`https://${store.domain}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-full bg-card px-2.5 text-xs font-medium text-foreground shadow-card transition-colors hover:bg-subtle"
         >
-          <span
-            aria-hidden="true"
-            className={`pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-              isDark ? "translate-x-4 rtl:-translate-x-4" : "translate-x-0"
-            }`}
-          />
-        </button>
-      </div>
-
-      {onToggleCollapse && (
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-card/70 hover:text-foreground"
-        >
-          <PanelLeftClose size={16} strokeWidth={1.8} className="rtl:rotate-180" />
-          <span>{tN("menu.collapse")}</span>
-        </button>
+          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-[var(--chart-delivered)]" />
+          <span dir="ltr" className="truncate">{store.domain}</span>
+        </a>
       )}
     </div>
   );
 }
 
+const ROW =
+  "group flex h-8 min-w-0 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-[background-color,color,box-shadow] duration-150 pointer-coarse:h-10";
+const ROW_ACTIVE = "bg-sidebar-active font-medium text-foreground shadow-[0_0_0_1px_var(--sidebar-border),0_1px_2px_0_rgb(0_0_0/0.05)]";
+const ROW_IDLE = "text-foreground/75 hover:bg-foreground/[0.045] hover:text-foreground";
 
-export function DashboardSidebar({ currentPath }: { currentPath: string }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("codflow_sidebar_collapsed");
-      if (saved === "true") setIsCollapsed(true);
-    } catch {}
-  }, []);
-
-  function handleToggle() {
-    setIsCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("codflow_sidebar_collapsed", String(next));
-      } catch {}
-      return next;
-    });
-  }
-
+function NavIcon({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
   return (
-    <aside
-      className={`hidden shrink-0 flex-col border-e border-sidebar-border bg-sidebar transition-[width] duration-200 ease-in-out md:flex ${
-        isCollapsed ? "w-16" : "w-64"
-      }`}
-    >
-      <SidebarWorkspaceCard
-        isCollapsed={isCollapsed}
-        onToggleCollapse={handleToggle}
-      />
-      <SidebarNav
-        currentPath={currentPath}
-        isCollapsed={isCollapsed}
-      />
-      <SidebarFooter
-        isCollapsed={isCollapsed}
-        onToggleCollapse={handleToggle}
-      />
-    </aside>
+    <Icon
+      size={16}
+      strokeWidth={1.75}
+      aria-hidden="true"
+      className={`shrink-0 transition-colors ${active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
+    />
   );
 }
 
+function groupContainsCurrent(item: NavGroup, currentPath: string): boolean {
+  return (
+    (!!item.href && isCurrentPath(currentPath, item.href)) ||
+    item.children.some((child) => isCurrentPath(currentPath, child.href))
+  );
+}
+
+function NavGroupItem({ item, currentPath, onNavigate }: { item: NavGroup; currentPath: string; onNavigate?: () => void }) {
+  const tN = useT("navigation");
+  const within = groupContainsCurrent(item, currentPath);
+  const [open, setOpen] = useState(within);
+  const href = item.href ?? item.children[0]?.href ?? "/";
+  const current = isCurrentPath(currentPath, href);
+  const hasChildren = item.children.length > 0;
+
+  return (
+    <li>
+      <div className={`${ROW} pe-1 ${current ? ROW_ACTIVE : ROW_IDLE}`}>
+        <a href={href} onClick={onNavigate} aria-current={current ? "page" : undefined} className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch">
+          <NavIcon icon={item.icon} active={current || within} />
+          <span className="truncate">{item.label}</span>
+        </a>
+        {hasChildren && (
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+            aria-label={`${open ? tN("menu.collapse_group") : tN("menu.expand_group")}: ${item.label}`}
+            className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+          >
+            <ChevronDown size={14} aria-hidden="true" className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+          </button>
+        )}
+      </div>
+      {hasChildren && open && (
+        <ul className="ms-[17px] mt-0.5 animate-fade">
+          {item.children.map((child, index) => {
+            const active = isCurrentPath(currentPath, child.href);
+            const last = index === item.children.length - 1;
+            return (
+              <li key={child.href} className="relative ps-3.5">
+                {!last && <span aria-hidden="true" className="absolute inset-y-0 start-0 border-s border-sidebar-border" />}
+                <span aria-hidden="true" className="absolute start-0 top-0 h-1/2 w-2.5 rounded-es-md border-b border-s border-sidebar-border" />
+                <a
+                  href={child.href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={`${ROW} my-px ${active ? ROW_ACTIVE : ROW_IDLE}`}
+                >
+                  <span className="truncate">{child.label}</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+function NavItem({ item, currentPath, onNavigate }: { item: NavNode; currentPath: string; onNavigate?: () => void }) {
+  if (item.kind === "group") return <NavGroupItem item={item} currentPath={currentPath} onNavigate={onNavigate} />;
+  const active = isCurrentPath(currentPath, item.href);
+  return (
+    <li>
+      <a href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={`${ROW} ${active ? ROW_ACTIVE : ROW_IDLE}`}>
+        <NavIcon icon={item.icon} active={active} />
+        <span className="truncate">{item.label}</span>
+      </a>
+    </li>
+  );
+}
+
+/** The store's navigation: daily work first, the online store after, administration last. */
+export function SidebarNav({ currentPath, onNavigate }: { currentPath: string; onNavigate?: () => void }) {
+  const sections = useNavSections();
+  const tN = useT("navigation");
+  return (
+    <nav aria-label={tN("sidebar.general")} className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+      {sections.map((section, index) => (
+        <section key={section.id} className={index > 0 ? "mt-3 border-t border-sidebar-border pt-3" : ""}>
+          {section.label && <h2 className="mb-1 px-2.5 text-xs font-medium text-muted-foreground select-none">{section.label}</h2>}
+          <ul className="space-y-px">
+            {section.items.map((item) => (
+              <NavItem key={item.kind === "leaf" ? item.href : item.id} item={item} currentPath={currentPath} onNavigate={onNavigate} />
+            ))}
+          </ul>
+        </section>
+      ))}
+    </nav>
+  );
+}
+
+export function SidebarContent({ currentPath, onNavigate }: { currentPath: string; onNavigate?: () => void }) {
+  return (
+    <>
+      <StoreBlock />
+      <SidebarNav currentPath={currentPath} onNavigate={onNavigate} />
+    </>
+  );
+}
+
+export function DashboardSidebar({ currentPath }: { currentPath: string }) {
+  return (
+    <aside className="hidden w-60 shrink-0 flex-col bg-sidebar md:flex">
+      <SidebarContent currentPath={currentPath} />
+    </aside>
+  );
+}

@@ -11,30 +11,30 @@ export type ButtonVariant =
 export type ButtonSize = "default" | "sm" | "lg" | "icon";
 
 const base =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg font-semibold transition-[background-color,box-shadow,color,transform] duration-150 ease-out select-none outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px disabled:pointer-events-none disabled:opacity-45 [&_svg]:shrink-0";
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 active:bg-primary/95",
+    "bg-primary text-primary-foreground shadow-button-primary hover:bg-primary/88 active:shadow-none",
   secondary:
-    "border border-border/90 bg-card text-card-foreground shadow-xs hover:bg-muted/70 hover:border-input active:bg-muted",
+    "bg-card text-card-foreground shadow-button hover:bg-subtle active:bg-muted active:shadow-xs",
   ghost:
-    "text-muted-foreground hover:bg-muted/70 hover:text-foreground active:bg-muted",
+    "text-foreground/80 hover:bg-foreground/[0.06] hover:text-foreground active:bg-foreground/[0.09]",
   danger:
-    "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 active:bg-destructive/95",
+    "bg-destructive text-destructive-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.18),inset_0_-1px_0_rgb(0_0_0/0.35),0_0_0_1px_var(--destructive)] hover:bg-destructive/90 active:shadow-none",
   dangerOutline:
-    "border border-destructive/25 bg-destructive/[0.04] text-destructive hover:bg-destructive/10 active:bg-destructive/15",
+    "bg-card text-destructive shadow-button hover:bg-[var(--tone-critical-bg)] active:shadow-xs",
   outline:
-    "border border-input bg-transparent text-foreground hover:bg-muted/70 hover:text-foreground active:bg-muted",
+    "bg-transparent text-foreground shadow-[0_0_0_1px_var(--input)] hover:bg-foreground/[0.04] active:bg-foreground/[0.07]",
   brand:
-    "bg-brand text-brand-foreground shadow-xs hover:bg-brand/90 active:bg-brand/95",
+    "bg-brand text-brand-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.2),inset_0_-1px_0_rgb(0_0_0/0.3),0_0_0_1px_var(--brand)] hover:bg-brand/90 active:shadow-none",
 };
 
 const sizes: Record<ButtonSize, string> = {
-  default: "h-9 px-3.5 text-[13.5px]",
-  sm: "h-8 px-2.5 text-xs",
-  lg: "h-10 px-5 text-sm",
-  icon: "size-9 p-0",
+  default: "h-8 px-3 text-sm pointer-coarse:h-10 pointer-coarse:px-4",
+  sm: "h-7 px-2.5 text-xs pointer-coarse:h-9",
+  lg: "h-10 px-4 text-sm",
+  icon: "size-8 p-0 pointer-coarse:size-10",
 };
 
 export function buttonVariants(
