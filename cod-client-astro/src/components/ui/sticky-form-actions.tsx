@@ -60,17 +60,19 @@ export function StickyFormActions({
   return (
     <div
       ref={barRef}
-      className={`sticky bottom-3 z-30 flex flex-wrap items-center justify-end gap-2 rounded-xl bg-card px-3 py-2.5 transition-shadow duration-200 ${
+      className={`sticky bottom-3 z-30 flex flex-wrap items-center justify-end gap-x-3 gap-y-2 rounded-xl bg-card px-3 py-2.5 transition-shadow duration-200 ${
         pinned ? "shadow-popover" : "shadow-card"
       } ${className}`}
       style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {info && (
-        <div className="me-auto min-w-0 text-xs text-muted-foreground">
+        <div className="min-w-0 basis-full text-xs text-muted-foreground sm:me-auto sm:basis-auto">
           {info}
         </div>
       )}
-      {children}
+      <div className="flex w-full items-center gap-2 sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
+        {children}
+      </div>
     </div>
   );
 }

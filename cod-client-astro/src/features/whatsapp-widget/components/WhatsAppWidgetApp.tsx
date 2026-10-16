@@ -453,7 +453,7 @@ function WhatsAppWidgetContent() {
           }
         >
           {dirty && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(toDraft(saved, getDefaults()))} disabled={saving}>
+            <Button type="button" variant="secondary" onClick={() => setDraft(toDraft(saved, getDefaults()))} disabled={saving}>
               {t("reset")}
             </Button>
           )}
@@ -562,7 +562,7 @@ function ChoiceGroup<T extends string>({
               aria-checked={selected}
               disabled={disabled}
               onClick={() => onChange(option.value)}
-              className={`flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
+              className={`flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-center text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
                 selected ? "bg-accent font-medium text-foreground ring-1 ring-foreground/40" : "text-muted-foreground shadow-card hover:text-foreground"
               }`}
             >
