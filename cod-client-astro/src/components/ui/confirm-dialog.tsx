@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { AlertTriangle, Check, HelpCircle, Minus } from "lucide-react";
+import { AlertTriangle, Check, Copy, HelpCircle, Minus } from "lucide-react";
 import { useT } from "@/i18n/react";
 import { Button } from "./button";
 import { Dialog } from "./dialog";
@@ -38,6 +38,55 @@ type ConfirmRequest = ConfirmDialogOptions & {
 const ConfirmDialogContext = createContext<
   ((options: ConfirmDialogOptions) => Promise<boolean>) | null
 >(null);
+
+/**
+ * The text to type, shown inside its sentence as a chip that copies itself:
+ * the merchant pastes it instead of retyping a long or Arabic name, and still
+ * has to put it in the field. The sentence comes whole from the dictionary,
+ * so each language keeps its own word order around the chip.
+ */
+function CopyableText({ text }: { text: string }) {
+  const common = useT("common");
+  const [copied, setCopied] = useState(false);
+  const [before, after = ""] = common("confirm_type", { text: "\u0000" }).split("\u0000");
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      const range = document.createRange();
+      const node = document.getElementById("confirm-dialog-text");
+      if (!node) return;
+      range.selectNodeContents(node);
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(range);
+    }
+  }
+
+  return (
+    <span className="block text-sm text-muted-foreground">
+      {before}
+      <button
+        type="button"
+        onClick={() => void copy()}
+        title={copied ? common("feedback.copied") : common("confirm_copy")}
+        aria-label={`${common("confirm_copy")}: ${text}`}
+        className="mx-0.5 inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted px-1.5 py-0.5 align-middle font-mono text-xs font-semibold text-foreground transition-colors hover:bg-foreground/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span id="confirm-dialog-text" dir="auto" className="truncate select-all">{text}</span>
+        {copied ? (
+          <Check size={13} className="shrink-0 text-tone-success-text" aria-hidden="true" />
+        ) : (
+          <Copy size={13} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+        )}
+      </button>
+      <span className="sr-only" role="status">{copied ? common("feedback.copied") : ""}</span>
+      {after}
+    </span>
+  );
+}
 
 export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   const common = useT("common");
@@ -143,10 +192,8 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
                   if (confirmed) settle(true);
                 }}
               >
-                <label className="block space-y-1.5">
-                  <span className="block text-sm text-muted-foreground">
-                    {common("confirm_type", { text: request.confirmText! })}
-                  </span>
+                <div className="space-y-1.5">
+                  <CopyableText text={request.confirmText!} />
                   <Input
                     ref={typedRef}
                     value={typed}
@@ -156,7 +203,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
                     dir="auto"
                     aria-label={common("confirm_type", { text: request.confirmText! })}
                   />
-                </label>
+                </div>
               </form>
             )}
           </div>

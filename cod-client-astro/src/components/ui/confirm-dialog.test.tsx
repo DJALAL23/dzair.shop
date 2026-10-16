@@ -84,6 +84,31 @@ describe("a confirmation that must be typed", () => {
   });
 });
 
+describe("copying the text to type", () => {
+  it("one click copies the exact text; the field still has to be filled", async () => {
+    const copied: string[] = [];
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: async (text: string) => void copied.push(text) }, configurable: true });
+    const answer = open({ confirmText: "ساعة أنيقة" });
+    const chip = dialog().querySelector<HTMLButtonElement>('button[aria-label^="Copy"]')!;
+    expect(chip.textContent).toContain("ساعة أنيقة");
+    await act(async () => chip.click());
+    expect(copied).toEqual(["ساعة أنيقة"]);
+    expect(chip.title).toBe("Copied to clipboard");
+    expect(confirmButton().disabled).toBe(true);
+    type("ساعة أنيقة");
+    act(() => confirmButton().click());
+    await expect(answer).resolves.toBe(true);
+  });
+
+  it("keeps each language's sentence around the chip", () => {
+    window.localStorage.setItem("locale", "fr");
+    act(() => root.render(<ConfirmDialogProvider><Probe /></ConfirmDialogProvider>));
+    open({ confirmText: "ORD-1", confirmLabel: "Delete" });
+    expect(dialog().textContent).toContain("Saisissez ORD-1");
+    expect(dialog().textContent).toContain("pour confirmer");
+  });
+});
+
 describe("what an action does", () => {
   it("lists what goes, what stays and what to watch", () => {
     open({ consequences: [{ text: "Its 2 images are removed" }, { text: "Orders keep their lines", kept: true }, { text: "1 order still to ship", warning: true }] });

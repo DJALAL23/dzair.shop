@@ -95,5 +95,6 @@
     "pick_image": "Cliquez ou glissez une image ici",
     "formats": "JPG, PNG, WebP, GIF · max {mb} Mo"
   },
-  "confirm_type": "Saisissez {text} pour confirmer"
+  "confirm_type": "Saisissez {text} pour confirmer",
+  "confirm_copy": "Copier"
 }
