@@ -19,6 +19,7 @@ import { Alert, Badge, LinkButton, PageHeader } from "@/components/ui";
 import { ExternalLink, Settings } from "lucide-react";
 import { CompanySettingsSection } from "@/features/delivery/components/CompanySettingsSection";
 import { CompanyWebhookEventsCard } from "@/features/delivery/components/CompanyWebhookEventsCard";
+import { isCompanyConnected } from "@/features/delivery/model";
 import { notify } from "@/lib/notify";
 
 function Loading() {
@@ -236,13 +237,13 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
         backLabel={t("page_title")}
         media={
           <span
-            className={`grid size-12 place-items-center rounded-lg text-lg font-semibold ${company?.isConnected ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}
+            className={`grid size-12 place-items-center rounded-lg text-lg font-semibold ${isCompanyConnected(company) ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}
           >
             {config.name.charAt(0)}
           </span>
         }
         badges={
-          company?.isConnected ? <Badge tone="success" dot>{t("connected")}</Badge> : <Badge tone="neutral">{t("not_connected")}</Badge>
+          isCompanyConnected(company) ? <Badge tone="success" dot>{t("connected")}</Badge> : <Badge tone="neutral">{t("not_connected")}</Badge>
         }
         subtitle={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
@@ -257,9 +258,9 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
         }
         actions={
           canManage ? (
-            <LinkButton href={`/delivery/companies/${providerCode}/credentials`} variant={company?.isConnected ? "secondary" : "primary"}>
+            <LinkButton href={`/delivery/companies/${providerCode}/credentials`} variant={isCompanyConnected(company) ? "secondary" : "primary"}>
               <Settings size={15} aria-hidden="true" />
-              {company?.isConnected ? t("configure") : t("connect")}
+              {isCompanyConnected(company) ? t("configure") : t("connect")}
             </LinkButton>
           ) : undefined
         }

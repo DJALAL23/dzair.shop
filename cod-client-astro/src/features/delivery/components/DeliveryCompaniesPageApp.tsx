@@ -11,7 +11,7 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { listAllDeliveryCompanies } from "@/features/delivery/api";
 import type { DeliveryCompany, ProviderConfig } from "@/features/delivery/types";
 import { PROVIDER_CONFIGS } from "@/features/delivery/types";
-import { webhookSetup } from "@/features/delivery/model";
+import { isCompanyConnected, webhookSetup } from "@/features/delivery/model";
 import { Alert, Badge, Card, EmptyState, ListToolbar, PageHeader, SearchInput, TableSkeleton, Tabs } from "@/components/ui";
 
 type TabKey = "connected" | "available";
@@ -112,8 +112,8 @@ function DeliveryCompaniesList() {
 
   const providers = Object.values(PROVIDER_CONFIGS);
   const companyOf = (provider: ProviderConfig) => companies.find((item) => item.code === provider.code) ?? null;
-  const connectedAll = providers.filter((provider) => companyOf(provider)?.isConnected);
-  const availableAll = providers.filter((provider) => !companyOf(provider)?.isConnected);
+  const connectedAll = providers.filter((provider) => isCompanyConnected(companyOf(provider)));
+  const availableAll = providers.filter((provider) => !isCompanyConnected(companyOf(provider)));
   const tab: TabKey = chosenTab ?? (connectedAll.length > 0 ? "connected" : "available");
   const connected = connectedAll.filter((provider) => matchesQuery(provider, search));
   const available = availableAll.filter((provider) => matchesQuery(provider, search));

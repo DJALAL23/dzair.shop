@@ -325,3 +325,8 @@ export function connectErrorKey(cause: unknown): "error_token_refused" | "error_
   if (code === "CARRIER_REJECTED") return "error_host_refused";
   return "error_saving";
 }
+
+/** A company is connected while it has credentials and is switched on; Disconnect only switches it off, so its parcels can still be tracked. */
+export function isCompanyConnected(company: Pick<DeliveryCompany, "isConnected" | "active"> | null | undefined): boolean {
+  return !!company && company.isConnected && company.active;
+}

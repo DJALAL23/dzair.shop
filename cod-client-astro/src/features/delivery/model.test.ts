@@ -6,6 +6,7 @@ import {
   connectErrorKey,
   companySettingsFor,
   fromWilayaOf,
+  isCompanyConnected,
   statusMapDraft,
   statusMapFrom,
   webhookSetup,
@@ -28,7 +29,7 @@ import {
   sortDrivers,
   sortShippingProfiles,
 } from "./model";
-import type { Driver, PendingSettlement, ShippingProfile, ShippingRule } from "./types";
+import type { DeliveryCompany, Driver, PendingSettlement, ShippingProfile, ShippingRule } from "./types";
 
 const driver = (overrides: Partial<Driver> = {}): Driver => ({
   id: "driver-1",
@@ -230,5 +231,17 @@ describe("why connecting a carrier failed", () => {
     expect(connectErrorKey(api(422, "CARRIER_REJECTED"))).toBe("error_host_refused");
     expect(connectErrorKey(api(409, "CARRIER_MISCONFIGURED"))).toBe("error_saving");
     expect(connectErrorKey(new Error("boom"))).toBe("error_saving");
+  });
+});
+
+describe("when a company counts as connected", () => {
+  const company = (isConnected: boolean, active: boolean) => ({ isConnected, active }) as Pick<DeliveryCompany, "isConnected" | "active">;
+
+  it("needs stored credentials and an active company: Disconnect switches it off but keeps the token for its parcels", () => {
+    expect(isCompanyConnected(company(true, true))).toBe(true);
+    expect(isCompanyConnected(company(true, false))).toBe(false);
+    expect(isCompanyConnected(company(false, true))).toBe(false);
+    expect(isCompanyConnected(null)).toBe(false);
+    expect(isCompanyConnected(undefined)).toBe(false);
   });
 });

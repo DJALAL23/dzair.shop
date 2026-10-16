@@ -1,6 +1,7 @@
 import { CheckCircle2, Circle, ExternalLink, Globe, Key, ShieldCheck } from "lucide-react";
 import { Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/react";
+import { isCompanyConnected } from "@/features/delivery/model";
 import { cn } from "@/lib/utils";
 import type { DeliveryCompany, ProviderConfig } from "@/features/delivery/types";
 
@@ -30,7 +31,7 @@ export function CompanyCredentialsFormCard({
   busy: boolean;
 }) {
   const t = useT("delivery_companies");
-  const isConnected = company?.isConnected ?? false;
+  const isConnected = isCompanyConnected(company);
 
   return (
     <div className="space-y-4 rounded-xl bg-card p-5 lg:col-span-2 shadow-card">

@@ -13,7 +13,7 @@ import {
 } from "@/features/delivery/api";
 import type { DeliveryCompany } from "@/features/delivery/types";
 import { getProviderConfig } from "@/features/delivery/types";
-import { carrierHostFrom, companySettingsFor, connectErrorKey, fromWilayaOf, webhookSetup } from "@/features/delivery/model";
+import { carrierHostFrom, companySettingsFor, connectErrorKey, fromWilayaOf, isCompanyConnected, webhookSetup } from "@/features/delivery/model";
 import {
   Alert,
   PageHeader,
@@ -160,7 +160,7 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
         });
       }
       notify.flashSuccess(
-        company?.isConnected ? t("success_updated") : t("success_connected"),
+        isCompanyConnected(company) ? t("success_updated") : t("success_connected"),
       );
       window.location.assign(`/delivery/companies/${providerCode}`);
     } catch (cause) {
@@ -231,7 +231,7 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
 
   if (company === undefined) return <Loading />;
 
-  const isConnected = company?.isConnected ?? false;
+  const isConnected = isCompanyConnected(company);
   const busy = loading || disconnecting;
   const canManage = canScope(identity, SCOPES.DELIVERY_MANAGE);
 
