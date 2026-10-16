@@ -76,7 +76,12 @@
     "slug_edit": "تعديل الرابط",
     "slug_apply": "تطبيق",
     "slug_invalid": "٣-٦٠ حرفًا: أحرف صغيرة وأرقام وشرطات",
-    "gap_hint": "المسافة بين الصور المتراصة"
+    "gap_hint": "المسافة بين الصور المتراصة",
+    "tab_images": "الصور",
+    "tab_preview": "معاينة",
+    "tab_settings": "الإعدادات",
+    "link_title": "رابط الصفحة",
+    "tabs_label": "أقسام الاستوديو"
   },
   "tracking": {
     "card_title": "التتبّع",

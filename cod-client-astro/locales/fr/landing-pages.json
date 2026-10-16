@@ -76,7 +76,12 @@
     "slug_edit": "Modifier le slug",
     "slug_apply": "Appliquer",
     "slug_invalid": "3-60 caractères : minuscules, chiffres, tirets",
-    "gap_hint": "Espace entre les images empilées"
+    "gap_hint": "Espace entre les images empilées",
+    "tab_images": "Images",
+    "tab_preview": "Aperçu",
+    "tab_settings": "Réglages",
+    "link_title": "Lien de la page",
+    "tabs_label": "Sections du studio"
   },
   "tracking": {
     "card_title": "Suivi",

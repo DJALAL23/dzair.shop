@@ -76,7 +76,12 @@
     "slug_edit": "Edit slug",
     "slug_apply": "Apply",
     "slug_invalid": "3-60 chars: lowercase letters, digits, hyphens",
-    "gap_hint": "Space between the stacked images"
+    "gap_hint": "Space between the stacked images",
+    "tab_images": "Images",
+    "tab_preview": "Preview",
+    "tab_settings": "Settings",
+    "link_title": "Page link",
+    "tabs_label": "Studio sections"
   },
   "tracking": {
     "card_title": "Tracking",

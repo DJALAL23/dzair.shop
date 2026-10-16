@@ -8,9 +8,12 @@ import {
   Copy,
   ExternalLink,
   GripVertical,
+  ImageIcon,
   Loader2,
   Pencil,
+  Eye,
   Settings2,
+  SlidersHorizontal,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -60,6 +63,56 @@ function swapAt<T>(arr: T[], i: number, j: number): T[] {
   return next;
 }
 
+type Pane = "images" | "preview" | "settings";
+
+const DESKTOP_QUERY = "(min-width: 1024px)";
+
+function useIsDesktop() {
+  const [desktop, setDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(DESKTOP_QUERY).matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia(DESKTOP_QUERY);
+    const sync = () => setDesktop(query.matches);
+    query.addEventListener("change", sync);
+    sync();
+    return () => query.removeEventListener("change", sync);
+  }, []);
+  return desktop;
+}
+
+/** On a phone the three panes are three screens; this bar, in thumb's reach, moves between them. */
+function StudioTabBar({ pane, onChange }: { pane: Pane; onChange: (pane: Pane) => void }) {
+  const t = useT("landing-pages");
+  const items: { key: Pane; label: string; Icon: typeof Eye }[] = [
+    { key: "images", label: t("studio.tab_images"), Icon: ImageIcon },
+    { key: "preview", label: t("studio.tab_preview"), Icon: Eye },
+    { key: "settings", label: t("studio.tab_settings"), Icon: SlidersHorizontal },
+  ];
+  return (
+    <nav
+      aria-label={t("studio.tabs_label")}
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
+    >
+      {items.map(({ key, label, Icon }) => {
+        const active = pane === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            aria-current={active ? "page" : undefined}
+            onClick={() => onChange(key)}
+            className={`flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors ${active ? "text-foreground" : "text-muted-foreground"}`}
+          >
+            <Icon size={20} aria-hidden="true" />
+            {label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 function SaveIndicator({ state, label }: { state: SaveState; label: string }) {
@@ -95,12 +148,16 @@ function StudioShell({
   saveState,
   saveLabel,
   toolbar,
+  pane,
+  onPaneChange,
   children,
 }: {
   title: string;
   saveState: SaveState;
   saveLabel: string;
   toolbar?: React.ReactNode;
+  pane?: Pane;
+  onPaneChange?: (pane: Pane) => void;
   children: React.ReactNode;
 }) {
   const t = useT("landing-pages");
@@ -122,11 +179,12 @@ function StudioShell({
           {toolbar}
           <SaveIndicator state={saveState} label={saveLabel} />
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
-          <div className="grid h-full grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_240px]">
+        <div className={`min-h-0 flex-1 overflow-y-auto lg:overflow-hidden ${pane ? "pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0" : ""}`}>
+          <div className="grid grid-cols-1 lg:h-full lg:grid-cols-[300px_minmax(0,1fr)_240px]">
             {children}
           </div>
         </div>
+        {pane && onPaneChange && <StudioTabBar pane={pane} onChange={onPaneChange} />}
       </div>
     </ConfirmDialogProvider>
   );
@@ -160,6 +218,8 @@ function Gated({ landingPageId }: { landingPageId: string }) {
   const [trackingOpen, setTrackingOpen] = useState(false);
 
   const [publishOpen, setPublishOpen] = useState(false);
+  const [pane, setPane] = useState<Pane>("images");
+  const isDesktop = useIsDesktop();
   const inputRef = useRef<HTMLInputElement>(null);
   const saveTimer = useRef<number | null>(null);
 
@@ -428,10 +488,8 @@ function Gated({ landingPageId }: { landingPageId: string }) {
   const publicUrl = landingPagePublicUrl(lp);
   const editingSlug = slugDraft !== null;
 
-  const toolbar = (
-    <>
-      {/* Slug: inline display, pencil to edit, apply/✕ while editing */}
-      <div className="flex items-center" dir="ltr">
+  const slugControl = (
+      <div className={`flex items-center ${isDesktop ? "" : "w-full"}`} dir="ltr">
         {editingSlug ? (
           <>
             <span className="hidden font-mono text-xs text-muted-foreground sm:inline">/lp/</span>
@@ -445,7 +503,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                 if (event.key === "Escape") setSlugDraft(null);
               }}
               aria-label={t("studio.slug_label")}
-              className="h-8 w-36 rounded-lg border border-input bg-card px-2 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-44"
+              className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 font-mono text-base outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-8 lg:w-44 lg:flex-none lg:px-2 lg:text-xs"
               spellCheck={false}
               autoComplete="off"
               maxLength={60}
@@ -454,7 +512,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
               type="button"
               onClick={() => void applySlug()}
               disabled={slugSaving}
-              className="ms-1 flex h-8 items-center gap-1 rounded-lg bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+              className="ms-1 flex h-11 w-11 items-center justify-center gap-1 rounded-lg bg-primary text-xs font-semibold text-primary-foreground disabled:opacity-60 lg:h-8 lg:w-auto lg:px-2"
               title={t("studio.slug_apply")}
             >
               {slugSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={13} />}
@@ -462,7 +520,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
             <button
               type="button"
               onClick={() => setSlugDraft(null)}
-              className="ms-0.5 flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted"
+              className="ms-0.5 flex h-11 w-11 items-center justify-center rounded-lg hover:bg-muted lg:h-8 lg:w-8"
               title={common("cancel")}
             >
               <X size={13} />
@@ -473,7 +531,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
             type="button"
             onClick={startSlugEdit}
             disabled={!canManage}
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2 font-mono text-xs text-muted-foreground transition-colors hover:border-input hover:text-foreground disabled:opacity-50"
+            className="flex h-11 min-w-0 flex-1 items-center justify-between gap-1.5 rounded-lg border border-border bg-background px-3 font-mono text-sm text-muted-foreground transition-colors hover:border-input hover:text-foreground disabled:opacity-50 lg:h-8 lg:flex-none lg:justify-start lg:px-2 lg:text-xs"
             title={t("studio.slug_edit")}
           >
             <span className="max-w-40 truncate">/lp/{lp.slug}</span>
@@ -481,33 +539,35 @@ function Gated({ landingPageId }: { landingPageId: string }) {
           </button>
         )}
       </div>
+  );
 
-      {isPublished && (
+  const linkActions = (labels: boolean) =>
+    isPublished && (
         <>
           <button
             type="button"
             onClick={() => onCopyLink()}
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold transition-colors hover:bg-muted"
+            className={`flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background text-xs font-semibold transition-colors hover:bg-muted ${labels ? "h-11 flex-1 text-sm" : "h-8 px-2.5"}`}
             title={publicUrl}
           >
             <Copy size={14} />
-            <span className="hidden md:inline">{t("list.copy_link")}</span>
+            <span className={labels ? "" : "hidden md:inline"}>{t("list.copy_link")}</span>
           </button>
           <a
             href={publicUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold transition-colors hover:bg-muted"
+            className={`flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background text-xs font-semibold transition-colors hover:bg-muted ${labels ? "h-11 flex-1 text-sm" : "h-8 px-2.5"}`}
             title={t("list.view")}
           >
             <ExternalLink size={14} />
-            <span className="hidden md:inline">{t("list.view")}</span>
+            <span className={labels ? "" : "hidden md:inline"}>{t("list.view")}</span>
           </a>
         </>
-      )}
+    );
 
-      {/* Publish toggle */}
-      {canManage && (
+  const publishControl = (
+      canManage && (
         <div className="relative">
           <button
             type="button"
@@ -544,12 +604,21 @@ function Gated({ landingPageId }: { landingPageId: string }) {
             </>
           )}
         </div>
-      )}
+      )
+  );
+
+  const toolbar = isDesktop ? (
+    <>
+      {slugControl}
+      {linkActions(false)}
+      {publishControl}
     </>
+  ) : (
+    publishControl
   );
 
   return (
-    <StudioShell title={lp.name} saveState={saveState} saveLabel={saveLabel} toolbar={toolbar}>
+    <StudioShell title={lp.name} saveState={saveState} saveLabel={saveLabel} toolbar={toolbar} pane={pane} onPaneChange={setPane}>
       {actionError && (
         <div className="col-span-full px-4 pt-3">
           <Alert role="alert" tone="critical">
@@ -559,7 +628,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
       )}
 
       {/* LEFT — identity, upload & stack */}
-      <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto border-e border-border p-4">
+      <aside className={`${pane === "images" ? "flex" : "hidden"} flex-col gap-4 border-border p-4 lg:flex lg:min-h-0 lg:overflow-y-auto lg:border-e`}>
         <div className="space-y-3">
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-muted-foreground">
@@ -570,7 +639,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
               value={name}
               onChange={(event) => setName(event.currentTarget.value)}
               disabled={!canManage}
-              className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              className="h-11 w-full rounded-lg border border-border bg-background px-3 text-base lg:h-9 lg:text-sm"
             />
           </label>
           <div className="flex items-center gap-2">
@@ -594,7 +663,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
             disabled={!canManage || uploading}
             onDragOver={(event) => event.preventDefault()}
             onDrop={onDrop}
-            className="mt-3 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-5 text-sm text-muted-foreground transition hover:border-brand/50 disabled:opacity-50"
+            className="mt-3 flex min-h-24 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-5 text-sm text-muted-foreground transition hover:border-brand/50 disabled:opacity-50"
           >
             {uploading ? (
               <>
@@ -650,7 +719,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                       title={common("move_up")}
                       onClick={() => void onMove(image, -1)}
                       disabled={index === 0}
-                      className="size-6"
+                      className="size-6 pointer-coarse:size-10"
                     >
                       <ChevronUp size={13} />
                     </IconButton>
@@ -660,7 +729,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                       title={common("move_down")}
                       onClick={() => void onMove(image, 1)}
                       disabled={index === lp.images.length - 1}
-                      className="size-6"
+                      className="size-6 pointer-coarse:size-10"
                     >
                       <ChevronDown size={13} />
                     </IconButton>
@@ -672,7 +741,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                     aria-label={t("studio.remove")}
                     title={t("studio.remove")}
                     onClick={() => void onRemove(image)}
-                    className="size-7 text-destructive"
+                    className="size-7 text-destructive pointer-coarse:size-10"
                   >
                     <X size={14} />
                   </IconButton>
@@ -692,9 +761,9 @@ function Gated({ landingPageId }: { landingPageId: string }) {
           there is not. The cap keeps it honest — a landing page is a
           mobile-first surface, and a preview stretched to desktop width would
           flatter creatives that will never be seen that way. */}
-      <section className="flex min-h-0 items-start justify-center overflow-y-auto bg-muted/40 p-4 sm:p-6">
-        <div className="w-full max-w-[30rem] overflow-hidden rounded-[2rem] border-8 border-foreground/10 bg-background shadow-lg">
-          <div className="flex h-6 items-center justify-center border-b border-border/40">
+      <section className={`${pane === "preview" ? "flex" : "hidden"} items-start justify-center bg-muted/40 sm:p-6 lg:flex lg:min-h-0 lg:overflow-y-auto`}>
+        <div className="w-full overflow-hidden bg-background sm:max-w-[30rem] sm:rounded-[2rem] sm:border-8 sm:border-foreground/10 sm:shadow-lg">
+          <div className="hidden h-6 items-center justify-center border-b border-border/40 sm:flex">
             <span className="h-1.5 w-16 rounded-full bg-foreground/15" />
           </div>
           {lp.images.length === 0 ? (
@@ -726,7 +795,14 @@ function Gated({ landingPageId }: { landingPageId: string }) {
       </section>
 
       {/* RIGHT — the only spacing setting */}
-      <aside className="flex min-h-0 flex-col overflow-y-auto border-s border-border p-4">
+      <aside className={`${pane === "settings" ? "flex" : "hidden"} flex-col border-border p-4 lg:flex lg:min-h-0 lg:overflow-y-auto lg:border-s`}>
+        {!isDesktop && (
+          <div className="mb-6 space-y-3 rounded-xl border border-border p-3">
+            <p className="text-xs font-semibold text-muted-foreground">{t("studio.link_title")}</p>
+            {slugControl}
+            {isPublished && <div className="flex gap-2">{linkActions(true)}</div>}
+          </div>
+        )}
         <p className="text-xs font-semibold text-muted-foreground">
           {t("studio.right_title")}
         </p>
@@ -744,7 +820,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
               value={imageGap}
               disabled={!canManage}
               onChange={(event) => setImageGap(Number(event.currentTarget.value))}
-              className="w-full accent-primary"
+              className="h-8 w-full accent-primary lg:h-auto"
             />
           </label>
         </div>
