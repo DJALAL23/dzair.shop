@@ -135,7 +135,8 @@ export class CodCapiWorkflow extends WorkflowEntrypoint<Env, CodCapiParams> {
         storeDomain: storeRow.domain,
         cityName: communeRow?.name ?? null,
         postalCode: communeRow?.postalCode ?? null,
-        contentIds: [...new Set(productRows.map((r) => r.productId))],
+        // A removed product's line has no catalog id left to report.
+        contentIds: [...new Set(productRows.flatMap((r) => (r.productId ? [r.productId] : [])))],
         pixelConfig,
         shouldFire: decision.shouldFire && decision.eventName === eventName,
         skipReason: decision.reason,

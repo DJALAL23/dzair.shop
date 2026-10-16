@@ -1,5 +1,6 @@
 import type { Translate } from "@/i18n/core";
-import type { Product, ProductStatus, StockAlertItem, StockMovement, VariantOption, VariantOptionFormState } from "./types";
+import type { Consequence } from "@/components/ui/confirm-dialog";
+import type { Product, ProductRemoval, ProductStatus, StockAlertItem, StockMovement, VariantOption, VariantOptionFormState } from "./types";
 
 export type ProductSortKey = "name" | "price" | "totalInventory" | "createdAt";
 
@@ -120,7 +121,6 @@ export function productErrorMessage(cause: unknown, t: Translate) {
   const context = api?.context;
 
   if (code === "PRODUCT_NOT_FOUND") return t("error_not_found");
-  if (code === "PRODUCT_HAS_ORDERS") return t("error_delete_has_orders");
   if (code === "INSUFFICIENT_STOCK") return t("error_insufficient_stock");
 
   if (code === "DUPLICATE_SKU") {
@@ -281,4 +281,20 @@ export function apiVariantOptions(options: VariantOptionFormState[]): VariantOpt
       name: option.name.trim(),
       values: option.values.filter((value) => value.value.trim()).map((value) => ({ value: value.value.trim(), hexColor: value.hexColor || null })),
     }));
+}
+
+/** What removing a product takes away, what stays, and what to watch — in the merchant's words, from the server's reading. */
+export function productRemovalConsequences(removal: ProductRemoval, t: Translate): Consequence[] {
+  const removed = (key: string, count: number): Consequence[] => (count > 0 ? [{ text: t(`removal.${key}`, { count }) }] : []);
+  return [
+    { text: t("removal.product") },
+    ...removed("variants", removal.variants),
+    ...removed("images", removal.images),
+    ...removed("reviews", removal.reviews),
+    ...removed("offers", removal.offers),
+    ...removed("landing_pages", removal.landingPages),
+    ...(removal.orderLines > 0 ? [{ text: t("removal.order_lines_kept", { count: removal.orderLines }), kept: true }] : []),
+    ...(removal.landingPageOrders > 0 ? [{ text: t("removal.landing_orders_kept", { count: removal.landingPageOrders }), kept: true }] : []),
+    ...(removal.ordersToShip > 0 ? [{ text: t("removal.orders_to_ship", { count: removal.ordersToShip }), warning: true }] : []),
+  ];
 }

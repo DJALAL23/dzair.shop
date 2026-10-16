@@ -16,7 +16,6 @@ import * as schema from "@/db/schema";
 import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ecotrack/test/mock-server";
 import { createDriverPayment } from "../../../../cod-shared/queries/driver-payments";
 import { getDriverCashReconciliation } from "../../../../cod-shared/queries/drivers";
-import { deleteOrder } from "../../../../cod-shared/queries/orders";
 import { recordShipmentEvents } from "../../../../cod-shared/shipments/record-events";
 import { handOffToDriver } from "../../../../cod-shared/shipments/handoff";
 import driverPaymentsRouter from "./routes";
@@ -222,10 +221,11 @@ describe("a payment", () => {
     const a = await driverShipment("a");
     const b = await driverShipment("b");
     const request = { driverId: "dr1", type: "cod_remittance" as const, shipmentIds: [a, b] };
-    const outcome = await createDriverPayment(interleaved(d1.db, () => deleteOrder(d1.db, "b")), request, BY);
+    // Nothing in the product removes a delivered shipment; the guard is proved against one disappearing anyway.
+    const outcome = await createDriverPayment(interleaved(d1.db, () => d1.db.delete(schema.shipments).where(eq(schema.shipments.id, b))), request, BY);
     expect(outcome).toEqual({ ok: false, reason: "not_settleable", shipmentIds: [b] });
     expect(await payments()).toEqual([]);
-    expect(await driver()).toMatchObject({ pendingCash: 1900, totalPaid: 0 });
+    expect(await driver()).toMatchObject({ totalPaid: 0 });
   });
 
   it("settles a hundred shipments in one atomic write", async () => {
@@ -285,57 +285,32 @@ describe("the driver's cash counter", () => {
   });
 });
 
-describe("deleting an order the driver delivered", () => {
-  it("before any settlement: the driver's credit goes with it, and the counter still agrees", async () => {
-    await driverShipment("a");
-    const kept = await driverShipment("b", { price: 3000, deliveryFee: 500 });
-    const res = await call("DELETE", "/api/orders/a");
-    expect(res.status).toBe(200);
-    expect(await driver()).toMatchObject({ totalDelivered: 1, totalEarnings: 300, pendingCash: 3500 });
-    expect(await drift()).toBe(0);
-    expect((await json(await call("GET", "/api/driver-payments/dr1/pending"))).data.map((p: any) => p.shipmentId)).toEqual([kept]);
-  });
+describe("a driver's delivery keeps its order", () => {
+  it.each([["delivered, before any settlement", "delivered"], ["returned", "returned"], ["settled", "settled"]] as const)(
+    "%s: the order cannot be deleted, and the driver's counters do not move",
+    async (_label, state) => {
+      const id = await driverShipment("a", { delivered: state !== "returned" });
+      if (state === "returned") {
+        await recordShipmentEvents(d1.db, id, [
+          { source: "merchant", status: { vocabulary: "driver", value: "returned" }, interpretation: { kind: "milestone", milestone: "returned" }, occurredAt: new Date().toISOString() },
+        ]);
+      }
+      if (state === "settled") await pay("cod_remittance", [id]);
+      const before = await driver();
+      const res = await call("DELETE", "/api/orders/a");
+      expect(res.status).toBe(409);
+      expect((await json(res)).code).toBe("ORDER_HAS_SHIPMENT");
+      expect(await d1.db.select().from(schema.orders).where(eq(schema.orders.id, "a")).get()).toBeDefined();
+      expect(await driver()).toEqual(before);
+      expect(await drift()).toBe(0);
+    },
+  );
 
-  it("an order still with the driver takes nothing back: nothing was credited", async () => {
+  it("an order taken back from the driver has no shipment left: it can be deleted, and nothing was credited", async () => {
     const id = await driverShipment("a", { delivered: false });
     await call("POST", `/api/shipments/${id}/void`);
     expect((await call("DELETE", "/api/orders/a")).status).toBe(200);
     expect(await driver()).toMatchObject({ totalDelivered: 0, totalEarnings: 0, pendingCash: 0 });
   });
-
-  it("a returned order takes nothing back: only a delivery was credited", async () => {
-    await driverShipment("kept");
-    const id = await driverShipment("a", { delivered: false });
-    await recordShipmentEvents(d1.db, id, [
-      { source: "merchant", status: { vocabulary: "driver", value: "returned" }, interpretation: { kind: "milestone", milestone: "returned" }, occurredAt: new Date().toISOString() },
-    ]);
-    const before = await driver();
-    expect((await call("DELETE", "/api/orders/a")).status).toBe(200);
-    expect(await driver()).toMatchObject({ totalDelivered: before.totalDelivered, totalEarnings: before.totalEarnings, pendingCash: before.pendingCash });
-    expect(await drift()).toBe(0);
-  });
-
-  it("once a payment settled any part of it, the order stays with that payment", async () => {
-    for (const type of ["fee_payment", "cod_remittance"]) {
-      const orderId = `o-${type}`;
-      const id = await driverShipment(orderId);
-      await pay(type, [id]);
-      const before = await driver();
-      const res = await call("DELETE", `/api/orders/${orderId}`);
-      expect(res.status, type).toBe(409);
-      expect((await json(res)).code).toBe("ORDER_HAS_SETTLEMENT");
-      expect(await d1.db.select().from(schema.orders).where(eq(schema.orders.id, orderId)).get()).toBeDefined();
-      expect(await driver()).toEqual(before);
-    }
-    expect(await lines()).toHaveLength(2);
-  });
-
-  it("a payment recorded while the order is being deleted keeps it", async () => {
-    const id = await driverShipment("a");
-    const deletion = await deleteOrder(interleaved(d1.db, () => createDriverPayment(d1.db, { driverId: "dr1", type: "cod_remittance", shipmentIds: [id] }, BY)), "a");
-    expect(deletion).toEqual({ ok: false, reason: "settled" });
-    expect(await d1.db.select().from(schema.orders).where(eq(schema.orders.id, "a")).get()).toBeDefined();
-    expect(await driver()).toMatchObject({ totalDelivered: 1, totalEarnings: 300, pendingCash: 0, totalPaid: 1900 });
-    expect(await drift()).toBe(0);
-  });
 });
+

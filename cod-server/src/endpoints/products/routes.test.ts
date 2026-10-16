@@ -16,6 +16,7 @@ import { NotFoundError, BusinessLogicError, ConflictError } from "@/lib/errors/c
 
 vi.mock("@/db", () => ({ getDb: vi.fn(() => mockDb) }));
 vi.mock("./queries");
+vi.mock("@/lib/remove-product", () => ({ removeProduct: vi.fn(async () => null) }));
 vi.mock("../variants/queries");
 vi.mock("@/lib/activity", () => ({
   logActivity: vi.fn(async () => {}),
@@ -75,7 +76,6 @@ function productRow(overrides: Record<string, any> = {}) {
     status: "ACTIVE",
     showInStore: true,
     storeFeatured: false,
-    deletedAt: null,
     publishedAt: NOW,
     shippingProfileId: null,
     createdAt: NOW,
@@ -270,7 +270,6 @@ describe("Products routes (OpenAPIHono)", () => {
       vi.mocked(queries.findProductIdentityConflict).mockResolvedValue({
         field: "sku",
         existingId: "existing_1",
-        deleted: false,
       });
       mockDb = dbSelectReturning(productRow({ id: "existing_1", sku: "TEE-BASIC" }));
 
@@ -401,29 +400,6 @@ describe("Products routes (OpenAPIHono)", () => {
   });
 
   describe("DELETE /api/products/{id}", () => {
-    it("soft-deletes when no orders reference the product", async () => {
-      vi.mocked(queries.getProductById).mockResolvedValue(productRow() as any);
-      vi.mocked(queries.deleteProduct).mockResolvedValue(undefined as any);
-      mockDb = dbSelectReturning(undefined);
-
-      const res = await app.request("/api/products/prod_1", { method: "DELETE" });
-
-      expect(res.status).toBe(200);
-      const body: any = await res.json();
-      expect(body.message).toBe("Product deleted");
-    });
-
-    it("returns 422 when the product has orders", async () => {
-      vi.mocked(queries.getProductById).mockResolvedValue(productRow() as any);
-      mockDb = dbSelectReturning({ orderId: "ord_1", productId: "prod_1" });
-
-      const res = await app.request("/api/products/prod_1", { method: "DELETE" });
-
-      expect(res.status).toBe(422);
-      const body: any = await res.json();
-      expect(body.code).toBe(ERROR_CODES.PRODUCT_HAS_ORDERS);
-    });
-
     it("returns 404 when the product does not exist", async () => {
       vi.mocked(queries.getProductById).mockResolvedValue(null as any);
 

@@ -6,7 +6,6 @@
   "error_load": "Could not load products",
   "error_not_found": "Product not found",
   "error_generic": "Something went wrong. Please try again.",
-  "error_delete_has_orders": "Cannot delete a product that has order history",
   "error_duplicate_sku": "This SKU is already in use",
   "error_insufficient_stock": "Stock cannot go below zero",
   "error_validation": "Some fields are invalid",
@@ -295,5 +294,26 @@
   "options": {
     "pick_color": "Pick color",
     "add_color": "Add color"
+  },
+  "removal": {
+    "title": "Delete {name}?",
+    "description": "This removes the product for good. Orders that sold it are kept.",
+    "product": "The product, its stock history and its translations are removed",
+    "variants_one": "Its variant is removed",
+    "variants_other": "Its {count} variants are removed",
+    "images_one": "Its image is removed",
+    "images_other": "Its {count} images are removed",
+    "reviews_one": "Its review is removed",
+    "reviews_other": "Its {count} reviews are removed",
+    "offers_one": "The offer that uses it is removed",
+    "offers_other": "The {count} offers that use it are removed",
+    "landing_pages_one": "Its landing page is removed",
+    "landing_pages_other": "Its {count} landing pages are removed",
+    "order_lines_kept_one": "The order line that sold it stays, as it was sold",
+    "order_lines_kept_other": "The {count} order lines that sold it stay, as they were sold",
+    "landing_orders_kept_one": "The order its landing page brought stays, without the page link",
+    "landing_orders_kept_other": "The {count} orders its landing pages brought stay, without the page link",
+    "orders_to_ship_one": "An order still to ship holds it: it keeps the line, and the product can no longer go back to stock",
+    "orders_to_ship_other": "{count} orders still to ship hold it: they keep the line, and the product can no longer go back to stock"
   }
 }

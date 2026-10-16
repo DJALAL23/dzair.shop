@@ -35,9 +35,8 @@ Every file read in full:
 |------|---------------|--------|
 | Product Status | DRAFT/ACTIVE/ARCHIVED enum; dedicated status endpoint (routes.ts:168-195) | ✅ |
 | Published At — RE-STAMPED on every ACTIVE transition, not first-only | shared queries/products.ts:212-215 | ✅ |
-| Visibility vs Show In Store vs Store Featured | storefront gate needs status=ACTIVE AND showInStore AND visibility AND not deleted (store/routes.ts:75); featured is a filter flag (:80) | ✅ |
-| Soft Delete | deletedAt set (queries.ts:224-227); every read filters isNull(deletedAt) (:70, :108) | ✅ |
-| Deletion blocked by any order line | handler checks orderProducts with no status filter → PRODUCT_HAS_ORDERS 422 (handlers.ts:107-117) | ✅ |
+| Visibility vs Show In Store vs Store Featured | storefront gate needs status=ACTIVE AND showInStore AND visibility; featured is a filter flag | ✅ |
+| Product Removal | one DELETE; cascades and triggers of migration 0042 do the rest; image files removed once unreferenced (`src/lib/remove-product.ts`); proved in `products.removal.e2e.test.ts` and `db/migration-0042-removal-rules.e2e.test.ts` | ✅ |
 
 ### Inventory & Money
 

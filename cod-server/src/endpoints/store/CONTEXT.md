@@ -13,7 +13,7 @@ _Avoid_: Admin key, session auth
 ### Catalog
 
 **Storefront Catalog**:
-The public product list. A product appears only with four green lights — ACTIVE status, visibility, show-in-store, and not soft-deleted — ordered featured-first then newest.
+The public product list. A product appears only with three green lights — ACTIVE status, visibility and show-in-store — ordered featured-first then newest. A removed product no longer exists; responses still carry `deletedAt: null` for `@wocart/storefront` releases that require the field.
 _Avoid_: Full catalog, product dump
 
 **Handle Lookup**:

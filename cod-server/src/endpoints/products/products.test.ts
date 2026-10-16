@@ -4,7 +4,7 @@
  * Coverage:
  *  1. Validation schemas (Zod) — no DB required
  *  2. getProductById — returns null for missing / soft-deleted product
- *  3. deleteProduct — soft delete (sets deletedAt, does not hard-delete)
+ *  3. deleteProduct — covered on real D1 (products.removal.e2e.test.ts)
  *  4. createProduct — handle auto-generation from name
  *  5. getAllProducts — excludes soft-deleted rows
  */
@@ -294,15 +294,6 @@ describe("getProductById", () => {
     ]);
     const result = await getProductById(db, "prod_1");
     expect(result!.tags).toEqual([]);
-  });
-});
-
-describe("deleteProduct", () => {
-  it("soft-deletes the product (returns success, does not hard delete)", async () => {
-    // UPDATE products SET deleted_at = now (run — no queue consumption)
-    const db = makeMockDb([]);
-    const result = await deleteProduct(db, "prod_1");
-    expect(result).toEqual({ success: true });
   });
 });
 

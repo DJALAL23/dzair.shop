@@ -20,13 +20,12 @@ import {
   PageHeader,
   StatCard, StatGroup,
   Badge,
-  useConfirmDialog,
 } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
+import { useRemoveProduct } from "@/features/products/components/useRemoveProduct";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
-  deleteProduct,
   getProduct,
   listProductGroups,
 } from "@/features/products/api";
@@ -69,7 +68,10 @@ export function ProductDetail({ productId }: { productId: string }) {
   const auth = useT("auth");
   const locale = useLocale();
   const identity = useIdentity();
-  const confirm = useConfirmDialog();
+  const remove = useRemoveProduct((message) => {
+    setError(message);
+    notify.error(message);
+  });
   const [product, setProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -119,24 +121,9 @@ export function ProductDetail({ productId }: { productId: string }) {
   const totalInventory = product.totalInventory ?? product.inventory ?? 0;
 
   async function removeProduct(productToDelete: Product) {
-    if (
-      !(await confirm({
-        title: common("confirm_delete_title", { name: productToDelete.name }),
-        description: common("delete_description"),
-        confirmLabel: common("delete"),
-        tone: "danger",
-      }))
-    )
-      return;
-    try {
-      await deleteProduct(productToDelete.id);
-      notify.flashSuccess(t("success_deleted"));
-      window.location.assign("/products");
-    } catch (cause) {
-      const message = productErrorMessage(cause, t);
-      setError(message);
-      notify.error(message);
-    }
+    if (!(await remove(productToDelete))) return;
+    notify.flashSuccess(t("success_deleted"));
+    window.location.assign("/products");
   }
 
   return (

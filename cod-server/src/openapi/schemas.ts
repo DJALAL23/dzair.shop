@@ -102,6 +102,7 @@ export {
   ProductImageSchema,
   ProductVariantSchema,
   ProductSchema,
+  ProductRemovalSchema,
   StockMovementSchema,
   StockAlertItemSchema,
   StockOverviewSchema,
@@ -174,6 +175,7 @@ export {
   OrderListItemSchema,
   OrderDetailSchema,
   OrderSchema, // Alias for backward compatibility
+  OrderRemovalSchema,
   
   // Abandoned orders
   AbandonedOrderStatusEnum,

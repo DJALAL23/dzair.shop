@@ -170,8 +170,8 @@ beforeAll(async () => {
   // The column exists and legacy inserts (no description_format) default to 'text'.
   const probe = await d1
     .prepare(
-      `INSERT INTO products (id, name, description, handle, currency, price, has_variants, inventory, track_inventory, low_stock_threshold, visibility, status, show_in_store, store_featured, deleted_at, created_at, updated_at)
-       VALUES ('legacy-row-1', 'Legacy Product', 'Size < 10cm & <b>bold</b> literal', 'legacy-row-1', 'DZD', 2000, 0, 5, 1, 5, 1, 'ACTIVE', 1, 0, NULL, '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z')
+      `INSERT INTO products (id, name, description, handle, currency, price, has_variants, inventory, track_inventory, low_stock_threshold, visibility, status, show_in_store, store_featured, created_at, updated_at)
+       VALUES ('legacy-row-1', 'Legacy Product', 'Size < 10cm & <b>bold</b> literal', 'legacy-row-1', 'DZD', 2000, 0, 5, 1, 5, 1, 'ACTIVE', 1, 0, '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z')
        RETURNING description_format`
     )
     .first<{ description_format: string }>();

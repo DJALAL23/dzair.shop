@@ -15,7 +15,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
-import { deleteOrder } from "../../../../cod-shared/queries/orders";
+import { archiveOrder, deleteOrder } from "../../../../cod-shared/queries/orders";
 
 let db: AppDb;
 
@@ -110,18 +110,34 @@ describe("deleteOrder — real D1 (E2E)", () => {
     });
   });
 
-  it("deletes a delivered order with its shipment, history and api logs — its inbox rows stay, unlinked", async () => {
+  it("keeps a delivered order whole — its shipment, events, logs and inbox rows; it is archived instead", async () => {
     await seedOrder("ord-e2e-del-1", true);
 
-    await deleteOrder(db, "ord-e2e-del-1");
+    expect(await deleteOrder(db, "ord-e2e-del-1")).toEqual({ ok: false, reason: "has_shipment" });
 
-    expect(await db.select().from(schema.orders).where(eq(schema.orders.id, "ord-e2e-del-1")).get()).toBeUndefined();
-    expect(await db.select().from(schema.orderProducts).where(eq(schema.orderProducts.orderId, "ord-e2e-del-1")).all()).toHaveLength(0);
-    expect(await db.select().from(schema.shipments).where(eq(schema.shipments.orderId, "ord-e2e-del-1")).all()).toHaveLength(0);
-    expect(await db.select().from(schema.shipmentEvents).where(eq(schema.shipmentEvents.shipmentId, "ship-ord-e2e-del-1")).all()).toHaveLength(0);
-    expect(await db.select().from(schema.orderStatusHistory).where(eq(schema.orderStatusHistory.orderId, "ord-e2e-del-1")).all()).toHaveLength(0);
-    expect(await db.select().from(schema.companyApiLogs).where(eq(schema.companyApiLogs.orderId, "ord-e2e-del-1")).all()).toHaveLength(0);
-    expect(await db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, "evt-ord-e2e-del-1")).get()).toMatchObject({ shipmentId: null, companyId: "comp-e2e-del" });
+    expect(await db.select().from(schema.orders).where(eq(schema.orders.id, "ord-e2e-del-1")).get()).toBeDefined();
+    expect(await db.select().from(schema.orderProducts).where(eq(schema.orderProducts.orderId, "ord-e2e-del-1")).all()).toHaveLength(1);
+    expect(await db.select().from(schema.shipmentEvents).where(eq(schema.shipmentEvents.shipmentId, "ship-ord-e2e-del-1")).all()).toHaveLength(1);
+    expect(await db.select().from(schema.companyApiLogs).where(eq(schema.companyApiLogs.orderId, "ord-e2e-del-1")).all()).toHaveLength(1);
+    expect(await db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, "evt-ord-e2e-del-1")).get()).toMatchObject({ shipmentId: "ship-ord-e2e-del-1" });
+
+    expect(await archiveOrder(db, "ord-e2e-del-1")).toMatchObject({ ok: true, archivedAt: expect.any(String) });
+  });
+
+  it("an order whose handoff was refused has carrier logs and no shipment: deleting it takes the logs too", async () => {
+    await seedOrder("ord-e2e-del-3", false);
+    const now = new Date().toISOString();
+    await db.insert(schema.companyApiLogs).values({
+      id: "log-refused", companyId: "comp-e2e-del", orderId: "ord-e2e-del-3",
+      action: "create_shipment", method: "POST", endpoint: "/api/public/create/order", success: false, createdAt: now,
+    });
+    await db.insert(schema.capiEventLog).values({ id: "capi-3", orderId: "ord-e2e-del-3", eventName: "Lead", stage: "placed", status: "sent", sentAt: now });
+
+    expect(await deleteOrder(db, "ord-e2e-del-3")).toEqual({ ok: true });
+
+    expect(await db.select().from(schema.companyApiLogs).where(eq(schema.companyApiLogs.orderId, "ord-e2e-del-3")).all()).toHaveLength(0);
+    expect(await db.select().from(schema.capiEventLog).where(eq(schema.capiEventLog.orderId, "ord-e2e-del-3")).all()).toHaveLength(0);
+    expect(await db.select().from(schema.orderStatusHistory).where(eq(schema.orderStatusHistory.orderId, "ord-e2e-del-3")).all()).toHaveLength(0);
   });
 
   it("deletes an order with no carrier activity", async () => {

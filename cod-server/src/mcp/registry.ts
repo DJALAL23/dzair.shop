@@ -175,7 +175,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   },
   {
     requires: [SCOPES.PRODUCTS_MANAGE],
-    build: (db) => pick(getProductTools(db), [
+    build: (db, env) => pick(getProductTools(db, env), [
       "createNewProduct",
       "updateProductDetails",
       "updateProductStatus",
@@ -388,6 +388,8 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     build: (db, _env, props) => pick(getOrderTools(db, props), [
       "updateOrderStatus",
       "recordOrderProductReturn",
+      "archiveOrder",
+      "unarchiveOrder",
     ]),
   },
   {

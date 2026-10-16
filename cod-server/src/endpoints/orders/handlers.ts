@@ -347,35 +347,53 @@ export async function returnOrderProduct(c: Context<AppContext>) {
 
 /**
  * DELETE /orders/:id
- * Permanently delete the order: restore tracked inventory, adjust customer
- * counters, then remove the order with its lines, a closed shipment, and
- * cascaded history/reviews. Refused while a shipment is open (void it
- * first). No soft-delete exists for orders.
+ * Delete an order never handed to delivery: its stock goes back, the
+ * customer's count and spend are undone, and its lines, history, reviews and
+ * logs go with it. Refused once it has a shipment — a finished order is
+ * archived instead.
  */
 export async function deleteOrder(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  const orderId = c.req.param("id");
-
-  if (!orderId) {
-    throw new ValidationError("Order ID is required", ERROR_CODES.REQUIRED_FIELD_MISSING);
-  }
-
-  // Check if order exists
+  const orderId = c.req.param("id")!;
   const order = await queries.getOrderById(db, orderId);
-  if (!order) {
-    throw new NotFoundError("Order", orderId);
-  }
+  if (!order) throw new NotFoundError("Order", orderId);
 
   const deletion = await queries.deleteOrder(db, orderId);
-  if (!deletion.ok) throw refusalFor(deletion, orderId, "it cannot be deleted while its parcel is out");
+  if (!deletion.ok) throw refusalFor(deletion, orderId, "it cannot be deleted; archive it once its delivery has ended");
 
-  const deleteActor = c.get("user");
-  await logActivity(db, deleteActor, ACTIONS.ORDER_DELETED, {
-    type: "order", id: orderId,
-  });
+  await logActivity(db, c.get("user"), ACTIONS.ORDER_DELETED, { type: "order", id: orderId, label: order.orderNumber });
+  return c.json({ success: true, message: "Order deleted" }, 200);
+}
 
-  return c.json({
-    success: true,
-    message: "Order deleted",
-  }, 200);
+/**
+ * GET /orders/:id/removal
+ * What can be done to clear the order away — delete or archive — and what
+ * deleting it would undo, so the dashboard can say it before asking.
+ */
+export async function getOrderRemoval(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const orderId = c.req.param("id")!;
+  const removal = await queries.orderRemoval(db, orderId);
+  if (!removal) throw new NotFoundError("Order", orderId);
+  return c.json({ success: true, data: removal }, 200);
+}
+
+/** POST /orders/:id/archive — a finished order leaves the working lists. */
+export async function archiveOrder(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const orderId = c.req.param("id")!;
+  const outcome = await queries.archiveOrder(db, orderId);
+  if (!outcome.ok) throw refusalFor(outcome, orderId, "it cannot be archived");
+  await logActivity(db, c.get("user"), ACTIONS.ORDER_ARCHIVED, { type: "order", id: orderId });
+  return c.json({ success: true, data: { archivedAt: outcome.archivedAt } }, 200);
+}
+
+/** POST /orders/:id/unarchive — back to the working lists. */
+export async function unarchiveOrder(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const orderId = c.req.param("id")!;
+  const outcome = await queries.unarchiveOrder(db, orderId);
+  if (!outcome.ok) throw refusalFor(outcome, orderId, "it cannot be restored");
+  await logActivity(db, c.get("user"), ACTIONS.ORDER_UNARCHIVED, { type: "order", id: orderId });
+  return c.json({ success: true, data: { archivedAt: null } }, 200);
 }

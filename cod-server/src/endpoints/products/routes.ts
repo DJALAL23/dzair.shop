@@ -19,6 +19,7 @@ import {
   ProductSchema,
   ProductImageSchema,
   ProductVariantSchema,
+  ProductRemovalSchema,
   SuccessResponseSchema,
   ListResponseSchema,
 } from "@/openapi/schemas";
@@ -263,7 +264,7 @@ const deleteProductRoute = defineRoute({
   tags: ["Products"],
   summary: "Delete product",
   description:
-    "Soft-deletes the product by setting `deletedAt`. The product is excluded from all list and detail responses. Returns 422 if the product has existing orders (PRODUCT_HAS_ORDERS).",
+    "Removes the product for good — even one that orders hold — and frees its handle and SKU. Its variants, images, reviews, stock history, offers and landing pages go with it, and its image files once nothing else shows them. Order lines that sold it keep what was sold (name, variant label, SKU, price) and lose only the link; orders a landing page of it brought lose only that attribution. `GET /products/{id}/removal` says all of it beforehand.",
   operationId: "deleteProduct",
   params: idParams,
   responses: {
@@ -276,9 +277,23 @@ const deleteProductRoute = defineRoute({
         })
       ),
     },
-    422: { description: "Cannot delete product with existing orders (PRODUCT_HAS_ORDERS)" },
   },
   handler: h.deleteProduct,
+});
+
+const productRemovalRoute = defineRoute({
+  method: "get",
+  path: "/{id}/removal",
+  auth: { scope: SCOPES.PRODUCTS_READ },
+  tags: ["Products"],
+  summary: "What removing a product does",
+  description: "What `DELETE /products/{id}` would take with it and what stays — read before asking the merchant to confirm.",
+  operationId: "getProductRemoval",
+  params: idParams,
+  responses: {
+    200: { description: "The product's removal", content: jsonContent(SuccessResponseSchema(ProductRemovalSchema)) },
+  },
+  handler: h.getProductRemoval,
 });
 
 // ─── Variants (nested under product) ──────────────────────────────────────────
@@ -393,6 +408,7 @@ router.openapi(updateProductStatusRoute.route, updateProductStatusRoute.handler)
 router.openapi(getProductRoute.route, getProductRoute.handler);
 router.openapi(updateProductRoute.route, updateProductRoute.handler);
 router.openapi(deleteProductRoute.route, deleteProductRoute.handler);
+router.openapi(productRemovalRoute.route, productRemovalRoute.handler);
 
 router.openapi(listVariantsRoute.route, listVariantsRoute.handler);
 router.openapi(createVariantRoute.route, createVariantRoute.handler);

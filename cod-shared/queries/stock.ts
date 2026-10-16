@@ -4,7 +4,7 @@
  * adjustStock stays in cod-server because it raises NotFoundError / BusinessLogicError.
  */
 
-import { eq, and, desc, sql, isNull } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { products, productVariants, stockMovements } from "../db/schema";
 import type { AppDb } from "../db/client";
 
@@ -150,7 +150,7 @@ function trackedSkuSql(alertsOnly: boolean) {
            products.inventory <= 0 AS is_out_of_stock,
            products.updated_at AS updated_at
     FROM products
-    WHERE products.has_variants = 0 AND products.track_inventory = 1 AND products.deleted_at IS NULL${simpleAlertFilter}
+    WHERE products.has_variants = 0 AND products.track_inventory = 1${simpleAlertFilter}
     UNION ALL
     SELECT product_variants.product_id, product_variants.id, products.name,
            product_variants.variations, product_variants.sku, product_variants.inventory,
@@ -160,7 +160,7 @@ function trackedSkuSql(alertsOnly: boolean) {
            product_variants.updated_at
     FROM product_variants
     INNER JOIN products ON products.id = product_variants.product_id
-    WHERE products.has_variants = 1 AND products.track_inventory = 1 AND products.deleted_at IS NULL
+    WHERE products.has_variants = 1 AND products.track_inventory = 1
       AND product_variants.active = 1${variantAlertFilter}
   `;
 }
@@ -242,7 +242,7 @@ export async function updateProductThreshold(
   const existing = await db
     .select({ id: products.id })
     .from(products)
-    .where(and(eq(products.id, productId), isNull(products.deletedAt)))
+    .where(eq(products.id, productId))
     .get();
   if (!existing) return false;
 
@@ -297,7 +297,7 @@ export async function getProductInventory(
   const row = await db
     .select({ inventory: products.inventory })
     .from(products)
-    .where(and(eq(products.id, productId), isNull(products.deletedAt)))
+    .where(eq(products.id, productId))
     .get();
   return row ? { inventory: row.inventory, exists: true } : { inventory: 0, exists: false };
 }

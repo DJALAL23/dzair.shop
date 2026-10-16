@@ -1,6 +1,6 @@
 import { ArrowLeft, History, Pencil, Trash2 } from "lucide-react";
 import { useT } from "@/i18n/react";
-import { Button, LinkButton } from "@/components/ui";
+import { LinkButton } from "@/components/ui";
 
 /** On a phone: the product's actions within thumb's reach, where the header's would scroll away. */
 export function ProductMobileActionBar({

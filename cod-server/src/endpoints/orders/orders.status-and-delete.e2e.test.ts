@@ -1,5 +1,5 @@
 /**
- * An order's status change and its deletion, on real D1: their effects
+ * An order's status change, deletion and archiving, on real D1: their effects
  * (history, driver credit, customer spend, restock) and that each applies
  * exactly once — against a concurrent copy of itself, and against a handoff
  * that gives the order a shipment meanwhile.
@@ -12,7 +12,9 @@ import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import { interleaved as interleavedDb } from "@/test-utils/interleaved";
-import { deleteOrder, updateOrderStatus, updateOrder } from "../../../../cod-shared/queries/orders";
+import { archiveOrder, deleteOrder, getAllOrders, orderRemoval, unarchiveOrder, updateOrderStatus, updateOrder } from "../../../../cod-shared/queries/orders";
+import { getOrderStageStats } from "../../../../cod-shared/queries/analytics";
+import { ORDER_STAGES, isFinishedStage } from "../../../../cod-shared/orders/stage";
 import { acceptCarrierHandoff, markHandoffUnknown, reserveCarrierShipment } from "../../../../cod-shared/shipments/handoff";
 import { recordShipmentEvents } from "../../../../cod-shared/shipments/record-events";
 
@@ -213,43 +215,35 @@ describe("deleting an order", () => {
     expect(await deleteOrder(db(), "nope")).toEqual({ ok: false, reason: "not_found" });
   });
 
-  it.each(["submitting", "unknown", "accepted"] as const)("is refused while a shipment is open (%s) — nothing changes", async (state) => {
+  const close = (id: string, milestone: "delivered" | "returned" | "cancelled") =>
+    recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: milestone }, interpretation: { kind: "milestone", milestone }, occurredAt: T0 }]);
+
+  it.each(["submitting", "unknown", "accepted"] as const)("is refused once it has a shipment, open (%s) — nothing changes", async (state) => {
     await seedOrder("o1", "ready");
     await shipment("o1", state);
-    expect(await deleteOrder(db(), "o1")).toEqual({ ok: false, reason: "has_open_shipment" });
+    expect(await deleteOrder(db(), "o1")).toEqual({ ok: false, reason: "has_shipment" });
     expect(await statusOf("o1")).toBe("ready");
     expect(await stockOf("tracked")).toBe(10);
     expect(await customer()).toMatchObject({ totalOrders: 2, totalSpent: SPEND_BEFORE });
   });
 
-  it("a delivered shipment goes with the order, and its goods stay with the customer", async () => {
+  it.each(["delivered", "returned", "cancelled"] as const)("is refused once its shipment ended too (%s): the order, its parcel and history stay", async (milestone) => {
     await seedOrder("o1", "ready");
-    const id = await shipment("o1", "accepted");
-    await recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: "Livré" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: T0 }]);
-    expect(await deleteOrder(db(), "o1")).toEqual({ ok: true });
-    expect(await stockOf("tracked")).toBe(10);
-    expect(await db().select().from(schema.shipments).all()).toHaveLength(0);
-    expect(await db().select().from(schema.shipmentEvents).all()).toHaveLength(0);
-    expect(await customer()).toMatchObject({ totalOrders: 1, totalSpent: SPEND_BEFORE - 1500 });
+    await close(await shipment("o1", "accepted"), milestone);
+    const stockBefore = await stockOf("tracked");
+    expect(await deleteOrder(db(), "o1")).toEqual({ ok: false, reason: "has_shipment" });
+    expect(await statusOf("o1")).toBe("ready");
+    expect(await db().select().from(schema.shipments).all()).toHaveLength(1);
+    expect((await db().select().from(schema.shipmentEvents).all()).length).toBeGreaterThan(0);
+    expect(await stockOf("tracked")).toBe(stockBefore);
   });
 
-  it("a returned shipment already restocked and rolled the spend back: neither happens twice", async () => {
-    await seedOrder("o1", "ready");
-    const id = await shipment("o1", "accepted");
-    await recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: "Retourné" }, interpretation: { kind: "milestone", milestone: "returned" }, occurredAt: T0 }]);
-    expect(await stockOf("tracked")).toBe(12);
-    expect((await customer())!.totalSpent).toBe(SPEND_BEFORE - 1500);
-    await deleteOrder(db(), "o1");
-    expect(await stockOf("tracked")).toBe(12);
-    expect(await customer()).toMatchObject({ totalOrders: 1, totalSpent: SPEND_BEFORE - 1500 });
-  });
-
-  it("a parcel the carrier cancelled never left: its goods come back", async () => {
-    await seedOrder("o1", "ready");
-    const id = await shipment("o1", "accepted");
-    await recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: "Annulé" }, interpretation: { kind: "milestone", milestone: "cancelled" }, occurredAt: T0 }]);
+  it("a line whose product was removed has nothing to put back; the rest of the order still does", async () => {
+    await seedOrder("o1", "confirmed", [{ product: "untracked", quantity: 1 }, { product: "tracked", quantity: 2 }]);
+    await db().delete(schema.products).where(eq(schema.products.id, "untracked"));
     expect(await deleteOrder(db(), "o1")).toEqual({ ok: true });
     expect(await stockOf("tracked")).toBe(12);
+    expect((await movements()).map((m) => m.productId)).toEqual(["tracked"]);
   });
 
   it("a cancel between the read and the write: the deletion is planned again and the spend rolls back once", async () => {
@@ -263,10 +257,121 @@ describe("deleting an order", () => {
   it("a handoff between the read and the write: the order is kept with its parcel", async () => {
     await seedOrder("o1", "ready");
     const raced = interleaved(() => shipment("o1", "submitting"));
-    expect(await deleteOrder(raced, "o1")).toEqual({ ok: false, reason: "has_open_shipment" });
+    expect(await deleteOrder(raced, "o1")).toEqual({ ok: false, reason: "has_shipment" });
     expect(await statusOf("o1")).toBe("ready");
     expect(await db().select().from(schema.shipments).all()).toHaveLength(1);
     expect(await customer()).toMatchObject({ totalOrders: 2, totalSpent: SPEND_BEFORE });
+  });
+});
+
+describe("archiving an order", () => {
+  const close = (id: string, milestone: "delivered" | "returned" | "cancelled") =>
+    recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: milestone }, interpretation: { kind: "milestone", milestone }, occurredAt: T0 }]);
+  const archivedAt = async (id: string) => (await db().select({ a: schema.orders.archivedAt }).from(schema.orders).where(eq(schema.orders.id, id)).get())?.a;
+
+  it.each(["delivered", "returned", "cancelled"] as const)("archives once its shipment ended (%s), keeps the first date, and restores", async (milestone) => {
+    await seedOrder("o1", "ready");
+    await close(await shipment("o1", "accepted"), milestone);
+    const first = await archiveOrder(db(), "o1");
+    expect(first).toMatchObject({ ok: true, archivedAt: expect.any(String) });
+    expect(await archiveOrder(db(), "o1")).toEqual(first);
+    expect(await unarchiveOrder(db(), "o1")).toEqual({ ok: true, archivedAt: null });
+    expect(await archivedAt("o1")).toBeNull();
+  });
+
+  it("archives a cancelled order, which never needed a shipment", async () => {
+    await seedOrder("o1", "new");
+    await updateOrderStatus(db(), "o1", "cancelled");
+    expect(await archiveOrder(db(), "o1")).toMatchObject({ ok: true });
+  });
+
+  it.each([["in processing", null], ["with its parcel on the way", "accepted"]] as const)("refuses an order still %s", async (_label, state) => {
+    await seedOrder("o1", "ready");
+    if (state) await shipment("o1", state);
+    expect(await archiveOrder(db(), "o1")).toEqual({ ok: false, reason: "not_finished" });
+    expect(await archivedAt("o1")).toBeNull();
+  });
+
+  it("the server and the dashboard agree on which orders are finished, at every stage", async () => {
+    const milestone = (id: string, m: "out_for_delivery" | "return_started" | "delivered" | "returned" | "cancelled") =>
+      recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: m }, interpretation: { kind: "milestone", milestone: m }, occurredAt: T0 }]);
+    const ready = (id: string) => db().update(schema.orders).set({ status: "ready" }).where(eq(schema.orders.id, id));
+    const shipped = async (id: string, state: "submitting" | "accepted" = "accepted") => {
+      await ready(id);
+      return shipment(id, state);
+    };
+    const scenarios: Array<[string, (id: string) => Promise<unknown>]> = [
+      ["new", async () => {}],
+      ["confirmed", (id) => updateOrderStatus(db(), id, "confirmed")],
+      ["unreachable", (id) => updateOrderStatus(db(), id, "unreachable")],
+      ["preparing", async (id) => (await updateOrderStatus(db(), id, "confirmed"), updateOrderStatus(db(), id, "preparing"))],
+      ["ready", ready],
+      ["submitting", (id) => shipped(id, "submitting")],
+      ["in transit", (id) => shipped(id)],
+      ["out for delivery", async (id) => milestone(await shipped(id), "out_for_delivery")],
+      ["returning", async (id) => milestone(await shipped(id), "return_started")],
+      ["delivered", async (id) => milestone(await shipped(id), "delivered")],
+      ["returned", async (id) => milestone(await shipped(id), "returned")],
+      ["delivery cancelled", async (id) => milestone(await shipped(id), "cancelled")],
+      ["cancelled", (id) => updateOrderStatus(db(), id, "cancelled")],
+    ];
+    const stages = new Set<string>();
+    for (const [i, [label, reach]] of scenarios.entries()) {
+      const id = `s${i}`;
+      await seedOrder(id, "new");
+      await reach(id);
+      const row = (await getAllOrders(db(), { archived: "include", limit: 100 })).find((o) => o.id === id)!;
+      stages.add(row.stage);
+      expect((await orderRemoval(db(), id))!.archivable, `${label} (${row.stage})`).toBe(isFinishedStage(row.stage));
+    }
+    expect([...stages].sort()).toEqual([...ORDER_STAGES].sort());
+  });
+
+  it("an unknown order is not found", async () => {
+    expect(await archiveOrder(db(), "nope")).toEqual({ ok: false, reason: "not_found" });
+    expect(await unarchiveOrder(db(), "nope")).toEqual({ ok: false, reason: "not_found" });
+  });
+
+  it("leaves the working list and counts, comes back with `only` and `include`, and keeps counting for the customer", async () => {
+    await seedOrder("o1", "new");
+    await seedOrder("o2", "new");
+    await updateOrderStatus(db(), "o2", "cancelled");
+    await archiveOrder(db(), "o2");
+    expect((await getAllOrders(db())).map((o) => o.id)).toEqual(["o1"]);
+    expect((await getAllOrders(db(), { archived: "only" })).map((o) => o.id)).toEqual(["o2"]);
+    expect((await getAllOrders(db(), { archived: "include" })).map((o) => o.id).sort()).toEqual(["o1", "o2"]);
+    const working = await getOrderStageStats(db(), { archived: "exclude" });
+    expect(working.archived).toBe(1);
+    expect(working.stages.reduce((sum, s) => sum + s.count, 0)).toBe(1);
+    const all = await getOrderStageStats(db());
+    expect(all.stages.reduce((sum, s) => sum + s.count, 0)).toBe(2);
+  });
+});
+
+describe("what clearing an order away would do", () => {
+  it("before handoff: deletable, with the units it puts back", async () => {
+    await seedOrder("o1", "confirmed", [{ product: "tracked", quantity: 3, returned: 1 }, { product: "untracked", quantity: 4 }]);
+    expect(await orderRemoval(db(), "o1")).toMatchObject({ orderNumber: "ORD-o1", shipment: "none", deletable: true, archivable: false, lines: 2, restockUnits: 2, reviews: 0 });
+  });
+
+  it("a cancelled order: deletable and archivable, nothing left to put back", async () => {
+    await seedOrder("o1", "new");
+    await updateOrderStatus(db(), "o1", "cancelled");
+    expect(await orderRemoval(db(), "o1")).toMatchObject({ shipment: "none", deletable: true, archivable: true, restockUnits: 0 });
+  });
+
+  it("on its way: neither; delivered: archivable only, until it is archived", async () => {
+    await seedOrder("o1", "ready");
+    const id = await shipment("o1", "accepted");
+    expect(await orderRemoval(db(), "o1")).toMatchObject({ shipment: "open", deletable: false, archivable: false, restockUnits: 0 });
+    await recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: "Livré" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: T0 }]);
+    expect(await orderRemoval(db(), "o1")).toMatchObject({ shipment: "closed", deletable: false, archivable: true });
+    await archiveOrder(db(), "o1");
+    expect(await orderRemoval(db(), "o1")).toMatchObject({ archivable: false, archivedAt: expect.any(String) });
+  });
+
+  it("an unknown order has none", async () => {
+    expect(await orderRemoval(db(), "nope")).toBeNull();
   });
 });
 

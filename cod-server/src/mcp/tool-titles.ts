@@ -129,6 +129,8 @@ export const TOOL_TITLES: Record<string, string> = {
   updateOrderStatus: "Update order status",
   recordOrderProductReturn: "Record order product return",
   deleteOrder: "Delete order",
+  archiveOrder: "Archive order",
+  unarchiveOrder: "Restore archived order",
 
   // ─── Delivery ─────────────────────────────────────────────────────────────
   listDeliveryCompanies: "List delivery companies",

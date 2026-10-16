@@ -198,7 +198,8 @@
     "attention": "À traiter",
     "attention_count_one": "{count} à traiter",
     "attention_count_many": "{count} à traiter",
-    "attention_count_other": "{count} à traiter"
+    "attention_count_other": "{count} à traiter",
+    "archived": "Archivées"
   },
   "empty": {
     "all": "Aucune commande pour l'instant",
@@ -209,7 +210,8 @@
     "delivered": "Aucune commande livrée pour l'instant",
     "returns": "Aucun retour — bonne nouvelle",
     "cancelled": "Aucune commande annulée",
-    "attention": "Rien à traiter pour le moment"
+    "attention": "Rien à traiter pour le moment",
+    "archived": "Aucune commande archivée"
   },
   "search_placeholder": "N° de commande, client, téléphone ou n° de suivi…",
   "load_more": "Afficher plus de commandes",
@@ -424,5 +426,28 @@
     "saved_many": "{count} d'unités de {product} remises en stock",
     "saved_other": "{count} unités de {product} remises en stock"
   },
-  "loading_more": "Chargement…"
+  "loading_more": "Chargement…",
+  "removal": {
+    "delete_title": "Supprimer la commande {order} ?",
+    "delete_description": "Elle n'a jamais été remise à la livraison. Cette action est définitive.",
+    "lines_one": "Sa ligne de produit et son historique sont supprimés",
+    "lines_many": "Ses {count} lignes de produits et leur historique sont supprimés",
+    "lines_other": "Ses {count} lignes de produits et leur historique sont supprimés",
+    "restock_one": "{count} unité retourne en stock",
+    "restock_many": "{count} unités retournent en stock",
+    "restock_other": "{count} unités retournent en stock",
+    "reviews_one": "Son avis est supprimé",
+    "reviews_many": "Ses {count} avis sont supprimés",
+    "reviews_other": "Ses {count} avis sont supprimés",
+    "customer_kept": "Le client est conservé ; son nombre de commandes et ses dépenses sont mis à jour",
+    "deleted": "Commande {order} supprimée",
+    "archive": "Archiver",
+    "archived": "Commande archivée",
+    "restore": "Restaurer",
+    "restored": "La commande est de retour dans les listes",
+    "archived_banner": "Cette commande est archivée : elle n'apparaît plus dans les listes de commandes et reste comptée dans vos ventes et dans l'historique du client.",
+    "error_has_shipment": "Cette commande a été remise à la livraison et ne peut plus être supprimée. Archivez-la une fois sa livraison terminée.",
+    "error_not_finished": "Seule une commande terminée peut être archivée : annulez-la, ou attendez la fin de sa livraison.",
+    "error_changed": "La commande a changé entre-temps. Rechargez-la et réessayez."
+  }
 }

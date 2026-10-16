@@ -10,7 +10,7 @@ Settling with the store's own drivers: the cash a driver collected on delivery, 
 src/endpoints/driver-payments/
 ├── ai-tools.ts                # AI/MCP tools (3)
 ├── driver-payments.test.ts    # Request schema tests
-├── settlement.e2e.test.ts     # Settlement on real D1: payments, races, reconciliation, order deletion
+├── settlement.e2e.test.ts     # Settlement on real D1: payments, races, reconciliation, a delivery keeping its order
 ├── handlers.ts                # HTTP handlers
 ├── refusals.ts                # A refused payment as an API error (routes and AI tools)
 ├── routes.ts                  # @hono/zod-openapi routes with RBAC scopes
@@ -40,7 +40,7 @@ A delivered shipment has two parts to settle, **each once**: the **cash** (`cod`
 
 **Reconciliation:** the driver's `pendingCash` should equal the cash of their delivered shipments with no cash line. `GET /api/drivers/{id}` returns `cashReconciliation` with the difference as `drift`.
 
-**Deleting an order:** a delivered driver order not yet settled takes its credit back with it (the three counters); once any part of it is settled, the order cannot be deleted (`409 ORDER_HAS_SETTLEMENT`) — the payment keeps it.
+**Deleting an order:** an order handed to the driver cannot be deleted (`409 ORDER_HAS_SHIPMENT`), so the driver's counters and payment lines always keep their shipment. Taken back from the driver (voided), it has no shipment left and can be; nothing was credited.
 
 ---
 

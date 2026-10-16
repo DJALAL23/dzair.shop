@@ -116,7 +116,7 @@ describe("Slice 1 — landing pages schema on real D1", () => {
     ).toHaveLength(0);
   });
 
-  it("orders.landingPageId is nullable and FK-enforced (attribution shape)", async () => {
+  it("orders.landingPageId is nullable, and a removed page leaves the order without the link", async () => {
     await seedProduct("prod-lp-s3");
     await db.insert(landingPages).values({
       id: "lp-3", slug: "lp-s3slug", name: "Attribution LP", productId: "prod-lp-s3",
@@ -139,11 +139,12 @@ describe("Slice 1 — landing pages schema on real D1", () => {
       .where(eq(schema.orders.id, "ord-lp-s3")).get();
     expect(order?.landingPageId).toBe("lp-3");
 
-    // Attributed history blocks LP delete (the app layer refuses; the FK
-    // guarantees referential integrity even if something bypasses it).
-    await expect(
-      db.delete(landingPages).where(eq(landingPages.id, "lp-3")),
-    ).rejects.toThrow();
+    // The app layer refuses to delete a page with attributed orders; when one
+    // goes anyway (its product was removed), the order stays and loses only
+    // the link (migration 0042), so nothing points at a missing page.
+    await db.delete(landingPages).where(eq(landingPages.id, "lp-3"));
+    const kept = await db.select().from(schema.orders).where(eq(schema.orders.id, "ord-lp-s3")).get();
+    expect(kept).toMatchObject({ id: "ord-lp-s3", landingPageId: null });
   });
 
   it("unattributed order (NULL landingPageId) is the default best-effort shape", async () => {

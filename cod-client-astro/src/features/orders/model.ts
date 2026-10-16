@@ -1,4 +1,5 @@
 import type { Locale } from "@/i18n/config";
+import type { Translate } from "@/i18n/core";
 import { allowedTransitions } from "../../../../cod-shared/orders/lifecycle";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { SCOPE_FOR_KIND, scopeForShipmentAction } from "../../../../cod-shared/shipments/actions";
@@ -11,6 +12,7 @@ import type {
   Driver,
   OrderBase,
   OrderListItem,
+  OrderRemoval,
   OrderStage,
   OrderStageCounts,
   OrderStatus,
@@ -41,17 +43,18 @@ export const ORDER_QUEUES = [
 ] as const satisfies ReadonlyArray<{ key: string; stages: readonly OrderStage[] }>;
 
 export type QueueKey = (typeof ORDER_QUEUES)[number]["key"];
-/** "all" shows every order; "attention" those whose delivery needs the merchant. */
-export type OrderView = QueueKey | "all" | "attention";
+/** "all" shows every working order; "attention" those whose delivery needs the merchant; "archived" the finished ones put away. */
+export type OrderView = QueueKey | "all" | "attention" | "archived";
 
 export function queueOf(stage: OrderStage): QueueKey {
   return ORDER_QUEUES.find((queue) => (queue.stages as readonly OrderStage[]).includes(stage))!.key;
 }
 
 /** The server query a view stands for. */
-export function viewQuery(view: OrderView): { stages?: readonly OrderStage[]; attention?: boolean } {
+export function viewQuery(view: OrderView): { stages?: readonly OrderStage[]; attention?: boolean; archived?: boolean } {
   if (view === "all") return {};
   if (view === "attention") return { attention: true };
+  if (view === "archived") return { archived: true };
   return { stages: ORDER_QUEUES.find((queue) => queue.key === view)!.stages };
 }
 
@@ -62,7 +65,7 @@ export function viewCounts(counts: OrderStageCounts): Record<OrderView, number> 
   const queues = Object.fromEntries(
     ORDER_QUEUES.map((queue) => [queue.key, queue.stages.reduce((sum, stage) => sum + (byStage.get(stage) ?? 0), 0)]),
   ) as Record<QueueKey, number>;
-  return { all: total, attention: counts.needsAttention, ...queues };
+  return { all: total, attention: counts.needsAttention, archived: counts.archived, ...queues };
 }
 
 // ─── What the stage looks like ───────────────────────────────────────────────
@@ -155,9 +158,14 @@ export function canEditOrder(order: Pick<OrderBase, "status"> & { hasShipment: b
   return !order.hasShipment && order.status !== "cancelled";
 }
 
-/** An order may be deleted only before its handoff, while nothing rests on it: new, unanswered, or dropped. */
-export function canDeleteOrder(order: Pick<OrderBase, "status"> & { hasShipment: boolean }): boolean {
-  return !order.hasShipment && ["new", "unreachable", "cancelled"].includes(order.status);
+/** What deleting an order takes away and what stays, in the merchant's words — from the server's own reading. */
+export function orderDeletionConsequences(removal: OrderRemoval, t: Translate): Array<{ text: string; kept?: boolean }> {
+  return [
+    { text: t("removal.lines", { count: removal.lines }) },
+    ...(removal.restockUnits > 0 ? [{ text: t("removal.restock", { count: removal.restockUnits }), kept: true }] : []),
+    ...(removal.reviews > 0 ? [{ text: t("removal.reviews", { count: removal.reviews }) }] : []),
+    { text: t("removal.customer_kept"), kept: true },
+  ];
 }
 
 /**
@@ -366,4 +374,13 @@ export function filterAbandonedOrders(
       return false;
     return true;
   });
+}
+
+/** Why clearing an order away was refused, in the merchant's words. */
+export function orderRemovalError(cause: unknown, t: Translate): string {
+  const code = typeof cause === "object" && cause !== null ? (cause as { code?: unknown }).code : undefined;
+  if (code === "ORDER_HAS_SHIPMENT") return t("removal.error_has_shipment");
+  if (code === "ORDER_NOT_FINISHED") return t("removal.error_not_finished");
+  if (code === "ORDER_CHANGED") return t("removal.error_changed");
+  return cause instanceof Error ? cause.message : String(cause);
 }

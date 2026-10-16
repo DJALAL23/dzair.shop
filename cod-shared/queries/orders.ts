@@ -14,12 +14,10 @@ import {
   productVariants,
   products,
   drivers,
-  driverPaymentLines,
   users,
   wilayas,
   communes,
   stockMovements,
-  companyApiLogs,
   deliveryCompanies,
   shipments,
 } from "../db/schema";
@@ -33,6 +31,8 @@ import {
   sql,
   getTableColumns,
   aliasedTable,
+  isNull,
+  isNotNull,
 } from "drizzle-orm";
 
 const driversAlias = aliasedTable(drivers, "d");
@@ -55,6 +55,8 @@ export interface OrderFilters {
   attention?: boolean;
   /** Only orders handed to a carrier, or to the store's driver. */
   kind?: ShipmentKind;
+  /** Archived orders: left out (default), the only ones, or included. */
+  archived?: "exclude" | "only" | "include";
   orderType?: (typeof orders.$inferSelect)["orderType"];
   wilayaId?: number;
   search?: string;
@@ -105,6 +107,10 @@ const { fbc: _fbc, fbp: _fbp, ipAddress: _ipAddress, userAgent: _userAgent, ...o
  */
 export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
   const conditions = [];
+
+  const archived = filters.archived ?? "exclude";
+  if (archived === "exclude") conditions.push(isNull(orders.archivedAt));
+  if (archived === "only") conditions.push(isNotNull(orders.archivedAt));
 
   if (filters.status && filters.status !== "all") {
     conditions.push(eq(orders.status, filters.status));
@@ -236,10 +242,13 @@ export async function getOrderById(db: AppDb, orderId: string) {
   };
 }
 
+/** A line of a new order: it always names the product it sells (only a removed product's old lines lose the link). */
+export type NewOrderLine = typeof orderProducts.$inferInsert & { productId: string };
+
 export async function createOrder(
   db: AppDb,
   orderData: typeof orders.$inferInsert,
-  productsData: Array<typeof orderProducts.$inferInsert>,
+  productsData: Array<NewOrderLine>,
   actor?: { id: string; name: string } | null,
 ) {
   const now = orderData.createdAt ?? new Date().toISOString();
@@ -622,8 +631,9 @@ export async function setOrderProductReturn(
   )!;
 
   const statements: BatchStatement[] = [];
-  if (delta !== 0 && line.trackInventory) {
-    const { productId, variantId } = line.line;
+  // A removed product has no stock to move: the refusal is still recorded on the line.
+  const { productId, variantId } = line.line;
+  if (delta !== 0 && line.trackInventory && productId) {
     const stock = variantId
       ? sql`(select ${productVariants.inventory} from ${productVariants} where ${productVariants.id} = ${variantId})`
       : sql`(select ${products.inventory} from ${products} where ${products.id} = ${productId})`;
@@ -677,23 +687,25 @@ export async function setOrderProductReturn(
   return { ok: false, reason: open ? "changed" : "order_closed" };
 }
 
-export type OrderDeletion = { ok: true } | { ok: false; reason: "not_found" | "has_open_shipment" | "settled" | "changed" };
+export type OrderDeletion = { ok: true } | { ok: false; reason: "not_found" | "has_shipment" | "changed" };
 
 const DELETE_ATTEMPTS = 3;
 
+/** A finished order: cancelled, or its shipment closed (delivered, returned, or cancelled at the carrier). */
+const orderFinishedSql = sql`(orders.status = 'cancelled' or exists (select 1 from shipments s where s.order_id = orders.id and (s.delivered_at is not null or s.returned_at is not null or s.cancelled_at is not null)))`;
+
 /**
  * Delete an order and undo what it did: the customer's order count and spend,
- * the driver's credit for a delivery not settled, and the goods still out of
- * stock.
+ * and the goods still out of stock (a line whose product was removed has
+ * nothing to go back to). Its lines, history, reviews and logs go with it.
  *
- * Refused while the order has an open shipment — a parcel at a carrier would
- * be orphaned; void it first — and once a driver payment settled part of its
- * shipment: the payment keeps it. A closed shipment goes with the order: a
- * delivered one keeps its goods with the customer (no restock), a returned
- * one already restocked and rolled the spend back.
+ * Only an order never handed to delivery: once it has a shipment, the parcel,
+ * the driver's cash and the carrier's records rest on it, and a finished one
+ * is archived instead. The database refuses it too (migration 0042), so no
+ * other path can remove it.
  *
- * One batch, applied only while the order and its shipment are as they were
- * read (the statements of a batch run as one transaction); if either changed
+ * One batch, applied only while the order is as it was read and still has no
+ * shipment (the statements of a batch run as one transaction); if it changed
  * meanwhile, the deletion is planned again.
  */
 export async function deleteOrder(db: AppDb, orderId: string): Promise<OrderDeletion> {
@@ -706,68 +718,117 @@ export async function deleteOrder(db: AppDb, orderId: string): Promise<OrderDele
 
 async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion> {
   const now = new Date().toISOString();
-  const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
-  if (!order) return { ok: false, reason: "not_found" };
-  const shipment = await db.select().from(shipments).where(eq(shipments.orderId, orderId)).get();
-  const shipmentClosed = !!shipment && (shipment.deliveredAt !== null || shipment.returnedAt !== null || shipment.cancelledAt !== null);
-  if (shipment && !shipmentClosed) return { ok: false, reason: "has_open_shipment" };
-  if (shipment && (await db.select({ id: driverPaymentLines.id }).from(driverPaymentLines).where(eq(driverPaymentLines.shipmentId, shipment.id)).get())) {
-    return { ok: false, reason: "settled" };
-  }
+  const [order, shipment] = await db.batch([
+    db.select().from(orders).where(eq(orders.id, orderId)),
+    db.select({ id: shipments.id }).from(shipments).where(eq(shipments.orderId, orderId)),
+  ]);
+  if (!order[0]) return { ok: false, reason: "not_found" };
+  if (shipment[0]) return { ok: false, reason: "has_shipment" };
+  const read = order[0];
 
   const asRead = and(
-    sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.status} = ${order.status} and ${orders.updatedAt} = ${order.updatedAt})`,
-    shipment
-      ? sql`exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId} and ${shipments.revision} = ${shipment.revision})`
-      : sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
-    shipment ? sql`not exists (select 1 from ${driverPaymentLines} where ${driverPaymentLines.shipmentId} = ${shipment.id})` : undefined,
+    sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.status} = ${read.status} and ${orders.updatedAt} = ${read.updatedAt})`,
+    sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
   )!;
 
-  const statements: BatchStatement[] = [];
-
   // totalOrders always drops; totalSpent only while the order still counted
-  // as spend — a cancelled or returned order already rolled it back.
-  const spendAlreadyRolledBack = order.status === "cancelled" || shipment?.returnedAt != null;
-  statements.push(
+  // as spend — a cancelled order already rolled it back.
+  const statements: BatchStatement[] = [
     db
       .update(customers)
       .set({
         totalOrders: sql`MAX(0, ${customers.totalOrders} - 1)`,
-        ...(spendAlreadyRolledBack ? {} : { totalSpent: sql`MAX(0, ${customers.totalSpent} - ${order.price ?? 0})` }),
+        ...(read.status === "cancelled" ? {} : { totalSpent: sql`MAX(0, ${customers.totalSpent} - ${read.price ?? 0})` }),
       })
-      .where(and(eq(customers.id, order.customerId), asRead)),
-  );
-
-  // A delivery by the store's driver not settled: the driver no longer holds that cash, nor earned that fee.
-  if (shipment?.kind === "driver" && shipment.driverId && shipment.deliveredAt) {
-    statements.push(
-      db
-        .update(drivers)
-        .set({
-          totalDelivered: sql`MAX(0, ${drivers.totalDelivered} - 1)`,
-          totalEarnings: sql`MAX(0, ${drivers.totalEarnings} - ${shipment.driverFee})`,
-          pendingCash: sql`MAX(0, ${drivers.pendingCash} - ${shipment.codAmount})`,
-          updatedAt: now,
-        })
-        .where(and(eq(drivers.id, shipment.driverId), asRead)),
-    );
-  }
-
-  if (!shipment?.deliveredAt) {
-    const lines = await linesToRestock(db, orderId);
-    statements.push(...restockStatements(db, lines, "ORDER_CANCELLED", orderId, { id: "system", name: "النظام" }, now, asRead, "Order deleted - inventory restored"));
-  }
-
-  // company_api_logs references orders(id) with no action on delete; the
-  // shipment, its events, reviews and history cascade, and the inbox rows of
-  // the shipment are unlinked from it (shipment_id is set null).
-  statements.push(
-    db.delete(companyApiLogs).where(and(eq(companyApiLogs.orderId, orderId), asRead)),
-    db.delete(orderProducts).where(and(eq(orderProducts.orderId, orderId), asRead)),
-    db.delete(orders).where(and(eq(orders.id, orderId), asRead)),
-  );
+      .where(and(eq(customers.id, read.customerId), asRead)),
+  ];
+  const lines = await linesToRestock(db, orderId);
+  statements.push(...restockStatements(db, lines, "ORDER_CANCELLED", orderId, { id: "system", name: "النظام" }, now, asRead, "Order deleted - inventory restored"));
+  statements.push(db.delete(orders).where(and(eq(orders.id, orderId), asRead)));
 
   const results = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
   const deleted = ((results.at(-1) as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0;
   return deleted ? { ok: true } : { ok: false, reason: "changed" };
+}
+
+export type OrderArchiving =
+  | { ok: true; archivedAt: string | null }
+  | { ok: false; reason: "not_found" | "not_finished" };
+
+/**
+ * Archive a finished order: it leaves the working lists and their counts and
+ * still counts everywhere else. Archiving one already archived keeps the
+ * first date.
+ */
+export async function archiveOrder(db: AppDb, orderId: string): Promise<OrderArchiving> {
+  const now = new Date().toISOString();
+  const archived = await db
+    .update(orders)
+    .set({ archivedAt: sql`coalesce(${orders.archivedAt}, ${now})` })
+    .where(and(eq(orders.id, orderId), orderFinishedSql))
+    .returning({ archivedAt: orders.archivedAt });
+  if (archived[0]) return { ok: true, archivedAt: archived[0].archivedAt };
+  const exists = await db.select({ id: orders.id }).from(orders).where(eq(orders.id, orderId)).get();
+  return { ok: false, reason: exists ? "not_finished" : "not_found" };
+}
+
+/** Bring an archived order back to the working lists. */
+export async function unarchiveOrder(db: AppDb, orderId: string): Promise<OrderArchiving> {
+  const restored = await db.update(orders).set({ archivedAt: null }).where(eq(orders.id, orderId)).returning({ archivedAt: orders.archivedAt });
+  return restored[0] ? { ok: true, archivedAt: null } : { ok: false, reason: "not_found" };
+}
+
+/** What can be done to an order to clear it away, and what deleting it would undo. */
+export interface OrderRemoval {
+  id: string;
+  orderNumber: string;
+  /** None yet; one on its way; or one that ended. */
+  shipment: "none" | "open" | "closed";
+  /** Only before handoff. */
+  deletable: boolean;
+  /** Only once finished, and not archived yet. */
+  archivable: boolean;
+  archivedAt: string | null;
+  lines: number;
+  /** Units deleting it puts back in stock. */
+  restockUnits: number;
+  reviews: number;
+}
+
+/** What `deleteOrder` / `archiveOrder` would do for this order, read in one statement. Null when it does not exist. */
+export async function orderRemoval(db: AppDb, orderId: string): Promise<OrderRemoval | null> {
+  const row = await db.get<{
+    id: string;
+    orderNumber: string;
+    archivedAt: string | null;
+    status: string;
+    shipmentId: string | null;
+    shipmentClosed: number | null;
+    lines: number;
+    reviews: number;
+    restockUnits: number;
+  }>(sql`
+    select o.id as id, o.order_number as orderNumber, o.archived_at as archivedAt, o.status as status,
+      s.id as shipmentId,
+      (s.delivered_at is not null or s.returned_at is not null or s.cancelled_at is not null) as shipmentClosed,
+      (select count(*) from order_products op where op.order_id = o.id) as lines,
+      (select count(*) from reviews r where r.order_id = o.id) as reviews,
+      (select coalesce(sum(op.quantity - op.returned_quantity), 0) from order_products op join products p on p.id = op.product_id
+        where op.order_id = o.id and p.track_inventory = 1) as restockUnits
+    from orders o left join shipments s on s.order_id = o.id
+    where o.id = ${orderId}`);
+  if (!row) return null;
+  const shipment = !row.shipmentId ? "none" : row.shipmentClosed ? "closed" : "open";
+  const finished = row.status === "cancelled" || shipment === "closed";
+  return {
+    id: row.id,
+    orderNumber: row.orderNumber,
+    shipment,
+    deletable: shipment === "none",
+    archivable: !row.archivedAt && finished,
+    archivedAt: row.archivedAt,
+    lines: Number(row.lines),
+    restockUnits: shipment === "none" ? Number(row.restockUnits) : 0,
+    reviews: Number(row.reviews),
+  };
 }

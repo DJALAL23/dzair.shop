@@ -15,7 +15,8 @@ import { getOrderActivity, getOrderStageStats, type ActivityWindow } from "../..
  */
 export async function getOrderStages(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  return c.json({ success: true, data: await getOrderStageStats(db) }, 200);
+  const { archived } = (c.req as unknown as { valid: (target: "query") => { archived: "include" | "exclude" } }).valid("query");
+  return c.json({ success: true, data: await getOrderStageStats(db, { archived }) }, 200);
 }
 
 /**

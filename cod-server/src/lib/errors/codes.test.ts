@@ -108,7 +108,8 @@ describe("Error Code Registry", () => {
 
       // Verify we have HAS errors for entities with relationships
       expect(hasErrors).toContain("CUSTOMER_HAS_ORDERS");
-      expect(hasErrors).toContain("PRODUCT_HAS_ORDERS");
+      expect(hasErrors).toContain("ORDER_HAS_SHIPMENT");
+      expect(hasErrors).not.toContain("PRODUCT_HAS_ORDERS");
       expect(hasErrors).toContain("DRIVER_HAS_ACTIVE_ORDERS");
     });
   });

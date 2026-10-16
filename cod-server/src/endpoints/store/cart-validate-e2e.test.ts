@@ -103,7 +103,6 @@ async function seedProduct(opts: {
   status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
   showInStore?: boolean;
   visibility?: boolean;
-  deletedAt?: string | null;
   name?: string;
 }) {
   const id = uid("prod");
@@ -121,7 +120,6 @@ async function seedProduct(opts: {
     visibility: opts.visibility ?? true,
     showInStore: opts.showInStore ?? true,
     storeFeatured: false,
-    deletedAt: opts.deletedAt ?? null,
     createdAt: now(),
     updatedAt: now(),
   });
@@ -211,12 +209,13 @@ describe("POST /store/cart/validate — blocked lines", () => {
     expect(body.data.lines[0].blocker).toBe("unlisted");
   });
 
-  it("flags a soft-deleted product", async () => {
-    const id = await seedProduct({ price: 1000, deletedAt: now() });
+  it("flags a product removed after the shopper put it in the basket", async () => {
+    const id = await seedProduct({ price: 1000 });
+    await db.delete(schema.products).where(eq(schema.products.id, id));
 
     const { body } = await validate([{ productId: id, productName: "P", quantity: 1 }]);
 
-    expect(body.data.lines[0].blocker).toBe("unlisted");
+    expect(body.data.lines[0].blocker).toBe("missing");
   });
 
   it("does not distinguish hidden from draft, so the catalog state does not leak", async () => {

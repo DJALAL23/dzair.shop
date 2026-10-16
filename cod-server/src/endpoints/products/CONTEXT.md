@@ -70,9 +70,9 @@ _Avoid_: Visible, published
 A merchandising highlight flag; the public catalog can filter to featured products only.
 _Avoid_: Pinned, promoted, bestseller
 
-**Soft Delete**:
-Deletion sets a timestamp rather than removing the row — soft-deleted products vanish from every read but keep order history intact. Products with any order line cannot be deleted at all.
-_Avoid_: Remove, permanent delete
+**Product Removal**:
+Deleting a product removes it for good, even one that orders hold. What was its own goes with it — variants, images (and their files once nothing else shows them), reviews, stock history, translations, the offers that use it, its landing pages. Order lines that sold it keep what was sold (name, variant label, SKU, price, quantity) and lose only the link; orders a landing page of it brought lose only that attribution. The database does this (migration 0042), and `GET /products/{id}/removal` states it beforehand. To stop selling a product but keep it, archive it by status.
+_Avoid_: Soft delete, hide
 
 ### Inventory & Money
 
@@ -104,14 +104,14 @@ Terms owned by neighboring contexts — use them, don't redefine them here:
 
 ## Edge Cases
 
-**SKU uniqueness has two layers**: Creation checks duplicates among live products only (friendly 409), but the database's unique index spans soft-deleted rows too — reusing a deleted product's SKU collides at the DB level instead of the friendly path.
+**SKU and handle are freed at once**: a removed product's row is gone, so its SKU and handle can be reused immediately; creation checks them first and answers 409 naming the field.
 
-**Any historical line blocks deletion forever**: One order line referencing the product — regardless of order status — permanently prevents Soft Delete. Archive via status instead.
+**An order still to ship can hold a removed product**: it keeps the line as sold, and the product can no longer go back to stock — cancelling or deleting that order restocks only its other lines. The removal dialog warns about these orders.
 
-**Variant deletion is the opposite of product deletion**: Variants hard-delete immediately; referencing order lines survive with their variant reference nulled.
+**Variants and products are removed the same way**: order lines and abandoned checkouts keep their text and lose only the link.
 
 **Parent stock is ignored for variant products**: Once `hasVariants=true`, the parent's own inventory field plays no part in Total Inventory.
 
-**Storefront requires four green lights**: status ACTIVE + visibility + show-in-store + not soft-deleted — any single one fails and the storefront hides the product.
+**Storefront requires three green lights**: status ACTIVE + visibility + show-in-store — any single one fails and the storefront hides the product. A removed product does not exist at all; a basket still naming it reports it `missing`.
 
 **Currency exists but is frozen**: Every product and variant row stores DZD; nothing reads or converts it.

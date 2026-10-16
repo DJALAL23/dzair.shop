@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { ArrowRight, Eye, MoreHorizontal, Send, Trash2, XCircle } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowRight, Eye, MoreHorizontal, Send, Trash2, XCircle } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
-import { deleteOrder } from "@/features/orders/api";
-import { canDeleteOrder, canHandOff, handoffKinds, statusMoves } from "@/features/orders/model";
+import { archiveOrder, deleteOrder, getOrderRemoval, unarchiveOrder } from "@/features/orders/api";
+import { canHandOff, handoffKinds, orderDeletionConsequences, orderRemovalError, statusMoves } from "@/features/orders/model";
+import { isFinishedStage } from "../../../../../cod-shared/orders/stage";
 import type { DeliveryCompany, Driver, OrderListItem } from "@/features/orders/types";
 import { DropdownItem, DropdownLink, DropdownMenu, useConfirmDialog } from "@/components/ui";
 import { HandoffDialog } from "@/features/orders/components/HandoffDialog";
 import { useStatusMove } from "@/features/orders/components/useStatusMove";
 
-/** A row's menu: open the order, take its next step, ship it, or delete it while nothing rests on it. */
+/** A row's menu: open the order, take its next step, ship it, delete it before handoff, or archive it once finished. */
 export function OrderRowActions({
   order,
   companies,
@@ -36,23 +37,47 @@ export function OrderRowActions({
   const moves = may("orders:update") ? statusMoves(facts) : [];
   const kinds = may("delivery:read") ? handoffKinds(may) : [];
   const showShip = canHandOff(facts) && kinds.length > 0;
-  const showDelete = may("orders:delete") && canDeleteOrder(facts);
+  const showDelete = may("orders:delete") && !facts.hasShipment;
+  const showArchive = may("orders:update") && !order.archivedAt && isFinishedStage(order.stage);
+  const showRestore = may("orders:update") && Boolean(order.archivedAt);
 
   async function remove() {
-    const accepted = await confirm({
-      title: common("confirm_delete_title", { name: order.orderNumber }),
-      description: common("delete_description"),
-      confirmLabel: t("actions.delete"),
-      tone: "danger",
-    });
-    if (!accepted) return;
     setBusy(true);
     try {
+      const removal = await getOrderRemoval(order.id);
+      if (!removal.deletable) {
+        onError(t("removal.error_has_shipment"));
+        return;
+      }
+      const accepted = await confirm({
+        title: t("removal.delete_title", { order: order.orderNumber }),
+        description: t("removal.delete_description"),
+        consequences: orderDeletionConsequences(removal, t),
+        confirmText: order.orderNumber,
+        confirmLabel: t("actions.delete"),
+        tone: "danger",
+      });
+      if (!accepted) return;
       await deleteOrder(order.id);
-      notify.success(common("feedback.deleted"));
+      notify.success(t("removal.deleted", { order: order.orderNumber }));
       await onChanged();
     } catch (cause) {
-      onError(cause instanceof Error ? cause.message : String(cause));
+      onError(orderRemovalError(cause, t));
+      notify.error(common("feedback.action_failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setArchived(archived: boolean) {
+    setBusy(true);
+    try {
+      if (archived) await archiveOrder(order.id);
+      else await unarchiveOrder(order.id);
+      notify.success(t(archived ? "removal.archived" : "removal.restored"));
+      await onChanged();
+    } catch (cause) {
+      onError(orderRemovalError(cause, t));
       notify.error(common("feedback.action_failed"));
     } finally {
       setBusy(false);
@@ -87,6 +112,18 @@ export function OrderRowActions({
             {t(`move.${next.status}`)}
           </DropdownItem>
         ))}
+        {showArchive && (
+          <DropdownItem disabled={busy} onClick={() => void setArchived(true)}>
+            <Archive size={14} />
+            {t("removal.archive")}
+          </DropdownItem>
+        )}
+        {showRestore && (
+          <DropdownItem disabled={busy} onClick={() => void setArchived(false)}>
+            <ArchiveRestore size={14} />
+            {t("removal.restore")}
+          </DropdownItem>
+        )}
         {showDelete && (
           <DropdownItem disabled={busy} onClick={() => void remove()} danger>
             <Trash2 size={14} />

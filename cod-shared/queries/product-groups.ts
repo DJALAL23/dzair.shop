@@ -1,4 +1,4 @@
-import { eq, and, like, count, isNull } from "drizzle-orm";
+import { eq, and, like, count, getTableColumns } from "drizzle-orm";
 import { productCategories, products } from "../db/schema";
 import type { AppDb } from "../db/client";
 
@@ -41,23 +41,14 @@ export async function getAllGroups(db: AppDb, filters?: GroupFilters) {
   if (filters?.parentId) conditions.push(eq(productCategories.parentId, filters.parentId));
 
   const rows = await db
-    .select()
+    .select({ ...getTableColumns(productCategories), productsCount: count(products.id) })
     .from(productCategories)
+    .leftJoin(products, eq(products.categoryId, productCategories.id))
     .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(productCategories.id)
     .orderBy(productCategories.position)
     .all();
-
-  return Promise.all(rows.map(async (cat) => {
-    const countRow = await db
-      .select({ count: count() })
-      .from(products)
-      .where(and(
-        eq(products.categoryId, cat.id),
-        isNull(products.deletedAt)
-      ))
-      .get();
-    return { ...cat, productsCount: countRow?.count ?? 0 };
-  }));
+  return rows;
 }
 
 export async function getGroupById(db: AppDb, id: string) {
@@ -68,10 +59,7 @@ export async function getGroupById(db: AppDb, id: string) {
     db
       .select({ count: count() })
       .from(products)
-      .where(and(
-        eq(products.categoryId, id),
-        isNull(products.deletedAt)
-      ))
+      .where(eq(products.categoryId, id))
       .get(),
   ]);
   return { ...cat, children: childrenRows, productsCount: productsCountRow?.count ?? 0 };

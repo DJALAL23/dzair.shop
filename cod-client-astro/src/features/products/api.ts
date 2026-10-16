@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import type { Product, ProductCategory, ProductImage, ProductStatus, ProductVariant, ShippingProfile, StockAdjustStockResult, StockHistoryResponse, StockMovement, StockOverview, StockAlertItem } from "./types";
+import type { Product, ProductCategory, ProductImage, ProductRemoval, ProductStatus, ProductVariant, ShippingProfile, StockAdjustStockResult, StockHistoryResponse, StockMovement, StockOverview, StockAlertItem } from "./types";
 
 interface ListEnvelope<T> {
   success: boolean;
@@ -70,6 +70,10 @@ export function updateProductStatus(id: string, status: ProductStatus) {
 
 export function deleteProduct(id: string) {
   return apiFetch<DataEnvelope<null>>(`/api/products/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function getProductRemoval(id: string) {
+  return (await apiFetch<DataEnvelope<ProductRemoval>>(`/api/products/${encodeURIComponent(id)}/removal`)).data;
 }
 
 export async function listVariants(productId: string) {

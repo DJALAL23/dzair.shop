@@ -130,6 +130,10 @@ export const orderFiltersSchema = z.object({
     .optional()
     .describe("true: only orders whose delivery needs the merchant (an unknown handoff, a parcel the carrier cancelled or flagged); false: only the others"),
   kind: z.enum(SHIPMENT_KINDS).optional().describe("Only orders handed to a carrier, or to the store's driver"),
+  archived: z
+    .enum(["exclude", "only", "include"])
+    .default("exclude")
+    .describe("Archived orders: left out (default), the only ones listed, or listed with the rest"),
   orderType: z.enum(["online", "offline"]).optional(),
   wilayaId: z.coerce.number().int().optional(),
   search: z.string().optional().describe("Order number, customer name, phone, or the parcel's tracking number"),

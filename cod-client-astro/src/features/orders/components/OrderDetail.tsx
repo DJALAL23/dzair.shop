@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Pencil, StickyNote, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Pencil, StickyNote, Trash2 } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { Alert, Button, Card, PageHeader, useConfirmDialog } from "@/components/ui";
-import { deleteOrder, getOrder, listDeliveryCompanies, listDrivers } from "@/features/orders/api";
-import { canDeleteOrder, canEditOrder, canHandOff, canRecordRefusedUnits, handoffKinds, statusMoves } from "@/features/orders/model";
-import type { DeliveryCompany, Driver, OrderDetail as OrderDetailType, OrderStatus } from "@/features/orders/types";
+import { archiveOrder, deleteOrder, getOrder, getOrderRemoval, listDeliveryCompanies, listDrivers, unarchiveOrder } from "@/features/orders/api";
+import { canEditOrder, canHandOff, canRecordRefusedUnits, handoffKinds, orderDeletionConsequences, orderRemovalError, statusMoves } from "@/features/orders/model";
+import type { DeliveryCompany, Driver, OrderDetail as OrderDetailType, OrderRemoval, OrderStatus } from "@/features/orders/types";
 import { StageBadge } from "@/features/orders/components/StageBadge";
 import { OrderCustomerCard } from "@/features/orders/components/OrderCustomerCard";
 import { OrderCustomAnswersCard } from "@/features/orders/components/OrderCustomAnswersCard";
@@ -33,6 +33,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   const may = (scope: string) => canScope(identity, scope);
   const confirm = useConfirmDialog();
   const [order, setOrder] = useState<OrderDetailType | null>(null);
+  const [removal, setRemoval] = useState<OrderRemoval | null>(null);
   const [companies, setCompanies] = useState<DeliveryCompany[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +44,9 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
   async function load() {
     try {
-      setOrder(await getOrder(orderId));
+      const [detail, options] = await Promise.all([getOrder(orderId), getOrderRemoval(orderId)]);
+      setOrder(detail);
+      setRemoval(options);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -70,10 +73,12 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   }
 
   async function remove() {
-    if (!order) return;
+    if (!order || !removal) return;
     const accepted = await confirm({
-      title: common("confirm_delete_title", { name: order.orderNumber }),
-      description: common("delete_description"),
+      title: t("removal.delete_title", { order: order.orderNumber }),
+      description: t("removal.delete_description"),
+      consequences: orderDeletionConsequences(removal, t),
+      confirmText: order.orderNumber,
       confirmLabel: t("actions.delete"),
       tone: "danger",
     });
@@ -81,14 +86,32 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     setBusy(true);
     try {
       await deleteOrder(order.id);
-      notify.flashSuccess(common("feedback.deleted"));
+      notify.flashSuccess(t("removal.deleted", { order: order.orderNumber }));
       window.location.assign("/orders");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(orderRemovalError(cause, t));
       notify.error(common("feedback.action_failed"));
+      setBusy(false);
+      void load();
+    }
+  }
+
+  async function setArchived(archived: boolean) {
+    if (!order) return;
+    setBusy(true);
+    try {
+      if (archived) await archiveOrder(order.id);
+      else await unarchiveOrder(order.id);
+      notify.success(t(archived ? "removal.archived" : "removal.restored"));
+      await load();
+    } catch (cause) {
+      setError(orderRemovalError(cause, t));
+      notify.error(common("feedback.action_failed"));
+    } finally {
       setBusy(false);
     }
   }
+
 
   if (!may("orders:read")) {
     return (
@@ -137,8 +160,14 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 <Pencil size={16} />
               </Button>
             )}
-            {may("orders:delete") && canDeleteOrder(facts) && (
-              <Button type="button" variant="secondary" className="size-9 min-h-9 px-0 text-destructive" onClick={() => void remove()} disabled={busy} aria-label={t("actions.delete")}>
+            {may("orders:update") && removal?.archivable && (
+              <Button type="button" variant="secondary" className="max-sm:size-9 max-sm:min-h-9 max-sm:px-0" onClick={() => void setArchived(true)} disabled={busy} title={t("removal.archive")}>
+                <Archive size={16} aria-hidden="true" />
+                <span className="max-sm:sr-only">{t("removal.archive")}</span>
+              </Button>
+            )}
+            {may("orders:delete") && removal?.deletable && (
+              <Button type="button" variant="secondary" className="size-9 min-h-9 px-0 text-destructive" onClick={() => void remove()} disabled={busy} aria-label={t("actions.delete")} title={t("actions.delete")}>
                 <Trash2 size={16} />
               </Button>
             )}
@@ -148,6 +177,19 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       {error && (
         <Alert role="alert" tone="critical">
           <span>{error}</span>
+        </Alert>
+      )}
+      {order.archivedAt && (
+        <Alert role="status" tone="info">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>{t("removal.archived_banner")}</span>
+            {may("orders:update") && (
+              <Button type="button" variant="secondary" size="sm" onClick={() => void setArchived(false)} disabled={busy}>
+                <ArchiveRestore size={14} aria-hidden="true" />
+                {t("removal.restore")}
+              </Button>
+            )}
+          </div>
         </Alert>
       )}
 

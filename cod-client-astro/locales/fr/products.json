@@ -6,7 +6,6 @@
   "error_load": "Impossible de charger les produits",
   "error_not_found": "Produit introuvable",
   "error_generic": "Une erreur est survenue. Veuillez réessayer.",
-  "error_delete_has_orders": "Impossible de supprimer un produit ayant un historique de commandes",
   "error_duplicate_sku": "Ce SKU est déjà utilisé",
   "error_insufficient_stock": "Le stock ne peut pas passer sous zéro",
   "error_validation": "Certains champs sont invalides",
@@ -298,5 +297,34 @@
   "options": {
     "pick_color": "Choisir une couleur",
     "add_color": "Ajouter une couleur"
+  },
+  "removal": {
+    "title": "Supprimer {name} ?",
+    "description": "Le produit est supprimé définitivement. Les commandes qui l’ont vendu sont conservées.",
+    "product": "Le produit, son historique de stock et ses traductions sont supprimés",
+    "variants_one": "Sa variante est supprimée",
+    "variants_many": "Ses {count} variantes sont supprimées",
+    "variants_other": "Ses {count} variantes sont supprimées",
+    "images_one": "Son image est supprimée",
+    "images_many": "Ses {count} images sont supprimées",
+    "images_other": "Ses {count} images sont supprimées",
+    "reviews_one": "Son avis est supprimé",
+    "reviews_many": "Ses {count} avis sont supprimés",
+    "reviews_other": "Ses {count} avis sont supprimés",
+    "offers_one": "L’offre qui l’utilise est supprimée",
+    "offers_many": "Les {count} offres qui l’utilisent sont supprimées",
+    "offers_other": "Les {count} offres qui l’utilisent sont supprimées",
+    "landing_pages_one": "Sa page de vente est supprimée",
+    "landing_pages_many": "Ses {count} pages de vente sont supprimées",
+    "landing_pages_other": "Ses {count} pages de vente sont supprimées",
+    "order_lines_kept_one": "La ligne de commande qui l’a vendu est conservée telle quelle",
+    "order_lines_kept_many": "Les {count} lignes de commande qui l’ont vendu sont conservées telles quelles",
+    "order_lines_kept_other": "Les {count} lignes de commande qui l’ont vendu sont conservées telles quelles",
+    "landing_orders_kept_one": "La commande venue de sa page de vente est conservée, sans le lien vers la page",
+    "landing_orders_kept_many": "Les {count} commandes venues de ses pages de vente sont conservées, sans le lien vers la page",
+    "landing_orders_kept_other": "Les {count} commandes venues de ses pages de vente sont conservées, sans le lien vers la page",
+    "orders_to_ship_one": "Une commande encore à expédier le contient : elle garde la ligne, et le produit ne pourra plus revenir en stock",
+    "orders_to_ship_many": "{count} commandes encore à expédier le contiennent : elles gardent la ligne, et le produit ne pourra plus revenir en stock",
+    "orders_to_ship_other": "{count} commandes encore à expédier le contiennent : elles gardent la ligne, et le produit ne pourra plus revenir en stock"
   }
 }

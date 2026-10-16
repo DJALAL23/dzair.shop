@@ -36,7 +36,7 @@ export interface RestockLine {
   quantity: number;
 }
 
-/** The order's lines that still have units out of stock, for products that track inventory. */
+/** The order's lines that still have units out of stock, for products that still exist and track inventory. */
 export async function linesToRestock(db: AppDb, orderId: string): Promise<RestockLine[]> {
   const rows = await db
     .select({
@@ -51,8 +51,9 @@ export async function linesToRestock(db: AppDb, orderId: string): Promise<Restoc
     .innerJoin(products, eq(products.id, orderProducts.productId))
     .where(eq(orderProducts.orderId, orderId))
     .all();
+  // A line whose product was removed has nothing to go back to: the inner join leaves it out.
   return rows
-    .filter((r) => r.trackInventory && r.quantity - (r.returnedQuantity ?? 0) > 0)
+    .filter((r): r is typeof r & { productId: string } => r.productId !== null && r.trackInventory && r.quantity - (r.returnedQuantity ?? 0) > 0)
     .map((r) => ({
       lineId: r.lineId,
       productId: r.productId,

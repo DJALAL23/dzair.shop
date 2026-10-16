@@ -1,3 +1,4 @@
+import { removeProduct } from "@/lib/remove-product";
 import { tool } from "ai";
 import { z } from "zod";
 import * as queries from "./queries";
@@ -121,9 +122,9 @@ export const PRODUCT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * - Variant products (hasVariants=true) carry SKU on each variant — omit `sku` at product level.
  * - Prices are always integers in DZD (Algerian Dinar), smallest unit.
  * - Status values: DRAFT | ACTIVE | ARCHIVED. Setting ACTIVE auto-sets publishedAt.
- * - Delete is a soft-delete (sets deletedAt). Blocked if the product has existing orders.
+ * - Delete removes the product for good, even one that orders hold (their lines keep what was sold).
  */
-export const getProductTools = (db: ReturnType<typeof getDb>) => ({
+export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: Pick<R2Bucket, "delete"> }) => ({
 
   listProducts: tool({
     description:
@@ -248,22 +249,20 @@ export const getProductTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        // Identity conflict check before insert — spans soft-deleted rows too,
-        // because the database's unique indexes (handle, sku) do.
+        // Identity conflict check before insert, so the answer names the field.
         const conflict = await queries.findProductIdentityConflict(db, {
           ...(parsed.data.handle !== undefined ? { handle: parsed.data.handle } : {}),
           ...(parsed.data.sku !== undefined ? { sku: parsed.data.sku } : {}),
         });
         if (conflict) {
-          const suffix = conflict.deleted ? " (held by a deleted product)" : "";
           return conflict.field === "sku"
             ? {
                 success: false,
-                error: `A product with SKU "${parsed.data.sku}" already exists${suffix} (ID: ${conflict.existingId}). Use a different SKU.`,
+                error: `A product with SKU "${parsed.data.sku}" already exists (ID: ${conflict.existingId}). Use a different SKU.`,
               }
             : {
                 success: false,
-                error: `A product with handle "${parsed.data.handle}" already exists${suffix} (ID: ${conflict.existingId}). Use a different handle, or omit it to auto-generate one.`,
+                error: `A product with handle "${parsed.data.handle}" already exists (ID: ${conflict.existingId}). Use a different handle, or omit it to auto-generate one.`,
               };
         }
 
@@ -397,66 +396,32 @@ export const getProductTools = (db: ReturnType<typeof getDb>) => ({
 
   deleteProduct: tool({
     description:
-      "Soft-deletes a product (sets deletedAt — the product is excluded from all future queries). " +
-      "WARNING: This will FAIL if the product has any existing orders (PRODUCT_HAS_ORDERS). " +
-      "Consider archiving the product (updateProductStatus → ARCHIVED) instead of deleting if it has order history. " +
-      "This action is permanent and cannot be undone via the API.",
+      "Removes a product for good — even one that orders hold — and frees its handle and SKU. Its variants, images, reviews, stock history, offers and landing pages go with it. " +
+      "Order lines that sold it keep what was sold (name, label, SKU, price) and lose only the link; orders still to ship that hold it can no longer put it back in stock. " +
+      "This cannot be undone: tell the user what goes and get their explicit confirmation first. To stop selling it but keep it, use updateProductStatus with ARCHIVED instead.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
-      const validationSchema = deleteProductSchema;
-
-      const parsed = validationSchema.safeParse(args);
-
+      const parsed = deleteProductSchema.safeParse(args);
       if (!parsed.success) {
-        const errorDetails = parsed.error.issues
-          .map((e: any) => `${e.path.join(".")}: ${e.message}`)
-          .join("; ");
-        return {
-          success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: productId (UUID string)`,
-        };
+        const errorDetails = parsed.error.issues.map((e: any) => `${e.path.join(".")}: ${e.message}`).join("; ");
+        return { success: false, error: `Invalid arguments: ${errorDetails}. Expected: productId (UUID string)` };
       }
 
       try {
-        // Verify product exists before attempting delete
-        const existing = await queries.getProductById(db, parsed.data.productId);
-        if (!existing) {
-          return {
-            success: false,
-            error: `Product not found with ID: ${parsed.data.productId}`,
-          };
-        }
-
-        // Check for existing orders
-        const { orderProducts } = await import("@/db/schema");
-        const { eq } = await import("drizzle-orm");
-        const ordersWithProduct = await db
-          .select()
-          .from(orderProducts)
-          .where(eq(orderProducts.productId, parsed.data.productId))
-          .get();
-
-        if (ordersWithProduct) {
-          return {
-            success: false,
-            error:
-              `Cannot delete product "${existing.name}" because it has existing orders. ` +
-              `Archive it instead by calling updateProductStatus with status: "ARCHIVED".`,
-          };
-        }
-
-        await queries.deleteProduct(db, parsed.data.productId);
+        const removal = await queries.productRemoval(db, parsed.data.productId);
+        if (!removal) return { success: false, error: `Product not found with ID: ${parsed.data.productId}` };
+        await removeProduct(db, env?.IMAGES, parsed.data.productId);
         return {
           success: true,
-          message: `Product "${existing.name}" (${parsed.data.productId}) deleted successfully`,
+          message:
+            `Product "${removal.name}" deleted, with ${removal.variants} variant(s), ${removal.images} image(s), ${removal.reviews} review(s), ` +
+            `${removal.offers} offer(s) and ${removal.landingPages} landing page(s). ${removal.orderLines} order line(s) keep what was sold.`,
         };
       } catch (error: any) {
-        return {
-          success: false,
-          error: `Failed to delete product: ${error.message}`,
-        };
+        return { success: false, error: `Failed to delete product: ${error.message}` };
       }
     },
   }),
+
 });

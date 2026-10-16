@@ -94,5 +94,6 @@
     "drop_image": "Drop the image here",
     "pick_image": "Click or drag an image here",
     "formats": "JPG, PNG, WebP, GIF · max {mb} MB"
-  }
+  },
+  "confirm_type": "Type {text} to confirm"
 }

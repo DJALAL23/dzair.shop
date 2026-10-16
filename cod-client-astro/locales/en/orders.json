@@ -196,7 +196,8 @@
     "cancelled": "Cancelled",
     "attention": "Needs attention",
     "attention_count_one": "{count} needs you",
-    "attention_count_other": "{count} need you"
+    "attention_count_other": "{count} need you",
+    "archived": "Archived"
   },
   "empty": {
     "all": "No orders yet",
@@ -207,7 +208,8 @@
     "delivered": "No delivered order yet",
     "returns": "No returns — good news",
     "cancelled": "No cancelled order",
-    "attention": "Nothing needs you right now"
+    "attention": "Nothing needs you right now",
+    "archived": "No archived orders"
   },
   "search_placeholder": "Order number, customer, phone or tracking number…",
   "load_more": "Show more orders",
@@ -413,5 +415,25 @@
     "saved_one": "{count} unit of {product} back in stock",
     "saved_other": "{count} units of {product} back in stock"
   },
-  "loading_more": "Loading…"
+  "loading_more": "Loading…",
+  "removal": {
+    "delete_title": "Delete order {order}?",
+    "delete_description": "It was never handed to delivery. This cannot be undone.",
+    "lines_one": "Its product line and its history are removed",
+    "lines_other": "Its {count} product lines and their history are removed",
+    "restock_one": "{count} unit goes back to stock",
+    "restock_other": "{count} units go back to stock",
+    "reviews_one": "Its review is removed",
+    "reviews_other": "Its {count} reviews are removed",
+    "customer_kept": "The customer stays; their order count and spend are updated",
+    "deleted": "Order {order} deleted",
+    "archive": "Archive",
+    "archived": "Order archived",
+    "restore": "Restore",
+    "restored": "The order is back in the order lists",
+    "archived_banner": "This order is archived: it is out of the order lists, and still counts in your sales and in the customer's history.",
+    "error_has_shipment": "This order has been handed to delivery, so it can no longer be deleted. Archive it once its delivery has ended.",
+    "error_not_finished": "Only a finished order can be archived: cancel it, or wait until its delivery has ended.",
+    "error_changed": "The order changed meanwhile. Reload it and try again."
+  }
 }

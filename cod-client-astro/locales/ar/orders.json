@@ -204,7 +204,8 @@
     "attention_count_two": "طلبان يحتاجانك",
     "attention_count_few": "{count} طلبات تحتاجك",
     "attention_count_many": "{count} طلبًا يحتاجك",
-    "attention_count_other": "{count} طلب يحتاجك"
+    "attention_count_other": "{count} طلب يحتاجك",
+    "archived": "المؤرشفة"
   },
   "empty": {
     "all": "لا توجد طلبات بعد",
@@ -215,7 +216,8 @@
     "delivered": "لا توجد طلبات مُسلّمة بعد",
     "returns": "لا توجد مرتجعات — خبر سار",
     "cancelled": "لا توجد طلبات ملغاة",
-    "attention": "لا شيء يحتاجك الآن"
+    "attention": "لا شيء يحتاجك الآن",
+    "archived": "لا توجد طلبات مؤرشفة"
   },
   "search_placeholder": "رقم الطلب، الزبون، الهاتف أو رقم التتبع…",
   "load_more": "عرض المزيد من الطلبات",
@@ -457,5 +459,37 @@
     "saved_many": "عاد {count} وحدة من {product} للمخزون",
     "saved_other": "عاد {count} وحدة من {product} للمخزون"
   },
-  "loading_more": "جارٍ التحميل…"
+  "loading_more": "جارٍ التحميل…",
+  "removal": {
+    "delete_title": "حذف الطلب {order}؟",
+    "delete_description": "لم يُسلَّم هذا الطلب للتوصيل قط. لا يمكن التراجع عن هذا الإجراء.",
+    "lines_zero": "يُحذف سجل الطلب",
+    "lines_one": "يُحذف بند المنتج وسجل الطلب",
+    "lines_two": "يُحذف بندا المنتجات وسجل الطلب",
+    "lines_few": "تُحذف {count} بنود منتجات وسجل الطلب",
+    "lines_many": "يُحذف {count} بندًا من المنتجات وسجل الطلب",
+    "lines_other": "يُحذف {count} بند منتجات وسجل الطلب",
+    "restock_zero": "لا تعود أي وحدة إلى المخزون",
+    "restock_one": "تعود وحدة واحدة إلى المخزون",
+    "restock_two": "تعود وحدتان إلى المخزون",
+    "restock_few": "تعود {count} وحدات إلى المخزون",
+    "restock_many": "تعود {count} وحدة إلى المخزون",
+    "restock_other": "تعود {count} وحدة إلى المخزون",
+    "reviews_zero": "لا توجد تقييمات",
+    "reviews_one": "يُحذف تقييمه",
+    "reviews_two": "يُحذف تقييماه",
+    "reviews_few": "تُحذف {count} تقييمات",
+    "reviews_many": "يُحذف {count} تقييمًا",
+    "reviews_other": "يُحذف {count} تقييم",
+    "customer_kept": "يبقى العميل، ويُحدَّث عدد طلباته ومجموع مشترياته",
+    "deleted": "تم حذف الطلب {order}",
+    "archive": "أرشفة",
+    "archived": "تمت أرشفة الطلب",
+    "restore": "استعادة",
+    "restored": "عاد الطلب إلى قوائم الطلبات",
+    "archived_banner": "هذا الطلب مؤرشف: لم يعد يظهر في قوائم الطلبات، ويبقى محسوبًا في مبيعاتك وفي سجل العميل.",
+    "error_has_shipment": "سُلِّم هذا الطلب للتوصيل، لذا لا يمكن حذفه. أرشِفه بعد انتهاء توصيله.",
+    "error_not_finished": "لا يمكن أرشفة إلا طلب منتهٍ: ألغِه، أو انتظر حتى ينتهي توصيله.",
+    "error_changed": "تغيّر الطلب في هذه الأثناء. أعد تحميله وحاول مجددًا."
+  }
 }

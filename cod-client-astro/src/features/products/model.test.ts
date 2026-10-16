@@ -13,6 +13,7 @@ import {
   parseProductRoute,
   parseProductStatus,
   productErrorMessage,
+  productRemovalConsequences,
   sortProducts,
   sortStockGroups,
   sortStockItems,
@@ -47,7 +48,6 @@ const product = (overrides: Partial<Product> = {}): Product => ({
   status: "ACTIVE",
   showInStore: true,
   storeFeatured: false,
-  deletedAt: null,
   publishedAt: null,
   category: null,
   variants: [],
@@ -115,7 +115,6 @@ describe("products model", () => {
 
   it("maps business error codes, slugs, and margin", () => {
     expect(productErrorMessage({ code: "PRODUCT_NOT_FOUND" }, t)).toBe("error_not_found");
-    expect(productErrorMessage({ code: "PRODUCT_HAS_ORDERS" }, t)).toBe("error_delete_has_orders");
     expect(productErrorMessage({ code: "DUPLICATE_SKU" }, t)).toBe("error_duplicate_sku");
     expect(productErrorMessage(new Error("boom"), t)).toBe("error_generic");
     expect(toSlug("Cotton T-Shirt!")).toBe("cotton-t-shirt");
@@ -232,5 +231,28 @@ describe("product update payload: a cleared field is sent as null", () => {
   it("never discards a description that holds content, even only an image", () => {
     expect(optionalDescription("<p>Hello</p>", true)).toBe("<p>Hello</p>");
     expect(optionalDescription('<p><img src="a.jpg"></p>', true)).toBe('<p><img src="a.jpg"></p>');
+  });
+});
+
+describe("what removing a product does, in words", () => {
+  const t = (key: string, values?: Record<string, unknown>) => (values ? `${key}:${values.count}` : key);
+  const none = { id: "p", name: "Robe", variants: 0, images: 0, reviews: 0, offers: 0, landingPages: 0, landingPageOrders: 0, orderLines: 0, ordersToShip: 0 };
+
+  it("says only what applies: a product nothing else uses goes alone", () => {
+    expect(productRemovalConsequences(none, t)).toEqual([{ text: "removal.product" }]);
+  });
+
+  it("lists what goes, what stays and what to watch, in that order", () => {
+    expect(productRemovalConsequences({ ...none, variants: 2, images: 3, reviews: 1, offers: 1, landingPages: 1, landingPageOrders: 4, orderLines: 5, ordersToShip: 2 }, t)).toEqual([
+      { text: "removal.product" },
+      { text: "removal.variants:2" },
+      { text: "removal.images:3" },
+      { text: "removal.reviews:1" },
+      { text: "removal.offers:1" },
+      { text: "removal.landing_pages:1" },
+      { text: "removal.order_lines_kept:5", kept: true },
+      { text: "removal.landing_orders_kept:4", kept: true },
+      { text: "removal.orders_to_ship:2", warning: true },
+    ]);
   });
 });

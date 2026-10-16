@@ -102,15 +102,17 @@ describe("what an order with a shipment refuses", () => {
     expect(await d1.db.select().from(schema.shipments).where(eq(schema.shipments.orderId, "o1")).all()).toHaveLength(1);
   });
 
-  it("its deletion while the parcel is out — and allows it once the shipment is closed", async () => {
+  it("its deletion, while the parcel is out and after; once delivered it is archived instead", async () => {
     const res = await order("DELETE");
     expect(res.status).toBe(409);
     expect(await codeOf(res)).toBe("ORDER_HAS_SHIPMENT");
+    expect((await order("POST", "/archive")).status).toBe(409);
 
     const shipment = await d1.db.select().from(schema.shipments).where(eq(schema.shipments.orderId, "o1")).get();
     await recordShipmentEvents(d1.db, shipment!.id, [{ source: "webhook", status: { vocabulary: "activity", value: "livred" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() }]);
-    expect((await order("DELETE")).status).toBe(200);
-    expect(await d1.db.select().from(schema.orders).all()).toHaveLength(0);
+    expect(await codeOf(await order("DELETE"))).toBe("ORDER_HAS_SHIPMENT");
+    expect((await order("POST", "/archive")).status).toBe(200);
+    expect(await d1.db.select({ archivedAt: schema.orders.archivedAt }).from(schema.orders).all()).toEqual([{ archivedAt: expect.any(String) }]);
   });
 });
 

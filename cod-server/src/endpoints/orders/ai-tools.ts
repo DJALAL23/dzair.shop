@@ -41,6 +41,12 @@ export const recordOrderProductReturnToolSchema = z.object({
 export const deleteOrderSchema = z.object({
   orderId: z.string().uuid().describe("UUID of the order to delete"),
 });
+export const archiveOrderSchema = z.object({
+  orderId: z.string().uuid().describe("UUID of the finished order (cancelled, or its shipment delivered, returned or cancelled)"),
+});
+export const unarchiveOrderSchema = z.object({
+  orderId: z.string().uuid().describe("UUID of the archived order"),
+});
 
 export const ORDER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
   listOrders: listOrdersSchema.shape,
@@ -49,6 +55,8 @@ export const ORDER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
   updateOrderStatus: updateOrderStatusToolSchema.shape,
   recordOrderProductReturn: recordOrderProductReturnToolSchema.shape,
   deleteOrder: deleteOrderSchema.shape,
+  archiveOrder: archiveOrderSchema.shape,
+  unarchiveOrder: unarchiveOrderSchema.shape,
 };
 
 const orderRowSchema = z.looseObject({
@@ -130,6 +138,13 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
   deleteOrder: toolOutput({
     message: z.string().describe("Deletion restores all remaining inventory"),
   }),
+  archiveOrder: toolOutput({
+    archivedAt: z.string().nullable().describe("When the order was archived"),
+    message: z.string(),
+  }),
+  unarchiveOrder: toolOutput({
+    message: z.string(),
+  }),
 };
 
 /**
@@ -157,7 +172,12 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  *   createOrder       → deducts inventory (ORDER_DEDUCTED)
  *   updateOrderStatus → restores inventory on cancelled (ORDER_CANCELLED)
  *   recordOrderProductReturn → restores per-line returned units (ORDER_RETURNED)
- *   deleteOrder       → restores all remaining inventory (ORDER_CANCELLED)
+ *   deleteOrder       → restores all remaining inventory (ORDER_CANCELLED); only before handoff
+ *
+ * ─── Clearing orders away ────────────────────────────────────────────────────
+ *   An order never handed to delivery can be deleted. Once it has a shipment
+ *   it is kept: a finished one (cancelled, or its shipment ended) is archived,
+ *   leaving the working lists and still counting in sales.
  *
  * ─── COD amount ──────────────────────────────────────────────────────────────
  *   codAmount = price + deliveryFee  (what the driver collects at the door)
@@ -177,7 +197,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
       "stage — one or several comma-separated (new|confirmed|unreachable|preparing|ready_to_ship|handoff_pending|in_transit|out_for_delivery|delivered|returning|returned|delivery_cancelled|cancelled), " +
       "attention ('true'|'false'), kind (carrier|driver), orderType (online|offline), " +
       "wilayaId (integer 1-58), search (matches orderNumber, customerName, phone, or the tracking number), " +
-      "limit (1-100, default 50), offset (default 0).",
+      "archived (exclude — the default, only, include), limit (1-100, default 50), offset (default 0).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -533,43 +553,55 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
 
   deleteOrder: tool({
     description:
-      "Permanently deletes an order and its related records (products, status history, its shipment and that shipment's history). " +
-      "Refused while its parcel is out, and once a driver payment settled its delivery. " +
-      "Automatically restores inventory for all non-returned product lines and updates customer stats. " +
-      "WARNING: This is a hard delete — there is no soft-delete or recovery. " +
-      "Consider updating status to 'cancelled' instead if you want to keep the order for audit purposes.",
+      "Permanently deletes an order never handed to delivery, whatever its status: the goods still out of stock go back, the customer's stats are undone, and its lines, history and reviews go with it. " +
+      "Refused once the order has a shipment — archive a finished one instead (archiveOrder). " +
+      "This cannot be undone: tell the user and get their explicit confirmation first.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
-      const validationSchema = deleteOrderSchema;
-      const parsed = validationSchema.safeParse(args);
+      const parsed = deleteOrderSchema.safeParse(args);
       if (!parsed.success) {
-        const errorDetails = parsed.error.issues
-          .map((e: any) => `${e.path.join(".")}: ${e.message}`)
-          .join("; ");
-        return {
-          success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: orderId (UUID string)`,
-        };
+        const errorDetails = parsed.error.issues.map((e: any) => `${e.path.join(".")}: ${e.message}`).join("; ");
+        return { success: false, error: `Invalid arguments: ${errorDetails}. Expected: orderId (UUID string)` };
       }
 
       try {
         const order = await queries.getOrderById(db, parsed.data.orderId);
-        if (!order) {
-          return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
-        }
+        if (!order) return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
 
         const deletion = await queries.deleteOrder(db, parsed.data.orderId);
         if (!deletion.ok) {
-          return { success: false, error: refusalFor(deletion, parsed.data.orderId, "it cannot be deleted while its parcel is out").message };
+          return { success: false, error: refusalFor(deletion, parsed.data.orderId, "it cannot be deleted; archive it once its delivery has ended").message };
         }
-
-        return {
-          success: true,
-          message: `Order "${order.orderNumber}" (${parsed.data.orderId}) permanently deleted. Inventory restored for non-returned lines.`,
-        };
+        return { success: true, message: `Order "${order.orderNumber}" permanently deleted. Inventory restored for the units still out.` };
       } catch (error: any) {
         return { success: false, error: `Failed to delete order: ${error.message}` };
       }
     },
   }),
+
+  archiveOrder: tool({
+    description:
+      "Archives a finished order — cancelled, or its shipment delivered, returned or cancelled: it leaves the working order lists and their counts, still counts in sales and the customer's history, and can be restored (unarchiveOrder).",
+    inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
+    execute: async (args) => {
+      const parsed = archiveOrderSchema.safeParse(args);
+      if (!parsed.success) return { success: false, error: "Invalid arguments. Expected: orderId (UUID string)" };
+      const outcome = await queries.archiveOrder(db, parsed.data.orderId);
+      if (!outcome.ok) return { success: false, error: refusalFor(outcome, parsed.data.orderId, "it cannot be archived").message };
+      return { success: true, archivedAt: outcome.archivedAt, message: "Order archived" };
+    },
+  }),
+
+  unarchiveOrder: tool({
+    description: "Brings an archived order back to the working order lists.",
+    inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
+    execute: async (args) => {
+      const parsed = unarchiveOrderSchema.safeParse(args);
+      if (!parsed.success) return { success: false, error: "Invalid arguments. Expected: orderId (UUID string)" };
+      const outcome = await queries.unarchiveOrder(db, parsed.data.orderId);
+      if (!outcome.ok) return { success: false, error: refusalFor(outcome, parsed.data.orderId, "it cannot be restored").message };
+      return { success: true, message: "Order restored to the working lists" };
+    },
+  }),
+
 });

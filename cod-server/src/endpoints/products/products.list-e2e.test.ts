@@ -6,7 +6,7 @@
  *   • variant / no-variant products; active + inactive variants
  *   • approved / pending / zero reviews; avgRating rounding
  *   • images / no images; cover = first by position
- *   • soft-deleted exclusion; status/visibility filters
+ *   • a removed product is gone; status/visibility filters
  *   • featured-first ordering on the storefront list
  *   • pagination (limit/offset)
  *   • chunk boundary: a 91-product page issues two id-chunked variant
@@ -22,8 +22,8 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
-import { getAllProducts } from "../../../../cod-shared/queries/products";
-import { getStoreProducts } from "../../../../cod-shared/queries/store";
+import { deleteProduct, getAllProducts } from "../../../../cod-shared/queries/products";
+import { getStoreProductByHandle, getStoreProducts } from "../../../../cod-shared/queries/store";
 
 const registry: Miniflare[] = [];
 let db: AppDb;
@@ -82,7 +82,6 @@ beforeAll(async () => {
       createdAt,
       updatedAt: now,
     };
-    if (i === 9) product.deletedAt = now;
     await db.insert(schema.products).values(product);
 
     if (product.hasVariants) {
@@ -133,6 +132,8 @@ beforeAll(async () => {
       });
     }
   }
+  // Sold, then removed: the store and the dashboard never list it again.
+  await deleteProduct(db, "prod-9");
 }, 180_000);
 
 afterAll(async () => {
@@ -174,9 +175,11 @@ describe("getAllProducts — real D1", () => {
     expect(noImages!.primaryImageSrc).toBeNull();
   });
 
-  it("excludes soft-deleted products", async () => {
+  it("a removed product is gone from the catalog and the store", async () => {
+    expect(await db.select().from(schema.products).where(eq(schema.products.id, "prod-9")).all()).toEqual([]);
     const rows = await getAllProducts(db, { limit: 200 });
     expect(rows.find((r) => r.id === "prod-9")).toBeUndefined();
+    expect((await getStoreProducts(db, { limit: 200 })).find((r) => r.id === "prod-9")).toBeUndefined();
   });
 
   it("filters by status and respects limit/offset", async () => {
@@ -223,6 +226,9 @@ describe("getStoreProducts — real D1", () => {
 
     expect(rows[0].id).toBe("prod-1");
     expect(rows[0].storeFeatured).toBe(true);
+    // Published @wocart/storefront releases require the field: always null.
+    expect(rows.every((r) => (r as { deletedAt?: unknown }).deletedAt === null)).toBe(true);
+    expect((await getStoreProductByHandle(db, rows[0].handle) as { deletedAt?: unknown } | null)?.deletedAt).toBeNull();
     expect(rows.slice(1).every((r) => !r.storeFeatured)).toBe(true);
   });
 

@@ -193,10 +193,6 @@ export const ProductSchema = z
     status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]).openapi({ example: "ACTIVE" }),
     showInStore: z.boolean().openapi({ example: true }),
     storeFeatured: z.boolean().openapi({ example: false }),
-    deletedAt: z.string().datetime().nullable().openapi({
-      description: "Soft-delete timestamp; products with a value are excluded from all responses",
-      example: null,
-    }),
     publishedAt: z.string().datetime().nullable().openapi({
       description: "Auto-set when status changes to ACTIVE",
       example: "2026-01-15T09:30:00.000Z",
@@ -449,3 +445,18 @@ export const PresignedUploadSchema = z
   })
   .openapi("PresignedUpload");
 
+
+export const ProductRemovalSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    variants: z.number().int(),
+    images: z.number().int(),
+    reviews: z.number().int(),
+    offers: z.number().int().openapi({ description: "Offers it triggers or rewards: removed with it" }),
+    landingPages: z.number().int().openapi({ description: "Its landing pages, with their images and pixel settings: removed with it" }),
+    landingPageOrders: z.number().int().openapi({ description: "Orders those landing pages brought: kept, without the landing page link" }),
+    orderLines: z.number().int().openapi({ description: "Order lines that sold it: kept as sold, without the product link" }),
+    ordersToShip: z.number().int().openapi({ description: "Orders holding it not handed to delivery yet: they keep the line, which is never put back in stock" }),
+  })
+  .openapi("ProductRemoval");

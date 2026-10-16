@@ -38,7 +38,7 @@ _Avoid_: Product photo
 ### Counting & Deletion
 
 **Product Count**:
-A live computation of non-deleted products filed under the group — **regardless of lifecycle status**, so drafts and archived items count too. It drives both display badges and the deletion guard.
+A live computation of the products filed under the group — **regardless of lifecycle status**, so drafts and archived items count too. It drives both display badges and the deletion guard.
 _Avoid_: Active product count, sales count
 
 **Membership Guard**:

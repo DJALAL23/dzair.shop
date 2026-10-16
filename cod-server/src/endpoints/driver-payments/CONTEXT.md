@@ -89,6 +89,6 @@ Terms owned by neighboring contexts — use them, don't redefine them here:
 
 **Counters move by the cash, never the net**: a Net Settlement lowers Pending Cash and raises Total Paid by the full cash.
 
-**A settled delivery keeps its order**: an order whose shipment has a payment line cannot be deleted (`ORDER_HAS_SETTLEMENT`).
+**A delivery keeps its order**: an order with a shipment — settled or not — cannot be deleted (`ORDER_HAS_SHIPMENT`), so a payment line never loses its shipment and a driver's counters never move behind the merchant's back. A finished order is archived instead.
 
 **No currency column**: all money is DZD.

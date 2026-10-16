@@ -94,5 +94,6 @@
     "drop_image": "أفلت الصورة هنا",
     "pick_image": "انقر أو اسحب صورة إلى هنا",
     "formats": "JPG وPNG وWebP وGIF · الحد الأقصى {mb} ميغابايت"
-  }
+  },
+  "confirm_type": "اكتب {text} للتأكيد"
 }

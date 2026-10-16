@@ -212,6 +212,7 @@ export function orderRow(overrides: Record<string, unknown> = {}): Record<string
     // a missing one shifts every joined value by a slot.
     customer_email: null,
     custom_fields_json: null,
+    archived_at: null,
     ...overrides,
   };
 }
@@ -240,7 +241,6 @@ export function productRow(overrides: Record<string, unknown> = {}): Record<stri
     status: "ACTIVE",
     show_in_store: 1,
     store_featured: 0,
-    deleted_at: null,
     published_at: NOW,
     shipping_profile_id: null,
     created_at: NOW,

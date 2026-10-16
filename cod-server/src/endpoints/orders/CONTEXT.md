@@ -53,6 +53,18 @@ _Avoid_: Prepared, staged, shipped
 The order ended before delivery. Not possible while it has a Shipment.
 _Avoid_: Deleted, voided, rejected
 
+**Finished**:
+Where the order's story has ended: Cancelled, or its Shipment delivered,
+returned or cancelled at the carrier (`FINISHED_STAGES`,
+`cod-shared/orders/stage.ts`).
+_Avoid_: Closed, completed
+
+**Archived**:
+A Finished order the merchant put away: it leaves the working order lists and
+their counts, still counts in sales, analytics and the customer's history, and
+can be restored. Not a status — `orders.archived_at`.
+_Avoid_: Hidden, soft-deleted
+
 ### Handoff
 
 **Handoff**:
@@ -106,6 +118,13 @@ handed to delivery. `confirmed → ready` exists for shops with no packing step.
 **One shipment at most**: an order has zero or one Shipment. Voiding a Shipment
 frees the order for a new handoff; a returned or delivered Shipment does not —
 sending the goods again is a new order.
+
+**Deleted only before handoff**: an order with no Shipment, in any status, can
+be deleted — its stock still out goes back and the customer's count and spend
+are undone. Once it has a Shipment it is kept: the parcel, the driver's cash
+and the carrier's records rest on it. The database refuses it too (migration
+0042 trigger), and a Finished order is archived instead. `GET
+/orders/{id}/removal` says which applies.
 
 **Edits after handoff**: once a Shipment exists, the order's address, wilaya,
 commune, phone and delivery type are locked; changing the parcel goes through

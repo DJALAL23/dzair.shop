@@ -11,8 +11,7 @@ import { errorHandler } from "@/middleware/error";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import { getCapiWorkflowId } from "@/workflows/capi-helpers";
-import { deleteOrder } from "../../../cod-shared/queries/orders";
-import { acceptCarrierHandoff, markHandoffUnknown, reserveCarrierShipment } from "../../../cod-shared/shipments/handoff";
+import { acceptCarrierHandoff, markHandoffUnknown, reserveCarrierShipment, voidShipment } from "../../../cod-shared/shipments/handoff";
 import { getShipmentWithEvents } from "../../../cod-shared/shipments/queries";
 import { MAX_ATTEMPTS } from "../../../cod-shared/inbound/inbox";
 import webhooksRouter from "@/endpoints/webhooks/routes";
@@ -378,11 +377,11 @@ describe("retries", () => {
 });
 
 describe("the inbox keeps its audit when a shipment goes", () => {
-  it("deleting an order whose shipment came from webhooks works, and its events stay in the inbox", async () => {
+  it("voiding a shipment whose updates came from webhooks keeps those events in the inbox, unlinked", async () => {
     const id = await shipmentAt("oa", "yal-a", { carrierParcelId: "yal-1", trackingNumber: "yal-1" });
-    await yalidine("parcel_status_updated", [status("yal-1", "Livré")]);
+    await yalidine("parcel_status_updated", [status("yal-1", "En préparation")]);
     expect(await events(id)).toHaveLength(1);
-    expect(await deleteOrder(d1.db, "oa")).toEqual({ ok: true });
+    expect(await voidShipment(d1.db, id)).toMatchObject({ ok: true });
     expect((await inbox())[0]).toMatchObject({ result: "ok", shipmentId: null });
   });
 });

@@ -274,6 +274,13 @@ export async function cartNames(db: AppDb, snapshot: CatalogSnapshot, locale: St
   };
 }
 
+/**
+ * Fields the store API keeps only because published `@wocart/storefront`
+ * releases require them: `deletedAt` is always null (a removed product is
+ * gone, never served). Drop it once no supported SDK release reads it.
+ */
+const PUBLISHED_SDK_FIELDS = { deletedAt: null } as const;
+
 export async function getStoreProducts(
   db: AppDb,
   params: { featured?: boolean; categoryId?: string; limit?: number; offset?: number },
@@ -283,7 +290,6 @@ export async function getStoreProducts(
     eq(products.showInStore, true),
     eq(products.status, "ACTIVE"),
     eq(products.visibility, true),
-    isNull(products.deletedAt),
   ];
 
   if (params.featured) conditions.push(eq(products.storeFeatured, true));
@@ -357,6 +363,7 @@ export async function getStoreProducts(
       : productData.inventory;
     return {
       ...productData,
+      ...PUBLISHED_SDK_FIELDS,
       inventory,
       descriptionPlain: await deriveDescriptionPlain(p.description, p.descriptionFormat),
       coverImage: coverImageByProduct.get(p.id) ?? null,
@@ -384,7 +391,6 @@ export async function getStoreProductByHandle(
     eq(products.handle, handle),
     eq(products.status, "ACTIVE"),
     eq(products.visibility, true),
-    isNull(products.deletedAt),
   ];
   if (!opts?.allowUnlisted) conditions.push(eq(products.showInStore, true));
 
@@ -508,6 +514,7 @@ export async function getStoreProductByHandle(
 
   return {
     ...product,
+    ...PUBLISHED_SDK_FIELDS,
     inventory: totalInventory,
     variantOptions: product.variantOptions ? JSON.parse(product.variantOptions) : null,
     tags: product.tags ? JSON.parse(product.tags) : [],

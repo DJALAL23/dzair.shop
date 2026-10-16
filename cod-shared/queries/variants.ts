@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { products, productVariants, orderProducts, stockMovements } from "../db/schema";
+import { products, productVariants, stockMovements } from "../db/schema";
 import type { AppDb } from "../db/client";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
@@ -197,25 +197,13 @@ export async function updateVariant(db: AppDb, variantId: string, data: UpdateVa
   return getVariantById(db, variantId);
 }
 
+/**
+ * Remove a variant. Order lines and abandoned checkouts that named it keep
+ * their label and lose only the link, and its stock movements go with it
+ * (the database does both, migration 0042): Σ(movements) stays reconciled to
+ * the tracked pool, with no productId-level surrogate to double-count.
+ */
 export async function deleteVariant(db: AppDb, variantId: string) {
-  // Preserve order history — null out the reference rather than blocking deletion.
-  const variantRow = await db
-    .select({ productId: productVariants.productId, inventory: productVariants.inventory })
-    .from(productVariants)
-    .where(eq(productVariants.id, variantId))
-    .get();
-
-  // No ledger surrogate for the deletion: stock_movements.variant_id is
-  // ON DELETE cascade, so the variant's scoped movements (including its
-  // opening stock) leave with the row. Σ(movements) stays reconciled to the
-  // tracked pool; a productId-level -N row would double-count against the
-  // vanished +N. The atomic batch still guarantees the null-out and the
-  // delete commit together.
-  const statements: BatchStatement[] = [
-    db.update(orderProducts).set({ variantId: null }).where(eq(orderProducts.variantId, variantId)),
-    db.delete(productVariants).where(eq(productVariants.id, variantId)),
-  ];
-
-  await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+  await db.delete(productVariants).where(eq(productVariants.id, variantId));
   return { success: true };
 }

@@ -119,7 +119,9 @@
       "user.api_key_revoked": "Revoked API key",
       "review.approved": "Approved a review",
       "review.rejected": "Rejected a review",
-      "review.deleted": "Deleted a review"
+      "review.deleted": "Deleted a review",
+      "order.archived": "Archived an order",
+      "order.unarchived": "Restored an archived order"
     },
     "table": {
       "action": "Action",

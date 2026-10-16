@@ -60,7 +60,7 @@ Terms owned by neighboring contexts — use them, don't redefine them here:
 
 - **Storefront submission**: Store context receives shopper reviews via order-number intake; this module only moderates what arrives
 - **Where aggregates appear**: Products and Store contexts embed average rating and count; they compute them independently from this table
-- **Anchor ownership**: Orders context owns the anchoring order — deleting that order cascades the review away with it
+- **Anchor ownership**: Orders context owns the anchoring order — deleting that order (possible only before it has a shipment) cascades the review away with it; removing the product does too
 
 ## Edge Cases
 
@@ -68,7 +68,7 @@ Terms owned by neighboring contexts — use them, don't redefine them here:
 
 **One review per order, enforced twice**: Application logic rejects duplicates, and a unique database index stands behind it even if a future caller bypasses the API.
 
-**Deleting the anchor order deletes the review**: Order removal cascades to its reviews; storefront aggregates shift accordingly with no tombstone left behind.
+**Deleting the anchor order or the product deletes the review**: both cascade to their reviews; storefront aggregates shift accordingly with no tombstone left behind. A delivered order is never deleted — it has a shipment — so its review stays until the product goes.
 
 **Badges ignore your filters**: The pending count travels with every list response regardless of status or product filters — filtering the list never shrinks the badge.
 

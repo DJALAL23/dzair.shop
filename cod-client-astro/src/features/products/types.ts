@@ -76,7 +76,6 @@ export interface Product {
   status: ProductStatus;
   showInStore: boolean;
   storeFeatured: boolean;
-  deletedAt?: string | null;
   publishedAt?: string | null;
   category?: ProductCategory | null;
   variants: ProductVariant[];
@@ -197,4 +196,18 @@ export interface ProductFormValues {
   inventory: string;
   lowStockThreshold: string;
   hasVariants: boolean;
+}
+
+/** What removing a product takes with it, and what stays, as the server reads it. */
+export interface ProductRemoval {
+  id: string;
+  name: string;
+  variants: number;
+  images: number;
+  reviews: number;
+  offers: number;
+  landingPages: number;
+  landingPageOrders: number;
+  orderLines: number;
+  ordersToShip: number;
 }

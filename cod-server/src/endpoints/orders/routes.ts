@@ -31,6 +31,7 @@ import {
   OrderDetailSchema,
   OrderCreatedDataSchema,
   ReturnProductDataSchema,
+  OrderRemovalSchema,
 } from "@/openapi/schemas";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
@@ -50,7 +51,7 @@ const listOrdersRoute = defineRoute({
   responses: {
     200: {
       description:
-        "Orders, newest first, with their delivery at a glance: the shipment's kind, carrier or driver and tracking number, the stage and whether it needs the merchant. `nextCursor` fetches the next page (null on the last one).",
+        "Orders, newest first (archived ones left out unless `archived` says otherwise), with their delivery at a glance: the shipment's kind, carrier or driver and tracking number, the stage and whether it needs the merchant. `nextCursor` fetches the next page (null on the last one).",
       content: jsonContent(ListResponseSchema(OrderListItemSchema).extend({ nextCursor: z.string().nullable().openapi({ description: "Pass as `cursor` for the next page; null on the last page" }) })),
     },
   },
@@ -148,7 +149,7 @@ const deleteOrderRoute = defineRoute({
   tags: ["Orders"],
   summary: "Delete order",
   description:
-    "Permanently deletes the order and its records (lines, a closed shipment and its history), putting back the goods still out of stock (never those a customer received) and undoing the customer's count and spend, and a driver's credit for a delivery not settled. **409 ORDER_HAS_SHIPMENT** while the order's shipment is open — void it first; **409 ORDER_HAS_SETTLEMENT** once a driver payment settled its delivery.",
+    "Permanently deletes an order never handed to delivery, in any status: the goods still out of stock go back, the customer's order count and spend are undone, and its lines, history, reviews and logs go with it. **409 ORDER_HAS_SHIPMENT** once it has a shipment — its parcel, the driver's cash and the carrier's records rest on it; archive it when its delivery has ended (`POST /orders/{id}/archive`), or void the shipment first. The database refuses it too.",
   operationId: "deleteOrder",
   params: IdParamSchema,
   responses: {
@@ -156,9 +157,59 @@ const deleteOrderRoute = defineRoute({
       description: "Order deleted",
       content: jsonContent(MessageResponseSchema),
     },
-    409: { description: "The order's shipment is open (ORDER_HAS_SHIPMENT), a driver payment settled its delivery (ORDER_HAS_SETTLEMENT), or the order changed meanwhile (ORDER_CHANGED)" },
+    409: { description: "The order has a shipment (ORDER_HAS_SHIPMENT), or it changed meanwhile (ORDER_CHANGED)" },
   },
   handler: handlers.deleteOrder,
+});
+
+const orderRemovalRoute = defineRoute({
+  method: "get",
+  path: "/{id}/removal",
+  auth: { scope: SCOPES.ORDERS_READ },
+  tags: ["Orders"],
+  summary: "What clearing an order away does",
+  description:
+    "Whether the order can be deleted (never handed to delivery) or archived (finished: cancelled, or its shipment delivered, returned or cancelled), and what deleting it would undo — read before asking the merchant to confirm.",
+  operationId: "getOrderRemoval",
+  params: IdParamSchema,
+  responses: {
+    200: { description: "The order's removal options", content: jsonContent(SuccessResponseSchema(OrderRemovalSchema)) },
+  },
+  handler: handlers.getOrderRemoval,
+});
+
+const ArchivedDataSchema = SuccessResponseSchema(z.object({ archivedAt: z.string().datetime().nullable() }));
+
+const archiveOrderRoute = defineRoute({
+  method: "post",
+  path: "/{id}/archive",
+  auth: { scope: SCOPES.ORDERS_UPDATE },
+  tags: ["Orders"],
+  summary: "Archive order",
+  description:
+    "Takes a finished order — cancelled, or its shipment delivered, returned or cancelled — out of the working lists and their counts. It still counts in sales and the customer's history, and can be restored. Archiving it again keeps the first date. **409 ORDER_NOT_FINISHED** before then.",
+  operationId: "archiveOrder",
+  params: IdParamSchema,
+  responses: {
+    200: { description: "Archived", content: jsonContent(ArchivedDataSchema) },
+    409: { description: "The order is not finished yet (ORDER_NOT_FINISHED)" },
+  },
+  handler: handlers.archiveOrder,
+});
+
+const unarchiveOrderRoute = defineRoute({
+  method: "post",
+  path: "/{id}/unarchive",
+  auth: { scope: SCOPES.ORDERS_UPDATE },
+  tags: ["Orders"],
+  summary: "Restore an archived order",
+  description: "Brings an archived order back to the working lists.",
+  operationId: "unarchiveOrder",
+  params: IdParamSchema,
+  responses: {
+    200: { description: "Restored", content: jsonContent(ArchivedDataSchema) },
+  },
+  handler: handlers.unarchiveOrder,
 });
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -249,6 +300,9 @@ router.openapi(getOrderRoute.route, getOrderRoute.handler);
 router.openapi(createOrderRoute.route, createOrderRoute.handler);
 router.openapi(updateOrderRoute.route, updateOrderRoute.handler);
 router.openapi(deleteOrderRoute.route, deleteOrderRoute.handler);
+router.openapi(orderRemovalRoute.route, orderRemovalRoute.handler);
+router.openapi(archiveOrderRoute.route, archiveOrderRoute.handler);
+router.openapi(unarchiveOrderRoute.route, unarchiveOrderRoute.handler);
 router.openapi(updateStatusRoute.route, updateStatusRoute.handler);
 router.openapi(returnOrderProductRoute.route, returnOrderProductRoute.handler);
 router.openapi(handOffOrderRoute.route, handOffOrderRoute.handler);

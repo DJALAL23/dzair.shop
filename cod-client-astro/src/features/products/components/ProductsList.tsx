@@ -16,20 +16,18 @@ import {
   TableHeader,
   TableRow,
   SortHeader,
-  useConfirmDialog,
 } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
+import { useRemoveProduct } from "@/features/products/components/useRemoveProduct";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
-  deleteProduct,
   listAllProducts,
   listProductGroups,
 } from "@/features/products/api";
 import {
   filterProducts,
   paginateProducts,
-  productErrorMessage,
   sortProducts,
   type ProductFilters,
   type ProductSortKey,
@@ -79,7 +77,10 @@ export function ProductsList() {
   const common = useT("common");
   const auth = useT("auth");
   const identity = useIdentity();
-  const confirm = useConfirmDialog();
+  const removeProduct = useRemoveProduct((message) => {
+    setActionError(message);
+    notify.error(message);
+  });
   const [products, setProducts] = useState<Product[] | null>(null);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loadError, setLoadError] = useState<unknown>(null);
@@ -159,27 +160,9 @@ export function ProductsList() {
     }
   }
   async function onDelete(product: Product) {
-    if (
-      !(await confirm({
-        title: common("confirm_delete_title", { name: product.name }),
-        description: common("delete_description"),
-        confirmLabel: common("delete"),
-        tone: "danger",
-      }))
-    )
-      return;
-    try {
-      await deleteProduct(product.id);
-      setProducts(
-        (current) =>
-          current?.filter((item) => item.id !== product.id) ?? current,
-      );
-      notify.success(t("success_deleted"));
-    } catch (cause) {
-      const message = productErrorMessage(cause, t);
-      setActionError(message);
-      notify.error(message);
-    }
+    if (!(await removeProduct(product))) return;
+    setProducts((current) => current?.filter((item) => item.id !== product.id) ?? current);
+    notify.success(t("success_deleted"));
   }
 
   const rowProps = {

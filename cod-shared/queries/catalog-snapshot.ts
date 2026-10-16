@@ -25,7 +25,6 @@ export interface CatalogProduct {
   sku: string | null;
   trackInventory: boolean;
   inventory: number;
-  deletedAt: string | null;
   status: string;
   visibility: boolean;
   showInStore: boolean;
@@ -59,7 +58,6 @@ const PRODUCT_COLUMNS = {
   sku: products.sku,
   trackInventory: products.trackInventory,
   inventory: products.inventory,
-  deletedAt: products.deletedAt,
   status: products.status,
   visibility: products.visibility,
   showInStore: products.showInStore,
@@ -329,8 +327,7 @@ export function priceCartLines(
     const product = snapshot.products.get(line.productId);
     const variant = line.variantId ? snapshot.variants.get(line.variantId) : undefined;
 
-    const sellable = product && product.deletedAt === null ? product : undefined;
-    const unitPrice = variant ? variant.price : (sellable?.price ?? 0);
+    const unitPrice = variant ? variant.price : (product?.price ?? 0);
     const lineTotal = unitPrice * line.quantity;
 
     subtotal += lineTotal;
@@ -384,7 +381,6 @@ export function resolveCartLines(
 
     const sellable =
       product != null &&
-      product.deletedAt === null &&
       product.status === "ACTIVE" &&
       product.visibility &&
       product.showInStore &&

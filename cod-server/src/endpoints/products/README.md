@@ -116,9 +116,14 @@ Dedicated endpoint for updating a product's status (`DRAFT`, `ACTIVE`, `ARCHIVED
 **Authorization:** Requires `products:manage` scope
 
 ### DELETE /api/products/:id
-Soft-delete a product — blocked with `422 PRODUCT_HAS_ORDERS` if any order line references it. Otherwise sets `deletedAt`, excluding the product from all future listings.
+Remove a product for good — even one that orders hold — and free its handle and SKU. Its variants, images, reviews, stock history, offers and landing pages go with it, and its image files once nothing else shows them. Order lines that sold it keep what was sold and lose only the link.
 
 **Authorization:** Requires `products:manage` scope
+
+### GET /api/products/:id/removal
+What `DELETE` would take with it and what stays: variants, images, reviews, offers, landing pages, the orders those pages brought, the order lines kept, and the orders still to ship that hold it.
+
+**Authorization:** Requires `products:read` scope
 
 ---
 

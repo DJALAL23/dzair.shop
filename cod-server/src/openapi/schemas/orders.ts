@@ -55,9 +55,9 @@ export const OrderProductSchema = z
   .object({
     id: z.string(),
     orderId: z.string(),
-    productId: z.string(),
+    productId: z.string().nullable().openapi({ description: "Null once the product was removed: the line keeps what was sold" }),
     productName: z.string(),
-    variantId: z.string().nullable(),
+    variantId: z.string().nullable().openapi({ description: "Null for a product without variants, or once the variant was removed" }),
     variantLabel: z.string().nullable(),
     sku: z.string().nullable().openapi({
       description: "Denormalized SKU at time of order",
@@ -136,7 +136,24 @@ const OrderBaseSchema = z.object({
   customFieldsJson: z.string().nullable().optional().openapi({
     description: "Custom checkout fields snapshot JSON",
   }),
+  archivedAt: z.string().datetime().nullable().openapi({
+    description: "When the finished order was archived: it is left out of the working lists and their counts, and still counts in sales and the customer's history. Null while not archived.",
+  }),
 });
+
+export const OrderRemovalSchema = z
+  .object({
+    id: z.string(),
+    orderNumber: z.string().openapi({ example: "ORD-20261016-0042" }),
+    shipment: z.enum(["none", "open", "closed"]).openapi({ description: "No shipment yet, one on its way, or one that ended (delivered, returned, cancelled)" }),
+    deletable: z.boolean().openapi({ description: "Only an order never handed to delivery" }),
+    archivable: z.boolean().openapi({ description: "A finished order (cancelled, or its shipment ended) not archived yet" }),
+    archivedAt: z.string().datetime().nullable(),
+    lines: z.number().int().openapi({ description: "Its order lines, removed with it" }),
+    restockUnits: z.number().int().openapi({ description: "Units deleting it puts back in stock" }),
+    reviews: z.number().int().openapi({ description: "Its reviews, removed with it" }),
+  })
+  .openapi("OrderRemoval");
 
 // ─── List View (for GET /orders) ──────────────────────────────────────────────
 

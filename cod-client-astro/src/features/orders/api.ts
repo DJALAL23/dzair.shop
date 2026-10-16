@@ -22,6 +22,7 @@ import type {
   ShippingRule,
   StopDesk,
   Wilaya,
+  OrderRemoval,
 } from "./types";
 import type { MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
 
@@ -54,6 +55,8 @@ export interface OrderQuery {
   orderType?: "online" | "offline";
   wilayaId?: number;
   search?: string;
+  /** The archived orders alone, instead of the working list. */
+  archived?: boolean;
   limit?: number;
   cursor?: string | null;
 }
@@ -66,13 +69,16 @@ export async function listOrders(params: OrderQuery = {}): Promise<OrderPage> {
   if (params.orderType) query.set("orderType", params.orderType);
   if (params.wilayaId) query.set("wilayaId", String(params.wilayaId));
   if (params.search?.trim()) query.set("search", params.search.trim());
+  if (params.archived) query.set("archived", "only");
   if (params.cursor) query.set("cursor", params.cursor);
   const page = await apiFetch<ListEnvelope<OrderListItem> & { nextCursor: string | null }>(`/api/orders?${query}`);
   return { orders: page.data, nextCursor: page.nextCursor };
 }
 
-export async function getOrderStageCounts() {
-  return (await apiFetch<DataEnvelope<OrderStageCounts>>("/api/analytics/order-stages")).data;
+/** Every order counted by stage (the overview), or only the working list's (`working`), archived ones left out. */
+export async function getOrderStageCounts(options: { working?: boolean } = {}) {
+  const query = options.working ? "?archived=exclude" : "";
+  return (await apiFetch<DataEnvelope<OrderStageCounts>>(`/api/analytics/order-stages${query}`)).data;
 }
 
 export async function getOrder(id: string) {
@@ -89,6 +95,18 @@ export async function updateOrder(id: string, body: Record<string, unknown>) {
 
 export function deleteOrder(id: string) {
   return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function getOrderRemoval(id: string) {
+  return (await apiFetch<DataEnvelope<OrderRemoval>>(`/api/orders/${encodeURIComponent(id)}/removal`)).data;
+}
+
+export async function archiveOrder(id: string) {
+  return (await apiFetch<DataEnvelope<{ archivedAt: string | null }>>(`/api/orders/${encodeURIComponent(id)}/archive`, { method: "POST" })).data;
+}
+
+export async function unarchiveOrder(id: string) {
+  return (await apiFetch<DataEnvelope<{ archivedAt: string | null }>>(`/api/orders/${encodeURIComponent(id)}/unarchive`, { method: "POST" })).data;
 }
 
 export function setLineReturn(orderId: string, lineId: string, returnedQuantity: number) {

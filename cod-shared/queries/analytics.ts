@@ -5,31 +5,41 @@
  * database round-trip with no client-side aggregation.
  */
 
-import { and, count, eq, gte, ne, sql } from "drizzle-orm";
+import { and, count, eq, gte, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { orders, shipments } from "../db/schema";
 import type { OrderStage } from "../orders/stage";
 import { orderNeedsAttentionSql, orderStageSql } from "../orders/stage-sql";
 
 export interface OrderStageStats {
-  /** Orders per stage; only stages with at least one order. */
+  /** Orders per stage — archived ones too, unless left out; only stages with at least one order. */
   stages: Array<{ stage: OrderStage; count: number }>;
   /** Orders whose delivery needs the merchant, whatever their stage. */
   needsAttention: number;
+  /** Orders the merchant archived. */
+  archived: number;
 }
 
-/** Orders counted by the stage the merchant sees, and how many need attention. */
-export async function getOrderStageStats(db: AppDb): Promise<OrderStageStats> {
+/**
+ * Orders by the stage the merchant sees, how many need attention, and how
+ * many are archived. Every order counts, as sales do; `archived: "exclude"`
+ * gives the working lists' counts instead, which leave archived orders out.
+ */
+export async function getOrderStageStats(db: AppDb, options: { archived?: "include" | "exclude" } = {}): Promise<OrderStageStats> {
   const stage = orderStageSql();
-  const rows = await db
-    .select({ stage, count: count(), attention: sql<number>`sum(${orderNeedsAttentionSql()})` })
-    .from(orders)
-    .leftJoin(shipments, eq(shipments.orderId, orders.id))
-    .groupBy(stage)
-    .all();
+  const [rows, archivedRows] = await db.batch([
+    db
+      .select({ stage, count: count(), attention: sql<number>`sum(${orderNeedsAttentionSql()})` })
+      .from(orders)
+      .leftJoin(shipments, eq(shipments.orderId, orders.id))
+      .where(options.archived === "exclude" ? isNull(orders.archivedAt) : undefined)
+      .groupBy(stage),
+    db.select({ count: count() }).from(orders).where(isNotNull(orders.archivedAt)),
+  ]);
   return {
     stages: rows.map((r) => ({ stage: r.stage, count: Number(r.count) })),
     needsAttention: rows.reduce((sum, r) => sum + Number(r.attention ?? 0), 0),
+    archived: Number(archivedRows[0]?.count ?? 0),
   };
 }
 

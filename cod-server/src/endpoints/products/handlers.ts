@@ -4,8 +4,9 @@ import { getDb } from "@/db";
 import * as queries from "./queries";
 import * as validation from "./validation";
 import { logActivity, ACTIONS } from "@/lib/activity";
-import { NotFoundError, BusinessLogicError, ConflictError, SystemError } from "@/lib/errors/classes";
+import { NotFoundError, ConflictError, SystemError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
+import { removeProduct } from "@/lib/remove-product";
 
 export async function listProducts(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -44,9 +45,7 @@ export async function createProduct(c: Context<AppContext>) {
   const jsonData: any = (c.req as any).valid?.("json");
   const validated = jsonData ?? validation.createProductSchema.parse(await c.req.json());
 
-  // Identity pre-check — spans soft-deleted rows too, because the database's
-  // unique indexes do: a deleted product still holds its handle/SKU and would
-  // otherwise crash the insert with a raw constraint violation (500).
+  // Identity pre-check: a 409 naming the field, before the unique index answers.
   const conflict = await queries.findProductIdentityConflict(db, {
     ...(validated.handle !== undefined ? { handle: validated.handle } : {}),
     ...(validated.sku !== undefined ? { sku: validated.sku } : {}),
@@ -54,13 +53,13 @@ export async function createProduct(c: Context<AppContext>) {
   if (conflict) {
     if (conflict.field === "sku") {
       throw new ConflictError(
-        `Product with SKU "${validated.sku}" already exists${conflict.deleted ? " (it belongs to a deleted product)" : ""}`,
+        `Product with SKU "${validated.sku}" already exists`,
         ERROR_CODES.DUPLICATE_SKU,
         { sku: validated.sku, existingProductId: conflict.existingId }
       );
     }
     throw new ConflictError(
-      `Product with handle "${validated.handle}" already exists${conflict.deleted ? " (it belongs to a deleted product)" : ""} — pick a different handle or leave it empty to auto-generate one`,
+      `Product with handle "${validated.handle}" already exists — pick a different handle or leave it empty to auto-generate one`,
       ERROR_CODES.DUPLICATE_ENTITY,
       { handle: validated.handle, existingProductId: conflict.existingId }
     );
@@ -103,8 +102,7 @@ export async function updateProduct(c: Context<AppContext>) {
   const jsonData: any = (c.req as any).valid?.("json");
   const validated = jsonData ?? validation.updateProductSchema.parse(await c.req.json());
 
-  // Renaming onto another product's handle/SKU — including a soft-deleted
-  // product's, since the unique indexes span deleted rows.
+  // Renaming onto another product's handle or SKU.
   if (validated.handle !== undefined || validated.sku !== undefined) {
     const conflict = await queries.findProductIdentityConflict(db, {
       ...(validated.handle !== undefined ? { handle: validated.handle } : {}),
@@ -113,13 +111,13 @@ export async function updateProduct(c: Context<AppContext>) {
     if (conflict && conflict.existingId !== productId) {
       if (conflict.field === "sku") {
         throw new ConflictError(
-          `Product with SKU "${validated.sku}" already exists${conflict.deleted ? " (it belongs to a deleted product)" : ""}`,
+          `Product with SKU "${validated.sku}" already exists`,
           ERROR_CODES.DUPLICATE_SKU,
           { sku: validated.sku, existingProductId: conflict.existingId }
         );
       }
       throw new ConflictError(
-        `Product with handle "${validated.handle}" already exists${conflict.deleted ? " (it belongs to a deleted product)" : ""}`,
+        `Product with handle "${validated.handle}" already exists`,
         ERROR_CODES.DUPLICATE_ENTITY,
         { handle: validated.handle, existingProductId: conflict.existingId }
       );
@@ -153,28 +151,30 @@ export async function updateProductStatus(c: Context<AppContext>) {
   return c.json({ success: true, data: product }, 200);
 }
 
+/**
+ * DELETE /products/:id
+ * Remove a product for good, even one orders hold: their lines keep what was
+ * sold. Its variants, images, reviews, stock history, offers and landing
+ * pages go with it, and its image files once nothing else shows them.
+ */
 export async function deleteProduct(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const id = c.req.param("id")!;
-  const existing = await queries.getProductById(db, id);
-  if (!existing) {
-    throw new NotFoundError("Product", id);
-  }
-  
-  // Check if product has orders
-  const { orderProducts } = await import("@/db/schema");
-  const { eq } = await import("drizzle-orm");
-  const ordersWithProduct = await db.select().from(orderProducts).where(eq(orderProducts.productId, id)).get();
-  if (ordersWithProduct) {
-    throw new BusinessLogicError(
-      "Cannot delete product with existing orders",
-      ERROR_CODES.PRODUCT_HAS_ORDERS,
-      { productId: id, productName: existing.name }
-    );
-  }
-  
-  await queries.deleteProduct(db, id);
-  const actor = c.get("user");
-  await logActivity(db, actor, ACTIONS.PRODUCT_DELETED, { type: "product", id });
+  const removed = await removeProduct(db, c.env.IMAGES, id);
+  if (!removed) throw new NotFoundError("Product", id);
+  await logActivity(db, c.get("user"), ACTIONS.PRODUCT_DELETED, { type: "product", id, label: removed.name });
   return c.json({ success: true, message: "Product deleted" }, 200);
+}
+
+/**
+ * GET /products/:id/removal
+ * What removing the product takes with it and what stays, for the dashboard
+ * to say before asking.
+ */
+export async function getProductRemoval(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id")!;
+  const removal = await queries.productRemoval(db, id);
+  if (!removal) throw new NotFoundError("Product", id);
+  return c.json({ success: true, data: removal }, 200);
 }

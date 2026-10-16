@@ -182,6 +182,12 @@ other is how these drift.
   still exist in D1 but not in the Drizzle schema: SQLite cannot drop a
   column a table `FOREIGN KEY` clause names, so migration 0041 emptied them.
   Never read or write them.
+- **Removal is real deletion, kept consistent by the database** (migration
+  0042): a product goes for good and order lines keep what was sold (their
+  `product_id` becomes null); an order with a shipment can never be deleted —
+  a trigger raises `ORDER_HAS_SHIPMENT` even in raw SQL — and a finished one is
+  archived (`orders.archived_at`). There is no soft delete. A script that wipes
+  orders must delete `shipments` first.
 - **The dashboard never re-implements delivery rules.** It reads them from
   cod-shared — the lifecycle, the stages, the permission each shipment
   action takes (`shipments/actions.ts`), the reports a kind allows — and

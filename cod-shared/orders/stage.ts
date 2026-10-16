@@ -29,6 +29,17 @@ export const ORDER_STAGES = [
 
 export type OrderStage = (typeof ORDER_STAGES)[number];
 
+/**
+ * Where an order's story has ended: cancelled before delivery, or its
+ * shipment delivered, returned or cancelled at the carrier. Only a finished
+ * order can be archived (cod-shared/queries/orders.ts `archiveOrder`).
+ */
+export const FINISHED_STAGES = ["delivered", "returned", "delivery_cancelled", "cancelled"] as const satisfies readonly OrderStage[];
+
+export function isFinishedStage(stage: OrderStage): boolean {
+  return (FINISHED_STAGES as readonly OrderStage[]).includes(stage);
+}
+
 export type StageShipment = Pick<
   DeliveryFacts,
   "outForDeliveryAt" | "deliveredAt" | "returnStartedAt" | "returnedAt" | "cancelledAt" | "attentionSince"

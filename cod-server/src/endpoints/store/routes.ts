@@ -155,7 +155,7 @@ const listStoreProductsRoute = defineRoute({
   tags: ["Store API"],
   summary: "List store products",
   description:
-    "Get the public product catalog for the storefront. Only returns products where `status=ACTIVE`, `showInStore=true`, `visibility=true`, and `deletedAt=null`.",
+    "Get the public product catalog for the storefront. Only returns products where `status=ACTIVE`, `showInStore=true` and `visibility=true`.",
   operationId: "listStoreProducts",
   query: productsQuerySchema,
   responses: {

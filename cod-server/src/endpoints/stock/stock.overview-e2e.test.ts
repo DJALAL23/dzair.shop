@@ -7,7 +7,7 @@
  *   • negative inventory → out-of-stock bucket
  *   • threshold = 0 → alerts disabled (in-stock items never low)
  *   • inventory == threshold → low-stock (<= boundary)
- *   • untracked / soft-deleted products excluded
+ *   • untracked products excluded; a removed product leaves no line behind
  *   • inactive variants excluded; variants of non-variant products excluded
  *   • DRAFT status still included (no status filter — original behavior)
  *   • variant parent with no variants contributes no SKUs
@@ -21,6 +21,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "@/db/schema";
+import { inArray } from "drizzle-orm";
 import type { AppDb } from "@/db";
 import { getStockOverview, getStockAlerts } from "../../../../cod-shared/queries/stock";
 
@@ -81,11 +82,11 @@ beforeAll(async () => {
     mk("thr-zero", { price: 100, inventory: 3, lowStockThreshold: 0 }),
     mk("thr-boundary", { price: 100, inventory: 5, lowStockThreshold: 5 }),
     mk("untracked", { price: 100, inventory: 0, trackInventory: false }),
-    mk("soft-deleted", { price: 100, inventory: 0, deletedAt: now }),
+    mk("removed", { price: 100, inventory: 0 }),
     mk("draft-tracked", { price: 100, inventory: 4, status: "DRAFT" }),
     mk("variant-parent", { hasVariants: true, price: 100 }),
     mk("variant-parent-untracked", { hasVariants: true, trackInventory: false }),
-    mk("variant-parent-deleted", { hasVariants: true, deletedAt: now }),
+    mk("variant-parent-removed", { hasVariants: true }),
     mk("no-variant-parent", { hasVariants: true, price: 100 }),
     mk("simple-with-stray-variant", { hasVariants: false, price: 100, inventory: 8 }),
   ];
@@ -99,12 +100,13 @@ beforeAll(async () => {
     { id: "vp-c", productId: "variant-parent", sku: "SKU-VP-C", variations: '{"Color":"Green"}', price: 170, inventory: 0, lowStockThreshold: 5, active: false, position: 3, createdAt: now, updatedAt: now },
     { id: "vp-d", productId: "variant-parent", sku: "SKU-VP-D", variations: '{"Color":"Black"}', price: 180, inventory: 60, lowStockThreshold: 5, active: true, position: 4, createdAt: now, updatedAt: now },
     { id: "u-1", productId: "variant-parent-untracked", sku: "SKU-U-1", variations: '{"Color":"Grey"}', price: 100, inventory: 0, lowStockThreshold: 5, active: true, position: 1, createdAt: now, updatedAt: now },
-    { id: "d-1", productId: "variant-parent-deleted", sku: "SKU-D-1", variations: '{"Color":"White"}', price: 100, inventory: 0, lowStockThreshold: 5, active: true, position: 1, createdAt: now, updatedAt: now },
+    { id: "d-1", productId: "variant-parent-removed", sku: "SKU-D-1", variations: '{"Color":"White"}', price: 100, inventory: 0, lowStockThreshold: 5, active: true, position: 1, createdAt: now, updatedAt: now },
     { id: "stray-1", productId: "simple-with-stray-variant", sku: "SKU-STRAY", variations: '{"Color":"Pink"}', price: 100, inventory: 0, lowStockThreshold: 5, active: true, position: 1, createdAt: now, updatedAt: now },
   ];
   for (let i = 0; i < variantFixtures.length; i += 6) {
     await db.insert(schema.productVariants).values(variantFixtures.slice(i, i + 6));
   }
+  await db.delete(schema.products).where(inArray(schema.products.id, ["removed", "variant-parent-removed"]));
 }, 120_000);
 
 afterAll(async () => {
@@ -146,7 +148,7 @@ describe("getStockOverview — real D1", () => {
     expect(overview.allItems.find((i) => i.variantId === "d-1")).toBeUndefined();
     expect(overview.allItems.find((i) => i.productId === "no-variant-parent")).toBeUndefined();
     expect(overview.allItems.find((i) => i.productId === "untracked")).toBeUndefined();
-    expect(overview.allItems.find((i) => i.productId === "soft-deleted")).toBeUndefined();
+    expect(overview.allItems.find((i) => i.productId === "removed")).toBeUndefined();
   });
 
   it("threshold=0 disables low-stock for in-stock items (not out-of-stock)", async () => {

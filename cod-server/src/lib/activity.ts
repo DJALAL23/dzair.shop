@@ -23,6 +23,8 @@ export const ACTIONS = {
   ORDER_DISPATCHED:        "order.dispatched",
   ORDER_PRODUCT_RETURNED:  "order.product_returned",
   ORDER_DELETED:           "order.deleted",
+  ORDER_ARCHIVED:          "order.archived",
+  ORDER_UNARCHIVED:        "order.unarchived",
 
   // Shipments
   SHIPMENT_VOIDED:         "shipment.voided",

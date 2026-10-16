@@ -5,8 +5,9 @@ import {
   abandonedBasketView,
   attentionReason,
   eventLabel,
-  canDeleteOrder,
   canEditOrder,
+  orderDeletionConsequences,
+  orderRemovalError,
   canHandOff,
   canRecordRefusedUnits,
   carriersFor,
@@ -49,6 +50,7 @@ describe("the order list's work queues", () => {
   it("asks the server for a queue's stages, or for what needs attention", () => {
     expect(viewQuery("all")).toEqual({});
     expect(viewQuery("attention")).toEqual({ attention: true });
+    expect(viewQuery("archived")).toEqual({ archived: true });
     expect(viewQuery("on_the_way")).toEqual({ stages: ["handoff_pending", "in_transit", "out_for_delivery"] });
   });
 
@@ -62,8 +64,9 @@ describe("the order list's work queues", () => {
         { stage: "delivery_cancelled", count: 1 },
       ],
       needsAttention: 2,
+    archived: 0,
     });
-    expect(counts).toEqual({ all: 11, attention: 2, to_confirm: 5, to_prepare: 0, to_ship: 1, on_the_way: 5, delivered: 0, returns: 0, cancelled: 0 });
+    expect(counts).toEqual({ all: 11, attention: 2, archived: 0, to_confirm: 5, to_prepare: 0, to_ship: 1, on_the_way: 5, delivered: 0, returns: 0, cancelled: 0 });
   });
 });
 
@@ -99,11 +102,27 @@ describe("an order's next step", () => {
     expect(ORDER_STAGES.filter(canRecordRefusedUnits)).toEqual(["delivered"]);
   });
 
-  it("deletes only an order nothing rests on", () => {
-    expect(canDeleteOrder({ status: "new", hasShipment: false })).toBe(true);
-    expect(canDeleteOrder({ status: "cancelled", hasShipment: false })).toBe(true);
-    expect(canDeleteOrder({ status: "confirmed", hasShipment: false })).toBe(false);
-    expect(canDeleteOrder({ status: "ready", hasShipment: true })).toBe(false);
+  it("says what deleting an order takes away and what stays, from the server's reading", () => {
+    const t = (key: string, values?: Record<string, unknown>) => (values ? `${key}:${values.count}` : key);
+    const removal = { id: "o", orderNumber: "ORD-1", shipment: "none" as const, deletable: true, archivable: false, archivedAt: null, lines: 2, restockUnits: 3, reviews: 0 };
+    expect(orderDeletionConsequences(removal, t)).toEqual([
+      { text: "removal.lines:2" },
+      { text: "removal.restock:3", kept: true },
+      { text: "removal.customer_kept", kept: true },
+    ]);
+    expect(orderDeletionConsequences({ ...removal, restockUnits: 0, reviews: 1 }, t)).toEqual([
+      { text: "removal.lines:2" },
+      { text: "removal.reviews:1" },
+      { text: "removal.customer_kept", kept: true },
+    ]);
+  });
+
+  it("explains a refused removal by its code", () => {
+    const t = (key: string) => key;
+    expect(orderRemovalError({ code: "ORDER_HAS_SHIPMENT" }, t)).toBe("removal.error_has_shipment");
+    expect(orderRemovalError({ code: "ORDER_NOT_FINISHED" }, t)).toBe("removal.error_not_finished");
+    expect(orderRemovalError({ code: "ORDER_CHANGED" }, t)).toBe("removal.error_changed");
+    expect(orderRemovalError(new Error("network down"), t)).toBe("network down");
   });
 });
 

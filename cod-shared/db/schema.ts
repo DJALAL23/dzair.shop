@@ -495,6 +495,12 @@ export const orders = sqliteTable("orders", {
    * against the live policy. Carriers and pricing never read it.
    */
   customFieldsJson: text("custom_fields_json"),
+  /**
+   * When the merchant archived the finished order (migration 0042): it leaves
+   * the working lists and their counts, and still counts everywhere else —
+   * sales, the customer's history and spend. Null while it is not archived.
+   */
+  archivedAt: text("archived_at"),
 });
 
 export const orderStatusHistory = sqliteTable("order_status_history", {
@@ -560,7 +566,6 @@ export const products = sqliteTable("products", {
   status: text("status", { enum: ["DRAFT", "ACTIVE", "ARCHIVED"] }).notNull().default("ACTIVE"),
   showInStore: integer("show_in_store", { mode: "boolean" }).notNull().default(true),
   storeFeatured: integer("store_featured", { mode: "boolean" }).notNull().default(false),
-  deletedAt: text("deleted_at"),
   publishedAt: text("published_at"),
   /**
    * Product-level shipping profile override.
@@ -619,11 +624,10 @@ export const orderProducts = sqliteTable("order_products", {
   orderId: text("order_id")
     .notNull()
     .references(() => orders.id, { onDelete: "cascade" }),
-  productId: text("product_id")
-    .notNull()
-    .references(() => products.id),
+  /** Null once the product was removed: the line keeps what was sold (name, label, SKU, price). */
+  productId: text("product_id").references(() => products.id, { onDelete: "set null" }),
   productName: text("product_name").notNull(),
-  variantId: text("variant_id").references(() => productVariants.id),
+  variantId: text("variant_id").references(() => productVariants.id, { onDelete: "set null" }),
   variantLabel: text("variant_label"), // denormalized: "أحمر / XL"
   sku: text("sku"), // denormalized from products.sku / product_variants.sku at creation time
   quantity: integer("quantity").notNull(),
@@ -688,7 +692,7 @@ export const companyApiLogs = sqliteTable("company_api_logs", {
     .notNull()
     .references(() => deliveryCompanies.id),
   /** The order this call was related to, if any. */
-  orderId: text("order_id").references(() => orders.id),
+  orderId: text("order_id").references(() => orders.id, { onDelete: "cascade" }),
   /** Short action name: "create_shipment", "validate", "track", "delete", "get_fees" */
   action: text("action").notNull(),
   method: text("method").notNull(), // "GET" | "POST" | "PATCH" | "DELETE"
@@ -1579,7 +1583,7 @@ export const capiEventLog = sqliteTable(
     id: text("id").primaryKey(),
     orderId: text("order_id")
       .notNull()
-      .references(() => orders.id),
+      .references(() => orders.id, { onDelete: "cascade" }),
     eventName: text("event_name").notNull(),
     stage: text("stage").notNull().default("delivered"),
     status: text("status").notNull(),

@@ -7,10 +7,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { AlertTriangle, HelpCircle } from "lucide-react";
+import { AlertTriangle, Check, HelpCircle, Minus } from "lucide-react";
 import { useT } from "@/i18n/react";
 import { Button } from "./button";
 import { Dialog } from "./dialog";
+import { Input } from "./input";
+
+/** One line of what an action does: removed (default), kept, or worth a warning. */
+export type Consequence = { text: string; kept?: boolean; warning?: boolean };
 
 export type ConfirmDialogOptions = {
   title: string;
@@ -18,6 +22,13 @@ export type ConfirmDialogOptions = {
   confirmLabel?: string;
   cancelLabel?: string;
   tone?: "default" | "danger";
+  /** What the action takes away, what it keeps, and what to watch — said before it happens. */
+  consequences?: ReadonlyArray<Consequence>;
+  /**
+   * For what cannot be undone: the confirm button stays off until this exact
+   * text (a product's name, an order's number) is typed.
+   */
+  confirmText?: string;
 };
 
 type ConfirmRequest = ConfirmDialogOptions & {
@@ -33,6 +44,8 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const requestRef = useRef<ConfirmRequest | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const typedRef = useRef<HTMLInputElement>(null);
+  const [typed, setTyped] = useState("");
 
   const confirm = useCallback(
     (options: ConfirmDialogOptions) =>
@@ -40,6 +53,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
         requestRef.current?.resolve(false);
         const next = { ...options, resolve };
         requestRef.current = next;
+        setTyped("");
         setRequest(next);
       }),
     [],
@@ -53,6 +67,9 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => () => requestRef.current?.resolve(false), []);
+
+  const needsText = Boolean(request?.confirmText);
+  const confirmed = !needsText || typed.trim() === request?.confirmText?.trim();
 
   return (
     <ConfirmDialogContext.Provider value={confirm}>
@@ -75,7 +92,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
           )
         }
         role="alertdialog"
-        initialFocusRef={cancelRef}
+        initialFocusRef={needsText ? typedRef : cancelRef}
         showClose={false}
         className="max-w-md"
         footer={
@@ -92,14 +109,59 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
               <Button
                 type="button"
                 variant={request.tone === "danger" ? "danger" : "primary"}
-                onClick={() => settle(true)}
+                disabled={!confirmed}
+                onClick={() => confirmed && settle(true)}
               >
                 {request.confirmLabel ?? common("confirm")}
               </Button>
             </>
           )
         }
-      />
+      >
+        {request && (request.consequences?.length || needsText) ? (
+          <div className="space-y-4">
+            {request.consequences && request.consequences.length > 0 && (
+              <ul className="space-y-1.5 text-sm">
+                {request.consequences.map((item) => (
+                  <li key={item.text} className="flex items-start gap-2">
+                    {item.warning ? (
+                      <AlertTriangle size={15} className="mt-0.5 shrink-0 text-tone-warning-text" aria-hidden="true" />
+                    ) : item.kept ? (
+                      <Check size={15} className="mt-0.5 shrink-0 text-tone-success-text" aria-hidden="true" />
+                    ) : (
+                      <Minus size={15} className="mt-0.5 shrink-0 text-destructive" aria-hidden="true" />
+                    )}
+                    <span className="text-foreground">{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {needsText && (
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (confirmed) settle(true);
+                }}
+              >
+                <label className="block space-y-1.5">
+                  <span className="block text-sm text-muted-foreground">
+                    {common("confirm_type", { text: request.confirmText! })}
+                  </span>
+                  <Input
+                    ref={typedRef}
+                    value={typed}
+                    onChange={(event) => setTyped(event.currentTarget.value)}
+                    autoComplete="off"
+                    spellCheck={false}
+                    dir="auto"
+                    aria-label={common("confirm_type", { text: request.confirmText! })}
+                  />
+                </label>
+              </form>
+            )}
+          </div>
+        ) : null}
+      </Dialog>
     </ConfirmDialogContext.Provider>
   );
 }

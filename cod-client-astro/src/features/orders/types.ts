@@ -20,7 +20,8 @@ export interface StatusHistoryItem {
 export interface OrderProduct {
   id: string;
   orderId: string;
-  productId: string;
+  /** Null once the product was removed: the line keeps what was sold. */
+  productId: string | null;
   productName: string;
   variantId: string | null;
   variantLabel: string | null;
@@ -64,6 +65,8 @@ export interface OrderBase {
   customerEmail?: string | null;
   /** Answers to the merchant's custom questions, as stored with the order. */
   customFieldsJson?: string | null;
+  /** When the finished order was archived: out of the working lists, still counted in sales. */
+  archivedAt: string | null;
   /** Where the order stands overall: its processing, then its delivery. */
   stage: OrderStage;
   /** The delivery needs the merchant: an unconfirmed handoff, a parcel cancelled or flagged by the carrier. */
@@ -155,6 +158,22 @@ export interface OrderPage {
 export interface OrderStageCounts {
   stages: Array<{ stage: OrderStage; count: number }>;
   needsAttention: number;
+  archived: number;
+}
+
+/** What can be done to clear an order away, as the server decides it. */
+export interface OrderRemoval {
+  id: string;
+  orderNumber: string;
+  shipment: "none" | "open" | "closed";
+  /** Only an order never handed to delivery. */
+  deletable: boolean;
+  /** A finished order — cancelled, or its delivery ended — not archived yet. */
+  archivable: boolean;
+  archivedAt: string | null;
+  lines: number;
+  restockUnits: number;
+  reviews: number;
 }
 
 /** How one order of a handoff ended. */

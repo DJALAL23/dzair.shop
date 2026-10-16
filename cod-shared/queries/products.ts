@@ -1,8 +1,9 @@
-import { eq, and, like, or, sum, isNull, sql, inArray, getTableColumns } from "drizzle-orm";
-import { products, productCategories, productVariants, productImages, reviews, stockMovements } from "../db/schema";
+import { eq, and, like, or, sum, sql, inArray, getTableColumns } from "drizzle-orm";
+import { products, productCategories, productVariants, productImages, reviews, stockMovements, landingPages, landingPageImages } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { sanitizeRichText, toPlainText } from "../lib/rich-text";
 import { safeLikeTerm } from "./search";
+import { imageKeysInText } from "../lib/orphan-images";
 import type { VariantOption } from "../i18n/translations";
 import { pruneOptionTranslations } from "./translations";
 
@@ -106,7 +107,7 @@ export async function deriveDescriptionPlain(
 }
 
 async function buildProductDetail(db: AppDb, productId: string) {
-  const product = await db.select().from(products).where(and(eq(products.id, productId), isNull(products.deletedAt))).get();
+  const product = await db.select().from(products).where(eq(products.id, productId)).get();
   if (!product) return null;
 
   const [category, variants, images, totalInventoryRow] = await Promise.all([
@@ -156,7 +157,6 @@ function chunkIds(ids: string[]): string[][] {
 
 export async function getAllProducts(db: AppDb, filters?: ProductFilters) {
   const conditions: ReturnType<typeof eq>[] = [];
-  conditions.push(isNull(products.deletedAt) as any);
 
   if (filters?.categoryId) conditions.push(eq(products.categoryId, filters.categoryId) as any);
   if (filters?.status) conditions.push(eq(products.status, filters.status) as any);
@@ -264,7 +264,6 @@ export async function createProduct(db: AppDb, data: CreateProductData) {
     showInStore: data.showInStore,
     storeFeatured: data.storeFeatured,
     shippingProfileId: data.shippingProfileId ?? null,
-    deletedAt: null,
     publishedAt: data.status === "ACTIVE" ? now : null,
     createdAt: now,
     updatedAt: now,
@@ -362,30 +361,86 @@ export async function updateProduct(db: AppDb, productId: string, data: UpdatePr
   return buildProductDetail(db, productId);
 }
 
-export async function deleteProduct(db: AppDb, productId: string) {
-  // Hard delete. Callers guarantee no orderProducts reference the product
-  // (delete is refused with PRODUCT_HAS_ORDERS otherwise), so removing the
-  // row outright is safe and frees the unique handle/sku for reuse — a
-  // soft-deleted row would keep blocking recreation at the DB's unique
-  // indexes (they span soft-deleted rows). Children are removed first:
-  // the D1 foreign keys have no ON DELETE cascade.
-  await db.delete(productVariants).where(eq(productVariants.productId, productId));
-  await db.delete(productImages).where(eq(productImages.productId, productId));
-  await db.delete(products).where(eq(products.id, productId));
-  return { success: true };
+/** What removing a product takes with it, and what stays. */
+export interface ProductRemoval {
+  id: string;
+  name: string;
+  variants: number;
+  images: number;
+  reviews: number;
+  /** Offers it triggers or rewards: they go with it. */
+  offers: number;
+  /** Its landing pages, with their images and pixel settings. */
+  landingPages: number;
+  /** Orders those landing pages brought: kept, without the landing page link. */
+  landingPageOrders: number;
+  /** Order lines that sold it: kept as they were sold, without the product link. */
+  orderLines: number;
+  /** Orders holding it that are not handed to delivery yet: they keep the line, and it is never put back in stock. */
+  ordersToShip: number;
+}
+
+/** What `deleteProduct` would remove, read in one statement. Null when the product does not exist. */
+export async function productRemoval(db: AppDb, productId: string): Promise<ProductRemoval | null> {
+  const row = await db.get<ProductRemoval>(sql`
+    select p.id as id, p.name as name,
+      (select count(*) from product_variants v where v.product_id = p.id) as variants,
+      (select count(*) from product_images i where i.product_id = p.id) as images,
+      (select count(*) from reviews r where r.product_id = p.id) as reviews,
+      (select count(*) from offers f where f.trigger_product_id = p.id or f.reward_product_id = p.id) as offers,
+      (select count(*) from landing_pages lp where lp.product_id = p.id) as landingPages,
+      (select count(*) from orders o join landing_pages lp on lp.id = o.landing_page_id where lp.product_id = p.id) as landingPageOrders,
+      (select count(*) from order_products op where op.product_id = p.id) as orderLines,
+      (select count(distinct op.order_id) from order_products op join orders o on o.id = op.order_id
+        where op.product_id = p.id and o.status <> 'cancelled' and not exists (select 1 from shipments s where s.order_id = o.id)) as ordersToShip
+    from products p
+    where p.id = ${productId}`);
+  return row ?? null;
 }
 
 /**
- * Identity conflict finder for create/update: does ANY product — including
- * soft-deleted ones — already hold this handle or SKU? The database's unique
- * indexes span soft-deleted rows, so a friendly pre-check that only looked at
- * live products would pass and the insert would still crash with a raw
- * constraint violation (500).
+ * Remove a product, for good. The database takes the rest with it: variants,
+ * images, reviews, stock history, offers and translations by cascade, its
+ * landing pages by trigger; order lines and abandoned checkouts keep what was
+ * sold and lose only the link (migration 0042).
+ *
+ * Returns the stored image keys it showed — gallery, inline description
+ * images, landing page images — for the caller to remove from storage once
+ * nothing else shows them (`stillReferencedImageKeys`). Null when there was no
+ * such product.
+ */
+export async function deleteProduct(db: AppDb, productId: string): Promise<{ name: string; imageKeys: string[] } | null> {
+  const [gallery, own, landing] = await db.batch([
+    db.select({ r2Key: productImages.r2Key, src: productImages.src }).from(productImages).where(eq(productImages.productId, productId)),
+    db.select({ description: products.description }).from(products).where(eq(products.id, productId)),
+    db
+      .select({ r2Key: landingPageImages.r2Key })
+      .from(landingPageImages)
+      .innerJoin(landingPages, eq(landingPages.id, landingPageImages.landingPageId))
+      .where(eq(landingPages.productId, productId)),
+  ]);
+  const deleted = await db.delete(products).where(eq(products.id, productId)).returning({ name: products.name });
+  if (deleted.length === 0) return null;
+
+  const imageKeys = new Set<string>();
+  for (const image of gallery) {
+    if (image.r2Key) imageKeys.add(image.r2Key);
+    for (const key of imageKeysInText(image.src)) imageKeys.add(key);
+  }
+  for (const key of imageKeysInText(own[0]?.description)) imageKeys.add(key);
+  for (const image of landing) imageKeys.add(image.r2Key);
+  return { name: deleted[0].name, imageKeys: [...imageKeys] };
+}
+
+/**
+ * Identity conflict finder for create/update: does another product already
+ * hold this handle or SKU? Answers before the unique index would, so the
+ * merchant gets a 409 that names the field instead of a raw constraint error.
  */
 export async function findProductIdentityConflict(
   db: AppDb,
   identity: { handle?: string; sku?: string },
-): Promise<{ field: "handle" | "sku"; existingId: string; deleted: boolean } | null> {
+): Promise<{ field: "handle" | "sku"; existingId: string } | null> {
   const conditions = [];
   if (identity.handle !== undefined) conditions.push(eq(products.handle, identity.handle));
   if (identity.sku !== undefined) conditions.push(eq(products.sku, identity.sku));
@@ -396,7 +451,6 @@ export async function findProductIdentityConflict(
       id: products.id,
       handle: products.handle,
       sku: products.sku,
-      deletedAt: products.deletedAt,
     })
     .from(products)
     .where(or(...conditions))
@@ -405,7 +459,7 @@ export async function findProductIdentityConflict(
 
   const field =
     identity.handle !== undefined && row.handle === identity.handle ? "handle" : "sku";
-  return { field, existingId: row.id, deleted: row.deletedAt !== null };
+  return { field, existingId: row.id };
 }
 
 export async function getProductImages(db: AppDb, productId: string) {

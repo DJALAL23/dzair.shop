@@ -21,8 +21,14 @@ const orderStagesRoute = defineRoute({
   tags: ["Analytics"],
   summary: "Orders by stage",
   description:
-    "Orders counted by the stage the merchant sees — their processing, then their shipment's delivery (the same stage as `GET /api/orders/{id}`) — with only the stages that have orders, and how many orders need the merchant's attention (an unknown handoff, a parcel the carrier cancelled or flagged).",
+    "Orders counted by the stage the merchant sees — their processing, then their shipment's delivery (the same stage as `GET /api/orders/{id}`) — with only the stages that have orders, how many orders need the merchant's attention, and how many are archived; `archived=exclude` leaves archived orders out of the stages, as the working lists do (an unknown handoff, a parcel the carrier cancelled or flagged).",
   operationId: "getOrderStageStats",
+  query: z.object({
+    archived: z
+      .enum(["include", "exclude"])
+      .default("include")
+      .describe("Count archived orders in the stages (include — every order, as sales do) or leave them out (exclude — the working lists' counts)"),
+  }),
   responses: {
     200: {
       description: "Orders per stage, and the count needing attention",
@@ -33,6 +39,7 @@ const orderStagesRoute = defineRoute({
             data: z.object({
               stages: z.array(z.object({ stage: z.enum(ORDER_STAGES), count: z.number().int().openapi({ example: 12 }) })),
               needsAttention: z.number().int().openapi({ example: 3 }),
+              archived: z.number().int().openapi({ description: "Archived orders", example: 40 }),
             }),
           }),
         },

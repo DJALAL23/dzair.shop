@@ -14,6 +14,7 @@ import * as queries from "./queries";
 
 // Mock the queries module
 vi.mock("./queries");
+vi.mock("@/lib/remove-product", () => ({ removeProduct: vi.fn(async () => null) }));
 
 // Mock the database
 const mockDb = {
@@ -118,7 +119,6 @@ describe("Products Endpoint - Error Scenarios", () => {
         status: "ACTIVE",
         showInStore: true,
         storeFeatured: false,
-        deletedAt: null,
         publishedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -153,7 +153,6 @@ describe("Products Endpoint - Error Scenarios", () => {
       vi.mocked(queries.findProductIdentityConflict).mockResolvedValue({
         field: "sku",
         existingId: "prod_existing",
-        deleted: false,
       });
 
       const res = await app.request("/products", {
@@ -210,7 +209,6 @@ describe("Products Endpoint - Error Scenarios", () => {
         status: "ACTIVE",
         showInStore: true,
         storeFeatured: false,
-        deletedAt: null,
         publishedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -326,122 +324,5 @@ describe("Products Endpoint - Error Scenarios", () => {
       });
     });
 
-    it("should return 422 with PRODUCT_HAS_ORDERS code when product has existing orders", async () => {
-      // Mock getProductById to return existing product
-      vi.mocked(queries.getProductById).mockResolvedValue({
-        id: "prod_123",
-        name: "Samsung Galaxy A54",
-        description: null,
-        descriptionFormat: "text",
-        descriptionPlain: null,
-        handle: "samsung-galaxy-a54",
-        currency: "DZD",
-        price: 45000,
-        compareAtPrice: null,
-        costPrice: null,
-        type: "PHYSICAL",
-        hasVariants: false,
-        variantOptions: null,
-        sku: "GALAXY-A54",
-        inventory: 10,
-        lowStockThreshold: 5,
-        trackInventory: true,
-        categoryId: null,
-        tags: [],
-        visibility: true,
-        status: "ACTIVE",
-        showInStore: true,
-        storeFeatured: false,
-        deletedAt: null,
-        publishedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        category: null,
-        variants: [],
-        images: [],
-        variantsCount: 0,
-        totalInventory: 10,
-        shippingProfileId: null,
-      });
-
-      // Mock database query to return order with this product
-      mockDb.get.mockResolvedValue({
-        id: "order_prod_1",
-        order_id: "order_123",
-        product_id: "prod_123",
-      });
-
-      const res = await app.request("/products/prod_123", {
-        method: "DELETE",
-      });
-
-      expect(res.status).toBe(422);
-      const body = await res.json();
-      expect(body).toMatchObject({
-        error: "Cannot delete product with existing orders",
-        code: ERROR_CODES.PRODUCT_HAS_ORDERS,
-        category: ERROR_CATEGORIES.BUSINESS_LOGIC,
-        context: {
-          productId: "prod_123",
-          productName: "Samsung Galaxy A54",
-        },
-      });
-    });
-
-    it("should return 200 when product is deleted successfully", async () => {
-      // Mock getProductById to return existing product
-      vi.mocked(queries.getProductById).mockResolvedValue({
-        id: "prod_123",
-        name: "Samsung Galaxy A54",
-        description: null,
-        descriptionFormat: "text",
-        descriptionPlain: null,
-        handle: "samsung-galaxy-a54",
-        currency: "DZD",
-        price: 45000,
-        compareAtPrice: null,
-        costPrice: null,
-        type: "PHYSICAL",
-        hasVariants: false,
-        variantOptions: null,
-        sku: "GALAXY-A54",
-        inventory: 10,
-        lowStockThreshold: 5,
-        trackInventory: true,
-        categoryId: null,
-        tags: [],
-        visibility: true,
-        status: "ACTIVE",
-        showInStore: true,
-        storeFeatured: false,
-        deletedAt: null,
-        publishedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        category: null,
-        variants: [],
-        images: [],
-        variantsCount: 0,
-        totalInventory: 10,
-        shippingProfileId: null,
-      });
-
-      // Mock no orders with this product
-      mockDb.get.mockResolvedValue(null);
-
-      // Mock successful deletion
-      vi.mocked(queries.deleteProduct).mockResolvedValue({ success: true });
-
-      const res = await app.request("/products/prod_123", {
-        method: "DELETE",
-      });
-
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body).toMatchObject({
-        success: true,
-        message: "Product deleted",
-      });
-    });
   });
 });

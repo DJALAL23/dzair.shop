@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { AlertTriangle, PackageOpen, Send } from "lucide-react";
+import { AlertTriangle, Archive, PackageOpen, Send } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { getOrderStageCounts, listDeliveryCompanies, listDrivers, listOrders, listWilayas, type OrderQuery } from "@/features/orders/api";
@@ -37,7 +37,7 @@ const NO_FILTERS: Filters = { search: "", kind: "", orderType: "", wilayaId: "" 
 
 function initialView(): OrderView {
   const view = new URLSearchParams(window.location.search).get("view");
-  return view === "attention" || VIEWS.includes(view as OrderView) ? (view as OrderView) : "all";
+  return view === "attention" || view === "archived" || VIEWS.includes(view as OrderView) ? (view as OrderView) : "all";
 }
 
 function rememberView(view: OrderView) {
@@ -93,7 +93,7 @@ export function OrdersList() {
     setError(null);
     setSelected(new Set());
     try {
-      const [page, stageCounts] = await Promise.all([listOrders(query()), getOrderStageCounts()]);
+      const [page, stageCounts] = await Promise.all([listOrders(query()), getOrderStageCounts({ working: true })]);
       if (ticket !== request.current) return;
       setOrders(page.orders);
       setNextCursor(page.nextCursor);
@@ -183,6 +183,21 @@ export function OrdersList() {
               {counts && <span className="text-xs font-medium tabular-nums text-muted-foreground">{counts[key]}</span>}
             </button>
           ))}
+          {counts && (counts.archived > 0 || view === "archived") && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "archived"}
+              onClick={() => choose("archived")}
+              className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors pointer-coarse:h-9 ${
+                view === "archived" ? "bg-foreground/[0.08] font-semibold text-foreground" : "font-medium text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
+              }`}
+            >
+              <Archive size={14} aria-hidden="true" />
+              {t("queues.archived")}
+              <span className="text-xs font-medium tabular-nums text-muted-foreground">{counts.archived}</span>
+            </button>
+          )}
           {counts && counts.attention > 0 && (
             <button
               type="button"

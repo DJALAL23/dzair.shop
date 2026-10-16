@@ -141,10 +141,10 @@ describe("shipment events", () => {
     await insertEvent({ source: "legacy", interpretation: null, milestone: null });
   });
 
-  it("deleting the order removes its shipment and every event", async () => {
+  it("removing a shipment removes every event; its order cannot be removed while it has one (0042)", async () => {
     await insertEvent({ interpretation: "progress" });
-    await d1.raw.prepare("DELETE FROM orders WHERE id = 'o1'").run();
-    expect((await d1.raw.prepare("SELECT count(*) n FROM shipments").first<{ n: number }>())?.n).toBe(0);
+    await expect(d1.raw.prepare("DELETE FROM orders WHERE id = 'o1'").run()).rejects.toThrow(/ORDER_HAS_SHIPMENT/);
+    await d1.raw.prepare("DELETE FROM shipments WHERE order_id = 'o1'").run();
     expect((await d1.raw.prepare("SELECT count(*) n FROM shipment_events").first<{ n: number }>())?.n).toBe(0);
   });
 });

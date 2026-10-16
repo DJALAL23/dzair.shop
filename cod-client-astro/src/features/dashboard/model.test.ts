@@ -11,6 +11,7 @@ const counts = {
     { stage: "returning" as const, count: 1 },
   ],
   needsAttention: 1,
+    archived: 0,
 };
 
 describe("the overview", () => {
@@ -24,12 +25,12 @@ describe("the overview", () => {
       { key: "returns", count: 2, share: 14 },
       { key: "cancelled", count: 0, share: 0 },
     ]);
-    expect(queueBreakdown({ stages: [], needsAttention: 0 }).every((queue) => queue.count === 0 && queue.share === 0)).toBe(true);
+    expect(queueBreakdown({ stages: [], needsAttention: 0, archived: 0 }).every((queue) => queue.count === 0 && queue.share === 0)).toBe(true);
   });
 
   it("measures delivery success over the parcels that reached their customer", () => {
     expect(deliverySuccessRate(counts)).toBe(75);
-    expect(deliverySuccessRate({ stages: [{ stage: "in_transit", count: 4 }], needsAttention: 0 })).toBeNull();
+    expect(deliverySuccessRate({ stages: [{ stage: "in_transit", count: 4 }], needsAttention: 0, archived: 0 })).toBeNull();
   });
 
   it("fills every day of the window and compares it with the window before", () => {
