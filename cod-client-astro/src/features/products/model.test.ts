@@ -193,3 +193,44 @@ describe("products model", () => {
     expect(formatStockDate("not-a-date", "en")).toBeNull();
   });
 });
+
+import { optionalDescription, optionalId, optionalMoney } from "./model";
+
+describe("product update payload: a cleared field is sent as null", () => {
+  it("sends null for an emptied money field when editing, so the server clears it", () => {
+    expect(optionalMoney("", true)).toBeNull();
+    expect(optionalMoney("   ", true)).toBeNull();
+  });
+
+  it("leaves an empty money field out when creating", () => {
+    expect(optionalMoney("", false)).toBeUndefined();
+  });
+
+  it("rounds a filled money field in both modes", () => {
+    expect(optionalMoney("7000", true)).toBe(7000);
+    expect(optionalMoney("7000.6", false)).toBe(7001);
+  });
+
+  it("keeps a zero cost: zero is a value, not an empty field", () => {
+    expect(optionalMoney("0", true)).toBe(0);
+  });
+
+  it("clears an unset id (product group, shipping profile) with null when editing only", () => {
+    expect(optionalId("", true)).toBeNull();
+    expect(optionalId("", false)).toBeUndefined();
+    expect(optionalId("grp_1", true)).toBe("grp_1");
+  });
+
+  it("treats an empty editor's markup as no description", () => {
+    expect(optionalDescription("<p></p>", true)).toBe("");
+    expect(optionalDescription("<p><br></p>", true)).toBe("");
+    expect(optionalDescription("<p>&nbsp;</p>", false)).toBeUndefined();
+    expect(optionalDescription("", true)).toBe("");
+    expect(optionalDescription("", false)).toBeUndefined();
+  });
+
+  it("never discards a description that holds content, even only an image", () => {
+    expect(optionalDescription("<p>Hello</p>", true)).toBe("<p>Hello</p>");
+    expect(optionalDescription('<p><img src="a.jpg"></p>', true)).toBe('<p><img src="a.jpg"></p>');
+  });
+});

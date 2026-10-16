@@ -415,3 +415,35 @@ describe("MCP tool path sanitises identically (plan §7)", () => {
     }
   });
 });
+
+describe("clearing optional product fields on update", () => {
+  const priced = { compareAtPrice: 7000, costPrice: 3000 };
+
+  it("keeps compare-at price and cost when an update leaves the keys out", async () => {
+    const created = await call<{ id: string }>("createProduct", { ...BASE_PRODUCT, ...priced, handle: "clr-keep", sku: "CLR-001" });
+    const updated = await call<Record<string, unknown>>("updateProduct", created.id, { price: 5500 });
+    expect(updated.price).toBe(5500);
+    expect(updated.compareAtPrice).toBe(7000);
+    expect(updated.costPrice).toBe(3000);
+  });
+
+  it("clears compare-at price and cost when an update sends null", async () => {
+    const created = await call<{ id: string }>("createProduct", { ...BASE_PRODUCT, ...priced, handle: "clr-null", sku: "CLR-002" });
+    const updated = await call<Record<string, unknown>>("updateProduct", created.id, {
+      compareAtPrice: null,
+      costPrice: null,
+    });
+    expect(updated.compareAtPrice).toBeNull();
+    expect(updated.costPrice).toBeNull();
+    const stored = await call<Record<string, unknown>>("getProductById", created.id);
+    expect(stored.compareAtPrice).toBeNull();
+    expect(stored.costPrice).toBeNull();
+  });
+
+  it("clears one field without touching the other", async () => {
+    const created = await call<{ id: string }>("createProduct", { ...BASE_PRODUCT, ...priced, handle: "clr-one", sku: "CLR-003" });
+    const updated = await call<Record<string, unknown>>("updateProduct", created.id, { compareAtPrice: null });
+    expect(updated.compareAtPrice).toBeNull();
+    expect(updated.costPrice).toBe(3000);
+  });
+});

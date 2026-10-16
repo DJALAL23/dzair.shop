@@ -17,6 +17,31 @@ export interface ProductFilters {
   status: ProductStatus | "all";
 }
 
+/**
+ * An update only changes what it carries: a key that is left out means "keep
+ * what is stored", and `null` means "clear it". So a field the merchant has
+ * emptied must travel as `null` when editing — dropping the key would silently
+ * keep the old value. A create has nothing stored, so an empty field is simply
+ * left out (the create schema does not take null).
+ */
+export function optionalMoney(value: string, editing: boolean): number | null | undefined {
+  if (value.trim() === "") return editing ? null : undefined;
+  return Math.round(Number(value));
+}
+
+export function optionalId(value: string, editing: boolean): string | null | undefined {
+  if (value === "") return editing ? null : undefined;
+  return value;
+}
+
+const EMPTY_EDITOR_MARKUP = /^(<p>(\s|<br\s*\/?>|&nbsp;)*<\/p>)?$/i;
+
+/** An empty rich-text editor holds `<p></p>`; that is no description, and must not be stored as one. */
+export function optionalDescription(value: string, editing: boolean): string | undefined {
+  if (EMPTY_EDITOR_MARKUP.test(value.trim())) return editing ? "" : undefined;
+  return value;
+}
+
 export const PRODUCT_STATUSES: ProductStatus[] = ["ACTIVE", "DRAFT", "ARCHIVED"];
 
 export function parseProductStatus(value: string | undefined): ProductStatus | undefined {
