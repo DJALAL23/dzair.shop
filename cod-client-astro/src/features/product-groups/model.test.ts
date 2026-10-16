@@ -68,3 +68,19 @@ describe("product-groups model", () => {
     expect(formatGroupDate("not-a-date", "en")).toBe("-");
   });
 });
+
+import { clearable } from "./model";
+
+describe("product group update payload: a cleared field is sent as null", () => {
+  it("sends null for an emptied field when editing, so the server clears it", () => {
+    expect(clearable("", true)).toBeNull();
+    expect(clearable("   ", true)).toBeNull();
+  });
+  it("leaves an empty field out when creating", () => {
+    expect(clearable("", false)).toBeUndefined();
+  });
+  it("trims and keeps a filled field", () => {
+    expect(clearable("  Phones ", true)).toBe("Phones");
+    expect(clearable("Phones", false)).toBe("Phones");
+  });
+});

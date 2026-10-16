@@ -6,7 +6,7 @@ import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 import { createProductGroup, getProductGroup, listProductGroups, updateProductGroup } from "@/features/product-groups/api";
-import { productGroupErrorMessage, toSlug } from "@/features/product-groups/model";
+import { clearable, productGroupErrorMessage, toSlug } from "@/features/product-groups/model";
 import type { ProductCategory, ProductCategoryFormValues } from "@/features/product-groups/types";
 import { Alert, Card, Field, FormPage, Input, Select, Textarea } from "@/components/ui";
 import { CategoryImageUploader } from "@/features/product-groups/components/CategoryImageUploader";
@@ -57,12 +57,12 @@ function ProductGroupForm({ groupId }: { groupId?: string }) {
     const body = {
       name: form.name.trim(),
       slug: form.slug.trim() || toSlug(form.name),
-      description: form.description.trim() || undefined,
-      parentId: form.parentId || undefined,
-      imageUrl: form.imageUrl || undefined,
-      metaTitle: form.metaTitle.trim() || undefined,
-      metaDescription: form.metaDescription.trim() || undefined,
-      metaKeywords: form.metaKeywords.trim() || undefined,
+      description: clearable(form.description, editing),
+      parentId: clearable(form.parentId, editing),
+      imageUrl: clearable(form.imageUrl, editing),
+      metaTitle: clearable(form.metaTitle, editing),
+      metaDescription: clearable(form.metaDescription, editing),
+      metaKeywords: clearable(form.metaKeywords, editing),
     };
     try {
       if (groupId) await updateProductGroup(groupId, body);

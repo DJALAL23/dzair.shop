@@ -57,6 +57,17 @@ export function productGroupErrorMessage(cause: unknown, t: (key: string) => str
   return t("error_generic");
 }
 
+/**
+ * An update only changes what it carries: a missing key keeps the stored value
+ * and `null` clears it. A field the merchant emptied must therefore travel as
+ * `null` when editing; a create has nothing stored, so it is simply left out.
+ */
+export function clearable(value: string, editing: boolean): string | null | undefined {
+  const trimmed = value.trim();
+  if (trimmed === "") return editing ? null : undefined;
+  return trimmed;
+}
+
 export function toSlug(name: string) {
   return name.toLocaleLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-");
 }
