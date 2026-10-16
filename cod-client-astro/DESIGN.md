@@ -1,95 +1,145 @@
-# CodFlow Astro Dashboard Design System
+# CodFlow Dashboard Design System
+
+The source of truth for every token is `src/styles/globals.css` (colour, radius,
+elevation, type scale) and `src/styles/fonts.css` (typefaces). This file says
+what they mean and how to use them. When the two disagree, the CSS wins — fix
+this file.
 
 ## Direction
 
-CodFlow is a merchant workbench for Algerian cash-on-delivery operations. Its
-visual source is the supplied Shopify Admin references: a charcoal global
-utility bar, light navigation rail, cool-gray workspace, white operational
-surfaces, compact typography, and restrained semantic color. CodFlow keeps its
-own identity, terminology, Arabic-first behavior, and delivery workflows.
-
-The interface is operational, compact, and calm. It should feel reliable when
+CodFlow is a merchant workbench for Algerian cash-on-delivery operations. It is
 used for long order-processing sessions on desktop and for quick decisions on
-mobile. It must not use the previous dashboard's decorative glass cards, glow
-blobs, gradient surfaces, or oversized rounded compositions.
+a phone, in Arabic first, then French and English.
 
-## Palette
+The interface is quiet: a neutral canvas, white surfaces, one charcoal action
+colour, and colour reserved for meaning. No decorative glass, gradients, glow
+blobs or oversized rounded compositions.
 
-- Utility header: charcoal `#1A1A1A` with white controls and low-contrast search field.
-- Workspace: cool gray `#F6F6F7`; navigation rail `#EBEBEB`; surfaces white `#FFFFFF`.
-- Structural border: `#E1E3E5`; input border: `#8C9196`; primary text: `#202223`; secondary text: `#6D7175`.
-- Primary actions: charcoal `#202223` with white text. Links: blue `#2C6ECB`.
-- CodFlow mark: luxury amethyst `#6D28D9`; do not use it as a general action color.
-- Status colors are semantic only: green success, yellow pending, blue information, red return/error, gray neutral.
+## Colour
 
-### Dark mode — "Midnight Amethyst"
+Use the semantic tokens through Tailwind (`bg-card`, `text-muted-foreground`,
+`border-border`). Never write a literal hex or a Tailwind palette colour
+(`text-amber-600`, `bg-violet-500/10`) in a component: it does not follow dark
+mode.
 
-Dark mode is not gray-on-gray. It is the same system inverted around a
-purple-tinted charcoal scale so surfaces step visibly lighter as they elevate:
+| Token | Light | Role |
+|---|---|---|
+| `background` | `#f3f3f4` | The canvas behind the content panel |
+| `card` | `#ffffff` | Every surface that holds content |
+| `foreground` / `primary` | `#303030` | Text and the one action colour |
+| `muted-foreground` | `#616161` | Secondary text |
+| `border` | `#e8e8ea` | Structural hairlines |
+| `input` | `#b5b5b5` | Form control borders |
+| `ring` / `link` | `#005bd3` | Focus ring and links |
+| `brand` | `#7c3aed` | The CodFlow mark and identity tiles only |
+| `destructive` / `success` / `warning` | red / green / amber | Solid semantic colour (icons, stripes, filled buttons) |
 
-- Elevation ladder (dark to light): topbar `#0C0E0D`, canvas `#121513`,
-  rail `#171B18`, card `#1C201D`, popover/overlays `#232824`, fills/hovers `#2A302B`.
-- Borders are whisper hairlines (`#303632`; rail `#262B27`), never heavy outlines;
-  input borders sit at `#4A524C`.
-- Text: near-white `#EDF1EE` with secondary text `#9BA39D`. Primary actions invert
-  to the light token (`#EDF1EE`) with deep charcoal-green label text.
-- Brand presence: accent fills are translucent amethyst (`#6D28D9` at ~16%
-  with `#C4B5FD` foreground) — used for identity tiles and highlights.
-- Status chips are translucent tinted glass over the surface: ~10–14% color fill,
-  ~30% matching border, bright tinted text (success chips carry the brand green).
-  Never opaque muddy blocks.
-- Links and focus rings stay blue (`#86B6FA` / `#8AB4F8`) for cross-mode familiarity.
+### Tones
+
+Meaning is carried by seven tones — `neutral`, `info`, `success`, `warning`,
+`attention`, `critical`, `magic` — each with a `bg`, `text` and `border`
+variable, exposed as utilities: `bg-tone-warning-bg text-tone-warning-text
+border-tone-warning-border`. Badges, alerts, callouts and status chips are all
+built from them. Pick the tone by what the thing *means*:
+
+- `success` — done, positive, copied, connected
+- `warning` — needs a look, pending
+- `attention` — needs action soon
+- `critical` — failed, returned, destructive
+- `info` — informational, in progress
+- `magic` — automation and identity
+- `neutral` — everything else
+
+Order stages have their own `--status-*` pairs built on the same tones;
+analytics series use `--chart-*`. Use `bg-warning` / `bg-destructive` (solid)
+only for thin stripes and icons, never for a block of text.
+
+### Dark mode
+
+Dark mode is the same ladder inverted — each elevation one step lighter:
+canvas `#0f0f10`, card `#18181a`, popover `#222225`, border `#2a2a2e`. Primary
+inverts to `#f0f0f0`. Tones become translucent tints over the surface (about
+14% fill, 30% border) with bright text, never opaque blocks. Because every
+component uses tokens, dark mode needs no per-component code; a component that
+needs a `dark:` colour override is using the wrong token.
 
 ## Typography
 
-- Arabic: Cairo Variable.
-- English and French: Inter Variable with Cairo fallback for Arabic data.
-- Body copy is 15px with normal letter spacing.
-- Page titles are 24px and bold, not display-scale.
-- Labels use 11px to 12px semibold text when compact metadata is needed.
-- Do not use all-bold text, negative tracking, or decorative display typography.
+- Latin: Geist Variable. Arabic: IBM Plex Sans Arabic (the fallback in the same
+  stack, so mixed Arabic/Latin data renders in one run).
+- Base size is 15px in Arabic and 14px in English and French
+  (`html[lang]` rule in `globals.css`); small text is 12px.
+- Page titles are 20px semibold (`PageHeader`). Card titles are 14px semibold.
+  Field labels and metadata are 12px medium in `muted-foreground`.
+- No negative tracking, no uppercase labels, no all-bold text.
 
-## Geometry And Elevation
+## Geometry and elevation
 
-- Control height: 36px to 40px.
-- Standard control radius: 8px. Operational surfaces use 12px. Status labels use 8px rather than full pills.
-- Surfaces use 1px borders and restrained soft shadows only when elevation clarifies layering.
-- No nested cards. Page regions are layouts; cards frame repeated items, tables, and focused tools.
-- Use 4px-based spacing with 8px as the dominant rhythm.
+- Buttons are 32px tall (28px small, 40px large; 40px on touch via `pointer-coarse:`). Control radius
+  8px; surfaces 12px (`rounded-xl`); status marks 6px (`rounded-md`), never full
+  pills. `rounded-2xl` is reserved for the content panel in the shell.
+- Surfaces are separated by a 1px border or a soft shadow (`shadow-card`), never
+  both stacked. No card inside a card — page regions are layouts; cards frame
+  repeated items, tables and focused tools.
+- Spacing follows a 4px base with 8px as the dominant rhythm. Card padding is 16px.
 
 ## Shell
 
-- Desktop: full-width 56px charcoal utility bar above a 240px persistent navigation rail and scrollable content column.
-- Sidebar: grouped navigation on `#EBEBEB`; active item is a white 8px-radius row with restrained shadow.
-- Utility bar: CodFlow mark at the start, centered global search, locale/appearance/account controls at the end.
-- Mobile: the same 56px utility bar plus an accessible light navigation drawer.
-- Auth screen: one centered rounded card split into a form panel and a media panel.
-  The form panel carries the brand mark top-start, a locale selector top-end, and a
-  centered narrow column (title, subtitle, labeled fields, full-width dark action).
-  The media panel is a full-height brand-tinted visual placeholder on the end side
-  and is hidden below `lg`. The current route is always communicated by navigation
-  state and page heading.
+- Desktop: a persistent sidebar, a topbar, and the page inside a white content
+  panel that floats on the canvas with a 12px radius. The topbar carries search,
+  language, appearance and account.
+- Mobile: a compact bar plus an accessible navigation drawer.
+- Every page renders inside `DashboardChrome` (skip link, error boundary, auth
+  gate). Content is `max-w-[1144px]`; focused forms pass `narrow` for 784px.
+- Sign-in and recovery use one centred card split into a form column and a brand
+  panel, hidden below `lg`.
 
-## Data Surfaces
+## Components
 
-- Tables are compact, bordered, and horizontally scrollable only when necessary.
-- Mobile tables become stacked, tappable rows with the primary identifier first.
-- Order number is the primary link; customer, status, and COD total are the first scanning fields.
-- Status pills are semantic and compact, never the main visual hierarchy.
-- Every async surface has loading, error, empty, and filtered-empty states.
+Compose pages from `src/components/ui` — do not rebuild these locally.
+
+| Need | Use |
+|---|---|
+| Page title, back link, actions, status badges | `PageHeader` |
+| Grouped content, optional title, help ⓘ and action | `Card` |
+| A create/edit form with a sticky save bar | `FormPage` + `StickyFormActions` |
+| Label, hint, error around a control | `Field` (a guard test forbids bare labels) |
+| Why a setting exists | `InfoTip` / the `help` prop on `Card` — not paragraphs of helper text |
+| A status | `Badge` with a tone |
+| A message | `Alert` with a tone |
+| Lists | `ListToolbar`, `Tabs`, `FilterPill`, `Table*`, `RowActions`, `Pagination`, `TableSkeleton` |
+| Numbers at a glance | `StatCard` / `StatGroup` / `StatStrip` |
+| Nothing here yet | `EmptyState` |
+| Confirm a destructive step | `ConfirmDialogProvider` (never `window.confirm`; a test enforces it) |
+| Choose one of many | `Select` (never a native `<select>`; a test enforces it) |
+| A boolean setting | `Switch` |
+
+## Data surfaces
+
+- Tables are compact and scroll horizontally only when they must. On mobile they
+  become stacked, tappable rows with the primary identifier first.
+- The order number is the primary link; customer, stage and COD total are the
+  first scanning fields. A stage is shown with its `--status-*` colours.
+- Every async surface has loading (`Skeleton`), error, empty and
+  filtered-empty states.
+- Counts and placeholders go through `t(key, values)` with one plural key per
+  CLDR form; relative times through `@/lib/relative-time`.
 
 ## Interaction
 
-- Primary actions are text plus a familiar Lucide icon when both improve scanability.
-- Icon-only actions require an accessible label and a tooltip/title when the action is not obvious.
-- Touch targets are at least 40px in the dashboard shell and 44px where mobile actions are primary.
-- Keyboard focus is visible with the primary ring.
-- Arabic switches the document to RTL; directional icons mirror where meaning requires it.
+- Primary actions are text, with a Lucide icon when it speeds scanning.
+- Icon-only controls need an accessible label from the locale files and a tooltip.
+- Touch targets are at least 40px. Focus is always visible (`ring`).
+- Arabic switches the document to RTL. Use logical utilities (`ms-`, `pe-`,
+  `start-`, `end-`) and `rtl:rotate-180` on directional icons; never `left`/`right`.
+- Motion is short (160–260ms, `--ease-out-quint`) and carries state, not decoration.
 
-## Migration Rules
+## Migration rules
 
-- New pages must use `DashboardChrome`; do not create a parallel shell.
-- New strings belong in `locales/{ar,en,fr}` and are consumed through `useT`.
-- New routes must be real before they appear in navigation.
-- Preserve the API seam and auth gate; visual migration must not move authorization into the client.
-- Keep desktop and mobile behavior equivalent for the merchant's core task.
+- New pages use `DashboardChrome`; do not create a parallel shell.
+- Every string lives in `locales/{ar,en,fr}` and is read with `useT`. That
+  includes `placeholder`, `title`, `aria-label` and `alt`. The parity test fails
+  a missing key in any language.
+- New routes must exist before they appear in navigation.
+- Data goes through `src/lib/api.ts`; authorization stays in cod-server.
+- Desktop and mobile must offer the same core task.
