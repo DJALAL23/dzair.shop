@@ -12,17 +12,14 @@ import { listAllDeliveryCompanies } from "@/features/delivery/api";
 import type { DeliveryCompany, ProviderConfig } from "@/features/delivery/types";
 import { PROVIDER_CONFIGS } from "@/features/delivery/types";
 import { webhookSetup } from "@/features/delivery/model";
-import { Alert, Badge, Card, EmptyState, ListToolbar, PageHeader, SearchInput, TableSkeleton } from "@/components/ui";
+import { Alert, Badge, Card, EmptyState, ListToolbar, PageHeader, SearchInput, TableSkeleton, Tabs } from "@/components/ui";
+
+type TabKey = "connected" | "available";
 
 function Loading() {
   return (
-    <div role="status" aria-busy="true" className="space-y-6">
-      <div className="overflow-hidden rounded-xl shadow-card">
-        <TableSkeleton rows={2} columns={3} />
-      </div>
-      <div className="overflow-hidden rounded-xl shadow-card">
-        <TableSkeleton rows={6} columns={3} />
-      </div>
+    <div role="status" aria-busy="true" className="overflow-hidden rounded-xl shadow-card">
+      <TableSkeleton rows={6} columns={3} />
     </div>
   );
 }
@@ -71,6 +68,7 @@ function DeliveryCompaniesList() {
   const [companies, setCompanies] = useState<DeliveryCompany[] | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [search, setSearch] = useState("");
+  const [chosenTab, setChosenTab] = useState<TabKey | null>(null);
 
   async function load() {
     setLoadError(null);
@@ -114,15 +112,38 @@ function DeliveryCompaniesList() {
 
   const providers = Object.values(PROVIDER_CONFIGS);
   const companyOf = (provider: ProviderConfig) => companies.find((item) => item.code === provider.code) ?? null;
-  const connected = providers.filter((provider) => companyOf(provider)?.isConnected);
-  const available = providers.filter((provider) => !companyOf(provider)?.isConnected && matchesQuery(provider, search));
+  const connectedAll = providers.filter((provider) => companyOf(provider)?.isConnected);
+  const availableAll = providers.filter((provider) => !companyOf(provider)?.isConnected);
+  const tab: TabKey = chosenTab ?? (connectedAll.length > 0 ? "connected" : "available");
+  const connected = connectedAll.filter((provider) => matchesQuery(provider, search));
+  const available = availableAll.filter((provider) => matchesQuery(provider, search));
   const canManage = canScope(identity, SCOPES.DELIVERY_MANAGE);
+  const searching = search.trim() !== "";
 
   return (
-    <div className="space-y-8">
-      <Card flush title={t("yours_title")}>
-        {connected.length === 0 ? (
-          <EmptyState compact icon={<Truck />} title={t("yours_empty_title")} description={t("yours_empty_description")} />
+    <Card flush>
+      <div className="space-y-2 p-2">
+        <Tabs
+          label={t("page_title")}
+          value={tab}
+          onChange={setChosenTab}
+          items={[
+            { key: "connected", label: t("connected"), count: connectedAll.length },
+            { key: "available", label: t("not_connected"), count: availableAll.length },
+          ]}
+        />
+        <ListToolbar>
+          <SearchInput value={search} onChange={setSearch} placeholder={t("search_placeholder")} className="basis-full sm:basis-80 sm:flex-none" />
+        </ListToolbar>
+      </div>
+
+      {tab === "connected" ? (
+        connected.length === 0 ? (
+          searching ? (
+            <EmptyState compact icon={<SearchX />} title={common("no_results_found")} />
+          ) : (
+            <EmptyState compact icon={<Truck />} title={t("yours_empty_title")} description={t("yours_empty_description")} />
+          )
         ) : (
           <ul className="divide-y divide-border border-t border-border">
             {connected.map((provider) => {
@@ -144,37 +165,30 @@ function DeliveryCompaniesList() {
               );
             })}
           </ul>
-        )}
-      </Card>
-
-      <Card flush title={t("add_title")} subtitle={t("available", { count: providers.length - connected.length })}>
-        <ListToolbar>
-          <SearchInput value={search} onChange={setSearch} placeholder={t("search_placeholder")} className="basis-full sm:basis-80 sm:flex-none" />
-        </ListToolbar>
-        {available.length === 0 ? (
-          <EmptyState compact icon={<SearchX />} title={common("no_results_found")} />
-        ) : (
-          <ul className="grid border-t border-border sm:grid-cols-2">
-            {available.map((provider) => (
-              <li key={provider.code} className="border-b border-border sm:odd:border-e">
-                <a href={`/delivery/companies/${provider.code}`} className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-subtle">
-                  <CarrierMark name={provider.name} connected={false} />
-                  <span className="min-w-0 flex-1 space-y-0.5">
-                    <span className="block truncate text-sm font-medium text-foreground">{provider.name}</span>
-                    <Capabilities provider={provider} webhookReady={false} />
+        )
+      ) : available.length === 0 ? (
+        <EmptyState compact icon={<SearchX />} title={common("no_results_found")} />
+      ) : (
+        <ul className="grid border-t border-border sm:grid-cols-2">
+          {available.map((provider) => (
+            <li key={provider.code} className="border-b border-border sm:odd:border-e">
+              <a href={`/delivery/companies/${provider.code}`} className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-subtle">
+                <CarrierMark name={provider.name} connected={false} />
+                <span className="min-w-0 flex-1 space-y-0.5">
+                  <span className="block truncate text-sm font-medium text-foreground">{provider.name}</span>
+                  <Capabilities provider={provider} webhookReady={false} />
+                </span>
+                {canManage && (
+                  <span className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors group-hover:bg-card group-hover:text-foreground group-hover:shadow-button">
+                    {t("connect")}
                   </span>
-                  {canManage && (
-                    <span className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors group-hover:bg-card group-hover:text-foreground group-hover:shadow-button">
-                      {t("connect")}
-                    </span>
-                  )}
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-    </div>
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 

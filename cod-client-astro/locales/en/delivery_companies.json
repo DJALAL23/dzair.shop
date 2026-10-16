@@ -155,10 +155,8 @@
   "events_tries_other": "{count} tries",
   "sync_shipments_done_one": "{count} parcel checked · {recorded} new update(s)",
   "sync_shipments_done_other": "{count} parcels checked · {recorded} new update(s)",
-  "yours_title": "Your carriers",
   "yours_empty_title": "No carrier connected yet",
   "yours_empty_description": "Connect a carrier below to send it your orders and follow every parcel from here.",
-  "add_title": "Add a carrier",
   "available_one": "{count} carrier you can connect",
   "available_other": "{count} carriers you can connect"
 }

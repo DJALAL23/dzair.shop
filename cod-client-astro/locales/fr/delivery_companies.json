@@ -157,10 +157,8 @@
   "sync_shipments_done_one": "{count} colis vérifié · {recorded} nouvelle(s) mise(s) à jour",
   "sync_shipments_done_many": "{count} de colis vérifiés · {recorded} nouvelle(s) mise(s) à jour",
   "sync_shipments_done_other": "{count} colis vérifiés · {recorded} nouvelle(s) mise(s) à jour",
-  "yours_title": "Vos transporteurs",
   "yours_empty_title": "Aucun transporteur connecté",
   "yours_empty_description": "Connectez un transporteur ci-dessous pour lui confier vos commandes et suivre chaque colis ici.",
-  "add_title": "Ajouter un transporteur",
   "available_one": "{count} transporteur disponible",
   "available_many": "{count} transporteurs disponibles",
   "available_other": "{count} transporteurs disponibles"
