@@ -197,7 +197,9 @@ export class EcotrackCarrier implements CarrierAdapter {
       if ("tracking" in entry && typeof entry.tracking === "string" && entry.tracking) {
         return { reference, ok: true, parcel: this.parcel(entry.tracking, entry) };
       }
-      return { reference, ok: false, error: new CarrierError("ecotrack", "rejected", Object.values(entry as Record<string, string[]>).flat().join("; ")) };
+      const { success: _flag, ...reasons } = entry as Record<string, unknown>;
+      const message = Object.values(reasons).flat().map(String).join("; ") || "EcoTrack refused this order";
+      return { reference, ok: false, error: new CarrierError("ecotrack", "rejected", message) };
     });
   }
 
@@ -364,9 +366,21 @@ export class EcotrackCarrier implements CarrierAdapter {
     };
   }
 
-  /** `validate/token` authenticates by query parameter; a bad token is a check result, not an error. */
+  /**
+   * `validate/token` authenticates by query parameter; a bad token is a check
+   * result, not an error. The documented answer is HTTP 200 `INVALID_TOKEN`,
+   * but a live company (mono2, 2026-10-16) answers 401 `Unauthenticated.`.
+   */
   async verifyConnection(): Promise<CarrierConnectionCheck> {
-    const res = await this.http.read<EcotrackValidateTokenResponse>("GET", `/validate/token?${query({ api_token: this.apiToken })}`);
+    let res: EcotrackValidateTokenResponse;
+    try {
+      res = await this.http.read<EcotrackValidateTokenResponse>("GET", `/validate/token?${query({ api_token: this.apiToken })}`);
+    } catch (error) {
+      if (error instanceof CarrierError && (error.kind === "auth" || error.httpStatus === 401)) {
+        return { ok: false, code: "invalid_token", message: "The token was refused" };
+      }
+      throw error;
+    }
     if (res.success && res.message === "VALID_TOKEN") {
       try {
         const wilayas = await this.http.read<EcotrackWilayasResponse>("GET", "/get/wilayas");

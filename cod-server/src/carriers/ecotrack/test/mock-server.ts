@@ -130,9 +130,6 @@ function parseHeaders(init?: RequestInit): Record<string, string> {
 }
 
 // Endpoints that authenticate via the api_token QUERY param instead of Bearer.
-// validate/token is EXCLUDED from the auth gate entirely: its documented job
-// is to evaluate ANY token and answer VALID_TOKEN / INVALID_TOKEN /
-// TOKEN_NOT_ALLOWED on HTTP 200 — an invalid token is a valid response there.
 const QUERY_AUTH_PATHS = new Set<string>(["/api/v1/get/orders/status"]);
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
@@ -507,14 +504,10 @@ export function createEcotrackMockServer(
       const hasBearer = authHeader === `Bearer ${token}`;
       const hasQueryToken = recorded.searchParams.get("api_token") === token;
 
-      // validate/token always reaches its handler — the handler itself answers
-      // VALID_TOKEN / INVALID_TOKEN for any token (mirrors the real API).
-      const isTokenValidation = recorded.path === "/api/v1/validate/token";
-      const authenticated = isTokenValidation
-        ? true
-        : QUERY_AUTH_PATHS.has(recorded.path)
-          ? hasQueryToken
-          : hasBearer;
+      // Observed live (mono2.ecotrack.dz, 2026-10-16): a wrong token is a 401
+      // "Unauthenticated." on validate/token too, not the documented 200
+      // INVALID_TOKEN. The documented answers are reachable through `override`.
+      const authenticated = QUERY_AUTH_PATHS.has(recorded.path) ? hasQueryToken : hasBearer;
       if (!authenticated) {
         return jsonResponse(UNAUTHENTICATED_RESPONSE, 401);
       }

@@ -194,9 +194,25 @@ describe("label, desks, connection", () => {
     expect(server.callsFor("/api/v1/validate/token")[0].searchParams.get("api_token")).toBe(TOKEN);
   });
 
-  it("a wrong token is a check result, not an error", async () => {
+  it("a wrong token is a check result, not an error (the live API answers 401)", async () => {
     const check = await new EcotrackCarrier({ apiToken: "wrong", baseUrl: server.baseUrl }).verifyConnection();
-    expect(check.ok).toBe(false);
+    expect(check).toMatchObject({ ok: false, code: "invalid_token" });
+  });
+
+  it("a wrong token is a check result when a company answers the documented 200 INVALID_TOKEN", async () => {
+    server.override("/api/v1/validate/token", () => new Response(JSON.stringify({ success: false, message: "INVALID_TOKEN" }), { status: 200 }));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: false, code: "invalid_token" });
+  });
+
+  it("a disabled public API is told apart from a wrong token", async () => {
+    server.override("/api/v1/validate/token", () => new Response(JSON.stringify({ success: false, message: "TOKEN_NOT_ALLOWED" }), { status: 200 }));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: false, code: "not_allowed" });
+  });
+
+  it("an outage is still an error, never a verdict on the token", async () => {
+    server.override("/api/v1/validate/token", () => new Response("down", { status: 503 }));
+    const error = await failure(carrier().verifyConnection!());
+    expect(error.kind).toBe("unavailable");
   });
 });
 
@@ -235,6 +251,16 @@ describe("createShipments", () => {
     expect(server.callsFor("/api/v1/create/orders")).toHaveLength(1);
     expect(items[0]).toMatchObject({ reference: "ORD-001", ok: true });
     expect(items[1]).toMatchObject({ reference: "ORD-2", ok: false });
+  });
+
+  it("explains a refused order in the carrier's words, without its success flag (observed live)", async () => {
+    server.override("/api/v1/create/orders", () =>
+      Response.json({ results: { "ORD-001": { success: false, commune: ["Commune mal écrite."], telephone: "Numéro invalide" }, "ORD-2": { success: false } } }),
+    );
+    const items = await carrier().createShipments!([input, { ...input, reference: "ORD-2" }]);
+    const messages = items.map((item) => (item.ok ? "" : item.error.message));
+    expect(messages[0]).toBe("Commune mal écrite.; Numéro invalide");
+    expect(messages[1]).toBe("EcoTrack refused this order");
   });
 });
 
