@@ -121,7 +121,9 @@
       "review.rejected": "Rejected a review",
       "review.deleted": "Deleted a review",
       "order.archived": "Archived an order",
-      "order.unarchived": "Restored an archived order"
+      "order.unarchived": "Restored an archived order",
+      "review.created": "Added a review",
+      "review.media_removed": "Removed a photo or voice note from a review"
     },
     "table": {
       "action": "Action",

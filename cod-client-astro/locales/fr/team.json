@@ -121,7 +121,9 @@
       "review.rejected": "A rejeté un avis",
       "review.deleted": "A supprimé un avis",
       "order.archived": "A archivé une commande",
-      "order.unarchived": "A restauré une commande archivée"
+      "order.unarchived": "A restauré une commande archivée",
+      "review.created": "A ajouté un avis",
+      "review.media_removed": "A retiré une photo ou une note vocale d’un avis"
     },
     "table": {
       "action": "Action",

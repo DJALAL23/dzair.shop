@@ -96,5 +96,6 @@
     "formats": "JPG, PNG, WebP, GIF · max {mb} Mo"
   },
   "confirm_type": "Saisissez {text} pour confirmer",
-  "confirm_copy": "Copier"
+  "confirm_copy": "Copier",
+  "clear": "Effacer"
 }

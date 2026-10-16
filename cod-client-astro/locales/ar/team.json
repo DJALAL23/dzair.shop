@@ -121,7 +121,9 @@
       "review.rejected": "رفض تقييمًا",
       "review.deleted": "حذف تقييمًا",
       "order.archived": "أرشف طلبًا",
-      "order.unarchived": "استعاد طلبًا مؤرشفًا"
+      "order.unarchived": "استعاد طلبًا مؤرشفًا",
+      "review.created": "أضاف تقييمًا",
+      "review.media_removed": "حذف صورة أو رسالة صوتية من تقييم"
     },
     "table": {
       "action": "الإجراء",

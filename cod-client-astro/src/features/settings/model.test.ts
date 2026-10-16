@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SETTINGS_CATEGORIES, settingsErrorMessage } from "./model";
+import { SETTINGS_CATEGORIES, settingsErrorMessage, reviewMediaSettings, shopperReviewMedia } from "./model";
 
 const t = (key: string) => key;
 
@@ -139,5 +139,22 @@ describe("editing the store's languages", () => {
   it("saves the default and the whole list", () => {
     const draft: LanguageDraft = { primary: "fr", languages: [{ locale: "fr", published: true }] };
     expect(languagesPayload(draft)).toEqual({ lang: "fr", languages: [{ locale: "fr", published: true }] });
+  });
+});
+
+describe("what shoppers can send with a review", () => {
+  it("is read from the store's photo and voice settings", () => {
+    expect(shopperReviewMedia({ reviewMaxPhotos: 0, reviewVoiceMaxSeconds: null })).toBe("text");
+    expect(shopperReviewMedia({ reviewMaxPhotos: 3, reviewVoiceMaxSeconds: null })).toBe("photos");
+    expect(shopperReviewMedia({ reviewMaxPhotos: 0, reviewVoiceMaxSeconds: 60 })).toBe("voice");
+    expect(shopperReviewMedia({ reviewMaxPhotos: 2, reviewVoiceMaxSeconds: 30 })).toBe("photos_voice");
+  });
+
+  it("saves only what the choice takes, within the limits", () => {
+    expect(reviewMediaSettings("text", 4, 90)).toEqual({ reviewMaxPhotos: 0, reviewVoiceMaxSeconds: null });
+    expect(reviewMediaSettings("photos", 4, 90)).toEqual({ reviewMaxPhotos: 4, reviewVoiceMaxSeconds: null });
+    expect(reviewMediaSettings("voice", 4, 90)).toEqual({ reviewMaxPhotos: 0, reviewVoiceMaxSeconds: 90 });
+    expect(reviewMediaSettings("photos_voice", 9, 120)).toEqual({ reviewMaxPhotos: 6, reviewVoiceMaxSeconds: 120 });
+    expect(reviewMediaSettings("photos", 0, 30)).toEqual({ reviewMaxPhotos: 1, reviewVoiceMaxSeconds: null });
   });
 });

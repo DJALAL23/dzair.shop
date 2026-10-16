@@ -1,3 +1,4 @@
+import type { ReviewAutoPublish, ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
 import type { StoreLocale } from "../../../../cod-shared/i18n/locales";
 import type { LocaleRow, StoreLanguage } from "../../../../cod-shared/stores/settings";
 
@@ -30,6 +31,12 @@ export interface StoreConfig {
   ogImage: string | null;
   announcementBar: string | null;
   reviewsEnabled: boolean;
+  /** Photos a shopper may add to a review: 0 (none) to 6. */
+  reviewMaxPhotos: number;
+  /** Longest voice note a shopper may add, in seconds; null = no voice notes. */
+  reviewVoiceMaxSeconds: ReviewVoiceLength | null;
+  /** Which shopper reviews publish without the merchant checking them. */
+  reviewAutoPublish: ReviewAutoPublish;
   /** Shopping cart opt-in. False keeps the storefront exactly as it is. */
   cartEnabled: boolean;
   /** Order subtotal (DZD) at or above which delivery is free. null = off. */
@@ -58,6 +65,9 @@ export type UpdateStoreData = Partial<
     | "ogImage"
     | "announcementBar"
     | "reviewsEnabled"
+    | "reviewMaxPhotos"
+    | "reviewVoiceMaxSeconds"
+    | "reviewAutoPublish"
     | "cartEnabled"
     | "freeShippingThreshold"
     | "cartShippingMode"

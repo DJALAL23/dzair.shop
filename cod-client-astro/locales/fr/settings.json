@@ -266,5 +266,31 @@
     "add_placeholder": "Choisir une langue",
     "add": "Ajouter"
   },
-  "nav_label": "Navigation des paramètres"
+  "nav_label": "Navigation des paramètres",
+  "reviews": {
+    "media_label": "Ce que les clients peuvent envoyer avec un avis",
+    "media_text": "Texte seulement",
+    "media_photos": "Texte et photos",
+    "media_voice": "Texte et note vocale",
+    "media_photos_voice": "Texte, photos et note vocale",
+    "media_hint_text": "Les clients notent le produit et écrivent quelques mots.",
+    "media_hint_photos": "Les photos sont redimensionnées et leur localisation retirée. Sur la page produit, elles s’affichent en petit jusqu’à ce qu’on les ouvre.",
+    "media_hint_voice": "Une note vocale peut remplacer le texte, pour les clients qui préfèrent parler. Elle ne se charge que lorsqu’on l’écoute.",
+    "media_hint_photos_voice": "Les photos s’affichent en petit jusqu’à ce qu’on les ouvre ; une note vocale ne se charge que lorsqu’on l’écoute : aucune ne ralentit la page produit.",
+    "photos_label": "Photos par avis",
+    "photos_count_one": "{count} photo",
+    "photos_count_many": "{count} photos",
+    "photos_count_other": "{count} photos",
+    "voice_label": "Note vocale la plus longue",
+    "voice_seconds_one": "{count} seconde",
+    "voice_seconds_many": "{count} secondes",
+    "voice_seconds_other": "{count} secondes",
+    "publish_label": "Publier sans vérifier",
+    "publish_off": "Rien — je vérifie chaque avis",
+    "publish_text_only": "Les avis texte seulement",
+    "publish_all": "Tous les avis",
+    "publish_hint_off": "Chaque avis attend dans Avis jusqu’à ce que vous l’approuviez.",
+    "publish_hint_text_only": "Les avis texte sont publiés tout de suite ; ceux avec une photo ou une note vocale vous attendent, car c’est là qu’un visage ou un numéro de téléphone peut apparaître.",
+    "publish_hint_all": "Tous les avis sont publiés tout de suite, photos et notes vocales comprises. Vous pouvez toujours en masquer ou en supprimer."
+  }
 }

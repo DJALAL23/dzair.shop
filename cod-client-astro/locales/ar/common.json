@@ -96,5 +96,6 @@
     "formats": "JPG وPNG وWebP وGIF · الحد الأقصى {mb} ميغابايت"
   },
   "confirm_type": "اكتب {text} للتأكيد",
-  "confirm_copy": "نسخ"
+  "confirm_copy": "نسخ",
+  "clear": "مسح"
 }

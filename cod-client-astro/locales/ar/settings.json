@@ -275,5 +275,37 @@
     "add_placeholder": "اختر لغة",
     "add": "إضافة"
   },
-  "nav_label": "التنقل في الإعدادات"
+  "nav_label": "التنقل في الإعدادات",
+  "reviews": {
+    "media_label": "ما يمكن للزبائن إرساله مع التقييم",
+    "media_text": "نص فقط",
+    "media_photos": "نص وصور",
+    "media_voice": "نص ورسالة صوتية",
+    "media_photos_voice": "نص وصور ورسالة صوتية",
+    "media_hint_text": "يقيّم الزبائن المنتج ويكتبون بضع كلمات.",
+    "media_hint_photos": "تُصغَّر الصور ويُحذف منها الموقع الجغرافي. تظهر صغيرة في صفحة المنتج حتى تُفتح.",
+    "media_hint_voice": "يمكن للرسالة الصوتية أن تحل محل النص، للزبائن الذين يفضلون الكلام. لا تُحمَّل إلا عند تشغيلها.",
+    "media_hint_photos_voice": "تظهر الصور صغيرة حتى تُفتح، ولا تُحمَّل الرسالة الصوتية إلا عند تشغيلها، فلا تُبطئ أيٌّ منهما صفحة المنتج.",
+    "photos_label": "عدد الصور في التقييم",
+    "photos_count_zero": "بلا صور",
+    "photos_count_one": "صورة واحدة",
+    "photos_count_two": "صورتان",
+    "photos_count_few": "{count} صور",
+    "photos_count_many": "{count} صورة",
+    "photos_count_other": "{count} صورة",
+    "voice_label": "أطول رسالة صوتية",
+    "voice_seconds_zero": "{count} ثانية",
+    "voice_seconds_one": "ثانية واحدة",
+    "voice_seconds_two": "ثانيتان",
+    "voice_seconds_few": "{count} ثوانٍ",
+    "voice_seconds_many": "{count} ثانية",
+    "voice_seconds_other": "{count} ثانية",
+    "publish_label": "النشر دون مراجعة",
+    "publish_off": "لا شيء — أراجع كل تقييم",
+    "publish_text_only": "التقييمات النصية فقط",
+    "publish_all": "كل التقييمات",
+    "publish_hint_off": "ينتظر كل تقييم في صفحة التقييمات حتى توافق عليه.",
+    "publish_hint_text_only": "تُنشر التقييمات النصية فورًا، وينتظرك كل تقييم فيه صورة أو رسالة صوتية، لأنه قد يظهر فيه وجه أو رقم هاتف.",
+    "publish_hint_all": "تُنشر كل التقييمات فورًا، بما فيها الصور والرسائل الصوتية. ويمكنك دائمًا إخفاء أي منها أو حذفه."
+  }
 }

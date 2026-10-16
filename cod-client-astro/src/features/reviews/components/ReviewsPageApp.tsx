@@ -1,251 +1,219 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle, Filter as FilterIcon, MoreHorizontal, Star, Trash2, X, XCircle } from "lucide-react";
+import { Plus, Star, X } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
-import { useLocale, useT } from "@/i18n/react";
+import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
-import { deleteReview, listReviews, updateReviewStatus } from "@/features/reviews/api";
-import { buildReviewsUrl, formatReviewDate, parseReviewStatus, reviewErrorMessage } from "@/features/reviews/model";
-import type { Review, ReviewListResult, ReviewStatus } from "@/features/reviews/types";
-import {
-  Alert,
-  Badge,
-  DropdownItem,
-  DropdownMenu,
-  EmptyState,
-  PageHeader,
-  Pagination,
-  Select,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  useConfirmDialog,
-  CellEmpty,
-  Initial,
-  RowActions,
-  RowTitle,
-} from "@/components/ui";
+import { deleteReview, deleteReviewMedia, listReviews, updateReviewStatus } from "@/features/reviews/api";
+import { buildReviewsUrl, readReviewView, reviewErrorMessage, type ReviewView } from "@/features/reviews/model";
+import type { Review, ReviewListResult, ReviewMedia, ReviewStatus } from "@/features/reviews/types";
+import { ReviewCard } from "@/features/reviews/components/ReviewCard";
+import { AddReviewDialog } from "@/features/reviews/components/AddReviewDialog";
+import { Alert, Button, EmptyState, FilterPill, ListToolbar, PageHeader, Pagination, Tabs, useConfirmDialog } from "@/components/ui";
 
 const LIMIT = 20;
-const FILTERS: Array<ReviewStatus | "all"> = ["all", "pending", "approved", "rejected"];
-
-function StarRating({ rating }: { rating: number }) {
-  return <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5`}>{[1, 2, 3, 4, 5].map((star) => <Star key={star} size={14} className={star <= rating ? "fill-tone-warning-text text-tone-warning-text" : "text-muted-foreground/30"} />)}</span>;
-}
+const STATUS_TABS: Array<ReviewStatus | "all"> = ["all", "pending", "approved", "rejected"];
 
 function ReviewSkeleton() {
   return (
-    <div role="status" aria-busy="true" className="space-y-2">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="grid h-14 grid-cols-[1.2fr_1fr_0.8fr_2fr_0.8fr] items-center gap-4 rounded-xl border border-border px-4">
-          <div className="h-3 w-28 shimmer rounded" />
-          <div className="h-3 w-24 shimmer rounded" />
-          <div className="h-3 w-16 shimmer rounded" />
-          <div className="h-3 w-40 shimmer rounded" />
-          <span className="h-6 w-20 justify-self-end shimmer rounded-full" />
+    <div role="status" aria-busy="true" className="divide-y divide-border rounded-xl bg-card shadow-card">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="flex gap-3 p-4">
+          <span className="size-7 shimmer rounded-full" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-40 shimmer rounded" />
+            <div className="h-3 w-24 shimmer rounded" />
+            <div className="h-3 w-3/4 shimmer rounded" />
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: ReviewStatus }) {
-  const t = useT("reviews");
-  const tone = status === "approved" ? "success" : status === "rejected" ? "critical" : "warning";
-  return <Badge tone={tone}>{t(`status_${status}`)}</Badge>;
-}
-
-function ReviewRowActions({ review, canManage, busyKey, onApprove, onReject, onDelete }: { review: Review; canManage: boolean; busyKey: string | null; onApprove: () => void; onReject: () => void; onDelete: () => void }) {
-  const t = useT("reviews");
-  const common = useT("common");
-  if (!canManage) return null;
-  return (
-    <DropdownMenu
-      trigger={<MoreHorizontal size={16} />}
-      triggerLabel={`${common("table.actions")}: ${review.customerName}`}
-    >
-      {review.status !== "approved" && (
-        <DropdownItem disabled={busyKey === `status-${review.id}`} onClick={onApprove}>
-          <CheckCircle size={14} />
-          {t("action_approve")}
-        </DropdownItem>
-      )}
-      {review.status !== "rejected" && (
-        <DropdownItem disabled={busyKey === `status-${review.id}`} onClick={onReject}>
-          <XCircle size={14} />
-          {t("action_reject")}
-        </DropdownItem>
-      )}
-      <DropdownItem disabled={busyKey === `delete-${review.id}`} onClick={onDelete} danger>
-        <Trash2 size={14} />
-        {t("action_delete")}
-      </DropdownItem>
-    </DropdownMenu>
-  );
-}
-
-function ReviewDesktopRow({ review, canManage, busyKey, onApprove, onReject, onDelete }: { review: Review; canManage: boolean; busyKey: string | null; onApprove: () => void; onReject: () => void; onDelete: () => void }) {
-  const locale = useLocale();
-  return (
-    <TableRow>
-      <TableCell className="max-w-52">
-        <RowTitle media={<Initial name={review.customerName} />}>{review.customerName}</RowTitle>
-      </TableCell>
-      <TableCell className="max-w-44 truncate text-muted-foreground">{review.productName ?? <CellEmpty />}</TableCell>
-      <TableCell>
-        <StarRating rating={review.rating} />
-      </TableCell>
-      <TableCell className="max-w-72 truncate text-muted-foreground" title={review.body}>
-        {review.title || review.body}
-      </TableCell>
-      <TableCell>
-        <StatusBadge status={review.status} />
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">{formatReviewDate(review.createdAt, locale)}</TableCell>
-      <TableCell className="w-px">
-        <RowActions>
-          <ReviewRowActions review={review} canManage={canManage} busyKey={busyKey} onApprove={onApprove} onReject={onReject} onDelete={onDelete} />
-        </RowActions>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function ReviewMobileCard({ review, canManage, busyKey, onApprove, onReject, onDelete }: { review: Review; canManage: boolean; busyKey: string | null; onApprove: () => void; onReject: () => void; onDelete: () => void }) {
-  const locale = useLocale();
-  return (
-    <article className="p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-sm font-semibold text-foreground">{review.customerName}</p>
-            <StatusBadge status={review.status} />
-          </div>
-          <div className="mt-1"><StarRating rating={review.rating} /></div>
-        </div>
-        <ReviewRowActions review={review} canManage={canManage} busyKey={busyKey} onApprove={onApprove} onReject={onReject} onDelete={onDelete} />
-      </div>
-      {review.title && <p className="mt-2 truncate text-sm font-medium text-foreground">{review.title}</p>}
-      <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{review.body}</p>
-      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span className="min-w-0 truncate">{review.productName ?? review.orderNumber}</span>
-        <span className="shrink-0">{formatReviewDate(review.createdAt, locale)}</span>
-      </div>
-    </article>
-  );
-}
-
-function ReviewsList() {
+/**
+ * The reviews the merchant works through: what waits for a decision first,
+ * each review with its photos and voice note, and — for staff who may — the
+ * reviews customers gave the store by WhatsApp, phone or in person.
+ */
+function ReviewsList({ refresh }: { refresh: number }) {
   const t = useT("reviews");
   const common = useT("common");
   const auth = useT("auth");
   const identity = useIdentity();
   const confirm = useConfirmDialog();
+  const [view] = useState<ReviewView>(() => readReviewView(window.location.search));
   const [result, setResult] = useState<ReviewListResult | null>(null);
-  const status = parseReviewStatus(new URLSearchParams(window.location.search).get("status") ?? undefined) ?? "all";
-  const page = Math.max(1, parseInt(new URLSearchParams(window.location.search).get("page") ?? "1", 10) || 1);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const may = (scope: string) => canScope(identity, scope);
 
   const load = useCallback(async () => {
     setLoadError(null);
     try {
-      setResult(await listReviews({ status: status === "all" ? undefined : status, limit: LIMIT, offset: (page - 1) * LIMIT }));
-    } catch (cause) { setLoadError(cause); }
-  }, [status, page]);
+      setResult(
+        await listReviews({
+          status: view.status === "all" ? undefined : view.status,
+          source: view.source === "all" ? undefined : view.source,
+          withMedia: view.withMedia,
+          limit: LIMIT,
+          offset: (view.page - 1) * LIMIT,
+        }),
+      );
+    } catch (cause) {
+      setLoadError(cause);
+    }
+  }, [view]);
 
-  useEffect(() => { if (canScope(identity, SCOPES.REVIEWS_READ)) void load(); }, [load, identity?.role, identity?.scopes.join(",")]);
+  useEffect(() => {
+    if (may(SCOPES.REVIEWS_READ)) void load();
+  }, [load, refresh, identity?.role, identity?.scopes.join(",")]);
 
-  if (!canScope(identity, SCOPES.REVIEWS_READ)) return <Alert role="alert" tone="critical">{auth("no_access")}</Alert>;
-  if (loadError) return <Alert role="alert" tone="critical"><div className="flex-1"><p className="font-semibold">{t("error_load")}</p><button type="button" onClick={() => void load()} className="mt-3 text-xs font-semibold underline underline-offset-4">{common("retry")}</button></div></Alert>;
+  if (!may(SCOPES.REVIEWS_READ)) return <Alert role="alert" tone="critical">{auth("no_access")}</Alert>;
+  if (loadError) {
+    return (
+      <Alert role="alert" tone="critical">
+        <div className="flex-1">
+          <p className="font-semibold">{t("error_load")}</p>
+          <button type="button" onClick={() => void load()} className="mt-3 text-xs font-semibold underline underline-offset-4">
+            {common("retry")}
+          </button>
+        </div>
+      </Alert>
+    );
+  }
   if (result === null) return <ReviewSkeleton />;
 
   const totalPages = Math.max(1, Math.ceil(result.total / LIMIT));
-  const safePage = Math.min(page, totalPages);
-  const canManage = canScope(identity, SCOPES.REVIEWS_MANAGE);
+  const go = (next: Partial<ReviewView>) => window.location.assign(buildReviewsUrl({ ...view, page: 1, ...next }));
+  const filtered = view.source !== "all" || view.withMedia;
 
-  function switchStatus(next: ReviewStatus | "all") {
-    window.location.assign(buildReviewsUrl(next, 1));
-  }
-  function switchPage(next: number) {
-    window.location.assign(buildReviewsUrl(status, Math.max(1, Math.min(next, totalPages))));
-  }
-  async function runStatus(review: Review, nextStatus: ReviewStatus) {
-    setBusyKey(`status-${review.id}`); setActionError(null);
+  async function run(review: Review, action: () => Promise<unknown>, success: string) {
+    setBusyId(review.id);
+    setActionError(null);
     try {
-      await updateReviewStatus(review.id, nextStatus);
+      await action();
       await load();
-      notify.success(t(nextStatus === "approved" ? "toast_approved" : "toast_rejected"));
+      notify.success(success);
+      return true;
     } catch (cause) {
       const message = reviewErrorMessage(cause, t);
       setActionError(message);
       notify.error(message);
-    } finally { setBusyKey(null); }
-  }
-  async function runDelete(review: Review) {
-    if (!await confirm({ title: t("confirm_delete_title"), description: t("confirm_delete_desc", { name: review.customerName }), confirmLabel: t("confirm_delete_label"), tone: "danger" })) return;
-    setBusyKey(`delete-${review.id}`); setActionError(null);
-    try {
-      await deleteReview(review.id);
-      await load();
-      notify.success(t("toast_deleted"));
-    } catch (cause) {
-      const message = reviewErrorMessage(cause, t);
-      setActionError(message);
-      notify.error(message);
-    } finally { setBusyKey(null); }
+      return false;
+    } finally {
+      setBusyId(null);
+    }
   }
 
-  return <div className="space-y-3">
-    {actionError && <Alert role="alert" tone="critical"><span className="flex-1">{actionError}</span><button type="button" onClick={() => setActionError(null)} aria-label={common("cancel")}><X size={16} /></button></Alert>}
-    <div className="rounded-xl bg-card shadow-card">
-      <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 rounded-xl border border-primary/10 bg-primary/5 px-3 py-1.5"><Star size={14} className="fill-primary text-primary" /><p className="text-[11px] font-semibold text-primary">{t("total", { count: result.total })}</p>{result.pendingCount > 0 && <span className="rounded-full bg-tone-warning-bg px-1.5 py-0.5 text-[11px] font-semibold text-white">{t("new_badge", { count: result.pendingCount })}</span>}</div>
-        <label className="relative flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 sm:flex-none">
-          <FilterIcon size={14} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-          <Select aria-label={t("table.status")} value={status} onChange={(event) => switchStatus(event.currentTarget.value as ReviewStatus | "all")} variant="bare" size="sm" wrapperClassName="min-w-0 flex-1" triggerClassName="min-w-0 flex-1">
-            {FILTERS.map((filter) => <option key={filter} value={filter}>{t(`filter_${filter}`)}{filter === "pending" && result.pendingCount > 0 ? ` (${result.pendingCount})` : ""}</option>)}
-          </Select>
-        </label>
-      </div>
-      {result.rows.length === 0 ? <EmptyState icon={<Star size={22} />} title={t("empty_title")} description={t("empty_desc")} /> : <>
-        <div className="divide-y divide-border md:hidden">
-          {result.rows.map((review) => <ReviewMobileCard key={review.id} review={review} canManage={canManage} busyKey={busyKey} onApprove={() => void runStatus(review, "approved")} onReject={() => void runStatus(review, "rejected")} onDelete={() => void runDelete(review)} />)}
-        </div>
-        <div className="hidden overflow-x-auto md:block">
-          <Table className="min-w-[960px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("table.customer")}</TableHead>
-                <TableHead>{t("table.product")}</TableHead>
-                <TableHead>{t("table.rating")}</TableHead>
-                <TableHead>{t("table.review")}</TableHead>
-                <TableHead>{t("table.status")}</TableHead>
-                <TableHead>{t("table.date")}</TableHead>
-                <TableHead className="w-px"><span className="sr-only">{common("table.actions")}</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+  function actionsFor(review: Review) {
+    if (!may(SCOPES.REVIEWS_MANAGE)) return null;
+    return {
+      busy: busyId === review.id,
+      onStatus: (status: ReviewStatus) => void run(review, () => updateReviewStatus(review.id, status), t(`toast_${status}`)),
+      onDelete: async () => {
+        const accepted = await confirm({
+          title: t("confirm_delete_title"),
+          description: t("confirm_delete_desc", { name: review.customerName }),
+          consequences: review.media.length ? [{ text: t("confirm_delete_media", { count: review.media.length }) }] : undefined,
+          confirmLabel: t("confirm_delete_label"),
+          tone: "danger",
+        });
+        if (accepted) await run(review, () => deleteReview(review.id), t("toast_deleted"));
+      },
+      onRemoveMedia: async (media: ReviewMedia) => {
+        const accepted = await confirm({
+          title: t(media.kind === "image" ? "media.remove_photo_title" : "media.remove_voice_title"),
+          description: t("media.remove_description", { name: review.customerName }),
+          confirmLabel: common("remove"),
+          tone: "danger",
+        });
+        return accepted ? run(review, () => deleteReviewMedia(review.id, media.id), t("media.removed")) : false;
+      },
+    };
+  }
+
+  return (
+    <div className="space-y-3">
+      {actionError && (
+        <Alert role="alert" tone="critical">
+          <span className="flex-1">{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} aria-label={common("close")}>
+            <X size={16} />
+          </button>
+        </Alert>
+      )}
+      <div className="rounded-xl bg-card shadow-card">
+        <Tabs
+          className="px-2 pt-2"
+          label={t("table.status")}
+          value={view.status}
+          onChange={(status) => go({ status })}
+          items={STATUS_TABS.map((key) => ({ key, label: t(`filter_${key}`), count: key === "pending" ? result.pendingCount : undefined }))}
+        />
+        <ListToolbar count={t("total", { count: result.total })}>
+          <FilterPill label={t("filters.source")} value={view.source} onChange={(source) => go({ source: source as ReviewView["source"] })}>
+            <option value="all">{t("filters.source_all")}</option>
+            <option value="storefront">{t("filters.source_storefront")}</option>
+            <option value="merchant">{t("filters.source_merchant")}</option>
+          </FilterPill>
+          <FilterPill label={t("filters.media")} value={view.withMedia ? "1" : ""} onChange={(value) => go({ withMedia: value === "1" })}>
+            <option value="">{t("filters.media_any")}</option>
+            <option value="1">{t("filters.media_with")}</option>
+          </FilterPill>
+          {filtered && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => go({ source: "all", withMedia: false })}>
+              {t("filters.clear")}
+            </Button>
+          )}
+        </ListToolbar>
+        {result.rows.length === 0 ? (
+          <EmptyState icon={<Star size={22} />} title={filtered || view.status !== "all" ? common("no_results_found") : t("empty_title")} description={filtered || view.status !== "all" ? undefined : t("empty_desc")} />
+        ) : (
+          <>
+            <div className="divide-y divide-border border-t border-border">
               {result.rows.map((review) => (
-                <ReviewDesktopRow key={review.id} review={review} canManage={canManage} busyKey={busyKey} onApprove={() => void runStatus(review, "approved")} onReject={() => void runStatus(review, "rejected")} onDelete={() => void runDelete(review)} />
+                <ReviewCard key={review.id} review={review} actions={actionsFor(review)} />
               ))}
-            </TableBody>
-          </Table>
-        </div>
-        <Pagination page={safePage} totalPages={totalPages} total={result.total} pageSize={LIMIT} onPageChange={switchPage} />
-      </>}
+            </div>
+            <Pagination page={Math.min(view.page, totalPages)} totalPages={totalPages} total={result.total} pageSize={LIMIT} onPageChange={(page) => window.location.assign(buildReviewsUrl({ ...view, page }))} />
+          </>
+        )}
+      </div>
     </div>
-  </div>;
+  );
 }
 
 function Gated() {
   const t = useT("reviews");
-  return <DashboardChrome currentPath="/reviews"><PageHeader title={t("page_title")} /><ReviewsList /></DashboardChrome>;
+  const identity = useIdentity();
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(0);
+  return (
+    <DashboardChrome currentPath="/reviews">
+      <PageHeader
+        title={t("page_title")}
+        actions={
+          canScope(identity, SCOPES.REVIEWS_CREATE) ? (
+            <Button type="button" onClick={() => setAdding(true)}>
+              <Plus size={16} aria-hidden="true" />
+              {t("add.open")}
+            </Button>
+          ) : undefined
+        }
+      />
+      <ReviewsList refresh={added} />
+      {adding && <AddReviewDialog onClose={() => setAdding(false)} onCreated={() => setAdded((n) => n + 1)} />}
+    </DashboardChrome>
+  );
 }
 
-export default function ReviewsPageApp() { return <RequireAuth><Gated /></RequireAuth>; }
+export default function ReviewsPageApp() {
+  return (
+    <RequireAuth>
+      <Gated />
+    </RequireAuth>
+  );
+}
