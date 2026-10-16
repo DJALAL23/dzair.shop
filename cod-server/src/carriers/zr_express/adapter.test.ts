@@ -143,6 +143,37 @@ describe("createShipments", () => {
   });
 });
 
+describe("a bulk spares ZR's rate limit (200 requests a minute)", () => {
+  it("looks each city and commune up once, however many parcels go to it", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith("/territories/search")) return json({ items: [city, district] });
+      if (url.endsWith("/customers/individual")) return json({ id: "cust" });
+      return json({ successes: [0, 1, 2, 3].map((index) => ({ index, parcelId: `p-${index}`, trackingNumber: `T-${index}` })), failures: [] });
+    });
+    const items = await carrier().createShipments!([0, 1, 2, 3].map((n) => ({ ...input, reference: `R${n}` })));
+    expect(items.every((item) => item.ok)).toBe(true);
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(urls.filter((u) => u.endsWith("/territories/search"))).toHaveLength(2);
+    expect(urls.filter((u) => u.endsWith("/customers/individual"))).toHaveLength(4);
+  });
+
+  it("still tells two communes apart", async () => {
+    const other = { id: "district-2", level: "commune", parentId: "city-16", name: "Bab Ezzouar" };
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/territories/search")) {
+        const keyword = JSON.parse(String(init?.body)).keyword;
+        return json({ items: keyword === "Bab Ezzouar" ? [other] : keyword === "Alger Centre" ? [district] : [city] });
+      }
+      if (url.endsWith("/customers/individual")) return json({ id: "cust" });
+      return json({ successes: [{ index: 0, parcelId: "p-0", trackingNumber: "T-0" }, { index: 1, parcelId: "p-1", trackingNumber: "T-1" }], failures: [] });
+    });
+    await carrier().createShipments!([{ ...input, reference: "A" }, { ...input, reference: "B", commune: "Bab Ezzouar" }]);
+    const bulk = fetchMock.mock.calls.map(([url, init]) => [String(url), init as RequestInit]).find(([url]) => (url as string).endsWith("/parcels/bulk"))!;
+    const parcels = JSON.parse(String((bulk[1] as RequestInit).body)).parcels;
+    expect(parcels.map((p: any) => p.deliveryAddress.districtTerritoryId)).toEqual(["district-1", "district-2"]);
+  });
+});
+
 describe("update", () => {
   it("patches only what changed, each aspect on its own endpoint", async () => {
     fetchMock
@@ -337,5 +368,34 @@ describe("config and phones", () => {
     expect(internationalPhone("0551234567")).toBe("+213551234567");
     expect(internationalPhone("00213551234567")).toBe("+213551234567");
     expect(internationalPhone("+213551234567")).toBe("+213551234567");
+  });
+});
+
+describe("verifyConnection", () => {
+  const text = (body: string, status: number) => new Response(body, { status });
+
+  it("proves the key and the tenant with a tenant-scoped read (the profile accepts any tenant)", async () => {
+    fetchMock.mockResolvedValue(json({ items: [], totalPages: 1 }));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: true, code: "valid" });
+    const { url, init, body } = call(0);
+    expect(url).toMatch(/\/hubs\/search$/);
+    expect(init.method).toBe("POST");
+    expect(body).toMatchObject({ pageSize: 1 });
+    expect(new Headers(init.headers).get("x-tenant")).toBe("zr-tenant");
+  });
+
+  it("a refused key is a check result, not an error (ZR answers 401 in plain text)", async () => {
+    fetchMock.mockImplementation(async () => text("Invalid API Key", 401));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: false, code: "invalid_key" });
+  });
+
+  it("a refused tenant is told apart from a refused key (403)", async () => {
+    fetchMock.mockImplementation(async () => text("", 403));
+    expect(await carrier().verifyConnection!()).toMatchObject({ ok: false, code: "invalid_tenant" });
+  });
+
+  it("an outage is still an error, never a verdict on the credentials", async () => {
+    fetchMock.mockImplementation(async () => text("down", 503));
+    expect((await failure(carrier().verifyConnection!())).kind).toBe("unavailable");
   });
 });

@@ -39,6 +39,7 @@ import { carrierInstant } from "../time";
 import { ZR_MAPPABLE_MEANINGS, zrInterpreter } from "./interpret";
 import { verifySvixSignature } from "./signature";
 import { stripAccents } from "./text";
+import type { CarrierConnectionCheck } from "../contract";
 import type {
   ZrCreateBulkParcelsResponse,
   ZrCreateCustomerResponse,
@@ -93,7 +94,7 @@ export const ZR_CAPABILITIES: CarrierCapabilities = {
   confirmReturn: false,
   stopDeskList: true,
   geoNames: false,
-  verifyConnection: false,
+  verifyConnection: true,
 };
 
 function describeError(_status: number, json: unknown): string | null {
@@ -135,6 +136,7 @@ export class ZrExpressCarrier implements CarrierAdapter {
   readonly interpret: (status: CarrierStatus) => Interpretation;
   private readonly http: CarrierHttp;
   private readonly cities = new Map<number, ZrTerritoryItem>();
+  private readonly districts = new Map<string, ZrTerritoryItem>();
   private hubs: ZrHubItem[] | null = null;
   private wilayaByTerritory: Map<string, number> | null = null;
 
@@ -186,6 +188,15 @@ export class ZrExpressCarrier implements CarrierAdapter {
 
   /** The commune territory inside that city — never an arbitrary first result. */
   private async district(communeName: string, city: ZrTerritoryItem): Promise<ZrTerritoryItem> {
+    const key = `${city.id}|${stripAccents(communeName).toLowerCase().trim()}`;
+    const cached = this.districts.get(key);
+    if (cached) return cached;
+    const found = await this.findDistrict(communeName, city);
+    this.districts.set(key, found);
+    return found;
+  }
+
+  private async findDistrict(communeName: string, city: ZrTerritoryItem): Promise<ZrTerritoryItem> {
     const communes = (await this.searchTerritories(stripAccents(communeName))).filter((t) => t.level === "commune");
     const needle = stripAccents(communeName).toLowerCase();
     const found =
@@ -448,6 +459,21 @@ export class ZrExpressCarrier implements CarrierAdapter {
     }
     this.wilayaByTerritory = map;
     return map;
+  }
+
+  /**
+   * `/users/profile` answers 200 for any tenant, so it proves only the key. A
+   * tenant-scoped read proves both: a refused key is 401, a refused tenant 403.
+   */
+  async verifyConnection(): Promise<CarrierConnectionCheck> {
+    try {
+      await this.http.read("POST", "/hubs/search", { pageSize: 1, pageNumber: 1 });
+      return { ok: true, code: "valid", message: "API key and tenant are valid" };
+    } catch (error) {
+      if (error instanceof CarrierError && error.httpStatus === 401) return { ok: false, code: "invalid_key", message: "The API key was refused" };
+      if (error instanceof CarrierError && error.httpStatus === 403) return { ok: false, code: "invalid_tenant", message: "The tenant ID was refused" };
+      throw error;
+    }
   }
 
   readonly webhook: CarrierWebhook = zrWebhook;
