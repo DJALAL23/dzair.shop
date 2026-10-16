@@ -52,7 +52,7 @@
   "default_prefill_product": "Hello, I'd like to ask about {product} — {url}",
   "default_thank_you_button": "Confirm your order",
   "default_prefill_thank_you": "Hello {store}, I placed order {order}. Please confirm it.",
-  "tokens_hint": "Click a token to insert into template:",
+  "tokens_hint": "Insert:",
   "surfaces_title": "Where it shows",
   "surfaces_subtitle": "Choose which pages display the WhatsApp chat button.",
   "surface_home": "Home page",
@@ -79,7 +79,7 @@
   "position_right": "Bottom right",
   "position_left": "Bottom left",
   "attention_label": "Attention pulse animation",
-  "attention_hint": "Gently animates the button after 8 seconds of inactivity to catch shopper attention.",
+  "attention_hint": "Pulses the button once per visit, about 8 seconds after the page loads. Not shown to visitors who reduce motion.",
   "phone_required": "Enter a WhatsApp phone number before enabling.",
   "phone_invalid": "The WhatsApp phone number is not valid.",
   "agent_name_too_long": "Agent name exceeds maximum characters.",
@@ -95,5 +95,12 @@
   "avatar_url_https_only": "Avatar URL must use HTTPS.",
   "load_failed": "Could not load WhatsApp widget settings.",
   "save_failed": "Could not save WhatsApp widget settings.",
-  "accent_primary_hint": "Brand theme"
+  "agent_name_help": "The name shown at the top of the chat popup. If empty, your store name is used.",
+  "caption_help": "A short line under the name, such as how fast you reply.",
+  "launcher_help": "The text on the floating button. Leave it empty to show only the WhatsApp icon.",
+  "cta_help": "The button inside the chat popup that opens WhatsApp.",
+  "prefill_general_help": "The message shoppers start with when they open WhatsApp from any page except a product page.",
+  "prefill_product_help": "The message shoppers start with when they open WhatsApp from a product page. If empty, the default message is used.",
+  "prefill_thank_you_help": "The message shoppers start with when they tap the button on the order confirmation page.",
+  "tokens_help": "Tokens are replaced on the page: {store} is your store name, {product} the product name (the store name outside product pages), {url} the page link without ad-tracking parameters, and {order} the order number."
 }

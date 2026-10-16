@@ -52,7 +52,7 @@
   "default_prefill_product": "Bonjour, je souhaite me renseigner sur {product} — {url}",
   "default_thank_you_button": "Confirmer votre commande",
   "default_prefill_thank_you": "Bonjour {store}, j'ai passé la commande {order}. Veuillez la confirmer.",
-  "tokens_hint": "Cliquez sur un jeton pour l'insérer dans le modèle :",
+  "tokens_hint": "Insérer :",
   "surfaces_title": "Où l'afficher",
   "surfaces_subtitle": "Choisissez les pages où le bouton de chat WhatsApp s'affiche.",
   "surface_home": "Page d'accueil",
@@ -79,7 +79,7 @@
   "position_right": "En bas à droite",
   "position_left": "En bas à gauche",
   "attention_label": "Animation de pulsation",
-  "attention_hint": "Anime doucement le bouton après 8 secondes pour attirer l'attention de l'acheteur.",
+  "attention_hint": "Fait pulser le bouton une fois par visite, environ 8 secondes après le chargement. Désactivé pour les visiteurs qui réduisent les animations.",
   "phone_required": "Entrez un numéro de téléphone WhatsApp avant d'activer.",
   "phone_invalid": "Le numéro de téléphone WhatsApp n'est pas valide.",
   "agent_name_too_long": "Le nom de l'agent dépasse le nombre maximum de caractères.",
@@ -95,5 +95,12 @@
   "avatar_url_https_only": "L'URL de l'avatar doit utiliser HTTPS.",
   "load_failed": "Impossible de charger les paramètres du widget WhatsApp.",
   "save_failed": "Impossible d'enregistrer les paramètres du widget WhatsApp.",
-  "accent_primary_hint": "Thème de la marque"
+  "agent_name_help": "Le nom affiché en haut de la fenêtre de chat. S'il est vide, le nom de votre boutique est utilisé.",
+  "caption_help": "Une courte ligne sous le nom, par exemple votre délai de réponse.",
+  "launcher_help": "Le texte du bouton flottant. Laissez vide pour n'afficher que l'icône WhatsApp.",
+  "cta_help": "Le bouton de la fenêtre de chat qui ouvre WhatsApp.",
+  "prefill_general_help": "Le message avec lequel le client démarre la discussion depuis toute page autre qu'une page produit.",
+  "prefill_product_help": "Le message de départ depuis une page produit. S'il est vide, le message par défaut est utilisé.",
+  "prefill_thank_you_help": "Le message de départ quand le client touche le bouton de la page de confirmation de commande.",
+  "tokens_help": "Les jetons sont remplacés sur la page : {store} est le nom de la boutique, {product} le nom du produit (le nom de la boutique hors pages produit), {url} le lien de la page sans paramètres publicitaires et {order} le numéro de commande."
 }
