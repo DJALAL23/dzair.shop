@@ -70,3 +70,19 @@ export function toLocalAlgerianMobile(raw: string): string | null {
   const local = e164.slice(4); // strip "+213"
   return /^[567]\d{8}$/.test(local) ? `0${local}` : null;
 }
+
+/**
+ * Whether two phone numbers are the same line, however each was typed: both
+ * normalized when they can be, else their national numbers (a landline, or a
+ * number a merchant typed with extra characters), the country code or the
+ * leading 0 left off. Never true for an empty or too-short number.
+ */
+export function samePhone(a: string, b: string): boolean {
+  const left = normalizeAlgerianPhone(a);
+  const right = normalizeAlgerianPhone(b);
+  if (left && right) return left === right;
+  const national = (raw: string) => raw.replace(/\D/g, "").replace(/^(00213|213|0)/, "");
+  const x = national(a);
+  const y = national(b);
+  return x.length >= 8 && x === y;
+}

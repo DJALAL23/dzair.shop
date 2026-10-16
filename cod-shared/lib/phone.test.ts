@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { normalizeAlgerianPhone, toLocalAlgerianMobile } from "./phone";
+import { normalizeAlgerianPhone, samePhone, toLocalAlgerianMobile } from "./phone";
 
 describe("normalizeAlgerianPhone", () => {
   it("normalizes every local Algerian mobile shape to +213 E.164", () => {
@@ -69,5 +69,20 @@ describe("toLocalAlgerianMobile", () => {
     "0000000000",      // zeros
   ])("rejects %s", (input) => {
     expect(toLocalAlgerianMobile(input)).toBeNull();
+  });
+});
+
+describe("samePhone", () => {
+  it("matches one line however it was typed", () => {
+    expect(samePhone("0551234567", "+213 551 23 45 67")).toBe(true);
+    expect(samePhone("0551-234-567", "00213551234567")).toBe(true);
+    expect(samePhone("021 23 45 67", "+213 21 23 45 67")).toBe(true);
+  });
+
+  it("never matches another line, or a number too short to tell", () => {
+    expect(samePhone("0551234567", "0551234568")).toBe(false);
+    expect(samePhone("0551234567", "0661234567")).toBe(false);
+    expect(samePhone("", "")).toBe(false);
+    expect(samePhone("1234", "1234")).toBe(false);
   });
 });

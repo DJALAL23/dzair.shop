@@ -2,6 +2,7 @@ import { sqliteTable, text, integer, real, uniqueIndex, index, primaryKey, forei
 import { HANDOFF_STATES, SETTLEMENT_COMPONENTS, SHIPMENT_EVENT_SOURCES, SHIPMENT_KINDS } from "../shipments/model";
 import { INTERPRETATION_KIND_VALUES, MILESTONES } from "../shipments/interpretation";
 import { CARRIER_PROVIDERS } from "../carriers/providers";
+import { REVIEW_AUTO_PUBLISH, REVIEW_MEDIA_KINDS, REVIEW_SOURCES, REVIEW_STATUSES } from "../reviews/model";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
 import { ORDER_STATUSES } from "../orders/lifecycle";
@@ -908,6 +909,14 @@ export const stores = sqliteTable("stores", {
    * Last for the same positional reason as the columns above.
    */
   whatsappWidgetJson: text("whatsapp_widget_json"),
+
+  // ── Reviews (appended by migration 0043) ──────────────────────────────────
+  /** Photos a shopper may add to a review: 0 (none) to 6. */
+  reviewMaxPhotos: integer("review_max_photos").notNull().default(3),
+  /** Longest voice note a shopper may add, in seconds; NULL = no voice notes. */
+  reviewVoiceMaxSeconds: integer("review_voice_max_seconds"),
+  /** What a shopper's review publishes without the merchant checking it. */
+  reviewAutoPublish: text("review_auto_publish", { enum: REVIEW_AUTO_PUBLISH }).notNull().default("text_only"),
 });
 
 /**
@@ -1012,9 +1021,10 @@ export const storeApiKeys = sqliteTable("store_api_keys", {
 // ─── Reviews ──────────────────────────────────────────────────────────────────
 
 /**
- * Product reviews submitted by customers via the storefront.
- * Requires a valid order_id from the same store — identity comes from the order.
- * Moderated by the merchant: pending → approved | rejected.
+ * A rating and a few words about one product (migration 0043). A shopper's
+ * rests on their order — one review per product of it; a review the store
+ * enters may name a customer and, optionally, one of their orders. `verified`
+ * is set once, when it is entered: it rests on a delivered order.
  */
 export const reviews = sqliteTable("reviews", {
   id: text("id").primaryKey(),
@@ -1024,25 +1034,56 @@ export const reviews = sqliteTable("reviews", {
   productId: text("product_id")
     .notNull()
     .references(() => products.id, { onDelete: "cascade" }),
-  orderId: text("order_id")
-    .notNull()
-    .references(() => orders.id, { onDelete: "cascade" }),
-  /** Denormalised order number for display (e.g. "ORD-0042"). */
-  orderNumber: text("order_number").notNull(),
-  /** Denormalised customer name from the order at submission time. */
+  orderId: text("order_id").references(() => orders.id, { onDelete: "cascade" }),
+  customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  /** Snapshot of the order's number, shown with the review. */
+  orderNumber: text("order_number"),
+  /** Snapshot of the name shown with the review, immune to later edits. */
   customerName: text("customer_name").notNull(),
-  /** Star rating 1–5. Enforced at application layer and DB CHECK. */
+  /** Whole stars, 1–5 (database CHECK). */
   rating: integer("rating").notNull(),
   title: text("title"),
   body: text("body").notNull(),
-  status: text("status", { enum: ["pending", "approved", "rejected"] })
-    .notNull()
-    .default("pending"),
+  status: text("status", { enum: REVIEW_STATUSES }).notNull().default("pending"),
+  source: text("source", { enum: REVIEW_SOURCES }).notNull().default("storefront"),
+  verified: integer("verified", { mode: "boolean" }).notNull().default(false),
+  /** Photos or voice notes received but not kept (unreadable, too long). */
+  mediaDropped: integer("media_dropped").notNull().default(0),
+  /** The staff member who entered a merchant review. */
+  createdBy: text("created_by"),
   helpfulCount: integer("helpful_count").notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => ({
-  orderUnique: uniqueIndex("reviews_order_unique").on(t.orderId),
+  orderProductUnique: uniqueIndex("reviews_order_product").on(t.orderId, t.productId).where(sql`order_id IS NOT NULL`),
+  productStatusIdx: index("idx_reviews_product_status").on(t.productId, t.status, t.createdAt),
+  statusCreatedIdx: index("idx_reviews_status_created").on(t.status, t.createdAt),
+  customerIdx: index("idx_reviews_customer").on(t.customerId).where(sql`customer_id IS NOT NULL`),
+}));
+
+/**
+ * A photo or the voice note of a review, stored in R2 under `reviews/`. A
+ * photo keeps a small `thumbKey` for lists; a voice note its `durationMs`.
+ * Goes with its review; its files are deleted after the row (cod-server
+ * `lib/review-media`).
+ */
+export const reviewMedia = sqliteTable("review_media", {
+  id: text("id").primaryKey(),
+  reviewId: text("review_id")
+    .notNull()
+    .references(() => reviews.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: REVIEW_MEDIA_KINDS }).notNull(),
+  r2Key: text("r2_key").notNull().unique(),
+  thumbKey: text("thumb_key").unique(),
+  contentType: text("content_type").notNull(),
+  bytes: integer("bytes").notNull(),
+  width: integer("width"),
+  height: integer("height"),
+  durationMs: integer("duration_ms"),
+  position: integer("position").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+}, (t) => ({
+  reviewIdx: index("idx_review_media_review").on(t.reviewId, t.position),
 }));
 
 // ─── Activity Logs ────────────────────────────────────────────────────────────

@@ -59,6 +59,9 @@ function storeRow(overrides: Record<string, any> = {}) {
     // The widget config sits after it, again last in schema order. NULL is
     // "no widget", which is what every store reads until it configures one.
     whatsappWidgetJson: null,
+    reviewMaxPhotos: 3,
+    reviewVoiceMaxSeconds: null,
+    reviewAutoPublish: "text_only" as const,
     ...overrides,
   };
 }

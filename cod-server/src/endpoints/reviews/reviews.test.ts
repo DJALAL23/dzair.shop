@@ -18,18 +18,24 @@ import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 const NOW = new Date().toISOString();
 
 // Helper to create a mock review row
+// Columns in schema order: the mock db maps a full-table select by position.
 function reviewRow(overrides: Record<string, any> = {}) {
   return {
     id: "review_1",
     store_id: "store_1",
     product_id: "prod_1",
     order_id: "order_1",
+    customer_id: null,
     order_number: "ORD-20240101-0042",
     customer_name: "أحمد بن علي",
     rating: 5,
     title: "منتج ممتاز",
     body: "جودة عالية وسعر مناسب",
     status: "pending",
+    source: "storefront",
+    verified: 0,
+    media_dropped: 0,
+    created_by: null,
     helpful_count: 0,
     created_at: NOW,
     updated_at: NOW,

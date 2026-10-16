@@ -40,18 +40,24 @@ function movementRow(overrides: Record<string, unknown> = {}): Record<string, un
   };
 }
 
+// Columns in schema order: the mock db maps a full-table select by position.
 function reviewRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: "rev_1",
     store_id: "store_1",
     product_id: "prod_1",
     order_id: "ord_1",
+    customer_id: null,
     order_number: "ORD-001",
     customer_name: "Fatima",
     rating: 5,
     title: null,
     body: "great",
     status: "approved",
+    source: "storefront",
+    verified: 0,
+    media_dropped: 0,
+    created_by: null,
     helpful_count: 0,
     created_at: NOW,
     updated_at: NOW,
