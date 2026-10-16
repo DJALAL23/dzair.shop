@@ -82,5 +82,11 @@
   "back": "Retour",
   "save": "Enregistrer",
   "saving": "Enregistrement…",
-  "new_badge": "Nouveau"
+  "new_badge": "Nouveau",
+  "image": {
+    "move_earlier": "Avancer",
+    "move_later": "Reculer",
+    "remove": "Retirer",
+    "category_alt": "Image de la catégorie"
+  }
 }

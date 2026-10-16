@@ -97,7 +97,11 @@
     "contact_section_title": "خدمة الزبائن وقنوات التواصل",
     "contact_section_subtitle": "تُعرض في بند \"اتصل بنا\" في كل صفحة وتذييل المتجر.",
     "cod_section_title": "إعدادات الشحن والإرجاع في الدفع عند الاستلام",
-    "cod_section_subtitle": "القواعد المطبقة عبر سياستي الإرجاع والشحن."
+    "cod_section_subtitle": "القواعد المطبقة عبر سياستي الإرجاع والشحن.",
+    "legal_name_placeholder": "مثال: SARL CodFlow Algérie",
+    "address_placeholder": "مثال: 12 شارع ديدوش مراد، الجزائر",
+    "rc_number_placeholder": "مثال: 16/00-1234567B22",
+    "nif_placeholder": "مثال: 002216012345678"
   },
   "errors": {
     "slug_taken": "رابط الصفحة هذا مستعمل من طرف صفحة أخرى.",
@@ -119,5 +123,6 @@
     "needs_review_count_many": "{count} صفحة تحتاج إلى مراجعة",
     "needs_review_count_other": "{count} صفحة تحتاج إلى مراجعة",
     "configure_profile": "تهيئة بيانات النشاط التجاري"
-  }
+  },
+  "new_page_title_placeholder": "مثال: عن متجرنا، الأسئلة الشائعة، اتصل بنا"
 }

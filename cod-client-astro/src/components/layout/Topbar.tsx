@@ -17,8 +17,9 @@ import {
 } from "@/components/ui";
 
 export function Brand() {
+  const tN = useT("navigation");
   return (
-    <a href="/" className="flex min-w-0 items-center rounded-md" aria-label="CodFlow — home">
+    <a href="/" className="flex min-w-0 items-center rounded-md" aria-label={tN("home_link")}>
       <Logo variant="dark" height={22} className="dark:hidden" />
       <Logo variant="light" height={22} className="hidden dark:block" />
     </a>

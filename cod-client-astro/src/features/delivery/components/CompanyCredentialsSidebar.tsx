@@ -23,8 +23,8 @@ export function CompanyCredentialsSidebar({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="space-y-3 rounded-xl bg-card p-5 shadow-card">
-        <h2 className="text-[11px] font-semibold text-muted-foreground/60">
+      <div className="space-y-3 rounded-xl bg-card p-4 shadow-card">
+        <h2 className="text-sm font-semibold text-card-foreground">
           {t("actions")}
         </h2>
         <Button
@@ -55,8 +55,8 @@ export function CompanyCredentialsSidebar({
         )}
       </div>
 
-      <div className="space-y-2 rounded-xl bg-card p-5 shadow-card">
-        <p className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground/60">
+      <div className="space-y-2 rounded-xl bg-card p-4 shadow-card">
+        <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <ShieldCheck size={14} className="shrink-0 text-primary/50" aria-hidden="true" />
           {t("security")}
         </p>

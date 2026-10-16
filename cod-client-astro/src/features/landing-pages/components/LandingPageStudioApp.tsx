@@ -783,7 +783,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                 </div>
               )}
               {trackingState.kind === "inactive" && (
-                <p className="pt-1 text-[11px] leading-relaxed text-amber-600">
+                <p className="pt-1 text-[11px] leading-relaxed text-tone-warning-text">
                   {inactiveReason(trackingState.reason, t)}
                 </p>
               )}

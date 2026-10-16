@@ -139,7 +139,7 @@ export function VariantImagePicker({
             style={{ left: pos?.left ?? 0, top: pos?.top ?? 0 }}
             className="fixed z-[80] w-max max-w-[min(20rem,calc(100vw-1rem))] animate-pop rounded-xl bg-popover p-2 shadow-popover"
           >
-            <p className="px-1 pb-1.5 text-[11px] font-semibold text-muted-foreground/60">
+            <p className="px-1 pb-1.5 text-xs font-medium text-muted-foreground">
               {t("form.variant_image_select")}
             </p>
             <div className="flex flex-wrap gap-1.5">

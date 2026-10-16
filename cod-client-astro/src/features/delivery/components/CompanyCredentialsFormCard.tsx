@@ -73,7 +73,7 @@ export function CompanyCredentialsFormCard({
         </div>
       </div>
 
-      <h2 className="text-[11px] font-semibold text-muted-foreground/60">
+      <h2 className="text-sm font-semibold text-card-foreground">
         {t("api_credentials")}
       </h2>
 

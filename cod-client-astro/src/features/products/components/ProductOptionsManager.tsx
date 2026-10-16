@@ -161,7 +161,7 @@ export function ProductOptionsManager({
                       }
                       className="size-5 cursor-pointer rounded border-0 bg-transparent p-0"
                       disabled={disabled}
-                      title="Pick color"
+                      title={t("options.pick_color")}
                     />
                   </>
                 ) : (
@@ -172,7 +172,7 @@ export function ProductOptionsManager({
                         updateValue(option.id, value.id, "hexColor", "#cccccc")
                       }
                       className="grid size-5 place-items-center rounded border border-dashed border-border text-muted-foreground/40 hover:text-muted-foreground"
-                      title="Add color"
+                      title={t("options.add_color")}
                     >
                       +
                     </button>

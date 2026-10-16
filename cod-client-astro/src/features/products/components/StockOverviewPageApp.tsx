@@ -20,7 +20,7 @@ const SORT_LABEL_KEYS: Record<StockSortKey, string> = { inventory: "stock_overvi
 
 function StockChip({ item }: { item: StockAlertItem }) {
   const tone = stockAlertTone(item);
-  const classes = tone === "out" ? "bg-destructive/10 text-destructive ring-destructive/20" : tone === "low" ? "bg-amber-500/10 text-amber-600 ring-amber-500/20" : "bg-muted text-foreground ring-border/60";
+  const classes = tone === "out" ? "bg-destructive/10 text-destructive ring-destructive/20" : tone === "low" ? "bg-tone-warning-bg text-tone-warning-text ring-tone-warning-border" : "bg-muted text-foreground ring-border/60";
   return <span className={`inline-flex h-9 min-w-12 items-center justify-center rounded-xl px-2.5 text-base font-semibold tabular-nums ring-1 ring-inset ${classes}`}>{item.inventory}</span>;
 }
 
@@ -40,8 +40,8 @@ function StockMeta({ item }: { item: StockAlertItem }) {
 function StockRow({ item, isVariant, onAdjust, onHistory }: { item: StockAlertItem; isVariant: boolean; onAdjust: (item: StockAlertItem) => void; onHistory: (item: StockAlertItem) => void }) {
   const t = useT("products");
   const tone = stockAlertTone(item);
-  const stripeColor = tone === "out" ? "bg-destructive" : tone === "low" ? "bg-amber-500" : "bg-transparent";
-  return <div className={`group relative flex min-h-16 items-center gap-3 overflow-hidden rounded-xl border bg-card px-3 py-2 ${tone === "out" ? "border-destructive/20" : tone === "low" ? "border-amber-500/20" : "border-border/60"} ${isVariant ? "min-h-14 bg-muted/20" : ""}`}>
+  const stripeColor = tone === "out" ? "bg-destructive" : tone === "low" ? "bg-warning" : "bg-transparent";
+  return <div className={`group relative flex min-h-16 items-center gap-3 overflow-hidden rounded-xl border bg-card px-3 py-2 ${tone === "out" ? "border-destructive/20" : tone === "low" ? "border-tone-warning-border" : "border-border/60"} ${isVariant ? "min-h-14 bg-muted/20" : ""}`}>
     <span aria-hidden className={`absolute inset-y-2 start-0 w-[3px] rounded-full ${stripeColor}`} />
     <button type="button" onClick={() => onHistory(item)} className="flex min-w-0 flex-1 items-center gap-2.5 py-3 text-start">
       <div className="min-w-0 flex-1">
@@ -65,8 +65,8 @@ function ProductGroupBlock({ group, onAdjust, onHistory }: { group: StockGroup; 
   }
   const totalInventory = stockGroupInventory(group);
   const groupTone = group.items.some((item) => item.isOutOfStock) ? "out" : group.items.some((item) => item.inventory <= item.lowStockThreshold) ? "low" : "ok";
-  const stripeColor = groupTone === "out" ? "bg-destructive" : groupTone === "low" ? "bg-amber-500" : "bg-transparent";
-  return <div className={`overflow-hidden rounded-xl border ${groupTone === "out" ? "border-destructive/20" : groupTone === "low" ? "border-amber-500/20" : "border-border/60"}`}>
+  const stripeColor = groupTone === "out" ? "bg-destructive" : groupTone === "low" ? "bg-warning" : "bg-transparent";
+  return <div className={`overflow-hidden rounded-xl border ${groupTone === "out" ? "border-destructive/20" : groupTone === "low" ? "border-tone-warning-border" : "border-border/60"}`}>
     <button type="button" onClick={() => setOpen((current) => !current)} className={`relative flex w-full min-h-14 items-center gap-3 px-4 py-3 text-start transition-colors ${open ? "bg-muted/50" : "bg-muted/30 hover:bg-muted/50"}`}>
       <span aria-hidden className={`absolute inset-y-2 start-0 w-[3px] rounded-full ${stripeColor}`} />
       <div className="flex min-w-0 flex-1 flex-col"><span className="truncate text-sm font-semibold text-foreground">{group.productName}</span><span className="text-[11px] text-muted-foreground">{group.items.length} SKU</span></div>

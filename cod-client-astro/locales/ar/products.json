@@ -306,5 +306,9 @@
   "in_stock_count_two": "قطعتان في المخزون",
   "in_stock_count_few": "{count} قطع في المخزون",
   "in_stock_count_many": "{count} قطعة في المخزون",
-  "in_stock_count_other": "{count} قطعة في المخزون"
+  "in_stock_count_other": "{count} قطعة في المخزون",
+  "options": {
+    "pick_color": "اختر لونًا",
+    "add_color": "أضف لونًا"
+  }
 }

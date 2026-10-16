@@ -61,12 +61,12 @@ export function ThresholdEditor({
           if (!editing) setEditing(true);
         }
       }}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${editing ? "cursor-default border-amber-500/50 bg-amber-500/10" : "cursor-pointer border-amber-500/20 bg-amber-500/5 hover:border-amber-500/50 hover:bg-amber-500/10"}`}
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${editing ? "cursor-default border-tone-warning-border bg-tone-warning-bg" : "cursor-pointer border-tone-warning-border bg-tone-warning-bg hover:border-tone-warning-border hover:bg-tone-warning-bg"}`}
     >
       {saved ? (
-        <Check size={12} className="shrink-0 text-violet-600" />
+        <Check size={12} className="shrink-0 text-tone-success-text" />
       ) : (
-        <Bell size={12} className="shrink-0 text-amber-500/70" />
+        <Bell size={12} className="shrink-0 text-tone-warning-text" />
       )}
       {editing ? (
         <input
@@ -87,10 +87,10 @@ export function ThresholdEditor({
             }
           }}
           onClick={(event) => event.stopPropagation()}
-          className="w-10 bg-transparent text-center text-xs font-medium tabular-nums text-amber-600 outline-none dark:text-amber-400"
+          className="w-10 bg-transparent text-center text-xs font-medium tabular-nums text-tone-warning-text outline-none"
         />
       ) : (
-        <span className="tabular-nums text-amber-600/80 dark:text-amber-400/80">
+        <span className="tabular-nums text-tone-warning-text">
           {value}
         </span>
       )}

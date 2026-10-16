@@ -285,13 +285,13 @@ export function DriverSettlementCard({
                           className={
                             codSettled
                               ? "text-muted-foreground/50 line-through"
-                              : "font-semibold text-amber-600"
+                              : "font-semibold text-tone-warning-text"
                           }
                         >
                           {formatDeliveryMoney(order.codAmount, locale)}
                         </span>
                         {codSettled && (
-                          <span className="ms-1 text-[11px] font-semibold text-violet-600">
+                          <span className="ms-1 text-[11px] font-semibold text-tone-success-text">
                             ✓
                           </span>
                         )}
@@ -311,7 +311,7 @@ export function DriverSettlementCard({
                           <span className="text-muted-foreground/30">—</span>
                         )}
                         {feeSettled && order.driverFee > 0 && (
-                          <span className="ms-1 text-[11px] font-semibold text-violet-600">
+                          <span className="ms-1 text-[11px] font-semibold text-tone-success-text">
                             ✓
                           </span>
                         )}

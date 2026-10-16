@@ -104,7 +104,7 @@ export function ScopeAssignmentDialog({ open, onClose, user, onSuccess }: Props)
               {user.name}
             </span>
             {isAdmin && (
-              <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-amber-600">
+              <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-tone-warning-text">
                 <Crown size={11} />
                 {t("scope_dialog.admin_full_access")}
               </span>
@@ -164,8 +164,8 @@ export function ScopeAssignmentDialog({ open, onClose, user, onSuccess }: Props)
                       <span
                         className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tracking-tight ${
                           granting
-                            ? "bg-violet-500/10 text-violet-600"
-                            : "bg-rose-500/10 text-rose-600"
+                            ? "bg-tone-success-bg text-tone-success-text"
+                            : "bg-tone-critical-bg text-tone-critical-text"
                         }`}
                       >
                         {granting ? t("scope_dialog.will_grant") : t("scope_dialog.will_revoke")}

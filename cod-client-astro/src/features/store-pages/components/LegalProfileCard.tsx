@@ -82,7 +82,7 @@ export function LegalProfileCard({ profile, onSaved }: LegalProfileCardProps) {
                 value={legalName}
                 onChange={(e) => setLegalName(e.currentTarget.value)}
                 disabled={busy || !canManage}
-                placeholder="e.g. SARL CodFlow Algérie"
+                placeholder={t("legal_profile.legal_name_placeholder")}
               />
             </Field>
 
@@ -91,7 +91,7 @@ export function LegalProfileCard({ profile, onSaved }: LegalProfileCardProps) {
                 value={address}
                 onChange={(e) => setAddress(e.currentTarget.value)}
                 disabled={busy || !canManage}
-                placeholder="e.g. 12 Rue Didouche Mourad, Alger"
+                placeholder={t("legal_profile.address_placeholder")}
               />
             </Field>
 
@@ -101,7 +101,7 @@ export function LegalProfileCard({ profile, onSaved }: LegalProfileCardProps) {
                 onChange={(e) => setRcNumber(e.currentTarget.value)}
                 dir="ltr"
                 disabled={busy || !canManage}
-                placeholder="e.g. 16/00-1234567B22"
+                placeholder={t("legal_profile.rc_number_placeholder")}
                 className="font-mono text-xs"
               />
             </Field>
@@ -112,7 +112,7 @@ export function LegalProfileCard({ profile, onSaved }: LegalProfileCardProps) {
                 onChange={(e) => setNif(e.currentTarget.value)}
                 dir="ltr"
                 disabled={busy || !canManage}
-                placeholder="e.g. 002216012345678"
+                placeholder={t("legal_profile.nif_placeholder")}
                 className="font-mono text-xs"
               />
             </Field>

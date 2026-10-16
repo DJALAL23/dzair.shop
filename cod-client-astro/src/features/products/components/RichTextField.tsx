@@ -33,7 +33,7 @@ export function RichTextField({ value, onChange, busy, disabled }: RichTextField
     <ErrorBoundary
       fallback={
         <div className="space-y-1.5">
-          <p role="alert" className="text-xs font-medium text-amber-700 dark:text-amber-400">
+          <p role="alert" className="text-xs font-medium text-tone-warning-text">
             {common("editor_load_failed")}{" "}
             <button type="button" onClick={() => window.location.reload()} className="underline underline-offset-2">
               {common("reload_page")}

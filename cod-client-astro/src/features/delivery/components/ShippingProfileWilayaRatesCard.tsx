@@ -157,7 +157,7 @@ export function ShippingProfileWilayaRatesCard({
                       <p className="truncate text-sm font-semibold text-foreground">
                         {wilaya.nameAr}
                       </p>
-                      <p className="truncate text-[11px] font-semibold text-muted-foreground/60">
+                      <p className="truncate text-xs font-medium text-muted-foreground">
                         {wilaya.name}
                       </p>
                     </div>

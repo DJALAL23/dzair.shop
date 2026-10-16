@@ -33,7 +33,7 @@ export function CategoryImageUploader({ value, onChange, disabled }: { value?: s
 
   return <div className="space-y-4">
     {value && <div className="group relative aspect-video max-w-md overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
-      <img src={value} alt="Category" className="size-full object-cover" />
+      <img src={value} alt={common("image.category_alt")} className="size-full object-cover" />
       <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
         <button type="button" disabled={disabled} onClick={() => onChange(null)} className="grid size-10 place-items-center rounded-full bg-destructive text-white hover:bg-destructive/80 disabled:opacity-50" aria-label="Remove image"><X size={20} /></button>
       </div>
@@ -43,9 +43,9 @@ export function CategoryImageUploader({ value, onChange, disabled }: { value?: s
       onDragLeave={() => setDragging(false)}
       onDrop={(event) => { event.preventDefault(); setDragging(false); if (disabled || uploading) return; const file = event.dataTransfer.files[0]; if (file) void handleFile(file); }}
       onClick={() => !disabled && !uploading && inputRef.current?.click()}
-      className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-12 transition-all ${dragging ? "scale-[1.01] border-primary bg-primary/5" : "border-border/50 hover:border-primary/50 hover:bg-muted/30"} ${disabled || uploading ? "pointer-events-none cursor-not-allowed opacity-50" : ""}`}
+      className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-12 transition-all ${dragging ? "scale-[1.01] border-primary bg-primary/5" : "border-border/50 hover:border-primary/50 hover:bg-muted/30"} ${disabled || uploading ? "pointer-events-none cursor-not-allowed opacity-50" : ""}`}
     >
-      {uploading ? <Loader2 size={40} className="animate-spin text-primary" /> : <span className="grid size-14 place-items-center rounded-2xl bg-primary/10"><UploadCloud size={28} className="text-primary" /></span>}
+      {uploading ? <Loader2 size={40} className="animate-spin text-primary" /> : <span className="grid size-14 place-items-center rounded-xl bg-primary/10"><UploadCloud size={28} className="text-primary" /></span>}
       <div className="text-center">
         <p className="text-sm font-semibold text-foreground">{uploading ? "Uploading…" : dragging ? "Drop image here" : "Click or drag image here"}</p>
         <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP, GIF · max {MAX_UPLOAD_MB} MB</p>

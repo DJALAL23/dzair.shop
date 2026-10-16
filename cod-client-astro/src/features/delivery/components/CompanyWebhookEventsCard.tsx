@@ -89,9 +89,9 @@ export function CompanyWebhookEventsCard({ company, canManage }: { company: Deli
   if (!company) return null;
 
   return (
-    <div className="rounded-xl bg-card p-5 shadow-card">
+    <div className="rounded-xl bg-card p-4 shadow-card">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground/60">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-card-foreground">
           <Webhook size={14} className="text-primary/50" aria-hidden="true" />
           {t("events_title")}
         </h2>

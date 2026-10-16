@@ -94,5 +94,6 @@
   "avatar_url_too_long": "Avatar URL exceeds maximum characters.",
   "avatar_url_https_only": "Avatar URL must use HTTPS.",
   "load_failed": "Could not load WhatsApp widget settings.",
-  "save_failed": "Could not save WhatsApp widget settings."
+  "save_failed": "Could not save WhatsApp widget settings.",
+  "accent_primary_hint": "Brand theme"
 }

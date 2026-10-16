@@ -83,7 +83,7 @@ export function DriverCompensationsDetail({ driverId }: { driverId: string }) {
     <div className="mx-auto max-w-3xl space-y-5">
       <a
         href={`/delivery/drivers/${encodeURIComponent(driver.id)}`}
-        className="inline-flex items-center gap-2 text-[11px] font-semibold text-muted-foreground/60 transition-colors hover:text-foreground"
+        className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <X size={14} className="rotate-45" />
         {t("actions.back_to_driver")}
@@ -100,7 +100,7 @@ export function DriverCompensationsDetail({ driverId }: { driverId: string }) {
             {driverFullName(driver)}
           </p>
           <p
-            className="truncate text-[11px] font-semibold text-muted-foreground/60"
+            className="truncate text-xs font-medium text-muted-foreground"
             dir="ltr"
           >
             {driver.phone}

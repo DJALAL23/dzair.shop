@@ -320,12 +320,12 @@ function CheckoutFormContent() {
               </div>
             ) : dirty ? (
               <span className="flex items-center gap-2 text-xs">
-                <span className="size-2 rounded-full bg-amber-500" />
+                <span className="size-2 rounded-full bg-tone-warning-bg" />
                 <span className="font-semibold text-foreground">{t("status.unsaved")}</span>
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CircleCheck size={13} className="text-emerald-500" />
+                <CircleCheck size={13} className="text-tone-success-text" />
                 {t("status.saved")}
               </span>
             )

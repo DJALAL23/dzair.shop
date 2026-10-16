@@ -89,9 +89,9 @@ export function CompanyZrWebhookCard({
   }
 
   return (
-    <div className="rounded-xl bg-card p-5 shadow-card">
+    <div className="rounded-xl bg-card p-4 shadow-card">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground/60">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-card-foreground">
           <Radio size={14} className="text-primary/50" aria-hidden="true" />
           {t("zr_webhook_title")}
         </h2>
@@ -138,7 +138,7 @@ export function CompanyZrWebhookCard({
         </div>
 
         <div className="space-y-2">
-          <p className="text-[11px] font-semibold text-muted-foreground/60">
+          <p className="text-xs font-medium text-muted-foreground">
             {t("zr_mapping_title")}
           </p>
           <p className="text-xs font-medium leading-relaxed text-muted-foreground/70">

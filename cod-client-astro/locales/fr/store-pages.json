@@ -94,7 +94,11 @@
     "contact_section_title": "Support client et contact",
     "contact_section_subtitle": "Affichés dans la clause de contact de chaque politique et dans le pied de page.",
     "cod_section_title": "Paramètres de livraison et retour COD",
-    "cod_section_subtitle": "Règles appliquées dans vos politiques de retour et de livraison."
+    "cod_section_subtitle": "Règles appliquées dans vos politiques de retour et de livraison.",
+    "legal_name_placeholder": "ex. SARL CodFlow Algérie",
+    "address_placeholder": "ex. 12 Rue Didouche Mourad, Alger",
+    "rc_number_placeholder": "ex. 16/00-1234567B22",
+    "nif_placeholder": "ex. 002216012345678"
   },
   "errors": {
     "slug_taken": "Ce lien de page est déjà utilisé par une autre page.",
@@ -113,5 +117,6 @@
     "needs_review_count_many": "{count} à revoir",
     "needs_review_count_other": "{count} à revoir",
     "configure_profile": "Configurer les informations d'entreprise"
-  }
+  },
+  "new_page_title_placeholder": "ex. À propos, FAQ, Nous contacter"
 }

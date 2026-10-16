@@ -262,5 +262,6 @@
     "add_hint": "It starts unpublished, so shoppers don't see it until you publish it.",
     "add_placeholder": "Choose a language",
     "add": "Add"
-  }
+  },
+  "nav_label": "Settings navigation"
 }

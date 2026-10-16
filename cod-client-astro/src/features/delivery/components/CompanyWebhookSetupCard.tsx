@@ -58,9 +58,9 @@ export function CompanyWebhookSetupCard({
   }
 
   return (
-    <div className="rounded-xl bg-card p-5 shadow-card">
+    <div className="rounded-xl bg-card p-4 shadow-card">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground/60">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-card-foreground">
           <Zap size={14} className="text-primary/50" aria-hidden="true" />
           {t("webhook_setup_title")}
         </h2>
@@ -69,7 +69,7 @@ export function CompanyWebhookSetupCard({
             "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
             secretSet
               ? "bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]"
-              : "bg-amber-500/10 text-amber-600",
+              : "bg-tone-warning-bg text-tone-warning-text",
           )}
         >
           {secretSet ? (
@@ -153,7 +153,7 @@ function Alert({ children }: { children: React.ReactNode }) {
   return (
     <div
       role="alert"
-      className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm font-medium text-amber-700"
+      className="flex items-start gap-2.5 rounded-lg border border-tone-warning-border bg-tone-warning-bg p-3 text-sm font-medium text-tone-warning-text"
     >
       {children}
     </div>

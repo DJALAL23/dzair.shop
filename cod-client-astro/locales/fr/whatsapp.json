@@ -94,5 +94,6 @@
   "avatar_url_too_long": "L'URL de l'avatar dépasse la longueur maximale.",
   "avatar_url_https_only": "L'URL de l'avatar doit utiliser HTTPS.",
   "load_failed": "Impossible de charger les paramètres du widget WhatsApp.",
-  "save_failed": "Impossible d'enregistrer les paramètres du widget WhatsApp."
+  "save_failed": "Impossible d'enregistrer les paramètres du widget WhatsApp.",
+  "accent_primary_hint": "Thème de la marque"
 }

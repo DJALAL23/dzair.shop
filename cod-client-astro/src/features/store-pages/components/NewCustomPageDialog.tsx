@@ -92,7 +92,7 @@ export function NewCustomPageDialog({ storeLang, onClose, onCreated }: NewCustom
             onChange={(event) => handleTitleChange(event.currentTarget.value)}
             disabled={busy}
             autoFocus
-            placeholder="e.g. About Our Store, FAQ, Contact Us"
+            placeholder={t("new_page_title_placeholder")}
           />
         </Field>
 

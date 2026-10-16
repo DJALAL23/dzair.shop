@@ -200,13 +200,13 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
               className={`flex items-start gap-2.5 rounded-xl border p-3 ${
                 emailSent
                   ? "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)]"
-                  : "border-yellow-500/20 bg-yellow-500/5"
+                  : "border-tone-warning-border bg-tone-warning-bg"
               }`}
             >
               {emailSent ? (
                 <MailCheck size={16} className="mt-0.5 shrink-0 text-[var(--tone-success-text)]" />
               ) : (
-                <MailWarning size={16} className="mt-0.5 shrink-0 text-yellow-600" />
+                <MailWarning size={16} className="mt-0.5 shrink-0 text-tone-warning-text" />
               )}
               <div className="space-y-0.5 text-xs">
                 {emailSent ? (
@@ -224,7 +224,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
                   {createdEmail}
                 </p>
                 {!emailSent && (
-                  <p className="font-semibold text-amber-600">
+                  <p className="font-semibold text-tone-warning-text">
                     {t("invite_dialog_extra.email_share_manually")}
                   </p>
                 )}
@@ -239,7 +239,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
                   onClick={() => void copyText(createdApiKey, setCopied, t("api_key_copied"))}
                   aria-label={t("api_key_copied")}
                 >
-                  {copied ? <Check size={15} className="text-violet-500" /> : <Copy size={15} />}
+                  {copied ? <Check size={15} className="text-tone-success-text" /> : <Copy size={15} />}
                 </Button>
               </div>
             </Field>
@@ -258,7 +258,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
                   }
                   aria-label={t("api_key_copied")}
                 >
-                  {copiedPassword ? <Check size={15} className="text-violet-500" /> : <Copy size={15} />}
+                  {copiedPassword ? <Check size={15} className="text-tone-success-text" /> : <Copy size={15} />}
                 </Button>
               </div>
             </Field>
@@ -266,7 +266,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
               <KeyRound size={16} className="mt-0.5 shrink-0 text-destructive" />
               <div className="space-y-1 text-xs text-muted-foreground">
                 <p className="font-semibold">{t("invite_dialog_extra.api_key_warning")}</p>
-                <p className="font-semibold text-amber-600">
+                <p className="font-semibold text-tone-warning-text">
                   {t("invite_dialog_extra.temp_password_warning")}
                 </p>
               </div>
@@ -326,8 +326,8 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
           </Field>
 
           {isAdmin ? (
-            <div className="flex items-start gap-2.5 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3">
-              <KeyRound size={16} className="mt-0.5 shrink-0 text-yellow-600" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-tone-warning-border bg-tone-warning-bg p-3">
+              <KeyRound size={16} className="mt-0.5 shrink-0 text-tone-warning-text" />
               <p className="text-xs text-muted-foreground">
                 {t("invite_dialog_extra.admin_full_access")}
               </p>

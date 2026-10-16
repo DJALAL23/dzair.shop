@@ -297,5 +297,9 @@
   "count_other": "{count} produits",
   "in_stock_count_one": "{count} en stock",
   "in_stock_count_many": "{count} en stock",
-  "in_stock_count_other": "{count} en stock"
+  "in_stock_count_other": "{count} en stock",
+  "options": {
+    "pick_color": "Choisir une couleur",
+    "add_color": "Ajouter une couleur"
+  }
 }

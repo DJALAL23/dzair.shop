@@ -82,5 +82,11 @@
   "back": "رجوع",
   "save": "حفظ",
   "saving": "جارٍ الحفظ…",
-  "new_badge": "جديد"
+  "new_badge": "جديد",
+  "image": {
+    "move_earlier": "تقديم",
+    "move_later": "تأخير",
+    "remove": "إزالة",
+    "category_alt": "صورة الفئة"
+  }
 }

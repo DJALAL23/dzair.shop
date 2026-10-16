@@ -93,7 +93,7 @@ export function CompanySettingsSection({
               <span
                 className={cn(
                   "size-2.5 shrink-0 rounded-full",
-                  hasWebhook ? "bg-violet-500 shadow-xs shadow-violet-500/40" : "bg-muted-foreground/20",
+                  hasWebhook ? "bg-tone-success-bg" : "bg-muted-foreground/20",
                 )}
               />
             </div>
@@ -101,13 +101,13 @@ export function CompanySettingsSection({
         )}
 
         {company && canManage && (
-          <div className="rounded-xl bg-card p-5 shadow-card">
+          <div className="rounded-xl bg-card p-4 shadow-card">
             <div className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 flex-1 items-center gap-2.5">
                 <span
                   className={cn(
                     "grid size-10 shrink-0 place-items-center rounded-xl",
-                    autoValidate ? "bg-amber-500/10 text-amber-500" : "bg-violet-500/10 text-violet-500",
+                    autoValidate ? "bg-tone-warning-bg text-tone-warning-text" : "bg-tone-success-bg text-tone-success-text",
                   )}
                 >
                   {autoValidate ? (
@@ -145,9 +145,9 @@ export function CompanySettingsSection({
             </p>
 
             {isEcotrackProvider && (
-              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
-                <ShieldAlert size={14} className="mt-0.5 shrink-0 text-amber-500" aria-hidden="true" />
-                <p className="text-xs font-semibold leading-relaxed text-amber-600">
+              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-tone-warning-border bg-tone-warning-bg p-3">
+                <ShieldAlert size={14} className="mt-0.5 shrink-0 text-tone-warning-text" aria-hidden="true" />
+                <p className="text-xs font-semibold leading-relaxed text-tone-warning-text">
                   {t("ecotrack_warning")}
                 </p>
               </div>
@@ -159,12 +159,12 @@ export function CompanySettingsSection({
       {config.supportsStopDesk && canManage && (
         <div
           className={cn(
-            "h-fit rounded-xl bg-card p-5 shadow-card",
+            "h-fit rounded-xl bg-card p-4 shadow-card",
             !isConnected && "pointer-events-none opacity-50",
           )}
         >
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-[11px] font-semibold text-muted-foreground/60">
+            <h2 className="text-sm font-semibold text-card-foreground">
               {t("data_sync")}
             </h2>
             {!isConnected && <Lock size={11} className="text-muted-foreground/30" aria-hidden="true" />}

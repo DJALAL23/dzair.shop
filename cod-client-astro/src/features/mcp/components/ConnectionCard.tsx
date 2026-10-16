@@ -21,7 +21,7 @@ function StatusBadge({ active }: { active: boolean }) {
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
         active
-          ? "border-violet-500/20 bg-violet-500/10 text-violet-600"
+          ? "border-tone-success-border bg-tone-success-bg text-tone-success-text"
           : "border-border/30 bg-muted/40 text-muted-foreground/60"
       }`}
     >

@@ -82,5 +82,11 @@
   "back": "Back",
   "save": "Save",
   "saving": "Saving…",
-  "new_badge": "New"
+  "new_badge": "New",
+  "image": {
+    "move_earlier": "Move earlier",
+    "move_later": "Move later",
+    "remove": "Remove",
+    "category_alt": "Category image"
+  }
 }

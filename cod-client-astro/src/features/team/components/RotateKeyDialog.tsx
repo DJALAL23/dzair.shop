@@ -39,7 +39,7 @@ export function RotateKeyDialog({
       onClose={onClose}
       title={
         <span className="inline-flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-lg bg-amber-500/10 text-amber-600">
+          <span className="grid size-8 place-items-center rounded-lg bg-tone-warning-bg text-tone-warning-text">
             <KeyRound size={16} />
           </span>
           <span>
@@ -68,7 +68,7 @@ export function RotateKeyDialog({
               aria-label={t("api_key_copied")}
             >
               {copied ? (
-                <Check size={15} className="text-violet-500" />
+                <Check size={15} className="text-tone-success-text" />
               ) : (
                 <Copy size={15} />
               )}

@@ -93,7 +93,11 @@
     "contact_section_title": "Customer support & contact",
     "contact_section_subtitle": "Displayed in the 'Contact Us' section of every page and in your store footer.",
     "cod_section_title": "COD delivery & return settings",
-    "cod_section_subtitle": "Rules applied across your Refund and Shipping policies."
+    "cod_section_subtitle": "Rules applied across your Refund and Shipping policies.",
+    "legal_name_placeholder": "e.g. SARL CodFlow Algérie",
+    "address_placeholder": "e.g. 12 Rue Didouche Mourad, Alger",
+    "rc_number_placeholder": "e.g. 16/00-1234567B22",
+    "nif_placeholder": "e.g. 002216012345678"
   },
   "errors": {
     "slug_taken": "That page link is already used by another page.",
@@ -111,5 +115,6 @@
     "needs_review_count_one": "{count} needs review",
     "needs_review_count_other": "{count} need review",
     "configure_profile": "Configure business details"
-  }
+  },
+  "new_page_title_placeholder": "e.g. About Our Store, FAQ, Contact Us"
 }

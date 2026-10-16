@@ -34,7 +34,7 @@ const LIMIT = 20;
 const FILTERS: Array<ReviewStatus | "all"> = ["all", "pending", "approved", "rejected"];
 
 function StarRating({ rating }: { rating: number }) {
-  return <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5`}>{[1, 2, 3, 4, 5].map((star) => <Star key={star} size={14} className={star <= rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"} />)}</span>;
+  return <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5`}>{[1, 2, 3, 4, 5].map((star) => <Star key={star} size={14} className={star <= rating ? "fill-tone-warning-text text-tone-warning-text" : "text-muted-foreground/30"} />)}</span>;
 }
 
 function ReviewSkeleton() {
@@ -205,7 +205,7 @@ function ReviewsList() {
     {actionError && <Alert role="alert" tone="critical"><span className="flex-1">{actionError}</span><button type="button" onClick={() => setActionError(null)} aria-label={common("cancel")}><X size={16} /></button></Alert>}
     <div className="rounded-xl bg-card shadow-card">
       <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 rounded-xl border border-primary/10 bg-primary/5 px-3 py-1.5"><Star size={14} className="fill-primary text-primary" /><p className="text-[11px] font-semibold text-primary">{t("total", { count: result.total })}</p>{result.pendingCount > 0 && <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">{t("new_badge", { count: result.pendingCount })}</span>}</div>
+        <div className="flex items-center gap-2 rounded-xl border border-primary/10 bg-primary/5 px-3 py-1.5"><Star size={14} className="fill-primary text-primary" /><p className="text-[11px] font-semibold text-primary">{t("total", { count: result.total })}</p>{result.pendingCount > 0 && <span className="rounded-full bg-tone-warning-bg px-1.5 py-0.5 text-[11px] font-semibold text-white">{t("new_badge", { count: result.pendingCount })}</span>}</div>
         <label className="relative flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 sm:flex-none">
           <FilterIcon size={14} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <Select aria-label={t("table.status")} value={status} onChange={(event) => switchStatus(event.currentTarget.value as ReviewStatus | "all")} variant="bare" size="sm" wrapperClassName="min-w-0 flex-1" triggerClassName="min-w-0 flex-1">

@@ -100,9 +100,9 @@ export function ProductImageUploader({ existingImages, pendingImages, productId,
         <span className="absolute start-1.5 top-1.5 rounded-md bg-black/50 px-1.5 py-0.5 text-[11px] font-semibold text-white">{index + 1}</span>
         {!img.isExisting && <span className="absolute end-1.5 top-1.5 rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">{common("new_badge")}</span>}
         <div className="absolute inset-0 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-          {index > 0 && <button type="button" disabled={disabled || reordering} onClick={() => void moveImage(index, -1)} className="absolute start-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label="Move earlier"><ChevronLeft size={16} /></button>}
-          {index < allImages.length - 1 && <button type="button" disabled={disabled || reordering} onClick={() => void moveImage(index, 1)} className="absolute end-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label="Move later"><ChevronRight size={16} /></button>}
-          <button type="button" disabled={disabled} onClick={() => img.isExisting ? onExistingRemove(img.id) : onPendingRemove(img.id)} className="absolute bottom-1.5 end-1.5 grid size-7 place-items-center rounded-full bg-destructive text-white hover:bg-destructive/80 disabled:opacity-50" aria-label="Remove"><X size={14} /></button>
+          {index > 0 && <button type="button" disabled={disabled || reordering} onClick={() => void moveImage(index, -1)} className="absolute start-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label={common("image.move_earlier")}><ChevronLeft size={16} /></button>}
+          {index < allImages.length - 1 && <button type="button" disabled={disabled || reordering} onClick={() => void moveImage(index, 1)} className="absolute end-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label={common("image.move_later")}><ChevronRight size={16} /></button>}
+          <button type="button" disabled={disabled} onClick={() => img.isExisting ? onExistingRemove(img.id) : onPendingRemove(img.id)} className="absolute bottom-1.5 end-1.5 grid size-7 place-items-center rounded-full bg-destructive text-white hover:bg-destructive/80 disabled:opacity-50" aria-label={common("image.remove")}><X size={14} /></button>
         </div>
       </div>)}
     </div>}
@@ -111,9 +111,9 @@ export function ProductImageUploader({ existingImages, pendingImages, productId,
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
       onClick={() => !disabled && !uploading && inputRef.current?.click()}
-      className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 transition-all ${dragging ? "scale-[1.01] border-primary bg-primary/5" : "border-border/50 hover:border-primary/50 hover:bg-muted/30"} ${disabled || uploading ? "pointer-events-none cursor-not-allowed opacity-50" : ""}`}
+      className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 transition-all ${dragging ? "scale-[1.01] border-primary bg-primary/5" : "border-border/50 hover:border-primary/50 hover:bg-muted/30"} ${disabled || uploading ? "pointer-events-none cursor-not-allowed opacity-50" : ""}`}
     >
-      {uploading ? <Loader2 size={32} className="animate-spin text-primary" /> : <span className="grid size-12 place-items-center rounded-2xl bg-primary/10"><UploadCloud size={24} className="text-primary" /></span>}
+      {uploading ? <Loader2 size={32} className="animate-spin text-primary" /> : <span className="grid size-12 place-items-center rounded-xl bg-primary/10"><UploadCloud size={24} className="text-primary" /></span>}
       <div className="text-center">
         <p className="text-sm font-semibold text-foreground">{uploading ? "Uploading…" : dragging ? "Drop images here" : "Click or drag images here"}</p>
         <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP, GIF · max {MAX_UPLOAD_MB} MB</p>

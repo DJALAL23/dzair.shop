@@ -141,7 +141,7 @@ export function DriverCompensationsSection({
             <h2 className="truncate text-base font-semibold tracking-tight text-foreground">
               {t("compensations.title")}
             </h2>
-            <p className="mt-0.5 truncate text-[11px] font-semibold text-muted-foreground/60">
+            <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
               {t("compensations.subtitle")}
             </p>
           </div>
@@ -209,7 +209,7 @@ export function DriverCompensationsSection({
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_180px]">
             <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground/60">
+              <p className="text-xs font-medium text-muted-foreground">
                 {t("compensations.wilaya_label")}
               </p>
               <Select
@@ -236,7 +236,7 @@ export function DriverCompensationsSection({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground/60">
+              <p className="text-xs font-medium text-muted-foreground">
                 {t("compensations.fee_label")}
               </p>
               <div className="relative">
@@ -280,8 +280,8 @@ export function DriverCompensationsSection({
 
       {sorted.length === 0 && editing !== "new" && (
         <div className="rounded-xl border border-dashed border-border/40 p-8 text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-amber-500/10">
-            <Info size={20} className="text-amber-500" />
+          <span className="mx-auto grid size-12 place-items-center rounded-xl bg-tone-warning-bg">
+            <Info size={20} className="text-tone-warning-text" />
           </span>
           <p className="mt-3 text-sm font-semibold text-foreground">
             {t("compensations.empty_title")}

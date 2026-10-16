@@ -119,7 +119,7 @@ export function ProductVariantsCard({
               </p>
             )}
             <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
-              <span className="me-1 self-center text-[11px] font-semibold text-muted-foreground/60">
+              <span className="me-1 self-center text-xs font-medium text-muted-foreground">
                 {t("form.bulk_fill")}:
               </span>
               <div className="flex items-center gap-1.5">
@@ -252,7 +252,7 @@ export function ProductVariantsCard({
                             {row.key}
                           </p>
                           {row.existingId && (
-                            <span className="text-[11px] font-semibold tracking-tighter text-violet-600">
+                            <span className="text-[11px] font-semibold tracking-tighter text-tone-success-text">
                               {t("form.variant_saved_badge")}
                             </span>
                           )}
@@ -318,7 +318,7 @@ export function ProductVariantsCard({
                                 event.currentTarget.value,
                               )
                             }
-                            className="h-9 w-20 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2 text-xs font-medium tabular-nums"
+                            className="h-9 w-20 rounded-lg border border-tone-warning-border bg-tone-warning-bg px-2 text-xs font-medium tabular-nums"
                             disabled={busy}
                           />
                         </TableCell>

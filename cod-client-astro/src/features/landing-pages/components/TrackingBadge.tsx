@@ -42,7 +42,7 @@ export function TrackingBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-amber-600 ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-md border border-tone-warning-border bg-tone-warning-bg px-1.5 py-0.5 text-[11px] font-semibold text-tone-warning-text ${className}`}
       title={inactiveReason(view.reason, t)}
     >
       <AlertTriangle size={11} aria-hidden="true" />

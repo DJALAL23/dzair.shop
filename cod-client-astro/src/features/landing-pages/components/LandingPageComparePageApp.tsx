@@ -146,7 +146,7 @@ function Gated() {
                     <td className="px-4 text-center tabular-nums">{page.views.toLocaleString()}</td>
                     <td className="px-4 text-center tabular-nums">
                       {page.orders.toLocaleString()}
-                      {isWinner && <Trophy size={14} className="ms-1 inline text-amber-500" />}
+                      {isWinner && <Trophy size={14} className="ms-1 inline text-tone-warning-text" />}
                     </td>
                     <td className="px-4 text-center tabular-nums">
                       {cvr === null ? "—" : `${cvr.toFixed(1)}%`}

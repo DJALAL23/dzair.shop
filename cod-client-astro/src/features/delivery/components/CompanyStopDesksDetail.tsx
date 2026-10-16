@@ -249,27 +249,27 @@ export function CompanyStopDesksDetail({ providerCode }: { providerCode: string 
             <span className="block truncate text-sm font-semibold text-foreground">
               {t("stop_desks_title")}
             </span>
-            <span className="block truncate text-[11px] font-semibold text-muted-foreground/60">
+            <span className="block truncate text-xs font-medium text-muted-foreground">
               {company.name}
             </span>
           </span>
         </div>
         <div className="flex items-center justify-between rounded-xl bg-card p-4 shadow-card">
           <span className="min-w-0">
-            <span className="block text-[11px] font-semibold text-muted-foreground/60">
+            <span className="block text-xs font-medium text-muted-foreground">
               {t("stop_desks_active")}
             </span>
-            <span className="mt-1 block text-2xl font-semibold tabular-nums text-violet-600">
+            <span className="mt-1 block text-2xl font-semibold tabular-nums text-tone-success-text">
               {loading ? "—" : activeCount}
             </span>
           </span>
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-500">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-tone-success-bg text-tone-success-text">
             <ToggleRight size={17} aria-hidden="true" />
           </span>
         </div>
         <div className="flex items-center justify-between rounded-xl bg-card p-4 shadow-card">
           <span className="min-w-0">
-            <span className="block text-[11px] font-semibold text-muted-foreground/60">
+            <span className="block text-xs font-medium text-muted-foreground">
               {t("stop_desks_total")}
             </span>
             <span className="mt-1 block text-2xl font-semibold tabular-nums text-foreground">

@@ -259,7 +259,7 @@ export function LandingPageTrackingDialog({
 
         {testMode && (
           <>
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-600">
+            <p className="rounded-lg border border-tone-warning-border bg-tone-warning-bg px-3 py-2 text-xs font-semibold text-tone-warning-text">
               {settings("store.tracking_test_mode_warning")}
             </p>
             <Field

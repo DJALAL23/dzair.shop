@@ -27,7 +27,7 @@ export function ConnectTab({ mcpUrl }: { mcpUrl: string }) {
 function WhatIsThis() {
   const t = useT("mcp");
   return (
-    <div className="overflow-hidden rounded-2xl border border-primary/10 bg-card p-5 sm:p-6">
+    <div className="overflow-hidden rounded-xl border border-primary/10 bg-card p-5 sm:p-6">
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -76,7 +76,7 @@ function UrlHeroCard({ mcpUrl }: { mcpUrl: string }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-primary/20 bg-card">
+    <div className="overflow-hidden rounded-xl border border-primary/20 bg-card">
       <div className="space-y-4 p-5 sm:p-6">
         <div className="flex items-center gap-2.5">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
@@ -102,7 +102,7 @@ function UrlHeroCard({ mcpUrl }: { mcpUrl: string }) {
           <Button
             type="button"
             onClick={() => void copy()}
-            className={`h-11 px-4 text-[11px] font-semibold ${copied ? "bg-violet-600 hover:bg-violet-600" : ""}`}
+            className={`h-11 px-4 text-[11px] font-semibold ${copied ? "bg-success text-success-foreground hover:bg-success" : ""}`}
           >
             {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
             {copied ? t("url_card.copied") : t("url_card.copy")}

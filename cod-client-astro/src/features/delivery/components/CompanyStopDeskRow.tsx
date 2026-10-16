@@ -50,7 +50,7 @@ export function CompanyStopDeskDesktopRow({
             className={cn(
               "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors",
               desk.active
-                ? "border-border bg-muted/20 text-muted-foreground hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-500"
+                ? "border-border bg-muted/20 text-muted-foreground hover:border-tone-critical-border hover:bg-tone-critical-bg hover:text-tone-critical-text"
                 : "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-[var(--tone-success-text)]",
               togglingCode === desk.code && "cursor-not-allowed opacity-40",
             )}

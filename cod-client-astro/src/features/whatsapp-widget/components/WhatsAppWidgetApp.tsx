@@ -250,7 +250,7 @@ function WhatsAppWidgetContent() {
                   <Phone size={14} className="absolute right-3 top-3 text-muted-foreground" />
                 </div>
                 {phonePreview.isValid && phonePreview.e164 && (
-                  <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-tone-success-text">
                     <CircleCheck size={13} className="shrink-0" />
                     <span>{t("phone_valid", { number: phonePreview.e164 })}</span>
                   </p>
@@ -650,7 +650,7 @@ function WhatsAppWidgetContent() {
                     <span className="size-4 rounded-full bg-primary shrink-0" />
                     <div>
                       <p className="text-xs font-semibold text-foreground">{t("accent_primary")}</p>
-                      <p className="text-[11px] text-muted-foreground">Brand theme</p>
+                      <p className="text-[11px] text-muted-foreground">{t("accent_primary_hint")}</p>
                     </div>
                   </button>
                 </div>
@@ -737,12 +737,12 @@ function WhatsAppWidgetContent() {
               </div>
             ) : dirty ? (
               <span className="flex items-center gap-2 text-xs">
-                <span className="size-2 rounded-full bg-amber-500" />
+                <span className="size-2 rounded-full bg-tone-warning-bg" />
                 <span className="font-semibold text-foreground">{t("status_unsaved")}</span>
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CircleCheck size={13} className="text-emerald-500" />
+                <CircleCheck size={13} className="text-tone-success-text" />
                 {t("status_saved")}
               </span>
             )

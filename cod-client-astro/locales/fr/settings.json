@@ -265,5 +265,6 @@
     "add_hint": "Elle démarre non publiée : vos clients ne la voient qu'une fois publiée.",
     "add_placeholder": "Choisir une langue",
     "add": "Ajouter"
-  }
+  },
+  "nav_label": "Navigation des paramètres"
 }
