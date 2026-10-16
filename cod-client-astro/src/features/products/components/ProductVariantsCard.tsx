@@ -211,7 +211,52 @@ export function ProductVariantsCard({
                 </Button>
               </div>
             </div>
-            <div className="overflow-x-auto rounded-xl border border-border">
+            <ul className="space-y-3 sm:hidden">
+              {variantRows.map((row, i) => (
+                <li key={row.key} className="space-y-3 rounded-xl border border-border p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{row.key}</p>
+                      {row.existingId && (
+                        <span className="text-[11px] font-semibold text-tone-success-text">{t("form.variant_saved_badge")}</span>
+                      )}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {t("form.variant_active")}
+                      <input
+                        type="checkbox"
+                        checked={row.active}
+                        onChange={(event) => updateVariantRow(i, "active", event.currentTarget.checked)}
+                        disabled={busy}
+                        className="size-5 accent-primary"
+                      />
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="space-y-1 text-xs text-muted-foreground">
+                      {t("form.variant_price")} ({common("currency.symbol")})
+                      <input type="number" inputMode="decimal" value={row.price} onChange={(event) => updateVariantRow(i, "price", event.currentTarget.value)} className="h-10 w-full rounded-lg border bg-card px-2 text-sm font-medium tabular-nums border-border" disabled={busy} />
+                    </label>
+                    <label className="space-y-1 text-xs text-muted-foreground">
+                      {t("form.variant_sku")}
+                      <input value={row.sku} onChange={(event) => { updateVariantRow(i, "sku", event.currentTarget.value); setErrors((prev) => ({ ...prev, variantRowsSku: "" })); }} placeholder={t("form.sku_placeholder")} className="h-10 w-full rounded-lg border bg-card px-2 text-sm font-medium tabular-nums border-border" disabled={busy} dir="ltr" />
+                    </label>
+                    <label className="space-y-1 text-xs text-muted-foreground">
+                      {t("form.variant_stock")}
+                      <input type="number" inputMode="numeric" value={row.inventory} onChange={(event) => updateVariantRow(i, "inventory", event.currentTarget.value)} className="h-10 w-full rounded-lg border bg-card px-2 text-sm font-medium tabular-nums border-border" disabled={busy} />
+                    </label>
+                    <label className="space-y-1 text-xs text-muted-foreground">
+                      {t("form.variant_threshold")}
+                      <input type="number" inputMode="numeric" value={row.lowStockThreshold} onChange={(event) => updateVariantRow(i, "lowStockThreshold", event.currentTarget.value)} className="h-10 w-full rounded-lg border bg-card px-2 text-sm font-medium tabular-nums border-tone-warning-border bg-tone-warning-bg" disabled={busy} />
+                    </label>
+                  </div>
+                  {showImageCol && (
+                    <VariantImagePicker images={existingImages} value={row.imageId ?? null} onChange={(imageId) => updateVariantImageId(i, imageId)} disabled={busy} />
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
               <div
                 className={showImageCol ? "min-w-[800px]" : "min-w-[680px]"}
               >
