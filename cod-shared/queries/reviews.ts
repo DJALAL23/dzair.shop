@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, lt, sql } from "drizzle-orm";
 import { reviews, products } from "../db/schema";
 import type { AppDb } from "../db/client";
 
@@ -91,4 +91,18 @@ export async function settleWithoutMedia(db: AppDb, id: string, outcome: { statu
     .update(reviews)
     .set({ status: outcome.status, mediaDropped: outcome.dropped, updatedAt: new Date().toISOString() })
     .where(and(eq(reviews.id, id), eq(reviews.status, "processing")));
+}
+
+/**
+ * Reviews still `processing` long after they came in — their media job never
+ * finished — go to the merchant's queue without their files, so none is lost.
+ * Returns how many.
+ */
+export async function settleStuckReviews(db: AppDb, receivedBefore: string): Promise<number> {
+  const settled = await db
+    .update(reviews)
+    .set({ status: "pending", mediaDropped: sql`max(${reviews.mediaDropped}, 1)`, updatedAt: new Date().toISOString() })
+    .where(and(eq(reviews.status, "processing"), lt(reviews.createdAt, receivedBefore)))
+    .returning({ id: reviews.id });
+  return settled.length;
 }

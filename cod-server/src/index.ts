@@ -48,6 +48,7 @@ import storeOtpRoutes from "@/endpoints/store-otp/store-routes";
 
 import { sweepAbandonedOrders } from "@/cron/sweep-abandoned-orders";
 import { runOrphanImageSweep } from "@/cron/sweep-orphan-images";
+import { runStuckReviewSweep } from "@/cron/settle-stuck-reviews";
 
 // MCP remote server (remote Model Context Protocol endpoint for Claude / AI agents).
 // The OAuthProvider owns OAuth (discovery, client registration, tokens, revocation)
@@ -62,6 +63,7 @@ import { ALL_SCOPES } from "../../cod-shared/rbac/scopes";
 // them via wrangler.toml [[workflows]].
 export { CodCapiWorkflow } from "@/workflows/capi";
 export { CodLandingPageImageUploadWorkflow } from "@/workflows/landing-page-image-upload";
+export { CodReviewMediaWorkflow } from "@/workflows/review-media";
 
 // OpenAPIHono extends Hono: existing routes/middleware keep working, and
 // routes registered via app.openapi() validate requests and feed the
@@ -212,6 +214,7 @@ export default {
     }
     ctx.waitUntil(sweepAbandonedOrders(env));
     ctx.waitUntil(runOrphanImageSweep(env));
+    ctx.waitUntil(runStuckReviewSweep(env));
     ctx.waitUntil(getOAuthProvider(env).purgeExpiredData(env, { batchSize: 50 }));
   },
 };

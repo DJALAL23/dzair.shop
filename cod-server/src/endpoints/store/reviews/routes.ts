@@ -109,7 +109,7 @@ const uploadRoute = defineRoute({
   auth: "store",
   tags: ["Store API"],
   summary: "Send a review photo or voice note",
-  description: `The file itself as the request body, with the grant from \`/store/reviews/eligibility\` in the **X-Review-Grant** header. Send each file as soon as it is picked; submit the review with the returned \`uploadId\`s.
+  description: `The file itself as the request body, with the grant from \`/store/reviews/eligibility\` in the **X-Review-Grant** header (and, for a voice note, its length as the recorder reported it in **X-Media-Duration-Ms** — shown only when the file does not say). Send each file as soon as it is picked; submit the review with the returned \`uploadId\`s.
 
 Its kind is read from the file's bytes: a photo (JPEG, PNG, WebP, GIF — shrink it in the browser first, 8 MB at most) or a voice note (WebM, Ogg, M4A, MP3 — as long as the store allows).`,
   operationId: "uploadStoreReviewMedia",

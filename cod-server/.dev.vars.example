@@ -44,6 +44,11 @@
 #   openssl rand -hex 32
 # MCP_LOGIN_TICKET_SECRET=
 
+# HMAC key that signs review upload grants (photos and voice notes with
+# storefront reviews; must be >= 32 bytes). Without it, reviews are text only.
+# Generate with:  openssl rand -hex 32
+# REVIEW_UPLOAD_SECRET=
+
 # Cookie-encryption key for the @cloudflare/workers-oauth-provider consent
 # flow. Generate one with:  openssl rand -hex 32
 # (Currently unused by the provider version in use; reserved for future need.)

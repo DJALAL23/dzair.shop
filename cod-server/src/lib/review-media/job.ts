@@ -10,6 +10,8 @@ export interface ReviewMediaUpload {
   kind: ReviewMediaKind;
   contentType: string;
   bytes: number;
+  /** A voice note's length as the recorder reported it: shown only when the file does not say, never above the store's limit. */
+  declaredDurationMs?: number;
 }
 
 export interface ReviewMediaJob {

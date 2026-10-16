@@ -60,6 +60,22 @@ name       = "lp-image-upload-workflow"
 binding    = "LP_IMAGE_UPLOAD_WORKFLOW"
 class_name = "CodLandingPageImageUploadWorkflow"
 
+# CodReviewMediaWorkflow — prepares a shopper's review photos and voice note
+# after the review is in. Also needs the REVIEW_UPLOAD_SECRET secret
+# (`wrangler secret put REVIEW_UPLOAD_SECRET`, any long random value); without
+# both, the storefront takes text reviews only.
+[[workflows]]
+name       = "review-media-workflow"
+binding    = "REVIEW_MEDIA_WORKFLOW"
+class_name = "CodReviewMediaWorkflow"
+
+# Review attempts per order number (a phone cannot be guessed for one order).
+# namespace_id: any positive integer unique in your Cloudflare account.
+[[ratelimits]]
+name = "REVIEW_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
 # Cron Triggers
 # Hourly: sweeps pending abandoned orders → abandoned status (maximum lag from
 #   "true abandonment" to "marked abandoned" is ~90 min, pending > 30 min).
@@ -129,6 +145,16 @@ class_name = "CodCapiWorkflow"
 name       = "lp-image-upload-workflow"
 binding    = "LP_IMAGE_UPLOAD_WORKFLOW"
 class_name = "CodLandingPageImageUploadWorkflow"
+
+[[env.production.workflows]]
+name       = "review-media-workflow"
+binding    = "REVIEW_MEDIA_WORKFLOW"
+class_name = "CodReviewMediaWorkflow"
+
+[[env.production.ratelimits]]
+name = "REVIEW_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
 
 # Share local D1 state with the dashboard so both read the same SQLite file in
 # dev. `persist_to` under [dev] is not a wrangler 3.x field (hence the old

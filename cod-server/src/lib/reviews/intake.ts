@@ -130,7 +130,7 @@ async function readCapped(body: ReadableStream<Uint8Array>, cap: number): Promis
 
 export async function receiveUpload(
   deps: IntakeDeps,
-  input: { grant: string | undefined; body: ReadableStream<Uint8Array> | null; declaredBytes?: number },
+  input: { grant: string | undefined; body: ReadableStream<Uint8Array> | null; declaredBytes?: number; declaredDurationMs?: number },
 ): Promise<{ uploadId: string; kind: ReviewMediaUpload["kind"]; bytes: number }> {
   const grant = await grantFrom(deps, input.grant);
   const voiceCap = grant.voiceMaxSeconds ? voiceMaxBytes(grant.voiceMaxSeconds as ReviewVoiceLength) : 0;
@@ -160,7 +160,12 @@ export async function receiveUpload(
   const uploadId = newMediaId();
   await deps.bucket.put(uploadKey(grant.id, uploadId), bytes, {
     httpMetadata: { contentType: sniffed.contentType },
-    customMetadata: { kind: sniffed.kind, contentType: sniffed.contentType, orderId: grant.orderId },
+    customMetadata: {
+      kind: sniffed.kind,
+      contentType: sniffed.contentType,
+      orderId: grant.orderId,
+      ...(sniffed.kind === "audio" && input.declaredDurationMs !== undefined ? { declaredDurationMs: String(input.declaredDurationMs) } : {}),
+    },
   });
   return { uploadId, kind: sniffed.kind, bytes: bytes.byteLength };
 }
@@ -191,7 +196,14 @@ async function collectUploads(deps: IntakeDeps, policy: ReviewPolicy, orderId: s
     if (!head || (kind !== "image" && kind !== "audio")) {
       throw new BusinessLogicError("A file of this review was not received — send it again", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND, { uploadId: ids[i] });
     }
-    uploads.push({ key: head.key, kind, contentType: head.customMetadata?.contentType ?? head.httpMetadata?.contentType ?? "application/octet-stream", bytes: head.size });
+    const declared = Number(head.customMetadata?.declaredDurationMs);
+    uploads.push({
+      key: head.key,
+      kind,
+      contentType: head.customMetadata?.contentType ?? head.httpMetadata?.contentType ?? "application/octet-stream",
+      bytes: head.size,
+      ...(Number.isInteger(declared) && declared > 0 ? { declaredDurationMs: declared } : {}),
+    });
   }
   const photos = uploads.filter((upload) => upload.kind === "image").length;
   const voices = uploads.length - photos;

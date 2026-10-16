@@ -26,7 +26,7 @@ import type { ReviewMediaJob } from "@/lib/review-media/job";
 import reviewsRouter from "./routes";
 
 const T = "2026-10-16T10:00:00.000Z";
-const SECRET = "review-grant-test-secret";
+const SECRET = "review-grant-test-secret-of-32-bytes-at-least";
 const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, ...new Array(200).fill(7)]);
 const WEBM = Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, ...new Array(300).fill(1)]);
 
@@ -39,6 +39,7 @@ let workflowDown: boolean;
 let limiterKeys: string[];
 let limitReached: boolean;
 let mediaOn: boolean;
+let environment: string;
 
 beforeAll(async () => {
   d1 = await createTestD1();
@@ -50,6 +51,7 @@ beforeAll(async () => {
       DB: d1.raw,
       IMAGES: bucket,
       MEDIA_DOMAIN: "media.example.com",
+      ENVIRONMENT: environment,
       REVIEW_UPLOAD_SECRET: mediaOn ? SECRET : undefined,
       REVIEW_MEDIA_WORKFLOW: mediaOn
         ? {
@@ -85,6 +87,7 @@ beforeEach(async () => {
   limiterKeys = [];
   limitReached = false;
   mediaOn = true;
+  environment = "production";
   const db = d1.db;
   for (const table of [schema.reviewMedia, schema.reviews, schema.shipments, schema.orderProducts, schema.orders, schema.products, schema.customers, schema.deliveryCompanies, schema.stores]) {
     await db.delete(table);
@@ -350,6 +353,13 @@ describe("the storefront list", () => {
       },
     ]);
     expect((await body(await app.request("/store/reviews?productId=p2"))).data).toEqual([]);
+  });
+
+  it("serves media from this server outside production, where files exist only in the local bucket", async () => {
+    environment = "development";
+    const { data } = await body(await json("POST", "", review));
+    await d1.db.insert(schema.reviewMedia).values({ id: "m1", reviewId: data.id, kind: "image", r2Key: `reviews/${data.id}/m1.webp`, contentType: "image/webp", bytes: 5, createdAt: T });
+    expect((await body(await app.request("http://localhost:8787/store/reviews?productId=p1"))).data[0].media[0].url).toBe(`http://localhost:8787/images/reviews/${data.id}/m1.webp`);
   });
 
   it("is empty when the store turned reviews off", async () => {
