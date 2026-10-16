@@ -6,13 +6,11 @@
     "order_number": "Commande #",
     "customer": "Client",
     "phone": "Tél.",
-    "wilaya": "Wilaya",
     "status": "Statut",
     "delivery": "Livraison",
     "date": "Date",
     "total": "Total",
-    "stage": "Étape",
-    "not_shipped": "Pas encore expédiée"
+    "stage": "Étape"
   },
   "actions": {
     "view": "Voir",
@@ -41,7 +39,8 @@
     "void_driver": "Reprendre au livreur",
     "void_carrier_confirm": "Annuler ce colis chez {carrier} ? La commande revient dans « À expédier ».",
     "void_driver_confirm": "Reprendre cette commande au livreur ? Elle revient dans « À expédier ».",
-    "void_done": "{order} est revenue dans « À expédier »"
+    "void_done": "{order} est revenue dans « À expédier »",
+    "more": "Plus d’actions"
   },
   "edit_dialog": {
     "title": "Modifier la commande",
@@ -95,7 +94,7 @@
     "custom_answers_note": "Réponses à vos propres questions de commande. Elles ne sont jamais envoyées aux transporteurs."
   },
   "form": {
-    "title_add": "Ajouter une commande",
+    "title_add": "Nouvelle commande",
     "search_customer": "Rechercher un client",
     "customer_name_label": "Nom du client",
     "customer_name_placeholder": "Entrer le nom du client",
@@ -138,7 +137,7 @@
     "error_commune": "Veuillez sélectionner une commune",
     "error_address": "L'adresse est obligatoire pour la livraison à domicile",
     "error_delivery_unavailable": "Cette méthode de livraison n'est pas disponible pour la wilaya sélectionnée",
-    "new_order_subtitle": "Remplissez les informations du client et ajoutez des produits pour créer une nouvelle commande"
+    "summary_title": "Récapitulatif"
   },
   "abandoned": {
     "title": "Commandes abandonnées",
@@ -149,7 +148,6 @@
     "count_label_other": "{count} paniers",
     "load_error": "Impossible de charger les commandes abandonnées",
     "status": {
-      "all": "Tous",
       "pending": "En attente",
       "abandoned": "Abandonnée",
       "contacted": "Contacté",
@@ -169,7 +167,8 @@
       "title": "Aucun panier abandonné",
       "description": "Les clients qui commencent une commande sans la terminer apparaîtront ici comme des leads à récupérer."
     },
-    "recovered_order": "Commande {number}"
+    "recovered_order": "Commande {number}",
+    "status_label": "Statut"
   },
   "stage": {
     "new": "Nouvelle",

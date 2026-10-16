@@ -76,5 +76,11 @@
   },
   "load_failed": "Une partie de cette page n'a pas pu se charger.",
   "reload_page": "Recharger la page",
-  "editor_load_failed": "L'éditeur ne s'est pas chargé — vous pouvez continuer en texte brut, ou recharger la page."
+  "editor_load_failed": "L'éditeur ne s'est pas chargé — vous pouvez continuer en texte brut, ou recharger la page.",
+  "clear_filters": "Effacer les filtres",
+  "more_info": "Plus d’informations",
+  "back": "Retour",
+  "save": "Enregistrer",
+  "saving": "Enregistrement…",
+  "new_badge": "Nouveau"
 }

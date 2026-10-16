@@ -263,7 +263,6 @@ describe("abandonedBasketView", () => {
       productName: "Hoodie Classic",
       variantLabel: "Noir / L",
       quantity: 2,
-      lineTotal: 4800,
     });
     expect(view.lines[1]).toMatchObject({ productName: "Street Fighter 45", quantity: 1 });
   });

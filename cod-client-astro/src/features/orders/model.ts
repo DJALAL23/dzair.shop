@@ -298,7 +298,6 @@ export interface AbandonedBasketLine {
   productName: string;
   variantLabel: string | null;
   quantity: number;
-  lineTotal: number;
 }
 
 /**
@@ -331,7 +330,6 @@ export function abandonedBasketView(
         productName: item.productName,
         variantLabel: item.variantLabel ?? null,
         quantity: item.quantity,
-        lineTotal: item.unitPrice * item.quantity,
       })),
     };
   }

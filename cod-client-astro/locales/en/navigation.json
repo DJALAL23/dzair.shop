@@ -1,68 +1,48 @@
 {
   "sidebar": {
-    "dashboard": "Dashboard",
-    "store": "Store",
+    "dashboard": "Home",
     "orders": "Orders",
-    "orders_all": "All Orders",
-    "orders_abandoned": "Abandoned Orders",
+    "orders_abandoned": "Abandoned",
     "customers": "Customers",
     "products": "Products",
-    "all_products": "All Products",
     "categories": "Categories",
-    "product_groups": "Product Groups",
     "customer_groups": "Groups",
     "customer_tags": "Tags",
     "delivery": "Delivery",
     "delivery_drivers": "Drivers",
-    "delivery_companies": "Companies",
-    "delivery_shipping": "Shipping",
+    "delivery_companies": "Carriers",
+    "delivery_shipping": "Shipping rates",
     "team": "Team",
     "settings": "Settings",
-    "general": "General",
-    "inventory": "Inventory",
-    "system": "System",
+    "general": "Main menu",
     "reviews": "Reviews",
     "offers": "Offers",
-    "landing_pages": "Landing Pages",
-    "stock_management": "Stock Management",
-    "api_reference": "API Reference",
-    "mcp": "AI Agents",
+    "landing_pages": "Landing pages",
+    "stock_management": "Stock",
+    "mcp": "AI agents",
     "store_pages": "Pages",
     "checkout_form": "Checkout form",
-    "whatsapp": "WhatsApp"
+    "whatsapp": "WhatsApp button",
+    "online_store": "Online store"
   },
   "navbar": {
-    "search_placeholder": "Search for orders, customers...",
-    "dashboard": "Dashboard",
-    "notifications": "Notifications"
-  },
-  "mobile": {
-    "home": "Home",
-    "orders": "Orders",
-    "delivery": "Delivery",
-    "customers": "Customers",
-    "products": "Products",
-    "all_products": "All Products",
-    "categories": "Categories",
-    "settings": "Settings",
-    "team": "Team",
-    "reviews": "Reviews",
-    "profile": "Profile",
-    "more": "More"
-  },
-  "company": {
-    "name": "COD Flow",
-    "tagline": "Order & Delivery Management"
+    "search_placeholder": "Search orders, customers, tracking…"
   },
   "theme": {
-    "light": "Light Mode",
-    "dark": "Dark Mode",
-    "toggle": "Toggle Theme"
+    "label": "Appearance",
+    "light": "Light",
+    "dark": "Dark"
   },
   "menu": {
-    "collapse": "Collapse Menu",
-    "expand": "Expand Menu",
-    "close": "Close Menu"
+    "open": "Open menu",
+    "close": "Close menu",
+    "collapse_group": "Hide",
+    "expand_group": "Show"
+  },
+  "account": {
+    "label": "Your account",
+    "profile": "Your profile",
+    "sign_out": "Sign out"
   },
   "skip_to_content": "Skip to content",
   "language": {
@@ -70,16 +50,5 @@
     "arabic": "العربية",
     "english": "English",
     "french": "Français"
-  },
-  "breadcrumbs": {
-    "management": "Management",
-    "delivery": "Delivery",
-    "catalog": "Catalog",
-    "network": "Network",
-    "details": "Details",
-    "pricing": "Pricing",
-    "inventory": "Inventory",
-    "dashboard": "Dashboard"
-  },
-  "dashboard_subtitle": "Dashboard"
+  }
 }

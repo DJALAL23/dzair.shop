@@ -1,7 +1,7 @@
 {
   "currency": {
     "symbol": "DA",
-    "name": "Algerian Dinar",
+    "name": "Algerian dinar",
     "per_meter": "DA/m"
   },
   "move_up": "Move up",
@@ -25,7 +25,7 @@
     "ready": "Ready",
     "assigned": "Assigned",
     "dispatched": "Dispatched",
-    "out_for_delivery": "Out for Delivery",
+    "out_for_delivery": "Out for delivery",
     "delivered": "Delivered",
     "returned": "Returned",
     "cancelled": "Cancelled",
@@ -35,8 +35,8 @@
     "offline": "Offline",
     "active": "Active",
     "suspended": "Suspended",
-    "out_of_stock": "Out of Stock",
-    "low_stock": "Low Stock",
+    "out_of_stock": "Out of stock",
+    "low_stock": "Low stock",
     "ACTIVE": "Active",
     "DRAFT": "Draft",
     "ARCHIVED": "Archived"
@@ -76,5 +76,11 @@
   },
   "load_failed": "Something on this page failed to load.",
   "reload_page": "Reload the page",
-  "editor_load_failed": "The editor didn't load — you can keep editing as plain text, or reload the page."
+  "editor_load_failed": "The editor didn't load — you can keep editing as plain text, or reload the page.",
+  "clear_filters": "Clear filters",
+  "more_info": "More information",
+  "back": "Back",
+  "save": "Save",
+  "saving": "Saving…",
+  "new_badge": "New"
 }

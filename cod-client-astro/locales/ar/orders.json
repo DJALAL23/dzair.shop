@@ -6,13 +6,11 @@
     "order_number": "رقم الطلب",
     "customer": "العميل",
     "phone": "الهاتف",
-    "wilaya": "الولاية",
     "status": "الحالة",
     "delivery": "التوصيل",
     "date": "التاريخ",
     "total": "الإجمالي",
-    "stage": "المرحلة",
-    "not_shipped": "لم تُشحن بعد"
+    "stage": "المرحلة"
   },
   "actions": {
     "view": "عرض",
@@ -41,7 +39,8 @@
     "void_driver": "استرجاع من السائق",
     "void_carrier_confirm": "إلغاء هذا الطرد لدى {carrier}؟ يعود الطلب إلى «للشحن».",
     "void_driver_confirm": "استرجاع هذا الطلب من السائق؟ يعود إلى «للشحن».",
-    "void_done": "عاد {order} إلى «للشحن»"
+    "void_done": "عاد {order} إلى «للشحن»",
+    "more": "إجراءات أخرى"
   },
   "edit_dialog": {
     "title": "تعديل الطلب",
@@ -95,7 +94,7 @@
     "custom_answers_note": "إجابات أسئلتك الخاصة في نموذج الطلب. لا تُرسل أبداً لشركات التوصيل."
   },
   "form": {
-    "title_add": "إضافة طلب",
+    "title_add": "طلب جديد",
     "search_customer": "البحث عن عميل",
     "customer_name_label": "اسم العميل",
     "customer_name_placeholder": "أدخل اسم العميل",
@@ -138,7 +137,7 @@
     "error_commune": "يرجى اختيار البلدية",
     "error_address": "العنوان مطلوب للتوصيل المنزلي",
     "error_delivery_unavailable": "طريقة التوصيل هذه غير متاحة للولاية المختارة",
-    "new_order_subtitle": "أدخل بيانات العميل وأضف المنتجات لإنشاء طلب جديد"
+    "summary_title": "الملخص"
   },
   "abandoned": {
     "title": "الطلبات المتروكة",
@@ -152,7 +151,6 @@
     "count_label_other": "{count} عملية",
     "load_error": "تعذر تحميل الطلبات المتروكة",
     "status": {
-      "all": "الكل",
       "pending": "قيد الانتظار",
       "abandoned": "متروك",
       "contacted": "تم التواصل",
@@ -172,7 +170,8 @@
       "title": "لا توجد عمليات متروكة",
       "description": "المتسوقون الذين يبدأون طلباً ولا يُكملونه سيظهرون هنا كفرص استرجاع."
     },
-    "recovered_order": "الطلب {number}"
+    "recovered_order": "الطلب {number}",
+    "status_label": "الحالة"
   },
   "stage": {
     "new": "جديدة",

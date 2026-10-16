@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Package, Plus, Trash2 } from "lucide-react";
-import { Card, Field, Input, Select } from "@/components/ui";
+import { Card, Field, Input, Select, Button } from "@/components/ui";
 import { formatMoney } from "@/features/orders/model";
 import { useT } from "@/i18n/react";
 import type { Product, ProductVariant } from "@/features/orders/types";
@@ -89,7 +89,7 @@ export function NewOrderProductsCard({
           </Field>
         )}
         <div className="flex items-end gap-3">
-          <Field label={t("form.quantity_label")}>
+          <Field label={t("form.quantity_label")} className="max-w-32">
             <Input
               type="number"
               min="1"
@@ -101,18 +101,13 @@ export function NewOrderProductsCard({
               }
             />
           </Field>
-          <button
-            type="button"
-            onClick={onAddLine}
-            disabled={
+          <Button type="button" variant="secondary" className="shrink-0 whitespace-nowrap" onClick={onAddLine} disabled={
               !selectedProduct ||
               (variants.length > 0 && !selectedVariant)
-            }
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Plus size={16} />
+            }>
+            <Plus size={16} aria-hidden="true" />
             {t("form.add_product")}
-          </button>
+          </Button>
         </div>
         {selectedProduct?.trackInventory &&
           (!selectedProduct.hasVariants || selectedVariant) &&

@@ -1,25 +1,50 @@
 {
   "header": {
-    "title": "Dashboard",
-    "subtitle": "Your orders today, from call to cash"
+    "title": "Home"
   },
   "stats": {
     "needs_attention": "Needs you",
     "needs_attention_hint": "Parcels a carrier flagged, cancelled or did not confirm",
-    "to_ship": "To ship",
-    "to_ship_hint": "Ready, waiting for a carrier or a driver",
-    "on_the_way": "On the way",
-    "delivery_success": "Delivered",
-    "delivery_success_hint": "{delivered} delivered · {refused} refused"
+    "delivery_success": "Delivery success",
+    "delivered_count_one": "{count} delivered",
+    "delivered_count_other": "{count} delivered",
+    "refused_count_one": "{count} refused",
+    "refused_count_other": "{count} refused"
   },
   "recent_orders": {
-    "title": "Recent Orders",
-    "new_order": "New Order",
-    "view_all": "View All",
+    "title": "Recent orders",
+    "new_order": "New order",
+    "view_all": "View all",
     "empty": "No orders yet"
   },
   "queues": {
-    "title": "Your orders by step",
-    "subtitle": "Where every order stands — tap a step to open it"
+    "title": "Where your orders are",
+    "subtitle": "Every order, by the step it is at",
+    "total_one": "{count} order",
+    "total_other": "{count} orders"
+  },
+  "next": {
+    "attention_one": "{count} order needs you",
+    "attention_other": "{count} orders need you",
+    "to_confirm_one": "{count} order is waiting for a call",
+    "to_confirm_other": "{count} orders are waiting for a call",
+    "to_ship_one": "{count} order is ready to ship",
+    "to_ship_other": "{count} orders are ready to ship",
+    "clear": "Nothing is waiting for you right now"
+  },
+  "performance": {
+    "sales": "Sales",
+    "orders": "Orders",
+    "average": "Average order",
+    "period": "Period",
+    "range_one": "Last {count} day",
+    "range_other": "Last {count} days",
+    "compared_one": "compared with the day before",
+    "compared_other": "compared with the previous {count} days",
+    "up": "Up {value}%",
+    "down": "Down {value}%",
+    "flat": "No change",
+    "caption": "{metric}, {range}",
+    "empty": "No orders in these days"
   }
 }

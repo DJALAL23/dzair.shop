@@ -20,7 +20,7 @@ export function OrderProgressCard({ history }: { history: StatusHistoryItem[] })
                 <Check size={12} />
               </span>
               <div>
-                <p className="text-sm font-semibold">{t(`status.${step.status}`)}</p>
+                <p className="text-sm font-medium">{t(`status.${step.status}`)}</p>
                 <p className="text-xs text-muted-foreground">
                   {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(step.timestamp))}
                   {step.byName ? ` · ${step.byName}` : ""}

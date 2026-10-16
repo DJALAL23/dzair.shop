@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Download,
   MessageSquare,
+  MoreHorizontal,
   Pencil,
   RefreshCw,
   RotateCcw,
@@ -18,8 +19,8 @@ import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { relativeTime } from "@/lib/relative-time";
-import { Button, Card, useConfirmDialog } from "@/components/ui";
-import type { ButtonVariant } from "@/components/ui/button";
+import { Button, Card, DropdownItem, DropdownMenu, DropdownSeparator, useConfirmDialog } from "@/components/ui";
+import { buttonVariants } from "@/components/ui/button";
 import {
   askReturn,
   confirmReturn,
@@ -31,16 +32,15 @@ import {
 } from "@/features/orders/api";
 import { attentionReason, deliveryTimeline, eventLabel, formatMoney, latestStatusLabel, offeredActions } from "@/features/orders/model";
 import type { DeliveryCompany, OrderDetail, Shipment, ShipmentAction } from "@/features/orders/types";
-import { StageBadge } from "@/features/orders/components/StageBadge";
 import { EditParcelDialog, RemarksDialog, ReportDialog, ResolveDialog } from "@/features/orders/components/ShipmentDialogs";
 
 type Open = "report" | "resolve" | "parcel" | "remarks" | null;
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-end font-semibold">{children}</span>
+    <div className="flex justify-between gap-4">
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-end text-foreground">{children}</dd>
     </div>
   );
 }
@@ -60,7 +60,7 @@ function AttentionBanner({ shipment }: { shipment: Shipment }) {
           ? t("attention.flagged_with", { carrier, detail: reason.detail })
           : t("attention.flagged", { carrier });
   return (
-    <div role="alert" className="flex gap-2 rounded-lg border border-[var(--status-returned-border)] bg-[var(--status-returned-bg)] p-3 text-sm font-medium text-[var(--status-returned-text)]">
+    <div role="alert" className="flex gap-2 rounded-lg border border-[var(--tone-critical-border)] bg-[var(--tone-critical-bg)] p-3 text-sm font-medium text-[var(--tone-critical-text)]">
       <AlertTriangle size={16} className="mt-0.5 shrink-0" />
       <p>{text}</p>
     </div>
@@ -81,7 +81,7 @@ function DeliveryHistory({ shipment }: { shipment: Shipment }) {
           <li key={event.id} className="flex gap-3">
             <span className={`mt-1.5 size-2 shrink-0 rounded-full ${event.attention ? "bg-destructive" : event.milestone ? "bg-primary" : "bg-border"}`} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold">{"key" in label ? t(label.key) : label.text}</p>
+              <p className="text-sm font-medium">{"key" in label ? t(label.key) : label.text}</p>
               {event.reason && <p className="text-xs text-foreground/80">{event.reason}</p>}
               <p className="text-xs text-muted-foreground">
                 {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.occurredAt))} · {t(`history.source.${event.source}`)}
@@ -135,36 +135,88 @@ export function OrderShipmentCard({
     }
   }
 
-  const button = (action: ShipmentAction, icon: React.ReactNode, label: string, onClick: () => void, variant: ButtonVariant = "secondary") =>
-    actions.has(action) && (
-      <Button key={action} type="button" variant={variant} size="sm" disabled={busy !== null} onClick={onClick}>
-        {icon}
-        {busy === action ? t("ship.sending") : label}
-      </Button>
-    );
+  const voidKey = shipment.kind === "carrier" ? "void_carrier" : "void_driver";
+  const steps: { action: ShipmentAction; icon: React.ReactNode; label: string; onSelect: () => void }[] = [
+    { action: "resolve", icon: <Search size={14} />, label: t("actions.resolve"), onSelect: () => setOpen("resolve") },
+    {
+      action: "validate",
+      icon: <CheckCircle2 size={14} />,
+      label: t("actions.validate"),
+      onSelect: () =>
+        void run("validate", () => validateShipment(shipment.id), t("actions.validate_done", { carrier }), {
+          title: t("actions.validate"),
+          description: t("actions.validate_confirm", { carrier }),
+          label: t("actions.validate"),
+        }),
+    },
+    {
+      action: "confirmReturn",
+      icon: <CheckCircle2 size={14} />,
+      label: t("actions.confirm_return"),
+      onSelect: () =>
+        void run("confirmReturn", () => confirmReturn(shipment.id), t("actions.confirm_return_done"), {
+          title: t("actions.confirm_return"),
+          description: t("actions.confirm_return_confirm", { carrier }),
+          label: t("actions.confirm_return"),
+        }),
+    },
+    { action: "report", icon: <Send size={14} />, label: t(`report.${shipment.kind}.title`), onSelect: () => setOpen("report") },
+    { action: "label", icon: <Download size={14} />, label: t("actions.label"), onSelect: () => void run("label", () => downloadLabel(shipment), t("actions.label_done")) },
+    { action: "sync", icon: <RefreshCw size={14} />, label: t("actions.sync"), onSelect: () => void run("sync", () => syncShipment(shipment.id), t("actions.sync_done")) },
+    { action: "update", icon: <Pencil size={14} />, label: t("actions.update"), onSelect: () => setOpen("parcel") },
+    {
+      action: "requestNewAttempt",
+      icon: <RotateCcw size={14} />,
+      label: t("actions.new_attempt"),
+      onSelect: () =>
+        void run("requestNewAttempt", () => requestNewAttempt(shipment.id), t("actions.new_attempt_done", { carrier }), {
+          title: t("actions.new_attempt"),
+          description: t("actions.new_attempt_confirm", { carrier }),
+          label: t("actions.new_attempt"),
+        }),
+    },
+    {
+      action: "askReturn",
+      icon: <Undo2 size={14} />,
+      label: t("actions.ask_return"),
+      onSelect: () =>
+        void run("askReturn", () => askReturn(shipment.id), t("actions.ask_return_done", { carrier }), {
+          title: t("actions.ask_return"),
+          description: t("actions.ask_return_confirm", { carrier }),
+          label: t("actions.ask_return"),
+          danger: true,
+        }),
+    },
+  ];
+  const offered = steps.filter((step) => actions.has(step.action));
+  const remarks = actions.has("addRemark") || actions.has("listRemarks");
+  // The one step the merchant most likely came here for; a driver's progress is reported, a carrier's arrives on its own.
+  const primary = offered.find(
+    (step) => step.action === "resolve" || step.action === "validate" || step.action === "confirmReturn" || (step.action === "report" && shipment.kind === "driver"),
+  );
+  const label = offered.find((step) => step.action === "label" && step !== primary);
+  const rest = offered.filter((step) => step !== primary && step !== label);
+  const canVoid = actions.has("void");
 
   return (
     <Card title={t("delivery.title")}>
       <div className="space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground">
+        <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
               {shipment.kind === "carrier" ? <Building2 size={17} /> : <Truck size={17} />}
             </span>
             <div className="min-w-0">
-              <p className="truncate font-semibold">{shipment.kind === "carrier" ? carrier : order.driverName ?? t("delivery.a_driver")}</p>
+              <p className="truncate font-medium">{shipment.kind === "carrier" ? carrier : order.driverName ?? t("delivery.a_driver")}</p>
               <p className="text-xs text-muted-foreground">{t(shipment.kind === "carrier" ? "delivery.by_carrier" : "delivery.by_driver")}</p>
             </div>
-          </div>
-          <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
         </div>
 
         <AttentionBanner shipment={shipment} />
 
-        <div className="space-y-2.5 text-sm">
+        <dl className="space-y-2.5 text-sm">
           {shipment.trackingNumber && (
             <Fact label={t("delivery.tracking")}>
-              <span dir="ltr" className="font-mono text-xs">
+              <span dir="ltr" className="font-mono text-[0.8125rem] tracking-tight">
                 {shipment.trackingNumber}
               </span>
             </Fact>
@@ -183,61 +235,65 @@ export function OrderShipmentCard({
             </Fact>
           )}
           {shipment.lastSyncedAt && <Fact label={t("delivery.checked")}>{relativeTime(shipment.lastSyncedAt, locale)}</Fact>}
-        </div>
+        </dl>
 
-        <div className="flex flex-wrap gap-2">
-          {button("resolve", <Search size={14} />, t("actions.resolve"), () => setOpen("resolve"), "primary")}
-          {button("validate", <CheckCircle2 size={14} />, t("actions.validate"), () =>
-            void run("validate", () => validateShipment(shipment.id), t("actions.validate_done", { carrier }), {
-              title: t("actions.validate"),
-              description: t("actions.validate_confirm", { carrier }),
-              label: t("actions.validate"),
-            }),
-          "primary")}
-          {button("report", <Send size={14} />, t(`report.${shipment.kind}.title`), () => setOpen("report"), shipment.kind === "driver" ? "primary" : "secondary")}
-          {button("label", <Download size={14} />, t("actions.label"), () => void run("label", () => downloadLabel(shipment), t("actions.label_done")))}
-          {button("sync", <RefreshCw size={14} />, t("actions.sync"), () => void run("sync", () => syncShipment(shipment.id), t("actions.sync_done")))}
-          {button("update", <Pencil size={14} />, t("actions.update"), () => setOpen("parcel"))}
-          {(actions.has("addRemark") || actions.has("listRemarks")) && (
-            <Button type="button" variant="secondary" size="sm" disabled={busy !== null} onClick={() => setOpen("remarks")}>
-              <MessageSquare size={14} />
-              {t("actions.remarks")}
-            </Button>
-          )}
-          {button("requestNewAttempt", <RotateCcw size={14} />, t("actions.new_attempt"), () =>
-            void run("requestNewAttempt", () => requestNewAttempt(shipment.id), t("actions.new_attempt_done", { carrier }), {
-              title: t("actions.new_attempt"),
-              description: t("actions.new_attempt_confirm", { carrier }),
-              label: t("actions.new_attempt"),
-            }),
-          )}
-          {button("askReturn", <Undo2 size={14} />, t("actions.ask_return"), () =>
-            void run("askReturn", () => askReturn(shipment.id), t("actions.ask_return_done", { carrier }), {
-              title: t("actions.ask_return"),
-              description: t("actions.ask_return_confirm", { carrier }),
-              label: t("actions.ask_return"),
-              danger: true,
-            }),
-          )}
-          {button("confirmReturn", <CheckCircle2 size={14} />, t("actions.confirm_return"), () =>
-            void run("confirmReturn", () => confirmReturn(shipment.id), t("actions.confirm_return_done"), {
-              title: t("actions.confirm_return"),
-              description: t("actions.confirm_return_confirm", { carrier }),
-              label: t("actions.confirm_return"),
-            }),
-          )}
-          {button("void", <XCircle size={14} />, t(shipment.kind === "carrier" ? "actions.void_carrier" : "actions.void_driver"), () =>
-            void run("void", () => voidShipment(shipment.id), t("actions.void_done", { order: order.orderNumber }), {
-              title: t(shipment.kind === "carrier" ? "actions.void_carrier" : "actions.void_driver"),
-              description: t(shipment.kind === "carrier" ? "actions.void_carrier_confirm" : "actions.void_driver_confirm", { carrier }),
-              label: t(shipment.kind === "carrier" ? "actions.void_carrier" : "actions.void_driver"),
-              danger: true,
-            }),
-          "dangerOutline")}
-        </div>
+        {(primary || label || rest.length > 0 || remarks || canVoid) && (
+          <div className="flex items-center gap-2">
+            {primary && (
+              <Button type="button" className="flex-1" disabled={busy !== null} onClick={primary.onSelect}>
+                {primary.icon}
+                {busy === primary.action ? t("ship.sending") : primary.label}
+              </Button>
+            )}
+            {label && (
+              <Button type="button" variant="secondary" className={primary ? "" : "flex-1"} disabled={busy !== null} onClick={label.onSelect}>
+                {label.icon}
+                {busy === label.action ? t("ship.sending") : label.label}
+              </Button>
+            )}
+            {(rest.length > 0 || remarks || canVoid) && (
+              <DropdownMenu
+                trigger={<MoreHorizontal size={16} aria-hidden="true" />}
+                triggerLabel={t("actions.more")}
+                triggerClassName={buttonVariants({ variant: "secondary", className: "w-9 shrink-0 px-0" })}
+              >
+                {rest.map((step) => (
+                  <DropdownItem key={step.action} disabled={busy !== null} onClick={step.onSelect}>
+                    {step.icon}
+                    {step.label}
+                  </DropdownItem>
+                ))}
+                {remarks && (
+                  <DropdownItem disabled={busy !== null} onClick={() => setOpen("remarks")}>
+                    <MessageSquare size={14} />
+                    {t("actions.remarks")}
+                  </DropdownItem>
+                )}
+                {canVoid && (rest.length > 0 || remarks) && <DropdownSeparator />}
+                {canVoid && (
+                  <DropdownItem
+                    danger
+                    disabled={busy !== null}
+                    onClick={() =>
+                      void run("void", () => voidShipment(shipment.id), t("actions.void_done", { order: order.orderNumber }), {
+                        title: t(`actions.${voidKey}`),
+                        description: t(`actions.${voidKey}_confirm`, { carrier }),
+                        label: t(`actions.${voidKey}`),
+                        danger: true,
+                      })
+                    }
+                  >
+                    <XCircle size={14} />
+                    {t(`actions.${voidKey}`)}
+                  </DropdownItem>
+                )}
+              </DropdownMenu>
+            )}
+          </div>
+        )}
 
         <div className="border-t border-border pt-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("history.title")}</p>
+          <p className="mb-3 text-xs font-medium text-muted-foreground">{t("history.title")}</p>
           <DeliveryHistory shipment={shipment} />
         </div>
       </div>

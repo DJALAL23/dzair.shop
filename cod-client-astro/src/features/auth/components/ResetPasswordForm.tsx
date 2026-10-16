@@ -62,7 +62,7 @@ export function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           {t("reset_password_title")}
         </h1>
         <Alert role="alert" tone="critical">
@@ -81,7 +81,7 @@ export function ResetPasswordForm() {
   if (done) {
     return (
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           {t("reset_password_title")}
         </h1>
         <p className="mt-2 text-sm leading-5 text-muted-foreground">
@@ -94,7 +94,7 @@ export function ResetPasswordForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           {t("reset_password_title")}
         </h1>
         <p className="mt-2 text-sm leading-5 text-muted-foreground">

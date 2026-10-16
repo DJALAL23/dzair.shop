@@ -21,7 +21,7 @@ export default function GateSpinner({
   if (branded) {
     return (
       <span role="status" className="inline-flex flex-col items-center gap-4">
-        <Logo variant="dark" height={36} className="w-auto animate-pulse" />
+        <Logo variant="dark" height={36} className="w-auto shimmer" />
       </span>
     );
   }

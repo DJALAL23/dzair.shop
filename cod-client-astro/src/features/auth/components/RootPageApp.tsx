@@ -88,7 +88,7 @@ export function RootGate() {
   if (landingPageRoute.kind === "studio") return <LandingPageStudioApp landingPageId={landingPageRoute.id} />;
   return (
     <div data-auth-state={done ? "routing" : "pending"} className="flex justify-center py-24" aria-busy="true">
-      <span className="font-display text-2xl font-bold tracking-tight text-foreground">CodFlow</span>
+      <span className="font-display text-2xl font-semibold tracking-tight text-foreground">CodFlow</span>
     </div>
   );
 }

@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-  AlertCircle,
   CheckCircle2,
   Inbox,
-  MapPin,
   PackageX,
-  Phone,
   RefreshCw,
   Trash2,
   TrendingUp,
@@ -38,14 +35,20 @@ import type {
 import {
   Alert,
   Badge,
+  Button,
   Card,
+  CellEmpty,
   EmptyState,
   IconButton,
   PageHeader,
+  RowActions,
   Pagination,
   SearchInput,
+  FilterPill,
+  ListToolbar,
   Select,
   StatCard,
+  StatGroup,
   Table,
   TableBody,
   TableCell,
@@ -69,13 +72,13 @@ const STATUS_TONE: Record<
 
 const STATUS_PILL: Record<AbandonedOrderStatus, string> = {
   pending:
-    "bg-[var(--status-new-bg)] text-[var(--status-new-text)] border-[var(--status-new-border)]",
+    "bg-[var(--tone-neutral-bg)] text-[var(--tone-neutral-text)] border-[var(--tone-neutral-border)]",
   abandoned:
-    "bg-[var(--status-preparing-bg)] text-[var(--status-preparing-text)] border-[var(--status-preparing-border)]",
+    "bg-[var(--tone-warning-bg)] text-[var(--tone-warning-text)] border-[var(--tone-warning-border)]",
   contacted:
-    "bg-[var(--status-ready-bg)] text-[var(--status-ready-text)] border-[var(--status-ready-border)]",
+    "bg-[var(--tone-info-bg)] text-[var(--tone-info-text)] border-[var(--tone-info-border)]",
   converted:
-    "bg-[var(--status-delivered-bg)] text-[var(--status-delivered-text)] border-[var(--status-delivered-border)]",
+    "bg-[var(--tone-success-bg)] text-[var(--tone-success-text)] border-[var(--tone-success-border)]",
 };
 
 function formatDate(value: string, locale: "ar" | "en" | "fr"): string {
@@ -99,10 +102,13 @@ function StatusControl({
   const options = abandonedStatusOptions(row.status);
 
   if (!canManage || options.length === 1) {
+    const badge = <Badge tone={STATUS_TONE[row.status]}>{t(`abandoned.status.${row.status}`)}</Badge>;
+    if (!row.convertedOrderId || !row.convertedOrderNumber) return badge;
+    const label = t("abandoned.recovered_order", { number: row.convertedOrderNumber });
     return (
-      <Badge tone={STATUS_TONE[row.status]}>
-        {t(`abandoned.status.${row.status}`)}
-      </Badge>
+      <a href={`/orders/${row.convertedOrderId}`} aria-label={label} title={label} className="rounded-full hover:opacity-80">
+        {badge}
+      </a>
     );
   }
 
@@ -127,19 +133,6 @@ function StatusControl({
   );
 }
 
-function RecoveredLink({ row }: { row: AbandonedOrder }) {
-  const t = useT("orders");
-  if (!row.convertedOrderId || !row.convertedOrderNumber) return null;
-  return (
-    <a
-      href={`/orders/${row.convertedOrderId}`}
-      className="mt-1 inline-block text-xs font-semibold text-link underline-offset-4 hover:underline"
-    >
-      {t("abandoned.recovered_order", { number: row.convertedOrderNumber })}
-    </a>
-  );
-}
-
 /**
  * What the shopper was buying.
  *
@@ -152,49 +145,24 @@ function RecoveredLink({ row }: { row: AbandonedOrder }) {
  * here depends on which shape a record is.
  */
 function AbandonedBasket({ row }: { row: AbandonedOrder }) {
-  const locale = useLocale();
   const view = abandonedBasketView(row);
-
-  if (view.kind === "unknown") {
-    return <span className="text-xs text-muted-foreground">—</span>;
-  }
-
-  if (view.kind === "product") {
-    return (
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-foreground">{view.productName}</p>
-        {view.variantLabel && (
-          <p className="truncate text-xs text-muted-foreground">{view.variantLabel}</p>
-        )}
-        <RecoveredLink row={row} />
-      </div>
-    );
-  }
-
+  if (view.kind === "unknown") return <CellEmpty />;
+  const lines =
+    view.kind === "product"
+      ? [{ key: "product", quantity: null, productName: view.productName, variantLabel: view.variantLabel }]
+      : view.lines;
   return (
-    <div className="min-w-0 space-y-1.5">
-      {view.lines.map((item) => (
-        <div key={item.key} className="flex min-w-0 items-baseline gap-2">
-          <span className="shrink-0 text-xs font-bold tabular-nums text-muted-foreground">
-            {item.quantity}×
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-medium text-foreground">
-              {item.productName}
-            </span>
-            {item.variantLabel && (
-              <span className="block truncate text-xs text-muted-foreground">
-                {item.variantLabel}
-              </span>
-            )}
-          </span>
-          <span className="ms-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-            {formatMoney(item.lineTotal, locale)}
-          </span>
-        </div>
+    <ul className="min-w-0 space-y-0.5">
+      {lines.map((line) => (
+        <li key={line.key} className="flex min-w-0 items-baseline gap-1.5 text-sm">
+          {line.quantity !== null && (
+            <span className="shrink-0 tabular-nums text-muted-foreground">{line.quantity}×</span>
+          )}
+          <span className="truncate text-foreground">{line.productName}</span>
+          {line.variantLabel && <span className="shrink-0 text-muted-foreground">· {line.variantLabel}</span>}
+        </li>
       ))}
-      <RecoveredLink row={row} />
-    </div>
+    </ul>
   );
 }
 
@@ -215,47 +183,33 @@ function AbandonedDesktopRow({
   const canManage = canScope(identity, "abandoned_orders:manage");
 
   return (
-    <TableRow className="border-b border-border last:border-0 transition-colors hover:bg-muted/40">
-      <TableCell>
-        <p className="font-medium text-foreground">{row.customerName}</p>
-        {row.wilayaName && (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-            <MapPin size={12} className="shrink-0" />
-            {row.wilayaName}
-            {row.communeName ? ` · ${row.communeName}` : ""}
-          </p>
-        )}
-      </TableCell>
-      <TableCell>
-        <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
-          <Phone size={13} className="shrink-0 text-muted-foreground" />
-          <span dir="ltr">{row.phone}</span>
-        </span>
+    <TableRow>
+      <TableCell className="max-w-56 truncate font-medium">{row.customerName}</TableCell>
+      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+        <span dir="ltr">{row.phone}</span>
       </TableCell>
       <TableCell className="max-w-[22rem]">
         <AbandonedBasket row={row} />
       </TableCell>
-      <TableCell className="text-end font-bold tabular-nums text-foreground">
-        {formatMoney(row.price, locale)}
-      </TableCell>
+      <TableCell numeric>{formatMoney(row.price, locale)}</TableCell>
       <TableCell>
         <StatusControl row={row} busy={busy} onChange={(status) => onStatusChange(row, status)} />
       </TableCell>
-      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-        {formatDate(row.createdAt, locale)}
-      </TableCell>
-      <TableCell className="text-end">
+      <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(row.createdAt, locale)}</TableCell>
+      <TableCell className="w-px">
         {canManage && (
-          <IconButton
-            type="button"
-            variant="danger"
-            onClick={() => onDelete(row)}
-            disabled={busy}
-            aria-label={common("delete")}
-            title={common("delete")}
-          >
-            <Trash2 size={16} />
-          </IconButton>
+          <RowActions>
+            <IconButton
+              type="button"
+              variant="danger"
+              onClick={() => onDelete(row)}
+              disabled={busy}
+              aria-label={common("delete")}
+              title={common("delete")}
+            >
+              <Trash2 size={15} />
+            </IconButton>
+          </RowActions>
         )}
       </TableCell>
     </TableRow>
@@ -282,7 +236,7 @@ function AbandonedMobileCard({
     <article className="p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-foreground">
+          <p className="truncate text-sm font-medium text-foreground">
             {row.customerName}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground" dir="ltr">
@@ -308,18 +262,12 @@ function AbandonedMobileCard({
 
       <div className="mt-3 flex items-end justify-between gap-3">
         <AbandonedBasket row={row} />
-        <span className="shrink-0 text-sm font-bold tabular-nums text-foreground">
+        <span className="shrink-0 text-sm font-medium tabular-nums text-foreground">
           {formatMoney(row.price, locale)}
         </span>
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span className="inline-flex min-w-0 items-center gap-1 truncate">
-          <MapPin size={13} className="shrink-0" />
-          {row.wilayaName ?? row.communeName ?? "—"}
-        </span>
-        <span className="shrink-0">{formatDate(row.createdAt, locale)}</span>
-      </div>
+      <p className="mt-2 text-xs text-muted-foreground">{formatDate(row.createdAt, locale)}</p>
     </article>
   );
 }
@@ -329,7 +277,7 @@ function AbandonedSkeleton() {
     <div
       role="status"
       aria-busy="true"
-      className="overflow-hidden rounded-xl border border-border bg-card"
+      className="overflow-hidden rounded-xl bg-card shadow-card"
     >
       <div className="h-14 border-b border-border bg-muted/35" />
       {Array.from({ length: 6 }).map((_, index) => (
@@ -337,11 +285,11 @@ function AbandonedSkeleton() {
           key={index}
           className="grid h-14 grid-cols-[1.2fr_1fr_1fr_0.6fr_0.8fr] items-center gap-4 border-b border-border px-4 last:border-0"
         >
-          <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-24 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-32 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-16 justify-self-end animate-pulse rounded bg-muted" />
-          <span className="h-6 w-20 justify-self-end animate-pulse rounded-full bg-muted" />
+          <div className="h-3 w-28 shimmer rounded" />
+          <div className="h-3 w-24 shimmer rounded" />
+          <div className="h-3 w-32 shimmer rounded" />
+          <div className="h-3 w-16 justify-self-end shimmer rounded" />
+          <span className="h-6 w-20 justify-self-end shimmer rounded-full" />
         </div>
       ))}
     </div>
@@ -469,7 +417,6 @@ function AbandonedOrdersView() {
       <div>
         {header}
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div>
             <p className="font-semibold">{t("abandoned.load_error")}</p>
             <p className="mt-1 text-xs opacity-80">{loadError.message}</p>
@@ -492,11 +439,11 @@ function AbandonedOrdersView() {
       <div>
         {header}
         <div role="status" aria-busy="true" className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="h-[88px] animate-pulse rounded-xl border border-border bg-card"
+                className="h-[88px] shimmer rounded-xl shadow-card"
               />
             ))}
           </div>
@@ -518,7 +465,6 @@ function AbandonedOrdersView() {
 
       {actionError && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <div className="flex-1">{actionError}</div>
           <button
             type="button"
@@ -530,7 +476,7 @@ function AbandonedOrdersView() {
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatGroup columns={4}>
         <StatCard
           label={t("abandoned.stats.abandoned")}
           value={stats.totalAbandoned.toLocaleString(locale)}
@@ -554,50 +500,33 @@ function AbandonedOrdersView() {
           tone="critical"
           icon={<Wallet size={20} />}
         />
-      </div>
+      </StatGroup>
 
       <Card flush>
-        <div className="space-y-3 border-b border-border p-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <SearchInput
-              value={query}
-              onChange={setQuery}
-              placeholder={t("abandoned.search_placeholder")}
-            />
-            <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {t("abandoned.count_label", { count: filtered.length })}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <Select
-              aria-label={t("abandoned.status.all")}
-              value={status}
-              onChange={(event) => setStatus(event.currentTarget.value)}
-              wrapperClassName="sm:w-44"
+        <ListToolbar count={t("abandoned.count_label", { count: filtered.length })}>
+          <SearchInput value={query} onChange={setQuery} placeholder={t("abandoned.search_placeholder")} className="basis-full sm:basis-72" />
+          <FilterPill label={t("abandoned.status_label")} value={status} onChange={setStatus}>
+            <option value="all">{t("abandoned.status_label")}</option>
+            {(["pending", "abandoned", "contacted", "converted"] as const).map((value) => (
+              <option key={value} value={value}>
+                {t(`abandoned.status.${value}`)}
+              </option>
+            ))}
+          </FilterPill>
+          {hasFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setQuery("");
+                setStatus("all");
+              }}
             >
-              <option value="all">{t("abandoned.status.all")}</option>
-              {(["pending", "abandoned", "contacted", "converted"] as const).map(
-                (value) => (
-                  <option key={value} value={value}>
-                    {t(`abandoned.status.${value}`)}
-                  </option>
-                ),
-              )}
-            </Select>
-            {hasFilters && (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  setStatus("all");
-                }}
-                className="h-10 rounded-lg px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                {common("cancel")}
-              </button>
-            )}
-          </div>
-        </div>
+              {common("clear_filters")}
+            </Button>
+          )}
+        </ListToolbar>
 
         {filtered.length === 0 ? (
           <EmptyState
@@ -626,26 +555,14 @@ function AbandonedOrdersView() {
             <div className="hidden overflow-x-auto md:block">
               <Table className="min-w-[880px]">
                 <TableHeader>
-                  <TableRow className="text-xs font-semibold text-muted-foreground">
-                    <TableHead className="text-start">
-                      {t("table.customer")}
-                    </TableHead>
-                    <TableHead className="text-start">
-                      {t("table.phone")}
-                    </TableHead>
-                    <TableHead className="text-start">
-                      {t("abandoned.table.product")}
-                    </TableHead>
-                    <TableHead className="text-end">
-                      {t("abandoned.table.basket")}
-                    </TableHead>
-                    <TableHead className="text-start">
-                      {t("table.status")}
-                    </TableHead>
-                    <TableHead className="text-start">
-                      {t("table.date")}
-                    </TableHead>
-                    <TableHead className="w-12">
+                  <TableRow>
+                    <TableHead>{t("table.customer")}</TableHead>
+                    <TableHead>{t("table.phone")}</TableHead>
+                    <TableHead>{t("abandoned.table.product")}</TableHead>
+                    <TableHead numeric>{t("abandoned.table.basket")}</TableHead>
+                    <TableHead>{t("table.status")}</TableHead>
+                    <TableHead>{t("table.date")}</TableHead>
+                    <TableHead className="w-px">
                       <span className="sr-only">{common("table.actions")}</span>
                     </TableHead>
                   </TableRow>
@@ -681,7 +598,7 @@ function AbandonedOrdersView() {
 export default function AbandonedOrdersPageApp() {
   return (
     <RequireAuth>
-      <DashboardChrome currentPath="/orders/abandoned" wide>
+      <DashboardChrome currentPath="/orders/abandoned">
         <AbandonedOrdersView />
       </DashboardChrome>
     </RequireAuth>

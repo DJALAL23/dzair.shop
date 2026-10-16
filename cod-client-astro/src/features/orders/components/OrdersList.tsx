@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { AlertCircle, AlertTriangle, Filter, PackageOpen, Send } from "lucide-react";
+import { AlertTriangle, PackageOpen, Send } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { getOrderStageCounts, listDeliveryCompanies, listDrivers, listOrders, listWilayas, type OrderQuery } from "@/features/orders/api";
@@ -11,9 +11,10 @@ import {
   Card,
   EmptyState,
   LinkButton,
+  FilterPill,
   SearchInput,
-  Select,
   Table,
+  TableSkeleton,
   TableBody,
   TableHead,
   TableHeader,
@@ -44,39 +45,6 @@ function rememberView(view: OrderView) {
   if (view === "all") url.searchParams.delete("view");
   else url.searchParams.set("view", view);
   window.history.replaceState(null, "", url);
-}
-
-function OrderSkeleton() {
-  return (
-    <div role="status" aria-busy="true" className="divide-y divide-border">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="grid h-14 grid-cols-[1fr_1.2fr_0.8fr] items-center gap-4 px-4">
-          <div className="h-3 w-24 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-32 animate-pulse rounded bg-muted" />
-          <span className="h-6 w-20 justify-self-end animate-pulse rounded-full bg-muted" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function FilterSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
-  return (
-    <label className="relative flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 sm:flex-none">
-      <Filter size={14} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-      <Select
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        variant="bare"
-        size="sm"
-        wrapperClassName="min-w-0 flex-1"
-        triggerClassName="min-w-0 flex-1"
-      >
-        {children}
-      </Select>
-    </label>
-  );
 }
 
 /**
@@ -186,47 +154,11 @@ export function OrdersList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label={t("queues.label")} className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto px-1 pb-1">
-          {VIEWS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={view === key}
-              onClick={() => choose(key)}
-              className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors ${
-                view === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              {t(`queues.${key}`)}
-              {counts && <span className={`rounded-md px-1.5 text-xs tabular-nums ${view === key ? "bg-primary-foreground/20" : "bg-muted"}`}>{counts[key]}</span>}
-            </button>
-          ))}
-        </div>
-        {counts && counts.attention > 0 && (
-          <button
-            type="button"
-            onClick={() => choose(view === "attention" ? "all" : "attention")}
-            aria-pressed={view === "attention"}
-            className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold ${
-              view === "attention"
-                ? "border-[var(--status-returned-border)] bg-[var(--status-returned-bg)] text-[var(--status-returned-text)]"
-                : "border-[var(--status-returned-border)] text-[var(--status-returned-text)] hover:bg-[var(--status-returned-bg)]"
-            }`}
-          >
-            <AlertTriangle size={14} />
-            {t("queues.attention_count", { count: counts.attention })}
-          </button>
-        )}
-      </div>
-
       {error && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div className="flex-1">
             <p className="font-semibold">{t("load_error")}</p>
-            <p className="mt-1 text-xs opacity-80">{error.message}</p>
+            <p className="mt-0.5 text-xs opacity-80">{error.message}</p>
           </div>
           <button type="button" onClick={() => void load()} className="text-xs font-semibold underline underline-offset-4">
             {common("retry")}
@@ -234,49 +166,83 @@ export function OrdersList() {
         </Alert>
       )}
 
-      <Card flush>
-        <div className="space-y-3 border-b border-border p-3">
-          <SearchInput value={filters.search} onChange={(search) => setFilter("search", search)} placeholder={t("search_placeholder")} />
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <FilterSelect label={t("filters.delivered_by")} value={filters.kind} onChange={(value) => setFilter("kind", value as Filters["kind"])}>
-              <option value="">{t("filters.any_delivery")}</option>
-              <option value="carrier">{t("filters.by_carrier")}</option>
-              <option value="driver">{t("filters.by_driver")}</option>
-            </FilterSelect>
-            <FilterSelect label={t("filters.type")} value={filters.orderType} onChange={(value) => setFilter("orderType", value as Filters["orderType"])}>
-              <option value="">{t("filters.any_type")}</option>
-              <option value="online">{t("type.online")}</option>
-              <option value="offline">{t("type.offline")}</option>
-            </FilterSelect>
-            {wilayas.length > 0 && (
-              <FilterSelect label={t("filters.wilaya")} value={filters.wilayaId} onChange={(value) => setFilter("wilayaId", value)}>
-                <option value="">{t("filters.all_wilayas")}</option>
-                {wilayas.map((wilaya) => (
-                  <option key={wilaya.id} value={String(wilaya.id)}>
-                    {wilaya.id} · {wilaya.nameAr}
-                  </option>
-                ))}
-              </FilterSelect>
-            )}
-            {hasFilters && (
-              <button type="button" onClick={() => setFilters(NO_FILTERS)} className="h-10 rounded-lg px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
-                {t("filters.clear")}
-              </button>
-            )}
-            {selectable && (
-              <Button type="button" className="sm:ms-auto" disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
-                <Send size={15} />
-                {selected.size > 0 ? t("bulk.ship_selected", { count: selected.size }) : t("bulk.select_hint")}
-              </Button>
-            )}
-          </div>
+      <Card flush className="overflow-hidden">
+        <div role="tablist" aria-label={t("queues.label")} className="no-scrollbar flex items-center gap-0.5 overflow-x-auto px-2 pt-2">
+          {VIEWS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={view === key}
+              onClick={() => choose(key)}
+              className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors pointer-coarse:h-9 ${
+                view === key ? "bg-foreground/[0.08] font-semibold text-foreground" : "font-medium text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
+              }`}
+            >
+              {t(`queues.${key}`)}
+              {counts && <span className="text-xs font-medium tabular-nums text-muted-foreground">{counts[key]}</span>}
+            </button>
+          ))}
+          {counts && counts.attention > 0 && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "attention"}
+              onClick={() => choose(view === "attention" ? "all" : "attention")}
+              className={`ms-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-[var(--tone-critical-text)] transition-colors pointer-coarse:h-9 ${
+                view === "attention" ? "bg-[var(--tone-critical-bg)] font-semibold" : "hover:bg-[var(--tone-critical-bg)]"
+              }`}
+            >
+              <AlertTriangle size={14} aria-hidden="true" />
+              {t("queues.attention_count", { count: counts.attention })}
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 p-2">
+          <SearchInput
+            value={filters.search}
+            onChange={(search) => setFilter("search", search)}
+            placeholder={t("search_placeholder")}
+            className="basis-full sm:basis-72"
+          />
+          <FilterPill label={t("filters.delivered_by")} value={filters.kind} onChange={(value) => setFilter("kind", value as Filters["kind"])}>
+            <option value="">{t("filters.any_delivery")}</option>
+            <option value="carrier">{t("filters.by_carrier")}</option>
+            <option value="driver">{t("filters.by_driver")}</option>
+          </FilterPill>
+          <FilterPill label={t("filters.type")} value={filters.orderType} onChange={(value) => setFilter("orderType", value as Filters["orderType"])}>
+            <option value="">{t("filters.any_type")}</option>
+            <option value="online">{t("type.online")}</option>
+            <option value="offline">{t("type.offline")}</option>
+          </FilterPill>
+          {wilayas.length > 0 && (
+            <FilterPill label={t("filters.wilaya")} value={filters.wilayaId} onChange={(value) => setFilter("wilayaId", value)}>
+              <option value="">{t("filters.all_wilayas")}</option>
+              {wilayas.map((wilaya) => (
+                <option key={wilaya.id} value={String(wilaya.id)}>
+                  {wilaya.id} · {wilaya.nameAr}
+                </option>
+              ))}
+            </FilterPill>
+          )}
+          {hasFilters && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setFilters(NO_FILTERS)}>
+              {t("filters.clear")}
+            </Button>
+          )}
+          {selectable && (
+            <Button type="button" className="ms-auto" disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
+              <Send size={14} aria-hidden="true" />
+              {selected.size > 0 ? t("bulk.ship_selected", { count: selected.size }) : t("bulk.select_hint")}
+            </Button>
+          )}
         </div>
 
         {orders === null ? (
-          <OrderSkeleton />
+          <TableSkeleton columns={6} />
         ) : orders.length === 0 ? (
           <EmptyState
-            icon={<PackageOpen size={22} />}
+            icon={<PackageOpen />}
             title={hasFilters ? common("no_results_found") : t(`empty.${view}`)}
             description={!hasFilters && view === "all" ? t("empty_state.description") : undefined}
             action={
@@ -285,27 +251,28 @@ export function OrdersList() {
           />
         ) : (
           <>
-            <div className="divide-y divide-border md:hidden">
+            <div className="divide-y divide-border border-t border-border md:hidden">
               {orders.map((order) => (
-                <OrderMobileCard key={order.id} order={order} selection={selection(order)} {...rowProps} />
+                <OrderMobileCard key={order.id} order={order} selection={selection(order)} />
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
-              <Table className="min-w-[900px]">
+              <Table className="min-w-[960px]">
                 <TableHeader>
-                  <TableRow className="text-xs font-semibold text-muted-foreground">
+                  <TableRow className="hover:bg-transparent">
                     {selectable && (
                       <TableHead className="w-10">
                         <span className="sr-only">{t("bulk.select")}</span>
                       </TableHead>
                     )}
-                    <TableHead className="text-start">{t("table.order_number")}</TableHead>
-                    <TableHead className="text-start">{t("table.customer")}</TableHead>
-                    <TableHead className="text-start">{t("table.stage")}</TableHead>
-                    <TableHead className="text-start">{t("table.wilaya")}</TableHead>
-                    <TableHead className="text-start">{t("table.delivery")}</TableHead>
-                    <TableHead className="text-end">{t("table.total")}</TableHead>
-                    <TableHead className="w-12">
+                    <TableHead>{t("table.order_number")}</TableHead>
+                    <TableHead>{t("table.date")}</TableHead>
+                    <TableHead>{t("table.customer")}</TableHead>
+                    <TableHead>{t("table.phone")}</TableHead>
+                    <TableHead>{t("table.stage")}</TableHead>
+                    <TableHead>{t("table.delivery")}</TableHead>
+                    <TableHead numeric>{t("table.total")}</TableHead>
+                    <TableHead className="w-px">
                       <span className="sr-only">{common("table.actions")}</span>
                     </TableHead>
                   </TableRow>
@@ -318,7 +285,7 @@ export function OrdersList() {
               </Table>
             </div>
             {nextCursor && (
-              <div className="border-t border-border p-3 text-center">
+              <div className="border-t border-border p-2.5 text-center">
                 <Button type="button" variant="secondary" disabled={loadingMore} onClick={() => void loadMore()}>
                   {loadingMore ? t("loading_more") : t("load_more")}
                 </Button>

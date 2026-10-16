@@ -41,7 +41,7 @@ export function SignInForm({ next }: { next?: string | null }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           {t("welcome_back")}
         </h1>
         <p className="mt-2 text-sm leading-5 text-muted-foreground">

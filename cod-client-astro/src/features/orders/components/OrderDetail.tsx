@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Pencil, StickyNote, Trash2 } from "lucide-react";
+import { Pencil, StickyNote, Trash2 } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
@@ -101,7 +101,6 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   if (error && !order) {
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <span className="flex-1">{error}</span>
         <Button type="button" variant="ghost" onClick={() => void load()}>
           {common("retry")}
@@ -113,8 +112,8 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   if (!order) {
     return (
       <div role="status" aria-busy="true" className="space-y-3">
-        <div className="h-28 animate-pulse rounded-xl bg-muted" />
-        <div className="h-80 animate-pulse rounded-xl bg-muted" />
+        <div className="h-28 shimmer rounded-xl" />
+        <div className="h-80 shimmer rounded-xl" />
       </div>
     );
   }
@@ -148,12 +147,11 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       />
       {error && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span>{error}</span>
         </Alert>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-5">
           <OrderCustomerCard order={order} />
           <OrderCustomAnswersCard customFieldsJson={order.customFieldsJson} />
@@ -178,7 +176,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         </div>
       </div>
 
-      <OrderMobileActionBar moves={moves} canShip={canShip} busy={busy} stage={order.stage} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
+      <OrderMobileActionBar moves={moves} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
 
       {editing && <EditOrderDialog order={order} onClose={() => setEditing(false)} onChanged={load} onError={setError} />}
       {shipping && <HandoffDialog order={order} kinds={kinds} companies={companies} drivers={drivers} onClose={() => setShipping(false)} onDone={load} />}

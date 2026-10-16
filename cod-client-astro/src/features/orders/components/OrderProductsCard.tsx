@@ -74,17 +74,17 @@ export function OrderProductsCard({
             <div key={product.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
               <Package size={17} className="mt-0.5 text-muted-foreground" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{product.productName}</p>
+                <p className="text-sm font-medium">{product.productName}</p>
                 {product.variantLabel && <p className="text-xs text-muted-foreground">{product.variantLabel}</p>}
                 <p className="mt-1 text-xs text-muted-foreground">
                   {product.quantity} × {free ? t("form.free") : formatMoney(product.pricePerUnit, locale)}
                 </p>
                 {product.returnedQuantity > 0 && (
-                  <p className="mt-1 text-xs font-semibold text-[var(--status-returned-text)]">{t("refused.count", { count: product.returnedQuantity })}</p>
+                  <p className="mt-1 text-xs font-semibold text-[var(--tone-critical-text)]">{t("refused.count", { count: product.returnedQuantity })}</p>
                 )}
                 {canRecordRefused && <RefusedUnits orderId={order.id} line={product} onChanged={onChanged} />}
               </div>
-              <span className={`text-sm font-semibold tabular-nums ${free ? "text-success" : ""}`}>{free ? "-" : formatMoney(product.lineTotal, locale)}</span>
+              <span className={`text-sm tabular-nums ${free ? "text-success" : ""}`}>{free ? "-" : formatMoney(product.lineTotal, locale)}</span>
             </div>
           );
         })}
@@ -98,7 +98,7 @@ export function OrderProductsCard({
           <span>{t("detail.delivery_fee")}</span>
           <span className="tabular-nums">{formatMoney(order.deliveryFee, locale)}</span>
         </div>
-        <div className="flex justify-between border-t border-border pt-3 font-bold">
+        <div className="flex justify-between border-t border-border pt-3 font-semibold">
           <span>{t("detail.total_price")}</span>
           <span className="tabular-nums">{formatMoney(orderTotal(order), locale)}</span>
         </div>

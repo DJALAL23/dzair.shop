@@ -32,25 +32,18 @@ export function NewOrderDeliveryCard({
   return (
     <Card title={t("form.delivery_section")}>
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div role="radiogroup" aria-label={t("form.delivery_section")} className="grid grid-cols-2 gap-2">
           {(["home", "stop_desk"] as const).map((type) => (
-            <button
-              type="button"
+            <label
               key={type}
-              onClick={() => setDeliveryType(type)}
-              className={`flex min-h-16 items-center gap-3 rounded-md border px-4 text-start transition-colors ${
-                deliveryType === type
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-input hover:bg-muted"
+              className={`flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring ${
+                deliveryType === type ? "border-primary bg-subtle font-medium text-foreground" : "border-border text-muted-foreground hover:bg-subtle"
               }`}
             >
-              <Truck size={18} />
-              <span className="text-sm font-semibold">
-                {type === "home"
-                  ? t("form.delivery_type_home")
-                  : t("form.delivery_type_desk")}
-              </span>
-            </button>
+              <input type="radio" name="deliveryType" checked={deliveryType === type} onChange={() => setDeliveryType(type)} className="sr-only" />
+              <Truck size={16} aria-hidden="true" className="shrink-0" />
+              <span>{type === "home" ? t("form.delivery_type_home") : t("form.delivery_type_desk")}</span>
+            </label>
           ))}
         </div>
         <Field label={t("form.delivery_fee_label")}>

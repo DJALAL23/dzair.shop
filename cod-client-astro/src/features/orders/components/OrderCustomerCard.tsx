@@ -15,14 +15,14 @@ export function OrderCustomerCard({ order }: OrderCustomerCardProps) {
 
   return (
     <Card title={t("detail.customer_info")}>
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="flex items-start gap-3">
           <UserRound size={18} className="mt-0.5 text-muted-foreground" />
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t("detail.name")}
             </p>
-            <p className="mt-1 text-sm font-semibold">
+            <p className="mt-1 text-sm font-medium">
               {order.customerName}
             </p>
             <a
@@ -50,10 +50,10 @@ export function OrderCustomerCard({ order }: OrderCustomerCardProps) {
         <div className="flex items-start gap-3">
           <MapPin size={18} className="mt-0.5 text-muted-foreground" />
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t("detail.destination")}
             </p>
-            <p className="mt-1 text-sm font-semibold">
+            <p className="mt-1 text-sm font-medium">
               {order.wilaya ?? "-"}
             </p>
             <p className="text-sm text-muted-foreground">

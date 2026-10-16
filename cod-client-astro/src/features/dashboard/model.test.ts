@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deliverySuccessRate, queueBreakdown } from "./model";
+import { deliverySuccessRate, queueBreakdown, summarizeActivity } from "./model";
 
 const counts = {
   stages: [
@@ -30,5 +30,28 @@ describe("the overview", () => {
   it("measures delivery success over the parcels that reached their customer", () => {
     expect(deliverySuccessRate(counts)).toBe(75);
     expect(deliverySuccessRate({ stages: [{ stage: "in_transit", count: 4 }], needsAttention: 0 })).toBeNull();
+  });
+
+  it("fills every day of the window and compares it with the window before", () => {
+    const summary = summarizeActivity({
+      from: "2026-10-14",
+      to: "2026-10-16",
+      days: [
+        { date: "2026-10-14", orders: 2, sales: 3000 },
+        { date: "2026-10-16", orders: 1, sales: 3000 },
+      ],
+      previous: { orders: 4, sales: 4000 },
+    });
+    expect(summary.days.map((day) => [day.date, day.orders])).toEqual([
+      ["2026-10-14", 2],
+      ["2026-10-15", 0],
+      ["2026-10-16", 1],
+    ]);
+    expect(summary).toMatchObject({ orders: 3, sales: 6000, average: 2000, change: { orders: -25, sales: 50, average: 100 } });
+  });
+
+  it("gives no change against an empty window, and no average without orders", () => {
+    const summary = summarizeActivity({ from: "2026-10-16", to: "2026-10-16", days: [], previous: { orders: 0, sales: 0 } });
+    expect(summary).toMatchObject({ days: [{ date: "2026-10-16", orders: 0, sales: 0 }], orders: 0, average: null, change: { orders: null, sales: null, average: null } });
   });
 });

@@ -1,16 +1,17 @@
 {
   "header": {
-    "title": "Tableau de bord",
-    "subtitle": "Vos commandes du jour, de l'appel à l'encaissement"
+    "title": "Accueil"
   },
   "stats": {
     "needs_attention": "À traiter",
     "needs_attention_hint": "Colis signalés, annulés ou non confirmés par un transporteur",
-    "to_ship": "À expédier",
-    "to_ship_hint": "Prêtes, en attente d'un transporteur ou d'un livreur",
-    "on_the_way": "En route",
-    "delivery_success": "Livrées",
-    "delivery_success_hint": "{delivered} livrées · {refused} refusées"
+    "delivery_success": "Taux de livraison",
+    "delivered_count_one": "{count} livrée",
+    "delivered_count_many": "{count} livrées",
+    "delivered_count_other": "{count} livrées",
+    "refused_count_one": "{count} refusée",
+    "refused_count_many": "{count} refusées",
+    "refused_count_other": "{count} refusées"
   },
   "recent_orders": {
     "title": "Commandes récentes",
@@ -19,7 +20,39 @@
     "empty": "Aucune commande pour le moment"
   },
   "queues": {
-    "title": "Vos commandes par étape",
-    "subtitle": "Où en est chaque commande — touchez une étape pour l'ouvrir"
+    "title": "Où en sont vos commandes",
+    "subtitle": "Chaque commande, selon son étape",
+    "total_one": "{count} commande",
+    "total_many": "{count} commandes",
+    "total_other": "{count} commandes"
+  },
+  "next": {
+    "attention_one": "{count} commande a besoin de vous",
+    "attention_many": "{count} commandes ont besoin de vous",
+    "attention_other": "{count} commandes ont besoin de vous",
+    "to_confirm_one": "{count} commande attend un appel",
+    "to_confirm_many": "{count} commandes attendent un appel",
+    "to_confirm_other": "{count} commandes attendent un appel",
+    "to_ship_one": "{count} commande est prête à expédier",
+    "to_ship_many": "{count} commandes sont prêtes à expédier",
+    "to_ship_other": "{count} commandes sont prêtes à expédier",
+    "clear": "Rien ne vous attend pour le moment"
+  },
+  "performance": {
+    "sales": "Ventes",
+    "orders": "Commandes",
+    "average": "Panier moyen",
+    "period": "Période",
+    "range_one": "{count} dernier jour",
+    "range_many": "{count} derniers jours",
+    "range_other": "{count} derniers jours",
+    "compared_one": "par rapport au jour précédent",
+    "compared_many": "par rapport aux {count} jours précédents",
+    "compared_other": "par rapport aux {count} jours précédents",
+    "up": "En hausse de {value} %",
+    "down": "En baisse de {value} %",
+    "flat": "Stable",
+    "caption": "{metric}, {range}",
+    "empty": "Aucune commande sur cette période"
   }
 }

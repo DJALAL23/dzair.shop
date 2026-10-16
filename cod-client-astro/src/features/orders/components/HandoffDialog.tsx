@@ -9,18 +9,18 @@ import { Button, Dialog, Field, Input, LinkButton, Select, Textarea } from "@/co
 
 type HandoffOrder = Pick<OrderBase, "id" | "orderNumber" | "wilaya" | "wilayaId" | "commune" | "address" | "deliveryType" | "price" | "deliveryFee">;
 
-function Choice({ selected, onSelect, children }: { selected: boolean; onSelect: () => void; children: React.ReactNode }) {
+export function Choice({ selected, onSelect, children }: { selected: boolean; onSelect: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
       onClick={onSelect}
-      className={`flex min-h-11 w-full items-center gap-2 rounded-lg border px-3 text-start text-sm font-semibold transition-colors ${
+      className={`flex min-h-11 w-full items-center gap-2 rounded-lg border px-3 py-2 text-start text-sm font-medium transition-colors ${
         selected ? "border-primary bg-primary/10 text-foreground" : "border-border hover:bg-muted"
       }`}
     >
-      <span className="min-w-0 flex-1 truncate">{children}</span>
+      <span className="min-w-0 flex-1 break-words">{children}</span>
       {selected && <Check size={15} className="shrink-0 text-primary" />}
     </button>
   );
@@ -203,22 +203,29 @@ export function HandoffDialog({
 
   return (
     <Dialog title={t("ship.title", { order: order.orderNumber })} onClose={onClose}>
-      <p className="mb-4 text-xs font-medium text-muted-foreground">
-        {order.wilaya ?? "-"}
-        {order.commune ? ` · ${order.commune}` : ""} · {t("ship.to_collect", { amount: formatMoney(orderTotal(order), locale) })}
+      <p className="mb-4 text-sm text-muted-foreground">
+        <span className="font-medium text-foreground tabular-nums">{t("ship.to_collect", { amount: formatMoney(orderTotal(order), locale) })}</span>
+        {" · "}
+        <bdi>{order.wilaya ?? "—"}</bdi>
+        {order.commune && (
+          <>
+            {" · "}
+            <bdi>{order.commune}</bdi>
+          </>
+        )}
       </p>
       <div className="space-y-4">
         {kinds.length > 1 && (
           <div role="radiogroup" aria-label={t("ship.who")} className="grid grid-cols-2 gap-2">
             <Choice selected={kind === "carrier"} onSelect={() => setKind("carrier")}>
-              <span className="inline-flex items-center gap-2">
-                <Building2 size={15} />
+              <span className="flex items-center gap-2">
+                <Building2 size={15} className="shrink-0" />
                 {t("ship.to_carrier")}
               </span>
             </Choice>
             <Choice selected={kind === "driver"} onSelect={() => setKind("driver")}>
-              <span className="inline-flex items-center gap-2">
-                <Truck size={15} />
+              <span className="flex items-center gap-2">
+                <Truck size={15} className="shrink-0" />
                 {t("ship.to_driver")}
               </span>
             </Choice>

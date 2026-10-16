@@ -1,16 +1,23 @@
 {
   "header": {
-    "title": "لوحة التحكم",
-    "subtitle": "طلباتك اليوم، من الاتصال إلى التحصيل"
+    "title": "الرئيسية"
   },
   "stats": {
     "needs_attention": "تحتاجك",
     "needs_attention_hint": "طرود أبلغت عنها شركة التوصيل أو ألغتها أو لم تؤكدها",
-    "to_ship": "للشحن",
-    "to_ship_hint": "جاهزة، بانتظار شركة توصيل أو سائق",
-    "on_the_way": "في الطريق",
     "delivery_success": "نسبة التسليم",
-    "delivery_success_hint": "{delivered} مُسلّمة · {refused} مرفوضة"
+    "delivered_count_zero": "لا طلبات مسلّمة",
+    "delivered_count_one": "طلب مسلّم واحد",
+    "delivered_count_two": "طلبان مسلّمان",
+    "delivered_count_few": "{count} طلبات مسلّمة",
+    "delivered_count_many": "{count} طلبًا مسلّمًا",
+    "delivered_count_other": "{count} طلب مسلّم",
+    "refused_count_zero": "لا طلبات مرفوضة",
+    "refused_count_one": "طلب مرفوض واحد",
+    "refused_count_two": "طلبان مرفوضان",
+    "refused_count_few": "{count} طلبات مرفوضة",
+    "refused_count_many": "{count} طلبًا مرفوضًا",
+    "refused_count_other": "{count} طلب مرفوض"
   },
   "recent_orders": {
     "title": "آخر الطلبات",
@@ -19,7 +26,57 @@
     "empty": "لا توجد طلبات بعد"
   },
   "queues": {
-    "title": "طلباتك حسب المرحلة",
-    "subtitle": "أين يقف كل طلب — اضغط على مرحلة لفتحها"
+    "title": "أين وصلت طلباتك",
+    "subtitle": "كل طلب حسب مرحلته",
+    "total_zero": "لا طلبات",
+    "total_one": "طلب واحد",
+    "total_two": "طلبان",
+    "total_few": "{count} طلبات",
+    "total_many": "{count} طلبًا",
+    "total_other": "{count} طلب"
+  },
+  "next": {
+    "attention_zero": "لا طلبات تحتاجك",
+    "attention_one": "طلب واحد يحتاجك",
+    "attention_two": "طلبان يحتاجانك",
+    "attention_few": "{count} طلبات تحتاجك",
+    "attention_many": "{count} طلبًا يحتاجك",
+    "attention_other": "{count} طلب يحتاجك",
+    "to_confirm_zero": "لا طلبات تنتظر الاتصال",
+    "to_confirm_one": "طلب واحد ينتظر الاتصال",
+    "to_confirm_two": "طلبان ينتظران الاتصال",
+    "to_confirm_few": "{count} طلبات تنتظر الاتصال",
+    "to_confirm_many": "{count} طلبًا ينتظر الاتصال",
+    "to_confirm_other": "{count} طلب ينتظر الاتصال",
+    "to_ship_zero": "لا طلبات جاهزة للشحن",
+    "to_ship_one": "طلب واحد جاهز للشحن",
+    "to_ship_two": "طلبان جاهزان للشحن",
+    "to_ship_few": "{count} طلبات جاهزة للشحن",
+    "to_ship_many": "{count} طلبًا جاهزًا للشحن",
+    "to_ship_other": "{count} طلب جاهز للشحن",
+    "clear": "لا شيء ينتظرك الآن"
+  },
+  "performance": {
+    "sales": "المبيعات",
+    "orders": "الطلبات",
+    "average": "متوسط الطلب",
+    "period": "الفترة",
+    "range_zero": "اليوم",
+    "range_one": "آخر يوم",
+    "range_two": "آخر يومين",
+    "range_few": "آخر {count} أيام",
+    "range_many": "آخر {count} يومًا",
+    "range_other": "آخر {count} يوم",
+    "compared_zero": "مقارنة بالفترة السابقة",
+    "compared_one": "مقارنة باليوم السابق",
+    "compared_two": "مقارنة باليومين السابقين",
+    "compared_few": "مقارنة بالأيام الـ{count} السابقة",
+    "compared_many": "مقارنة بالـ{count} يومًا السابقة",
+    "compared_other": "مقارنة بالـ{count} يوم السابقة",
+    "up": "ارتفاع بنسبة {value}%",
+    "down": "انخفاض بنسبة {value}%",
+    "flat": "دون تغيير",
+    "caption": "{metric}، {range}",
+    "empty": "لا طلبات في هذه الفترة"
   }
 }

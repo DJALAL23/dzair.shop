@@ -1,18 +1,16 @@
 {
   "page_title": "Orders",
-  "new_order_button": "New Order",
+  "new_order_button": "New order",
   "load_error": "Could not load orders",
   "table": {
     "order_number": "Order #",
     "customer": "Customer",
     "phone": "Phone",
-    "wilaya": "Wilaya",
     "status": "Status",
     "delivery": "Delivery",
     "date": "Date",
     "total": "Total",
-    "stage": "Stage",
-    "not_shipped": "Not shipped yet"
+    "stage": "Stage"
   },
   "actions": {
     "view": "View",
@@ -41,10 +39,11 @@
     "void_driver": "Take back from driver",
     "void_carrier_confirm": "Cancel this parcel at {carrier}? The order goes back to \"To ship\".",
     "void_driver_confirm": "Take this order back from the driver? It goes back to \"To ship\".",
-    "void_done": "{order} is back in \"To ship\""
+    "void_done": "{order} is back in \"To ship\"",
+    "more": "More actions"
   },
   "edit_dialog": {
-    "title": "Edit Order",
+    "title": "Edit order",
     "success": "Order updated",
     "error": "Failed to update order",
     "save": "Save changes"
@@ -52,7 +51,7 @@
   "filters": {
     "type": "Type",
     "wilaya": "Wilaya",
-    "all_wilayas": "All Wilayas",
+    "all_wilayas": "All wilayas",
     "delivered_by": "Delivered by",
     "any_delivery": "Any delivery",
     "by_carrier": "A delivery company",
@@ -66,13 +65,13 @@
   },
   "empty_state": {
     "description": "Start by creating your first order to track your sales and deliveries.",
-    "action": "Create New Order"
+    "action": "Create new order"
   },
   "status": {
-    "all": "All Statuses",
+    "all": "All statuses",
     "assigned": "Assigned",
     "dispatched": "Dispatched",
-    "out_for_delivery": "Out for Delivery",
+    "out_for_delivery": "Out for delivery",
     "delivered": "Delivered",
     "returned": "Returned",
     "new": "Received",
@@ -83,10 +82,10 @@
     "cancelled": "Cancelled"
   },
   "detail": {
-    "customer_info": "Customer Information",
+    "customer_info": "Customer information",
     "name": "Name",
     "delivery_fee": "Fee",
-    "total_price": "Total Price",
+    "total_price": "Total price",
     "subtotal": "Subtotal",
     "destination": "Destination",
     "back_to_orders": "Orders",
@@ -95,11 +94,11 @@
     "custom_answers_note": "Answers to your own checkout questions. They are never sent to carriers."
   },
   "form": {
-    "title_add": "Add Order",
+    "title_add": "New order",
     "search_customer": "Search for customer",
-    "customer_name_label": "Customer Name",
+    "customer_name_label": "Customer name",
     "customer_name_placeholder": "Enter customer name",
-    "phone_label": "Phone Number",
+    "phone_label": "Phone number",
     "phone_placeholder": "0555123456",
     "email_label": "Email (optional)",
     "email_placeholder": "customer@example.com",
@@ -111,22 +110,22 @@
     "address_label": "Address",
     "address_placeholder": "Enter full address",
     "delivery_section": "Delivery",
-    "delivery_type_label": "Delivery Type",
-    "delivery_type_home": "Home Delivery",
-    "delivery_type_desk": "Desk Pickup",
-    "delivery_fee_label": "Delivery Fee",
+    "delivery_type_label": "Delivery type",
+    "delivery_type_home": "Home delivery",
+    "delivery_type_desk": "Desk pickup",
+    "delivery_fee_label": "Delivery fee",
     "products_section": "Products",
-    "select_product": "Select Product",
-    "select_variation": "Select Variation",
+    "select_product": "Select product",
+    "select_variation": "Select variation",
     "quantity_label": "Quantity",
-    "add_product": "Add to Order",
+    "add_product": "Add to order",
     "remove_product": "Remove",
-    "current_stock": "Current Stock",
+    "current_stock": "Current stock",
     "remaining_stock": "Remaining after order",
     "insufficient_stock": "Insufficient stock",
-    "order_total": "Order Total",
+    "order_total": "Order total",
     "notes_label": "Notes",
-    "form_save_create": "Create Order",
+    "form_save_create": "Create order",
     "saving": "Saving...",
     "free": "Free",
     "success_add": "Order added successfully",
@@ -138,17 +137,16 @@
     "error_commune": "Please select a commune",
     "error_address": "Address is required for home delivery",
     "error_delivery_unavailable": "This delivery method is not available for the selected wilaya",
-    "new_order_subtitle": "Fill in the customer info and add products to create a new order"
+    "summary_title": "Summary"
   },
   "abandoned": {
-    "title": "Abandoned Orders",
+    "title": "Abandoned orders",
     "subtitle": "Shoppers who entered their details but never placed an order — reach out and recover them.",
     "search_placeholder": "Search by name, phone, or product...",
     "count_label_one": "{count} checkout",
     "count_label_other": "{count} checkouts",
     "load_error": "Could not load abandoned orders",
     "status": {
-      "all": "All",
       "pending": "Pending",
       "abandoned": "Abandoned",
       "contacted": "Contacted",
@@ -168,7 +166,8 @@
       "title": "No abandoned checkouts",
       "description": "Shoppers who start an order but don't finish it will appear here as recovery leads."
     },
-    "recovered_order": "Order {number}"
+    "recovered_order": "Order {number}",
+    "status_label": "Status"
   },
   "stage": {
     "new": "New",
@@ -304,7 +303,7 @@
     "loading_desks": "Loading desks…",
     "no_desks": "{carrier} has no stop desk in {wilaya}. Choose home delivery instead.",
     "remarks": "Note for the courier",
-    "remarks_placeholder": "e.g. Call before coming",
+    "remarks_placeholder": "e.g. call before coming",
     "weight": "Weight (kg)",
     "fragile": "Fragile",
     "choose_driver": "Driver",

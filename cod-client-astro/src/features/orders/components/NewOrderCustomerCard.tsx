@@ -21,7 +21,6 @@ interface NewOrderCustomerCardProps {
   setCommuneId: (val: string) => void;
   address: string;
   setAddress: (val: string) => void;
-  deliveryType: "home" | "stop_desk";
   customers: Customer[];
   wilayas: Wilaya[];
   communes: Commune[];
@@ -49,7 +48,6 @@ export function NewOrderCustomerCard({
   setCommuneId,
   address,
   setAddress,
-  deliveryType,
   customers,
   wilayas,
   communes,
@@ -118,7 +116,7 @@ export function NewOrderCustomerCard({
             </div>
           )}
         </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
             label={t("form.customer_name_label")}
             error={errors.customerName}
@@ -187,11 +185,7 @@ export function NewOrderCustomerCard({
           </Field>
         </div>
         <Field
-          label={
-            deliveryType === "home"
-              ? `${t("form.address_label")} *`
-              : t("form.address_label")
-          }
+          label={t("form.address_label")}
           error={errors.address}
         >
           <Textarea

@@ -1,68 +1,48 @@
 {
   "sidebar": {
-    "dashboard": "Tableau de bord",
-    "store": "Boutique",
+    "dashboard": "Accueil",
     "orders": "Commandes",
-    "orders_all": "Toutes les commandes",
-    "orders_abandoned": "Commandes abandonnées",
+    "orders_abandoned": "Abandonnées",
     "customers": "Clients",
     "products": "Produits",
-    "all_products": "Tous les produits",
     "categories": "Catégories",
-    "product_groups": "Groupes de produits",
     "customer_groups": "Groupes",
     "customer_tags": "Étiquettes",
     "delivery": "Livraison",
     "delivery_drivers": "Livreurs",
-    "delivery_companies": "Sociétés",
-    "delivery_shipping": "Expédition",
+    "delivery_companies": "Transporteurs",
+    "delivery_shipping": "Tarifs de livraison",
     "team": "Équipe",
     "settings": "Paramètres",
-    "general": "Général",
-    "inventory": "Inventaire",
-    "system": "Système",
+    "general": "Menu principal",
     "reviews": "Avis",
     "offers": "Offres",
-    "landing_pages": "Pages d'atterrissage",
-    "stock_management": "Gestion de stock",
-    "api_reference": "Référence API",
+    "landing_pages": "Pages de vente",
+    "stock_management": "Stock",
     "mcp": "Agents IA",
     "store_pages": "Pages",
     "checkout_form": "Formulaire de commande",
-    "whatsapp": "WhatsApp"
+    "whatsapp": "Bouton WhatsApp",
+    "online_store": "Boutique en ligne"
   },
   "navbar": {
-    "search_placeholder": "Rechercher des commandes, clients...",
-    "dashboard": "Tableau de bord",
-    "notifications": "Notifications"
-  },
-  "mobile": {
-    "home": "Accueil",
-    "orders": "Commandes",
-    "delivery": "Livraison",
-    "customers": "Clients",
-    "products": "Produits",
-    "all_products": "Tous les produits",
-    "categories": "Catégories",
-    "settings": "Paramètres",
-    "team": "Équipe",
-    "reviews": "Avis",
-    "profile": "Mon Profil",
-    "more": "Plus"
-  },
-  "company": {
-    "name": "COD Flow",
-    "tagline": "Gestion de commandes & livraison"
+    "search_placeholder": "Rechercher commandes, clients, suivi…"
   },
   "theme": {
-    "light": "Mode clair",
-    "dark": "Mode sombre",
-    "toggle": "Changer le thème"
+    "label": "Apparence",
+    "light": "Clair",
+    "dark": "Sombre"
   },
   "menu": {
-    "collapse": "Réduire le menu",
-    "expand": "Agrandir le menu",
-    "close": "Fermer le menu"
+    "open": "Ouvrir le menu",
+    "close": "Fermer le menu",
+    "collapse_group": "Masquer",
+    "expand_group": "Afficher"
+  },
+  "account": {
+    "label": "Votre compte",
+    "profile": "Votre profil",
+    "sign_out": "Se déconnecter"
   },
   "skip_to_content": "Aller au contenu",
   "language": {
@@ -70,16 +50,5 @@
     "arabic": "العربية",
     "english": "English",
     "french": "Français"
-  },
-  "breadcrumbs": {
-    "management": "Gestion",
-    "delivery": "Livraison",
-    "catalog": "Catalogue",
-    "network": "Réseau",
-    "details": "Détails",
-    "pricing": "Tarification",
-    "inventory": "Inventaire",
-    "dashboard": "Tableau de bord"
-  },
-  "dashboard_subtitle": "Tableau de bord"
+  }
 }

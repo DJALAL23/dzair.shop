@@ -21,7 +21,7 @@ import type {
   ShippingRule,
   Wilaya,
 } from "@/features/orders/types";
-import { PageHeader } from "@/components/ui";
+import { Alert, FormPage } from "@/components/ui";
 import { NewOrderCustomerCard } from "@/features/orders/components/NewOrderCustomerCard";
 import { NewOrderDeliveryCard } from "@/features/orders/components/NewOrderDeliveryCard";
 import {
@@ -276,40 +276,48 @@ export function NewOrderForm() {
 
   if (!canScope(identity, "orders:create")) {
     return (
-      <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+      <Alert role="alert" tone="critical">
         {auth("no_access")}
-      </p>
+      </Alert>
     );
   }
 
   if (loading)
     return (
       <div role="status" aria-busy="true" className="space-y-3">
-        <div className="h-24 animate-pulse rounded-xl bg-muted" />
-        <div className="h-72 animate-pulse rounded-xl bg-muted" />
+        <div className="h-24 shimmer rounded-xl" />
+        <div className="h-72 shimmer rounded-xl" />
       </div>
     );
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title={t("form.title_add")}
-        subtitle={t("form.new_order_subtitle")}
-        backHref="/orders"
-        backLabel={t("detail.back_to_orders")}
-      />
-
-      {message && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
-        >
-          {message}
+    <FormPage
+      title={t("form.title_add")}
+      backHref="/orders"
+      error={message}
+      onSave={() => void save()}
+      saving={busy}
+      saveLabel={t("form.form_save_create")}
+      aside={
+        <div className="space-y-4 lg:sticky lg:top-5">
+          <NewOrderSummaryCard subtotal={subtotal} deliveryFee={deliveryFee} total={total} locale={locale} />
         </div>
-      )}
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-5">
+      }
+    >
+          <NewOrderProductsCard
+            products={products}
+            lines={lines}
+            setLines={setLines}
+            productId={productId}
+            setProductId={setProductId}
+            variantId={variantId}
+            setVariantId={setVariantId}
+            quantity={quantity}
+            setQuantity={setQuantity}
+            errors={errors}
+            locale={locale}
+            onAddLine={addLine}
+          />
           <NewOrderCustomerCard
             customerSearch={customerSearch}
             setCustomerSearch={setCustomerSearch}
@@ -327,7 +335,6 @@ export function NewOrderForm() {
             setCommuneId={setCommuneId}
             address={address}
             setAddress={setAddress}
-            deliveryType={deliveryType}
             customers={customers}
             wilayas={wilayas}
             communes={communes}
@@ -337,7 +344,6 @@ export function NewOrderForm() {
             onClearCustomer={clearCustomer}
             pendingCommuneIdRef={pendingCommuneId}
           />
-
           <NewOrderDeliveryCard
             deliveryType={deliveryType}
             setDeliveryType={setDeliveryType}
@@ -350,34 +356,6 @@ export function NewOrderForm() {
             setNotes={setNotes}
             errors={errors}
           />
-        </div>
-
-        <div className="space-y-5 lg:sticky lg:top-5 lg:self-start">
-          <NewOrderProductsCard
-            products={products}
-            lines={lines}
-            setLines={setLines}
-            productId={productId}
-            setProductId={setProductId}
-            variantId={variantId}
-            setVariantId={setVariantId}
-            quantity={quantity}
-            setQuantity={setQuantity}
-            errors={errors}
-            locale={locale}
-            onAddLine={addLine}
-          />
-
-          <NewOrderSummaryCard
-            subtotal={subtotal}
-            deliveryFee={deliveryFee}
-            total={total}
-            busy={busy}
-            locale={locale}
-            onSave={save}
-          />
-        </div>
-      </div>
-    </div>
+    </FormPage>
   );
 }

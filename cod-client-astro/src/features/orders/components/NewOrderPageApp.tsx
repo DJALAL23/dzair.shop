@@ -5,7 +5,7 @@ import { NewOrderForm } from "@/features/orders/components/NewOrderForm";
 export default function NewOrderPageApp() {
   return (
     <RequireAuth>
-      <DashboardChrome currentPath="/orders/new" wide>
+      <DashboardChrome currentPath="/orders/new">
         <NewOrderForm />
       </DashboardChrome>
     </RequireAuth>

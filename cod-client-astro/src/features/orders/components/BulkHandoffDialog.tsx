@@ -6,23 +6,7 @@ import { handOffToCarrier, handOffToDriver } from "@/features/orders/api";
 import { carriersForAll, driversFor } from "@/features/orders/model";
 import type { BulkHandoff, DeliveryCompany, Driver, OrderListItem } from "@/features/orders/types";
 import { Button, Dialog, Field } from "@/components/ui";
-
-function Choice({ selected, onSelect, children }: { selected: boolean; onSelect: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      onClick={onSelect}
-      className={`flex min-h-11 w-full items-center gap-2 rounded-lg border px-3 text-start text-sm font-semibold ${
-        selected ? "border-primary bg-primary/10" : "border-border hover:bg-muted"
-      }`}
-    >
-      <span className="min-w-0 flex-1 truncate">{children}</span>
-      {selected && <Check size={15} className="text-primary" />}
-    </button>
-  );
-}
+import { Choice } from "@/features/orders/components/HandoffDialog";
 
 /**
  * Shipping the selected ready orders together, each as the customer asked
@@ -127,14 +111,14 @@ export function BulkHandoffDialog({
         {kinds.length > 1 && (
           <div role="radiogroup" aria-label={t("ship.who")} className="grid grid-cols-2 gap-2">
             <Choice selected={kind === "carrier"} onSelect={() => (setKind("carrier"), setTargetId(""))}>
-              <span className="inline-flex items-center gap-2">
-                <Building2 size={15} />
+              <span className="flex items-center gap-2">
+                <Building2 size={15} className="shrink-0" />
                 {t("ship.to_carrier")}
               </span>
             </Choice>
             <Choice selected={kind === "driver"} onSelect={() => (setKind("driver"), setTargetId(""))}>
-              <span className="inline-flex items-center gap-2">
-                <Truck size={15} />
+              <span className="flex items-center gap-2">
+                <Truck size={15} className="shrink-0" />
                 {t("ship.to_driver")}
               </span>
             </Choice>
