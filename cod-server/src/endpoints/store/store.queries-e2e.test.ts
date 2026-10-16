@@ -23,7 +23,6 @@ import type { AppDb } from "@/db";
 import {
   findOrCreateCustomer,
   createStoreOrder,
-  orderContainsProduct,
 } from "../../../../cod-shared/queries/store";
 import { createOrder } from "../../../../cod-shared/queries/orders";
 import { assertOrderAddress } from "@/lib/order-address";
@@ -374,30 +373,6 @@ describe("assertOrderAddress — an order's wilaya and commune against the refer
 
   it("refuses an unknown wilaya", async () => {
     await expect(assertOrderAddress(db, { wilayaId: 77 })).rejects.toMatchObject({ statusCode: 400 });
-  });
-});
-
-describe("orderContainsProduct — a review is for something the order bought", () => {
-  it("is true for a product on the order and false for any other", async () => {
-    const now = new Date().toISOString();
-    const bought = `prod-${crypto.randomUUID().slice(0, 8)}`;
-    const other = `prod-${crypto.randomUUID().slice(0, 8)}`;
-    for (const id of [bought, other]) {
-      await db.insert(schema.products).values({
-        id, name: "Review Product", handle: `rev-${id}`, price: 900, hasVariants: false, inventory: 9,
-        trackInventory: false, lowStockThreshold: 1, status: "ACTIVE", visibility: true, showInStore: true,
-        storeFeatured: false, createdAt: now, updatedAt: now,
-      });
-    }
-    const customer = await findOrCreateCustomer(db, { phone: "0664567890", name: "Reviewer", wilayaId: 16 });
-    const order = await createStoreOrder(db, {
-      customerName: customer.name, phone: "0664567890", wilayaId: 16, communeId: "c-16-001",
-      deliveryType: "home", productId: bought, productName: "Review Product", quantity: 1,
-      pricePerUnit: 900, customerId: customer.id, deliveryFee: 0,
-    });
-
-    expect(await orderContainsProduct(db, order.id, bought)).toBe(true);
-    expect(await orderContainsProduct(db, order.id, other)).toBe(false);
   });
 });
 

@@ -4,7 +4,7 @@ import { storefrontClientIp } from "@/lib/storefront-client-ip";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import * as queries from "./queries";
-import { storeOrderSchema, storeReviewSchema, validateCartSchema } from "./validation";
+import { storeOrderSchema, validateCartSchema } from "./validation";
 import { NotFoundError, ValidationError, ConflictError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { assertOtpVerification } from "./otp-gate";
@@ -618,72 +618,3 @@ export async function validateCart(c: Context<AppContext>) {
   );
 }
 
-export async function listProductReviews(c: Context<AppContext>) {
-  const storeId = c.get("storeId")!;
-  const db = getDb(c.env.DB);
-  const queryData: any = (c.req as any).valid?.("query");
-  const productId = queryData?.productId ?? c.req.query("productId");
-  if (!productId) {
-    throw new ValidationError(
-      "productId is required",
-      ERROR_CODES.REQUIRED_FIELD_MISSING,
-      { field: "productId" }
-    );
-  }
-  const limit = Math.min(parseInt(String(queryData?.limit ?? c.req.query("limit") ?? "20")), 50);
-  const offset = Math.max(parseInt(String(queryData?.offset ?? c.req.query("offset") ?? "0")), 0);
-  const { rows, total } = await queries.getApprovedProductReviews(db, storeId, productId, limit, offset);
-  return c.json({ success: true, data: rows, count: rows.length, total }, 200);
-}
-
-export async function submitReview(c: Context<AppContext>) {
-  const storeId = c.get("storeId")!;
-  const db = getDb(c.env.DB);
-  const bodyData: any = (c.req as any).valid?.("json");
-
-  // Let Zod validation errors propagate to error middleware
-  const data: import("./validation").StoreReviewInput =
-    bodyData ?? storeReviewSchema.parse(await c.req.json());
-
-  // Resolve customer-facing orderNumber → internal order record (scoped to
-  // this store). The storefront only ever exposes the number, not the UUID.
-  const order = await queries.findOrderForReview(db, storeId, data.orderNumber);
-  if (!order) {
-    throw new NotFoundError("Order", data.orderNumber);
-  }
-
-  // A review is for something the order bought: an order number alone must not
-  // let its holder review any product in the store.
-  if (!(await queries.orderContainsProduct(db, order.id, data.productId))) {
-    throw new BusinessLogicError(
-      "This order does not include the product being reviewed",
-      ERROR_CODES.PRODUCT_NOT_IN_ORDER,
-      { orderNumber: data.orderNumber, productId: data.productId }
-    );
-  }
-
-  // Duplicate-review check runs against the internal order.id — that's the
-  // stable FK stored on the reviews row, and does not change even if the
-  // order-number format ever evolves.
-  const existing = await queries.getExistingReviewByOrder(db, order.id);
-  if (existing) {
-    throw new ConflictError(
-      "A review has already been submitted for this order",
-      ERROR_CODES.ORDER_ALREADY_REVIEWED,
-      { orderNumber: data.orderNumber }
-    );
-  }
-
-  const review = await queries.createReview(db, {
-    storeId,
-    productId: data.productId,
-    orderId: order.id,
-    orderNumber: order.orderNumber,
-    customerName: order.customerName,
-    rating: data.rating,
-    title: data.title,
-    body: data.body,
-  });
-
-  return c.json({ success: true, data: { id: review.id } }, 201);
-}

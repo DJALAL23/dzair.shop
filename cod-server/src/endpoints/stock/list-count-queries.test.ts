@@ -3,7 +3,6 @@
  *
  * Call shape post-Slice 7 (queue order = batch statement order):
  *   • getStockHistory          → [a(movements), count]
- *   • getApprovedProductReviews → [a(reviews), count]
  *   • getAllReviews            → [a(rows), total, pendingCount]
  *   • listAbandonedOrders      → [a(rows), count]
  *   • getAbandonedOrderStats   → [abandoned, converted, revenue]
@@ -15,7 +14,6 @@
 import { describe, it, expect } from "vitest";
 import { makeMockDb, f, a, NOW } from "@/test-utils/mock-db";
 import { getStockHistory } from "../../../../cod-shared/queries/stock";
-import { getApprovedProductReviews } from "../../../../cod-shared/queries/store";
 import { getAllReviews } from "../../../../cod-shared/queries/reviews";
 import {
   listAbandonedOrders,
@@ -141,26 +139,6 @@ describe("getStockHistory", () => {
 
     expect(result.movements).toEqual([]);
     expect(result.total).toBe(0);
-  });
-});
-
-describe("getApprovedProductReviews", () => {
-  it("returns page and total from one batch", async () => {
-    const db = makeMockDb([a([reviewRow()]), f({ count: 3 })]);
-
-    const result = await getApprovedProductReviews(db, "store_1", "prod_1", 20, 0);
-
-    expect(result.rows).toHaveLength(1);
-    expect(result.rows[0]).toMatchObject({ id: "rev_1", rating: 5 });
-    expect(result.total).toBe(3);
-  });
-
-  it("maps an empty page", async () => {
-    const db = makeMockDb([a([]), f({ count: 0 })]);
-
-    const result = await getApprovedProductReviews(db, "store_1", "prod_missing");
-
-    expect(result).toEqual({ rows: [], total: 0 });
   });
 });
 

@@ -1,7 +1,7 @@
 /**
  * Store (storefront) Queries
  *
- * Public storefront API — product listing, order creation, reviews.
+ * Public storefront API — product listing (with review aggregates) and order creation. Taking and listing reviews: ./store-reviews.ts.
  * No server-only error classes here; the handlers translate results to HTTP errors.
  */
 
@@ -1037,117 +1037,4 @@ export async function createStoreOrder(
 }
 
 // ─── Reviews ──────────────────────────────────────────────────────────────────
-
-export async function getApprovedProductReviews(
-  db: AppDb,
-  storeId: string,
-  productId: string,
-  limit = 20,
-  offset = 0,
-) {
-  const approvedWhere = and(
-    eq(reviews.storeId, storeId),
-    eq(reviews.productId, productId),
-    eq(reviews.status, "approved"),
-  );
-
-  const [rows, countRows] = await db.batch([
-    db
-      .select()
-      .from(reviews)
-      .where(approvedWhere)
-      .orderBy(desc(reviews.createdAt))
-      .limit(limit)
-      .offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(reviews).where(approvedWhere),
-  ]);
-
-  return { rows, total: countRows[0]?.count ?? 0 };
-}
-
-/**
- * Look up an order for the storefront review flow.
- *
- * Matches by the customer-facing order number (not the internal UUID)
- * because the storefront only ever exposes the number to the buyer.
- *
- * Tenancy note: `storeId` is accepted but not applied in the WHERE —
- * orders are isolated by database (one D1 per merchant), so filtering
- * again would be a no-op. The param is kept in the signature so the
- * handler contract stays honest about what scope it expects, and so
- * future multi-store-per-DB work has a single place to wire it up.
- *
- * Returns the internal `id` along with the number so the caller can
- * store the UUID on the review row as the stable FK.
- */
-export async function findOrderForReview(
-  db: AppDb,
-  _storeId: string,
-  orderNumber: string,
-) {
-  const order = await db
-    .select({
-      id: orders.id,
-      orderNumber: orders.orderNumber,
-      customerName: orders.customerName,
-      customerId: orders.customerId,
-    })
-    .from(orders)
-    .innerJoin(customers, eq(orders.customerId, customers.id))
-    .where(eq(orders.orderNumber, orderNumber))
-    .get();
-
-  if (!order) return null;
-
-  return order;
-}
-
-/** Whether the order holds the product on any of its lines: a review is for something bought. */
-export async function orderContainsProduct(db: AppDb, orderId: string, productId: string): Promise<boolean> {
-  const line = await db
-    .select({ id: orderProducts.id })
-    .from(orderProducts)
-    .where(and(eq(orderProducts.orderId, orderId), eq(orderProducts.productId, productId)))
-    .get();
-  return Boolean(line);
-}
-
-export async function getExistingReviewByOrder(db: AppDb, orderId: string) {
-  return db.select().from(reviews).where(eq(reviews.orderId, orderId)).get();
-}
-
-export async function createReview(
-  db: AppDb,
-  data: {
-    storeId: string;
-    productId: string;
-    orderId: string;
-    orderNumber: string;
-    customerName: string;
-    rating: number;
-    title?: string;
-    body: string;
-  },
-) {
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-
-  await db.insert(reviews).values({
-    id,
-    storeId: data.storeId,
-    productId: data.productId,
-    orderId: data.orderId,
-    orderNumber: data.orderNumber,
-    customerName: data.customerName,
-    rating: data.rating,
-    title: data.title ?? null,
-    body: data.body,
-    status: "pending",
-    helpfulCount: 0,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  return { id };
-}
 

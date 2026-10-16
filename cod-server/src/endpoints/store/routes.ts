@@ -13,7 +13,8 @@ import { defineRoute } from "@/lib/route-builder";
 import * as h from "./handlers";
 import { THEME_KEY_RE } from "../../../../cod-shared/i18n/content-overrides";
 import { PAGE_DOCUMENT_SURFACE_RE } from "../../../../cod-shared/queries/page-document-surface";
-import { storeOrderSchema, storeReviewSchema, validateCartSchema } from "./validation";
+import { storeOrderSchema, validateCartSchema } from "./validation";
+import reviewsRouter from "./reviews/routes";
 import {
   StoreConfigSchema,
   StoreProductListSchema,
@@ -106,23 +107,6 @@ const wilayaIdParams = z.object({
     description: "Wilaya number (1–58).",
     example: 16,
   }),
-});
-
-const reviewsQuerySchema = z.object({
-  productId: z.string().min(1).openapi({
-    description: "Product ID to fetch reviews for.",
-  }),
-  limit: z.coerce.number().int().min(1).max(50).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
-const reviewItemSchema = z.object({
-  id: z.string(),
-  customerName: z.string(),
-  rating: z.number().int().min(1).max(5),
-  title: z.string().nullable(),
-  body: z.string(),
-  createdAt: z.string().datetime(),
 });
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -495,66 +479,6 @@ const validateCartRoute = defineRoute({
   handler: h.validateCart,
 });
 
-// ─── Reviews ──────────────────────────────────────────────────────────────────
-
-const listStoreReviewsRoute = defineRoute({
-  method: "get",
-  path: "/reviews",
-  auth: "store",
-  tags: ["Store API"],
-  summary: "List approved reviews for a product",
-  description:
-    "Get approved product reviews for the storefront. Returns only reviews with `status=approved`.",
-  operationId: "listStoreReviews",
-  query: reviewsQuerySchema,
-  responses: {
-    200: {
-      description: "List of approved reviews",
-      content: jsonContent(
-        z.object({
-          success: z.boolean().openapi({ example: true }),
-          data: z.array(reviewItemSchema),
-          count: z.number().int(),
-          total: z.number().int().openapi({
-            description: "Total approved reviews for this product",
-          }),
-        })
-      ),
-    },
-    400: { description: "productId is required (REQUIRED_FIELD_MISSING)" },
-  },
-  handler: h.listProductReviews,
-});
-
-const submitStoreReviewRoute = defineRoute({
-  method: "post",
-  path: "/reviews",
-  auth: "store",
-  tags: ["Store API"],
-  summary: "Submit a product review",
-  description: `Submit a product review from the storefront.
-
-**Identifier (important):** the request takes the customer-facing **order number** (\`ORD-YYYYMMDD-NNNN\`) — the same value shown on the thank-you page — not the internal UUID. The server resolves it to the underlying order internally before writing the review row.
-
-Identity is derived from the resolved order — no customer login required. One review per order: a second submission returns **409 ORDER_ALREADY_REVIEWED**. Reviews are created with \`status=pending\` and require merchant approval before appearing publicly.`,
-  operationId: "submitStoreReview",
-  body: storeReviewSchema,
-  responses: {
-    201: {
-      description: "Review submitted (pending moderation)",
-      content: jsonContent(
-        z.object({
-          success: z.boolean().openapi({ example: true }),
-          data: z.object({ id: z.string() }),
-        })
-      ),
-    },
-    404: { description: "No order in this store matches the supplied order number" },
-    409: { description: "A review has already been submitted for this order (ORDER_ALREADY_REVIEWED)" },
-  },
-  handler: h.submitReview,
-});
-
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 const router = new OpenAPIHono<AppContext>();
@@ -571,7 +495,6 @@ router.openapi(getShippingRatesRoute.route, getShippingRatesRoute.handler);
 router.openapi(communesRoute.route, communesRoute.handler);
 router.openapi(createStoreOrderRoute.route, createStoreOrderRoute.handler);
 router.openapi(validateCartRoute.route, validateCartRoute.handler);
-router.openapi(listStoreReviewsRoute.route, listStoreReviewsRoute.handler);
-router.openapi(submitStoreReviewRoute.route, submitStoreReviewRoute.handler);
+router.route("/reviews", reviewsRouter);
 
 export default router;

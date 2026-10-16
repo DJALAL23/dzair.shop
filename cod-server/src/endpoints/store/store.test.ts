@@ -14,56 +14,6 @@
 import { describe, it, expect } from "vitest";
 import { NotFoundError, ValidationError, ConflictError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-import { storeReviewSchema } from "./validation";
-
-// ─── Review submission wire-format contract ────────────────────────────────────
-//
-// Regression guard: prior to v1.0.55 the storefront form asked the customer
-// for their order NUMBER ("ORD-YYYYMMDD-NNNN") but the server looked up the
-// internal orders.id UUID. Every real submission 404'd. These tests lock the
-// storeReviewSchema contract to the customer-facing order number format.
-
-describe("storeReviewSchema — customer-facing orderNumber contract", () => {
-  const base = {
-    productId: "prod-xyz",
-    rating: 5,
-    body: "Great product, arrived on time and well packaged.",
-  };
-
-  it("accepts a real order-number shape ORD-YYYYMMDD-NNNN", () => {
-    const result = storeReviewSchema.safeParse({
-      ...base,
-      orderNumber: "ORD-20240101-0042",
-    });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.orderNumber).toBe("ORD-20240101-0042");
-    }
-  });
-
-  it("rejects a raw UUID (guards against the pre-v1.0.55 confusion)", () => {
-    const result = storeReviewSchema.safeParse({
-      ...base,
-      orderNumber: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects empty string", () => {
-    const result = storeReviewSchema.safeParse({ ...base, orderNumber: "" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects arbitrary freeform text", () => {
-    const result = storeReviewSchema.safeParse({ ...base, orderNumber: "my order" });
-    expect(result.success).toBe(false);
-  });
-
-  it("is case-insensitive on the ORD prefix (admins sometimes type ord-…)", () => {
-    const result = storeReviewSchema.safeParse({ ...base, orderNumber: "ord-20240101-0042" });
-    expect(result.success).toBe(true);
-  });
-});
 
 // ─── Error Scenarios ───────────────────────────────────────────────────────────
 

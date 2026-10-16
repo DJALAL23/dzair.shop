@@ -18,7 +18,7 @@ import { drizzle } from "drizzle-orm/d1";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
 import { getStockHistory } from "../../../../cod-shared/queries/stock";
-import { getApprovedProductReviews } from "../../../../cod-shared/queries/store";
+import { listApprovedReviews } from "../../../../cod-shared/queries/store-reviews";
 import { getAllReviews } from "../../../../cod-shared/queries/reviews";
 import {
   listAbandonedOrders,
@@ -140,23 +140,26 @@ describe("getStockHistory — real D1", () => {
   });
 });
 
-describe("getApprovedProductReviews — real D1", () => {
+describe("listApprovedReviews — real D1", () => {
+  const page = (productId: string, limit: number, offset: number) =>
+    listApprovedReviews(db, { storeId: "store-1", productId, limit, offset, mediaUrl: (key) => `https://m/${key}` });
+
   it("returns only approved reviews for the product, paginated", async () => {
-    const result = await getApprovedProductReviews(db, "store-1", "prod-1", 20, 0);
+    const result = await page("prod-1", 20, 0);
     expect(result.rows.map((r) => r.id)).toEqual(["rev-2", "rev-1"]);
     expect(result.total).toBe(2);
 
-    const page = await getApprovedProductReviews(db, "store-1", "prod-1", 1, 1);
-    expect(page.rows.map((r) => r.id)).toEqual(["rev-1"]);
-    expect(page.total).toBe(2);
+    const second = await page("prod-1", 1, 1);
+    expect(second.rows.map((r) => r.id)).toEqual(["rev-1"]);
+    expect(second.total).toBe(2);
   });
 
   it("excludes pending and rejected; empty page keeps total", async () => {
-    const result = await getApprovedProductReviews(db, "store-1", "prod-2", 20, 0);
+    const result = await page("prod-2", 20, 0);
     expect(result.rows).toEqual([]);
     expect(result.total).toBe(0);
 
-    const beyond = await getApprovedProductReviews(db, "store-1", "prod-1", 20, 50);
+    const beyond = await page("prod-1", 20, 50);
     expect(beyond.rows).toEqual([]);
     expect(beyond.total).toBe(2);
   });

@@ -79,4 +79,19 @@ export interface Env {
    * Durable background upload of MCP-agent images into the landing page stack.
    */
   LP_IMAGE_UPLOAD_WORKFLOW: Workflow;
+  /**
+   * Prepares a shopper's review photos and voice note after the review is in
+   * (CodReviewMediaWorkflow). Without it the storefront takes text reviews only.
+   */
+  REVIEW_MEDIA_WORKFLOW?: Workflow;
+  /**
+   * Signs review upload grants (wrangler secret). Without it the storefront
+   * takes text reviews only.
+   */
+  REVIEW_UPLOAD_SECRET?: string;
+  /**
+   * Cloudflare rate-limit binding: review attempts per order number, so a
+   * phone cannot be guessed for one order. Missing in local dev: no limit.
+   */
+  REVIEW_RATE_LIMITER?: RateLimit;
 }

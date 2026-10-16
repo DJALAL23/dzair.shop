@@ -198,17 +198,6 @@ export type StoreOrderInput = z.infer<typeof storeOrderSchema>;
  * "form says Order Number but server expects UUID" confusion we had in
  * v1.0.54 and earlier.
  */
-export const storeReviewSchema = z.object({
-  orderNumber: z
-    .string()
-    .regex(/^ORD-\d{8}-\d+$/i, "Invalid order number format (expected ORD-YYYYMMDD-NNNN)"),
-  productId: z.string().min(1),
-  rating: z.number().int().min(1).max(5),
-  title: z.string().max(150).optional(),
-  body: z.string().min(10).max(2000),
-});
-
-export type StoreReviewInput = z.infer<typeof storeReviewSchema>;
 
 /**
  * Cart validation request — the quote of an order.

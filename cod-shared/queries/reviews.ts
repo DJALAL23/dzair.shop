@@ -81,3 +81,14 @@ export async function updateReviewStatus(
 export async function deleteReview(db: AppDb, id: string) {
   await db.delete(reviews).where(eq(reviews.id, id));
 }
+
+/**
+ * A review still `processing` lands without its files: the media job could
+ * not start, or kept none of them. Leaves any other review untouched.
+ */
+export async function settleWithoutMedia(db: AppDb, id: string, outcome: { status: "pending" | "approved"; dropped: number }) {
+  await db
+    .update(reviews)
+    .set({ status: outcome.status, mediaDropped: outcome.dropped, updatedAt: new Date().toISOString() })
+    .where(and(eq(reviews.id, id), eq(reviews.status, "processing")));
+}

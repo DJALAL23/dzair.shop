@@ -183,8 +183,20 @@ export const ERROR_CODES = {
   // ============================================================================
   REVIEW_NOT_FOUND: "REVIEW_NOT_FOUND",
   ORDER_ALREADY_REVIEWED: "ORDER_ALREADY_REVIEWED",
-  /** The order exists but never contained the product being reviewed. */
+  /** The product is not one the order may review: never in it, refused at the door, or no longer in the catalog. */
   PRODUCT_NOT_IN_ORDER: "PRODUCT_NOT_IN_ORDER",
+  /** The store turned reviews off. */
+  REVIEWS_DISABLED: "REVIEWS_DISABLED",
+  /** The order has not reached its customer yet; it can be reviewed once delivered. */
+  REVIEW_ORDER_NOT_DELIVERED: "REVIEW_ORDER_NOT_DELIVERED",
+  /** Too many attempts for one order in a short time. */
+  REVIEW_RATE_LIMITED: "REVIEW_RATE_LIMITED",
+  /** The upload grant is missing, altered, for another order, or past its end. */
+  REVIEW_UPLOAD_GRANT_INVALID: "REVIEW_UPLOAD_GRANT_INVALID",
+  /** A named upload was never received, or was already cleaned away. */
+  REVIEW_UPLOAD_NOT_FOUND: "REVIEW_UPLOAD_NOT_FOUND",
+  /** More photos than the store allows, a second voice note, or a kind the store does not take. */
+  REVIEW_MEDIA_LIMIT: "REVIEW_MEDIA_LIMIT",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - SHIPPING PROFILES
