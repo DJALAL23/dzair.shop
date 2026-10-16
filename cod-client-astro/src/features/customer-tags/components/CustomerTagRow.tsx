@@ -1,5 +1,5 @@
 import { Pencil, Trash2, Users } from "lucide-react";
-import { IconButton, TableCell, TableRow } from "@/components/ui";
+import { IconButton, TableCell, TableRow, openRowOnClick, RowActions } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import {
   formatTagDate,
@@ -19,32 +19,26 @@ export function TagDesktopRow({
   const t = useT("customer-tags");
   const locale = useLocale();
   return (
-    <TableRow>
+    <TableRow onClick={openRowOnClick(`/customer-tags/${encodeURIComponent(tag.id)}`)} className="cursor-pointer">
       <TableCell>
         <a
           href={`/customer-tags/${encodeURIComponent(tag.id)}`}
-          className="inline-flex min-w-0 items-center gap-2 font-semibold text-link hover:underline"
+          className="inline-flex min-w-0 items-center gap-2.5 font-medium text-foreground underline-offset-2 hover:underline"
         >
           <span
-            className="size-3 shrink-0 rounded-sm border border-border"
+            aria-hidden="true"
+            className="size-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: tag.color }}
           />
           <span className="truncate">{tag.name}</span>
         </a>
       </TableCell>
-      <TableCell>
-        <div className="inline-flex items-center gap-1.5 text-sm">
-          <Users size={14} className="text-muted-foreground" />
-          <span className="font-semibold tabular-nums">
-            {tag.assignmentCount}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
+      <TableCell numeric>{tag.assignmentCount}</TableCell>
+      <TableCell className="whitespace-nowrap text-muted-foreground">
         {formatTagDate(tag.createdAt, locale)}
       </TableCell>
-      <TableCell>
-        <div className="flex justify-end gap-1">
+      <TableCell className="w-px">
+        <RowActions>
           {canManage && (
             <a
               href={`/customer-tags/${encodeURIComponent(tag.id)}/edit`}
@@ -67,7 +61,7 @@ export function TagDesktopRow({
               <Trash2 size={15} />
             </IconButton>
           )}
-        </div>
+        </RowActions>
       </TableCell>
     </TableRow>
   );
@@ -93,7 +87,7 @@ export function TagMobileCard({
         />
         <a
           href={`/customer-tags/${encodeURIComponent(tag.id)}`}
-          className="min-w-0 flex-1 truncate font-semibold text-link"
+          className="min-w-0 flex-1 truncate font-medium text-foreground underline-offset-2 hover:underline"
         >
           {tag.name}
         </a>

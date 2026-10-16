@@ -1,7 +1,6 @@
 {
-  "page_title": "Offres Promotionnelles",
+  "page_title": "Offres",
   "add_offer": "Créer une offre",
-  "offers_count": "offre",
   "search_placeholder": "Rechercher des offres...",
   "error_load": "Impossible de charger les offres",
   "error_not_found": "Offre introuvable",
@@ -10,12 +9,12 @@
   "error_not_active": "Cette offre n'est pas active",
   "table": {
     "name": "Nom de l'offre",
-    "trigger": "Déclencheur",
-    "reward": "Récompense",
+    "trigger": "Produit",
     "status": "Statut",
     "type": "Type",
     "schedule": "Période",
-    "actions": "Actions"
+    "actions": "Actions",
+    "deal": "Avantage"
   },
   "status": {
     "active": "Active",
@@ -60,11 +59,7 @@
     "section_schedule": "Planification (optionnel)",
     "starts_at_label": "Débute le",
     "ends_at_label": "Se termine le",
-    "status_label": "Statut de l'offre",
     "status_active": "Active",
-    "status_inactive": "Inactive",
-    "save": "Enregistrer l'offre",
-    "saving": "Enregistrement...",
     "cancel": "Annuler",
     "success_add": "Offre créée avec succès",
     "success_edit": "Offre mise à jour avec succès",
@@ -76,8 +71,14 @@
     "error_trigger_qty": "La quantité minimale doit être d'au moins 1",
     "error_reward_qty": "La quantité gratuite doit être d'au moins 1"
   },
-  "buy_x_get_y": "Achetez {x} obtenez {y} gratuit",
-  "buy_x_free_shipping": "Achetez {x} → Livraison gratuite",
+  "buy_x_get_y": "Achetez {x}, recevez {y} gratuitement",
+  "buy_x_free_shipping": "Achetez {x}, livraison gratuite",
   "any_variant": "Toute variante",
-  "free_shipping_reward": "Livraison gratuite 🚚"
+  "free_shipping_reward": "Livraison gratuite 🚚",
+  "count_one": "{count} offre",
+  "count_many": "{count} offres",
+  "count_other": "{count} offres",
+  "schedule_from": "À partir du {date}",
+  "schedule_until": "Jusqu’au {date}",
+  "schedule_range": "{from} – {to}"
 }

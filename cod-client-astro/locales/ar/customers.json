@@ -1,9 +1,7 @@
 {
   "page_title": "العملاء",
-  "customers_count": "عميل",
   "search_placeholder": "البحث بالاسم أو الهاتف...",
   "filter_wilaya": "الولاية",
-  "filter_all": "الكل",
   "no_customers": "لا يوجد عملاء",
   "new_customer": "عميل جديد",
   "create_customer": "إنشاء عميل",
@@ -21,7 +19,8 @@
     "delete": "حذف"
   },
   "filters": {
-    "wilaya": "الولاية"
+    "wilaya": "الولاية",
+    "all_wilayas": "كل الولايات"
   },
   "empty_state": {
     "title": "لا يوجد عملاء بعد",
@@ -90,8 +89,6 @@
     "address_label": "العنوان",
     "address_placeholder": "أدخل العنوان الكامل",
     "cancel": "إلغاء",
-    "save": "حفظ العميل",
-    "saving": "جاري الحفظ...",
     "success_add": "تمت إضافة العميل",
     "success_edit": "تم تحديث العميل",
     "error_required": "يرجى ملء جميع الحقول المطلوبة",
@@ -99,6 +96,19 @@
     "error_name_required": "اسم العميل مطلوب",
     "error_phone_required": "يرجى إدخال رقم جوال جزائري صحيح",
     "error_phone2_invalid": "يرجى إدخال رقم جوال جزائري صحيح",
-    "error_wilaya_required": "يرجى اختيار الولاية"
-  }
+    "error_wilaya_required": "يرجى اختيار الولاية",
+    "address_section": "العنوان"
+  },
+  "count_zero": "لا عملاء",
+  "count_one": "عميل واحد",
+  "count_two": "عميلان",
+  "count_few": "{count} عملاء",
+  "count_many": "{count} عميلًا",
+  "count_other": "{count} عميل",
+  "orders_count_zero": "لا طلبات",
+  "orders_count_one": "طلب واحد",
+  "orders_count_two": "طلبان",
+  "orders_count_few": "{count} طلبات",
+  "orders_count_many": "{count} طلبًا",
+  "orders_count_other": "{count} طلب"
 }

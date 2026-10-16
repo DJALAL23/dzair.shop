@@ -1,9 +1,8 @@
 {
-  "page_title": "Customer Groups",
-  "groups_count": "groups",
+  "page_title": "Customer groups",
   "search_placeholder": "Search groups...",
-  "new_group": "New Group",
-  "create_group": "Create Group",
+  "new_group": "New group",
+  "create_group": "Create group",
   "success_deleted": "Group deleted",
   "error_delete_failed": "Failed to delete group",
   "error_load": "Could not load customer groups",
@@ -19,7 +18,7 @@
   "empty_state": {
     "title": "No groups yet",
     "description": "Create groups to segment and organize your customer base based on their behavior and preferences.",
-    "action": "Create Your First Group"
+    "action": "Create your first group"
   },
   "table": {
     "name": "Name",
@@ -30,7 +29,7 @@
   "detail": {
     "members": "Members",
     "no_members": "No members in this group",
-    "add_member": "Add Customer",
+    "add_member": "Add customer",
     "remove_member": "Remove from group",
     "member_added": "Customer added to group",
     "member_removed": "Customer removed from group",
@@ -40,16 +39,14 @@
     "orders_label": "orders"
   },
   "form": {
-    "title_add": "Add Group",
-    "title_edit": "Edit Group",
-    "name_label": "Group Name",
-    "name_placeholder": "e.g. VIP, Wholesale, Inactive...",
+    "title_add": "Add group",
+    "title_edit": "Edit group",
+    "name_label": "Group name",
+    "name_placeholder": "e.g. VIP, wholesale, inactive...",
     "description_label": "Description (optional)",
     "description_placeholder": "Short description of the group",
     "color_label": "Color",
     "cancel": "Cancel",
-    "save": "Save Group",
-    "saving": "Saving...",
     "success_add": "Group created",
     "success_edit": "Group updated",
     "error_required": "Please fill in all required fields"
@@ -59,5 +56,7 @@
     "placeholder": "Add a tag...",
     "add": "Add tag",
     "empty": "No tags"
-  }
+  },
+  "count_one": "{count} group",
+  "count_other": "{count} groups"
 }

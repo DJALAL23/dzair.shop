@@ -108,7 +108,7 @@ function Gated() {
         />
       </div>
       {products === null ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, index) => (
             <Skeleton key={index} className="h-20 rounded-xl" />
           ))}
@@ -116,14 +116,14 @@ function Gated() {
       ) : visible.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">{t("new.empty")}</p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {visible.map((product) => (
             <button
               key={product.id}
               type="button"
               disabled={creatingId !== null}
               onClick={() => void onPick(product)}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-start transition hover:border-brand/40 disabled:opacity-60"
+              className="flex items-center gap-3 rounded-xl bg-card p-3 text-start transition hover:border-brand/40 disabled:opacity-60 shadow-card"
             >
               {product.images?.[0]?.src ? (
                 <img
@@ -145,7 +145,7 @@ function Gated() {
               {creatingId === product.id ? (
                 <Loader2 size={18} className="me-2 animate-spin text-brand" />
               ) : (
-                <span className="me-2 text-xs font-bold text-brand">{t("new.pick")}</span>
+                <span className="me-2 text-xs font-semibold text-brand">{t("new.pick")}</span>
               )}
             </button>
           ))}

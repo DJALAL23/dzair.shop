@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from "react";
-import { AlertCircle, Gift, Plus, X } from "lucide-react";
+import { Gift, Plus, X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -36,15 +36,14 @@ import {
   EMPTY_FILTERS,
   OfferFiltersBar,
 } from "@/features/offers/components/OfferFiltersBar";
-import { OfferDesktopRow } from "@/features/offers/components/OfferDesktopRow";
-import { OfferMobileCard } from "@/features/offers/components/OfferMobileCard";
+import { OfferDesktopRow, OfferMobileCard } from "@/features/offers/components/OfferRow";
 
 function OfferSkeleton() {
   return (
     <div
       role="status"
       aria-busy="true"
-      className="overflow-hidden rounded-xl border border-border bg-card"
+      className="overflow-hidden rounded-xl bg-card shadow-card"
     >
       <div className="h-14 border-b border-border bg-muted/35" />
       {Array.from({ length: 6 }).map((_, index) => (
@@ -55,8 +54,8 @@ function OfferSkeleton() {
           <Skeleton className="h-3 w-28" />
           <Skeleton className="h-3 w-40" />
           <Skeleton className="h-3 w-28" />
-          <span className="h-6 w-20 animate-pulse rounded-lg bg-muted" />
-          <span className="h-6 w-20 justify-self-end animate-pulse rounded-lg bg-muted" />
+          <span className="h-6 w-20 shimmer rounded-lg" />
+          <span className="h-6 w-20 justify-self-end shimmer rounded-lg" />
         </div>
       ))}
     </div>
@@ -106,7 +105,6 @@ export function OffersList() {
   if (loadError)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button
@@ -188,7 +186,6 @@ export function OffersList() {
     <div className="space-y-3">
       {actionError && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{actionError}</span>
           <button
             type="button"
@@ -236,7 +233,7 @@ export function OffersList() {
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
-              <Table className="min-w-[880px]">
+              <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow>
                     <SortHeader
@@ -247,7 +244,7 @@ export function OffersList() {
                       onSort={onSort}
                     />
                     <TableHead>{t("table.trigger")}</TableHead>
-                    <TableHead>{t("table.reward")}</TableHead>
+                    <TableHead>{t("table.deal")}</TableHead>
                     <TableHead>{t("table.schedule")}</TableHead>
                     <SortHeader
                       label={t("table.status")}
@@ -256,8 +253,8 @@ export function OffersList() {
                       direction={sortDirection}
                       onSort={onSort}
                     />
-                    <TableHead className="text-end">
-                      {common("table.actions")}
+                    <TableHead className="w-px">
+                      <span className="sr-only">{common("table.actions")}</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>

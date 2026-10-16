@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Save } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -35,15 +34,7 @@ import type {
   ShippingProfile,
   VariantOptionFormState,
 } from "@/features/products/types";
-import {
-  Alert,
-  Button,
-  Card,
-  LinkButton,
-  PageHeader,
-  StickyFormActions,
-  useConfirmDialog,
-} from "@/components/ui";
+import { Alert, Card, FormPage, useConfirmDialog } from "@/components/ui";
 import {
   ProductImageUploader,
   type PendingImage,
@@ -58,7 +49,6 @@ import { ProductSettingsCard } from "@/features/products/components/ProductSetti
 
 export function ProductForm({ productId }: { productId?: string }) {
   const t = useT("products");
-  const common = useT("common");
   const auth = useT("auth");
   const identity = useIdentity();
   const confirm = useConfirmDialog();
@@ -408,8 +398,8 @@ export function ProductForm({ productId }: { productId?: string }) {
   if (initialLoading)
     return (
       <div role="status" aria-busy="true" className="space-y-4">
-        <div className="h-20 animate-pulse rounded-xl bg-muted" />
-        <div className="h-72 animate-pulse rounded-xl bg-muted" />
+        <div className="h-20 shimmer rounded-xl" />
+        <div className="h-72 shimmer rounded-xl" />
       </div>
     );
 
@@ -420,19 +410,30 @@ export function ProductForm({ productId }: { productId?: string }) {
     : "/products";
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title={editing ? t("form.title_edit") : t("form.title_add")}
-        backHref={backHref}
-        backLabel={common("cancel")}
-      />
-      {message && (
-        <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
-          <span>{message}</span>
-        </Alert>
-      )}
-      <div className="space-y-5">
+    <FormPage
+      title={editing ? t("form.title_edit") : t("form.title_add")}
+      backHref={backHref}
+      error={message}
+      onSave={() => void save()}
+      saving={busy}
+      aside={
+        <ProductSettingsCard
+          status={status}
+          setStatus={setStatus}
+          inventory={inventory}
+          setInventory={setInventory}
+          lowStockThreshold={lowStockThreshold}
+          setLowStockThreshold={setLowStockThreshold}
+          trackInventory={trackInventory}
+          setTrackInventory={setTrackInventory}
+          showInStore={showInStore}
+          setShowInStore={setShowInStore}
+          hasVariantsSwitch={hasVariantsSwitch}
+          editing={editing}
+          busy={busy}
+        />
+      }
+    >
         <ProductBasicInfoCard
           name={name}
           setName={setName}
@@ -504,32 +505,6 @@ export function ProductForm({ productId }: { productId?: string }) {
           busy={busy}
           showImageCol={showImageCol}
         />
-
-        <ProductSettingsCard
-          status={status}
-          setStatus={setStatus}
-          inventory={inventory}
-          setInventory={setInventory}
-          lowStockThreshold={lowStockThreshold}
-          setLowStockThreshold={setLowStockThreshold}
-          trackInventory={trackInventory}
-          setTrackInventory={setTrackInventory}
-          showInStore={showInStore}
-          setShowInStore={setShowInStore}
-          hasVariantsSwitch={hasVariantsSwitch}
-          editing={editing}
-          busy={busy}
-        />
-      </div>
-      <StickyFormActions>
-        <LinkButton href={backHref} variant="secondary">
-          {common("cancel")}
-        </LinkButton>
-        <Button type="button" onClick={() => void save()} disabled={busy}>
-          <Save size={16} />
-          {busy ? t("form.saving") : t("form.save")}
-        </Button>
-      </StickyFormActions>
-    </div>
+    </FormPage>
   );
 }

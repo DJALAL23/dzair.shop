@@ -4,7 +4,7 @@
   "create_landing_page": "إنشاء صفحة هبوط",
   "compare_title": "مقارنة صفحات الهبوط",
   "list": {
-    "name": "الاسم",
+    "name": "الصفحة",
     "product": "المنتج",
     "status": "الحالة",
     "views": "المشاهدات",
@@ -22,10 +22,8 @@
   "status_draft": "مسودة",
   "status_published": "منشورة",
   "status_archived": "مؤرشفة",
-  "filter_all_statuses": "كل الحالات",
   "filter_all_products": "كل المنتجات",
   "search_placeholder": "ابحث بالاسم أو الرابط أو المنتج…",
-  "landing_pages_count": "صفحات هبوط",
   "error_generic": "حدث خطأ ما. حاول مرة أخرى.",
   "error_validation": "بعض الحقول غير صالحة",
   "error_unexpected_id": "حدث خطأ غير متوقع — وإذا استمر، أذكر الرقم {id} للدعم.",
@@ -103,5 +101,17 @@
     "required": "مطلوب",
     "last_event_sent": "آخر حدث تم إرساله",
     "last_event_failed": "آخر حدث رفضته ميتا"
-  }
+  },
+  "count_zero": "لا صفحات",
+  "count_one": "صفحة واحدة",
+  "count_two": "صفحتان",
+  "count_few": "{count} صفحات",
+  "count_many": "{count} صفحةً",
+  "count_other": "{count} صفحة",
+  "orders_count_zero": "لا طلبات",
+  "orders_count_one": "طلب واحد",
+  "orders_count_two": "طلبان",
+  "orders_count_few": "{count} طلبات",
+  "orders_count_many": "{count} طلبًا",
+  "orders_count_other": "{count} طلب"
 }

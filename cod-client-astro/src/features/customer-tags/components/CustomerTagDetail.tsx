@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  AlertCircle,
   Calendar,
   Pencil,
   Search,
@@ -17,7 +16,7 @@ import {
   IconButton,
   LinkButton,
   PageHeader,
-  StatCard,
+  StatCard, StatGroup,
   useConfirmDialog,
 } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
@@ -45,8 +44,8 @@ import { CustomerTagAssignedRow } from "@/features/customer-tags/components/Cust
 function Loading() {
   return (
     <div role="status" aria-busy="true" className="space-y-4">
-      <div className="h-20 animate-pulse rounded-xl bg-muted" />
-      <div className="h-64 animate-pulse rounded-xl bg-muted" />
+      <div className="h-20 shimmer rounded-xl" />
+      <div className="h-64 shimmer rounded-xl" />
     </div>
   );
 }
@@ -96,7 +95,6 @@ export function CustomerTagDetail({ tagId }: { tagId: string }) {
   if (error && !tag)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} />
         <span className="flex-1">{error}</span>
         <Button type="button" variant="ghost" onClick={() => void load()}>
           {common("retry")}
@@ -200,7 +198,6 @@ export function CustomerTagDetail({ tagId }: { tagId: string }) {
       />
       {error && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{error}</span>
           <button
             type="button"
@@ -211,7 +208,7 @@ export function CustomerTagDetail({ tagId }: { tagId: string }) {
           </button>
         </Alert>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <StatGroup columns={2}>
         <StatCard
           label={t("table.customers")}
           value={tag.assignmentCount}
@@ -222,7 +219,7 @@ export function CustomerTagDetail({ tagId }: { tagId: string }) {
           value={formatTagDate(tag.createdAt, locale)}
           icon={<Calendar size={20} />}
         />
-      </div>
+      </StatGroup>
       <Card
         title={t("detail.customers")}
         action={
@@ -249,7 +246,7 @@ export function CustomerTagDetail({ tagId }: { tagId: string }) {
                 value={addSearch}
                 onChange={(event) => setAddSearch(event.currentTarget.value)}
                 placeholder={t("detail.search_add")}
-                className="h-10 w-full rounded-lg border border-input bg-background ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring/20"
+                className="h-10 w-full rounded-lg border border-input bg-card ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring/20"
               />
             </label>
             <div className="mt-2 max-h-48 divide-y divide-border overflow-y-auto rounded-lg border border-border">
@@ -304,7 +301,7 @@ export function CustomerTagDetail({ tagId }: { tagId: string }) {
                 value={search}
                 onChange={(event) => setSearch(event.currentTarget.value)}
                 placeholder={t("detail.search_customers")}
-                className="h-10 w-full rounded-lg border border-input bg-background ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring/20"
+                className="h-10 w-full rounded-lg border border-input bg-card ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring/20"
               />
             </label>
           )}

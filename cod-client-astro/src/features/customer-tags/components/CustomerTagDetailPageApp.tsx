@@ -4,7 +4,7 @@ import { CustomerTagDetail } from "@/features/customer-tags/components/CustomerT
 
 function Gated({ tagId }: { tagId: string }) {
   return (
-    <DashboardChrome currentPath={`/customer-tags/${tagId}`} wide>
+    <DashboardChrome currentPath={`/customer-tags/${tagId}`}>
       <CustomerTagDetail tagId={tagId} />
     </DashboardChrome>
   );

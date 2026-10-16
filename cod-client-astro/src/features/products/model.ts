@@ -1,7 +1,7 @@
 import type { Translate } from "@/i18n/core";
 import type { Product, ProductStatus, StockAlertItem, StockMovement, VariantOption, VariantOptionFormState } from "./types";
 
-export type ProductSortKey = "name" | "price" | "variantsCount" | "totalInventory" | "reviewCount" | "createdAt";
+export type ProductSortKey = "name" | "price" | "totalInventory" | "createdAt";
 
 export type ProductRoute =
   | { kind: "list" }

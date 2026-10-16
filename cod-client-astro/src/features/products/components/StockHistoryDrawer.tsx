@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, History } from "lucide-react";
+import { History } from "lucide-react";
 import { useT } from "@/i18n/react";
 import { getStockHistory } from "@/features/products/api";
 import { movementIsStockIn } from "@/features/products/model";
@@ -22,7 +22,7 @@ function MovementTypeBadge({ type }: { type: StockMovementType }) {
   const isIn = STOCK_IN_TYPES.includes(type);
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold ${isIn ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "bg-destructive/10 text-destructive"}`}
+      className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-semibold ${isIn ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "bg-destructive/10 text-destructive"}`}
     >
       {t(`stock_history.movement_types.${type}`)}
     </span>
@@ -37,7 +37,7 @@ function MovementRow({ movement }: { movement: StockMovement }) {
         <MovementTypeBadge type={movement.type} />
         <div className="flex shrink-0 items-center gap-2">
           <span
-            className={`text-sm font-bold tabular-nums ${isIn ? "text-violet-600 dark:text-violet-400" : "text-destructive"}`}
+            className={`text-sm font-semibold tabular-nums ${isIn ? "text-violet-600 dark:text-violet-400" : "text-destructive"}`}
           >
             {isIn ? "+" : ""}
             {movement.delta}
@@ -132,7 +132,6 @@ export function StockHistoryDrawer({
       <div className="space-y-2">
         {error && (
           <Alert role="alert" tone="critical">
-            <AlertCircle size={18} className="shrink-0" />
             <span className="min-w-0 flex-1">{t("stock_history.error")}</span>
             <Button
               type="button"
@@ -174,7 +173,7 @@ export function StockHistoryDrawer({
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="h-24 animate-pulse rounded-xl bg-muted"
+                className="h-24 shimmer rounded-xl"
               />
             ))}
           </div>

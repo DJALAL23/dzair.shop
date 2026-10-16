@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Button, SearchInput, Select } from "@/components/ui";
+import { Button, FilterPill, ListToolbar, SearchInput } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import type {
   OfferDiscountType,
@@ -32,69 +32,42 @@ export function OfferFiltersBar({
   const common = useT("common");
 
   return (
-    <div className="space-y-3 border-b border-border p-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SearchInput
-          value={filters.query}
-          onChange={(value) =>
-            setFilters((current) => ({
-              ...current,
-              query: value,
-            }))
-          }
-          placeholder={t("search_placeholder")}
-        />
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">
-          {filteredCount} {t("offers_count")}
-        </span>
-      </div>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Select
-          aria-label={t("table.status")}
-          value={filters.status}
-          onChange={(event) =>
-            setFilters((current) => ({
-              ...current,
-              status: event.currentTarget.value as OfferStatus | "all",
-            }))
-          }
-          wrapperClassName="sm:w-44"
-        >
-          <option value="all">{common("table.all")}</option>
-          {STATUS_OPTIONS.map((status) => (
-            <option key={status} value={status}>
-              {t(`status.${status}`)}
-            </option>
-          ))}
-        </Select>
-        <Select
-          aria-label={t("table.type")}
-          value={filters.type}
-          onChange={(event) =>
-            setFilters((current) => ({
-              ...current,
-              type: event.currentTarget.value as OfferDiscountType | "all",
-            }))
-          }
-          wrapperClassName="sm:w-44"
-        >
-          <option value="all">{common("table.all")}</option>
-          {TYPE_OPTIONS.map((type) => (
-            <option key={type} value={type}>
-              {t(`discount_type.${type}`)}
-            </option>
-          ))}
-        </Select>
-        {hasFilters && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setFilters(EMPTY_FILTERS)}
-          >
-            {common("cancel")}
-          </Button>
-        )}
-      </div>
-    </div>
+    <ListToolbar count={t("count", { count: filteredCount })}>
+      <SearchInput
+        value={filters.query}
+        onChange={(query) => setFilters((current) => ({ ...current, query }))}
+        placeholder={t("search_placeholder")}
+        className="basis-full sm:basis-72"
+      />
+      <FilterPill
+        label={t("table.status")}
+        value={filters.status}
+        onChange={(status) => setFilters((current) => ({ ...current, status: status as OfferStatus | "all" }))}
+      >
+        <option value="all">{t("table.status")}</option>
+        {STATUS_OPTIONS.map((status) => (
+          <option key={status} value={status}>
+            {t(`status.${status}`)}
+          </option>
+        ))}
+      </FilterPill>
+      <FilterPill
+        label={t("table.type")}
+        value={filters.type}
+        onChange={(type) => setFilters((current) => ({ ...current, type: type as OfferDiscountType | "all" }))}
+      >
+        <option value="all">{t("table.type")}</option>
+        {TYPE_OPTIONS.map((type) => (
+          <option key={type} value={type}>
+            {t(`discount_type.${type}`)}
+          </option>
+        ))}
+      </FilterPill>
+      {hasFilters && (
+        <Button type="button" variant="ghost" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
+          {common("clear_filters")}
+        </Button>
+      )}
+    </ListToolbar>
   );
 }

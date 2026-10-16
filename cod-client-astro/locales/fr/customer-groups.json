@@ -1,6 +1,5 @@
 {
   "page_title": "Groupes de clients",
-  "groups_count": "groupes",
   "search_placeholder": "Rechercher des groupes...",
   "new_group": "Nouveau groupe",
   "create_group": "Créer un groupe",
@@ -48,8 +47,6 @@
     "description_placeholder": "Courte description du groupe",
     "color_label": "Couleur",
     "cancel": "Annuler",
-    "save": "Enregistrer le groupe",
-    "saving": "Enregistrement...",
     "success_add": "Groupe créé",
     "success_edit": "Groupe mis à jour",
     "error_required": "Veuillez remplir tous les champs obligatoires"
@@ -59,5 +56,8 @@
     "placeholder": "Ajouter une étiquette...",
     "add": "Ajouter",
     "empty": "Aucune étiquette"
-  }
+  },
+  "count_one": "{count} groupe",
+  "count_many": "{count} groupes",
+  "count_other": "{count} groupes"
 }

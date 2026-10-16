@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Scale, Trophy } from "lucide-react";
+import { Scale, Trophy } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
 import { Alert, Card, LinkButton, PageHeader, Select, Skeleton } from "@/components/ui";
@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui";
 
 function Gated() {
   const t = useT("landing-pages");
-  const common = useT("common");
   const auth = useT("auth");
   const locale = useLocale();
   const identity = useIdentity();
@@ -69,7 +68,6 @@ function Gated() {
     <div className="space-y-4">
       {loadError ? (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{landingPageErrorMessage(loadError, t)}</span>
         </Alert>
       ) : null}
@@ -96,7 +94,7 @@ function Gated() {
           <p className="text-sm font-semibold">{t("compare_title")}</p>
         </div>
       ) : pages === null ? (
-        <div role="status" aria-busy="true" className="overflow-hidden rounded-xl border border-border bg-card">
+        <div role="status" aria-busy="true" className="overflow-hidden rounded-xl bg-card shadow-card">
           <div className="h-14 border-b border-border bg-muted/35" />
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="h-16 border-b border-border px-4 last:border-0">
@@ -110,10 +108,10 @@ function Gated() {
           <LinkButton href="/landing-pages/new">{t("create_landing_page")}</LinkButton>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-hidden rounded-xl bg-card shadow-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="h-14 border-b border-border bg-muted/35 text-xs font-bold text-muted-foreground">
+              <tr className="h-14 border-b border-border bg-muted/35 text-xs font-semibold text-muted-foreground">
                 <th className="px-4 text-start">{t("list.name")}</th>
                 <th className="px-4 text-center">{t("list.status")}</th>
                 <th className="px-4 text-center">{t("list.views")}</th>

@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from "react";
-import { AlertCircle, Plus, Tag, X } from "lucide-react";
+import { Plus, Tag, X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -49,7 +49,7 @@ function TagSkeleton() {
     <div
       role="status"
       aria-busy="true"
-      className="overflow-hidden rounded-xl border border-border bg-card"
+      className="overflow-hidden rounded-xl bg-card shadow-card"
     >
       <div className="h-14 border-b border-border bg-muted/35" />
       {Array.from({ length: 7 }).map((_, index) => (
@@ -59,7 +59,7 @@ function TagSkeleton() {
         >
           <Skeleton className="h-3 w-28" />
           <Skeleton className="h-3 w-16" />
-          <span className="h-6 w-20 justify-self-end animate-pulse rounded-lg bg-muted" />
+          <span className="h-6 w-20 justify-self-end shimmer rounded-lg" />
         </div>
       ))}
     </div>
@@ -107,7 +107,6 @@ export function CustomerTagsList() {
   if (loadError)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button
@@ -171,7 +170,6 @@ export function CustomerTagsList() {
     <div className="space-y-3">
       {actionError && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{actionError}</span>
           <button
             type="button"
@@ -183,26 +181,25 @@ export function CustomerTagsList() {
         </Alert>
       )}
       <Card flush>
-        <div className="space-y-3 border-b border-border p-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap items-center gap-2 p-2">
+          <div className="contents">
             <SearchInput
               value={query}
               onChange={setQuery}
               placeholder={t("search_placeholder")}
+              className="basis-full sm:basis-72"
             />
-            <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {filtered.length} {t("tags_count")}
-            </span>
+            <span className="order-last ms-auto shrink-0 px-1 text-xs tabular-nums text-muted-foreground">{t("count", { count: filtered.length })}</span>
           </div>
           {hasQuery && (
-            <Button type="button" variant="ghost" onClick={() => setQuery("")}>
-              {common("cancel")}
+            <Button type="button" variant="ghost" size="sm" onClick={() => setQuery("")}>
+              {common("clear_filters")}
             </Button>
           )}
         </div>
         {sorted.length === 0 ? (
           <EmptyState
-            icon={<Tag size={22} />}
+            icon={<Tag />}
             title={
               hasQuery ? common("no_results_found") : t("empty_state.title")
             }
@@ -218,7 +215,7 @@ export function CustomerTagsList() {
           />
         ) : (
           <>
-            <div className="divide-y divide-border md:hidden">
+            <div className="divide-y divide-border border-t border-border md:hidden">
               {visible.map((tag) => (
                 <TagMobileCard
                   key={tag.id}
@@ -245,6 +242,7 @@ export function CustomerTagsList() {
                       activeKey={sortKey}
                       direction={sortDirection}
                       onSort={(key) => onSort(key as CustomerTagSortKey)}
+                      align="end"
                     />
                     <SortHeader
                       label={t("table.created")}
@@ -253,8 +251,8 @@ export function CustomerTagsList() {
                       direction={sortDirection}
                       onSort={(key) => onSort(key as CustomerTagSortKey)}
                     />
-                    <TableHead className="text-end">
-                      {common("table.actions")}
+                    <TableHead className="w-px">
+                      <span className="sr-only">{common("table.actions")}</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>

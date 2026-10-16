@@ -1,6 +1,5 @@
 {
   "page_title": "مجموعات العملاء",
-  "groups_count": "مجموعة",
   "search_placeholder": "البحث عن مجموعة...",
   "new_group": "مجموعة جديدة",
   "create_group": "إنشاء مجموعة",
@@ -48,8 +47,6 @@
     "description_placeholder": "وصف قصير للمجموعة",
     "color_label": "اللون",
     "cancel": "إلغاء",
-    "save": "حفظ المجموعة",
-    "saving": "جاري الحفظ...",
     "success_add": "تمت إضافة المجموعة",
     "success_edit": "تم تحديث المجموعة",
     "error_required": "يرجى تعبئة الحقول المطلوبة"
@@ -59,5 +56,11 @@
     "placeholder": "أضف وسماً...",
     "add": "إضافة وسم",
     "empty": "لا توجد وسوم"
-  }
+  },
+  "count_zero": "لا مجموعات",
+  "count_one": "مجموعة واحدة",
+  "count_two": "مجموعتان",
+  "count_few": "{count} مجموعات",
+  "count_many": "{count} مجموعةً",
+  "count_other": "{count} مجموعة"
 }

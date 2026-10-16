@@ -1,9 +1,8 @@
 {
-  "page_title": "Customer Tags",
-  "tags_count": "tags",
+  "page_title": "Customer tags",
   "search_placeholder": "Search tags...",
-  "new_tag": "New Tag",
-  "create_tag": "Create Tag",
+  "new_tag": "New tag",
+  "create_tag": "Create tag",
   "success_deleted": "Tag deleted",
   "error_delete_failed": "Failed to delete tag",
   "error_load": "Could not load customer tags",
@@ -19,7 +18,7 @@
   "empty_state": {
     "title": "No tags yet",
     "description": "Create tags to quickly label and filter your customers based on specific criteria.",
-    "action": "Add Your First Tag"
+    "action": "Add your first tag"
   },
   "table": {
     "name": "Name",
@@ -29,8 +28,8 @@
   "detail": {
     "customers": "Customers",
     "no_customers": "No customers with this tag",
-    "add_customer": "Add Customer",
-    "remove_customer": "Remove Tag",
+    "add_customer": "Add customer",
+    "remove_customer": "Remove tag",
     "customer_added": "Tag assigned to customer",
     "customer_removed": "Tag removed from customer",
     "search_add": "Search customer...",
@@ -39,16 +38,16 @@
     "orders_label": "orders"
   },
   "form": {
-    "title_add": "Add Tag",
-    "title_edit": "Edit Tag",
-    "name_label": "Tag Name",
+    "title_add": "Add tag",
+    "title_edit": "Edit tag",
+    "name_label": "Tag name",
     "name_placeholder": "e.g. vip, returner, wholesale...",
     "color_label": "Color",
     "cancel": "Cancel",
-    "save": "Save Tag",
-    "saving": "Saving...",
     "success_add": "Tag created",
     "success_edit": "Tag updated",
     "error_required": "Please fill in all required fields"
-  }
+  },
+  "count_one": "{count} tag",
+  "count_other": "{count} tags"
 }

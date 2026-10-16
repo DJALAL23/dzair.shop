@@ -9,6 +9,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  SwitchField,
 } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { ProductOptionsManager } from "@/features/products/components/ProductOptionsManager";
@@ -85,30 +86,20 @@ export function ProductVariantsCard({
   return (
     <>
       <Card title={t("form.section_options")}>
-        <label className="flex cursor-pointer items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {t("form.has_variants_label")}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("form.has_variants_hint")}
-            </p>
-          </div>
-          <input
-            type="checkbox"
-            checked={hasVariantsSwitch}
-            onChange={(event) =>
-              void onToggleVariants(event.currentTarget.checked)
-            }
-            disabled={busy}
-            className="size-5 accent-primary"
-          />
-        </label>
+        <SwitchField
+          label={t("form.has_variants_label")}
+          help={
+            <>
+              <span className="block">{t("form.has_variants_hint")}</span>
+              <span className="mt-1.5 block">{t("form.options_hint")}</span>
+            </>
+          }
+          checked={hasVariantsSwitch}
+          onChange={(on) => void onToggleVariants(on)}
+          disabled={busy}
+        />
         {hasVariantsSwitch && (
-          <div className="mt-6 space-y-4 border-t border-border pt-5">
-            <p className="text-xs font-semibold text-muted-foreground">
-              {t("form.options_hint")}
-            </p>
+          <div className="mt-4 space-y-4 border-t border-border pt-4">
             <ProductOptionsManager
               options={variantOptions}
               onChange={setVariantOptions}
@@ -119,19 +110,16 @@ export function ProductVariantsCard({
       </Card>
 
       {hasVariantsSwitch && hasVariants && (
-        <Card title={`${t("form.variants_label")} (${variantRows.length})`}>
+        <Card title={t("form.variants_count", { count: variantRows.length })} help={t("form.variants_hint")}>
           <div className="space-y-5">
             {errors.variantRowsSku && (
-              <p className="flex items-center gap-1 text-xs font-bold text-destructive">
+              <p className="flex items-center gap-1 text-xs font-semibold text-destructive">
                 <AlertCircle size={12} />
                 {errors.variantRowsSku}
               </p>
             )}
-            <p className="text-xs font-semibold text-muted-foreground">
-              {t("form.variants_hint")}
-            </p>
             <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
-              <span className="me-1 self-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+              <span className="me-1 self-center text-[11px] font-semibold text-muted-foreground/60">
                 {t("form.bulk_fill")}:
               </span>
               <div className="flex items-center gap-1.5">
@@ -142,7 +130,7 @@ export function ProductVariantsCard({
                     setBulkPrice(event.currentTarget.value)
                   }
                   placeholder={t("form.bulk_price_placeholder")}
-                  className="h-8 w-24 rounded-lg border border-border bg-card px-2 text-xs font-bold"
+                  className="h-8 w-24 rounded-lg border border-border bg-card px-2 text-xs font-semibold"
                   disabled={busy}
                 />
                 <Button
@@ -168,7 +156,7 @@ export function ProductVariantsCard({
                     setBulkSkuPrefix(event.currentTarget.value)
                   }
                   placeholder={t("form.bulk_sku_placeholder")}
-                  className="h-8 w-28 rounded-lg border border-border bg-card px-2 font-mono text-[11px] font-bold"
+                  className="h-8 w-28 rounded-lg border border-border bg-card px-2 text-[11px] font-semibold"
                   disabled={busy}
                   dir="ltr"
                 />
@@ -201,7 +189,7 @@ export function ProductVariantsCard({
                     setBulkStock(event.currentTarget.value)
                   }
                   placeholder={t("form.bulk_stock_placeholder")}
-                  className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-xs font-bold"
+                  className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-xs font-semibold"
                   disabled={busy}
                 />
                 <Button
@@ -238,7 +226,7 @@ export function ProductVariantsCard({
                         )
                       </TableHead>
                       <TableHead className="text-start">
-                        {t("form.variant_sku")} *
+                        {t("form.variant_sku")}
                       </TableHead>
                       <TableHead className="text-start">
                         {t("form.variant_stock")}
@@ -260,11 +248,11 @@ export function ProductVariantsCard({
                     {variantRows.map((row, i) => (
                       <TableRow key={row.key} className="hover:bg-muted/20">
                         <TableCell>
-                          <p className="text-[13px] font-bold text-foreground">
+                          <p className="text-sm font-semibold text-foreground">
                             {row.key}
                           </p>
                           {row.existingId && (
-                            <span className="text-[9px] font-bold uppercase tracking-tighter text-violet-600">
+                            <span className="text-[11px] font-semibold tracking-tighter text-violet-600">
                               {t("form.variant_saved_badge")}
                             </span>
                           )}
@@ -280,7 +268,7 @@ export function ProductVariantsCard({
                                 event.currentTarget.value,
                               )
                             }
-                            className="h-9 w-28 rounded-lg border border-border bg-card px-2 text-xs font-bold tabular-nums"
+                            className="h-9 w-28 rounded-lg border border-border bg-card px-2 text-xs font-medium tabular-nums"
                             disabled={busy}
                           />
                         </TableCell>
@@ -299,7 +287,7 @@ export function ProductVariantsCard({
                               }));
                             }}
                             placeholder={t("form.sku_placeholder")}
-                            className="h-9 w-28 rounded-lg border border-border bg-card px-2 font-mono text-[11px] font-bold"
+                            className="h-9 w-28 rounded-lg border border-border bg-card px-2 text-[11px] font-semibold"
                             disabled={busy}
                             dir="ltr"
                           />
@@ -315,7 +303,7 @@ export function ProductVariantsCard({
                                 event.currentTarget.value,
                               )
                             }
-                            className="h-9 w-20 rounded-lg border border-border bg-card px-2 text-xs font-bold tabular-nums"
+                            className="h-9 w-20 rounded-lg border border-border bg-card px-2 text-xs font-medium tabular-nums"
                             disabled={busy}
                           />
                         </TableCell>
@@ -330,7 +318,7 @@ export function ProductVariantsCard({
                                 event.currentTarget.value,
                               )
                             }
-                            className="h-9 w-20 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2 text-xs font-bold tabular-nums"
+                            className="h-9 w-20 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2 text-xs font-medium tabular-nums"
                             disabled={busy}
                           />
                         </TableCell>

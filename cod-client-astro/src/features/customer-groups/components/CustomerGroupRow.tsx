@@ -1,5 +1,5 @@
 import { Pencil, Trash2, Users } from "lucide-react";
-import { IconButton, TableCell, TableRow } from "@/components/ui";
+import { IconButton, TableCell, TableRow, openRowOnClick, CellEmpty, RowActions } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import {
   formatGroupDate,
@@ -19,35 +19,29 @@ export function GroupDesktopRow({
   const t = useT("customer-groups");
   const locale = useLocale();
   return (
-    <TableRow>
+    <TableRow onClick={openRowOnClick(`/customer-groups/${encodeURIComponent(group.id)}`)} className="cursor-pointer">
       <TableCell>
         <a
           href={`/customer-groups/${encodeURIComponent(group.id)}`}
-          className="inline-flex min-w-0 items-center gap-3 font-semibold text-link hover:underline"
+          className="inline-flex min-w-0 items-center gap-2.5 font-medium text-foreground underline-offset-2 hover:underline"
         >
           <span
-            className="size-8 shrink-0 rounded-lg"
+            aria-hidden="true"
+            className="size-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: group.color }}
           />
           <span className="truncate">{group.name}</span>
         </a>
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {group.description || "-"}
+      <TableCell className="max-w-72 truncate text-muted-foreground">
+        {group.description || <CellEmpty />}
       </TableCell>
-      <TableCell>
-        <div className="inline-flex items-center gap-1.5 text-sm">
-          <Users size={14} className="text-muted-foreground" />
-          <span className="font-semibold tabular-nums">
-            {group.memberCount}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
+      <TableCell numeric>{group.memberCount}</TableCell>
+      <TableCell className="whitespace-nowrap text-muted-foreground">
         {formatGroupDate(group.createdAt, locale)}
       </TableCell>
-      <TableCell>
-        <div className="flex justify-end gap-1">
+      <TableCell className="w-px">
+        <RowActions>
           {canManage && (
             <a
               href={`/customer-groups/${encodeURIComponent(group.id)}/edit`}
@@ -70,7 +64,7 @@ export function GroupDesktopRow({
               <Trash2 size={15} />
             </IconButton>
           )}
-        </div>
+        </RowActions>
       </TableCell>
     </TableRow>
   );
@@ -97,7 +91,7 @@ export function GroupMobileCard({
         <div className="min-w-0 flex-1">
           <a
             href={`/customer-groups/${encodeURIComponent(group.id)}`}
-            className="block truncate font-semibold text-link"
+            className="block truncate font-medium text-foreground underline-offset-2 hover:underline"
           >
             {group.name}
           </a>

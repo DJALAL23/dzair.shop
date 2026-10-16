@@ -1,7 +1,6 @@
 {
-  "page_title": "مجموعات المنتجات",
+  "page_title": "التصنيفات",
   "add_group": "إضافة مجموعة",
-  "groups_count": "مجموعة",
   "search_placeholder": "بحث في المجموعات...",
   "success_deleted": "تم حذف المجموعة",
   "error_load": "تعذر تحميل مجموعات المنتجات",
@@ -52,11 +51,16 @@
     "error_name_required": "الاسم مطلوب",
     "error_save_failed": "فشل الحفظ",
     "cancel": "إلغاء",
-    "save": "حفظ المجموعة",
-    "saving": "جارٍ الحفظ...",
     "success_add": "تمت إضافة المجموعة بنجاح",
     "success_edit": "تم تحديث المجموعة بنجاح",
     "delete_confirm": "حذف هذه المجموعة؟ ستصبح منتجاتها بدون مجموعة.",
-    "cannot_delete": "لا يمكن حذف مجموعة تحتوي على منتجات"
-  }
+    "cannot_delete": "لا يمكن حذف مجموعة تحتوي على منتجات",
+    "section_details": "التفاصيل"
+  },
+  "count_zero": "لا تصنيفات",
+  "count_one": "تصنيف واحد",
+  "count_two": "تصنيفان",
+  "count_few": "{count} تصنيفات",
+  "count_many": "{count} تصنيفًا",
+  "count_other": "{count} تصنيف"
 }

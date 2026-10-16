@@ -1,6 +1,5 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import {
-  AlertCircle,
   Copy,
   CopyPlus,
   ExternalLink,
@@ -8,7 +7,6 @@ import {
   MegaphoneOff,
   MoreHorizontal,
   Trash2,
-  TrendingUp,
 } from "lucide-react";
 import {
   canScope,
@@ -29,24 +27,24 @@ import {
   landingPageCvr,
   landingPageErrorMessage,
   landingPagePublicUrl,
-  trackingView,
 } from "@/features/landing-pages/model";
-import { TrackingBadge } from "@/features/landing-pages/components/TrackingBadge";
-import { getPixelConfig } from "@/features/settings/api";
 import type { LandingPageListItem } from "@/features/landing-pages/types";
-import type { StoreTrackingSwitches } from "../../../../../cod-shared/queries/tracking-config";
 import { formatMoneyValue } from "@/features/products/model";
 import {
   Alert,
   Badge,
   Card,
+  CellEmpty,
   DropdownItem,
   DropdownMenu,
   EmptyState,
-  IconButton,
-  LinkButton,
   SearchInput,
-  Select,
+  FilterPill,
+  LinkButton,
+  ListToolbar,
+  RowActions,
+  RowTitle,
+  openRowOnClick,
   Skeleton,
   Table,
   TableBody,
@@ -56,6 +54,10 @@ import {
   TableRow,
   useConfirmDialog,
 } from "@/components/ui";
+
+function studioHref(page: LandingPageListItem) {
+  return `/landing-pages/${encodeURIComponent(page.id)}/studio`;
+}
 
 function statusTone(status: LandingPageListItem["status"]) {
   if (status === "published") return "success" as const;
@@ -68,7 +70,7 @@ function ListSkeleton() {
     <div
       role="status"
       aria-busy="true"
-      className="overflow-hidden rounded-xl border border-border bg-card"
+      className="overflow-hidden rounded-xl bg-card shadow-card"
     >
       <div className="flex items-center gap-3 border-b border-border p-3">
         <Skeleton className="h-9 flex-1" />
@@ -107,9 +109,6 @@ export function LandingPagesList() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("all");
-  // The store switches decide whether a page's own pixel is actually in force.
-  // Fetched once for the whole list, not per row.
-  const [storeSwitches, setStoreSwitches] = useState<StoreTrackingSwitches | null>(null);
   const deferredQuery = useDeferredValue(query);
 
   const canManage = canScope(identity, SCOPES.LANDING_PAGES_MANAGE);
@@ -127,26 +126,6 @@ export function LandingPagesList() {
     if (canScope(identity, SCOPES.LANDING_PAGES_READ)) void load();
   }, [identity?.role, identity?.scopes.join(",")]);
 
-  useEffect(() => {
-    if (!canScope(identity, SCOPES.LANDING_PAGES_READ)) return;
-    let alive = true;
-    void getPixelConfig()
-      .then((store) => {
-        if (!alive) return;
-        setStoreSwitches(
-          store
-            ? { enabled: store.enabled, perPageTrackingEnabled: store.perPageTrackingEnabled }
-            : null,
-        );
-      })
-      // Non-critical — without it a page's badge reads as "not in force",
-      // which is the safe way to be wrong.
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [identity?.role, identity?.scopes.join(",")]);
-
   if (!canScope(identity, SCOPES.LANDING_PAGES_READ))
     return (
       <Alert role="alert" tone="critical">
@@ -157,7 +136,6 @@ export function LandingPagesList() {
   if (loadError)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_generic")}</p>
           <button
@@ -276,6 +254,40 @@ export function LandingPagesList() {
     );
   }
 
+  const actionsMenu = (page: LandingPageListItem) => (
+    <DropdownMenu trigger={<MoreHorizontal size={16} />} triggerLabel={`${common("table.actions")}: ${page.name}`}>
+      <DropdownItem
+        onClick={() => window.open(landingPagePublicUrl(page), "_blank", "noopener")}
+        disabled={page.status !== "published"}
+      >
+        <ExternalLink size={14} />
+        {t("list.view")}
+      </DropdownItem>
+      <DropdownItem onClick={() => onCopyLink(page)}>
+        <Copy size={14} />
+        {t("list.copy_link")}
+      </DropdownItem>
+      {canManage && (
+        <DropdownItem onClick={() => void onTogglePublish(page)}>
+          {page.status === "published" ? <MegaphoneOff size={14} /> : <Megaphone size={14} />}
+          {page.status === "published" ? t("actions.unpublish") : t("actions.publish")}
+        </DropdownItem>
+      )}
+      {canManage && (
+        <DropdownItem onClick={() => void onDuplicate(page)}>
+          <CopyPlus size={14} />
+          {t("actions.duplicate")}
+        </DropdownItem>
+      )}
+      {canManage && (
+        <DropdownItem danger onClick={() => void onDelete(page)}>
+          <Trash2 size={14} />
+          {common("delete")}
+        </DropdownItem>
+      )}
+    </DropdownMenu>
+  );
+
   const rows = filtered.map((page) => ({ page, cvr: landingPageCvr(page) }));
   const hasFilters = deferredQuery.trim() !== "" || status !== "all";
 
@@ -283,33 +295,20 @@ export function LandingPagesList() {
     <div className="space-y-3">
       {actionError && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{actionError}</span>
         </Alert>
       )}
 
       <Card flush>
-        <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center">
-          <SearchInput
-            value={query}
-            onChange={(value) => setQuery(value)}
-            placeholder={t("search_placeholder")}
-          />
-          <Select
-            aria-label={t("list.status")}
-            value={status}
-            onChange={(event) => setStatus(event.currentTarget.value)}
-            wrapperClassName="shrink-0 sm:w-44"
-          >
-            <option value="all">{t("filter_all_statuses")}</option>
+        <ListToolbar count={t("count", { count: filtered.length })}>
+          <SearchInput value={query} onChange={(value) => setQuery(value)} placeholder={t("search_placeholder")} className="basis-full sm:basis-72" />
+          <FilterPill label={t("list.status")} value={status} onChange={setStatus}>
+            <option value="all">{t("list.status")}</option>
             <option value="draft">{t("status_draft")}</option>
             <option value="published">{t("status_published")}</option>
             <option value="archived">{t("status_archived")}</option>
-          </Select>
-          <span className="shrink-0 text-xs font-medium text-muted-foreground">
-            {filtered.length} {t("landing_pages_count")}
-          </span>
-        </div>
+          </FilterPill>
+        </ListToolbar>
 
         {rows.length === 0 ? (
           <EmptyState
@@ -326,114 +325,37 @@ export function LandingPagesList() {
           <>
             {/* Desktop table */}
             <div className="hidden overflow-x-auto md:block">
-              <Table className="min-w-[900px]">
+              <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("list.name")}</TableHead>
-                    <TableHead>{t("list.product")}</TableHead>
-                    <TableHead className="text-center">{t("list.status")}</TableHead>
-                    <TableHead className="text-end">{t("list.views")}</TableHead>
-                    <TableHead className="text-end">{t("list.orders")}</TableHead>
-                    <TableHead className="text-end">{t("list.cvr")}</TableHead>
-                    <TableHead className="text-end">{t("list.revenue")}</TableHead>
-                    <TableHead className="text-end">{common("table.actions")}</TableHead>
+                    <TableHead>{t("list.status")}</TableHead>
+                    <TableHead numeric>{t("list.views")}</TableHead>
+                    <TableHead numeric>{t("list.orders")}</TableHead>
+                    <TableHead numeric>{t("list.cvr")}</TableHead>
+                    <TableHead numeric>{t("list.revenue")}</TableHead>
+                    <TableHead className="w-px">
+                      <span className="sr-only">{common("table.actions")}</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.map(({ page, cvr }) => (
-                    <TableRow key={page.id}>
+                    <TableRow key={page.id} onClick={openRowOnClick(studioHref(page))} className="cursor-pointer">
+                      <TableCell className="max-w-72">
+                        <RowTitle href={studioHref(page)}>{page.name}</RowTitle>
+                      </TableCell>
                       <TableCell>
-                        <div className="flex flex-col">
-                          <LinkButton
-                            href={`/landing-pages/${encodeURIComponent(page.id)}/studio`}
-                            variant="ghost"
-                            className="h-auto justify-start p-0 text-start font-semibold"
-                          >
-                            {page.name}
-                          </LinkButton>
-                          <span className="mt-0.5 whitespace-nowrap font-mono text-[0.7rem] text-muted-foreground">
-                            /lp/{page.slug}
-                          </span>
-                          {page.tracking && (
-                            <TrackingBadge
-                              view={trackingView(storeSwitches, page.tracking)}
-                              className="mt-1 self-start"
-                            />
-                          )}
-                        </div>
+                        <Badge tone={statusTone(page.status)}>{statusLabels[page.status]}</Badge>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {page.productName ?? "—"}
-                        <span className="ms-1 text-xs text-muted-foreground">
-                          ({page.imageCount})
-                        </span>
+                      <TableCell numeric>{page.views.toLocaleString(locale)}</TableCell>
+                      <TableCell numeric>{page.orders.toLocaleString(locale)}</TableCell>
+                      <TableCell numeric className="text-muted-foreground">
+                        {cvr === null ? <CellEmpty /> : `${cvr.toFixed(1)}%`}
                       </TableCell>
-                      <TableCell className="text-center">
-                        <Badge tone={statusTone(page.status)}>
-                          {statusLabels[page.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {page.views.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {page.orders.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {cvr === null ? "—" : `${cvr.toFixed(1)}%`}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums whitespace-nowrap">
-                        {formatMoneyValue(page.revenue, locale)}
-                      </TableCell>
-                      <TableCell className="text-end">
-                        <div className="flex justify-end">
-                          <DropdownMenu
-                            trigger={<MoreHorizontal size={16} />}
-                            triggerLabel={common("table.actions")}
-                          >
-                            <DropdownItem
-                              onClick={() =>
-                                window.open(
-                                  landingPagePublicUrl(page),
-                                  "_blank",
-                                  "noopener",
-                                )
-                              }
-                              disabled={page.status !== "published"}
-                            >
-                              <ExternalLink size={15} />
-                              {t("list.view")}
-                            </DropdownItem>
-                            <DropdownItem onClick={() => onCopyLink(page)}>
-                              <Copy size={15} />
-                              {t("list.copy_link")}
-                            </DropdownItem>
-                            {canManage && (
-                              <DropdownItem onClick={() => void onTogglePublish(page)}>
-                                {page.status === "published" ? (
-                                  <MegaphoneOff size={15} />
-                                ) : (
-                                  <Megaphone size={15} />
-                                )}
-                                {page.status === "published"
-                                  ? t("actions.unpublish")
-                                  : t("actions.publish")}
-                              </DropdownItem>
-                            )}
-                            {canManage && (
-                              <DropdownItem onClick={() => void onDuplicate(page)}>
-                                <CopyPlus size={15} />
-                                {t("actions.duplicate")}
-                              </DropdownItem>
-                            )}
-                            {canManage && (
-                              <DropdownItem danger onClick={() => void onDelete(page)}>
-                                <Trash2 size={15} />
-                                {common("delete")}
-                              </DropdownItem>
-                            )}
-                          </DropdownMenu>
-                        </div>
+                      <TableCell numeric>{formatMoneyValue(page.revenue, locale)}</TableCell>
+                      <TableCell className="w-px">
+                        <RowActions>{actionsMenu(page)}</RowActions>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -441,111 +363,28 @@ export function LandingPagesList() {
               </Table>
             </div>
 
-            {/* Mobile cards */}
             <div className="divide-y divide-border md:hidden">
-              {rows.map(({ page, cvr }) => (
-                <article key={page.id} className="p-4">
-                <div className="flex items-center gap-2">
-                  <Badge tone={statusTone(page.status)}>{statusLabels[page.status]}</Badge>
-                  <div className="flex-1" />
-                  <div className="flex gap-1">
-                    <IconButton
-                      type="button"
-                      aria-label={t("list.view")}
-                      onClick={() =>
-                        window.open(landingPagePublicUrl(page), "_blank", "noopener")
-                      }
-                      disabled={page.status !== "published"}
-                    >
-                      <ExternalLink size={15} />
-                    </IconButton>
-                    <IconButton
-                      type="button"
-                      aria-label={t("list.copy_link")}
-                      onClick={() => onCopyLink(page)}
-                    >
-                      <Copy size={15} />
-                    </IconButton>
-                  </div>
-                </div>
-                <LinkButton
-                  href={`/landing-pages/${encodeURIComponent(page.id)}/studio`}
-                  variant="ghost"
-                  className="mt-2 h-auto justify-start p-0 text-start text-sm font-semibold"
+              {rows.map(({ page }) => (
+                <article
+                  key={page.id}
+                  onClick={openRowOnClick(studioHref(page))}
+                  className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors active:bg-subtle"
                 >
-                  {page.name}
-                </LinkButton>
-                <p className="mt-0.5 font-mono text-[0.7rem] text-muted-foreground">
-                  /lp/{page.slug} · {page.productName ?? "—"} ({page.imageCount})
-                </p>
-                <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-border pt-3 text-center">
-                  <div>
-                    <dt className="text-[0.65rem] font-bold uppercase text-muted-foreground">
-                      {t("list.views")}
-                    </dt>
-                    <dd className="mt-0.5 text-sm font-bold tabular-nums">
-                      {page.views.toLocaleString()}
-                    </dd>
+                  <div className="min-w-0 flex-1">
+                    <a href={studioHref(page)} className="block truncate text-sm font-medium text-foreground">
+                      {page.name}
+                    </a>
+                    <p className="truncate text-xs text-muted-foreground">{page.productName ?? "—"}</p>
                   </div>
-                  <div>
-                    <dt className="text-[0.65rem] font-bold uppercase text-muted-foreground">
-                      {t("list.orders")}
-                    </dt>
-                    <dd className="mt-0.5 text-sm font-bold tabular-nums">
-                      {page.orders.toLocaleString()}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-[0.65rem] font-bold uppercase text-muted-foreground">
-                      {t("list.cvr")}
-                    </dt>
-                    <dd className="mt-0.5 flex items-center justify-center gap-0.5 text-sm font-bold tabular-nums">
-                      <TrendingUp size={12} className="text-muted-foreground" />
-                      {cvr === null ? "—" : `${cvr.toFixed(1)}%`}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-[0.65rem] font-bold uppercase text-muted-foreground">
-                      {t("list.revenue")}
-                    </dt>
-                    <dd className="mt-0.5 text-sm font-bold tabular-nums">
+                  <span className="shrink-0 text-end">
+                    <span className="block text-sm font-medium tabular-nums text-foreground">
                       {formatMoneyValue(page.revenue, locale)}
-                    </dd>
-                  </div>
-                </dl>
-                {canManage && (
-                  <>
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void onDuplicate(page)}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-xs font-semibold hover:bg-muted"
-                      >
-                        <CopyPlus size={14} />
-                        {t("actions.duplicate")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void onDelete(page)}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-xs font-semibold text-destructive hover:bg-muted"
-                      >
-                        <Trash2 size={14} />
-                        {common("delete")}
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void onTogglePublish(page)}
-                      className="mt-2 w-full rounded-lg border border-border py-2 text-xs font-semibold hover:bg-muted"
-                    >
-                      {page.status === "published"
-                        ? t("actions.unpublish")
-                        : t("actions.publish")}
-                    </button>
-                  </>
-                )}
-              </article>
-            ))}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">{t("orders_count", { count: page.orders })}</span>
+                  </span>
+                  {actionsMenu(page)}
+                </article>
+              ))}
           </div>
           </>
         )}

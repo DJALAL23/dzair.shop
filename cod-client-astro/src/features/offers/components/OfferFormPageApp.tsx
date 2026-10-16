@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Gift, Save, Truck } from "lucide-react";
+import { Gift, Truck } from "lucide-react";
 import {
   canScope,
   RequireAuth,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
-import { Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -16,7 +15,7 @@ import { offerErrorMessage } from "@/features/offers/model";
 import type { CreateOfferData, OfferFormValues } from "@/features/offers/types";
 import { listProducts } from "@/features/products/api";
 import type { Product, ProductVariant } from "@/features/products/types";
-import { Button, Alert, PageHeader, Select, Card } from "@/components/ui";
+import { Alert, Card, Field, FormPage, InfoTip, Input, Select, Switch } from "@/components/ui";
 
 const EMPTY_FORM: OfferFormValues = {
   name: "",
@@ -38,7 +37,6 @@ function variantLabel(variant: ProductVariant) {
 
 function OfferForm({ offerId }: { offerId?: string }) {
   const t = useT("offers");
-  const common = useT("common");
   const auth = useT("auth");
   const identity = useIdentity();
   const editing = Boolean(offerId);
@@ -188,112 +186,127 @@ function OfferForm({ offerId }: { offerId?: string }) {
   if (loading)
     return (
       <div role="status" aria-busy="true" className="space-y-4">
-        <div className="h-20 animate-pulse rounded-xl bg-muted" />
-        <div className="h-72 animate-pulse rounded-xl bg-muted" />
+        <div className="h-20 shimmer rounded-xl" />
+        <div className="h-72 shimmer rounded-xl" />
       </div>
     );
 
+  const productSelect = (
+    key: "triggerProductId" | "rewardProductId",
+    variantKey: "triggerVariantId" | "rewardVariantId",
+    placeholder: string,
+  ) => (
+    <Select
+      value={form[key]}
+      onChange={(event) => {
+        update(key, event.currentTarget.value);
+        update(variantKey, "");
+      }}
+      disabled={busy}
+    >
+      <option value="">{placeholder}</option>
+      {products.map((product) => (
+        <option key={product.id} value={product.id}>
+          {product.name}
+        </option>
+      ))}
+    </Select>
+  );
+  const quantity = (key: "triggerQuantity" | "rewardQuantity") => (
+    <Input type="number" min={1} value={form[key]} onChange={(event) => update(key, event.currentTarget.value)} className="max-w-32 tabular-nums" disabled={busy} />
+  );
+
   return (
-    <div className="space-y-5 pb-24 lg:pb-0">
-      <PageHeader
-        title={editing ? t("form.title_edit") : t("form.title_add")}
-        backHref="/offers"
-        backLabel={common("cancel")}
-        actions={
-          <Button type="button" onClick={() => void save()} disabled={busy}>
-            <Save size={16} />
-            {busy ? t("form.saving") : t("form.save")}
-          </Button>
-        }
-      />
-      {message && (
-        <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
-          <span>{message}</span>
-        </Alert>
-      )}
-      <div className="space-y-5">
-        <Card title={editing ? t("form.title_edit") : t("form.title_add")}>
-          <div className="grid gap-4">
-            <Field label={`${t("form.name_label")} *`} error={errors.name}>
-              <Input
-                value={form.name}
-                onChange={(event) => update("name", event.currentTarget.value)}
-                placeholder={t("form.name_placeholder")}
-                disabled={busy}
-              />
-            </Field>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground">
-                {t("form.discount_type_label")}
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                {(["free", "free_shipping"] as const).map((type) => {
-                  const Icon = type === "free" ? Gift : Truck;
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => update("discountType", type)}
-                      className={`flex min-h-16 items-center justify-center gap-2.5 rounded-xl border p-4 text-sm font-semibold transition-colors ${form.discountType === type ? "border-ring bg-card text-foreground shadow-xs" : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40"}`}
-                      disabled={busy}
-                    >
-                      <Icon size={19} aria-hidden="true" />
-                      <span>{t(`discount_type.${type}`)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {form.discountType === "free_shipping" && (
-                <p className="ms-1 mt-1.5 text-xs font-medium text-muted-foreground/60">
-                  {t("form.free_shipping_note")}
-                </p>
-              )}
+    <FormPage
+      title={editing ? t("form.title_edit") : t("form.title_add")}
+      backHref="/offers"
+      error={message}
+      onSave={() => void save()}
+      saving={busy}
+    >
+      <Card>
+        <div className="space-y-4">
+          <Field label={t("form.name_label")} error={errors.name}>
+            <Input value={form.name} onChange={(event) => update("name", event.currentTarget.value)} placeholder={t("form.name_placeholder")} disabled={busy} />
+          </Field>
+          <fieldset className="space-y-1.5">
+            <legend className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+              <span>{t("form.discount_type_label")}</span>
+              <InfoTip>{t("form.free_shipping_note")}</InfoTip>
+            </legend>
+            <div className="grid grid-cols-2 gap-2">
+              {(["free", "free_shipping"] as const).map((type) => {
+                const Icon = type === "free" ? Gift : Truck;
+                const selected = form.discountType === type;
+                return (
+                  <label
+                    key={type}
+                    className={`flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring ${
+                      selected ? "border-primary bg-subtle font-medium text-foreground" : "border-border text-muted-foreground hover:bg-subtle"
+                    }`}
+                  >
+                    <input type="radio" name="discountType" checked={selected} onChange={() => update("discountType", type)} disabled={busy} className="sr-only" />
+                    <Icon size={16} aria-hidden="true" className="shrink-0" />
+                    <span>{t(`discount_type.${type}`)}</span>
+                  </label>
+                );
+              })}
             </div>
+          </fieldset>
+          <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+            <span id="offer-active" className="text-sm font-medium text-foreground">{t("form.status_active")}</span>
+            <Switch
+              checked={form.status === "active"}
+              onChange={(on) => update("status", on ? "active" : "inactive")}
+              disabled={busy}
+              aria-labelledby="offer-active"
+            />
           </div>
-        </Card>
-        <Card title={t("form.section_trigger")}>
-          <div className="grid gap-4">
-            <Field
-              label={`${t("form.trigger_product_label")} *`}
-              error={errors.triggerProductId}
-            >
+        </div>
+      </Card>
+
+      <Card title={t("form.section_trigger")}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t("form.trigger_product_label")} error={errors.triggerProductId}>
+            {productSelect("triggerProductId", "triggerVariantId", t("form.trigger_product_placeholder"))}
+          </Field>
+          {triggerVariants.length > 0 && (
+            <Field label={t("form.trigger_variant_label")}>
               <Select
-                value={form.triggerProductId}
-                onChange={(event) => {
-                  update("triggerProductId", event.currentTarget.value);
-                  update("triggerVariantId", "");
-                }}
+                value={form.triggerVariantId || "__any__"}
+                onChange={(event) => update("triggerVariantId", event.currentTarget.value === "__any__" ? "" : event.currentTarget.value)}
                 disabled={busy}
               >
-                <option value="">
-                  {t("form.trigger_product_placeholder")}
-                </option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
+                <option value="__any__">{t("form.trigger_variant_any")}</option>
+                {triggerVariants.map((variant) => (
+                  <option key={variant.id} value={variant.id}>
+                    {variantLabel(variant)}
                   </option>
                 ))}
               </Select>
             </Field>
-            {triggerVariants.length > 0 && (
-              <Field label={t("form.trigger_variant_label")}>
+          )}
+          <Field label={t("form.trigger_qty_label")} help={t("form.trigger_qty_hint")} error={errors.triggerQuantity} className="sm:col-span-2">
+            {quantity("triggerQuantity")}
+          </Field>
+        </div>
+      </Card>
+
+      {form.discountType === "free" && (
+        <Card title={t("form.section_reward")}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label={t("form.reward_product_label")} error={errors.rewardProductId}>
+              {productSelect("rewardProductId", "rewardVariantId", t("form.reward_product_placeholder"))}
+            </Field>
+            {rewardVariants.length > 0 && (
+              <Field label={t("form.reward_variant_label")}>
                 <Select
-                  value={form.triggerVariantId || "__any__"}
-                  onChange={(event) =>
-                    update(
-                      "triggerVariantId",
-                      event.currentTarget.value === "__any__"
-                        ? ""
-                        : event.currentTarget.value,
-                    )
-                  }
+                  value={form.rewardVariantId || "__default__"}
+                  onChange={(event) => update("rewardVariantId", event.currentTarget.value === "__default__" ? "" : event.currentTarget.value)}
                   disabled={busy}
                 >
-                  <option value="__any__">
-                    {t("form.trigger_variant_any")}
-                  </option>
-                  {triggerVariants.map((variant) => (
+                  <option value="__default__">{rewardIsSameProduct ? t("form.reward_variant_same") : t("form.reward_variant_any")}</option>
+                  {rewardVariants.map((variant) => (
                     <option key={variant.id} value={variant.id}>
                       {variantLabel(variant)}
                     </option>
@@ -301,157 +314,33 @@ function OfferForm({ offerId }: { offerId?: string }) {
                 </Select>
               </Field>
             )}
-            <Field
-              label={`${t("form.trigger_qty_label")} *`}
-              error={errors.triggerQuantity}
-            >
-              <Input
-                type="number"
-                min={1}
-                value={form.triggerQuantity}
-                onChange={(event) =>
-                  update("triggerQuantity", event.currentTarget.value)
-                }
-                className="w-32 tabular-nums"
-                disabled={busy}
-              />
-              <p className="ms-1 mt-1.5 text-xs font-medium text-muted-foreground/60">
-                {t("form.trigger_qty_hint")}
-              </p>
+            <Field label={t("form.reward_qty_label")} error={errors.rewardQuantity} className="sm:col-span-2">
+              {quantity("rewardQuantity")}
             </Field>
           </div>
         </Card>
-        {form.discountType === "free" && (
-          <Card title={t("form.section_reward")}>
-            <div className="grid gap-4">
-              <Field
-                label={`${t("form.reward_product_label")} *`}
-                error={errors.rewardProductId}
-              >
-                <Select
-                  value={form.rewardProductId}
-                  onChange={(event) => {
-                    update("rewardProductId", event.currentTarget.value);
-                    update("rewardVariantId", "");
-                  }}
-                  disabled={busy}
-                >
-                  <option value="">
-                    {t("form.reward_product_placeholder")}
-                  </option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              {rewardVariants.length > 0 && (
-                <Field label={t("form.reward_variant_label")}>
-                  <Select
-                    value={form.rewardVariantId || "__default__"}
-                    onChange={(event) =>
-                      update(
-                        "rewardVariantId",
-                        event.currentTarget.value === "__default__"
-                          ? ""
-                          : event.currentTarget.value,
-                      )
-                    }
-                    disabled={busy}
-                  >
-                    <option value="__default__">
-                      {rewardIsSameProduct
-                        ? t("form.reward_variant_same")
-                        : t("form.reward_variant_any")}
-                    </option>
-                    {rewardVariants.map((variant) => (
-                      <option key={variant.id} value={variant.id}>
-                        {variantLabel(variant)}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              )}
-              <Field
-                label={`${t("form.reward_qty_label")} *`}
-                error={errors.rewardQuantity}
-              >
-                <Input
-                  type="number"
-                  min={1}
-                  value={form.rewardQuantity}
-                  onChange={(event) =>
-                    update("rewardQuantity", event.currentTarget.value)
-                  }
-                  className="w-32 tabular-nums"
-                  disabled={busy}
-                />
-              </Field>
-            </div>
-          </Card>
-        )}
-        <Card title={t("form.section_schedule")}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t("form.starts_at_label")}>
-              <Input
-                type="datetime-local"
-                value={form.startsAt}
-                onChange={(event) =>
-                  update("startsAt", event.currentTarget.value)
-                }
-                disabled={busy}
-              />
-            </Field>
-            <Field label={t("form.ends_at_label")}>
-              <Input
-                type="datetime-local"
-                value={form.endsAt}
-                onChange={(event) =>
-                  update("endsAt", event.currentTarget.value)
-                }
-                disabled={busy}
-              />
-            </Field>
-          </div>
-        </Card>
-        <Card title={t("form.status_label")}>
-          <label className="flex cursor-pointer items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                {form.status === "active"
-                  ? t("form.status_active")
-                  : t("form.status_inactive")}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {form.status === "active"
-                  ? "Offer is currently active"
-                  : "Offer is currently inactive"}
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={form.status === "active"}
-              onChange={(event) =>
-                update(
-                  "status",
-                  event.currentTarget.checked ? "active" : "inactive",
-                )
-              }
-              disabled={busy}
-              className="size-5 accent-primary"
-            />
-          </label>
-        </Card>
-        {offerId && <TranslationsCard resource="offer" id={offerId} canEdit={canManage} />}
-      </div>
-    </div>
+      )}
+
+      <Card title={t("form.section_schedule")}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t("form.starts_at_label")}>
+            <Input type="datetime-local" value={form.startsAt} onChange={(event) => update("startsAt", event.currentTarget.value)} disabled={busy} />
+          </Field>
+          <Field label={t("form.ends_at_label")}>
+            <Input type="datetime-local" value={form.endsAt} onChange={(event) => update("endsAt", event.currentTarget.value)} disabled={busy} />
+          </Field>
+        </div>
+      </Card>
+
+      {offerId && <TranslationsCard resource="offer" id={offerId} canEdit={canManage} />}
+    </FormPage>
   );
 }
 
 function Gated({ offerId }: { offerId?: string }) {
   return (
     <DashboardChrome
+      narrow
       currentPath={offerId ? `/offers/${offerId}` : "/offers/new"}
     >
       <OfferForm offerId={offerId} />

@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Phone, Save, UserRound } from "lucide-react";
+import { Phone } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
-import { Field, Input, Textarea } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -10,13 +9,12 @@ import { createCustomer, getCustomer, listCommunes, listWilayas, updateCustomer 
 import { customerErrorMessage } from "@/features/customers/model";
 import type { Commune, Wilaya } from "@/features/orders/types";
 import type { CustomerFormValues } from "@/features/customers/types";
-import { Button, Alert, PageHeader, Select, Card } from "@/components/ui";
+import { Alert, Card, Field, FormPage, Input, Select, Textarea } from "@/components/ui";
 
 const EMPTY_FORM: CustomerFormValues = { name: "", phone: "", phone2: "", wilayaId: "", communeId: "", address: "" };
 
 function CustomerForm({ customerId }: { customerId?: string }) {
   const t = useT("customers");
-  const common = useT("common");
   const auth = useT("auth");
   const locale = useLocale();
   const identity = useIdentity();
@@ -88,14 +86,61 @@ function CustomerForm({ customerId }: { customerId?: string }) {
     }
   }
   if (!canSave || (editing && message && !form.name && !form.phone)) return <Alert role="alert" tone="critical">{message ?? auth("no_access")}</Alert>;
-  if (loading) return <div role="status" aria-busy="true" className="space-y-4"><div className="h-20 animate-pulse rounded-xl bg-muted" /><div className="h-72 animate-pulse rounded-xl bg-muted" /></div>;
+  if (loading) return <div role="status" aria-busy="true" className="space-y-4"><div className="h-20 shimmer rounded-xl" /><div className="h-72 shimmer rounded-xl" /></div>;
 
   const backHref = customerId ? `/customers/${encodeURIComponent(customerId)}` : "/customers";
-  return <div className="space-y-5 pb-20 lg:pb-0"><PageHeader title={editing ? t("form.title_edit") : t("form.title_add")} backHref={backHref} backLabel={common("cancel")} actions={<Button type="button" onClick={() => void save()} disabled={busy}><Save size={16} />{busy ? t("form.saving") : t("form.save")}</Button>} />{message && <Alert role="alert" tone="critical"><AlertCircle size={18} className="shrink-0" /><span>{message}</span></Alert>}<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]"><div className="space-y-5"><Card title={t("profile.contact_info")}><div className="grid gap-4 sm:grid-cols-2"><Field label={t("form.name_label")} error={errors.name}><Input value={form.name} onChange={(event) => update("name", event.currentTarget.value)} placeholder={t("form.name_placeholder")} disabled={busy} /></Field><Field label={t("form.phone_label")} error={errors.phone}><div className="relative"><Phone size={15} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={form.phone} onChange={(event) => update("phone", event.currentTarget.value)} placeholder={t("form.phone_placeholder")} inputMode="tel" dir="ltr" className="ps-9" disabled={busy} /></div></Field><Field label={t("form.phone2_label")} error={errors.phone2}><div className="relative"><Phone size={15} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={form.phone2} onChange={(event) => update("phone2", event.currentTarget.value)} placeholder={t("form.phone2_placeholder")} inputMode="tel" dir="ltr" className="ps-9" disabled={busy} /></div></Field></div></Card><Card title={t("form.wilaya_label")}><div className="grid gap-4 sm:grid-cols-2"><Field label={t("form.wilaya_label")} error={errors.wilayaId}><Select value={form.wilayaId} onChange={(event) => { update("wilayaId", event.currentTarget.value); update("communeId", ""); }} disabled={busy}><option value="">{t("form.wilaya_placeholder")}</option>{wilayas.map((wilaya) => <option key={wilaya.id} value={wilaya.id}>{locale === "ar" ? wilaya.nameAr : wilaya.name}</option>)}</Select></Field><Field label={t("form.commune_label")} error={errors.communeId}><Select value={form.communeId} onChange={(event) => update("communeId", event.currentTarget.value)} disabled={busy || !form.wilayaId || communesLoading}><option value="">{communesLoading ? t("form.commune_loading") : t("form.commune_placeholder")}</option>{communes.map((commune) => <option key={commune.id} value={commune.id}>{locale === "ar" ? commune.nameAr : commune.name}</option>)}</Select></Field></div><div className="mt-4"><Field label={t("form.address_label")}><Textarea value={form.address} onChange={(event) => update("address", event.currentTarget.value)} placeholder={t("form.address_placeholder")} disabled={busy} /></Field></div></Card></div><aside className="hidden lg:block"><Card><div className="flex items-start gap-3"><span className="grid size-10 place-items-center rounded-lg bg-muted text-muted-foreground"><UserRound size={18} /></span><p className="text-sm leading-6 text-muted-foreground">{editing ? t("form.title_edit") : t("form.title_add")}</p></div><div className="mt-4 border-t border-border pt-4"><Button type="button" className="w-full" onClick={() => void save()} disabled={busy}><Save size={16} />{busy ? t("form.saving") : t("form.save")}</Button></div></Card></aside></div></div>;
+  const phoneInput = (key: "phone" | "phone2", placeholder: string) => (
+    <div className="relative">
+      <Phone size={15} aria-hidden="true" className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <Input value={form[key]} onChange={(event) => update(key, event.currentTarget.value)} placeholder={placeholder} inputMode="tel" dir="ltr" className="ps-9" disabled={busy} />
+    </div>
+  );
+  return (
+    <FormPage
+      title={editing ? t("form.title_edit") : t("form.title_add")}
+      backHref={backHref}
+      error={message}
+      onSave={() => void save()}
+      saving={busy}
+    >
+      <Card title={t("profile.contact_info")}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t("form.name_label")} error={errors.name} className="sm:col-span-2">
+            <Input value={form.name} onChange={(event) => update("name", event.currentTarget.value)} placeholder={t("form.name_placeholder")} disabled={busy} />
+          </Field>
+          <Field label={t("form.phone_label")} error={errors.phone}>
+            {phoneInput("phone", t("form.phone_placeholder"))}
+          </Field>
+          <Field label={t("form.phone2_label")} error={errors.phone2}>
+            {phoneInput("phone2", t("form.phone2_placeholder"))}
+          </Field>
+        </div>
+      </Card>
+      <Card title={t("form.address_section")}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t("form.wilaya_label")} error={errors.wilayaId}>
+            <Select value={form.wilayaId} onChange={(event) => { update("wilayaId", event.currentTarget.value); update("communeId", ""); }} disabled={busy}>
+              <option value="">{t("form.wilaya_placeholder")}</option>
+              {wilayas.map((wilaya) => <option key={wilaya.id} value={wilaya.id}>{locale === "ar" ? wilaya.nameAr : wilaya.name}</option>)}
+            </Select>
+          </Field>
+          <Field label={t("form.commune_label")} error={errors.communeId}>
+            <Select value={form.communeId} onChange={(event) => update("communeId", event.currentTarget.value)} disabled={busy || !form.wilayaId || communesLoading}>
+              <option value="">{communesLoading ? t("form.commune_loading") : t("form.commune_placeholder")}</option>
+              {communes.map((commune) => <option key={commune.id} value={commune.id}>{locale === "ar" ? commune.nameAr : commune.name}</option>)}
+            </Select>
+          </Field>
+          <Field label={t("form.address_label")} className="sm:col-span-2">
+            <Textarea value={form.address} onChange={(event) => update("address", event.currentTarget.value)} placeholder={t("form.address_placeholder")} disabled={busy} rows={3} />
+          </Field>
+        </div>
+      </Card>
+    </FormPage>
+  );
 }
 
 function Gated({ customerId }: { customerId?: string }) {
-  return <DashboardChrome currentPath={customerId ? `/customers/${customerId}/edit` : "/customers/new"} wide><CustomerForm customerId={customerId} /></DashboardChrome>;
+  return <DashboardChrome narrow currentPath={customerId ? `/customers/${customerId}/edit` : "/customers/new"}><CustomerForm customerId={customerId} /></DashboardChrome>;
 }
 
 export default function CustomerFormPageApp({ customerId }: { customerId?: string }) { return <RequireAuth><Gated customerId={customerId} /></RequireAuth>; }

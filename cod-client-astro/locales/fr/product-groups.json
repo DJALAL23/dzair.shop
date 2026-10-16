@@ -1,7 +1,6 @@
 {
-  "page_title": "Groupes de produits",
+  "page_title": "Catégories",
   "add_group": "Ajouter un groupe",
-  "groups_count": "groupes",
   "search_placeholder": "Rechercher des groupes...",
   "success_deleted": "Groupe supprimé",
   "error_load": "Impossible de charger les groupes de produits",
@@ -52,11 +51,13 @@
     "error_name_required": "Le nom est requis",
     "error_save_failed": "Échec de l'enregistrement",
     "cancel": "Annuler",
-    "save": "Enregistrer le groupe",
-    "saving": "Enregistrement...",
     "success_add": "Groupe créé avec succès",
     "success_edit": "Groupe mis à jour avec succès",
     "delete_confirm": "Supprimer ce groupe ? Les produits qu'il contient ne seront plus groupés.",
-    "cannot_delete": "Impossible de supprimer un groupe contenant des produits"
-  }
+    "cannot_delete": "Impossible de supprimer un groupe contenant des produits",
+    "section_details": "Détails"
+  },
+  "count_one": "{count} catégorie",
+  "count_many": "{count} catégories",
+  "count_other": "{count} catégories"
 }

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  AlertCircle,
   Layers,
   Package,
   Pencil,
@@ -16,6 +15,7 @@ import {
   Button,
   LinkButton,
   PageHeader,
+  Tabs,
 } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -46,8 +46,8 @@ type Tab = "orders" | "segments";
 function Loading() {
   return (
     <div role="status" aria-busy="true" className="space-y-4">
-      <div className="h-32 animate-pulse rounded-xl bg-muted" />
-      <div className="h-64 animate-pulse rounded-xl bg-muted" />
+      <div className="h-32 shimmer rounded-xl" />
+      <div className="h-64 shimmer rounded-xl" />
     </div>
   );
 }
@@ -126,7 +126,6 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
   if (error && !customer)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} />
         <span className="flex-1">{error}</span>
         <Button type="button" variant="ghost" onClick={() => void load()}>
           {common("retry")}
@@ -175,39 +174,23 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
       />
       {error && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} />
           <span>{error}</span>
         </Alert>
       )}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-5">
           <CustomerContactCard customer={customer} />
-          <div className="flex border-b border-border">
-            <button
-              type="button"
-              onClick={() => setTab("orders")}
-              className={`inline-flex min-h-10 items-center gap-2 border-b px-4 text-sm font-semibold ${tab === "orders" ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
-            >
-              <Package size={15} />
-              {t("profile.order_history")}
-            </button>
-            {(canScope(identity, SCOPES.CUSTOMER_GROUPS_READ) ||
-              canScope(identity, SCOPES.CUSTOMER_TAGS_READ)) && (
-              <button
-                type="button"
-                onClick={() => setTab("segments")}
-                className={`inline-flex min-h-10 items-center gap-2 border-b px-4 text-sm font-semibold ${tab === "segments" ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
-              >
-                <Layers size={15} />
-                {t("segments.tab")}
-                {segmentCount > 0 && (
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                    {segmentCount}
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
+          <Tabs
+            label={t("profile.order_history")}
+            value={tab}
+            onChange={setTab}
+            items={[
+              { key: "orders" as Tab, label: t("profile.order_history"), icon: Package },
+              ...(canScope(identity, SCOPES.CUSTOMER_GROUPS_READ) || canScope(identity, SCOPES.CUSTOMER_TAGS_READ)
+                ? [{ key: "segments" as Tab, label: t("segments.tab"), icon: Layers, count: segmentCount > 0 ? segmentCount : undefined }]
+                : []),
+            ]}
+          />
           {tab === "orders" ? (
             <CustomerOrdersCard orders={orders} locale={locale} />
           ) : (

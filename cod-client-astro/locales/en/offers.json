@@ -1,7 +1,6 @@
 {
-  "page_title": "Promotional Offers",
-  "add_offer": "Create Offer",
-  "offers_count": "offer",
+  "page_title": "Offers",
+  "add_offer": "Create offer",
   "search_placeholder": "Search offers...",
   "error_load": "Could not load offers",
   "error_not_found": "Offer not found",
@@ -9,13 +8,13 @@
   "error_expired": "This offer has expired",
   "error_not_active": "This offer is not active",
   "table": {
-    "name": "Offer Name",
-    "trigger": "Trigger",
-    "reward": "Reward",
+    "name": "Offer name",
+    "trigger": "Product",
     "status": "Status",
     "type": "Type",
     "schedule": "Schedule",
-    "actions": "Actions"
+    "actions": "Actions",
+    "deal": "Deal"
   },
   "status": {
     "active": "Active",
@@ -24,7 +23,7 @@
   "empty_state": {
     "title": "No active offers",
     "description": "Create compelling 'Buy X Get Y' or 'Free Shipping' offers to drive more sales and reward your customers.",
-    "action": "Create Your First Offer"
+    "action": "Create your first offer"
   },
   "actions": {
     "edit": "Edit",
@@ -37,34 +36,30 @@
     "free_shipping": "Free shipping"
   },
   "form": {
-    "title_add": "Create New Offer",
-    "title_edit": "Edit Offer",
-    "name_label": "Offer Name",
+    "title_add": "Create new offer",
+    "title_edit": "Edit offer",
+    "name_label": "Offer name",
     "name_placeholder": "e.g. Buy 2 Get 1 Free",
     "discount_type_label": "Offer type",
     "free_shipping_note": "Customer gets free shipping when the trigger quantity is met",
-    "section_trigger": "Trigger Condition",
-    "trigger_product_label": "Trigger Product",
+    "section_trigger": "Trigger condition",
+    "trigger_product_label": "Trigger product",
     "trigger_product_placeholder": "Select product",
-    "trigger_variant_label": "Trigger Variant",
+    "trigger_variant_label": "Trigger variant",
     "trigger_variant_any": "Any variant",
     "trigger_qty_label": "Minimum purchase quantity",
     "trigger_qty_hint": "Customer must order at least this many",
     "section_reward": "Reward",
-    "reward_product_label": "Free Product",
+    "reward_product_label": "Free product",
     "reward_product_placeholder": "Select product",
-    "reward_variant_label": "Free Variant",
+    "reward_variant_label": "Free variant",
     "reward_variant_same": "Same as ordered variant",
     "reward_variant_any": "Default variant",
     "reward_qty_label": "Free quantity",
     "section_schedule": "Schedule (optional)",
     "starts_at_label": "Starts at",
     "ends_at_label": "Ends at",
-    "status_label": "Offer status",
     "status_active": "Active",
-    "status_inactive": "Inactive",
-    "save": "Save Offer",
-    "saving": "Saving...",
     "cancel": "Cancel",
     "success_add": "Offer created successfully",
     "success_edit": "Offer updated successfully",
@@ -76,8 +71,13 @@
     "error_trigger_qty": "Minimum quantity must be at least 1",
     "error_reward_qty": "Free quantity must be at least 1"
   },
-  "buy_x_get_y": "Buy {x} Get {y} Free",
-  "buy_x_free_shipping": "Buy {x} → Free Shipping",
+  "buy_x_get_y": "Buy {x}, get {y} free",
+  "buy_x_free_shipping": "Buy {x}, get free shipping",
   "any_variant": "Any variant",
-  "free_shipping_reward": "Free Shipping 🚚"
+  "free_shipping_reward": "Free shipping 🚚",
+  "count_one": "{count} offer",
+  "count_other": "{count} offers",
+  "schedule_from": "From {date}",
+  "schedule_until": "Until {date}",
+  "schedule_range": "{from} – {to}"
 }

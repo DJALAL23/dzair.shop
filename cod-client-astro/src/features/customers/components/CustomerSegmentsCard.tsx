@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  AlertCircle,
   Layers,
   Plus,
   Search,
@@ -108,7 +107,6 @@ export function CustomerSegmentsCard({
     <div className="space-y-5">
       {error && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} />
           <span className="flex-1">{error}</span>
           <button
             type="button"
@@ -148,7 +146,7 @@ export function CustomerSegmentsCard({
                 value={groupQuery}
                 onChange={(event) => setGroupQuery(event.currentTarget.value)}
                 placeholder={t("segments.search_group")}
-                className="h-10 w-full rounded-lg border border-input bg-background ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring/20"
+                className="h-10 w-full rounded-lg border border-input bg-card ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring/20"
               />
             </label>
             <div className="mt-2 max-h-48 divide-y divide-border overflow-y-auto rounded-lg border border-border">
@@ -264,7 +262,7 @@ export function CustomerSegmentsCard({
                 value={tagQuery}
                 onChange={(event) => setTagQuery(event.currentTarget.value)}
                 placeholder={t("segments.search_tag")}
-                className="h-10 w-full rounded-lg border border-input bg-background ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring/20"
+                className="h-10 w-full rounded-lg border border-input bg-card ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring/20"
               />
             </label>
             <div className="mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto rounded-lg border border-border p-2">

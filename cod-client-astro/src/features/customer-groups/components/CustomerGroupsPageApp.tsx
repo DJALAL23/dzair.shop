@@ -14,7 +14,7 @@ function Gated() {
   const t = useT("customer-groups");
   const identity = useIdentity();
   return (
-    <DashboardChrome currentPath="/customer-groups" wide>
+    <DashboardChrome currentPath="/customer-groups">
       <PageHeader
         title={t("page_title")}
         actions={

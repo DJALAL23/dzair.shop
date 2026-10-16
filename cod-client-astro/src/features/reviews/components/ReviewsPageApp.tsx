@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, CheckCircle, Filter as FilterIcon, MoreHorizontal, Star, Trash2, X, XCircle } from "lucide-react";
+import { CheckCircle, Filter as FilterIcon, MoreHorizontal, Star, Trash2, X, XCircle } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
 import { useLocale, useT } from "@/i18n/react";
@@ -24,6 +24,10 @@ import {
   TableHeader,
   TableRow,
   useConfirmDialog,
+  CellEmpty,
+  Initial,
+  RowActions,
+  RowTitle,
 } from "@/components/ui";
 
 const LIMIT = 20;
@@ -38,11 +42,11 @@ function ReviewSkeleton() {
     <div role="status" aria-busy="true" className="space-y-2">
       {Array.from({ length: 6 }).map((_, index) => (
         <div key={index} className="grid h-14 grid-cols-[1.2fr_1fr_0.8fr_2fr_0.8fr] items-center gap-4 rounded-xl border border-border px-4">
-          <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-24 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-16 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-40 animate-pulse rounded bg-muted" />
-          <span className="h-6 w-20 justify-self-end animate-pulse rounded-full bg-muted" />
+          <div className="h-3 w-28 shimmer rounded" />
+          <div className="h-3 w-24 shimmer rounded" />
+          <div className="h-3 w-16 shimmer rounded" />
+          <div className="h-3 w-40 shimmer rounded" />
+          <span className="h-6 w-20 justify-self-end shimmer rounded-full" />
         </div>
       ))}
     </div>
@@ -87,32 +91,25 @@ function ReviewRowActions({ review, canManage, busyKey, onApprove, onReject, onD
 function ReviewDesktopRow({ review, canManage, busyKey, onApprove, onReject, onDelete }: { review: Review; canManage: boolean; busyKey: string | null; onApprove: () => void; onReject: () => void; onDelete: () => void }) {
   const locale = useLocale();
   return (
-    <TableRow className={`border-b border-border last:border-0 transition-colors hover:bg-muted/40 ${review.status === "pending" ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}`}>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-xs font-bold text-primary">{review.customerName.trim().charAt(0).toUpperCase()}</span>
-          <p className="max-w-36 truncate font-medium text-foreground">{review.customerName}</p>
-        </div>
+    <TableRow>
+      <TableCell className="max-w-52">
+        <RowTitle media={<Initial name={review.customerName} />}>{review.customerName}</RowTitle>
       </TableCell>
-      <TableCell>
-        <p className="max-w-40 truncate text-sm font-medium text-foreground">{review.productName ?? "—"}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground" dir="ltr">{review.orderNumber}</p>
-      </TableCell>
+      <TableCell className="max-w-44 truncate text-muted-foreground">{review.productName ?? <CellEmpty />}</TableCell>
       <TableCell>
         <StarRating rating={review.rating} />
       </TableCell>
-      <TableCell>
-        {review.title && <p className="max-w-56 truncate text-sm font-medium text-foreground">{review.title}</p>}
-        <p className={`max-w-56 text-xs leading-5 text-muted-foreground ${review.title ? "line-clamp-1" : "line-clamp-2"}`}>{review.body}</p>
+      <TableCell className="max-w-72 truncate text-muted-foreground" title={review.body}>
+        {review.title || review.body}
       </TableCell>
       <TableCell>
         <StatusBadge status={review.status} />
       </TableCell>
-      <TableCell>
-        <span className="whitespace-nowrap text-xs text-muted-foreground">{formatReviewDate(review.createdAt, locale)}</span>
-      </TableCell>
-      <TableCell className="text-end">
-        <ReviewRowActions review={review} canManage={canManage} busyKey={busyKey} onApprove={onApprove} onReject={onReject} onDelete={onDelete} />
+      <TableCell className="whitespace-nowrap text-muted-foreground">{formatReviewDate(review.createdAt, locale)}</TableCell>
+      <TableCell className="w-px">
+        <RowActions>
+          <ReviewRowActions review={review} canManage={canManage} busyKey={busyKey} onApprove={onApprove} onReject={onReject} onDelete={onDelete} />
+        </RowActions>
       </TableCell>
     </TableRow>
   );
@@ -120,9 +117,8 @@ function ReviewDesktopRow({ review, canManage, busyKey, onApprove, onReject, onD
 
 function ReviewMobileCard({ review, canManage, busyKey, onApprove, onReject, onDelete }: { review: Review; canManage: boolean; busyKey: string | null; onApprove: () => void; onReject: () => void; onDelete: () => void }) {
   const locale = useLocale();
-  const t = useT("reviews");
   return (
-    <article className={`p-4 ${review.status === "pending" ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}`}>
+    <article className="p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -166,7 +162,7 @@ function ReviewsList() {
   useEffect(() => { if (canScope(identity, SCOPES.REVIEWS_READ)) void load(); }, [load, identity?.role, identity?.scopes.join(",")]);
 
   if (!canScope(identity, SCOPES.REVIEWS_READ)) return <Alert role="alert" tone="critical">{auth("no_access")}</Alert>;
-  if (loadError) return <Alert role="alert" tone="critical"><AlertCircle size={18} className="shrink-0" /><div className="flex-1"><p className="font-semibold">{t("error_load")}</p><button type="button" onClick={() => void load()} className="mt-3 text-xs font-semibold underline underline-offset-4">{common("retry")}</button></div></Alert>;
+  if (loadError) return <Alert role="alert" tone="critical"><div className="flex-1"><p className="font-semibold">{t("error_load")}</p><button type="button" onClick={() => void load()} className="mt-3 text-xs font-semibold underline underline-offset-4">{common("retry")}</button></div></Alert>;
   if (result === null) return <ReviewSkeleton />;
 
   const totalPages = Math.max(1, Math.ceil(result.total / LIMIT));
@@ -206,10 +202,10 @@ function ReviewsList() {
   }
 
   return <div className="space-y-3">
-    {actionError && <Alert role="alert" tone="critical"><AlertCircle size={18} className="shrink-0" /><span className="flex-1">{actionError}</span><button type="button" onClick={() => setActionError(null)} aria-label={common("cancel")}><X size={16} /></button></Alert>}
-    <div className="rounded-xl border border-border bg-card shadow-xs">
+    {actionError && <Alert role="alert" tone="critical"><span className="flex-1">{actionError}</span><button type="button" onClick={() => setActionError(null)} aria-label={common("cancel")}><X size={16} /></button></Alert>}
+    <div className="rounded-xl bg-card shadow-card">
       <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 rounded-xl border border-primary/10 bg-primary/5 px-3 py-1.5"><Star size={14} className="fill-primary text-primary" /><p className="text-[11px] font-bold uppercase tracking-widest text-primary">{t("total", { count: result.total })}</p>{result.pendingCount > 0 && <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">{t("new_badge", { count: result.pendingCount })}</span>}</div>
+        <div className="flex items-center gap-2 rounded-xl border border-primary/10 bg-primary/5 px-3 py-1.5"><Star size={14} className="fill-primary text-primary" /><p className="text-[11px] font-semibold text-primary">{t("total", { count: result.total })}</p>{result.pendingCount > 0 && <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">{t("new_badge", { count: result.pendingCount })}</span>}</div>
         <label className="relative flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-background px-3 sm:flex-none">
           <FilterIcon size={14} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <Select aria-label={t("table.status")} value={status} onChange={(event) => switchStatus(event.currentTarget.value as ReviewStatus | "all")} variant="bare" size="sm" wrapperClassName="min-w-0 flex-1" triggerClassName="min-w-0 flex-1">
@@ -224,14 +220,14 @@ function ReviewsList() {
         <div className="hidden overflow-x-auto md:block">
           <Table className="min-w-[960px]">
             <TableHeader>
-              <TableRow className="text-xs font-semibold text-muted-foreground">
-                <TableHead className="text-start">{t("table.customer")}</TableHead>
-                <TableHead className="text-start">{t("table.product")}</TableHead>
-                <TableHead className="text-start">{t("table.rating")}</TableHead>
-                <TableHead className="text-start">{t("table.review")}</TableHead>
-                <TableHead className="text-start">{t("table.status")}</TableHead>
-                <TableHead className="text-start">{t("table.date")}</TableHead>
-                <TableHead className="w-12"><span className="sr-only">{common("table.actions")}</span></TableHead>
+              <TableRow>
+                <TableHead>{t("table.customer")}</TableHead>
+                <TableHead>{t("table.product")}</TableHead>
+                <TableHead>{t("table.rating")}</TableHead>
+                <TableHead>{t("table.review")}</TableHead>
+                <TableHead>{t("table.status")}</TableHead>
+                <TableHead>{t("table.date")}</TableHead>
+                <TableHead className="w-px"><span className="sr-only">{common("table.actions")}</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -249,7 +245,7 @@ function ReviewsList() {
 
 function Gated() {
   const t = useT("reviews");
-  return <DashboardChrome currentPath="/reviews" wide><PageHeader title={t("page_title")} /><ReviewsList /></DashboardChrome>;
+  return <DashboardChrome currentPath="/reviews"><PageHeader title={t("page_title")} /><ReviewsList /></DashboardChrome>;
 }
 
 export default function ReviewsPageApp() { return <RequireAuth><Gated /></RequireAuth>; }

@@ -25,7 +25,7 @@
   "action_approve": "Approve",
   "action_reject": "Reject",
   "action_delete": "Delete",
-  "confirm_delete_title": "Delete Review",
+  "confirm_delete_title": "Delete review",
   "confirm_delete_desc": "Are you sure you want to delete \"{name}\"'s review? This cannot be undone.",
   "confirm_delete_label": "Delete",
   "toast_approved": "Review approved",

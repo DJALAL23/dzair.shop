@@ -1,9 +1,7 @@
 {
   "page_title": "Clients",
-  "customers_count": "clients",
   "search_placeholder": "Rechercher par nom ou téléphone...",
   "filter_wilaya": "Wilaya",
-  "filter_all": "Tous",
   "no_customers": "Aucun client trouvé",
   "new_customer": "Nouveau client",
   "create_customer": "Créer un client",
@@ -21,7 +19,8 @@
     "delete": "Supprimer"
   },
   "filters": {
-    "wilaya": "Wilaya"
+    "wilaya": "Wilaya",
+    "all_wilayas": "Toutes les wilayas"
   },
   "empty_state": {
     "title": "Aucun client pour le moment",
@@ -90,8 +89,6 @@
     "address_label": "Adresse",
     "address_placeholder": "Entrez l'adresse complète",
     "cancel": "Annuler",
-    "save": "Enregistrer le client",
-    "saving": "Enregistrement...",
     "success_add": "Client ajouté avec succès",
     "success_edit": "Client mis à jour avec succès",
     "error_required": "Veuillez remplir tous les champs obligatoires",
@@ -99,6 +96,13 @@
     "error_name_required": "Le nom du client est obligatoire",
     "error_phone_required": "Un numéro mobile algérien valide est obligatoire",
     "error_phone2_invalid": "Saisissez un numéro mobile algérien valide",
-    "error_wilaya_required": "Veuillez sélectionner une wilaya"
-  }
+    "error_wilaya_required": "Veuillez sélectionner une wilaya",
+    "address_section": "Adresse"
+  },
+  "count_one": "{count} client",
+  "count_many": "{count} clients",
+  "count_other": "{count} clients",
+  "orders_count_one": "{count} commande",
+  "orders_count_many": "{count} commandes",
+  "orders_count_other": "{count} commandes"
 }

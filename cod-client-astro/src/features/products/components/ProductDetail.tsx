@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import {
-  AlertCircle,
   History,
   Layers,
   Package,
   Pencil,
-  Tag,
   Trash2,
   TrendingUp,
   X,
@@ -20,7 +18,7 @@ import {
   LinkButton,
   Alert,
   PageHeader,
-  StatCard,
+  StatCard, StatGroup,
   Badge,
   useConfirmDialog,
 } from "@/components/ui";
@@ -49,8 +47,8 @@ import { TranslationsCard } from "@/features/translations/components/Translation
 function Loading() {
   return (
     <div role="status" aria-busy="true" className="space-y-4">
-      <div className="h-20 animate-pulse rounded-xl bg-muted" />
-      <div className="h-64 animate-pulse rounded-xl bg-muted" />
+      <div className="h-20 shimmer rounded-xl" />
+      <div className="h-64 shimmer rounded-xl" />
     </div>
   );
 }
@@ -108,7 +106,6 @@ export function ProductDetail({ productId }: { productId: string }) {
   if (error && !product)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} />
         <span className="flex-1">{error}</span>
         <Button type="button" variant="ghost" onClick={() => void load()}>
           {common("retry")}
@@ -145,7 +142,22 @@ export function ProductDetail({ productId }: { productId: string }) {
     <div className="space-y-5 pb-24 lg:pb-0">
       <PageHeader
         title={product.name}
-        subtitle={product.handle}
+        subtitle={[product.sku, category?.name].filter(Boolean).join(" · ") || product.handle}
+        media={
+          <span className="grid size-12 place-items-center overflow-hidden rounded-lg bg-muted shadow-card">
+            {product.primaryImageSrc ? (
+              <img src={product.primaryImageSrc} alt="" className="size-full object-cover" />
+            ) : (
+              <Package size={20} aria-hidden="true" className="text-muted-foreground" />
+            )}
+          </span>
+        }
+        badges={
+          <>
+            <ProductStatusBadge status={product.status} />
+            {product.showInStore === false && <Badge tone="neutral">{t("status.hidden_from_store")}</Badge>}
+          </>
+        }
         backHref="/products"
         backLabel={t("page_title")}
         actions={
@@ -172,7 +184,6 @@ export function ProductDetail({ productId }: { productId: string }) {
       />
       {error && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{error}</span>
           <button
             type="button"
@@ -183,39 +194,8 @@ export function ProductDetail({ productId }: { productId: string }) {
           </button>
         </Alert>
       )}
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <span className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-muted sm:size-24">
-          {product.primaryImageSrc ? (
-            <img
-              src={product.primaryImageSrc}
-              alt={product.name}
-              className="size-full object-cover"
-            />
-          ) : (
-            <Package size={40} className="text-muted-foreground/40" />
-          )}
-        </span>
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <ProductStatusBadge status={product.status} />
-            {product.showInStore === false && (
-              <Badge tone="neutral">{t("status.hidden_from_store")}</Badge>
-            )}
-            {product.sku && (
-              <span className="rounded-lg border border-border bg-muted/30 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-muted-foreground">
-                {product.sku}
-              </span>
-            )}
-            {category && (
-              <span className="inline-flex items-center gap-1 rounded-lg bg-muted/50 px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
-                <Tag size={9} className="text-primary/50" />
-                {category.name}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="flex items-start gap-2">
+      <StatGroup columns={3} className="flex-1">
         <StatCard
           label={t("table.price")}
           value={formatMoneyValue(product.price, locale)}
@@ -231,6 +211,7 @@ export function ProductDetail({ productId }: { productId: string }) {
           value={totalInventory}
           icon={<Package size={20} />}
         />
+      </StatGroup>
         <div className="flex items-center justify-end gap-2">
           <IconButton
             type="button"

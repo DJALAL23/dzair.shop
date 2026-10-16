@@ -1,12 +1,10 @@
 {
   "page_title": "Customers",
-  "customers_count": "customers",
   "search_placeholder": "Search by name or phone...",
   "filter_wilaya": "Wilaya",
-  "filter_all": "All",
   "no_customers": "No customers found",
-  "new_customer": "New Customer",
-  "create_customer": "Create Customer",
+  "new_customer": "New customer",
+  "create_customer": "Create customer",
   "create_order_for": "Create order for",
   "error_cannot_delete_with_orders": "Cannot delete customer with existing orders",
   "error_duplicate_phone": "This phone number is already used by another customer",
@@ -21,12 +19,13 @@
     "delete": "Delete"
   },
   "filters": {
-    "wilaya": "Wilaya"
+    "wilaya": "Wilaya",
+    "all_wilayas": "All wilayas"
   },
   "empty_state": {
     "title": "No customers yet",
     "description": "Start building your customer base to track their purchase history and preferences.",
-    "action": "Add Your First Customer"
+    "action": "Add your first customer"
   },
   "table": {
     "customer": "Customer",
@@ -34,36 +33,36 @@
     "phone2": "Mobile 2",
     "wilaya": "Wilaya",
     "orders": "Orders",
-    "total_spent": "Total Spent",
-    "last_order": "Last Order",
+    "total_spent": "Total spent",
+    "last_order": "Last order",
     "joined": "Joined",
     "actions": "Actions"
   },
   "profile": {
     "customer_since": "Customer since",
     "orders": "Orders",
-    "total_spent": "Total Spent",
-    "return_rate": "Return Rate",
-    "contact_info": "Contact Information",
+    "total_spent": "Total spent",
+    "return_rate": "Return rate",
+    "contact_info": "Contact information",
     "phone": "Phone",
     "wilaya": "Wilaya",
     "commune": "Commune",
     "address": "Address",
-    "joined": "Joined Date",
-    "order_history": "Order History",
-    "new_order": "New Order",
+    "joined": "Joined date",
+    "order_history": "Order history",
+    "new_order": "New order",
     "no_orders": "No orders yet",
-    "order_number": "Order Number",
+    "order_number": "Order number",
     "price": "Price",
     "status": "Status",
     "date": "Date"
   },
   "segments": {
-    "tab": "Groups & Tags",
+    "tab": "Groups & tags",
     "groups_title": "Groups",
     "tags_title": "Tags",
-    "add_group": "Add to Group",
-    "add_tag": "Add Tag",
+    "add_group": "Add to group",
+    "add_tag": "Add tag",
     "no_groups": "Not in any group",
     "no_tags": "No tags assigned",
     "search_group": "Search group...",
@@ -74,9 +73,9 @@
     "tag_removed": "Tag removed"
   },
   "form": {
-    "title_add": "Add Customer",
-    "title_edit": "Edit Customer",
-    "name_label": "Customer Name",
+    "title_add": "Add customer",
+    "title_edit": "Edit customer",
+    "name_label": "Customer name",
     "name_placeholder": "Enter customer name",
     "phone_label": "Mobile 1",
     "phone_placeholder": "0555123456",
@@ -90,8 +89,6 @@
     "address_label": "Address",
     "address_placeholder": "Enter full address",
     "cancel": "Cancel",
-    "save": "Save Customer",
-    "saving": "Saving...",
     "success_add": "Customer added successfully",
     "success_edit": "Customer updated successfully",
     "error_required": "Please fill in all required fields",
@@ -99,6 +96,11 @@
     "error_name_required": "Customer name is required",
     "error_phone_required": "A valid Algerian mobile number is required",
     "error_phone2_invalid": "Enter a valid Algerian mobile number",
-    "error_wilaya_required": "Please select a wilaya"
-  }
+    "error_wilaya_required": "Please select a wilaya",
+    "address_section": "Address"
+  },
+  "count_one": "{count} customer",
+  "count_other": "{count} customers",
+  "orders_count_one": "{count} order",
+  "orders_count_other": "{count} orders"
 }

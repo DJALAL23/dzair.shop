@@ -61,7 +61,7 @@ export function ThresholdEditor({
           if (!editing) setEditing(true);
         }
       }}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${editing ? "cursor-default border-amber-500/50 bg-amber-500/10" : "cursor-pointer border-amber-500/20 bg-amber-500/5 hover:border-amber-500/50 hover:bg-amber-500/10"}`}
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${editing ? "cursor-default border-amber-500/50 bg-amber-500/10" : "cursor-pointer border-amber-500/20 bg-amber-500/5 hover:border-amber-500/50 hover:bg-amber-500/10"}`}
     >
       {saved ? (
         <Check size={12} className="shrink-0 text-violet-600" />
@@ -87,7 +87,7 @@ export function ThresholdEditor({
             }
           }}
           onClick={(event) => event.stopPropagation()}
-          className="w-10 bg-transparent text-center text-xs font-bold tabular-nums text-amber-600 outline-none dark:text-amber-400"
+          className="w-10 bg-transparent text-center text-xs font-medium tabular-nums text-amber-600 outline-none dark:text-amber-400"
         />
       ) : (
         <span className="tabular-nums text-amber-600/80 dark:text-amber-400/80">
@@ -113,7 +113,7 @@ export function ProductVariantsTableCard({
   if (variants.length === 0) {
     return (
       <Card>
-        <p className="py-6 text-center text-xs font-bold uppercase tracking-widest text-muted-foreground/40">
+        <p className="py-6 text-center text-xs font-semibold text-muted-foreground/40">
           {t("empty_state.title")}
         </p>
       </Card>
@@ -147,21 +147,21 @@ export function ProductVariantsTableCard({
             {variants.map((variant) => (
               <TableRow key={variant.id} className="hover:bg-muted/20">
                 <TableCell>
-                  <p className="text-sm font-bold text-foreground">
+                  <p className="text-sm font-semibold text-foreground">
                     {variantLabel(variant.variations)}
                   </p>
                   {variant.sku && (
-                    <p className="mt-0.5 font-mono text-[10px] uppercase text-muted-foreground/50">
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/50">
                       {variant.sku}
                     </p>
                   )}
                 </TableCell>
-                <TableCell className="text-center text-sm font-bold tabular-nums">
+                <TableCell className="text-center text-sm font-medium tabular-nums">
                   {formatMoneyValue(variant.price, locale)}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-sm font-bold tabular-nums">
+                    <span className="text-sm font-medium tabular-nums">
                       {variant.inventory}
                     </span>
                     <button

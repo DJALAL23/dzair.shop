@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Save } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
-import { Field, Input, Textarea } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -10,14 +8,13 @@ import { TranslationsCard } from "@/features/translations/components/Translation
 import { createProductGroup, getProductGroup, listProductGroups, updateProductGroup } from "@/features/product-groups/api";
 import { productGroupErrorMessage, toSlug } from "@/features/product-groups/model";
 import type { ProductCategory, ProductCategoryFormValues } from "@/features/product-groups/types";
-import { Button, Alert, LinkButton, PageHeader, Select, Card, StickyFormActions } from "@/components/ui";
+import { Alert, Card, Field, FormPage, Input, Select, Textarea } from "@/components/ui";
 import { CategoryImageUploader } from "@/features/product-groups/components/CategoryImageUploader";
 
 const EMPTY_FORM: ProductCategoryFormValues = { name: "", slug: "", description: "", parentId: "", imageUrl: "", metaTitle: "", metaDescription: "", metaKeywords: "" };
 
 function ProductGroupForm({ groupId }: { groupId?: string }) {
   const t = useT("product-groups");
-  const common = useT("common");
   const auth = useT("auth");
   const identity = useIdentity();
   const editing = Boolean(groupId);
@@ -80,67 +77,64 @@ function ProductGroupForm({ groupId }: { groupId?: string }) {
     }
   }
   if (!canSave || (editing && message && !form.name)) return <Alert role="alert" tone="critical">{message ?? auth("no_access")}</Alert>;
-  if (loading) return <div role="status" aria-busy="true" className="space-y-4"><div className="h-20 animate-pulse rounded-xl bg-muted" /><div className="h-72 animate-pulse rounded-xl bg-muted" /></div>;
+  if (loading) return <div role="status" aria-busy="true" className="space-y-4"><div className="h-20 shimmer rounded-xl" /><div className="h-72 shimmer rounded-xl" /></div>;
 
   const parentOptions = allGroups.filter((group) => group.id !== groupId);
-  const backHref = "/product-groups";
-  return <div className="space-y-5">
-    <PageHeader title={editing ? t("form.title_edit") : t("form.title_add")} backHref={backHref} backLabel={common("cancel")} />
-    {message && <Alert role="alert" tone="critical"><AlertCircle size={18} className="shrink-0" /><span>{message}</span></Alert>}
-    <div className="space-y-5">
-      <Card title={t("form.title_add")}>
-        <div className="grid gap-4">
-          <Field label={`${t("form.name_label")} *`} error={errors.name}>
+  const counter = (length: number, max: number, warnAt: number) => (
+    <span className={`block text-end text-xs tabular-nums ${length > warnAt ? "text-[var(--tone-warning-text)]" : "text-muted-foreground"}`}>
+      {length}/{max}
+    </span>
+  );
+  return (
+    <FormPage
+      title={editing ? t("form.title_edit") : t("form.title_add")}
+      backHref="/product-groups"
+      error={message}
+      onSave={() => void save()}
+      saving={busy}
+    >
+      <Card title={t("form.section_details")}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t("form.name_label")} error={errors.name}>
             <Input value={form.name} onChange={(event) => update("name", event.currentTarget.value)} placeholder={t("form.name_placeholder")} disabled={busy} />
           </Field>
           <Field label={t("form.slug_label")}>
-            <Input value={form.slug} onChange={(event) => update("slug", event.currentTarget.value)} className="font-mono" disabled={busy} dir="ltr" />
+            <Input value={form.slug} onChange={(event) => update("slug", event.currentTarget.value)} disabled={busy} dir="ltr" />
           </Field>
-          <Field label={t("form.parent_label")}>
-            <Select value={form.parentId} onChange={(event) => update("parentId", event.currentTarget.value)} disabled={busy}><option value="">{t("form.parent_placeholder")}</option>{parentOptions.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</Select>
+          <Field label={t("form.parent_label")} className="sm:col-span-2">
+            <Select value={form.parentId} onChange={(event) => update("parentId", event.currentTarget.value)} disabled={busy}>
+              <option value="">{t("form.parent_placeholder")}</option>
+              {parentOptions.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </Select>
           </Field>
-          <Field label={t("form.description_label")}>
-            <Textarea value={form.description} onChange={(event) => update("description", event.currentTarget.value)} rows={4} disabled={busy} />
+          <Field label={t("form.description_label")} className="sm:col-span-2">
+            <Textarea value={form.description} onChange={(event) => update("description", event.currentTarget.value)} rows={3} disabled={busy} />
           </Field>
         </div>
       </Card>
-      <Card title={t("form.section_image")}>
-        <Field label={t("form.image_label")} as="div">
-          <CategoryImageUploader value={form.imageUrl || null} onChange={(url) => update("imageUrl", url ?? "")} disabled={busy} />
-          <p className="mt-2 text-xs text-muted-foreground">{t("form.image_help")}</p>
-        </Field>
+      <Card title={t("form.section_image")} help={t("form.image_help")}>
+        <CategoryImageUploader value={form.imageUrl || null} onChange={(url) => update("imageUrl", url ?? "")} disabled={busy} />
       </Card>
       <Card title={t("form.section_seo")}>
         <div className="grid gap-4">
-          <Field label={t("form.meta_title_label")}>
-            <div className="space-y-1.5">
-              <Input value={form.metaTitle} onChange={(event) => update("metaTitle", event.currentTarget.value)} placeholder={t("form.meta_title_placeholder")} maxLength={60} disabled={busy} />
-              <div className="flex items-center justify-between px-1 text-xs"><span className="text-muted-foreground">{t("form.meta_title_help")}</span><span className={`font-mono font-bold ${form.metaTitle.length > 55 ? "text-amber-500" : "text-muted-foreground"}`}>{form.metaTitle.length}/60</span></div>
-            </div>
+          <Field label={t("form.meta_title_label")} help={t("form.meta_title_help")} hint={counter(form.metaTitle.length, 60, 55)}>
+            <Input value={form.metaTitle} onChange={(event) => update("metaTitle", event.currentTarget.value)} placeholder={t("form.meta_title_placeholder")} maxLength={60} disabled={busy} />
           </Field>
-          <Field label={t("form.meta_description_label")}>
-            <div className="space-y-1.5">
-              <Textarea value={form.metaDescription} onChange={(event) => update("metaDescription", event.currentTarget.value)} placeholder={t("form.meta_description_placeholder")} maxLength={160} rows={3} disabled={busy} />
-              <div className="flex items-center justify-between px-1 text-xs"><span className="text-muted-foreground">{t("form.meta_description_help")}</span><span className={`font-mono font-bold ${form.metaDescription.length > 150 ? "text-amber-500" : "text-muted-foreground"}`}>{form.metaDescription.length}/160</span></div>
-            </div>
+          <Field label={t("form.meta_description_label")} help={t("form.meta_description_help")} hint={counter(form.metaDescription.length, 160, 150)}>
+            <Textarea value={form.metaDescription} onChange={(event) => update("metaDescription", event.currentTarget.value)} placeholder={t("form.meta_description_placeholder")} maxLength={160} rows={3} disabled={busy} />
           </Field>
-          <Field label={t("form.meta_keywords_label")}>
+          <Field label={t("form.meta_keywords_label")} help={t("form.meta_keywords_help")}>
             <Input value={form.metaKeywords} onChange={(event) => update("metaKeywords", event.currentTarget.value)} placeholder={t("form.meta_keywords_placeholder")} disabled={busy} />
-            <p className="mt-1.5 px-1 text-xs text-muted-foreground">{t("form.meta_keywords_help")}</p>
           </Field>
         </div>
       </Card>
       {groupId && <TranslationsCard resource="category" id={groupId} canEdit={canManage} />}
-    </div>
-    <StickyFormActions>
-      <LinkButton href={backHref} variant="secondary">{common("cancel")}</LinkButton>
-      <Button type="button" onClick={() => void save()} disabled={busy}><Save size={16} />{busy ? t("form.saving") : t("form.save")}</Button>
-    </StickyFormActions>
-  </div>;
+    </FormPage>
+  );
 }
 
 function Gated({ groupId }: { groupId?: string }) {
-  return <DashboardChrome currentPath={groupId ? `/product-groups/${groupId}/edit` : "/product-groups/new"}><ProductGroupForm groupId={groupId} /></DashboardChrome>;
+  return <DashboardChrome narrow currentPath={groupId ? `/product-groups/${groupId}/edit` : "/product-groups/new"}><ProductGroupForm groupId={groupId} /></DashboardChrome>;
 }
 
 export default function ProductGroupFormPageApp({ groupId }: { groupId?: string }) { return <RequireAuth><Gated groupId={groupId} /></RequireAuth>; }

@@ -1,15 +1,15 @@
 {
-  "page_title": "Landing Pages",
+  "page_title": "Landing pages",
   "page_subtitle": "One-product marketing pages — compare creatives, pick winners",
   "create_landing_page": "Create landing page",
   "compare_title": "Compare landing pages",
   "list": {
-    "name": "Name",
+    "name": "Page",
     "product": "Product",
     "status": "Status",
     "views": "Views",
     "orders": "Orders",
-    "cvr": "CVR",
+    "cvr": "Conversion",
     "revenue": "Revenue",
     "images": "Images",
     "link": "Link",
@@ -22,10 +22,8 @@
   "status_draft": "Draft",
   "status_published": "Published",
   "status_archived": "Archived",
-  "filter_all_statuses": "All statuses",
   "filter_all_products": "All products",
   "search_placeholder": "Search by name, slug, or product…",
-  "landing_pages_count": "landing pages",
   "error_generic": "Something went wrong. Please try again.",
   "error_validation": "Some fields are invalid",
   "error_unexpected_id": "An unexpected error occurred — if it persists, quote reference {id} to support.",
@@ -103,5 +101,9 @@
     "required": "is required",
     "last_event_sent": "Last event reported",
     "last_event_failed": "Last event was rejected by Meta"
-  }
+  },
+  "count_one": "{count} landing page",
+  "count_other": "{count} landing pages",
+  "orders_count_one": "{count} order",
+  "orders_count_other": "{count} orders"
 }

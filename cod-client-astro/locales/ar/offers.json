@@ -1,7 +1,6 @@
 {
-  "page_title": "العروض الترويجية",
+  "page_title": "العروض",
   "add_offer": "إنشاء عرض",
-  "offers_count": "عرض",
   "search_placeholder": "البحث عن عرض...",
   "error_load": "تعذر تحميل العروض",
   "error_not_found": "العرض غير موجود",
@@ -10,12 +9,12 @@
   "error_not_active": "هذا العرض غير نشط",
   "table": {
     "name": "اسم العرض",
-    "trigger": "شرط التفعيل",
-    "reward": "المكافأة",
+    "trigger": "المنتج",
     "status": "الحالة",
     "type": "النوع",
     "schedule": "المدة",
-    "actions": "الإجراءات"
+    "actions": "الإجراءات",
+    "deal": "العرض"
   },
   "status": {
     "active": "نشط",
@@ -60,11 +59,7 @@
     "section_schedule": "الجدولة (اختياري)",
     "starts_at_label": "يبدأ في",
     "ends_at_label": "ينتهي في",
-    "status_label": "حالة العرض",
     "status_active": "نشط",
-    "status_inactive": "معطَّل",
-    "save": "حفظ العرض",
-    "saving": "جارٍ الحفظ...",
     "cancel": "إلغاء",
     "success_add": "تم إنشاء العرض بنجاح",
     "success_edit": "تم تحديث العرض بنجاح",
@@ -76,8 +71,17 @@
     "error_trigger_qty": "الكمية الدنيا يجب أن تكون 1 على الأقل",
     "error_reward_qty": "الكمية المجانية يجب أن تكون 1 على الأقل"
   },
-  "buy_x_get_y": "اشترِ {x} واحصل على {y} مجاناً",
-  "buy_x_free_shipping": "اشترِ {x} ← شحن مجاني",
+  "buy_x_get_y": "اشترِ {x} واحصل على {y} مجانًا",
+  "buy_x_free_shipping": "اشترِ {x} واحصل على شحن مجاني",
   "any_variant": "أي متغيِّر",
-  "free_shipping_reward": "شحن مجاني 🚚"
+  "free_shipping_reward": "شحن مجاني 🚚",
+  "count_zero": "لا عروض",
+  "count_one": "عرض واحد",
+  "count_two": "عرضان",
+  "count_few": "{count} عروض",
+  "count_many": "{count} عرضًا",
+  "count_other": "{count} عرض",
+  "schedule_from": "من {date}",
+  "schedule_until": "حتى {date}",
+  "schedule_range": "{from} – {to}"
 }

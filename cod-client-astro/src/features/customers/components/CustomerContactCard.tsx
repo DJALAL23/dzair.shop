@@ -15,7 +15,7 @@ export function CustomerContactCard({ customer }: CustomerContactCardProps) {
 
   return (
     <Card title={t("profile.contact_info")}>
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="flex items-start gap-3">
           <Phone size={18} className="mt-0.5 text-muted-foreground" />
           <div>

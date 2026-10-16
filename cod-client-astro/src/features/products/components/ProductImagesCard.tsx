@@ -26,11 +26,11 @@ export function ProductImagesCard({
               alt={image.altText || `${productName} - ${index + 1}`}
               className="size-full object-cover"
             />
-            <span className="absolute bottom-2 start-2 rounded-md bg-black/60 px-2 py-1 text-[10px] font-bold text-white">
+            <span className="absolute bottom-2 start-2 rounded-md bg-black/60 px-2 py-1 text-[11px] font-semibold text-white">
               #{image.position}
             </span>
             {index === 0 && (
-              <span className="absolute end-2 top-2 rounded-md bg-primary px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-primary-foreground">
+              <span className="absolute end-2 top-2 rounded-md bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground">
                 {t("form.primary_image")}
               </span>
             )}

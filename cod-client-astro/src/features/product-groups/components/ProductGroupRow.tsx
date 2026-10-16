@@ -1,5 +1,5 @@
 import { FolderOpen, Pencil, Trash2 } from "lucide-react";
-import { IconButton, TableCell, TableRow } from "@/components/ui";
+import { IconButton, TableCell, TableRow, openRowOnClick, CellEmpty, RowActions, RowTitle } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import {
   formatGroupDate,
@@ -22,46 +22,30 @@ export function GroupDesktopRow({
   const locale = useLocale();
   const parent = group.parentId ? groupMap.get(group.parentId) : undefined;
   return (
-    <TableRow>
-      <TableCell>
-        <a
+    <TableRow onClick={openRowOnClick(`/product-groups/${encodeURIComponent(group.id)}/edit`)} className="cursor-pointer">
+      <TableCell className="max-w-80">
+        <RowTitle
           href={`/product-groups/${encodeURIComponent(group.id)}/edit`}
-          className="inline-flex min-w-0 items-center gap-3 font-semibold text-link hover:underline"
+          media={
+            <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted shadow-card">
+              {group.imageUrl ? (
+                <img src={group.imageUrl} alt="" className="size-full object-cover" />
+              ) : (
+                <FolderOpen size={15} aria-hidden="true" className="text-subtle-foreground" />
+              )}
+            </span>
+          }
         >
-          <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-muted">
-            {group.imageUrl ? (
-              <img
-                src={group.imageUrl}
-                alt={group.name}
-                className="size-full object-cover"
-              />
-            ) : (
-              <FolderOpen size={16} className="text-muted-foreground/50" />
-            )}
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate">{group.name}</span>
-            {group.slug && (
-              <span className="block truncate font-mono text-[10px] uppercase text-muted-foreground/60">
-                {group.slug}
-              </span>
-            )}
-          </span>
-        </a>
+          {group.name}
+        </RowTitle>
       </TableCell>
-      <TableCell>
-        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
-          {parent?.name ?? "—"}
-        </span>
-      </TableCell>
-      <TableCell className="text-sm font-semibold tabular-nums">
-        {group.productsCount ?? 0}
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
+      <TableCell className="max-w-48 truncate text-muted-foreground">{parent?.name ?? <CellEmpty />}</TableCell>
+      <TableCell numeric>{group.productsCount ?? 0}</TableCell>
+      <TableCell className="whitespace-nowrap text-muted-foreground">
         {formatGroupDate(group.createdAt, locale)}
       </TableCell>
-      <TableCell>
-        <div className="flex justify-end gap-1">
+      <TableCell className="w-px">
+        <RowActions>
           {canManage && (
             <a
               href={`/product-groups/${encodeURIComponent(group.id)}/edit`}
@@ -84,7 +68,7 @@ export function GroupDesktopRow({
               <Trash2 size={15} />
             </IconButton>
           )}
-        </div>
+        </RowActions>
       </TableCell>
     </TableRow>
   );
@@ -120,24 +104,24 @@ export function GroupMobileCard({
         <div className="min-w-0 flex-1">
           <a
             href={`/product-groups/${encodeURIComponent(group.id)}/edit`}
-            className="block truncate font-semibold text-link"
+            className="block truncate font-medium text-foreground underline-offset-2 hover:underline"
           >
             {group.name}
           </a>
           {group.slug && (
-            <p className="mt-0.5 font-mono text-[10px] uppercase text-muted-foreground/60">
+            <p className="mt-0.5 text-[11px] text-muted-foreground/60">
               {group.slug}
             </p>
           )}
           {parent && (
-            <span className="mt-2 inline-flex items-center gap-1 rounded-lg bg-muted/50 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+            <span className="mt-2 inline-flex items-center gap-1 rounded-lg bg-muted/50 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
               <FolderOpen size={10} className="opacity-50" />
               {parent.name}
             </span>
           )}
         </div>
         <div className="flex flex-col items-end gap-2">
-          <span className="rounded-lg border border-primary/10 bg-primary/5 px-2 py-1 text-sm font-bold tabular-nums text-primary">
+          <span className="rounded-lg border border-primary/10 bg-primary/5 px-2 py-1 text-sm font-medium tabular-nums text-primary">
             {group.productsCount ?? 0}
           </span>
           <div className="flex gap-1">

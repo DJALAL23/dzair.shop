@@ -1,6 +1,5 @@
 {
   "page_title": "وسوم العملاء",
-  "tags_count": "وسم",
   "search_placeholder": "البحث عن وسم...",
   "new_tag": "وسم جديد",
   "create_tag": "إنشاء وسم",
@@ -45,10 +44,14 @@
     "name_placeholder": "مثال: vip، مرتجع، جملة...",
     "color_label": "اللون",
     "cancel": "إلغاء",
-    "save": "حفظ الوسم",
-    "saving": "جاري الحفظ...",
     "success_add": "تمت إضافة الوسم",
     "success_edit": "تم تحديث الوسم",
     "error_required": "يرجى تعبئة الحقول المطلوبة"
-  }
+  },
+  "count_zero": "لا وسوم",
+  "count_one": "وسم واحد",
+  "count_two": "وسمان",
+  "count_few": "{count} وسوم",
+  "count_many": "{count} وسمًا",
+  "count_other": "{count} وسم"
 }

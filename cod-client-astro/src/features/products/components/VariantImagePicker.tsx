@@ -137,9 +137,9 @@ export function VariantImagePicker({
             role="dialog"
             aria-label={t("form.variant_image_select")}
             style={{ left: pos?.left ?? 0, top: pos?.top ?? 0 }}
-            className="fixed z-[80] w-max max-w-[min(20rem,calc(100vw-1rem))] rounded-xl border border-border/80 bg-popover p-2 shadow-xl shadow-black/10 animate-in fade-in-0 zoom-in-95 duration-150"
+            className="fixed z-[80] w-max max-w-[min(20rem,calc(100vw-1rem))] animate-pop rounded-xl bg-popover p-2 shadow-popover"
           >
-            <p className="px-1 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            <p className="px-1 pb-1.5 text-[11px] font-semibold text-muted-foreground/60">
               {t("form.variant_image_select")}
             </p>
             <div className="flex flex-wrap gap-1.5">

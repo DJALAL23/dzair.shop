@@ -1,8 +1,8 @@
 import { useDeferredValue, useEffect, useState } from "react";
-import { AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, Pencil, X, XCircle, AlertTriangle, Wallet, Package, History, SearchX } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, X, XCircle, AlertTriangle, Wallet, Package, History, SearchX } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
-import { Button, EmptyState, IconButton, Alert, PageHeader, SearchInput, Select, StatCard } from "@/components/ui";
+import { Button, EmptyState, IconButton, Alert, PageHeader, SearchInput, Select, StatCard, StatGroup, Tabs } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { getStockOverview } from "@/features/products/api";
@@ -11,7 +11,7 @@ import type { StockAlertItem, StockOverview } from "@/features/products/types";
 import { StockHistoryDrawer } from "@/features/products/components/StockHistoryDrawer";
 import { StockAdjustmentDialog } from "@/features/products/components/StockAdjustmentDialog";
 
-function Loading() { return <div role="status" aria-busy="true" className="space-y-4"><div className="h-24 animate-pulse rounded-xl bg-muted" /><div className="h-64 animate-pulse rounded-xl bg-muted" /></div>; }
+function Loading() { return <div role="status" aria-busy="true" className="space-y-4"><div className="h-24 shimmer rounded-xl" /><div className="h-64 shimmer rounded-xl" /></div>; }
 
 type TabKey = "out" | "low" | "all";
 
@@ -21,7 +21,7 @@ const SORT_LABEL_KEYS: Record<StockSortKey, string> = { inventory: "stock_overvi
 function StockChip({ item }: { item: StockAlertItem }) {
   const tone = stockAlertTone(item);
   const classes = tone === "out" ? "bg-destructive/10 text-destructive ring-destructive/20" : tone === "low" ? "bg-amber-500/10 text-amber-600 ring-amber-500/20" : "bg-muted text-foreground ring-border/60";
-  return <span className={`inline-flex h-9 min-w-12 items-center justify-center rounded-xl px-2.5 text-base font-bold tabular-nums ring-1 ring-inset ${classes}`}>{item.inventory}</span>;
+  return <span className={`inline-flex h-9 min-w-12 items-center justify-center rounded-xl px-2.5 text-base font-semibold tabular-nums ring-1 ring-inset ${classes}`}>{item.inventory}</span>;
 }
 
 /** Status, SKU and last update — the three things a stock row is searched and sorted on. */
@@ -45,7 +45,7 @@ function StockRow({ item, isVariant, onAdjust, onHistory }: { item: StockAlertIt
     <span aria-hidden className={`absolute inset-y-2 start-0 w-[3px] rounded-full ${stripeColor}`} />
     <button type="button" onClick={() => onHistory(item)} className="flex min-w-0 flex-1 items-center gap-2.5 py-3 text-start">
       <div className="min-w-0 flex-1">
-        <p className={`truncate font-semibold text-foreground ${isVariant ? "text-[13px]" : "text-sm"}`}>{isVariant ? item.variantLabel ?? item.productName : item.productName}</p>
+        <p className={`truncate font-semibold text-foreground ${isVariant ? "text-sm" : "text-sm"}`}>{isVariant ? item.variantLabel ?? item.productName : item.productName}</p>
         <StockMeta item={item} />
       </div>
     </button>
@@ -69,8 +69,8 @@ function ProductGroupBlock({ group, onAdjust, onHistory }: { group: StockGroup; 
   return <div className={`overflow-hidden rounded-xl border ${groupTone === "out" ? "border-destructive/20" : groupTone === "low" ? "border-amber-500/20" : "border-border/60"}`}>
     <button type="button" onClick={() => setOpen((current) => !current)} className={`relative flex w-full min-h-14 items-center gap-3 px-4 py-3 text-start transition-colors ${open ? "bg-muted/50" : "bg-muted/30 hover:bg-muted/50"}`}>
       <span aria-hidden className={`absolute inset-y-2 start-0 w-[3px] rounded-full ${stripeColor}`} />
-      <div className="flex min-w-0 flex-1 flex-col"><span className="truncate text-sm font-bold text-foreground">{group.productName}</span><span className="text-[11px] text-muted-foreground">{group.items.length} SKU</span></div>
-      <span className="shrink-0 text-sm font-bold tabular-nums text-foreground">{totalInventory}</span>
+      <div className="flex min-w-0 flex-1 flex-col"><span className="truncate text-sm font-semibold text-foreground">{group.productName}</span><span className="text-[11px] text-muted-foreground">{group.items.length} SKU</span></div>
+      <span className="shrink-0 text-sm font-medium tabular-nums text-foreground">{totalInventory}</span>
       <span className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden>▾</span>
     </button>
     {open && <div className="space-y-1.5 p-2">{group.items.map((item) => <StockRow key={`${item.productId}__${item.variantId ?? ""}`} item={item} isVariant onAdjust={onAdjust} onHistory={onHistory} />)}</div>}
@@ -101,7 +101,7 @@ function StockOverviewList() {
   useEffect(() => { if (canScope(identity, SCOPES.PRODUCTS_READ)) void load(); }, [identity?.role, identity?.scopes.join(",")]);
 
   if (!canScope(identity, SCOPES.PRODUCTS_READ)) return <Alert role="alert" tone="critical">{auth("no_access")}</Alert>;
-  if (loadError) return <Alert role="alert" tone="critical"><AlertCircle size={18} className="shrink-0" /><div className="flex-1"><p className="font-semibold">{t("error_load")}</p><button type="button" onClick={() => void load()} className="mt-3 text-xs font-semibold underline underline-offset-4">{common("retry")}</button></div></Alert>;
+  if (loadError) return <Alert role="alert" tone="critical"><div className="flex-1"><p className="font-semibold">{t("error_load")}</p><button type="button" onClick={() => void load()} className="mt-3 text-xs font-semibold underline underline-offset-4">{common("retry")}</button></div></Alert>;
   if (overview === null) return <Loading />;
 
   const tabs = [
@@ -124,16 +124,16 @@ function StockOverviewList() {
   const directionLabel = sortDirection === "asc" ? t("stock_overview.sort_asc") : t("stock_overview.sort_desc");
 
   return <div className="space-y-5">
-    {actionError && <Alert role="alert" tone="critical"><AlertCircle size={18} className="shrink-0" /><span className="flex-1">{actionError}</span><button type="button" onClick={() => setActionError(null)} aria-label={common("cancel")}><X size={16} /></button></Alert>}
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4"><StatCard label={t("stock_overview.total_skus")} value={overview.totalSkus.toLocaleString(locale === "ar" ? "ar-DZ" : "en")} icon={<Package size={20} />} /><StatCard label={t("stock_overview.out_of_stock")} value={overview.outOfStockCount.toLocaleString(locale === "ar" ? "ar-DZ" : "en")} icon={<XCircle size={20} />} tone={overview.outOfStockCount > 0 ? "critical" : "neutral"} /><StatCard label={t("stock_overview.low_stock")} value={overview.lowStockCount.toLocaleString(locale === "ar" ? "ar-DZ" : "en")} icon={<AlertTriangle size={20} />} tone={overview.lowStockCount > 0 ? "warning" : "neutral"} /><StatCard label={t("stock_overview.stock_value")} value={formatMoneyValue(overview.totalInventoryValue, locale)} icon={<Wallet size={20} />} /></div>
-    <div className="flex gap-1.5 rounded-xl border border-border bg-muted/40 p-1">{tabs.map((item) => <button key={item.key} type="button" onClick={() => setTab(item.key)} aria-pressed={tab === item.key} className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-bold transition-all ${tab === item.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{item.label}{item.count !== undefined && item.count > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground ring-1 ring-inset ring-border/60">{item.count}</span>}</button>)}</div>
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <SearchInput value={query} onChange={setQuery} placeholder={t("stock_overview.search_placeholder")} />
-      <div className="flex shrink-0 items-center gap-2">
-        <Select aria-label={t("stock_overview.sort_label")} value={sortKey} onChange={(event) => setSortKey(event.currentTarget.value as StockSortKey)} wrapperClassName="min-w-0 flex-1 sm:w-48 sm:flex-none" prefix={<ArrowUpDown size={14} className="text-muted-foreground/70" />}>
+    {actionError && <Alert role="alert" tone="critical"><span className="flex-1">{actionError}</span><button type="button" onClick={() => setActionError(null)} aria-label={common("cancel")}><X size={16} /></button></Alert>}
+    <StatGroup columns={4}><StatCard label={t("stock_overview.total_skus")} value={overview.totalSkus.toLocaleString(locale === "ar" ? "ar-DZ" : "en")} icon={<Package size={20} />} /><StatCard label={t("stock_overview.out_of_stock")} value={overview.outOfStockCount.toLocaleString(locale === "ar" ? "ar-DZ" : "en")} icon={<XCircle size={20} />} tone={overview.outOfStockCount > 0 ? "critical" : "neutral"} /><StatCard label={t("stock_overview.low_stock")} value={overview.lowStockCount.toLocaleString(locale === "ar" ? "ar-DZ" : "en")} icon={<AlertTriangle size={20} />} tone={overview.lowStockCount > 0 ? "warning" : "neutral"} /><StatCard label={t("stock_overview.stock_value")} value={formatMoneyValue(overview.totalInventoryValue, locale)} icon={<Wallet size={20} />} /></StatGroup>
+    <Tabs label={t("stock_overview.page_title")} value={tab} onChange={setTab} items={tabs.map((item) => ({ key: item.key, label: item.label, count: item.count }))} />
+    <div className="flex flex-wrap items-center gap-2">
+      <SearchInput value={query} onChange={setQuery} placeholder={t("stock_overview.search_placeholder")} className="basis-full sm:basis-72" />
+      <div className="flex shrink-0 items-center gap-1">
+        <Select aria-label={t("stock_overview.sort_label")} value={sortKey} onChange={(event) => setSortKey(event.currentTarget.value as StockSortKey)} variant="pill" wrapperClassName="w-auto shrink-0" triggerClassName="w-auto max-w-56" prefix={<ArrowUpDown size={13} className="text-muted-foreground" />}>
           {SORT_KEYS.map((key) => <option key={key} value={key}>{t(SORT_LABEL_KEYS[key])}</option>)}
         </Select>
-        <IconButton type="button" variant="secondary" onClick={() => setSortDirection((current) => (current === "asc" ? "desc" : "asc"))} aria-label={directionLabel} title={directionLabel}><DirectionIcon size={15} /></IconButton>
+        <IconButton type="button" variant="ghost" size="sm" onClick={() => setSortDirection((current) => (current === "asc" ? "desc" : "asc"))} aria-label={directionLabel} title={directionLabel}><DirectionIcon size={15} /></IconButton>
       </div>
       <span className="shrink-0 text-xs font-medium text-muted-foreground" aria-live="polite">{matched.length.toLocaleString(locale === "ar" ? "ar-DZ" : "en")} {t("stock_overview.results_count")}</span>
     </div>

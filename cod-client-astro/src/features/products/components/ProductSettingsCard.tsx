@@ -1,4 +1,4 @@
-import { Card, Field, Input, Select } from "@/components/ui";
+import { Card, Field, Input, Select, SwitchField } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import type { ProductStatus } from "@/features/products/types";
 
@@ -39,7 +39,7 @@ export function ProductSettingsCard({
 
   return (
     <Card title={t("form.section_settings")}>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="space-y-4">
         <Field label={t("form.status_label")}>
           <Select
             value={status}
@@ -80,47 +80,9 @@ export function ProductSettingsCard({
           </Field>
         )}
       </div>
-      <div className="mt-5 border-t border-border pt-5">
-        <label className="flex cursor-pointer items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {t("form.track_stock_label")}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("form.track_stock_hint")}
-            </p>
-          </div>
-          <input
-            type="checkbox"
-            checked={trackInventory}
-            onChange={(event) =>
-              setTrackInventory(event.currentTarget.checked)
-            }
-            disabled={busy}
-            className="size-5 accent-primary"
-          />
-        </label>
-      </div>
-      <div className="mt-4">
-        <label className="flex cursor-pointer items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {t("form.show_in_store_label")}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t("form.show_in_store_hint")}
-            </p>
-          </div>
-          <input
-            type="checkbox"
-            checked={showInStore}
-            onChange={(event) =>
-              setShowInStore(event.currentTarget.checked)
-            }
-            disabled={busy}
-            className="size-5 accent-primary"
-          />
-        </label>
+      <div className="mt-4 space-y-3 border-t border-border pt-4">
+        <SwitchField label={t("form.track_stock_label")} help={t("form.track_stock_hint")} checked={trackInventory} onChange={setTrackInventory} disabled={busy} />
+        <SwitchField label={t("form.show_in_store_label")} help={t("form.show_in_store_hint")} checked={showInStore} onChange={setShowInStore} disabled={busy} />
       </div>
     </Card>
   );

@@ -50,9 +50,10 @@ describe("offers model", () => {
   it("builds rule and schedule labels", () => {
     expect(offerRuleLabel(offer(), t)).toBe("buy_x_get_y");
     expect(offerRuleLabel(offer({ discountType: "free_shipping", triggerQuantity: 3 }), t)).toBe("buy_x_free_shipping");
-    expect(offerScheduleLabel(offer(), "en")).toBe("—");
-    expect(offerScheduleLabel(offer({ startsAt: "2026-08-26T00:00:00.000Z" }), "en")).toBe("من 08/26/2026");
-    expect(offerScheduleLabel(offer({ startsAt: "2026-08-26T00:00:00.000Z", endsAt: "2026-08-30T00:00:00.000Z" }), "en")).toBe("08/26/2026 → 08/30/2026");
+    expect(offerScheduleLabel(offer(), "en", t)).toBeNull();
+    expect(offerScheduleLabel(offer({ startsAt: "2026-08-26T00:00:00.000Z" }), "en", t)).toBe("schedule_from");
+    expect(offerScheduleLabel(offer({ endsAt: "2026-08-30T00:00:00.000Z" }), "en", t)).toBe("schedule_until");
+    expect(offerScheduleLabel(offer({ startsAt: "2026-08-26T00:00:00.000Z", endsAt: "2026-08-30T00:00:00.000Z" }), "en", t)).toBe("schedule_range");
   });
 
   it("parses only valid offer routes and enums", () => {

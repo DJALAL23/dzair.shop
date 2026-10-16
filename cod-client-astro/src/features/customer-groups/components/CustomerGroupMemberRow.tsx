@@ -20,13 +20,13 @@ export function CustomerGroupMemberRow({
   return (
     <div className="flex items-center justify-between gap-3 p-3">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-xs font-bold text-muted-foreground">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
           {member.name.slice(0, 2).toUpperCase()}
         </span>
         <div className="min-w-0">
           <a
             href={`/customers/${encodeURIComponent(member.id)}`}
-            className="block truncate text-sm font-semibold text-link hover:underline"
+            className="block truncate text-sm font-medium text-foreground hover:underline"
           >
             {member.name}
           </a>
@@ -38,7 +38,7 @@ export function CustomerGroupMemberRow({
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <div className="hidden text-end sm:block">
-          <p className="text-sm font-bold tabular-nums">
+          <p className="text-sm font-medium tabular-nums">
             {formatMoney(member.totalSpent, locale)}
           </p>
           <p className="text-xs text-muted-foreground">

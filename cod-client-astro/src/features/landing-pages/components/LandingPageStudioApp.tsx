@@ -114,10 +114,10 @@ function StudioShell({
             title={t("page_title")}
           >
             <ArrowRight size={16} className="rtl:rotate-180" />
-            <span className="hidden text-xs font-bold lg:inline">{t("page_title")}</span>
+            <span className="hidden text-xs font-semibold lg:inline">{t("page_title")}</span>
           </a>
           <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
-          <h1 className="min-w-0 truncate text-sm font-bold">{title}</h1>
+          <h1 className="min-w-0 truncate text-sm font-semibold">{title}</h1>
           <div className="flex-1" />
           {toolbar}
           <SaveIndicator state={saveState} label={saveLabel} />
@@ -399,7 +399,6 @@ function Gated({ landingPageId }: { landingPageId: string }) {
       <StudioShell title={t("studio.title")} saveState={saveState} saveLabel={saveLabel}>
         <div className="col-span-full p-6">
           <Alert role="alert" tone="critical">
-            <AlertCircle size={18} className="shrink-0" />
             <div className="flex-1">
               <p className="font-semibold">{t("error_generic")}</p>
               <button
@@ -446,7 +445,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                 if (event.key === "Escape") setSlugDraft(null);
               }}
               aria-label={t("studio.slug_label")}
-              className="h-8 w-36 rounded-lg border border-input bg-background px-2 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-44"
+              className="h-8 w-36 rounded-lg border border-input bg-card px-2 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-44"
               spellCheck={false}
               autoComplete="off"
               maxLength={60}
@@ -455,7 +454,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
               type="button"
               onClick={() => void applySlug()}
               disabled={slugSaving}
-              className="ms-1 flex h-8 items-center gap-1 rounded-lg bg-primary px-2 text-xs font-bold text-primary-foreground disabled:opacity-60"
+              className="ms-1 flex h-8 items-center gap-1 rounded-lg bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
               title={t("studio.slug_apply")}
             >
               {slugSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={13} />}
@@ -514,7 +513,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
             type="button"
             onClick={() => setPublishOpen((open) => !open)}
             disabled={publishing}
-            className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-60"
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:opacity-60"
           >
             {publishing ? <Loader2 size={13} className="animate-spin" /> : null}
             {isPublished ? t("status_published") : t("actions.publish")}
@@ -554,7 +553,6 @@ function Gated({ landingPageId }: { landingPageId: string }) {
       {actionError && (
         <div className="col-span-full px-4 pt-3">
           <Alert role="alert" tone="critical">
-            <AlertCircle size={18} className="shrink-0" />
             <span className="flex-1">{actionError}</span>
           </Alert>
         </div>
@@ -586,7 +584,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
         </div>
 
         <div className="border-t border-border pt-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="text-xs font-semibold text-muted-foreground">
             {t("studio.left_title")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">{t("studio.left_hint")}</p>
@@ -634,7 +632,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                 className="flex items-center gap-2 rounded-lg border border-border bg-background p-2"
               >
                 <GripVertical size={14} className="shrink-0 text-muted-foreground/50" />
-                <span className="w-5 shrink-0 text-center text-[0.7rem] font-bold text-muted-foreground">
+                <span className="w-5 shrink-0 text-center text-[0.7rem] font-semibold text-muted-foreground">
                   {index + 1}
                 </span>
                 <img
@@ -717,10 +715,10 @@ function Gated({ landingPageId }: { landingPageId: string }) {
           )}
           {/* Form stand-in — the real form renders on the storefront page */}
           <div className="m-4 rounded-xl border border-border bg-muted/30 p-5 text-center">
-            <span className="block text-xs font-bold text-muted-foreground">
+            <span className="block text-xs font-semibold text-muted-foreground">
               {lp.product?.name ?? ""}
             </span>
-            <span className="mt-2 block h-10 rounded-lg bg-brand/10 text-[0.7rem] leading-10 font-bold text-brand">
+            <span className="mt-2 block h-10 rounded-lg bg-brand/10 text-[0.7rem] leading-10 font-semibold text-brand">
               {t("studio.preview_title")} — COD
             </span>
           </div>
@@ -729,7 +727,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
 
       {/* RIGHT — the only spacing setting */}
       <aside className="flex min-h-0 flex-col overflow-y-auto border-s border-border p-4">
-        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+        <p className="text-xs font-semibold text-muted-foreground">
           {t("studio.right_title")}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">{t("studio.gap_hint")}</p>
@@ -756,7 +754,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
             panes stay about how the page looks. */}
         <div className="mt-6 rounded-xl border border-border p-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[0.7rem] font-semibold text-muted-foreground">
               {t("tracking.card_title")}
             </p>
             <TrackingBadge view={trackingState} />
@@ -772,14 +770,14 @@ function Gated({ landingPageId }: { landingPageId: string }) {
             <dl className="mt-2 space-y-1 text-xs">
               <div className="flex items-center justify-between gap-2">
                 <dt className="text-muted-foreground">{t("tracking.card_pixel")}</dt>
-                <dd className="truncate font-bold tabular-nums" dir="ltr">
+                <dd className="truncate font-medium tabular-nums" dir="ltr">
                   {trackingState.pixelId}
                 </dd>
               </div>
               {trackingState.kind === "own" && (
                 <div className="flex items-center justify-between gap-2">
                   <dt className="text-muted-foreground">{t("tracking.card_event")}</dt>
-                  <dd className="truncate font-bold">
+                  <dd className="truncate font-semibold">
                     {conversionEventLabel(trackingState.conversionEvent)}
                   </dd>
                 </div>
@@ -827,21 +825,21 @@ function Gated({ landingPageId }: { landingPageId: string }) {
 
         <div className="mt-auto pt-4">
           <div className="rounded-xl border border-border p-3">
-            <p className="text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[0.7rem] font-semibold text-muted-foreground">
               {t("page_title")}
             </p>
             <dl className="mt-2 space-y-1.5 text-xs">
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">{t("list.views")}</dt>
-                <dd className="font-bold tabular-nums">{lp.views.toLocaleString()}</dd>
+                <dd className="font-medium tabular-nums">{lp.views.toLocaleString()}</dd>
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">{t("list.orders")}</dt>
-                <dd className="font-bold tabular-nums">{lp.stats.orders.toLocaleString()}</dd>
+                <dd className="font-medium tabular-nums">{lp.stats.orders.toLocaleString()}</dd>
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">{t("list.revenue")}</dt>
-                <dd className="font-bold tabular-nums">{lp.stats.revenue.toLocaleString()}</dd>
+                <dd className="font-medium tabular-nums">{lp.stats.revenue.toLocaleString()}</dd>
               </div>
             </dl>
           </div>

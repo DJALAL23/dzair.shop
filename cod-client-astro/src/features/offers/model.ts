@@ -58,12 +58,12 @@ export function offerRuleLabel(offer: Pick<Offer, "discountType" | "triggerQuant
   return t("buy_x_get_y", { x: offer.triggerQuantity, y: offer.rewardQuantity });
 }
 
-export function offerScheduleLabel(offer: Pick<Offer, "startsAt" | "endsAt">, locale: "ar" | "en" | "fr") {
-  if (!offer.startsAt && !offer.endsAt) return "—";
-  const fmt = (value: string) => new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`, { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(value));
-  if (offer.startsAt && offer.endsAt) return `${fmt(offer.startsAt)} → ${fmt(offer.endsAt)}`;
-  if (offer.startsAt) return offer.startsAt ? `من ${fmt(offer.startsAt)}` : "—";
-  return `حتى ${fmt(offer.endsAt ?? "")}`;
+export function offerScheduleLabel(offer: Pick<Offer, "startsAt" | "endsAt">, locale: "ar" | "en" | "fr", t: Translate): string | null {
+  const fmt = (value: string) => new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
+  if (offer.startsAt && offer.endsAt) return t("schedule_range", { from: fmt(offer.startsAt), to: fmt(offer.endsAt) });
+  if (offer.startsAt) return t("schedule_from", { date: fmt(offer.startsAt) });
+  if (offer.endsAt) return t("schedule_until", { date: fmt(offer.endsAt) });
+  return null;
 }
 
 export function parseOfferRoute(pathname: string): OfferRoute {

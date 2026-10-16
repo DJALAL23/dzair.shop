@@ -41,7 +41,7 @@ export function CustomerOrdersCard({ orders, locale }: CustomerOrdersCardProps) 
                 <div className="min-w-0">
                   <a
                     href={`/orders/${encodeURIComponent(order.id)}`}
-                    className="block truncate font-semibold text-link"
+                    className="block truncate font-medium text-foreground underline-offset-2 hover:underline"
                   >
                     {order.orderNumber}
                   </a>
@@ -86,7 +86,7 @@ export function CustomerOrdersCard({ orders, locale }: CustomerOrdersCardProps) 
                     <TableCell>
                       <a
                         href={`/orders/${encodeURIComponent(order.id)}`}
-                        className="font-semibold text-link"
+                        className="font-medium text-foreground underline-offset-2 hover:underline"
                       >
                         {order.orderNumber}
                       </a>

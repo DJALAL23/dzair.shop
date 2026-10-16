@@ -97,8 +97,8 @@ export function ProductImageUploader({ existingImages, pendingImages, productId,
     {allImages.length > 0 && <div className={`grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 ${reordering ? "pointer-events-none opacity-60" : ""}`}>
       {allImages.map((img, index) => <div key={img.id} className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
         <img src={img.url} alt="" className="size-full object-cover" />
-        <span className="absolute start-1.5 top-1.5 rounded-md bg-black/50 px-1.5 py-0.5 text-[9px] font-bold text-white">{index + 1}</span>
-        {!img.isExisting && <span className="absolute end-1.5 top-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-primary-foreground">New</span>}
+        <span className="absolute start-1.5 top-1.5 rounded-md bg-black/50 px-1.5 py-0.5 text-[11px] font-semibold text-white">{index + 1}</span>
+        {!img.isExisting && <span className="absolute end-1.5 top-1.5 rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">{common("new_badge")}</span>}
         <div className="absolute inset-0 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
           {index > 0 && <button type="button" disabled={disabled || reordering} onClick={() => void moveImage(index, -1)} className="absolute start-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label="Move earlier"><ChevronLeft size={16} /></button>}
           {index < allImages.length - 1 && <button type="button" disabled={disabled || reordering} onClick={() => void moveImage(index, 1)} className="absolute end-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label="Move later"><ChevronRight size={16} /></button>}

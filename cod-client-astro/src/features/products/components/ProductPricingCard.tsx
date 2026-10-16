@@ -30,15 +30,10 @@ export function ProductPricingCard({
   const common = useT("common");
 
   return (
-    <Card title={t("form.section_pricing")}>
-      <p className="mb-4 text-xs font-semibold text-muted-foreground">
-        {hasVariantsSwitch
-          ? t("form.base_price_hint")
-          : t("form.product_price_hint")}
-      </p>
-      <div className="grid gap-4 sm:grid-cols-3">
+    <Card title={t("form.section_pricing")} help={hasVariantsSwitch ? t("form.base_price_hint") : t("form.product_price_hint")}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field
-          label={`${t("form.base_price_label")} *`}
+          label={t("form.base_price_label")}
           error={errors.price}
         >
           <div className="relative">
@@ -51,7 +46,7 @@ export function ProductPricingCard({
               className="pe-16"
               disabled={busy}
             />
-            <span className="pointer-events-none absolute end-4 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <span className="pointer-events-none absolute end-4 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
               {common("currency.symbol")}
             </span>
           </div>
@@ -69,7 +64,8 @@ export function ProductPricingCard({
           />
         </Field>
         <Field
-          label={`${t("form.cost_price_label")}${margin !== null ? ` — ${t("form.margin_label")}: ${margin}%` : ""}`}
+          label={t("form.cost_price_label")}
+          hint={margin !== null ? t("form.margin_value", { value: margin }) : undefined}
         >
           <Input
             type="number"

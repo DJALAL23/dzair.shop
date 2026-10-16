@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from "react";
-import { AlertCircle, Package, Plus, X } from "lucide-react";
+import { Package, Plus, X } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import {
   Alert,
@@ -54,7 +54,7 @@ function ProductSkeleton() {
     <div
       role="status"
       aria-busy="true"
-      className="overflow-hidden rounded-xl border border-border bg-card"
+      className="overflow-hidden rounded-xl bg-card shadow-card"
     >
       <div className="h-14 border-b border-border bg-muted/35" />
       {Array.from({ length: 7 }).map((_, index) => (
@@ -62,12 +62,12 @@ function ProductSkeleton() {
           key={index}
           className="grid h-16 grid-cols-[1.5fr_0.8fr_0.8fr_0.6fr_0.6fr_0.6fr] items-center gap-4 border-b border-border px-4 last:border-0"
         >
-          <div className="h-3 w-32 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-20 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-16 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-14 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-14 animate-pulse rounded bg-muted" />
-          <span className="h-6 w-20 justify-self-end animate-pulse rounded-lg bg-muted" />
+          <div className="h-3 w-32 shimmer rounded" />
+          <div className="h-3 w-20 shimmer rounded" />
+          <div className="h-3 w-16 shimmer rounded" />
+          <div className="h-3 w-14 shimmer rounded" />
+          <div className="h-3 w-14 shimmer rounded" />
+          <span className="h-6 w-20 justify-self-end shimmer rounded-lg" />
         </div>
       ))}
     </div>
@@ -120,7 +120,6 @@ export function ProductsList() {
   if (loadError)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button
@@ -193,7 +192,6 @@ export function ProductsList() {
     <div className="space-y-3">
       {actionError && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{actionError}</span>
           <button
             type="button"
@@ -205,20 +203,19 @@ export function ProductsList() {
         </Alert>
       )}
       <Card flush>
-        <div className="space-y-3 border-b border-border p-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap items-center gap-2 p-2">
+          <div className="contents">
             <SearchInput
               value={filters.query}
               onChange={(query) =>
                 setFilters((current) => ({ ...current, query }))
               }
               placeholder={t("search_placeholder")}
+              className="basis-full sm:basis-72"
             />
-            <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {filtered.length} {t("products_count")}
-            </span>
+            <span className="order-last ms-auto shrink-0 px-1 text-xs tabular-nums text-muted-foreground">{t("count", { count: filtered.length })}</span>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="contents">
             <Select
               aria-label={t("filters.group")}
               value={filters.category}
@@ -228,9 +225,11 @@ export function ProductsList() {
                   category: event.currentTarget.value,
                 }))
               }
-              wrapperClassName="sm:w-52"
+              variant="pill"
+              wrapperClassName="w-auto shrink-0"
+              triggerClassName="w-auto max-w-56"
             >
-              <option value="all">{common("table.all")}</option>
+              <option value="all">{t("filters.group")}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -246,9 +245,11 @@ export function ProductsList() {
                   status: event.currentTarget.value as ProductStatus | "all",
                 }))
               }
-              wrapperClassName="sm:w-48"
+              variant="pill"
+              wrapperClassName="w-auto shrink-0"
+              triggerClassName="w-auto max-w-56"
             >
-              <option value="all">{common("table.all")}</option>
+              <option value="all">{t("filters.availability")}</option>
               {STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
                   {t(`status_options.${status.toLocaleLowerCase()}`)}
@@ -258,17 +259,17 @@ export function ProductsList() {
             {hasFilters && (
               <Button
                 type="button"
-                variant="ghost"
+                variant="ghost" size="sm"
                 onClick={() => setFilters(EMPTY_FILTERS)}
               >
-                {common("cancel")}
+                {common("clear_filters")}
               </Button>
             )}
           </div>
         </div>
         {sorted.length === 0 ? (
           <EmptyState
-            icon={<Package size={22} />}
+            icon={<Package />}
             title={
               hasFilters ? common("no_results_found") : t("empty_state.title")
             }
@@ -284,13 +285,13 @@ export function ProductsList() {
           />
         ) : (
           <>
-            <div className="divide-y divide-border md:hidden">
+            <div className="divide-y divide-border border-t border-border md:hidden">
               {visible.map((product) => (
                 <ProductMobileCard key={product.id} product={product} {...rowProps} />
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
-              <Table className="min-w-[900px]">
+              <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
                     <SortHeader
@@ -300,38 +301,26 @@ export function ProductsList() {
                       direction={sortDirection}
                       onSort={onSort}
                     />
-                    <TableHead>{t("table.group")}</TableHead>
                     <TableHead>{t("table.status")}</TableHead>
-                    <SortHeader
-                      label={t("table.price")}
-                      sortKey="price"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={onSort}
-                    />
-                    <SortHeader
-                      label={t("table.variants")}
-                      sortKey="variantsCount"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={onSort}
-                    />
+                    <TableHead>{t("table.group")}</TableHead>
                     <SortHeader
                       label={t("table.stock")}
                       sortKey="totalInventory"
                       activeKey={sortKey}
                       direction={sortDirection}
                       onSort={onSort}
+                      align="end"
                     />
                     <SortHeader
-                      label={t("table.reviews")}
-                      sortKey="reviewCount"
+                      label={t("table.price")}
+                      sortKey="price"
                       activeKey={sortKey}
                       direction={sortDirection}
                       onSort={onSort}
+                      align="end"
                     />
-                    <TableHead className="text-end">
-                      {common("table.actions")}
+                    <TableHead className="w-px">
+                      <span className="sr-only">{common("table.actions")}</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>

@@ -1,6 +1,5 @@
 {
   "page_title": "Produits",
-  "products_count": "produits",
   "add_product": "Ajouter un produit",
   "success_deleted": "Produit supprimé",
   "error_delete_failed": "Échec de la suppression du produit",
@@ -108,8 +107,6 @@
     "variant_price": "Prix",
     "variant_stock": "Stock",
     "cancel": "Annuler",
-    "save": "Enregistrer le produit",
-    "saving": "Enregistrement...",
     "success_add": "Produit créé avec succès",
     "success_edit": "Produit mis à jour avec succès",
     "delete_option_confirm": "Supprimer cette option et toutes ses variantes ?",
@@ -153,7 +150,11 @@
     "variant_image": "Image",
     "variant_image_select": "Sélectionner image",
     "variant_image_remove": "Supprimer image",
-    "images_reorder_hint": "Utilisez les flèches pour réorganiser"
+    "images_reorder_hint": "Utilisez les flèches pour réorganiser",
+    "margin_value": "Marge : {value} %",
+    "variants_count_one": "{count} variante",
+    "variants_count_many": "{count} variantes",
+    "variants_count_other": "{count} variantes"
   },
   "status_options": {
     "active": "Actif",
@@ -201,7 +202,7 @@
     }
   },
   "stock_overview": {
-    "page_title": "Gestion du stock",
+    "page_title": "Stock",
     "total_skus": "Total des SKUs",
     "out_of_stock": "Rupture de stock",
     "low_stock": "Stock faible",
@@ -290,5 +291,11 @@
     "color_purple": "Violet",
     "color_pink": "Rose",
     "color_red": "Rouge"
-  }
+  },
+  "count_one": "{count} produit",
+  "count_many": "{count} produits",
+  "count_other": "{count} produits",
+  "in_stock_count_one": "{count} en stock",
+  "in_stock_count_many": "{count} en stock",
+  "in_stock_count_other": "{count} en stock"
 }

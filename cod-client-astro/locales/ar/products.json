@@ -1,6 +1,5 @@
 {
   "page_title": "المنتجات",
-  "products_count": "منتج",
   "add_product": "إضافة منتج",
   "success_deleted": "تم حذف المنتج",
   "error_delete_failed": "فشل حذف المنتج",
@@ -108,8 +107,6 @@
     "variant_price": "السعر",
     "variant_stock": "المخزون",
     "cancel": "إلغاء",
-    "save": "حفظ المنتج",
-    "saving": "جارٍ الحفظ...",
     "success_add": "تمت إضافة المنتج بنجاح",
     "success_edit": "تم تحديث المنتج بنجاح",
     "delete_option_confirm": "حذف هذا الخيار وكل متغيراته؟",
@@ -153,7 +150,14 @@
     "variant_image": "الصورة",
     "variant_image_select": "اختر صورة",
     "variant_image_remove": "إزالة الصورة",
-    "images_reorder_hint": "استخدم الأسهم لإعادة الترتيب"
+    "images_reorder_hint": "استخدم الأسهم لإعادة الترتيب",
+    "margin_value": "الهامش: {value}%",
+    "variants_count_zero": "لا متغيرات",
+    "variants_count_one": "متغير واحد",
+    "variants_count_two": "متغيران",
+    "variants_count_few": "{count} متغيرات",
+    "variants_count_many": "{count} متغيرًا",
+    "variants_count_other": "{count} متغير"
   },
   "status_options": {
     "active": "نشط",
@@ -201,7 +205,7 @@
     }
   },
   "stock_overview": {
-    "page_title": "إدارة المخزون",
+    "page_title": "المخزون",
     "total_skus": "إجمالي المنتجات",
     "out_of_stock": "نفد المخزون",
     "low_stock": "مخزون منخفض",
@@ -290,5 +294,17 @@
     "color_purple": "بنفسجي",
     "color_pink": "وردي",
     "color_red": "أحمر"
-  }
+  },
+  "count_zero": "لا منتجات",
+  "count_one": "منتج واحد",
+  "count_two": "منتجان",
+  "count_few": "{count} منتجات",
+  "count_many": "{count} منتجًا",
+  "count_other": "{count} منتج",
+  "in_stock_count_zero": "لا شيء في المخزون",
+  "in_stock_count_one": "قطعة واحدة في المخزون",
+  "in_stock_count_two": "قطعتان في المخزون",
+  "in_stock_count_few": "{count} قطع في المخزون",
+  "in_stock_count_many": "{count} قطعة في المخزون",
+  "in_stock_count_other": "{count} قطعة في المخزون"
 }

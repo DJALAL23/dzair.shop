@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from "react";
-import { AlertCircle, Plus, Users, X } from "lucide-react";
+import { Plus, Users, X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -23,14 +23,15 @@ import {
   EmptyState,
   LinkButton,
   Alert,
-  Select,
   Card,
+  FilterPill,
+  ListToolbar,
+  TableSkeleton,
   Table,
   TableHeader,
   TableBody,
   TableRow,
   TableHead,
-  Skeleton,
   useConfirmDialog,
   SortHeader,
   Pagination,
@@ -43,28 +44,6 @@ import {
 
 const EMPTY_FILTERS: CustomerFilters = { query: "", wilaya: "all" };
 const PAGE_SIZE = 10;
-
-function CustomerSkeleton() {
-  return (
-    <div
-      role="status"
-      aria-busy="true"
-      className="overflow-hidden rounded-xl border border-border bg-card"
-    >
-      <div className="h-14 border-b border-border bg-muted/35" />
-      {Array.from({ length: 7 }).map((_, index) => (
-        <div
-          key={index}
-          className="grid h-16 grid-cols-[1fr_1.2fr_0.8fr] items-center gap-4 border-b border-border px-4 last:border-0"
-        >
-          <Skeleton className="h-3 w-28" />
-          <Skeleton className="h-3 w-36" />
-          <span className="h-6 w-20 justify-self-end animate-pulse rounded-lg bg-muted" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export function CustomersList() {
   const t = useT("customers");
@@ -107,7 +86,6 @@ export function CustomersList() {
   if (loadError)
     return (
       <Alert role="alert" tone="critical">
-        <AlertCircle size={18} className="shrink-0" />
         <div className="flex-1">
           <p className="font-semibold">{t("error_load")}</p>
           <button
@@ -120,7 +98,7 @@ export function CustomersList() {
         </div>
       </Alert>
     );
-  if (customers === null) return <CustomerSkeleton />;
+  if (customers === null) return <div className="overflow-hidden rounded-xl shadow-card"><TableSkeleton columns={5} /></div>;
 
   const filtered = filterCustomers(customers, deferredFilters);
   const sorted = sortCustomers(filtered, sortKey, sortDirection);
@@ -180,7 +158,6 @@ export function CustomersList() {
     <div className="space-y-3">
       {actionError && (
         <Alert role="alert" tone="critical">
-          <AlertCircle size={18} className="shrink-0" />
           <span className="flex-1">{actionError}</span>
           <button
             type="button"
@@ -192,55 +169,34 @@ export function CustomersList() {
         </Alert>
       )}
       <Card flush>
-        <div className="space-y-3 border-b border-border p-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <SearchInput
-              value={filters.query}
-              onChange={(value) =>
-                setFilters((current) => ({
-                  ...current,
-                  query: value,
-                }))
-              }
-              placeholder={t("search_placeholder")}
-            />
-            <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {filtered.length} {t("customers_count")}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Select
-              aria-label={t("filters.wilaya")}
-              value={filters.wilaya}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  wilaya: event.currentTarget.value,
-                }))
-              }
-              wrapperClassName="sm:w-52"
-            >
-              <option value="all">{t("filter_all")}</option>
-              {wilayas.map(([id, name]) => (
-                <option key={id} value={id ?? ""}>
-                  {name || id}
-                </option>
-              ))}
-            </Select>
-            {hasFilters && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setFilters(EMPTY_FILTERS)}
-              >
-                {common("cancel")}
-              </Button>
-            )}
-          </div>
-        </div>
+        <ListToolbar count={t("count", { count: filtered.length })}>
+          <SearchInput
+            value={filters.query}
+            onChange={(value) => setFilters((current) => ({ ...current, query: value }))}
+            placeholder={t("search_placeholder")}
+            className="basis-full sm:basis-72"
+          />
+          <FilterPill
+            label={t("filters.wilaya")}
+            value={filters.wilaya}
+            onChange={(wilaya) => setFilters((current) => ({ ...current, wilaya }))}
+          >
+            <option value="all">{t("filters.all_wilayas")}</option>
+            {wilayas.map(([id, name]) => (
+              <option key={id} value={id ?? ""}>
+                {name || id}
+              </option>
+            ))}
+          </FilterPill>
+          {hasFilters && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
+              {common("clear_filters")}
+            </Button>
+          )}
+        </ListToolbar>
         {sorted.length === 0 ? (
           <EmptyState
-            icon={<Users size={22} />}
+            icon={<Users />}
             title={
               hasFilters ? common("no_results_found") : t("empty_state.title")
             }
@@ -256,15 +212,9 @@ export function CustomersList() {
           />
         ) : (
           <>
-            <div className="divide-y divide-border md:hidden">
+            <div className="divide-y divide-border border-t border-border md:hidden">
               {visible.map((customer) => (
-                <CustomerMobileCard
-                  key={customer.id}
-                  customer={customer}
-                  canEdit={canEdit}
-                  canDelete={canDelete}
-                  onDelete={onDelete}
-                />
+                <CustomerMobileCard key={customer.id} customer={customer} />
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
@@ -296,8 +246,8 @@ export function CustomersList() {
                       onSort={(key) => onSort(key as CustomerSortKey)}
                       align="end"
                     />
-                    <TableHead className="text-end">
-                      {common("table.actions")}
+                    <TableHead className="w-20">
+                      <span className="sr-only">{common("table.actions")}</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>

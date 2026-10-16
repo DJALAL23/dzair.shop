@@ -56,7 +56,7 @@ export function ProductBasicInfoCard({
   return (
     <Card title={t("form.section_basic")}>
       <div className="grid gap-4">
-        <Field label={`${t("form.name_label")} *`} error={errors.name}>
+        <Field label={t("form.name_label")} error={errors.name}>
           <Input
             value={name}
             onChange={(event) => setName(event.currentTarget.value)}
@@ -64,13 +64,9 @@ export function ProductBasicInfoCard({
             disabled={busy}
           />
         </Field>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field
-            label={
-              hasVariantsSwitch
-                ? t("form.sku_label")
-                : `${t("form.sku_label")} *`
-            }
+            label={t("form.sku_label")}
             error={errors.sku}
           >
             <Input
