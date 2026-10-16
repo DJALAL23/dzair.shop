@@ -28,8 +28,16 @@ export const createOfferSchema = offerBaseSchema.superRefine((data, ctx) => {
   }
 });
 
-// Update: all fields optional — .partial() on the base object, no refinement needed
-export const updateOfferSchema = offerBaseSchema.partial();
+// Update: all fields optional — .partial() on the base object, no refinement needed.
+// The fields a merchant can empty also take null, which clears the stored value;
+// a key that is left out keeps it. Without null an end date could never be removed.
+export const updateOfferSchema = offerBaseSchema.partial().extend({
+  triggerVariantId: z.string().min(1).optional().nullable(),
+  rewardProductId: z.string().min(1).optional().nullable(),
+  rewardVariantId: z.string().min(1).optional().nullable(),
+  startsAt: z.string().datetime({ offset: true }).optional().nullable(),
+  endsAt: z.string().datetime({ offset: true }).optional().nullable(),
+});
 
 export type CreateOfferInput = z.infer<typeof createOfferSchema>;
 export type UpdateOfferInput = z.infer<typeof updateOfferSchema>;

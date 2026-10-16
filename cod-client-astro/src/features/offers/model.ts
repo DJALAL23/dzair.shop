@@ -1,5 +1,5 @@
 import type { Translate } from "@/i18n/core";
-import type { Offer, OfferDiscountType, OfferStatus } from "./types";
+import type { CreateOfferData, Offer, OfferDiscountType, OfferFormValues, OfferStatus } from "./types";
 
 export type OfferSortKey = "name" | "status" | "createdAt" | "triggerQuantity";
 
@@ -93,4 +93,29 @@ export function formatOfferDate(value: string, locale: "ar" | "en" | "fr") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`).format(date);
+}
+
+/**
+ * The body the offer form sends. An update only changes what it carries, and
+ * `null` clears a stored value while a missing key keeps it — so when editing,
+ * an emptied end date, variant or reward must travel as `null`, and a type with
+ * no reward product (free shipping) must clear the reward it used to have.
+ * A create has nothing stored, so empty fields are left out.
+ */
+export function offerBody(form: OfferFormValues, editing: boolean): CreateOfferData {
+  const empty = editing ? null : undefined;
+  const isFree = form.discountType === "free";
+  return {
+    name: form.name.trim(),
+    discountType: form.discountType,
+    triggerProductId: form.triggerProductId,
+    triggerVariantId: form.triggerVariantId || empty,
+    triggerQuantity: parseInt(form.triggerQuantity, 10),
+    rewardProductId: isFree ? form.rewardProductId : empty,
+    rewardVariantId: isFree ? form.rewardVariantId || empty : empty,
+    rewardQuantity: isFree ? parseInt(form.rewardQuantity, 10) : 0,
+    startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : empty,
+    endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : empty,
+    status: form.status,
+  };
 }

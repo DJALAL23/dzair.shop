@@ -11,8 +11,8 @@ import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 import { createOffer, getOffer, updateOffer } from "@/features/offers/api";
-import { offerErrorMessage } from "@/features/offers/model";
-import type { CreateOfferData, OfferFormValues } from "@/features/offers/types";
+import { offerBody, offerErrorMessage } from "@/features/offers/model";
+import type { OfferFormValues } from "@/features/offers/types";
 import { listProducts } from "@/features/products/api";
 import type { Product, ProductVariant } from "@/features/products/types";
 import { Alert, Card, Field, FormPage, InfoTip, Input, Select, Switch } from "@/components/ui";
@@ -146,26 +146,7 @@ function OfferForm({ offerId }: { offerId?: string }) {
     setBusy(true);
     setMessage(null);
     try {
-      const body: CreateOfferData = {
-        name: form.name.trim(),
-        discountType: form.discountType,
-        triggerProductId: form.triggerProductId,
-        triggerVariantId: form.triggerVariantId || undefined,
-        triggerQuantity: parseInt(form.triggerQuantity, 10),
-        rewardProductId:
-          form.discountType === "free" ? form.rewardProductId : undefined,
-        rewardVariantId:
-          form.discountType === "free"
-            ? form.rewardVariantId || undefined
-            : undefined,
-        rewardQuantity:
-          form.discountType === "free" ? parseInt(form.rewardQuantity, 10) : 0,
-        startsAt: form.startsAt
-          ? new Date(form.startsAt).toISOString()
-          : undefined,
-        endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : undefined,
-        status: form.status,
-      };
+      const body = offerBody(form, editing);
       if (offerId) await updateOffer(offerId, body);
       else await createOffer(body);
       notify.flashSuccess(t(offerId ? "form.success_edit" : "form.success_add"));

@@ -75,3 +75,51 @@ describe("offers model", () => {
     expect(formatOfferDate("not-a-date", "en")).toBe("-");
   });
 });
+
+import { offerBody } from "./model";
+import type { OfferFormValues } from "./types";
+
+const FORM: OfferFormValues = {
+  name: " Buy 2 ",
+  discountType: "free",
+  triggerProductId: "p1",
+  triggerVariantId: "",
+  triggerQuantity: "2",
+  rewardProductId: "p2",
+  rewardVariantId: "",
+  rewardQuantity: "1",
+  startsAt: "",
+  endsAt: "",
+  status: "active",
+};
+
+describe("offer body: a cleared field is sent as null when editing", () => {
+  it("clears an emptied start date, end date and variants when editing", () => {
+    const body = offerBody(FORM, true);
+    expect(body.startsAt).toBeNull();
+    expect(body.endsAt).toBeNull();
+    expect(body.triggerVariantId).toBeNull();
+    expect(body.rewardVariantId).toBeNull();
+  });
+
+  it("leaves them out when creating", () => {
+    const body = offerBody(FORM, false);
+    expect(body.endsAt).toBeUndefined();
+    expect(body.triggerVariantId).toBeUndefined();
+  });
+
+  it("keeps a filled end date as an ISO string", () => {
+    expect(offerBody({ ...FORM, endsAt: "2030-01-01T10:00" }, true).endsAt).toMatch(/^2030-01-01T/);
+  });
+
+  it("clears the reward product when an offer becomes free shipping", () => {
+    const body = offerBody({ ...FORM, discountType: "free_shipping", rewardVariantId: "v9" }, true);
+    expect(body.rewardProductId).toBeNull();
+    expect(body.rewardVariantId).toBeNull();
+    expect(body.rewardQuantity).toBe(0);
+  });
+
+  it("trims the name", () => {
+    expect(offerBody(FORM, true).name).toBe("Buy 2");
+  });
+});

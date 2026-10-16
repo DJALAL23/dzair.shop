@@ -127,6 +127,23 @@ describe("createOfferSchema", () => {
 });
 
 describe("updateOfferSchema", () => {
+  it("accepts null to clear an end date, a start date and the variant and reward fields", () => {
+    const result = updateOfferSchema.safeParse({
+      startsAt: null,
+      endsAt: null,
+      triggerVariantId: null,
+      rewardProductId: null,
+      rewardVariantId: null,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.endsAt).toBeNull();
+  });
+
+  it("still refuses null for a required field", () => {
+    expect(updateOfferSchema.safeParse({ triggerProductId: null }).success).toBe(false);
+    expect(updateOfferSchema.safeParse({ name: null }).success).toBe(false);
+  });
+
   it("accepts partial updates", () => {
     expect(updateOfferSchema.safeParse({ name: "Updated Name" }).success).toBe(true);
   });

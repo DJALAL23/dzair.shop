@@ -47,12 +47,12 @@ export interface CreateOfferData {
   name: string;
   discountType: OfferDiscountType;
   triggerProductId: string;
-  triggerVariantId?: string;
+  triggerVariantId?: string | null;
   triggerQuantity: number;
-  rewardProductId?: string;
-  rewardVariantId?: string;
+  rewardProductId?: string | null;
+  rewardVariantId?: string | null;
   rewardQuantity: number;
-  startsAt?: string;
-  endsAt?: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
   status: OfferStatus;
 }
