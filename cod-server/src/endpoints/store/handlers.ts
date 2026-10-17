@@ -25,6 +25,7 @@ import {
 import { priceCartLines, type CatalogSnapshot } from "../../../../cod-shared/queries/catalog-snapshot";
 import { resolveCartOffers } from "../../../../cod-shared/queries/offers-cart";
 import { resolveStorefrontMenu } from "../../../../cod-shared/queries/menus";
+import { getStorefrontCollection } from "../../../../cod-shared/queries/collections";
 import { resolveConversionForStage, conversionSourceUrl } from "@/workflows/capi-helpers";
 import { startCapiWorkflow } from "@/lib/conversions";
 import { stores, orders } from "../../../../cod-shared/db/schema";
@@ -215,6 +216,15 @@ export async function getStorePage(c: Context<AppContext>) {
   if (!page) throw new NotFoundError("Store Page", slug);
 
   return c.json({ success: true, data: page }, 200);
+}
+
+export async function getStoreCollection(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const storeId = c.get("storeId")!;
+  const served = await servedLanguage(c, db);
+  const collection = await getStorefrontCollection(db, storeId, c.req.param("handle")!, served.translate);
+  if (!collection) throw new NotFoundError("Collection", c.req.param("handle"));
+  return c.json({ success: true, data: collection }, 200);
 }
 
 export async function getStoreMenu(c: Context<AppContext>) {

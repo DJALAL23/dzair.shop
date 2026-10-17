@@ -16,15 +16,15 @@ export const MENU_MAX_DEPTH = 3;
 /** At most this many items in one menu. */
 export const MENU_MAX_ITEMS = 100;
 
-export const MENU_DESTINATION_TYPES = ["home", "catalog", "category", "product", "page", "landing", "url"] as const;
+export const MENU_DESTINATION_TYPES = ["home", "catalog", "category", "collection", "product", "page", "landing", "url"] as const;
 export type MenuDestinationType = (typeof MENU_DESTINATION_TYPES)[number];
 
 /** The destinations that name one resource, by its id. */
-export const MENU_RESOURCE_DESTINATIONS = ["category", "product", "page", "landing"] as const satisfies readonly MenuDestinationType[];
+export const MENU_RESOURCE_DESTINATIONS = ["category", "collection", "product", "page", "landing"] as const satisfies readonly MenuDestinationType[];
 
 export type MenuDestination =
   | { type: "home" | "catalog" }
-  | { type: "category" | "product" | "page" | "landing"; ref: string }
+  | { type: "category" | "collection" | "product" | "page" | "landing"; ref: string }
   | { type: "url"; url: string };
 
 /** The storefront page type a destination opens (every type but `url`). */
@@ -32,6 +32,7 @@ export const DESTINATION_PAGE_TYPE: Record<Exclude<MenuDestinationType, "url">, 
   home: "home",
   catalog: "catalog",
   category: "category",
+  collection: "collection",
   product: "product",
   page: "page",
   landing: "landing",

@@ -16,6 +16,7 @@ export const STOREFRONT_PAGE_PATHS = {
   home: "/",
   catalog: "/products",
   category: "/category/:slug",
+  collection: "/collections/:handle",
   product: "/products/:handle",
   page: "/pages/:slug",
   landing: "/lp/:slug",

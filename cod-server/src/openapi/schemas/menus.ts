@@ -7,7 +7,7 @@
  */
 
 import { z } from "@hono/zod-openapi";
-import { MENU_HANDLE_RE, MENU_MAX_ITEMS, MENU_RESOURCE_DESTINATIONS, isMenuUrl } from "../../../../cod-shared/navigation/menus";
+import { MENU_DESTINATION_TYPES, MENU_HANDLE_RE, MENU_MAX_ITEMS, MENU_RESOURCE_DESTINATIONS, isMenuUrl } from "../../../../cod-shared/navigation/menus";
 
 export const MenuHandleSchema = z.string().regex(MENU_HANDLE_RE).openapi({
   description: "Lowercase letters, digits and hyphens; how a theme names the menu",
@@ -18,8 +18,8 @@ export const MenuDestinationSchema = z
   .discriminatedUnion("type", [
     z.object({ type: z.enum(["home", "catalog"]) }),
     z.object({
-      type: z.enum(["category", "product", "page", "landing"]),
-      ref: z.string().min(1).max(100).openapi({ description: "The category, product, store page or landing page id" }),
+      type: z.enum(["category", "collection", "product", "page", "landing"]),
+      ref: z.string().min(1).max(100).openapi({ description: "The category, collection, product, store page or landing page id" }),
     }),
     z.object({
       type: z.literal("url"),
@@ -86,7 +86,7 @@ const storefrontItemFields = {
     description: "A path of the store without a language prefix (`/products/robe`), or the URL the merchant entered",
     example: "/category/robes",
   }),
-  type: z.enum(["home", "catalog", "category", "product", "page", "landing", "url"]),
+  type: z.enum(MENU_DESTINATION_TYPES),
 };
 const StorefrontMenuItemLevel3 = z.object({ ...storefrontItemFields, children: noChildren });
 const StorefrontMenuItemLevel2 = z.object({ ...storefrontItemFields, children: z.array(StorefrontMenuItemLevel3) });

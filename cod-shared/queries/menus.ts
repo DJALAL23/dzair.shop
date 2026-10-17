@@ -13,7 +13,7 @@
  */
 import { and, asc, desc, eq, inArray, like, or } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
-import { landingPages, productCategories, products, storeMenuItems, storeMenus, storePages } from "../db/schema";
+import { collections, landingPages, productCategories, products, storeMenuItems, storeMenus, storePages } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { DESTINATION_PAGE_TYPE, MENU_MAX_DEPTH, MENU_MAX_ITEMS, MENU_RESOURCE_DESTINATIONS, type MenuDestination } from "../navigation/menus";
 import { storefrontPath } from "../storefront/routes";
@@ -95,13 +95,14 @@ interface ResolvedTarget {
 /** Every destination of these items, looked up in one round trip. */
 async function resolveTargets(db: AppDb, rows: readonly ItemRow[]): Promise<Map<string, ResolvedTarget>> {
   const ids = (type: string) => [...new Set(rows.filter((row) => row.destinationType === type && row.destinationRef).map((row) => row.destinationRef!))];
-  const [productIds, categoryIds, pageIds, landingIds] = [ids("product"), ids("category"), ids("page"), ids("landing")];
+  const [productIds, categoryIds, pageIds, landingIds, collectionIds] = [ids("product"), ids("category"), ids("page"), ids("landing"), ids("collection")];
   const none = ["\u0000"];
-  const [productRows, categoryRows, pageRows, landingRows] = await db.batch([
+  const [productRows, categoryRows, pageRows, landingRows, collectionRows] = await db.batch([
     db.select({ id: products.id, name: products.name, handle: products.handle, status: products.status, visibility: products.visibility, showInStore: products.showInStore }).from(products).where(inArray(products.id, productIds.length ? productIds : none)),
     db.select({ id: productCategories.id, name: productCategories.name, slug: productCategories.slug }).from(productCategories).where(inArray(productCategories.id, categoryIds.length ? categoryIds : none)),
     db.select({ id: storePages.id, slug: storePages.slug, status: storePages.status }).from(storePages).where(inArray(storePages.id, pageIds.length ? pageIds : none)),
     db.select({ id: landingPages.id, name: landingPages.name, slug: landingPages.slug, status: landingPages.status }).from(landingPages).where(inArray(landingPages.id, landingIds.length ? landingIds : none)),
+    db.select({ id: collections.id, title: collections.title, handle: collections.handle }).from(collections).where(inArray(collections.id, collectionIds.length ? collectionIds : none)),
   ]);
   const targets = new Map<string, ResolvedTarget>();
   for (const row of productRows) {
@@ -110,6 +111,7 @@ async function resolveTargets(db: AppDb, rows: readonly ItemRow[]): Promise<Map<
   }
   for (const row of categoryRows) targets.set(`category:${row.id}`, { status: "ok", label: row.name, path: storefrontPath("category", { slug: row.slug }) });
   for (const row of pageRows) targets.set(`page:${row.id}`, { status: row.status === "published" ? "ok" : "hidden", label: row.slug, path: storefrontPath("page", { slug: row.slug }) });
+  for (const row of collectionRows) targets.set(`collection:${row.id}`, { status: "ok", label: row.title, path: storefrontPath("collection", { handle: row.handle }) });
   for (const row of landingRows) targets.set(`landing:${row.id}`, { status: row.status === "published" ? "ok" : "hidden", label: row.name, path: storefrontPath("landing", { slug: row.slug }) });
   return targets;
 }
@@ -152,8 +154,8 @@ export interface MenuDestinationOption {
 
 /**
  * What a menu item can point at, for the dashboard's picker: up to `limit`
- * products, categories, store pages or landing pages whose name (or slug)
- * contains `query`.
+ * products, categories, collections, store pages or landing pages whose name
+ * (or slug, or handle) contains `query`.
  */
 export async function searchMenuDestinations(
   db: AppDb,
@@ -194,6 +196,16 @@ export async function searchMenuDestinations(
         .limit(limit)
         .all();
       return rows.map((row) => ({ id: row.id, label: row.slug, path: storefrontPath("page", { slug: row.slug }), visible: row.status === "published" }));
+    }
+    case "collection": {
+      const rows = await db
+        .select({ id: collections.id, title: collections.title, handle: collections.handle })
+        .from(collections)
+        .where(and(eq(collections.storeId, storeId), matches(collections.title, collections.handle)))
+        .orderBy(asc(collections.title))
+        .limit(limit)
+        .all();
+      return rows.map((row) => ({ id: row.id, label: row.title, path: storefrontPath("collection", { handle: row.handle }), visible: true }));
     }
     case "landing": {
       const rows = await db

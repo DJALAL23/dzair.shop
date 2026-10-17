@@ -13,6 +13,8 @@ import { collectionProducts, collections, products } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { COLLECTION_MAX_PRODUCTS, FEATURED_COLLECTION } from "../catalog/collections";
 import { chunkIds } from "./d1-limits";
+import { listTranslations } from "./translations";
+import type { StoreLocale } from "../i18n/locales";
 
 export interface CollectionSummary {
   id: string;
@@ -236,3 +238,27 @@ export async function setProductCollections(
  */
 export const isFeaturedSql = sql<number>`EXISTS (SELECT 1 FROM collection_products cp JOIN collections c ON c.id = cp.collection_id WHERE cp.product_id = products.id AND c.handle = ${FEATURED_COLLECTION})`;
 
+
+export interface StorefrontCollection {
+  handle: string;
+  title: string;
+  description: string | null;
+}
+
+/**
+ * A collection as a storefront names it — its page's title and description,
+ * in `locale` when the store translated them (`null` = the primary). Its
+ * products are read through the product list (`collection`). Null when the
+ * store has no collection with this handle.
+ */
+export async function getStorefrontCollection(db: AppDb, storeId: string, handle: string, locale: StoreLocale | null): Promise<StorefrontCollection | null> {
+  const row = await db
+    .select({ id: collections.id, handle: collections.handle, title: collections.title, description: collections.description })
+    .from(collections)
+    .where(and(eq(collections.storeId, storeId), eq(collections.handle, handle)))
+    .get();
+  if (!row) return null;
+  const translated = locale ? await listTranslations(db, "collection", [row.id], locale) : [];
+  const text = (key: "title" | "description") => translated.find((entry) => entry.key === key && entry.value.trim())?.value;
+  return { handle: row.handle, title: text("title") ?? row.title, description: text("description") ?? row.description };
+}

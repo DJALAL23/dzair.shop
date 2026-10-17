@@ -16,7 +16,7 @@ import { PAGE_DOCUMENT_SURFACE_RE } from "../../../../cod-shared/queries/page-do
 import { storeOrderSchema, validateCartSchema } from "./validation";
 import reviewsRouter from "./reviews/routes";
 import { MenuHandleSchema, StorefrontMenuSchema } from "@/openapi/schemas/menus";
-import { CollectionHandleSchema } from "@/openapi/schemas/collections";
+import { CollectionHandleSchema, StorefrontCollectionSchema } from "@/openapi/schemas/collections";
 import {
   StoreConfigSchema,
   StoreProductListSchema,
@@ -220,6 +220,24 @@ const getStorePageRoute = defineRoute({
     404: { description: "Page not found, or exists only as a draft" },
   },
   handler: h.getStorePage,
+});
+
+const getStoreCollectionRoute = defineRoute({
+  method: "get",
+  path: "/collections/{handle}",
+  auth: "store",
+  tags: ["Store API"],
+  summary: "Get a collection",
+  description:
+    "A collection's title and description for its page (`/collections/:handle`), in the requested language (`?locale=`, else the store's primary). Its products come from `/store/products?collection=`. An unknown handle is a 404: the theme answers a real 404 page.",
+  operationId: "getStoreCollection",
+  params: z.object({ handle: CollectionHandleSchema }),
+  query: localeQuerySchema,
+  responses: {
+    200: { description: "The collection", content: jsonContent(SuccessResponseSchema(StorefrontCollectionSchema)) },
+    404: { description: "The store has no collection with this handle" },
+  },
+  handler: h.getStoreCollection,
 });
 
 const getStoreMenuRoute = defineRoute({
@@ -513,6 +531,7 @@ const router = new OpenAPIHono<AppContext>();
 
 router.openapi(getStoreConfigRoute.route, getStoreConfigRoute.handler);
 router.openapi(getStoreMenuRoute.route, getStoreMenuRoute.handler);
+router.openapi(getStoreCollectionRoute.route, getStoreCollectionRoute.handler);
 router.openapi(listStoreProductsRoute.route, listStoreProductsRoute.handler);
 router.openapi(getStoreProductRoute.route, getStoreProductRoute.handler);
 router.openapi(getStoreLandingPageRoute.route, getStoreLandingPageRoute.handler);

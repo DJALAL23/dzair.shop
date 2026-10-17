@@ -53,3 +53,11 @@ export const CollectionDetailSchema = z
     ),
   })
   .openapi("CollectionDetail");
+
+export const StorefrontCollectionSchema = z
+  .object({
+    handle: CollectionHandleSchema,
+    title: z.string().openapi({ description: "In the requested language when the store translated it" }),
+    description: z.string().nullable(),
+  })
+  .openapi("StorefrontCollection");
