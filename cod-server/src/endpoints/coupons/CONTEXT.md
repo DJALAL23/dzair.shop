@@ -38,11 +38,11 @@ What a coupon covers: the whole store, picked products, or the products of picke
 _Avoid_: Target, applies-to list
 
 **Eligible Lines**:
-The paid lines of an order in the Coupon Scope that no offer applied to. A coupon's discount and its Minimum Purchase are measured on them alone.
+The paid lines of an order in the Coupon Scope that no offer applied to. A coupon's discount and its Minimum Requirement are measured on them alone.
 _Avoid_: Discountable items
 
-**Minimum Purchase**:
-What the Eligible Lines must cost together, offers applied, for the coupon to apply.
+**Minimum Requirement**:
+What the Eligible Lines must reach for the coupon to apply: an amount they cost together, offers applied, or a number of items — never both.
 _Avoid_: Minimum order value (it is not the whole order)
 
 **Audience**:

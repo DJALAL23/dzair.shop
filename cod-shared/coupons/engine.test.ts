@@ -8,13 +8,14 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { priceCoupon, type CouponLine, type EngineCoupon } from "./engine";
 
-const line = (productId: string, lineTotal: number, offerId: string | null = null): CouponLine => ({ productId, lineTotal, offerId });
+const line = (productId: string, lineTotal: number, offerId: string | null = null, quantity = 1): CouponLine => ({ productId, quantity, lineTotal, offerId });
 
 const coupon = (extra: Partial<EngineCoupon> = {}): EngineCoupon => ({
   kind: "percentage",
   value: 10,
   maxDiscount: null,
   minSubtotal: null,
+  minQuantity: null,
   productIds: null,
   ...extra,
 });
@@ -42,11 +43,17 @@ describe("which lines a coupon covers", () => {
 describe("the minimum purchase", () => {
   it("is measured on the covered lines alone, and says how far short the basket is", () => {
     const lines = [line("a", 1500), line("b", 9000, "packs"), line("c", 9000)];
-    expect(priceCoupon(lines, coupon({ productIds: new Set(["a", "b"]), minSubtotal: 2000 }))).toEqual({ applied: false, reason: "below_minimum", shortBy: 500 });
+    expect(priceCoupon(lines, coupon({ productIds: new Set(["a", "b"]), minSubtotal: 2000 }))).toEqual({ applied: false, reason: "below_minimum_subtotal", shortBy: 500 });
   });
 
   it("is met at exactly the amount", () => {
     expect(priceCoupon([line("a", 2000)], coupon({ minSubtotal: 2000 }))).toMatchObject({ applied: true, discount: 200 });
+  });
+
+  it("can be a number of items instead, counted on the covered lines alone", () => {
+    const lines = [line("a", 2000, null, 2), line("b", 9000, "packs", 5), line("c", 1000, null, 4)];
+    expect(priceCoupon(lines, coupon({ productIds: new Set(["a", "b"]), minQuantity: 3 }))).toEqual({ applied: false, reason: "below_minimum_quantity", shortBy: 1 });
+    expect(priceCoupon(lines, coupon({ productIds: new Set(["a", "b"]), minQuantity: 2 }))).toMatchObject({ applied: true, discount: 200 });
   });
 });
 
@@ -82,6 +89,7 @@ describe("invariants", () => {
   const arbLines = fc.array(
     fc.record({
       productId: fc.constantFrom("a", "b", "c", "d"),
+      quantity: fc.integer({ min: 1, max: 20 }),
       lineTotal: fc.integer({ min: 0, max: 200_000 }),
       offerId: fc.constantFrom(null, null, "o1"),
     }),
@@ -93,6 +101,7 @@ describe("invariants", () => {
       value: fc.integer({ min: 1, max: 100 }),
       maxDiscount: fc.option(fc.integer({ min: 1, max: 50_000 }), { nil: null }),
       minSubtotal: fc.option(fc.integer({ min: 1, max: 100_000 }), { nil: null }),
+      minQuantity: fc.option(fc.integer({ min: 1, max: 30 }), { nil: null }),
       productIds: fc.option(fc.subarray(["a", "b", "c", "d"]).map((ids) => new Set(ids)), { nil: null }),
     }),
     fc.record({
@@ -100,6 +109,7 @@ describe("invariants", () => {
       value: fc.integer({ min: 1, max: 100_000 }),
       maxDiscount: fc.constant(null),
       minSubtotal: fc.option(fc.integer({ min: 1, max: 100_000 }), { nil: null }),
+      minQuantity: fc.option(fc.integer({ min: 1, max: 30 }), { nil: null }),
       productIds: fc.option(fc.subarray(["a", "b", "c", "d"]).map((ids) => new Set(ids)), { nil: null }),
     }),
   );
@@ -124,14 +134,16 @@ describe("invariants", () => {
     );
   });
 
-  it("applies exactly when a covered line exists and the covered lines reach the minimum", () => {
+  it("applies exactly when a covered line exists and the covered lines reach every minimum", () => {
     fc.assert(
       fc.property(arbLines, arbCoupon, (lines, c) => {
         const covered = lines.filter((l) => l.offerId === null && (c.productIds === null || c.productIds.has(l.productId)));
         const subtotal = covered.reduce((sum, l) => sum + l.lineTotal, 0);
+        const units = covered.reduce((sum, l) => sum + l.quantity, 0);
         const result = priceCoupon(lines, c);
-        expect(result.applied).toBe(covered.length > 0 && (c.minSubtotal === null || subtotal >= c.minSubtotal));
-        if (!result.applied && result.reason === "below_minimum") expect(result.shortBy).toBe(c.minSubtotal! - subtotal);
+        expect(result.applied).toBe(covered.length > 0 && (c.minSubtotal === null || subtotal >= c.minSubtotal) && (c.minQuantity === null || units >= c.minQuantity));
+        if (!result.applied && result.reason === "below_minimum_subtotal") expect(result.shortBy).toBe(c.minSubtotal! - subtotal);
+        if (!result.applied && result.reason === "below_minimum_quantity") expect(result.shortBy).toBe(c.minQuantity! - units);
       }),
     );
   });

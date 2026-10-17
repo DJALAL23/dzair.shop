@@ -94,6 +94,16 @@ vi.mock("@/endpoints/offers/ai-tools", () => ({
   ),
 }));
 
+vi.mock("@/endpoints/coupons/ai-tools", () => ({
+  getCouponTools: () => toolMap(
+    "listCoupons",
+    "getCouponDetails",
+    "createCoupon",
+    "updateCoupon",
+    "deleteCoupon",
+  ),
+}));
+
 vi.mock("@/endpoints/landing-pages/ai-tools", () => ({
   getLandingPageTools: vi.fn(() =>
     toolMap(
@@ -245,6 +255,7 @@ const ALL_TOOLS = [
   "adjustVariantStock",
   "archiveLandingPage",
   "assignTagToCustomer",
+  "createCoupon",
   "createCustomerGroup",
   "createCustomerTag",
   "createDriverSettlement",
@@ -257,6 +268,7 @@ const ALL_TOOLS = [
   "createProductGroup",
   "createProductVariant",
   "createShippingProfile",
+  "deleteCoupon",
   "deleteCustomer",
   "deleteCustomerGroup",
   "deleteCustomerTag",
@@ -271,6 +283,7 @@ const ALL_TOOLS = [
   "deleteShippingProfile",
   "duplicateLandingPage",
   "findCustomerByPhone",
+  "getCouponDetails",
   "getCustomerDetails",
   "getCustomerGroupDetails",
   "getCustomerMemberships",
@@ -295,6 +308,7 @@ const ALL_TOOLS = [
   "handOffOrderToCarrier",
   "handOffOrderToDriver",
   "listCommuneOverrides",
+  "listCoupons",
   "listCustomerGroups",
   "listCustomerTags",
   "listCustomers",
@@ -323,6 +337,7 @@ const ALL_TOOLS = [
   "setShippingProfileRules",
   "unassignTagFromCustomer",
   "unpublishLandingPage",
+  "updateCoupon",
   "updateCustomerGroup",
   "updateCustomerProfile",
   "updateCustomerTag",
@@ -344,6 +359,11 @@ const ALL_TOOLS = [
 describe("buildToolsForUser — scope gating", () => {
   it("admin sees every registered tool (bypasses scope checks)", () => {
     expect(names(makeProps({ role: "admin" }))).toEqual(ALL_TOOLS);
+  });
+
+  it("COUPONS_READ alone → the coupon read tools; COUPONS_MANAGE adds the writes", () => {
+    expect(names(makeProps({ scopes: [SCOPES.COUPONS_READ] }))).toEqual(["getCouponDetails", "listCoupons"]);
+    expect(names(makeProps({ scopes: [SCOPES.COUPONS_MANAGE] }))).toEqual(["createCoupon", "deleteCoupon", "updateCoupon"]);
   });
 
   it("empty-scope staff sees zero tools", () => {

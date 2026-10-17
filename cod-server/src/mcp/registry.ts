@@ -40,6 +40,7 @@ import { getDriverPaymentTools } from "@/endpoints/driver-payments/ai-tools";
 import { getProductTools }       from "@/endpoints/products/ai-tools";
 import { getProductGroupTools }  from "@/endpoints/product-groups/ai-tools";
 import { getOfferTools }         from "@/endpoints/offers/ai-tools";
+import { getCouponTools }        from "@/endpoints/coupons/ai-tools";
 import { getLandingPageTools }  from "@/endpoints/landing-pages/ai-tools";
 import { getVariantTools }       from "@/endpoints/variants/ai-tools";
 import { getWilayaTools }        from "@/endpoints/wilayas/ai-tools";
@@ -214,6 +215,23 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
       "createOffer",
       "updateOffer",
       "deleteOffer",
+    ]),
+  },
+
+  // ─── Coupons ──────────────────────────────────────────────────────────────
+  {
+    requires: [SCOPES.COUPONS_READ],
+    build: (db) => pick(getCouponTools(db), [
+      "listCoupons",
+      "getCouponDetails",
+    ]),
+  },
+  {
+    requires: [SCOPES.COUPONS_MANAGE],
+    build: (db) => pick(getCouponTools(db), [
+      "createCoupon",
+      "updateCoupon",
+      "deleteCoupon",
     ]),
   },
 

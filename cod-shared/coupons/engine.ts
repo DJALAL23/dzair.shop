@@ -12,8 +12,9 @@
  *  1. Eligible lines are the paid lines in the coupon's scope that no offer
  *     applied to — one promotion per product, so a coupon never deepens an
  *     offer the merchant already priced. Rewards are never paid lines.
- *  2. The minimum purchase is measured on the eligible lines alone: a coupon
- *     for one collection asks that much of that collection.
+ *  2. The minimum — an amount or a number of items, never both — is measured
+ *     on the eligible lines alone: a coupon for one collection asks that much
+ *     of that collection.
  *  3. A percentage is taken of the eligible subtotal, rounded to the dinar,
  *     then capped; a fixed amount is taken once per order. Neither takes more
  *     than the eligible lines cost.
@@ -32,6 +33,7 @@ export interface EngineCoupon {
   value: number;
   maxDiscount: number | null;
   minSubtotal: number | null;
+  minQuantity: number | null;
   /** The products the coupon covers; null for the whole store. */
   productIds: ReadonlySet<string> | null;
 }
@@ -39,6 +41,7 @@ export interface EngineCoupon {
 /** A paid line as offers left it. */
 export interface CouponLine {
   productId: string;
+  quantity: number;
   lineTotal: number;
   /** The offer applied to this line, or null. */
   offerId: string | null;
@@ -54,7 +57,8 @@ export type CouponPricing =
       freeShipping: boolean;
     }
   | { applied: false; reason: "no_eligible_products" }
-  | { applied: false; reason: "below_minimum"; shortBy: number };
+  /** `shortBy`: the dinars, or the items, the eligible lines still lack. */
+  | { applied: false; reason: "below_minimum_subtotal" | "below_minimum_quantity"; shortBy: number };
 
 export function priceCoupon(lines: readonly CouponLine[], coupon: EngineCoupon): CouponPricing {
   const eligible = lines.map((line) => line.offerId === null && (coupon.productIds === null || coupon.productIds.has(line.productId)));
@@ -63,7 +67,11 @@ export function priceCoupon(lines: readonly CouponLine[], coupon: EngineCoupon):
   const weights = lines.map((line, index) => (eligible[index] ? line.lineTotal : 0));
   const subtotal = weights.reduce((sum, weight) => sum + weight, 0);
   if (coupon.minSubtotal !== null && subtotal < coupon.minSubtotal) {
-    return { applied: false, reason: "below_minimum", shortBy: coupon.minSubtotal - subtotal };
+    return { applied: false, reason: "below_minimum_subtotal", shortBy: coupon.minSubtotal - subtotal };
+  }
+  const units = lines.reduce((sum, line, index) => sum + (eligible[index] ? line.quantity : 0), 0);
+  if (coupon.minQuantity !== null && units < coupon.minQuantity) {
+    return { applied: false, reason: "below_minimum_quantity", shortBy: coupon.minQuantity - units };
   }
 
   const discount =

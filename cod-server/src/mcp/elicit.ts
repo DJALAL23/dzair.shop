@@ -33,6 +33,9 @@ export const DANGEROUS_TOOLS: ReadonlySet<string> = new Set<string>([
   // Offers — destructive
   "deleteOffer",
 
+  // Coupons — destructive
+  "deleteCoupon",
+
   // Landing pages — destructive (refuses with attributed orders, but still irreversible without)
   "deleteLandingPage",
   // Landing pages — destructive (storage object removed on last reference; restore = re-upload)

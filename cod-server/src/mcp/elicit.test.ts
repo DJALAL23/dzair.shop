@@ -44,6 +44,7 @@ describe("DANGEROUS_TOOLS allowlist", () => {
         "deleteProduct",
         "deleteProductGroup",
         "deleteOffer",
+        "deleteCoupon",
         "deleteProductVariant",
         "adjustProductStock",
         "adjustVariantStock",

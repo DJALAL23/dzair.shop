@@ -116,6 +116,12 @@ export const SCOPES = {
   /** Create, update, and delete promotional offers */
   OFFERS_MANAGE: "offers:manage",
 
+  // Coupons (codes a shopper enters at checkout)
+  /** View coupons, their uses and the discount they gave */
+  COUPONS_READ: "coupons:read",
+  /** Create, update, and delete coupons */
+  COUPONS_MANAGE: "coupons:manage",
+
   // Checkout Form (the storefront order form: which fields it asks for, how
   // strictly each is enforced, and the merchant's own custom fields)
   /** View the checkout form policy */
@@ -256,6 +262,10 @@ export const SCOPE_CATEGORIES = {
   offers: {
     label: "Offers",
     scopes: [SCOPES.OFFERS_READ, SCOPES.OFFERS_MANAGE],
+  },
+  coupons: {
+    label: "Coupons",
+    scopes: [SCOPES.COUPONS_READ, SCOPES.COUPONS_MANAGE],
   },
   storePages: {
     label: "Store Pages",

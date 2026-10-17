@@ -78,6 +78,7 @@ export const OrderProductSchema = z
       description: "The offer that shaped the line: the quantity-pricing offer that set its price, or the gift offer that gave it. Null at the catalog price.",
     }),
     reward: z.boolean().openapi({ description: "A gift, given by `offerId` at no charge" }),
+    discount: z.number().int().openapi({ description: "The line's share of the order's coupon discount; `lineTotal` is already net of it" }),
   })
   .openapi("OrderProduct");
 
@@ -146,6 +147,9 @@ const OrderBaseSchema = z.object({
   deliveryOfferId: z.string().nullable().openapi({
     description: "The offer that made delivery free (a free-shipping offer, or a quantity tier that includes it); null when none did",
   }),
+  couponId: z.string().nullable().openapi({ description: "The coupon the order was placed with; null when none, or once the coupon is deleted" }),
+  couponCode: z.string().nullable().openapi({ description: "The code the order used, kept when the coupon is deleted" }),
+  couponDiscount: z.number().int().openapi({ description: "What the coupon took off; `price` is already net of it" }),
 });
 
 export const OrderRemovalSchema = z

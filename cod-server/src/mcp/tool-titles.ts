@@ -51,6 +51,13 @@ export const TOOL_TITLES: Record<string, string> = {
   updateOffer: "Update offer",
   deleteOffer: "Delete offer",
 
+  // ─── Coupons ──────────────────────────────────────────────────────────────
+  listCoupons: "List coupons",
+  getCouponDetails: "Get coupon details",
+  createCoupon: "Create coupon",
+  updateCoupon: "Update coupon",
+  deleteCoupon: "Delete coupon",
+
   // ─── Landing pages ────────────────────────────────────────────────────────
   listLandingPages: "List landing pages",
   getLandingPageDetails: "Get landing page details",

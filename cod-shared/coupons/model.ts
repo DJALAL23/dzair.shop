@@ -24,6 +24,9 @@ export type CouponScope = (typeof COUPON_SCOPES)[number];
 export const COUPON_AUDIENCES = ["everyone", "selected"] as const;
 export type CouponAudience = (typeof COUPON_AUDIENCES)[number];
 
+/** At most this many of each pick on one coupon; a larger audience is a customer group. */
+export const COUPON_PICK_LIMITS = { productIds: 500, collectionIds: 100, customerIds: 1000, groupIds: 50 } as const;
+
 export const COUPON_CODE_PATTERN = /^[A-Z0-9_-]{3,32}$/;
 
 const ARABIC_INDIC_ZERO = 0x0660;
@@ -54,6 +57,8 @@ export interface CouponShape {
   maxDiscount: number | null;
   /** What the eligible products must cost together, offers applied, for the coupon to apply; null for none. */
   minSubtotal: number | null;
+  /** How many items the eligible products must count together; null for none. Never beside a `minSubtotal`. */
+  minQuantity: number | null;
   scope: CouponScope;
   productIds: readonly string[];
   collectionIds: readonly string[];
@@ -72,10 +77,12 @@ export type CouponProblem =
   | "invalid_value"
   | "max_discount_not_allowed"
   | "invalid_amount"
+  | "minimum_conflict"
   | "scope_empty"
   | "scope_mismatch"
   | "audience_empty"
   | "audience_mismatch"
+  | "too_many_picks"
   | "invalid_usage_limit"
   | "schedule_ends_before_start";
 
@@ -90,14 +97,15 @@ function valueFits(coupon: Pick<CouponShape, "kind" | "value">): boolean {
 /**
  * What makes a coupon incoherent, or null. A percentage is 1–100, an amount
  * at least one dinar, free delivery carries no value; only a percentage has a
- * cap. A scope or audience that picks names at least one, and only what it
+ * cap; a minimum is an amount or a number of items, not both. A scope or audience that picks names at least one, and only what it
  * picks. A schedule ends after it starts.
  */
 export function couponProblem(coupon: CouponShape): CouponProblem | null {
   if (!COUPON_CODE_PATTERN.test(coupon.code)) return "invalid_code";
   if (!valueFits(coupon)) return "invalid_value";
   if (coupon.maxDiscount !== null && coupon.kind !== "percentage") return "max_discount_not_allowed";
-  for (const amount of [coupon.maxDiscount, coupon.minSubtotal]) if (amount !== null && !wholeAtLeast(amount, 1)) return "invalid_amount";
+  for (const amount of [coupon.maxDiscount, coupon.minSubtotal, coupon.minQuantity]) if (amount !== null && !wholeAtLeast(amount, 1)) return "invalid_amount";
+  if (coupon.minSubtotal !== null && coupon.minQuantity !== null) return "minimum_conflict";
 
   const picks = { products: coupon.productIds.length, collections: coupon.collectionIds.length };
   if ((["products", "collections"] as const).some((scope) => scope !== coupon.scope && picks[scope] > 0)) return "scope_mismatch";
@@ -107,7 +115,30 @@ export function couponProblem(coupon: CouponShape): CouponProblem | null {
   if (coupon.audience === "everyone" && selected > 0) return "audience_mismatch";
   if (coupon.audience === "selected" && selected === 0) return "audience_empty";
 
+  if ((Object.keys(COUPON_PICK_LIMITS) as Array<keyof typeof COUPON_PICK_LIMITS>).some((pick) => coupon[pick].length > COUPON_PICK_LIMITS[pick])) {
+    return "too_many_picks";
+  }
+
   if (coupon.usageLimit !== null && !wholeAtLeast(coupon.usageLimit, 1)) return "invalid_usage_limit";
   if (coupon.startsAt && coupon.endsAt && coupon.endsAt <= coupon.startsAt) return "schedule_ends_before_start";
   return null;
+}
+
+/**
+ * Where a coupon stands at `now`, as the merchant reads it: switched off,
+ * not started, ended, every use taken, or live. `uses` counts the orders that
+ * used it and are not cancelled.
+ */
+export type CouponState = "inactive" | "scheduled" | "expired" | "used_up" | "live";
+
+export function couponState(
+  coupon: Pick<CouponShape, "startsAt" | "endsAt" | "usageLimit"> & { status: "active" | "inactive" },
+  uses: number,
+  now: string,
+): CouponState {
+  if (coupon.status === "inactive") return "inactive";
+  if (coupon.startsAt && now < coupon.startsAt) return "scheduled";
+  if (coupon.endsAt && now >= coupon.endsAt) return "expired";
+  if (coupon.usageLimit !== null && uses >= coupon.usageLimit) return "used_up";
+  return "live";
 }

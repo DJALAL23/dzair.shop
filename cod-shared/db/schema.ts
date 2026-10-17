@@ -506,6 +506,12 @@ export const orders = sqliteTable("orders", {
   archivedAt: text("archived_at"),
   /** The offer that made delivery free (a free-shipping offer, or a quantity-pricing tier); null when none did (migration 0051). */
   deliveryOfferId: text("delivery_offer_id").references((): AnySQLiteColumn => offers.id, { onDelete: "set null" }),
+  /** The coupon the order was placed with; null when none, or once the coupon is deleted (migration 0052). */
+  couponId: text("coupon_id").references((): AnySQLiteColumn => coupons.id, { onDelete: "set null" }),
+  /** The code as the order used it — kept when the coupon is deleted. */
+  couponCode: text("coupon_code"),
+  /** What the coupon took off, carried by the lines' `discount`; `price` is already net of it. */
+  couponDiscount: integer("coupon_discount").notNull().default(0),
 });
 
 export const orderStatusHistory = sqliteTable("order_status_history", {
@@ -657,6 +663,8 @@ export const orderProducts = sqliteTable("order_products", {
   offerId: text("offer_id").references((): AnySQLiteColumn => offers.id, { onDelete: "set null" }),
   /** A gift: given by `offerId`, at no charge. */
   reward: integer("reward", { mode: "boolean" }).notNull().default(false),
+  /** The line's share of the order's coupon discount; `lineTotal` is already net of it (migration 0052). */
+  discount: integer("discount").notNull().default(0),
 });
 
 // ─── Delivery Provider Integration ───────────────────────────────────────────
@@ -1379,6 +1387,62 @@ export const offerPriceTiers = sqliteTable("offer_price_tiers", {
   freeShipping: integer("free_shipping", { mode: "boolean" }).notNull().default(false),
 }, (t) => ({
   pk: primaryKey({ columns: [t.offerId, t.quantity] }),
+}));
+
+// ─── Coupons ──────────────────────────────────────────────────────────────────
+
+/**
+ * A code a shopper enters at checkout, applied after offers to the lines no
+ * offer applied to (`cod-shared/coupons/`, ADR 0007). The database keeps it
+ * coherent and counts its uses (migration 0052).
+ */
+export const coupons = sqliteTable("coupons", {
+  id: text("id").primaryKey(),
+  /** Stored in its one form: upper case, A–Z 0–9 - _, 3 to 32 (`normalizeCouponCode`). */
+  code: text("code").notNull().unique(),
+  kind: text("kind", { enum: ["percentage", "fixed_amount", "free_shipping"] }).notNull(),
+  /** Percent for `percentage`, dinars for `fixed_amount`, 0 for `free_shipping`. */
+  value: integer("value").notNull(),
+  maxDiscount: integer("max_discount"),
+  minSubtotal: integer("min_subtotal"),
+  minQuantity: integer("min_quantity"),
+  scope: text("scope", { enum: ["store", "products", "collections"] }).notNull().default("store"),
+  audience: text("audience", { enum: ["everyone", "selected"] }).notNull().default("everyone"),
+  usageLimit: integer("usage_limit"),
+  oncePerCustomer: integer("once_per_customer", { mode: "boolean" }).notNull().default(false),
+  startsAt: text("starts_at"),
+  endsAt: text("ends_at"),
+  status: text("status", { enum: ["active", "inactive"] }).notNull().default("active"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const couponProducts = sqliteTable("coupon_products", {
+  couponId: text("coupon_id").notNull().references(() => coupons.id, { onDelete: "cascade" }),
+  productId: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.couponId, t.productId] }),
+}));
+
+export const couponCollections = sqliteTable("coupon_collections", {
+  couponId: text("coupon_id").notNull().references(() => coupons.id, { onDelete: "cascade" }),
+  collectionId: text("collection_id").notNull().references(() => collections.id, { onDelete: "cascade" }),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.couponId, t.collectionId] }),
+}));
+
+export const couponCustomers = sqliteTable("coupon_customers", {
+  couponId: text("coupon_id").notNull().references(() => coupons.id, { onDelete: "cascade" }),
+  customerId: text("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.couponId, t.customerId] }),
+}));
+
+export const couponCustomerGroups = sqliteTable("coupon_customer_groups", {
+  couponId: text("coupon_id").notNull().references(() => coupons.id, { onDelete: "cascade" }),
+  groupId: text("group_id").notNull().references(() => customerGroups.id, { onDelete: "cascade" }),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.couponId, t.groupId] }),
 }));
 
 // ─── Landing Pages ────────────────────────────────────────────────────────────

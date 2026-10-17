@@ -181,6 +181,14 @@ export const ERROR_CODES = {
   INVALID_OFFER: "INVALID_OFFER",
   /** Quantity pricing scheduled beside another live offer for the same product: a product gets one offer per order. */
   OFFER_CONFLICT: "OFFER_CONFLICT",
+
+  // ============================================================================
+  // BUSINESS LOGIC ERRORS - COUPONS
+  // ============================================================================
+  /** The coupon the write would leave is incoherent, or names a product, collection, customer or group that does not exist. */
+  INVALID_COUPON: "INVALID_COUPON",
+  /** Another coupon already has this code. */
+  COUPON_CODE_TAKEN: "COUPON_CODE_TAKEN",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - REVIEWS

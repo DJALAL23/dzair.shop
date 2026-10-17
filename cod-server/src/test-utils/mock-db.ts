@@ -214,6 +214,9 @@ export function orderRow(overrides: Record<string, unknown> = {}): Record<string
     custom_fields_json: null,
     archived_at: null,
     delivery_offer_id: null,
+    coupon_id: null,
+    coupon_code: null,
+    coupon_discount: 0,
     ...overrides,
   };
 }
