@@ -163,6 +163,12 @@ describe("finding the order to review", () => {
     expect((await body(await open())).data.media).toBeNull();
   });
 
+  it("asks no Turnstile token, even when the store guards its checkout with one", async () => {
+    await d1.db.insert(schema.storeTurnstileConfig).values({ id: "ts1", storeId: "s1", siteKey: "site", secretKey: "secret", enabled: true, createdAt: T, updatedAt: T } as never);
+    expect((await open()).status).toBe(200);
+    await d1.db.delete(schema.storeTurnstileConfig);
+  });
+
   it("stops after too many attempts for one order", async () => {
     limitReached = true;
     const res = await open();

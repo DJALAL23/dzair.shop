@@ -24,7 +24,7 @@ export const reviewsQuerySchema = z.object({
 export const reviewEligibilitySchema = z.object({
   orderNumber,
   phone,
-  turnstileToken: optional(z.string().min(1).max(2048)).openapi({ description: "Required when the store has Turnstile on" }),
+  turnstileToken: optional(z.string().min(1).max(2048)).openapi({ description: "Ignored: Turnstile guards checkout, not reviews — the order number and phone are the proof, and attempts are limited per order" }),
 });
 
 export const reviewSubmissionSchema = z.object({

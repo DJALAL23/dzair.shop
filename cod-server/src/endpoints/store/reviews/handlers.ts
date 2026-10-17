@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
-import { assertTurnstile } from "../turnstile-gate";
 import { reviewMediaUrl } from "@/lib/review-media/urls";
 import { openReview, receiveUpload, submitReview, type IntakeDeps } from "@/lib/reviews/intake";
 import { getReviewPolicy, listApprovedReviews } from "../../../../../cod-shared/queries/store-reviews";
@@ -31,10 +30,8 @@ export async function listReviews(c: Context<AppContext>) {
 }
 
 export async function checkEligibility(c: Context<AppContext>) {
-  const input = (c.req as unknown as Valid<{ orderNumber: string; phone: string; turnstileToken?: string }>).valid("json");
-  const intake = deps(c);
-  await assertTurnstile(c, intake.db, { turnstileToken: input.turnstileToken });
-  return c.json({ success: true, data: await openReview(intake, input) }, 200);
+  const { orderNumber, phone } = (c.req as unknown as Valid<{ orderNumber: string; phone: string }>).valid("json");
+  return c.json({ success: true, data: await openReview(deps(c), { orderNumber, phone }) }, 200);
 }
 
 export async function uploadMedia(c: Context<AppContext>) {

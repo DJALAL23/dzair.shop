@@ -67,7 +67,7 @@ const eligibilityRoute = defineRoute({
   summary: "Find an order to review",
   description: `Proves the purchase with the order number **and the phone it was placed with**, and answers what can be reviewed: the order's products the shopper kept (each once), and — when the store takes photos or a voice note — what may be attached and an **upload grant** for \`PUT /store/reviews/uploads\` (30 minutes).
 
-A wrong number and a wrong phone both answer **404 ORDER_NOT_FOUND**. An order not delivered yet answers **422 REVIEW_ORDER_NOT_DELIVERED**. Attempts are limited per order number (**422 REVIEW_RATE_LIMITED**). When the store has Turnstile on, \`turnstileToken\` is required.`,
+A wrong number and a wrong phone both answer **404 ORDER_NOT_FOUND**. An order not delivered yet answers **422 REVIEW_ORDER_NOT_DELIVERED**. Attempts are limited per order number (**422 REVIEW_RATE_LIMITED**). Turnstile is not asked here: it guards checkout.`,
   operationId: "checkStoreReviewEligibility",
   body: reviewEligibilitySchema,
   responses: {
@@ -98,7 +98,7 @@ A wrong number and a wrong phone both answer **404 ORDER_NOT_FOUND**. An order n
       ),
     },
     404: { description: "No order with this number and phone (ORDER_NOT_FOUND)" },
-    422: { description: "Not delivered yet, reviews off, too many attempts, or Turnstile refused (REVIEW_ORDER_NOT_DELIVERED / REVIEWS_DISABLED / REVIEW_RATE_LIMITED / TURNSTILE_*)" },
+    422: { description: "Not delivered yet, reviews off, or too many attempts (REVIEW_ORDER_NOT_DELIVERED / REVIEWS_DISABLED / REVIEW_RATE_LIMITED)" },
   },
   handler: h.checkEligibility,
 });
