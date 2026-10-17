@@ -1,7 +1,7 @@
 ---
 // The home's first viewport: the store's promise and its two actions beside a
-// packing slip of real products with real prices. With an empty catalog the
-// slip is simply absent and the promise takes the full width.
+// packing slip of the products of its collection, with real prices. With an
+// empty collection the slip is simply absent and the promise takes the full width.
 import { Image } from "astro:assets";
 import type { InferProps } from "@wocart/theme";
 import type { ProductList } from "@wocart/storefront";
@@ -21,8 +21,9 @@ type Props = Pick<InferProps<typeof hero>, "ctaPrimaryHref" | "ctaSecondaryHref"
 const { content, ctaPrimaryHref, ctaSecondaryHref, products = [], currencySymbol = "" } = Astro.props;
 const store = Astro.locals.store;
 
-const featured = products.filter((product) => product.storeFeatured);
-const slip = (featured.length ? featured : products).filter((product) => product.inventory !== 0).slice(0, 3);
+// The hero's collection (`featured` unless the merchant picks another), in
+// stock, first three. An empty collection leaves the promise the full width.
+const slip = products.filter((product) => product.inventory !== 0).slice(0, 3);
 const [lead, ...rest] = slip;
 const leadView = lead ? getProductListView(lead) : null;
 

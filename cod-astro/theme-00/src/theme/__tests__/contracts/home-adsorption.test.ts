@@ -49,14 +49,12 @@ const FEATURED = makeProduct({
   id: "prod_featured",
   name: "Featured Watch",
   handle: "featured-watch",
-  storeFeatured: true,
   reviewStats: { avgRating: 4.8, reviewCount: 4 },
 });
 const PLAIN = makeProduct({
   id: "prod_plain",
   name: "Plain Mug",
   handle: "plain-mug",
-  storeFeatured: false,
 });
 
 function makeCategory(overrides: Partial<Category>): Category {
@@ -88,8 +86,16 @@ const REVIEW_ROWS = [
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 
-function createStorefrontStub(products: ProductList[] = []) {
-  const productsList = vi.fn(async () => products);
+/**
+ * The catalog, and each collection's products as the merchant ordered them:
+ * `products.list({ collection })` answers the collection, capped at `limit`,
+ * as the server does; an unknown collection answers nothing.
+ */
+function createStorefrontStub(products: ProductList[] = [], collections: Record<string, ProductList[]> = {}) {
+  const productsList = vi.fn(async (filters?: { collection?: string; limit?: number }) => {
+    const listed = filters?.collection === undefined ? products : collections[filters.collection] ?? [];
+    return listed.slice(0, filters?.limit ?? listed.length);
+  });
   const categoriesList = vi.fn(async () => CATEGORIES);
   const reviewsList = vi.fn(async () => ({ rows: REVIEW_ROWS, total: REVIEW_ROWS.length }));
   const client = {
@@ -192,19 +198,21 @@ describe("home adsorption — copy (contentKey bridge)", () => {
 });
 
 describe("home adsorption — data graph (one read per resource per render)", () => {
-  it("three catalog consumers share one products read; categories read once", async () => {
-    const stub = createStorefrontStub([FEATURED, PLAIN]);
+  it("each section reads the collection it names once; the catalog and categories once", async () => {
+    const stub = createStorefrontStub([FEATURED, PLAIN], { "best-sellers": [FEATURED], "new-arrivals": [PLAIN] });
     const { render } = createHarness(stub.client);
     const best = await render(shippedSection("best-sellers"));
+    const again = await render(shippedSection("best-sellers"));
     const arrivals = await render(shippedSection("new-arrivals"));
     const cards = await render(shippedSection("category-cards"));
 
-    expect(stub.productsList).toHaveBeenCalledTimes(1);
+    expect(stub.productsList.mock.calls.map(([filters]) => filters?.collection ?? "catalog").sort()).toEqual(["best-sellers", "catalog", "new-arrivals"]);
     expect(stub.categoriesList).toHaveBeenCalledTimes(1);
 
-    // Merchandising rules stay in the components: featured-first vs non-featured.
+    // What a list shows is the merchant's: each section, its own collection.
     expect(best).toContain("Featured Watch");
     expect(best).not.toContain("Plain Mug");
+    expect(again).toBe(best);
     expect(arrivals).toContain("Plain Mug");
     expect(arrivals).not.toContain("Featured Watch");
 
@@ -212,6 +220,27 @@ describe("home adsorption — data graph (one read per resource per render)", ()
     expect(cards).toContain("Watches");
     expect(cards.indexOf("Watches")).toBeLessThan(cards.indexOf("Home"));
     expect(cards).toContain("/category/watches");
+  });
+});
+
+describe("home adsorption — collections are the merchant's", () => {
+  it("an empty collection shows no section and no slip — never the catalog in its place", async () => {
+    const stub = createStorefrontStub([FEATURED, PLAIN], {});
+    const { render } = createHarness(stub.client);
+    expect(await render(shippedSection("best-sellers"))).not.toContain('id="best-sellers"');
+    expect(await render(shippedSection("new-arrivals"))).not.toContain('id="new-arrivals"');
+    const hero = await render(shippedSection("hero"));
+    expect(hero).toContain(en.heroTitle);
+    expect(hero).not.toContain("Featured Watch");
+    expect(hero).not.toContain("Plain Mug");
+  });
+
+  it("a section shows the collection the merchant picked for it", async () => {
+    const stub = createStorefrontStub([FEATURED, PLAIN], { ramadan: [PLAIN] });
+    const { render } = createHarness(stub.client);
+    const html = await render({ id: "b", type: "best-sellers", props: { collection: "ramadan" } });
+    expect(html).toContain("Plain Mug");
+    expect(html).not.toContain("Featured Watch");
   });
 });
 
@@ -247,7 +276,7 @@ describe("home adsorption — reviews (config default, override, in-section read
 
 describe("home adsorption — the full page", () => {
   it("renders all eight shipped sections in order through one renderer cache", async () => {
-    const stub = createStorefrontStub([FEATURED, PLAIN]);
+    const stub = createStorefrontStub([FEATURED, PLAIN], { featured: [FEATURED], "best-sellers": [FEATURED], "new-arrivals": [PLAIN] });
     const { render } = createHarness(stub.client);
     let html = "";
     for (const section of shipped.page?.sections ?? []) {
@@ -276,8 +305,9 @@ describe("home adsorption — the full page", () => {
       cursor = at;
     }
 
-    // The whole page still costs exactly one products + one categories read.
-    expect(stub.productsList).toHaveBeenCalledTimes(1);
+    // The whole page reads the catalog once, each collection it shows once,
+    // and the categories once.
+    expect(stub.productsList.mock.calls.map(([filters]) => filters?.collection ?? "catalog").sort()).toEqual(["best-sellers", "catalog", "featured", "new-arrivals"]);
     expect(stub.categoriesList).toHaveBeenCalledTimes(1);
   });
 });

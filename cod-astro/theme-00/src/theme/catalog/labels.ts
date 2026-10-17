@@ -34,6 +34,7 @@ export const FIELD = {
   primaryButtonLink: text("رابط الزر الرئيسي", "Lien du bouton principal", "Primary button link"),
   secondaryButton: text("الزر الثانوي", "Bouton secondaire", "Secondary button"),
   secondaryButtonLink: text("رابط الزر الثانوي", "Lien du bouton secondaire", "Secondary button link"),
+  collection: text("المجموعة المعروضة", "Collection affichée", "Collection shown"),
   productsShown: text("عدد المنتجات المعروضة", "Produits affichés", "Products shown"),
   categoriesShown: text("عدد الفئات المعروضة", "Catégories affichées", "Categories shown"),
   showReviews: text("عرض التقييمات", "Afficher les avis", "Show reviews"),

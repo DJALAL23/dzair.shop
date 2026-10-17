@@ -21,7 +21,6 @@ import { theme00 } from "@/theme/theme";
  * copy, so they stay store-wide. Each entry must be rendered by some section.
  */
 const SHARED_UI_LABELS = new Set([
-  "viewAllCta",
   "ariaBrowseCategoryProducts",
   "ariaStarRating",
   "reviewsVerifiedBuyer",

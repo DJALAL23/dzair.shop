@@ -107,11 +107,13 @@ describe("Product Zero — the homepage owns its data graph", () => {
     expect(countIn(page?.content ?? "", "categories.list(")).toBe(0);
     expect(countIn(page?.content ?? "", "createReadCache(")).toBe(1);
 
-    // Five sections name the catalog key — hero, category cards, best sellers,
-    // new arrivals, and the testimonials' product lookup. The renderer's read
-    // cache runs the loader once per render: `home-adsorption.test.ts` asserts
-    // that behaviorally with a counting stub.
-    expect(countIn(definitions, "reads.get(CATALOG_READ")).toBe(5);
+    // Two sections name the catalog key — category cards and the
+    // testimonials' product lookup — and three read the collection their
+    // setting names (hero, best sellers, new arrivals) under its own key. The
+    // renderer's read cache runs each loader once per render:
+    // `home-adsorption.test.ts` asserts that behaviorally with a counting stub.
+    expect(countIn(definitions, "reads.get(CATALOG_READ")).toBe(2);
+    expect(countIn(definitions, "reads.get(collectionRead(")).toBe(3);
     expect(countIn(definitions, "reads.get(CATEGORIES_READ")).toBe(1);
   });
 

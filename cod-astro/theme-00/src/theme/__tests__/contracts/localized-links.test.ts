@@ -39,7 +39,6 @@ describe("links in French", () => {
     const links = hrefs(html);
     expect(links).toContain("/fr/category/phones");
     expect(links).toContain("/fr/products/phone");
-    expect(links).toContain("/fr/products");
     expect(links).toContain("#best-sellers");
     expect(links).toContain("https://wa.me/213551234567");
     expect(internal(links).filter((href) => !href.startsWith("/fr"))).toEqual([]);

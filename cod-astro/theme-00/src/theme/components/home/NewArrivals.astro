@@ -1,27 +1,20 @@
 ---
 // ── SECTION ──
-// New arrivals product grid (non-featured products, newest first).
-// Presentational: the page passes the catalog read; the slice rule stays here.
+// New arrivals: the products of the collection the section's `collection` setting
+// names, in the merchant's order (the page reads them, up to `limit`). An
+// empty collection shows no section — never the catalog in its place.
 import ProductCard from "@/theme/components/product/ProductCard.astro";
 import SectionHead from "@/theme/components/ui/SectionHead.astro";
 import type { ProductList } from "@wocart/storefront";
-import type { InferProps } from "@wocart/theme";
 import type { StoreFrontContent } from "@/theme/content";
-import type { newArrivals } from "@/theme/catalog/home/new-arrivals.def";
-import { storefrontPath } from "@wocart/storefront";
 
-type Props = Pick<InferProps<typeof newArrivals>, "limit"> & {
+type Props = {
   products: ProductList[];
   currencySymbol: string;
   content: StoreFrontContent;
 };
 
-const { products: allProducts, currencySymbol, content, limit } = Astro.props;
-
-// Exclude featured products to avoid duplication with BestSellers section
-const nonFeatured = allProducts.filter((p) => !p.storeFeatured);
-const products = nonFeatured.length ? nonFeatured.slice(0, limit) : allProducts.slice(0, limit);
-const showViewAll = allProducts.length > limit;
+const { products, currencySymbol, content } = Astro.props;
 ---
 
 {products.length > 0 && (
@@ -29,9 +22,6 @@ const showViewAll = allProducts.length > limit;
     <SectionHead
       title={content.newArrivalsSection}
       sub={content.newArrivalsSub}
-      href={showViewAll ? Astro.locals.store.href(storefrontPath("catalog")) : undefined}
-      linkLabel={content.viewAllCta}
-      linkAria={`${content.viewAllCta} - ${content.newArrivalsSection}`}
     />
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
       {products.map((p, i) => (

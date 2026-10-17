@@ -18,6 +18,8 @@
 
 export const CATALOG_READ = "catalog.products";
 export const CATEGORIES_READ = "catalog.categories";
+/** One collection's products, up to a count: sections showing the same list share the read. */
+export const collectionRead = (handle: string, limit: number) => `catalog.collection:${handle}:${limit}`;
 
 /**
  * The resolved copy fields over the pack. Only string values whose key is a

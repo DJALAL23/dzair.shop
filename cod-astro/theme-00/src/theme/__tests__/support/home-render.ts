@@ -51,9 +51,19 @@ export function makeProduct(overrides: Partial<ProductList>): ProductList {
 }
 
 /** A storefront stand-in that serves fixed catalog reads. */
-export function fakeStorefront(products: ProductList[], categories: Category[] = []): StoreClient {
+/**
+ * A storefront with this catalog. Every collection answers the catalog in its
+ * order unless `collections` names its own products; like the server, a list
+ * is capped at `limit`.
+ */
+export function fakeStorefront(products: ProductList[], categories: Category[] = [], collections: Record<string, ProductList[]> = {}): StoreClient {
   return {
-    products: { list: async () => products },
+    products: {
+      list: async (filters?: { collection?: string; limit?: number }) => {
+        const listed = filters?.collection === undefined ? products : collections[filters.collection] ?? products;
+        return listed.slice(0, filters?.limit ?? listed.length);
+      },
+    },
     categories: { list: async () => categories },
   } as unknown as StoreClient;
 }
