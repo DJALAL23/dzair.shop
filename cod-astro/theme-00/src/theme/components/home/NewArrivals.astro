@@ -8,6 +8,7 @@ import type { ProductList } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
 import type { StoreFrontContent } from "@/theme/content";
 import type { newArrivals } from "@/theme/catalog/home/new-arrivals.def";
+import { storefrontPath } from "@wocart/storefront";
 
 type Props = Pick<InferProps<typeof newArrivals>, "limit"> & {
   products: ProductList[];
@@ -28,7 +29,7 @@ const showViewAll = allProducts.length > limit;
     <SectionHead
       title={content.newArrivalsSection}
       sub={content.newArrivalsSub}
-      href={showViewAll ? Astro.locals.store.href("/products") : undefined}
+      href={showViewAll ? Astro.locals.store.href(storefrontPath("catalog")) : undefined}
       linkLabel={content.viewAllCta}
       linkAria={`${content.viewAllCta} - ${content.newArrivalsSection}`}
     />

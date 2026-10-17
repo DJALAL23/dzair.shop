@@ -7,6 +7,7 @@ import ListingPager from "@/theme/components/listing/ListingPager.astro";
 import { pageRequest, pageWindow, requestedPage } from "@/theme/utils/pagination";
 import { Icon } from "astro-icon/components";
 import type { StoreFrontContent } from "@/theme/content";
+import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
   currencySymbol: string;
@@ -39,7 +40,7 @@ const { items: products, hasNext, first, last } = pageWindow(rows, page);
   {categories.length > 0 && (
     <div class="flex items-center gap-2.5 overflow-x-auto scrollbar-hide pb-4 mb-8 touch-pan-x">
       <a
-        href={Astro.locals.store.href("/products")}
+        href={Astro.locals.store.href(storefrontPath("catalog"))}
         data-astro-prefetch="hover"
         class="shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm bg-[var(--clr-primary)] border-[var(--clr-primary)] text-white"
       >
@@ -47,7 +48,7 @@ const { items: products, hasNext, first, last } = pageWindow(rows, page);
       </a>
       {categories.map((cat) => (
         <a
-          href={Astro.locals.store.href(`/category/${cat.slug}`)}
+          href={Astro.locals.store.href(storefrontPath("category", { slug: cat.slug }))}
           data-astro-prefetch="hover"
           class="shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm"
           style="border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text-2)"
@@ -78,5 +79,5 @@ const { items: products, hasNext, first, last } = pageWindow(rows, page);
       <p class="font-bold" style="color: var(--clr-text-2)">{content.emptyStoreSub}</p>
     </div>
   ) : null}
-  <ListingPager basePath={Astro.locals.store.href("/products")} page={page} hasNext={hasNext} content={content} />
+  <ListingPager basePath={Astro.locals.store.href(storefrontPath("catalog"))} page={page} hasNext={hasNext} content={content} />
 </div>

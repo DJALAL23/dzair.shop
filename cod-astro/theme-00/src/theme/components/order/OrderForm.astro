@@ -19,6 +19,7 @@ import CustomerFields from "./CustomerFields.astro";
 import OrderSummary from "./OrderSummary.astro";
 import OtpStep from "./OtpStep.astro";
 import TurnstileField from "./TurnstileField.astro";
+import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
   product: ProductDetail;
@@ -158,11 +159,11 @@ const comparePrice = getProductView(product).comparePrice;
     {consentParts && (
       <p class="text-center text-[0.75rem] font-medium px-4" style="color: var(--clr-text-2)">
         {consentParts.beforeTerms}
-        <a href={Astro.locals.store.href(`/pages/${consentParts.termsPage.slug}`)} class="underline underline-offset-2 hover:text-primary">
+        <a href={Astro.locals.store.href(storefrontPath("page", { slug: consentParts.termsPage.slug }))} class="underline underline-offset-2 hover:text-primary">
           {consentParts.termsPage.title}
         </a>
         {consentParts.betweenLinks}
-        <a href={Astro.locals.store.href(`/pages/${consentParts.refundPage.slug}`)} class="underline underline-offset-2 hover:text-primary">
+        <a href={Astro.locals.store.href(storefrontPath("page", { slug: consentParts.refundPage.slug }))} class="underline underline-offset-2 hover:text-primary">
           {consentParts.refundPage.title}
         </a>
         {consentParts.afterRefund}

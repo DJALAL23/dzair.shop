@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import { Icon } from "astro-icon/components";
+import { storefrontPath } from "@wocart/storefront";
 
 // Store context comes from middleware (Astro.locals.store — Theme Zero S2).
 const { config, content } = Astro.locals.store;
@@ -63,7 +64,7 @@ const { config, content } = Astro.locals.store;
         {content.notFoundCtaHome}
       </a>
       <a
-        href={Astro.locals.store.href("/products")}
+        href={Astro.locals.store.href(storefrontPath("catalog"))}
         class="inline-flex items-center justify-center gap-2.5 px-8 h-14 font-black text-sm transition-all duration-300 active:scale-95 w-full sm:w-auto rounded-2xl"
         style="background: var(--clr-surface); border: 2px solid var(--clr-border); color: var(--clr-text);"
       >

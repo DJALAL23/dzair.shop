@@ -2,6 +2,7 @@
 import type { StoreConfig } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import { Icon } from "astro-icon/components";
+import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
   config: StoreConfig;
@@ -21,7 +22,7 @@ const items = [
   },
   {
     label: content?.navProducts ?? "Products",
-    href: Astro.locals.store.href("/products"),
+    href: Astro.locals.store.href(storefrontPath("catalog")),
     active: path.startsWith("/products"),
     icon: "heroicons:squares-2x2",
   },

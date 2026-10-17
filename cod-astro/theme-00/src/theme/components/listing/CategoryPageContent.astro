@@ -7,6 +7,7 @@ import ListingPager from "@/theme/components/listing/ListingPager.astro";
 import { pageRequest, pageWindow, requestedPage } from "@/theme/utils/pagination";
 import type { StoreFrontContent } from "@/theme/content";
 import type { Category } from "@wocart/storefront";
+import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
   category: Category;
@@ -42,7 +43,7 @@ const { items: products, hasNext, first, last } = pageWindow(
   {categories.length > 1 && (
     <div class="flex items-center gap-2.5 overflow-x-auto scrollbar-hide pb-4 mb-8 touch-pan-x">
       <a
-        href={Astro.locals.store.href("/products")}
+        href={Astro.locals.store.href(storefrontPath("catalog"))}
         data-astro-prefetch="hover"
         class="shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 active:scale-95 shadow-sm"
         style="border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text-2)"
@@ -51,7 +52,7 @@ const { items: products, hasNext, first, last } = pageWindow(
       </a>
       {categories.map((cat) => (
         <a
-          href={Astro.locals.store.href(`/category/${cat.slug}`)}
+          href={Astro.locals.store.href(storefrontPath("category", { slug: cat.slug }))}
           data-astro-prefetch="hover"
           class:list={[
             "shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm",
@@ -85,7 +86,7 @@ const { items: products, hasNext, first, last } = pageWindow(
         {content.noProductsTitle}
       </h2>
       <a
-        href={Astro.locals.store.href("/products")}
+        href={Astro.locals.store.href(storefrontPath("catalog"))}
         data-astro-prefetch="hover"
         class="btn-primary !w-auto !px-8 mt-6"
         aria-label={content.ariaBrowseAllProducts}
@@ -94,5 +95,5 @@ const { items: products, hasNext, first, last } = pageWindow(
       </a>
     </div>
   ) : null}
-  <ListingPager basePath={Astro.locals.store.href(`/category/${slug}`)} page={page} hasNext={hasNext} content={content} />
+  <ListingPager basePath={Astro.locals.store.href(storefrontPath("category", { slug: slug }))} page={page} hasNext={hasNext} content={content} />
 </div>

@@ -10,6 +10,7 @@ import type { StoreFrontContent } from "@/theme/content";
 import type { categoryCards } from "@/theme/catalog/home/category-cards.def";
 import { Icon } from "astro-icon/components";
 import SectionHead from "@/theme/components/ui/SectionHead.astro";
+import { storefrontPath } from "@wocart/storefront";
 
 type Props = Pick<InferProps<typeof categoryCards>, "limit"> & {
   categories: Category[];
@@ -37,7 +38,7 @@ const topCategories = [...categories]
       {topCategories.map((cat) => (
         <li>
           <a
-            href={Astro.locals.store.href(`/category/${cat.slug}`)}
+            href={Astro.locals.store.href(storefrontPath("category", { slug: cat.slug }))}
             class="carton group flex h-full flex-col overflow-hidden hover:border-ink"
             aria-label={message(content, "ariaBrowseCategoryProducts", { category: cat.name }, Astro.locals.store.locale)}
           >

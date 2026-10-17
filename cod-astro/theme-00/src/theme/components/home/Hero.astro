@@ -10,6 +10,7 @@ import type { StoreFrontContent } from "@/theme/content";
 import type { hero } from "@/theme/catalog/home/hero.def";
 import { Icon } from "astro-icon/components";
 import { formatAmount } from "@/theme/utils/money";
+import { storefrontPath } from "@wocart/storefront";
 
 type Props = Pick<InferProps<typeof hero>, "ctaPrimaryHref" | "ctaSecondaryHref"> & {
   content: StoreFrontContent;
@@ -72,7 +73,7 @@ const facts = [
           </span>
         </div>
 
-        <a href={store.href(`/products/${lead.handle}`)} class="slip-lead group">
+        <a href={store.href(storefrontPath("product", { handle: lead.handle }))} class="slip-lead group">
           <div class="flex items-center justify-between gap-4 px-4 py-3">
             <p class="line-clamp-2 text-base font-semibold text-ink">{lead.name}</p>
             <p class="flex shrink-0 items-baseline gap-2">
@@ -107,7 +108,7 @@ const facts = [
           <ul class="slip-lines">
             {rest.map((product) => (
               <li>
-                <a href={store.href(`/products/${product.handle}`)} class="slip-line">
+                <a href={store.href(storefrontPath("product", { handle: product.handle }))} class="slip-line">
                   <div class="plate h-14 w-14 shrink-0 rounded-input">
                     {product.coverImage && (
                       <Image

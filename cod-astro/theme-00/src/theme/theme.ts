@@ -9,6 +9,7 @@
 import { defineTheme } from "@wocart/theme";
 import { SURFACE } from "./catalog/labels";
 import { THEME_KEY } from "./key";
+import { THEME_SETTINGS } from "./settings";
 import { hero } from "./catalog/home/hero.def";
 import { categoryCards } from "./catalog/home/category-cards.def";
 import { bestSellers } from "./catalog/home/best-sellers.def";
@@ -27,6 +28,7 @@ export const theme00 = defineTheme({
   // The only surface this catalog serves. Declared (not enforced): page
   // parsing never consults it; the manifest carries it for future tooling.
   surfaces: [{ key: "home", label: SURFACE.home }],
+  settings: THEME_SETTINGS,
   components: {
     hero,
     "category-cards": categoryCards,

@@ -49,3 +49,15 @@ export const GROUP = {
 export const SURFACE = {
   home: text("الصفحة الرئيسية", "Accueil", "Home"),
 };
+
+/** The theme's global settings (`settings.ts`), as the editor groups them. */
+export const SETTINGS_GROUP = {
+  typography: text("الخطوط", "Typographie", "Typography"),
+  navigation: text("التنقل", "Navigation", "Navigation"),
+};
+
+export const SETTING = {
+  font: text("خط المتجر", "Police de la boutique", "Store font"),
+  headerMenu: text("قائمة رأس الصفحة", "Menu de l'en-tête", "Header menu"),
+  footerMenu: text("قائمة التذييل", "Menu du pied de page", "Footer menu"),
+};

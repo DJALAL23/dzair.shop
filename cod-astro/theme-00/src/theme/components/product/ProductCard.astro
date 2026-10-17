@@ -8,6 +8,7 @@ import { getProductListView, type ProductList } from "@wocart/storefront";
 import type { ProductCardCopy } from "@/theme/bridges/island-props";
 import { Icon } from "astro-icon/components";
 import { formatAmount } from "@/theme/utils/money";
+import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
   product: ProductList;
@@ -33,7 +34,7 @@ const rating = product.reviewStats && product.reviewStats.reviewCount > 0 ? prod
 ---
 
 <a
-  href={Astro.locals.store.href(`/products/${product.handle}`)}
+  href={Astro.locals.store.href(storefrontPath("product", { handle: product.handle }))}
   data-astro-prefetch="hover"
   class="product-card carton group flex flex-col overflow-hidden"
   aria-label={message(copy, "ariaProductCard", { name: product.name, price: formatAmount(product.price), currency: currencySymbol }, locale)}

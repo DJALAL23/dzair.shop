@@ -49,9 +49,10 @@ import {
 } from "./cart-render";
 import { trackAddToCart } from "./pixel";
 import { onEachPage } from "./page-lifecycle";
+import { storefrontPath } from "@wocart/storefront";
 
 /** Where the basket is actually ordered, in the page's language (set by the server). */
-const checkoutHref = (root: HTMLElement) => root.dataset.checkoutHref || "/checkout";
+const checkoutHref = (root: HTMLElement) => root.dataset.checkoutHref || storefrontPath("checkout");
 
 /** How long the sheet takes to slide out; mirrors the transition in the markup. */
 const CLOSE_MS = 200;

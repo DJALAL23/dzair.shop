@@ -3,12 +3,24 @@ import { Image } from "astro:assets";
 import type { StoreConfig } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import { Icon } from "astro-icon/components";
+import type { NavLink } from "@/theme/runtime/navigation";
+import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
   config: StoreConfig;
   content?: StoreFrontContent;
+  /** The store's footer menu; null renders the theme's own quick links. */
+  menu?: NavLink[] | null;
 }
-const { config, content } = Astro.props;
+const { config, content, menu = null } = Astro.props;
+const href = Astro.locals.store.href;
+const quickLinks: NavLink[] = menu ?? [
+  { label: content?.navHome ?? "", href: href("/"), external: false, active: false, children: [] },
+  { label: content?.navProducts ?? "", href: href(storefrontPath("catalog")), external: false, active: false, children: [] },
+  { label: content?.navBestSellers ?? "", href: href("/#best-sellers"), external: false, active: false, children: [] },
+  { label: content?.navNewArrivals ?? "", href: href("/#new-arrivals"), external: false, active: false, children: [] },
+];
+const flat = quickLinks.flatMap((link) => [link, ...link.children, ...link.children.flatMap((child) => child.children)]);
 const year = new Date().getFullYear();
 
 const badges = [
@@ -51,14 +63,9 @@ const badges = [
             {content?.footerQuickLinks}
           </h3>
           <ul class="space-y-2.5">
-            {[
-              { label: content?.navHome, href: Astro.locals.store.href("/") },
-              { label: content?.navProducts, href: Astro.locals.store.href("/products") },
-              { label: content?.navBestSellers, href: Astro.locals.store.href("/#best-sellers") },
-              { label: content?.navNewArrivals, href: Astro.locals.store.href("/#new-arrivals") },
-            ].map((link) => (
+            {flat.map((link) => (
               <li>
-                <a href={link.href} class="text-[0.8125rem] sm:text-[0.875rem] font-bold transition-all hover:text-primary" style="color: var(--clr-text-2)">
+                <a href={link.href} rel={link.external ? "noopener" : undefined} class="text-[0.8125rem] sm:text-[0.875rem] font-bold transition-all hover:text-primary" style="color: var(--clr-text-2)">
                   {link.label}
                 </a>
               </li>
@@ -73,7 +80,7 @@ const badges = [
           <ul class="space-y-2.5">
             {config.pages.map((page) => (
               <li>
-                <a href={Astro.locals.store.href(`/pages/${page.slug}`)} class="text-[0.8125rem] sm:text-[0.875rem] font-bold transition-all hover:text-primary" style="color: var(--clr-text-2)">
+                <a href={Astro.locals.store.href(storefrontPath("page", { slug: page.slug }))} class="text-[0.8125rem] sm:text-[0.875rem] font-bold transition-all hover:text-primary" style="color: var(--clr-text-2)">
                   {page.title}
                 </a>
               </li>

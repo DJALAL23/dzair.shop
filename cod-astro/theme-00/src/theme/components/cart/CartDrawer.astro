@@ -23,6 +23,7 @@ import { messageData } from "@/theme/content/messages";
 import type { StoreFrontContent } from "@/theme/content";
 import { Icon } from "astro-icon/components";
 import FreeDeliveryBar from "@/theme/components/cart/FreeDeliveryBar.astro";
+import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
   content: StoreFrontContent;
@@ -41,7 +42,7 @@ const { content, currency } = Astro.props;
 <div
   id="cart-root"
   data-currency={currency}
-  data-checkout-href={Astro.locals.store.href("/checkout")}
+  data-checkout-href={Astro.locals.store.href(storefrontPath("checkout"))}
   data-copy-items={messageData(content, "cartItems")}
   data-copy-out-of-stock={messageData(content, "cartLineOutOfStock")}
   data-copy-unavailable={content.cartLineUnavailable}

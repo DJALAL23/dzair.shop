@@ -5,20 +5,24 @@ import type { StoreFrontContent } from "@/theme/content";
 import { Icon } from "astro-icon/components";
 import CartBadge from "@/theme/components/cart/CartBadge.astro";
 import LanguageSwitcher from "@/theme/components/layout/LanguageSwitcher.astro";
+import type { NavLink } from "@/theme/runtime/navigation";
+import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
   config: StoreConfig;
   content?: StoreFrontContent;
+  /** The store's header menu; null renders the theme's own links. */
+  menu?: NavLink[] | null;
 }
-const { config, content } = Astro.props;
+const { config, content, menu = null } = Astro.props;
 const store = Astro.locals.store;
 const path = store.pathname;
 
-const links = [
-  { href: "/", label: content?.navHome, active: path === "/" },
-  { href: "/products", label: content?.navProducts, active: path.startsWith("/products") || path.startsWith("/category") },
-  { href: "/#best-sellers", label: content?.navBestSellers, active: false },
-  { href: "/#new-arrivals", label: content?.navNewArrivals, active: false },
+const links: NavLink[] = menu ?? [
+  { href: store.href("/"), label: content?.navHome ?? "", active: path === "/", external: false, children: [] },
+  { href: store.href(storefrontPath("catalog")), label: content?.navProducts ?? "", active: path.startsWith("/products") || path.startsWith("/category"), external: false, children: [] },
+  { href: store.href("/#best-sellers"), label: content?.navBestSellers ?? "", active: false, external: false, children: [] },
+  { href: store.href("/#new-arrivals"), label: content?.navNewArrivals ?? "", active: false, external: false, children: [] },
 ];
 ---
 
@@ -42,21 +46,46 @@ const links = [
     </a>
 
     <nav class="ms-6 hidden flex-1 items-center gap-1 md:flex" aria-label={content?.ariaMainNavigation}>
-      {links.map((link) => (
-        <a
-          href={store.href(link.href)}
-          aria-current={link.active ? "page" : undefined}
-          class="nav-link"
-        >
-          {link.label}
-        </a>
-      ))}
+      {links.map((link) =>
+        link.children.length === 0 ? (
+          <a href={link.href} aria-current={link.active ? "page" : undefined} class="nav-link" rel={link.external ? "noopener" : undefined}>
+            {link.label}
+          </a>
+        ) : (
+          <div class="nav-group">
+            <a href={link.href} aria-current={link.active ? "page" : undefined} class="nav-link" aria-haspopup="true" rel={link.external ? "noopener" : undefined}>
+              {link.label}
+              <Icon name="heroicons:chevron-down" class="ms-1 h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+            <ul class="nav-panel">
+              {link.children.map((child) => (
+                <li>
+                  <a href={child.href} aria-current={child.active ? "page" : undefined} class="nav-panel-link" rel={child.external ? "noopener" : undefined}>
+                    {child.label}
+                  </a>
+                  {child.children.length > 0 && (
+                    <ul class="ps-3">
+                      {child.children.map((grandchild) => (
+                        <li>
+                          <a href={grandchild.href} aria-current={grandchild.active ? "page" : undefined} class="nav-panel-link nav-panel-link--sub" rel={grandchild.external ? "noopener" : undefined}>
+                            {grandchild.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+      )}
     </nav>
 
     <div class="ms-auto flex shrink-0 items-center gap-1">
       <LanguageSwitcher />
       <a
-        href={store.href("/products")}
+        href={store.href(storefrontPath("catalog"))}
         class="inline-flex h-11 w-11 items-center justify-center rounded-btn text-ink hover:bg-plate"
         aria-label={content?.searchLabel}
       >
@@ -89,6 +118,36 @@ const links = [
     text-decoration: none;
   }
   .nav-link:hover { color: var(--clr-text); }
+  .nav-group { position: relative; }
+  .nav-panel {
+    position: absolute;
+    inset-inline-start: 0;
+    top: 100%;
+    z-index: 60;
+    display: none;
+    min-width: 13rem;
+    padding: 0.375rem;
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border);
+    border-radius: 6px;
+    box-shadow: 0 12px 32px -12px rgb(17 19 24 / 0.25);
+  }
+  .nav-group:hover .nav-panel,
+  .nav-group:focus-within .nav-panel { display: block; }
+  .nav-panel-link {
+    display: flex;
+    align-items: center;
+    min-height: 2.5rem;
+    padding-inline: 0.75rem;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--clr-text-2);
+    text-decoration: none;
+    border-radius: 4px;
+  }
+  .nav-panel-link:hover,
+  .nav-panel-link[aria-current="page"] { color: var(--clr-text); background: var(--clr-plate, rgb(0 0 0 / 0.04)); }
+  .nav-panel-link--sub { min-height: 2.25rem; font-weight: 500; }
   .nav-link[aria-current="page"] { color: var(--clr-text); }
   .nav-link[aria-current="page"]::after {
     content: "";

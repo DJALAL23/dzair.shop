@@ -11,6 +11,7 @@
 import { isInputError } from "astro:actions";
 import type { FieldErrors } from "@/theme/types";
 import type { OrderFormStrings } from "@/theme/content/types/order-form";
+import { storefrontPath } from "@wocart/storefront";
 
 const ORDER_NUMBER = "order";
 const TOTAL = "total";
@@ -29,7 +30,7 @@ export function thankYouHref(order: PlacedOrder): string {
     [TOTAL]: String(order.total),
     [ORDER_ID]: order.orderId ?? "",
   });
-  return `/thank-you?${query.toString()}`;
+  return `${storefrontPath("thankYou")}?${query.toString()}`;
 }
 
 /** The thank-you query, parsed. A missing or non-numeric total is `null`. */

@@ -11,6 +11,9 @@ import { message } from "@/theme/content/messages";
 import type { StoreConfig } from "@wocart/storefront";
 import { Icon } from "astro-icon/components";
 import { brandInk, onColor, safeHex, themeFont } from "@/theme/utils/brand";
+import { resolveThemeSettings } from "@wocart/theme";
+import { theme00 } from "@/theme/theme";
+import { menuLinks } from "@/theme/runtime/navigation";
 
 interface Props {
   title?: string;
@@ -79,7 +82,18 @@ const brand = {
   onAccent: onColor(accent),
   bg: safeHex(config.bgColor, "#f4f5f7"),
 };
-const font = themeFont(config.fontFamily);
+// The merchant's choices for this theme, checked against its declaration: a
+// value it no longer accepts falls back to the theme's default.
+const { values: settings } = resolveThemeSettings(theme00, store.config.themeSettings, { locales: [locale, ...store.fallbackLocales] });
+const font = themeFont(settings.font ?? config.fontFamily);
+
+// The store's own menus, where it has them; the header and footer keep their
+// built-in links otherwise.
+const [headerMenu, footerMenu] = marketing
+  ? [null, null]
+  : await Promise.all([store.client.menus.get(settings.headerMenu), store.client.menus.get(settings.footerMenu)]);
+const headerLinks = menuLinks(headerMenu, store.href, store.pathname);
+const footerLinks = menuLinks(footerMenu, store.href, store.pathname);
 ---
 
 <!doctype html>
@@ -117,13 +131,13 @@ const font = themeFont(config.fontFamily);
       </div>
     )}
 
-    {!marketing && <Header config={config} content={content} />}
+    {!marketing && <Header config={config} content={content} menu={headerLinks} />}
 
     <main transition:animate={pageMotion}>
       <slot />
     </main>
 
-    {!marketing && <Footer config={config} content={content} />}
+    {!marketing && <Footer config={config} content={content} menu={footerLinks} />}
 
     {/* One drawer per page, outside the main flow so its fixed positioning is
         never trapped by a transformed ancestor. Rendered only when the cart is

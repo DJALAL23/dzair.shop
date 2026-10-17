@@ -17,7 +17,8 @@ export function testStore(overrides: Partial<StoreContext> & { routing?: LocaleR
     locale,
     fallbackLocales: locale === routing.primary ? [] : [routing.primary],
     isRTL: false,
-    client: undefined as unknown as StoreClient,
+    // A store with no menus: the layout's header and footer keep their own links.
+    client: { menus: { get: async () => null } } as unknown as StoreClient,
     routing,
     pathname: "/",
     href: (path) => localizeHref(path, locale, routing),

@@ -2,6 +2,7 @@
 // pages are left out — they are ad destinations, often unlisted from the store.
 import type { APIRoute } from "astro";
 import { sitemapXml } from "@/theme/utils/sitemap";
+import { storefrontPath } from "@wocart/storefront";
 
 export const prerender = false;
 
@@ -13,10 +14,10 @@ export const GET: APIRoute = async ({ locals, url }) => {
   const [categories, products] = await Promise.all([client.categories.list(), allProducts(client)]);
   const paths = [
     "/",
-    "/products",
-    ...categories.map((category) => `/category/${category.slug}`),
-    ...products.map((product) => `/products/${product.handle}`),
-    ...config.pages.map((page) => `/pages/${page.slug}`),
+    storefrontPath("catalog"),
+    ...categories.map((category) => storefrontPath("category", { slug: category.slug })),
+    ...products.map((product) => storefrontPath("product", { handle: product.handle })),
+    ...config.pages.map((page) => storefrontPath("page", { slug: page.slug })),
   ];
   return new Response(sitemapXml(paths, routing, url.origin), {
     headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" },

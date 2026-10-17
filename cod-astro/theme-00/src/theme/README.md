@@ -78,6 +78,20 @@ catalog/category read. See `docs/history/PRODUCT_ZERO_AUDIT.md` §3.
 ### `runtime/`
 - `store.ts` - `DEFAULT_CONFIG` (fallback colors/font/meta) and
   `getStoreContext()` (per-request store config + resolved content)
+- `navigation.ts` - `menuLinks()`: a store menu as header/footer links in the
+  request's language
+
+### `settings.ts` — the theme's global settings
+The settings a merchant sets once for the whole store: the font (one of
+`fonts.json`) and which menu the header and the footer show (`main-menu` and
+`footer` by default). `StoreLayout` reads them with `resolveThemeSettings`
+from `StoreConfig.themeSettings`; a store without the named menu keeps the
+header's and footer's own links. Until a font is chosen here, the store's
+font from the dashboard applies.
+
+Every link to a product, a category, a store page, the catalog or the
+checkout is built with `storefrontPath` from `@wocart/storefront` — the
+platform owns those paths (guarded by `__tests__/guards/page-paths.test.ts`).
 
 ### `sdk.ts` — the platform adapter (the ONE SDK seam)
 - `getStoreClient()` creates the `@wocart/storefront` client from server env:
