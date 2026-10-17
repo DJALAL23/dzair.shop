@@ -1,6 +1,6 @@
 ---
 import { Image } from "astro:assets";
-import { getOfferTierView, productImageSource, type Offer, type ProductDetail } from "@wocart/storefront";
+import { getOfferTierView, getQuantityTierViews, productImageSource, type Offer, type ProductDetail } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import { formatAmount } from "@/theme/utils/money";
 import { safeHex } from "@/theme/utils/brand";
@@ -30,6 +30,9 @@ function varVal(variations: unknown, key: string): string | undefined {
 // Each tier is priced once here; the best-value tile is the one that saves the
 // shopper the most money, so the badge is earned by the numbers, never claimed.
 const tiers = offers.map((offer) => ({ offer, view: getOfferTierView(offer, basePrice, comparePrice) }));
+// Quantity pricing's tiers, as tiles that set the quantity. What the chosen
+// quantity costs is the server's cart quote, never computed here.
+const quantityTiers = product.quantityPricing ? getQuantityTierViews(product.quantityPricing, basePrice) : [];
 const bestId = tiers.reduce<{ id: string | null; saved: number }>(
   (best, { offer, view }) =>
     !view.isFreeShipping && view.savingsAmount > best.saved ? { id: offer.id, saved: view.savingsAmount } : best,
@@ -164,6 +167,23 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
     <input type="number" name="quantity" id="qty-input" value="1" min="1" max="100" class="sr-only" aria-label={content.ariaQuantity} />
   </div>
 ) : (
+  <>
+  {quantityTiers.length > 0 && (
+    <div class="mb-4 space-y-3">
+      <p class="text-sm font-semibold text-ink">{content.offerSectionTitle}</p>
+      <div class="tier-grid" role="radiogroup" aria-label={content.offerSectionTitle}>
+        {quantityTiers.map((tier) => (
+          <button type="button" class="tier-tile qty-tier" data-qty={tier.quantity} role="radio" aria-checked="false">
+            <span class="tier-qty">×{tier.quantity}</span>
+            <span class="tier-price">{formatAmount(tier.price)}<span class="price-cur">{cur}</span></span>
+            <span class="tier-name">{message(content, "qtyTierEach", { price: `${formatAmount(tier.perUnit)} ${cur}` }, locale)}</span>
+            {tier.savePct > 0 && <span class="tier-save">{message(content, "qtyTierSave", { pct: tier.savePct }, locale)}</span>}
+            {tier.freeShipping && <span class="tier-badge">{content.offerFreeShippingBadge}</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
   <div class="flex items-center justify-between gap-4">
     <!-- No offers: standalone quantity stepper -->
     <div>
@@ -176,10 +196,13 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
       <button type="button" id="qty-plus" class="qty-btn">+</button>
     </div>
   </div>
+  </>
 )}
 <p id="qty-stock-hint" class="mt-1 hidden text-end text-xs font-semibold text-error" aria-live="polite"></p>
 
 <style>
+  .qty-tier { cursor: pointer; text-align: center; }
+  .qty-tier[aria-checked="true"] { border-color: var(--clr-primary); box-shadow: 0 0 0 1px var(--clr-primary); }
   .tier-grid {
     display: grid;
     /* auto-fit: two tiles share the full width, three fill it, and no empty column is left. */

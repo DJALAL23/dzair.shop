@@ -15,4 +15,8 @@ export type OffersStrings = {
   offerBuyOne: string;
   /** "Most Popular" badge on the first offer tier */
   offerBestValue: string;
+  /** A quantity tier's per-unit price: `{price}`. */
+  qtyTierEach: string;
+  /** A quantity tier's saving: `{pct}`. */
+  qtyTierSave: string;
 };

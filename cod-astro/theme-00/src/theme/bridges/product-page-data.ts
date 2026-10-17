@@ -65,6 +65,8 @@ export interface ProductPageData {
   inventory: number;
   variants: ProductPageVariant[];
   offers: ProductPageOffer[];
+  /** Priced by quantity tiers: only the server's quote says what a quantity costs. */
+  quantityPriced: boolean;
   pixelId: string;
   phoneInvalid: string | null;
   outOfStock: string | null;
@@ -80,7 +82,7 @@ export interface ProductPageData {
 export interface ProductPageDataInput {
   product: Pick<
     ProductDetail,
-    "id" | "name" | "trackInventory" | "inventory" | "variants" | "offers"
+    "id" | "name" | "trackInventory" | "inventory" | "variants" | "offers" | "quantityPricing"
   >;
   currencySymbol: string;
   isRTL: boolean;
@@ -109,6 +111,7 @@ export function buildProductPageData(input: ProductPageDataInput): Record<string
     "data-inventory": String(product.inventory),
     "data-variants": JSON.stringify(product.variants),
     "data-offers": JSON.stringify(product.offers),
+    "data-quantity-priced": product.quantityPricing ? "1" : "0",
     "data-pixel-id": pixelId ?? "",
     "data-phone-invalid": copy.formPhoneInvalid,
     "data-out-of-stock-label": copy.outOfStock,
@@ -143,6 +146,7 @@ export function readProductPageData(root: ParentNode = document): ProductPageDat
     inventory: finiteNumber(d.inventory) ?? 0,
     variants: toVariants(parseJsonArray(d.variants)),
     offers: toOffers(parseJsonArray(d.offers)),
+    quantityPriced: d.quantityPriced === "1",
     pixelId: d.pixelId ?? "",
     phoneInvalid: d.phoneInvalid ?? null,
     outOfStock: d.outOfStockLabel ?? null,

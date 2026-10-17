@@ -28,7 +28,7 @@
     "@astrojs/vercel": "^11.0.10",
     "@iconify-json/heroicons": "^1.2.3",
     "@playform/compress": "^0.2.5",
-    "@wocart/storefront": "1.9.0",
+    "@wocart/storefront": "1.10.0",
     "@wocart/theme": "1.3.0",
     "astro": "^7.3.2",
     "astro-icon": "^1.1.5",

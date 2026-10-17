@@ -1,8 +1,9 @@
 /**
- * The storefront's delivery quote, asked of the server.
+ * The storefront's quote, asked of the server.
  *
- * A destination's fee and total come from the server, computed by the same
- * function that charges the order (see cart-render.ts for the basket's own
+ * What the lines cost (every offer applied) and, for a destination, the
+ * delivery fee come from the server, computed by the same function that
+ * charges the order (see cart-render.ts for the basket's own
  * validator). A product page asks with its form's fields; the answer is kept
  * only if it is the latest request — a slow earlier answer never overwrites a
  * newer one.
@@ -13,8 +14,10 @@ import type { CartDeliveryQuote } from "@wocart/storefront";
 export const QUOTE_URL = "/api/cart/validate";
 
 export interface QuoteAnswer {
-  /** Absent from a server that predates quotes: the caller falls back. */
+  /** Absent from a server that predates quotes, or when no destination was asked: the caller falls back. */
   delivery?: CartDeliveryQuote;
+  /** What the lines cost, every offer applied (quantity pricing included). */
+  subtotal?: number;
 }
 
 function isQuote(value: unknown): value is CartDeliveryQuote {
@@ -42,8 +45,12 @@ export function createQuoter(url: string = QUOTE_URL) {
       if (!res.ok) return undefined;
       const payload = await res.json();
       if (id !== latest) return undefined;
-      const delivery = (payload?.data as { delivery?: unknown } | undefined)?.delivery;
-      return isQuote(delivery) ? { delivery } : {};
+      const data = payload?.data as { delivery?: unknown; subtotal?: unknown } | undefined;
+      const subtotal = typeof data?.subtotal === "number" && Number.isFinite(data.subtotal) ? data.subtotal : undefined;
+      return {
+        ...(isQuote(data?.delivery) ? { delivery: data.delivery } : {}),
+        ...(subtotal === undefined ? {} : { subtotal }),
+      };
     } catch {
       return undefined;
     }

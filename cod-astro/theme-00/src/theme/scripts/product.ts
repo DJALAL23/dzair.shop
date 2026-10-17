@@ -57,6 +57,8 @@ export function initProductPage(): () => void {
   const productInventory   = data.inventory || 100;
 
   const allOffers = data.offers;
+  /** The product is priced by quantity tiers: what a quantity costs is the server's quote alone. */
+  const quantityPriced = data.quantityPriced;
 
   // ── STATE ──────────────────────────────────────────────────────────────────
   /** Tracks selected values for each variant option (e.g., { "Color": "Red" }) */
@@ -134,16 +136,9 @@ export function initProductPage(): () => void {
     const activeSectionId = offId ? `tier-variants-${offId}` : "tier-variants-base";
     document.getElementById(activeSectionId)?.classList.remove("hidden");
 
-    // 5. Handle special offer types (e.g. Free Shipping)
-    const selOffer = allOffers.find(o => o.id === offId);
-    if (selOffer?.discountType === "free_shipping") {
-      currentShipping = 0;
-      updateVariantSelectionsInput();
-      updatePriceUI();
-    } else {
-      updateVariantSelectionsInput();
-      refreshShipping(); // Recalculate based on wilaya
-    }
+    // 5. The delivery for the new tier is the server's to answer.
+    updateVariantSelectionsInput();
+    refreshShipping();
   }
 
   // Attach listeners to tier cards
@@ -252,7 +247,12 @@ export function initProductPage(): () => void {
    */
   function updatePriceUI() {
     const qty = Math.max(1, parseInt(qtyInput?.value || "1") || 1);
-    const itemTotal = currentPrice * qty;
+    // The server's subtotal for exactly this form when it has answered; the
+    // catalog price meanwhile — except under quantity pricing, whose total is
+    // only ever the server's, so it waits for the answer.
+    const quoted = quote?.key === shippingKey() ? quote.answer.subtotal : undefined;
+    const itemTotal: number | null = quoted ?? (quantityPriced ? null : currentPrice * qty);
+    syncQuantityTiers(qty);
 
     // 1. Update main price displays
     document.querySelectorAll<HTMLElement>("#price-display-desktop, #price-display-mobile, #sticky-price").forEach((el) => {
@@ -261,7 +261,7 @@ export function initProductPage(): () => void {
 
     // 2. Update order summary rows
     const summaryItemPrice = document.getElementById("summary-item-price");
-    if (summaryItemPrice) summaryItemPrice.textContent = `${formatAmount(itemTotal)} ${cur}`;
+    if (summaryItemPrice) summaryItemPrice.textContent = itemTotal === null ? "…" : `${formatAmount(itemTotal)} ${cur}`;
     
     const summaryQtyLabel = document.getElementById("summary-qty-label");
     if (summaryQtyLabel) summaryQtyLabel.textContent = `${qty} ×`;
@@ -270,7 +270,9 @@ export function initProductPage(): () => void {
     const totalEl    = document.getElementById("summary-total");
 
     // 3. Handle shipping logic in summary
-    if (shippingEl && totalEl) {
+    if (shippingEl && totalEl && itemTotal === null) {
+      totalEl.textContent = "…";
+    } else if (shippingEl && totalEl && itemTotal !== null) {
       if (undeliverable) {
         shippingEl.textContent = shippingUnavailable;
         totalEl.textContent = `${formatAmount(itemTotal)} ${cur}`;
@@ -422,6 +424,24 @@ export function initProductPage(): () => void {
     refreshShipping();
   }
 
+  // ── QUANTITY TIERS ─────────────────────────────────────────────────────────
+
+  const quantityTierTiles = document.querySelectorAll<HTMLButtonElement>(".qty-tier");
+
+  /** Marks the tile whose quantity is the one ordered — a display match, never a price. */
+  function syncQuantityTiers(qty: number) {
+    quantityTierTiles.forEach((tile) => tile.setAttribute("aria-checked", String(Number(tile.dataset.qty) === qty)));
+  }
+
+  quantityTierTiles.forEach((tile) =>
+    tile.addEventListener("click", () => {
+      if (!qtyInput) return;
+      qtyInput.value = String(Math.min(Number(tile.dataset.qty) || 1, currentVariantMax));
+      refreshShipping();
+      updateQtyState();
+    }),
+  );
+
   // ── QUANTITY STEPPER ───────────────────────────────────────────────────────
   
   document.getElementById("qty-minus")?.addEventListener("click", () => {
@@ -494,7 +514,7 @@ export function initProductPage(): () => void {
     return JSON.stringify({ destination: deliveryDestination() ?? null, form: productFormBody() });
   }
 
-  /** Shows the server's answer. A server that predates quotes leaves the rate table in charge. */
+  /** Shows the server's answer. Without a destination, or from a server that predates quotes, the rate table prices delivery. */
   function applyQuote(answer: QuoteAnswer): void {
     const delivery = answer.delivery;
     if (delivery === undefined) {
@@ -510,7 +530,6 @@ export function initProductPage(): () => void {
 
   async function requestQuote(key: string): Promise<void> {
     const destination = deliveryDestination();
-    if (!destination) return;
     const answer = await askQuote({ ...productFormBody(), destination });
     // Undefined: stale or failed. A key that has moved on: the shopper changed
     // the form or the destination while this was on its way.
@@ -524,24 +543,14 @@ export function initProductPage(): () => void {
    * server's quote when it has answered for them, the rate table until then.
    */
   function refreshShipping() {
-    // 1. Check for free shipping offers
-    const selOffer = allOffers.find(o => o.id === currentOfferId);
-    if (selOffer?.discountType === "free_shipping") {
-      undeliverable = false;
-      currentShipping = 0;
-      syncSubmit();
-      updatePriceUI();
-      return;
-    }
-
-    // 2. The server's quote for exactly this destination and form.
+    // 1. The server's quote for exactly this destination and form.
     const key = shippingKey();
     if (quote?.key === key) {
       applyQuote(quote.answer);
       return;
     }
 
-    // 3. Until it answers, the merchant's rate table stands in.
+    // 2. Until it answers, the merchant's rate table stands in.
     undeliverable = false;
     currentShipping = rateFor(rates, selectedWilayaId(), currentDeliveryType());
     syncSubmit();

@@ -10,4 +10,6 @@ export const frOffers: OffersStrings = {
   offerFreeShippingBadge: "Livraison gratuite",
   offerBuyOne: "Achetez 1",
   offerBestValue: "Meilleure offre",
+  qtyTierEach: "{price} l'unité",
+  qtyTierSave: "Économisez {pct} %",
 };

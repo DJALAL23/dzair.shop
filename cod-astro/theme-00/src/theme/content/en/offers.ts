@@ -10,4 +10,6 @@ export const enOffers: OffersStrings = {
   offerFreeShippingBadge: "Free Shipping",
   offerBuyOne: "Buy 1",
   offerBestValue: "Best value",
+  qtyTierEach: "{price} each",
+  qtyTierSave: "Save {pct}%",
 };

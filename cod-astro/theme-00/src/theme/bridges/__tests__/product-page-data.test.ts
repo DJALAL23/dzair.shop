@@ -108,6 +108,14 @@ const build = (overrides: Partial<ProductDetail> = {}) =>
   });
 
 describe("product page-data bridge", () => {
+  it("says whether the product is priced by quantity tiers", () => {
+    mount(build({ quantityPricing: { offerId: "packs", name: "Packs", triggerVariantId: null, tiers: [{ quantity: 2, price: 3500, freeShipping: false }] } }));
+    expect(readProductPageData()?.quantityPriced).toBe(true);
+    document.body.innerHTML = "";
+    mount(build({ quantityPricing: null }));
+    expect(readProductPageData()?.quantityPriced).toBe(false);
+  });
+
   it("round-trips what the writer writes", () => {
     mount(build());
 

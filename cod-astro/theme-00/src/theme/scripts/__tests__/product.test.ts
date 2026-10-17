@@ -698,9 +698,10 @@ describe("Shipping rates bridge", () => {
 describe("Delivery quote for the product form", () => {
   let container: HTMLElement;
 
-  function build(): void {
+  function build(options: { quantityPriced?: boolean; wilaya?: string; tiers?: string } = {}): void {
     container.innerHTML = `
       <div id="page-data"
+        data-quantity-priced="${options.quantityPriced ? "1" : "0"}"
         data-product-id="p1"
         data-product-name="Watch"
         data-variants="[]"
@@ -715,9 +716,11 @@ describe("Delivery quote for the product form", () => {
         data-commune-disabled="Pick a wilaya"
         data-offers="[]"></div>
       <div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div>
+      <div id="summary-item-price"></div>
       <div id="summary-shipping"></div>
       <div id="summary-total"></div>
-      <input id="f-wilaya" value="16" />
+      ${options.tiers ?? ""}
+      <input id="f-wilaya" value="${options.wilaya ?? "16"}" />
       <div id="delivery-type-group">
         <label class="delivery-radio-label">
           <input type="radio" name="deliveryType" value="home" class="delivery-radio-input" checked />
@@ -755,6 +758,7 @@ describe("Delivery quote for the product form", () => {
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   const shipping = () => document.getElementById("summary-shipping")!.textContent ?? "";
   const total = () => document.getElementById("summary-total")!.textContent ?? "";
+  const itemPrice = () => document.getElementById("summary-item-price")!.textContent ?? "";
   const submit = () => document.getElementById("submit-btn") as HTMLButtonElement;
 
   beforeEach(() => {
@@ -840,6 +844,74 @@ describe("Delivery quote for the product form", () => {
     expect(total()).toContain("2");
     expect(total()).not.toContain("400");
     expect(submit().disabled).toBe(true);
+  });
+
+  it("asks for the subtotal before a destination is chosen, sending none", async () => {
+    build({ wilaya: "" });
+    const fetchMock = quoteServer(() => ({ subtotal: 2500, lines: [] }));
+    initProductPage();
+    await settle();
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(body).toMatchObject({ productId: "p1", quantity: 1 });
+    expect(body).not.toHaveProperty("destination");
+  });
+
+  it("shows the server's subtotal for the lines, not the unit price times the quantity", async () => {
+    build();
+    quoteServer(() => ({ subtotal: 1999, lines: [], delivery: { available: true, fee: 900, total: 2899 } }));
+    initProductPage();
+    await settle();
+
+    expect(itemPrice()).toContain("1");
+    expect(itemPrice()).toContain("999");
+    expect(total()).toContain("899");
+  });
+
+  it("under quantity pricing, shows no figure of its own until the server prices the quantity", async () => {
+    build({ quantityPriced: true });
+    const answers: Array<() => void> = [];
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => {
+      answers.push(() => resolve({ ok: true, json: async () => ({ success: true, data: { subtotal: 3500, lines: [], delivery: { available: true, fee: 0, total: 3500 } } }) } as unknown as Response));
+    })));
+    initProductPage();
+    await settle();
+
+    expect(itemPrice()).toBe("…");
+    expect(total()).toBe("…");
+    expect(itemPrice()).not.toContain("2");
+
+    answers[0]!();
+    await settle();
+    expect(itemPrice()).toContain("500");
+    expect(itemPrice()).toContain("3");
+  });
+
+  it("orders a tier's quantity from its tile, and marks the tile the quantity matches", async () => {
+    build({
+      quantityPriced: true,
+      tiers: `<button type="button" class="qty-tier" data-qty="1" aria-checked="false"></button>
+              <button type="button" class="qty-tier" data-qty="3" aria-checked="false"></button>`,
+    });
+    const fetchMock = quoteServer((body) => ({ subtotal: body.quantity === 3 ? 4500 : 2000, lines: [], delivery: { available: true, fee: 400, total: 0 } }));
+    initProductPage();
+    await settle();
+
+    const [one, three] = Array.from(document.querySelectorAll<HTMLButtonElement>(".qty-tier"));
+    expect(one!.getAttribute("aria-checked")).toBe("true");
+    three!.click();
+    await settle();
+
+    expect((document.getElementById("qty-input") as HTMLInputElement).value).toBe("3");
+    expect(three!.getAttribute("aria-checked")).toBe("true");
+    expect(one!.getAttribute("aria-checked")).toBe("false");
+    expect(JSON.parse(String((fetchMock.mock.calls.at(-1) as unknown as [string, RequestInit])[1].body)).quantity).toBe(3);
+    expect(itemPrice()).toContain("500");
+
+    const qty = document.getElementById("qty-input") as HTMLInputElement;
+    qty.value = "2";
+    qty.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(three!.getAttribute("aria-checked")).toBe("false");
   });
 
   it("keeps the rate table's figure when the server predates quotes", async () => {
