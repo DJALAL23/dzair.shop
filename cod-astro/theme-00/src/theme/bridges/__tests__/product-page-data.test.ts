@@ -141,6 +141,24 @@ describe("product page-data bridge", () => {
     expect(data?.communeDisabled).toBe(ar.formCommuneDisabled);
   });
 
+  it("carries what the option buttons need: each variant's state and order, and the options' values", () => {
+    const [first] = product().variants;
+    mount(
+      build({
+        variantOptions: [{ name: "Color", values: [{ value: "Red", hexColor: "#ff0000" }, { value: "Blue", hexColor: null }] }],
+        variants: [first!, { ...first!, id: "var_2", variations: { Color: "Blue" }, isDefault: false, active: false, position: 1 }],
+      }),
+    );
+    const data = readProductPageData();
+    expect(data?.variants.map(({ id, active, position }) => ({ id, active, position }))).toEqual([
+      { id: "var_1", active: true, position: 0 },
+      { id: "var_2", active: false, position: 1 },
+    ]);
+    expect(data?.variantOptions).toEqual([{ name: "Color", values: [{ value: "Red" }, { value: "Blue" }] }]);
+    mount(build({ variantOptions: null }));
+    expect(readProductPageData()?.variantOptions).toEqual([]);
+  });
+
   it("returns null when the page carries no bridge", () => {
     document.body.innerHTML = "";
 

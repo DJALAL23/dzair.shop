@@ -39,7 +39,15 @@ export interface ProductPageVariant {
   inventory: number;
   variations: Record<string, string>;
   isDefault: boolean;
+  active: boolean;
+  position: number;
   imageId: string | null;
+}
+
+/** An option the buttons choose a value of, as the product names it. */
+export interface ProductPageOption {
+  name: string;
+  values: { value: string }[];
 }
 
 /** The offer fields the scripts use (a subset of the SDK's `Offer`). */
@@ -64,6 +72,7 @@ export interface ProductPageData {
   trackInventory: boolean;
   inventory: number;
   variants: ProductPageVariant[];
+  variantOptions: ProductPageOption[];
   offers: ProductPageOffer[];
   /** Priced by quantity tiers: only the server's quote says what a quantity costs. */
   quantityPriced: boolean;
@@ -82,7 +91,7 @@ export interface ProductPageData {
 export interface ProductPageDataInput {
   product: Pick<
     ProductDetail,
-    "id" | "name" | "trackInventory" | "inventory" | "variants" | "offers" | "quantityPricing"
+    "id" | "name" | "trackInventory" | "inventory" | "variants" | "variantOptions" | "offers" | "quantityPricing"
   >;
   currencySymbol: string;
   isRTL: boolean;
@@ -110,6 +119,7 @@ export function buildProductPageData(input: ProductPageDataInput): Record<string
     "data-track-inventory": product.trackInventory ? "1" : "0",
     "data-inventory": String(product.inventory),
     "data-variants": JSON.stringify(product.variants),
+    "data-variant-options": JSON.stringify((product.variantOptions ?? []).map((option) => ({ name: option.name, values: option.values.map(({ value }) => ({ value })) }))),
     "data-offers": JSON.stringify(product.offers),
     "data-quantity-priced": product.quantityPricing ? "1" : "0",
     "data-pixel-id": pixelId ?? "",
@@ -145,6 +155,7 @@ export function readProductPageData(root: ParentNode = document): ProductPageDat
     trackInventory: d.trackInventory === "1",
     inventory: finiteNumber(d.inventory) ?? 0,
     variants: toVariants(parseJsonArray(d.variants)),
+    variantOptions: toOptions(parseJsonArray(d.variantOptions)),
     offers: toOffers(parseJsonArray(d.offers)),
     quantityPriced: d.quantityPriced === "1",
     pixelId: d.pixelId ?? "",
@@ -199,8 +210,24 @@ function toVariants(rows: unknown[]): ProductPageVariant[] {
       inventory: finiteNumber(r.inventory) ?? 0,
       variations: stringRecord(r.variations),
       isDefault: r.isDefault === true,
+      active: r.active === true,
+      position: finiteNumber(r.position) ?? 0,
       imageId: typeof r.imageId === "string" ? r.imageId : null,
     });
+  }
+  return out;
+}
+
+function toOptions(rows: unknown[]): ProductPageOption[] {
+  const out: ProductPageOption[] = [];
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null) continue;
+    const r = row as Record<string, unknown>;
+    if (typeof r.name !== "string" || !Array.isArray(r.values)) continue;
+    const values = r.values.flatMap((entry: unknown) =>
+      typeof entry === "object" && entry !== null && typeof (entry as Record<string, unknown>).value === "string" ? [{ value: (entry as { value: string }).value }] : [],
+    );
+    out.push({ name: r.name, values });
   }
   return out;
 }

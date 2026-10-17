@@ -24,7 +24,7 @@ import { initRequiredSelects } from "./select-required";
 import { formatAmount } from "../utils/money";
 // The product page's one SSR→browser contract — see bridges/.
 import { readProductPageData } from "../bridges/product-page-data";
-import { getOfferTierView, toLocalAlgerianMobile } from "@wocart/storefront";
+import { getOfferTierView, initialVariant, optionStates, pickOption, toLocalAlgerianMobile, variantFor, type OptionSelection } from "@wocart/storefront";
 import { onEachPage } from "./page-lifecycle";
 
 export function initProductPage(): () => void {
@@ -62,8 +62,14 @@ export function initProductPage(): () => void {
   const quantityPriced = data.quantityPriced;
 
   // ── STATE ──────────────────────────────────────────────────────────────────
-  /** Tracks selected values for each variant option (e.g., { "Color": "Red" }) */
-  const selectedOpts: Record<string, string> = {};
+  /** What the option buttons choose between; the SDK's picker decides what a pick means. */
+  const catalog = { variants, trackInventory, variantOptions: data.variantOptions };
+  /** The values the option buttons show — always a variant that exists, the one ordered. */
+  let selection: OptionSelection = initialVariant(catalog)?.variations ?? {};
+  /** Each unit of an offer the shopper chose a variant for, by `offerId:unit`; the others follow `selection`. */
+  const unitSelections = new Map<string, OptionSelection>();
+  /** The chosen variant is sold out. */
+  let mainOos = false;
 
   /** Current unit price based on selected variant */
   let currentPrice        = data.basePrice || 0;
@@ -140,6 +146,7 @@ export function initProductPage(): () => void {
     document.getElementById(activeSectionId)?.classList.remove("hidden");
 
     // 5. The delivery for the new tier is the server's to answer.
+    if (currentOfferId) paintUnits(currentOfferId);
     updateVariantSelectionsInput();
     refreshShipping();
   }
@@ -188,56 +195,65 @@ export function initProductPage(): () => void {
 
   // ── VARIANT SELECTIONS ─────────────────────────────────────────────────────
 
-  /**
-   * Reads active `.tier-unit-opt` pill buttons for the current offer and builds
-   * the variantSelections JSON. No select elements — purely data-active driven.
-   */
-  function updateVariantSelectionsInput() {
-    if (!variantSelectionsInput) return;
-    if (!currentOfferId) { variantSelectionsInput.value = "[]"; return; }
-
-    const tierCard = document.getElementById(`tier-card-${currentOfferId}`);
-    const unitCount = tierCard ? (parseInt(tierCard.dataset.qty || "1") || 1) : 1;
-
-    const selections: Array<{ variantId: string; variantLabel: string }> = [];
-    for (let i = 0; i < unitCount; i++) {
-      const selectedValues: Record<string, string> = {};
-      document.querySelectorAll<HTMLButtonElement>(
-        `.tier-unit-opt[data-tier-id="${currentOfferId}"][data-unit="${i}"][data-active="1"]`
-      ).forEach(btn => {
-        selectedValues[btn.dataset.option!] = btn.dataset.value!;
-      });
-
-      if (Object.keys(selectedValues).length === 0) continue;
-
-      const match = variants.find(v =>
-        Object.entries(v.variations as Record<string, string>)
-          .every(([k, val]) => selectedValues[k] === val)
-      );
-      if (match) {
-        selections.push({
-          variantId: match.id,
-          variantLabel: Object.values(match.variations as Record<string, string>).join(" / "),
-        });
-      }
+  /** Marks each button's value chosen or not, and its state for the other choices. */
+  function paintOptions(buttons: Iterable<HTMLButtonElement>, chosen: OptionSelection) {
+    const states = optionStates(catalog, chosen);
+    for (const btn of buttons) {
+      const option = btn.dataset.option ?? "";
+      const value = btn.dataset.value ?? "";
+      const selected = chosen[option] === value;
+      btn.classList.toggle("is-selected", selected);
+      btn.setAttribute("aria-pressed", String(selected));
+      btn.dataset.state = states[option]?.[value] ?? "unavailable";
     }
-
-    variantSelectionsInput.value = selections.length > 0 ? JSON.stringify(selections) : "[]";
   }
 
-  // Per-unit variant pill buttons inside offer tier cards
+  /**
+   * The values one unit of an offer is ordered in: the shopper's pick for it,
+   * else the page's. An offer locked to a variant is only offered while the
+   * page shows that variant, and its buttons cannot be picked.
+   */
+  function unitSelection(offerId: string, unit: number): OptionSelection {
+    return unitSelections.get(`${offerId}:${unit}`) ?? selection;
+  }
+
+  function unitCount(offerId: string): number {
+    return parseInt(document.getElementById(`tier-card-${offerId}`)?.dataset.qty || "1") || 1;
+  }
+
+  function paintUnits(offerId: string) {
+    for (let unit = 0; unit < unitCount(offerId); unit++) {
+      paintOptions(document.querySelectorAll<HTMLButtonElement>(`.tier-unit-opt[data-tier-id="${offerId}"][data-unit="${unit}"]`), unitSelection(offerId, unit));
+    }
+  }
+
+  /** One variant per unit of the chosen offer — every unit, each a variant that exists. */
+  function updateVariantSelectionsInput() {
+    const units = currentOfferId ? unitVariants(currentOfferId) : [];
+    if (variantSelectionsInput) {
+      variantSelectionsInput.value = JSON.stringify(units.map((variant) => ({ variantId: variant.id, variantLabel: Object.values(variant.variations).join(" / ") })));
+    }
+    setVariantOosState(mainOos || (trackInventory && units.some((variant) => variant.inventory === 0)));
+  }
+
+  function unitVariants(offerId: string) {
+    const out: (typeof variants)[number][] = [];
+    for (let unit = 0; unit < unitCount(offerId); unit++) {
+      const variant = variantFor(variants, unitSelection(offerId, unit));
+      if (variant) out.push(variant);
+    }
+    return out;
+  }
+
+  // Per-unit option buttons of an offer: each unit moves like the page's own buttons.
   document.querySelectorAll<HTMLButtonElement>(".tier-unit-opt").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const { tierId, unit, option } = btn.dataset;
-      // Deactivate siblings in the same option group, then activate the clicked pill
-      document.querySelectorAll<HTMLButtonElement>(
-        `.tier-unit-opt[data-tier-id="${tierId}"][data-unit="${unit}"][data-option="${option}"]`
-      ).forEach(b => {
-        b.dataset.active = "0";
-        b.classList.remove("is-selected");
-      });
-      btn.dataset.active = "1";
-      btn.classList.add("is-selected");
+      const offerId = btn.dataset.tierId ?? "";
+      const unit = Number(btn.dataset.unit);
+      const picked = pickOption(catalog, unitSelection(offerId, unit), btn.dataset.option ?? "", btn.dataset.value ?? "");
+      if (!picked.variant) return;
+      unitSelections.set(`${offerId}:${unit}`, picked.selection);
+      paintUnits(offerId);
       updateVariantSelectionsInput();
       refreshShipping();
     });
@@ -318,31 +334,19 @@ export function initProductPage(): () => void {
   // ── VARIANT OPTION CLICKS ──────────────────────────────────────────────────
 
   /**
-   * Attach listeners to "pill" style variant buttons (Size, Color, etc.)
+   * The page's option buttons. A pick moves the selection to the variant it
+   * means — never to a combination that is not made — and a sold-out value can
+   * still be chosen, the order button then saying so.
    */
-  document.querySelectorAll<HTMLButtonElement>(".variant-opt").forEach((btn) => {
-    // Initialize default selections
-    if (btn.dataset.first === "1") {
-      selectVariantBtn(btn);
-      selectedOpts[btn.dataset.option!] = btn.dataset.value!;
-    }
-
+  const variantButtons = document.querySelectorAll<HTMLButtonElement>(".variant-opt");
+  variantButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      if (btn.dataset.oos === "1") return; // ignore out-of-stock pills
-      const opt = btn.dataset.option!;
-      selectedOpts[opt] = btn.dataset.value!;
-      selectVariantBtn(btn);
+      const picked = pickOption(catalog, selection, btn.dataset.option ?? "", btn.dataset.value ?? "");
+      if (!picked.variant) return;
+      selection = picked.selection;
       updateVariant();
     });
   });
-
-  /** Marks one option of its group as chosen; the group's other options are cleared. */
-  function selectVariantBtn(btn: HTMLButtonElement) {
-    document.querySelectorAll<HTMLButtonElement>(`.variant-opt[data-option="${btn.dataset.option}"]`).forEach((b) => {
-      b.classList.remove("is-selected");
-    });
-    btn.classList.add("is-selected");
-  }
 
   /**
    * Toggles the submit button between normal and out-of-stock states.
@@ -389,13 +393,10 @@ export function initProductPage(): () => void {
     }
   }
 
-  /**
-   * Finds the variant object matching all selected options and updates price/state.
-   */
+  /** Shows the selected variant: its buttons, price, stock and photo; the offer units that follow it. */
   function updateVariant() {
-    const match = variants.find((v) =>
-      Object.entries(v.variations).every(([k, val]) => selectedOpts[k] === val)
-    );
+    paintOptions(variantButtons, selection);
+    const match = variantFor(variants, selection);
     if (!match) return;
 
     currentPrice = match.price;
@@ -405,8 +406,7 @@ export function initProductPage(): () => void {
       variantLabelInput.value = Object.values(match.variations).join(" / ");
     }
 
-    // Combination-level OOS: disable submit if this exact variant is sold out
-    setVariantOosState(trackInventory && match.inventory === 0);
+    mainOos = trackInventory && match.inventory === 0;
 
     // Stock cap: prevent qty from exceeding available inventory
     if (trackInventory && match.inventory > 0) {
@@ -419,7 +419,7 @@ export function initProductPage(): () => void {
     if (qtyInput) {
       qtyInput.max = String(currentVariantMax);
       const curQty = parseInt(qtyInput.value) || 1;
-      if (curQty > currentVariantMax) qtyInput.value = String(currentVariantMax);
+      if (curQty > currentVariantMax) qtyInput.value = String(fittingQuantity(currentVariantMax));
     }
     updateQtyState();
 
@@ -437,6 +437,8 @@ export function initProductPage(): () => void {
       updateTierPrices();
       updateTierVisibility();
     }
+    if (currentOfferId) paintUnits(currentOfferId);
+    updateVariantSelectionsInput();
     updatePriceUI();
     // The threshold and the offers read the price, so the delivery moves with it.
     refreshShipping();
@@ -446,15 +448,32 @@ export function initProductPage(): () => void {
 
   const quantityTierTiles = document.querySelectorAll<HTMLButtonElement>(".qty-tier");
 
-  /** Marks the tile whose quantity is the one ordered — a display match, never a price. */
+  /** The most the stock allows: where tiles choose the quantity, the largest tile it can fill. */
+  function fittingQuantity(max: number): number {
+    if (quantityTierTiles.length === 0) return max;
+    const fitting = [...quantityTierTiles].map((tile) => Number(tile.dataset.qty)).filter((qty) => qty <= max);
+    return fitting.length ? Math.max(...fitting) : 1;
+  }
+
+  /**
+   * Marks the tile whose quantity is the one ordered — a display match, never
+   * a price — and takes out the tiles the stock cannot fill: all of them when
+   * the product or chosen variant is sold out.
+   */
   function syncQuantityTiers(qty: number) {
-    quantityTierTiles.forEach((tile) => tile.setAttribute("aria-checked", String(Number(tile.dataset.qty) === qty)));
+    quantityTierTiles.forEach((tile) => {
+      const tileQty = Number(tile.dataset.qty);
+      const chosen = tileQty === qty;
+      tile.setAttribute("aria-checked", String(chosen));
+      tile.classList.toggle("is-selected", chosen);
+      tile.disabled = mainOos || (hasStockCap && tileQty > currentVariantMax);
+    });
   }
 
   quantityTierTiles.forEach((tile) =>
     tile.addEventListener("click", () => {
-      if (!qtyInput) return;
-      qtyInput.value = String(Math.min(Number(tile.dataset.qty) || 1, currentVariantMax));
+      if (!qtyInput || tile.disabled) return;
+      qtyInput.value = String(Number(tile.dataset.qty) || 1);
       refreshShipping();
       updateQtyState();
     }),
@@ -709,6 +728,8 @@ export function initProductPage(): () => void {
     updateVariant();
   } else {
     // Simple product — apply stock cap from product-level inventory
+    mainOos = trackInventory && data.inventory <= 0;
+    setVariantOosState(mainOos);
     if (trackInventory && productInventory > 0) {
       currentVariantMax = productInventory;
       hasStockCap = true;

@@ -48,14 +48,14 @@ describe("Property 2: Preservation - Initial Page Load Behavior", () => {
    * Helper function to create a complete product page DOM structure
    */
   function createProductPageDOM(config?: {
-    variants?: Array<{ id: string; price: number; variations: Record<string, string>; isDefault?: boolean }>;
+    variants?: Array<{ id: string; price: number; variations: Record<string, string>; isDefault?: boolean; active: boolean; position: number }>;
     basePrice?: number;
     hasOffers?: boolean;
     initialQuantity?: number;
   }) {
     const variants = config?.variants || [
-      { id: "v1", price: 1000, compareAtPrice: null, variations: { Color: "Red" }, isDefault: true },
-      { id: "v2", price: 1200, compareAtPrice: null, variations: { Color: "Blue" }, isDefault: false },
+      { id: "v1", price: 1000, compareAtPrice: null, variations: { Color: "Red" }, isDefault: true, active: true, position: 0 },
+      { id: "v2", price: 1200, compareAtPrice: null, variations: { Color: "Blue" }, isDefault: false, active: true, position: 1 },
     ];
     const basePrice = config?.basePrice || 1000;
     const initialQuantity = config?.initialQuantity || 1;
@@ -89,7 +89,7 @@ describe("Property 2: Preservation - Initial Page Load Behavior", () => {
       <button id="qty-minus">-</button>
       <button id="qty-plus">+</button>
       
-      <button class="variant-opt" data-option="Color" data-value="Red" data-first="1">Red</button>
+      <button class="variant-opt" data-option="Color" data-value="Red">Red</button>
       <button class="variant-opt" data-option="Color" data-value="Blue">Blue</button>
       
       <div id="gallery"></div>
@@ -216,6 +216,8 @@ describe("Property 2: Preservation - Initial Page Load Behavior", () => {
             price: config.basePrice + i * 100,
             variations: { Color: ["Red", "Blue", "Green"][i] || "Red" },
             isDefault: i === 0,
+            active: true,
+            position: i,
           }));
           
           const html = `
@@ -236,7 +238,7 @@ describe("Property 2: Preservation - Initial Page Load Behavior", () => {
             <button id="qty-minus">-</button>
             <button id="qty-plus">+</button>
             
-            ${variants.map((v, i) => `<button class="variant-opt" data-option="Color" data-value="${v.variations.Color}" ${i === 0 ? 'data-first="1"' : ''}>${v.variations.Color}</button>`).join('\n')}
+            ${variants.map((v, i) => `<button class="variant-opt" data-option="Color" data-value="${v.variations.Color}">${v.variations.Color}</button>`).join('\n')}
             
             <div id="price-display-desktop"></div>
             <input type="hidden" id="price-input" />
@@ -427,7 +429,7 @@ describe("Commune loading race protection", () => {
     container = document.createElement("div");
     container.innerHTML = `
       <div id="page-data"
-        data-variants='[{"id":"v1","price":1000,"compareAtPrice":null,"inventory":10,"variations":{},"isDefault":true,"imageId":null}]'
+        data-variants='[{"id":"v1","price":1000,"compareAtPrice":null,"inventory":10,"variations":{},"isDefault":true,"active":true,"position":0,"imageId":null}]'
         data-cur="DA"
         data-is-rtl="0"
         data-shipping-calc="Calculated at checkout"
@@ -1077,13 +1079,13 @@ describe("Direct checkout form (S9)", () => {
   it("the posted price follows the selected variant, not a stale one", () => {
     buildDirectCheckoutDom({
       variants: JSON.stringify([
-        { id: "v1", price: 1000, compareAtPrice: null, inventory: 10, variations: { Color: "Red" }, isDefault: true, imageId: null },
-        { id: "v2", price: 1200, compareAtPrice: null, inventory: 10, variations: { Color: "Blue" }, isDefault: false, imageId: null },
+        { id: "v1", price: 1000, compareAtPrice: null, inventory: 10, variations: { Color: "Red" }, isDefault: true, active: true, position: 0, imageId: null },
+        { id: "v2", price: 1200, compareAtPrice: null, inventory: 10, variations: { Color: "Blue" }, isDefault: false, active: true, position: 1, imageId: null },
       ]),
     });
     container.insertAdjacentHTML(
       "beforeend",
-      `<button class="variant-opt" data-option="Color" data-value="Red" data-first="1">Red</button>
+      `<button class="variant-opt" data-option="Color" data-value="Red">Red</button>
        <button class="variant-opt" data-option="Color" data-value="Blue">Blue</button>`
     );
 
@@ -1118,3 +1120,196 @@ describe("Direct checkout form (S9)", () => {
   });
 });
 
+
+/**
+ * The option buttons always show a variant that exists — the one the order
+ * posts — for the page's own buttons and for each unit of an offer.
+ */
+describe("Option buttons and the variant ordered", () => {
+  let container: HTMLElement;
+
+  /** A shirt made in white M, black M and blue L only. */
+  const shirt = (overrides: Record<string, Partial<{ inventory: number; isDefault: boolean }>> = {}) =>
+    [
+      { id: "white-m", variations: { Colour: "White", Size: "M" }, position: 0 },
+      { id: "black-m", variations: { Colour: "Black", Size: "M" }, position: 1 },
+      { id: "blue-l", variations: { Colour: "Blue", Size: "L" }, position: 2 },
+    ].map((v) => ({ price: 2800, compareAtPrice: null, inventory: 5, isDefault: false, active: true, imageId: null, ...v, ...overrides[v.id] }));
+
+  const options = [
+    { name: "Colour", values: [{ value: "White" }, { value: "Black" }, { value: "Blue" }] },
+    { name: "Size", values: [{ value: "S" }, { value: "M" }, { value: "L" }] },
+  ];
+
+  const pills = (cls: string, extra = "") =>
+    options.flatMap((o) => o.values.map((v) => `<button type="button" class="${cls}" ${extra} data-option="${o.name}" data-value="${v.value}">${v.value}</button>`)).join("");
+
+  function build(o: { variants?: unknown[]; offers?: unknown[]; tiers?: string; inventory?: number } = {}) {
+    container.innerHTML = `
+      <div id="page-data" data-product-id="p1" data-product-name="Shirt"
+        data-variants='${JSON.stringify(o.variants ?? shirt())}'
+        data-variant-options='${JSON.stringify(o.variants?.length === 0 ? [] : options)}'
+        data-track-inventory="1" data-inventory="${o.inventory ?? 15}"
+        data-base-price="2800" data-cur="DA" data-is-rtl="0" data-out-of-stock-label="Sold out"
+        data-offers='${JSON.stringify(o.offers ?? [])}'></div>
+      ${o.tiers ?? pills("variant-opt")}
+      <form method="POST">
+        <input type="hidden" id="price-input" />
+        <input type="hidden" id="variant-id-input" />
+        <input type="hidden" id="variant-label-input" />
+        <input type="hidden" id="variant-selections-input" value="[]" />
+        <input type="hidden" id="offer-id-input" value="" />
+        <input type="number" id="qty-input" value="1" />
+        <button type="submit" id="submit-btn">Confirm</button>
+      </form>`;
+  }
+
+  const variantId = () => (document.getElementById("variant-id-input") as HTMLInputElement).value;
+  const submit = () => document.getElementById("submit-btn") as HTMLButtonElement;
+  const pill = (option: string, value: string, scope = ".variant-opt") => document.querySelector<HTMLButtonElement>(`${scope}[data-option="${option}"][data-value="${value}"]`)!;
+  const shown = (scope = ".variant-opt") =>
+    Object.fromEntries([...document.querySelectorAll<HTMLButtonElement>(`${scope}.is-selected`)].map((b) => [b.dataset.option, b.dataset.value]));
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("offline"))));
+  });
+
+  afterEach(() => {
+    container.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("opens on the default variant, its values the buttons shown, each value with its state", () => {
+    build({ variants: shirt({ "black-m": { isDefault: true } }) });
+    initProductPage();
+    expect(variantId()).toBe("black-m");
+    expect(shown()).toEqual({ Colour: "Black", Size: "M" });
+    expect(pill("Colour", "White").dataset.state).toBe("available");
+    expect(pill("Colour", "Blue").dataset.state).toBe("unavailable");
+    expect(pill("Size", "S").dataset.state).toBe("unavailable");
+    expect(pill("Size", "M").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("opens on a variant that can be sold when the default is sold out", () => {
+    build({ variants: shirt({ "white-m": { isDefault: true, inventory: 0 } }) });
+    initProductPage();
+    expect(variantId()).toBe("black-m");
+    expect(submit().disabled).toBe(false);
+    expect(pill("Colour", "White").dataset.state).toBe("sold_out");
+  });
+
+  it("a value that does not combine moves to the variant that has it — shown and ordered the same", () => {
+    build();
+    initProductPage();
+    pill("Colour", "Blue").click();
+    expect(variantId()).toBe("blue-l");
+    expect(shown()).toEqual({ Colour: "Blue", Size: "L" });
+    pill("Size", "M").click();
+    expect(variantId()).toBe("white-m");
+    expect(shown()).toEqual({ Colour: "White", Size: "M" });
+  });
+
+  it("a value no variant has changes nothing", () => {
+    build();
+    initProductPage();
+    pill("Size", "S").click();
+    expect(variantId()).toBe("white-m");
+    expect(shown()).toEqual({ Colour: "White", Size: "M" });
+  });
+
+  it("a sold-out value can be chosen, and the order button says so until another is", () => {
+    build({ variants: shirt({ "black-m": { inventory: 0 } }) });
+    initProductPage();
+    pill("Colour", "Black").click();
+    expect(variantId()).toBe("black-m");
+    expect(submit().disabled).toBe(true);
+    expect(submit().textContent).toBe("Sold out");
+    pill("Colour", "White").click();
+    expect(submit().disabled).toBe(false);
+    expect(submit().textContent).toBe("Confirm");
+  });
+
+  describe("an offer's units", () => {
+    const offer = (extra: Record<string, unknown> = {}) => ({ id: "o2", discountType: "free", triggerQuantity: 2, triggerVariantId: null, rewardQuantity: 1, rewardProductName: "Shirt", rewardVariantLabel: null, ...extra });
+    const tiers = (o: { locked?: { Colour: string; Size: string } } = {}) => `
+      <label id="tier-card-base" class="tier-label" data-qty="1" data-offer-id=""></label>
+      <label id="tier-card-o2" class="tier-label" data-qty="2" data-offer-id="o2"></label>
+      <div id="tier-variants-base">${pills("variant-opt")}</div>
+      <div id="tier-variants-o2">${[0, 1]
+        .map((unit) =>
+          o.locked
+            ? Object.entries(o.locked).map(([name, value]) => `<button type="button" class="tier-unit-opt is-locked" data-tier-id="o2" data-unit="${unit}" data-option="${name}" data-value="${value}"></button>`).join("")
+            : pills("tier-unit-opt", `data-tier-id="o2" data-unit="${unit}"`),
+        )
+        .join("")}</div>`;
+    const unitPill = (unit: number, option: string, value: string) => pill(option, value, `.tier-unit-opt[data-unit="${unit}"]`);
+    const selections = () => JSON.parse((document.getElementById("variant-selections-input") as HTMLInputElement).value).map((s: { variantId: string }) => s.variantId);
+
+    it("orders one variant per unit — every unit, each a variant that exists", () => {
+      build({ offers: [offer()], tiers: tiers() });
+      initProductPage();
+      pill("Colour", "Black").click();
+      document.getElementById("tier-card-o2")!.click();
+      expect(selections()).toEqual(["black-m", "black-m"]);
+      expect(shown(`.tier-unit-opt[data-unit="0"]`)).toEqual({ Colour: "Black", Size: "M" });
+
+      unitPill(1, "Size", "L").click();
+      expect(selections()).toEqual(["black-m", "blue-l"]);
+      expect(shown(`.tier-unit-opt[data-unit="1"]`)).toEqual({ Colour: "Blue", Size: "L" });
+      expect(shown(`.tier-unit-opt[data-unit="0"]`)).toEqual({ Colour: "Black", Size: "M" });
+
+      unitPill(0, "Size", "S").click();
+      expect(selections()).toEqual(["black-m", "blue-l"]);
+    });
+
+    it("a unit chosen sold out holds the order back", () => {
+      build({ variants: shirt({ "blue-l": { inventory: 0 } }), offers: [offer()], tiers: tiers() });
+      initProductPage();
+      document.getElementById("tier-card-o2")!.click();
+      expect(submit().disabled).toBe(false);
+      unitPill(1, "Colour", "Blue").click();
+      expect(selections()).toEqual(["white-m", "blue-l"]);
+      expect(unitPill(1, "Colour", "Blue").dataset.state).toBe("sold_out");
+      expect(submit().disabled).toBe(true);
+      unitPill(1, "Colour", "Black").click();
+      expect(submit().disabled).toBe(false);
+    });
+
+    it("an offer locked to a variant orders that variant for every unit", () => {
+      build({ variants: shirt({ "blue-l": { isDefault: true } }), offers: [offer({ triggerVariantId: "blue-l" })], tiers: tiers({ locked: { Colour: "Blue", Size: "L" } }) });
+      initProductPage();
+      document.getElementById("tier-card-o2")!.click();
+      expect(selections()).toEqual(["blue-l", "blue-l"]);
+    });
+
+    it("the base tier posts no units", () => {
+      build({ offers: [offer()], tiers: tiers() });
+      initProductPage();
+      document.getElementById("tier-card-o2")!.click();
+      document.getElementById("tier-card-base")!.click();
+      expect(selections()).toEqual([]);
+    });
+  });
+
+  it("a sold-out choice takes out every quantity tile", () => {
+    build({ variants: shirt({ "black-m": { inventory: 0 } }), tiers: pills("variant-opt") + [1, 2, 3].map((q) => `<button type="button" class="qty-tier" data-qty="${q}"></button>`).join("") });
+    initProductPage();
+    const tiles = () => [...document.querySelectorAll<HTMLButtonElement>(".qty-tier")].map((t) => t.disabled);
+    expect(tiles()).toEqual([false, false, false]);
+    pill("Colour", "Black").click();
+    expect(tiles()).toEqual([true, true, true]);
+    pill("Colour", "White").click();
+    expect(tiles()).toEqual([false, false, false]);
+  });
+
+  it("a sold-out product without variants keeps its order button held when the quote answers", async () => {
+    build({ variants: [], inventory: 0, tiers: " " });
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ success: true, data: { subtotal: 2800, lines: [], delivery: { available: true, fee: 400 } } }) }) as unknown as Response));
+    container.insertAdjacentHTML("beforeend", `<div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div><input id="f-wilaya" value="16" />`);
+    initProductPage();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(submit().disabled).toBe(true);
+  });
+});
