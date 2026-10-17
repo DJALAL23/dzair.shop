@@ -451,7 +451,7 @@ export function priceCartLines(snapshot: CatalogSnapshot, lines: CartLine[], cou
   let priced = offered;
   if (coupon && pricing) {
     if (!pricing.applied) {
-      outcome = { code: coupon.code, applied: false, refusal: pricing.reason === "no_eligible_products" ? { reason: pricing.reason } : { reason: pricing.reason, shortBy: pricing.shortBy } };
+      outcome = { code: coupon.code, applied: false, refusal: "shortBy" in pricing ? { reason: pricing.reason, shortBy: pricing.shortBy } : { reason: pricing.reason } };
     } else {
       outcome = { code: coupon.code, applied: true, couponId: coupon.id, discount: pricing.discount, freeShipping: pricing.freeShipping };
       priced = offered.map((entry, index) => ({ ...entry, lineTotal: entry.lineTotal - pricing.discounts[index]!, discount: pricing.discounts[index]! }));

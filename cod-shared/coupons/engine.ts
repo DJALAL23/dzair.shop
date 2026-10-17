@@ -56,13 +56,15 @@ export type CouponPricing =
       discount: number;
       freeShipping: boolean;
     }
-  | { applied: false; reason: "no_eligible_products" }
+  /** `offer_applied`: every line it would cover already has an offer; `no_eligible_products`: nothing it covers is in the basket. */
+  | { applied: false; reason: "no_eligible_products" | "offer_applied" }
   /** `shortBy`: the dinars, or the items, the eligible lines still lack. */
   | { applied: false; reason: "below_minimum_subtotal" | "below_minimum_quantity"; shortBy: number };
 
 export function priceCoupon(lines: readonly CouponLine[], coupon: EngineCoupon): CouponPricing {
-  const eligible = lines.map((line) => line.offerId === null && (coupon.productIds === null || coupon.productIds.has(line.productId)));
-  if (!eligible.includes(true)) return { applied: false, reason: "no_eligible_products" };
+  const inScope = lines.map((line) => coupon.productIds === null || coupon.productIds.has(line.productId));
+  const eligible = lines.map((line, index) => inScope[index]! && line.offerId === null);
+  if (!eligible.includes(true)) return { applied: false, reason: inScope.includes(true) ? "offer_applied" : "no_eligible_products" };
 
   const weights = lines.map((line, index) => (eligible[index] ? line.lineTotal : 0));
   const subtotal = weights.reduce((sum, weight) => sum + weight, 0);

@@ -26,7 +26,8 @@ export interface CheckoutCoupon extends EngineCoupon {
  *   identify_first          it is for selected customers: the phone decides
  *   not_eligible            this phone is not one of them
  *   already_used            one use per customer, and this one is taken
- *   no_eligible_products    nothing in the basket it covers (offers' lines excluded)
+ *   no_eligible_products    nothing in the basket it covers
+ *   offer_applied           everything it covers already has an offer (one promotion per product)
  *   below_minimum_*         `shortBy` dinars or items still missing
  *   delivery_already_free   a free-delivery coupon with nothing to give
  */
@@ -39,6 +40,7 @@ export const COUPON_REFUSAL_REASONS = [
   "not_eligible",
   "already_used",
   "no_eligible_products",
+  "offer_applied",
   "below_minimum_subtotal",
   "below_minimum_quantity",
   "delivery_already_free",

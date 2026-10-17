@@ -72,6 +72,8 @@ _Avoid_: Out-of-stock error, reward left out
 
 **A mixed basket earns no offer free delivery**: free delivery from an offer or a tier needs a basket of that product alone; a mixed basket earns free delivery only from the store's threshold.
 
+**A tier at the catalog price is no offer**: one robe at its catalog price under "1 for 2,000 DA" changes nothing, so the offer does not apply — and a coupon can cover that robe.
+
 **Tiers share their price across sizes**: two sizes bought under one tier pay the tier's price together, split so the lines add up to it exactly.
 
 **Deleting products deletes offers**: no offer outlives the product it is about.

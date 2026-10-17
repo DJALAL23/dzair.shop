@@ -57,6 +57,16 @@ describe("quantity pricing", () => {
     expect(totals([line("robe", 5)], [robe])).toEqual([7500]);
   });
 
+  it("does not apply where its tier changes nothing: the catalog price, and no delivery the basket can use", () => {
+    const fromOne = pricing("robe", tiers([1, 2000], [2, 3500]));
+    expect(apply([line("robe", 1)], [fromOne]).lines).toEqual([{ lineTotal: 2000, offerId: null }]);
+    expect(apply([line("robe", 2)], [fromOne]).lines).toEqual([{ lineTotal: 3500, offerId: fromOne.id }]);
+
+    const deliveredFromOne = pricing("robe", tiers([1, 2000, true]));
+    expect(apply([line("robe", 1)], [deliveredFromOne])).toMatchObject({ lines: [{ lineTotal: 2000, offerId: deliveredFromOne.id }], freeShippingOfferId: deliveredFromOne.id });
+    expect(apply([line("robe", 1), line("sac", 1)], [deliveredFromOne]).lines[0]).toEqual({ lineTotal: 2000, offerId: null });
+  });
+
   it("leaves the catalog price below the lowest tier", () => {
     const fromTwo = pricing("robe", tiers([2, 3500], [3, 4500]));
     expect(apply([line("robe", 1)], [fromTwo]).lines).toEqual([{ lineTotal: 2000, offerId: null }]);

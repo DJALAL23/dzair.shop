@@ -33,8 +33,9 @@ describe("which lines a coupon covers", () => {
     expect(priceCoupon([line("a", 3500, "packs"), line("b", 1000)], coupon())).toMatchObject({ discounts: [0, 100], discount: 100 });
   });
 
-  it("does not apply when every line in scope already has an offer, or none is in scope", () => {
-    expect(priceCoupon([line("a", 3500, "packs")], coupon())).toEqual({ applied: false, reason: "no_eligible_products" });
+  it("does not apply when every line in scope already has an offer, or none is in scope — and says which", () => {
+    expect(priceCoupon([line("a", 3500, "packs")], coupon())).toEqual({ applied: false, reason: "offer_applied" });
+    expect(priceCoupon([line("a", 3500, "packs"), line("b", 900)], coupon({ productIds: new Set(["a"]) }))).toEqual({ applied: false, reason: "offer_applied" });
     expect(priceCoupon([line("a", 1000)], coupon({ productIds: new Set(["z"]) }))).toEqual({ applied: false, reason: "no_eligible_products" });
     expect(priceCoupon([], coupon())).toEqual({ applied: false, reason: "no_eligible_products" });
   });
@@ -137,10 +138,12 @@ describe("invariants", () => {
   it("applies exactly when a covered line exists and the covered lines reach every minimum", () => {
     fc.assert(
       fc.property(arbLines, arbCoupon, (lines, c) => {
-        const covered = lines.filter((l) => l.offerId === null && (c.productIds === null || c.productIds.has(l.productId)));
+        const inScope = lines.filter((l) => c.productIds === null || c.productIds.has(l.productId));
+        const covered = inScope.filter((l) => l.offerId === null);
         const subtotal = covered.reduce((sum, l) => sum + l.lineTotal, 0);
         const units = covered.reduce((sum, l) => sum + l.quantity, 0);
         const result = priceCoupon(lines, c);
+        if (covered.length === 0) expect(result).toEqual({ applied: false, reason: inScope.length > 0 ? "offer_applied" : "no_eligible_products" });
         expect(result.applied).toBe(covered.length > 0 && (c.minSubtotal === null || subtotal >= c.minSubtotal) && (c.minQuantity === null || units >= c.minQuantity));
         if (!result.applied && result.reason === "below_minimum_subtotal") expect(result.shortBy).toBe(c.minSubtotal! - subtotal);
         if (!result.applied && result.reason === "below_minimum_quantity") expect(result.shortBy).toBe(c.minQuantity! - units);

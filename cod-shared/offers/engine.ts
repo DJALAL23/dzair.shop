@@ -14,7 +14,9 @@
  *  2. One offer per product. An offer qualifies when its threshold is
  *     reached and it can give what it promises: a reward the stock covers
  *     (once the units paid for and the rewards placed before are counted),
- *     free delivery only where rule 5 allows it. Among those, the shopper's
+ *     free delivery only where rule 5 allows it, a tier that changes the
+ *     price or brings free delivery the basket can use — a tier at the
+ *     catalog price gives nothing, and must not cost the shopper a coupon. Among those, the shopper's
  *     choice (`offerId`) wins when it qualifies on its own; else the highest
  *     threshold reached wins, the id breaking a tie so every run agrees. An
  *     offer that cannot give its benefit never shadows one that can.
@@ -120,21 +122,26 @@ export function applyOffers<L extends OfferLine>(lines: readonly L[], candidates
       .map((offer) => {
         const counting = counted(lines, offer);
         const units = counting.reduce((sum, line) => sum + line.quantity, 0);
-        return { offer, threshold: reached(offer, units), units, first: counting[0]! };
+        const atCatalog = counting.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+        return { offer, threshold: reached(offer, units), units, atCatalog, first: counting[0]! };
       })
-      .filter((entry): entry is { offer: EngineOffer; threshold: number; units: number; first: L } => entry.threshold !== null)
+      .filter((entry): entry is { offer: EngineOffer; threshold: number; units: number; atCatalog: number; first: L } => entry.threshold !== null)
       .sort((a, b) => b.threshold - a.threshold || a.offer.id.localeCompare(b.offer.id));
     const ordered = [...reaching.filter((entry) => entry.offer.id === choice), ...reaching.filter((entry) => entry.offer.id !== choice)];
 
     let reward: EarnedReward<L> | null = null;
-    const chosen = ordered.find(({ offer, first }) => {
+    const chosen = ordered.find(({ offer, first, units, atCatalog }) => {
       if (offer.discountType === "free_shipping") return singleProductBasket;
+      if (offer.discountType === "quantity_price") {
+        const tier = tierFor(offer.tiers, units)!;
+        return tieredTotal(tier, units) !== atCatalog || (tier.freeShipping && singleProductBasket);
+      }
       if (offer.discountType === "free") {
         const placement = placeReward(offer, first, rewards);
         reward = placement && { offer, line: first, placement };
         return reward !== null;
       }
-      return true;
+      return false;
     });
     if (!chosen) continue;
     const { offer, units } = chosen;

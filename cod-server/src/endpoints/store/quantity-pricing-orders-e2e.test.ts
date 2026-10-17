@@ -92,13 +92,13 @@ async function quote(items: Array<{ productId: string; variantId?: string; quant
 }
 
 describe("quantity pricing on an order", () => {
-  it("charges the tier reached, beyond it at its per-unit price, and names the offer on the line", async () => {
+  it("charges the tier reached, beyond it at its per-unit price, and names the offer on the line — not where the tier is the catalog price", async () => {
     await quantityPricing([[1, 2000], [2, 3500], [3, 4500]]);
-    for (const [quantity, price] of [[1, 2000], [2, 3500], [3, 4500], [4, 6000]] as const) {
+    for (const [quantity, price, offerId] of [[1, 2000, null], [2, 3500, "packs"], [3, 4500, "packs"], [4, 6000, "packs"]] as const) {
       const { order, lines } = await place([{ productId: "robe", variantId: "robe-s", quantity }]);
       expect(order.price).toBe(price);
       expect(order.codAmount).toBe(price + 600);
-      expect(lines).toEqual([expect.objectContaining({ quantity, lineTotal: price, pricePerUnit: price / quantity, offerId: "packs", reward: false })]);
+      expect(lines).toEqual([expect.objectContaining({ quantity, lineTotal: price, pricePerUnit: price / quantity, offerId, reward: false })]);
     }
   });
 

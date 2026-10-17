@@ -161,6 +161,7 @@ describe("what a coupon takes off", () => {
     const before = await quotedThenPlaced([{ productId: "robe", quantity: 1 }, { productId: "sac", quantity: 1 }], "ETE");
     expect(before.written.find((line) => line.productId === "robe")).toMatchObject({ discount: 0, lineTotal: 3000 });
     expect(before.row.couponDiscount).toBe(100);
+    expect((await quote([{ productId: "bague", quantity: 1 }], { couponCode: "ETE", destination: HOME })).coupon).toEqual({ code: "ETE", applied: false, reason: "no_eligible_products" });
 
     await d1.db.insert(schema.collectionProducts).values({ collectionId: "ete", productId: "robe", addedAt: T });
     expect((await quotedThenPlaced([{ productId: "robe", quantity: 1 }], "ETE")).row.couponDiscount).toBe(300);
@@ -182,7 +183,21 @@ describe("what a coupon takes off", () => {
     expect(written.find((line) => line.reward)).toMatchObject({ productId: "sac", lineTotal: 0, discount: 0 });
 
     const onlyOffers = await quote([{ productId: "robe", quantity: 2 }], { couponCode: "ALL10", destination: HOME });
-    expect(onlyOffers.coupon).toEqual({ code: "ALL10", applied: false, reason: "no_eligible_products" });
+    expect(onlyOffers.coupon).toEqual({ code: "ALL10", applied: false, reason: "offer_applied" });
+  });
+
+  it("covers a product whose quantity pricing changes nothing at the quantity bought", async () => {
+    await d1.db.insert(schema.offers).values({ id: "packs", name: "Packs", discountType: "quantity_price", triggerProductId: "robe", triggerQuantity: 1, rewardQuantity: 0, createdAt: T, updatedAt: T });
+    await d1.db.insert(schema.offerPriceTiers).values([
+      { offerId: "packs", quantity: 1, price: 3000, freeShipping: false },
+      { offerId: "packs", quantity: 2, price: 5000, freeShipping: false },
+    ]);
+    await coupon("DIX");
+    const one = await quotedThenPlaced([{ productId: "robe", quantity: 1 }], "DIX", "0551000071");
+    expect(one.written[0]).toMatchObject({ offerId: null, discount: 300, lineTotal: 2700 });
+
+    const two = await quote([{ productId: "robe", quantity: 2 }], { couponCode: "DIX", destination: HOME });
+    expect(two).toMatchObject({ subtotal: 5000, coupon: { applied: false, reason: "offer_applied" }, lines: [{ offerId: "packs" }] });
   });
 
   it("makes delivery free, and is refused when delivery already is — or when an offer already gave the product its delivery", async () => {
@@ -204,7 +219,7 @@ describe("what a coupon takes off", () => {
     await d1.db.update(schema.stores).set({ freeShippingThreshold: null }).where(eq(schema.stores.id, STORE));
     await d1.db.insert(schema.offers).values({ id: "ship", name: "Ship", discountType: "free_shipping", triggerProductId: "sac", triggerQuantity: 1, rewardQuantity: 0, createdAt: T, updatedAt: T });
     // The offer's free delivery names the product's lines: the coupon has nothing left to cover.
-    expect((await quote([{ productId: "sac", quantity: 1 }], { couponCode: "LIVRAISON", destination: HOME })).coupon.reason).toBe("no_eligible_products");
+    expect((await quote([{ productId: "sac", quantity: 1 }], { couponCode: "LIVRAISON", destination: HOME })).coupon.reason).toBe("offer_applied");
   });
 
   it("judges the free-delivery threshold on the subtotal after the coupon", async () => {
