@@ -100,6 +100,13 @@ export function useNavSections(): NavSection[] {
             },
             {
               kind: "leaf",
+              href: "/collections",
+              label: tN("sidebar.collections"),
+              icon: Layers,
+              scope: "collections:read",
+            },
+            {
+              kind: "leaf",
               href: "/products/stock",
               label: tN("sidebar.stock_management"),
               icon: Package,

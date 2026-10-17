@@ -1,0 +1,63 @@
+{
+  "page_title": "Collections",
+  "page_subtitle": "Lists of products you choose by hand — Featured, Best sellers, New arrivals, or any other. Your theme shows each one where you pick it.",
+  "list": {
+    "new_collection": "New collection",
+    "create": "Create collection",
+    "created": "Collection created",
+    "products": "Products",
+    "product_count_one": "{count} product",
+    "product_count_other": "{count} products",
+    "empty_title": "No collections yet",
+    "empty_body": "Create a collection, then add products to it here or from each product's page."
+  },
+  "fields": {
+    "title": "Name",
+    "title_placeholder": "Best sellers",
+    "handle": "Handle",
+    "handle_hint": "How your theme finds this collection. Lowercase letters, digits and hyphens.",
+    "handle_invalid": "Use lowercase letters, digits and hyphens, starting with a letter or digit.",
+    "description": "Description"
+  },
+  "editor": {
+    "back": "All collections",
+    "save": "Save collection",
+    "saved": "Collection saved",
+    "delete": "Delete collection",
+    "deleted": "Collection deleted",
+    "delete_title": "Delete this collection?",
+    "delete_body": "“{title}” is deleted; its products stay in your catalog. A theme section that shows it will show nothing.",
+    "unsaved_title": "Leave without saving?",
+    "unsaved_body": "Your changes to this collection's products are not saved yet.",
+    "leave": "Leave",
+    "products_title": "Products",
+    "products_subtitle": "In the order shoppers see them. Up to {max} products.",
+    "add_placeholder": "Add a product…",
+    "add_empty": "No product matches",
+    "empty_title": "This collection is empty",
+    "empty_body": "Add products here, or tick this collection on a product's page.",
+    "not_visible": "Not visible",
+    "hidden_one": "{count} product is not visible to shoppers (a draft, or hidden from the store), so it is left out of your store.",
+    "hidden_other": "{count} products are not visible to shoppers (drafts, or hidden from the store), so they are left out of your store.",
+    "details_title": "Name and handle",
+    "details_subtitle": "Changing the handle moves the collection out of every place your theme showed it.",
+    "save_details": "Save name and handle"
+  },
+  "actions": {
+    "up": "Move up",
+    "down": "Move down",
+    "remove": "Remove from the collection"
+  },
+  "errors": {
+    "load_failed": "Couldn't load your collections",
+    "generic": "Something went wrong. Try again.",
+    "validation": "Check the name, the handle and the products.",
+    "handle_taken": "Another collection already uses this handle.",
+    "not_found": "This collection no longer exists."
+  },
+  "product_card": {
+    "title": "Collections",
+    "hint": "The curated lists this product appears in. Your theme shows each list where you pick it.",
+    "empty": "No collections yet. Create them in Products → Collections."
+  }
+}

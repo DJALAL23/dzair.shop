@@ -1,0 +1,65 @@
+{
+  "page_title": "Collections",
+  "page_subtitle": "Des listes de produits que vous choisissez vous-même — En vedette, Meilleures ventes, Nouveautés, ou toute autre. Votre thème affiche chacune là où vous la choisissez.",
+  "list": {
+    "new_collection": "Nouvelle collection",
+    "create": "Créer la collection",
+    "created": "Collection créée",
+    "products": "Produits",
+    "product_count_one": "{count} produit",
+    "product_count_many": "{count} de produits",
+    "product_count_other": "{count} produits",
+    "empty_title": "Aucune collection pour l'instant",
+    "empty_body": "Créez une collection, puis ajoutez-y des produits ici ou depuis la page de chaque produit."
+  },
+  "fields": {
+    "title": "Nom",
+    "title_placeholder": "Meilleures ventes",
+    "handle": "Identifiant",
+    "handle_hint": "Ce qui permet à votre thème de trouver cette collection. Lettres minuscules, chiffres et tirets.",
+    "handle_invalid": "Utilisez des lettres minuscules, des chiffres et des tirets, en commençant par une lettre ou un chiffre.",
+    "description": "Description"
+  },
+  "editor": {
+    "back": "Toutes les collections",
+    "save": "Enregistrer la collection",
+    "saved": "Collection enregistrée",
+    "delete": "Supprimer la collection",
+    "deleted": "Collection supprimée",
+    "delete_title": "Supprimer cette collection ?",
+    "delete_body": "« {title} » est supprimée ; ses produits restent dans votre catalogue. Une section du thème qui l'affiche n'affichera plus rien.",
+    "unsaved_title": "Quitter sans enregistrer ?",
+    "unsaved_body": "Vos modifications des produits de cette collection ne sont pas encore enregistrées.",
+    "leave": "Quitter",
+    "products_title": "Produits",
+    "products_subtitle": "Dans l'ordre où vos clients les voient. Jusqu'à {max} produits.",
+    "add_placeholder": "Ajouter un produit…",
+    "add_empty": "Aucun produit ne correspond",
+    "empty_title": "Cette collection est vide",
+    "empty_body": "Ajoutez des produits ici, ou cochez cette collection sur la page d'un produit.",
+    "not_visible": "Invisible",
+    "hidden_one": "{count} produit n'est pas visible pour vos clients (brouillon, ou masqué de la boutique) : il est laissé de côté dans votre boutique.",
+    "hidden_many": "{count} de produits ne sont pas visibles pour vos clients (brouillons, ou masqués de la boutique) : ils sont laissés de côté dans votre boutique.",
+    "hidden_other": "{count} produits ne sont pas visibles pour vos clients (brouillons, ou masqués de la boutique) : ils sont laissés de côté dans votre boutique.",
+    "details_title": "Nom et identifiant",
+    "details_subtitle": "Changer l'identifiant retire la collection de tous les emplacements où votre thème l'affichait.",
+    "save_details": "Enregistrer le nom et l'identifiant"
+  },
+  "actions": {
+    "up": "Monter",
+    "down": "Descendre",
+    "remove": "Retirer de la collection"
+  },
+  "errors": {
+    "load_failed": "Impossible de charger vos collections",
+    "generic": "Une erreur s'est produite. Réessayez.",
+    "validation": "Vérifiez le nom, l'identifiant et les produits.",
+    "handle_taken": "Une autre collection utilise déjà cet identifiant.",
+    "not_found": "Cette collection n'existe plus."
+  },
+  "product_card": {
+    "title": "Collections",
+    "hint": "Les listes dans lesquelles ce produit apparaît. Votre thème affiche chaque liste là où vous la choisissez.",
+    "empty": "Aucune collection pour l'instant. Créez-les dans Produits → Collections."
+  }
+}

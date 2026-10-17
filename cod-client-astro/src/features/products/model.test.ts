@@ -47,7 +47,6 @@ const product = (overrides: Partial<Product> = {}): Product => ({
   visibility: true,
   status: "ACTIVE",
   showInStore: true,
-  storeFeatured: false,
   publishedAt: null,
   category: null,
   variants: [],

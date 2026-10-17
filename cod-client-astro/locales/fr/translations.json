@@ -34,6 +34,10 @@
     },
     "menuItem": {
       "label": "Libellé"
+    },
+    "collection": {
+      "title": "Nom",
+      "description": "Description"
     }
   }
 }

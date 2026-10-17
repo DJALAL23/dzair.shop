@@ -75,7 +75,8 @@ export interface Product {
   visibility: boolean;
   status: ProductStatus;
   showInStore: boolean;
-  storeFeatured: boolean;
+  /** The collections the product is in (only on a single product's read). */
+  collectionIds?: string[];
   publishedAt?: string | null;
   category?: ProductCategory | null;
   variants: ProductVariant[];

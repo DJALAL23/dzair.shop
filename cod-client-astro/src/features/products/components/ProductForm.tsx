@@ -49,6 +49,9 @@ import {
   type VariantRow,
 } from "@/features/products/components/ProductVariantsCard";
 import { ProductSettingsCard } from "@/features/products/components/ProductSettingsCard";
+import { ProductCollectionsCard } from "@/features/products/components/ProductCollectionsCard";
+import { listCollections } from "@/features/collections/api";
+import type { CollectionSummary } from "@/features/collections/types";
 
 export function ProductForm({ productId }: { productId?: string }) {
   const t = useT("products");
@@ -80,6 +83,9 @@ export function ProductForm({ productId }: { productId?: string }) {
   const [lowStockThreshold, setLowStockThreshold] = useState("5");
 
   const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
+  /** Null when the merchant may not see collections: a save then leaves the product's alone. */
+  const [collections, setCollections] = useState<CollectionSummary[] | null>(null);
+  const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [shippingProfiles, setShippingProfiles] = useState<ShippingProfile[]>([]);
   const [existingImages, setExistingImages] = useState<ProductImage[]>([]);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
@@ -119,11 +125,13 @@ export function ProductForm({ productId }: { productId?: string }) {
     Promise.all([
       listProductGroups().catch(() => []),
       listShippingProfiles().catch(() => []),
+      canScope(identity, SCOPES.COLLECTIONS_READ) ? listCollections().catch(() => null) : Promise.resolve(null),
     ])
-      .then(([nextGroups, nextProfiles]) => {
+      .then(([nextGroups, nextProfiles, nextCollections]) => {
         if (alive) {
           setGroups(nextGroups);
           setShippingProfiles(nextProfiles);
+          setCollections(nextCollections);
         }
       })
       .catch(() => undefined);
@@ -165,6 +173,7 @@ export function ProductForm({ productId }: { productId?: string }) {
         setStatus(product.status);
         setTrackInventory(product.trackInventory);
         setShowInStore(product.showInStore);
+        setCollectionIds(product.collectionIds ?? []);
         setInventory(String(product.inventory));
         setLowStockThreshold(String(product.lowStockThreshold ?? 5));
         if (product.hasVariants) {
@@ -303,6 +312,7 @@ export function ProductForm({ productId }: { productId?: string }) {
         status,
         trackInventory,
         showInStore,
+        ...(collections ? { collectionIds } : {}),
         ...(editing
           ? {}
           : { inventory: hasVariants ? 0 : Number(inventory) || 0 }),
@@ -420,6 +430,7 @@ export function ProductForm({ productId }: { productId?: string }) {
       onSave={() => void save()}
       saving={busy}
       aside={
+        <>
         <ProductSettingsCard
           status={status}
           setStatus={setStatus}
@@ -435,6 +446,8 @@ export function ProductForm({ productId }: { productId?: string }) {
           editing={editing}
           busy={busy}
         />
+        {collections && <ProductCollectionsCard collections={collections} selected={collectionIds} onChange={setCollectionIds} busy={busy} />}
+        </>
       }
     >
         <ProductBasicInfoCard
