@@ -838,8 +838,6 @@ export const stores = sqliteTable("stores", {
   ogImage: text("og_image"),
 
   // ── Optional features ─────────────────────────────────────────────────────
-  /** Top announcement bar text (null = hidden) */
-  announcementBar: text("announcement_bar"),
   /** When false, reviews are hidden on the storefront and submission is disabled. */
   reviewsEnabled: integer("reviews_enabled", { mode: "boolean" }).notNull().default(true),
   /**

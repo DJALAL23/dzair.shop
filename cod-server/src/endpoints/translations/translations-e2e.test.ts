@@ -84,8 +84,8 @@ beforeEach(async () => {
     id: STORE_ID,
     name: "متجر",
     lang: "ar",
-    announcementBar: "توصيل مجاني",
     metaTitle: "متجر الجزائر",
+    metaDescription: "توصيل مجاني",
     createdAt: now(),
     updatedAt: now(),
   });
@@ -219,7 +219,7 @@ describe("editing translations", () => {
   it("covers categories, offers and the store with the same rules", async () => {
     expect((await translate("/api/product-groups/cat-1/translations", "fr", { name: "Téléphones" })).status).toBe(200);
     expect((await translate("/api/offers/o-1/translations", "fr", { name: "2 achetés, 1 offert" })).status).toBe(200);
-    expect((await translate("/api/stores/me/translations", "fr", { announcementBar: "Livraison gratuite" })).status).toBe(200);
+    expect((await translate("/api/stores/me/translations", "fr", { metaDescription: "Livraison gratuite" })).status).toBe(200);
     expect((await translate("/api/stores/me/translations", "fr", { name: "Mon magasin" })).status).toBe(400);
   });
 });
@@ -230,7 +230,7 @@ describe("storefront reads in a language", () => {
     await translate("/api/products/p-1/translations", "en", { name: "Phone (draft)" });
     await translate("/api/product-groups/cat-1/translations", "fr", { name: "Téléphones" });
     await translate("/api/offers/o-1/translations", "fr", { name: "2 achetés, 1 offert" });
-    await translate("/api/stores/me/translations", "fr", { announcementBar: "Livraison gratuite" });
+    await translate("/api/stores/me/translations", "fr", { metaDescription: "Livraison gratuite" });
   });
 
   it("serves a published language, field by field, and says so", async () => {
@@ -284,9 +284,9 @@ describe("storefront reads in a language", () => {
     expect(language).toBe("fr");
     expect(body.data.locale).toBe("fr");
     expect(body.data.lang).toBe("ar");
-    expect(body.data.announcementBar).toBe("Livraison gratuite");
+    expect(body.data.metaDescription).toBe("Livraison gratuite");
     expect(body.data.metaTitle).toBe("متجر الجزائر");
-    expect((await request("/store/config?locale=en")).body.data.announcementBar).toBe("توصيل مجاني");
+    expect((await request("/store/config?locale=en")).body.data.metaDescription).toBe("توصيل مجاني");
   });
 
   it("never lets a stray row overwrite a field that is not translatable", async () => {

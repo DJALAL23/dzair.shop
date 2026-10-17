@@ -30,12 +30,11 @@ Retrieve the current store's configuration. In this single-tenant architecture, 
 **Authorization:** Admin role required (`requireAdmin()`)
 
 **Response Includes:**
-- **Branding:** `logoUrl`, `primaryColor`, `accentColor`, `bgColor`.
+- **Identity:** `name`, `domain`, `logoUrl`.
 - **Theme:** `themeId` (active theme slug).
-- **Typography:** `fontFamily` (the theme's `font` setting takes precedence; `fontUrl` was dropped in migration 0046).
 - **Localization:** `lang` (primary language), `languages` — every language the store has added, primary first: `[{ "locale": "fr", "published": true, "primary": true }, …]` — `currency`, `currencySymbol`.
 - **SEO:** `metaTitle`, `metaDescription`, `ogImage`.
-- **Settings:** `announcementBar`, `reviewsEnabled`, `status`.
+- **Settings:** `reviewsEnabled`, `status`.
 - **Storefront key:** `storeApiKey` (plaintext; visible to the merchant in settings).
 
 ### PATCH /api/stores/me
@@ -47,12 +46,12 @@ Update store configuration. Partial updates are supported; set nullable fields t
 ```json
 {
   "name": "My New Store Name",
-  "primaryColor": "#3b82f6",
+  "metaTitle": "My New Store — Algiers",
   "reviewsEnabled": true
 }
 ```
 
-Field rules: hex colors accept 3–8 characters (including alpha); `lang` takes `"ar"`, `"fr"` or `"en"` — set alone, it also adds and publishes that language; `languages` (`[{ "locale", "published" }]`) replaces the store's list, must publish the primary (the new one when `lang` changes in the same save), and removing a language removes its theme text edits (those edits are written by CodFlow Cloud's visual editor, not by this API); URLs are validated; `metaTitle` ≤ 200, `metaDescription`/`announcementBar` ≤ 500 chars.
+Field rules: `lang` takes `"ar"`, `"fr"` or `"en"` — set alone, it also adds and publishes that language; `languages` (`[{ "locale", "published" }]`) replaces the store's list, must publish the primary (the new one when `lang` changes in the same save), and removing a language removes its theme text edits (those edits are written by CodFlow Cloud's visual editor, not by this API); URLs are validated; `metaTitle` ≤ 200, `metaDescription` ≤ 500 chars. Colors, the font and an announcement bar are not store fields: they are a theme's settings (migrations 0047, 0048).
 
 ### GET /api/stores/pixel-config
 Retrieve the store's Meta pixel tracking configuration, or `null` when none has been configured yet.

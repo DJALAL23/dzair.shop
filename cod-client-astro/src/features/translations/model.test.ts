@@ -39,7 +39,7 @@ describe("translationFields", () => {
       ["description", "rich"],
     ]);
     expect(translationFields(view({ resource: "category" })).find(({ key }) => key === "metaTitle")?.control).toBe("input");
-    expect(translationFields(view({ resource: "store" })).find(({ key }) => key === "announcementBar")?.control).toBe("textarea");
+    expect(translationFields(view({ resource: "store" })).find(({ key }) => key === "metaDescription")?.control).toBe("textarea");
   });
 
   it("follows the product's fields with each option's name and values, as short inputs", () => {

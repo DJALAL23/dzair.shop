@@ -41,7 +41,6 @@ export const updateStoreSchema = z.object({
   metaTitle: z.string().max(200).nullable().optional(),
   metaDescription: z.string().max(500).nullable().optional(),
   ogImage: z.string().url().nullable().optional(),
-  announcementBar: z.string().max(500).nullable().optional(),
   reviewsEnabled: z.boolean().optional(),
   reviewMaxPhotos: z.number().int().min(0).max(REVIEW_MAX_PHOTOS).optional(),
   /** null turns voice notes off. */

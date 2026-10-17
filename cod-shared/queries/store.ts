@@ -192,6 +192,8 @@ export async function getStoreConfig(
     // The column is gone (migration 0046); @wocart/storefront up to 1.7
     // requires the field, so it is always answered, empty.
     fontUrl: null,
+    // Gone too (migration 0048): a theme's announcement is its own setting.
+    announcementBar: null,
     contentOverrides: groupOverrides(overrideRows, servedLocales(languages)),
     // The merchant's values for the requesting theme's settings, as saved:
     // the theme resolves them against its declaration and its defaults.

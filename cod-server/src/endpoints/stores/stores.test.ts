@@ -34,7 +34,6 @@ function storeRow(overrides: Record<string, any> = {}) {
     metaTitle: "My Shop — Best Products",
     metaDescription: "Find the best products at My Shop.",
     ogImage: "https://cdn.example.com/og.png",
-    announcementBar: "Free delivery on orders above 3000 دج",
     reviewsEnabled: true,
     cartEnabled: false,
     // Position matters: the mock db maps a full-table select by schema column

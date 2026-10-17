@@ -41,7 +41,6 @@ function storeRow(overrides: Record<string, any> = {}) {
     metaTitle: "My Shop — Best Products",
     metaDescription: "Find the best products at My Shop.",
     ogImage: "https://cdn.example.com/og.png",
-    announcementBar: "Free delivery on orders above 3000 دج",
     reviewsEnabled: true,
     cartEnabled: false,
     // Delivery pricing settings default to today's behaviour: no free-delivery

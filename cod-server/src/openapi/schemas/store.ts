@@ -60,10 +60,6 @@ export const StoreSchema = z
     metaTitle: z.string().nullable().openapi({ example: "My Shop — Best Products" }),
     metaDescription: z.string().nullable().openapi({ example: "Find the best products at My Shop." }),
     ogImage: z.string().url().nullable().openapi({ example: "https://cdn.example.com/og.png" }),
-    announcementBar: z.string().nullable().openapi({
-      description: "Top announcement bar text (null = hidden)",
-      example: "Free delivery on orders above 3000 دج",
-    }),
     reviewsEnabled: z.boolean().openapi({
       description: "When false, reviews are hidden on the storefront and submission is disabled",
       example: true,
@@ -508,7 +504,9 @@ export const StoreConfigSchema = z
     metaTitle: z.string().nullable(),
     metaDescription: z.string().nullable(),
     ogImage: z.string().nullable(),
-    announcementBar: z.string().nullable(),
+    announcementBar: z.null().openapi({
+      description: "Deprecated: always null. Kept because @wocart/storefront up to 1.7 requires the field; a theme's announcement is its own setting (`themeSettings`).",
+    }),
     reviewsEnabled: z.boolean().openapi({
       description: "When false, the reviews section is hidden on the storefront",
       example: true,

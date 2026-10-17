@@ -24,7 +24,6 @@ export interface StoreConfig {
   metaTitle: string | null;
   metaDescription: string | null;
   ogImage: string | null;
-  announcementBar: string | null;
   reviewsEnabled: boolean;
   /** Photos a shopper may add to a review: 0 (none) to 6. */
   reviewMaxPhotos: number;
@@ -53,7 +52,6 @@ export type UpdateStoreData = Partial<
     | "metaTitle"
     | "metaDescription"
     | "ogImage"
-    | "announcementBar"
     | "reviewsEnabled"
     | "reviewMaxPhotos"
     | "reviewVoiceMaxSeconds"

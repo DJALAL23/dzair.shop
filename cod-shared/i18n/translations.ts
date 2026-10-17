@@ -51,7 +51,6 @@ export const TRANSLATABLE = {
     label: { kind: "text", maxLength: 100 },
   },
   store: {
-    announcementBar: { kind: "text", maxLength: 500 },
     metaTitle: { kind: "text", maxLength: 200 },
     metaDescription: { kind: "text", maxLength: 500 },
   },
