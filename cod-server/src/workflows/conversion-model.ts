@@ -13,6 +13,8 @@
  * - capi-offline-events.md (delayed COD delivery conversion)
  */
 
+import { storefrontPath } from "../../../cod-shared/storefront/routes";
+
 export type ConversionStage = "checkout" | "confirmed" | "delivered";
 export type MetaEventName = "Lead" | "Purchase";
 export type ConversionMode = "Purchase" | "Purchase_Confirmed" | "Purchase_Delivered" | "Lead";
@@ -108,6 +110,6 @@ export function conversionSourceUrl(
   landingPageSlug: string | null | undefined,
 ): string | undefined {
   if (!storeDomain) return undefined;
-  const path = landingPageSlug ? `/lp/${landingPageSlug}` : "/thank-you";
+  const path = landingPageSlug ? storefrontPath("landing", { slug: landingPageSlug }) : storefrontPath("thankYou");
   return `https://${storeDomain}${path}`;
 }

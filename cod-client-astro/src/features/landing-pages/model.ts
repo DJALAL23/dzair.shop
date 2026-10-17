@@ -1,3 +1,4 @@
+import { storefrontPath } from "../../../../cod-shared/storefront/routes";
 import type { Translate } from "@/i18n/core";
 import type {
   LandingPageListItem,
@@ -18,7 +19,7 @@ import {
  * here is the last resort when neither is configured.
  */
 export function landingPagePublicUrl(page: { publicUrl?: string; slug: string }): string {
-  return page.publicUrl ?? `/lp/${page.slug}`;
+  return page.publicUrl ?? storefrontPath("landing", { slug: page.slug });
 }
 
 export type LandingPageRoute =

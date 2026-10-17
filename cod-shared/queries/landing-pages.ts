@@ -6,6 +6,7 @@
  * join orders by attribution; the conversion rate is computed by the caller
  * because a zero-view page has an undefined rate, not zero.
  */
+import { storefrontPath } from "../storefront/routes";
 import { eq, desc, and, sql, isNull, count } from "drizzle-orm";
 import {
   landingPages,
@@ -698,5 +699,6 @@ export function buildLandingPagePublicUrl(
   baseUrl: string | null,
   slug: string,
 ): string {
-  return baseUrl ? `${baseUrl}/lp/${slug}` : `/lp/${slug}`;
+  const path = storefrontPath("landing", { slug });
+  return baseUrl ? `${baseUrl}${path}` : path;
 }

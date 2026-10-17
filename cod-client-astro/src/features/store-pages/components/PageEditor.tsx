@@ -1,3 +1,4 @@
+import { storefrontPath } from "../../../../../cod-shared/storefront/routes";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { ArrowLeft, Check, ChevronDown, ChevronUp, Copy, ExternalLink, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
@@ -155,7 +156,7 @@ export function PageEditor({
   }
 
   function handleCopyUrl() {
-    const fullUrl = `${storefrontBaseUrl}/pages/${slug}`;
+    const fullUrl = `${storefrontBaseUrl}${storefrontPath("page", { slug })}`;
     void navigator.clipboard.writeText(fullUrl);
     setCopied(true);
     notify.success(t("editor.slug_copied"));
@@ -296,7 +297,7 @@ export function PageEditor({
   const isLegal = page.kind !== "custom";
   const translationSource = page.bodies[locale]?.source ?? "template";
   const bodyTooLong = currentDraft.bodyHtml.length > RICH_TEXT_MAX_CHARS;
-  const publicUrl = `${storefrontBaseUrl}/pages/${slug}`;
+  const publicUrl = `${storefrontBaseUrl}${storefrontPath("page", { slug })}`;
 
   // Live SEO Snippet Calculations (Shopify style)
   const previewTitle = currentDraft.metaTitle.trim() || currentDraft.title.trim() || t(pageKindLabelKey(page.kind));

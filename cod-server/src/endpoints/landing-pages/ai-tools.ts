@@ -1,3 +1,4 @@
+import { storefrontPath } from "../../../../cod-shared/storefront/routes";
 import { tool } from "ai";
 import { z } from "zod";
 import * as queries from "./queries";
@@ -513,7 +514,7 @@ export const getLandingPageTools = (
             views: p.views,
             orders: p.orders,
             revenue: p.revenue,
-            publicPath: `/lp/${p.slug}`,
+            publicPath: storefrontPath("landing", { slug: p.slug }),
             publicUrl: buildLandingPagePublicUrl(baseUrl, p.slug),
           })),
         };
@@ -600,7 +601,7 @@ export const getLandingPageTools = (
         return {
           success: true,
           landingPage: lp,
-          publicPath: `/lp/${slug}`,
+          publicPath: storefrontPath("landing", { slug }),
           publicUrl: buildLandingPagePublicUrl(baseUrl, slug),
           note: "Draft created with an empty image stack. Add images via uploadLandingPageImage, then publishLandingPage to make the link live.",
         };
@@ -665,7 +666,7 @@ export const getLandingPageTools = (
         return {
           success: true,
           landingPage: lp,
-          publicPath: `/lp/${slug}`,
+          publicPath: storefrontPath("landing", { slug }),
           publicUrl: buildLandingPagePublicUrl(baseUrl, slug),
           ...(imageCount === 0
             ? {
@@ -1052,7 +1053,7 @@ export const getLandingPageTools = (
         return {
           success: true,
           landingPage: lp,
-          publicPath: `/lp/${lp.slug}`,
+          publicPath: storefrontPath("landing", { slug: lp.slug }),
           publicUrl: buildLandingPagePublicUrl(baseUrl, lp.slug),
           note: "Fresh draft created — views, orders, and revenue start at zero. Edit it, then publishLandingPage when ready.",
         };
@@ -1088,7 +1089,7 @@ export const getLandingPageTools = (
         return {
           success: true,
           landingPage: lp,
-          publicPath: `/lp/${lp?.slug ?? existing.slug}`,
+          publicPath: storefrontPath("landing", { slug: lp?.slug ?? existing.slug }),
           publicUrl: buildLandingPagePublicUrl(baseUrl, lp?.slug ?? existing.slug),
         };
       } catch (error) {
