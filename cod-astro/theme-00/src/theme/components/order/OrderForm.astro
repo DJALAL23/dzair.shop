@@ -7,7 +7,7 @@ import type {
   ProductVariant,
   StorePageLink,
 } from "@wocart/storefront";
-import { getProductView } from "@wocart/storefront";
+import { getProductView, type CouponRefusal } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import type { FieldErrors } from "@/theme/types";
 import { Icon } from "astro-icon/components";
@@ -17,6 +17,7 @@ import VariantSelector from "./VariantSelector.astro";
 import OfferTiers from "./OfferTiers.astro";
 import CustomerFields from "./CustomerFields.astro";
 import OrderSummary from "./OrderSummary.astro";
+import CouponField from "./CouponField.astro";
 import OtpStep from "./OtpStep.astro";
 import TurnstileField from "./TurnstileField.astro";
 import { storefrontPath } from "@wocart/storefront";
@@ -26,6 +27,8 @@ interface Props {
   content: StoreFrontContent;
   fieldErrors: FieldErrors;
   serverError: string | null;
+  /** The order was refused for its code: the code box says why. */
+  couponRefusal?: CouponRefusal | null;
   basePrice: number;
   defaultVariant: ProductVariant | null;
   cur: string;
@@ -48,7 +51,7 @@ interface Props {
   formPolicy?: CheckoutFormPolicy;
 }
 
-const { product, content, fieldErrors, serverError, basePrice, defaultVariant, cur, isRTL, offers, defaultVariantId, isOutOfStock = false, otpEnabled = false, turnstileEnabled = false, turnstileSiteKey = null, landingPageSlug = null, pages = [], formPolicy } = Astro.props;
+const { product, content, fieldErrors, serverError, couponRefusal = null, basePrice, defaultVariant, cur, isRTL, offers, defaultVariantId, isOutOfStock = false, otpEnabled = false, turnstileEnabled = false, turnstileSiteKey = null, landingPageSlug = null, pages = [], formPolicy } = Astro.props;
 
 // Skipped entirely when either page is missing — never a dangling sentence
 // or a link to nowhere. See checkout-consent.ts for the split logic and its
@@ -122,6 +125,8 @@ const comparePrice = getProductView(product).comparePrice;
     {turnstileEnabled && turnstileSiteKey && (
       <TurnstileField siteKey={turnstileSiteKey} content={content} />
     )}
+
+    <CouponField content={content} cur={cur} couponRefusal={couponRefusal} />
 
     <OrderSummary
       product={product}

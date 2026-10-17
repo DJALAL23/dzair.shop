@@ -698,7 +698,7 @@ describe("Shipping rates bridge", () => {
 describe("Delivery quote for the product form", () => {
   let container: HTMLElement;
 
-  function build(options: { quantityPriced?: boolean; wilaya?: string; tiers?: string } = {}): void {
+  function build(options: { quantityPriced?: boolean; wilaya?: string; tiers?: string; coupon?: boolean } = {}): void {
     container.innerHTML = `
       <div id="page-data"
         data-quantity-priced="${options.quantityPriced ? "1" : "0"}"
@@ -717,9 +717,15 @@ describe("Delivery quote for the product form", () => {
         data-offers="[]"></div>
       <div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div>
       <div id="summary-item-price"></div>
+      <div id="summary-coupon-row" data-label-template="Coupon {code}" hidden><span data-coupon-label></span><span data-coupon-amount></span></div>
       <div id="summary-shipping"></div>
       <div id="summary-total"></div>
       ${options.tiers ?? ""}
+      ${options.coupon ? `<input id="f-phone" value="" />
+      <div data-coupon-field data-coupon-copy='{"couponApplied":"Code applied: {amount} off","couponExpired":"Expired"}' data-currency="DA" data-checking="Checking">
+        <button type="button" data-coupon-toggle></button>
+        <div data-coupon-box hidden><input name="couponCode" /><button type="button" data-coupon-apply></button><p data-coupon-status hidden></p></div>
+      </div>` : ""}
       <input id="f-wilaya" value="${options.wilaya ?? "16"}" />
       <div id="delivery-type-group">
         <label class="delivery-radio-label">
@@ -769,6 +775,7 @@ describe("Delivery quote for the product form", () => {
   afterEach(() => {
     container?.parentNode?.removeChild(container);
     vi.unstubAllGlobals();
+    sessionStorage.clear();
   });
 
   it("asks for a quote with the product's own form and the chosen destination", async () => {
@@ -912,6 +919,69 @@ describe("Delivery quote for the product form", () => {
     qty.value = "2";
     qty.dispatchEvent(new Event("input", { bubbles: true }));
     expect(three!.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("asks the quote with the code applied and the phone, and shows what the code took off", async () => {
+    build({ coupon: true });
+    const fetchMock = quoteServer((body) =>
+      body.couponCode
+        ? { subtotal: 2250, lines: [], coupon: { code: "DIX", applied: true, discount: 250, freeShipping: false }, delivery: { available: true, fee: 400, total: 2650 } }
+        : { subtotal: 2500, lines: [], delivery: { available: true, fee: 400, total: 2900 } },
+    );
+    initProductPage();
+    await settle();
+    expect(document.getElementById("summary-coupon-row")!.hidden).toBe(true);
+
+    (document.getElementById("f-phone") as HTMLInputElement).value = "+213 551 00 00 01";
+    (document.querySelector('input[name="couponCode"]') as HTMLInputElement).value = "dix";
+    (document.querySelector("[data-coupon-apply]") as HTMLButtonElement).click();
+    await settle();
+
+    const body = JSON.parse(String((fetchMock.mock.calls.at(-1) as unknown as [string, RequestInit])[1].body));
+    expect(body).toMatchObject({ couponCode: "dix", phone: "0551000001", destination: { wilayaId: 16 } });
+    expect(itemPrice()).toMatch(/2.500/);
+    const row = document.getElementById("summary-coupon-row")!;
+    expect(row.hidden).toBe(false);
+    expect(row.textContent).toMatch(/Coupon DIX/);
+    expect(row.textContent).toMatch(/250/);
+    expect(total()).toMatch(/2.650/);
+    expect(document.querySelector("[data-coupon-status]")!.textContent).toMatch(/250/);
+  });
+
+  it("says free delivery for a free-delivery code, with no coupon row to subtract", async () => {
+    build({ coupon: true });
+    quoteServer((body) => ({
+      subtotal: 2500,
+      lines: [],
+      ...(body.couponCode ? { coupon: { code: "LIV", applied: true, discount: 0, freeShipping: true } } : {}),
+      delivery: { available: true, fee: body.couponCode ? 0 : 400, total: 2500 },
+    }));
+    initProductPage();
+    (document.querySelector('input[name="couponCode"]') as HTMLInputElement).value = "LIV";
+    (document.querySelector("[data-coupon-apply]") as HTMLButtonElement).click();
+    await settle();
+
+    expect(document.getElementById("summary-coupon-row")!.hidden).toBe(true);
+    expect(shipping()).toBe("Free");
+    expect(itemPrice()).toMatch(/2.500/);
+  });
+
+  it("asks again with the phone once it is typed, while a code is applied", async () => {
+    build({ coupon: true });
+    const fetchMock = quoteServer(() => ({ subtotal: 2500, lines: [], coupon: { code: "VIP", applied: false, reason: "expired" }, delivery: { available: true, fee: 400, total: 2900 } }));
+    initProductPage();
+    (document.querySelector('input[name="couponCode"]') as HTMLInputElement).value = "VIP";
+    (document.querySelector("[data-coupon-apply]") as HTMLButtonElement).click();
+    await settle();
+    expect(document.querySelector("[data-coupon-status]")!.textContent).toBe("Expired");
+    const before = fetchMock.mock.calls.length;
+
+    const phone = document.getElementById("f-phone") as HTMLInputElement;
+    phone.value = "0551000002";
+    phone.dispatchEvent(new Event("change", { bubbles: true }));
+    await settle();
+    expect(fetchMock.mock.calls.length).toBe(before + 1);
+    expect(JSON.parse(String((fetchMock.mock.calls.at(-1) as unknown as [string, RequestInit])[1].body))).toMatchObject({ couponCode: "VIP", phone: "0551000002" });
   });
 
   it("keeps the rate table's figure when the server predates quotes", async () => {

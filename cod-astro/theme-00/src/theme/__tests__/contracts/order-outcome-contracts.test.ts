@@ -66,7 +66,7 @@ describe("orderOutcome", () => {
     const outcome = orderOutcome({
       error: { type: "AstroActionInputError", fields: { phone: ["Invalid phone"] } },
     }, COPY);
-    expect(outcome).toEqual({ redirect: null, fieldErrors: { phone: [COPY.formFieldInvalid] }, serverError: null });
+    expect(outcome).toEqual({ redirect: null, fieldErrors: { phone: [COPY.formFieldInvalid] }, serverError: null, couponRefusal: null });
   });
 
   it("says the store's own words under each field, never the server's English", () => {
@@ -81,10 +81,15 @@ describe("orderOutcome", () => {
 
   it("shows the store's own sentence for any refused order, never the server's detail", () => {
     const outcome = orderOutcome({ error: new Error("SKU is missing on product prod-2") }, COPY);
-    expect(outcome).toEqual({ redirect: null, fieldErrors: {}, serverError: COPY.formSubmitFailed });
+    expect(outcome).toEqual({ redirect: null, fieldErrors: {}, serverError: COPY.formSubmitFailed, couponRefusal: null });
+  });
+
+  it("hands an order refused for its code to the code box, with what the refusal carries", () => {
+    const refusal = { reason: "below_minimum_subtotal", shortBy: 2000 };
+    expect(orderOutcome({ data: { couponRefusal: refusal } }, COPY)).toEqual({ redirect: null, fieldErrors: {}, serverError: null, couponRefusal: refusal });
   });
 
   it("is quiet before any submit", () => {
-    expect(orderOutcome(undefined, COPY)).toEqual({ redirect: null, fieldErrors: {}, serverError: null });
+    expect(orderOutcome(undefined, COPY)).toEqual({ redirect: null, fieldErrors: {}, serverError: null, couponRefusal: null });
   });
 });

@@ -26,6 +26,12 @@ const { product, basePrice, cur, offers, content } = Astro.props;
       </span>
     </div>
     
+    <!-- Coupon line: filled by the product script from the server's quote -->
+    <div id="summary-coupon-row" class="flex items-center justify-between gap-2 text-[0.8125rem] sm:text-[0.875rem] font-bold" style="color: var(--clr-success)" data-label-template={content.couponSummaryLabel} hidden>
+      <span class="truncate" data-coupon-label></span>
+      <span class="shrink-0 whitespace-nowrap" dir="ltr" data-coupon-amount></span>
+    </div>
+
     <!-- Shipping line -->
     <div class="flex items-center justify-between text-[0.8125rem] sm:text-[0.875rem] font-bold" style="color: var(--clr-text-2)">
       <span>{content.shippingLabel}</span>

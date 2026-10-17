@@ -16,7 +16,9 @@
  * re-resolves delivery when the order is placed.
  */
 
-import { embeddedMessage } from "@/theme/content/messages";
+import { embeddedMessage, embeddedTemplate } from "@/theme/content/messages";
+import { toLocalAlgerianMobile } from "@wocart/storefront";
+import { initCouponField } from "./coupon-field";
 import {
   getCart,
   cartCount,
@@ -69,6 +71,7 @@ export function initCheckout(): () => void {
   const itemsLabel = document.getElementById("checkout-items-label");
   const blockedNote = document.getElementById("checkout-blocked-note");
   const subtotalEl = document.getElementById("checkout-subtotal");
+  const couponRow = document.getElementById("checkout-coupon-row");
   const deliveryEl = document.getElementById("checkout-delivery");
   const totalEl = document.getElementById("checkout-total");
   const freeWrap = document.getElementById("checkout-free-delivery");
@@ -109,6 +112,19 @@ export function initCheckout(): () => void {
   let validated: ValidationResult | null = null;
   /** The destination `validated` was quoted for: a quote answers only that one. */
   let quotedFor = "";
+  /** The code box: Apply asks the quote again with the code. */
+  const coupon = initCouponField(root, () => {
+    render();
+    void revalidate();
+  });
+
+  /** What the quote is asked about the code: the code applied, and the phone once it is a mobile number. */
+  function couponAsk(): { couponCode?: string; phone?: string } {
+    const code = coupon?.code();
+    if (!code) return {};
+    const phone = toLocalAlgerianMobile((document.getElementById("f-phone") as HTMLInputElement | null)?.value ?? "");
+    return { couponCode: code, ...(phone ? { phone } : {}) };
+  }
   let rates: ShippingRates = {};
 
   const destinationKey = () => JSON.stringify(deliveryDestination() ?? null);
@@ -150,7 +166,11 @@ export function initCheckout(): () => void {
     );
 
     const blocked = hasBlocker(validated);
+    // The server's subtotal is net of the coupon; the lines show their catalog
+    // price, so the subtotal row shows the sum before it and the coupon row what came off.
     const subtotal = validated?.subtotal ?? cartSubtotal(lines);
+    const applied = validated?.coupon?.applied ? validated.coupon : null;
+    const couponOff = applied?.discount ?? 0;
     const delivery = deliveryFee();
     // The server refuses an order to a destination the store does not serve;
     // holding the button back says so before the shopper fills in the rest.
@@ -159,7 +179,14 @@ export function initCheckout(): () => void {
     if (blockedNote) blockedNote.hidden = !blocked;
     if (submitBtn) submitBtn.disabled = blocked || undeliverable;
 
-    if (subtotalEl) subtotalEl.textContent = money(subtotal);
+    if (subtotalEl) subtotalEl.textContent = money(subtotal + couponOff);
+    if (couponRow) {
+      couponRow.hidden = couponOff === 0;
+      const label = couponRow.querySelector<HTMLElement>("[data-coupon-label]");
+      const amount = couponRow.querySelector<HTMLElement>("[data-coupon-amount]");
+      if (applied && label) label.textContent = embeddedTemplate(couponRow.dataset.labelTemplate ?? "{code}", { code: applied.code });
+      if (amount) amount.textContent = `−${money(couponOff)}`;
+    }
     if (deliveryEl) {
       deliveryEl.textContent =
         delivery === null
@@ -188,11 +215,12 @@ export function initCheckout(): () => void {
   async function revalidate(): Promise<void> {
     const destination = deliveryDestination();
     const key = JSON.stringify(destination ?? null);
-    const result = await validate(getCart(), destination);
+    const result = await validate(getCart(), destination, couponAsk());
     // `undefined` means the answer is stale or the request failed — the
     // optimistic view stands rather than flickering to a worse one.
     if (result === undefined) return;
     validated = result;
+    coupon?.show(result?.coupon);
     quotedFor = key;
     render();
   }
@@ -251,6 +279,15 @@ export function initCheckout(): () => void {
   for (const event of ["focusin", "input", "change"] as const) {
     form?.addEventListener(event, fireInitiateCheckout, { signal });
   }
+
+  // A code may depend on who the shopper is: ask again once the phone is known.
+  document.getElementById("f-phone")?.addEventListener(
+    "change",
+    () => {
+      if (coupon?.code()) void revalidate();
+    },
+    { signal },
+  );
 
   // Serialised at submit time, not earlier: the shopper can still change the
   // basket from the summary above, and the order must equal what they see.

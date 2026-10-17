@@ -9,15 +9,17 @@
  * newer one.
  */
 
-import type { CartDeliveryQuote } from "@wocart/storefront";
+import { CouponOutcomeSchema, type CartDeliveryQuote, type CouponOutcome } from "@wocart/storefront";
 
 export const QUOTE_URL = "/api/cart/validate";
 
 export interface QuoteAnswer {
   /** Absent from a server that predates quotes, or when no destination was asked: the caller falls back. */
   delivery?: CartDeliveryQuote;
-  /** What the lines cost, every offer applied (quantity pricing included). */
+  /** What the lines cost, every offer and the coupon applied. */
   subtotal?: number;
+  /** What the code asked with did; absent without one, or from a server that predates coupons. */
+  coupon?: CouponOutcome;
 }
 
 function isQuote(value: unknown): value is CartDeliveryQuote {
@@ -45,11 +47,13 @@ export function createQuoter(url: string = QUOTE_URL) {
       if (!res.ok) return undefined;
       const payload = await res.json();
       if (id !== latest) return undefined;
-      const data = payload?.data as { delivery?: unknown; subtotal?: unknown } | undefined;
+      const data = payload?.data as { delivery?: unknown; subtotal?: unknown; coupon?: unknown } | undefined;
       const subtotal = typeof data?.subtotal === "number" && Number.isFinite(data.subtotal) ? data.subtotal : undefined;
+      const coupon = CouponOutcomeSchema.safeParse(data?.coupon);
       return {
         ...(isQuote(data?.delivery) ? { delivery: data.delivery } : {}),
         ...(subtotal === undefined ? {} : { subtotal }),
+        ...(coupon.success ? { coupon: coupon.data } : {}),
       };
     } catch {
       return undefined;

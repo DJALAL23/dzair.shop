@@ -7,6 +7,7 @@ import { frHome } from "./home";
 import { frLayout } from "./layout";
 import { frOrderForm } from "./order-form";
 import { frOrderSummary } from "./order-summary";
+import { frCoupon } from "./coupon";
 import { frOtp } from "./otp";
 import { frWhatsappWidget } from "./whatsapp-widget";
 import { frCart } from "./cart";
@@ -21,6 +22,7 @@ export const fr: StoreFrontContent = {
   ...frLayout,
   ...frOrderForm,
   ...frOrderSummary,
+  ...frCoupon,
   ...frOtp,
   ...frWhatsappWidget,
   ...frCart,

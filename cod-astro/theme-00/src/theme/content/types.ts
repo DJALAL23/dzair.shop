@@ -11,6 +11,7 @@ import type { HomeStrings } from "./types/home";
 import type { LayoutStrings } from "./types/layout";
 import type { OrderFormStrings } from "./types/order-form";
 import type { OrderSummaryStrings } from "./types/order-summary";
+import type { CouponStrings } from "./types/coupon";
 import type { OtpStrings } from "./types/otp";
 import type { WhatsappWidgetStrings } from "./types/whatsapp-widget";
 import type { CartStrings } from "./types/cart";
@@ -24,6 +25,7 @@ export type StoreFrontContent = HomeStrings &
   LayoutStrings &
   OrderFormStrings &
   OrderSummaryStrings &
+  CouponStrings &
   OtpStrings &
   WhatsappWidgetStrings &
   CartStrings &

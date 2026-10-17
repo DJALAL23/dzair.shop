@@ -88,6 +88,9 @@ const parsedSingleProductOrder = {
 const orderRequest = (headers: Record<string, string> = {}) =>
   new Request("http://shop.example/checkout", { method: "POST", headers });
 
+/** A server refusal as the SDK reports it: always with its domain error. */
+const refusal = (code: string) => ({ category: "business", code, message: code, retryable: false, operation: "orders.create", sideEffect: "rejected" });
+
 describe("placeOrder binding (src/actions/index.ts)", () => {
   beforeEach(() => {
     createOrder.mockReset();
@@ -117,11 +120,26 @@ describe("placeOrder binding (src/actions/index.ts)", () => {
   });
 
   it("turns cod-server's refusal into a 422 ActionError, so the page reads it as a refusal", async () => {
-    createOrder.mockResolvedValueOnce({ success: false, error: "المنتج غير متوفر" });
+    createOrder.mockResolvedValueOnce({ success: false, error: "المنتج غير متوفر", domainError: refusal("INSUFFICIENT_STOCK") });
 
     await expect(
       action.handler(parsedSingleProductOrder, { request: orderRequest() }),
     ).rejects.toMatchObject({ code: "UNPROCESSABLE_CONTENT", message: "المنتج غير متوفر" });
+  });
+
+  it("answers an order refused for its code with the refusal, for the code box to show", async () => {
+    createOrder.mockResolvedValueOnce({
+      success: false,
+      error: "This coupon does not apply to the order",
+      domainError: refusal("COUPON_NOT_APPLICABLE"),
+      reason: "below_minimum_quantity",
+      shortBy: 1,
+    });
+
+    await expect(
+      action.handler({ ...parsedSingleProductOrder, couponCode: "TROIS" }, { request: orderRequest() }),
+    ).resolves.toEqual({ couponRefusal: { reason: "below_minimum_quantity", shortBy: 1 } });
+    expect(createOrder).toHaveBeenLastCalledWith(expect.objectContaining({ couponCode: "TROIS" }), expect.anything());
   });
 
   it("submits the parsed order with its OTP and Turnstile proofs, forwarding attribution", async () => {

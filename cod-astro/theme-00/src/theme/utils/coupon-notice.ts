@@ -1,0 +1,85 @@
+/**
+ * What the shopper is told about the code they typed — the one place a
+ * coupon's answer becomes a sentence, for the browser (the live quote) and for
+ * the server (an order refused for its code) alike.
+ *
+ * The answer is the platform's (`CouponOutcome` from the cart quote, or the
+ * refusal an order came back with); this only words it. A reason the theme
+ * does not know yet reads the general refusal.
+ */
+import type { CouponOutcome, CouponRefusal } from "@wocart/storefront";
+import type { CouponStrings } from "@/theme/content/types/coupon";
+import { message, pluralKeys } from "@/theme/content/messages";
+import { formatCurrency } from "@/theme/utils/money";
+
+export interface CouponNotice {
+  tone: "applied" | "refused";
+  text: string;
+}
+
+/** The coupon copy a notice needs — what an order form hands its script. */
+export const COUPON_COPY_KEYS = [
+  "couponApplied",
+  "couponAppliedFreeShipping",
+  "couponNotFound",
+  "couponNotStarted",
+  "couponExpired",
+  "couponUsedUp",
+  "couponIdentifyFirst",
+  "couponNotEligible",
+  "couponAlreadyUsed",
+  "couponNoEligibleProducts",
+  "couponBelowSubtotal",
+  ...pluralKeys("couponBelowQuantity"),
+  "couponDeliveryAlreadyFree",
+  "couponRefused",
+] as const;
+
+export type CouponCopy = Partial<Record<(typeof COUPON_COPY_KEYS)[number], string>>;
+
+/** The coupon copy of a content pack, for `data-*` and for `couponNotice`. */
+export function couponCopy(pack: CouponStrings): CouponCopy {
+  const source = pack as unknown as Record<string, string | undefined>;
+  return Object.fromEntries(COUPON_COPY_KEYS.flatMap((key) => (source[key] === undefined ? [] : [[key, source[key]]])));
+}
+
+/** The reasons worded without a figure. */
+const REFUSAL_KEY = new Map<string, keyof CouponCopy>([
+  ["not_found", "couponNotFound"],
+  ["expired", "couponExpired"],
+  ["used_up", "couponUsedUp"],
+  ["identify_first", "couponIdentifyFirst"],
+  ["not_eligible", "couponNotEligible"],
+  ["already_used", "couponAlreadyUsed"],
+  ["no_eligible_products", "couponNoEligibleProducts"],
+  ["delivery_already_free", "couponDeliveryAlreadyFree"],
+]);
+
+export function couponNotice(
+  answer: CouponOutcome | ({ applied: false } & CouponRefusal),
+  copy: CouponCopy,
+  locale: string,
+  currency: string,
+): CouponNotice {
+  if (answer.applied) {
+    const text =
+      answer.freeShipping
+        ? (copy.couponAppliedFreeShipping ?? "")
+        : message(copy, "couponApplied", { amount: formatCurrency(answer.discount, currency) }, locale);
+    return { tone: "applied", text };
+  }
+  const refused = (text: string | undefined): CouponNotice => ({ tone: "refused", text: text ?? copy.couponRefused ?? "" });
+  // Reasons that carry a figure are worded with it, and only with it.
+  if (answer.reason === "below_minimum_quantity") {
+    return answer.shortBy === undefined ? refused(undefined) : refused(message(copy, "couponBelowQuantity", { count: answer.shortBy }, locale));
+  }
+  if (answer.reason === "below_minimum_subtotal") {
+    return answer.shortBy === undefined ? refused(undefined) : refused(message(copy, "couponBelowSubtotal", { amount: formatCurrency(answer.shortBy, currency) }, locale));
+  }
+  if (answer.reason === "not_started") {
+    const date = answer.startsAt ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(new Date(answer.startsAt)) : null;
+    return refused(date === null ? undefined : message(copy, "couponNotStarted", { date }, locale));
+  }
+  const key = REFUSAL_KEY.get(answer.reason);
+  return refused(key ? copy[key] : undefined);
+}

@@ -9,6 +9,7 @@
  * reads it, so the parameter names exist in exactly one place.
  */
 import { isInputError } from "astro:actions";
+import type { CouponRefusal } from "@wocart/storefront";
 import type { FieldErrors } from "@/theme/types";
 import type { OrderFormStrings } from "@/theme/content/types/order-form";
 import { storefrontPath } from "@wocart/storefront";
@@ -22,6 +23,15 @@ export interface PlacedOrder {
   orderNumber: string;
   total: number;
   orderId?: string | null;
+}
+
+/**
+ * An order not placed because of its code: the action answers this rather
+ * than failing — a refusal the shopper can fix in the form, as a checkout's
+ * user errors are — and the code box says why.
+ */
+export interface RefusedForCoupon {
+  couponRefusal: CouponRefusal;
 }
 
 export function thankYouHref(order: PlacedOrder): string {
@@ -49,6 +59,8 @@ export interface OrderOutcome {
   redirect: string | null;
   fieldErrors: FieldErrors;
   serverError: string | null;
+  /** The order was refused for its code: the code box says why. */
+  couponRefusal: CouponRefusal | null;
 }
 
 /** The order form's words for a refused order. Only these are ever shown to a shopper. */
@@ -65,15 +77,17 @@ function shopperFieldErrors(fields: FieldErrors, copy: OrderOutcomeCopy): FieldE
 }
 
 export function orderOutcome(
-  result: { data?: PlacedOrder | undefined; error?: unknown } | undefined,
+  result: { data?: PlacedOrder | RefusedForCoupon | undefined; error?: unknown } | undefined,
   copy: OrderOutcomeCopy,
 ): OrderOutcome {
-  if (result?.data?.orderNumber) {
-    return { redirect: thankYouHref(result.data), fieldErrors: {}, serverError: null };
+  const data = result?.data;
+  if (data && "couponRefusal" in data) return { redirect: null, fieldErrors: {}, serverError: null, couponRefusal: data.couponRefusal };
+  if (data?.orderNumber) {
+    return { redirect: thankYouHref(data), fieldErrors: {}, serverError: null, couponRefusal: null };
   }
   const error = result?.error;
   if (isInputError(error)) {
-    return { redirect: null, fieldErrors: shopperFieldErrors(error.fields, copy), serverError: null };
+    return { redirect: null, fieldErrors: shopperFieldErrors(error.fields, copy), serverError: null, couponRefusal: null };
   }
   // The server's message is written for the merchant (an SKU is missing, an
   // item is out of stock). The shopper gets the store's own sentence, and the
@@ -82,5 +96,6 @@ export function orderOutcome(
     redirect: null,
     fieldErrors: {},
     serverError: error ? copy.formSubmitFailed : null,
+    couponRefusal: null,
   };
 }

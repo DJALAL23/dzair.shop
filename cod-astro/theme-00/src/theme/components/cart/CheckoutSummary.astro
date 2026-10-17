@@ -79,6 +79,12 @@ const { content } = Astro.props;
         </dd>
       </div>
 
+      <!-- The code applied and what it took off: filled from the server's quote. -->
+      <div id="checkout-coupon-row" class="flex items-baseline justify-between gap-3" style="color: var(--clr-success)" data-label-template={content.couponSummaryLabel} hidden>
+        <dt class="text-[0.875rem] font-bold" data-coupon-label></dt>
+        <dd class="text-[0.9375rem] font-black tabular-nums" dir="ltr" data-coupon-amount></dd>
+      </div>
+
       <div class="flex items-baseline justify-between gap-3">
         <dt class="text-[0.875rem] font-bold" style="color: var(--clr-text-2)">
           {content.shippingLabel}

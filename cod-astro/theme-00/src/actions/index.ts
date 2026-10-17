@@ -7,6 +7,7 @@
 import { ActionError, defineAction } from "astro:actions";
 import { executePlaceOrder, placeOrderInput } from "@wocart/storefront/astro";
 import { getStoreClient } from "@/theme/sdk";
+import type { RefusedForCoupon } from "@/theme/pages/order-outcome";
 
 export const server = {
   placeOrder: defineAction({
@@ -31,6 +32,9 @@ export const server = {
             message: result.error,
           });
         }
+        // Refused for its code: an answer the form shows on the code box, not
+        // a failure — the shopper fixes it there (order-outcome.ts).
+        if (result.couponRefusal) return { couponRefusal: result.couponRefusal } satisfies RefusedForCoupon;
         throw new ActionError({
           code: "UNPROCESSABLE_CONTENT",
           message: result.error,

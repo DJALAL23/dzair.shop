@@ -13,6 +13,7 @@ import RelatedProducts from "@/theme/components/product/RelatedProducts.astro";
 import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
 import { getProductJsonLd } from "@/theme/utils/seo";
 import { getProductView, productImageSource } from "@wocart/storefront";
+import type { CouponRefusal } from "@wocart/storefront";
 import type { Product, StoreConfig } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import type { FieldErrors } from "@/theme/types";
@@ -28,9 +29,10 @@ interface Props {
   isRTL: boolean;
   fieldErrors: FieldErrors;
   serverError: string | null;
+  couponRefusal: CouponRefusal | null;
 }
 
-const { product, config, content, isRTL, fieldErrors, serverError } = Astro.props;
+const { product, config, content, isRTL, fieldErrors, serverError, couponRefusal } = Astro.props;
 
 const cur = config.currencySymbol;
 
@@ -114,6 +116,7 @@ const jsonLd = getProductJsonLd(product, basePrice);
         content={content}
         fieldErrors={fieldErrors}
         serverError={serverError}
+        couponRefusal={couponRefusal}
         basePrice={basePrice}
         defaultVariant={defaultVariant ?? null}
         cur={cur}

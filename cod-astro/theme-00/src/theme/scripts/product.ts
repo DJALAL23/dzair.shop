@@ -4,7 +4,7 @@
  * shipping calculations, and commune loading.
  */
 
-import { embeddedMessage } from "@/theme/content/messages";
+import { embeddedMessage, embeddedTemplate } from "@/theme/content/messages";
 import {
   bindDeliveryFields,
   watchShippingRates,
@@ -15,6 +15,7 @@ import {
   toggleAddressFields,
 } from "./delivery-fields";
 import { createQuoter, type QuoteAnswer } from "./quote";
+import { initCouponField } from "./coupon-field";
 // fbq only exists when the merchant configured a pixel — one shared guard.
 import { trackProductInitiateCheckout, trackViewContent } from "./pixel";
 import { initCustomFields } from "./custom-fields";
@@ -76,6 +77,8 @@ export function initProductPage(): () => void {
   /** The server's answer for one destination and one form; a newer form never shows an older answer. */
   let quote: { key: string; answer: QuoteAnswer } | null = null;
   const askQuote = createQuoter();
+  /** The code box: Apply asks the quote again with the code. */
+  const coupon = initCouponField(document, refreshShipping);
 
   /** Currently selected offer ID (if any) */
   let currentOfferId: string | null = null;
@@ -249,10 +252,13 @@ export function initProductPage(): () => void {
     const qty = Math.max(1, parseInt(qtyInput?.value || "1") || 1);
     // The server's subtotal for exactly this form when it has answered; the
     // catalog price meanwhile — except under quantity pricing, whose total is
-    // only ever the server's, so it waits for the answer.
-    const quoted = quote?.key === shippingKey() ? quote.answer.subtotal : undefined;
-    const itemTotal: number | null = quoted ?? (quantityPriced ? null : currentPrice * qty);
+    // only ever the server's, so it waits for the answer. The subtotal is net
+    // of the coupon: the item row shows it before, the coupon row what came off.
+    const answer = quote?.key === shippingKey() ? quote.answer : undefined;
+    const couponOff = answer?.coupon?.applied ? answer.coupon.discount : 0;
+    const itemTotal: number | null = answer?.subtotal ?? (quantityPriced ? null : currentPrice * qty);
     syncQuantityTiers(qty);
+    syncCouponRow(answer?.coupon?.applied ? answer.coupon : null);
 
     // 1. Update main price displays
     document.querySelectorAll<HTMLElement>("#price-display-desktop, #price-display-mobile, #sticky-price").forEach((el) => {
@@ -261,7 +267,7 @@ export function initProductPage(): () => void {
 
     // 2. Update order summary rows
     const summaryItemPrice = document.getElementById("summary-item-price");
-    if (summaryItemPrice) summaryItemPrice.textContent = itemTotal === null ? "…" : `${formatAmount(itemTotal)} ${cur}`;
+    if (summaryItemPrice) summaryItemPrice.textContent = itemTotal === null ? "…" : `${formatAmount(itemTotal + couponOff)} ${cur}`;
     
     const summaryQtyLabel = document.getElementById("summary-qty-label");
     if (summaryQtyLabel) summaryQtyLabel.textContent = `${qty} ×`;
@@ -295,6 +301,18 @@ export function initProductPage(): () => void {
       if (offer.id === currentOfferId) row.classList.remove("hidden");
       else row.classList.add("hidden");
     }
+  }
+
+  /** The summary's coupon row: the code applied and what it took off, hidden otherwise. */
+  function syncCouponRow(applied: { code: string; discount: number } | null) {
+    const row = document.getElementById("summary-coupon-row");
+    if (!row) return;
+    row.hidden = !applied || applied.discount === 0;
+    if (!applied || row.hidden) return;
+    const label = row.querySelector<HTMLElement>("[data-coupon-label]");
+    const amount = row.querySelector<HTMLElement>("[data-coupon-amount]");
+    if (label) label.textContent = embeddedTemplate(row.dataset.labelTemplate ?? "{code}", { code: applied.code });
+    if (amount) amount.textContent = `−${formatAmount(applied.discount)} ${cur}`;
   }
 
   // ── VARIANT OPTION CLICKS ──────────────────────────────────────────────────
@@ -510,12 +528,25 @@ export function initProductPage(): () => void {
   }
 
   /** What the quote depends on: the destination and the form. */
+  /**
+   * What the quote is asked about the code: the code applied, and the phone
+   * once it is a mobile number — so a coupon for selected customers, or one use
+   * per customer, is judged before the order.
+   */
+  function couponAsk(): { couponCode?: string; phone?: string } {
+    const code = coupon?.code();
+    if (!code) return {};
+    const phone = toLocalAlgerianMobile((document.getElementById("f-phone") as HTMLInputElement | null)?.value ?? "");
+    return { couponCode: code, ...(phone ? { phone } : {}) };
+  }
+
   function shippingKey(): string {
-    return JSON.stringify({ destination: deliveryDestination() ?? null, form: productFormBody() });
+    return JSON.stringify({ destination: deliveryDestination() ?? null, form: productFormBody(), coupon: couponAsk() });
   }
 
   /** Shows the server's answer. Without a destination, or from a server that predates quotes, the rate table prices delivery. */
   function applyQuote(answer: QuoteAnswer): void {
+    coupon?.show(answer.coupon);
     const delivery = answer.delivery;
     if (delivery === undefined) {
       undeliverable = false;
@@ -530,7 +561,7 @@ export function initProductPage(): () => void {
 
   async function requestQuote(key: string): Promise<void> {
     const destination = deliveryDestination();
-    const answer = await askQuote({ ...productFormBody(), destination });
+    const answer = await askQuote({ ...productFormBody(), destination, ...couponAsk() });
     // Undefined: stale or failed. A key that has moved on: the shopper changed
     // the form or the destination while this was on its way.
     if (answer === undefined || key !== shippingKey()) return;
@@ -661,6 +692,10 @@ export function initProductPage(): () => void {
     });
     phoneInput.addEventListener("input", () => {
       phoneInput.setCustomValidity("");
+    });
+    // A code may depend on who the shopper is: ask again once the phone is known.
+    phoneInput.addEventListener("change", () => {
+      if (coupon?.code()) refreshShipping();
     });
   }
 

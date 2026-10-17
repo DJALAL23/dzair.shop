@@ -7,6 +7,7 @@ import { arHome } from "./home";
 import { arLayout } from "./layout";
 import { arOrderForm } from "./order-form";
 import { arOrderSummary } from "./order-summary";
+import { arCoupon } from "./coupon";
 import { arOtp } from "./otp";
 import { arWhatsappWidget } from "./whatsapp-widget";
 import { arCart } from "./cart";
@@ -21,6 +22,7 @@ export const ar: StoreFrontContent = {
   ...arLayout,
   ...arOrderForm,
   ...arOrderSummary,
+  ...arCoupon,
   ...arOtp,
   ...arWhatsappWidget,
   ...arCart,

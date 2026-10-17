@@ -220,7 +220,7 @@ describe("/api/cart/validate", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true, data: validation });
-    expect(mockStore.cart.quote).toHaveBeenCalledWith({ items }, undefined);
+    expect(mockStore.cart.quote).toHaveBeenCalledWith({ items }, {});
   });
 
   it("rejects a cross-origin POST with 403 (CSRF kept)", async () => {

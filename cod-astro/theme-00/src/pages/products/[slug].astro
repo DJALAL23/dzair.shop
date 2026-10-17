@@ -24,7 +24,7 @@ const turnstileOn = config.turnstileEnabled === true && Boolean(config.turnstile
 // signal fires on the thank-you page (sessionStorage survives the redirect).
 const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
 if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
-const { fieldErrors, serverError } = outcome;
+const { fieldErrors, serverError, couponRefusal } = outcome;
 
 // The product first: an unknown handle is a real 404, never an empty 200.
 const product = await Astro.locals.store.client.products.get(slug!);
@@ -44,6 +44,7 @@ if (!product) return Astro.rewrite("/404");
     isRTL={isRTL}
     fieldErrors={fieldErrors}
     serverError={serverError}
+    couponRefusal={couponRefusal}
   />
 </StoreLayout>
 

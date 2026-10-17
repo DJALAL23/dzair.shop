@@ -61,6 +61,7 @@ function buildDom(): void {
           <p id="checkout-blocked-note" hidden>Fix before checkout</p>
           <dl>
             <dd id="checkout-subtotal"></dd>
+            <div id="checkout-coupon-row" data-label-template="Coupon {code}" hidden><dt data-coupon-label></dt><dd data-coupon-amount></dd></div>
             <dd id="checkout-delivery"></dd>
             <dd id="checkout-total"></dd>
           </dl>
@@ -87,6 +88,10 @@ function buildDom(): void {
             <input id="f-cf_abc12345" type="text" value="" />
           </div>
           <input type="hidden" name="customFieldResponses" id="custom-field-responses-input" value="[]" />
+          <div data-coupon-field data-coupon-copy='{"couponApplied":"Code applied: {amount} off","couponNotEligible":"Not for you"}' data-currency="DA" data-checking="Checking">
+            <button type="button" data-coupon-toggle></button>
+            <div data-coupon-box hidden><input name="couponCode" /><button type="button" data-coupon-apply></button><p data-coupon-status hidden></p></div>
+          </div>
           <button type="submit" id="submit-btn">Confirm</button>
         </form>
       </div>
@@ -185,6 +190,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  sessionStorage.clear();
   teardown?.();
   teardown = null;
   vi.unstubAllGlobals();
@@ -754,5 +760,48 @@ describe("submitting", () => {
 
     const items = JSON.parse(el<HTMLInputElement>("cart-items-input").value);
     expect(items.map((i: { productId: string }) => i.productId)).toEqual(["p1", "p2"]);
+  });
+});
+
+describe("a coupon at checkout", () => {
+  function applyCode(code: string): void {
+    el<HTMLInputElement>("f-phone").value = "0551000001";
+    (document.querySelector('input[name="couponCode"]') as HTMLInputElement).value = code;
+    (document.querySelector("[data-coupon-apply]") as HTMLButtonElement).click();
+  }
+
+  it("asks the quote with the code and the phone, and shows the subtotal before it, what came off, and the total after", async () => {
+    seedCart([line()]);
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      return validationResponse({
+        lines: [],
+        subtotal: body.couponCode ? 900 : 1000,
+        rewards: [],
+        freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+        ...(body.couponCode ? { coupon: { code: "DIX", applied: true, discount: 100, freeShipping: false } } : {}),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await boot();
+
+    applyCode("dix");
+    await vi.waitFor(() => expect(el("checkout-coupon-row").hidden).toBe(false));
+    expect(JSON.parse(String((fetchMock.mock.calls.at(-1) as unknown as [string, RequestInit])[1].body))).toMatchObject({ couponCode: "dix", phone: "0551000001" });
+    expect(el("checkout-subtotal").textContent).toBe(money(1000));
+    expect(el("checkout-coupon-row").textContent).toMatch(/Coupon DIX/);
+    expect(el("checkout-coupon-row").textContent).toMatch(/100/);
+    expect(document.querySelector("[data-coupon-status]")!.textContent).toMatch(/100/);
+  });
+
+  it("tells a refused code, and charges nothing off", async () => {
+    seedCart([line()]);
+    serverSays({ lines: [], subtotal: 1000, rewards: [], freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 }, coupon: { code: "VIP", applied: false, reason: "not_eligible" } });
+    await boot();
+
+    applyCode("VIP");
+    await vi.waitFor(() => expect(document.querySelector("[data-coupon-status]")!.textContent).toBe("Not for you"));
+    expect(el("checkout-coupon-row").hidden).toBe(true);
+    expect(el("checkout-subtotal").textContent).toBe(money(1000));
   });
 });

@@ -52,6 +52,8 @@ export function createValidator(url: string = VALIDATE_URL) {
   return async function validate(
     lines: BasketLine[],
     destination?: DeliveryDestination,
+    /** The code applied at checkout, and the phone typed — the drawer asks with neither. */
+    asks: { couponCode?: string; phone?: string } = {},
   ): Promise<ValidationResult | null | undefined> {
     if (lines.length === 0) return null;
     const id = ++latest;
@@ -59,9 +61,7 @@ export function createValidator(url: string = VALIDATE_URL) {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          destination ? { items: toOrderItems(lines), destination } : { items: toOrderItems(lines) },
-        ),
+        body: JSON.stringify({ items: toOrderItems(lines), ...(destination ? { destination } : {}), ...asks }),
       });
       if (!res.ok) return undefined;
       const payload = await res.json();

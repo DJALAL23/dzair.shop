@@ -31,7 +31,7 @@ const lp = await Astro.locals.store.client.pages.landing(slug ?? "");
 // survives the redirect).
 const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
 if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
-const { fieldErrors, serverError } = outcome;
+const { fieldErrors, serverError, couponRefusal } = outcome;
 
 // Landing page data (from the parallel fetch above): published only.
 // Draft/archived/unknown → the store home (same contract as the product
@@ -129,6 +129,7 @@ const metaDescription = lp.metaDescription || config.metaDescription || undefine
             content={content}
             fieldErrors={fieldErrors}
             serverError={serverError}
+            couponRefusal={couponRefusal}
             basePrice={basePrice}
             defaultVariant={defaultVariant ?? null}
             cur={cur}
