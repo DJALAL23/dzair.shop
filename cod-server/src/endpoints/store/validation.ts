@@ -90,6 +90,15 @@ const orderLineFields = {
   ),
 };
 
+/**
+ * The code the shopper typed, as typed: matched without regard to case or
+ * spaces (`normalizeCouponCode`). An empty box sends none.
+ */
+const couponCodeField = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "") || v == null ? undefined : v,
+  z.string().max(64).optional()
+);
+
 export const storeOrderSchema = z.object({
   ...orderLineFields,
   customerName: z.string().min(2).max(100),
@@ -162,6 +171,7 @@ export const storeOrderSchema = z.object({
     (v) => (v === "" || v == null ? undefined : v),
     z.string().min(1).max(60).optional()
   ),
+  couponCode: couponCodeField,
 })
   /**
    * An order is either a basket or a single product — never neither.
@@ -204,9 +214,11 @@ export type StoreOrderInput = z.infer<typeof storeOrderSchema>;
  *
  * What is being ordered, in the order's own fields (a basket, or one product
  * with its quantity, per-unit variants and offer tier), so a product page asks
- * with exactly what its form will post. Deliberately nothing about the customer.
- * `destination` is where it would be delivered, so the answer can carry the
- * delivery fee and total the order would charge there.
+ * with exactly what its form will post. `destination` is where it would be
+ * delivered, so the answer can carry the delivery fee and total the order
+ * would charge there. `couponCode` is judged like the order's; `phone`, once
+ * the shopper has typed one, lets a coupon for selected customers, or one use
+ * per customer, be judged before the order is placed.
  */
 export const validateCartSchema = z
   .object({
@@ -219,6 +231,8 @@ export const validateCartSchema = z
         deliveryType: z.enum(["home", "stop_desk"]).default("home"),
       })
       .optional(),
+    couponCode: couponCodeField,
+    phone: z.string().max(32).optional(),
   })
   // A basket, or a product — the same rule as the order, minus the display
   // price the quote never needed.

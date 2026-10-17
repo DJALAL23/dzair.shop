@@ -66,11 +66,13 @@ import { getFooterPages, getPublicLegalContact } from "./store-pages";
 import {
   loadCatalogSnapshot,
   priceCartLines,
+  settleDelivery,
   variantSelection,
   type CatalogSnapshot,
   type PricedLine,
 } from "./catalog-snapshot";
 import { parseCheckoutFormPolicy } from "../checkout-form/policy";
+import { CouponNotApplicableError, raisedCouponRefusal, type CheckoutCoupon } from "./checkout-coupon";
 import { resolveStorefrontWidget } from "../whatsapp-widget/config";
 import {
   serializeCustomFieldAnswers,
@@ -791,7 +793,10 @@ export async function createStoreOrder(
   data: StoreOrderData & {
     customerId: string;
     customerName: string;
+    /** The store's delivery rate for the order; an offer or the coupon may make it free. */
     deliveryFee: number;
+    /** The coupon the order's code named (`findCheckoutCoupon`); it must apply, or the order is refused. */
+    coupon?: CheckoutCoupon | null;
   },
   /**
    * Catalog rows already loaded by the caller. The storefront handler loads
@@ -814,7 +819,11 @@ export async function createStoreOrder(
   // Server-authoritative pricing: the catalog row is the ONLY source of a unit
   // price. The client's pricePerUnit is display-only and NEVER trusted — it
   // arrives over plain HTTP and is trivially editable.
-  const { priced, subtotal: price, rewards, freeShippingOfferId } = priceCartLines(snapshot, lines);
+  const basket = priceCartLines(snapshot, lines, data.coupon ?? null);
+  const { priced, subtotal: price, rewards, freeShippingOfferId } = basket;
+  const delivery = settleDelivery(basket, data.deliveryFee);
+  const coupon = delivery.coupon;
+  if (coupon && !coupon.applied) throw new CouponNotApplicableError(coupon.refusal);
   const lineRows: Array<typeof orderProducts.$inferInsert> = priced.map((p) => ({
     id: crypto.randomUUID(),
     orderId: id,
@@ -827,12 +836,13 @@ export async function createStoreOrder(
     // The price the shopper pays per unit: the catalog's, or the quantity
     // tier's share, so a line always reads quantity × unit = total.
     pricePerUnit: p.lineTotal / p.line.quantity,
+    discount: p.discount,
     lineTotal: p.lineTotal,
     offerId: p.offerId,
     createdAt: now,
   }));
 
-  const finalDeliveryFee = freeShippingOfferId ? 0 : data.deliveryFee;
+  const finalDeliveryFee = delivery.fee;
 
   // ── Reward lines ───────────────────────────────────────────────────────────
   //
@@ -916,6 +926,9 @@ export async function createStoreOrder(
         deliveryType: data.deliveryType,
         deliveryFee: finalDeliveryFee,
         deliveryOfferId: freeShippingOfferId,
+        couponId: coupon?.couponId ?? null,
+        couponCode: coupon?.code ?? null,
+        couponDiscount: coupon?.discount ?? 0,
         codAmount: price + finalDeliveryFee,
         fbc: data.fbc ?? null,
         fbp: data.fbp ?? null,
@@ -961,6 +974,8 @@ export async function createStoreOrder(
       await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
       break;
     } catch (error) {
+      const raised = raisedCouponRefusal(error);
+      if (raised) throw new CouponNotApplicableError(raised);
       if (attempt >= MAX_ORDER_NUMBER_DRAWS || !isOrderNumberCollision(error)) throw error;
       orderNumber = drawOrderNumber(now);
     }
@@ -973,6 +988,7 @@ export async function createStoreOrder(
     customerName: data.customerName,
     price,
     deliveryFee: finalDeliveryFee,
+    couponDiscount: coupon?.discount ?? 0,
   };
 }
 

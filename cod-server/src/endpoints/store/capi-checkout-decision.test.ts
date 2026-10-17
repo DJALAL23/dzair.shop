@@ -17,6 +17,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { deliveredAt } from "@/test-utils/checkout-quote";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -101,7 +102,7 @@ function stubSuccessfulOrderFlow(orderId: string) {
     id: "cust-1",
     name: "Karim Benali",
   } as never);
-  vi.mocked(storeQueries.resolveDeliveryFee).mockResolvedValue(600 as never);
+  vi.mocked(storeQueries.quoteCheckout).mockResolvedValue(deliveredAt(600));
   // The order path loads the store's Checkout Form Policy. Mocked to the
   // defaults here — these suites are about the gate they are named for, and the
   // defaults are the storefront's behaviour before that feature existed.

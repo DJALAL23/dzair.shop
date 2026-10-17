@@ -15,6 +15,8 @@ import { eq, and, or, inArray, isNull, lte, gte } from "drizzle-orm";
 import { products, productVariants, offers, offerPriceTiers } from "../db/schema";
 import { applyOffers, type EarnedReward, type EngineOffer, type PlaceReward } from "../offers/engine";
 import type { PriceTier } from "../offers/model";
+import { priceCoupon } from "../coupons/engine";
+import type { CheckoutCoupon, CouponRefusal } from "./checkout-coupon";
 import type { AppDb } from "../db/client";
 import { chunkIds } from "./d1-limits";
 import { productIdsOf, variantIdsOf, type CartLine } from "./cart";
@@ -326,10 +328,12 @@ export interface PricedLine {
   line: CartLine;
   /** Catalog unit price in DZD. Never the client's claim. */
   unitPrice: number;
-  /** What the line costs: its catalog price, or its quantity-pricing tier's. */
+  /** What the line costs, offers and coupon applied: what the shopper pays for it. */
   lineTotal: number;
   /** The offer applied to the line; null when none. */
   offerId: string | null;
+  /** The line's share of the coupon's discount, already out of `lineTotal`. */
+  discount: number;
   sku: string | null;
   /**
    * The catalog's own names, in the store's primary language — what the order
@@ -352,6 +356,7 @@ function catalogPrices(snapshot: CatalogSnapshot, lines: CartLine[]): PricedLine
       unitPrice,
       lineTotal: unitPrice * line.quantity,
       offerId: null,
+      discount: 0,
       sku: variant ? variant.sku : (product?.sku ?? null),
       productName: product?.name ?? line.productName,
       variantLabel:
@@ -397,18 +402,31 @@ function rewardPlacer(snapshot: CatalogSnapshot, lines: readonly CartLine[]): Pl
   };
 }
 
-/** A basket priced: its lines, their sum, and what its offers give besides. */
+/**
+ * What a code did to the basket: applied (what it took off the lines, whether
+ * it makes delivery free), or refused with the reason the shopper is told.
+ */
+export type CouponOutcome =
+  | { code: string; applied: true; couponId: string; discount: number; freeShipping: boolean }
+  | { code: string; applied: false; refusal: CouponRefusal };
+
+/** A basket priced: its lines, their sum, and what its offers and coupon give besides. */
 export interface PricedBasket {
   priced: PricedLine[];
+  /** What the lines cost together, offers and coupon applied — the order's price. */
   subtotal: number;
   /** Buy X Get Y rewards earned, each placed: the stock covers it. */
   rewards: EarnedReward<OfferedLine>[];
   /** The offer that made delivery free, or null. */
   freeShippingOfferId: string | null;
+  /** The coupon priced with the basket; null without one. Before delivery: `settleDelivery` may still refuse a free-delivery coupon. */
+  coupon: CouponOutcome | null;
 }
 
 /**
- * Price every line from the catalog snapshot and the basket's offers.
+ * Price every line from the catalog snapshot, the basket's offers, then the
+ * coupon (ADR 0007): it covers the paid lines in its scope that no offer
+ * applied to, and its discount comes off those lines.
  *
  * Server-authoritative pricing lives here and nowhere else: the client's
  * `pricePerUnit` is display-only and is never consulted. The storefront's
@@ -419,20 +437,50 @@ export interface PricedBasket {
  * A soft-deleted product prices at 0 rather than throwing — the order engine
  * refuses it separately, and pricing is not the place to decide sellability.
  */
-export function priceCartLines(snapshot: CatalogSnapshot, lines: CartLine[]): PricedBasket {
+export function priceCartLines(snapshot: CatalogSnapshot, lines: CartLine[], coupon: CheckoutCoupon | null = null): PricedBasket {
   const atCatalog = catalogPrices(snapshot, lines);
   const applied = applyOffers(
     atCatalog.map((entry) => ({ ...entry.line, unitPrice: entry.unitPrice })),
     snapshot.offers,
     rewardPlacer(snapshot, lines),
   );
-  const priced = atCatalog.map((entry, index) => ({ ...entry, ...applied.lines[index]! }));
+  const offered = atCatalog.map((entry, index) => ({ ...entry, ...applied.lines[index]! }));
+  const pricing = coupon && priceCoupon(offered.map((entry) => ({ productId: entry.line.productId, quantity: entry.line.quantity, lineTotal: entry.lineTotal, offerId: entry.offerId })), coupon);
+
+  let outcome: CouponOutcome | null = null;
+  let priced = offered;
+  if (coupon && pricing) {
+    if (!pricing.applied) {
+      outcome = { code: coupon.code, applied: false, refusal: pricing.reason === "no_eligible_products" ? { reason: pricing.reason } : { reason: pricing.reason, shortBy: pricing.shortBy } };
+    } else {
+      outcome = { code: coupon.code, applied: true, couponId: coupon.id, discount: pricing.discount, freeShipping: pricing.freeShipping };
+      priced = offered.map((entry, index) => ({ ...entry, lineTotal: entry.lineTotal - pricing.discounts[index]!, discount: pricing.discounts[index]! }));
+    }
+  }
+
   return {
     priced,
     subtotal: priced.reduce((sum, entry) => sum + entry.lineTotal, 0),
     rewards: applied.rewards,
     freeShippingOfferId: applied.freeShippingOfferId,
+    coupon: outcome,
   };
+}
+
+/**
+ * What delivery costs once the basket is priced: the store's `rate` there
+ * (judged on the subtotal after the coupon), or nothing when an offer or the
+ * coupon makes it free. A free-delivery coupon is refused when the delivery
+ * would cost nothing anyway (the store's threshold, a zero rate) — a use is
+ * never spent on nothing.
+ */
+export function settleDelivery(basket: PricedBasket, rate: number): { fee: number; coupon: CouponOutcome | null } {
+  const coupon = basket.coupon;
+  if (coupon?.applied && coupon.freeShipping) {
+    return rate > 0 ? { fee: 0, coupon } : { fee: 0, coupon: { code: coupon.code, applied: false, refusal: { reason: "delivery_already_free" } } };
+  }
+  // An offer's free delivery covers a basket of its product alone, whose lines it names: no coupon applies beside it.
+  return { fee: basket.freeShippingOfferId ? 0 : rate, coupon };
 }
 
 /** Why a line cannot be ordered, or null when it can. */

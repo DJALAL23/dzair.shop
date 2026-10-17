@@ -189,6 +189,8 @@ export const ERROR_CODES = {
   INVALID_COUPON: "INVALID_COUPON",
   /** Another coupon already has this code. */
   COUPON_CODE_TAKEN: "COUPON_CODE_TAKEN",
+  /** The code the order carries does not apply to it; `reason` says why (`CouponRefusal`), with `shortBy` or `startsAt` when there is one. */
+  COUPON_NOT_APPLICABLE: "COUPON_NOT_APPLICABLE",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - REVIEWS

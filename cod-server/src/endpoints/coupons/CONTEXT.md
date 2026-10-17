@@ -71,6 +71,10 @@ A manual `active` / `inactive` switch. Only an active coupon within its schedule
 A coupon's use by one order: the order records the coupon, its code as typed into the order, and the discount it gave. A Redemption counts toward the Usage Limit and One Use per Customer only while its order is not cancelled.
 _Avoid_: Usage, claim
 
+**Coupon Refusal**:
+Why a code does not apply, as the shopper is told: unknown or switched off, outside its schedule, used up, already used by this customer, not for this customer (or waiting for the phone that decides it), nothing in the basket it covers, short of its minimum, or a free delivery with nothing to give. An order whose code is refused is refused whole.
+_Avoid_: Invalid coupon (says nothing of why)
+
 **Coupon Discount**:
 What a coupon took off an order, shared across its Eligible Lines by what each costs, so every line still reads quantity × unit = total.
 _Avoid_: Order-level discount (it is carried by the lines)

@@ -5,7 +5,7 @@ import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import * as queries from "./queries";
 import { storeOrderSchema, validateCartSchema } from "./validation";
-import { NotFoundError, ValidationError, ConflictError, BusinessLogicError } from "@/lib/errors/classes";
+import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { assertOtpVerification } from "./otp-gate";
 import { assertTurnstile } from "./turnstile-gate";
@@ -22,7 +22,6 @@ import {
 // Pure, like normalizeOrderLines: imported directly rather than through
 // ./queries so there is nothing for a test to stub and no way for the priced
 // subtotal to diverge from what the engine charges.
-import { priceCartLines, type CatalogSnapshot } from "../../../../cod-shared/queries/catalog-snapshot";
 import { resolveStorefrontMenu } from "../../../../cod-shared/queries/menus";
 import { getStorefrontCollection } from "../../../../cod-shared/queries/collections";
 import { resolveConversionForStage, conversionSourceUrl } from "@/workflows/capi-helpers";
@@ -338,11 +337,8 @@ export async function createStoreOrder(c: Context<AppContext>) {
   // ONE catalog read for the whole checkout. The SKU check, the stock check and
   // the order engine all answer their questions from this same snapshot, so a
   // product row is fetched once per order instead of once per question.
-  const snapshot = await queries.loadCatalogSnapshot(
-    db,
-    lines,
-    new Date().toISOString()
-  );
+  const now = new Date().toISOString();
+  const snapshot = await queries.loadCatalogSnapshot(db, lines, now);
 
   const skuMissing = queries.findMissingSku(snapshot, lines);
   if (skuMissing) {
@@ -360,15 +356,19 @@ export async function createStoreOrder(c: Context<AppContext>) {
 
   await assertOtpVerification(c, db, data);
 
-  // The same quote the cart answers before checkout (see quoteDelivery), so
-  // the fee a shopper was shown is the fee charged.
-  const deliveryFee = await quoteDelivery(db, c.get("storeId"), snapshot, lines, {
-    wilayaId: data.wilayaId,
-    communeId: data.communeId,
-    deliveryType: data.deliveryType,
+  // The same quote the cart answers before checkout, so what the shopper was
+  // shown — lines, coupon, delivery — is what the order charges.
+  const quote = await queries.quoteCheckout(db, {
+    storeId: c.get("storeId"),
+    now,
+    snapshot,
+    lines,
+    destination: { wilayaId: data.wilayaId, communeId: data.communeId, deliveryType: data.deliveryType },
+    couponCode: data.couponCode,
+    phone: data.phone,
   });
 
-  if (deliveryFee === null) {
+  if (!quote.delivery) {
     // Delivery to this wilaya (or this delivery type) is not configured —
     // refuse the order instead of silently shipping for free. Refusal must
     // happen BEFORE the customer is created so no orphan customer rows.
@@ -380,6 +380,10 @@ export async function createStoreOrder(c: Context<AppContext>) {
       { wilayaId: data.wilayaId, deliveryType: data.deliveryType }
     );
   }
+
+  // A code that does not apply refuses the order — before the customer is
+  // created — rather than placing it without the discount the shopper expects.
+  if (quote.couponOutcome && !quote.couponOutcome.applied) throw couponNotApplicable(quote.couponOutcome.refusal);
 
   const customer = await queries.findOrCreateCustomer(db, {
     phone: data.phone,
@@ -403,21 +407,27 @@ export async function createStoreOrder(c: Context<AppContext>) {
     }
   }
 
-  const order = await queries.createStoreOrder(
-    db,
-    {
-      ...data,
-      customerId: customer.id,
-      customerName: customer.name,
-      deliveryFee,
-      landingPageId,
-      ipAddress,
-      userAgent,
-      customerEmail: data.email,
-      customFieldAnswers,
-    },
-    snapshot
-  );
+  const order = await queries
+    .createStoreOrder(
+      db,
+      {
+        ...data,
+        customerId: customer.id,
+        customerName: customer.name,
+        deliveryFee: quote.delivery.rate,
+        coupon: quote.coupon,
+        landingPageId,
+        ipAddress,
+        userAgent,
+        customerEmail: data.email,
+        customFieldAnswers,
+      },
+      snapshot
+    )
+    .catch((error: unknown) => {
+      // The use was taken by another order since the code was checked.
+      throw error instanceof queries.CouponNotApplicableError ? couponNotApplicable(error.refusal) : error;
+    });
 
   // Meta CAPI conversion event at checkout — evaluated against merchant's tracking mode.
   // When mode is instant "Purchase", sends Purchase (matching the thank-you Pixel).
@@ -487,42 +497,24 @@ export async function createStoreOrder(c: Context<AppContext>) {
         price: order.price,
         deliveryFee: order.deliveryFee,
         total: order.price + order.deliveryFee,
+        couponDiscount: order.couponDiscount,
       },
     },
     201
   );
 }
 
-/**
- * What delivering these lines to this destination costs — the one answer both
- * the order and the cart's quote use, so the fee a shopper is shown and the fee
- * they are charged cannot differ.
- *
- * Each product's own shipping profile and the commune override apply (a basket
- * spanning two profiles pays the highest rate, plan Q1), judged against the
- * subtotal priced from the same snapshot and offers the engine uses, and an
- * offer that makes delivery free (a single-product basket's free-shipping
- * offer, or a quantity tier that includes it) makes it 0. `null` means the store does not deliver
- * there.
- */
-async function quoteDelivery(
-  db: ReturnType<typeof getDb>,
-  storeId: string | undefined,
-  snapshot: CatalogSnapshot,
-  lines: CartLine[],
-  destination: { wilayaId: number; communeId?: string | null; deliveryType: "home" | "stop_desk" },
-): Promise<number | null> {
-  const { subtotal, freeShippingOfferId } = priceCartLines(snapshot, lines);
-  const fee = await queries.resolveDeliveryFee(db, {
-    productIds: [...new Set(lines.map((l) => l.productId))],
-    wilayaId: destination.wilayaId,
-    communeId: destination.communeId ?? null,
-    deliveryType: destination.deliveryType,
-    storeId,
-    subtotal,
-  });
-  if (fee === null) return null;
-  return freeShippingOfferId ? 0 : fee;
+/** A code the order carries that does not apply, as the shopper is told. */
+function couponNotApplicable(refusal: queries.CouponRefusal) {
+  return new BusinessLogicError("This coupon does not apply to the order", ERROR_CODES.COUPON_NOT_APPLICABLE, { ...refusal });
+}
+
+/** A code's outcome as the storefront reads it. */
+function couponAnswer(outcome: queries.CouponOutcome | null) {
+  if (!outcome) return null;
+  return outcome.applied
+    ? { code: outcome.code, applied: true as const, discount: outcome.discount, freeShipping: outcome.freeShipping }
+    : { code: outcome.code, applied: false as const, ...outcome.refusal };
 }
 
 /**
@@ -565,14 +557,23 @@ export async function validateCart(c: Context<AppContext>) {
   const resolved = queries.resolveCartLines(snapshot, lines);
   const names = await queries.cartNames(db, snapshot, served.translate);
 
-  // Only orderable lines count toward the subtotal and the offers. A line the
-  // shopper must fix should not inflate a free-delivery promise it cannot keep.
+  // Only orderable lines count toward the subtotal, the offers and the coupon.
+  // A line the shopper must fix should not inflate a promise it cannot keep.
   const orderable = resolved.filter((entry) => entry.blocker === null);
-  const basket = priceCartLines(snapshot, orderable.map((entry) => entry.line));
+  const storeId = c.get("storeId");
+  const quote = await queries.quoteCheckout(db, {
+    storeId: storeId ?? undefined,
+    now,
+    snapshot,
+    lines: orderable.map((entry) => entry.line),
+    destination: data.destination,
+    couponCode: data.couponCode,
+    phone: data.phone ?? null,
+  });
+  const basket = quote.basket;
   const pricedLine = new Map(basket.priced.map((entry) => [entry.line, entry]));
   const subtotal = basket.subtotal;
 
-  const storeId = c.get("storeId");
   const store = storeId
     ? await db
         .select({ freeShippingThreshold: stores.freeShippingThreshold })
@@ -583,16 +584,6 @@ export async function validateCart(c: Context<AppContext>) {
   const threshold = store?.freeShippingThreshold ?? null;
   const thresholdActive = threshold != null && threshold > 0;
 
-  // Quoted for the lines that can be ordered — the ones `subtotal` counts.
-  const deliveryFee = data.destination
-    ? await quoteDelivery(
-        db,
-        storeId ?? undefined,
-        snapshot,
-        orderable.map((entry) => entry.line),
-        data.destination,
-      )
-    : undefined;
 
   return c.json(
     {
@@ -606,6 +597,7 @@ export async function validateCart(c: Context<AppContext>) {
           unitPrice: entry.unitPrice,
           lineTotal: pricedLine.get(entry.line)?.lineTotal ?? entry.lineTotal,
           offerId: pricedLine.get(entry.line)?.offerId ?? null,
+          discount: pricedLine.get(entry.line)?.discount ?? 0,
           maxQuantity: entry.maxQuantity,
           blocker: entry.blocker,
         })),
@@ -625,13 +617,14 @@ export async function validateCart(c: Context<AppContext>) {
           remaining:
             thresholdActive && subtotal < threshold ? threshold - subtotal : 0,
         },
-        ...(deliveryFee === undefined
+        coupon: couponAnswer(quote.couponOutcome),
+        ...(quote.delivery === undefined
           ? {}
           : {
               delivery:
-                deliveryFee === null
+                quote.delivery === null
                   ? { available: false, fee: null, total: null }
-                  : { available: true, fee: deliveryFee, total: subtotal + deliveryFee },
+                  : { available: true, fee: quote.delivery.fee, total: subtotal + quote.delivery.fee },
             }),
       },
     },

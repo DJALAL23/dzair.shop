@@ -39,12 +39,15 @@ One entry per ordered unit when different variants are mixed; identical units co
 _Avoid_: Variant array, options list
 
 **Offer Selection**:
-The shopper may pin an offer by ID; the server honors it only if still active and the quantity qualifies — otherwise it auto-picks the highest qualifying tier.
+The shopper may pin an offer by ID; the server honors it only if it still qualifies — reached, and able to give its benefit — otherwise it picks the highest qualifying one.
 _Avoid_: Coupon choice, discount code
 
 **Buy X Get Y Reward**:
-The free reward product of a promotion, appended to the order as a zero-price line. If the reward is out of stock the offer is skipped silently — the order still succeeds.
+The free reward product of a promotion, appended to the order as a zero-price line. A reward the stock cannot cover makes its offer not qualify; the product falls to its next offer and the order still succeeds.
 _Avoid_: Gift item, bonus product
+
+**Coupon Code**:
+A code the shopper enters at checkout (Coupons context). The cart quote says whether it applies and why not; an order whose code does not apply is refused, never silently placed without it.
 
 **Free Shipping Offer**:
 A promotion that zeroes the resolved delivery fee, reflected in both the fee line and the total.

@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { deliveredAt } from "@/test-utils/checkout-quote";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -238,7 +239,7 @@ describe("Store API routes (OpenAPIHono)", () => {
         id: "cust_1",
         name: "أحمد بن علي",
       } as any);
-      vi.mocked(queries.resolveDeliveryFee).mockResolvedValue(600 as any);
+      vi.mocked(queries.quoteCheckout).mockResolvedValue(deliveredAt(600));
       vi.mocked(queries.createStoreOrder).mockResolvedValue({
         id: "ord_1",
         orderNumber: "ORD-20260821-0001",

@@ -11,6 +11,7 @@ import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import * as h from "./handlers";
+import { COUPON_REFUSAL_REASONS } from "../../../../cod-shared/queries/checkout-coupon";
 import { THEME_KEY_RE } from "../../../../cod-shared/i18n/content-overrides";
 import { PAGE_DOCUMENT_SURFACE_RE } from "../../../../cod-shared/queries/page-document-surface";
 import { storeOrderSchema, validateCartSchema } from "./validation";
@@ -407,9 +408,11 @@ const createStoreOrderRoute = defineRoute({
 
 **Delivery fee** is resolved per basket: a product's own shipping profile overrides the store default, a commune-level override beats the wilaya rule, and a basket spanning two profiles pays the highest applicable rate. Delivery is refused (not silently free) when any product cannot be shipped to the destination.
 
-**Offer selection:** send \`offerId\` to explicitly select the tier the customer chose. It is honoured only if it independently qualifies; otherwise the server picks the highest \`triggerQuantity\` actually satisfied. Trigger quantity counts a product across all its lines, so two variants of one shirt are two shirts.
+**Offer selection:** send \`offerId\` to explicitly select the tier the customer chose. It is honoured only if it independently qualifies — reached, and able to give its benefit; otherwise the server picks the highest threshold that qualifies. Trigger quantity counts a product across all its lines, so two variants of one shirt are two shirts.
 
-**Buy X Get Y (\`discountType: "free"\`):** the reward product is appended as a \`$0\` line item. If the reward stock is unavailable, the offer is silently skipped and the order still succeeds. Reward lines never trigger further offers.
+**Buy X Get Y (\`discountType: "free"\`):** the reward product is appended as a \`$0\` line item. A reward the stock cannot cover makes its offer not qualify: the product falls to its next offer and the order still succeeds. Reward lines never trigger further offers.
+
+**Coupon (\`couponCode\`):** applied after offers, to the paid lines in its scope that no offer applied to; its discount is shared across those lines, so \`price\` is net of it, and a free-delivery coupon makes \`deliveryFee\` 0. A code that does not apply refuses the whole order with COUPON_NOT_APPLICABLE (\`reason\`, with \`shortBy\` or \`startsAt\` when there is one) — the order is never placed without it. Its uses are counted by the database as the order is inserted, so two orders cannot take the last one.
 
 **Free Shipping (\`discountType: "free_shipping"\`):** the delivery fee is overridden to 0 — reflected in both \`deliveryFee\` and \`total\`. This applies only when the basket holds a **single distinct product**; in a multi-product basket free delivery is earned by the store's basket threshold instead, so one cheap promotional item cannot ship an expensive basket for free.
 
@@ -427,7 +430,8 @@ const createStoreOrderRoute = defineRoute({
             orderNumber: z.string().openapi({ example: "ORD-20260327-0042" }),
             price: z.number(),
             deliveryFee: z.number(),
-            total: z.number().openapi({ description: "price + deliveryFee (after any offer)" }),
+            total: z.number().openapi({ description: "price + deliveryFee, offers and coupon applied" }),
+            couponDiscount: z.number().int().openapi({ description: "What the coupon took off; 0 without one" }),
           }),
         })
       ),
@@ -435,7 +439,7 @@ const createStoreOrderRoute = defineRoute({
     404: { description: "Referenced SKU/product record missing (REQUIRED_FIELD_MISSING)" },
     422: {
       description:
-        "Insufficient stock (INSUFFICIENT_STOCK) or missing SKU before accepting orders",
+        "Insufficient stock (INSUFFICIENT_STOCK), missing SKU before accepting orders, or a coupon that does not apply (COUPON_NOT_APPLICABLE)",
     },
   },
   handler: h.createStoreOrder,
@@ -466,6 +470,8 @@ const validateCartRoute = defineRoute({
     "",
     "Send `destination` (`wilayaId`, optional `communeId`, `deliveryType`) and the answer carries `delivery`: the fee and the total the order would charge there, from the same quote the order itself uses — product shipping profiles, commune overrides, the free-delivery threshold and free-shipping offers included. `available: false` (fee and total null) means the store does not deliver there, and an order to it is refused with DELIVERY_NOT_AVAILABLE. Without `destination`, there is no `delivery` field.",
     "",
+    "Send `couponCode` and the answer carries `coupon`: applied (with the `discount` taken off the lines, each line's share in its `discount`, and whether it makes delivery free) or refused with the `reason` the order would be refused for. Send `phone` once the shopper has typed it, so a coupon for selected customers, or one use per customer, is judged before the order. Without `couponCode`, `coupon` is null.",
+    "",
     "Product names and variant labels come from the catalog, in the language `?locale=` asks for (the store's primary when it does not publish that language), announced in `Content-Language`. The order itself records the catalog's names in the store's primary language.",
   ].join("\n"),
   operationId: "validateStoreCart",
@@ -486,8 +492,9 @@ const validateCartRoute = defineRoute({
                 productName: z.string(),
                 quantity: z.number().int(),
                 unitPrice: z.number().openapi({ description: "The catalog's unit price" }),
-                lineTotal: z.number().openapi({ description: "What the line costs: unit × quantity, or its quantity-pricing tier's price" }),
-                offerId: z.string().nullable().openapi({ description: "The quantity-pricing offer that set `lineTotal`; null at the catalog price" }),
+                lineTotal: z.number().openapi({ description: "What the line costs, offers and coupon applied" }),
+                offerId: z.string().nullable().openapi({ description: "The offer applied to the line; null when none" }),
+                discount: z.number().int().openapi({ description: "The line's share of the coupon's discount, already out of `lineTotal`" }),
                 maxQuantity: z.number().int().nullable(),
                 blocker: z
                   .enum(["missing", "unlisted", "out_of_stock"])
@@ -509,6 +516,19 @@ const validateCartRoute = defineRoute({
               qualified: z.boolean(),
               remaining: z.number(),
             }),
+            coupon: z
+              .union([
+                z.object({ code: z.string(), applied: z.literal(true), discount: z.number().int(), freeShipping: z.boolean() }),
+                z.object({
+                  code: z.string(),
+                  applied: z.literal(false),
+                  reason: z.enum(COUPON_REFUSAL_REASONS),
+                  shortBy: z.number().int().optional().openapi({ description: "Dinars, or items, the covered lines still lack" }),
+                  startsAt: z.string().optional(),
+                }),
+              ])
+              .nullable()
+              .openapi({ description: "The code's outcome; null without `couponCode`." }),
             delivery: z
               .object({
                 available: z.boolean(),

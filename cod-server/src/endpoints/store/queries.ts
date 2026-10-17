@@ -4,6 +4,8 @@
  */
 export * from "../../../../cod-shared/queries/store";
 export { resolveDeliveryFee } from "../../../../cod-shared/queries/shipping-resolution";
+export { quoteCheckout } from "../../../../cod-shared/queries/checkout-quote";
+export { CouponNotApplicableError, type CouponRefusal } from "../../../../cod-shared/queries/checkout-coupon";
 export { getPageDocument } from "../../../../cod-shared/queries/page-documents";
 export {
   loadCatalogSnapshot,
@@ -12,6 +14,7 @@ export {
   priceCartLines,
   resolveCartLines,
   type CatalogSnapshot,
+  type CouponOutcome,
   type ResolvedLine,
 } from "../../../../cod-shared/queries/catalog-snapshot";
 export {
