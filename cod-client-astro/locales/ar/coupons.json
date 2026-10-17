@@ -69,6 +69,17 @@
     "unlimited": "{used} / ∞",
     "limited": "{used} / {limit}"
   },
+  "conditions": {
+    "selected": "زبائن مختارون",
+    "min_subtotal": "ابتداءً من {amount}",
+    "min_items_zero": "ابتداءً من قطعة",
+    "min_items_one": "ابتداءً من قطعة واحدة",
+    "min_items_two": "ابتداءً من قطعتين",
+    "min_items_few": "ابتداءً من {count} قطع",
+    "min_items_many": "ابتداءً من {count} قطعة",
+    "min_items_other": "ابتداءً من {count} قطعة",
+    "once_per_customer": "مرة لكل زبون"
+  },
   "empty_state": {
     "title": "لا كوبونات بعد",
     "description": "أنشئ رمزًا يكتبه زبائنك عند الطلب: نسبة خصم أو مبلغ ثابت أو توصيل مجاني — لكل المتجر أو لمنتجات ومجموعات أو لزبائن مختارين.",

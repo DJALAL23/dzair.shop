@@ -61,6 +61,13 @@
     "unlimited": "{used} / ∞",
     "limited": "{used} / {limit}"
   },
+  "conditions": {
+    "selected": "Selected customers",
+    "min_subtotal": "From {amount}",
+    "min_items_one": "From {count} item",
+    "min_items_other": "From {count} items",
+    "once_per_customer": "Once per customer"
+  },
   "empty_state": {
     "title": "No coupons yet",
     "description": "Create a code your customers type at checkout: a percentage, an amount off, or free delivery — for the whole store, some products or collections, or chosen customers.",

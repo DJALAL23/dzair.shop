@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Translate } from "@/i18n/core";
 import {
   couponBody,
+  couponConditionsLabel,
   couponErrorMessage,
   couponForm,
   couponFormProblem,
@@ -120,6 +121,14 @@ describe("labels", () => {
     expect(couponScopeLabel(summary({ scope: "collections" }), t)).toBe('scope_label.collections {"count":1}');
     expect(couponUsesLabel(summary({ uses: 3, usageLimit: 100 }), t)).toBe('uses_label.limited {"used":3,"limit":100}');
     expect(couponUsesLabel(summary({ uses: 3, usageLimit: null }), t)).toBe('uses_label.unlimited {"used":3}');
+  });
+
+  it("names what a shopper must meet besides the code, and nothing when there is nothing", () => {
+    const plain = { audience: "everyone" as const, minSubtotal: null, minQuantity: null, oncePerCustomer: false };
+    expect(couponConditionsLabel(plain, t, "en")).toBeNull();
+    expect(couponConditionsLabel({ ...plain, audience: "selected" }, t, "en")).toBe("conditions.selected");
+    expect(couponConditionsLabel({ ...plain, minSubtotal: 5000, oncePerCustomer: true }, t, "en")).toBe('conditions.min_subtotal {"amount":"5,000 DA"} · conditions.once_per_customer');
+    expect(couponConditionsLabel({ ...plain, minQuantity: 3 }, t, "en")).toBe('conditions.min_items {"count":3}');
   });
 
   it("finds coupons by code, case and spaces aside", () => {

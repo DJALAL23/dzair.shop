@@ -140,6 +140,21 @@ export function couponScopeLabel(coupon: Pick<CouponSummary, "scope" | "counts">
   return t("scope_label.store");
 }
 
+/** What a shopper must meet besides the code — who, how much, how often — in a few words; null when nothing. */
+export function couponConditionsLabel(
+  coupon: Pick<CouponSummary, "audience" | "minSubtotal" | "minQuantity" | "oncePerCustomer">,
+  t: Translate,
+  locale: "ar" | "en" | "fr",
+): string | null {
+  const parts = [
+    coupon.audience === "selected" ? t("conditions.selected") : null,
+    coupon.minSubtotal !== null ? t("conditions.min_subtotal", { amount: formatMoney(coupon.minSubtotal, locale) }) : null,
+    coupon.minQuantity !== null ? t("conditions.min_items", { count: coupon.minQuantity }) : null,
+    coupon.oncePerCustomer ? t("conditions.once_per_customer") : null,
+  ].filter((part): part is string => part !== null);
+  return parts.length ? parts.join(" · ") : null;
+}
+
 /** Uses so far, against the limit when there is one. */
 export function couponUsesLabel(coupon: Pick<CouponSummary, "uses" | "usageLimit">, t: Translate): string {
   return coupon.usageLimit === null ? t("uses_label.unlimited", { used: coupon.uses }) : t("uses_label.limited", { used: coupon.uses, limit: coupon.usageLimit });

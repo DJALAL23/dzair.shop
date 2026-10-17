@@ -30,7 +30,7 @@ import { notify } from "@/lib/notify";
 import { formatMoney } from "@/features/orders/model";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { deleteCoupon, listCoupons, updateCoupon } from "@/features/coupons/api";
-import { COUPON_STATE_TONE, couponErrorMessage, couponScopeLabel, couponUsesLabel, couponValueLabel, searchCoupons } from "@/features/coupons/model";
+import { COUPON_STATE_TONE, couponConditionsLabel, couponErrorMessage, couponScopeLabel, couponUsesLabel, couponValueLabel, searchCoupons } from "@/features/coupons/model";
 import type { CouponSummary } from "@/features/coupons/types";
 
 const couponHref = (coupon: CouponSummary) => `/coupons/${encodeURIComponent(coupon.id)}`;
@@ -172,7 +172,7 @@ function CouponsList() {
                     {coupon.code}
                   </a>
                   <p className="truncate text-xs text-muted-foreground">
-                    {couponValueLabel(coupon, t, locale)} · {couponUsesLabel(coupon, t)}
+                    {[couponValueLabel(coupon, t, locale), couponConditionsLabel(coupon, t, locale), couponUsesLabel(coupon, t)].filter(Boolean).join(" · ")}
                   </p>
                 </div>
                 {badge(coupon)}
@@ -204,6 +204,7 @@ function CouponsList() {
                           {coupon.code}
                         </span>
                       </RowTitle>
+                      {couponConditionsLabel(coupon, t, locale) && <p className="mt-0.5 text-xs text-muted-foreground">{couponConditionsLabel(coupon, t, locale)}</p>}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{couponValueLabel(coupon, t, locale)}</TableCell>
                     <TableCell className="text-muted-foreground">{couponScopeLabel(coupon, t)}</TableCell>

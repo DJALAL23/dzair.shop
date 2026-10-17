@@ -63,6 +63,14 @@
     "unlimited": "{used} / ∞",
     "limited": "{used} / {limit}"
   },
+  "conditions": {
+    "selected": "Clients choisis",
+    "min_subtotal": "Dès {amount}",
+    "min_items_one": "Dès {count} article",
+    "min_items_many": "Dès {count} d'articles",
+    "min_items_other": "Dès {count} articles",
+    "once_per_customer": "Une fois par client"
+  },
   "empty_state": {
     "title": "Aucun code promo",
     "description": "Créez un code que vos clients saisissent à la commande : un pourcentage, un montant ou la livraison gratuite — pour toute la boutique, des produits ou collections, ou des clients choisis.",
