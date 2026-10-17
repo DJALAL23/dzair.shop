@@ -51,10 +51,6 @@ export const StoreSchema = z
       description: 'The storefront theme\'s slug, e.g. "theme-00"',
       example: "theme-00",
     }),
-    primaryColor: z.string().openapi({ description: "Primary CTA color (hex)", example: "#3b82f6" }),
-    accentColor: z.string().openapi({ description: "Accent / highlight color (hex)", example: "#f97316" }),
-    bgColor: z.string().openapi({ description: "Background color (hex)", example: "#ffffff" }),
-    fontFamily: z.string().openapi({ description: "CSS font-family string", example: "Cairo" }),
     lang: StoreLocaleEnum.openapi({
       description: "The store's primary language: its storefront language and first fallback",
       example: "ar",
@@ -472,12 +468,24 @@ export const StoreConfigSchema = z
     domain: z.string().nullable(),
     logoUrl: z.string().nullable(),
     themeId: z.string().openapi({ example: "theme-00" }),
-    primaryColor: z.string().openapi({ example: "#3a58ee" }),
-    accentColor: z.string().openapi({ example: "#f59e0b" }),
-    bgColor: z.string().openapi({ example: "#f8f8f8" }),
-    fontFamily: z.string().openapi({ example: "Cairo, sans-serif" }),
+    primaryColor: z.string().openapi({
+      description: "Deprecated: the value saved before colors and fonts became theme settings (migration 0047), no longer editable. Kept because @wocart/storefront up to 1.7 requires it; read `themeSettings` instead.",
+      example: "#3a58ee",
+    }),
+    accentColor: z.string().openapi({
+      description: "Deprecated: the value saved before colors and fonts became theme settings (migration 0047), no longer editable. Kept because @wocart/storefront up to 1.7 requires it; read `themeSettings` instead.",
+      example: "#f59e0b",
+    }),
+    bgColor: z.string().openapi({
+      description: "Deprecated: the value saved before colors and fonts became theme settings (migration 0047), no longer editable. Kept because @wocart/storefront up to 1.7 requires it; read `themeSettings` instead.",
+      example: "#f8f8f8",
+    }),
+    fontFamily: z.string().openapi({
+      description: "Deprecated: the value saved before colors and fonts became theme settings (migration 0047), no longer editable. Kept because @wocart/storefront up to 1.7 requires it; read `themeSettings` instead.",
+      example: "Cairo, sans-serif",
+    }),
     fontUrl: z.null().openapi({
-      description: "Deprecated: always null. Kept because @wocart/storefront up to 1.7 requires the field; the store's font is the theme's `font` setting, else `fontFamily`.",
+      description: "Deprecated: always null. Kept because @wocart/storefront up to 1.7 requires the field; the store's font is a theme setting (`themeSettings`).",
     }),
     lang: StoreLocaleEnum.openapi({ description: "The store's primary language", example: "ar" }),
     locale: StoreLocaleEnum.openapi({

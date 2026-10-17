@@ -17,7 +17,6 @@ const storeLanguages = z
     message: "Each language may appear once",
   });
 
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{3,8}$/, "Invalid hex color");
 
 export const updateStoreSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -34,10 +33,6 @@ export const updateStoreSchema = z.object({
     .max(200)
     .nullable()
     .optional(),
-  primaryColor: hexColor.optional(),
-  accentColor: hexColor.optional(),
-  bgColor: hexColor.optional(),
-  fontFamily: z.string().min(1).max(200).optional(),
   /** The primary language. Changing it alone also adds and publishes it. */
   lang: storeLocale.optional(),
   /** Replaces the store's languages; must publish the primary. */

@@ -8,7 +8,6 @@ describe("settings model", () => {
     expect(SETTINGS_CATEGORIES.map((category) => category.id)).toEqual([
       "general",
       "languages",
-      "branding",
       "seo",
       "cart",
       "delivery",

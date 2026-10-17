@@ -15,10 +15,6 @@ export interface StoreConfig {
   domain: string | null;
   logoUrl: string | null;
   themeId: string;
-  primaryColor: string;
-  accentColor: string;
-  bgColor: string;
-  fontFamily: string;
   /** The primary language: the storefront's language and first fallback. */
   lang: StoreLang;
   /** Every language the store has added, primary first, published or not. */
@@ -52,10 +48,6 @@ export type UpdateStoreData = Partial<
     | "name"
     | "domain"
     | "logoUrl"
-    | "primaryColor"
-    | "accentColor"
-    | "bgColor"
-    | "fontFamily"
     | "lang"
     | "currencySymbol"
     | "metaTitle"

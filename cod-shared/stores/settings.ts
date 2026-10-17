@@ -23,7 +23,15 @@ export interface StoreLanguage extends LocaleRow {
   primary: boolean;
 }
 
-export type StoreSettings = StoreRow & { languages: StoreLanguage[] };
+/**
+ * The columns the dashboard no longer edits: a store's colors and font are
+ * its theme's settings now (`store_theme_settings`). The columns stay, frozen,
+ * only because `/store/config` must keep sending them to @wocart/storefront
+ * up to 1.7, which requires them.
+ */
+type ThemePresentationColumns = "primaryColor" | "accentColor" | "bgColor" | "fontFamily";
+
+export type StoreSettings = Omit<StoreRow, ThemePresentationColumns> & { languages: StoreLanguage[] };
 
 /**
  * The store's languages: the primary first and always published, then the
@@ -74,7 +82,8 @@ export function toStoreSettings(
   row: StoreRow,
   localeRows: readonly { locale: string; published: boolean }[],
 ): StoreSettings {
-  return { ...row, languages: storeLanguages(row.lang, localeRows) };
+  const { primaryColor: _primary, accentColor: _accent, bgColor: _bg, fontFamily: _font, ...settings } = row;
+  return { ...settings, languages: storeLanguages(row.lang, localeRows) };
 }
 
 /** What a settings save may change about languages, beside the plain columns. */

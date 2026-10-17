@@ -12,7 +12,6 @@ import { SettingsSidebar } from "@/features/settings/components/SettingsSidebar"
 import { GeneralSettings } from "@/features/settings/components/GeneralSettings";
 import { LanguagesSettings } from "@/features/settings/components/LanguagesSettings";
 import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
-import { BrandingSettings } from "@/features/settings/components/BrandingSettings";
 import { SeoSettings } from "@/features/settings/components/SeoSettings";
 import { ReviewsSettings } from "@/features/settings/components/ReviewsSettings";
 import { DeliveryPricingSettings } from "@/features/settings/components/DeliveryPricingSettings";
@@ -108,8 +107,6 @@ function SettingsContent() {
             />
           </div>
         );
-      case "branding":
-        return <BrandingSettings storeConfig={storeConfig} onSave={handleSave} />;
       case "seo":
         return <SeoSettings storeConfig={storeConfig} onSave={handleSave} />;
       case "cart":

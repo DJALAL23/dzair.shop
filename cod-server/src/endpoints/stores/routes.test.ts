@@ -225,20 +225,23 @@ describe("Stores routes (OpenAPIHono)", () => {
       );
     });
 
-    it("returns 400 for invalid hex color", async () => {
+    it("neither takes nor returns colors and a font: they are the theme's settings", async () => {
       vi.mocked(queries.getStore).mockResolvedValue(storeRow());
+      vi.mocked(queries.updateStore).mockResolvedValue(storeRow({ name: "Renamed" }));
 
       const res = await app.request("/api/stores/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ primaryColor: "not-a-color" }),
+        body: JSON.stringify({ name: "Renamed", primaryColor: "#000000", fontFamily: "Tajawal" }),
       });
 
-      expect(res.status).toBe(400);
-      const body: any = await res.json();
-      expect(body).toMatchObject({
-        category: ERROR_CATEGORIES.VALIDATION,
-      });
+      expect(res.status).toBe(200);
+      const update = vi.mocked(queries.updateStore).mock.calls.at(-1)![2] as Record<string, unknown>;
+      expect(update).toMatchObject({ name: "Renamed" });
+      for (const key of ["primaryColor", "accentColor", "bgColor", "fontFamily"]) {
+        expect(update).not.toHaveProperty(key);
+        expect((await res.clone().json() as { data: Record<string, unknown> }).data).not.toHaveProperty(key);
+      }
     });
 
     it("returns 404 when no store exists", async () => {

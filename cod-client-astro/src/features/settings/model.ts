@@ -1,9 +1,9 @@
 import { REVIEW_MAX_PHOTOS, type ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
-import { BarChart2, Key, Languages, Mail, Palette, Search, Shield, ShieldCheck, ShoppingCart, Star, Store, Truck, type LucideIcon } from "lucide-react";
+import { BarChart2, Key, Languages, Mail, Search, Shield, ShieldCheck, ShoppingCart, Star, Store, Truck, type LucideIcon } from "lucide-react";
 import { STORE_LOCALES, type StoreLocale } from "../../../../cod-shared/i18n/locales";
 import type { StoreLanguage } from "./types";
 
-export type CategoryId = "general" | "languages" | "branding" | "seo" | "cart" | "delivery" | "reviews" | "analytics" | "verification" | "bot_protection" | "email" | "api";
+export type CategoryId = "general" | "languages" | "seo" | "cart" | "delivery" | "reviews" | "analytics" | "verification" | "bot_protection" | "email" | "api";
 
 export interface SettingsCategory {
   id: CategoryId;
@@ -16,7 +16,6 @@ export interface SettingsCategory {
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "general", icon: Store, labelKey: "general_title" },
   { id: "languages", icon: Languages, labelKey: "languages_title" },
-  { id: "branding", icon: Palette, labelKey: "branding_title" },
   { id: "seo", icon: Search, labelKey: "seo_title" },
   { id: "cart", icon: ShoppingCart, labelKey: "cart_title" },
   { id: "delivery", icon: Truck, labelKey: "delivery_pricing_title" },
