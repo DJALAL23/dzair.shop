@@ -34,6 +34,8 @@ export interface OrderProduct {
   createdAt: string;
   /** The offer applied to the line — the one its product earned — or the offer that gave it. */
   offerId: string | null;
+  /** The offer's name when the order was placed — kept when it is renamed or deleted. */
+  offerName: string | null;
   /** A reward, given by `offerId` at no charge. */
   reward: boolean;
   /** The line's share of the order's coupon discount; `lineTotal` is already net of it. */
@@ -149,6 +151,10 @@ export interface OrderDetail extends OrderBase {
   couponCode: string | null;
   /** What the coupon took off, carried by the lines; `price` is already net of it. */
   couponDiscount: number;
+  /** The offer that made delivery free; null when none did, or once that offer is deleted. */
+  deliveryOfferId: string | null;
+  /** That offer's name when the order was placed — kept when it is renamed or deleted. */
+  deliveryOfferName: string | null;
   products: OrderProduct[];
   statusHistory: StatusHistoryItem[];
   shipment: Shipment | null;

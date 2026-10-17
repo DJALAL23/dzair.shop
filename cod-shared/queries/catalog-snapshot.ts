@@ -49,7 +49,8 @@ export interface CatalogVariant {
 }
 
 /** An offer as the engine reads it (`offers/engine.ts`), with its price tiers. */
-export type CatalogOffer = EngineOffer;
+/** An offer as pricing reads it, with the name an order keeps of it. */
+export type CatalogOffer = EngineOffer & { name: string };
 
 export interface CatalogSnapshot {
   products: Map<string, CatalogProduct>;
@@ -160,6 +161,7 @@ export async function loadCatalogSnapshot(
     ),
     offers: (results.slice(variantEnd, offerEnd).flat() as Array<typeof offers.$inferSelect>).map((row) => ({
       id: row.id,
+      name: row.name,
       discountType: row.discountType,
       triggerProductId: row.triggerProductId,
       triggerVariantId: row.triggerVariantId,

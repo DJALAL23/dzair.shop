@@ -832,6 +832,7 @@ export async function createStoreOrder(
   const delivery = settleDelivery(basket, data.deliveryFee);
   const coupon = delivery.coupon;
   if (coupon && !coupon.applied) throw new CouponNotApplicableError(coupon.refusal);
+  const offerName = (offerId: string | null) => snapshot.offers.find((offer) => offer.id === offerId)?.name ?? null;
   const lineRows: Array<typeof orderProducts.$inferInsert> = priced.map((p) => ({
     id: crypto.randomUUID(),
     orderId: id,
@@ -847,6 +848,7 @@ export async function createStoreOrder(
     discount: p.discount,
     lineTotal: p.lineTotal,
     offerId: p.offerId,
+    offerName: offerName(p.offerId),
     createdAt: now,
   }));
 
@@ -874,6 +876,7 @@ export async function createStoreOrder(
       pricePerUnit: 0,
       lineTotal: 0,
       offerId: offer.id,
+      offerName: offerName(offer.id),
       reward: true,
       createdAt: now,
     });
@@ -934,6 +937,7 @@ export async function createStoreOrder(
         deliveryType: data.deliveryType,
         deliveryFee: finalDeliveryFee,
         deliveryOfferId: freeShippingOfferId,
+        deliveryOfferName: offerName(freeShippingOfferId),
         couponId: coupon?.couponId ?? null,
         couponCode: coupon?.code ?? null,
         couponDiscount: coupon?.discount ?? 0,

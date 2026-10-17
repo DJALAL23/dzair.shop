@@ -198,6 +198,27 @@ describe("gifts on an order", () => {
     expect(lines.find((line) => !line.reward)).toMatchObject({ quantity: 2, lineTotal: 4000, offerId: "gift" });
   });
 
+  it("keep the offer's name as it was, through a rename and the offer's deletion — lines and free delivery alike", async () => {
+    await gift();
+    const gifted = await place([{ productId: "robe", variantId: "robe-m", quantity: 2 }]);
+    await d1.db.delete(schema.offers).where(eq(schema.offers.id, "gift"));
+    await quantityPricing([[2, 3500, true]]);
+    const packed = await place([{ productId: "robe", variantId: "robe-s", quantity: 2 }]);
+    expect(packed.lines.map((line) => line.offerName)).toEqual(["Packs"]);
+    await d1.db.update(schema.offers).set({ name: "Packs renamed" }).where(eq(schema.offers.id, "packs"));
+    await d1.db.delete(schema.offers).where(eq(schema.offers.id, "packs"));
+
+    const kept = async (orderId: string) => ({
+      order: await d1.db.select({ id: schema.orders.deliveryOfferId, name: schema.orders.deliveryOfferName }).from(schema.orders).where(eq(schema.orders.id, orderId)).get(),
+      lines: await d1.db.select({ id: schema.orderProducts.offerId, name: schema.orderProducts.offerName, reward: schema.orderProducts.reward }).from(schema.orderProducts).where(eq(schema.orderProducts.orderId, orderId)).all(),
+    });
+    expect(await kept(gifted.order.id)).toEqual({
+      order: { id: null, name: null },
+      lines: expect.arrayContaining([{ id: null, name: "Gift", reward: false }, { id: null, name: "Gift", reward: true }]),
+    });
+    expect(await kept(packed.order.id)).toEqual({ order: { id: null, name: "Packs" }, lines: [{ id: null, name: "Packs", reward: false }] });
+  });
+
   it("are left out, and the order goes through, when the stock left after the paid units cannot cover them", async () => {
     await gift();
     await d1.db.update(schema.productVariants).set({ inventory: 2 }).where(eq(schema.productVariants.id, "robe-s"));

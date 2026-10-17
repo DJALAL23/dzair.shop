@@ -394,6 +394,27 @@ export function subtotalBeforeCoupon(order: { price: number; couponDiscount?: nu
   return order.price + (order.couponDiscount ?? 0);
 }
 
+/**
+ * The receipt's delivery row: the fee, or free — and when an offer made it
+ * free, that it did. A free-delivery code says so on its own row.
+ */
+export function deliveryLabel(order: { deliveryFee: number; deliveryOfferId: string | null; deliveryOfferName: string | null }, t: Translate, locale: Locale): string {
+  if (order.deliveryFee > 0) return formatMoney(order.deliveryFee, locale);
+  if (order.deliveryOfferName) return t("detail.delivery_free_named", { name: order.deliveryOfferName });
+  return order.deliveryOfferId ? t("detail.delivery_free_offer") : t("form.free");
+}
+
+/**
+ * What an order line says of its offer: the gift it is, or the offer that
+ * priced it — by the name the offer had when the order was placed. Null for a
+ * line no offer touched.
+ */
+export function offerLineLabel(line: { reward: boolean; offerId: string | null; offerName: string | null }, t: Translate): string | null {
+  if (line.reward) return line.offerName ? t("detail.line_reward_named", { name: line.offerName }) : t("detail.line_reward");
+  if (line.offerName) return t("detail.line_offer_named", { name: line.offerName });
+  return line.offerId ? t("detail.line_offer") : null;
+}
+
 /** A line's unit price and total before its share of the coupon. */
 export function lineBeforeCoupon(line: { lineTotal: number; quantity: number; discount?: number | null }): { unit: number; total: number } {
   const total = line.lineTotal + (line.discount ?? 0);

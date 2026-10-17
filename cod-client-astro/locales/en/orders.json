@@ -84,7 +84,7 @@
   "detail": {
     "customer_info": "Customer information",
     "name": "Name",
-    "delivery_fee": "Fee",
+    "delivery_fee": "Delivery",
     "total_price": "Total price",
     "subtotal": "Subtotal",
     "destination": "Destination",
@@ -95,7 +95,12 @@
     "line_reward": "🎁 Free — from an offer",
     "line_offer": "Offer applied",
     "line_coupon": "Coupon: {amount} off",
-    "coupon_row": "Coupon {code}"
+    "coupon_row": "Coupon {code}",
+    "coupon_free_delivery": "Free delivery",
+    "delivery_free_offer": "Free — from an offer",
+    "line_offer_named": "Offer: {name}",
+    "line_reward_named": "🎁 Free — {name}",
+    "delivery_free_named": "Free — {name}"
   },
   "form": {
     "title_add": "New order",

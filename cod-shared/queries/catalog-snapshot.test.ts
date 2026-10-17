@@ -35,6 +35,7 @@ const variant = (id: string, productId: string, extra: Partial<CatalogVariant> =
 
 const gift = (id: string, extra: Partial<CatalogOffer> = {}): CatalogOffer => ({
   id,
+  name: id,
   discountType: "free",
   triggerProductId: "robe",
   triggerVariantId: null,

@@ -22,6 +22,8 @@ import {
   ORDER_QUEUES,
   orderTotal,
   lineBeforeCoupon,
+  deliveryLabel,
+  offerLineLabel,
   subtotalBeforeCoupon,
   queueOf,
   reportsFor,
@@ -339,6 +341,34 @@ describe("abandonedBasketView", () => {
     expect(abandonedBasketView({ items: null, productName: null, variantLabel: null })).toEqual({
       kind: "unknown",
     });
+  });
+});
+
+describe("the receipt's delivery row", () => {
+  const t = (key: string) => key;
+  const said = (key: string, values?: Record<string, unknown>) => (values ? `${key} ${JSON.stringify(values)}` : key);
+  it("shows the fee, or free — naming the offer that made it free", () => {
+    expect(deliveryLabel({ deliveryFee: 500, deliveryOfferId: null, deliveryOfferName: null }, t, "en")).toBe(formatMoney(500, "en"));
+    expect(deliveryLabel({ deliveryFee: 500, deliveryOfferId: "o1", deliveryOfferName: "Packs" }, t, "en")).toBe(formatMoney(500, "en"));
+    expect(deliveryLabel({ deliveryFee: 0, deliveryOfferId: "o1", deliveryOfferName: "Packs" }, said, "en")).toBe(`detail.delivery_free_named ${JSON.stringify({ name: "Packs" })}`);
+    expect(deliveryLabel({ deliveryFee: 0, deliveryOfferId: null, deliveryOfferName: "Packs" }, said, "en")).toBe(`detail.delivery_free_named ${JSON.stringify({ name: "Packs" })}`);
+    expect(deliveryLabel({ deliveryFee: 0, deliveryOfferId: "o1", deliveryOfferName: null }, t, "en")).toBe("detail.delivery_free_offer");
+    expect(deliveryLabel({ deliveryFee: 0, deliveryOfferId: null, deliveryOfferName: null }, t, "en")).toBe("form.free");
+  });
+});
+
+describe("what an order line says of its offer", () => {
+  const said = (key: string, values?: Record<string, unknown>) => (values ? `${key} ${JSON.stringify(values)}` : key);
+  it("names the offer as it was when the order was placed, even once it is gone", () => {
+    expect(offerLineLabel({ reward: false, offerId: "o1", offerName: "Buy 2" }, said)).toBe(`detail.line_offer_named ${JSON.stringify({ name: "Buy 2" })}`);
+    expect(offerLineLabel({ reward: false, offerId: null, offerName: "Buy 2" }, said)).toBe(`detail.line_offer_named ${JSON.stringify({ name: "Buy 2" })}`);
+    expect(offerLineLabel({ reward: true, offerId: null, offerName: "Buy 2" }, said)).toBe(`detail.line_reward_named ${JSON.stringify({ name: "Buy 2" })}`);
+  });
+
+  it("says only that an offer applied when its name was never kept, and nothing for a plain line", () => {
+    expect(offerLineLabel({ reward: true, offerId: null, offerName: null }, said)).toBe("detail.line_reward");
+    expect(offerLineLabel({ reward: false, offerId: "o1", offerName: null }, said)).toBe("detail.line_offer");
+    expect(offerLineLabel({ reward: false, offerId: null, offerName: null }, said)).toBeNull();
   });
 });
 

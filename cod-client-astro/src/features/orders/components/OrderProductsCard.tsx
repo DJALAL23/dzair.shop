@@ -4,7 +4,7 @@ import { Button, Card, Input } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { setLineReturn } from "@/features/orders/api";
-import { formatMoney, lineBeforeCoupon, orderTotal, subtotalBeforeCoupon } from "@/features/orders/model";
+import { deliveryLabel, formatMoney, lineBeforeCoupon, offerLineLabel, orderTotal, subtotalBeforeCoupon } from "@/features/orders/model";
 import type { OrderDetail, OrderProduct } from "@/features/orders/types";
 import type { Locale } from "@/i18n/config";
 
@@ -58,7 +58,7 @@ export function OrderProductsCard({
   canRecordRefused,
   onChanged,
 }: {
-  order: Pick<OrderDetail, "id" | "products" | "price" | "deliveryFee" | "couponCode" | "couponDiscount">;
+  order: Pick<OrderDetail, "id" | "products" | "price" | "deliveryFee" | "couponCode" | "couponDiscount" | "deliveryOfferId" | "deliveryOfferName">;
   locale: Locale;
   canRecordRefused: boolean;
   onChanged: () => void | Promise<void>;
@@ -71,15 +71,14 @@ export function OrderProductsCard({
         {order.products.map((product) => {
           const free = product.reward;
           const offered = lineBeforeCoupon(product);
+          const offerLabel = offerLineLabel(product, t);
           return (
             <div key={product.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
               <Package size={17} className="mt-0.5 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{product.productName}</p>
                 {product.variantLabel && <p className="text-xs text-muted-foreground">{product.variantLabel}</p>}
-                {(product.reward || product.offerId) && (
-                  <p className="mt-1 text-xs font-medium text-success">{product.reward ? t("detail.line_reward") : t("detail.line_offer")}</p>
-                )}
+                {offerLabel && <p className="mt-1 text-xs font-medium text-success">{offerLabel}</p>}
                 {product.discount > 0 && (
                   <p className="mt-1 text-xs font-medium text-success">{t("detail.line_coupon", { amount: formatMoney(product.discount, locale) })}</p>
                 )}
@@ -104,12 +103,12 @@ export function OrderProductsCard({
         {order.couponCode && (
           <div className="flex justify-between text-success">
             <span>{t("detail.coupon_row", { code: order.couponCode })}</span>
-            <span className="tabular-nums">−{formatMoney(order.couponDiscount, locale)}</span>
+            <span className="tabular-nums">{order.couponDiscount > 0 ? `−${formatMoney(order.couponDiscount, locale)}` : t("detail.coupon_free_delivery")}</span>
           </div>
         )}
         <div className="flex justify-between text-muted-foreground">
           <span>{t("detail.delivery_fee")}</span>
-          <span className="tabular-nums">{formatMoney(order.deliveryFee, locale)}</span>
+          <span className={order.deliveryFee === 0 ? "text-success" : "tabular-nums"}>{deliveryLabel(order, t, locale)}</span>
         </div>
         <div className="flex justify-between border-t border-border pt-3 font-semibold">
           <span>{t("detail.total_price")}</span>

@@ -512,6 +512,8 @@ export const orders = sqliteTable("orders", {
   couponCode: text("coupon_code"),
   /** What the coupon took off, carried by the lines' `discount`; `price` is already net of it. */
   couponDiscount: integer("coupon_discount").notNull().default(0),
+  /** The name `deliveryOfferId` had when the order was placed — kept when the offer is renamed or deleted (migration 0053). */
+  deliveryOfferName: text("delivery_offer_name"),
 });
 
 export const orderStatusHistory = sqliteTable("order_status_history", {
@@ -665,6 +667,8 @@ export const orderProducts = sqliteTable("order_products", {
   reward: integer("reward", { mode: "boolean" }).notNull().default(false),
   /** The line's share of the order's coupon discount; `lineTotal` is already net of it (migration 0052). */
   discount: integer("discount").notNull().default(0),
+  /** The name `offerId` had when the order was placed — kept when the offer is renamed or deleted (migration 0053). */
+  offerName: text("offer_name"),
 });
 
 // ─── Delivery Provider Integration ───────────────────────────────────────────

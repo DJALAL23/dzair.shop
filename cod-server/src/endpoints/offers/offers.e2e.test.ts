@@ -85,6 +85,44 @@ describe("migration 0051", () => {
   });
 });
 
+describe("migration 0053", () => {
+  let legacy: TestD1;
+  const run = (query: string) => legacy.raw.prepare(query).run();
+
+  beforeAll(async () => {
+    legacy = await createTestD1({ before: "0053_order_offer_names.sql" });
+    await run(`INSERT INTO products (id, name, handle, price, created_at, updated_at) VALUES ('p1', 'P', 'p1', 1000, '${T}', '${T}')`);
+    await run(`INSERT INTO offers (id, name, trigger_product_id, trigger_quantity, reward_product_id, reward_quantity, discount_type, created_at, updated_at) VALUES ('gift', 'Buy 2, one free', 'p1', 2, 'p1', 1, 'free', '${T}', '${T}')`);
+    await run(`INSERT INTO customers (id, name, phone, wilaya, created_at) VALUES ('c1', 'C', '0550000000', 'Alger', '${T}')`);
+    const order = (id: string, deliveryOffer: string | null) =>
+      run(`INSERT INTO orders (id, order_number, customer_id, customer_name, phone, price, delivery_offer_id, created_at, updated_at) VALUES ('${id}', '${id}', 'c1', 'C', '0550000000', 2000, ${deliveryOffer ? `'${deliveryOffer}'` : "NULL"}, '${T}', '${T}')`);
+    await order("o1", "gift");
+    await order("o2", null);
+    const line = (id: string, orderId: string, offerId: string | null, reward: number) =>
+      run(`INSERT INTO order_products (id, order_id, product_id, product_name, quantity, price_per_unit, line_total, offer_id, reward, created_at) VALUES ('${id}', '${orderId}', 'p1', 'P', 1, 1000, 1000, ${offerId ? `'${offerId}'` : "NULL"}, ${reward}, '${T}')`);
+    await line("paid", "o1", "gift", 0);
+    await line("given", "o1", "gift", 1);
+    await line("plain", "o2", null, 0);
+    await legacy.applyRemaining();
+  }, 120_000);
+
+  afterAll(async () => {
+    await legacy?.dispose();
+  });
+
+  it("names each line and free delivery by the offer that still exists, and leaves the rest without a name", async () => {
+    expect((await legacy.raw.prepare("SELECT id, offer_name FROM order_products ORDER BY id").all()).results).toEqual([
+      { id: "given", offer_name: "Buy 2, one free" },
+      { id: "paid", offer_name: "Buy 2, one free" },
+      { id: "plain", offer_name: null },
+    ]);
+    expect((await legacy.raw.prepare("SELECT id, delivery_offer_name FROM orders ORDER BY id").all()).results).toEqual([
+      { id: "o1", delivery_offer_name: "Buy 2, one free" },
+      { id: "o2", delivery_offer_name: null },
+    ]);
+  });
+});
+
 describe("offers through the real routes", () => {
   let d1: TestD1;
   let app: OpenAPIHono<AppContext>;
