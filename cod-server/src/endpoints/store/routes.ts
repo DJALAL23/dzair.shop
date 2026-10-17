@@ -494,6 +494,7 @@ const validateCartRoute = defineRoute({
                 unitPrice: z.number().openapi({ description: "The catalog's unit price" }),
                 lineTotal: z.number().openapi({ description: "What the line costs, offers and coupon applied" }),
                 offerId: z.string().nullable().openapi({ description: "The offer applied to the line; null when none" }),
+                offerName: z.string().nullable().openapi({ description: "That offer's name, in the shopper's language" }),
                 discount: z.number().int().openapi({ description: "The line's share of the coupon's discount, already out of `lineTotal`" }),
                 maxQuantity: z.number().int().nullable(),
                 blocker: z
@@ -503,12 +504,17 @@ const validateCartRoute = defineRoute({
             ),
             subtotal: z.number(),
             rewards: z.array(
-              z.object({
-                offerId: z.string(),
-                productId: z.string().nullable(),
-                productName: z.string().nullable(),
-                quantity: z.number().int(),
-              }),
+              z
+                .object({
+                  offerId: z.string(),
+                  offerName: z.string().nullable().openapi({ description: "The offer's name, in the shopper's language" }),
+                  productId: z.string().nullable(),
+                  productName: z.string().nullable(),
+                  variantId: z.string().nullable().openapi({ description: "The variant given, when the product has variants" }),
+                  variantLabel: z.string().nullable(),
+                  quantity: z.number().int(),
+                })
+                .openapi({ description: "A gift the basket earns, as it will be given: its product and variant, free" }),
             ),
             freeDelivery: z.object({
               fromOffer: z.boolean(),

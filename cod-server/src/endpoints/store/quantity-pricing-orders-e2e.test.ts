@@ -88,7 +88,14 @@ async function quote(items: Array<{ productId: string; variantId?: string; quant
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ items: items.map((item) => ({ productName: "x", ...item })) }),
   });
-  return (await response.json() as { data: { subtotal: number; lines: Array<{ lineTotal: number; offerId: string | null }>; rewards: Array<{ offerId: string }>; freeDelivery: { fromOffer: boolean } } }).data;
+  return (await response.json() as {
+    data: {
+      subtotal: number;
+      lines: Array<{ lineTotal: number; offerId: string | null; offerName: string | null }>;
+      rewards: Array<{ offerId: string; offerName: string | null; productId: string | null; productName: string | null; variantId: string | null; variantLabel: string | null; quantity: number }>;
+      freeDelivery: { fromOffer: boolean };
+    };
+  }).data;
 }
 
 describe("quantity pricing on an order", () => {
@@ -258,5 +265,16 @@ describe("gifts on an order", () => {
     await d1.db.update(schema.productVariants).set({ position: 5 }).where(eq(schema.productVariants.id, "robe-m"));
     const { lines } = await place([{ productId: "sac", quantity: 1 }]);
     expect(lines.find((line) => line.reward)?.variantId).toBe("robe-s");
+  });
+
+  it("are quoted as they will be given — the variant, its label and the offer's name — before the order", async () => {
+    await gift();
+    const items = [{ productId: "robe", variantId: "robe-m", quantity: 2 }];
+    const shown = await quote(items);
+    const { lines } = await place(items);
+    const given = lines.find((line) => line.reward)!;
+    expect(given).toMatchObject({ variantId: "robe-m", variantLabel: "M" });
+    expect(shown.rewards).toEqual([{ offerId: "gift", offerName: "Gift", productId: "robe", productName: "Robe", variantId: given.variantId, variantLabel: given.variantLabel, quantity: 1 }]);
+    expect(shown.lines).toEqual([expect.objectContaining({ offerId: "gift", offerName: "Gift" })]);
   });
 });

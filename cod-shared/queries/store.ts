@@ -275,10 +275,20 @@ async function translateProducts<
  * text (`PricedLine`), whatever language the shopper browsed in.
  */
 export async function cartNames(db: AppDb, snapshot: CatalogSnapshot, locale: StoreLocale | null) {
-  const { products: translated, variations } = await translateProducts(db, [...snapshot.products.values()], locale);
+  const [{ products: translated, variations }, offerRows] = await Promise.all([
+    translateProducts(db, [...snapshot.products.values()], locale),
+    locale === null ? [] : listTranslations(db, "offer", snapshot.offers.map((offer) => offer.id), locale),
+  ]);
   const names = new Map(translated.map((product) => [product.id, product.name]));
+  const offerNames = new Map(overlayTranslations("offer", snapshot.offers, offerRows).map((offer) => [offer.id, offer.name]));
   return {
     product: (productId: string): string | null => names.get(productId) ?? null,
+    /** The offer's name in the shopper's language; null without an offer. */
+    offer: (offerId: string | null): string | null => (offerId === null ? null : (offerNames.get(offerId) ?? null)),
+    variant: (variantId: string | null): string | null => {
+      const variant = variantId ? snapshot.variants.get(variantId) : undefined;
+      return variant ? variantLabel(variations(variant.productId, variantSelection(variant))) : null;
+    },
     line: (entry: PricedLine): { productName: string; variantLabel: string | null } => {
       const variant = entry.line.variantId ? snapshot.variants.get(entry.line.variantId) : undefined;
       return {

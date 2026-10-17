@@ -597,6 +597,7 @@ export async function validateCart(c: Context<AppContext>) {
           unitPrice: entry.unitPrice,
           lineTotal: pricedLine.get(entry.line)?.lineTotal ?? entry.lineTotal,
           offerId: pricedLine.get(entry.line)?.offerId ?? null,
+          offerName: names.offer(pricedLine.get(entry.line)?.offerId ?? null),
           discount: pricedLine.get(entry.line)?.discount ?? 0,
           maxQuantity: entry.maxQuantity,
           blocker: entry.blocker,
@@ -604,8 +605,11 @@ export async function validateCart(c: Context<AppContext>) {
         subtotal,
         rewards: basket.rewards.map((item) => ({
           offerId: item.offer.id,
-          productId: item.offer.rewardProductId,
-          productName: item.offer.rewardProductId ? names.product(item.offer.rewardProductId) : null,
+          offerName: names.offer(item.offer.id),
+          productId: item.placement.productId,
+          productName: names.product(item.placement.productId),
+          variantId: item.placement.variantId,
+          variantLabel: names.variant(item.placement.variantId),
           quantity: item.offer.rewardQuantity,
         })),
         freeDelivery: {
