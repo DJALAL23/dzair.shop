@@ -95,7 +95,7 @@
     "line_reward": "🎁 مجاني — من عرض",
     "line_offer": "عرض مطبّق",
     "line_coupon": "كوبون: خصم {amount}",
-    "coupon_applied": "طُبّق الكوبون {code} — خصم {amount}، محسوب في الأسعار أعلاه"
+    "coupon_row": "كوبون {code}"
   },
   "form": {
     "title_add": "طلب جديد",

@@ -32,6 +32,8 @@ export function SearchPickList({
     <div className="space-y-2">
       {!full && (
         <SearchPicker
+          // A new picker for each pick: its search starts empty, ready for the next one.
+          key={value.length}
           value={null}
           onChange={(option) => option && !picked.has(option.id) && onChange([...value, option])}
           search={async (query) => (await search(query)).filter((option) => !picked.has(option.id))}

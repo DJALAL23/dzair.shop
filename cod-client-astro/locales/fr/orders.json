@@ -95,7 +95,7 @@
     "line_reward": "🎁 Offert — par une offre",
     "line_offer": "Offre appliquée",
     "line_coupon": "Code promo : {amount} de remise",
-    "coupon_applied": "Code promo {code} appliqué — {amount} de remise, déjà dans les prix ci-dessus"
+    "coupon_row": "Code promo {code}"
   },
   "form": {
     "title_add": "Nouvelle commande",

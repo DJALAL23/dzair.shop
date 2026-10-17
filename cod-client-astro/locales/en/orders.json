@@ -95,7 +95,7 @@
     "line_reward": "🎁 Free — from an offer",
     "line_offer": "Offer applied",
     "line_coupon": "Coupon: {amount} off",
-    "coupon_applied": "Coupon {code} applied — {amount} off, already in the prices above"
+    "coupon_row": "Coupon {code}"
   },
   "form": {
     "title_add": "New order",

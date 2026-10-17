@@ -21,6 +21,8 @@ import {
   offeredActions,
   ORDER_QUEUES,
   orderTotal,
+  lineBeforeCoupon,
+  subtotalBeforeCoupon,
   queueOf,
   reportsFor,
   statusMoves,
@@ -337,5 +339,16 @@ describe("abandonedBasketView", () => {
     expect(abandonedBasketView({ items: null, productName: null, variantLabel: null })).toEqual({
       kind: "unknown",
     });
+  });
+});
+
+describe("an order's items before its coupon", () => {
+  it("add the coupon back to the order's price and to each line, the unit price following", () => {
+    expect(subtotalBeforeCoupon({ price: 1980, couponDiscount: 220 })).toBe(2200);
+    expect(subtotalBeforeCoupon({ price: 1980, couponDiscount: 0 })).toBe(1980);
+    expect(subtotalBeforeCoupon({ price: 1980 })).toBe(1980);
+    expect(lineBeforeCoupon({ lineTotal: 3600, quantity: 2, discount: 400 })).toEqual({ unit: 2000, total: 4000 });
+    expect(lineBeforeCoupon({ lineTotal: 3600, quantity: 2 })).toEqual({ unit: 1800, total: 3600 });
+    expect(lineBeforeCoupon({ lineTotal: 0, quantity: 0, discount: 0 })).toEqual({ unit: 0, total: 0 });
   });
 });

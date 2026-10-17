@@ -4,7 +4,7 @@ import { Button, Card, Input } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { setLineReturn } from "@/features/orders/api";
-import { formatMoney, orderTotal } from "@/features/orders/model";
+import { formatMoney, lineBeforeCoupon, orderTotal, subtotalBeforeCoupon } from "@/features/orders/model";
 import type { OrderDetail, OrderProduct } from "@/features/orders/types";
 import type { Locale } from "@/i18n/config";
 
@@ -70,6 +70,7 @@ export function OrderProductsCard({
       <div className="divide-y divide-border">
         {order.products.map((product) => {
           const free = product.reward;
+          const offered = lineBeforeCoupon(product);
           return (
             <div key={product.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
               <Package size={17} className="mt-0.5 text-muted-foreground" />
@@ -83,14 +84,14 @@ export function OrderProductsCard({
                   <p className="mt-1 text-xs font-medium text-success">{t("detail.line_coupon", { amount: formatMoney(product.discount, locale) })}</p>
                 )}
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {product.quantity} × {free ? t("form.free") : formatMoney(product.pricePerUnit, locale)}
+                  {product.quantity} × {free ? t("form.free") : formatMoney(offered.unit, locale)}
                 </p>
                 {product.returnedQuantity > 0 && (
                   <p className="mt-1 text-xs font-semibold text-[var(--tone-critical-text)]">{t("refused.count", { count: product.returnedQuantity })}</p>
                 )}
                 {canRecordRefused && <RefusedUnits orderId={order.id} line={product} onChanged={onChanged} />}
               </div>
-              <span className={`text-sm tabular-nums ${free ? "text-success" : ""}`}>{free ? "-" : formatMoney(product.lineTotal, locale)}</span>
+              <span className={`text-sm tabular-nums ${free ? "text-success" : ""}`}>{free ? "-" : formatMoney(offered.total, locale)}</span>
             </div>
           );
         })}
@@ -98,12 +99,13 @@ export function OrderProductsCard({
       <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
         <div className="flex justify-between text-muted-foreground">
           <span>{t("detail.subtotal")}</span>
-          <span className="tabular-nums">{formatMoney(order.price, locale)}</span>
+          <span className="tabular-nums">{formatMoney(subtotalBeforeCoupon(order), locale)}</span>
         </div>
         {order.couponCode && (
-          <p className="text-xs text-success">
-            {t("detail.coupon_applied", { code: order.couponCode, amount: formatMoney(order.couponDiscount, locale) })}
-          </p>
+          <div className="flex justify-between text-success">
+            <span>{t("detail.coupon_row", { code: order.couponCode })}</span>
+            <span className="tabular-nums">−{formatMoney(order.couponDiscount, locale)}</span>
+          </div>
         )}
         <div className="flex justify-between text-muted-foreground">
           <span>{t("detail.delivery_fee")}</span>

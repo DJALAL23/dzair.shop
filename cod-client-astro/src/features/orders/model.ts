@@ -384,3 +384,18 @@ export function orderRemovalError(cause: unknown, t: Translate): string {
   if (code === "ORDER_CHANGED") return t("removal.error_changed");
   return cause instanceof Error ? cause.message : String(cause);
 }
+
+/**
+ * What the shopper's items cost before the coupon — the order's price is net
+ * of it, its lines carrying their share — so the merchant reads the items at
+ * the price they were offered, the coupon as its own row.
+ */
+export function subtotalBeforeCoupon(order: { price: number; couponDiscount?: number | null }): number {
+  return order.price + (order.couponDiscount ?? 0);
+}
+
+/** A line's unit price and total before its share of the coupon. */
+export function lineBeforeCoupon(line: { lineTotal: number; quantity: number; discount?: number | null }): { unit: number; total: number } {
+  const total = line.lineTotal + (line.discount ?? 0);
+  return { unit: line.quantity > 0 ? total / line.quantity : 0, total };
+}
