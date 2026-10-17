@@ -36,4 +36,6 @@ export type MiscStrings = Plural<"lowStock"> &
   defaultMetaDescription: string;
   /** A product page's title: `{product}` and `{storeName}`. */
   productPageTitle: string;
+  /** A collection page's title: `{collection}` and `{storeName}`. */
+  collectionPageTitle: string;
 };

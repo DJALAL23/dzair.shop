@@ -14,7 +14,7 @@ const files: SourceFile[] = themeSourceFiles();
 const route = (rel: string) => files.find((file) => file.relPath === rel);
 
 describe("missing resources answer 404", () => {
-  for (const rel of ["pages/products/[slug].astro", "pages/category/[slug].astro", "pages/pages/[slug].astro", "pages/lp/[slug].astro"]) {
+  for (const rel of ["pages/products/[slug].astro", "pages/category/[slug].astro", "pages/collections/[handle].astro", "pages/pages/[slug].astro", "pages/lp/[slug].astro"]) {
     it(`${rel} rewrites a missing resource to the 404 page`, () => {
       const file = route(rel);
       expect(file, rel).toBeDefined();

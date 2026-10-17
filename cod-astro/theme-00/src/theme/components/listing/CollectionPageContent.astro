@@ -1,0 +1,61 @@
+---
+// ── COLLECTION PAGE BODY ──
+// The route found the collection (an unknown one is its 404); this reads its
+// products — in the merchant's order, a page at a time — and lays them out.
+import ProductCard from "@/theme/components/product/ProductCard.astro";
+import ListingPager from "@/theme/components/listing/ListingPager.astro";
+import { pageRequest, pageWindow, requestedPage } from "@/theme/utils/pagination";
+import type { StoreFrontContent } from "@/theme/content";
+import type { StoreCollection } from "@wocart/storefront";
+import { storefrontPath } from "@wocart/storefront";
+
+interface Props {
+  collection: StoreCollection;
+  currencySymbol: string;
+  content: StoreFrontContent;
+}
+
+const { collection, currencySymbol, content } = Astro.props;
+const store = Astro.locals.store;
+
+const page = requestedPage(Astro.url.searchParams.get("page"));
+const { items: products, hasNext, first, last } = pageWindow(
+  await store.client.products.list({ collection: collection.handle, ...pageRequest(page) }),
+  page,
+);
+---
+
+<div class="max-w-5xl mx-auto px-5 py-8">
+  <div class="mb-8">
+    <h1 class="text-3xl font-black tracking-tight" style="color: var(--clr-text)">{collection.title}</h1>
+    {products.length > 0 && (
+      <p class="text-[0.8125rem] font-bold uppercase tracking-widest mt-1" style="color: var(--clr-text-2)">
+        {page === 1 && !hasNext ? products.length : `${first}–${last}`} {content.productCountLabel}
+      </p>
+    )}
+    {collection.description && (
+      <p class="text-sm mt-3 max-w-2xl" style="color: var(--clr-text-2)">{collection.description}</p>
+    )}
+  </div>
+
+  {products.length > 0 ? (
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+      {products.map((product, i) => (
+        <ProductCard product={product} currencySymbol={currencySymbol} eager={i < 4} copy={content} />
+      ))}
+    </div>
+  ) : page === 1 ? (
+    <div class="py-24 text-center">
+      <h2 class="text-xl font-black mb-2" style="color: var(--clr-text)">{content.noProductsTitle}</h2>
+      <a
+        href={store.href(storefrontPath("catalog"))}
+        data-astro-prefetch="hover"
+        class="btn-primary !w-auto !px-8 mt-6"
+        aria-label={content.ariaBrowseAllProducts}
+      >
+        {content.viewAllCta}
+      </a>
+    </div>
+  ) : null}
+  <ListingPager basePath={store.href(storefrontPath("collection", { handle: collection.handle }))} page={page} hasNext={hasNext} content={content} />
+</div>

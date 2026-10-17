@@ -48,4 +48,5 @@ export const arMisc: MiscStrings = {
   thankYouPageTitle: "تم استلام طلبك",
   defaultMetaDescription: "تسوق من {storeName} - أفضل المنتجات بأسعار مناسبة مع توصيل لجميع الولايات",
   productPageTitle: "{product} - {storeName}",
+  collectionPageTitle: "{collection} - {storeName}",
 };

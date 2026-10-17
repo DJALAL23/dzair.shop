@@ -39,4 +39,5 @@ export const frMisc: MiscStrings = {
   thankYouPageTitle: "Commande reçue",
   defaultMetaDescription: "Achetez chez {storeName} - Les meilleurs produits à des prix abordables avec livraison dans toutes les wilayas",
   productPageTitle: "{product} - {storeName}",
+  collectionPageTitle: "{collection} - {storeName}",
 };

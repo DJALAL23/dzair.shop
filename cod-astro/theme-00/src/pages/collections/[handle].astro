@@ -1,0 +1,23 @@
+---
+// ── CUSTOMIZE HERE ────────────────────────────────────────────────────────────
+// Collection page (page type `collection`): a list of products the merchant
+// curates, in their order — the page a menu item links to.
+// ─────────────────────────────────────────────────────────────────────────────
+import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import CollectionPageContent from "@/theme/components/listing/CollectionPageContent.astro";
+import { message } from "@/theme/content/messages";
+
+const { handle } = Astro.params;
+const { config, content, locale, client } = Astro.locals.store;
+
+// The collection first: an unknown handle is a real 404, never an empty 200.
+const collection = await client.collections.get(handle!);
+if (!collection) return Astro.rewrite("/404");
+---
+
+<StoreLayout
+  title={message(content, "collectionPageTitle", { collection: collection.title, storeName: config.name }, locale)}
+  description={collection.description ?? undefined}
+>
+  <CollectionPageContent collection={collection} currencySymbol={config.currencySymbol} content={content} />
+</StoreLayout>
