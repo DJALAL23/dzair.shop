@@ -71,7 +71,6 @@ import {
   type CatalogVariant,
   type PricedLine,
 } from "./catalog-snapshot";
-import { resolveCartOffers } from "./offers-cart";
 import { parseCheckoutFormPolicy } from "../checkout-form/policy";
 import { resolveStorefrontWidget } from "../whatsapp-widget/config";
 import {
@@ -544,7 +543,7 @@ export async function getStoreProductByHandle(
         rewardVariantLabel: rewardVariant
           ? variantLabel(rewards.variations(rewardVariant.productId, variantSelection(rewardVariant)))
           : null,
-        // What one gift is worth: its variant's price, or the gift product's.
+        // What one reward unit is worth: its variant's price, or its product's.
         rewardUnitPrice: rewardVariant?.price ?? rewardProduct?.price ?? null,
       };
     }),
@@ -693,60 +692,6 @@ export async function getShippingRates(db: AppDb) {
   );
 }
 
-// ─── Offer selection helper ───────────────────────────────────────────────────
-
-export async function selectApplicableOffer(
-  db: AppDb,
-  productId: string,
-  quantity: number,
-  variantId: string | null | undefined,
-  offerId: string | undefined,
-): Promise<typeof offers.$inferSelect | null> {
-  const now = new Date().toISOString();
-
-  const baseConditions = and(
-    eq(offers.triggerProductId, productId),
-    eq(offers.status, "active"),
-    lte(offers.triggerQuantity, quantity),
-    or(isNull(offers.startsAt), lte(offers.startsAt, now)),
-    or(isNull(offers.endsAt), gte(offers.endsAt, now)),
-  );
-
-  let candidates: (typeof offers.$inferSelect)[];
-
-  if (offerId) {
-    const explicit = await db
-      .select()
-      .from(offers)
-      .where(and(eq(offers.id, offerId), baseConditions))
-      .get();
-    if (explicit) candidates = [explicit];
-    else {
-      candidates = await db
-        .select()
-        .from(offers)
-        .where(baseConditions)
-        .orderBy(desc(offers.triggerQuantity))
-        .all();
-    }
-  } else {
-    candidates = await db
-      .select()
-      .from(offers)
-      .where(baseConditions)
-      .orderBy(desc(offers.triggerQuantity))
-      .all();
-  }
-
-  for (const offer of candidates) {
-    const variantMatches =
-      !offer.triggerVariantId || offer.triggerVariantId === (variantId ?? null);
-    if (variantMatches) return offer;
-  }
-
-  return null;
-}
-
 // ─── Variant grouping helper ──────────────────────────────────────────────────
 
 function groupVariantSelections(
@@ -877,7 +822,7 @@ export async function createStoreOrder(
   // Server-authoritative pricing: the catalog row is the ONLY source of a unit
   // price. The client's pricePerUnit is display-only and NEVER trusted — it
   // arrives over plain HTTP and is trivially editable.
-  const { priced, subtotal: price } = priceCartLines(snapshot, lines);
+  const { priced, subtotal: price, rewards, freeShippingOfferId } = priceCartLines(snapshot, lines);
   const lineRows: Array<typeof orderProducts.$inferInsert> = priced.map((p) => ({
     id: crypto.randomUUID(),
     orderId: id,
@@ -887,63 +832,63 @@ export async function createStoreOrder(
     variantLabel: p.variantLabel,
     sku: p.sku,
     quantity: p.line.quantity,
-    pricePerUnit: p.unitPrice,
+    // The price the shopper pays per unit: the catalog's, or the quantity
+    // tier's share, so a line always reads quantity × unit = total.
+    pricePerUnit: p.lineTotal / p.line.quantity,
     lineTotal: p.lineTotal,
+    offerId: p.offerId,
     createdAt: now,
   }));
 
-  const { earned, freeShipping } = resolveCartOffers(lines, snapshot.offers);
-  const finalDeliveryFee = freeShipping ? 0 : data.deliveryFee;
+  const finalDeliveryFee = freeShippingOfferId ? 0 : data.deliveryFee;
 
-  // ── Reward lines ─────────────────────────────────────────────────────────
+  // ── Reward lines ───────────────────────────────────────────────────────────
   //
-  // A reward whose stock cannot cover it is skipped and the order still
-  // succeeds: revenue first, promotion second. That is the existing contract.
+  // A reward whose stock cannot cover it — counting the units the shopper is
+  // paying for of the same item — is left out and the order still succeeds:
+  // revenue first, promotion second.
   const rewardLines: Array<typeof orderProducts.$inferInsert> = [];
   const rewardDeducts: DeductStockInput[] = [];
 
   // Rewards can point outside the basket — another product, a specific variant,
   // or "the default variant of that product". One batched top-up covers all
   // three; a basket whose rewards are all in-basket adds no round trip at all.
-  if (earned.length > 0) {
+  if (rewards.length > 0) {
     await extendSnapshot(db, snapshot, {
-      productIds: earned
-        .map((e) => e.offer.rewardProductId)
-        .filter((id): id is string => !!id),
-      variantIds: earned
-        .map((e) => e.offer.rewardVariantId)
-        .filter((id): id is string => !!id),
-      variantsOfProducts: earned
-        .filter((e) => e.offer.rewardProductId && !e.offer.rewardVariantId)
-        .map((e) => e.offer.rewardProductId!),
+      productIds: rewards.map((reward) => reward.offer.rewardProductId).filter((value): value is string => !!value),
+      variantIds: rewards.map((reward) => reward.offer.rewardVariantId).filter((value): value is string => !!value),
+      variantsOfProducts: rewards
+        .filter((reward) => reward.offer.rewardProductId && !reward.offer.rewardVariantId)
+        .map((reward) => reward.offer.rewardProductId!),
     });
   }
 
+  /** A product's default variant: its first active option. */
   const defaultVariantFor = (productId: string) =>
     [...snapshot.variants.values()]
-      .filter((v) => v.productId === productId && v.active)
-      .sort((a, b) => a.id.localeCompare(b.id))[0];
+      .filter((variant) => variant.productId === productId && variant.active)
+      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))[0];
 
-  const labelOf = (variant: CatalogVariant | undefined) => (variant ? variantLabel(variantSelection(variant)) : null);
+  /** Units of this item the order already takes: paid lines, and rewards placed so far. */
+  const taken = (productId: string, variantId: string | null) =>
+    [...lines, ...rewardLines.map((row) => ({ productId: row.productId, variantId: row.variantId ?? null, quantity: row.quantity }))]
+      .filter((entry) => entry.productId === productId && (variantId === null || entry.variantId === variantId))
+      .reduce((sum, entry) => sum + entry.quantity, 0);
 
-  for (const { offer, line } of earned) {
-    if (!offer.rewardProductId) continue;
-    const rewardProduct = snapshot.products.get(offer.rewardProductId);
+  for (const { offer, line } of rewards) {
+    const rewardProduct = snapshot.products.get(offer.rewardProductId!);
     if (!rewardProduct) continue;
 
-    // An unset reward variant mirrors the shopper's choice when the reward is
-    // the product ordered, and is the product's default variant otherwise.
+    // An unset reward variant mirrors the shopper's choice when the reward is the
+    // product ordered, and is the product's default variant otherwise.
     const rewardVariantId: string | null =
       offer.rewardVariantId ??
-      (offer.rewardProductId === line.productId ? line.variantId : (defaultVariantFor(offer.rewardProductId)?.id ?? null));
+      (offer.rewardProductId === line.productId ? line.variantId : (defaultVariantFor(offer.rewardProductId!)?.id ?? null));
     const rewardVariant = rewardVariantId ? snapshot.variants.get(rewardVariantId) : undefined;
-    const rewardVariantLabel = labelOf(rewardVariant);
 
     if (rewardProduct.trackInventory) {
-      const available = rewardVariantId
-        ? (rewardVariant?.inventory ?? 0)
-        : rewardProduct.inventory;
-      if (available < offer.rewardQuantity) continue; // silently skipped
+      const available = rewardVariantId ? (rewardVariant?.inventory ?? 0) : rewardProduct.inventory;
+      if (available - taken(offer.rewardProductId!, rewardVariantId) < offer.rewardQuantity) continue;
     }
 
     rewardLines.push({
@@ -952,19 +897,19 @@ export async function createStoreOrder(
       productId: offer.rewardProductId,
       productName: rewardProduct.name,
       variantId: rewardVariantId,
-      variantLabel: rewardVariantLabel
-        ? `${rewardVariantLabel} — 🎁 مجاني`
-        : "🎁 مجاني",
+      variantLabel: rewardVariant ? variantLabel(variantSelection(rewardVariant)) : null,
       sku: rewardVariantId ? (rewardVariant?.sku ?? null) : rewardProduct.sku,
       quantity: offer.rewardQuantity,
       pricePerUnit: 0,
       lineTotal: 0,
+      offerId: offer.id,
+      reward: true,
       createdAt: now,
     });
 
     if (rewardProduct.trackInventory) {
       rewardDeducts.push({
-        productId: offer.rewardProductId,
+        productId: offer.rewardProductId!,
         variantId: rewardVariantId,
         quantity: offer.rewardQuantity,
         orderId: id,
@@ -1018,6 +963,7 @@ export async function createStoreOrder(
         orderType: "online",
         deliveryType: data.deliveryType,
         deliveryFee: finalDeliveryFee,
+        deliveryOfferId: freeShippingOfferId,
         codAmount: price + finalDeliveryFee,
         fbc: data.fbc ?? null,
         fbp: data.fbp ?? null,

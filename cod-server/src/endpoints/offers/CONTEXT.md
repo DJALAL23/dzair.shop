@@ -1,74 +1,74 @@
 # Offers Context
 
-Buy X Get Y promotions: what the shopper must buy, what they get free, and how the server picks and applies an offer at checkout without any coupon code.
+Promotions the server applies on its own at checkout — the Algerian COD market has no coupon box. Three kinds: Buy X Get Y, Buy X Get Free Delivery, and Quantity Pricing.
 
 ## Language
 
 ### Offer Anatomy
 
 **Offer**:
-A promotion applied automatically at storefront checkout — the Algerian COD market has no coupon-code input anywhere.
-_Avoid_: Coupon, discount code, promo code
+A promotion applied automatically to a product at checkout. The merchant configures it; the shopper never enters anything.
+_Avoid_: Coupon, discount code, promo code (a coupon is something a shopper enters — a separate concept)
 
 **Trigger**:
-The qualifying condition: a product (optionally pinned to one variant) plus a minimum quantity the shopper must order.
+The product an offer is about, optionally locked to one variant, and the quantity that qualifies.
 _Avoid_: Condition, requirement
 
-**Reward**:
-The free goods granted when triggered — a product and quantity appended to the order as zero-price lines. Required for Buy X Get Y offers; absent for Free Shipping Offers.
-_Avoid_: Gift, bonus, prize
+**Counted Units**:
+The units an offer judges a basket by: every line of the product across its variants, or only the variant the offer is locked to.
+_Avoid_: Total quantity (ambiguous once variants are locked)
 
-**Free Shipping Offer**:
-An offer whose reward is delivery itself — the resolved delivery fee drops to zero instead of any product being added.
-_Avoid_: Shipping discount, delivery deal
+**Reward**:
+The goods a Buy X Get Y offer gives: a product and quantity added to the order at no charge, once per order whatever the quantity bought.
+_Avoid_: Prize, bonus
+
+**Free Delivery Offer**:
+An offer whose benefit is delivery itself: the delivery fee drops to zero, for a basket of that product alone.
+_Avoid_: Shipping discount
+
+**Quantity Pricing**:
+An offer that prices a product by how many are bought, through Price Tiers ("1 for 2,000 DA, 2 for 3,500 DA, 3 for 4,500 DA").
+_Avoid_: Bundle, volume discount, pack offer
+
+**Price Tier**:
+One step of Quantity Pricing: from a quantity, a price for that many — and optionally free delivery. The highest tier the Counted Units reach applies, its per-unit price covering every unit.
+_Avoid_: Level, bracket
 
 **Schedule**:
-Optional start and end timestamps. A missing start means active immediately; a missing end means it never expires.
-_Avoid_: Run dates, campaign window
+Optional start and end. No start means live immediately; no end means it never expires; an end always comes after the start.
+_Avoid_: Campaign window
 
 **Offer Status**:
-A manual `active` / `inactive` switch. Only active offers within their schedule can ever qualify.
-_Avoid_: Enabled flag, published state
+A manual `active` / `inactive` switch. Only an active offer within its schedule is live.
+_Avoid_: Enabled flag
 
 ### Application
 
-**Auto-Application**:
-The server detects and applies offers during store order creation. Merchants configure; shoppers never trigger anything.
-_Avoid_: Manual apply, redemption
+**One Offer per Product**:
+A product gets at most one offer per order. Among those it qualifies for, the shopper's pick wins if it qualifies on its own; otherwise the highest threshold reached. Quantity Pricing is never live beside another offer for the same product.
+_Avoid_: Stacking
 
-**Highest-Tier Wins**:
-When several offers qualify for one order, the one demanding the largest quantity is chosen — not the oldest or first listed.
-_Avoid_: First-match wins, priority order
+**Live Offer**:
+An offer active and within its schedule right now.
 
-**Explicit Selection Fallback**:
-The storefront may name a specific offer; if it no longer qualifies, the server silently falls back to auto-detection rather than erroring.
-_Avoid_: Rejection, invalid coupon error
-
-**Silent Stock Skip**:
-If the reward item lacks stock, the offer vanishes from the order with no warning — checkout still succeeds.
-_Avoid_: Out-of-stock error, backorder
-
-**Reward Deduction**:
-Reward units leave inventory exactly like paid units when the reward product tracks stock.
-_Avoid_: Virtual items, non-counted freebies
+**Reward Left Out**:
+A reward the stock cannot cover — once the units the shopper pays for are counted — is left out of the order; the order still goes through.
+_Avoid_: Out-of-stock error
 
 ## Boundaries
 
-Terms owned by neighboring contexts — use them, don't redefine them here:
-
-- **Where application happens**: Store context checkout — this module owns offer data and rules, the storefront order flow executes them
-- **Delivery fee mechanics**: Shipping Profiles context — Free Shipping Offers override the resolved fee to zero but never compute fees themselves
-- **Trigger / reward product existence**: Products context — deleting those products cascades these offers away
-- **Order line rendering**: Orders context — rewards appear there as ordinary zero-price lines with gift labeling
+- **Where application happens**: the storefront checkout and its cart quote apply offers through one pricing path, so what the shopper is shown is what the order charges.
+- **Delivery fee mechanics**: Shipping Profiles context — an offer can make the fee zero, never compute it.
+- **Trigger / reward products**: Products context — deleting a product deletes the offers about it.
+- **Order lines**: Orders context — a line records the offer that priced it, and a reward line is marked as a reward.
+- **Coupons** (planned): a shopper-entered code — a different concept from an offer, applied after offers.
 
 ## Edge Cases
 
-**One offer per order, period**: No matter how many qualify, a single order receives at most one offer's benefits.
+**A locked variant counts alone**: "Buy 2 Red" needs two Red; one Red and one Blue do not qualify.
 
-**Same-product rewards inherit the shopper's variant**: An unspecified reward variant resolves to the exact variant ordered when reward equals trigger product; cross-product rewards take the first active variant by position.
+**A mixed basket earns no offer free delivery**: free delivery from an offer or a tier needs a basket of that product alone; a mixed basket earns free delivery only from the store's threshold.
 
-**Tier conflict is decided by demand, not age**: Older documentation claimed first-created wins; selection actually orders by highest satisfied trigger quantity.
+**Tiers share their price across sizes**: two sizes bought under one tier pay the tier's price together, split so the lines add up to it exactly.
 
-**Deleting products deletes offers**: Trigger and reward product rows cascade their offers away — no orphaned promotions linger.
-
-**Inactive is invisible everywhere**: An inactive offer neither appears on product pages nor qualifies at checkout, regardless of schedule.
+**Deleting products deletes offers**: no offer outlives the product it is about.

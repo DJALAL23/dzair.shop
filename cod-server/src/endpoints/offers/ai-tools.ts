@@ -4,6 +4,8 @@ import * as queries from "./queries";
 import { createOfferSchema, updateOfferSchema } from "./validation";
 import { getDb } from "@/db";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
+import { offerWriteError } from "./handlers";
+import type { OfferWriteProblem } from "../../../../cod-shared/queries/offers";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -54,7 +56,7 @@ export const OFFER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         id: z.string().describe("Offer UUID"),
         name: z.string(),
         status: z.string().describe("active | inactive"),
-        discountType: z.string().describe("free (Buy X Get Y reward) | free_shipping (delivery fee waived)"),
+        discountType: z.string().describe("free (Buy X Get Y reward) | free_shipping (delivery fee waived) | quantity_price (price tiers by quantity)"),
         triggerProduct: offerProductRefSchema,
         triggerVariant: z.looseObject({ id: z.string().optional() }).nullable().describe("The triggering variant, or null"),
         triggerQuantity: z.number().int().describe("Minimum ordered units of the trigger product"),
@@ -191,11 +193,12 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
 
   createOffer: tool({
     description:
-      "Creates a new Buy X Get Y promotional offer. " +
-      "Required: name (2-200 chars), triggerProductId (UUID), triggerQuantity (int 1-1000). " +
+      "Creates an offer, applied automatically at checkout (one offer per product per order). " +
+      "Required: name (2-200 chars), triggerProductId (UUID). " +
       "discountType rules: " +
-      '  "free" (default) → rewardProductId is REQUIRED; rewardQuantity defaults to 1. ' +
-      '  "free_shipping"  → omit rewardProductId and rewardVariantId; set rewardQuantity to 0. ' +
+      '  "free" (default, Buy X Get Y) → triggerQuantity (int 1-1000, default 2) and rewardProductId are REQUIRED; rewardQuantity defaults to 1; the gift is given once per order. ' +
+      '  "free_shipping" (Buy X, free delivery) → triggerQuantity; omit every reward field. ' +
+      '  "quantity_price" (e.g. 1 for 2000, 2 for 3500, 3 for 4500) → tiers: [{ quantity, price (whole DZD for that many), freeShipping? }], 1-10 distinct quantities; the highest tier reached prices every unit at its per-unit price; omit reward fields and triggerQuantity. It cannot be live beside another offer for the same product. ' +
       "Optional: triggerVariantId (lock trigger to a specific variant), " +
       "rewardVariantId (lock reward to a specific variant), " +
       "startsAt / endsAt (ISO-8601 datetime strings for scheduling), " +
@@ -213,9 +216,10 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
           success: false,
           error:
             `Invalid offer data: ${errorDetails}. ` +
-            `Required: name (2-200 chars), triggerProductId (UUID), triggerQuantity (int 1-1000). ` +
-            `discountType "free" (default): rewardProductId (UUID) is required, rewardQuantity defaults to 1. ` +
-            `discountType "free_shipping": omit rewardProductId; set rewardQuantity to 0. ` +
+            `Required: name (2-200 chars), triggerProductId (UUID). ` +
+            `discountType "free" (default): triggerQuantity and rewardProductId (UUID) are required, rewardQuantity defaults to 1. ` +
+            `discountType "free_shipping": triggerQuantity; no reward fields. ` +
+            `discountType "quantity_price": tiers [{ quantity, price, freeShipping? }]; no reward fields. ` +
             `Optional: triggerVariantId (UUID), rewardVariantId (UUID), ` +
             `startsAt (ISO-8601 datetime), endsAt (ISO-8601 datetime), ` +
             `status ("active" | "inactive", default "active").`,
@@ -223,8 +227,9 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        const { id } = await queries.createOffer(db, parsed.data);
-        const offer = await queries.getOfferById(db, id);
+        const created = await queries.createOffer(db, parsed.data);
+        if (!created.ok) return { success: false, error: offerWriteError(created).message + ` (${created.reason})` };
+        const offer = await queries.getOfferById(db, created.id);
         return {
           success: true,
           offer,
@@ -242,8 +247,8 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
   updateOffer: tool({
     description:
       "Partially updates an existing offer. All fields are optional — only include what you want to change. " +
-      "If you change discountType to 'free', ensure rewardProductId is also set (either already on the offer or included in this update). " +
-      "If you change discountType to 'free_shipping', clear rewardProductId and rewardVariantId by setting them to null. " +
+      "The whole offer must stay coherent after the update: a 'free' offer needs rewardProductId, a 'quantity_price' offer needs tiers. " +
+      "Changing discountType drops the old kind's own fields (gift, tiers). " +
       "Changing triggerProductId or triggerVariantId takes effect immediately for new orders.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -261,7 +266,7 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
           error:
             `Invalid update arguments: ${errorDetails}. ` +
             `Expected: offerId (UUID), updates object with optional fields: ` +
-            `name (2-200 chars), discountType ("free" | "free_shipping"), ` +
+            `name (2-200 chars), discountType ("free" | "free_shipping" | "quantity_price"), tiers ([{ quantity, price, freeShipping? }]), ` +
             `triggerProductId (UUID), triggerVariantId (UUID or null), triggerQuantity (int 1-1000), ` +
             `rewardProductId (UUID or null), rewardVariantId (UUID or null), rewardQuantity (int 0-1000), ` +
             `startsAt (ISO-8601 or null), endsAt (ISO-8601 or null), status ("active" | "inactive").`,
@@ -269,15 +274,14 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        const existing = await queries.getOfferById(db, parsed.data.offerId);
-        if (!existing) {
+        const updated = await queries.updateOffer(db, parsed.data.offerId, parsed.data.updates);
+        if (!updated.ok && updated.reason === "not_found") {
           return {
             success: false,
             error: `Offer not found with ID: ${parsed.data.offerId}`,
           };
         }
-
-        await queries.updateOffer(db, parsed.data.offerId, parsed.data.updates);
+        if (!updated.ok) return { success: false, error: offerWriteError(updated as OfferWriteProblem).message + ` (${updated.reason})` };
         const offer = await queries.getOfferById(db, parsed.data.offerId);
         return {
           success: true,

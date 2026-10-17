@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, real, uniqueIndex, index, primaryKey, foreignKey, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { MENU_DESTINATION_TYPES } from "../navigation/menus";
+import { OFFER_KINDS } from "../offers/model";
 import { HANDOFF_STATES, SETTLEMENT_COMPONENTS, SHIPMENT_EVENT_SOURCES, SHIPMENT_KINDS } from "../shipments/model";
 import { INTERPRETATION_KIND_VALUES, MILESTONES } from "../shipments/interpretation";
 import { CARRIER_PROVIDERS } from "../carriers/providers";
@@ -503,6 +504,8 @@ export const orders = sqliteTable("orders", {
    * sales, the customer's history and spend. Null while it is not archived.
    */
   archivedAt: text("archived_at"),
+  /** The offer that made delivery free (a free-shipping offer, or a quantity-pricing tier); null when none did (migration 0051). */
+  deliveryOfferId: text("delivery_offer_id").references((): AnySQLiteColumn => offers.id, { onDelete: "set null" }),
 });
 
 export const orderStatusHistory = sqliteTable("order_status_history", {
@@ -646,6 +649,14 @@ export const orderProducts = sqliteTable("order_products", {
   /** Units the customer refused at the door. 0 when status = fulfilled. */
   returnedQuantity: integer("returned_quantity").notNull().default(0),
   createdAt: text("created_at").notNull(),
+  /**
+   * The offer that shaped this line (migration 0051): a quantity-pricing offer
+   * that set its price, or the gift offer it was given by. Null for a line at
+   * the catalog price.
+   */
+  offerId: text("offer_id").references((): AnySQLiteColumn => offers.id, { onDelete: "set null" }),
+  /** A gift: given by `offerId`, at no charge. */
+  reward: integer("reward", { mode: "boolean" }).notNull().default(false),
 });
 
 // ─── Delivery Provider Integration ───────────────────────────────────────────
@@ -1289,9 +1300,13 @@ export const webhookEvents = sqliteTable("webhook_events", {
  *           rewardProduct === triggerProduct — see store/queries.ts for resolution logic)
  *
  * Scheduling: null startsAt = active immediately; null endsAt = never expires.
- * Multiple active offers on same product: the one with the HIGHEST satisfied
- * triggerQuantity wins (store.ts selectApplicableOffer orders by triggerQuantity DESC).
- * createdAt ASC ordering applies only to the storefront display list.
+ * Quantity pricing (`quantity_price`): price tiers in `offer_price_tiers`;
+ * `triggerQuantity` is its lowest tier's quantity.
+ *
+ * One offer per product per order — the highest threshold reached wins; the
+ * rules are `offers/engine.ts`'s. createdAt ASC ordering applies only to the
+ * storefront display list. The database keeps each kind coherent (migration
+ * 0051).
  */
 export const offers = sqliteTable("offers", {
   id: text("id").primaryKey(),
@@ -1336,7 +1351,7 @@ export const offers = sqliteTable("offers", {
    * "free"          = reward items at pricePerUnit = 0 (Buy X Get Y free product).
    * "free_shipping" = delivery fee overridden to 0 (no reward product inserted).
    */
-  discountType: text("discount_type", { enum: ["free", "free_shipping"] }).notNull().default("free"),
+  discountType: text("discount_type", { enum: OFFER_KINDS }).notNull().default("free"),
 
   // ── Schedule ─────────────────────────────────────────────────────────────────
   /** ISO 8601 datetime. null = active immediately. */
@@ -1351,6 +1366,20 @@ export const offers = sqliteTable("offers", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/**
+ * A quantity-pricing offer's tiers (migration 0051): from `quantity` units, the
+ * line costs `price` for that many — the per-unit price of the highest tier
+ * reached applies to every unit — with free delivery when `freeShipping`.
+ */
+export const offerPriceTiers = sqliteTable("offer_price_tiers", {
+  offerId: text("offer_id").notNull().references(() => offers.id, { onDelete: "cascade" }),
+  quantity: integer("quantity").notNull(),
+  price: integer("price").notNull(),
+  freeShipping: integer("free_shipping", { mode: "boolean" }).notNull().default(false),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.offerId, t.quantity] }),
+}));
 
 // ─── Landing Pages ────────────────────────────────────────────────────────────
 

@@ -177,6 +177,10 @@ export const ERROR_CODES = {
   OFFER_NOT_FOUND: "OFFER_NOT_FOUND",
   OFFER_EXPIRED: "OFFER_EXPIRED",
   OFFER_NOT_ACTIVE: "OFFER_NOT_ACTIVE",
+  /** The offer the write would leave is incoherent: a gift with no gift, tiers out of bounds, a schedule ending before it starts, a variant of another product. */
+  INVALID_OFFER: "INVALID_OFFER",
+  /** Quantity pricing scheduled beside another live offer for the same product: a product gets one offer per order. */
+  OFFER_CONFLICT: "OFFER_CONFLICT",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - REVIEWS

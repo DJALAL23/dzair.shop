@@ -12,7 +12,9 @@
  */
 
 import { eq, and, or, inArray, isNull, lte, gte, desc } from "drizzle-orm";
-import { products, productVariants, offers } from "../db/schema";
+import { products, productVariants, offers, offerPriceTiers } from "../db/schema";
+import { applyOffers, type EarnedReward, type EngineOffer } from "../offers/engine";
+import type { PriceTier } from "../offers/model";
 import type { AppDb } from "../db/client";
 import { chunkIds } from "./d1-limits";
 import { productIdsOf, variantIdsOf, type CartLine } from "./cart";
@@ -40,9 +42,12 @@ export interface CatalogVariant {
   inventory: number;
   variations: string;
   active: boolean;
+  /** Its place among the product's options: the first active one is the product's default. */
+  position: number;
 }
 
-export type CatalogOffer = typeof offers.$inferSelect;
+/** An offer as the engine reads it (`offers/engine.ts`), with its price tiers. */
+export type CatalogOffer = EngineOffer;
 
 export interface CatalogSnapshot {
   products: Map<string, CatalogProduct>;
@@ -72,6 +77,7 @@ const VARIANT_COLUMNS = {
   inventory: productVariants.inventory,
   variations: productVariants.variations,
   active: productVariants.active,
+  position: productVariants.position,
 } as const;
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
@@ -102,27 +108,29 @@ export async function loadCatalogSnapshot(
       .where(inArray(productVariants.id, chunk)),
   );
 
-  // Selection among these is decided in memory — see resolveCartOffers. The
+  // Selection among these is decided in memory — see offers/engine.ts. The
   // database only narrows to what is active and in schedule right now.
-  const offerStatements = chunkIds(productIds).map((chunk) =>
+  const live = (chunk: string[]) =>
+    and(
+      inArray(offers.triggerProductId, chunk),
+      eq(offers.status, "active"),
+      or(isNull(offers.startsAt), lte(offers.startsAt, now)),
+      or(isNull(offers.endsAt), gte(offers.endsAt, now)),
+    );
+  const offerStatements = chunkIds(productIds).map((chunk) => db.select().from(offers).where(live(chunk)));
+  const tierStatements = chunkIds(productIds).map((chunk) =>
     db
-      .select()
-      .from(offers)
-      .where(
-        and(
-          inArray(offers.triggerProductId, chunk),
-          eq(offers.status, "active"),
-          or(isNull(offers.startsAt), lte(offers.startsAt, now)),
-          or(isNull(offers.endsAt), gte(offers.endsAt, now)),
-        ),
-      )
-      .orderBy(desc(offers.triggerQuantity)),
+      .select({ offerId: offerPriceTiers.offerId, quantity: offerPriceTiers.quantity, price: offerPriceTiers.price, freeShipping: offerPriceTiers.freeShipping })
+      .from(offerPriceTiers)
+      .innerJoin(offers, eq(offers.id, offerPriceTiers.offerId))
+      .where(live(chunk)),
   );
 
   const statements = [
     ...productStatements,
     ...variantStatements,
     ...offerStatements,
+    ...tierStatements,
   ] as unknown as BatchStatement[];
 
   if (statements.length === 0) {
@@ -135,6 +143,8 @@ export async function loadCatalogSnapshot(
 
   const productEnd = productStatements.length;
   const variantEnd = productEnd + variantStatements.length;
+  const offerEnd = variantEnd + offerStatements.length;
+  const tiers = results.slice(offerEnd).flat() as Array<PriceTier & { offerId: string }>;
 
   return {
     products: new Map(
@@ -146,7 +156,17 @@ export async function loadCatalogSnapshot(
         r,
       ]),
     ),
-    offers: results.slice(variantEnd).flat() as CatalogOffer[],
+    offers: (results.slice(variantEnd, offerEnd).flat() as Array<typeof offers.$inferSelect>).map((row) => ({
+      id: row.id,
+      discountType: row.discountType,
+      triggerProductId: row.triggerProductId,
+      triggerVariantId: row.triggerVariantId,
+      triggerQuantity: row.triggerQuantity,
+      rewardProductId: row.rewardProductId,
+      rewardVariantId: row.rewardVariantId,
+      rewardQuantity: row.rewardQuantity,
+      tiers: tiers.filter((tier) => tier.offerId === row.id).map(({ quantity, price, freeShipping }) => ({ quantity, price, freeShipping })),
+    })),
   };
 }
 
@@ -286,12 +306,15 @@ export function variantSelection(variant: Pick<CatalogVariant, "variations">): R
   }
 }
 
-/** A cart line priced from the catalog, ready to become an order line. */
+/** A cart line priced from the catalog and its offers, ready to become an order line. */
 export interface PricedLine {
   line: CartLine;
   /** Catalog unit price in DZD. Never the client's claim. */
   unitPrice: number;
+  /** What the line costs: its catalog price, or its quantity-pricing tier's. */
   lineTotal: number;
+  /** The quantity-pricing offer that set `lineTotal`; null at the catalog price. */
+  offerId: string | null;
   sku: string | null;
   /**
    * The catalog's own names, in the store's primary language — what the order
@@ -303,46 +326,60 @@ export interface PricedLine {
   variantLabel: string | null;
 }
 
-/**
- * Price every line from the catalog snapshot.
- *
- * Server-authoritative pricing lives here and nowhere else: the client's
- * `pricePerUnit` is display-only and is never consulted. Both the storefront
- * handler (which needs the subtotal to test the free-delivery threshold) and
- * the order engine (which writes the lines) call this, so the number the
- * threshold is judged against and the number the customer is charged cannot
- * drift apart.
- *
- * A soft-deleted product prices at 0 rather than throwing — the order engine
- * refuses it separately, and pricing is not the place to decide sellability.
- */
-export function priceCartLines(
-  snapshot: CatalogSnapshot,
-  lines: CartLine[],
-): { priced: PricedLine[]; subtotal: number } {
-  const priced: PricedLine[] = [];
-  let subtotal = 0;
-
-  for (const line of lines) {
+/** Every line at its catalog price — what a line is worth before any offer. */
+function catalogPrices(snapshot: CatalogSnapshot, lines: CartLine[]): PricedLine[] {
+  return lines.map((line) => {
     const product = snapshot.products.get(line.productId);
     const variant = line.variantId ? snapshot.variants.get(line.variantId) : undefined;
-
     const unitPrice = variant ? variant.price : (product?.price ?? 0);
-    const lineTotal = unitPrice * line.quantity;
-
-    subtotal += lineTotal;
-    priced.push({
+    return {
       line,
       unitPrice,
-      lineTotal,
+      lineTotal: unitPrice * line.quantity,
+      offerId: null,
       sku: variant ? variant.sku : (product?.sku ?? null),
       productName: product?.name ?? line.productName,
       variantLabel:
         line.variantId === null ? null : variant ? variantLabel(variantSelection(variant)) : line.variantLabel,
-    });
-  }
+    };
+  });
+}
 
-  return { priced, subtotal };
+/** A basket priced: its lines, their sum, and what its offers give besides. */
+export interface PricedBasket {
+  priced: PricedLine[];
+  subtotal: number;
+  /** Buy X Get Y offers earned, each with the counted line a same-product reward mirrors. */
+  rewards: EarnedReward<CartLine & { unitPrice: number }>[];
+  /** The offer that made delivery free, or null. */
+  freeShippingOfferId: string | null;
+}
+
+/**
+ * Price every line from the catalog snapshot and the basket's offers.
+ *
+ * Server-authoritative pricing lives here and nowhere else: the client's
+ * `pricePerUnit` is display-only and is never consulted. The storefront's
+ * cart quote (which shows the shopper the total and tests the free-delivery
+ * threshold) and the order engine (which writes the lines) both call this, so
+ * what the shopper is shown and what they are charged cannot drift apart.
+ *
+ * A soft-deleted product prices at 0 rather than throwing — the order engine
+ * refuses it separately, and pricing is not the place to decide sellability.
+ */
+export function priceCartLines(snapshot: CatalogSnapshot, lines: CartLine[]): PricedBasket {
+  const atCatalog = catalogPrices(snapshot, lines);
+  const applied = applyOffers(
+    atCatalog.map((entry) => ({ ...entry.line, unitPrice: entry.unitPrice })),
+    snapshot.offers,
+  );
+  const priced = atCatalog.map((entry, index) => ({ ...entry, ...applied.lines[index]! }));
+  return {
+    priced,
+    subtotal: priced.reduce((sum, entry) => sum + entry.lineTotal, 0),
+    rewards: applied.rewards,
+    freeShippingOfferId: applied.freeShippingOfferId,
+  };
 }
 
 /** Why a line cannot be ordered, or null when it can. */
@@ -372,9 +409,7 @@ export function resolveCartLines(
   snapshot: CatalogSnapshot,
   lines: CartLine[],
 ): ResolvedLine[] {
-  const { priced } = priceCartLines(snapshot, lines);
-
-  return priced.map((entry) => {
+  return catalogPrices(snapshot, lines).map((entry) => {
     const { line } = entry;
     const product = snapshot.products.get(line.productId);
     const variant = line.variantId ? snapshot.variants.get(line.variantId) : undefined;

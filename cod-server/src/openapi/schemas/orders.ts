@@ -74,6 +74,10 @@ export const OrderProductSchema = z
         "Units the customer refused at the door. Always 0 when status=fulfilled, = quantity when status=returned.",
     }),
     createdAt: z.string().datetime(),
+    offerId: z.string().nullable().openapi({
+      description: "The offer that shaped the line: the quantity-pricing offer that set its price, or the gift offer that gave it. Null at the catalog price.",
+    }),
+    reward: z.boolean().openapi({ description: "A gift, given by `offerId` at no charge" }),
   })
   .openapi("OrderProduct");
 
@@ -138,6 +142,9 @@ const OrderBaseSchema = z.object({
   }),
   archivedAt: z.string().datetime().nullable().openapi({
     description: "When the finished order was archived: it is left out of the working lists and their counts, and still counts in sales and the customer's history. Null while not archived.",
+  }),
+  deliveryOfferId: z.string().nullable().openapi({
+    description: "The offer that made delivery free (a free-shipping offer, or a quantity tier that includes it); null when none did",
   }),
 });
 

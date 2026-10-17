@@ -1,42 +1,37 @@
 import { z } from "zod";
+import { MAX_PRICE_TIERS, MAX_TIER_QUANTITY, OFFER_KINDS } from "../../../../cod-shared/offers/model";
 
-// Base object — no refinements so .partial() works cleanly for updates
-const offerBaseSchema = z.object({
+/**
+ * The shape of an offer write. Whether the whole offer is coherent — a gift
+ * offer names its gift, quantity pricing has tiers — is judged on the offer
+ * the write leaves (`offerProblem` in cod-shared), not here, so an edit is
+ * judged with the fields it does not touch.
+ */
+const priceTier = z.object({
+  quantity: z.number().int().min(1).max(MAX_TIER_QUANTITY),
+  price: z.number().int().min(0),
+  freeShipping: z.boolean().default(false),
+});
+
+export const createOfferSchema = z.object({
   name: z.string().min(2).max(200),
-  discountType: z.enum(["free", "free_shipping"]).default("free"),
+  discountType: z.enum(OFFER_KINDS).default("free"),
   triggerProductId: z.string().min(1),
-  triggerVariantId: z.string().min(1).optional(),
-  triggerQuantity: z.number().int().min(1).max(1000),
-  // Required for 'free' type; omitted for 'free_shipping'
-  rewardProductId: z.string().min(1).optional(),
-  rewardVariantId: z.string().min(1).optional(),
-  // 0 is valid for 'free_shipping' (no product reward)
-  rewardQuantity: z.number().int().min(0).max(1000).default(1),
-  startsAt: z.string().datetime({ offset: true }).optional(),
-  endsAt: z.string().datetime({ offset: true }).optional(),
+  triggerVariantId: z.string().min(1).nullish(),
+  triggerQuantity: z.number().int().min(1).max(1000).optional(),
+  rewardProductId: z.string().min(1).nullish(),
+  rewardVariantId: z.string().min(1).nullish(),
+  rewardQuantity: z.number().int().min(0).max(1000).optional(),
+  tiers: z.array(priceTier).max(MAX_PRICE_TIERS).optional(),
+  startsAt: z.string().datetime({ offset: true }).nullish(),
+  endsAt: z.string().datetime({ offset: true }).nullish(),
   status: z.enum(["active", "inactive"]).default("active"),
 });
 
-// Create: add cross-field rule — rewardProductId required when discountType = 'free'
-export const createOfferSchema = offerBaseSchema.superRefine((data, ctx) => {
-  if (data.discountType === "free" && !data.rewardProductId) {
-    ctx.addIssue({
-      code: "custom",
-      message: "rewardProductId is required for 'free' discount type",
-      path: ["rewardProductId"],
-    });
-  }
-});
-
-// Update: all fields optional — .partial() on the base object, no refinement needed.
-// The fields a merchant can empty also take null, which clears the stored value;
-// a key that is left out keeps it. Without null an end date could never be removed.
-export const updateOfferSchema = offerBaseSchema.partial().extend({
-  triggerVariantId: z.string().min(1).optional().nullable(),
-  rewardProductId: z.string().min(1).optional().nullable(),
-  rewardVariantId: z.string().min(1).optional().nullable(),
-  startsAt: z.string().datetime({ offset: true }).optional().nullable(),
-  endsAt: z.string().datetime({ offset: true }).optional().nullable(),
+/** Any field; a field left out keeps its value, null clears one that may be empty. */
+export const updateOfferSchema = createOfferSchema.partial().extend({
+  discountType: z.enum(OFFER_KINDS).optional(),
+  status: z.enum(["active", "inactive"]).optional(),
 });
 
 export type CreateOfferInput = z.infer<typeof createOfferSchema>;

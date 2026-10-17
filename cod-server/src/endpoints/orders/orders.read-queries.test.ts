@@ -25,6 +25,8 @@ function opRow(overrides: Record<string, unknown> = {}): Record<string, unknown>
     status: "fulfilled",
     returned_quantity: 0,
     created_at: NOW,
+    offer_id: null,
+    reward: 0,
     ...overrides,
   };
 }

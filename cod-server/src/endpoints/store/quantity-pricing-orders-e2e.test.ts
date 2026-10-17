@@ -1,0 +1,164 @@
+/**
+ * Offers on real orders — real D1, real migrations, the real order engine and
+ * the real cart quote.
+ *
+ *  1. Quantity pricing charges the tier the order reaches, records the offer
+ *     on its lines, keeps every line reading quantity × unit = total, and makes
+ *     delivery free on a tier that includes it — and the cart quote shows the
+ *     shopper exactly what the order then charges.
+ *  2. A gift is recorded as a gift, and a gift the stock cannot cover — once
+ *     the units the shopper pays for are counted — is left out while the order
+ *     goes through.
+ */
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { eq, sql } from "drizzle-orm";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "@/db/schema";
+import { errorHandler } from "@/middleware/error";
+import { openApiValidationHook } from "@/openapi/validation-hook";
+import { createTestD1, type TestD1 } from "@/test-utils/d1";
+import type { AppContext } from "@/types";
+import { createStoreOrder, findOrCreateCustomer } from "../../../../cod-shared/queries/store";
+import storeRoutes from "./routes";
+
+const T = "2026-10-01T00:00:00.000Z";
+const STORE = "s1";
+let d1: TestD1;
+let app: OpenAPIHono<AppContext>;
+
+beforeAll(async () => {
+  d1 = await createTestD1();
+  app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
+  app.use("*", async (c, next) => {
+    c.env = { DB: d1.raw } as AppContext["Bindings"];
+    c.set("storeId", STORE);
+    await next();
+  });
+  app.onError(errorHandler);
+  app.route("/store", storeRoutes);
+}, 120_000);
+
+afterAll(async () => {
+  await d1?.dispose();
+});
+
+beforeEach(async () => {
+  for (const table of ["stock_movements", "order_status_history", "order_products", "orders", "offer_price_tiers", "offers", "product_variants", "products", "stores"]) {
+    await d1.db.run(sql.raw(`DELETE FROM ${table}`));
+  }
+  await d1.db.insert(schema.stores).values({ id: STORE, name: "Boutique", createdAt: T, updatedAt: T });
+  await d1.db.insert(schema.products).values([
+    { id: "robe", name: "Robe", handle: "robe", sku: "ROBE", price: 2000, inventory: 50, hasVariants: true, createdAt: T, updatedAt: T },
+    { id: "sac", name: "Sac", handle: "sac", sku: "SAC", price: 1500, inventory: 50, createdAt: T, updatedAt: T },
+  ]);
+  await d1.db.insert(schema.productVariants).values([
+    { id: "robe-s", productId: "robe", variations: '{"Taille":"S"}', price: 2000, sku: "R-S", inventory: 20, position: 0, createdAt: T, updatedAt: T },
+    { id: "robe-m", productId: "robe", variations: '{"Taille":"M"}', price: 2000, sku: "R-M", inventory: 20, position: 1, createdAt: T, updatedAt: T },
+  ]);
+});
+
+async function quantityPricing(tiers: Array<[number, number, boolean?]>) {
+  await d1.db.insert(schema.offers).values({ id: "packs", name: "Packs", discountType: "quantity_price", triggerProductId: "robe", triggerQuantity: tiers[0]![0], rewardQuantity: 0, createdAt: T, updatedAt: T });
+  await d1.db.insert(schema.offerPriceTiers).values(tiers.map(([quantity, price, freeShipping = false]) => ({ offerId: "packs", quantity, price, freeShipping })));
+}
+
+let phone = 0;
+async function place(items: Array<{ productId: string; variantId?: string; quantity: number }>, deliveryFee = 600) {
+  const customer = await findOrCreateCustomer(d1.db, { phone: `06600000${String(++phone).padStart(2, "0")}`, name: "Client", wilayaId: 16 });
+  const order = await createStoreOrder(d1.db, {
+    customerId: customer.id,
+    customerName: customer.name,
+    phone: customer.phone,
+    wilayaId: 16,
+    communeId: "c-16-001",
+    deliveryType: "home",
+    deliveryFee,
+    items: items.map((item) => ({ productName: "x", variantId: null, ...item })),
+  } as never);
+  const [row, lines] = await Promise.all([
+    d1.db.select().from(schema.orders).where(eq(schema.orders.id, order.id)).get(),
+    d1.db.select().from(schema.orderProducts).where(eq(schema.orderProducts.orderId, order.id)).all(),
+  ]);
+  return { order: row!, lines };
+}
+
+async function quote(items: Array<{ productId: string; variantId?: string; quantity: number }>) {
+  const response = await app.request("/store/cart/validate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ items: items.map((item) => ({ productName: "x", ...item })) }),
+  });
+  return (await response.json() as { data: { subtotal: number; lines: Array<{ lineTotal: number; offerId: string | null }>; freeDelivery: { fromOffer: boolean } } }).data;
+}
+
+describe("quantity pricing on an order", () => {
+  it("charges the tier reached, beyond it at its per-unit price, and names the offer on the line", async () => {
+    await quantityPricing([[1, 2000], [2, 3500], [3, 4500]]);
+    for (const [quantity, price] of [[1, 2000], [2, 3500], [3, 4500], [4, 6000]] as const) {
+      const { order, lines } = await place([{ productId: "robe", variantId: "robe-s", quantity }]);
+      expect(order.price).toBe(price);
+      expect(order.codAmount).toBe(price + 600);
+      expect(lines).toEqual([expect.objectContaining({ quantity, lineTotal: price, pricePerUnit: price / quantity, offerId: "packs", reward: false })]);
+    }
+  });
+
+  it("counts every size, and shares the tier's price so the lines add up to it", async () => {
+    await quantityPricing([[3, 4000]]);
+    const { order, lines } = await place([{ productId: "robe", variantId: "robe-s", quantity: 2 }, { productId: "robe", variantId: "robe-m", quantity: 1 }]);
+    expect(order.price).toBe(4000);
+    expect(lines.map((line) => line.lineTotal).sort()).toEqual([1333, 2667]);
+    for (const line of lines) expect(line.pricePerUnit * line.quantity).toBeCloseTo(line.lineTotal, 6);
+  });
+
+  it("makes delivery free on a tier that includes it, and records the offer that did", async () => {
+    await quantityPricing([[1, 2000], [2, 3500, true]]);
+    expect((await place([{ productId: "robe", variantId: "robe-s", quantity: 1 }])).order).toMatchObject({ deliveryFee: 600, deliveryOfferId: null });
+    expect((await place([{ productId: "robe", variantId: "robe-s", quantity: 2 }])).order).toMatchObject({ price: 3500, deliveryFee: 0, codAmount: 3500, deliveryOfferId: "packs" });
+    const mixed = await place([{ productId: "robe", variantId: "robe-s", quantity: 2 }, { productId: "sac", quantity: 1 }]);
+    expect(mixed.order).toMatchObject({ price: 5000, deliveryFee: 600, deliveryOfferId: null });
+  });
+
+  it("is what the cart quote shows before the order is placed", async () => {
+    await quantityPricing([[1, 2000], [2, 3500, true], [3, 4500]]);
+    for (const items of [
+      [{ productId: "robe", variantId: "robe-s", quantity: 3 }],
+      [{ productId: "robe", variantId: "robe-s", quantity: 2 }],
+      [{ productId: "robe", variantId: "robe-s", quantity: 1 }, { productId: "robe", variantId: "robe-m", quantity: 1 }, { productId: "sac", quantity: 2 }],
+    ]) {
+      const [shown, placed] = [await quote(items), await place(items)];
+      expect(shown.subtotal).toBe(placed.order.price);
+      expect(shown.lines.map((line) => line.offerId)).toEqual(placed.lines.filter((line) => !line.reward).map((line) => line.offerId));
+      expect(shown.freeDelivery.fromOffer).toBe(placed.order.deliveryOfferId !== null);
+    }
+  });
+});
+
+describe("gifts on an order", () => {
+  async function gift(rewardVariantId: string | null = null) {
+    await d1.db.insert(schema.offers).values({ id: "gift", name: "Gift", triggerProductId: "robe", triggerQuantity: 2, rewardProductId: "robe", rewardVariantId, rewardQuantity: 1, createdAt: T, updatedAt: T });
+  }
+
+  it("are recorded as gifts, named by their variant, given by their offer", async () => {
+    await gift();
+    const { order, lines } = await place([{ productId: "robe", variantId: "robe-m", quantity: 2 }]);
+    expect(order.price).toBe(4000);
+    expect(lines.find((line) => line.reward)).toMatchObject({ variantId: "robe-m", variantLabel: "M", quantity: 1, pricePerUnit: 0, lineTotal: 0, offerId: "gift" });
+  });
+
+  it("are left out, and the order goes through, when the stock left after the paid units cannot cover them", async () => {
+    await gift();
+    await d1.db.update(schema.productVariants).set({ inventory: 2 }).where(eq(schema.productVariants.id, "robe-s"));
+    const { order, lines } = await place([{ productId: "robe", variantId: "robe-s", quantity: 2 }]);
+    expect(order.price).toBe(4000);
+    expect(lines.filter((line) => line.reward)).toEqual([]);
+    expect((await d1.db.select().from(schema.productVariants).where(eq(schema.productVariants.id, "robe-s")).get())?.inventory).toBe(0);
+  });
+
+  it("take the product's first option when the gift is another product with sizes", async () => {
+    await d1.db.insert(schema.offers).values({ id: "gift", name: "Gift", triggerProductId: "sac", triggerQuantity: 1, rewardProductId: "robe", rewardQuantity: 1, createdAt: T, updatedAt: T });
+    // First by id is robe-m; first by position is robe-s — position decides.
+    await d1.db.update(schema.productVariants).set({ position: 5 }).where(eq(schema.productVariants.id, "robe-m"));
+    const { lines } = await place([{ productId: "sac", quantity: 1 }]);
+    expect(lines.find((line) => line.reward)?.variantId).toBe("robe-s");
+  });
+});

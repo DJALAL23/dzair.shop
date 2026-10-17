@@ -9,9 +9,6 @@
  * rows positionally by select-clause order. checkStoreOrderStock is now one
  * batched, id-keyed lookup, so a positional fixture would be asserting a query
  * plan rather than behaviour. Same cases, same names, real migrations.
- *
- * offers.test.ts keeps its mock-based selectApplicableOffer coverage — that
- * function is unchanged and its query shape is exactly what those tests pin.
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";

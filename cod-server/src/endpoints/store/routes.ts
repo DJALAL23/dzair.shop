@@ -485,8 +485,9 @@ const validateCartRoute = defineRoute({
                 variantLabel: z.string().nullable(),
                 productName: z.string(),
                 quantity: z.number().int(),
-                unitPrice: z.number(),
-                lineTotal: z.number(),
+                unitPrice: z.number().openapi({ description: "The catalog's unit price" }),
+                lineTotal: z.number().openapi({ description: "What the line costs: unit × quantity, or its quantity-pricing tier's price" }),
+                offerId: z.string().nullable().openapi({ description: "The quantity-pricing offer that set `lineTotal`; null at the catalog price" }),
                 maxQuantity: z.number().int().nullable(),
                 blocker: z
                   .enum(["missing", "unlisted", "out_of_stock"])

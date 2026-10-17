@@ -488,10 +488,11 @@ describe("createStoreOrder — offers in a basket", () => {
     });
 
     const lines = await linesOf(order.id);
-    const rewards = lines.filter((l) => l.pricePerUnit === 0);
+    const rewards = lines.filter((l) => l.reward);
     expect(rewards).toHaveLength(1);
-    // The reward mirrors the first line's variant, named by the catalog.
-    expect(rewards[0]).toMatchObject({ variantId: red, variantLabel: "Red — 🎁 مجاني" });
+    // The gift mirrors the first line's variant, named by the catalog, and
+    // says it is a gift in its own field — never in its label.
+    expect(rewards[0]).toMatchObject({ variantId: red, variantLabel: "Red", pricePerUnit: 0, lineTotal: 0 });
   });
 
   it("skips the reward when its stock cannot cover it, and still places the order", async () => {

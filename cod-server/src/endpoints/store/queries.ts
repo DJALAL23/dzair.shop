@@ -22,7 +22,6 @@ export {
   MAX_LINE_QUANTITY,
   type CartLine,
 } from "../../../../cod-shared/queries/cart";
-export { resolveCartOffers } from "../../../../cod-shared/queries/offers-cart";
 export {
   getLandingPageBySlug,
   getLandingPageDetailBySlug,

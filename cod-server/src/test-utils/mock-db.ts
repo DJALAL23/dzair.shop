@@ -213,6 +213,7 @@ export function orderRow(overrides: Record<string, unknown> = {}): Record<string
     customer_email: null,
     custom_fields_json: null,
     archived_at: null,
+    delivery_offer_id: null,
     ...overrides,
   };
 }

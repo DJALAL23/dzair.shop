@@ -23,7 +23,6 @@ import {
 // ./queries so there is nothing for a test to stub and no way for the priced
 // subtotal to diverge from what the engine charges.
 import { priceCartLines, type CatalogSnapshot } from "../../../../cod-shared/queries/catalog-snapshot";
-import { resolveCartOffers } from "../../../../cod-shared/queries/offers-cart";
 import { resolveStorefrontMenu } from "../../../../cod-shared/queries/menus";
 import { getStorefrontCollection } from "../../../../cod-shared/queries/collections";
 import { resolveConversionForStage, conversionSourceUrl } from "@/workflows/capi-helpers";
@@ -501,8 +500,9 @@ export async function createStoreOrder(c: Context<AppContext>) {
  *
  * Each product's own shipping profile and the commune override apply (a basket
  * spanning two profiles pays the highest rate, plan Q1), judged against the
- * subtotal priced from the same snapshot the engine uses, and a single-product
- * free-shipping offer makes it 0. `null` means the store does not deliver
+ * subtotal priced from the same snapshot and offers the engine uses, and an
+ * offer that makes delivery free (a single-product basket's free-shipping
+ * offer, or a quantity tier that includes it) makes it 0. `null` means the store does not deliver
  * there.
  */
 async function quoteDelivery(
@@ -512,7 +512,7 @@ async function quoteDelivery(
   lines: CartLine[],
   destination: { wilayaId: number; communeId?: string | null; deliveryType: "home" | "stop_desk" },
 ): Promise<number | null> {
-  const { subtotal } = priceCartLines(snapshot, lines);
+  const { subtotal, freeShippingOfferId } = priceCartLines(snapshot, lines);
   const fee = await queries.resolveDeliveryFee(db, {
     productIds: [...new Set(lines.map((l) => l.productId))],
     wilayaId: destination.wilayaId,
@@ -522,7 +522,7 @@ async function quoteDelivery(
     subtotal,
   });
   if (fee === null) return null;
-  return resolveCartOffers(lines, snapshot.offers).freeShipping ? 0 : fee;
+  return freeShippingOfferId ? 0 : fee;
 }
 
 /**
@@ -568,12 +568,9 @@ export async function validateCart(c: Context<AppContext>) {
   // Only orderable lines count toward the subtotal and the offers. A line the
   // shopper must fix should not inflate a free-delivery promise it cannot keep.
   const orderable = resolved.filter((entry) => entry.blocker === null);
-  const subtotal = orderable.reduce((sum, entry) => sum + entry.lineTotal, 0);
-
-  const { earned, freeShipping } = queries.resolveCartOffers(
-    orderable.map((entry) => entry.line),
-    snapshot.offers,
-  );
+  const basket = priceCartLines(snapshot, orderable.map((entry) => entry.line));
+  const pricedLine = new Map(basket.priced.map((entry) => [entry.line, entry]));
+  const subtotal = basket.subtotal;
 
   const storeId = c.get("storeId");
   const store = storeId
@@ -607,20 +604,21 @@ export async function validateCart(c: Context<AppContext>) {
           ...names.line(entry),
           quantity: entry.line.quantity,
           unitPrice: entry.unitPrice,
-          lineTotal: entry.lineTotal,
+          lineTotal: pricedLine.get(entry.line)?.lineTotal ?? entry.lineTotal,
+          offerId: pricedLine.get(entry.line)?.offerId ?? null,
           maxQuantity: entry.maxQuantity,
           blocker: entry.blocker,
         })),
         subtotal,
-        rewards: earned.map((item) => ({
+        rewards: basket.rewards.map((item) => ({
           offerId: item.offer.id,
           productId: item.offer.rewardProductId,
           productName: item.offer.rewardProductId ? names.product(item.offer.rewardProductId) : null,
           quantity: item.offer.rewardQuantity,
         })),
         freeDelivery: {
-          /** Earned by a single-product basket's free-shipping offer. */
-          fromOffer: freeShipping,
+          /** Earned by an offer: a single-product basket's free-shipping offer, or a quantity tier that includes it. */
+          fromOffer: basket.freeShippingOfferId !== null,
           threshold: thresholdActive ? threshold : null,
           qualified: thresholdActive ? subtotal >= threshold : false,
           /** How much more to spend to qualify. 0 once qualified or inactive. */
