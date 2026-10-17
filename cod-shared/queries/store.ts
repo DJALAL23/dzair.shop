@@ -65,11 +65,9 @@ import { FEATURED_COLLECTION } from "../catalog/collections";
 import { getFooterPages, getPublicLegalContact } from "./store-pages";
 import {
   loadCatalogSnapshot,
-  extendSnapshot,
   priceCartLines,
   variantSelection,
   type CatalogSnapshot,
-  type CatalogVariant,
   type PricedLine,
 } from "./catalog-snapshot";
 import { parseCheckoutFormPolicy } from "../checkout-form/policy";
@@ -710,30 +708,6 @@ export async function getShippingRates(db: AppDb) {
   );
 }
 
-// ─── Variant grouping helper ──────────────────────────────────────────────────
-
-function groupVariantSelections(
-  selections: Array<{ variantId: string; variantLabel?: string }>,
-): Array<{ variantId: string; variantLabel: string | null; count: number }> {
-  const map = new Map<string, { variantLabel: string | null; count: number }>();
-  for (const sel of selections) {
-    const existing = map.get(sel.variantId);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      map.set(sel.variantId, {
-        variantLabel: sel.variantLabel ?? null,
-        count: 1,
-      });
-    }
-  }
-  return Array.from(map.entries()).map(([variantId, val]) => ({
-    variantId,
-    variantLabel: val.variantLabel,
-    count: val.count,
-  }));
-}
-
 // ─── Stock deduction + movement log ──────────────────────────────────────────
 
 interface DeductStockInput {
@@ -862,61 +836,22 @@ export async function createStoreOrder(
 
   // ── Reward lines ───────────────────────────────────────────────────────────
   //
-  // A reward whose stock cannot cover it — counting the units the shopper is
-  // paying for of the same item — is left out and the order still succeeds:
-  // revenue first, promotion second.
+  // Pricing placed every reward it reports — product, variant, stock covered
+  // once the paid units are counted — so each one is written as placed. An
+  // offer whose reward the stock could not cover was never applied.
   const rewardLines: Array<typeof orderProducts.$inferInsert> = [];
   const rewardDeducts: DeductStockInput[] = [];
-
-  // Rewards can point outside the basket — another product, a specific variant,
-  // or "the default variant of that product". One batched top-up covers all
-  // three; a basket whose rewards are all in-basket adds no round trip at all.
-  if (rewards.length > 0) {
-    await extendSnapshot(db, snapshot, {
-      productIds: rewards.map((reward) => reward.offer.rewardProductId).filter((value): value is string => !!value),
-      variantIds: rewards.map((reward) => reward.offer.rewardVariantId).filter((value): value is string => !!value),
-      variantsOfProducts: rewards
-        .filter((reward) => reward.offer.rewardProductId && !reward.offer.rewardVariantId)
-        .map((reward) => reward.offer.rewardProductId!),
-    });
-  }
-
-  /** A product's default variant: its first active option. */
-  const defaultVariantFor = (productId: string) =>
-    [...snapshot.variants.values()]
-      .filter((variant) => variant.productId === productId && variant.active)
-      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))[0];
-
-  /** Units of this item the order already takes: paid lines, and rewards placed so far. */
-  const taken = (productId: string, variantId: string | null) =>
-    [...lines, ...rewardLines.map((row) => ({ productId: row.productId, variantId: row.variantId ?? null, quantity: row.quantity }))]
-      .filter((entry) => entry.productId === productId && (variantId === null || entry.variantId === variantId))
-      .reduce((sum, entry) => sum + entry.quantity, 0);
-
-  for (const { offer, line } of rewards) {
-    const rewardProduct = snapshot.products.get(offer.rewardProductId!);
-    if (!rewardProduct) continue;
-
-    // An unset reward variant mirrors the shopper's choice when the reward is the
-    // product ordered, and is the product's default variant otherwise.
-    const rewardVariantId: string | null =
-      offer.rewardVariantId ??
-      (offer.rewardProductId === line.productId ? line.variantId : (defaultVariantFor(offer.rewardProductId!)?.id ?? null));
-    const rewardVariant = rewardVariantId ? snapshot.variants.get(rewardVariantId) : undefined;
-
-    if (rewardProduct.trackInventory) {
-      const available = rewardVariantId ? (rewardVariant?.inventory ?? 0) : rewardProduct.inventory;
-      if (available - taken(offer.rewardProductId!, rewardVariantId) < offer.rewardQuantity) continue;
-    }
-
+  for (const { offer, placement } of rewards) {
+    const rewardProduct = snapshot.products.get(placement.productId)!;
+    const rewardVariant = placement.variantId ? snapshot.variants.get(placement.variantId) : undefined;
     rewardLines.push({
       id: crypto.randomUUID(),
       orderId: id,
-      productId: offer.rewardProductId,
+      productId: placement.productId,
       productName: rewardProduct.name,
-      variantId: rewardVariantId,
+      variantId: placement.variantId,
       variantLabel: rewardVariant ? variantLabel(variantSelection(rewardVariant)) : null,
-      sku: rewardVariantId ? (rewardVariant?.sku ?? null) : rewardProduct.sku,
+      sku: rewardVariant ? rewardVariant.sku : rewardProduct.sku,
       quantity: offer.rewardQuantity,
       pricePerUnit: 0,
       lineTotal: 0,
@@ -924,11 +859,10 @@ export async function createStoreOrder(
       reward: true,
       createdAt: now,
     });
-
     if (rewardProduct.trackInventory) {
       rewardDeducts.push({
-        productId: offer.rewardProductId!,
-        variantId: rewardVariantId,
+        productId: placement.productId,
+        variantId: placement.variantId,
         quantity: offer.rewardQuantity,
         orderId: id,
         customerId: data.customerId,

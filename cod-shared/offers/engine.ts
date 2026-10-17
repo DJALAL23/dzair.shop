@@ -11,10 +11,13 @@
  *  1. A product is judged by the units it counts: every line of it, across
  *     variants — two sizes of one shirt are two shirts — or only the variant
  *     an offer is locked to.
- *  2. One offer per product. Among those a product qualifies for, the
- *     shopper's choice (`offerId`) wins when it qualifies on its own; else the
- *     highest threshold reached wins, the id breaking a tie so every run
- *     agrees.
+ *  2. One offer per product. An offer qualifies when its threshold is
+ *     reached and it can give what it promises: a reward the stock covers
+ *     (once the units paid for and the rewards placed before are counted),
+ *     free delivery only where rule 5 allows it. Among those, the shopper's
+ *     choice (`offerId`) wins when it qualifies on its own; else the highest
+ *     threshold reached wins, the id breaking a tie so every run agrees. An
+ *     offer that cannot give its benefit never shadows one that can.
  *  3. Quantity pricing prices the counted lines at the highest tier reached:
  *     exactly the tier's price at its quantity, its per-unit price beyond.
  *     The total is shared across the lines by their quantities so the lines
@@ -25,7 +28,8 @@
  *     applies only to a basket of one product. In a mixed basket free delivery
  *     is the store's threshold's business; otherwise a cheap promoted item
  *     would ship a large basket for free.
- *  6. Only an offer that changed something is reported as applied.
+ *  6. Only an offer that changed something is reported as applied, and every
+ *     line it counted names it — a coupon never covers those lines.
  *  7. Products are judged in basket order, so a basket always comes out the
  *     same.
  */
@@ -59,15 +63,29 @@ export interface OfferLine {
 export interface PricedOfferLine {
   /** What the line costs: its catalog price, or the quantity-pricing tier's. */
   lineTotal: number;
-  /** The quantity-pricing offer that set `lineTotal`; null at the catalog price. */
+  /** The offer applied to this line — the one its product earned and that counted it; null when none. */
   offerId: string | null;
+}
+
+/** Where a reward goes: its product and variant, the stock having been found to cover it. */
+export interface RewardPlacement {
+  productId: string;
+  variantId: string | null;
 }
 
 export interface EarnedReward<L extends OfferLine = OfferLine> {
   offer: EngineOffer;
   /** The first counted line: a reward of the same product mirrors its variant. */
   line: L;
+  placement: RewardPlacement;
 }
+
+/**
+ * Places a reward for the first counted line, given the rewards placed before
+ * it, or answers null when the stock cannot cover it. The catalog knows stock
+ * and default variants; the engine only asks.
+ */
+export type PlaceReward<L extends OfferLine = OfferLine> = (offer: EngineOffer, line: L, placed: readonly EarnedReward<L>[]) => RewardPlacement | null;
 
 export interface AppliedOffers<L extends OfferLine = OfferLine> {
   /** One per input line, in order. */
@@ -87,7 +105,7 @@ function reached(offer: EngineOffer, quantity: number): number | null {
   return quantity >= offer.triggerQuantity ? offer.triggerQuantity : null;
 }
 
-export function applyOffers<L extends OfferLine>(lines: readonly L[], candidates: readonly EngineOffer[]): AppliedOffers<L> {
+export function applyOffers<L extends OfferLine>(lines: readonly L[], candidates: readonly EngineOffer[], placeReward: PlaceReward<L>): AppliedOffers<L> {
   const priced: PricedOfferLine[] = lines.map((line) => ({ lineTotal: line.unitPrice * line.quantity, offerId: null }));
   const rewards: EarnedReward<L>[] = [];
   let freeShippingOfferId: string | null = null;
@@ -97,15 +115,27 @@ export function applyOffers<L extends OfferLine>(lines: readonly L[], candidates
 
   for (const productId of products) {
     const choice = lines.find((line) => line.productId === productId && line.offerId)?.offerId;
-    const qualifying = candidates
+    const reaching = candidates
       .filter((offer) => offer.triggerProductId === productId)
       .map((offer) => {
-        const units = counted(lines, offer).reduce((sum, line) => sum + line.quantity, 0);
-        return { offer, threshold: reached(offer, units), units };
+        const counting = counted(lines, offer);
+        const units = counting.reduce((sum, line) => sum + line.quantity, 0);
+        return { offer, threshold: reached(offer, units), units, first: counting[0]! };
       })
-      .filter((entry): entry is { offer: EngineOffer; threshold: number; units: number } => entry.threshold !== null)
+      .filter((entry): entry is { offer: EngineOffer; threshold: number; units: number; first: L } => entry.threshold !== null)
       .sort((a, b) => b.threshold - a.threshold || a.offer.id.localeCompare(b.offer.id));
-    const chosen = qualifying.find((entry) => entry.offer.id === choice) ?? qualifying[0];
+    const ordered = [...reaching.filter((entry) => entry.offer.id === choice), ...reaching.filter((entry) => entry.offer.id !== choice)];
+
+    let reward: EarnedReward<L> | null = null;
+    const chosen = ordered.find(({ offer, first }) => {
+      if (offer.discountType === "free_shipping") return singleProductBasket;
+      if (offer.discountType === "free") {
+        const placement = placeReward(offer, first, rewards);
+        reward = placement && { offer, line: first, placement };
+        return reward !== null;
+      }
+      return true;
+    });
     if (!chosen) continue;
     const { offer, units } = chosen;
     const lineIndexes = lines.flatMap((line, index) => (counted([line], offer).length ? [index] : []));
@@ -117,10 +147,10 @@ export function applyOffers<L extends OfferLine>(lines: readonly L[], candidates
         priced[index] = { lineTotal: shares[at]!, offerId: offer.id };
       });
       if (tier.freeShipping && singleProductBasket) freeShippingOfferId = offer.id;
-    } else if (offer.discountType === "free") {
-      rewards.push({ offer, line: lines[lineIndexes[0]!]! });
-    } else if (singleProductBasket) {
-      freeShippingOfferId = offer.id;
+    } else {
+      for (const index of lineIndexes) priced[index] = { ...priced[index]!, offerId: offer.id };
+      if (offer.discountType === "free") rewards.push(reward!);
+      else freeShippingOfferId = offer.id;
     }
   }
 

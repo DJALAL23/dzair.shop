@@ -11,9 +11,9 @@
  * and exhaustively testable. The database work stays in one place, here.
  */
 
-import { eq, and, or, inArray, isNull, lte, gte, desc } from "drizzle-orm";
+import { eq, and, or, inArray, isNull, lte, gte } from "drizzle-orm";
 import { products, productVariants, offers, offerPriceTiers } from "../db/schema";
-import { applyOffers, type EarnedReward, type EngineOffer } from "../offers/engine";
+import { applyOffers, type EarnedReward, type EngineOffer, type PlaceReward } from "../offers/engine";
 import type { PriceTier } from "../offers/model";
 import type { AppDb } from "../db/client";
 import { chunkIds } from "./d1-limits";
@@ -52,7 +52,7 @@ export type CatalogOffer = EngineOffer;
 export interface CatalogSnapshot {
   products: Map<string, CatalogProduct>;
   variants: Map<string, CatalogVariant>;
-  /** Every scheduled, active offer triggered by something in the basket. */
+  /** Every scheduled, active offer triggered by something in the basket — and the rows its reward needs, loaded with them. */
   offers: CatalogOffer[];
 }
 
@@ -146,7 +146,7 @@ export async function loadCatalogSnapshot(
   const offerEnd = variantEnd + offerStatements.length;
   const tiers = results.slice(offerEnd).flat() as Array<PriceTier & { offerId: string }>;
 
-  return {
+  const snapshot: CatalogSnapshot = {
     products: new Map(
       (results.slice(0, productEnd).flat() as CatalogProduct[]).map((r) => [r.id, r]),
     ),
@@ -168,6 +168,21 @@ export async function loadCatalogSnapshot(
       tiers: tiers.filter((tier) => tier.offerId === row.id).map(({ quantity, price, freeShipping }) => ({ quantity, price, freeShipping })),
     })),
   };
+
+  // Whether a reward can be given is part of pricing (offers/engine.ts rule 2):
+  // the rows it needs come with the snapshot — a reward product elsewhere in
+  // the catalog, its variant, or the variants a default is chosen among.
+  const rewarding = snapshot.offers.filter((offer) => offer.rewardProductId);
+  if (rewarding.length > 0) {
+    await extendSnapshot(db, snapshot, {
+      productIds: rewarding.map((offer) => offer.rewardProductId!),
+      variantIds: rewarding.flatMap((offer) => (offer.rewardVariantId ? [offer.rewardVariantId] : [])),
+      variantsOfProducts: [
+        ...new Set(rewarding.filter((offer) => !offer.rewardVariantId && offer.rewardProductId !== offer.triggerProductId).map((offer) => offer.rewardProductId!)),
+      ],
+    });
+  }
+  return snapshot;
 }
 
 /**
@@ -175,7 +190,7 @@ export async function loadCatalogSnapshot(
  * the catalog, or the default variant of one. Existing entries are never
  * overwritten, so what the basket loaded stays authoritative.
  */
-export async function extendSnapshot(
+async function extendSnapshot(
   db: AppDb,
   snapshot: CatalogSnapshot,
   extra: { productIds?: string[]; variantIds?: string[]; variantsOfProducts?: string[] },
@@ -313,7 +328,7 @@ export interface PricedLine {
   unitPrice: number;
   /** What the line costs: its catalog price, or its quantity-pricing tier's. */
   lineTotal: number;
-  /** The quantity-pricing offer that set `lineTotal`; null at the catalog price. */
+  /** The offer applied to the line; null when none. */
   offerId: string | null;
   sku: string | null;
   /**
@@ -345,12 +360,49 @@ function catalogPrices(snapshot: CatalogSnapshot, lines: CartLine[]): PricedLine
   });
 }
 
+/** A product's default variant: its first active option. */
+function defaultVariant(snapshot: CatalogSnapshot, productId: string): CatalogVariant | undefined {
+  return [...snapshot.variants.values()]
+    .filter((variant) => variant.productId === productId && variant.active)
+    .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))[0];
+}
+
+type OfferedLine = CartLine & { unitPrice: number };
+
+/**
+ * Where the catalog puts a reward, or null when it cannot. An unset reward
+ * variant mirrors the shopper's choice when the reward is the product ordered,
+ * and is the product's default variant otherwise. A tracked reward needs stock
+ * for itself once the units the order already takes of the same item — the
+ * paid lines and the rewards placed before it — are counted.
+ */
+function rewardPlacer(snapshot: CatalogSnapshot, lines: readonly CartLine[]): PlaceReward<OfferedLine> {
+  return (offer, line, placed) => {
+    const productId = offer.rewardProductId!;
+    const product = snapshot.products.get(productId);
+    if (!product) return null;
+    const variantId = offer.rewardVariantId ?? (productId === line.productId ? line.variantId : (defaultVariant(snapshot, productId)?.id ?? null));
+    const variant = variantId ? snapshot.variants.get(variantId) : undefined;
+    if (variantId && !variant) return null;
+    if (product.trackInventory) {
+      const taken = [
+        ...lines.map((entry) => ({ productId: entry.productId, variantId: entry.variantId, quantity: entry.quantity })),
+        ...placed.map((reward) => ({ ...reward.placement, quantity: reward.offer.rewardQuantity })),
+      ]
+        .filter((entry) => entry.productId === productId && (variantId === null || entry.variantId === variantId))
+        .reduce((sum, entry) => sum + entry.quantity, 0);
+      if ((variant ? variant.inventory : product.inventory) - taken < offer.rewardQuantity) return null;
+    }
+    return { productId, variantId };
+  };
+}
+
 /** A basket priced: its lines, their sum, and what its offers give besides. */
 export interface PricedBasket {
   priced: PricedLine[];
   subtotal: number;
-  /** Buy X Get Y offers earned, each with the counted line a same-product reward mirrors. */
-  rewards: EarnedReward<CartLine & { unitPrice: number }>[];
+  /** Buy X Get Y rewards earned, each placed: the stock covers it. */
+  rewards: EarnedReward<OfferedLine>[];
   /** The offer that made delivery free, or null. */
   freeShippingOfferId: string | null;
 }
@@ -372,6 +424,7 @@ export function priceCartLines(snapshot: CatalogSnapshot, lines: CartLine[]): Pr
   const applied = applyOffers(
     atCatalog.map((entry) => ({ ...entry.line, unitPrice: entry.unitPrice })),
     snapshot.offers,
+    rewardPlacer(snapshot, lines),
   );
   const priced = atCatalog.map((entry, index) => ({ ...entry, ...applied.lines[index]! }));
   return {

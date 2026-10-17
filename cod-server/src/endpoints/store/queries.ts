@@ -7,7 +7,6 @@ export { resolveDeliveryFee } from "../../../../cod-shared/queries/shipping-reso
 export { getPageDocument } from "../../../../cod-shared/queries/page-documents";
 export {
   loadCatalogSnapshot,
-  extendSnapshot,
   findMissingSku,
   findStockShortfall,
   priceCartLines,

@@ -11,7 +11,8 @@ Each term in CONTEXT.md, and where the code makes it true:
 | Counted Units, One Offer per Product, Reward once per order, Free Delivery for one product | `cod-shared/offers/engine.ts` (`applyOffers`) | `engine.test.ts` (rules + properties) |
 | Quantity Pricing never live beside another offer | `cod-shared/queries/offers.ts` (`writeProblem`) | `offers.e2e.test.ts` |
 | One pricing path for quote and order | `cod-shared/queries/catalog-snapshot.ts` (`priceCartLines`), `cod-shared/queries/store.ts` (`createStoreOrder`), `store/handlers.ts` (`validateCart`) | `store/quantity-pricing-orders-e2e.test.ts` |
-| Reward Left Out (stock counted with paid units) | `createStoreOrder` gift lines | `quantity-pricing-orders-e2e.test.ts` |
+| Reward Out of Stock (the offer does not qualify; stock counted with paid units and earlier rewards) | `catalog-snapshot.ts` (`rewardPlacer`), `engine.ts` qualification | `engine.test.ts`, `quantity-pricing-orders-e2e.test.ts` |
+| Applied Offer named on every counted line | `engine.ts` (`applyOffers`) | `engine.test.ts` (property), `quantity-pricing-orders-e2e.test.ts` |
 | Order lines record offer / reward | `order_products.offer_id`, `reward`; `orders.delivery_offer_id` (migration 0051) | `quantity-pricing-orders-e2e.test.ts`, `offers.e2e.test.ts` |
 
-The rule changes against the earlier code (a locked variant counting alone, an offer that changed nothing not being reported, a reward's stock counted with the paid units, the default reward variant chosen by position) are deliberate fixes, each pinned by a test that fails with the old behaviour.
+The rule changes against the earlier code (a locked variant counting alone, an offer that changed nothing not being reported, a reward's stock counted with the paid units, the default reward variant chosen by position, an offer whose reward is out of stock giving way to the next) are deliberate fixes, each pinned by a test that fails with the old behaviour.

@@ -45,22 +45,25 @@ _Avoid_: Enabled flag
 ### Application
 
 **One Offer per Product**:
-A product gets at most one offer per order. Among those it qualifies for, the shopper's pick wins if it qualifies on its own; otherwise the highest threshold reached. Quantity Pricing is never live beside another offer for the same product.
+A product gets at most one offer per order. An offer qualifies when its threshold is reached and it can give its benefit — a reward the stock covers, free delivery for a basket of that product alone. Among those, the shopper's pick wins if it qualifies on its own; otherwise the highest threshold reached. Quantity Pricing is never live beside another offer for the same product.
 _Avoid_: Stacking
+
+**Applied Offer**:
+The offer a product was given in an order. Every line of the product it counted names it, and a coupon never covers those lines.
 
 **Live Offer**:
 An offer active and within its schedule right now.
 
-**Reward Left Out**:
-A reward the stock cannot cover — once the units the shopper pays for are counted — is left out of the order; the order still goes through.
-_Avoid_: Out-of-stock error
+**Reward Out of Stock**:
+A reward the stock cannot cover — once the units the shopper pays for and the rewards placed before are counted — makes its offer not qualify: the product falls to its next offer, and the cart quote never promises it.
+_Avoid_: Out-of-stock error, reward left out
 
 ## Boundaries
 
 - **Where application happens**: the storefront checkout and its cart quote apply offers through one pricing path, so what the shopper is shown is what the order charges.
 - **Delivery fee mechanics**: Shipping Profiles context — an offer can make the fee zero, never compute it.
 - **Trigger / reward products**: Products context — deleting a product deletes the offers about it.
-- **Order lines**: Orders context — a line records the offer that priced it, and a reward line is marked as a reward.
+- **Order lines**: Orders context — a line records the offer applied to it, and a reward line is marked as a reward.
 - **Coupons**: Coupons context — a shopper-entered code, applied after offers and never to a product an offer applied to.
 
 ## Edge Cases

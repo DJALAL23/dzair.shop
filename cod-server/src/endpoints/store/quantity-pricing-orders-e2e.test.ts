@@ -88,7 +88,7 @@ async function quote(items: Array<{ productId: string; variantId?: string; quant
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ items: items.map((item) => ({ productName: "x", ...item })) }),
   });
-  return (await response.json() as { data: { subtotal: number; lines: Array<{ lineTotal: number; offerId: string | null }>; freeDelivery: { fromOffer: boolean } } }).data;
+  return (await response.json() as { data: { subtotal: number; lines: Array<{ lineTotal: number; offerId: string | null }>; rewards: Array<{ offerId: string }>; freeDelivery: { fromOffer: boolean } } }).data;
 }
 
 describe("quantity pricing on an order", () => {
@@ -165,11 +165,12 @@ describe("gifts on an order", () => {
     await d1.db.insert(schema.offers).values({ id: "gift", name: "Gift", triggerProductId: "robe", triggerQuantity: 2, rewardProductId: "robe", rewardVariantId, rewardQuantity: 1, createdAt: T, updatedAt: T });
   }
 
-  it("are recorded as gifts, named by their variant, given by their offer", async () => {
+  it("are recorded as gifts, named by their variant, given by their offer — which the lines that earned it name too", async () => {
     await gift();
     const { order, lines } = await place([{ productId: "robe", variantId: "robe-m", quantity: 2 }]);
     expect(order.price).toBe(4000);
     expect(lines.find((line) => line.reward)).toMatchObject({ variantId: "robe-m", variantLabel: "M", quantity: 1, pricePerUnit: 0, lineTotal: 0, offerId: "gift" });
+    expect(lines.find((line) => !line.reward)).toMatchObject({ quantity: 2, lineTotal: 4000, offerId: "gift" });
   });
 
   it("are left out, and the order goes through, when the stock left after the paid units cannot cover them", async () => {
@@ -179,6 +180,30 @@ describe("gifts on an order", () => {
     expect(order.price).toBe(4000);
     expect(lines.filter((line) => line.reward)).toEqual([]);
     expect((await d1.db.select().from(schema.productVariants).where(eq(schema.productVariants.id, "robe-s")).get())?.inventory).toBe(0);
+    expect(lines.map((line) => line.offerId)).toEqual([null]);
+  });
+
+  it("that the stock cannot cover leave the product to its next offer, and the quote says so before the order", async () => {
+    await d1.db.insert(schema.offers).values([
+      { id: "gift", name: "Gift", triggerProductId: "robe", triggerQuantity: 2, rewardProductId: "sac", rewardQuantity: 1, createdAt: T, updatedAt: T },
+      { id: "ship", name: "Ship", discountType: "free_shipping", triggerProductId: "robe", triggerQuantity: 2, rewardQuantity: 0, createdAt: T, updatedAt: T },
+    ]);
+    const items = [{ productId: "robe", variantId: "robe-s", quantity: 2 }];
+    expect(await quote(items)).toMatchObject({ rewards: [{ offerId: "gift" }], freeDelivery: { fromOffer: false } });
+
+    await d1.db.update(schema.products).set({ inventory: 0 }).where(eq(schema.products.id, "sac"));
+    const shown = await quote(items);
+    expect(shown).toMatchObject({ rewards: [], freeDelivery: { fromOffer: true }, lines: [{ offerId: "ship" }] });
+    const { order, lines } = await place(items);
+    expect(order).toMatchObject({ deliveryFee: 0, deliveryOfferId: "ship" });
+    expect(lines).toEqual([expect.objectContaining({ offerId: "ship", reward: false })]);
+  });
+
+  it("bring their own size from elsewhere in the catalog when the offer names one", async () => {
+    await d1.db.insert(schema.offers).values({ id: "gift", name: "Gift", triggerProductId: "sac", triggerQuantity: 1, rewardProductId: "robe", rewardVariantId: "robe-m", rewardQuantity: 1, createdAt: T, updatedAt: T });
+    const { lines } = await place([{ productId: "sac", quantity: 1 }]);
+    expect(lines.find((line) => line.reward)).toMatchObject({ productId: "robe", variantId: "robe-m", variantLabel: "M", offerId: "gift" });
+    expect((await d1.db.select().from(schema.productVariants).where(eq(schema.productVariants.id, "robe-m")).get())?.inventory).toBe(19);
   });
 
   it("take the product's first option when the gift is another product with sizes", async () => {
