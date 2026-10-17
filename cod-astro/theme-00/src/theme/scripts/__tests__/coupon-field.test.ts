@@ -9,6 +9,8 @@ import { couponCopy } from "@/theme/utils/coupon-notice";
 import { COUPON_STORAGE_KEY, initCouponField } from "../coupon-field";
 
 function mount(): HTMLElement {
+  const page = document.createElement("div");
+  document.body.appendChild(page);
   const root = document.createElement("form");
   root.innerHTML = `
     <div data-coupon-field data-coupon-copy='${JSON.stringify(couponCopy(en)).replace(/'/g, "&#39;")}' data-currency="DA" data-checking="Checking">
@@ -19,7 +21,7 @@ function mount(): HTMLElement {
         <div data-coupon-status-row hidden><p data-coupon-status><span data-coupon-text></span></p><button type="button" data-coupon-remove hidden>Remove</button></div>
       </div>
     </div>`;
-  document.body.appendChild(root);
+  page.appendChild(root);
   return root;
 }
 
@@ -132,5 +134,102 @@ describe("the code box", () => {
 
   it("is absent from a form without a code box", () => {
     expect(initCouponField(document.createElement("form"), () => {})).toBeNull();
+  });
+
+  describe("the order waits for its code", () => {
+    /** Submits the form as a click would; answers whether the order went out. */
+    function submit(root: HTMLElement): boolean {
+      const event = new SubmitEvent("submit", { bubbles: true, cancelable: true });
+      return root.dispatchEvent(event);
+    }
+
+    it("goes straight out with no code, or with an applied code", () => {
+      const root = mount();
+      const field = initCouponField(root, () => {})!;
+      expect(submit(root)).toBe(true);
+
+      input(root).value = "DIX";
+      root.querySelector<HTMLButtonElement>("[data-coupon-apply]")!.click();
+      field.show({ code: "DIX", applied: true, discount: 500, freeShipping: false });
+      expect(submit(root)).toBe(true);
+    });
+
+    it("applies a code typed but not applied, then places the order once it applies", () => {
+      const root = mount();
+      const asked = vi.fn();
+      const field = initCouponField(root, asked)!;
+      const requestSubmit = vi.spyOn(root as HTMLFormElement, "requestSubmit").mockImplementation(() => {});
+      input(root).value = "DIX";
+
+      expect(submit(root)).toBe(false);
+      expect(field.code()).toBe("DIX");
+      expect(asked).toHaveBeenCalledTimes(1);
+
+      field.show({ code: "DIX", applied: true, discount: 500, freeShipping: false });
+      expect(requestSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it("holds the order, every field kept, while its code does not apply — and lets it go once removed", () => {
+      const root = mount();
+      const field = initCouponField(root, () => {})!;
+      const requestSubmit = vi.spyOn(root as HTMLFormElement, "requestSubmit").mockImplementation(() => {});
+      input(root).value = "NOPE";
+
+      expect(submit(root)).toBe(false);
+      field.show({ code: "NOPE", applied: false, reason: "not_found" });
+      expect(requestSubmit).not.toHaveBeenCalled();
+      expect(submit(root)).toBe(false);
+      expect(document.activeElement).toBe(input(root));
+
+      input(root).value = "";
+      expect(submit(root)).toBe(true);
+      expect(field.code()).toBeUndefined();
+      expect(requestSubmit).not.toHaveBeenCalled();
+    });
+
+    it("waits for an answer still on its way, and stops the gates behind it — the OTP step sends nothing", () => {
+      const root = mount();
+      initCouponField(root, () => {});
+      const otpGate = vi.fn();
+      root.addEventListener("submit", otpGate, { capture: true });
+      input(root).value = "DIX";
+      root.querySelector<HTMLButtonElement>("[data-coupon-apply]")!.click();
+
+      expect(submit(root)).toBe(false);
+      expect(otpGate).not.toHaveBeenCalled();
+    });
+
+    it("never sends the order on its own after a hold the shopper fixed: they confirm again", () => {
+      const root = mount();
+      const field = initCouponField(root, () => {})!;
+      const requestSubmit = vi.spyOn(root as HTMLFormElement, "requestSubmit").mockImplementation(() => {});
+      input(root).value = "NOPE";
+      submit(root);
+      field.show({ code: "NOPE", applied: false, reason: "not_found" });
+      submit(root);
+
+      input(root).value = "DIX";
+      root.querySelector<HTMLButtonElement>("[data-coupon-apply]")!.click();
+      field.show({ code: "DIX", applied: true, discount: 500, freeShipping: false });
+      expect(requestSubmit).not.toHaveBeenCalled();
+    });
+
+    it("holds only its own form", () => {
+      const root = mount();
+      initCouponField(root, () => {});
+      input(root).value = "NOPE";
+      const other = document.createElement("form");
+      root.parentElement!.appendChild(other);
+      expect(other.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }))).toBe(true);
+    });
+
+    it("leaves the order to the server when the server says nothing of coupons", () => {
+      const root = mount();
+      const field = initCouponField(root, () => {})!;
+      input(root).value = "DIX";
+      root.querySelector<HTMLButtonElement>("[data-coupon-apply]")!.click();
+      field.show(undefined);
+      expect(submit(root)).toBe(true);
+    });
   });
 });

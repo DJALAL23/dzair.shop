@@ -7,6 +7,12 @@
  * from page to page). The page then asks its quote again; the answer's
  * `coupon` is worded by `couponNotice`, the same words the server uses when it
  * refuses an order for its code.
+ *
+ * The order waits for its code: submitting with a code typed but not applied
+ * applies it first and places the order once it applies; a code that does not
+ * apply holds the order, its reason on screen and every field kept — the
+ * server would refuse the whole order for it, and the shopper would lose what
+ * they typed.
  */
 import { couponFromUrl, type CouponOutcome } from "@wocart/storefront";
 import { couponNotice, type CouponCopy, type CouponNotice } from "@/theme/utils/coupon-notice";
@@ -64,7 +70,13 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
 
   const copy = readCopy(field.dataset.couponCopy);
   const currency = field.dataset.currency ?? "";
+  const form = field.closest("form");
   let applied: string | undefined;
+  /** The quote has answered for the applied code — `outcome` is what it said (undefined from a server that predates coupons). */
+  let settled = false;
+  let outcome: CouponOutcome | undefined;
+  /** The shopper submitted while the code was being checked: place the order once it applies. */
+  let submitWhenApplied = false;
 
   function open(): void {
     box!.hidden = false;
@@ -83,6 +95,8 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
 
   function use(code: string | undefined): void {
     applied = code;
+    settled = !code;
+    outcome = undefined;
     remember(code);
     say(code ? (field!.dataset.checking ?? "") : "");
     onApply();
@@ -98,6 +112,31 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
     use(undefined);
     input.focus();
   });
+  /** Whether the order must wait for its code; a code typed but not applied is applied now. */
+  function holds(): boolean {
+    const typed = input!.value.trim() || undefined;
+    if (typed !== applied) {
+      use(typed);
+      return typed !== undefined || !settled;
+    }
+    if (!applied) return false;
+    if (!settled) return true;
+    return outcome !== undefined && !outcome.applied;
+  }
+
+  // Capture, on the form's parent: before any gate on the form itself (the
+  // OTP step sends a code on submit), and gone with the form.
+  form?.parentElement?.addEventListener(
+    "submit",
+    (event) => {
+      if (event.target !== form || !holds()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      submitWhenApplied = !settled;
+      if (settled) input.focus();
+    },
+    { capture: true },
+  );
   input.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     // Enter in the code box applies the code; it never submits the order.
@@ -116,15 +155,22 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
 
   return {
     code: () => applied,
-    show(outcome) {
+    show(answer) {
+      settled = true;
+      outcome = answer ?? undefined;
+      const resume = submitWhenApplied;
+      submitWhenApplied = false;
       // No code applied, or an answer that says nothing of one (a server that
       // predates coupons): nothing to tell.
-      if (!applied || !outcome) {
+      if (!applied || !answer) {
         say("");
+        if (resume) form?.requestSubmit();
         return;
       }
-      const notice = couponNotice(outcome, copy, document.documentElement.lang || "ar", currency);
+      const notice = couponNotice(answer, copy, document.documentElement.lang || "ar", currency);
       say(notice.text, notice.tone);
+      if (resume && answer.applied) form?.requestSubmit();
+      else if (resume) input.focus();
     },
   };
 }
