@@ -23,7 +23,7 @@ describe("the translatable registry", () => {
     for (const key of ["price", "handle", "id", "constructor", "__proto__", "toString"]) {
       expect(translatableField("product", key)).toBeNull();
     }
-    expect(TRANSLATABLE_RESOURCES.sort()).toEqual(["category", "menuItem", "offer", "product", "store"]);
+    expect(TRANSLATABLE_RESOURCES.sort()).toEqual(["category", "collection", "menuItem", "offer", "product", "store"]);
   });
 });
 

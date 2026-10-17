@@ -78,7 +78,6 @@ beforeAll(async () => {
       status: big ? "ACTIVE" : i === 7 ? "DRAFT" : "ACTIVE",
       visibility: true,
       showInStore: big ? true : i !== 8,
-      storeFeatured: !big && i === 1,
       createdAt,
       updatedAt: now,
     };
@@ -217,19 +216,22 @@ describe("getAllProducts — real D1", () => {
 });
 
 describe("getStoreProducts — real D1", () => {
-  it("lists store-visible ACTIVE products with featured first", async () => {
+  it("lists store-visible ACTIVE products, and answers storeFeatured from the featured collection", async () => {
+    await db.insert(schema.collections).values({ id: "col-featured", storeId: "store-e2e", handle: "featured", title: "Featured", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" });
+    await db.insert(schema.collectionProducts).values({ collectionId: "col-featured", productId: "prod-1", position: 0, addedAt: "2026-01-01T00:00:00.000Z" });
     const rows = await getStoreProducts(db, { limit: 200 });
 
     expect(rows.find((r) => r.id === "prod-9")).toBeUndefined();
     expect(rows.find((r) => r.id === "prod-8")).toBeUndefined();
     expect(rows.find((r) => r.id === "prod-7")).toBeUndefined();
 
-    expect(rows[0].id).toBe("prod-1");
-    expect(rows[0].storeFeatured).toBe(true);
+    const featured = rows.find((r) => r.id === "prod-1")!;
+    expect(featured.storeFeatured).toBe(true);
+    expect((await getStoreProductByHandle(db, featured.handle))?.storeFeatured).toBe(true);
     // Published @wocart/storefront releases require the field: always null.
     expect(rows.every((r) => (r as { deletedAt?: unknown }).deletedAt === null)).toBe(true);
     expect((await getStoreProductByHandle(db, rows[0].handle) as { deletedAt?: unknown } | null)?.deletedAt).toBeNull();
-    expect(rows.slice(1).every((r) => !r.storeFeatured)).toBe(true);
+    expect(rows.filter((r) => r.id !== "prod-1").every((r) => r.storeFeatured === false)).toBe(true);
   });
 
   it("derives inventory from ACTIVE variants only", async () => {

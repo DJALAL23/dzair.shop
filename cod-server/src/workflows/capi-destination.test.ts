@@ -134,7 +134,6 @@ async function seedOrder(scenario: Scenario = {}) {
     status: "ACTIVE",
     visibility: true,
     showInStore: true,
-    storeFeatured: false,
     createdAt: NOW(),
     updatedAt: NOW(),
   });

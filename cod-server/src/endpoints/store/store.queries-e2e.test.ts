@@ -124,7 +124,6 @@ describe("createStoreOrder — atomic commit + guarded deduction (BC-2)", () => 
       status: "ACTIVE",
       visibility: true,
       showInStore: true,
-      storeFeatured: false,
       createdAt: now,
       updatedAt: now,
       ...overrides,
@@ -275,7 +274,6 @@ describe("createStoreOrder — a taken order number is drawn again", () => {
       status: "ACTIVE",
       visibility: true,
       showInStore: true,
-      storeFeatured: false,
       createdAt: now,
       updatedAt: now,
     });

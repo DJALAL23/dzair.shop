@@ -116,7 +116,6 @@ async function seedProduct(overrides: Partial<typeof schema.products.$inferInser
     status: "ACTIVE",
     visibility: true,
     showInStore: true,
-    storeFeatured: false,
     createdAt: now(),
     updatedAt: now(),
     ...overrides,

@@ -52,7 +52,6 @@ function listProductRow(overrides: Record<string, any> = {}) {
     visibility: true,
     status: "ACTIVE",
     showInStore: true,
-    storeFeatured: false,
     deletedAt: null,
     publishedAt: NOW,
     createdAt: NOW,

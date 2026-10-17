@@ -38,7 +38,7 @@ beforeEach(async () => {
     await db.delete(table);
   }
   await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", totalOrders: 2, totalSpent: 3000, createdAt: T0 });
-  const product = { price: 1500, hasVariants: false, inventory: 10, lowStockThreshold: 1, status: "ACTIVE" as const, visibility: true, showInStore: true, storeFeatured: false, createdAt: T0, updatedAt: T0 };
+  const product = { price: 1500, hasVariants: false, inventory: 10, lowStockThreshold: 1, status: "ACTIVE" as const, visibility: true, showInStore: true, createdAt: T0, updatedAt: T0 };
   await db.insert(schema.products).values({ ...product, id: "tracked", name: "Robe", handle: "robe", sku: "ROBE", trackInventory: true });
   await db.insert(schema.products).values({ ...product, id: "untracked", name: "Carte", handle: "carte", sku: "CARTE", trackInventory: false });
   await db.insert(schema.products).values({ ...product, id: "varied", name: "Foulard", handle: "foulard", sku: "FOU", trackInventory: true, hasVariants: true });

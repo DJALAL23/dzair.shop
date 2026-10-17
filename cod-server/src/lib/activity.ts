@@ -79,6 +79,12 @@ export const ACTIONS = {
   STORE_PAGES_SEEDED:      "store_page.seeded",
   STORE_LEGAL_PROFILE_UPDATED: "store_page.legal_profile_updated",
 
+  // Collections
+  COLLECTION_CREATED:      "collection.created",
+  COLLECTION_UPDATED:      "collection.updated",
+  COLLECTION_PRODUCTS_SAVED: "collection.products_saved",
+  COLLECTION_DELETED:      "collection.deleted",
+
   // Navigation menus
   MENU_CREATED:            "menu.created",
   MENU_UPDATED:            "menu.updated",

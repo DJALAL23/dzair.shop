@@ -50,6 +50,8 @@ import {
   reviews,
   offers,
   stockMovements,
+  collections,
+  collectionProducts,
 } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { deriveDescriptionPlain } from "./products";
@@ -57,6 +59,8 @@ import { resolveDeliveryFee } from "./shipping-resolution";
 import { normalizeOrderLines } from "./cart";
 import { resolvePublicTracking } from "./tracking-config";
 import { chunkIds } from "./d1-limits";
+import { isFeaturedSql } from "./collections";
+import { FEATURED_COLLECTION } from "../catalog/collections";
 import { getFooterPages, getPublicLegalContact } from "./store-pages";
 import {
   loadCatalogSnapshot,
@@ -291,9 +295,26 @@ export async function cartNames(db: AppDb, snapshot: CatalogSnapshot, locale: St
  */
 const PUBLISHED_SDK_FIELDS = { deletedAt: null } as const;
 
+/**
+ * `storeFeatured`, which published SDKs up to 1.7 require on every product:
+ * membership of the `featured` collection, since the flag became one
+ * (migration 0049).
+ */
+const storeFeaturedColumn = isFeaturedSql.mapWith(Boolean).as("store_featured");
+
 export async function getStoreProducts(
   db: AppDb,
-  params: { featured?: boolean; categoryId?: string; limit?: number; offset?: number },
+  params: {
+    /** Only this collection's products (by handle), in the merchant's order. */
+    collection?: string;
+    /** Only products priced below their compare-at price. */
+    onSale?: boolean;
+    /** Deprecated: the `featured` collection. */
+    featured?: boolean;
+    categoryId?: string;
+    limit?: number;
+    offset?: number;
+  },
   locale: StoreLocale | null = null,
 ) {
   const conditions: any[] = [
@@ -302,20 +323,31 @@ export async function getStoreProducts(
     eq(products.visibility, true),
   ];
 
-  if (params.featured) conditions.push(eq(products.storeFeatured, true));
+  const collection = params.collection ?? (params.featured ? FEATURED_COLLECTION : undefined);
   if (params.categoryId) conditions.push(eq(products.categoryId, params.categoryId));
+  if (params.onSale) conditions.push(sql`${products.compareAtPrice} IS NOT NULL AND ${products.compareAtPrice} > ${products.price}`);
 
-  const sourceRows = await db
+  const query = db
     .select({
       ...getTableColumns(products),
       avgRating: sql<number | null>`(SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.product_id = products.id AND r.status = 'approved')`,
       reviewCount: sql<number>`COALESCE((SELECT COUNT(*) FROM reviews r WHERE r.product_id = products.id AND r.status = 'approved'), 0)`,
+      storeFeatured: storeFeaturedColumn,
     })
     .from(products)
-    .where(and(...conditions))
-    // The id breaks ties, so paging with `offset` never repeats or skips a
-    // product that shares a creation time with another.
-    .orderBy(desc(products.storeFeatured), desc(products.createdAt), asc(products.id))
+    .$dynamic();
+  // A collection keeps the merchant's order; any other list is newest first.
+  // The id breaks ties, so paging with `offset` never repeats or skips a
+  // product that shares a position or a creation time with another.
+  const ordered =
+    collection === undefined
+      ? query.where(and(...conditions)).orderBy(desc(products.createdAt), asc(products.id))
+      : query
+          .innerJoin(collectionProducts, eq(collectionProducts.productId, products.id))
+          .innerJoin(collections, eq(collections.id, collectionProducts.collectionId))
+          .where(and(...conditions, eq(collections.handle, collection)))
+          .orderBy(asc(collectionProducts.position), desc(products.createdAt), asc(products.id));
+  const sourceRows = await ordered
     .limit(params.limit ?? 24)
     .offset(params.offset ?? 0)
     .all();
@@ -405,7 +437,7 @@ export async function getStoreProductByHandle(
   if (!opts?.allowUnlisted) conditions.push(eq(products.showInStore, true));
 
   const source = await db
-    .select()
+    .select({ ...getTableColumns(products), storeFeatured: storeFeaturedColumn })
     .from(products)
     .where(and(...conditions))
     .get();

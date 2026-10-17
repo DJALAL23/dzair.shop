@@ -69,7 +69,6 @@ async function seedLandingPage(): Promise<string> {
     status: "ACTIVE",
     visibility: true,
     showInStore: true,
-    storeFeatured: false,
     createdAt: NOW(),
     updatedAt: NOW(),
   });

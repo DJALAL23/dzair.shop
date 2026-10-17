@@ -59,8 +59,7 @@ async function seedProduct(inventory = 10, hasVariants = false) {
   await db.insert(schema.products).values({
     id, name: `FX Product ${seq}`, handle: `fx-product-${seq}`, price: 1000,
     hasVariants, inventory, trackInventory: true, lowStockThreshold: 2,
-    status: "ACTIVE", visibility: true, showInStore: true, storeFeatured: false,
-    createdAt: NOW(), updatedAt: NOW(),
+    status: "ACTIVE", visibility: true, showInStore: true,    createdAt: NOW(), updatedAt: NOW(),
   });
   return id;
 }
@@ -188,8 +187,7 @@ describe("F3: catalog inventory edits write the ledger", () => {
     await db.insert(schema.products).values({
       id: productId, name: "Untracked", handle: `untracked-${seq}`, price: 1000,
       hasVariants: false, inventory: 10, trackInventory: false, lowStockThreshold: 2,
-      status: "ACTIVE", visibility: true, showInStore: true, storeFeatured: false,
-      createdAt: NOW(), updatedAt: NOW(),
+      status: "ACTIVE", visibility: true, showInStore: true,      createdAt: NOW(), updatedAt: NOW(),
     });
 
     await updateProduct(db, productId, { inventory: 15 });

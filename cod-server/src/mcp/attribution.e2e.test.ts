@@ -41,7 +41,7 @@ beforeEach(async () => {
   await d1.db.insert(schema.customers).values({ id: CUSTOMER, name: "Karim", phone: "0551234567", wilaya: "Alger", wilayaId: 16, createdAt: T });
   await d1.db.insert(schema.products).values({
     id: PRODUCT, name: "Robe", handle: "robe", price: 1000, hasVariants: false, inventory: 10, trackInventory: true,
-    lowStockThreshold: 1, status: "ACTIVE", visibility: true, showInStore: true, storeFeatured: false, createdAt: T, updatedAt: T,
+    lowStockThreshold: 1, status: "ACTIVE", visibility: true, showInStore: true, createdAt: T, updatedAt: T,
   });
   await d1.db.insert(schema.orders).values({ id: ORDER, orderNumber: "ORD-1", customerId: CUSTOMER, customerName: "Karim", phone: "0551234567", wilayaId: 16, price: 2000, codAmount: 2000, status: "confirmed", createdAt: T, updatedAt: T });
   await d1.db.insert(schema.orderProducts).values({ id: LINE, orderId: ORDER, productId: PRODUCT, productName: "Robe", quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: T });

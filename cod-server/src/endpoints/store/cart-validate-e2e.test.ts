@@ -119,7 +119,6 @@ async function seedProduct(opts: {
     status: opts.status ?? "ACTIVE",
     visibility: opts.visibility ?? true,
     showInStore: opts.showInStore ?? true,
-    storeFeatured: false,
     createdAt: now(),
     updatedAt: now(),
   });

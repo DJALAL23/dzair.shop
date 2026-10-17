@@ -4,7 +4,7 @@
  * them a theme never invents links of its own: what the header shows is what
  * the merchant's Navigation screen shows, from the first day.
  *
- * `defaultMenusSql` is what store setup runs (`scripts/seed-store-menus.ts`).
+ * `defaultMenusSql` is what store setup runs (`scripts/seed-store-defaults.ts`).
  * A menu is created only when the store has no menu with its handle, and its
  * items only in the run that created it: re-running setup never touches a
  * menu the store has, nor brings back an item the merchant removed from it.

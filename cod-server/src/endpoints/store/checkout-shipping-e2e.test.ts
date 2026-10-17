@@ -143,7 +143,6 @@ async function seedProduct(shippingProfileId: string | null) {
     status: "ACTIVE",
     visibility: true,
     showInStore: true,
-    storeFeatured: false,
     shippingProfileId,
     createdAt: now(),
     updatedAt: now(),

@@ -14,6 +14,10 @@ import * as queries from "./queries";
 import * as variantQueries from "../variants/queries";
 import { NotFoundError, BusinessLogicError, ConflictError } from "@/lib/errors/classes";
 
+vi.mock("@/lib/product-collections", () => ({
+  checkProductCollections: vi.fn(async () => ({ ok: true, apply: async () => {} })),
+  withCollections: vi.fn(async (_db: unknown, product: object) => ({ ...product, collectionIds: [] })),
+}));
 vi.mock("@/db", () => ({ getDb: vi.fn(() => mockDb) }));
 vi.mock("./queries");
 vi.mock("@/lib/remove-product", () => ({ removeProduct: vi.fn(async () => null) }));
@@ -75,7 +79,6 @@ function productRow(overrides: Record<string, any> = {}) {
     visibility: true,
     status: "ACTIVE",
     showInStore: true,
-    storeFeatured: false,
     publishedAt: NOW,
     shippingProfileId: null,
     createdAt: NOW,
@@ -259,7 +262,6 @@ describe("Products routes (OpenAPIHono)", () => {
           visibility: true,
           status: "ACTIVE",
           showInStore: true,
-          storeFeatured: false,
         })
       );
     });

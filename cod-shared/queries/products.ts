@@ -42,7 +42,6 @@ export interface CreateProductData {
   visibility: boolean;
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
   showInStore: boolean;
-  storeFeatured: boolean;
   shippingProfileId?: string | null;
 }
 
@@ -66,7 +65,6 @@ export interface UpdateProductData {
   visibility?: boolean;
   status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
   showInStore?: boolean;
-  storeFeatured?: boolean;
   shippingProfileId?: string | null;
 }
 
@@ -262,7 +260,6 @@ export async function createProduct(db: AppDb, data: CreateProductData) {
     visibility: data.visibility,
     status: data.status,
     showInStore: data.showInStore,
-    storeFeatured: data.storeFeatured,
     shippingProfileId: data.shippingProfileId ?? null,
     publishedAt: data.status === "ACTIVE" ? now : null,
     createdAt: now,
@@ -315,7 +312,6 @@ export async function updateProduct(db: AppDb, productId: string, data: UpdatePr
     if (data.status === "ACTIVE") updates.publishedAt = new Date().toISOString();
   }
   if (data.showInStore !== undefined) updates.showInStore = data.showInStore;
-  if (data.storeFeatured !== undefined) updates.storeFeatured = data.storeFeatured;
   if (data.shippingProfileId !== undefined) updates.shippingProfileId = data.shippingProfileId ?? null;
 
   const statements: BatchStatement[] = [

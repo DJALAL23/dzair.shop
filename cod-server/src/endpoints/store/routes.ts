@@ -16,6 +16,7 @@ import { PAGE_DOCUMENT_SURFACE_RE } from "../../../../cod-shared/queries/page-do
 import { storeOrderSchema, validateCartSchema } from "./validation";
 import reviewsRouter from "./reviews/routes";
 import { MenuHandleSchema, StorefrontMenuSchema } from "@/openapi/schemas/menus";
+import { CollectionHandleSchema } from "@/openapi/schemas/collections";
 import {
   StoreConfigSchema,
   StoreProductListSchema,
@@ -65,8 +66,14 @@ const configQuerySchema = z.object({
 });
 
 const productsQuerySchema = z.object({
+  collection: CollectionHandleSchema.optional().openapi({
+    description: "Only this collection's products (by handle), in the merchant's order. An unknown handle lists nothing.",
+  }),
+  onSale: z.enum(["true", "false"]).optional().openapi({
+    description: "When true, only products priced below their compare-at price.",
+  }),
   featured: z.enum(["true", "false"]).optional().openapi({
-    description: "When true, only return products where `storeFeatured=true`.",
+    description: "Deprecated: same as `collection=featured`.",
   }),
   categoryId: z.string().optional().openapi({ description: "Filter by category ID." }),
   limit: z.coerce.number().int().min(1).max(100).default(24).openapi({

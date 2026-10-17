@@ -128,8 +128,7 @@ async function seedProduct(inventory = INITIAL_INVENTORY) {
   await db.insert(schema.products).values({
     id, name: "LC Product", handle: `lc-product-${seq}`, price: 1000,
     hasVariants: false, inventory, trackInventory: true, lowStockThreshold: 2,
-    status: "ACTIVE", visibility: true, showInStore: true, storeFeatured: false,
-    createdAt: now, updatedAt: now,
+    status: "ACTIVE", visibility: true, showInStore: true,    createdAt: now, updatedAt: now,
   });
   return id;
 }

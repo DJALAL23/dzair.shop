@@ -76,8 +76,9 @@ describe("createProductSchema", () => {
     expect(createProductSchema.parse(validBase).showInStore).toBe(true);
   });
 
-  it("defaults storeFeatured to false", () => {
-    expect(createProductSchema.parse(validBase).storeFeatured).toBe(false);
+  it("takes the collections the product joins, and none by default", () => {
+    expect(createProductSchema.parse(validBase).collectionIds).toBeUndefined();
+    expect(createProductSchema.parse({ ...validBase, collectionIds: ["c1"] }).collectionIds).toEqual(["c1"]);
   });
 
   it("accepts DIGITAL type", () => {
@@ -316,7 +317,6 @@ describe("createProduct", () => {
       visibility: true,
       status: "ACTIVE",
       showInStore: true,
-      storeFeatured: false,
     });
 
     expect(result).not.toBeNull();
@@ -340,7 +340,6 @@ describe("createProduct", () => {
       visibility: true,
       status: "ACTIVE",
       showInStore: true,
-      storeFeatured: false,
     });
 
     expect(result!.publishedAt).toBeTruthy();
@@ -363,7 +362,6 @@ describe("createProduct", () => {
       visibility: false,
       status: "DRAFT",
       showInStore: false,
-      storeFeatured: false,
     });
 
     expect(result!.publishedAt).toBeNull();

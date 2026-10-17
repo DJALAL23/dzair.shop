@@ -50,6 +50,10 @@ export const TRANSLATABLE = {
   menuItem: {
     label: { kind: "text", maxLength: 100 },
   },
+  collection: {
+    title: { kind: "text", maxLength: 100 },
+    description: { kind: "text", maxLength: 1000 },
+  },
   store: {
     metaTitle: { kind: "text", maxLength: 200 },
     metaDescription: { kind: "text", maxLength: 500 },

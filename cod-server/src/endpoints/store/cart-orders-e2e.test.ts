@@ -94,7 +94,6 @@ async function seedProduct(opts: {
     status: "ACTIVE",
     visibility: true,
     showInStore: true,
-    storeFeatured: false,
     createdAt: now(),
     updatedAt: now(),
   });

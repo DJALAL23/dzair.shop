@@ -20,7 +20,6 @@ beforeAll(async () => {
       name: `Product ${i}`,
       handle: `product-${i}`,
       price: 1000,
-      storeFeatured: i === 3,
       createdAt: i < 5 ? SAME_INSTANT : `2026-10-0${i}T10:00:00.000Z`,
       updatedAt: SAME_INSTANT,
     });
@@ -45,7 +44,18 @@ describe("paging the storefront catalog", () => {
     expect(seen).toEqual(whole);
   });
 
-  it("keeps the featured product first", async () => {
-    expect((await getStoreProducts(harness.db, { limit: 1 }))[0]?.id).toBe("p-d");
+  it("pages a collection in the merchant's order, across pages", async () => {
+    await harness.db.insert(schema.stores).values({ id: "s1", name: "S", createdAt: SAME_INSTANT, updatedAt: SAME_INSTANT });
+    await harness.db.insert(schema.collections).values({ id: "c1", storeId: "s1", handle: "best-sellers", title: "Best", createdAt: SAME_INSTANT, updatedAt: SAME_INSTANT });
+    const order = ["p-d", "p-a", "p-g", "p-b"];
+    for (const [position, productId] of order.entries()) {
+      await harness.db.insert(schema.collectionProducts).values({ collectionId: "c1", productId, position, addedAt: SAME_INSTANT });
+    }
+    const seen: string[] = [];
+    for (let offset = 0; offset < 6; offset += 2) {
+      seen.push(...(await getStoreProducts(harness.db, { collection: "best-sellers", limit: 2, offset })).map((product) => product.id));
+    }
+    expect(seen).toEqual(order);
+    expect(await getStoreProducts(harness.db, { collection: "nope" })).toEqual([]);
   });
 });

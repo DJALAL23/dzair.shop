@@ -17,6 +17,7 @@ import {
 import { createVariantSchema, updateVariantSchema } from "../variants/validation";
 import {
   ProductSchema,
+  ProductDetailSchema,
   ProductImageSchema,
   ProductVariantSchema,
   ProductRemovalSchema,
@@ -78,7 +79,7 @@ const createProductRoute = defineRoute({
   responses: {
     201: {
       description: "Product created",
-      content: jsonContent(SuccessResponseSchema(ProductSchema)),
+      content: jsonContent(SuccessResponseSchema(ProductDetailSchema)),
     },
     409: { description: "Duplicate SKU (DUPLICATE_SKU)" },
   },
@@ -231,7 +232,7 @@ const getProductRoute = defineRoute({
   responses: {
     200: {
       description: "Product detail",
-      content: jsonContent(SuccessResponseSchema(ProductSchema)),
+      content: jsonContent(SuccessResponseSchema(ProductDetailSchema)),
     },
   },
   handler: h.getProduct,
@@ -251,7 +252,7 @@ const updateProductRoute = defineRoute({
   responses: {
     200: {
       description: "Product updated. Returns full updated product record.",
-      content: jsonContent(SuccessResponseSchema(ProductSchema)),
+      content: jsonContent(SuccessResponseSchema(ProductDetailSchema)),
     },
   },
   handler: h.updateProduct,

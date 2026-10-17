@@ -211,6 +211,15 @@ export const ERROR_CODES = {
   DUPLICATE_WILAYA_RULE: "DUPLICATE_WILAYA_RULE",
   
   // ============================================================================
+  // BUSINESS LOGIC ERRORS - COLLECTIONS
+  // ============================================================================
+  COLLECTION_NOT_FOUND: "COLLECTION_NOT_FOUND",
+  /** Another collection of the store already has this handle. */
+  DUPLICATE_COLLECTION_HANDLE: "DUPLICATE_COLLECTION_HANDLE",
+  /** Too many products, one product twice, or a product that does not exist. */
+  INVALID_COLLECTION_PRODUCTS: "INVALID_COLLECTION_PRODUCTS",
+
+  // ============================================================================
   // BUSINESS LOGIC ERRORS - NAVIGATION MENUS
   // ============================================================================
   MENU_NOT_FOUND: "MENU_NOT_FOUND",

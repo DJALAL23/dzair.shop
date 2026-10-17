@@ -80,7 +80,6 @@ async function seedProduct(id = "prod-001") {
     status: "ACTIVE",
     visibility: true,
     showInStore: true,
-    storeFeatured: false,
     createdAt: now(),
     updatedAt: now(),
   });

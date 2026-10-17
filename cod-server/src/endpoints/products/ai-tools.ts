@@ -1,3 +1,4 @@
+import { checkProductCollections, withCollections } from "@/lib/product-collections";
 import { removeProduct } from "@/lib/remove-product";
 import { tool } from "ai";
 import { z } from "zod";
@@ -81,7 +82,6 @@ export const PRODUCT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         reviewCount: z.number().int().describe("Approved reviews only"),
         avgRating: z.number().nullable().describe("Average of approved reviews, or null"),
         showInStore: z.boolean().describe("Storefront-only visibility switch"),
-        storeFeatured: z.boolean(),
       }),
     ).describe("Products matching the filters"),
   }),
@@ -166,7 +166,6 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
             reviewCount: p.reviewCount,
             avgRating: p.avgRating,
             showInStore: p.showInStore,
-            storeFeatured: p.storeFeatured,
           })),
         };
       } catch (error: any) {
@@ -224,7 +223,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
       "Optional: description, descriptionFormat ('text'|'html'; 'text' renders literally, 'html' is sanitised server-side against the rich-text allow-list), handle (auto-generated from name if omitted), compareAtPrice, costPrice, type (PHYSICAL|DIGITAL), " +
       "variantOptions (array of {name, values}), inventory (default 0), lowStockThreshold (default 5), trackInventory (default true), " +
       "categoryId, tags (string array), visibility (default true), status (DRAFT|ACTIVE|ARCHIVED, default ACTIVE), " +
-      "showInStore (default true), storeFeatured (default false), shippingProfileId.",
+      "showInStore (default true), shippingProfileId, collectionIds (the curated lists it joins, e.g. Featured or Best sellers).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -244,7 +243,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
             `hasVariants (boolean), variantOptions (array), inventory (int ≥ 0), ` +
             `lowStockThreshold (int ≥ 0), trackInventory (boolean), categoryId, tags (string[]), ` +
             `visibility (boolean), status (DRAFT|ACTIVE|ARCHIVED), showInStore (boolean), ` +
-            `storeFeatured (boolean), shippingProfileId.`,
+            `shippingProfileId, collectionIds (string[]).`,
         };
       }
 
@@ -266,10 +265,14 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
               };
         }
 
-        const product = await queries.createProduct(db, parsed.data);
+        const { collectionIds, ...data } = parsed.data;
+        const collections = await checkProductCollections(db, collectionIds);
+        if (!collections.ok) return { success: false, error: `Unknown collections: ${collections.unknown.join(", ")}.` };
+        const product = await queries.createProduct(db, data);
+        await collections.apply(product!.id);
         return {
           success: true,
-          product,
+          product: await withCollections(db, product!),
           message: `Product "${parsed.data.name}" created successfully`,
         };
       } catch (error: any) {
@@ -320,25 +323,25 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
             `type (PHYSICAL|DIGITAL), hasVariants, variantOptions (array or null), ` +
             `sku (non-empty string), inventory (int ≥ 0), lowStockThreshold, trackInventory, ` +
             `categoryId (string or null), tags (string[]), visibility, ` +
-            `status (DRAFT|ACTIVE|ARCHIVED), showInStore, storeFeatured, shippingProfileId.`,
+            `status (DRAFT|ACTIVE|ARCHIVED), showInStore, shippingProfileId, collectionIds (string[], replaces its collections).`,
         };
       }
 
       try {
-        const product = await queries.updateProduct(
-          db,
-          parsed.data.productId,
-          parsed.data.updates,
-        );
+        const { collectionIds, ...updates } = parsed.data.updates;
+        const collections = await checkProductCollections(db, collectionIds);
+        if (!collections.ok) return { success: false, error: `Unknown collections: ${collections.unknown.join(", ")}.` };
+        const product = await queries.updateProduct(db, parsed.data.productId, updates);
         if (!product) {
           return {
             success: false,
             error: `Product not found with ID: ${parsed.data.productId}`,
           };
         }
+        await collections.apply(product.id);
         return {
           success: true,
-          product,
+          product: await withCollections(db, product),
           message: "Product updated successfully",
         };
       } catch (error: any) {

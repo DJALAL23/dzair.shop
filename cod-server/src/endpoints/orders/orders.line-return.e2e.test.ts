@@ -29,7 +29,7 @@ beforeEach(async () => {
     await d1.db.delete(table);
   }
   await d1.db.insert(schema.customers).values({ id: "c1", name: "K", phone: "0551234567", wilaya: "Alger", totalOrders: 1, totalSpent: 3000, createdAt: T });
-  const product = { price: 1000, hasVariants: false, lowStockThreshold: 1, status: "ACTIVE" as const, visibility: true, showInStore: true, storeFeatured: false, createdAt: T, updatedAt: T };
+  const product = { price: 1000, hasVariants: false, lowStockThreshold: 1, status: "ACTIVE" as const, visibility: true, showInStore: true, createdAt: T, updatedAt: T };
   await d1.db.insert(schema.products).values([
     { ...product, id: "tracked", name: "Robe", handle: "robe", inventory: 10, trackInventory: true },
     { ...product, id: "untracked", name: "Service", handle: "service", inventory: 0, trackInventory: false },

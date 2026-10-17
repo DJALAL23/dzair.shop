@@ -567,7 +567,6 @@ export const products = sqliteTable("products", {
   visibility: integer("visibility", { mode: "boolean" }).notNull().default(true),
   status: text("status", { enum: ["DRAFT", "ACTIVE", "ARCHIVED"] }).notNull().default("ACTIVE"),
   showInStore: integer("show_in_store", { mode: "boolean" }).notNull().default(true),
-  storeFeatured: integer("store_featured", { mode: "boolean" }).notNull().default(false),
   publishedAt: text("published_at"),
   /**
    * Product-level shipping profile override.
@@ -1029,6 +1028,31 @@ export const storeThemeSettings = sqliteTable("store_theme_settings", {
   updatedAt: text("updated_at").notNull(),
 }, (t) => ({
   pk: primaryKey({ columns: [t.storeId, t.themeKey] }),
+}));
+
+/** A list of products the merchant curates by hand, read by themes by handle (`catalog/collections.ts`). */
+export const collections = sqliteTable("collections", {
+  id: text("id").primaryKey(),
+  storeId: text("store_id").notNull().references(() => stores.id, { onDelete: "cascade" }),
+  handle: text("handle").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  handleUnique: uniqueIndex("idx_collections_handle").on(t.storeId, t.handle),
+}));
+
+/** A product in a collection, at its place in the merchant's order. */
+export const collectionProducts = sqliteTable("collection_products", {
+  collectionId: text("collection_id").notNull().references(() => collections.id, { onDelete: "cascade" }),
+  productId: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  position: integer("position").notNull().default(0),
+  addedAt: text("added_at").notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.collectionId, t.productId] }),
+  orderIdx: index("idx_collection_products_order").on(t.collectionId, t.position),
+  productIdx: index("idx_collection_products_product").on(t.productId),
 }));
 
 /** A navigation menu: store data, read by themes by handle. */

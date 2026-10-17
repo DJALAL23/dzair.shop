@@ -194,7 +194,9 @@ const storeBaseFields = {
   visibility: z.boolean(),
   status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]),
   showInStore: z.boolean(),
-  storeFeatured: z.boolean(),
+  storeFeatured: z.boolean().openapi({
+    description: "Deprecated: whether the product is in the `featured` collection. Kept because @wocart/storefront up to 1.7 requires it.",
+  }),
   deletedAt: z.null().openapi({ description: "Always null: a removed product is never served. Kept for @wocart/storefront releases that require the field; it will be dropped" }),
   publishedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),

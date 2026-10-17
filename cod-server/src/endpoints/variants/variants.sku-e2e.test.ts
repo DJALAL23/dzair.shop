@@ -61,8 +61,7 @@ async function seedProduct() {
   await db.insert(schema.products).values({
     id, name: `SKU Product ${seq}`, handle: `sku-product-${seq}`, price: 1000,
     hasVariants: true, inventory: 0, trackInventory: true, lowStockThreshold: 2,
-    status: "ACTIVE", visibility: true, showInStore: true, storeFeatured: false,
-    createdAt: NOW(), updatedAt: NOW(),
+    status: "ACTIVE", visibility: true, showInStore: true,    createdAt: NOW(), updatedAt: NOW(),
   });
   return id;
 }

@@ -102,8 +102,8 @@ async function seed() {
   // 1. A description whose ONLY reference to `described` is inside the HTML.
   await d1
     .prepare(
-      `INSERT INTO products (id, name, description, description_format, handle, currency, price, has_variants, inventory, track_inventory, low_stock_threshold, visibility, status, show_in_store, store_featured, created_at, updated_at)
-       VALUES ('p1', 'Described', ?, 'html', 'p1', 'DZD', 1000, 0, 5, 1, 5, 1, 'ACTIVE', 1, 0, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
+      `INSERT INTO products (id, name, description, description_format, handle, currency, price, has_variants, inventory, track_inventory, low_stock_threshold, visibility, status, show_in_store, created_at, updated_at)
+       VALUES ('p1', 'Described', ?, 'html', 'p1', 'DZD', 1000, 0, 5, 1, 5, 1, 'ACTIVE', 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
     )
     .bind(`<p>look</p><img src="${publicUrl(KEYS.described)}" alt="a">`)
     .run();

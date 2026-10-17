@@ -117,7 +117,6 @@ async function seedLandingPage(
     status: "ACTIVE",
     visibility: true,
     showInStore: true,
-    storeFeatured: false,
     createdAt: NOW(),
     updatedAt: NOW(),
   });

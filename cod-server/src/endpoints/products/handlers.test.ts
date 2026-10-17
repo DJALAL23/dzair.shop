@@ -13,6 +13,10 @@ import * as handlers from "./handlers";
 import * as queries from "./queries";
 
 // Mock the queries module
+vi.mock("@/lib/product-collections", () => ({
+  checkProductCollections: vi.fn(async () => ({ ok: true, apply: async () => {} })),
+  withCollections: vi.fn(async (_db: unknown, product: object) => ({ ...product, collectionIds: [] })),
+}));
 vi.mock("./queries");
 vi.mock("@/lib/remove-product", () => ({ removeProduct: vi.fn(async () => null) }));
 
@@ -118,7 +122,6 @@ describe("Products Endpoint - Error Scenarios", () => {
         visibility: true,
         status: "ACTIVE",
         showInStore: true,
-        storeFeatured: false,
         publishedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -208,7 +211,6 @@ describe("Products Endpoint - Error Scenarios", () => {
         visibility: true,
         status: "ACTIVE",
         showInStore: true,
-        storeFeatured: false,
         publishedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

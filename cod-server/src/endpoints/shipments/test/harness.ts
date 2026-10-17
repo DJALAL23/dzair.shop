@@ -62,7 +62,7 @@ export async function seedStore(db: AppDb, ecotrack: { baseUrl: string; token: s
   await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T0 });
   await db.insert(schema.products).values({
     id: "p1", name: "Robe", handle: "robe", price: 1500, sku: "ROBE", hasVariants: false, inventory: 100, trackInventory: false,
-    lowStockThreshold: 2, status: "ACTIVE", visibility: true, showInStore: true, storeFeatured: false, createdAt: T0, updatedAt: T0,
+    lowStockThreshold: 2, status: "ACTIVE", visibility: true, showInStore: true, createdAt: T0, updatedAt: T0,
   });
   const company = { nameAr: "-", active: true, createdAt: T0, updatedAt: T0 };
   const eco = { provider: "ecotrack" as const, apiEndpoint: ecotrack.baseUrl, apiToken: ecotrack.token };

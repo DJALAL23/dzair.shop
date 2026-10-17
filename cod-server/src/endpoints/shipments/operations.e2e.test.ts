@@ -325,7 +325,7 @@ describe("confirming a return at the carrier", () => {
   it("confirms, then records the return: the goods go back in stock", async () => {
     await d1.db.insert(schema.products).values({
       id: "p2", name: "Caftan", handle: "caftan", price: 9000, sku: "CAF", hasVariants: false, inventory: 10, trackInventory: true,
-      lowStockThreshold: 1, status: "ACTIVE", visibility: true, showInStore: true, storeFeatured: false, createdAt: T0, updatedAt: T0,
+      lowStockThreshold: 1, status: "ACTIVE", visibility: true, showInStore: true, createdAt: T0, updatedAt: T0,
     });
     const { id } = await handedOff("o1", "eco", { lines: [] });
     await d1.db.insert(schema.orderProducts).values({ id: "l1", orderId: "o1", productId: "p2", productName: "Caftan", quantity: 2, pricePerUnit: 9000, lineTotal: 18000, createdAt: T0 });

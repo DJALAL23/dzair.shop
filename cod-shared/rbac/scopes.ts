@@ -136,6 +136,12 @@ export const SCOPES = {
   /** Create, edit, publish, delete store pages; manage the legal profile */
   STORE_PAGES_MANAGE: "store_pages:manage",
 
+  // Collections (curated product lists: Featured, Best sellers, New arrivals…)
+  /** View collections and their products */
+  COLLECTIONS_READ: "collections:read",
+  /** Create, rename, order and delete collections */
+  COLLECTIONS_MANAGE: "collections:manage",
+
   // Navigation (the store's menus: header, footer, and any a theme reads)
   /** View the store's menus and their items */
   NAVIGATION_READ: "navigation:read",
@@ -254,6 +260,10 @@ export const SCOPE_CATEGORIES = {
   storePages: {
     label: "Store Pages",
     scopes: [SCOPES.STORE_PAGES_READ, SCOPES.STORE_PAGES_MANAGE],
+  },
+  collections: {
+    label: "Collections",
+    scopes: [SCOPES.COLLECTIONS_READ, SCOPES.COLLECTIONS_MANAGE],
   },
   navigation: {
     label: "Navigation",

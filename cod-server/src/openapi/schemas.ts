@@ -102,6 +102,7 @@ export {
   ProductImageSchema,
   ProductVariantSchema,
   ProductSchema,
+  ProductDetailSchema,
   ProductRemovalSchema,
   StockMovementSchema,
   StockAlertItemSchema,

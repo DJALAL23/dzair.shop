@@ -35,7 +35,8 @@ export const createProductSchema = z.object({
   visibility: z.boolean().default(true),
   status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]).default("ACTIVE"),
   showInStore: z.boolean().default(true),
-  storeFeatured: z.boolean().default(false),
+  /** The collections the product is in (ids); it joins the end of each. */
+  collectionIds: z.array(z.string().min(1)).max(100).optional(),
   shippingProfileId: z.string().optional().nullable(),
 }).superRefine((data, ctx) => {
   if (!data.hasVariants && !data.sku) {
@@ -67,7 +68,8 @@ export const updateProductSchema = z.object({
   visibility: z.boolean().optional(),
   status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]).optional(),
   showInStore: z.boolean().optional(),
-  storeFeatured: z.boolean().optional(),
+  /** Replaces the collections the product is in (ids). */
+  collectionIds: z.array(z.string().min(1)).max(100).optional(),
   shippingProfileId: z.string().optional().nullable(),
 });
 

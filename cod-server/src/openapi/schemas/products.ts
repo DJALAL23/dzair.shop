@@ -192,7 +192,6 @@ export const ProductSchema = z
     visibility: z.boolean().openapi({ example: true }),
     status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]).openapi({ example: "ACTIVE" }),
     showInStore: z.boolean().openapi({ example: true }),
-    storeFeatured: z.boolean().openapi({ example: false }),
     publishedAt: z.string().datetime().nullable().openapi({
       description: "Auto-set when status changes to ACTIVE",
       example: "2026-01-15T09:30:00.000Z",
@@ -239,6 +238,14 @@ export const ProductSchema = z
     }),
   })
   .openapi("Product");
+
+/** One product as its own page reads it: also the collections it is in. */
+export const ProductDetailSchema = ProductSchema.extend({
+  collectionIds: z.array(z.string()).openapi({
+    description: "The collections the product is in (curated lists such as `featured` or `best-sellers`)",
+    example: ["store-1:collection:best-sellers"],
+  }),
+}).openapi("ProductDetail");
 
 export const StockMovementSchema = z
   .object({

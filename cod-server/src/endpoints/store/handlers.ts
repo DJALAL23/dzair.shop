@@ -68,10 +68,12 @@ export async function listStoreProducts(c: Context<AppContext>) {
   const rawFeatured = queryData?.featured ?? c.req.query("featured");
   const featured = rawFeatured === "true";
   const categoryId = queryData?.categoryId ?? c.req.query("categoryId") ?? undefined;
+  const collection = queryData?.collection ?? c.req.query("collection") ?? undefined;
+  const onSale = (queryData?.onSale ?? c.req.query("onSale")) === "true";
   const limit = Math.min(parseInt(String(queryData?.limit ?? c.req.query("limit") ?? "24")), 100);
   const offset = Math.max(parseInt(String(queryData?.offset ?? c.req.query("offset") ?? "0")) || 0, 0);
   const { translate } = await servedLanguage(c, db);
-  const data = await queries.getStoreProducts(db, { featured, categoryId, limit, offset }, translate);
+  const data = await queries.getStoreProducts(db, { featured, collection, onSale, categoryId, limit, offset }, translate);
   return c.json({ success: true, data, count: data.length }, 200);
 }
 
