@@ -30,7 +30,8 @@
     },
     "store": {
       "metaTitle": "عنوان SEO",
-      "metaDescription": "وصف SEO"
+      "metaDescription": "وصف SEO",
+      "currencySymbol": "رمز العملة"
     },
     "menuItem": {
       "label": "التسمية"

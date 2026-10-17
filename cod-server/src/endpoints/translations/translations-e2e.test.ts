@@ -110,6 +110,7 @@ beforeEach(async () => {
       descriptionFormat: "html",
       handle: "phone",
       price: 30000,
+      inventory: 10,
       categoryId: "cat-1",
       createdAt: now(),
       updatedAt: now(),
@@ -230,7 +231,7 @@ describe("storefront reads in a language", () => {
     await translate("/api/products/p-1/translations", "en", { name: "Phone (draft)" });
     await translate("/api/product-groups/cat-1/translations", "fr", { name: "Téléphones" });
     await translate("/api/offers/o-1/translations", "fr", { name: "2 achetés, 1 offert" });
-    await translate("/api/stores/me/translations", "fr", { metaDescription: "Livraison gratuite" });
+    await translate("/api/stores/me/translations", "fr", { metaDescription: "Livraison gratuite", currencySymbol: "DA" });
   });
 
   it("serves a published language, field by field, and says so", async () => {
@@ -279,6 +280,13 @@ describe("storefront reads in a language", () => {
     expect(body.data[0].name).toBe("Téléphones");
   });
 
+  it("quotes a basket's offer and gift in the language", async () => {
+    await translate("/api/products/p-2/translations", "fr", { name: "Écouteurs" });
+    const { body } = await request("/store/cart/validate?locale=fr", { method: "POST", body: { items: [{ productId: "p-1", productName: "x", quantity: 2 }] } });
+    expect(body.data.lines[0]).toMatchObject({ productName: "Téléphone", offerId: "o-1", offerName: "2 achetés, 1 offert" });
+    expect(body.data.rewards).toEqual([expect.objectContaining({ offerId: "o-1", offerName: "2 achetés, 1 offert", productId: "p-2", productName: "Écouteurs" })]);
+  });
+
   it("serves the store's own text in the language, keeping untranslated fields", async () => {
     const { language, body } = await request("/store/config?locale=fr");
     expect(language).toBe("fr");
@@ -286,7 +294,9 @@ describe("storefront reads in a language", () => {
     expect(body.data.lang).toBe("ar");
     expect(body.data.metaDescription).toBe("Livraison gratuite");
     expect(body.data.metaTitle).toBe("متجر الجزائر");
+    expect(body.data.currencySymbol).toBe("DA");
     expect((await request("/store/config?locale=en")).body.data.metaDescription).toBe("توصيل مجاني");
+    expect((await request("/store/config?locale=en")).body.data.currencySymbol).toBe("دج");
   });
 
   it("never lets a stray row overwrite a field that is not translatable", async () => {

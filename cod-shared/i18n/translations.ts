@@ -57,6 +57,8 @@ export const TRANSLATABLE = {
   store: {
     metaTitle: { kind: "text", maxLength: 200 },
     metaDescription: { kind: "text", maxLength: 500 },
+    /** "دج" in Arabic reads "DA" in French and English. */
+    currencySymbol: { kind: "text", maxLength: 10 },
   },
 } as const satisfies Record<string, Record<string, TranslatableField>>;
 

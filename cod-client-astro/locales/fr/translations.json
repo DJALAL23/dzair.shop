@@ -30,7 +30,8 @@
     },
     "store": {
       "metaTitle": "Titre SEO",
-      "metaDescription": "Description SEO"
+      "metaDescription": "Description SEO",
+      "currencySymbol": "Symbole monétaire"
     },
     "menuItem": {
       "label": "Libellé"

@@ -30,7 +30,8 @@
     },
     "store": {
       "metaTitle": "SEO title",
-      "metaDescription": "SEO description"
+      "metaDescription": "SEO description",
+      "currencySymbol": "Currency symbol"
     },
     "menuItem": {
       "label": "Label"
