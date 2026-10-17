@@ -40,8 +40,10 @@ Unlike other `api/*` endpoints, this module uses a dedicated authentication head
     - **Side Effect:** Automatically deducts inventory for tracked items.
 
 ### 4. Reviews & Feedback
-- `GET /store/reviews?productId=...`: List **approved** reviews for a specific product.
-- `POST /store/reviews`: Submit a review using the customer-facing **order number** (`ORD-YYYYMMDD-NNNN`, the value shown on the thank-you page) — never an internal UUID. Reviews are created as `pending` and must be approved via the moderation API. One review per order.
+- `GET /store/reviews?productId=...`: A product's **approved** reviews with their photos and voice note, and whether each is a verified purchase. Empty when the store turned reviews off.
+- `POST /store/reviews/eligibility`: Proves a purchase with the order number **and the phone it was placed with**; answers the products the order may review (delivered, kept, each once) and, when the store takes media, an upload grant.
+- `PUT /store/reviews/uploads`: One photo or voice note as the body, under the grant (`X-Review-Grant`).
+- `POST /store/reviews`: Submits; answered at once, files prepared after (`visibility`: `published` or `after_review`, the store's choice). One review per product of an order. See `reviews/` here and `endpoints/reviews/CONTEXT.md`.
 
 ## Implementation Details
 

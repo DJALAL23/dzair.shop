@@ -188,6 +188,13 @@ other is how these drift.
   a trigger raises `ORDER_HAS_SHIPMENT` even in raw SQL — and a finished one is
   archived (`orders.archived_at`). There is no soft delete. A script that wipes
   orders must delete `shipments` first.
+- **Reviews** (migration 0043, `cod-shared/reviews/`): a shopper proves a
+  purchase with the order number **and** its phone, for a delivered order,
+  one review per product of it. Photos and a voice note are uploaded first,
+  then prepared by `CodReviewMediaWorkflow` after the answer (photos only ever
+  kept as WebP from the Images binding — that is what drops EXIF/GPS). Review
+  files are deleted after their rows (`lib/reviews/removal.ts`), never by a
+  DB cascade alone. `processing` reviews belong to the system.
 - **The dashboard never re-implements delivery rules.** It reads them from
   cod-shared — the lifecycle, the stages, the permission each shipment
   action takes (`shipments/actions.ts`), the reports a kind allows — and
