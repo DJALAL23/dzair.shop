@@ -11,19 +11,12 @@ import { storefrontPath } from "@wocart/storefront";
 interface Props {
   config: StoreConfig;
   content?: StoreFrontContent;
-  /** The store's header menu; null renders the theme's own links. */
+  /** The store's header menu (`headerMenu` setting); null or empty shows no navigation. */
   menu?: NavLink[] | null;
 }
 const { config, content, menu = null } = Astro.props;
 const store = Astro.locals.store;
-const path = store.pathname;
-
-const links: NavLink[] = menu ?? [
-  { href: store.href("/"), label: content?.navHome ?? "", active: path === "/", external: false, children: [] },
-  { href: store.href(storefrontPath("catalog")), label: content?.navProducts ?? "", active: path.startsWith("/products") || path.startsWith("/category"), external: false, children: [] },
-  { href: store.href("/#best-sellers"), label: content?.navBestSellers ?? "", active: false, external: false, children: [] },
-  { href: store.href("/#new-arrivals"), label: content?.navNewArrivals ?? "", active: false, external: false, children: [] },
-];
+const links = menu ?? [];
 ---
 
 <header class="site-header" style="padding-top: var(--safe-top)">
@@ -45,6 +38,7 @@ const links: NavLink[] = menu ?? [
       )}
     </a>
 
+    {links.length > 0 && (
     <nav class="ms-6 hidden flex-1 items-center gap-1 md:flex" aria-label={content?.ariaMainNavigation}>
       {links.map((link) =>
         link.children.length === 0 ? (
@@ -81,8 +75,19 @@ const links: NavLink[] = menu ?? [
         ),
       )}
     </nav>
+    )}
 
     <div class="ms-auto flex shrink-0 items-center gap-1">
+      {links.length > 0 && (
+        <button
+          type="button"
+          popovertarget="site-menu"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-btn text-ink hover:bg-plate md:hidden"
+          aria-label={content?.navMenu}
+        >
+          <Icon name="heroicons:bars-3" class="h-5 w-5" aria-hidden="true" />
+        </button>
+      )}
       <LanguageSwitcher />
       <a
         href={store.href(storefrontPath("catalog"))}
@@ -95,6 +100,36 @@ const links: NavLink[] = menu ?? [
     </div>
   </div>
 </header>
+
+{links.length > 0 && (
+  <nav id="site-menu" popover class="site-menu md:hidden" aria-label={content?.ariaMainNavigation}>
+    <ul>
+      {links.map((link) => (
+        <li>
+          <a href={link.href} aria-current={link.active ? "page" : undefined} class="site-menu-link" rel={link.external ? "noopener" : undefined}>{link.label}</a>
+          {link.children.length > 0 && (
+            <ul class="ps-4">
+              {link.children.map((child) => (
+                <li>
+                  <a href={child.href} aria-current={child.active ? "page" : undefined} class="site-menu-link site-menu-link--sub" rel={child.external ? "noopener" : undefined}>{child.label}</a>
+                  {child.children.length > 0 && (
+                    <ul class="ps-4">
+                      {child.children.map((grandchild) => (
+                        <li>
+                          <a href={grandchild.href} aria-current={grandchild.active ? "page" : undefined} class="site-menu-link site-menu-link--sub" rel={grandchild.external ? "noopener" : undefined}>{grandchild.label}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}
 
 <style>
   .site-header {
@@ -119,6 +154,32 @@ const links: NavLink[] = menu ?? [
   }
   .nav-link:hover { color: var(--clr-text); }
   .nav-group { position: relative; }
+  .site-menu {
+    inset: auto;
+    top: calc(var(--safe-top) + var(--header-h));
+    inset-inline: 0.75rem;
+    width: auto;
+    max-height: 70dvh;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0.5rem;
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-card);
+    box-shadow: 0 16px 40px -16px rgb(17 19 24 / 0.35);
+  }
+  .site-menu-link {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-inline: 0.75rem;
+    font-weight: 600;
+    color: var(--clr-text);
+    text-decoration: none;
+    border-radius: var(--radius-btn);
+  }
+  .site-menu-link[aria-current="page"] { color: var(--clr-primary); }
+  .site-menu-link--sub { min-height: 2.5rem; font-weight: 500; color: var(--clr-text-2); }
   .nav-panel {
     position: absolute;
     inset-inline-start: 0;
@@ -129,7 +190,7 @@ const links: NavLink[] = menu ?? [
     padding: 0.375rem;
     background: var(--clr-surface);
     border: 1px solid var(--clr-border);
-    border-radius: 6px;
+    border-radius: var(--radius-card);
     box-shadow: 0 12px 32px -12px rgb(17 19 24 / 0.25);
   }
   .nav-group:hover .nav-panel,
@@ -143,7 +204,7 @@ const links: NavLink[] = menu ?? [
     font-weight: 600;
     color: var(--clr-text-2);
     text-decoration: none;
-    border-radius: 4px;
+    border-radius: var(--radius-btn);
   }
   .nav-panel-link:hover,
   .nav-panel-link[aria-current="page"] { color: var(--clr-text); background: var(--clr-plate, rgb(0 0 0 / 0.04)); }

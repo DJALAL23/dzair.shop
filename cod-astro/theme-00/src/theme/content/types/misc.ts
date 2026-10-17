@@ -37,4 +37,6 @@ export type MiscStrings = Plural<"lowStock"> &
   ariaProductCard: string;
   thankYouPageTitle: string;
   defaultMetaDescription: string;
+  /** A product page's title: `{product}` and `{storeName}`. */
+  productPageTitle: string;
 };

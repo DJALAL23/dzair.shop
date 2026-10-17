@@ -6,11 +6,11 @@ import Footer from "@/theme/components/layout/Footer.astro";
 import CartDrawer from "@/theme/components/cart/CartDrawer.astro";
 import MobileNav from "@/theme/components/layout/MobileNav.astro";
 import WhatsAppWidget from "@/theme/components/chat/WhatsAppWidget.astro";
-import { alternateLinks, showsWidgetOn } from "@wocart/storefront";
+import { alternateLinks, matchStorefrontPath, showsWidgetOn } from "@wocart/storefront";
 import { message } from "@/theme/content/messages";
 import type { StoreConfig } from "@wocart/storefront";
 import { Icon } from "astro-icon/components";
-import { brandInk, onColor, safeHex, themeFont } from "@/theme/utils/brand";
+import { brandInk, onColor, themeFont } from "@/theme/utils/brand";
 import { resolveThemeSettings } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
 import { menuLinks } from "@/theme/runtime/navigation";
@@ -70,25 +70,23 @@ const pageTitle = title ?? config.metaTitle ?? config.name;
 const pageDesc = description ?? config.metaDescription ?? message(content, "defaultMetaDescription", { storeName: config.name }, locale);
 const pageOg = ogImage ?? config.ogImage ?? "";
 
-// The merchant's brand, validated (never trusted as CSS) and paired with the
-// text colors that stay readable on it.
-const primary = safeHex(config.primaryColor, "#0b3bbd");
-const accent = safeHex(config.accentColor, "#f59e0b");
-const brand = {
-  primary,
-  onPrimary: onColor(primary),
-  primaryInk: brandInk(primary),
-  accent,
-  onAccent: onColor(accent),
-  bg: safeHex(config.bgColor, "#f4f5f7"),
-};
 // The merchant's choices for this theme, checked against its declaration: a
-// value it no longer accepts falls back to the theme's default.
+// value it does not accept falls back to the theme's default. Colors arrive
+// validated (#rgb/#rrggbb), and are paired here with the text colors that
+// stay readable on them.
 const { values: settings } = resolveThemeSettings(theme00, store.config.themeSettings, { locales: [locale, ...store.fallbackLocales] });
-const font = themeFont(settings.font ?? config.fontFamily);
+const brand = {
+  primary: settings.primaryColor,
+  onPrimary: onColor(settings.primaryColor),
+  primaryInk: brandInk(settings.primaryColor),
+  accent: settings.accentColor,
+  onAccent: onColor(settings.accentColor),
+  bg: settings.backgroundColor,
+};
+const font = themeFont(settings.font);
 
-// The store's own menus, where it has them; the header and footer keep their
-// built-in links otherwise.
+// The store's menus the settings name. A store without one shows no
+// navigation in that place; marketing pages show none at all.
 const [headerMenu, footerMenu] = marketing
   ? [null, null]
   : await Promise.all([store.client.menus.get(settings.headerMenu), store.client.menus.get(settings.footerMenu)]);
@@ -156,7 +154,7 @@ const footerLinks = menuLinks(footerMenu, store.href, store.pathname);
     {/* WhatsApp Chat Widget — merchant-configurable contact handoff.
         Rendered only when configured, non-null, and enabled on the current surface. 
         EXCEPTION: On thank-you page, we show an inline button instead of the floating widget. */}
-    {config.whatsapp && showsWidgetOn(config.whatsapp.surfaces, store.pathname) && store.pathname !== "/thank-you" && (
+    {config.whatsapp && showsWidgetOn(config.whatsapp.surfaces, store.pathname) && matchStorefrontPath(store.pathname)?.type !== "thankYou" && (
       <>
         <WhatsAppWidget widget={config.whatsapp} content={content} config={config} />
         {/* Imported for side effect: binds on every page through onEachPage */}
@@ -166,7 +164,7 @@ const footerLinks = menuLinks(footerMenu, store.href, store.pathname);
       </>
     )}
 
-    {!hideMobileNav && <MobileNav config={config} content={content} />}
+    {!hideMobileNav && <MobileNav content={content} />}
     <script>
       import "@/theme/scripts/page-view";
     </script>

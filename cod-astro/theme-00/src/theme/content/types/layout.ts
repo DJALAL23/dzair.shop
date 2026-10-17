@@ -9,9 +9,8 @@ export type LayoutStrings = {
 
   navHome: string;
   navProducts: string;
-  navNewArrivals: string;
-  navBestSellers: string;
-  navCategories: string;
+  /** The phone menu button's accessible name. */
+  navMenu: string;
 
   footerAbout: string;
   footerQuickLinks: string;

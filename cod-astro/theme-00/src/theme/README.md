@@ -15,7 +15,7 @@ Reusable UI components organized by feature:
 
 #### `layout/`
 - `BaseHead.astro` - `<head>`, SEO/OG meta, fonts, runtime design-token injection, Meta Pixel
-- `Header.astro` - Top bar with brand + navigation
+- `Header.astro` - Top bar with brand + the store's header menu (a popover menu on phones)
 - `Footer.astro` - Multi-column footer with trust badges
 - `MobileNav.astro` - Mobile bottom-tab navigation (the theme's signature)
 
@@ -82,12 +82,13 @@ catalog/category read. See `docs/history/PRODUCT_ZERO_AUDIT.md` §3.
   request's language
 
 ### `settings.ts` — the theme's global settings
-The settings a merchant sets once for the whole store: the font (one of
-`fonts.json`) and which menu the header and the footer show (`main-menu` and
-`footer` by default). `StoreLayout` reads them with `resolveThemeSettings`
-from `StoreConfig.themeSettings`; a store without the named menu keeps the
-header's and footer's own links. Until a font is chosen here, the store's
-font from the dashboard applies.
+The settings a merchant sets once for the whole store, edited in the theme
+editor: the colors, the font (one of `fonts.json`) and which menu the header
+and the footer show (`main-menu` and `footer`, which every store starts with
+and the merchant edits in the dashboard's Navigation screen). `StoreLayout`
+reads them with `resolveThemeSettings` from `StoreConfig.themeSettings`. The
+theme has no links of its own: a place whose menu the store does not have
+shows none.
 
 Every link to a product, a category, a store page, the catalog or the
 checkout is built with `storefrontPath` from `@wocart/storefront` — the
@@ -120,21 +121,12 @@ platform owns those paths (guarded by `__tests__/guards/page-paths.test.ts`).
 
 ## Customization Examples
 
-### Change the fallback colors and fonts
+### Change the default colors, font and menus
 
-Edit `runtime/store.ts` → `DEFAULT_CONFIG`. This only matters when the API is
-unreachable — live stores get colors/font from the dashboard
-(`StoreConfig.primaryColor` / `accentColor` / `bgColor` / `fontFamily`):
-
-```typescript
-export const DEFAULT_CONFIG: StoreConfig = {
-  primaryColor: "#7c3aed",   // Brand color (fallback)
-  accentColor: "#f59e0b",    // Accent color (fallback)
-  bgColor: "#f8f8f8",        // Page background (fallback)
-  fontFamily: "Cairo, sans-serif",
-  // ...
-};
-```
+Edit `settings.ts`. Each setting's `default` is what a store renders until the
+merchant changes it in the theme editor; a value the theme cannot use falls
+back to it. Colors and the font are the theme's, never read from the old
+`StoreConfig` color/font fields (deprecated in the SDK).
 
 ### Change UI text
 

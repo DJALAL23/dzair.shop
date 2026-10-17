@@ -52,11 +52,15 @@ export const SURFACE = {
 
 /** The theme's global settings (`settings.ts`), as the editor groups them. */
 export const SETTINGS_GROUP = {
+  colors: text("الألوان", "Couleurs", "Colors"),
   typography: text("الخطوط", "Typographie", "Typography"),
   navigation: text("التنقل", "Navigation", "Navigation"),
 };
 
 export const SETTING = {
+  primaryColor: text("اللون الرئيسي", "Couleur principale", "Primary color"),
+  accentColor: text("لون التمييز", "Couleur d'accent", "Accent color"),
+  backgroundColor: text("لون الخلفية", "Couleur de fond", "Background color"),
   font: text("خط المتجر", "Police de la boutique", "Store font"),
   headerMenu: text("قائمة رأس الصفحة", "Menu de l'en-tête", "Header menu"),
   footerMenu: text("قائمة التذييل", "Menu du pied de page", "Footer menu"),

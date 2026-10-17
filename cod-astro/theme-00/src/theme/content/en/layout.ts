@@ -9,9 +9,7 @@ export const enLayout: LayoutStrings = {
 
   navHome: "Home",
   navProducts: "Products",
-  navNewArrivals: "New Arrivals",
-  navBestSellers: "Best Sellers",
-  navCategories: "Categories",
+  navMenu: "Menu",
 
   footerAbout: "Your trusted online store in Algeria with cash on delivery",
   footerQuickLinks: "Quick Links",

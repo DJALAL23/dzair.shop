@@ -1,25 +1,35 @@
 /**
  * Theme-00's global settings: what a merchant chooses once for the whole
- * store, read from `StoreConfig.themeSettings` against this declaration
- * (`resolveThemeSettings`). Store identity — the logo, the brand colors —
- * stays the store's own and is not repeated here.
+ * store — its colors, its font, which menu the header and the footer show —
+ * read from `StoreConfig.themeSettings` against this declaration
+ * (`resolveThemeSettings`). Every setting has a default, so a store that
+ * saved nothing renders exactly as designed. The merchant edits them in the
+ * theme editor (CodFlow Cloud); this theme only reads them.
  *
- * `font` has no default on purpose: until the merchant picks one here, the
- * store's font from the dashboard applies (`themeFont` in utils/brand.ts).
- * The menus name a menu by handle; a store without that menu shows the
- * theme's own links.
+ * The menus name a store menu by handle: every store starts with `main-menu`
+ * and `footer`, which the merchant edits in the dashboard's Navigation screen.
  */
 import type { SettingsGroup } from "@wocart/theme";
 import themeFonts from "./fonts.json";
 import { SETTING, SETTINGS_GROUP } from "./catalog/labels";
 
 const FONT_FAMILIES = themeFonts.map((font) => font.family) as [string, ...string[]];
+const DEFAULT_FONT = themeFonts.find((font) => "default" in font && font.default)!.family;
 
 export const THEME_SETTINGS = [
   {
+    key: "colors",
+    label: SETTINGS_GROUP.colors,
+    fields: [
+      { key: "primaryColor", kind: "color", label: SETTING.primaryColor, default: "#0b3bbd" },
+      { key: "accentColor", kind: "color", label: SETTING.accentColor, default: "#f59e0b" },
+      { key: "backgroundColor", kind: "color", label: SETTING.backgroundColor, default: "#f4f5f7" },
+    ],
+  },
+  {
     key: "typography",
     label: SETTINGS_GROUP.typography,
-    fields: [{ key: "font", kind: "select", label: SETTING.font, options: FONT_FAMILIES }],
+    fields: [{ key: "font", kind: "select", label: SETTING.font, options: FONT_FAMILIES, default: DEFAULT_FONT }],
   },
   {
     key: "navigation",

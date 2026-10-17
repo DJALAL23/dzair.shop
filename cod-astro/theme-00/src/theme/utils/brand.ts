@@ -67,18 +67,8 @@ export type ThemeFont = { family: string; cssVariable: CssVariable };
 /** Astro types each variable from the configured list, so a typo here fails the build. */
 const FONTS = themeFonts as { family: string; cssVariable: CssVariable; default?: boolean }[];
 
-/**
- * The face a store renders in. A merchant's choice is matched by family name
- * against the fonts the theme ships; anything else, including the platform's
- * own default name, renders in the theme's default face. Nothing is loaded from
- * outside the store: every face in the list is self-hosted at build time.
- */
-export function themeFont(fontFamily: string | null | undefined): ThemeFont {
-  const wanted = (fontFamily ?? "").split(",")[0]!.replace(/["'<>]/g, "").trim().toLowerCase();
-  const match = FONTS.find((font) => font.family.toLowerCase() === wanted);
-  const chosen = match ?? FONTS.find((font) => font.default) ?? FONTS[0]!;
+/** The face the theme's `font` setting names; one the theme does not ship renders in its default face. */
+export function themeFont(family: string): ThemeFont {
+  const chosen = FONTS.find((font) => font.family === family) ?? FONTS.find((font) => font.default) ?? FONTS[0]!;
   return { family: chosen.family, cssVariable: chosen.cssVariable };
 }
-
-/** The fonts a merchant can choose from, for the dashboard and for tests. */
-export const THEME_FONT_FAMILIES = FONTS.map((font) => font.family);

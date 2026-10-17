@@ -9,9 +9,7 @@ export const frLayout: LayoutStrings = {
 
   navHome: "Accueil",
   navProducts: "Produits",
-  navNewArrivals: "Nouveautés",
-  navBestSellers: "Meilleures ventes",
-  navCategories: "Catégories",
+  navMenu: "Menu",
 
   footerAbout: "Votre boutique en ligne de confiance en Algérie avec paiement à la livraison",
   footerQuickLinks: "Liens rapides",

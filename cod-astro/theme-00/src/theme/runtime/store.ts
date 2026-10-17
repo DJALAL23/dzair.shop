@@ -1,7 +1,8 @@
 // ╔══════════════════════════════════════════════════════════════════════╗
 // ║  CUSTOMIZE HERE (Custom mode) — DEFAULT_CONFIG only                  ║
-// ║  Edit DEFAULT_CONFIG to change fallback colors/font/meta when the    ║
-// ║  API is unreachable. The read itself goes through the theme adapter  ║
+// ║  Edit DEFAULT_CONFIG to change the fallback store name/meta when the ║
+// ║  API is unreachable (colors and font are settings: settings.ts).     ║
+// ║  The read itself goes through the theme adapter                      ║
 // ║  (src/theme/sdk.ts) — the one place an SDK client is created.        ║
 // ╚══════════════════════════════════════════════════════════════════════╝
 /**

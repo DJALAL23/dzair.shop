@@ -98,6 +98,7 @@ export default defineConfig({
           "clock",             // features: 24/7 Support
           "arrow-right",       // CTA arrows
           "magnifying-glass",  // search
+          "bars-3",            // phone menu toggle
           "shopping-bag",      // HowItWorks, product card order btn
           "chat-bubble-left-right", // HowItWorks step 2
           "check",             // selected state checkmarks

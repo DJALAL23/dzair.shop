@@ -2,6 +2,8 @@
  * The store's menus as this theme renders them. The server already resolved
  * every destination and left out what leads nowhere public; this only puts
  * internal links into the request's language and marks the current page.
+ * There are no links of the theme's own: what a menu shows is what the
+ * merchant's Navigation screen holds.
  */
 import type { StoreMenu, StoreMenuItem } from "@wocart/storefront";
 
@@ -25,12 +27,12 @@ function isActive(item: StoreMenuItem, pathname: string): boolean {
 }
 
 /**
- * A menu's items as links: `href` localizes a path of the store, `pathname`
- * is this page's path without its language prefix. Null when there is no
- * menu or it holds nothing — the caller renders its own links then.
+ * A store menu as links: `href` localizes a path of the store, `pathname` is
+ * this page's path without its language prefix. Null when the store has no
+ * menu with the handle — the place it would show renders nothing.
  */
 export function menuLinks(menu: StoreMenu | null, href: (path: string) => string, pathname: string): NavLink[] | null {
-  if (!menu || menu.items.length === 0) return null;
+  if (!menu) return null;
   const toLinks = (items: readonly StoreMenuItem[]): NavLink[] =>
     items.map((item) => ({
       label: item.label,

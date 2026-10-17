@@ -1,35 +1,34 @@
 ---
-import type { StoreConfig } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import { Icon } from "astro-icon/components";
-import { storefrontPath } from "@wocart/storefront";
+import { matchStorefrontPath, storefrontPath } from "@wocart/storefront";
 
 interface Props {
-  config: StoreConfig;
-  content?: StoreFrontContent;
+  content: StoreFrontContent;
 }
 
-const { config, content } = Astro.props;
-// The route's own path: a `/fr/…` request is matched without its prefix.
-const path = Astro.locals.store.pathname;
+const { content } = Astro.props;
+const store = Astro.locals.store;
+// The page type of this page (its path without the language prefix).
+const page = matchStorefrontPath(store.pathname)?.type;
 
 const items = [
   {
-    label: content?.navHome ?? "Home",
-    href: Astro.locals.store.href("/"),
-    active: path === "/",
+    label: content.navHome,
+    href: store.href(storefrontPath("home")),
+    active: page === "home",
     icon: "heroicons:home",
   },
   {
-    label: content?.navProducts ?? "Products",
-    href: Astro.locals.store.href(storefrontPath("catalog")),
-    active: path.startsWith("/products"),
+    label: content.navProducts,
+    href: store.href(storefrontPath("catalog")),
+    active: page === "catalog" || page === "product" || page === "category",
     icon: "heroicons:squares-2x2",
   },
 ];
 ---
 
-<nav class="mobile-nav sm:hidden" aria-label={content?.ariaMainNavigation ?? "Main navigation"}>
+<nav class="mobile-nav sm:hidden" aria-label={content.ariaMainNavigation}>
   {items.map((item) => (
     <a
       href={item.href}

@@ -8,12 +8,13 @@ import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import ProductDetailContent from "@/theme/components/product/ProductDetailContent.astro";
 import { actions } from "astro:actions";
 import { orderOutcome } from "@/theme/pages/order-outcome";
+import { message } from "@/theme/content/messages";
 
 const { slug } = Astro.params;
 
 // Store context comes from middleware (Astro.locals.store — Theme Zero S2).
 // Product data is fetched inside ProductDetailContent.
-const { config, content, isRTL } = Astro.locals.store;
+const { config, content, isRTL, locale } = Astro.locals.store;
 const turnstileOn = config.turnstileEnabled === true && Boolean(config.turnstileSiteKey);
 
 // Action result (must be checked before rendering).
@@ -31,7 +32,7 @@ if (!product) return Astro.rewrite("/404");
 ---
 
 <StoreLayout
-  title={`${product.name} - ${config.name}`}
+  title={message(content, "productPageTitle", { product: product.name, storeName: config.name }, locale)}
   description={product.descriptionPlain?.slice(0, 160) || undefined}
   hideMobileNav={true}
   softNavigation={!turnstileOn}

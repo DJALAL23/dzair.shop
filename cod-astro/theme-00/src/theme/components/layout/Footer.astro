@@ -9,18 +9,11 @@ import { storefrontPath } from "@wocart/storefront";
 interface Props {
   config: StoreConfig;
   content?: StoreFrontContent;
-  /** The store's footer menu; null renders the theme's own quick links. */
+  /** The store's footer menu (`footerMenu` setting); null or empty shows no links column. */
   menu?: NavLink[] | null;
 }
 const { config, content, menu = null } = Astro.props;
-const href = Astro.locals.store.href;
-const quickLinks: NavLink[] = menu ?? [
-  { label: content?.navHome ?? "", href: href("/"), external: false, active: false, children: [] },
-  { label: content?.navProducts ?? "", href: href(storefrontPath("catalog")), external: false, active: false, children: [] },
-  { label: content?.navBestSellers ?? "", href: href("/#best-sellers"), external: false, active: false, children: [] },
-  { label: content?.navNewArrivals ?? "", href: href("/#new-arrivals"), external: false, active: false, children: [] },
-];
-const flat = quickLinks.flatMap((link) => [link, ...link.children, ...link.children.flatMap((child) => child.children)]);
+const flat = (menu ?? []).flatMap((link) => [link, ...link.children, ...link.children.flatMap((child) => child.children)]);
 const year = new Date().getFullYear();
 
 const badges = [
@@ -58,6 +51,7 @@ const badges = [
 
       {/* Links Columns */}
       <div class="md:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-6">
+        {flat.length > 0 && (
         <div>
           <h3 class="text-[0.6875rem] sm:text-[0.75rem] font-black uppercase tracking-widest mb-3 sm:mb-4" style="color: var(--clr-text)">
             {content?.footerQuickLinks}
@@ -72,6 +66,7 @@ const badges = [
             ))}
           </ul>
         </div>
+        )}
 
         <div>
           <h3 class="text-[0.6875rem] sm:text-[0.75rem] font-black uppercase tracking-widest mb-3 sm:mb-4" style="color: var(--clr-text)">

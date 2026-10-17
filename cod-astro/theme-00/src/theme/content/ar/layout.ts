@@ -9,9 +9,7 @@ export const arLayout: LayoutStrings = {
 
   navHome: "الرئيسية",
   navProducts: "المنتجات",
-  navNewArrivals: "وصل حديثاً",
-  navBestSellers: "الأكثر مبيعاً",
-  navCategories: "الأقسام",
+  navMenu: "القائمة",
 
   footerAbout: "متجرك الموثوق عبر الإنترنت في الجزائر مع الدفع عند الاستلام",
   footerQuickLinks: "روابط سريعة",
