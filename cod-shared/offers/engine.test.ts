@@ -178,7 +178,7 @@ describe("tiers", () => {
     expect(tiersProblem(tiers([2, 1], [2, 3]))).toBe("duplicate_quantity");
     expect(tiersProblem(tiers([0, 100]))).toBe("invalid_tier");
     expect(tiersProblem(tiers([2, 10.5]))).toBe("invalid_tier");
-    expect(tiersProblem(Array.from({ length: 11 }, (_, index) => ({ quantity: index + 1, price: 1, freeShipping: false })))).toBe("too_many");
+    expect(tiersProblem(Array.from({ length: 11 }, (_, index) => ({ quantity: index + 1, price: 1, freeShipping: false })))).toBe("too_many_tiers");
   });
 });
 

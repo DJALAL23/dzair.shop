@@ -33,7 +33,8 @@
   },
   "discount_type": {
     "free": "Free item",
-    "free_shipping": "Free shipping"
+    "free_shipping": "Free shipping",
+    "quantity_price": "Quantity pricing"
   },
   "form": {
     "title_add": "Create new offer",
@@ -69,7 +70,15 @@
     "error_trigger_product_required": "Please select a trigger product",
     "error_reward_product_required": "Please select a reward product",
     "error_trigger_qty": "Minimum quantity must be at least 1",
-    "error_reward_qty": "Free quantity must be at least 1"
+    "error_reward_qty": "Free quantity must be at least 1",
+    "section_tiers": "Price tiers",
+    "tiers_hint": "From each quantity, the price for that many. A bigger order pays the highest tier's price per unit.",
+    "tier_quantity_label": "Quantity",
+    "tier_price_label": "Price for that many (DA)",
+    "tier_saving": "{perUnit} each · saves {saved}",
+    "tier_remove": "Remove this tier",
+    "tier_add": "Add a tier",
+    "tier_free_shipping": "Free delivery from this tier"
   },
   "buy_x_get_y": "Buy {x}, get {y} free",
   "buy_x_free_shipping": "Buy {x}, get free shipping",
@@ -79,5 +88,20 @@
   "count_other": "{count} offers",
   "schedule_from": "From {date}",
   "schedule_until": "Until {date}",
-  "schedule_range": "{from} – {to}"
+  "schedule_range": "{from} – {to}",
+  "tier_rule": "{quantity} for {price} DA",
+  "error_conflict": "Another live offer already applies to this product at that time. A product gets one offer per order.",
+  "error_invalid": {
+    "reward_required": "Choose the free product and how many.",
+    "reward_not_allowed": "This offer type gives no free product.",
+    "tiers_not_allowed": "Only quantity pricing has price tiers.",
+    "schedule_ends_before_start": "The end must come after the start.",
+    "trigger_quantity": "The minimum quantity must be at least 1.",
+    "empty": "Add at least one price tier.",
+    "duplicate_quantity": "Each tier needs its own quantity.",
+    "invalid_tier": "Each tier needs a whole quantity of 1 or more and a whole price.",
+    "unknown_product": "This product no longer exists.",
+    "variant_not_of_product": "The variant chosen is not one of this product's.",
+    "too_many_tiers": "At most 10 price tiers."
+  }
 }

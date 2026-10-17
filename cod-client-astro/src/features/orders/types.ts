@@ -32,6 +32,10 @@ export interface OrderProduct {
   status: "fulfilled" | "partially_returned" | "returned";
   returnedQuantity: number;
   createdAt: string;
+  /** The offer that shaped the line: the quantity pricing that set its price, or the offer that gave it. */
+  offerId: string | null;
+  /** A reward, given by `offerId` at no charge. */
+  reward: boolean;
 }
 
 export interface OrderBase {

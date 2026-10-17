@@ -33,7 +33,8 @@
   },
   "discount_type": {
     "free": "Article gratuit",
-    "free_shipping": "Livraison gratuite"
+    "free_shipping": "Livraison gratuite",
+    "quantity_price": "Prix par quantité"
   },
   "form": {
     "title_add": "Créer une nouvelle offre",
@@ -69,7 +70,15 @@
     "error_trigger_product_required": "Veuillez sélectionner un produit déclencheur",
     "error_reward_product_required": "Veuillez sélectionner un produit récompense",
     "error_trigger_qty": "La quantité minimale doit être d'au moins 1",
-    "error_reward_qty": "La quantité gratuite doit être d'au moins 1"
+    "error_reward_qty": "La quantité gratuite doit être d'au moins 1",
+    "section_tiers": "Paliers de prix",
+    "tiers_hint": "Pour chaque quantité, le prix de ce nombre d'articles. Une commande plus grande paie le prix unitaire du palier le plus haut.",
+    "tier_quantity_label": "Quantité",
+    "tier_price_label": "Prix pour ce nombre (DA)",
+    "tier_saving": "{perUnit} l'unité · économise {saved}",
+    "tier_remove": "Retirer ce palier",
+    "tier_add": "Ajouter un palier",
+    "tier_free_shipping": "Livraison gratuite à partir de ce palier"
   },
   "buy_x_get_y": "Achetez {x}, recevez {y} gratuitement",
   "buy_x_free_shipping": "Achetez {x}, livraison gratuite",
@@ -80,5 +89,20 @@
   "count_other": "{count} offres",
   "schedule_from": "À partir du {date}",
   "schedule_until": "Jusqu’au {date}",
-  "schedule_range": "{from} – {to}"
+  "schedule_range": "{from} – {to}",
+  "tier_rule": "{quantity} pour {price} DA",
+  "error_conflict": "Une autre offre active s'applique déjà à ce produit à cette période. Un produit reçoit une seule offre par commande.",
+  "error_invalid": {
+    "reward_required": "Choisissez le produit offert et sa quantité.",
+    "reward_not_allowed": "Ce type d'offre n'offre aucun produit.",
+    "tiers_not_allowed": "Seul le prix par quantité a des paliers.",
+    "schedule_ends_before_start": "La fin doit suivre le début.",
+    "trigger_quantity": "La quantité minimale doit être au moins 1.",
+    "empty": "Ajoutez au moins un palier de prix.",
+    "duplicate_quantity": "Chaque palier doit avoir sa propre quantité.",
+    "invalid_tier": "Chaque palier demande une quantité entière d'au moins 1 et un prix entier.",
+    "unknown_product": "Ce produit n'existe plus.",
+    "variant_not_of_product": "La variante choisie n'appartient pas à ce produit.",
+    "too_many_tiers": "10 paliers au maximum."
+  }
 }

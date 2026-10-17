@@ -1,4 +1,7 @@
-export type OfferDiscountType = "free" | "free_shipping";
+import type { OfferKind, PriceTier } from "../../../../cod-shared/offers/model";
+
+export type OfferDiscountType = OfferKind;
+export type { PriceTier };
 export type OfferStatus = "active" | "inactive";
 
 export interface OfferProduct {
@@ -19,6 +22,8 @@ export interface Offer {
   triggerQuantity: number;
   rewardQuantity: number;
   discountType: OfferDiscountType;
+  /** Quantity pricing's tiers, in increasing quantity; empty for the other kinds. */
+  tiers: PriceTier[];
   startsAt: string | null;
   endsAt: string | null;
   createdAt: string;
@@ -38,6 +43,8 @@ export interface OfferFormValues {
   rewardProductId: string;
   rewardVariantId: string;
   rewardQuantity: string;
+  /** Quantity pricing's tiers as typed: quantity and total price for that many. */
+  tiers: Array<{ quantity: string; price: string; freeShipping: boolean }>;
   startsAt: string;
   endsAt: string;
   status: OfferStatus;
@@ -48,10 +55,11 @@ export interface CreateOfferData {
   discountType: OfferDiscountType;
   triggerProductId: string;
   triggerVariantId?: string | null;
-  triggerQuantity: number;
+  triggerQuantity?: number;
   rewardProductId?: string | null;
   rewardVariantId?: string | null;
   rewardQuantity: number;
+  tiers?: PriceTier[];
   startsAt?: string | null;
   endsAt?: string | null;
   status: OfferStatus;

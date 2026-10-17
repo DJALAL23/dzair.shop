@@ -69,13 +69,16 @@ export function OrderProductsCard({
     <Card title={t("form.products_section")}>
       <div className="divide-y divide-border">
         {order.products.map((product) => {
-          const free = product.pricePerUnit === 0 && product.lineTotal === 0;
+          const free = product.reward;
           return (
             <div key={product.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
               <Package size={17} className="mt-0.5 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{product.productName}</p>
                 {product.variantLabel && <p className="text-xs text-muted-foreground">{product.variantLabel}</p>}
+                {(product.reward || product.offerId) && (
+                  <p className="mt-1 text-xs font-medium text-success">{product.reward ? t("detail.line_reward") : t("detail.line_offer_price")}</p>
+                )}
                 <p className="mt-1 text-xs text-muted-foreground">
                   {product.quantity} × {free ? t("form.free") : formatMoney(product.pricePerUnit, locale)}
                 </p>

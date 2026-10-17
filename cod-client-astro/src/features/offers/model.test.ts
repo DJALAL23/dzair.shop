@@ -20,6 +20,7 @@ const offer = (overrides: Partial<Offer> = {}): Offer => ({
   triggerQuantity: 2,
   rewardQuantity: 1,
   discountType: "free",
+  tiers: [],
   startsAt: null,
   endsAt: null,
   createdAt: "2026-08-26T00:00:00.000Z",
@@ -88,6 +89,7 @@ const FORM: OfferFormValues = {
   rewardProductId: "p2",
   rewardVariantId: "",
   rewardQuantity: "1",
+  tiers: [{ quantity: "1", price: "", freeShipping: false }],
   startsAt: "",
   endsAt: "",
   status: "active",
@@ -121,5 +123,57 @@ describe("offer body: a cleared field is sent as null when editing", () => {
 
   it("trims the name", () => {
     expect(offerBody(FORM, true).name).toBe("Buy 2");
+  });
+});
+
+import { formTiersProblem, tierSaving, toLocalInput } from "./model";
+
+describe("quantity pricing in the form", () => {
+  const pricing: OfferFormValues = {
+    ...FORM,
+    discountType: "quantity_price",
+    tiers: [
+      { quantity: "1", price: "2000", freeShipping: false },
+      { quantity: "2", price: "3500", freeShipping: true },
+    ],
+  };
+
+  it("sends the tiers, and no threshold or reward", () => {
+    const body = offerBody(pricing, false);
+    expect(body.tiers).toEqual([
+      { quantity: 1, price: 2000, freeShipping: false },
+      { quantity: 2, price: 3500, freeShipping: true },
+    ]);
+    expect(body).not.toHaveProperty("triggerQuantity");
+    expect(body.rewardProductId).toBeUndefined();
+    expect(body.rewardQuantity).toBe(0);
+  });
+
+  it("judges the tiers by the platform's own rule", () => {
+    expect(formTiersProblem(pricing)).toBeNull();
+    expect(formTiersProblem({ tiers: [{ quantity: "2", price: "", freeShipping: false }, { quantity: "2", price: "1", freeShipping: false }] })).toBe("duplicate_quantity");
+    expect(formTiersProblem({ tiers: [{ quantity: "1.5", price: "100", freeShipping: false }] })).toBe("invalid_tier");
+    expect(formTiersProblem({ tiers: [] })).toBe("empty");
+  });
+
+  it("shows what one unit costs in a tier and what it saves", () => {
+    expect(tierSaving({ quantity: 2, price: 3500, freeShipping: false }, 2000)).toEqual({ perUnit: 1750, saved: 500 });
+    expect(tierSaving({ quantity: 1, price: 2500, freeShipping: false }, 2000)).toEqual({ perUnit: 2500, saved: 0 });
+  });
+
+  it("names tiers in the list, and says why a write was refused", () => {
+    expect(offerRuleLabel({ discountType: "quantity_price", triggerQuantity: 1, rewardQuantity: 0, tiers: [{ quantity: 2, price: 3500, freeShipping: false }] }, t)).toBe("tier_rule");
+    expect(offerErrorMessage({ code: "OFFER_CONFLICT" }, t)).toBe("error_conflict");
+    expect(offerErrorMessage({ code: "INVALID_OFFER", context: { reason: "empty" } }, t)).toBe("error_invalid.empty");
+  });
+});
+
+describe("the schedule as the merchant's clock shows it", () => {
+  it("round-trips an instant without moving it by the time zone", () => {
+    for (const iso of ["2026-03-01T10:00:00.000Z", "2026-07-15T23:30:00.000Z"]) {
+      expect(new Date(toLocalInput(iso)).toISOString()).toBe(iso);
+      expect(offerBody({ ...FORM, startsAt: toLocalInput(iso) }, true).startsAt).toBe(iso);
+    }
+    expect(toLocalInput(null)).toBe("");
   });
 });

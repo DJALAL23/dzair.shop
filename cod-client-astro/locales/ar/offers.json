@@ -33,7 +33,8 @@
   },
   "discount_type": {
     "free": "منتج مجاني",
-    "free_shipping": "شحن مجاني"
+    "free_shipping": "شحن مجاني",
+    "quantity_price": "السعر حسب الكمية"
   },
   "form": {
     "title_add": "إنشاء عرض جديد",
@@ -69,7 +70,15 @@
     "error_trigger_product_required": "يرجى اختيار المنتَج المشغِّل",
     "error_reward_product_required": "يرجى اختيار المنتَج المجاني",
     "error_trigger_qty": "الكمية الدنيا يجب أن تكون 1 على الأقل",
-    "error_reward_qty": "الكمية المجانية يجب أن تكون 1 على الأقل"
+    "error_reward_qty": "الكمية المجانية يجب أن تكون 1 على الأقل",
+    "section_tiers": "شرائح الأسعار",
+    "tiers_hint": "لكل كمية، سعر ذلك العدد. الطلب الأكبر يدفع سعر الوحدة لأعلى شريحة يبلغها.",
+    "tier_quantity_label": "الكمية",
+    "tier_price_label": "سعر هذا العدد (دج)",
+    "tier_saving": "{perUnit} للقطعة · توفير {saved}",
+    "tier_remove": "إزالة هذه الشريحة",
+    "tier_add": "إضافة شريحة",
+    "tier_free_shipping": "توصيل مجاني ابتداءً من هذه الشريحة"
   },
   "buy_x_get_y": "اشترِ {x} واحصل على {y} مجانًا",
   "buy_x_free_shipping": "اشترِ {x} واحصل على شحن مجاني",
@@ -83,5 +92,20 @@
   "count_other": "{count} عرض",
   "schedule_from": "من {date}",
   "schedule_until": "حتى {date}",
-  "schedule_range": "{from} – {to}"
+  "schedule_range": "{from} – {to}",
+  "tier_rule": "{quantity} بـ {price} دج",
+  "error_conflict": "عرض آخر مفعّل يخص هذا المنتج في نفس الفترة. يحصل المنتج على عرض واحد في كل طلب.",
+  "error_invalid": {
+    "reward_required": "اختر المنتج المجاني وكميته.",
+    "reward_not_allowed": "هذا النوع من العروض لا يمنح منتجًا مجانيًا.",
+    "tiers_not_allowed": "السعر حسب الكمية وحده له شرائح أسعار.",
+    "schedule_ends_before_start": "يجب أن تأتي النهاية بعد البداية.",
+    "trigger_quantity": "يجب أن تكون الكمية الدنيا 1 على الأقل.",
+    "empty": "أضف شريحة سعر واحدة على الأقل.",
+    "duplicate_quantity": "لكل شريحة كمية خاصة بها.",
+    "invalid_tier": "كل شريحة تحتاج كمية صحيحة من 1 فما فوق وسعرًا صحيحًا.",
+    "unknown_product": "هذا المنتج لم يعد موجودًا.",
+    "variant_not_of_product": "الخيار المختار لا يخص هذا المنتج.",
+    "too_many_tiers": "10 شرائح على الأكثر."
+  }
 }

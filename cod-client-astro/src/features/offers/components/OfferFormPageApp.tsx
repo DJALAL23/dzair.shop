@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { Gift, Truck } from "lucide-react";
+import { Gift, Layers, Plus, Trash2, Truck } from "lucide-react";
 import {
   canScope,
   RequireAuth,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
 import { DashboardChrome } from "@/components/layout/chrome";
-import { useT } from "@/i18n/react";
+import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 import { createOffer, getOffer, updateOffer } from "@/features/offers/api";
-import { offerBody, offerErrorMessage } from "@/features/offers/model";
+import { formTiers, formTiersProblem, offerBody, offerErrorMessage, tierSaving, toLocalInput } from "@/features/offers/model";
 import type { OfferFormValues } from "@/features/offers/types";
 import { listProducts } from "@/features/products/api";
 import type { Product, ProductVariant } from "@/features/products/types";
-import { Alert, Card, Field, FormPage, InfoTip, Input, Select, Switch } from "@/components/ui";
+import { Alert, Button, Card, Field, FormPage, IconButton, InfoTip, Input, Select, Switch } from "@/components/ui";
+import { formatMoney } from "@/features/orders/model";
 
 const EMPTY_FORM: OfferFormValues = {
   name: "",
@@ -26,6 +27,10 @@ const EMPTY_FORM: OfferFormValues = {
   rewardProductId: "",
   rewardVariantId: "",
   rewardQuantity: "1",
+  tiers: [
+    { quantity: "1", price: "", freeShipping: false },
+    { quantity: "2", price: "", freeShipping: false },
+  ],
   startsAt: "",
   endsAt: "",
   status: "active",
@@ -38,6 +43,7 @@ function variantLabel(variant: ProductVariant) {
 function OfferForm({ offerId }: { offerId?: string }) {
   const t = useT("offers");
   const auth = useT("auth");
+  const locale = useLocale();
   const identity = useIdentity();
   const editing = Boolean(offerId);
   const [form, setForm] = useState<OfferFormValues>(EMPTY_FORM);
@@ -73,8 +79,11 @@ function OfferForm({ offerId }: { offerId?: string }) {
             rewardProductId: offer.rewardProduct?.id ?? "",
             rewardVariantId: offer.rewardVariant?.id ?? "",
             rewardQuantity: String(offer.rewardQuantity),
-            startsAt: offer.startsAt ? offer.startsAt.slice(0, 16) : "",
-            endsAt: offer.endsAt ? offer.endsAt.slice(0, 16) : "",
+            tiers: offer.tiers.length
+              ? offer.tiers.map((tier) => ({ quantity: String(tier.quantity), price: String(tier.price), freeShipping: tier.freeShipping }))
+              : EMPTY_FORM.tiers,
+            startsAt: toLocalInput(offer.startsAt),
+            endsAt: toLocalInput(offer.endsAt),
             status: offer.status,
           });
       })
@@ -130,8 +139,14 @@ function OfferForm({ offerId }: { offerId?: string }) {
     if (form.discountType === "free" && !form.rewardProductId)
       next.rewardProductId = t("form.error_reward_product_required");
     const triggerQty = parseInt(form.triggerQuantity, 10);
-    if (Number.isNaN(triggerQty) || triggerQty < 1)
+    if (form.discountType !== "quantity_price" && (Number.isNaN(triggerQty) || triggerQty < 1))
       next.triggerQuantity = t("form.error_trigger_qty");
+    if (form.discountType === "quantity_price") {
+      const problem = formTiersProblem(form);
+      if (problem) next.tiers = t(`error_invalid.${problem}`);
+    }
+    if (form.startsAt && form.endsAt && form.endsAt <= form.startsAt)
+      next.endsAt = t("error_invalid.schedule_ends_before_start");
     if (form.discountType === "free") {
       const rewardQty = parseInt(form.rewardQuantity, 10);
       if (Number.isNaN(rewardQty) || rewardQty < 1)
@@ -215,9 +230,9 @@ function OfferForm({ offerId }: { offerId?: string }) {
               <span>{t("form.discount_type_label")}</span>
               <InfoTip>{t("form.free_shipping_note")}</InfoTip>
             </legend>
-            <div className="grid grid-cols-2 gap-2">
-              {(["free", "free_shipping"] as const).map((type) => {
-                const Icon = type === "free" ? Gift : Truck;
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {(["free", "free_shipping", "quantity_price"] as const).map((type) => {
+                const Icon = type === "free" ? Gift : type === "free_shipping" ? Truck : Layers;
                 const selected = form.discountType === type;
                 return (
                   <label
@@ -267,9 +282,11 @@ function OfferForm({ offerId }: { offerId?: string }) {
               </Select>
             </Field>
           )}
-          <Field label={t("form.trigger_qty_label")} help={t("form.trigger_qty_hint")} error={errors.triggerQuantity} className="sm:col-span-2">
-            {quantity("triggerQuantity")}
-          </Field>
+          {form.discountType !== "quantity_price" && (
+            <Field label={t("form.trigger_qty_label")} help={t("form.trigger_qty_hint")} error={errors.triggerQuantity} className="sm:col-span-2">
+              {quantity("triggerQuantity")}
+            </Field>
+          )}
         </div>
       </Card>
 
@@ -302,12 +319,52 @@ function OfferForm({ offerId }: { offerId?: string }) {
         </Card>
       )}
 
+      {form.discountType === "quantity_price" && (
+        <Card title={t("form.section_tiers")} subtitle={t("form.tiers_hint")}>
+          <div className="space-y-3">
+            {form.tiers.map((tier, index) => {
+              const parsed = formTiers({ tiers: [tier] })?.[0];
+              const unitPrice = triggerProduct?.price ?? null;
+              const saving = parsed && unitPrice !== null && parsed.quantity > 0 ? tierSaving(parsed, unitPrice) : null;
+              const set = (patch: Partial<typeof tier>) => update("tiers", form.tiers.map((entry, at) => (at === index ? { ...entry, ...patch } : entry)));
+              return (
+                <div key={index} className="grid grid-cols-[6rem_1fr_auto] items-end gap-3 rounded-lg border border-border p-3">
+                  <Field label={t("form.tier_quantity_label")}>
+                    <Input type="number" min={1} value={tier.quantity} onChange={(event) => set({ quantity: event.currentTarget.value })} className="tabular-nums" disabled={busy} />
+                  </Field>
+                  <Field label={t("form.tier_price_label")} hint={saving ? t("form.tier_saving", { perUnit: formatMoney(saving.perUnit, locale), saved: formatMoney(saving.saved, locale) }) : undefined}>
+                    <Input type="number" min={0} value={tier.price} onChange={(event) => set({ price: event.currentTarget.value })} className="tabular-nums" disabled={busy} />
+                  </Field>
+                  <IconButton variant="danger" onClick={() => update("tiers", form.tiers.filter((_, at) => at !== index))} disabled={busy || form.tiers.length === 1} aria-label={t("form.tier_remove")} title={t("form.tier_remove")}>
+                    <Trash2 size={15} />
+                  </IconButton>
+                  <label className="col-span-3 flex items-center gap-2 text-sm text-foreground">
+                    <input type="checkbox" checked={tier.freeShipping} onChange={(event) => set({ freeShipping: event.currentTarget.checked })} disabled={busy} className="size-4 accent-[var(--primary)]" />
+                    {t("form.tier_free_shipping")}
+                  </label>
+                </div>
+              );
+            })}
+            {errors.tiers && <p role="alert" className="text-sm text-destructive">{errors.tiers}</p>}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => update("tiers", [...form.tiers, { quantity: String(Math.max(0, ...form.tiers.map((entry) => Number(entry.quantity) || 0)) + 1), price: "", freeShipping: false }])}
+              disabled={busy || form.tiers.length >= 10}
+            >
+              <Plus size={14} aria-hidden="true" />
+              {t("form.tier_add")}
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <Card title={t("form.section_schedule")}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t("form.starts_at_label")}>
             <Input type="datetime-local" value={form.startsAt} onChange={(event) => update("startsAt", event.currentTarget.value)} disabled={busy} />
           </Field>
-          <Field label={t("form.ends_at_label")}>
+          <Field label={t("form.ends_at_label")} error={errors.endsAt}>
             <Input type="datetime-local" value={form.endsAt} onChange={(event) => update("endsAt", event.currentTarget.value)} disabled={busy} />
           </Field>
         </div>

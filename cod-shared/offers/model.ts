@@ -48,9 +48,9 @@ export function tieredTotal(tier: PriceTier, quantity: number): number {
 }
 
 /** What is wrong with a tier list, or null: at least one tier, quantities distinct, within bounds, prices whole. */
-export function tiersProblem(tiers: readonly PriceTier[]): "empty" | "too_many" | "duplicate_quantity" | "invalid_tier" | null {
+export function tiersProblem(tiers: readonly PriceTier[]): "empty" | "too_many_tiers" | "duplicate_quantity" | "invalid_tier" | null {
   if (tiers.length === 0) return "empty";
-  if (tiers.length > MAX_PRICE_TIERS) return "too_many";
+  if (tiers.length > MAX_PRICE_TIERS) return "too_many_tiers";
   if (new Set(tiers.map((tier) => tier.quantity)).size !== tiers.length) return "duplicate_quantity";
   const valid = (tier: PriceTier) =>
     Number.isInteger(tier.quantity) && tier.quantity >= 1 && tier.quantity <= MAX_TIER_QUANTITY && Number.isInteger(tier.price) && tier.price >= 0;
@@ -79,7 +79,7 @@ export type OfferProblem =
   | "schedule_ends_before_start"
   | "trigger_quantity"
   | "empty"
-  | "too_many"
+  | "too_many_tiers"
   | "duplicate_quantity"
   | "invalid_tier";
 

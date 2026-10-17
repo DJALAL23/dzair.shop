@@ -5,10 +5,9 @@ import type {
   OfferDiscountType,
   OfferStatus,
 } from "@/features/offers/types";
-import type { OfferFilters } from "@/features/offers/model";
+import { OFFER_TYPES, type OfferFilters } from "@/features/offers/model";
 
 const STATUS_OPTIONS: OfferStatus[] = ["active", "inactive"];
-const TYPE_OPTIONS: OfferDiscountType[] = ["free", "free_shipping"];
 export const EMPTY_FILTERS: OfferFilters = {
   query: "",
   status: "all",
@@ -57,7 +56,7 @@ export function OfferFiltersBar({
         onChange={(type) => setFilters((current) => ({ ...current, type: type as OfferDiscountType | "all" }))}
       >
         <option value="all">{t("table.type")}</option>
-        {TYPE_OPTIONS.map((type) => (
+        {OFFER_TYPES.map((type) => (
           <option key={type} value={type}>
             {t(`discount_type.${type}`)}
           </option>
