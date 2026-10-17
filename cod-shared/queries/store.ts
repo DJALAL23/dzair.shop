@@ -29,7 +29,7 @@ import {
 } from "../i18n/translations";
 import type { StoreLocale } from "../i18n/locales";
 import { servedLanguageInfo, servedLocale, servedLocales, storeLanguages } from "../stores/settings";
-import { listContentOverrides, listStoreLocales } from "./stores";
+import { getThemeSettings, listContentOverrides, listStoreLocales } from "./stores";
 import { listTranslations } from "./translations";
 import {
   products,
@@ -128,7 +128,8 @@ export interface StoreOrderData {
  * The storefront's view of the store, in one language (ADR 0005).
  *
  * `theme` names the theme asking: its text edits ride along as
- * `contentOverrides`; without one there are none — edits belong to the theme
+ * `contentOverrides` and its settings as `themeSettings`; without one there
+ * are none — edits belong to the theme
  * that declares their keys. `locale` asks for a language: the store's text
  * and footer links come in it when the store publishes it, and in the primary
  * otherwise. `locale` in the result says which one was served.
@@ -145,7 +146,7 @@ export async function getStoreConfig(
   if (!store) return null;
   const languages = storeLanguages(store.lang, localeRows);
   const served = servedLocale(request.locale, languages);
-  const [tracking, otpRow, turnstileRow, pages, legalContact, overrideRows, storeTranslations] = await Promise.all([
+  const [tracking, otpRow, turnstileRow, pages, legalContact, overrideRows, themeSettings, storeTranslations] = await Promise.all([
     // Which pixel this storefront loads is resolved in one place for every
     // sender — see queries/tracking-config.ts. The public accessor cannot
     // return the Conversions API token, which is what keeps it out of the
@@ -168,6 +169,7 @@ export async function getStoreConfig(
     getFooterPages(db, storeId, served.locale),
     getPublicLegalContact(db, storeId),
     request.theme === undefined ? [] : listContentOverrides(db, storeId, request.theme),
+    request.theme === undefined ? {} : getThemeSettings(db, storeId, request.theme),
     served.translate === null ? [] : listTranslations(db, "store", [storeId], served.translate),
   ]);
   // The raw policy column never leaves the server. This function spreads the
@@ -188,6 +190,9 @@ export async function getStoreConfig(
     // never reach a shopper.
     locales: servedLanguageInfo(languages),
     contentOverrides: groupOverrides(overrideRows, servedLocales(languages)),
+    // The merchant's values for the requesting theme's settings, as saved:
+    // the theme resolves them against its declaration and its defaults.
+    themeSettings,
     checkoutForm: parseCheckoutFormPolicy(checkoutFormJson),
     // Null whenever there is nothing to render — switched off, no number, or a
     // number that no longer normalises. The theme holds one rule about this

@@ -136,6 +136,12 @@ export const SCOPES = {
   /** Create, edit, publish, delete store pages; manage the legal profile */
   STORE_PAGES_MANAGE: "store_pages:manage",
 
+  // Navigation (the store's menus: header, footer, and any a theme reads)
+  /** View the store's menus and their items */
+  NAVIGATION_READ: "navigation:read",
+  /** Create, rename, edit and delete menus */
+  NAVIGATION_MANAGE: "navigation:manage",
+
   // Abandoned Orders
   /** View abandoned orders list and stats */
   ABANDONED_ORDERS_READ: "abandoned_orders:read",
@@ -248,6 +254,10 @@ export const SCOPE_CATEGORIES = {
   storePages: {
     label: "Store Pages",
     scopes: [SCOPES.STORE_PAGES_READ, SCOPES.STORE_PAGES_MANAGE],
+  },
+  navigation: {
+    label: "Navigation",
+    scopes: [SCOPES.NAVIGATION_READ, SCOPES.NAVIGATION_MANAGE],
   },
   checkoutForm: {
     label: "Checkout Form",

@@ -211,6 +211,15 @@ export const ERROR_CODES = {
   DUPLICATE_WILAYA_RULE: "DUPLICATE_WILAYA_RULE",
   
   // ============================================================================
+  // BUSINESS LOGIC ERRORS - NAVIGATION MENUS
+  // ============================================================================
+  MENU_NOT_FOUND: "MENU_NOT_FOUND",
+  /** Another menu of the store already has this handle. */
+  DUPLICATE_MENU_HANDLE: "DUPLICATE_MENU_HANDLE",
+  /** Items nested deeper than a menu allows, or more items than it holds, or one item twice. */
+  INVALID_MENU_ITEMS: "INVALID_MENU_ITEMS",
+  
+  // ============================================================================
   // BUSINESS LOGIC ERRORS - PRODUCT GROUPS
   // ============================================================================
   PRODUCT_GROUP_NOT_FOUND: "PRODUCT_GROUP_NOT_FOUND",

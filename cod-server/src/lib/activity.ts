@@ -79,6 +79,12 @@ export const ACTIONS = {
   STORE_PAGES_SEEDED:      "store_page.seeded",
   STORE_LEGAL_PROFILE_UPDATED: "store_page.legal_profile_updated",
 
+  // Navigation menus
+  MENU_CREATED:            "menu.created",
+  MENU_UPDATED:            "menu.updated",
+  MENU_ITEMS_SAVED:        "menu.items_saved",
+  MENU_DELETED:            "menu.deleted",
+
   // Stock
   STOCK_ADJUSTED:          "stock.adjusted",
 

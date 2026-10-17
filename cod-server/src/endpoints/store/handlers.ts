@@ -24,6 +24,7 @@ import {
 // subtotal to diverge from what the engine charges.
 import { priceCartLines, type CatalogSnapshot } from "../../../../cod-shared/queries/catalog-snapshot";
 import { resolveCartOffers } from "../../../../cod-shared/queries/offers-cart";
+import { resolveStorefrontMenu } from "../../../../cod-shared/queries/menus";
 import { resolveConversionForStage, conversionSourceUrl } from "@/workflows/capi-helpers";
 import { startCapiWorkflow } from "@/lib/conversions";
 import { stores, orders } from "../../../../cod-shared/db/schema";
@@ -212,6 +213,16 @@ export async function getStorePage(c: Context<AppContext>) {
   if (!page) throw new NotFoundError("Store Page", slug);
 
   return c.json({ success: true, data: page }, 200);
+}
+
+export async function getStoreMenu(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const storeId = c.get("storeId")!;
+  const handle = c.req.param("handle")!;
+  const served = await servedLanguage(c, db);
+  const menu = await resolveStorefrontMenu(db, storeId, handle, served.translate);
+  if (!menu) throw new NotFoundError("Menu", handle);
+  return c.json({ success: true, data: menu }, 200);
 }
 
 export async function getStorePageDocument(c: Context<AppContext>) {

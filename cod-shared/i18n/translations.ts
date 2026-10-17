@@ -47,6 +47,9 @@ export const TRANSLATABLE = {
   offer: {
     name: { kind: "text", maxLength: 200 },
   },
+  menuItem: {
+    label: { kind: "text", maxLength: 100 },
+  },
   store: {
     announcementBar: { kind: "text", maxLength: 500 },
     metaTitle: { kind: "text", maxLength: 200 },

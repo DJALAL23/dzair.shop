@@ -1,5 +1,5 @@
 import { and, eq, notInArray } from "drizzle-orm";
-import { storeContentOverrides, storeLocales, stores } from "../db/schema";
+import { storeContentOverrides, storeLocales, storeThemeSettings, stores } from "../db/schema";
 import type { AppDb } from "../db/client";
 import type { LocaleRow } from "../stores/settings";
 
@@ -69,4 +69,25 @@ export async function listContentOverrides(db: AppDb, storeId: string, themeKey:
     .where(and(eq(storeContentOverrides.storeId, storeId), eq(storeContentOverrides.themeKey, themeKey)))
     .orderBy(storeContentOverrides.locale, storeContentOverrides.key)
     .all();
+}
+
+/**
+ * A store's saved values for one theme's settings, as stored — the theme
+ * reads them against its own declaration (`resolveThemeSettings` in
+ * `@wocart/theme`), so a value it no longer accepts falls back to its
+ * default there. `{}` when the store saved none. Written by CodFlow Cloud.
+ */
+export async function getThemeSettings(db: AppDb, storeId: string, themeKey: string): Promise<Record<string, unknown>> {
+  const row = await db
+    .select({ values: storeThemeSettings.values })
+    .from(storeThemeSettings)
+    .where(and(eq(storeThemeSettings.storeId, storeId), eq(storeThemeSettings.themeKey, themeKey)))
+    .get();
+  if (!row) return {};
+  try {
+    const parsed: unknown = JSON.parse(row.values);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
 }

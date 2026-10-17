@@ -494,6 +494,11 @@ export const StoreConfigSchema = z
     contentOverrides: ContentOverridesSchema.openapi({
       description: "The requesting theme's text edits for the published languages; empty without `theme`",
     }),
+    themeSettings: z.record(z.string(), z.unknown()).openapi({
+      description:
+        "The merchant's values for the requesting theme's settings, as saved, by setting key; empty without `theme`. The theme reads them against its declaration (`resolveThemeSettings` in `@wocart/theme`), which falls back to its defaults.",
+      example: { font: "Tajawal", headerMenu: "main-menu" },
+    }),
     currency: z.string().openapi({ example: "DZD" }),
     currencySymbol: z.string().openapi({ example: "دج" }),
     metaTitle: z.string().nullable(),

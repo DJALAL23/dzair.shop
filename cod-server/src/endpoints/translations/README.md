@@ -14,6 +14,7 @@ router, guarded by that router's scopes:
 | category | `/api/product-groups/{id}/translations` | `product_groups:read` | `product_groups:manage` |
 | offer | `/api/offers/{id}/translations` | `offers:read` | `offers:manage` |
 | store | `/api/stores/me/translations` | admin | admin |
+| menuItem | `/api/menus/items/{id}/translations` | `navigation:read` | `navigation:manage` |
 
 **GET** returns the source fields (primary language), the languages it can be
 translated into (`targetLocales`: every added language but the primary, so an

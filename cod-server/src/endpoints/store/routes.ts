@@ -15,6 +15,7 @@ import { THEME_KEY_RE } from "../../../../cod-shared/i18n/content-overrides";
 import { PAGE_DOCUMENT_SURFACE_RE } from "../../../../cod-shared/queries/page-document-surface";
 import { storeOrderSchema, validateCartSchema } from "./validation";
 import reviewsRouter from "./reviews/routes";
+import { MenuHandleSchema, StorefrontMenuSchema } from "@/openapi/schemas/menus";
 import {
   StoreConfigSchema,
   StoreProductListSchema,
@@ -88,6 +89,8 @@ const lpSlugParams = z.object({
 const pageSlugParams = z.object({
   slug: z.string().openapi({ example: "refund-policy" }),
 });
+
+const menuHandleParams = z.object({ handle: MenuHandleSchema });
 
 const pageDocumentParams = z.object({
   surface: z.string().regex(PAGE_DOCUMENT_SURFACE_RE).openapi({ example: "home" }),
@@ -210,6 +213,24 @@ const getStorePageRoute = defineRoute({
     404: { description: "Page not found, or exists only as a draft" },
   },
   handler: h.getStorePage,
+});
+
+const getStoreMenuRoute = defineRoute({
+  method: "get",
+  path: "/menus/{handle}",
+  auth: "store",
+  tags: ["Store API"],
+  summary: "Get a menu",
+  description:
+    "A navigation menu by handle, as a shopper sees it: labels in the requested language (`?locale=`, else the store's primary), each item's `href` a path of the store without a language prefix (or the merchant's URL). An item whose destination is deleted or not public is left out with its children. An unknown handle is a 404: the theme then renders its own fallback.",
+  operationId: "getStoreMenu",
+  params: menuHandleParams,
+  query: localeQuerySchema,
+  responses: {
+    200: { description: "The menu", content: jsonContent(SuccessResponseSchema(StorefrontMenuSchema)) },
+    404: { description: "The store has no menu with this handle" },
+  },
+  handler: h.getStoreMenu,
 });
 
 const getStorePageDocumentRoute = defineRoute({
@@ -484,6 +505,7 @@ const validateCartRoute = defineRoute({
 const router = new OpenAPIHono<AppContext>();
 
 router.openapi(getStoreConfigRoute.route, getStoreConfigRoute.handler);
+router.openapi(getStoreMenuRoute.route, getStoreMenuRoute.handler);
 router.openapi(listStoreProductsRoute.route, listStoreProductsRoute.handler);
 router.openapi(getStoreProductRoute.route, getStoreProductRoute.handler);
 router.openapi(getStoreLandingPageRoute.route, getStoreLandingPageRoute.handler);

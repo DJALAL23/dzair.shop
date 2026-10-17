@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, real, uniqueIndex, index, primaryKey, foreignKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index, primaryKey, foreignKey, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { MENU_DESTINATION_TYPES } from "../navigation/menus";
 import { HANDOFF_STATES, SETTLEMENT_COMPONENTS, SHIPMENT_EVENT_SOURCES, SHIPMENT_KINDS } from "../shipments/model";
 import { INTERPRETATION_KIND_VALUES, MILESTONES } from "../shipments/interpretation";
 import { CARRIER_PROVIDERS } from "../carriers/providers";
@@ -1017,6 +1018,55 @@ export const storeApiKeys = sqliteTable("store_api_keys", {
   lastUsedAt: text("last_used_at"),
   createdAt: text("created_at").notNull(),
 });
+
+// ─── Theme settings and navigation menus (migration 0045) ──────────────────────
+
+/**
+ * A store's values for the settings a theme declares, one row per theme.
+ * Written by CodFlow Cloud; read here for `/store/config`.
+ */
+export const storeThemeSettings = sqliteTable("store_theme_settings", {
+  storeId: text("store_id").notNull().references(() => stores.id, { onDelete: "cascade" }),
+  themeKey: text("theme_key").notNull(),
+  /** JSON object: setting key → value. */
+  values: text("values").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.storeId, t.themeKey] }),
+}));
+
+/** A navigation menu: store data, read by themes by handle. */
+export const storeMenus = sqliteTable("store_menus", {
+  id: text("id").primaryKey(),
+  storeId: text("store_id").notNull().references(() => stores.id, { onDelete: "cascade" }),
+  handle: text("handle").notNull(),
+  title: text("title").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  handleUnique: uniqueIndex("idx_store_menus_handle").on(t.storeId, t.handle),
+}));
+
+/**
+ * One item of a menu: a label (primary language; others in `translations`,
+ * resource `menuItem`) and where it goes — a page type, by the id of its
+ * resource when it names one, or a URL. Up to three levels (`parentId`).
+ */
+export const storeMenuItems = sqliteTable("store_menu_items", {
+  id: text("id").primaryKey(),
+  menuId: text("menu_id").notNull().references(() => storeMenus.id, { onDelete: "cascade" }),
+  parentId: text("parent_id").references((): AnySQLiteColumn => storeMenuItems.id, { onDelete: "cascade" }),
+  position: integer("position").notNull().default(0),
+  label: text("label").notNull(),
+  destinationType: text("destination_type", { enum: MENU_DESTINATION_TYPES }).notNull(),
+  destinationRef: text("destination_ref"),
+  url: text("url"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  menuIdx: index("idx_store_menu_items_menu").on(t.menuId, t.parentId, t.position),
+  parentIdx: index("idx_store_menu_items_parent").on(t.parentId).where(sql`parent_id IS NOT NULL`),
+}));
 
 // ─── Reviews ──────────────────────────────────────────────────────────────────
 
