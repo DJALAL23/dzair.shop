@@ -252,6 +252,20 @@ describe("the merchant builds a menu", () => {
     expect(await labelsOf()).toEqual([robes.id]);
   });
 
+  it("finds what an item can point at, by name or slug, with its path and whether shoppers see it", async () => {
+    const found = async (type: string, q = "") => (await call("GET", `/api/menus/destinations?type=${type}&q=${encodeURIComponent(q)}`)).body.data;
+    expect(await found("product", "rob")).toEqual([{ id: "p1", label: "Robe", path: "/products/robe%20%C3%A9t%C3%A9", visible: true }]);
+    expect((await found("product")).map((option: { id: string; visible: boolean }) => [option.id, option.visible]).sort()).toEqual([["p1", true], ["p2", false], ["p3", false]]);
+    expect(await found("category", "robes")).toEqual([{ id: "cat1", label: "Robes", path: "/category/robes", visible: true }]);
+    expect(await found("page")).toEqual([
+      { id: "sp2", label: "bientot", path: "/pages/bientot", visible: false },
+      { id: "sp1", label: "conditions", path: "/pages/conditions", visible: true },
+    ]);
+    expect((await found("landing", "pro")).map((option: { id: string }) => option.id).sort()).toEqual(["lp1", "lp2"]);
+    expect(await found("product", "nothing-like-this")).toEqual([]);
+    expect((await call("GET", "/api/menus/destinations?type=url")).status).toBe(400);
+  });
+
   it("deletes a menu with its items and their translations", async () => {
     const id = await createMenu();
     const [item] = (await call("PUT", `/api/menus/${id}/items`, { items: [{ label: "x", destination: { type: "home" } }] })).body.data.items;

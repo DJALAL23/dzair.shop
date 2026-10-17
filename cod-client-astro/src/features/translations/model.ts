@@ -19,6 +19,8 @@ export function translationsPath(resource: TranslatableResource, id: string): st
       return `/api/offers/${encoded}/translations`;
     case "store":
       return "/api/stores/me/translations";
+    case "menuItem":
+      return `/api/menus/items/${encoded}/translations`;
   }
 }
 

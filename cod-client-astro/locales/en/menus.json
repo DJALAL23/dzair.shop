@@ -1,0 +1,100 @@
+{
+  "page_title": "Navigation",
+  "page_subtitle": "The menus your store shows — the header, the footer, and any other your theme offers. Your theme decides where each menu appears.",
+  "list": {
+    "new_menu": "New menu",
+    "create": "Create menu",
+    "created": "Menu created",
+    "items": "Items",
+    "item_count_one": "{count} item",
+    "item_count_other": "{count} items",
+    "empty_title": "No menus yet",
+    "empty_body": "Create a menu, for example “main-menu” for the header and “footer” for the footer, then choose in your theme's settings where each one shows."
+  },
+  "fields": {
+    "title": "Name",
+    "title_placeholder": "Main menu",
+    "handle": "Handle",
+    "handle_hint": "How your theme finds this menu. Lowercase letters, digits and hyphens.",
+    "handle_invalid": "Use lowercase letters, digits and hyphens, starting with a letter or digit."
+  },
+  "editor": {
+    "back": "All menus",
+    "save": "Save menu",
+    "saved": "Menu saved",
+    "delete": "Delete menu",
+    "deleted": "Menu deleted",
+    "delete_title": "Delete this menu?",
+    "delete_body": "“{title}” and its items are deleted. A theme that shows it will show no menu there.",
+    "unsaved_title": "Leave without saving?",
+    "unsaved_body": "Your changes to this menu's items are not saved yet.",
+    "leave": "Leave",
+    "items_title": "Items",
+    "items_subtitle": "Up to {depth} levels. Changes apply when you save the menu.",
+    "add_item": "Add item",
+    "empty_title": "This menu is empty",
+    "empty_body": "Add the links shoppers should find here.",
+    "details_title": "Name and handle",
+    "details_subtitle": "Changing the handle moves the menu out of every place your theme showed it.",
+    "save_details": "Save name and handle",
+    "unreachable_one": "{count} item leads to something shoppers can't see — a deleted product, a draft page — so it is hidden from your store.",
+    "unreachable_other": "{count} items lead to something shoppers can't see — a deleted product, a draft page — so they are hidden from your store."
+  },
+  "item": {
+    "add_title": "Add a menu item",
+    "edit_title": "Edit menu item",
+    "add": "Add",
+    "apply": "Apply",
+    "destination": "Links to",
+    "label": "Label",
+    "label_placeholder": "What shoppers read",
+    "label_required": "Write a label, up to 100 characters.",
+    "pick_required": "Choose where this item leads.",
+    "url": "Address",
+    "url_hint": "A page of your store (/pages/faq), a web address (https://…), or an email or phone link.",
+    "url_invalid": "This address can't be used as a link.",
+    "not_visible": "not visible to shoppers",
+    "translate_title": "Translate “{label}”"
+  },
+  "pick": {
+    "product": "Product",
+    "category": "Category",
+    "page": "Page",
+    "landing": "Landing page",
+    "placeholder": "Search by name…",
+    "empty": "Nothing matches"
+  },
+  "destination": {
+    "home": "Home page",
+    "catalog": "All products",
+    "category": "Category",
+    "product": "Product",
+    "page": "Page",
+    "landing": "Landing page",
+    "url": "Web address"
+  },
+  "status": {
+    "missing": "Deleted",
+    "hidden": "Not visible",
+    "unsaved": "Not saved"
+  },
+  "actions": {
+    "translate": "Translate",
+    "edit": "Edit",
+    "add_child": "Add an item under this one",
+    "up": "Move up",
+    "down": "Move down",
+    "indent": "Nest under the item above",
+    "outdent": "Move out one level",
+    "remove": "Remove"
+  },
+  "errors": {
+    "load_failed": "Couldn't load your menus",
+    "generic": "Something went wrong. Try again.",
+    "validation": "Check the name and the handle.",
+    "handle_taken": "Another menu already uses this handle.",
+    "not_found": "This menu no longer exists.",
+    "item_incomplete": "Some items are missing a label or a destination.",
+    "over_limit": "A menu holds at most {max} items."
+  }
+}

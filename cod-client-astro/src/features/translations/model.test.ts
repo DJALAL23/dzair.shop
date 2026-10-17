@@ -28,6 +28,7 @@ describe("translationsPath", () => {
     expect(translationsPath("category", "c-1")).toBe("/api/product-groups/c-1/translations");
     expect(translationsPath("offer", "o-1")).toBe("/api/offers/o-1/translations");
     expect(translationsPath("store", "me")).toBe("/api/stores/me/translations");
+    expect(translationsPath("menuItem", "i 1")).toBe("/api/menus/items/i%201/translations");
   });
 });
 

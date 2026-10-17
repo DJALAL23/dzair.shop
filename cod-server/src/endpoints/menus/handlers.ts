@@ -6,8 +6,8 @@ import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors/clas
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { getStore } from "../../../../cod-shared/queries/stores";
-import { createMenu, deleteMenu, getMenu, listMenus, saveMenuItems, updateMenu } from "../../../../cod-shared/queries/menus";
-import type { CreateMenuSchema, SaveMenuItemsSchema, UpdateMenuSchema } from "@/openapi/schemas/menus";
+import { createMenu, deleteMenu, getMenu, listMenus, saveMenuItems, searchMenuDestinations, updateMenu } from "../../../../cod-shared/queries/menus";
+import type { CreateMenuSchema, MenuDestinationQuerySchema, SaveMenuItemsSchema, UpdateMenuSchema } from "@/openapi/schemas/menus";
 
 async function requireStore(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -31,6 +31,13 @@ export async function list(c: Context<AppContext>) {
   const { db, store } = await requireStore(c);
   const data = await listMenus(db, store.id);
   return c.json({ success: true, data, count: data.length }, 200);
+}
+
+export async function destinations(c: Context<AppContext>) {
+  const { db, store } = await requireStore(c);
+  const { type, q } = (c.req as unknown as { valid: (target: "query") => z.infer<typeof MenuDestinationQuerySchema> }).valid("query");
+  const data = await searchMenuDestinations(db, store.id, type, q ?? "");
+  return c.json({ success: true, data }, 200);
 }
 
 export async function get(c: Context<AppContext>) {

@@ -9,7 +9,15 @@ import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import { SuccessResponseSchema } from "@/openapi/schemas";
-import { CreateMenuSchema, MenuDetailSchema, MenuSummarySchema, SaveMenuItemsSchema, UpdateMenuSchema } from "@/openapi/schemas/menus";
+import {
+  CreateMenuSchema,
+  MenuDestinationOptionSchema,
+  MenuDestinationQuerySchema,
+  MenuDetailSchema,
+  MenuSummarySchema,
+  SaveMenuItemsSchema,
+  UpdateMenuSchema,
+} from "@/openapi/schemas/menus";
 import { eq } from "drizzle-orm";
 import { storeMenuItems } from "../../../../cod-shared/db/schema";
 import { registerTranslationRoutes } from "../translations/routes";
@@ -36,6 +44,21 @@ const listRoute = defineRoute({
     },
   },
   handler: h.list,
+});
+
+const destinationsRoute = defineRoute({
+  method: "get",
+  path: "/destinations",
+  auth: { scope: SCOPES.NAVIGATION_READ },
+  tags: ["Navigation"],
+  summary: "Find what a menu item can point at",
+  description: "Up to 20 products, categories, store pages or landing pages whose name or slug contains `q`, each with its public path and whether shoppers can see it now.",
+  operationId: "searchMenuDestinations",
+  query: MenuDestinationQuerySchema,
+  responses: {
+    200: { description: "Matching destinations", content: jsonContent(SuccessResponseSchema(z.array(MenuDestinationOptionSchema))) },
+  },
+  handler: h.destinations,
 });
 
 const getRoute = defineRoute({
@@ -116,6 +139,7 @@ const deleteRoute = defineRoute({
 const router = new OpenAPIHono<AppContext>();
 
 router.openapi(listRoute.route, listRoute.handler);
+router.openapi(destinationsRoute.route, destinationsRoute.handler);
 router.openapi(getRoute.route, getRoute.handler);
 router.openapi(createRoute.route, createRoute.handler);
 router.openapi(updateRoute.route, updateRoute.handler);

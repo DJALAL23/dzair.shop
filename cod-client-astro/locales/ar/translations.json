@@ -32,6 +32,9 @@
       "announcementBar": "شريط الإعلانات",
       "metaTitle": "عنوان SEO",
       "metaDescription": "وصف SEO"
+    },
+    "menuItem": {
+      "label": "التسمية"
     }
   }
 }

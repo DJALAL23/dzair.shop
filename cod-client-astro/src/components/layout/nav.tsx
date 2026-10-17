@@ -2,6 +2,7 @@ import {
   Building2,
   ClipboardList,
   FileText,
+  ListTree,
   FolderOpen,
   Gift,
   Home,
@@ -187,6 +188,13 @@ export function useNavSections(): NavSection[] {
           label: tN("sidebar.store_pages"),
           icon: FileText,
           scope: "store_pages:read",
+        },
+        {
+          kind: "leaf",
+          href: "/navigation",
+          label: tN("sidebar.navigation_menus"),
+          icon: ListTree,
+          scope: "navigation:read",
         },
         {
           kind: "leaf",

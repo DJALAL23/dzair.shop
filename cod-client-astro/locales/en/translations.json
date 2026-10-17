@@ -32,6 +32,9 @@
       "announcementBar": "Announcement bar",
       "metaTitle": "SEO title",
       "metaDescription": "SEO description"
+    },
+    "menuItem": {
+      "label": "Label"
     }
   }
 }

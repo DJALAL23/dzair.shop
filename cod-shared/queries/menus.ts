@@ -11,12 +11,14 @@
  * link to nowhere. The dashboard sees those items as broken
  * (`getMenu` → `destinationStatus`).
  */
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or } from "drizzle-orm";
+import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { landingPages, productCategories, products, storeMenuItems, storeMenus, storePages } from "../db/schema";
 import type { AppDb } from "../db/client";
-import { DESTINATION_PAGE_TYPE, MENU_MAX_DEPTH, MENU_MAX_ITEMS, type MenuDestination } from "../navigation/menus";
+import { DESTINATION_PAGE_TYPE, MENU_MAX_DEPTH, MENU_MAX_ITEMS, MENU_RESOURCE_DESTINATIONS, type MenuDestination } from "../navigation/menus";
 import { storefrontPath } from "../storefront/routes";
 import { listTranslations } from "./translations";
+import { safeLikeTerm } from "./search";
 import type { StoreLocale } from "../i18n/locales";
 
 export interface MenuSummary {
@@ -137,6 +139,73 @@ function tree<T>(rows: readonly ItemRow[], build: (row: ItemRow, children: T[]) 
 
 async function menuRows(db: AppDb, menuId: string) {
   return db.select().from(storeMenuItems).where(eq(storeMenuItems.menuId, menuId)).orderBy(asc(storeMenuItems.position)).all();
+}
+
+export interface MenuDestinationOption {
+  id: string;
+  label: string;
+  /** Its public path, so the merchant sees where the link goes. */
+  path: string;
+  /** False for one shoppers cannot see now (a draft, an inactive product): it would be left out of the menu. */
+  visible: boolean;
+}
+
+/**
+ * What a menu item can point at, for the dashboard's picker: up to `limit`
+ * products, categories, store pages or landing pages whose name (or slug)
+ * contains `query`.
+ */
+export async function searchMenuDestinations(
+  db: AppDb,
+  storeId: string,
+  type: (typeof MENU_RESOURCE_DESTINATIONS)[number],
+  query: string,
+  limit = 20,
+): Promise<MenuDestinationOption[]> {
+  const term = `%${safeLikeTerm(query.trim())}%`;
+  const matches = (...columns: SQLiteColumn[]) => (query.trim() ? or(...columns.map((column) => like(column, term))) : undefined);
+  switch (type) {
+    case "product": {
+      const rows = await db
+        .select({ id: products.id, name: products.name, handle: products.handle, status: products.status, visibility: products.visibility, showInStore: products.showInStore })
+        .from(products)
+        .where(matches(products.name, products.handle))
+        .orderBy(desc(products.updatedAt))
+        .limit(limit)
+        .all();
+      return rows.map((row) => ({ id: row.id, label: row.name, path: storefrontPath("product", { handle: row.handle }), visible: row.status === "ACTIVE" && row.visibility && row.showInStore }));
+    }
+    case "category": {
+      const rows = await db
+        .select({ id: productCategories.id, name: productCategories.name, slug: productCategories.slug })
+        .from(productCategories)
+        .where(matches(productCategories.name, productCategories.slug))
+        .orderBy(asc(productCategories.position), asc(productCategories.name))
+        .limit(limit)
+        .all();
+      return rows.map((row) => ({ id: row.id, label: row.name, path: storefrontPath("category", { slug: row.slug }), visible: true }));
+    }
+    case "page": {
+      const rows = await db
+        .select({ id: storePages.id, slug: storePages.slug, status: storePages.status })
+        .from(storePages)
+        .where(and(eq(storePages.storeId, storeId), matches(storePages.slug)))
+        .orderBy(asc(storePages.position), asc(storePages.slug))
+        .limit(limit)
+        .all();
+      return rows.map((row) => ({ id: row.id, label: row.slug, path: storefrontPath("page", { slug: row.slug }), visible: row.status === "published" }));
+    }
+    case "landing": {
+      const rows = await db
+        .select({ id: landingPages.id, name: landingPages.name, slug: landingPages.slug, status: landingPages.status })
+        .from(landingPages)
+        .where(matches(landingPages.name, landingPages.slug))
+        .orderBy(desc(landingPages.updatedAt))
+        .limit(limit)
+        .all();
+      return rows.map((row) => ({ id: row.id, label: row.name, path: storefrontPath("landing", { slug: row.slug }), visible: row.status === "published" }));
+    }
+  }
 }
 
 export async function listMenus(db: AppDb, storeId: string): Promise<MenuSummary[]> {

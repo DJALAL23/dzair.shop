@@ -1,0 +1,102 @@
+{
+  "page_title": "Navigation",
+  "page_subtitle": "Les menus de votre boutique — l'en-tête, le pied de page et tout autre emplacement proposé par votre thème. Votre thème décide où chaque menu s'affiche.",
+  "list": {
+    "new_menu": "Nouveau menu",
+    "create": "Créer le menu",
+    "created": "Menu créé",
+    "items": "Éléments",
+    "item_count_one": "{count} élément",
+    "item_count_many": "{count} d'éléments",
+    "item_count_other": "{count} éléments",
+    "empty_title": "Aucun menu pour l'instant",
+    "empty_body": "Créez un menu, par exemple « main-menu » pour l'en-tête et « footer » pour le pied de page, puis choisissez dans les réglages de votre thème où chacun s'affiche."
+  },
+  "fields": {
+    "title": "Nom",
+    "title_placeholder": "Menu principal",
+    "handle": "Identifiant",
+    "handle_hint": "Ce qui permet à votre thème de trouver ce menu. Lettres minuscules, chiffres et tirets.",
+    "handle_invalid": "Utilisez des lettres minuscules, des chiffres et des tirets, en commençant par une lettre ou un chiffre."
+  },
+  "editor": {
+    "back": "Tous les menus",
+    "save": "Enregistrer le menu",
+    "saved": "Menu enregistré",
+    "delete": "Supprimer le menu",
+    "deleted": "Menu supprimé",
+    "delete_title": "Supprimer ce menu ?",
+    "delete_body": "« {title} » et ses éléments seront supprimés. Un thème qui l'affiche n'affichera plus de menu à cet endroit.",
+    "unsaved_title": "Quitter sans enregistrer ?",
+    "unsaved_body": "Vos modifications des éléments de ce menu ne sont pas encore enregistrées.",
+    "leave": "Quitter",
+    "items_title": "Éléments",
+    "items_subtitle": "Jusqu'à {depth} niveaux. Les modifications s'appliquent à l'enregistrement du menu.",
+    "add_item": "Ajouter un élément",
+    "empty_title": "Ce menu est vide",
+    "empty_body": "Ajoutez les liens que vos clients doivent trouver ici.",
+    "details_title": "Nom et identifiant",
+    "details_subtitle": "Changer l'identifiant retire le menu de tous les emplacements où votre thème l'affichait.",
+    "save_details": "Enregistrer le nom et l'identifiant",
+    "unreachable_one": "{count} élément mène à un contenu que les clients ne peuvent pas voir — un produit supprimé, une page en brouillon — il est donc masqué dans votre boutique.",
+    "unreachable_many": "{count} d'éléments mènent à un contenu que les clients ne peuvent pas voir — un produit supprimé, une page en brouillon — ils sont donc masqués dans votre boutique.",
+    "unreachable_other": "{count} éléments mènent à un contenu que les clients ne peuvent pas voir — un produit supprimé, une page en brouillon — ils sont donc masqués dans votre boutique."
+  },
+  "item": {
+    "add_title": "Ajouter un élément de menu",
+    "edit_title": "Modifier l'élément de menu",
+    "add": "Ajouter",
+    "apply": "Appliquer",
+    "destination": "Mène vers",
+    "label": "Libellé",
+    "label_placeholder": "Ce que lisent vos clients",
+    "label_required": "Écrivez un libellé, 100 caractères au plus.",
+    "pick_required": "Choisissez où mène cet élément.",
+    "url": "Adresse",
+    "url_hint": "Une page de votre boutique (/pages/faq), une adresse web (https://…), ou un lien e-mail ou téléphone.",
+    "url_invalid": "Cette adresse ne peut pas servir de lien.",
+    "not_visible": "invisible pour les clients",
+    "translate_title": "Traduire « {label} »"
+  },
+  "pick": {
+    "product": "Produit",
+    "category": "Catégorie",
+    "page": "Page",
+    "landing": "Page de destination",
+    "placeholder": "Rechercher par nom…",
+    "empty": "Aucun résultat"
+  },
+  "destination": {
+    "home": "Page d'accueil",
+    "catalog": "Tous les produits",
+    "category": "Catégorie",
+    "product": "Produit",
+    "page": "Page",
+    "landing": "Page de destination",
+    "url": "Adresse web"
+  },
+  "status": {
+    "missing": "Supprimé",
+    "hidden": "Invisible",
+    "unsaved": "Non enregistré"
+  },
+  "actions": {
+    "translate": "Traduire",
+    "edit": "Modifier",
+    "add_child": "Ajouter un élément sous celui-ci",
+    "up": "Monter",
+    "down": "Descendre",
+    "indent": "Placer sous l'élément au-dessus",
+    "outdent": "Remonter d'un niveau",
+    "remove": "Retirer"
+  },
+  "errors": {
+    "load_failed": "Impossible de charger vos menus",
+    "generic": "Une erreur s'est produite. Réessayez.",
+    "validation": "Vérifiez le nom et l'identifiant.",
+    "handle_taken": "Un autre menu utilise déjà cet identifiant.",
+    "not_found": "Ce menu n'existe plus.",
+    "item_incomplete": "Certains éléments n'ont pas de libellé ou de destination.",
+    "over_limit": "Un menu contient au plus {max} éléments."
+  }
+}

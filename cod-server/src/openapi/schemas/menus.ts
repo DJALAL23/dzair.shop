@@ -7,7 +7,7 @@
  */
 
 import { z } from "@hono/zod-openapi";
-import { MENU_HANDLE_RE, MENU_MAX_ITEMS, isMenuUrl } from "../../../../cod-shared/navigation/menus";
+import { MENU_HANDLE_RE, MENU_MAX_ITEMS, MENU_RESOURCE_DESTINATIONS, isMenuUrl } from "../../../../cod-shared/navigation/menus";
 
 export const MenuHandleSchema = z.string().regex(MENU_HANDLE_RE).openapi({
   description: "Lowercase letters, digits and hyphens; how a theme names the menu",
@@ -101,3 +101,17 @@ export const StorefrontMenuSchema = z
     }),
   })
   .openapi("StorefrontMenu");
+
+export const MenuDestinationQuerySchema = z.object({
+  type: z.enum(MENU_RESOURCE_DESTINATIONS).openapi({ example: "product" }),
+  q: z.string().max(100).optional().openapi({ description: "Part of the name or slug", example: "robe" }),
+});
+
+export const MenuDestinationOptionSchema = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    path: z.string().openapi({ description: "Its public path", example: "/products/robe" }),
+    visible: z.boolean().openapi({ description: "False when shoppers cannot see it now: an item pointing at it is left out of the menu" }),
+  })
+  .openapi("MenuDestinationOption");

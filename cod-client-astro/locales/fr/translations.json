@@ -32,6 +32,9 @@
       "announcementBar": "Barre d'annonce",
       "metaTitle": "Titre SEO",
       "metaDescription": "Description SEO"
+    },
+    "menuItem": {
+      "label": "Libellé"
     }
   }
 }
