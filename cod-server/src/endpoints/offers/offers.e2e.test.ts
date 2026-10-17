@@ -167,9 +167,26 @@ describe("offers through the real routes", () => {
     expect((await call("POST", "/api/offers", { name: "Gift", triggerProductId: "ghost", rewardProductId: "sac" })).body).toMatchObject({ context: { reason: "unknown_product" } });
   });
 
+  it("say where each offer stands now — what the shopper sees, not only the merchant's switch", async () => {
+    const gift = { triggerProductId: "robe", rewardProductId: "sac" };
+    await call("POST", "/api/offers", { ...gift, name: "Live" });
+    await call("POST", "/api/offers", { ...gift, name: "Later", startsAt: "2099-01-01T00:00:00Z" });
+    await call("POST", "/api/offers", { ...gift, name: "Over", endsAt: "2020-01-01T00:00:00Z" });
+    await call("POST", "/api/offers", { ...gift, name: "Off", status: "inactive" });
+    const listed = (await call("GET", "/api/offers")).body.data as Array<{ id: string; name: string; status: string; state: string }>;
+    expect(Object.fromEntries(listed.map((offer) => [offer.name, [offer.status, offer.state]]))).toEqual({
+      Live: ["active", "live"],
+      Later: ["active", "scheduled"],
+      Over: ["active", "expired"],
+      Off: ["inactive", "inactive"],
+    });
+    const later = listed.find((offer) => offer.name === "Later")!;
+    expect((await call("GET", `/api/offers/${later.id}`)).body.data.state).toBe("scheduled");
+  });
+
   it("never let quantity pricing be live beside another offer for the product, at the same time", async () => {
     const gift = (await call("POST", "/api/offers", { name: "Gift", triggerProductId: "robe", rewardProductId: "sac", endsAt: "2026-06-01T00:00:00Z" })).body.data;
-    expect(await call("POST", "/api/offers", quantityPricing)).toMatchObject({ status: 409, body: { code: "OFFER_CONFLICT", context: { offerId: gift.id } } });
+    expect(await call("POST", "/api/offers", quantityPricing)).toMatchObject({ status: 409, body: { code: "OFFER_CONFLICT", context: { offerId: gift.id, offerName: "Gift" } } });
     expect((await call("POST", "/api/offers", { ...quantityPricing, startsAt: "2026-06-01T00:00:00Z" })).status).toBe(201);
     expect((await call("POST", "/api/offers", { ...quantityPricing, status: "inactive" })).status).toBe(201);
     expect((await call("POST", "/api/offers", { ...quantityPricing, triggerProductId: "sac" })).status).toBe(201);

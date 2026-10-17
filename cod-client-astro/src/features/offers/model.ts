@@ -1,9 +1,10 @@
 import type { Translate } from "@/i18n/core";
 import { OFFER_KINDS, tiersProblem, type PriceTier } from "../../../../cod-shared/offers/model";
 import { fromLocalInput } from "@/lib/datetime-local";
-import type { CreateOfferData, Offer, OfferDiscountType, OfferFormValues, OfferStatus } from "./types";
+import { formatMoney } from "@/features/orders/model";
+import type { CreateOfferData, Offer, OfferDiscountType, OfferFormValues, OfferState } from "./types";
 
-export type OfferSortKey = "name" | "status" | "createdAt" | "triggerQuantity";
+export type OfferSortKey = "name" | "state" | "createdAt" | "triggerQuantity";
 
 export type OfferRoute =
   | { kind: "list" }
@@ -13,16 +14,19 @@ export type OfferRoute =
 
 export interface OfferFilters {
   query: string;
-  status: OfferStatus | "all";
+  state: OfferState | "all";
   type: OfferDiscountType | "all";
 }
 
-export const OFFER_STATUSES: OfferStatus[] = ["active", "inactive"];
+export const OFFER_STATES: readonly OfferState[] = ["live", "scheduled", "expired", "inactive"];
 export const OFFER_TYPES: readonly OfferDiscountType[] = OFFER_KINDS;
 
-export function parseOfferStatus(value: string | undefined): OfferStatus | undefined {
-  return OFFER_STATUSES.includes(value as OfferStatus) ? (value as OfferStatus) : undefined;
-}
+export const OFFER_STATE_TONE: Record<OfferState, "success" | "neutral" | "info"> = {
+  live: "success",
+  scheduled: "info",
+  expired: "neutral",
+  inactive: "neutral",
+};
 
 export function parseOfferType(value: string | undefined): OfferDiscountType | undefined {
   return OFFER_TYPES.includes(value as OfferDiscountType) ? (value as OfferDiscountType) : undefined;
@@ -31,7 +35,7 @@ export function parseOfferType(value: string | undefined): OfferDiscountType | u
 export function filterOffers(offers: Offer[], filters: OfferFilters) {
   const q = filters.query.trim().toLocaleLowerCase();
   return offers.filter((offer) => {
-    if (filters.status !== "all" && offer.status !== filters.status) return false;
+    if (filters.state !== "all" && offer.state !== filters.state) return false;
     if (filters.type !== "all" && offer.discountType !== filters.type) return false;
     if (q && `${offer.name} ${offer.triggerProduct?.name ?? ""} ${offer.rewardProduct?.name ?? ""}`.toLocaleLowerCase().indexOf(q) === -1) return false;
     return true;
@@ -53,9 +57,9 @@ export function paginateOffers(offers: Offer[], page: number, pageSize: number) 
   return offers.slice((safePage - 1) * safePageSize, safePage * safePageSize);
 }
 
-export function offerRuleLabel(offer: Pick<Offer, "discountType" | "triggerQuantity" | "rewardQuantity" | "tiers">, t: Translate) {
+export function offerRuleLabel(offer: Pick<Offer, "discountType" | "triggerQuantity" | "rewardQuantity" | "tiers">, t: Translate, locale: "ar" | "en" | "fr") {
   if (offer.discountType === "quantity_price") {
-    return offer.tiers.map((tier) => t("tier_rule", { quantity: tier.quantity, price: tier.price })).join(" · ");
+    return offer.tiers.map((tier) => t("tier_rule", { quantity: tier.quantity, price: formatMoney(tier.price, locale) })).join(" · ");
   }
   if (offer.discountType === "free_shipping") {
     return t("buy_x_free_shipping", { x: offer.triggerQuantity });
@@ -88,7 +92,7 @@ export function parseOfferRoute(pathname: string): OfferRoute {
 
 export function offerErrorMessage(cause: unknown, t: Translate) {
   const code = cause && typeof cause === "object" && "code" in cause ? String(cause.code) : "";
-  if (code === "OFFER_CONFLICT") return t("error_conflict");
+  if (code === "OFFER_CONFLICT") return t("error_conflict", { name: String((cause as { context?: { offerName?: unknown } }).context?.offerName ?? "") });
   if (code === "INVALID_OFFER") {
     const reason = (cause as { context?: { reason?: unknown } }).context?.reason;
     return typeof reason === "string" ? t(`error_invalid.${reason}`) : t("error_generic");

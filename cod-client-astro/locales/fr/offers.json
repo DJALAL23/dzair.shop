@@ -16,9 +16,11 @@
     "actions": "Actions",
     "deal": "Avantage"
   },
-  "status": {
-    "active": "Active",
-    "inactive": "Inactive"
+  "state": {
+    "live": "En cours",
+    "scheduled": "Programmée",
+    "expired": "Expirée",
+    "inactive": "Désactivée"
   },
   "empty_state": {
     "title": "Aucune offre active",
@@ -76,6 +78,7 @@
     "tier_quantity_label": "Quantité",
     "tier_price_label": "Prix pour ce nombre (DA)",
     "tier_saving": "{perUnit} l'unité · économise {saved}",
+    "tier_each": "{perUnit} l'unité",
     "tier_remove": "Retirer ce palier",
     "tier_add": "Ajouter un palier",
     "tier_free_shipping": "Livraison gratuite à partir de ce palier"
@@ -90,8 +93,8 @@
   "schedule_from": "À partir du {date}",
   "schedule_until": "Jusqu’au {date}",
   "schedule_range": "{from} – {to}",
-  "tier_rule": "{quantity} pour {price} DA",
-  "error_conflict": "Une autre offre active s'applique déjà à ce produit à cette période. Un produit reçoit une seule offre par commande.",
+  "tier_rule": "{quantity} pour {price}",
+  "error_conflict": "L'offre « {name} » est active pour ce produit sur la même période, et un produit n'a qu'une offre par commande. Désactivez-la ou changez l'une des périodes.",
   "error_invalid": {
     "reward_required": "Choisissez le produit offert et sa quantité.",
     "reward_not_allowed": "Ce type d'offre n'offre aucun produit.",

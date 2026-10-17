@@ -419,6 +419,10 @@ export const OfferSchema = z
       description: "Only `active` offers within the schedule window are auto-applied to store orders.",
       example: "active",
     }),
+    state: z.enum(["inactive", "scheduled", "expired", "live"]).openapi({
+      description: "Where the offer stands now: switched off, not started, ended, or live — the only state shoppers see it in.",
+      example: "live",
+    }),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })

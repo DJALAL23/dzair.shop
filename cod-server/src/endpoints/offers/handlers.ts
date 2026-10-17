@@ -12,7 +12,7 @@ const body = <T>(c: Context<AppContext>) => (c.req as unknown as { valid: (targe
 /** A write the rules refused, as the error the merchant reads. */
 export function offerWriteError(problem: OfferWriteProblem) {
   return problem.reason === "conflict"
-    ? new ConflictError("Another live offer already applies to this product at that time", ERROR_CODES.OFFER_CONFLICT, { offerId: problem.offerId })
+    ? new ConflictError("Another live offer already applies to this product at that time", ERROR_CODES.OFFER_CONFLICT, { offerId: problem.offerId, offerName: problem.offerName })
     : new ValidationError("The offer is not coherent", ERROR_CODES.INVALID_OFFER, { reason: problem.reason });
 }
 

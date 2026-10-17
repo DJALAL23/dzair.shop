@@ -333,7 +333,7 @@ function OfferForm({ offerId }: { offerId?: string }) {
                   <Field label={t("form.tier_quantity_label")}>
                     <Input type="number" min={1} value={tier.quantity} onChange={(event) => set({ quantity: event.currentTarget.value })} className="tabular-nums" disabled={busy} />
                   </Field>
-                  <Field label={t("form.tier_price_label")} hint={saving ? t("form.tier_saving", { perUnit: formatMoney(saving.perUnit, locale), saved: formatMoney(saving.saved, locale) }) : undefined}>
+                  <Field label={t("form.tier_price_label")} hint={saving ? (saving.saved > 0 ? t("form.tier_saving", { perUnit: formatMoney(saving.perUnit, locale), saved: formatMoney(saving.saved, locale) }) : t("form.tier_each", { perUnit: formatMoney(saving.perUnit, locale) })) : undefined}>
                     <Input type="number" min={0} value={tier.price} onChange={(event) => set({ price: event.currentTarget.value })} className="tabular-nums" disabled={busy} />
                   </Field>
                   <IconButton variant="danger" onClick={() => update("tiers", form.tiers.filter((_, at) => at !== index))} disabled={busy || form.tiers.length === 1} aria-label={t("form.tier_remove")} title={t("form.tier_remove")}>

@@ -16,9 +16,11 @@
     "actions": "الإجراءات",
     "deal": "العرض"
   },
-  "status": {
-    "active": "نشط",
-    "inactive": "معطَّل"
+  "state": {
+    "live": "فعّال",
+    "scheduled": "مجدول",
+    "expired": "منتهٍ",
+    "inactive": "متوقف"
   },
   "empty_state": {
     "title": "لا توجد عروض نشطة",
@@ -76,6 +78,7 @@
     "tier_quantity_label": "الكمية",
     "tier_price_label": "سعر هذا العدد (دج)",
     "tier_saving": "{perUnit} للقطعة · توفير {saved}",
+    "tier_each": "{perUnit} للقطعة",
     "tier_remove": "إزالة هذه الشريحة",
     "tier_add": "إضافة شريحة",
     "tier_free_shipping": "توصيل مجاني ابتداءً من هذه الشريحة"
@@ -93,8 +96,8 @@
   "schedule_from": "من {date}",
   "schedule_until": "حتى {date}",
   "schedule_range": "{from} – {to}",
-  "tier_rule": "{quantity} بـ {price} دج",
-  "error_conflict": "عرض آخر مفعّل يخص هذا المنتج في نفس الفترة. يحصل المنتج على عرض واحد في كل طلب.",
+  "tier_rule": "{quantity} بـ {price}",
+  "error_conflict": "العرض «{name}» مفعّل لهذا المنتج في نفس الفترة، ويحصل المنتج على عرض واحد في كل طلب. أوقفه أو غيّر مدّة أحدهما.",
   "error_invalid": {
     "reward_required": "اختر المنتج المجاني وكميته.",
     "reward_not_allowed": "هذا النوع من العروض لا يمنح منتجًا مجانيًا.",

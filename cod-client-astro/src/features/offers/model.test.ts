@@ -7,16 +7,17 @@ import {
   offerScheduleLabel,
   paginateOffers,
   parseOfferRoute,
-  parseOfferStatus,
   parseOfferType,
   sortOffers,
 } from "./model";
 import type { Offer } from "./types";
+import { formatMoney } from "@/features/orders/model";
 
 const offer = (overrides: Partial<Offer> = {}): Offer => ({
   id: "offer-1",
   name: "Buy 2 Get 1",
   status: "active",
+  state: "live",
   triggerQuantity: 2,
   rewardQuantity: 1,
   discountType: "free",
@@ -35,11 +36,16 @@ const offer = (overrides: Partial<Offer> = {}): Offer => ({
 const t = (key: string) => key;
 
 describe("offers model", () => {
-  it("filters by query, status, and discount type", () => {
-    const rows = [offer(), offer({ id: "2", name: "Free Ship", status: "inactive", discountType: "free_shipping", triggerProduct: { id: "prod-3", name: "Snacks", handle: "snacks" } })];
-    expect(filterOffers(rows, { query: "chips", status: "all", type: "all" }).map((item) => item.id)).toEqual(["offer-1"]);
-    expect(filterOffers(rows, { query: "", status: "inactive", type: "all" }).map((item) => item.id)).toEqual(["2"]);
-    expect(filterOffers(rows, { query: "", status: "all", type: "free_shipping" }).map((item) => item.id)).toEqual(["2"]);
+  it("filters by query, state, and discount type", () => {
+    const rows = [
+      offer(),
+      offer({ id: "2", name: "Free Ship", status: "inactive", state: "inactive", discountType: "free_shipping", triggerProduct: { id: "prod-3", name: "Snacks", handle: "snacks" } }),
+      offer({ id: "3", name: "Later", state: "scheduled" }),
+    ];
+    expect(filterOffers(rows, { query: "chips", state: "all", type: "all" }).map((item) => item.id)).toEqual(["offer-1", "3"]);
+    expect(filterOffers(rows, { query: "", state: "inactive", type: "all" }).map((item) => item.id)).toEqual(["2"]);
+    expect(filterOffers(rows, { query: "", state: "scheduled", type: "all" }).map((item) => item.id)).toEqual(["3"]);
+    expect(filterOffers(rows, { query: "", state: "all", type: "free_shipping" }).map((item) => item.id)).toEqual(["2"]);
   });
 
   it("sorts and paginates offer collections", () => {
@@ -49,8 +55,8 @@ describe("offers model", () => {
   });
 
   it("builds rule and schedule labels", () => {
-    expect(offerRuleLabel(offer(), t)).toBe("buy_x_get_y");
-    expect(offerRuleLabel(offer({ discountType: "free_shipping", triggerQuantity: 3 }), t)).toBe("buy_x_free_shipping");
+    expect(offerRuleLabel(offer(), t, "en")).toBe("buy_x_get_y");
+    expect(offerRuleLabel(offer({ discountType: "free_shipping", triggerQuantity: 3 }), t, "en")).toBe("buy_x_free_shipping");
     expect(offerScheduleLabel(offer(), "en", t)).toBeNull();
     expect(offerScheduleLabel(offer({ startsAt: "2026-08-26T00:00:00.000Z" }), "en", t)).toBe("schedule_from");
     expect(offerScheduleLabel(offer({ endsAt: "2026-08-30T00:00:00.000Z" }), "en", t)).toBe("schedule_until");
@@ -62,8 +68,6 @@ describe("offers model", () => {
     expect(parseOfferRoute("/offers/new/")).toEqual({ kind: "new" });
     expect(parseOfferRoute("/offers/offer%2F1")).toEqual({ kind: "edit", id: "offer/1" });
     expect(parseOfferRoute("/offers/offer-1/extra")).toEqual({ kind: "unknown" });
-    expect(parseOfferStatus("active")).toBe("active");
-    expect(parseOfferStatus("bogus")).toBeUndefined();
     expect(parseOfferType("free_shipping")).toBe("free_shipping");
     expect(parseOfferType("bogus")).toBeUndefined();
   });
@@ -163,9 +167,22 @@ describe("quantity pricing in the form", () => {
   });
 
   it("names tiers in the list, and says why a write was refused", () => {
-    expect(offerRuleLabel({ discountType: "quantity_price", triggerQuantity: 1, rewardQuantity: 0, tiers: [{ quantity: 2, price: 3500, freeShipping: false }] }, t)).toBe("tier_rule");
-    expect(offerErrorMessage({ code: "OFFER_CONFLICT" }, t)).toBe("error_conflict");
+    expect(offerRuleLabel({ discountType: "quantity_price", triggerQuantity: 1, rewardQuantity: 0, tiers: [{ quantity: 2, price: 3500, freeShipping: false }] }, t, "en")).toBe("tier_rule");
+    expect(offerErrorMessage({ code: "OFFER_CONFLICT", context: { offerId: "o1", offerName: "Packs" } }, t)).toBe("error_conflict");
     expect(offerErrorMessage({ code: "INVALID_OFFER", context: { reason: "empty" } }, t)).toBe("error_invalid.empty");
+  });
+});
+
+describe("what the offer copy carries", () => {
+  const said = (key: string, values?: Record<string, unknown>) => `${key} ${JSON.stringify(values ?? {})}`;
+
+  it("prices a tier like every other amount in the dashboard", () => {
+    const label = offerRuleLabel({ discountType: "quantity_price", triggerQuantity: 1, rewardQuantity: 0, tiers: [{ quantity: 2, price: 3500, freeShipping: false }] }, said, "en");
+    expect(label).toBe(`tier_rule ${JSON.stringify({ quantity: 2, price: formatMoney(3500, "en") })}`);
+  });
+
+  it("names the live offer a write conflicts with", () => {
+    expect(offerErrorMessage({ code: "OFFER_CONFLICT", context: { offerId: "o1", offerName: "Packs" } }, said)).toBe(`error_conflict ${JSON.stringify({ name: "Packs" })}`);
   });
 });
 

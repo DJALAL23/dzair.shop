@@ -101,6 +101,19 @@ export function offerProblem(offer: OfferShape): OfferProblem | null {
   return offer.tiers.length ? "tiers_not_allowed" : null;
 }
 
+/**
+ * Where an offer stands at `now`, as the merchant reads it: switched off, not
+ * started, ended, or live — live being the only state a shopper sees it in.
+ */
+export type OfferState = "inactive" | "scheduled" | "expired" | "live";
+
+export function offerState(offer: Pick<OfferShape, "startsAt" | "endsAt"> & { status: "active" | "inactive" }, now: string): OfferState {
+  if (offer.status === "inactive") return "inactive";
+  if (offer.startsAt && now < offer.startsAt) return "scheduled";
+  if (offer.endsAt && now >= offer.endsAt) return "expired";
+  return "live";
+}
+
 /** Whether two schedules share an instant (an open end never ends). */
 export function schedulesOverlap(a: Pick<OfferShape, "startsAt" | "endsAt">, b: Pick<OfferShape, "startsAt" | "endsAt">): boolean {
   const startsBeforeOtherEnds = (x: typeof a, y: typeof b) => !x.startsAt || !y.endsAt || x.startsAt < y.endsAt;

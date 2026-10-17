@@ -12,7 +12,7 @@ import {
 } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { offerRuleLabel, offerScheduleLabel } from "@/features/offers/model";
-import { OfferStatusBadge } from "@/features/offers/components/OfferBadges";
+import { OfferStateBadge } from "@/features/offers/components/OfferBadges";
 import type { Offer } from "@/features/offers/types";
 
 interface OfferRowProps {
@@ -64,13 +64,13 @@ export function OfferDesktopRow(props: OfferRowProps) {
         {offer.triggerProduct?.name ?? <CellEmpty />}
       </TableCell>
       <TableCell className="max-w-52 truncate text-muted-foreground">
-        {offerRuleLabel(offer, t)}
+        {offerRuleLabel(offer, t, locale)}
       </TableCell>
       <TableCell className="whitespace-nowrap text-muted-foreground">
         {offerScheduleLabel(offer, locale, t) ?? <CellEmpty />}
       </TableCell>
       <TableCell>
-        <OfferStatusBadge status={offer.status} />
+        <OfferStateBadge state={offer.state} />
       </TableCell>
       <TableCell className="w-px">
         <RowActions>
@@ -84,6 +84,7 @@ export function OfferDesktopRow(props: OfferRowProps) {
 export function OfferMobileCard(props: OfferRowProps) {
   const { offer } = props;
   const t = useT("offers");
+  const locale = useLocale();
   return (
     <article
       onClick={openRowOnClick(offerHref(offer))}
@@ -93,9 +94,9 @@ export function OfferMobileCard(props: OfferRowProps) {
         <a href={offerHref(offer)} className="block truncate text-sm font-medium text-foreground">
           {offer.name}
         </a>
-        <p className="truncate text-xs text-muted-foreground">{offerRuleLabel(offer, t)}</p>
+        <p className="truncate text-xs text-muted-foreground">{offerRuleLabel(offer, t, locale)}</p>
       </div>
-      <OfferStatusBadge status={offer.status} />
+      <OfferStateBadge state={offer.state} />
       <OfferActionsMenu {...props} />
     </article>
   );

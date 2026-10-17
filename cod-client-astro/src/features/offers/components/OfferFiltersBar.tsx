@@ -1,16 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Button, FilterPill, ListToolbar, SearchInput } from "@/components/ui";
 import { useT } from "@/i18n/react";
-import type {
-  OfferDiscountType,
-  OfferStatus,
-} from "@/features/offers/types";
-import { OFFER_TYPES, type OfferFilters } from "@/features/offers/model";
+import type { OfferDiscountType, OfferState } from "@/features/offers/types";
+import { OFFER_STATES, OFFER_TYPES, type OfferFilters } from "@/features/offers/model";
 
-const STATUS_OPTIONS: OfferStatus[] = ["active", "inactive"];
 export const EMPTY_FILTERS: OfferFilters = {
   query: "",
-  status: "all",
+  state: "all",
   type: "all",
 };
 
@@ -40,13 +36,13 @@ export function OfferFiltersBar({
       />
       <FilterPill
         label={t("table.status")}
-        value={filters.status}
-        onChange={(status) => setFilters((current) => ({ ...current, status: status as OfferStatus | "all" }))}
+        value={filters.state}
+        onChange={(state) => setFilters((current) => ({ ...current, state: state as OfferState | "all" }))}
       >
         <option value="all">{t("table.status")}</option>
-        {STATUS_OPTIONS.map((status) => (
-          <option key={status} value={status}>
-            {t(`status.${status}`)}
+        {OFFER_STATES.map((state) => (
+          <option key={state} value={state}>
+            {t(`state.${state}`)}
           </option>
         ))}
       </FilterPill>

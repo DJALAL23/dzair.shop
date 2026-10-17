@@ -16,9 +16,11 @@
     "actions": "Actions",
     "deal": "Deal"
   },
-  "status": {
-    "active": "Active",
-    "inactive": "Inactive"
+  "state": {
+    "live": "Live",
+    "scheduled": "Scheduled",
+    "expired": "Expired",
+    "inactive": "Off"
   },
   "empty_state": {
     "title": "No active offers",
@@ -76,6 +78,7 @@
     "tier_quantity_label": "Quantity",
     "tier_price_label": "Price for that many (DA)",
     "tier_saving": "{perUnit} each · saves {saved}",
+    "tier_each": "{perUnit} each",
     "tier_remove": "Remove this tier",
     "tier_add": "Add a tier",
     "tier_free_shipping": "Free delivery from this tier"
@@ -89,8 +92,8 @@
   "schedule_from": "From {date}",
   "schedule_until": "Until {date}",
   "schedule_range": "{from} – {to}",
-  "tier_rule": "{quantity} for {price} DA",
-  "error_conflict": "Another live offer already applies to this product at that time. A product gets one offer per order.",
+  "tier_rule": "{quantity} for {price}",
+  "error_conflict": "The offer “{name}” is live for this product at the same time, and a product gets one offer per order. Switch it off or change either schedule.",
   "error_invalid": {
     "reward_required": "Choose the free product and how many.",
     "reward_not_allowed": "This offer type gives no free product.",

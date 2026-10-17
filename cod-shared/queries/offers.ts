@@ -11,7 +11,7 @@
 import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { offerPriceTiers, offers, productVariants, products } from "../db/schema";
 import type { AppDb } from "../db/client";
-import { offerProblem, schedulesOverlap, type OfferKind, type OfferProblem, type OfferShape, type PriceTier } from "../offers/model";
+import { offerProblem, offerState, schedulesOverlap, type OfferKind, type OfferProblem, type OfferShape, type PriceTier } from "../offers/model";
 
 export type OfferStatus = "active" | "inactive";
 
@@ -37,7 +37,7 @@ export type OfferPatch = Partial<OfferInput>;
 export type OfferWriteProblem =
   | { reason: OfferProblem }
   | { reason: "unknown_product" | "variant_not_of_product" }
-  | { reason: "conflict"; offerId: string };
+  | { reason: "conflict"; offerId: string; offerName: string };
 
 type OfferRow = typeof offers.$inferSelect;
 
@@ -51,7 +51,7 @@ async function tiersOf(db: AppDb, ids: readonly string[]): Promise<Map<string, P
   return byOffer;
 }
 
-async function detail(db: AppDb, offer: OfferRow, tiers: PriceTier[]) {
+async function detail(db: AppDb, offer: OfferRow, tiers: PriceTier[], now: string) {
   const [triggerProduct, rewardProduct, triggerVariant, rewardVariant] = await Promise.all([
     db.select({ id: products.id, name: products.name, handle: products.handle }).from(products).where(eq(products.id, offer.triggerProductId)).get(),
     offer.rewardProductId
@@ -68,6 +68,7 @@ async function detail(db: AppDb, offer: OfferRow, tiers: PriceTier[]) {
     id: offer.id,
     name: offer.name,
     status: offer.status,
+    state: offerState(offer, now),
     discountType: offer.discountType,
     triggerQuantity: offer.triggerQuantity,
     rewardQuantity: offer.rewardQuantity,
@@ -85,16 +86,16 @@ async function detail(db: AppDb, offer: OfferRow, tiers: PriceTier[]) {
 
 export type OfferDetail = Awaited<ReturnType<typeof detail>>;
 
-export async function listOffers(db: AppDb): Promise<OfferDetail[]> {
+export async function listOffers(db: AppDb, now = new Date().toISOString()): Promise<OfferDetail[]> {
   const rows = await db.select().from(offers).orderBy(desc(offers.createdAt)).all();
   const tiers = await tiersOf(db, rows.map((row) => row.id));
-  return Promise.all(rows.map((row) => detail(db, row, tiers.get(row.id) ?? [])));
+  return Promise.all(rows.map((row) => detail(db, row, tiers.get(row.id) ?? [], now)));
 }
 
-export async function getOfferById(db: AppDb, id: string): Promise<OfferDetail | null> {
+export async function getOfferById(db: AppDb, id: string, now = new Date().toISOString()): Promise<OfferDetail | null> {
   const row = await db.select().from(offers).where(eq(offers.id, id)).get();
   if (!row) return null;
-  return detail(db, row, (await tiersOf(db, [id])).get(id) ?? []);
+  return detail(db, row, (await tiersOf(db, [id])).get(id) ?? [], now);
 }
 
 /** The offer a write would leave: the stored one with the edit applied, in the shape the rules judge. */
@@ -136,14 +137,14 @@ async function writeProblem(db: AppDb, id: string | null, shape: ReturnType<type
 
   if (shape.status !== "active") return null;
   const others = await db
-    .select({ id: offers.id, discountType: offers.discountType, startsAt: offers.startsAt, endsAt: offers.endsAt })
+    .select({ id: offers.id, name: offers.name, discountType: offers.discountType, startsAt: offers.startsAt, endsAt: offers.endsAt })
     .from(offers)
     .where(and(eq(offers.triggerProductId, shape.triggerProductId), eq(offers.status, "active"), ...(id ? [ne(offers.id, id)] : [])))
     .all();
   const clash = others.find(
     (other) => (shape.discountType === "quantity_price" || other.discountType === "quantity_price") && schedulesOverlap(shape, other),
   );
-  return clash ? { reason: "conflict", offerId: clash.id } : null;
+  return clash ? { reason: "conflict", offerId: clash.id, offerName: clash.name } : null;
 }
 
 function rowOf(shape: ReturnType<typeof shapeOf>) {

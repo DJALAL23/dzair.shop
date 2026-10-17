@@ -127,7 +127,7 @@ export function OffersList() {
   const visible = paginateOffers(sorted, safePage, pageSize);
   const hasFilters =
     filters.query.trim() !== "" ||
-    filters.status !== "all" ||
+    filters.state !== "all" ||
     filters.type !== "all";
   const canManage = canScope(identity, SCOPES.OFFERS_MANAGE);
 
@@ -144,11 +144,11 @@ export function OffersList() {
   async function onToggle(offer: Offer) {
     const next = offer.status === "active" ? "inactive" : "active";
     try {
-      await updateOffer(offer.id, { status: next });
+      const saved = (await updateOffer(offer.id, { status: next })).data;
       setOffers(
         (current) =>
           current?.map((item) =>
-            item.id === offer.id ? { ...item, status: next } : item,
+            item.id === offer.id ? { ...item, status: saved.status, state: saved.state } : item,
           ) ?? current,
       );
       notify.success(common("feedback.updated"));
@@ -248,7 +248,7 @@ export function OffersList() {
                     <TableHead>{t("table.schedule")}</TableHead>
                     <SortHeader
                       label={t("table.status")}
-                      sortKey="status"
+                      sortKey="state"
                       activeKey={sortKey}
                       direction={sortDirection}
                       onSort={onSort}

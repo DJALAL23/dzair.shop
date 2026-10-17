@@ -1,12 +1,9 @@
 import { Badge } from "@/components/ui";
 import { useT } from "@/i18n/react";
-import type { OfferStatus } from "@/features/offers/types";
+import { OFFER_STATE_TONE } from "@/features/offers/model";
+import type { OfferState } from "@/features/offers/types";
 
-export function OfferStatusBadge({ status }: { status: OfferStatus }) {
+export function OfferStateBadge({ state }: { state: OfferState }) {
   const t = useT("offers");
-  return status === "active" ? (
-    <Badge tone="success">{t("status.active")}</Badge>
-  ) : (
-    <Badge tone="neutral">{t("status.inactive")}</Badge>
-  );
+  return <Badge tone={OFFER_STATE_TONE[state]}>{t(`state.${state}`)}</Badge>;
 }

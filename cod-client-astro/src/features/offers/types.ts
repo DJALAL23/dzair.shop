@@ -1,7 +1,7 @@
-import type { OfferKind, PriceTier } from "../../../../cod-shared/offers/model";
+import type { OfferKind, OfferState, PriceTier } from "../../../../cod-shared/offers/model";
 
 export type OfferDiscountType = OfferKind;
-export type { PriceTier };
+export type { OfferState, PriceTier };
 export type OfferStatus = "active" | "inactive";
 
 export interface OfferProduct {
@@ -19,6 +19,8 @@ export interface Offer {
   id: string;
   name: string;
   status: OfferStatus;
+  /** Where the offer stands now, as the server judges it: only a live offer reaches shoppers. */
+  state: OfferState;
   triggerQuantity: number;
   rewardQuantity: number;
   discountType: OfferDiscountType;
