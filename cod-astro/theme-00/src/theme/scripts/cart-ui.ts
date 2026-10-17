@@ -40,6 +40,7 @@ import {
 import {
   createValidator,
   renderCartLine,
+  renderCartRewards,
   validatedByKey,
   hasBlocker,
   renderFreeDelivery,
@@ -198,6 +199,7 @@ export function initCart(): () => void {
   const freeText = document.getElementById("cart-free-delivery-text");
   const freeBar = document.getElementById("cart-free-delivery-bar");
   const template = document.getElementById("cart-line-template") as HTMLTemplateElement | null;
+  const rewardTemplate = document.getElementById("cart-reward-template") as HTMLTemplateElement | null;
 
   if (!drawer || !list || !template) return noop;
 
@@ -273,6 +275,7 @@ export function initCart(): () => void {
           { linkToProduct: true },
         ),
       ),
+      ...(rewardTemplate ? renderCartRewards(rewardTemplate, validated) : []),
     );
 
     const blocked = hasBlocker(validated);

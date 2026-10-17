@@ -129,9 +129,20 @@ export function renderCartLine(
     variantEl.hidden = false;
   }
 
-  const unit = server?.unitPrice ?? line.unitPrice;
+  const offer = node.querySelector<HTMLElement>("[data-cart-offer]");
+  if (offer && server?.offerName) {
+    offer.textContent = server.offerName;
+    offer.hidden = false;
+  }
+
+  const { total, was } = linePrice(line, server);
   node.querySelector("[data-cart-qty]")!.textContent = String(line.quantity);
-  node.querySelector("[data-cart-total]")!.textContent = money(unit * line.quantity);
+  node.querySelector("[data-cart-total]")!.textContent = money(total);
+  const wasEl = node.querySelector<HTMLElement>("[data-cart-was]");
+  if (wasEl && was !== null) {
+    wasEl.textContent = money(was);
+    wasEl.hidden = false;
+  }
 
   const warn = node.querySelector<HTMLElement>("[data-cart-warning]")!;
   if (server?.blocker === "out_of_stock" && server.maxQuantity != null) {
@@ -148,6 +159,39 @@ export function renderCartLine(
   }
 
   return node;
+}
+
+/**
+ * What a row shows for its price: the server's line total before the coupon
+ * (the coupon has its own row), and the catalog price struck through when an
+ * offer brought it down. Until the server answers, the basket's own price.
+ */
+export function linePrice(line: BasketLine, server: ValidatedLine | undefined): { total: number; was: number | null } {
+  const atCatalog = (server?.unitPrice ?? line.unitPrice) * line.quantity;
+  if (!server) return { total: atCatalog, was: null };
+  const total = server.lineTotal + (server.discount ?? 0);
+  return { total, was: total < atCatalog ? atCatalog : null };
+}
+
+/**
+ * The gifts the basket earns, one row each, as the order will give them —
+ * product, variant and the offer that gives it. None until the server answers.
+ */
+export function renderCartRewards(template: HTMLTemplateElement, result: ValidationResult | null): HTMLElement[] {
+  return (result?.rewards ?? []).flatMap((reward) => {
+    if (!reward.productName) return [];
+    const node = template.content.firstElementChild!.cloneNode(true) as HTMLElement;
+    node.querySelector("[data-reward-name]")!.textContent = reward.productName;
+    for (const [hook, text] of [["[data-reward-variant]", reward.variantLabel], ["[data-reward-offer]", reward.offerName]] as const) {
+      const el = node.querySelector<HTMLElement>(hook)!;
+      if (text) {
+        el.textContent = text;
+        el.hidden = false;
+      }
+    }
+    node.querySelector("[data-reward-qty]")!.textContent = `×${reward.quantity}`;
+    return [node];
+  });
 }
 
 /**

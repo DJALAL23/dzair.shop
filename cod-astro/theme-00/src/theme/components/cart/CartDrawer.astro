@@ -23,6 +23,7 @@ import { messageData } from "@/theme/content/messages";
 import type { StoreFrontContent } from "@/theme/content";
 import { Icon } from "astro-icon/components";
 import FreeDeliveryBar from "@/theme/components/cart/FreeDeliveryBar.astro";
+import CartRewardTemplate from "@/theme/components/cart/CartRewardTemplate.astro";
 import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
@@ -187,6 +188,8 @@ const { content, currency } = Astro.props;
 </div>
 
 <!-- Row template. Kept in markup so every string stays in the content pack. -->
+<CartRewardTemplate id="cart-reward-template" content={content} />
+
 <template id="cart-line-template">
   <li class="flex gap-3" data-cart-line>
     <!-- The thumbnail links too, but is hidden from assistive tech and taken
@@ -219,6 +222,7 @@ const { content, currency } = Astro.props;
         hidden
       >
       </p>
+      <p data-cart-offer class="cart-reward-offer truncate text-[0.75rem] font-bold" hidden></p>
       <p
         data-cart-warning
         class="mt-0.5 text-[0.75rem] font-black"
@@ -256,11 +260,14 @@ const { content, currency } = Astro.props;
           </button>
         </div>
 
-        <span
-          data-cart-total
-          class="text-[0.875rem] font-black tabular-nums"
-          style="color: var(--clr-text)"
-        >
+        <span class="flex flex-col items-end">
+          <span data-cart-was class="whitespace-nowrap text-[0.75rem] font-bold tabular-nums line-through" style="color: var(--clr-text-3)" hidden></span>
+          <span
+            data-cart-total
+            class="whitespace-nowrap text-[0.875rem] font-black tabular-nums"
+            style="color: var(--clr-text)"
+          >
+          </span>
         </span>
       </div>
     </div>

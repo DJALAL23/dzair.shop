@@ -31,6 +31,7 @@ import {
 import {
   createValidator,
   renderCartLine,
+  renderCartRewards,
   validatedByKey,
   hasBlocker,
   renderFreeDelivery,
@@ -68,6 +69,7 @@ export function initCheckout(): () => void {
   const main = document.getElementById("checkout-main");
   const list = document.getElementById("checkout-line-list");
   const template = document.getElementById("checkout-line-template") as HTMLTemplateElement | null;
+  const rewardTemplate = document.getElementById("checkout-reward-template") as HTMLTemplateElement | null;
   const itemsLabel = document.getElementById("checkout-items-label");
   const blockedNote = document.getElementById("checkout-blocked-note");
   const subtotalEl = document.getElementById("checkout-subtotal");
@@ -163,11 +165,12 @@ export function initCheckout(): () => void {
       ...lines.map((line) =>
         renderCartLine(template!, line, byKey.get(lineKey(line.productId, line.variantId)), copy, money),
       ),
+      ...(rewardTemplate ? renderCartRewards(rewardTemplate, validated) : []),
     );
 
     const blocked = hasBlocker(validated);
-    // The server's subtotal is net of the coupon; the lines show their catalog
-    // price, so the subtotal row shows the sum before it and the coupon row what came off.
+    // The server's subtotal is net of the coupon; the lines show their price
+    // before it, so the subtotal row shows the sum before it and the coupon row what came off.
     const subtotal = validated?.subtotal ?? cartSubtotal(lines);
     const applied = validated?.coupon?.applied ? validated.coupon : null;
     const couponOff = applied?.discount ?? 0;

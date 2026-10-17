@@ -96,12 +96,23 @@ function buildDom(options: { currency?: string } = {}): void {
         <a data-cart-image-link aria-hidden="true" tabindex="-1"><img data-cart-image alt="" hidden /></a>
         <a data-cart-name></a>
         <p data-cart-variant hidden></p>
+        <p data-cart-offer hidden></p>
         <p data-cart-warning hidden></p>
         <button type="button" data-cart-decrease>-</button>
         <span data-cart-qty></span>
         <button type="button" data-cart-increase>+</button>
+        <span data-cart-was hidden></span>
         <span data-cart-total></span>
         <button type="button" data-cart-remove>bin</button>
+      </li>
+    </template>
+    <template id="cart-reward-template">
+      <li data-cart-reward>
+        <p data-reward-name></p>
+        <p data-reward-variant hidden></p>
+        <p data-reward-offer hidden></p>
+        <span data-reward-qty></span>
+        <span>Free</span>
       </li>
     </template>
   `;
@@ -499,6 +510,78 @@ describe("server reconciliation", () => {
 
     await vi.waitFor(() => expect(document.querySelector("[data-cart-name]")!.textContent).toBe("Chemise"));
     expect(document.querySelector("[data-cart-variant]")!.textContent).toBe("Bleu / TG");
+  });
+
+  it("prices a line as the offer does, the catalog price struck through, and names the offer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        validationResponse({
+          lines: [
+            { productId: "p1", variantId: "v-default", quantity: 1, unitPrice: 1000, lineTotal: 800, offerId: "packs", offerName: "Packs", discount: 50, maxQuantity: null, blocker: null },
+          ],
+          subtotal: 750,
+          rewards: [],
+          freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+        }),
+      ),
+    );
+    await boot();
+    click(addButton());
+
+    await vi.waitFor(() => expect(document.querySelector<HTMLElement>("[data-cart-offer]")!.hidden).toBe(false));
+    expect(document.querySelector("[data-cart-offer]")!.textContent).toBe("Packs");
+    expect(document.querySelector("[data-cart-total]")!.textContent).toContain("850");
+    expect(document.querySelector<HTMLElement>("[data-cart-was]")!.hidden).toBe(false);
+    expect(document.querySelector("[data-cart-was]")!.textContent).toContain("1.000");
+  });
+
+  it("strikes nothing through on a line at its catalog price", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        validationResponse({
+          lines: [{ productId: "p1", variantId: "v-default", productName: "Chemise", quantity: 1, unitPrice: 1000, lineTotal: 1000, offerId: null, offerName: null, maxQuantity: null, blocker: null }],
+          subtotal: 1000,
+          rewards: [],
+          freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+        }),
+      ),
+    );
+    await boot();
+    click(addButton());
+    await vi.waitFor(() => expect(document.querySelector("[data-cart-name]")!.textContent).toBe("Chemise"));
+    expect(document.querySelector("[data-cart-total]")!.textContent).toContain("1.000");
+    expect(document.querySelector<HTMLElement>("[data-cart-was]")!.hidden).toBe(true);
+    expect(document.querySelector<HTMLElement>("[data-cart-offer]")!.hidden).toBe(true);
+  });
+
+  it("lists each gift the basket earns as its own free row, beside the lines", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        validationResponse({
+          lines: [{ productId: "p1", variantId: "v-default", quantity: 1, unitPrice: 1000, lineTotal: 1000, offerId: "gift", offerName: "Buy 1, get earbuds", maxQuantity: null, blocker: null }],
+          subtotal: 1000,
+          rewards: [
+            { offerId: "gift", offerName: "Buy 1, get earbuds", productId: "p2", productName: "Earbuds", variantId: "v2", variantLabel: "White", quantity: 2 },
+            { offerId: "gone", offerName: null, productId: null, productName: null, quantity: 1 },
+          ],
+          freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+        }),
+      ),
+    );
+    await boot();
+    click(addButton());
+
+    await vi.waitFor(() => expect(document.querySelectorAll("[data-cart-reward]")).toHaveLength(1));
+    const gift = document.querySelector<HTMLElement>("[data-cart-reward]")!;
+    expect(gift.querySelector("[data-reward-name]")!.textContent).toBe("Earbuds");
+    expect(gift.querySelector("[data-reward-variant]")!.textContent).toBe("White");
+    expect(gift.querySelector("[data-reward-offer]")!.textContent).toBe("Buy 1, get earbuds");
+    expect(gift.querySelector("[data-reward-qty]")!.textContent).toBe("×2");
+    expect(document.querySelectorAll("[data-cart-line]")).toHaveLength(1);
+    expect(gift.previousElementSibling?.hasAttribute("data-cart-line")).toBe(true);
   });
 
   it("leaves the optimistic view intact when validation fails", async () => {

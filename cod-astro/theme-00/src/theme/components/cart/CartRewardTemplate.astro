@@ -1,0 +1,41 @@
+---
+/**
+ * The row of a gift the basket earns, for the drawer and the checkout page:
+ * the product and variant given, the offer that gives it, and that it is free.
+ * The server's quote says what is given; `scripts/cart-render.ts` fills it.
+ */
+import type { StoreFrontContent } from "@/theme/content";
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  id: string;
+  content: StoreFrontContent;
+  /** The checkout's rows carry their own side padding; the drawer's list does. */
+  padded?: boolean;
+}
+
+const { id, content, padded = false } = Astro.props;
+---
+
+<template id={id}>
+  <li class:list={["flex gap-3", padded && "px-4 py-4 sm:px-5"]} data-cart-reward>
+    <div class="cart-reward-icon flex h-16 w-16 shrink-0 items-center justify-center rounded-[var(--radius-input)]">
+      <Icon name="heroicons:gift" class="h-6 w-6" aria-hidden="true" />
+    </div>
+    <div class="min-w-0 flex-1">
+      <p data-reward-name class="truncate text-[0.875rem] font-black" style="color: var(--clr-text)"></p>
+      <p data-reward-variant class="truncate text-[0.75rem] font-bold" style="color: var(--clr-text-2)" hidden></p>
+      <p data-reward-offer class="cart-reward-offer truncate text-[0.75rem] font-bold" hidden></p>
+      <div class="mt-2 flex items-center justify-between gap-2">
+        <span data-reward-qty class="text-[0.8125rem] font-black tabular-nums" style="color: var(--clr-text-2)"></span>
+        <span class="cart-reward-free text-[0.875rem] font-black">{content.offerFreeLabel}</span>
+      </div>
+    </div>
+  </li>
+</template>
+
+<style is:global>
+  .cart-reward-icon { background: var(--clr-success-bg); color: var(--clr-success); }
+  .cart-reward-offer,
+  .cart-reward-free { color: var(--clr-success); }
+</style>
