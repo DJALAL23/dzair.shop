@@ -154,6 +154,31 @@ describe("quantity pricing on the product page", () => {
     expect(data.offers).toEqual([]);
   });
 
+  it("is shown while one of its tiers gives something, even when the first is the catalog price", async () => {
+    await quantityPricing([[1, 2000], [2, 3500]]);
+    const { data } = (await (await app.request("/store/products/robe")).json()) as { data: { quantityPricing: { tiers: unknown[] } | null } };
+    expect(data.quantityPricing?.tiers).toHaveLength(2);
+  });
+
+  it("never promises a reward the stock cannot give: the offer comes back with the stock", async () => {
+    await d1.db.insert(schema.offers).values({ id: "gift", name: "Gift", triggerProductId: "robe", triggerQuantity: 2, rewardProductId: "sac", rewardQuantity: 1, createdAt: T, updatedAt: T });
+    const offersShown = async () => ((await (await app.request("/store/products/robe")).json()) as { data: { offers: Array<{ id: string }> } }).data.offers.map((offer) => offer.id);
+    expect(await offersShown()).toEqual(["gift"]);
+    await d1.db.update(schema.products).set({ inventory: 0 }).where(eq(schema.products.id, "sac"));
+    expect(await offersShown()).toEqual([]);
+    await d1.db.update(schema.products).set({ inventory: 3 }).where(eq(schema.products.id, "sac"));
+    expect(await offersShown()).toEqual(["gift"]);
+  });
+
+  it("shows a same-product reward when one size can give it, and hides it when none can", async () => {
+    await d1.db.insert(schema.offers).values({ id: "gift", name: "Gift", triggerProductId: "robe", triggerQuantity: 2, rewardProductId: "robe", rewardQuantity: 1, createdAt: T, updatedAt: T });
+    const offersShown = async () => ((await (await app.request("/store/products/robe")).json()) as { data: { offers: Array<{ id: string }> } }).data.offers.map((offer) => offer.id);
+    await d1.db.update(schema.productVariants).set({ inventory: 2 }).where(eq(schema.productVariants.id, "robe-s"));
+    expect(await offersShown()).toEqual(["gift"]);
+    await d1.db.update(schema.productVariants).set({ inventory: 2 }).where(eq(schema.productVariants.id, "robe-m"));
+    expect(await offersShown()).toEqual([]);
+  });
+
   it("is null for a product without it", async () => {
     const { data } = (await (await app.request("/store/products/sac")).json()) as { data: { quantityPricing: unknown } };
     expect(data.quantityPricing).toBeNull();

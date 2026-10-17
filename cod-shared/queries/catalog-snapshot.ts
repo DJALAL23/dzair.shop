@@ -483,6 +483,29 @@ export function settleDelivery(basket: PricedBasket, rate: number): { fee: numbe
   return { fee: basket.freeShippingOfferId ? 0 : rate, coupon };
 }
 
+/**
+ * The offers of a product a shopper could earn: those the pricing path would
+ * apply to a basket of their threshold (for quantity pricing, any tier) in one
+ * of `variantIds`, the variants the page sells. An offer whose reward the
+ * stock cannot cover, or locked to a variant the page does not sell, earns
+ * nothing — so a product page never promises it.
+ */
+export function earnableOffers(snapshot: CatalogSnapshot, product: { id: string; name: string }, variantIds: readonly (string | null)[]): Set<string> {
+  const earnable = new Set<string>();
+  for (const offer of snapshot.offers.filter((candidate) => candidate.triggerProductId === product.id)) {
+    const quantities = offer.discountType === "quantity_price" ? offer.tiers.map((tier) => tier.quantity) : [offer.triggerQuantity];
+    const earns = variantIds.some((variantId) =>
+      quantities.some((quantity) =>
+        priceCartLines({ ...snapshot, offers: [offer] }, [{ productId: product.id, variantId, variantLabel: null, productName: product.name, quantity }]).priced.some(
+          (line) => line.offerId === offer.id,
+        ),
+      ),
+    );
+    if (earns) earnable.add(offer.id);
+  }
+  return earnable;
+}
+
 /** Why a line cannot be ordered, or null when it can. */
 export type LineBlocker = "missing" | "unlisted" | "out_of_stock";
 

@@ -114,7 +114,7 @@ beforeEach(async () => {
       createdAt: now(),
       updatedAt: now(),
     },
-    { id: "p-2", name: "سماعات", handle: "buds", price: 2000, createdAt: now(), updatedAt: now() },
+    { id: "p-2", name: "سماعات", handle: "buds", price: 2000, inventory: 10, createdAt: now(), updatedAt: now() },
   ]);
   await harness.db.insert(schema.offers).values({
     id: "o-1",

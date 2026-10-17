@@ -66,6 +66,7 @@ import { getFooterPages, getPublicLegalContact } from "./store-pages";
 import {
   loadCatalogSnapshot,
   priceCartLines,
+  earnableOffers,
   settleDelivery,
   variantSelection,
   type CatalogSnapshot,
@@ -479,19 +480,26 @@ export async function getStoreProductByHandle(
   ]);
 
   const now = new Date().toISOString();
-  const offerRows = await db
-    .select()
-    .from(offers)
-    .where(
-      and(
-        eq(offers.triggerProductId, product.id),
-        eq(offers.status, "active"),
-        or(isNull(offers.startsAt), lte(offers.startsAt, now)),
-        or(isNull(offers.endsAt), gte(offers.endsAt, now)),
-      ),
-    )
-    .orderBy(offers.createdAt)
-    .all();
+  // The live offers, kept to those a shopper can earn: the pricing path says,
+  // so an offer whose reward is out of stock is never promised here.
+  const triggerVariants = product.hasVariants ? variants.map((variant) => variant.id) : [null];
+  const snapshot = await loadCatalogSnapshot(db, triggerVariants.map((variantId) => ({ productId: product.id, variantId, variantLabel: null, productName: product.name, quantity: 1 })), now);
+  const earnable = earnableOffers(snapshot, product, triggerVariants);
+  const offerRows = (
+    await db
+      .select()
+      .from(offers)
+      .where(
+        and(
+          eq(offers.triggerProductId, product.id),
+          eq(offers.status, "active"),
+          or(isNull(offers.startsAt), lte(offers.startsAt, now)),
+          or(isNull(offers.endsAt), gte(offers.endsAt, now)),
+        ),
+      )
+      .orderBy(offers.createdAt)
+      .all()
+  ).filter((offer) => earnable.has(offer.id));
 
   // The offers' names and their reward products' names and options, in the served language.
   const rewardIds = [...new Set(offerRows.flatMap((offer) => (offer.rewardProductId ? [offer.rewardProductId] : [])))];
