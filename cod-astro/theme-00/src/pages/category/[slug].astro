@@ -14,10 +14,12 @@ const { config, content } = Astro.locals.store;
 // Fetch categories for SEO meta tags (lightweight — no products)
 const categories = await Astro.locals.store.client.categories.list();
 const category = categories.find((c) => c.slug === slug);
+// An unknown category is a real 404, never an empty 200.
+if (!category) return Astro.rewrite("/404");
 
-const metaTitle = category?.metaTitle || (category ? `${category.name} - ${config.name}` : config.name);
-const metaDescription = category?.metaDescription || category?.description || undefined;
-const ogImage = category?.imageUrl || undefined;
+const metaTitle = category.metaTitle || `${category.name} - ${config.name}`;
+const metaDescription = category.metaDescription || category.description || undefined;
+const ogImage = category.imageUrl || undefined;
 ---
 
 <StoreLayout
@@ -25,12 +27,9 @@ const ogImage = category?.imageUrl || undefined;
   description={metaDescription}
   ogImage={ogImage}
 >
-  <!--
-    CategoryPageContent streams in after layout renders
-    Category lookup and products fetch happen inside component
-  -->
   <CategoryPageContent
-    slug={slug!}
+    category={category}
+    categories={categories}
     currencySymbol={config.currencySymbol}
     content={content}
   />

@@ -24,19 +24,20 @@ const turnstileOn = config.turnstileEnabled === true && Boolean(config.turnstile
 const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
 if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
 const { fieldErrors, serverError } = outcome;
+
+// The product first: an unknown handle is a real 404, never an empty 200.
+const product = await Astro.locals.store.client.products.get(slug!);
+if (!product) return Astro.rewrite("/404");
 ---
 
 <StoreLayout
-  title={`${config.name}`}
+  title={`${product.name} - ${config.name}`}
+  description={product.descriptionPlain?.slice(0, 160) || undefined}
   hideMobileNav={true}
   softNavigation={!turnstileOn}
 >
-  <!-- 
-    ProductDetailContent streams in after layout renders
-    This improves perceived performance by showing navigation/header immediately
-  -->
   <ProductDetailContent
-    slug={slug!}
+    product={product}
     config={config}
     content={content}
     isRTL={isRTL}

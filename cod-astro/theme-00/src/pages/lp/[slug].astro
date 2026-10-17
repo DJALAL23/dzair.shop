@@ -37,7 +37,7 @@ const { fieldErrors, serverError } = outcome;
 // Draft/archived/unknown → the store home (same contract as the product
 // page's missing-product path — ad traffic lands on the store instead of
 // a dead end).
-if (!lp) return Astro.redirect(Astro.locals.store.href("/"));
+if (!lp) return Astro.rewrite("/404");
 
 const product = lp.product;
 const cur = config.currencySymbol;

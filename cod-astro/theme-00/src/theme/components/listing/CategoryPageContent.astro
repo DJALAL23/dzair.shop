@@ -1,26 +1,23 @@
 ---
-// ── STREAMING COMPONENT ──
-// Fetches category products and all categories, renders the category page
-// Allows parent page to stream this after layout renders
+// ── CATEGORY PAGE BODY ──
+// The route found the category (an unknown one is its 404); this reads the
+// category's products and renders the listing.
 import ProductCard from "@/theme/components/product/ProductCard.astro";
 import ListingPager from "@/theme/components/listing/ListingPager.astro";
 import { pageRequest, pageWindow, requestedPage } from "@/theme/utils/pagination";
 import type { StoreFrontContent } from "@/theme/content";
+import type { Category } from "@wocart/storefront";
 
 interface Props {
-  slug: string;
+  category: Category;
+  categories: Category[];
   currencySymbol: string;
   content: StoreFrontContent;
 }
 
-const { slug, currencySymbol, content } = Astro.props;
-
-// Fetch categories first to find the current one
+const { category, categories, currencySymbol, content } = Astro.props;
+const { slug } = category;
 const store = Astro.locals.store.client;
-const categories = await store.categories.list();
-const category = categories.find((c) => c.slug === slug);
-
-if (!category) return Astro.redirect(Astro.locals.store.href("/"));
 
 // Fetch products for this category
 const page = requestedPage(Astro.url.searchParams.get("page"));
