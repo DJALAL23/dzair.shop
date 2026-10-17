@@ -65,6 +65,7 @@
     "translate_title": "ترجمة «{label}»"
   },
   "pick": {
+    "collection": "المجموعة",
     "product": "المنتج",
     "category": "الفئة",
     "page": "الصفحة",
@@ -76,6 +77,7 @@
     "home": "الصفحة الرئيسية",
     "catalog": "كل المنتجات",
     "category": "فئة",
+    "collection": "مجموعة",
     "product": "منتج",
     "page": "صفحة",
     "landing": "صفحة هبوط",

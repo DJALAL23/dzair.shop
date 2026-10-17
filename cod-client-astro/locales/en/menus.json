@@ -57,6 +57,7 @@
     "translate_title": "Translate “{label}”"
   },
   "pick": {
+    "collection": "Collection",
     "product": "Product",
     "category": "Category",
     "page": "Page",
@@ -68,6 +69,7 @@
     "home": "Home page",
     "catalog": "All products",
     "category": "Category",
+    "collection": "Collection",
     "product": "Product",
     "page": "Page",
     "landing": "Landing page",

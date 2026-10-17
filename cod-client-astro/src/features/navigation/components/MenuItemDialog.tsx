@@ -6,9 +6,9 @@ import { searchMenuDestinations } from "@/features/navigation/api";
 import { itemProblem, type EditableItem } from "@/features/navigation/model";
 import type { MenuDestination, MenuDestinationType, MenuResourceType } from "@/features/navigation/types";
 
-const TYPES: MenuDestinationType[] = ["home", "catalog", "category", "product", "page", "landing", "url"];
+const TYPES: MenuDestinationType[] = ["home", "catalog", "category", "collection", "product", "page", "landing", "url"];
 const isResource = (type: MenuDestinationType): type is MenuResourceType =>
-  type === "category" || type === "product" || type === "page" || type === "landing";
+  type === "category" || type === "collection" || type === "product" || type === "page" || type === "landing";
 
 export type ItemChange = Pick<EditableItem, "label" | "destination" | "destinationLabel">;
 

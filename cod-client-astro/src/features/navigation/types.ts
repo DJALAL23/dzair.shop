@@ -2,7 +2,7 @@ import type { MenuDestination, MenuDestinationType } from "../../../../cod-share
 
 export type { MenuDestination, MenuDestinationType };
 
-export type MenuResourceType = "category" | "product" | "page" | "landing";
+export type MenuResourceType = "category" | "collection" | "product" | "page" | "landing";
 
 /** `GET /api/menus` — one row of the list. */
 export interface MenuSummary {
