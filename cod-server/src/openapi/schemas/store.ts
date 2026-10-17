@@ -55,10 +55,6 @@ export const StoreSchema = z
     accentColor: z.string().openapi({ description: "Accent / highlight color (hex)", example: "#f97316" }),
     bgColor: z.string().openapi({ description: "Background color (hex)", example: "#ffffff" }),
     fontFamily: z.string().openapi({ description: "CSS font-family string", example: "Cairo" }),
-    fontUrl: z.string().url().nullable().openapi({
-      description: "Google Fonts import URL (optional override)",
-      example: "https://fonts.googleapis.com/css2?family=Cairo",
-    }),
     lang: StoreLocaleEnum.openapi({
       description: "The store's primary language: its storefront language and first fallback",
       example: "ar",
@@ -480,8 +476,8 @@ export const StoreConfigSchema = z
     accentColor: z.string().openapi({ example: "#f59e0b" }),
     bgColor: z.string().openapi({ example: "#f8f8f8" }),
     fontFamily: z.string().openapi({ example: "Cairo, sans-serif" }),
-    fontUrl: z.string().nullable().openapi({
-      description: "Google Fonts CSS URL override",
+    fontUrl: z.null().openapi({
+      description: "Deprecated: always null. Kept because @wocart/storefront up to 1.7 requires the field; the store's font is the theme's `font` setting, else `fontFamily`.",
     }),
     lang: StoreLocaleEnum.openapi({ description: "The store's primary language", example: "ar" }),
     locale: StoreLocaleEnum.openapi({

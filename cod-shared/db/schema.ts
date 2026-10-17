@@ -821,8 +821,6 @@ export const stores = sqliteTable("stores", {
   bgColor: text("bg_color").notNull().default("#f8f8f8"),
   /** CSS font-family string */
   fontFamily: text("font_family").notNull().default("Cairo, sans-serif"),
-  /** Google Fonts import URL (optional override) */
-  fontUrl: text("font_url"),
 
   // ── Locale ────────────────────────────────────────────────────────────────
   /**

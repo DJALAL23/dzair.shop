@@ -38,7 +38,6 @@ export const updateStoreSchema = z.object({
   accentColor: hexColor.optional(),
   bgColor: hexColor.optional(),
   fontFamily: z.string().min(1).max(200).optional(),
-  fontUrl: z.string().url().nullable().optional(),
   /** The primary language. Changing it alone also adds and publishes it. */
   lang: storeLocale.optional(),
   /** Replaces the store's languages; must publish the primary. */

@@ -28,7 +28,7 @@
 
 | Term | Code evidence | Status |
 |------|---------------|--------|
-| Theme Settings | themeId default "theme-00" (a label; migration 0044 relabelled existing stores); three colors + fontFamily/fontUrl with hex 3-8 validation (validation.ts:3, :8-11; schema:782-794) | ✅ |
+| Theme Settings | themeId default "theme-00" (a label; migration 0044 relabelled existing stores); three colors + fontFamily (fontUrl dropped in migration 0046) with hex 3-8 validation (validation.ts:3, :8-11; schema:782-794) | ✅ |
 | Localization | lang enum ar/en; currencySymbol ≤10 chars; currency fixed "DZD" (validation.ts:13-14; schema:798-800) | ✅ |
 | Content JSON | serialized storefront text blob (schema:802-806) | ✅ |
 | SEO Fields | metaTitle/metaDescription/ogImage (schema:808-811); README's SSR-consumption claim consistent with Theme-00's usage | ✅ |

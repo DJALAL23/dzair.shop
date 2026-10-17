@@ -32,7 +32,7 @@ Retrieve the current store's configuration. In this single-tenant architecture, 
 **Response Includes:**
 - **Branding:** `logoUrl`, `primaryColor`, `accentColor`, `bgColor`.
 - **Theme:** `themeId` (active theme slug).
-- **Typography:** `fontFamily`, `fontUrl`.
+- **Typography:** `fontFamily` (the theme's `font` setting takes precedence; `fontUrl` was dropped in migration 0046).
 - **Localization:** `lang` (primary language), `languages` — every language the store has added, primary first: `[{ "locale": "fr", "published": true, "primary": true }, …]` — `currency`, `currencySymbol`.
 - **SEO:** `metaTitle`, `metaDescription`, `ogImage`.
 - **Settings:** `announcementBar`, `reviewsEnabled`, `status`.

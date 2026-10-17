@@ -189,6 +189,9 @@ export async function getStoreConfig(
     // render each, and only their edits — an unpublished language's drafts
     // never reach a shopper.
     locales: servedLanguageInfo(languages),
+    // The column is gone (migration 0046); @wocart/storefront up to 1.7
+    // requires the field, so it is always answered, empty.
+    fontUrl: null,
     contentOverrides: groupOverrides(overrideRows, servedLocales(languages)),
     // The merchant's values for the requesting theme's settings, as saved:
     // the theme resolves them against its declaration and its defaults.

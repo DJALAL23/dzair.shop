@@ -28,7 +28,6 @@ function storeRow(overrides: Record<string, any> = {}) {
     accentColor: "#f97316",
     bgColor: "#ffffff",
     fontFamily: "Cairo",
-    fontUrl: "https://fonts.googleapis.com/css2?family=Cairo",
     lang: "ar",
     currency: "DZD",
     currencySymbol: "دج",

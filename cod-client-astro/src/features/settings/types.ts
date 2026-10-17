@@ -19,7 +19,6 @@ export interface StoreConfig {
   accentColor: string;
   bgColor: string;
   fontFamily: string;
-  fontUrl: string | null;
   /** The primary language: the storefront's language and first fallback. */
   lang: StoreLang;
   /** Every language the store has added, primary first, published or not. */
@@ -57,7 +56,6 @@ export type UpdateStoreData = Partial<
     | "accentColor"
     | "bgColor"
     | "fontFamily"
-    | "fontUrl"
     | "lang"
     | "currencySymbol"
     | "metaTitle"
