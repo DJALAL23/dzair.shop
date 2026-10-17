@@ -422,8 +422,8 @@ function summarise(page: StorePageRow, translations: StorePageTranslationRow[]):
  *
  * Resolution order: the requested locale, then the platform default, then
  * whichever locale the page happens to have, in `PAGE_LOCALES` order. A draft
- * page or an unknown slug resolves to null — the caller 404s (theme01 plan
- * §9 — never a soft 200 with empty content).
+ * page or an unknown slug resolves to null — the caller 404s, never a soft
+ * 200 with empty content.
  */
 export async function resolvePublishedPage(
   db: AppDb,

@@ -37,7 +37,8 @@ body:
       options:
         - cod-server (API / Workers)
         - cod-client-astro (dashboard)
-        - cod-astro/theme01 (storefront)
+        - cod-astro/theme-00 (storefront theme)
+        - wocart-sdk (storefront / theme SDKs)
         - cod-shared (schema / queries)
         - Documentation
         - CI / tooling

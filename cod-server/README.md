@@ -64,7 +64,7 @@ npm run db:setup:local
 
 The seed script also works standalone with `npm run db:seed:local`. It seeds a
 demo store whose API key is taken from `$STORE_API_KEY`, then
-`cod-astro/theme01/.dev.vars`, then a built-in dev default.
+`cod-astro/theme-00/.dev.vars`, then a built-in dev default.
 
 > **First dashboard login:** the dashboard disables sign-up — create the admin
 > with the seeder instead (see `cod-client-astro/README.md`):

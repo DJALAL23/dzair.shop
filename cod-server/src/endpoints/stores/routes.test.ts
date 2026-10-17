@@ -30,7 +30,7 @@ function storeRow(overrides: Record<string, any> = {}) {
     name: "My Shop",
     domain: null,
     logoUrl: "https://cdn.example.com/logo.png",
-    themeId: "theme01",
+    themeId: "theme-00",
     primaryColor: "#3b82f6",
     accentColor: "#f97316",
     bgColor: "#ffffff",
@@ -119,7 +119,7 @@ describe("Stores routes (OpenAPIHono)", () => {
       const body: any = await res.json();
       expect(body.success).toBe(true);
       expect(body.data.name).toBe("My Shop");
-      expect(body.data.themeId).toBe("theme01");
+      expect(body.data.themeId).toBe("theme-00");
     });
 
     it("returns 404 when no store exists", async () => {

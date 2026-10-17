@@ -42,13 +42,13 @@ Set these via `wrangler secret put` — never in `wrangler.toml`:
 
 `MEDIA_DOMAIN` and `R2_BUCKET_NAME` are non-secret and live in `wrangler.toml [vars]`.
 
-## Required secret (cod-astro/theme01)
+## Required secret (cod-astro/theme-00)
 
 | Secret | Value |
 |--------|-------|
 | `MEDIA_DOMAIN` | Your R2 custom domain hostname, e.g. `media.yourdomain.com` |
 
-Set via `wrangler secret put MEDIA_DOMAIN --name <theme01-worker-name>` then
+Set via `wrangler secret put MEDIA_DOMAIN --name <storefront-worker-name>` then
 redeploy the storefront.
 
 ## R2 bucket setup

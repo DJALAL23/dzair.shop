@@ -9,7 +9,7 @@
 
 - `store/routes.ts` (all 9 routes), `handlers.ts` (complete), `validation.ts` (complete)
 - `cod-shared/queries/store.ts` — targeted reads: config, catalog filters (:77-101), findOrCreateCustomer (:281-323), price math (:599, :635, :645, :676, :781)
-- Abandoned-order mechanism: `abandoned-orders/` store-routes mount (index.ts:80), schema block (schema.ts:1284-1332), cron (`cron/sweep-abandoned-orders.ts`), theme01 tracker
+- Abandoned-order mechanism: `abandoned-orders/` store-routes mount (index.ts:80), schema block (schema.ts:1284-1332), cron (`cron/sweep-abandoned-orders.ts`), the storefront tracker (`@wocart/storefront` `createAbandonedCheckoutTracker`, used by Theme-00)
 - Storefront auth: `storeAuthMiddleware` X-Store-API-Key (routes.ts header; index.ts)
 - No README exists in this folder — noted below
 

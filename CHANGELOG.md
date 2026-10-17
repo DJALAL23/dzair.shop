@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- The first storefront theme (`cod-astro/theme01`), its workspace, CI job,
+  Dependabot entry and every reference in the docs, guides and skills.
+  Theme-00 (`cod-astro/theme-00`) is the storefront theme. Migration 0044
+  relabels stores' `theme_id` to `theme-00`; seeds, fixtures and examples use
+  it.
+
 ### Added
 
 - orders & shipments: an order's delivery is its shipment — a carrier's parcel

@@ -13,7 +13,7 @@ Every file read in full:
 - `cod-shared/queries/variants.ts` (complete — CRUD + deletion semantics)
 - Schema: `cod-shared/db/schema.ts:609-628` productVariants incl. unique SKU index
 - Routing home verified: `products/routes.ts:371-511` registers all 5 variant routes; no local router exists
-- Storefront isDefault consumption verified in `cod-astro/theme01` ProductDetailContent.astro:31
+- Storefront isDefault consumption verified in `@wocart/storefront` `product-view.ts` (`defaultVariant`), which Theme-00 renders
 - Repo-wide grep confirming nothing validates `variations` against `variantOptions`
 
 ---
@@ -26,7 +26,7 @@ Every file read in full:
 |------|---------------|--------|
 | Variant | schema.ts:609-628 full column set (price, sku unique, barcode, inventory, threshold, weightKg, imageId, isDefault, active, position) | ✅ |
 | Variations | JSON record, parsed on read (shared queries:35-37); NO blueprint validation at create | ✅ |
-| Default Variant | storefront picks `find(v => v.isDefault) ?? variants[0]` (theme01 ProductDetailContent.astro:31); flag not exclusive anywhere | ✅ |
+| Default Variant | storefront picks `find(v => v.isDefault) ?? variants[0]` (`wocart-sdk/storefront/src/product-view.ts`); flag not exclusive anywhere | ✅ |
 | Active Variant | active filter used in storefront stock totals and reward selection (store.ts:152, :703) | ✅ |
 
 ### Identity & Money

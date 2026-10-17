@@ -77,7 +77,7 @@ E-commerce in Algeria is **95%+ Cash on Delivery (الدفع عند الاستل
 
 CodFlow v1.1.0 — here's what works today:
 
-### Storefront (`cod-astro/theme01`)
+### Storefront (`cod-astro/theme-00`)
 - ✅ **Landing pages (`/lp/[slug]`)** — one-product marketing pages: stacked image story + COD form, no nav chrome
 - ✅ Single-page COD checkout with live shipping calculation
 - ✅ Home delivery **or** carrier stop-desk pickup selection
@@ -206,7 +206,8 @@ cp .dev.vars.example .dev.vars
 # Set BETTER_AUTH_SECRET (same value as cod-server's, e.g. openssl rand -hex 32)
 
 # Storefront
-cd ../cod-astro/theme01
+cd ../cod-astro/theme-00
+npm ci                       # its own install: @wocart/* from npm
 cp .dev.vars.example .dev.vars
 ```
 
@@ -231,7 +232,7 @@ cd cod-server && npm run dev
 cd cod-client-astro && npm run dev
 
 # Terminal 3: Storefront (http://localhost:4321 → use a different port, see theme README)
-cd cod-astro/theme01 && npm run dev
+cd cod-astro/theme-00 && npm run dev
 ```
 
 > ⚠️ The dashboard and storefront both default to port 4321 — run them on
@@ -268,7 +269,7 @@ wrangler secret put BETTER_AUTH_SECRET         # same value as cod-server's
 wrangler secret put MCP_LOGIN_TICKET_SECRET    # same value as cod-server's
 
 # 3. Storefront
-cd ../cod-astro/theme01
+cd ../cod-astro/theme-00
 # COD_SERVER_URL comes from the repo-root .env — deploy injects it, never wrangler.jsonc
 npm run deploy
 wrangler secret put STORE_API_KEY
@@ -332,7 +333,7 @@ cd cod-server && npm test
 cd cod-client-astro && npm test
 
 # Storefront tests (property-based, cart calculations)
-cd cod-astro/theme01 && npm test
+cd cod-astro/theme-00 && npm test
 
 # TypeScript verification
 cd cod-server && npm run typecheck
@@ -340,7 +341,8 @@ cd cod-client-astro && npm run typecheck
 ```
 
 CI runs typecheck + tests for cod-server and cod-client-astro, plus
-astro check + tests for theme01.
+`npm run verify:sdks`, which runs Theme-00's tests, astro check and build
+against the packed SDKs.
 
 ---
 
@@ -371,7 +373,7 @@ astro check + tests for theme01.
 ### Planned
 
 - 📈 **Deeper dashboard analytics** — revenue, delivery-rate, and return-rate trends
-- 📦 **More Themes** — Additional storefront themes beyond `theme01`
+- 📦 **More Themes** — Additional storefront themes beyond Theme-00
 - 📘 **Theme Editing Guides** — Comprehensive guides for customizing and creating themes
 - ☁️ **CodFlow Cloud** — One-click deployment from dashboard for agencies to resell CodFlow
 - 📧 **Email order notifications & admin alerts** — extend the Sendili integration beyond transactional mail

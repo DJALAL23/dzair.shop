@@ -63,7 +63,7 @@ async function insertStore(id: string, name: string, lang: "ar" | "en" | "fr" = 
   await d1
     .prepare(
       `INSERT INTO stores (id, name, theme_id, primary_color, accent_color, bg_color, font_family, lang, currency, currency_symbol, reviews_enabled, cart_enabled, cart_shipping_mode, status, created_at, updated_at)
-       VALUES (?, ?, 'theme01', '#7c3aed', '#f59e0b', '#f8f8f8', 'Cairo, sans-serif', ?, 'DZD', 'دج', 1, 0, 'highest', 'active', ?, ?)`,
+       VALUES (?, ?, 'theme-00', '#7c3aed', '#f59e0b', '#f8f8f8', 'Cairo, sans-serif', ?, 'DZD', 'دج', 1, 0, 'highest', 'active', ?, ?)`,
     )
     .bind(id, name, lang, "2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.000Z")
     .run();

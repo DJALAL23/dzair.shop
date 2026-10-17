@@ -6,7 +6,6 @@
     "cod-shared",
     "cod-server",
     "cod-client-astro",
-    "cod-astro/theme01",
     "wocart-sdk/storefront",
     "wocart-sdk/theme"
   ],

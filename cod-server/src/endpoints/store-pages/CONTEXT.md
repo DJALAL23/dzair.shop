@@ -48,7 +48,7 @@ _Avoid_: Save function, write handler
 
 Terms owned by neighboring contexts:
 
-- **Storefront rendering**: `/pages/<slug>` in theme01 renders whatever `resolvePublishedPage` returns with `set:html`, never re-sanitising — same contract as a product's rich-text description.
+- **Storefront rendering**: `/pages/<slug>` in the storefront theme renders whatever `resolvePublishedPage` returns with `set:html`, never re-sanitising — same contract as a product's rich-text description.
 - **Rich-text sanitisation rules**: owned by `cod-shared/lib/rich-text.ts` (products' context). This module calls it; it does not define the allow-list.
 - **Which store**: this deployment is single-tenant — `getStore(db)` (stores context) resolves "the" store once per request; store-pages never resolves it itself.
 

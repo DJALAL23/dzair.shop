@@ -1,4 +1,4 @@
-# 🔍 Lighthouse Testing Suite for Theme01
+# 🔍 Lighthouse Testing Suite for Theme-00
 
 Comprehensive Lighthouse testing setup to monitor performance, accessibility, SEO, and best practices for your Astro e-commerce theme.
 
@@ -184,7 +184,7 @@ export CHROME_PATH=/usr/bin/google-chrome
 Change port in `serve-local.js`:
 
 ```javascript
-const PORT = 4321; // Theme01's dev/prod server port
+const PORT = 4321; // Theme-00's dev/prod server port
 ```
 
 ### Memory Issues

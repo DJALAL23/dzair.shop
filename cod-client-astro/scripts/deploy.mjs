@@ -105,7 +105,7 @@ To deploy the local value anyway (rarely what you want):
 }
 
 // Drift check against the repo-wide source of truth used by cod-server and
-// theme01. Not fatal — a dashboard may legitimately target another origin —
+// the storefront deploy. Not fatal — a dashboard may legitimately target another origin —
 // but silent disagreement between the two is worth saying out loud.
 const { serverUrl } = getCloudEnv();
 if (serverUrl && serverUrl !== apiUrl) {

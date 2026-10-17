@@ -14,7 +14,7 @@
  *   node scripts/seed-local.mjs            # local D1 (.wrangler-shared)
  *   node scripts/seed-local.mjs --remote   # remote Cloudflare D1
  *
- * Reads STORE_API_KEY from $STORE_API_KEY, cod-astro/theme01/.dev.vars, or a
+ * Reads STORE_API_KEY from $STORE_API_KEY, cod-astro/theme-00/.dev.vars, or a
  * dev default (in that order).
  * Safe to run multiple times — uses INSERT OR REPLACE throughout.
  */
@@ -32,8 +32,8 @@ const remote = process.argv.includes("--remote");
 const { dbName } = getCloudEnv();
 
 // ── 1. Resolve the store API key ────────────────────────────────────────────
-// Precedence: $STORE_API_KEY env var → cod-astro/theme01/.dev.vars → dev default.
-const devVarsPath = path.resolve(root, "../cod-astro/theme01/.dev.vars");
+// Precedence: $STORE_API_KEY env var → cod-astro/theme-00/.dev.vars → dev default.
+const devVarsPath = path.resolve(root, "../cod-astro/theme-00/.dev.vars");
 let rawKey = process.env.STORE_API_KEY;
 if (rawKey) {
   console.log("[seed-local] Using STORE_API_KEY from environment");
@@ -45,7 +45,7 @@ if (rawKey) {
   } catch { /* fall through to default */ }
 }
 if (!rawKey) {
-  console.warn("[seed-local] STORE_API_KEY not found (env or cod-astro/theme01/.dev.vars). Using a dev default key.");
+  console.warn("[seed-local] STORE_API_KEY not found (env or cod-astro/theme-00/.dev.vars). Using a dev default key.");
   console.warn("             Set STORE_API_KEY or create .dev.vars to use your own key.");
   rawKey = "codflow-dev-store-key";
 }
@@ -140,7 +140,7 @@ const imageIdByProductAndSrc = new Map(images.map((img) => [`${img.productId}:${
 const statements = [];
 
 // Store + API key
-statements.push(`INSERT OR REPLACE INTO stores (id, name, domain, theme_id, primary_color, accent_color, bg_color, font_family, lang, currency, currency_symbol, reviews_enabled, status, created_at, updated_at) VALUES ('${storeId}', 'متجر التطوير', NULL, 'theme01', '#7c3aed', '#f59e0b', '#f8f8f8', 'Cairo, sans-serif', 'ar', 'DZD', 'دج', 1, 'active', '${ts}', '${ts}')`);
+statements.push(`INSERT OR REPLACE INTO stores (id, name, domain, theme_id, primary_color, accent_color, bg_color, font_family, lang, currency, currency_symbol, reviews_enabled, status, created_at, updated_at) VALUES ('${storeId}', 'متجر التطوير', NULL, 'theme-00', '#7c3aed', '#f59e0b', '#f8f8f8', 'Cairo, sans-serif', 'ar', 'DZD', 'دج', 1, 'active', '${ts}', '${ts}')`);
 statements.push(`INSERT OR IGNORE INTO store_locales (store_id, locale, published, created_at) VALUES ('${storeId}', 'ar', 1, '${ts}')`);
 statements.push(`INSERT OR REPLACE INTO store_api_keys (id, store_id, key_hash, name, created_at) VALUES ('${keyId}', '${storeId}', '${keyHash}', 'default', '${ts}')`);
 

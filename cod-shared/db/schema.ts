@@ -810,8 +810,8 @@ export const stores = sqliteTable("stores", {
   logoUrl: text("logo_url"),
 
   // ── Theme ─────────────────────────────────────────────────────────────────
-  /** Active theme slug: "theme01", "theme02", etc. */
-  themeId: text("theme_id").notNull().default("theme01"),
+  /** The storefront theme's slug, e.g. "theme-00". A label: nothing in the platform branches on it. */
+  themeId: text("theme_id").notNull().default("theme-00"),
   /** Primary CTA color (hex, e.g. "#7c3aed") */
   primaryColor: text("primary_color").notNull().default("#7c3aed"),
   /** Accent / highlight color */

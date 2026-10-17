@@ -1,7 +1,7 @@
 /**
  * Store API Routes
  *
- * Public storefront surface (cod-astro/theme01). Authenticated globally via
+ * Public storefront surface (a theme on @wocart/storefront, e.g. Theme-00). Authenticated globally via
  * storeAuthMiddleware (X-Store-API-Key) applied to /store/* in src/index.ts —
  * a different credential from the dashboard X-API-Key.
  * Built with defineRoute() — the standard route-builder pattern.

@@ -14,7 +14,7 @@ description: >-
 
 CodFlow is a cash-on-delivery (COD) e-commerce platform built on Cloudflare
 Workers (backend API + dashboard), Astro 7, and D1 SQLite. The storefront
-(`cod-astro/theme01`) supports dual deployment targets: **Cloudflare Workers**
+(`cod-astro/theme-00`) supports dual deployment targets: **Cloudflare Workers**
 or **Vercel**. This runbook takes a fresh clone to a fully working, verified
 deployment.
 
@@ -24,7 +24,7 @@ that same database**. There is exactly one path — follow it in order and do no
 skip a gate.
 
 The dashboard is `cod-client-astro` (Astro, prerendered static + auth
-worker). The storefront is `cod-astro/theme01` (Astro).
+worker). The storefront is `cod-astro/theme-00` (Astro).
 
 ## Before Starting — State This Contract
 
@@ -36,7 +36,7 @@ State this to the developer before running anything:
 > your account. Nothing is left on placeholder values.
 > 
 > The backend API and dashboard run on Cloudflare Workers. For the customer
-> storefront (`cod-astro/theme01`), you can deploy to:
+> storefront (`cod-astro/theme-00`), you can deploy to:
 > - **Vercel (Recommended)**: Solves Cloudflare Error 1042 (Worker-to-Worker fetch
 >   block) when `cod-server` is on a free `*.workers.dev` subdomain, provides
 >   generous bandwidth and automatic preview deployments.
@@ -110,7 +110,7 @@ Rules:
 - **Unique names apply to WORKER names, not just resources.** Default worker
   `name` fields in wrangler configs collide across clones, and deploying
   silently overwrites another installation. Require the developer to choose a
-  unique prefix (e.g. `mystore-server`, `mystore-dashboard`, `mystore-theme01`)
+  unique prefix (e.g. `mystore-server`, `mystore-dashboard`, `mystore-storefront`)
   and update the `name` field in all three wrangler files before first deploy.
   This prevents cross-clone overwrite.
 - If a resource name is taken, do not reuse the existing resource: choose a
@@ -154,7 +154,7 @@ the migration wrapper (`cod-server/scripts/d1.mjs`) and the R2 setup all read
 ```bash
 cp .env.example .env      # at the repo root
 # COD_DB_NAME=<your database name>
-# COD_SERVER_URL=https://<your api domain>  # required BEFORE theme01 deploy —
+# COD_SERVER_URL=https://<your api domain>  # required BEFORE Theme-00 deploy —
 #   npm run deploy refuses a localhost value (the default) without --force-local
 ```
 
@@ -182,7 +182,7 @@ While editing, also replace the example domains in `[vars]` /
 `PUBLIC_APP_URL`, `PUBLIC_API_URL`, `PUBLIC_TRUSTED_ORIGINS`) with the
 developer's real URLs when they are known; localhost defaults are correct for
 local runs. The storefront's `COD_SERVER_URL` is NOT set in
-`cod-astro/theme01/wrangler.jsonc` — it is injected at deploy time by
+`cod-astro/theme-00/wrangler.jsonc` — it is injected at deploy time by
 `npm run deploy` from `COD_SERVER_URL` in the root `.env`.
 
 Also create the dashboard's build-time client env:
@@ -290,16 +290,16 @@ MEDIA_DOMAIN=media.yourdomain.com
 
 ### 4. Set MEDIA_DOMAIN on the storefront and redeploy
 
-After theme01 is deployed (Step 6):
+After Theme-00 is deployed (Step 6):
 
 - **If storefront is on Cloudflare Workers:**
   ```bash
-  printf 'media.yourdomain.com' | env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put MEDIA_DOMAIN --name <theme01-worker-name>
-  cd cod-astro/theme01 && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
+  printf 'media.yourdomain.com' | env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put MEDIA_DOMAIN --name <storefront-worker-name>
+  cd cod-astro/theme-00 && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
   ```
 - **If storefront is on Vercel:**
   ```bash
-  cd cod-astro/theme01 && printf "media.yourdomain.com" | npx vercel env add MEDIA_DOMAIN production
+  cd cod-astro/theme-00 && printf "media.yourdomain.com" | npx vercel env add MEDIA_DOMAIN production
   npx vercel --prod
   ```
 
@@ -358,13 +358,13 @@ echo "<MCP_LOGIN_TICKET_SECRET_value>" > /tmp/secret.txt
 env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put MCP_LOGIN_TICKET_SECRET < /tmp/secret.txt
 rm /tmp/secret.txt
 
-# theme01: STORE_API_KEY (same string the seeder will hash in Step 5)
+# Theme-00: STORE_API_KEY (same string the seeder will hash in Step 5)
 # If deploying storefront to Cloudflare Workers:
 #   echo "<STORE_API_KEY_value>" > /tmp/secret.txt && chmod 600 /tmp/secret.txt
-#   env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put STORE_API_KEY < /tmp/secret.txt --name <theme01-worker-name>
+#   env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put STORE_API_KEY < /tmp/secret.txt --name <storefront-worker-name>
 #   rm /tmp/secret.txt
 # If deploying storefront to Vercel:
-#   cd cod-astro/theme01 && printf "<STORE_API_KEY_value>" | npx vercel env add STORE_API_KEY production
+#   cd cod-astro/theme-00 && printf "<STORE_API_KEY_value>" | npx vercel env add STORE_API_KEY production
 ```
 
 For services that will also run locally, create `.dev.vars` from each package's
@@ -412,13 +412,13 @@ cd cod-server          && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
 cd ../cod-client-astro && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy     # wrangler deploy (builds first: npm run build)
 ```
 
-### 6.2 Deploy Storefront (`cod-astro/theme01`)
+### 6.2 Deploy Storefront (`cod-astro/theme-00`)
 
 Deploy the storefront to either **Cloudflare Workers** OR **Vercel** based on developer preference:
 
 #### Option A: Deploy Storefront to Cloudflare Workers
 ```bash
-cd cod-astro/theme01 && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy     # astro build && wrangler deploy
+cd cod-astro/theme-00 && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy     # astro build && wrangler deploy
 ```
 > [!NOTE]
 > **workers.dev limitation (Error 1042):** Cloudflare blocks Worker→Worker `fetch()`
@@ -433,7 +433,7 @@ See the dedicated [`storefront-vercel` skill](.agents/skills/storefront-vercel/S
 
 Using Vercel CLI:
 ```bash
-cd cod-astro/theme01
+cd cod-astro/theme-00
 npx vercel link                                     # link or create project
 printf "vercel" | npx vercel env add DEPLOY_TARGET production
 printf "https://<your-cod-server-url>" | npx vercel env add COD_SERVER_URL production
@@ -448,7 +448,7 @@ npx vercel --prod                                   # builds with npm run build:
 redeploy:** Once workers are live, set `PUBLIC_APP_URL` /
 `PUBLIC_API_URL` / `PUBLIC_TRUSTED_ORIGINS` (cod-client-astro wrangler.toml
 `[vars]`), `WORKER_URL`, `WORKER_SELF_URL`, `BETTER_AUTH_URL` (cod-server
-wrangler.toml `[vars]`), and `COD_SERVER_URL` (root `.env` — the theme01
+wrangler.toml `[vars]`), and `COD_SERVER_URL` (root `.env` — the Theme-00
 deploy script reads it) to the actual deployed URLs, then redeploy affected
 workers. `PUBLIC_API_URL` is baked into the client bundle at build time, so the
 dashboard must be **rebuilt** after changing it; `npm run deploy` does that and
@@ -482,7 +482,7 @@ log — the true error surfaces there, not in UI text.
 `fetch()` between two `*.workers.dev` hosts. A storefront deployed to
 workers.dev cannot load products from a cod-server also on workers.dev. For a
 production storefront, put cod-server on a custom domain/route and point
-`COD_SERVER_URL` at it (or wire a Service Binding), then re-deploy theme01 and
+`COD_SERVER_URL` at it (or wire a Service Binding), then re-deploy Theme-00 and
 confirm `/products` shows the seeded catalog. Local development is unaffected.
 
 ## Step 6b — Optional: Transactional Email (Sendili)
@@ -526,7 +526,7 @@ Print a resource inventory:
 | R2 | `<project>-images` | n/a (name-bound) | cod-server/wrangler.toml | `r2 bucket create` confirmation |
 | KV (rate limit) | rate-limit namespace | `<32-hex>` | cod-server + cod-client-astro wrangler.toml | `kv namespace create` output |
 | KV (MCP OAuth) | oauth namespace | `<32-hex>` | cod-server/wrangler.toml | `kv namespace create` output |
-| Storefront Target | Cloudflare / Vercel | n/a | cod-astro/theme01 | Deployed URL smoke test |
+| Storefront Target | Cloudflare / Vercel | n/a | cod-astro/theme-00 | Deployed URL smoke test |
 
 **Credentials file delivery (mandatory):** Write credentials to a chmod-600
 markdown file OUTSIDE git-tracked directories (e.g. `~/codflow-credentials.md`
@@ -562,7 +562,7 @@ Example credentials file structure:
 ## Deployed URLs
 - Dashboard: https://<dashboard-url>
 - API Server: https://<cod-server-url>
-- Storefront: https://<theme01-url> (Cloudflare Workers or Vercel)
+- Storefront: https://<storefront-url> (Cloudflare Workers or Vercel)
 
 **Security:** This file contains sensitive credentials. Store it securely and delete after transferring values to a password manager.
 ```
@@ -586,12 +586,12 @@ Then start one terminal per service:
 | :--- | :--- | :--- | :--- |
 | API Server | `cod-server` | `npm run dev` | http://localhost:8787 (docs at `/api/docs`) |
 | Dashboard | `cod-client-astro` | `npm run dev` | http://localhost:4321 |
-| Storefront | `cod-astro/theme01` | `npm run dev` | http://localhost:4321 — run `astro dev --port 4322` when the dashboard is up |
+| Storefront | `cod-astro/theme-00` | `npm run dev` | http://localhost:4321 — run `astro dev --port 4322` when the dashboard is up |
 
 Localhost→localhost is unaffected by the workers.dev limitation: the storefront
 renders the full seeded catalog locally.
 
-The storefront directory is `cod-astro/theme01` — bare `cod-astro/` has no
+The storefront directory is `cod-astro/theme-00` — bare `cod-astro/` has no
 scripts.
 
 ---
@@ -602,8 +602,8 @@ scripts.
 | :--- | :--- | :--- |
 | **Deploy fails with placeholder-looking binding errors** | Resource IDs were never replaced in wrangler.toml | Re-run the Step 3 verification greps; bind real IDs. |
 | **`grep` finds placeholders inside `[env.production]` blocks** | Production block edited incompletely | Replace every all-zero `database_id` / KV `id` occurrence in the file. |
-| **theme01 dev dies: `Missing field 'moduleType'`** | Dual Vite majors | Root `package.json` overrides pin `vite` to ^8.2.2 (root-only — npm ignores child overrides). `rm -rf node_modules && npm ci`; `npm ls vite` must show one major. |
-| **Storefront deployed on Cloudflare but products empty** | Worker→Worker fetch between two `*.workers.dev` hosts blocked (CF error 1042) | Put cod-server on a custom domain/route, set `COD_SERVER_URL`, redeploy theme01. Or deploy storefront to Vercel instead. |
+| **Theme-00 dev dies: `Missing field 'moduleType'`** | Dual Vite majors | Root `package.json` overrides pin `vite` to ^8.2.2 (root-only — npm ignores child overrides). `rm -rf node_modules && npm ci`; `npm ls vite` must show one major. |
+| **Storefront deployed on Cloudflare but products empty** | Worker→Worker fetch between two `*.workers.dev` hosts blocked (CF error 1042) | Put cod-server on a custom domain/route, set `COD_SERVER_URL`, redeploy Theme-00. Or deploy storefront to Vercel instead. |
 | **Storefront on Vercel shows empty products / network error** | `COD_SERVER_URL` missing or protocol omitted | Ensure `COD_SERVER_URL` in Vercel project env starts with `https://` and points to the live `cod-server` worker. |
 | **Storefront on Vercel order creation fails with 401** | `STORE_API_KEY` mismatch | Ensure `STORE_API_KEY` on Vercel matches the identical raw key seeded into D1 during Step 5. |
 | **Storefront on Vercel fails build: missing adapter** | `DEPLOY_TARGET=vercel` not set | Set `DEPLOY_TARGET=vercel` in Vercel env or build command `npm run build:vercel`. |
@@ -611,7 +611,7 @@ scripts.
 | **Sign-in returns 401 with correct credentials** | Admin row predates better-auth 1.7 semantics (missing `issuer`, `account_id = email`) | Apply migration 0010, re-run `npm run seed:admin:remote`. |
 | **get-session 500: field "alg" does not exist in "jwkss"** | Migration 0011 missing on that database | Run `npm run db:migrate:remote` (or `:local`). |
 | **Sign-in works but every API call returns 401** | `BETTER_AUTH_SECRET` differs between cod-server and cod-client-astro — the dashboard-issued JWT fails cod-server's JWKS verification | Set the identical secret on both workers. |
-| **theme01 boots then wedges/crashes at first render: `optimized dependencies changed. reloading`** | Late SSR dep discovery races the workerd reload ([astro#16933](https://github.com/withastro/astro/issues/16933)) | Keep `vite.environments.ssr.optimizeDeps` (`noDiscovery: true` + excludes) in `astro.config.mjs`. |
+| **Theme-00 boots then wedges/crashes at first render: `optimized dependencies changed. reloading`** | Late SSR dep discovery races the workerd reload ([astro#16933](https://github.com/withastro/astro/issues/16933)) | Keep `vite.environments.ssr.optimizeDeps` (`noDiscovery: true` + excludes) in `astro.config.mjs`. |
 | **`Address already in use :8787`** | Another checkout's wrangler holds the port (see Prerequisites port preflight) | Identify via `ps -p <pid>`, confirm with human, then kill that process tree. |
 | **`Another astro dev server is already running`** | Astro 7 dev lockfile left behind | `npx astro dev stop` (or kill the stale process). |
 | **Astro behaves unexpectedly under an agent (backgrounded, JSON output)** | Astro auto-enables background+JSON mode when `AGENT`, `CLAUDE_CODE_*`, or `OPENCODE` env vars are present | Humans get foreground behavior; agents should use `npx astro dev status` / `logs` / `stop`. |
@@ -621,5 +621,5 @@ scripts.
 | **Better Auth 500 on sign-in** | `BETTER_AUTH_SECRET` missing | Ensure `BETTER_AUTH_SECRET` is set in `cod-client-astro/.dev.vars` (local) or via `wrangler secret put` (production). |
 | **Image uploads fail in browser** | R2 CORS not configured for PUT requests | Cloudflare dashboard → R2 → bucket → Settings → CORS Policy. Add the JSON from Step 3b with your dashboard domain in `AllowedOrigins`. |
 | **Presign returns 500 with missing credentials error** | `CF_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, or `R2_SECRET_ACCESS_KEY` not set on the Worker | Run `wrangler secret put` for all three on the cod-server worker, then redeploy. |
-| **`publicUrl` points to Worker URL instead of media domain** | `MEDIA_DOMAIN` not set in `wrangler.toml` or worker not redeployed after setting it | Set `MEDIA_DOMAIN` in `[vars]` and redeploy cod-server. For theme01 image resizing, also set `MEDIA_DOMAIN` as a secret on the storefront worker (or Vercel env) and redeploy. |
+| **`publicUrl` points to Worker URL instead of media domain** | `MEDIA_DOMAIN` not set in `wrangler.toml` or worker not redeployed after setting it | Set `MEDIA_DOMAIN` in `[vars]` and redeploy cod-server. For Theme-00 image resizing, also set `MEDIA_DOMAIN` as a secret on the storefront worker (or Vercel env) and redeploy. |
 

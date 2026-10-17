@@ -30,7 +30,7 @@ export const DEFAULT_CONFIG: StoreConfig = {
   name: "متجري",
   domain: null,
   logoUrl: null,
-  themeId: "theme01",
+  themeId: "theme-00",
   primaryColor: "#7c3aed",
   accentColor: "#f59e0b",
   bgColor: "#f8f8f8",

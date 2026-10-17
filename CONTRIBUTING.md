@@ -27,12 +27,15 @@ codflow-os/
 ├── cod-server/        # Backend API  — Cloudflare Worker (Hono + D1 + R2)
 ├── cod-client-astro/  # Merchant dashboard — Astro (prerendered + auth worker)
 ├── cod-astro/         # Customer storefront — Astro, trilingual (AR/FR/EN)
-│   └── theme01/       #   the default theme (theme layer is swappable)
+│   └── theme-00/      #   the default theme (theme layer is swappable)
+├── wocart-sdk/        # The published SDKs: @wocart/storefront, @wocart/theme
 └── cod-shared/        # Source-shared TS — D1 schema, RBAC scopes, read queries
 ```
 
 npm workspaces: one root `package.json` and a single root `package-lock.json`.
 Install once at the repo root (`npm ci`) — never add per-package lockfiles.
+The one exception is Theme-00: it installs `@wocart/*` from npm like any
+outside theme, so it has its own lockfile — `cd cod-astro/theme-00 && npm ci`.
 `cod-shared` is consumed directly from source via relative imports
 (`../../cod-shared/...`) — it has no build step.
 
@@ -42,7 +45,7 @@ Install once at the repo root (`npm ci`) — never add per-package lockfiles.
 |---------------------|--------------|-------------|-------------|
 | `cod-server`        | `npm run dev`| `npm test`  | `npm run build:ci` |
 | `cod-client-astro`  | `npm run dev`| `npm test`  | `npm run build` |
-| `cod-astro/theme01` | `npm run dev`| `npm test`  | `npm run build` |
+| `cod-astro/theme-00` | `npm run dev`| `npm test`  | `npm run build` |
 
 Run package scripts either from inside the package directory or with
 `npm run <script> --workspace <package-name>` from the repo root.
@@ -63,14 +66,14 @@ New here? Here's the shortest path to a merged change:
    [Architecture & code conventions](#architecture--code-conventions) — if the
    task touches `cod-shared`, read that boundary first.
 5. **Verify before pushing.** Run `npm run typecheck` and `npm test` in the
-   package you changed (theme01: `npx astro check` + `npm test`). CI runs the
+   package you changed (Theme-00: `npx astro check` + `npm test`). CI runs the
    same checks.
 6. **Open a PR** using the PR template. Mention the issue with "Closes #N".
 7. **Review happens on the PR.** Keep it small, respond to feedback, and CI must
    be green.
 
 > Tips:
-> - `cod-astro/theme01` is the most self-contained package — a good place to
+> - `cod-astro/theme-00` is the most self-contained package — a good place to
 >   start if you are new to the platform.
 > - The storefront's `src/core/` is **off-limits** (platform-owned engine). New
 >   storefront work goes in `src/theme/`.
@@ -123,7 +126,7 @@ wrangler kv namespace create OAUTH_KV
 
 Every package ships a Cloudflare config with placeholder values
 (`wrangler.toml` in cod-server/cod-client-astro, `wrangler.jsonc` in
-cod-astro/theme01) and a **`.dev.vars.example`**. Copy the example files and
+cod-astro/theme-00) and a **`.dev.vars.example`**. Copy the example files and
 paste your own resource IDs:
 
 ```bash
@@ -141,7 +144,8 @@ cp .dev.vars.example .dev.vars
 # generate a secret: openssl rand -hex 32  →  BETTER_AUTH_SECRET (same as cod-server's)
 
 # storefront
-cd ../cod-astro/theme01
+cd ../cod-astro/theme-00
+npm ci                       # its own install: @wocart/* from npm
 cp .dev.vars.example .dev.vars
 ```
 
@@ -176,7 +180,7 @@ Open **three terminals**, one per package (D1 state is shared through
 |---|-----------------------|-------------------------------------------|
 | 1 | `cd cod-server && npm run dev`              | API on `http://localhost:8787` (+ OpenAPI at `/api`) |
 | 2 | `cd cod-client-astro && npm run dev`        | Dashboard on `http://localhost:4321` |
-| 3 | `cd cod-astro/theme01 && npm run dev`       | Storefront on `http://localhost:4321` — run `astro dev --port 4322` when the dashboard is up |
+| 3 | `cd cod-astro/theme-00 && npm run dev`       | Storefront on `http://localhost:4321` — run `astro dev --port 4322` when the dashboard is up |
 
 Inspect the shared DB any time:
 `cd cod-server && node scripts/d1.mjs execute --local --persist-to ../.wrangler-shared --command "…"`
@@ -188,7 +192,7 @@ Inspect the shared DB any time:
 
 **There is no hardcoded configuration.** URLs, domains, database IDs, and bucket
 names are placeholders in each package's Cloudflare config (`wrangler.toml` in
-cod-server/cod-client-astro, `wrangler.jsonc` in cod-astro/theme01); secrets go
+cod-server/cod-client-astro, `wrangler.jsonc` in cod-astro/theme-00); secrets go
 in gitignored `.dev.vars` files or `wrangler secret put` in production.
 
 | Variable | Owner | Purpose |
@@ -196,7 +200,7 @@ in gitignored `.dev.vars` files or `wrangler secret put` in production.
 | `WORKER_URL`, `MEDIA_DOMAIN`, `R2_BUCKET_NAME`, `BETTER_AUTH_URL`, `WORKER_SELF_URL` | `cod-server` | public URLs + R2 (see `src/types/env.ts`) |
 | `PUBLIC_APP_URL`, `PUBLIC_API_URL`, `PUBLIC_TRUSTED_ORIGINS` | `cod-client-astro` (wrangler `[vars]`) | dashboard origin, API origin, auth cookie origins |
 | `PUBLIC_API_URL` | `cod-client-astro` (`.dev.vars`, local only) | the API origin local development builds against — never in `.env`, where it is ignored |
-| `COD_SERVER_URL`, `STORE_API_KEY`, `MEDIA_DOMAIN` | `cod-astro/theme01` | backend base URL + store key + media CDN |
+| `COD_SERVER_URL`, `STORE_API_KEY`, `MEDIA_DOMAIN` | `cod-astro/theme-00` | backend base URL + store key + media CDN |
 | `BETTER_AUTH_SECRET`, `MCP_LOGIN_TICKET_SECRET`, R2 creds, `CF_ACCOUNT_ID` | all | secrets — never in a wrangler config file |
 
 ---
@@ -240,7 +244,7 @@ orders/
 - UI strings come from `locales/{ar,en,fr}/*.json` via `useT(namespace)` —
   never hardcoded. The i18n guard test enforces three-locale parity.
 
-### Storefront (`cod-astro/theme01`)
+### Storefront (`cod-astro/theme-00`)
 
 - `src/core/` is the **core engine** — "DO NOT MODIFY". All HTTP calls go
   through `src/core/api/client.ts`.
@@ -265,7 +269,7 @@ Run the full suite of a package before pushing:
 ```bash
 cd cod-server        && npm test       # 1386 tests
 cd cod-client-astro  && npm test       # 139 tests
-cd cod-astro/theme01 && npm test       # property + behavior tests
+cd cod-astro/theme-00 && npm test       # property + behavior tests
 ```
 
 - New endpoints must ship with tests (`handlers.test.ts`, `validation.test.ts`).
@@ -310,9 +314,9 @@ cd cod-astro/theme01 && npm test       # property + behavior tests
 
 - Start a discussion / open an issue on the repository.
 - Read the per-package READMEs: `cod-server/README.md`,
-  `cod-client-astro/README.md`, `cod-astro/theme01/THEME_GUIDE.md`, and the
+  `cod-client-astro/README.md`, `cod-astro/theme-00/THEME_GUIDE.md`, and the
   endpoint docs under `cod-server/src/endpoints/*/README.md`.
 - Coding agents should read the repo instructions: `AGENTS.md` (root) and
-  `cod-astro/theme01/AGENTS.md` (storefront).
+  `cod-astro/theme-00/AGENTS.md` (storefront).
 
 Happy shipping! 🚚

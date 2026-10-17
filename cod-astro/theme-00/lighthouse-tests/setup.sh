@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🔍 Setting up Lighthouse Testing Suite for Theme01"
+echo "🔍 Setting up Lighthouse Testing Suite for Theme-00"
 echo "=================================================="
 
 # Check if Node.js is installed

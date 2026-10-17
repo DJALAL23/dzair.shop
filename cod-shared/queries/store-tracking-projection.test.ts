@@ -1,7 +1,7 @@
 /**
  * The tracking half of the public storefront config.
  *
- * `getStoreConfig` produces the payload theme01 renders into every page. It
+ * `getStoreConfig` produces the payload a storefront renders into every page. It
  * may carry the pixel id — that is public by definition, it appears in the
  * page source — but the Conversions API access token is a credential that must
  * never leave the server, exactly like the Turnstile secret next door.

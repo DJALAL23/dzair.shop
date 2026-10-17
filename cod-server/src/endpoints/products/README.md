@@ -42,7 +42,7 @@ text alignment (an inline `text-align` on `p`/headings — the only `style` a
 description may keep), the highlight colour (`mark` with a hex or `rgb()`
 `background-color`), and checklists (`ul[data-type="taskList"]` /
 `li[data-checked]`). Each is pinned to a fixed pattern or value set. The full
-list is printed in `cod-astro/theme01/THEME_GUIDE.md` and a test compares it
+list is printed in `cod-astro/theme-00/THEME_GUIDE.md` and a test compares it
 against `RICH_TEXT_TAGS` in `cod-shared/lib/rich-text.ts`, so the docs cannot
 drift.
 

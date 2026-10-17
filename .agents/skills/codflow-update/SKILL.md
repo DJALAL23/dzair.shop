@@ -157,7 +157,7 @@ are empty. Fill this in and show the resulting plan to the developer:
 | New secrets/env surface | `git diff HEAD..origin/main -- cod-server/src/types/env.ts` (also skim `CHANGELOG.md`, `README.md`, and skill diffs for `secret put` mentions) | Step 4 |
 | Server code | `git diff --name-only HEAD..origin/main -- cod-server cod-shared` | deploy cod-server (Step 6) |
 | Dashboard code | `git diff --name-only HEAD..origin/main -- cod-client-astro` | rebuild + deploy dashboard (Step 6) |
-| Storefront code | `git diff --name-only HEAD..origin/main -- cod-astro/theme01` | deploy theme01 (Step 6) |
+| Storefront code | `git diff --name-only HEAD..origin/main -- cod-astro/theme-00` | deploy Theme-00 (Step 6) |
 
 If `CHANGELOG.md` changed, read its new sections and summarize the
 user-visible changes for the developer before proceeding.
@@ -213,7 +213,7 @@ Into a directory OUTSIDE the repo (survives resets, never hits git):
 ```bash
 BK="$HOME/.codflow-backups/$(date +%Y%m%d-%H%M%S)" && mkdir -p "$BK" && \
 cp .env cod-client-astro/.env cod-server/wrangler.toml cod-client-astro/wrangler.toml "$BK/" && \
-cp cod-server/.dev.vars cod-client-astro/.dev.vars cod-astro/theme01/.dev.vars "$BK/" 2>/dev/null; ls -la "$BK"
+cp cod-server/.dev.vars cod-client-astro/.dev.vars cod-astro/theme-00/.dev.vars "$BK/" 2>/dev/null; ls -la "$BK"
 ```
 
 Report this path to the developer — it is the config-level rollback.
@@ -260,7 +260,7 @@ MISSING from the live file.
 - New keys in `.env.example` → add to `.env`. Fill values derivable from the
   install (e.g. a new `COD_*` key whose value equals an existing binding);
   otherwise ask the developer. `COD_SERVER_URL` must stay the real deployed
-  origin — a loopback value blocks the theme01 deploy by design.
+  origin — a loopback value blocks the Theme-00 deploy by design.
 
 ### 4. Confirm the live files are still ignored
 
@@ -345,13 +345,13 @@ rebuilt from the freshly merged code before it is deployed:
 | Package | Rebuild before deploy | Why |
 | :--- | :--- | :--- |
 | cod-client-astro (dashboard) | handled by `npm run deploy` | Its deploy script builds first, parks `.dev.vars` so the production `PUBLIC_API_URL` from `wrangler.toml [vars]` is the one inlined, and aborts if the built bundle still contains a loopback URL. Run `npm run build` separately only to surface a build failure before deploying — that bare build uses the local API origin and must not be the artifact you ship. |
-| cod-astro/theme01 (storefront) | `npm run build` | Its deploy script does build first, but run the build explicitly anyway so a build failure surfaces BEFORE any deploy attempt. |
+| cod-astro/theme-00 (storefront) | `npm run build` | Its deploy script does build first, but run the build explicitly anyway so a build failure surfaces BEFORE any deploy attempt. |
 | cod-server (API) | bundled by `wrangler deploy` itself | `wrangler deploy` compiles `src/index.ts` from source on every deploy — there is no stale `dist/` to worry about. Still verify the deploy output references the NEW commit's code. |
 
 ```bash
 cd cod-server           && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
 cd ../cod-client-astro  && env -u CLOUDFLARE_ACCOUNT_ID npm run build && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
-cd ../cod-astro/theme01 && env -u CLOUDFLARE_ACCOUNT_ID npm run build && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
+cd ../cod-astro/theme-00 && env -u CLOUDFLARE_ACCOUNT_ID npm run build && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
 ```
 
 A build that fails means the deploy must NOT proceed — report the error to
@@ -364,7 +364,7 @@ updated and to what version (per the reporting rule at the top).
   refuses to upload a bundle that still contains a loopback URL. Never deploy a
   `dist/` produced by a bare `npm run build` on a developer machine: `.dev.vars`
   outranks every `.env` file, so that artifact points at localhost.
-- theme01's deploy reads `COD_SERVER_URL` from the root `.env`; it refuses a
+- Theme-00's deploy reads `COD_SERVER_URL` from the root `.env`; it refuses a
   loopback value unless `--force-local` is passed (a deployed Worker can
   never reach `http://localhost:8787`).
 
@@ -372,14 +372,14 @@ updated and to what version (per the reporting rule at the top).
 
 Use the worker names from the live configs:
 `grep -E '^name' cod-server/wrangler.toml cod-client-astro/wrangler.toml` and
-`grep '"name"' cod-astro/theme01/wrangler.jsonc`.
+`grep '"name"' cod-astro/theme-00/wrangler.jsonc`.
 
 | Worker | Check | Expectation |
 | :--- | :--- | :--- |
 | cod-server | `curl -s -o /dev/null -w "%{http_code}" https://<api-domain>/api/docs` | `200` |
 | dashboard sign-in API | `curl -s -X POST https://<dashboard-url>/api/auth/sign-in/email -H "Content-Type: application/json" -H "Origin: https://<dashboard-url>" -d '{"email":"<admin>","password":"<pass>"}'` | `200` + user JSON (500 = missing migration or config; **403 `INVALID_ORIGIN` = `PUBLIC_TRUSTED_ORIGINS` drift**; 401 = credentials) |
 | dashboard UI | open the dashboard URL | new version loads, login works |
-| cod-astro/theme01 | open the storefront URL | homepage renders with products |
+| cod-astro/theme-00 | open the storefront URL | homepage renders with products |
 | database | `env -u CLOUDFLARE_ACCOUNT_ID node scripts/d1.mjs migrations list --remote` (from `cod-server/`) | no unapplied migrations |
 
 The `Origin` header in the sign-in check is mandatory — without it the check
@@ -426,8 +426,8 @@ Print:
 | Dashboard still shows the old UI | A stale `dist/` was shipped | `cd cod-client-astro && npm run deploy` — it rebuilds before uploading. |
 | Live dashboard calls `http://localhost:8787` | A bare `npm run build` artifact was deployed; `.dev.vars` outranks every `.env` file | `cd cod-client-astro && npm run deploy` — it parks `.dev.vars` for the build and aborts on a loopback URL. |
 | Dev server dies with `Missing field 'moduleType'` | Two Vite majors after a dependency update | `rm -rf node_modules && npm ci` at the root; `npm ls vite` must show one major. |
-| theme01 deploy refuses: loopback `COD_SERVER_URL` | Root `.env` still has the localhost default | Set the real deployed cod-server origin in `.env`, retry. `--force-local` only for intentional local deploys. |
-| Storefront renders but products empty | Worker→Worker fetch between two `*.workers.dev` hosts is blocked (CF error 1042), or `COD_SERVER_URL` points at the wrong origin | Put cod-server on a custom domain/route, set `COD_SERVER_URL`, redeploy theme01. |
+| Theme-00 deploy refuses: loopback `COD_SERVER_URL` | Root `.env` still has the localhost default | Set the real deployed cod-server origin in `.env`, retry. `--force-local` only for intentional local deploys. |
+| Storefront renders but products empty | Worker→Worker fetch between two `*.workers.dev` hosts is blocked (CF error 1042), or `COD_SERVER_URL` points at the wrong origin | Put cod-server on a custom domain/route, set `COD_SERVER_URL`, redeploy Theme-00. |
 | Sign-in 403 `INVALID_ORIGIN` in browser but curl passes without `Origin` | Dashboard origin missing from `PUBLIC_TRUSTED_ORIGINS` (e.g. domain changed during config merge) | Add the dashboard URL to `PUBLIC_TRUSTED_ORIGINS` in `cod-client-astro/wrangler.toml`, redeploy, retest WITH the `Origin` header. |
 | Every API call 401 after update although sign-in works | `BETTER_AUTH_SECRET` differs between the two workers (someone regenerated it) | Restore the identical original secret on both workers — check the Step 3 backups or the credentials file from setup. |
 | `migrations apply` fails mid-file | Upstream migration bug or schema conflict | STOP (Step 5 rule): no deploy, no hand-editing; capture the error and the file name, report to the developer / upstream issue. |

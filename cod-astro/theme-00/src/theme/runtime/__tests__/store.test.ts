@@ -23,7 +23,7 @@ const LIVE_CONFIG = {
   name: "متجر الجزائر",
   domain: "algiers-gadgets.codflow.store",
   logoUrl: "https://media.codflow.store/stores/store_01/logo.png",
-  themeId: "theme01",
+  themeId: "theme-00",
   primaryColor: "#7c3aed",
   accentColor: "#f59e0b",
   bgColor: "#f8f8f8",

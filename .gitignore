@@ -15,8 +15,6 @@ report-md/
 # Build artifacts
 .astro/
 cod-server/dist/
-cod-astro/theme01/dist/
-cod-astro/theme01/.astro/
 cod-client-astro/dist/
 cod-client-astro/.astro/
 .vercel/

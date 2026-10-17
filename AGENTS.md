@@ -19,15 +19,15 @@ TypeScript, deployed on Cloudflare (Workers, D1, R2, KV).
 - `cod-shared/` — shared Drizzle schema, queries, RBAC scopes, error codes.
   Imported by the apps via relative path (`../../cod-shared/...`). **Not
   published.**
-- `cod-astro/theme01/` — storefront theme (Astro). It is a swappable theme
-  layer, not a platform package; keep engine logic out. Its commands and
-  boundaries differ — read `cod-astro/theme01/AGENTS.md` before editing it.
 - `wocart-sdk/` — the published SDKs: `@wocart/storefront` (`storefront/`)
   and `@wocart/theme` (`theme/`), on npm under the `@wocart` org.
   Maintainer guide and release procedure: `wocart-sdk/README.md`.
-- `cod-astro/theme-00/` — the reference storefront theme and the SDKs'
-  reference consumer. **Not a workspace**: it installs `@wocart/*` from the
-  npm registry, exactly like an outside theme, and has its own lockfile.
+- `cod-astro/theme-00/` — the storefront theme, the reference for new
+  themes, and the SDKs' reference consumer. A swappable theme layer: engine
+  logic belongs in `@wocart/storefront`, never here. **Not a workspace**: it
+  installs `@wocart/*` from the npm registry, exactly like an outside theme,
+  and has its own lockfile. Its commands and boundaries differ — read
+  `cod-astro/theme-00/AGENTS.md` before editing it.
 
 There is **one root `package.json` with npm workspaces** and ONE root
 `package-lock.json` for every workspace. The one exception is Theme-00, which
@@ -63,8 +63,8 @@ only through their published entry points; `sdk-boundary-contracts.test.ts`
 enforces it. An SDK change reaches Theme-00 only through a release: publish,
 then bump Theme-00's pins. Releasing: `wocart-sdk/README.md`.
 
-`cod-astro/theme01` has extra validators — see
-`cod-astro/theme01/AGENTS.md` for its commands.
+Theme-00 has extra validators (`npm run validate:all`) — see
+`cod-astro/theme-00/AGENTS.md` for its commands and definition of done.
 
 ## Cloud resource configuration
 
@@ -84,9 +84,9 @@ other is how these drift.
 
 - After changing TypeScript: run `npm run typecheck` in the affected package.
 - After changing behavior: run `npm test` in the affected package.
-- Full CI runs typecheck + tests for cod-server and cod-client-astro,
-  `npm run verify:sdks` (which builds Theme-00 against the packed SDKs), and `astro check` +
-  tests for theme01 (`.github/workflows/ci.yml`).
+- Full CI runs typecheck + tests for cod-server and cod-client-astro, and
+  `npm run verify:sdks`, which runs Theme-00's tests, `astro check` and build
+  against the packed SDKs (`.github/workflows/ci.yml`).
 
 ## Conventions
 
@@ -107,8 +107,8 @@ other is how these drift.
   cod-server or cod-client-astro.
 - Migrations: add a new migration; never rewrite an already-applied one.
 - Ask before adding a production dependency or changing the D1 schema.
-- Keep engine logic out of `cod-astro/theme01`; the theme layer is meant to be
-  swappable (see `cod-astro/theme01/AGENTS.md`).
+- Keep engine logic out of `cod-astro/theme-00`; the theme layer is meant to be
+  swappable (see `cod-astro/theme-00/AGENTS.md`).
 - Dashboard data access goes through the API seam (`cod-client-astro/src/lib/api.ts`).
   Components never call `fetch` directly, and the dashboard does not query D1
   for business data — authorization lives in cod-server.
@@ -131,7 +131,7 @@ other is how these drift.
   (`Missing field 'moduleType'`). Keep it in sync when astro bumps Vite.
 - `COD_SERVER_URL` defaults to `http://localhost:8787` so local dev works
   untouched. A deployed Worker can never reach that, so
-  `cod-astro/theme01/scripts/deploy.mjs` refuses to deploy a loopback value
+  `cod-astro/theme-00/scripts/deploy.mjs` refuses to deploy a loopback value
   unless `--force-local` is passed. Set the real origin in the root `.env`
   before deploying the storefront.
 - Local D1 state is **shared** through `<repo-root>/.wrangler-shared`:

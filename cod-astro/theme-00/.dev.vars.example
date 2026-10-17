@@ -1,4 +1,4 @@
-# CodFlow storefront (cod-astro/theme01) — local development secrets
+# CodFlow storefront (cod-astro/theme-00) — local development secrets
 # Copy this file to .dev.vars and fill in your values.
 # (.dev.vars is gitignored — your real values never get committed.)
 

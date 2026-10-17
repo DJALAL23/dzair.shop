@@ -25,7 +25,7 @@ updates:
       - dependencies
 
   - package-ecosystem: npm
-    directory: /cod-astro/theme01
+    directory: /cod-astro/theme-00
     schedule:
       interval: weekly
       day: monday

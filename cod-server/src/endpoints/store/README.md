@@ -1,6 +1,6 @@
 # Public Storefront API
 
-The core public API used by the storefront (e.g., `cod-astro/theme01`). This API provides read access to products, categories, and settings, and handles checkout/review submissions.
+The core public API used by the storefront (e.g., `cod-astro/theme-00`). This API provides read access to products, categories, and settings, and handles checkout/review submissions.
 
 ## Structure
 

@@ -75,7 +75,7 @@ async function seedLegacyStore() {
     INSERT INTO stores (id, name, theme_id, primary_color, accent_color, bg_color,
                         font_family, lang, currency, currency_symbol,
                         reviews_enabled, cart_shipping_mode, status, created_at, updated_at)
-    VALUES (${id}, 'Legacy Store', 'theme01', '#7c3aed', '#f59e0b', '#f8f8f8',
+    VALUES (${id}, 'Legacy Store', 'theme-00', '#7c3aed', '#f59e0b', '#f8f8f8',
             'Cairo, sans-serif', 'ar', 'DZD', 'دج',
             1, 'highest', 'active', ${now()}, ${now()})
   `);

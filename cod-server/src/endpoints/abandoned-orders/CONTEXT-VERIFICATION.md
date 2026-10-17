@@ -14,7 +14,7 @@ Every file read in full:
 - Schema: `cod-shared/db/schema.ts:1284-1332` (lifecycle comment, unique session, indexes)
 - Cron wiring: `cron/sweep-abandoned-orders.ts` + `index.ts:196`
 - Mount points: `index.ts:80` (/store) and `:182` (/api/abandoned-orders)
-- Storefront caller verified: `cod-astro/theme01/src/theme/scripts/track-abandonment.ts`
+- Storefront caller verified: `cod-astro/theme-00/src/theme/scripts/track-abandonment.ts`
 
 ---
 

@@ -23,7 +23,7 @@ function storeRow(overrides: Record<string, any> = {}) {
     name: "My Shop",
     domain: null,
     logoUrl: "https://cdn.example.com/logo.png",
-    themeId: "theme01",
+    themeId: "theme-00",
     primaryColor: "#3b82f6",
     accentColor: "#f97316",
     bgColor: "#ffffff",
