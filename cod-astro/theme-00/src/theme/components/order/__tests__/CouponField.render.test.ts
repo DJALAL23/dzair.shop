@@ -26,14 +26,16 @@ describe("the code box", () => {
     expect(doc.querySelector('input[name="couponCode"]')).not.toBeNull();
     expect(doc.querySelector("[data-coupon-box]")!.hasAttribute("hidden")).toBe(true);
     expect(doc.querySelector("[data-coupon-toggle]")!.hasAttribute("hidden")).toBe(false);
-    expect(doc.querySelector("[data-coupon-status]")!.hasAttribute("hidden")).toBe(true);
+    expect(doc.querySelector("[data-coupon-status-row]")!.hasAttribute("hidden")).toBe(true);
   });
 
   it("opens with the reason when the order came back refused for its code", async () => {
     const doc = await render({ reason: "already_used" });
     expect(doc.querySelector("[data-coupon-box]")!.hasAttribute("hidden")).toBe(false);
     const status = doc.querySelector("[data-coupon-status]")!;
+    expect(doc.querySelector("[data-coupon-status-row]")!.hasAttribute("hidden")).toBe(false);
     expect(status.textContent?.trim()).toBe(en.couponAlreadyUsed);
+    expect(doc.querySelector("[data-coupon-remove]")!.hasAttribute("hidden")).toBe(true);
     expect(status.getAttribute("data-tone")).toBe("refused");
     expect(doc.querySelector('input[name="couponCode"]')!.classList.contains("error")).toBe(true);
   });

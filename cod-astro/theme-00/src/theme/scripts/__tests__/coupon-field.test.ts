@@ -16,7 +16,7 @@ function mount(): HTMLElement {
       <div data-coupon-box hidden>
         <input name="couponCode" />
         <button type="button" data-coupon-apply>Apply</button>
-        <p data-coupon-status hidden></p>
+        <div data-coupon-status-row hidden><p data-coupon-status><span data-coupon-text></span></p><button type="button" data-coupon-remove hidden>Remove</button></div>
       </div>
     </div>`;
   document.body.appendChild(root);
@@ -24,6 +24,8 @@ function mount(): HTMLElement {
 }
 
 const status = (root: HTMLElement) => root.querySelector<HTMLElement>("[data-coupon-status]")!;
+const statusRow = (root: HTMLElement) => root.querySelector<HTMLElement>("[data-coupon-status-row]")!;
+const removeButton = (root: HTMLElement) => root.querySelector<HTMLButtonElement>("[data-coupon-remove]")!;
 const input = (root: HTMLElement) => root.querySelector<HTMLInputElement>('input[name="couponCode"]')!;
 
 describe("the code box", () => {
@@ -63,21 +65,44 @@ describe("the code box", () => {
     const root = mount();
     const field = initCouponField(root, () => {})!;
     field.show({ code: "X", applied: true, discount: 500, freeShipping: false });
-    expect(status(root).hidden).toBe(true);
+    expect(statusRow(root).hidden).toBe(true);
 
     input(root).value = "DIX";
     root.querySelector<HTMLButtonElement>("[data-coupon-apply]")!.click();
     field.show({ code: "DIX", applied: true, discount: 500, freeShipping: false });
-    expect(status(root)).toMatchObject({ hidden: false, dataset: { tone: "applied" } });
+    expect(statusRow(root).hidden).toBe(false);
+    expect(status(root).dataset.tone).toBe("applied");
+    expect(removeButton(root).hidden).toBe(false);
     expect(status(root).textContent).toMatch(/500/);
 
     field.show({ code: "DIX", applied: false, reason: "expired" });
     expect(status(root).textContent).toBe(en.couponExpired);
     expect(status(root).dataset.tone).toBe("refused");
     expect(input(root).classList.contains("error")).toBe(true);
+    expect(removeButton(root).hidden).toBe(true);
+
+    field.show({ code: "DIX", applied: false, reason: "offer_applied" });
+    expect(status(root).dataset.tone).toBe("hint");
+    expect(input(root).classList.contains("error")).toBe(false);
 
     field.show(undefined);
-    expect(status(root).hidden).toBe(true);
+    expect(statusRow(root).hidden).toBe(true);
+  });
+
+  it("takes an applied code off with Remove, and asks the quote again", () => {
+    const root = mount();
+    const asked = vi.fn();
+    const field = initCouponField(root, asked)!;
+    input(root).value = "DIX";
+    root.querySelector<HTMLButtonElement>("[data-coupon-apply]")!.click();
+    field.show({ code: "DIX", applied: true, discount: 500, freeShipping: false });
+
+    removeButton(root).click();
+    expect(field.code()).toBeUndefined();
+    expect(input(root).value).toBe("");
+    expect(asked).toHaveBeenCalledTimes(2);
+    expect(statusRow(root).hidden).toBe(true);
+    expect(sessionStorage.getItem(COUPON_STORAGE_KEY)).toBeNull();
   });
 
   it("takes the code a shared link brings, and keeps it for the visit's next pages", () => {

@@ -3,11 +3,14 @@
  * The code box of an order form. Closed behind a link until the shopper opens
  * it — or until a code is already there (a shared link, a refused order).
  *
- * The input posts as `couponCode`. Whether the code applies, and what it takes
- * off, is the server's answer, worded by `couponNotice`; the browser half is
- * `scripts/coupon-field.ts`, which asks the page's quote again on Apply.
+ * The input posts as `couponCode`; the code and its Apply button share one
+ * row at the fields' height. Whether the code applies, and what it takes off,
+ * is the server's answer, worded by `couponNotice`; an applied code can be
+ * removed. The browser half is `scripts/coupon-field.ts`, which asks the
+ * page's quote again on Apply and on Remove.
  */
 import type { CouponRefusal } from "@wocart/storefront";
+import { Icon } from "astro-icon/components";
 import type { StoreFrontContent } from "@/theme/content";
 import { couponCopy, couponNotice } from "@/theme/utils/coupon-notice";
 
@@ -26,18 +29,19 @@ const refused = couponRefusal ? couponNotice({ applied: false, ...couponRefusal 
 <div class="coupon-field" data-coupon-field data-coupon-copy={JSON.stringify(copy)} data-currency={cur} data-checking={content.couponChecking}>
   <button
     type="button"
-    class="text-[0.8125rem] font-bold underline underline-offset-4"
-    style="color: var(--clr-primary)"
+    class="coupon-toggle inline-flex items-center gap-1.5 text-[0.8125rem] font-bold"
     data-coupon-toggle
     aria-expanded={refused ? "true" : "false"}
     aria-controls="coupon-box"
     hidden={refused !== null}
   >
-    {content.couponToggle}
+    <Icon name="heroicons:tag" class="h-4 w-4 shrink-0" aria-hidden="true" />
+    <span>{content.couponToggle}</span>
   </button>
+
   <div id="coupon-box" class="space-y-2" data-coupon-box hidden={refused === null}>
     <label for="coupon-input" class="block text-[0.8125rem] font-bold" style="color: var(--clr-text)">{content.couponLabel}</label>
-    <div class="flex gap-2">
+    <div class="flex items-stretch gap-2">
       <input
         id="coupon-input"
         type="text"
@@ -47,26 +51,37 @@ const refused = couponRefusal ? couponNotice({ applied: false, ...couponRefusal 
         autocapitalize="characters"
         spellcheck="false"
         dir="ltr"
+        enterkeyhint="done"
         placeholder={content.couponPlaceholder}
-        class:list={["form-input flex-1 uppercase", refused && "error"]}
+        class:list={["form-input coupon-input min-w-0 flex-1", refused && "error"]}
       />
-      <button type="button" class="btn-secondary shrink-0 !px-5" data-coupon-apply>{content.couponApply}</button>
+      <button type="button" class="btn-secondary coupon-apply" data-coupon-apply>{content.couponApply}</button>
     </div>
-    <p
-      class="coupon-status text-[0.75rem] font-bold ps-1"
-      role="status"
-      aria-live="polite"
-      data-coupon-status
-      data-tone={refused?.tone}
-      hidden={refused === null}
-    >
-      {refused?.text}
-    </p>
+    <div class="coupon-status-row flex items-start justify-between gap-3" data-coupon-status-row hidden={refused === null}>
+      <p class="coupon-status flex items-start gap-1.5 text-[0.75rem] font-bold" role="status" aria-live="polite" data-coupon-status data-tone={refused?.tone}>
+        <Icon name="heroicons:check-circle" class="coupon-status-icon h-4 w-4 shrink-0" aria-hidden="true" />
+        <span data-coupon-text>{refused?.text}</span>
+      </p>
+      <button type="button" class="coupon-remove shrink-0 text-[0.75rem] font-bold underline underline-offset-2" data-coupon-remove hidden>
+        {content.couponRemove}
+      </button>
+    </div>
   </div>
 </div>
 
 <style>
+  .coupon-toggle { color: var(--clr-primary); }
+  .coupon-toggle:hover span { text-decoration: underline; text-underline-offset: 3px; }
+  .coupon-toggle:focus-visible { outline: 2px solid var(--clr-primary); outline-offset: 2px; border-radius: var(--radius-input); }
+  .coupon-input { text-transform: uppercase; letter-spacing: 0.04em; }
+  .coupon-input::placeholder { text-transform: none; letter-spacing: normal; }
+  /* The theme's buttons span their row; here the button sits beside the code, at the fields' height. */
+  .coupon-apply { width: auto; flex: none; min-height: 3rem; padding-inline: 1.25rem; }
   .coupon-status[data-tone="applied"] { color: var(--clr-success); }
   .coupon-status[data-tone="refused"] { color: var(--clr-error); }
+  .coupon-status[data-tone="hint"] { color: var(--clr-text-2); }
   .coupon-status:not([data-tone]) { color: var(--clr-text-2); }
+  .coupon-status:not([data-tone="applied"]) .coupon-status-icon { display: none; }
+  .coupon-remove { color: var(--clr-text-2); }
+  .coupon-remove:hover { color: var(--clr-text); }
 </style>

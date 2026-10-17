@@ -9,7 +9,7 @@
  * refuses an order for its code.
  */
 import { couponFromUrl, type CouponOutcome } from "@wocart/storefront";
-import { couponNotice, type CouponCopy } from "@/theme/utils/coupon-notice";
+import { couponNotice, type CouponCopy, type CouponNotice } from "@/theme/utils/coupon-notice";
 
 /** Where the visit keeps the code a shared link brought, and the last one applied. */
 export const COUPON_STORAGE_KEY = "theme00:coupon";
@@ -56,8 +56,11 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
   const box = field?.querySelector<HTMLElement>("[data-coupon-box]");
   const input = field?.querySelector<HTMLInputElement>('input[name="couponCode"]');
   const apply = field?.querySelector<HTMLButtonElement>("[data-coupon-apply]");
+  const statusRow = field?.querySelector<HTMLElement>("[data-coupon-status-row]");
   const status = field?.querySelector<HTMLElement>("[data-coupon-status]");
-  if (!field || !toggle || !box || !input || !apply || !status) return null;
+  const text = field?.querySelector<HTMLElement>("[data-coupon-text]");
+  const remove = field?.querySelector<HTMLButtonElement>("[data-coupon-remove]");
+  if (!field || !toggle || !box || !input || !apply || !statusRow || !status || !text || !remove) return null;
 
   const copy = readCopy(field.dataset.couponCopy);
   const currency = field.dataset.currency ?? "";
@@ -69,11 +72,12 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
     toggle!.setAttribute("aria-expanded", "true");
   }
 
-  function say(text: string, tone?: "applied" | "refused"): void {
-    status!.textContent = text;
-    status!.hidden = text === "";
+  function say(message: string, tone?: CouponNotice["tone"]): void {
+    text!.textContent = message;
+    statusRow!.hidden = message === "";
     if (tone) status!.dataset.tone = tone;
     else delete status!.dataset.tone;
+    remove!.hidden = tone !== "applied";
     input!.classList.toggle("error", tone === "refused");
   }
 
@@ -89,6 +93,11 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
     input.focus();
   });
   apply.addEventListener("click", () => use(input.value.trim() || undefined));
+  remove.addEventListener("click", () => {
+    input.value = "";
+    use(undefined);
+    input.focus();
+  });
   input.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     // Enter in the code box applies the code; it never submits the order.

@@ -90,7 +90,7 @@ function buildDom(): void {
           <input type="hidden" name="customFieldResponses" id="custom-field-responses-input" value="[]" />
           <div data-coupon-field data-coupon-copy='{"couponApplied":"Code applied: {amount} off","couponNotEligible":"Not for you"}' data-currency="DA" data-checking="Checking">
             <button type="button" data-coupon-toggle></button>
-            <div data-coupon-box hidden><input name="couponCode" /><button type="button" data-coupon-apply></button><p data-coupon-status hidden></p></div>
+            <div data-coupon-box hidden><input name="couponCode" /><button type="button" data-coupon-apply></button><div data-coupon-status-row hidden><p data-coupon-status><span data-coupon-text></span></p><button type="button" data-coupon-remove hidden>Remove</button></div></div>
           </div>
           <button type="submit" id="submit-btn">Confirm</button>
         </form>

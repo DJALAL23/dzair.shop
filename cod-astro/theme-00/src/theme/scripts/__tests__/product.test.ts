@@ -724,7 +724,7 @@ describe("Delivery quote for the product form", () => {
       ${options.coupon ? `<input id="f-phone" value="" />
       <div data-coupon-field data-coupon-copy='{"couponApplied":"Code applied: {amount} off","couponExpired":"Expired"}' data-currency="DA" data-checking="Checking">
         <button type="button" data-coupon-toggle></button>
-        <div data-coupon-box hidden><input name="couponCode" /><button type="button" data-coupon-apply></button><p data-coupon-status hidden></p></div>
+        <div data-coupon-box hidden><input name="couponCode" /><button type="button" data-coupon-apply></button><div data-coupon-status-row hidden><p data-coupon-status><span data-coupon-text></span></p><button type="button" data-coupon-remove hidden>Remove</button></div></div>
       </div>` : ""}
       <input id="f-wilaya" value="${options.wilaya ?? "16"}" />
       <div id="delivery-type-group">

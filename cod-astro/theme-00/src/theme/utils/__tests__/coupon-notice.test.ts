@@ -17,18 +17,27 @@ describe("couponNotice", () => {
     expect(say({ code: "LIV", applied: true, discount: 0, freeShipping: true })).toEqual({ tone: "applied", text: en.couponAppliedFreeShipping });
   });
 
-  it("words each refusal the platform names", () => {
+  it("words each refusal of the code itself, as a refusal", () => {
     const sentences: Record<string, string> = {
       not_found: en.couponNotFound,
       expired: en.couponExpired,
       used_up: en.couponUsedUp,
-      identify_first: en.couponIdentifyFirst,
       not_eligible: en.couponNotEligible,
       already_used: en.couponAlreadyUsed,
-      no_eligible_products: en.couponNoEligibleProducts,
-      delivery_already_free: en.couponDeliveryAlreadyFree,
     };
     for (const [reason, text] of Object.entries(sentences)) expect(say(refused(reason))).toEqual({ tone: "refused", text });
+  });
+
+  it("words what the basket still lacks as a hint, not as a bad code", () => {
+    const sentences: Record<string, string> = {
+      identify_first: en.couponIdentifyFirst,
+      no_eligible_products: en.couponNoEligibleProducts,
+      offer_applied: en.couponOfferApplied,
+      delivery_already_free: en.couponDeliveryAlreadyFree,
+    };
+    for (const [reason, text] of Object.entries(sentences)) expect(say(refused(reason))).toEqual({ tone: "hint", text });
+    expect(say(refused("below_minimum_subtotal", { shortBy: 500 })).tone).toBe("hint");
+    expect(say(refused("below_minimum_quantity", { shortBy: 1 })).tone).toBe("hint");
   });
 
   it("names the figure a reason carries: the amount, the items, the start date", () => {

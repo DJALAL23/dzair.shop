@@ -112,6 +112,7 @@ export default defineConfig({
           "phone",             // thank-you step 1
           "cube",              // thank-you step 2 (package)
           "gift",              // offer free label
+          "tag",               // coupon code box
           "exclamation-triangle", // warning/error
           "chat-bubble-left",  // WhatsApp CTA
           "chat-bubble-left-ellipsis", // OTP step

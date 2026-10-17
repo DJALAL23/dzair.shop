@@ -12,10 +12,19 @@ import type { CouponStrings } from "@/theme/content/types/coupon";
 import { message, pluralKeys } from "@/theme/content/messages";
 import { formatCurrency } from "@/theme/utils/money";
 
+/**
+ * `applied`: the code took something off. `refused`: the code itself cannot be
+ * used — unknown, outside its dates, used up, not for this shopper. `hint`: the
+ * code is good but this basket does not meet it yet — a product under an
+ * offer, a minimum not reached, a phone still to type.
+ */
 export interface CouponNotice {
-  tone: "applied" | "refused";
+  tone: "applied" | "refused" | "hint";
   text: string;
 }
+
+/** The reasons about the basket, not about the code. */
+const HINTS = new Set(["identify_first", "no_eligible_products", "offer_applied", "below_minimum_subtotal", "below_minimum_quantity", "delivery_already_free"]);
 
 /** The coupon copy a notice needs — what an order form hands its script. */
 export const COUPON_COPY_KEYS = [
@@ -29,6 +38,7 @@ export const COUPON_COPY_KEYS = [
   "couponNotEligible",
   "couponAlreadyUsed",
   "couponNoEligibleProducts",
+  "couponOfferApplied",
   "couponBelowSubtotal",
   ...pluralKeys("couponBelowQuantity"),
   "couponDeliveryAlreadyFree",
@@ -52,6 +62,7 @@ const REFUSAL_KEY = new Map<string, keyof CouponCopy>([
   ["not_eligible", "couponNotEligible"],
   ["already_used", "couponAlreadyUsed"],
   ["no_eligible_products", "couponNoEligibleProducts"],
+  ["offer_applied", "couponOfferApplied"],
   ["delivery_already_free", "couponDeliveryAlreadyFree"],
 ]);
 
@@ -68,7 +79,10 @@ export function couponNotice(
         : message(copy, "couponApplied", { amount: formatCurrency(answer.discount, currency) }, locale);
     return { tone: "applied", text };
   }
-  const refused = (text: string | undefined): CouponNotice => ({ tone: "refused", text: text ?? copy.couponRefused ?? "" });
+  const refused = (text: string | undefined): CouponNotice => ({
+    tone: text !== undefined && HINTS.has(answer.reason) ? "hint" : "refused",
+    text: text ?? copy.couponRefused ?? "",
+  });
   // Reasons that carry a figure are worded with it, and only with it.
   if (answer.reason === "below_minimum_quantity") {
     return answer.shortBy === undefined ? refused(undefined) : refused(message(copy, "couponBelowQuantity", { count: answer.shortBy }, locale));
