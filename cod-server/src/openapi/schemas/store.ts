@@ -222,6 +222,23 @@ export const StoreProductListSchema = z
   })
   .openapi("StoreProductList");
 
+export const StoreQuantityPricingSchema = z
+  .object({
+    offerId: z.string(),
+    name: z.string().openapi({ description: "The offer's name, in the requested language", example: "عروض الكمية" }),
+    triggerVariantId: z.string().nullable().openapi({ description: "When set, only this variant's units count and are priced by the tiers" }),
+    tiers: z
+      .array(
+        z.object({
+          quantity: z.number().int().openapi({ example: 2 }),
+          price: z.number().int().openapi({ description: "What that many units cost, in DZD", example: 3500 }),
+          freeShipping: z.boolean().openapi({ description: "Delivery is free from this tier, for a basket of this product alone" }),
+        }),
+      )
+      .openapi({ description: "In increasing quantity" }),
+  })
+  .openapi("StoreQuantityPricing");
+
 export const StoreOfferSummarySchema = z.object({
   id: z.string().openapi({ description: "Offer UUID" }),
   name: z.string().openapi({
@@ -325,9 +342,13 @@ export const StoreProductDetailSchema = z
       description:
         "Aggregate review stats (approved reviews only). null if no approved reviews exist for this product.",
     }),
+    quantityPricing: StoreQuantityPricingSchema.nullable().openapi({
+      description:
+        "The product's live quantity pricing — price tiers by quantity — or null. A separate field from `offers` (whose kinds published SDKs validate): the highest tier the quantity reaches prices every unit at its per-unit price; the cart quote and the order charge exactly that.",
+    }),
     offers: z.array(StoreOfferSummarySchema).openapi({
       description:
-        "Active Buy X Get Y offers currently applicable to this product. Only includes offers where `status=active` and the current time is within the optional schedule window. The storefront uses this list to display offer banners and to show the free reward row in the order summary when the customer selects a matching variant and quantity.",
+        "Live Buy X Get Y and free-delivery offers for this product (quantity pricing is `quantityPricing`). Only includes offers where `status=active` and the current time is within the optional schedule window. The storefront uses this list to display offer banners and to show the free reward row in the order summary when the customer selects a matching variant and quantity.",
     }),
   })
   .openapi("StoreProductDetail");

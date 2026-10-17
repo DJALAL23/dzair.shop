@@ -52,6 +52,7 @@ import {
   stockMovements,
   collections,
   collectionProducts,
+  offerPriceTiers,
 } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { deriveDescriptionPlain } from "./products";
@@ -525,8 +526,24 @@ export async function getStoreProductByHandle(
   const rewardProducts = new Map(rewards.products.map((reward) => [reward.id, reward]));
   const translatedCategory = category ? overlayTranslations("category", [category], categoryTranslations)[0]! : null;
 
+  const translatedOffers = overlayTranslations("offer", offerRows, offerTranslations);
+  // Quantity pricing travels apart from `offers`: published SDKs validate the
+  // kinds in that list, and the write rules keep at most one live per product.
+  const pricingOffer = translatedOffers.find((offer) => offer.discountType === "quantity_price") ?? null;
+  const pricingTiers = pricingOffer
+    ? await db.select().from(offerPriceTiers).where(eq(offerPriceTiers.offerId, pricingOffer.id)).orderBy(asc(offerPriceTiers.quantity)).all()
+    : [];
+  const quantityPricing = pricingOffer
+    ? {
+        offerId: pricingOffer.id,
+        name: pricingOffer.name,
+        triggerVariantId: pricingOffer.triggerVariantId ?? null,
+        tiers: pricingTiers.map((tier) => ({ quantity: tier.quantity, price: tier.price, freeShipping: tier.freeShipping })),
+      }
+    : null;
+
   const resolvedOffers = await Promise.all(
-    overlayTranslations("offer", offerRows, offerTranslations).map(async (offer) => {
+    translatedOffers.filter((offer) => offer.discountType !== "quantity_price").map(async (offer) => {
       const rewardProduct = offer.rewardProductId ? rewardProducts.get(offer.rewardProductId) : undefined;
       const rewardVariant = offer.rewardVariantId ? rewardVariants.get(offer.rewardVariantId) : undefined;
 
@@ -566,6 +583,7 @@ export async function getStoreProductByHandle(
       variations: translated.variations(product.id, JSON.parse(v.variations)),
     })),
     images,
+    quantityPricing,
     offers: resolvedOffers,
     reviewStats:
       (reviewStatsRow?.reviewCount ?? 0) > 0

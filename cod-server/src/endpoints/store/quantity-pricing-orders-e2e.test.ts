@@ -133,6 +133,33 @@ describe("quantity pricing on an order", () => {
   });
 });
 
+describe("quantity pricing on the product page", () => {
+  it("travels as its own field, tiers in order, in the shopper's language — never inside offers", async () => {
+    await quantityPricing([[3, 4500], [1, 2000], [2, 3500, true]]);
+    await d1.db.insert(schema.offers).values({ id: "later-gift", name: "Gift", triggerProductId: "robe", triggerQuantity: 2, rewardProductId: "sac", rewardQuantity: 1, status: "inactive", createdAt: T, updatedAt: T });
+    await d1.db.insert(schema.storeLocales).values([{ storeId: STORE, locale: "ar", published: true, createdAt: T }, { storeId: STORE, locale: "fr", published: true, createdAt: T }]);
+    await d1.db.insert(schema.translations).values({ resourceType: "offer", resourceId: "packs", locale: "fr", key: "name", value: "Packs malins", sourceDigest: "d", updatedAt: T });
+    const response = await app.request("/store/products/robe?locale=fr");
+    const { data } = (await response.json()) as { data: { quantityPricing: unknown; offers: unknown[] } };
+    expect(data.quantityPricing).toEqual({
+      offerId: "packs",
+      name: "Packs malins",
+      triggerVariantId: null,
+      tiers: [
+        { quantity: 1, price: 2000, freeShipping: false },
+        { quantity: 2, price: 3500, freeShipping: true },
+        { quantity: 3, price: 4500, freeShipping: false },
+      ],
+    });
+    expect(data.offers).toEqual([]);
+  });
+
+  it("is null for a product without it", async () => {
+    const { data } = (await (await app.request("/store/products/sac")).json()) as { data: { quantityPricing: unknown } };
+    expect(data.quantityPricing).toBeNull();
+  });
+});
+
 describe("gifts on an order", () => {
   async function gift(rewardVariantId: string | null = null) {
     await d1.db.insert(schema.offers).values({ id: "gift", name: "Gift", triggerProductId: "robe", triggerQuantity: 2, rewardProductId: "robe", rewardVariantId, rewardQuantity: 1, createdAt: T, updatedAt: T });
