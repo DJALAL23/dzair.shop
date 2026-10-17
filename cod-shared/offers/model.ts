@@ -1,6 +1,6 @@
 /**
- * Offers — promotions the server applies on its own at checkout; a COD
- * storefront has no coupon box. Three kinds:
+ * Offers — promotions the server applies on its own at checkout, unasked
+ * (a coupon is the shopper's, applied after them: `coupons/`). Three kinds:
  *
  *   free            Buy X, get Y free: reward lines at no charge.
  *   free_shipping   Buy X, delivery is free.

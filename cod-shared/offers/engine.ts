@@ -29,6 +29,7 @@
  *  7. Products are judged in basket order, so a basket always comes out the
  *     same.
  */
+import { allocate } from "../pricing/allocate";
 import { tierFor, tieredTotal, type OfferKind, type PriceTier } from "./model";
 
 /** An offer as the engine reads it. */
@@ -86,21 +87,6 @@ function reached(offer: EngineOffer, quantity: number): number | null {
   return quantity >= offer.triggerQuantity ? offer.triggerQuantity : null;
 }
 
-/** `total` shared across lines by their quantities, by largest remainder, so the shares sum to it exactly. */
-function share(total: number, quantities: readonly number[]): number[] {
-  const units = quantities.reduce((sum, quantity) => sum + quantity, 0);
-  const exact = quantities.map((quantity) => (total * quantity) / units);
-  const shares = exact.map(Math.floor);
-  let left = total - shares.reduce((sum, value) => sum + value, 0);
-  const order = exact.map((value, index) => ({ index, fraction: value - Math.floor(value) })).sort((a, b) => b.fraction - a.fraction || a.index - b.index);
-  for (const { index } of order) {
-    if (left <= 0) break;
-    shares[index]! += 1;
-    left -= 1;
-  }
-  return shares;
-}
-
 export function applyOffers<L extends OfferLine>(lines: readonly L[], candidates: readonly EngineOffer[]): AppliedOffers<L> {
   const priced: PricedOfferLine[] = lines.map((line) => ({ lineTotal: line.unitPrice * line.quantity, offerId: null }));
   const rewards: EarnedReward<L>[] = [];
@@ -126,7 +112,7 @@ export function applyOffers<L extends OfferLine>(lines: readonly L[], candidates
 
     if (offer.discountType === "quantity_price") {
       const tier = tierFor(offer.tiers, units)!;
-      const shares = share(tieredTotal(tier, units), lineIndexes.map((index) => lines[index]!.quantity));
+      const shares = allocate(tieredTotal(tier, units), lineIndexes.map((index) => lines[index]!.quantity));
       lineIndexes.forEach((index, at) => {
         priced[index] = { lineTotal: shares[at]!, offerId: offer.id };
       });

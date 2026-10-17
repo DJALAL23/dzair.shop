@@ -17,7 +17,8 @@ Convention: one `CONTEXT.md` per endpoint folder; cross-folder terms live in the
 | ✅ written | Drivers | [./src/endpoints/drivers/CONTEXT.md](./src/endpoints/drivers/CONTEXT.md) | In-house workforce: identity, availability, per-wilaya pay grid, deletion guards |
 | ✅ written | Shipping Profiles | [./src/endpoints/shipping-profiles/CONTEXT.md](./src/endpoints/shipping-profiles/CONTEXT.md) | Customer delivery pricing: rate cards, commune overrides, fee resolution |
 | ✅ written | Wilayas | [./src/endpoints/wilayas/CONTEXT.md](./src/endpoints/wilayas/CONTEXT.md) | Algeria's 58 wilayas + communes as read-only reference geography (IDs, postal codes, bilingual names) |
-| ✅ written | Offers | [./src/endpoints/offers/CONTEXT.md](./src/endpoints/offers/CONTEXT.md) | Buy X Get Y promotions: triggers, rewards, auto-application at checkout |
+| ✅ written | Offers | [./src/endpoints/offers/CONTEXT.md](./src/endpoints/offers/CONTEXT.md) | Automatic promotions: Buy X Get Y, free delivery, quantity pricing; one offer per product |
+| ✅ written | Coupons | [./src/endpoints/coupons/CONTEXT.md](./src/endpoints/coupons/CONTEXT.md) | Shopper-entered codes: kinds, scope, audience, usage limits, redemptions; applied after offers |
 | ✅ written | Reviews | [./src/endpoints/reviews/CONTEXT.md](./src/endpoints/reviews/CONTEXT.md) | Moderation of order-anchored product reviews; live rating aggregates |
 | ✅ written | Stock | [./src/endpoints/stock/CONTEXT.md](./src/endpoints/stock/CONTEXT.md) | Inventory ledger: movements, manual adjustments, health alerts & valuation |
 | ✅ written | Variants | [./src/endpoints/variants/CONTEXT.md](./src/endpoints/variants/CONTEXT.md) | Sellable combinations of variable products: pricing, SKUs, deletion semantics (routes mounted via products/) |
@@ -43,6 +44,8 @@ All endpoint folders are now documented — no candidates remain. Future folders
 - **Drivers → Payments**: Settlements settle delivered shipments, each part (cash, fee) once; a driver who delivered is set inactive, never deleted
 - **Orders → Products**: Orders contain product lines; inventory is decremented on order creation
 - **Orders → Customers**: Each order belongs to a customer; auto-creates customer if not found
+- **Offers → Coupons**: Offers price the basket first; a coupon covers only the lines no offer applied to
+- **Coupons → Orders**: A coupon's discount is carried by the order's lines; a cancelled order gives its use back
 - **Store → Orders**: Public storefront creates orders; abandoned carts become abandoned orders
 
 ## Shared Concepts

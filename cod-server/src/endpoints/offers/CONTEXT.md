@@ -1,6 +1,6 @@
 # Offers Context
 
-Promotions the server applies on its own at checkout — the Algerian COD market has no coupon box. Three kinds: Buy X Get Y, Buy X Get Free Delivery, and Quantity Pricing.
+Promotions the server applies on its own at checkout, unasked. Three kinds: Buy X Get Y, Buy X Get Free Delivery, and Quantity Pricing.
 
 ## Language
 
@@ -61,7 +61,7 @@ _Avoid_: Out-of-stock error
 - **Delivery fee mechanics**: Shipping Profiles context — an offer can make the fee zero, never compute it.
 - **Trigger / reward products**: Products context — deleting a product deletes the offers about it.
 - **Order lines**: Orders context — a line records the offer that priced it, and a reward line is marked as a reward.
-- **Coupons** (planned): a shopper-entered code — a different concept from an offer, applied after offers.
+- **Coupons**: Coupons context — a shopper-entered code, applied after offers and never to a product an offer applied to.
 
 ## Edge Cases
 
