@@ -1,11 +1,12 @@
 ---
-// A product's reviews: the summary a shopper reads first (the average, the
-// stars, how many reviewed, how the ratings fall), then each review as a
-// carton — the same card the home page's testimonials use. "Load more" clones
-// the card template and fills it with text only: a review is shopper-written,
-// so none of it is ever parsed as markup.
+// A product's reviews: the summary a shopper reads first (the average over
+// all its reviews, the stars, how many), then each review as a carton — its
+// photos small until opened, its voice note loaded only when played, and the
+// verified-purchase stamp only when the review rests on a delivered order.
+// "Load more" clones the card template and fills it with text and media URLs
+// only: a review is shopper-written, so none of it is ever parsed as markup.
 import { message } from "@/theme/content/messages";
-import type { Review } from "@wocart/storefront";
+import type { Review, ReviewMedia } from "@wocart/storefront";
 import type { ReviewsListCopy } from "@/theme/bridges/island-props";
 import { Icon } from "astro-icon/components";
 import SectionHead from "@/theme/components/ui/SectionHead.astro";
@@ -13,31 +14,38 @@ import SectionHead from "@/theme/components/ui/SectionHead.astro";
 interface Props {
   reviews: Review[];
   total: number;
+  stats: { avgRating: number; reviewCount: number } | null;
   copy: ReviewsListCopy;
   productId: string;
 }
 
-const { reviews, total, copy, productId } = Astro.props;
+const { reviews, total, stats, copy, productId } = Astro.props;
 const locale = Astro.locals.store?.locale ?? "ar";
 
-const avgRating = reviews.length
-  ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10
-  : 0;
-
-const dist = [5, 4, 3, 2, 1].map((star) => ({
-  star,
-  count: reviews.filter((r) => r.rating === star).length,
-}));
+const pageAverage = reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0;
+const avgRating = Math.round((stats?.reviewCount ? stats.avgRating : pageAverage) * 10) / 10;
+const count = stats?.reviewCount || total;
+/** The spread of ratings is shown only when every review is on the page. */
+const dist = reviews.length >= total && total >= 3
+  ? [5, 4, 3, 2, 1].map((star) => ({ star, count: reviews.filter((review) => review.rating === star).length }))
+  : null;
 
 const dateFormat = new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", day: "numeric" });
-
 function formatDate(val: string): string {
   const n = Number(val);
   const d = Number.isNaN(n) ? new Date(val) : new Date(n);
   return Number.isNaN(d.getTime()) ? val.slice(0, 10) : dateFormat.format(d);
 }
+function formatDuration(ms: number | null): string {
+  if (!ms || ms <= 0) return "";
+  const seconds = Math.round(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
 
-const starLabel = (count: number) => message(copy, "ariaStarRating", { count }, locale);
+const starLabel = (n: number) => message(copy, "ariaStarRating", { count: n }, locale);
+const photoLabel = (index: number) => message(copy, "reviewsOpenPhoto", { index }, locale);
+const photos = (review: Review) => review.media.filter((item: ReviewMedia) => item.kind === "image");
+const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.kind === "audio") ?? null;
 ---
 
 {reviews.length > 0 && (
@@ -53,17 +61,17 @@ const starLabel = (count: number) => message(copy, "ariaStarRating", { count }, 
             <Icon name="heroicons:star-solid" class:list={["h-4 w-4", s <= Math.round(avgRating) ? "text-ink" : "text-border"]} aria-hidden="true" />
           ))}
         </p>
-        <p class="num text-sm text-ink-2">({total})</p>
+        <p class="num text-sm text-ink-2">({count})</p>
       </div>
     </div>
 
-    {total >= 3 && (
+    {dist && (
       <ul class="review-dist" aria-hidden="true">
-        {dist.map(({ star, count }) => (
+        {dist.map(({ star, count: n }) => (
           <li>
             <span class="num w-3 text-xs text-ink-2">{star}</span>
-            <span class="review-bar"><span style={`inline-size: ${total > 0 ? Math.round((count / total) * 100) : 0}%`} /></span>
-            <span class="num w-6 text-end text-xs text-ink-2">{count}</span>
+            <span class="review-bar"><span style={`inline-size: ${Math.round((n / total) * 100)}%`} /></span>
+            <span class="num w-6 text-end text-xs text-ink-2">{n}</span>
           </li>
         ))}
       </ul>
@@ -79,20 +87,39 @@ const starLabel = (count: number) => message(copy, "ariaStarRating", { count }, 
           ))}
         </p>
         {review.title && <p class="text-base font-bold text-ink" dir="auto">{review.title}</p>}
-        <p class="text-sm leading-relaxed text-ink" dir="auto">{review.body}</p>
+        {review.body && <p class="text-sm leading-relaxed text-ink" dir="auto">{review.body}</p>}
+        {voice(review) && (
+          <p class="flex items-center gap-2">
+            <audio controls preload="none" src={voice(review)!.url} class="h-10 min-w-0 flex-1" aria-label={copy.reviewsVoiceNote}></audio>
+            <span class="num shrink-0 text-xs text-ink-2" dir="ltr">{formatDuration(voice(review)!.durationMs)}</span>
+          </p>
+        )}
+        {photos(review).length > 0 && (
+          <ul class="flex flex-wrap gap-2">
+            {photos(review).map((photo, index) => (
+              <li>
+                <button type="button" class="block h-16 w-16 overflow-hidden rounded-[var(--radius-input)] bg-plate" data-review-photo={photo.url} aria-label={photoLabel(index + 1)}>
+                  <img src={photo.thumbUrl ?? photo.url} alt="" loading="lazy" decoding="async" width="64" height="64" class="h-full w-full object-cover" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <footer class="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-3">
           <span class="min-w-0 truncate text-sm font-semibold text-ink" dir="auto">{review.customerName}</span>
-          <span class="stamp stamp-line shrink-0">
-            <Icon name="heroicons:check-circle" class="h-3.5 w-3.5 text-success" aria-hidden="true" />
-            {copy.reviewsVerifiedBuyer}
-          </span>
+          {review.verified && (
+            <span class="stamp stamp-line shrink-0">
+              <Icon name="heroicons:check-circle" class="h-3.5 w-3.5 text-success" aria-hidden="true" />
+              {copy.reviewsVerifiedBuyer}
+            </span>
+          )}
           <time class="ms-auto text-xs text-ink-2" datetime={review.createdAt}>{formatDate(review.createdAt)}</time>
         </footer>
       </li>
     ))}
   </ul>
 
-  {/* The card a loaded review fills — text only, never markup. */}
+  {/* The card a loaded review fills — text and media URLs only, never markup. */}
   <template id="review-card-template">
     <li class="carton flex flex-col gap-3 p-5">
       <p class="flex items-center gap-0.5" role="img" data-review-stars>
@@ -101,10 +128,15 @@ const starLabel = (count: number) => message(copy, "ariaStarRating", { count }, 
         ))}
       </p>
       <p class="text-base font-bold text-ink" dir="auto" data-review-title hidden></p>
-      <p class="text-sm leading-relaxed text-ink" dir="auto" data-review-body></p>
+      <p class="text-sm leading-relaxed text-ink" dir="auto" data-review-body hidden></p>
+      <p class="flex items-center gap-2" data-review-voice hidden>
+        <audio controls preload="none" class="h-10 min-w-0 flex-1" aria-label={copy.reviewsVoiceNote}></audio>
+        <span class="num shrink-0 text-xs text-ink-2" dir="ltr" data-review-duration></span>
+      </p>
+      <ul class="flex flex-wrap gap-2" data-review-photos hidden></ul>
       <footer class="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-3">
         <span class="min-w-0 truncate text-sm font-semibold text-ink" dir="auto" data-review-name></span>
-        <span class="stamp stamp-line shrink-0">
+        <span class="stamp stamp-line shrink-0" data-review-verified hidden>
           <Icon name="heroicons:check-circle" class="h-3.5 w-3.5 text-success" aria-hidden="true" />
           {copy.reviewsVerifiedBuyer}
         </span>
@@ -112,6 +144,16 @@ const starLabel = (count: number) => message(copy, "ariaStarRating", { count }, 
       </footer>
     </li>
   </template>
+
+  <dialog class="review-viewer carton p-0" data-review-viewer>
+    <form method="dialog" class="flex justify-end p-2">
+      <button type="submit" class="btn-secondary !w-auto">
+        <Icon name="heroicons:x-mark" class="h-4 w-4" aria-hidden="true" />
+        {copy.reviewsClosePhoto}
+      </button>
+    </form>
+    <img alt="" class="block max-h-[80dvh] w-auto max-w-full object-contain" data-review-viewer-image />
+  </dialog>
 
   {total > reviews.length && (
     <div class="mt-6 flex justify-center">
@@ -168,10 +210,32 @@ const starLabel = (count: number) => message(copy, "ariaStarRating", { count }, 
     block-size: 100%;
     background: var(--clr-text);
   }
+  .review-viewer {
+    max-inline-size: min(48rem, calc(100vw - 2rem));
+  }
+  .review-viewer::backdrop {
+    background: color-mix(in srgb, var(--clr-text) 60%, transparent);
+  }
 </style>
 
-<script is:inline data-astro-rerun define:vars={{ loadMoreLabel: copy.loadMoreLabel, locale, starLabels: [1, 2, 3, 4, 5].map((n) => starLabel(n)) }}>
+<script is:inline data-astro-rerun define:vars={{ loadMoreLabel: copy.loadMoreLabel, locale, starLabels: [1, 2, 3, 4, 5].map((n) => starLabel(n)), photoLabels: [1, 2, 3, 4, 5, 6].map((n) => photoLabel(n)) }}>
   (function () {
+    const section = document.getElementById("reviews");
+    if (!section) return;
+    const viewer = section.querySelector("[data-review-viewer]");
+    const viewerImage = section.querySelector("[data-review-viewer-image]");
+    const safe = (url) => typeof url === "string" && /^(https?:)?\/\//.test(url) || (typeof url === "string" && url.startsWith("/"));
+
+    section.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-review-photo]");
+      if (!button || !viewer || !viewerImage) return;
+      viewerImage.src = button.dataset.reviewPhoto;
+      viewer.showModal();
+    });
+    viewer?.addEventListener("click", (event) => {
+      if (event.target === viewer) viewer.close();
+    });
+
     const btn = document.getElementById("load-more-reviews");
     const template = document.getElementById("review-card-template");
     const list = document.getElementById("reviews-list");
@@ -189,6 +253,11 @@ const starLabel = (count: number) => message(copy, "ariaStarRating", { count }, 
       if (!dateFormat || Number.isNaN(d.getTime())) return String(value).slice(0, 10);
       return dateFormat.format(d);
     }
+    function formatDuration(ms) {
+      if (!ms || ms <= 0) return "";
+      const seconds = Math.round(ms / 1000);
+      return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
+    }
 
     function card(review) {
       const node = template.content.firstElementChild.cloneNode(true);
@@ -205,8 +274,45 @@ const starLabel = (count: number) => message(copy, "ariaStarRating", { count }, 
         title.textContent = review.title;
         title.hidden = false;
       }
-      node.querySelector("[data-review-body]").textContent = review.body ?? "";
+      const body = node.querySelector("[data-review-body]");
+      if (review.body) {
+        body.textContent = review.body;
+        body.hidden = false;
+      }
+      const media = Array.isArray(review.media) ? review.media : [];
+      const voice = media.find((item) => item.kind === "audio" && safe(item.url));
+      if (voice) {
+        const holder = node.querySelector("[data-review-voice]");
+        holder.querySelector("audio").src = voice.url;
+        holder.querySelector("[data-review-duration]").textContent = formatDuration(voice.durationMs);
+        holder.hidden = false;
+      }
+      const photos = media.filter((item) => item.kind === "image" && safe(item.url));
+      if (photos.length) {
+        const strip = node.querySelector("[data-review-photos]");
+        photos.forEach((photo, index) => {
+          const item = document.createElement("li");
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "block h-16 w-16 overflow-hidden rounded-[var(--radius-input)] bg-plate";
+          button.dataset.reviewPhoto = photo.url;
+          button.setAttribute("aria-label", photoLabels[index] ?? "");
+          const image = document.createElement("img");
+          image.src = safe(photo.thumbUrl) ? photo.thumbUrl : photo.url;
+          image.alt = "";
+          image.loading = "lazy";
+          image.decoding = "async";
+          image.width = 64;
+          image.height = 64;
+          image.className = "h-full w-full object-cover";
+          button.appendChild(image);
+          item.appendChild(button);
+          strip.appendChild(item);
+        });
+        strip.hidden = false;
+      }
       node.querySelector("[data-review-name]").textContent = review.customerName ?? "";
+      node.querySelector("[data-review-verified]").hidden = review.verified !== true;
       const time = node.querySelector("[data-review-date]");
       time.textContent = formatDate(review.createdAt);
       time.setAttribute("datetime", String(review.createdAt ?? ""));

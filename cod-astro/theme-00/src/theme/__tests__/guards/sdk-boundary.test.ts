@@ -400,7 +400,7 @@ describe("proxy input contracts", () => {
     expect(apiRoutes.length).toBeGreaterThanOrEqual(8);
     for (const file of apiRoutes) {
       expect(file.content, file.relPath).toMatch(
-        /^import \{ routes \} from "@\/theme\/api-routes";\s+export const (GET|POST) = routes\.\w+;\s*$/,
+        /^import \{ routes \} from "@\/theme\/api-routes";\s+export const (GET|POST|PUT) = routes\.\w+;\s*$/,
       );
     }
   });

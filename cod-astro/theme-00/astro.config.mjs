@@ -122,6 +122,10 @@ export default defineConfig({
           "plus",              // cart line quantity increase
           "trash",             // cart line remove button
           "language",          // header language switcher
+          "microphone",        // review form: record a voice note
+          "stop",              // review form: stop recording
+          "paper-clip",        // review form: send an audio file
+          "camera",            // review form: add photos
         ],
       },
     }),

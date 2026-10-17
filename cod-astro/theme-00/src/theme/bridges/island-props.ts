@@ -62,41 +62,24 @@ export type RelatedProductsCopy = Pick<StoreFrontContent, (typeof RELATED_PRODUC
 export const relatedProductsCopy = (content: StoreFrontContent): RelatedProductsCopy =>
   pickCopy(content, RELATED_PRODUCTS_KEYS);
 
-// ── Reviews (island + list + form) ───────────────────────────────────────────
+// ── Reviews (island: the list) ───────────────────────────────────────────────
+// The review form renders with the product page, not in the island: it needs
+// no request data, and its copy would not fit the island's URL.
 
 export const REVIEWS_LIST_KEYS = [
   ...pluralKeys("ariaStarRating"),
   "reviewsTitle",
   "reviewsVerifiedBuyer",
+  "reviewsVoiceNote",
+  "reviewsOpenPhoto",
+  "reviewsClosePhoto",
   "loadMoreLabel",
 ] as const;
 
 export type ReviewsListCopy = Pick<StoreFrontContent, (typeof REVIEWS_LIST_KEYS)[number]>;
 
-export const REVIEWS_FORM_KEYS = [
-  ...pluralKeys("ariaStarRating"),
-  "reviewFormTitle",
-  "reviewFormTitleLabel",
-  "reviewFormTitlePlaceholder",
-  "reviewFormBodyLabel",
-  "reviewFormBodyPlaceholder",
-  "reviewFormRatingLabel",
-  "reviewFormSubmit",
-  "reviewFormSuccess",
-  "reviewFormOrderLabel",
-  "reviewFormOrderPlaceholder",
-  "reviewFormOrderHelp",
-  "reviewFormMinLengthError",
-  "reviewFormRatingRequired",
-  "reviewFormErrorDuplicate",
-  "reviewFormErrorInvalidOrder",
-  "reviewFormErrorGeneric",
-] as const;
-
-export type ReviewFormCopy = Pick<StoreFrontContent, (typeof REVIEWS_FORM_KEYS)[number]>;
-
-/** The island renders both children, so its pick is the union of theirs. */
-export const REVIEWS_ISLAND_KEYS = [...REVIEWS_LIST_KEYS, ...REVIEWS_FORM_KEYS] as const;
+/** The island renders the list only. */
+export const REVIEWS_ISLAND_KEYS = REVIEWS_LIST_KEYS;
 
 export type ReviewsIslandCopy = Pick<StoreFrontContent, (typeof REVIEWS_ISLAND_KEYS)[number]>;
 

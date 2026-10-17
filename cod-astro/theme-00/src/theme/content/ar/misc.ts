@@ -30,7 +30,7 @@ export const arMisc: MiscStrings = {
   pagerPrevious: "السابق",
   pagerNext: "التالي",
   pagerLabel: "التنقل بين الصفحات",
-  reviewFormMinLengthError: "يرجى كتابة تقييم لا يقل عن 10 أحرف",
+  reviewFormMinLengthError: "اكتب 10 أحرف على الأقل، أو أضف رسالة صوتية",
   reviewFormRatingRequired: "يرجى اختيار تقييم من 1 إلى 5 نجوم",
   offerSaveBadge: "وفر {n}%",
   offerSavingsText: "توفير {amount} {currency}",

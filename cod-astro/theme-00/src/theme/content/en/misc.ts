@@ -22,7 +22,7 @@ export const enMisc: MiscStrings = {
   pagerPrevious: "Previous",
   pagerNext: "Next",
   pagerLabel: "Page navigation",
-  reviewFormMinLengthError: "Please write a review of at least 10 characters",
+  reviewFormMinLengthError: "Write at least 10 characters, or add a voice note",
   reviewFormRatingRequired: "Please select a rating from 1 to 5 stars",
   offerSaveBadge: "Save {n}%",
   offerSavingsText: "Save {amount} {currency}",

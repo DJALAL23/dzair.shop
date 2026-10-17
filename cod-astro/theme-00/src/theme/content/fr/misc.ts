@@ -24,7 +24,7 @@ export const frMisc: MiscStrings = {
   pagerPrevious: "Précédent",
   pagerNext: "Suivant",
   pagerLabel: "Navigation entre les pages",
-  reviewFormMinLengthError: "Veuillez écrire un avis d'au moins 10 caractères",
+  reviewFormMinLengthError: "Écrivez au moins 10 caractères, ou ajoutez une note vocale",
   reviewFormRatingRequired: "Veuillez choisir une évaluation de 1 à 5 étoiles",
   offerSaveBadge: "Économisez {n}%",
   offerSavingsText: "Économie de {amount} {currency}",

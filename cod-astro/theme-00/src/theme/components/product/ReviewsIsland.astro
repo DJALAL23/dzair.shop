@@ -1,43 +1,28 @@
 ---
 /**
  * ReviewsIsland.astro
- * A Server Island component that fetches and renders reviews.
- * Using 'server:defer' in the parent allows the main page to be static/cached
- * while this part streams in dynamically.
+ * A Server Island that fetches and renders a product's reviews, so the product
+ * page stays static and cached while this part streams in.
  *
  * Island props are encrypted into the island request URL, so this component
  * takes a copy *pick* — the strings it actually renders, never the pack (see
- * bridges/island-props.ts and `server-islands.test.ts` for the 2048-byte budget).
+ * bridges/island-props.ts and `server-islands.test.ts` for the 2048-byte
+ * budget) — and the product's rating summary, read with the product. The
+ * review form renders with the page itself (ReviewForm.astro).
  */
 import ReviewsList from "./ReviewsList.astro";
-import ReviewForm from "./ReviewForm.astro";
 import type { ReviewsIslandCopy } from "@/theme/bridges/island-props";
 
 interface Props {
   productId: string;
   copy: ReviewsIslandCopy;
+  /** The product's approved reviews, all of them: their average and count. */
+  stats: { avgRating: number; reviewCount: number } | null;
 }
 
-const { productId, copy } = Astro.props;
+const { productId, copy, stats } = Astro.props;
 
-// Fetch reviews dynamically on the server
 const reviewsData = await Astro.locals.store.client.products.reviews.list(productId, { limit: 10 });
-const hasReviews = reviewsData.rows.length > 0;
 ---
 
-<div class={hasReviews ? "grid grid-cols-1 items-start gap-8 lg:grid-cols-2" : ""}>
-  <!-- Reviews list (only shown when there are reviews) -->
-  <ReviewsList
-    reviews={reviewsData.rows}
-    total={reviewsData.total}
-    copy={copy}
-    productId={productId}
-  />
-  <!-- Review form (centered when no reviews, right column when reviews exist) -->
-  <div class={hasReviews ? "" : "max-w-2xl mx-auto"}>
-    <ReviewForm
-      productId={productId}
-      copy={copy}
-    />
-  </div>
-</div>
+<ReviewsList reviews={reviewsData.rows} total={reviewsData.total} stats={stats} copy={copy} productId={productId} />

@@ -8,6 +8,7 @@ import AddToCartButton from "@/theme/components/cart/AddToCartButton.astro";
 import ProductGallery from "@/theme/components/product/ProductGallery.astro";
 import ProductInfo from "@/theme/components/product/ProductInfo.astro";
 import ReviewsIsland from "@/theme/components/product/ReviewsIsland.astro";
+import ReviewForm from "@/theme/components/product/ReviewForm.astro";
 import RelatedProducts from "@/theme/components/product/RelatedProducts.astro";
 import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
 import { getProductJsonLd } from "@/theme/utils/seo";
@@ -151,23 +152,20 @@ const jsonLd = getProductJsonLd(product, basePrice);
   </div>
 </div>
 
-<!-- Reviews section (Deferred Server Island) -->
+<!-- Reviews: the list streams in (server island); the form is part of the page -->
 {config.reviewsEnabled && (
-  <div class="max-w-5xl mx-auto px-5 pt-10 pb-12">
-    <ReviewsIsland productId={product.id} copy={reviewsIslandCopy(content)} server:defer>
-      <!-- Skeleton fallback while loading -->
-      <div slot="fallback" class="animate-pulse space-y-6" aria-hidden="true">
+  <div class="max-w-5xl mx-auto space-y-8 px-5 pt-10 pb-12">
+    <ReviewsIsland productId={product.id} copy={reviewsIslandCopy(content)} stats={product.reviewStats} server:defer>
+      <div slot="fallback" class="animate-pulse space-y-3" aria-hidden="true">
         <div class="h-8 w-1/4 rounded-[var(--radius-input)] bg-plate"></div>
-        <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <div class="space-y-3">
-            {[1,2,3].map(() => (
-              <div class="carton h-32 bg-plate"></div>
-            ))}
-          </div>
-          <div class="carton h-64 bg-plate"></div>
-        </div>
+        {[1, 2].map(() => (
+          <div class="carton h-32 bg-plate"></div>
+        ))}
       </div>
     </ReviewsIsland>
+    <div class="max-w-2xl">
+      <ReviewForm productId={product.id} content={content} />
+    </div>
   </div>
 )}
 
