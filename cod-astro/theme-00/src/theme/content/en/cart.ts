@@ -11,7 +11,6 @@ export const enCart: CartStrings = {
   cartEmptyTitle: "Your cart is empty",
   cartEmptyHint: "Add a product and it will show up here.",
   cartAddToCart: "Add to cart",
-  cartAdded: "Added to cart",
   cartOpenLabel: "Open cart",
   cartCloseLabel: "Close cart",
   cartSubtotalLabel: "Subtotal",
@@ -24,10 +23,8 @@ export const enCart: CartStrings = {
   cartLineUnavailable: "No longer available",
   cartLineOutOfStock_one: "Only {count} left",
   cartLineOutOfStock_other: "Only {count} left",
-  cartGiftLabel: "Free gift",
   cartFixBeforeCheckout: "Remove the unavailable items to continue.",
   cartDeliveryNote: "Delivery is calculated at checkout.",
-  cartUnavailableNotice: "Your browser is blocking storage, so the cart is unavailable. You can still order this product directly.",
   cartContinueShopping: "Continue shopping",
 
   checkoutTitle: "Checkout",

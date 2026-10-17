@@ -1,28 +1,30 @@
 ---
 // ── SECTION ──
-// Best sellers: the products of the collection the section's `collection` setting
-// names, in the merchant's order (the page reads them, up to `limit`). An
-// empty collection shows no section — never the catalog in its place.
+// A titled grid of products: the one shape behind every product-list section
+// of the home (best sellers, new arrivals, featured products, on sale). Each
+// section's definition decides which list it is and reads it; this only lays
+// it out. No products, no section.
 import ProductCard from "@/theme/components/product/ProductCard.astro";
 import SectionHead from "@/theme/components/ui/SectionHead.astro";
 import type { ProductList } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 
 type Props = {
+  /** The section's anchor (`#best-sellers`), which links may target. */
+  anchor: string;
+  title: string;
+  sub: string;
   products: ProductList[];
   currencySymbol: string;
   content: StoreFrontContent;
 };
 
-const { products, currencySymbol, content } = Astro.props;
+const { anchor, title, sub, products, currencySymbol, content } = Astro.props;
 ---
 
 {products.length > 0 && (
-  <section id="best-sellers" class="frame py-10 sm:py-14">
-    <SectionHead
-      title={content.bestSellersSection}
-      sub={content.bestSellersSub}
-    />
+  <section id={anchor} class="frame py-10 sm:py-14">
+    <SectionHead title={title} sub={sub} />
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
       {products.map((p, i) => (
         <ProductCard product={p} currencySymbol={currencySymbol} copy={content} eager={i < 2} />

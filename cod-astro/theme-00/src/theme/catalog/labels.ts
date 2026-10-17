@@ -17,6 +17,8 @@ export const SECTION = {
   bestSellers: text("الأكثر مبيعاً", "Meilleures ventes", "Best sellers"),
   howItWorks: text("كيف يعمل", "Comment ça marche", "How it works"),
   newArrivals: text("وصل حديثاً", "Nouveautés", "New arrivals"),
+  featuredProducts: text("منتجات مميزة", "Produits en vedette", "Featured products"),
+  onSale: text("تخفيضات", "En promotion", "On sale"),
   featuresBar: text("شريط المزايا", "Barre des avantages", "Features bar"),
   whatsappCta: text("دعوة واتساب", "Appel à l'action WhatsApp", "WhatsApp call to action"),
   customerTestimonials: text("آراء العملاء", "Avis clients", "Customer testimonials"),

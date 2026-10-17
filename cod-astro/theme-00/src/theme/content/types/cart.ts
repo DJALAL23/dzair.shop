@@ -12,7 +12,6 @@ export type CartStrings = Plural<"cartItems"> &
   cartEmptyTitle: string;
   cartEmptyHint: string;
   cartAddToCart: string;
-  cartAdded: string;
   cartOpenLabel: string;
   cartCloseLabel: string;
   cartSubtotalLabel: string;
@@ -23,10 +22,8 @@ export type CartStrings = Plural<"cartItems"> &
   cartFreeDeliveryEarned: string;
   cartFreeDeliveryRemaining: string;
   cartLineUnavailable: string;
-  cartGiftLabel: string;
   cartFixBeforeCheckout: string;
   cartDeliveryNote: string;
-  cartUnavailableNotice: string;
   cartContinueShopping: string;
 
   // ── Checkout page ─────────────────────────────────────────────────────────

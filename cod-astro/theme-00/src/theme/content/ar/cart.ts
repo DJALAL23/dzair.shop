@@ -15,7 +15,6 @@ export const arCart: CartStrings = {
   cartEmptyTitle: "سلتك فارغة",
   cartEmptyHint: "أضف منتجاً وسيظهر هنا.",
   cartAddToCart: "أضف إلى السلة",
-  cartAdded: "تمت الإضافة إلى السلة",
   cartOpenLabel: "فتح السلة",
   cartCloseLabel: "إغلاق السلة",
   cartSubtotalLabel: "المجموع",
@@ -32,10 +31,8 @@ export const arCart: CartStrings = {
   cartLineOutOfStock_few: "بقيت {count} قطع فقط",
   cartLineOutOfStock_many: "بقيت {count} قطعة فقط",
   cartLineOutOfStock_other: "بقيت {count} قطعة فقط",
-  cartGiftLabel: "هدية مجانية",
   cartFixBeforeCheckout: "احذف المنتجات غير المتوفرة للمتابعة.",
   cartDeliveryNote: "يُحتسب التوصيل عند إتمام الطلب.",
-  cartUnavailableNotice: "متصفحك يمنع التخزين، لذلك السلة غير متاحة. يمكنك طلب هذا المنتج مباشرة.",
   cartContinueShopping: "مواصلة التسوق",
 
   checkoutTitle: "إتمام الطلب",

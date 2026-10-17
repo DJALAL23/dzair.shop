@@ -8,8 +8,6 @@ export const enHome: HomeStrings = {
   heroEyebrow: "New Collection",
   heroTitle: "Discover amazing products",
   heroSubtitle: "Delivery to all wilayas in Algeria — Cash on delivery",
-  heroPlaceholderTitle: "New Collection",
-  heroPlaceholderSub: "Coming Soon",
 
   trust1Title: "Cash on Delivery",
   trust1Sub: "No prepayment",
@@ -26,6 +24,9 @@ export const enHome: HomeStrings = {
   allProductsSection: "All products",
   bestSellersSection: "Best Sellers",
   bestSellersSub: "Our customers' top picks",
+  featuredSub: "Hand-picked for you",
+  onSaleSection: "On Sale",
+  onSaleSub: "Prices you won't want to miss",
   newArrivalsSection: "New Arrivals",
   newArrivalsSub: "Fresh products just added",
   viewAllCta: "View all",

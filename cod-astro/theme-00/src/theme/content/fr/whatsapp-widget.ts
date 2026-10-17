@@ -14,6 +14,4 @@ export const frWhatsappWidget: WhatsappWidgetStrings = {
   waPrefillProductDefault: "Bonjour, je souhaite me renseigner sur {product} — {url}",
   waThankYouButtonDefault: "Confirmer votre commande",
   waPrefillThankYouDefault: "Bonjour {store}, j'ai passé la commande {order}. Veuillez la confirmer.",
-  waComposePlaceholder: "Écrivez votre message ici...",
-  waSend: "Envoyer",
 };

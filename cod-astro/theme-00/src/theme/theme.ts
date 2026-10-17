@@ -15,6 +15,8 @@ import { categoryCards } from "./catalog/home/category-cards.def";
 import { bestSellers } from "./catalog/home/best-sellers.def";
 import { howItWorks } from "./catalog/home/how-it-works.def";
 import { newArrivals } from "./catalog/home/new-arrivals.def";
+import { featuredProducts } from "./catalog/home/featured-products.def";
+import { onSale } from "./catalog/home/on-sale.def";
 import { featuresBar } from "./catalog/home/features-bar.def";
 import { whatsappCta } from "./catalog/home/whatsapp-cta.def";
 import { customerTestimonials } from "./catalog/home/customer-testimonials.def";
@@ -35,6 +37,8 @@ export const theme00 = defineTheme({
     "best-sellers": bestSellers,
     "how-it-works": howItWorks,
     "new-arrivals": newArrivals,
+    "featured-products": featuredProducts,
+    "on-sale": onSale,
     "features-bar": featuresBar,
     "whatsapp-cta": whatsappCta,
     "customer-testimonials": customerTestimonials,

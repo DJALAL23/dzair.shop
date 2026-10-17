@@ -14,6 +14,4 @@ export const arWhatsappWidget: WhatsappWidgetStrings = {
   waPrefillProductDefault: "السلام عليكم، أريد الاستفسار عن {product} — {url}",
   waThankYouButtonDefault: "تأكيد طلبك",
   waPrefillThankYouDefault: "السلام عليكم {store}، لقد قمت بطلب {order}. يرجى تأكيده.",
-  waComposePlaceholder: "اكتب رسالتك هنا...",
-  waSend: "إرسال",
 };

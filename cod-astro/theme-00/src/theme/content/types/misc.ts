@@ -9,11 +9,9 @@ import type { Plural } from "./plural";
 export type MiscStrings = Plural<"lowStock"> &
   Plural<"qtyMaxStock"> &
   Plural<"ariaStarRating"> & {
-  breadcrumbHome: string;
   required: string;
   featured: string;
   outOfStock: string;
-  freeShippingBadge: string;
   searchLabel: string;
   noResultsLabel: string;
   loadMoreLabel: string;
@@ -24,7 +22,6 @@ export type MiscStrings = Plural<"lowStock"> &
   pagerLabel: string;
   reviewFormMinLengthError: string;
   reviewFormRatingRequired: string;
-  offerSaveBadge: string;
   offerSavingsText: string;
   offerUnitLabel: string;
   ariaMainNavigation: string;

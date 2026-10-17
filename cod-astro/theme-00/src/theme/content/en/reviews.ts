@@ -6,8 +6,6 @@ import type { ReviewsStrings } from "../types/reviews";
 
 export const enReviews: ReviewsStrings = {
   reviewsTitle: "Customer Reviews",
-  reviewsNoReviews: "No reviews yet",
-  reviewsBeFirst: "Be the first to review this product",
   reviewsVerifiedBuyer: "Verified purchase",
   reviewFormTitle: "Write a Review",
   reviewFormOrderLabel: "Order number",

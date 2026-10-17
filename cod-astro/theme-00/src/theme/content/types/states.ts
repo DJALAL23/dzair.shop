@@ -6,10 +6,8 @@
 
 export type StatesStrings = {
   noProductsTitle: string;
-  noProductsSub: string;
   emptyStoreTitle: string;
   emptyStoreSub: string;
-  productNotFoundTitle: string;
 
   notFoundTitle: string;
   notFoundSubtitle: string;

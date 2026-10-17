@@ -88,12 +88,13 @@ const REVIEW_ROWS = [
 
 /**
  * The catalog, and each collection's products as the merchant ordered them:
- * `products.list({ collection })` answers the collection, capped at `limit`,
+ * `products.list({ collection })` answers the collection, and
+ * `products.list({ onSale: true })` the products on sale, capped at `limit`,
  * as the server does; an unknown collection answers nothing.
  */
-function createStorefrontStub(products: ProductList[] = [], collections: Record<string, ProductList[]> = {}) {
-  const productsList = vi.fn(async (filters?: { collection?: string; limit?: number }) => {
-    const listed = filters?.collection === undefined ? products : collections[filters.collection] ?? [];
+function createStorefrontStub(products: ProductList[] = [], collections: Record<string, ProductList[]> = {}, onSale: ProductList[] = []) {
+  const productsList = vi.fn(async (filters?: { collection?: string; onSale?: boolean; limit?: number }) => {
+    const listed = filters?.onSale ? onSale : filters?.collection === undefined ? products : collections[filters.collection] ?? [];
     return listed.slice(0, filters?.limit ?? listed.length);
   });
   const categoriesList = vi.fn(async () => CATEGORIES);
@@ -142,14 +143,16 @@ function shippedSection(type: string): ComponentInstance {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe("home adsorption — the shipped document", () => {
-  it("parses clean and matches the pre-adsorption section list, in order", () => {
+  it("parses clean and lists the shipped home's sections, in order", () => {
     expect(shipped.issues).toEqual([]);
     expect(shipped.page?.sections.map((s) => s.type)).toEqual([
       "hero",
       "category-cards",
+      "featured-products",
       "best-sellers",
       "how-it-works",
       "new-arrivals",
+      "on-sale",
       "features-bar",
       "whatsapp-cta",
       "customer-testimonials",
@@ -275,8 +278,8 @@ describe("home adsorption — reviews (config default, override, in-section read
 });
 
 describe("home adsorption — the full page", () => {
-  it("renders all eight shipped sections in order through one renderer cache", async () => {
-    const stub = createStorefrontStub([FEATURED, PLAIN], { featured: [FEATURED], "best-sellers": [FEATURED], "new-arrivals": [PLAIN] });
+  it("renders every shipped section in order through one renderer cache", async () => {
+    const stub = createStorefrontStub([FEATURED, PLAIN], { featured: [FEATURED], "best-sellers": [FEATURED], "new-arrivals": [PLAIN] }, [PLAIN]);
     const { render } = createHarness(stub.client);
     let html = "";
     for (const section of shipped.page?.sections ?? []) {
@@ -290,9 +293,11 @@ describe("home adsorption — the full page", () => {
     const order = [
       en.heroTitle,
       "/category/watches",
+      'id="featured-products"',
       'id="best-sellers"',
       'id="how-it-works"',
       'id="new-arrivals"',
+      'id="on-sale"',
       en.feature1Title,
       en.promoTitle,
       en.testimonialsTitle,
@@ -305,9 +310,16 @@ describe("home adsorption — the full page", () => {
       cursor = at;
     }
 
-    // The whole page reads the catalog once, each collection it shows once,
-    // and the categories once.
-    expect(stub.productsList.mock.calls.map(([filters]) => filters?.collection ?? "catalog").sort()).toEqual(["best-sellers", "catalog", "featured", "new-arrivals"]);
+    // The whole page reads the catalog once, each list it shows once — the
+    // hero and the featured section share the featured read — and the
+    // categories once.
+    expect(stub.productsList.mock.calls.map(([filters]) => (filters?.onSale ? "on-sale" : filters?.collection ?? "catalog")).sort()).toEqual([
+      "best-sellers",
+      "catalog",
+      "featured",
+      "new-arrivals",
+      "on-sale",
+    ]);
     expect(stub.categoriesList).toHaveBeenCalledTimes(1);
   });
 });

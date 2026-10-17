@@ -1,11 +1,11 @@
 import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, SECTION } from "../labels";
-import BestSellers from "@/theme/components/home/BestSellers.astro";
+import ProductCollection from "@/theme/components/home/ProductCollection.astro";
 import { collectionRead, copyOverrides } from "../shared";
 
 export const bestSellers = defineComponent({
   type: "best-sellers",
-  component: BestSellers,
+  component: ProductCollection,
   label: SECTION.bestSellers,
   group: GROUP.home,
   fields: [
@@ -14,12 +14,18 @@ export const bestSellers = defineComponent({
     { key: "collection", kind: "collection", label: FIELD.collection, default: "best-sellers" },
     { key: "limit", kind: "number", label: FIELD.productsShown, default: 8, min: 1, max: 24 },
   ],
-  load: async ({ storefront, reads, context, props }) => ({
-    products: await reads.get(collectionRead(props.collection, props.limit), () =>
-      storefront.products.list({ collection: props.collection, limit: props.limit }),
-    ),
-    currencySymbol: context.store.currencySymbol,
-    content: copyOverrides(context.content, props),
-  }),
+  load: async ({ storefront, reads, context, props }) => {
+    const content = copyOverrides(context.content, props);
+    return {
+      anchor: "best-sellers",
+      title: content.bestSellersSection,
+      sub: content.bestSellersSub,
+      products: await reads.get(collectionRead(props.collection, props.limit), () =>
+        storefront.products.list({ collection: props.collection, limit: props.limit }),
+      ),
+      currencySymbol: context.store.currencySymbol,
+      content,
+    };
+  },
   capabilities: { insertable: true },
 });

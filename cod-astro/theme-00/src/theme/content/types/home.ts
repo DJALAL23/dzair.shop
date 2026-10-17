@@ -8,8 +8,6 @@ export type HomeStrings = {
   heroEyebrow: string;
   heroTitle: string;
   heroSubtitle: string;
-  heroPlaceholderTitle: string;
-  heroPlaceholderSub: string;
 
   trust1Title: string;
   trust1Sub: string;
@@ -26,6 +24,9 @@ export type HomeStrings = {
   allProductsSection: string;
   bestSellersSection: string;
   bestSellersSub: string;
+  featuredSub: string;
+  onSaleSection: string;
+  onSaleSub: string;
   newArrivalsSection: string;
   newArrivalsSub: string;
   viewAllCta: string;

@@ -8,8 +8,6 @@ export const frHome: HomeStrings = {
   heroEyebrow: "Nouvelle collection",
   heroTitle: "Découvrez les meilleurs produits",
   heroSubtitle: "Livraison dans toutes les wilayas d'Algérie — Paiement à la livraison",
-  heroPlaceholderTitle: "Nouvelle collection",
-  heroPlaceholderSub: "Bientôt disponible",
 
   trust1Title: "Paiement à la livraison",
   trust1Sub: "Aucun paiement anticipé",
@@ -26,6 +24,9 @@ export const frHome: HomeStrings = {
   allProductsSection: "Tous les produits",
   bestSellersSection: "Meilleures ventes",
   bestSellersSub: "Les favoris de nos clients",
+  featuredSub: "Sélectionnés pour vous",
+  onSaleSection: "En promotion",
+  onSaleSub: "Des prix à ne pas manquer",
   newArrivalsSection: "Nouveautés",
   newArrivalsSub: "Produits fraîchement ajoutés",
   viewAllCta: "Voir tout",

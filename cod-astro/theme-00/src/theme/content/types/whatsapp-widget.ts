@@ -23,8 +23,4 @@ export type WhatsappWidgetStrings = {
   waThankYouButtonDefault: string;
   /** Fallback prefill template for thank-you page */
   waPrefillThankYouDefault: string;
-  /** Placeholder for visitor compose textarea */
-  waComposePlaceholder: string;
-  /** Send button label for visitor compose mode */
-  waSend: string;
 };

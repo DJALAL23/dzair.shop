@@ -12,7 +12,6 @@ export const frCart: CartStrings = {
   cartEmptyTitle: "Votre panier est vide",
   cartEmptyHint: "Ajoutez un produit et il apparaîtra ici.",
   cartAddToCart: "Ajouter au panier",
-  cartAdded: "Ajouté au panier",
   cartOpenLabel: "Ouvrir le panier",
   cartCloseLabel: "Fermer le panier",
   cartSubtotalLabel: "Sous-total",
@@ -26,10 +25,8 @@ export const frCart: CartStrings = {
   cartLineOutOfStock_one: "Il n'en reste que {count}",
   cartLineOutOfStock_many: "Il n'en reste que {count}",
   cartLineOutOfStock_other: "Il n'en reste que {count}",
-  cartGiftLabel: "Cadeau offert",
   cartFixBeforeCheckout: "Retirez les articles indisponibles pour continuer.",
   cartDeliveryNote: "La livraison est calculée à la commande.",
-  cartUnavailableNotice: "Votre navigateur bloque le stockage, le panier est donc indisponible. Vous pouvez toujours commander ce produit directement.",
   cartContinueShopping: "Continuer mes achats",
 
   checkoutTitle: "Finaliser la commande",

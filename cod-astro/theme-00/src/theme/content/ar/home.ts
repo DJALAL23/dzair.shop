@@ -8,8 +8,6 @@ export const arHome: HomeStrings = {
   heroEyebrow: "مجموعة جديدة",
   heroTitle: "اكتشف أفضل المنتجات",
   heroSubtitle: "توصيل لجميع ولايات الجزائر — الدفع عند الاستلام",
-  heroPlaceholderTitle: "تشكيلة جديدة",
-  heroPlaceholderSub: "قريباً جداً",
 
   trust1Title: "الدفع عند الاستلام",
   trust1Sub: "بدون دفع مسبق",
@@ -26,6 +24,9 @@ export const arHome: HomeStrings = {
   allProductsSection: "جميع المنتجات",
   bestSellersSection: "الأكثر مبيعاً",
   bestSellersSub: "الاختيار الأول لعملائنا",
+  featuredSub: "اخترناها لك",
+  onSaleSection: "تخفيضات",
+  onSaleSub: "أسعار لا تفوّتها",
   newArrivalsSection: "وصل حديثاً",
   newArrivalsSub: "منتجات جديدة أُضيفت مؤخراً",
   viewAllCta: "عرض الكل",

@@ -5,7 +5,6 @@
 import type { MiscStrings } from "../types/misc";
 
 export const frMisc: MiscStrings = {
-  breadcrumbHome: "Accueil",
   required: "*",
   featured: "Vedette",
   lowStock_one: "Dernière pièce",
@@ -15,7 +14,6 @@ export const frMisc: MiscStrings = {
   qtyMaxStock_one: "Plus qu'une pièce",
   qtyMaxStock_many: "Plus que {count} de pièces",
   qtyMaxStock_other: "Plus que {count} pièces",
-  freeShippingBadge: "Livraison gratuite",
   searchLabel: "Recherche...",
   noResultsLabel: "Aucun résultat correspondant",
   loadMoreLabel: "Voir plus",
@@ -26,7 +24,6 @@ export const frMisc: MiscStrings = {
   pagerLabel: "Navigation entre les pages",
   reviewFormMinLengthError: "Écrivez au moins 10 caractères, ou ajoutez une note vocale",
   reviewFormRatingRequired: "Veuillez choisir une évaluation de 1 à 5 étoiles",
-  offerSaveBadge: "Économisez {n}%",
   offerSavingsText: "Économie de {amount} {currency}",
   offerUnitLabel: "Unité {n}",
   ariaMainNavigation: "Navigation principale",

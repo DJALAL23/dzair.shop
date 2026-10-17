@@ -5,7 +5,6 @@
 import type { MiscStrings } from "../types/misc";
 
 export const arMisc: MiscStrings = {
-  breadcrumbHome: "الرئيسية",
   required: "*",
   featured: "مميز",
   lowStock_zero: "نفدت الكمية",
@@ -21,7 +20,6 @@ export const arMisc: MiscStrings = {
   qtyMaxStock_few: "آخر {count} قطع فقط",
   qtyMaxStock_many: "آخر {count} قطعة فقط",
   qtyMaxStock_other: "آخر {count} قطعة فقط",
-  freeShippingBadge: "شحن مجاني",
   searchLabel: "بحث...",
   noResultsLabel: "لا توجد نتائج مطابقة",
   loadMoreLabel: "عرض المزيد",
@@ -32,7 +30,6 @@ export const arMisc: MiscStrings = {
   pagerLabel: "التنقل بين الصفحات",
   reviewFormMinLengthError: "اكتب 10 أحرف على الأقل، أو أضف رسالة صوتية",
   reviewFormRatingRequired: "يرجى اختيار تقييم من 1 إلى 5 نجوم",
-  offerSaveBadge: "وفر {n}%",
   offerSavingsText: "توفير {amount} {currency}",
   offerUnitLabel: "الوحدة {n}",
   ariaMainNavigation: "التنقل الرئيسي",
