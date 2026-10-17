@@ -74,7 +74,10 @@ const pageOg = ogImage ?? config.ogImage ?? "";
 // value it does not accept falls back to the theme's default. Colors arrive
 // validated (#rgb/#rrggbb), and are paired here with the text colors that
 // stay readable on them.
-const { values: settings } = resolveThemeSettings(theme00, store.config.themeSettings, { locales: [locale, ...store.fallbackLocales] });
+const { values: settings } = resolveThemeSettings(theme00, store.config.themeSettings, {
+  content,
+  locales: [locale, ...store.fallbackLocales],
+});
 const brand = {
   primary: settings.primaryColor,
   onPrimary: onColor(settings.primaryColor),
@@ -122,10 +125,10 @@ const footerLinks = menuLinks(footerMenu, store.href, store.pathname);
       FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
     -->
     <!-- Announcement bar -->
-    {!marketing && (config.announcementBar || content.announcementText) && (
+    {!marketing && settings.announcement && (
       <div class="store-announce">
         <Icon name="heroicons:truck" class="w-3.5 h-3.5 opacity-80" />
-        <span>{config.announcementBar ?? content.announcementText}</span>
+        <span>{settings.announcement}</span>
       </div>
     )}
 

@@ -1,8 +1,10 @@
 /**
  * Theme-00's global settings: what a merchant chooses once for the whole
- * store — its colors, its font, which menu the header and the footer show —
+ * store — its colors, its font, the announcement bar's text, which menu the
+ * header and the footer show —
  * read from `StoreConfig.themeSettings` against this declaration
- * (`resolveThemeSettings`). Every setting has a default, so a store that
+ * (`resolveThemeSettings`). Every setting has a default (the announcement's
+ * is this theme's own copy, `announcementText`), so a store that
  * saved nothing renders exactly as designed. The merchant edits them in the
  * theme editor (CodFlow Cloud); this theme only reads them.
  *
@@ -30,6 +32,11 @@ export const THEME_SETTINGS = [
     key: "typography",
     label: SETTINGS_GROUP.typography,
     fields: [{ key: "font", kind: "select", label: SETTING.font, options: FONT_FAMILIES, default: DEFAULT_FONT }],
+  },
+  {
+    key: "announcement",
+    label: SETTINGS_GROUP.announcement,
+    fields: [{ key: "announcement", kind: "text", label: SETTING.announcement, contentKey: "announcementText" }],
   },
   {
     key: "navigation",

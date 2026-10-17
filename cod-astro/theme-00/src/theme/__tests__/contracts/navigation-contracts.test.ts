@@ -121,6 +121,20 @@ describe("the layout", () => {
     expect(html).not.toContain("--font-almarai");
   });
 
+  it("shows the theme's announcement: the merchant's text in the shopper's language, else the theme's own copy", async () => {
+    const render = async (themeSettings: Record<string, unknown>) => {
+      const container = await AstroContainer.create();
+      return container.renderToString(StoreLayout, {
+        locals: testLocals({ locale: "fr", routing, content: fr, config: { ...DEFAULT_CONFIG, announcementBar: "ancien", themeSettings }, client: { menus: { get: async () => null } } as never }),
+        request: new Request("https://example.dz/fr"),
+      });
+    };
+    const saved = await render({ announcement: { ar: "توصيل مجاني", fr: "Livraison gratuite" } });
+    expect(saved).toContain("Livraison gratuite");
+    expect(saved).not.toContain("ancien");
+    expect(await render({})).toContain(fr.announcementText);
+  });
+
   it("asks for no menu on a marketing page", async () => {
     const asked: string[] = [];
     const client = { menus: { get: async (handle: string) => (asked.push(handle), null) } };

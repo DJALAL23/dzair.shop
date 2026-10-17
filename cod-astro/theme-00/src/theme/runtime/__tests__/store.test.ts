@@ -41,7 +41,7 @@ const LIVE_CONFIG = {
   metaTitle: "متجر الجزائر",
   metaDescription: "الدفع عند الاستلام في كل ولايات الوطن",
   ogImage: null,
-  announcementBar: "توصيل مجاني للطلبات فوق 8000 دج",
+  announcementBar: null,
   reviewsEnabled: true,
   cartEnabled: false,
   freeShippingThreshold: 8000,
@@ -181,7 +181,6 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
     expect(calls).toEqual(["https://api.example.test/store/config?theme=theme-00"]);
     expect(ctx.config.name).toBe("متجر الجزائر");
     expect(ctx.config.currencySymbol).toBe("دج");
-    expect(ctx.config.announcementBar).toBe("توصيل مجاني للطلبات فوق 8000 دج");
     expect(ctx.isRTL).toBe(true);
     expect(ctx.locale).toBe("ar");
     expect(ctx.content.heroTitle).toBe("عرض اليوم");
@@ -201,14 +200,14 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
   });
 
   it("serves /fr/… in French: its config, pack, direction, links and fallback", async () => {
-    const calls = stubConfigServer({}, { fr: { announcementBar: "Livraison gratuite dès 8000 DA" } });
+    const calls = stubConfigServer({}, { fr: { metaTitle: "Boutique d'Alger" } });
 
     const ctx = await storeFor("/fr/products/phone");
 
     expect(ctx.locale).toBe("fr");
     expect(ctx.pathname).toBe("/products/phone");
     expect(ctx.isRTL).toBe(false);
-    expect(ctx.config.announcementBar).toBe("Livraison gratuite dès 8000 DA");
+    expect(ctx.config.metaTitle).toBe("Boutique d'Alger");
     expect(ctx.content.heroTitle).toBe("L'offre du jour");
     expect(ctx.fallbackLocales).toEqual(["ar"]);
     expect(ctx.href("/checkout")).toBe("/fr/checkout");

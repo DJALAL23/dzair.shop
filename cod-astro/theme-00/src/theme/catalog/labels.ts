@@ -55,6 +55,7 @@ export const SETTINGS_GROUP = {
   colors: text("الألوان", "Couleurs", "Colors"),
   typography: text("الخطوط", "Typographie", "Typography"),
   navigation: text("التنقل", "Navigation", "Navigation"),
+  announcement: text("شريط الإعلان", "Barre d'annonce", "Announcement bar"),
 };
 
 export const SETTING = {
@@ -62,6 +63,7 @@ export const SETTING = {
   accentColor: text("لون التمييز", "Couleur d'accent", "Accent color"),
   backgroundColor: text("لون الخلفية", "Couleur de fond", "Background color"),
   font: text("خط المتجر", "Police de la boutique", "Store font"),
+  announcement: text("نص الإعلان", "Texte de l'annonce", "Announcement text"),
   headerMenu: text("قائمة رأس الصفحة", "Menu de l'en-tête", "Header menu"),
   footerMenu: text("قائمة التذييل", "Menu du pied de page", "Footer menu"),
 };
