@@ -32,10 +32,12 @@ export interface OrderProduct {
   status: "fulfilled" | "partially_returned" | "returned";
   returnedQuantity: number;
   createdAt: string;
-  /** The offer that shaped the line: the quantity pricing that set its price, or the offer that gave it. */
+  /** The offer applied to the line — the one its product earned — or the offer that gave it. */
   offerId: string | null;
   /** A reward, given by `offerId` at no charge. */
   reward: boolean;
+  /** The line's share of the order's coupon discount; `lineTotal` is already net of it. */
+  discount: number;
 }
 
 export interface OrderBase {
@@ -143,6 +145,10 @@ export interface Shipment {
 }
 
 export interface OrderDetail extends OrderBase {
+  /** The code the order was placed with; null without one. */
+  couponCode: string | null;
+  /** What the coupon took off, carried by the lines; `price` is already net of it. */
+  couponDiscount: number;
   products: OrderProduct[];
   statusHistory: StatusHistoryItem[];
   shipment: Shipment | null;

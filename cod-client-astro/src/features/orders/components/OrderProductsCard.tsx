@@ -58,7 +58,7 @@ export function OrderProductsCard({
   canRecordRefused,
   onChanged,
 }: {
-  order: Pick<OrderDetail, "id" | "products" | "price" | "deliveryFee">;
+  order: Pick<OrderDetail, "id" | "products" | "price" | "deliveryFee" | "couponCode" | "couponDiscount">;
   locale: Locale;
   canRecordRefused: boolean;
   onChanged: () => void | Promise<void>;
@@ -77,7 +77,10 @@ export function OrderProductsCard({
                 <p className="text-sm font-medium">{product.productName}</p>
                 {product.variantLabel && <p className="text-xs text-muted-foreground">{product.variantLabel}</p>}
                 {(product.reward || product.offerId) && (
-                  <p className="mt-1 text-xs font-medium text-success">{product.reward ? t("detail.line_reward") : t("detail.line_offer_price")}</p>
+                  <p className="mt-1 text-xs font-medium text-success">{product.reward ? t("detail.line_reward") : t("detail.line_offer")}</p>
+                )}
+                {product.discount > 0 && (
+                  <p className="mt-1 text-xs font-medium text-success">{t("detail.line_coupon", { amount: formatMoney(product.discount, locale) })}</p>
                 )}
                 <p className="mt-1 text-xs text-muted-foreground">
                   {product.quantity} × {free ? t("form.free") : formatMoney(product.pricePerUnit, locale)}
@@ -97,6 +100,11 @@ export function OrderProductsCard({
           <span>{t("detail.subtotal")}</span>
           <span className="tabular-nums">{formatMoney(order.price, locale)}</span>
         </div>
+        {order.couponCode && (
+          <p className="text-xs text-success">
+            {t("detail.coupon_applied", { code: order.couponCode, amount: formatMoney(order.couponDiscount, locale) })}
+          </p>
+        )}
         <div className="flex justify-between text-muted-foreground">
           <span>{t("detail.delivery_fee")}</span>
           <span className="tabular-nums">{formatMoney(order.deliveryFee, locale)}</span>

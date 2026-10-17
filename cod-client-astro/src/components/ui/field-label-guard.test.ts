@@ -16,6 +16,7 @@ const COMPOSITE_WIDGETS = [
   "PageBodyEditor",
   "CategoryImageUploader",
   "PRESET_COLORS.map",
+  "SearchPickList",
 ];
 
 function sourceFiles(directory: string, acc: string[] = []): string[] {

@@ -97,5 +97,6 @@
   },
   "confirm_type": "Type {text} to confirm",
   "confirm_copy": "Copy",
-  "clear": "Clear"
+  "clear": "Clear",
+  "remove_item": "Remove {name}"
 }

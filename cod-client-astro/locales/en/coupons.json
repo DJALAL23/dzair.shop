@@ -1,0 +1,131 @@
+{
+  "page_title": "Coupons",
+  "add_coupon": "Create coupon",
+  "search_placeholder": "Search by code...",
+  "error_load": "Could not load coupons",
+  "error_not_found": "Coupon not found",
+  "error_generic": "Something went wrong. Please try again.",
+  "error_code_taken": "Another coupon already has this code",
+  "error_invalid": {
+    "invalid_code": "A code is 3 to 32 Latin letters, digits, - or _",
+    "invalid_value": "Enter a percentage from 1 to 100, or an amount of at least 1 DA",
+    "max_discount_not_allowed": "Only a percentage coupon has a most-off amount",
+    "invalid_amount": "Amounts are whole numbers of at least 1",
+    "minimum_conflict": "Ask for a minimum amount or a minimum number of items, not both",
+    "scope_empty": "Pick at least one product or collection",
+    "scope_mismatch": "Pick only what the coupon covers",
+    "audience_empty": "Pick at least one customer or group",
+    "audience_mismatch": "A coupon for everyone names no customers",
+    "too_many_picks": "Too many picked — use a collection or a customer group",
+    "invalid_usage_limit": "The usage limit is a whole number of at least 1",
+    "schedule_ends_before_start": "The end must come after the start",
+    "unknown_product": "A picked product no longer exists",
+    "unknown_collection": "A picked collection no longer exists",
+    "unknown_customer": "A picked customer no longer exists",
+    "unknown_group": "A picked group no longer exists"
+  },
+  "table": {
+    "code": "Code",
+    "value": "Discount",
+    "scope": "Applies to",
+    "uses": "Uses",
+    "state": "Status",
+    "discount_given": "Given"
+  },
+  "state": {
+    "live": "Live",
+    "scheduled": "Scheduled",
+    "inactive": "Off",
+    "expired": "Expired",
+    "used_up": "Used up"
+  },
+  "kind": {
+    "percentage": "Percentage off",
+    "fixed_amount": "Fixed amount off",
+    "free_shipping": "Free delivery"
+  },
+  "value": {
+    "free_shipping": "Free delivery",
+    "fixed_amount": "{amount} off",
+    "percentage": "{percent}% off",
+    "percentage_capped": "{percent}% off (up to {max})"
+  },
+  "scope_label": {
+    "store": "Entire store",
+    "products_one": "{count} product",
+    "products_other": "{count} products",
+    "collections_one": "{count} collection",
+    "collections_other": "{count} collections"
+  },
+  "uses_label": {
+    "unlimited": "{used} / ∞",
+    "limited": "{used} / {limit}"
+  },
+  "empty_state": {
+    "title": "No coupons yet",
+    "description": "Create a code your customers type at checkout: a percentage, an amount off, or free delivery — for the whole store, some products or collections, or chosen customers.",
+    "action": "Create your first coupon"
+  },
+  "actions": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "activate": "Turn on",
+    "deactivate": "Turn off"
+  },
+  "form": {
+    "title_add": "Create coupon",
+    "title_edit": "Edit coupon",
+    "code_label": "Code",
+    "code_hint": "What customers type at checkout. Letters, digits, - and _; case and spaces do not matter.",
+    "code_generate": "Generate",
+    "status_active": "Active",
+    "kind_label": "Discount",
+    "value_percent_label": "Percentage off",
+    "max_discount_label": "Most off (DA, optional)",
+    "max_discount_hint": "The largest amount one order can save.",
+    "value_amount_label": "Amount off (DA)",
+    "value_amount_hint": "Taken once per order, never more than the products it covers cost.",
+    "free_shipping_hint": "The order's delivery fee becomes 0.",
+    "section_minimum": "Minimum requirement",
+    "minimum": {
+      "none": "None",
+      "subtotal": "Minimum amount",
+      "quantity": "Minimum items"
+    },
+    "minimum_subtotal_label": "Minimum amount (DA)",
+    "minimum_quantity_label": "Minimum number of items",
+    "minimum_hint": "Counted on the products the coupon covers.",
+    "section_scope": "Applies to",
+    "scope": {
+      "store": "Entire store",
+      "products": "Specific products",
+      "collections": "Specific collections"
+    },
+    "products_placeholder": "Search products to add...",
+    "collections_placeholder": "Search collections to add...",
+    "offers_note": "Products already under an offer (quantity pricing, a gift, free delivery) are never discounted again by a coupon.",
+    "section_audience": "Customers",
+    "audience": {
+      "everyone": "Everyone",
+      "selected": "Selected customers"
+    },
+    "customers_label": "Customers",
+    "customers_placeholder": "Search by name or phone...",
+    "groups_label": "Customer groups",
+    "groups_placeholder": "Search groups...",
+    "audience_hint": "A customer is recognised by the phone number of the order.",
+    "picker_empty": "Nothing matches",
+    "section_limits": "Usage limits",
+    "usage_limit_label": "Total uses (optional)",
+    "usage_limit_hint": "Cancelled orders give their use back.",
+    "once_per_customer": "One use per customer",
+    "section_schedule": "Active dates (optional)",
+    "starts_at_label": "Starts",
+    "ends_at_label": "Ends",
+    "usage_stats_one": "Used on {count} order · {amount} given",
+    "usage_stats_other": "Used on {count} orders · {amount} given",
+    "success_add": "Coupon created",
+    "success_edit": "Coupon updated",
+    "delete_confirm": "Delete this coupon? Orders that used it keep their discount."
+  }
+}

@@ -93,7 +93,9 @@
     "custom_answers": "إجابات العميل",
     "custom_answers_note": "إجابات أسئلتك الخاصة في نموذج الطلب. لا تُرسل أبداً لشركات التوصيل.",
     "line_reward": "🎁 مجاني — من عرض",
-    "line_offer_price": "سعر العرض"
+    "line_offer": "عرض مطبّق",
+    "line_coupon": "كوبون: خصم {amount}",
+    "coupon_applied": "طُبّق الكوبون {code} — خصم {amount}، محسوب في الأسعار أعلاه"
   },
   "form": {
     "title_add": "طلب جديد",

@@ -1,0 +1,143 @@
+{
+  "page_title": "كوبونات الخصم",
+  "add_coupon": "إنشاء كوبون",
+  "search_placeholder": "ابحث بالرمز...",
+  "error_load": "تعذّر تحميل الكوبونات",
+  "error_not_found": "الكوبون غير موجود",
+  "error_generic": "حدث خطأ. يرجى المحاولة مرة أخرى.",
+  "error_code_taken": "هذا الرمز مستخدم في كوبون آخر",
+  "error_invalid": {
+    "invalid_code": "الرمز من 3 إلى 32 حرفًا لاتينيًا أو رقمًا أو - أو _",
+    "invalid_value": "أدخل نسبة من 1 إلى 100، أو مبلغًا لا يقل عن 1 دج",
+    "max_discount_not_allowed": "الحد الأقصى للخصم خاص بكوبونات النسبة فقط",
+    "invalid_amount": "المبالغ أعداد صحيحة لا تقل عن 1",
+    "minimum_conflict": "اطلب حدًا أدنى للمبلغ أو لعدد القطع، لا الاثنين معًا",
+    "scope_empty": "اختر منتجًا أو مجموعة على الأقل",
+    "scope_mismatch": "اختر فقط ما يشمله الكوبون",
+    "audience_empty": "اختر زبونًا أو فئة على الأقل",
+    "audience_mismatch": "كوبون الجميع لا يحدد زبائن",
+    "too_many_picks": "اخترت عددًا كبيرًا — استعمل مجموعة منتجات أو فئة زبائن",
+    "invalid_usage_limit": "حد الاستعمال عدد صحيح لا يقل عن 1",
+    "schedule_ends_before_start": "يجب أن تأتي النهاية بعد البداية",
+    "unknown_product": "منتج مختار لم يعد موجودًا",
+    "unknown_collection": "مجموعة مختارة لم تعد موجودة",
+    "unknown_customer": "زبون مختار لم يعد موجودًا",
+    "unknown_group": "فئة مختارة لم تعد موجودة"
+  },
+  "table": {
+    "code": "الرمز",
+    "value": "الخصم",
+    "scope": "يشمل",
+    "uses": "الاستعمالات",
+    "state": "الحالة",
+    "discount_given": "المُمنوح"
+  },
+  "state": {
+    "live": "فعّال",
+    "scheduled": "مجدول",
+    "inactive": "متوقف",
+    "expired": "منتهٍ",
+    "used_up": "نفد"
+  },
+  "kind": {
+    "percentage": "نسبة خصم",
+    "fixed_amount": "مبلغ ثابت",
+    "free_shipping": "توصيل مجاني"
+  },
+  "value": {
+    "free_shipping": "توصيل مجاني",
+    "fixed_amount": "خصم {amount}",
+    "percentage": "خصم {percent}٪",
+    "percentage_capped": "خصم {percent}٪ (حتى {max})"
+  },
+  "scope_label": {
+    "store": "كل المتجر",
+    "products_zero": "لا منتجات",
+    "products_one": "منتج واحد",
+    "products_two": "منتجان",
+    "products_few": "{count} منتجات",
+    "products_many": "{count} منتجًا",
+    "products_other": "{count} منتج",
+    "collections_zero": "لا مجموعات",
+    "collections_one": "مجموعة واحدة",
+    "collections_two": "مجموعتان",
+    "collections_few": "{count} مجموعات",
+    "collections_many": "{count} مجموعة",
+    "collections_other": "{count} مجموعة"
+  },
+  "uses_label": {
+    "unlimited": "{used} / ∞",
+    "limited": "{used} / {limit}"
+  },
+  "empty_state": {
+    "title": "لا كوبونات بعد",
+    "description": "أنشئ رمزًا يكتبه زبائنك عند الطلب: نسبة خصم أو مبلغ ثابت أو توصيل مجاني — لكل المتجر أو لمنتجات ومجموعات أو لزبائن مختارين.",
+    "action": "أنشئ أول كوبون"
+  },
+  "actions": {
+    "edit": "تعديل",
+    "delete": "حذف",
+    "activate": "تشغيل",
+    "deactivate": "إيقاف"
+  },
+  "form": {
+    "title_add": "إنشاء كوبون",
+    "title_edit": "تعديل الكوبون",
+    "code_label": "الرمز",
+    "code_hint": "ما يكتبه الزبون عند الطلب. حروف وأرقام و- و_ ؛ لا يهم حجم الحروف ولا المسافات.",
+    "code_generate": "توليد",
+    "status_active": "مفعّل",
+    "kind_label": "الخصم",
+    "value_percent_label": "نسبة الخصم",
+    "max_discount_label": "أقصى خصم (دج، اختياري)",
+    "max_discount_hint": "أكبر مبلغ يوفّره طلب واحد.",
+    "value_amount_label": "مبلغ الخصم (دج)",
+    "value_amount_hint": "يُخصم مرة واحدة في الطلب، ولا يتجاوز ثمن المنتجات المشمولة.",
+    "free_shipping_hint": "تصبح رسوم توصيل الطلب 0.",
+    "section_minimum": "الحد الأدنى",
+    "minimum": {
+      "none": "بدون",
+      "subtotal": "حد أدنى للمبلغ",
+      "quantity": "حد أدنى للقطع"
+    },
+    "minimum_subtotal_label": "أدنى مبلغ (دج)",
+    "minimum_quantity_label": "أدنى عدد من القطع",
+    "minimum_hint": "يُحسب على المنتجات التي يشملها الكوبون.",
+    "section_scope": "يشمل",
+    "scope": {
+      "store": "كل المتجر",
+      "products": "منتجات محددة",
+      "collections": "مجموعات محددة"
+    },
+    "products_placeholder": "ابحث عن منتجات لإضافتها...",
+    "collections_placeholder": "ابحث عن مجموعات لإضافتها...",
+    "offers_note": "المنتجات التي عليها عرض (سعر بالكمية، هدية، توصيل مجاني) لا يخصمها الكوبون مرة أخرى.",
+    "section_audience": "الزبائن",
+    "audience": {
+      "everyone": "الجميع",
+      "selected": "زبائن مختارون"
+    },
+    "customers_label": "الزبائن",
+    "customers_placeholder": "ابحث بالاسم أو الهاتف...",
+    "groups_label": "فئات الزبائن",
+    "groups_placeholder": "ابحث عن فئات...",
+    "audience_hint": "يُعرف الزبون برقم هاتف الطلب.",
+    "picker_empty": "لا نتائج",
+    "section_limits": "حدود الاستعمال",
+    "usage_limit_label": "عدد الاستعمالات الكلي (اختياري)",
+    "usage_limit_hint": "الطلب الملغى يُرجع استعماله.",
+    "once_per_customer": "استعمال واحد لكل زبون",
+    "section_schedule": "تواريخ التفعيل (اختياري)",
+    "starts_at_label": "البداية",
+    "ends_at_label": "النهاية",
+    "usage_stats_zero": "لم يُستعمل بعد",
+    "usage_stats_one": "استُعمل في طلب واحد · {amount} خصمًا",
+    "usage_stats_two": "استُعمل في طلبين · {amount} خصمًا",
+    "usage_stats_few": "استُعمل في {count} طلبات · {amount} خصمًا",
+    "usage_stats_many": "استُعمل في {count} طلبًا · {amount} خصمًا",
+    "usage_stats_other": "استُعمل في {count} طلب · {amount} خصمًا",
+    "success_add": "تم إنشاء الكوبون",
+    "success_edit": "تم تحديث الكوبون",
+    "delete_confirm": "حذف هذا الكوبون؟ الطلبات التي استعملته تحتفظ بخصمها."
+  }
+}

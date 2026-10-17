@@ -1,0 +1,134 @@
+{
+  "page_title": "Codes promo",
+  "add_coupon": "Créer un code promo",
+  "search_placeholder": "Rechercher un code...",
+  "error_load": "Impossible de charger les codes promo",
+  "error_not_found": "Code promo introuvable",
+  "error_generic": "Une erreur est survenue. Veuillez réessayer.",
+  "error_code_taken": "Un autre code promo utilise déjà ce code",
+  "error_invalid": {
+    "invalid_code": "Un code fait de 3 à 32 lettres latines, chiffres, - ou _",
+    "invalid_value": "Saisissez un pourcentage de 1 à 100, ou un montant d'au moins 1 DA",
+    "max_discount_not_allowed": "Seul un code en pourcentage a un plafond",
+    "invalid_amount": "Les montants sont des nombres entiers d'au moins 1",
+    "minimum_conflict": "Demandez un montant minimum ou un nombre minimum d'articles, pas les deux",
+    "scope_empty": "Choisissez au moins un produit ou une collection",
+    "scope_mismatch": "Ne choisissez que ce que le code couvre",
+    "audience_empty": "Choisissez au moins un client ou un groupe",
+    "audience_mismatch": "Un code pour tous ne nomme aucun client",
+    "too_many_picks": "Trop d'éléments choisis — utilisez une collection ou un groupe de clients",
+    "invalid_usage_limit": "La limite d'utilisation est un nombre entier d'au moins 1",
+    "schedule_ends_before_start": "La fin doit venir après le début",
+    "unknown_product": "Un produit choisi n'existe plus",
+    "unknown_collection": "Une collection choisie n'existe plus",
+    "unknown_customer": "Un client choisi n'existe plus",
+    "unknown_group": "Un groupe choisi n'existe plus"
+  },
+  "table": {
+    "code": "Code",
+    "value": "Remise",
+    "scope": "S'applique à",
+    "uses": "Utilisations",
+    "state": "Statut",
+    "discount_given": "Accordé"
+  },
+  "state": {
+    "live": "En cours",
+    "scheduled": "Programmé",
+    "inactive": "Désactivé",
+    "expired": "Expiré",
+    "used_up": "Épuisé"
+  },
+  "kind": {
+    "percentage": "Pourcentage",
+    "fixed_amount": "Montant fixe",
+    "free_shipping": "Livraison gratuite"
+  },
+  "value": {
+    "free_shipping": "Livraison gratuite",
+    "fixed_amount": "{amount} de remise",
+    "percentage": "{percent} % de remise",
+    "percentage_capped": "{percent} % de remise (jusqu'à {max})"
+  },
+  "scope_label": {
+    "store": "Toute la boutique",
+    "products_one": "{count} produit",
+    "products_many": "{count} de produits",
+    "products_other": "{count} produits",
+    "collections_one": "{count} collection",
+    "collections_many": "{count} de collections",
+    "collections_other": "{count} collections"
+  },
+  "uses_label": {
+    "unlimited": "{used} / ∞",
+    "limited": "{used} / {limit}"
+  },
+  "empty_state": {
+    "title": "Aucun code promo",
+    "description": "Créez un code que vos clients saisissent à la commande : un pourcentage, un montant ou la livraison gratuite — pour toute la boutique, des produits ou collections, ou des clients choisis.",
+    "action": "Créer votre premier code promo"
+  },
+  "actions": {
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "activate": "Activer",
+    "deactivate": "Désactiver"
+  },
+  "form": {
+    "title_add": "Créer un code promo",
+    "title_edit": "Modifier le code promo",
+    "code_label": "Code",
+    "code_hint": "Ce que vos clients saisissent à la commande. Lettres, chiffres, - et _ ; majuscules et espaces ne comptent pas.",
+    "code_generate": "Générer",
+    "status_active": "Actif",
+    "kind_label": "Remise",
+    "value_percent_label": "Pourcentage de remise",
+    "max_discount_label": "Remise maximale (DA, facultatif)",
+    "max_discount_hint": "Le plus qu'une commande peut économiser.",
+    "value_amount_label": "Montant de remise (DA)",
+    "value_amount_hint": "Déduit une fois par commande, jamais plus que le prix des produits couverts.",
+    "free_shipping_hint": "Les frais de livraison de la commande passent à 0.",
+    "section_minimum": "Condition minimale",
+    "minimum": {
+      "none": "Aucune",
+      "subtotal": "Montant minimum",
+      "quantity": "Articles minimum"
+    },
+    "minimum_subtotal_label": "Montant minimum (DA)",
+    "minimum_quantity_label": "Nombre minimum d'articles",
+    "minimum_hint": "Compté sur les produits couverts par le code.",
+    "section_scope": "S'applique à",
+    "scope": {
+      "store": "Toute la boutique",
+      "products": "Produits choisis",
+      "collections": "Collections choisies"
+    },
+    "products_placeholder": "Rechercher des produits à ajouter...",
+    "collections_placeholder": "Rechercher des collections à ajouter...",
+    "offers_note": "Les produits déjà sous une offre (prix par quantité, cadeau, livraison gratuite) ne sont jamais remisés une seconde fois par un code.",
+    "section_audience": "Clients",
+    "audience": {
+      "everyone": "Tout le monde",
+      "selected": "Clients choisis"
+    },
+    "customers_label": "Clients",
+    "customers_placeholder": "Rechercher par nom ou téléphone...",
+    "groups_label": "Groupes de clients",
+    "groups_placeholder": "Rechercher des groupes...",
+    "audience_hint": "Un client est reconnu par le numéro de téléphone de la commande.",
+    "picker_empty": "Aucun résultat",
+    "section_limits": "Limites d'utilisation",
+    "usage_limit_label": "Utilisations au total (facultatif)",
+    "usage_limit_hint": "Une commande annulée rend son utilisation.",
+    "once_per_customer": "Une utilisation par client",
+    "section_schedule": "Dates d'activité (facultatif)",
+    "starts_at_label": "Début",
+    "ends_at_label": "Fin",
+    "usage_stats_one": "Utilisé sur {count} commande · {amount} accordés",
+    "usage_stats_many": "Utilisé sur {count} de commandes · {amount} accordés",
+    "usage_stats_other": "Utilisé sur {count} commandes · {amount} accordés",
+    "success_add": "Code promo créé",
+    "success_edit": "Code promo mis à jour",
+    "delete_confirm": "Supprimer ce code promo ? Les commandes qui l'ont utilisé gardent leur remise."
+  }
+}

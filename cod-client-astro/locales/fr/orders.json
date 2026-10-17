@@ -93,7 +93,9 @@
     "custom_answers": "Réponses du client",
     "custom_answers_note": "Réponses à vos propres questions de commande. Elles ne sont jamais envoyées aux transporteurs.",
     "line_reward": "🎁 Offert — par une offre",
-    "line_offer_price": "Prix de l'offre"
+    "line_offer": "Offre appliquée",
+    "line_coupon": "Code promo : {amount} de remise",
+    "coupon_applied": "Code promo {code} appliqué — {amount} de remise, déjà dans les prix ci-dessus"
   },
   "form": {
     "title_add": "Nouvelle commande",

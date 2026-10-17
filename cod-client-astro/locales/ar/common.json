@@ -97,5 +97,6 @@
   },
   "confirm_type": "اكتب {text} للتأكيد",
   "confirm_copy": "نسخ",
-  "clear": "مسح"
+  "clear": "مسح",
+  "remove_item": "إزالة {name}"
 }

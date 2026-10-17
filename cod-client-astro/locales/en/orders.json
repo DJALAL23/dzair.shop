@@ -93,7 +93,9 @@
     "custom_answers": "Customer answers",
     "custom_answers_note": "Answers to your own checkout questions. They are never sent to carriers.",
     "line_reward": "🎁 Free — from an offer",
-    "line_offer_price": "Offer price"
+    "line_offer": "Offer applied",
+    "line_coupon": "Coupon: {amount} off",
+    "coupon_applied": "Coupon {code} applied — {amount} off, already in the prices above"
   },
   "form": {
     "title_add": "New order",

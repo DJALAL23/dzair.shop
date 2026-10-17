@@ -17,6 +17,7 @@ import {
   Sparkles,
   Star,
   Tag,
+  Ticket,
   Truck,
   Users,
 } from "lucide-react";
@@ -118,6 +119,13 @@ export function useNavSections(): NavSection[] {
               label: tN("sidebar.offers"),
               icon: Gift,
               scope: "offers:read",
+            },
+            {
+              kind: "leaf",
+              href: "/coupons",
+              label: tN("sidebar.coupons"),
+              icon: Ticket,
+              scope: "coupons:read",
             },
           ],
         },

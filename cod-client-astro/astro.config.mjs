@@ -20,12 +20,13 @@ const orderDetailFallback = {
        const isProductDetail = /^\/products\/[^/]+(?:\/edit)?\/?$/.test(pathname) && pathname !== "/products/new" && pathname !== "/products/stock";
        const isProductGroupEdit = /^\/product-groups\/[^/]+\/edit\/?$/.test(pathname);
        const isOfferEdit = /^\/offers\/[^/]+\/?$/.test(pathname) && pathname !== "/offers/new";
+       const isCouponEdit = /^\/coupons\/[^/]+\/?$/.test(pathname) && pathname !== "/coupons/new";
        const isDriverRoute = /^\/delivery\/drivers\/[^/]+(?:\/(edit|compensations))?\/?$/.test(pathname) && pathname !== "/delivery/drivers/new";
        const isDeliveryCompanyRoute = /^\/delivery\/companies\/[^/]+(?:\/(credentials|stop-desks))?\/?$/.test(pathname);
        const isShippingProfileRoute = /^\/delivery\/shipping-profiles\/[^/]+(?:\/edit)?\/?$/.test(pathname) && pathname !== "/delivery/shipping-profiles/new";
        const isTeamMemberRoute = /^\/team\/[^/]+\/?$/.test(pathname);
        const isLandingPageStudio = /^\/landing-pages\/[^/]+\/studio\/?$/.test(pathname);
-       const isDetail = isOrderDetail || isCustomerDetail || isCustomerGroupDetail || isCustomerTagDetail || isProductDetail || isProductGroupEdit || isOfferEdit || isDriverRoute || isDeliveryCompanyRoute || isShippingProfileRoute || isTeamMemberRoute || isLandingPageStudio;
+       const isDetail = isOrderDetail || isCustomerDetail || isCustomerGroupDetail || isCustomerTagDetail || isProductDetail || isProductGroupEdit || isOfferEdit || isCouponEdit || isDriverRoute || isDeliveryCompanyRoute || isShippingProfileRoute || isTeamMemberRoute || isLandingPageStudio;
        // Host-level SPA fallback: mirror production's
        // assets.not_found_handling = "single-page-application" (wrangler.toml)
        // by serving the client index for detail loads. Mutating-and-forwarding

@@ -126,7 +126,8 @@ describe("offer body: a cleared field is sent as null when editing", () => {
   });
 });
 
-import { formTiersProblem, tierSaving, toLocalInput } from "./model";
+import { formTiersProblem, tierSaving } from "./model";
+import { toLocalInput } from "@/lib/datetime-local";
 
 describe("quantity pricing in the form", () => {
   const pricing: OfferFormValues = {

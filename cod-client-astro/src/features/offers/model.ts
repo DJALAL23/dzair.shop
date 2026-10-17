@@ -1,5 +1,6 @@
 import type { Translate } from "@/i18n/core";
 import { OFFER_KINDS, tiersProblem, type PriceTier } from "../../../../cod-shared/offers/model";
+import { fromLocalInput } from "@/lib/datetime-local";
 import type { CreateOfferData, Offer, OfferDiscountType, OfferFormValues, OfferStatus } from "./types";
 
 export type OfferSortKey = "name" | "status" | "createdAt" | "triggerQuantity";
@@ -104,15 +105,6 @@ export function formatOfferDate(value: string, locale: "ar" | "en" | "fr") {
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`).format(date);
 }
 
-/** A stored instant as the `datetime-local` input shows it: the merchant's own clock. */
-export function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 /** The tiers the form holds, as numbers; null when one is not a whole number. */
 export function formTiers(form: Pick<OfferFormValues, "tiers">): PriceTier[] | null {
   const tiers = form.tiers.map((tier) => ({ quantity: Number(tier.quantity), price: Number(tier.price), freeShipping: tier.freeShipping }));
@@ -150,8 +142,8 @@ export function offerBody(form: OfferFormValues, editing: boolean): CreateOfferD
     rewardProductId: isFree ? form.rewardProductId : empty,
     rewardVariantId: isFree ? form.rewardVariantId || empty : empty,
     rewardQuantity: isFree ? parseInt(form.rewardQuantity, 10) : 0,
-    startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : empty,
-    endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : empty,
+    startsAt: fromLocalInput(form.startsAt) ?? empty,
+    endsAt: fromLocalInput(form.endsAt) ?? empty,
     status: form.status,
   };
 }

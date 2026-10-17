@@ -45,6 +45,7 @@ export { SortHeader } from "./SortHeader";
 export { Pagination } from "./Pagination";
 export { SearchInput } from "./SearchInput";
 export { SearchPicker, type PickerOption } from "./search-picker";
+export { SearchPickList } from "./search-pick-list";
 export { StickyFormActions } from "./sticky-form-actions";
 export { FormPage } from "./form-page";
 export { ColorSwatches, LABEL_COLORS } from "./color-swatches";

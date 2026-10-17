@@ -12,6 +12,7 @@ import ProductDetailPageApp from "@/features/products/components/ProductDetailPa
 import ProductFormPageApp from "@/features/products/components/ProductFormPageApp";
 import ProductGroupFormPageApp from "@/features/product-groups/components/ProductGroupFormPageApp";
 import OfferFormPageApp from "@/features/offers/components/OfferFormPageApp";
+import CouponFormPageApp from "@/features/coupons/components/CouponFormPageApp";
 import LandingPageStudioApp from "@/features/landing-pages/components/LandingPageStudioApp";
 import DriverProfilePageApp from "@/features/delivery/components/DriverProfilePageApp";
 import DriverFormPageApp from "@/features/delivery/components/DriverFormPageApp";
@@ -28,6 +29,7 @@ import { parseCustomerTagRoute } from "@/features/customer-tags/model";
 import { parseProductRoute } from "@/features/products/model";
 import { parseProductGroupRoute } from "@/features/product-groups/model";
 import { parseOfferRoute } from "@/features/offers/model";
+import { parseCouponRoute } from "@/features/coupons/model";
 import { parseLandingPageRoute } from "@/features/landing-pages/model";
 import { parseDriverRoute, parseDeliveryCompanyRoute, parseShippingProfileRoute } from "@/features/delivery/model";
 import { parseTeamRoute } from "@/features/team/model";
@@ -42,6 +44,7 @@ export function RootGate() {
   const productRoute = parseProductRoute(pathname);
   const productGroupRoute = parseProductGroupRoute(pathname);
   const offerRoute = parseOfferRoute(pathname);
+  const couponRoute = parseCouponRoute(pathname);
   const driverRoute = parseDriverRoute(pathname);
   const companyRoute = parseDeliveryCompanyRoute(pathname);
   const shippingProfileRoute = parseShippingProfileRoute(pathname);
@@ -50,7 +53,7 @@ export function RootGate() {
   const orderId = pathname.startsWith("/orders/") && pathname !== "/orders/new" && pathname !== "/orders/abandoned"
     ? pathname.slice("/orders/".length)
     : null;
-  const dynamicRoute = orderId || customerRoute.kind === "detail" || customerRoute.kind === "edit" || customerGroupRoute.kind === "detail" || customerGroupRoute.kind === "edit" || customerTagRoute.kind === "detail" || customerTagRoute.kind === "edit" || productRoute.kind === "detail" || productRoute.kind === "edit" || productGroupRoute.kind === "edit" || offerRoute.kind === "edit" || driverRoute.kind === "detail" || driverRoute.kind === "edit" || driverRoute.kind === "compensations" || companyRoute.kind === "detail" || companyRoute.kind === "credentials" || companyRoute.kind === "stopDesks" || shippingProfileRoute.kind === "detail" || shippingProfileRoute.kind === "edit" || teamRoute.kind === "detail" || landingPageRoute.kind === "studio";
+  const dynamicRoute = orderId || customerRoute.kind === "detail" || customerRoute.kind === "edit" || customerGroupRoute.kind === "detail" || customerGroupRoute.kind === "edit" || customerTagRoute.kind === "detail" || customerTagRoute.kind === "edit" || productRoute.kind === "detail" || productRoute.kind === "edit" || productGroupRoute.kind === "edit" || offerRoute.kind === "edit" || couponRoute.kind === "edit" || driverRoute.kind === "detail" || driverRoute.kind === "edit" || driverRoute.kind === "compensations" || companyRoute.kind === "detail" || companyRoute.kind === "credentials" || companyRoute.kind === "stopDesks" || shippingProfileRoute.kind === "detail" || shippingProfileRoute.kind === "edit" || teamRoute.kind === "detail" || landingPageRoute.kind === "studio";
 
   useEffect(() => {
     if (dynamicRoute) return;
@@ -76,6 +79,7 @@ export function RootGate() {
   if (productRoute.kind === "edit") return <ProductFormPageApp productId={productRoute.id} />;
   if (productGroupRoute.kind === "edit") return <ProductGroupFormPageApp groupId={productGroupRoute.id} />;
   if (offerRoute.kind === "edit") return <OfferFormPageApp offerId={offerRoute.id} />;
+  if (couponRoute.kind === "edit") return <CouponFormPageApp couponId={couponRoute.id} />;
   if (driverRoute.kind === "detail") return <DriverProfilePageApp driverId={driverRoute.id} />;
   if (driverRoute.kind === "edit") return <DriverFormPageApp driverId={driverRoute.id} />;
   if (driverRoute.kind === "compensations") return <DriverCompensationsPageApp driverId={driverRoute.id} />;

@@ -97,5 +97,6 @@
   },
   "confirm_type": "Saisissez {text} pour confirmer",
   "confirm_copy": "Copier",
-  "clear": "Effacer"
+  "clear": "Effacer",
+  "remove_item": "Retirer {name}"
 }
