@@ -98,9 +98,12 @@ function buildDom(options: { currency?: string } = {}): void {
         <p data-cart-variant hidden></p>
         <p data-cart-offer hidden></p>
         <p data-cart-warning hidden></p>
-        <button type="button" data-cart-decrease>-</button>
-        <span data-cart-qty></span>
-        <button type="button" data-cart-increase>+</button>
+        <span data-cart-qty-fixed hidden></span>
+        <div data-cart-stepper>
+          <button type="button" data-cart-decrease>-</button>
+          <span data-cart-qty></span>
+          <button type="button" data-cart-increase>+</button>
+        </div>
         <span data-cart-was hidden></span>
         <span data-cart-total></span>
         <button type="button" data-cart-remove>bin</button>
@@ -582,6 +585,61 @@ describe("server reconciliation", () => {
     expect(gift.querySelector("[data-reward-qty]")!.textContent).toBe("×2");
     expect(document.querySelectorAll("[data-cart-line]")).toHaveLength(1);
     expect(gift.previousElementSibling?.hasAttribute("data-cart-line")).toBe(true);
+  });
+
+  describe("a deal the shopper chose", () => {
+    const line = (productId: string, variantId: string, quantity: number) => ({ productId, productName: productId, variantId, variantLabel: null, quantity, unitPrice: 1000 });
+    const quoted = (productId: string, variantId: string, quantity: number, offerId: string | null) => ({
+      productId, variantId, productName: productId, variantLabel: null, quantity, unitPrice: 1000, lineTotal: 1000 * quantity, offerId, offerName: offerId, maxQuantity: null, blocker: null,
+    });
+    const rows = () => [...document.querySelectorAll<HTMLElement>("[data-cart-line]")];
+    const row = (variantId: string) => rows().find((r) => r.dataset.key?.endsWith(variantId))!;
+
+    beforeEach(() => {
+      localStorage.setItem(CART_KEY, JSON.stringify([line("speaker", "black", 2), line("speaker", "blue", 1), line("bag", "beige", 2)]));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((_url: string, init: RequestInit) => {
+          const items = JSON.parse(String(init.body)).items as Array<{ productId: string; variantId: string; quantity: number }>;
+          const deal = items.filter((item) => item.productId === "speaker").length === 2;
+          return validationResponse({
+            lines: items.map((item) => quoted(item.productId, item.variantId, item.quantity, item.productId === "speaker" && deal ? "two-plus-one" : null)),
+            subtotal: 0,
+            rewards: [],
+            freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+          });
+        }),
+      );
+    });
+
+    it("shows an offer's lines at the offer's quantity, without a stepper; other lines keep theirs", async () => {
+      await boot();
+      click(el("cart-badge"));
+      await vi.waitFor(() => expect(row("black").dataset.offerId).toBe("two-plus-one"));
+      for (const [variant, quantity] of [["black", 2], ["blue", 1]] as const) {
+        expect(row(variant).querySelector<HTMLElement>("[data-cart-stepper]")!.hidden).toBe(true);
+        expect(row(variant).querySelector<HTMLElement>("[data-cart-qty-fixed]")!.hidden).toBe(false);
+        expect(row(variant).querySelector("[data-cart-qty-fixed]")!.textContent).toBe(`×${quantity}`);
+      }
+      expect(row("beige").querySelector<HTMLElement>("[data-cart-stepper]")!.hidden).toBe(false);
+      expect(row("beige").querySelector<HTMLElement>("[data-cart-qty-fixed]")!.hidden).toBe(true);
+    });
+
+    it("removes the whole deal when one of its lines is removed, and nothing else", async () => {
+      await boot();
+      click(el("cart-badge"));
+      await vi.waitFor(() => expect(row("blue").dataset.offerId).toBe("two-plus-one"));
+      click(row("blue").querySelector("[data-cart-remove]")!);
+      expect(storedCart().map((stored) => stored.variantId)).toEqual(["beige"]);
+    });
+
+    it("removes only its own line when no offer prices it", async () => {
+      await boot();
+      click(el("cart-badge"));
+      await vi.waitFor(() => expect(row("black").dataset.offerId).toBe("two-plus-one"));
+      click(row("beige").querySelector("[data-cart-remove]")!);
+      expect(storedCart().map((stored) => stored.variantId)).toEqual(["black", "blue"]);
+    });
   });
 
   it("leaves the optimistic view intact when validation fails", async () => {

@@ -135,6 +135,20 @@ export function renderCartLine(
     offer.hidden = false;
   }
 
+  // A line an offer prices is part of the deal the shopper chose: its
+  // quantity is the offer's, so it shows without a stepper, and removing it
+  // removes the whole deal (bindLineControls).
+  if (server?.offerId) {
+    node.dataset.offerId = server.offerId;
+    const stepper = node.querySelector<HTMLElement>("[data-cart-stepper]");
+    const fixed = node.querySelector<HTMLElement>("[data-cart-qty-fixed]");
+    if (stepper && fixed) {
+      stepper.hidden = true;
+      fixed.textContent = `×${line.quantity}`;
+      fixed.hidden = false;
+    }
+  }
+
   const { total, was } = linePrice(line, server);
   node.querySelector("[data-cart-qty]")!.textContent = String(line.quantity);
   node.querySelector("[data-cart-total]")!.textContent = money(total);
@@ -216,7 +230,9 @@ export function bindLineControls(
       if (!current) return;
 
       if (target.closest("[data-cart-remove]")) {
-        removeLine(key);
+        const offerId = row.dataset.offerId;
+        const deal = offerId ? [...list.querySelectorAll<HTMLElement>("[data-cart-line]")].filter((other) => other.dataset.offerId === offerId) : [row];
+        for (const member of deal) if (member.dataset.key) removeLine(member.dataset.key);
       } else if (target.closest("[data-cart-increase]")) {
         setQuantity(key, current.quantity + 1);
       } else if (target.closest("[data-cart-decrease]")) {
