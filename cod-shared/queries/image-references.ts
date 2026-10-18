@@ -10,6 +10,7 @@ import {
   products,
   storeContentOverrides,
   storePageTranslations,
+  storeThemeSettings,
   stores,
   translations,
 } from "../db/schema";
@@ -20,7 +21,8 @@ type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 /**
  * Every column that can show a stored image, in one place: a missed source
  * means live merchant media gets deleted, by the orphan sweep or when a
- * product is removed. Uploads share the `products/` namespace whatever they
+ * product is removed. Theme data holds images as media keys in JSON — an
+ * `image` field's `{ key }` in a page document or a theme setting. Uploads share the `products/` namespace whatever they
  * are for (gallery, inline description images, category images, logos), and
  * landing pages keep theirs under `landing/`, shared by duplicated pages.
  *
@@ -37,6 +39,7 @@ export const IMAGE_REFERENCE_SOURCES: ReadonlyArray<{ table: SQLiteTable; column
   { table: storePageTranslations, column: storePageTranslations.bodyHtml },
   { table: pageDocuments, column: pageDocuments.document },
   { table: storeContentOverrides, column: storeContentOverrides.value },
+  { table: storeThemeSettings, column: storeThemeSettings.values },
   { table: stores, column: stores.logoUrl },
   { table: stores, column: stores.ogImage },
   { table: dashboardBrand, column: dashboardBrand.logoUrl },

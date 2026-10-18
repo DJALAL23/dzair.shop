@@ -54,6 +54,8 @@ const KEYS = {
   galleryUrl: `products/${hex("2")}.jpg`,
   described: `products/${hex("3")}.jpg`,
   category: `products/${hex("4")}.jpg`,
+  themeSetting: `products/${hex("5")}.png`,
+  pageDocument: `products/${hex("6")}.webp`,
   landing: `landing/${hex("9")}.jpg`,
 };
 const MANAGED_KEYS = [
@@ -62,6 +64,8 @@ const MANAGED_KEYS = [
   KEYS.galleryUrl,
   KEYS.described,
   KEYS.category,
+  KEYS.themeSetting,
+  KEYS.pageDocument,
 ];
 const ORPHAN_BODY = "orphan-object-body";
 
@@ -98,6 +102,24 @@ async function seed() {
   await d1.prepare("DELETE FROM product_images").run();
   await d1.prepare("DELETE FROM product_categories").run();
   await d1.prepare("DELETE FROM products").run();
+  await d1.prepare("DELETE FROM store_theme_settings").run();
+  await d1.prepare("DELETE FROM page_documents").run();
+  await d1.prepare("DELETE FROM stores").run();
+  await d1
+    .prepare("INSERT INTO stores (id, name, lang, created_at, updated_at) VALUES ('s1', 'Store', 'ar', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')")
+    .run();
+
+  // 5. A theme setting (a logo) whose only reference is the media key in the settings' JSON.
+  await d1
+    .prepare(`INSERT INTO store_theme_settings (store_id, theme_key, "values", updated_at) VALUES ('s1', 'theme-00', ?, '2026-01-01T00:00:00.000Z')`)
+    .bind(JSON.stringify({ logo: { key: KEYS.themeSetting, alt: { ar: "شعار" } } }))
+    .run();
+
+  // 6. A page document whose only reference is an image field's media key.
+  await d1
+    .prepare(`INSERT INTO page_documents (id, store_id, surface, document, created_at, updated_at) VALUES ('pd-s1-home', 's1', 'home', ?, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`)
+    .bind(JSON.stringify({ version: 1, surface: "home", sections: [{ id: "h", type: "hero", props: { image: { key: KEYS.pageDocument } } }] }))
+    .run();
 
   // 1. A description whose ONLY reference to `described` is inside the HTML.
   await d1
@@ -198,10 +220,10 @@ beforeEach(async () => {
 });
 
 describe("collectReferencedImageKeys", () => {
-  it("finds all four reference sources, bare or inside a URL", async () => {
+  it("finds every reference source, bare, inside a URL or as a media key in JSON", async () => {
     const referenced = await call<string[]>("referenced");
     expect(referenced.sort()).toEqual(
-      [KEYS.galleryKey, KEYS.galleryUrl, KEYS.described, KEYS.category].sort()
+      [KEYS.galleryKey, KEYS.galleryUrl, KEYS.described, KEYS.category, KEYS.themeSetting, KEYS.pageDocument].sort()
     );
   });
 
@@ -227,7 +249,7 @@ describe("sweepOrphanImages", () => {
 
     expect(report.prefix).toBe("products/");
     expect(report.scanned).toBe(MANAGED_KEYS.length);
-    expect(report.referenced).toBe(4);
+    expect(report.referenced).toBe(MANAGED_KEYS.length - 1);
   });
 
   it("deletes exactly the orphan when deletion is enabled", async () => {
@@ -252,6 +274,16 @@ describe("sweepOrphanImages", () => {
     const remaining = await listKeys();
     expect(remaining).toContain(KEYS.galleryKey);
     expect(remaining).toContain(KEYS.galleryUrl);
+  });
+
+  it("never deletes an object that only a theme setting references", async () => {
+    await call<Report>("sweep", { dryRun: false, now: FUTURE });
+    expect(await listKeys()).toContain(KEYS.themeSetting);
+  });
+
+  it("never deletes an object that only a page document's image field references", async () => {
+    await call<Report>("sweep", { dryRun: false, now: FUTURE });
+    expect(await listKeys()).toContain(KEYS.pageDocument);
   });
 
   it("never touches the landing/ namespace", async () => {
