@@ -42,7 +42,7 @@ describe("theme image binding", () => {
     const { getThumbnailImage } = await import("@/theme/utils/images");
 
     expect(getThumbnailImage(IMAGE_URL)).toBe(
-      `https://${MEDIA_DOMAIN}/cdn-cgi/image/width=80,height=80,format=webp,quality=80,fit=cover/stores/store_01/products/watch-1.jpg`
+      `https://${MEDIA_DOMAIN}/cdn-cgi/image/onerror=redirect,width=80,height=80,format=webp,quality=80,fit=cover/stores/store_01/products/watch-1.jpg`
     );
   });
 

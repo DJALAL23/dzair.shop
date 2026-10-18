@@ -1,20 +1,18 @@
-import { defineConfig, envField, fontProviders, passthroughImageService } from "astro/config";
+import { defineConfig, envField, fontProviders } from "astro/config";
 import tailwindcss from "@tailwindcss/vite";
 import compress from "@playform/compress";
 import icon from "astro-icon";
 import themeFonts from "./src/theme/fonts.json" with { type: "json" };
 
 const isVercel = process.env.DEPLOY_TARGET === "vercel";
+// Images: both builds use the theme's own image service
+// (src/theme/utils/image-service.ts) — every media-domain <Image> is resized
+// by Cloudflare on the media domain itself, so a storefront on Vercel gets
+// the same resizing and edge cache as one on Cloudflare. "custom" keeps it on
+// Cloudflare; the Vercel adapter keeps it while its own imageService is off.
 const adapter = isVercel
   ? (await import("@astrojs/vercel")).default()
-  : (await import("@astrojs/cloudflare")).default({
-      // Cloudflare Image Resizing: every <Image> becomes a /cdn-cgi/image/…
-      // URL on the store's own domain, resized and re-encoded at the edge.
-      // The adapter adds onerror=redirect, so a failed resize serves the
-      // original. Requires Images → Transformations on the store's zone.
-      // `astro dev` keeps passthrough, so local images still load.
-      imageService: "cloudflare",
-    });
+  : (await import("@astrojs/cloudflare")).default({ imageService: "custom" });
 
 const cacheProvider = isVercel
   ? (await import("@astrojs/vercel/cache")).cacheVercel()
@@ -68,7 +66,7 @@ export default defineConfig({
   // ClientRouter; its default would prefetch every link on the page.
   prefetch: { prefetchAll: false },
   image: {
-    ...(isVercel ? { service: passthroughImageService() } : {}),
+    service: { entrypoint: "./src/theme/utils/image-service.ts" },
     remotePatterns: [{ protocol: "https" }],
   },
   // Every font a store can use is declared here and self-hosted at build time:

@@ -19,7 +19,7 @@
  * without a build.
  */
 import { describe, it, expect } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { STOREFRONT_ROUTES } from "@wocart/storefront";
 
@@ -84,6 +84,18 @@ describe("legacy core removal", () => {
       .sort();
 
     expect(offenders).toEqual([]);
+  });
+
+  it("the image service is bound in exactly one theme module, the one both builds use", () => {
+    const binders = files
+      .filter((f) => f.content.includes("mediaImageService("))
+      .map((f) => f.relPath)
+      .sort();
+
+    expect(binders).toEqual(["theme/utils/image-service.ts"]);
+    const config = readFileSync(join(process.cwd(), "astro.config.mjs"), "utf8");
+    expect(config).toContain('service: { entrypoint: "./src/theme/utils/image-service.ts" }');
+    expect(config).not.toContain("passthroughImageService");
   });
 
   it("the image toolkit is bound in exactly one theme module", () => {
