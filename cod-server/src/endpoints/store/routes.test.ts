@@ -372,6 +372,25 @@ describe("Store API routes (OpenAPIHono)", () => {
       expect(res.status).toBe(400);
       expect(vi.mocked(queries.getPageDocument)).not.toHaveBeenCalled();
     });
+
+    it("reads the requesting theme's document, or the latest when no theme is named", async () => {
+      vi.mocked(queries.getPageDocument).mockResolvedValue(null);
+
+      await app.request("/store/page-documents/home?theme=aurora");
+      await app.request("/store/page-documents/home");
+
+      expect(vi.mocked(queries.getPageDocument).mock.calls.map((call) => call.slice(2))).toEqual([
+        ["home", "aurora"],
+        ["home", undefined],
+      ]);
+    });
+
+    it("refuses a theme that is not a theme key with 400", async () => {
+      const res = await app.request("/store/page-documents/home?theme=Not%20A%20Key");
+
+      expect(res.status).toBe(400);
+      expect(vi.mocked(queries.getPageDocument)).not.toHaveBeenCalled();
+    });
   });
 
 });

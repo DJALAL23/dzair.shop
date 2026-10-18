@@ -239,7 +239,7 @@ export async function getStorePageDocument(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const storeId = c.get("storeId")!;
   const surface = c.req.param("surface")!;
-  const document = await queries.getPageDocument(db, storeId, surface);
+  const document = await queries.getPageDocument(db, storeId, surface, queryParam(c, "theme"));
   return c.json({ success: true, data: document }, 200);
 }
 

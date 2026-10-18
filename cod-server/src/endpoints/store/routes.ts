@@ -104,6 +104,14 @@ const pageDocumentParams = z.object({
   surface: z.string().regex(PAGE_DOCUMENT_SURFACE_RE).openapi({ example: "home" }),
 });
 
+const pageDocumentQuerySchema = z.object({
+  theme: z.string().regex(THEME_KEY_RE).optional().openapi({
+    description:
+      "The requesting theme's key (`defineTheme({ key })`): its document for the surface. Without it, the most recently saved document for the surface, whichever theme wrote it.",
+    example: "theme-00",
+  }),
+});
+
 const PageDocumentSchema = z
   .object({
     version: z.number().int(),
@@ -266,9 +274,10 @@ const getStorePageDocumentRoute = defineRoute({
   tags: ["Store API"],
   summary: "Get the store's saved page document",
   description:
-    "The store's saved composition for one surface (`home` today), written by CodFlow Cloud's editor and read verbatim. `data` is `null` when the store has never saved one, or when the saved row is not a document for this surface: the theme then renders its own default. A store that has none is a normal answer, so it is a 200, not a 404.",
+    "The store's saved composition for one theme and surface (`home` today), written by CodFlow Cloud's editor and read verbatim. `data` is `null` when the store has never saved one, or when the saved row is not a document for this surface: the theme then renders its own default. A store that has none is a normal answer, so it is a 200, not a 404.",
   operationId: "getStorePageDocument",
   params: pageDocumentParams,
+  query: pageDocumentQuerySchema,
   responses: {
     200: {
       description: "The saved document, or null when there is none",

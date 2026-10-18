@@ -7,6 +7,7 @@ import { CARRIER_PROVIDERS } from "../carriers/providers";
 import { REVIEW_AUTO_PUBLISH, REVIEW_MEDIA_KINDS, REVIEW_SOURCES, REVIEW_STATUSES } from "../reviews/model";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
+import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
 
 const authNow = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
@@ -992,21 +993,83 @@ export const storeContentOverrides = sqliteTable("store_content_overrides", {
  * row.
  */
 /**
- * A store's saved composition for one storefront surface (migration 0033) —
- * the PageData JSON verbatim, parsed (never evaluated) at read time. Written
- * by CodFlow Cloud's editor only; this repository never writes it.
+ * A store's saved composition for one theme and storefront surface
+ * (migrations 0033, 0054) — the PageData JSON verbatim, parsed (never
+ * evaluated) at read time. Written by CodFlow Cloud's editor only; this
+ * repository never writes it.
  */
 export const pageDocuments = sqliteTable("page_documents", {
   id: text("id").primaryKey(),
   storeId: text("store_id")
     .notNull()
-    .references(() => stores.id),
+    .references(() => stores.id, { onDelete: "cascade" }),
+  /** The theme the document was composed for (`@wocart/theme` `defineTheme({ key })`). */
+  themeKey: text("theme_key").notNull(),
   surface: text("surface").notNull(),
   document: text("document").notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => ({
-  storeSurfaceUnique: uniqueIndex("idx_page_documents_store_surface").on(t.storeId, t.surface),
+  themeSurfaceUnique: uniqueIndex("idx_page_documents_theme_surface").on(t.storeId, t.themeKey, t.surface),
+}));
+
+/**
+ * One working copy of one theme's state (ADR 0010, `themes/drafts.ts`):
+ * what it changes is in `themeDraftParts`. `revision` is its optimistic lock.
+ * Written by CodFlow Cloud's editor only.
+ */
+export const themeDrafts = sqliteTable("theme_drafts", {
+  id: text("id").primaryKey(),
+  storeId: text("store_id").notNull().references(() => stores.id, { onDelete: "cascade" }),
+  themeKey: text("theme_key").notNull(),
+  /** The theme version whose manifest the draft was last checked against. */
+  themeVersion: text("theme_version").notNull(),
+  name: text("name"),
+  revision: integer("revision").notNull().default(0),
+  createdBy: text("created_by"),
+  updatedBy: text("updated_by"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  storeTheme: index("idx_theme_drafts_store_theme").on(t.storeId, t.themeKey, t.updatedAt),
+}));
+
+/**
+ * What a draft changes, one whole value per part: a surface's document
+ * (`null` = the theme's default), the settings object, or one language's
+ * edit map. An absent part shows as live.
+ */
+export const themeDraftParts = sqliteTable("theme_draft_parts", {
+  draftId: text("draft_id").notNull().references(() => themeDrafts.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: THEME_DRAFT_PART_KINDS }).notNull(),
+  /** The surface (`document`), `""` (`settings`) or the language (`content`). */
+  key: text("key").notNull(),
+  /** JSON object, or null for a document part that returns to the theme's default. */
+  value: text("value"),
+  /** The live row's `updated_at` the part started from; null when there was none. */
+  baseUpdatedAt: text("base_updated_at"),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.draftId, t.kind, t.key] }),
+}));
+
+/**
+ * A theme's whole live state after one publish — a restore point, as a JSON
+ * array of `ThemePart`. The newest `THEME_PUBLICATIONS_KEPT` per store and
+ * theme are kept (trigger).
+ */
+export const themePublications = sqliteTable("theme_publications", {
+  id: text("id").primaryKey(),
+  storeId: text("store_id").notNull().references(() => stores.id, { onDelete: "cascade" }),
+  themeKey: text("theme_key").notNull(),
+  themeVersion: text("theme_version").notNull(),
+  /** The published draft's id; the draft itself is removed when it is published. */
+  draftId: text("draft_id"),
+  state: text("state").notNull(),
+  publishedBy: text("published_by"),
+  publishedAt: text("published_at").notNull(),
+}, (t) => ({
+  storeTheme: index("idx_theme_publications_store_theme").on(t.storeId, t.themeKey, t.publishedAt),
 }));
 
 export const translations = sqliteTable("translations", {

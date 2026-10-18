@@ -12,6 +12,8 @@ import {
   storePageTranslations,
   storeThemeSettings,
   stores,
+  themeDraftParts,
+  themePublications,
   translations,
 } from "../db/schema";
 import { imageKeysInText } from "../lib/orphan-images";
@@ -22,7 +24,9 @@ type BatchStatement = Parameters<AppDb["batch"]>[0][number];
  * Every column that can show a stored image, in one place: a missed source
  * means live merchant media gets deleted, by the orphan sweep or when a
  * product is removed. Theme data holds images as media keys in JSON — an
- * `image` field's `{ key }` in a page document or a theme setting. Uploads share the `products/` namespace whatever they
+ * `image` field's `{ key }` in a page document or a theme setting, live, in a
+ * draft not yet published, or in a publication kept as a restore point
+ * (ADR 0010). Uploads share the `products/` namespace whatever they
  * are for (gallery, inline description images, category images, logos), and
  * landing pages keep theirs under `landing/`, shared by duplicated pages.
  *
@@ -40,6 +44,8 @@ export const IMAGE_REFERENCE_SOURCES: ReadonlyArray<{ table: SQLiteTable; column
   { table: pageDocuments, column: pageDocuments.document },
   { table: storeContentOverrides, column: storeContentOverrides.value },
   { table: storeThemeSettings, column: storeThemeSettings.values },
+  { table: themeDraftParts, column: themeDraftParts.value },
+  { table: themePublications, column: themePublications.state },
   { table: stores, column: stores.logoUrl },
   { table: stores, column: stores.ogImage },
   { table: dashboardBrand, column: dashboardBrand.logoUrl },

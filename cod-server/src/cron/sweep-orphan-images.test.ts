@@ -56,6 +56,8 @@ const KEYS = {
   category: `products/${hex("4")}.jpg`,
   themeSetting: `products/${hex("5")}.png`,
   pageDocument: `products/${hex("6")}.webp`,
+  draftPart: `products/${hex("7")}.webp`,
+  publication: `products/${hex("8")}.webp`,
   landing: `landing/${hex("9")}.jpg`,
 };
 const MANAGED_KEYS = [
@@ -66,6 +68,8 @@ const MANAGED_KEYS = [
   KEYS.category,
   KEYS.themeSetting,
   KEYS.pageDocument,
+  KEYS.draftPart,
+  KEYS.publication,
 ];
 const ORPHAN_BODY = "orphan-object-body";
 
@@ -104,6 +108,8 @@ async function seed() {
   await d1.prepare("DELETE FROM products").run();
   await d1.prepare("DELETE FROM store_theme_settings").run();
   await d1.prepare("DELETE FROM page_documents").run();
+  await d1.prepare("DELETE FROM theme_drafts").run();
+  await d1.prepare("DELETE FROM theme_publications").run();
   await d1.prepare("DELETE FROM stores").run();
   await d1
     .prepare("INSERT INTO stores (id, name, lang, created_at, updated_at) VALUES ('s1', 'Store', 'ar', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')")
@@ -117,8 +123,23 @@ async function seed() {
 
   // 6. A page document whose only reference is an image field's media key.
   await d1
-    .prepare(`INSERT INTO page_documents (id, store_id, surface, document, created_at, updated_at) VALUES ('pd-s1-home', 's1', 'home', ?, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`)
+    .prepare(`INSERT INTO page_documents (id, store_id, theme_key, surface, document, created_at, updated_at) VALUES ('pd-s1-home', 's1', 'theme-00', 'home', ?, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`)
     .bind(JSON.stringify({ version: 1, surface: "home", sections: [{ id: "h", type: "hero", props: { image: { key: KEYS.pageDocument } } }] }))
+    .run();
+
+  // 7. An image uploaded for a draft the merchant has not published yet.
+  await d1
+    .prepare("INSERT INTO theme_drafts (id, store_id, theme_key, theme_version, created_at, updated_at) VALUES ('td1', 's1', 'theme-00', '1.4.0', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')")
+    .run();
+  await d1
+    .prepare("INSERT INTO theme_draft_parts (draft_id, kind, key, value, updated_at) VALUES ('td1', 'document', 'home', ?, '2026-01-01T00:00:00.000Z')")
+    .bind(JSON.stringify({ version: 1, surface: "home", sections: [{ id: "b", type: "image-banner", props: { image: { key: KEYS.draftPart } } }] }))
+    .run();
+
+  // 8. An image only a restore point still shows: a publication's settings.
+  await d1
+    .prepare("INSERT INTO theme_publications (id, store_id, theme_key, theme_version, state, published_at) VALUES ('tp1', 's1', 'theme-00', '1.3.1', ?, '2026-01-01T00:00:00.000Z')")
+    .bind(JSON.stringify([{ kind: "settings", key: "", value: { logo: { key: KEYS.publication } } }]))
     .run();
 
   // 1. A description whose ONLY reference to `described` is inside the HTML.
@@ -223,7 +244,7 @@ describe("collectReferencedImageKeys", () => {
   it("finds every reference source, bare, inside a URL or as a media key in JSON", async () => {
     const referenced = await call<string[]>("referenced");
     expect(referenced.sort()).toEqual(
-      [KEYS.galleryKey, KEYS.galleryUrl, KEYS.described, KEYS.category, KEYS.themeSetting, KEYS.pageDocument].sort()
+      [KEYS.galleryKey, KEYS.galleryUrl, KEYS.described, KEYS.category, KEYS.themeSetting, KEYS.pageDocument, KEYS.draftPart, KEYS.publication].sort()
     );
   });
 
@@ -284,6 +305,16 @@ describe("sweepOrphanImages", () => {
   it("never deletes an object that only a page document's image field references", async () => {
     await call<Report>("sweep", { dryRun: false, now: FUTURE });
     expect(await listKeys()).toContain(KEYS.pageDocument);
+  });
+
+  it("never deletes an image only an unpublished draft shows", async () => {
+    await call<Report>("sweep", { dryRun: false, now: FUTURE });
+    expect(await listKeys()).toContain(KEYS.draftPart);
+  });
+
+  it("never deletes an image only a kept restore point shows", async () => {
+    await call<Report>("sweep", { dryRun: false, now: FUTURE });
+    expect(await listKeys()).toContain(KEYS.publication);
   });
 
   it("never touches the landing/ namespace", async () => {

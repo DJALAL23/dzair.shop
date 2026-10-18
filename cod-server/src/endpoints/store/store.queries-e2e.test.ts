@@ -374,34 +374,58 @@ describe("assertOrderAddress — an order's wilaya and commune against the refer
   });
 });
 
-describe("getPageDocument — the store's saved document for one surface", () => {
+describe("getPageDocument — the store's saved document for one theme and surface", () => {
   async function seedStore(id: string) {
     const now = new Date().toISOString();
     await db.insert(schema.stores).values({ id, name: id, createdAt: now, updatedAt: now } as any).onConflictDoNothing();
   }
-  async function save(storeId: string, surface: string, document: string) {
-    const now = new Date().toISOString();
-    await db.insert(schema.pageDocuments).values({ id: `pd-${storeId}-${surface}`, storeId, surface, document, createdAt: now, updatedAt: now });
+  async function save(storeId: string, surface: string, document: string, themeKey = "theme-00", updatedAt = new Date().toISOString()) {
+    await db.insert(schema.pageDocuments).values({ id: `pd-${storeId}-${themeKey}-${surface}`, storeId, themeKey, surface, document, createdAt: updatedAt, updatedAt });
   }
+  const home = (marker: string) => ({ version: 1, surface: "home", sections: [{ type: "hero", id: marker }] });
 
   it("is null when the store has never saved one", async () => {
     await seedStore("pd-store-empty");
     expect(await getPageDocument(db, "pd-store-empty", "home")).toBeNull();
+    expect(await getPageDocument(db, "pd-store-empty", "home", "theme-00")).toBeNull();
   });
 
   it("returns the saved document verbatim", async () => {
     await seedStore("pd-store-a");
     const doc = { version: 1, surface: "home", sections: [{ type: "hero", id: "h1" }], meta: { by: "studio" } };
     await save("pd-store-a", "home", JSON.stringify(doc));
-    expect(await getPageDocument(db, "pd-store-a", "home")).toEqual(doc);
+    expect(await getPageDocument(db, "pd-store-a", "home", "theme-00")).toEqual(doc);
+  });
+
+  it("keeps each theme's document: the requesting theme gets its own", async () => {
+    await seedStore("pd-store-t");
+    await save("pd-store-t", "home", JSON.stringify(home("zero")), "theme-00", "2026-10-18T10:00:00.000Z");
+    await save("pd-store-t", "home", JSON.stringify(home("aurora")), "aurora", "2026-10-18T11:00:00.000Z");
+    expect(await getPageDocument(db, "pd-store-t", "home", "theme-00")).toEqual(home("zero"));
+    expect(await getPageDocument(db, "pd-store-t", "home", "aurora")).toEqual(home("aurora"));
+    expect(await getPageDocument(db, "pd-store-t", "home", "other")).toBeNull();
+  });
+
+  it("gives a reader that names no theme the most recently saved document", async () => {
+    await seedStore("pd-store-r");
+    await save("pd-store-r", "home", JSON.stringify(home("newer")), "aurora", "2026-10-18T12:00:00.000Z");
+    await save("pd-store-r", "home", JSON.stringify(home("older")), "theme-00", "2026-10-18T09:00:00.000Z");
+    expect(await getPageDocument(db, "pd-store-r", "home")).toEqual(home("newer"));
   });
 
   it("treats a row that is not a document for this surface as none", async () => {
     await seedStore("pd-store-b");
-    await save("pd-store-b", "home", "{not json");
     await save("pd-store-b", "lp:summer", JSON.stringify({ version: 1, surface: "home", sections: [] }));
-    expect(await getPageDocument(db, "pd-store-b", "home")).toBeNull();
-    expect(await getPageDocument(db, "pd-store-b", "lp:summer")).toBeNull();
+    await save("pd-store-b", "home", JSON.stringify({ version: "1", surface: "home", sections: [] }));
+    expect(await getPageDocument(db, "pd-store-b", "lp:summer", "theme-00")).toBeNull();
+    expect(await getPageDocument(db, "pd-store-b", "home", "theme-00")).toBeNull();
+  });
+
+  it("can never hold a row that is not a JSON object", async () => {
+    await seedStore("pd-store-j");
+    for (const document of ["{not json", "[]", "\"home\""]) {
+      await expect(save("pd-store-j", "home", document)).rejects.toThrow();
+    }
   });
 
   it("never answers with another store's document", async () => {
@@ -409,3 +433,4 @@ describe("getPageDocument — the store's saved document for one surface", () =>
     expect(await getPageDocument(db, "pd-store-c", "home")).toBeNull();
   });
 });
+
