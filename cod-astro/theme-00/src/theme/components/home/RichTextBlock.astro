@@ -1,0 +1,32 @@
+---
+// The merchant's own words — a story, a promise, a note on delivery — set as
+// a text column under a section title. The body is the SDK's escaped HTML of a
+// rich-text value, so `set:html` receives nothing a merchant could inject.
+// No body, no section.
+import type { InferProps } from "@wocart/theme";
+import { richTextToHtml } from "@wocart/theme";
+import type { StoreFrontContent } from "@/theme/content";
+import type { richText } from "@/theme/catalog/home/rich-text.def";
+
+type Props = Pick<InferProps<typeof richText>, "body" | "alignment"> & {
+  content: StoreFrontContent;
+};
+
+const { body, alignment, content } = Astro.props;
+const href = Astro.locals.store.href;
+---
+
+{body && (
+  <section class:list={["frame py-10 sm:py-14", alignment === "center" && "text-center"]}>
+    <div class:list={["text-column", alignment === "center" && "mx-auto"]}>
+      <h2 class="section-title">{content.richTextTitle}</h2>
+      <div class="rich-description mt-4" set:html={richTextToHtml(body, { href })} />
+    </div>
+  </section>
+)}
+
+<style>
+  .text-column {
+    max-width: 70ch;
+  }
+</style>

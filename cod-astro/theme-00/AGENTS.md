@@ -147,6 +147,8 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   or `wrangler secret put` — never in `wrangler.jsonc`.
 - `MEDIA_DOMAIN` is optional; unset, the image optimizer passes URLs through
   unchanged.
+- `WOCART_PREVIEW_KEY` is optional: the editor's preview public key (an
+  Ed25519 JWK, a secret like the others). Unset, `/wocart-preview` is a 404.
 - **astro-icon uses an explicit allowlist** (`icon({ include: { heroicons: […] } })`
   in `astro.config.mjs`). An icon used in markup but missing from it throws
   *at request time* — `astro check`, the validators and the component tests all
@@ -226,6 +228,33 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   `src/theme/catalog/labels.ts` in all three. Add a label there, never inline.
   `home-languages-contracts.test.ts` proves saved copy follows the store's
   language and that every label is translated.
+- **The manifest is a build file (`/wocart-theme.json`).**
+  `src/pages/wocart-theme.json.ts` is the theme's one prerendered page; the
+  middleware lets prerendered pages through without resolving a store (there
+  is no request store at build). `defineTheme` declares the three content
+  packs (spread into plain objects) and the `home` surface with its page type
+  and `pages/home.page.json`, so the manifest carries everything an editor
+  shows. `__tests__/contracts/manifest-artifact.test.ts` pins it.
+- **Images, rich text and lists come from the SDK's field kinds.** An image
+  field stores a media key, resolved with `mediaKeyUrl` (`utils/images.ts`);
+  rich text is rendered with `richTextToHtml` into `.rich-description`; a
+  list's items carry their own ids. See the image banner, rich-text block,
+  FAQ and featured product (`catalog/home/*.def.ts`,
+  `__tests__/contracts/home-editor-sections.test.ts`).
+- **A home document another theme wrote is not rendered**: its `theme`
+  provenance names another key, so the shipped default renders
+  (`home-document.ts`, reason `other-theme`).
+- **An editor's preview is `/wocart-preview`** (`src/pages/wocart-preview.astro`,
+  ADR 0009). The middleware reads it first — `readThemePreview` in
+  `theme/sdk.ts` checks the editor's token with `WOCART_PREVIEW_KEY` (unset:
+  404) — and builds the draft's store context with `resolvePreviewStore`
+  (`runtime/store.ts`); a preview never runs a form action. The page renders
+  `theme/pages/HomeSurface.astro`, the same surface `/` renders, with
+  `preview` set, so every section is marked and `PreviewBridge.astro` loads
+  `@wocart/theme/preview`. Only the home surface is composed, so any other
+  surface is a 404. Never add a route rule that caches the path.
+  `__tests__/contracts/preview-route.test.ts` pins the route, the headers and
+  the bridge over its real markup.
 - **The order form's outcome lives in `src/theme/pages/order-outcome.ts`.**
   Product, landing and checkout pages call `orderOutcome(...)`; it owns the
   thank-you query that `thank-you.astro` reads back with `readThankYou`. Do not

@@ -51,4 +51,11 @@ export const arHome: HomeStrings = {
 
   testimonialsTitle: "ماذا يقول عملاؤنا",
   testimonialsSub: "تقييمات حقيقية من عملاء حقيقيين",
+
+  bannerTitle: "عروض الموسم",
+  bannerCta: "اكتشف العروض",
+  richTextTitle: "قصتنا",
+  faqTitle: "أسئلة شائعة",
+  featuredProductTitle: "منتج الأسبوع",
+  featuredProductCta: "اطلب الآن",
 };

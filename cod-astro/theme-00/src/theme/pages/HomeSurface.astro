@@ -1,0 +1,65 @@
+---
+// ── The home surface ────────────────────────────────────────────────────────
+// What the home page renders, and an editor's preview of it renders the same
+// way: section order comes from a page document — the store's saved one, a
+// draft in a preview, or the theme's shipped default when neither can be read
+// (the decision is `home-document.ts`). The store's document is written by
+// the Codflow Cloud control plane (Studio), never by this runtime.
+//
+// This file keeps the fixed chrome (StoreLayout) and the page's data graph:
+// ONE `reads` cache per render, shared by every section's `load` — the catalog
+// and the categories are still read once each no matter how many sections
+// consume them (`"catalog.products"` / `"catalog.categories"` in theme.ts).
+// A preview marks each section for the editor; anything in the default slot
+// (the preview's bridge) renders after the sections.
+// ─────────────────────────────────────────────────────────────────────────────
+import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import InstanceView from "@wocart/theme/astro/InstanceView.astro";
+import { createReadCache } from "@wocart/theme/astro";
+import type { ThemeRenderContext } from "@wocart/theme";
+import { theme00 } from "@/theme/theme";
+import { logHomeDecision, resolveHomeDocument } from "@/theme/pages/home-document";
+
+interface Props {
+  /** The document to render: what the store saved (`null` when absent), or a preview's draft. */
+  document: unknown;
+  preview?: boolean;
+}
+
+const { document, preview = false } = Astro.props;
+// The store context comes from middleware (Astro.locals.store — Theme Zero S2).
+const { config, content, locale, fallbackLocales, isRTL } = Astro.locals.store;
+const storefront = Astro.locals.store.client;
+
+const decision = resolveHomeDocument(document, theme00, {
+  content,
+  locales: [locale, ...fallbackLocales],
+});
+logHomeDecision(decision);
+
+const context: ThemeRenderContext = {
+  store: config,
+  content,
+  locale,
+  fallbackLocales,
+  isRTL,
+  url: Astro.url.pathname,
+  params: Astro.params,
+};
+const reads = createReadCache();
+const sections = decision.result.page?.sections ?? [];
+---
+
+<StoreLayout>
+  {sections.map((section) => (
+    <InstanceView
+      instance={section}
+      theme={theme00}
+      context={context}
+      storefront={storefront}
+      reads={reads}
+      preview={preview}
+    />
+  ))}
+  <slot />
+</StoreLayout>

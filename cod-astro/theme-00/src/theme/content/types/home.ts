@@ -1,7 +1,8 @@
 /**
  * Content pack types - home (split from types.ts).
  *
- * Groups: hero, trust-badges, hero-ctas, section-headings, how-it-works, features-bar, promo-banner, testimonials.
+ * Groups: hero, trust-badges, hero-ctas, section-headings, how-it-works, features-bar, promo-banner, testimonials,
+ * image-banner, rich-text, faq, featured-product.
  */
 
 export type HomeStrings = {
@@ -51,4 +52,11 @@ export type HomeStrings = {
 
   testimonialsTitle: string;
   testimonialsSub: string;
+
+  bannerTitle: string;
+  bannerCta: string;
+  richTextTitle: string;
+  faqTitle: string;
+  featuredProductTitle: string;
+  featuredProductCta: string;
 };

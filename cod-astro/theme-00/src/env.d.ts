@@ -2,6 +2,7 @@
 /// <reference types="astro/client" />
 
 import type { AdvancedRuntime } from '@astrojs/cloudflare';
+import type { PreviewClaims, PreviewDraft } from "./theme/sdk";
 import type { StoreContext } from "./theme/runtime/store";
 
 declare global {
@@ -12,6 +13,8 @@ declare global {
     COD_SERVER_URL: string;
     /** Optional media/CDN domain serving R2 images (e.g. media.yourdomain.com) — used by the image optimizer */
     MEDIA_DOMAIN?: string;
+    /** Optional editor preview public key (an Ed25519 JWK) — unset, `/wocart-preview` is off */
+    WOCART_PREVIEW_KEY?: string;
   }
 
   namespace App {
@@ -25,6 +28,11 @@ declare global {
        * the page that asked for it.
        */
       store: StoreContext;
+      /**
+       * Set only on the preview route (`/wocart-preview`), by the middleware,
+       * from a verified editor token: what to render and who may frame it.
+       */
+      preview?: { claims: PreviewClaims; draft: PreviewDraft; token: string };
     }
   }
 

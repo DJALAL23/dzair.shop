@@ -1,0 +1,92 @@
+---
+// A banner the merchant composes: their own photo on a plate beside a title,
+// a few formatted lines and one action. Without a photo it is a band of copy.
+// The image is a key in the store's media, resolved here; the rich text is the
+// SDK's escaped HTML, so `set:html` receives nothing a merchant could inject.
+import type { InferProps } from "@wocart/theme";
+import { richTextToHtml } from "@wocart/theme";
+import { Image } from "astro:assets";
+import { Icon } from "astro-icon/components";
+import type { StoreFrontContent } from "@/theme/content";
+import type { imageBanner } from "@/theme/catalog/home/image-banner.def";
+import { mediaKeyUrl } from "@/theme/utils/images";
+
+type Props = Pick<InferProps<typeof imageBanner>, "image" | "imageSide" | "body" | "ctaHref"> & {
+  content: StoreFrontContent;
+};
+
+const { image, imageSide, body, ctaHref, content } = Astro.props;
+const href = Astro.locals.store.href;
+const src = image ? mediaKeyUrl(image.key) : null;
+// Validated as two numbers between 0 and 1 by the theme contract.
+const focus = image?.focal ? `${image.focal.x * 100}% ${image.focal.y * 100}%` : "50% 50%";
+---
+
+<section class="frame py-10 sm:py-14">
+  <div class:list={["banner carton", src ? "has-image" : "no-image", imageSide === "end" && "image-end"]}>
+    {src && image && (
+      <div class="banner-photo">
+        <Image
+          src={src}
+          alt={image.alt ?? ""}
+          width={image.width ?? 1200}
+          height={image.height ?? 900}
+          widths={[480, 800, 1200]}
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          loading="lazy"
+          decoding="async"
+          style={`object-position: ${focus}`}
+        />
+      </div>
+    )}
+    <div class="banner-copy">
+      <h2 class="text-2xl font-bold sm:text-3xl">{content.bannerTitle}</h2>
+      {body && <div class="banner-body rich-description" set:html={richTextToHtml(body, { href })} />}
+      <a href={href(ctaHref)} class="btn-primary self-start">
+        {content.bannerCta}
+        <Icon name="heroicons:arrow-right" class="flip-rtl h-5 w-5" aria-hidden="true" />
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .banner {
+    display: grid;
+    overflow: hidden;
+  }
+  .banner.has-image {
+    grid-template-columns: 1fr;
+  }
+  .banner-photo {
+    background: var(--clr-surface-alt);
+    aspect-ratio: 4 / 3;
+  }
+  .banner-photo :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .banner-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.5rem;
+  }
+  .banner-body {
+    color: var(--clr-text-2);
+    max-width: 60ch;
+  }
+  @media (min-width: 768px) {
+    .banner.has-image {
+      grid-template-columns: 1fr 1fr;
+    }
+    .banner.image-end .banner-photo {
+      order: 2;
+    }
+    .banner-copy {
+      padding: 2.5rem;
+    }
+  }
+</style>

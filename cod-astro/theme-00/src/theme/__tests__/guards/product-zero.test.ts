@@ -90,7 +90,7 @@ describe("Product Zero — the homepage owns its data graph", () => {
     content.split(needle).length - 1;
 
   it("reads the catalog and categories exactly once each", () => {
-    const page = find("pages/index.astro");
+    const page = find("theme/pages/HomeSurface.astro");
     const definitions = files
       .filter((f) => f.relPath.startsWith("theme/catalog/"))
       .map((f) => f.content)

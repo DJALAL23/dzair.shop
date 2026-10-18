@@ -60,6 +60,13 @@ export default defineConfig({
         access: "secret",
         optional: true,
       }),
+      // Optional editor preview public key (an Ed25519 JWK). Unset → the
+      // preview route answers 404; a storefront verifies tokens, never makes them.
+      WOCART_PREVIEW_KEY: envField.string({
+        context: "server",
+        access: "secret",
+        optional: true,
+      }),
     },
   },
   // Links prefetch only when they opt in with data-astro-prefetch, as before

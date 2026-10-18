@@ -51,4 +51,11 @@ export const frHome: HomeStrings = {
 
   testimonialsTitle: "Ce que disent nos clients",
   testimonialsSub: "De vrais avis de vrais clients",
+
+  bannerTitle: "Les offres de la saison",
+  bannerCta: "Voir les offres",
+  richTextTitle: "Notre histoire",
+  faqTitle: "Questions fréquentes",
+  featuredProductTitle: "Le produit de la semaine",
+  featuredProductCta: "Commander",
 };

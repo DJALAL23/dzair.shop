@@ -9,6 +9,9 @@
  *   - absent (`null`)               → the shipped default
  *   - unparseable / bad version     → the shipped default (saved issues kept
  *                                     for reporting)
+ *   - written for another theme
+ *     (its `theme` names another)   → the shipped default: it was composed
+ *                                     from another catalog
  *   - sections that map to NO
  *     catalog type at all           → the shipped default (a theme switch left
  *                                     nothing renderable); a partial overlap
@@ -26,7 +29,7 @@ import type {
 } from "@wocart/theme";
 import shipped from "./home.page.json";
 
-export type HomeDocumentReason = "absent" | "invalid" | "no-overlap";
+export type HomeDocumentReason = "absent" | "invalid" | "no-overlap" | "other-theme";
 
 export interface HomeDocumentDecision {
   /** The parsed document to render. */
@@ -88,6 +91,16 @@ export function resolveHomeDocument(
       result,
       source: "default",
       reason: "invalid",
+      issues: [...savedResult.issues, ...result.issues],
+    };
+  }
+
+  if (savedResult.page.theme !== undefined && savedResult.page.theme.key !== theme.key) {
+    const result = parsePageData(shipped);
+    return {
+      result,
+      source: "default",
+      reason: "other-theme",
       issues: [...savedResult.issues, ...result.issues],
     };
   }

@@ -1,0 +1,81 @@
+---
+// One product the merchant chooses, shown large: the whole photo on its
+// plate, the name, the price and the order action — a single-product store's
+// strongest home section. A product that is gone renders nothing.
+import type { InferProps } from "@wocart/theme";
+import { Image } from "astro:assets";
+import { Icon } from "astro-icon/components";
+import { getProductView, storefrontPath } from "@wocart/storefront";
+import SectionHead from "@/theme/components/ui/SectionHead.astro";
+import type { StoreFrontContent } from "@/theme/content";
+import type { featuredProduct } from "@/theme/catalog/home/featured-product.def";
+import { formatAmount } from "@/theme/utils/money";
+
+type Props = Pick<InferProps<typeof featuredProduct>, "featured" | "currencySymbol"> & {
+  content: StoreFrontContent;
+};
+
+const { featured, currencySymbol, content } = Astro.props;
+const view = featured ? getProductView(featured) : null;
+const photo = featured?.images[0];
+---
+
+{featured && view && (
+  <section class="frame py-10 sm:py-14">
+    <SectionHead title={content.featuredProductTitle} />
+    <div class="spotlight carton">
+      <div class="plate spotlight-plate">
+        {photo && (
+          <Image
+            src={photo.src}
+            alt={photo.altText ?? featured.name}
+            width={800}
+            height={800}
+            widths={[400, 600, 800]}
+            sizes="(min-width: 768px) 50vw, 100vw"
+            loading="lazy"
+            decoding="async"
+          />
+        )}
+      </div>
+      <div class="spotlight-facts">
+        <h3 class="text-2xl font-bold sm:text-3xl">{featured.name}</h3>
+        <p class="price text-2xl">
+          {formatAmount(view.basePrice)} <span class="price-cur">{currencySymbol}</span>
+          {view.hasDiscount && view.comparePrice !== null && (
+            <span class="price-was ms-2 text-base">{formatAmount(view.comparePrice)}</span>
+          )}
+        </p>
+        <a href={Astro.locals.store.href(storefrontPath("product", { handle: featured.handle }))} class="btn-primary self-start">
+          {content.featuredProductCta}
+          <Icon name="heroicons:arrow-right" class="flip-rtl h-5 w-5" aria-hidden="true" />
+        </a>
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .spotlight {
+    display: grid;
+    overflow: hidden;
+  }
+  .spotlight-plate {
+    aspect-ratio: 1 / 1;
+  }
+  .spotlight-facts {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.5rem;
+  }
+  @media (min-width: 768px) {
+    .spotlight {
+      grid-template-columns: 1fr 1fr;
+    }
+    .spotlight-facts {
+      padding: 2.5rem;
+    }
+  }
+</style>

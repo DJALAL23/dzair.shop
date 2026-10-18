@@ -18,9 +18,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const createOrder = vi.fn();
 const getActionContext = vi.fn();
+const readThemePreview = vi.fn();
+const resolvePreviewStore = vi.fn();
 
 vi.mock("@/theme/sdk", () => ({
   getStoreClient: () => ({ orders: { create: createOrder } }),
+  readThemePreview: (request: Request) => readThemePreview(request),
 }));
 
 vi.mock("astro:actions", () => ({
@@ -50,6 +53,7 @@ const storeContext = {
 // renders the unprefixed route, `/ar/…` is the primary's second address.
 vi.mock("@/theme/runtime/store", async (importOriginal) => ({
   languageSource: ((await importOriginal()) as typeof import("@/theme/runtime/store")).languageSource,
+  resolvePreviewStore: (draft: unknown) => resolvePreviewStore(draft),
   resolveStoreRequest: async (path: string) =>
     /^\/ar(?:\/|$)/.test(path)
       ? { kind: "redirect", location: path.slice(3) || "/", status: 301 }
@@ -216,6 +220,18 @@ describe("onRequest binding (src/middleware.ts)", () => {
     });
     return setActionResult;
   };
+
+  it("passes a prerendered page straight through: it has no request store", async () => {
+    const setActionResult = wireAction(undefined);
+    const context = { ...makeContext(new Request("http://shop.example/wocart-theme.json")), isPrerendered: true };
+
+    const response = await middleware(context, next);
+
+    expect(await response.text()).toBe("page");
+    expect(context.locals.store).toBeUndefined();
+    expect(getActionContext).not.toHaveBeenCalled();
+    expect(setActionResult).not.toHaveBeenCalled();
+  });
 
   it("lets a plain page request through to next() without storing a result", async () => {
     const setActionResult = wireAction(undefined);
@@ -388,5 +404,56 @@ describe("onRequest binding (src/middleware.ts)", () => {
       await middleware(context, next);
       expect(context.locals.store).toMatchObject({ pathname: "/" });
     }
+  });
+});
+
+describe("the preview route in the middleware (src/middleware.ts)", () => {
+  const claims = { aud: "http://shop.example", theme: "theme-00", editor: "https://cloud.codflow.store", iat: 1, exp: 2 };
+  const draft = { surface: "home", locale: "fr", content: { fr: { heroTitle: "Soldes" } } };
+
+  beforeEach(() => {
+    getActionContext.mockReset();
+    readThemePreview.mockReset();
+    resolvePreviewStore.mockReset();
+  });
+
+  it("answers a refused preview with its status, before any store or action", async () => {
+    readThemePreview.mockResolvedValue({ ok: false, status: 403, reason: "the token is refused: expired" });
+    const context = makeContext(new Request("http://shop.example/wocart-preview?token=x&surface=home"));
+
+    const response = await middleware(context, next);
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await response.text()).toBe("");
+    expect(context.locals.store).toBeUndefined();
+    expect(resolvePreviewStore).not.toHaveBeenCalled();
+    expect(getActionContext).not.toHaveBeenCalled();
+  });
+
+  it("renders a verified preview with the draft's store context, and never runs a form action", async () => {
+    const request = new Request("http://shop.example/wocart-preview", { method: "POST" });
+    readThemePreview.mockResolvedValue({ ok: true, claims, draft, token: "signed" });
+    resolvePreviewStore.mockResolvedValue({ ...storeContext, locale: "fr" });
+    const context = makeContext(request);
+
+    const response = await middleware(context, next);
+
+    expect(readThemePreview).toHaveBeenCalledWith(request);
+    expect(resolvePreviewStore).toHaveBeenCalledWith(draft);
+    expect(await response.text()).toBe("page");
+    expect(context.locals.store).toEqual({ ...storeContext, locale: "fr" });
+    expect(context.locals.preview).toEqual({ claims, draft, token: "signed" });
+    expect(getActionContext).not.toHaveBeenCalled();
+  });
+
+  it("never reads a preview on any other route, nor under a language prefix", async () => {
+    getActionContext.mockReturnValue({ action: undefined, setActionResult: vi.fn(), serializeActionResult: vi.fn() });
+    for (const path of ["/", "/fr/wocart-preview", "/wocart-preview/x", "/products?wocart-preview"]) {
+      const context = makeContext(new Request(`http://shop.example${path}`));
+      await middleware(context, next);
+      expect(context.locals.preview).toBeUndefined();
+    }
+    expect(readThemePreview).not.toHaveBeenCalled();
   });
 });

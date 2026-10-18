@@ -284,6 +284,65 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
   });
 });
 
+describe("resolvePreviewStore() — the store as an editor's draft would leave it", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    env.COD_SERVER_URL = "https://api.example.test";
+    env.STORE_API_KEY = "test-key-abc";
+  });
+
+  afterEach(() => {
+    env.COD_SERVER_URL = undefined;
+    env.STORE_API_KEY = undefined;
+    vi.unstubAllGlobals();
+  });
+
+  const preview = async (draft: import("@/theme/sdk").PreviewDraft) => (await import("@/theme/runtime/store")).resolvePreviewStore(draft);
+
+  it("renders the draft's text edits and settings over the saved ones, without the pixel", async () => {
+    stubConfigServer({ themeSettings: { primaryColor: "#7c3aed" } });
+    const ctx = await preview({ surface: "home", settings: { primaryColor: "#112233" }, content: { ar: { heroTitle: "تخفيضات الصيف" } } });
+
+    expect(ctx.locale).toBe("ar");
+    expect(ctx.isRTL).toBe(true);
+    expect(ctx.content.heroTitle).toBe("تخفيضات الصيف");
+    expect(ctx.config.themeSettings).toEqual({ primaryColor: "#112233" });
+    expect(ctx.config.pixelId).toBeNull();
+    expect(ctx.pathname).toBe("/");
+    expect(ctx.href("/products")).toBe("/products");
+  });
+
+  it("previews a published language with its own config, client and links", async () => {
+    const calls = stubConfigServer({}, { fr: { metaTitle: "Boutique d'Alger" } });
+    const ctx = await preview({ surface: "home", locale: "fr", content: { fr: { heroTitle: "Soldes" }, ar: { heroTitle: "تخفيضات" } } });
+
+    expect(ctx.locale).toBe("fr");
+    expect(ctx.isRTL).toBe(false);
+    expect(ctx.config.metaTitle).toBe("Boutique d'Alger");
+    expect(ctx.content.heroTitle).toBe("Soldes");
+    expect(ctx.fallbackLocales).toEqual(["ar"]);
+    expect(ctx.href("/products")).toBe("/fr/products");
+    expect(calls).toContain("https://api.example.test/store/config?theme=theme-00&locale=fr");
+  });
+
+  it("falls back to the primary for a language the store does not serve", async () => {
+    const calls = stubConfigServer({}, { fr: { locale: "ar" } });
+    for (const locale of ["en", "fr", "ar"]) {
+      const ctx = await preview({ surface: "home", locale });
+      expect(ctx.locale).toBe("ar");
+      expect(ctx.isRTL).toBe(true);
+      expect(ctx.fallbackLocales).toEqual([]);
+    }
+    // A language the store does not publish is never asked for.
+    expect(calls.filter((url) => url.includes("locale=en"))).toEqual([]);
+  });
+
+  it("keeps the page a template draft is previewed for", async () => {
+    stubConfigServer();
+    expect((await preview({ surface: "product", path: "/products/phone" })).pathname).toBe("/products/phone");
+  });
+});
+
 describe("languageSource — where a request's language comes from", () => {
   const page = (path: string) => new URL(`https://shop.dz${path}`);
 

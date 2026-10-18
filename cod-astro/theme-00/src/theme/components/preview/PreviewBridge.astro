@@ -1,0 +1,25 @@
+---
+// The preview page's link to the editor that frames it (`@wocart/theme/preview`):
+// it reports where each marked section is, turns clicks into selections, and
+// re-renders the drafts the editor sends. Rendered only on `/wocart-preview`,
+// from a verified token — a shopper's page never loads it.
+interface Props {
+  /** The verified token's editor origin: the only window it talks to. */
+  editor: string;
+  /** The verified token, posted back with each draft. */
+  token: string;
+}
+
+const { editor, token } = Astro.props;
+---
+
+<wocart-preview-bridge data-editor={editor} data-token={token} hidden></wocart-preview-bridge>
+
+<script>
+  import { startPreviewBridge } from "@wocart/theme/preview";
+
+  const host = document.querySelector<HTMLElement>("wocart-preview-bridge");
+  if (host?.dataset.editor && host.dataset.token) {
+    startPreviewBridge({ editorOrigin: host.dataset.editor, token: host.dataset.token });
+  }
+</script>

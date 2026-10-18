@@ -1,6 +1,6 @@
 # Content Keys Reference
 
-All **155** content keys of the `StoreFrontContent` interface. The interface
+The content keys of the `StoreFrontContent` interface, by area. The interface
 lives in `src/theme/content/types.ts` and is implemented exactly by the three
 locale files `ar.ts`, `fr.ts`, and `en.ts`. Adding or removing a key means
 updating **all three** files — TypeScript fails the build otherwise.
@@ -76,6 +76,14 @@ updating **all three** files — TypeScript fails the build otherwise.
 | Key | Notes |
 |-----|-------|
 | `testimonialsTitle`, `testimonialsSub` | Review/testimonial section |
+
+### Editor sections (6)
+| Key | Notes |
+|-----|-------|
+| `bannerTitle`, `bannerCta` | Image banner: title and button |
+| `richTextTitle` | Rich-text block title |
+| `faqTitle` | FAQ title (the questions are the merchant's) |
+| `featuredProductTitle`, `featuredProductCta` | Featured product: title and button |
 
 ### Footer (6)
 | Key | Notes |

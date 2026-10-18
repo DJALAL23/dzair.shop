@@ -17,10 +17,17 @@
  * - **One binding point.** A helper missing here is a bug in this file, not a
  *   reason to re-implement it — `createImageHelpers` is the SDK's contract.
  */
-import { createImageHelpers } from "@wocart/storefront";
+import { createImageHelpers, mediaUrl } from "@wocart/storefront";
 import { MEDIA_DOMAIN } from "astro:env/server";
 
 const images = createImageHelpers(MEDIA_DOMAIN);
+
+/**
+ * The URL of an image the merchant chose in the editor: an `image` field
+ * stores the object's key in the store's media, never a URL. `null` without a
+ * media domain (local dev with no CDN): the section renders without it.
+ */
+export const mediaKeyUrl = (key: string): string | null => mediaUrl(key, MEDIA_DOMAIN);
 
 export const optimizeImage = images.optimizeImage;
 export const generateSrcSet = images.generateSrcSet;

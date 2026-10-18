@@ -10,12 +10,27 @@
 // 2. The SDK's form action: it runs an action posted from a form and stores the
 //    result for the page this POST renders — the thank-you redirect on success,
 //    the form with its error in place on a refusal.
+//
+// The preview route (`/wocart-preview`, an editor's frame) is the exception:
+// its store context is the draft's, and it never runs a form action.
 import { defineMiddleware } from "astro:middleware";
 import { getActionContext } from "astro:actions";
 import { runFormAction } from "@wocart/storefront/astro";
-import { languageSource, resolveStoreRequest } from "@/theme/runtime/store";
+import { THEME_PREVIEW_PATH } from "@wocart/theme";
+import { languageSource, resolvePreviewStore, resolveStoreRequest } from "@/theme/runtime/store";
+import { readThemePreview } from "@/theme/sdk";
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  // A prerendered page is built once, for every store: it has no request
+  // store to resolve (the theme's manifest is the one such page).
+  if (context.isPrerendered) return next();
+  if (context.url.pathname === THEME_PREVIEW_PATH) {
+    const preview = await readThemePreview(context.request);
+    if (!preview.ok) return new Response(null, { status: preview.status, headers: { "Cache-Control": "no-store" } });
+    context.locals.store = await resolvePreviewStore(preview.draft);
+    context.locals.preview = { claims: preview.claims, draft: preview.draft, token: preview.token };
+    return next();
+  }
   // Store context first: the form action below may read `context.locals`, and
   // the page that renders afterwards needs it too.
   // The language comes from the path (`/fr/…`, ADR 0005): the primary's own

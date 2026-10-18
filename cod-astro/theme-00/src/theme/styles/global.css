@@ -590,6 +590,10 @@ body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
  * that allow-list permits, using theme tokens (never raw design values).
  * Anything not listed here cannot reach the DOM, because it is stripped
  * upstream — so there is no need for defensive `all: unset` resets.
+ *
+ * Home sections' rich-text fields render here too: @wocart/theme's
+ * `richTextToHtml` emits a subset of these tags (p, h2–h4, ul/ol/li, strong,
+ * em, u, s, a, br), escaped.
  */
 .rich-description > :first-child { margin-top: 0; }
 .rich-description > :last-child { margin-bottom: 0; }

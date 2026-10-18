@@ -79,6 +79,27 @@ describe("resolveHomeDocument — what the home surface renders", () => {
     expect(decision.reason).toBe("no-overlap");
   });
 
+  it("a document another theme wrote: default wins, even when its sections overlap", () => {
+    const decision = resolveHomeDocument(
+      { version: 1, surface: "home", theme: { key: "another-theme", version: "2.0.0" }, sections: [{ id: "h", type: "hero" }] },
+      theme00,
+    );
+
+    expect(decision.source).toBe("default");
+    expect(decision.reason).toBe("other-theme");
+    expect(decision.issues.map((issue) => issue.code)).toContain("theme-mismatch");
+  });
+
+  it("a document this theme wrote, at any of its versions, is the saved one", () => {
+    const decision = resolveHomeDocument(
+      { version: 1, surface: "home", theme: { key: "theme-00", version: "0.9.0" }, sections: [{ id: "h", type: "hero" }] },
+      theme00,
+    );
+
+    expect(decision.source).toBe("saved");
+    expect(decision.reason).toBeNull();
+  });
+
   it("a type named like an Object.prototype member is not in the catalog", () => {
     const decision = resolveHomeDocument(
       { version: 1, surface: "home", sections: [{ id: "x", type: "constructor" }] },

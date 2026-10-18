@@ -14,7 +14,7 @@
  * successful read is cached for the client's lifetime (one fetch per isolate,
  * not one per render) and any failure still falls back to DEFAULT_CONFIG.
  */
-import { getStoreClient, type StoreClient } from "@/theme/sdk";
+import { getStoreClient, previewConfig, type PreviewDraft, type StoreClient } from "@/theme/sdk";
 import { resolveContent } from "@/theme/content";
 import {
   localeRouting,
@@ -149,24 +149,44 @@ export async function resolveStoreRequest(requestPath: string): Promise<StoreReq
     return { kind: "redirect", location: path.pathname, status: 302 };
   }
 
-  const locale = path.locale;
+  return { kind: "page", store: storeContext(config, client, routing, path.locale, path.pathname) };
+}
+
+/**
+ * The store context of a preview: the language the draft asks for when the
+ * store serves it (else the primary), and the store as the draft would leave
+ * it — its theme settings and text edits over the saved ones. Only the
+ * middleware calls this, for the preview route.
+ */
+export async function resolvePreviewStore(draft: PreviewDraft): Promise<StoreContext> {
+  const primaryClient = getStoreClient();
+  const primaryConfig = (await primaryClient.config.get()) ?? DEFAULT_CONFIG;
+  const routing = localeRouting(primaryConfig);
+  const pathname = draft.path ?? "/";
+  const asked = draft.locale;
+  if (asked !== undefined && asked !== routing.primary && routing.published.includes(asked)) {
+    const client = getStoreClient(asked);
+    const config = await client.config.get();
+    if (config !== null && config.locale === asked) return storeContext(previewConfig(config, draft), client, routing, asked, pathname);
+  }
+  return storeContext(previewConfig(primaryConfig, draft), primaryClient, routing, routing.primary, pathname);
+}
+
+function storeContext(config: StoreConfig, client: StoreClient, routing: LocaleRouting, locale: string, pathname: string): StoreContext {
   // Only this language's overrides: another language's map would mix languages.
   const content = resolveContent(locale, config.contentOverrides[locale]);
   // The server describes every language it serves; a config that somehow
   // lacks this one renders left-to-right rather than failing the page.
   const isRTL = servedLanguage(config, locale)?.direction === "rtl";
   return {
-    kind: "page",
-    store: {
-      config,
-      content,
-      locale,
-      fallbackLocales: translated ? [routing.primary] : [],
-      isRTL,
-      client,
-      routing,
-      pathname: path.pathname,
-      href: (target) => localizeHref(target, locale, routing),
-    },
+    config,
+    content,
+    locale,
+    fallbackLocales: locale === routing.primary ? [] : [routing.primary],
+    isRTL,
+    client,
+    routing,
+    pathname,
+    href: (target) => localizeHref(target, locale, routing),
   };
 }

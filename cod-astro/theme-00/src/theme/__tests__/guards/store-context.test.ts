@@ -19,13 +19,15 @@ describe("Theme Zero — one store-context acquisition point", () => {
   });
 
   it("only middleware acquires the store context", () => {
-    const owners = files
-      .filter((f) => f.content.includes("resolveStoreRequest("))
-      .map((f) => f.relPath)
-      .sort();
+    for (const acquire of ["resolveStoreRequest(", "resolvePreviewStore("]) {
+      const owners = files
+        .filter((f) => f.content.includes(acquire))
+        .map((f) => f.relPath)
+        .sort();
 
-    // store.ts defines it; middleware calls it. Anyone else is a second seam.
-    expect(owners).toEqual(["middleware.ts", "theme/runtime/store.ts"]);
+      // store.ts defines it; middleware calls it. Anyone else is a second seam.
+      expect(owners, acquire).toEqual(["middleware.ts", "theme/runtime/store.ts"]);
+    }
   });
 
   it("only the adapter and the middleware's own store module create SDK clients; pages use the request's", () => {

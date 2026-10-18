@@ -22,6 +22,10 @@ export const SECTION = {
   featuresBar: text("شريط المزايا", "Barre des avantages", "Features bar"),
   whatsappCta: text("دعوة واتساب", "Appel à l'action WhatsApp", "WhatsApp call to action"),
   customerTestimonials: text("آراء العملاء", "Avis clients", "Customer testimonials"),
+  imageBanner: text("بانر بصورة", "Bannière avec image", "Image banner"),
+  richText: text("نص منسق", "Texte mis en forme", "Rich text"),
+  faq: text("الأسئلة الشائعة", "Questions fréquentes", "FAQ"),
+  featuredProduct: text("منتج بارز", "Produit à la une", "Featured product"),
 };
 
 export const FIELD = {
@@ -43,6 +47,21 @@ export const FIELD = {
   feature: (n: number) => text(`الميزة ${n}`, `Avantage ${n}`, `Feature ${n}`),
   stepTitle: (n: number) => text(`عنوان الخطوة ${n}`, `Titre de l'étape ${n}`, `Step ${n} title`),
   stepText: (n: number) => text(`نص الخطوة ${n}`, `Texte de l'étape ${n}`, `Step ${n} text`),
+  image: text("الصورة", "Image", "Image"),
+  imageSide: text("موضع الصورة", "Côté de l'image", "Image side"),
+  text: text("النص", "Texte", "Text"),
+  alignment: text("المحاذاة", "Alignement", "Alignment"),
+  questions: text("الأسئلة", "Questions", "Questions"),
+  question: text("السؤال", "Question", "Question"),
+  answer: text("الجواب", "Réponse", "Answer"),
+  product: text("المنتج", "Produit", "Product"),
+};
+
+/** The words an editor shows for a select field's options. */
+export const OPTION = {
+  start: text("في البداية", "Au début", "At the start"),
+  end: text("في النهاية", "À la fin", "At the end"),
+  center: text("في الوسط", "Au centre", "Centered"),
 };
 
 export const GROUP = {

@@ -147,6 +147,25 @@ Home is *composed* through `@wocart/theme`, not hardcoded in the page:
 
 Add a section = add `catalog/home/<type>.def.ts` + register it in `theme.ts`.
 
+5. **The editor reads the manifest, never the theme.** `/wocart-theme.json`
+   (prerendered from `theme.ts` by `themeManifestEndpoint`) carries every
+   section, field, preset, setting and text pack. A field an editor can fill
+   is declared once, in the definition, with the SDK's kinds: copy (`text`
+   with a `contentKey`), links (`url`), counts (`number`), images (`image` —
+   a media key, resolved with `mediaKeyUrl`), formatted text (`richtext` —
+   rendered with `richTextToHtml` into `.rich-description`), repeatable items
+   (`list`) and store picks (`menu`, `collection`, `product`, `category`).
+   Select options carry their editor words in `optionLabels`.
+
+6. **An editor previews drafts on the real storefront.** `/wocart-preview`
+   renders the same home surface as `/` (`theme/pages/HomeSurface.astro`)
+   from the draft an editor sends, with each section marked for the editor
+   and the SDK's bridge loaded. A section with browser behavior binds it
+   again on `wocart:section-load`: a re-rendered section's scripts do not run
+   twice. When the whole page is swapped, the bridge fires `astro:page-load`,
+   so page behavior mounted with `onEachPage` (`scripts/page-lifecycle.ts`)
+   mounts again, as after a soft navigation.
+
 ---
 
 ## 3. Design system

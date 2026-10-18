@@ -27,10 +27,12 @@
  * A defect in SDK behavior is fixed in `wocart-sdk/storefront/` with a regression
  * test there — never by growing this file into a second implementation.
  */
-import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
+import { createStoreClient, readPreviewRequest, type PreviewRequest, type StoreClient } from "@wocart/storefront/server";
 
 export type { StoreClient };
-import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
+export { previewConfig, previewResponseHeaders } from "@wocart/storefront/server";
+export type { PreviewClaims, PreviewDraft } from "@wocart/storefront/server";
+import { COD_SERVER_URL, STORE_API_KEY, WOCART_PREVIEW_KEY } from "astro:env/server";
 import { THEME_KEY } from "@/theme/key";
 
 /**
@@ -54,4 +56,15 @@ export function getStoreClient(locale?: string): StoreClient {
         console.warn(`[theme-00] degraded read: ${error.operation} (${error.code})`);
       },
     });
+}
+
+/**
+ * An editor's preview request (`/wocart-preview`), checked with this
+ * deployment's preview key: a token the editor's server signed, for this
+ * storefront and this theme. Without a key (`WOCART_PREVIEW_KEY` unset)
+ * preview is off and every such request answers 404. The middleware calls
+ * this for the preview route only.
+ */
+export function readThemePreview(request: Request): Promise<PreviewRequest> {
+  return readPreviewRequest(request, { publicKey: WOCART_PREVIEW_KEY, theme: THEME_KEY });
 }
