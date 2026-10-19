@@ -2,7 +2,8 @@
  * The page-document **surface key** — the single declaration of the format a
  * surface name must have (Phase 6: `cod-sdk/theme-sdk/20`).
  *
- * A surface is the *address* of a composed page: `home` today; `page:<slug>`
+ * A surface is the *address* of a composed page: `home`, `product`, …;
+ * `area:<key>` is an area's document (a header, a footer), and `page:<slug>`
  * and `lp:<slug>` are the reserved conventions. Three consumers read this
  * constant — cod-server's `GET /store/page-documents/{surface}` route, the
  * seed script in `cod-server/scripts`, and (mirrored, with a parity guard in
