@@ -105,7 +105,20 @@ other is how these drift.
 - `cod-shared` is the single source of truth for the D1 schema, queries, RBAC
   scopes, and error codes. Do not duplicate schema or scope definitions in
   cod-server or cod-client-astro.
-- Migrations: add a new migration; never rewrite an already-applied one.
+- **A migration never loses a store's data.** Add a new migration; never
+  rewrite a released one. A migration runs on every live store — Cloud and
+  self-hosted — before the new server is deployed, so it keeps every row and
+  value, and keeps the running server working: add first, stop reading in
+  that release, drop in a later one. A statement that deletes or rewrites
+  rows names its table in `-- data-safety: <table>[.<column>] — <reason>` (or
+  `-- data-safety: rebuild <table> — <reason>`), and the file gets its own
+  `src/db/migration-<NNNN>-*.e2e.test.ts` proving it on data. Never rebuild
+  (DROP + RENAME) a table other tables reference: on D1 the drop deletes
+  their rows through `ON DELETE CASCADE` even with
+  `PRAGMA defer_foreign_keys`, and `PRAGMA foreign_keys` does nothing there.
+  `cod-server/src/db/migration-safety.e2e.test.ts` enforces this on a
+  database with a row in every table; the platform release runs it even with
+  `--skip-checks`.
 - Ask before adding a production dependency or changing the D1 schema.
 - Keep engine logic out of `cod-astro/theme-00`; the theme layer is meant to be
   swappable (see `cod-astro/theme-00/AGENTS.md`).

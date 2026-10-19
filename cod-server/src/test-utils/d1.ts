@@ -16,7 +16,7 @@ import { drizzle } from "drizzle-orm/d1";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
 
-const MIGRATIONS_DIR = resolve(__dirname, "../db/migrations");
+export const MIGRATIONS_DIR = resolve(__dirname, "../db/migrations");
 
 /**
  * D1 caps how many statements one batch may carry, and the full migration set
@@ -24,21 +24,26 @@ const MIGRATIONS_DIR = resolve(__dirname, "../db/migrations");
  */
 const BATCH_SIZE = 50;
 
-function migrationFiles(): string[] {
+export function migrationFiles(): string[] {
   return readdirSync(MIGRATIONS_DIR)
     .filter((file) => file.endsWith(".sql"))
     .sort();
 }
 
-function migrationStatements(files: readonly string[]): string[] {
-  return files.flatMap((file) =>
-    readFileSync(`${MIGRATIONS_DIR}/${file}`, "utf8")
+/** A migration file's statements, split as the deployments split it. */
+export function splitMigration(sql: string): string[] {
+  return (
+    sql
       .split("--> statement-breakpoint")
       .flatMap((chunk) => chunk.split(/;\s*\n/))
       .map((statement) => statement.replace(/;+\s*$/, "").trim())
       // A chunk that is only comments has no statement in it.
-      .filter((statement) => statement.replace(/--[^\n]*/g, "").trim().length > 0),
+      .filter((statement) => statement.replace(/--[^\n]*/g, "").trim().length > 0)
   );
+}
+
+export function migrationStatements(files: readonly string[]): string[] {
+  return files.flatMap((file) => splitMigration(readFileSync(`${MIGRATIONS_DIR}/${file}`, "utf8")));
 }
 
 export interface TestD1 {
@@ -59,7 +64,8 @@ export interface TestD1 {
   dispose: () => Promise<void>;
 }
 
-async function replay(raw: D1Database, files: readonly string[]): Promise<void> {
+/** Apply migration files in order, as the deployments do: each statement, in batches. */
+export async function replay(raw: D1Database, files: readonly string[]): Promise<void> {
   const prepared = migrationStatements(files).map((statement) => raw.prepare(statement));
   for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
     await raw.batch(prepared.slice(i, i + BATCH_SIZE));
