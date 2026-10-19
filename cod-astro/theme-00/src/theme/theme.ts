@@ -32,7 +32,7 @@ import { featuredProduct } from "./catalog/home/featured-product.def";
 
 export const theme00 = defineTheme({
   key: THEME_KEY,
-  version: "1.4.0",
+  version: "1.4.1",
   preview: true,
   // The languages this theme's content packs cover; every editor label must
   // be translated into all of them (`catalog/labels.ts`).

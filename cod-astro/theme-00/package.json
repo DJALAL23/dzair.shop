@@ -2,7 +2,7 @@
   "name": "cod-astro-theme-00",
   "private": true,
   "type": "module",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -29,7 +29,7 @@
     "@iconify-json/heroicons": "^1.2.3",
     "@playform/compress": "^0.2.5",
     "@wocart/storefront": "1.17.0",
-    "@wocart/theme": "1.5.0",
+    "@wocart/theme": "1.6.0",
     "astro": "^7.3.2",
     "astro-icon": "^1.1.5",
     "zod": "^4.4.3"
