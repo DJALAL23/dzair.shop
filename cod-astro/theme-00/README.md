@@ -70,7 +70,7 @@ Defined in `astro.config.mjs` → `env.schema`, read from `.dev.vars` locally an
 | `STORE_API_KEY` | yes | Per-store key sent as `X-Store-API-Key` to the `/store/*` API. Must match the key seeded into D1 (dev default: `codflow-dev-store-key`). |
 | `COD_SERVER_URL` | yes | Base URL of the `cod-server` Worker (dev: `http://localhost:8787`). |
 | `MEDIA_DOMAIN` | no | Media/CDN domain serving R2 images (no scheme). Unset → the image optimizer passes original URLs through unchanged. |
-| `WOCART_PREVIEW_KEY` | no | The editor's preview public key (an Ed25519 JWK). Unset → `/wocart-preview` answers 404 and no editor can preview drafts on this storefront. |
+| `WOCART_PREVIEW_KEY` | no | The editor's public key (an Ed25519 JWK), set by CodFlow Cloud's deploy. It opens `/wocart-preview` for the editor, and lets `/wocart-revalidate` drop cached pages after a publish. Unset → both answer 404. |
 
 ## Scripts
 

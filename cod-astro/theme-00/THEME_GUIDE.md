@@ -166,6 +166,12 @@ Add a section = add `catalog/home/<type>.def.ts` + register it in `theme.ts`.
    so page behavior mounted with `onEachPage` (`scripts/page-lifecycle.ts`)
    mounts again, as after a soft navigation.
 
+7. **A publish shows at once.** Pages are cached at the edge (route rules
+   in `astro.config.mjs`); after a merchant publishes, the Cloud calls
+   `/wocart-revalidate` and the theme drops every page tagged `"pages"`. A
+   new cached route takes that tag too, or it shows the old publish until
+   it expires.
+
 ---
 
 ## 3. Design system

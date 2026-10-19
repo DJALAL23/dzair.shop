@@ -255,6 +255,14 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   surface is a 404. Never add a route rule that caches the path.
   `__tests__/contracts/preview-route.test.ts` pins the route, the headers and
   the bridge over its real markup.
+- **A publish shows at once through `/wocart-revalidate`**
+  (`src/pages/wocart-revalidate.ts`). CodFlow Cloud posts a signed token
+  there after a publish (`readThemeRevalidation` in `theme/sdk.ts`, the same
+  `WOCART_PREVIEW_KEY`), and the route drops every cached page with
+  `context.cache.invalidate({ tags: ["pages"] })`. Every cached page route in
+  `astro.config.mjs` must carry the `"pages"` tag:
+  `revalidate-route.test.ts` fails on one that does not. The middleware lets
+  the route through without resolving a store.
 - **The order form's outcome lives in `src/theme/pages/order-outcome.ts`.**
   Product, landing and checkout pages call `orderOutcome(...)`; it owns the
   thank-you query that `thank-you.astro` reads back with `readThankYou`. Do not

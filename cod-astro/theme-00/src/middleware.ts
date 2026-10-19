@@ -12,18 +12,20 @@
 //    the form with its error in place on a refusal.
 //
 // The preview route (`/wocart-preview`, an editor's frame) is the exception:
-// its store context is the draft's, and it never runs a form action.
+// its store context is the draft's, and it never runs a form action. The
+// revalidation route (`/wocart-revalidate`) needs no store at all.
 import { defineMiddleware } from "astro:middleware";
 import { getActionContext } from "astro:actions";
 import { runFormAction } from "@wocart/storefront/astro";
 import { THEME_PREVIEW_PATH } from "@wocart/theme";
 import { languageSource, resolvePreviewStore, resolveStoreRequest } from "@/theme/runtime/store";
-import { readThemePreview } from "@/theme/sdk";
+import { REVALIDATE_PATH, readThemePreview } from "@/theme/sdk";
 
 export const onRequest = defineMiddleware(async (context, next) => {
   // A prerendered page is built once, for every store: it has no request
   // store to resolve (the theme's manifest is the one such page).
   if (context.isPrerendered) return next();
+  if (context.url.pathname === REVALIDATE_PATH) return next();
   if (context.url.pathname === THEME_PREVIEW_PATH) {
     const preview = await readThemePreview(context.request);
     if (!preview.ok) return new Response(null, { status: preview.status, headers: { "Cache-Control": "no-store" } });

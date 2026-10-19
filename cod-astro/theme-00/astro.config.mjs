@@ -32,13 +32,15 @@ export default defineConfig({
   cache: {
     provider: cacheProvider,
   },
+  // Every cached page carries "pages": a publish (theme pages, settings or
+  // text) changes them all, and src/pages/wocart-revalidate.ts drops that tag.
   routeRules: {
-    "/": { maxAge: 60, swr: 3600, tags: ["home"] },
-    "/products": { maxAge: 60, swr: 3600, tags: ["products"] },
-    "/products/[slug]": { maxAge: 60, swr: 86400, tags: ["products"] },
-    "/category/[slug]": { maxAge: 60, swr: 86400, tags: ["categories"] },
-    "/lp/[slug]": { maxAge: 60, swr: 86400, tags: ["landing-pages"] },
-    "/pages/[slug]": { maxAge: 3600, swr: 604800, tags: ["legal-pages"] },
+    "/": { maxAge: 60, swr: 3600, tags: ["home", "pages"] },
+    "/products": { maxAge: 60, swr: 3600, tags: ["products", "pages"] },
+    "/products/[slug]": { maxAge: 60, swr: 86400, tags: ["products", "pages"] },
+    "/category/[slug]": { maxAge: 60, swr: 86400, tags: ["categories", "pages"] },
+    "/lp/[slug]": { maxAge: 60, swr: 86400, tags: ["landing-pages", "pages"] },
+    "/pages/[slug]": { maxAge: 3600, swr: 604800, tags: ["legal-pages", "pages"] },
     "/api/communes/[wilayaId]": { maxAge: 31536000, swr: 31536000, tags: ["communes"] },
   },
   env: {

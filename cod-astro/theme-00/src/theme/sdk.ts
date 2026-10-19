@@ -27,10 +27,10 @@
  * A defect in SDK behavior is fixed in `wocart-sdk/storefront/` with a regression
  * test there — never by growing this file into a second implementation.
  */
-import { createStoreClient, readPreviewRequest, type PreviewRequest, type StoreClient } from "@wocart/storefront/server";
+import { createStoreClient, readPreviewRequest, readRevalidateRequest, type PreviewRequest, type RevalidateRequest, type StoreClient } from "@wocart/storefront/server";
 
 export type { StoreClient };
-export { previewConfig, previewResponseHeaders } from "@wocart/storefront/server";
+export { REVALIDATE_PATH, previewConfig, previewResponseHeaders } from "@wocart/storefront/server";
 export type { PreviewClaims, PreviewDraft } from "@wocart/storefront/server";
 import { COD_SERVER_URL, STORE_API_KEY, WOCART_PREVIEW_KEY } from "astro:env/server";
 import { THEME_KEY } from "@/theme/key";
@@ -67,4 +67,14 @@ export function getStoreClient(locale?: string): StoreClient {
  */
 export function readThemePreview(request: Request): Promise<PreviewRequest> {
   return readPreviewRequest(request, { publicKey: WOCART_PREVIEW_KEY, theme: THEME_KEY });
+}
+
+/**
+ * The platform's revalidation request (`/wocart-revalidate`): a publish
+ * changed what this store's pages show. Checked with the same deployment key
+ * as previews, for a token made for revalidation only; without a key it
+ * answers 404.
+ */
+export function readThemeRevalidation(request: Request): Promise<RevalidateRequest> {
+  return readRevalidateRequest(request, { publicKey: WOCART_PREVIEW_KEY, theme: THEME_KEY });
 }

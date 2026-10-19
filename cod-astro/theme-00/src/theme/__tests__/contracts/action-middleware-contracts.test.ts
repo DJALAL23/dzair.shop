@@ -24,6 +24,7 @@ const resolvePreviewStore = vi.fn();
 vi.mock("@/theme/sdk", () => ({
   getStoreClient: () => ({ orders: { create: createOrder } }),
   readThemePreview: (request: Request) => readThemePreview(request),
+  REVALIDATE_PATH: "/wocart-revalidate",
 }));
 
 vi.mock("astro:actions", () => ({
@@ -444,6 +445,15 @@ describe("the preview route in the middleware (src/middleware.ts)", () => {
     expect(await response.text()).toBe("page");
     expect(context.locals.store).toEqual({ ...storeContext, locale: "fr" });
     expect(context.locals.preview).toEqual({ claims, draft, token: "signed" });
+    expect(getActionContext).not.toHaveBeenCalled();
+  });
+
+  it("lets the revalidation route through with no store, no preview and no form action", async () => {
+    const context = makeContext(new Request("http://shop.example/wocart-revalidate", { method: "POST" }));
+    const response = await middleware(context, next);
+    expect(await response.text()).toBe("page");
+    expect(context.locals.store).toBeUndefined();
+    expect(readThemePreview).not.toHaveBeenCalled();
     expect(getActionContext).not.toHaveBeenCalled();
   });
 
