@@ -207,7 +207,7 @@ const NAMED_ENTITIES: Readonly<Record<string, string>> = {
   NewLine: "\n",
 };
 
-function decodeEntities(input: string): string {
+export function decodeEntities(input: string): string {
   if (!input.includes("&")) return input;
   return input.replace(
     /&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);?/g,
@@ -343,7 +343,7 @@ export async function unsupportedElements(
   return (await runAllowList(html)).removed;
 }
 
-const BLOCK_TAGS: ReadonlySet<string> = new Set([
+export const BLOCK_TAGS: ReadonlySet<string> = new Set([
   "p",
   "br",
   "hr",

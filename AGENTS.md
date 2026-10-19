@@ -239,17 +239,23 @@ other is how these drift.
   this is why those fixtures list columns in schema order with a comment.
 - cod-server tests run on miniflare + better-sqlite3 locally with no network
   or credentials required.
-- **A store is never born with its four legal pages automatically** — this
-  is single-tenant (one deployment per store), so there is no app-level
-  "create store" flow to hook a seed into. `npm run db:setup:local` /
-  `db:setup:remote` (cod-server) run `scripts/seed-store-pages.ts` as their
-  last step, which is idempotent (`INSERT OR IGNORE`) and safe to re-run.
-  A store that already existed before this feature shipped needs one manual
-  catch-up: `npm run db:seed:legal-pages:remote -- --store-id=<id>` from
-  cod-server, or the dashboard's Pages screen → "Add Terms, Privacy, Refund &
-  Shipping" (calls the same `POST /api/store-pages/seed-defaults`). Without
-  this, Meta Ads rejects the store's ads for missing policy pages — see
-  `report-md/LEGAL_PAGES_PLAN.md`.
+- **Seed data has one source: `cod-shared/starter/`.** `storeDefaultsSql`
+  gives a store what it lacks of the header and footer menus, the three
+  default collections, the four legal pages and — only for a store that has
+  never taken an order, since a store without a shipping profile delivers
+  free — a default shipping profile. `demoCatalogSql` adds the starter
+  catalog (six products, categories, variants, collections, offers, coupons,
+  menu links, in ar/fr/en; ids under `<storeId>:starter:`) only to a store
+  with no products or categories of its own. Both are idempotent. The one
+  script is `cod-server/scripts/seed-store.ts` (`npm run db:setup:local` /
+  `db:setup:remote`): it creates the store row and API key when missing, the
+  defaults always, the catalog with `--images=<dir>` (its pictures,
+  `starter-<name>.webp`, go to the store's R2 first). CodFlow Cloud runs the
+  same SQL from each platform release (`starterTemplates`). Never add seed
+  data anywhere else. The dashboard's Pages screen → "Add Terms, Privacy,
+  Refund & Shipping" (`POST /api/store-pages/seed-defaults`) writes the same
+  legal pages; without them Meta Ads rejects the store's ads
+  (`report-md/LEGAL_PAGES_PLAN.md`).
 
 ## Skills
 

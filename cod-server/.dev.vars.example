@@ -6,7 +6,7 @@
 
 # Used by the storefront (cod-astro) and dashboard to authenticate against the
 # server's store API. Generate one with:  openssl rand -hex 32
-# It is hashed with SHA-256 before storage (see scripts/seed-local.mjs).
+# It is hashed with SHA-256 before storage (see scripts/seed-store.ts).
 # STORE_API_KEY=
 
 # Better Auth signing secret — the SAME value must be set on cod-client-astro

@@ -3,7 +3,7 @@
 # (.dev.vars is gitignored — your real values never get committed.)
 
 # API key for the store — must match the key_hash seeded into D1
-# (see cod-server/scripts/seed-local.mjs; the local seed uses "codflow-dev-store-key"
+# (see cod-server/scripts/seed-store.ts; the local seed uses "codflow-dev-store-key"
 # when STORE_API_KEY is not set).
 STORE_API_KEY=codflow-dev-store-key
 

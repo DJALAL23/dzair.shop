@@ -94,7 +94,7 @@ describe("collections through the real routes", () => {
       product("hidden", "2026-01-04", { showInStore: false }),
       product("draft", "2026-01-05", { status: "DRAFT" }),
     ]);
-    for (const statement of await defaultCollectionsSql({ id: STORE, lang: "fr", locales: ["fr", "ar"] }, "2026-10-02T00:00:00.000Z")) await d1.raw.prepare(statement).run();
+    for (const statement of await defaultCollectionsSql({ id: STORE, lang: "fr" }, "2026-10-02T00:00:00.000Z")) await d1.raw.prepare(statement).run();
   });
 
   const call = async (method: string, path: string, body?: unknown) => {
@@ -118,7 +118,7 @@ describe("collections through the real routes", () => {
     const translated = await call("GET", `/api/collections/${await collectionId("best-sellers")}/translations`);
     expect(translated.body.data.translations.ar.title.value).toBe("الأكثر مبيعاً");
     await call("PATCH", `/api/collections/${await collectionId("best-sellers")}`, { title: "Top ventes" });
-    for (const statement of await defaultCollectionsSql({ id: STORE, lang: "fr", locales: ["fr", "ar"] }, "2026-10-03T00:00:00.000Z")) await d1.raw.prepare(statement).run();
+    for (const statement of await defaultCollectionsSql({ id: STORE, lang: "fr" }, "2026-10-03T00:00:00.000Z")) await d1.raw.prepare(statement).run();
     expect((await call("GET", "/api/collections")).body.data.map((c: { title: string }) => c.title)).toEqual(["En vedette", "Top ventes", "Nouveautés"]);
   });
 

@@ -41,7 +41,7 @@ beforeEach(async () => {
 });
 
 const seed = async (now: string) => {
-  for (const statement of await defaultMenusSql({ id: "s1", lang: "fr", locales: ["fr", "ar"] }, now)) await d1.raw.prepare(statement).run();
+  for (const statement of await defaultMenusSql({ id: "s1", lang: "fr" }, now)) await d1.raw.prepare(statement).run();
 };
 const menu = async (handle: string, locale = "") => {
   const response = await app.request(`/store/menus/${handle}${locale ? `?locale=${locale}` : ""}`);

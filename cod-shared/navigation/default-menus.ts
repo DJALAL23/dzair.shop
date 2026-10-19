@@ -4,7 +4,7 @@
  * them a theme never invents links of its own: what the header shows is what
  * the merchant's Navigation screen shows, from the first day.
  *
- * `defaultMenusSql` is what store setup runs (`scripts/seed-store-defaults.ts`).
+ * `defaultMenusSql` is part of store setup (`storeDefaultsSql`, starter/).
  * A menu is created only when the store has no menu with its handle, and its
  * items only in the run that created it: re-running setup never touches a
  * menu the store has, nor brings back an item the merchant removed from it.
@@ -39,12 +39,13 @@ const q = (value: string) => `'${value.replace(/'/g, "''")}'`;
 
 /**
  * The statements that give a store its default menus: titles and labels in
- * its primary language, a translation for each of its other languages.
- * `now` marks this run: items and translations are written only under a menu
- * this run created.
+ * its primary language, a translation for every other language, so one the
+ * merchant adds later finds them. `now` marks this run: items and
+ * translations are written only under a menu this run created, and a retry
+ * of the same run completes what it left.
  */
-export async function defaultMenusSql(store: { id: string; lang: StoreLocale; locales: readonly StoreLocale[] }, now: string): Promise<string[]> {
-  const others = store.locales.filter((locale) => locale !== store.lang && STORE_LOCALES.includes(locale));
+export async function defaultMenusSql(store: { id: string; lang: StoreLocale }, now: string): Promise<string[]> {
+  const others = STORE_LOCALES.filter((locale) => locale !== store.lang);
   const statements: string[] = [];
   for (const menu of DEFAULT_MENUS) {
     const menuId = `${store.id}:menu:${menu.handle}`;
@@ -56,12 +57,12 @@ export async function defaultMenusSql(store: { id: string; lang: StoreLocale; lo
       const itemId = `${menuId}:${item.key}`;
       const source = item.label[store.lang];
       statements.push(
-        `INSERT INTO store_menu_items (id, menu_id, parent_id, position, label, destination_type, destination_ref, url, created_at, updated_at) SELECT ${q(itemId)}, ${q(menuId)}, NULL, ${position}, ${q(source)}, ${q(item.destination.type)}, NULL, NULL, ${q(now)}, ${q(now)} WHERE ${createdNow}`,
+        `INSERT OR IGNORE INTO store_menu_items (id, menu_id, parent_id, position, label, destination_type, destination_ref, url, created_at, updated_at) SELECT ${q(itemId)}, ${q(menuId)}, NULL, ${position}, ${q(source)}, ${q(item.destination.type)}, NULL, NULL, ${q(now)}, ${q(now)} WHERE ${createdNow}`,
       );
       const digest = await sourceDigest(source);
       for (const locale of others) {
         statements.push(
-          `INSERT INTO translations (resource_type, resource_id, locale, key, value, source_digest, updated_at) SELECT 'menuItem', ${q(itemId)}, ${q(locale)}, 'label', ${q(item.label[locale])}, ${q(digest)}, ${q(now)} WHERE ${createdNow}`,
+          `INSERT OR IGNORE INTO translations (resource_type, resource_id, locale, key, value, source_digest, updated_at) SELECT 'menuItem', ${q(itemId)}, ${q(locale)}, 'label', ${q(item.label[locale])}, ${q(digest)}, ${q(now)} WHERE ${createdNow}`,
         );
       }
     }

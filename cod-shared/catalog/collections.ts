@@ -33,12 +33,12 @@ const q = (value: string) => `'${value.replace(/'/g, "''")}'`;
 
 /**
  * The statements that give a store its default collections, titles in its
- * primary language and translated into its other ones. A collection the
+ * primary language and translated into every other one. A collection the
  * store already has under the handle is left as it is; translations are
  * written only for a collection this run (`now`) created.
  */
-export async function defaultCollectionsSql(store: { id: string; lang: StoreLocale; locales: readonly StoreLocale[] }, now: string): Promise<string[]> {
-  const others = store.locales.filter((locale) => locale !== store.lang && STORE_LOCALES.includes(locale));
+export async function defaultCollectionsSql(store: { id: string; lang: StoreLocale }, now: string): Promise<string[]> {
+  const others = STORE_LOCALES.filter((locale) => locale !== store.lang);
   const statements: string[] = [];
   for (const collection of DEFAULT_COLLECTIONS) {
     const id = `${store.id}:collection:${collection.handle}`;
@@ -49,7 +49,7 @@ export async function defaultCollectionsSql(store: { id: string; lang: StoreLoca
     const digest = await sourceDigest(source);
     for (const locale of others) {
       statements.push(
-        `INSERT INTO translations (resource_type, resource_id, locale, key, value, source_digest, updated_at) SELECT 'collection', ${q(id)}, ${q(locale)}, 'title', ${q(collection.title[locale])}, ${q(digest)}, ${q(now)} WHERE (SELECT created_at FROM collections WHERE id = ${q(id)}) = ${q(now)}`,
+        `INSERT OR IGNORE INTO translations (resource_type, resource_id, locale, key, value, source_digest, updated_at) SELECT 'collection', ${q(id)}, ${q(locale)}, 'title', ${q(collection.title[locale])}, ${q(digest)}, ${q(now)} WHERE (SELECT created_at FROM collections WHERE id = ${q(id)}) = ${q(now)}`,
       );
     }
   }

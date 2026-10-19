@@ -383,7 +383,7 @@ migrations must run:
 cd cod-server
 env -u CLOUDFLARE_ACCOUNT_ID npm run db:migrate:local   # REQUIRED first: seed-admin writes local + remote
 env -u CLOUDFLARE_ACCOUNT_ID npm run db:migrate:remote  # MANDATORY: deployed sign-in 500s without this
-env -u CLOUDFLARE_ACCOUNT_ID STORE_API_KEY=<generated-store-key> npm run db:seed:remote   # demo store متجر التطوير + catalog
+env -u CLOUDFLARE_ACCOUNT_ID STORE_API_KEY=<generated-store-key> npm run db:seed:remote   # the store, its API key, menus, collections, legal pages, shipping
 
 cd ../cod-client-astro
 ADMIN_EMAIL=admin@example.com ADMIN_NAME=Admin npm run seed:admin:remote

@@ -58,13 +58,17 @@ database, and bucket is a placeholder you replace with your own resources.
 ### 3. Create the database schema
 
 ```bash
-# Apply migrations + seed demo store data (categories, products, variants, images)
+# Apply migrations, then set the store up (scripts/seed-store.ts)
 npm run db:setup:local
 ```
 
-The seed script also works standalone with `npm run db:seed:local`. It seeds a
-demo store whose API key is taken from `$STORE_API_KEY`, then
-`cod-astro/theme-00/.dev.vars`, then a built-in dev default.
+`npm run db:seed:local` runs the setup alone. It creates the store
+`store-local-dev` and its storefront API key (from `$STORE_API_KEY`, then
+`cod-astro/theme-00/.dev.vars`, then a built-in dev default) when they are
+missing, and gives the store the menus, collections, legal pages and shipping
+profile it lacks — `cod-shared/starter/`, the only source of seed data. Add
+`-- --images=<dir>` with the starter pictures (`starter-<name>.webp`) to fill
+an empty store with the starter catalog as well.
 
 > **First dashboard login:** the dashboard disables sign-up — create the admin
 > with the seeder instead (see `cod-client-astro/README.md`):

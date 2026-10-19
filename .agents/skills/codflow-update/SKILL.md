@@ -326,11 +326,12 @@ env -u CLOUDFLARE_ACCOUNT_ID npm run db:migrate:remote
   error, identify the failing file in `cod-server/src/db/migrations/`, and
   report to the developer (a fix usually means a corrected upstream migration
   in a follow-up release).
-- **NEVER re-run seeders on a live store.** `db:seed:remote` re-inserts the
-  demo store, categories, and products (fixed IDs, `INSERT OR REPLACE`) and
-  `seed:admin:remote` resets the admin password — both wreck a production
-  install. Only run either when the developer explicitly asks for demo data
-  or a password reset.
+- **Do not re-run seeders on a live store unless asked.** `db:seed:remote`
+  only adds what the store lacks (menus, collections, legal pages; a shipping
+  profile only if it never took an order; the starter catalog only with
+  `--images` and only into a store without products or categories), but the
+  `STORE_API_KEY` it is given becomes the store's key. `seed:admin:remote`
+  resets the admin password. Run either only when the developer asks.
 - Verify: `migrations list --remote` again — expect no unapplied migrations.
 
 ## Step 6 — Redeploy Affected Workers (Rebuild FIRST, Then Deploy)

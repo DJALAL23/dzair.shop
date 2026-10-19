@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- store setup: one source of seed data, `cod-shared/starter/`, and one script,
+  `cod-server/scripts/seed-store.ts` (`npm run db:setup:local` /
+  `db:setup:remote`). A store gets the header and footer menus, the default
+  collections, the four legal pages and — if it has never taken an order — a
+  default shipping profile priced by zone for all 58 wilayas, each only where
+  it lacks it; an empty store can also get the starter catalog: six products
+  with pictures, four categories, variants, tags, the default collections
+  filled, three offers, two coupons and menu links, in Arabic, French and
+  English. Default menus and collections are now translated into every
+  supported language. `seed-local.mjs`, `seed-store-pages.ts` and
+  `seed-store-defaults.ts` are gone, with `db:seed:legal-pages:*` and
+  `db:seed:defaults:*`.
+
 ### Removed
 
 - The first storefront theme (`cod-astro/theme01`), its workspace, CI job,
