@@ -1,7 +1,8 @@
 ---
 // Products from the same category, last on the page: a deferred server
 // island, so it never costs the product its first paint, and absent when
-// there is too little to show.
+// there is too little to show. In a preview it renders inline, so the editor
+// sees the section where it is placed.
 import type { InferProps } from "@wocart/theme";
 import type { Product } from "@wocart/storefront";
 import RelatedProducts from "@/theme/components/product/RelatedProducts.astro";
@@ -9,12 +10,22 @@ import { relatedProductsCopy } from "@/theme/bridges/island-props";
 import type { StoreFrontContent } from "@/theme/content";
 import type { relatedProducts } from "@/theme/catalog/product/product-sections.def";
 
-type Props = InferProps<typeof relatedProducts> & { product: Product | null; content: StoreFrontContent };
-const { product, content, scheme, style } = Astro.props;
+type Props = InferProps<typeof relatedProducts> & { product: Product | null; content: StoreFrontContent; inline?: boolean };
+const { product, content, scheme, style, inline = false } = Astro.props;
 const { config } = Astro.locals.store;
 ---
 
-{product && (
+{product && inline && (
+  <RelatedProducts
+    productId={product.id}
+    categoryId={product.category?.id ?? null}
+    currencySymbol={config.currencySymbol}
+    copy={relatedProductsCopy(content)}
+    scheme={scheme}
+    style={style}
+  />
+)}
+{product && !inline && (
   <RelatedProducts
     productId={product.id}
     categoryId={product.category?.id ?? null}

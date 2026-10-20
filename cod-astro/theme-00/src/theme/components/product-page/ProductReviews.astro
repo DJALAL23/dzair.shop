@@ -1,9 +1,9 @@
 ---
 // The product's reviews under one title: the summary and the reviews
 // themselves stream in (a server island), so the cached page never waits for
-// them. The form to add one opens from a button beside the title. Until the
-// first review arrives, a line says so and invites the shopper who received
-// it. Shown only when the store takes reviews.
+// them; in a preview they render inline. The form to add one opens from a
+// button beside the title. Until the first review arrives, a line says so and
+// invites the shopper who received it. Shown only when the store takes reviews.
 import type { InferProps } from "@wocart/theme";
 import type { Product } from "@wocart/storefront";
 import { Icon } from "astro-icon/components";
@@ -14,8 +14,8 @@ import { reviewsIslandCopy } from "@/theme/bridges/island-props";
 import type { StoreFrontContent } from "@/theme/content";
 import type { productReviews } from "@/theme/catalog/product/product-sections.def";
 
-type Props = InferProps<typeof productReviews> & { product: Product | null; content: StoreFrontContent };
-const { product, content, showForm, scheme, style } = Astro.props;
+type Props = InferProps<typeof productReviews> & { product: Product | null; content: StoreFrontContent; inline?: boolean };
+const { product, content, showForm, scheme, style, inline = false } = Astro.props;
 const { config } = Astro.locals.store;
 const hasReviews = (product?.reviewStats?.reviewCount ?? 0) > 0;
 ---
@@ -36,14 +36,18 @@ const hasReviews = (product?.reviewStats?.reviewCount ?? 0) > 0;
         </details>
       )}
     </div>
-    {hasReviews ? (
+    {hasReviews && inline && (
+      <ReviewsIsland productId={product.id} copy={reviewsIslandCopy(content)} stats={product.reviewStats} />
+    )}
+    {hasReviews && !inline ? (
       <ReviewsIsland productId={product.id} copy={reviewsIslandCopy(content)} stats={product.reviewStats} server:defer>
         <div slot="fallback" class="reviews-wait" aria-hidden="true">
           <div class="wait-card is-short"></div>
           <div class="wait-card"></div>
         </div>
       </ReviewsIsland>
-    ) : (
+    ) : null}
+    {!hasReviews && (
       <div class="reviews-empty">
         <p class="reviews-empty-stars" aria-hidden="true">
           {[1, 2, 3, 4, 5].map(() => <Icon name="heroicons:star" />)}

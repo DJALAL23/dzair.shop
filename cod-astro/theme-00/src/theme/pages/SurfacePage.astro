@@ -26,6 +26,6 @@ const { surface, document, params = {}, reads, preview = false, title, descripti
 ---
 
 <StoreLayout title={title} description={description} ogImage={ogImage}>
-  <Sections surface={surface} document={document} preview={preview} params={params} reads={reads} />
+  <Sections surface={surface} document={document} preview={preview} params={{ ...params, surface, preview: preview ? "true" : undefined }} reads={reads} />
   <slot />
 </StoreLayout>

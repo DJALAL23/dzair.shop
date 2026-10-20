@@ -35,7 +35,7 @@ vi.mock("@/theme/pages/ProductSurface.astro", async () => {
   const { createComponent, render, renderSlot } = await import("astro/runtime/server/index.js");
   return {
     default: createComponent((result: unknown, props: { product: { name: string }; document: { sections?: Array<{ id: string }> } | null; preview?: boolean }, slots: Record<string, unknown>) =>
-      render`<main data-product="${props.product.name}" data-sections="${(props.document?.sections ?? []).map((section) => section.id).join(",")}" data-preview="${String(props.preview)}">${renderSlot(result as never, slots.default as never)}</main>`,
+      render`<main data-product="${props.product?.name ?? "none"}" data-sections="${(props.document?.sections ?? []).map((section) => section.id).join(",")}" data-preview="${String(props.preview)}">${renderSlot(result as never, slots.default as never)}</main>`,
     ),
   };
 });
@@ -67,22 +67,25 @@ const ROBE = {
   reviewStats: null,
 };
 
-function store() {
+/** A store with its products, categories, collections and text pages; `empty` is a store with none of them yet. */
+function store(empty = false) {
   const client = {
     menus: { get: async () => null },
     pageData: { get: async (surface: string) => (surface === "home" ? saved : null) },
     products: {
-      list: async () => [makeProduct({ handle: "lampe" })],
-      get: async (handle: string) => (handle === "robe-kabyle" ? ROBE : handle === "lampe" ? { ...ROBE, name: "Lampe", handle } : null),
+      list: async () => (empty ? [] : [makeProduct({ handle: "lampe" })]),
+      get: async (handle: string) => (empty ? null : handle === "robe-kabyle" ? ROBE : handle === "lampe" ? { ...ROBE, name: "Lampe", handle } : null),
     },
-    categories: { list: async () => [{ id: "cat_robes", name: "Robes", slug: "robes", description: null, parentId: null, imageUrl: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }] },
+    categories: { list: async () => (empty ? [] : [{ id: "cat_robes", name: "Robes", slug: "robes", description: null, parentId: null, imageUrl: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }]) },
+    collections: { get: async (handle: string) => (!empty && handle === "best-sellers" ? { handle, title: "Meilleures ventes", description: null } : null) },
+    pages: { get: async () => null },
   } as unknown as StoreClient;
   return testStore({ client });
 }
 
-async function render(page: unknown, preview?: { draft: Record<string, unknown>; token?: string }) {
+async function render(page: unknown, preview?: { draft: Record<string, unknown>; token?: string }, options: { empty?: boolean } = {}) {
   const container = await AstroContainer.create();
-  const locals = { store: store(), ...(preview ? { preview: { claims, token: preview.token ?? "signed-token", draft: preview.draft } } : {}) };
+  const locals = { store: store(options.empty), ...(preview ? { preview: { claims, token: preview.token ?? "signed-token", draft: preview.draft } } : {}) };
   const response = await container.renderToResponse(page as never, { locals: locals as never, request: new Request("https://boutique.test/wocart-preview") });
   return { response, html: await response.text() };
 }
@@ -164,14 +167,29 @@ describe("the preview route", () => {
       expect(category.response.status).toBe(200);
       expect(category.html).toContain(">Robes</h1>");
     }
-    expect((await render(PreviewPage, { draft: { surface: "category", path: "/category/gone" } })).response.status).toBe(404);
+    // A path naming a category that no longer exists previews the store's first one, not an error.
+    expect((await render(PreviewPage, { draft: { surface: "category", path: "/category/gone" } })).response.status).toBe(200);
   });
 
   it("is a 404 without a verified preview, and for a surface this theme does not compose", async () => {
     expect((await render(PreviewPage)).response.status).toBe(404);
     expect((await render(PreviewPage, { draft: { surface: "checkout" } })).response.status).toBe(404);
     expect((await render(PreviewPage, { draft: { surface: "area:sidebar" } })).response.status).toBe(404);
-    expect((await render(PreviewPage, { draft: { surface: "product", path: "/products/gone" } })).response.status).toBe(404);
+  });
+
+  it("previews a store with no product, category, collection or text page yet: the template renders empty, never an error", async () => {
+    const product = await render(PreviewPage, { draft: { surface: "product" } }, { empty: true });
+    expect(product.response.status).toBe(200);
+    expect(product.html).toContain('data-product="none"');
+    const category = await render(PreviewPage, { draft: { surface: "category" } }, { empty: true });
+    expect(category.response.status).toBe(200);
+    expect(starts(category.html)).toEqual(expect.arrayContaining(["cmp_g1list", "cmp_g2feat"]));
+    expect(category.html).not.toContain("chip");
+    for (const surface of ["collection", "page"]) {
+      const { response, html } = await render(PreviewPage, { draft: { surface } }, { empty: true });
+      expect(response.status).toBe(200);
+      expect(starts(html)).toEqual(expect.arrayContaining([surface === "page" ? "cmp_t1page" : "cmp_k1list"]));
+    }
   });
 });
 

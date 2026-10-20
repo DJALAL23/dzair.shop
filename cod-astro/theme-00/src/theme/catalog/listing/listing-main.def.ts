@@ -58,6 +58,9 @@ export const listingMain = defineComponent({
     styleField(sectionSpacing()),
   ],
   load: async ({ storefront, reads, context }): Promise<{ view: ListingView | null }> => {
+    // The page names its own kind (`surface`, set by the page template), so a
+    // collection or category that does not exist shows nothing — never every
+    // product in its place.
     const params = context.params ?? {};
     const page = requestedPage(params.page);
     const categories = await reads.get(CATEGORIES_READ, () => storefront.categories.list());
@@ -65,14 +68,14 @@ export const listingMain = defineComponent({
       const { items, hasNext, first, last } = pageWindow(rows, page);
       return { products: items, hasNext, first, last, page };
     };
-    if (params.handle) {
-      const handle = params.handle;
-      const collection = await reads.get(collectionByHandle(handle), () => storefront.collections.get(handle));
+    if (params.surface === "collection") {
+      const handle = params.handle ?? "";
+      const collection = handle === "" ? null : await reads.get(collectionByHandle(handle), () => storefront.collections.get(handle));
       if (!collection) return { view: null };
       const rows = await storefront.products.list({ collection: handle, ...pageRequest(page) });
       return { view: { kind: "collection", title: collection.title, description: collection.description, image: null, ...paged(rows), path: storefrontPath("collection", { handle }), categories, active: null } };
     }
-    if (params.slug) {
+    if (params.surface === "category") {
       const category = categories.find((candidate) => candidate.slug === params.slug);
       if (!category) return { view: null };
       const rows = await storefront.products.list({ categoryId: category.id, ...pageRequest(page) });

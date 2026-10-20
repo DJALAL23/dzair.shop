@@ -5,12 +5,13 @@
 // here is stored, cached or indexed (no route rule may cache this path).
 //
 // A template is previewed for the resource the draft's `path` names, else for
-// the store's first product, category or text page, or the first of its
-// default collections. An area (the header, the footer) is previewed on
-// the page the editor shows — the one its `path` names, else the home page —
-// and only the area's sections are marked for the editor. Without a verified
-// preview, for a surface this theme does not compose, or a resource that does
-// not exist, the route is a 404.
+// the store's first product, category, collection (of the store's default
+// ones) or text page. A store with none of those yet still previews: the
+// template renders empty, so its sections can be seen and arranged. An area
+// (the header, the footer) is previewed on the page the editor shows — the one
+// its `path` names, else the home page — and only the area's sections are
+// marked for the editor. Without a verified preview, or for a surface this
+// theme does not compose, the route is a 404.
 import { matchStorefrontPath } from "@wocart/storefront";
 import { areaSurface } from "@wocart/theme";
 import { createReadCache } from "@wocart/theme/astro";
@@ -23,8 +24,8 @@ import { theme00 } from "@/theme/theme";
 
 export const prerender = false;
 
-/** The default collections every store is given; a collection preview without a path shows the first one there is. */
-const STORE_COLLECTIONS = ["best-sellers", "new-arrivals", "featured"];
+/** The collections every store is given; a collection preview without a path shows the first of them there is. */
+const DEFAULT_COLLECTIONS = ["best-sellers", "new-arrivals", "featured"];
 const COMPOSED = ["home", "product", "collection", "category", "catalog", "page"] as const;
 type Composed = (typeof COMPOSED)[number];
 
@@ -39,28 +40,24 @@ const isComposed = (key: string | undefined): key is Composed => (COMPOSED as re
 /** The page the preview shows: the surface itself, or the page an area is edited on. */
 const shown: string = isArea ? (isComposed(match?.type) ? match!.type : "home") : draft.surface;
 if (!isComposed(shown)) return notFound();
-const asked = match?.type === shown ? match.params : {};
+const named = match?.type === shown ? match.params : {};
 
-let product = null;
+/** The route's parameters for a template: the resource the path names, else the store's first of its kind. */
 let params: Record<string, string> = {};
+let product = null;
 if (shown === "product") {
-  const handle = asked.handle ?? (await client.products.list({ limit: 1 }))[0]?.handle;
+  const handle = named.handle ?? (await client.products.list({ limit: 1 }))[0]?.handle;
   product = handle ? await client.products.get(handle) : null;
-  if (!product) return notFound();
 } else if (shown === "collection") {
-  let handle = asked.handle ?? null;
-  if (handle === null) for (const candidate of STORE_COLLECTIONS) if (handle === null && (await client.collections.get(candidate))) handle = candidate;
-  if (handle === null || !(await client.collections.get(handle))) return notFound();
-  params = { handle };
+  let handle = named.handle;
+  if (handle === undefined) for (const candidate of DEFAULT_COLLECTIONS) if (handle === undefined && (await client.collections.get(candidate))) handle = candidate;
+  if (handle !== undefined) params = { handle };
 } else if (shown === "category") {
-  const categories = await client.categories.list();
-  const slug = asked.slug ?? categories[0]?.slug;
-  if (!slug || !categories.some((category) => category.slug === slug)) return notFound();
-  params = { slug };
+  const slug = named.slug ?? (await client.categories.list())[0]?.slug;
+  if (slug !== undefined) params = { slug };
 } else if (shown === "page") {
-  const slug = asked.slug ?? config.pages?.[0]?.slug;
-  if (!slug || !(await client.pages.get(slug))) return notFound();
-  params = { slug };
+  const slug = named.slug ?? config.pages?.[0]?.slug;
+  if (slug !== undefined) params = { slug };
 }
 
 for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims))) {
@@ -70,7 +67,7 @@ for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims
 const document = isArea ? await client.pageData.get(shown) : (draft.document ?? (await client.pageData.get(draft.surface)));
 ---
 
-{product ? (
+{shown === "product" ? (
   <ProductSurface product={product} document={document} preview={!isArea} softNavigation={false}>
     <PreviewBridge editor={preview.claims.editor} token={preview.token} />
   </ProductSurface>

@@ -8,6 +8,13 @@ import ProductRelated from "@/theme/components/product-page/ProductRelated.astro
 
 const ON_PRODUCT = { surfaces: ["product"] };
 
+/**
+ * A preview shows the product's deferred islands (reviews, related products)
+ * inline: the live page streams them after the product is on screen, and an
+ * editor must see them where they are placed.
+ */
+const inPreview = (input: { context: { params?: Readonly<Record<string, string | undefined>> } }) => input.context.params?.preview === "true";
+
 /** What shoppers who received the product say about it, and the form to add a review. */
 export const productReviews = defineComponent({
   type: "product-reviews",
@@ -22,7 +29,7 @@ export const productReviews = defineComponent({
     schemeField(),
     styleField(),
   ],
-  load: async (input) => ({ product: await routeProduct(input), content: copyOverrides(input.context.content, input.props) }),
+  load: async (input) => ({ product: await routeProduct(input), content: copyOverrides(input.context.content, input.props), inline: inPreview(input) }),
   capabilities: { insertable: true, ...ON_PRODUCT },
 });
 
@@ -39,6 +46,6 @@ export const relatedProducts = defineComponent({
     schemeField(SCHEME_OF.stone),
     styleField(sectionSpacing(true)),
   ],
-  load: async (input) => ({ product: await routeProduct(input), content: copyOverrides(input.context.content, input.props) }),
+  load: async (input) => ({ product: await routeProduct(input), content: copyOverrides(input.context.content, input.props), inline: inPreview(input) }),
   capabilities: { insertable: true, ...ON_PRODUCT },
 });

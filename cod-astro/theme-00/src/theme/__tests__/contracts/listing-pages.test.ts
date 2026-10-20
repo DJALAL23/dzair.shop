@@ -26,6 +26,7 @@ const category = (slug: string, name: string): Category =>
   ({ id: `cat_${slug}`, name, slug, description: `Tout en ${name}`, parentId: null, imageUrl: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }) as Category;
 const CATEGORIES = [category("robes", "Robes"), category("sacs", "Sacs")];
 
+/** A listing's params name its kind, as the page template passes them: `surface` is the page's own. */
 async function render(type: "listing-main" | "page-main", params: Record<string, string>, listed: ProductList[] = []) {
   const asked: Array<Record<string, unknown>> = [];
   const client = {
@@ -56,7 +57,7 @@ async function render(type: "listing-main" | "page-main", params: Record<string,
 describe("a collection's page", () => {
   it("lists its products in the merchant's order, under its title and description", async () => {
     const products = ["c", "a", "b"].map((id) => makeProduct({ id, name: `Robe ${id}`, handle: `robe-${id}` }));
-    const { html, asked } = await render("listing-main", { handle: "robes-ete" }, products);
+    const { html, asked } = await render("listing-main", { surface: "collection", handle: "robes-ete" }, products);
     expect(asked[0]).toMatchObject({ collection: "robes-ete" });
     expect(html).toContain("Robes d&#39;été");
     expect(html).toContain("Légères et fraîches");
@@ -68,37 +69,43 @@ describe("a collection's page", () => {
 
   it("pages through a long collection, its links staying in the shopper's language", async () => {
     const products = Array.from({ length: 60 }, (_, i) => makeProduct({ id: `p${i}`, name: `P${i}`, handle: `p-${i}` }));
-    const first = await render("listing-main", { handle: "robes-ete" }, products);
+    const first = await render("listing-main", { surface: "collection", handle: "robes-ete" }, products);
     expect(hrefs(first.html)).toContain("/fr/collections/robes-ete?page=2");
     expect(first.html).toContain("Produits 1–24");
-    const second = await render("listing-main", { handle: "robes-ete", page: "2" }, products);
+    const second = await render("listing-main", { surface: "collection", handle: "robes-ete", page: "2" }, products);
     expect(second.asked[0]).toMatchObject({ offset: 24 });
     expect(hrefs(second.html)).toContain("/fr/collections/robes-ete");
     expect(second.html).toContain("Produits 25–48");
   });
 
   it("says an empty collection is empty, and points to the catalog", async () => {
-    const { html } = await render("listing-main", { handle: "robes-ete" });
+    const { html } = await render("listing-main", { surface: "collection", handle: "robes-ete" });
     expect(html).toContain(fr.noProductsTitle);
     expect(hrefs(html)).toContain("/fr/products");
   });
 
   it("renders nothing for a collection that does not exist (the route answered 404 first)", async () => {
-    expect((await render("listing-main", { handle: "nope" })).html).not.toContain("listing-title");
+    expect((await render("listing-main", { surface: "collection", handle: "nope" })).html).not.toContain("listing-title");
+    // Without a collection named at all, the page shows nothing — not every product in its place.
+    expect((await render("listing-main", { surface: "collection" }, [makeProduct({ id: "x", name: "X", handle: "x" })])).html).not.toContain("listing-title");
   });
 });
 
 describe("a category's page and all products", () => {
   it("lists the category's products and marks it among the store's categories", async () => {
-    const { html, asked } = await render("listing-main", { slug: "sacs" }, [makeProduct({ id: "s", name: "Sac", handle: "sac" })]);
+    const { html, asked } = await render("listing-main", { surface: "category", slug: "sacs" }, [makeProduct({ id: "s", name: "Sac", handle: "sac" })]);
     expect(asked[0]).toMatchObject({ categoryId: "cat_sacs" });
     expect(html).toMatch(/<a href="\/fr\/category\/sacs"[^>]*class="chip is-on"[^>]*aria-current="page"/);
     expect(html).toMatch(/<a href="\/fr\/products"[^>]*class="chip"/);
     expect(html).toContain("1 produit");
   });
 
+  it("shows nothing for a category that does not exist", async () => {
+    expect((await render("listing-main", { surface: "category", slug: "nope" })).html).not.toContain("listing-title");
+  });
+
   it("lists the catalog with every category as a way in", async () => {
-    const { html, asked } = await render("listing-main", {}, [makeProduct({ id: "a", name: "A", handle: "a" })]);
+    const { html, asked } = await render("listing-main", { surface: "catalog" }, [makeProduct({ id: "a", name: "A", handle: "a" })]);
     expect(asked[0]).not.toHaveProperty("categoryId");
     expect(asked[0]).not.toHaveProperty("collection");
     expect(html).toContain(fr.allProductsSection);
@@ -107,7 +114,7 @@ describe("a category's page and all products", () => {
   });
 
   it("says an empty store is being set up", async () => {
-    expect((await render("listing-main", {})).html).toContain(fr.emptyStoreTitle);
+    expect((await render("listing-main", { surface: "catalog" })).html).toContain(fr.emptyStoreTitle);
   });
 });
 
