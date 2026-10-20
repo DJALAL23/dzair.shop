@@ -92,8 +92,9 @@ export default defineConfig({
     fallbacks: ["system-ui", "sans-serif"],
   })),
   build: {
-    // Inline ALL stylesheets to eliminate render-blocking CSS
-    inlineStylesheets: "always",
+    // Astro's default: stylesheets under 4 kB are inlined, larger ones are
+    // linked, so the page's CSS is cached and shared across every page.
+    inlineStylesheets: "auto",
   },
   integrations: [
     icon({
@@ -190,8 +191,8 @@ export default defineConfig({
       // Minify for production
       minify: "esbuild",
       cssMinify: true,
-      // Inline assets up to 100KB (way more than our 8.51KB CSS)
-      assetsInlineLimit: 102400,
+      // Vite's default (4 kB) also sets which stylesheets Astro inlines
+      // (build.inlineStylesheets "auto"): small assets inline, the rest are linked.
       // Disable CSS code splitting to keep all CSS together
       cssCodeSplit: false,
     },
