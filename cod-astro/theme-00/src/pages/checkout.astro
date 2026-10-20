@@ -62,7 +62,7 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
     data-copy-commune-placeholder={content.formCommunePlaceholder}
     data-copy-commune-disabled={content.formCommuneDisabled}
   >
-    <h1 class="mb-5 text-[1.375rem] font-black" style="color: var(--clr-text)">
+    <h1 class="mb-5 text-[1.375rem] font-black" style="color: var(--clr-ink)">
       {content.checkoutTitle}
     </h1>
 
@@ -81,7 +81,7 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
     <p
       id="checkout-loading"
       class="py-10 text-center text-[0.875rem] font-bold"
-      style="color: var(--clr-text-2)"
+      style="color: var(--clr-text)"
     >
       {content.checkoutLoading}
     </p>
@@ -94,14 +94,14 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
     >
       <div
         class="flex h-16 w-16 items-center justify-center rounded-full"
-        style="background: var(--clr-surface-alt); color: var(--clr-text-2)"
+        style="background: var(--clr-plate); color: var(--clr-text)"
       >
         <Icon name="heroicons:shopping-bag" class="h-7 w-7" />
       </div>
-      <p class="text-[0.9375rem] font-black" style="color: var(--clr-text)">
+      <p class="text-[0.9375rem] font-black" style="color: var(--clr-ink)">
         {content.cartEmptyTitle}
       </p>
-      <p class="text-[0.8125rem] font-medium" style="color: var(--clr-text-2)">
+      <p class="text-[0.8125rem] font-medium" style="color: var(--clr-text)">
         {content.cartEmptyHint}
       </p>
       <a
@@ -157,7 +157,7 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
 
         <p
           class="px-4 text-center text-[0.8125rem] font-bold"
-          style="color: var(--clr-text-2)"
+          style="color: var(--clr-text)"
         >
           {content.formConfirmNote}
         </p>

@@ -65,11 +65,11 @@ const { idPrefix, class: className = "" } = Astro.props;
     font-size: 0.8125rem;
     font-weight: 800;
     line-height: 1.3;
-    color: var(--clr-text);
+    color: var(--clr-ink);
   }
 
   .cod-fd-icon {
-    color: var(--clr-text-2);
+    color: var(--clr-text);
   }
 
   /* One icon per state, so neither ever shows the wrong one mid-render. */
@@ -89,7 +89,7 @@ const { idPrefix, class: className = "" } = Astro.props;
     margin-top: 0.5rem;
     height: 0.5rem;
     overflow: hidden;
-    background: color-mix(in srgb, var(--clr-text-2) 16%, transparent);
+    background: color-mix(in srgb, var(--clr-text) 16%, transparent);
   }
 
   /*

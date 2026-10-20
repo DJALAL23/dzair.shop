@@ -1,114 +1,98 @@
 ---
-import { Image } from "astro:assets";
-import type { StoreConfig } from "@wocart/storefront";
-import type { StoreFrontContent } from "@/theme/content";
+// The store's footer: the columns the merchant arranges (about, menus, the
+// store's pages, a few lines of text), then a closing line with the store's
+// name, the year and how it is paid.
+import Blocks from "@wocart/theme/astro/Blocks.astro";
+import { hasBlocks, isPreview, type BlocksHandle } from "@wocart/theme/astro";
+import type { InferProps } from "@wocart/theme";
 import { Icon } from "astro-icon/components";
-import type { NavLink } from "@/theme/runtime/navigation";
-import { storefrontPath } from "@wocart/storefront";
+import Section from "@/theme/components/ui/Section.astro";
+import type { footer } from "@/theme/catalog/footer/footer.def";
 
-interface Props {
-  config: StoreConfig;
-  content?: StoreFrontContent;
-  /** The store's footer menu (`footerMenu` setting); null or empty shows no links column. */
-  menu?: NavLink[] | null;
-}
-const { config, content, menu = null } = Astro.props;
-const flat = (menu ?? []).flatMap((link) => [link, ...link.children, ...link.children.flatMap((child) => child.children)]);
+type Props = InferProps<typeof footer> & { blocks: BlocksHandle };
+
+const { blocks, scheme, style } = Astro.props;
+const { config, content } = Astro.locals.store;
 const year = new Date().getFullYear();
-
-const badges = [
-  { icon: "heroicons:credit-card", title: content?.trust1Title ?? "الدفع عند الاستلام", sub: content?.trust1Sub ?? "بدون دفع مسبق" },
-  { icon: "heroicons:truck",       title: content?.trust2Title ?? "توصيل لجميع الولايات", sub: content?.trust2Sub ?? "58 ولاية" },
-  { icon: "heroicons:bolt",        title: content?.trust3Title ?? "تأكيد سريع", sub: content?.trust3Sub ?? "خلال 24 ساعة" },
-];
+const columns = hasBlocks(blocks, "columns") || isPreview(blocks);
 ---
 
-<footer class="mt-8 border-t border-black/[0.04] pb-16 sm:pb-4" style="background: var(--clr-surface)">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8">
-      {/* Brand Column */}
-      <div class="md:col-span-4 space-y-3">
-        <a href={Astro.locals.store.href("/")} class="flex items-center gap-3 active:scale-95 transition-transform">
-          {config.logoUrl ? (
-            <Image
-              src={config.logoUrl}
-              alt={config.name}
-              width={120}
-              height={32}
-              format="webp"
-              quality={90}
-              class="h-8 w-auto object-contain"
-              loading="lazy"
-            />
-          ) : (
-            <span class="text-xl font-black uppercase tracking-tighter" style="color: var(--clr-primary)">{config.name}</span>
-          )}
-        </a>
-        <p class="text-[0.8125rem] sm:text-[0.875rem] font-medium leading-relaxed max-w-sm" style="color: var(--clr-text-2)">
-          {content?.footerAbout}
-        </p>
+<Section as="div" scheme={scheme} style={style} class="site-footer">
+  <footer>
+    {columns && (
+      <div class="footer-grid">
+        <Blocks of={blocks} slot="columns" />
       </div>
-
-      {/* Links Columns */}
-      <div class="md:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-6">
-        {flat.length > 0 && (
-        <div>
-          <h3 class="text-[0.6875rem] sm:text-[0.75rem] font-black uppercase tracking-widest mb-3 sm:mb-4" style="color: var(--clr-text)">
-            {content?.footerQuickLinks}
-          </h3>
-          <ul class="space-y-2.5">
-            {flat.map((link) => (
-              <li>
-                <a href={link.href} rel={link.external ? "noopener" : undefined} class="text-[0.8125rem] sm:text-[0.875rem] font-bold transition-all hover:text-primary" style="color: var(--clr-text-2)">
-                  {link.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-        )}
-
-        <div>
-          <h3 class="text-[0.6875rem] sm:text-[0.75rem] font-black uppercase tracking-widest mb-3 sm:mb-4" style="color: var(--clr-text)">
-            {content?.footerSupport}
-          </h3>
-          <ul class="space-y-2.5">
-            {config.pages.map((page) => (
-              <li>
-                <a href={Astro.locals.store.href(storefrontPath("page", { slug: page.slug }))} class="text-[0.8125rem] sm:text-[0.875rem] font-bold transition-all hover:text-primary" style="color: var(--clr-text-2)">
-                  {page.title}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div class="col-span-2 sm:col-span-1">
-          <h3 class="text-[0.6875rem] sm:text-[0.75rem] font-black uppercase tracking-widest mb-3 sm:mb-4" style="color: var(--clr-text)">
-            {content?.trust1Title}
-          </h3>
-          <div class="space-y-2.5">
-            {badges.map((b) => (
-              <div class="flex items-center gap-2.5 group">
-                <div class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl flex items-center justify-center bg-black/[0.02] border border-black/[0.04] text-primary">
-                  <Icon name={b.icon} class="w-4 h-4" />
-                </div>
-                <div class="min-w-0">
-                  <p class="text-[0.6875rem] sm:text-[0.6875rem] font-black leading-tight" style="color: var(--clr-text)">{b.title}</p>
-                  <p class="text-[0.5625rem] sm:text-[0.625rem] font-bold" style="color: var(--clr-text-2)">{b.sub}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* Bottom Bar */}
-    <div class="border-t border-black/[0.04] mt-6 sm:mt-8 pt-4 sm:pt-5 text-center">
-      <p class="text-[0.6875rem] sm:text-[0.75rem] font-bold" style="color: var(--clr-text-2)">
-        &copy; {year} {config.name}. {content?.footerRights}
+    )}
+    <div class="footer-base">
+      <p>&copy; {year} {config.name}. {content.footerRights}</p>
+      <p class="footer-pay">
+        <Icon name="heroicons:banknotes" aria-hidden="true" />
+        <span>{content.trust1Title}</span>
       </p>
     </div>
-  </div>
-</footer>
+  </footer>
+</Section>
+
+<style>
+  .site-footer { font-size: var(--text-sm); }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2.5rem 1.5rem;
+    padding-bottom: 3rem;
+  }
+  @media (min-width: 1024px) {
+    .footer-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 2rem; padding-bottom: 4rem; }
+  }
+  .footer-grid :global(.footer-col) { grid-column: span 1; min-width: 0; }
+  .footer-grid :global(.footer-about) { grid-column: 1 / -1; }
+  @media (min-width: 1024px) {
+    .footer-grid :global(.footer-col) { grid-column: span 3; }
+    .footer-grid :global(.footer-about) { grid-column: span 4; padding-inline-end: 2rem; }
+    .footer-grid :global(.footer-about ~ .footer-col) { grid-column: span 2; }
+    .footer-grid :global(.footer-about ~ .footer-col:last-child) { grid-column: span 3; }
+  }
+  .footer-grid :global(.footer-brand) {
+    display: inline-flex;
+    font-family: var(--font-heading);
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    color: var(--clr-ink);
+    text-decoration: none;
+  }
+  .footer-grid :global(.footer-brand img) { width: auto; max-width: 11rem; max-height: 3rem; object-fit: contain; }
+  .footer-grid :global(.footer-about-text) { margin-top: 1rem; max-width: 24rem; color: var(--clr-text); line-height: 1.75; }
+  .footer-grid :global(.footer-title) {
+    margin-bottom: 1rem;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--clr-ink);
+  }
+  .footer-grid :global(.footer-links) { display: grid; gap: 0.25rem; }
+  .footer-grid :global(.footer-links a) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    color: var(--clr-text);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  .footer-grid :global(.footer-links a:hover) { color: var(--clr-ink); text-decoration: underline; }
+  .footer-grid :global(.footer-text) { color: var(--clr-text); }
+  .footer-base {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--clr-border);
+    color: var(--clr-muted);
+    font-size: var(--text-xs);
+  }
+  .footer-pay { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--clr-text); }
+  .footer-pay :global(svg) { width: 1.125rem; height: 1.125rem; color: var(--clr-accent); }
+</style>

@@ -10,7 +10,7 @@
  * that renders a pack key that is neither silently freezes that text for
  * every merchant — this file makes it a test failure instead.
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { FieldDefinition } from "@wocart/theme";
@@ -21,31 +21,57 @@ import { theme00 } from "@/theme/theme";
  * copy, so they stay store-wide. Each entry must be rendered by some section.
  */
 const SHARED_UI_LABELS = new Set([
+  "announcePrevious",
+  "announceNext",
+  "ariaMainNavigation",
+  "navMenu",
+  "navMenuClose",
+  "searchLabel",
+  "footerRights",
+  "trust1Title",
   "ariaBrowseCategoryProducts",
   "ariaStarRating",
   "reviewsVerifiedBuyer",
 ]);
 
-const CATALOG_DIR = path.resolve(process.cwd(), "src/theme/catalog/home");
+const CATALOG_DIR = path.resolve(process.cwd(), "src/theme/catalog");
+
+/** Every definition file of the catalog, in any of its folders. */
+const DEFINITION_FILES = readdirSync(CATALOG_DIR, { recursive: true, encoding: "utf8" })
+  .filter((file) => file.endsWith(".def.ts"))
+  .map((file) => readFileSync(path.join(CATALOG_DIR, file), "utf8"));
+
+/** The part of a definition file that defines `type`: a file may define a section and its blocks. */
+function definitionOf(type: string): string {
+  for (const file of DEFINITION_FILES) {
+    const at = file.indexOf(`type: "${type}"`);
+    if (at === -1) continue;
+    const next = file.indexOf("defineComponent(", at);
+    return file.slice(file.lastIndexOf("defineComponent(", at), next === -1 ? undefined : next);
+  }
+  throw new Error(`no definition file defines "${type}"`);
+}
 
 /** The section's component source, found through the import its definition file makes. */
 function componentSourceOf(type: string): string {
-  const definitionFile = readFileSync(path.join(CATALOG_DIR, `${type}.def.ts`), "utf8");
-  const match = /import\s+\w+\s+from\s+"@\/(theme\/components\/[^"]+\.astro)"/.exec(definitionFile);
-  if (!match) throw new Error(`${type}.def.ts does not import its component`);
+  const definition = definitionOf(type);
+  const name = /component:\s*(\w+)/.exec(definition)?.[1];
+  const file = DEFINITION_FILES.find((candidate) => candidate.includes(definition))!;
+  const match = name ? new RegExp(`import\\s+${name}\\s+from\\s+"@/(theme/components/[^"]+\\.astro)"`).exec(file) : null;
+  if (!match) throw new Error(`the definition of "${type}" does not import its component`);
   return readFileSync(path.resolve(process.cwd(), "src", match[1] as string), "utf8");
 }
 
 /**
- * The section's `load` hook, as written in its definition file — a setting
- * can be consumed there (e.g. deciding whether to read anything at all)
- * rather than by the component. The field declarations come before it, so
- * they never count as a read.
+ * The section's `load` hook, as written in its definition — a setting can be
+ * consumed there (e.g. deciding whether to read anything at all) rather than
+ * by the component. The field declarations come before it, so they never
+ * count as a read.
  */
 function loadSourceOf(type: string): string {
-  const definitionFile = readFileSync(path.join(CATALOG_DIR, `${type}.def.ts`), "utf8");
-  const start = definitionFile.indexOf("load:");
-  return start === -1 ? "" : definitionFile.slice(start);
+  const definition = definitionOf(type);
+  const start = definition.indexOf("load:");
+  return start === -1 ? "" : definition.slice(start);
 }
 
 const sections = Object.entries(theme00.components).map(([type, definition]) => {
@@ -75,8 +101,10 @@ describe("home sections expose their copy to the editor", () => {
     expect(frozen).toEqual([]);
   });
 
-  it.each(sections)("$type copy fields are named after their pack key", ({ copyFields }) => {
-    // `copyOverrides` overlays a resolved field onto the pack by its key.
+  it.each(sections)("$type copy fields are named after their pack key", ({ copyFields, loadSource }) => {
+    // `copyOverrides` overlays a resolved field onto the pack by its key; a
+    // component that takes its fields as props names them as it likes.
+    if (!loadSource.includes("copyOverrides")) return;
     const renamed = copyFields.filter((field) => field.key !== field.contentKey).map((f) => f.key);
     expect(renamed).toEqual([]);
   });

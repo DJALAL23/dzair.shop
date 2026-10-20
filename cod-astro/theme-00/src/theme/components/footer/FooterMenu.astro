@@ -1,0 +1,22 @@
+---
+import type { InferProps } from "@wocart/theme";
+import type { StoreMenu } from "@wocart/storefront";
+import { menuLinks } from "@/theme/runtime/navigation";
+import type { footerMenu } from "@/theme/catalog/footer/footer.def";
+
+type Props = InferProps<typeof footerMenu> & { storeMenu: StoreMenu | null };
+const { title, storeMenu } = Astro.props;
+const store = Astro.locals.store;
+const links = (menuLinks(storeMenu, store.href, store.pathname) ?? []).flatMap((link) => [link, ...link.children, ...link.children.flatMap((child) => child.children)]);
+---
+
+{links.length > 0 && (
+  <nav class="footer-col" aria-label={title || undefined}>
+    {title && <h2 class="footer-title">{title}</h2>}
+    <ul class="footer-links">
+      {links.map((link) => (
+        <li><a href={link.href} rel={link.external ? "noopener" : undefined} aria-current={link.active ? "page" : undefined}>{link.label}</a></li>
+      ))}
+    </ul>
+  </nav>
+)}

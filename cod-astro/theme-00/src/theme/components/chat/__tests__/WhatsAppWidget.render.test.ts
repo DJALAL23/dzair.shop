@@ -69,8 +69,8 @@ async function renderLayout(pathname: string, config: StoreConfig) {
     locale: "en",
     fallbackLocales: [],
     isRTL: false,
-    // A store with no menus: the header and footer keep the theme's links.
-    client: { menus: { get: async () => null } } as never,
+    // A store with no menus and no saved pages: the header and footer are the theme's.
+    client: { menus: { get: async () => null }, pageData: { get: async () => null } } as never,
     routing: { primary: "en", published: ["en"] },
     pathname: new URL(`https://example.dz${pathname}`).pathname,
     href: (path) => path,

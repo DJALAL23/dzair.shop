@@ -226,6 +226,9 @@ class StyleValidator {
             if (line.includes('hexColor') || line.includes('${')) shouldReport = false;
             // Allow in utility classes in global.css
             if (filePath.includes('global.css') && (line.includes('.') || line.includes(':'))) shouldReport = false;
+            // Allow a CSS-wide keyword or the current text color: they name no color of their own
+            const declared = (line.slice(line.indexOf(':') + 1).split(';')[0] ?? '').trim().toLowerCase();
+            if (/^(inherit|initial|unset|revert|currentcolor|transparent|none)$/.test(declared)) shouldReport = false;
           }
           
           if (type === 'FONT_SIZE' || type === 'BORDER_RADIUS') {

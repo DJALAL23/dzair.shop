@@ -36,14 +36,14 @@ const { content } = Astro.props;
     <h2
       id="checkout-summary-title"
       class="text-[0.9375rem] font-black"
-      style="color: var(--clr-text)"
+      style="color: var(--clr-ink)"
     >
       {content.checkoutSummaryTitle}
     </h2>
     <p
       id="checkout-items-label"
       class="text-[0.75rem] font-bold tabular-nums"
-      style="color: var(--clr-text-2)"
+      style="color: var(--clr-text)"
     >
     </p>
   </div>
@@ -69,13 +69,13 @@ const { content } = Astro.props;
 
     <dl class="space-y-2">
       <div class="flex items-baseline justify-between gap-3">
-        <dt class="text-[0.875rem] font-bold" style="color: var(--clr-text-2)">
+        <dt class="text-[0.875rem] font-bold" style="color: var(--clr-text)">
           {content.cartSubtotalLabel}
         </dt>
         <dd
           id="checkout-subtotal"
           class="text-[0.9375rem] font-black tabular-nums"
-          style="color: var(--clr-text)"
+          style="color: var(--clr-ink)"
         >
         </dd>
       </div>
@@ -87,13 +87,13 @@ const { content } = Astro.props;
       </div>
 
       <div class="flex items-baseline justify-between gap-3">
-        <dt class="text-[0.875rem] font-bold" style="color: var(--clr-text-2)">
+        <dt class="text-[0.875rem] font-bold" style="color: var(--clr-text)">
           {content.shippingLabel}
         </dt>
         <dd
           id="checkout-delivery"
           class="text-[0.9375rem] font-black tabular-nums"
-          style="color: var(--clr-text)"
+          style="color: var(--clr-ink)"
         >
         </dd>
       </div>
@@ -102,7 +102,7 @@ const { content } = Astro.props;
         class="flex items-baseline justify-between gap-3 border-t pt-3"
         style="border-color: var(--clr-border)"
       >
-        <dt class="text-[0.9375rem] font-black" style="color: var(--clr-text)">
+        <dt class="text-[0.9375rem] font-black" style="color: var(--clr-ink)">
           {content.totalLabel}
         </dt>
         <dd
@@ -123,7 +123,7 @@ const { content } = Astro.props;
   <li class="flex gap-3 px-4 py-4 sm:px-5" data-cart-line>
     <div
       class="h-16 w-16 shrink-0 overflow-hidden rounded-[var(--radius-input)]"
-      style="background: var(--clr-surface-alt)"
+      style="background: var(--clr-plate)"
     >
       <img
         data-cart-image
@@ -136,12 +136,12 @@ const { content } = Astro.props;
     </div>
 
     <div class="min-w-0 flex-1">
-      <p data-cart-name class="truncate text-[0.875rem] font-black" style="color: var(--clr-text)">
+      <p data-cart-name class="truncate text-[0.875rem] font-black" style="color: var(--clr-ink)">
       </p>
       <p
         data-cart-variant
         class="truncate text-[0.75rem] font-bold"
-        style="color: var(--clr-text-2)"
+        style="color: var(--clr-text)"
         hidden
       >
       </p>
@@ -156,7 +156,7 @@ const { content } = Astro.props;
 
       <div class="mt-2 flex items-center justify-between gap-2">
         <!-- An offer decides its own quantity: its lines show it, without a stepper. -->
-        <span data-cart-qty-fixed class="text-[0.8125rem] font-black tabular-nums" style="color: var(--clr-text-2)" hidden></span>
+        <span data-cart-qty-fixed class="text-[0.8125rem] font-black tabular-nums" style="color: var(--clr-text)" hidden></span>
         <div
           data-cart-stepper
           class="inline-flex items-center rounded-full border"
@@ -167,14 +167,14 @@ const { content } = Astro.props;
             data-cart-decrease
             aria-label={content.cartDecreaseLabel}
             class="inline-flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 active:scale-[0.9] focus-visible:outline-none focus-visible:ring-2"
-            style="color: var(--clr-text); --tw-ring-color: var(--clr-primary)"
+            style="color: var(--clr-ink); --tw-ring-color: var(--clr-primary)"
           >
             <Icon name="heroicons:minus" class="h-3.5 w-3.5" />
           </button>
           <span
             data-cart-qty
             class="min-w-[2rem] text-center text-[0.8125rem] font-black tabular-nums"
-            style="color: var(--clr-text)"
+            style="color: var(--clr-ink)"
           >
           </span>
           <button
@@ -182,18 +182,18 @@ const { content } = Astro.props;
             data-cart-increase
             aria-label={content.cartIncreaseLabel}
             class="inline-flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 active:scale-[0.9] focus-visible:outline-none focus-visible:ring-2 disabled:opacity-40"
-            style="color: var(--clr-text); --tw-ring-color: var(--clr-primary)"
+            style="color: var(--clr-ink); --tw-ring-color: var(--clr-primary)"
           >
             <Icon name="heroicons:plus" class="h-3.5 w-3.5" />
           </button>
         </div>
 
         <span class="flex flex-col items-end">
-          <span data-cart-was class="whitespace-nowrap text-[0.75rem] font-bold tabular-nums line-through" style="color: var(--clr-text-3)" hidden></span>
+          <span data-cart-was class="whitespace-nowrap text-[0.75rem] font-bold tabular-nums line-through" style="color: var(--clr-muted)" hidden></span>
           <span
             data-cart-total
             class="whitespace-nowrap text-[0.875rem] font-black tabular-nums"
-            style="color: var(--clr-text)"
+            style="color: var(--clr-ink)"
           >
           </span>
         </span>
@@ -205,7 +205,7 @@ const { content } = Astro.props;
       data-cart-remove
       aria-label={content.cartRemoveLabel}
       class="inline-flex h-8 w-8 shrink-0 items-center justify-center self-start rounded-full transition-transform duration-150 active:scale-[0.9] focus-visible:outline-none focus-visible:ring-2"
-      style="color: var(--clr-text-2); --tw-ring-color: var(--clr-primary)"
+      style="color: var(--clr-text); --tw-ring-color: var(--clr-primary)"
     >
       <Icon name="heroicons:trash" class="h-4 w-4" />
     </button>

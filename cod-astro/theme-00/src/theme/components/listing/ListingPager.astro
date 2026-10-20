@@ -13,7 +13,7 @@ interface Props {
 const { basePath, page, hasNext, content } = Astro.props;
 const pageHref = (n: number) => (n === 1 ? basePath : `${basePath}?page=${n}`);
 const pillClass = "px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm";
-const pillStyle = "border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text-2)";
+const pillStyle = "border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text)";
 ---
 
 {(page > 1 || hasNext) && (

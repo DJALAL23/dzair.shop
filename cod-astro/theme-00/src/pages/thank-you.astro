@@ -63,10 +63,10 @@ const steps = [
       <Icon name="heroicons:check-circle" class="w-12 h-12" />
     </div>
 
-    <h1 class="text-3xl font-black mb-3 tracking-tight" style="color: var(--clr-text)">
+    <h1 class="text-3xl font-black mb-3 tracking-tight" style="color: var(--clr-ink)">
       {content.thankYouTitle}
     </h1>
-    <p class="font-bold text-[1.0625rem] mb-10 text-balance px-4" style="color: var(--clr-text-2)">
+    <p class="font-bold text-[1.0625rem] mb-10 text-balance px-4" style="color: var(--clr-text)">
       {content.thankYouSubtitle}
     </p>
 
@@ -76,7 +76,7 @@ const steps = [
       <div class="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[var(--clr-bg)] rounded-full border-l border-black/[.03]"></div>
 
       <div class="flex items-center justify-between pb-6 border-b border-dashed mb-6" style="border-color: var(--clr-border)">
-        <span class="text-[0.6875rem] font-black uppercase tracking-[0.2em]" style="color: var(--clr-text-2)">
+        <span class="text-[0.6875rem] font-black uppercase tracking-[0.2em]" style="color: var(--clr-text)">
           {content.orderNumberLabel}
         </span>
         <span
@@ -89,8 +89,8 @@ const steps = [
 
       {totalFormatted && (
         <div class="flex items-center justify-between mb-6">
-          <span class="text-sm font-bold" style="color: var(--clr-text-2)">{content.totalAmountLabel}</span>
-          <span class="font-black text-2xl tracking-tight" style="color: var(--clr-text)">
+          <span class="text-sm font-bold" style="color: var(--clr-text)">{content.totalAmountLabel}</span>
+          <span class="font-black text-2xl tracking-tight" style="color: var(--clr-ink)">
             {totalFormatted} <span class="text-sm opacity-60 font-bold tracking-tighter uppercase">{config.currencySymbol}</span>
           </span>
         </div>
@@ -120,8 +120,8 @@ const steps = [
       )}
 
 
-      <div class="p-4 rounded-2xl border" style="background: var(--clr-surface-alt); border-color: var(--clr-border)">
-        <p class="text-[0.8125rem] font-black leading-relaxed flex items-center gap-2" style="color: var(--clr-text-2)">
+      <div class="p-4 rounded-2xl border" style="background: var(--clr-plate); border-color: var(--clr-border)">
+        <p class="text-[0.8125rem] font-black leading-relaxed flex items-center gap-2" style="color: var(--clr-text)">
           <Icon name="heroicons:credit-card" class="w-5 h-5 shrink-0 text-primary" />
           {content.codNote}
         </p>
@@ -138,8 +138,8 @@ const steps = [
           >
             <Icon name={step.icon} class="w-5 h-5" />
           </div>
-          <p class="text-[0.75rem] font-black leading-tight" style="color: var(--clr-text)">{step.title}</p>
-          <p class="text-[0.625rem] font-bold" style="color: var(--clr-text-2)">{step.sub}</p>
+          <p class="text-[0.75rem] font-black leading-tight" style="color: var(--clr-ink)">{step.title}</p>
+          <p class="text-[0.625rem] font-bold" style="color: var(--clr-text)">{step.sub}</p>
         </div>
       ))}
     </div>

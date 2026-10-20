@@ -78,14 +78,14 @@ const { content, currency } = Astro.props;
         <h2
           id="cart-drawer-title"
           class="text-[1.0625rem] font-black leading-tight"
-          style="color: var(--clr-text)"
+          style="color: var(--clr-ink)"
         >
           {content.cartTitle}
         </h2>
         <p
           id="cart-items-label"
           class="mt-0.5 text-[0.75rem] font-bold"
-          style="color: var(--clr-text-2)"
+          style="color: var(--clr-text)"
         >
         </p>
       </div>
@@ -94,7 +94,7 @@ const { content, currency } = Astro.props;
         id="cart-close"
         aria-label={content.cartCloseLabel}
         class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform duration-150 active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2"
-        style="color: var(--clr-text-2); --tw-ring-color: var(--clr-primary)"
+        style="color: var(--clr-text); --tw-ring-color: var(--clr-primary)"
       >
         <Icon name="heroicons:x-mark" class="h-5 w-5" />
       </button>
@@ -115,14 +115,14 @@ const { content, currency } = Astro.props;
     >
       <div
         class="flex h-16 w-16 items-center justify-center rounded-full"
-        style="background: var(--clr-surface-alt); color: var(--clr-text-2)"
+        style="background: var(--clr-plate); color: var(--clr-text)"
       >
         <Icon name="heroicons:shopping-bag" class="h-7 w-7" />
       </div>
-      <p class="text-[0.9375rem] font-black" style="color: var(--clr-text)">
+      <p class="text-[0.9375rem] font-black" style="color: var(--clr-ink)">
         {content.cartEmptyTitle}
       </p>
-      <p class="text-[0.8125rem] font-medium" style="color: var(--clr-text-2)">
+      <p class="text-[0.8125rem] font-medium" style="color: var(--clr-text)">
         {content.cartEmptyHint}
       </p>
       <button
@@ -158,13 +158,13 @@ const { content, currency } = Astro.props;
       </p>
 
       <div class="mb-3 flex items-baseline justify-between gap-3">
-        <span class="text-[0.875rem] font-bold" style="color: var(--clr-text-2)">
+        <span class="text-[0.875rem] font-bold" style="color: var(--clr-text)">
           {content.cartSubtotalLabel}
         </span>
         <span
           id="cart-subtotal"
           class="text-[1.125rem] font-black tabular-nums"
-          style="color: var(--clr-text)"
+          style="color: var(--clr-ink)"
         >
         </span>
       </div>
@@ -179,7 +179,7 @@ const { content, currency } = Astro.props;
 
       <p
         class="mt-2 text-center text-[0.75rem] font-medium"
-        style="color: var(--clr-text-2)"
+        style="color: var(--clr-text)"
       >
         {content.cartDeliveryNote}
       </p>
@@ -200,7 +200,7 @@ const { content, currency } = Astro.props;
       aria-hidden="true"
       tabindex="-1"
       class="h-16 w-16 shrink-0 overflow-hidden rounded-[var(--radius-input)]"
-      style="background: var(--clr-surface-alt)"
+      style="background: var(--clr-plate)"
     >
       <img data-cart-image alt="" loading="lazy" decoding="async" class="h-full w-full object-cover" hidden />
     </a>
@@ -212,13 +212,13 @@ const { content, currency } = Astro.props;
       <a
         data-cart-name
         class="block truncate text-[0.875rem] font-black hover:underline underline-offset-[3px] focus-visible:outline-none focus-visible:ring-2"
-        style="color: var(--clr-text); --tw-ring-color: var(--clr-primary)"
+        style="color: var(--clr-ink); --tw-ring-color: var(--clr-primary)"
       >
       </a>
       <p
         data-cart-variant
         class="truncate text-[0.75rem] font-bold"
-        style="color: var(--clr-text-2)"
+        style="color: var(--clr-text)"
         hidden
       >
       </p>
@@ -233,7 +233,7 @@ const { content, currency } = Astro.props;
 
       <div class="mt-2 flex items-center justify-between gap-2">
         <!-- An offer decides its own quantity: its lines show it, without a stepper. -->
-        <span data-cart-qty-fixed class="text-[0.8125rem] font-black tabular-nums" style="color: var(--clr-text-2)" hidden></span>
+        <span data-cart-qty-fixed class="text-[0.8125rem] font-black tabular-nums" style="color: var(--clr-text)" hidden></span>
         <div
           data-cart-stepper
           class="inline-flex items-center rounded-full border"
@@ -243,32 +243,32 @@ const { content, currency } = Astro.props;
             type="button"
             data-cart-decrease
             class="inline-flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 active:scale-[0.9] focus-visible:outline-none focus-visible:ring-2"
-            style="color: var(--clr-text); --tw-ring-color: var(--clr-primary)"
+            style="color: var(--clr-ink); --tw-ring-color: var(--clr-primary)"
           >
             <Icon name="heroicons:minus" class="h-3.5 w-3.5" />
           </button>
           <span
             data-cart-qty
             class="min-w-[2rem] text-center text-[0.8125rem] font-black tabular-nums"
-            style="color: var(--clr-text)"
+            style="color: var(--clr-ink)"
           >
           </span>
           <button
             type="button"
             data-cart-increase
             class="inline-flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-150 active:scale-[0.9] focus-visible:outline-none focus-visible:ring-2 disabled:opacity-40"
-            style="color: var(--clr-text); --tw-ring-color: var(--clr-primary)"
+            style="color: var(--clr-ink); --tw-ring-color: var(--clr-primary)"
           >
             <Icon name="heroicons:plus" class="h-3.5 w-3.5" />
           </button>
         </div>
 
         <span class="flex flex-col items-end">
-          <span data-cart-was class="whitespace-nowrap text-[0.75rem] font-bold tabular-nums line-through" style="color: var(--clr-text-3)" hidden></span>
+          <span data-cart-was class="whitespace-nowrap text-[0.75rem] font-bold tabular-nums line-through" style="color: var(--clr-muted)" hidden></span>
           <span
             data-cart-total
             class="whitespace-nowrap text-[0.875rem] font-black tabular-nums"
-            style="color: var(--clr-text)"
+            style="color: var(--clr-ink)"
           >
           </span>
         </span>
@@ -279,7 +279,7 @@ const { content, currency } = Astro.props;
       type="button"
       data-cart-remove
       class="inline-flex h-8 w-8 shrink-0 items-center justify-center self-start rounded-full transition-transform duration-150 active:scale-[0.9] focus-visible:outline-none focus-visible:ring-2"
-      style="color: var(--clr-text-2); --tw-ring-color: var(--clr-primary)"
+      style="color: var(--clr-text); --tw-ring-color: var(--clr-primary)"
     >
       <Icon name="heroicons:trash" class="h-4 w-4" />
     </button>

@@ -157,12 +157,12 @@ const comparePrice = getProductView(product).comparePrice;
       <slot name="secondary-action" />
     </div>
 
-    <p class="text-center text-[0.8125rem] font-bold px-4" style="color: var(--clr-text-2)">
+    <p class="text-center text-[0.8125rem] font-bold px-4" style="color: var(--clr-text)">
       {content.formConfirmNote}
     </p>
 
     {consentParts && (
-      <p class="text-center text-[0.75rem] font-medium px-4" style="color: var(--clr-text-2)">
+      <p class="text-center text-[0.75rem] font-medium px-4" style="color: var(--clr-text)">
         {consentParts.beforeTerms}
         <a href={Astro.locals.store.href(storefrontPath("page", { slug: consentParts.termsPage.slug }))} class="underline underline-offset-2 hover:text-primary">
           {consentParts.termsPage.title}

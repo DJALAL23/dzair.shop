@@ -23,11 +23,11 @@ const { id, content, padded = false } = Astro.props;
       <Icon name="heroicons:gift" class="h-6 w-6" aria-hidden="true" />
     </div>
     <div class="min-w-0 flex-1">
-      <p data-reward-name class="truncate text-[0.875rem] font-black" style="color: var(--clr-text)"></p>
-      <p data-reward-variant class="truncate text-[0.75rem] font-bold" style="color: var(--clr-text-2)" hidden></p>
+      <p data-reward-name class="truncate text-[0.875rem] font-black" style="color: var(--clr-ink)"></p>
+      <p data-reward-variant class="truncate text-[0.75rem] font-bold" style="color: var(--clr-text)" hidden></p>
       <p data-reward-offer class="cart-reward-offer truncate text-[0.75rem] font-bold" hidden></p>
       <div class="mt-2 flex items-center justify-between gap-2">
-        <span data-reward-qty class="text-[0.8125rem] font-black tabular-nums" style="color: var(--clr-text-2)"></span>
+        <span data-reward-qty class="text-[0.8125rem] font-black tabular-nums" style="color: var(--clr-text)"></span>
         <span class="cart-reward-free text-[0.875rem] font-black">{content.offerFreeLabel}</span>
       </div>
     </div>

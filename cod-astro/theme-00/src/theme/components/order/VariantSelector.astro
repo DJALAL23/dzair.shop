@@ -23,7 +23,7 @@ const states = optionStates(product, selection);
   <div class="space-y-4">
     {product.variantOptions.map((opt) => (
       <div class="space-y-2">
-        <span class="text-[0.75rem] font-black uppercase tracking-widest" style="color: var(--clr-text-2)">{opt.name}</span>
+        <span class="text-[0.75rem] font-black uppercase tracking-widest" style="color: var(--clr-text)">{opt.name}</span>
         <!-- -mx-6 px-6 lets the scroll bleed to card edges without clipping -->
         <div class="flex gap-2 overflow-x-auto -mx-6 px-6 pb-1 scrollbar-hide">
           {opt.values.map((val) => {
@@ -57,13 +57,13 @@ const states = optionStates(product, selection);
   .variant-opt {
     border-color: var(--clr-border);
     background: var(--clr-surface);
-    color: var(--clr-text-2);
+    color: var(--clr-text);
     transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
   }
-  .variant-opt:hover { border-color: var(--clr-text-3); }
+  .variant-opt:hover { border-color: var(--clr-muted); }
   .variant-opt:active { transform: scale(0.97); }
   .variant-opt:focus-visible { outline: 2px solid var(--clr-primary); outline-offset: 2px; }
-  .variant-opt.is-selected { border-color: var(--clr-primary); color: var(--clr-text); }
+  .variant-opt.is-selected { border-color: var(--clr-primary); color: var(--clr-ink); }
   .check-icon { display: none; color: var(--clr-primary); }
   .variant-opt.is-selected .check-icon { display: inline-flex; }
   .variant-opt[data-state="sold_out"] { opacity: 0.5; text-decoration: line-through; }

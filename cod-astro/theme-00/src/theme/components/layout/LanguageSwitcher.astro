@@ -63,7 +63,7 @@ const current = languages.find((language) => language.code === store.locale);
     border: 1px solid var(--clr-clear);
     border-radius: var(--radius-btn);
     background: var(--clr-clear);
-    color: var(--clr-text);
+    color: var(--clr-ink);
     font: inherit;
     font-size: var(--text-xs);
     font-weight: 700;
@@ -75,10 +75,10 @@ const current = languages.find((language) => language.code === store.locale);
   .lang-menu {
     margin: 0;
     padding: 0.375rem;
-    border: 1.5px solid var(--clr-text);
+    border: 1.5px solid var(--clr-ink);
     border-radius: var(--radius-card);
     background: var(--clr-surface);
-    color: var(--clr-text);
+    color: var(--clr-ink);
     box-shadow: var(--shadow-lg);
     inset: auto 0.75rem calc(0.75rem + var(--safe-bottom)) 0.75rem;
     width: auto;
@@ -113,12 +113,12 @@ const current = languages.find((language) => language.code === store.locale);
     min-height: 3rem;
     padding-inline: 0.75rem;
     border-radius: var(--radius-input);
-    color: var(--clr-text);
+    color: var(--clr-ink);
     font-size: var(--text-base);
     font-weight: 500;
     text-decoration: none;
   }
-  .lang-option:hover { background: var(--clr-surface-alt); }
+  .lang-option:hover { background: var(--clr-plate); }
   .lang-option[aria-current="true"] { font-weight: 700; }
   .lang-option[aria-current="true"] .lang-option-code {
     background: var(--clr-primary);
@@ -131,6 +131,6 @@ const current = languages.find((language) => language.code === store.locale);
     border-radius: var(--radius-tag);
     font-size: var(--text-2xs);
     font-weight: 700;
-    color: var(--clr-text-2);
+    color: var(--clr-text);
   }
 </style>

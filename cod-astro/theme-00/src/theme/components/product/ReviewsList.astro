@@ -201,20 +201,20 @@ const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.
   .review-bar {
     flex: 1;
     block-size: 0.375rem;
-    background: var(--clr-surface-alt);
+    background: var(--clr-plate);
     border-radius: var(--radius-tag);
     overflow: hidden;
   }
   .review-bar > span {
     display: block;
     block-size: 100%;
-    background: var(--clr-text);
+    background: var(--clr-ink);
   }
   .review-viewer {
     max-inline-size: min(48rem, calc(100vw - 2rem));
   }
   .review-viewer::backdrop {
-    background: color-mix(in srgb, var(--clr-text) 60%, transparent);
+    background: color-mix(in srgb, var(--clr-ink) 60%, transparent);
   }
 </style>
 

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "surface": "area:footer",
+  "sections": [
+    {
+      "id": "footer",
+      "type": "footer",
+      "slots": {
+        "columns": [
+          { "id": "footer-about", "type": "footer-about" },
+          { "id": "footer-menu", "type": "footer-menu" },
+          { "id": "footer-pages", "type": "footer-pages" }
+        ]
+      }
+    }
+  ]
+}

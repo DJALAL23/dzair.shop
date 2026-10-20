@@ -67,7 +67,7 @@ const wilayaOptions = WILAYAS.map((w) => ({
 <div class="space-y-4 pt-2">
   <div class="flex items-center gap-3 py-2">
     <div class="h-px flex-1 bg-black/[.05]"></div>
-    <span class="text-[0.6875rem] font-black uppercase tracking-[0.2em]" style="color: var(--clr-text)">{content.formDeliverySection}</span>
+    <span class="text-[0.6875rem] font-black uppercase tracking-[0.2em]" style="color: var(--clr-ink)">{content.formDeliverySection}</span>
     <div class="h-px flex-1 bg-black/[.05]"></div>
   </div>
 
@@ -196,7 +196,7 @@ const wilayaOptions = WILAYAS.map((w) => ({
               !singleDelivery && "active:scale-95",
               i === 0
                 ? "border-[var(--clr-primary)] text-[var(--clr-primary)] bg-[var(--clr-primary)]/5 shadow-sm"
-                : "border-[var(--clr-border)] text-[var(--clr-text-2)] bg-[var(--clr-surface-alt)]"
+                : "border-[var(--clr-border)] text-[var(--clr-text)] bg-[var(--clr-plate)]"
             ]}>
               <Icon name={icon} class="w-5 h-5" /><span>{label}</span>
             </div>

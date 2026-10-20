@@ -153,8 +153,8 @@ const SELECTED_CLASSES = [
 ];
 const UNSELECTED_CLASSES = [
   "border-[var(--clr-border)]",
-  "text-[var(--clr-text-2)]",
-  "bg-[var(--clr-surface-alt)]",
+  "text-[var(--clr-text)]",
+  "bg-[var(--clr-plate)]",
 ];
 
 /** Home delivery needs a street address; a stop desk does not. */

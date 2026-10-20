@@ -33,13 +33,13 @@ const sizeCls = isDesktop ? "text-[1.0625rem] mb-6" : "text-[0.9375rem] mb-4";
 {description && (format === "html" ? (
   <div
     class:list={[sizeCls, "rich-description leading-relaxed"]}
-    style="color: var(--clr-text-2)"
+    style="color: var(--clr-text)"
     set:html={description}
   />
 ) : (
   <p
     class:list={[sizeCls, "font-medium leading-relaxed"]}
-    style="color: var(--clr-text-2)"
+    style="color: var(--clr-text)"
   >
     {description}
   </p>

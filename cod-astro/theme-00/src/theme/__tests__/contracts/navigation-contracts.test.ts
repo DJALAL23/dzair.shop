@@ -1,21 +1,24 @@
 // @vitest-environment node
 /**
  * Theme-00's navigation is the merchant's: the header, the phone menu and the
- * footer show the store menus its settings name — `main-menu` and `footer`,
+ * footer show the store menus their sections name — `main-menu` and `footer`,
  * which every store starts with — and nothing of the theme's own. Internal
  * links stay in the shopper's language; an address outside the store is left
- * as typed. Its colors and font are its settings too, read against its
- * declaration, so a value it cannot use falls back to its design.
+ * as typed. The header and the footer are areas: the store's saved document
+ * for each, else the theme's. Its colors, faces and corners are its settings,
+ * read against its declaration, so a value it cannot use falls back to its
+ * design and a setting of an older version is ignored.
  */
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import { resolveThemeSettings } from "@wocart/theme";
 import { localizeHref, type LocaleRouting, type StoreMenu } from "@wocart/storefront";
-import Footer from "@/theme/components/layout/Footer.astro";
 import Header from "@/theme/components/layout/Header.astro";
+import FooterMenu from "@/theme/components/footer/FooterMenu.astro";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { menuLinks } from "@/theme/runtime/navigation";
+import { DEFAULT_SCHEMES } from "@/theme/appearance";
 import { theme00 } from "@/theme/theme";
 import { fr } from "@/theme/content/fr";
 import { testLocals } from "../support/locals";
@@ -43,6 +46,7 @@ const menu: StoreMenu = {
 };
 
 const MENU_HREFS = ["/fr", "/fr/products", "/fr/category/robes", "/fr/products/robe-ete", "https://instagram.com/boutique", "mailto:contact@boutique.dz"];
+const HEADER_PROPS = { menu: "main-menu", logoPosition: "start", logoWidth: 140, sticky: true, scheme: "scheme-1" } as const;
 
 describe("menuLinks", () => {
   it("localizes the store's paths, leaves other addresses as typed, and marks the current page", () => {
@@ -62,82 +66,91 @@ describe("menuLinks", () => {
   });
 });
 
-describe("the header and footer", () => {
-  const render = async (component: typeof Header | typeof Footer, links: ReturnType<typeof menuLinks>) => {
-    const container = await AstroContainer.create();
-    return container.renderToString(component, {
-      props: { config: DEFAULT_CONFIG, content: fr, menu: links },
-      locals: testLocals({ locale: "fr", routing, content: fr }),
-    });
-  };
+describe("the header and the footer's menu", () => {
+  const locals = () => testLocals({ locale: "fr", routing, content: fr });
+  const renderHeader = async (storeMenu: StoreMenu | null) =>
+    (await AstroContainer.create()).renderToString(Header, { props: { ...HEADER_PROPS, storeMenu }, locals: locals() });
+  const renderFooterMenu = async (storeMenu: StoreMenu | null) =>
+    (await AstroContainer.create()).renderToString(FooterMenu, { props: { title: fr.footerQuickLinks, menu: "footer", storeMenu }, locals: locals() });
 
   it("show the merchant's menu, every level of it, in the shopper's language", async () => {
-    for (const component of [Header, Footer]) {
-      const html = await render(component, menuLinks(menu, href, "/"));
+    for (const html of [await renderHeader(menu), await renderFooterMenu(menu)]) {
       for (const expected of MENU_HREFS) expect(hrefs(html)).toContain(expected);
       expect(html).toContain("Robe d&#39;été");
     }
   });
 
   it("give a phone the same menu, behind a button", async () => {
-    const html = await render(Header, menuLinks(menu, href, "/"));
+    const html = await renderHeader(menu);
     expect(html).toMatch(/<button[^>]*popovertarget="site-menu"/);
     const panel = html.slice(html.indexOf('id="site-menu"'));
     for (const expected of MENU_HREFS) expect(hrefs(panel)).toContain(expected);
   });
 
   it("show no links of their own when the store has no such menu", async () => {
-    const header = await render(Header, null);
+    const header = await renderHeader(null);
     expect(header).not.toContain("site-menu");
     expect(header).not.toContain('class="nav-link"');
-    const footer = await render(Footer, null);
-    expect(footer).not.toContain(fr.footerQuickLinks);
+    expect(await renderFooterMenu(null)).not.toContain(fr.footerQuickLinks);
   });
 });
 
 describe("the layout", () => {
-  it("asks for the menus the merchant's settings name, and renders them", async () => {
-    const asked: string[] = [];
-    const client = { menus: { get: async (handle: string) => (asked.push(handle), handle === "top" ? menu : null) } };
-    const container = await AstroContainer.create();
-    const html = await container.renderToString(StoreLayout, {
-      locals: testLocals({ locale: "fr", routing, content: fr, config: { ...DEFAULT_CONFIG, themeSettings: { headerMenu: "top" } }, client: client as never }),
+  const render = async (client: object, themeSettings: Record<string, unknown> = {}) =>
+    (await AstroContainer.create()).renderToString(StoreLayout, {
+      locals: testLocals({ locale: "fr", routing, content: fr, config: { ...DEFAULT_CONFIG, themeSettings }, client: client as never }),
       request: new Request("https://example.dz/fr"),
+    });
+
+  it("renders the header and footer the store saved, with the menus their sections name", async () => {
+    const asked: string[] = [];
+    const saved: Record<string, unknown> = {
+      "area:header": { version: 1, surface: "area:header", sections: [{ id: "h", type: "header", props: { menu: "top" } }] },
+    };
+    const html = await render({
+      menus: { get: async (handle: string) => (asked.push(handle), handle === "top" ? menu : null) },
+      pageData: { get: async (surface: string) => saved[surface] ?? null },
     });
     expect(asked.sort()).toEqual(["footer", "top"]);
     expect(hrefs(html)).toContain("/fr/category/robes");
+    expect(html).not.toContain(fr.announcementText);
   });
 
-  it("paints the colors and the font of the theme's settings, never the old store columns", async () => {
-    const container = await AstroContainer.create();
-    const config = { ...DEFAULT_CONFIG, primaryColor: "#123456", fontFamily: "Almarai", themeSettings: { primaryColor: "#0a7e3c", font: "Tajawal" } };
-    const html = await container.renderToString(StoreLayout, {
-      locals: testLocals({ config, client: { menus: { get: async () => null } } as never }),
-      request: new Request("https://example.dz/"),
-    });
-    expect(html).toContain("#0a7e3c");
-    expect(html).toContain("--font-tajawal");
-    expect(html).not.toContain("#123456");
-    expect(html).not.toContain("--font-almarai");
+  it("renders the theme's header and footer when the store saved none: the announcement in the theme's words", async () => {
+    const html = await render({});
+    expect(html).toContain(fr.announcementText);
+    expect(html).toContain('class="site-header');
+    expect(html).toContain(fr.footerRights);
   });
 
-  it("shows the theme's announcement: the merchant's text in the shopper's language, else the theme's own copy", async () => {
-    const render = async (themeSettings: Record<string, unknown>) => {
-      const container = await AstroContainer.create();
-      return container.renderToString(StoreLayout, {
-        locals: testLocals({ locale: "fr", routing, content: fr, config: { ...DEFAULT_CONFIG, announcementBar: "ancien", themeSettings }, client: { menus: { get: async () => null } } as never }),
-        request: new Request("https://example.dz/fr"),
-      });
+  it("shows the merchant's announcement in the shopper's language", async () => {
+    const header = {
+      version: 1,
+      surface: "area:header",
+      sections: [
+        { id: "a", type: "announcement-bar", slots: { default: [{ id: "a1", type: "announcement", props: { text: { ar: "توصيل مجاني", fr: "Livraison gratuite" } } }] } },
+        { id: "h", type: "header" },
+      ],
     };
-    const saved = await render({ announcement: { ar: "توصيل مجاني", fr: "Livraison gratuite" } });
-    expect(saved).toContain("Livraison gratuite");
-    expect(saved).not.toContain("ancien");
-    expect(await render({})).toContain(fr.announcementText);
+    const html = await render({ pageData: { get: async (surface: string) => (surface === "area:header" ? header : null) } });
+    expect(html).toContain("Livraison gratuite");
+    expect(html).not.toContain(fr.announcementText);
   });
 
-  it("asks for no menu on a marketing page", async () => {
+  it("paints the store's color schemes and faces, never an older version's colors", async () => {
+    const schemes = [{ ...DEFAULT_SCHEMES[0], colors: { ...DEFAULT_SCHEMES[0].colors, button: "#0a7e3c" } }];
+    const html = await render({}, { colorSchemes: schemes, font: "Tajawal", headingFont: "Almarai", primaryColor: "#123456" });
+    expect(html).toContain(".wc-scheme-scheme-1{");
+    expect(html).toContain("--wc-color-button:#0a7e3c");
+    expect(html).toContain("--font-text: var(--font-tajawal)");
+    expect(html).toContain("--font-display: var(--font-almarai)");
+    expect(html).toMatch(/<body class="scheme wc-scheme-scheme-1/);
+    expect(html).not.toContain("#123456");
+  });
+
+  it("asks for no menu and no area on a marketing page", async () => {
     const asked: string[] = [];
-    const client = { menus: { get: async (handle: string) => (asked.push(handle), null) } };
+    const client = { menus: { get: async (handle: string) => (asked.push(handle), null) }, pageData: { get: async (surface: string) => (asked.push(surface), null) } };
     const container = await AstroContainer.create();
     await container.renderToString(StoreLayout, {
       props: { marketing: true },
@@ -151,18 +164,19 @@ describe("the layout", () => {
 describe("the theme's settings", () => {
   it("render the theme as designed when the store saved nothing", () => {
     expect(resolveThemeSettings(theme00, undefined).values).toEqual({
-      primaryColor: "#0b3bbd",
-      accentColor: "#f59e0b",
-      backgroundColor: "#f4f5f7",
+      colorSchemes: DEFAULT_SCHEMES,
+      pageScheme: "scheme-1",
+      headingFont: "El Messiri",
       font: "Readex Pro",
-      headerMenu: "main-menu",
-      footerMenu: "footer",
+      corners: "soft",
+      cardImageRatio: "portrait",
     });
   });
 
-  it("fall back to the design for a value the theme cannot use", () => {
-    const { values, issues } = resolveThemeSettings(theme00, { headerMenu: "Not A Handle", primaryColor: "red", font: "Comic Sans" });
-    expect(values).toMatchObject({ headerMenu: "main-menu", primaryColor: "#0b3bbd", font: "Readex Pro" });
-    expect(issues.map((issue) => issue.code)).toEqual(["invalid-setting", "invalid-setting", "invalid-setting"]);
+  it("fall back to the design for a value the theme cannot use, and ignore an older version's settings", () => {
+    const { values, issues } = resolveThemeSettings(theme00, { corners: "pointy", pageScheme: "Not An Id", font: "Comic Sans", primaryColor: "#0a7e3c" });
+    expect(values).toMatchObject({ corners: "soft", pageScheme: "scheme-1", font: "Readex Pro" });
+    expect(values).not.toHaveProperty("primaryColor");
+    expect(issues.map((issue) => issue.code).sort()).toEqual(["invalid-setting", "invalid-setting", "invalid-setting", "unknown-setting"]);
   });
 });

@@ -1,19 +1,16 @@
 ---
 import "@/theme/styles/global.css";
 import BaseHead from "@/theme/components/layout/BaseHead.astro";
-import Header from "@/theme/components/layout/Header.astro";
-import Footer from "@/theme/components/layout/Footer.astro";
+import Area from "@/theme/components/surface/Area.astro";
 import CartDrawer from "@/theme/components/cart/CartDrawer.astro";
 import MobileNav from "@/theme/components/layout/MobileNav.astro";
 import WhatsAppWidget from "@/theme/components/chat/WhatsAppWidget.astro";
 import { alternateLinks, matchStorefrontPath, showsWidgetOn } from "@wocart/storefront";
 import { message } from "@/theme/content/messages";
 import type { StoreConfig } from "@wocart/storefront";
-import { Icon } from "astro-icon/components";
-import { brandInk, onColor, themeFont } from "@/theme/utils/brand";
-import { resolveThemeSettings } from "@wocart/theme";
+import { resolveThemeSettings, schemeClass } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
-import { menuLinks } from "@/theme/runtime/navigation";
+import { BODY_FONT, HEADING_FONT, cardAspect, cornerRadii, schemeBackground, themeFont } from "@/theme/appearance";
 
 interface Props {
   title?: string;
@@ -71,30 +68,12 @@ const pageDesc = description ?? config.metaDescription ?? message(content, "defa
 const pageOg = ogImage ?? config.ogImage ?? "";
 
 // The merchant's choices for this theme, checked against its declaration: a
-// value it does not accept falls back to the theme's default. Colors arrive
-// validated (#rgb/#rrggbb), and are paired here with the text colors that
-// stay readable on them.
+// value it does not accept falls back to the theme's default.
 const { values: settings } = resolveThemeSettings(theme00, store.config.themeSettings, {
   content,
   locales: [locale, ...store.fallbackLocales],
 });
-const brand = {
-  primary: settings.primaryColor,
-  onPrimary: onColor(settings.primaryColor),
-  primaryInk: brandInk(settings.primaryColor),
-  accent: settings.accentColor,
-  onAccent: onColor(settings.accentColor),
-  bg: settings.backgroundColor,
-};
-const font = themeFont(settings.font);
-
-// The store's menus the settings name. A store without one shows no
-// navigation in that place; marketing pages show none at all.
-const [headerMenu, footerMenu] = marketing
-  ? [null, null]
-  : await Promise.all([store.client.menus.get(settings.headerMenu), store.client.menus.get(settings.footerMenu)]);
-const headerLinks = menuLinks(headerMenu, store.href, store.pathname);
-const footerLinks = menuLinks(footerMenu, store.href, store.pathname);
+const fonts = { body: themeFont(settings.font, BODY_FONT), heading: themeFont(settings.headingFont, HEADING_FONT) };
 ---
 
 <!doctype html>
@@ -108,37 +87,23 @@ const footerLinks = menuLinks(footerMenu, store.href, store.pathname);
     locale={locale}
     canonical={canonical}
     alternates={alternates}
-    brand={brand}
-    font={font}
+    schemes={settings.colorSchemes}
+    themeColor={schemeBackground(settings.colorSchemes, settings.pageScheme)}
+    fonts={fonts}
+    radii={cornerRadii(settings.corners)}
     isRTL={isRTL}
     preloadImages={preloadImages}
     softNavigation={softNavigation}
   />
 
-  <body class:list={[!hideMobileNav && "has-mobile-nav"]}>
-    <!--
-      THESIS: The parcel. Every product is shown the way it arrives at the door: a whole photo on a carton plate, a printed facts panel, and an order form set like a courier waybill whose last line is the cash-on-delivery total. Refuses the soft rounded-card storefront.
-      OWN-WORLD: White carton faces on the merchant's ground, ink type, hairline die-cut rules, a heavy rule over every facts panel, tabular numerals, the merchant's brand color as solid bands (top band, order button, COD total), the accent as the price stamp. Corners crisp at 4–6px; no soft shadows except on things that float.
-      STORY: The shopper sees a real product and a real price at once, reads the facts like a box label, fills one waybill, and knows exactly what they pay at the door.
-      FIRST VIEWPORT: Home: headline, two actions and the delivery facts on one side, real products stacked as cartons on the other. Product page: whole photo, facts panel with price, then the waybill.
-      FORM: The Parcel — candidate 7 of 7, seed b4a0d37e.
-      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
-    -->
-    <!-- Announcement bar -->
-    {!marketing && settings.announcement && (
-      <div class="store-announce">
-        <Icon name="heroicons:truck" class="w-3.5 h-3.5 opacity-80" />
-        <span>{settings.announcement}</span>
-      </div>
-    )}
-
-    {!marketing && <Header config={config} content={content} menu={headerLinks} />}
+  <body class:list={["scheme", schemeClass(settings.pageScheme), !hideMobileNav && "has-mobile-nav"]} style={`--card-aspect: ${cardAspect(settings.cardImageRatio)}`}>
+    {!marketing && <Area area="header" />}
 
     <main transition:animate={pageMotion}>
       <slot />
     </main>
 
-    {!marketing && <Footer config={config} content={content} menu={footerLinks} />}
+    {!marketing && <Area area="footer" />}
 
     {/* One drawer per page, outside the main flow so its fixed positioning is
         never trapped by a transformed ancestor. Rendered only when the cart is

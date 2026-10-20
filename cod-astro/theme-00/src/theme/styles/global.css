@@ -1,42 +1,50 @@
 /*
- * Theme-00 — "The Parcel" design system.
+ * Theme-00 — "Karakou".
  *
- * Every product is shown the way it arrives at the door: a whole photo on a
- * carton plate, a printed facts panel, and an order form set like a courier
- * waybill whose last line is the amount paid on delivery.
+ * Algeria's luxury garment, worn in the white city: white and stone grounds,
+ * a night-navy ink for type and the order button, and a saffron thread used
+ * sparingly — the stars, the sale tag, the line under the amount paid at the
+ * door. Product photos sit whole on soft light plates.
  *
- * Merchant tokens are injected per request by BaseHead (never define them
- * here): --clr-primary, --clr-on-primary, --clr-primary-ink, --clr-accent,
- * --clr-on-accent, --clr-bg, --font-body. Everything else is static below.
+ * Every color comes from a color scheme (`colorSchemes` setting). An element
+ * wearing one carries `.scheme` and the SDK's `.wc-scheme-<id>`, whose rule
+ * sets the `--wc-color-*` roles; `.scheme` derives the theme's tokens from
+ * them, so a section recolors with its scheme and nothing else changes.
+ * BaseHead injects the rest per request: the schemes, the two faces
+ * (`--font-text`, `--font-display`) and the corners (`--r-*`).
  *
- * Rules: spacing is Tailwind's 4px lattice only; type uses the scale in
- * @theme only; color, radius, shadow and font always go through a token.
+ * Rules: spacing is Tailwind's 4px lattice or a style step; type uses the
+ * scale in @theme only; color, radius, shadow and font always go through a
+ * token.
  */
 @import "tailwindcss";
+@import "./style-classes.css";
 
 @theme {
   --color-primary: var(--clr-primary);
   --color-on-primary: var(--clr-on-primary);
-  --color-primary-ink: var(--clr-primary-ink);
   --color-accent: var(--clr-accent);
   --color-on-accent: var(--clr-on-accent);
   --color-bg: var(--clr-bg);
   --color-surface: var(--clr-surface);
-  --color-plate: var(--clr-surface-alt);
+  --color-plate: var(--clr-plate);
+  --color-photo: var(--clr-photo);
+  --color-field: var(--clr-field);
   --color-border: var(--clr-border);
-  --color-rule: var(--clr-rule);
-  --color-ink: var(--clr-text);
-  --color-ink-2: var(--clr-text-2);
-  --color-ink-3: var(--clr-text-3);
-  --color-text-main: var(--clr-text);
-  --color-text-muted: var(--clr-text-2);
+  --color-rule: var(--clr-ink);
+  --color-ink: var(--clr-ink);
+  --color-ink-2: var(--clr-text);
+  --color-ink-3: var(--clr-muted);
+  --color-text-main: var(--clr-ink);
+  --color-text-muted: var(--clr-text);
   --color-success: var(--clr-success);
   --color-error: var(--clr-error);
 
-  --font-body: var(--font-body), system-ui, sans-serif;
+  --font-body: var(--font-text), system-ui, sans-serif;
+  --font-heading: var(--font-display), var(--font-text), system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Type scale — the only sizes in the theme. */
+  /* Type scale — the only sizes in the theme (12 14 16 18 21 24 36 48 60 72). */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1.4;
   --text-xs: 0.75rem;
@@ -44,35 +52,37 @@
   --text-sm: 0.875rem;
   --text-sm--line-height: 1.55;
   --text-base: 1rem;
-  --text-base--line-height: 1.6;
+  --text-base--line-height: 1.65;
   --text-lg: 1.125rem;
-  --text-lg--line-height: 1.5;
-  --text-xl: 1.375rem;
-  --text-xl--line-height: 1.35;
-  --text-2xl: 1.75rem;
-  --text-2xl--line-height: 1.25;
+  --text-lg--line-height: 1.55;
+  --text-xl: 1.3125rem;
+  --text-xl--line-height: 1.4;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 1.35;
   --text-3xl: 2.25rem;
-  --text-3xl--line-height: 1.15;
+  --text-3xl--line-height: 1.2;
   --text-4xl: 3rem;
-  --text-4xl--line-height: 1.1;
+  --text-4xl--line-height: 1.15;
   --text-5xl: 3.75rem;
-  --text-5xl--line-height: 1.05;
+  --text-5xl--line-height: 1.1;
   --text-6xl: 4.5rem;
-  --text-6xl--line-height: 1.04;
+  --text-6xl--line-height: 1.05;
 
-  /* Die-cut corners. */
-  --radius-card: 0.375rem;
-  --radius-input: 0.25rem;
-  --radius-btn: 0.25rem;
-  --radius-tag: 0.125rem;
-  /* Round only for checkmarks, color swatches and the WhatsApp launcher. */
+  /* Corners, from the `corners` setting. */
+  --radius-media: var(--r-media);
+  --radius-card: var(--r-panel);
+  --radius-panel: var(--r-panel);
+  --radius-input: var(--r-input);
+  --radius-btn: var(--r-button);
+  --radius-tag: var(--r-tag);
+  /* Round only for checkmarks, color swatches, avatars and the WhatsApp launcher. */
   --radius-round: 9999px;
 
-  /* Flat print. Only things that float get a shadow. */
-  --shadow-sm: 0 1px 0 var(--clr-border);
-  --shadow-md: 0 1px 2px rgb(17 19 24 / 0.06);
-  --shadow-lg: 0 16px 40px -16px rgb(17 19 24 / 0.32), 0 2px 6px rgb(17 19 24 / 0.08);
-  --shadow-primary: 0 10px 24px -10px color-mix(in srgb, var(--clr-primary) 70%, transparent);
+  /* Only what floats casts a shadow. */
+  --shadow-sm: 0 1px 2px color-mix(in oklab, black 6%, transparent);
+  --shadow-md: 0 8px 24px -12px color-mix(in oklab, black 22%, transparent);
+  --shadow-lg: 0 28px 56px -28px color-mix(in oklab, black 40%, transparent), 0 2px 8px color-mix(in oklab, black 6%, transparent);
+  --shadow-primary: 0 14px 28px -14px color-mix(in oklab, var(--clr-primary) 75%, transparent);
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --animate-spring: var(--ease-out-expo);
@@ -93,23 +103,31 @@
 }
 
 :root {
-  --clr-surface: #ffffff;
-  --clr-surface-alt: #f1f2f4;
-  --clr-border: #dfe2e6;
-  --clr-rule: #111318;
-  --clr-text: #111318;
-  --clr-text-2: #474d57;
-  --clr-text-3: #5f656f;
+  /* The first default scheme: what a page shows when its scheme is missing. */
+  --wc-color-background: #ffffff;
+  --wc-color-text: #3a4252;
+  --wc-color-heading: #101b30;
+  --wc-color-accent: #d9982c;
+  --wc-color-button: #101b30;
+  --wc-color-button-text: #ffffff;
+  --wc-color-border: #e4e6ea;
+
+  --font-text: system-ui;
+  --font-display: var(--font-text);
+  --r-media: 0.75rem;
+  --r-panel: 1rem;
+  --r-input: 0.625rem;
+  --r-button: 0.75rem;
+  --r-tag: 62.5rem;
 
   --clr-success: #0f7a4a;
   --clr-success-bg: #e8f5ee;
   --clr-disabled: #9aa0a8;
   --clr-error: #b42318;
   --clr-error-bg: #fdf1f0;
-  --clr-nav-bg: rgb(255 255 255 / 0.94);
-  --clr-overlay: rgb(17 19 24 / 0.5);
+  --clr-overlay: color-mix(in oklab, #0b1220 55%, transparent);
   --clr-clear: transparent;
-  --overlay-dark: rgb(17 19 24 / 0.72);
+  --overlay-dark: color-mix(in oklab, #0b1220 72%, transparent);
 
   --header-h: 4rem;
 
@@ -119,6 +137,40 @@
   --clr-whatsapp: #25d366;
   --clr-whatsapp-deep: #128c7e;
   --wa-gap: 0.75rem;
+}
+@media (min-width: 1024px) { :root { --header-h: 4.5rem; } }
+
+/* ── Schemes: every token is derived from the scheme an element wears ─────── */
+:root,
+.scheme {
+  --clr-bg: var(--wc-color-background);
+  --clr-ink: var(--wc-color-heading);
+  --clr-text: var(--wc-color-text);
+  --clr-muted: color-mix(in oklab, var(--wc-color-text) 80%, var(--wc-color-background));
+  --clr-surface: var(--wc-color-background);
+  --clr-plate: color-mix(in oklab, var(--wc-color-text) 6%, var(--wc-color-background));
+  --clr-field: color-mix(in oklab, var(--wc-color-background) 86%, white);
+  --clr-border: var(--wc-color-border);
+  --clr-border-strong: color-mix(in oklab, var(--wc-color-text) 38%, var(--wc-color-background));
+  --clr-primary: var(--wc-color-button);
+  --clr-on-primary: var(--wc-color-button-text);
+  --clr-accent: var(--wc-color-accent);
+  --clr-on-accent: var(--wc-color-heading);
+  --clr-nav-bg: color-mix(in oklab, var(--wc-color-background) 92%, transparent);
+  /* Photos keep a light plate on every scheme: a white-ground product shot
+     melts into it instead of floating as a white box on a dark band. */
+  --clr-photo: color-mix(in oklab, white 95%, var(--wc-color-text));
+}
+/* Text on the accent: white or black, whichever the accent's lightness carries. */
+@supports (color: oklch(from red l c h)) {
+  :root,
+  .scheme {
+    --clr-on-accent: oklch(from var(--wc-color-accent) clamp(0, (0.7 - l) * 1000, 1) 0 0);
+  }
+}
+.scheme {
+  background-color: var(--clr-bg);
+  color: var(--clr-text);
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
@@ -135,9 +187,10 @@ body {
   background: var(--clr-bg);
   color: var(--clr-text);
   font-size: var(--text-base);
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: clip;
@@ -145,25 +198,32 @@ body {
   flex-direction: column;
   caret-color: var(--clr-primary);
 }
+[lang="ar"] body { line-height: 1.75; }
 
 body > main { flex: 1 0 auto; }
 
-h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
+h1, h2, h3, h4, .display {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--clr-ink);
+  text-wrap: balance;
+  letter-spacing: -0.015em;
+}
+[dir="rtl"] :is(h1, h2, h3, h4, .display) { letter-spacing: 0; }
 p { text-wrap: pretty; }
-[dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 { letter-spacing: 0; }
 
 ::selection {
-  background: color-mix(in srgb, var(--clr-primary) 22%, transparent);
-  color: var(--clr-text);
+  background: color-mix(in oklab, var(--clr-accent) 45%, transparent);
+  color: var(--clr-ink);
 }
 
 :focus-visible {
-  outline: 2px solid var(--clr-text);
-  outline-offset: 2px;
+  outline: 2px solid var(--clr-ink);
+  outline-offset: 3px;
   border-radius: var(--radius-input);
 }
 
-a { text-underline-offset: 0.2em; }
+a { color: inherit; text-underline-offset: 0.25em; }
 
 * { scrollbar-width: thin; scrollbar-color: var(--clr-border) transparent; }
 
@@ -179,45 +239,89 @@ a { text-underline-offset: 0.2em; }
 }
 
 /* ── Layout frame ────────────────────────────────────────────────────────── */
-.frame {
+/* Zero specificity: a section's width (`.wc-w-*`) always outranks it. */
+:where(.frame) {
   width: 100%;
   max-width: 80rem;
   margin-inline: auto;
-  padding-inline: 1rem;
 }
+.frame { padding-inline: 1rem; }
 @media (min-width: 640px) { .frame { padding-inline: 1.5rem; } }
-@media (min-width: 1024px) { .frame { padding-inline: 2rem; } }
+@media (min-width: 1024px) { .frame { padding-inline: 2.5rem; } }
 
-/* ── Top band (announcement) — the brand color as the parcel's printed band ─ */
-.store-announce {
-  background: var(--clr-primary);
-  color: var(--clr-on-primary);
-  padding: calc(0.5rem + var(--safe-top)) 1rem 0.5rem;
+/* ── Section heading: a display title, an optional line, an optional link ─ */
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+@media (min-width: 1024px) { .section-head { margin-bottom: 2.5rem; } }
+.section-head.is-center { flex-direction: column; align-items: center; text-align: center; }
+.section-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  line-height: var(--text-2xl--line-height);
+  font-weight: 600;
+  color: var(--clr-ink);
+}
+@media (min-width: 1024px) {
+  .section-title { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); }
+}
+.section-sub {
+  margin-top: 0.5rem;
+  max-width: 36rem;
+  font-size: var(--text-base);
+  color: var(--clr-muted);
+}
+.section-link {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 2.75rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--clr-ink);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--clr-ink) 30%, transparent);
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 0.2s ease;
+}
+.section-link:hover { text-decoration-color: var(--clr-ink); }
+[dir="rtl"] .flip-rtl { transform: scaleX(-1); }
+
+/* ── Badges: what the shopper must know first (sale, stock) ──────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 1.5rem;
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--radius-tag);
   font-size: var(--text-xs);
   font-weight: 600;
-  line-height: 1.4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  text-align: center;
+  line-height: 1.3;
+  white-space: nowrap;
 }
-.store-announce svg { width: 1rem; height: 1rem; flex: none; }
+.badge-sale { background: var(--clr-accent); color: var(--clr-on-accent); }
+.badge-ink { background: var(--clr-ink); color: var(--clr-bg); }
+.badge-soft { background: var(--clr-bg); color: var(--clr-ink); box-shadow: var(--shadow-sm); }
+.badge-warn { background: var(--clr-bg); color: var(--clr-error); box-shadow: var(--shadow-sm); }
+/* Older names, kept while every component moves to the badges above. */
+.stamp { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: var(--radius-tag); font-size: var(--text-xs); font-weight: 600; line-height: 1.4; white-space: nowrap; }
+.stamp-accent { background: var(--clr-accent); color: var(--clr-on-accent); }
+.stamp-ink { background: var(--clr-ink); color: var(--clr-bg); }
+.stamp-line { border: 1px solid currentColor; color: var(--clr-text); background: var(--clr-bg); }
+.stamp-warn { border: 1px solid currentColor; color: var(--clr-error); background: var(--clr-bg); }
 
-/* ── Carton: the theme's one container ───────────────────────────────────── */
-.carton,
-.card {
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-card);
-}
-
-/* The photo plate: a product shown whole, never cropped. White-ground
-   product shots melt into the plate. */
+/* ── Photo plates: a product shown whole, never cropped ──────────────────── */
 .plate {
   position: relative;
-  background: var(--clr-surface-alt);
+  background: var(--clr-photo);
+  border-radius: var(--radius-media);
   overflow: hidden;
+  isolation: isolate;
 }
 .plate > img,
 .plate picture img {
@@ -226,74 +330,29 @@ a { text-underline-offset: 0.2em; }
   object-fit: contain;
   mix-blend-mode: multiply;
 }
+.plate.is-cover > img,
+.plate.is-cover picture img { object-fit: cover; mix-blend-mode: normal; }
 
-/* ── Facts panel: the printed side of the box ────────────────────────────── */
-
-/* ── Section heading: title, optional line under it, optional link ───────── */
-/* Sections are told apart by space and by the type itself — no rule over them. */
-.section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+/* A panel: the theme's one container with an edge — the order form, a drawer section. */
+.panel,
+.carton,
+.card {
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-panel);
 }
-.section-title {
-  font-size: var(--text-2xl);
-  line-height: var(--text-2xl--line-height);
-  font-weight: 700;
-  color: var(--clr-text);
-}
-.section-sub {
-  margin-top: 0.25rem;
-  font-size: var(--text-sm);
-  color: var(--clr-text-2);
-}
-.section-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  flex: none;
-  min-height: 2.75rem;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--clr-text);
-  text-decoration: underline;
-  text-decoration-color: var(--clr-border);
-  text-decoration-thickness: 2px;
-}
-.section-link:hover { text-decoration-color: var(--clr-primary); }
-.section-link svg { width: 1rem; height: 1rem; }
-[dir="rtl"] .flip-rtl { transform: scaleX(-1); }
-
-/* ── Stamp: a rubber-stamped label (discount, stock) ─────────────────────── */
-.stamp {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.125rem 0.375rem;
-  border-radius: var(--radius-tag);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-.stamp-accent { background: var(--clr-accent); color: var(--clr-on-accent); }
-.stamp-ink { background: var(--clr-text); color: var(--clr-surface); }
-.stamp-line { border: 1px solid currentColor; color: var(--clr-text-2); background: var(--clr-surface); }
-.stamp-warn { border: 1px solid currentColor; color: var(--clr-error); background: var(--clr-surface); }
 
 /* ── Price ───────────────────────────────────────────────────────────────── */
 .price {
   font-variant-numeric: tabular-nums lining-nums;
-  font-weight: 700;
-  color: var(--clr-text);
+  font-weight: 600;
+  color: var(--clr-ink);
   white-space: nowrap;
 }
-.price-cur { font-size: 0.7em; font-weight: 600; margin-inline-start: 0.2em; }
+.price-cur { font-size: 0.72em; font-weight: 500; margin-inline-start: 0.25em; }
 .price-was {
   font-variant-numeric: tabular-nums lining-nums;
-  color: var(--clr-text-3);
+  color: var(--clr-muted);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
   white-space: nowrap;
@@ -301,23 +360,24 @@ a { text-underline-offset: 0.2em; }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.btn-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
   width: 100%;
   min-height: 3.25rem;
-  padding-inline: 1.5rem;
+  padding-inline: 1.75rem;
   border-radius: var(--radius-btn);
   font-family: var(--font-body);
   font-size: var(--text-base);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   text-decoration: none;
   cursor: pointer;
   position: relative;
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.12s ease, box-shadow 0.2s ease;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -326,83 +386,89 @@ a { text-underline-offset: 0.2em; }
   color: var(--clr-on-primary);
   border: 1px solid var(--clr-primary);
 }
-.btn-primary:hover { background: color-mix(in srgb, var(--clr-primary) 88%, var(--clr-text)); }
-.btn-primary:active { transform: translateY(1px); background: color-mix(in srgb, var(--clr-primary) 78%, var(--clr-text)); }
+.btn-primary:hover { background: color-mix(in oklab, var(--clr-primary) 86%, var(--clr-on-primary)); }
+.btn-primary:active { transform: scale(0.985); }
 .btn-secondary {
-  background: var(--clr-surface);
-  color: var(--clr-text);
-  border: 1.5px solid var(--clr-text);
+  background: transparent;
+  color: var(--clr-ink);
+  border: 1px solid var(--clr-ink);
 }
-.btn-secondary:hover { background: var(--clr-surface-alt); }
-.btn-secondary:active { transform: translateY(1px); }
+.btn-secondary:hover { background: var(--clr-ink); color: var(--clr-bg); }
+.btn-secondary:active { transform: scale(0.985); }
+.btn-ghost {
+  background: var(--clr-plate);
+  color: var(--clr-ink);
+  border: 1px solid transparent;
+}
+.btn-ghost:hover { background: color-mix(in oklab, var(--clr-plate) 80%, var(--clr-ink)); }
 .btn-primary:disabled,
 .btn-primary[aria-disabled="true"],
 .btn-secondary:disabled {
   cursor: not-allowed;
   transform: none;
-  color: var(--clr-text-2);
+  color: var(--clr-muted);
   border-color: var(--clr-border);
-  background: repeating-linear-gradient(-45deg, var(--clr-surface-alt) 0 6px, var(--clr-surface) 6px 12px);
+  background: var(--clr-plate);
 }
-.btn-primary svg, .btn-secondary svg { width: 1.25rem; height: 1.25rem; flex: none; }
+.btn-primary svg, .btn-secondary svg, .btn-ghost svg { width: 1.25rem; height: 1.25rem; flex: none; }
+.btn-lg { min-height: 3.5rem; font-size: var(--text-lg); }
 
-/* ── Forms: waybill fields ───────────────────────────────────────────────── */
+/* ── Forms ───────────────────────────────────────────────────────────────── */
 .form-label {
   display: block;
   font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--clr-text);
+  font-weight: 500;
+  color: var(--clr-ink);
   margin-bottom: 0.375rem;
 }
 .form-input {
   width: 100%;
-  min-height: 3rem;
-  padding-inline: 0.875rem;
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-text-3);
+  min-height: 3.25rem;
+  padding-inline: 1rem;
+  background: var(--clr-field);
+  border: 1px solid var(--clr-border-strong);
   border-radius: var(--radius-input);
   font-family: var(--font-body);
-  font-weight: 500;
+  font-weight: 400;
   font-size: var(--text-base);
-  color: var(--clr-text);
+  color: var(--clr-ink);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   appearance: none;
   -webkit-appearance: none;
 }
-.form-input::placeholder { color: var(--clr-text-3); opacity: 1; }
-.form-input:hover { border-color: var(--clr-text-2); }
+.form-input::placeholder { color: var(--clr-muted); opacity: 1; }
+.form-input:hover { border-color: var(--clr-text); }
 .form-input:focus {
   outline: none;
-  border-color: var(--clr-text);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--clr-primary) 22%, transparent);
+  border-color: var(--clr-ink);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--clr-ink) 14%, transparent);
 }
 .form-input.error {
   border-color: var(--clr-error);
   background: var(--clr-error-bg);
 }
 .form-input:disabled {
-  color: var(--clr-text-3);
-  background: var(--clr-surface-alt);
+  color: var(--clr-muted);
+  background: var(--clr-plate);
   border-color: var(--clr-border);
   cursor: not-allowed;
 }
-textarea.form-input { min-height: 6rem; padding-block: 0.75rem; resize: vertical; }
+textarea.form-input { min-height: 6rem; padding-block: 0.875rem; resize: vertical; }
 
-/* ── Waybill: the order form as a courier label ──────────────────────────── */
+/* ── The order form: the doorstep total is the page's one bold thing ─────── */
 .waybill {
   background: var(--clr-surface);
-  border: 1.5px solid var(--clr-text);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-panel);
 }
 .waybill-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.875rem 1rem;
-  background: var(--clr-text);
-  color: var(--clr-surface);
-  border-radius: calc(var(--radius-card) - 1.5px) calc(var(--radius-card) - 1.5px) 0 0;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--clr-border);
+  color: var(--clr-ink);
 }
 .waybill-legend {
   display: flex;
@@ -410,47 +476,24 @@ textarea.form-input { min-height: 6rem; padding-block: 0.75rem; resize: vertical
   gap: 0.5rem;
   margin-bottom: 0.75rem;
   font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--clr-text);
+  font-weight: 600;
+  color: var(--clr-ink);
 }
+.perforation { height: 0; border-top: 1px solid var(--clr-border); }
 
-/* The perforation: the tear line between the label and its total. */
-.perforation {
-  position: relative;
-  height: 0;
-  border-top: 2px dashed var(--clr-border);
-  margin-inline: -1rem;
-}
-.perforation::before,
-.perforation::after {
-  content: "";
-  position: absolute;
-  top: -0.6875rem;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  background: var(--clr-bg);
-  border: 1.5px solid var(--clr-text);
-}
-.perforation::before { inset-inline-start: -0.6875rem; clip-path: inset(0 0 0 50%); }
-.perforation::after { inset-inline-end: -0.6875rem; clip-path: inset(0 50% 0 0); }
-[dir="rtl"] .perforation::before { clip-path: inset(0 50% 0 0); }
-[dir="rtl"] .perforation::after { clip-path: inset(0 0 0 50%); }
-
-/* The amount paid at the door. */
+/* The amount paid at the door, underlined by the saffron thread. */
 .cod-total {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.875rem 1rem;
-  background: var(--clr-primary);
-  color: var(--clr-on-primary);
-  border-radius: var(--radius-input);
+  padding-block: 0.75rem 0.875rem;
+  color: var(--clr-ink);
+  border-bottom: 2px solid var(--clr-accent);
 }
-.cod-total .price { color: inherit; font-size: var(--text-xl); }
+.cod-total .price { color: inherit; font-size: var(--text-2xl); line-height: 1.1; }
+@media (min-width: 1024px) { .cod-total .price { font-size: var(--text-3xl); } }
 
-/* ── Choice chips: variants, delivery, offers ────────────────────────────── */
 /* ── Native bottom nav ───────────────────────────────────────────────────── */
 .mobile-nav {
   position: fixed;
@@ -476,11 +519,11 @@ textarea.form-input { min-height: 6rem; padding-block: 0.75rem; resize: vertical
   align-items: center;
   justify-content: center;
   gap: 0.125rem;
-  color: var(--clr-text-2);
+  color: var(--clr-text);
   font-size: var(--text-2xs);
   font-weight: 600;
 }
-.mobile-nav-item.active { color: var(--clr-text); }
+.mobile-nav-item.active { color: var(--clr-ink); }
 .mobile-nav-item.active::before {
   content: "";
   position: absolute;
@@ -599,7 +642,7 @@ body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
 .rich-description > :last-child { margin-bottom: 0; }
 
 .rich-description p { margin: 0 0 0.85em; }
-.rich-description strong, .rich-description b { font-weight: 800; color: var(--clr-text); }
+.rich-description strong, .rich-description b { font-weight: 800; color: var(--clr-ink); }
 .rich-description em, .rich-description i { font-style: italic; }
 .rich-description u { text-decoration: underline; }
 .rich-description s, .rich-description strike { text-decoration: line-through; }
@@ -608,7 +651,7 @@ body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
 
 .rich-description h2, .rich-description h3, .rich-description h4,
 .rich-description h5, .rich-description h6 {
-  font-weight: 800; color: var(--clr-text); line-height: 1.3; margin: 1.2em 0 0.5em;
+  font-weight: 800; color: var(--clr-ink); line-height: 1.3; margin: 1.2em 0 0.5em;
 }
 .rich-description h2 { font-size: 1.35em; }
 .rich-description h3 { font-size: 1.2em; }
@@ -624,7 +667,7 @@ body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
 
 .rich-description blockquote {
   margin: 1em 0; padding-inline-start: 1em;
-  border-inline-start: 1px solid var(--clr-text-3); color: var(--clr-text-2);
+  border-inline-start: 1px solid var(--clr-muted); color: var(--clr-text);
 }
 
 .rich-description a {
@@ -634,20 +677,20 @@ body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
 
 .rich-description img {
   max-width: 100%; height: auto; margin: 0.5em 0;
-  border-radius: var(--radius-input); background: var(--clr-surface-alt);
+  border-radius: var(--radius-input); background: var(--clr-plate);
 }
 .rich-description figure { margin: 1em 0; }
 .rich-description figcaption {
-  font-size: 0.85em; color: var(--clr-text-2); text-align: center; margin-top: 0.4em;
+  font-size: 0.85em; color: var(--clr-text); text-align: center; margin-top: 0.4em;
 }
 
 .rich-description code {
   font-family: var(--font-mono); font-size: 0.9em;
-  background: var(--clr-surface-alt); border: 1px solid var(--clr-border);
+  background: var(--clr-plate); border: 1px solid var(--clr-border);
   border-radius: 0.35rem; padding: 0.1em 0.35em;
 }
 .rich-description pre {
-  background: var(--clr-surface-alt); border: 1px solid var(--clr-border);
+  background: var(--clr-plate); border: 1px solid var(--clr-border);
   border-radius: var(--radius-input); padding: 0.85em 1em;
   overflow-x: auto; margin: 0 0 0.85em;
 }
@@ -662,7 +705,7 @@ body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
   border: 1px solid var(--clr-border); padding: 0.5em 0.65em;
   text-align: start; vertical-align: top;
 }
-.rich-description th { background: var(--clr-surface-alt); font-weight: 800; color: var(--clr-text); }
+.rich-description th { background: var(--clr-plate); font-weight: 800; color: var(--clr-ink); }
 .rich-description thead th { border-bottom-width: 2px; }
 
 /* Rich text: the three features the editor template writes as attributes.
@@ -677,7 +720,7 @@ body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
    whatever colour surrounds it. */
 .rich-description mark {
   background-color: color-mix(in srgb, var(--clr-accent) 45%, transparent);
-  color: var(--clr-text);
+  color: var(--clr-ink);
   border-radius: var(--radius-input);
   padding: 0 0.15em;
 }
@@ -706,7 +749,7 @@ body.has-mobile-nav[data-sticky-cta="visible"] .wa-widget {
   height: 1em;
   margin-top: 0.3em;
   border: 1px solid var(--clr-border);
-  background: var(--clr-surface-alt);
+  background: var(--clr-plate);
   border-radius: var(--radius-input);
 }
 

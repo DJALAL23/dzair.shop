@@ -8,6 +8,9 @@ import type { StoreClient } from "@/theme/sdk";
 import { en } from "@/theme/content/en";
 import { DEFAULT_CONFIG, type StoreContext } from "@/theme/runtime/store";
 
+/** A store with no menus and no saved pages: every area renders the theme's default. */
+const EMPTY_CLIENT = { menus: { get: async () => null }, pageData: { get: async () => null } };
+
 export function testStore(overrides: Partial<StoreContext> & { routing?: LocaleRouting } = {}): StoreContext {
   const routing = overrides.routing ?? { primary: "en", published: ["en"] };
   const locale = overrides.locale ?? routing.primary;
@@ -17,12 +20,12 @@ export function testStore(overrides: Partial<StoreContext> & { routing?: LocaleR
     locale,
     fallbackLocales: locale === routing.primary ? [] : [routing.primary],
     isRTL: false,
-    // A store with no menus: the layout's header and footer keep their own links.
-    client: { menus: { get: async () => null } } as unknown as StoreClient,
     routing,
     pathname: "/",
     href: (path) => localizeHref(path, locale, routing),
     ...overrides,
+    // A test's client stands in for the namespaces it names; the rest read as empty.
+    client: { ...EMPTY_CLIENT, ...(overrides.client as object | undefined) } as unknown as StoreClient,
   };
 }
 

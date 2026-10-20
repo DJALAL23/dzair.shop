@@ -1,0 +1,29 @@
+---
+// Every section's frame: the band wears the section's color scheme and its
+// room above and below; the content inside runs as wide as the section's
+// width. Both come from the section's `scheme` and `style` fields, so the
+// theme editor changes them and the theme's CSS never fights it — nothing
+// here sets padding or width of its own.
+import { schemeClass, styleClasses, type StyleValue } from "@wocart/theme";
+
+interface Props {
+  scheme?: string | undefined;
+  style?: StyleValue | undefined;
+  id?: string | undefined;
+  /** Content edge to edge, with no frame (a full-width image). */
+  bleed?: boolean;
+  class?: string;
+  /** Classes for the inner frame. */
+  inner?: string;
+  as?: "section" | "div" | "aside";
+  label?: string | undefined;
+}
+
+const { scheme, style, id, bleed = false, class: className, inner, as: Tag = "section", label } = Astro.props;
+const outer = styleClasses(style?.spacing ? { spacing: style.spacing } : undefined);
+const width = styleClasses(style?.size ? { size: style.size } : undefined);
+---
+
+<Tag id={id} class:list={["section scheme", schemeClass(scheme), outer, className]} aria-label={label}>
+  {bleed ? <slot /> : <div class:list={["frame", width, inner]}><slot /></div>}
+</Tag>

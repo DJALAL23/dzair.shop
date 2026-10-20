@@ -40,3 +40,34 @@ export function onEachPage(boot: () => Teardown): void {
     mount();
   }
 }
+
+/** What `@wocart/theme`'s preview dispatches on `document` after it swaps a section in. */
+const SECTION_LOAD = "wocart:section-load";
+
+/**
+ * Binds `boot` to every element matching `selector`, on each page and again
+ * whenever an editor's preview swaps a section in (a swapped section's
+ * scripts do not run again). An element is bound once; its teardown runs
+ * when the page is left.
+ */
+export function onEachElement(selector: string, boot: (element: HTMLElement) => Teardown): void {
+  const bound = new WeakSet<HTMLElement>();
+  let teardowns: Array<() => void> = [];
+  const bindAll = () => {
+    for (const element of document.querySelectorAll<HTMLElement>(selector)) {
+      if (bound.has(element)) continue;
+      bound.add(element);
+      const teardown = boot(element);
+      if (typeof teardown === "function") teardowns.push(teardown);
+    }
+  };
+  onEachPage(() => {
+    bindAll();
+    document.addEventListener(SECTION_LOAD, bindAll);
+    return () => {
+      document.removeEventListener(SECTION_LOAD, bindAll);
+      for (const teardown of teardowns) teardown();
+      teardowns = [];
+    };
+  });
+}

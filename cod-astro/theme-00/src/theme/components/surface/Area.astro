@@ -1,0 +1,19 @@
+---
+// A part every page shares — the header, the footer — composed of sections
+// like a page: the store's saved document for it, or the theme's default. An
+// editor previewing this area sends its draft, and only then are the area's
+// sections marked for selection.
+import { areaSurface } from "@wocart/theme";
+import Sections from "./Sections.astro";
+
+interface Props {
+  area: "header" | "footer";
+}
+
+const surface = areaSurface(Astro.props.area);
+const draft = Astro.locals.preview?.draft;
+const editing = draft?.surface === surface;
+const document = editing && draft?.document !== undefined ? draft.document : await Astro.locals.store.client.pageData.get(surface);
+---
+
+<Sections surface={surface} document={document} preview={editing} />

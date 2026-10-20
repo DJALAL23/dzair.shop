@@ -30,12 +30,12 @@ const { items: products, hasNext, first, last } = pageWindow(
 
 <div class="max-w-5xl mx-auto px-5 py-8">
   <div class="mb-8">
-    <h1 class="text-3xl font-black tracking-tight" style="color: var(--clr-text)">{category.name}</h1>
-    <p class="text-[0.8125rem] font-bold uppercase tracking-widest mt-1" style="color: var(--clr-text-2)">
+    <h1 class="text-3xl font-black tracking-tight" style="color: var(--clr-ink)">{category.name}</h1>
+    <p class="text-[0.8125rem] font-bold uppercase tracking-widest mt-1" style="color: var(--clr-text)">
       {page === 1 && !hasNext ? products.length : `${first}–${last}`} {content.productCountLabel}
     </p>
     {category.description && (
-      <p class="text-sm mt-3 max-w-2xl" style="color: var(--clr-text-2)">{category.description}</p>
+      <p class="text-sm mt-3 max-w-2xl" style="color: var(--clr-text)">{category.description}</p>
     )}
   </div>
 
@@ -46,7 +46,7 @@ const { items: products, hasNext, first, last } = pageWindow(
         href={Astro.locals.store.href(storefrontPath("catalog"))}
         data-astro-prefetch="hover"
         class="shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 active:scale-95 shadow-sm"
-        style="border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text-2)"
+        style="border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text)"
       >
         {content.allLabel}
       </a>
@@ -60,7 +60,7 @@ const { items: products, hasNext, first, last } = pageWindow(
               ? "bg-[var(--clr-primary)] border-[var(--clr-primary)] text-white shadow-lg shadow-[var(--clr-primary)]/20 scale-105 mx-1"
               : "",
           ]}
-          style={cat.slug !== slug ? "border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text-2)" : ""}
+          style={cat.slug !== slug ? "border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text)" : ""}
         >
           {cat.name}
         </a>
@@ -81,8 +81,8 @@ const { items: products, hasNext, first, last } = pageWindow(
     </div>
   ) : page === 1 ? (
     <div class="py-24 text-center">
-      <div class="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-6" style="background: var(--clr-surface-alt)">🔍</div>
-      <h2 class="text-xl font-black mb-2" style="color: var(--clr-text)">
+      <div class="w-20 h-20 rounded-full flex items-center justify-center text-4xl mx-auto mb-6" style="background: var(--clr-plate)">🔍</div>
+      <h2 class="text-xl font-black mb-2" style="color: var(--clr-ink)">
         {content.noProductsTitle}
       </h2>
       <a

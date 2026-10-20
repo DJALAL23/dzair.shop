@@ -12,6 +12,9 @@ import type { LocalizedText } from "@wocart/theme";
 const text = (ar: string, fr: string, en: string): LocalizedText => ({ ar, fr, en });
 
 export const SECTION = {
+  announcementBar: text("شريط الإعلانات", "Barre d'annonces", "Announcement bar"),
+  header: text("رأس الصفحة", "En-tête", "Header"),
+  footer: text("تذييل الصفحة", "Pied de page", "Footer"),
   hero: text("البانر الرئيسي", "Bannière principale", "Hero"),
   categoryCards: text("بطاقات الفئات", "Cartes des catégories", "Category cards"),
   bestSellers: text("الأكثر مبيعاً", "Meilleures ventes", "Best sellers"),
@@ -29,6 +32,16 @@ export const SECTION = {
 };
 
 export const FIELD = {
+  menu: text("القائمة", "Menu", "Menu"),
+  link: text("الرابط", "Lien", "Link"),
+  logoPosition: text("موضع الشعار", "Position du logo", "Logo position"),
+  logoWidth: text("عرض الشعار", "Largeur du logo", "Logo width"),
+  sticky: text("يبقى ظاهراً عند التمرير", "Reste visible au défilement", "Stays visible on scroll"),
+  autoplay: text("تبديل الرسائل تلقائياً", "Faire défiler les messages", "Rotate messages"),
+  about: text("نبذة", "Présentation", "About text"),
+  showLanguages: text("إظهار اختيار اللغة", "Afficher le choix de langue", "Show language picker"),
+  scheme: text("الألوان", "Couleurs", "Colors"),
+  style: text("المسافات والعرض", "Espacement et largeur", "Spacing and width"),
   eyebrow: text("النص العلوي", "Surtitre", "Eyebrow"),
   title: text("العنوان", "Titre", "Title"),
   subtitle: text("العنوان الفرعي", "Sous-titre", "Subtitle"),
@@ -59,6 +72,12 @@ export const FIELD = {
 
 /** The words an editor shows for a select field's options. */
 export const OPTION = {
+  sharp: text("حادة", "Nets", "Sharp"),
+  soft: text("ناعمة", "Doux", "Soft"),
+  round: text("دائرية", "Arrondis", "Round"),
+  square: text("مربعة", "Carré", "Square"),
+  portrait: text("طولية", "Portrait", "Portrait"),
+  landscape: text("عرضية", "Paysage", "Landscape"),
   start: text("في البداية", "Au début", "At the start"),
   end: text("في النهاية", "À la fin", "At the end"),
   center: text("في الوسط", "Au centre", "Centered"),
@@ -66,6 +85,23 @@ export const OPTION = {
 
 export const GROUP = {
   home: text("الصفحة الرئيسية", "Accueil", "Home"),
+  header: text("رأس الصفحة", "En-tête", "Header"),
+  footer: text("تذييل الصفحة", "Pied de page", "Footer"),
+};
+
+/** The blocks a section arranges, as the editor names them. */
+export const BLOCK = {
+  announcement: text("إعلان", "Annonce", "Announcement"),
+  footerAbout: text("عن المتجر", "À propos", "About the store"),
+  footerMenu: text("قائمة روابط", "Menu de liens", "Link menu"),
+  footerPages: text("صفحات المتجر", "Pages de la boutique", "Store pages"),
+  footerText: text("نص", "Texte", "Text"),
+};
+
+/** The parts every page shares. */
+export const AREA = {
+  header: text("رأس الصفحة", "En-tête", "Header"),
+  footer: text("تذييل الصفحة", "Pied de page", "Footer"),
 };
 
 export const SURFACE = {
@@ -76,16 +112,24 @@ export const SURFACE = {
 export const SETTINGS_GROUP = {
   colors: text("الألوان", "Couleurs", "Colors"),
   typography: text("الخطوط", "Typographie", "Typography"),
-  navigation: text("التنقل", "Navigation", "Navigation"),
-  announcement: text("شريط الإعلان", "Barre d'annonce", "Announcement bar"),
+  shape: text("الأشكال", "Formes", "Shape"),
+  productCards: text("بطاقات المنتجات", "Cartes produit", "Product cards"),
 };
 
 export const SETTING = {
-  primaryColor: text("اللون الرئيسي", "Couleur principale", "Primary color"),
-  accentColor: text("لون التمييز", "Couleur d'accent", "Accent color"),
-  backgroundColor: text("لون الخلفية", "Couleur de fond", "Background color"),
-  font: text("خط المتجر", "Police de la boutique", "Store font"),
-  announcement: text("نص الإعلان", "Texte de l'annonce", "Announcement text"),
-  headerMenu: text("قائمة رأس الصفحة", "Menu de l'en-tête", "Header menu"),
-  footerMenu: text("قائمة التذييل", "Menu du pied de page", "Footer menu"),
+  colorSchemes: text("مخططات الألوان", "Palettes de couleurs", "Color schemes"),
+  pageScheme: text("ألوان الصفحة", "Couleurs de la page", "Page colors"),
+  headingFont: text("خط العناوين", "Police des titres", "Headings font"),
+  font: text("خط النصوص", "Police du texte", "Body font"),
+  corners: text("الزوايا", "Coins", "Corners"),
+  cardImageRatio: text("شكل صورة المنتج", "Format de l'image produit", "Product image shape"),
+};
+
+/** The theme's default color schemes, as the editor names them. */
+export const SCHEME = {
+  light: text("فاتح", "Clair", "Light"),
+  stone: text("حجري", "Pierre", "Stone"),
+  mist: text("ضبابي", "Brume", "Mist"),
+  night: text("ليلي", "Nuit", "Night"),
+  saffron: text("زعفراني", "Safran", "Saffron"),
 };

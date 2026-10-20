@@ -8,7 +8,9 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import type { LocaleRouting } from "@wocart/storefront";
-import Footer from "@/theme/components/layout/Footer.astro";
+import FooterAbout from "@/theme/components/footer/FooterAbout.astro";
+import FooterMenu from "@/theme/components/footer/FooterMenu.astro";
+import FooterPages from "@/theme/components/footer/FooterPages.astro";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { fr } from "@/theme/content/fr";
 import { fakeStorefront, makeProduct, renderSections } from "../support/home-render";
@@ -59,13 +61,17 @@ describe("links in French", () => {
       ...DEFAULT_CONFIG,
       pages: [{ id: "p", kind: "terms" as const, slug: "conditions", title: "Conditions", position: 1 }],
     };
-    const html = await container.renderToString(Footer, {
-      props: { config, content: fr },
-      locals: testLocals({ locale: "fr", routing, content: fr }),
-    });
+    const locals = testLocals({ locale: "fr", routing, content: fr, config });
+    const storeMenu = { handle: "footer", title: "Footer", items: [{ label: "Boutique", href: "/products", type: "catalog", children: [] }] };
+    const html = [
+      await container.renderToString(FooterAbout, { props: { text: fr.footerAbout }, locals }),
+      await container.renderToString(FooterMenu, { props: { title: fr.footerQuickLinks, menu: "footer", storeMenu }, locals }),
+      await container.renderToString(FooterPages, { props: { title: fr.footerSupport }, locals }),
+    ].join("");
     const links = internal(hrefs(html));
     expect(links).toContain("/fr/pages/conditions");
     expect(links).toContain("/fr");
+    expect(links).toContain("/fr/products");
     expect(links.filter((href) => !href.startsWith("/fr"))).toEqual([]);
   });
 });

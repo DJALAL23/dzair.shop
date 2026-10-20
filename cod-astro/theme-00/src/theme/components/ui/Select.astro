@@ -51,13 +51,13 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
         error && "border-red-200 bg-red-50",
         dynamic && "opacity-50 cursor-not-allowed",
       ]}
-      style="background: var(--clr-surface-alt); border-color: var(--clr-border)"
+      style="background: var(--clr-plate); border-color: var(--clr-border)"
     >
-      <span class="truncate font-bold select-display-text" style="color: var(--clr-text-2)">{placeholder}</span>
+      <span class="truncate font-bold select-display-text" style="color: var(--clr-text)">{placeholder}</span>
       <div class="flex items-center gap-2 shrink-0">
         <!-- Loading spinner (hidden by default, shown during async loads) -->
-        <div class="select-spinner hidden w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--clr-text-2); border-top-color: transparent"></div>
-        <Icon name="heroicons:chevron-down" class="w-5 h-5 shrink-0 select-chevron" style="color: var(--clr-text-2)" />
+        <div class="select-spinner hidden w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--clr-text); border-top-color: transparent"></div>
+        <Icon name="heroicons:chevron-down" class="w-5 h-5 shrink-0 select-chevron" style="color: var(--clr-text)" />
       </div>
     </button>
 
@@ -74,11 +74,11 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
           <input
             type="text"
             class="select-search-input w-full h-10 ps-10 pe-4 border-none rounded-xl font-bold text-sm focus:ring-2 focus:ring-[var(--clr-primary)]/20 outline-none"
-            style="background: var(--clr-surface-alt)"
+            style="background: var(--clr-plate)"
             placeholder={searchPlaceholder}
             autocomplete="off"
           />
-          <div class="absolute inset-y-0 start-3 flex items-center pointer-events-none" style="color: var(--clr-text-2)">
+          <div class="absolute inset-y-0 start-3 flex items-center pointer-events-none" style="color: var(--clr-text)">
             <Icon name="heroicons:magnifying-glass" class="w-4 h-4" />
           </div>
         </div>
@@ -90,7 +90,7 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
           <button
             type="button"
             class="select-option-item w-full text-start px-4 py-3.5 font-bold transition-colors flex items-center justify-between group"
-            style="color: var(--clr-text)"
+            style="color: var(--clr-ink)"
             data-value={opt.value}
             data-label={opt.label}
           >
@@ -98,7 +98,7 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
             <Icon name="heroicons:check" class="check-mark opacity-0 text-[var(--clr-primary)] w-[18px] h-[18px]" />
           </button>
         ))}
-        <div class="no-results-msg hidden py-8 text-center font-bold text-sm" style="color: var(--clr-text-2)">
+        <div class="no-results-msg hidden py-8 text-center font-bold text-sm" style="color: var(--clr-text)">
           {noResultsText}
         </div>
       </div>
@@ -230,7 +230,7 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
 
       hiddenInput.value = opt.dataset.value;
       displayText.textContent = opt.dataset.label;
-      displayText.style.color = 'var(--clr-text)';
+      displayText.style.color = 'var(--clr-ink)';
 
       liveOptions().forEach(o => o.querySelector('.check-mark').classList.add('opacity-0'));
       opt.querySelector('.check-mark').classList.remove('opacity-0');
@@ -267,7 +267,7 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
     // Reset value + display
     hiddenInput.value = '';
     if (placeholder) displayText.textContent = placeholder;
-    displayText.style.color = 'var(--clr-text-2)';
+    displayText.style.color = 'var(--clr-text)';
     noResults.classList.add('hidden');
 
     // Inject new options before the no-results node
@@ -275,7 +275,7 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'select-option-item w-full text-start px-4 py-3.5 font-bold transition-colors flex items-center justify-between group';
-      btn.style.color = 'var(--clr-text)';
+      btn.style.color = 'var(--clr-ink)';
       btn.dataset.value = String(item.value);
       btn.dataset.label = item.label;
       btn.innerHTML =
@@ -324,7 +324,7 @@ const { id, name, label, placeholder, searchPlaceholder = "Search...", noResults
     var displayText = container.querySelector('.select-display-text');
     var dropdown    = container.querySelector('div[id$="-dropdown"]');
     if (text) displayText.textContent = text;
-    displayText.style.color = 'var(--clr-text-2)';
+    displayText.style.color = 'var(--clr-text)';
     hiddenInput.value = '';
     optionsList.querySelectorAll('.select-option-item').forEach(function (el) { el.remove(); });
     spinner.classList.add('hidden');

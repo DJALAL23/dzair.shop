@@ -27,14 +27,14 @@ const { items: products, hasNext, first, last } = pageWindow(
 
 <div class="max-w-5xl mx-auto px-5 py-8">
   <div class="mb-8">
-    <h1 class="text-3xl font-black tracking-tight" style="color: var(--clr-text)">{collection.title}</h1>
+    <h1 class="text-3xl font-black tracking-tight" style="color: var(--clr-ink)">{collection.title}</h1>
     {products.length > 0 && (
-      <p class="text-[0.8125rem] font-bold uppercase tracking-widest mt-1" style="color: var(--clr-text-2)">
+      <p class="text-[0.8125rem] font-bold uppercase tracking-widest mt-1" style="color: var(--clr-text)">
         {page === 1 && !hasNext ? products.length : `${first}–${last}`} {content.productCountLabel}
       </p>
     )}
     {collection.description && (
-      <p class="text-sm mt-3 max-w-2xl" style="color: var(--clr-text-2)">{collection.description}</p>
+      <p class="text-sm mt-3 max-w-2xl" style="color: var(--clr-text)">{collection.description}</p>
     )}
   </div>
 
@@ -46,7 +46,7 @@ const { items: products, hasNext, first, last } = pageWindow(
     </div>
   ) : page === 1 ? (
     <div class="py-24 text-center">
-      <h2 class="text-xl font-black mb-2" style="color: var(--clr-text)">{content.noProductsTitle}</h2>
+      <h2 class="text-xl font-black mb-2" style="color: var(--clr-ink)">{content.noProductsTitle}</h2>
       <a
         href={store.href(storefrontPath("catalog"))}
         data-astro-prefetch="hover"

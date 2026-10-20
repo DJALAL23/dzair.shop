@@ -1,0 +1,20 @@
+---
+import { Image } from "astro:assets";
+import type { InferProps } from "@wocart/theme";
+import type { footerAbout } from "@/theme/catalog/footer/footer.def";
+
+type Props = InferProps<typeof footerAbout>;
+const { text } = Astro.props;
+const { config } = Astro.locals.store;
+---
+
+<div class="footer-col footer-about">
+  <a href={Astro.locals.store.href("/")} class="footer-brand" aria-label={config.name}>
+    {config.logoUrl ? (
+      <Image src={config.logoUrl} alt={config.name} width={320} height={96} quality={90} loading="lazy" decoding="async" />
+    ) : (
+      <span>{config.name}</span>
+    )}
+  </a>
+  {text && <p class="footer-about-text">{text}</p>}
+</div>

@@ -97,7 +97,7 @@ const goTo = (index: number) => message(content, "ariaGoToImage", { n: index + 1
   .stage {
     position: relative;
     aspect-ratio: 1 / 1;
-    background: var(--clr-surface-alt);
+    background: var(--clr-plate);
     overflow: hidden;
   }
   .gallery-track {
@@ -162,7 +162,7 @@ const goTo = (index: number) => message(content, "ariaGoToImage", { n: index + 1
     width: 0.75rem;
     height: 3px;
     border-radius: var(--radius-tag);
-    background: var(--clr-text);
+    background: var(--clr-ink);
     opacity: 0.25;
     transition: width 0.25s var(--ease-out-expo), opacity 0.25s ease;
   }
@@ -191,7 +191,7 @@ const goTo = (index: number) => message(content, "ariaGoToImage", { n: index + 1
       padding: 0;
       border: 1.5px solid var(--clr-border);
       border-radius: var(--radius-input);
-      background: var(--clr-surface-alt);
+      background: var(--clr-plate);
       overflow: hidden;
       opacity: 0.6;
       cursor: pointer;
@@ -199,7 +199,7 @@ const goTo = (index: number) => message(content, "ariaGoToImage", { n: index + 1
     }
     .gallery-thumb:hover { opacity: 1; }
     .gallery-thumb.is-active {
-      border-color: var(--clr-text);
+      border-color: var(--clr-ink);
       opacity: 1;
     }
     .gallery-thumb .gallery-img {

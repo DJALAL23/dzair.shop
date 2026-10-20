@@ -46,13 +46,13 @@ const { config, content } = Astro.locals.store;
     <!-- Headline + subtext -->
     <h1
       class="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight mt-4"
-      style="color: var(--clr-text);"
+      style="color: var(--clr-ink);"
     >
       {content.notFoundTitle}
     </h1>
     <p
       class="mt-4 max-w-md text-sm sm:text-base font-medium leading-relaxed"
-      style="color: var(--clr-text-2);"
+      style="color: var(--clr-text);"
     >
       {content.notFoundSubtitle}
     </p>
@@ -66,7 +66,7 @@ const { config, content } = Astro.locals.store;
       <a
         href={Astro.locals.store.href(storefrontPath("catalog"))}
         class="inline-flex items-center justify-center gap-2.5 px-8 h-14 font-black text-sm transition-all duration-300 active:scale-95 w-full sm:w-auto rounded-2xl"
-        style="background: var(--clr-surface); border: 2px solid var(--clr-border); color: var(--clr-text);"
+        style="background: var(--clr-surface); border: 2px solid var(--clr-border); color: var(--clr-ink);"
       >
         <Icon name="heroicons:squares-2x2" class="w-5 h-5" style="color: var(--clr-primary);" />
         {content.notFoundCtaProducts}

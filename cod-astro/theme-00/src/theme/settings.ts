@@ -1,49 +1,64 @@
 /**
  * Theme-00's global settings: what a merchant chooses once for the whole
- * store — its colors, its font, the announcement bar's text, which menu the
- * header and the footer show —
+ * store — its color schemes and which one the page wears, the faces for
+ * headings and text, the corners, and the shape of a product card's photo —
  * read from `StoreConfig.themeSettings` against this declaration
- * (`resolveThemeSettings`). Every setting has a default (the announcement's
- * is this theme's own copy, `announcementText`), so a store that
- * saved nothing renders exactly as designed. The merchant edits them in the
- * theme editor (CodFlow Cloud); this theme only reads them.
+ * (`resolveThemeSettings`). Every setting has a default, so a store that saved
+ * nothing renders exactly as designed. The merchant edits them in the theme
+ * editor (CodFlow Cloud); this theme only reads them.
  *
- * The menus name a store menu by handle: every store starts with `main-menu`
- * and `footer`, which the merchant edits in the dashboard's Navigation screen.
+ * The header and the footer — their menus, the announcement — are sections of
+ * the store's header and footer areas, edited where they are seen.
  */
 import type { SettingsGroup } from "@wocart/theme";
-import themeFonts from "./fonts.json";
-import { SETTING, SETTINGS_GROUP } from "./catalog/labels";
-
-const FONT_FAMILIES = themeFonts.map((font) => font.family) as [string, ...string[]];
-const DEFAULT_FONT = themeFonts.find((font) => "default" in font && font.default)!.family;
+import { BODY_FONT, CARD_RATIOS, CORNERS, DEFAULT_SCHEMES, FONT_FAMILIES, HEADING_FONT, PAGE_SCHEME } from "./appearance";
+import { OPTION, SETTING, SETTINGS_GROUP } from "./catalog/labels";
 
 export const THEME_SETTINGS = [
   {
     key: "colors",
     label: SETTINGS_GROUP.colors,
     fields: [
-      { key: "primaryColor", kind: "color", label: SETTING.primaryColor, default: "#0b3bbd" },
-      { key: "accentColor", kind: "color", label: SETTING.accentColor, default: "#f59e0b" },
-      { key: "backgroundColor", kind: "color", label: SETTING.backgroundColor, default: "#f4f5f7" },
+      { key: "colorSchemes", kind: "colorSchemes", label: SETTING.colorSchemes, default: DEFAULT_SCHEMES },
+      { key: "pageScheme", kind: "colorScheme", label: SETTING.pageScheme, default: PAGE_SCHEME },
     ],
   },
   {
     key: "typography",
     label: SETTINGS_GROUP.typography,
-    fields: [{ key: "font", kind: "select", label: SETTING.font, options: FONT_FAMILIES, default: DEFAULT_FONT }],
-  },
-  {
-    key: "announcement",
-    label: SETTINGS_GROUP.announcement,
-    fields: [{ key: "announcement", kind: "text", label: SETTING.announcement, contentKey: "announcementText" }],
-  },
-  {
-    key: "navigation",
-    label: SETTINGS_GROUP.navigation,
     fields: [
-      { key: "headerMenu", kind: "menu", label: SETTING.headerMenu, default: "main-menu" },
-      { key: "footerMenu", kind: "menu", label: SETTING.footerMenu, default: "footer" },
+      { key: "headingFont", kind: "select", label: SETTING.headingFont, options: FONT_FAMILIES, default: HEADING_FONT },
+      { key: "font", kind: "select", label: SETTING.font, options: FONT_FAMILIES, default: BODY_FONT },
+    ],
+  },
+  {
+    key: "shape",
+    label: SETTINGS_GROUP.shape,
+    fields: [
+      {
+        key: "corners",
+        kind: "select",
+        label: SETTING.corners,
+        options: CORNERS,
+        optionLabels: { sharp: OPTION.sharp, soft: OPTION.soft, round: OPTION.round },
+        default: "soft",
+        display: "segmented",
+      },
+    ],
+  },
+  {
+    key: "product-cards",
+    label: SETTINGS_GROUP.productCards,
+    fields: [
+      {
+        key: "cardImageRatio",
+        kind: "select",
+        label: SETTING.cardImageRatio,
+        options: CARD_RATIOS,
+        optionLabels: { square: OPTION.square, portrait: OPTION.portrait, landscape: OPTION.landscape },
+        default: "portrait",
+        display: "segmented",
+      },
     ],
   },
 ] as const satisfies readonly SettingsGroup[];

@@ -40,7 +40,7 @@ const refused = couponRefusal ? couponNotice({ applied: false, ...couponRefusal 
   </button>
 
   <div id="coupon-box" class="space-y-2" data-coupon-box hidden={refused === null}>
-    <label for="coupon-input" class="block text-[0.8125rem] font-bold" style="color: var(--clr-text)">{content.couponLabel}</label>
+    <label for="coupon-input" class="block text-[0.8125rem] font-bold" style="color: var(--clr-ink)">{content.couponLabel}</label>
     <div class="flex items-stretch gap-2">
       <input
         id="coupon-input"
@@ -79,9 +79,9 @@ const refused = couponRefusal ? couponNotice({ applied: false, ...couponRefusal 
   .coupon-apply { width: auto; flex: none; min-height: 3rem; padding-inline: 1.25rem; }
   .coupon-status[data-tone="applied"] { color: var(--clr-success); }
   .coupon-status[data-tone="refused"] { color: var(--clr-error); }
-  .coupon-status[data-tone="hint"] { color: var(--clr-text-2); }
-  .coupon-status:not([data-tone]) { color: var(--clr-text-2); }
+  .coupon-status[data-tone="hint"] { color: var(--clr-text); }
+  .coupon-status:not([data-tone]) { color: var(--clr-text); }
   .coupon-status:not([data-tone="applied"]) .coupon-status-icon { display: none; }
-  .coupon-remove { color: var(--clr-text-2); }
-  .coupon-remove:hover { color: var(--clr-text); }
+  .coupon-remove { color: var(--clr-text); }
+  .coupon-remove:hover { color: var(--clr-ink); }
 </style>

@@ -16,6 +16,10 @@
  *   with a stored prop the instance value wins.
  */
 
+import type { FieldDefinition, StyleValue } from "@wocart/theme";
+import { PAGE_SCHEME, type SchemeId } from "../appearance";
+import { FIELD } from "./labels";
+
 export const CATALOG_READ = "catalog.products";
 export const CATEGORIES_READ = "catalog.categories";
 /** One collection's products, up to a count: sections showing the same list share the read. */
@@ -40,3 +44,26 @@ export function copyOverrides(
   }
   return merged;
 }
+/** The pages a store composes; a section names the ones it serves. */
+export const PAGE_SURFACES = ["home", "product", "collection", "category", "catalog", "page"] as const;
+export const HEADER_AREA = "area:header";
+export const FOOTER_AREA = "area:footer";
+
+/**
+ * The spacing a section starts with: room above and below, more on a wide
+ * screen. A band of its own color (`banded`) needs more room inside it than a
+ * section sharing the page's color.
+ */
+export function sectionSpacing(banded = false): StyleValue {
+  return banded
+    ? { spacing: { paddingBlockStart: { base: "s8", lg: "s10" }, paddingBlockEnd: { base: "s8", lg: "s10" } }, size: { width: { base: "wide" } } }
+    : { spacing: { paddingBlockStart: { base: "s6", lg: "s8" }, paddingBlockEnd: { base: "s6", lg: "s8" } }, size: { width: { base: "wide" } } };
+}
+
+/** Which of the store's color schemes a section or block wears. */
+export const schemeField = (fallback: SchemeId = PAGE_SCHEME) =>
+  ({ key: "scheme", kind: "colorScheme", label: FIELD.scheme, default: fallback }) as const satisfies FieldDefinition;
+
+/** A section's room above and below, and how wide its content runs. */
+export const styleField = (fallback: StyleValue = sectionSpacing()) =>
+  ({ key: "style", kind: "style", label: FIELD.style, panels: ["spacing", "size"], default: fallback }) as const satisfies FieldDefinition;

@@ -29,8 +29,8 @@ const { items: products, hasNext, first, last } = pageWindow(rows, page);
 <div class="max-w-5xl mx-auto px-5 py-8">
   <div class="flex items-end justify-between mb-8">
     <div>
-      <h1 class="text-3xl font-black tracking-tight" style="color: var(--clr-text)">{content.allProductsSection}</h1>
-      <p class="text-[0.8125rem] font-bold uppercase tracking-widest mt-1" style="color: var(--clr-text-2)">
+      <h1 class="text-3xl font-black tracking-tight" style="color: var(--clr-ink)">{content.allProductsSection}</h1>
+      <p class="text-[0.8125rem] font-bold uppercase tracking-widest mt-1" style="color: var(--clr-text)">
         {page === 1 && !hasNext ? products.length : `${first}–${last}`} {content.productCountLabel}
       </p>
     </div>
@@ -51,7 +51,7 @@ const { items: products, hasNext, first, last } = pageWindow(rows, page);
           href={Astro.locals.store.href(storefrontPath("category", { slug: cat.slug }))}
           data-astro-prefetch="hover"
           class="shrink-0 px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm"
-          style="border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text-2)"
+          style="border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text)"
         >
           {cat.name}
         </a>
@@ -72,11 +72,11 @@ const { items: products, hasNext, first, last } = pageWindow(rows, page);
     </div>
   ) : page === 1 ? (
     <div class="py-24 text-center">
-      <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-primary" style="background: var(--clr-surface-alt)">
+      <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-primary" style="background: var(--clr-plate)">
         <Icon name="heroicons:shopping-bag" class="w-8 h-8" />
       </div>
-      <h2 class="text-xl font-black mb-2" style="color: var(--clr-text)">{content.emptyStoreTitle}</h2>
-      <p class="font-bold" style="color: var(--clr-text-2)">{content.emptyStoreSub}</p>
+      <h2 class="text-xl font-black mb-2" style="color: var(--clr-ink)">{content.emptyStoreTitle}</h2>
+      <p class="font-bold" style="color: var(--clr-text)">{content.emptyStoreSub}</p>
     </div>
   ) : null}
   <ListingPager basePath={Astro.locals.store.href(storefrontPath("catalog"))} page={page} hasNext={hasNext} content={content} />

@@ -1,0 +1,15 @@
+---
+import { richTextToHtml, type InferProps } from "@wocart/theme";
+import type { footerText } from "@/theme/catalog/footer/footer.def";
+
+type Props = InferProps<typeof footerText>;
+const { title, text } = Astro.props;
+const html = text ? richTextToHtml(text, { href: Astro.locals.store.href }) : "";
+---
+
+{(title || html) && (
+  <div class="footer-col">
+    {title && <h2 class="footer-title">{title}</h2>}
+    {html && <div class="footer-text rich-description" set:html={html} />}
+  </div>
+)}

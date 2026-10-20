@@ -40,10 +40,10 @@ const otpStrings = JSON.stringify({
         <Icon name="heroicons:chat-bubble-left-ellipsis" class="w-5 h-5" />
       </div>
       <div class="min-w-0">
-        <p class="font-black text-[0.9375rem] leading-tight" style="color: var(--clr-text)">
+        <p class="font-black text-[0.9375rem] leading-tight" style="color: var(--clr-ink)">
           {content.otpTitle}
         </p>
-        <p class="text-[0.75rem] font-bold mt-0.5 truncate" style="color: var(--clr-text-2)" id="otp-subtitle">
+        <p class="text-[0.75rem] font-bold mt-0.5 truncate" style="color: var(--clr-text)" id="otp-subtitle">
           {content.otpSubtitle}
         </p>
       </div>
@@ -74,7 +74,7 @@ const otpStrings = JSON.stringify({
       {content.otpVerifyBtn}
     </button>
 
-    <div class="flex items-center justify-between text-[0.8125rem] font-bold" style="color: var(--clr-text-2)">
+    <div class="flex items-center justify-between text-[0.8125rem] font-bold" style="color: var(--clr-text)">
       <button type="button" id="otp-resend-btn" class="underline underline-offset-4 disabled:opacity-50" disabled>
         <span id="otp-resend-label">{content.otpResendIn} 60</span>
       </button>

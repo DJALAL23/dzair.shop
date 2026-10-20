@@ -110,6 +110,8 @@ export default defineConfig({
           "chat-bubble-left-right", // HowItWorks step 2
           "check",             // selected state checkmarks
           "chevron-down",      // dropdown toggle
+          "chevron-left",      // announcement bar: previous message
+          "chevron-right",     // announcement bar: next message
           "photo",             // image placeholder
           "home",              // mobile nav
           "squares-2x2",       // mobile nav products

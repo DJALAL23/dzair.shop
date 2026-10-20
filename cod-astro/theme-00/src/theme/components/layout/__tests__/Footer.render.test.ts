@@ -15,7 +15,7 @@
 
 import { testLocals } from "../../../__tests__/support/locals";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
-import Footer from "../Footer.astro";
+import FooterPages from "@/theme/components/footer/FooterPages.astro";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en } from "@/theme/content/en";
 import type { StoreConfig, StorePageLink } from "@wocart/storefront";
@@ -33,7 +33,7 @@ function page(overrides: Partial<StorePageLink> = {}): StorePageLink {
 
 async function render(config: StoreConfig): Promise<string> {
   const container = await AstroContainer.create();
-  return container.renderToString(Footer, { props: { config, content: en }, locals: testLocals() });
+  return container.renderToString(FooterPages, { props: { title: en.footerSupport }, locals: testLocals({ config }) });
 }
 
 describe("Footer — the policy links column", () => {

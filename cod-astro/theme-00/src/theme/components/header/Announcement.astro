@@ -1,0 +1,15 @@
+---
+// One message of the announcement bar, a link when the merchant gave one.
+import type { InferProps } from "@wocart/theme";
+import type { announcement } from "@/theme/catalog/header/announcement-bar.def";
+
+type Props = InferProps<typeof announcement>;
+const { text, link } = Astro.props;
+const href = link ? (link.startsWith("/") && !link.startsWith("//") ? Astro.locals.store.href(link) : link) : null;
+---
+
+{text && (
+  <p class="announce-item">
+    {href ? <a href={href} class="announce-link">{text}</a> : <span>{text}</span>}
+  </p>
+)}
