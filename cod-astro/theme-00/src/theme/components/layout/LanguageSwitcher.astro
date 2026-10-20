@@ -23,10 +23,9 @@ const current = languages.find((language) => language.code === store.locale);
       type="button"
       class="lang-trigger"
       popovertarget="lang-menu"
-      aria-label={store.content.ariaLanguageSwitcher}
     >
       <Icon name="heroicons:language" class="h-5 w-5" aria-hidden="true" />
-      <span class="lang-code" aria-hidden="true">{store.locale.toUpperCase()}</span>
+      <span class="lang-code">{store.locale.toUpperCase()}</span>
       <span class="sr-only">{current?.name}</span>
     </button>
     <nav id="lang-menu" popover class="lang-menu" aria-label={store.content.ariaLanguageSwitcher}>
