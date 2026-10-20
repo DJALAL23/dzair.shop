@@ -141,6 +141,9 @@ export function linesForButton(button: HTMLElement): BasketLine[] {
   }
 
   const unitPrice = toPrice(fieldValue("price-input")) || toPrice(button.dataset.unitPrice);
+  // The offer tier the shopper picked, when one is picked: the basket keeps it,
+  // so the cart and the order price the deal the shopper chose.
+  const offerId = fieldValue("offer-id-input") || undefined;
 
   // A multi-unit offer tier lets the shopper pick a variant per unit. One cart
   // line per distinct variant is the honest representation — a basket line
@@ -159,6 +162,7 @@ export function linesForButton(button: HTMLElement): BasketLine[] {
       variantLabel: entry.label,
       quantity: entry.quantity,
       unitPrice,
+      offerId,
     }));
   }
 
@@ -169,6 +173,7 @@ export function linesForButton(button: HTMLElement): BasketLine[] {
       variantLabel: fieldValue("variant-label-input") || null,
       quantity: toQuantity(fieldValue("qty-input")),
       unitPrice,
+      offerId,
     },
   ];
 }

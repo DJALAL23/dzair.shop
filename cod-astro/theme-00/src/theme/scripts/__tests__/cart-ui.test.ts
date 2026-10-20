@@ -43,6 +43,8 @@ function buildDom(options: { currency?: string } = {}): void {
         <input type="hidden" name="variantId" value="v-default" id="variant-id-input" />
         <input type="hidden" name="variantLabel" value="" id="variant-label-input" />
         <input type="hidden" name="variantSelections" value="[]" id="variant-selections-input" />
+        <input type="hidden" name="offerId" value="" id="offer-id-input" />
+        <input type="hidden" name="offerId" value="" id="offer-id-input" />
         <input type="number" name="quantity" id="qty-input" value="1" min="1" max="100" />
         <input type="text" name="customerName" />
       </form>
@@ -351,6 +353,25 @@ describe("adds what the shopper chose, not what the page was built with", () => 
       storedCart().map((l) => [l.variantId as string, l.quantity]),
     );
     expect(byVariant).toEqual({ "v-blue": 2, "v-red": 1 });
+  });
+
+  it("keeps the offer tier the shopper picked on the line, so the cart prices that deal", async () => {
+    await boot();
+    el<HTMLInputElement>("qty-input").value = "2";
+    el<HTMLInputElement>("offer-id-input").value = "buy-2-get-1";
+
+    click(addButton());
+
+    expect(storedCart()).toEqual([expect.objectContaining({ quantity: 2, offerId: "buy-2-get-1" })]);
+  });
+
+  it("sends no offer on a line whose tier is a plain quantity", async () => {
+    await boot();
+    el<HTMLInputElement>("qty-input").value = "3";
+
+    click(addButton());
+
+    expect(storedCart()[0]).not.toHaveProperty("offerId");
   });
 
   it("falls back to the button's own data when there is no order form", async () => {
