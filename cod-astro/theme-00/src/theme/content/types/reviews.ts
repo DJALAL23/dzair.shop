@@ -27,6 +27,10 @@ export type ReviewsStrings = Plural<"reviewFormPhotosHint"> & Plural<"reviewForm
   reviewFormErrorGeneric: string;
   /** A review's voice note, for screen readers and the player's label. */
   reviewsVoiceNote: string;
+  /** The voice note's own controls: play, pause and the position track. */
+  reviewsPlayVoice: string;
+  reviewsPauseVoice: string;
+  reviewsSeekVoice: string;
   /** "{index}": which photo. */
   reviewsOpenPhoto: string;
   reviewsClosePhoto: string;

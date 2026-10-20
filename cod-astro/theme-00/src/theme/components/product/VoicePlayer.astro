@@ -1,0 +1,118 @@
+---
+// A review's voice note in the theme's own player: a round play button, a
+// position track and the time. The audio is not fetched until it is played
+// (`preload="none"`), and the controls are drawn here rather than by the
+// browser, so the player looks the same on every browser and in both
+// languages. Its behaviour is `scripts/voice-player.ts`.
+import { Icon } from "astro-icon/components";
+import { formatClock } from "@/theme/utils/clock";
+
+interface Props {
+  /** The note's address; empty for a card a script fills in later. */
+  src: string;
+  /** The note's length; null while it is not known. */
+  durationMs: number | null;
+  copy: { label: string; play: string; pause: string; seek: string };
+}
+
+const { src, durationMs, copy } = Astro.props;
+const length = durationMs && durationMs > 0 ? durationMs : 0;
+---
+
+<div
+  class="voice"
+  data-voice
+  role="group"
+  aria-label={copy.label}
+  data-duration-ms={length}
+  data-play-label={copy.play}
+  data-pause-label={copy.pause}
+>
+  <audio data-voice-audio preload="none" src={src || undefined}></audio>
+  <button type="button" class="voice-toggle" data-voice-toggle aria-label={copy.play}>
+    <Icon name="heroicons:play-solid" class="voice-play" aria-hidden="true" />
+    <Icon name="heroicons:pause-solid" class="voice-pause" aria-hidden="true" />
+  </button>
+  <input type="range" dir="ltr" class="voice-seek" data-voice-seek min="0" max="1000" step="1" value="0" aria-label={copy.seek} />
+  <span class="voice-time num" dir="ltr" data-voice-time>0:00 / {formatClock(length)}</span>
+</div>
+
+<script>
+  import { onEachPage } from "@/theme/scripts/page-lifecycle";
+  import { initVoicePlayers } from "@/theme/scripts/voice-player";
+
+  onEachPage(() => initVoicePlayers(document));
+</script>
+
+<style>
+  .voice {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-input);
+    background: var(--clr-surface);
+  }
+  .voice-toggle {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 0;
+    border-radius: var(--radius-round);
+    background: var(--clr-ink);
+    color: var(--clr-bg);
+    cursor: pointer;
+  }
+  .voice-toggle:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 2px; }
+  .voice-toggle :global(svg) { width: 1rem; height: 1rem; }
+  .voice-pause { display: none; }
+  .voice.is-playing .voice-play { display: none; }
+  .voice.is-playing .voice-pause { display: block; }
+  .voice-seek {
+    flex: 1;
+    min-width: 0;
+    height: 1.25rem;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .voice-seek::-webkit-slider-runnable-track {
+    height: 0.25rem;
+    border-radius: var(--radius-round);
+    background: linear-gradient(to right, var(--clr-ink) calc(var(--p, 0) * 1%), var(--clr-border) 0);
+  }
+  .voice-seek::-moz-range-track {
+    height: 0.25rem;
+    border-radius: var(--radius-round);
+    background: linear-gradient(to right, var(--clr-ink) calc(var(--p, 0) * 1%), var(--clr-border) 0);
+  }
+  .voice-seek::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 0.875rem;
+    height: 0.875rem;
+    margin-top: -0.3125rem;
+    border: 2px solid var(--clr-surface);
+    border-radius: var(--radius-round);
+    background: var(--clr-ink);
+  }
+  .voice-seek::-moz-range-thumb {
+    width: 0.875rem;
+    height: 0.875rem;
+    border: 2px solid var(--clr-surface);
+    border-radius: var(--radius-round);
+    background: var(--clr-ink);
+  }
+  .voice-seek:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 3px; }
+  .voice-time {
+    flex: none;
+    color: var(--clr-text);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

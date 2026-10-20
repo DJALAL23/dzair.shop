@@ -142,6 +142,8 @@ export default defineConfig({
           "language",          // header language switcher
           "microphone",        // review form: record a voice note
           "stop",              // review form: stop recording
+          "play-solid",        // review voice note: play
+          "pause-solid",       // review voice note: pause
           "paper-clip",        // review form: send an audio file
           "camera",            // review form: add photos
         ],

@@ -6,6 +6,7 @@
 // "Load more" clones the card template and fills it with text and media URLs
 // only: a review is shopper-written, so none of it is ever parsed as markup.
 import { message } from "@/theme/content/messages";
+import VoicePlayer from "@/theme/components/product/VoicePlayer.astro";
 import type { Review, ReviewMedia } from "@wocart/storefront";
 import type { ReviewsListCopy } from "@/theme/bridges/island-props";
 import { Icon } from "astro-icon/components";
@@ -35,13 +36,8 @@ function formatDate(val: string): string {
   const d = Number.isNaN(n) ? new Date(val) : new Date(n);
   return Number.isNaN(d.getTime()) ? val.slice(0, 10) : dateFormat.format(d);
 }
-function formatDuration(ms: number | null): string {
-  if (!ms || ms <= 0) return "";
-  const seconds = Math.round(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
 const starLabel = (n: number) => message(copy, "ariaStarRating", { count: n }, locale);
+const playerCopy = { label: copy.reviewsVoiceNote, play: copy.reviewsPlayVoice, pause: copy.reviewsPauseVoice, seek: copy.reviewsSeekVoice };
 const photoLabel = (index: number) => message(copy, "reviewsOpenPhoto", { index }, locale);
 const photos = (review: Review) => review.media.filter((item: ReviewMedia) => item.kind === "image");
 const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.kind === "audio") ?? null;
@@ -85,12 +81,7 @@ const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.
         </p>
         {review.title && <p class="text-base font-bold text-ink" dir="auto">{review.title}</p>}
         {review.body && <p class="text-sm leading-relaxed text-ink" dir="auto">{review.body}</p>}
-        {voice(review) && (
-          <p class="flex items-center gap-2">
-            <audio controls preload="none" src={voice(review)!.url} class="h-10 min-w-0 flex-1" aria-label={copy.reviewsVoiceNote}></audio>
-            <span class="num shrink-0 text-xs text-ink-2" dir="ltr">{formatDuration(voice(review)!.durationMs)}</span>
-          </p>
-        )}
+        {voice(review) && <VoicePlayer src={voice(review)!.url} durationMs={voice(review)!.durationMs} copy={playerCopy} />}
         {photos(review).length > 0 && (
           <ul class="flex flex-wrap gap-2">
             {photos(review).map((photo, index) => (
@@ -126,10 +117,9 @@ const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.
       </p>
       <p class="text-base font-bold text-ink" dir="auto" data-review-title hidden></p>
       <p class="text-sm leading-relaxed text-ink" dir="auto" data-review-body hidden></p>
-      <p class="flex items-center gap-2" data-review-voice hidden>
-        <audio controls preload="none" class="h-10 min-w-0 flex-1" aria-label={copy.reviewsVoiceNote}></audio>
-        <span class="num shrink-0 text-xs text-ink-2" dir="ltr" data-review-duration></span>
-      </p>
+      <div data-review-voice hidden>
+        <VoicePlayer src="" durationMs={null} copy={playerCopy} />
+      </div>
       <ul class="flex flex-wrap gap-2" data-review-photos hidden></ul>
       <footer class="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-3">
         <span class="min-w-0 truncate text-sm font-semibold text-ink" dir="auto" data-review-name></span>
@@ -280,8 +270,11 @@ const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.
       const voice = media.find((item) => item.kind === "audio" && safe(item.url));
       if (voice) {
         const holder = node.querySelector("[data-review-voice]");
-        holder.querySelector("audio").src = voice.url;
-        holder.querySelector("[data-review-duration]").textContent = formatDuration(voice.durationMs);
+        const player = holder.querySelector("[data-voice]");
+        player.querySelector("[data-voice-audio]").src = voice.url;
+        player.dataset.durationMs = String(Number(voice.durationMs) > 0 ? Number(voice.durationMs) : 0);
+        const length = formatDuration(voice.durationMs);
+        player.querySelector("[data-voice-time]").textContent = length ? "0:00 / " + length : "0:00";
         holder.hidden = false;
       }
       const photos = media.filter((item) => item.kind === "image" && safe(item.url));
