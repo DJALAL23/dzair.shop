@@ -42,6 +42,7 @@ import {
   renderCartLine,
   renderCartRewards,
   validatedByKey,
+  giftOfferIds,
   hasBlocker,
   renderFreeDelivery,
   moneyFormatter,
@@ -271,6 +272,7 @@ export function initCart(): () => void {
     }
 
     const byKey = validatedByKey(validated);
+    const giftOffers = giftOfferIds(validated);
     list!.replaceChildren(
       ...lines.map((line) =>
         renderCartLine(
@@ -279,7 +281,7 @@ export function initCart(): () => void {
           byKey.get(lineKey(line.productId, line.variantId)),
           copy,
           money,
-          { linkToProduct: true },
+          { linkToProduct: true, giftOffers },
         ),
       ),
       ...(rewardTemplate ? renderCartRewards(rewardTemplate, validated) : []),

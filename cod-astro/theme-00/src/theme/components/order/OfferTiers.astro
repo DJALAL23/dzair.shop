@@ -53,7 +53,7 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
     <div class="tier-grid">
       <label id="tier-card-base" class="tier-label tier-tile is-selected" data-qty="1" data-offer-id="">
         <input type="radio" name="tierSelect" value="base" class="sr-only" checked />
-        <span class="tier-qty">×1</span>
+        <span class="tier-qty">{message(content, "offerQuantity", { count: 1 }, locale)}</span>
         <span class="tier-check" aria-hidden="true"><Icon name="heroicons:check" /></span>
         <span class="tier-photo">
           {photo && <Image src={photo} alt="" width={160} height={160} quality={80} class="tier-img" />}
@@ -65,7 +65,8 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
 
       {tiers.map(({ offer, view }) => {
         const shownByDefault = !offer.triggerVariantId || offer.triggerVariantId === defaultVariantId;
-        const rewardLabel = offer.rewardProductName + (offer.rewardVariantLabel ? ` — ${offer.rewardVariantLabel}` : "");
+        const rewardCount = offer.rewardQuantity > 1 ? `${offer.rewardQuantity} × ` : "";
+        const rewardLabel = rewardCount + offer.rewardProductName + (offer.rewardVariantLabel ? ` — ${offer.rewardVariantLabel}` : "");
         return (
           <label
             id={`tier-card-${offer.id}`}
@@ -75,7 +76,7 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
             data-discount-type={offer.discountType}
           >
             <input type="radio" name="tierSelect" value={offer.id} class="sr-only" />
-            <span class="tier-qty">×{offer.triggerQuantity}</span>
+            <span class="tier-qty">{message(content, "offerQuantity", { count: offer.triggerQuantity }, locale)}</span>
             <span class="tier-check" aria-hidden="true"><Icon name="heroicons:check" /></span>
             {offer.id === bestId && <span class="tier-best">{content.offerBestValue}</span>}
             <span class="tier-photo">
@@ -184,7 +185,7 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
       <div class="tier-grid" role="radiogroup" aria-label={content.offerSectionTitle}>
         {quantityTiers.map((tier) => (
           <button type="button" class:list={["tier-tile qty-tier", tier.quantity === 1 && "is-selected"]} data-qty={tier.quantity} role="radio" aria-checked={tier.quantity === 1 ? "true" : "false"}>
-            <span class="tier-qty">×{tier.quantity}</span>
+            <span class="tier-qty">{message(content, "offerQuantity", { count: tier.quantity }, locale)}</span>
             <span class="tier-check" aria-hidden="true"><Icon name="heroicons:check" /></span>
             <span class="tier-price">{formatAmount(tier.price)}<span class="price-cur">{cur}</span></span>
             <span class="tier-name">{message(content, "qtyTierEach", { price: `${formatAmount(tier.perUnit)} ${cur}` }, locale)}</span>
@@ -215,15 +216,17 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
 <style>
   .tier-heading { color: var(--clr-ink); font-size: var(--text-sm); font-weight: 600; }
   .tier-sub { margin-top: 0.125rem; color: var(--clr-muted); font-size: var(--text-xs); }
-  /* The tiers are cards in a column: a radio, the offer's name and what it
-     saves, and its price at the end. The best value carries a flag. */
+  /* The tiers are cards in a column: a radio, how many pieces the tier sells,
+     the offer's name and what it gives, and its price at the end. The best
+     value carries a flag. */
   .tier-grid { display: grid; gap: 0.625rem; padding-top: 0.625rem; }
   .tier-tile {
     position: relative;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      "check name price"
+      "check qty price"
+      "check name was"
       "check reward was"
       "check save was";
     align-items: center;
@@ -242,7 +245,10 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
   .tier-tile.hidden { display: none; }
   .tier-tile:hover { border-color: color-mix(in oklab, var(--clr-ink) 45%, var(--clr-border-strong)); }
   .tier-tile.is-selected { border-color: var(--clr-ink); box-shadow: inset 0 0 0 1px var(--clr-ink); }
-  .tier-qty, .tier-photo { display: none; }
+  .tier-tile:has(input:focus-visible),
+  .tier-tile:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 2px; }
+  .tier-photo { display: none; }
+  .tier-qty { grid-area: qty; align-self: end; font-size: var(--text-xs); font-weight: 600; color: var(--clr-muted); line-height: 1.4; }
   .tier-check {
     grid-area: check;
     display: inline-flex;
@@ -270,7 +276,7 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
     white-space: nowrap;
   }
   .tier-name { grid-area: name; overflow: hidden; font-size: var(--text-base); font-weight: 600; line-height: 1.4; text-overflow: ellipsis; }
-  .tier-price { grid-area: price; justify-self: end; font-variant-numeric: tabular-nums lining-nums; font-size: var(--text-base); font-weight: 600; color: var(--clr-ink); white-space: nowrap; }
+  .tier-price { grid-area: price; justify-self: end; align-self: end; font-variant-numeric: tabular-nums lining-nums; font-size: var(--text-base); font-weight: 600; color: var(--clr-ink); white-space: nowrap; }
   .tier-was { grid-area: was; justify-self: end; align-self: start; font-size: var(--text-xs); color: var(--clr-muted); text-decoration: line-through; white-space: nowrap; }
   .tier-reward { grid-area: reward; font-size: var(--text-xs); font-weight: 600; color: var(--clr-success); line-height: 1.4; }
   .tier-save { grid-area: save; font-size: var(--text-xs); font-weight: 600; color: var(--clr-success); line-height: 1.4; }
@@ -311,9 +317,9 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
   .variant-opt:focus-visible,
   .tier-unit-opt:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 2px; }
   .variant-opt[data-state="sold_out"],
-  .tier-unit-opt[data-state="sold_out"] { opacity: 0.45; text-decoration: line-through; }
+  .tier-unit-opt[data-state="sold_out"] { color: var(--clr-muted); text-decoration: line-through; }
   .variant-opt[data-state="unavailable"],
-  .tier-unit-opt[data-state="unavailable"] { opacity: 0.45; border-style: dashed; }
+  .tier-unit-opt[data-state="unavailable"] { color: var(--clr-muted); border-style: dashed; }
   .swatch {
     width: 1.875rem;
     height: 1.875rem;

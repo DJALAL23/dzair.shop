@@ -85,6 +85,11 @@ export function hasBlocker(result: ValidationResult | null): boolean {
   return (result?.lines ?? []).some((l) => l.blocker !== null);
 }
 
+/** The offers that give a gift. A line one of them prices is a deal, and its quantity is the deal's. */
+export function giftOfferIds(result: ValidationResult | null): Set<string> {
+  return new Set((result?.rewards ?? []).map((reward) => reward.offerId));
+}
+
 /**
  * Clone one row and fill it.
  *
@@ -97,7 +102,7 @@ export function renderCartLine(
   server: ValidatedLine | undefined,
   copy: LineCopy,
   money: (n: number) => string,
-  options: { linkToProduct?: boolean } = {},
+  options: { linkToProduct?: boolean; giftOffers?: ReadonlySet<string> } = {},
 ): HTMLElement {
   const node = template.content.firstElementChild!.cloneNode(true) as HTMLElement;
   node.dataset.key = lineKey(line.productId, line.variantId);
@@ -135,11 +140,14 @@ export function renderCartLine(
     offer.hidden = false;
   }
 
-  // A line an offer prices is part of the deal the shopper chose: its
-  // quantity is the offer's, so it shows without a stepper, and removing it
-  // removes the whole deal (bindLineControls).
-  if (server?.offerId) {
-    node.dataset.offerId = server.offerId;
+  // A line priced by an offer that gives a gift is a deal: its quantity is the
+  // deal's, so it shows without a stepper, and removing it removes the whole
+  // deal (bindLineControls). A quantity tier or a free-delivery offer gives no
+  // gift, so its line keeps the stepper, and the server re-prices every step
+  // up the tiers.
+  const deal = server?.offerId && options.giftOffers?.has(server.offerId) ? server.offerId : null;
+  if (deal) {
+    node.dataset.offerId = deal;
     const stepper = node.querySelector<HTMLElement>("[data-cart-stepper]");
     const fixed = node.querySelector<HTMLElement>("[data-cart-qty-fixed]");
     if (stepper && fixed) {

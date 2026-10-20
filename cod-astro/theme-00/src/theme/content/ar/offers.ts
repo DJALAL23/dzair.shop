@@ -12,4 +12,10 @@ export const arOffers: OffersStrings = {
   offerBestValue: "الأفضل قيمة",
   qtyTierEach: "{price} للقطعة",
   qtyTierSave: "وفّر {pct}%",
+  offerQuantity_zero: "بلا قطع",
+  offerQuantity_one: "قطعة واحدة",
+  offerQuantity_two: "قطعتان",
+  offerQuantity_few: "{count} قطع",
+  offerQuantity_many: "{count} قطعة",
+  offerQuantity_other: "{count} قطعة",
 };

@@ -12,4 +12,7 @@ export const frOffers: OffersStrings = {
   offerBestValue: "Meilleure offre",
   qtyTierEach: "{price} l'unité",
   qtyTierSave: "Économisez {pct} %",
+  offerQuantity_one: "{count} pièce",
+  offerQuantity_many: "{count} de pièces",
+  offerQuantity_other: "{count} pièces",
 };

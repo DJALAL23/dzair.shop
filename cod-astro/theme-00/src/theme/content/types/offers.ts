@@ -4,7 +4,9 @@
  * Groups: offers.
  */
 
-export type OffersStrings = {
+import type { Plural } from "./plural";
+
+export type OffersStrings = Plural<"offerQuantity"> & {
   /** Label for the free item row in the order summary */
   offerFreeLabel: string;
   /** Title above the offer tier selector section */

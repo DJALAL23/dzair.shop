@@ -12,4 +12,6 @@ export const enOffers: OffersStrings = {
   offerBestValue: "Best value",
   qtyTierEach: "{price} each",
   qtyTierSave: "Save {pct}%",
+  offerQuantity_one: "{count} piece",
+  offerQuantity_other: "{count} pieces",
 };

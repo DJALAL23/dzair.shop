@@ -33,6 +33,7 @@ import {
   renderCartLine,
   renderCartRewards,
   validatedByKey,
+  giftOfferIds,
   hasBlocker,
   renderFreeDelivery,
   moneyFormatter,
@@ -161,9 +162,10 @@ export function initCheckout(): () => void {
     if (itemsLabel) itemsLabel.textContent = embeddedMessage(copy.items, "cartItems", { count: cartCount(lines) });
 
     const byKey = validatedByKey(validated);
+    const giftOffers = giftOfferIds(validated);
     list!.replaceChildren(
       ...lines.map((line) =>
-        renderCartLine(template!, line, byKey.get(lineKey(line.productId, line.variantId)), copy, money),
+        renderCartLine(template!, line, byKey.get(lineKey(line.productId, line.variantId)), copy, money, { giftOffers }),
       ),
       ...(rewardTemplate ? renderCartRewards(rewardTemplate, validated) : []),
     );

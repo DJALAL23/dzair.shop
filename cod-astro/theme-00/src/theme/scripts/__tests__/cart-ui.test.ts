@@ -605,7 +605,7 @@ describe("server reconciliation", () => {
           return validationResponse({
             lines: items.map((item) => quoted(item.productId, item.variantId, item.quantity, item.productId === "speaker" && deal ? "two-plus-one" : null)),
             subtotal: 0,
-            rewards: [],
+            rewards: deal ? [{ offerId: "two-plus-one", offerName: "Buy 2, get 1", productId: "speaker", productName: "speaker", variantId: null, variantLabel: null, quantity: 1 }] : [],
             freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
           });
         }),
@@ -639,6 +639,31 @@ describe("server reconciliation", () => {
       await vi.waitFor(() => expect(row("black").dataset.offerId).toBe("two-plus-one"));
       click(row("beige").querySelector("[data-cart-remove]")!);
       expect(storedCart().map((stored) => stored.variantId)).toEqual(["black", "blue"]);
+    });
+
+    it("keeps the stepper on a quantity tier, so the shopper can climb to the next one", async () => {
+      localStorage.setItem(CART_KEY, JSON.stringify([line("speaker", "black", 2)]));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((_url: string, init: RequestInit) => {
+          const items = JSON.parse(String(init.body)).items as Array<{ productId: string; variantId: string; quantity: number }>;
+          return validationResponse({
+            lines: items.map((item) => quoted(item.productId, item.variantId, item.quantity, "tier-2")),
+            subtotal: 0,
+            rewards: [],
+            freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+          });
+        }),
+      );
+      await boot();
+      click(el("cart-badge"));
+      await vi.waitFor(() => expect(row("black").querySelector<HTMLElement>("[data-cart-offer]")!.hidden).toBe(false));
+      expect(row("black").dataset.offerId).toBeUndefined();
+      expect(row("black").querySelector<HTMLElement>("[data-cart-stepper]")!.hidden).toBe(false);
+      expect(row("black").querySelector<HTMLElement>("[data-cart-qty-fixed]")!.hidden).toBe(true);
+
+      click(row("black").querySelector("[data-cart-increase]")!);
+      expect(storedCart()[0]!.quantity).toBe(3);
     });
   });
 
