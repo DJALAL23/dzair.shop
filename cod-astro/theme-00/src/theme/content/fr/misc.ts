@@ -18,7 +18,6 @@ export const frMisc: MiscStrings = {
   noResultsLabel: "Aucun résultat correspondant",
   loadMoreLabel: "Voir plus",
   allLabel: "Tout",
-  productCountLabel: "produit",
   pagerPrevious: "Précédent",
   pagerNext: "Suivant",
   pagerLabel: "Navigation entre les pages",
@@ -40,4 +39,5 @@ export const frMisc: MiscStrings = {
   defaultMetaDescription: "Achetez chez {storeName} - Les meilleurs produits à des prix abordables avec livraison dans toutes les wilayas",
   productPageTitle: "{product} - {storeName}",
   collectionPageTitle: "{collection} - {storeName}",
+  documentTitle: "{title} - {storeName}",
 };

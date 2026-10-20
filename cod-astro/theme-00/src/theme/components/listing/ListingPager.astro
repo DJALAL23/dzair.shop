@@ -1,6 +1,7 @@
 ---
 // Previous and next links for a product listing. Each page is a plain address
 // (`?page=n`), so a shopper can share it, reload it, and use the back button.
+import { Icon } from "astro-icon/components";
 import type { StoreFrontContent } from "@/theme/content";
 
 interface Props {
@@ -12,25 +13,35 @@ interface Props {
 
 const { basePath, page, hasNext, content } = Astro.props;
 const pageHref = (n: number) => (n === 1 ? basePath : `${basePath}?page=${n}`);
-const pillClass = "px-5 py-2.5 rounded-2xl text-[0.875rem] font-black border-2 transition-all active:scale-95 shadow-sm";
-const pillStyle = "border-color: var(--clr-border); background: var(--clr-surface); color: var(--clr-text)";
 ---
 
 {(page > 1 || hasNext) && (
-  <nav aria-label={content.pagerLabel} class="mt-10 flex items-center justify-between gap-4">
+  <nav aria-label={content.pagerLabel} class="pager">
     {page > 1 ? (
-      <a href={pageHref(page - 1)} rel="prev" data-astro-prefetch="hover" class={pillClass} style={pillStyle}>
+      <a href={pageHref(page - 1)} rel="prev" data-astro-prefetch="hover" class="btn-secondary btn-auto pager-link">
+        <Icon name="heroicons:chevron-right" class="flip-ltr" aria-hidden="true" />
         {content.pagerPrevious}
       </a>
     ) : (
       <span></span>
     )}
+    <span class="pager-page num" aria-current="page">{page}</span>
     {hasNext ? (
-      <a href={pageHref(page + 1)} rel="next" data-astro-prefetch="hover" class={pillClass} style={pillStyle}>
+      <a href={pageHref(page + 1)} rel="next" data-astro-prefetch="hover" class="btn-secondary btn-auto pager-link">
         {content.pagerNext}
+        <Icon name="heroicons:chevron-left" class="flip-ltr" aria-hidden="true" />
       </a>
     ) : (
       <span></span>
     )}
   </nav>
 )}
+
+<style>
+  .pager { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem; margin-top: 3rem; }
+  .pager > :last-child { justify-self: end; }
+  .pager-link { gap: 0.5rem; }
+  .pager-link :global(svg) { width: 1rem; height: 1rem; }
+  :global([dir="ltr"]) .pager :global(.flip-ltr) { transform: scaleX(-1); }
+  .pager-page { display: grid; place-items: center; min-width: 2.5rem; height: 2.5rem; border-radius: var(--radius-round); background: var(--clr-ink); color: var(--clr-bg); font-size: var(--text-sm); }
+</style>

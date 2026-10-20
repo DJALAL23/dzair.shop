@@ -48,6 +48,16 @@ const SHARED_UI_LABELS = new Set([
   "productSaving",
   // The review form's own title, also the button that opens it.
   "reviewFormTitle",
+  // A listing's words: its count, the "all" button, its empty states.
+  "listingCount",
+  "listingRange",
+  "listingBrowse",
+  "allLabel",
+  "noProductsTitle",
+  "emptyStoreTitle",
+  "emptyStoreSub",
+  "ariaBrowseAllProducts",
+  "pageEmpty",
   // A countdown's units.
   "countdownDays",
   "countdownHours",

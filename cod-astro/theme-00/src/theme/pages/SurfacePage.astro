@@ -1,0 +1,31 @@
+---
+// ── A composed page ─────────────────────────────────────────────────────────
+// A listing (all products, a category, a collection) or a text page: the
+// store's saved document for its surface, a draft in a preview, or the
+// theme's shipped default (`resolveSurfaceDocument`), rendered with the
+// route's parameters (`slug`, `handle`, `page`). The route reads its resource
+// first — an unknown one is a 404 before anything streams — and hands the
+// read over, so the sections never read it again.
+import type { ReadCache } from "@wocart/theme";
+import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import Sections from "@/theme/components/surface/Sections.astro";
+
+interface Props {
+  surface: "catalog" | "category" | "collection" | "page";
+  /** What the store saved (`null` when absent), or a preview's draft. */
+  document: unknown;
+  params?: Readonly<Record<string, string | undefined>>;
+  reads?: ReadCache;
+  preview?: boolean;
+  title?: string | undefined;
+  description?: string | undefined;
+  ogImage?: string | undefined;
+}
+
+const { surface, document, params = {}, reads, preview = false, title, description, ogImage } = Astro.props;
+---
+
+<StoreLayout title={title} description={description} ogImage={ogImage}>
+  <Sections surface={surface} document={document} preview={preview} params={params} reads={reads} />
+  <slot />
+</StoreLayout>

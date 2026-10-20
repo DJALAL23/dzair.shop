@@ -16,7 +16,6 @@ export const enMisc: MiscStrings = {
   noResultsLabel: "No results found",
   loadMoreLabel: "Load More",
   allLabel: "All",
-  productCountLabel: "Products",
   pagerPrevious: "Previous",
   pagerNext: "Next",
   pagerLabel: "Page navigation",
@@ -37,4 +36,5 @@ export const enMisc: MiscStrings = {
   defaultMetaDescription: "Shop from {storeName} - Best products at great prices with delivery nationwide",
   productPageTitle: "{product} - {storeName}",
   collectionPageTitle: "{collection} - {storeName}",
+  documentTitle: "{title} - {storeName}",
 };

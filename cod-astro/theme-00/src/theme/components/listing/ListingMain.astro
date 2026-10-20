@@ -1,0 +1,146 @@
+---
+// A list of products under its title: all of them, a category's or a
+// collection's. A band of the listing's own color holds the way back, the
+// title, its words and how many products there are; the store's categories
+// follow as buttons, then the products a page at a time. A page beyond the
+// last, or a listing with nothing in it yet, says so and leads on.
+import type { InferProps } from "@wocart/theme";
+import { schemeClass, styleClasses } from "@wocart/theme";
+import { storefrontPath } from "@wocart/storefront";
+import { Icon } from "astro-icon/components";
+import ProductCard from "@/theme/components/product/ProductCard.astro";
+import ListingPager from "@/theme/components/listing/ListingPager.astro";
+import { message } from "@/theme/content/messages";
+import type { ListingView, listingMain } from "@/theme/catalog/listing/listing-main.def";
+
+type Props = InferProps<typeof listingMain> & { view?: ListingView | null };
+const { view, headerAlign, showBreadcrumbs, showDescription, showCount, showCategoryNav, columns, headScheme, scheme, style } = Astro.props;
+const store = Astro.locals.store;
+const { content, config, locale } = store;
+const across = Math.min(5, Math.max(2, Math.round(columns)));
+const outer = styleClasses(style?.spacing ? { spacing: style.spacing } : undefined);
+const width = styleClasses(style?.size ? { size: style.size } : undefined);
+const count = view ? (view.page === 1 && !view.hasNext ? message(content, "listingCount", { count: view.products.length }, locale) : message(content, "listingRange", { first: view.first, last: view.last }, locale)) : "";
+---
+
+{view && (
+  <section class:list={["listing scheme", schemeClass(scheme)]} aria-labelledby="listing-title">
+    <header class:list={["listing-head scheme", schemeClass(headScheme), headerAlign === "center" && "is-center", view.image && "has-image"]}>
+      <div class:list={["frame", width]}>
+        {showBreadcrumbs && (
+          <nav class="crumbs" aria-label={content.ariaBreadcrumb}>
+            <a href={store.href(storefrontPath("home"))}>{content.navHome}</a>
+            <Icon name="heroicons:chevron-left" class="crumb-sep flip-ltr" aria-hidden="true" />
+            {view.kind === "catalog" ? (
+              <span aria-current="page">{view.title}</span>
+            ) : (
+              <>
+                <a href={store.href(storefrontPath("catalog"))}>{content.allProductsSection}</a>
+                <Icon name="heroicons:chevron-left" class="crumb-sep flip-ltr" aria-hidden="true" />
+                <span aria-current="page">{view.title}</span>
+              </>
+            )}
+          </nav>
+        )}
+        <h1 id="listing-title" class="listing-title">{view.title}</h1>
+        {showDescription && view.description && <p class="listing-description">{view.description}</p>}
+        {showCount && view.products.length > 0 && <p class="listing-count num">{count}</p>}
+      </div>
+    </header>
+
+    <div class:list={["listing-body", outer]}>
+      <div class:list={["frame", width]}>
+        {showCategoryNav && view.kind !== "collection" && view.categories.length > 0 && (
+          <nav class="chips" aria-label={content.listingBrowse}>
+            <a href={store.href(storefrontPath("catalog"))} class:list={["chip", view.kind === "catalog" && "is-on"]} aria-current={view.kind === "catalog" ? "page" : undefined} data-astro-prefetch="hover">
+              {content.allLabel}
+            </a>
+            {view.categories.map((category) => (
+              <a
+                href={store.href(storefrontPath("category", { slug: category.slug }))}
+                class:list={["chip", view.active === category.slug && "is-on"]}
+                aria-current={view.active === category.slug ? "page" : undefined}
+                data-astro-prefetch="hover"
+              >
+                {category.name}
+              </a>
+            ))}
+          </nav>
+        )}
+
+        {view.products.length > 0 ? (
+          <ul class="product-row listing-grid" style={`--across: ${across}`}>
+            {view.products.map((product, i) => (
+              <li><ProductCard product={product} currencySymbol={config.currencySymbol} eager={i < across} copy={content} /></li>
+            ))}
+          </ul>
+        ) : (
+          <div class="listing-empty">
+            <span class="listing-empty-icon" aria-hidden="true"><Icon name="heroicons:shopping-bag" /></span>
+            <h2>{view.kind === "catalog" && view.page === 1 ? content.emptyStoreTitle : content.noProductsTitle}</h2>
+            {view.kind === "catalog" && view.page === 1 ? (
+              <p>{content.emptyStoreSub}</p>
+            ) : (
+              <a href={store.href(storefrontPath("catalog"))} class="btn-primary btn-auto" aria-label={content.ariaBrowseAllProducts} data-astro-prefetch="hover">{content.viewAllCta}</a>
+            )}
+          </div>
+        )}
+
+        <ListingPager basePath={store.href(view.path)} page={view.page} hasNext={view.hasNext} content={content} />
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .listing-head { padding-block: 1.75rem 2rem; }
+  .listing-head.is-center { text-align: center; }
+  .listing-head.is-center .crumbs { justify-content: center; }
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin-bottom: 0.75rem; color: var(--clr-muted); font-size: var(--text-xs); }
+  .crumbs a { color: inherit; text-decoration: none; }
+  .crumbs a:hover { color: var(--clr-ink); }
+  .crumbs [aria-current] { color: var(--clr-ink); }
+  .crumbs :global(.crumb-sep) { width: 0.75rem; height: 0.75rem; }
+  :global([dir="ltr"]) .crumbs :global(.flip-ltr) { transform: scaleX(-1); }
+  .listing-title { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); font-weight: 600; color: var(--clr-ink); }
+  .listing-description { max-width: 40rem; margin-top: 0.625rem; color: var(--clr-text); font-size: var(--text-sm); }
+  .is-center .listing-description { margin-inline: auto; }
+  .listing-count { margin-top: 0.5rem; color: var(--clr-muted); font-size: var(--text-sm); }
+  .chips {
+    display: flex;
+    gap: 0.5rem;
+    margin-inline: -1rem;
+    margin-bottom: 1.75rem;
+    padding-inline: 1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-tag);
+    background: var(--clr-bg);
+    color: var(--clr-ink);
+    font-size: var(--text-sm);
+    text-decoration: none;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+  .chip:hover { border-color: var(--clr-ink); }
+  .chip.is-on { border-color: var(--clr-ink); background: var(--clr-ink); color: var(--clr-bg); }
+  .chip:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 2px; }
+  .listing-grid { list-style: none; }
+  .listing-empty { display: grid; justify-items: center; gap: 0.75rem; padding: 4rem 1rem; text-align: center; }
+  .listing-empty h2 { color: var(--clr-ink); font-size: var(--text-xl); font-weight: 600; }
+  .listing-empty p { color: var(--clr-text); }
+  .listing-empty-icon { display: grid; place-items: center; width: 4rem; height: 4rem; border-radius: var(--radius-round); background: var(--clr-plate); color: var(--clr-ink); }
+  .listing-empty-icon :global(svg) { width: 1.75rem; height: 1.75rem; }
+  @media (min-width: 640px) { .chips { flex-wrap: wrap; margin-inline: 0; padding-inline: 0; overflow: visible; } }
+  @media (min-width: 1024px) {
+    .listing-head { padding-block: 2.75rem 3rem; }
+    .listing-title { font-size: var(--text-5xl); line-height: var(--text-5xl--line-height); }
+    .listing-description { font-size: var(--text-base); }
+    .chips { justify-content: center; margin-bottom: 2.5rem; }
+  }
+</style>

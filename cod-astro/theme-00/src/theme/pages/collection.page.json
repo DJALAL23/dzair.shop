@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "surface": "collection",
+  "sections": [
+    { "id": "cmp_k1list", "type": "listing-main", "props": {} },
+    { "id": "cmp_k2feat", "type": "features-bar", "props": {} }
+  ]
+}

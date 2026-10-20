@@ -33,8 +33,9 @@ Home sections are presentational: `src/pages/index.astro` owns the single
 catalog/category read. See `docs/history/PRODUCT_ZERO_AUDIT.md` §3.
 
 #### `listing/`
-- `CategoryPageContent.astro` - Category listing page content
-- `ProductsListContent.astro` - All-products listing page content
+- `ListingMain.astro` - The listing template's section: all products, a category or a collection (`catalog/listing/listing-main.def.ts`)
+- `PageMain.astro` - A text page's section (`catalog/listing/page-main.def.ts`)
+- `ListingPager.astro` - Previous / next pages of a listing
 
 #### `product/`
 - `ProductCard.astro` - Product card for grid listings

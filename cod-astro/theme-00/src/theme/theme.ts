@@ -1,10 +1,9 @@
 /**
- * Theme-00's Home catalog (Phase 5, slice 15) — the assembler.
+ * Theme-00's catalog — the assembler.
  *
- * Definitions are code; page data is JSON (`src/theme/pages/home.page.json`).
- * Every definition wraps the EXISTING component — no component was rewritten
- * for the contract. Each definition lives under `src/theme/catalog/home/`;
- * the shared read keys and the copy bridge live in `src/theme/catalog/shared.ts`.
+ * Definitions are code (`catalog/**`, one `*.def.ts` per section and its
+ * blocks); page data is JSON (`pages/*.page.json` for the composed pages,
+ * `pages/*.area.json` for the header and footer).
  */
 import { defineTheme } from "@wocart/theme";
 import type { PageData } from "@wocart/theme";
@@ -14,6 +13,10 @@ import { en } from "./content/en";
 import { fr } from "./content/fr";
 import homeDocument from "./pages/home.page.json";
 import productDocument from "./pages/product.page.json";
+import collectionDocument from "./pages/collection.page.json";
+import categoryDocument from "./pages/category.page.json";
+import catalogDocument from "./pages/catalog.page.json";
+import textPageDocument from "./pages/page.page.json";
 import headerDocument from "./pages/header.area.json";
 import footerDocument from "./pages/footer.area.json";
 import { THEME_STYLE } from "./appearance";
@@ -50,6 +53,8 @@ import {
   productTitle,
 } from "./catalog/product/product-main.def";
 import { productReviews, relatedProducts } from "./catalog/product/product-sections.def";
+import { listingMain } from "./catalog/listing/listing-main.def";
+import { pageMain } from "./catalog/listing/page-main.def";
 import { announcement, announcementBar } from "./catalog/header/announcement-bar.def";
 import { header } from "./catalog/header/header.def";
 import { footer, footerAbout, footerMenu, footerPages, footerText } from "./catalog/footer/footer.def";
@@ -68,7 +73,7 @@ export const theme00 = defineTheme({
   // The composed pages, each with the document it renders before the store
   // saves one. A template (product, collection, category, text page) renders
   // every resource of its type; a product page always holds its product and
-  // the order form inside it.
+  // the order form inside it, a listing its products, a text page its text.
   surfaces: [
     { key: "home", label: SURFACE.home, pageType: "home", document: homeDocument as PageData },
     {
@@ -78,10 +83,10 @@ export const theme00 = defineTheme({
       document: productDocument as PageData,
       required: [{ type: "product-main", min: 1, max: 1 }],
     },
-    { key: "collection", label: SURFACE.collection, pageType: "collection" },
-    { key: "category", label: SURFACE.category, pageType: "category" },
-    { key: "catalog", label: SURFACE.catalog, pageType: "catalog" },
-    { key: "page", label: SURFACE.page, pageType: "page" },
+    { key: "collection", label: SURFACE.collection, pageType: "collection", document: collectionDocument as PageData, required: [{ type: "listing-main", min: 1, max: 1 }] },
+    { key: "category", label: SURFACE.category, pageType: "category", document: categoryDocument as PageData, required: [{ type: "listing-main", min: 1, max: 1 }] },
+    { key: "catalog", label: SURFACE.catalog, pageType: "catalog", document: catalogDocument as PageData, required: [{ type: "listing-main", min: 1, max: 1 }] },
+    { key: "page", label: SURFACE.page, pageType: "page", document: textPageDocument as PageData, required: [{ type: "page-main", min: 1, max: 1 }] },
   ],
   // The parts every page shares, composed of sections and edited once.
   areas: [
@@ -106,6 +111,8 @@ export const theme00 = defineTheme({
     "product-text": productText,
     "product-reviews": productReviews,
     "related-products": relatedProducts,
+    "listing-main": listingMain,
+    "page-main": pageMain,
     marquee,
     "product-tabs": productTabs,
     "product-tab": productTab,

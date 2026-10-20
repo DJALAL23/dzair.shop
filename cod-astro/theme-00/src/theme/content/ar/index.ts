@@ -17,6 +17,7 @@ import { arThankYou } from "./thank-you";
 import { arStates } from "./states";
 import { arMisc } from "./misc";
 import { arProduct } from "./product";
+import { arListing } from "./listing";
 
 export const ar: StoreFrontContent = {
   ...arHome,
@@ -33,4 +34,5 @@ export const ar: StoreFrontContent = {
   ...arStates,
   ...arMisc,
   ...arProduct,
+  ...arListing,
 };

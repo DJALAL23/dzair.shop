@@ -34,9 +34,17 @@ export const SECTION = {
   richText: text("نص منسق", "Texte mis en forme", "Rich text"),
   faq: text("الأسئلة الشائعة", "Questions fréquentes", "FAQ"),
   featuredProduct: text("منتج بارز", "Produit à la une", "Featured product"),
+  listingMain: text("قائمة المنتجات", "Liste des produits", "Product list"),
+  pageMain: text("محتوى الصفحة", "Contenu de la page", "Page content"),
 };
 
 export const FIELD = {
+  showCategoryNav: text("أزرار الفئات", "Boutons des catégories", "Category buttons"),
+  showDescription: text("إظهار الوصف", "Afficher la description", "Show the description"),
+  showCount: text("إظهار عدد المنتجات", "Afficher le nombre de produits", "Show the product count"),
+  showBreadcrumbs: text("مسار التنقل", "Fil d’Ariane", "Breadcrumbs"),
+  headerAlign: text("محاذاة العنوان", "Alignement du titre", "Title alignment"),
+  headScheme: text("ألوان شريط العنوان", "Couleurs du bandeau de titre", "Title band colors"),
   showCategory: text("إظهار الفئة", "Afficher la catégorie", "Show the category"),
   showStock: text("إظهار التوفر", "Afficher la disponibilité", "Show availability"),
   showSaving: text("إظهار قيمة التوفير", "Afficher l'économie", "Show the saving"),
@@ -151,6 +159,7 @@ export const GROUP = {
   home: text("الصفحة الرئيسية", "Accueil", "Home"),
   product: text("صفحة المنتج", "Page produit", "Product page"),
   listing: text("قوائم المنتجات", "Listes de produits", "Product lists"),
+  page: text("صفحات النص", "Pages de texte", "Text pages"),
   header: text("رأس الصفحة", "En-tête", "Header"),
   footer: text("تذييل الصفحة", "Pied de page", "Footer"),
 };

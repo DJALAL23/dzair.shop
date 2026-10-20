@@ -1,23 +1,16 @@
 ---
-// ── CUSTOMIZE HERE ────────────────────────────────────────────────────────────
-// All-products listing page: category filter bar + product grid.
-// Data is fetched in streaming component for optimal performance.
-// ─────────────────────────────────────────────────────────────────────────────
-import StoreLayout from "@/theme/layouts/StoreLayout.astro";
-import ProductsListContent from "@/theme/components/listing/ProductsListContent.astro";
+// All products: the listing template (`theme/pages/SurfacePage.astro`) over
+// the store's saved catalog document, or the theme's default.
+import SurfacePage from "@/theme/pages/SurfacePage.astro";
+import { message } from "@/theme/content/messages";
 
-// Store context comes from middleware (Astro.locals.store — Theme Zero S2);
-// products and categories are fetched inside the content component.
-const { config, content } = Astro.locals.store;
+const { config, content, locale, client } = Astro.locals.store;
+const saved = await client.pageData.get("catalog");
 ---
 
-<StoreLayout title={`${content.allProductsSection} — ${config.name}`}>
-  <!-- 
-    ProductsListContent streams in after layout renders
-    Products and categories fetch in parallel inside component
-  -->
-  <ProductsListContent 
-    currencySymbol={config.currencySymbol}
-    content={content}
-  />
-</StoreLayout>
+<SurfacePage
+  surface="catalog"
+  document={saved}
+  params={{ page: Astro.url.searchParams.get("page") ?? undefined }}
+  title={message(content, "documentTitle", { title: content.allProductsSection, storeName: config.name }, locale)}
+/>

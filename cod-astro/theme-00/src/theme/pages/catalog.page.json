@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "surface": "catalog",
+  "sections": [
+    { "id": "cmp_a1list", "type": "listing-main", "props": {} },
+    { "id": "cmp_a2feat", "type": "features-bar", "props": {} }
+  ]
+}

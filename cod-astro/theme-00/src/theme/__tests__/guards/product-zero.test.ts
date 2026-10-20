@@ -113,12 +113,13 @@ describe("Product Zero — the homepage owns its data graph", () => {
     // testimonials' product lookup — five read the collection their setting
     // names under its own key (hero, featured products, best sellers, new
     // arrivals, a product tab), and three read the products on sale (on
-    // sale, a product tab, the promotion banner's photo). The renderer's read
-    // cache runs each loader once per render.
+    // sale, a product tab, the promotion banner's photo), and two the
+    // categories (category cards, and a listing's category buttons). The
+    // renderer's read cache runs each loader once per render.
     expect(countIn(definitions, "reads.get(CATALOG_READ")).toBe(2);
     expect(countIn(definitions, "reads.get(collectionRead(")).toBe(5);
     expect(countIn(definitions, "reads.get(onSaleRead(")).toBe(3);
-    expect(countIn(definitions, "reads.get(CATEGORIES_READ")).toBe(1);
+    expect(countIn(definitions, "reads.get(CATEGORIES_READ")).toBe(2);
   });
 
   it("no home section reads the catalog or categories", () => {

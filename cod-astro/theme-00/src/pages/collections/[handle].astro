@@ -1,23 +1,26 @@
 ---
-// ── CUSTOMIZE HERE ────────────────────────────────────────────────────────────
-// Collection page (page type `collection`): a list of products the merchant
-// curates, in their order — the page a menu item links to.
-// ─────────────────────────────────────────────────────────────────────────────
-import StoreLayout from "@/theme/layouts/StoreLayout.astro";
-import CollectionPageContent from "@/theme/components/listing/CollectionPageContent.astro";
+// A collection's page: the listing template (`theme/pages/SurfacePage.astro`)
+// over the store's saved collection document, or the theme's default.
+import { createReadCache } from "@wocart/theme/astro";
+import SurfacePage from "@/theme/pages/SurfacePage.astro";
+import { collectionByHandle } from "@/theme/catalog/listing/listing-main.def";
 import { message } from "@/theme/content/messages";
 
 const { handle } = Astro.params;
 const { config, content, locale, client } = Astro.locals.store;
 
 // The collection first: an unknown handle is a real 404, never an empty 200.
-const collection = await client.collections.get(handle!);
+const [collection, saved] = await Promise.all([client.collections.get(handle!), client.pageData.get("collection")]);
 if (!collection) return Astro.rewrite("/404");
+const reads = createReadCache();
+reads.get(collectionByHandle(collection.handle), async () => collection);
 ---
 
-<StoreLayout
+<SurfacePage
+  surface="collection"
+  document={saved}
+  params={{ handle: collection.handle, page: Astro.url.searchParams.get("page") ?? undefined }}
+  reads={reads}
   title={message(content, "collectionPageTitle", { collection: collection.title, storeName: config.name }, locale)}
   description={collection.description ?? undefined}
->
-  <CollectionPageContent collection={collection} currencySymbol={config.currencySymbol} content={content} />
-</StoreLayout>
+/>

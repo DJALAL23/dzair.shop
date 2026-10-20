@@ -17,6 +17,7 @@ import { frThankYou } from "./thank-you";
 import { frStates } from "./states";
 import { frMisc } from "./misc";
 import { frProduct } from "./product";
+import { frListing } from "./listing";
 
 export const fr: StoreFrontContent = {
   ...frHome,
@@ -33,4 +34,5 @@ export const fr: StoreFrontContent = {
   ...frStates,
   ...frMisc,
   ...frProduct,
+  ...frListing,
 };

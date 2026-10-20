@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "surface": "page",
+  "sections": [{ "id": "cmp_t1page", "type": "page-main", "props": {} }]
+}

@@ -75,7 +75,7 @@ function store() {
       list: async () => [makeProduct({ handle: "lampe" })],
       get: async (handle: string) => (handle === "robe-kabyle" ? ROBE : handle === "lampe" ? { ...ROBE, name: "Lampe", handle } : null),
     },
-    categories: { list: async () => [] },
+    categories: { list: async () => [{ id: "cat_robes", name: "Robes", slug: "robes", description: null, parentId: null, imageUrl: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }] },
   } as unknown as StoreClient;
   return testStore({ client });
 }
@@ -138,9 +138,39 @@ describe("the preview route", () => {
     }
   });
 
+  it("shows a header draft on the home page, marking only the header's sections", async () => {
+    const header = { version: 1, surface: "area:header", sections: [{ id: "draft_header", type: "header", props: {} }] };
+    const { response, html } = await render(PreviewPage, { draft: { surface: "area:header", document: header } });
+    expect(response.status).toBe(200);
+    expect(html).toContain("Saved words");
+    expect(starts(html)).toEqual(["draft_header"]);
+    expect(html).toMatch(/<wocart-preview-bridge/);
+  });
+
+  it("shows a header draft on the product page its path names", async () => {
+    const header = { version: 1, surface: "area:header", sections: [{ id: "draft_header", type: "header", props: {} }] };
+    const { response, html } = await render(PreviewPage, { draft: { surface: "area:header", document: header, path: "/products/robe-kabyle" } });
+    expect(response.status).toBe(200);
+    expect(html).toContain('data-product="Robe kabyle"');
+    expect(html).toContain('data-preview="false"');
+  });
+
+  it("renders the listing pages: all products, and a category by its path or the store's first", async () => {
+    const catalog = await render(PreviewPage, { draft: { surface: "catalog" } });
+    expect(catalog.response.status).toBe(200);
+    expect(starts(catalog.html)).toEqual(["cmp_a1list", "cmp_a2feat"]);
+    for (const path of ["/category/robes", undefined]) {
+      const category = await render(PreviewPage, { draft: { surface: "category", ...(path ? { path } : {}) } });
+      expect(category.response.status).toBe(200);
+      expect(category.html).toContain(">Robes</h1>");
+    }
+    expect((await render(PreviewPage, { draft: { surface: "category", path: "/category/gone" } })).response.status).toBe(404);
+  });
+
   it("is a 404 without a verified preview, and for a surface this theme does not compose", async () => {
     expect((await render(PreviewPage)).response.status).toBe(404);
     expect((await render(PreviewPage, { draft: { surface: "checkout" } })).response.status).toBe(404);
+    expect((await render(PreviewPage, { draft: { surface: "area:sidebar" } })).response.status).toBe(404);
     expect((await render(PreviewPage, { draft: { surface: "product", path: "/products/gone" } })).response.status).toBe(404);
   });
 });

@@ -24,7 +24,6 @@ export const arMisc: MiscStrings = {
   noResultsLabel: "لا توجد نتائج مطابقة",
   loadMoreLabel: "عرض المزيد",
   allLabel: "الكل",
-  productCountLabel: "منتج",
   pagerPrevious: "السابق",
   pagerNext: "التالي",
   pagerLabel: "التنقل بين الصفحات",
@@ -49,4 +48,5 @@ export const arMisc: MiscStrings = {
   defaultMetaDescription: "تسوق من {storeName} - أفضل المنتجات بأسعار مناسبة مع توصيل لجميع الولايات",
   productPageTitle: "{product} - {storeName}",
   collectionPageTitle: "{collection} - {storeName}",
+  documentTitle: "{title} - {storeName}",
 };

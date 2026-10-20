@@ -1,51 +1,31 @@
 ---
-// ── STORE PAGE ────────────────────────────────────────────────────────────────
-// Terms, Privacy, Refund/Return, Shipping, or a merchant-authored custom page.
-// Full store chrome (header, footer, mobile nav) — these are pages a shopper
-// navigates to deliberately, not a marketing funnel step.
-//
-// The body arrives already sanitised (cod-shared/lib/rich-text.ts, at the
-// write chokepoint in cod-shared/queries/store-pages.ts) and is rendered with
-// set:html and NEVER re-sanitised here — the exact contract
-// ProductDescription.astro documents for product descriptions.
-//
-// Draft, archived, and unknown slugs all rewrite to the real 404 page (real
-// HTTP 404 status, not a soft 200 with empty content) — see plan §9.
-// ─────────────────────────────────────────────────────────────────────────────
-import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+// A text page of the store — terms, privacy, refunds, delivery, or a page of
+// its own: the text-page template (`theme/pages/SurfacePage.astro`) over the
+// store's saved page document, or the theme's default. Draft, archived and
+// unknown slugs are a real 404, never a soft 200. The body arrives already
+// sanitised by the platform and is rendered as given (`PageMain.astro`).
+import { createReadCache } from "@wocart/theme/astro";
+import SurfacePage from "@/theme/pages/SurfacePage.astro";
+import { pageBySlug } from "@/theme/catalog/listing/page-main.def";
+import { message } from "@/theme/content/messages";
 
 const { slug } = Astro.params;
+const { config, content, locale, client } = Astro.locals.store;
 
-// Store context comes from middleware (Astro.locals.store — Theme Zero S2).
-const { config } = Astro.locals.store;
-const page = await Astro.locals.store.client.pages.get(slug ?? "");
-
+const [page, saved] = await Promise.all([client.pages.get(slug ?? ""), client.pageData.get("page")]);
 if (!page) return Astro.rewrite("/404");
+const reads = createReadCache();
+reads.get(pageBySlug(page.slug), async () => page);
 
 /** Cosmetic only — bodyHtml is already sanitised, so a tag strip here is safe. */
-function stripTags(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-const pageTitle = page.metaTitle ?? `${page.title} — ${config.name}`;
-const pageDescription = page.metaDescription ?? stripTags(page.bodyHtml).slice(0, 160);
+const plain = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 ---
 
-<StoreLayout
-  title={pageTitle}
-  description={pageDescription}
->
-  <article class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-    <h1
-      class="text-2xl sm:text-3xl font-black tracking-tight mb-6 sm:mb-8"
-      style="color: var(--clr-ink)"
-    >
-      {page.title}
-    </h1>
-    <div
-      class="rich-description text-[0.9375rem] sm:text-base leading-relaxed"
-      style="color: var(--clr-text)"
-      set:html={page.bodyHtml}
-    />
-  </article>
-</StoreLayout>
+<SurfacePage
+  surface="page"
+  document={saved}
+  params={{ slug: page.slug }}
+  reads={reads}
+  title={page.metaTitle ?? message(content, "documentTitle", { title: page.title, storeName: config.name }, locale)}
+  description={page.metaDescription ?? plain(page.bodyHtml).slice(0, 160)}
+/>

@@ -16,7 +16,6 @@ export type MiscStrings = Plural<"lowStock"> &
   noResultsLabel: string;
   loadMoreLabel: string;
   allLabel: string;
-  productCountLabel: string;
   pagerPrevious: string;
   pagerNext: string;
   pagerLabel: string;
@@ -38,4 +37,6 @@ export type MiscStrings = Plural<"lowStock"> &
   productPageTitle: string;
   /** A collection page's title: `{collection}` and `{storeName}`. */
   collectionPageTitle: string;
+  /** A page's title in the browser: a category's, a text page's, all products'. */
+  documentTitle: string;
 };

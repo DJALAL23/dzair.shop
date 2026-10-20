@@ -1,36 +1,28 @@
 ---
-// ── CUSTOMIZE HERE ────────────────────────────────────────────────────────────
-// Category page: sibling category pills + filtered product grid.
-// Data is fetched in streaming component for optimal performance.
-// ─────────────────────────────────────────────────────────────────────────────
-import StoreLayout from "@/theme/layouts/StoreLayout.astro";
-import CategoryPageContent from "@/theme/components/listing/CategoryPageContent.astro";
+// A category's page: the listing template (`theme/pages/SurfacePage.astro`)
+// over the store's saved category document, or the theme's default.
+import { createReadCache } from "@wocart/theme/astro";
+import SurfacePage from "@/theme/pages/SurfacePage.astro";
+import { CATEGORIES_READ } from "@/theme/catalog/shared";
+import { message } from "@/theme/content/messages";
 
 const { slug } = Astro.params;
+const { config, content, locale, client } = Astro.locals.store;
 
-// Store context comes from middleware (Astro.locals.store — Theme Zero S2).
-const { config, content } = Astro.locals.store;
-
-// Fetch categories for SEO meta tags (lightweight — no products)
-const categories = await Astro.locals.store.client.categories.list();
-const category = categories.find((c) => c.slug === slug);
-// An unknown category is a real 404, never an empty 200.
+// The category first: an unknown slug is a real 404, never an empty 200.
+const [categories, saved] = await Promise.all([client.categories.list(), client.pageData.get("category")]);
+const category = categories.find((candidate) => candidate.slug === slug);
 if (!category) return Astro.rewrite("/404");
-
-const metaTitle = category.metaTitle || `${category.name} - ${config.name}`;
-const metaDescription = category.metaDescription || category.description || undefined;
-const ogImage = category.imageUrl || undefined;
+const reads = createReadCache();
+reads.get(CATEGORIES_READ, async () => categories);
 ---
 
-<StoreLayout
-  title={metaTitle}
-  description={metaDescription}
-  ogImage={ogImage}
->
-  <CategoryPageContent
-    category={category}
-    categories={categories}
-    currencySymbol={config.currencySymbol}
-    content={content}
-  />
-</StoreLayout>
+<SurfacePage
+  surface="category"
+  document={saved}
+  params={{ slug: category.slug, page: Astro.url.searchParams.get("page") ?? undefined }}
+  reads={reads}
+  title={category.metaTitle || message(content, "documentTitle", { title: category.name, storeName: config.name }, locale)}
+  description={category.metaDescription || category.description || undefined}
+  ogImage={category.imageUrl || undefined}
+/>
