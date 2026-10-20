@@ -40,6 +40,7 @@ export const PRODUCT_CARD_KEYS = [
   "outOfStock",
   ...pluralKeys("lowStock"),
   "ariaProductCard",
+  "ariaProductCardAction",
 ] as const;
 
 export type ProductCardCopy = Pick<StoreFrontContent, (typeof PRODUCT_CARD_KEYS)[number]>;

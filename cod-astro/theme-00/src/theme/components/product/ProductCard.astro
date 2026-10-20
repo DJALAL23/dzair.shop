@@ -43,6 +43,12 @@ const image = ("coverImage" in product ? product.coverImage : product.images[0])
 const view = "variants" in product ? getProductView(product) : getProductListView(product);
 const { hasDiscount, discountPct, isOutOfStock, isLowStock, comparePrice, basePrice } = view;
 const rating = product.reviewStats && product.reviewStats.reviewCount > 0 ? product.reviewStats : null;
+// The name a screen reader hears is the card's own words: the visible order
+// button is part of the link, so it is part of the name too.
+const cardLabel = message(copy, "ariaProductCard", { name: product.name, price: formatAmount(basePrice), currency: currencySymbol }, locale);
+// A card's status is its badge or its order button, both hidden from assistive
+// tech, so the name carries the status it shows: sold out, or the quick order.
+const cardStatus = isOutOfStock ? copy.outOfStock : action ? copy.orderCta : null;
 const filled = rating ? Math.round(rating.avgRating) : 0;
 ---
 
@@ -50,7 +56,7 @@ const filled = rating ? Math.round(rating.avgRating) : 0;
   href={Astro.locals.store.href(storefrontPath("product", { handle: product.handle }))}
   data-astro-prefetch="hover"
   class:list={["product-card", isOutOfStock && "is-sold-out"]}
-  aria-label={message(copy, "ariaProductCard", { name: product.name, price: formatAmount(basePrice), currency: currencySymbol }, locale)}
+  aria-label={cardStatus ? message(copy, "ariaProductCardAction", { card: cardLabel, action: cardStatus }, locale) : cardLabel}
 >
   <div class="plate card-photo">
     {image ? (

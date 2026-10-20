@@ -31,6 +31,8 @@ export type MiscStrings = Plural<"lowStock"> &
   ariaBrowseAllProducts: string;
   ariaBrowseCategoryProducts: string;
   ariaProductCard: string;
+  /** A product card's name when the card also takes a quick action: `{card}`, `{action}`. */
+  ariaProductCardAction: string;
   thankYouPageTitle: string;
   defaultMetaDescription: string;
   /** A product page's title: `{product}` and `{storeName}`. */
