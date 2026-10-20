@@ -5,7 +5,7 @@
 /**
  * OrderForm's `secondary-action` slot — the one real slot in theme-00.
  *
- * `ProductDetailContent` fills it with the Add-to-Cart button when, and only
+ * `ProductOrder` fills it with the Add-to-Cart button when, and only
  * when, the merchant has the cart enabled; the slot's whole purpose is that the
  * secondary order action sits *directly under* the confirm button, inside the
  * card, so the two actions read as one decision.
@@ -74,7 +74,7 @@ function product(overrides: Partial<ProductDetail> = {}): ProductDetail {
   });
 }
 
-/** What ProductDetailContent actually passes in: the Add-to-Cart button. */
+/** What ProductOrder actually passes in: the Add-to-Cart button. */
 const SECONDARY = '<span data-testid="secondary-action">Add to cart</span>';
 
 async function render(slots?: Record<string, string>): Promise<string> {

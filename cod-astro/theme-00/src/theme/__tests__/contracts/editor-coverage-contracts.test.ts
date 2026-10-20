@@ -32,6 +32,27 @@ const SHARED_UI_LABELS = new Set([
   "ariaBrowseCategoryProducts",
   "ariaStarRating",
   "reviewsVerifiedBuyer",
+  // Navigation and the order action, the same on every page.
+  "ariaBreadcrumb",
+  "navHome",
+  "orderCta",
+  "orderCtaSubtext",
+  "viewAllCta",
+  "allProductsSection",
+  "footerWhatsapp",
+  // Facts about a product, worded once: stock, reviews, the saving.
+  "productReviewCount",
+  "productInStock",
+  "outOfStock",
+  "lowStock",
+  "productSaving",
+  // The review form's own title, also the button that opens it.
+  "reviewFormTitle",
+  // A countdown's units.
+  "countdownDays",
+  "countdownHours",
+  "countdownMinutes",
+  "countdownSeconds",
 ]);
 
 const CATALOG_DIR = path.resolve(process.cwd(), "src/theme/catalog");

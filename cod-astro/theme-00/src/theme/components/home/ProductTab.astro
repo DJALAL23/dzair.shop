@@ -1,0 +1,33 @@
+---
+// One tab of a tabbed product section: its name, its products, a link to all
+// of them. Without a script the tabs stack, each under its own name.
+import ProductCard from "@/theme/components/product/ProductCard.astro";
+import type { Product, ProductList } from "@wocart/storefront";
+import type { StoreFrontContent } from "@/theme/content";
+
+// Its list is read by the block's load; a read that failed leaves none, and
+// the tab is simply absent.
+interface Props {
+  name?: string;
+  products?: Array<ProductList | Product>;
+  viewAll?: string;
+  currencySymbol?: string;
+  content?: StoreFrontContent;
+}
+
+const { name = "", products = [], viewAll = "", currencySymbol = "", content = Astro.locals.store.content } = Astro.props;
+---
+
+{products.length > 0 && (
+  <div class="tab-panel" data-tab-label={name}>
+    <h3 class="tab-panel-name">{name}</h3>
+    <ul class="product-row">
+      {products.map((product, index) => (
+        <li><ProductCard product={product} currencySymbol={currencySymbol} copy={content} eager={index < 2} /></li>
+      ))}
+    </ul>
+    <div class="row-more tab-view-all">
+      <a href={Astro.locals.store.href(viewAll)} class="btn-secondary btn-auto">{content.viewAllCta}</a>
+    </div>
+  </div>
+)}

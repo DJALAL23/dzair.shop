@@ -1,0 +1,15 @@
+---
+// A line or two of the merchant's own words, between the other blocks.
+import { richTextToHtml, type InferProps } from "@wocart/theme";
+import type { productText } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productText>;
+const { text } = Astro.props;
+const html = text ? richTextToHtml(text, { href: Astro.locals.store.href, inline: true }) : "";
+---
+
+{html && <p class="product-text" set:html={html} />}
+
+<style>
+  .product-text { color: var(--clr-text); font-size: var(--text-sm); }
+</style>

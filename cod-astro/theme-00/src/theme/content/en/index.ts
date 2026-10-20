@@ -16,6 +16,7 @@ import { enOffers } from "./offers";
 import { enThankYou } from "./thank-you";
 import { enStates } from "./states";
 import { enMisc } from "./misc";
+import { enProduct } from "./product";
 
 export const en: StoreFrontContent = {
   ...enHome,
@@ -31,4 +32,5 @@ export const en: StoreFrontContent = {
   ...enThankYou,
   ...enStates,
   ...enMisc,
+  ...enProduct,
 };

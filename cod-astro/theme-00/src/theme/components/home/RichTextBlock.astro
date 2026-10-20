@@ -1,32 +1,38 @@
 ---
-// The merchant's own words — a story, a promise, a note on delivery — set as
-// a text column under a section title. The body is the SDK's escaped HTML of a
-// rich-text value, so `set:html` receives nothing a merchant could inject.
-// No body, no section.
+// The merchant's own words — a story, a promise, a note on delivery — under a
+// title, in a column as wide as the section's width. The body is the SDK's
+// escaped HTML of a rich-text value, so `set:html` receives nothing a
+// merchant could inject. No words, no section; an editor's preview shows
+// where they will go.
 import type { InferProps } from "@wocart/theme";
 import { richTextToHtml } from "@wocart/theme";
+import { isPreview, type BlocksHandle } from "@wocart/theme/astro";
 import type { StoreFrontContent } from "@/theme/content";
 import type { richText } from "@/theme/catalog/home/rich-text.def";
+import Section from "@/theme/components/ui/Section.astro";
 
-type Props = Pick<InferProps<typeof richText>, "body" | "alignment"> & {
+type Props = Pick<InferProps<typeof richText>, "body" | "alignment" | "scheme" | "style"> & {
+  blocks: BlocksHandle;
   content: StoreFrontContent;
 };
 
-const { body, alignment, content } = Astro.props;
+const { blocks, body, alignment, scheme, style, content } = Astro.props;
 const href = Astro.locals.store.href;
+const html = body ? richTextToHtml(body, { href }) : "";
 ---
 
-{body && (
-  <section class:list={["frame py-10 sm:py-14", alignment === "center" && "text-center"]}>
-    <div class:list={["text-column", alignment === "center" && "mx-auto"]}>
-      <h2 class="section-title">{content.richTextTitle}</h2>
-      <div class="rich-description mt-4" set:html={richTextToHtml(body, { href })} />
-    </div>
-  </section>
+{(html || isPreview(blocks)) && (
+  <Section scheme={scheme} style={style} inner={alignment === "center" ? "text-center" : undefined}>
+    <h2 class="story-title">{content.richTextTitle}</h2>
+    {html ? <div class="story-body rich-description" set:html={html} /> : <div class="story-ghost" aria-hidden="true"><span /><span /><span /></div>}
+  </Section>
 )}
 
 <style>
-  .text-column {
-    max-width: 70ch;
-  }
+  .story-title { font-size: var(--text-2xl); }
+  .story-body { margin-top: 1rem; color: var(--clr-text); font-size: var(--text-md); line-height: 1.95; }
+  @media (min-width: 1024px) { .story-title { font-size: var(--text-4xl); } .story-body { margin-top: 1.5rem; font-size: var(--text-lg); } }
+  .story-ghost { display: grid; gap: 0.625rem; margin-top: 1.25rem; }
+  .story-ghost span { height: 0.75rem; border-radius: var(--radius-tag); background: var(--clr-plate); }
+  .story-ghost span:last-child { width: 60%; margin-inline: auto; }
 </style>

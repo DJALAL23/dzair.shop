@@ -166,10 +166,11 @@ describe("the theme's settings", () => {
     expect(resolveThemeSettings(theme00, undefined).values).toEqual({
       colorSchemes: DEFAULT_SCHEMES,
       pageScheme: "scheme-1",
-      headingFont: "El Messiri",
+      headingFont: "Alexandria",
       font: "Readex Pro",
       corners: "soft",
       cardImageRatio: "portrait",
+      cardButton: true,
     });
   });
 

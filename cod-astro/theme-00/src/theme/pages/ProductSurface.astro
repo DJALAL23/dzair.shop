@@ -1,0 +1,43 @@
+---
+// ── The product surface ─────────────────────────────────────────────────────
+// One template renders every product: the store's saved product document, a
+// draft in a preview, or the theme's shipped default (`resolveSurfaceDocument`).
+// The route reads the product first — an unknown handle is a 404 before
+// anything streams — and primes the page's read cache with it, so every
+// section and block takes the same product without reading it again.
+import { createReadCache } from "@wocart/theme/astro";
+import type { Product } from "@wocart/storefront";
+import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import Sections from "@/theme/components/surface/Sections.astro";
+import { productRead } from "@/theme/catalog/product/shared";
+import { message } from "@/theme/content/messages";
+
+interface Props {
+  product: Product;
+  /** The document to render: what the store saved (`null` when absent), or a preview's draft. */
+  document: unknown;
+  preview?: boolean;
+  softNavigation?: boolean;
+}
+
+const { product, document, preview = false, softNavigation = true } = Astro.props;
+const { config, content, locale } = Astro.locals.store;
+const reads = createReadCache();
+reads.get(productRead(product.handle), async () => product);
+---
+
+<StoreLayout
+  title={message(content, "productPageTitle", { product: product.name, storeName: config.name }, locale)}
+  description={product.descriptionPlain?.slice(0, 160) || undefined}
+  hideMobileNav={true}
+  softNavigation={softNavigation}
+>
+  <Sections surface="product" document={document} preview={preview} params={{ handle: product.handle }} reads={reads} />
+  <slot />
+</StoreLayout>
+
+<script src="../scripts/product.ts"></script>
+<script src="../scripts/sticky-cta.ts"></script>
+<script src="../scripts/otp-step.ts"></script>
+<script src="../scripts/turnstile-field.ts"></script>
+<script src="../scripts/track-abandonment.ts"></script>

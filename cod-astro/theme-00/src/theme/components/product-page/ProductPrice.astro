@@ -1,0 +1,43 @@
+---
+// The price: the sale price in the sale color over the old one, and what the
+// shopper saves. The order script keeps it in step with the chosen variant
+// (`#price-display-desktop`).
+import type { InferProps } from "@wocart/theme";
+import { getProductView, type Product } from "@wocart/storefront";
+import { message } from "@/theme/content/messages";
+import { formatAmount } from "@/theme/utils/money";
+import type { productPrice } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productPrice> & { product: Product | null };
+const { product, showSaving } = Astro.props;
+const { content, locale, config } = Astro.locals.store;
+const view = product ? getProductView(product) : null;
+const cur = config.currencySymbol;
+const saving = view && view.hasDiscount && view.comparePrice != null ? view.comparePrice - view.basePrice : 0;
+---
+
+{view && (
+  <div class="product-price">
+    <span class:list={["price product-price-now", view.hasDiscount && "is-sale"]} id="price-display-desktop">{formatAmount(view.basePrice)}<span class="price-cur">{cur}</span></span>
+    {view.hasDiscount && view.comparePrice != null && <span class="price-was">{formatAmount(view.comparePrice)} {cur}</span>}
+    {showSaving && saving > 0 && <span class="product-saving num">{message(content, "productSaving", { amount: formatAmount(saving), currency: cur }, locale)}</span>}
+  </div>
+)}
+
+<style>
+  .product-price { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem 0.875rem; }
+  .product-price-now { font-family: var(--font-heading); font-size: var(--text-3xl); line-height: 1.2; }
+  .product-price .price-was { font-size: var(--text-lg); }
+  .product-saving {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    padding-inline: 0.75rem;
+    border-radius: var(--radius-tag);
+    background: var(--clr-sale-soft);
+    color: var(--clr-accent);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+  @media (min-width: 1024px) { .product-price-now { font-size: var(--text-4xl); } }
+</style>

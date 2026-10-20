@@ -1,0 +1,87 @@
+---
+// A countdown to the next midnight in Algeria or to the end of a day the
+// merchant chose. The server writes the time left; the browser keeps it
+// running and, past the end, removes it. A cached page counts from the
+// visitor's own clock, never from the moment it was cached.
+import { countdownEnd, timeLeft, type CountdownEnd } from "@/theme/utils/countdown";
+
+interface Props {
+  ends: CountdownEnd | undefined;
+  units: { days: string; hours: string; minutes: string; seconds: string };
+  /** Boxes for a banner, one line for a strip. */
+  look?: "boxes" | "line";
+  label?: string | undefined;
+}
+
+const { ends, units, look = "boxes", label } = Astro.props;
+const end = countdownEnd(ends);
+const left = end === null ? null : timeLeft(end);
+const pad = (value: number) => String(value).padStart(2, "0");
+---
+
+{left && (
+  <div class:list={["countdown", `is-${look}`]} data-countdown={ends} role="timer" aria-label={label}>
+    {label && look === "line" && <span class="countdown-label">{label}</span>}
+    <div class="countdown-parts num">
+      {left.days > 0 && <span class="countdown-part"><b data-part="days">{pad(left.days)}</b><small>{units.days}</small></span>}
+      <span class="countdown-part"><b data-part="hours">{pad(left.hours)}</b><small>{units.hours}</small></span>
+      <span class="countdown-part"><b data-part="minutes">{pad(left.minutes)}</b><small>{units.minutes}</small></span>
+      <span class="countdown-part"><b data-part="seconds">{pad(left.seconds)}</b><small>{units.seconds}</small></span>
+    </div>
+  </div>
+)}
+
+<script>
+  import { onEachElement } from "@/theme/scripts/page-lifecycle";
+  import { countdownEnd, timeLeft } from "@/theme/utils/countdown";
+
+  onEachElement("[data-countdown]", (element) => {
+    const end = countdownEnd(element.dataset.countdown);
+    if (end === null) {
+      element.remove();
+      return;
+    }
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const tick = () => {
+      if (Date.now() >= end) {
+        element.remove();
+        window.clearInterval(timer);
+        return;
+      }
+      const left = timeLeft(end);
+      for (const part of ["days", "hours", "minutes", "seconds"] as const) {
+        const slot = element.querySelector<HTMLElement>(`[data-part="${part}"]`);
+        if (slot) slot.textContent = pad(left[part]);
+      }
+    };
+    const timer = window.setInterval(tick, 1000);
+    tick();
+    return () => window.clearInterval(timer);
+  });
+</script>
+
+<style>
+  .countdown-parts { display: flex; gap: 0.5rem; }
+  .is-boxes .countdown-part {
+    display: grid;
+    min-width: 3.875rem;
+    place-items: center;
+    padding: 0.625rem 0.375rem;
+    border-radius: var(--radius-input);
+    background: var(--clr-field);
+    color: var(--clr-ink);
+  }
+  .is-boxes b { font-family: var(--font-heading); font-size: var(--text-2xl); font-weight: 600; line-height: 1.1; }
+  .is-boxes small { color: var(--clr-muted); font-size: var(--text-2xs); }
+  @media (min-width: 1024px) {
+    .is-boxes .countdown-part { min-width: 4.75rem; padding: 0.875rem 0.5rem; }
+    .is-boxes b { font-size: var(--text-3xl); }
+  }
+  .is-line { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+  .is-line .countdown-label { font-weight: 600; color: var(--clr-ink); }
+  .is-line .countdown-parts { gap: 0.25rem; }
+  .is-line .countdown-part { display: inline-flex; align-items: baseline; gap: 0.125rem; }
+  .is-line .countdown-part + .countdown-part::before { content: ":"; margin-inline-end: 0.25rem; color: var(--clr-muted); }
+  .is-line b { font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 600; color: var(--clr-ink); }
+  .is-line small { display: none; }
+</style>

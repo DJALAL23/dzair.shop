@@ -12,6 +12,7 @@ import * as endpoint from "@/pages/wocart-theme.json";
 import * as previewPage from "@/pages/wocart-preview.astro";
 import { theme00 } from "@/theme/theme";
 import shippedHome from "@/theme/pages/home.page.json";
+import shippedProduct from "@/theme/pages/product.page.json";
 import { ar } from "@/theme/content/ar";
 import { en } from "@/theme/content/en";
 import { fr } from "@/theme/content/fr";
@@ -34,11 +35,11 @@ describe("the manifest file", () => {
     expect(Object.keys(manifest.components).sort()).toEqual(Object.keys(theme00.components).sort());
   });
 
-  it("carries the home surface with its default document, and every text pack", async () => {
+  it("carries every surface, the home and product pages with their default documents, and every text pack", async () => {
     const manifest = (await endpoint.GET().json()) as Awaited<ReturnType<typeof validateThemeManifest>>["manifest"] & object;
-    expect(manifest.surfaces).toEqual([
-      { key: "home", label: theme00.surfaces[0].label, pageType: "home", document: shippedHome },
-    ]);
+    expect(manifest.surfaces.map((surface) => surface.key)).toEqual(["home", "product", "collection", "category", "catalog", "page"]);
+    expect(manifest.surfaces[0]).toEqual({ key: "home", label: theme00.surfaces[0].label, pageType: "home", document: shippedHome });
+    expect(manifest.surfaces[1]).toMatchObject({ key: "product", pageType: "product", document: shippedProduct, required: [{ type: "product-main", min: 1, max: 1 }] });
     expect(manifest.content).toEqual({ ar: { ...ar }, fr: { ...fr }, en: { ...en } });
   });
 

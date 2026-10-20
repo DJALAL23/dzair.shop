@@ -1,81 +1,80 @@
 ---
-// One product the merchant chooses, shown large: the whole photo on its
-// plate, the name, the price and the order action — a single-product store's
-// strongest home section. A product that is gone renders nothing.
+// One product the merchant chooses, shown large: its photo filling half the
+// card, the name, the stars, the price, a few words and the order action — a
+// single-product store's strongest section. A product that is gone renders
+// nothing; an editor's preview shows where it will go.
 import type { InferProps } from "@wocart/theme";
+import { isPreview, type BlocksHandle } from "@wocart/theme/astro";
 import { Image } from "astro:assets";
 import { Icon } from "astro-icon/components";
 import { getProductView, storefrontPath } from "@wocart/storefront";
-import SectionHead from "@/theme/components/ui/SectionHead.astro";
 import type { StoreFrontContent } from "@/theme/content";
 import type { featuredProduct } from "@/theme/catalog/home/featured-product.def";
+import Section from "@/theme/components/ui/Section.astro";
 import { formatAmount } from "@/theme/utils/money";
 
-type Props = Pick<InferProps<typeof featuredProduct>, "featured" | "currencySymbol"> & {
+type Props = Pick<InferProps<typeof featuredProduct>, "featured" | "currencySymbol" | "scheme" | "style"> & {
+  blocks: BlocksHandle;
   content: StoreFrontContent;
 };
 
-const { featured, currencySymbol, content } = Astro.props;
+const { blocks, featured, currencySymbol, content, scheme, style } = Astro.props;
 const view = featured ? getProductView(featured) : null;
 const photo = featured?.images[0];
+const rating = featured?.reviewStats && featured.reviewStats.reviewCount > 0 ? featured.reviewStats : null;
+const excerpt = featured?.descriptionPlain ? featured.descriptionPlain.slice(0, 220) : null;
 ---
 
-{featured && view && (
-  <section class="frame py-10 sm:py-14">
-    <SectionHead title={content.featuredProductTitle} />
-    <div class="spotlight carton">
-      <div class="plate spotlight-plate">
+{featured && view ? (
+  <Section scheme={scheme} style={style}>
+    <div class="spotlight">
+      <div class="plate spotlight-photo">
         {photo && (
-          <Image
-            src={photo.src}
-            alt={photo.altText ?? featured.name}
-            width={800}
-            height={800}
-            widths={[400, 600, 800]}
-            sizes="(min-width: 768px) 50vw, 100vw"
-            loading="lazy"
-            decoding="async"
-          />
+          <Image src={photo.src} alt={photo.altText ?? featured.name} width={1000} height={1250} widths={[480, 720, 1000]} sizes="(min-width: 1024px) 50vw, 100vw" loading="lazy" decoding="async" />
         )}
+        {view.hasDiscount && <span class="badge badge-sale num spotlight-tag">-{view.discountPct}%</span>}
       </div>
       <div class="spotlight-facts">
-        <h3 class="text-2xl font-bold sm:text-3xl">{featured.name}</h3>
-        <p class="price text-2xl">
-          {formatAmount(view.basePrice)} <span class="price-cur">{currencySymbol}</span>
-          {view.hasDiscount && view.comparePrice !== null && (
-            <span class="price-was ms-2 text-base">{formatAmount(view.comparePrice)}</span>
-          )}
+        <p class="spotlight-kicker">{content.featuredProductTitle}</p>
+        <h2 class="spotlight-name">{featured.name}</h2>
+        {rating && (
+          <p class="spotlight-rating">
+            <span class="stars" aria-hidden="true">{[1, 2, 3, 4, 5].map((star) => <Icon name="heroicons:star-solid" class:list={[star > Math.round(rating.avgRating) && "is-empty"]} />)}</span>
+            <span class="num">{rating.avgRating} ({rating.reviewCount})</span>
+          </p>
+        )}
+        <p class="spotlight-price">
+          <span class:list={["price", view.hasDiscount && "is-sale"]}>{formatAmount(view.basePrice)}<span class="price-cur">{currencySymbol}</span></span>
+          {view.hasDiscount && view.comparePrice !== null && <span class="price-was">{formatAmount(view.comparePrice)} {currencySymbol}</span>}
         </p>
-        <a href={Astro.locals.store.href(storefrontPath("product", { handle: featured.handle }))} class="btn-primary self-start">
-          {content.featuredProductCta}
-          <Icon name="heroicons:arrow-right" class="flip-rtl h-5 w-5" aria-hidden="true" />
-        </a>
+        {excerpt && <p class="spotlight-text">{excerpt}</p>}
+        <a href={Astro.locals.store.href(storefrontPath("product", { handle: featured.handle }))} class="btn-primary btn-auto spotlight-cta">{content.featuredProductCta}</a>
       </div>
     </div>
-  </section>
+  </Section>
+) : isPreview(blocks) && (
+  <Section scheme={scheme} style={style}>
+    <div class="spotlight is-ghost" aria-hidden="true"><div class="plate spotlight-photo" /><div class="spotlight-facts"><span class="ghost-line" /><span class="ghost-line is-short" /></div></div>
+  </Section>
 )}
 
 <style>
-  .spotlight {
-    display: grid;
-    overflow: hidden;
-  }
-  .spotlight-plate {
-    aspect-ratio: 1 / 1;
-  }
-  .spotlight-facts {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 1rem;
-    padding: 1.5rem;
-  }
-  @media (min-width: 768px) {
-    .spotlight {
-      grid-template-columns: 1fr 1fr;
-    }
-    .spotlight-facts {
-      padding: 2.5rem;
-    }
+  .spotlight { display: grid; gap: 1.5rem; }
+  .spotlight-photo { aspect-ratio: 4 / 5; }
+  .spotlight-tag { position: absolute; top: 0.875rem; inset-inline-start: 0.875rem; }
+  .spotlight-facts { display: flex; flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  .spotlight-kicker { color: var(--clr-muted); font-size: var(--text-sm); }
+  .spotlight-name { font-size: var(--text-3xl); font-weight: 600; }
+  .spotlight-rating { display: flex; align-items: center; gap: 0.5rem; font-size: var(--text-sm); }
+  .spotlight-price { display: flex; align-items: baseline; gap: 0.75rem; font-size: var(--text-2xl); }
+  .spotlight-price .price-was { font-size: var(--text-md); }
+  .spotlight-text { max-width: 32rem; color: var(--clr-text); }
+  .spotlight-cta { margin-top: 0.75rem; min-width: 12rem; }
+  .ghost-line { display: block; width: 70%; height: 1rem; border-radius: var(--radius-tag); background: var(--clr-plate); }
+  .ghost-line.is-short { width: 40%; }
+  @media (min-width: 1024px) {
+    .spotlight { grid-template-columns: 1fr 1fr; align-items: center; gap: 4rem; }
+    .spotlight-name { font-size: var(--text-5xl); }
+    .spotlight-price { font-size: var(--text-3xl); }
   }
 </style>

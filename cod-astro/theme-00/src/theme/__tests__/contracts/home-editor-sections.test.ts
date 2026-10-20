@@ -96,11 +96,11 @@ describe("image banner", () => {
     expect(html).toContain(ar.bannerTitle);
   });
 
-  it("is a band of copy without a photo, and puts the photo at the end when asked", async () => {
+  it("is a band of copy without a photo, and puts the photo at the start when asked", async () => {
     const without = (await render([{ id: "b", type: "image-banner" }])).html;
-    expect(without).toContain("no-image");
+    expect(without).toContain("no-photo");
     expect(without).not.toContain("<img");
-    expect((await render([{ id: "b", type: "image-banner", props: { image, imageSide: "end" } }])).html).toContain("image-end");
+    expect((await render([{ id: "b", type: "image-banner", props: { image, imageSide: "start" } }])).html).toContain("photo-start");
   });
 
   it("never renders a URL stored instead of a media key, nor a script link", async () => {
@@ -233,6 +233,7 @@ describe("an editor composing the home page from the manifest alone", () => {
     expect(html).toContain("products/3f2a9c.webp");
     expect(html).toContain("COD?");
     expect(html).toContain("Robe kabyle");
-    expect(html).not.toContain(en.feature1Title);
+    // The hidden features bar is gone (its first title is also the marquee's first message).
+    expect(html).not.toContain(en.feature1Sub);
   });
 });

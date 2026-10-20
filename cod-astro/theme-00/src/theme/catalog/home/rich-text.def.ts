@@ -1,13 +1,14 @@
 import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import RichTextBlock from "@/theme/components/home/RichTextBlock.astro";
-import { copyOverrides } from "../shared";
+import { FOOTER_AREA, PAGE_SURFACES, copyOverrides, schemeField, styleField } from "../shared";
 
 export const richText = defineComponent({
   type: "rich-text",
   component: RichTextBlock,
   label: SECTION.richText,
   group: GROUP.home,
+  placement: "section",
   fields: [
     { key: "richTextTitle", kind: "text", label: FIELD.title, contentKey: "richTextTitle" },
     { key: "body", kind: "richtext", label: FIELD.text },
@@ -17,11 +18,14 @@ export const richText = defineComponent({
       label: FIELD.alignment,
       options: ["start", "center"],
       optionLabels: { start: OPTION.start, center: OPTION.center },
-      default: "start",
+      default: "center",
+      display: "segmented",
     },
+    schemeField(),
+    styleField({ spacing: { paddingBlockStart: { base: "s6", lg: "s8" }, paddingBlockEnd: { base: "s6", lg: "s8" } }, size: { width: { base: "narrow" } } }),
   ],
   load: async ({ context, props }) => ({
     content: copyOverrides(context.content, props),
   }),
-  capabilities: { insertable: true },
+  capabilities: { insertable: true, surfaces: [...PAGE_SURFACES, FOOTER_AREA] },
 });

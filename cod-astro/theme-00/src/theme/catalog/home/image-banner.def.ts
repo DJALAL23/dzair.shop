@@ -1,13 +1,23 @@
 import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import ImageBanner from "@/theme/components/home/ImageBanner.astro";
-import { copyOverrides } from "../shared";
+import { SCHEME_OF } from "@/theme/appearance";
+import { PAGE_SURFACES, copyOverrides, onSaleRead, schemeField, styleField } from "../shared";
 
+/** Products on sale read to lend a photo to a banner without one of its own. */
+// The tabs' default count, so a page with both reads the sale once.
+const SALE_READ = 8;
+
+/**
+ * A promotion: a large photo — the merchant's own, else a product on sale —
+ * beside a tag, a title, a few lines, an optional countdown and one action.
+ */
 export const imageBanner = defineComponent({
   type: "image-banner",
   component: ImageBanner,
   label: SECTION.imageBanner,
   group: GROUP.home,
+  placement: "section",
   fields: [
     { key: "image", kind: "image", label: FIELD.image },
     {
@@ -16,15 +26,38 @@ export const imageBanner = defineComponent({
       label: FIELD.imageSide,
       options: ["start", "end"],
       optionLabels: { start: OPTION.start, end: OPTION.end },
-      default: "start",
+      default: "end",
+      display: "segmented",
     },
+    { key: "bannerTag", kind: "text", label: FIELD.tag, contentKey: "bannerTag" },
     { key: "bannerTitle", kind: "text", label: FIELD.title, contentKey: "bannerTitle" },
+    { key: "bannerSub", kind: "textarea", label: FIELD.subtitle, contentKey: "bannerSub" },
     { key: "body", kind: "richtext", label: FIELD.text, formats: ["bold", "italic", "link"] },
+    {
+      key: "countdown",
+      kind: "select",
+      label: FIELD.countdown,
+      options: ["none", "midnight", "date"],
+      optionLabels: { none: OPTION.none, midnight: OPTION.midnight, date: OPTION.onDate },
+      default: "none",
+      display: "segmented",
+    },
+    { key: "endsOn", kind: "text", label: FIELD.endsOn, visibleIf: { field: "countdown", equals: "date" } },
     { key: "bannerCta", kind: "text", label: FIELD.button, contentKey: "bannerCta" },
     { key: "ctaHref", kind: "url", label: FIELD.buttonLink, default: "/products" },
+    schemeField(SCHEME_OF.sand),
+    styleField(),
   ],
-  load: async ({ context, props }) => ({
-    content: copyOverrides(context.content, props),
-  }),
-  capabilities: { insertable: true },
+  load: async ({ storefront, reads, context, props }) => {
+    const onSale = props.image ? [] : await reads.get(onSaleRead(SALE_READ), () => storefront.products.list({ onSale: true, limit: SALE_READ }));
+    // The second product with a photo, when there is one: the first often
+    // already leads the page's first view.
+    const withPhoto = onSale.filter((product) => product.coverImage);
+    const lead = withPhoto[1] ?? withPhoto[0] ?? null;
+    return {
+      lead: lead ? { src: lead.coverImage!.src, alt: lead.coverImage!.altText ?? lead.name } : null,
+      content: copyOverrides(context.content, props),
+    };
+  },
+  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

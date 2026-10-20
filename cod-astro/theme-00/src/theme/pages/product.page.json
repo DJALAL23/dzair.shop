@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "surface": "product",
+  "sections": [
+    {
+      "id": "cmp_p1main",
+      "type": "product-main",
+      "props": {},
+      "fixed": { "gallery": { "id": "cmp_p1gallery", "type": "product-gallery", "props": {} } },
+      "slots": {
+        "info": [
+          { "id": "cmp_p1title", "type": "product-title", "props": {} },
+          { "id": "cmp_p1rating", "type": "product-rating", "props": {} },
+          { "id": "cmp_p1price", "type": "product-price", "props": {} },
+          { "id": "cmp_p1signals", "type": "product-signals", "props": {} },
+          { "id": "cmp_p1order", "type": "product-order", "props": {} },
+          { "id": "cmp_p1desc", "type": "product-description", "props": {} },
+          { "id": "cmp_p1policies", "type": "product-policies", "props": {} }
+        ]
+      }
+    },
+    { "id": "cmp_p2reviews", "type": "product-reviews", "props": {} },
+    { "id": "cmp_p3related", "type": "related-products", "props": {} }
+  ]
+}

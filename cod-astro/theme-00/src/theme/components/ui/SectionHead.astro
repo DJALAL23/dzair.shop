@@ -1,8 +1,6 @@
 ---
-// The one section heading: the facts-panel rule, a title, an optional line
+// The one section heading: a title in the display face, an optional line
 // under it, and an optional "view all" link at the end of the row.
-import { Icon } from "astro-icon/components";
-
 interface Props {
   title: string;
   sub?: string | undefined;
@@ -10,20 +8,18 @@ interface Props {
   linkLabel?: string | undefined;
   linkAria?: string | undefined;
   id?: string | undefined;
+  center?: boolean;
 }
 
-const { title, sub, href, linkLabel, linkAria, id } = Astro.props;
+const { title, sub, href, linkLabel, linkAria, id, center = false } = Astro.props;
 ---
 
-<div class="section-head">
+<div class:list={["section-head", center && "is-center"]}>
   <div class="min-w-0">
     <h2 class="section-title" id={id}>{title}</h2>
     {sub && <p class="section-sub">{sub}</p>}
   </div>
   {href && linkLabel && (
-    <a href={href} class="section-link" aria-label={linkAria}>
-      {linkLabel}
-      <Icon name="heroicons:arrow-right" class="flip-rtl" aria-hidden="true" />
-    </a>
+    <a href={href} class="section-link" aria-label={linkAria}>{linkLabel}</a>
   )}
 </div>

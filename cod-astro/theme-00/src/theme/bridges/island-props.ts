@@ -68,7 +68,6 @@ export const relatedProductsCopy = (content: StoreFrontContent): RelatedProducts
 
 export const REVIEWS_LIST_KEYS = [
   ...pluralKeys("ariaStarRating"),
-  "reviewsTitle",
   "reviewsVerifiedBuyer",
   "reviewsVoiceNote",
   "reviewsOpenPhoto",

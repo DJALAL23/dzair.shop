@@ -1,38 +1,45 @@
 ---
-// A banner the merchant composes: their own photo on a plate beside a title,
-// a few formatted lines and one action. Without a photo it is a band of copy.
-// The image is a key in the store's media, resolved here; the rich text is the
-// SDK's escaped HTML, so `set:html` receives nothing a merchant could inject.
+// A promotion: a large photo — the merchant's own, else a product on sale —
+// beside a tag, a title, a few formatted lines, an optional countdown and one
+// action, on a card in the section's colors. On a phone the photo comes first. The rich
+// text is the SDK's escaped HTML, so `set:html` receives nothing a merchant
+// could inject.
 import type { InferProps } from "@wocart/theme";
-import { richTextToHtml } from "@wocart/theme";
+import { richTextToHtml, schemeClass } from "@wocart/theme";
 import { Image } from "astro:assets";
-import { Icon } from "astro-icon/components";
 import type { StoreFrontContent } from "@/theme/content";
 import type { imageBanner } from "@/theme/catalog/home/image-banner.def";
+import Section from "@/theme/components/ui/Section.astro";
+import Countdown from "@/theme/components/ui/Countdown.astro";
 import { mediaKeyUrl } from "@/theme/utils/images";
 
-type Props = Pick<InferProps<typeof imageBanner>, "image" | "imageSide" | "body" | "ctaHref"> & {
+type Props = InferProps<typeof imageBanner> & {
   content: StoreFrontContent;
+  lead: { src: string; alt: string } | null;
 };
 
-const { image, imageSide, body, ctaHref, content } = Astro.props;
+const { image, imageSide, body, countdown, endsOn, ctaHref, scheme, style, content, lead } = Astro.props;
 const href = Astro.locals.store.href;
-const src = image ? mediaKeyUrl(image.key) : null;
+const own = image ? mediaKeyUrl(image.key) : null;
+const photo = own ? { src: own, alt: image?.alt ?? "" } : lead;
 // Validated as two numbers between 0 and 1 by the theme contract.
 const focus = image?.focal ? `${image.focal.x * 100}% ${image.focal.y * 100}%` : "50% 50%";
+const ends = countdown === "midnight" ? "midnight" : countdown === "date" ? endsOn : undefined;
+const units = { days: content.countdownDays, hours: content.countdownHours, minutes: content.countdownMinutes, seconds: content.countdownSeconds };
 ---
 
-<section class="frame py-10 sm:py-14">
-  <div class:list={["banner carton", src ? "has-image" : "no-image", imageSide === "end" && "image-end"]}>
-    {src && image && (
+<Section style={style}>
+  <div class:list={["banner scheme", schemeClass(scheme), photo ? "has-photo" : "no-photo", imageSide === "start" && "photo-start"]}>
+    {photo && (
       <div class="banner-photo">
         <Image
-          src={src}
-          alt={image.alt ?? ""}
-          width={image.width ?? 1200}
-          height={image.height ?? 900}
-          widths={[480, 800, 1200]}
+          src={photo.src}
+          alt={photo.alt}
+          width={1200}
+          height={1200}
+          widths={[480, 720, 960, 1200]}
           sizes="(min-width: 1024px) 50vw, 100vw"
+          quality={84}
           loading="lazy"
           decoding="async"
           style={`object-position: ${focus}`}
@@ -40,53 +47,31 @@ const focus = image?.focal ? `${image.focal.x * 100}% ${image.focal.y * 100}%` :
       </div>
     )}
     <div class="banner-copy">
-      <h2 class="text-2xl font-bold sm:text-3xl">{content.bannerTitle}</h2>
+      {content.bannerTag && <span class="badge badge-offer banner-tag">{content.bannerTag}</span>}
+      <h2 class="banner-title">{content.bannerTitle}</h2>
+      {content.bannerSub && <p class="banner-body">{content.bannerSub}</p>}
       {body && <div class="banner-body rich-description" set:html={richTextToHtml(body, { href })} />}
-      <a href={href(ctaHref)} class="btn-primary self-start">
-        {content.bannerCta}
-        <Icon name="heroicons:arrow-right" class="flip-rtl h-5 w-5" aria-hidden="true" />
-      </a>
+      <Countdown ends={ends} units={units} />
+      {content.bannerCta && <a href={href(ctaHref)} class="btn-primary btn-auto banner-cta">{content.bannerCta}</a>}
     </div>
   </div>
-</section>
+</Section>
 
 <style>
-  .banner {
-    display: grid;
-    overflow: hidden;
-  }
-  .banner.has-image {
-    grid-template-columns: 1fr;
-  }
-  .banner-photo {
-    background: var(--clr-plate);
-    aspect-ratio: 4 / 3;
-  }
-  .banner-photo :global(img) {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .banner-copy {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 1rem;
-    padding: 1.5rem;
-  }
-  .banner-body {
-    color: var(--clr-text);
-    max-width: 60ch;
-  }
-  @media (min-width: 768px) {
-    .banner.has-image {
-      grid-template-columns: 1fr 1fr;
-    }
-    .banner.image-end .banner-photo {
-      order: 2;
-    }
-    .banner-copy {
-      padding: 2.5rem;
-    }
+  .banner { display: grid; overflow: hidden; border-radius: var(--radius-panel); }
+  .banner-photo { aspect-ratio: 1 / 1; overflow: hidden; background: var(--clr-photo); }
+  .banner-photo :global(img) { width: 100%; height: 100%; object-fit: cover; }
+  .banner-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 0.875rem; padding: 1.75rem 1.375rem 2rem; }
+  .banner-title { font-size: var(--text-2xl); font-weight: 600; line-height: 1.35; }
+  .banner-body { color: var(--clr-text); }
+  .banner-cta { margin-top: 0.75rem; }
+  .no-photo .banner-copy { align-items: center; text-align: center; padding-block: 3.5rem; }
+  @media (min-width: 1024px) {
+    .has-photo { grid-template-columns: 1fr 1fr; min-height: 32rem; }
+    .banner-photo { aspect-ratio: auto; order: 2; }
+    .photo-start .banner-photo { order: 0; }
+    .banner-copy { justify-content: center; gap: 1rem; padding: 4rem; }
+    .banner-title { font-size: var(--text-5xl); }
+    .banner-cta { margin-top: 1rem; }
   }
 </style>

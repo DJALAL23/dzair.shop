@@ -36,7 +36,7 @@ describe("the default color schemes", () => {
   });
 
   it("give the browser's chrome the page scheme's background, white for an unknown one", () => {
-    expect(schemeBackground(DEFAULT_SCHEMES, "scheme-4")).toBe("#101b30");
+    expect(schemeBackground(DEFAULT_SCHEMES, "scheme-5")).toBe("#0f1626");
     expect(schemeBackground(DEFAULT_SCHEMES, "gone")).toBe("#ffffff");
     expect(schemeBackground(undefined, "scheme-1")).toBe("#ffffff");
   });
@@ -80,7 +80,7 @@ describe("the corners", () => {
 
 describe("a product card's photo", () => {
   it("takes the shape the setting names, portrait otherwise", () => {
-    expect([cardAspect("square"), cardAspect("portrait"), cardAspect("landscape"), cardAspect("x")]).toEqual(["1 / 1", "4 / 5", "4 / 3", "4 / 5"]);
+    expect([cardAspect("square"), cardAspect("portrait"), cardAspect("landscape"), cardAspect("x")]).toEqual(["1 / 1", "3 / 4", "4 / 3", "3 / 4"]);
   });
 });
 

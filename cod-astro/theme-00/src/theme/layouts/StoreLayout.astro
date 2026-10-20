@@ -8,8 +8,8 @@ import WhatsAppWidget from "@/theme/components/chat/WhatsAppWidget.astro";
 import { alternateLinks, matchStorefrontPath, showsWidgetOn } from "@wocart/storefront";
 import { message } from "@/theme/content/messages";
 import type { StoreConfig } from "@wocart/storefront";
-import { resolveThemeSettings, schemeClass } from "@wocart/theme";
-import { theme00 } from "@/theme/theme";
+import { schemeClass } from "@wocart/theme";
+import { settingsOf } from "@/theme/runtime/settings";
 import { BODY_FONT, HEADING_FONT, cardAspect, cornerRadii, schemeBackground, themeFont } from "@/theme/appearance";
 
 interface Props {
@@ -69,10 +69,7 @@ const pageOg = ogImage ?? config.ogImage ?? "";
 
 // The merchant's choices for this theme, checked against its declaration: a
 // value it does not accept falls back to the theme's default.
-const { values: settings } = resolveThemeSettings(theme00, store.config.themeSettings, {
-  content,
-  locales: [locale, ...store.fallbackLocales],
-});
+const settings = settingsOf(store);
 const fonts = { body: themeFont(settings.font, BODY_FONT), heading: themeFont(settings.headingFont, HEADING_FONT) };
 ---
 
@@ -96,7 +93,7 @@ const fonts = { body: themeFont(settings.font, BODY_FONT), heading: themeFont(se
     softNavigation={softNavigation}
   />
 
-  <body class:list={["scheme", schemeClass(settings.pageScheme), !hideMobileNav && "has-mobile-nav"]} style={`--card-aspect: ${cardAspect(settings.cardImageRatio)}`}>
+  <body class:list={["scheme", schemeClass(settings.pageScheme), !hideMobileNav && "has-mobile-nav"]} style={`--card-aspect: ${cardAspect(settings.cardImageRatio)}`} data-card-button={settings.cardButton ? "" : undefined}>
     {!marketing && <Area area="header" />}
 
     <main transition:animate={pageMotion}>

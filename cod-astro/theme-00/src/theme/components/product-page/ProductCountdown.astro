@@ -1,0 +1,23 @@
+---
+// A countdown strip under or above the order form, to midnight or to a day
+// the merchant chose. Past its end it is gone.
+import type { InferProps } from "@wocart/theme";
+import Countdown from "@/theme/components/ui/Countdown.astro";
+import type { productCountdown } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productCountdown>;
+const { label, countdown, endsOn } = Astro.props;
+const { content } = Astro.locals.store;
+const ends = countdown === "date" ? endsOn : "midnight";
+const units = { days: content.countdownDays, hours: content.countdownHours, minutes: content.countdownMinutes, seconds: content.countdownSeconds };
+---
+
+<div class="countdown-strip">
+  <Countdown ends={ends} units={units} look="line" label={label} />
+</div>
+
+<style>
+  .countdown-strip:empty { display: none; }
+  .countdown-strip { padding: 0.875rem 1rem; border-radius: var(--radius-input); background: color-mix(in oklab, var(--clr-highlight) 24%, var(--clr-bg)); }
+  .countdown-strip:not(:has(:global(.countdown))) { display: none; }
+</style>

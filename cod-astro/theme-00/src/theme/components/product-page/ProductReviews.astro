@@ -1,0 +1,83 @@
+---
+// The product's reviews under one title: the summary and the reviews
+// themselves stream in (a server island), so the cached page never waits for
+// them. The form to add one opens from a button beside the title. Until the
+// first review arrives, a line says so and invites the shopper who received
+// it. Shown only when the store takes reviews.
+import type { InferProps } from "@wocart/theme";
+import type { Product } from "@wocart/storefront";
+import { Icon } from "astro-icon/components";
+import Section from "@/theme/components/ui/Section.astro";
+import ReviewsIsland from "@/theme/components/product/ReviewsIsland.astro";
+import ReviewForm from "@/theme/components/product/ReviewForm.astro";
+import { reviewsIslandCopy } from "@/theme/bridges/island-props";
+import type { StoreFrontContent } from "@/theme/content";
+import type { productReviews } from "@/theme/catalog/product/product-sections.def";
+
+type Props = InferProps<typeof productReviews> & { product: Product | null; content: StoreFrontContent };
+const { product, content, showForm, scheme, style } = Astro.props;
+const { config } = Astro.locals.store;
+const hasReviews = (product?.reviewStats?.reviewCount ?? 0) > 0;
+---
+
+{product && config.reviewsEnabled && (
+  <Section scheme={scheme} style={style} id="reviews">
+    <div class="reviews-head">
+      <h2 class="section-title">{content.reviewsTitle}</h2>
+      {showForm && (
+        <details class="review-write">
+          <summary class="btn-secondary btn-auto">
+            <Icon name="heroicons:chat-bubble-left-ellipsis" aria-hidden="true" />
+            {content.reviewFormTitle}
+          </summary>
+          <div class="review-write-panel">
+            <ReviewForm productId={product.id} content={content} />
+          </div>
+        </details>
+      )}
+    </div>
+    {hasReviews ? (
+      <ReviewsIsland productId={product.id} copy={reviewsIslandCopy(content)} stats={product.reviewStats} server:defer>
+        <div slot="fallback" class="reviews-wait" aria-hidden="true">
+          <div class="wait-card is-short"></div>
+          <div class="wait-card"></div>
+        </div>
+      </ReviewsIsland>
+    ) : (
+      <div class="reviews-empty">
+        <p class="reviews-empty-stars" aria-hidden="true">
+          {[1, 2, 3, 4, 5].map(() => <Icon name="heroicons:star" />)}
+        </p>
+        <p>{content.reviewsEmpty}</p>
+      </div>
+    )}
+  </Section>
+)}
+
+<style>
+  .reviews-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+  .review-write > summary { list-style: none; gap: 0.5rem; }
+  .review-write > summary::-webkit-details-marker { display: none; }
+  .review-write > summary :global(svg) { width: 1.125rem; height: 1.125rem; }
+  .review-write[open] { flex-basis: 100%; }
+  .review-write[open] > summary { margin-inline-start: auto; }
+  .review-write-panel { max-width: 42rem; margin-top: 1rem; }
+  .reviews-empty {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    padding: 2.5rem 1.5rem;
+    border: 1px dashed var(--clr-border);
+    border-radius: var(--radius-panel);
+    color: var(--clr-text);
+    font-size: var(--text-sm);
+    text-align: center;
+  }
+  .reviews-empty-stars { display: flex; gap: 0.25rem; color: var(--clr-rating); }
+  .reviews-empty-stars :global(svg) { width: 1.25rem; height: 1.25rem; }
+  .reviews-wait { display: grid; gap: 0.75rem; }
+  .wait-card { height: 8rem; border-radius: var(--radius-panel); background: var(--clr-plate); animation: wait 1.4s ease-in-out infinite; }
+  .wait-card.is-short { height: 5rem; }
+  @keyframes wait { 50% { opacity: 0.55; } }
+  @media (prefers-reduced-motion: reduce) { .wait-card { animation: none; } }
+</style>

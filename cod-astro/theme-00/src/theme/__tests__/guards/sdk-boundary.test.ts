@@ -109,7 +109,7 @@ describe("legacy core removal", () => {
 
   it("the cart thumbnail is built by the bound helper", () => {
     const productDetail = files.find(
-      (f) => f.relPath === "theme/components/product/ProductDetailContent.astro",
+      (f) => f.relPath === "theme/components/product-page/ProductOrder.astro",
     );
 
     expect(productDetail?.content).toContain('from "@/theme/utils/images"');
@@ -266,7 +266,7 @@ describe("S10 platform rule bindings", () => {
 
   it("the cart thumbnail takes the rule from the SDK", () => {
     const productDetail = files.find(
-      (f) => f.relPath === "theme/components/product/ProductDetailContent.astro",
+      (f) => f.relPath === "theme/components/product-page/ProductOrder.astro",
     );
 
     expect(productDetail?.content).toContain('productImageSource } from "@wocart/storefront"');

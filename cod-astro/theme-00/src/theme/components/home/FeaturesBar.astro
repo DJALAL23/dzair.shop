@@ -1,59 +1,44 @@
 ---
-// The store's four promises on one quiet paper strip.
-import type { StoreFrontContent } from "@/theme/content";
+// Four short promises — an icon, a title, a line under it — in a band of
+// their own color. Two across on a phone, four on a wide screen. A promise
+// the merchant emptied is left out.
+import type { InferProps } from "@wocart/theme";
 import { Icon } from "astro-icon/components";
+import type { StoreFrontContent } from "@/theme/content";
+import { FEATURE_ICONS, type featuresBar } from "@/theme/catalog/home/features-bar.def";
+import Section from "@/theme/components/ui/Section.astro";
 
-interface Props {
-  content: StoreFrontContent;
-}
+type Props = InferProps<typeof featuresBar> & { content: StoreFrontContent };
 
-const { content } = Astro.props;
-
+const { content, feature1Icon, feature2Icon, feature3Icon, feature5Icon, scheme, style } = Astro.props;
 const features = [
-  { icon: "heroicons:check-badge", title: content.feature1Title },
-  { icon: "heroicons:truck", title: content.feature2Title },
-  { icon: "heroicons:banknotes", title: content.feature3Title },
-  { icon: "heroicons:clock", title: content.feature5Title },
-];
+  { icon: feature1Icon, title: content.feature1Title, sub: content.feature1Sub },
+  { icon: feature2Icon, title: content.feature2Title, sub: content.feature2Sub },
+  { icon: feature3Icon, title: content.feature3Title, sub: content.feature3Sub },
+  { icon: feature5Icon, title: content.feature5Title, sub: content.feature5Sub },
+].filter((feature) => feature.title);
+const iconOf = (name: string) => FEATURE_ICONS[name as keyof typeof FEATURE_ICONS] ?? FEATURE_ICONS.badge;
 ---
 
-<section class="frame py-6">
-  <ul class="promises">
-    {features.map((feature) => (
-      <li>
-        <Icon name={feature.icon} class="h-5 w-5 shrink-0 text-ink" aria-hidden="true" />
-        <span>{feature.title}</span>
-      </li>
-    ))}
-  </ul>
-</section>
+{features.length > 0 && (
+  <Section scheme={scheme} style={style}>
+    <ul class="features" style={`--count: ${features.length}`}>
+      {features.map((feature) => (
+        <li class="feature">
+          <Icon name={iconOf(feature.icon)} aria-hidden="true" />
+          <p class="feature-title">{feature.title}</p>
+          {feature.sub && <p class="feature-sub">{feature.sub}</p>}
+        </li>
+      ))}
+    </ul>
+  </Section>
+)}
 
 <style>
-  .promises {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    background: var(--clr-surface);
-    border-radius: var(--radius-card);
-  }
-  .promises li {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    min-height: 3.5rem;
-    padding: 0.75rem;
-    font-size: var(--text-sm);
-    font-weight: 600;
-    color: var(--clr-ink);
-  }
-  .promises li:nth-child(odd) { border-inline-end: 1px solid var(--clr-border); }
-  .promises li:nth-child(-n + 2) { border-bottom: 1px solid var(--clr-border); }
-  @media (min-width: 768px) {
-    .promises { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .promises li { justify-content: center; }
-    .promises li:not(:last-child) { border-inline-end: 1px solid var(--clr-border); }
-    .promises li:nth-child(-n + 2) { border-bottom: 0; }
-  }
+  .features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.75rem 1rem; }
+  @media (min-width: 1024px) { .features { grid-template-columns: repeat(var(--count), minmax(0, 1fr)); gap: 2rem; } }
+  .feature { display: flex; flex-direction: column; align-items: center; gap: 0.375rem; text-align: center; }
+  .feature :global(svg) { width: 2rem; height: 2rem; margin-bottom: 0.25rem; color: var(--clr-ink); stroke-width: 1.25; }
+  .feature-title { color: var(--clr-ink); font-weight: 600; font-size: var(--text-base); }
+  .feature-sub { color: var(--clr-muted); font-size: var(--text-sm); line-height: 1.6; }
 </style>

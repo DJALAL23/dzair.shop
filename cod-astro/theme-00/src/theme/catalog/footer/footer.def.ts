@@ -1,4 +1,5 @@
 import { defineComponent } from "@wocart/theme";
+import { SCHEME_OF } from "@/theme/appearance";
 import { BLOCK, FIELD, GROUP, SECTION } from "../labels";
 import { FOOTER_AREA, schemeField, sectionSpacing, styleField } from "../shared";
 import Footer from "@/theme/components/layout/Footer.astro";
@@ -16,7 +17,10 @@ export const footerAbout = defineComponent({
   label: BLOCK.footerAbout,
   group: GROUP.footer,
   placement: "block",
-  fields: [{ key: "text", kind: "textarea", label: FIELD.about, contentKey: "footerAbout" }],
+  fields: [
+    { key: "text", kind: "textarea", label: FIELD.about, contentKey: "footerAbout" },
+    { key: "showWhatsapp", kind: "boolean", label: FIELD.showWhatsapp, default: true },
+  ],
 });
 
 /** A column of links: one of the store's menus under a title. */
@@ -66,7 +70,7 @@ export const footer = defineComponent({
   group: GROUP.footer,
   placement: "section",
   slots: [{ name: "columns", allow: FOOTER_BLOCKS, max: 6 }],
-  fields: [schemeField("scheme-4"), styleField(sectionSpacing(true))],
+  fields: [schemeField(SCHEME_OF.night), styleField(sectionSpacing(true))],
   capabilities: { surfaces: [FOOTER_AREA] },
   presets: [
     {

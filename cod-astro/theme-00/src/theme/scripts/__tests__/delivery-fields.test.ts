@@ -34,11 +34,11 @@ function buildFields(): void {
     <div id="delivery-type-group">
       <label class="delivery-radio-label">
         <input type="radio" name="deliveryType" value="home" class="delivery-radio-input" checked />
-        <div class="border-[var(--clr-primary)] text-[var(--clr-primary)] bg-[var(--clr-primary)]/5 shadow-sm"></div>
+        <span class="delivery-face is-on"></span>
       </label>
       <label class="delivery-radio-label">
         <input type="radio" name="deliveryType" value="stop_desk" class="delivery-radio-input" />
-        <div class="border-[var(--clr-border)] text-[var(--clr-text-2)] bg-[var(--clr-surface-alt)]"></div>
+        <span class="delivery-face"></span>
       </label>
     </div>
     <div id="address-field-container"><input id="f-address" /></div>
@@ -171,9 +171,9 @@ describe("delivery type", () => {
 
     pick("stop_desk");
 
-    const faces = document.querySelectorAll<HTMLElement>(".delivery-radio-label div");
-    expect(faces[0].className).toContain("border-[var(--clr-border)]");
-    expect(faces[1].className).toContain("border-[var(--clr-primary)]");
+    const faces = document.querySelectorAll<HTMLElement>(".delivery-radio-label .delivery-face");
+    expect(faces[0].classList.contains("is-on")).toBe(false);
+    expect(faces[1].classList.contains("is-on")).toBe(true);
   });
 
   it("re-prices when the delivery type changes", () => {

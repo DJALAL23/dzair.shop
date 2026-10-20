@@ -7,7 +7,6 @@
  * the SDK's `pickOption`.
  */
 import { getProductView, optionStates, type ProductDetail } from "@wocart/storefront";
-import { Icon } from "astro-icon/components";
 import { safeHex } from "@/theme/utils/brand";
 
 interface Props {
@@ -23,27 +22,23 @@ const states = optionStates(product, selection);
   <div class="space-y-4">
     {product.variantOptions.map((opt) => (
       <div class="space-y-2">
-        <span class="text-[0.75rem] font-black uppercase tracking-widest" style="color: var(--clr-text)">{opt.name}</span>
-        <!-- -mx-6 px-6 lets the scroll bleed to card edges without clipping -->
-        <div class="flex gap-2 overflow-x-auto -mx-6 px-6 pb-1 scrollbar-hide">
+        <span class="option-name">{opt.name}</span>
+        <div class="option-values">
           {opt.values.map((val) => {
             const selected = selection[opt.name] === val.value;
             return (
               <button
                 type="button"
-                class:list={["variant-opt shrink-0 flex items-center gap-2 h-10 px-4 rounded-xl border-2 whitespace-nowrap", selected && "is-selected"]}
+                class:list={["variant-opt", selected && "is-selected"]}
                 data-option={opt.name}
                 data-value={val.value}
                 data-state={states[opt.name]?.[val.value]}
                 aria-pressed={selected ? "true" : "false"}
               >
                 {val.hexColor && (
-                  <span class="swatch w-[1.125rem] h-[1.125rem] rounded-full shrink-0 border border-black/10 shadow-sm" style={`background: ${safeHex(val.hexColor, "transparent")}`}></span>
+                  <span class="swatch" style={`background: ${safeHex(val.hexColor, "transparent")}`}></span>
                 )}
-                <span class="font-bold text-[0.875rem] leading-none">{val.value}</span>
-                <span class="check-icon shrink-0" aria-hidden="true">
-                  <Icon name="heroicons:check" class="w-3 h-3" />
-                </span>
+                <span>{val.value}</span>
               </button>
             );
           })}
@@ -54,20 +49,28 @@ const states = optionStates(product, selection);
 )}
 
 <style>
+  .option-name { display: block; margin-bottom: 0.625rem; color: var(--clr-muted); font-size: var(--text-sm); }
+  .option-values { display: flex; flex-wrap: wrap; gap: 0.5rem; }
   .variant-opt {
-    border-color: var(--clr-border);
-    background: var(--clr-surface);
-    color: var(--clr-text);
-    transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    border: 1px solid var(--clr-border-strong);
+    border-radius: var(--radius-tag);
+    background: var(--clr-field);
+    color: var(--clr-ink);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  .variant-opt:hover { border-color: var(--clr-muted); }
-  .variant-opt:active { transform: scale(0.97); }
-  .variant-opt:focus-visible { outline: 2px solid var(--clr-primary); outline-offset: 2px; }
-  .variant-opt.is-selected { border-color: var(--clr-primary); color: var(--clr-ink); }
-  .check-icon { display: none; color: var(--clr-primary); }
-  .variant-opt.is-selected .check-icon { display: inline-flex; }
-  .variant-opt[data-state="sold_out"] { opacity: 0.5; text-decoration: line-through; }
-  .variant-opt[data-state="unavailable"] { opacity: 0.5; border-style: dashed; }
-  .variant-opt[data-state="sold_out"] .swatch,
-  .variant-opt[data-state="unavailable"] .swatch { opacity: 0.5; }
+  .variant-opt:has(.swatch) { padding-inline-start: 0.375rem; }
+  .variant-opt:hover { border-color: var(--clr-ink); }
+  .variant-opt:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 2px; }
+  .variant-opt.is-selected { border-color: var(--clr-ink); box-shadow: inset 0 0 0 1px var(--clr-ink); font-weight: 600; }
+  .variant-opt[data-state="sold_out"] { opacity: 0.45; text-decoration: line-through; }
+  .variant-opt[data-state="unavailable"] { opacity: 0.45; border-style: dashed; }
+  .swatch { width: 1.875rem; height: 1.875rem; border-radius: var(--radius-round); box-shadow: inset 0 0 0 1px color-mix(in oklab, black 12%, transparent); flex: none; }
 </style>

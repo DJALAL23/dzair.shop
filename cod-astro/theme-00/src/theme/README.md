@@ -39,12 +39,17 @@ catalog/category read. See `docs/history/PRODUCT_ZERO_AUDIT.md` §3.
 #### `product/`
 - `ProductCard.astro` - Product card for grid listings
 - `ProductGallery.astro` - Image gallery with thumbnails
-- `ProductInfo.astro` - Product title, price, description
-- `ProductDetailContent.astro` - Full product detail + order form wrapper
+- `RelatedProducts.astro` - Same-category products (server island)
 - `ReviewsList.astro` - Customer reviews display
 - `ReviewForm.astro` - Review submission form
 - `ReviewsIsland.astro` - Client-side reviews island
 - `ShippingIsland.astro` - Client-side shipping calculator island
+
+#### `product-page/`
+The product template's sections and blocks (`catalog/product/`): `ProductMain`
+(gallery beside the info column), one component per block (title, rating,
+price, signals, order form, countdown, description, rows, policies, text),
+`ProductReviews` and `ProductRelated`.
 
 #### `order/`
 - `OrderForm.astro` - Main order form

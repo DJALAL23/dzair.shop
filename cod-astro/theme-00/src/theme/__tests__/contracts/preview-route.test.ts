@@ -12,7 +12,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { Window } from "happy-dom";
-import { PREVIEW_PROTOCOL_VERSION, parsePreviewMarker, type PageData, type PreviewPageMessage } from "@wocart/theme";
+import { PREVIEW_PROTOCOL_VERSION, parsePreviewMarker, type ComponentInstance, type PageData, type PreviewPageMessage } from "@wocart/theme";
 import { PREVIEW_SECTION_LOAD_EVENT, startPreviewBridge } from "@wocart/theme/preview";
 import type { StoreClient } from "@/theme/sdk";
 import PreviewPage from "@/pages/wocart-preview.astro";
@@ -27,6 +27,18 @@ vi.mock("astro:env/server", () => ({
   STORE_API_KEY: "test-key",
   WOCART_PREVIEW_KEY: undefined,
 }));
+
+// The product page holds server islands, which a container render cannot
+// resolve; the route's choice of product is what is checked here, through a
+// stand-in that prints what it was given.
+vi.mock("@/theme/pages/ProductSurface.astro", async () => {
+  const { createComponent, render, renderSlot } = await import("astro/runtime/server/index.js");
+  return {
+    default: createComponent((result: unknown, props: { product: { name: string }; document: { sections?: Array<{ id: string }> } | null; preview?: boolean }, slots: Record<string, unknown>) =>
+      render`<main data-product="${props.product.name}" data-sections="${(props.document?.sections ?? []).map((section) => section.id).join(",")}" data-preview="${String(props.preview)}">${renderSlot(result as never, slots.default as never)}</main>`,
+    ),
+  };
+});
 
 const EDITOR = "https://cloud.codflow.store";
 const claims = { aud: "https://boutique.test", theme: "theme-00", editor: EDITOR, iat: 1, exp: 2 };
@@ -44,11 +56,25 @@ const draftDocument = {
   ],
 };
 
+const ROBE = {
+  ...makeProduct({ id: "prod_robe", name: "Robe kabyle", handle: "robe-kabyle" }),
+  images: [],
+  variants: [],
+  offers: [],
+  category: null,
+  tags: [],
+  variantOptions: null,
+  reviewStats: null,
+};
+
 function store() {
   const client = {
     menus: { get: async () => null },
-    pageData: { get: async () => saved },
-    products: { list: async () => [makeProduct({})], get: async () => null },
+    pageData: { get: async (surface: string) => (surface === "home" ? saved : null) },
+    products: {
+      list: async () => [makeProduct({ handle: "lampe" })],
+      get: async (handle: string) => (handle === "robe-kabyle" ? ROBE : handle === "lampe" ? { ...ROBE, name: "Lampe", handle } : null),
+    },
     categories: { list: async () => [] },
   } as unknown as StoreClient;
   return testStore({ client });
@@ -94,12 +120,28 @@ describe("the preview route", () => {
   it("shows the shipped default for a draft this theme cannot read, as the home page would", async () => {
     const { html } = await render(PreviewPage, { draft: { surface: "home", document: { ...draftDocument, theme: { key: "other-theme", version: "2.0.0" } } } });
     expect(html).not.toContain("Draft words");
-    expect(starts(html)).toEqual((shippedHome as PageData).sections.map((section) => `${section.id}${section.hidden ? " (hidden)" : ""}`));
+    // Every section, then the blocks inside it, in document order.
+    const tree = (nodes: readonly ComponentInstance[]): string[] =>
+      nodes.flatMap((node) => [`${node.id}${node.hidden ? " (hidden)" : ""}`, ...tree(Object.values(node.slots ?? {}).flat())]);
+    expect(starts(html)).toEqual(tree((shippedHome as PageData).sections));
+  });
+
+  it("renders a product draft for the product its path names, or the store's first", async () => {
+    const draft = { version: 1, surface: "product", sections: [{ id: "draft_main", type: "product-main", props: {} }] };
+    for (const [path, name] of [["/products/robe-kabyle", "Robe kabyle"], [undefined, "Lampe"]] as const) {
+      const { response, html } = await render(PreviewPage, { draft: { surface: "product", document: draft, ...(path ? { path } : {}) } });
+      expect(response.status).toBe(200);
+      expect(html).toContain(`data-product="${name}"`);
+      expect(html).toContain('data-sections="draft_main"');
+      expect(html).toContain('data-preview="true"');
+      expect(html).toMatch(/<wocart-preview-bridge/);
+    }
   });
 
   it("is a 404 without a verified preview, and for a surface this theme does not compose", async () => {
     expect((await render(PreviewPage)).response.status).toBe(404);
-    expect((await render(PreviewPage, { draft: { surface: "product" } })).response.status).toBe(404);
+    expect((await render(PreviewPage, { draft: { surface: "checkout" } })).response.status).toBe(404);
+    expect((await render(PreviewPage, { draft: { surface: "product", path: "/products/gone" } })).response.status).toBe(404);
   });
 });
 

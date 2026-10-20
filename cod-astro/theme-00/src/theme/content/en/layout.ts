@@ -18,4 +18,5 @@ export const enLayout: LayoutStrings = {
   footerQuickLinks: "Quick Links",
   footerSupport: "Customer Support",
   footerRights: "All rights reserved",
+  footerWhatsapp: "Chat with us on WhatsApp",
 };

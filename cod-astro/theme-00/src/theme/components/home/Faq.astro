@@ -6,66 +6,54 @@ import type { InferProps } from "@wocart/theme";
 import { richTextToHtml } from "@wocart/theme";
 import { Icon } from "astro-icon/components";
 import SectionHead from "@/theme/components/ui/SectionHead.astro";
+import Section from "@/theme/components/ui/Section.astro";
 import type { StoreFrontContent } from "@/theme/content";
 import type { faq } from "@/theme/catalog/home/faq.def";
 
-type Props = Pick<InferProps<typeof faq>, "questions"> & {
+type Props = Pick<InferProps<typeof faq>, "questions" | "scheme" | "style"> & {
   content: StoreFrontContent;
 };
 
-const { questions = [], content } = Astro.props;
+const { questions = [], content, scheme, style } = Astro.props;
 const href = Astro.locals.store.href;
 const shown = questions.filter((item) => item.question);
 ---
 
 {shown.length > 0 && (
-  <section class="frame py-10 sm:py-14">
-    <SectionHead title={content.faqTitle} />
-    <div class="faq carton">
+  <Section scheme={scheme} style={style}>
+    <SectionHead title={content.faqTitle} center />
+    <div class="faq">
       {shown.map((item) => (
         <details class="faq-row" data-question={item.id}>
           <summary class="faq-question">
             <span>{item.question}</span>
-            <Icon name="heroicons:chevron-down" class="faq-chevron h-5 w-5" aria-hidden="true" />
+            <Icon name="heroicons:chevron-down" class="faq-chevron" aria-hidden="true" />
           </summary>
           {item.answer && <div class="faq-answer rich-description" set:html={richTextToHtml(item.answer, { href })} />}
         </details>
       ))}
     </div>
-  </section>
+  </Section>
 )}
 
 <style>
-  .faq-row + .faq-row {
-    border-top: 1px solid var(--clr-border);
-  }
+  .faq { border-top: 1px solid var(--clr-border); }
+  .faq-row { border-bottom: 1px solid var(--clr-border); }
   .faq-question {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1rem 1.25rem;
-    font-weight: 700;
+    min-height: 4rem;
+    padding-block: 1rem;
+    color: var(--clr-ink);
+    font-size: var(--text-md);
+    font-weight: 600;
     cursor: pointer;
     list-style: none;
   }
-  .faq-question::-webkit-details-marker {
-    display: none;
-  }
-  .faq-chevron {
-    flex: none;
-    transition: transform 150ms var(--ease-out-expo);
-  }
-  .faq-row[open] .faq-chevron {
-    transform: rotate(180deg);
-  }
-  .faq-answer {
-    padding: 0 1.25rem 1.25rem;
-    color: var(--clr-text);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .faq-chevron {
-      transition: none;
-    }
-  }
+  .faq-question::-webkit-details-marker { display: none; }
+  .faq-question :global(.faq-chevron) { flex: none; width: 1.25rem; height: 1.25rem; transition: transform 0.25s var(--ease-out-expo); }
+  .faq-row[open] .faq-question :global(.faq-chevron) { transform: rotate(180deg); }
+  .faq-answer { padding-bottom: 1.25rem; color: var(--clr-text); line-height: 1.9; }
 </style>

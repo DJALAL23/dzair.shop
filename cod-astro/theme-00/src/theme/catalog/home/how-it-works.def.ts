@@ -1,13 +1,16 @@
 import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, SECTION } from "../labels";
 import HowItWorks from "@/theme/components/home/HowItWorks.astro";
-import { copyOverrides } from "../shared";
+import { SCHEME_OF } from "@/theme/appearance";
+import { PAGE_SURFACES, copyOverrides, schemeField, sectionSpacing, styleField } from "../shared";
 
+/** How a cash-on-delivery order goes, in its three steps. */
 export const howItWorks = defineComponent({
   type: "how-it-works",
   component: HowItWorks,
   label: SECTION.howItWorks,
   group: GROUP.home,
+  placement: "section",
   fields: [
     { key: "howItWorksTitle", kind: "text", label: FIELD.title, contentKey: "howItWorksTitle" },
     { key: "howItWorksSub", kind: "textarea", label: FIELD.subtitle, contentKey: "howItWorksSub" },
@@ -17,9 +20,11 @@ export const howItWorks = defineComponent({
     { key: "howStep2Sub", kind: "textarea", label: FIELD.stepText(2), contentKey: "howStep2Sub" },
     { key: "howStep3Title", kind: "text", label: FIELD.stepTitle(3), contentKey: "howStep3Title" },
     { key: "howStep3Sub", kind: "textarea", label: FIELD.stepText(3), contentKey: "howStep3Sub" },
+    schemeField(SCHEME_OF.stone),
+    styleField(sectionSpacing(true)),
   ],
   load: async ({ context, props }) => ({
     content: copyOverrides(context.content, props),
   }),
-  capabilities: { insertable: true },
+  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

@@ -3,14 +3,23 @@
   "surface": "home",
   "sections": [
     { "id": "cmp_h1hero", "type": "hero", "props": {} },
+    { "id": "cmp_h1strip", "type": "marquee", "props": {} },
     { "id": "cmp_h2cats", "type": "category-cards", "props": {} },
-    { "id": "cmp_h2featured", "type": "featured-products", "props": {} },
-    { "id": "cmp_h3best", "type": "best-sellers", "props": {} },
+    {
+      "id": "cmp_h3picks",
+      "type": "product-tabs",
+      "props": {},
+      "slots": {
+        "tabs": [
+          { "id": "cmp_h3tab1", "type": "product-tab", "props": { "collection": "best-sellers" } },
+          { "id": "cmp_h3tab2", "type": "product-tab", "props": { "collection": "new-arrivals" } },
+          { "id": "cmp_h3tab3", "type": "product-tab", "props": { "source": "onSale" } }
+        ]
+      }
+    },
+    { "id": "cmp_h4offer", "type": "image-banner", "props": {} },
     { "id": "cmp_h4how", "type": "how-it-works", "props": {} },
-    { "id": "cmp_h5new", "type": "new-arrivals", "props": {} },
-    { "id": "cmp_h5sale", "type": "on-sale", "props": {} },
-    { "id": "cmp_h6feat", "type": "features-bar", "props": {} },
-    { "id": "cmp_h7wa", "type": "whatsapp-cta", "props": {} },
-    { "id": "cmp_h8reviews", "type": "customer-testimonials", "props": {} }
+    { "id": "cmp_h8reviews", "type": "customer-testimonials", "props": {} },
+    { "id": "cmp_h6feat", "type": "features-bar", "props": {} }
   ]
 }

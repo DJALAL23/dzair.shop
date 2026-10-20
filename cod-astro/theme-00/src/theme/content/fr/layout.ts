@@ -18,4 +18,5 @@ export const frLayout: LayoutStrings = {
   footerQuickLinks: "Liens rapides",
   footerSupport: "Support client",
   footerRights: "Tous droits réservés",
+  footerWhatsapp: "Écrivez-nous sur WhatsApp",
 };

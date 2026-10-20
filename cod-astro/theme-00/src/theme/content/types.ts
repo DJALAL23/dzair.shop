@@ -20,6 +20,7 @@ import type { OffersStrings } from "./types/offers";
 import type { ThankYouStrings } from "./types/thank-you";
 import type { StatesStrings } from "./types/states";
 import type { MiscStrings } from "./types/misc";
+import type { ProductStrings } from "./types/product";
 
 export type StoreFrontContent = HomeStrings &
   LayoutStrings &
@@ -33,4 +34,5 @@ export type StoreFrontContent = HomeStrings &
   OffersStrings &
   ThankYouStrings &
   StatesStrings &
-  MiscStrings;
+  MiscStrings &
+  ProductStrings;

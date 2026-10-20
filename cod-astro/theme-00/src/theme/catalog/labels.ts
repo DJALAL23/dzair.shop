@@ -12,6 +12,11 @@ import type { LocalizedText } from "@wocart/theme";
 const text = (ar: string, fr: string, en: string): LocalizedText => ({ ar, fr, en });
 
 export const SECTION = {
+  productMain: text("المنتج", "Produit", "Product"),
+  productReviews: text("تقييمات المنتج", "Avis sur le produit", "Product reviews"),
+  relatedProducts: text("منتجات مشابهة", "Produits similaires", "Related products"),
+  marquee: text("شريط نص متحرك", "Bandeau défilant", "Scrolling text"),
+  productTabs: text("منتجات في تبويبات", "Produits par onglets", "Product tabs"),
   announcementBar: text("شريط الإعلانات", "Barre d'annonces", "Announcement bar"),
   header: text("رأس الصفحة", "En-tête", "Header"),
   footer: text("تذييل الصفحة", "Pied de page", "Footer"),
@@ -32,6 +37,35 @@ export const SECTION = {
 };
 
 export const FIELD = {
+  showCategory: text("إظهار الفئة", "Afficher la catégorie", "Show the category"),
+  showStock: text("إظهار التوفر", "Afficher la disponibilité", "Show availability"),
+  showSaving: text("إظهار قيمة التوفير", "Afficher l'économie", "Show the saving"),
+  showLowStock: text("التنبيه بقرب نفاد الكمية", "Signaler le stock bas", "Flag low stock"),
+  deliveryNote: text("ملاحظة التوصيل", "Note de livraison", "Delivery note"),
+  buttonOrder: text("ترتيب الأزرار", "Ordre des boutons", "Button order"),
+  showAssurance: text("ضمانات تحت الزر", "Garanties sous le bouton", "Assurances under the button"),
+  thumbnails: text("الصور المصغّرة على الحاسوب", "Miniatures sur ordinateur", "Thumbnails on desktop"),
+  photoShape: text("شكل الصورة", "Format de la photo", "Photo shape"),
+  openByDefault: text("مفتوح عند التحميل", "Ouvert au chargement", "Open on load"),
+  showForm: text("زر كتابة تقييم", "Bouton pour écrire un avis", "Write-a-review button"),
+  icon: (n: number) => text(`أيقونة الميزة ${n}`, `Icône de l'avantage ${n}`, `Feature ${n} icon`),
+  featureText: (n: number) => text(`نص الميزة ${n}`, `Texte de l'avantage ${n}`, `Feature ${n} text`),
+  tag: text("الوسم", "Étiquette", "Tag"),
+  countdown: text("العدّ التنازلي", "Compte à rebours", "Countdown"),
+  endsOn: text("ينتهي يوم (سنة-شهر-يوم)", "Se termine le (AAAA-MM-JJ)", "Ends on (YYYY-MM-DD)"),
+  showAllTile: text("بطاقة «كل المنتجات»", "Carte « Tous les produits »", "“All products” tile"),
+  message: (n: number) => text(`الرسالة ${n}`, `Message ${n}`, `Message ${n}`),
+  speed: text("السرعة", "Vitesse", "Speed"),
+  photo: text("الصورة", "Photo", "Photo"),
+  photoSide: text("موضع الصورة على الحاسوب", "Côté de la photo sur ordinateur", "Photo side on desktop"),
+  photoFallback: text("بدون صورة: صورة أول منتج من", "Sans photo : la photo du premier produit de", "Without a photo: the first product photo of"),
+  headingAlign: text("محاذاة العنوان", "Alignement du titre", "Heading alignment"),
+  tabLabel: text("اسم التبويب", "Nom de l'onglet", "Tab name"),
+  layout: text("طريقة العرض", "Disposition", "Layout"),
+  columns: text("الأعمدة على الحاسوب", "Colonnes sur ordinateur", "Columns on desktop"),
+  showViewAll: text("رابط «عرض الكل»", "Lien « Tout voir »", "“View all” link"),
+  source: text("المنتجات المعروضة", "Produits affichés", "Products shown"),
+  pickedProducts: text("منتجات تختارها", "Produits choisis", "Picked products"),
   menu: text("القائمة", "Menu", "Menu"),
   link: text("الرابط", "Lien", "Link"),
   logoPosition: text("موضع الشعار", "Position du logo", "Logo position"),
@@ -39,12 +73,15 @@ export const FIELD = {
   sticky: text("يبقى ظاهراً عند التمرير", "Reste visible au défilement", "Stays visible on scroll"),
   autoplay: text("تبديل الرسائل تلقائياً", "Faire défiler les messages", "Rotate messages"),
   about: text("نبذة", "Présentation", "About text"),
+  showWhatsapp: text("زر واتساب", "Bouton WhatsApp", "WhatsApp button"),
   showLanguages: text("إظهار اختيار اللغة", "Afficher le choix de langue", "Show language picker"),
   scheme: text("الألوان", "Couleurs", "Colors"),
   style: text("المسافات والعرض", "Espacement et largeur", "Spacing and width"),
   eyebrow: text("النص العلوي", "Surtitre", "Eyebrow"),
   title: text("العنوان", "Titre", "Title"),
   subtitle: text("العنوان الفرعي", "Sous-titre", "Subtitle"),
+  emptyNote: text("نص عند عدم وجود تقييمات", "Texte sans avis", "Text when there are no reviews"),
+  showReviewForm: text("نموذج إضافة تقييم", "Formulaire d’avis", "Review form"),
   trustTitle: (n: number) => text(`عنوان الضمان ${n}`, `Titre de la garantie ${n}`, `Promise ${n} title`),
   trustSub: (n: number) => text(`وصف الضمان ${n}`, `Texte de la garantie ${n}`, `Promise ${n} text`),
   button: text("الزر", "Bouton", "Button"),
@@ -72,6 +109,33 @@ export const FIELD = {
 
 /** The words an editor shows for a select field's options. */
 export const OPTION = {
+  orderFirst: text("الطلب أولاً", "Commander d'abord", "Order first"),
+  cartFirst: text("السلة أولاً", "Panier d'abord", "Cart first"),
+  side: text("بجانب الصورة", "À côté", "Beside"),
+  below: text("تحت الصورة", "En dessous", "Below"),
+  iconCash: text("نقود", "Billets", "Cash"),
+  iconTruck: text("شاحنة", "Camion", "Truck"),
+  iconPhone: text("هاتف", "Téléphone", "Phone"),
+  iconShield: text("درع", "Bouclier", "Shield"),
+  iconReturn: text("استبدال", "Échange", "Exchange"),
+  iconStar: text("نجمة", "Étoile", "Star"),
+  iconGift: text("هدية", "Cadeau", "Gift"),
+  iconClock: text("ساعة", "Horloge", "Clock"),
+  iconChat: text("محادثة", "Discussion", "Chat"),
+  iconBadge: text("شارة", "Badge", "Badge"),
+  none: text("بدون", "Aucun", "None"),
+  midnight: text("حتى منتصف الليل", "Jusqu'à minuit", "Until midnight"),
+  onDate: text("حتى تاريخ", "Jusqu'à une date", "Until a date"),
+  slow: text("بطيئة", "Lente", "Slow"),
+  normal: text("عادية", "Normale", "Normal"),
+  fast: text("سريعة", "Rapide", "Fast"),
+  onSale: text("المنتجات المخفّضة", "Produits en promotion", "Products on sale"),
+  withProducts: text("مع المنتجات", "Avec produits", "With products"),
+  textOnly: text("نص فقط", "Texte seul", "Text only"),
+  grid: text("شبكة", "Grille", "Grid"),
+  carousel: text("شريط يُسحب", "Carrousel", "Carousel"),
+  fromCollection: text("من مجموعة", "D'une collection", "From a collection"),
+  picked: text("أختارها بنفسي", "Choisis un par un", "Picked one by one"),
   sharp: text("حادة", "Nets", "Sharp"),
   soft: text("ناعمة", "Doux", "Soft"),
   round: text("دائرية", "Arrondis", "Round"),
@@ -85,6 +149,8 @@ export const OPTION = {
 
 export const GROUP = {
   home: text("الصفحة الرئيسية", "Accueil", "Home"),
+  product: text("صفحة المنتج", "Page produit", "Product page"),
+  listing: text("قوائم المنتجات", "Listes de produits", "Product lists"),
   header: text("رأس الصفحة", "En-tête", "Header"),
   footer: text("تذييل الصفحة", "Pied de page", "Footer"),
 };
@@ -92,6 +158,18 @@ export const GROUP = {
 /** The blocks a section arranges, as the editor names them. */
 export const BLOCK = {
   announcement: text("إعلان", "Annonce", "Announcement"),
+  productGallery: text("معرض الصور", "Galerie", "Gallery"),
+  productTitle: text("اسم المنتج", "Nom du produit", "Product name"),
+  productRating: text("التقييم والتوفر", "Avis et disponibilité", "Rating and availability"),
+  productPrice: text("السعر", "Prix", "Price"),
+  productSignals: text("معلومات سريعة", "Infos rapides", "Quick facts"),
+  productOrder: text("استمارة الطلب", "Formulaire de commande", "Order form"),
+  productCountdown: text("عدّ تنازلي", "Compte à rebours", "Countdown"),
+  productDescription: text("الوصف", "Description", "Description"),
+  productCollapsible: text("قسم قابل للطيّ", "Section repliable", "Collapsible row"),
+  productPolicies: text("صفحات التوصيل والإرجاع", "Pages livraison et retours", "Delivery and returns pages"),
+  productText: text("نص قصير", "Texte court", "Short text"),
+  productTab: text("تبويب منتجات", "Onglet de produits", "Product tab"),
   footerAbout: text("عن المتجر", "À propos", "About the store"),
   footerMenu: text("قائمة روابط", "Menu de liens", "Link menu"),
   footerPages: text("صفحات المتجر", "Pages de la boutique", "Store pages"),
@@ -106,6 +184,11 @@ export const AREA = {
 
 export const SURFACE = {
   home: text("الصفحة الرئيسية", "Accueil", "Home"),
+  product: text("صفحة المنتج", "Page produit", "Product page"),
+  collection: text("صفحة المجموعة", "Page de collection", "Collection page"),
+  category: text("صفحة الفئة", "Page de catégorie", "Category page"),
+  catalog: text("كل المنتجات", "Tous les produits", "All products"),
+  page: text("صفحة نصية", "Page de texte", "Text page"),
 };
 
 /** The theme's global settings (`settings.ts`), as the editor groups them. */
@@ -122,6 +205,7 @@ export const SETTING = {
   headingFont: text("خط العناوين", "Police des titres", "Headings font"),
   font: text("خط النصوص", "Police du texte", "Body font"),
   corners: text("الزوايا", "Coins", "Corners"),
+  cardButton: text("زر الطلب السريع على الصورة", "Bouton de commande sur la photo", "Quick order button on the photo"),
   cardImageRatio: text("شكل صورة المنتج", "Format de l'image produit", "Product image shape"),
 };
 
@@ -129,7 +213,7 @@ export const SETTING = {
 export const SCHEME = {
   light: text("فاتح", "Clair", "Light"),
   stone: text("حجري", "Pierre", "Stone"),
-  mist: text("ضبابي", "Brume", "Mist"),
-  night: text("ليلي", "Nuit", "Night"),
+  sand: text("رملي", "Sable", "Sand"),
   saffron: text("زعفراني", "Safran", "Saffron"),
+  night: text("ليلي", "Nuit", "Night"),
 };

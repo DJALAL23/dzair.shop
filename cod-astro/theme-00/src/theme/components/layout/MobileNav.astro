@@ -1,46 +1,44 @@
 ---
+// The phone's tab bar, as a shopping app has one: home, the catalog, the
+// store's menu, and the cart when the store sells by basket. Hidden on a
+// wide screen, where the header carries all of it.
 import type { StoreFrontContent } from "@/theme/content";
 import { Icon } from "astro-icon/components";
 import { matchStorefrontPath, storefrontPath } from "@wocart/storefront";
 
 interface Props {
   content: StoreFrontContent;
+  /** Whether the header has a menu the third tab can open. */
+  hasMenu?: boolean;
 }
 
-const { content } = Astro.props;
+const { content, hasMenu = true } = Astro.props;
 const store = Astro.locals.store;
-// The page type of this page (its path without the language prefix).
 const page = matchStorefrontPath(store.pathname)?.type;
-
-const items = [
-  {
-    label: content.navHome,
-    href: store.href(storefrontPath("home")),
-    active: page === "home",
-    icon: "heroicons:home",
-  },
-  {
-    label: content.navProducts,
-    href: store.href(storefrontPath("catalog")),
-    active: page === "catalog" || page === "product" || page === "category",
-    icon: "heroicons:squares-2x2",
-  },
-];
 ---
 
-<nav class="mobile-nav sm:hidden" aria-label={content.ariaMainNavigation}>
-  {items.map((item) => (
-    <a
-      href={item.href}
-      aria-label={item.label}
-      aria-current={item.active ? "page" : undefined}
-      class:list={[
-        "mobile-nav-item active:scale-95",
-        item.active ? "active" : ""
-      ]}
-    >
-      <span aria-hidden="true"><Icon name={item.icon} class="w-5 h-5" /></span>
-      <span>{item.label}</span>
-    </a>
-  ))}
+<nav class="mobile-nav" aria-label={content.ariaMainNavigation}>
+  <a href={store.href(storefrontPath("home"))} aria-current={page === "home" ? "page" : undefined} class="mobile-nav-item">
+    <Icon name="heroicons:home" aria-hidden="true" />
+    <span>{content.navHome}</span>
+  </a>
+  <a href={store.href(storefrontPath("catalog"))} aria-current={page === "catalog" || page === "category" || page === "collection" ? "page" : undefined} class="mobile-nav-item">
+    <Icon name="heroicons:squares-2x2" aria-hidden="true" />
+    <span>{content.navProducts}</span>
+  </a>
+  {hasMenu && (
+    <button type="button" popovertarget="site-menu" class="mobile-nav-item">
+      <Icon name="heroicons:bars-3" aria-hidden="true" />
+      <span>{content.navMenu}</span>
+    </button>
+  )}
+  {store.config.cartEnabled && (
+    <button type="button" class="mobile-nav-item" data-cart-open hidden aria-label={content.cartOpenLabel}>
+      <span class="mobile-nav-bag">
+        <Icon name="heroicons:shopping-bag" aria-hidden="true" />
+        <span class="mobile-nav-count num" data-cart-count hidden aria-hidden="true">0</span>
+      </span>
+      <span aria-hidden="true">{content.cartTitle}</span>
+    </button>
+  )}
 </nav>

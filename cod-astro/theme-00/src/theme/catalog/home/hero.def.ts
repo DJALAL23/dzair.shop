@@ -1,38 +1,52 @@
 import { defineComponent } from "@wocart/theme";
-import { FIELD, GROUP, SECTION } from "../labels";
+import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import Hero from "@/theme/components/home/Hero.astro";
-import { collectionRead, copyOverrides } from "../shared";
+import { SCHEME_OF } from "@/theme/appearance";
+import { PAGE_SURFACES, collectionRead, copyOverrides, schemeField, styleField } from "../shared";
 
-/** The slip shows three products in stock; a few more are read so sold-out ones can be passed over. */
-const HERO_SLIP_READ = 8;
+/** A few products are read so the first one with a photo, in stock, can lead. */
+const HERO_READ = 6;
 
+/**
+ * The page's first view: a large photo — the merchant's own, else the first
+ * product of a collection — beside the store's promise and two actions.
+ */
 export const hero = defineComponent({
   type: "hero",
   component: Hero,
   label: SECTION.hero,
   group: GROUP.home,
+  placement: "section",
   fields: [
-    { key: "heroEyebrow", kind: "text", label: FIELD.eyebrow, contentKey: "heroEyebrow" },
     { key: "heroTitle", kind: "text", label: FIELD.title, contentKey: "heroTitle" },
     { key: "heroSubtitle", kind: "textarea", label: FIELD.subtitle, contentKey: "heroSubtitle" },
     { key: "heroCtaPrimary", kind: "text", label: FIELD.primaryButton, contentKey: "heroCtaPrimary" },
-    { key: "heroCtaSecondary", kind: "text", label: FIELD.secondaryButton, contentKey: "heroCtaSecondary" },
     { key: "ctaPrimaryHref", kind: "url", label: FIELD.primaryButtonLink, default: "/products" },
+    { key: "heroCtaSecondary", kind: "text", label: FIELD.secondaryButton, contentKey: "heroCtaSecondary" },
     { key: "ctaSecondaryHref", kind: "url", label: FIELD.secondaryButtonLink, default: "#best-sellers" },
-    { key: "collection", kind: "collection", label: FIELD.collection, default: "featured" },
-    { key: "trust1Title", kind: "text", label: FIELD.trustTitle(1), contentKey: "trust1Title" },
-    { key: "trust1Sub", kind: "text", label: FIELD.trustSub(1), contentKey: "trust1Sub" },
-    { key: "trust2Title", kind: "text", label: FIELD.trustTitle(2), contentKey: "trust2Title" },
-    { key: "trust2Sub", kind: "text", label: FIELD.trustSub(2), contentKey: "trust2Sub" },
-    { key: "trust3Title", kind: "text", label: FIELD.trustTitle(3), contentKey: "trust3Title" },
-    { key: "trust3Sub", kind: "text", label: FIELD.trustSub(3), contentKey: "trust3Sub" },
+    { key: "image", kind: "image", label: FIELD.photo },
+    { key: "collection", kind: "collection", label: FIELD.photoFallback, default: "featured" },
+    {
+      key: "photoSide",
+      kind: "select",
+      label: FIELD.photoSide,
+      options: ["end", "start"],
+      optionLabels: { end: OPTION.end, start: OPTION.start },
+      default: "end",
+      display: "segmented",
+    },
+    schemeField(SCHEME_OF.sand),
+    styleField({ size: { width: { base: "full" } } }),
   ],
-  load: async ({ storefront, reads, context, props }) => ({
-    products: await reads.get(collectionRead(props.collection, HERO_SLIP_READ), () =>
-      storefront.products.list({ collection: props.collection, limit: HERO_SLIP_READ }),
-    ),
-    currencySymbol: context.store.currencySymbol,
-    content: copyOverrides(context.content, props),
-  }),
-  capabilities: { insertable: true },
+  load: async ({ storefront, reads, context, props }) => {
+    const products = props.image
+      ? []
+      : await reads.get(collectionRead(props.collection, HERO_READ), () => storefront.products.list({ collection: props.collection, limit: HERO_READ }));
+    const lead = products.find((product) => product.coverImage && product.inventory !== 0) ?? products.find((product) => product.coverImage) ?? null;
+    return {
+      lead: lead ? { src: lead.coverImage!.src, alt: lead.coverImage!.altText ?? lead.name } : null,
+      content: copyOverrides(context.content, props),
+    };
+  },
+  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

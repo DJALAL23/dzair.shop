@@ -145,18 +145,6 @@ export function rateFor(
   return typeof value === "number" && Number.isFinite(value) ? value : NaN;
 }
 
-const SELECTED_CLASSES = [
-  "border-[var(--clr-primary)]",
-  "text-[var(--clr-primary)]",
-  "bg-[var(--clr-primary)]/5",
-  "shadow-sm",
-];
-const UNSELECTED_CLASSES = [
-  "border-[var(--clr-border)]",
-  "text-[var(--clr-text)]",
-  "bg-[var(--clr-plate)]",
-];
-
 /** Home delivery needs a street address; a stop desk does not. */
 export function toggleAddressFields(): void {
   const container = document.getElementById("address-field-container");
@@ -177,13 +165,10 @@ export function toggleAddressFields(): void {
   if (input?.dataset.addressRequired === "true") input.required = !hidden;
 }
 
+/** The chosen delivery card wears `is-on`; the theme's CSS draws it. */
 function paintDeliveryRadios(): void {
   document.querySelectorAll<HTMLInputElement>(".delivery-radio-input").forEach((radio) => {
-    const face = radio.nextElementSibling as HTMLElement | null;
-    if (!face) return;
-    const on = radio.checked;
-    face.classList.remove(...(on ? UNSELECTED_CLASSES : SELECTED_CLASSES));
-    face.classList.add(...(on ? SELECTED_CLASSES : UNSELECTED_CLASSES));
+    (radio.nextElementSibling as HTMLElement | null)?.classList.toggle("is-on", radio.checked);
   });
 }
 

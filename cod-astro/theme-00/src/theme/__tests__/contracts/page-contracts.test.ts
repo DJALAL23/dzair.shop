@@ -17,8 +17,10 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 
 const PAGES = resolve(__dirname, "../../../pages");
+/** The composed surfaces a route renders (`theme/pages/*Surface.astro`): they load a page's scripts for it. */
+const SURFACES = resolve(__dirname, "../../pages");
 
-function pageFiles(dir: string = PAGES, out: string[] = []): string[] {
+function pageFiles(dir: string = PAGES, out: string[] = dir === PAGES ? pageFiles(SURFACES, []) : []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) pageFiles(full, out);

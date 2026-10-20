@@ -1,0 +1,15 @@
+---
+// The gallery block: the product's photos, as the merchant shapes them.
+import type { InferProps } from "@wocart/theme";
+import { getProductView, type Product } from "@wocart/storefront";
+import ProductGallery from "@/theme/components/product/ProductGallery.astro";
+import type { productGallery } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productGallery> & { product: Product | null };
+const { product, thumbnails, shape } = Astro.props;
+const view = product ? getProductView(product) : null;
+---
+
+{product && view && (
+  <ProductGallery product={product} hasDiscount={view.hasDiscount} discountPct={view.discountPct} content={Astro.locals.store.content} thumbnails={thumbnails} shape={shape} />
+)}

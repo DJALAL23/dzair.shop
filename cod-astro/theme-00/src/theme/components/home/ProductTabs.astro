@@ -1,0 +1,114 @@
+---
+// Several lists of products under one title, a tab for each list. Each tab is
+// a block the merchant adds, orders or points at another collection; the
+// tabs' names come from the blocks themselves, so the script reads them from
+// the page. An editor's preview shows where tabs will go before there are any.
+import Blocks from "@wocart/theme/astro/Blocks.astro";
+import { hasBlocks, isPreview, type BlocksHandle } from "@wocart/theme/astro";
+import type { InferProps } from "@wocart/theme";
+import Section from "@/theme/components/ui/Section.astro";
+import SectionHead from "@/theme/components/ui/SectionHead.astro";
+import type { StoreFrontContent } from "@/theme/content";
+import type { productTabs } from "@/theme/catalog/home/product-tabs.def";
+
+type Props = InferProps<typeof productTabs> & { blocks: BlocksHandle; content: StoreFrontContent };
+
+const { blocks, content, headingAlign, layout, columns, showViewAll, scheme, style } = Astro.props;
+const shown = hasBlocks(blocks, "tabs") || isPreview(blocks);
+const across = Math.min(5, Math.max(2, Math.round(columns)));
+---
+
+{shown && (
+  <Section scheme={scheme} style={style}>
+    <div class:list={["product-tabs", layout === "carousel" && "is-carousel", !showViewAll && "no-view-all"]} data-product-tabs style={`--across: ${across}`}>
+      <SectionHead title={content.productTabsTitle} sub={content.productTabsSub} center={headingAlign === "center"} />
+      <div class:list={["tab-list", headingAlign === "center" && "is-center"]} role="tablist" hidden></div>
+      <div class="tab-panels">
+        <Blocks of={blocks} slot="tabs" />
+      </div>
+    </div>
+  </Section>
+)}
+
+<script>
+  import { onEachElement } from "@/theme/scripts/page-lifecycle";
+
+  onEachElement("[data-product-tabs]", (root) => {
+    const list = root.querySelector<HTMLElement>(".tab-list");
+    const panels = [...root.querySelectorAll<HTMLElement>(".tab-panel")];
+    if (!list || panels.length < 2) return;
+    root.classList.add("has-tabs");
+    list.replaceChildren();
+    const buttons = panels.map((panel, index) => {
+      const id = `${root.closest("section")?.id || "tabs"}-${index}`;
+      panel.id ||= `${id}-panel`;
+      panel.setAttribute("role", "tabpanel");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "tab-button";
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-controls", panel.id);
+      button.textContent = panel.dataset.tabLabel ?? "";
+      list.append(button);
+      return button;
+    });
+    const show = (chosen: number) => {
+      buttons.forEach((button, index) => {
+        button.setAttribute("aria-selected", String(index === chosen));
+        button.tabIndex = index === chosen ? 0 : -1;
+        panels[index]!.hidden = index !== chosen;
+      });
+    };
+    buttons.forEach((button, index) => {
+      button.addEventListener("click", () => show(index));
+      button.addEventListener("keydown", (event) => {
+        const step = event.key === "ArrowLeft" ? 1 : event.key === "ArrowRight" ? -1 : 0;
+        if (step === 0) return;
+        const rtl = getComputedStyle(root).direction === "rtl";
+        const next = (index + (rtl ? step : -step) + buttons.length) % buttons.length;
+        show(next);
+        buttons[next]!.focus();
+      });
+    });
+    list.hidden = false;
+    show(0);
+  });
+</script>
+
+<style>
+  .tab-list {
+    display: flex;
+    gap: 1.75rem;
+    margin-bottom: 1.75rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab-list.is-center { justify-content: center; }
+  @media (min-width: 1024px) { .tab-list { gap: 2.5rem; margin-bottom: 2.75rem; } }
+  .tab-list :global(.tab-button) {
+    flex: none;
+    padding-bottom: 0.375rem;
+    border-bottom: 1.5px solid transparent;
+    color: var(--clr-muted);
+    font-size: var(--text-base);
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  @media (min-width: 1024px) { .tab-list :global(.tab-button) { font-size: var(--text-lg); } }
+  .tab-list :global(.tab-button[aria-selected="true"]) { color: var(--clr-ink); font-weight: 600; border-color: var(--clr-ink); }
+  .tab-panels :global(.tab-panel + .tab-panel) { margin-top: 3rem; }
+  .has-tabs .tab-panels :global(.tab-panel + .tab-panel) { margin-top: 0; }
+  .tab-panels :global(.tab-panel-name) {
+    margin-bottom: 1.25rem;
+    font-size: var(--text-xl);
+  }
+  .has-tabs .tab-panels :global(.tab-panel-name) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .no-view-all :global(.tab-view-all) { display: none; }
+</style>

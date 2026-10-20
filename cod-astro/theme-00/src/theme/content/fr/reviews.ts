@@ -6,6 +6,7 @@ import type { ReviewsStrings } from "../types/reviews";
 
 export const frReviews: ReviewsStrings = {
   reviewsTitle: "Avis clients",
+  reviewsEmpty: "Aucun avis pour l’instant. Vous avez reçu ce produit ? Soyez le premier à le noter.",
   reviewsVerifiedBuyer: "Achat vérifié",
   reviewFormTitle: "Rédigez votre avis",
   reviewFormOrderLabel: "Numéro de commande",

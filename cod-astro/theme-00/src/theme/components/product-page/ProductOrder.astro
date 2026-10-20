@@ -1,0 +1,57 @@
+---
+// The order form block: the product's options and offers, the shopper's
+// details, the delivery and the amount paid at the door — and Add to cart
+// when the store sells by basket, before or after the confirm button as the
+// merchant chose. What the form asks is the store's checkout form, set in the
+// merchant dashboard; the theme only styles it. A refused order comes back
+// here with its reasons (`orderOutcome`); a placed one never renders it again
+// (the route redirects first).
+import type { InferProps } from "@wocart/theme";
+import { getProductView, type Product, productImageSource } from "@wocart/storefront";
+import { actions } from "astro:actions";
+import OrderForm from "@/theme/components/order/OrderForm.astro";
+import AddToCartButton from "@/theme/components/cart/AddToCartButton.astro";
+import { orderOutcome } from "@/theme/pages/order-outcome";
+import { getThumbnailImage } from "@/theme/utils/images";
+import type { productOrder } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productOrder> & { product: Product | null };
+const { product, buttonOrder, showAssurance, scheme } = Astro.props;
+const { config, content, isRTL } = Astro.locals.store;
+const { fieldErrors, serverError, couponRefusal } = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
+const view = product ? getProductView(product) : null;
+// Thumbnail for the cart drawer and the checkout summary, at the size it renders.
+const cartImageSrc = product ? productImageSource(product) : null;
+const cartImage = cartImageSrc ? getThumbnailImage(cartImageSrc) : null;
+---
+
+{product && view && (
+  <OrderForm
+    product={product}
+    content={content}
+    fieldErrors={fieldErrors}
+    serverError={serverError}
+    couponRefusal={couponRefusal}
+    basePrice={view.basePrice}
+    defaultVariant={view.defaultVariant ?? null}
+    cur={config.currencySymbol}
+    isRTL={isRTL}
+    offers={product.offers}
+    defaultVariantId={view.defaultVariant?.id ?? null}
+    isOutOfStock={view.isOutOfStock}
+    otpEnabled={config.otpEnabled === true}
+    turnstileEnabled={config.turnstileEnabled === true}
+    turnstileSiteKey={config.turnstileSiteKey ?? null}
+    pages={config.pages ?? []}
+    formPolicy={config.checkoutForm}
+    buttonOrder={buttonOrder}
+    showAssurance={showAssurance}
+    scheme={scheme}
+  >
+    {config.cartEnabled && !view.isOutOfStock && (
+      <Fragment slot="secondary-action">
+        <AddToCartButton product={product} content={content} basePrice={view.basePrice} defaultVariant={view.defaultVariant ?? null} image={cartImage} />
+      </Fragment>
+    )}
+  </OrderForm>
+)}

@@ -21,4 +21,6 @@ export type LayoutStrings = {
   footerQuickLinks: string;
   footerSupport: string;
   footerRights: string;
+  /** The footer's WhatsApp button, when the store's widget has no label of its own. */
+  footerWhatsapp: string;
 };

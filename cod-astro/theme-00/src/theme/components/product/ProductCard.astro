@@ -1,127 +1,201 @@
 ---
-// A product as a carton: the whole photo on its plate, stamps for what the
-// shopper must know first (discount, stock), the name, the price, and the
-// order action along the foot. Used on home, the catalog and category pages.
+// A product as the shopper browses it: a tall photo filling the card, a tag
+// for what they must know first (a saving, the last pieces, sold out), a
+// quick order button on the photo where the store wants one (`cardButton`),
+// the stars, the name and the price — the sale price in the sale color over
+// the old one. Used on every product list and under a product.
 import { message } from "@/theme/content/messages";
 import { Image } from "astro:assets";
-import { getProductListView, type ProductList } from "@wocart/storefront";
+import { getProductListView, getProductView, type Product, type ProductList } from "@wocart/storefront";
 import type { ProductCardCopy } from "@/theme/bridges/island-props";
 import { Icon } from "astro-icon/components";
 import { formatAmount } from "@/theme/utils/money";
 import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
-  product: ProductList;
+  /** A product as a list gives it, or whole (a product the merchant picked). */
+  product: ProductList | Product;
   currencySymbol: string;
   eager?: boolean;
   /** The copy keys this card renders — see bridges/island-props.ts for why picks. */
   copy: ProductCardCopy;
   /**
-   * Whether the card carries its order action. A suggestion under a product
-   * page is for browsing: the whole card is still the link, without a second
-   * row of buy buttons competing with the order form above it.
+   * Whether the card may carry its quick order button. A suggestion under a
+   * product page is for browsing: the whole card is still the link, without
+   * buy buttons competing with the order form above it.
    */
   action?: boolean;
+  /** The image's rendered width, for the browser's choice of file. */
+  sizes?: string;
 }
 
-const { product, currencySymbol, eager = false, copy, action = true } = Astro.props;
+const {
+  product,
+  currencySymbol,
+  eager = false,
+  copy,
+  action = true,
+  sizes = "(min-width: 1280px) 300px, (min-width: 1024px) 23vw, (min-width: 640px) 31vw, 46vw",
+} = Astro.props;
 const locale = Astro.locals.store.locale;
 
-const image = product.coverImage;
-const view = getProductListView(product);
-const { hasDiscount, discountPct, isOutOfStock, isLowStock, comparePrice } = view;
+const image = ("coverImage" in product ? product.coverImage : product.images[0]) ?? null;
+const view = "variants" in product ? getProductView(product) : getProductListView(product);
+const { hasDiscount, discountPct, isOutOfStock, isLowStock, comparePrice, basePrice } = view;
 const rating = product.reviewStats && product.reviewStats.reviewCount > 0 ? product.reviewStats : null;
+const filled = rating ? Math.round(rating.avgRating) : 0;
 ---
 
 <a
   href={Astro.locals.store.href(storefrontPath("product", { handle: product.handle }))}
   data-astro-prefetch="hover"
-  class="product-card carton group flex flex-col overflow-hidden"
-  aria-label={message(copy, "ariaProductCard", { name: product.name, price: formatAmount(product.price), currency: currencySymbol }, locale)}
+  class:list={["product-card", isOutOfStock && "is-sold-out"]}
+  aria-label={message(copy, "ariaProductCard", { name: product.name, price: formatAmount(basePrice), currency: currencySymbol }, locale)}
 >
-  <div class="plate aspect-square">
+  <div class="plate card-photo">
     {image ? (
       <Image
         src={image.src}
         alt={image.altText ?? product.name}
-        width={400}
-        height={400}
-        widths={[240, 400, 600]}
-        sizes="(min-width: 1280px) 296px, (min-width: 1024px) 23vw, (min-width: 640px) 31vw, 47vw"
+        width={600}
+        height={800}
+        widths={[300, 450, 600, 900]}
+        sizes={sizes}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
         quality={82}
       />
     ) : (
-      <div class="flex h-full w-full items-center justify-center text-ink-3" aria-hidden="true">
-        <Icon name="heroicons:photo" class="h-10 w-10" />
+      <div class="card-empty" aria-hidden="true">
+        <Icon name="heroicons:photo" />
       </div>
     )}
 
-    {hasDiscount && (
-      <span class="stamp stamp-accent num absolute inset-s-2 top-2" aria-hidden="true">-{discountPct}%</span>
-    )}
-    {isOutOfStock ? (
-      <span class="stamp stamp-ink absolute bottom-2 inset-s-2" aria-hidden="true">{copy.outOfStock}</span>
-    ) : isLowStock && (
-      <span class="stamp stamp-warn absolute bottom-2 inset-s-2" aria-hidden="true">
-        {message(copy, "lowStock", { count: product.inventory }, locale)}
+    <div class="card-tags" aria-hidden="true">
+      {isOutOfStock ? (
+        <span class="badge badge-ink">{copy.outOfStock}</span>
+      ) : (
+        <>
+          {hasDiscount && <span class="badge badge-sale num">-{discountPct}%</span>}
+          {isLowStock && <span class="badge badge-warn">{message(copy, "lowStock", { count: product.inventory }, locale)}</span>}
+        </>
+      )}
+    </div>
+
+    {action && !isOutOfStock && (
+      <span class="card-quick" aria-hidden="true">
+        <Icon name="heroicons:shopping-bag" />
+        <span class="card-quick-label">{copy.orderCta}</span>
       </span>
     )}
   </div>
 
-  <div class="flex flex-1 flex-col gap-2 border-t border-border p-3 sm:p-4">
-    <p class="line-clamp-2 text-sm font-medium text-ink">{product.name}</p>
-
+  <div class="card-body">
     {rating && (
-      <p class="flex items-center gap-1 text-2xs text-ink-2" aria-hidden="true">
-        <Icon name="heroicons:star" class="h-3.5 w-3.5 text-ink" />
-        <span class="num font-semibold text-ink">{rating.avgRating}</span>
-        <span class="num">({rating.reviewCount})</span>
+      <p class="card-rating" aria-hidden="true">
+        <span class="stars">
+          {[1, 2, 3, 4, 5].map((star) => <Icon name="heroicons:star-solid" class:list={[star > filled && "is-empty"]} />)}
+        </span>
+        <span class="num card-rating-count">{rating.avgRating} ({rating.reviewCount})</span>
       </p>
     )}
-
-    <p class="mt-auto flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-      <span class="price text-lg">{formatAmount(product.price)}<span class="price-cur">{currencySymbol}</span></span>
-      {hasDiscount && comparePrice != null && (
-        <span class="price-was text-xs">{formatAmount(comparePrice)}</span>
-      )}
+    <p class="card-name">{product.name}</p>
+    <p class="card-price">
+      <span class:list={["price", hasDiscount && "is-sale"]}>{formatAmount(basePrice)}<span class="price-cur">{currencySymbol}</span></span>
+      {hasDiscount && comparePrice != null && <span class="price-was">{formatAmount(comparePrice)} {currencySymbol}</span>}
     </p>
-
-    {action && (
-      <span
-        class:list={["card-cta", isOutOfStock && "is-off"]}
-        aria-hidden="true"
-      >
-        {isOutOfStock ? copy.outOfStock : copy.orderCta}
-        {!isOutOfStock && <Icon name="heroicons:arrow-right" class="flip-rtl h-4 w-4" />}
-      </span>
-    )}
   </div>
 </a>
 
 <style>
-  .card-cta {
+  .product-card {
     display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    min-width: 0;
+    color: var(--clr-ink);
+    text-decoration: none;
+  }
+  .card-photo { aspect-ratio: var(--card-aspect, 3 / 4); }
+  .card-photo :global(img) { transition: transform 0.8s var(--ease-out-expo), opacity 0.3s ease; }
+  @media (hover: hover) {
+    .product-card:hover .card-photo :global(img) { transform: scale(1.05); }
+  }
+  .is-sold-out .card-photo :global(img) { opacity: 0.6; }
+  .card-empty {
+    display: flex;
+    height: 100%;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    min-height: 2.5rem;
-    margin-top: 0.25rem;
-    padding-inline: 0.75rem;
-    border-radius: var(--radius-btn);
-    background: var(--clr-ink);
-    color: var(--clr-surface);
-    font-size: var(--text-sm);
-    font-weight: 700;
-    transition: background-color 0.15s ease, color 0.15s ease;
-  }
-  .product-card:hover .card-cta:not(.is-off) {
-    background: var(--clr-primary);
-    color: var(--clr-on-primary);
-  }
-  .card-cta.is-off {
-    background: var(--clr-plate);
+    justify-content: center;
     color: var(--clr-muted);
   }
+  .card-empty :global(svg) { width: 2.5rem; height: 2.5rem; }
+  .card-tags {
+    position: absolute;
+    top: 0.625rem;
+    inset-inline-start: 0.625rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.375rem;
+  }
+  .card-quick { display: none; }
+  :global([data-card-button]) .card-quick {
+    position: absolute;
+    bottom: 0.625rem;
+    inset-inline-end: 0.625rem;
+    display: inline-flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-round);
+    background: var(--clr-bg);
+    color: var(--clr-ink);
+    box-shadow: var(--shadow-md);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+  .card-quick :global(svg) { width: 1.1875rem; height: 1.1875rem; }
+  .card-quick-label { display: none; }
+  @media (hover: hover) and (min-width: 1024px) {
+    :global([data-card-button]) .card-quick {
+      inset-inline: 0.75rem;
+      bottom: 0.75rem;
+      width: auto;
+      height: 2.875rem;
+      border-radius: var(--radius-btn);
+      opacity: 0;
+      transform: translateY(0.5rem);
+      transition: opacity 0.25s ease, transform 0.25s var(--ease-out-expo);
+    }
+    .card-quick-label { display: inline; }
+    :global([data-card-button]) .product-card:hover .card-quick,
+    :global([data-card-button]) .product-card:focus-visible .card-quick { opacity: 1; transform: none; }
+  }
+  .card-body { display: flex; flex: 1; flex-direction: column; gap: 0.25rem; }
+  .card-rating { display: flex; align-items: center; gap: 0.375rem; font-size: var(--text-xs); }
+  .card-rating-count { color: var(--clr-muted); }
+  .card-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1.55;
+    color: var(--clr-ink);
+  }
+  @media (min-width: 1024px) { .card-name { font-size: var(--text-base); } }
+  .card-price {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.125rem 0.625rem;
+    margin-top: auto;
+    font-size: var(--text-base);
+  }
+  @media (min-width: 1024px) { .card-price { font-size: var(--text-md); } }
+  .card-price .price-was { font-size: var(--text-sm); }
 </style>

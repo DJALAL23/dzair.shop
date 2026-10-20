@@ -1,0 +1,29 @@
+---
+// A row linking to the store's own delivery and returns pages — the words the
+// merchant wrote, never the theme's. A store without them shows no row.
+import type { InferProps } from "@wocart/theme";
+import { storefrontPath } from "@wocart/storefront";
+import { Icon } from "astro-icon/components";
+import type { productPolicies } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productPolicies>;
+const { title } = Astro.props;
+const store = Astro.locals.store;
+const pages = (store.config.pages ?? []).filter((page) => page.kind === "shipping" || page.kind === "refund");
+---
+
+{pages.length > 0 && (
+  <details class="fold">
+    <summary class="fold-head">{title}<Icon name="heroicons:chevron-down" aria-hidden="true" /></summary>
+    <ul class="fold-body policy-links">
+      {pages.map((page) => (
+        <li><a href={store.href(storefrontPath("page", { slug: page.slug }))}>{page.title}</a></li>
+      ))}
+    </ul>
+  </details>
+)}
+
+<style>
+  .policy-links { display: grid; gap: 0.25rem; }
+  .policy-links a { color: var(--clr-ink); text-decoration: underline; text-underline-offset: 0.3em; }
+</style>

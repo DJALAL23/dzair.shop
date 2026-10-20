@@ -1,10 +1,12 @@
 /*
- * Theme-00 — "Karakou".
+ * Theme-00 — the storefront every CodFlow store starts with.
  *
- * Algeria's luxury garment, worn in the white city: white and stone grounds,
- * a night-navy ink for type and the order button, and a saffron thread used
- * sparingly — the stars, the sale tag, the line under the amount paid at the
- * door. Product photos sit whole on soft light plates.
+ * Photographs carry the page: they fill tall cards, tiles and banners edge to
+ * edge. Around them the page is quiet — white and stone grounds, a deep ink
+ * for type and the order button, large light headings — with color spent in
+ * a few places: the sale red, the saffron of a promotion, the night of the
+ * footer. The order form is the store's checkout: a calm panel whose last
+ * line is the amount paid at the door.
  *
  * Every color comes from a color scheme (`colorSchemes` setting). An element
  * wearing one carries `.scheme` and the SDK's `.wc-scheme-<id>`, whose rule
@@ -44,29 +46,31 @@
   --font-heading: var(--font-display), var(--font-text), system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Type scale — the only sizes in the theme (12 14 16 18 21 24 36 48 60 72). */
+  /* Type scale — the only sizes in the theme. */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1.4;
   --text-xs: 0.75rem;
   --text-xs--line-height: 1.5;
   --text-sm: 0.875rem;
-  --text-sm--line-height: 1.55;
-  --text-base: 1rem;
-  --text-base--line-height: 1.65;
+  --text-sm--line-height: 1.6;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.75;
+  --text-md: 1rem;
+  --text-md--line-height: 1.7;
   --text-lg: 1.125rem;
-  --text-lg--line-height: 1.55;
-  --text-xl: 1.3125rem;
-  --text-xl--line-height: 1.4;
-  --text-2xl: 1.5rem;
+  --text-lg--line-height: 1.6;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.45;
+  --text-2xl: 1.625rem;
   --text-2xl--line-height: 1.35;
-  --text-3xl: 2.25rem;
-  --text-3xl--line-height: 1.2;
-  --text-4xl: 3rem;
-  --text-4xl--line-height: 1.15;
-  --text-5xl: 3.75rem;
-  --text-5xl--line-height: 1.1;
-  --text-6xl: 4.5rem;
-  --text-6xl--line-height: 1.05;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 1.3;
+  --text-4xl: 2.5rem;
+  --text-4xl--line-height: 1.25;
+  --text-5xl: 3.25rem;
+  --text-5xl--line-height: 1.22;
+  --text-6xl: 4rem;
+  --text-6xl--line-height: 1.2;
 
   /* Corners, from the `corners` setting. */
   --radius-media: var(--r-media);
@@ -75,14 +79,14 @@
   --radius-input: var(--r-input);
   --radius-btn: var(--r-button);
   --radius-tag: var(--r-tag);
-  /* Round only for checkmarks, color swatches, avatars and the WhatsApp launcher. */
+  /* Round only for icon buttons, swatches, avatars and the WhatsApp launcher. */
   --radius-round: 9999px;
 
   /* Only what floats casts a shadow. */
   --shadow-sm: 0 1px 2px color-mix(in oklab, black 6%, transparent);
-  --shadow-md: 0 8px 24px -12px color-mix(in oklab, black 22%, transparent);
+  --shadow-md: 0 6px 20px -10px color-mix(in oklab, black 35%, transparent);
   --shadow-lg: 0 28px 56px -28px color-mix(in oklab, black 40%, transparent), 0 2px 8px color-mix(in oklab, black 6%, transparent);
-  --shadow-primary: 0 14px 28px -14px color-mix(in oklab, var(--clr-primary) 75%, transparent);
+  --shadow-primary: 0 14px 28px -14px color-mix(in oklab, var(--clr-primary) 70%, transparent);
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --animate-spring: var(--ease-out-expo);
@@ -105,28 +109,34 @@
 :root {
   /* The first default scheme: what a page shows when its scheme is missing. */
   --wc-color-background: #ffffff;
-  --wc-color-text: #3a4252;
-  --wc-color-heading: #101b30;
-  --wc-color-accent: #d9982c;
-  --wc-color-button: #101b30;
+  --wc-color-text: #3b4250;
+  --wc-color-heading: #0f1626;
+  --wc-color-accent: #c8102e;
+  --wc-color-button: #0f1626;
   --wc-color-button-text: #ffffff;
-  --wc-color-border: #e4e6ea;
+  --wc-color-border: #e8e8e5;
 
   --font-text: system-ui;
   --font-display: var(--font-text);
-  --r-media: 0.75rem;
-  --r-panel: 1rem;
+  --r-media: 0.875rem;
+  --r-panel: 1.125rem;
   --r-input: 0.625rem;
-  --r-button: 0.75rem;
+  --r-button: 0.625rem;
   --r-tag: 62.5rem;
 
+  /* Meanings that keep their color on every scheme. */
   --clr-success: #0f7a4a;
   --clr-success-bg: #e8f5ee;
-  --clr-disabled: #9aa0a8;
   --clr-error: #b42318;
   --clr-error-bg: #fdf1f0;
+  --clr-disabled: #9aa0a8;
+  --clr-highlight: #f2c14e;
+  --clr-on-highlight: #0f1626;
+  --clr-rating: #e8a100;
+  --clr-sale-soft: #fdecee;
   --clr-overlay: color-mix(in oklab, #0b1220 55%, transparent);
   --clr-clear: transparent;
+  --clr-current: currentColor;
   --overlay-dark: color-mix(in oklab, #0b1220 72%, transparent);
 
   --header-h: 4rem;
@@ -136,9 +146,10 @@
 
   --clr-whatsapp: #25d366;
   --clr-whatsapp-deep: #128c7e;
+  --clr-on-whatsapp: #0b2a17;
   --wa-gap: 0.75rem;
 }
-@media (min-width: 1024px) { :root { --header-h: 4.5rem; } }
+@media (min-width: 1024px) { :root { --header-h: 4.75rem; } }
 
 /* ── Schemes: every token is derived from the scheme an element wears ─────── */
 :root,
@@ -146,20 +157,19 @@
   --clr-bg: var(--wc-color-background);
   --clr-ink: var(--wc-color-heading);
   --clr-text: var(--wc-color-text);
-  --clr-muted: color-mix(in oklab, var(--wc-color-text) 80%, var(--wc-color-background));
+  --clr-muted: color-mix(in oklab, var(--wc-color-text) 74%, var(--wc-color-background));
   --clr-surface: var(--wc-color-background);
-  --clr-plate: color-mix(in oklab, var(--wc-color-text) 6%, var(--wc-color-background));
-  --clr-field: color-mix(in oklab, var(--wc-color-background) 86%, white);
+  --clr-plate: color-mix(in oklab, var(--wc-color-text) 5%, var(--wc-color-background));
+  --clr-field: color-mix(in oklab, var(--wc-color-background) 70%, white);
   --clr-border: var(--wc-color-border);
-  --clr-border-strong: color-mix(in oklab, var(--wc-color-text) 38%, var(--wc-color-background));
+  --clr-border-strong: color-mix(in oklab, var(--wc-color-text) 22%, var(--wc-color-background));
   --clr-primary: var(--wc-color-button);
   --clr-on-primary: var(--wc-color-button-text);
   --clr-accent: var(--wc-color-accent);
   --clr-on-accent: var(--wc-color-heading);
-  --clr-nav-bg: color-mix(in oklab, var(--wc-color-background) 92%, transparent);
-  /* Photos keep a light plate on every scheme: a white-ground product shot
-     melts into it instead of floating as a white box on a dark band. */
-  --clr-photo: color-mix(in oklab, white 95%, var(--wc-color-text));
+  --clr-nav-bg: color-mix(in oklab, var(--wc-color-background) 94%, transparent);
+  /* A photo's ground while it loads, and behind a photo that does not fill. */
+  --clr-photo: color-mix(in oklab, var(--wc-color-text) 6%, var(--wc-color-background));
 }
 /* Text on the accent: white or black, whichever the accent's lightness carries. */
 @supports (color: oklch(from red l c h)) {
@@ -187,10 +197,9 @@ body {
   background: var(--clr-bg);
   color: var(--clr-text);
   font-size: var(--text-base);
-  line-height: 1.65;
+  line-height: 1.75;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: clip;
@@ -198,23 +207,22 @@ body {
   flex-direction: column;
   caret-color: var(--clr-primary);
 }
-[lang="ar"] body { line-height: 1.75; }
 
 body > main { flex: 1 0 auto; }
 
 h1, h2, h3, h4, .display {
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--clr-ink);
   text-wrap: balance;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
 }
 [dir="rtl"] :is(h1, h2, h3, h4, .display) { letter-spacing: 0; }
 p { text-wrap: pretty; }
 
 ::selection {
-  background: color-mix(in oklab, var(--clr-accent) 45%, transparent);
-  color: var(--clr-ink);
+  background: color-mix(in oklab, var(--clr-highlight) 70%, transparent);
+  color: var(--clr-on-highlight);
 }
 
 :focus-visible {
@@ -242,80 +250,145 @@ a { color: inherit; text-underline-offset: 0.25em; }
 /* Zero specificity: a section's width (`.wc-w-*`) always outranks it. */
 :where(.frame) {
   width: 100%;
-  max-width: 80rem;
+  max-width: 85rem;
   margin-inline: auto;
 }
 .frame { padding-inline: 1rem; }
 @media (min-width: 640px) { .frame { padding-inline: 1.5rem; } }
 @media (min-width: 1024px) { .frame { padding-inline: 2.5rem; } }
 
-/* ── Section heading: a display title, an optional line, an optional link ─ */
+/* A row a phone swipes, edge to edge, that settles on each item. */
+.swipe-row {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 0.75rem;
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 1rem;
+  scrollbar-width: none;
+}
+.swipe-row::-webkit-scrollbar { display: none; }
+.swipe-row > * { scroll-snap-align: start; }
+@media (min-width: 640px) { .swipe-row { margin-inline: -1.5rem; padding-inline: 1.5rem; scroll-padding-inline: 1.5rem; } }
+
+/* ── Section heading: a large light title, a line under it, a link ───────── */
 .section-head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1rem 1.5rem;
   margin-bottom: 1.75rem;
 }
-@media (min-width: 1024px) { .section-head { margin-bottom: 2.5rem; } }
+@media (min-width: 1024px) { .section-head { margin-bottom: 2.75rem; } }
 .section-head.is-center { flex-direction: column; align-items: center; text-align: center; }
 .section-title {
   font-family: var(--font-heading);
   font-size: var(--text-2xl);
   line-height: var(--text-2xl--line-height);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--clr-ink);
 }
 @media (min-width: 1024px) {
-  .section-title { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); }
+  .section-title { font-size: var(--text-4xl); line-height: var(--text-4xl--line-height); }
 }
 .section-sub {
-  margin-top: 0.5rem;
+  margin-top: 0.375rem;
   max-width: 36rem;
   font-size: var(--text-base);
   color: var(--clr-muted);
 }
+@media (min-width: 1024px) { .section-sub { font-size: var(--text-md); } }
 .section-link {
   display: inline-flex;
   align-items: center;
   flex: none;
   min-height: 2.75rem;
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--clr-ink);
   text-decoration: underline;
-  text-decoration-color: color-mix(in oklab, var(--clr-ink) 30%, transparent);
-  text-decoration-thickness: 1px;
-  transition: text-decoration-color 0.2s ease;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.45em;
 }
-.section-link:hover { text-decoration-color: var(--clr-ink); }
 [dir="rtl"] .flip-rtl { transform: scaleX(-1); }
 
-/* ── Badges: what the shopper must know first (sale, stock) ──────────────── */
-.badge {
+/* ── A list of products: two across on a phone, as many as chosen on a wide screen ── */
+.product-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.75rem 0.75rem;
+}
+@media (min-width: 640px) { .product-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.5rem 1.25rem; } }
+@media (min-width: 1024px) { .product-row { grid-template-columns: repeat(var(--across, 4), minmax(0, 1fr)); gap: 2.75rem 1.5rem; } }
+@media (max-width: 1023px) {
+  .is-carousel .product-row {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 66%;
+    gap: 0.75rem;
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 1rem;
+    scrollbar-width: none;
+  }
+  .is-carousel .product-row > * { scroll-snap-align: start; }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  .is-carousel .product-row { grid-auto-columns: 38%; margin-inline: -1.5rem; padding-inline: 1.5rem; scroll-padding-inline: 1.5rem; }
+}
+/* "View all" under a centered list. */
+.row-more { display: flex; justify-content: center; margin-top: 2.25rem; }
+@media (min-width: 1024px) { .row-more { margin-top: 3rem; } }
+
+/* ── A row that opens and closes (description, policies, a merchant's row) ── */
+.fold { border-bottom: 1px solid var(--clr-border); }
+.fold:first-of-type,
+:not(.fold) + .fold { border-top: 1px solid var(--clr-border); }
+.fold-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.5rem;
+  color: var(--clr-ink);
+  font-size: var(--text-base);
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+.fold-head::-webkit-details-marker { display: none; }
+.fold-head svg { width: 1.125rem; height: 1.125rem; flex: none; transition: transform 0.25s var(--ease-out-expo); }
+.fold[open] > .fold-head svg { transform: rotate(180deg); }
+.fold-body { padding-bottom: 1.125rem; color: var(--clr-text); font-size: var(--text-sm); line-height: 1.9; }
+
+/* ── Tags: what the shopper must know first ──────────────────────────────── */
+.badge,
+.stamp {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   min-height: 1.5rem;
-  padding: 0.125rem 0.625rem;
+  padding-inline: 0.625rem;
   border-radius: var(--radius-tag);
   font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
 }
-.badge-sale { background: var(--clr-accent); color: var(--clr-on-accent); }
-.badge-ink { background: var(--clr-ink); color: var(--clr-bg); }
+.badge-sale, .stamp-accent { background: var(--clr-accent); color: var(--clr-on-accent); }
+.badge-offer { background: var(--clr-highlight); color: var(--clr-on-highlight); }
+.badge-ink, .stamp-ink { background: var(--clr-ink); color: var(--clr-bg); }
 .badge-soft { background: var(--clr-bg); color: var(--clr-ink); box-shadow: var(--shadow-sm); }
-.badge-warn { background: var(--clr-bg); color: var(--clr-error); box-shadow: var(--shadow-sm); }
-/* Older names, kept while every component moves to the badges above. */
-.stamp { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: var(--radius-tag); font-size: var(--text-xs); font-weight: 600; line-height: 1.4; white-space: nowrap; }
-.stamp-accent { background: var(--clr-accent); color: var(--clr-on-accent); }
-.stamp-ink { background: var(--clr-ink); color: var(--clr-bg); }
+.badge-warn, .stamp-warn { background: var(--clr-bg); color: var(--clr-error); box-shadow: var(--shadow-sm); }
 .stamp-line { border: 1px solid currentColor; color: var(--clr-text); background: var(--clr-bg); }
-.stamp-warn { border: 1px solid currentColor; color: var(--clr-error); background: var(--clr-bg); }
 
-/* ── Photo plates: a product shown whole, never cropped ──────────────────── */
+/* ── Photos fill their frame ─────────────────────────────────────────────── */
 .plate {
   position: relative;
   background: var(--clr-photo);
@@ -327,13 +400,13 @@ a { color: inherit; text-underline-offset: 0.25em; }
 .plate picture img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  mix-blend-mode: multiply;
+  object-fit: cover;
 }
-.plate.is-cover > img,
-.plate.is-cover picture img { object-fit: cover; mix-blend-mode: normal; }
+/* A photo shown whole, never cropped (a logo, a cut-out). */
+.plate.is-whole > img,
+.plate.is-whole picture img { object-fit: contain; }
 
-/* A panel: the theme's one container with an edge — the order form, a drawer section. */
+/* A panel: the order form, a review, a drawer's section. */
 .panel,
 .carton,
 .card {
@@ -349,14 +422,21 @@ a { color: inherit; text-underline-offset: 0.25em; }
   color: var(--clr-ink);
   white-space: nowrap;
 }
-.price-cur { font-size: 0.72em; font-weight: 500; margin-inline-start: 0.25em; }
+.price.is-sale { color: var(--clr-accent); }
+.price-cur { font-size: 0.8em; font-weight: 500; margin-inline-start: 0.2em; }
 .price-was {
   font-variant-numeric: tabular-nums lining-nums;
   color: var(--clr-muted);
+  font-weight: 400;
   text-decoration: line-through;
   text-decoration-thickness: 1px;
   white-space: nowrap;
 }
+
+/* ── Stars ───────────────────────────────────────────────────────────────── */
+.stars { display: inline-flex; align-items: center; gap: 0.125rem; color: var(--clr-rating); }
+.stars svg { width: 0.875rem; height: 0.875rem; }
+.stars .is-empty { color: var(--clr-border); }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn-primary,
@@ -375,9 +455,10 @@ a { color: inherit; text-underline-offset: 0.25em; }
   font-weight: 600;
   line-height: 1.2;
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.12s ease, box-shadow 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.12s ease;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -386,21 +467,20 @@ a { color: inherit; text-underline-offset: 0.25em; }
   color: var(--clr-on-primary);
   border: 1px solid var(--clr-primary);
 }
-.btn-primary:hover { background: color-mix(in oklab, var(--clr-primary) 86%, var(--clr-on-primary)); }
-.btn-primary:active { transform: scale(0.985); }
+.btn-primary:hover { background: color-mix(in oklab, var(--clr-primary) 84%, var(--clr-on-primary)); }
+.btn-primary:active, .btn-secondary:active, .btn-ghost:active { transform: scale(0.98); }
 .btn-secondary {
   background: transparent;
   color: var(--clr-ink);
   border: 1px solid var(--clr-ink);
 }
 .btn-secondary:hover { background: var(--clr-ink); color: var(--clr-bg); }
-.btn-secondary:active { transform: scale(0.985); }
 .btn-ghost {
-  background: var(--clr-plate);
+  background: var(--clr-bg);
   color: var(--clr-ink);
-  border: 1px solid transparent;
+  border: 1px solid var(--clr-bg);
 }
-.btn-ghost:hover { background: color-mix(in oklab, var(--clr-plate) 80%, var(--clr-ink)); }
+.btn-ghost:hover { background: color-mix(in oklab, var(--clr-bg) 88%, var(--clr-ink)); }
 .btn-primary:disabled,
 .btn-primary[aria-disabled="true"],
 .btn-secondary:disabled {
@@ -411,7 +491,26 @@ a { color: inherit; text-underline-offset: 0.25em; }
   background: var(--clr-plate);
 }
 .btn-primary svg, .btn-secondary svg, .btn-ghost svg { width: 1.25rem; height: 1.25rem; flex: none; }
-.btn-lg { min-height: 3.5rem; font-size: var(--text-lg); }
+.btn-lg { min-height: 3.625rem; font-size: var(--text-lg); font-weight: 700; }
+.btn-auto { width: auto; }
+
+/* An icon alone in a round button. */
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-round);
+  color: var(--clr-ink);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.icon-btn:hover { background: var(--clr-plate); }
+.icon-btn svg { width: 1.375rem; height: 1.375rem; }
+.icon-btn.is-outlined { border: 1px solid var(--clr-border); }
+.icon-btn.is-outlined:hover { border-color: var(--clr-ink); background: transparent; }
 
 /* ── Forms ───────────────────────────────────────────────────────────────── */
 .form-label {
@@ -424,24 +523,24 @@ a { color: inherit; text-underline-offset: 0.25em; }
 .form-input {
   width: 100%;
   min-height: 3.25rem;
-  padding-inline: 1rem;
+  padding-inline: 0.875rem;
   background: var(--clr-field);
   border: 1px solid var(--clr-border-strong);
   border-radius: var(--radius-input);
   font-family: var(--font-body);
   font-weight: 400;
-  font-size: var(--text-base);
+  font-size: var(--text-md);
   color: var(--clr-ink);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   appearance: none;
   -webkit-appearance: none;
 }
 .form-input::placeholder { color: var(--clr-muted); opacity: 1; }
-.form-input:hover { border-color: var(--clr-text); }
+.form-input:hover { border-color: color-mix(in oklab, var(--clr-ink) 45%, var(--clr-border-strong)); }
 .form-input:focus {
   outline: none;
   border-color: var(--clr-ink);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--clr-ink) 14%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--clr-ink) 12%, transparent);
 }
 .form-input.error {
   border-color: var(--clr-error);
@@ -455,19 +554,28 @@ a { color: inherit; text-underline-offset: 0.25em; }
 }
 textarea.form-input { min-height: 6rem; padding-block: 0.875rem; resize: vertical; }
 
-/* ── The order form: the doorstep total is the page's one bold thing ─────── */
+/* A choice drawn as a card: a delivery method, an offer, a variant. */
+.choice {
+  border: 1px solid var(--clr-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--clr-field);
+  color: var(--clr-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.choice:hover { border-color: color-mix(in oklab, var(--clr-ink) 45%, var(--clr-border-strong)); }
+.choice.is-on,
+.choice:has(input:checked) { border-color: var(--clr-ink); box-shadow: inset 0 0 0 1px var(--clr-ink); }
+
+/* ── The order form: the store's checkout ────────────────────────────────── */
 .waybill {
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-border);
   border-radius: var(--radius-panel);
+  background: var(--clr-plate);
 }
 .waybill-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--clr-border);
+  gap: 0.75rem;
   color: var(--clr-ink);
 }
 .waybill-legend {
@@ -479,60 +587,70 @@ textarea.form-input { min-height: 6rem; padding-block: 0.875rem; resize: vertica
   font-weight: 600;
   color: var(--clr-ink);
 }
-.perforation { height: 0; border-top: 1px solid var(--clr-border); }
+.perforation { height: 0; border-top: 1px dashed var(--clr-border-strong); }
 
-/* The amount paid at the door, underlined by the saffron thread. */
+/* The amount paid at the door, underlined in saffron. */
 .cod-total {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  padding-block: 0.75rem 0.875rem;
+  padding-block: 0.75rem;
   color: var(--clr-ink);
-  border-bottom: 2px solid var(--clr-accent);
+  border-bottom: 2px solid var(--clr-highlight);
 }
-.cod-total .price { color: inherit; font-size: var(--text-2xl); line-height: 1.1; }
+.cod-total .price { color: inherit; font-family: var(--font-heading); font-size: var(--text-2xl); line-height: 1.15; }
 @media (min-width: 1024px) { .cod-total .price { font-size: var(--text-3xl); } }
 
-/* ── Native bottom nav ───────────────────────────────────────────────────── */
+/* ── The phone's tab bar ─────────────────────────────────────────────────── */
 .mobile-nav {
   position: fixed;
   bottom: 0;
   inset-inline: 0;
   z-index: 45;
-  background: var(--clr-nav-bg);
-  backdrop-filter: saturate(1.4) blur(12px);
-  -webkit-backdrop-filter: saturate(1.4) blur(12px);
-  border-top: 1px solid var(--clr-border);
-  padding-bottom: var(--safe-bottom);
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  height: calc(3.75rem + var(--safe-bottom));
-}
-@media (min-width: 640px) { .mobile-nav { display: none !important; } }
-.has-mobile-nav { padding-bottom: calc(3.75rem + var(--safe-bottom)); }
-@media (min-width: 640px) { .has-mobile-nav { padding-bottom: 0; } }
-.mobile-nav-item {
-  position: relative;
   display: flex;
+  height: calc(4rem + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--clr-nav-bg);
+  backdrop-filter: saturate(1.6) blur(14px);
+  -webkit-backdrop-filter: saturate(1.6) blur(14px);
+  border-top: 1px solid var(--clr-border);
+}
+@media (min-width: 1024px) { .mobile-nav { display: none; } }
+.has-mobile-nav { padding-bottom: calc(4rem + var(--safe-bottom)); }
+@media (min-width: 1024px) { .has-mobile-nav { padding-bottom: 0; } }
+.mobile-nav-item {
+  display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.125rem;
-  color: var(--clr-text);
+  color: var(--clr-muted);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  text-decoration: none;
+}
+.mobile-nav-item[aria-current="page"] { color: var(--clr-ink); }
+/* The menu tab opens the header's menu; a header without one has no tab for it. */
+body:not(:has(#site-menu)) .mobile-nav [popovertarget="site-menu"] { display: none; }
+.mobile-nav-item svg { width: 1.5rem; height: 1.5rem; }
+.mobile-nav-bag { position: relative; display: inline-flex; }
+.mobile-nav-count {
+  position: absolute;
+  top: -0.25rem;
+  inset-inline-end: -0.5rem;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding-inline: 0.25rem;
+  border-radius: var(--radius-round);
+  background: var(--clr-accent);
+  color: var(--clr-on-accent);
   font-size: var(--text-2xs);
   font-weight: 600;
+  line-height: 1.125rem;
+  text-align: center;
 }
-.mobile-nav-item.active { color: var(--clr-ink); }
-.mobile-nav-item.active::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  inset-inline: 30%;
-  height: 3px;
-  background: var(--clr-primary);
-}
-.mobile-nav-item svg { width: 1.375rem; height: 1.375rem; }
 
 /* ── Utilities ───────────────────────────────────────────────────────────── */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -562,7 +680,7 @@ body.has-mobile-nav .wa-widget {
   --wa-bottom: calc(4rem + var(--safe-bottom) + var(--wa-gap));
 }
 
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   body.has-mobile-nav .wa-widget {
     --wa-bottom: calc(var(--safe-bottom) + var(--wa-gap));
   }

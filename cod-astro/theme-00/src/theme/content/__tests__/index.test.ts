@@ -64,7 +64,7 @@ describe("resolveContent", () => {
   });
 
   it("keeps an intentional empty string (a merchant clearing a headline)", () => {
-    expect(resolveContent("ar", { heroEyebrow: "" }).heroEyebrow).toBe("");
+    expect(resolveContent("ar", { heroSubtitle: "" }).heroSubtitle).toBe("");
   });
 
   it("returns the pack itself when the language has no overrides", () => {

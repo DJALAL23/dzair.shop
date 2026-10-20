@@ -142,8 +142,8 @@ describe("delivery options", () => {
     expect(html).toContain('value="home"');
     expect(html).toContain('value="stop_desk"');
     // Two real choices: the cards behave like buttons.
-    expect(html).toContain("cursor-pointer");
-    expect(html).toContain("active:scale-95");
+    expect(html).toContain('class="delivery-choices"');
+    expect(html).not.toContain("is-single");
   });
 
   it("drops the option the merchant turned off", async () => {
@@ -170,9 +170,7 @@ describe("delivery options", () => {
     expect(html).toContain('value="stop_desk"');
     // Still a checked radio, so the value is submitted.
     expect(html).toMatch(/<input[^>]*value="stop_desk"[^>]*checked/);
-    expect(html).toContain("cursor-default");
-    expect(html).not.toContain("cursor-pointer");
-    expect(html).not.toContain("active:scale-95");
+    expect(html).toMatch(/class="delivery-choices is-single"/);
   });
 });
 

@@ -18,4 +18,5 @@ export const arLayout: LayoutStrings = {
   footerQuickLinks: "روابط سريعة",
   footerSupport: "خدمة العملاء",
   footerRights: "جميع الحقوق محفوظة",
+  footerWhatsapp: "تواصل معنا عبر واتساب",
 };

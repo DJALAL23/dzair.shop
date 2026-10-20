@@ -1,7 +1,7 @@
 [
   { "family": "Readex Pro", "cssVariable": "--font-readex-pro", "weights": ["400 700"], "default": true },
-  { "family": "El Messiri", "cssVariable": "--font-el-messiri", "weights": ["400 700"], "headingDefault": true },
-  { "family": "Alexandria", "cssVariable": "--font-alexandria", "weights": ["400 800"] },
+  { "family": "El Messiri", "cssVariable": "--font-el-messiri", "weights": ["400 700"] },
+  { "family": "Alexandria", "cssVariable": "--font-alexandria", "weights": ["400 800"], "headingDefault": true },
   { "family": "Reem Kufi", "cssVariable": "--font-reem-kufi", "weights": ["400 700"] },
   { "family": "Amiri", "cssVariable": "--font-amiri", "weights": [400, 700] },
   { "family": "Tajawal", "cssVariable": "--font-tajawal", "weights": [400, 500, 700] },

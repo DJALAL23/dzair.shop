@@ -56,12 +56,8 @@ const defaultVariantLabel = defaultVariant?.variations
   data-variant-id={defaultVariant?.id ?? ""}
   data-variant-label={defaultVariantLabel}
   data-image={image ?? ""}
-  class:list={[
-    "inline-flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-[var(--radius-btn)] border-2 text-[0.9375rem] font-black transition-transform duration-150 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2",
-    className,
-  ]}
-  style="border-color: var(--clr-primary); color: var(--clr-primary); background: var(--clr-surface); --tw-ring-color: var(--clr-primary)"
+  class:list={["btn-secondary", className]}
 >
-  <Icon name="heroicons:shopping-bag" class="h-[1.125rem] w-[1.125rem]" />
+  <Icon name="heroicons:shopping-bag" aria-hidden="true" />
   <span>{content.cartAddToCart}</span>
 </button>

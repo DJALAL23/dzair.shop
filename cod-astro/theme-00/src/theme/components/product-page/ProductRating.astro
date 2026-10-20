@@ -1,0 +1,54 @@
+---
+// The product's stars and how many reviews it has, linking down to them, and
+// whether it can be ordered now. A product without reviews shows only its
+// availability.
+import type { InferProps } from "@wocart/theme";
+import { getProductView, type Product } from "@wocart/storefront";
+import { Icon } from "astro-icon/components";
+import { message } from "@/theme/content/messages";
+import type { productRating } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productRating> & { product: Product | null };
+const { product, showStock } = Astro.props;
+const { content, locale, config } = Astro.locals.store;
+const stats = product?.reviewStats && product.reviewStats.reviewCount > 0 ? product.reviewStats : null;
+const stock = product ? getProductView(product) : null;
+const filled = stats ? Math.round(stats.avgRating) : 0;
+---
+
+{product && (stats || showStock) && (
+  <div class="product-meta">
+    {stats && (
+      <span class="product-stars" role="img" aria-label={message(content, "ariaStarRating", { count: filled }, locale)}>
+        <span class="stars" aria-hidden="true">{[1, 2, 3, 4, 5].map((star) => <Icon name="heroicons:star-solid" class:list={[star > filled && "is-empty"]} />)}</span>
+        <span class="num product-stars-value" aria-hidden="true">{stats.avgRating}</span>
+      </span>
+    )}
+    {stats && config.reviewsEnabled && (
+      <a href="#reviews" class="product-review-count num">{message(content, "productReviewCount", { count: stats.reviewCount }, locale)}</a>
+    )}
+    {showStock && stock && (
+      stock.isOutOfStock
+        ? <span class="product-stock is-out">{content.outOfStock}</span>
+        : <span class="product-stock">{content.productInStock}</span>
+    )}
+  </div>
+)}
+
+<style>
+  .product-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; font-size: var(--text-sm); }
+  .product-stars { display: inline-flex; align-items: center; gap: 0.375rem; }
+  .product-stars .stars :global(svg) { width: 1rem; height: 1rem; }
+  .product-stars-value { color: var(--clr-ink); font-weight: 600; }
+  .product-review-count { color: var(--clr-ink); text-decoration: underline; text-underline-offset: 0.3em; }
+  .product-stock { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--clr-success); font-weight: 600; }
+  .product-stock::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--radius-round);
+    background: currentColor;
+    box-shadow: 0 0 0 0.25rem color-mix(in oklab, currentColor 18%, transparent);
+  }
+  .product-stock.is-out { color: var(--clr-error); }
+</style>

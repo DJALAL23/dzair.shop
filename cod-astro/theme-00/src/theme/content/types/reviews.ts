@@ -8,6 +8,8 @@ import type { Plural } from "./plural";
 
 export type ReviewsStrings = Plural<"reviewFormPhotosHint"> & Plural<"reviewFormVoiceHint"> & Plural<"reviewFormErrorTooManyPhotos"> & {
   reviewsTitle: string;
+  /** Under the title while a product has no review yet. */
+  reviewsEmpty: string;
   reviewsVerifiedBuyer: string;
   reviewFormTitle: string;
   reviewFormOrderLabel: string;

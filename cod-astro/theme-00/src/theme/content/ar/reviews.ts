@@ -6,6 +6,7 @@ import type { ReviewsStrings } from "../types/reviews";
 
 export const arReviews: ReviewsStrings = {
   reviewsTitle: "تقييمات العملاء",
+  reviewsEmpty: "لا توجد تقييمات بعد. استلمت هذا المنتج؟ كن أول من يقيّمه.",
   reviewsVerifiedBuyer: "شراء موثّق",
   reviewFormTitle: "اكتب تقييمك",
   reviewFormOrderLabel: "رقم الطلب",

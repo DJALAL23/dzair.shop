@@ -1,0 +1,30 @@
+---
+// Short facts that help a shopper decide, from real data only: the last
+// pieces in stock, and how delivery goes. Nothing invented — no visitor
+// counts, no sales tickers.
+import type { InferProps } from "@wocart/theme";
+import { getProductView, type Product } from "@wocart/storefront";
+import { Icon } from "astro-icon/components";
+import { message } from "@/theme/content/messages";
+import type { productSignals } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productSignals> & { product: Product | null };
+const { product, showLowStock, deliveryNote } = Astro.props;
+const { content, locale } = Astro.locals.store;
+const view = product ? getProductView(product) : null;
+const lowStock = showLowStock && view?.isLowStock && product ? message(content, "lowStock", { count: product.inventory }, locale) : null;
+---
+
+{product && (lowStock || deliveryNote) && (
+  <div class="signals">
+    {lowStock && <p class="signal is-hot"><Icon name="heroicons:fire" aria-hidden="true" />{lowStock}</p>}
+    {deliveryNote && <p class="signal"><Icon name="heroicons:truck" aria-hidden="true" />{deliveryNote}</p>}
+  </div>
+)}
+
+<style>
+  .signals { display: grid; gap: 0.625rem; padding: 0.875rem 1rem; border-radius: var(--radius-input); background: var(--clr-plate); }
+  .signal { display: flex; align-items: center; gap: 0.625rem; color: var(--clr-ink); font-size: var(--text-sm); }
+  .signal :global(svg) { width: 1.25rem; height: 1.25rem; flex: none; }
+  .signal.is-hot { color: var(--clr-accent); font-weight: 600; }
+</style>

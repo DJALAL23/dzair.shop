@@ -1,0 +1,18 @@
+---
+// A row that opens and closes: the merchant's title and words — sizes, care,
+// what is in the box.
+import { richTextToHtml, type InferProps } from "@wocart/theme";
+import { Icon } from "astro-icon/components";
+import type { productCollapsible } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productCollapsible>;
+const { title, body, open } = Astro.props;
+const html = body ? richTextToHtml(body, { href: Astro.locals.store.href }) : "";
+---
+
+{title && html && (
+  <details class="fold" open={open || undefined}>
+    <summary class="fold-head">{title}<Icon name="heroicons:chevron-down" aria-hidden="true" /></summary>
+    <div class="fold-body rich-description" set:html={html} />
+  </details>
+)}

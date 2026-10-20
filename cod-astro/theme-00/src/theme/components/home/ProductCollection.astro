@@ -1,34 +1,71 @@
 ---
-// ── SECTION ──
-// A titled grid of products: the one shape behind every product-list section
-// of the home (best sellers, new arrivals, featured products, on sale). Each
-// section's definition decides which list it is and reads it; this only lays
-// it out. No products, no section.
+// A titled list of products: the one shape behind every product section of a
+// page (featured, best sellers, new arrivals, on sale). Each section's
+// definition decides which list it is and reads it; this lays it out — a grid
+// as many across as the merchant chose, or a row a phone swipes — with a link
+// to all of them: under a centered list, beside a title at the start. No
+// products, no section; an editor's preview shows where they will go.
 import ProductCard from "@/theme/components/product/ProductCard.astro";
 import SectionHead from "@/theme/components/ui/SectionHead.astro";
-import type { ProductList } from "@wocart/storefront";
+import Section from "@/theme/components/ui/Section.astro";
+import { isPreview, type BlocksHandle } from "@wocart/theme/astro";
+import type { StyleValue } from "@wocart/theme";
+import type { Product, ProductList } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 
 type Props = {
+  blocks: BlocksHandle;
   /** The section's anchor (`#best-sellers`), which links may target. */
   anchor: string;
   title: string;
   sub: string;
-  products: ProductList[];
+  products: Array<ProductList | Product>;
   currencySymbol: string;
   content: StoreFrontContent;
+  layout: "grid" | "carousel";
+  columns: number;
+  headingAlign: "start" | "center";
+  /** Where "view all" leads; absent, no link. */
+  viewAll?: string | undefined;
+  scheme?: string | undefined;
+  style?: StyleValue | undefined;
 };
 
-const { anchor, title, sub, products, currencySymbol, content } = Astro.props;
+const { blocks, anchor, title, sub, products, currencySymbol, content, layout, columns, headingAlign, viewAll, scheme, style } = Astro.props;
+const placeholder = products.length === 0 && isPreview(blocks);
+const across = Math.min(5, Math.max(2, Math.round(columns)));
+const center = headingAlign === "center";
+const more = viewAll && products.length > 0 ? Astro.locals.store.href(viewAll) : undefined;
+const sizes = `(min-width: 1280px) ${Math.round(1280 / across)}px, (min-width: 1024px) ${Math.round(94 / across)}vw, (min-width: 640px) 31vw, ${layout === "carousel" ? "66vw" : "46vw"}`;
 ---
 
-{products.length > 0 && (
-  <section id={anchor} class="frame py-10 sm:py-14">
-    <SectionHead title={title} sub={sub} />
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
-      {products.map((p, i) => (
-        <ProductCard product={p} currencySymbol={currencySymbol} copy={content} eager={i < 2} />
-      ))}
-    </div>
-  </section>
+{(products.length > 0 || placeholder) && (
+  <Section id={anchor} scheme={scheme} style={style} inner={layout === "carousel" ? "is-carousel" : undefined}>
+    <SectionHead title={title} sub={sub} center={center} href={center ? undefined : more} linkLabel={content.viewAllCta} />
+    <ul class="product-row" style={`--across: ${across}`}>
+      {placeholder
+        ? Array.from({ length: across }, () => (
+            <li class="ghost-card" aria-hidden="true">
+              <span class="plate ghost-photo" />
+              <span class="ghost-line" />
+              <span class="ghost-line is-short" />
+            </li>
+          ))
+        : products.map((product, index) => (
+            <li>
+              <ProductCard product={product} currencySymbol={currencySymbol} copy={content} eager={index < 2} sizes={sizes} />
+            </li>
+          ))}
+    </ul>
+    {center && more && (
+      <div class="row-more"><a href={more} class="btn-secondary btn-auto">{content.viewAllCta}</a></div>
+    )}
+  </Section>
 )}
+
+<style>
+  .ghost-card { display: grid; gap: 0.625rem; }
+  .ghost-photo { display: block; aspect-ratio: var(--card-aspect, 3 / 4); }
+  .ghost-line { display: block; height: 0.75rem; border-radius: var(--radius-tag); background: var(--clr-plate); }
+  .ghost-line.is-short { width: 40%; }
+</style>

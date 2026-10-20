@@ -1,105 +1,136 @@
 ---
-// ── SECTION ──
-// The store's categories as labeled cartons (position order; how many is the
-// `limit` field). A swipeable row on phones, a grid from tablet up.
+// The store's categories as tall photo tiles, each named on a white chip; a
+// last tile leads to every product. A row a phone swipes, a grid on a wide
+// screen. A category without a photo of its own shows one of its products.
 import { message } from "@/theme/content/messages";
 import { Image } from "astro:assets";
 import type { Category, ProductList } from "@wocart/storefront";
+import { storefrontPath } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
+import { isPreview, type BlocksHandle } from "@wocart/theme/astro";
+import { Icon } from "astro-icon/components";
 import type { StoreFrontContent } from "@/theme/content";
 import type { categoryCards } from "@/theme/catalog/home/category-cards.def";
-import { Icon } from "astro-icon/components";
+import Section from "@/theme/components/ui/Section.astro";
 import SectionHead from "@/theme/components/ui/SectionHead.astro";
-import { storefrontPath } from "@wocart/storefront";
 
-type Props = Pick<InferProps<typeof categoryCards>, "limit"> & {
+type Props = InferProps<typeof categoryCards> & {
+  blocks: BlocksHandle;
   categories: Category[];
   /** The catalog, shared with the other sections: a category with no photo of its own shows one of its products. */
   products?: ProductList[];
   content: StoreFrontContent;
 };
 
-const { categories, products = [], content, limit } = Astro.props;
+const { blocks, categories, products = [], content, limit, showAll, headingAlign, scheme, style } = Astro.props;
+const store = Astro.locals.store;
 
-const photoFor = (categoryId: string) =>
-  products.find((product) => product.categoryId === categoryId && product.coverImage)?.coverImage ?? null;
+const photoFor = (category: Category) =>
+  category.imageUrl ?? products.find((product) => product.categoryId === category.id && product.coverImage)?.coverImage?.src ?? null;
 
 // A copy: the page shares this array with other sections, so sorting in place
 // would reorder their reads too.
-const topCategories = [...categories]
-  .sort((a, b) => a.position - b.position)
-  .slice(0, limit);
+const shown = [...categories].sort((a, b) => a.position - b.position).slice(0, limit);
+const tiles = shown.length + (showAll ? 1 : 0);
 ---
 
-{topCategories.length > 0 && (
-  <section class="frame py-10 sm:py-14">
-    <SectionHead title={content.categoriesSection} />
-    <ul class="category-row scrollbar-hide">
-      {topCategories.map((cat) => (
-        <li>
-          <a
-            href={Astro.locals.store.href(storefrontPath("category", { slug: cat.slug }))}
-            class="carton group flex h-full flex-col overflow-hidden hover:border-ink"
-            aria-label={message(content, "ariaBrowseCategoryProducts", { category: cat.name }, Astro.locals.store.locale)}
-          >
-            <div class="plate aspect-4/3">
-              {cat.imageUrl || photoFor(cat.id) ? (
-                <Image
-                  src={cat.imageUrl ?? photoFor(cat.id)!.src}
-                  alt=""
-                  width={480}
-                  height={360}
-                  widths={[280, 480, 720]}
-                  sizes="(min-width: 1024px) 23vw, (min-width: 640px) 31vw, 62vw"
-                  quality={82}
-                  loading="lazy"
-                  decoding="async"
-                  class="category-img"
-                />
+{(shown.length > 0 || isPreview(blocks)) && (
+  <Section scheme={scheme} style={style}>
+    <SectionHead title={content.categoriesSection} center={headingAlign === "center"} />
+    <ul class="category-tiles swipe-row" style={`--tiles: ${Math.min(tiles, 5)}`}>
+      {shown.map((category) => {
+        const photo = photoFor(category);
+        return (
+          <li>
+            <a
+              href={store.href(storefrontPath("category", { slug: category.slug }))}
+              class="category-tile plate"
+              aria-label={message(content, "ariaBrowseCategoryProducts", { category: category.name }, store.locale)}
+            >
+              {photo ? (
+                <Image src={photo} alt="" width={600} height={750} widths={[300, 450, 600]} sizes="(min-width: 1024px) 18vw, 62vw" quality={82} loading="lazy" decoding="async" />
               ) : (
-                <span class="flex h-full items-center justify-center text-3xl font-bold text-ink-3" aria-hidden="true">
-                  {cat.name.charAt(0)}
-                </span>
+                <span class="category-initial" aria-hidden="true">{category.name.charAt(0)}</span>
               )}
-            </div>
-            <span class="flex min-h-12 items-center justify-between gap-2 border-t border-border px-3 py-2 sm:px-4">
-              <span class="line-clamp-1 text-sm font-semibold text-ink sm:text-base">{cat.name}</span>
-              <Icon name="heroicons:arrow-right" class="flip-rtl h-4 w-4 shrink-0 text-ink-2 group-hover:text-ink" aria-hidden="true" />
-            </span>
+              <span class="category-chip">{category.name}</span>
+            </a>
+          </li>
+        );
+      })}
+      {showAll && (
+        <li>
+          <a href={store.href(storefrontPath("catalog"))} class="category-tile category-all">
+            <span class="category-all-name">{content.allProductsSection}</span>
+            <span class="category-all-go" aria-hidden="true"><Icon name="heroicons:arrow-up-left" /></span>
           </a>
         </li>
-      ))}
+      )}
     </ul>
-  </section>
+  </Section>
 )}
 
 <style>
-  .category-row {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 62%;
-    gap: 0.75rem;
-    margin: 0 -1rem;
-    padding: 0 1rem 0.25rem;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scroll-padding-inline: 1rem;
-    list-style: none;
-  }
-  .category-row > li { scroll-snap-align: start; }
-  @media (min-width: 640px) {
-    .category-row {
+  .category-tiles { grid-auto-columns: 62%; list-style: none; }
+  @media (min-width: 640px) { .category-tiles { grid-auto-columns: 36%; } }
+  @media (min-width: 1024px) {
+    .category-tiles {
       grid-auto-flow: row;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(var(--tiles), minmax(0, 1fr));
+      gap: 1.25rem;
       margin: 0;
       padding: 0;
       overflow: visible;
-      gap: 1rem;
     }
   }
-  @media (min-width: 1024px) {
-    .category-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; }
+  .category-tile { display: block; aspect-ratio: 4 / 5; color: var(--clr-ink); text-decoration: none; }
+  .category-tile :global(img) { transition: transform 0.8s var(--ease-out-expo); }
+  @media (hover: hover) { .category-tile:hover :global(img) { transform: scale(1.05); } }
+  .category-initial {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-size: var(--text-5xl);
+    color: var(--clr-muted);
   }
-  .plate > .category-img { object-fit: cover; mix-blend-mode: normal; transition: transform 0.6s var(--ease-out-expo); }
-  a:hover .category-img { transform: scale(1.04); }
+  .category-chip {
+    position: absolute;
+    inset-inline-start: 0.875rem;
+    bottom: 0.875rem;
+    max-width: calc(100% - 1.75rem);
+    padding: 0.5rem 1rem;
+    overflow: hidden;
+    border-radius: var(--radius-tag);
+    background: var(--clr-bg);
+    box-shadow: var(--shadow-md);
+    color: var(--clr-ink);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .category-all {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1.375rem;
+    border: 1px solid var(--clr-ink);
+    border-radius: var(--radius-media);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .category-all:hover { background: var(--clr-ink); color: var(--clr-bg); }
+  .category-all-name { font-family: var(--font-heading); font-size: var(--text-2xl); line-height: 1.35; }
+  .category-all-go {
+    display: inline-flex;
+    width: 3.5rem;
+    height: 3.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--clr-current);
+    border-radius: var(--radius-round);
+  }
+  .category-all-go :global(svg) { width: 1.375rem; height: 1.375rem; }
+  :global([dir="ltr"]) .category-all-go :global(svg) { transform: scaleX(-1); }
 </style>

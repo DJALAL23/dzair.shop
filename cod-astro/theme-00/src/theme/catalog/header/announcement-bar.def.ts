@@ -1,4 +1,5 @@
 import { defineComponent } from "@wocart/theme";
+import { SCHEME_OF } from "@/theme/appearance";
 import { BLOCK, FIELD, GROUP, SECTION } from "../labels";
 import { HEADER_AREA, schemeField } from "../shared";
 import AnnouncementBar from "@/theme/components/header/AnnouncementBar.astro";
@@ -26,7 +27,7 @@ export const announcementBar = defineComponent({
   placement: "section",
   slots: [{ name: "default", allow: ["announcement"], max: 5 }],
   fields: [
-    schemeField("scheme-4"),
+    schemeField(SCHEME_OF.night),
     { key: "autoplay", kind: "boolean", label: FIELD.autoplay, default: true },
   ],
   capabilities: { surfaces: [HEADER_AREA] },

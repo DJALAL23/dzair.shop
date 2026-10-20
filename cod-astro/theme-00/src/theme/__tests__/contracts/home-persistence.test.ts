@@ -3,7 +3,8 @@
 /**
  * Home document persistence — Phase 6 (slices 19/20).
  *
- * Proves the decision function that picks what the home surface renders:
+ * Proves what the home surface renders (`resolveSurfaceDocument`, as
+ * `components/surface/Sections.astro` calls it):
  * the store's saved document when it is usable, the shipped default otherwise
  * (absent, unparseable/wrong version, or zero type overlap after a theme
  * change) — and that an empty saved document is honored, not "recovered".
@@ -23,8 +24,12 @@ import { theme00 } from "@/theme/theme";
 import { makeProduct } from "../support/home-render";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en as enContent } from "@/theme/content/en";
-import { logHomeDecision, resolveHomeDocument } from "@/theme/pages/home-document";
+import { resolveSurfaceDocument } from "@wocart/theme";
+import { reportSurface } from "@/theme/pages/surface-report";
 import shippedHome from "@/theme/pages/home.page.json";
+
+/** What the home surface renders for a saved document, as the page resolves it. */
+const resolveHome = (saved: unknown) => resolveSurfaceDocument(theme00, "home", saved, { content: enContent, locales: ["en"] });
 
 const SAVED_OVERRIDE = {
   version: 1,
@@ -35,34 +40,31 @@ const SAVED_OVERRIDE = {
   ],
 };
 
-describe("resolveHomeDocument — what the home surface renders", () => {
+describe("the home surface — what the home surface renders", () => {
   it("absent (null): the shipped default wins", () => {
-    const decision = resolveHomeDocument(null, theme00);
+    const decision = resolveHome(null);
 
     expect(decision.source).toBe("default");
     expect(decision.reason).toBe("absent");
-    expect(decision.result.page?.sections.map((s) => s.type)).toEqual(
+    expect(decision.page?.sections.map((s) => s.type)).toEqual(
       shippedHome.sections.map((s) => s.type),
     );
   });
 
   it("a usable saved document wins, instances intact", () => {
-    const decision = resolveHomeDocument(SAVED_OVERRIDE, theme00);
+    const decision = resolveHome(SAVED_OVERRIDE);
 
     expect(decision.source).toBe("saved");
     expect(decision.reason).toBeNull();
     expect(decision.issues).toEqual([]);
-    expect(decision.result.page?.sections.map((s) => s.id)).toEqual([
+    expect(decision.page?.sections.map((s) => s.id)).toEqual([
       "cmp_saved_hero",
       "cmp_saved_feat",
     ]);
   });
 
   it("unparseable / wrong-version saved document: default wins, issues reported", () => {
-    const decision = resolveHomeDocument(
-      { version: 2, surface: "home", sections: [] },
-      theme00,
-    );
+    const decision = resolveHome({ version: 2, surface: "home", sections: [] });
 
     expect(decision.source).toBe("default");
     expect(decision.reason).toBe("invalid");
@@ -70,20 +72,14 @@ describe("resolveHomeDocument — what the home surface renders", () => {
   });
 
   it("zero overlap with the catalog (theme changed): default wins once", () => {
-    const decision = resolveHomeDocument(
-      { version: 1, surface: "home", sections: [{ id: "x", type: "not-in-this-catalog" }] },
-      theme00,
-    );
+    const decision = resolveHome({ version: 1, surface: "home", sections: [{ id: "x", type: "not-in-this-catalog" }] });
 
     expect(decision.source).toBe("default");
     expect(decision.reason).toBe("no-overlap");
   });
 
   it("a document another theme wrote: default wins, even when its sections overlap", () => {
-    const decision = resolveHomeDocument(
-      { version: 1, surface: "home", theme: { key: "another-theme", version: "2.0.0" }, sections: [{ id: "h", type: "hero" }] },
-      theme00,
-    );
+    const decision = resolveHome({ version: 1, surface: "home", theme: { key: "another-theme", version: "2.0.0" }, sections: [{ id: "h", type: "hero" }] });
 
     expect(decision.source).toBe("default");
     expect(decision.reason).toBe("other-theme");
@@ -91,72 +87,57 @@ describe("resolveHomeDocument — what the home surface renders", () => {
   });
 
   it("a document this theme wrote, at any of its versions, is the saved one", () => {
-    const decision = resolveHomeDocument(
-      { version: 1, surface: "home", theme: { key: "theme-00", version: "0.9.0" }, sections: [{ id: "h", type: "hero" }] },
-      theme00,
-    );
+    const decision = resolveHome({ version: 1, surface: "home", theme: { key: "theme-00", version: "0.9.0" }, sections: [{ id: "h", type: "hero" }] });
 
     expect(decision.source).toBe("saved");
     expect(decision.reason).toBeNull();
   });
 
   it("a type named like an Object.prototype member is not in the catalog", () => {
-    const decision = resolveHomeDocument(
-      { version: 1, surface: "home", sections: [{ id: "x", type: "constructor" }] },
-      theme00,
-    );
+    const decision = resolveHome({ version: 1, surface: "home", sections: [{ id: "x", type: "constructor" }] });
 
     expect(decision.source).toBe("default");
     expect(decision.reason).toBe("no-overlap");
   });
 
   it("partial overlap renders what maps (the designed degrade, not a fallback)", () => {
-    const decision = resolveHomeDocument(
-      {
+    const decision = resolveHome({
         version: 1,
         surface: "home",
         sections: [
           { id: "known", type: "hero", props: {} },
           { id: "unknown", type: "not-in-this-catalog" },
         ],
-      },
-      theme00,
-    );
+      });
 
     expect(decision.source).toBe("saved");
     expect(decision.reason).toBeNull();
   });
 
   it("an empty saved document is honored, never 'recovered' to the default", () => {
-    const decision = resolveHomeDocument(
-      { version: 1, surface: "home", sections: [] },
-      theme00,
-    );
+    const decision = resolveHome({ version: 1, surface: "home", sections: [] });
 
     expect(decision.source).toBe("saved");
-    expect(decision.result.page?.sections).toEqual([]);
+    expect(decision.page?.sections).toEqual([]);
   });
 });
 
-describe("logHomeDecision — what the operator sees", () => {
+describe("reportSurface — what the operator sees", () => {
   it("says nothing when the saved document rendered cleanly", () => {
     const warn = vi.fn();
-    logHomeDecision(resolveHomeDocument({ version: 1, surface: "home", sections: [] }, theme00), warn);
+    reportSurface("home", resolveHome({ version: 1, surface: "home", sections: [] }), warn);
     expect(warn).not.toHaveBeenCalled();
   });
 
   it("names why the default won and each section-level reason", () => {
     const warn = vi.fn();
-    logHomeDecision(
-      resolveHomeDocument(
-        { version: 1, surface: "home", sections: [{ id: "x", type: "not-in-this-catalog" }] },
-        theme00,
-      ),
+    reportSurface("home", 
+      resolveHome({ version: 1, surface: "home", sections: [{ id: "x", type: "not-in-this-catalog" }] }),
       warn,
     );
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("default (no-overlap)"));
     expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("home page data degraded"),
+      expect.stringContaining("home: 1 issue(s)"),
       [expect.stringContaining("sections[0].type unknown-type")],
     );
   });
@@ -164,19 +145,16 @@ describe("logHomeDecision — what the operator sees", () => {
 
 // ── The report is the catalog's, not a hand-rolled yes/no ───────────────────
 
-describe("resolveHomeDocument — the degradation report names what is wrong", () => {
+describe("the home surface — the degradation report names what is wrong", () => {
   it("names the unknown section by path and code", () => {
-    const decision = resolveHomeDocument(
-      {
+    const decision = resolveHome({
         version: 1,
         surface: "home",
         sections: [
           { id: "known", type: "hero", props: {} },
           { id: "renamed", type: "hero-v2" },
         ],
-      },
-      theme00,
-    );
+      });
 
     expect(decision.issues).toEqual([
       expect.objectContaining({ path: "sections[1].type", code: "unknown-type" }),
@@ -184,14 +162,11 @@ describe("resolveHomeDocument — the degradation report names what is wrong", (
   });
 
   it("names an undeclared prop — which a type-existence check could never see", () => {
-    const decision = resolveHomeDocument(
-      {
+    const decision = resolveHome({
         version: 1,
         surface: "home",
         sections: [{ id: "h", type: "hero", props: { heroTitel: "typo" } }],
-      },
-      theme00,
-    );
+      });
 
     expect(decision.issues).toEqual([
       expect.objectContaining({
@@ -202,14 +177,11 @@ describe("resolveHomeDocument — the degradation report names what is wrong", (
   });
 
   it("reports nothing for a clean document", () => {
-    expect(resolveHomeDocument(SAVED_OVERRIDE, theme00).issues).toEqual([]);
+    expect(resolveHome(SAVED_OVERRIDE).issues).toEqual([]);
   });
 
   it("keeps the saved reasons when it falls back (no-overlap)", () => {
-    const decision = resolveHomeDocument(
-      { version: 1, surface: "home", sections: [{ id: "x", type: "hero-v2" }] },
-      theme00,
-    );
+    const decision = resolveHome({ version: 1, surface: "home", sections: [{ id: "x", type: "hero-v2" }] });
 
     expect(decision.reason).toBe("no-overlap");
     expect(decision.issues).toEqual(
@@ -228,7 +200,7 @@ describe("home persistence — the saved document through the real renderer", ()
       categories: { list: async () => [] },
     } as unknown as StoreClient;
 
-    const decision = resolveHomeDocument(SAVED_OVERRIDE, theme00);
+    const decision = resolveHome(SAVED_OVERRIDE);
     const context: ThemeRenderContext = {
       store: DEFAULT_CONFIG, content: enContent, locale: "en", isRTL: false, url: "/",
     };
@@ -236,7 +208,7 @@ describe("home persistence — the saved document through the real renderer", ()
     const container = await AstroContainer.create();
 
     let html = "";
-    for (const section of decision.result.page?.sections ?? []) {
+    for (const section of decision.page?.sections ?? []) {
       html += await container.renderToString(InstanceView, {
         props: { instance: section as ComponentInstance, theme: theme00, context, storefront, reads },
         locals: testLocals({ client: storefront }),

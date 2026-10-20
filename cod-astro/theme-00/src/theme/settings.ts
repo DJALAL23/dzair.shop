@@ -59,6 +59,7 @@ export const THEME_SETTINGS = [
         default: "portrait",
         display: "segmented",
       },
+      { key: "cardButton", kind: "boolean", label: SETTING.cardButton, default: true },
     ],
   },
 ] as const satisfies readonly SettingsGroup[];

@@ -1,55 +1,23 @@
 ---
-// ── CUSTOMIZE HERE ────────────────────────────────────────────────────────────
-// Product detail page: image gallery, product info, order form.
-// To restyle the form, edit src/components/OrderForm.astro.
-// To restyle the gallery or product info, edit this file below the fence.
-// ─────────────────────────────────────────────────────────────────────────────
-import StoreLayout from "@/theme/layouts/StoreLayout.astro";
-import ProductDetailContent from "@/theme/components/product/ProductDetailContent.astro";
+// A product page: the product template (`theme/pages/ProductSurface.astro`)
+// over the store's saved product document, or the theme's default.
+import ProductSurface from "@/theme/pages/ProductSurface.astro";
 import { actions } from "astro:actions";
 import { orderOutcome } from "@/theme/pages/order-outcome";
-import { message } from "@/theme/content/messages";
 
 const { slug } = Astro.params;
-
-// Store context comes from middleware (Astro.locals.store — Theme Zero S2).
-// Product data is fetched inside ProductDetailContent.
-const { config, content, isRTL, locale } = Astro.locals.store;
+const { config, content } = Astro.locals.store;
 const turnstileOn = config.turnstileEnabled === true && Boolean(config.turnstileSiteKey);
 
-// Action result (must be checked before rendering).
-// Order success → single PRG redirect to the thank-you page. The browser
-// follows the POST response directly (303), so the form page never re-renders
-// — no reload flash, no client-side redirect. The abandonment-conversion
-// signal fires on the thank-you page (sessionStorage survives the redirect).
+// A placed order answers with one redirect to the thank-you page (303): the
+// browser follows the POST response, so the form page never renders again.
+// A refused one renders the page with its reasons (the order block reads them).
 const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
 if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
-const { fieldErrors, serverError, couponRefusal } = outcome;
 
 // The product first: an unknown handle is a real 404, never an empty 200.
-const product = await Astro.locals.store.client.products.get(slug!);
+const [product, saved] = await Promise.all([Astro.locals.store.client.products.get(slug!), Astro.locals.store.client.pageData.get("product")]);
 if (!product) return Astro.rewrite("/404");
 ---
 
-<StoreLayout
-  title={message(content, "productPageTitle", { product: product.name, storeName: config.name }, locale)}
-  description={product.descriptionPlain?.slice(0, 160) || undefined}
-  hideMobileNav={true}
-  softNavigation={!turnstileOn}
->
-  <ProductDetailContent
-    product={product}
-    config={config}
-    content={content}
-    isRTL={isRTL}
-    fieldErrors={fieldErrors}
-    serverError={serverError}
-    couponRefusal={couponRefusal}
-  />
-</StoreLayout>
-
-<script src="../../theme/scripts/product.ts"></script>
-<script src="../../theme/scripts/sticky-cta.ts"></script>
-<script src="../../theme/scripts/otp-step.ts"></script>
-<script src="../../theme/scripts/turnstile-field.ts"></script>
-<script src="../../theme/scripts/track-abandonment.ts"></script>
+<ProductSurface product={product} document={saved} softNavigation={!turnstileOn} />

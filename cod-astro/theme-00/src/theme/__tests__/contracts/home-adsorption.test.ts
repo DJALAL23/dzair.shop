@@ -99,11 +99,13 @@ function createStorefrontStub(products: ProductList[] = [], collections: Record<
   });
   const categoriesList = vi.fn(async () => CATEGORIES);
   const reviewsList = vi.fn(async () => ({ rows: REVIEW_ROWS, total: REVIEW_ROWS.length }));
+  const collectionsGet = vi.fn(async (handle: string) => (handle in collections ? { handle, title: handle } : null));
   const client = {
     products: { list: productsList, reviews: { list: reviewsList } },
     categories: { list: categoriesList },
+    collections: { get: collectionsGet },
   } as unknown as StoreClient;
-  return { client, productsList, categoriesList, reviewsList };
+  return { client, productsList, categoriesList, reviewsList, collectionsGet };
 }
 
 const containerPromise = AstroContainer.create();
@@ -140,6 +142,9 @@ function shippedSection(type: string): ComponentInstance {
   return section;
 }
 
+/** A section the merchant inserts, as the editor would: its type and no props. */
+const inserted = (type: string): ComponentInstance => ({ id: `cmp_${type}`, type, props: {} });
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe("home adsorption — the shipped document", () => {
@@ -147,15 +152,13 @@ describe("home adsorption — the shipped document", () => {
     expect(shipped.issues).toEqual([]);
     expect(shipped.page?.sections.map((s) => s.type)).toEqual([
       "hero",
+      "marquee",
       "category-cards",
-      "featured-products",
-      "best-sellers",
+      "product-tabs",
+      "image-banner",
       "how-it-works",
-      "new-arrivals",
-      "on-sale",
-      "features-bar",
-      "whatsapp-cta",
       "customer-testimonials",
+      "features-bar",
     ]);
   });
 
@@ -177,7 +180,7 @@ describe("home adsorption — copy (contentKey bridge)", () => {
     const hero = await render(shippedSection("hero"));
     const how = await render(shippedSection("how-it-works"));
     const features = await render(shippedSection("features-bar"));
-    const promo = await render(shippedSection("whatsapp-cta"));
+    const promo = await render(inserted("whatsapp-cta"));
     expect(decode(hero)).toContain(en.heroTitle);
     expect(decode(hero)).toContain(en.heroCtaPrimary);
     expect(decode(how)).toContain(en.howItWorksTitle);
@@ -204,9 +207,9 @@ describe("home adsorption — data graph (one read per resource per render)", ()
   it("each section reads the collection it names once; the catalog and categories once", async () => {
     const stub = createStorefrontStub([FEATURED, PLAIN], { "best-sellers": [FEATURED], "new-arrivals": [PLAIN] });
     const { render } = createHarness(stub.client);
-    const best = await render(shippedSection("best-sellers"));
-    const again = await render(shippedSection("best-sellers"));
-    const arrivals = await render(shippedSection("new-arrivals"));
+    const best = await render(inserted("best-sellers"));
+    const again = await render(inserted("best-sellers"));
+    const arrivals = await render(inserted("new-arrivals"));
     const cards = await render(shippedSection("category-cards"));
 
     expect(stub.productsList.mock.calls.map(([filters]) => filters?.collection ?? "catalog").sort()).toEqual(["best-sellers", "catalog", "new-arrivals"]);
@@ -230,8 +233,8 @@ describe("home adsorption — collections are the merchant's", () => {
   it("an empty collection shows no section and no slip — never the catalog in its place", async () => {
     const stub = createStorefrontStub([FEATURED, PLAIN], {});
     const { render } = createHarness(stub.client);
-    expect(await render(shippedSection("best-sellers"))).not.toContain('id="best-sellers"');
-    expect(await render(shippedSection("new-arrivals"))).not.toContain('id="new-arrivals"');
+    expect(await render(inserted("best-sellers"))).not.toContain('id="best-sellers"');
+    expect(await render(inserted("new-arrivals"))).not.toContain('id="new-arrivals"');
     const hero = await render(shippedSection("hero"));
     expect(hero).toContain(en.heroTitle);
     expect(hero).not.toContain("Featured Watch");
@@ -279,40 +282,33 @@ describe("home adsorption — reviews (config default, override, in-section read
 
 describe("home adsorption — the full page", () => {
   it("renders every shipped section in order through one renderer cache", async () => {
-    const stub = createStorefrontStub([FEATURED, PLAIN], { featured: [FEATURED], "best-sellers": [FEATURED], "new-arrivals": [PLAIN] }, [PLAIN]);
-    const { render } = createHarness(stub.client);
+    const stub = createStorefrontStub([FEATURED, PLAIN], { "best-sellers": [FEATURED], "new-arrivals": [PLAIN] }, [PLAIN]);
+    const { render } = createHarness(stub.client, { ...DEFAULT_CONFIG, reviewsEnabled: true });
     let html = "";
     for (const section of shipped.page?.sections ?? []) {
       html += await render(section);
     }
     const text = decode(html);
 
-    // Section anchors + unique copy, in the order the page rendered before
-    // adsorption. (`id=` markers: "Best Sellers" alone collides with the hero's
-    // "View Best Sellers" CTA copy.)
     const order = [
       en.heroTitle,
+      en.trust1Title,
       "/category/watches",
-      'id="featured-products"',
-      'id="best-sellers"',
-      'id="how-it-works"',
-      'id="new-arrivals"',
-      'id="on-sale"',
-      en.feature1Title,
-      en.promoTitle,
+      en.productTabsTitle,
+      en.bannerTitle,
+      en.howItWorksTitle,
       en.testimonialsTitle,
+      en.feature1Title,
     ];
     let cursor = -1;
     for (const marker of order) {
-      const at = text.indexOf(marker);
-      expect(at, `"${marker}" missing`).toBeGreaterThan(-1);
-      expect(at, `"${marker}" out of order`).toBeGreaterThan(cursor);
+      const at = text.indexOf(marker, cursor + 1);
+      expect(at, `"${marker}" missing or out of order`).toBeGreaterThan(cursor);
       cursor = at;
     }
 
-    // The whole page reads the catalog once, each list it shows once — the
-    // hero and the featured section share the featured read — and the
-    // categories once.
+    // The whole page reads each list once — the banner shares the tabs' sale
+    // read, the hero its photo collection — and the categories once.
     expect(stub.productsList.mock.calls.map(([filters]) => (filters?.onSale ? "on-sale" : filters?.collection ?? "catalog")).sort()).toEqual([
       "best-sellers",
       "catalog",
@@ -321,6 +317,7 @@ describe("home adsorption — the full page", () => {
       "on-sale",
     ]);
     expect(stub.categoriesList).toHaveBeenCalledTimes(1);
+    expect(text).toContain("Featured Watch");
+    expect(text).toContain("Plain Mug");
   });
 });
-

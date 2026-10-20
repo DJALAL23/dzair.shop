@@ -18,7 +18,7 @@
 
 import type { FieldDefinition, StyleValue } from "@wocart/theme";
 import { PAGE_SCHEME, type SchemeId } from "../appearance";
-import { FIELD } from "./labels";
+import { FIELD, OPTION } from "./labels";
 
 export const CATALOG_READ = "catalog.products";
 export const CATEGORIES_READ = "catalog.categories";
@@ -67,3 +67,27 @@ export const schemeField = (fallback: SchemeId = PAGE_SCHEME) =>
 /** A section's room above and below, and how wide its content runs. */
 export const styleField = (fallback: StyleValue = sectionSpacing()) =>
   ({ key: "style", kind: "style", label: FIELD.style, panels: ["spacing", "size"], default: fallback }) as const satisfies FieldDefinition;
+
+/** How a section of products lays them out: a grid, or a row a phone swipes; how many across on a wide screen; a link to all of them. */
+export const productGridFields = [
+  {
+    key: "headingAlign",
+    kind: "select",
+    label: FIELD.headingAlign,
+    options: ["start", "center"],
+    optionLabels: { start: OPTION.start, center: OPTION.center },
+    default: "center",
+    display: "segmented",
+  },
+  {
+    key: "layout",
+    kind: "select",
+    label: FIELD.layout,
+    options: ["grid", "carousel"],
+    optionLabels: { grid: OPTION.grid, carousel: OPTION.carousel },
+    default: "grid",
+    display: "segmented",
+  },
+  { key: "columns", kind: "number", label: FIELD.columns, min: 2, max: 5, step: 1, default: 4, display: "slider" },
+  { key: "showViewAll", kind: "boolean", label: FIELD.showViewAll, default: true },
+] as const satisfies readonly FieldDefinition[];

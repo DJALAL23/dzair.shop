@@ -1,0 +1,20 @@
+---
+// The product's description in a row that opens and closes.
+import type { InferProps } from "@wocart/theme";
+import type { Product } from "@wocart/storefront";
+import { Icon } from "astro-icon/components";
+import ProductDescription from "@/theme/components/product/ProductDescription.astro";
+import type { productDescription } from "@/theme/catalog/product/product-main.def";
+
+type Props = InferProps<typeof productDescription> & { product: Product | null };
+const { product, title, open } = Astro.props;
+---
+
+{product?.description && (
+  <details class="fold" open={open || undefined}>
+    <summary class="fold-head">{title}<Icon name="heroicons:chevron-down" aria-hidden="true" /></summary>
+    <div class="fold-body">
+      <ProductDescription description={product.description} format={product.descriptionFormat} isDesktop={false} />
+    </div>
+  </details>
+)}

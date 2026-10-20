@@ -1,6 +1,6 @@
 /**
  * The context every section of a page renders with: the store, its words in
- * the request's language, and the route's parameters (`{ slug }` on a product
+ * the request's language, and the route's parameters (`{ handle }` on a product
  * page), from which a template's sections read their resource.
  */
 import type { ThemeRenderContext } from "@wocart/theme";

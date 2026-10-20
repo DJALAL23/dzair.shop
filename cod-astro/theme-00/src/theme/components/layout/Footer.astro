@@ -17,8 +17,8 @@ const year = new Date().getFullYear();
 const columns = hasBlocks(blocks, "columns") || isPreview(blocks);
 ---
 
-<Section as="div" scheme={scheme} style={style} class="site-footer">
-  <footer>
+<Section as="div" scheme={scheme} style={style}>
+  <footer class="site-footer">
     {columns && (
       <div class="footer-grid">
         <Blocks of={blocks} slot="columns" />
@@ -39,8 +39,8 @@ const columns = hasBlocks(blocks, "columns") || isPreview(blocks);
   .footer-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2.5rem 1.5rem;
-    padding-bottom: 3rem;
+    gap: 2.25rem 1.25rem;
+    padding-bottom: 2.75rem;
   }
   @media (min-width: 1024px) {
     .footer-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 2rem; padding-bottom: 4rem; }
@@ -49,9 +49,8 @@ const columns = hasBlocks(blocks, "columns") || isPreview(blocks);
   .footer-grid :global(.footer-about) { grid-column: 1 / -1; }
   @media (min-width: 1024px) {
     .footer-grid :global(.footer-col) { grid-column: span 3; }
-    .footer-grid :global(.footer-about) { grid-column: span 4; padding-inline-end: 2rem; }
+    .footer-grid :global(.footer-about) { grid-column: span 5; padding-inline-end: 3rem; }
     .footer-grid :global(.footer-about ~ .footer-col) { grid-column: span 2; }
-    .footer-grid :global(.footer-about ~ .footer-col:last-child) { grid-column: span 3; }
   }
   .footer-grid :global(.footer-brand) {
     display: inline-flex;
@@ -62,16 +61,30 @@ const columns = hasBlocks(blocks, "columns") || isPreview(blocks);
     text-decoration: none;
   }
   .footer-grid :global(.footer-brand img) { width: auto; max-width: 11rem; max-height: 3rem; object-fit: contain; }
-  .footer-grid :global(.footer-about-text) { margin-top: 1rem; max-width: 24rem; color: var(--clr-text); line-height: 1.75; }
+  .footer-grid :global(.footer-about-text) { margin-top: 0.875rem; max-width: 26rem; color: var(--clr-text); line-height: 1.9; }
+  .footer-grid :global(.footer-whatsapp) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: 2.875rem;
+    margin-top: 1.25rem;
+    padding-inline: 1.125rem;
+    border-radius: var(--radius-round);
+    background: var(--clr-whatsapp);
+    color: var(--clr-on-whatsapp);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .footer-grid :global(.footer-whatsapp svg) { width: 1.25rem; height: 1.25rem; }
   .footer-grid :global(.footer-title) {
-    margin-bottom: 1rem;
+    margin-bottom: 0.875rem;
     font-family: var(--font-body);
-    font-size: var(--text-sm);
+    font-size: var(--text-base);
     font-weight: 600;
     letter-spacing: 0;
     color: var(--clr-ink);
   }
-  .footer-grid :global(.footer-links) { display: grid; gap: 0.25rem; }
+  .footer-grid :global(.footer-links) { display: grid; gap: 0.125rem; }
   .footer-grid :global(.footer-links a) {
     display: inline-flex;
     align-items: center;
@@ -80,7 +93,7 @@ const columns = hasBlocks(blocks, "columns") || isPreview(blocks);
     text-decoration: none;
     transition: color 0.2s ease;
   }
-  .footer-grid :global(.footer-links a:hover) { color: var(--clr-ink); text-decoration: underline; }
+  .footer-grid :global(.footer-links a:hover) { color: var(--clr-ink); }
   .footer-grid :global(.footer-text) { color: var(--clr-text); }
   .footer-base {
     display: flex;
@@ -90,9 +103,9 @@ const columns = hasBlocks(blocks, "columns") || isPreview(blocks);
     gap: 0.75rem 1.5rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--clr-border);
-    color: var(--clr-muted);
+    color: var(--clr-text);
     font-size: var(--text-xs);
   }
-  .footer-pay { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--clr-text); }
+  .footer-pay { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--clr-ink); font-weight: 500; }
   .footer-pay :global(svg) { width: 1.125rem; height: 1.125rem; color: var(--clr-accent); }
 </style>

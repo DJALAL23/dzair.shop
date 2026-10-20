@@ -12,38 +12,43 @@ import styleSizes from "./style-sizes.json";
 
 /**
  * The schemes a store starts with. The first is the page's; the others band
- * sections: a stone ground, a cool mist, the night of the footer, saffron for
- * a promotion. Their ids never change, since sections store them.
+ * sections: a stone ground, warm sand behind photos, saffron for a promotion,
+ * the night of the footer and the announcement. The accent is the sale color:
+ * a saving's tag and a price below its old one. Their ids never change, since
+ * sections store them.
  */
 export const DEFAULT_SCHEMES = [
   {
     id: "scheme-1",
     name: SCHEME.light,
-    colors: { background: "#ffffff", text: "#3a4252", heading: "#101b30", accent: "#d9982c", button: "#101b30", buttonText: "#ffffff", border: "#e4e6ea" },
+    colors: { background: "#ffffff", text: "#3b4250", heading: "#0f1626", accent: "#c8102e", button: "#0f1626", buttonText: "#ffffff", border: "#e8e8e5" },
   },
   {
     id: "scheme-2",
     name: SCHEME.stone,
-    colors: { background: "#f4f4f0", text: "#3a4252", heading: "#101b30", accent: "#d9982c", button: "#101b30", buttonText: "#ffffff", border: "#dcddd6" },
+    colors: { background: "#f4f4f1", text: "#3b4250", heading: "#0f1626", accent: "#c8102e", button: "#0f1626", buttonText: "#ffffff", border: "#e2e2dc" },
   },
   {
     id: "scheme-3",
-    name: SCHEME.mist,
-    colors: { background: "#edf0f7", text: "#364160", heading: "#101b30", accent: "#d9982c", button: "#1f3c96", buttonText: "#ffffff", border: "#d5dbea" },
+    name: SCHEME.sand,
+    colors: { background: "#efe4d6", text: "#4a4136", heading: "#0f1626", accent: "#c8102e", button: "#0f1626", buttonText: "#ffffff", border: "#e0d2bf" },
   },
   {
     id: "scheme-4",
-    name: SCHEME.night,
-    colors: { background: "#101b30", text: "#c3cad8", heading: "#ffffff", accent: "#e9b04a", button: "#ffffff", buttonText: "#101b30", border: "#28344d" },
+    name: SCHEME.saffron,
+    colors: { background: "#f2c14e", text: "#2a2416", heading: "#0f1626", accent: "#c8102e", button: "#0f1626", buttonText: "#ffffff", border: "#d9a93a" },
   },
   {
     id: "scheme-5",
-    name: SCHEME.saffron,
-    colors: { background: "#f1b74e", text: "#2a2416", heading: "#101b30", accent: "#101b30", button: "#101b30", buttonText: "#ffffff", border: "#d29a35" },
+    name: SCHEME.night,
+    colors: { background: "#0f1626", text: "#b9c0cd", heading: "#ffffff", accent: "#f2c14e", button: "#ffffff", buttonText: "#0f1626", border: "#26324b" },
   },
 ] as const satisfies readonly ColorScheme[];
 
 export type SchemeId = (typeof DEFAULT_SCHEMES)[number]["id"];
+
+/** The default schemes by role, for the theme's own defaults. */
+export const SCHEME_OF = { light: "scheme-1", stone: "scheme-2", sand: "scheme-3", saffron: "scheme-4", night: "scheme-5" } as const satisfies Record<string, SchemeId>;
 
 /** The page's scheme unless the merchant picks another. */
 export const PAGE_SCHEME: SchemeId = "scheme-1";
@@ -76,8 +81,8 @@ export type Corners = (typeof CORNERS)[number];
  */
 const RADII: Readonly<Record<Corners, Readonly<Record<"media" | "panel" | "input" | "button" | "tag", string>>>> = {
   sharp: { media: "0", panel: "0", input: "0.125rem", button: "0.125rem", tag: "0.125rem" },
-  soft: { media: "0.75rem", panel: "1rem", input: "0.625rem", button: "0.75rem", tag: "62.5rem" },
-  round: { media: "1.25rem", panel: "1.5rem", input: "0.875rem", button: "62.5rem", tag: "62.5rem" },
+  soft: { media: "0.875rem", panel: "1.125rem", input: "0.625rem", button: "0.625rem", tag: "62.5rem" },
+  round: { media: "1.5rem", panel: "1.75rem", input: "1rem", button: "62.5rem", tag: "62.5rem" },
 };
 
 /** The radius tokens for a corners choice; an unknown one is soft. */
@@ -90,7 +95,7 @@ export type CardRatio = (typeof CARD_RATIOS)[number];
 
 /** The CSS aspect ratio of a product card's photo; an unknown shape is portrait. */
 export function cardAspect(ratio: string): string {
-  return ratio === "square" ? "1 / 1" : ratio === "landscape" ? "4 / 3" : "4 / 5";
+  return ratio === "square" ? "1 / 1" : ratio === "landscape" ? "4 / 3" : "3 / 4";
 }
 
 /** A scheme's background, for the browser's own chrome (`theme-color`); white when the id names none. */

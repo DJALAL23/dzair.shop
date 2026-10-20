@@ -44,7 +44,7 @@ const addressRequired = policy.address === "required";
 // because a form nobody can submit is worse than ignoring the setting.
 const deliveryChoices = [
   { value: "home", icon: "heroicons:home", label: content.formHomeDelivery, on: policy.deliveryOptions.home },
-  { value: "stop_desk", icon: "heroicons:cube", label: content.formStopDesk, on: policy.deliveryOptions.stopDesk },
+  { value: "stop_desk", icon: "heroicons:truck", label: content.formStopDesk, on: policy.deliveryOptions.stopDesk },
 ].filter((choice) => choice.on);
 
 // With one option there is nothing to choose. The card still renders — the
@@ -64,19 +64,16 @@ const wilayaOptions = WILAYAS.map((w) => ({
 }));
 ---
 
-<div class="space-y-4 pt-2">
-  <div class="flex items-center gap-3 py-2">
-    <div class="h-px flex-1 bg-black/[.05]"></div>
-    <span class="text-[0.6875rem] font-black uppercase tracking-[0.2em]" style="color: var(--clr-ink)">{content.formDeliverySection}</span>
-    <div class="h-px flex-1 bg-black/[.05]"></div>
-  </div>
+<div class="fields">
+  <p class="sr-only">{content.formDeliverySection}</p>
 
   <!-- Name + Phone — paired so the two shortest answers cost one row, not two.
        Each label is kept for assistive tech and shown inside the field, which is
        what removes roughly a third of the scroll to the submit button. -->
-  <div class="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3">
-    <div>
+  <div class="field-pair">
+    <div class="field">
       <label for="f-name" class="sr-only">{content.formNameLabel}</label>
+      <Icon name="heroicons:user" class="field-icon" aria-hidden="true" />
       <input
         id="f-name" type="text" name="customerName"
         required autocomplete="name"
@@ -84,12 +81,13 @@ const wilayaOptions = WILAYAS.map((w) => ({
         class:list={["form-input", fieldErrors.customerName && "error"]}
       />
       {fieldErrors.customerName && (
-        <p class="text-[0.75rem] text-red-500 font-bold mt-2 ps-1">{fieldErrors.customerName[0]}</p>
+        <p class="field-error">{fieldErrors.customerName[0]}</p>
       )}
     </div>
 
-    <div>
+    <div class="field">
       <label for="f-phone" class="sr-only">{content.formPhoneLabel}</label>
+      <Icon name="heroicons:phone" class="field-icon" aria-hidden="true" />
       <!-- No `dir="ltr"`: it would left-align the Arabic placeholder and break
            the row. Digits are laid out left-to-right by the bidi algorithm on
            their own, so the number still reads correctly as it is typed. -->
@@ -100,7 +98,7 @@ const wilayaOptions = WILAYAS.map((w) => ({
         class:list={["form-input", fieldErrors.phone && "error"]}
       />
       {fieldErrors.phone && (
-        <p class="text-[0.75rem] text-red-500 font-bold mt-2 ps-1">{fieldErrors.phone[0]}</p>
+        <p class="field-error">{fieldErrors.phone[0]}</p>
       )}
     </div>
   </div>
@@ -122,7 +120,7 @@ const wilayaOptions = WILAYAS.map((w) => ({
         class:list={["form-input", fieldErrors.email && "error"]}
       />
       {fieldErrors.email && (
-        <p class="text-[0.75rem] text-red-500 font-bold mt-2 ps-1">{fieldErrors.email[0]}</p>
+        <p class="field-error">{fieldErrors.email[0]}</p>
       )}
     </div>
   )}
@@ -132,7 +130,7 @@ const wilayaOptions = WILAYAS.map((w) => ({
        a wilaya name beside its code and the selected-check: the longer names
        wrapped onto a second line. Name and phone above stay paired on phones
        because their answers are short. -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  <div class="field-pair is-wide">
     <div>
       <Select
         id="f-wilaya"
@@ -148,7 +146,7 @@ const wilayaOptions = WILAYAS.map((w) => ({
         options={wilayaOptions}
       />
       {fieldErrors.wilayaId && (
-        <p class="text-[0.75rem] text-red-500 font-bold mt-2 ps-1">{fieldErrors.wilayaId[0]}</p>
+        <p class="field-error">{fieldErrors.wilayaId[0]}</p>
       )}
     </div>
 
@@ -168,7 +166,7 @@ const wilayaOptions = WILAYAS.map((w) => ({
         dynamic={true}
       />
       {fieldErrors.communeId && (
-        <p class="text-[0.75rem] text-red-500 font-bold mt-2 ps-1">{fieldErrors.communeId[0]}</p>
+        <p class="field-error">{fieldErrors.communeId[0]}</p>
       )}
     </div>
   </div>
@@ -178,28 +176,16 @@ const wilayaOptions = WILAYAS.map((w) => ({
   <div>
     <fieldset>
       <legend class="form-label">{content.formDeliveryLabel}</legend>
-      <div
-        class:list={["grid gap-3", singleDelivery ? "grid-cols-1" : "grid-cols-2"]}
-        id="delivery-type-group"
-      >
+      <div class:list={["delivery-choices", singleDelivery && "is-single"]} id="delivery-type-group">
         {deliveryChoices.map(({ value, icon, label }, i) => (
-          <label class:list={[
-            "delivery-radio-label relative group",
-            singleDelivery ? "cursor-default" : "cursor-pointer",
-          ]}>
+          <label class="delivery-radio-label">
             <input
               type="radio" name="deliveryType" value={value}
               checked={i === 0} class="sr-only delivery-radio-input"
             />
-            <div class:list={[
-              "h-14 rounded-2xl border-2 flex items-center justify-center gap-2.5 font-black text-[0.875rem] transition-all select-none",
-              !singleDelivery && "active:scale-95",
-              i === 0
-                ? "border-[var(--clr-primary)] text-[var(--clr-primary)] bg-[var(--clr-primary)]/5 shadow-sm"
-                : "border-[var(--clr-border)] text-[var(--clr-text)] bg-[var(--clr-plate)]"
-            ]}>
-              <Icon name={icon} class="w-5 h-5" /><span>{label}</span>
-            </div>
+            <span class:list={["delivery-face choice", i === 0 && "is-on"]}>
+              <Icon name={icon} aria-hidden="true" /><span>{label}</span>
+            </span>
           </label>
         ))}
       </div>
@@ -209,8 +195,9 @@ const wilayaOptions = WILAYAS.map((w) => ({
   <!-- Address - CONDITIONAL: Only shown for home delivery, and only when not hidden by policy.
        When hidden, merchants take the address by phone after the order lands. -->
   {showAddress && (
-    <div id="address-field-container">
+    <div id="address-field-container" class="field">
       <label for="f-address" class="sr-only">{content.formAddressLabel}</label>
+      <Icon name="heroicons:map-pin" class="field-icon" aria-hidden="true" />
       <input
         id="f-address" type="text" name="address"
         autocomplete="street-address"
@@ -222,7 +209,7 @@ const wilayaOptions = WILAYAS.map((w) => ({
         class:list={["form-input", fieldErrors.address && "error"]}
       />
       {fieldErrors.address && (
-        <p class="text-[0.75rem] text-red-500 font-bold mt-2 ps-1">{fieldErrors.address[0]}</p>
+        <p class="field-error">{fieldErrors.address[0]}</p>
       )}
     </div>
   )}
@@ -247,3 +234,41 @@ const wilayaOptions = WILAYAS.map((w) => ({
     <input type="hidden" name="customFieldResponses" id="custom-field-responses-input" value="[]" />
   )}
 </div>
+
+<style>
+  .fields { display: flex; flex-direction: column; gap: 0.75rem; }
+  .field-pair { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+  @media (min-width: 360px) { .field-pair { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 639px) { .field-pair.is-wide { grid-template-columns: 1fr; } }
+  .field { position: relative; }
+  .field :global(.field-icon) {
+    position: absolute;
+    top: 1.625rem;
+    inset-inline-start: 0.875rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    color: var(--clr-muted);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  .field :global(.form-input) { padding-inline-start: 2.5rem; }
+  .field-error { margin-top: 0.375rem; padding-inline-start: 0.25rem; color: var(--clr-error); font-size: var(--text-xs); font-weight: 600; }
+  .delivery-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .delivery-choices.is-single { grid-template-columns: 1fr; }
+  .delivery-radio-label { cursor: pointer; }
+  .is-single .delivery-radio-label { cursor: default; }
+  .delivery-face {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3.25rem;
+    padding-inline: 0.75rem;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    user-select: none;
+  }
+  .delivery-face :global(svg) { width: 1.25rem; height: 1.25rem; flex: none; }
+  .delivery-face.is-on { border-color: var(--clr-ink); box-shadow: inset 0 0 0 1px var(--clr-ink); }
+  .delivery-radio-input:focus-visible + .delivery-face { outline: 2px solid var(--clr-ink); outline-offset: 2px; }
+</style>

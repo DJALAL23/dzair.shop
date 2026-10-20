@@ -9,7 +9,6 @@ import { message } from "@/theme/content/messages";
 import type { Review, ReviewMedia } from "@wocart/storefront";
 import type { ReviewsListCopy } from "@/theme/bridges/island-props";
 import { Icon } from "astro-icon/components";
-import SectionHead from "@/theme/components/ui/SectionHead.astro";
 
 interface Props {
   reviews: Review[];
@@ -49,9 +48,7 @@ const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.
 ---
 
 {reviews.length > 0 && (
-<section class="reviews-section" id="reviews" data-product-id={productId}>
-  <SectionHead title={copy.reviewsTitle} />
-
+<section class="reviews-section" data-product-id={productId}>
   <div class="review-summary carton">
     <div class="flex items-center gap-4">
       <p class="num text-4xl font-bold leading-none text-ink">{avgRating.toFixed(1)}</p>
@@ -220,7 +217,7 @@ const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.
 
 <script is:inline data-astro-rerun define:vars={{ loadMoreLabel: copy.loadMoreLabel, locale, starLabels: [1, 2, 3, 4, 5].map((n) => starLabel(n)), photoLabels: [1, 2, 3, 4, 5, 6].map((n) => photoLabel(n)) }}>
   (function () {
-    const section = document.getElementById("reviews");
+    const section = document.querySelector(".reviews-section");
     if (!section) return;
     const viewer = section.querySelector("[data-review-viewer]");
     const viewerImage = section.querySelector("[data-review-viewer-image]");

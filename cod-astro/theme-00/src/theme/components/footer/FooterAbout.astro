@@ -1,11 +1,15 @@
 ---
+// The store's name (or logo), a few words about it, and a way to reach it on
+// WhatsApp when the store's contact widget is on.
 import { Image } from "astro:assets";
+import { Icon } from "astro-icon/components";
 import type { InferProps } from "@wocart/theme";
 import type { footerAbout } from "@/theme/catalog/footer/footer.def";
 
 type Props = InferProps<typeof footerAbout>;
-const { text } = Astro.props;
-const { config } = Astro.locals.store;
+const { text, showWhatsapp } = Astro.props;
+const { config, content } = Astro.locals.store;
+const whatsapp = showWhatsapp ? config.whatsapp : null;
 ---
 
 <div class="footer-col footer-about">
@@ -17,4 +21,10 @@ const { config } = Astro.locals.store;
     )}
   </a>
   {text && <p class="footer-about-text">{text}</p>}
+  {whatsapp && (
+    <a href={whatsapp.href} class="footer-whatsapp" rel="noopener" target="_blank">
+      <Icon name="heroicons:chat-bubble-left-right" aria-hidden="true" />
+      {whatsapp.ctaLabel ?? content.footerWhatsapp}
+    </a>
+  )}
 </div>

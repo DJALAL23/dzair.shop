@@ -1,0 +1,55 @@
+---
+// A band of short promises scrolling across the page. The messages repeat
+// enough to fill the widest screen, and the track loops on its second half,
+// so the motion never jumps. Screen readers hear the messages once.
+import type { InferProps } from "@wocart/theme";
+import { schemeClass } from "@wocart/theme";
+import { isPreview, type BlocksHandle } from "@wocart/theme/astro";
+import { Icon } from "astro-icon/components";
+import type { marquee } from "@/theme/catalog/home/marquee.def";
+
+type Props = InferProps<typeof marquee> & { blocks: BlocksHandle };
+
+const { message1, message2, message3, message4, speed, scheme, blocks } = Astro.props;
+const messages = [message1, message2, message3, message4].filter((message): message is string => Boolean(message && message.trim()));
+const seconds = { slow: 48, normal: 32, fast: 20 }[speed] ?? 32;
+const run = Array.from({ length: Math.max(2, Math.ceil(8 / Math.max(1, messages.length))) }, () => messages).flat();
+---
+
+{(messages.length > 0 || isPreview(blocks)) && (
+  <div class:list={["marquee scheme", schemeClass(scheme)]} style={`--marquee-time: ${seconds}s`}>
+    <p class="sr-only">{messages.join(" — ")}</p>
+    <div class="marquee-track" aria-hidden="true">
+      {[0, 1].map(() => (
+        <div class="marquee-run">
+          {run.map((message) => (
+            <span class="marquee-item">{message}<Icon name="heroicons:sparkles-solid" /></span>
+          ))}
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+<style>
+  .marquee { overflow: hidden; color: var(--clr-ink); }
+  .marquee-track { display: flex; width: max-content; animation: marquee var(--marquee-time) linear infinite; }
+  .marquee:hover .marquee-track { animation-play-state: paused; }
+  .marquee-run { display: flex; flex: none; }
+  .marquee-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 2.25rem;
+    padding-inline-end: 2.25rem;
+    padding-block: 0.875rem;
+    font-size: var(--text-base);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .marquee-item :global(svg) { width: 0.875rem; height: 0.875rem; }
+  @media (min-width: 1024px) { .marquee-item { padding-block: 1.125rem; font-size: var(--text-lg); } }
+  @keyframes marquee { to { transform: translateX(-50%); } }
+  :global([dir="rtl"]) .marquee-track { animation-name: marquee-rtl; }
+  @keyframes marquee-rtl { to { transform: translateX(50%); } }
+  @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+</style>

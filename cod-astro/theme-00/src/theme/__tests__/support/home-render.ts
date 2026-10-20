@@ -65,6 +65,7 @@ export function fakeStorefront(products: ProductList[], categories: Category[] =
       },
     },
     categories: { list: async () => categories },
+    collections: { get: async (handle: string) => (handle in collections ? { handle, title: handle } : null) },
   } as unknown as StoreClient;
 }
 

@@ -211,6 +211,9 @@ export function initCart(): () => void {
   // Revealed here rather than in the markup: without JS, or with storage
   // blocked, both returns above leave the shopper with no dead cart control.
   if (badge) badge.hidden = false;
+  // Other openers (the phone tab bar's cart) ship hidden the same way.
+  const openers = [...document.querySelectorAll<HTMLElement>("[data-cart-open]")];
+  for (const opener of openers) opener.hidden = false;
 
   const currency = root.dataset.currency ?? "";
   // Read once from the markup the content pack rendered. Nothing here invents
@@ -247,6 +250,10 @@ export function initCart(): () => void {
     if (badgeCount) {
       badgeCount.textContent = String(count);
       badgeCount.hidden = count === 0;
+    }
+    for (const bubble of document.querySelectorAll<HTMLElement>("[data-cart-count]")) {
+      bubble.textContent = String(count);
+      bubble.hidden = count === 0;
     }
 
     const empty = lines.length === 0;
@@ -359,6 +366,7 @@ export function initCart(): () => void {
   }
 
   badge?.addEventListener("click", open, { signal });
+  for (const opener of openers) opener.addEventListener("click", open, { signal });
   closeBtn?.addEventListener("click", close, { signal });
   continueBtn?.addEventListener("click", close, { signal });
   scrim?.addEventListener("click", close, { signal });

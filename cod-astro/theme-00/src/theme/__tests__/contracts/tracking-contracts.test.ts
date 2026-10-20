@@ -44,7 +44,7 @@ function pixelSourceOf(source: string): string {
 
 const landingPage = read("pages/lp/[slug].astro");
 const thankYou = read("pages/thank-you.astro");
-const productDetail = read("theme/components/product/ProductDetailContent.astro");
+const productDetail = read("theme/components/product-page/ProductMain.astro");
 
 describe("the landing page", () => {
   it("renders the pixel the server resolved for it, not the store's", () => {

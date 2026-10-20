@@ -91,31 +91,33 @@ describe("Product Zero — the homepage owns its data graph", () => {
 
   it("reads the catalog and categories exactly once each", () => {
     const page = find("theme/pages/HomeSurface.astro");
+    const sections = find("theme/components/surface/Sections.astro");
     const definitions = files
       .filter((f) => f.relPath.startsWith("theme/catalog/"))
       .map((f) => f.content)
       .join("\n");
 
-    // Phase 5 (slice 15), relocated by the catalog split: the reads live in the
-    // per-section definitions under `theme/catalog/`, never in the page. The
-    // page owns ONE `reads` cache; the shared keys live in
+    // The reads live in the per-section definitions under `theme/catalog/`,
+    // never in a page. A composed page renders through `Sections.astro`,
+    // which owns ONE `reads` cache; the shared keys live in
     // `theme/catalog/shared.ts`; every consumer behind a key collapses to one
     // request per render — proven behaviorally in
-    // `__tests__/contracts/home-adsorption.test.ts`
-    // ("three catalog consumers share one products read").
-    expect(countIn(page?.content ?? "", "products.list(")).toBe(0);
-    expect(countIn(page?.content ?? "", "categories.list(")).toBe(0);
-    expect(countIn(page?.content ?? "", "createReadCache(")).toBe(1);
+    // `__tests__/contracts/home-adsorption.test.ts`.
+    for (const owner of [page, sections]) {
+      expect(countIn(owner?.content ?? "", "products.list(")).toBe(0);
+      expect(countIn(owner?.content ?? "", "categories.list(")).toBe(0);
+    }
+    expect(countIn(sections?.content ?? "", "createReadCache(")).toBe(1);
 
     // Two sections name the catalog key — category cards and the
-    // testimonials' product lookup — four read the collection their setting
+    // testimonials' product lookup — five read the collection their setting
     // names under its own key (hero, featured products, best sellers, new
-    // arrivals), and one reads the products on sale. The renderer's read cache
-    // runs each loader once per render: `home-adsorption.test.ts` asserts that
-    // behaviorally with a counting stub.
+    // arrivals, a product tab), and three read the products on sale (on
+    // sale, a product tab, the promotion banner's photo). The renderer's read
+    // cache runs each loader once per render.
     expect(countIn(definitions, "reads.get(CATALOG_READ")).toBe(2);
-    expect(countIn(definitions, "reads.get(collectionRead(")).toBe(4);
-    expect(countIn(definitions, "reads.get(onSaleRead(")).toBe(1);
+    expect(countIn(definitions, "reads.get(collectionRead(")).toBe(5);
+    expect(countIn(definitions, "reads.get(onSaleRead(")).toBe(3);
     expect(countIn(definitions, "reads.get(CATEGORIES_READ")).toBe(1);
   });
 
@@ -156,9 +158,9 @@ describe("Product Zero — one commerce view", () => {
       .sort();
 
     expect(localPickers).toEqual([]);
-    expect(find("theme/components/product/ProductCard.astro")?.content).toContain(
-      'getProductListView, type ProductList } from "@wocart/storefront"',
-    );
+    const card = find("theme/components/product/ProductCard.astro")?.content ?? "";
+    expect(card).toContain('import { getProductListView, getProductView, type Product, type ProductList } from "@wocart/storefront"');
+    expect(card).toContain('"variants" in product ? getProductView(product) : getProductListView(product)');
   });
 });
 

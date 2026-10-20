@@ -112,6 +112,13 @@ export default defineConfig({
           "chevron-down",      // dropdown toggle
           "chevron-left",      // announcement bar: previous message
           "chevron-right",     // announcement bar: next message
+          "sparkles-solid",    // scrolling text: between messages
+          "arrow-up-left",     // category tiles: "discover all" (RTL flips it)
+          "shield-check",      // order form: no prepayment
+          "arrow-path",        // order form: exchange policy
+          "map-pin",           // order form: address
+          "user",              // order form: name
+          "fire",              // product page: stock running low
           "photo",             // image placeholder
           "home",              // mobile nav
           "squares-2x2",       // mobile nav products

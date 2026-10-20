@@ -4,7 +4,7 @@
  * Product surfaces render server-computed values into a hidden element
  * (`#page-data`) and the browser scripts read them back. Before this module
  * that contract existed three times: twice as hand-written attribute lists
- * (`ProductDetailContent.astro` and `lp/[slug].astro`, kept in sync by
+ * (`product-page/ProductMain.astro` and `lp/[slug].astro`, kept in sync by
  * discipline) and once as a set of `dataset.*` reads with `!` assertions in
  * `product.ts`. Adding an attribute was a three-file change; missing one of
  * the writers failed silently at runtime.

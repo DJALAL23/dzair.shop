@@ -1,44 +1,82 @@
 ---
-// ── SECTION ──
-// Customer testimonials from real product reviews. Presentational: the
-// section's `load` (customer-testimonials.def.ts) reads the reviews through
-// the storefront the renderer hands it, and passes none when the merchant
-// switched reviews off.
+// Customer reviews as quotes: the stars, the words, who wrote them and the
+// product they bought, marked as a confirmed purchase. Real reviews only —
+// the section reads them, and shows nothing when the store has none or turned
+// reviews off. A row a phone swipes; three across on a wide screen.
 import { message } from "@/theme/content/messages";
+import { Image } from "astro:assets";
 import type { Review } from "@wocart/storefront";
-import type { StoreFrontContent } from "@/theme/content";
+import { storefrontPath } from "@wocart/storefront";
+import type { InferProps } from "@wocart/theme";
 import { Icon } from "astro-icon/components";
+import type { StoreFrontContent } from "@/theme/content";
+import type { customerTestimonials } from "@/theme/catalog/home/customer-testimonials.def";
+import Section from "@/theme/components/ui/Section.astro";
 import SectionHead from "@/theme/components/ui/SectionHead.astro";
 
-interface Props {
-  reviews: Review[];
+type Props = Pick<InferProps<typeof customerTestimonials>, "headingAlign" | "scheme" | "style"> & {
+  items: Array<{ review: Review; product: { name: string; handle: string; image: string | null } }>;
   content: StoreFrontContent;
-}
+};
 
-const { reviews, content } = Astro.props;
+const { items, content, headingAlign, scheme, style } = Astro.props;
+const store = Astro.locals.store;
 ---
 
-{reviews.length > 0 && (
-  <section class="frame py-10 sm:py-14">
-    <SectionHead title={content.testimonialsTitle} sub={content.testimonialsSub} />
-    <ul class="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3 lg:gap-6">
-      {reviews.map((review) => (
-        <li class="carton flex flex-col gap-4 p-5">
-          <p class="flex items-center gap-0.5" role="img" aria-label={message(content, "ariaStarRating", { count: review.rating }, Astro.locals.store.locale)}>
-            {[1, 2, 3, 4, 5].map((s: number) => (
-              <Icon name="heroicons:star-solid" class:list={["h-4 w-4", s <= review.rating ? "text-ink" : "text-border"]} aria-hidden="true" />
-            ))}
+{items.length > 0 && (
+  <Section scheme={scheme} style={style}>
+    <SectionHead title={content.testimonialsTitle} sub={content.testimonialsSub} center={headingAlign === "center"} />
+    <ul class="quotes swipe-row">
+      {items.map(({ review, product }) => (
+        <li class="quote">
+          <p class="stars" role="img" aria-label={message(content, "ariaStarRating", { count: review.rating }, store.locale)}>
+            {[1, 2, 3, 4, 5].map((star) => <Icon name="heroicons:star-solid" class:list={[star > review.rating && "is-empty"]} aria-hidden="true" />)}
           </p>
-          <blockquote class="flex-1 text-base text-ink" dir="auto">{review.body}</blockquote>
-          <footer class="flex items-center justify-between gap-3 border-t border-border pt-3">
-            <span class="truncate text-sm font-semibold text-ink" dir="auto">{review.customerName}</span>
-            <span class="stamp stamp-line shrink-0">
-              <Icon name="heroicons:check-circle" class="h-3.5 w-3.5 text-success" aria-hidden="true" />
-              {content.reviewsVerifiedBuyer}
-            </span>
+          <blockquote class="quote-body" dir="auto">{review.body}</blockquote>
+          <footer class="quote-foot">
+            {product.image && (
+              <a href={store.href(storefrontPath("product", { handle: product.handle }))} class="plate quote-photo" tabindex="-1" aria-hidden="true">
+                <Image src={product.image} alt="" width={112} height={112} quality={80} loading="lazy" decoding="async" />
+              </a>
+            )}
+            <div class="quote-who">
+              <span class="quote-name" dir="auto">{review.customerName}</span>
+              <a href={store.href(storefrontPath("product", { handle: product.handle }))} class="quote-product">{product.name}</a>
+              <span class="quote-verified">
+                <Icon name="heroicons:check-circle" aria-hidden="true" />
+                {content.reviewsVerifiedBuyer}
+              </span>
+            </div>
           </footer>
         </li>
       ))}
     </ul>
-  </section>
+  </Section>
 )}
+
+<style>
+  .quotes { grid-auto-columns: 86%; list-style: none; }
+  @media (min-width: 640px) { .quotes { grid-auto-columns: 46%; } }
+  @media (min-width: 1024px) {
+    .quotes { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin: 0; padding: 0; overflow: visible; }
+  }
+  .quote {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    padding: 1.5rem;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-panel);
+    background: var(--clr-surface);
+  }
+  @media (min-width: 1024px) { .quote { padding: 2rem; } }
+  .quote .stars :global(svg) { width: 1rem; height: 1rem; }
+  .quote-body { flex: 1; color: var(--clr-ink); font-size: var(--text-md); line-height: 1.85; }
+  .quote-foot { display: flex; align-items: center; gap: 0.75rem; padding-top: 0.875rem; border-top: 1px solid var(--clr-border); }
+  .quote-photo { width: 3rem; height: 3rem; flex: none; border-radius: var(--radius-input); }
+  .quote-who { display: grid; min-width: 0; line-height: 1.45; }
+  .quote-name { color: var(--clr-ink); font-weight: 600; font-size: var(--text-sm); }
+  .quote-product { overflow: hidden; color: var(--clr-muted); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+  .quote-verified { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--clr-success); font-size: var(--text-xs); font-weight: 500; }
+  .quote-verified :global(svg) { width: 0.875rem; height: 0.875rem; }
+</style>

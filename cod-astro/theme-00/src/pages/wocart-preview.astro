@@ -1,25 +1,48 @@
 ---
-// An editor's preview (`THEME_PREVIEW_PATH`): the home surface as the draft
-// would leave it, in the frame of the editor the verified token names. The
+// An editor's preview (`THEME_PREVIEW_PATH`): a surface as the draft would
+// leave it, in the frame of the editor the verified token names. The
 // middleware read the request and built the draft's store context; nothing
-// here is stored, cached or indexed (no route rule may cache this path). Without a verified preview — or for a
-// surface this theme does not compose — the route is a 404.
+// here is stored, cached or indexed (no route rule may cache this path). A
+// template is previewed for the resource the draft's `path` names, else for
+// the store's first product. Without a verified preview — for a surface this
+// theme does not compose, or a resource that does not exist — the route is a
+// 404.
+import { matchStorefrontPath } from "@wocart/storefront";
 import HomeSurface from "@/theme/pages/HomeSurface.astro";
+import ProductSurface from "@/theme/pages/ProductSurface.astro";
 import PreviewBridge from "@/theme/components/preview/PreviewBridge.astro";
 import { previewResponseHeaders } from "@/theme/sdk";
 
 export const prerender = false;
 
+const notFound = () => new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
 const preview = Astro.locals.preview;
-if (preview === undefined || preview.draft.surface !== "home") {
-  return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+if (preview === undefined) return notFound();
+const { draft } = preview;
+const client = Astro.locals.store.client;
+const match = draft.path ? matchStorefrontPath(draft.path) : null;
+
+let product = null;
+if (draft.surface === "product") {
+  const handle = match?.type === "product" ? match.params.handle : (await client.products.list({ limit: 1 }))[0]?.handle;
+  product = handle ? await client.products.get(handle) : null;
+  if (!product) return notFound();
+} else if (draft.surface !== "home") {
+  return notFound();
 }
+
 for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims))) {
   Astro.response.headers.set(name, value);
 }
-const document = preview.draft.document ?? (await Astro.locals.store.client.pageData.get("home"));
+const document = draft.document ?? (await client.pageData.get(draft.surface));
 ---
 
-<HomeSurface document={document} preview>
-  <PreviewBridge editor={preview.claims.editor} token={preview.token} />
-</HomeSurface>
+{product ? (
+  <ProductSurface product={product} document={document} preview softNavigation={false}>
+    <PreviewBridge editor={preview.claims.editor} token={preview.token} />
+  </ProductSurface>
+) : (
+  <HomeSurface document={document} preview>
+    <PreviewBridge editor={preview.claims.editor} token={preview.token} />
+  </HomeSurface>
+)}
