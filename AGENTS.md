@@ -61,7 +61,14 @@ then Theme-00 runs its tests, `astro check` and build against those exact
 tarballs before its locked install is restored. Theme-00 may import the SDKs
 only through their published entry points; `sdk-boundary-contracts.test.ts`
 enforces it. An SDK change reaches Theme-00 only through a release: publish,
-then bump Theme-00's pins. Releasing: `wocart-sdk/README.md`.
+then bump the exact pins in Theme-00 and in the editor (CodFlow Cloud's
+Studio), which must run the same versions — a theme release and an editor
+deploy refuse a drift. Releasing: `wocart-sdk/README.md`.
+
+Browser code never imports a schema: validation runs on the server, where data
+enters, and the browser reads what it checked by type or with the SDK's
+readers. The SDK's `browser-bundle.test.ts` and Theme-00's
+`no-validator-in-browser.test.ts` keep Zod out of shoppers' pages.
 
 Theme-00 has extra validators (`npm run validate:all`) — see
 `cod-astro/theme-00/AGENTS.md` for its commands and definition of done.
