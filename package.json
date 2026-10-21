@@ -14,6 +14,7 @@
   },
   "scripts": {
     "check:parity": "node scripts/check-platform-parity.mjs",
+    "check:lockfile": "node scripts/check-workspace-lock.mjs",
     "verify:sdks": "node scripts/verify-sdks.mjs"
   },
   "overrides": {
