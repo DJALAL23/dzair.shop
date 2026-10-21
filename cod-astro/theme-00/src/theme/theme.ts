@@ -61,7 +61,7 @@ import { footer, footerAbout, footerMenu, footerPages, footerText } from "./cata
 
 export const theme00 = defineTheme({
   key: THEME_KEY,
-  version: "2.0.0",
+  version: "2.1.0",
   preview: true,
   // The languages this theme's content packs cover; every editor label must
   // be translated into all of them (`catalog/labels.ts`).
