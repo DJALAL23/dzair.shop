@@ -1,8 +1,9 @@
 ---
 /**
  * WhatsApp OTP verification step for the checkout form (theme layer).
- * Rendered only when the store enables OTP verification. All strings come
- * from content packs (ar/en/fr) and all styling uses theme tokens only.
+ * Rendered only when the store enables OTP verification, and its script
+ * comes with it: a store without OTP never downloads the step. All strings
+ * come from content packs (ar/en/fr) and all styling uses theme tokens only.
  */
 import { Icon } from "astro-icon/components";
 import type { StoreFrontContent } from "@/theme/content";
@@ -84,3 +85,5 @@ const otpStrings = JSON.stringify({
     </div>
   </div>
 </div>
+
+<script src="../../scripts/otp-step.ts"></script>

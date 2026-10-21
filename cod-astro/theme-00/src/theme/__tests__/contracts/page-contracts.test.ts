@@ -10,15 +10,25 @@
  * pages went on capturing abandoners and the new, higher-value journey
  * captured none, which reads as "the cart is losing us leads" rather than as
  * a missing script tag. That is the class of bug these tests exist for.
+ *
+ * A page takes an order when what it renders reaches the customer-details
+ * form — directly, through `OrderForm`, or through the catalog that places the
+ * product's order section. Following imports finds every such page, a new one
+ * included, without a list to keep.
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
-import { resolve, join, relative } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { dirname, resolve, join, relative } from "node:path";
+import { SRC_DIR, themeSourceFiles } from "../guards/theme-source";
 
-const PAGES = resolve(__dirname, "../../../pages");
+const PAGES = join(SRC_DIR, "pages");
 /** The composed surfaces a route renders (`theme/pages/*Surface.astro`): they load a page's scripts for it. */
-const SURFACES = resolve(__dirname, "../../pages");
+const SURFACES = join(SRC_DIR, "theme/pages");
+const ORDER = join(SRC_DIR, "theme/components/order");
+const CUSTOMER_FORM = join(ORDER, "CustomerFields.astro");
+const OTP_STEP = join(ORDER, "OtpStep.astro");
+const BOT_GATE = join(ORDER, "TurnstileField.astro");
 
 function pageFiles(dir: string = PAGES, out: string[] = dir === PAGES ? pageFiles(SURFACES, []) : []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -29,37 +39,81 @@ function pageFiles(dir: string = PAGES, out: string[] = dir === PAGES ? pageFile
   return out;
 }
 
+const sources = new Map<string, string>();
 function read(file: string): string {
-  return readFileSync(file, "utf8");
+  let source = sources.get(file);
+  if (source === undefined) sources.set(file, (source = readFileSync(file, "utf8")));
+  return source;
 }
 
+/** The theme scripts a file's own `<script>` tags load: by `src`, or by an `import` inside the tag. */
 function scriptsOf(source: string): Set<string> {
-  return new Set([...source.matchAll(/scripts\/([a-z0-9-]+)\.ts/g)].map((m) => m[1]));
+  const names = new Set<string>();
+  for (const [, attributes, body] of source.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
+    const src = /\bsrc="([^"]+)"/.exec(attributes!)?.[1];
+    const specifiers = src ? [src] : [...body!.matchAll(/\bimport\s*["']([^"']+)["']/g)].map((m) => m[1]!);
+    for (const specifier of specifiers) {
+      const name = /scripts\/([a-z0-9-]+)(?:\.ts)?$/.exec(specifier)?.[1];
+      if (name) names.add(name);
+    }
+  }
+  return names;
 }
 
-/**
- * Every page that can take an order.
- *
- * `otp-step` is the marker: it is added per page, and exactly to the pages
- * that render the customer-details form. Using it as the definition means a
- * new checkout surface joins this set automatically instead of being
- * remembered.
- */
-function checkoutPages(): Array<{ file: string; scripts: Set<string> }> {
+const IMPORT = /\b(?:import|export)\s+(?:[^'";]*?\sfrom\s*)?["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)/g;
+
+/** A theme file an import names (`@/…` or relative), or null for a package and anything not a source file. */
+function resolveImport(from: string, specifier: string): string | null {
+  const base = specifier.startsWith("@/")
+    ? join(SRC_DIR, specifier.slice(2))
+    : specifier.startsWith(".")
+      ? resolve(dirname(from), specifier)
+      : null;
+  if (base === null) return null;
+  for (const candidate of [base, `${base}.ts`, `${base}.astro`, join(base, "index.ts")]) {
+    if (/\.(ts|astro)$/.test(candidate) && existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+  }
+  return null;
+}
+
+/** Every theme file a page reaches through its imports, the page included. */
+function reach(file: string): Set<string> {
+  const seen = new Set<string>();
+  const pending = [file];
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    if (seen.has(current)) continue;
+    seen.add(current);
+    for (const match of read(current).matchAll(IMPORT)) {
+      const next = resolveImport(current, (match[1] ?? match[2])!);
+      if (next !== null) pending.push(next);
+    }
+  }
+  return seen;
+}
+
+/** Every page that can take an order, with the files it renders and the scripts they load. */
+function checkoutPages(): Array<{ file: string; files: Set<string>; scripts: Set<string> }> {
   return pageFiles()
-    .map((file) => ({ file, scripts: scriptsOf(read(file)) }))
-    .filter((page) => page.scripts.has("otp-step"));
+    .map((file) => {
+      const files = reach(file);
+      const scripts = new Set([...files].filter((f) => f.endsWith(".astro")).flatMap((f) => [...scriptsOf(read(f))]));
+      return { file, files, scripts };
+    })
+    .filter((page) => page.files.has(CUSTOMER_FORM));
 }
 
 describe("pages that take an order", () => {
   it("there are some, so this suite is actually checking something", () => {
-    expect(checkoutPages().length).toBeGreaterThanOrEqual(3);
+    const pages = checkoutPages().map((page) => relative(SRC_DIR, page.file));
+    expect(pages.length).toBeGreaterThanOrEqual(3);
+    expect(pages).toEqual(expect.arrayContaining(["pages/checkout.astro", "pages/lp/[slug].astro", "theme/pages/ProductSurface.astro"]));
   });
 
   it("every one of them captures abandoned checkouts", () => {
     const missing = checkoutPages()
       .filter((page) => !page.scripts.has("track-abandonment"))
-      .map((page) => relative(PAGES, page.file));
+      .map((page) => relative(SRC_DIR, page.file));
 
     expect(
       missing,
@@ -69,12 +123,43 @@ describe("pages that take an order", () => {
     ).toEqual([]);
   });
 
-  it("every one of them loads the bot gate", () => {
+  it("every one of them renders the OTP step and the bot gate", () => {
     const missing = checkoutPages()
-      .filter((page) => !page.scripts.has("turnstile-field"))
-      .map((page) => relative(PAGES, page.file));
+      .filter((page) => !page.files.has(OTP_STEP) || !page.files.has(BOT_GATE))
+      .map((page) => relative(SRC_DIR, page.file));
 
     expect(missing).toEqual([]);
+  });
+});
+
+describe("the OTP step and the bot gate", () => {
+  it("bring their own scripts, so a page loads them only where they render", () => {
+    expect(scriptsOf(read(OTP_STEP)).has("otp-step")).toBe(true);
+    expect(scriptsOf(read(BOT_GATE)).has("turnstile-field")).toBe(true);
+  });
+
+  it("are loaded by nothing else — a page-level tag loads them for every store", () => {
+    const loaders = themeSourceFiles()
+      .filter(({ relPath }) => relPath.endsWith(".astro"))
+      .filter(({ relPath }) => ![OTP_STEP, BOT_GATE].includes(join(SRC_DIR, relPath)))
+      .filter(({ content }) => {
+        const scripts = scriptsOf(content);
+        return scripts.has("otp-step") || scripts.has("turnstile-field");
+      })
+      .map(({ relPath }) => relPath);
+
+    expect(loaders).toEqual([]);
+  });
+
+  it("render only for a store that switches them on", () => {
+    for (const { relPath, content } of themeSourceFiles()) {
+      for (const [tag, flag] of [["<OtpStep", "otpEnabled"], ["<TurnstileField", "turnstileEnabled"]] as const) {
+        for (const match of content.matchAll(new RegExp(tag, "g"))) {
+          const before = content.slice(Math.max(0, match.index - 80), match.index);
+          expect(before, `${relPath} renders ${tag.slice(1)} without checking ${flag}`).toMatch(new RegExp(`\\{\\s*${flag}\\b[^{}]*$`));
+        }
+      }
+    }
   });
 });
 
