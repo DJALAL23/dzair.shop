@@ -2,7 +2,7 @@
   "name": "cod-astro-theme-00",
   "private": true,
   "type": "module",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "engines": {
     "node": ">=22.12.0"
   },
