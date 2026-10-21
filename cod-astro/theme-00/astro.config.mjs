@@ -1,6 +1,5 @@
 import { defineConfig, envField, fontProviders } from "astro/config";
 import tailwindcss from "@tailwindcss/vite";
-import compress from "@playform/compress";
 import icon from "astro-icon";
 import themeFonts from "./src/theme/fonts.json" with { type: "json" };
 
@@ -149,17 +148,6 @@ export default defineConfig({
           "camera",            // review form: add photos
         ],
       },
-    }),
-    compress({
-      CSS: true,
-      HTML: {
-        removeAttributeQuotes: false,
-        removeComments: true,
-        collapseWhitespace: true,
-      },
-      Image: true,
-      JavaScript: true,
-      SVG: true,
     }),
   ],
   vite: {
