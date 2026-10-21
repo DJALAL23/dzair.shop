@@ -9,7 +9,7 @@
  * newer one.
  */
 
-import { CouponOutcomeSchema, type CartDeliveryQuote, type CouponOutcome } from "@wocart/storefront";
+import { readCouponOutcome, type CartDeliveryQuote, type CouponOutcome } from "@wocart/storefront";
 
 export const QUOTE_URL = "/api/cart/validate";
 
@@ -49,11 +49,11 @@ export function createQuoter(url: string = QUOTE_URL) {
       if (id !== latest) return undefined;
       const data = payload?.data as { delivery?: unknown; subtotal?: unknown; coupon?: unknown } | undefined;
       const subtotal = typeof data?.subtotal === "number" && Number.isFinite(data.subtotal) ? data.subtotal : undefined;
-      const coupon = CouponOutcomeSchema.safeParse(data?.coupon);
+      const coupon = readCouponOutcome(data?.coupon);
       return {
         ...(isQuote(data?.delivery) ? { delivery: data.delivery } : {}),
         ...(subtotal === undefined ? {} : { subtotal }),
-        ...(coupon.success ? { coupon: coupon.data } : {}),
+        ...(coupon ? { coupon } : {}),
       };
     } catch {
       return undefined;

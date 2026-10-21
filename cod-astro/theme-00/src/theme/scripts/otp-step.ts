@@ -18,21 +18,22 @@
  */
 import { onEachPage } from "./page-lifecycle";
 import {
+  STOREFRONT_OPERATIONS,
   createOtpMachine,
   createOtpTransport,
   mapOtpResponse,
-  OtpSendResultSchema,
-  OtpVerifyResultSchema,
   otpTransportFailure,
+  type OtpSendResult,
   type OtpState,
   type OtpTransportResult,
+  type OtpVerifyResult,
 } from "@wocart/storefront";
-import type { z } from "zod";
 
+// The routes are the SDK's own: their client checked each answer on the
+// server, so the browser reads it without a schema — and without Zod.
 async function postOtp<T>(
   path: string,
   body: Record<string, string>,
-  schema: z.Schema<T>,
   operation: string,
   fallbackError: string,
 ): Promise<OtpTransportResult<T>> {
@@ -42,7 +43,7 @@ async function postOtp<T>(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    return await mapOtpResponse(response, { schema, operation, fallbackError });
+    return await mapOtpResponse<T>(response, { operation, fallbackError });
   } catch (error) {
     return otpTransportFailure(error, operation, fallbackError);
   }
@@ -50,21 +51,9 @@ async function postOtp<T>(
 
 const transport = createOtpTransport({
   send: (phone) =>
-    postOtp(
-      "/api/otp/send",
-      { phone },
-      OtpSendResultSchema,
-      "orders.otp.send",
-      "OTP send failed",
-    ),
+    postOtp<OtpSendResult>("/api/otp/send", { phone }, STOREFRONT_OPERATIONS.ordersOtpSend, "OTP send failed"),
   verify: (phone, requestId, code) =>
-    postOtp(
-      "/api/otp/verify",
-      { phone, requestId, code },
-      OtpVerifyResultSchema,
-      "orders.otp.verify",
-      "OTP verification failed",
-    ),
+    postOtp<OtpVerifyResult>("/api/otp/verify", { phone, requestId, code }, STOREFRONT_OPERATIONS.ordersOtpVerify, "OTP verification failed"),
 });
 
 export function initOtpStep(): () => void {

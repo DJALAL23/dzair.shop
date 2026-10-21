@@ -14,9 +14,9 @@
  */
 
 import {
-  ShippingRatesSchema,
-  WilayaIdSchema,
   communesForWilaya,
+  isWilayaId,
+  readShippingRates,
   type DeliveryDestination,
   type DeliverySelection,
   type ShippingRates,
@@ -42,10 +42,10 @@ export interface DeliveryCopy {
 export function parseShippingRates(raw: string | null | undefined): ShippingRates {
   if (!raw) return {};
   try {
-    // The shape check is the SDK's schema: a bridge from an older shape must
-    // degrade to "to be calculated", never to a NaN the shopper can see.
-    const parsed = ShippingRatesSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : {};
+    // The shape check is the SDK's reader, which accepts what its schema does: a
+    // bridge from an older shape degrades to "to be calculated", never to a NaN
+    // the shopper can see.
+    return readShippingRates(JSON.parse(raw)) ?? {};
   } catch {
     // A malformed bridge must not take the page down: delivery simply shows as
     // "to be calculated" until the shopper is told a real number.
@@ -122,11 +122,11 @@ export function selectedCommuneId(): string {
  * `undefined` until a wilaya is chosen.
  */
 export function deliveryDestination(): DeliveryDestination | undefined {
-  const wilaya = WilayaIdSchema.safeParse(Number(selectedWilayaId()));
-  if (!selectedWilayaId() || !wilaya.success) return undefined;
+  const wilayaId = Number(selectedWilayaId());
+  if (!selectedWilayaId() || !isWilayaId(wilayaId)) return undefined;
   const communeId = selectedCommuneId();
   return {
-    wilayaId: wilaya.data,
+    wilayaId,
     ...(communeId ? { communeId } : {}),
     deliveryType: currentDeliveryType(),
   };

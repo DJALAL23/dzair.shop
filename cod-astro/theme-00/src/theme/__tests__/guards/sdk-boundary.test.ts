@@ -165,7 +165,7 @@ describe("browser policy bindings", () => {
 
     expect(otp?.content).toContain("createOtpMachine(");
     expect(otp?.content).toContain("createOtpTransport({");
-    expect(otp?.content).toContain("mapOtpResponse(");
+    expect(otp?.content).toMatch(/mapOtpResponse(<[^>]+>)?\(/);
     // Cooldown ticking, in-flight guarding, attempt counting and terminal
     // expiry are the machine's transitions — a local timer or flag is how the
     // old implementation had them.
@@ -204,10 +204,10 @@ describe("browser policy bindings", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("delivery rates are parsed by the SDK schema", () => {
+  it("delivery rates are read by the SDK's reader, which accepts what its schema does", () => {
     const delivery = scripts.find((f) => f.relPath === "theme/scripts/delivery-fields.ts");
 
-    expect(delivery?.content).toContain("ShippingRatesSchema");
+    expect(delivery?.content).toContain("readShippingRates(");
     expect(delivery?.content).not.toContain("as ShippingRates");
   });
 
