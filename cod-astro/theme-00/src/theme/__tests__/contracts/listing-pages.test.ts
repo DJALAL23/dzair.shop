@@ -71,11 +71,11 @@ describe("a collection's page", () => {
     const products = Array.from({ length: 60 }, (_, i) => makeProduct({ id: `p${i}`, name: `P${i}`, handle: `p-${i}` }));
     const first = await render("listing-main", { surface: "collection", handle: "robes-ete" }, products);
     expect(hrefs(first.html)).toContain("/fr/collections/robes-ete?page=2");
-    expect(first.html).toContain("Produits 1–24");
+    expect(first.html).toContain("1–24 produit");
     const second = await render("listing-main", { surface: "collection", handle: "robes-ete", page: "2" }, products);
     expect(second.asked[0]).toMatchObject({ offset: 24 });
     expect(hrefs(second.html)).toContain("/fr/collections/robes-ete");
-    expect(second.html).toContain("Produits 25–48");
+    expect(second.html).toContain("25–48 produit");
   });
 
   it("says an empty collection is empty, and points to the catalog", async () => {

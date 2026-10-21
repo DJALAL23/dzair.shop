@@ -24,6 +24,7 @@ export const arMisc: MiscStrings = {
   noResultsLabel: "لا توجد نتائج مطابقة",
   loadMoreLabel: "عرض المزيد",
   allLabel: "الكل",
+  productCountLabel: "منتج",
   pagerPrevious: "السابق",
   pagerNext: "التالي",
   pagerLabel: "التنقل بين الصفحات",

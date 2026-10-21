@@ -18,6 +18,7 @@ export const frMisc: MiscStrings = {
   noResultsLabel: "Aucun résultat correspondant",
   loadMoreLabel: "Voir plus",
   allLabel: "Tout",
+  productCountLabel: "produit",
   pagerPrevious: "Précédent",
   pagerNext: "Suivant",
   pagerLabel: "Navigation entre les pages",

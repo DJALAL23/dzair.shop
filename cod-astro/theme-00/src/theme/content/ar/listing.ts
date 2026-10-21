@@ -11,7 +11,7 @@ export const arListing: ListingStrings = {
   listingCount_few: "{count} منتجات",
   listingCount_many: "{count} منتجًا",
   listingCount_other: "{count} منتج",
-  listingRange: "المنتجات {first}–{last}",
+  listingRange: "{first}–{last} {noun}",
   listingBrowse: "تصفّح حسب الفئة",
   pageEmpty: "هذه الصفحة فارغة بعد. أضف نصها من لوحة التحكم.",
 };

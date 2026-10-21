@@ -30,6 +30,8 @@ const SHARED_UI_LABELS = new Set([
   "footerRights",
   "trust1Title",
   "ariaBrowseCategoryProducts",
+  // The noun of every listing's count ("12 products"), the same on all three.
+  "productCountLabel",
   "ariaStarRating",
   "reviewsVerifiedBuyer",
   // Navigation and the order action, the same on every page.

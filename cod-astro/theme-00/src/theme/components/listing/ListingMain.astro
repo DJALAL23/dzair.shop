@@ -20,7 +20,7 @@ const { content, config, locale } = store;
 const across = Math.min(5, Math.max(2, Math.round(columns)));
 const outer = styleClasses(style?.spacing ? { spacing: style.spacing } : undefined);
 const width = styleClasses(style?.size ? { size: style.size } : undefined);
-const count = view ? (view.page === 1 && !view.hasNext ? message(content, "listingCount", { count: view.products.length }, locale) : message(content, "listingRange", { first: view.first, last: view.last }, locale)) : "";
+const count = view ? (view.page === 1 && !view.hasNext ? message(content, "listingCount", { count: view.products.length }, locale) : message(content, "listingRange", { first: view.first, last: view.last, noun: content.productCountLabel }, locale)) : "";
 ---
 
 {view && (
