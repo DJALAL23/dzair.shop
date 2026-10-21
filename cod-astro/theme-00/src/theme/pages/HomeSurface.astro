@@ -9,6 +9,7 @@
 // renders after the sections.
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import Sections from "@/theme/components/surface/Sections.astro";
+import { homeCatalog } from "@/theme/catalog/families/home";
 
 interface Props {
   /** The document to render: what the store saved (`null` when absent), or a preview's draft. */
@@ -20,6 +21,6 @@ const { document, preview = false } = Astro.props;
 ---
 
 <StoreLayout>
-  <Sections surface="home" document={document} preview={preview} />
+  <Sections theme={homeCatalog} surface="home" document={document} preview={preview} />
   <slot />
 </StoreLayout>

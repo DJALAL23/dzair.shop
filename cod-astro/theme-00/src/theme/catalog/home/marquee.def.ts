@@ -2,11 +2,12 @@ import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import Marquee from "@/theme/components/home/Marquee.astro";
 import { SCHEME_OF } from "@/theme/appearance";
-import { PAGE_SURFACES, FOOTER_AREA, schemeField } from "../shared";
+import { schemeField } from "../shared";
 
 /** A band of short promises that scrolls across the page; a shopper who asked for less motion sees it still. */
 export const marquee = defineComponent({
   type: "marquee",
+  capabilities: { insertable: true, surfaces: ["home", "page", "area:footer"] },
   component: Marquee,
   label: SECTION.marquee,
   group: GROUP.home,
@@ -27,5 +28,4 @@ export const marquee = defineComponent({
     },
     schemeField(SCHEME_OF.saffron),
   ],
-  capabilities: { insertable: true, surfaces: [...PAGE_SURFACES, FOOTER_AREA] },
 });

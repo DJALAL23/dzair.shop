@@ -3,25 +3,24 @@
  *
  * Definitions are code (`catalog/**`, one `*.def.ts` per section and its
  * blocks); page data is JSON (`pages/*.page.json` for the composed pages,
- * `pages/*.area.json` for the header and footer).
+ * `pages/*.area.json` for the header and footer). Each route renders from its
+ * own catalog in `catalog/families/`, so a page carries only the sections it
+ * can show. This full catalog is what the theme manifest and the editor's
+ * preview read.
  */
 import { defineTheme } from "@wocart/theme";
-import type { PageData } from "@wocart/theme";
-import { AREA, SURFACE } from "./catalog/labels";
 import { ar } from "./content/ar";
 import { en } from "./content/en";
 import { fr } from "./content/fr";
-import homeDocument from "./pages/home.page.json";
-import productDocument from "./pages/product.page.json";
-import collectionDocument from "./pages/collection.page.json";
-import categoryDocument from "./pages/category.page.json";
-import catalogDocument from "./pages/catalog.page.json";
-import textPageDocument from "./pages/page.page.json";
-import headerDocument from "./pages/header.area.json";
-import footerDocument from "./pages/footer.area.json";
 import { THEME_STYLE } from "./appearance";
 import { THEME_KEY } from "./key";
 import { THEME_SETTINGS } from "./settings";
+import { THEME_VERSION } from "./version";
+import { homeSurface } from "./catalog/families/home";
+import { productSurface } from "./catalog/families/product";
+import { catalogSurface, categorySurface, collectionSurface } from "./catalog/families/listing";
+import { pageSurface } from "./catalog/families/page";
+import { shellCatalog } from "./catalog/families/shell";
 import { hero } from "./catalog/home/hero.def";
 import { categoryCards } from "./catalog/home/category-cards.def";
 import { bestSellers } from "./catalog/home/best-sellers.def";
@@ -61,7 +60,7 @@ import { footer, footerAbout, footerMenu, footerPages, footerText } from "./cata
 
 export const theme00 = defineTheme({
   key: THEME_KEY,
-  version: "2.1.0",
+  version: THEME_VERSION,
   preview: true,
   // The languages this theme's content packs cover; every editor label must
   // be translated into all of them (`catalog/labels.ts`).
@@ -71,28 +70,10 @@ export const theme00 = defineTheme({
   // contentKey against each pack and the manifest carries them for the editor.
   content: { ar: { ...ar }, fr: { ...fr }, en: { ...en } },
   // The composed pages, each with the document it renders before the store
-  // saves one. A template (product, collection, category, text page) renders
-  // every resource of its type; a product page always holds its product and
-  // the order form inside it, a listing its products, a text page its text.
-  surfaces: [
-    { key: "home", label: SURFACE.home, pageType: "home", document: homeDocument as PageData },
-    {
-      key: "product",
-      label: SURFACE.product,
-      pageType: "product",
-      document: productDocument as PageData,
-      required: [{ type: "product-main", min: 1, max: 1 }],
-    },
-    { key: "collection", label: SURFACE.collection, pageType: "collection", document: collectionDocument as PageData, required: [{ type: "listing-main", min: 1, max: 1 }] },
-    { key: "category", label: SURFACE.category, pageType: "category", document: categoryDocument as PageData, required: [{ type: "listing-main", min: 1, max: 1 }] },
-    { key: "catalog", label: SURFACE.catalog, pageType: "catalog", document: catalogDocument as PageData, required: [{ type: "listing-main", min: 1, max: 1 }] },
-    { key: "page", label: SURFACE.page, pageType: "page", document: textPageDocument as PageData, required: [{ type: "page-main", min: 1, max: 1 }] },
-  ],
+  // saves one (each page's own catalog declares it).
+  surfaces: [homeSurface, productSurface, collectionSurface, categorySurface, catalogSurface, pageSurface],
   // The parts every page shares, composed of sections and edited once.
-  areas: [
-    { key: "header", label: AREA.header, document: headerDocument as PageData, required: [{ type: "header", max: 1 }], max: 4 },
-    { key: "footer", label: AREA.footer, document: footerDocument as PageData, max: 6 },
-  ],
+  areas: shellCatalog.areas,
   settings: THEME_SETTINGS,
   // The sizes behind the style steps and widths a merchant picks.
   style: THEME_STYLE,

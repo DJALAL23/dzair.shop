@@ -11,6 +11,7 @@ import { createReadCache } from "@wocart/theme/astro";
 import type { Product } from "@wocart/storefront";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import Sections from "@/theme/components/surface/Sections.astro";
+import { productCatalog } from "@/theme/catalog/families/product";
 import { productRead } from "@/theme/catalog/product/shared";
 import { message } from "@/theme/content/messages";
 
@@ -34,7 +35,7 @@ if (product) reads.get(productRead(product.handle), async () => product);
   hideMobileNav={true}
   softNavigation={softNavigation}
 >
-  <Sections surface="product" document={document} preview={preview} params={{ handle: product?.handle, preview: preview ? "true" : undefined }} reads={reads} />
+  <Sections theme={productCatalog} surface="product" document={document} preview={preview} params={{ handle: product?.handle, preview: preview ? "true" : undefined }} reads={reads} />
   <slot />
 </StoreLayout>
 

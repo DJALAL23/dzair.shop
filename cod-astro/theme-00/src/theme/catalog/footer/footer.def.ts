@@ -1,7 +1,7 @@
 import { defineComponent } from "@wocart/theme";
 import { SCHEME_OF } from "@/theme/appearance";
 import { BLOCK, FIELD, GROUP, SECTION } from "../labels";
-import { FOOTER_AREA, schemeField, sectionSpacing, styleField } from "../shared";
+import { schemeField, sectionSpacing, styleField } from "../shared";
 import Footer from "@/theme/components/layout/Footer.astro";
 import FooterAbout from "@/theme/components/footer/FooterAbout.astro";
 import FooterMenu from "@/theme/components/footer/FooterMenu.astro";
@@ -13,6 +13,7 @@ const FOOTER_BLOCKS = ["footer-about", "footer-menu", "footer-pages", "footer-te
 /** The store's logo or name and a few words about it. */
 export const footerAbout = defineComponent({
   type: "footer-about",
+  capabilities: { surfaces: ["area:footer"] },
   component: FooterAbout,
   label: BLOCK.footerAbout,
   group: GROUP.footer,
@@ -26,6 +27,7 @@ export const footerAbout = defineComponent({
 /** A column of links: one of the store's menus under a title. */
 export const footerMenu = defineComponent({
   type: "footer-menu",
+  capabilities: { surfaces: ["area:footer"] },
   component: FooterMenu,
   label: BLOCK.footerMenu,
   group: GROUP.footer,
@@ -42,6 +44,7 @@ export const footerMenu = defineComponent({
 /** The store's own pages — terms, privacy, returns, delivery — under a title. */
 export const footerPages = defineComponent({
   type: "footer-pages",
+  capabilities: { surfaces: ["area:footer"] },
   component: FooterPages,
   label: BLOCK.footerPages,
   group: GROUP.footer,
@@ -52,6 +55,7 @@ export const footerPages = defineComponent({
 /** A title and a few lines the merchant writes. */
 export const footerText = defineComponent({
   type: "footer-text",
+  capabilities: { surfaces: ["area:footer"] },
   component: FooterText,
   label: BLOCK.footerText,
   group: GROUP.footer,
@@ -71,7 +75,7 @@ export const footer = defineComponent({
   placement: "section",
   slots: [{ name: "columns", allow: FOOTER_BLOCKS, max: 6 }],
   fields: [schemeField(SCHEME_OF.night), styleField(sectionSpacing(true))],
-  capabilities: { surfaces: [FOOTER_AREA] },
+  capabilities: { surfaces: ["area:footer"] },
   presets: [
     {
       key: "default",

@@ -3,6 +3,7 @@
 // over the store's saved category document, or the theme's default.
 import { createReadCache } from "@wocart/theme/astro";
 import SurfacePage from "@/theme/pages/SurfacePage.astro";
+import { listingCatalog } from "@/theme/catalog/families/listing";
 import { CATEGORIES_READ } from "@/theme/catalog/shared";
 import { message } from "@/theme/content/messages";
 
@@ -18,6 +19,7 @@ reads.get(CATEGORIES_READ, async () => categories);
 ---
 
 <SurfacePage
+  theme={listingCatalog}
   surface="category"
   document={saved}
   params={{ slug: category.slug, page: Astro.url.searchParams.get("page") ?? undefined }}

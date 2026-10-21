@@ -1,10 +1,11 @@
 import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import RichTextBlock from "@/theme/components/home/RichTextBlock.astro";
-import { FOOTER_AREA, PAGE_SURFACES, copyOverrides, schemeField, styleField } from "../shared";
+import { copyOverrides, schemeField, styleField } from "../shared";
 
 export const richText = defineComponent({
   type: "rich-text",
+  capabilities: { insertable: true, surfaces: ["home", "page", "area:footer"] },
   component: RichTextBlock,
   label: SECTION.richText,
   group: GROUP.home,
@@ -27,5 +28,4 @@ export const richText = defineComponent({
   load: async ({ context, props }) => ({
     content: copyOverrides(context.content, props),
   }),
-  capabilities: { insertable: true, surfaces: [...PAGE_SURFACES, FOOTER_AREA] },
 });

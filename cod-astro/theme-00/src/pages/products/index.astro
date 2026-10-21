@@ -2,6 +2,7 @@
 // All products: the listing template (`theme/pages/SurfacePage.astro`) over
 // the store's saved catalog document, or the theme's default.
 import SurfacePage from "@/theme/pages/SurfacePage.astro";
+import { listingCatalog } from "@/theme/catalog/families/listing";
 import { message } from "@/theme/content/messages";
 
 const { config, content, locale, client } = Astro.locals.store;
@@ -9,6 +10,7 @@ const saved = await client.pageData.get("catalog");
 ---
 
 <SurfacePage
+  theme={listingCatalog}
   surface="catalog"
   document={saved}
   params={{ page: Astro.url.searchParams.get("page") ?? undefined }}

@@ -2,7 +2,7 @@ import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import Hero from "@/theme/components/home/Hero.astro";
 import { SCHEME_OF } from "@/theme/appearance";
-import { PAGE_SURFACES, collectionRead, copyOverrides, schemeField, styleField } from "../shared";
+import { collectionRead, copyOverrides, schemeField, styleField } from "../shared";
 
 /** A few products are read so the first one with a photo, in stock, can lead. */
 const HERO_READ = 6;
@@ -13,6 +13,7 @@ const HERO_READ = 6;
  */
 export const hero = defineComponent({
   type: "hero",
+  capabilities: { insertable: true, surfaces: ["home"] },
   component: Hero,
   label: SECTION.hero,
   group: GROUP.home,
@@ -48,5 +49,4 @@ export const hero = defineComponent({
       content: copyOverrides(context.content, props),
     };
   },
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

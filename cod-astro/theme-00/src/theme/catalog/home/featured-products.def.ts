@@ -2,7 +2,7 @@ import { defineComponent } from "@wocart/theme";
 import { storefrontPath, type Product } from "@wocart/storefront";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import ProductCollection from "@/theme/components/home/ProductCollection.astro";
-import { PAGE_SURFACES, collectionRead, copyOverrides, productGridFields, schemeField, styleField } from "../shared";
+import { collectionRead, copyOverrides, productGridFields, schemeField, styleField } from "../shared";
 
 /** The most products a merchant picks for one section. */
 const MAX_PICKED = 12;
@@ -13,6 +13,7 @@ const MAX_PICKED = 12;
  */
 export const featuredProducts = defineComponent({
   type: "featured-products",
+  capabilities: { insertable: true, surfaces: ["home"] },
   component: ProductCollection,
   label: SECTION.featuredProducts,
   group: GROUP.home,
@@ -54,5 +55,4 @@ export const featuredProducts = defineComponent({
       content,
     };
   },
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

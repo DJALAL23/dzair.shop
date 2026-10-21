@@ -1,10 +1,11 @@
 import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, SECTION } from "../labels";
 import FeaturedProduct from "@/theme/components/home/FeaturedProduct.astro";
-import { PAGE_SURFACES, copyOverrides, schemeField, styleField } from "../shared";
+import { copyOverrides, schemeField, styleField } from "../shared";
 
 export const featuredProduct = defineComponent({
   type: "featured-product",
+  capabilities: { insertable: true, surfaces: ["home"] },
   component: FeaturedProduct,
   label: SECTION.featuredProduct,
   group: GROUP.home,
@@ -22,5 +23,4 @@ export const featuredProduct = defineComponent({
     currencySymbol: context.store.currencySymbol,
     content: copyOverrides(context.content, props),
   }),
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

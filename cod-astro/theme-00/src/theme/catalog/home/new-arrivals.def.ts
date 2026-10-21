@@ -2,10 +2,11 @@ import { defineComponent } from "@wocart/theme";
 import { storefrontPath } from "@wocart/storefront";
 import { FIELD, GROUP, SECTION } from "../labels";
 import ProductCollection from "@/theme/components/home/ProductCollection.astro";
-import { PAGE_SURFACES, collectionRead, copyOverrides, productGridFields, schemeField, styleField } from "../shared";
+import { collectionRead, copyOverrides, productGridFields, schemeField, styleField } from "../shared";
 
 export const newArrivals = defineComponent({
   type: "new-arrivals",
+  capabilities: { insertable: true, surfaces: ["home"] },
   component: ProductCollection,
   label: SECTION.newArrivals,
   group: GROUP.home,
@@ -33,5 +34,4 @@ export const newArrivals = defineComponent({
       content,
     };
   },
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

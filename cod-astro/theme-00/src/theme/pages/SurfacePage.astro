@@ -8,9 +8,12 @@
 // read over, so the sections never read it again.
 import type { ReadCache } from "@wocart/theme";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import type { ThemeDefinition } from "@wocart/theme";
 import Sections from "@/theme/components/surface/Sections.astro";
 
 interface Props {
+  /** The catalog the surface renders from: the listing or the text-page catalog. */
+  theme: ThemeDefinition;
   surface: "catalog" | "category" | "collection" | "page";
   /** What the store saved (`null` when absent), or a preview's draft. */
   document: unknown;
@@ -22,10 +25,10 @@ interface Props {
   ogImage?: string | undefined;
 }
 
-const { surface, document, params = {}, reads, preview = false, title, description, ogImage } = Astro.props;
+const { theme, surface, document, params = {}, reads, preview = false, title, description, ogImage } = Astro.props;
 ---
 
 <StoreLayout title={title} description={description} ogImage={ogImage}>
-  <Sections surface={surface} document={document} preview={preview} params={{ ...params, surface, preview: preview ? "true" : undefined }} reads={reads} />
+  <Sections theme={theme} surface={surface} document={document} preview={preview} params={{ ...params, surface, preview: preview ? "true" : undefined }} reads={reads} />
   <slot />
 </StoreLayout>

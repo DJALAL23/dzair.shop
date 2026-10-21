@@ -29,7 +29,7 @@
     "@iconify-json/heroicons": "^1.2.3",
     "@playform/compress": "^0.2.5",
     "@wocart/storefront": "1.18.0",
-    "@wocart/theme": "2.0.0",
+    "@wocart/theme": "2.1.0",
     "astro": "^7.3.2",
     "astro-icon": "^1.1.5",
     "zod": "^4.4.3"

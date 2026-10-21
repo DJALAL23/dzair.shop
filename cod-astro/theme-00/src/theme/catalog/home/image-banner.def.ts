@@ -2,7 +2,7 @@ import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import ImageBanner from "@/theme/components/home/ImageBanner.astro";
 import { SCHEME_OF } from "@/theme/appearance";
-import { PAGE_SURFACES, copyOverrides, onSaleRead, schemeField, styleField } from "../shared";
+import { copyOverrides, onSaleRead, schemeField, styleField } from "../shared";
 
 /** Products on sale read to lend a photo to a banner without one of its own. */
 // The tabs' default count, so a page with both reads the sale once.
@@ -14,6 +14,7 @@ const SALE_READ = 8;
  */
 export const imageBanner = defineComponent({
   type: "image-banner",
+  capabilities: { insertable: true, surfaces: ["home", "page"] },
   component: ImageBanner,
   label: SECTION.imageBanner,
   group: GROUP.home,
@@ -59,5 +60,4 @@ export const imageBanner = defineComponent({
       content: copyOverrides(context.content, props),
     };
   },
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

@@ -5,6 +5,7 @@
 // sections marked for selection.
 import { areaSurface } from "@wocart/theme";
 import Sections from "./Sections.astro";
+import { shellCatalog } from "@/theme/catalog/families/shell";
 
 interface Props {
   area: "header" | "footer";
@@ -16,4 +17,4 @@ const editing = draft?.surface === surface;
 const document = editing && draft?.document !== undefined ? draft.document : await Astro.locals.store.client.pageData.get(surface);
 ---
 
-<Sections surface={surface} document={document} preview={editing} />
+<Sections theme={shellCatalog} surface={surface} document={document} preview={editing} />

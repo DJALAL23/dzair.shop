@@ -11,6 +11,7 @@ export const pageBySlug = (slug: string) => `page:${slug}`;
 /** A text page of the store — its terms, its delivery policy, a page of its own — under its title. */
 export const pageMain = defineComponent({
   type: "page-main",
+  capabilities: { surfaces: ["page"] },
   component: PageMain,
   label: SECTION.pageMain,
   group: GROUP.page,
@@ -34,5 +35,4 @@ export const pageMain = defineComponent({
     const slug = context.params?.slug ?? "";
     return { page: slug === "" ? null : await reads.get(pageBySlug(slug), () => storefront.pages.get(slug)) };
   },
-  capabilities: { insertable: false, surfaces: ["page"] },
 });

@@ -6,6 +6,7 @@
 // sanitised by the platform and is rendered as given (`PageMain.astro`).
 import { createReadCache } from "@wocart/theme/astro";
 import SurfacePage from "@/theme/pages/SurfacePage.astro";
+import { pageCatalog } from "@/theme/catalog/families/page";
 import { pageBySlug } from "@/theme/catalog/listing/page-main.def";
 import { message } from "@/theme/content/messages";
 
@@ -22,6 +23,7 @@ const plain = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " 
 ---
 
 <SurfacePage
+  theme={pageCatalog}
   surface="page"
   document={saved}
   params={{ slug: page.slug }}

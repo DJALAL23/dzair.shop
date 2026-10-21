@@ -1,13 +1,14 @@
 import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, SECTION } from "../labels";
 import Faq from "@/theme/components/home/Faq.astro";
-import { PAGE_SURFACES, copyOverrides, schemeField, styleField } from "../shared";
+import { copyOverrides, schemeField, styleField } from "../shared";
 
 /** Enough for a real FAQ; past this a page is a help center, not a section. */
 const MAX_QUESTIONS = 20;
 
 export const faq = defineComponent({
   type: "faq",
+  capabilities: { insertable: true, surfaces: ["home", "page"] },
   component: Faq,
   label: SECTION.faq,
   group: GROUP.home,
@@ -31,5 +32,4 @@ export const faq = defineComponent({
   load: async ({ context, props }) => ({
     content: copyOverrides(context.content, props),
   }),
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

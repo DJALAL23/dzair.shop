@@ -1,6 +1,6 @@
 import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
-import { HEADER_AREA, schemeField } from "../shared";
+import { schemeField } from "../shared";
 import Header from "@/theme/components/layout/Header.astro";
 
 /**
@@ -9,6 +9,7 @@ import Header from "@/theme/components/layout/Header.astro";
  */
 export const header = defineComponent({
   type: "header",
+  capabilities: { surfaces: ["area:header"] },
   component: Header,
   label: SECTION.header,
   group: GROUP.header,
@@ -31,5 +32,4 @@ export const header = defineComponent({
   load: async ({ storefront, reads, props }) => ({
     storeMenu: await reads.get(`menu:${props.menu}`, () => storefront.menus.get(props.menu)),
   }),
-  capabilities: { surfaces: [HEADER_AREA] },
 });

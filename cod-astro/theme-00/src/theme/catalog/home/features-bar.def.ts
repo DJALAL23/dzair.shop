@@ -2,7 +2,7 @@ import { defineComponent, type FieldDefinition } from "@wocart/theme";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import FeaturesBar from "@/theme/components/home/FeaturesBar.astro";
 import { SCHEME_OF } from "@/theme/appearance";
-import { FOOTER_AREA, PAGE_SURFACES, copyOverrides, schemeField, styleField } from "../shared";
+import { copyOverrides, schemeField, styleField } from "../shared";
 
 /** The icons a feature may wear, by the name a merchant picks. */
 export const FEATURE_ICONS = {
@@ -42,6 +42,7 @@ const iconField = <K extends string>(n: number, key: K, fallback: keyof typeof F
 /** Four short promises, each an icon, a title and a line under it. */
 export const featuresBar = defineComponent({
   type: "features-bar",
+  capabilities: { insertable: true, surfaces: ["home", "page", "collection", "category", "catalog", "area:footer"] },
   component: FeaturesBar,
   label: SECTION.featuresBar,
   group: GROUP.home,
@@ -65,5 +66,4 @@ export const featuresBar = defineComponent({
   load: async ({ context, props }) => ({
     content: copyOverrides(context.content, props),
   }),
-  capabilities: { insertable: true, surfaces: [...PAGE_SURFACES, FOOTER_AREA] },
 });

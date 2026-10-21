@@ -2,10 +2,11 @@ import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, SECTION } from "../labels";
 import WhatsAppCTA from "@/theme/components/home/WhatsAppCTA.astro";
 import { SCHEME_OF } from "@/theme/appearance";
-import { FOOTER_AREA, PAGE_SURFACES, copyOverrides, schemeField, sectionSpacing, styleField } from "../shared";
+import { copyOverrides, schemeField, sectionSpacing, styleField } from "../shared";
 
 export const whatsappCta = defineComponent({
   type: "whatsapp-cta",
+  capabilities: { insertable: true, surfaces: ["home", "page", "area:footer"] },
   component: WhatsAppCTA,
   label: SECTION.whatsappCta,
   group: GROUP.home,
@@ -21,5 +22,4 @@ export const whatsappCta = defineComponent({
   load: async ({ context, props }) => ({
     content: copyOverrides(context.content, props),
   }),
-  capabilities: { insertable: true, surfaces: [...PAGE_SURFACES, FOOTER_AREA] },
 });

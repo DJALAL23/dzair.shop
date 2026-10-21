@@ -6,12 +6,13 @@
 // editor can select it; a shopper's page carries no markers.
 import InstanceView from "@wocart/theme/astro/InstanceView.astro";
 import { createReadCache } from "@wocart/theme/astro";
-import { resolveSurfaceDocument, type ReadCache } from "@wocart/theme";
-import { theme00 } from "@/theme/theme";
+import { resolveSurfaceDocument, type ReadCache, type ThemeDefinition } from "@wocart/theme";
 import { renderContext } from "@/theme/runtime/render-context";
 import { reportSurface } from "@/theme/pages/surface-report";
 
 interface Props {
+  /** The catalog this surface renders from: the route's own, never the full theme. */
+  theme: ThemeDefinition;
   surface: string;
   /** What the store saved for the surface (`null` when nothing), or an editor's draft. */
   document: unknown;
@@ -21,14 +22,14 @@ interface Props {
   reads?: ReadCache;
 }
 
-const { surface, document, preview = false, params = {} } = Astro.props;
+const { theme, surface, document, preview = false, params = {} } = Astro.props;
 const store = Astro.locals.store;
-const resolved = resolveSurfaceDocument(theme00, surface, document, { content: store.content, locales: [store.locale, ...store.fallbackLocales] });
+const resolved = resolveSurfaceDocument(theme, surface, document, { content: store.content, locales: [store.locale, ...store.fallbackLocales] });
 reportSurface(surface, resolved);
 const context = renderContext(store, params);
 const reads = Astro.props.reads ?? createReadCache();
 ---
 
 {resolved.page.sections.map((section) => (
-  <InstanceView instance={section} theme={theme00} context={context} storefront={store.client} reads={reads} preview={preview} />
+  <InstanceView instance={section} theme={theme} context={context} storefront={store.client} reads={reads} preview={preview} />
 ))}

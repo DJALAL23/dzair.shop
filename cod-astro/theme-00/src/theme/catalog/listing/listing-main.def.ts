@@ -34,6 +34,7 @@ export interface ListingView {
  */
 export const listingMain = defineComponent({
   type: "listing-main",
+  capabilities: { surfaces: ["collection", "category", "catalog"] },
   component: ListingMain,
   label: SECTION.listingMain,
   group: GROUP.listing,
@@ -84,5 +85,4 @@ export const listingMain = defineComponent({
     const rows = await storefront.products.list(pageRequest(page));
     return { view: { kind: "catalog", title: context.content.allProductsSection ?? "", description: null, image: null, ...paged(rows), path: storefrontPath("catalog"), categories, active: null } };
   },
-  capabilities: { insertable: false, surfaces: ["catalog", "category", "collection"] },
 });

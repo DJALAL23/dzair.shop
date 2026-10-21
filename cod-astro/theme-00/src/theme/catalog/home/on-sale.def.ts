@@ -2,10 +2,11 @@ import { defineComponent } from "@wocart/theme";
 import { storefrontPath } from "@wocart/storefront";
 import { FIELD, GROUP, SECTION } from "../labels";
 import ProductCollection from "@/theme/components/home/ProductCollection.astro";
-import { PAGE_SURFACES, copyOverrides, onSaleRead, productGridFields, schemeField, styleField } from "../shared";
+import { copyOverrides, onSaleRead, productGridFields, schemeField, styleField } from "../shared";
 
 export const onSale = defineComponent({
   type: "on-sale",
+  capabilities: { insertable: true, surfaces: ["home"] },
   component: ProductCollection,
   label: SECTION.onSale,
   group: GROUP.home,
@@ -30,5 +31,4 @@ export const onSale = defineComponent({
       content,
     };
   },
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

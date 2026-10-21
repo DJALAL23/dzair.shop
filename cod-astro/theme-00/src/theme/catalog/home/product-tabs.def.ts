@@ -3,7 +3,7 @@ import { storefrontPath, type Product, type ProductList } from "@wocart/storefro
 import { BLOCK, FIELD, GROUP, OPTION, SECTION } from "../labels";
 import ProductTabs from "@/theme/components/home/ProductTabs.astro";
 import ProductTab from "@/theme/components/home/ProductTab.astro";
-import { PAGE_SURFACES, collectionRead, copyOverrides, onSaleRead, productGridFields, schemeField, styleField } from "../shared";
+import { collectionRead, copyOverrides, onSaleRead, productGridFields, schemeField, styleField } from "../shared";
 
 /** The most products a merchant picks for one tab. */
 const MAX_PICKED = 12;
@@ -14,6 +14,7 @@ const MAX_PICKED = 12;
  */
 export const productTab = defineComponent({
   type: "product-tab",
+  capabilities: { insertable: true, surfaces: ["home"] },
   component: ProductTab,
   label: BLOCK.productTab,
   group: GROUP.home,
@@ -75,7 +76,7 @@ export const productTabs = defineComponent({
     styleField(),
   ],
   load: async ({ context, props }) => ({ content: copyOverrides(context.content, props) }),
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
+  capabilities: { insertable: true, surfaces: ["home"] },
   presets: [
     {
       key: "default",

@@ -2,11 +2,12 @@ import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, SECTION } from "../labels";
 import HowItWorks from "@/theme/components/home/HowItWorks.astro";
 import { SCHEME_OF } from "@/theme/appearance";
-import { PAGE_SURFACES, copyOverrides, schemeField, sectionSpacing, styleField } from "../shared";
+import { copyOverrides, schemeField, sectionSpacing, styleField } from "../shared";
 
 /** How a cash-on-delivery order goes, in its three steps. */
 export const howItWorks = defineComponent({
   type: "how-it-works",
+  capabilities: { insertable: true, surfaces: ["home"] },
   component: HowItWorks,
   label: SECTION.howItWorks,
   group: GROUP.home,
@@ -26,5 +27,4 @@ export const howItWorks = defineComponent({
   load: async ({ context, props }) => ({
     content: copyOverrides(context.content, props),
   }),
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

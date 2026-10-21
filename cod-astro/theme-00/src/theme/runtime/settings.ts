@@ -4,17 +4,17 @@
  * context however many components ask — the layout, every product card.
  */
 import { resolveThemeSettings, type InferSettings } from "@wocart/theme";
-import { theme00 } from "@/theme/theme";
+import { shellCatalog } from "@/theme/catalog/families/shell";
 import type { StoreContext } from "./store";
 
-export type ThemeSettings = InferSettings<typeof theme00>;
+export type ThemeSettings = InferSettings<typeof shellCatalog>;
 
 const resolved = new WeakMap<StoreContext, ThemeSettings>();
 
 export function settingsOf(store: StoreContext): ThemeSettings {
   let values = resolved.get(store);
   if (values === undefined) {
-    values = resolveThemeSettings(theme00, store.config.themeSettings, {
+    values = resolveThemeSettings(shellCatalog, store.config.themeSettings, {
       content: store.content,
       locales: [store.locale, ...store.fallbackLocales],
     }).values;

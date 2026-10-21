@@ -2,10 +2,11 @@ import { defineComponent } from "@wocart/theme";
 import { storefrontPath } from "@wocart/storefront";
 import { FIELD, GROUP, SECTION } from "../labels";
 import ProductCollection from "@/theme/components/home/ProductCollection.astro";
-import { PAGE_SURFACES, collectionRead, copyOverrides, productGridFields, schemeField, styleField } from "../shared";
+import { collectionRead, copyOverrides, productGridFields, schemeField, styleField } from "../shared";
 
 export const bestSellers = defineComponent({
   type: "best-sellers",
+  capabilities: { insertable: true, surfaces: ["home"] },
   component: ProductCollection,
   label: SECTION.bestSellers,
   group: GROUP.home,
@@ -33,5 +34,4 @@ export const bestSellers = defineComponent({
       content,
     };
   },
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });

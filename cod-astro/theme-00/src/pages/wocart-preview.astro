@@ -18,6 +18,8 @@ import { createReadCache } from "@wocart/theme/astro";
 import HomeSurface from "@/theme/pages/HomeSurface.astro";
 import ProductSurface from "@/theme/pages/ProductSurface.astro";
 import SurfacePage from "@/theme/pages/SurfacePage.astro";
+import { listingCatalog } from "@/theme/catalog/families/listing";
+import { pageCatalog } from "@/theme/catalog/families/page";
 import PreviewBridge from "@/theme/components/preview/PreviewBridge.astro";
 import { previewResponseHeaders } from "@/theme/sdk";
 import { theme00 } from "@/theme/theme";
@@ -76,7 +78,7 @@ const document = isArea ? await client.pageData.get(shown) : (draft.document ?? 
     <PreviewBridge editor={preview.claims.editor} token={preview.token} />
   </HomeSurface>
 ) : (
-  <SurfacePage surface={shown as "catalog" | "category" | "collection" | "page"} document={document} params={params} reads={createReadCache()} preview={!isArea}>
+  <SurfacePage theme={shown === "page" ? pageCatalog : listingCatalog} surface={shown as "catalog" | "category" | "collection" | "page"} document={document} params={params} reads={createReadCache()} preview={!isArea}>
     <PreviewBridge editor={preview.claims.editor} token={preview.token} />
   </SurfacePage>
 )}

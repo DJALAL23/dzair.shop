@@ -191,10 +191,6 @@ export default defineConfig({
       // Minify for production
       minify: "esbuild",
       cssMinify: true,
-      // Vite's default (4 kB) also sets which stylesheets Astro inlines
-      // (build.inlineStylesheets "auto"): small assets inline, the rest are linked.
-      // Disable CSS code splitting to keep all CSS together
-      cssCodeSplit: false,
     },
   },
 });

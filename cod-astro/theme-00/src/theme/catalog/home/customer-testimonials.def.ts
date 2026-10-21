@@ -1,7 +1,7 @@
 import { defineComponent } from "@wocart/theme";
 import { FIELD, GROUP, OPTION, SECTION } from "../labels";
 import CustomerTestimonials from "@/theme/components/home/CustomerTestimonials.astro";
-import { CATALOG_READ, PAGE_SURFACES, copyOverrides, schemeField, styleField } from "../shared";
+import { CATALOG_READ, copyOverrides, schemeField, styleField } from "../shared";
 
 /** At most this many reviews show. */
 const SHOWN = 6;
@@ -9,6 +9,7 @@ const SHOWN = 6;
 /** The best recent reviews of the most reviewed products, each with the product it is about. */
 export const customerTestimonials = defineComponent({
   type: "customer-testimonials",
+  capabilities: { insertable: true, surfaces: ["home", "page"] },
   component: CustomerTestimonials,
   label: SECTION.customerTestimonials,
   group: GROUP.home,
@@ -53,5 +54,4 @@ export const customerTestimonials = defineComponent({
       }));
     return { items, content };
   },
-  capabilities: { insertable: true, surfaces: PAGE_SURFACES },
 });
