@@ -78,7 +78,7 @@ The canonical schema — **all table definitions, grouped by domain** (46 tables
 | **Products** | `productCategories`, `products`, `productVariants`, `productImages`, `orderProducts` |
 | **Orders** | `orders`, `orderAssignments`, `orderStatusHistory`, `abandonedOrders` |
 | **Offers / Reviews** | `offers`, `reviews` |
-| **Store** | `stores`, `storeApiKeys`, `dashboardBrand`, `storePixelConfig` |
+| **Store** | `stores`, `storeApiKeys`, `storePixelConfig` |
 | **Stock** | `stockMovements` |
 | **Analytics / Audit** | `activityLogs`, `capiEventLog`, `webhookEvents` |
 

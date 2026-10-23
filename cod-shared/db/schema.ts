@@ -1576,21 +1576,8 @@ export const landingPageImages = sqliteTable("landing_page_images", {
   createdAt: text("created_at").notNull(),
 });
 
-// ─── Dashboard branding ───────────────────────────────────────────────────────
-
-/**
- * Single-row table (id = 'default') — written by the partner via push-brand,
- * read by the dashboard at request time through its D1 binding.
- */
-export const dashboardBrand = sqliteTable("dashboard_brand", {
-  id:           text("id").primaryKey().default("default"),
-  brandName:    text("brand_name").notNull().default("Dashboard"),
-  logoUrl:      text("logo_url"),
-  primaryColor: text("primary_color").notNull().default("#7c3aed"),
-  metaTitle:    text("meta_title"),
-  faviconUrl:   text("favicon_url"),
-  updatedAt:    text("updated_at").notNull(),
-});
+// `dashboard_brand` (migrations 0000 and 0008) is no longer read: the
+// dashboard never showed its values. A later migration drops it.
 
 // ─── Meta Pixel / CAPI ───────────────────────────────────────────────────────
 

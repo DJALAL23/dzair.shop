@@ -2,7 +2,6 @@ import { getTableName, like, sql, type Column } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { AppDb } from "../db/client";
 import {
-  dashboardBrand,
   landingPageImages,
   pageDocuments,
   productCategories,
@@ -48,8 +47,6 @@ export const IMAGE_REFERENCE_SOURCES: ReadonlyArray<{ table: SQLiteTable; column
   { table: themePublications, column: themePublications.state },
   { table: stores, column: stores.logoUrl },
   { table: stores, column: stores.ogImage },
-  { table: dashboardBrand, column: dashboardBrand.logoUrl },
-  { table: dashboardBrand, column: dashboardBrand.faviconUrl },
   { table: landingPageImages, column: landingPageImages.r2Key },
   { table: landingPageImages, column: landingPageImages.src },
 ];
