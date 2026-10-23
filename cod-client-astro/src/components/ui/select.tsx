@@ -37,6 +37,13 @@ interface SelectProps
 
 type Option = { value: string; label: string; disabled: boolean };
 
+/** An option's words as React renders them: its text parts joined, never a comma list. */
+function optionText(children: ReactNode): string {
+  return Children.toArray(children)
+    .map((part) => (typeof part === "string" || typeof part === "number" ? String(part) : ""))
+    .join("");
+}
+
 function parseOptions(children: ReactNode): Option[] {
   return Children.toArray(children)
     .filter(
@@ -51,7 +58,7 @@ function parseOptions(children: ReactNode): Option[] {
       };
       return {
         value: String(props.value ?? ""),
-        label: String(props.children ?? ""),
+        label: optionText(props.children),
         disabled: Boolean(props.disabled),
       };
     });
