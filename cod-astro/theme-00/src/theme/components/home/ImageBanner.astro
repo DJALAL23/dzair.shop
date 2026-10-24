@@ -11,7 +11,7 @@ import type { StoreFrontContent } from "@/theme/content";
 import type { imageBanner } from "@/theme/catalog/home/image-banner.def";
 import Section from "@/theme/components/ui/Section.astro";
 import Countdown from "@/theme/components/ui/Countdown.astro";
-import { mediaKeyUrl } from "@/theme/utils/images";
+import { pickedPicture } from "@/theme/utils/images";
 
 type Props = InferProps<typeof imageBanner> & {
   content: StoreFrontContent;
@@ -20,10 +20,9 @@ type Props = InferProps<typeof imageBanner> & {
 
 const { image, imageSide, body, countdown, endsOn, ctaHref, scheme, style, content, lead } = Astro.props;
 const href = Astro.locals.store.href;
-const own = image ? mediaKeyUrl(image.key) : null;
-const photo = own ? { src: own, alt: image?.alt ?? "" } : lead;
-// Validated as two numbers between 0 and 1 by the theme contract.
-const focus = image?.focal ? `${image.focal.x * 100}% ${image.focal.y * 100}%` : "50% 50%";
+const own = pickedPicture(image);
+const photo = own ? { src: own.src, alt: own.alt } : lead;
+const focus = own?.position ?? "50% 50%";
 const ends = countdown === "midnight" ? "midnight" : countdown === "date" ? endsOn : undefined;
 const units = { days: content.countdownDays, hours: content.countdownHours, minutes: content.countdownMinutes, seconds: content.countdownSeconds };
 ---

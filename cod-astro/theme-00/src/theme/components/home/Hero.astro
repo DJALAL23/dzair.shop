@@ -9,7 +9,7 @@ import type { InferProps } from "@wocart/theme";
 import type { StoreFrontContent } from "@/theme/content";
 import type { hero } from "@/theme/catalog/home/hero.def";
 import Section from "@/theme/components/ui/Section.astro";
-import { mediaKeyUrl } from "@/theme/utils/images";
+import { pickedPicture } from "@/theme/utils/images";
 
 type Props = InferProps<typeof hero> & {
   content: StoreFrontContent;
@@ -18,9 +18,9 @@ type Props = InferProps<typeof hero> & {
 
 const { content, ctaPrimaryHref, ctaSecondaryHref, image, photoSide, scheme, style, lead } = Astro.props;
 const store = Astro.locals.store;
-const own = image ? mediaKeyUrl(image.key) : null;
-const photo = own ? { src: own, alt: image?.alt ?? "" } : lead;
-const focus = image?.focal ? `${image.focal.x * 100}% ${image.focal.y * 100}%` : "50% 55%";
+const own = pickedPicture(image);
+const photo = own ? { src: own.src, alt: own.alt } : lead;
+const focus = own?.position ?? "50% 55%";
 ---
 
 <Section scheme={scheme} style={style} bleed>
