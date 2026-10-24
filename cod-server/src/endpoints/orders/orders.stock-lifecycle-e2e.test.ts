@@ -22,6 +22,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
+import { makeFaultyDb } from "@/test-utils/faulty-d1";
 import {
   createOrder,
   updateOrderStatus,
@@ -63,47 +64,6 @@ const registry: Miniflare[] = [];
 afterAll(async () => {
   for (const mf of registry) await mf.dispose();
 });
-
-// ─── Fault injection: real D1 + rejection at a chosen write ───────────────────
-
-function makeFaultyDb(failWhen: (sqlText: string) => boolean): AppDb {
-  const poisoned = () => {
-    const stub: Record<string, unknown> = {
-      __sql: "POISONED",
-      bind: () => stub,
-      run: () => Promise.reject(new Error("INJECTED FAULT")),
-      raw: () => Promise.reject(new Error("INJECTED FAULT")),
-      all: () => Promise.reject(new Error("INJECTED FAULT")),
-      get: () => Promise.reject(new Error("INJECTED FAULT")),
-      first: () => Promise.reject(new Error("INJECTED FAULT")),
-    };
-    return stub as unknown as D1PreparedStatement;
-  };
-
-  const faulty = {
-    prepare: (sqlText: string) => {
-      const stmt = rawD1.prepare(sqlText);
-      if (failWhen(sqlText)) return poisoned();
-      (stmt as D1PreparedStatement & { __sql?: string }).__sql = sqlText;
-      return stmt;
-    },
-    batch: (stmts: D1PreparedStatement[]) => {
-      for (const stmt of stmts) {
-        const sqlText = (stmt as D1PreparedStatement & { __sql?: string }).__sql;
-        // Poisoned stmts (prepared while faulting) or a matching statement
-        // fault the whole batch — D1 batches are atomic, mirroring reality.
-        if (sqlText === "POISONED" || (sqlText && failWhen(sqlText))) {
-          return Promise.reject(new Error("INJECTED FAULT"));
-        }
-      }
-      return rawD1.batch(stmts);
-    },
-    exec: (sqlText: string) => rawD1.exec(sqlText),
-    dump: () => rawD1.dump(),
-  } as unknown as D1Database;
-
-  return drizzle(faulty, { schema }) as unknown as AppDb;
-}
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -330,7 +290,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
   it("T12: manual cancel fault mid-sequence — must leave NO partial state", async () => {
     const { orderId, productId } = await seedOrder();
 
-    const faulty = makeFaultyDb((sql) =>
+    const faulty = makeFaultyDb(rawD1, (sql) =>
       sql.includes('update "products"') && sql.includes("inventory"),
     );
 
@@ -349,7 +309,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     const orderId = `ord-lc-${++seq}`;
     const now = new Date().toISOString();
 
-    const faulty = makeFaultyDb((sql) => sql.includes('insert into "order_products"'));
+    const faulty = makeFaultyDb(rawD1, (sql) => sql.includes('insert into "order_products"'));
 
     await expect(
       createOrder(faulty, {

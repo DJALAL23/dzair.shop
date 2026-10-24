@@ -9,6 +9,8 @@ import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
 import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
+import type { ActorKind, Origin } from "../events/actor";
+import type { EventSubject, EventType } from "../events/catalogue";
 
 const authNow = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
@@ -2091,3 +2093,30 @@ export const abandonedOrders = sqliteTable("abandoned_orders", {
   phoneIdx:     index("abandoned_orders_phone_idx").on(t.phone),
   createdAtIdx: index("abandoned_orders_created_at_idx").on(t.createdAt),
 }));
+
+// ─── Business Events (ADR 0016; migration 0059) ───────────────────────────────
+
+/**
+ * The Event Log: every Business Event the store records, written in the same
+ * batch as its change (`cod-shared/events/record.ts`). No foreign keys: an
+ * event outlives its subject and keeps the facts as they were.
+ */
+export const businessEvents = sqliteTable("business_events", {
+  /** The Sequence: commit order. */
+  seq: integer("seq").primaryKey({ autoIncrement: true }),
+  /** The public event id — the same on every delivery of the event. */
+  id: text("id").notNull().unique(),
+  type: text("type").$type<EventType>().notNull(),
+  version: integer("version").notNull(),
+  subjectType: text("subject_type").$type<EventSubject>().notNull(),
+  subjectId: text("subject_id").notNull(),
+  orderId: text("order_id").notNull(),
+  actorKind: text("actor_kind").$type<ActorKind>().notNull(),
+  actorId: text("actor_id"),
+  actorName: text("actor_name"),
+  origin: text("origin").$type<Origin>().notNull(),
+  occurredAt: text("occurred_at").notNull(),
+  recordedAt: text("recorded_at").notNull(),
+  /** The type's data, as `cod-server/src/events/catalogue.ts` promises it. */
+  data: text("data").notNull(),
+});

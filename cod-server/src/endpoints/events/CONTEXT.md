@@ -45,8 +45,8 @@ delivered, or the moment a staff member confirmed an order.
 _Avoid_: Timestamp (alone), created at
 
 **Recorded At**:
-When the store learned the fact and wrote the Business Event. Never earlier
-than Occurred At.
+When the store learned the fact and wrote the Business Event. A carrier
+reporting days late makes the two far apart.
 _Avoid_: Received at, sent at
 
 **Subject**:
