@@ -32,7 +32,8 @@ describe("Theme Zero — one store-context acquisition point", () => {
 
   it("only the adapter and the middleware's own store module create SDK clients; pages use the request's", () => {
     const creators = files
-      .filter((f) => /getStoreClient\(/.test(f.content))
+      // A call or a hand-off (the runtime gives the factory to the SDK's resolver), never an import alone.
+      .filter((f) => /\bgetStoreClient\b/.test(f.content.replace(/^import[^;]*;$/gm, "")))
       .map((f) => f.relPath)
       .filter((path) => !path.startsWith("pages/api/") && !path.startsWith("actions/"))
       .sort();

@@ -18,7 +18,7 @@ import { defineMiddleware } from "astro:middleware";
 import { getActionContext } from "astro:actions";
 import { runFormAction } from "@wocart/storefront/astro";
 import { THEME_PREVIEW_PATH } from "@wocart/theme";
-import { languageSource, resolvePreviewStore, resolveStoreRequest } from "@/theme/runtime/store";
+import { resolvePreviewStore, resolveStoreRequest } from "@/theme/runtime/store";
 import { REVALIDATE_PATH, readThemePreview } from "@/theme/sdk";
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -34,25 +34,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
   // Store context first: the form action below may read `context.locals`, and
-  // the page that renders afterwards needs it too.
-  // The language comes from the path (`/fr/…`, ADR 0005): the primary's own
-  // prefix redirects to its one address, and a prefixed page renders the
-  // unprefixed route with the store context in that language.
-  // A server island or an `/api/*` endpoint takes the language of the page
-  // that requested it, and is never redirected or rewritten: its own URL is
-  // the endpoint.
-  let route = context.url.pathname;
-  const source = languageSource(context.url, context.request.headers.get("Referer"));
-  let request = await resolveStoreRequest(source.path);
-  if (request.kind === "redirect") {
-    if (!source.embedded) return context.redirect(`${request.location}${context.url.search}`, request.status);
-    // The asking page's address redirects; the request is served like its target.
-    request = await resolveStoreRequest(request.location);
-  }
-  if (request.kind === "page") {
-    context.locals.store = request.store;
-    if (!source.embedded) route = request.store.pathname;
-  }
+  // the page that renders afterwards needs it too. The SDK decides the
+  // language and the redirects (see theme/runtime/store.ts).
+  const request = await resolveStoreRequest(context.url, context.request.headers.get("Referer"));
+  if (request.kind === "redirect") return context.redirect(request.location, request.status);
+  context.locals.store = request.store;
 
   const { action, setActionResult, serializeActionResult } =
     getActionContext(context);
@@ -67,5 +53,5 @@ export const onRequest = defineMiddleware(async (context, next) => {
     serializeActionResult,
   });
 
-  return route === context.url.pathname ? next() : next(new URL(`${route}${context.url.search}`, context.url));
+  return request.rewrite === null ? next() : next(request.rewrite);
 });

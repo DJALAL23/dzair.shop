@@ -21,8 +21,24 @@ const getActionContext = vi.fn();
 const readThemePreview = vi.fn();
 const resolvePreviewStore = vi.fn();
 
+/**
+ * The store as the server answers it: Arabic first, French published too. The
+ * request's language and redirects are then resolved for real, by the theme's
+ * runtime and the SDK — only the network is faked.
+ */
+const storeConfig = (locale?: string) => ({
+  name: "test-store",
+  lang: "ar",
+  locale: locale ?? "ar",
+  locales: [
+    { code: "ar", nativeName: "العربية", direction: "rtl" },
+    { code: "fr", nativeName: "Français", direction: "ltr" },
+  ],
+  contentOverrides: {},
+});
+
 vi.mock("@/theme/sdk", () => ({
-  getStoreClient: () => ({ orders: { create: createOrder } }),
+  getStoreClient: (locale?: string) => ({ orders: { create: createOrder }, config: { get: async () => storeConfig(locale) } }),
   readThemePreview: (request: Request) => readThemePreview(request),
   REVALIDATE_PATH: "/wocart-revalidate",
 }));
@@ -41,24 +57,17 @@ vi.mock("astro:actions", () => ({
 
 vi.mock("astro:middleware", () => ({ defineMiddleware: (fn: unknown) => fn }));
 
-// The store context lives in `@/theme/runtime/store`; the middleware contract
-// under test is the PRG wiring + where `locals.store` comes from (Theme Zero
-// S2). Mock with a sentinel so both are observable.
+// The preview's store context is mocked with a sentinel, so where
+// `locals.store` comes from is observable on that route.
 const storeContext = {
   config: { name: "test-store" },
   content: { heroTitle: "test-title" },
   isRTL: false,
 };
 
-// A store whose primary is Arabic and which also publishes French: `/fr/…`
-// renders the unprefixed route, `/ar/…` is the primary's second address.
 vi.mock("@/theme/runtime/store", async (importOriginal) => ({
-  languageSource: ((await importOriginal()) as typeof import("@/theme/runtime/store")).languageSource,
+  ...((await importOriginal()) as object),
   resolvePreviewStore: (draft: unknown) => resolvePreviewStore(draft),
-  resolveStoreRequest: async (path: string) =>
-    /^\/ar(?:\/|$)/.test(path)
-      ? { kind: "redirect", location: path.slice(3) || "/", status: 301 }
-      : { kind: "page", store: { ...storeContext, pathname: path.replace(/^\/fr(?=\/|$)/, "") || "/" } },
 }));
 
 const { server } = await import("@/actions/index");
@@ -184,7 +193,7 @@ type Middleware = (
     url: URL;
     redirect: (location: string, status: number) => Response;
   },
-  next: (rewrite?: URL) => Promise<Response>,
+  next: (rewrite?: string) => Promise<Response>,
 ) => Promise<Response>;
 
 const middleware = onRequest as unknown as Middleware;
@@ -201,8 +210,7 @@ const makeContext = (request: Request) => ({
     new Response(null, { status, headers: { location } }),
 });
 
-const next = (rewrite?: URL) =>
-  Promise.resolve(new Response(rewrite ? `page ${rewrite.pathname}${rewrite.search}` : "page"));
+const next = (rewrite?: string) => Promise.resolve(new Response(rewrite ? `page ${rewrite}` : "page"));
 
 describe("onRequest binding (src/middleware.ts)", () => {
   beforeEach(() => {
@@ -313,7 +321,7 @@ describe("onRequest binding (src/middleware.ts)", () => {
 
     // The layout, the pages and the action handlers all read this one value;
     // a second acquisition point is what store-context.test.ts forbids.
-    expect(context.locals.store).toMatchObject({ ...storeContext, pathname: "/checkout" });
+    expect(context.locals.store).toMatchObject({ config: { name: "test-store" }, locale: "ar", isRTL: true, pathname: "/checkout" });
   });
 
   it("renders /fr/… as the unprefixed route, keeping its query", async () => {

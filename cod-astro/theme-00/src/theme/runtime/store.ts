@@ -14,16 +14,10 @@
  * successful read is cached for the client's lifetime (one fetch per isolate,
  * not one per render) and any failure still falls back to DEFAULT_CONFIG.
  */
-import { getStoreClient, previewConfig, type PreviewDraft, type StoreClient } from "@/theme/sdk";
+import { getStoreClient, type PreviewDraft, type StoreClient } from "@/theme/sdk";
 import { resolveContent } from "@/theme/content";
-import {
-  localeRouting,
-  localizeHref,
-  resolveLocalePath,
-  servedLanguage,
-  type LocaleRouting,
-  type StoreConfig,
-} from "@wocart/storefront";
+import { localizeHref, servedLanguage, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
+import { resolvePreviewStore as resolvePreview, resolveStoreRequest as resolveRequest, type ResolvedStore } from "@wocart/storefront/astro";
 import type { StoreFrontContent } from "@/theme/content";
 
 export const DEFAULT_CONFIG: StoreConfig = {
@@ -97,59 +91,25 @@ export interface StoreContext {
   href: (path: string) => string;
 }
 
-/**
- * The path a request takes its language from. A page takes it from its own
- * path. A server island (`/_server-islands/…`) or an endpoint (`/api/…`)
- * serves part of a page in a separate request with no language in its URL,
- * so it takes the language of the page that asked for it — the browser sends
- * that page as a same-origin `Referer`. Without one it is served in the
- * primary. Such a request is `embedded`: never redirected, never rewritten.
- */
-export function languageSource(url: URL, referer: string | null): { path: string; embedded: boolean } {
-  if (!url.pathname.startsWith("/_server-islands/") && !url.pathname.startsWith("/api/")) {
-    return { path: url.pathname, embedded: false };
-  }
-  if (referer === null) return { path: "/", embedded: true };
-  try {
-    const page = new URL(referer);
-    return { path: page.origin === url.origin ? page.pathname : "/", embedded: true };
-  } catch {
-    return { path: "/", embedded: true };
-  }
-}
+/** What the SDK resolves a request with: this theme's one client factory, and the store it renders when the config cannot be read. */
+const STORE = { client: getStoreClient, fallback: DEFAULT_CONFIG };
 
 /**
- * What a request resolves to: a page in one language, or a redirect —
- * permanent for the primary's prefix (it has one address), temporary for a
- * language the store stopped publishing (it may publish it again).
+ * What a request resolves to: a page in one language — with the route to
+ * render instead of the request's when its path carried a language prefix —
+ * or a redirect, permanent for the primary's prefix, temporary for a language
+ * the store stopped publishing. The rules are the SDK's
+ * (`resolveStoreRequest`): a page takes its language from its path; a server
+ * island or an `/api/*` endpoint from the page that asked for it, and is
+ * never redirected or rewritten.
  */
 export type StoreRequest =
-  | { kind: "page"; store: StoreContext }
+  | { kind: "page"; store: StoreContext; rewrite: string | null }
   | { kind: "redirect"; location: string; status: 301 | 302 };
 
-/**
- * Resolve a request's language from its path and build its store context.
- * The primary config decides which languages exist; the request's own client
- * then serves the config in that language. If the server no longer publishes
- * the language (a stale cached list), the shopper is sent to the primary URL
- * rather than shown a page that claims a language it does not carry.
- */
-export async function resolveStoreRequest(requestPath: string): Promise<StoreRequest> {
-  // One client per request (see theme/sdk.ts); the primary language reuses it.
-  const primaryClient = getStoreClient();
-  const primaryConfig = (await primaryClient.config.get()) ?? DEFAULT_CONFIG;
-  const routing = localeRouting(primaryConfig);
-  const path = resolveLocalePath(requestPath, routing);
-  if (path.kind === "redirect") return { kind: "redirect", location: path.location, status: 301 };
-
-  const translated = path.locale !== routing.primary;
-  const client = translated ? getStoreClient(path.locale) : primaryClient;
-  const config = translated ? (await client.config.get()) ?? primaryConfig : primaryConfig;
-  if (translated && config.locale !== path.locale) {
-    return { kind: "redirect", location: path.pathname, status: 302 };
-  }
-
-  return { kind: "page", store: storeContext(config, client, routing, path.locale, path.pathname) };
+export async function resolveStoreRequest(url: URL, referer: string | null): Promise<StoreRequest> {
+  const request = await resolveRequest({ url, referer }, STORE);
+  return request.kind === "redirect" ? request : { kind: "page", store: storeContext(request), rewrite: request.rewrite };
 }
 
 /**
@@ -159,20 +119,10 @@ export async function resolveStoreRequest(requestPath: string): Promise<StoreReq
  * middleware calls this, for the preview route.
  */
 export async function resolvePreviewStore(draft: PreviewDraft): Promise<StoreContext> {
-  const primaryClient = getStoreClient();
-  const primaryConfig = (await primaryClient.config.get()) ?? DEFAULT_CONFIG;
-  const routing = localeRouting(primaryConfig);
-  const pathname = draft.path ?? "/";
-  const asked = draft.locale;
-  if (asked !== undefined && asked !== routing.primary && routing.published.includes(asked)) {
-    const client = getStoreClient(asked);
-    const config = await client.config.get();
-    if (config !== null && config.locale === asked) return storeContext(previewConfig(config, draft), client, routing, asked, pathname);
-  }
-  return storeContext(previewConfig(primaryConfig, draft), primaryClient, routing, routing.primary, pathname);
+  return storeContext(await resolvePreview(draft, STORE));
 }
 
-function storeContext(config: StoreConfig, client: StoreClient, routing: LocaleRouting, locale: string, pathname: string): StoreContext {
+function storeContext({ config, client, routing, locale, pathname }: ResolvedStore): StoreContext {
   // Only this language's overrides: another language's map would mix languages.
   const content = resolveContent(locale, config.contentOverrides[locale]);
   // The server describes every language it serves; a config that somehow

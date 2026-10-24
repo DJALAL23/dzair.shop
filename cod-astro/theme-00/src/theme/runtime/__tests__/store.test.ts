@@ -151,9 +151,11 @@ function stubConfigServer(
 }
 
 /** The store context of a page request — failing the test if it redirects. */
-async function storeFor(path: string) {
+const shop = (path: string) => new URL(`https://shop.dz${path}`);
+
+async function storeFor(path: string, referer: string | null = null) {
   const { resolveStoreRequest } = await import("@/theme/runtime/store");
-  const request = await resolveStoreRequest(path);
+  const request = await resolveStoreRequest(shop(path), referer);
   if (request.kind !== "page") throw new Error(`${path} redirected to ${request.location}`);
   return request.store;
 }
@@ -213,12 +215,15 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
     expect(ctx.href("/checkout")).toBe("/fr/checkout");
     expect(ctx.href("/")).toBe("/fr");
     expect(calls).toContain("https://api.example.test/store/config?theme=theme-00&locale=fr");
+    const { resolveStoreRequest } = await import("@/theme/runtime/store");
+    expect(await resolveStoreRequest(shop("/fr/products/phone?ref=ig"), null)).toMatchObject({ kind: "page", rewrite: "/products/phone?ref=ig" });
+    expect(await resolveStoreRequest(shop("/products/phone"), null)).toMatchObject({ kind: "page", rewrite: null });
   });
 
   it("gives the primary language one address: /ar/… redirects permanently", async () => {
     stubConfigServer();
     const { resolveStoreRequest } = await import("@/theme/runtime/store");
-    expect(await resolveStoreRequest("/ar/products/phone")).toEqual({
+    expect(await resolveStoreRequest(shop("/ar/products/phone"), null)).toEqual({
       kind: "redirect",
       location: "/products/phone",
       status: 301,
@@ -235,7 +240,7 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
   it("sends a shopper to the primary URL when the server no longer serves the language", async () => {
     stubConfigServer({}, { fr: { locale: "ar" } });
     const { resolveStoreRequest } = await import("@/theme/runtime/store");
-    expect(await resolveStoreRequest("/fr/products/phone")).toEqual({
+    expect(await resolveStoreRequest(shop("/fr/products/phone"), null)).toEqual({
       kind: "redirect",
       location: "/products/phone",
       status: 302,
@@ -343,32 +348,41 @@ describe("resolvePreviewStore() — the store as an editor's draft would leave i
   });
 });
 
-describe("languageSource — where a request's language comes from", () => {
-  const page = (path: string) => new URL(`https://shop.dz${path}`);
-
-  it("a page takes it from its own path", async () => {
-    const { languageSource } = await import("@/theme/runtime/store");
-    expect(languageSource(page("/fr/products/x"), "https://shop.dz/ar/")).toEqual({ path: "/fr/products/x", embedded: false });
+describe("where a request's language comes from", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    env.COD_SERVER_URL = "https://api.example.test";
+    env.STORE_API_KEY = "test-key-abc";
   });
 
-  it("a server island takes it from the page that asked for it", async () => {
-    const { languageSource } = await import("@/theme/runtime/store");
-    expect(languageSource(page("/_server-islands/RelatedProducts?e=1"), "https://shop.dz/fr/products/x")).toEqual({
-      path: "/fr/products/x",
-      embedded: true,
-    });
+  afterEach(() => {
+    env.COD_SERVER_URL = undefined;
+    env.STORE_API_KEY = undefined;
+    vi.unstubAllGlobals();
   });
 
-  it("an /api endpoint takes it from the page that called it", async () => {
-    const { languageSource } = await import("@/theme/runtime/store");
-    expect(languageSource(page("/api/cart/validate"), "https://shop.dz/fr/checkout")).toEqual({ path: "/fr/checkout", embedded: true });
-    expect(languageSource(page("/apiary"), null)).toEqual({ path: "/apiary", embedded: false });
+  it("a page takes it from its own path, whatever page it came from", async () => {
+    stubConfigServer();
+    expect((await storeFor("/fr/products/x", "https://shop.dz/")).locale).toBe("fr");
+  });
+
+  it("a server island and an /api endpoint take it from the page that asked, never redirected or rewritten", async () => {
+    stubConfigServer();
+    const { resolveStoreRequest } = await import("@/theme/runtime/store");
+    for (const path of ["/_server-islands/RelatedProducts?e=1", "/api/cart/validate"]) {
+      const request = await resolveStoreRequest(shop(path), "https://shop.dz/fr/checkout");
+      expect(request).toMatchObject({ kind: "page", rewrite: null });
+      if (request.kind === "page") expect(request.store.locale).toBe("fr");
+    }
+    // Asked from the primary's own prefix, which redirects: served as its target would be.
+    expect(await resolveStoreRequest(shop("/api/cart/validate"), "https://shop.dz/ar/checkout")).toMatchObject({ kind: "page", rewrite: null });
+    expect((await storeFor("/apiary", "https://shop.dz/fr/")).locale).toBe("ar");
   });
 
   it("an island without a same-origin referer renders in the primary", async () => {
-    const { languageSource } = await import("@/theme/runtime/store");
+    stubConfigServer();
     for (const referer of [null, "https://evil.example/fr/x", "not a url"]) {
-      expect(languageSource(page("/_server-islands/ReviewsIsland"), referer)).toEqual({ path: "/", embedded: true });
+      expect((await storeFor("/_server-islands/ReviewsIsland", referer)).locale).toBe("ar");
     }
   });
 });
