@@ -13,12 +13,19 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MIGRATIONS_DIR, createTestD1, migrationFiles, replay, splitMigration, type TestD1 } from "@/test-utils/d1";
 import { fillEveryTable, lossesOnData, migrationProblems, snapshot } from "@/test-utils/migration-safety";
 
+/**
+ * Each case replays every migration on a database with a row in every table:
+ * 10–14 s alone, more beside the rest of the suite, and longer with each
+ * migration added. The limit is the work's, not the default's.
+ */
+const GUARD_TIMEOUT = 120_000;
+
 const RELEASED_THROUGH = "0054_theme_drafts.sql";
 
 const newMigrations = migrationFiles().filter((file) => file > RELEASED_THROUGH);
 const hasOwnTest = (file: string) => readdirSync(__dirname).some((name) => name.startsWith(`migration-${file.slice(0, 4)}-`) && name.endsWith(".e2e.test.ts"));
 
-describe(`migrations after ${RELEASED_THROUGH}`, () => {
+describe(`migrations after ${RELEASED_THROUGH}`, { timeout: GUARD_TIMEOUT }, () => {
   it("baseline is a migration that exists", () => {
     expect(existsSync(`${MIGRATIONS_DIR}/${RELEASED_THROUGH}`)).toBe(true);
   });
@@ -42,7 +49,7 @@ describe(`migrations after ${RELEASED_THROUGH}`, () => {
   );
 });
 
-describe("the guard, on a store with data in every table", () => {
+describe("the guard, on a store with data in every table", { timeout: GUARD_TIMEOUT }, () => {
   let d1: TestD1;
 
   beforeAll(async () => {
