@@ -44,7 +44,7 @@
     "name_label": "اسم العرض",
     "name_placeholder": "مثال: اشترِ 2 واحصل على 1 مجاناً",
     "discount_type_label": "نوع العرض",
-    "free_shipping_note": "سيحصل العميل على شحن مجاني عند استيفاء شرط الكمية",
+    "free_shipping_note": "يكون التوصيل مجانيًا عندما يحتوي الطلب على هذا المنتج وحده، بكمية الشرط على الأقل.",
     "section_trigger": "شرط التفعيل",
     "trigger_product_label": "المنتَج المشغِّل",
     "trigger_product_placeholder": "اختر المنتَج",
@@ -81,7 +81,7 @@
     "tier_each": "{perUnit} للقطعة",
     "tier_remove": "إزالة هذه الشريحة",
     "tier_add": "إضافة شريحة",
-    "tier_free_shipping": "توصيل مجاني ابتداءً من هذه الشريحة"
+    "tier_free_shipping": "توصيل مجاني ابتداءً من هذه الشريحة (عندما يحتوي الطلب على هذا المنتج وحده)"
   },
   "buy_x_get_y": "اشترِ {x} واحصل على {y} مجانًا",
   "buy_x_free_shipping": "اشترِ {x} واحصل على شحن مجاني",

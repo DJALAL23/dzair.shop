@@ -44,7 +44,7 @@
     "name_label": "Nom de l'offre",
     "name_placeholder": "Ex: Achetez 2 obtenez 1 gratuit",
     "discount_type_label": "Type d'offre",
-    "free_shipping_note": "Le client obtient la livraison gratuite lorsque la condition de quantité est remplie",
+    "free_shipping_note": "La livraison est gratuite quand la commande ne contient que ce produit, au moins en quantité déclencheuse.",
     "section_trigger": "Condition de déclenchement",
     "trigger_product_label": "Produit déclencheur",
     "trigger_product_placeholder": "Sélectionner un produit",
@@ -81,7 +81,7 @@
     "tier_each": "{perUnit} l'unité",
     "tier_remove": "Retirer ce palier",
     "tier_add": "Ajouter un palier",
-    "tier_free_shipping": "Livraison gratuite à partir de ce palier"
+    "tier_free_shipping": "Livraison gratuite à partir de ce palier (quand la commande ne contient que ce produit)"
   },
   "buy_x_get_y": "Achetez {x}, recevez {y} gratuitement",
   "buy_x_free_shipping": "Achetez {x}, livraison gratuite",

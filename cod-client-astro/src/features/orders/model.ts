@@ -401,6 +401,24 @@ export function filterAbandonedOrders(
   });
 }
 
+/**
+ * What the fee box of an order being entered says beneath it: the store's
+ * fee there and why it is free — or that the store does not deliver there —
+ * and, once the merchant typed a fee of their own, what the store's is.
+ */
+export function deliveryFeeHint(
+  quote: import("./api").DeliveryQuote | null,
+  typed: boolean,
+  locale: Locale,
+): { key: string; values?: Record<string, string> } | null {
+  if (!quote) return null;
+  if (!quote.available) return { key: typed ? "form.fee_hint_typed_unserved" : "form.fee_hint_unserved" };
+  if (typed) return quote.free ? { key: "form.fee_hint_typed_free" } : { key: "form.fee_hint_typed", values: { fee: formatMoney(quote.fee, locale) } };
+  if (quote.free?.by === "threshold") return { key: "form.fee_hint_free_threshold", values: { amount: formatMoney(quote.free.threshold, locale) } };
+  if (quote.free?.by === "offer") return quote.free.offerName ? { key: "form.fee_hint_free_offer_named", values: { name: quote.free.offerName } } : { key: "form.fee_hint_free_offer" };
+  return { key: "form.fee_hint_rate" };
+}
+
 /** Why units refused at the door could not be recorded, in the merchant's words. */
 export function lineReturnError(cause: unknown, t: Translate): string {
   const code = typeof cause === "object" && cause !== null ? (cause as { code?: unknown }).code : undefined;

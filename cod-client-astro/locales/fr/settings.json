@@ -138,7 +138,7 @@
     "delivery_pricing_subtitle": "Seuil de livraison gratuite et tarification d'un panier multi-produits",
     "free_shipping_threshold_label": "Livraison gratuite à partir de (DZD)",
     "free_shipping_threshold_placeholder": "Laisser vide pour désactiver",
-    "free_shipping_threshold_hint": "Les commandes atteignant ce sous-total sont livrées gratuitement. Laisser vide pour désactiver.",
+    "free_shipping_threshold_hint": "Toute commande dont le sous-total — après offres et coupons — atteint ce montant est livrée gratuitement, sur votre boutique et dans les commandes que vous saisissez. Laisser vide pour aucune livraison gratuite. Les offres et les coupons peuvent aussi rendre la livraison gratuite.",
     "free_shipping_threshold_invalid": "Saisissez un nombre entier supérieur ou égal à 1, ou laissez vide pour désactiver.",
     "cart_shipping_mode_label": "Panier contenant des produits de profils d'expédition différents",
     "cart_shipping_mode_hint": "S'applique uniquement lorsqu'un panier mélange des produits expédiés différemment. Une commande à produit unique n'est pas concernée.",

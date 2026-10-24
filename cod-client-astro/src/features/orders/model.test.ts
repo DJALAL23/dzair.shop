@@ -13,6 +13,7 @@ import {
   carriersFor,
   carriersForAll,
   deliveredBy,
+  deliveryFeeHint,
   deliveryTimeline,
   driversFor,
   driverHandoffPlan,
@@ -39,6 +40,24 @@ import {
 import type { CarrierCapabilities, DeliveryCompany, Driver, ShipmentEvent } from "./types";
 
 const scopes = (...granted: string[]): May => (scope) => granted.includes(scope);
+
+describe("the delivery fee of an order being entered", () => {
+  const rate = { available: true as const, rate: 400, fee: 400, free: null };
+  it("says the store's fee and why it is free", () => {
+    expect(deliveryFeeHint(null, false, "en")).toBeNull();
+    expect(deliveryFeeHint(rate, false, "en")).toEqual({ key: "form.fee_hint_rate" });
+    expect(deliveryFeeHint({ available: true, rate: 400, fee: 0, free: { by: "threshold", threshold: 10000 } }, false, "en")?.key).toBe("form.fee_hint_free_threshold");
+    expect(deliveryFeeHint({ available: true, rate: 400, fee: 0, free: { by: "offer", offerId: "o", offerName: "Ship free" } }, false, "en")).toEqual({ key: "form.fee_hint_free_offer_named", values: { name: "Ship free" } });
+    expect(deliveryFeeHint({ available: true, rate: 400, fee: 0, free: { by: "offer", offerId: "o", offerName: null } }, false, "en")).toEqual({ key: "form.fee_hint_free_offer" });
+  });
+
+  it("says when the store does not deliver there, and what the store's fee is beside a typed one", () => {
+    expect(deliveryFeeHint({ available: false }, false, "en")).toEqual({ key: "form.fee_hint_unserved" });
+    expect(deliveryFeeHint({ available: false }, true, "en")).toEqual({ key: "form.fee_hint_typed_unserved" });
+    expect(deliveryFeeHint(rate, true, "en")?.key).toBe("form.fee_hint_typed");
+    expect(deliveryFeeHint({ available: true, rate: 400, fee: 0, free: { by: "offer", offerId: "o", offerName: "Ship free" } }, true, "en")).toEqual({ key: "form.fee_hint_typed_free" });
+  });
+});
 
 describe("units refused at the door", () => {
   it("are explained by why the server refused them", () => {

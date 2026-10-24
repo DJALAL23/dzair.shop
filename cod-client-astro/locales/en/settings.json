@@ -138,7 +138,7 @@
     "delivery_pricing_subtitle": "Free-delivery threshold and how a multi-product basket is charged",
     "free_shipping_threshold_label": "Free delivery above (DZD)",
     "free_shipping_threshold_placeholder": "Leave empty to turn off",
-    "free_shipping_threshold_hint": "Orders at or above this subtotal ship free. Leave empty for no free delivery.",
+    "free_shipping_threshold_hint": "Every order whose subtotal — after offers and coupons — reaches this amount ships free, on your store and in orders you enter. Leave empty for no free delivery. Offers and coupons can also make delivery free.",
     "free_shipping_threshold_invalid": "Enter a whole number of 1 or more, or leave it empty to turn this off.",
     "cart_shipping_mode_label": "Basket with items from different shipping profiles",
     "cart_shipping_mode_hint": "Only applies when a basket mixes products that ship differently. A single-product order is unaffected.",

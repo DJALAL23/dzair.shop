@@ -246,13 +246,20 @@ export async function listCommunes(wilayaId: number) {
   return (await apiFetch<ListEnvelope<Commune>>(`/api/wilayas/${wilayaId}/communes`)).data;
 }
 
-export async function getDefaultShippingRules() {
-  return (await apiFetch<DataEnvelope<ShippingRule[]>>("/api/shipping-profiles/default/rules")).data;
-}
+/** Why delivery is free on an order being entered. */
+export type FreeDelivery = { by: "threshold"; threshold: number } | { by: "offer"; offerId: string; offerName: string | null };
 
-export async function getShippingRules(profileId: string) {
-  const response = await apiFetch<DataEnvelope<{ rules: ShippingRule[] }>>(`/api/shipping-profiles/${encodeURIComponent(profileId)}`);
-  return response.data.rules;
+/** What delivery costs on an order being entered, as the store's checkout decides it. */
+export type DeliveryQuote = { available: false } | { available: true; rate: number; fee: number; free: FreeDelivery | null };
+
+export async function quoteDelivery(body: {
+  lines: Array<{ productId: string; variantId?: string | null; quantity: number }>;
+  subtotal: number;
+  wilayaId: number;
+  communeId?: string | null;
+  deliveryType: "home" | "stop_desk";
+}): Promise<DeliveryQuote> {
+  return (await apiFetch<DataEnvelope<DeliveryQuote>>("/api/orders/delivery-quote", json({ method: "POST", body: JSON.stringify(body) }))).data;
 }
 
 export async function createOrder(body: Record<string, unknown>) {

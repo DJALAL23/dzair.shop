@@ -145,8 +145,17 @@
     "error_wilaya": "Please select a wilaya",
     "error_commune": "Please select a commune",
     "error_address": "Address is required for home delivery",
-    "error_delivery_unavailable": "This delivery method is not available for the selected wilaya",
-    "summary_title": "Summary"
+    "summary_title": "Summary",
+    "fee_hint_rate": "Your shipping rate for this place.",
+    "fee_hint_free_threshold": "Free: the order reaches {amount}, your free-delivery amount.",
+    "fee_hint_free_offer_named": "Free with the offer “{name}”.",
+    "fee_hint_free_offer": "Free with an offer on this product.",
+    "fee_hint_unserved": "Your shipping rates don't deliver here. Type a fee to deliver anyway.",
+    "fee_hint_typed": "Your own fee. The store's fee here is {fee}.",
+    "fee_hint_typed_free": "Your own fee. Without it, delivery here would be free.",
+    "fee_hint_typed_unserved": "Your own fee. Your shipping rates don't deliver here.",
+    "use_store_fee": "Use the store's fee",
+    "error_delivery_unserved": "Your shipping rates don't deliver here: type the fee to charge."
   },
   "abandoned": {
     "title": "Abandoned orders",

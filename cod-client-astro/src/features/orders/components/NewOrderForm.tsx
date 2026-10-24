@@ -7,8 +7,8 @@ import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import {
   createOrder,
-  getDefaultShippingRules,
-  getShippingRules,
+  quoteDelivery,
+  type DeliveryQuote,
   listCommunes,
   listCustomers,
   listProducts,
@@ -18,7 +18,6 @@ import type {
   Commune,
   Customer,
   Product,
-  ShippingRule,
   Wilaya,
 } from "@/features/orders/types";
 import { Alert, FormPage } from "@/components/ui";
@@ -40,8 +39,6 @@ export function NewOrderForm() {
   const [products, setProducts] = useState<Product[]>([]);
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
   const [communes, setCommunes] = useState<Commune[]>([]);
-  const [shippingRules, setShippingRules] = useState<ShippingRule[]>([]);
-  const [productRules, setProductRules] = useState<ShippingRule[]>([]);
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -52,8 +49,11 @@ export function NewOrderForm() {
   const [address, setAddress] = useState("");
   const [deliveryType, setDeliveryType] = useState<"home" | "stop_desk">("home");
   const [deliveryFee, setDeliveryFee] = useState(0);
-  const [feeAutoFilled, setFeeAutoFilled] = useState(false);
-  const [deliveryModeUnavailable, setDeliveryModeUnavailable] = useState(false);
+  /** The store's fee for these lines there; null until there is something to quote. */
+  const [quote, setQuote] = useState<DeliveryQuote | null>(null);
+  /** The merchant typed a fee: the order charges it as typed. */
+  const [feeTyped, setFeeTyped] = useState(false);
+  const quoteRequest = useRef(0);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineItem[]>([]);
   const [productId, setProductId] = useState("");
@@ -71,9 +71,8 @@ export function NewOrderForm() {
       listCustomers(),
       listProducts(),
       listWilayas(),
-      getDefaultShippingRules(),
     ])
-      .then(([customerRows, productRows, wilayaRows, rules]) => {
+      .then(([customerRows, productRows, wilayaRows]) => {
         if (!alive) return;
         setCustomers(
           customerRows.status === "fulfilled" ? customerRows.value : [],
@@ -82,8 +81,7 @@ export function NewOrderForm() {
           productRows.status === "fulfilled" ? productRows.value : [],
         );
         setWilayas(wilayaRows.status === "fulfilled" ? wilayaRows.value : []);
-        setShippingRules(rules.status === "fulfilled" ? rules.value : []);
-        const failure = [customerRows, productRows, wilayaRows, rules].find(
+        const failure = [customerRows, productRows, wilayaRows].find(
           (result) => result.status === "rejected",
         );
         if (failure?.status === "rejected") {
@@ -133,40 +131,48 @@ export function NewOrderForm() {
       .catch(() => setCommunes([]));
   }, [wilayaId]);
 
-  useEffect(() => {
-    const firstProductWithProfile = lines
-      .map((line) => products.find((product) => product.id === line.productId))
-      .find((product) => product?.shippingProfileId);
-    if (!firstProductWithProfile?.shippingProfileId) {
-      setProductRules([]);
-      return;
-    }
-    void getShippingRules(firstProductWithProfile.shippingProfileId)
-      .then(setProductRules)
-      .catch(() => setProductRules([]));
-  }, [lines, products]);
+  const subtotal = lines.reduce((total, line) => total + line.lineTotal, 0);
 
+  // The store's fee for these lines there, decided on the server as its
+  // checkout decides it; a fee the merchant typed is never overwritten.
   useEffect(() => {
-    const activeRules = productRules.length > 0 ? productRules : shippingRules;
-    const rule = activeRules.find((item) => item.wilayaId === Number(wilayaId));
-    if (!rule) {
-      setFeeAutoFilled(false);
-      setDeliveryModeUnavailable(false);
+    const ticket = ++quoteRequest.current;
+    if (!wilayaId || lines.length === 0) {
+      setQuote(null);
       return;
     }
-    const enabled =
-      deliveryType === "home" ? rule.homeEnabled : rule.stopDeskEnabled;
-    const fee = deliveryType === "home" ? rule.homePrice : rule.stopDeskPrice;
-    setDeliveryFee(enabled ? fee : 0);
-    setFeeAutoFilled(enabled);
-    setDeliveryModeUnavailable(!enabled);
-  }, [deliveryType, wilayaId, productRules, shippingRules]);
+    const timer = window.setTimeout(() => {
+      quoteDelivery({
+        lines: lines.map((line) => ({ productId: line.productId, variantId: line.variantId ?? null, quantity: line.quantity })),
+        subtotal,
+        wilayaId: Number(wilayaId),
+        communeId: communeId || null,
+        deliveryType,
+      })
+        .then((next) => {
+          if (ticket !== quoteRequest.current) return;
+          setQuote(next);
+          if (!feeTyped) setDeliveryFee(next.available ? next.fee : 0);
+        })
+        .catch(() => ticket === quoteRequest.current && setQuote(null));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [lines, wilayaId, communeId, deliveryType]);
+
+  function typeFee(fee: number) {
+    setFeeTyped(true);
+    setDeliveryFee(fee);
+  }
+
+  function restoreStoreFee() {
+    setFeeTyped(false);
+    setDeliveryFee(quote?.available ? quote.fee : 0);
+  }
 
   const selectedProduct = products.find((product) => product.id === productId);
   const variants =
     selectedProduct?.variants.filter((variant) => variant.active) ?? [];
   const selectedVariant = variants.find((variant) => variant.id === variantId);
-  const subtotal = lines.reduce((total, line) => total + line.lineTotal, 0);
   const total = subtotal + deliveryFee;
 
   function selectCustomer(customer: Customer) {
@@ -240,8 +246,8 @@ export function NewOrderForm() {
     if (deliveryType === "home" && !address.trim())
       nextErrors.address = t("form.error_address");
     if (lines.length === 0) nextErrors.products = t("form.error_no_products");
-    if (deliveryModeUnavailable)
-      nextErrors.deliveryFee = t("form.error_delivery_unavailable");
+    if (quote && !quote.available && !feeTyped)
+      nextErrors.deliveryFee = t("form.error_delivery_unserved");
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -259,9 +265,11 @@ export function NewOrderForm() {
         address: address.trim() || undefined,
         price: subtotal,
         notes: notes.trim() || undefined,
-        orderType: "online",
+        // Entered by the merchant: an offline order. Without a typed fee the
+        // server charges the store's, as quoted, and records its offer.
+        orderType: "offline",
         deliveryType,
-        deliveryFee,
+        ...(feeTyped ? { deliveryFee } : {}),
         products: lines.map(({ id: _id, ...line }) => line),
       });
     } catch (cause) {
@@ -348,10 +356,10 @@ export function NewOrderForm() {
             deliveryType={deliveryType}
             setDeliveryType={setDeliveryType}
             deliveryFee={deliveryFee}
-            setDeliveryFee={setDeliveryFee}
-            setFeeAutoFilled={setFeeAutoFilled}
-            feeAutoFilled={feeAutoFilled}
-            deliveryModeUnavailable={deliveryModeUnavailable}
+            onFeeTyped={typeFee}
+            onUseStoreFee={restoreStoreFee}
+            feeTyped={feeTyped}
+            quote={quote}
             notes={notes}
             setNotes={setNotes}
             errors={errors}

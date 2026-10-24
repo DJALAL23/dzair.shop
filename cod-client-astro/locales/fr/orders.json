@@ -145,8 +145,17 @@
     "error_wilaya": "Veuillez sélectionner une wilaya",
     "error_commune": "Veuillez sélectionner une commune",
     "error_address": "L'adresse est obligatoire pour la livraison à domicile",
-    "error_delivery_unavailable": "Cette méthode de livraison n'est pas disponible pour la wilaya sélectionnée",
-    "summary_title": "Récapitulatif"
+    "summary_title": "Récapitulatif",
+    "fee_hint_rate": "Votre tarif de livraison pour cet endroit.",
+    "fee_hint_free_threshold": "Gratuite : la commande atteint {amount}, votre montant de livraison gratuite.",
+    "fee_hint_free_offer_named": "Gratuite avec l'offre « {name} ».",
+    "fee_hint_free_offer": "Gratuite avec une offre sur ce produit.",
+    "fee_hint_unserved": "Vos tarifs ne livrent pas ici. Saisissez des frais pour livrer quand même.",
+    "fee_hint_typed": "Vos propres frais. Les frais de la boutique ici sont de {fee}.",
+    "fee_hint_typed_free": "Vos propres frais. Sans eux, la livraison serait gratuite ici.",
+    "fee_hint_typed_unserved": "Vos propres frais. Vos tarifs ne livrent pas ici.",
+    "use_store_fee": "Utiliser les frais de la boutique",
+    "error_delivery_unserved": "Vos tarifs ne livrent pas ici : saisissez les frais à facturer."
   },
   "abandoned": {
     "title": "Commandes abandonnées",

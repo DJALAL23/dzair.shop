@@ -44,7 +44,7 @@
     "name_label": "Offer name",
     "name_placeholder": "e.g. Buy 2 Get 1 Free",
     "discount_type_label": "Offer type",
-    "free_shipping_note": "Customer gets free shipping when the trigger quantity is met",
+    "free_shipping_note": "Delivery is free when the order holds this product alone, in at least the trigger quantity.",
     "section_trigger": "Trigger condition",
     "trigger_product_label": "Trigger product",
     "trigger_product_placeholder": "Select product",
@@ -81,7 +81,7 @@
     "tier_each": "{perUnit} each",
     "tier_remove": "Remove this tier",
     "tier_add": "Add a tier",
-    "tier_free_shipping": "Free delivery from this tier"
+    "tier_free_shipping": "Free delivery from this tier (when the order holds this product alone)"
   },
   "buy_x_get_y": "Buy {x}, get {y} free",
   "buy_x_free_shipping": "Buy {x}, get free shipping",

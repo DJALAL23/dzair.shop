@@ -1,15 +1,20 @@
 import { Truck } from "lucide-react";
-import { Card, Field, Input, Textarea } from "@/components/ui";
-import { useT } from "@/i18n/react";
+import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { useLocale, useT } from "@/i18n/react";
+import type { DeliveryQuote } from "@/features/orders/api";
+import { deliveryFeeHint } from "@/features/orders/model";
 
 interface NewOrderDeliveryCardProps {
   deliveryType: "home" | "stop_desk";
   setDeliveryType: (type: "home" | "stop_desk") => void;
   deliveryFee: number;
-  setDeliveryFee: (fee: number) => void;
-  setFeeAutoFilled: (val: boolean) => void;
-  feeAutoFilled: boolean;
-  deliveryModeUnavailable: boolean;
+  /** The merchant typed a fee: it is the order's, as typed. */
+  onFeeTyped: (fee: number) => void;
+  /** Back to the store's fee. */
+  onUseStoreFee: () => void;
+  feeTyped: boolean;
+  /** The store's fee for these lines there, as its checkout decides it; null until there is something to quote. */
+  quote: DeliveryQuote | null;
   notes: string;
   setNotes: (val: string) => void;
   errors: Record<string, string>;
@@ -19,15 +24,17 @@ export function NewOrderDeliveryCard({
   deliveryType,
   setDeliveryType,
   deliveryFee,
-  setDeliveryFee,
-  setFeeAutoFilled,
-  feeAutoFilled,
-  deliveryModeUnavailable,
+  onFeeTyped,
+  onUseStoreFee,
+  feeTyped,
+  quote,
   notes,
   setNotes,
   errors,
 }: NewOrderDeliveryCardProps) {
   const t = useT("orders");
+  const locale = useLocale();
+  const hint = deliveryFeeHint(quote, feeTyped, locale);
 
   return (
     <Card title={t("form.delivery_section")}>
@@ -51,27 +58,23 @@ export function NewOrderDeliveryCard({
             <Input
               type="number"
               min="0"
-              value={deliveryFee || ""}
-              onChange={(event) => {
-                setDeliveryFee(
-                  Math.max(0, Number(event.currentTarget.value) || 0),
-                );
-                setFeeAutoFilled(false);
-              }}
+              value={deliveryFee || (feeTyped ? deliveryFee : "")}
+              placeholder={quote?.available ? String(quote.fee) : undefined}
+              onChange={(event) => onFeeTyped(Math.max(0, Number(event.currentTarget.value) || 0))}
               className="pe-16"
             />
             <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">
               DA
             </span>
           </div>
-          {feeAutoFilled && (
-            <span className="mt-1 block text-xs font-medium text-primary">
-              {t("form.delivery_fee_label")}
-            </span>
-          )}
-          {deliveryModeUnavailable && (
-            <span className="mt-1 block text-xs font-medium text-destructive">
-              {t("form.error_delivery_unavailable")}
+          {hint && (
+            <span className={`mt-1 flex flex-wrap items-center gap-x-2 text-xs font-medium ${quote && !quote.available ? "text-destructive" : "text-muted-foreground"}`}>
+              {t(hint.key, hint.values)}
+              {feeTyped && quote?.available && (
+                <Button type="button" variant="ghost" size="sm" className="h-auto px-1 py-0 text-xs" onClick={onUseStoreFee}>
+                  {t("form.use_store_fee")}
+                </Button>
+              )}
             </span>
           )}
           {errors.deliveryFee && (
