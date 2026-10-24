@@ -73,7 +73,7 @@ export async function handOffOne(db: AppDb, orderId: string, request: z.infer<ty
 
   if (request.kind === "driver") {
     const driver = await driverFor(db, request.driverId);
-    const [result] = await handOffToDriverOrders(db, driver, [{ orderId, deliveryType: request.deliveryType, stationCode: request.stationCode }], actor);
+    const [result] = await handOffToDriverOrders(db, driver, [{ orderId }], actor);
     if (result.outcome === "refused") throw result.error;
     const [item] = await resultItems(db, null, [result]);
     return item as Exclude<HandoffItem, { outcome: "refused" }>;

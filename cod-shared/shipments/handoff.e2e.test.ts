@@ -40,7 +40,7 @@ beforeEach(async () => {
   }
   await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T0 });
   const order = (id: string, status: "new" | "confirmed" | "ready" | "cancelled", wilayaId = 16) => ({
-    id, orderNumber: `ORD-${id}`, customerId: "c1", customerName: "Karim", phone: "0551234567", wilayaId, price: 1500, deliveryFee: 400, status, createdAt: T0, updatedAt: T0,
+    id, orderNumber: `ORD-${id}`, customerId: "c1", customerName: "Karim", phone: "0551234567", address: "12 Rue Didouche Mourad", wilayaId, price: 1500, deliveryFee: 400, status, createdAt: T0, updatedAt: T0,
   });
   await db.insert(schema.orders).values([order("ready", "ready"), order("ready2", "ready", 31), order("new", "new"), order("confirmed", "confirmed"), order("cancelled", "cancelled")]);
   await db.insert(schema.deliveryCompanies).values([
@@ -220,7 +220,7 @@ describe("settling a carrier handoff", () => {
 
 describe("handing off to the store's driver", () => {
   it("is accepted at once, with the driver's fee for the order's wilaya frozen", async () => {
-    const r = await handOffToDriver(d1.db, { orderId: "ready", driverId: "dr1", deliveryType: "home", stationCode: null, createdBy: "u1" });
+    const [r] = await handOffToDriver(d1.db, { orderIds: ["ready"], driverId: "dr1", createdBy: "u1" });
     expect(r.ok).toBe(true);
     expect(await shipmentOf("ready")).toMatchObject({ kind: "driver", driverId: "dr1", handoffState: "accepted", driverFee: 350, codAmount: 1900 });
     expect(await steps(r.ok ? r.shipmentId : "")).toEqual([["handoff", "assigned_to_driver"]]);
@@ -230,12 +230,12 @@ describe("handing off to the store's driver", () => {
   });
 
   it("pays nothing where the driver has no fee set", async () => {
-    await handOffToDriver(d1.db, { orderId: "ready2", driverId: "dr1", deliveryType: "home", stationCode: null, createdBy: null });
+    await handOffToDriver(d1.db, { orderIds: ["ready2"], driverId: "dr1", createdBy: null });
     expect((await shipmentOf("ready2"))!.driverFee).toBe(0);
   });
 
   it("refuses an order that is not ready", async () => {
-    expect(await handOffToDriver(d1.db, { orderId: "confirmed", driverId: "dr1", deliveryType: "home", stationCode: null, createdBy: null })).toEqual({ ok: false, reason: "order_not_ready" });
+    expect(await handOffToDriver(d1.db, { orderIds: ["confirmed"], driverId: "dr1", createdBy: null })).toEqual([{ ok: false, reason: "order_not_ready" }]);
   });
 });
 

@@ -58,7 +58,7 @@ export async function handOffDriverBulk(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const body = (c.req as any).valid("json") as z.infer<typeof bulkDriverHandoffSchema>;
   const driver = await driverFor(db, body.driverId);
-  const results = await handOffToDriverOrders(db, driver, body.orderIds.map((orderId) => ({ orderId, deliveryType: body.deliveryType })), c.get("user"));
+  const results = await handOffToDriverOrders(db, driver, body.orderIds.map((orderId) => ({ orderId })), c.get("user"));
   return c.json({ success: true, data: bulkData(await resultItems(db, null, results), results) }, 200);
 }
 

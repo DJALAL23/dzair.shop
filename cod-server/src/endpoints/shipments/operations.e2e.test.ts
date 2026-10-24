@@ -431,7 +431,7 @@ describe("what the merchant reports", () => {
       await d1.db.insert(schema.drivers).values({ id: "dr1", firstName: "Amine", lastName: "B", phone: "0661111111", createdAt: T0, updatedAt: T0 });
       await d1.db.insert(schema.driverCompensations).values({ id: "comp1", driverId: "dr1", wilayaId: 16, feePerDelivery: 300, createdAt: T0, updatedAt: T0 });
       await seedOrder({ id: "d1" });
-      const handed = await handOffToDriver(d1.db, { orderId: "d1", driverId: "dr1", deliveryType: "home", stationCode: null, createdBy: null });
+      const [handed] = await handOffToDriver(d1.db, { orderIds: ["d1"], driverId: "dr1", createdBy: null });
       if (!handed.ok) throw new Error("driver handoff failed");
       id = handed.shipmentId;
     });

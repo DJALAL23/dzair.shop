@@ -22,11 +22,16 @@ export const carrierHandoffSchema = z.object({
   ...parcelChoices,
 });
 
+/** The store's driver delivers to the customer's door: home, whatever the customer chose. */
+const driverDeliveryType = z.literal("home").optional().openapi({
+  description:
+    "Always home: the store's own driver brings the parcel to the customer's street address, even when the customer chose a stop desk (the order keeps that choice and its price). A stop desk is refused.",
+});
+
 export const driverHandoffSchema = z.object({
   kind: z.literal("driver"),
   driverId: z.string().min(1).openapi({ description: "The store's driver to give the order to" }),
-  deliveryType: parcelChoices.deliveryType,
-  stationCode: parcelChoices.stationCode,
+  deliveryType: driverDeliveryType,
 });
 
 export const orderHandoffSchema = z.discriminatedUnion("kind", [carrierHandoffSchema, driverHandoffSchema]);
@@ -40,7 +45,7 @@ export const bulkCarrierHandoffSchema = z.object({
 export const bulkDriverHandoffSchema = z.object({
   driverId: z.string().min(1),
   orderIds: z.array(z.string().min(1)).min(1).max(100),
-  deliveryType: parcelChoices.deliveryType,
+  deliveryType: driverDeliveryType,
 });
 
 export const resolveHandoffSchema = z.discriminatedUnion("action", [

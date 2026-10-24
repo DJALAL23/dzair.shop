@@ -147,3 +147,42 @@ export async function logActivity(
     console.error("[activity] Failed to log:", action, entity.id, err);
   }
 }
+
+/** Ten values a row; D1 binds at most 100 per statement. */
+const ACTIVITY_ROWS_PER_INSERT = 9;
+
+/**
+ * Several entries of one action — a bulk operation's — written in one trip
+ * to the database. Like logActivity, a failure is logged and never breaks
+ * the operation.
+ */
+export async function logActivities(
+  db: AppDb,
+  actor: Pick<AuthUser, "id" | "name" | "role">,
+  action: ActivityAction,
+  entries: ReadonlyArray<{ entity: { type: string; id: string; label?: string | null }; metadata?: Record<string, unknown> }>,
+): Promise<void> {
+  if (entries.length === 0) return;
+  const createdAt = new Date().toISOString();
+  const rows = entries.map(({ entity, metadata }) => ({
+    id: crypto.randomUUID(),
+    actorId: actor.id,
+    actorName: actor.name ?? "Unknown",
+    actorRole: actor.role,
+    action,
+    entityType: entity.type,
+    entityId: entity.id,
+    entityLabel: entity.label ?? null,
+    metadata: metadata ? JSON.stringify(metadata) : null,
+    createdAt,
+  }));
+  const statements = [];
+  for (let start = 0; start < rows.length; start += ACTIVITY_ROWS_PER_INSERT) {
+    statements.push(db.insert(activityLogs).values(rows.slice(start, start + ACTIVITY_ROWS_PER_INSERT)));
+  }
+  try {
+    await db.batch(statements as [(typeof statements)[number], ...typeof statements]);
+  } catch (err) {
+    console.error("[activity] Failed to log:", action, entries.length, err);
+  }
+}

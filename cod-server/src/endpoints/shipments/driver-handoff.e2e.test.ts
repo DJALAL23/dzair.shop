@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
 import type { AppContext } from "@/types";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
@@ -57,6 +58,33 @@ afterEach(() => {
 });
 
 const seed = (s: OrderSeed) => seedOrder(d1.db, commune16, s);
+
+/** The D1 binding, counting each trip to the database: a statement run on its own, or a whole batch. */
+function countingD1(raw: D1Database) {
+  let trips = 0;
+  const targets = new WeakMap<object, D1PreparedStatement>();
+  const statement = (target: D1PreparedStatement): D1PreparedStatement => {
+    const proxy = new Proxy(target, {
+      get(t, prop) {
+        const value = Reflect.get(t, prop, t);
+        if (prop === "bind") return (...args: unknown[]) => statement(value.apply(t, args));
+        if (prop === "all" || prop === "run" || prop === "first" || prop === "raw") return (...args: unknown[]) => (trips++, value.apply(t, args));
+        return typeof value === "function" ? value.bind(t) : value;
+      },
+    });
+    targets.set(proxy, target);
+    return proxy;
+  };
+  const counted = new Proxy(raw, {
+    get(t, prop) {
+      const value = Reflect.get(t, prop, t);
+      if (prop === "prepare") return (sql: string) => statement(value.call(t, sql));
+      if (prop === "batch") return (statements: D1PreparedStatement[]) => (trips++, value.call(t, statements.map((s) => targets.get(s) ?? s)));
+      return typeof value === "function" ? value.bind(t) : value;
+    },
+  });
+  return { raw: counted, trips: () => trips };
+}
 const call = (method: string, path: string, body?: unknown) => jsonRequest(app, method, path, body);
 const giveToDriver = (orderId: string, body: Record<string, unknown> = {}) => call("POST", `/api/orders/${orderId}/shipment`, { kind: "driver", driverId: "dr1", ...body });
 const codeOf = async (res: Response) => ((await res.json()) as any).code;
@@ -93,13 +121,35 @@ describe("giving an order to the driver", () => {
     expect(order).toMatchObject({ status: "ready" });
   });
 
-  it("takes the customer's delivery type and desk, unless told otherwise", async () => {
-    await seed({ id: "o1", deliveryType: "stop_desk", stationCode: "16A" });
+  it("is home delivery to the customer's address, even when the customer chose a stop desk", async () => {
+    await seed({ id: "o1", deliveryType: "stop_desk", stationCode: "16A", price: 1500, deliveryFee: 250 });
     await seed({ id: "o2", deliveryType: "stop_desk", stationCode: "16A" });
-    await giveToDriver("o1");
-    await giveToDriver("o2", { deliveryType: "home" });
-    expect(await shipmentOf("o1")).toMatchObject({ deliveryType: "stop_desk", stationCode: "16A" });
+    expect((await giveToDriver("o1")).status).toBe(201);
+    expect((await giveToDriver("o2", { deliveryType: "home" })).status).toBe(201);
+    expect(await shipmentOf("o1")).toMatchObject({ deliveryType: "home", stationCode: null, codAmount: 1750 });
     expect(await shipmentOf("o2")).toMatchObject({ deliveryType: "home", stationCode: null });
+    const order = await d1.db.select().from(schema.orders).where(eq(schema.orders.id, "o1")).get();
+    expect(order).toMatchObject({ deliveryType: "stop_desk", stationCode: "16A" });
+  });
+
+  it("refuses a stop desk: the store's driver has none", async () => {
+    await seed({ id: "o1" });
+    const res = await giveToDriver("o1", { deliveryType: "stop_desk", stationCode: "16A" });
+    expect(res.status).toBe(400);
+    expect(await codeOf(res)).toBe("VALIDATION_FAILED");
+    expect((await call("POST", "/api/shipments/driver-bulk", { driverId: "dr1", orderIds: ["o1"], deliveryType: "stop_desk" })).status).toBe(400);
+    expect(await shipmentOf("o1")).toBeUndefined();
+  });
+
+  it("refuses an order with no street address to bring it to — creating nothing", async () => {
+    await seed({ id: "o1", address: null });
+    await seed({ id: "o2", address: "   ", deliveryType: "stop_desk", stationCode: "16A" });
+    for (const id of ["o1", "o2"]) {
+      const res = await giveToDriver(id);
+      expect(res.status).toBe(400);
+      expect(await codeOf(res)).toBe("MISSING_ADDRESS");
+      expect(await shipmentOf(id)).toBeUndefined();
+    }
   });
 
   it("needs the assignment permission — and a carrier handoff the dispatch one", async () => {
@@ -147,12 +197,12 @@ describe("giving an order to the driver", () => {
   it("a driver deactivated or deleted after the check never receives the order", async () => {
     await seed({ id: "o1" });
     await d1.db.update(schema.drivers).set({ status: "inactive" }).where(eq(schema.drivers.id, "dr1"));
-    expect(await handOffToDriver(d1.db, { orderId: "o1", driverId: "dr1", deliveryType: "home", stationCode: null, createdBy: null })).toEqual({ ok: false, reason: "driver_unavailable" });
-    expect(await handOffToDriver(d1.db, { orderId: "o1", driverId: "gone", deliveryType: "home", stationCode: null, createdBy: null })).toEqual({ ok: false, reason: "driver_unavailable" });
+    expect(await handOffToDriver(d1.db, { orderIds: ["o1"], driverId: "dr1", createdBy: null })).toEqual([{ ok: false, reason: "driver_unavailable" }]);
+    expect(await handOffToDriver(d1.db, { orderIds: ["o1"], driverId: "gone", createdBy: null })).toEqual([{ ok: false, reason: "driver_unavailable" }]);
     expect(await shipmentOf("o1")).toBeUndefined();
 
     await d1.db.update(schema.orders).set({ status: "confirmed" }).where(eq(schema.orders.id, "o1"));
-    expect(await handOffToDriver(d1.db, { orderId: "o1", driverId: "gone", deliveryType: "home", stationCode: null, createdBy: null })).toEqual({ ok: false, reason: "order_not_ready" });
+    expect(await handOffToDriver(d1.db, { orderIds: ["o1"], driverId: "gone", createdBy: null })).toEqual([{ ok: false, reason: "order_not_ready" }]);
   });
 
   it("…and the request that checked the driver first is told so", async () => {
@@ -182,8 +232,9 @@ describe("giving many orders to the driver", () => {
   it("one result per order, in the order asked, with the same rules as one", async () => {
     await seed({ id: "o1" });
     await seed({ id: "o2", status: "new" });
-    await seed({ id: "o3" });
-    const res = await call("POST", "/api/shipments/driver-bulk", { driverId: "dr1", orderIds: ["o1", "o2", "missing", "o3", "o1"] });
+    await seed({ id: "o3", deliveryType: "stop_desk", stationCode: "16A" });
+    await seed({ id: "o4", address: null });
+    const res = await call("POST", "/api/shipments/driver-bulk", { driverId: "dr1", orderIds: ["o1", "o2", "missing", "o3", "o1", "o4"] });
     expect(res.status).toBe(200);
     const { data } = (await res.json()) as any;
     expect(data.results.map((r: any) => [r.orderId, r.outcome, r.error?.code ?? null])).toEqual([
@@ -192,10 +243,29 @@ describe("giving many orders to the driver", () => {
       ["missing", "refused", "ORDER_NOT_FOUND"],
       ["o3", "accepted", null],
       ["o1", "refused", "ORDER_HAS_SHIPMENT"],
+      ["o4", "refused", "MISSING_ADDRESS"],
     ]);
-    expect(data.summary).toEqual({ accepted: 2, unknown: 0, refused: 3 });
+    expect(data.summary).toEqual({ accepted: 2, unknown: 0, refused: 4 });
+    expect(await shipmentOf("o3")).toMatchObject({ deliveryType: "home", stationCode: null });
+    expect((await activity("order.driver_assigned")).map((log) => log.entityId).sort()).toEqual(["o1", "o3"]);
     expect(data.results[0].shipment).toMatchObject({ kind: "driver", driverFee: 300 });
     expect(await d1.db.select().from(schema.shipments).all()).toHaveLength(2);
+  });
+
+  it("takes as many database round trips for fifty orders as for two", async () => {
+    const tripsFor = async (prefix: string, count: number) => {
+      const ids = Array.from({ length: count }, (_, i) => `${prefix}${i}`);
+      for (const id of ids) await seed({ id });
+      const counted = countingD1(d1.raw);
+      dbModule.getDb.mockReturnValue(drizzle(counted.raw, { schema }) as never);
+      const res = await call("POST", "/api/shipments/driver-bulk", { driverId: "dr1", orderIds: ids });
+      dbModule.getDb.mockReturnValue(d1.db);
+      expect(((await res.json()) as any).data.summary.accepted).toBe(count);
+      return counted.trips();
+    };
+    const two = await tripsFor("t", 2);
+    expect(await tripsFor("f", 50)).toBe(two);
+    expect(two).toBeLessThanOrEqual(6);
   });
 
   it("an inactive or unknown driver refuses the whole request", async () => {

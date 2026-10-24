@@ -14,25 +14,27 @@
  *                  resolves it, never a blind retry.
  * A driver handoff has no carrier call: the shipment is accepted at once,
  * with the driver's fee for the order's wilaya frozen in the same statement.
+ * The store's driver delivers to the customer's door — never to a stop desk.
  *
  * CodFlow's own steps are recorded as `handoff` / `system` events beside the
  * carrier's; they never change the carrier's provider status.
  */
 
-import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, eq, exists, inArray, sql, type SQL } from "drizzle-orm";
 import { insertSelectRow } from "../db/insert-select";
 import type { AppDb } from "../db/client";
 import { driverCompensations, drivers, orders, shipmentEvents, shipments } from "../db/schema";
 import { checkVoid, type ShipmentRuleVerdict } from "./interpretation";
 import { eventKey, type ShipmentEventSource } from "./model";
 import { deliveryFactsOf } from "./queries";
+import { chunkIds } from "../queries/d1-limits";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 
 /** Why an order could not be reserved for delivery. */
 export type OrderRefusal = "order_not_found" | "order_not_ready" | "order_has_shipment";
-/** Why an order could not be given to a driver: the order's reasons, or the driver no longer takes orders. */
-export type ReservationRefusal = OrderRefusal | "driver_unavailable";
+/** Why an order could not be given to a driver: the order's reasons, no street address to bring it to, or the driver no longer takes orders. */
+export type ReservationRefusal = OrderRefusal | "order_missing_address" | "driver_unavailable";
 
 export type Reserved<R extends ReservationRefusal = OrderRefusal> = { ok: true; shipmentId: string } | { ok: false; reason: R };
 
@@ -134,48 +136,83 @@ export function reserveCarrierShipment(db: AppDb, input: CarrierReservation): Pr
 }
 
 export interface DriverHandoff {
-  orderId: string;
+  orderIds: readonly string[];
   driverId: string;
-  deliveryType: "home" | "stop_desk";
-  stationCode: string | null;
   createdBy: string | null;
 }
 
+/** An order with a street address: the store's driver brings the parcel to the customer's door. */
+const hasStreetAddress = sql`trim(coalesce(${orders.address}, '')) <> ''`;
+const hasNoShipment = sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orders.id})`;
+
 /**
- * Give a ready order to the store's driver: the shipment is accepted at once,
- * and the driver's fee for the order's wilaya (0 when none is set) is frozen
- * with it — a later change to the driver's pay grid does not touch it. In
- * the same statement, the driver must exist and not be inactive, so a driver
- * deleted or deactivated meanwhile never receives it.
+ * Give ready orders to the store's driver, all in one batch: each shipment is
+ * accepted at once as home delivery — the driver has no stop desk, whatever
+ * the customer chose — with the driver's fee for the order's wilaya (0 when
+ * none is set) frozen with it, so a later change to the pay grid does not
+ * touch it. Each order's statement also requires it to be ready, with no
+ * shipment and a street address, and the driver to exist and not be
+ * inactive. One result per order id, in the order given; an id given twice
+ * is given once and refused the second time.
  */
-export async function handOffToDriver(db: AppDb, input: DriverHandoff): Promise<Reserved<ReservationRefusal>> {
+export async function handOffToDriver(db: AppDb, input: DriverHandoff): Promise<Array<Reserved<ReservationRefusal>>> {
+  if (input.orderIds.length === 0) return [];
   const fee = sql`coalesce((select ${driverCompensations.feePerDelivery} from ${driverCompensations} where ${driverCompensations.driverId} = ${input.driverId} and ${driverCompensations.wilayaId} = "orders"."wilaya_id"), 0)`;
-  return insertReservation(
-    db,
-    input.orderId,
-    {
-      kind: value("driver"),
-      driverId: value(input.driverId),
-      handoffState: value("accepted"),
-      deliveryType: value(input.deliveryType),
-      stationCode: value(input.stationCode),
-      codAmount: sql`${orders.price} + ${orders.deliveryFee}`,
-      driverFee: fee,
-      createdBy: value(input.createdBy),
-    },
-    {
-      also: driverCanTake(input.driverId),
-      refusal: async () => {
-        const reason = await orderRefusal(db, input.orderId);
-        if (reason !== "order_not_ready") return reason;
-        const [order, driver] = await Promise.all([
-          db.select({ status: orders.status }).from(orders).where(eq(orders.id, input.orderId)).get(),
-          db.select({ status: drivers.status }).from(drivers).where(eq(drivers.id, input.driverId)).get(),
-        ]);
-        return order?.status === "ready" && (!driver || driver.status === "inactive") ? "driver_unavailable" : reason;
-      },
-      history: { source: "handoff", step: "assigned_to_driver", actorId: input.createdBy },
-    },
+  const now = new Date().toISOString();
+  const planned = input.orderIds.map((orderId) => ({ orderId, id: crypto.randomUUID(), revision: crypto.randomUUID() }));
+  const statements = planned.flatMap(({ orderId, id, revision }) => [
+    db.insert(shipments).select(
+      db
+        .select(
+          insertSelectRow(shipments, {
+            id: sql`${id}`,
+            orderId: orders.id,
+            kind: value("driver"),
+            driverId: value(input.driverId),
+            handoffState: value("accepted"),
+            deliveryType: value("home"),
+            stationCode: value(null),
+            codAmount: sql`${orders.price} + ${orders.deliveryFee}`,
+            driverFee: fee,
+            createdBy: value(input.createdBy),
+            revision: sql`${revision}`,
+            createdAt: sql`${now}`,
+            updatedAt: sql`${now}`,
+          }) as never,
+        )
+        .from(orders)
+        .where(and(eq(orders.id, orderId), eq(orders.status, "ready"), hasNoShipment, hasStreetAddress, driverCanTake(input.driverId))),
+    ),
+    codflowEvent(db, id, revision, "handoff", "assigned_to_driver", { actorId: input.createdBy }),
+  ]);
+  const results = await db.batch(statements as unknown as [BatchStatement, ...BatchStatement[]]);
+  const accepted = planned.map((_, i) => changed(results[i * 2]));
+  const refused = planned.filter((_, i) => !accepted[i]).map((p) => p.orderId);
+  const reasons = refused.length ? await driverRefusals(db, refused, input.driverId) : new Map<string, ReservationRefusal>();
+  return planned.map(({ orderId, id }, i) => (accepted[i] ? { ok: true, shipmentId: id } : { ok: false, reason: reasons.get(orderId) ?? "order_not_found" }));
+}
+
+/** Why each of these orders was not given to the driver, read in one trip. */
+async function driverRefusals(db: AppDb, orderIds: readonly string[], driverId: string): Promise<Map<string, ReservationRefusal>> {
+  const distinct = [...new Set(orderIds)];
+  const shipped = exists(db.select({ one: sql`1` }).from(shipments).where(eq(shipments.orderId, orders.id)));
+  const [driver, ...chunks] = await db.batch([
+    db.select({ status: drivers.status }).from(drivers).where(eq(drivers.id, driverId)),
+    ...chunkIds(distinct).map((chunk) =>
+      db.select({ id: orders.id, status: orders.status, address: orders.address, shipped }).from(orders).where(inArray(orders.id, chunk)),
+    ),
+  ] as unknown as [BatchStatement, ...BatchStatement[]]);
+  const driverAvailable = (driver as Array<{ status: string }>).some((row) => row.status !== "inactive");
+  const found = new Map((chunks as Array<Array<{ id: string; status: string; address: string | null; shipped: unknown }>>).flat().map((row) => [row.id, row]));
+  return new Map(
+    distinct.map((id): [string, ReservationRefusal] => {
+      const order = found.get(id);
+      if (!order) return [id, "order_not_found"];
+      if (Number(order.shipped)) return [id, "order_has_shipment"];
+      if (order.status !== "ready") return [id, "order_not_ready"];
+      if (!order.address?.trim()) return [id, "order_missing_address"];
+      return [id, driverAvailable ? "order_not_ready" : "driver_unavailable"];
+    }),
   );
 }
 

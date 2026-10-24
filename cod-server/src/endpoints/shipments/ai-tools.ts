@@ -131,13 +131,14 @@ export const getShipmentTools = (db: AppDb, env: Env, props: McpProps) => ({
   handOffOrderToDriver: tool({
     description:
       "Give a ready order to one of the store's own drivers: the shipment is accepted at once, with the driver's fee for the wilaya fixed. " +
-      "Required: orderId, driverId (listDrivers). Optional: deliveryType (home|stop_desk), stationCode. " +
-      "Refused when the order is not ready, already has a shipment, or the driver is inactive. " +
+      "The driver delivers to the customer's street address — never to a stop desk, even when the customer chose one (the order keeps its price). " +
+      "Required: orderId, driverId (listDrivers). " +
+      "Refused when the order is not ready, already has a shipment, has no street address, or the driver is inactive. " +
       "Report the driver's progress with reportShipmentEvent.",
     inputSchema: z.object({}).passthrough(),
     execute: async (args) => {
       const parsed = handOffOrderToDriverSchema.safeParse(args);
-      if (!parsed.success) return invalid(parsed.error, "orderId, driverId; optional deliveryType (home|stop_desk), stationCode");
+      if (!parsed.success) return invalid(parsed.error, "orderId, driverId");
       const { orderId, ...request } = parsed.data;
       try {
         const handoff = await handOffOne(db, orderId, { kind: "driver", ...request }, actorOf(props));

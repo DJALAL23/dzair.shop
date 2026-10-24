@@ -72,7 +72,7 @@ const drift = async (id = "dr1") => (await getDriverCashReconciliation(d1.db, id
 /** An order given to the driver; delivered unless asked otherwise. Returns its shipment id. */
 async function driverShipment(orderId: string, options: { driverId?: string; price?: number; deliveryFee?: number; delivered?: boolean } = {}) {
   await seedOrder(d1.db, commune16, { id: orderId, price: options.price ?? 1500, deliveryFee: options.deliveryFee ?? 400 });
-  const handed = await handOffToDriver(d1.db, { orderId, driverId: options.driverId ?? "dr1", deliveryType: "home", stationCode: null, createdBy: null });
+  const [handed] = await handOffToDriver(d1.db, { orderIds: [orderId], driverId: options.driverId ?? "dr1", createdBy: null });
   if (!handed.ok) throw new Error(`handoff of ${orderId} failed: ${handed.reason}`);
   if (options.delivered !== false) {
     await recordShipmentEvents(d1.db, handed.shipmentId, [

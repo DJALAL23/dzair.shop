@@ -29,7 +29,7 @@ beforeEach(async () => {
 });
 
 async function order(id: string, status: OrderStatus) {
-  await d1.db.insert(schema.orders).values({ id, orderNumber: `ORD-${id}`, customerId: "c1", customerName: "K", phone: "0551234567", price: 1000, status, createdAt: T, updatedAt: T });
+  await d1.db.insert(schema.orders).values({ id, orderNumber: `ORD-${id}`, customerId: "c1", customerName: "K", phone: "0551234567", address: "12 Rue Didouche Mourad", price: 1000, status, createdAt: T, updatedAt: T });
 }
 
 const statusOf = async (id: string) => (await d1.db.select().from(schema.orders).where(eq(schema.orders.id, id)).get())!.status;
@@ -65,7 +65,7 @@ describe("updateOrderStatus (AI tool)", () => {
 
   it("refuses any change once the order has a shipment", async () => {
     await order(ID, "ready");
-    await handOffToDriver(d1.db, { orderId: ID, driverId: "dr1", deliveryType: "home", stationCode: null, createdBy: null });
+    await handOffToDriver(d1.db, { orderIds: [ID], driverId: "dr1", createdBy: null });
     const refused = await setStatus(ID, "cancelled");
     expect(refused).toMatchObject({ success: false });
     expect(refused.error).toContain("shipment");

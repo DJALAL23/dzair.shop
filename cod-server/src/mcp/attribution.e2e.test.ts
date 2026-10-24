@@ -43,7 +43,7 @@ beforeEach(async () => {
     id: PRODUCT, name: "Robe", handle: "robe", price: 1000, hasVariants: false, inventory: 10, trackInventory: true,
     lowStockThreshold: 1, status: "ACTIVE", visibility: true, showInStore: true, createdAt: T, updatedAt: T,
   });
-  await d1.db.insert(schema.orders).values({ id: ORDER, orderNumber: "ORD-1", customerId: CUSTOMER, customerName: "Karim", phone: "0551234567", wilayaId: 16, price: 2000, codAmount: 2000, status: "confirmed", createdAt: T, updatedAt: T });
+  await d1.db.insert(schema.orders).values({ id: ORDER, orderNumber: "ORD-1", customerId: CUSTOMER, customerName: "Karim", phone: "0551234567", address: "12 Rue Didouche Mourad", wilayaId: 16, price: 2000, codAmount: 2000, status: "confirmed", createdAt: T, updatedAt: T });
   await d1.db.insert(schema.orderProducts).values({ id: LINE, orderId: ORDER, productId: PRODUCT, productName: "Robe", quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: T });
   await d1.db.insert(schema.drivers).values({ id: "dr1", firstName: "Amine", lastName: "B", phone: "0661111111", createdAt: T, updatedAt: T });
 });
@@ -79,7 +79,7 @@ describe("an agent's writes are the granting person's", () => {
 
   it("a driver settled — the model names no one", async () => {
     await d1.db.update(schema.orders).set({ status: "ready" }).where(eq(schema.orders.id, ORDER));
-    const handoff = await handOffToDriver(d1.db, { orderId: ORDER, driverId: "dr1", deliveryType: "home", stationCode: null, createdBy: null });
+    const [handoff] = await handOffToDriver(d1.db, { orderIds: [ORDER], driverId: "dr1", createdBy: null });
     if (!handoff.ok) throw new Error(handoff.reason);
     await recordShipmentEvents(d1.db, handoff.shipmentId, [
       { source: "merchant", status: { vocabulary: "driver", value: "delivered" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() },

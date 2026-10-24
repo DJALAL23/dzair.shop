@@ -38,7 +38,7 @@ What the carrier's answer proves decides the outcome:
 - **refused** — the carrier refused it, the credentials failed, it was throttled, or it could not be reached: nothing was created and the order is ready again.
 - **unknown** — the carrier may have created it (a timeout, a server error). It is never sent again automatically: resolve it with \`POST /shipments/{id}/resolve\`.`;
 
-const DRIVER_HANDOFF = `The store's own driver has no carrier to call: the shipment is accepted at once, and the driver's fee for the order's wilaya (0 where none is set) is frozen on it. Only a **ready** order with no shipment, and a driver who is not inactive. The driver's progress is then reported with \`POST /shipments/{id}/events\`.`;
+const DRIVER_HANDOFF = `The store's own driver has no carrier to call: the shipment is accepted at once, and the driver's fee for the order's wilaya (0 where none is set) is frozen on it. The driver is not a carrier and has no stop desks: the shipment is always home delivery to the order's street address — an order whose customer chose a stop desk keeps that choice and its price, and the driver brings it to the door (\`deliveryType: "stop_desk"\` is refused). Only a **ready** order with no shipment and a street address (400 MISSING_ADDRESS), and a driver who is not inactive. The driver's progress is then reported with \`POST /shipments/{id}/events\`.`;
 
 export const handOffOrderRoute = defineRoute({
   method: "post",
