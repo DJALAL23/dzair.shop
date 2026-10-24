@@ -20,6 +20,9 @@ export const SHOPPER_ORDER_STAGES = [
 
 export type ShopperOrderStage = (typeof SHOPPER_ORDER_STAGES)[number];
 
+/** The steps an order passes on its way to the shopper, in order; `returned` and `cancelled` end it off this path. */
+export const SHOPPER_ORDER_JOURNEY = ["placed", "confirmed", "preparing", "shipped", "out_for_delivery", "delivered"] as const satisfies readonly ShopperOrderStage[];
+
 const SHOPPER_STAGE: Readonly<Record<OrderStage, ShopperOrderStage>> = {
   new: "placed",
   unreachable: "placed",

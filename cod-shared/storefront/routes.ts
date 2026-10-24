@@ -22,6 +22,8 @@ export const STOREFRONT_PAGE_PATHS = {
   landing: "/lp/:slug",
   checkout: "/checkout",
   thankYou: "/thank-you",
+  /** Where a shopper follows an order by its number and phone; `?order=<number>` fills the number in. */
+  trackOrder: "/track-order",
 } as const;
 
 export type StorefrontPageType = keyof typeof STOREFRONT_PAGE_PATHS;
