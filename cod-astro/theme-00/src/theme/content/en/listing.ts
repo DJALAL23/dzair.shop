@@ -16,6 +16,13 @@ export const enListing: ListingStrings = {
   sortPriceAscending: "Price, low to high",
   sortPriceDescending: "Price, high to low",
   sortApply: "Apply",
+  searchResults_one: "{count} result for “{query}”",
+  searchResults_other: "{count} results for “{query}”",
+  searchTitle: "Search",
+  searchPlaceholder: "Search products…",
+  searchSubmit: "Search",
+  searchEmpty: "No products match your search.",
+  searchHint: "Search by product name.",
   listingBrowse: "Browse by category",
   pageEmpty: "This page is still empty. Add its text from the dashboard.",
 };

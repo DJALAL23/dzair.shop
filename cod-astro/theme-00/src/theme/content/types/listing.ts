@@ -5,7 +5,13 @@
 
 import type { Plural } from "./plural";
 
-export type ListingStrings = Plural<"listingCount"> & Plural<"listingRangeTotal"> & {
+export type ListingStrings = Plural<"listingCount"> & Plural<"listingRangeTotal"> & Plural<"searchResults"> & {
+  /** The search page: its title, the box, the button, nothing found, and what can be searched. `searchResults` names {count} and {query}. */
+  searchTitle: string;
+  searchPlaceholder: string;
+  searchSubmit: string;
+  searchEmpty: string;
+  searchHint: string;
   /** Products {first}–{last}: a page of a listing whose total is not known. */
   listingRange: string;
   /** The order control: its label, the listing's own order, each order the platform offers, and the button without scripts. */

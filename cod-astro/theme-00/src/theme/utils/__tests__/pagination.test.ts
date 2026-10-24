@@ -55,5 +55,6 @@ describe("listingHref", () => {
     expect(listingHref("/fr/products", 1, "newest")).toBe("/fr/products?sort=newest");
     expect(listingHref("/fr/products", 3, "price-descending")).toBe("/fr/products?page=3&sort=price-descending");
     expect(listingHref("/category/robes", 2, undefined)).toBe("/category/robes?page=2");
+    expect(listingHref("/fr/search", 2, "newest", { q: "robe été" })).toBe("/fr/search?q=robe+%C3%A9t%C3%A9&page=2&sort=newest");
   });
 });

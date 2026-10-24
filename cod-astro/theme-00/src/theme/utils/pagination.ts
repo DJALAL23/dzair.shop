@@ -40,9 +40,9 @@ export function pageCount(total: number | null): number | null {
   return total === null ? null : Math.max(1, Math.ceil(total / LISTING_PAGE_SIZE));
 }
 
-/** A listing's address at a page and an order, under its localized path; the first page carries no `page`. */
-export function listingHref(path: string, page: number, sort: ProductSort | undefined): string {
-  const query = new URLSearchParams();
+/** A listing's address at a page and an order, under its localized path; the first page carries no `page`. `keep` rides along (a search's words). */
+export function listingHref(path: string, page: number, sort: ProductSort | undefined, keep: Record<string, string> = {}): string {
+  const query = new URLSearchParams(keep);
   if (page > 1) query.set("page", String(page));
   if (sort) query.set("sort", sort);
   const search = query.toString();

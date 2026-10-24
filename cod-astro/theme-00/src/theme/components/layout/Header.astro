@@ -74,7 +74,7 @@ const centered = logoPosition === "center";
     )}
     <div class="header-end">
       <LanguageSwitcher />
-      <a href={store.href(storefrontPath("catalog"))} class="icon-btn" aria-label={content.searchLabel}>
+      <a href={store.href("/search")} class="icon-btn" aria-label={content.searchLabel}>
         <Icon name="heroicons:magnifying-glass" aria-hidden="true" />
       </a>
       {config.cartEnabled && <CartBadge content={content} />}

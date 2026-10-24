@@ -10,10 +10,12 @@ interface Props {
   /** The listing's localized path, which the choice loads. */
   action: string;
   sort: ProductSort | undefined;
+  /** Fields the listing keeps across orders, such as a search's words. */
+  keep?: Record<string, string>;
   content: StoreFrontContent;
 }
 
-const { action, sort, content } = Astro.props;
+const { action, sort, keep = {}, content } = Astro.props;
 const LABELS: Record<ProductSort, string> = {
   newest: content.sortNewest,
   "price-ascending": content.sortPriceAscending,
@@ -22,6 +24,7 @@ const LABELS: Record<ProductSort, string> = {
 ---
 
 <form class="listing-sort" method="get" action={action} data-listing-sort>
+  {Object.entries(keep).map(([name, value]) => <input type="hidden" name={name} value={value} />)}
   <label for="listing-sort">{content.sortLabel}</label>
   <span class="listing-sort-field">
     <select id="listing-sort" name="sort">
