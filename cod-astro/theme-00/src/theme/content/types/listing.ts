@@ -5,9 +5,16 @@
 
 import type { Plural } from "./plural";
 
-export type ListingStrings = Plural<"listingCount"> & {
+export type ListingStrings = Plural<"listingCount"> & Plural<"listingRangeTotal"> & {
   /** Products {first}–{last}: a page of a listing whose total is not known. */
   listingRange: string;
+  /** The order control: its label, the listing's own order, each order the platform offers, and the button without scripts. */
+  sortLabel: string;
+  sortDefault: string;
+  sortNewest: string;
+  sortPriceAscending: string;
+  sortPriceDescending: string;
+  sortApply: string;
   /** Above the category chips. */
   listingBrowse: string;
   /** A text page the store has not written yet, in an editor's preview. */

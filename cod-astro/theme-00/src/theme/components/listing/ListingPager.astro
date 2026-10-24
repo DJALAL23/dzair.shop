@@ -1,18 +1,28 @@
 ---
 // Previous and next links for a product listing. Each page is a plain address
-// (`?page=n`), so a shopper can share it, reload it, and use the back button.
+// (`?page=n`, keeping the order chosen), so a shopper can share it, reload it,
+// and use the back button. When the listing knows its size, the pill says
+// which page of how many.
 import { Icon } from "astro-icon/components";
+import type { ProductSort } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
+import { message } from "@/theme/content/messages";
+import { listingHref, pageCount } from "@/theme/utils/pagination";
 
 interface Props {
   basePath: string;
   page: number;
   hasNext: boolean;
+  /** How many products the whole listing holds; null when the server does not say. */
+  total?: number | null;
+  sort?: ProductSort | undefined;
   content: StoreFrontContent;
 }
 
-const { basePath, page, hasNext, content } = Astro.props;
-const pageHref = (n: number) => (n === 1 ? basePath : `${basePath}?page=${n}`);
+const { basePath, page, hasNext, total = null, sort, content } = Astro.props;
+const pageHref = (n: number) => listingHref(basePath, n, sort);
+const pages = pageCount(total);
+const known = pages !== null && pages >= page;
 ---
 
 {(page > 1 || hasNext) && (
@@ -25,7 +35,7 @@ const pageHref = (n: number) => (n === 1 ? basePath : `${basePath}?page=${n}`);
     ) : (
       <span></span>
     )}
-    <span class="pager-page num" aria-current="page">{page}</span>
+    <span class:list={["pager-page num", known && "is-of"]} aria-current="page" aria-label={known ? message(content, "pagerPageOf", { page, pages }, Astro.locals.store.locale) : undefined} dir="ltr">{known ? `${page} / ${pages}` : page}</span>
     {hasNext ? (
       <a href={pageHref(page + 1)} rel="next" data-astro-prefetch="hover" class="btn-secondary btn-auto pager-link">
         {content.pagerNext}
@@ -44,4 +54,5 @@ const pageHref = (n: number) => (n === 1 ? basePath : `${basePath}?page=${n}`);
   .pager-link :global(svg) { width: 1rem; height: 1rem; }
   :global([dir="ltr"]) .pager :global(.flip-ltr) { transform: scaleX(-1); }
   .pager-page { display: grid; place-items: center; min-width: 2.5rem; height: 2.5rem; border-radius: var(--radius-round); background: var(--clr-ink); color: var(--clr-bg); font-size: var(--text-sm); }
+  .pager-page.is-of { padding-inline: 0.875rem; }
 </style>

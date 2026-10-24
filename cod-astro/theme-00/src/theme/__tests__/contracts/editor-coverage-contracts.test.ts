@@ -53,6 +53,7 @@ const SHARED_UI_LABELS = new Set([
   // A listing's words: its count, the "all" button, its empty states.
   "listingCount",
   "listingRange",
+  "listingRangeTotal",
   "listingBrowse",
   "allLabel",
   "noProductsTitle",

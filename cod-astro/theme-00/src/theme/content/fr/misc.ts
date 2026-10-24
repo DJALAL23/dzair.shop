@@ -22,6 +22,7 @@ export const frMisc: MiscStrings = {
   pagerPrevious: "Précédent",
   pagerNext: "Suivant",
   pagerLabel: "Navigation entre les pages",
+  pagerPageOf: "Page {page} sur {pages}",
   reviewFormMinLengthError_one: "Écrivez au moins {count} caractère, ou ajoutez une note vocale",
   reviewFormMinLengthError_many: "Écrivez au moins {count} caractères, ou ajoutez une note vocale",
   reviewFormMinLengthError_other: "Écrivez au moins {count} caractères, ou ajoutez une note vocale",

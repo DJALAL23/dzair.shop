@@ -20,6 +20,7 @@ export const enMisc: MiscStrings = {
   pagerPrevious: "Previous",
   pagerNext: "Next",
   pagerLabel: "Page navigation",
+  pagerPageOf: "Page {page} of {pages}",
   reviewFormMinLengthError_one: "Write at least {count} character, or add a voice note",
   reviewFormMinLengthError_other: "Write at least {count} characters, or add a voice note",
   reviewFormRatingRequired: "Please select a rating from 1 to 5 stars",

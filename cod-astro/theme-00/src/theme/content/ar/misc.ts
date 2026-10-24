@@ -28,6 +28,7 @@ export const arMisc: MiscStrings = {
   pagerPrevious: "السابق",
   pagerNext: "التالي",
   pagerLabel: "التنقل بين الصفحات",
+  pagerPageOf: "الصفحة {page} من {pages}",
   reviewFormMinLengthError_zero: "اكتب رأيك، أو أضف رسالة صوتية",
   reviewFormMinLengthError_one: "اكتب حرفًا واحدًا على الأقل، أو أضف رسالة صوتية",
   reviewFormMinLengthError_two: "اكتب حرفين على الأقل، أو أضف رسالة صوتية",

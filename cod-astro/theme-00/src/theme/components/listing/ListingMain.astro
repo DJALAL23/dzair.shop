@@ -10,17 +10,26 @@ import { storefrontPath } from "@wocart/storefront";
 import { Icon } from "astro-icon/components";
 import ProductCard from "@/theme/components/product/ProductCard.astro";
 import ListingPager from "@/theme/components/listing/ListingPager.astro";
+import ListingSort from "@/theme/components/listing/ListingSort.astro";
 import { message } from "@/theme/content/messages";
 import type { ListingView, listingMain } from "@/theme/catalog/listing/listing-main.def";
 
 type Props = InferProps<typeof listingMain> & { view?: ListingView | null };
-const { view, headerAlign, showBreadcrumbs, showDescription, showCount, showCategoryNav, columns, headScheme, scheme, style } = Astro.props;
+const { view, headerAlign, showBreadcrumbs, showDescription, showCount, showSort, showCategoryNav, columns, headScheme, scheme, style } = Astro.props;
 const store = Astro.locals.store;
 const { content, config, locale } = store;
 const across = Math.min(5, Math.max(2, Math.round(columns)));
 const outer = styleClasses(style?.spacing ? { spacing: style.spacing } : undefined);
 const width = styleClasses(style?.size ? { size: style.size } : undefined);
-const count = view ? (view.page === 1 && !view.hasNext ? message(content, "listingCount", { count: view.products.length }, locale) : message(content, "listingRange", { first: view.first, last: view.last, noun: content.productCountLabel }, locale)) : "";
+// The whole listing's size when the server counts it; the page's own rows otherwise.
+const whole = view ? (view.total ?? (view.page === 1 && !view.hasNext ? view.products.length : null)) : null;
+const count = !view
+  ? ""
+  : whole !== null && view.page === 1 && !view.hasNext
+    ? message(content, "listingCount", { count: whole }, locale)
+    : whole !== null
+      ? message(content, "listingRangeTotal", { first: view.first, last: view.last, count: whole }, locale)
+      : message(content, "listingRange", { first: view.first, last: view.last, noun: content.productCountLabel }, locale);
 ---
 
 {view && (
@@ -68,6 +77,8 @@ const count = view ? (view.page === 1 && !view.hasNext ? message(content, "listi
           </nav>
         )}
 
+        {showSort && (view.products.length > 0 || view.sort) && <ListingSort action={store.href(view.path)} sort={view.sort} content={content} />}
+
         {view.products.length > 0 ? (
           <ul class="product-row listing-grid" style={`--across: ${across}`}>
             {view.products.map((product, i) => (
@@ -86,7 +97,7 @@ const count = view ? (view.page === 1 && !view.hasNext ? message(content, "listi
           </div>
         )}
 
-        <ListingPager basePath={store.href(view.path)} page={view.page} hasNext={view.hasNext} content={content} />
+        <ListingPager basePath={store.href(view.path)} page={view.page} hasNext={view.hasNext} total={view.total} sort={view.sort} content={content} />
       </div>
     </div>
   </section>

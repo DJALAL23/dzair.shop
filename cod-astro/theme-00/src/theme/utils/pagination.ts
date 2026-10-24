@@ -1,8 +1,10 @@
 /**
- * Paging for the product listings. The server pages with `limit` and `offset`
- * and answers with at most 100 rows, so a listing asks for one row more than
- * a page to learn whether a next page exists.
+ * What a listing's address asks for — its page and its order — read the same
+ * way by every listing, and written back into its links. The page itself is
+ * the SDK's `products.page`: the rows, whether another page follows, and how
+ * many the whole listing holds.
  */
+import { PRODUCT_SORTS, type ProductSort } from "@wocart/storefront";
 
 /** Products per listing page. */
 export const LISTING_PAGE_SIZE = 24;
@@ -17,25 +19,32 @@ export function requestedPage(raw: string | null | undefined): number {
   return Number.isSafeInteger(page) && page >= 1 && page <= MAX_PAGE ? page : 1;
 }
 
-/** The request for one page: its offset, and a limit one above the page size. */
-export function pageRequest(page: number): { limit: number; offset: number } {
-  return { limit: LISTING_PAGE_SIZE + 1, offset: (page - 1) * LISTING_PAGE_SIZE };
+/** The order `?sort=` asks for, or none — the listing's own — for anything the SDK does not offer. */
+export function requestedSort(raw: string | null | undefined): ProductSort | undefined {
+  return PRODUCT_SORTS.find((sort) => sort === raw);
 }
 
-/**
- * The rows one page shows, whether a next page exists, and the 1-based numbers
- * of its first and last rows (both 0 for an empty page).
- */
-export function pageWindow<T>(
-  rows: readonly T[],
-  page: number,
-): { items: T[]; hasNext: boolean; first: number; last: number } {
-  const items = rows.slice(0, LISTING_PAGE_SIZE);
+/** The rows of `page` a listing asks the server for. */
+export function pageRequest(page: number, sort: ProductSort | undefined): { limit: number; offset: number; sort?: ProductSort } {
+  return { limit: LISTING_PAGE_SIZE, offset: (page - 1) * LISTING_PAGE_SIZE, ...(sort ? { sort } : {}) };
+}
+
+/** The 1-based numbers of a page's first and last rows (both 0 for an empty page). */
+export function pageSpan(page: number, shown: number): { first: number; last: number } {
   const offset = (page - 1) * LISTING_PAGE_SIZE;
-  return {
-    items,
-    hasNext: rows.length > LISTING_PAGE_SIZE,
-    first: items.length > 0 ? offset + 1 : 0,
-    last: offset + items.length,
-  };
+  return { first: shown > 0 ? offset + 1 : 0, last: offset + shown };
+}
+
+/** How many pages a listing of `total` products fills; null when its size is unknown. */
+export function pageCount(total: number | null): number | null {
+  return total === null ? null : Math.max(1, Math.ceil(total / LISTING_PAGE_SIZE));
+}
+
+/** A listing's address at a page and an order, under its localized path; the first page carries no `page`. */
+export function listingHref(path: string, page: number, sort: ProductSort | undefined): string {
+  const query = new URLSearchParams();
+  if (page > 1) query.set("page", String(page));
+  if (sort) query.set("sort", sort);
+  const search = query.toString();
+  return search ? `${path}?${search}` : path;
 }

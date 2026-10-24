@@ -42,6 +42,7 @@ export const FIELD = {
   showCategoryNav: text("أزرار الفئات", "Boutons des catégories", "Category buttons"),
   showDescription: text("إظهار الوصف", "Afficher la description", "Show the description"),
   showCount: text("إظهار عدد المنتجات", "Afficher le nombre de produits", "Show the product count"),
+  showSort: text("إظهار الترتيب", "Afficher le tri", "Show the sort order"),
   showBreadcrumbs: text("مسار التنقل", "Fil d’Ariane", "Breadcrumbs"),
   headerAlign: text("محاذاة العنوان", "Alignement du titre", "Title alignment"),
   headScheme: text("ألوان شريط العنوان", "Couleurs du bandeau de titre", "Title band colors"),

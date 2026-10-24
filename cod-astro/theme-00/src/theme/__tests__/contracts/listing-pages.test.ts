@@ -26,14 +26,19 @@ const category = (slug: string, name: string): Category =>
   ({ id: `cat_${slug}`, name, slug, description: `Tout en ${name}`, parentId: null, imageUrl: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }) as Category;
 const CATEGORIES = [category("robes", "Robes"), category("sacs", "Sacs")];
 
-/** A listing's params name its kind, as the page template passes them: `surface` is the page's own. */
-async function render(type: "listing-main" | "page-main", params: Record<string, string>, listed: ProductList[] = []) {
+/**
+ * A listing's params name its kind, as the page template passes them: `surface` is the page's own.
+ * The catalog answers a page as the SDK does; `counts: false` is a server that predates totals.
+ */
+async function render(type: "listing-main" | "page-main", params: Record<string, string>, listed: ProductList[] = [], options: { counts?: boolean } = {}) {
   const asked: Array<Record<string, unknown>> = [];
   const client = {
     products: {
-      list: async (filters: { collection?: string; categoryId?: string; limit?: number; offset?: number }) => {
+      page: async (filters: { collection?: string; categoryId?: string; limit?: number; offset?: number; sort?: string }) => {
         asked.push(filters);
-        return listed.slice(filters.offset ?? 0, (filters.offset ?? 0) + (filters.limit ?? listed.length));
+        const offset = filters.offset ?? 0;
+        const limit = filters.limit ?? listed.length;
+        return { items: listed.slice(offset, offset + limit), hasNext: offset + limit < listed.length, total: options.counts === false ? null : listed.length };
       },
     },
     collections: { get: async (handle: string) => (handle === "robes-ete" ? { handle, title: "Robes d'été", description: "Légères et fraîches" } : null) },
@@ -71,11 +76,32 @@ describe("a collection's page", () => {
     const products = Array.from({ length: 60 }, (_, i) => makeProduct({ id: `p${i}`, name: `P${i}`, handle: `p-${i}` }));
     const first = await render("listing-main", { surface: "collection", handle: "robes-ete" }, products);
     expect(hrefs(first.html)).toContain("/fr/collections/robes-ete?page=2");
-    expect(first.html).toContain("1–24 produit");
+    expect(first.html).toContain("1–24 sur 60 produits");
+    expect(first.html).toContain('aria-label="Page 1 sur 3"');
     const second = await render("listing-main", { surface: "collection", handle: "robes-ete", page: "2" }, products);
-    expect(second.asked[0]).toMatchObject({ offset: 24 });
+    expect(second.asked[0]).toMatchObject({ offset: 24, limit: 24 });
     expect(hrefs(second.html)).toContain("/fr/collections/robes-ete");
-    expect(second.html).toContain("25–48 produit");
+    expect(second.html).toContain("25–48 sur 60 produits");
+  });
+
+  it("lists in the order the shopper chose, keeping it on every page, and offers the platform's orders", async () => {
+    const products = Array.from({ length: 30 }, (_, i) => makeProduct({ id: `p${i}`, name: `P${i}`, handle: `p-${i}` }));
+    const { html, asked } = await render("listing-main", { surface: "collection", handle: "robes-ete", sort: "price-ascending" }, products);
+    expect(asked[0]).toMatchObject({ sort: "price-ascending" });
+    expect(hrefs(html)).toContain("/fr/collections/robes-ete?page=2&amp;sort=price-ascending");
+    expect(html).toMatch(/<form class="listing-sort[^"]*" method="get" action="\/fr\/collections\/robes-ete"/);
+    expect(html).toMatch(/<option value="price-ascending" selected[^>]*>Prix croissant<\/option>/);
+    for (const label of [fr.sortDefault, fr.sortNewest, fr.sortPriceDescending]) expect(html).toContain(label);
+    const unknown = await render("listing-main", { surface: "collection", handle: "robes-ete", sort: "cheapest" }, products);
+    expect(unknown.asked[0]).not.toHaveProperty("sort");
+  });
+
+  it("says only the rows a page holds when the server does not count the listing", async () => {
+    const products = Array.from({ length: 60 }, (_, i) => makeProduct({ id: `p${i}`, name: `P${i}`, handle: `p-${i}` }));
+    const { html } = await render("listing-main", { surface: "collection", handle: "robes-ete" }, products, { counts: false });
+    expect(html).toContain("1–24 produit");
+    expect(html).not.toContain("sur 60");
+    expect(html).not.toContain("Page 1 sur");
   });
 
   it("says an empty collection is empty, and points to the catalog", async () => {

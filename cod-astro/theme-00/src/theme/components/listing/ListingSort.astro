@@ -1,0 +1,57 @@
+---
+// The order a listing shows its products in: its own, or one the platform
+// offers. Choosing one loads the listing again from its first page; without
+// scripts, a button sends the choice.
+import { Icon } from "astro-icon/components";
+import { PRODUCT_SORTS, type ProductSort } from "@wocart/storefront";
+import type { StoreFrontContent } from "@/theme/content";
+
+interface Props {
+  /** The listing's localized path, which the choice loads. */
+  action: string;
+  sort: ProductSort | undefined;
+  content: StoreFrontContent;
+}
+
+const { action, sort, content } = Astro.props;
+const LABELS: Record<ProductSort, string> = {
+  newest: content.sortNewest,
+  "price-ascending": content.sortPriceAscending,
+  "price-descending": content.sortPriceDescending,
+};
+---
+
+<form class="listing-sort" method="get" action={action} data-listing-sort>
+  <label for="listing-sort">{content.sortLabel}</label>
+  <span class="listing-sort-field">
+    <select id="listing-sort" name="sort">
+      <option value="" selected={!sort}>{content.sortDefault}</option>
+      {PRODUCT_SORTS.map((option) => <option value={option} selected={option === sort}>{LABELS[option]}</option>)}
+    </select>
+    <Icon name="heroicons:chevron-down" aria-hidden="true" />
+  </span>
+  <noscript><button type="submit" class="btn-secondary btn-auto">{content.sortApply}</button></noscript>
+</form>
+
+<script src="../../scripts/listing-sort.ts"></script>
+
+<style>
+  .listing-sort { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.5rem 0.75rem; margin-bottom: 1.25rem; }
+  .listing-sort label { color: var(--clr-muted); font-size: var(--text-sm); }
+  .listing-sort-field { position: relative; display: inline-flex; align-items: center; }
+  .listing-sort select {
+    appearance: none;
+    min-height: 2.75rem;
+    padding-inline: 1rem 2.5rem;
+    border: 1px solid var(--clr-border-strong);
+    border-radius: var(--radius-round);
+    background: var(--clr-field);
+    color: var(--clr-ink);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .listing-sort select:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 2px; }
+  .listing-sort-field :global(svg) { position: absolute; inset-inline-end: 0.875rem; width: 1rem; height: 1rem; color: var(--clr-muted); pointer-events: none; }
+</style>

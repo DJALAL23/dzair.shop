@@ -13,6 +13,6 @@ const saved = await client.pageData.get("catalog");
   theme={listingCatalog}
   surface="catalog"
   document={saved}
-  params={{ page: Astro.url.searchParams.get("page") ?? undefined }}
+  params={{ page: Astro.url.searchParams.get("page") ?? undefined, sort: Astro.url.searchParams.get("sort") ?? undefined }}
   title={message(content, "documentTitle", { title: content.allProductsSection, storeName: config.name }, locale)}
 />

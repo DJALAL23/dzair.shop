@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LISTING_PAGE_SIZE, pageRequest, pageWindow, requestedPage } from "../pagination";
-
-const rows = (count: number) => Array.from({ length: count }, (_, i) => i + 1);
+import { LISTING_PAGE_SIZE, listingHref, pageCount, pageRequest, pageSpan, requestedPage, requestedSort } from "../pagination";
 
 describe("requestedPage", () => {
   it("reads a whole number from 1 up", () => {
@@ -21,42 +19,41 @@ describe("requestedPage", () => {
   });
 });
 
-describe("pageRequest", () => {
-  it("asks for one page of rows, offset past the earlier pages, and one row to look ahead", () => {
-    expect(pageRequest(1)).toEqual({ limit: LISTING_PAGE_SIZE + 1, offset: 0 });
-    expect(pageRequest(3)).toEqual({ limit: LISTING_PAGE_SIZE + 1, offset: 2 * LISTING_PAGE_SIZE });
+describe("requestedSort", () => {
+  it("takes an order the SDK offers, and none for anything else", () => {
+    expect(requestedSort("price-ascending")).toBe("price-ascending");
+    expect(requestedSort("newest")).toBe("newest");
+    for (const raw of [null, undefined, "", "price", "PRICE-ASCENDING", "toString"]) expect(requestedSort(raw)).toBeUndefined();
   });
 });
 
-describe("pageWindow", () => {
-  it("shows a full first page and says a next page exists when the look-ahead row came back", () => {
-    const window = pageWindow(rows(LISTING_PAGE_SIZE + 1), 1);
-    expect(window.items).toHaveLength(LISTING_PAGE_SIZE);
-    expect(window.hasNext).toBe(true);
-    expect(window).toMatchObject({ first: 1, last: LISTING_PAGE_SIZE });
+describe("pageRequest", () => {
+  it("asks for one page of rows, offset past the earlier pages, in the order asked", () => {
+    expect(pageRequest(1, undefined)).toEqual({ limit: LISTING_PAGE_SIZE, offset: 0 });
+    expect(pageRequest(3, "newest")).toEqual({ limit: LISTING_PAGE_SIZE, offset: 2 * LISTING_PAGE_SIZE, sort: "newest" });
+  });
+});
+
+describe("pageSpan and pageCount", () => {
+  it("numbers a page's rows, and nothing for a page past the end", () => {
+    expect(pageSpan(1, LISTING_PAGE_SIZE)).toEqual({ first: 1, last: LISTING_PAGE_SIZE });
+    expect(pageSpan(2, 12)).toEqual({ first: LISTING_PAGE_SIZE + 1, last: LISTING_PAGE_SIZE + 12 });
+    expect(pageSpan(4, 0)).toEqual({ first: 0, last: 3 * LISTING_PAGE_SIZE });
   });
 
-  it("shows the rest on the last page, with no next page", () => {
-    const window = pageWindow(rows(12), 2);
-    expect(window.items).toHaveLength(12);
-    expect(window.hasNext).toBe(false);
-    expect(window).toMatchObject({ first: LISTING_PAGE_SIZE + 1, last: LISTING_PAGE_SIZE + 12 });
+  it("counts the pages a total fills, at least one, and none when the size is unknown", () => {
+    expect(pageCount(0)).toBe(1);
+    expect(pageCount(LISTING_PAGE_SIZE)).toBe(1);
+    expect(pageCount(LISTING_PAGE_SIZE + 1)).toBe(2);
+    expect(pageCount(null)).toBeNull();
   });
+});
 
-  it("shows nothing and numbers nothing for a page past the end", () => {
-    expect(pageWindow([], 4)).toEqual({ items: [], hasNext: false, first: 0, last: 3 * LISTING_PAGE_SIZE });
-  });
-
-  it("never shows more than a page, whatever the server returns", () => {
-    expect(pageWindow(rows(100), 1).items).toHaveLength(LISTING_PAGE_SIZE);
-  });
-
-  it("covers every row exactly once across all pages", () => {
-    const all = rows(60);
-    const seen: number[] = [];
-    for (let page = 1; page <= 3; page += 1) {
-      seen.push(...pageWindow(all.slice((page - 1) * LISTING_PAGE_SIZE), page).items);
-    }
-    expect(seen).toEqual(all);
+describe("listingHref", () => {
+  it("keeps the order on every page and leaves the first page bare", () => {
+    expect(listingHref("/fr/products", 1, undefined)).toBe("/fr/products");
+    expect(listingHref("/fr/products", 1, "newest")).toBe("/fr/products?sort=newest");
+    expect(listingHref("/fr/products", 3, "price-descending")).toBe("/fr/products?page=3&sort=price-descending");
+    expect(listingHref("/category/robes", 2, undefined)).toBe("/category/robes?page=2");
   });
 });

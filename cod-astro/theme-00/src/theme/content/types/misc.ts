@@ -21,6 +21,8 @@ export type MiscStrings = Plural<"lowStock"> &
   pagerPrevious: string;
   pagerNext: string;
   pagerLabel: string;
+  /** Where the shopper is when the listing knows its size. */
+  pagerPageOf: string;
   reviewFormRatingRequired: string;
   offerSavingsText: string;
   offerUnitLabel: string;

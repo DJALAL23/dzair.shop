@@ -74,6 +74,7 @@ function store(empty = false) {
     pageData: { get: async (surface: string) => (surface === "home" ? saved : null) },
     products: {
       list: async () => (empty ? [] : [makeProduct({ handle: "lampe" })]),
+      page: async () => ({ items: empty ? [] : [makeProduct({ handle: "lampe" })], hasNext: false, total: empty ? 0 : 1 }),
       get: async (handle: string) => (empty ? null : handle === "robe-kabyle" ? ROBE : handle === "lampe" ? { ...ROBE, name: "Lampe", handle } : null),
     },
     categories: { list: async () => (empty ? [] : [{ id: "cat_robes", name: "Robes", slug: "robes", description: null, parentId: null, imageUrl: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }]) },
