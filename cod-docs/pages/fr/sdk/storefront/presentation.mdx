@@ -147,6 +147,48 @@ trop longues. Ne concaténez pas un domaine et une clé à la main.
 `mediaImageUrl` ne réécrit que les URL sur l'origine média ; tout le reste
 revient à `null`, et `optimizeImage` renvoie l'original.
 
+### Sources par largeur
+
+Une grille responsive a besoin de descripteurs de largeur avec `sizes`, pour
+qu'un téléphone télécharge un fichier à sa taille.
+`mediaImageSrcset(src, widths, { mediaDomain, ratio, quality })` les donne,
+chacune redimensionnée sur le domaine média ; elle renvoie `null` pour une image
+hors du domaine média, qui garde alors son URL d'origine :
+
+```astro
+---
+import { mediaImageSrcset, mediaImageUrl } from "@wocart/storefront";
+
+const srcset = mediaImageSrcset(src, [320, 480, 640, 960], { mediaDomain, ratio: 1, quality: 82 });
+---
+<img
+  src={mediaImageUrl(src, { width: 640, height: 640, fit: "cover" }, mediaDomain) ?? src}
+  srcset={srcset ?? undefined}
+  sizes="(min-width: 900px) 25vw, 50vw"
+  width="640"
+  height="640"
+  alt={product.name}
+  loading="lazy"
+/>
+```
+
+### Une image choisie par le marchand
+
+Un champ `image` stocke une clé média, un texte alternatif et un point focal.
+`pictureOf(image, mediaDomain)` en fait ce dont un `<img>` a besoin : son URL,
+son texte alternatif, sa taille quand elle est connue, et le point focal en
+`object-position` (`30% 70%`) — `null` sans domaine média, pour que la section
+s'affiche sans elle :
+
+```astro
+---
+import { pictureOf } from "@wocart/storefront";
+
+const picture = pictureOf(props.image, mediaDomain);
+---
+{picture && <img src={picture.src} alt={picture.alt} style={picture.position ? `object-position: ${picture.position}` : undefined} />}
+```
+
 ## WhatsApp
 
 `config.whatsapp` est la configuration résolue du widget, ou `null`. Son `href`
@@ -233,6 +275,7 @@ Le SDK construit les charges utiles Meta et enveloppe la fonction pixel :
 
 ```ts
 import {
+  addedLines,
   buildMetaAddToCartPayload,
   buildMetaViewContentPayload,
   createMetaPixelTracker,
@@ -248,7 +291,8 @@ pixel.track(
   buildMetaViewContentPayload(product.id, view.basePrice),
 );
 
-const addToCart = buildMetaAddToCartPayload(basket.getLines());
+const before = basket.getLines();
+const addToCart = buildMetaAddToCartPayload(addedLines(before, basket.addLine(line)));
 if (addToCart) pixel.track("AddToCart", addToCart);
 ```
 
@@ -278,6 +322,11 @@ moitiés d'une même conversion. Ils doivent porter le même `eventID` et aller 
 même pixel. N'inventez ni pixel, ni nom d'événement, ni identifiant d'événement
 sur la page de remerciement.
 </Callout>
+
+`AddToCart` rapporte ce que l'appui a mis — `addedLines(before, after)` — jamais
+le panier entier : un acheteur qui ajoute une pièce à un panier de cinq n'en a
+pas ajouté six.
+
 
 ## Liste de contrôle de la présentation
 

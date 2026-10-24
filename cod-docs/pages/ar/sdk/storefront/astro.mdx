@@ -76,6 +76,7 @@ export const POST = routes.cartValidate;
 | `api/review-eligibility.ts` | `routes.reviewEligibility` | `POST { orderNumber, phone, turnstileToken? }` | `{ data: ReviewEligibility }` |
 | `api/review-upload.ts` | `routes.reviewUpload` | `PUT` جسم ملف + ترويسة `X-Review-Grant` | `201 { data: ReviewUpload }` |
 | `api/submit-review.ts` | `routes.reviewSubmit` | `POST ReviewInput` | `201 { success: true, data }` |
+| `api/orders/status.ts` | `routes.orderStatus` | `POST { orderNumber, phone }` | `{ data: ShopperOrderStatus }` |
 
 يتولى المصنع بالفعل:
 
@@ -196,16 +197,72 @@ if (result && !result.error) {
 
 ## خدمات مرتبطة بالطلب
 
-تحتاج المسارات إلى عميل المتجر، وقد يحتاج بدوره إلى لغة الطلب. وتحتاج بعض
-القوالب أيضًا إلى إعداد المتجر المحلول في `locals`:
+تحتاج المسارات إلى متجر الطلب: عميله، بلغته. يقرّر SDK أي متجر وأي لغة يعرضها
+الطلب — الصفحة من مسارها (`/fr/products/robe`)، ونقطة النهاية أو server island
+من الصفحة التي طلبتها — ويقرّر إعادات التوجيه: بادئة اللغة الأساسية إلى عنوانها
+الوحيد، واللغة التي توقف المتجر عن نشرها إلى الصفحة الأساسية. ويحتفظ القالب بمصنع
+عملائه، والإعداد الذي يعرضه حين يتعذر قراءة المتجر، والسياق الذي يبنيه:
 
 ```ts
 // src/middleware.ts
-context.locals.store = await resolveStoreRequest(context);
+import { defineMiddleware } from "astro:middleware";
+import { resolveStoreRequest } from "@wocart/storefront/astro";
+
+const STORE = { client: createStore, fallback: FALLBACK_CONFIG };
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const request = await resolveStoreRequest(
+    { url: context.url, referer: context.request.headers.get("Referer") },
+    STORE,
+  );
+  if (request.kind === "redirect") return context.redirect(request.location, request.status);
+  context.locals.store = buildContext(request);
+  return request.rewrite === null ? next() : next(request.rewrite);
+});
 ```
 
-اضبط `locals` قبل `next()` وقبل تشغيل أي مسار. فالمسار الذي يستدعي
-`context.locals.store` دون ذلك يفشل بوصول غير معرّف، لا بخطأ مفيد.
+أما معاينة المحرر فتحدّد متجر المسودة عبر `resolvePreviewStore(draft, STORE)`.
+عيّن `locals` قبل `next()` وقبل تشغيل أي مسار: المسار الذي يقرأ
+`context.locals.store` بدونه يفشل بوصول إلى قيمة غير معرّفة، لا بخطأ مفيد.
+
+## مورد غير موجود
+
+المسار الذي يسمّي موردًا واحدًا — منتجًا، أو فئة، أو مجموعة، أو صفحة نصية، أو
+صفحة هبوط — يقرؤه قبل إرسال أي شيء، ويجيب عن المورد الغائب بـ`notFound` من SDK:
+صفحة 404 الخاصة بالقالب بالحالة 404، خارج التخزين المؤقت، فيظهر المنتج الذي
+يُنشر بعد دقيقة.
+
+```astro
+---
+import { notFound } from "@wocart/storefront/astro";
+
+const product = await Astro.locals.store.client.products.get(Astro.params.handle!);
+if (!product) return notFound(Astro);
+---
+```
+
+إعادة الكتابة يدويًا إلى `/404` تُبقي قاعدة التخزين المؤقت للمسار نفسه؛ وإعادة
+التوجيه إلى الصفحة الرئيسية تجيب بـ200 — أي "soft 404" لمحركات البحث ومراجعات
+الإعلانات.
+
+## خريطة الموقع
+
+تمرّ `catalogPaths(client, config)` على صفحات المتجر — الرئيسية، والكتالوج، وكل
+فئة، وكل منتج صفحةً صفحة، وكل صفحة نصية منشورة — وتكتبها
+`sitemapXml(paths, routing, origin)` بكل لغة منشورة، مع بدائل اللغة لكل صفحة:
+
+```ts
+// src/pages/sitemap.xml.ts
+import type { APIRoute } from "astro";
+import { catalogPaths, sitemapXml } from "@wocart/storefront/server";
+
+export const GET: APIRoute = async ({ locals, url }) => {
+  const { client, config, routing } = locals.store;
+  return new Response(sitemapXml(await catalogPaths(client, config), routing, url.origin), {
+    headers: { "Content-Type": "application/xml; charset=utf-8" },
+  });
+};
+```
 
 ## قائمة تحقق للربط
 
@@ -217,3 +274,7 @@ context.locals.store = await resolveStoreRequest(context);
 - تُستدعى `runFormAction` لإجراءات النماذج ولا تعيد التوجيه أبدًا.
 - تُقرأ `getActionResult` في الصفحة التي تُعرض بعد POST.
 - تستخدم نقطة النهاية المخصصة `createProxyEndpoint`، لا بروكسيًا مكتوبًا يدويًا.
+
+- يحدد middleware المتجر عبر `resolveStoreRequest` ويعرض `request.rewrite` حين
+  يوجد.
+- المورد غير الموجود يُعيد `notFound(Astro)`.

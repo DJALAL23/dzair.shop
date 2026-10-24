@@ -36,6 +36,7 @@ The filters are:
 | `onSale` | Products priced below their compare-at price |
 | `limit` | Server-side cap; the server clamps a larger value |
 | `offset` | Skip that many products |
+| `sort` | The order: `newest`, `price-ascending` or `price-descending` (`PRODUCT_SORTS`); absent, the listing's own |
 
 `featured` still exists but is deprecated. Use `collection: "featured"`; the
 merchant's featured collection is the same list, without a special flag.
@@ -56,6 +57,39 @@ exact without a count query. A failed read is an empty final page, the same way
 
 An unknown collection or category lists nothing. Do not treat that as an error
 on a catalogue page; show the empty state.
+
+### A page, its size and its order
+
+A listing reads one page at a time, in the order the shopper picked or its own
+(a collection's, a search's best match, else newest). `PRODUCT_SORTS` is the
+list a sort control offers: `newest`, `price-ascending`, `price-descending`.
+
+```ts
+import { PRODUCT_SORTS } from "@wocart/storefront";
+
+const page = await store.products.page({ collection: handle, limit: 24, offset, sort: "price-ascending" });
+page.items;   // this page's products
+page.hasNext; // whether another page follows
+page.total;   // how many the whole listing holds; null from a server that does not count
+```
+
+Say "1–24 of 60 products" and "page 1 of 3" when `total` is known, and only the
+page's own rows when it is not.
+
+### Search
+
+`products.search(text, filters)` finds the products whose name — in the
+client's language or the catalog's — holds every word, or whose tags do, best
+match first unless a `sort` is given. It takes the listing filters and pages
+like `products.page`:
+
+```ts
+const results = await store.products.search(query, { limit: 24, offset, sort });
+results.total; // how many products the words find
+```
+
+Blank words find nothing, and a server that predates search answers an empty
+page — never the whole catalog.
 
 ## Product cards
 
@@ -280,21 +314,23 @@ A collection is a merchant-curated list with its own page:
 
 ```astro
 ---
-const collection = await store.collections.get(Astro.params.handle!);
-if (!collection) return Astro.rewrite("/404");
+import { notFound } from "@wocart/storefront/astro";
 
-const products = await store.products.list({
-  collection: collection.handle,
-  limit: 24,
-});
+const collection = await store.collections.get(Astro.params.handle!);
+if (!collection) return notFound(Astro);
+
+const page = await store.products.page({ collection: collection.handle, limit: 24 });
 ---
 <h1>{collection.title}</h1>
 {collection.description && <p>{collection.description}</p>}
+{collection.image && <img src={collection.image.src} alt="" />}
 ```
 
-`collections.get` returns the name and description; the products come from
-`products.list({ collection })` in the merchant's order. Both are translated
-when the client's language is published.
+`collections.get` returns the name, the description, how many products a shopper
+sees in it (`productCount`) and the photo of its first listed product (`image`);
+both of those are absent from a server that predates them. The products come
+from `products.page({ collection })` in the merchant's order. All of it is
+translated when the client's language is published.
 
 ## Descriptions and SEO
 
@@ -309,12 +345,35 @@ markup would be wrong. Use it for `<meta name="description">` and JSON-LD.
 Category and product rows carry `metaTitle` and `metaDescription` where present;
 the store-level fallbacks are `config.metaTitle` and `config.metaDescription`.
 
+### Titles, structured data and canonical addresses
+
+A product carries the title and description its merchant wrote for search
+engines (`metaTitle`, `metaDescription`). `productMeta(product)` gives what a page
+puts in its `<title>` and description: what the merchant wrote, else the name
+and the start of the plain description — never markup — within
+`SEO_TEXT_LIMITS`. `productStructuredData` gives the schema.org `Product`, written
+with `jsonLd`, which escapes what could end the script. `canonicalUrl` keeps
+only the page's path in its language and its listing page, never a sort, a
+search, a coupon or an ad's click id:
+
+```astro
+---
+import { canonicalUrl, jsonLd, productMeta, productStructuredData } from "@wocart/storefront";
+
+const store = Astro.locals.store;
+const meta = productMeta(product);
+const canonical = canonicalUrl(Astro.url.origin, store, Astro.url.search);
+---
+<title>{meta.title} | {store.config.name}</title>
+{meta.description && <meta name="description" content={meta.description} />}
+<link rel="canonical" href={canonical} />
+<script type="application/ld+json" set:html={jsonLd(productStructuredData(product, { url: canonical, storeName: store.config.name }))} />
+```
+
+
 ## What this page does not cover
 
 Reviews live on [Reviews](/sdk/storefront/reviews). The basket and server quote
 live on [Basket and quotes](/sdk/storefront/basket). Images and money helpers
 are on [Money, images, WhatsApp and Meta events](/sdk/storefront/presentation).
-
-There is no full-text product search method in this SDK. If a storefront needs
-search, it needs a server endpoint for it; do not fake one by downloading the
-whole catalogue into the browser.
+Search is `products.search`, under "List products" above.

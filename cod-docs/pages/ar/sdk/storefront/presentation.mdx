@@ -138,6 +138,46 @@ const resized = url ? mediaImageUrl(url, { width: 1200, quality: 85 }, mediaDoma
 لا تعيد `mediaImageUrl` كتابة إلا عناوين URL على أصل الوسائط؛ وكل ما عدا ذلك
 يعود `null`، وتعيد `optimizeImage` الأصل.
 
+### مصادر حسب العرض
+
+تحتاج الشبكة المتجاوبة إلى واصفات عرض مع `sizes`، لكي ينزّل الهاتف ملفًا بمقاسه.
+تعطيها `mediaImageSrcset(src, widths, { mediaDomain, ratio, quality })`، كلًّا منها
+بمقاس يُغيَّر على نطاق الوسائط؛ وتجيب بـ`null` عن صورة خارج نطاق الوسائط، فتحتفظ
+عندها برابطها الأصلي:
+
+```astro
+---
+import { mediaImageSrcset, mediaImageUrl } from "@wocart/storefront";
+
+const srcset = mediaImageSrcset(src, [320, 480, 640, 960], { mediaDomain, ratio: 1, quality: 82 });
+---
+<img
+  src={mediaImageUrl(src, { width: 640, height: 640, fit: "cover" }, mediaDomain) ?? src}
+  srcset={srcset ?? undefined}
+  sizes="(min-width: 900px) 25vw, 50vw"
+  width="640"
+  height="640"
+  alt={product.name}
+  loading="lazy"
+/>
+```
+
+### صورة اختارها التاجر
+
+يخزّن حقل `image` مفتاح وسائط ونصًا بديلًا ونقطة تركيز. تحوّله
+`pictureOf(image, mediaDomain)` إلى ما يحتاجه `<img>`: رابطه، ونصه البديل، ومقاسه
+حين يكون معروفًا، ونقطة التركيز في صورة `object-position` ‏(`30% 70%`) — و`null`
+دون نطاق وسائط، فيُعرض القسم من دونها:
+
+```astro
+---
+import { pictureOf } from "@wocart/storefront";
+
+const picture = pictureOf(props.image, mediaDomain);
+---
+{picture && <img src={picture.src} alt={picture.alt} style={picture.position ? `object-position: ${picture.position}` : undefined} />}
+```
+
 ## WhatsApp
 
 `config.whatsapp` هو إعداد الودجة المحلول، أو `null`. و`href` هو رابط WhatsApp
@@ -218,6 +258,7 @@ const text = resolvePrefillText({
 
 ```ts
 import {
+  addedLines,
   buildMetaAddToCartPayload,
   buildMetaViewContentPayload,
   createMetaPixelTracker,
@@ -233,7 +274,8 @@ pixel.track(
   buildMetaViewContentPayload(product.id, view.basePrice),
 );
 
-const addToCart = buildMetaAddToCartPayload(basket.getLines());
+const before = basket.getLines();
+const addToCart = buildMetaAddToCartPayload(addedLines(before, basket.addLine(line)));
 if (addToCart) pixel.track("AddToCart", addToCart);
 ```
 
@@ -260,6 +302,10 @@ if (payload) pixel.track("AddToCart", payload);
 `eventID` نفسه وأن يذهبا إلى البكسل نفسه. لا تخترع بكسلًا ولا اسم حدث ولا معرّف
 حدث في صفحة الشكر.
 </Callout>
+
+يبلّغ `AddToCart` عمّا وضعته النقرة — `addedLines(before, after)` — لا عن السلة كلها
+أبدًا: المتسوق الذي يضيف قطعة إلى سلة من خمس قطع لم يُضف ستًا.
+
 
 ## قائمة تحقق للعرض
 

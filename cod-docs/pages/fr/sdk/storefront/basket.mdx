@@ -112,28 +112,63 @@ basket.addLine({
 });
 ```
 
-## Demander un devis pour le panier
+### Une offre choisie pièce par pièce
 
-Le devis est une lecture serveur. Dans le navigateur, appelez votre route de même
-origine :
+Une offre de plusieurs pièces peut laisser l'acheteur choisir une variante pour
+chacune — trois pyjamas en deux tailles. Ajoutez ce choix tel que le formulaire
+de commande le porte : un seul appel, une ligne par variante avec ses pièces,
+chaque ligne portant l'offre, et tout ou rien — un panier sans place pour toutes
+les nouvelles lignes n'ajoute rien.
 
 ```ts
-async function quoteBasket() {
-  const response = await fetch("/api/cart/validate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      items: basket.toOrderItems(),
-      destination,
-      couponCode,
-    }),
-  });
-
-  const body = await response.json();
-  if (!body.success) return null;
-  return body.data;
-}
+basket.addSelections(
+  { productId, productName, unitPrice, offerId, href, image },
+  [
+    { variantId: "6m", variantLabel: "6 mois" },
+    { variantId: "12m", variantLabel: "12 mois" },
+    { variantId: "6m", variantLabel: "6 mois" },
+  ],
+);
 ```
+
+### Ce qu'un ajout a mis
+
+`addedLines(before, after)` est ce qu'un appui a mis dans le panier : chaque
+ligne qui a augmenté, de ce dont elle a augmenté. Envoyez cela comme l'événement
+Meta `AddToCart` — jamais le panier entier — et lisez une réponse vide comme un
+panier plein, ce qu'il faut dire à l'acheteur.
+
+```ts
+import { addedLines, buildMetaAddToCartPayload } from "@wocart/storefront";
+
+const before = basket.getLines();
+const added = addedLines(before, basket.addLine(line));
+if (added.length === 0) showBasketFull();
+else tracker.track("AddToCart", buildMetaAddToCartPayload(added));
+```
+
+## Demander un devis pour le panier
+
+Le devis est une lecture serveur. Dans le navigateur, demandez-le par votre
+route de même origine avec `createQuoter` : il envoie les lignes avec ce que
+l'acheteur a déjà saisi et ne garde que la dernière réponse, si bien qu'une
+réponse lente à un appui précédent ne remplace jamais une plus récente.
+
+```ts
+import { createQuoter } from "@wocart/storefront";
+
+const quoter = createQuoter({ endpoint: "/api/cart/validate" });
+
+const result = await quoter.quote({ items: basket.toOrderItems() }, { destination, couponCode, phone });
+if (result.status === "fresh") show(result.quote);
+// "stale": a newer question was asked meanwhile — keep what is shown.
+// "failed": no usable answer — keep the optimistic basket.
+```
+
+Le formulaire de commande d'un produit demande de la même façon, avec un seul
+produit tel que le formulaire l'envoie (`{ productId, productName, quantity,
+variantSelections, offerId }`). La réponse est lue sans Zod (`readCartQuote`) :
+aucun schéma n'atteint le navigateur de l'acheteur.
 
 Sur le serveur, le même appel est `cart.validate` :
 
@@ -290,6 +325,25 @@ const coupon = readCouponOutcome(value);
 Utilisez-le lorsqu'une page est mise en cache séparément de ses scripts et peut
 contenir la forme d'une autre version. N'utilisez pas de schéma dans le
 navigateur.
+
+### Un indice ou un refus
+
+Certains refus portent sur le code — inconnu, hors de ses dates, épuisé, pas
+pour cet acheteur — et d'autres sur le panier, qui ne remplit pas encore le
+code : un minimum non atteint, un produit sous une autre offre, un téléphone
+encore à saisir. `couponRefusalTone(reason)` les distingue, pour qu'un thème
+formule un indice avec douceur et un refus clairement :
+
+```ts
+import { COUPON_REFUSAL_REASONS, couponRefusalTone } from "@wocart/storefront";
+
+const tone = couponRefusalTone(outcome.reason); // "hint" or "refused"
+```
+
+Typez vos formulations sur `COUPON_REFUSAL_REASONS` (un `Record` sur la liste),
+pour qu'une raison ajoutée par la plateforme fasse échouer votre vérification
+de types au lieu d'arriver chez l'acheteur sous la phrase générale.
+
 
 ## Visibilité du panier
 

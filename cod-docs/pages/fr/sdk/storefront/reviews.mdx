@@ -266,6 +266,38 @@ preuve que l'avis est public.
 Ne videz pas le formulaire en cas d'échec. L'acheteur doit pouvoir corriger le
 corps, la note ou les pièces jointes et réessayer.
 
+## La session d'avis
+
+Les étapes 1 à 4 sont un seul objet dans le navigateur. `createReviewSession`,
+depuis `@wocart/storefront/review-media`, prouve l'achat, envoie chaque photo
+ou message vocal dès qu'il est ajouté — avec sa progression, des nouvelles
+tentatives si la connexion tombe, et une photo réduite d'abord — puis envoie
+l'avis. Chaque refus revient sous forme de code, jamais d'exception :
+
+```ts
+import { createReviewSession } from "@wocart/storefront/review-media";
+
+const session = createReviewSession({
+  routes: { eligibility: "/api/review-eligibility", upload: "/api/review-upload", submit: "/api/submit-review" },
+});
+
+const found = await session.find({ orderNumber, phone });
+if (found.status === "refused") return say(found.code);
+
+const upload = session.upload(file, { kind: "image", onProgress: (share) => showProgress(share) });
+const sent = await upload.result; // "sent" with its uploadId, "refused" with a code, or "cancelled"
+
+const review = await session.submit({ productId, rating, body, title, uploads });
+```
+
+`find` refuse un numéro de commande mal formé avant de demander
+(`VALIDATION_FAILED`), et `reset()` oublie la commande et annule ce qui est
+encore en cours d'envoi quand l'acheteur change de commande. Formulez chaque
+code de `REVIEW_REFUSAL_CODES` — un `Record` sur la liste fait échouer votre
+vérification de types quand la plateforme en ajoute un — et lisez
+`VALIDATION_FAILED` à l'envoi comme un avis trop court. `REVIEW_TEXT_LIMITS`
+donne les longueurs du titre et du texte pour vos champs et vos indications.
+
 ## Les routes de même origine
 
 Le navigateur ne détient pas la clé de la boutique. Liez une fois les routes

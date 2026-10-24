@@ -256,6 +256,37 @@ server client. `visibility` may be absent on older servers. Treat absence as
 Do not clear the form on a failure. The shopper should be able to fix the body,
 rating or attachments and try again.
 
+## The review session
+
+Steps 1 to 4 are one object in the browser. `createReviewSession`, from
+`@wocart/storefront/review-media`, proves the purchase, sends each photo or
+voice note the moment it is added — with its progress, retries on a dropped
+connection, and a photo shrunk first — and submits. Every refusal comes back as
+a code, never a thrown error:
+
+```ts
+import { createReviewSession } from "@wocart/storefront/review-media";
+
+const session = createReviewSession({
+  routes: { eligibility: "/api/review-eligibility", upload: "/api/review-upload", submit: "/api/submit-review" },
+});
+
+const found = await session.find({ orderNumber, phone });
+if (found.status === "refused") return say(found.code);
+
+const upload = session.upload(file, { kind: "image", onProgress: (share) => showProgress(share) });
+const sent = await upload.result; // "sent" with its uploadId, "refused" with a code, or "cancelled"
+
+const review = await session.submit({ productId, rating, body, title, uploads });
+```
+
+`find` refuses a malformed order number before asking (`VALIDATION_FAILED`), and
+`reset()` forgets the order and cancels what is still sending when the shopper
+changes order. Word every code in `REVIEW_REFUSAL_CODES` — a `Record` over it
+fails your type check when the platform adds one — and read `VALIDATION_FAILED`
+at submit as a review too short. `REVIEW_TEXT_LIMITS` gives the title and body
+lengths for your fields and your hints.
+
 ## The same-origin routes
 
 The browser does not hold the store key. Bind the SDK's review routes once:

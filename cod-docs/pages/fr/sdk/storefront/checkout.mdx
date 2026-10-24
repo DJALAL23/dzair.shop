@@ -295,51 +295,84 @@ du formulaire ; ne le videz pas.
 
 ## Commande abandonnée
 
-Un traqueur facultatif enregistre une commande abandonnée par l'acheteur, dès
-qu'un nom et un mobile valide sont présents :
+Un traceur optionnel enregistre une commande que l'acheteur a quittée, dès qu'un
+nom et un mobile valide sont présents. Dans un navigateur,
+`createBrowserAbandonedCheckoutTracker` le relie à la page — l'identifiant de la
+commande dans `sessionStorage`, les minuteries, les cookies Meta `_fbc` et
+`_fbp`, un POST `keepalive` vers votre route, et `sendBeacon` quand l'acheteur
+s'en va :
 
 ```ts
-import { createAbandonedCheckoutTracker } from "@wocart/storefront";
+import { createBrowserAbandonedCheckoutTracker } from "@wocart/storefront";
 
-const tracker = createAbandonedCheckoutTracker({
-  storage: localStorage,
-  createId: () => crypto.randomUUID(),
-  schedule: (fn, ms) => setTimeout(fn, ms),
-  cancel: clearTimeout,
-  readCookie: (name) =>
-    document.cookie.split("; ").find((row) => row.startsWith(`${name}=`))?.split("=")[1],
-  send: (payload) => fetch("/api/abandoned", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    keepalive: true,
-  }).then(() => undefined),
-  beacon: (payload) =>
-    navigator.sendBeacon("/api/abandoned", JSON.stringify(payload)),
-});
+const tracker = createBrowserAbandonedCheckoutTracker({ endpoint: "/api/abandoned" });
 
 tracker.schedule(snapshot);
 tracker.update(snapshot);
 tracker.captureOnExit(snapshot);
 ```
 
-`schedule` attend trois secondes après l'arrêt de la saisie avant d'envoyer ;
-`update` n'envoie de nouveau qu'une fois le premier enregistrement créé. Le
-traqueur transmet les cookies `_fbc` et `_fbp` lorsqu'ils sont présents.
+`schedule` attend trois secondes après la dernière frappe avant d'envoyer ;
+`update` ne renvoie qu'une fois le premier enregistrement créé. Une page qui
+bloque le stockage enregistre quand même, et rien de ce que fait le traceur ne
+peut faire échouer la commande. `createAbandonedCheckoutTracker(ports)` est le
+même traceur avec chaque port fourni, pour un hôte qui n'est pas une page de
+navigateur.
 
-Une fois la commande passée, marquez la session comme convertie :
+La page de remerciement marque la commande comme convertie, pour que le marchand
+ne voie plus comme abandonnée la commande qu'elle est devenue :
 
 ```ts
-fetch("/api/abandoned/convert", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ sessionId, orderId, orderNumber }),
-  keepalive: true,
-});
+import { convertAbandonedCheckout } from "@wocart/storefront";
+
+convertAbandonedCheckout({ endpoint: "/api/abandoned/convert", orderId, orderNumber });
 ```
 
-La conversion est envoyée sans attendre de réponse. Un échec d'envoi ne doit jamais bloquer la page
-de remerciement.
+C'est un envoi sans attente : il lit l'identifiant gardé par le traceur
+(`ABANDONED_CHECKOUT_SESSION_KEY`), l'utilise une fois, et ne lève jamais
+d'erreur ni ne retient la page de remerciement.
+
+## Suivre une commande
+
+L'acheteur n'a pas de compte : le numéro de la commande et le téléphone avec
+lequel elle a été passée prouvent qu'elle est la sienne. La page de la
+plateforme est `trackOrder` (`/track-order`) ; un lien avec `?order=<numéro>` —
+depuis la page de remerciement, par exemple — remplit le numéro.
+
+`lookupOrder` fait de cette page un simple formulaire envoyé à une Action
+Astro : aucun script, et la réponse, rendue depuis le même POST, n'est jamais
+mise en cache.
+
+```ts
+// src/actions/index.ts
+import { defineAction } from "astro:actions";
+import { lookupOrder, orderLookupInput } from "@wocart/storefront/astro";
+
+export const server = {
+  orderStatus: defineAction({
+    accept: "form",
+    input: orderLookupInput,
+    handler: async (input, context) => ({
+      asked: input,
+      lookup: await lookupOrder(input, context.request, context.locals.store.client),
+    }),
+  }),
+};
+```
+
+`lookup.status` vaut `found` (avec `lookup.order`), `invalid-number` (pas un
+numéro de commande — `isOrderNumber` en décide, et le serveur n'est pas
+interrogé), `invalid-phone`, `not-found` (un mauvais numéro ou un mauvais
+téléphone, sans jamais dire lequel), `rate-limited` (avec `retryAfterSeconds`)
+ou `failed`. Renvoyez ce qui a été demandé à côté, pour qu'un formulaire refusé
+garde ce que l'acheteur a saisi.
+
+Une commande trouvée porte son `stage` dans les mots de l'acheteur, ses lignes,
+le total à payer, le mode de livraison et, une fois le colis chez le
+transporteur, le numéro de suivi. `SHOPPER_ORDER_JOURNEY` est le parcours de
+`placed` à `delivered` qu'affiche une barre de progression ; `returned` et
+`cancelled` terminent une commande hors de ce parcours, et une étape qu'un
+serveur plus récent ajoute prend vos mots génériques.
 
 ## Liste de contrôle de la commande
 
@@ -357,3 +390,7 @@ de remerciement.
   `orders.tracking`.
 - `eventID` est l'id de la commande.
 - La session abandonnée est marquée comme convertie après le succès.
+
+- La page de remerciement appelle `convertAbandonedCheckout`.
+- La page de suivi vit à `storefrontPath("trackOrder")` et formule chaque issue
+  de `lookupOrder`.

@@ -153,22 +153,45 @@ const { claims, token } = Astro.locals.preview;
 
 ## سلوك المتصفح داخل قسم
 
-لا تعمل سكربتات القسم المستبدل مرة أخرى؛ فالمتصفح لا ينفّذ سكربتًا أُدرج عبر
-الترميز أبدًا. والقسم الذي له سلوك متصفح يربطه مجددًا على
-`PREVIEW_SECTION_LOAD_EVENT` (`wocart:section-load`، يُطلق على `document` مع
-`detail.id`):
+لا تُشغَّل scripts القسم المستبدل من جديد؛ فالمتصفح لا ينفّذ أبدًا script أُدرج
+عبر الترميز. اربط سلوك القسم بـ`bindEach` من `@wocart/theme/lifecycle`: يربط كل
+عنصر مطابق مرة واحدة — عند التحميل، وبعد أن يستبدل موجّه Astro الصفحة، وبعد أن
+تُدخل المعاينة قسمًا — ويشغّل دالة التفكيك التي أعادها حين يغادر العنصر:
 
 ```ts
-document.addEventListener(PREVIEW_SECTION_LOAD_EVENT, (event) => {
-  const { id } = (event as CustomEvent<{ id: string }>).detail;
-  mountSection(id);
+import { bindEach } from "@wocart/theme/lifecycle";
+
+bindEach<HTMLElement>("[data-countdown]", (element) => {
+  const timer = setInterval(() => tick(element), 1000);
+  return () => clearInterval(timer);
 });
 ```
 
-وعندما يستبدل الجسر الصفحة كاملة، يفعل ما يفعله موجّه Astro بعد التنقل —
-`<body>` جديد وسمات العنصر الجذر والعنوان — ويطلق `astro:page-load`، فيُركَّب
-السكربت المكتوب للموجّه مجددًا كما يفعل هناك. وتُستبدل أوراق الأنماط المتغيرة
-في مكانها؛ أما غير المتغيرة فلا تُعاد تحميلها أبدًا.
+حين يستبدل الجسر الصفحة كلها، يفعل ما يفعله موجّه Astro بعد التنقل — ‏`<body>`
+جديد، وسمات العنصر الجذر، والعنوان — ويطلق `astro:page-load`، فيُعاد تركيب سلوك
+الصفحة المركّب بـ`onEachPage` كما يحدث هناك. تُستبدل أوراق الأنماط المتغيرة في
+مكانها؛ ولا يُعاد تحميل غير المتغيرة أبدًا. ولا يستمع القالب لأحداث الاستبدال
+بنفسه أبدًا.
+
+## ما تعرضه المعاينة
+
+تقرّر `previewTarget(theme, draft, client)` ذلك مرة واحدة لكل القوالب. يعاين القالب
+المورد الذي يسمّيه `path` الخاص بالمسودة (`/products/robe`)، وإلا فأول منتج أو
+فئة أو مجموعة افتراضية أو صفحة نصية في المتجر — والمتجر الذي لا يملك أيًّا منها
+يعاين رغم ذلك، بقالب فارغ تُرتَّب أقسامه. وتُعاين المنطقة (الرأس أو التذييل) على
+الصفحة التي يسمّيها `path` حين يركّب القالب تلك الصفحة، وإلا فعلى الصفحة الرئيسية.
+ويُختار المورد حسب `pageType` الخاص بالسطح، فيُعاين القالب البديل كأصله. والسطح
+الذي لا يعلنه القالب يعطي `null`: أجب بـ404.
+
+```astro
+---
+import { createReadCache, previewTarget } from "@wocart/theme/astro";
+
+const target = await previewTarget(theme, Astro.locals.preview.draft, Astro.locals.store.client);
+if (!target) return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+---
+<Sections surface={target.surface} params={target.params} document={target.document} preview={target.area === null} reads={createReadCache()} />
+```
 
 ## الأمان
 

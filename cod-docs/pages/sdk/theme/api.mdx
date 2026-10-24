@@ -35,12 +35,14 @@ a shopper's page ships Zod to every visitor.
 | --- | --- |
 | `defineComponent(definition)` | Identity helper: keeps field literals, types `load` from the fields, types the component's props |
 | `defineTheme(definition)` | Identity helper for the catalog |
+| `defineCapabilities(capabilities)` | A shared `capabilities` constant, typed so `defineComponent` keeps inferring its fields |
+| `componentsOf(theme)` | A theme's components as definitions, in catalog order — what a test or a tool iterates |
 | `validateThemeDefinition(theme, options?)` | Assembly check: key/type agreement, fields, slots, blocks, presets, documents, content keys, order-form guarantee. `[]` is the only pass |
 | `themeManifest(theme)` | The serializable manifest; drops `component` and `load` |
 | `validateThemeManifest(input)` | Boundary for JSON: serializability, structure, then the same relational rules. `{ manifest, issues }` |
 | `manifestCatalog(manifest)` | A `ThemeDefinition` with `component: null` — for editing and validation, never for rendering |
 | `diffThemeManifests(previous, next)` | `{ breaking, additive }` between two releases |
-| `THEME_SDK_VERSION` | The package version the manifest records (`"2.1.0"`) |
+| `THEME_SDK_VERSION` | The package version the manifest records (`"2.3.0"`) |
 | `THEME_MANIFEST_CONTRACT_VERSION` | Version of the manifest format (`1`) |
 | `THEME_MANIFEST_PATH` | `/wocart-theme.json` |
 
@@ -113,7 +115,7 @@ cannot know a slot's required types.
 | Export | What it does |
 | --- | --- |
 | `styleClasses(value)` | The classes for a `style` value |
-| `schemeClass(scheme)` | `.wc-scheme-<id>`, or `""` for no scheme |
+| `schemeClass(scheme)`, `SCHEME_MARKER_CLASS` | `wc-scheme wc-scheme-<id>`: the shared marker a theme derives its tokens on, and the scheme's own class — `""` for no scheme |
 | `themeStyleSheet(style)` | The stylesheet of every class the theme's sizes allow |
 | `colorSchemeCss(schemes)` | Custom properties per scheme |
 | `contrastRatio(a, b)` | WCAG contrast ratio between two hex colors |
@@ -138,6 +140,7 @@ cannot know a slot's required types.
 | `themeStylesEndpoint(theme)` | A `GET` handler for the style classes, `text/css` |
 | `hasBlocks(blocks, slot?)` | Whether a slot holds a block that renders — skip an empty wrapper |
 | `isPreview(blocks)` | Whether this render is an editor's preview; placeholders belong there only |
+| `previewTarget(theme, draft, client)` | What an editor's preview shows: the surface, its page type, the area edited, the route's parameters and the document — `null` for a surface the theme does not compose |
 | `BlocksHandle`, `RendererIssue` | The `blocks` prop a component receives, and the renderer's issue shape |
 | `resolveInstance`, `THEME_LIMITS`, `THEME_STYLES_PATH`, `colorSchemeCss`, `previewStartMarker`, `previewEndMarker` | Re-exports of the root module, so a co-located import resolves in the source and `dist` layouts |
 
@@ -154,6 +157,17 @@ The four components: `InstanceView.astro` (the renderer), `Blocks.astro`
 | `mediaImageParams(options)` | The query parameters the service builds for an Astro transform |
 | `startPreviewBridge({ editorOrigin, token, endpoint?, window? })` | The browser side of a preview page: markup patches, hover/select messages, re-render requests. Returns `{ stop() }` |
 | `PREVIEW_SECTION_LOAD_EVENT` | `"wocart:section-load"` — dispatched per section the bridge swapped in |
+
+## `@wocart/theme/lifecycle` and `/messages`
+
+The two browser entries: tiny, Zod-free, and safe on every shopper's page.
+
+| Export | What it does |
+| --- | --- |
+| `bindEach(selector, bind, options?)` | Binds every matching element once — on load, after Astro's router swaps the page, after an editor's preview swaps a section in. A bind may return a teardown |
+| `onEachPage(boot, options?)` | Runs a page's behaviour once per page, its teardown before the page is swapped out |
+| `PREVIEW_SECTION_LOAD_EVENT` | `"wocart:section-load"`, without the bridge: a theme never names the swap events itself |
+| `formatMessage(pack, key, values?, { locale })`, `messageForms(pack, key)`, `pluralMessageKeys(pack)` | A message from the copy, its plural form chosen by `count` (`/messages`) |
 
 ## Types you will name
 

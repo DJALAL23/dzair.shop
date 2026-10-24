@@ -140,6 +140,47 @@ domain and a key by hand.
 `mediaImageUrl` only rewrites URLs on the media origin; anything else comes back
 as `null`, and `optimizeImage` returns the original.
 
+### Width-based sources
+
+A responsive grid needs width descriptors with `sizes`, so a phone downloads a
+phone-sized file. `mediaImageSrcset(src, widths, { mediaDomain, ratio, quality })`
+gives them, each resized on the media domain; it answers `null` for an image
+off the media domain, which then keeps its original URL:
+
+```astro
+---
+import { mediaImageSrcset, mediaImageUrl } from "@wocart/storefront";
+
+const srcset = mediaImageSrcset(src, [320, 480, 640, 960], { mediaDomain, ratio: 1, quality: 82 });
+---
+<img
+  src={mediaImageUrl(src, { width: 640, height: 640, fit: "cover" }, mediaDomain) ?? src}
+  srcset={srcset ?? undefined}
+  sizes="(min-width: 900px) 25vw, 50vw"
+  width="640"
+  height="640"
+  alt={product.name}
+  loading="lazy"
+/>
+```
+
+### An image the merchant picked
+
+An `image` field stores a media key, an alt text and a focal point.
+`pictureOf(image, mediaDomain)` turns it into what an `<img>` needs: its URL,
+its alt text, its size when known, and the focal point as `object-position`
+(`30% 70%`) — `null` without a media domain, so the section renders without
+it:
+
+```astro
+---
+import { pictureOf } from "@wocart/storefront";
+
+const picture = pictureOf(props.image, mediaDomain);
+---
+{picture && <img src={picture.src} alt={picture.alt} style={picture.position ? `object-position: ${picture.position}` : undefined} />}
+```
+
 ## WhatsApp
 
 `config.whatsapp` is the resolved widget configuration, or `null`. Its `href`
@@ -222,6 +263,7 @@ The SDK builds Meta payloads and wraps the pixel function:
 
 ```ts
 import {
+  addedLines,
   buildMetaAddToCartPayload,
   buildMetaViewContentPayload,
   createMetaPixelTracker,
@@ -237,7 +279,8 @@ pixel.track(
   buildMetaViewContentPayload(product.id, view.basePrice),
 );
 
-const addToCart = buildMetaAddToCartPayload(basket.getLines());
+const before = basket.getLines();
+const addToCart = buildMetaAddToCartPayload(addedLines(before, basket.addLine(line)));
 if (addToCart) pixel.track("AddToCart", addToCart);
 ```
 
@@ -264,6 +307,10 @@ The browser event and the server's Conversions API event are two halves of one
 conversion. They must carry the same `eventID` and go to the same pixel. Do not
 invent a pixel, an event name or an event ID on the thank-you page.
 </Callout>
+
+`AddToCart` reports what the tap put in — `addedLines(before, after)` — never the
+whole basket: a shopper adding one piece to a basket of five did not add six.
+
 
 ## A presentation checklist
 

@@ -39,8 +39,14 @@ aides et des types ; la validation reste sur le serveur, là où la donnée entr
 | `mediaUrl(key, mediaDomain?)` | Une **clé** média → URL, ou `null` sans domaine |
 | `mediaImageUrl(src, params, mediaDomain?)` | Une URL média avec paramètres de redimensionnement |
 | `createImageHelpers(mediaDomain)` | Les mêmes aides liées à un domaine : `optimizeImage`, `generateSrcSet`, `IMAGE_SIZES`, `getCardImage` … `getLogoImage` |
+| `mediaImageSrcset(src, widths, { mediaDomain, ratio?, quality? })` | Un `srcset` par largeur, chaque taille redimensionnée sur le domaine média ; `null` en dehors |
+| `pictureOf(image, mediaDomain?)` | Une image choisie par le marchand → `{ src, alt, width, height, position }`, le point focal en `object-position` |
 | `productImageSource(product)` | L'URL de l'image représentative du produit — sa couverture, sinon la première de la galerie, sinon `null` |
 | `getProductView(product)`, `getProductListView(products)` | Prix, variante par défaut, pourcentage de remise, état du stock — dérivés, jamais devinés |
+| `productMeta(product)`, `SEO_TEXT_LIMITS` | Le titre et la description d'un produit pour les moteurs de recherche : ce que le marchand a écrit, sinon son nom et sa description en texte brut |
+| `productStructuredData(product, { url, storeName? })`, `jsonLd(value)` | Son `Product` schema.org, et le texte d'un script JSON-LD qui ne peut jamais fermer le script |
+| `canonicalUrl(origin, { pathname, locale, routing }, search?)` | L'adresse canonique d'une page : son chemin dans sa langue et sa page de liste, rien d'autre |
+| `productTags(product)` | Les tags d'un produit sous forme de liste, quelle que soit la forme lue |
 | `getOfferTierView(tier)`, `getQuantityTierViews(tiers)` | Les paliers de prix par quantité, pour l'affichage |
 | `initialVariant(variants)`, `optionStates(...)`, `pickOption(...)`, `variantFor(...)` | La sélection de variante comme machine à états |
 | `buildWhatsAppHref(baseHref, text)`, `resolvePrefillText(params)`, `stripTrackingParams(text)`, `truncateAtWordBoundary(text, max)` | L'URL du lanceur WhatsApp et son prefill borné |
@@ -51,7 +57,7 @@ aides et des types ; la validation reste sur le serveur, là où la donnée entr
 
 | Export | Ce qu'il fait |
 | --- | --- |
-| `STOREFRONT_PAGE_PATHS` | Le chemin de chaque type de page : `/products/:handle`, `/category/:slug`, `/collections/:handle`, `/pages/:slug`, `/lp/:slug`, `/checkout`, `/thank-you` |
+| `STOREFRONT_PAGE_PATHS` | Le chemin de chaque type de page : `/products/:handle`, `/category/:slug`, `/collections/:handle`, `/pages/:slug`, `/lp/:slug`, `/checkout`, `/thank-you`, `/track-order` |
 | `storefrontPath(type, params?)` | En construit un — lève si un paramètre requis manque |
 | `matchStorefrontPath(pathname)` | Quel type de page est un chemin, avec son paramètre décodé, ou `null` |
 | `showsWidgetOn(surfaces, pathname)` | Si le widget WhatsApp du marchand a sa place sur ce chemin |
@@ -66,9 +72,16 @@ aides et des types ; la validation reste sur le serveur, là où la donnée entr
 | `createLocalStorageAdapter()`, `createMemoryStorageAdapter()` | Persister dans `localStorage`, ou en mémoire pour les tests et la navigation privée |
 | `DEFAULT_BASKET_STORAGE_KEY`, `MAX_BASKET_LINES`, `MAX_BASKET_LINE_QUANTITY`, `basketLineKey(productId, variantId)` | La clé de stockage, les bornes, et comment deux lignes se distinguent |
 | `toOrderItems(basket)` | Le panier sous la forme `items[]` du serveur |
+| `addedLines(before, after)` | Ce qu'un ajout a mis dans le panier — pour `AddToCart` ; vide quand le panier n'avait plus de place |
 | `createOtpMachine(...)`, `createOtpTransport(...)`, `mapOtpResponse(...)`, `otpTransportFailure(...)` | Vérification du téléphone : états, transport, mapping des réponses, échec de transport |
 | `createAbandonedCheckoutTracker(ports)` | Signaler une commande inachevée, puis sa conversion |
+| `createBrowserAbandonedCheckoutTracker({ endpoint })`, `convertAbandonedCheckout(...)`, `ABANDONED_CHECKOUT_SESSION_KEY` | Le même traceur relié à une page de navigateur, et la conversion de la page de remerciement |
 | `readShippingRates(value)`, `readCouponOutcome(value)` | Lire en navigateur les tarifs embarqués dans une page ou le résultat d'un coupon, sans Zod |
+| `createQuoter({ endpoint })`, `readCartQuote(value)` | Demander le devis depuis le navigateur en ne gardant que la dernière réponse ; en lire un sans Zod |
+| `couponRefusalTone(reason)`, `COUPON_REFUSAL_REASONS`, `COUPON_HINT_REASONS` | Si le refus d'un code est un indice sur le panier ou un refus du code |
+| `isOrderNumber(value)`, `ORDER_NUMBER_PATTERN` | La forme d'un numéro de commande (`ORD-20261023-0042`) |
+| `REVIEW_REFUSAL_CODES`, `REVIEW_TEXT_LIMITS` | Chaque refus qu'un avis peut rencontrer, et les longueurs de son titre et de son texte |
+| `PRODUCT_SORTS`, `SHOPPER_ORDER_STAGES`, `SHOPPER_ORDER_JOURNEY`, `DEFAULT_COLLECTION_HANDLES` | Les ordres d'une liste ; les étapes d'une commande et le parcours qu'affiche une barre de progression ; les collections de toute boutique au départ |
 | `isWilayaId(value)`, `WILAYAS`, `ALGERIA_COMMUNES`, `communesForWilaya(id)`, `normalizeAlgerianPhone(phone)`, `toLocalAlgerianMobile(phone)` | Aides de géographie et de téléphone, sans réseau |
 | `couponFromUrl(url)`, `couponRefusalOf(result)`, `COUPON_URL_PARAM`, `COUPON_NOT_APPLICABLE` | Un code promo porté par un objet `URL`, et le refus que porte un résultat d'écriture |
 | `STOREFRONT_OPERATIONS`, `STOREFRONT_RETRY_POLICIES` | Les noms d'opération que porte chaque erreur, et la politique de retry de chacune |
@@ -81,7 +94,7 @@ prend `{ serverUrl, apiKey, theme?, locale?, onError?, readTimeoutMs? }`.
 | Namespace | Méthodes | Un appel en échec renvoie |
 | --- | --- | --- |
 | `config` | `get()` | `null` |
-| `products` | `get(handle)`, `list(filters?)`, `page(filters?)` | `null` / `[]` / `{ items: [], hasNext: false }` |
+| `products` | `get(handle)`, `list(filters?)`, `page(filters?)`, `search(text, filters?)` | `null` / `[]` / `{ items: [], hasNext: false, total: null }` |
 | `products.reviews` | `list(productId, pagination?)`, `eligibility(input)`, `upload(input)`, `submit(input)` | `{ rows: [], total: 0 }` pour la lecture ; un `ClientResult` pour les écritures |
 | `collections` | `get(handle)` | `null` |
 | `categories` | `list()` | `[]` |
@@ -91,7 +104,7 @@ prend `{ serverUrl, apiKey, theme?, locale?, onError?, readTimeoutMs? }`.
 | `shipping` | `rates()`, `rate(wilayaId)` | `{}` / `null` |
 | `geo` | `wilayas()`, `communes(wilayaId)` | `[]` |
 | `cart` | `validate(items, options?)`, `quote(lines, options?)` | un `ClientResult` |
-| `orders` | `create(input)`, `tracking(orderId)`, `abandoned.upsert(input)`, `abandoned.convert(input)`, `otp.send(input)`, `otp.verify(input)` | un `ClientResult` (`tracking` : `null`) |
+| `orders` | `create(input)`, `tracking(orderId)`, `status(proof)`, `abandoned.upsert(input)`, `abandoned.convert(input)`, `otp.send(input)`, `otp.verify(input)` | un `ClientResult` (`tracking` : `null`) |
 
 Le contrat de lecture est la promesse la plus importante du SDK : une lecture
 échouée se dégrade en valeur vide et le signale via `onError` ; elle ne lève
@@ -142,18 +155,22 @@ Les types qu'un thème nomme le plus : `StoreConfig`, `StorefrontLanguage`,
 | `StorefrontError`, `isStorefrontError(error)` | Le type d'erreur, et le test de rétrécissement |
 | `readPreviewRequest(request, { publicKey, theme })`, `verifyPreviewToken(token, options)`, `previewConfig(config, draft)`, `previewResponseHeaders(claims)` | La requête d'aperçu d'un éditeur : claims vérifiés, config du brouillon, et en-têtes qui la tiennent hors d'un cache |
 | `REVALIDATE_PATH`, `readRevalidateRequest(request, options)` | Le chemin du crochet de publication (`/wocart-revalidate`) et sa requête vérifiée |
+| `catalogPaths(client, config)`, `sitemapXml(paths, routing, origin)` | Chaque page qu'un plan du site liste, et le plan du site dans chaque langue publiée |
 
 ## `@wocart/storefront/astro`
 
 | Export | Ce qu'il fait |
 | --- | --- |
-| `createStorefrontRoutes({ client })` | Les routes same-origin : `otpSend`, `otpVerify`, `cartValidate`, `abandonedUpsert`, `abandonedConvert`, `communes`, `reviewsList`, `reviewEligibility`, `reviewUpload`, `reviewSubmit` |
+| `createStorefrontRoutes({ client })` | Les routes same-origin : `otpSend`, `otpVerify`, `cartValidate`, `abandonedUpsert`, `abandonedConvert`, `communes`, `reviewsList`, `reviewEligibility`, `reviewUpload`, `reviewSubmit`, `orderStatus` |
 | `REVIEWS_PAGE_DEFAULT`, `REVIEWS_PAGE_MAX` | 20 et 50 — les bornes de page de la route d'avis |
 | `createProxyEndpoint(config)` | Un proxy same-origin générique pour ce que les routes ci-dessus ne couvrent pas |
 | `placeOrderInput` | La liste blanche des entrées du formulaire de commande (un objet Zod) |
 | `executePlaceOrder(input, request, client)` | Le moteur de commande : règle panier-ou-produit, attribution, corps envoyé |
 | `collectForwardedHeaders(request)` | Les en-têtes qu'une route transmet au serveur |
 | `runFormAction(...)`, `resolveActionRedirectDecision(...)` | Le middleware post/redirect/get qui rend un formulaire refusé sur place |
+| `resolveStoreRequest(request, options)`, `resolvePreviewStore(draft, options)` | Quelle boutique et quelle langue une requête rend, et les redirections ; la boutique du brouillon d'un éditeur |
+| `notFound(context, page?)` | Une ressource introuvable : la page 404, statut 404, jamais en cache |
+| `lookupOrder(input, request, client)`, `orderLookupInput` | La recherche d'une commande par l'acheteur pour un formulaire de suivi, son issue en quelques cas |
 | `PlaceOrderInput`, `PlaceOrderResult`, `PrgDecision`, `ActionDescriptor`, `ActionMiddlewareDeps`, `ProxyEndpointConfig`, `ProxyClientFn`, `AstroAPIContext`, `AstroAPIRoute`, `StorefrontApiRoute`, `StorefrontRoutes`, `StorefrontRoutesOptions` | Les types que ces fonctions prennent et renvoient |
 
 ## `@wocart/storefront/review-media`
@@ -161,6 +178,7 @@ Les types qu'un thème nomme le plus : `StoreConfig`, `StorefrontLanguage`,
 | Export | Ce qu'il fait |
 | --- | --- |
 | `prepareReviewPhoto(photo, options?, deps?)` | Réduit une photo à 1600 px au plus et la ré-encode (WebP, sinon JPEG) ; le ré-encodage supprime l'EXIF |
+| `createReviewSession({ routes, attempts? }, deps?)` | Toute la conversation du formulaire d'avis : trouver la commande, envoyer chaque fichier avec progression et nouvelles tentatives, envoyer l'avis |
 | `photoTargetSize(width, height, maxEdge)` | La taille à laquelle la photo est dessinée |
 | `createVoiceRecorder(options, deps?)`, `canRecordVoice(deps?)` | Enregistrer une note vocale à bas débit, en s'arrêtant à la limite de la boutique |
 | `pickVoiceMimeType(isTypeSupported)`, `VOICE_MIME_TYPES` | Le conteneur/codec que le navigateur accepte, par ordre de préférence |

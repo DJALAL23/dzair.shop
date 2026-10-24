@@ -162,23 +162,52 @@ changement un instant plus tard.
 
 ## Comportement navigateur dans une section
 
-Les scripts d'une section remplacée ne s'exécutent pas à nouveau ; le navigateur
-n'exécute jamais un script inséré via le balisage. Une section avec un comportement
-navigateur le relie à nouveau sur `PREVIEW_SECTION_LOAD_EVENT`
-(`wocart:section-load`, déclenché sur `document` avec `detail.id`) :
+Les scripts d'une section remplacée ne s'exécutent pas à nouveau ; le
+navigateur n'exécute jamais un script inséré par le balisage. Liez le
+comportement d'une section avec `bindEach` de `@wocart/theme/lifecycle` : il lie
+chaque élément correspondant une seule fois — au chargement, après que le
+routeur d'Astro remplace la page, et après que l'aperçu insère une section — et
+exécute le démontage renvoyé quand l'élément s'en va :
 
 ```ts
-document.addEventListener(PREVIEW_SECTION_LOAD_EVENT, (event) => {
-  const { id } = (event as CustomEvent<{ id: string }>).detail;
-  mountSection(id);
+import { bindEach } from "@wocart/theme/lifecycle";
+
+bindEach<HTMLElement>("[data-countdown]", (element) => {
+  const timer = setInterval(() => tick(element), 1000);
+  return () => clearInterval(timer);
 });
 ```
 
-Lorsque le pont remplace la page entière, il fait ce que fait le routeur d'Astro
-après une navigation — un nouveau `<body>`, les attributs de l'élément racine, le
-titre — et déclenche `astro:page-load`, afin qu'un script écrit pour le routeur se
-monte à nouveau comme là-bas. Les feuilles de style modifiées sont remplacées sur
-place ; celles qui n'ont pas changé ne se rechargent jamais.
+Quand le pont remplace toute la page, il fait ce que fait le routeur d'Astro
+après une navigation — un nouveau `<body>`, les attributs de l'élément racine,
+le titre — et déclenche `astro:page-load`, si bien que le comportement d'une
+page monté avec `onEachPage` se remonte comme là-bas. Les feuilles de style
+modifiées sont remplacées sur place ; celles qui n'ont pas changé ne se
+rechargent jamais. Un thème n'écoute jamais lui-même les événements de
+remplacement.
+
+## Ce que montre un aperçu
+
+`previewTarget(theme, draft, client)` le décide une fois pour tous les thèmes.
+Un modèle prévisualise la ressource que nomme le `path` du brouillon
+(`/products/robe`), sinon le premier produit, la première catégorie, la première
+collection par défaut ou la première page de texte de la boutique — et une
+boutique qui n'en a aucun prévisualise quand même, le modèle vide pour qu'on
+puisse en disposer les sections. Une zone (l'en-tête, le pied de page) se
+prévisualise sur la page que nomme son `path` quand le thème compose cette page,
+sinon sur l'accueil. La ressource est choisie par le `pageType` de la surface, si
+bien qu'un modèle alternatif se prévisualise comme sa base. Une surface que le
+thème ne déclare pas donne `null` : répondez 404.
+
+```astro
+---
+import { createReadCache, previewTarget } from "@wocart/theme/astro";
+
+const target = await previewTarget(theme, Astro.locals.preview.draft, Astro.locals.store.client);
+if (!target) return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+---
+<Sections surface={target.surface} params={target.params} document={target.document} preview={target.area === null} reads={createReadCache()} />
+```
 
 ## Sécurité
 

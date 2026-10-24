@@ -107,27 +107,59 @@ basket.addLine({
 });
 ```
 
-## طلب عرض سعر للسلة
+### عرض يُختار قطعةً قطعة
 
-عرض السعر قراءة على الخادم. في المتصفح، استدعِ مسارك من نفس المصدر:
+قد يسمح عرض من عدة قطع للمتسوق باختيار متغيّر لكل قطعة — ثلاث بيجامات بمقاسين.
+أضف هذا الاختيار كما يحمله نموذج الطلب: نداء واحد، وسطر لكل متغيّر يضم قطعه،
+وكل سطر يحمل العرض، والكل أو لا شيء — السلة التي لا تتسع لكل الأسطر الجديدة لا
+تضيف شيئًا.
 
 ```ts
-async function quoteBasket() {
-  const response = await fetch("/api/cart/validate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      items: basket.toOrderItems(),
-      destination,
-      couponCode,
-    }),
-  });
-
-  const body = await response.json();
-  if (!body.success) return null;
-  return body.data;
-}
+basket.addSelections(
+  { productId, productName, unitPrice, offerId, href, image },
+  [
+    { variantId: "6m", variantLabel: "6 mois" },
+    { variantId: "12m", variantLabel: "12 mois" },
+    { variantId: "6m", variantLabel: "6 mois" },
+  ],
+);
 ```
+
+### ما أضافته الإضافة
+
+`addedLines(before, after)` هو ما وضعته نقرة واحدة في السلة: كل سطر زاد، بمقدار
+ما زاد. أرسل ذلك كحدث Meta ‏`AddToCart` — لا السلة كلها أبدًا — واقرأ الجواب
+الفارغ على أنه سلة لم يبق فيها مكان، ويجب إخبار المتسوق بذلك.
+
+```ts
+import { addedLines, buildMetaAddToCartPayload } from "@wocart/storefront";
+
+const before = basket.getLines();
+const added = addedLines(before, basket.addLine(line));
+if (added.length === 0) showBasketFull();
+else tracker.track("AddToCart", buildMetaAddToCartPayload(added));
+```
+
+## طلب عرض سعر للسلة
+
+عرض السعر قراءة من الخادم. في المتصفح، اطلبه عبر مسارك ذي الأصل نفسه باستخدام
+`createQuoter`: يرسل السطور مع ما أدخله المتسوق حتى الآن ولا يحتفظ إلا بآخر جواب،
+فلا يحل جواب بطيء لنقرة سابقة محل جواب أحدث أبدًا.
+
+```ts
+import { createQuoter } from "@wocart/storefront";
+
+const quoter = createQuoter({ endpoint: "/api/cart/validate" });
+
+const result = await quoter.quote({ items: basket.toOrderItems() }, { destination, couponCode, phone });
+if (result.status === "fresh") show(result.quote);
+// "stale": a newer question was asked meanwhile — keep what is shown.
+// "failed": no usable answer — keep the optimistic basket.
+```
+
+نموذج طلب المنتج يسأل بالطريقة نفسها، بمنتج واحد كما يرسله النموذج
+(`{ productId, productName, quantity, variantSelections, offerId }`). ويُقرأ الجواب
+دون Zod ‏(`readCartQuote`)، فلا يصل أي schema إلى متصفح المتسوق.
 
 على الخادم، الاستدعاء نفسه هو `cart.validate`:
 
@@ -280,6 +312,23 @@ const coupon = readCouponOutcome(value);
 
 استخدمه عندما تُخزَّن صفحة مؤقتًا منفصلة عن سكربتاتها وقد تحمل شكل إصدار
 آخر. ولا تستخدم مخططًا في المتصفح.
+
+### تلميح أم رفض
+
+بعض حالات الرفض تخص الرمز — غير معروف، أو خارج تواريخه، أو نفد، أو ليس لهذا
+المتسوق — وبعضها يخص السلة التي لم تستوفِ الرمز بعد: حد أدنى لم يُبلغ، أو منتج
+تحت عرض آخر، أو هاتف لم يُكتب بعد. تميّز `couponRefusalTone(reason)` بينها،
+ليصوغ القالب التلميح بلطف والرفض بوضوح:
+
+```ts
+import { COUPON_REFUSAL_REASONS, couponRefusalTone } from "@wocart/storefront";
+
+const tone = couponRefusalTone(outcome.reason); // "hint" or "refused"
+```
+
+اكتب أنواع عباراتك على `COUPON_REFUSAL_REASONS` (‏`Record` عليها)، فيفشل فحص
+الأنواع عند سبب جديد تضيفه المنصة بدل أن يصل إلى المتسوق كجملة عامة.
+
 
 ## ظهور السلة
 

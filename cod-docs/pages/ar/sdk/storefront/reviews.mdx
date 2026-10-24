@@ -252,6 +252,35 @@ result.data;
 لا تفرّغ النموذج عند الفشل. يجب أن يستطيع المتسوّق تصحيح النص أو التقييم أو
 المرفقات والمحاولة مجددًا.
 
+## جلسة المراجعة
+
+الخطوات من 1 إلى 4 كائن واحد في المتصفح. تتولى `createReviewSession`، من
+`@wocart/storefront/review-media`، إثبات الشراء، وإرسال كل صورة أو رسالة صوتية
+لحظة إضافتها — مع تقدّمها، وإعادة المحاولة عند انقطاع الاتصال، وتصغير الصورة
+أولًا — ثم الإرسال. كل رفض يعود كرمز، لا كخطأ مرمي أبدًا:
+
+```ts
+import { createReviewSession } from "@wocart/storefront/review-media";
+
+const session = createReviewSession({
+  routes: { eligibility: "/api/review-eligibility", upload: "/api/review-upload", submit: "/api/submit-review" },
+});
+
+const found = await session.find({ orderNumber, phone });
+if (found.status === "refused") return say(found.code);
+
+const upload = session.upload(file, { kind: "image", onProgress: (share) => showProgress(share) });
+const sent = await upload.result; // "sent" with its uploadId, "refused" with a code, or "cancelled"
+
+const review = await session.submit({ productId, rating, body, title, uploads });
+```
+
+ترفض `find` رقم طلب غير صحيح الشكل قبل السؤال (`VALIDATION_FAILED`)، وتنسى
+`reset()` الطلب وتلغي ما يزال قيد الإرسال حين يغيّر المتسوق الطلب. صُغ عبارة لكل
+رمز في `REVIEW_REFUSAL_CODES` — ‏`Record` عليها يُفشل فحص الأنواع حين تضيف المنصة
+رمزًا جديدًا — واقرأ `VALIDATION_FAILED` عند الإرسال على أنه مراجعة أقصر من
+اللازم. وتعطي `REVIEW_TEXT_LIMITS` أطوال العنوان والنص لحقولك وتلميحاتك.
+
 ## مسارات الأصل نفسه
 
 لا يحمل المتصفح مفتاح المتجر. اربط مسارات المراجعة في SDK مرة واحدة:

@@ -36,6 +36,7 @@ const products = await store.products.list({
 | `onSale` | المنتجات التي يقل سعرها عن سعر المقارنة |
 | `limit` | حدّ من جهة الخادم؛ ويقصّ الخادم أي قيمة أكبر |
 | `offset` | تخطَّ هذا العدد من المنتجات |
+| `sort` | الترتيب: `newest` أو `price-ascending` أو `price-descending` ‏(`PRODUCT_SORTS`)؛ وعند غيابه ترتيب القائمة نفسها |
 
 لا يزال `featured` موجودًا لكنه مهجور. استخدم `collection: "featured"`؛ فمجموعة
 التاجر المميزة هي القائمة نفسها، دون علم خاص.
@@ -56,6 +57,38 @@ if (page.hasNext) {
 
 المجموعة أو الفئة المجهولة لا تسرد شيئًا. لا تعامل ذلك كخطأ في صفحة كتالوج؛
 اعرض الحالة الفارغة.
+
+### صفحة وحجمها وترتيبها
+
+تُقرأ القائمة صفحةً صفحة، بالترتيب الذي اختاره المتسوق أو بترتيبها الخاص (ترتيب
+المجموعة، أو أفضل تطابق في البحث، وإلا فالأحدث). ‏`PRODUCT_SORTS` هي القائمة التي
+يعرضها عنصر الترتيب: `newest` و`price-ascending` و`price-descending`.
+
+```ts
+import { PRODUCT_SORTS } from "@wocart/storefront";
+
+const page = await store.products.page({ collection: handle, limit: 24, offset, sort: "price-ascending" });
+page.items;   // this page's products
+page.hasNext; // whether another page follows
+page.total;   // how many the whole listing holds; null from a server that does not count
+```
+
+قل "1–24 من 60 منتجًا" و"الصفحة 1 من 3" حين يكون `total` معروفًا، واكتفِ بسطور
+الصفحة نفسها حين لا يكون.
+
+### البحث
+
+تجد `products.search(text, filters)` المنتجات التي يحتوي اسمها — بلغة العميل أو
+بلغة الكتالوج — على كل كلمة، أو تحتويها وسومها، والأفضل تطابقًا أولًا ما لم يُعطَ
+`sort`. وتأخذ مرشحات القائمة وتقسّم الصفحات مثل `products.page`:
+
+```ts
+const results = await store.products.search(query, { limit: 24, offset, sort });
+results.total; // how many products the words find
+```
+
+الكلمات الفارغة لا تجد شيئًا، والخادم الأقدم من البحث يجيب بصفحة فارغة — لا
+بالكتالوج كله أبدًا.
 
 ## بطاقات المنتج
 
@@ -273,25 +306,26 @@ const products = await store.products.list({
 
 ## المجموعات
 
-المجموعة قائمة ينظّمها التاجر ولها صفحتها الخاصة:
+المجموعة قائمة ينتقيها التاجر ولها صفحتها الخاصة:
 
 ```astro
 ---
-const collection = await store.collections.get(Astro.params.handle!);
-if (!collection) return Astro.rewrite("/404");
+import { notFound } from "@wocart/storefront/astro";
 
-const products = await store.products.list({
-  collection: collection.handle,
-  limit: 24,
-});
+const collection = await store.collections.get(Astro.params.handle!);
+if (!collection) return notFound(Astro);
+
+const page = await store.products.page({ collection: collection.handle, limit: 24 });
 ---
 <h1>{collection.title}</h1>
 {collection.description && <p>{collection.description}</p>}
+{collection.image && <img src={collection.image.src} alt="" />}
 ```
 
-تعيد `collections.get` الاسم والوصف؛ وتأتي المنتجات من
-`products.list({ collection })` بترتيب التاجر. ويُترجم كليهما عندما تكون لغة
-العميل منشورة.
+تعيد `collections.get` الاسم، والوصف، وعدد المنتجات التي يراها المتسوق فيها
+(`productCount`)، وصورة أول منتج مدرج فيها (`image`)؛ والأخيران غائبان عن خادم
+أقدم. وتأتي المنتجات من `products.page({ collection })` بترتيب التاجر. ويُترجم
+كل ذلك حين تكون لغة العميل منشورة.
 
 ## الأوصاف وSEO
 
@@ -306,13 +340,35 @@ const products = await store.products.list({
 تحمل صفوف الفئة والمنتج `metaTitle` و`metaDescription` حيث توجد؛ والبدائل على
 مستوى المتجر هي `config.metaTitle` و`config.metaDescription`.
 
+### العناوين والبيانات المنظمة والعناوين المرجعية
+
+يحمل المنتج العنوان والوصف اللذين كتبهما تاجره لمحركات البحث (`metaTitle`،
+`metaDescription`). تعطي `productMeta(product)` ما تضعه الصفحة في `<title>` وفي
+وصفها: ما كتبه التاجر، وإلا فالاسم وبداية الوصف كنص عادي — بلا وسوم أبدًا — ضمن
+`SEO_TEXT_LIMITS`. وتعطي `productStructuredData` كائن `Product` الخاص بـschema.org،
+ويُكتب عبر `jsonLd` الذي يهرّب ما قد يُنهي الـscript. أما `canonicalUrl` فلا تحتفظ
+إلا بمسار الصفحة بلغتها وبصفحة القائمة، لا بترتيب ولا ببحث ولا بكوبون ولا بمعرّف
+نقرة إعلان أبدًا:
+
+```astro
+---
+import { canonicalUrl, jsonLd, productMeta, productStructuredData } from "@wocart/storefront";
+
+const store = Astro.locals.store;
+const meta = productMeta(product);
+const canonical = canonicalUrl(Astro.url.origin, store, Astro.url.search);
+---
+<title>{meta.title} | {store.config.name}</title>
+{meta.description && <meta name="description" content={meta.description} />}
+<link rel="canonical" href={canonical} />
+<script type="application/ld+json" set:html={jsonLd(productStructuredData(product, { url: canonical, storeName: store.config.name }))} />
+```
+
+
 ## ما لا تغطيه هذه الصفحة
 
 تعيش المراجعات في [المراجعات](/ar/sdk/storefront/reviews). وتوجد السلة وعرض سعر
 الخادم في [السلة وعروض الأسعار](/ar/sdk/storefront/basket). وتوجد دوال
 الصور والمال في [المال والصور وWhatsApp وأحداث
-Meta](/ar/sdk/storefront/presentation).
-
-لا توجد طريقة بحث نصي كامل عن المنتجات في هذا SDK. وإذا احتاجت واجهة المتجر
-إلى بحث، فهي تحتاج نقطة نهاية على الخادم؛ لا تصنع واحدة وهمية بتنزيل الكتالوج
-كله إلى المتصفح.
+Meta](/ar/sdk/storefront/presentation). أما البحث فهو `products.search`، في قسم
+عرض المنتجات أعلاه.

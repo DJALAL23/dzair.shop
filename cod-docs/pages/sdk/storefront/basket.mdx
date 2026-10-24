@@ -108,27 +108,61 @@ basket.addLine({
 });
 ```
 
-## Quote the basket
+### An offer chosen piece by piece
 
-The quote is a server read. In the browser, call your same-origin route:
+An offer of several pieces can let the shopper pick a variant for each — three
+pyjamas in two sizes. Add that choice as the order form carries it: one call,
+one line per variant holding its pieces, every line carrying the offer, and all
+of it or none — a basket without room for every new line adds nothing.
 
 ```ts
-async function quoteBasket() {
-  const response = await fetch("/api/cart/validate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      items: basket.toOrderItems(),
-      destination,
-      couponCode,
-    }),
-  });
-
-  const body = await response.json();
-  if (!body.success) return null;
-  return body.data;
-}
+basket.addSelections(
+  { productId, productName, unitPrice, offerId, href, image },
+  [
+    { variantId: "6m", variantLabel: "6 mois" },
+    { variantId: "12m", variantLabel: "12 mois" },
+    { variantId: "6m", variantLabel: "6 mois" },
+  ],
+);
 ```
+
+### What an add put in
+
+`addedLines(before, after)` is what one tap put in the basket: each line that
+grew, by what it grew. Report that as the Meta `AddToCart` event — never the
+whole basket — and read an empty answer as a basket with no room left, which
+the shopper should be told.
+
+```ts
+import { addedLines, buildMetaAddToCartPayload } from "@wocart/storefront";
+
+const before = basket.getLines();
+const added = addedLines(before, basket.addLine(line));
+if (added.length === 0) showBasketFull();
+else tracker.track("AddToCart", buildMetaAddToCartPayload(added));
+```
+
+## Quote the basket
+
+The quote is a server read. In the browser, ask it through your same-origin
+route with `createQuoter`: it posts the lines with what the shopper gave so far
+and keeps only the latest answer, so a slow answer to an earlier tap never
+replaces a newer one.
+
+```ts
+import { createQuoter } from "@wocart/storefront";
+
+const quoter = createQuoter({ endpoint: "/api/cart/validate" });
+
+const result = await quoter.quote({ items: basket.toOrderItems() }, { destination, couponCode, phone });
+if (result.status === "fresh") show(result.quote);
+// "stale": a newer question was asked meanwhile — keep what is shown.
+// "failed": no usable answer — keep the optimistic basket.
+```
+
+A product's order form asks the same way, with one product as the form posts it
+(`{ productId, productName, quantity, variantSelections, offerId }`). The answer
+is read without Zod (`readCartQuote`), so no schema reaches a shopper's browser.
 
 On the server, the same call is `cart.validate`:
 
@@ -282,6 +316,25 @@ const coupon = readCouponOutcome(value);
 
 Use it when a page is cached apart from its scripts and may hold another
 version's shape. Do not use a browser schema.
+
+### A hint or a refusal
+
+Some refusals are about the code — unknown, outside its dates, used up, not for
+this shopper — and some are about the basket, which does not meet the code yet:
+a minimum not reached, a product under another offer, a phone still to type.
+`couponRefusalTone(reason)` tells them apart, so a theme words a hint gently and
+a refusal plainly:
+
+```ts
+import { COUPON_REFUSAL_REASONS, couponRefusalTone } from "@wocart/storefront";
+
+const tone = couponRefusalTone(outcome.reason); // "hint" or "refused"
+```
+
+Type your words against `COUPON_REFUSAL_REASONS` (a `Record` over it), so a
+reason the platform adds fails your type check instead of reaching a shopper as
+the general sentence.
+
 
 ## Cart visibility
 

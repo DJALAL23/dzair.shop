@@ -284,50 +284,77 @@ phoneInput.addEventListener("input", () => otp.setPhone(phoneInput.value));
 
 ## إتمام الطلب المتروك
 
-يسجّل متتبّع اختياري عملية إتمام طلب تركها المتسوق، بعد وجود اسم وهاتف محمول
-صالح:
+يسجّل متتبّع اختياري إتمام طلب تركه المتسوق، بمجرد وجود اسم ورقم جوال صالح.
+في المتصفح، تربطه `createBrowserAbandonedCheckoutTracker` بالصفحة — معرّف الطلب
+في `sessionStorage`، والمؤقّتات، وملفات تعريف الارتباط `_fbc` و`_fbp` الخاصة
+بـMeta، وطلب POST من نوع `keepalive` إلى مسارك، و`sendBeacon` عند مغادرة
+المتسوق:
 
 ```ts
-import { createAbandonedCheckoutTracker } from "@wocart/storefront";
+import { createBrowserAbandonedCheckoutTracker } from "@wocart/storefront";
 
-const tracker = createAbandonedCheckoutTracker({
-  storage: localStorage,
-  createId: () => crypto.randomUUID(),
-  schedule: (fn, ms) => setTimeout(fn, ms),
-  cancel: clearTimeout,
-  readCookie: (name) =>
-    document.cookie.split("; ").find((row) => row.startsWith(`${name}=`))?.split("=")[1],
-  send: (payload) => fetch("/api/abandoned", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    keepalive: true,
-  }).then(() => undefined),
-  beacon: (payload) =>
-    navigator.sendBeacon("/api/abandoned", JSON.stringify(payload)),
-});
+const tracker = createBrowserAbandonedCheckoutTracker({ endpoint: "/api/abandoned" });
 
 tracker.schedule(snapshot);
 tracker.update(snapshot);
 tracker.captureOnExit(snapshot);
 ```
 
-ينتظر `schedule` ثلاث ثوانٍ بعد توقف الكتابة قبل الإرسال؛ ولا يعيد `update`
-الإرسال إلا بعد وجود السجل الأول. ويحمل المتتبّع كوكيز `_fbc` و`_fbp` عندما
-تكون موجودة.
+تنتظر `schedule` ثلاث ثوانٍ بعد توقف الكتابة قبل الإرسال؛ ولا تعيد `update` الإرسال
+إلا بعد وجود السجل الأول. الصفحة التي تمنع التخزين تسجّل رغم ذلك، ولا شيء مما
+يفعله المتتبّع يمكن أن يُفشل الطلب. ‏`createAbandonedCheckoutTracker(ports)` هو
+المتتبّع نفسه مع تمرير كل منفذ يدويًا، لمضيف ليس صفحة متصفح.
 
-بعد إنشاء الطلب، علّم الجلسة كمحوَّلة:
+تعلّم صفحة الشكر إتمام الطلب على أنه تحوّل، فلا يرى التاجر الطلب الذي صار إليه
+على أنه متروك:
 
 ```ts
-fetch("/api/abandoned/convert", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ sessionId, orderId, orderNumber }),
-  keepalive: true,
-});
+import { convertAbandonedCheckout } from "@wocart/storefront";
+
+convertAbandonedCheckout({ endpoint: "/api/abandoned/convert", orderId, orderNumber });
 ```
 
-التحويل بلا انتظار للنتيجة. ويجب ألا يمنع فشل إرساله صفحة الشكر أبدًا.
+هو إرسال بلا انتظار: يقرأ المعرّف الذي احتفظ به المتتبّع
+(`ABANDONED_CHECKOUT_SESSION_KEY`)، ويستعمله مرة واحدة، ولا يرمي خطأ ولا يعطّل
+صفحة الشكر أبدًا.
+
+## تتبّع طلب
+
+ليس للمتسوق حساب: رقم الطلب والهاتف الذي طُلب به يثبتان أن الطلب له. صفحة
+المنصة لذلك هي `trackOrder` ‏(`/track-order`)؛ والرابط الذي يحمل
+`?order=<number>` — من صفحة الشكر مثلًا — يملأ الرقم تلقائيًا.
+
+تجعل `lookupOrder` هذه الصفحة نموذجًا بسيطًا يُرسَل إلى Astro Action: بلا أي
+script، والجواب الذي يُعرض من طلب POST نفسه لا يُخزَّن مؤقتًا أبدًا.
+
+```ts
+// src/actions/index.ts
+import { defineAction } from "astro:actions";
+import { lookupOrder, orderLookupInput } from "@wocart/storefront/astro";
+
+export const server = {
+  orderStatus: defineAction({
+    accept: "form",
+    input: orderLookupInput,
+    handler: async (input, context) => ({
+      asked: input,
+      lookup: await lookupOrder(input, context.request, context.locals.store.client),
+    }),
+  }),
+};
+```
+
+قيمة `lookup.status` هي `found` (مع `lookup.order`)، أو `invalid-number` (ليس رقم
+طلب — تقرّر ذلك `isOrderNumber` ولا يُسأل الخادم)، أو `invalid-phone`، أو
+`not-found` (رقم خاطئ أو هاتف خاطئ دون أن يقول أيهما)، أو `rate-limited` (مع
+`retryAfterSeconds`)، أو `failed`. أعِد ما طُلب بجانبه، ليحتفظ النموذج المرفوض
+بما كتبه المتسوق.
+
+يحمل الطلب الموجود مرحلته `stage` بكلمات المتسوق، وسطوره، والمبلغ المستحق، ونوع
+التوصيل، ورقم التتبّع حين يصبح الطرد عند شركة التوصيل. ‏`SHOPPER_ORDER_JOURNEY`
+هو المسار من `placed` إلى `delivered` الذي يعرضه شريط التقدم؛ أما `returned`
+و`cancelled` فينهيان الطلب خارج هذا المسار، والمرحلة التي يضيفها خادم أحدث
+تأخذ عباراتك العامة.
 
 ## قائمة تحقق لإتمام الطلب
 
@@ -341,3 +368,7 @@ fetch("/api/abandoned/convert", {
 - لا تطلق صفحة الشكر إلا البكسل والحدث الذي يعيده `orders.tracking`.
 - `eventID` هو معرّف الطلب.
 - تُعلَّم جلسة إتمام الطلب المتروكة كمحوَّلة بعد النجاح.
+
+- صفحة الشكر تستدعي `convertAbandonedCheckout`.
+- صفحة تتبّع الطلب موجودة في `storefrontPath("trackOrder")` وتصوغ كل نتيجة من
+  نتائج `lookupOrder`.

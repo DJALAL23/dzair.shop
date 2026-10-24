@@ -287,51 +287,79 @@ the form; do not clear it.
 
 ## Abandoned checkout
 
-An optional tracker records a checkout the shopper left, after a name and a
-valid mobile are present:
+An optional tracker records a checkout the shopper left, once a name and a
+valid mobile are present. In a browser, `createBrowserAbandonedCheckoutTracker`
+wires it to the page — the checkout's id in `sessionStorage`, the timers, the
+Meta `_fbc` and `_fbp` cookies, a `keepalive` POST to your route, and
+`sendBeacon` when the shopper leaves:
 
 ```ts
-import { createAbandonedCheckoutTracker } from "@wocart/storefront";
+import { createBrowserAbandonedCheckoutTracker } from "@wocart/storefront";
 
-const tracker = createAbandonedCheckoutTracker({
-  storage: localStorage,
-  createId: () => crypto.randomUUID(),
-  schedule: (fn, ms) => setTimeout(fn, ms),
-  cancel: clearTimeout,
-  readCookie: (name) =>
-    document.cookie.split("; ").find((row) => row.startsWith(`${name}=`))?.split("=")[1],
-  send: (payload) => fetch("/api/abandoned", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    keepalive: true,
-  }).then(() => undefined),
-  beacon: (payload) =>
-    navigator.sendBeacon("/api/abandoned", JSON.stringify(payload)),
-});
+const tracker = createBrowserAbandonedCheckoutTracker({ endpoint: "/api/abandoned" });
 
 tracker.schedule(snapshot);
 tracker.update(snapshot);
 tracker.captureOnExit(snapshot);
 ```
 
-`schedule` waits three seconds after typing stops before sending; `update`
-only sends again after the first record exists. The tracker carries `_fbc` and
-`_fbp` cookies when present.
+`schedule` waits three seconds after typing stops before sending; `update` only
+sends again after the first record exists. A page that blocks storage still
+captures, and nothing the tracker does can fail the order.
+`createAbandonedCheckoutTracker(ports)` is the same tracker with every port
+passed in, for a host that is not a browser page.
 
-After the order is placed, mark the session converted:
+The thank-you page marks the checkout converted, so the merchant no longer sees
+the order it became as abandoned:
 
 ```ts
-fetch("/api/abandoned/convert", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ sessionId, orderId, orderNumber }),
-  keepalive: true,
-});
+import { convertAbandonedCheckout } from "@wocart/storefront";
+
+convertAbandonedCheckout({ endpoint: "/api/abandoned/convert", orderId, orderNumber });
 ```
 
-The conversion is fire-and-forget. A failure to send it must never block the
+It is fire-and-forget: it reads the id the tracker kept
+(`ABANDONED_CHECKOUT_SESSION_KEY`), uses it once, and never throws or holds the
 thank-you page.
+
+## Track an order
+
+A shopper has no account: the order's number and the phone it was placed with
+prove an order is theirs. The platform's page for it is `trackOrder`
+(`/track-order`); a link with `?order=<number>` — from the thank-you page, say —
+fills the number in.
+
+`lookupOrder` makes that page a plain form posted to an Astro Action: no script,
+and the answer, rendered from the same POST, is never cached.
+
+```ts
+// src/actions/index.ts
+import { defineAction } from "astro:actions";
+import { lookupOrder, orderLookupInput } from "@wocart/storefront/astro";
+
+export const server = {
+  orderStatus: defineAction({
+    accept: "form",
+    input: orderLookupInput,
+    handler: async (input, context) => ({
+      asked: input,
+      lookup: await lookupOrder(input, context.request, context.locals.store.client),
+    }),
+  }),
+};
+```
+
+`lookup.status` is `found` (with `lookup.order`), `invalid-number` (not an order
+number — `isOrderNumber` decides, and the server is not asked), `invalid-phone`,
+`not-found` (a wrong number or a wrong phone, never saying which),
+`rate-limited` (with `retryAfterSeconds`) or `failed`. Return what was asked
+beside it, so a refused form keeps what the shopper typed.
+
+A found order carries its `stage` in the shopper's words, its lines, the total
+to pay, the delivery type and, once the carrier has the parcel, the tracking
+number. `SHOPPER_ORDER_JOURNEY` is the path from `placed` to `delivered` a
+progress bar shows; `returned` and `cancelled` end an order off it, and a stage
+a newer server adds reads your general words.
 
 ## A checkout checklist
 
@@ -345,3 +373,7 @@ thank-you page.
 - The thank-you page fires only the pixel and event `orders.tracking` returns.
 - `eventID` is the order id.
 - The abandoned session is marked converted after success.
+
+- The thank-you page calls `convertAbandonedCheckout`.
+- The track-order page lives at `storefrontPath("trackOrder")` and words every
+  `lookupOrder` outcome.

@@ -34,12 +34,14 @@ npm install @wocart/theme @wocart/storefront
 | --- | --- |
 | `defineComponent(definition)` | مساعد هوية: يحفظ حرفية الحقول، ويكتب أنواع `load` من الحقول، ويكتب أنواع خصائص المكوّن |
 | `defineTheme(definition)` | مساعد هوية للكتالوج |
+| `defineCapabilities(capabilities)` | ثابت `capabilities` مشترك، مكتوب النوع لكي يواصل `defineComponent` استنتاج حقوله |
+| `componentsOf(theme)` | مكوّنات القالب كتعريفات، بترتيب الكتالوج — ما يمرّ عليه الاختبار أو الأداة |
 | `validateThemeDefinition(theme, options?)` | فحص التجميع: تطابق المفتاح والنوع، الحقول، الفتحات، البلوكات، القوالب الجاهزة، المستندات، مفاتيح المحتوى، وضمان نموذج الطلب. `[]` هي النجاح الوحيد |
 | `themeManifest(theme)` | البيان القابل للتسلسل؛ يُسقط `component` و`load` |
 | `validateThemeManifest(input)` | حدّ لـ JSON: قابلية التسلسل، البنية، ثم القواعد العلائقية نفسها. `{ manifest, issues }` |
 | `manifestCatalog(manifest)` | `ThemeDefinition` بـ `component: null` — للتحرير والتحقق، لا للعرض أبدًا |
 | `diffThemeManifests(previous, next)` | `{ breaking, additive }` بين إصدارين |
-| `THEME_SDK_VERSION` | نسخة الحزمة المسجّلة في البيان (`"2.1.0"`) |
+| `THEME_SDK_VERSION` | نسخة الحزمة المسجّلة في البيان (`"2.3.0"`) |
 | `THEME_MANIFEST_CONTRACT_VERSION` | نسخة صيغة البيان (`1`) |
 | `THEME_MANIFEST_PATH` | `/wocart-theme.json` |
 
@@ -111,7 +113,7 @@ npm install @wocart/theme @wocart/storefront
 | التصدير | ما يفعله |
 | --- | --- |
 | `styleClasses(value)` | فئات قيمة `style` |
-| `schemeClass(scheme)` | `.wc-scheme-<id>`، أو `""` بلا نظام |
+| `schemeClass(scheme)`, `SCHEME_MARKER_CLASS` | ‏`wc-scheme wc-scheme-<id>`: العلامة المشتركة التي يشتق عليها القالب رموزه، وصنف النظام نفسه — و`""` بلا نظام |
 | `themeStyleSheet(style)` | ورقة أنماط كل الفئات التي تتيحها مقاسات القالب |
 | `colorSchemeCss(schemes)` | متغيّرات CSS لكل نظام |
 | `contrastRatio(a, b)` | نسبة تباين WCAG بين لونين ست عشريين |
@@ -136,6 +138,7 @@ npm install @wocart/theme @wocart/storefront
 | `themeStylesEndpoint(theme)` | معالج `GET` لفئات الأنماط، بـ `text/css` |
 | `hasBlocks(blocks, slot?)` | هل تحتوي فتحة بلوكًا يُعرض — لتجنّب غلاف فارغ |
 | `isPreview(blocks)` | هل هذا العرض معاينة محرّر؛ العناصر البديلة مكانها هناك فقط |
+| `previewTarget(theme, draft, client)` | ما تعرضه معاينة المحرر: السطح، ونوع صفحته، والمنطقة المحررة، ومعاملات المسار، والمستند — و`null` لسطح لا يركّبه القالب |
 | `BlocksHandle`, `RendererIssue` | خاصية `blocks` التي يستقبلها المكوّن، وصيغة مشكلة من المُصيّر |
 | `resolveInstance`, `THEME_LIMITS`, `THEME_STYLES_PATH`, `colorSchemeCss`, `previewStartMarker`, `previewEndMarker` | إعادة تصدير من الوحدة الجذرية، ليعمل الاستيراد المجاور في المصادر وفي `dist` |
 
@@ -152,6 +155,17 @@ npm install @wocart/theme @wocart/storefront
 | `mediaImageParams(options)` | معاملات الاستعلام التي تبنيها الخدمة لتحويل Astro |
 | `startPreviewBridge({ editorOrigin, token, endpoint?, window? })` | الجانب المتصفحي لصفحة المعاينة: تعديل البنية، رسائل التأشير والاختيار، وطلبات إعادة العرض. يعيد `{ stop() }` |
 | `PREVIEW_SECTION_LOAD_EVENT` | `"wocart:section-load"` — يُطلق لكل قسم استبدله الجسر |
+
+## `@wocart/theme/lifecycle` و`/messages`
+
+مدخلا المتصفح: صغيران جدًا، بلا Zod، وآمنان على صفحة كل متسوق.
+
+| التصدير | ما يفعله |
+| --- | --- |
+| `bindEach(selector, bind, options?)` | يربط كل عنصر مطابق مرة واحدة — عند التحميل، وبعد أن يستبدل موجّه Astro الصفحة، وبعد أن تُدخل معاينة المحرر قسمًا. ويمكن للربط أن يُعيد دالة تفكيك |
+| `onEachPage(boot, options?)` | يشغّل سلوك الصفحة مرة لكل صفحة، وتفكيكه قبل استبدال الصفحة |
+| `PREVIEW_SECTION_LOAD_EVENT` | ‏`"wocart:section-load"`، دون الجسر: لا يسمّي القالب أحداث الاستبدال بنفسه أبدًا |
+| `formatMessage(pack, key, values?, { locale })`، `messageForms(pack, key)`، `pluralMessageKeys(pack)` | رسالة من النصوص، وتُختار صيغة جمعها حسب `count` ‏(`/messages`) |
 
 ## أنواع ستسمّيها
 

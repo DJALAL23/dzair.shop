@@ -36,6 +36,7 @@ Les filtres sont :
 | `onSale` | Les produits dont le prix est inférieur à leur prix barré |
 | `limit` | Plafond côté serveur ; le serveur écrête une valeur plus grande |
 | `offset` | Ignore ce nombre de produits |
+| `sort` | L'ordre : `newest`, `price-ascending` ou `price-descending` (`PRODUCT_SORTS`) ; absent, celui de la liste |
 
 `featured` existe encore mais est déprécié. Utilisez `collection: "featured"` ;
 la collection mise en avant du marchand est la même liste, sans drapeau spécial.
@@ -56,6 +57,40 @@ dernière page vide, de la même manière que `list` se dégrade.
 
 Une collection ou une catégorie inconnue ne liste rien. Ne traitez pas cela
 comme une erreur sur une page de catalogue ; affichez l'état vide.
+
+### Une page, sa taille et son ordre
+
+Une liste se lit page par page, dans l'ordre choisi par l'acheteur ou le sien
+(celui d'une collection, la meilleure correspondance d'une recherche, sinon les
+plus récents). `PRODUCT_SORTS` est la liste qu'offre un contrôle de tri :
+`newest`, `price-ascending`, `price-descending`.
+
+```ts
+import { PRODUCT_SORTS } from "@wocart/storefront";
+
+const page = await store.products.page({ collection: handle, limit: 24, offset, sort: "price-ascending" });
+page.items;   // this page's products
+page.hasNext; // whether another page follows
+page.total;   // how many the whole listing holds; null from a server that does not count
+```
+
+Dites « 1–24 sur 60 produits » et « page 1 sur 3 » quand `total` est connu, et
+seulement les lignes de la page quand il ne l'est pas.
+
+### Recherche
+
+`products.search(text, filters)` trouve les produits dont le nom — dans la
+langue du client ou celle du catalogue — contient chaque mot, ou dont les tags
+le contiennent, la meilleure correspondance d'abord sauf si un `sort` est donné.
+Elle prend les filtres de liste et pagine comme `products.page` :
+
+```ts
+const results = await store.products.search(query, { limit: 24, offset, sort });
+results.total; // how many products the words find
+```
+
+Des mots vides ne trouvent rien, et un serveur antérieur à la recherche répond
+par une page vide — jamais par tout le catalogue.
 
 ## Cartes produit
 
@@ -283,25 +318,27 @@ pas dans un ancien client.
 
 ## Collections
 
-Une collection est une liste organisée par le marchand, avec sa propre page :
+Une collection est une liste choisie par le marchand, avec sa propre page :
 
 ```astro
 ---
-const collection = await store.collections.get(Astro.params.handle!);
-if (!collection) return Astro.rewrite("/404");
+import { notFound } from "@wocart/storefront/astro";
 
-const products = await store.products.list({
-  collection: collection.handle,
-  limit: 24,
-});
+const collection = await store.collections.get(Astro.params.handle!);
+if (!collection) return notFound(Astro);
+
+const page = await store.products.page({ collection: collection.handle, limit: 24 });
 ---
 <h1>{collection.title}</h1>
 {collection.description && <p>{collection.description}</p>}
+{collection.image && <img src={collection.image.src} alt="" />}
 ```
 
-`collections.get` renvoie le nom et la description ; les produits viennent de
-`products.list({ collection })` dans l'ordre du marchand. Les deux sont traduits
-lorsque la langue du client est publiée.
+`collections.get` renvoie le nom, la description, le nombre de produits que
+l'acheteur y voit (`productCount`) et la photo de son premier produit listé
+(`image`) ; ces deux derniers sont absents d'un serveur plus ancien. Les
+produits viennent de `products.page({ collection })`, dans l'ordre du marchand.
+Le tout est traduit quand la langue du client est publiée.
 
 ## Descriptions et SEO
 
@@ -318,14 +355,37 @@ Les lignes de catégorie et de produit portent `metaTitle` et `metaDescription`
 lorsqu'ils existent ; les replis au niveau de la boutique sont `config.metaTitle`
 et `config.metaDescription`.
 
+### Titres, données structurées et adresses canoniques
+
+Un produit porte le titre et la description que son marchand a écrits pour les
+moteurs de recherche (`metaTitle`, `metaDescription`). `productMeta(product)`
+donne ce qu'une page met dans son `<title>` et sa description : ce que le
+marchand a écrit, sinon le nom et le début de la description en texte brut —
+jamais de balises — dans les limites de `SEO_TEXT_LIMITS`.
+`productStructuredData` donne le `Product` schema.org, écrit avec `jsonLd`, qui
+échappe ce qui pourrait fermer le script. `canonicalUrl` ne garde que le chemin
+de la page dans sa langue et sa page de liste, jamais un tri, une recherche, un
+coupon ou l'identifiant de clic d'une publicité :
+
+```astro
+---
+import { canonicalUrl, jsonLd, productMeta, productStructuredData } from "@wocart/storefront";
+
+const store = Astro.locals.store;
+const meta = productMeta(product);
+const canonical = canonicalUrl(Astro.url.origin, store, Astro.url.search);
+---
+<title>{meta.title} | {store.config.name}</title>
+{meta.description && <meta name="description" content={meta.description} />}
+<link rel="canonical" href={canonical} />
+<script type="application/ld+json" set:html={jsonLd(productStructuredData(product, { url: canonical, storeName: store.config.name }))} />
+```
+
+
 ## Ce que cette page ne couvre pas
 
 Les avis vivent sur [Avis](/fr/sdk/storefront/reviews). Le panier et le devis
 serveur vivent sur [Panier et devis](/fr/sdk/storefront/basket). Les fonctions utilitaires
 pour les images et l'argent sont sur [Argent, images, WhatsApp et événements
-Meta](/fr/sdk/storefront/presentation).
-
-Il n'existe aucune méthode de recherche plein texte de produits dans ce SDK. Si
-une vitrine a besoin de la recherche, il lui faut un point de terminaison serveur
-pour cela ; ne simulez pas une recherche en téléchargeant tout le catalogue dans
-le navigateur.
+Meta](/fr/sdk/storefront/presentation). La recherche est `products.search`, sous
+« Lister les produits » plus haut.

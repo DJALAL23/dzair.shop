@@ -35,12 +35,14 @@ ou dans le build — un schéma dans une page publique envoie Zod à chaque visi
 | --- | --- |
 | `defineComponent(definition)` | Aide d'identité : conserve les littéraux des champs, type `load` depuis les champs, type les props du composant |
 | `defineTheme(definition)` | Aide d'identité pour le catalogue |
+| `defineCapabilities(capabilities)` | Une constante `capabilities` partagée, typée pour que `defineComponent` continue d'inférer ses champs |
+| `componentsOf(theme)` | Les composants d'un thème comme définitions, dans l'ordre du catalogue — ce qu'un test ou un outil parcourt |
 | `validateThemeDefinition(theme, options?)` | Contrôle d'assemblage : clé/type, champs, slots, blocs, préréglages, documents, clés de contenu, garantie du formulaire de commande. `[]` est le seul succès |
 | `themeManifest(theme)` | Le manifeste sérialisable ; retire `component` et `load` |
 | `validateThemeManifest(input)` | Frontière pour du JSON : sérialisabilité, structure, puis les mêmes règles relationnelles. `{ manifest, issues }` |
 | `manifestCatalog(manifest)` | Un `ThemeDefinition` avec `component: null` — pour l'édition et la validation, jamais pour le rendu |
 | `diffThemeManifests(previous, next)` | `{ breaking, additive }` entre deux versions |
-| `THEME_SDK_VERSION` | La version du paquet enregistrée dans le manifeste (`"2.1.0"`) |
+| `THEME_SDK_VERSION` | La version du paquet enregistrée dans le manifeste (`"2.3.0"`) |
 | `THEME_MANIFEST_CONTRACT_VERSION` | Version du format de manifeste (`1`) |
 | `THEME_MANIFEST_PATH` | `/wocart-theme.json` |
 
@@ -113,7 +115,7 @@ thème ne peut pas connaître les types requis d'un slot.
 | Export | Ce qu'il fait |
 | --- | --- |
 | `styleClasses(value)` | Les classes d'une valeur `style` |
-| `schemeClass(scheme)` | `.wc-scheme-<id>`, ou `""` sans schéma |
+| `schemeClass(scheme)`, `SCHEME_MARKER_CLASS` | `wc-scheme wc-scheme-<id>` : le marqueur commun sur lequel un thème dérive ses jetons, et la classe propre au schéma — `""` sans schéma |
 | `themeStyleSheet(style)` | La feuille de style de toutes les classes permises par les tailles du thème |
 | `colorSchemeCss(schemes)` | Variables CSS par schéma |
 | `contrastRatio(a, b)` | Le ratio de contraste WCAG entre deux couleurs hex |
@@ -138,6 +140,7 @@ thème ne peut pas connaître les types requis d'un slot.
 | `themeStylesEndpoint(theme)` | Un gestionnaire `GET` pour les classes de style, `text/css` |
 | `hasBlocks(blocks, slot?)` | Si un slot contient un bloc qui se rend — pour éviter une enveloppe vide |
 | `isPreview(blocks)` | Si ce rendu est un aperçu d'éditeur ; les placeholders n'y ont leur place que là |
+| `previewTarget(theme, draft, client)` | Ce que montre l'aperçu d'un éditeur : la surface, son type de page, la zone éditée, les paramètres de la route et le document — `null` pour une surface que le thème ne compose pas |
 | `BlocksHandle`, `RendererIssue` | La prop `blocks` qu'un composant reçoit, et la forme d'un problème du moteur |
 | `resolveInstance`, `THEME_LIMITS`, `THEME_STYLES_PATH`, `colorSchemeCss`, `previewStartMarker`, `previewEndMarker` | Réexports du module racine, pour qu'un import co-localisé se résolve dans les sources et dans `dist` |
 
@@ -154,6 +157,18 @@ Les quatre composants : `InstanceView.astro` (le moteur), `Blocks.astro`
 | `mediaImageParams(options)` | Les paramètres de requête que le service construit pour une transformation Astro |
 | `startPreviewBridge({ editorOrigin, token, endpoint?, window? })` | Le côté navigateur d'une page d'aperçu : patchs de balisage, messages de survol/sélection, demandes de re-rendu. Renvoie `{ stop() }` |
 | `PREVIEW_SECTION_LOAD_EVENT` | `"wocart:section-load"` — émis pour chaque section remplacée par le bridge |
+
+## `@wocart/theme/lifecycle` et `/messages`
+
+Les deux entrées navigateur : minuscules, sans Zod, et sûres sur la page de
+chaque acheteur.
+
+| Export | Rôle |
+| --- | --- |
+| `bindEach(selector, bind, options?)` | Lie chaque élément correspondant une seule fois — au chargement, après que le routeur d'Astro remplace la page, après que l'aperçu d'un éditeur insère une section. Une liaison peut renvoyer un démontage |
+| `onEachPage(boot, options?)` | Exécute le comportement d'une page une fois par page, son démontage avant que la page soit remplacée |
+| `PREVIEW_SECTION_LOAD_EVENT` | `"wocart:section-load"`, sans le pont : un thème ne nomme jamais lui-même les événements de remplacement |
+| `formatMessage(pack, key, values?, { locale })`, `messageForms(pack, key)`, `pluralMessageKeys(pack)` | Un message de la copie, sa forme plurielle choisie par `count` (`/messages`) |
 
 ## Types que vous nommerez
 

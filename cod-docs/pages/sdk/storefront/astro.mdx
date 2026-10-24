@@ -77,6 +77,7 @@ export const POST = routes.cartValidate;
 | `api/review-eligibility.ts` | `routes.reviewEligibility` | `POST { orderNumber, phone, turnstileToken? }` | `{ data: ReviewEligibility }` |
 | `api/review-upload.ts` | `routes.reviewUpload` | `PUT` file body + grant header | `201 { data: ReviewUpload }` |
 | `api/submit-review.ts` | `routes.reviewSubmit` | `POST ReviewInput` | `201 { success: true, data }` |
+| `api/orders/status.ts` | `routes.orderStatus` | `POST { orderNumber, phone }` | `{ data: ShopperOrderStatus }` |
 
 The factory already handles:
 
@@ -197,17 +198,75 @@ if (result && !result.error) {
 
 ## Request-bound services
 
-The routes need the store client, which in turn may need the request's language.
-Some themes also need the store's resolved config in `locals`:
+The routes need the request's store: its client, in its language. The SDK
+decides which store and which language a request renders — a page from its path
+(`/fr/products/robe`), an endpoint or a server island from the page that asked
+for it — and the redirects: the primary's own prefix to its one address, a
+language the store stopped publishing to the primary page. The theme keeps its
+client factory, the config it renders when the store cannot be read, and the
+context it builds:
 
 ```ts
 // src/middleware.ts
-context.locals.store = await resolveStoreRequest(context);
+import { defineMiddleware } from "astro:middleware";
+import { resolveStoreRequest } from "@wocart/storefront/astro";
+
+const STORE = { client: createStore, fallback: FALLBACK_CONFIG };
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const request = await resolveStoreRequest(
+    { url: context.url, referer: context.request.headers.get("Referer") },
+    STORE,
+  );
+  if (request.kind === "redirect") return context.redirect(request.location, request.status);
+  context.locals.store = buildContext(request);
+  return request.rewrite === null ? next() : next(request.rewrite);
+});
 ```
 
-Set `locals` before `next()` and before any route runs. A route that calls
-`context.locals.store` without it fails with an undefined access, not a useful
-error.
+An editor's preview resolves the draft's store with
+`resolvePreviewStore(draft, STORE)` instead. Set `locals` before `next()` and
+before any route runs: a route that reads `context.locals.store` without it
+fails with an undefined access, not a useful error.
+
+## A missing resource
+
+A route that names one resource — a product, a category, a collection, a text
+page, a landing page — reads it before anything streams, and answers a missing
+one with the SDK's `notFound`: the theme's 404 page with status 404, kept out
+of the cache, so a product published a minute later shows.
+
+```astro
+---
+import { notFound } from "@wocart/storefront/astro";
+
+const product = await Astro.locals.store.client.products.get(Astro.params.handle!);
+if (!product) return notFound(Astro);
+---
+```
+
+A rewrite to `/404` by hand keeps the route's own cache rule; a redirect to the
+home page answers 200 — a "soft 404" for search engines and ad reviews.
+
+## The sitemap
+
+`catalogPaths(client, config)` walks the store's pages — home, the catalog, each
+category, every product a page at a time, each published text page — and
+`sitemapXml(paths, routing, origin)` writes them in every published language,
+each with its language alternates:
+
+```ts
+// src/pages/sitemap.xml.ts
+import type { APIRoute } from "astro";
+import { catalogPaths, sitemapXml } from "@wocart/storefront/server";
+
+export const GET: APIRoute = async ({ locals, url }) => {
+  const { client, config, routing } = locals.store;
+  return new Response(sitemapXml(await catalogPaths(client, config), routing, url.origin), {
+    headers: { "Content-Type": "application/xml; charset=utf-8" },
+  });
+};
+```
 
 ## A wiring checklist
 
@@ -219,3 +278,7 @@ error.
 - `runFormAction` is called for form actions and never redirects.
 - `getActionResult` is read in the page that renders after the POST.
 - A custom endpoint uses `createProxyEndpoint`, not a hand-written proxy.
+
+- The middleware resolves the store with `resolveStoreRequest` and renders
+  `request.rewrite` when there is one.
+- A missing resource returns `notFound(Astro)`.

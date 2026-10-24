@@ -159,22 +159,46 @@ before 1.6.0 ignores patches and still shows every change a moment later.
 ## Browser behavior in a section
 
 A swapped section's scripts do not run again; the browser never executes a
-script inserted through markup. A section with browser behavior binds it again
-on `PREVIEW_SECTION_LOAD_EVENT` (`wocart:section-load`, dispatched on
-`document` with `detail.id`):
+script inserted through markup. Bind a section's behaviour with `bindEach` from
+`@wocart/theme/lifecycle`: it binds each matching element once — on load, after
+Astro's router swaps the page, and after the preview swaps a section in — and
+runs the teardown it returned when the element leaves:
 
 ```ts
-document.addEventListener(PREVIEW_SECTION_LOAD_EVENT, (event) => {
-  const { id } = (event as CustomEvent<{ id: string }>).detail;
-  mountSection(id);
+import { bindEach } from "@wocart/theme/lifecycle";
+
+bindEach<HTMLElement>("[data-countdown]", (element) => {
+  const timer = setInterval(() => tick(element), 1000);
+  return () => clearInterval(timer);
 });
 ```
 
 When the bridge replaces the whole page, it does what Astro's router does after
 a navigation — a new `<body>`, the root element's attributes, the title — and
-dispatches `astro:page-load`, so a script written for the router mounts again
-as it does there. Changed stylesheets are replaced in place; unchanged ones
-never reload.
+dispatches `astro:page-load`, so a page's behaviour mounted with `onEachPage`
+mounts again as it does there. Changed stylesheets are replaced in place;
+unchanged ones never reload. A theme never listens for the swap events itself.
+
+## What a preview shows
+
+`previewTarget(theme, draft, client)` decides it once for every theme. A template
+previews the resource the draft's `path` names (`/products/robe`), else the
+store's first product, category, default collection or text page — and a store
+with none of them still previews, the template empty so its sections can be
+arranged. An area (the header, the footer) previews on the page its `path`
+names when the theme composes that page, else on the home page. The resource is
+chosen by the surface's `pageType`, so an alternate template previews like its
+base. A surface the theme does not declare is `null`: answer 404.
+
+```astro
+---
+import { createReadCache, previewTarget } from "@wocart/theme/astro";
+
+const target = await previewTarget(theme, Astro.locals.preview.draft, Astro.locals.store.client);
+if (!target) return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+---
+<Sections surface={target.surface} params={target.params} document={target.document} preview={target.area === null} reads={createReadCache()} />
+```
 
 ## Security
 

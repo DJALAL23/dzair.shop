@@ -81,6 +81,7 @@ export const POST = routes.cartValidate;
 | `api/review-eligibility.ts` | `routes.reviewEligibility` | `POST { orderNumber, phone, turnstileToken? }` | `{ data: ReviewEligibility }` |
 | `api/review-upload.ts` | `routes.reviewUpload` | `PUT` corps de fichier + en-tête `X-Review-Grant` | `201 { data: ReviewUpload }` |
 | `api/submit-review.ts` | `routes.reviewSubmit` | `POST ReviewInput` | `201 { success: true, data }` |
+| `api/orders/status.ts` | `routes.orderStatus` | `POST { orderNumber, phone }` | `{ data: ShopperOrderStatus }` |
 
 La fabrique gère déjà :
 
@@ -206,18 +207,78 @@ if (result && !result.error) {
 
 ## Services liés à la requête
 
-Les routes ont besoin du client de boutique, qui peut à son tour avoir besoin de
-la langue de la requête. Certains thèmes ont aussi besoin de la configuration
-résolue de la boutique dans `locals` :
+Les routes ont besoin de la boutique de la requête : son client, dans sa
+langue. Le SDK décide quelle boutique et quelle langue une requête rend — une
+page d'après son chemin (`/fr/products/robe`), un point de terminaison ou un
+îlot serveur d'après la page qui l'a demandé — et les redirections : le préfixe
+de la langue principale vers son adresse unique, une langue que la boutique ne
+publie plus vers la page principale. Le thème garde sa fabrique de clients, la
+configuration qu'il rend quand la boutique est illisible, et le contexte qu'il
+construit :
 
 ```ts
 // src/middleware.ts
-context.locals.store = await resolveStoreRequest(context);
+import { defineMiddleware } from "astro:middleware";
+import { resolveStoreRequest } from "@wocart/storefront/astro";
+
+const STORE = { client: createStore, fallback: FALLBACK_CONFIG };
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const request = await resolveStoreRequest(
+    { url: context.url, referer: context.request.headers.get("Referer") },
+    STORE,
+  );
+  if (request.kind === "redirect") return context.redirect(request.location, request.status);
+  context.locals.store = buildContext(request);
+  return request.rewrite === null ? next() : next(request.rewrite);
+});
 ```
 
-Définissez `locals` avant `next()` et avant l'exécution de toute route. Une
-route qui appelle `context.locals.store` sans cela échoue sur un accès indéfini,
-pas sur une erreur utile.
+L'aperçu d'un éditeur résout plutôt la boutique du brouillon avec
+`resolvePreviewStore(draft, STORE)`. Définissez `locals` avant `next()` et avant
+toute route : une route qui lit `context.locals.store` sans lui échoue sur un
+accès indéfini, pas sur une erreur utile.
+
+## Une ressource introuvable
+
+Une route qui nomme une ressource — un produit, une catégorie, une collection,
+une page de texte, une page d'atterrissage — la lit avant tout envoi, et répond
+à une ressource absente par le `notFound` du SDK : la page 404 du thème avec le
+statut 404, tenue hors du cache, pour qu'un produit publié une minute plus tard
+s'affiche.
+
+```astro
+---
+import { notFound } from "@wocart/storefront/astro";
+
+const product = await Astro.locals.store.client.products.get(Astro.params.handle!);
+if (!product) return notFound(Astro);
+---
+```
+
+Une réécriture manuelle vers `/404` garde la règle de cache de la route ; une
+redirection vers l'accueil répond 200 — un « soft 404 » pour les moteurs de
+recherche et les contrôles publicitaires.
+
+## Le plan du site
+
+`catalogPaths(client, config)` parcourt les pages de la boutique — l'accueil, le
+catalogue, chaque catégorie, chaque produit page par page, chaque page de texte
+publiée — et `sitemapXml(paths, routing, origin)` les écrit dans chaque langue
+publiée, chacune avec ses alternatives de langue :
+
+```ts
+// src/pages/sitemap.xml.ts
+import type { APIRoute } from "astro";
+import { catalogPaths, sitemapXml } from "@wocart/storefront/server";
+
+export const GET: APIRoute = async ({ locals, url }) => {
+  const { client, config, routing } = locals.store;
+  return new Response(sitemapXml(await catalogPaths(client, config), routing, url.origin), {
+    headers: { "Content-Type": "application/xml; charset=utf-8" },
+  });
+};
+```
 
 ## Liste de contrôle du câblage
 
@@ -232,3 +293,7 @@ pas sur une erreur utile.
 - `getActionResult` est lu dans la page rendue après le POST.
 - Un point de terminaison personnalisé utilise `createProxyEndpoint`, pas un
   proxy écrit à la main.
+
+- Le middleware résout la boutique avec `resolveStoreRequest` et rend
+  `request.rewrite` quand il existe.
+- Une ressource introuvable renvoie `notFound(Astro)`.
