@@ -66,8 +66,9 @@ Which of those five an Actor is: `staff`, `agent`, `shopper`, `carrier`,
 _Avoid_: Role (staff roles are admin and staff)
 
 **Origin**:
-The surface a Business Event came through: the dashboard, an AI agent, the
-storefront, a carrier's webhook, a carrier sync, or a schedule.
+The surface a Business Event came through: the dashboard, the API (a staff
+member's API key), an AI agent, the storefront, a carrier's webhook, a carrier
+sync, or a schedule.
 _Avoid_: Source (a Shipment Event's source), channel (a Consumer's medium)
 
 ### Hearing about it
