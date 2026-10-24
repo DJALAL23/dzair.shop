@@ -33,10 +33,6 @@ function driverListRow(overrides: Record<string, unknown> = {}): Record<string, 
   };
 }
 
-function compCountRow(driverId: string, c: number): Record<string, unknown> {
-  return { driver_id: driverId, c };
-}
-
 describe("getAllCustomers — EXISTS filters, one query", () => {
   it("group filter runs as one query (no member pre-fetch)", async () => {
     const db = makeMockDb([a([customerRow({ id: "cust_1" })])]);
@@ -86,16 +82,13 @@ describe("getAllCustomers — EXISTS filters, one query", () => {
 });
 
 describe("getAllDrivers — EXISTS wilaya filter", () => {
-  it("wilaya filter runs in the list query, then one GROUP BY count query", async () => {
-    const db = makeMockDb([
-      a([driverListRow()]),
-      a([compCountRow("drv_1", 3)]),
-    ]);
+  it("wilaya filter and both counts are one query", async () => {
+    const db = makeMockDb([a([driverListRow({ compensation_wilaya_count: 3, open_shipment_count: 1 })])]);
 
     const rows = await getAllDrivers(db, { wilayaId: 16 });
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ compensationWilayaCount: 3 });
+    expect(rows[0]).toMatchObject({ compensationWilayaCount: 3, openShipmentCount: 1 });
   });
 
   it("empty wilaya coverage is an empty page (not an early return)", async () => {
@@ -108,8 +101,10 @@ describe("getAllDrivers — EXISTS wilaya filter", () => {
 
   it("unfiltered list still resolves compensation counts", async () => {
     const db = makeMockDb([
-      a([driverListRow({ id: "drv_1" }), driverListRow({ id: "drv_2" })]),
-      a([compCountRow("drv_1", 2), compCountRow("drv_2", 5)]),
+      a([
+        driverListRow({ id: "drv_1", compensation_wilaya_count: 2, open_shipment_count: 0 }),
+        driverListRow({ id: "drv_2", compensation_wilaya_count: 5, open_shipment_count: 0 }),
+      ]),
     ]);
 
     const rows = await getAllDrivers(db);

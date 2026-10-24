@@ -9,7 +9,7 @@
  * deleteDriver stays in cod-server because it raises ConflictError.
  */
 
-import { eq, and, like, or, count, sql, desc, exists, inArray, isNotNull, notExists } from "drizzle-orm";
+import { eq, and, like, or, count, sql, desc, exists, getTableColumns, inArray, isNotNull, notExists } from "drizzle-orm";
 import { drivers, driverCompensations, driverPaymentLines, wilayas, orders, shipments } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { safeLikeTerm } from "./search";
@@ -87,34 +87,21 @@ export async function getAllDrivers(db: AppDb, filters?: DriverFilters) {
   const limit = filters?.limit ?? 50;
   const offset = filters?.offset ?? 0;
 
-  const driverRows = await (conditions.length > 0
-    ? db.select().from(drivers).where(and(...conditions)).limit(limit).offset(offset).all()
-    : db.select().from(drivers).limit(limit).offset(offset).all());
-
-  if (driverRows.length === 0) return [];
-
-  const compRows = await db
-    .select({ driverId: driverCompensations.driverId, c: count() })
-    .from(driverCompensations)
-    .where(inArray(driverCompensations.driverId, driverRows.map((d) => d.id)))
-    .groupBy(driverCompensations.driverId)
+  // One trip: each count is read through an index (the pay grid's
+  // driver/wilaya key, and shipments_driver_open), never a scan.
+  const rows = await db
+    .select({
+      ...getTableColumns(drivers),
+      compensationWilayaCount: sql<number>`(select count(*) from ${driverCompensations} where ${driverCompensations.driverId} = "drivers"."id")`,
+      openShipmentCount: sql<number>`(select count(*) from ${shipments} where ${shipments.driverId} = "drivers"."id" and ${OPEN_SHIPMENT})`,
+    })
+    .from(drivers)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .limit(limit)
+    .offset(offset)
     .all();
 
-  const compCountMap = new Map(compRows.map((r) => [r.driverId, r.c]));
-
-  const openRows = await db
-    .select({ driverId: shipments.driverId, c: count() })
-    .from(shipments)
-    .where(and(inArray(shipments.driverId, driverRows.map((d) => d.id)), OPEN_SHIPMENT))
-    .groupBy(shipments.driverId)
-    .all();
-  const openCountMap = new Map(openRows.map((r) => [r.driverId, Number(r.c)]));
-
-  return driverRows.map((d) => ({
-    ...d,
-    compensationWilayaCount: compCountMap.get(d.id) ?? 0,
-    openShipmentCount: openCountMap.get(d.id) ?? 0,
-  }));
+  return rows.map((d) => ({ ...d, compensationWilayaCount: Number(d.compensationWilayaCount), openShipmentCount: Number(d.openShipmentCount) }));
 }
 
 
