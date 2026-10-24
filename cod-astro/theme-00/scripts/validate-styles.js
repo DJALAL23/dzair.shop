@@ -143,15 +143,17 @@ class StyleValidator {
   /**
    * Check if a value should be ignored
    */
-  shouldIgnoreValue(value, context, line) {
+  shouldIgnoreValue(value, context, line, type) {
     // Remove extra whitespace
     value = value.trim();
     
     // Skip if it's in allowed list
     if (ALLOWED_VALUES.some(allowed => value.includes(allowed))) return true;
     
-    // Skip if context matches ignore patterns
+    // Skip if context matches ignore patterns. A token used elsewhere on the
+    // line never excuses a hex color written beside it.
     for (const pattern of IGNORE_PATTERNS) {
+      if (type === 'HEX_COLOR' && pattern.source === 'var\\(--') continue;
       if (pattern.test(context) || pattern.test(line)) return true;
     }
     
@@ -191,7 +193,7 @@ class StyleValidator {
       for (const match of matches) {
         const value = match[0];
         
-        if (!this.shouldIgnoreValue(value, match.input, line)) {
+        if (!this.shouldIgnoreValue(value, match.input, line, type)) {
           // Special handling for different types
           let severity = 'HIGH';
           let shouldReport = true;
@@ -204,8 +206,8 @@ class StyleValidator {
             if (filePath.includes('config') || filePath.includes('store.ts')) shouldReport = false;
             // Allow hex colors in layout files (fallback values)
             if (filePath.includes('StoreLayout.astro') && line.includes('HEX.test')) shouldReport = false;
-            // Allow hex colors in :root definitions (design system)
-            if (line.includes('--clr-') || line.includes(':root')) shouldReport = false;
+            // Allow hex colors in token definitions (design system) — a definition, not a line that uses one
+            if (/^\s*--[\w-]+\s*:/.test(line) || line.includes(':root')) shouldReport = false;
           }
           
           if (type === 'RGB_COLOR' || type === 'HSL_COLOR') {
@@ -213,8 +215,8 @@ class StyleValidator {
             if (filePath.includes('global.css') && line.includes('shadow')) shouldReport = false;
             // Allow in overlay definitions
             if (line.includes('overlay') || line.includes('--overlay')) shouldReport = false;
-            // Allow in :root definitions
-            if (line.includes('--clr-') || line.includes(':root')) shouldReport = false;
+            // Allow in token definitions
+            if (/^\s*--[\w-]+\s*:/.test(line) || line.includes(':root')) shouldReport = false;
           }
           
           if (type === 'BACKGROUND_COLOR' || type === 'TEXT_COLOR' || type === 'BORDER_COLOR') {
