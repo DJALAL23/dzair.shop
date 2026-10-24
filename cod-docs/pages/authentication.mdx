@@ -1,0 +1,96 @@
+---
+description: Merchant API keys, storefront keys, session tokens and RBAC scopes.
+---
+
+# Authentication
+
+CodFlow uses two independent authentication schemes. Use the one that matches the surface you are calling.
+
+| Surface | Header | Identity | Typical caller |
+| --- | --- | --- | --- |
+| Merchant API | `X-API-Key` | A dashboard user and their scopes | Back office, automation, server integration |
+| Merchant API | `Authorization: Bearer <JWT>` | A signed-in dashboard session | The dashboard Worker |
+| Storefront API | `X-Store-API-Key` | A store | Storefront, theme, checkout |
+
+The API reference shows which scheme each operation accepts.
+
+## Merchant authentication
+
+### API key
+
+Send the key in `X-API-Key`:
+
+```http
+GET /api/orders HTTP/1.1
+Host: localhost:8787
+X-API-Key: cod_your_api_key_here
+```
+
+Keys belong to users. The server loads the user, checks that the account is active, and derives the caller's scopes:
+
+- An `admin` user gets the wildcard scope `*` and passes every permission check.
+- A `staff` user gets exactly the scopes assigned to them in the dashboard.
+
+A missing key is rejected before any handler runs. A key that matches no user is rejected as invalid.
+
+### Session token
+
+The dashboard sends a short-lived JWT in `Authorization: Bearer <JWT>`. The server verifies the token, loads the user, and applies the same status and scope checks as an API key.
+
+This scheme exists for the dashboard. Third-party integrations should use an API key rather than a copied browser session token.
+
+### Rotate a key
+
+Use **Team** in the dashboard to generate or rotate a user's key. Show the new key once, copy it, and update every client that used the old one. Rotation invalidates the previous key.
+
+## Storefront authentication
+
+Storefront calls use the store key in `X-Store-API-Key`:
+
+```http
+GET /store/products HTTP/1.1
+Host: localhost:8787
+X-Store-API-Key: your_store_api_key_here
+```
+
+The server hashes the presented key and looks it up in `store_api_keys`. A valid key resolves to exactly one store; every storefront query is scoped to that store. The key is created for the store and can be copied from **Settings → Store API key** in the dashboard.
+
+A store key does not authenticate `/api/*` calls. A merchant key does not authenticate `/store/*` calls.
+
+## Scopes
+
+Scopes follow the form `resource:action`, for example:
+
+| Scope | Allows |
+| --- | --- |
+| `orders:read` | Read orders |
+| `orders:create` | Create orders |
+| `orders:update` | Change order processing status and details |
+| `orders:delete` | Delete or cancel orders |
+| `products:read` | Read the catalog |
+| `products:manage` | Manage variants and inventory |
+| `delivery:dispatch` | Create shipments with a carrier |
+| `settings:team` | Manage team members and permissions |
+| `mcp:view` | See and revoke your own MCP connections |
+
+The dashboard is the source of truth for a user's scopes. An operation that needs a scope the caller lacks returns `403` with an `Insufficient permissions` message. Admin users bypass the check.
+
+:::note
+Scope failures come from the RBAC middleware and use a smaller body than application errors: `{ "error": "Insufficient permissions", "required": "orders:read" }`. See [Errors](/errors) for the full response shapes.
+:::
+
+## Authentication failures
+
+| Status | Body | Cause |
+| --- | --- | --- |
+| `401` | `{"error":"Missing authorization","code":"MISSING_API_KEY","category":"AUTHENTICATION"}` | No `X-API-Key` or Bearer token |
+| `401` | `{"error":"User not found","code":"AUTHENTICATION_FAILED","category":"AUTHENTICATION"}` | Key or token matches no user |
+| `401` | `{"error":"Invalid token","code":"AUTHENTICATION_FAILED","category":"AUTHENTICATION"}` | Bearer token failed verification |
+| `403` | `{"error":"User account is inactive","code":"USER_INACTIVE","category":"AUTHENTICATION"}` | The user is disabled |
+| `403` | `{"error":"Insufficient permissions","required":"orders:read"}` | The user lacks the scope |
+| `401` | `{"error":"Missing store API key"}` | No `X-Store-API-Key` |
+| `401` | `{"error":"Invalid store API key"}` | The store key does not match a store |
+
+## CORS
+
+The API allows cross-origin requests with the `X-API-Key`, `X-Store-API-Key`, `Authorization`, `Content-Type` and `Accept` headers. In local development the server echoes the request origin, so the playground at `http://localhost:3000` works. In production it allows only the origins listed in `ALLOWED_ORIGINS`; include the docs origin there if you want the playground to reach a deployed server.

@@ -1,0 +1,109 @@
+---
+description: L'enveloppe d'erreur, les détails de validation, les codes de statut et les conseils de nouvelle tentative.
+---
+
+# Erreurs
+
+Les erreurs applicatives utilisent une enveloppe cohérente avec un message lisible, un code stable et une catégorie. Les erreurs de validation ajoutent des détails au niveau des champs, et les erreurs inconnues renvoient un identifiant de requête pour le support.
+
+```json
+{
+  "error": "Order not found",
+  "code": "ORDER_NOT_FOUND",
+  "category": "BUSINESS_LOGIC"
+}
+```
+
+## Enveloppe
+
+| Champ | Type | Description |
+| --- | --- | --- |
+| `error` | string | Un message sûr à montrer à un développeur |
+| `code` | string | Un code stable lisible par une machine |
+| `category` | string | `VALIDATION`, `AUTHENTICATION`, `BUSINESS_LOGIC` ou `SYSTEM` |
+| `context` | object | Détails facultatifs ; présent lorsque l'erreur fournit des informations supplémentaires |
+
+Un `context` est omis lorsqu'il n'y a rien à ajouter. N'analysez pas le message `error` pour votre logique ; branchez votre logique sur `code`.
+
+## Catégories
+
+| Catégorie | Statut typique | Signification |
+| --- | --- | --- |
+| `VALIDATION` | `400` | Le corps, les paramètres de requête ou le chemin sont invalides |
+| `AUTHENTICATION` | `401`, `403` | Identifiants absents, clé invalide ou utilisateur inactif |
+| `BUSINESS_LOGIC` | `404`, `409`, `422` | La requête est valide mais la ressource ou l'état actuel ne la permet pas |
+| `SYSTEM` | `500` | Une erreur serveur inattendue |
+
+## Erreurs de validation
+
+Les échecs de validation Zod renvoient `VALIDATION_FAILED` avec une entrée par champ :
+
+```json
+{
+  "error": "Validation failed",
+  "code": "VALIDATION_FAILED",
+  "category": "VALIDATION",
+  "context": {
+    "fields": [
+      {
+        "path": "items.0.quantity",
+        "message": "Expected number, received string",
+        "code": "invalid_type"
+      }
+    ]
+  }
+}
+```
+
+`path` est séparé par des points et peut pointer dans des objets et tableaux imbriqués. `code` vient de Zod et sert à la gestion générique des formulaires ; `message` est l'explication destinée au développeur.
+
+## Erreurs inattendues
+
+Les erreurs inconnues n'exposent jamais le message d'origine, qui pourrait contenir du SQL, des noms de tables, des chemins de fichiers ou des secrets. La réponse porte à la place un identifiant de requête :
+
+```json
+{
+  "error": "An unexpected error occurred",
+  "code": "INTERNAL_SERVER_ERROR",
+  "category": "SYSTEM",
+  "context": {
+    "requestId": "3f1c0a9e-6a1b-4a27-8f3e-0d1f2a7c9b11"
+  }
+}
+```
+
+L'erreur complète est journalisée sur le serveur sous le même identifiant de requête. Joignez-le lorsque vous signalez un problème.
+
+## Réponses hors enveloppe
+
+Quelques contrôles préalables répondent avant l'exécution du gestionnaire d'erreurs applicatif et utilisent un corps plus petit :
+
+- **Les échecs de scope RBAC** renvoient `403` avec `{ "error": "Insufficient permissions", "required": "orders:read" }`.
+- **Les échecs de clé de boutique** renvoient `401` avec `{ "error": "Missing store API key" }` ou `{ "error": "Invalid store API key" }`.
+
+Considérez un corps sans `code` comme un rejet au niveau transport, pas comme un résultat métier.
+
+## Codes de statut
+
+| Statut | Signification | Que faire |
+| --- | --- | --- |
+| `200` | Succès | Lire la réponse |
+| `201` | Créé | Lire la nouvelle ressource |
+| `400` | Échec de validation | Corriger les champs signalés |
+| `401` | Identifiants absents ou invalides | Vérifier la clé et le nom de l'en-tête |
+| `403` | Utilisateur inactif ou scope manquant | Vérifier le statut du compte et les scopes de l'utilisateur |
+| `404` | Ressource introuvable | Vérifier l'ID, le handle ou le slug |
+| `409` | Conflit | La ressource existe déjà ou l'état a évolué |
+| `422` | Règle métier violée | Lire le code et ajuster la requête |
+| `500` | Erreur serveur inattendue | Réessayer avec un délai d'attente progressif ; signaler l'identifiant de requête si cela persiste |
+
+## Conseils de nouvelle tentative
+
+- **Ne réessayez pas** `400`, `401`, `403`, `404` ou `422` avec la même requête. Modifiez d'abord la requête ou les identifiants.
+- **Réessayez `500`** avec un délai d'attente exponentiel et une variation aléatoire. Conservez l'identifiant de requête de la réponse.
+- **Les créations ne sont pas idempotentes par défaut.** Une création réessayée peut créer une seconde ressource. Avant de réessayer, relisez la ressource par une clé naturelle comme un numéro de commande, un handle ou un numéro de téléphone.
+- **Les webhooks transporteurs sont idempotents à la réception.** La boîte de réception déduplique les événements par leur identifiant fournisseur, donc une nouvelle tentative du transporteur ne traite pas le même événement deux fois.
+
+## Trouver un code
+
+La [référence API](/api) montre l'enveloppe `ErrorResponse` utilisée par chaque opération. Les codes sont des identifiants stables regroupés par domaine : validation, authentification, commandes, produits, livraison, avis, pages d'atterrissage, gestion MCP et erreurs système.

@@ -1,0 +1,239 @@
+---
+description: Lisez les wilayas et les communes d'Algérie, préremplissez les tarifs de livraison du marchand et utilisez le devis du serveur comme frais.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Livraison et géographie
+
+La livraison comporte deux couches :
+
+- **Les données de référence** — les 58 wilayas et leurs communes.
+- **L'argent** — les tarifs du marchand et, au-dessus des deux, le devis du
+  serveur pour la destination choisie par l'acheteur.
+
+Le devis fait foi pour les frais. Le tableau des tarifs n'est qu'une aide à
+l'affichage tant que le devis n'a pas répondu.
+
+## Wilayas
+
+`geo.wilayas()` se résout à partir d'un jeu de données fourni avec le SDK.
+Aucune requête réseau n'est effectuée.
+
+```ts
+const wilayas = await store.geo.wilayas();
+
+wilayas;
+// [
+//   { id: 1, name: "Adrar", nameAr: "أدرار" },
+//   …
+// ]
+```
+
+La liste contient les 58 wilayas d'Algérie, dans l'ordre officiel. Ce sont des
+données de référence stables, pas du contenu marchand : la boutique ne les
+traduit pas.
+
+`isWilayaId(value)` vérifie une valeur inconnue issue d'un formulaire ou d'une
+URL :
+
+```ts
+import { isWilayaId } from "@wocart/storefront";
+
+if (!isWilayaId(Number(input))) {
+  return { field: "wilayaId", message: "Choose a wilaya." };
+}
+```
+
+Elle lit le même jeu de données que le formulaire : les deux ne peuvent pas
+diverger.
+
+## Communes
+
+`geo.communes(wilayaId)` renvoie les communes d'une wilaya :
+
+```ts
+const communes = await store.geo.communes(16);
+
+communes;
+// [{ id: "c-16-001", name: "Alger Centre", nameAr: "الجزائر الوسطى" }, …]
+```
+
+L'appel est mis en cache par wilaya côté client après une lecture réussie. Ne
+redemandez que lorsque la wilaya change.
+
+Une wilaya inconnue se résout en `[]` ; une lecture échouée aussi. Les deux se
+ressemblent : une interface qui reçoit une liste vide après une wilaya valide
+doit proposer de réessayer, et non afficher « cette wilaya n'a pas de commune ».
+
+```ts
+async function loadCommunes(wilayaId: number) {
+  const communes = await store.geo.communes(wilayaId);
+  if (communes.length === 0) {
+    showCommuneRetry();
+    return;
+  }
+  fillCommuneSelect(communes);
+}
+```
+
+Lorsque la wilaya change, videz la commune sélectionnée avant de charger la
+nouvelle liste. Un identifiant de commune de l'ancienne wilaya n'est pas valide
+dans la nouvelle.
+
+## Le tableau des tarifs
+
+`shipping.rates()` renvoie les frais par défaut du marchand pour chaque wilaya
+qu'il a tarifée :
+
+```ts
+const rates = await store.shipping.rates();
+
+rates["16"]; // { home: 400, stopDesk: 250 }
+```
+
+`rates()` et `rate(wilayaId)` lisent tous deux le tableau complet à chaque
+appel ; les marchands modifient les tarifs de livraison et attendent que le
+rendu suivant les affiche. Ils ne sont pas mis en cache.
+
+`shipping.rate(16)` est la même recherche pour une wilaya, ou `null` lorsque
+cette wilaya n'a pas de ligne :
+
+```ts
+const rate = await store.shipping.rate(wilayaId);
+const fee =
+  rate === null
+    ? null
+    : deliveryType === "home"
+      ? rate.home
+      : rate.stopDesk;
+```
+
+Une ligne absente signifie que le marchand n'a pas de frais par défaut pour
+cette wilaya. Cela ne veut pas toujours dire « nous ne livrons pas là » : la
+tarification du transporteur peut produire des frais pour une destination que
+le tableau par défaut ne couvre pas. Utilisez le devis pour décider.
+
+<Callout type="caution" title="Le tableau des tarifs n'est pas le total de la commande">
+Le tableau du marchand n'a ni panier, ni seuil de livraison gratuite, ni zone de
+transporteur. La commande facture `CartValidation.delivery`, que le serveur
+calcule selon les mêmes règles qu'au moment de la commande. Affichez le tableau
+tant que le devis est en attente, puis remplacez-le.
+</Callout>
+
+## Le devis faisant foi
+
+Demandez un devis avec une destination :
+
+```ts
+const result = await store.cart.validate(items, {
+  destination: {
+    wilayaId,
+    communeId,
+    deliveryType: "home",
+  },
+});
+
+if (!result.success) return;
+
+const delivery = result.data.delivery;
+if (delivery?.available) {
+  showFee(delivery.fee);
+  showTotal(delivery.total);
+} else if (delivery) {
+  showNotDeliverable();
+}
+```
+
+`delivery` n'est présent que lorsqu'une destination a été envoyée. Il prend
+l'une des deux formes :
+
+```ts
+type DeliveryQuote =
+  | { available: true; fee: number; total: number }
+  | { available: false; fee: null; total: null };
+```
+
+`available: false` signifie que le serveur refuse cette destination. Désactivez
+le bouton d'envoi ; n'envoyez pas la commande en espérant qu'elle soit acceptée.
+
+`delivery.total` est le montant à afficher après le devis. Il inclut déjà les
+frais de livraison, le sous-total du panier, les récompenses et le coupon.
+
+### Quand demander un devis
+
+Redemandez dès que l'un de ces éléments change :
+
+- la wilaya ;
+- la commune ;
+- la livraison à domicile ou en stop-desk ;
+- la quantité ou la variante d'une ligne ;
+- le coupon ;
+- le téléphone, lorsqu'un coupon est limité par client.
+
+Regroupez les changements (debounce) pour que la saisie d'un numéro de
+téléphone n'envoie pas un devis à chaque frappe. Demandez le devis une fois la
+destination complète.
+
+### Livraison gratuite
+
+Le devis porte `freeDelivery` :
+
+```ts
+result.data.freeDelivery;
+// {
+//   fromOffer: false,
+//   threshold: 5000,
+//   qualified: true,
+//   remaining: 0,
+// }
+```
+
+`qualified` l'emporte sur le tableau des tarifs. Ne facturez jamais des frais
+parce que le tableau l'indique alors que le devis dit que la livraison est
+gratuite.
+
+### Pas encore de destination
+
+Tant que l'acheteur n'a pas choisi de wilaya, il n'y a ni devis ni total de
+livraison. Ce n'est ni « 0 » ni « non livrable » :
+
+```ts
+if (!destination) {
+  showDeliveryCalculatedLater();
+} else if (delivery?.available === false) {
+  showNotDeliverable();
+} else if (delivery?.available) {
+  showFee(delivery.fee);
+}
+```
+
+## Lire un devis dans le navigateur
+
+La page peut inclure le résultat de `shipping.rates()` en JSON pour son
+script. Si le script peut être d'une version différente de la page, lisez la
+valeur sans schéma :
+
+```ts
+import { readShippingRates } from "@wocart/storefront";
+
+const rates = readShippingRates(embeddedRates);
+if (rates === null) {
+  // Not a rate table: ignore it and wait for the quote.
+}
+```
+
+`readShippingRates` accepte exactement ce qu'accepte le schéma du serveur et
+écarte les clés inconnues. Il n'introduit pas Zod dans le bundle de l'acheteur.
+
+## Liste de contrôle de la livraison
+
+- La liste des wilayas vient de `geo.wilayas`, pas d'un tableau copié à la main.
+- Un changement de wilaya vide la commune et récupère la nouvelle liste.
+- Une liste de communes vide après une wilaya valide affiche une option de
+  réessai.
+- Le tarif du marchand n'est affiché que jusqu'à l'arrivée du devis.
+- Une destination complète obtient toujours un devis.
+- `delivery.available === false` désactive l'envoi.
+- Un devis en livraison gratuite l'emporte sur le tableau.
+- `delivery.total` est le nombre affiché comme montant à payer.

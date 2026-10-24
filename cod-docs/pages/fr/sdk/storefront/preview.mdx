@@ -1,0 +1,277 @@
+---
+description: Affichez le brouillon d'un éditeur sans l'enregistrer, verrouillez la réponse sur cet éditeur et supprimez les pages en cache lorsqu'une publication arrive.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Aperçu et revalidation
+
+Deux signaux de la plateforme atteignent une vitrine :
+
+- **Aperçu** — un éditeur encadre la vitrine et lui envoie un brouillon non
+  enregistré.
+- **Revalidation** — une publication a changé ce que les pages affichent, donc
+  les pages en cache doivent être supprimées.
+
+Les deux sont des requêtes signées provenant d'une autre origine. Les deux
+refusent la requête lorsque le déploiement n'a pas de clé d'aperçu.
+
+## Aperçu
+
+Un aperçu est un GET porteur de jeton, puis des POST de même origine avec des
+brouillons :
+
+```text
+GET  /wocart-preview?token=…&surface=home
+POST /wocart-preview   { token, draft }
+```
+
+Le premier rendu montre ce qui est enregistré. L'éditeur envoie ensuite un
+brouillon — document de page, réglages du thème, modifications de texte — et la
+page encadrée le rend de nouveau. Le brouillon n'est jamais écrit dans la base
+de données.
+
+### Lire la requête
+
+`readPreviewRequest` vit sur le point d'entrée serveur et effectue toutes les
+vérifications :
+
+```ts
+// src/theme/sdk.ts
+import { readPreviewRequest } from "@wocart/storefront/server";
+import { WOCART_PREVIEW_KEY } from "astro:env/server";
+
+export const THEME_KEY = "theme-00";
+
+export function readThemePreview(request: Request) {
+  return readPreviewRequest(request, {
+    publicKey: WOCART_PREVIEW_KEY,
+    theme: THEME_KEY,
+  });
+}
+```
+
+Le résultat est soit `{ ok: true, claims, draft, token }`, soit `{ ok: false,
+status, reason }`.
+
+Elle garantit :
+
+- GET doit porter `token`, `surface`, et éventuellement `locale` et `path`.
+- POST doit provenir de l'origine propre de la vitrine, en JSON, sous 1 Mo.
+- Le jeton est Ed25519 (`EdDSA`) et émis pour cette vitrine et ce thème.
+- Un jeton émis pour la revalidation ne peut pas ouvrir un aperçu.
+- Le jeton vit au maximum une heure.
+- Le brouillon est borné et sa forme est vérifiée.
+
+Sans clé, chaque requête d'aperçu renvoie 404. C'est ainsi que l'aperçu reste
+désactivé.
+
+### En-têtes de réponse
+
+Chaque réponse d'aperçu porte :
+
+```ts
+import { previewResponseHeaders } from "@wocart/storefront/server";
+
+for (const [name, value] of Object.entries(previewResponseHeaders(claims))) {
+  Astro.response.headers.set(name, value);
+}
+```
+
+| En-tête | Valeur | Raison |
+| --- | --- | --- |
+| `Cache-Control` | `private, no-store` | Un brouillon ne doit jamais être mis en cache |
+| `Content-Security-Policy` | `frame-ancestors <editor>` | Seul l'éditeur du jeton peut l'encadrer |
+| `X-Robots-Tag` | `noindex, nofollow` | Un brouillon ne doit pas être indexé |
+| `Referrer-Policy` | `same-origin` | Le jeton dans l'URL ne doit pas fuiter |
+
+N'ajoutez pas de règle de cache de route pour le chemin d'aperçu. Un aperçu en
+cache montrerait le brouillon d'un marchand à un autre visiteur.
+
+### Rendre le brouillon
+
+`previewConfig` superpose le brouillon à la configuration enregistrée et retire
+le suivi :
+
+```ts
+import { previewConfig } from "@wocart/storefront/server";
+
+const config = previewConfig(savedConfig, draft);
+```
+
+- `draft.settings` remplace `themeSettings`.
+- `draft.content` remplace les modifications de texte des langues qu'il nomme.
+- `pixelId` vaut `null` : un aperçu n'est pas une visite.
+
+Un thème éditable analyse `draft.document` avec `parsePageData` de
+`@wocart/theme`, exactement comme il analyse le document enregistré. Le SDK
+n'interprète pas les formes des sections.
+
+### Une route d'aperçu
+
+La route est un endpoint Astro normal, jamais prérendu :
+
+```ts
+// src/pages/wocart-preview.ts
+export const prerender = false;
+
+export const GET = async (context: APIContext) => {
+  const preview = await readThemePreview(context.request);
+  if (!preview.ok) {
+    return new Response(null, { status: preview.status });
+  }
+
+  for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims))) {
+    context.response.headers.set(name, value);
+  }
+
+  const config = await context.locals.store.client.config.get();
+  if (config === null) {
+    return new Response(null, { status: 503 });
+  }
+
+  const body = await renderSurface(preview.draft, previewConfig(config, preview.draft));
+  return new Response(body, { headers: context.response.headers });
+};
+```
+
+Le middleware doit laisser passer le chemin d'aperçu **avant** de résoudre la
+boutique : la surface et la langue du brouillon décident du contexte de
+boutique, et la route n'a pas besoin de celui qui est enregistré.
+
+```ts
+if (context.url.pathname === PREVIEW_PATH) {
+  const preview = await readThemePreview(context.request);
+  if (!preview.ok) return new Response(null, { status: preview.status });
+
+  context.locals.preview = preview;
+  context.locals.store = await resolvePreviewStore(preview.draft);
+  return next();
+}
+```
+
+La route de Theme-00 se trouve à `/wocart-preview` ; l'éditeur encadre ce
+chemin avec son jeton. Le chemin est le choix de votre thème, tant qu'il n'est
+pas mis en cache.
+
+<Callout type="caution" title="Un jeton d'aperçu est une capacité">
+Toute page qui détient le jeton peut encadrer l'aperçu. Gardez l'URL hors des
+référents, des journaux et de l'analytique ; les en-têtes ci-dessus s'occupent
+du premier point, et votre journalisation doit faire le reste. Le jeton ne peut
+que rendre un brouillon — il ne peut ni écrire ni purger.
+</Callout>
+
+## Revalidation
+
+Une publication modifie les données de page de la boutique. La plateforme envoie
+un jeton signé à la route de revalidation du thème, et le thème supprime ses
+pages en cache.
+
+```ts
+import { readRevalidateRequest } from "@wocart/storefront/server";
+import { WOCART_PREVIEW_KEY } from "astro:env/server";
+
+export const REVALIDATE_PATH = "/wocart-revalidate";
+
+const result = await readRevalidateRequest(request, {
+  publicKey: WOCART_PREVIEW_KEY,
+  theme: THEME_KEY,
+});
+
+if (!result.ok) {
+  return new Response(null, { status: result.status });
+}
+```
+
+Les vérifications :
+
+- `POST` uniquement.
+- `Authorization: Bearer <jws>`.
+- Le jeton est signé avec la clé du déploiement.
+- `use` doit valoir `"revalidate"` ; un jeton d'aperçu est refusé.
+- `aud` doit être l'origine de cette vitrine.
+- `theme` doit être la clé de ce thème.
+- `iat`/`exp` couvrent au maximum cinq minutes.
+
+Un jeton d'aperçu ne peut pas purger un cache ; un jeton de revalidation ne peut
+pas ouvrir un aperçu.
+
+### Supprimer les pages
+
+Avec le cache d'Astro, invalidez l'étiquette que porte chaque route de page mise
+en cache :
+
+```ts
+// src/pages/wocart-revalidate.ts
+import type { APIRoute } from "astro";
+import { readRevalidateRequest } from "@wocart/storefront/server";
+import { WOCART_PREVIEW_KEY } from "astro:env/server";
+
+export const prerender = false;
+
+export const PAGES_CACHE_TAG = "pages";
+
+export const POST: APIRoute = async (context) => {
+  const result = await readRevalidateRequest(context.request, {
+    publicKey: WOCART_PREVIEW_KEY,
+    theme: "theme-00",
+  });
+
+  if (!result.ok) {
+    return new Response(null, {
+      status: result.status,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+
+  await context.cache.invalidate({ tags: [PAGES_CACHE_TAG] });
+  return new Response(null, {
+    status: 204,
+    headers: { "Cache-Control": "no-store" },
+  });
+};
+```
+
+L'étiquette doit correspondre à chaque route de page mise en cache dans les
+`routeRules` de `astro.config.mjs`. Une route qui l'omet n'est pas purgée à la
+publication.
+
+```js
+// astro.config.mjs
+const PAGES_CACHE_TAG = "pages";
+
+export default defineConfig({
+  routeRules: {
+    "/products/[slug]": {
+      maxAge: 60,
+      swr: 86400,
+      tags: ["products", PAGES_CACHE_TAG],
+    },
+  },
+});
+```
+
+N'enveloppez pas le chemin de revalidation dans le middleware de boutique. Il
+n'a pas besoin de boutique, et en résoudre une ferait dépendre une purge d'une
+lecture D1.
+
+<Callout type="info" title="D'où vient le jeton">
+La plateforme signe les jetons d'aperçu et de revalidation avec sa propre clé
+privée ; la vitrine les vérifie uniquement avec la clé publique du déploiement.
+La vitrine ne peut émettre aucun des deux jetons. `WOCART_PREVIEW_KEY` est
+facultative : sans elle, l'aperçu et la revalidation sont tous deux désactivés
+et répondent 404.
+</Callout>
+
+## Liste de contrôle de l'aperçu et du cache
+
+- La route d'aperçu a `prerender = false`.
+- La route est exclue de chaque règle de cache.
+- Chaque réponse d'aperçu définit `previewResponseHeaders`.
+- `previewConfig` est appliqué avant le rendu.
+- Le brouillon d'aperçu est analysé par le thème, pas par le SDK.
+- La route de revalidation vérifie le jeton bearer et le thème.
+- Les pages en cache portent une étiquette ; la revalidation invalide cette même
+  étiquette.
+- Les deux routes répondent 404 lorsqu'aucune clé d'aperçu n'est configurée.
+- Le pixel de la boutique est absent en aperçu.

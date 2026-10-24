@@ -1,0 +1,195 @@
+---
+description: طبقات واجهة المتجر وأنواع الصفحات وما تعيده القراءة وكيف تفشل الكتابات وأين تقع حدود الأمان.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# كيف يعمل
+
+تتكون واجهة متجر CodFlow من ثلاث طبقات:
+
+1. **صفحات Astro الخاصة بك** تملك المسارات والتخطيط والنصوص والتفاعل.
+2. **`@wocart/storefront`** يقرأ المتجر ويستدعي خادمه. المدخل الجذري
+   آمن للمتصفح؛ أما العميل والمفتاح فيقيمان على الخادم.
+3. **`cod-server`** يملك الأسعار والمخزون والكوبونات والتوصيل وOTP وقبول
+   الطلبات وكل قاعدة أخرى.
+
+النتيجة المهمة: تعرض الصفحة ما أعاده الخادم. فهي لا تحسب سعرًا، ولا تقرر
+أن كوبونًا ينطبق، ولا تعلّم طلبًا كمقبول.
+
+## ماذا يستورد ملف المصدر
+
+| ملفك | يستورد من |
+| --- | --- |
+| frontmatter الصفحة أو middleware أو action أو مسار API | `@wocart/storefront/server` و`@wocart/storefront/astro` |
+| سكربت المتصفح أو island | `@wocart/storefront` |
+| سكربت صورة أو تسجيل صوتي لمراجعة | `@wocart/storefront/review-media` |
+
+المدخل الجذري لا يحتوي مفتاح API ولا مصنع عميل. هذا مقصود وليس عرفًا:
+يفشل اختبار عقد الحزمة إذا تسرّب تنفيذ المفتاح إلى حزمة الجذر.
+
+## عميل واحد لكل طلب
+
+أنشئ العميل حيث يُخدم الطلب، ومرّره إلى الصفحة، واتركه ينتهي مع الاستجابة.
+
+```ts
+// src/theme/store.ts — server only
+import { createStoreClient } from "@wocart/storefront/server";
+
+export function getStore(locale?: string) {
+  return createStoreClient({
+    serverUrl: process.env.COD_SERVER_URL!,
+    apiKey: process.env.STORE_API_KEY!,
+    ...(locale ? { locale } : {}),
+    onError: (error) => console.warn(error.operation, error.code),
+  });
+}
+```
+
+يحمل العميل مفتاح متجر واحد وذاكرة لغة واحدة. لا تحتفظ به كمتغير عام في
+الوحدة ولا تشاركه بين المتاجر.
+
+## أنواع الصفحات ومساراتها
+
+تملك المنصة هذه المسارات. وتعرض واجهة المتجر كل صفحة تدعمها على المسار
+الذي تستخدمه المنصة، وتبني الروابط بـ `storefrontPath`.
+
+| نوع الصفحة | المسار | القراءات الرئيسية |
+| --- | --- | --- |
+| الرئيسية | `/` | `config.get`، `products.list`، `collections.get` |
+| الكتالوج | `/products` | `products.page` |
+| الفئة | `/category/:slug` | `categories.list`، `products.list({ categoryId })` |
+| المجموعة | `/collections/:handle` | `collections.get`، `products.list({ collection })` |
+| المنتج | `/products/:handle` | `products.get` |
+| صفحة متجر | `/pages/:slug` | `pages.get` |
+| صفحة هبوط | `/lp/:slug` | `pages.landing` |
+| إتمام الطلب | `/checkout` | سلة المتصفح، ثم `cart.validate` |
+| الشكر | `/thank-you` | `orders.tracking` |
+
+```ts
+import { storefrontPath } from "@wocart/storefront";
+
+storefrontPath("product", { handle: "linen-shirt" });
+storefrontPath("category", { slug: "women" });
+storefrontPath("checkout");
+```
+
+المسارات الأخرى (`/about`، `/offers/summer`) تنتمي إلى مشروع Astro الخاص بك.
+ولا يفرض عليها SDK أي قيد.
+
+## القراءة تتدهور ولا ترمي خطأ
+
+كل قراءة تُحل إلى قيمة فارغة عندما يتعذر الوصول إلى الخادم، أو لم تعد
+استجابة تطابق العقد، أو لم يكن المورد عامًا:
+
+| القراءة | القيمة الفارغة |
+| --- | --- |
+| `config.get()` | `null` |
+| `products.get()` | `null` |
+| `products.list()` | `[]` |
+| `products.page()` | `{ items: [], hasNext: false }` |
+| `categories.list()` | `[]` |
+| `collections.get()` | `null` |
+| `menus.get()` | `null` |
+| `pages.get()` / `pages.landing()` | `null` |
+| `shipping.rates()` | `{}` |
+| `geo.communes()` | `[]` |
+| `cart.validate()` | نتيجة فشل |
+| `orders.tracking()` | `null` |
+
+ويترتب على ذلك قرار تصميمي: الحالة الفارغة جزء من الصفحة، لا معالج
+استثناء. تبدو «لا توجد منتجات بعد» و«API متوقف مؤقتًا» نفس الشيء للقارئ.
+و`onError` هو ما يمكّن المشغّل من التمييز بينهما.
+
+```ts
+const products = await getStore().products.list();
+
+if (products.length === 0) {
+  return renderEmptyCatalog();
+}
+```
+
+قد يكون الكتالوج فارغًا بالتصميم أيضًا. لا تضع شريط خطأ أحمر على متجر
+جديد بلا منتجات.
+
+<Callout type="info" title="null في صفحة تفاصيل يعني 404 حقيقي">
+في `products.get` و`collections.get` و`menus.get` و`pages.get` و
+`pages.landing`، تعني `null` «غير عام أو غير موجود». اعرض صفحة 404 الخاصة
+بك، لا صفحة 200 بحقول فارغة.
+</Callout>
+
+## الكتابة تعيد نتيجة
+
+لا ترمي الكتابات خطأ عند الرفض. بل تجيب بنتيجة مميّزة:
+
+```ts
+const result = await store.orders.create(body);
+
+if (!result.success) {
+  if (result.domainError.category === "validation") {
+    // Show the field issues.
+  } else if (result.domainError.category === "business") {
+    // Show the store's refusal.
+  }
+  return;
+}
+
+console.log(result.data.orderNumber);
+```
+
+توجد `result.domainError` دائمًا عند فشل SDK. اقرأ `category` و`code`
+و`retryable` و`sideEffect` و`fieldIssues` بدلًا من تحليل حالة HTTP.
+
+الفئات هي:
+
+| الفئة | المعنى | الاستجابة المعتادة |
+| --- | --- | --- |
+| `validation` | حقل أو شكل غير صحيح | علّم الحقل واحتفظ بالنموذج |
+| `authentication` | مفتاح المتجر أو الإعداد غير صحيح | سجّل الخطأ؛ لا تعد المحاولة في المتصفح |
+| `business` | رفض المتجر الطلب | اعرض رسالة الخادم |
+| `transport` | شبكة أو مهلة أو إلغاء | اقترح إعادة المحاولة عند `retryable` |
+| `system` | فشل الخادم | احتفظ بإدخال المتسوق واقترح إعادة المحاولة |
+| `unknown` | فشل بوابة غير مصنّف | احتفظ بالإدخال؛ لا تدّعِ النجاح |
+
+## إعادة المحاولة والتخزين المؤقت
+
+يطبّق SDK السياسة الآمنة بالفعل:
+
+- **القراءات الآمنة** تُعاد محاولتها بعد فشل نقل أو استجابة 5xx.
+- **الكتابات لا تُعاد محاولتها أبدًا.** قد يعني اتصال منقطع بعد طلب أن
+  الطلب موجود. تحقق قبل أن تطلب من المتسوق الإرسال مجددًا.
+- `config.get()` و`categories.list()` و`geo.communes(id)` تخزّن نتيجة
+  ناجحة طوال عمر العميل. ولا تُخزَّن الإخفاقات أبدًا.
+- المنتجات والصفحات والقوائم والمجموعات والأسعار وبيانات الصفحة تُجلب
+  حديثًا. وذاكرة المسار لديك هي ما يقرر معدل إعادة بناء الصفحة.
+
+`readTimeoutMs` افتراضيًا 10 ثوانٍ للقراءات. أما الكتابات فبلا مهلة
+افتراضية: الكتابة التي قطعها مؤقت قد تكون حدثت بالفعل.
+
+## حدود الأمان
+
+مفتاح المتجر سر خادم. لا يراه كود المتصفح أبدًا.
+
+```text
+Browser
+  └─ POST /api/cart/validate        (your same-origin route)
+       └─ createStoreClient(...)     (server only, key from env)
+            └─ cod-server            (prices and rules)
+```
+
+ولهذا أيضًا فإن مساعدات المتصفح في SDK ليست API ثانية. تعمل `formatMoney`
+والسلة وآلة OTP وبانيات عناوين الصور محليًا؛ وكل ما يحتاج المفتاح يمر عبر
+مسارك.
+
+## ما يقرره الخادم رغم ذلك
+
+حتى لو عرضته صفحتك، يعيد الخادم التحقق من:
+
+- سعر كل سطر في السلة؛
+- المخزون وقابلية البيع؛
+- ما إذا كان الكوبون ينطبق؛
+- رسوم التوصيل للوجهة المختارة؛
+- ما إذا كان OTP أو Turnstile مطلوبًا؛
+- ما إذا كان الطلب مقبولًا أصلًا.
+
+قد يكون المتصفح متفائلًا. أما الطلب فلا.

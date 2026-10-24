@@ -1,0 +1,149 @@
+---
+description: Store image fields as media keys, resolve them safely and resize them on the media domain with @wocart/theme.
+---
+
+# Images
+
+An image field does not store a URL. It stores the object's **key** in the
+store's own media:
+
+```json
+{
+  "image": {
+    "key": "products/3f2a9c.webp",
+    "alt": { "ar": "فستان أزرق", "fr": "Robe bleue" },
+    "width": 1200,
+    "height": 1600
+  }
+}
+```
+
+| Value | Meaning |
+| --- | --- |
+| `key` | The object's key in the store's media bucket; no leading slash |
+| `alt` | Alt text, per language; it reaches the component in the rendered language |
+| `width`, `height` | Optional intrinsic size, so the layout can reserve space |
+| `focal` | Optional focal point, each axis from 0 to 1 |
+
+The URL is derived at render, so changing the media domain or moving the store
+never rewrites a document. An image field has **no default**: a theme cannot
+know a store's media, so the component renders its own fallback.
+
+The SDK never uploads. The platform places the file in the store's media and
+saves the key; the theme only reads that key.
+
+## Resolve a key
+
+```astro
+---
+import { mediaUrl } from "@wocart/storefront";
+import { MEDIA_DOMAIN } from "astro:env/server";
+import type { InferProps } from "@wocart/theme";
+import type { banner } from "./banner.def";
+
+const { image } = Astro.props as InferProps<typeof banner>;
+const src = image && mediaUrl(image.key, MEDIA_DOMAIN);
+---
+{src
+  ? <img src={src} alt={image.alt ?? ""} width={image.width} height={image.height} loading="lazy" />
+  : <div class="banner-fallback" />}
+```
+
+`mediaUrl` returns `null` when no domain is configured, so an image never
+silently points at a broken host. Use the resolved `alt`; do not rebuild it
+from the language map.
+
+## Resize on the media domain
+
+`@wocart/theme/image-service` adapts Astro's image pipeline to Cloudflare Image
+Resizing **on the media domain**, wherever the storefront runs:
+
+```text
+https://<media-domain>/cdn-cgi/image/onerror=redirect,width=640,format=webp/products/3f2a9c.webp
+```
+
+A storefront on Cloudflare and one on Vercel therefore get the same URLs, the
+same edge cache and no second image bill. Any other image — another host, a
+file imported into the theme — is served as it is. With no media domain, every
+image passes through unchanged.
+
+Bind it once, in the theme:
+
+```ts
+// src/image-service.ts
+import { MEDIA_DOMAIN } from "astro:env/server";
+import { mediaImageService } from "@wocart/theme/image-service";
+
+export default mediaImageService(() => MEDIA_DOMAIN);
+```
+
+```js
+// astro.config.mjs
+image: { service: { entrypoint: "./src/image-service.ts" } },
+```
+
+| Adapter | Setting |
+| --- | --- |
+| `@astrojs/cloudflare` | `imageService: "custom"` |
+| `@astrojs/vercel` | Leave `imageService` off; the entrypoint is used |
+
+The domain is read on **every image**, not at build: one theme build serves
+every store. The media domain's Cloudflare zone needs Image Transformations
+enabled (Images → Transformations); that is available on the Free plan.
+
+## What the service does
+
+`mediaImageParams(options)` maps Astro's transform to the media URL:
+
+| Astro option | Media parameter |
+| --- | --- |
+| `width`, `height` | `width`, `height` |
+| `format` | `format` |
+| `quality` | `quality` |
+| `fit` | `cover`, `contain`, `squeeze` (for `fill`), `scale-down`, `crop`, `pad` |
+
+`mediaImageService(() => domain)` returns an Astro service whose `getURL`
+resolves through `mediaImageUrl`. It extends Astro's base service, so
+`<Image>` and `getImage()` keep their usual behavior.
+
+`focal` is not applied by the service: it is a hint for the theme's own CSS or
+markup. `width` and `height` are the intrinsic values; a transform can still
+request another size.
+
+## In a section
+
+```astro
+---
+import { Image } from "astro:assets";
+import { mediaUrl } from "@wocart/storefront";
+import { MEDIA_DOMAIN } from "astro:env/server";
+import type { InferProps } from "@wocart/theme";
+import type { hero } from "./hero.def";
+
+const { image } = Astro.props as InferProps<typeof hero>;
+const src = image && mediaUrl(image.key, MEDIA_DOMAIN);
+---
+{src && (
+  <Image
+    src={src}
+    alt={image.alt ?? ""}
+    width={image.width ?? 1200}
+    height={image.height ?? 800}
+    widths={[480, 768, 1200]}
+    sizes="(min-width: 768px) 50vw, 100vw"
+  />
+)}
+```
+
+A remote `src` goes through the configured service. An imported local image is
+handled by Astro's base service as usual.
+
+## Rules
+
+- **Never store a URL in an image field.** Store the key; resolve at render.
+- **Never build a media URL by string concatenation.** Use `mediaUrl` or the
+  service; they handle the domain, encoding and absence.
+- **Never omit `alt`.** An empty alt is valid only for a decorative image.
+- **Do not assume a format.** A store may hold WebP, JPEG or another supported
+  type; the service asks for what the transform needs.
+- **Do not read the field as a string.** It is a `MediaReference` object.

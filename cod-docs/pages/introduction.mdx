@@ -1,0 +1,85 @@
+---
+description: The developer reference for the CodFlow commerce platform.
+---
+
+import { Card, CardDescription, CardHeader, CardTitle } from "zudoku/ui/Card";
+import { Link } from "zudoku/components";
+import { BracesIcon, CodeIcon, PaletteIcon, RocketIcon } from "zudoku/icons";
+
+# Introduction
+
+CodFlow is a cash-on-delivery commerce platform built for Algeria. Merchants get a dashboard, a themeable storefront, and a typed REST API for orders, delivery, catalog, customers, reviews and store settings.
+
+This site is the developer reference for that platform. Its API reference and SDK typings are generated from the OpenAPI document served by cod-server and the published packages, so endpoints and types match the code that ships. The Theme SDK guide is maintained here.
+
+<div className="not-prose my-10 grid gap-4 sm:grid-cols-2">
+  <Link to="/getting-started" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <RocketIcon className="size-4" />
+        </div>
+        <CardTitle>Getting started</CardTitle>
+        <CardDescription>
+          Base URLs, API keys and your first request against a local CodFlow server.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/api" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <BracesIcon className="size-4" />
+        </div>
+        <CardTitle>API reference</CardTitle>
+        <CardDescription>
+          Every merchant and storefront endpoint, with schemas, request and response details, and a playground.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/sdk/storefront" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <CodeIcon className="size-4" />
+        </div>
+        <CardTitle>Storefront SDK</CardTitle>
+        <CardDescription>
+          The engine behind a CodFlow theme: config, catalog, cart, checkout and reviews.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/sdk/theme" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <PaletteIcon className="size-4" />
+        </div>
+        <CardTitle>Theme SDK</CardTitle>
+        <CardDescription>
+          Build a swappable theme with the block contract, editor metadata and image services.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+</div>
+
+## How this site is organized
+
+- **Guides** cover the concepts that are shared by every endpoint: authentication, errors, webhooks and the MCP server.
+- **API reference** is generated from the live OpenAPI document. Operations include their parameters or request body, response schema and — where the route declares one — a security requirement. Every operation has a playground.
+- **SDK references** are generated from the published TypeScript declarations. The Storefront SDK guide is published with its package; the Theme SDK guide is written and maintained here.
+
+## What you can build
+
+- **A storefront theme** with the storefront engine and the theme contract, shipped as a normal npm package.
+- **Order and delivery automations** that create orders, hand them to a carrier, and react to shipment events.
+- **Catalog and customer tools** for a back office, an importer or a support workflow.
+- **AI agent integrations** through the OAuth-secured MCP server, with tools scoped to the signed-in user's permissions.
+
+## Local preview
+
+The API reference is generated from the OpenAPI document served by cod-server. When running locally, start the server with `npm run dev` in `cod-server`, then run `npm run generate` in `cod-docs` after changing routes. The server selector in the API reference points at `http://localhost:8787` by default.

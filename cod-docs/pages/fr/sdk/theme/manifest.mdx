@@ -1,0 +1,216 @@
+---
+description: Émettez, validez et comparez un manifeste @wocart/theme, et modifiez les documents de page en toute sécurité depuis son catalogue.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Le manifeste
+
+Un `ThemeDefinition` mélange deux types d'informations : des déclarations de
+champs et des valeurs par défaut à côté de composants Astro vivants et de
+fonctions `load` réservées au serveur. Un outil extérieur à Astro ne peut pas les
+lire sans exécuter le thème.
+
+Le **manifeste** est la moitié de données : un menu JSON de chaque composant,
+champ, slot et surface que le thème propose. Un éditeur, une CLI ou une
+place de marché peut le lire sans importer de fichiers Astro. Si une chose n'est
+pas dans le manifeste, un autre outil ne peut pas la découvrir.
+
+Vous n'avez pas besoin du manifeste pour rendre une vitrine Astro figée. Vous en
+avez besoin lorsque le thème doit être modifié, partagé ou vérifié par un autre
+programme.
+
+## Une seule source
+
+Le manifeste est **dérivé**, jamais écrit à la main :
+
+```ts
+import { themeManifest } from "@wocart/theme";
+
+const manifest = themeManifest(theme);
+```
+
+Il est stable lors d'un aller-retour JSON. Il existe exactement une source de
+vérité : les définitions du thème. Un manifeste écrit à la main peut être validé,
+mais il n'est jamais traité comme le catalogue que le thème rend.
+
+## L'émettre depuis le build
+
+La définition d'un thème importe des fichiers `.astro`, elle ne peut donc être
+chargée que dans le build d'Astro. Émettez le manifeste comme page prérendue :
+
+```ts
+// src/pages/wocart-theme.json.ts
+import { themeManifestEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeManifestEndpoint(theme);
+```
+
+Le manifeste est servi à **`/wocart-theme.json`**. Il est validé au chargement du
+module, afin qu'un manifeste invalide fasse échouer le build au lieu d'être
+déployé.
+
+## Ce qu'il contient
+
+```json
+{
+  "contractVersion": 1,
+  "key": "my-theme",
+  "version": "1.0.0",
+  "sdkVersion": "2.1.0",
+  "surfaces": [],
+  "areas": [],
+  "locales": ["ar", "fr"],
+  "settings": [],
+  "content": {},
+  "preview": false,
+  "components": {
+    "hero": {
+      "type": "hero",
+      "label": { "ar": "الواجهة", "fr": "Hero" },
+      "fields": [],
+      "slots": [],
+      "presets": []
+    }
+  }
+}
+```
+
+| Champ | Signification |
+| --- | --- |
+| `contractVersion` | Schéma du manifeste et contrat d'interprétation ; actuellement `1` |
+| `key`, `version` | L'identité et la version du thème |
+| `sdkVersion` | Le `@wocart/theme` qui a généré le manifeste |
+| `surfaces`, `areas` | Les surfaces et zones partagées que le thème déclare |
+| `locales`, `content` | Les langues déclarées et leurs packs de contenu |
+| `settings`, `style` | Les réglages communs à la boutique et les tailles d'étapes |
+| `preview` | Si le thème sert une route d'aperçu |
+| `components` | Les spécifications sérialisables des composants ; pas de `component`, pas de `load` |
+
+## Valider un manifeste depuis l'extérieur
+
+```ts
+import { validateThemeManifest } from "@wocart/theme";
+
+const { manifest: checked, issues } = validateThemeManifest(input);
+```
+
+Un échec structurel renvoie `manifest: null` et des problèmes. Une `version` non
+semver est consultative : le manifeste est renvoyé avec un problème
+`invalid-version`. Chaque problème possède un `path` dans le manifeste et l'un des
+codes suivants :
+
+`invalid-manifest`, `unsupported-contract`, `invalid-identity`, `invalid-version`,
+`invalid-surface`, `invalid-settings`, `invalid-component`, `invalid-content`,
+`type-mismatch` ou `non-serializable`.
+
+La validation reflète l'assemblage. Les règles relationnelles — exclusivité
+`contentKey`/`default`, valeur par défaut numérique dans sa plage, valeur par
+défaut de sélection dans ses options, forme du nom de slot, accord clé/type
+— sont vérifiées de la même manière que `validateThemeDefinition`.
+
+## L'utiliser comme catalogue d'édition
+
+```ts
+import { manifestCatalog } from "@wocart/theme";
+
+const catalog = manifestCatalog(manifest);
+```
+
+`manifestCatalog` transforme un manifeste en la forme qu'accepte chaque fonction
+de données : `createInstance`, `instantiatePreset`, les opérations sur le
+document, `checkPageData`, `validatePageData`, `resolveThemeSettings` et
+`checkThemeSettings`.
+
+Ses composants ont `component: null`. Il décrit et vérifie ; il ne rend pas. Ne le
+passez pas à `InstanceView`.
+
+## Garanties du manifeste
+
+| Promesse | Conséquence |
+| --- | --- |
+| **Données uniquement** | Pas de fonctions, symboles, bigints, nombres non finis ni cycles ; ce sont des `non-serializable` |
+| **Normalisé** | `fields` et `slots` sont toujours des tableaux ; absents signifie `[]` |
+| **La clé égale le type** | `components[type].type === type` |
+| **Clés inconnues supprimées** | Un ancien lecteur ignore les métadonnées plus récentes au lieu d'échouer |
+| **Validé au build** | Un thème qui s'assemble est un thème dont le manifeste est valide |
+
+Le compromis de compatibilité avec les versions futures est délibéré : les anciens lecteurs
+restent verts, mais ils ne peuvent pas voir les nouvelles métadonnées avant de se
+mettre à jour. C'est pourquoi les champs additifs ne doivent jamais changer la
+façon dont un champ existant est lu.
+
+## Modifier un document
+
+Les opérations sont l'API d'écriture :
+
+```ts
+import { checkPageData, removeInstance } from "@wocart/theme";
+
+const edit = removeInstance(theme, page, "faq-1");
+if (!edit.ok) throw new Error(`${edit.issue.code}: ${edit.issue.message}`);
+
+const issues = checkPageData(theme, edit.page);
+```
+
+| Opération | Résultat |
+| --- | --- |
+| `insertInstance(theme, page, instance, placement)` | Ajouter à un emplacement |
+| `moveInstance(theme, page, id, placement)` | Déplacer vers un autre emplacement ou index |
+| `duplicateInstance(theme, page, id)` | Copier avec de nouveaux ids |
+| `removeInstance(theme, page, id)` | Supprimer, sauf si requis ou fixe |
+| `setInstanceProps(theme, page, id, props)` | Fusionner les props |
+| `setInstanceHidden(theme, page, id, hidden)` | Masquer ou afficher |
+
+Elles renvoient `{ ok: true, page }` ou `{ ok: false, issue }`, ne modifient jamais
+l'entrée et laissent le reste du document intact. Une modification refusée dit
+pourquoi : `not-available`, `not-placeable`, `slot-full`, `required-block`,
+`fixed-block` ou `cycle`.
+
+`completePage(theme, page)` ajoute les blocs requis et fixes manquants. Un outil
+d'édition part de là pour ne jamais montrer une page incomplète.
+
+## Comparer deux versions
+
+```ts
+import { diffThemeManifests } from "@wocart/theme";
+
+const { breaking, additive } = diffThemeManifests(previous, next);
+```
+
+**Incompatible** signifie qu'un document, un réglage ou une modification de texte
+enregistré peut ne plus se lire comme avant :
+
+- un composant, une surface, une zone, un champ, un slot, une option ou
+  une clé de contenu a été supprimé,
+- un type de champ a changé,
+- un type de page a changé,
+- une liste `allow`, une plage, une borne de liste ou un format de texte enrichi
+  s'est rétréci,
+- un slot est devenu unique,
+- un champ est devenu requis sans valeur par défaut ni repli de contenu,
+- la clé du thème a changé.
+
+Tout le reste est additif. Les données enregistrées ne sont jamais migrées : le
+lecteur se dégrade avec des rapports, et ce diff vous dit à l'avance ce qui se
+dégradera.
+
+## Versionnement
+
+Trois contrats sont versionnés indépendamment :
+
+| Version | Ce qu'elle couvre | Quand elle change |
+| --- | --- | --- |
+| `contractVersion` | Le schéma du manifeste et la façon dont les consommateurs l'interprètent | Uniquement en cas de changement incompatible de cette forme ; actuellement `1` |
+| `version` du thème | Le thème lui-même | Semver ; un diff incompatible appartient à une nouvelle version majeure |
+| `PageData.version` | L'enveloppe du document de page | Actuellement `1` |
+
+Une version de thème non semver est signalée, pas rejetée : l'enregistrement reste
+possible, mais l'hygiène de version est visible.
+
+<Callout type="caution" title="Ne modifiez pas à la main un manifeste livré">
+Le manifeste est un artefact de build. Modifiez une définition et reconstruisez.
+Un manifeste modifié à la main s'écarte du code qui rend le thème.
+</Callout>

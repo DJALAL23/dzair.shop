@@ -1,0 +1,95 @@
+---
+description: La compétence IA disponible, et le CLI et le kit de démarrage prévus pour construire des thèmes CodFlow — ce qui arrive et quoi utiliser aujourd'hui.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Outils et feuille de route
+
+<Callout type="caution" title="La CLI et le kit de démarrage ne sont pas encore disponibles">
+La CLI et le kit de démarrage de cette page sont **prévus**. Ils sont listés ici
+pour que vous puissiez choisir un parcours maintenant, et non parce que vous
+devez les attendre. La compétence IA existe réellement dans le dépôt ; tout le
+reste décrit comme disponible fonctionne aujourd'hui.
+</Callout>
+
+## Ce que vous pouvez utiliser aujourd'hui
+
+Vous n'avez pas besoin d'un outil spécial pour construire un thème CodFlow. Le
+parcours actuel est :
+
+| Besoin | À utiliser aujourd'hui |
+| --- | --- |
+| Un exemple fonctionnel à copier | L'[implémentation de référence](/fr/sdk/theme/reference-implementation) Theme-00 |
+| La séquence d'installation complète | [Construire un thème complet](/fr/sdk/theme/tutorial) |
+| Des modifications sûres des textes, des images et de la mise en page | [Personnaliser un thème](/fr/sdk/theme/customize) |
+| Des règles pour un assistant IA | [Utiliser l'IA pour construire un thème](/fr/sdk/theme/agents) et la compétence `wocart-theme` du dépôt |
+| Une vérification de publication répétable | [Tester un thème](/fr/sdk/theme/testing) |
+| Une liste avant livraison | [Production et mises à niveau](/fr/sdk/theme/production) |
+
+Si vous avez seulement besoin d'un design sur mesure pour une boutique et que
+personne ne le modifiera depuis un tableau de bord, vous pouvez ignorer
+entièrement cet outillage. Construisez une vitrine Astro avec
+[`@wocart/storefront`](/fr/sdk/storefront).
+
+## Compétences IA
+
+Le dépôt fournit une compétence d'agent, `.agents/skills/wocart-theme/`. C'est un
+ensemble de procédures, pas une bibliothèque : un agent la lit avant de toucher à
+un thème.
+
+| Référence | Ce qu'elle fait faire à un agent |
+| --- | --- |
+| `SKILL.md` | Les quatre parcours, les règles qui ne plient pas, et les commandes par lesquelles chaque changement doit finir |
+| `references/sdk-discovery.md` | Inspecter la version installée, lire les déclarations et les tests, vérifier chaque API avant de l'utiliser |
+| `references/theme-architecture.md` | Séparer SDK thème et SDK storefront, lire Theme-00 sans le copier, construire un nouveau thème sur les contrats supportés |
+| `references/theme-quality.md` | Prouver types, schéma, pages, arabe/RTL, responsive, états, intégration et build — aucune affirmation sans un contrôle qui passe |
+| `references/docs-maintenance.md` | Un changement de contrat déclenche les pages anglaise, française et arabe, les exemples et les compétences |
+
+Pointez votre assistant vers la compétence et vers le manifeste : il cesse de
+deviner les noms de champs. Les règles qu'elle applique sont celles de
+[Utiliser l'IA pour construire un thème](/fr/sdk/theme/agents).
+
+## Bientôt disponible
+
+### CLI de thème
+
+Un compagnon en ligne de commande pour les parties ennuyeuses et répétables :
+
+- créer un thème à partir du kit de démarrage ;
+- valider le catalogue de composants, le manifeste et les documents livrés ;
+- vérifier qu'un thème est prêt à être partagé ou publié ;
+- exécuter les mêmes vérifications en local et en CI.
+
+La CLI utilisera le contrat documenté ici. Elle n'inventera pas une seconde façon
+de définir les thèmes.
+
+### Kit de démarrage
+
+Un thème petit et complet à partir duquel commencer au lieu d'un dossier vide. Son contenu prévu :
+
+- une surface de page et une zone partagée ;
+- une section avec des champs modifiables ;
+- un slot avec un bloc enfant ;
+- un endpoint de manifeste ;
+- les tests de contrat décrits dans
+  [Tester un thème](/fr/sdk/theme/testing).
+
+Le kit de démarrage est fait pour être lu, exécuté, puis modifié. Ce n'est pas un
+design de vitrine fini.
+
+## Quel parcours choisir ?
+
+| Votre objectif | Commencez maintenant | Attendre l'outillage ? |
+| --- | --- | --- |
+| Une vitrine sur mesure figée pour une boutique | Astro + `@wocart/storefront` | Non |
+| Un thème qu'un marchand peut modifier | [Construire un thème complet](/fr/sdk/theme/tutorial) | Non ; le kit de démarrage fera gagner du temps d'installation plus tard |
+| Un thème à partager ou à vendre | Construire, puis [Manifeste](/fr/sdk/theme/manifest) et [Tests](/fr/sdk/theme/testing) | Pas obligatoire, mais la CLI facilitera les publications |
+| Construire avec un assistant IA | [Utiliser l'IA pour construire un thème](/fr/sdk/theme/agents) plus la compétence `wocart-theme` | Non |
+
+## Comment cette page va changer
+
+Quand la CLI ou le kit de démarrage sortira, sa section ici deviendra des
+instructions d'installation et d'utilisation. D'ici là, traitez ces deux
+éléments comme une orientation, pas comme une promesse d'API — et la compétence
+comme un fichier que vous pouvez lire aujourd'hui.

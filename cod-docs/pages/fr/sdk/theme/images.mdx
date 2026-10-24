@@ -1,0 +1,155 @@
+---
+description: Stockez les champs image comme clés de média, résolvez-les en toute sécurité et redimensionnez-les sur le domaine média avec @wocart/theme.
+---
+
+# Images
+
+Un champ image ne stocke pas d'URL. Il stocke la **clé** de l'objet dans les
+médias de la boutique :
+
+```json
+{
+  "image": {
+    "key": "products/3f2a9c.webp",
+    "alt": { "ar": "فستان أزرق", "fr": "Robe bleue" },
+    "width": 1200,
+    "height": 1600
+  }
+}
+```
+
+| Valeur | Signification |
+| --- | --- |
+| `key` | La clé de l'objet dans le bucket média de la boutique ; sans barre oblique initiale |
+| `alt` | Texte alternatif, par langue ; il atteint le composant dans la langue rendue |
+| `width`, `height` | Taille intrinsèque facultative, afin que la mise en page puisse réserver l'espace |
+| `focal` | Point focal facultatif, chaque axe de 0 à 1 |
+
+L'URL est dérivée au rendu, donc changer le domaine média ou déplacer la boutique
+ne réécrit jamais un document. Un champ image n'a **aucune valeur par défaut** :
+un thème ne peut pas connaître les médias d'une boutique, le composant rend donc
+son propre repli.
+
+Le SDK ne téléverse jamais. La plateforme place le fichier dans les médias de la
+boutique et enregistre la clé ; le thème ne fait que lire cette clé.
+
+## Résoudre une clé
+
+```astro
+---
+import { mediaUrl } from "@wocart/storefront";
+import { MEDIA_DOMAIN } from "astro:env/server";
+import type { InferProps } from "@wocart/theme";
+import type { banner } from "./banner.def";
+
+const { image } = Astro.props as InferProps<typeof banner>;
+const src = image && mediaUrl(image.key, MEDIA_DOMAIN);
+---
+{src
+  ? <img src={src} alt={image.alt ?? ""} width={image.width} height={image.height} loading="lazy" />
+  : <div class="banner-fallback" />}
+```
+
+`mediaUrl` renvoie `null` lorsqu'aucun domaine n'est configuré, afin qu'une image
+ne pointe jamais silencieusement vers un hôte cassé. Utilisez l'`alt` résolu ; ne
+le reconstruisez pas à partir de la table de langues.
+
+## Redimensionner sur le domaine média
+
+`@wocart/theme/image-service` adapte le pipeline d'images d'Astro au
+redimensionnement d'images Cloudflare **sur le domaine média**, où que la vitrine
+s'exécute :
+
+```text
+https://<media-domain>/cdn-cgi/image/onerror=redirect,width=640,format=webp/products/3f2a9c.webp
+```
+
+Une vitrine sur Cloudflare et une sur Vercel obtiennent donc les mêmes URL, le
+même cache en périphérie et aucune seconde facture d'images. Toute autre image —
+un autre hôte, un fichier importé dans le thème — est servie telle quelle. Sans
+domaine média, chaque image passe inchangée.
+
+Liez-le une fois, dans le thème :
+
+```ts
+// src/image-service.ts
+import { MEDIA_DOMAIN } from "astro:env/server";
+import { mediaImageService } from "@wocart/theme/image-service";
+
+export default mediaImageService(() => MEDIA_DOMAIN);
+```
+
+```js
+// astro.config.mjs
+image: { service: { entrypoint: "./src/image-service.ts" } },
+```
+
+| Adaptateur | Réglage |
+| --- | --- |
+| `@astrojs/cloudflare` | `imageService: "custom"` |
+| `@astrojs/vercel` | Laissez `imageService` désactivé ; le point d'entrée est utilisé |
+
+Le domaine est lu sur **chaque image**, pas au build : un seul build de thème sert
+chaque boutique. La zone Cloudflare du domaine média doit avoir les transformations
+d'images activées (Images → Transformations) ; c'est disponible avec le plan
+gratuit.
+
+## Ce que fait le service
+
+`mediaImageParams(options)` associe la transformation d'Astro à l'URL média :
+
+| Option Astro | Paramètre média |
+| --- | --- |
+| `width`, `height` | `width`, `height` |
+| `format` | `format` |
+| `quality` | `quality` |
+| `fit` | `cover`, `contain`, `squeeze` (pour `fill`), `scale-down`, `crop`, `pad` |
+
+`mediaImageService(() => domain)` renvoie un service Astro dont `getURL` se résout
+via `mediaImageUrl`. Il étend le service de base d'Astro, donc `<Image>` et
+`getImage()` conservent leur comportement habituel.
+
+`focal` n'est pas appliqué par le service : c'est une indication pour le CSS ou le
+balisage du thème. `width` et `height` sont les valeurs intrinsèques ; une
+transformation peut toujours demander une autre taille.
+
+## Dans une section
+
+```astro
+---
+import { Image } from "astro:assets";
+import { mediaUrl } from "@wocart/storefront";
+import { MEDIA_DOMAIN } from "astro:env/server";
+import type { InferProps } from "@wocart/theme";
+import type { hero } from "./hero.def";
+
+const { image } = Astro.props as InferProps<typeof hero>;
+const src = image && mediaUrl(image.key, MEDIA_DOMAIN);
+---
+{src && (
+  <Image
+    src={src}
+    alt={image.alt ?? ""}
+    width={image.width ?? 1200}
+    height={image.height ?? 800}
+    widths={[480, 768, 1200]}
+    sizes="(min-width: 768px) 50vw, 100vw"
+  />
+)}
+```
+
+Un `src` distant passe par le service configuré. Une image locale importée est
+traitée par le service de base d'Astro comme d'habitude.
+
+## Règles
+
+- **Ne stockez jamais d'URL dans un champ image.** Stockez la clé ; résolvez au
+  rendu.
+- **Ne construisez jamais une URL média par concaténation de chaînes.** Utilisez
+  `mediaUrl` ou le service ; ils gèrent le domaine, l'encodage et l'absence.
+- **N'omettez jamais `alt`.** Un alt vide n'est valide que pour une image
+  décorative.
+- **Ne supposez pas un format.** Une boutique peut contenir du WebP, du JPEG ou
+  un autre type pris en charge ; le service demande ce dont la transformation a
+  besoin.
+- **Ne lisez pas le champ comme une chaîne.** C'est un objet `MediaReference`.

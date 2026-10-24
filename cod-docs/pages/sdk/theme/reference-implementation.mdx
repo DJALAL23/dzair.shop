@@ -1,0 +1,195 @@
+---
+description: How CodFlow's Theme-00 is built on the two SDKs — what is platform contract, what is that theme's own decision, and what to copy.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Reference implementation: Theme-00
+
+`cod-astro/theme-00` is CodFlow's complete storefront theme (Astro 7,
+Cloudflare/Vercel, AR/FR/EN). It is the worked example the SDKs are built
+against, and the best place to see a real theme's seams.
+
+It is **a** correct implementation, not **the** specification. This page maps it:
+what it takes from the SDKs, what it decided for itself, and what a new theme
+should copy or leave behind.
+
+<Callout type="caution" title="The code is the authority, not this summary">
+Theme-00 evolves. When this page and the theme disagree, read
+`cod-astro/theme-00/AGENTS.md` and the file itself. Nothing here overrides the
+packages' declarations.
+</Callout>
+
+## Where it sits
+
+- **Not a workspace.** It installs `@wocart/storefront` and `@wocart/theme` from
+  the npm registry with exact pins and keeps its own lockfile, exactly like an
+  outside theme. That is deliberate: it proves the published packages work.
+- **Pinned to the SDK under review**: `@wocart/storefront` 1.19.0,
+  `@wocart/theme` 2.1.0, Astro 7.3, TypeScript 6.
+- **Two adapters, one composition code**: the Cloudflare and Vercel builds differ
+  only in the adapter and a few platform bindings.
+- **Its own commands**: `npm run dev`, `npm test`, `npx astro check`,
+  `npm run validate:all`, `npm run build`. There is no `typecheck` script —
+  `astro check` is the typecheck.
+
+## What it uses from the SDKs
+
+| SDK capability | Theme-00 |
+| --- | --- |
+| `createStoreClient` | `src/theme/sdk.ts` — the one place a client is built |
+| Store config, `contentOverrides` | the same seam passes `theme: THEME_KEY`; middleware builds the request's store context |
+| Composition | `src/theme/pages/*.astro` render a surface through `resolveSurfaceDocument` + `InstanceView` |
+| Definitions and manifest | `src/theme/theme.ts` assembles the catalog; `src/pages/wocart-theme.json.ts` emits it |
+| Areas | `src/theme/pages/header.area.json`, `footer.area.json` |
+| Templates and params | product, category, collection and page surfaces read `Astro.params` |
+| Style fields and schemes | `src/theme/appearance.ts` (sizes) and `src/pages/wocart-styles.css.ts` |
+| Settings | `src/theme/settings.ts` + `src/theme/runtime/settings.ts` |
+| Preview | `src/pages/wocart-preview.astro` + `@wocart/theme/preview` |
+| Revalidation | `src/pages/wocart-revalidate.ts` + `readRevalidateRequest` |
+| Same-origin API routes | `src/theme/api-routes.ts` built on `createStorefrontRoutes`, exported one line per `src/pages/api/*` |
+| Place-order action | `src/actions/` wraps `placeOrderInput` and `executePlaceOrder` |
+| Images | `src/theme/utils/images.ts` binds `createImageHelpers(MEDIA_DOMAIN)`; `src/theme/utils/image-service.ts` binds `mediaImageService` |
+| Copy and plurals | `src/theme/content/` packs + `formatMessage` through `src/theme/content/messages.ts` |
+
+Each of those is the SDK used as documented — that is what makes the theme
+readable as an example.
+
+## Its architecture
+
+```text
+src/
+├─ middleware.ts              store context, language, preview/revalidate pass-through
+├─ actions/                   placeOrder wrapper
+├─ pages/
+│  ├─ api/                    one-line exports of src/theme/api-routes.ts
+│  ├─ index.astro             home surface
+│  ├─ products/[handle].astro product surface (template)
+│  ├─ category/[slug].astro   category surface
+│  ├─ collections/[handle].astro
+│  ├─ pages/[slug].astro      store pages (legal, informational)
+│  ├─ lp/[slug].astro         landing pages
+│  ├─ checkout.astro, thank-you.astro, 404.astro
+│  ├─ wocart-preview.astro    the editor's preview route
+│  ├─ wocart-revalidate.ts    drop cached pages after a publish
+│  ├─ wocart-theme.json.ts    the manifest, a build artifact
+│  └─ sitemap.xml.ts, robots.txt.ts
+└─ theme/
+   ├─ sdk.ts                  the ONE SDK adapter
+   ├─ theme.ts                the full catalog (manifest + preview)
+   ├─ catalog/
+   │  ├─ families/            one catalog per surface, imported by its route
+   │  ├─ home/ product/ listing/ header/ footer/   *.def.ts, one per section
+   │  ├─ shared.ts            read keys and the copy bridge
+   │  └─ labels.ts            every editor-facing label, in three languages
+   ├─ components/             the .astro components (sections, layout, ui)
+   ├─ runtime/store.ts        the request's store context
+   ├─ runtime/render-context.ts
+   ├─ layouts/                StoreLayout and friends
+   ├─ styles/                 design tokens and CSS
+   ├─ content/                ar/ fr/ en/ packs, one file per area, plus messages.ts
+   ├─ bridges/                island prop picks and page-data shapes
+   ├─ pages/                  HomeSurface.astro, SurfacePage.astro, *.page.json, *.area.json
+   ├─ settings.ts             the settings declaration
+   ├─ appearance.ts           the style sizes and the page scheme
+   ├─ key.ts, version.ts      the theme key and version
+   └─ __tests__/              guards/ and contracts/
+```
+
+Three naming conventions are worth noticing, because they are what keep a large
+theme navigable: **one definition file per section**, **one catalog per surface
+family**, and **one content file per area per language**.
+
+## What is contract, and must be copied
+
+| Rule | Why it is not optional |
+| --- | --- |
+| Exactly one module builds a store client, and it passes `theme: THEME_KEY` | Otherwise merchant text edits and page documents never arrive |
+| A saved document wins; absent, invalid, another theme's or zero-overlap falls back to the shipped default | A theme switch or a bad save must never blank a store |
+| One `createReadCache()` per page render | The same catalogue read is shared by every section |
+| The render context carries `locale` **and** `fallbackLocales` | A translatable value with no entry for the language falls back per value |
+| The manifest is a build artifact at `/wocart-theme.json` | An invalid manifest fails the build instead of shipping |
+| A preview is never cached, and every cached page carries the `pages` tag | A publish must reach shoppers, a draft must not |
+| The theme never writes a document, a setting or merchant text | Writes are the platform's, with its authorization |
+| Shopper-facing strings live in per-language packs | No hardcoded copy, no language discovered at runtime |
+| Every internal link is localized | A French shopper stays in French |
+
+Each of those has a test in Theme-00 — see the guard list below.
+
+## What is Theme-00's decision, not the SDK's
+
+These are good choices, and a new theme is free to choose differently:
+
+- **Per-surface catalogs.** `catalog/families/home.ts` declares a catalog holding
+  only the sections the home page can show, and the home route renders with it;
+  `theme.ts` assembles the full catalog for the manifest and the editor. Both are
+  `ThemeDefinition`s with the same `key`. The benefit is a smaller render
+  surface; the cost is that a saved document referring to a section from another
+  family falls back to the default (`no-overlap`). The simpler SDK pattern is one
+  catalog for everything.
+- **Components read the whole content pack.** Some components take
+  `content: StoreFrontContent` and overlay `copyOverrides(content, props)`
+  instead of one prop per `contentKey`. The SDK supports both; per-field props
+  are the shorter path.
+- **Read keys as constants** (`catalog.products`, `catalog.categories`,
+  `collectionRead(handle, limit)`). The SDK only requires that a key is stable
+  within one render.
+- **A design system** (`styles/`, `appearance.ts`, fonts, icon set). Nothing in
+  the SDK knows a theme has tokens; the style steps must map to *something*, and
+  pixel values are the theme's.
+- **Server islands and their `copy` picks** (`bridges/island-props.ts`). An
+  Astro-level optimization with an Astro-level constraint (island props travel
+  in a URL), not an SDK feature.
+- **Thin route files re-exporting `src/theme/api-routes.ts`.** The routes
+  themselves are the SDK's (`createStorefrontRoutes`); the one-line file is a
+  file-routing detail.
+- **Its guards and validators** (`__tests__/guards/`, `scripts/validate-*.js`).
+  Powerful, and specific to its own conventions — copy the idea, not the rules.
+
+## Guards worth copying
+
+Theme-00 turns its boundaries into failing tests. A new theme should have
+equivalents of at least these:
+
+| Guard | What it pins |
+| --- | --- |
+| `sdk-boundary.test.ts` | One SDK adapter; no deep imports; no `cod-shared` import |
+| `store-context.test.ts` | One place builds the request store; every internal link goes through the store's `href` |
+| `no-validator-in-browser.test.ts` | No Zod in any browser script |
+| `page-paths.test.ts`, `page-contracts.test.ts` | Each page type at its platform path, with its required script |
+| `localized-links.test.ts` | No unlocalized internal link |
+| `manifest-artifact.test.ts` | The manifest endpoint is prerendered and carries every surface |
+| `preview-route.test.ts`, `revalidate-route.test.ts`, `cache-contracts.test.ts` | Preview headers, the `pages` cache tag, and the publish hook |
+| `home-editor-sections.test.ts`, `editor-coverage-contracts.test.ts` | Every rendered word is editable; no frozen copy |
+| `home-languages-contracts.test.ts`, `packs.test.ts` | Three-language parity, and saved copy following the store's language |
+| `sdk-boundary-contracts.test.ts` | The SDKs are imported only through their entry points |
+
+## How to read a section in Theme-00
+
+1. **Find the definition** — `src/theme/catalog/<family>/<type>.def.ts`. The
+   `type` string is the section's identity; the fields are its editable surface.
+2. **Find the component** — the `component:` import in that definition.
+3. **Find the document entry** — `src/theme/pages/<surface>.page.json`, by
+   `type` and `id`.
+4. **Find its test** — the matching file under `__tests__/contracts/`.
+5. **Check what is SDK behavior** in this documentation before assuming the
+   pattern generalizes.
+
+## What Theme-00 does not prove
+
+- It is not a starter kit. There is no generator, and no CLI; its structure is a
+  convention, not an API.
+- Its copy, design, fonts and section list are one storefront's product
+  decisions.
+- It is not the SDK's test suite. The packages' own tests in
+  `wocart-sdk/{storefront,theme}/src` define the contract; Theme-00 consumes it.
+- Its `AGENTS.md` records decisions and workarounds with dates. Some are
+  historical; the code and the packages' `CHANGELOG.md` settle what is current.
+
+## Where next
+
+- [Build a complete theme](/sdk/theme/tutorial) — the same shape, built from
+  scratch.
+- [Public API surface](/sdk/theme/api) — what each export does.
+- [Testing a theme](/sdk/theme/testing) — the checks the guards above are built
+  on.

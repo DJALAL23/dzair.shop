@@ -1,0 +1,112 @@
+---
+description: Recevez et vérifiez les événements de livraison Yalidine et ZR Express.
+---
+
+# Webhooks
+
+Les transporteurs poussent les mises à jour de livraison vers CodFlow. Le serveur vérifie la signature, stocke les événements dans une boîte de réception, répond immédiatement au transporteur et traite les événements après la réponse. Votre intégration lit l'état d'expédition résultant via l'API.
+
+Les webhooks entrants existent pour **Yalidine** et **ZR Express**. NOEST et EcoTrack n'envoient pas de webhooks ; leurs expéditions sont synchronisées toutes les cinq minutes par une tâche cron et à la demande via les endpoints de synchronisation des expéditions.
+
+## Endpoints
+
+| Transporteur | Endpoint | Forme d'envoi | Signature |
+| --- | --- | --- | --- |
+| Yalidine | `POST /webhooks/yalidine` | Un lot d'événements d'un même type | HMAC-SHA256 dans `x-yalidine-signature` |
+| Yalidine | `GET /webhooks/yalidine` | Challenge CRC | Renvoie `crc_token` en texte brut |
+| ZR Express | `POST /webhooks/zr_express` | Un événement Svix par requête | Svix HMAC-SHA256 |
+
+Les chemins sont les URL que détiennent les transporteurs. Ne les placez pas derrière une authentification : les transporteurs ne peuvent pas envoyer votre clé API. La signature est l'authentification.
+
+## Fonctionnement de la réception
+
+<Stepper>
+
+1. **Transporteur vers CodFlow**
+
+   Le transporteur envoie un `POST` signé à `/webhooks/yalidine` ou `/webhooks/zr_express`.
+
+1. **Vérifier et découper**
+
+   CodFlow vérifie la signature avec le secret de la société et découpe l'enveloppe du transporteur en événements individuels.
+
+1. **Stocker dans la boîte de réception**
+
+   Chaque événement est stocké dans `webhook_events`, indexé par son identifiant d'événement fournisseur.
+
+1. **Répondre au transporteur**
+
+   CodFlow renvoie `200 {"received":true}` sans attendre le traitement.
+
+1. **Traiter après la réponse**
+
+   `waitUntil(processInbox)` applique les jalons d'expédition et de livraison. Les échecs sont réessayés par le balayage de la boîte de réception.
+
+</Stepper>
+
+Le transporteur reçoit son `200` dès que les événements sont stockés. Les échecs de traitement ne font pas échouer le webhook ; le balayage de la boîte de réception les réessaie. Yalidine exige une réponse sous 10 secondes et réessaie une livraison échouée sept fois sur 40 heures, d'où l'importance de cette séparation.
+
+## Configurer un webhook
+
+Les deux flux commencent sur la page d'identifiants de la société de livraison dans le tableau de bord.
+
+### Yalidine
+
+1. Ouvrez la page d'identifiants de la société et copiez l'URL de réception depuis la carte de configuration du webhook.
+2. Dans le Webhooks Dashboard de Yalidine, créez un endpoint avec cette URL.
+3. Abonnez-vous aux types d'événements dont vous avez besoin. Yalidine valide l'URL avec le challenge CRC.
+4. Copiez le secret de signature depuis Yalidine dans la carte et enregistrez-le. Stockez la même valeur dans votre gestionnaire de secrets.
+
+### ZR Express
+
+1. Ouvrez la page d'identifiants de la société et choisissez **Register webhook**.
+2. Le serveur enregistre l'endpoint auprès de ZR Express et récupère le secret de signature pour vous.
+3. La carte affiche l'endpoint comme enregistré. Utilisez **Unregister** pour le supprimer.
+
+Envoyez un événement de test depuis le transporteur et confirmez que la société de livraison le reçoit.
+
+Définissez toujours un secret de webhook. Si une boutique a exactement une société de livraison associée aux webhooks d'un transporteur et que cette société n'a pas de secret, le serveur accepte encore une livraison non signée pour compatibilité — et journalise un avertissement. Ce repli n'est pas sûr pour un endpoint public.
+
+## Vérification de la signature
+
+### Yalidine
+
+Yalidine signe le corps brut de la requête avec HMAC-SHA256 en utilisant le secret de webhook de la société. La signature arrive dans `x-yalidine-signature` (ou `x_yalidine_signature`). Le serveur accepte les représentations hexadécimales minuscules, hexadécimales majuscules et base64, et compare en temps constant.
+
+Le challenge GET est distinct : lorsque Yalidine envoie les paramètres de requête `subscribe` et `crc_token`, le serveur renvoie le jeton en texte brut. Cela permet à Yalidine de vérifier l'URL avant d'envoyer des événements.
+
+### ZR Express
+
+ZR Express utilise Svix. Le contenu signé est :
+
+```text
+{svix-id}.{svix-timestamp}.{rawBody}
+```
+
+La signature arrive dans `svix-signature`, et le serveur accepte n'importe quelle entrée `v1,<base64>` séparée par des espaces. Un `svix-id`, `svix-timestamp` ou `svix-signature` manquant est rejeté.
+
+## Idempotence et ordre
+
+- Yalidine regroupe plusieurs événements dans une requête. Chaque événement possède son propre `event_id`, qui sert de clé dans la boîte de réception.
+- ZR Express envoie un événement par requête. `svix-id` est la clé de la boîte de réception.
+- Les livraisons en double sont ignorées par la boîte de réception, donc une nouvelle tentative du transporteur ne peut pas appliquer deux fois le même événement.
+- Les événements peuvent arriver dans le désordre. Le serveur applique les jalons d'expédition selon l'horodatage de l'événement, pas selon l'ordre d'arrivée.
+
+## Développement local
+
+Les transporteurs ont besoin d'une URL HTTPS publique. Exposez votre Worker local avec un tunnel de confiance, puis configurez cette origine chez le transporteur. Pour Yalidine, créez l'endpoint à `<tunnel-origin>/webhooks/yalidine` et enregistrez son secret dans la carte webhook de la société. Pour ZR Express, envoyez l'origine du tunnel comme `X-Worker-URL` lors de l'enregistrement, afin que l'endpoint créé pointe vers le tunnel au lieu de `localhost`.
+
+Le récepteur local reste `http://localhost:8787/webhooks/yalidine` ou `/webhooks/zr_express`, ce qui vous permet de rejouer une charge utile signée avec `curl` pendant le développement :
+
+```bash
+curl -X POST http://localhost:8787/webhooks/yalidine \
+  -H "Content-Type: application/json" \
+  -H "x-yalidine-signature: <hex hmac of the raw body>" \
+  --data-binary @event.json
+```
+
+## Voir aussi
+
+- [Expéditions](/api/shipments) dans la référence API
+- [Erreurs](/fr/errors) pour l'enveloppe des erreurs de livraison
+- [Sociétés de livraison](/api/delivery-companies) pour la configuration des fournisseurs et la synchronisation

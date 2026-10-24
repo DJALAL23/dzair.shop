@@ -1,0 +1,208 @@
+---
+description: Brief an AI coding assistant to build a storefront with the SDK, and review what it produces.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Use AI to build a storefront
+
+An AI assistant can build a storefront with this SDK, but only if it is given
+the boundaries. Most bad output comes from an assistant filling gaps with a
+generic e-commerce pattern: a client-side total, a hardcoded language, its own
+`fetch`, or an endpoint that does not exist.
+
+This page is the brief to hand it.
+
+## What to give the assistant
+
+At minimum:
+
+1. **The package and version** — `@wocart/storefront` `1.19.0` and
+   `@wocart/theme` `2.1.0` (or the versions your project pins).
+2. **The repository instructions** — `AGENTS.md`; it names the real boundaries.
+3. **Theme-00** — the reference consumer at `cod-astro/theme-00`. Point the
+   assistant at it for patterns, not just at this documentation.
+4. **The store contract** — which languages, which currency, whether the cart,
+   reviews, OTP and Turnstile are enabled, and where the server runs.
+
+If the assistant has no access to Theme-00, give it the relevant files:
+`src/theme/sdk.ts`, `src/middleware.ts`, `src/theme/api-routes.ts`,
+`src/actions/index.ts` and one page per type.
+
+The repository also ships an agent skill, `.agents/skills/wocart-theme/`. Its
+`references/sdk-discovery.md` is the procedure for verifying an API in the
+installed package, and `references/theme-quality.md` is the gate list for a
+storefront or theme change. Hand the agent the skill before the task.
+
+## The brief
+
+```text
+Build a storefront in this Astro project using @wocart/storefront 1.19.0.
+
+Read first:
+- AGENTS.md (repository rules)
+- cod-astro/theme-00 (reference consumer)
+- the SDK docs at /sdk/storefront
+
+Store facts:
+- API origin: <COD_SERVER_URL>
+- store key: server-only env STORE_API_KEY
+- languages: <ar, fr, en>
+- cart: <on/off>, reviews: <on/off>, OTP: <on/off>
+
+Rules:
+- Import the client from @wocart/storefront/server; never put the key in a
+  browser bundle.
+- Import root helpers from @wocart/storefront; the root is browser-safe.
+- Review media comes from @wocart/storefront/review-media and is browser-only.
+- Server owns prices, stock, delivery, coupons and order totals. Never compute
+  an order total in the browser.
+- Every write goes through an Astro action or a same-origin route built with
+  the SDK's adapters. No direct fetch to the store API from a component.
+- Read the store's languages from config.locales. Do not hardcode a list. Use
+  localeRouting, resolveLocalePath and localizeHref.
+- Handle every degraded read: config null, product null, list empty, rates {}.
+- Do not invent endpoints, fields or options. If an API is missing, stop and
+  say so.
+
+Deliver:
+1. A page map with the SDK reads each page uses.
+2. The shared files (client, middleware, routes, layouts).
+3. The pages, one at a time.
+4. Tests for failure states and pricing.
+5. Typecheck, tests and build output.
+```
+
+The last point matters: asking for a page map first is how you catch a wrong
+architecture before it is spread across ten files.
+
+## The invariants to enforce
+
+| Rule | Why |
+| --- | --- |
+| The key stays on the server | A browser key exposes the whole store |
+| The server owns money | A browser total can be edited |
+| One client per request | Caches and language must not leak between visitors |
+| `config.locales` is the language list | The store, not the theme, decides |
+| Every internal link is localized | Otherwise a French shopper falls back to Arabic |
+| Missing reads render an empty state | Reads degrade; they do not throw |
+| Writes are `ClientResult` | A refusal is expected, not an exception |
+| Review media is browser-only | It uses canvas and the microphone |
+| The basket is display; the quote is money | `localStorage` is user-editable |
+| Preview is never cached | A draft must not reach another visitor |
+| Theme text is keyed by theme | A renamed key orphans merchant edits |
+
+If an assistant proposes code that violates one of these, fix the rule in the
+brief rather than patching the symptom.
+
+## A safe build order
+
+1. **Read the store.** `config.get()` and `config.locales`. Render the layout,
+   header, footer and language switcher.
+2. **Build the catalogue.** Product list, product detail, category, collection.
+3. **Add the order form.** One product first, then the basket.
+4. **Add the quote.** Wilaya, commune, delivery type, coupon.
+5. **Add checkout.** Action, OTP, Turnstile, thank-you tracking.
+6. **Add content.** Pages, menus, landing pages, reviews.
+7. **Add preview and revalidation** only if the theme is editable.
+8. **Run the failure tests.** Turn off the server and load every page.
+
+Do not start with a checkout. It is the page with the most rules and the least
+visible progress.
+
+## What to check in the result
+
+### Imports
+
+```ts
+import { formatMoney } from "@wocart/storefront";             // browser-safe
+import { getStoreClient } from "./theme/sdk";                 // server only
+import { prepareReviewPhoto } from "@wocart/storefront/review-media"; // browser only
+```
+
+A server import in a `.astro` component is normal — Astro components run on the
+server. A server import in a `<script>` or an island is a leak.
+
+### Money
+
+The order total must come from `cart.validate` or the order response. A line
+built as `price * quantity` is fine for display; it is not the charge.
+
+### Languages
+
+The result should contain no array like `["ar", "fr"]` and no
+`if (locale === "ar")` branch for routing. It should use the helpers.
+
+### Failure states
+
+Ask the assistant to show each one:
+
+- server down → catalogue empty, not a crash;
+- missing product → 404;
+- no image → placeholder;
+- no reviews → empty section, form still available;
+- OTP enabled but provider down → bypass token, not a blocked order;
+- tracking lookup fails → no browser event.
+
+### Routes
+
+The route files should export the SDK handlers directly. A hand-written `fetch`
+proxy with its own status mapping is a second contract that will drift.
+
+## Reviewing an AI change
+
+Use the same checklist for every generated page:
+
+1. Does it read through the SDK namespace, not `fetch`?
+2. Does it use `config.locale` and `config.currencySymbol`?
+3. Does it handle `null`/empty without inventing data?
+4. Does it use `productImageSource` instead of `coverImage` alone?
+5. Does it pass only the basket to checkout and let the server price it?
+6. Does it localize every internal link?
+7. Does it avoid adding a schema or a validator to the browser?
+8. Does it add a test for the failure path?
+9. Do typecheck and tests pass?
+10. Is every new endpoint in the SDK's documented list?
+
+A “yes” to all ten is a reviewable change. A “no” to any one is a reason to stop
+before merging.
+
+## Common mistakes
+
+- **Inventing an endpoint.** If the docs do not name it, it does not exist.
+- **A client-side total.** It will disagree with the server the first time a
+  coupon or offer applies.
+- **Shipping by a guessed fee.** Use the quote; the rate table is a placeholder.
+- **A shared client.** It leaks language and caches across requests.
+- **Adding Zod to the browser.** The server validates; the browser reads what
+  it was given.
+- **Writing a theme editor.** Theme text and page documents are written by
+  CodFlow Studio, which is outside this repository.
+- **Caching the preview.** A draft must never be shared.
+- **Hardcoding `/pages/terms`.** Resolve legal pages by `kind`.
+
+## A short prompt for one page
+
+```text
+Implement the product page in src/pages/products/[handle].astro.
+
+Use Astro.locals.store.client. Read products.get(handle). Return a 404 rewrite
+when it is null.
+
+Show name, price via formatMoney with config.currencySymbol and config.locale,
+gallery images via createImageHelpers, variants via initialVariant/pickOption,
+quantity tiers via getQuantityTierViews, and the WhatsApp launcher when
+showsWidgetOn(config.whatsapp.surfaces, pathname).
+
+The order form posts to the placeOrder action with productId, productName,
+variantSelections, quantity and offerId. No price is computed in the browser.
+
+Add tests for: missing product, out-of-stock, no image, server failure.
+Run typecheck, tests and build, and report the exact commands and output.
+```
+
+<Callout type="info" title="The assistant is not the source of truth">
+When the assistant and this documentation disagree, read the SDK source and
+Theme-00. When the assistant invents a field, stop and check the type. A
+plausible answer is not an available API.
+</Callout>

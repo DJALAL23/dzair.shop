@@ -1,0 +1,187 @@
+---
+description: كل أنواع الحقول القابلة للتحرير في @wocart/theme، وكيف تُحل القيم، وكيف تُعرّف أنواع props المكوّن.
+---
+
+# الحقول
+
+**الحقل** هو عنصر تحكم واحد في المحرر: مربع نص أو منتقي صورة أو رقم أو اختيار
+لون. وإذا لم يكن الشيء حقلًا، فلا يستطيع التاجر تغييره من البيانات المحفوظة.
+
+يعلن تعريف المكوّن الحقل. ويعرضه البيان للمحرر. ويحفظ مستند الصفحة قيمته.
+ويُتحقق من القيمة مرة أخرى عند قراءة الصفحة، لذا لا يستطيع مستند محفوظ تجاوز
+القواعد.
+
+تبدأ معظم القوالب بـ `text` و`image` و`number` و`select`. أضف الأنواع الأخرى
+عندما يحتاجها المكوّن.
+
+## الحقول العددية والنصية
+
+| النوع | القيمة المحفوظة | ملاحظات |
+| --- | --- | --- |
+| `text`، `textarea` | سلسلة أو خريطة لكل لغة | واحد من `default` أو `contentKey`، لا كلاهما |
+| `number` | رقم منتهٍ | `min` و`max` اختياريان؛ ومع `step` تقع القيم على شبكة تبدأ من `min` أو 0 |
+| `boolean` | منطقي | |
+| `select` | أحد الخيارات في `options` | يجب أن يكون `default` خيارًا؛ و`optionLabels` يسمّي كل خيار |
+| `url` | هدف رابط آمن | مسار الموقع أو `#fragment` أو `?query` أو `http(s)://` أو `mailto:` أو `tel:`؛ وتُرفض حيل السكربت وعنوان URL النسبي إلى البروتوكول |
+| `color` | `#rgb` أو `#rrggbb` | يُرفض اسم اللون أو `url(…)` |
+
+`display` يغيّر طريقة عرض المحرر للحقل، لا ما يُحفظ أبدًا:
+
+```ts
+{
+  key: "align",
+  kind: "select",
+  label: "Alignment",
+  options: ["start", "center", "end"],
+  optionLabels: { start: "Start", center: "Center", end: "End" },
+  default: "center",
+  display: "segmented",
+}
+```
+
+## مراجع المتجر
+
+تحفظ هذه الحقول معرّفًا (handle) أو مفتاحًا، لا نسخة من البيانات.
+
+| النوع | القيمة المحفوظة | اقرأ بـ |
+| --- | --- | --- |
+| `menu` | معرّف قائمة (`main-menu`) | `storefront.menus.get(handle)` |
+| `collection` | معرّف مجموعة (`best-sellers`) | `storefront.products.list({ collection })` |
+| `product` | معرّف منتج | `storefront.products.get(handle)` |
+| `category` | slug فئة | `storefront.categories.list()` |
+| `image` | مفتاح كائن وسائط، لا URL أبدًا | `mediaUrl(key, MEDIA_DOMAIN)` |
+| `productList` | معرّفات منتجات مرتبة | `storefront.products.get(handle)` لكل عنصر |
+| `collectionList` | معرّفات مجموعات مرتبة | `storefront.collections.get(handle)` لكل عنصر |
+
+يقتصر `productList` و`collectionList` على 50؛ ويجب ألا تتكرر معرّفاتهما.
+والمنتج أو المجموعة المحذوفة تُقرأ غائبة، لا كخطأ.
+
+## الحقول المنظمة
+
+| النوع | القيمة المحفوظة | ملاحظات |
+| --- | --- | --- |
+| `richtext` | `{ type: "doc", version: 1, content }` أو واحد لكل لغة | شكل ثابت؛ و`formats` يضيّقه؛ واعرضه بـ `richTextToHtml` |
+| `list` | `[{ id, props }]` | حقول عناصر من أي نوع إلا `list` و`colorSchemes`؛ و`itemLabel` يسمّي حقل العنوان |
+| `style` | `{ spacing?, layout?, size? }`، لكل نقطة توقف | خطوات وخيارات، لا CSS أبدًا؛ راجع [التنسيق واللون](/ar/sdk/theme/style) |
+| `colorScheme` | معرّف مجموعة ألوان | يجب أن يملك المتجر تلك المجموعة |
+| `colorSchemes` | `[{ id, name, colors }]` | إعداد قالب، واحد على الأكثر؛ و24 مجموعة على الأكثر |
+
+يحتوي مستند النص الغني على فقرات وعناوين 2–4 وقوائم نقطية ومرقمة وفواصل أسطر
+ونص غامق ومائل ومسطّر ومشطوب وروابط آمنة. ولا شيء آخر قابل للتمثيل، لذا لا يمكن
+لقيمة محفوظة أن تحمل وسومًا أو سكربتات.
+
+```astro
+---
+import { richTextToHtml } from "@wocart/theme";
+const { body } = Astro.props;
+---
+{body && <div set:html={richTextToHtml(body, { href: store.href })} />}
+```
+
+يمنح `richTextToPlainText` الكلمات لوصف meta أو لـ `aria-label`. والحقل ذو
+`inline: true` سطر واحد: فقرة واحدة بعلامات وروابط، تُعرض دون عنصر كتلة.
+
+`id` عنصر القائمة فريد داخل قائمته، لذا لا تغيّر إعادة الترتيب هوية أي عنصر
+أبدًا. ولا تستطيع حقول العناصر استخدام `contentKey`: فكل عنصر سيقرأ المفتاح نفسه.
+والقيمة الافتراضية للقائمة تحمل معرّفاتها الخاصة.
+
+## خيارات الحقول المشتركة
+
+| الخيار | ينطبق على | ما يفعله |
+| --- | --- | --- |
+| `key` | كل حقل | اسم prop الدقيق الذي يتلقاه المكوّن |
+| `label` | كل حقل | الاسم الظاهر للمحرر؛ سلسلة أو خريطة لكل لغة |
+| `description` | كل حقل | نص مساعدة المحرر |
+| `required` | كل حقل | يجب أن توجد القيمة بعد التراجع إلى المحتوى/الافتراضي |
+| `visibleIf` | كل حقل | شرط خاص بالمحرر على الحقول المجاورة |
+| `default` | معظم الحقول | قيمة وقت الإنشاء؛ ولا تملك الصور واحدة |
+| `contentKey` | `text`، `textarea` | نص موروث من حزمة محتوى القالب |
+| `optionLabels` | `select` | كلمات المحرر لكل خيار |
+| `min`، `max`، `step` | `number` والقوائم | الحدود والشبكة / طول القائمة |
+| `display` | `select`، `number` | `dropdown` أو `radio` أو `segmented` أو `input` أو `slider` |
+| `formats` | `richtext` | تنسيقات النص والكتل المسموحة |
+| `inline` | `richtext` | وضع السطر الواحد |
+| `itemLabel` | `list` | حقل العنصر الذي يعرضه المحرر كعنوان |
+
+`visibleIf` شرط JSON صغير ثابت، لا تعبير:
+
+```ts
+{
+  key: "picked",
+  kind: "productList",
+  label: "Picked products",
+  visibleIf: { field: "source", equals: "picked" },
+}
+```
+
+تدعم الشروط `{ field, equals }` و`{ field, in }` و`{ all }` و`{ any }` و`{ not }`،
+متداخلة على أربعة مستويات كحد أقصى. ويتجاهل العارض الشرط، ويحتفظ الحقل المخفي
+بقيمته.
+
+## كيف تُحدَّد القيمة
+
+لحقل على نسخة، الترتيب هو:
+
+1. قيمة النسخة المحفوظة،
+2. `content[contentKey]` للحقول النصية،
+3. `default` الحقل،
+4. محذوف — تُطبَّق قيمة prop الافتراضية للمكوّن.
+
+الترجمة الغائبة ليست خطأ. والخريطة المشوهة `invalid-prop`؛ والمفتاح غير المعروف
+`unknown-prop`؛ والحقل المطلوب بلا قيمة `missing-required-prop`.
+
+يستطيع الكاتب فحص قيمة واحدة قبل الحفظ:
+
+```ts
+import { checkFieldValue } from "@wocart/theme";
+
+const result = checkFieldValue(field, value);
+if (!result.ok) console.error(result.message);
+```
+
+فحص جانب الكتابة أصرّ من فحص جانب القراءة: فمرجع الصورة أو عنصر القائمة بمفتاح غير معلن
+يُرفض هنا، بينما يتجاهله القارئ.
+
+## Props ذات أنواع محددة
+
+اشتق props المكوّن من تعريفه. لا تكتبها مرتين.
+
+```astro
+---
+import type { InferProps } from "@wocart/theme";
+import type { bestSellers } from "./best-sellers.def";
+
+const { products = [], limit } = Astro.props as InferProps<typeof bestSellers>;
+---
+```
+
+`InferProps`:
+
+- يجعل الحقل ذا `default` حاضرًا دائمًا،
+- ويجعل كل حقل آخر اختياريًا،
+- ويضيّق `select` إلى قيم خياراته الحرفية،
+- ويحوّل `image` إلى `ResolvedImage` (مع `alt` باللغة المعروضة بالفعل)،
+- ويحوّل `list` إلى `{ id }` مع حقول العناصر،
+- ويدمج كل ما يعيده `load` فوق الحقول.
+
+يفعل العارض الدمج نفسه وقت التشغيل: `{ ...resolved.props, ...loaded }`. وإذا كان
+مكوّن التعريف يقرأ prop من `load`، فأبقِ ذلك الاسم خارج `fields`.
+
+## الصور والقوائم عمليًا
+
+لا يملك حقل الصورة قيمة افتراضية لأن القالب لا يستطيع معرفة وسائط المتجر. ويعرض
+المكوّن بديله الخاص عندما لا تكون هناك صورة مختارة.
+
+```astro
+---
+import type { InferProps } from "@wocart/theme";
+const { image } = Astro.props as InferProps<typeof banner>;
+---
+{image && <img src={mediaUrl(image.key, MEDIA_DOMAIN)} alt={image.alt ?? ""} />}
+```
+
+تحمل قيمة الصورة أيضًا `width` و`height` و`focal` الاختيارية (نقطة من 0 إلى 1
+على كل محور). راجع [الصور](/ar/sdk/theme/images) لنطاق الوسائط وخدمة صور Astro.
+
+تتلقى القائمة `[{ id, ...fields }]`. ويُسقط القارئ عنصرًا تالفًا أو مكررًا
+ويحتفظ بالباقي، حتى `max`.

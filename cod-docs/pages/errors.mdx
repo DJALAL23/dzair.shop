@@ -1,0 +1,109 @@
+---
+description: The error envelope, validation details, status codes and retry guidance.
+---
+
+# Errors
+
+Application errors use a consistent envelope with a human-readable message, a stable code and a category. Validation errors add field-level details, and unknown errors return a request ID for support.
+
+```json
+{
+  "error": "Order not found",
+  "code": "ORDER_NOT_FOUND",
+  "category": "BUSINESS_LOGIC"
+}
+```
+
+## Envelope
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `error` | string | A message safe to show to a developer |
+| `code` | string | A stable machine-readable code |
+| `category` | string | `VALIDATION`, `AUTHENTICATION`, `BUSINESS_LOGIC` or `SYSTEM` |
+| `context` | object | Optional details; present when the error has more to say |
+
+A `context` is omitted when there is nothing to add. Do not parse the `error` message for logic; switch on `code`.
+
+## Categories
+
+| Category | Typical status | Meaning |
+| --- | --- | --- |
+| `VALIDATION` | `400` | The request body, query or path is invalid |
+| `AUTHENTICATION` | `401`, `403` | Missing credentials, an invalid key, or an inactive user |
+| `BUSINESS_LOGIC` | `404`, `409`, `422` | The request is valid but the resource or current state does not allow it |
+| `SYSTEM` | `500` | An unexpected server error |
+
+## Validation errors
+
+Zod validation failures return `VALIDATION_FAILED` with one entry per field:
+
+```json
+{
+  "error": "Validation failed",
+  "code": "VALIDATION_FAILED",
+  "category": "VALIDATION",
+  "context": {
+    "fields": [
+      {
+        "path": "items.0.quantity",
+        "message": "Expected number, received string",
+        "code": "invalid_type"
+      }
+    ]
+  }
+}
+```
+
+`path` is dot-separated and can point into nested objects and arrays. `code` comes from Zod and is useful for generic form handling; `message` is the developer-facing explanation.
+
+## Unexpected errors
+
+Unknown errors never expose the original message, which could contain SQL, table names, file paths or secrets. The response carries a request ID instead:
+
+```json
+{
+  "error": "An unexpected error occurred",
+  "code": "INTERNAL_SERVER_ERROR",
+  "category": "SYSTEM",
+  "context": {
+    "requestId": "3f1c0a9e-6a1b-4a27-8f3e-0d1f2a7c9b11"
+  }
+}
+```
+
+The full error is logged on the server under the same request ID. Include it when reporting a problem.
+
+## Responses that are not in the envelope
+
+A few guards answer before the application error handler runs and use a smaller body:
+
+- **RBAC scope failures** return `403` with `{ "error": "Insufficient permissions", "required": "orders:read" }`.
+- **Store key failures** return `401` with `{ "error": "Missing store API key" }` or `{ "error": "Invalid store API key" }`.
+
+Treat a body without a `code` as a transport-level rejection, not a business result.
+
+## Status codes
+
+| Status | Meaning | What to do |
+| --- | --- | --- |
+| `200` | Success | Read the response |
+| `201` | Created | Read the new resource |
+| `400` | Validation failed | Fix the highlighted fields |
+| `401` | Missing or invalid credentials | Check the key and the header name |
+| `403` | Inactive user or missing scope | Check the account status and the user's scopes |
+| `404` | Resource not found | Check the ID, handle or slug |
+| `409` | Conflict | The resource already exists or the state has moved on |
+| `422` | Business rule violation | Read the code and adjust the request |
+| `500` | Unexpected server error | Retry with backoff; report the request ID if it persists |
+
+## Retry guidance
+
+- **Do not retry** `400`, `401`, `403`, `404` or `422` with the same request. Change the request or the credentials first.
+- **Retry `500`** with exponential backoff and jitter. Keep the request ID from the response.
+- **Creates are not idempotent by default.** A retried create can create a second resource. Before retrying, read the resource back by a natural key such as an order number, handle or phone number.
+- **Carrier webhooks are idempotent at intake.** The inbox deduplicates events by their provider event ID, so a carrier retry does not process the same event twice.
+
+## Finding a code
+
+The [API reference](/api) shows the `ErrorResponse` envelope every operation uses. Codes are stable identifiers grouped by domain: validation, authentication, orders, products, delivery, reviews, landing pages, MCP management and system errors.

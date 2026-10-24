@@ -28,6 +28,14 @@ TypeScript, deployed on Cloudflare (Workers, D1, R2, KV).
   installs `@wocart/*` from the npm registry, exactly like an outside theme,
   and has its own lockfile. Its commands and boundaries differ — read
   `cod-astro/theme-00/AGENTS.md` before editing it.
+- `cod-docs/` — the published developer site (Zudoku): the OpenAPI reference
+  plus the `@wocart/storefront` and `@wocart/theme` guides in **English, French
+  and Arabic**. **Not a workspace** either: its own `package-lock.json`, its own
+  Zudoku toolchain, and the root `overrides` do not apply to it. Its guides are
+  hand-written MDX; `pages/sdk/*/reference/` and `openapi.json` are generated
+  (TypeDoc over the installed `.d.ts`, and a live `/api/openapi.json` fetch).
+  Read `cod-docs/README.md` before editing; `npm run check:i18n` and
+  `npm run typecheck` are the documentation gates.
 
 There is **one root `package.json` with npm workspaces** and ONE root
 `package-lock.json` for every workspace. The one exception is Theme-00, which
@@ -72,6 +80,18 @@ readers. The SDK's `browser-bundle.test.ts` and Theme-00's
 
 Theme-00 has extra validators (`npm run validate:all`) — see
 `cod-astro/theme-00/AGENTS.md` for its commands and definition of done.
+
+The documentation site is installed and checked separately:
+
+```sh
+cd cod-docs && npm ci
+cd cod-docs && npm run typecheck
+cd cod-docs && npm run check:i18n   # en/fr/ar parity + navigation
+cd cod-docs && npm run dev          # zudoku dev :3000
+```
+
+A docs build fetches `/api/openapi.json`, so it needs `cod-server` running
+locally (or `COD_OPENAPI_URL` pointing at a saved spec).
 
 ## Cloud resource configuration
 
@@ -332,6 +352,7 @@ router.openapi(myRoute.route, myRoute.handler);
 | `wayfinder` | Navigating the codebase |
 | `codflow-setup` | Setting up the project (Cloudflare + Vercel) |
 | `storefront-vercel` | Deploying or configuring the customer storefront on Vercel |
+| `wocart-theme` | Building, changing, reviewing or documenting a theme on the `@wocart/*` SDKs (contract verification, architecture, quality gates, en/fr/ar docs) |
 | `whatsapp-otp` | WhatsApp OTP verification feature (dzverify) |
 | `Ecotrack` | EcoTrack carrier integration |
 | `zr-express` | ZR Express delivery platform integration (129 endpoints, organized per domain) |

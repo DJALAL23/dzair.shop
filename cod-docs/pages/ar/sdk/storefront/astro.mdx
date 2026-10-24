@@ -1,0 +1,219 @@
+---
+description: اربط مسارات API من الأصل نفسه في SDK وإجراء نموذج Astro في واجهة المتجر.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# إجراءات ومسارات Astro
+
+لا يحمل المتصفح مفتاح المتجر أبدًا. كل كتابة تمر عبر مسار من الأصل نفسه في
+تطبيق Astro، وذاك المسار يستدعي SDK على الخادم.
+
+يوفّر SDK محوّلين:
+
+- `createStorefrontRoutes` — المسارات التي تحتاجها كل واجهة متجر.
+- `createProxyEndpoint` — مسار متحقق منه لنقطة النهاية الخاصة بك.
+
+يوجد كلاهما في `@wocart/storefront/astro`، وهو نقطة دخول للخادم فقط.
+
+## عميل واحد لكل طلب
+
+يجب أن يكون عميل المسار خاصًا بالطلب نفسه، لا نسخة واحدة على مستوى الوحدة:
+
+```ts
+// src/theme/sdk.ts
+import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
+import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
+
+export function getStoreClient(locale?: string): StoreClient {
+  return createStoreClient({
+    serverUrl: COD_SERVER_URL,
+    apiKey: STORE_API_KEY,
+    ...(locale ? { locale } : {}),
+    theme: "theme-00",
+  });
+}
+```
+
+تأتي `serverUrl` و`apiKey` من بيئة الخادم في قالب حقيقي، ولا تأتي أبدًا من
+متغيرات `PUBLIC_*`. فالعميل المشترك سيحمل لغة زائر وذاكرة تخزينه إلى طلب زائر آخر.
+
+## مصنع المسارات
+
+```ts
+// src/theme/api-routes.ts
+import type { APIContext } from "astro";
+import { createStorefrontRoutes } from "@wocart/storefront/astro";
+import { getStoreClient } from "./sdk";
+
+export const routes = createStorefrontRoutes<APIContext>({
+  client: (context) => {
+    const locale = context.locals.store?.locale;
+    return getStoreClient(locale);
+  },
+});
+```
+
+كل معالج مُصدَّر يتكون من سطر واحد:
+
+```ts
+// src/pages/api/cart/validate.ts
+import { routes } from "../../../theme/api-routes";
+export const POST = routes.cartValidate;
+```
+
+## المسارات
+
+| الملف | التصدير | الطلب | الاستجابة |
+| --- | --- | --- | --- |
+| `api/otp/send.ts` | `routes.otpSend` | `POST { phone }` | `{ data: OtpSendResult }` |
+| `api/otp/verify.ts` | `routes.otpVerify` | `POST { phone, requestId, code }` | `{ data: OtpVerifyResult }` |
+| `api/cart/validate.ts` | `routes.cartValidate` | `POST` سلة أو منتج + خيارات عرض السعر | `{ success: true, data: CartValidation }` |
+| `api/abandoned/index.ts` | `routes.abandonedUpsert` | `POST AbandonedCheckoutInput` | `204` |
+| `api/abandoned/convert.ts` | `routes.abandonedConvert` | `POST { sessionId, orderId, orderNumber }` | `204` |
+| `api/communes/[wilayaId].ts` | `routes.communes` | `GET` معامل مسار | `{ data: Commune[] }` |
+| `api/product-reviews/[productId].ts` | `routes.reviewsList` | `GET` + `limit`/`offset` | `{ data: Review[], total }` |
+| `api/review-eligibility.ts` | `routes.reviewEligibility` | `POST { orderNumber, phone, turnstileToken? }` | `{ data: ReviewEligibility }` |
+| `api/review-upload.ts` | `routes.reviewUpload` | `PUT` جسم ملف + ترويسة `X-Review-Grant` | `201 { data: ReviewUpload }` |
+| `api/submit-review.ts` | `routes.reviewSubmit` | `POST ReviewInput` | `201 { success: true, data }` |
+
+يتولى المصنع بالفعل:
+
+- فحص الأصل المختلف في كل POST/PUT؛
+- تمرير `User-Agent` وIP و`Referer` الخاص بالمتسوق إلى الخادم؛
+- حدود الإدخال (طول السلة، حدود المراجعات، نطاق الولاية)؛
+- رفع المراجعات المتدفق، دون تخزين الملف في الذاكرة؛
+- حالة الخطأ التي يستلزمها `domainError` من الخادم.
+
+لا تغلّف هذه المعالجات في مكوّن ولا تُعِد تنفيذ فحوصها.
+
+<Callout type="caution" title="استيرادات الخادم فقط">
+يجب ألا يصل `@wocart/storefront/astro` و`@wocart/storefront/server` أبدًا إلى
+حزمة المتصفح. فالاستيراد من جانب العميل يسرّب مفتاح المتجر أو يكسر البناء
+بوحدات Node فقط. أبقِهما في ملفات المسارات `.ts` والإجراءات والوسيط.
+</Callout>
+
+## نقطة نهاية مخصصة
+
+لاستدعاء الخادم الخاص بك، استخدم البروكسي نفسه كي يبقى التحقق وتعيين الأخطاء
+متطابقين:
+
+```ts
+// src/pages/api/availability.ts
+import { z } from "zod";
+import { createProxyEndpoint } from "@wocart/storefront/astro";
+import { getStoreClient } from "../../theme/sdk";
+
+const input = z.object({ productId: z.string().min(1).max(200) });
+
+export const POST = createProxyEndpoint({
+  method: "POST",
+  inputSchema: input,
+  csrfProtection: true,
+  client: (body) => getStoreClient().products.get(body.productId),
+});
+```
+
+وللحصول على GET بمعاملات مسار:
+
+```ts
+export const GET = createProxyEndpoint({
+  method: "GET",
+  pathParams: { wilayaId: "number" },
+  client: ({ wilayaId }) => getStoreClient().geo.communes(wilayaId),
+});
+```
+
+خيارات مفيدة:
+
+| الخيار | الغرض |
+| --- | --- |
+| `inputSchema` | التحقق من جسم JSON قبل استدعاء الخادم |
+| `queryParams` | قراءة معاملات استعلام مسماة لطلب GET |
+| `pathParams` | قراءة معاملات المسار وتحويل نوعها |
+| `readInput` | بناء الإدخال من تدفق أو طلب مخصص |
+| `forwardAttribution` | تمرير ترويسات الزائر |
+| `successBody` | إعادة تشكيل غلاف النجاح |
+| `successStatus` | تغيير حالة النجاح (201 لصف تم إنشاؤه) |
+| `noContent` | الرد بـ204 دون جسم |
+
+اترك `errorStatus` غير محدد. فالافتراضي يعيّن رفض التحقق إلى 400، والرفض
+التجاري إلى 422، وتحديد المعدل إلى 429، والمهلة إلى 504، وفشل الخادم الأعلى
+غير المتوقع إلى 502.
+
+## إجراءات النماذج وPRG
+
+تحتاج إجراءات Astro المستدعاة من نموذج HTML إلى خطوة وسيط واحدة. ويوفرها SDK
+كي يخزّن كل قالب النتيجة بالطريقة نفسها:
+
+```ts
+// src/middleware.ts
+import { defineMiddleware } from "astro:middleware";
+import { getActionContext } from "astro:actions";
+import { runFormAction } from "@wocart/storefront/astro";
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const { action, setActionResult, serializeActionResult } =
+    getActionContext(context);
+
+  await runFormAction({
+    action: action && {
+      calledFrom: action.calledFrom,
+      name: action.name,
+      handler: action.handler,
+    },
+    setActionResult,
+    serializeActionResult,
+  });
+
+  return next();
+});
+```
+
+تشغّل `runFormAction` الإجراء وتخزّن نتيجته لهذه **الاستجابة**. ولا تفعل شيئًا
+لاستدعاء JSON أو طلب عادي.
+
+<Callout type="caution" title="لا تعِد التوجيه من الوسيط">
+يحتفظ Astro 7 بنتيجة الإجراء للاستجابة التي يجري عرضها فقط. والتوجيه من
+الوسيط يصل إلى الصفحة التالية بلا نتيجة: فالطلب الناجح لا يبلغ صفحة الشكر
+أبدًا، والطلب المرفوض لا يعرض رسالة. وجّه من الصفحة بعد قراءة
+`getActionResult()`.
+</Callout>
+
+معالج الصفحة هو صاحب القرار:
+
+```astro
+---
+import { getActionResult } from "astro:actions";
+import { actions } from "astro:actions";
+
+const result = getActionResult(actions.placeOrder);
+if (result && !result.error) {
+  return Astro.redirect(thankYouHref(result.data));
+}
+---
+```
+
+## خدمات مرتبطة بالطلب
+
+تحتاج المسارات إلى عميل المتجر، وقد يحتاج بدوره إلى لغة الطلب. وتحتاج بعض
+القوالب أيضًا إلى إعداد المتجر المحلول في `locals`:
+
+```ts
+// src/middleware.ts
+context.locals.store = await resolveStoreRequest(context);
+```
+
+اضبط `locals` قبل `next()` وقبل تشغيل أي مسار. فالمسار الذي يستدعي
+`context.locals.store` دون ذلك يفشل بوصول غير معرّف، لا بخطأ مفيد.
+
+## قائمة تحقق للربط
+
+- يُستدعى مصنع العميل لكل طلب، ولا يُستدعى أبدًا في المستوى الأعلى للوحدة.
+- `COD_SERVER_URL` و`STORE_API_KEY` قيم بيئة خادم.
+- كل ملف مسار يصدّر المعالج، لا غلافًا.
+- مسار رفع المراجعة هو `PUT`، لا `POST`.
+- `communes` هو GET مع `[wilayaId]` في المسار.
+- تُستدعى `runFormAction` لإجراءات النماذج ولا تعيد التوجيه أبدًا.
+- تُقرأ `getActionResult` في الصفحة التي تُعرض بعد POST.
+- تستخدم نقطة النهاية المخصصة `createProxyEndpoint`، لا بروكسيًا مكتوبًا يدويًا.

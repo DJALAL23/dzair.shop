@@ -1,0 +1,194 @@
+---
+description: Comment @wocart/theme transforme les étapes de style, les points de rupture et les schémas de couleurs en contrôles marchands sûrs et en CSS.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Style et couleur
+
+Un champ `style` ne stocke pas de CSS. Il stocke un petit ensemble de choix : une
+étape d'espacement, une largeur, un alignement. Le thème décide de ce que ces
+choix signifient en pixels ; le SDK écrit les classes.
+
+Cela garde les modifications du marchand sûres. Un marchand peut élargir une
+section ou ajouter de l'espace au-dessus sans écrire une règle qui casse sur
+mobile. Le même principe s'applique à la couleur : un champ `colorScheme` stocke
+un identifiant de schéma, pas des valeurs hexadécimales.
+
+## Donner une taille aux étapes
+
+Les noms des étapes et les largeurs appartiennent à la plateforme. Un thème
+associe ceux qu'il propose à des pixels :
+
+```ts
+const theme = defineTheme({
+  // …
+  style: {
+    spacing: { s0: 0, s2: 8, s4: 16, s6: 32, s8: 64 },
+    widths: { wide: 1280, content: 960, narrow: 640 },
+  },
+});
+```
+
+| Échelle | Noms |
+| --- | --- |
+| Étapes d'espacement | `s0` à `s12` |
+| Largeurs | `wide`, `content`, `narrow` (plus `full`) |
+
+Une taille que le thème ne définit pas n'a pas de classe. Un style enregistré qui
+la nomme est rendu sans style.
+
+## Proposer un champ de style
+
+```ts
+{
+  key: "style",
+  kind: "style",
+  label: "Style",
+  panels: ["spacing", "size"],
+  default: {
+    spacing: { paddingBlockStart: { base: "s4", lg: "s8" } },
+  },
+}
+```
+
+| Panneau | Ce qu'il contrôle |
+| --- | --- |
+| `spacing` | `paddingBlockStart`, `paddingBlockEnd`, `paddingInline`, `marginBlockStart`, `marginBlockEnd`, `gap` |
+| `layout` | `direction`, `align`, `justify`, `wrap` |
+| `size` | `width`, `minHeight` |
+
+Chaque propriété est responsive. Une valeur contient un choix par point de
+rupture :
+
+| Point de rupture | À partir de |
+| --- | --- |
+| `base` | Toutes les largeurs |
+| `md` | 768 px |
+| `lg` | 1024 px |
+
+Les valeurs sont pensées mobile d'abord : un point de rupture plus large hérite
+du plus étroit. Le SDK utilise les propriétés logiques CSS, afin qu'une boutique
+de droite à gauche se reflète d'elle-même.
+
+La couche d'écriture refuse une étape ou une largeur à laquelle le thème ne donne aucune
+taille. La couche de lecture rend une valeur enregistrée sans style et la signale ; elle
+n'invente jamais de taille.
+
+## Mettre les classes sur la page
+
+```astro
+---
+import { schemeClass, styleClasses } from "@wocart/theme";
+const { style, scheme } = Astro.props;
+---
+<section class={`${schemeClass(scheme)} ${styleClasses(style)}`}>
+  <slot />
+</section>
+```
+
+`styleClasses` renvoie les classes pour les étapes et largeurs choisies.
+`schemeClass` renvoie `.wc-scheme-<id>` pour un identifiant de schéma valide, ou
+une chaîne vide.
+
+## Servir la feuille de style
+
+Le SDK peut générer une feuille de style contenant chaque classe que les tailles
+du thème autorisent.
+
+```ts
+// src/pages/wocart-styles.css.ts
+import { themeStylesEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeStylesEndpoint(theme);
+```
+
+Placez ensuite le lien et les schémas de la boutique dans le `<head>` de la mise
+en page :
+
+```astro
+---
+import ThemeStyles from "@wocart/theme/astro/ThemeStyles.astro";
+---
+<head>
+  <ThemeStyles schemes={settings.colorSchemes} />
+</head>
+```
+
+`ThemeStyles` active `stylesheet` par défaut et lie `/wocart-styles.css`. Un thème
+qui intègre lui-même les classes passe `stylesheet={false}` ; Theme-00 le fait,
+en générant le même CSS avec `themeStyleSheet(theme.style)` dans son script de
+build.
+
+`ThemeStyles` écrit aussi les schémas de couleurs de la boutique sous forme d'une
+petite feuille en ligne. Sur une page avec une Content-Security-Policy, il ajoute
+le hachage de cette feuille à la politique, afin que `style-src` n'ait pas besoin
+de `'unsafe-inline'`.
+
+## Schémas de couleurs
+
+Un schéma de couleurs est un ensemble nommé de couleurs pour chaque rôle :
+
+| Rôle | Utilisé pour |
+| --- | --- |
+| `background` | Fond de section |
+| `text` | Texte courant |
+| `heading` | Titres |
+| `accent` | Soldes et mises en avant |
+| `button` | Fond du bouton |
+| `buttonText` | Libellé du bouton |
+| `border` | Bordures |
+
+Les schémas de la boutique sont un seul réglage de thème `colorSchemes`. Chaque
+schéma possède un `id`, un `name` traduit et une couleur hexadécimale pour chaque
+rôle. Un thème peut déclarer au plus 24 schémas. Les identifiants sont en lettres
+minuscules, chiffres et tirets, sur 32 caractères au maximum ; les sections
+stockent l'identifiant, il doit donc rester stable.
+
+```ts
+{
+  key: "colorSchemes",
+  kind: "colorSchemes",
+  label: "Color schemes",
+  default: [
+    {
+      id: "scheme-1",
+      name: { en: "Light", fr: "Clair" },
+      colors: {
+        background: "#ffffff",
+        text: "#3b4250",
+        heading: "#0f1626",
+        accent: "#c8102e",
+        button: "#0f1626",
+        buttonText: "#ffffff",
+        border: "#e8e8e5",
+      },
+    },
+  ],
+}
+```
+
+Une section en choisit un avec un champ `colorScheme` :
+
+```ts
+{ key: "scheme", kind: "colorScheme", label: "Colors", default: "scheme-1" }
+```
+
+Le schéma propre à la page est un réglage de la boutique, pas une valeur du
+document de page. Le document de page ne contient que l'**id**, jamais une
+couleur. Changer les couleurs d'un schéma change chaque section qui l'utilise.
+
+`colorSchemeCss(schemes)` transforme le réglage en propriétés personnalisées
+telles que `--wc-color-background` et `--wc-color-button-text` sur
+`.wc-scheme-<id>`, avec le fond et le texte appliqués. `contrastRatio(a, b)` donne
+le rapport WCAG sur lequel un éditeur peut avertir : inférieur à 4,5 pour le
+texte.
+
+<Callout type="caution" title="Ne stockez pas de CSS dans une page">
+Une valeur `style` est un ensemble d'étapes et de choix. Une valeur `colorScheme`
+est un identifiant. Tout le reste sort du contrat ; un thème qui accepte du CSS
+brut a renoncé aux garanties qui rendent les documents enregistrés portables d'un
+thème à l'autre.
+</Callout>

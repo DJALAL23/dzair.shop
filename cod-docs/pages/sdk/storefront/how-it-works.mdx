@@ -1,0 +1,198 @@
+---
+description: The storefront layers, the page types, what a read returns, how writes fail and where the security boundary sits.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# How it works
+
+A CodFlow storefront has three layers:
+
+1. **Your Astro pages** own the routes, layout, copy and interaction.
+2. **`@wocart/storefront`** reads the store and calls its server. The root entry
+   is browser-safe; the client and the key live on the server.
+3. **`cod-server`** owns prices, stock, coupons, delivery, OTP, order acceptance
+   and every other rule.
+
+The important consequence: a page renders what the server returned. It does not
+calculate a price, decide that a coupon applies, or mark an order as accepted.
+
+## What a source file imports
+
+| Your file | Import from |
+| --- | --- |
+| Page frontmatter, middleware, action, API route | `@wocart/storefront/server` and `@wocart/storefront/astro` |
+| Browser script or island | `@wocart/storefront` |
+| Review photo or voice script | `@wocart/storefront/review-media` |
+
+The root entry has no API key and no client factory. That is deliberate, not a
+convention: the package's contract test fails if the key implementation leaks
+into the root artifact.
+
+## One client per request
+
+Create the client where the request is served, pass it to the page, and let it
+go with the response.
+
+```ts
+// src/theme/store.ts — server only
+import { createStoreClient } from "@wocart/storefront/server";
+
+export function getStore(locale?: string) {
+  return createStoreClient({
+    serverUrl: process.env.COD_SERVER_URL!,
+    apiKey: process.env.STORE_API_KEY!,
+    ...(locale ? { locale } : {}),
+    onError: (error) => console.warn(error.operation, error.code),
+  });
+}
+```
+
+A client holds one store's key and one language's caches. Do not keep one as a
+module-global and do not share it across stores.
+
+## Page types and their paths
+
+The platform owns these paths. A storefront renders each page it supports at the
+path the platform uses, and builds links with `storefrontPath`.
+
+| Page type | Path | Main reads |
+| --- | --- | --- |
+| Home | `/` | `config.get`, `products.list`, `collections.get` |
+| Catalog | `/products` | `products.page` |
+| Category | `/category/:slug` | `categories.list`, `products.list({ categoryId })` |
+| Collection | `/collections/:handle` | `collections.get`, `products.list({ collection })` |
+| Product | `/products/:handle` | `products.get` |
+| Store page | `/pages/:slug` | `pages.get` |
+| Landing page | `/lp/:slug` | `pages.landing` |
+| Checkout | `/checkout` | Browser basket, then `cart.validate` |
+| Thank you | `/thank-you` | `orders.tracking` |
+
+```ts
+import { storefrontPath } from "@wocart/storefront";
+
+storefrontPath("product", { handle: "linen-shirt" });
+storefrontPath("category", { slug: "women" });
+storefrontPath("checkout");
+```
+
+Other paths (`/about`, `/offers/summer`) belong to your Astro project. The SDK
+does not constrain them.
+
+## A read degrades; it does not throw
+
+Every read resolves to an empty value when the server cannot be reached, a
+response no longer matches the contract, or the resource is not public:
+
+| Read | Empty value |
+| --- | --- |
+| `config.get()` | `null` |
+| `products.get()` | `null` |
+| `products.list()` | `[]` |
+| `products.page()` | `{ items: [], hasNext: false }` |
+| `categories.list()` | `[]` |
+| `collections.get()` | `null` |
+| `menus.get()` | `null` |
+| `pages.get()` / `pages.landing()` | `null` |
+| `shipping.rates()` | `{}` |
+| `geo.communes()` | `[]` |
+| `cart.validate()` | a failure result |
+| `orders.tracking()` | `null` |
+
+A design decision follows: an empty state is part of the page, not an exception
+handler. “No products yet” and “the API is briefly down” look the same to the
+reader. `onError` is how the operator tells them apart.
+
+```ts
+const products = await getStore().products.list();
+
+if (products.length === 0) {
+  return renderEmptyCatalog();
+}
+```
+
+A catalogue can also be empty by design. Do not put a red error banner on a new
+store with no products.
+
+<Callout type="info" title="Null on a detail page is a real 404">
+For `products.get`, `collections.get`, `menus.get`, `pages.get` and
+`pages.landing`, `null` means “not public or not found”. Render your 404, not a
+200 page with blank fields.
+</Callout>
+
+## A write returns a result
+
+Writes never throw for a refusal. They answer with a discriminated result:
+
+```ts
+const result = await store.orders.create(body);
+
+if (!result.success) {
+  if (result.domainError.category === "validation") {
+    // Show the field issues.
+  } else if (result.domainError.category === "business") {
+    // Show the store's refusal.
+  }
+  return;
+}
+
+console.log(result.data.orderNumber);
+```
+
+`result.domainError` always exists on an SDK failure. Read its `category`,
+`code`, `retryable`, `sideEffect` and `fieldIssues` rather than parsing an HTTP
+status.
+
+The categories are:
+
+| Category | Meaning | Usual response |
+| --- | --- | --- |
+| `validation` | A field or shape is wrong | Mark the field and keep the form |
+| `authentication` | The store key or setup is wrong | Log it; do not retry in the browser |
+| `business` | The store refused the request | Show the server's message |
+| `transport` | Network, timeout or cancellation | Offer a retry when `retryable` |
+| `system` | The server failed | Keep the shopper's input and offer a retry |
+| `unknown` | An unclassified gateway failure | Keep the input; do not claim success |
+
+## Retries and caching
+
+The SDK already applies the safe policy:
+
+- **Safe reads** are retried after a transport failure or a 5xx.
+- **Writes are never retried.** A dropped connection after an order may mean the
+  order exists. Check before asking the shopper to submit again.
+- `config.get()`, `categories.list()` and `geo.communes(id)` cache a successful
+  result for the client's lifetime. Failures are never cached.
+- Products, pages, menus, collections, rates and page data are fetched fresh.
+  Your route cache is what decides how often a page is rebuilt.
+
+`readTimeoutMs` defaults to 10 seconds for reads. Writes have no default
+timeout: a write cut off by a timer may already have happened.
+
+## The security boundary
+
+The store key is a server secret. Browser code never sees it.
+
+```text
+Browser
+  └─ POST /api/cart/validate        (your same-origin route)
+       └─ createStoreClient(...)     (server only, key from env)
+            └─ cod-server            (prices and rules)
+```
+
+This is also why the SDK's browser helpers are not a second API. `formatMoney`,
+the basket, the OTP machine and image URL builders run locally; anything that
+needs the key goes through your route.
+
+## What the server still decides
+
+Even if your page displays it, the server re-checks:
+
+- the price of every basket line;
+- stock and sellability;
+- whether a coupon applies;
+- the delivery fee for the chosen destination;
+- whether OTP or Turnstile is required;
+- whether an order is accepted at all.
+
+The browser may be optimistic. The order is not.

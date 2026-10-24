@@ -1,0 +1,208 @@
+---
+description: Read legal and custom pages, menus, landing pages and the saved page document for an editable theme.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Pages and menus
+
+Store pages, menus and landing pages are merchant content. The SDK reads them;
+the theme decides where they sit and how they look.
+
+## Store pages
+
+`pages.get(slug)` returns a published legal or custom page:
+
+```ts
+const page = await store.pages.get("terms");
+
+if (!page) return Astro.rewrite("/404");
+
+page;
+// {
+//   id,
+//   kind: "terms" | "privacy" | "refund" | "shipping" | "custom",
+//   slug,
+//   locale,
+//   title,
+//   bodyHtml,
+//   metaTitle,
+//   metaDescription,
+// }
+```
+
+`bodyHtml` is already sanitised by the server. Render it with `set:html` and do
+not re-sanitise it into a different shape:
+
+```astro
+<article>
+  <h1>{page.title}</h1>
+  <div set:html={page.bodyHtml} />
+</article>
+```
+
+A draft, unpublished or unknown slug returns `null`. That is a real 404, not a
+page with no body.
+
+Resolve legal pages by `kind` when the rule names one. A merchant may rename a
+slug, but the Terms page is still `kind: "terms"`.
+
+```ts
+const terms = config.pages.find((item) => item.kind === "terms");
+```
+
+`pages.get` is fetched fresh on every call. A merchant's edit reaches the next
+server render, subject to your route cache.
+
+## Menus
+
+`menus.get(handle)` returns a menu tree:
+
+```ts
+const menu = await store.menus.get("main-menu");
+
+menu;
+// {
+//   handle: "main-menu",
+//   title: "Main menu",
+//   items: [
+//     {
+//       label: "Women",
+//       href: "/category/women",
+//       type: "category",
+//       children: [],
+//     },
+//   ],
+// }
+```
+
+Every item has:
+
+| Field | Meaning |
+| --- | --- |
+| `label` | In the client's language when translated |
+| `href` | A store path without language prefix, or the merchant's absolute URL |
+| `type` | `home`, `catalog`, `category`, `product`, `page`, `landing` or `url` |
+| `children` | Nested items, at most three levels |
+
+Items that lead nowhere public are already removed. Do not re-check visibility.
+
+Localize only store paths; leave external URLs alone:
+
+```astro
+---
+import { localizeHref } from "@wocart/storefront";
+---
+<a href={localizeHref(item.href, config.locale, routing)}>{item.label}</a>
+```
+
+An unknown menu or a failed read returns `null`. Render your own fallback
+navigation, not an empty header.
+
+A menu is a tree, so render it recursively and preserve RTL/LTR with the page's
+`dir`. The SDK does not render it for you.
+
+## Landing pages
+
+`pages.landing(slug)` returns a published landing page with an ordered image
+stack and, optionally, one linked product:
+
+```ts
+const landing = await store.pages.landing("ramadan");
+
+if (!landing) return Astro.redirect("/", 302);
+```
+
+The shape:
+
+```ts
+type LandingPage = {
+  id: string;
+  slug: string;
+  name: string;
+  status: "draft" | "published" | "archived";
+  imageGap: number;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  publishedAt: string | null;
+  images: Array<{
+    id: string;
+    src: string;
+    altText: string | null;
+    position: number;
+    width: number | null;
+    height: number | null;
+  }>;
+  product: Product | null;
+  tracking: {
+    pixelId: string | null;
+    conversionEvent: "Lead" | "Purchase" | "Purchase_Confirmed" | "Purchase_Delivered";
+  };
+};
+```
+
+`images` is ordered by `position`; `imageGap` is the space between them in
+pixels. Width and height are captured at upload, so reserve the box and avoid a
+layout shift.
+
+`product` is a full product, not a list card. The order form can use it
+unchanged. It is `null` when the product is no longer public; in that case show
+the landing content without an order form.
+
+A draft, archived or unknown landing page returns `null`. Redirect to the home
+page instead of rendering a dead end.
+
+The page's `tracking` is already resolved. Use that pixel and event, not the
+store's default pixel, when the landing page fires its browser event.
+
+## The saved page document
+
+An editable theme reads the store's composition document with
+`pageData.get(surface)`:
+
+```ts
+const document = await store.pageData.get("home");
+```
+
+The transport shape is deliberately loose:
+
+```ts
+type PageDocumentPayload = {
+  version: number;
+  surface: string;
+  sections: unknown[];
+  [key: string]: unknown;
+};
+```
+
+`sections` stays `unknown[]` so a newer document reaches your theme unchanged.
+The meaning of a section belongs to the theme schema. Parse it with
+`parsePageData` from [`@wocart/theme`](/sdk/theme); do not cast it to your local
+section type.
+
+```ts
+import { parsePageData } from "@wocart/theme";
+
+const parsed = parsePageData(document);
+```
+
+With `theme` set on the client, the server returns that theme's document for the
+surface. Without it, the server returns the most recently saved document for the
+surface. A store with no saved document returns `null`; render your shipped
+default.
+
+<Callout type="info" title="Read side only">
+The page document is written by CodFlow Studio, not by this storefront. This
+repository has no theme-writing endpoint. Read `pageData`, render it, and keep
+your theme's editing contract in `@wocart/theme`.
+</Callout>
+
+## A page-rendering checklist
+
+- A store page uses `pages.get` and answers a real 404 on `null`.
+- A legal page resolves its link through `kind`, not a hardcoded slug.
+- A menu recurses through `children` and localizes only internal paths.
+- A landing page uses its own `tracking`, not `config.pixelId`.
+- An editable surface uses `pageData.get(surface)` and `parsePageData`.
+- A missing document renders the theme's default, not an empty page.
+- The route cache is aware of how often each of these can change.

@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.openimprint/
+openapi.json
+pages/sdk/storefront/reference/
+pages/sdk/storefront/usage.md
+pages/sdk/theme/reference/

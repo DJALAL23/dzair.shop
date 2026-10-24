@@ -1,0 +1,192 @@
+---
+description: Show a merchant's unsaved draft on the live storefront with the @wocart/theme preview protocol.
+---
+
+# Preview
+
+Preview lets a merchant edit in CodFlow Studio and see the result on the real
+storefront: the same components, the same store data and the same CSS a shopper
+gets. The merchant changes a value; the page in the frame re-renders.
+
+A theme opts in with `preview: true` and serves a route at
+**`/wocart-preview`**. The manifest tells CodFlow Studio that the route exists.
+
+If your theme is a fixed Astro design and nobody edits it from a dashboard, you
+do not need this page.
+
+## The three parts
+
+### 1. The request
+
+CodFlow Studio frames:
+
+```text
+GET /wocart-preview?token=…&surface=home&locale=fr
+```
+
+`readPreviewRequest` from `@wocart/storefront/server` checks the signed token
+from CodFlow Studio and returns the draft: which surface and language to show,
+and — once Studio sends one — the document, settings and text edits. Anything
+the draft leaves out renders as saved.
+
+The route answers with `previewResponseHeaders`, so only Studio can frame it
+and no response is stored. No route rule may cache it.
+
+```ts
+// src/middleware.ts
+import { readPreviewRequest } from "@wocart/storefront/server";
+
+const preview = await readPreviewRequest(context.request, {
+  publicKey: WOCART_PREVIEW_KEY,
+  theme: THEME_KEY,
+});
+if (!preview.ok) {
+  return new Response(null, {
+    status: preview.status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+context.locals.preview = preview;
+```
+
+```astro
+---
+// src/pages/wocart-preview.astro
+import { previewResponseHeaders } from "@wocart/storefront/server";
+
+export const prerender = false;
+const { claims, token } = Astro.locals.preview;
+for (const [name, value] of Object.entries(previewResponseHeaders(claims))) {
+  Astro.response.headers.set(name, value);
+}
+---
+```
+
+The theme in the token must match the theme serving the route; a preview for
+another theme is refused. With no preview key configured, preview is off and
+every such request answers `404`.
+
+### 2. The markers
+
+`<InstanceView preview …>` brackets each instance's nodes with two HTML
+comments:
+
+```html
+<!--wocart:start id=hero-1 type=hero-->
+<section>…</section>
+<!--wocart:end id=hero-1-->
+```
+
+Comments, not wrapper elements, so a grid or a `> *` selector lays out exactly
+as it does for a shopper. A hidden instance keeps its markers with nothing
+between them. A shopper's page carries none.
+
+The helpers are `previewStartMarker`, `previewEndMarker` and
+`parsePreviewMarker`.
+
+### 3. The bridge
+
+`startPreviewBridge({ editorOrigin, token })` from `@wocart/theme/preview`
+runs on the preview page. It:
+
+- reports every marked instance to CodFlow Studio,
+- turns clicks into selections in edit mode,
+- re-renders the drafts Studio sends,
+- swaps in only the sections whose markup changed.
+
+It draws nothing. Outlines, toolbars and panels belong to Studio.
+
+```astro
+---
+// src/pages/wocart-preview.astro
+export const prerender = false;
+const { claims, token } = Astro.locals.preview;
+---
+<Layout>
+  {sections.map((instance) => (
+    <InstanceView preview {instance} {theme} {context} {storefront} {reads} />
+  ))}
+  <wocart-preview-bridge data-editor={claims.editor} data-token={token} hidden />
+</Layout>
+<script>
+  import { startPreviewBridge } from "@wocart/theme/preview";
+  const host = document.querySelector<HTMLElement>("wocart-preview-bridge")!;
+  startPreviewBridge({ editorOrigin: host.dataset.editor!, token: host.dataset.token! });
+</script>
+```
+
+CodFlow Studio sends a new draft by posting it back to the route as JSON —
+never a cross-site form, so Astro's `checkOrigin` stays on.
+
+## The protocol
+
+Every message is `{ source, version, type, … }`. The page sends
+`source: "wocart-preview"`; Studio sends `source: "wocart-editor"`. Both sides
+post with the other's exact origin, and check `event.origin` and
+`event.source` before reading a message.
+
+`PREVIEW_PROTOCOL_VERSION` is `1`.
+
+| The editor sends | The page answers |
+| --- | --- |
+| — | `ready` with every instance: `{ id, type, parent, hidden, rect }` |
+| `render` `{ draft, revision? }` | `rendered` `{ revision, instances }`, or `error` `{ revision, reason }` |
+| `patch` `{ patches }` | the change at once, then `layout` |
+| `mode` `"edit"` or `"interactive"` | in `edit`, clicks select the innermost instance; in `interactive`, links and forms work |
+| `scroll-to` `{ id }` | the instance scrolls into view |
+| `token` `{ token }` | the next render uses it |
+| — | `hover` `{ id \| null }` while the pointer moves; `layout` after a scroll or resize |
+
+A render answered after a newer render — or after a patch — is dropped. The
+newest draft always wins.
+
+## Patches
+
+A patch is a hint that lets the page show a change before the slow render
+arrives. The page applies what it can find and leaves the rest to the render,
+which is the page's truth. An editor always sends the render too; a page from
+before 1.6.0 ignores patches and still shows every change a moment later.
+
+| Patch | What it shows |
+| --- | --- |
+| `move` `{ id, index, parent? }` | An instance at an index among its siblings |
+| `duplicate` `{ id, ids }` | A copy right after it; `ids` maps every original id to its copy |
+| `remove` `{ id }` | The instance and everything inside it gone |
+| `restore` `{ id, index, parent? }` | What a remove took back, at an index |
+| `hide` `{ id, hidden }` | The instance shown or switched off |
+| `text` `{ id, from, to }` | Text inside an instance changed |
+
+## Browser behavior in a section
+
+A swapped section's scripts do not run again; the browser never executes a
+script inserted through markup. A section with browser behavior binds it again
+on `PREVIEW_SECTION_LOAD_EVENT` (`wocart:section-load`, dispatched on
+`document` with `detail.id`):
+
+```ts
+document.addEventListener(PREVIEW_SECTION_LOAD_EVENT, (event) => {
+  const { id } = (event as CustomEvent<{ id: string }>).detail;
+  mountSection(id);
+});
+```
+
+When the bridge replaces the whole page, it does what Astro's router does after
+a navigation — a new `<body>`, the root element's attributes, the title — and
+dispatches `astro:page-load`, so a script written for the router mounts again
+as it does there. Changed stylesheets are replaced in place; unchanged ones
+never reload.
+
+## Security
+
+| Control | Effect |
+| --- | --- |
+| Signed, expiring token | Only a real editor session can open a preview |
+| `previewResponseHeaders` | Only that editor can frame it; it is not stored |
+| POST with JSON for a new draft | No cross-site form; `checkOrigin` stays on |
+| Exact `editorOrigin` | The bridge posts nowhere else |
+| `event.origin` and `event.source` checks | Only the framing editor is heard |
+| `source` and `version` checks | An old or foreign message is ignored |
+| Markers only in preview | A shopper's page contains no preview metadata |
+
+A preview is never cached. It may contain an unsaved draft, a draft price or a
+draft product that a shopper must not see.

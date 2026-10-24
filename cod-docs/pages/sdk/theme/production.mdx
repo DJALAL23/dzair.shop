@@ -1,0 +1,224 @@
+---
+description: Accessibility, RTL, responsive design, every render state, performance, security, deployment and upgrades for a Wocart theme.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Production and upgrades
+
+A theme that renders is not a theme you can ship. This page is the list a theme
+has to survive before a merchant's store depends on it: accessibility,
+right-to-left, responsive behavior, the states nobody designs, performance,
+security, deployment, and the upgrade path between SDK versions.
+
+Nothing here changes the contract; it is how the contract is used well.
+
+## Before you ship
+
+| Area | Prove it |
+| --- | --- |
+| Contract | `validateThemeDefinition(theme)` is empty; the manifest round-trips; every shipped document validates in every language |
+| Render | Every surface renders with no unexpected `onIssue` |
+| Languages | Arabic renders RTL, French and English LTR, and no language shows another's copy |
+| States | Empty, missing, invalid and failed data each render something sensible |
+| Images | Every image has an `alt` (or is deliberately decorative) and a `width`/`height` or an aspect ratio |
+| Money | Totals come from the server; the browser never adds a fee |
+| Secrets | No store key reaches a browser bundle |
+| Build | `npx astro check`, `npm test` and `npm run build` pass |
+
+## Accessibility
+
+The SDK gives you the pieces; the markup is yours.
+
+- **Alt text is a field, per language.** An `image` field's value is a
+  `MediaReference` whose `alt` resolves to the rendered language; pass
+  `image.alt ?? ""` and let a decorative image have an empty alt rather than a
+  filename.
+- **Rich text renders escaped HTML.** `richTextToHtml` escapes every text node
+  and attribute and drops unsafe links, so `set:html` is safe — but the heading
+  levels it can emit are `h2`–`h4`. A page must own exactly one `h1`, usually
+  the section's title field.
+- **Color contrast is checkable.** `contrastRatio(a, b)` gives the WCAG ratio;
+  4.5 is the floor for body text, 3 for large text. Warn a merchant in the
+  editor rather than silently accepting an unreadable scheme.
+- **Focus and keyboard.** Every interactive element is a real `<a>`, `<button>`
+  or form control. The SDK adds no click handlers; a clickable `<div>` is your
+  bug, and it does not work for a keyboard shopper.
+- **Forms.** The checkout form's fields and their validation come from the
+  store's settings; label each input with the merchant's label text, not a
+  placeholder alone.
+- **Motion.** A marquee, carousel or countdown should respect
+  `prefers-reduced-motion`. The SDK has no motion primitives and adds none.
+
+## Right-to-left
+
+Arabic is a first-class language here, not a stylesheet afterthought.
+
+- Put `dir={isRTL ? "rtl" : "ltr"}` and `lang={locale}` on `<html>`, from the
+  render context. `StoreConfig.locales[].direction` is the store's own answer
+  for each language.
+- The SDK's style classes are written on **CSS logical properties**
+  (`padding-inline`, `margin-block-start`), so a `style` field mirrors with no
+  extra CSS. Write your own CSS the same way: `margin-inline-start`, not
+  `margin-left`.
+- Mirror only what carries direction: chevrons, "next" arrows, progress. Do not
+  mirror a logo, a phone number, a clock or a product photo.
+- Prices, phone numbers and tracking numbers stay LTR inside RTL text. A phone
+  number is `normalizeAlgerianPhone`'s job on the way to the server, and the
+  server formats it for display.
+- Test with the longest Arabic string, not the shortest: Arabic copy often runs
+  longer than its English source, and a fixed-width button clips it.
+
+## Responsive
+
+- **Breakpoints are the SDK's**: `base` everywhere, `md` from 768 px, `lg` from
+  1024 px. A `style` value is phone-first — a wider breakpoint inherits the
+  narrower one, so never repeat a `base` value in `md`.
+- **Steps are pixels the theme chose.** `s4` is 16 px only because the theme
+  mapped it; a component that hardcodes `16px` breaks the moment a merchant
+  picks `s8`.
+- **Images**: use the storefront SDK's `productImageSource`, or the media
+  domain helpers with `generateSrcSet`, so a phone does not download a hero
+  image sized for a desktop. `mediaImageService` makes Astro's `<Image>` do the
+  same through the media domain.
+- **Content decides height.** A section that assumes two lines of title breaks
+  in Arabic or with a long product name. Let text wrap; set `min-height`, not
+  `height`.
+
+## Every state a section renders
+
+| State | What the shopper should see |
+| --- | --- |
+| Data is empty (`[]`, `null`, `{}`) | An empty state, not a broken layout: no blank grid, no "undefined" |
+| A read failed | The same empty state; the operator sees the cause through the client's `onError` |
+| `load` threw | The base props still render; the renderer reports `load-failed` |
+| The type is unknown | Nothing renders for that instance; the rest of the page survives (`unknown-type`) |
+| A prop is invalid | The field's default applies and `invalid-prop` is reported — never a crash |
+| A required field has no value | `missing-required-prop`; the component must not print an empty heading |
+| Nothing configured yet | In a preview only: a placeholder via `isPreview(blocks)`, so a merchant can select the section |
+| The document belongs to another theme | The shipped default renders; the merchant never sees an empty page |
+| An editor's draft is empty | An empty page is a real answer — the merchant emptied it |
+
+<Callout type="caution" title="Degradation is silent to shoppers by design">
+A storefront must not throw because the catalogue is down. If a page 500s on a
+failed read, that read was awaited without a fallback — `products.list()`
+already returns `[]`.
+</Callout>
+
+## Performance
+
+- **One read cache per page.** `createReadCache()` shares a read across sections
+  (and shares its rejection). One cache per section multiplies the same request
+  by the number of sections; one per process leaks between visitors.
+- **One client per request.** The storefront client keeps small opt-in caches
+  (config, categories, communes) per instance; sharing a client across requests
+  shares those answers across shoppers, language included.
+- **Keep Zod out of the browser.** Nothing in a shopper's page should import the
+  theme SDK's validators or a schema module. Validation runs where data enters:
+  at a route, or in the build.
+- **Prerender what does not depend on the request.** The manifest and the styles
+  endpoint are build artifacts (`prerender = true`).
+- **Images carry the weight.** Resize on the media domain, send `srcset`, and
+  give every image intrinsic dimensions so the layout does not shift.
+- **A composed page is a budget.** Fifty sections render; that does not mean
+  they should. Every section is at least one read and one component tree.
+
+## Security
+
+- The API key lives in a server module and a server environment variable. A
+  `PUBLIC_*` key is a published key.
+- `url` fields accept site paths, fragments, queries, `http(s)://`, `mailto:`
+  and `tel:` only; `javascript:`, `data:` and protocol-relative targets are
+  rejected at assembly and reported on read. Render them as an `href`, never as
+  raw HTML.
+- Rich text is a closed format: no HTML node exists to store, and
+  `richTextToHtml` escapes what it emits. Do not `set:html` a raw `text` or
+  `textarea` field.
+- An image value is a media **key**; the URL is derived at render. A saved
+  document cannot point an `<img>` at another host.
+- The theme **reads**; the platform writes. There is no endpoint in a theme that
+  saves a document, a setting or merchant text — that is CodFlow Studio, and a
+  theme that adds one has invented an authorization boundary it cannot enforce.
+- Preview tokens are signed by the editor and verified with the deployment's
+  preview key; a theme without a key answers 404 on the preview route. Never
+  cache a preview response.
+- Inline style is limited to the color-scheme sheet `ThemeStyles.astro` writes;
+  on a page with a Content-Security-Policy it adds that sheet's hash, so
+  `style-src` needs no `'unsafe-inline'`.
+
+## Deploying
+
+1. **Pick an adapter.** Any Astro server adapter works. Theme-00 ships both the
+   Cloudflare and the Vercel adapter; the composition code is identical.
+2. **Set the secrets.** `COD_SERVER_URL` and `STORE_API_KEY` go in the host's
+   secret store. `COD_SERVER_URL` must be a public origin the deployment can
+   reach — a loopback value that works locally renders an empty store in
+   production.
+3. **Build once, serve every store.** A theme build is not per store: the store
+   is decided per request by the key and the config. If you bind a media domain,
+   read it through a getter (`() => MEDIA_DOMAIN`) so the build does not bake
+   one store's domain into the artifact.
+4. **Know which pages are static.** `wocart-theme.json`, `wocart-styles.css` and
+   any hand-written page are prerendered; a surface page is rendered per
+   request. A prerendered page cannot read `Astro.locals` — a build has no store.
+5. **Cache deliberately.** If you cache a rendered page, tag it and drop the tag
+   on `REVALIDATE_PATH` after a publish; a preview response is never cached.
+6. **Verify after deploy**: `/wocart-theme.json` parses and validates, the
+   stylesheet is served with `text/css`, and a product page renders in each
+   published language.
+
+## Versions and upgrades
+
+Both packages follow semantic versioning: a patch fixes behavior, a minor adds
+backwards-compatible features, a major may remove or change an export. An export
+is marked `@deprecated` for at least one minor release before a major removes it.
+
+| Fact | Value at the time of writing | Why it matters |
+| --- | --- | --- |
+| `@wocart/theme` | `2.1.0` | `THEME_SDK_VERSION` in every manifest |
+| `@wocart/theme` peers | `@wocart/storefront ^1.14.0`, `astro ^7.0.0` (optional) | npm refuses an install outside the range |
+| `@wocart/storefront` | `1.19.0` | Its root entry is browser-safe; `/server` is not |
+| `@wocart/storefront` peer | `zod ^4.4.3` | Its schemas are part of its public API |
+| Manifest contract | `THEME_MANIFEST_CONTRACT_VERSION` = `1` | An editor reads manifests of this version |
+| Preview protocol | `PREVIEW_PROTOCOL_VERSION` = `1` | The editor and the bridge must agree |
+
+Pin **exact** versions in a theme (`npm install --save-exact`). A theme is
+rendered by its own deployment, so a floating range only means two builds of the
+same commit can differ.
+
+The upgrade checklist:
+
+1. Read the package's `CHANGELOG.md` for every version you cross, not only the
+   latest.
+2. Bump the pin, then run `npx astro check`, `npm test` and `npm run build`.
+3. Run the release check — `diffThemeManifests(previous, next)` with the
+   manifests of both releases — and read every entry it calls breaking.
+4. Run `validateThemeDefinition` again: a newer SDK may check more than the
+   older one did (2.0 added the order-form guarantee and the `blocks` reserve).
+5. Re-run the preview and a shopper render, in Arabic as well as the primary.
+
+What 2.0 changed, if you are coming from 1.x:
+
+- A `product` surface must guarantee an order form, or assembly fails.
+- `blocks` is a reserved prop name; no field may use it.
+- The reader drops whatever passes `THEME_LIMITS` and reports `limit-exceeded`.
+- An editor on 1.x rejects a manifest that uses `style`, `colorScheme`,
+  `colorSchemes`, `productList` or `collectionList`. Upgrade the theme and the
+  editor together.
+
+## Common mistakes
+
+| Mistake | What it costs |
+| --- | --- |
+| Renaming `defineTheme({ key })` | Every merchant's text edits and page documents for the theme are orphaned |
+| Renaming a component `type` | Saved instances of it stop resolving (`unknown-type`) |
+| Narrowing `slots[].allow` | Children that no longer fit are dropped from saved pages (`disallowed-child`) |
+| Changing a shipped document's `id` | A merchant's saved edit stays attached to the old id |
+| A field key that collides with a `load` key | The loaded value wins and the field silently does nothing |
+| A `contentKey` typo | The field falls back to its default; nothing fails until `validateThemeDefinition` is given `contentKeys` |
+| Hardcoding a color, spacing step or font in CSS | The merchant's `style` / `colorScheme` choice has no effect |
+| Storing a URL in an `image` field | The image never resolves; a media key is what the field holds |
+| Reading `Astro.locals.store` in a prerendered page | A build error, or an empty page |
+| One read cache per section | The same product is fetched once per section |
+| A theme route that saves a document | The theme has no authority to write; CodFlow Studio owns writes |
+| Treating Theme-00's choices as contract | Its per-surface catalogs, content layout and design system are that theme's decisions — see [the reference analysis](/sdk/theme/reference-implementation) |

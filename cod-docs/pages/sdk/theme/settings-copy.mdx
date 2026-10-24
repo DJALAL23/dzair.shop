@@ -1,0 +1,200 @@
+---
+description: Theme-wide settings, translated text, content packs and plural messages in @wocart/theme.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Settings and copy
+
+A **setting** is a choice for the whole store — a font, the header's menu, the
+color schemes. A **field** is a choice for one section. Both use the same field
+kinds; settings live in named groups and are stored flat by key.
+
+## Declare a setting
+
+```ts
+const theme = defineTheme({
+  // …
+  settings: [
+    {
+      key: "appearance",
+      label: { en: "Appearance", fr: "Apparence" },
+      fields: [
+        {
+          key: "headingFont",
+          kind: "select",
+          label: "Heading font",
+          options: ["sans", "serif"],
+          optionLabels: { sans: "Sans", serif: "Serif" },
+          default: "sans",
+        },
+        {
+          key: "colorSchemes",
+          kind: "colorSchemes",
+          label: "Color schemes",
+          default: [/* … */],
+        },
+      ],
+    },
+  ],
+});
+```
+
+| Rule | Effect |
+| --- | --- |
+| Group `key` | Lowercase kebab-case, unique in the theme |
+| Field `key` | Unique across **all** groups; this is the stored key |
+| `colorSchemes` | At most one in the theme; see [Style and color](/sdk/theme/style) |
+| Settings | Read flat: `values.headingFont`, not `values.appearance.headingFont` |
+
+## Read a store's settings
+
+```ts
+import { resolveThemeSettings } from "@wocart/theme";
+
+const { values, issues } = resolveThemeSettings(theme, store.settings, {
+  content: store.content,
+  locales: [store.locale, ...store.fallbackLocales],
+});
+```
+
+Precedence is:
+
+1. the merchant's value,
+2. the theme's default — or its content pack, for a text setting,
+3. absent.
+
+Reading never throws. A value the declaration no longer accepts is reported
+(`invalid-setting` or `missing-required-setting`) and the default applies. A
+key the theme no longer declares is reported (`unknown-setting`) and ignored. A
+stored object that is not an object is reported (`invalid-settings`) and all
+defaults apply.
+
+`InferSettings<typeof theme>` types the result: a setting with a default is
+always present; any other may be absent.
+
+A writer checks before saving:
+
+```ts
+import { checkThemeSettings } from "@wocart/theme";
+
+const issues = checkThemeSettings(theme, candidate);
+if (issues.length > 0) console.error(issues);
+```
+
+The writer also checks that every `colorScheme` setting names a scheme the
+store actually has.
+
+## Text
+
+A text field can take its starting value from the theme's **content pack**:
+
+```ts
+{ key: "heroTitle", kind: "text", label: "Title", contentKey: "heroTitle" }
+```
+
+The value resolves in this order:
+
+1. the instance's saved value,
+2. `context.content[contentKey]`,
+3. the field's `default`,
+4. omitted — the component's own prop default applies.
+
+`contentKey` and `default` are mutually exclusive. A list item cannot use
+`contentKey`: every item would read the same string. A rich-text field cannot
+use it either, because a content pack holds plain text.
+
+## Content packs
+
+The theme owns its copy and its taxonomy. The SDK does not model a content
+system; it reads the resolved pack the request hands it:
+
+```ts
+content: {
+  en: { heroTitle: "Welcome", viewAll: "View all" },
+  fr: { heroTitle: "Bienvenue", viewAll: "Tout voir" },
+  ar: { heroTitle: "مرحبا", viewAll: "عرض الكل" },
+}
+```
+
+- The pack is an **opaque, flat** `Record<string, string>`. Any key structure is
+  the theme's choice.
+- `ThemeRenderContext.content` is the pack **for the current language**, with
+  the store's overrides already merged.
+- Declaring packs makes the check stronger: `validateThemeDefinition(theme)`
+  reports a `contentKey` missing from a pack (`unknown-content-key`), and every
+  declared language must have a pack.
+- If the theme does not declare packs, check against its own key set with
+  `validateThemeDefinition(theme, { contentKeys })`.
+- The theme can also read the whole pack and layer its own resolved values. The
+  SDK deliberately ships no helper for that: it would make one theme's copy
+  model platform API.
+
+Text edits are keyed by the **theme key**. A storefront only receives them when
+its SDK client passes the theme. Renaming the theme key orphans every merchant
+edit saved under the old key.
+
+## Store-wide labels
+
+The pack is also where store-wide labels live — “Add to cart”, “Sold out”,
+“View all”. A merchant can override them in CodFlow Studio. In a component,
+either read the label through a `contentKey` field, or read the pack:
+
+```ts
+const labels = Astro.locals.store.content;
+const addToCart = formatMessage(labels, "addToCart", {}, { locale });
+```
+
+Keep one label key for one meaning. If two components use the same key with
+different wording, an override changes both.
+
+## Messages, plurals and placeholders
+
+`formatMessage` is the SDK's one message rule. It follows the locale-file
+model on CLDR data:
+
+```ts
+formatMessage(pack, "cartItems", { count: 3 }, { locale: "ar" });
+```
+
+| Rule | Example |
+| --- | --- |
+| `{name}` placeholders | `"مرحبا {name}"` → the value is filled, numbers are formatted for the language |
+| Unknown placeholder | Stays visible (`{name}`), never disappears |
+| Plurals | Flat keys per CLDR form: `cartItems_one`, `cartItems_few`, `cartItems_other` |
+| `_zero` | Used for a count of 0 in any language, when present |
+| Missing key | Renders the key itself, so the gap is visible |
+
+Never build a message with `.replace("{n}")`. A language can need a form the
+others do not; Arabic has six. `pluralFormIssues(pack, locale)` lists the forms
+a pack is missing or carries but never uses. Run it over every pack in a test.
+`messageForms(pack, key)` collects a message's keys for a browser script.
+
+## Language and direction
+
+`ThemeRenderContext` gives a section what it needs:
+
+| Value | Meaning |
+| --- | --- |
+| `locale` | The language being rendered, first in the fallback chain |
+| `fallbackLocales` | The store's fallback chain after it |
+| `isRTL` | Whether the language reads right to left |
+| `content` | The resolved pack for `locale` |
+
+A translated value tries `locale`, then every entry in `fallbackLocales`, then
+the content pack, then the default. A missing translation is not an error.
+
+`localize(value, [locale, ...fallbackLocales])` from `@wocart/theme` picks the
+first language a value has, or `undefined` when it has none. The SDK applies
+the same chain to field values.
+
+The platform's supported languages and their direction live in
+`cod-shared/i18n/locales.ts`; a theme never mirrors that list. Render
+`dir={context.isRTL ? "rtl" : "ltr"}` on the document, and use logical CSS
+properties so the layout follows.
+
+<Callout type="caution" title="Theme key is identity">
+Merchant text overrides are keyed by `defineTheme({ key })`. Changing the key
+renames the theme for the platform and leaves the old overrides behind. Treat
+it as a breaking change.
+</Callout>

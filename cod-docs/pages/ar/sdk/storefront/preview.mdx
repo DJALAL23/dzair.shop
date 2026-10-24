@@ -1,0 +1,261 @@
+---
+description: اعرض مسودة المحرّر من دون حفظها، وقيّد الاستجابة بذلك المحرّر، وأسقط الصفحات المخزّنة مؤقتًا عند وصول نشر.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# المعاينة وإعادة التحقق
+
+تصل إلى واجهة المتجر إشارتان من المنصة:
+
+- **المعاينة** — يقوم المحرّر بتأطير واجهة المتجر ويرسل إليها مسودة غير
+  محفوظة.
+- **إعادة التحقق** — غيّر نشرٌ ما تعرضه الصفحات، لذا يجب إسقاط الصفحات
+  المخزّنة مؤقتًا.
+
+كلتاهما طلبات موقّعة من أصل آخر. وكلتاهما ترفض الطلب عندما لا يملك النشر
+مفتاح معاينة.
+
+## المعاينة
+
+المعاينة طلب GET يحمل رمزًا، ثم طلبات POST من الأصل نفسه مع المسودات:
+
+```text
+GET  /wocart-preview?token=…&surface=home
+POST /wocart-preview   { token, draft }
+```
+
+يُظهر العرض الأول ما هو محفوظ. ثم يرسل المحرّر مسودة — مستند الصفحة وإعدادات
+القالب وتعديلات النص — فتعيد الصفحة المؤطّرة عرضها. ولا تُكتب المسودة في قاعدة
+البيانات أبدًا.
+
+### اقرأ الطلب
+
+توجد `readPreviewRequest` في مدخل الخادم وتقوم بكل التحققات:
+
+```ts
+// src/theme/sdk.ts
+import { readPreviewRequest } from "@wocart/storefront/server";
+import { WOCART_PREVIEW_KEY } from "astro:env/server";
+
+export const THEME_KEY = "theme-00";
+
+export function readThemePreview(request: Request) {
+  return readPreviewRequest(request, {
+    publicKey: WOCART_PREVIEW_KEY,
+    theme: THEME_KEY,
+  });
+}
+```
+
+النتيجة إما `{ ok: true, claims, draft, token }` أو `{ ok: false,
+status, reason }`.
+
+وهي تضمن:
+
+- يجب أن يحمل GET القيم `token` و`surface`، واختياريًا `locale` و`path`.
+- يجب أن يأتي POST من أصل واجهة المتجر نفسها، بصيغة JSON، وأقل من 1 ميغابايت.
+- الرمز من نوع Ed25519 (`EdDSA`) ومُنشأ لواجهة المتجر هذه وهذا القالب.
+- الرمز المُنشأ لإعادة التحقق لا يمكنه فتح معاينة.
+- يعيش الرمز ساعة واحدة على الأكثر.
+- المسودة محدودة الحجم ويُتحقق من شكلها.
+
+من دون مفتاح، كل طلب معاينة يعيد 404. وهكذا تبقى المعاينة معطّلة.
+
+### ترويسات الاستجابة
+
+كل استجابة معاينة تحمل:
+
+```ts
+import { previewResponseHeaders } from "@wocart/storefront/server";
+
+for (const [name, value] of Object.entries(previewResponseHeaders(claims))) {
+  Astro.response.headers.set(name, value);
+}
+```
+
+| الترويسة | القيمة | السبب |
+| --- | --- | --- |
+| `Cache-Control` | `private, no-store` | يجب ألا تُخزَّن المسودة مؤقتًا أبدًا |
+| `Content-Security-Policy` | `frame-ancestors <editor>` | لا يؤطّره إلا محرّر الرمز |
+| `X-Robots-Tag` | `noindex, nofollow` | يجب ألا تُفهرس المسودة |
+| `Referrer-Policy` | `same-origin` | يجب ألا يتسرّب الرمز الموجود في URL |
+
+لا تضف قاعدة تخزين مؤقت لمسار المعاينة. فمعاينة مخزّنة مؤقتًا ستعرض
+مسودة تاجر لزائر آخر.
+
+### اعرض المسودة
+
+تضع `previewConfig` المسودة فوق الإعدادات المحفوظة وتزيل التتبع:
+
+```ts
+import { previewConfig } from "@wocart/storefront/server";
+
+const config = previewConfig(savedConfig, draft);
+```
+
+- `draft.settings` يحل محل `themeSettings`.
+- `draft.content` يحل محل تعديلات النص للغات التي يسمّيها.
+- قيمة `pixelId` هي `null`: فالمعاينة ليست زيارة.
+
+يحلّل القالب القابل للتحرير `draft.document` عبر `parsePageData` من
+`@wocart/theme`، تمامًا كما يحلّل المستند المحفوظ. ولا يفسّر SDK أشكال الأقسام.
+
+### مسار المعاينة
+
+المسار نقطة نهاية Astro عادية، ولا يُولَّد مسبقًا أبدًا:
+
+```ts
+// src/pages/wocart-preview.ts
+export const prerender = false;
+
+export const GET = async (context: APIContext) => {
+  const preview = await readThemePreview(context.request);
+  if (!preview.ok) {
+    return new Response(null, { status: preview.status });
+  }
+
+  for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims))) {
+    context.response.headers.set(name, value);
+  }
+
+  const config = await context.locals.store.client.config.get();
+  if (config === null) {
+    return new Response(null, { status: 503 });
+  }
+
+  const body = await renderSurface(preview.draft, previewConfig(config, preview.draft));
+  return new Response(body, { headers: context.response.headers });
+};
+```
+
+يجب أن يسمح middleware لمسار المعاينة بالمرور **قبل** حل المتجر: فسطح المسودة
+ولغتها يحددان سياق المتجر، والمسار لا يحتاج المتجر المحفوظ.
+
+```ts
+if (context.url.pathname === PREVIEW_PATH) {
+  const preview = await readThemePreview(context.request);
+  if (!preview.ok) return new Response(null, { status: preview.status });
+
+  context.locals.preview = preview;
+  context.locals.store = await resolvePreviewStore(preview.draft);
+  return next();
+}
+```
+
+يقع مسار Theme-00 عند `/wocart-preview`؛ ويؤطّر المحرّر ذلك المسار برمزه.
+والمسار اختيار قالبك، ما دام غير مخزّن مؤقتًا.
+
+<Callout type="caution" title="رمز المعاينة قدرة">
+أي صفحة تحمل الرمز يمكنها تأطير المعاينة. أبقِ URL بعيدًا عن المُحيلات
+والسجلات والتحليلات؛ فالترويسات أعلاه تتكفل بالأول، ويجب أن يتولى تسجيلك
+الباقي. والرمز لا يعرض إلا مسودة — فلا يستطيع الكتابة أو التطهير.
+</Callout>
+
+## إعادة التحقق
+
+يغيّر النشر بيانات صفحات المتجر. وترسل المنصة رمزًا موقّعًا إلى مسار إعادة
+التحقق في القالب، فيسقط القالب صفحاته المخزّنة مؤقتًا.
+
+```ts
+import { readRevalidateRequest } from "@wocart/storefront/server";
+import { WOCART_PREVIEW_KEY } from "astro:env/server";
+
+export const REVALIDATE_PATH = "/wocart-revalidate";
+
+const result = await readRevalidateRequest(request, {
+  publicKey: WOCART_PREVIEW_KEY,
+  theme: THEME_KEY,
+});
+
+if (!result.ok) {
+  return new Response(null, { status: result.status });
+}
+```
+
+التحققات:
+
+- `POST` فقط.
+- `Authorization: Bearer <jws>`.
+- الرمز موقّع بمفتاح النشر.
+- يجب أن تكون `use` مساوية لـ `"revalidate"`؛ ويُرفض رمز المعاينة.
+- يجب أن تكون `aud` أصل واجهة المتجر هذه.
+- يجب أن يكون `theme` مفتاح هذا القالب.
+- تمتد `iat`/`exp` خمس دقائق على الأكثر.
+
+رمز المعاينة لا يطهّر التخزين المؤقت؛ ورمز إعادة التحقق لا يفتح معاينة.
+
+### أسقط الصفحات
+
+مع تخزين Astro المؤقت، أبطل الوسم الذي يحمله كل مسار صفحة مخزّنة:
+
+```ts
+// src/pages/wocart-revalidate.ts
+import type { APIRoute } from "astro";
+import { readRevalidateRequest } from "@wocart/storefront/server";
+import { WOCART_PREVIEW_KEY } from "astro:env/server";
+
+export const prerender = false;
+
+export const PAGES_CACHE_TAG = "pages";
+
+export const POST: APIRoute = async (context) => {
+  const result = await readRevalidateRequest(context.request, {
+    publicKey: WOCART_PREVIEW_KEY,
+    theme: "theme-00",
+  });
+
+  if (!result.ok) {
+    return new Response(null, {
+      status: result.status,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+
+  await context.cache.invalidate({ tags: [PAGES_CACHE_TAG] });
+  return new Response(null, {
+    status: 204,
+    headers: { "Cache-Control": "no-store" },
+  });
+};
+```
+
+يجب أن يطابق الوسم كل مسار صفحة مخزّنة في `routeRules` داخل
+`astro.config.mjs`. والمسار الذي يغفله لا يُطهَّر عند النشر.
+
+```js
+// astro.config.mjs
+const PAGES_CACHE_TAG = "pages";
+
+export default defineConfig({
+  routeRules: {
+    "/products/[slug]": {
+      maxAge: 60,
+      swr: 86400,
+      tags: ["products", PAGES_CACHE_TAG],
+    },
+  },
+});
+```
+
+لا تلفّ مسار إعادة التحقق في middleware المتجر. فهو لا يحتاج متجرًا، وحلّ متجر
+سيجعل التطهير يعتمد على قراءة من D1.
+
+<Callout type="info" title="من أين يأتي الرمز">
+توقّع المنصة رموز المعاينة وإعادة التحقق بمفتاحها الخاص؛ وواجهة المتجر تتحقق
+منها فقط بالمفتاح العام للنشر. ولا تستطيع واجهة المتجر إصدار أي من الرمزين.
+و`WOCART_PREVIEW_KEY` اختيارية: من دونها، تتعطّل المعاينة وإعادة التحقق معًا
+وتجيبان 404.
+</Callout>
+
+## قائمة تحقق للمعاينة والتخزين المؤقت
+
+- مسار المعاينة يستخدم `prerender = false`.
+- المسار مستثنى من كل قاعدة تخزين مؤقت.
+- كل استجابة معاينة تضبط `previewResponseHeaders`.
+- تُطبَّق `previewConfig` قبل العرض.
+- يحلّل القالب مسودة المعاينة، لا SDK.
+- يتحقق مسار إعادة التحقق من رمز bearer والقالب.
+- تحمل الصفحات المخزّنة وسمًا؛ وإعادة التحقق تبطل الوسم نفسه.
+- يعيد المساران 404 عندما لا يُضبط مفتاح معاينة.
+- بكسل المتجر غائب في المعاينة.

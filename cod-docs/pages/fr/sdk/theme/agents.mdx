@@ -1,0 +1,179 @@
+---
+description: Comment utiliser un assistant IA pour construire ou modifier un thème @wocart/theme sans deviner les champs ni casser les pages enregistrées.
+---
+
+# Utiliser l'IA pour construire un thème
+
+L'IA peut écrire un thème rapidement, mais un thème a des règles faciles à mal deviner. Cette page est écrite pour les deux personnes de la conversation :
+
+- **Si vous êtes le développeur :** donnez cette page à votre assistant avec le
+  manifeste du thème et le document que vous voulez modifier. C'est toujours vous
+  qui décidez de l'apparence du thème.
+- **Si vous êtes l'assistant :** travaillez à partir du manifeste et des
+  opérations sur les documents. N'inventez jamais un champ, un type de composant
+  ni un id.
+
+Le but n'est pas d'empêcher l'assistant d'écrire du code. Le but est de le garder
+dans le contrat, afin que la page s'affiche toujours pour les acheteurs après
+chaque modification.
+
+## Donnez ces trois choses à l'assistant
+
+| À lui donner | Pourquoi |
+| --- | --- |
+| Le manifeste du thème | Il liste les vrais types de composants, champs, slots et surfaces |
+| Le document ou la surface cible | Il indique quelle page est modifiée |
+| Le résultat que vous voulez, en mots simples | Il remplace les suppositions à partir d'une capture d'écran |
+
+Si l'assistant modifie une définition, donnez-lui aussi la commande de validation
+ou la commande de test qu'utilise le thème.
+
+## La compétence du dépôt
+
+Le dépôt CodFlow fournit une compétence pour exactement ce travail :
+`.agents/skills/wocart-theme/`. Elle est écrite pour un agent, pas pour vous, et
+c'est le moyen le plus court de faire tenir un assistant :
+
+| Fichier | Ce que l'agent y trouve |
+| --- | --- |
+| `SKILL.md` | Les parcours, les règles non négociables, les commandes de vérification |
+| `references/sdk-discovery.md` | Comment lire les déclarations et les tests du SDK installé avant d'utiliser une API |
+| `references/theme-architecture.md` | Quel SDK possède quoi, et comment utiliser Theme-00 sans le copier |
+| `references/theme-quality.md` | Ce qui doit passer avant que quiconque dise que le thème fonctionne |
+| `references/docs-maintenance.md` | Ce qu'un changement de contrat impose en anglais, français et arabe |
+
+La compétence ne remplace ni le manifeste ni le code : elle dit à l'agent de les
+lire.
+
+## Lisez d'abord ceci
+
+| Si vous devez… | Lisez |
+| --- | --- |
+| Savoir quels champs existent | `manifest.components[type].fields` |
+| Savoir quels slots et blocs existent | `manifest.components[type].slots`, `fixed`, `placement` |
+| Savoir quelles surfaces et zones existent | `manifest.surfaces`, `manifest.areas` |
+| Connaître les réglages de la boutique | `manifest.settings` |
+| Modifier un document | [Manifeste et édition](/fr/sdk/theme/manifest) |
+| Comprendre un refus | `DocumentIssue.code` et `PageDataIssue.code` |
+
+Le manifeste est généré à partir du thème réel. Ne déduisez pas un champ depuis le
+balisage d'un composant, une capture d'écran ou un ancien README.
+
+## Invariants
+
+Voici les règles que l'assistant doit suivre. Un développeur n'a pas besoin de
+les mémoriser, mais elles expliquent pourquoi certaines modifications sont
+refusées.
+
+1. **Les définitions sont du code ; les documents sont des données.** Ne mettez
+   jamais de fonctions, d'instances de classe ni de valeurs undefined dans un
+   document.
+2. **`type` est l'identité.** Ne le renommez pas. Les instances enregistrées s'y
+   réfèrent.
+3. **La clé d'un composant est égale à son `type`.** `components["best-sellers"]`
+   doit contenir une définition dont le `type` est `"best-sellers"`.
+4. **`id` est unique dans le document.** Utilisez `newInstanceId()`, ou gardez
+   l'id qu'un autre outil a déjà donné à l'instance ; n'inventez pas un id qui
+   pourrait entrer en collision.
+5. **Les valeurs par défaut ne sont matérialisées qu'à la création.**
+   `createInstance` remplit les valeurs par défaut ; un lecteur ultérieur retombe
+   aussi sur le contenu et les valeurs par défaut.
+6. **La sortie de `load` l'emporte sur les props de champ.** Si un champ et un
+   résultat de `load` utilisent la même clé, la valeur chargée l'emporte.
+7. **Masqué signifie non rendu, pas supprimé.** L'élément masqué reste dans le
+   document, et un bloc requis ne peut pas être masqué.
+8. **Les blocs requis et fixes sont garantis.** `completePage` les ajoute
+   lorsqu'un document en manque.
+9. **Les images sont des clés de média, pas des URL.** Une valeur `image` est un
+   `MediaReference` ; résolvez-la au rendu.
+10. **Pas de CSS dans les documents.** Les valeurs `style` sont des étapes et des
+    choix ; les valeurs `colorScheme` sont des identifiants de jeu de couleurs.
+11. **Un document enregistré n'est pas fiable.** Validez à la lecture
+    et dégradez avec des rapports ; ne jetez jamais la page à cause d'une seule
+    section défectueuse.
+12. **Le code du thème lit ; la plateforme écrit.** N'ajoutez pas d'endpoints qui
+    enregistrent des documents de page, des réglages ou du texte marchand. Le
+    thème reçoit les données enregistrées.
+
+## Protocole de modification
+
+1. **Localisez la surface.** `home`, `product`, `collection`, `category`,
+   `catalog`, `page`, ou une zone comme `area:header`.
+2. **Ouvrez le document.** `resolveSurfaceDocument(theme, surface, saved)` donne
+   le document qui sera rendu, déjà complété. Si vous modifiez, partez de
+   `completePage(theme, page).page`.
+3. **Choisissez le composant.** Utilisez un type du manifeste dont `placement` et
+   `capabilities.surfaces` autorisent cet emplacement.
+4. **Créez l'instance.**
+   ```ts
+   import { createInstance, manifestCatalog, newInstanceId } from "@wocart/theme";
+   const definition = manifestCatalog(manifest).components["best-sellers"];
+   const instance = createInstance(definition!, newInstanceId(), { limit: 4 });
+   ```
+   `limit` est un champ de la définition `best-sellers` de cet exemple. Dans un
+   vrai thème, passez uniquement les clés que le manifeste déclare.
+   `createInstance` lève une erreur sur les clés inconnues, les mauvais types et
+   un champ requis sans valeur pour le remplir.
+5. **Appliquez la modification.** Utilisez `insertInstance`, `moveInstance`,
+   `duplicateInstance`, `setInstanceProps`, `setInstanceHidden` ou
+   `removeInstance`. Ils renvoient `{ ok: true, page }` ou
+   `{ ok: false, issue }`.
+6. **Vérifiez tout le document.** `checkPageData(theme, page)` renvoie chaque
+   problème avant l'enregistrement.
+7. **Validez le thème** après avoir modifié une définition :
+   `validateThemeDefinition(theme)`.
+8. **Prévisualisez et testez.** Rendez la page, ou utilisez la route d'aperçu et
+   le pont ; exécutez les tests de contrat du thème.
+
+## API à utiliser
+
+| Objectif | API |
+| --- | --- |
+| Sérialiser un thème | `themeManifest(theme)` |
+| Transformer un manifeste en catalogue modifiable | `manifestCatalog(manifest)` |
+| Valider la forme du document et les valeurs de champ | `validatePageData(theme, input, scope)` |
+| Vérification stricte côté écriture | `checkPageData(theme, page)` |
+| Ajouter les blocs requis et fixes | `completePage(theme, page)` |
+| Choisir le document qui sera rendu | `resolveSurfaceDocument(theme, surface, saved, scope)` |
+| Créer une instance | `createInstance(definition, id, props)` |
+| Générer un id | `newInstanceId()` |
+| Modifier un document | `insertInstance`, `moveInstance`, `duplicateInstance`, `setInstanceProps`, `setInstanceHidden`, `removeInstance` |
+| Comparer deux versions | `diffThemeManifests(previous, next)` |
+
+`manifestCatalog(manifest)` crée un `ThemeDefinition` avec `component: null`. Il
+sert uniquement à l'édition et à la validation ; ne le rendez pas.
+
+## Refus à gérer
+
+| Code | Signification |
+| --- | --- |
+| `unknown-type` | Le type n'est pas dans ce catalogue ; rien n'est rendu |
+| `unknown-prop` | La prop n'est pas déclarée ; elle est ignorée |
+| `invalid-prop` | La valeur ne respecte pas les règles du champ ; les valeurs par défaut sont utilisées |
+| `missing-required-prop` | Un champ requis n'a ni valeur, ni contenu, ni valeur par défaut |
+| `unknown-slot` / `disallowed-child` | L'enfant enregistré ne s'insère plus dans le slot |
+| `duplicate-id` | Une instance ultérieure répète un id ; la première l'emporte |
+| `limit-exceeded` | Une limite de slot, de surface ou de profondeur a été franchie |
+| `theme-mismatch` | Le document a été composé pour un autre thème |
+| `not-available` / `not-placeable` | Le composant n'est pas proposé sur cette surface ou à cet emplacement |
+| `slot-full` / `required-block` / `fixed-block` | L'opération enfreindrait les règles de composition |
+| `load-failed` | Un `load` a levé une erreur ; les props de base sont tout de même rendues |
+| `missing-component` | Une définition n'a pas de référence de composant utilisable |
+| `multiple-slots-unsupported` | Le moteur de rendu de référence peut remplir un slot nommé par instance |
+
+Un échec au niveau de la page diffère d'un échec au niveau de la section. Seule
+une enveloppe invalide (forme invalide de `version`, `surface` ou `sections`) rend `page`
+nul ; tout autre problème est une dégradation avec un rapport.
+
+## Définition de terminé
+
+- [ ] `validateThemeDefinition(theme)` renvoie une liste vide.
+- [ ] `themeManifest` survit à un aller-retour JSON et se valide.
+- [ ] Chaque document livré passe `validatePageData`.
+- [ ] La page modifiée se rend sans rapports `onIssue` inattendus.
+- [ ] `diffThemeManifests` ne montre aucun changement incompatible accidentel.
+- [ ] L'aperçu et un rendu normal pour l'acheteur montrent le même contenu, sans
+      les marqueurs d'aperçu.
+
+Pour le workflow complet des documents et du manifeste, continuez avec
+[Manifeste et édition](/fr/sdk/theme/manifest).

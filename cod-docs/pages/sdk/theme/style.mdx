@@ -1,0 +1,184 @@
+---
+description: How @wocart/theme turns style steps, breakpoints and color schemes into safe merchant controls and CSS.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Style and color
+
+A `style` field does not store CSS. It stores a small set of choices: a spacing
+step, a width, an alignment. The theme decides what those choices mean in
+pixels; the SDK writes the classes.
+
+This keeps merchant edits safe. A merchant can make a section wider or add
+space above it without writing a rule that breaks on mobile. The same idea
+applies to color: a `colorScheme` field stores a scheme id, not hex values.
+
+## Give the steps a size
+
+The step names and widths are the platform's. A theme maps the ones it offers
+to pixels:
+
+```ts
+const theme = defineTheme({
+  // …
+  style: {
+    spacing: { s0: 0, s2: 8, s4: 16, s6: 32, s8: 64 },
+    widths: { wide: 1280, content: 960, narrow: 640 },
+  },
+});
+```
+
+| Scale | Names |
+| --- | --- |
+| Spacing steps | `s0` through `s12` |
+| Widths | `wide`, `content`, `narrow` (plus `full`) |
+
+A size the theme does not define has no class. A saved style that names it
+renders as no style.
+
+## Offer a style field
+
+```ts
+{
+  key: "style",
+  kind: "style",
+  label: "Style",
+  panels: ["spacing", "size"],
+  default: {
+    spacing: { paddingBlockStart: { base: "s4", lg: "s8" } },
+  },
+}
+```
+
+| Panel | What it controls |
+| --- | --- |
+| `spacing` | `paddingBlockStart`, `paddingBlockEnd`, `paddingInline`, `marginBlockStart`, `marginBlockEnd`, `gap` |
+| `layout` | `direction`, `align`, `justify`, `wrap` |
+| `size` | `width`, `minHeight` |
+
+Every property is responsive. A value holds a choice per breakpoint:
+
+| Breakpoint | From |
+| --- | --- |
+| `base` | Every width |
+| `md` | 768 px |
+| `lg` | 1024 px |
+
+Values are phone-first: a wider breakpoint inherits the narrower one. The SDK
+uses CSS logical properties, so a right-to-left store mirrors on its own.
+
+A writer refuses a step or width the theme gives no size. A reader renders a
+saved value as no style and reports it; it never invents a size.
+
+## Put the classes on the page
+
+```astro
+---
+import { schemeClass, styleClasses } from "@wocart/theme";
+const { style, scheme } = Astro.props;
+---
+<section class={`${schemeClass(scheme)} ${styleClasses(style)}`}>
+  <slot />
+</section>
+```
+
+`styleClasses` returns the classes for the chosen steps and widths.
+`schemeClass` returns `.wc-scheme-<id>` for a valid scheme id, or an empty
+string.
+
+## Serve the stylesheet
+
+The SDK can generate one stylesheet with every class the theme's sizes allow.
+
+```ts
+// src/pages/wocart-styles.css.ts
+import { themeStylesEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeStylesEndpoint(theme);
+```
+
+Then put the link and the store's schemes in the layout's `<head>`:
+
+```astro
+---
+import ThemeStyles from "@wocart/theme/astro/ThemeStyles.astro";
+---
+<head>
+  <ThemeStyles schemes={settings.colorSchemes} />
+</head>
+```
+
+`ThemeStyles` defaults to `stylesheet` on and links `/wocart-styles.css`. A
+theme that bundles the classes itself passes `stylesheet={false}`; Theme-00
+does this, generating the same CSS with `themeStyleSheet(theme.style)` in its
+build script.
+
+`ThemeStyles` also writes the store's color schemes as one small inline sheet.
+On a page with a Content-Security-Policy, it adds that sheet's hash to the
+policy, so `style-src` does not need `'unsafe-inline'`.
+
+## Color schemes
+
+A color scheme is a named set of colors for every role:
+
+| Role | Used for |
+| --- | --- |
+| `background` | Section background |
+| `text` | Body text |
+| `heading` | Headings |
+| `accent` | Sale and emphasis |
+| `button` | Button background |
+| `buttonText` | Button label |
+| `border` | Borders |
+
+The store's schemes are one `colorSchemes` theme setting. Each scheme has an
+`id`, a translated `name` and a hex color for every role. A theme may declare
+at most 24 schemes. Ids are lowercase letters, digits and dashes, at most 32
+characters; sections store the id, so it must stay stable.
+
+```ts
+{
+  key: "colorSchemes",
+  kind: "colorSchemes",
+  label: "Color schemes",
+  default: [
+    {
+      id: "scheme-1",
+      name: { en: "Light", fr: "Clair" },
+      colors: {
+        background: "#ffffff",
+        text: "#3b4250",
+        heading: "#0f1626",
+        accent: "#c8102e",
+        button: "#0f1626",
+        buttonText: "#ffffff",
+        border: "#e8e8e5",
+      },
+    },
+  ],
+}
+```
+
+A section picks one with a `colorScheme` field:
+
+```ts
+{ key: "scheme", kind: "colorScheme", label: "Colors", default: "scheme-1" }
+```
+
+The page's own scheme is a store setting, not a page-document value. The page
+document holds only the **id**, never a color. Changing the scheme's colors
+changes every section that uses it.
+
+`colorSchemeCss(schemes)` turns the setting into custom properties such as
+`--wc-color-background` and `--wc-color-button-text` on `.wc-scheme-<id>`, with
+the background and text applied. `contrastRatio(a, b)` gives the WCAG ratio an
+editor can warn on: below 4.5 for text.
+
+<Callout type="caution" title="Do not store CSS in a page">
+A `style` value is a set of steps and choices. A `colorScheme` value is an id.
+Anything else is outside the contract; a theme that accepts raw CSS has given
+up the guarantees that make saved documents portable across themes.
+</Callout>

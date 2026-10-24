@@ -1,0 +1,573 @@
+---
+description: Build a complete, editable Wocart theme from an empty Astro project — layout, areas, home and product surfaces, styles, manifest, tests and deploy.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Build a complete theme
+
+[Build a theme](/sdk/theme/build) stops at one rendered section. This page goes
+the whole way: an empty Astro project becomes a theme with a shared layout, an
+editable home page, a product template, a product route that can 404, its own
+stylesheet, a manifest, contract tests and a build you can deploy.
+
+Everything here is the published contract of `@wocart/theme` 2.1.0 and
+`@wocart/storefront` 1.19.0. Where Theme-00 makes a different choice, the
+[reference implementation analysis](/sdk/theme/reference-implementation) says so.
+
+<Callout type="info" title="A custom storefront is still the short path">
+If one store owns the theme and you change it in code, skip this page and build
+normal Astro pages with [`@wocart/storefront`](/sdk/storefront). Composition,
+documents and the manifest exist so a merchant can edit the theme without you.
+</Callout>
+
+## What you end up with
+
+```text
+my-theme/
+├─ astro.config.mjs
+├─ src/
+│  ├─ theme/
+│  │  ├─ sdk.ts                     one server client per call
+│  │  ├─ theme.ts                   defineTheme(...) — the catalog
+│  │  ├─ content.ts                 the theme's own text, per language
+│  │  ├─ components/
+│  │  │  ├─ Hero.astro
+│  │  │  ├─ ProductMain.astro
+│  │  │  └─ ProductOrder.astro
+│  │  ├─ definitions/
+│  │  │  ├─ hero.def.ts
+│  │  │  ├─ product-main.def.ts
+│  │  │  └─ product-order.def.ts
+│  │  ├─ documents/
+│  │  │  ├─ home.page.json
+│  │  │  └─ product.page.json
+│  │  ├─ layouts/StoreLayout.astro
+│  │  └─ sections/Sections.astro
+│  └─ pages/
+│     ├─ index.astro
+│     ├─ products/[handle].astro
+│     ├─ wocart-theme.json.ts
+│     └─ wocart-styles.css.ts
+└─ src/theme/__tests__/contract.test.ts
+```
+
+Definitions are code; documents are JSON; both live beside the components they
+describe. Nothing outside `src/theme/` needs to know how the SDK works.
+
+## 1. Create the project
+
+```sh
+npm create astro@latest my-theme -- --template minimal --typescript strict
+cd my-theme
+npm install @wocart/theme @wocart/storefront
+npx astro add node          # or your host's adapter; Theme-00 uses Cloudflare
+npm install -D vitest @astrojs/check typescript
+```
+
+`@wocart/storefront` is a required peer of `@wocart/theme`, `zod` is its own
+peer, and npm installs both for you. Astro 7 is needed for the renderer. The
+packages are ESM-only and need Node 22.12 or newer for tooling.
+
+## 2. Two server values
+
+```js
+// astro.config.mjs
+import { defineConfig, envField } from "astro/config";
+
+export default defineConfig({
+  env: {
+    schema: {
+      COD_SERVER_URL: envField.string({ context: "server", access: "secret" }),
+      STORE_API_KEY: envField.string({ context: "server", access: "secret" }),
+    },
+  },
+});
+```
+
+Neither value is a `PUBLIC_*` variable. The key is a store secret; only server
+modules read it.
+
+## 3. One SDK seam
+
+Every theme needs exactly one place that builds the client. Pages never do.
+
+```ts
+// src/theme/sdk.ts — server only
+import { createStoreClient } from "@wocart/storefront/server";
+import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
+import { THEME_KEY } from "./theme";
+
+export function getStoreClient(locale?: string) {
+  return createStoreClient({
+    serverUrl: COD_SERVER_URL,
+    apiKey: STORE_API_KEY,
+    theme: THEME_KEY,
+    ...(locale === undefined ? {} : { locale }),
+    onError: (error) => {
+      console.warn(`[theme] degraded read: ${error.operation} (${error.code})`);
+    },
+  });
+}
+```
+
+Three details matter. `theme` is the key `defineTheme` declares, so the store's
+text edits and page documents for this theme arrive; without it they do not.
+`locale` is set only for a language other than the store's primary. `onError` is
+the only place a theme observes a degraded read, because reads never throw.
+
+## 4. One component, one definition
+
+```astro
+---
+// src/theme/components/Hero.astro
+import type { InferProps } from "@wocart/theme";
+import type { hero } from "../definitions/hero.def";
+
+const { title, subtitle } = Astro.props as InferProps<typeof hero>;
+---
+<section class="hero">
+  <h1>{title}</h1>
+  {subtitle && <p>{subtitle}</p>}
+</section>
+```
+
+```ts
+// src/theme/definitions/hero.def.ts
+import { defineComponent } from "@wocart/theme";
+import Hero from "../components/Hero.astro";
+
+export const hero = defineComponent({
+  type: "hero",
+  component: Hero,
+  label: { ar: "الواجهة", fr: "Bannière", en: "Hero" },
+  fields: [
+    { key: "title", kind: "text", label: { ar: "العنوان", fr: "Titre", en: "Title" }, contentKey: "heroTitle" },
+    { key: "subtitle", kind: "text", label: { ar: "العنوان الفرعي", fr: "Sous-titre", en: "Subtitle" }, contentKey: "heroSubtitle" },
+  ],
+});
+```
+
+`contentKey` names a key in the theme's content pack, so the merchant edits one
+string per language rather than a stored copy per instance. A field with neither
+`contentKey` nor `default` is absent from `props` — the component's own fallback
+has to handle that.
+
+## 5. The theme and its own text
+
+```ts
+// src/theme/content.ts
+export const content = {
+  ar: { heroTitle: "توصيل لكل الولايات", heroSubtitle: "الدفع عند الاستلام" },
+  fr: { heroTitle: "Livraison partout en Algérie", heroSubtitle: "Paiement à la livraison" },
+  en: { heroTitle: "Delivered across Algeria", heroSubtitle: "Cash on delivery" },
+};
+```
+
+```ts
+// src/theme/theme.ts
+import { defineTheme, type SurfaceSpec } from "@wocart/theme";
+import { hero } from "./definitions/hero.def";
+import { productMain } from "./definitions/product-main.def";
+import { productOrder } from "./definitions/product-order.def";
+import { content } from "./content";
+import homeDocument from "./documents/home.page.json";
+import productDocument from "./documents/product.page.json";
+
+export const THEME_KEY = "my-theme";
+export const THEME_VERSION = "1.0.0";
+
+const home: SurfaceSpec = { key: "home", label: "Home", pageType: "home", document: homeDocument as never };
+const product: SurfaceSpec = {
+  key: "product",
+  label: "Product",
+  pageType: "product",
+  document: productDocument as never,
+  required: [{ type: "product-main", max: 1 }],
+};
+
+export const theme = defineTheme({
+  key: THEME_KEY,
+  version: THEME_VERSION,
+  locales: ["ar", "fr", "en"],
+  content,
+  surfaces: [home, product],
+  components: { hero, "product-main": productMain, "product-order": productOrder },
+});
+```
+
+Every catalog key equals its definition's `type`, always — a document refers to
+the type, and the manifest is keyed the same way. `documents/*.json` is plain
+JSON (Astro enables `resolveJsonModule`), so a shipped document can be read,
+diffed and reviewed like any other file. The `as never` casts above are only
+because an imported JSON module is typed loosely; `parsePageData` checks the
+document for real in step 8.
+
+## 6. The product surface keeps an order form
+
+A surface whose `pageType` is `product` must guarantee an order form, or
+assembly fails with `order-form-not-guaranteed`. The guarantee is counted from
+the surface's `required` entries, so the section that places the order form must
+be listed there — and its fixed block (or a required slot entry) must reach the
+component whose `role` is `order-form`. That is why `product` above declares
+`required: [{ type: "product-main", max: 1 }]`.
+
+```ts
+// src/theme/definitions/product-order.def.ts
+import { defineComponent } from "@wocart/theme";
+import ProductOrder from "../components/ProductOrder.astro";
+
+export const productOrder = defineComponent({
+  type: "product-order",
+  component: ProductOrder,
+  role: "order-form",
+  label: { ar: "نموذج الطلب", fr: "Formulaire de commande", en: "Order form" },
+  fields: [{ key: "submitLabel", kind: "text", label: "Button", default: "Order now" }],
+});
+```
+
+```ts
+// src/theme/definitions/product-main.def.ts
+import { defineComponent } from "@wocart/theme";
+import ProductMain from "../components/ProductMain.astro";
+
+export const productMain = defineComponent({
+  type: "product-main",
+  component: ProductMain,
+  label: { ar: "المنتج", fr: "Produit", en: "Product" },
+  fixed: [{ name: "order", type: "product-order", label: "Order form" }],
+});
+```
+
+The order form's *fields* are not the theme's: a store's checkout form is set in
+the merchant dashboard and enforced by the server. The theme supplies the markup
+and posts the basket or the product (§10).
+
+## 7. The documents
+
+`src/theme/documents/home.page.json`:
+
+```json
+{
+  "version": 1,
+  "surface": "home",
+  "sections": [{ "id": "home-hero", "type": "hero" }]
+}
+```
+
+`src/theme/documents/product.page.json`:
+
+```json
+{
+  "version": 1,
+  "surface": "product",
+  "sections": [{ "id": "product-main", "type": "product-main" }]
+}
+```
+
+`id` is unique inside the document, and stable: a merchant's edit is stored
+against it. Leave `props` out to inherit every field's default and content-pack
+text.
+
+## 8. The composition component
+
+One component renders any surface: resolve the document, then render each
+section through `InstanceView` with one read cache for the page.
+
+```astro
+---
+// src/theme/sections/Sections.astro
+import InstanceView from "@wocart/theme/astro/InstanceView.astro";
+import { createReadCache } from "@wocart/theme/astro";
+import { resolveSurfaceDocument, type ThemeDefinition } from "@wocart/theme";
+
+interface Props {
+  theme: ThemeDefinition;
+  surface: string;
+  document: unknown;
+  params?: Readonly<Record<string, string | undefined>>;
+}
+
+const { theme, surface, document, params = {} } = Astro.props;
+const store = Astro.locals.store;
+
+const { page, source, issues } = resolveSurfaceDocument(theme, surface, document, {
+  content: store.content,
+  locales: [store.locale, ...store.fallbackLocales],
+});
+if (import.meta.env.DEV) console.info(`[theme] ${surface}: ${source}`, issues);
+
+const context = {
+  store: store.config,
+  content: store.content,
+  locale: store.locale,
+  fallbackLocales: store.fallbackLocales,
+  isRTL: store.isRTL,
+  url: store.url.pathname,
+  params,
+};
+const reads = createReadCache();
+---
+{page.sections.map((section) => (
+  <InstanceView
+    instance={section}
+    theme={theme}
+    context={context}
+    storefront={store.client}
+    reads={reads}
+  />
+))}
+```
+
+`Astro.locals.store` is your own convention, not the SDK's: it is whatever your
+middleware puts there (§9). `InstanceView` only needs a `StoreClient`, the
+`ThemeRenderContext` above, and a `ReadCache` scoped to this render.
+
+## 9. Layout, areas and the request store
+
+The layout carries the parts every page shares. An area is composed like a page
+and edited once, so the header is a document too.
+
+```astro
+---
+// src/theme/layouts/StoreLayout.astro
+import Sections from "../sections/Sections.astro";
+import ThemeStyles from "@wocart/theme/astro/ThemeStyles.astro";
+import { theme } from "../theme";
+
+const store = Astro.locals.store;
+const saved = await store.client.pageData.get("area:header");
+---
+<html lang={store.locale} dir={store.isRTL ? "rtl" : "ltr"}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <ThemeStyles />
+  </head>
+  <body>
+    <header><Sections theme={theme} surface="area:header" document={saved} /></header>
+    <main><slot /></main>
+  </body>
+</html>
+```
+
+`areaSurface("header")` returns the same `"area:header"` string the SDK stores,
+so a literal and the helper cannot disagree. Keep fixed chrome (the layout, the
+basket drawer shell) out of page data: a merchant edits sections, not the frame.
+
+`<ThemeStyles />` without props links the stylesheet and writes no color scheme.
+To give the merchant schemes, declare a `colorSchemes` setting and pass
+`schemes={resolveThemeSettings(theme, store.config.themeSettings, scope).values.colorSchemes}`
+— see [Style and color](/sdk/theme/style).
+
+The store context itself is middleware work, and it is where language is decided:
+
+```ts
+// src/middleware.ts
+import { defineMiddleware } from "astro:middleware";
+import { localeRouting, resolveLocalePath } from "@wocart/storefront";
+import { getStoreClient } from "./theme/sdk";
+import { content } from "./theme/content";
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const config = await getStoreClient().config.get();
+  if (config === null) return next();                 // config is a degraded read
+
+  const routing = localeRouting(config);
+  const resolved = resolveLocalePath(context.url.pathname, routing);
+  if (resolved.kind === "redirect") return context.redirect(resolved.location, 302);
+
+  const language = config.locales.find((entry) => entry.code === resolved.locale);
+  const pack = content[resolved.locale as keyof typeof content] ?? content.en;
+
+  context.locals.store = {
+    client: getStoreClient(resolved.locale),
+    config,
+    locale: resolved.locale,
+    fallbackLocales: resolved.locale === routing.primary ? [] : [routing.primary],
+    content: { ...pack, ...(config.contentOverrides[resolved.locale] ?? {}) },
+    isRTL: language?.direction === "rtl",
+    url: context.url,
+    pathname: resolved.pathname,
+  };
+  return next();
+});
+```
+
+`config.contentOverrides` holds the merchant's edits for **this** language only
+(it arrives when the client passed `theme`); merging another language's map is
+the one mistake that shows French text to an Arabic shopper. `localeRouting` and
+`resolveLocalePath` make the primary language the unprefixed one, so the store's
+own configuration decides the URL shape.
+
+## 10. The routes
+
+```astro
+---
+// src/pages/index.astro
+import StoreLayout from "../theme/layouts/StoreLayout.astro";
+import Sections from "../theme/sections/Sections.astro";
+import { theme } from "../theme/theme";
+
+const saved = await Astro.locals.store.client.pageData.get("home");
+---
+<StoreLayout>
+  <Sections theme={theme} surface="home" document={saved} />
+</StoreLayout>
+```
+
+```astro
+---
+// src/pages/products/[handle].astro
+import StoreLayout from "../../theme/layouts/StoreLayout.astro";
+import Sections from "../../theme/sections/Sections.astro";
+import { theme } from "../../theme/theme";
+
+const store = Astro.locals.store;
+const product = await store.client.products.get(Astro.params.handle!);
+if (product === null) return Astro.rewrite("/404");
+
+const saved = await store.client.pageData.get("product");
+---
+<StoreLayout>
+  <Sections theme={theme} surface="product" document={saved} params={Astro.params} />
+</StoreLayout>
+```
+
+A template surface reads its resource in the route and again in a section's
+`load`; the page's one read cache is what keeps that a single request. Pass the
+cache down when the route has already read the resource:
+
+```ts
+import { createReadCache } from "@wocart/theme/astro";
+
+const reads = createReadCache();
+const product = await reads.get(`product:${handle}`, () => store.client.products.get(handle));
+// render <Sections … reads={reads} />, and give the sections that same cache
+```
+
+The section that shows the product reads it through the same key:
+
+```ts
+load: async ({ storefront, context, reads }) => {
+  const handle = context.params?.handle;
+  if (handle === undefined) return { product: null };
+  return { product: await reads.get(`product:${handle}`, () => storefront.products.get(handle)) };
+},
+```
+
+`load` output is merged over the field props, so a component typed with
+`InferProps<typeof productMain>` sees `product` among its props.
+
+## 11. Style and manifest endpoints
+
+Two prerendered endpoints complete an editable theme. Their paths are constants,
+not choices:
+
+```ts
+// src/pages/wocart-styles.css.ts
+import { themeStylesEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeStylesEndpoint(theme);
+```
+
+```ts
+// src/pages/wocart-theme.json.ts
+import { themeManifestEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeManifestEndpoint(theme);
+```
+
+`themeStylesEndpoint` serves the classes a merchant's `style` values can name
+(`THEME_STYLES_PATH`, `/wocart-styles.css`), generated from the sizes the theme
+declares. `themeManifestEndpoint` serves `THEME_MANIFEST_PATH`
+(`/wocart-theme.json`) and **fails the build** when the manifest is invalid —
+deliberately: a broken manifest must not ship.
+
+For the steps to have a size at all, declare them on the theme:
+
+```ts
+style: { spacing: { s0: 0, s2: 8, s4: 16, s6: 32 }, widths: { wide: 1280, content: 960 } },
+```
+
+A step the theme gives no size has no class; a saved value naming it renders as
+no style and is reported. See [Style and color](/sdk/theme/style).
+
+## 12. Validate and test before trusting a render
+
+```ts
+// src/theme/__tests__/contract.test.ts
+import { describe, expect, it } from "vitest";
+import {
+  themeManifest,
+  validatePageData,
+  validateThemeDefinition,
+  validateThemeManifest,
+} from "@wocart/theme";
+import { theme } from "../theme";
+import { content } from "../content";
+
+describe("the theme contract", () => {
+  it("assembles without issues", () => {
+    expect(validateThemeDefinition(theme, { contentKeys: Object.keys(content.en) })).toEqual([]);
+  });
+
+  it("round-trips its manifest", () => {
+    const checked = validateThemeManifest(JSON.parse(JSON.stringify(themeManifest(theme))));
+    expect(checked.manifest).not.toBeNull();
+    expect(checked.issues).toEqual([]);
+  });
+
+  it("ships documents that validate in every language", () => {
+    for (const language of theme.locales ?? []) {
+      const pack = content[language as keyof typeof content];
+      for (const surface of theme.surfaces ?? []) {
+        if (surface.document === undefined) continue;
+        const scope = { content: pack, locales: [language] };
+        expect(validatePageData(theme, surface.document, scope)).toEqual([]);
+      }
+    }
+  });
+});
+```
+
+`contentKeys` is the check no other layer can make: a `contentKey` typo is
+invisible at render time, because the field quietly falls back to its default.
+[Testing a theme](/sdk/theme/testing) adds the render checks and the
+saved-document cases.
+
+## 13. Build and deploy
+
+```sh
+npx astro check
+npm test
+npm run build
+```
+
+The build is where a server-only import in a browser script, a prerendered page
+reading request data, or an invalid manifest fails. Put `COD_SERVER_URL` and
+`STORE_API_KEY` in the host's secret store (never in the repository), and point
+the URL at the store's real API origin: a deployed Worker cannot reach
+`localhost`.
+
+Two features are optional and platform-driven:
+
+- **Preview** — CodFlow Studio posts a signed token to `THEME_PREVIEW_PATH`; the
+  theme verifies it with `readPreviewRequest` and renders with `preview` set.
+  See [Preview](/sdk/theme/preview).
+- **Publish** — after a merchant publishes, the platform asks the theme to drop
+  cached pages (`REVALIDATE_PATH`, verified with `readRevalidateRequest`). A
+  theme that caches renders must implement it; one that does not, does not.
+
+## Where next
+
+- [Public API surface](/sdk/theme/api) — every export, grouped by entry point.
+- [Production checklist](/sdk/theme/production) — accessibility, RTL,
+  performance, security and the upgrade checklist.
+- [Reference implementation](/sdk/theme/reference-implementation) — what
+  Theme-00 does differently, and why.
+- [Use AI to build a theme](/sdk/theme/agents) — the brief and the invariants.

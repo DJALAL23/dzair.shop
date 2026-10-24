@@ -1,0 +1,145 @@
+---
+description: خزّن حقول الصور كمفاتيح وسائط، وحلّها بأمان، وغيّر أحجامها على نطاق الوسائط مع @wocart/theme.
+---
+
+# الصور
+
+حقل الصورة لا يخزّن URL. بل يخزّن **مفتاح** الكائن في وسائط المتجر نفسها:
+
+```json
+{
+  "image": {
+    "key": "products/3f2a9c.webp",
+    "alt": { "ar": "فستان أزرق", "fr": "Robe bleue" },
+    "width": 1200,
+    "height": 1600
+  }
+}
+```
+
+| القيمة | المعنى |
+| --- | --- |
+| `key` | مفتاح الكائن في دلو وسائط المتجر؛ بلا شرطة مائلة أولى |
+| `alt` | النص البديل، لكل لغة؛ ويصل إلى المكوّن باللغة المعروضة |
+| `width`، `height` | الحجم الأصلي الاختياري، ليتمكن التخطيط من حجز مساحة |
+| `focal` | نقطة تركيز اختيارية، وكل محور من 0 إلى 1 |
+
+يُشتق URL عند العرض، فتغيير نطاق الوسائط أو نقل المتجر لا يعيد كتابة مستند
+أبدًا. وحقل الصورة **بلا قيمة افتراضية**: فالقالب لا يستطيع معرفة وسائط متجر،
+لذا يعرض المكوّن بديله الخاص.
+
+لا يرفع SDK أي ملف أبدًا. فالمنصة تضع الملف في وسائط المتجر وتحفظ المفتاح؛
+والقالب يقرأ ذلك المفتاح فقط.
+
+## حل مفتاح
+
+```astro
+---
+import { mediaUrl } from "@wocart/storefront";
+import { MEDIA_DOMAIN } from "astro:env/server";
+import type { InferProps } from "@wocart/theme";
+import type { banner } from "./banner.def";
+
+const { image } = Astro.props as InferProps<typeof banner>;
+const src = image && mediaUrl(image.key, MEDIA_DOMAIN);
+---
+{src
+  ? <img src={src} alt={image.alt ?? ""} width={image.width} height={image.height} loading="lazy" />
+  : <div class="banner-fallback" />}
+```
+
+تعيد `mediaUrl` القيمة `null` عندما لا يُضبط نطاق، فلا تشير صورة بصمت إلى مضيف
+معطّل. استخدم `alt` المحلول؛ ولا تعِد بناءه من خريطة اللغات.
+
+## تغيير الحجم على نطاق الوسائط
+
+يكيّف `@wocart/theme/image-service` خط أنابيب الصور في Astro مع تغيير حجم صور
+Cloudflare **على نطاق الوسائط**، أينما تعمل واجهة المتجر:
+
+```text
+https://<media-domain>/cdn-cgi/image/onerror=redirect,width=640,format=webp/products/3f2a9c.webp
+```
+
+فتحصل واجهة متجر على Cloudflare وأخرى على Vercel على URL نفسه وذاكرة الحافة
+نفسها وبلا فاتورة صور ثانية. وأي صورة أخرى — مضيف آخر، أو ملف مستورد في القالب
+— تُقدَّم كما هي. وبلا نطاق وسائط، تمر كل صورة دون تغيير.
+
+اربطه مرة واحدة في القالب:
+
+```ts
+// src/image-service.ts
+import { MEDIA_DOMAIN } from "astro:env/server";
+import { mediaImageService } from "@wocart/theme/image-service";
+
+export default mediaImageService(() => MEDIA_DOMAIN);
+```
+
+```js
+// astro.config.mjs
+image: { service: { entrypoint: "./src/image-service.ts" } },
+```
+
+| المهايئ | الإعداد |
+| --- | --- |
+| `@astrojs/cloudflare` | `imageService: "custom"` |
+| `@astrojs/vercel` | اترك `imageService` معطّلًا؛ تُستخدم نقطة الدخول |
+
+يُقرأ النطاق على **كل صورة**، لا عند البناء: فبناء قالب واحد يخدم كل متجر.
+وتحتاج منطقة Cloudflare لنطاق الوسائط إلى تحويلات الصور مفعّلة
+(Images ← Transformations)؛ وهذا متاح في الخطة المجانية.
+
+## ما تفعله الخدمة
+
+تربط `mediaImageParams(options)` تحويل Astro بـ URL الوسائط:
+
+| خيار Astro | معامل الوسائط |
+| --- | --- |
+| `width`، `height` | `width`، `height` |
+| `format` | `format` |
+| `quality` | `quality` |
+| `fit` | `cover`، `contain`، `squeeze` (لـ `fill`)، `scale-down`، `crop`، `pad` |
+
+تعيد `mediaImageService(() => domain)` خدمة Astro يحل `getURL` فيها عبر
+`mediaImageUrl`. وهي توسّع خدمة Astro الأساسية، فيحتفظ `<Image>` و`getImage()`
+بسلوكهما المعتاد.
+
+لا تطبّق الخدمة `focal`: فهو تلميح لـ CSS القالب أو ترميزه. و`width` و`height`
+هما الحجم الأصلي؛ ويمكن للتحويل طلب حجم آخر رغم ذلك.
+
+## داخل قسم
+
+```astro
+---
+import { Image } from "astro:assets";
+import { mediaUrl } from "@wocart/storefront";
+import { MEDIA_DOMAIN } from "astro:env/server";
+import type { InferProps } from "@wocart/theme";
+import type { hero } from "./hero.def";
+
+const { image } = Astro.props as InferProps<typeof hero>;
+const src = image && mediaUrl(image.key, MEDIA_DOMAIN);
+---
+{src && (
+  <Image
+    src={src}
+    alt={image.alt ?? ""}
+    width={image.width ?? 1200}
+    height={image.height ?? 800}
+    widths={[480, 768, 1200]}
+    sizes="(min-width: 768px) 50vw, 100vw"
+  />
+)}
+```
+
+يمر `src` البعيد عبر الخدمة المضبوطة. وتُعالج الصورة المحلية المستوردة بخدمة
+Astro الأساسية كالمعتاد.
+
+## القواعد
+
+- **لا تخزّن URL في حقل صورة أبدًا.** خزّن المفتاح؛ وحُلّه عند العرض.
+- **لا تبنِ URL للوسائط بدمج السلاسل أبدًا.** استخدم `mediaUrl` أو الخدمة؛
+  فهما يتعاملان مع النطاق والترميز والغياب.
+- **لا تُغفل `alt` أبدًا.** النص البديل الفارغ صالح فقط لصورة زخرفية.
+- **لا تفترض صيغة.** فقد يحوي المتجر WebP أو JPEG أو نوعًا آخر مدعومًا؛ والخدمة
+  تطلب ما يحتاجه التحويل.
+- **لا تقرأ الحقل كسلسلة.** فهو كائن `MediaReference`.

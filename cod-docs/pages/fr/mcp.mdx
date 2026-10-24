@@ -1,0 +1,133 @@
+---
+description: Connectez des clients IA à CodFlow via le serveur MCP sécurisé par OAuth.
+---
+
+# Serveur MCP
+
+CodFlow expose un serveur distant [Model Context Protocol](https://modelcontextprotocol.io/) nommé **CodFlow CRM**. Les clients IA peuvent lister les commandes, clients, produits et expéditions d'une boutique, et exécuter des actions d'écriture avec les mêmes permissions que l'utilisateur connecté au tableau de bord.
+
+Le serveur est joignable à :
+
+| Environnement | URL |
+| --- | --- |
+| Production | `https://api.codflow.store/mcp` |
+| Local | `http://localhost:8787/mcp` |
+
+L'endpoint est protégé par OAuth. Un client ne peut pas appeler un outil sans jeton d'accès valide, et le jeton porte les scopes CodFlow de l'utilisateur.
+
+## Fonctionnement de l'autorisation
+
+Le serveur MCP utilise le modèle de ressource protégée OAuth 2.1 :
+
+- Le serveur publie les métadonnées de ressource protégée et de serveur d'autorisation aux emplacements standard OAuth well-known.
+- Les clients découvrent automatiquement les deux documents depuis l'endpoint MCP.
+- Le serveur prend en charge l'enregistrement dynamique des clients sur `/oauth/register` et les Client ID Metadata Documents.
+- L'endpoint d'autorisation est `/authorize` ; les jetons sont émis sur `/oauth/token`.
+- Les jetons d'accès durent **1 heure** ; les jetons de rafraîchissement durent **30 jours**.
+
+Lorsqu'un client se connecte, il ouvre l'écran de consentement CodFlow. Connectez-vous avec le compte du tableau de bord dont l'agent doit utiliser les données et les permissions. L'écran affiche les scopes demandés, et le serveur n'accorde que les scopes que l'utilisateur possède réellement. Un administrateur peut accorder n'importe quel scope demandé.
+
+:::note
+Le serveur déduit sa ressource OAuth de `WORKER_SELF_URL`. Pour les tests locaux, assurez-vous que cette valeur correspond à l'origine utilisée par votre client (`http://localhost:8787`).
+:::
+
+## Connecter un client
+
+<Stepper>
+
+1. **Ouvrez les réglages MCP ou de connecteur de votre client**
+
+   Ajoutez un serveur MCP distant. Utilisez l'URL de production, ou l'URL locale pendant le développement.
+
+1. **Démarrez la connexion**
+
+   Le client découvre les métadonnées OAuth et ouvre l'écran de connexion et de consentement CodFlow.
+
+1. **Approuvez les scopes**
+
+   Connectez-vous avec le compte sous lequel l'agent doit agir. Vérifiez les scopes. Le serveur n'en accordera pas plus que ce que le compte possède déjà.
+
+1. **Listez les outils**
+
+   Une fois le callback terminé, demandez au client de lister les outils CodFlow. Seuls les outils autorisés par les scopes du jeton sont enregistrés, donc le modèle ne voit jamais un outil qu'il ne peut pas appeler.
+
+</Stepper>
+
+## Configuration du client
+
+<CodeTabs>
+
+```json title="Cursor"
+{
+  "mcpServers": {
+    "codflow": {
+      "url": "https://api.codflow.store/mcp"
+    }
+  }
+}
+```
+
+```json title="VS Code"
+{
+  "servers": {
+    "codflow": {
+      "type": "http",
+      "url": "https://api.codflow.store/mcp"
+    }
+  }
+}
+```
+
+```json title="Generic"
+{
+  "mcpServers": {
+    "codflow": {
+      "type": "http",
+      "url": "https://api.codflow.store/mcp"
+    }
+  }
+}
+```
+
+</CodeTabs>
+
+Utilisez la même configuration avec `http://localhost:8787/mcp` pour un serveur local. Le chemin exact des réglages varie selon le client ; l'URL et le flux OAuth sont identiques.
+
+## Outils
+
+Les outils sont regroupés par domaine et filtrés par les mêmes scopes que l'API REST. Quelques exemples :
+
+| Domaine | Exemples d'outils |
+| --- | --- |
+| Clients | `listCustomers`, `getCustomerDetails`, `findCustomerByPhone`, `getCustomerOrderHistory` |
+| Produits | `listProducts`, `getProductDetails`, `createNewProduct`, `updateProductDetails` |
+| Commandes | `listOrders`, `getOrderDetails`, `createOrder`, `updateOrderStatus` |
+| Expéditions | `getShipment`, `handOffOrderToCarrier`, `reportShipmentEvent` |
+| Livraison | Chauffeurs, paiements des chauffeurs, sociétés de livraison et profils d'expédition |
+| Catalogue | Variantes, groupes de produits, stock, offres et coupons |
+| Vitrine | Pages d'atterrissage, avis, groupes de clients et étiquettes de clients |
+| Référence | Wilayas et communes |
+
+Chaque outil possède un schéma d'entrée typé et, lorsqu'il renvoie des données structurées, un schéma de sortie. Le client reçoit des titres lisibles et des annotations de sécurité avec la définition de l'outil.
+
+## Permissions et sécurité
+
+- **Filtrage à l'enregistrement.** Un outil n'est enregistré que si le jeton possède le scope requis. Un modèle ne peut ni découvrir ni appeler un outil hors des permissions de l'utilisateur.
+- **Contournement administrateur.** Le jeton d'un administrateur peut accorder tous les scopes ; le jeton d'un membre du staff ne peut accorder que les scopes qu'il possède.
+- **Annotations destructives.** Les suppressions, ajustements de stock, changements de statut de commande, règlements et remises aux transporteurs sont marqués `destructiveHint: true`. Les clients MCP qui prennent en charge la confirmation devraient demander confirmation avant de les exécuter ; vérifiez les réglages de confirmation de votre client.
+- **Piste d'audit.** Les appels d'outils effectués via MCP sont enregistrés dans le journal d'activité au nom de l'utilisateur connecté.
+- **Limitation de débit.** Les appels d'outils sont limités par utilisateur ou par sujet client.
+- **Révocation.** Révoquez une connexion depuis **MCP** dans le tableau de bord. L'API de gestion sous-jacente se trouve sous `/api/mcp` :
+  - `GET /api/mcp/me` — vos connexions
+  - `DELETE /api/mcp/connections/{clientId}` — révoquer votre connexion
+  - `GET /api/mcp/team` — connexions de l'équipe (admin)
+  - `DELETE /api/mcp/connections/{clientId}/users/{userId}` — révoquer la connexion d'un utilisateur (admin)
+
+## Dépannage
+
+- **Aucun outil n'apparaît.** Le jeton n'a peut-être aucun scope, ou le rôle de l'utilisateur ne couvre aucun domaine d'outils. Reconnectez-vous et approuvez au moins un scope.
+- **401 avec un challenge `WWW-Authenticate`.** Le client n'a pas de jeton valide. Laissez-le relancer le flux OAuth ; ne collez pas une clé API du tableau de bord dans l'URL MCP.
+- **403 lors d'un appel d'outil.** Les scopes du jeton ne couvrent pas cet outil, ou le compte est devenu inactif. Vérifiez l'utilisateur dans le tableau de bord.
+- **Un client local ne termine pas OAuth.** Vérifiez que `WORKER_SELF_URL` correspond à l'URL configurée et que le client peut joindre `http://localhost:8787`.
+
+Le serveur MCP est distinct de l'API REST. Il n'apparaît pas comme opérations dans la [référence API](/api) ; utilisez ce guide pour son endpoint et son comportement OAuth.

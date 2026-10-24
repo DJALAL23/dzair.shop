@@ -1,0 +1,272 @@
+---
+description: نسّق الأسعار، وقدّم صور منتجات بمقاسات معدّلة، وأنشئ نصوص الملء المسبق لـWhatsApp، وأرسل أحداث Meta في المتصفح.
+---
+
+# المال والصور وWhatsApp وأحداث Meta
+
+هذه المساعدات للعرض فقط. وهي لا تغيّر ما يُحتسب على المتسوق، ولا الصورة التي
+اختارها التاجر، ولا التحويل الذي يسجله الخادم.
+
+## المال
+
+`formatMoney(amount, { symbol, locale, decimals })` هو المنسّق الوحيد:
+
+```ts
+import { formatMoney } from "@wocart/storefront";
+
+formatMoney(product.price, {
+  symbol: config.currencySymbol,
+  locale: config.locale,
+});
+```
+
+ينسّق الرقم حسب اللغة، ثم يضع الرمز:
+
+| اللغة | النتيجة |
+| --- | --- |
+| `ar-DZ` | `5.000 دج` (لاحقة، أرقام غربية) |
+| `fr-FR` | `DA 5 000` (بادئة، مسافة غير فاصلة ضيقة) |
+| `en-US` | `DA 5,000` |
+
+الافتراضي صفر منازل عشرية؛ فأسعار DZD أعداد صحيحة. لا تمرّر `decimals: 2` إلا
+إذا كان المتجر يستخدم فعلًا مبالغ كسرية.
+
+مرّر دائمًا `config.locale` و`config.currencySymbol`، لا `"DZD"` مضمّنًا ولا
+اللغة الأساسية. فالمتسوق الفرنسي في متجر عربي يجب أن يرى تنسيقًا فرنسيًا.
+
+`amount` بوحدة العملة الكاملة للمتجر. لا تقسمه على 100.
+
+## الصور
+
+### الصورة الممثلة للمنتج
+
+تختار `productImageSource(product)` غلاف التاجر، أو أول صورة صالحة في المعرض،
+أو `null`:
+
+```ts
+import { productImageSource } from "@wocart/storefront";
+
+const src = productImageSource(product);
+```
+
+كثيرًا ما تكون `coverImage` مساوية لـ`null` حتى عندما يكون للمنتج صور.
+وقراءتها مباشرة تترك مربعات فارغة في البطاقات والسلل.
+
+### تغيير المقاس على نطاق الوسائط
+
+يعمل Cloudflare Image Resizing على نطاق الوسائط؛ ويحتفظ URL بذلك المضيف:
+
+```ts
+import { getCardImage, getGalleryImage } from "@wocart/storefront";
+
+const card = src ? getCardImage(src, mediaDomain) : null;
+const full = src ? getGalleryImage(src, mediaDomain) : null;
+```
+
+تعيد المساعدات URL الأصلي عندما يتعذر عليها بناء URL لتغيير المقاس — لا نطاق
+وسائط، أو صورة مستضافة في مكان آخر. وهذا الاحتياط هو سبب استمرار عرض متجر بلا
+نطاق وسائط.
+
+الإعدادات المسبقة هي:
+
+| المساعد | المقاس | الاستخدام |
+| --- | --- | --- |
+| `getCardImage` | 400×400 | بطاقات الشبكة |
+| `getGalleryImage` | 800×800 | معرض المنتج |
+| `getThumbnailImage` | 80×80 | صور المعرض المصغرة |
+| `getHeroImage` | 1200×600 | لافتات الواجهة |
+| `getCategoryImage` | 300×200 | بلاطات الفئات |
+| `getLogoImage` | 200×80 | شعار الترويسة، داخل الإطار |
+
+تعرض `IMAGE_SIZES` الإعدادات المسبقة الخام.
+
+### اربط النطاق مرة واحدة
+
+```ts
+import { createImageHelpers } from "@wocart/storefront";
+
+const images = createImageHelpers(mediaDomain);
+
+images.getCardImage(src);
+images.getGalleryImage(src);
+images.generateSrcSet(src, 400, 400);
+```
+
+`createImageHelpers` هي الصيغة الموصى بها في القالب: كل استدعاء يحمل النطاق
+المهيّأ، فلا يرسل أي موضع استدعاء صورة غير محسّنة بصمت.
+
+### صور متجاوبة
+
+```ts
+const srcset = images.generateSrcSet(src, 400, 400);
+// "… 1x, … 1.5x, … 2x"
+```
+
+مرّر العرض والارتفاع نفسيهما اللذين يستخدمهما التخطيط وحدّدهما على `<img>`.
+وحجز المساحة يمنع اهتزاز التخطيط:
+
+```astro
+<img
+  src={images.getCardImage(src)}
+  srcset={images.generateSrcSet(src, 400, 400)}
+  width="400"
+  height="400"
+  alt={product.name}
+  loading="lazy"
+/>
+```
+
+يمكن أن تستخدم أول صورة في المعرض `loading="eager"` وأولوية أعلى؛ وتبقى الصور
+المصغرة مؤجلة التحميل.
+
+### مفاتيح الصور
+
+قد يخزّن إعداد القالب مفتاح كائن مثل `products/3f2a9c.webp`. حوّله إلى URL عام
+باستخدام `mediaUrl(key, mediaDomain)`، ثم غيّر مقاسه:
+
+```ts
+import { mediaUrl, mediaImageUrl } from "@wocart/storefront";
+
+const url = mediaUrl("products/3f2a9c.webp", mediaDomain);
+const resized = url ? mediaImageUrl(url, { width: 1200, quality: 85 }, mediaDomain) : null;
+```
+
+ترفض `mediaUrl` المفاتيح الفارغة، والمقاطع الفارغة أو `.`/`..`، والمسافات،
+ومحارف التحكم، والشرطات المائلة العكسية، و`?`، و`#`، والمفاتيح الطويلة جدًا.
+ولا تدمج نطاقًا ومفتاحًا يدويًا.
+
+لا تعيد `mediaImageUrl` كتابة إلا عناوين URL على أصل الوسائط؛ وكل ما عدا ذلك
+يعود `null`، وتعيد `optimizeImage` الأصل.
+
+## WhatsApp
+
+`config.whatsapp` هو إعداد الودجة المحلول، أو `null`. و`href` هو رابط WhatsApp
+الخاص بالتاجر؛ لا تبنِ URL `wa.me` بنفسك.
+
+### هل تعرضه
+
+```ts
+import { showsWidgetOn } from "@wocart/storefront";
+
+if (
+  config.whatsapp &&
+  showsWidgetOn(config.whatsapp.surfaces, Astro.url.pathname)
+) {
+  renderWhatsAppLauncher(config.whatsapp);
+}
+```
+
+الأسطح هي `home` و`catalog` و`product` و`pages` و`thankYou` و`checkout`
+و`landing`. وتستخدم `showsWidgetOn` مطابق المسارات، فيحل URL المنتج إلى
+`product` حتى مع بادئة لغة.
+
+الودجة `null` تعني معطّلة. لا تعرض مشغّلًا بديلًا.
+
+### حل نص الملء المسبق
+
+قالب التاجر يحمل `{store}` و`{product}` و`{url}` و`{order}`:
+
+```ts
+import { buildWhatsAppHref, resolvePrefillText } from "@wocart/storefront";
+
+const template =
+  pageType === "product"
+    ? config.whatsapp.prefillProduct
+    : config.whatsapp.prefillGeneral;
+
+const text = resolvePrefillText({
+  template: template ?? "",
+  storeName: config.name,
+  productName: product?.name,
+  url: Astro.url.href,
+  orderNumber: pageType === "thankYou" ? orderNumber : undefined,
+});
+
+const href = buildWhatsAppHref(config.whatsapp.href, text);
+```
+
+القواعد التي تتولاها المساعدة:
+
+- تعود `{product}` إلى اسم المتجر عند عدم وجود منتج.
+- تحل `{order}` إلى لا شيء عند عدم وجود طلب.
+- تُجرَّد `{url}` من معاملات `utm_*` و`*clid` و`fbclid`. فالمتسوق القادم من
+  إعلان لا يسلّم التاجر رابطًا محمّلًا بأدوات التتبع.
+- تُحدّ النتيجة بـ`MAX_RESOLVED_PREFILL_LENGTH` (900 حرف) عند حد كلمة.
+- يُترك العنصر النائب المجهول كما هو؛ وعدّاد لوحة التحكم هو ما يلتقط خطأ كتابة
+  التاجر.
+
+تضيف `buildWhatsAppHref` `text=` بفاصل `&` عندما يحتوي href الأساسي على
+استعلام، فيحتفظ رابط التاجر برقم أو مصدر مسبق التعبئة.
+
+على سطح الشكر، استخدم `prefillThankYou` ومرّر رقم الطلب:
+
+```ts
+const text = resolvePrefillText({
+  template: config.whatsapp.prefillThankYou ?? "",
+  storeName: config.name,
+  url: Astro.url.href,
+  orderNumber,
+});
+```
+
+موضع المشغّل ولونه المميز ونصه وحالة الانتباه محلولة بالفعل على كائن الودجة.
+استخدمها؛ ولا تخترع قيمًا افتراضية تختلف عن قيم لوحة التحكم.
+
+## أحداث Meta في المتصفح
+
+يبني SDK حمولات Meta ويغلّف دالة البكسل:
+
+```ts
+import {
+  buildMetaAddToCartPayload,
+  buildMetaViewContentPayload,
+  createMetaPixelTracker,
+} from "@wocart/storefront";
+
+const pixel = createMetaPixelTracker({
+  getPixel: () =>
+    typeof window.fbq === "function" ? (window.fbq as never) : null,
+});
+
+pixel.track(
+  "ViewContent",
+  buildMetaViewContentPayload(product.id, view.basePrice),
+);
+
+const addToCart = buildMetaAddToCartPayload(basket.getLines());
+if (addToCart) pixel.track("AddToCart", addToCart);
+```
+
+تحمل حمولة المنتج `content_ids` و`content_type: "product"` و`value`
+و`currency: "DZD"`. وتضيف حمولة السلة `contents` و`num_items`.
+
+المساعدات نقية وتعيد `null` لسلة فارغة:
+
+```ts
+const payload = buildMetaAddToCartPayload(basket.getLines());
+if (payload) pixel.track("AddToCart", payload);
+```
+
+`buildMetaInitiateCheckoutPayload(lines, value)` بالشكل نفسه مع قيمة إتمام
+الطلب.
+
+استخدم `trackSingle(pixelId, event, params, { eventID })` عندما تخص البيعَ
+بكسلٌ واحد. وحدث **Purchase** مختلف: فبكسله وحدثه قرار الخادم. اقرأهما من
+`orders.tracking` ولا ترسل شيئًا عندما يعيد `null` — راجع
+[إتمام الطلب وOTP](/ar/sdk/storefront/checkout).
+
+<Callout type="caution" title="حدث المتصفح ليس التحويل">
+حدث المتصفح وحدث Conversions API من الخادم هما نصفا تحويل واحد. ويجب أن يحملا
+`eventID` نفسه وأن يذهبا إلى البكسل نفسه. لا تخترع بكسلًا ولا اسم حدث ولا معرّف
+حدث في صفحة الشكر.
+</Callout>
+
+## قائمة تحقق للعرض
+
+- تستخدم الأسعار `config.locale` و`config.currencySymbol`.
+- تأتي صور المنتجات من `productImageSource`، لا من `coverImage` وحدها.
+- تُربط مساعدات تغيير المقاس بنطاق الوسائط مرة واحدة.
+- يحمل `<img>` العرض والارتفاع و`alt`.
+- لا تُعرض ودجة WhatsApp إلا عندما توجد `config.whatsapp` ويكون السطح مفعّلًا.
+- يمر النص المسبق عبر `resolvePrefillText` و`buildWhatsAppHref`.
+- تأتي حمولات Meta من دوال البناء؛ ويأتي Purchase من `orders.tracking`.

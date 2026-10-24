@@ -1,0 +1,347 @@
+---
+description: Submit an order through an Astro action, verify the phone with WhatsApp OTP, and fire the right conversion on the thank-you page.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Checkout and OTP
+
+The order form is a normal HTML form. It posts to an Astro action, the action
+calls the server, and the browser lands on a thank-you page. The server prices
+the order; the browser only describes the choice.
+
+```text
+form → src/actions/index.ts → executePlaceOrder() → cod-server
+                                              ↓
+                              /thank-you?order=…&total=…&oid=…
+```
+
+Keep the flow post/redirect/get. A direct render of the success page behind a
+POST makes a refresh re-attempt the order.
+
+## The action
+
+Astro's `defineAction` is the thin framework wrapper; the SDK owns the input
+whitelist and the submission.
+
+```ts
+// src/actions/index.ts
+import { ActionError, defineAction } from "astro:actions";
+import { executePlaceOrder, placeOrderInput } from "@wocart/storefront/astro";
+import { getStoreClient } from "@/theme/sdk";
+
+export const server = {
+  placeOrder: defineAction({
+    accept: "form",
+    input: placeOrderInput,
+    handler: async (input, context) => {
+      const result = await executePlaceOrder(
+        input,
+        context.request,
+        getStoreClient(),
+      );
+
+      if (!result.success) {
+        if (result.errorKind === "shape") {
+          throw new ActionError({ code: "BAD_REQUEST", message: result.error });
+        }
+        if (result.couponRefusal) return { couponRefusal: result.couponRefusal };
+        throw new ActionError({
+          code: "UNPROCESSABLE_CONTENT",
+          message: result.error,
+        });
+      }
+
+      return result.data;
+    },
+  }),
+};
+```
+
+`executePlaceOrder` enforces one rule: an order is either a basket (`items`) or
+one product. Anything else is a shape error. It also forwards the shopper's
+`User-Agent`, IP and `Referer` so attribution is recorded for the visitor, not
+for your Worker.
+
+`result.data` is the accepted order:
+
+```ts
+type CreatedOrder = {
+  orderId: string;
+  orderNumber: string;
+  price: number;
+  deliveryFee: number;
+  total: number;
+  couponDiscount?: number | null;
+};
+```
+
+Those totals are authoritative only after the server accepts the order.
+
+## The form fields
+
+`placeOrderInput` is a whitelist. A field it does not name is stripped before
+the action runs, so use its names exactly.
+
+| Field | Notes |
+| --- | --- |
+| `customerName` | Required, 2–100 characters |
+| `phone` | Algerian mobile; accepted in local or international form |
+| `wilayaId` | Required, 1–58 |
+| `communeId` | Required |
+| `address` | Up to 300 characters |
+| `deliveryType` | `home` or `stop_desk` |
+| `notes` | Up to 500 characters |
+| `email` | Optional unless the store's policy requires it |
+| `couponCode` | Up to 64 characters |
+| `otpToken` | Set after phone verification |
+| `turnstileToken` | Set by the bot-protection widget |
+| `customFieldResponses` | JSON array for merchant-defined fields |
+| `items` | JSON array for a basket order |
+| `productId`, `productName`, `pricePerUnit`, `quantity`, `variantId`, `offerId` | The single-product form; `pricePerUnit` is required by the shape check |
+| `variantSelections` | JSON array for per-unit variant choices |
+| `landingPageSlug` | Attribution for a landing-page order |
+| `fbc`, `fbp` | Meta click and browser cookies |
+
+For a basket, serialize the basket into one hidden input:
+
+```ts
+const itemsInput = document.querySelector<HTMLInputElement>("#cart-items");
+itemsInput.value = JSON.stringify(basket.toOrderItems());
+```
+
+For custom fields, one JSON field keeps the form independent of the action's
+schema:
+
+```ts
+const answers = config.checkoutForm.customFields.map((field) => ({
+  id: field.id,
+  value: formData.get(`custom:${field.id}`)?.toString() ?? "",
+}));
+
+customInput.value = JSON.stringify(answers);
+```
+
+`pricePerUnit` is display-only, but a single-product order must include it:
+`executePlaceOrder` rejects a form that has neither `items` nor a product with
+a price. The server re-prices the line anyway, so it is never the charge.
+
+## Show the server's refusal
+
+The action can refuse for a field, a business rule, or a coupon.
+
+- **Shape** — neither a basket nor a product. `BAD_REQUEST`; this is a bug in
+  the form, not a shopper error.
+- **Validation** — the server's `domainError` names the field and the rule.
+  Render the error beside that field.
+- **Coupon** — `couponRefusal` is returned without throwing. The code box shows
+  the reason and the shopper can change it without re-entering the order.
+- **Business** — an unavailable product, a closed store, an undeliverable
+  destination. Keep the form filled and show the reason.
+
+Do not replace these with a generic “something went wrong”. A shopper who chose
+a sold-out size needs to know which choice to change.
+
+## Thank-you and tracking
+
+After success, redirect with the values your thank-you page reads. Theme-00's
+contract is `/thank-you?order=<number>&total=<total>&oid=<orderId>`.
+
+The page asks the server which pixel and event this order belongs to:
+
+```ts
+const tracking = await Astro.locals.store.client.orders.tracking(orderId);
+```
+
+`tracking` is `null` when the lookup fails. In that case fire **nothing**:
+
+```ts
+if (!tracking?.pixelId || !tracking.event) return;
+```
+
+The event is already resolved. If the merchant's conversion fires later in the
+funnel, `event` is `null`; do not fall back to `Purchase`.
+
+```js
+fbq(
+  "trackSingle",
+  pixelId,
+  tracking.event,
+  { value: total, currency: "DZD" },
+  { eventID: orderId },
+);
+```
+
+Use `trackSingle`, not `track`: the sale belongs to one pixel, the one the
+server's Conversions API mirrors. `eventID: orderId` is what deduplicates the
+browser event against the server event. A different ID double-counts.
+
+When tracking is unavailable, skip the browser event rather than guessing a
+pixel. The server-side event still exists.
+
+## WhatsApp OTP
+
+OTP is optional per store (`config.otpEnabled`). When enabled, the checkout
+phone must be verified before the order is accepted.
+
+The browser flow is a state machine from the SDK:
+
+```ts
+import {
+  createOtpMachine,
+  createOtpTransport,
+  mapOtpResponse,
+  otpTransportFailure,
+  STOREFRONT_OPERATIONS,
+  type OtpSendResult,
+  type OtpVerifyResult,
+} from "@wocart/storefront";
+
+async function postOtp<T>(path: string, body: object, operation: string) {
+  try {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return await mapOtpResponse<T>(response, { operation, fallbackError: "" });
+  } catch (error) {
+    return otpTransportFailure<T>(error, operation, "");
+  }
+}
+
+const transport = createOtpTransport({
+  send: (phone) =>
+    postOtp<OtpSendResult>("/api/otp/send", { phone }, STOREFRONT_OPERATIONS.ordersOtpSend),
+  verify: (phone, requestId, code) =>
+    postOtp<OtpVerifyResult>(
+      "/api/otp/verify",
+      { phone, requestId, code },
+      STOREFRONT_OPERATIONS.ordersOtpVerify,
+    ),
+});
+
+const otp = createOtpMachine({ transport, initialPhone: phoneInput.value });
+```
+
+The same-origin routes are created by the SDK:
+
+```ts
+// src/pages/api/otp/send.ts
+import { routes } from "../../../theme/api-routes";
+export const POST = routes.otpSend;
+```
+
+```ts
+// src/pages/api/otp/verify.ts
+import { routes } from "../../../theme/api-routes";
+export const POST = routes.otpVerify;
+```
+
+### What the machine owns
+
+| State | What to render |
+| --- | --- |
+| `idle` | Nothing; waiting for a phone |
+| `sending` | Disable the send button |
+| `code_sent` | Code field, resend countdown, attempt count |
+| `verifying` | Disable verify and submit |
+| `verified` | Put `otpToken` in the hidden input |
+| `bypassed` | Provider unavailable; put `bypassToken` in the same input |
+| `error` | The reason; resend may be available |
+
+`send()` starts a 60-second cooldown (or the server's longer rate-limit
+window). `verify()` accepts six digits, counts attempts, and moves to a terminal
+state when the code expires. `setPhone()` resets the flow when the phone
+changes; the token must never outlive the number it was issued for.
+
+```ts
+otp.subscribe((state) => {
+  tokenInput.value = state.otpToken ?? state.bypassToken ?? "";
+  renderOtp(state);
+});
+
+phoneInput.addEventListener("input", () => otp.setPhone(phoneInput.value));
+```
+
+When the phone verifies, submit the form once. The proof travels as `otpToken`,
+not as a second field.
+
+`bypassed` is not an error to hide: the server failed open on purpose, and the
+order must still be attested. It carries a signed bypass token and the reason.
+
+### Without JavaScript
+
+The form still posts. The server answers `OTP_VERIFICATION_REQUIRED` if the
+phone is not verified, and the page shows that error. The OTP step is an
+enhancement, not the only path.
+
+## Turnstile
+
+When the store enables bot protection, the widget writes a token. The action
+expects it as `turnstileToken`; if the widget's field is named differently, copy
+it into that field before submit.
+
+A missing or expired Turnstile token is a validation refusal. Keep the rest of
+the form; do not clear it.
+
+## Abandoned checkout
+
+An optional tracker records a checkout the shopper left, after a name and a
+valid mobile are present:
+
+```ts
+import { createAbandonedCheckoutTracker } from "@wocart/storefront";
+
+const tracker = createAbandonedCheckoutTracker({
+  storage: localStorage,
+  createId: () => crypto.randomUUID(),
+  schedule: (fn, ms) => setTimeout(fn, ms),
+  cancel: clearTimeout,
+  readCookie: (name) =>
+    document.cookie.split("; ").find((row) => row.startsWith(`${name}=`))?.split("=")[1],
+  send: (payload) => fetch("/api/abandoned", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).then(() => undefined),
+  beacon: (payload) =>
+    navigator.sendBeacon("/api/abandoned", JSON.stringify(payload)),
+});
+
+tracker.schedule(snapshot);
+tracker.update(snapshot);
+tracker.captureOnExit(snapshot);
+```
+
+`schedule` waits three seconds after typing stops before sending; `update`
+only sends again after the first record exists. The tracker carries `_fbc` and
+`_fbp` cookies when present.
+
+After the order is placed, mark the session converted:
+
+```ts
+fetch("/api/abandoned/convert", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ sessionId, orderId, orderNumber }),
+  keepalive: true,
+});
+```
+
+The conversion is fire-and-forget. A failure to send it must never block the
+thank-you page.
+
+## A checkout checklist
+
+- The form posts to `placeOrder`; the basket is one JSON `items` field.
+- `pricePerUnit` is present for display and never treated as the charge.
+- Custom fields are serialized by field `id`.
+- OTP is rendered only when `config.otpEnabled` is true.
+- The OTP token is in `otpToken`; a changed phone resets it.
+- Turnstile's token is in `turnstileToken`.
+- The action redirects on success; it does not render the thank-you page.
+- The thank-you page fires only the pixel and event `orders.tracking` returns.
+- `eventID` is the order id.
+- The abandoned session is marked converted after success.

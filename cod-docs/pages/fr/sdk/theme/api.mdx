@@ -1,0 +1,184 @@
+---
+description: Chaque export public de @wocart/theme, groupé par point d'entrée, avec ce qui est stable, déprécié et interne.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Surface d'API publique
+
+Cette page est la carte raisonnée de `@wocart/theme` 2.1.0 : ce que chaque point
+d'entrée expose, à quoi cela sert, et ce qui ne fait pas partie du contrat. La
+[référence générée](/sdk/theme/reference/README) contient toutes les signatures ;
+cette page dit lesquelles utiliser.
+
+```sh
+npm install @wocart/theme @wocart/storefront
+```
+
+| Import | S'exécute dans | Contient |
+| --- | --- | --- |
+| `@wocart/theme` | Navigateur et serveur | Définitions, validation, documents, opérations, réglages, copie, style, manifeste, protocole d'aperçu — sans Astro, sans I/O |
+| `@wocart/theme/astro` | Serveur et build | Le cache de lecture, les points d'entrée du manifeste et de la feuille de style, les aides de slots et d'aperçu |
+| `@wocart/theme/astro/InstanceView.astro` | Serveur et build | Le moteur de rendu de référence |
+| `@wocart/theme/astro/Blocks.astro`, `Block.astro` | Serveur et build | Les blocs d'un slot, un bloc fixe |
+| `@wocart/theme/astro/ThemeStyles.astro` | Serveur et build | Le lien de feuille de style et le CSS des schémas de couleurs |
+| `@wocart/theme/image-service` | Build | `mediaImageService` pour `image.service` d'Astro |
+| `@wocart/theme/preview` | Navigateur | `startPreviewBridge` pour la page d'aperçu d'un thème |
+
+Le point d'entrée racine n'importe aucun module Astro et ne fait aucune I/O : il
+tourne dans un test unitaire ou un script. La validation se fait sur le serveur
+ou dans le build — un schéma dans une page publique envoie Zod à chaque visiteur.
+
+## Définitions et validation
+
+| Export | Ce qu'il fait |
+| --- | --- |
+| `defineComponent(definition)` | Aide d'identité : conserve les littéraux des champs, type `load` depuis les champs, type les props du composant |
+| `defineTheme(definition)` | Aide d'identité pour le catalogue |
+| `validateThemeDefinition(theme, options?)` | Contrôle d'assemblage : clé/type, champs, slots, blocs, préréglages, documents, clés de contenu, garantie du formulaire de commande. `[]` est le seul succès |
+| `themeManifest(theme)` | Le manifeste sérialisable ; retire `component` et `load` |
+| `validateThemeManifest(input)` | Frontière pour du JSON : sérialisabilité, structure, puis les mêmes règles relationnelles. `{ manifest, issues }` |
+| `manifestCatalog(manifest)` | Un `ThemeDefinition` avec `component: null` — pour l'édition et la validation, jamais pour le rendu |
+| `diffThemeManifests(previous, next)` | `{ breaking, additive }` entre deux versions |
+| `THEME_SDK_VERSION` | La version du paquet enregistrée dans le manifeste (`"2.1.0"`) |
+| `THEME_MANIFEST_CONTRACT_VERSION` | Version du format de manifeste (`1`) |
+| `THEME_MANIFEST_PATH` | `/wocart-theme.json` |
+
+`validateThemeDefinition` prend une option : `contentKeys`, l'ensemble des clés
+où chaque `contentKey` doit exister. Passer un tableau vide est significatif :
+cela active le contrôle et signale chaque clé déclarée.
+
+## Documents et instances
+
+| Export | Ce qu'il fait |
+| --- | --- |
+| `parsePageData(input)` | Lit un document enregistré avec indulgence : `{ page, issues }` ; `page` est nul seulement pour une enveloppe cassée |
+| `validatePageData(theme, input, scope?)` | La même lecture contre un catalogue, avec `unknown-type` et le filtrage des slots |
+| `resolveInstance(definition, instance, scope?)` | Une instance → `{ props, children, slots, fixed, issues }` ; le cœur du moteur de rendu |
+| `createInstance(definition, id, props?)` | Matérialise une instance ; lève sur une clé inconnue, un type faux ou un champ requis non remplissable |
+| `checkFieldValue(field, value)` | Contrôle d'écriture d'une valeur : `{ ok: true, value }` ou `{ ok: false, message }` |
+| `resolveSurfaceDocument(theme, surface, saved, scope?)` | Quel document est rendu, complété : `{ page, source, reason, issues }` |
+| `completePage(theme, page)` | Ajoute chaque bloc fixe et requis ; `{ page, issues }` |
+| `isFieldVisible(field, values)` | Évalue le `visibleIf` d'un champ contre les valeurs voisines — éditeurs uniquement |
+| `CONDITION_DEPTH` | Profondeur maximale d'une condition (`4`) |
+
+## Opérations sur les documents
+
+Les écrivains — un éditeur, un script, un agent — modifient les documents par
+ces fonctions. Chacune renvoie `{ ok: true, page }` ou `{ ok: false, issue }`, et
+aucune ne modifie son entrée.
+
+| Export | Ce qu'il fait |
+| --- | --- |
+| `insertInstance(theme, page, instance, placement?)` | Place une nouvelle instance à `{ parent?, slot?, index? }` (sans parent : une section de premier niveau) |
+| `moveInstance(theme, page, id, placement?)` | Replace une instance existante |
+| `duplicateInstance(theme, page, id, newId)` | Copie une instance et son arbre, avec de nouveaux ids venant de `newId` |
+| `setInstanceProps(theme, page, id, changes)` | Fusionne des props, chacune contrôlée contre son champ |
+| `setInstanceHidden(theme, page, id, hidden)` | Masque ou affiche, en refusant pour les blocs fixes et requis |
+| `removeInstance(theme, page, id)` | Supprime une instance et son arbre, en refusant si la composition l'exige |
+| `findInstance(page, id)` | `{ instance, parent, slot, index, depth, fixed? }` ou `null` |
+| `newInstanceId()` | `cmp_` suivi de 16 chiffres hexadécimaux |
+| `checkPageData(theme, input)` | Tous les problèmes à corriger avant d'enregistrer : `DocumentIssue[]` |
+
+`removeInstance(page, id)` et `setInstanceHidden(page, id, hidden)` acceptent
+encore la forme sans thème ; elle est **dépréciée**, car un écrivain sans le
+thème ne peut pas connaître les types requis d'un slot.
+
+## Composition
+
+| Export | Ce qu'il fait |
+| --- | --- |
+| `instantiatePreset(theme, type, key, newId)` | Construit les instances d'un préréglage |
+| `isInsertableOn(component, surface)` | Si les `capabilities` l'offrent ici — indicatif, appliqué à l'insertion |
+| `COMPONENT_PLACEMENTS` | `["section", "block", "both"]` |
+| `COMPONENT_ROLES` | `["order-form"]` |
+| `THEME_LIMITS` | `{ slotInstances: 50, sections: 50, documentInstances: 1000, depth: 6 }` |
+| `areaSurface(key)` | `"area:header"` — la surface sous laquelle le document d'une zone est stocké |
+| `fixedBlockId(ownerId, name)` | L'id avec lequel un bloc fixe est rendu quand le document ne le stocke pas |
+
+## Réglages et copie
+
+| Export | Ce qu'il fait |
+| --- | --- |
+| `resolveThemeSettings(theme, stored, scope?)` | Réglages effectifs : `{ values, issues }`, typés par `InferSettings` |
+| `checkThemeSettings(theme, values)` | Contrôle d'écriture : chaque clé déclarée, chaque valeur acceptée, chaque `colorScheme` nommant un schéma réel |
+| `localize(value, locales)` | Un `LocalizedText` dans la première langue qui le possède |
+| `formatMessage(pack, key, values, options?)` | Placeholders et pluriels CLDR depuis un fichier de langue |
+| `messageForms(pack, key)` | Les formes CLDR que définit une clé de message |
+| `pluralFormIssues(pack, locale)` | Les formes que la langue exige et que le pack n'a pas, ou qu'il porte sans usage |
+| `PLURAL_CATEGORIES` | Les six catégories CLDR |
+
+## Style
+
+| Export | Ce qu'il fait |
+| --- | --- |
+| `styleClasses(value)` | Les classes d'une valeur `style` |
+| `schemeClass(scheme)` | `.wc-scheme-<id>`, ou `""` sans schéma |
+| `themeStyleSheet(style)` | La feuille de style de toutes les classes permises par les tailles du thème |
+| `colorSchemeCss(schemes)` | Variables CSS par schéma |
+| `contrastRatio(a, b)` | Le ratio de contraste WCAG entre deux couleurs hex |
+| `STYLE_STEPS`, `STYLE_WIDTHS`, `STYLE_PANELS`, `STYLE_BREAKPOINTS` | Le vocabulaire de style de la plateforme |
+| `COLOR_ROLES`, `COLOR_SCHEMES_MAX` | Les sept rôles, et 24 schémas par boutique |
+| `THEME_STYLES_PATH` | `/wocart-styles.css` |
+
+## Protocole d'aperçu
+
+| Export | Ce qu'il fait |
+| --- | --- |
+| `previewStartMarker(instance)`, `previewEndMarker(instance)` | Les marqueurs de commentaire dont le moteur entoure une instance en aperçu |
+| `parsePreviewMarker(text)` | Relit un marqueur |
+| `PREVIEW_PROTOCOL_VERSION`, `THEME_PREVIEW_PATH` | Version du protocole (`1`) et `/wocart-preview` |
+
+## `@wocart/theme/astro`
+
+| Export | Ce qu'il fait |
+| --- | --- |
+| `createReadCache()` | Un `ReadCache` par rendu de page : le premier appel d'une clé lance le chargeur, les suivants réutilisent la valeur résolue **et son rejet** |
+| `themeManifestEndpoint(theme)` | Un gestionnaire `GET` pour le manifeste prérendu ; lève au chargement du module si le manifeste est invalide |
+| `themeStylesEndpoint(theme)` | Un gestionnaire `GET` pour les classes de style, `text/css` |
+| `hasBlocks(blocks, slot?)` | Si un slot contient un bloc qui se rend — pour éviter une enveloppe vide |
+| `isPreview(blocks)` | Si ce rendu est un aperçu d'éditeur ; les placeholders n'y ont leur place que là |
+| `BlocksHandle`, `RendererIssue` | La prop `blocks` qu'un composant reçoit, et la forme d'un problème du moteur |
+| `resolveInstance`, `THEME_LIMITS`, `THEME_STYLES_PATH`, `colorSchemeCss`, `previewStartMarker`, `previewEndMarker` | Réexports du module racine, pour qu'un import co-localisé se résolve dans les sources et dans `dist` |
+
+Les quatre composants : `InstanceView.astro` (le moteur), `Blocks.astro`
+(`<Blocks of={blocks} slot="info" />`), `Block.astro`
+(`<Block of={blocks} name="gallery" />`) et `ThemeStyles.astro`
+(`<ThemeStyles schemes={settings.colorSchemes} />`).
+
+## `@wocart/theme/image-service` et `/preview`
+
+| Export | Ce qu'il fait |
+| --- | --- |
+| `mediaImageService(mediaDomain)` | Un service d'image Astro qui redimensionne les images du domaine média sur ce domaine ; `mediaDomain` est un getter, donc une valeur de build est lue après le chargement de l'environnement |
+| `mediaImageParams(options)` | Les paramètres de requête que le service construit pour une transformation Astro |
+| `startPreviewBridge({ editorOrigin, token, endpoint?, window? })` | Le côté navigateur d'une page d'aperçu : patchs de balisage, messages de survol/sélection, demandes de re-rendu. Renvoie `{ stop() }` |
+| `PREVIEW_SECTION_LOAD_EVENT` | `"wocart:section-load"` — émis pour chaque section remplacée par le bridge |
+
+## Types que vous nommerez
+
+| Groupe | Types |
+| --- | --- |
+| Catalogue | `ThemeDefinition`, `ComponentDefinition`, `SurfaceSpec`, `AreaSpec`, `SurfacePageType`, `LocalizedText`, `ThemeStyle`, `SettingsGroup` |
+| Champs | `FieldDefinition` et ses interfaces par type, `FieldValue`, `FieldValues`, `InferProps`, `InferSettings`, `MediaReference`, `ResolvedImage`, `RichTextValue`, `StyleValue`, `ColorScheme` |
+| Documents | `PageData`, `ComponentInstance`, `PageDataResult`, `PageDataIssue`, `PageDataIssueCode`, `ResolvedInstance`, `ResolutionScope` |
+| Rendu | `ThemeRenderContext`, `LoadContext`, `LoadFn`, `ReadCache`, `BlocksHandle`, `RendererIssue` |
+| Écriture | `DocumentEdit`, `DocumentIssue`, `DocumentIssueCode`, `InstanceLocation`, `InstancePlacement` |
+| Manifeste | `ThemeManifest`, `ThemeManifestResult`, `ManifestDiff`, `ManifestChange` |
+| Réglages | `ThemeSettingsResult`, `ThemeSettingsIssue`, `ThemeSettingsIssueCode` |
+
+<Callout type="caution" title="Ce qui n'est pas public">
+Les chemins profonds `dist/…` et `src/…` sont de l'implémentation.
+`ComponentDefinition.component` et `.load` sont du code, jamais sérialisés ;
+`manifestCatalog` renvoie des définitions sans composant, c'est donc pour
+l'édition, pas pour le rendu. La `key` du thème fait partie du contrat : la
+renommer orpheline les éditions marchandes.
+</Callout>
+
+## Version
+
+`THEME_SDK_VERSION` doit être égale à la version installée du `package.json` — le
+contrôle du paquet refuse une publication où elles diffèrent. Un manifeste
+l'enregistre, donc un éditeur sait ce que le moteur du thème lit. Voir
+[Production et mises à niveau](/sdk/theme/production#versions-and-upgrades) pour
+les plages de peers et la liste de mise à niveau.

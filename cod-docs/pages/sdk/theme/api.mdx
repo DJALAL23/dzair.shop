@@ -1,0 +1,184 @@
+---
+description: Every public export of @wocart/theme, grouped by entry point, with what is stable, deprecated and internal.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Public API surface
+
+This page is the curated map of `@wocart/theme` 2.1.0: what each entry point
+exports, what it is for, and what is not part of the contract. The
+[generated reference](/sdk/theme/reference/README) has every signature; this page
+tells you which ones to reach for.
+
+```sh
+npm install @wocart/theme @wocart/storefront
+```
+
+| Import | Runs in | Holds |
+| --- | --- | --- |
+| `@wocart/theme` | Browser and server | Definitions, validation, documents, operations, settings, copy, style, manifest, preview protocol — no Astro, no I/O |
+| `@wocart/theme/astro` | Server and build | The read cache, the manifest and stylesheet endpoints, slot and preview helpers |
+| `@wocart/theme/astro/InstanceView.astro` | Server and build | The reference renderer |
+| `@wocart/theme/astro/Blocks.astro`, `Block.astro` | Server and build | A slot's blocks, one fixed block |
+| `@wocart/theme/astro/ThemeStyles.astro` | Server and build | Stylesheet link and color-scheme CSS |
+| `@wocart/theme/image-service` | Build | `mediaImageService` for Astro's `image.service` |
+| `@wocart/theme/preview` | Browser | `startPreviewBridge` for a theme's preview page |
+
+The root entry imports no Astro module and performs no I/O, so it runs in a unit
+test or a script. Validation belongs on the server or in the build: a schema in
+a shopper's page ships Zod to every visitor.
+
+## Definitions and validation
+
+| Export | What it does |
+| --- | --- |
+| `defineComponent(definition)` | Identity helper: keeps field literals, types `load` from the fields, types the component's props |
+| `defineTheme(definition)` | Identity helper for the catalog |
+| `validateThemeDefinition(theme, options?)` | Assembly check: key/type agreement, fields, slots, blocks, presets, documents, content keys, order-form guarantee. `[]` is the only pass |
+| `themeManifest(theme)` | The serializable manifest; drops `component` and `load` |
+| `validateThemeManifest(input)` | Boundary for JSON: serializability, structure, then the same relational rules. `{ manifest, issues }` |
+| `manifestCatalog(manifest)` | A `ThemeDefinition` with `component: null` — for editing and validation, never for rendering |
+| `diffThemeManifests(previous, next)` | `{ breaking, additive }` between two releases |
+| `THEME_SDK_VERSION` | The package version the manifest records (`"2.1.0"`) |
+| `THEME_MANIFEST_CONTRACT_VERSION` | Version of the manifest format (`1`) |
+| `THEME_MANIFEST_PATH` | `/wocart-theme.json` |
+
+`validateThemeDefinition` takes one option: `contentKeys`, the key set every
+`contentKey` must exist in. Passing an empty array is meaningful — it enables
+the check and reports every declared key.
+
+## Documents and instances
+
+| Export | What it does |
+| --- | --- |
+| `parsePageData(input)` | Read a saved document forgivingly: `{ page, issues }`; `page` is null only for a broken envelope |
+| `validatePageData(theme, input, scope?)` | The same read against a catalog, adding `unknown-type` and slot gating |
+| `resolveInstance(definition, instance, scope?)` | One instance → `{ props, children, slots, fixed, issues }`; the renderer's core |
+| `createInstance(definition, id, props?)` | Materialize an instance; throws on unknown keys, wrong types and unfillable required fields |
+| `checkFieldValue(field, value)` | Writer check for one value: `{ ok: true, value }` or `{ ok: false, message }` |
+| `resolveSurfaceDocument(theme, surface, saved, scope?)` | Which document renders, completed: `{ page, source, reason, issues }` |
+| `completePage(theme, page)` | Add every fixed and required block; `{ page, issues }` |
+| `isFieldVisible(field, values)` | Evaluate a field's `visibleIf` against sibling values — editors only |
+| `CONDITION_DEPTH` | How deep a condition may nest (`4`) |
+
+## Document operations
+
+Writers — an editor, a script, an agent — change documents through these. Each
+returns `{ ok: true, page }` or `{ ok: false, issue }`, and none mutates its
+input.
+
+| Export | What it does |
+| --- | --- |
+| `insertInstance(theme, page, instance, placement?)` | Place a new instance at `{ parent?, slot?, index? }` (no parent: a top-level section) |
+| `moveInstance(theme, page, id, placement?)` | Re-place an existing instance |
+| `duplicateInstance(theme, page, id, newId)` | Copy an instance and its tree, taking fresh ids from `newId` |
+| `setInstanceProps(theme, page, id, changes)` | Merge props, checking each against its field |
+| `setInstanceHidden(theme, page, id, hidden)` | Hide or show, refusing for fixed and required blocks |
+| `removeInstance(theme, page, id)` | Delete an instance and its tree, refusing when composition requires it |
+| `findInstance(page, id)` | `{ instance, parent, slot, index, depth, fixed? }` or `null` |
+| `newInstanceId()` | `cmp_` plus 16 hex digits |
+| `checkPageData(theme, input)` | Every issue a writer must fix before saving: `DocumentIssue[]` |
+
+`removeInstance(page, id)` and `setInstanceHidden(page, id, hidden)` still accept
+the theme-less form; it is **deprecated**, because a writer without the theme
+cannot know a slot's required types.
+
+## Composition
+
+| Export | What it does |
+| --- | --- |
+| `instantiatePreset(theme, type, key, newId)` | Build a preset's instances |
+| `isInsertableOn(component, surface)` | Whether `capabilities` offer it here — advisory, enforced at insertion |
+| `COMPONENT_PLACEMENTS` | `["section", "block", "both"]` |
+| `COMPONENT_ROLES` | `["order-form"]` |
+| `THEME_LIMITS` | `{ slotInstances: 50, sections: 50, documentInstances: 1000, depth: 6 }` |
+| `areaSurface(key)` | `"area:header"` — the surface an area's document is stored under |
+| `fixedBlockId(ownerId, name)` | The id a fixed block renders with when the document does not store it |
+
+## Settings and copy
+
+| Export | What it does |
+| --- | --- |
+| `resolveThemeSettings(theme, stored, scope?)` | Effective settings: `{ values, issues }`, typed by `InferSettings` |
+| `checkThemeSettings(theme, values)` | Writer check: every key declared, every value accepted, each `colorScheme` naming a real scheme |
+| `localize(value, locales)` | A `LocalizedText` in the first language that has one |
+| `formatMessage(pack, key, values, options?)` | Placeholders and CLDR plurals from a locale file |
+| `messageForms(pack, key)` | The CLDR forms a message key defines |
+| `pluralFormIssues(pack, locale)` | Forms the language needs but the pack lacks, or carries unused |
+| `PLURAL_CATEGORIES` | CLDR's six categories |
+
+## Style
+
+| Export | What it does |
+| --- | --- |
+| `styleClasses(value)` | The classes for a `style` value |
+| `schemeClass(scheme)` | `.wc-scheme-<id>`, or `""` for no scheme |
+| `themeStyleSheet(style)` | The stylesheet of every class the theme's sizes allow |
+| `colorSchemeCss(schemes)` | Custom properties per scheme |
+| `contrastRatio(a, b)` | WCAG contrast ratio between two hex colors |
+| `STYLE_STEPS`, `STYLE_WIDTHS`, `STYLE_PANELS`, `STYLE_BREAKPOINTS` | The platform's style vocabulary |
+| `COLOR_ROLES`, `COLOR_SCHEMES_MAX` | The seven roles, and 24 schemes per store |
+| `THEME_STYLES_PATH` | `/wocart-styles.css` |
+
+## Preview protocol
+
+| Export | What it does |
+| --- | --- |
+| `previewStartMarker(instance)`, `previewEndMarker(instance)` | The comment markers the renderer brackets an instance with in a preview |
+| `parsePreviewMarker(text)` | Read a marker back |
+| `PREVIEW_PROTOCOL_VERSION`, `THEME_PREVIEW_PATH` | Protocol version (`1`) and `/wocart-preview` |
+
+## `@wocart/theme/astro`
+
+| Export | What it does |
+| --- | --- |
+| `createReadCache()` | One `ReadCache` per page render: the first call for a key runs the loader, later calls reuse the settled value **and its rejection** |
+| `themeManifestEndpoint(theme)` | A `GET` handler for the prerendered manifest; throws at module load when the manifest is invalid |
+| `themeStylesEndpoint(theme)` | A `GET` handler for the style classes, `text/css` |
+| `hasBlocks(blocks, slot?)` | Whether a slot holds a block that renders — skip an empty wrapper |
+| `isPreview(blocks)` | Whether this render is an editor's preview; placeholders belong there only |
+| `BlocksHandle`, `RendererIssue` | The `blocks` prop a component receives, and the renderer's issue shape |
+| `resolveInstance`, `THEME_LIMITS`, `THEME_STYLES_PATH`, `colorSchemeCss`, `previewStartMarker`, `previewEndMarker` | Re-exports of the root module, so a co-located import resolves in the source and `dist` layouts |
+
+The four components: `InstanceView.astro` (the renderer), `Blocks.astro`
+(`<Blocks of={blocks} slot="info" />`), `Block.astro`
+(`<Block of={blocks} name="gallery" />`) and `ThemeStyles.astro`
+(`<ThemeStyles schemes={settings.colorSchemes} />`).
+
+## `@wocart/theme/image-service` and `/preview`
+
+| Export | What it does |
+| --- | --- |
+| `mediaImageService(mediaDomain)` | An Astro image service that resizes media-domain images on the media domain; `mediaDomain` is a getter, so a build-time value is read after env loading |
+| `mediaImageParams(options)` | The query parameters the service builds for an Astro transform |
+| `startPreviewBridge({ editorOrigin, token, endpoint?, window? })` | The browser side of a preview page: markup patches, hover/select messages, re-render requests. Returns `{ stop() }` |
+| `PREVIEW_SECTION_LOAD_EVENT` | `"wocart:section-load"` — dispatched per section the bridge swapped in |
+
+## Types you will name
+
+| Group | Types |
+| --- | --- |
+| Catalog | `ThemeDefinition`, `ComponentDefinition`, `SurfaceSpec`, `AreaSpec`, `SurfacePageType`, `LocalizedText`, `ThemeStyle`, `SettingsGroup` |
+| Fields | `FieldDefinition` and its per-kind interfaces, `FieldValue`, `FieldValues`, `InferProps`, `InferSettings`, `MediaReference`, `ResolvedImage`, `RichTextValue`, `StyleValue`, `ColorScheme` |
+| Documents | `PageData`, `ComponentInstance`, `PageDataResult`, `PageDataIssue`, `PageDataIssueCode`, `ResolvedInstance`, `ResolutionScope` |
+| Rendering | `ThemeRenderContext`, `LoadContext`, `LoadFn`, `ReadCache`, `BlocksHandle`, `RendererIssue` |
+| Writing | `DocumentEdit`, `DocumentIssue`, `DocumentIssueCode`, `InstanceLocation`, `InstancePlacement` |
+| Manifest | `ThemeManifest`, `ThemeManifestResult`, `ManifestDiff`, `ManifestChange` |
+| Settings | `ThemeSettingsResult`, `ThemeSettingsIssue`, `ThemeSettingsIssueCode` |
+
+<Callout type="caution" title="What is not public">
+`dist/…` and `src/…` deep paths are implementation. `ComponentDefinition.component`
+and `.load` are code and never serialized; `manifestCatalog` returns definitions
+without a component, so it is for editing, not rendering. The theme's `key` is
+part of the contract: renaming it orphans merchant edits.
+</Callout>
+
+## Version
+
+`THEME_SDK_VERSION` must equal the installed `package.json` version — the
+package check refuses a release where they differ. A manifest records it, so an
+editor knows what the theme's renderer reads. See
+[Production and upgrades](/sdk/theme/production#versions-and-upgrades) for the
+peer ranges and the upgrade checklist.
+

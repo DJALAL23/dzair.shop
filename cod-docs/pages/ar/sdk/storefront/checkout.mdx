@@ -1,0 +1,343 @@
+---
+description: أرسل طلبًا عبر إجراء Astro، وتحقق من الهاتف برمز WhatsApp لمرة واحدة (OTP)، وأطلق الحدث التحويلي الصحيح في صفحة الشكر.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# إتمام الطلب وOTP
+
+نموذج الطلب نموذج HTML عادي. يُرسل إلى إجراء Astro، والإجراء يستدعي الخادم،
+ثم يصل المتصفح إلى صفحة شكر. الخادم يسعّر الطلب؛ والمتصفح يصف الاختيار فقط.
+
+```text
+form → src/actions/index.ts → executePlaceOrder() → cod-server
+                                              ↓
+                              /thank-you?order=…&total=…&oid=…
+```
+
+أبقِ التدفق post/redirect/get. فعرض صفحة النجاح مباشرة خلف POST يجعل إعادة
+التحميل تعيد محاولة الطلب.
+
+## الإجراء
+
+`defineAction` في Astro هو الغلاف الرفيع للإطار؛ أما SDK فيملك قائمة الإدخال
+المسموح بها والإرسال.
+
+```ts
+// src/actions/index.ts
+import { ActionError, defineAction } from "astro:actions";
+import { executePlaceOrder, placeOrderInput } from "@wocart/storefront/astro";
+import { getStoreClient } from "@/theme/sdk";
+
+export const server = {
+  placeOrder: defineAction({
+    accept: "form",
+    input: placeOrderInput,
+    handler: async (input, context) => {
+      const result = await executePlaceOrder(
+        input,
+        context.request,
+        getStoreClient(),
+      );
+
+      if (!result.success) {
+        if (result.errorKind === "shape") {
+          throw new ActionError({ code: "BAD_REQUEST", message: result.error });
+        }
+        if (result.couponRefusal) return { couponRefusal: result.couponRefusal };
+        throw new ActionError({
+          code: "UNPROCESSABLE_CONTENT",
+          message: result.error,
+        });
+      }
+
+      return result.data;
+    },
+  }),
+};
+```
+
+يفرض `executePlaceOrder` قاعدة واحدة: الطلب إما سلة (`items`) أو منتج واحد.
+وأي شيء آخر خطأ في الشكل. كما يمرّر `User-Agent` الخاص بالمتسوق وعنوان IP
+و`Referer` لتُسجَّل الإسنادات للزائر، لا لـ Worker الخاص بك.
+
+`result.data` هو الطلب المقبول:
+
+```ts
+type CreatedOrder = {
+  orderId: string;
+  orderNumber: string;
+  price: number;
+  deliveryFee: number;
+  total: number;
+  couponDiscount?: number | null;
+};
+```
+
+لا تكون تلك الإجماليات مرجعًا إلا بعد أن يقبل الخادم الطلب.
+
+## حقول النموذج
+
+`placeOrderInput` قائمة سماح. وأي حقل لا تسمّيه يُحذف قبل تشغيل الإجراء، لذا
+استخدم أسماءه بدقة.
+
+| الحقل | ملاحظات |
+| --- | --- |
+| `customerName` | مطلوب، من 2 إلى 100 حرف |
+| `phone` | هاتف جزائري؛ يُقبل بالصيغة المحلية أو الدولية |
+| `wilayaId` | مطلوب، من 1 إلى 58 |
+| `communeId` | مطلوب |
+| `address` | حتى 300 حرف |
+| `deliveryType` | `home` أو `stop_desk` |
+| `notes` | حتى 500 حرف |
+| `email` | اختياري ما لم تتطلبه سياسة المتجر |
+| `couponCode` | حتى 64 حرفًا |
+| `otpToken` | يُضبط بعد التحقق من الهاتف |
+| `turnstileToken` | تضبطه ودجة الحماية من الروبوتات |
+| `customFieldResponses` | مصفوفة JSON لحقول يعرّفها التاجر |
+| `items` | مصفوفة JSON لطلب سلة |
+| `productId`، `productName`، `pricePerUnit`، `quantity`، `variantId`، `offerId` | نموذج المنتج الواحد؛ و`pricePerUnit` مطلوب لفحص الشكل |
+| `variantSelections` | مصفوفة JSON لاختيارات المتغير لكل وحدة |
+| `landingPageSlug` | إسناد لطلب من صفحة هبوط |
+| `fbc`، `fbp` | كوكيز النقر والمتصفح لدى Meta |
+
+لطلب سلة، سلسِل السلة في حقل مخفي واحد:
+
+```ts
+const itemsInput = document.querySelector<HTMLInputElement>("#cart-items");
+itemsInput.value = JSON.stringify(basket.toOrderItems());
+```
+
+للحقول المخصصة، يُبقي حقل JSON واحد النموذج مستقلًا عن مخطط الإجراء:
+
+```ts
+const answers = config.checkoutForm.customFields.map((field) => ({
+  id: field.id,
+  value: formData.get(`custom:${field.id}`)?.toString() ?? "",
+}));
+
+customInput.value = JSON.stringify(answers);
+```
+
+`pricePerUnit` للعرض فقط، لكن طلب المنتج الواحد يجب أن يتضمنها:
+يرفض `executePlaceOrder` نموذجًا لا يحتوي `items` ولا منتجًا له سعر. ومع ذلك
+يعيد الخادم تسعير السطر، فلا تكون هي المبلغ المحصَّل أبدًا.
+
+## اعرض رفض الخادم
+
+قد يرفض الإجراء بسبب حقل أو قاعدة عمل أو كوبون.
+
+- **الشكل** — لا سلة ولا منتج. `BAD_REQUEST`؛ وهذا خطأ في النموذج، لا خطأ من
+  المتسوق.
+- **التحقق** — يسمّي `domainError` من الخادم الحقل والقاعدة. اعرض الخطأ بجانب
+  ذلك الحقل.
+- **الكوبون** — تُعاد `couponRefusal` دون رفع استثناء. يعرض حقل الكوبون السبب
+  ويمكن للمتسوق تغييره دون إعادة إدخال الطلب.
+- **قاعدة العمل** — منتج غير متاح، أو متجر مغلق، أو وجهة لا يمكن توصيلها. أبقِ
+  النموذج مملوءًا واعرض السبب.
+
+لا تستبدلها برسالة عامة مثل «حدث خطأ ما». فالمتسوق الذي اختار مقاسًا نافدًا
+يحتاج إلى معرفة الخيار الذي يجب تغييره.
+
+## الشكر والتتبع
+
+بعد النجاح، أعد التوجيه بالقيم التي تقرأها صفحة الشكر لديك. عقد Theme-00 هو
+`/thank-you?order=<number>&total=<total>&oid=<orderId>`.
+
+تسأل الصفحة الخادم عن البكسل والحدث الذي ينتمي إليه هذا الطلب:
+
+```ts
+const tracking = await Astro.locals.store.client.orders.tracking(orderId);
+```
+
+تكون `tracking` بقيمة `null` عندما تفشل القراءة. وفي هذه الحالة لا تطلق **أي
+شيء**:
+
+```ts
+if (!tracking?.pixelId || !tracking.event) return;
+```
+
+الحدث محسوم مسبقًا. وإذا كان تحويل التاجر يُطلق لاحقًا في مسار التحويل، تكون
+`event` بقيمة `null`؛ فلا ترجع إلى `Purchase`.
+
+```js
+fbq(
+  "trackSingle",
+  pixelId,
+  tracking.event,
+  { value: total, currency: "DZD" },
+  { eventID: orderId },
+);
+```
+
+استخدم `trackSingle` لا `track`: فالبيع ينتمي إلى بكسل واحد، وهو البكسل الذي
+يعكسه Conversions API في الخادم. و`eventID: orderId` هو ما يمنع تكرار حدث
+المتصفح مقابل حدث الخادم. وأي معرّف مختلف يحتسب الحدث مرتين.
+
+وعندما يكون التتبع غير متاح، تخطَّ حدث المتصفح بدلًا من تخمين بكسل. فحدث
+الخادم يظل موجودًا.
+
+## OTP عبر WhatsApp
+
+OTP اختياري لكل متجر (`config.otpEnabled`). وعند تفعيله، يجب التحقق من هاتف
+إتمام الطلب قبل قبول الطلب.
+
+تدفق المتصفح آلة حالات من SDK:
+
+```ts
+import {
+  createOtpMachine,
+  createOtpTransport,
+  mapOtpResponse,
+  otpTransportFailure,
+  STOREFRONT_OPERATIONS,
+  type OtpSendResult,
+  type OtpVerifyResult,
+} from "@wocart/storefront";
+
+async function postOtp<T>(path: string, body: object, operation: string) {
+  try {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return await mapOtpResponse<T>(response, { operation, fallbackError: "" });
+  } catch (error) {
+    return otpTransportFailure<T>(error, operation, "");
+  }
+}
+
+const transport = createOtpTransport({
+  send: (phone) =>
+    postOtp<OtpSendResult>("/api/otp/send", { phone }, STOREFRONT_OPERATIONS.ordersOtpSend),
+  verify: (phone, requestId, code) =>
+    postOtp<OtpVerifyResult>(
+      "/api/otp/verify",
+      { phone, requestId, code },
+      STOREFRONT_OPERATIONS.ordersOtpVerify,
+    ),
+});
+
+const otp = createOtpMachine({ transport, initialPhone: phoneInput.value });
+```
+
+ينشئ SDK المسارات من نفس المصدر:
+
+```ts
+// src/pages/api/otp/send.ts
+import { routes } from "../../../theme/api-routes";
+export const POST = routes.otpSend;
+```
+
+```ts
+// src/pages/api/otp/verify.ts
+import { routes } from "../../../theme/api-routes";
+export const POST = routes.otpVerify;
+```
+
+### ما تملكه الآلة
+
+| الحالة | ما تعرضه |
+| --- | --- |
+| `idle` | لا شيء؛ انتظار هاتف |
+| `sending` | عطّل زر الإرسال |
+| `code_sent` | حقل الكود، عدّاد إعادة الإرسال، عدد المحاولات |
+| `verifying` | عطّل التحقق والإرسال |
+| `verified` | ضع `otpToken` في الحقل المخفي |
+| `bypassed` | المزوّد غير متاح؛ ضع `bypassToken` في الحقل نفسه |
+| `error` | السبب؛ قد تكون إعادة الإرسال متاحة |
+
+يبدأ `send()` مهلة تبريد مدتها 60 ثانية (أو نافذة تحديد المعدل الأطول لدى
+الخادم). ويقبل `verify()` ستة أرقام، ويحصي المحاولات، وينتقل إلى حالة نهائية
+عندما ينتهي الكود. ويعيد `setPhone()` ضبط التدفق عندما يتغير الهاتف؛ ويجب ألا
+يعيش الرمز المميز أبدًا أطول من الرقم الذي صدر من أجله.
+
+```ts
+otp.subscribe((state) => {
+  tokenInput.value = state.otpToken ?? state.bypassToken ?? "";
+  renderOtp(state);
+});
+
+phoneInput.addEventListener("input", () => otp.setPhone(phoneInput.value));
+```
+
+عندما يتم التحقق من الهاتف، أرسل النموذج مرة واحدة. ينتقل الإثبات في
+`otpToken`، لا في حقل ثانٍ.
+
+ليست `bypassed` خطأً يجب إخفاؤه: فقد سمح الخادم بالمرور عن قصد عند تعذر
+المزوّد، ويجب أن يظل الطلب موثقًا. وهي تحمل رمز تجاوز موقّعًا والسبب.
+
+### بدون JavaScript
+
+يظل النموذج يُرسل. ويجيب الخادم بـ `OTP_VERIFICATION_REQUIRED` إذا لم يكن
+الهاتف متحققًا منه، وتعرض الصفحة ذلك الخطأ. وخطوة OTP تحسين، وليست الطريقة
+الوحيدة.
+
+## Turnstile
+
+عندما يفعّل المتجر الحماية من الروبوتات، تكتب الودجة رمزًا. ويتوقعه الإجراء في
+`turnstileToken`؛ وإذا كان حقل الودجة باسم مختلف، فانسخه إلى ذلك الحقل قبل
+الإرسال.
+
+غياب رمز Turnstile أو انتهاء صلاحيته رفض تحقق. أبقِ بقية النموذج؛ ولا تمسحه.
+
+## إتمام الطلب المتروك
+
+يسجّل متتبّع اختياري عملية إتمام طلب تركها المتسوق، بعد وجود اسم وهاتف محمول
+صالح:
+
+```ts
+import { createAbandonedCheckoutTracker } from "@wocart/storefront";
+
+const tracker = createAbandonedCheckoutTracker({
+  storage: localStorage,
+  createId: () => crypto.randomUUID(),
+  schedule: (fn, ms) => setTimeout(fn, ms),
+  cancel: clearTimeout,
+  readCookie: (name) =>
+    document.cookie.split("; ").find((row) => row.startsWith(`${name}=`))?.split("=")[1],
+  send: (payload) => fetch("/api/abandoned", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).then(() => undefined),
+  beacon: (payload) =>
+    navigator.sendBeacon("/api/abandoned", JSON.stringify(payload)),
+});
+
+tracker.schedule(snapshot);
+tracker.update(snapshot);
+tracker.captureOnExit(snapshot);
+```
+
+ينتظر `schedule` ثلاث ثوانٍ بعد توقف الكتابة قبل الإرسال؛ ولا يعيد `update`
+الإرسال إلا بعد وجود السجل الأول. ويحمل المتتبّع كوكيز `_fbc` و`_fbp` عندما
+تكون موجودة.
+
+بعد إنشاء الطلب، علّم الجلسة كمحوَّلة:
+
+```ts
+fetch("/api/abandoned/convert", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ sessionId, orderId, orderNumber }),
+  keepalive: true,
+});
+```
+
+التحويل بلا انتظار للنتيجة. ويجب ألا يمنع فشل إرساله صفحة الشكر أبدًا.
+
+## قائمة تحقق لإتمام الطلب
+
+- يرسل النموذج إلى `placeOrder`؛ والسلة حقل `items` واحد بصيغة JSON.
+- توجد `pricePerUnit` للعرض ولا تُعامل أبدًا كمبلغ محصَّل.
+- تُسلسَل الحقول المخصصة حسب `id` الحقل.
+- لا يُعرض OTP إلا عندما تكون `config.otpEnabled` صحيحة.
+- يوجد رمز OTP في `otpToken`؛ وتغيير الهاتف يعيد ضبطه.
+- يوجد رمز Turnstile في `turnstileToken`.
+- يعيد الإجراء التوجيه عند النجاح؛ ولا يعرض صفحة الشكر.
+- لا تطلق صفحة الشكر إلا البكسل والحدث الذي يعيده `orders.tracking`.
+- `eventID` هو معرّف الطلب.
+- تُعلَّم جلسة إتمام الطلب المتروكة كمحوَّلة بعد النجاح.

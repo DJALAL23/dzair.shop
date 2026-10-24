@@ -1,0 +1,229 @@
+---
+description: Read Algeria's wilayas and communes, prefill the merchant's delivery rates, and use the server quote as the fee.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Delivery and geography
+
+Delivery has two layers:
+
+- **Reference data** — the 58 wilayas and their communes.
+- **Money** — the merchant's rates and, above both, the server's quote for the
+  destination the shopper chose.
+
+The quote is the fee. The rate table is a display aid until the quote answers.
+
+## Wilayas
+
+`geo.wilayas()` resolves from a dataset bundled with the SDK. No network
+request is made.
+
+```ts
+const wilayas = await store.geo.wilayas();
+
+wilayas;
+// [
+//   { id: 1, name: "Adrar", nameAr: "أدرار" },
+//   …
+// ]
+```
+
+The list is Algeria's 58 wilayas, in official order. It is stable reference
+data, not merchant content, so it is not translated by the store.
+
+`isWilayaId(value)` checks an unknown value from a form or a URL:
+
+```ts
+import { isWilayaId } from "@wocart/storefront";
+
+if (!isWilayaId(Number(input))) {
+  return { field: "wilayaId", message: "Choose a wilaya." };
+}
+```
+
+It reads the same dataset as the form, so the two cannot disagree.
+
+## Communes
+
+`geo.communes(wilayaId)` returns the communes of one wilaya:
+
+```ts
+const communes = await store.geo.communes(16);
+
+communes;
+// [{ id: "c-16-001", name: "Alger Centre", nameAr: "الجزائر الوسطى" }, …]
+```
+
+The call is cached per wilaya on the client after a successful read. Ask again
+only when the wilaya changes.
+
+An unknown wilaya resolves to `[]`; a failed read also resolves to `[]`. The two
+look the same, so a UI that sees an empty list after a valid wilaya should show
+a retry, not “this wilaya has no communes”.
+
+```ts
+async function loadCommunes(wilayaId: number) {
+  const communes = await store.geo.communes(wilayaId);
+  if (communes.length === 0) {
+    showCommuneRetry();
+    return;
+  }
+  fillCommuneSelect(communes);
+}
+```
+
+When the wilaya changes, clear the selected commune before loading the new list.
+A commune id from the old wilaya is not valid in the new one.
+
+## The rate table
+
+`shipping.rates()` returns the merchant's default fee for every wilaya they
+priced:
+
+```ts
+const rates = await store.shipping.rates();
+
+rates["16"]; // { home: 400, stopDesk: 250 }
+```
+
+`rates()` and `rate(wilayaId)` both read the full table fresh on every call;
+merchants change delivery pricing and expect the next render to show it. They
+are not cached.
+
+`shipping.rate(16)` is the same lookup for one wilaya, or `null` when that
+wilaya has no row:
+
+```ts
+const rate = await store.shipping.rate(wilayaId);
+const fee =
+  rate === null
+    ? null
+    : deliveryType === "home"
+      ? rate.home
+      : rate.stopDesk;
+```
+
+A missing row means the merchant has no default fee for that wilaya. It does
+not always mean “we do not deliver there”: carrier pricing can produce a fee
+for a destination the default table does not cover. Use the quote to decide.
+
+<Callout type="caution" title="The rate table is not the order total">
+The merchant's table has no basket, no free-delivery threshold and no carrier
+zone. The order charges `CartValidation.delivery`, which the server computes
+from the same rules it uses at checkout. Show the table while the quote is
+pending, then replace it.
+</Callout>
+
+## The authoritative quote
+
+Ask for a quote with a destination:
+
+```ts
+const result = await store.cart.validate(items, {
+  destination: {
+    wilayaId,
+    communeId,
+    deliveryType: "home",
+  },
+});
+
+if (!result.success) return;
+
+const delivery = result.data.delivery;
+if (delivery?.available) {
+  showFee(delivery.fee);
+  showTotal(delivery.total);
+} else if (delivery) {
+  showNotDeliverable();
+}
+```
+
+`delivery` is present only when a destination was sent. It has one of two
+shapes:
+
+```ts
+type DeliveryQuote =
+  | { available: true; fee: number; total: number }
+  | { available: false; fee: null; total: null };
+```
+
+`available: false` means the server refuses this destination. Disable the
+submit button; do not send the order and hope it is accepted.
+
+`delivery.total` is the amount to display after the quote. It already includes
+the delivery fee, the basket subtotal, rewards and the coupon.
+
+### When to ask
+
+Ask again whenever any of these changes:
+
+- the wilaya;
+- the commune;
+- home vs stop-desk;
+- a line's quantity or variant;
+- the coupon;
+- the phone, when a coupon is limited per customer.
+
+Debounce the changes so typing a phone number does not send a quote per
+keystroke. Quote once the destination is complete.
+
+### Free delivery
+
+The quote carries `freeDelivery`:
+
+```ts
+result.data.freeDelivery;
+// {
+//   fromOffer: false,
+//   threshold: 5000,
+//   qualified: true,
+//   remaining: 0,
+// }
+```
+
+`qualified` wins over the rate table. Never charge a fee because the table says
+so when the quote says delivery is free.
+
+### No destination yet
+
+Before the shopper chooses a wilaya, there is no quote and no delivery total.
+That is not the same as “0” and not the same as “not deliverable”:
+
+```ts
+if (!destination) {
+  showDeliveryCalculatedLater();
+} else if (delivery?.available === false) {
+  showNotDeliverable();
+} else if (delivery?.available) {
+  showFee(delivery.fee);
+}
+```
+
+## Reading a quote in the browser
+
+The page can carry `shipping.rates()` as JSON for its script. If the script may
+be a different version from the page, read the value without a schema:
+
+```ts
+import { readShippingRates } from "@wocart/storefront";
+
+const rates = readShippingRates(embeddedRates);
+if (rates === null) {
+  // Not a rate table: ignore it and wait for the quote.
+}
+```
+
+`readShippingRates` accepts exactly what the server's schema accepts and drops
+unknown keys. It does not put Zod in the shopper's bundle.
+
+## A delivery checklist
+
+- The wilaya list comes from `geo.wilayas`, not a hand-copied array.
+- A changed wilaya clears the commune and fetches the new list.
+- An empty commune list after a valid wilaya shows a retry.
+- The merchant's rate is shown only until the quote arrives.
+- A complete destination always gets a quote.
+- `delivery.available === false` disables submit.
+- A free-delivery quote overrides the table.
+- `delivery.total` is the number shown as the amount to pay.

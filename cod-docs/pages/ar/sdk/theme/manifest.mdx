@@ -1,0 +1,204 @@
+---
+description: أخرج بيان @wocart/theme وتحقق منه وقارنه، وحرّر مستندات الصفحات بأمان من فهرسه.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# البيان
+
+يخلط `ThemeDefinition` نوعين من المعلومات: إعلانات الحقول والقيم الافتراضية إلى
+جانب مكوّنات Astro الحية ودوال `load` الخاصة بالخادم. ولا تستطيع أداة خارج Astro
+قراءة ذلك دون تشغيل القالب.
+
+**البيان** هو النصف الخاص بالبيانات: قائمة JSON بكل مكوّن وحقل وفتحة وسطح
+يقدمه القالب. ويستطيع محرر أو CLI أو سوق قراءته دون استيراد ملفات
+Astro. وإذا لم يكن شيء في البيان، فلا تستطيع أداة أخرى اكتشافه.
+
+لا تحتاج إلى البيان لعرض واجهة متجر Astro ثابتة. بل تحتاجه عندما يجب تحرير
+القالب أو مشاركته أو فحصه ببرنامج آخر.
+
+## مصدر واحد
+
+البيان **مشتق**، ولا يُكتب يدويًا:
+
+```ts
+import { themeManifest } from "@wocart/theme";
+
+const manifest = themeManifest(theme);
+```
+
+وهو مستقر عبر رحلة ذهاب وإياب في JSON. ولا يوجد إلا مصدر حقيقة واحد بالضبط:
+تعريفات القالب. ويمكن التحقق من بيان مكتوب يدويًا، لكنه لا يُعامل أبدًا
+كالفهرس الذي يعرضه القالب.
+
+## إخراجه من البناء
+
+تعريف القالب يستورد ملفات `.astro`، لذا لا يمكن تحميله إلا داخل بناء Astro.
+أخرج البيان كصفحة تُبنى مسبقًا:
+
+```ts
+// src/pages/wocart-theme.json.ts
+import { themeManifestEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeManifestEndpoint(theme);
+```
+
+يُقدَّم البيان على **`/wocart-theme.json`**. ويُتحقق منه عند تحميل الوحدة، فيفشل
+البناء بسبب بيان غير صالح بدلًا من شحنه.
+
+## ماذا يحتوي
+
+```json
+{
+  "contractVersion": 1,
+  "key": "my-theme",
+  "version": "1.0.0",
+  "sdkVersion": "2.1.0",
+  "surfaces": [],
+  "areas": [],
+  "locales": ["ar", "fr"],
+  "settings": [],
+  "content": {},
+  "preview": false,
+  "components": {
+    "hero": {
+      "type": "hero",
+      "label": { "ar": "الواجهة", "fr": "Hero" },
+      "fields": [],
+      "slots": [],
+      "presets": []
+    }
+  }
+}
+```
+
+| الحقل | المعنى |
+| --- | --- |
+| `contractVersion` | مخطط البيان وعقد تفسيره؛ حاليًا `1` |
+| `key`، `version` | هوية القالب وإصداره |
+| `sdkVersion` | حزمة `@wocart/theme` التي ولّدت البيان |
+| `surfaces`، `areas` | الأسطح والمناطق المشتركة التي يعلنها القالب |
+| `locales`، `content` | اللغات المعلنة وحزم محتواها |
+| `settings`، `style` | الإعدادات على مستوى المتجر وأحجام الخطوات |
+| `preview` | هل يقدم القالب مسار معاينة |
+| `components` | مواصفات المكوّنات القابلة للتسلسل؛ لا `component` ولا `load` |
+
+## التحقق من بيان من الخارج
+
+```ts
+import { validateThemeManifest } from "@wocart/theme";
+
+const { manifest: checked, issues } = validateThemeManifest(input);
+```
+
+يعيد الفشل البنيوي `manifest: null` ومشكلات. و`version` غير semver استشارية:
+يُعاد البيان مع مشكلة `invalid-version`. ولكل مشكلة `path` داخل البيان وواحد
+من:
+
+`invalid-manifest` و`unsupported-contract` و`invalid-identity` و`invalid-version`
+و`invalid-surface` و`invalid-settings` و`invalid-component` و`invalid-content`
+و`type-mismatch` أو `non-serializable`.
+
+يحاكي التحقق التجميع. فالقواعد العلائقية — حصر `contentKey`/`default`، والقيمة
+الافتراضية الرقمية داخل نطاقها، والقيمة الافتراضية للاختيار داخل خياراتها،
+وشكل اسم الفتحة، وتوافق المفتاح والنوع — تُفحص بالطريقة نفسها التي يفحص بها
+`validateThemeDefinition`.
+
+## استخدامه كفهرس تحرير
+
+```ts
+import { manifestCatalog } from "@wocart/theme";
+
+const catalog = manifestCatalog(manifest);
+```
+
+تحوّل `manifestCatalog` البيان إلى الشكل الذي تقبله كل دالة بيانات:
+`createInstance` و`instantiatePreset` وعمليات المستند و`checkPageData`
+و`validatePageData` و`resolveThemeSettings` و`checkThemeSettings`.
+
+مكوّناته تحمل `component: null`. فهو يصف ويفحص؛ ولا يعرض. لا تمرّره إلى
+`InstanceView`.
+
+## ضمانات البيان
+
+| الوعد | النتيجة |
+| --- | --- |
+| **بيانات فقط** | لا دوال ولا رموز ولا bigint ولا أعدادًا غير منتهية ولا دورات؛ وكلها `non-serializable` |
+| **مُطبَّع** | `fields` و`slots` مصفوفتان دائمًا؛ والغياب يعني `[]` |
+| **المفتاح يساوي النوع** | `components[type].type === type` |
+| **المفاتيح المجهولة تُزال** | يتجاهل القارئ الأقدم البيانات الوصفية الأحدث بدلًا من الفشل |
+| **يُتحقق منه عند البناء** | القالب الذي يُجمَّع هو قالب يتحقق بيانه |
+
+مقايضة التوافق مع الإصدارات المستقبلية مقصودة: يبقى القراء القدامى في حالة جيدة، لكنهم لا يرون
+البيانات الوصفية الجديدة حتى يحدّثوا. ولهذا يجب ألا تغيّر الحقول الإضافية أبدًا
+طريقة قراءة حقل موجود.
+
+## تعديل مستند
+
+العمليات هي واجهة الكتابة:
+
+```ts
+import { checkPageData, removeInstance } from "@wocart/theme";
+
+const edit = removeInstance(theme, page, "faq-1");
+if (!edit.ok) throw new Error(`${edit.issue.code}: ${edit.issue.message}`);
+
+const issues = checkPageData(theme, edit.page);
+```
+
+| العملية | النتيجة |
+| --- | --- |
+| `insertInstance(theme, page, instance, placement)` | الإضافة في موضع |
+| `moveInstance(theme, page, id, placement)` | النقل إلى موضع أو فهرس آخر |
+| `duplicateInstance(theme, page, id)` | النسخ بمعرّفات جديدة |
+| `removeInstance(theme, page, id)` | الحذف، ما لم تكن مطلوبة أو ثابتة |
+| `setInstanceProps(theme, page, id, props)` | دمج الخصائص |
+| `setInstanceHidden(theme, page, id, hidden)` | الإخفاء أو الإظهار |
+
+وتعيد `{ ok: true, page }` أو `{ ok: false, issue }`، ولا تعدّل المدخل أبدًا،
+وتترك بقية المستند كما هي. والتعديل المرفوض يذكر السبب: `not-available` أو
+`not-placeable` أو `slot-full` أو `required-block` أو `fixed-block` أو `cycle`.
+
+تضيف `completePage(theme, page)` الكتل المطلوبة والثابتة المفقودة. وتبدأ أداة
+التحرير منها فلا تعرض صفحة ناقصة أبدًا.
+
+## مقارنة إصدارين
+
+```ts
+import { diffThemeManifests } from "@wocart/theme";
+
+const { breaking, additive } = diffThemeManifests(previous, next);
+```
+
+**كاسر** يعني أن مستندًا محفوظًا أو إعدادًا أو تعديل نص قد لا يُقرأ كما كان:
+
+- حُذف مكوّن أو سطح أو منطقة أو حقل أو فتحة أو خيار أو مفتاح محتوى،
+- تغيّر نوع حقل،
+- تغيّر نوع صفحة،
+- ضاقت قائمة `allow` أو نطاق أو حد قائمة أو تنسيق نص منسّق،
+- أصبحت الفتحة مفردة،
+- أصبح حقل مطلوبًا بلا قيمة افتراضية أو بديل محتوى،
+- تغيّر مفتاح القالب.
+
+وكل ما عدا ذلك إضافي. ولا تُهاجَر البيانات المحفوظة أبدًا: بل يتدهور القارئ مع
+تقارير، ويخبرك هذا الفرق مسبقًا بما سيتدهور.
+
+## الإصدارات
+
+ثلاثة عقود تُصدَّر بإصدارات مستقلة:
+
+| الإصدار | ما يغطيه | متى يتغير |
+| --- | --- | --- |
+| `contractVersion` | مخطط البيان وكيفية تفسير المستهلكين له | فقط عند تغيير كاسر في ذلك الشكل؛ حاليًا `1` |
+| `version` القالب | القالب نفسه | semver؛ والفرق الكاسر يستحق إصدارًا رئيسيًا جديدًا |
+| `PageData.version` | غلاف مستند الصفحة | حاليًا `1` |
+
+إصدار القالب غير semver يُبلَّغ عنه ولا يُرفض: فيبقى التسجيل ممكنًا، لكن نظافة
+الإصدار تظهر.
+
+<Callout type="caution" title="لا تحرّر بيانًا مشحونًا يدويًا">
+البيان أثر بناء. غيّر تعريفًا وأعد البناء. والبيان المحرَّر يدويًا ينحرف عن
+الكود الذي يعرض القالب.
+</Callout>

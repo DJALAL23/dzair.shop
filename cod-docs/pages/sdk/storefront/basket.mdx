@@ -1,0 +1,313 @@
+---
+description: Keep the basket in the browser, re-price it on the server, and read coupons, rewards and free-delivery state.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Basket and quotes
+
+The basket is a shopper's intent. It lives in the browser, never in D1. The
+server owns the prices.
+
+That gives the storefront one rule to remember: **the browser basket is for
+display and interaction; `cart.validate` is for money**.
+
+## The browser basket
+
+```ts
+import { createBasketStore } from "@wocart/storefront";
+
+const basket = createBasketStore();
+
+basket.addLine({
+  productId: product.id,
+  productName: product.name,
+  variantId: variant?.id ?? null,
+  variantLabel: variantLabel(variant),
+  quantity: 1,
+  unitPrice: view.basePrice, // display only
+  href: `/products/${product.handle}`,
+  ...(cardImageUrl ? { image: cardImageUrl } : {}),
+});
+```
+
+`createBasketStore` uses `localStorage` when it is available, a memory adapter
+in SSR or tests, and fails soft when storage is blocked. A browser that cannot
+store still has an in-memory basket for the current page; `isPersistent()` says
+whether it survives a reload.
+
+The methods are:
+
+| Method | Result |
+| --- | --- |
+| `getLines()` | Current lines |
+| `getCount()` | Total quantity |
+| `getSubtotal()` | Optimistic display subtotal |
+| `addLine(line)` | Merges by product + variant |
+| `setQuantity(key, quantity)` | Capped; `<= 0` removes |
+| `removeLine(key)` | Removes one line |
+| `clear()` | Empties the basket |
+| `toOrderItems()` | Server-ready `items[]` |
+| `subscribe(listener)` | Local and cross-tab changes |
+| `isPersistent()` | Whether storage survives a reload |
+
+The limits are `MAX_BASKET_LINES` (20) and `MAX_BASKET_LINE_QUANTITY` (100).
+A line's identity is product + variant, so the same product in two variants has
+two lines.
+
+`unitPrice` is only what the drawer shows while it waits for the quote. Do not
+send it as the price, and do not use `getSubtotal()` as the order total.
+
+### Subscribe once
+
+```ts
+const unsubscribe = basket.subscribe((lines) => {
+  renderBadge(lines.reduce((total, line) => total + line.quantity, 0));
+  scheduleQuote();
+});
+```
+
+The store notifies on local changes and re-reads storage when another tab
+changes the basket. Keep the listener cheap; the quote is debounced separately.
+
+### Choosing an offer
+
+If the product shows quantity or Buy X Get Y tiers, store the shopper's choice
+on the line:
+
+```ts
+basket.addLine({
+  // …
+  offerId: selectedTier.offerId,
+});
+```
+
+A later explicit choice replaces it; a plain add keeps the existing choice. The
+server still applies the offer only when the quantity qualifies.
+
+### Building the line from a product
+
+```ts
+import { getProductView, productImageSource } from "@wocart/storefront";
+
+const view = getProductView(product);
+const image = productImageSource(product);
+
+basket.addLine({
+  productId: product.id,
+  productName: product.name,
+  variantId: view.defaultVariant?.id ?? null,
+  variantLabel: view.defaultVariant
+    ? Object.values(view.defaultVariant.variations).join(" / ")
+    : null,
+  quantity,
+  unitPrice: view.basePrice,
+  href: `/products/${product.handle}`,
+  ...(image ? { image } : {}),
+  ...(offerId ? { offerId } : {}),
+});
+```
+
+## Quote the basket
+
+The quote is a server read. In the browser, call your same-origin route:
+
+```ts
+async function quoteBasket() {
+  const response = await fetch("/api/cart/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      items: basket.toOrderItems(),
+      destination,
+      couponCode,
+    }),
+  });
+
+  const body = await response.json();
+  if (!body.success) return null;
+  return body.data;
+}
+```
+
+On the server, the same call is `cart.validate`:
+
+```ts
+const result = await store.cart.validate(items, {
+  destination: {
+    wilayaId: 16,
+    communeId: "c-16-001",
+    deliveryType: "home",
+  },
+  couponCode: "RAMADAN10",
+});
+
+if (!result.success) {
+  // The quote is read-only; show the reason or keep the optimistic basket.
+  return;
+}
+
+result.data;
+```
+
+`cart.validate` is read-only: nothing is written and no stock is reserved. A
+failure is safe to show while keeping the basket.
+
+For a product order form that has not entered the basket yet, use
+`cart.quote` instead. It accepts either a basket or one product as the form
+posts it:
+
+```ts
+const result = await store.cart.quote({
+  productId: product.id,
+  productName: product.name,
+  quantity: 3,
+  variantSelections: [{ variantId: variant.id, variantLabel }],
+  offerId,
+});
+```
+
+Quote and order use the same line-building rules, so a quote is what the order
+should cost.
+
+## What the quote returns
+
+```ts
+type CartValidation = {
+  lines: CartValidationLine[];
+  subtotal: number;
+  rewards: CartReward[];
+  freeDelivery: {
+    fromOffer: boolean;
+    threshold: number | null;
+    qualified: boolean;
+    remaining: number;
+  };
+  delivery?: { available: true; fee: number; total: number }
+    | { available: false; fee: null; total: null };
+  coupon?: CouponOutcome | null;
+};
+```
+
+### Lines
+
+Each line carries the catalog's current answer:
+
+```ts
+type CartValidationLine = {
+  productId: string;
+  variantId: string | null;
+  variantLabel: string | null;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;       // offers and coupon share applied
+  offerId?: string | null;
+  offerName?: string | null;
+  discount?: number | null;
+  maxQuantity: number | null;
+  blocker: "missing" | "unlisted" | "out_of_stock" | null;
+};
+```
+
+A blocked line is excluded from the subtotal, offers and free-delivery maths.
+Show the reason and disable checkout while any line is blocked. Do not remove the
+line for the shopper unless your UI explicitly offers that action.
+
+`maxQuantity` is `null` when the product is not stock-tracked.
+
+### Rewards
+
+`rewards` lists gifts the basket earned. They are not basket lines; render them
+as a separate “free gift” row.
+
+### Free delivery
+
+```ts
+const free = quote.freeDelivery;
+if (free.qualified) {
+  // Delivery is free: from the threshold or an offer.
+} else if (free.threshold !== null) {
+  // free.remaining is how much more the subtotal needs.
+}
+```
+
+The threshold is a store setting; the quote is still the authority, because an
+offer can make delivery free before the threshold.
+
+### Delivery
+
+`delivery` is present only when the quote was given a destination:
+
+```ts
+if (quote.delivery?.available) {
+  showDelivery(quote.delivery.fee, quote.delivery.total);
+} else if (quote.delivery) {
+  showNotDeliverable();
+}
+```
+
+When it is absent, do not invent a fee. The default rates in
+[Delivery and geography](/sdk/storefront/delivery) are a placeholder; the quote
+is what the order charges.
+
+## Coupons
+
+The quote carries the outcome of the code:
+
+```ts
+type CouponOutcome =
+  | { code: string; applied: true; discount: number; freeShipping: boolean }
+  | { code: string; applied: false; reason: string; shortBy?: number; startsAt?: string };
+```
+
+Show the applied discount and free delivery, or the reason. `reason` is open; a
+reason your UI does not recognise should fall back to a general sentence.
+
+A shareable link can carry the code:
+
+```ts
+import { couponFromUrl } from "@wocart/storefront";
+
+const code = couponFromUrl(new URL(location.href));
+```
+
+The browser can also read a quote value it received without running the schema:
+
+```ts
+import { readCouponOutcome } from "@wocart/storefront";
+
+const coupon = readCouponOutcome(value);
+```
+
+Use it when a page is cached apart from its scripts and may hold another
+version's shape. Do not use a browser schema.
+
+## Cart visibility
+
+`config.cartEnabled` is the switch:
+
+```astro
+{config.cartEnabled && <CartDrawer />}
+```
+
+A store with the cart off must ship no cart markup, no cart island and no cart
+request. The product's direct order form still works; the cart is an additive
+surface.
+
+## A safe drawer loop
+
+1. Render `getLines()` immediately, with the optimistic subtotal.
+2. Debounce a quote after a line change.
+3. Replace the display with the server's lines, rewards and totals when it
+   answers.
+4. Keep the optimistic view if the quote fails; checkout will quote again.
+5. Disable checkout while a line is blocked or delivery is unavailable.
+6. Send `basket.toOrderItems()` with the order, never a constructed price.
+
+<Callout type="caution" title="A browser total is not an order total">
+Anyone can edit `localStorage` and change `unitPrice`. The drawer may show that
+number optimistically, but the server re-prices every line and resolves delivery
+again when the order is created. Never display a client-calculated total as the
+amount to be charged.
+</Callout>

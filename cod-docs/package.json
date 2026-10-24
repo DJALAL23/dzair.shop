@@ -1,0 +1,33 @@
+{
+  "name": "cod-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "dev": "zudoku dev --port 3000",
+    "build": "zudoku build && node scripts/localize-html.mjs",
+    "preview": "zudoku preview",
+    "generate": "node scripts/generate.mjs",
+    "predev": "node scripts/generate.mjs",
+    "prebuild": "node scripts/generate.mjs",
+    "typecheck": "tsc --noEmit",
+    "check:i18n": "node scripts/check-i18n.mjs"
+  },
+  "dependencies": {
+    "@wocart/storefront": "1.19.0",
+    "@wocart/theme": "2.1.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zudoku": "0.93.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typedoc": "0.28.20",
+    "typedoc-plugin-markdown": "4.14.1",
+    "typescript": "6.0.3"
+  }
+}

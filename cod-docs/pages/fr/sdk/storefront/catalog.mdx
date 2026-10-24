@@ -1,0 +1,331 @@
+---
+description: Listez les produits, ouvrez un produit par handle, choisissez une variante, lisez les offres et les prix par quantité, et utilisez les catégories et les collections.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Produits et collections
+
+Le catalogue a quatre formes de lecture :
+
+| Lecture | Renvoie | À utiliser sur |
+| --- | --- | --- |
+| `products.list(filters)` | `ProductList[]` | Grilles, carrousels, résultats de recherche |
+| `products.page(filters)` | `{ items, hasNext }` | Pages de catalogue paginées |
+| `products.get(handle)` | `Product \| null` | Une page produit |
+| `collections.get(handle)` | `StoreCollection \| null` | La page d'une collection |
+
+`ProductList` est une forme de carte compacte. `Product` est la forme détaillée
+complète avec les variantes, les images, les offres et les prix par quantité.
+
+## Lister les produits
+
+```ts
+const products = await store.products.list({
+  collection: "best-sellers",
+  limit: 8,
+});
+```
+
+Les filtres sont :
+
+| Filtre | Ce qu'il fait |
+| --- | --- |
+| `categoryId` | Les produits de cette catégorie |
+| `collection` | Les produits de cette collection, dans l'ordre du marchand |
+| `onSale` | Les produits dont le prix est inférieur à leur prix barré |
+| `limit` | Plafond côté serveur ; le serveur écrête une valeur plus grande |
+| `offset` | Ignore ce nombre de produits |
+
+`featured` existe encore mais est déprécié. Utilisez `collection: "featured"` ;
+la collection mise en avant du marchand est la même liste, sans drapeau spécial.
+
+Utilisez `products.page` lorsque la page a besoin d'un lien suivant :
+
+```ts
+const page = await store.products.page({ limit: 24, offset });
+
+if (page.hasNext) {
+  // link to ?offset=24
+}
+```
+
+`page` demande au serveur une ligne de plus que la page et la retire, donc
+`hasNext` est exact sans requête de comptage. Une lecture échouée donne une
+dernière page vide, de la même manière que `list` se dégrade.
+
+Une collection ou une catégorie inconnue ne liste rien. Ne traitez pas cela
+comme une erreur sur une page de catalogue ; affichez l'état vide.
+
+## Cartes produit
+
+`ProductList` porte ce dont une carte a besoin :
+
+```ts
+type ProductList = {
+  id: string;
+  name: string;
+  handle: string;
+  price: number;
+  compareAtPrice: number | null;
+  currency: string;
+  coverImage: ProductImage | null;
+  reviewStats: { avgRating: number; reviewCount: number } | null;
+  type: "PHYSICAL" | "DIGITAL";
+  inventory: number;
+  trackInventory: boolean;
+  lowStockThreshold: number;
+  // …status and visibility fields the server already filtered on
+};
+```
+
+La liste est déjà filtrée sur ce qu'un acheteur peut voir. Ne revérifiez pas
+`status` ou `visibility` dans le navigateur et n'appelez pas un champ
+d'administration interne.
+
+Une liste n'a pas de données de variante. Si une carte a besoin de « à partir de
+2 500 DA » pour un produit à variantes, `ProductList.price` est le prix
+représentatif que le serveur envoie ; le prix exact vient du détail du produit.
+
+### Image
+
+`coverImage` est souvent nul : un marchand peut téléverser une galerie sans
+choisir de couverture. Utilisez `productImageSource`, qui se replie sur la
+première image utilisable de la galerie :
+
+```ts
+import { getCardImage, productImageSource } from "@wocart/storefront";
+
+const src = productImageSource(product);
+const cardUrl = src ? getCardImage(src, mediaDomain) : null;
+```
+
+Affichez un espace réservé lorsque `cardUrl` est nul. Ne rendez pas un `<img>`
+cassé avec un `src` vide.
+
+## Détail du produit
+
+Une page produit se lit par **handle**, le segment public de l'URL :
+
+```astro
+---
+import { formatMoney, getProductView } from "@wocart/storefront";
+import { getStore } from "../../theme/store";
+
+const store = getStore();
+const config = await store.config.get();
+if (!config) return new Response("Store unavailable", { status: 503 });
+
+const product = await store.products.get(Astro.params.handle!);
+if (!product) return Astro.rewrite("/404");
+
+const view = getProductView(product);
+---
+<article>
+  <h1>{product.name}</h1>
+  <p>{formatMoney(view.basePrice, { symbol: config.currencySymbol, locale: config.locale })}</p>
+  {view.hasDiscount && <p>Save {view.discountPct}%</p>}
+  {view.isOutOfStock && <p>Out of stock</p>}
+</article>
+```
+
+`getProductView` renvoie la première variante vendable et l'état de stock du
+produit :
+
+```ts
+type ProductView = {
+  defaultVariant: ProductVariant | null;
+  basePrice: number;
+  comparePrice: number | null;
+  hasDiscount: boolean;
+  discountPct: number;
+  isOutOfStock: boolean;
+  isLowStock: boolean;
+};
+```
+
+Pour un produit à variantes, `product.inventory` est un résumé au niveau du
+produit. Vérifiez `variant.inventory` avant de laisser un acheteur commander une
+variante précise.
+
+## Variantes
+
+Un produit à variantes porte :
+
+```ts
+product.hasVariants; // true
+product.variantOptions;
+// [
+//   { name: "Size", values: [{ value: "M", hexColor: null }, …] },
+//   { name: "Color", values: [{ value: "Red", hexColor: "#c00" }, …] },
+// ]
+product.variants;
+// [{ id, variations: { Size: "M", Color: "Red" }, price, inventory, … }]
+```
+
+Les fonctions utilitaires gardent le sélecteur honnête :
+
+```ts
+import {
+  initialVariant,
+  optionStates,
+  pickOption,
+  variantFor,
+} from "@wocart/storefront";
+
+let selection = initialVariant(product)?.variations ?? {};
+const states = optionStates(product, selection);
+
+const picked = pickOption(product, selection, "Size", "L");
+selection = picked.selection;
+
+const variant = variantFor(product.variants, selection);
+```
+
+`initialVariant` s'ouvre sur la valeur par défaut du marchand lorsqu'elle peut
+être vendue, sinon sur la première variante vendable. `pickOption` renvoie
+toujours une variante qui existe, ou laisse la sélection inchangée.
+`optionStates` distingue une valeur ainsi :
+
+- `available` — une variante vendable la porte avec les autres choix ;
+- `sold_out` — la variante existe mais n'a pas de stock ;
+- `unavailable` — aucune variante ne combine cette valeur avec les autres choix.
+
+Affichez les valeurs `unavailable` comme désactivées, et `sold_out` comme
+visiblement indisponibles. Le serveur valide toujours la variante soumise.
+
+## Prix et offres
+
+Les prix sont des entiers dans la devise de la boutique (DZD). Formatez-les avec
+`formatMoney` ; ne divisez jamais par 100 sauf si les données de devise de votre
+boutique l'indiquent.
+
+Un produit peut porter trois types de promotion :
+
+| Type | Champ | Signification |
+| --- | --- | --- |
+| Prix barré | `compareAtPrice` | Un prix de référence barré |
+| Prix par quantité | `quantityPricing.tiers` | Paliers « 2 pour 3 500 DA » |
+| Achetez X, obtenez Y | `offers` | Un cadeau ou une livraison gratuite |
+
+### Paliers de quantité
+
+```ts
+import { getQuantityTierViews } from "@wocart/storefront";
+
+const tiers = product.quantityPricing
+  ? getQuantityTierViews(product.quantityPricing, view.basePrice)
+  : [];
+```
+
+Chaque palier donne `quantity`, `price`, `perUnit`, `savingsAmount`, `savePct`
+et `freeShipping`. Ce sont des valeurs d'affichage. Le total que paie l'acheteur
+est toujours le devis du panier établi par le serveur.
+
+### Achetez X, obtenez Y
+
+```ts
+import { getOfferTierView } from "@wocart/storefront";
+
+const offer = product.offers[0];
+if (offer) {
+  const tile = getOfferTierView(offer, view.basePrice, view.comparePrice);
+  // tile.price, tile.savingsAmount, tile.isFreeShipping
+}
+```
+
+Une offre peut être `free` (un cadeau) ou `free_shipping`. Le serveur décide si
+la quantité est éligible et ajoute la récompense. Si l'acheteur choisit un palier
+précis, placez son `offerId` sur la ligne du panier ; un palier partagé est alors
+tarifé comme l'acheteur l'a choisi.
+
+<Callout type="info" title="Ne calculez pas la promotion">
+Une page peut afficher « 2 achetés, 1 offert ». Elle ne doit pas ajouter le
+cadeau elle-même, soustraire une remise ni offrir la livraison. Envoyez
+l'`offerId` choisi et laissez `cart.validate` / `cart.quote` répondre avec les
+lignes tarifées, les récompenses et le total.
+</Callout>
+
+## Catégories
+
+`categories.list()` renvoie une liste plate et ordonnée. Construisez
+l'arborescence à partir de `parentId` ; le SDK ne renvoie pas d'enfants
+imbriqués.
+
+```ts
+const categories = await store.categories.list();
+
+const roots = categories.filter((category) => category.parentId === null);
+const childrenOf = (id: string) =>
+  categories.filter((category) => category.parentId === id);
+```
+
+Les pages de catégorie se lisent par `slug` :
+
+```astro
+---
+const category = (await store.categories.list()).find(
+  (item) => item.slug === Astro.params.slug,
+);
+
+if (!category) return Astro.rewrite("/404");
+
+const products = await store.products.list({
+  categoryId: category.id,
+  limit: 24,
+});
+---
+```
+
+`categories.list()` est mis en cache pour la durée de vie du client après une
+lecture réussie. Un renommage de catégorie est visible au prochain rendu serveur,
+pas dans un ancien client.
+
+## Collections
+
+Une collection est une liste organisée par le marchand, avec sa propre page :
+
+```astro
+---
+const collection = await store.collections.get(Astro.params.handle!);
+if (!collection) return Astro.rewrite("/404");
+
+const products = await store.products.list({
+  collection: collection.handle,
+  limit: 24,
+});
+---
+<h1>{collection.title}</h1>
+{collection.description && <p>{collection.description}</p>}
+```
+
+`collections.get` renvoie le nom et la description ; les produits viennent de
+`products.list({ collection })` dans l'ordre du marchand. Les deux sont traduits
+lorsque la langue du client est publiée.
+
+## Descriptions et SEO
+
+`product.descriptionFormat` indique comment afficher la description :
+
+- `"text"` — affichez-la comme texte, en conservant les sauts de ligne.
+- `"html"` — affichez-la avec `set:html`.
+
+`descriptionPlain` est la version texte seule pour les méta-descriptions et
+partout où le balisage serait incorrect. Utilisez-la pour
+`<meta name="description">` et JSON-LD.
+
+Les lignes de catégorie et de produit portent `metaTitle` et `metaDescription`
+lorsqu'ils existent ; les replis au niveau de la boutique sont `config.metaTitle`
+et `config.metaDescription`.
+
+## Ce que cette page ne couvre pas
+
+Les avis vivent sur [Avis](/fr/sdk/storefront/reviews). Le panier et le devis
+serveur vivent sur [Panier et devis](/fr/sdk/storefront/basket). Les fonctions utilitaires
+pour les images et l'argent sont sur [Argent, images, WhatsApp et événements
+Meta](/fr/sdk/storefront/presentation).
+
+Il n'existe aucune méthode de recherche plein texte de produits dans ce SDK. Si
+une vitrine a besoin de la recherche, il lui faut un point de terminaison serveur
+pour cela ; ne simulez pas une recherche en téléchargeant tout le catalogue dans
+le navigateur.

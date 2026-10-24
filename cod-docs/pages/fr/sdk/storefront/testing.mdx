@@ -1,0 +1,288 @@
+---
+description: Testez une vitrine contre les contrats d'échec du SDK, des simulateurs et une vraie boutique, et sachez quand elle est prête.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Tester une vitrine
+
+Un test de vitrine a deux rôles : prouver que la page se rend lorsque le serveur
+est sain, et prouver qu'elle dit encore quelque chose d'utile lorsqu'il ne l'est
+pas.
+
+Le contrat de lecture du SDK rend la seconde tâche testable : une lecture échouée
+se résout en une valeur vide au lieu de lever une exception.
+
+## Testez les contrats, pas le balisage
+
+Commencez par un faux serveur. Pointez le client vers une origine de test et
+remplacez `globalThis.fetch` :
+
+```ts
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createStoreClient } from "@wocart/storefront/server";
+
+function serve(body: unknown, status = 200) {
+  const fetch = vi.fn(async () => new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  }));
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
+const store = () => createStoreClient({
+  serverUrl: "https://api.test",
+  apiKey: "test-key",
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("catalogue degradation", () => {
+  it("lists nothing instead of throwing", async () => {
+    serve({ error: "down" }, 503);
+    await expect(store().products.list()).resolves.toEqual([]);
+  });
+
+  it("reports the failure once", async () => {
+    const onError = vi.fn();
+    serve({ error: "down" }, 503);
+    await createStoreClient({
+      serverUrl: "https://api.test",
+      apiKey: "test-key",
+      onError,
+    }).products.list();
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "products.list" }),
+    );
+  });
+});
+```
+
+Le premier test prouve que l'état vide de la page est atteignable. Le second
+prouve que l'exploitant peut voir la dégradation que l'acheteur ne voit pas.
+
+Faites de même pour les lectures dont dépend chaque page :
+
+| Lecture | Valeur d'échec à vérifier |
+| --- | --- |
+| `config.get` | `null` |
+| `products.get` | `null` |
+| `products.page` | `{ items: [], hasNext: false }` |
+| `categories.list` | `[]` |
+| `collections.get` | `null` |
+| `menus.get` | `null` |
+| `pages.get` | `null` |
+| `shipping.rates` | `{}` |
+| `geo.communes` | `[]` |
+| `orders.tracking` | `null` |
+
+Un test de page vérifie ensuite le résultat visible : une réécriture 404 pour un
+produit manquant, une nouvelle tentative pour des communes vides, un formulaire
+d'avis masqué, aucun événement de conversion.
+
+## Testez les écritures
+
+Une écriture renvoie un résultat ; elle ne lève pas d'exception. Couvrez trois
+branches :
+
+```ts
+it("keeps the form on a refusal", async () => {
+  serve({
+    error: "Out of stock",
+    domainError: {
+      category: "business",
+      code: "OUT_OF_STOCK",
+      message: "Out of stock",
+      retryable: false,
+      operation: "orders.create",
+      sideEffect: "rejected",
+    },
+  }, 422);
+
+  const result = await store().orders.create({
+    // the minimum valid order
+  } as never);
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.domainError.category).toBe("business");
+  }
+});
+```
+
+Couvrez aussi :
+
+- un échec de validation avec `fieldIssues` ;
+- un refus de coupon (`couponRefusalOf(result)` n'est pas nul) ;
+- un échec de transport (`fetch` rejette), où le résultat reste un
+  `ClientResult`, pas une exception.
+
+Le test de l'interface de commande doit vérifier qu'une soumission échouée
+conserve la saisie de l'acheteur.
+
+## Testez directement les fonctions utilitaires navigateur
+
+Les assistants purs n'ont pas besoin de serveur :
+
+```ts
+import {
+  buildWhatsAppHref,
+  formatMoney,
+  resolvePrefillText,
+  servedLanguage,
+} from "@wocart/storefront";
+
+expect(formatMoney(5000, { symbol: "دج", locale: "ar-DZ" })).toContain("دج");
+
+expect(
+  resolvePrefillText({
+    template: "{product} — {url}",
+    storeName: "Shop",
+    productName: "Robe",
+    url: "https://shop.test/products/robe?utm_source=ads",
+  }),
+).toBe("Robe — https://shop.test/products/robe");
+
+expect(
+  servedLanguage(
+    {
+      lang: "ar",
+      locales: [
+        { code: "ar", nativeName: "العربية", direction: "rtl" },
+        { code: "fr", nativeName: "Français", direction: "ltr" },
+      ],
+    },
+    "fr",
+  )?.direction,
+).toBe("ltr");
+```
+
+Testez aussi les chemins de repli : aucun produit, aucune commande, un
+préremplissage trop long, une langue inconnue, une image sans domaine média.
+
+`createBasketStore` accepte un adaptateur mémoire, il se teste donc sans
+navigateur :
+
+```ts
+import {
+  createBasketStore,
+  createMemoryStorageAdapter,
+} from "@wocart/storefront";
+
+const basket = createBasketStore({
+  storage: createMemoryStorageAdapter(),
+});
+
+basket.addLine(line);
+basket.addLine({ ...line, quantity: 2 });
+expect(basket.getLines()).toHaveLength(1);
+expect(basket.getCount()).toBe(3);
+```
+
+## Testez les routes
+
+La fabrique de routes se teste plus facilement comme frontière HTTP : appelez le
+gestionnaire exporté avec un `APIContext` et un faux client, puis vérifiez le
+statut et le corps.
+
+Au minimum, vérifiez :
+
+- un POST d'origine croisée renvoie 403 ;
+- un corps incorrect renvoie 400 ;
+- un envoi d'avis sans `X-Review-Grant` est refusé ;
+- un refus métier du serveur correspond à 422 ;
+- une limite de débit correspond à 429 ;
+- une route de lecture échouée conserve la forme de son enveloppe.
+
+La correspondance des statuts de la route fait partie du contrat public. Elle ne
+doit pas changer entre un test et la production.
+
+## Vérifications à la compilation
+
+Exécutez ceci dans le thème avant de livrer :
+
+```sh
+npm run typecheck
+npm run test
+npm run build
+```
+
+Et dans la configuration propre au thème, `astro check` si le projet l'utilise.
+
+Une compilation attrape les échecs que les tests unitaires ne peuvent pas :
+
+- un import réservé au serveur dans une island navigateur ;
+- une action Astro ou un export de route API manquant ;
+- une page prérendue qui lit des données de requête ;
+- un schéma d'environnement cassé.
+
+<Callout type="caution" title="Une compilation peut réussir avec une boutique vide">
+Une `STORE_API_KEY` manquante fait lever le client à sa construction ; un serveur
+injoignable rend les lectures vides. Ni l'un ni l'autre ne fait échouer une
+compilation statique. Lancez au moins une compilation ou un aperçu contre une
+vraie boutique avant de déclarer le thème terminé.
+</Callout>
+
+## Un test de fumée en conditions réelles
+
+Utilisez une boutique de préproduction, pas la production, pour :
+
+1. Accueil, catalogue, catégorie, collection et une page produit.
+2. Un produit avec variantes : choisissez chaque option, confirmez que le prix
+   change.
+3. Ajoutez au panier, changez la quantité, retirez une ligne.
+4. Demandez un devis avec une wilaya, puis changez la wilaya et confirmez que
+   les frais changent.
+5. Appliquez un coupon valide et un coupon invalide.
+6. Soumettez une commande produit et une commande panier.
+7. Une page d'atterrissage avec un produit lié.
+8. Une page de boutique et un menu.
+9. Un avis : mauvais numéro de commande, commande correcte, une photo, une note
+   vocale.
+10. Commande avec OTP activé et désactivé.
+11. Remerciement : la commande apparaît ; le pixel se déclenche une fois avec
+    `eventID = orderId`.
+
+N'exécutez pas cette suite en CI contre une boutique partagée ; elle écrit des
+commandes.
+
+## Définition de terminé
+
+Une vitrine utilisant le SDK est prête lorsque :
+
+- chaque page rend son état vide et son état d'erreur sans exception ;
+- chaque lien interne passe par `localizeHref` ;
+- la langue principale n'a pas de préfixe et les autres en ont ;
+- aucune clé de boutique ni schéma Zod ne se trouve dans le bundle navigateur ;
+- toutes les écritures passent par les routes ou actions Astro ;
+- le prix d'une commande est recalculé par le serveur, pas par le navigateur ;
+- le panier est plafonné et le devis fait autorité ;
+- la page de remerciement ne déclenche aucun événement lorsque `orders.tracking`
+  renvoie `null` ;
+- l'aperçu est exclu du cache et la revalidation supprime l'étiquette de page ;
+- `npm run typecheck`, `npm run test` et `npm run build` passent.
+
+## Compatibilité
+
+Le SDK suit le versionnage sémantique :
+
+- un correctif corrige le comportement sans changer l'API ;
+- une version mineure ajoute des fonctionnalités rétrocompatibles ;
+- une version majeure peut retirer ou changer des exports.
+
+Épinglez la version exacte dans le thème. Lisez `CHANGELOG.md` avant de mettre à
+niveau ; un thème plus récent peut supposer un nouvel export du SDK alors qu'une
+compilation de vitrine plus ancienne tourne encore.
+
+La clé de thème fait partie du contrat. `defineTheme({ key })` et l'option
+`theme` du client doivent s'accorder ; changer la clé laisse orphelines les modifications
+de texte et les documents de page du marchand pour ce thème.
+
+<Callout type="info" title="Les imports profonds ne sont pas publics">
+Importez uniquement depuis `@wocart/storefront`, `/server`, `/astro` et
+`/review-media`. Un chemin profond dans `dist/` ou `src/` peut changer à toute
+version. Si la surface publique manque de quelque chose dont une vitrine a
+besoin, c'est un changement du SDK, pas un import profond.
+</Callout>

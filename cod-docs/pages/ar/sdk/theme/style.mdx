@@ -1,0 +1,180 @@
+---
+description: كيف يحوّل @wocart/theme خطوات التنسيق ونقاط التوقف ومخططات الألوان إلى عناصر تحكم آمنة للتاجر وإلى CSS.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# التنسيق واللون
+
+حقل `style` لا يخزّن CSS. بل يخزّن مجموعة صغيرة من الخيارات: خطوة تباعد، أو
+عرضًا، أو محاذاة. ويقرر القالب معنى هذه الخيارات بالبكسل؛ ويكتب SDK الفئات.
+
+هذا يحفظ تعديلات التاجر آمنة. فيمكن للتاجر توسيع قسم أو إضافة مساحة فوقه دون
+كتابة قاعدة تنكسر على الهاتف. والفكرة نفسها تنطبق على اللون: فحقل `colorScheme`
+يخزّن معرّف مخطط، لا قيمًا سداسية عشرية.
+
+## إعطاء الخطوات حجمًا
+
+أسماء الخطوات والعروض مملوكة للمنصة. ويطابق القالب ما يقدمه منها بالبكسل:
+
+```ts
+const theme = defineTheme({
+  // …
+  style: {
+    spacing: { s0: 0, s2: 8, s4: 16, s6: 32, s8: 64 },
+    widths: { wide: 1280, content: 960, narrow: 640 },
+  },
+});
+```
+
+| المقياس | الأسماء |
+| --- | --- |
+| خطوات التباعد | من `s0` إلى `s12` |
+| العروض | `wide` و`content` و`narrow` (بالإضافة إلى `full`) |
+
+الحجم الذي لا يعرّفه القالب لا فئة له. والتنسيق المحفوظ الذي يسمّيه يُعرض بلا
+تنسيق.
+
+## تقديم حقل تنسيق
+
+```ts
+{
+  key: "style",
+  kind: "style",
+  label: "Style",
+  panels: ["spacing", "size"],
+  default: {
+    spacing: { paddingBlockStart: { base: "s4", lg: "s8" } },
+  },
+}
+```
+
+| اللوحة | ما تتحكم فيه |
+| --- | --- |
+| `spacing` | `paddingBlockStart` و`paddingBlockEnd` و`paddingInline` و`marginBlockStart` و`marginBlockEnd` و`gap` |
+| `layout` | `direction` و`align` و`justify` و`wrap` |
+| `size` | `width` و`minHeight` |
+
+كل خاصية متجاوبة. والقيمة تحمل خيارًا لكل نقطة توقف:
+
+| نقطة التوقف | ابتداءً من |
+| --- | --- |
+| `base` | كل العروض |
+| `md` | 768 px |
+| `lg` | 1024 px |
+
+القيم تبدأ من الهاتف: فنقطة التوقف الأوسع ترث الأضيق. ويستخدم SDK خصائص CSS
+المنطقية، فينعكس متجر من اليمين إلى اليسار تلقائيًا.
+
+ترفض الكتابة خطوة أو عرضًا لا يمنحه القالب حجمًا. وتُعرض القيمة المحفوظة في
+القراءة بلا تنسيق ويُبلَّغ عنها؛ ولا تختلق القراءة حجمًا أبدًا.
+
+## وضع الفئات على الصفحة
+
+```astro
+---
+import { schemeClass, styleClasses } from "@wocart/theme";
+const { style, scheme } = Astro.props;
+---
+<section class={`${schemeClass(scheme)} ${styleClasses(style)}`}>
+  <slot />
+</section>
+```
+
+تعيد `styleClasses` الفئات للخطوات والعروض المختارة. وتعيد `schemeClass` الفئة
+`.wc-scheme-<id>` لمعرّف مخطط صالح، أو سلسلة فارغة.
+
+## تقديم ورقة الأنماط
+
+يستطيع SDK توليد ورقة أنماط واحدة تحمل كل فئة تسمح بها أحجام القالب.
+
+```ts
+// src/pages/wocart-styles.css.ts
+import { themeStylesEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeStylesEndpoint(theme);
+```
+
+ثم ضع الرابط ومخططات المتجر في `<head>` الخاص بالتخطيط:
+
+```astro
+---
+import ThemeStyles from "@wocart/theme/astro/ThemeStyles.astro";
+---
+<head>
+  <ThemeStyles schemes={settings.colorSchemes} />
+</head>
+```
+
+`ThemeStyles` يفعّل `stylesheet` افتراضيًا ويربط `/wocart-styles.css`. والقالب
+الذي يضمّن الفئات بنفسه يمرّر `stylesheet={false}`؛ ويفعل Theme-00 ذلك، فيولّد
+CSS نفسه بـ `themeStyleSheet(theme.style)` في سكربت البناء.
+
+ويكتب `ThemeStyles` أيضًا مخططات ألوان المتجر كورقة مضمّنة صغيرة. وفي صفحة ذات
+Content-Security-Policy، يضيف بصمة تلك الورقة إلى السياسة، فلا تحتاج `style-src`
+إلى `'unsafe-inline'`.
+
+## مخططات الألوان
+
+مخطط الألوان مجموعة مسماة من الألوان لكل دور:
+
+| الدور | يُستخدم في |
+| --- | --- |
+| `background` | خلفية القسم |
+| `text` | نص المتن |
+| `heading` | العناوين |
+| `accent` | التخفيضات والتأكيد |
+| `button` | خلفية الزر |
+| `buttonText` | نص الزر |
+| `border` | الحدود |
+
+مخططات المتجر إعداد قالب واحد هو `colorSchemes`. ولكل مخطط `id` و`name` مترجم
+ولون سداسي عشري لكل دور. ويجوز للقالب إعلان 24 مخططًا على الأكثر. والمعرّفات
+حروف لاتينية صغيرة وأرقام وشرطات، بطول 32 حرفًا على الأكثر؛ والأقسام تخزّن
+المعرّف، لذا يجب أن يبقى ثابتًا.
+
+```ts
+{
+  key: "colorSchemes",
+  kind: "colorSchemes",
+  label: "Color schemes",
+  default: [
+    {
+      id: "scheme-1",
+      name: { en: "Light", fr: "Clair" },
+      colors: {
+        background: "#ffffff",
+        text: "#3b4250",
+        heading: "#0f1626",
+        accent: "#c8102e",
+        button: "#0f1626",
+        buttonText: "#ffffff",
+        border: "#e8e8e5",
+      },
+    },
+  ],
+}
+```
+
+ويختار القسم واحدًا بحقل `colorScheme`:
+
+```ts
+{ key: "scheme", kind: "colorScheme", label: "Colors", default: "scheme-1" }
+```
+
+مخطط الصفحة نفسها إعداد متجر، لا قيمة في مستند الصفحة. فمستند الصفحة يحمل
+**المعرّف** فقط، ولا يحمل لونًا أبدًا. وتغيير ألوان المخطط يغيّر كل قسم
+يستخدمه.
+
+تحوّل `colorSchemeCss(schemes)` الإعداد إلى خصائص مخصصة مثل
+`--wc-color-background` و`--wc-color-button-text` على `.wc-scheme-<id>`، مع
+تطبيق الخلفية والنص. وتعيد `contrastRatio(a, b)` نسبة WCAG التي يمكن للمحرر
+التحذير عندها: أقل من 4.5 للنص.
+
+<Callout type="caution" title="لا تخزّن CSS في صفحة">
+قيمة `style` مجموعة خطوات وخيارات. وقيمة `colorScheme` معرّف. وكل ما عدا ذلك
+خارج العقد؛ فالقالب الذي يقبل CSS خامًا يتخلى عن الضمانات التي تجعل المستندات
+المحفوظة قابلة للنقل بين القوالب.
+</Callout>

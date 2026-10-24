@@ -1,0 +1,96 @@
+---
+description: Clés API marchand, clés de vitrine, jetons de session et scopes RBAC.
+---
+
+# Authentification
+
+CodFlow utilise deux schémas d'authentification indépendants. Utilisez celui qui correspond à la surface que vous appelez.
+
+| Surface | En-tête | Identité | Appelant typique |
+| --- | --- | --- | --- |
+| API marchand | `X-API-Key` | Un utilisateur du tableau de bord et ses scopes | Back-office, automatisation, intégration serveur |
+| API marchand | `Authorization: Bearer <JWT>` | Une session de tableau de bord connectée | Le Worker du tableau de bord |
+| API vitrine | `X-Store-API-Key` | Une boutique | Vitrine, thème, tunnel de commande |
+
+La référence API indique le schéma accepté par chaque opération.
+
+## Authentification marchand
+
+### Clé API
+
+Envoyez la clé dans `X-API-Key` :
+
+```http
+GET /api/orders HTTP/1.1
+Host: localhost:8787
+X-API-Key: cod_your_api_key_here
+```
+
+Les clés appartiennent à des utilisateurs. Le serveur charge l'utilisateur, vérifie que le compte est actif et déduit les scopes de l'appelant :
+
+- Un utilisateur `admin` reçoit le scope générique `*` et passe toutes les vérifications de permission.
+- Un utilisateur `staff` reçoit exactement les scopes qui lui sont attribués dans le tableau de bord.
+
+Une clé absente est rejetée avant l'exécution du moindre gestionnaire de route. Une clé qui ne correspond à aucun utilisateur est rejetée comme invalide.
+
+### Jeton de session
+
+Le tableau de bord envoie un JWT de courte durée dans `Authorization: Bearer <JWT>`. Le serveur vérifie le jeton, charge l'utilisateur et applique les mêmes contrôles de statut et de scopes qu'avec une clé API.
+
+Ce schéma existe pour le tableau de bord. Les intégrations tierces doivent utiliser une clé API plutôt qu'un jeton de session navigateur copié.
+
+### Faire tourner une clé
+
+Utilisez **Équipe** dans le tableau de bord pour générer ou faire tourner la clé d'un utilisateur. La nouvelle clé n'est affichée qu'une fois : copiez-la, puis mettez à jour chaque client qui utilisait l'ancienne. La rotation invalide la clé précédente.
+
+## Authentification de la vitrine
+
+Les appels de vitrine utilisent la clé de boutique dans `X-Store-API-Key` :
+
+```http
+GET /store/products HTTP/1.1
+Host: localhost:8787
+X-Store-API-Key: your_store_api_key_here
+```
+
+Le serveur hache la clé présentée et la recherche dans `store_api_keys`. Une clé valide correspond à exactement une boutique ; chaque requête de vitrine est limitée à cette boutique. La clé est créée pour la boutique et peut être copiée depuis **Paramètres → Clé API boutique** dans le tableau de bord.
+
+Une clé de boutique n'authentifie pas les appels `/api/*`. Une clé marchand n'authentifie pas les appels `/store/*`.
+
+## Scopes
+
+Les scopes suivent la forme `resource:action`, par exemple :
+
+| Scope | Autorise |
+| --- | --- |
+| `orders:read` | Lire les commandes |
+| `orders:create` | Créer des commandes |
+| `orders:update` | Modifier le statut de traitement et les détails d'une commande |
+| `orders:delete` | Supprimer ou annuler des commandes |
+| `products:read` | Lire le catalogue |
+| `products:manage` | Gérer les variantes et l'inventaire |
+| `delivery:dispatch` | Créer des expéditions avec un transporteur |
+| `settings:team` | Gérer les membres de l'équipe et les permissions |
+| `mcp:view` | Voir et révoquer vos propres connexions MCP |
+
+Le tableau de bord est la source de vérité des scopes d'un utilisateur. Une opération qui exige un scope manquant renvoie `403` avec le message `Insufficient permissions`. Les utilisateurs administrateurs contournent la vérification.
+
+:::note
+Les échecs de scope proviennent du middleware RBAC et utilisent un corps plus petit que les erreurs applicatives : `{ "error": "Insufficient permissions", "required": "orders:read" }`. Voir [Erreurs](/fr/errors) pour les formes complètes des réponses.
+:::
+
+## Échecs d'authentification
+
+| Statut | Corps | Cause |
+| --- | --- | --- |
+| `401` | `{"error":"Missing authorization","code":"MISSING_API_KEY","category":"AUTHENTICATION"}` | Aucun `X-API-Key` ni jeton Bearer |
+| `401` | `{"error":"User not found","code":"AUTHENTICATION_FAILED","category":"AUTHENTICATION"}` | La clé ou le jeton ne correspond à aucun utilisateur |
+| `401` | `{"error":"Invalid token","code":"AUTHENTICATION_FAILED","category":"AUTHENTICATION"}` | Le jeton Bearer n'a pas passé la vérification |
+| `403` | `{"error":"User account is inactive","code":"USER_INACTIVE","category":"AUTHENTICATION"}` | L'utilisateur est désactivé |
+| `403` | `{"error":"Insufficient permissions","required":"orders:read"}` | L'utilisateur n'a pas le scope |
+| `401` | `{"error":"Missing store API key"}` | Aucun `X-Store-API-Key` |
+| `401` | `{"error":"Invalid store API key"}` | La clé de boutique ne correspond à aucune boutique |
+
+## CORS
+
+L'API autorise les requêtes cross-origin avec les en-têtes `X-API-Key`, `X-Store-API-Key`, `Authorization`, `Content-Type` et `Accept`. En développement local, le serveur renvoie l'origine de la requête, donc le playground sur `http://localhost:3000` fonctionne. En production, il n'autorise que les origines listées dans `ALLOWED_ORIGINS` ; ajoutez-y l'origine de la documentation si vous voulez que le playground atteigne un serveur déployé.

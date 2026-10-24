@@ -1,0 +1,193 @@
+---
+description: Every editable field kind in @wocart/theme, how values resolve and how to type a component's props.
+---
+
+# Fields
+
+A **field** is one control in the editor: a text box, an image picker, a
+number, a color choice. If something is not a field, a merchant cannot change
+it from saved data.
+
+The component definition declares the field. The manifest shows it to the
+editor. The page document stores its value. The value is checked again when the
+page is read, so a saved document cannot bypass the rules.
+
+Most themes begin with `text`, `image`, `number` and `select`. Add the other
+kinds when the component needs them.
+
+## Scalar and text fields
+
+| Kind | Stored value | Notes |
+| --- | --- | --- |
+| `text`, `textarea` | string or per-language map | One of `default` or `contentKey`, never both |
+| `number` | finite number | Optional `min`, `max`; with `step`, values lie on a grid starting at `min` or 0 |
+| `boolean` | boolean | |
+| `select` | one of `options` | `default` must be an option; `optionLabels` names each option |
+| `url` | safe link target | Site path, `#fragment`, `?query`, `http(s)://`, `mailto:` or `tel:`; script and protocol-relative tricks are rejected |
+| `color` | `#rgb` or `#rrggbb` | A color name or `url(…)` is rejected |
+
+`display` changes how an editor shows a field, never what is stored:
+
+```ts
+{
+  key: "align",
+  kind: "select",
+  label: "Alignment",
+  options: ["start", "center", "end"],
+  optionLabels: { start: "Start", center: "Center", end: "End" },
+  default: "center",
+  display: "segmented",
+}
+```
+
+## Store references
+
+These fields store a handle or key, not a copy of the data.
+
+| Kind | Stored value | Read with |
+| --- | --- | --- |
+| `menu` | menu handle (`main-menu`) | `storefront.menus.get(handle)` |
+| `collection` | collection handle (`best-sellers`) | `storefront.products.list({ collection })` |
+| `product` | product handle | `storefront.products.get(handle)` |
+| `category` | category slug | `storefront.categories.list()` |
+| `image` | media object key, never a URL | `mediaUrl(key, MEDIA_DOMAIN)` |
+| `productList` | ordered product handles | `storefront.products.get(handle)` per item |
+| `collectionList` | ordered collection handles | `storefront.collections.get(handle)` per item |
+
+`productList` and `collectionList` cap at 50; their handles must be distinct.
+A deleted product or collection reads as absent, not as an error.
+
+## Structured fields
+
+| Kind | Stored value | Notes |
+| --- | --- | --- |
+| `richtext` | `{ type: "doc", version: 1, content }` or one per language | Fixed shape; `formats` narrows it; render with `richTextToHtml` |
+| `list` | `[{ id, props }]` | Item fields of any kind except `list` and `colorSchemes`; `itemLabel` names the title field |
+| `style` | `{ spacing?, layout?, size? }`, per breakpoint | Steps and choices, never CSS; see [Style and color](/sdk/theme/style) |
+| `colorScheme` | a scheme id | The store must have that scheme |
+| `colorSchemes` | `[{ id, name, colors }]` | A theme setting, at most one; at most 24 schemes |
+
+A rich-text document contains paragraphs, headings 2–4, bullet and ordered
+lists, line breaks, bold, italic, underline, strike and safe links. Nothing
+else is representable, so a stored value cannot carry markup or scripts.
+
+```astro
+---
+import { richTextToHtml } from "@wocart/theme";
+const { body } = Astro.props;
+---
+{body && <div set:html={richTextToHtml(body, { href: store.href })} />}
+```
+
+`richTextToPlainText` gives the words for a meta description or an
+`aria-label`. A field with `inline: true` is one line: a single paragraph with
+marks and links, rendered without a block element.
+
+A list item's `id` is unique within its list, so reordering never changes which
+item is which. Item fields cannot use `contentKey`: every item would read the
+same key. A list default carries its own ids.
+
+## Shared field options
+
+| Option | Applies to | What it does |
+| --- | --- | --- |
+| `key` | every field | The exact prop name the component receives |
+| `label` | every field | Editor-facing name; a string or per-language map |
+| `description` | every field | Editor help text |
+| `required` | every field | The value must exist after content/default fallback |
+| `visibleIf` | every field | Editor-only condition on neighbouring fields |
+| `default` | most fields | Creation-time value; images have none |
+| `contentKey` | `text`, `textarea` | Inherited copy from the theme's content pack |
+| `optionLabels` | `select` | Editor words for each option |
+| `min`, `max`, `step` | `number`, lists | Bounds and grid / list length |
+| `display` | `select`, `number` | `dropdown`, `radio`, `segmented`, `input` or `slider` |
+| `formats` | `richtext` | Allowed marks and blocks |
+| `inline` | `richtext` | One-line mode |
+| `itemLabel` | `list` | Item field an editor shows as its title |
+
+`visibleIf` is a small fixed JSON condition, not an expression:
+
+```ts
+{
+  key: "picked",
+  kind: "productList",
+  label: "Picked products",
+  visibleIf: { field: "source", equals: "picked" },
+}
+```
+
+Conditions support `{ field, equals }`, `{ field, in }`, `{ all }`, `{ any }`
+and `{ not }`, nested at most four levels. The renderer ignores the condition,
+and a hidden field keeps its value.
+
+## How a value resolves
+
+For a field on an instance, the order is:
+
+1. the stored instance value,
+2. `content[contentKey]` for text fields,
+3. the field's `default`,
+4. omitted — the component's own prop default applies.
+
+A missing translation is not an error. A malformed map is `invalid-prop`; an
+unknown key is `unknown-prop`; a required field with no value is
+`missing-required-prop`.
+
+A writer can check one value before saving:
+
+```ts
+import { checkFieldValue } from "@wocart/theme";
+
+const result = checkFieldValue(field, value);
+if (!result.ok) console.error(result.message);
+```
+
+The writer check is stricter than the reader: an image reference or list item
+with an undeclared key is refused here, while the reader ignores it.
+
+## Typed props
+
+Derive the component's props from its definition. Do not write them twice.
+
+```astro
+---
+import type { InferProps } from "@wocart/theme";
+import type { bestSellers } from "./best-sellers.def";
+
+const { products = [], limit } = Astro.props as InferProps<typeof bestSellers>;
+---
+```
+
+`InferProps`:
+
+- makes a field with a `default` always present,
+- makes every other field optional,
+- narrows a `select` to its option literals,
+- turns `image` into `ResolvedImage` (with `alt` already in the rendered
+  language),
+- turns `list` into `{ id }` plus the item fields,
+- merges whatever `load` returns over the fields.
+
+The renderer does the same merge at runtime: `{ ...resolved.props, ...loaded }`.
+If a definition's component reads a prop from `load`, keep that name out of
+`fields`.
+
+## Images and lists in practice
+
+An image field has no default because the theme cannot know a store's media.
+The component renders its own fallback when no image was chosen.
+
+```astro
+---
+import type { InferProps } from "@wocart/theme";
+const { image } = Astro.props as InferProps<typeof banner>;
+---
+{image && <img src={mediaUrl(image.key, MEDIA_DOMAIN)} alt={image.alt ?? ""} />}
+```
+
+An image value also carries optional `width`, `height` and `focal` (a point
+from 0 to 1 on each axis). See [Images](/sdk/theme/images) for the media domain
+and the Astro image service.
+
+A list receives `[{ id, ...fields }]`. The reader drops a broken or repeated
+item and keeps the rest, up to `max`.

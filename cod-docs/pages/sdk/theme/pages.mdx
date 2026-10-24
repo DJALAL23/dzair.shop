@@ -1,0 +1,237 @@
+---
+description: Surfaces, areas, JSON page documents, resolution policy and the Astro renderer in @wocart/theme.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Pages and rendering
+
+A **surface** is a place where a document can be used. `home` fills the home
+page, `product` fills every product page, and `area:header` fills the header on
+every page. You do not need all of them at once; most themes start with `home`
+and `product`.
+
+Each surface has a **document**: a JSON list of the sections that surface shows
+and the values those sections hold. The theme ships a default document; a store
+can save its own. The SDK chooses which one renders and repairs the parts that
+no longer match the theme.
+
+## Surfaces
+
+```ts
+const productSurface: SurfaceSpec = {
+  key: "product",
+  label: "Product",
+  pageType: "product",
+  document: productDocument,
+  required: [{ type: "product-main", min: 1, max: 1 }],
+};
+```
+
+| Field | Meaning |
+| --- | --- |
+| `key` | The surface key stored in the document |
+| `label` | Editor-facing name |
+| `pageType` | The platform page type the surface renders |
+| `document` | The theme's shipped default |
+| `required` | Top-level sections that must exist |
+| `max` | At most this many top-level sections (up to 50) |
+
+Page types are `home`, `catalog`, `category`, `collection`, `product`, `page`,
+`landing`, `checkout` and `thankYou`.
+
+### Templates
+
+A page type with a resource — `product`, `category`, `collection`, `page`,
+`landing` — makes the surface a template. One document renders every product,
+category or page of that type. The route reads the resource first and passes
+the route parameters:
+
+```ts
+const context: ThemeRenderContext = {
+  // …
+  params: { handle: "robe-kabyle" },
+};
+```
+
+Sections read the resource through `context.params` and a read key that
+includes it, so the page and its sections share one read.
+
+### Alternates
+
+A surface can be an alternate of another: `product.compact` is a second
+product layout. Its base (`product`) must be declared and render the same page
+type. `capabilities.surfaces: ["product"]` covers the alternate too.
+
+## Areas
+
+An area is a part every page shares — the header, the footer. It is composed
+of sections like a page and edited once for the whole store.
+
+```ts
+areas: [
+  {
+    key: "header",
+    label: "Header",
+    document: headerDocument,
+    required: [{ type: "header", max: 1 }],
+    max: 4,
+  },
+  { key: "footer", label: "Footer" },
+],
+```
+
+An area's document is the surface `area:<key>`; `areaSurface("header")` builds
+that string. A component stays in the header by declaring
+`capabilities: { surfaces: ["area:header"] }`.
+
+## The document
+
+A page document is JSON:
+
+```json
+{
+  "version": 1,
+  "surface": "home",
+  "sections": [
+    { "id": "hero-1", "type": "hero", "props": { "title": "Bienvenue" } },
+    { "id": "faq-1", "type": "faq", "hidden": true }
+  ]
+}
+```
+
+`version` is `1`. `surface` is the surface or area key. `sections` is the top
+level. An instance has `id`, `type`, optional `props`, `children`, `slots`,
+`fixed` and `hidden`.
+
+A document may also name its provenance:
+
+```json
+{ "theme": { "key": "my-theme", "version": "1.0.0" } }
+```
+
+A document that names another theme is reported (`theme-mismatch`) and the
+shipped default renders instead.
+
+Unknown **top-level** keys are carried through verbatim. Unknown keys inside
+an instance are stripped. The envelope is forward-compatible; the instance is
+not.
+
+## What renders
+
+`resolveSurfaceDocument(theme, surface, saved, scope)` applies the policy:
+
+| Saved state | Renders |
+| --- | --- |
+| No saved document | The theme's shipped default |
+| Envelope invalid (`page: null`) | The shipped default |
+| Surface or theme does not match | The shipped default |
+| No saved section maps to a catalog type | The shipped default |
+| Partial overlap | What maps; unknown types render nothing |
+| Empty saved document | Empty — the merchant emptied it |
+
+It returns the document, its source and the reason for a fallback:
+
+```ts
+const { page, source, reason, issues } = resolveSurfaceDocument(
+  theme,
+  "home",
+  await store.client.pageData.get("home"),
+  { content: store.content, locales: [store.locale, ...store.fallbackLocales] },
+);
+```
+
+The result is completed with required and fixed blocks (`completePage`), so
+what you render is what the contract requires.
+
+## Render a page
+
+One `InstanceView` per section, one read cache per page render:
+
+```astro
+---
+import type { ThemeRenderContext } from "@wocart/theme";
+import InstanceView from "@wocart/theme/astro/InstanceView.astro";
+import { createReadCache } from "@wocart/theme/astro";
+import { resolveSurfaceDocument } from "@wocart/theme";
+import { theme } from "../theme/theme";
+
+const store = Astro.locals.store;
+const { page } = resolveSurfaceDocument(
+  theme,
+  "home",
+  await store.client.pageData.get("home"),
+  { content: store.content, locales: [store.locale, ...store.fallbackLocales] },
+);
+const context: ThemeRenderContext = {
+  store: store.config,
+  content: store.content,
+  locale: store.locale,
+  fallbackLocales: store.fallbackLocales,
+  isRTL: store.isRTL,
+  url: store.pathname,
+};
+const reads = createReadCache();
+---
+{page.sections.map((section) => (
+  <InstanceView
+    instance={section}
+    theme={theme}
+    context={context}
+    storefront={store.client}
+    reads={reads}
+  />
+))}
+```
+
+`InstanceView` is the reference renderer. For one instance it:
+
+1. skips a hidden instance,
+2. finds the definition by `type`,
+3. resolves defaults, translations, fields and composition,
+4. runs the optional `load` hook,
+5. renders the theme's own component with `props` and a `blocks` handle.
+
+An unknown type renders nothing; the rest of the page survives. A `load` that
+throws is reported as `load-failed` and the base props still render.
+
+## Issues
+
+A page has two report channels:
+
+- **Page-data issues** come from parsing and resolution: `unknown-type`,
+  `unknown-prop`, `invalid-prop`, `missing-required-prop`, `unknown-slot`,
+  `disallowed-child`, `duplicate-id`, `limit-exceeded`, `theme-mismatch` and
+  others.
+- **Renderer issues** add `missing-component`, `load-failed` and
+  `multiple-slots-unsupported`.
+
+Pass `onIssue` to collect them in tests or logging:
+
+```astro
+<InstanceView
+  instance={section}
+  theme={theme}
+  context={context}
+  storefront={store.client}
+  reads={reads}
+  onIssue={(issue) => issues.push(issue)}
+/>
+```
+
+The default reporter is `console.warn` with a stable prefix. An issue is a
+degradation with a report, not a thrown error.
+
+## One named slot per instance
+
+The reference renderer fills at most **one named slot** per instance. Astro's
+compiler can lift only the first dynamic slot attribute into the slots object.
+A second named slot with content is reported as `multiple-slots-unsupported`
+and is not rendered. A component can declare several slots; it can also
+transfer Astro's own slots inside itself when it needs more than one filled.
+
+<Callout type="info" title="Preview is a separate render mode">
+A preview in CodFlow Studio uses the same `InstanceView` with `preview` set.
+The markers it adds are read by the preview bridge, not by shoppers. See
+[Preview](/sdk/theme/preview).
+</Callout>

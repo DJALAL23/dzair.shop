@@ -1,0 +1,85 @@
+---
+description: المرجع التقني لمنصة CodFlow للتجارة.
+---
+
+import { Card, CardDescription, CardHeader, CardTitle } from "zudoku/ui/Card";
+import { Link } from "zudoku/components";
+import { BracesIcon, CodeIcon, PaletteIcon, RocketIcon } from "zudoku/icons";
+
+# مقدمة
+
+CodFlow منصة تجارة بالدفع عند الاستلام صُممت للجزائر. يحصل التجار على لوحة تحكم، وواجهة متجر قابلة للقالب، وAPI REST مُعرّف الأنواع للطلبات والتوصيل والكتالوج والعملاء والمراجعات وإعدادات المتجر.
+
+هذا الموقع هو المرجع التقني لتلك المنصة. تُولّد مرجع API وأنواع SDK من مستند OpenAPI الذي يقدّمه cod-server ومن الحزم المنشورة، لذا تطابق نقاط النهاية والأنواع الشيفرة التي تُنشر. ويُصان دليل SDK القوالب هنا.
+
+<div className="not-prose my-10 grid gap-4 sm:grid-cols-2">
+  <Link to="/ar/getting-started" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <RocketIcon className="size-4" />
+        </div>
+        <CardTitle>البدء</CardTitle>
+        <CardDescription>
+          عناوين URL الأساسية ومفاتيح API وأول طلب إلى خادم CodFlow محلي.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/api" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <BracesIcon className="size-4" />
+        </div>
+        <CardTitle>مرجع API</CardTitle>
+        <CardDescription>
+          كل نقطة نهاية للتاجر أو واجهة المتجر، مع المخططات وتفاصيل الطلبات والاستجابات وساحة تجربة.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/ar/sdk/storefront" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <CodeIcon className="size-4" />
+        </div>
+        <CardTitle>SDK واجهة المتجر</CardTitle>
+        <CardDescription>
+          المحرك خلف قالب CodFlow: الإعدادات والكتالوج والسلة وإتمام الطلب والمراجعات.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/ar/sdk/theme" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <PaletteIcon className="size-4" />
+        </div>
+        <CardTitle>SDK القوالب</CardTitle>
+        <CardDescription>
+          ابنِ قالبًا قابلًا للتبديل بعقد الكتل وبيانات المحرر وخدمات الصور.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+</div>
+
+## كيف يُنظَّم هذا الموقع
+
+- **الأدلة** تشرح المفاهيم المشتركة بين كل نقاط النهاية: المصادقة والأخطاء وWebhooks وخادم MCP.
+- **مرجع API** يُولَّد من مستند OpenAPI المباشر. تتضمن كل عملية معاملاتها أو جسم طلبها ومخطط الاستجابة — ومتطلب أمان عندما يحدده المسار. ولكل عملية ساحة تجربة.
+- **مراجع SDK** تُولَّد من تعريفات TypeScript المنشورة. يُنشر دليل SDK واجهة المتجر مع حزمته؛ أما دليل SDK القوالب فيُكتب ويُصان هنا.
+
+## ما يمكنك بناؤه
+
+- **قالب واجهة متجر** بمحرك واجهة المتجر وعقد القوالب، يُنشر كحزمة npm عادية.
+- **أتمتة الطلبات والتوصيل** التي تنشئ الطلبات وتسلّمها لشركة توصيل وتتفاعل مع أحداث الشحن.
+- **أدوات الكتالوج والعملاء** للوحة إدارة أو أداة استيراد أو سير عمل الدعم.
+- **تكاملات وكلاء الذكاء الاصطناعي** عبر خادم MCP المحمي بـ OAuth، بأدوات محدودة بصلاحيات المستخدم المسجّل.
+
+## معاينة محلية
+
+يُولَّد مرجع API من مستند OpenAPI الذي يقدّمه cod-server. عند التشغيل محليًا، ابدأ الخادم بـ `npm run dev` داخل `cod-server`، ثم شغّل `npm run generate` داخل `cod-docs` بعد تغيير المسارات. يشير محدّد الخادم في مرجع API افتراضيًا إلى `http://localhost:8787`.

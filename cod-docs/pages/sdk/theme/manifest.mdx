@@ -1,0 +1,209 @@
+---
+description: Emit, validate and diff a @wocart/theme manifest, and edit page documents safely from its catalog.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# The manifest
+
+A `ThemeDefinition` mixes two kinds of information: field declarations and
+defaults beside live Astro components and server-only `load` functions. A tool
+outside Astro cannot read that without running the theme.
+
+The **manifest** is the data-only half: a JSON menu of every component, field,
+slot and surface the theme offers. An editor, a CLI or a marketplace can read
+it without importing Astro files. If a thing is not in the manifest, another
+tool cannot discover it.
+
+You do not need the manifest to render a fixed Astro storefront. You need it
+when the theme must be edited, shared or checked by another program.
+
+## One source
+
+The manifest is **derived**, never authored:
+
+```ts
+import { themeManifest } from "@wocart/theme";
+
+const manifest = themeManifest(theme);
+```
+
+It is stable across a JSON round trip. There is exactly one source of truth:
+the theme's definitions. A hand-written manifest can be validated, but it is
+never treated as the catalog the theme renders.
+
+## Emit it from the build
+
+A theme's definition imports `.astro` files, so it can only be loaded inside
+Astro's build. Emit the manifest as a prerendered page:
+
+```ts
+// src/pages/wocart-theme.json.ts
+import { themeManifestEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeManifestEndpoint(theme);
+```
+
+The manifest is served at **`/wocart-theme.json`**. It is validated when the
+module loads, so an invalid manifest fails the build instead of shipping.
+
+## What it contains
+
+```json
+{
+  "contractVersion": 1,
+  "key": "my-theme",
+  "version": "1.0.0",
+  "sdkVersion": "2.1.0",
+  "surfaces": [],
+  "areas": [],
+  "locales": ["ar", "fr"],
+  "settings": [],
+  "content": {},
+  "preview": false,
+  "components": {
+    "hero": {
+      "type": "hero",
+      "label": { "ar": "الواجهة", "fr": "Hero" },
+      "fields": [],
+      "slots": [],
+      "presets": []
+    }
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `contractVersion` | Manifest schema and interpretation contract; currently `1` |
+| `key`, `version` | The theme's identity and version |
+| `sdkVersion` | The `@wocart/theme` that generated the manifest |
+| `surfaces`, `areas` | The surfaces and shared areas the theme declares |
+| `locales`, `content` | Declared languages and their content packs |
+| `settings`, `style` | Store-wide settings and the step sizes |
+| `preview` | Whether the theme serves a preview route |
+| `components` | The serializable component specs; no `component`, no `load` |
+
+## Validate a manifest from outside
+
+```ts
+import { validateThemeManifest } from "@wocart/theme";
+
+const { manifest: checked, issues } = validateThemeManifest(input);
+```
+
+A structural failure returns `manifest: null` and issues. A non-semver
+`version` is advisory: the manifest is returned with an `invalid-version`
+issue. Every issue has a `path` into the manifest and one of:
+
+`invalid-manifest`, `unsupported-contract`, `invalid-identity`,
+`invalid-version`, `invalid-surface`, `invalid-settings`,
+`invalid-component`, `invalid-content`, `type-mismatch` or
+`non-serializable`.
+
+Validation mirrors assembly. Relational rules — `contentKey`/`default`
+exclusivity, a number default within its range, a select default in its
+options, slot-name shape, key/type agreement — are checked the same way as
+`validateThemeDefinition`.
+
+## Use it as an editing catalog
+
+```ts
+import { manifestCatalog } from "@wocart/theme";
+
+const catalog = manifestCatalog(manifest);
+```
+
+`manifestCatalog` turns a manifest into the shape every data function accepts:
+`createInstance`, `instantiatePreset`, the document operations,
+`checkPageData`, `validatePageData`, `resolveThemeSettings` and
+`checkThemeSettings`.
+
+Its components have `component: null`. It describes and checks; it does not
+render. Do not pass it to `InstanceView`.
+
+## Manifest guarantees
+
+| Promise | Consequence |
+| --- | --- |
+| **Data-only** | No functions, symbols, bigints, non-finite numbers or cycles; those are `non-serializable` |
+| **Normalized** | `fields` and `slots` are always arrays; absent means `[]` |
+| **Key equals type** | `components[type].type === type` |
+| **Unknown keys stripped** | An older reader ignores newer metadata instead of failing |
+| **Validated at build** | A theme that assembles is a theme whose manifest validates |
+
+The forward-compatibility tradeoff is deliberate: old readers stay green, but
+they cannot see new metadata until they update. That is why additive fields
+must never change how an existing field is read.
+
+## Change a document
+
+The operations are the writer's API:
+
+```ts
+import { checkPageData, removeInstance } from "@wocart/theme";
+
+const edit = removeInstance(theme, page, "faq-1");
+if (!edit.ok) throw new Error(`${edit.issue.code}: ${edit.issue.message}`);
+
+const issues = checkPageData(theme, edit.page);
+```
+
+| Operation | Result |
+| --- | --- |
+| `insertInstance(theme, page, instance, placement)` | Add at a location |
+| `moveInstance(theme, page, id, placement)` | Move to another location or index |
+| `duplicateInstance(theme, page, id)` | Copy with new ids |
+| `removeInstance(theme, page, id)` | Delete, unless required or fixed |
+| `setInstanceProps(theme, page, id, props)` | Merge props |
+| `setInstanceHidden(theme, page, id, hidden)` | Hide or show |
+
+They return `{ ok: true, page }` or `{ ok: false, issue }`, never mutate the
+input, and leave the rest of the document untouched. A refused edit says why:
+`not-available`, `not-placeable`, `slot-full`, `required-block`, `fixed-block`
+or `cycle`.
+
+`completePage(theme, page)` adds missing required and fixed blocks. An editing
+tool starts from it so it never shows an incomplete page.
+
+## Compare two releases
+
+```ts
+import { diffThemeManifests } from "@wocart/theme";
+
+const { breaking, additive } = diffThemeManifests(previous, next);
+```
+
+**Breaking** means a saved document, setting or text edit may no longer read as
+it did:
+
+- a component, surface, area, field, slot, option or content key was removed,
+- a field kind changed,
+- a page type changed,
+- an `allow` list, range, list bound or rich-text format narrowed,
+- a slot became single,
+- a field became required with no default or content fallback,
+- the theme key changed.
+
+Everything else is additive. Saved data is never migrated: the reader degrades
+with reports, and this diff tells you beforehand what will degrade.
+
+## Versioning
+
+Three contracts version independently:
+
+| Version | What it covers | When it changes |
+| --- | --- | --- |
+| `contractVersion` | Manifest schema and how consumers interpret it | Only a breaking change to that shape; currently `1` |
+| theme `version` | The theme itself | Semver; a breaking diff belongs in a new major |
+| `PageData.version` | The page-document envelope | Currently `1` |
+
+A non-semver theme version is reported, not rejected: registration stays
+possible, but version hygiene is visible.
+
+<Callout type="caution" title="Do not hand-edit a shipped manifest">
+The manifest is a build artifact. Change a definition and rebuild. A manifest
+edited by hand drifts from the code that renders the theme.
+</Callout>

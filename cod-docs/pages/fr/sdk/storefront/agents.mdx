@@ -1,0 +1,214 @@
+---
+description: Donnez un brief à un assistant IA pour construire une vitrine avec le SDK, et vérifiez ce qu'il produit.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Créer une vitrine avec l'IA
+
+Un assistant IA peut construire une vitrine avec ce SDK, mais seulement si on lui
+donne les limites. La plupart des mauvais résultats viennent d'un assistant qui
+comble les vides avec un schéma e-commerce générique : un total côté client, une
+langue codée en dur, son propre `fetch` ou un endpoint qui n'existe pas.
+
+Cette page est le brief à lui remettre.
+
+## Ce qu'il faut fournir à l'assistant
+
+Au minimum :
+
+1. **Le paquet et la version** — `@wocart/storefront` `1.19.0` et
+   `@wocart/theme` `2.1.0` (ou les versions épinglées par votre projet).
+2. **Les instructions du dépôt** — `AGENTS.md` ; elles nomment les vraies limites.
+3. **Theme-00** — le consommateur de référence dans `cod-astro/theme-00`. Montrez-le
+   à l'assistant pour les patterns, pas seulement cette documentation.
+4. **Le contrat de la boutique** — quelles langues, quelle devise, si le panier,
+   les avis, l'OTP et Turnstile sont activés, et où tourne le serveur.
+
+Si l'assistant n'a pas accès à Theme-00, donnez-lui les fichiers pertinents :
+`src/theme/sdk.ts`, `src/middleware.ts`, `src/theme/api-routes.ts`,
+`src/actions/index.ts` et une page par type.
+
+Le dépôt fournit aussi une compétence d'agent, `.agents/skills/wocart-theme/`.
+Son `references/sdk-discovery.md` est la procédure pour vérifier une API dans le
+paquet installé, et `references/theme-quality.md` est la liste des contrôles pour
+un changement de vitrine ou de thème. Donnez la compétence à l'agent avant la
+tâche.
+
+## Le brief
+
+```text
+Build a storefront in this Astro project using @wocart/storefront 1.19.0.
+
+Read first:
+- AGENTS.md (repository rules)
+- cod-astro/theme-00 (reference consumer)
+- the SDK docs at /sdk/storefront
+
+Store facts:
+- API origin: <COD_SERVER_URL>
+- store key: server-only env STORE_API_KEY
+- languages: <ar, fr, en>
+- cart: <on/off>, reviews: <on/off>, OTP: <on/off>
+
+Rules:
+- Import the client from @wocart/storefront/server; never put the key in a
+  browser bundle.
+- Import root helpers from @wocart/storefront; the root is browser-safe.
+- Review media comes from @wocart/storefront/review-media and is browser-only.
+- Server owns prices, stock, delivery, coupons and order totals. Never compute
+  an order total in the browser.
+- Every write goes through an Astro action or a same-origin route built with
+  the SDK's adapters. No direct fetch to the store API from a component.
+- Read the store's languages from config.locales. Do not hardcode a list. Use
+  localeRouting, resolveLocalePath and localizeHref.
+- Handle every degraded read: config null, product null, list empty, rates {}.
+- Do not invent endpoints, fields or options. If an API is missing, stop and
+  say so.
+
+Deliver:
+1. A page map with the SDK reads each page uses.
+2. The shared files (client, middleware, routes, layouts).
+3. The pages, one at a time.
+4. Tests for failure states and pricing.
+5. Typecheck, tests and build output.
+```
+
+Le dernier point compte : demander d'abord une carte des pages permet de repérer
+une mauvaise architecture avant qu'elle ne se répande dans dix fichiers.
+
+## Les invariants à faire respecter
+
+| Règle | Pourquoi |
+| --- | --- |
+| La clé reste sur le serveur | Une clé dans le navigateur expose toute la boutique |
+| Le serveur possède l'argent | Un total navigateur peut être modifié |
+| Un client par requête | Les caches et la langue ne doivent pas fuir entre visiteurs |
+| `config.locales` est la liste des langues | La boutique, pas le thème, décide |
+| Chaque lien interne est localisé | Sinon un acheteur français retombe sur l'arabe |
+| Une lecture manquante affiche un état vide | Les lectures se dégradent ; elles ne lèvent pas d'erreur |
+| Les écritures renvoient un `ClientResult` | Un refus est attendu, pas une exception |
+| Les médias d'avis sont réservés au navigateur | Ils utilisent canvas et le microphone |
+| Le panier est l'affichage ; le devis est l'argent | `localStorage` est modifiable par l'utilisateur |
+| L'aperçu n'est jamais mis en cache | Un brouillon ne doit pas atteindre un autre visiteur |
+| Le texte du thème est indexé par thème | Renommer une clé rend orphelines les modifications du marchand |
+
+Si un assistant propose du code qui viole l'une de ces règles, corrigez la règle
+dans le brief plutôt que de corriger le symptôme.
+
+## Un ordre de construction sûr
+
+1. **Lire la boutique.** `config.get()` et `config.locales`. Affichez la mise en
+   page, l'en-tête, le pied de page et le sélecteur de langue.
+2. **Construire le catalogue.** Liste de produits, détail produit, catégorie,
+   collection.
+3. **Ajouter le formulaire de commande.** Un produit d'abord, puis le panier.
+4. **Ajouter le devis.** Wilaya, commune, type de livraison, coupon.
+5. **Ajouter la commande.** Action, OTP, Turnstile, suivi du remerciement.
+6. **Ajouter le contenu.** Pages, menus, pages d'atterrissage, avis.
+7. **Ajouter l'aperçu et la revalidation** seulement si le thème est éditable.
+8. **Lancer les tests d'échec.** Coupez le serveur et chargez chaque page.
+
+Ne commencez pas par la commande. C'est la page qui a le plus de règles et le
+moins de progrès visible.
+
+## Ce qu'il faut vérifier dans le résultat
+
+### Imports
+
+```ts
+import { formatMoney } from "@wocart/storefront";             // browser-safe
+import { getStoreClient } from "./theme/sdk";                 // server only
+import { prepareReviewPhoto } from "@wocart/storefront/review-media"; // browser only
+```
+
+Un import serveur dans un composant `.astro` est normal — les composants Astro
+s'exécutent sur le serveur. Un import serveur dans un `<script>` ou une island
+est une fuite.
+
+### Argent
+
+Le total de la commande doit venir de `cart.validate` ou de la réponse de la
+commande. Une ligne construite comme `price * quantity` convient à l'affichage ;
+ce n'est pas le montant débité.
+
+### Langues
+
+Le résultat ne doit contenir aucun tableau comme `["ar", "fr"]` ni aucune
+branche `if (locale === "ar")` pour le routage. Il doit utiliser les assistants.
+
+### États d'échec
+
+Demandez à l'assistant de montrer chacun :
+
+- serveur arrêté → catalogue vide, pas de crash ;
+- produit manquant → 404 ;
+- pas d'image → placeholder ;
+- pas d'avis → section vide, formulaire toujours disponible ;
+- OTP activé mais fournisseur arrêté → jeton de contournement, pas de commande bloquée ;
+- échec de recherche de suivi → aucun événement navigateur.
+
+### Routes
+
+Les fichiers de route doivent exporter directement les handlers du SDK. Un proxy
+`fetch` écrit à la main avec sa propre correspondance de statuts est un second
+contrat qui finira par diverger.
+
+## Revoir une modification IA
+
+Utilisez la même checklist pour chaque page générée :
+
+1. Lit-elle via l'espace de noms du SDK, et non `fetch` ?
+2. Utilise-t-elle `config.locale` et `config.currencySymbol` ?
+3. Gère-t-elle `null`/vide sans inventer de données ?
+4. Utilise-t-elle `productImageSource` plutôt que `coverImage` seul ?
+5. Passe-t-elle seulement le panier à la commande en laissant le serveur fixer le prix ?
+6. Localise-t-elle chaque lien interne ?
+7. Évite-t-elle d'ajouter un schéma ou un validateur au navigateur ?
+8. Ajoute-t-elle un test pour le chemin d'échec ?
+9. Le typecheck et les tests passent-ils ?
+10. Chaque nouvel endpoint figure-t-il dans la liste documentée du SDK ?
+
+Un « oui » aux dix est une modification prête à être relue. Un « non » à un seul
+est une raison de s'arrêter avant de fusionner.
+
+## Erreurs courantes
+
+- **Inventer un endpoint.** Si la documentation ne le nomme pas, il n'existe pas.
+- **Un total côté client.** Il sera en désaccord avec le serveur dès qu'un coupon
+  ou une offre s'applique.
+- **Livrer avec des frais devinés.** Utilisez le devis ; la table de tarifs est
+  un espace réservé.
+- **Un client partagé.** Il laisse fuir la langue et les caches entre requêtes.
+- **Ajouter Zod au navigateur.** Le serveur valide ; le navigateur lit ce qu'on
+  lui a donné.
+- **Écrire un éditeur de thème.** Les textes de thème et les documents de page
+  sont écrits par CodFlow Studio, hors de ce dépôt.
+- **Mettre l'aperçu en cache.** Un brouillon ne doit jamais être partagé.
+- **Coder en dur `/pages/terms`.** Résolvez les pages légales par `kind`.
+
+## Un prompt court pour une page
+
+```text
+Implement the product page in src/pages/products/[handle].astro.
+
+Use Astro.locals.store.client. Read products.get(handle). Return a 404 rewrite
+when it is null.
+
+Show name, price via formatMoney with config.currencySymbol and config.locale,
+gallery images via createImageHelpers, variants via initialVariant/pickOption,
+quantity tiers via getQuantityTierViews, and the WhatsApp launcher when
+showsWidgetOn(config.whatsapp.surfaces, pathname).
+
+The order form posts to the placeOrder action with productId, productName,
+variantSelections, quantity and offerId. No price is computed in the browser.
+
+Add tests for: missing product, out-of-stock, no image, server failure.
+Run typecheck, tests and build, and report the exact commands and output.
+```
+
+<Callout type="info" title="L'assistant n'est pas la source de vérité">
+Quand l'assistant et cette documentation sont en désaccord, lisez le code source
+du SDK et Theme-00. Quand l'assistant invente un champ, arrêtez-vous et vérifiez
+le type. Une réponse plausible n'est pas une API disponible.
+</Callout>

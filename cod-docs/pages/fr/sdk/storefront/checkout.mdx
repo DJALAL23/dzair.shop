@@ -1,0 +1,359 @@
+---
+description: Soumettez une commande via une action Astro, vérifiez le téléphone par OTP WhatsApp et déclenchez la bonne conversion sur la page de remerciement.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Commande et OTP
+
+Le formulaire de commande est un formulaire HTML normal. Il est envoyé à une
+action Astro, l'action appelle le serveur et le navigateur arrive sur une page de
+remerciement. Le serveur fixe le prix de la commande ; le navigateur ne fait que
+décrire le choix.
+
+```text
+form → src/actions/index.ts → executePlaceOrder() → cod-server
+                                              ↓
+                              /thank-you?order=…&total=…&oid=…
+```
+
+Conservez le flux post/redirect/get. Un rendu direct de la page de succès derrière
+un POST fait qu'un rafraîchissement retente la commande.
+
+## L'action
+
+`defineAction` d'Astro est la fine enveloppe du framework ; le SDK possède la
+liste blanche des entrées et la soumission.
+
+```ts
+// src/actions/index.ts
+import { ActionError, defineAction } from "astro:actions";
+import { executePlaceOrder, placeOrderInput } from "@wocart/storefront/astro";
+import { getStoreClient } from "@/theme/sdk";
+
+export const server = {
+  placeOrder: defineAction({
+    accept: "form",
+    input: placeOrderInput,
+    handler: async (input, context) => {
+      const result = await executePlaceOrder(
+        input,
+        context.request,
+        getStoreClient(),
+      );
+
+      if (!result.success) {
+        if (result.errorKind === "shape") {
+          throw new ActionError({ code: "BAD_REQUEST", message: result.error });
+        }
+        if (result.couponRefusal) return { couponRefusal: result.couponRefusal };
+        throw new ActionError({
+          code: "UNPROCESSABLE_CONTENT",
+          message: result.error,
+        });
+      }
+
+      return result.data;
+    },
+  }),
+};
+```
+
+`executePlaceOrder` applique une règle : une commande est soit un panier
+(`items`), soit un produit. Tout le reste est une erreur de forme. Il transmet
+aussi le `User-Agent`, l'IP et le `Referer` de l'acheteur afin que l'attribution
+soit enregistrée pour le visiteur, pas pour votre Worker.
+
+`result.data` est la commande acceptée :
+
+```ts
+type CreatedOrder = {
+  orderId: string;
+  orderNumber: string;
+  price: number;
+  deliveryFee: number;
+  total: number;
+  couponDiscount?: number | null;
+};
+```
+
+Ces totaux ne font foi qu'une fois la commande acceptée par le serveur.
+
+## Les champs du formulaire
+
+`placeOrderInput` est une liste blanche. Un champ qu'elle ne nomme pas est retiré
+avant l'exécution de l'action ; utilisez donc exactement ses noms.
+
+| Champ | Remarques |
+| --- | --- |
+| `customerName` | Requis, 2 à 100 caractères |
+| `phone` | Mobile algérien ; accepté sous forme locale ou internationale |
+| `wilayaId` | Requis, 1 à 58 |
+| `communeId` | Requis |
+| `address` | Jusqu'à 300 caractères |
+| `deliveryType` | `home` ou `stop_desk` |
+| `notes` | Jusqu'à 500 caractères |
+| `email` | Facultatif, sauf si la politique de la boutique l'exige |
+| `couponCode` | Jusqu'à 64 caractères |
+| `otpToken` | Renseigné après la vérification du téléphone |
+| `turnstileToken` | Renseigné par le widget de protection contre les robots |
+| `customFieldResponses` | Tableau JSON pour les champs définis par le marchand |
+| `items` | Tableau JSON pour une commande panier |
+| `productId`, `productName`, `pricePerUnit`, `quantity`, `variantId`, `offerId` | Le formulaire produit unique ; `pricePerUnit` est requis par le contrôle de forme |
+| `variantSelections` | Tableau JSON pour les choix de variante par unité |
+| `landingPageSlug` | Attribution d'une commande depuis une page d'atterrissage |
+| `fbc`, `fbp` | Cookies de clic et de navigateur Meta |
+
+Pour un panier, sérialisez le panier dans un seul champ caché :
+
+```ts
+const itemsInput = document.querySelector<HTMLInputElement>("#cart-items");
+itemsInput.value = JSON.stringify(basket.toOrderItems());
+```
+
+Pour les champs personnalisés, un seul champ JSON garde le formulaire indépendant
+du schéma de l'action :
+
+```ts
+const answers = config.checkoutForm.customFields.map((field) => ({
+  id: field.id,
+  value: formData.get(`custom:${field.id}`)?.toString() ?? "",
+}));
+
+customInput.value = JSON.stringify(answers);
+```
+
+`pricePerUnit` sert uniquement à l'affichage, mais une commande produit unique
+doit l'inclure : `executePlaceOrder` rejette un formulaire qui n'a ni `items` ni
+produit avec un prix. Le serveur recalcule de toute façon le prix de la ligne ;
+ce n'est donc jamais le montant facturé.
+
+## Afficher le refus du serveur
+
+L'action peut refuser pour un champ, une règle métier ou un coupon.
+
+- **Forme** — ni panier ni produit. `BAD_REQUEST` ; il s'agit d'un bug du
+  formulaire, pas d'une erreur de l'acheteur.
+- **Validation** — le `domainError` du serveur nomme le champ et la règle.
+  Affichez l'erreur à côté de ce champ.
+- **Coupon** — `couponRefusal` est renvoyé sans lever d'exception. La zone du code affiche la
+  raison et l'acheteur peut modifier le coupon sans ressaisir la commande.
+- **Métier** — un produit indisponible, une boutique fermée, une destination non
+  livrable. Gardez le formulaire rempli et affichez la raison.
+
+Ne les remplacez pas par un message générique du type « une erreur est survenue ». Un acheteur
+qui a choisi une taille épuisée doit savoir quel choix modifier.
+
+## Remerciement et suivi
+
+Après un succès, redirigez avec les valeurs que lit votre page de remerciement. Le
+contrat de Theme-00 est `/thank-you?order=<number>&total=<total>&oid=<orderId>`.
+
+La page demande au serveur à quel pixel et à quel événement cette commande
+appartient :
+
+```ts
+const tracking = await Astro.locals.store.client.orders.tracking(orderId);
+```
+
+`tracking` vaut `null` lorsque la recherche échoue. Dans ce cas, ne déclenchez
+**rien** :
+
+```ts
+if (!tracking?.pixelId || !tracking.event) return;
+```
+
+L'événement est déjà résolu. Si la conversion du marchand se déclenche plus tard
+dans l'entonnoir, `event` vaut `null` ; ne revenez pas à `Purchase`.
+
+```js
+fbq(
+  "trackSingle",
+  pixelId,
+  tracking.event,
+  { value: total, currency: "DZD" },
+  { eventID: orderId },
+);
+```
+
+Utilisez `trackSingle`, pas `track` : la vente appartient à un seul pixel, celui
+que reflète la Conversions API du serveur. `eventID: orderId` est ce qui
+déduplique l'événement navigateur par rapport à l'événement serveur. Un autre ID
+le compte deux fois.
+
+Lorsque le suivi est indisponible, ignorez l'événement navigateur plutôt que de
+deviner un pixel. L'événement côté serveur existe toujours.
+
+## OTP WhatsApp
+
+L'OTP est facultatif par boutique (`config.otpEnabled`). Lorsqu'il est activé, le
+téléphone saisi à la commande doit être vérifié avant que la commande soit
+acceptée.
+
+Le flux navigateur est une machine à états fournie par le SDK :
+
+```ts
+import {
+  createOtpMachine,
+  createOtpTransport,
+  mapOtpResponse,
+  otpTransportFailure,
+  STOREFRONT_OPERATIONS,
+  type OtpSendResult,
+  type OtpVerifyResult,
+} from "@wocart/storefront";
+
+async function postOtp<T>(path: string, body: object, operation: string) {
+  try {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return await mapOtpResponse<T>(response, { operation, fallbackError: "" });
+  } catch (error) {
+    return otpTransportFailure<T>(error, operation, "");
+  }
+}
+
+const transport = createOtpTransport({
+  send: (phone) =>
+    postOtp<OtpSendResult>("/api/otp/send", { phone }, STOREFRONT_OPERATIONS.ordersOtpSend),
+  verify: (phone, requestId, code) =>
+    postOtp<OtpVerifyResult>(
+      "/api/otp/verify",
+      { phone, requestId, code },
+      STOREFRONT_OPERATIONS.ordersOtpVerify,
+    ),
+});
+
+const otp = createOtpMachine({ transport, initialPhone: phoneInput.value });
+```
+
+Les routes de même origine sont créées par le SDK :
+
+```ts
+// src/pages/api/otp/send.ts
+import { routes } from "../../../theme/api-routes";
+export const POST = routes.otpSend;
+```
+
+```ts
+// src/pages/api/otp/verify.ts
+import { routes } from "../../../theme/api-routes";
+export const POST = routes.otpVerify;
+```
+
+### Ce que possède la machine
+
+| État | Quoi afficher |
+| --- | --- |
+| `idle` | Rien ; en attente d'un téléphone |
+| `sending` | Désactiver le bouton d'envoi |
+| `code_sent` | Champ de code, compte à rebours de renvoi, nombre de tentatives |
+| `verifying` | Désactiver la vérification et l'envoi |
+| `verified` | Placer `otpToken` dans le champ caché |
+| `bypassed` | Fournisseur indisponible ; placer `bypassToken` dans le même champ |
+| `error` | La raison ; le renvoi peut être disponible |
+
+`send()` démarre un délai de 60 secondes (ou la fenêtre de limitation de débit
+plus longue du serveur). `verify()` accepte six chiffres, compte les tentatives et
+passe à un état terminal lorsque le code expire. `setPhone()` réinitialise le flux
+lorsque le téléphone change ; le jeton ne doit jamais survivre au numéro pour
+lequel il a été émis.
+
+```ts
+otp.subscribe((state) => {
+  tokenInput.value = state.otpToken ?? state.bypassToken ?? "";
+  renderOtp(state);
+});
+
+phoneInput.addEventListener("input", () => otp.setPhone(phoneInput.value));
+```
+
+Lorsque le téléphone est vérifié, soumettez le formulaire une fois. La preuve
+voyage dans `otpToken`, pas dans un second champ.
+
+`bypassed` n'est pas une erreur à masquer : le serveur a délibérément laissé
+passer et la commande doit tout de même être attestée. Cet état porte un jeton de
+contournement signé et la raison.
+
+### Sans JavaScript
+
+Le formulaire est quand même envoyé. Le serveur répond
+`OTP_VERIFICATION_REQUIRED` si le téléphone n'est pas vérifié, et la page affiche
+cette erreur. L'étape OTP est une amélioration, pas le seul chemin.
+
+## Turnstile
+
+Lorsque la boutique active la protection contre les robots, le widget écrit un
+jeton. L'action l'attend dans `turnstileToken` ; si le champ du widget porte un
+autre nom, copiez-le dans ce champ avant l'envoi.
+
+Un jeton Turnstile absent ou expiré est un refus de validation. Conservez le reste
+du formulaire ; ne le videz pas.
+
+## Commande abandonnée
+
+Un traqueur facultatif enregistre une commande abandonnée par l'acheteur, dès
+qu'un nom et un mobile valide sont présents :
+
+```ts
+import { createAbandonedCheckoutTracker } from "@wocart/storefront";
+
+const tracker = createAbandonedCheckoutTracker({
+  storage: localStorage,
+  createId: () => crypto.randomUUID(),
+  schedule: (fn, ms) => setTimeout(fn, ms),
+  cancel: clearTimeout,
+  readCookie: (name) =>
+    document.cookie.split("; ").find((row) => row.startsWith(`${name}=`))?.split("=")[1],
+  send: (payload) => fetch("/api/abandoned", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).then(() => undefined),
+  beacon: (payload) =>
+    navigator.sendBeacon("/api/abandoned", JSON.stringify(payload)),
+});
+
+tracker.schedule(snapshot);
+tracker.update(snapshot);
+tracker.captureOnExit(snapshot);
+```
+
+`schedule` attend trois secondes après l'arrêt de la saisie avant d'envoyer ;
+`update` n'envoie de nouveau qu'une fois le premier enregistrement créé. Le
+traqueur transmet les cookies `_fbc` et `_fbp` lorsqu'ils sont présents.
+
+Une fois la commande passée, marquez la session comme convertie :
+
+```ts
+fetch("/api/abandoned/convert", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ sessionId, orderId, orderNumber }),
+  keepalive: true,
+});
+```
+
+La conversion est envoyée sans attendre de réponse. Un échec d'envoi ne doit jamais bloquer la page
+de remerciement.
+
+## Liste de contrôle de la commande
+
+- Le formulaire est envoyé à `placeOrder` ; le panier est un seul champ `items`
+  en JSON.
+- `pricePerUnit` est présent pour l'affichage et n'est jamais traité comme le
+  montant facturé.
+- Les champs personnalisés sont sérialisés par `id` de champ.
+- L'OTP n'est rendu que si `config.otpEnabled` est vrai.
+- Le jeton OTP se trouve dans `otpToken` ; un changement de téléphone le
+  réinitialise.
+- Le jeton Turnstile se trouve dans `turnstileToken`.
+- L'action redirige en cas de succès ; elle ne rend pas la page de remerciement.
+- La page de remerciement ne déclenche que le pixel et l'événement renvoyés par
+  `orders.tracking`.
+- `eventID` est l'id de la commande.
+- La session abandonnée est marquée comme convertie après le succès.

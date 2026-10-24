@@ -1,0 +1,298 @@
+---
+description: Read store settings and languages, route languages, and render the checkout policy the store actually uses.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Store config and languages
+
+`config.get()` is the first read of most pages. It returns the store's public
+settings or `null` when they cannot be read.
+
+```ts
+import { getStore } from "../theme/store";
+
+const store = getStore();
+const config = await store.config.get();
+
+if (config === null) {
+  return new Response("Store unavailable", { status: 503 });
+}
+```
+
+A null config is a real failure, not an empty store. Use your fallback layout or
+an error page; do not invent a store name and currency and continue as if the
+read succeeded.
+
+## What the config contains
+
+| Group | Fields | Use it for |
+| --- | --- | --- |
+| Identity | `name`, `domain`, `logoUrl`, `themeId` | Page title, header, sharing |
+| Brand | `primaryColor`, `accentColor`, `bgColor`, `fontFamily` | Legacy theme values; see the note below |
+| Languages | `lang`, `locale`, `locales` | `<html lang>` and `dir`, switcher, links |
+| Currency | `currency`, `currencySymbol` | `formatMoney` |
+| SEO | `metaTitle`, `metaDescription`, `ogImage` | Head metadata |
+| Features | `reviewsEnabled`, `cartEnabled`, `otpEnabled`, `turnstileEnabled`, `turnstileSiteKey` | Whether to render a surface; the public widget key |
+| Cart | `freeShippingThreshold`, `cartShippingMode` | Copy and display only; the quote owns the fee |
+| Checkout | `checkoutForm` | Which fields to render and which are required |
+| Tracking | `pixelId`, `conversionEvent` | Meta pixel installation and event choice |
+| Pages | `pages` | Footer and consent links |
+| Legal | `legalContact` | Public contact details and delivery window |
+| WhatsApp | `whatsapp` | Launcher settings and surface switches |
+| Theme | `themeSettings`, `contentOverrides` | Editable themes |
+
+<Callout type="caution" title="Colours on the config are the old way">
+`primaryColor`, `accentColor`, `bgColor`, `fontFamily` and `announcementBar`
+are deprecated values saved before theme settings. An editable theme declares
+its colours, font and announcement in `defineTheme({ settings })` and reads
+`themeSettings`. Do not build a new theme against the deprecated fields.
+</Callout>
+
+## Feature switches
+
+Render a feature only when the store has it:
+
+```astro
+---
+const { cartEnabled, reviewsEnabled, otpEnabled, turnstileSiteKey } = config;
+---
+
+{cartEnabled && <CartDrawer />}
+{reviewsEnabled && <ProductReviews productId={product.id} />}
+{otpEnabled && <OtpStep />}
+{turnstileSiteKey && <div class="cf-turnstile" data-sitekey={turnstileSiteKey} />}
+```
+
+A store with `cartEnabled: false` must ship no cart markup at all. This is not
+cosmetic: the switch is the rollback path for the cart feature.
+
+The same rule applies to reviews, OTP and the WhatsApp widget. Their settings
+exist so a store can turn the surface off without a deploy.
+
+## Checkout policy
+
+`checkoutForm` is the merchant's form policy, already resolved:
+
+```ts
+type CheckoutFormPolicy = {
+  address: "required" | "optional" | "hidden";
+  notes: "optional" | "hidden";
+  email: "required" | "optional" | "hidden";
+  deliveryOptions: { home: boolean; stopDesk: boolean };
+  customFields: Array<{
+    id: string;
+    label: string;
+    type: "text" | "textarea" | "number" | "select";
+    required: boolean;
+    options?: string[];
+  }>;
+};
+```
+
+Read it; do not re-decide it. In particular:
+
+- `hidden` means render no input, not a disabled or empty one.
+- `customFields` are merchant-authored. Render `label` as text, never as HTML.
+- Send answers as `customFieldResponses`, keyed by the field's server-minted
+  `id`.
+- The server validates the same policy on order creation. A client-side
+  shortcut cannot make a required field optional.
+
+```ts
+const answers = config.checkoutForm.customFields.map((field) => ({
+  id: field.id,
+  value: formData.get(`custom:${field.id}`)?.toString() ?? "",
+}));
+```
+
+The order action accepts one JSON field for these answers, so a merchant can add
+a custom field without a theme deploy.
+
+## Languages
+
+A store has a primary language (`lang`) and a list of published languages
+(`locales`):
+
+```ts
+const config = await getStore().config.get();
+
+config?.locales;
+// [
+//   { code: "ar", nativeName: "العربية", direction: "rtl" },
+//   { code: "fr", nativeName: "français", direction: "ltr" },
+// ]
+```
+
+`locales` is ordered with the primary first. It is the only authority on which
+languages exist; do not hardcode a language list in your theme.
+
+`servedLanguage(config, code)` gives the language object for `<html lang>` and
+`dir`:
+
+```astro
+---
+import { servedLanguage } from "@wocart/storefront";
+
+const language = servedLanguage(config, config.locale);
+---
+<html lang={config.locale} dir={language?.direction ?? "ltr"}>
+```
+
+### URL shape
+
+The primary language has no prefix. Every other published language has one:
+
+```text
+/products/robe          primary (Arabic, for example)
+/fr/products/robe       French
+/ar/products/robe       301 to /products/robe
+```
+
+The helpers that implement this are pure:
+
+```ts
+import {
+  alternateLinks,
+  localeRouting,
+  localizeHref,
+  resolveLocalePath,
+} from "@wocart/storefront";
+
+const routing = localeRouting(config);
+
+resolveLocalePath("/fr/products/robe", routing);
+// { kind: "page", locale: "fr", pathname: "/products/robe" }
+
+localizeHref("/products/robe", "fr", routing);
+// "/fr/products/robe"
+
+alternateLinks("/products/robe", routing, "https://shop.example");
+// hreflang entries, primary first, plus x-default
+```
+
+`resolveLocalePath` only treats a first segment as a language when the store
+publishes it. An unknown prefix is an ordinary path and 404s normally.
+
+### One client per language
+
+Merchant text is translated by the server. Ask for a language through the
+client; do not translate product names in the browser.
+
+```ts
+const primaryClient = getStore();
+const primaryConfig = await primaryClient.config.get();
+
+const routing = localeRouting(primaryConfig!);
+const path = resolveLocalePath(Astro.url.pathname, routing);
+if (path.kind === "redirect") return Astro.redirect(path.location, 301);
+
+const client =
+  path.locale === routing.primary ? primaryClient : getStore(path.locale);
+const config = (await client.config.get()) ?? primaryConfig;
+```
+
+Keep one client per language. Each client has its own cached config, categories
+and communes.
+
+If the store stops publishing the requested language, the config comes back in
+the primary language. `config.locale` tells you which language actually arrived;
+redirect if it no longer matches the URL.
+
+### Links and alternates
+
+Every internal link should go through `localizeHref`, including links returned
+by menus:
+
+```astro
+<a href={localizeHref(item.href, config.locale, routing)}>{item.label}</a>
+```
+
+In the head, emit one alternate per published language:
+
+```astro
+---
+const alternates = alternateLinks(Astro.url.pathname, routing, Astro.url.origin);
+---
+{alternates.map((link) => (
+  <link rel="alternate" hreflang={link.hreflang} href={link.href} />
+))}
+```
+
+## Theme text and settings
+
+Two fields only hold data when the client is created with a theme key:
+
+```ts
+const store = createStoreClient({
+  serverUrl,
+  apiKey,
+  theme: "theme-00",
+});
+
+const config = await store.config.get();
+config?.contentOverrides;
+// { ar: { heroTitle: "..." }, fr: { heroTitle: "..." } }
+config?.themeSettings;
+// { primaryColor: "#...", layout: "wide" }
+```
+
+- `contentOverrides[locale]` is the merchant's edits to your theme's text in
+  that language. Merge only that language's map over your own copy.
+- `themeSettings` is the merchant's saved values, exactly as stored. In an
+  editable theme, resolve them against the theme declaration with
+  `resolveThemeSettings` from `@wocart/theme`.
+- Without `theme`, both are empty/absent. A plain custom storefront can ignore
+  them and use its own copy and styling.
+
+Read [Theme SDK](/sdk/theme) if you are building an editable theme.
+
+## Pages and legal details
+
+`config.pages` lists the published pages that opted into the footer:
+
+```ts
+config.pages.map((page) => ({
+  title: page.title,
+  href: `/pages/${page.slug}`,
+  kind: page.kind, // terms | privacy | refund | shipping | custom
+}));
+```
+
+Use `kind` when the rule names a page — “you agree to the Terms” means the
+`terms` kind, not a hardcoded `/pages/terms` slug. A merchant may rename a slug.
+
+`config.legalContact` is the public contact block:
+
+```ts
+config.legalContact;
+// {
+//   contactEmail: "help@shop.example",
+//   contactPhone: "0555 12 34 56",
+//   deliveryMinDays: 2,
+//   deliveryMaxDays: 5,
+// }
+```
+
+It is `null` until the merchant saves a legal profile. Do not invent an address
+or delivery promise when it is null.
+
+## WhatsApp
+
+`config.whatsapp` is the resolved widget, or `null` when the merchant turned it
+off. When it exists, `showsWidgetOn(config.whatsapp.surfaces, pathname)` tells
+you whether it is enabled on that surface.
+
+```ts
+import { showsWidgetOn } from "@wocart/storefront";
+
+if (
+  config.whatsapp &&
+  showsWidgetOn(config.whatsapp.surfaces, Astro.url.pathname)
+) {
+  // Render the launcher and its prefill.
+}
+```
+
+The href and prefill rules are covered in [Money, images, WhatsApp and Meta
+events](/sdk/storefront/presentation).

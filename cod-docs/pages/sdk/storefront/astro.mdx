@@ -1,0 +1,221 @@
+---
+description: Bind the SDK's same-origin API routes and Astro form action in a storefront.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Astro actions and routes
+
+The browser never carries the store key. Every write goes through a same-origin
+route in your Astro app, and that route calls the SDK on the server.
+
+The SDK ships two adapters:
+
+- `createStorefrontRoutes` — the routes every storefront needs.
+- `createProxyEndpoint` — a validated route for your own endpoint.
+
+Both live on `@wocart/storefront/astro`, a server-only entry point.
+
+## One client per request
+
+The route's client must be the request's own, not a module singleton:
+
+```ts
+// src/theme/sdk.ts
+import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
+import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
+
+export function getStoreClient(locale?: string): StoreClient {
+  return createStoreClient({
+    serverUrl: COD_SERVER_URL,
+    apiKey: STORE_API_KEY,
+    ...(locale ? { locale } : {}),
+    theme: "theme-00",
+  });
+}
+```
+
+`serverUrl` and `apiKey` come from the server environment in a real theme,
+never from `PUBLIC_*` variables. A shared client would carry one visitor's language
+and cache into another's request.
+
+## The route factory
+
+```ts
+// src/theme/api-routes.ts
+import type { APIContext } from "astro";
+import { createStorefrontRoutes } from "@wocart/storefront/astro";
+import { getStoreClient } from "./sdk";
+
+export const routes = createStorefrontRoutes<APIContext>({
+  client: (context) => {
+    const locale = context.locals.store?.locale;
+    return getStoreClient(locale);
+  },
+});
+```
+
+Each exported handler is one line:
+
+```ts
+// src/pages/api/cart/validate.ts
+import { routes } from "../../../theme/api-routes";
+export const POST = routes.cartValidate;
+```
+
+## The routes
+
+| File | Export | Request | Response |
+| --- | --- | --- | --- |
+| `api/otp/send.ts` | `routes.otpSend` | `POST { phone }` | `{ data: OtpSendResult }` |
+| `api/otp/verify.ts` | `routes.otpVerify` | `POST { phone, requestId, code }` | `{ data: OtpVerifyResult }` |
+| `api/cart/validate.ts` | `routes.cartValidate` | `POST` basket or product + quote options | `{ success: true, data: CartValidation }` |
+| `api/abandoned/index.ts` | `routes.abandonedUpsert` | `POST AbandonedCheckoutInput` | `204` |
+| `api/abandoned/convert.ts` | `routes.abandonedConvert` | `POST { sessionId, orderId, orderNumber }` | `204` |
+| `api/communes/[wilayaId].ts` | `routes.communes` | `GET` path param | `{ data: Commune[] }` |
+| `api/product-reviews/[productId].ts` | `routes.reviewsList` | `GET` + `limit`/`offset` | `{ data: Review[], total }` |
+| `api/review-eligibility.ts` | `routes.reviewEligibility` | `POST { orderNumber, phone, turnstileToken? }` | `{ data: ReviewEligibility }` |
+| `api/review-upload.ts` | `routes.reviewUpload` | `PUT` file body + grant header | `201 { data: ReviewUpload }` |
+| `api/submit-review.ts` | `routes.reviewSubmit` | `POST ReviewInput` | `201 { success: true, data }` |
+
+The factory already handles:
+
+- the cross-origin check on every POST/PUT;
+- the shopper's `User-Agent`, IP and `Referer` forwarding to the server;
+- input bounds (basket length, review limits, wilaya range);
+- streamed review uploads, without buffering the file;
+- the error status implied by the server's `domainError`.
+
+Do not wrap these handlers in a component or reimplement their checks.
+
+<Callout type="caution" title="Server-only imports">
+`@wocart/storefront/astro` and `@wocart/storefront/server` must never reach a
+browser bundle. A client-side import leaks the store key or breaks the build
+with Node-only modules. Keep them in `.ts` route files, actions and middleware.
+</Callout>
+
+## A custom endpoint
+
+For your own server call, use the same proxy so validation and error mapping
+stay identical:
+
+```ts
+// src/pages/api/availability.ts
+import { z } from "zod";
+import { createProxyEndpoint } from "@wocart/storefront/astro";
+import { getStoreClient } from "../../theme/sdk";
+
+const input = z.object({ productId: z.string().min(1).max(200) });
+
+export const POST = createProxyEndpoint({
+  method: "POST",
+  inputSchema: input,
+  csrfProtection: true,
+  client: (body) => getStoreClient().products.get(body.productId),
+});
+```
+
+For a GET with path params:
+
+```ts
+export const GET = createProxyEndpoint({
+  method: "GET",
+  pathParams: { wilayaId: "number" },
+  client: ({ wilayaId }) => getStoreClient().geo.communes(wilayaId),
+});
+```
+
+Useful options:
+
+| Option | Purpose |
+| --- | --- |
+| `inputSchema` | Validate the JSON body before the server call |
+| `queryParams` | Read named query parameters for a GET |
+| `pathParams` | Read and coerce path parameters |
+| `readInput` | Build the input from a stream or custom request |
+| `forwardAttribution` | Forward the visitor's headers |
+| `successBody` | Reshape the success envelope |
+| `successStatus` | Change the success status (201 for a created row) |
+| `noContent` | Answer 204 with no body |
+
+Leave `errorStatus` unset. The default maps a validation refusal to 400, a
+business refusal to 422, a rate limit to 429, a timeout to 504 and an
+unexpected upstream failure to 502.
+
+## Form actions and PRG
+
+Astro actions called from an HTML form need one middleware step. The SDK
+provides it so every theme stores the result the same way:
+
+```ts
+// src/middleware.ts
+import { defineMiddleware } from "astro:middleware";
+import { getActionContext } from "astro:actions";
+import { runFormAction } from "@wocart/storefront/astro";
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const { action, setActionResult, serializeActionResult } =
+    getActionContext(context);
+
+  await runFormAction({
+    action: action && {
+      calledFrom: action.calledFrom,
+      name: action.name,
+      handler: action.handler,
+    },
+    setActionResult,
+    serializeActionResult,
+  });
+
+  return next();
+});
+```
+
+`runFormAction` runs the action and stores its result for **this** response. It
+does nothing for a JSON call or a plain request.
+
+<Callout type="caution" title="Do not redirect from middleware">
+Astro 7 keeps an action result only for the response being rendered. A redirect
+in middleware arrives at the next page with no result: a successful order never
+reaches the thank-you page, and a refused order shows no message. Redirect from
+the page after it reads `getActionResult()`.
+</Callout>
+
+The page handler owns the decision:
+
+```astro
+---
+import { getActionResult } from "astro:actions";
+import { actions } from "astro:actions";
+
+const result = getActionResult(actions.placeOrder);
+if (result && !result.error) {
+  return Astro.redirect(thankYouHref(result.data));
+}
+---
+```
+
+## Request-bound services
+
+The routes need the store client, which in turn may need the request's language.
+Some themes also need the store's resolved config in `locals`:
+
+```ts
+// src/middleware.ts
+context.locals.store = await resolveStoreRequest(context);
+```
+
+Set `locals` before `next()` and before any route runs. A route that calls
+`context.locals.store` without it fails with an undefined access, not a useful
+error.
+
+## A wiring checklist
+
+- The client factory is called per request, never at module top level.
+- `COD_SERVER_URL` and `STORE_API_KEY` are server env values.
+- Each route file exports the handler, not a wrapper.
+- The review upload route is `PUT`, not `POST`.
+- `communes` is a GET with `[wilayaId]` in the path.
+- `runFormAction` is called for form actions and never redirects.
+- `getActionResult` is read in the page that renders after the POST.
+- A custom endpoint uses `createProxyEndpoint`, not a hand-written proxy.

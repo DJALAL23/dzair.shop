@@ -1,0 +1,85 @@
+---
+description: La référence développeur de la plateforme e-commerce CodFlow.
+---
+
+import { Card, CardDescription, CardHeader, CardTitle } from "zudoku/ui/Card";
+import { Link } from "zudoku/components";
+import { BracesIcon, CodeIcon, PaletteIcon, RocketIcon } from "zudoku/icons";
+
+# Introduction
+
+CodFlow est une plateforme e-commerce en paiement à la livraison conçue pour l'Algérie. Les marchands disposent d'un tableau de bord, d'une vitrine thémable et d'une API REST typée pour les commandes, la livraison, le catalogue, les clients, les avis et les réglages de boutique.
+
+Ce site est la référence développeur de cette plateforme. Sa référence API et les typages des SDK sont générés à partir du document OpenAPI servi par cod-server et des paquets publiés, afin que les endpoints et les types correspondent au code livré. Le guide du SDK Theme est maintenu ici.
+
+<div className="not-prose my-10 grid gap-4 sm:grid-cols-2">
+  <Link to="/fr/getting-started" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <RocketIcon className="size-4" />
+        </div>
+        <CardTitle>Démarrage</CardTitle>
+        <CardDescription>
+          URL de base, clés API et première requête contre un serveur CodFlow local.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/api" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <BracesIcon className="size-4" />
+        </div>
+        <CardTitle>Référence API</CardTitle>
+        <CardDescription>
+          Chaque endpoint marchand et vitrine, avec les schémas, les détails des requêtes et des réponses, et un playground.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/fr/sdk/storefront" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <CodeIcon className="size-4" />
+        </div>
+        <CardTitle>SDK Storefront</CardTitle>
+        <CardDescription>
+          Le moteur derrière un thème CodFlow : configuration, catalogue, panier, tunnel de commande et avis.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/fr/sdk/theme" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <PaletteIcon className="size-4" />
+        </div>
+        <CardTitle>SDK Theme</CardTitle>
+        <CardDescription>
+          Construisez un thème interchangeable avec le contrat de blocs, les métadonnées de l'éditeur et les services d'images.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+</div>
+
+## Organisation du site
+
+- Les **guides** couvrent les concepts communs à tous les endpoints : authentification, erreurs, webhooks et serveur MCP.
+- La **référence API** est générée à partir du document OpenAPI en direct. Chaque opération indique ses paramètres ou son corps de requête, le schéma de réponse et — lorsque la route en déclare une — une exigence de sécurité. Chaque opération dispose d'un playground.
+- Les **références SDK** sont générées à partir des déclarations TypeScript publiées. Le guide du SDK Storefront est publié avec son paquet ; le guide du SDK Theme est rédigé et maintenu ici.
+
+## Ce que vous pouvez construire
+
+- **Un thème de vitrine** avec le moteur storefront et le contrat de thème, publié comme un paquet npm classique.
+- **Des automatisations de commandes et de livraison** qui créent des commandes, les confient à un transporteur et réagissent aux événements d'expédition.
+- **Des outils de catalogue et de clients** pour un back-office, un importateur ou un workflow de support.
+- **Des intégrations d'agents IA** via le serveur MCP sécurisé par OAuth, avec des outils limités aux permissions de l'utilisateur connecté.
+
+## Aperçu local
+
+La référence API est générée à partir du document OpenAPI servi par cod-server. En local, démarrez le serveur avec `npm run dev` dans `cod-server`, puis lancez `npm run generate` dans `cod-docs` après avoir modifié des routes. Le sélecteur de serveur de la référence API pointe par défaut sur `http://localhost:8787`.

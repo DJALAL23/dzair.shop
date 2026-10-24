@@ -1,0 +1,203 @@
+---
+description: أعطِ مساعد ذكاء اصطناعي موجزًا لبناء واجهة متجر عبر SDK، وراجع ما ينتجه.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# بناء واجهة متجر بالذكاء الاصطناعي
+
+يمكن لمساعد ذكاء اصطناعي بناء واجهة متجر بهذا SDK، لكن فقط إذا أُعطي الحدود.
+معظم المخرجات السيئة تأتي من مساعد يملأ الفراغات بنمط تجارة إلكترونية عام:
+إجمالي في جانب العميل، أو لغة مضمّنة، أو `fetch` خاص به، أو نقطة نهاية غير موجودة.
+
+هذه الصفحة هي الموجز الذي تعطيه له.
+
+## ما تعطيه للمساعد
+
+على الأقل:
+
+1. **الحزمة والإصدار** — `@wocart/storefront` `1.19.0` و
+   `@wocart/theme` `2.1.0` (أو الإصدارات التي يثبتها مشروعك).
+2. **تعليمات المستودع** — `AGENTS.md`؛ فهي تحدد الحدود الحقيقية.
+3. **Theme-00** — المستهلك المرجعي في `cod-astro/theme-00`. وجّه المساعد
+   إليه للأنماط، لا إلى هذا التوثيق فقط.
+4. **عقد المتجر** — اللغات والعملة، وما إذا كانت السلة والمراجعات وOTP
+   وTurnstile مفعّلة، وأين يعمل الخادم.
+
+إذا لم يكن للمساعد وصول إلى Theme-00، فأعطه الملفات ذات الصلة:
+`src/theme/sdk.ts` و`src/middleware.ts` و`src/theme/api-routes.ts`
+و`src/actions/index.ts` وصفحة واحدة لكل نوع.
+
+ويشحن المستودع أيضًا مهارة وكيل في `.agents/skills/wocart-theme/`.
+`references/sdk-discovery.md` فيها هو إجراء التحقق من أي API في الحزمة
+المثبّتة، و`references/theme-quality.md` هي قائمة الفحوص لتغيير في واجهة المتجر
+أو القالب. أعطِ الوكيل المهارة قبل المهمة.
+
+## الموجز
+
+```text
+Build a storefront in this Astro project using @wocart/storefront 1.19.0.
+
+Read first:
+- AGENTS.md (repository rules)
+- cod-astro/theme-00 (reference consumer)
+- the SDK docs at /sdk/storefront
+
+Store facts:
+- API origin: <COD_SERVER_URL>
+- store key: server-only env STORE_API_KEY
+- languages: <ar, fr, en>
+- cart: <on/off>, reviews: <on/off>, OTP: <on/off>
+
+Rules:
+- Import the client from @wocart/storefront/server; never put the key in a
+  browser bundle.
+- Import root helpers from @wocart/storefront; the root is browser-safe.
+- Review media comes from @wocart/storefront/review-media and is browser-only.
+- Server owns prices, stock, delivery, coupons and order totals. Never compute
+  an order total in the browser.
+- Every write goes through an Astro action or a same-origin route built with
+  the SDK's adapters. No direct fetch to the store API from a component.
+- Read the store's languages from config.locales. Do not hardcode a list. Use
+  localeRouting, resolveLocalePath and localizeHref.
+- Handle every degraded read: config null, product null, list empty, rates {}.
+- Do not invent endpoints, fields or options. If an API is missing, stop and
+  say so.
+
+Deliver:
+1. A page map with the SDK reads each page uses.
+2. The shared files (client, middleware, routes, layouts).
+3. The pages, one at a time.
+4. Tests for failure states and pricing.
+5. Typecheck, tests and build output.
+```
+
+النقطة الأخيرة مهمة: طلب خريطة الصفحات أولًا هو كيف تكتشف بنية خاطئة قبل
+أن تنتشر في عشرة ملفات.
+
+## الثوابت التي يجب فرضها
+
+| القاعدة | السبب |
+| --- | --- |
+| يبقى المفتاح على الخادم | مفتاح في المتصفح يكشف المتجر كله |
+| الخادم يملك المال | يمكن تعديل إجمالي المتصفح |
+| عميل واحد لكل طلب | يجب ألا تتسرب الذاكرة واللغة بين الزوار |
+| `config.locales` هي قائمة اللغات | المتجر، لا القالب، هو من يقرر |
+| كل رابط داخلي مترجم | وإلا لجأ المتسوق الفرنسي إلى العربية |
+| القراءة المفقودة تعرض حالة فارغة | القراءات تتدهور؛ ولا ترمي خطأ |
+| الكتابات تعيد `ClientResult` | الرفض متوقع، لا استثناء |
+| وسائط المراجعات في المتصفح فقط | تستخدم canvas والميكروفون |
+| السلة للعرض؛ عرض السعر للمال | `localStorage` قابل لتعديل المستخدم |
+| المعاينة لا تُخزَّن مؤقتًا أبدًا | يجب ألا يصل المسودة إلى زائر آخر |
+| نص القالب مرتبط بمفتاح القالب | إعادة تسمية المفتاح تجعل تعديلات التاجر يتيمة |
+
+إذا اقترح مساعد شيفرة تخالف إحدى هذه القواعد، فأصلح القاعدة في الموجز
+بدلًا من ترقيع العَرَض.
+
+## ترتيب بناء آمن
+
+1. **اقرأ المتجر.** `config.get()` و`config.locales`. اعرض التخطيط
+   والترويسة والتذييل ومبدّل اللغة.
+2. **ابنِ الكتالوج.** قائمة المنتجات وصفحة المنتج والفئة والمجموعة.
+3. **أضف نموذج الطلب.** منتج واحد أولًا، ثم السلة.
+4. **أضف عرض السعر.** الولاية والبلدية ونوع التوصيل والكوبون.
+5. **أضف إتمام الطلب.** action وOTP وTurnstile وتتبع صفحة الشكر.
+6. **أضف المحتوى.** الصفحات والقوائم وصفحات الهبوط والمراجعات.
+7. **أضف المعاينة وإعادة التحقق** فقط إذا كان القالب قابلًا للتحرير.
+8. **شغّل اختبارات الفشل.** أوقف الخادم وحمّل كل صفحة.
+
+لا تبدأ بإتمام الطلب. فهو الصفحة الأكثر قواعد والأقل تقدمًا مرئيًا.
+
+## ما تتحقق منه في النتيجة
+
+### الاستيرادات
+
+```ts
+import { formatMoney } from "@wocart/storefront";             // browser-safe
+import { getStoreClient } from "./theme/sdk";                 // server only
+import { prepareReviewPhoto } from "@wocart/storefront/review-media"; // browser only
+```
+
+استيراد الخادم داخل مكوّن `.astro` أمر طبيعي — فمكوّنات Astro تعمل على
+الخادم. أما استيراد الخادم داخل `<script>` أو island فهو تسريب.
+
+### المال
+
+يجب أن يأتي إجمالي الطلب من `cart.validate` أو من استجابة الطلب. السطر
+المبني كـ `price * quantity` مناسب للعرض؛ وليس هو المبلغ المحصّل.
+
+### اللغات
+
+يجب ألا تحتوي النتيجة على مصفوفة مثل `["ar", "fr"]` ولا على فرع
+`if (locale === "ar")` للتوجيه. بل يجب أن تستخدم المساعدات.
+
+### حالات الفشل
+
+اطلب من المساعد عرض كل حالة:
+
+- الخادم متوقف → كتالوج فارغ، لا انهيار؛
+- منتج مفقود → 404؛
+- لا صورة → صورة بديلة؛
+- لا مراجعات → قسم فارغ، والنموذج ما زال متاحًا؛
+- OTP مفعّل لكن المزوّد متوقف → رمز تجاوز، لا طلب محظور؛
+- فشل البحث عن التتبع → لا حدث في المتصفح.
+
+### المسارات
+
+يجب أن تصدّر ملفات المسارات معالجات SDK مباشرة. وكيل `fetch` مكتوب يدويًا
+بمطابقة حالات خاصة به هو عقد ثانٍ سينحرف.
+
+## مراجعة تغيير أنشأه الذكاء الاصطناعي
+
+استخدم القائمة نفسها لكل صفحة مُولّدة:
+
+1. هل تقرأ عبر مساحة أسماء SDK، لا عبر `fetch`؟
+2. هل تستخدم `config.locale` و`config.currencySymbol`؟
+3. هل تتعامل مع `null`/الفراغ دون اختراع بيانات؟
+4. هل تستخدم `productImageSource` بدلًا من `coverImage` وحده؟
+5. هل تمرر السلة فقط إلى إتمام الطلب وتدع الخادم يحدد السعر؟
+6. هل تترجم كل رابط داخلي؟
+7. هل تتجنب إضافة مخطط أو مدقق إلى المتصفح؟
+8. هل تضيف اختبارًا لمسار الفشل؟
+9. هل ينجح typecheck والاختبارات؟
+10. هل كل نقطة نهاية جديدة في قائمة SDK الموثقة؟
+
+«نعم» للعشرة يعني تغييرًا قابلًا للمراجعة. و«لا» لواحد سبب للتوقف قبل
+الدمج.
+
+## أخطاء شائعة
+
+- **اختراع نقطة نهاية.** إذا لم يسمّها التوثيق، فهي غير موجودة.
+- **إجمالي في جانب العميل.** سيخالف الخادم عند أول تطبيق كوبون أو عرض.
+- **الشحن برسوم مُخمّنة.** استخدم عرض السعر؛ فجدول الأسعار مجرد بديل.
+- **عميل مشترك.** يسرّب اللغة والذاكرة بين الطلبات.
+- **إضافة Zod إلى المتصفح.** الخادم يتحقق؛ والمتصفح يقرأ ما أُعطي.
+- **كتابة محرر قوالب.** نصوص القالب ومستندات الصفحات يكتبها CodFlow Studio،
+  خارج هذا المستودع.
+- **تخزين المعاينة مؤقتًا.** يجب ألا تُشارك المسودة أبدًا.
+- **تضمين `/pages/terms`.** حلّ الصفحات القانونية عبر `kind`.
+
+## موجه قصير لصفحة واحدة
+
+```text
+Implement the product page in src/pages/products/[handle].astro.
+
+Use Astro.locals.store.client. Read products.get(handle). Return a 404 rewrite
+when it is null.
+
+Show name, price via formatMoney with config.currencySymbol and config.locale,
+gallery images via createImageHelpers, variants via initialVariant/pickOption,
+quantity tiers via getQuantityTierViews, and the WhatsApp launcher when
+showsWidgetOn(config.whatsapp.surfaces, pathname).
+
+The order form posts to the placeOrder action with productId, productName,
+variantSelections, quantity and offerId. No price is computed in the browser.
+
+Add tests for: missing product, out-of-stock, no image, server failure.
+Run typecheck, tests and build, and report the exact commands and output.
+```
+
+<Callout type="info" title="المساعد ليس مصدر الحقيقة">
+عندما يختلف المساعد مع هذا التوثيق، اقرأ شيفرة SDK وTheme-00. وعندما يخترع
+المساعد حقلًا، توقف وتحقق من النوع. الإجابة المعقولة ليست API متاحة.
+</Callout>

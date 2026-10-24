@@ -1,0 +1,122 @@
+---
+description: Installez CodFlow en local, obtenez une clé API et envoyez votre première requête.
+---
+
+# Démarrage
+
+Ce guide vous mène d'un serveur CodFlow local à une requête authentifiée. Si vous disposez déjà d'une instance déployée, ignorez l'installation locale et utilisez son origine API.
+
+## URL de base
+
+| Environnement | URL de base | Remarques |
+| --- | --- | --- |
+| Local | `http://localhost:8787` | `wrangler dev` dans `cod-server` |
+| Production | `https://api.codflow.store` | L'API CodFlow publique |
+
+Chaque endpoint marchand se trouve sous `/api/*`. Les endpoints de vitrine sont sous `/store/*`, et les callbacks transporteurs sous `/webhooks/*`.
+
+## Lancer l'API en local
+
+Depuis la racine du dépôt :
+
+```bash
+npm ci
+cd cod-server
+npm run db:setup:local
+npm run dev
+```
+
+Le serveur démarre sur `http://localhost:8787`. Dans un second terminal, initialisez l'administrateur du tableau de bord et démarrez le tableau de bord :
+
+```bash
+cd cod-client-astro
+npm run seed:admin
+npm run dev
+```
+
+Le tableau de bord tourne sur `http://localhost:4321`.
+
+:::tip
+L'état D1 local est partagé via `.wrangler-shared`. Si la connexion échoue sur un nouveau clone, lancez `npm run db:setup:local` avant `npm run seed:admin`.
+:::
+
+## Obtenir une clé API
+
+CodFlow utilise deux types de clés, et elles ne sont pas interchangeables.
+
+### Clé API marchand
+
+Utilisez une clé marchand pour `/api/*`. Elle appartient à un utilisateur du tableau de bord et hérite de son rôle et de ses scopes.
+
+1. Ouvrez le tableau de bord et rendez-vous dans **Équipe**.
+2. Générez une clé pour un membre de l'équipe, ou faites tourner une clé existante.
+3. Copiez la clé lorsqu'elle s'affiche. Elle ne sera plus affichée.
+
+Envoyez-la dans l'en-tête `X-API-Key` :
+
+```http
+X-API-Key: cod_your_api_key_here
+```
+
+Un administrateur peut utiliser tous les scopes. Un utilisateur staff ne peut utiliser que les outils et endpoints autorisés par les scopes qui lui sont attribués.
+
+### Clé API vitrine
+
+Utilisez une clé de boutique pour `/store/*`. Elle identifie la boutique auprès de l'API publique de vitrine.
+
+1. Ouvrez le tableau de bord et rendez-vous dans **Paramètres**.
+2. Ouvrez **Clé API boutique** dans la barre latérale des paramètres.
+3. Révélez et copiez la clé.
+
+Envoyez-la dans l'en-tête `X-Store-API-Key` :
+
+```http
+X-Store-API-Key: your_store_api_key_here
+```
+
+:::warning
+Une clé marchand peut lire et modifier les données d'une boutique. Gardez-la côté serveur, dans un gestionnaire de secrets ou un secret Worker. Ne la placez jamais dans un bundle de vitrine, une application navigateur ou un dépôt git.
+:::
+
+## Envoyer votre première requête
+
+<CodeTabs>
+
+```bash title="API marchand"
+curl http://localhost:8787/api/orders \
+  -H "X-API-Key: $COD_API_KEY"
+```
+
+```bash title="API vitrine"
+curl "http://localhost:8787/store/products?limit=5" \
+  -H "X-Store-API-Key: $STORE_API_KEY"
+```
+
+</CodeTabs>
+
+Une réponse de liste réussie contient un tableau `data` et une valeur `count` :
+
+```json
+{
+  "success": true,
+  "data": [],
+  "count": 0
+}
+```
+
+## Utiliser le playground
+
+La [référence API](/api) inclut un playground interactif.
+
+1. Choisissez **Local development** dans le sélecteur de serveur (ou **Production** pour une instance déployée).
+2. Cliquez sur **Authorize** et collez la clé du schéma testé : `X-API-Key` ou `X-Store-API-Key`.
+3. Ouvrez une opération, renseignez les paramètres et envoyez la requête.
+
+En développement local, le serveur renvoie l'origine de la requête, ce qui permet à ce site de documentation sur `http://localhost:3000` de l'appeler directement.
+
+## Étapes suivantes
+
+- Lisez [Authentification](/fr/authentication) pour le modèle d'authentification complet et les règles de scopes.
+- Lisez [Erreurs](/fr/errors) avant d'écrire une logique de nouvelle tentative.
+- Utilisez [Webhooks](/fr/webhooks) pour réagir aux événements de livraison des transporteurs.
+- Connectez un client IA via le [serveur MCP](/fr/mcp).

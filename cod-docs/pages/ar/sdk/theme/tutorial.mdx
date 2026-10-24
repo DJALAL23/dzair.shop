@@ -1,0 +1,566 @@
+---
+description: ابنِ قالب Wocart كاملًا وقابلًا للتعديل من مشروع Astro فارغ — التخطيط، المناطق، سطحا الرئيسية والمنتج، الأنماط، البيان، الاختبارات والنشر.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# ابنِ قالبًا كاملًا
+
+[ابنِ قالبًا](/sdk/theme/build) يتوقف عند قسم واحد معروض. هذه الصفحة تكمل
+الطريق: مشروع Astro فارغ يصبح قالبًا له تخطيط مشترك، وصفحة رئيسية قابلة للتعديل،
+وقالب صفحة منتج، ومسار منتج يعيد 404 عند الحاجة، وملف أنماط خاص به، وبيان
+(manifest)، واختبارات عقد، وبناء قابل للنشر.
+
+كل ما هنا هو العقد المنشور لـ `@wocart/theme` 2.1.0 و`@wocart/storefront`
+1.19.0. وحيث يختار Theme-00 طريقًا مختلفًا، يوضح ذلك
+[تحليل التنفيذ المرجعي](/sdk/theme/reference-implementation).
+
+<Callout type="info" title="واجهة متجر مخصّصة لا تزال الطريق الأقصر">
+إذا كانت المتجر واحدًا تملكه وتغيّر القالب في الكود، تجاوز هذه الصفحة وابنِ
+صفحات Astro عادية بـ [`@wocart/storefront`](/sdk/storefront). التركيب
+والمستندات والبيان موجودة ليستطيع التاجر تعديل القالب بدونك.
+</Callout>
+
+## ما ستحصل عليه
+
+```text
+my-theme/
+├─ astro.config.mjs
+├─ src/
+│  ├─ theme/
+│  │  ├─ sdk.ts                     عميل خادم واحد لكل استدعاء
+│  │  ├─ theme.ts                   defineTheme(...) — الكتالوج
+│  │  ├─ content.ts                 نصّ القالب، لكل لغة
+│  │  ├─ components/
+│  │  │  ├─ Hero.astro
+│  │  │  ├─ ProductMain.astro
+│  │  │  └─ ProductOrder.astro
+│  │  ├─ definitions/
+│  │  │  ├─ hero.def.ts
+│  │  │  ├─ product-main.def.ts
+│  │  │  └─ product-order.def.ts
+│  │  ├─ documents/
+│  │  │  ├─ home.page.json
+│  │  │  └─ product.page.json
+│  │  ├─ layouts/StoreLayout.astro
+│  │  └─ sections/Sections.astro
+│  └─ pages/
+│     ├─ index.astro
+│     ├─ products/[handle].astro
+│     ├─ wocart-theme.json.ts
+│     └─ wocart-styles.css.ts
+└─ src/theme/__tests__/contract.test.ts
+```
+
+التعريفات كود، والمستندات JSON، وكلاهما بجانب المكوّنات التي يصفانها. لا شيء
+خارج `src/theme/` يحتاج معرفة كيف يعمل SDK.
+
+## 1. أنشئ المشروع
+
+```sh
+npm create astro@latest my-theme -- --template minimal --typescript strict
+cd my-theme
+npm install @wocart/theme @wocart/storefront
+npx astro add node          # أو مُهايئ الاستضافة لديك؛ Theme-00 يستخدم Cloudflare
+npm install -D vitest @astrojs/check typescript
+```
+
+`@wocart/storefront` هو peer مطلوب لـ `@wocart/theme`، و`zod` هو peer خاص به،
+وnpm يثبّت الاثنين. تحتاج Astro 7 للمُصيّر. الحزمتان ESM فقط وتحتاجان Node
+22.12 أو أحدث للأدوات.
+
+## 2. قيمتان على الخادم
+
+```js
+// astro.config.mjs
+import { defineConfig, envField } from "astro/config";
+
+export default defineConfig({
+  env: {
+    schema: {
+      COD_SERVER_URL: envField.string({ context: "server", access: "secret" }),
+      STORE_API_KEY: envField.string({ context: "server", access: "secret" }),
+    },
+  },
+});
+```
+
+لا واحدة منهما متغيّر `PUBLIC_*`. المفتاح سرّ متجر، ولا تقرأه إلا وحدات الخادم.
+
+## 3. وصلة SDK واحدة
+
+كل قالب يحتاج مكانًا واحدًا فقط يبني العميل. الصفحات لا تفعل ذلك أبدًا.
+
+```ts
+// src/theme/sdk.ts — على الخادم فقط
+import { createStoreClient } from "@wocart/storefront/server";
+import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
+import { THEME_KEY } from "./theme";
+
+export function getStoreClient(locale?: string) {
+  return createStoreClient({
+    serverUrl: COD_SERVER_URL,
+    apiKey: STORE_API_KEY,
+    theme: THEME_KEY,
+    ...(locale === undefined ? {} : { locale }),
+    onError: (error) => {
+      console.warn(`[theme] degraded read: ${error.operation} (${error.code})`);
+    },
+  });
+}
+```
+
+ثلاثة تفاصيل مهمة: `theme` هو المفتاح الذي يعلنه `defineTheme`، وبه تصل تعديلات
+نصّ المتجر ومستندات صفحاته لهذا القالب؛ وبدونه لا تصل. و`locale` يُمرَّر فقط
+لغة غير اللغة الأساسية. و`onError` هو المكان الوحيد الذي يرى فيه القالب قراءة
+متراجعة، لأن القراءات لا تُطلق استثناءات.
+
+## 4. مكوّن واحد، تعريف واحد
+
+```astro
+---
+// src/theme/components/Hero.astro
+import type { InferProps } from "@wocart/theme";
+import type { hero } from "../definitions/hero.def";
+
+const { title, subtitle } = Astro.props as InferProps<typeof hero>;
+---
+<section class="hero">
+  <h1>{title}</h1>
+  {subtitle && <p>{subtitle}</p>}
+</section>
+```
+
+```ts
+// src/theme/definitions/hero.def.ts
+import { defineComponent } from "@wocart/theme";
+import Hero from "../components/Hero.astro";
+
+export const hero = defineComponent({
+  type: "hero",
+  component: Hero,
+  label: { ar: "الواجهة", fr: "Bannière", en: "Hero" },
+  fields: [
+    { key: "title", kind: "text", label: { ar: "العنوان", fr: "Titre", en: "Title" }, contentKey: "heroTitle" },
+    { key: "subtitle", kind: "text", label: { ar: "العنوان الفرعي", fr: "Sous-titre", en: "Subtitle" }, contentKey: "heroSubtitle" },
+  ],
+});
+```
+
+`contentKey` يسمّي مفتاحًا في حزمة محتوى القالب، فيعدّل التاجر نصًّا واحدًا لكل
+لغة بدل نسخة مخزّنة لكل نسخة معروضة. الحقل الذي لا يملك `contentKey` ولا
+`default` يكون غائبًا عن `props` — وعلى المكوّن أن يتعامل مع قيمته الاحتياطية.
+
+## 5. القالب ونصّه
+
+```ts
+// src/theme/content.ts
+export const content = {
+  ar: { heroTitle: "توصيل لكل الولايات", heroSubtitle: "الدفع عند الاستلام" },
+  fr: { heroTitle: "Livraison partout en Algérie", heroSubtitle: "Paiement à la livraison" },
+  en: { heroTitle: "Delivered across Algeria", heroSubtitle: "Cash on delivery" },
+};
+```
+
+```ts
+// src/theme/theme.ts
+import { defineTheme, type SurfaceSpec } from "@wocart/theme";
+import { hero } from "./definitions/hero.def";
+import { productMain } from "./definitions/product-main.def";
+import { productOrder } from "./definitions/product-order.def";
+import { content } from "./content";
+import homeDocument from "./documents/home.page.json";
+import productDocument from "./documents/product.page.json";
+
+export const THEME_KEY = "my-theme";
+export const THEME_VERSION = "1.0.0";
+
+const home: SurfaceSpec = { key: "home", label: "Home", pageType: "home", document: homeDocument as never };
+const product: SurfaceSpec = {
+  key: "product",
+  label: "Product",
+  pageType: "product",
+  document: productDocument as never,
+  required: [{ type: "product-main", max: 1 }],
+};
+
+export const theme = defineTheme({
+  key: THEME_KEY,
+  version: THEME_VERSION,
+  locales: ["ar", "fr", "en"],
+  content,
+  surfaces: [home, product],
+  components: { hero, "product-main": productMain, "product-order": productOrder },
+});
+```
+
+كل مفتاح في الكتالوج يساوي `type` تعريفه دائمًا — المستند يشير إلى النوع،
+والبيان مفهرس بالطريقة نفسها. ملفات `documents/*.json` هي JSON عادي (Astro
+يفعّل `resolveJsonModule`)، فالمستند المشحون يُقرأ ويُقارن ويُراجع كأي ملف آخر.
+تحويلات `as never` أعلاه سببها فقط أن وحدة JSON المستوردة تُكتب بأنواع مرنة؛
+و`parsePageData` يتحقق من المستند فعليًا في الخطوة 8.
+
+## 6. سطح المنتج يحتفظ بنموذج طلب
+
+السطح الذي `pageType` له `product` يجب أن يضمن نموذج طلب، وإلا يفشل التجميع
+بالرمز `order-form-not-guaranteed`. الضمان يُحسب من مدخلات `required` في
+السطح، فيجب أن يظهر فيه القسم الذي يضع النموذج — وأن يصل بلوكه الثابت (أو
+مدخل فتحة مطلوب) إلى المكوّن الذي `role` له `order-form`. لهذا يعلن `product`
+أعلاه `required: [{ type: "product-main", max: 1 }]`.
+
+```ts
+// src/theme/definitions/product-order.def.ts
+import { defineComponent } from "@wocart/theme";
+import ProductOrder from "../components/ProductOrder.astro";
+
+export const productOrder = defineComponent({
+  type: "product-order",
+  component: ProductOrder,
+  role: "order-form",
+  label: { ar: "نموذج الطلب", fr: "Formulaire de commande", en: "Order form" },
+  fields: [{ key: "submitLabel", kind: "text", label: "Button", default: "Order now" }],
+});
+```
+
+```ts
+// src/theme/definitions/product-main.def.ts
+import { defineComponent } from "@wocart/theme";
+import ProductMain from "../components/ProductMain.astro";
+
+export const productMain = defineComponent({
+  type: "product-main",
+  component: ProductMain,
+  label: { ar: "المنتج", fr: "Produit", en: "Product" },
+  fixed: [{ name: "order", type: "product-order", label: "Order form" }],
+});
+```
+
+*حقول* نموذج الطلب ليست حقول القالب: نموذج طلب المتجر يُضبط في لوحة التاجر
+ويفرضه الخادم. القالب يوفّر البنية ويرسل السلة أو المنتج (§10).
+
+## 7. المستندات
+
+`src/theme/documents/home.page.json`:
+
+```json
+{
+  "version": 1,
+  "surface": "home",
+  "sections": [{ "id": "home-hero", "type": "hero" }]
+}
+```
+
+`src/theme/documents/product.page.json`:
+
+```json
+{
+  "version": 1,
+  "surface": "product",
+  "sections": [{ "id": "product-main", "type": "product-main" }]
+}
+```
+
+`id` فريد داخل المستند وثابت: تعديل التاجر يُخزَّن عليه. اترك `props` فارغًا
+لترث كل `default` ونصّ حزمة المحتوى.
+
+## 8. مكوّن التركيب
+
+مكوّن واحد يعرض أي سطح: نحلّ المستند، ثم نعرض كل قسم عبر `InstanceView` مع ذاكرة
+قراءة واحدة للصفحة.
+
+```astro
+---
+// src/theme/sections/Sections.astro
+import InstanceView from "@wocart/theme/astro/InstanceView.astro";
+import { createReadCache } from "@wocart/theme/astro";
+import { resolveSurfaceDocument, type ThemeDefinition } from "@wocart/theme";
+
+interface Props {
+  theme: ThemeDefinition;
+  surface: string;
+  document: unknown;
+  params?: Readonly<Record<string, string | undefined>>;
+}
+
+const { theme, surface, document, params = {} } = Astro.props;
+const store = Astro.locals.store;
+
+const { page, source, issues } = resolveSurfaceDocument(theme, surface, document, {
+  content: store.content,
+  locales: [store.locale, ...store.fallbackLocales],
+});
+if (import.meta.env.DEV) console.info(`[theme] ${surface}: ${source}`, issues);
+
+const context = {
+  store: store.config,
+  content: store.content,
+  locale: store.locale,
+  fallbackLocales: store.fallbackLocales,
+  isRTL: store.isRTL,
+  url: store.url.pathname,
+  params,
+};
+const reads = createReadCache();
+---
+{page.sections.map((section) => (
+  <InstanceView
+    instance={section}
+    theme={theme}
+    context={context}
+    storefront={store.client}
+    reads={reads}
+  />
+))}
+```
+
+`Astro.locals.store` عُرفٌ في قالبك لا في SDK: هو ما يضعه الوسيط (middleware)
+هناك (§9). و`InstanceView` يحتاج فقط `StoreClient`، وسياق `ThemeRenderContext`
+أعلاه، و`ReadCache` محدودًا بهذا العرض.
+
+## 9. التخطيط والمناطق وسياق الطلب
+
+التخطيط يحمل الأجزاء المشتركة بين كل الصفحات. والمنطقة تُركَّب كصفحة وتُعدَّل
+مرة واحدة، لذلك الترويسة مستند أيضًا.
+
+```astro
+---
+// src/theme/layouts/StoreLayout.astro
+import Sections from "../sections/Sections.astro";
+import ThemeStyles from "@wocart/theme/astro/ThemeStyles.astro";
+import { theme } from "../theme";
+
+const store = Astro.locals.store;
+const saved = await store.client.pageData.get("area:header");
+---
+<html lang={store.locale} dir={store.isRTL ? "rtl" : "ltr"}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <ThemeStyles />
+  </head>
+  <body>
+    <header><Sections theme={theme} surface="area:header" document={saved} /></header>
+    <main><slot /></main>
+  </body>
+</html>
+```
+
+`areaSurface("header")` يعيد السلسلة نفسها `"area:header"` التي يخزّنها SDK، فلا
+يختلف النص الحرفي عن الدالة. أبقِ البنية الثابتة (التخطيط، هيكل سلة المشتريات)
+خارج بيانات الصفحة: التاجر يعدّل أقسامًا لا الإطار.
+
+`<ThemeStyles />` بلا خصائص يربط ورقة الأنماط ولا يكتب أي نظام ألوان. ولتقديم
+أنظمة للتاجر، أعلن إعداد `colorSchemes` ومرّر
+`schemes={resolveThemeSettings(theme, store.config.themeSettings, scope).values.colorSchemes}`
+— راجع [الأنماط والألوان](/sdk/theme/style).
+
+سياق المتجر عمل الوسيط، وفيه تُحدَّد اللغة:
+
+```ts
+// src/middleware.ts
+import { defineMiddleware } from "astro:middleware";
+import { localeRouting, resolveLocalePath } from "@wocart/storefront";
+import { getStoreClient } from "./theme/sdk";
+import { content } from "./theme/content";
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const config = await getStoreClient().config.get();
+  if (config === null) return next();                 // config قراءة متراجعة
+
+  const routing = localeRouting(config);
+  const resolved = resolveLocalePath(context.url.pathname, routing);
+  if (resolved.kind === "redirect") return context.redirect(resolved.location, 302);
+
+  const language = config.locales.find((entry) => entry.code === resolved.locale);
+  const pack = content[resolved.locale as keyof typeof content] ?? content.en;
+
+  context.locals.store = {
+    client: getStoreClient(resolved.locale),
+    config,
+    locale: resolved.locale,
+    fallbackLocales: resolved.locale === routing.primary ? [] : [routing.primary],
+    content: { ...pack, ...(config.contentOverrides[resolved.locale] ?? {}) },
+    isRTL: language?.direction === "rtl",
+    url: context.url,
+    pathname: resolved.pathname,
+  };
+  return next();
+});
+```
+
+`config.contentOverrides` يحمل تعديلات التاجر **لهذه** اللغة فقط (وتصل عندما
+يمرّر العميل `theme`)؛ ودمج خريطة لغة أخرى هو الخطأ الذي يعرض نصًّا فرنسيًا
+لمتسوّق عربي. و`localeRouting` و`resolveLocalePath` يجعلان اللغة الأساسية هي
+التي بلا بادئة: إعداد المتجر هو ما يحدّد شكل الروابط.
+
+## 10. المسارات
+
+```astro
+---
+// src/pages/index.astro
+import StoreLayout from "../theme/layouts/StoreLayout.astro";
+import Sections from "../theme/sections/Sections.astro";
+import { theme } from "../theme/theme";
+
+const saved = await Astro.locals.store.client.pageData.get("home");
+---
+<StoreLayout>
+  <Sections theme={theme} surface="home" document={saved} />
+</StoreLayout>
+```
+
+```astro
+---
+// src/pages/products/[handle].astro
+import StoreLayout from "../../theme/layouts/StoreLayout.astro";
+import Sections from "../../theme/sections/Sections.astro";
+import { theme } from "../../theme/theme";
+
+const store = Astro.locals.store;
+const product = await store.client.products.get(Astro.params.handle!);
+if (product === null) return Astro.rewrite("/404");
+
+const saved = await store.client.pageData.get("product");
+---
+<StoreLayout>
+  <Sections theme={theme} surface="product" document={saved} params={Astro.params} />
+</StoreLayout>
+```
+
+سطح القالب يقرأ مورده في المسار ثم مرة أخرى في `load` الخاص بقسم ما؛ وذاكرة
+القراءة الواحدة للصفحة هي ما يجعل ذلك طلبًا واحدًا. مرّر الذاكرة عندما يكون
+المسار قد قرأ المورد بالفعل:
+
+```ts
+import { createReadCache } from "@wocart/theme/astro";
+
+const reads = createReadCache();
+const product = await reads.get(`product:${handle}`, () => store.client.products.get(handle));
+// اعرض <Sections … reads={reads} />، وأعطِ الأقسام الذاكرة نفسها
+```
+
+والقسم الذي يعرض المنتج يقرأه بالمفتاح نفسه:
+
+```ts
+load: async ({ storefront, context, reads }) => {
+  const handle = context.params?.handle;
+  if (handle === undefined) return { product: null };
+  return { product: await reads.get(`product:${handle}`, () => storefront.products.get(handle)) };
+},
+```
+
+ناتج `load` يُدمج فوق حقول التعريف، فالمكوّن المكتوب بـ
+`InferProps<typeof productMain>` يرى `product` بين خصائصه.
+
+## 11. نقاط نهاية الأنماط والبيان
+
+نقطتا نهاية مبنيّتان مسبقًا تُكملان قالبًا قابلًا للتعديل. مساراهما ثابتان لا
+خياريان:
+
+```ts
+// src/pages/wocart-styles.css.ts
+import { themeStylesEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeStylesEndpoint(theme);
+```
+
+```ts
+// src/pages/wocart-theme.json.ts
+import { themeManifestEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeManifestEndpoint(theme);
+```
+
+`themeStylesEndpoint` يقدّم الفئات التي يمكن لقيمة `style` لدى التاجر أن
+تسمّيها (`THEME_STYLES_PATH`، أي `/wocart-styles.css`)، مولّدة من المقاسات التي
+يعلنها القالب. و`themeManifestEndpoint` يقدّم `THEME_MANIFEST_PATH`
+(`/wocart-theme.json`) و**يُفشل البناء** إذا كان البيان غير صالح — وهذا مقصود:
+بيان مكسور لا يجب أن يُنشر.
+
+ولتكون للخطوات مقاسات، أعلنها على القالب:
+
+```ts
+style: { spacing: { s0: 0, s2: 8, s4: 16, s6: 32 }, widths: { wide: 1280, content: 960 } },
+```
+
+الخطوة التي لا مقاس لها لا فئة لها؛ والقيمة المخزّنة التي تسمّيها تُعرض بلا
+نمط ويُبلَّغ عنها. راجع [الأنماط والألوان](/sdk/theme/style).
+
+## 12. تحقّق واختبر قبل أن تثق بالعرض
+
+```ts
+// src/theme/__tests__/contract.test.ts
+import { describe, expect, it } from "vitest";
+import {
+  themeManifest,
+  validatePageData,
+  validateThemeDefinition,
+  validateThemeManifest,
+} from "@wocart/theme";
+import { theme } from "../theme";
+import { content } from "../content";
+
+describe("the theme contract", () => {
+  it("assembles without issues", () => {
+    expect(validateThemeDefinition(theme, { contentKeys: Object.keys(content.en) })).toEqual([]);
+  });
+
+  it("round-trips its manifest", () => {
+    const checked = validateThemeManifest(JSON.parse(JSON.stringify(themeManifest(theme))));
+    expect(checked.manifest).not.toBeNull();
+    expect(checked.issues).toEqual([]);
+  });
+
+  it("ships documents that validate in every language", () => {
+    for (const language of theme.locales ?? []) {
+      const pack = content[language as keyof typeof content];
+      for (const surface of theme.surfaces ?? []) {
+        if (surface.document === undefined) continue;
+        const scope = { content: pack, locales: [language] };
+        expect(validatePageData(theme, surface.document, scope)).toEqual([]);
+      }
+    }
+  });
+});
+```
+
+`contentKeys` هو التحقق الذي لا تستطيع أي طبقة أخرى القيام به: خطأ إملائي في
+`contentKey` يبقى غير مرئي عند العرض، لأن الحقل يعود بصمت إلى قيمته
+الافتراضية. ويضيف [اختبار قالب](/sdk/theme/testing) تحققات العرض وحالات
+المستند المحفوظ.
+
+## 13. ابنِ وانشر
+
+```sh
+npx astro check
+npm test
+npm run build
+```
+
+البناء هو ما يفشل عند استيراد وحدة خادم في سكربت متصفح، أو صفحة مبنية مسبقًا
+تقرأ بيانات الطلب، أو بيان غير صالح. ضع `COD_SERVER_URL` و`STORE_API_KEY` في
+خزنة أسرار المستضيف (لا في المستودع أبدًا)، ووجّه العنوان إلى أصل API الحقيقي
+للمتجر: العامل (Worker) المنشور لا يستطيع الوصول إلى `localhost`.
+
+ميزتان اختياريتان تقودهما المنصّة:
+
+- **المعاينة** — يرسل CodFlow Studio رمزًا موقّعًا إلى `THEME_PREVIEW_PATH`؛
+  يتحقق منه القالب بـ `readPreviewRequest` ويعرض مع `preview` مفعّلًا. راجع
+  [المعاينة](/sdk/theme/preview).
+- **النشر** — بعد نشر التاجر، تطلب المنصّة من القالب إسقاط صفحاته المخزّنة
+  (`REVALIDATE_PATH`، يُتحقق منها بـ `readRevalidateRequest`). القالب الذي
+  يخزّن عروضه يجب أن ينفّذها؛ والذي لا يخزّن لا يحتاجها.
+
+## إلى أين بعد ذلك
+
+- [واجهة API العامة](/sdk/theme/api) — كل تصدير، حسب نقطة الدخول.
+- [قائمة الإنتاج](/sdk/theme/production) — الوصولية، RTL، الأداء، الأمان
+  وقائمة الترقية.
+- [التنفيذ المرجعي](/sdk/theme/reference-implementation) — ما يفعله Theme-00
+  بشكل مختلف، ولماذا.
+- [استخدام الذكاء الاصطناعي لبناء قالب](/sdk/theme/agents) — الموجز
+  والثوابت.

@@ -1,0 +1,231 @@
+---
+description: Install @wocart/theme, define a component, assemble a catalog and render the first composed page.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Build a theme
+
+This page takes you from an Astro project to one editable section rendered on a
+page. It is the shortest complete example; later pages explain fields,
+composition and storefront integration in more detail.
+
+## What you are building
+
+A CodFlow theme is still an Astro project. You write normal `.astro`
+components. `@wocart/theme` asks you to add a small **definition** beside each
+component you want a merchant to edit.
+
+A definition answers five questions:
+
+| Question | Definition property |
+| --- | --- |
+| What is this component called in saved data? | `type` |
+| Which Astro component draws it? | `component` |
+| What can a merchant change? | `fields` |
+| Can it hold child blocks? | `slots` |
+| Does it need extra data from the server? | `load` |
+
+The page a shopper sees is built from a **document**: JSON that says which
+components appear and what values they hold. Your code supplies the components
+and their defaults; the document supplies the merchant's choices.
+
+<Callout type="info" title="Only need a fixed design?">
+If one store owns the theme and nobody will edit it from a dashboard, you do
+not need definitions, documents or a manifest. Build normal Astro pages with
+[`@wocart/storefront`](/sdk/storefront) and skip the rest of this page.
+</Callout>
+
+## Install
+
+```bash
+npm install @wocart/theme @wocart/storefront
+```
+
+Astro 7 is needed for the renderer and the `.astro` components. The core entry
+is framework-neutral, but `InstanceView.astro`, `ThemeStyles.astro` and the
+helpers under `@wocart/theme/astro` are Astro-specific.
+
+## 1. Define a component
+
+A definition wraps a real component. The fields are the editable surface; the
+`load` hook is optional server-side enrichment.
+
+```ts
+// src/theme/components/best-sellers.def.ts
+import { defineComponent } from "@wocart/theme";
+import BestSellers from "./BestSellers.astro";
+
+export const bestSellers = defineComponent({
+  type: "best-sellers",
+  component: BestSellers,
+  label: "Best sellers",
+  fields: [
+    {
+      key: "collection",
+      kind: "collection",
+      label: "Collection",
+      default: "best-sellers",
+    },
+    {
+      key: "limit",
+      kind: "number",
+      label: "Number of products",
+      default: 8,
+      min: 1,
+      max: 24,
+    },
+  ],
+  load: async ({ storefront, props }) => ({
+    products: await storefront.products.list({
+      collection: props.collection,
+      limit: props.limit,
+    }),
+  }),
+});
+```
+
+`defineComponent` keeps the field keys, kinds and select options as literals.
+The component's props are derived from the same definition:
+
+```astro
+---
+// src/theme/components/BestSellers.astro
+import type { InferProps } from "@wocart/theme";
+import type { bestSellers } from "./best-sellers.def";
+
+const { products = [] } = Astro.props as InferProps<typeof bestSellers>;
+---
+```
+
+A field with a `default` is always present in `props`; one without a default is
+optional. Whatever `load` returns is merged over the field values.
+
+## 2. Assemble the catalog
+
+The catalog is the unit the renderer and validator consume. Component keys must
+equal their `type`, because documents refer to the type.
+
+```ts
+// src/theme/theme.ts
+import { defineTheme, type PageData, type SurfaceSpec } from "@wocart/theme";
+import { bestSellers } from "./components/best-sellers.def";
+
+const homeDocument = {
+  version: 1,
+  surface: "home",
+  sections: [{ id: "best-sellers-1", type: "best-sellers" }],
+} satisfies PageData;
+
+const home: SurfaceSpec = {
+  key: "home",
+  label: "Home",
+  pageType: "home",
+  document: homeDocument,
+};
+
+export const theme = defineTheme({
+  key: "my-theme",
+  version: "1.0.0",
+  surfaces: [home],
+  components: { "best-sellers": bestSellers },
+});
+```
+
+A surface's `document` is the theme's shipped default. `resolveSurfaceDocument`
+uses it when the store has saved nothing, or when the saved document cannot be
+rendered.
+
+## 3. Validate the catalog
+
+Definitions are code, so the validator is an assembly-time test, not a runtime
+guard.
+
+```ts
+import { validateThemeDefinition } from "@wocart/theme";
+import { theme } from "./theme/theme";
+
+const issues = validateThemeDefinition(theme);
+if (issues.length > 0) {
+  throw new Error(issues.map((issue) => `${issue.path}: ${issue.message}`).join("\n"));
+}
+```
+
+Run this in the theme's test suite. It checks key/type agreement, field rules,
+slot declarations, fixed blocks, required blocks, presets, content keys and
+default documents.
+
+## 4. Render the surface
+
+One `InstanceView` per section, one read cache per page render.
+
+```astro
+---
+// src/pages/index.astro
+import { resolveSurfaceDocument, type ThemeRenderContext } from "@wocart/theme";
+import InstanceView from "@wocart/theme/astro/InstanceView.astro";
+import { createReadCache } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+const store = Astro.locals.store;
+const saved = await store.client.pageData.get("home");
+const { page } = resolveSurfaceDocument(theme, "home", saved, {
+  content: store.content,
+  locales: [store.locale, ...store.fallbackLocales],
+});
+
+const context: ThemeRenderContext = {
+  store: store.config,
+  content: store.content,
+  locale: store.locale,
+  fallbackLocales: store.fallbackLocales,
+  isRTL: store.isRTL,
+  url: store.pathname,
+};
+
+const reads = createReadCache();
+---
+{page.sections.map((section) => (
+  <InstanceView
+    instance={section}
+    theme={theme}
+    context={context}
+    storefront={store.client}
+    reads={reads}
+  />
+))}
+```
+
+The read cache is scoped to **one page render**. `load` hooks that read the same
+resource share one request; a rejection is shared too, so a failed read does not
+retry once per section.
+
+## 5. Emit the manifest
+
+Editors and release tools read the manifest, not the compiled theme. A
+prerendered endpoint puts it at `/wocart-theme.json`.
+
+```ts
+// src/pages/wocart-theme.json.ts
+import { themeManifestEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeManifestEndpoint(theme);
+```
+
+The endpoint derives and validates the manifest when the module loads. An
+invalid manifest fails the build instead of shipping.
+
+## Where next
+
+- [Use AI to build a theme](/sdk/theme/agents) — give an assistant the rules
+  before it changes the theme.
+- [Tools and roadmap](/sdk/theme/tools) — planned CLI, starter kit and AI
+  skills.
+- [Fields](/sdk/theme/fields) — choose the right field for each editable value.
+- [Composition](/sdk/theme/composition) — slots, blocks and required sections.
+- [Pages and rendering](/sdk/theme/pages) — templates, areas and the full
+  resolution policy.
+- [Style and color](/sdk/theme/style) — give merchants style and color controls.
+- [Testing a theme](/sdk/theme/testing) — the four checks a theme should pass.

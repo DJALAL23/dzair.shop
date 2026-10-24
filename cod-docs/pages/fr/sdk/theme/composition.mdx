@@ -1,0 +1,214 @@
+---
+description: Slots, blocs, blocs fixes et requis, préréglages et les limites qui garantissent la composition d'une page @wocart/theme.
+---
+
+# Composition
+
+Considérez une page comme un arbre. La page contient des **sections** ; une
+section peut contenir des **blocs** plus petits, et un bloc peut aussi contenir
+des blocs. Un espace nommé où un composant accepte des enfants est un
+**slot**.
+
+Certains blocs doivent toujours être présents : une page produit ne peut pas
+perdre son bouton d'achat, par exemple. Le SDK applique ces règles lorsqu'un
+document est modifié, afin que le moteur de rendu puisse faire confiance au
+document qu'il reçoit.
+
+Vous pouvez ignorer cette page si votre thème n'a aucune section éditable ni
+bloc imbriqué. Si vous débutez, commencez par les sections et n'ajoutez des
+slots que lorsqu'une section a vraiment besoin de blocs enfants.
+
+## Sections et blocs
+
+| Placement | Où il peut aller |
+| --- | --- |
+| `"section"` | Le niveau supérieur d'une surface ou d'une zone |
+| `"block"` | Uniquement à l'intérieur d'un slot |
+| `"both"` | Partout |
+| absent | Partout |
+
+Les opérations sur le document appliquent le placement. Le moteur de rendu ne
+rejette jamais une section enregistrée parce qu'elle se trouve au « mauvais »
+endroit ; il la rend, et `validatePageData` signale le problème.
+
+## Déclarer un slot
+
+Un slot est un endroit nommé où un composant accepte des enfants.
+
+```ts
+const productMain = defineComponent({
+  // …
+  slots: [
+    {
+      name: "info",
+      allow: [
+        "product-title",
+        "product-rating",
+        "product-price",
+        "product-order",
+      ],
+      max: 16,
+      required: [{ type: "product-order", max: 1 }],
+    },
+  ],
+});
+```
+
+| Règle | Effet |
+| --- | --- |
+| `name` | `"default"` ou un nom en kebab-case minuscule |
+| `multiple: false` | Garde le premier enfant, signale les autres |
+| `allow` | Uniquement ces types de composants ; omis signifie tous |
+| `max` | Au plus ce nombre d'instances (jusqu'à 50) |
+| `required` | Ces types doivent être présents ; chacun a son propre `min` / `max` |
+
+`allow` est appliqué avant `multiple: false`, donc un enfant non autorisé ne
+déplace jamais un enfant autorisé. Restreindre `allow` plus tard est un
+changement incompatible pour les pages enregistrées : les enfants qui ne
+conviennent plus sont supprimés avec `disallowed-child`.
+
+Un enfant dans un slot non déclaré est supprimé avec `unknown-slot`. Un
+composant sans slot `default` supprime les enfants poussés comme défaut
+avec `undeclared-children`.
+
+## Rendre les blocs
+
+Le moteur de rendu donne à chaque composant une prop `blocks`. Un composant
+place chaque slot là où le design le souhaite, et chaque bloc fixe là où
+il appartient.
+
+```astro
+---
+import Blocks from "@wocart/theme/astro/Blocks.astro";
+import Block from "@wocart/theme/astro/Block.astro";
+import { hasBlocks, type BlocksHandle } from "@wocart/theme/astro";
+
+const { blocks } = Astro.props as { blocks: BlocksHandle };
+---
+<section>
+  {hasBlocks(blocks, "info") && (
+    <div class="info"><Blocks of={blocks} slot="info" /></div>
+  )}
+  <Block of={blocks} name="gallery" />
+</section>
+```
+
+`<Blocks>` rend les enfants d'un slot via `InstanceView`, donc `load`,
+les problèmes, les blocs masqués et les marqueurs d'aperçu fonctionnent à toutes
+les profondeurs. `<slot />` fonctionne toujours pour les enfants par défaut ; un
+composant peut utiliser l'un ou l'autre mécanisme.
+
+`blocks` est réservé. Aucun champ ne peut utiliser cette clé.
+
+`hasBlocks(blocks, slot)` est vrai lorsque le slot a au moins un bloc
+visible, afin qu'un composant puisse éviter un conteneur vide. `isPreview(blocks)`
+est vrai dans un aperçu CodFlow Studio, où une section qui n'a encore rien à
+afficher peut dessiner un espace réservé. Un client ne voit jamais cet espace
+réservé.
+
+## Blocs fixes
+
+Un bloc fixe est placé par le code du composant lui-même. Un éditeur peut
+modifier ses champs et remplir ses slots, mais ne peut pas le supprimer,
+le déplacer, le dupliquer ni le masquer.
+
+```ts
+const productMain = defineComponent({
+  // …
+  fixed: [{ name: "gallery", type: "product-gallery", label: "Gallery" }],
+});
+```
+
+```astro
+<Block of={blocks} name="gallery" />
+```
+
+Le bloc est rendu même lorsque le document ne le stocke pas, en utilisant ses
+valeurs par défaut. Son id est dérivé du propriétaire et du nom (`fixedBlockId`).
+Les valeurs stockées d'un bloc fixe que la définition ne déclare plus sont
+supprimées avec `unknown-fixed` ; un type incorrect est remplacé par une valeur
+par défaut et signalé `fixed-type-mismatch`.
+
+## Blocs requis
+
+Un bloc requis peut se déplacer, mais il ne peut pas disparaître. Un slot
+ou une surface les liste :
+
+```ts
+slots: [
+  {
+    name: "info",
+    allow: ["product-order", "product-countdown"],
+    required: [{ type: "product-order", max: 1 }],
+  },
+]
+```
+
+Les opérations refusent de supprimer, masquer ou déplacer hors du slot
+le dernier `min` d'un type requis, ou d'insérer au-delà de son `max`. Un document
+auquel il en manque un — un ancien document, ou un document enregistré avant une
+mise à jour du thème — le rend quand même, ajouté à la fin de son slot, et
+le lecteur signale `missing-required-block`.
+
+Une **surface produit doit garantir un formulaire de commande**. Donnez au
+composant du formulaire de commande `role: "order-form"` et exigez-le via une
+section, un bloc fixe ou un slot. L'assemblage refuse une surface produit
+qui ne le fait pas (`order-form-not-guaranteed`).
+
+```ts
+const productOrder = defineComponent({
+  type: "product-order",
+  role: "order-form",
+  // …
+});
+```
+
+Les champs du formulaire de commande ne sont pas ceux du thème : le formulaire
+de commande de la boutique est défini dans le tableau de bord du marchand et
+appliqué par le serveur. Le thème fournit son balisage et son style.
+
+## Préréglages
+
+Un préréglage est une configuration prête à l'emploi proposée à l'insertion :
+des props au-dessus des valeurs par défaut des champs, plus des enfants pour les
+slots.
+
+```ts
+presets: [
+  {
+    key: "with-grid",
+    label: "Hero with products",
+    props: { layout: "columns" },
+    slots: { aside: [{ type: "product-grid", props: { limit: 2 } }] },
+  },
+]
+```
+
+Les préréglages sont validés à l'assemblage en les construisant.
+`instantiatePreset(theme, type, key, newId)` crée les instances, chacune avec un
+id issu de `newId`.
+
+## Limites
+
+| Limite | Valeur |
+| --- | --- |
+| Instances par slot | 50 (`THEME_LIMITS.slotInstances`) |
+| Sections par surface ou zone | 50 (`THEME_LIMITS.sections`) |
+| Instances par document | 1 000 (`THEME_LIMITS.documentInstances`) |
+| Imbrication sous une section | 6 (`THEME_LIMITS.depth`) |
+
+Un `max` de slot ou de surface peut fixer un nombre inférieur. Le lecteur
+rend jusqu'à la limite et signale `limit-exceeded` ; les opérations refusent de
+la dépasser. L'assemblage refuse un bloc fixe ou requis qui se contient lui-même
+ou s'imbrique plus profondément que la limite.
+
+## Instances masquées
+
+```json
+{ "id": "faq-1", "type": "faq", "hidden": true }
+```
+
+Le moteur de rendu ignore l'instance, son `load` et ses enfants. Le lecteur la
+vérifie quand même, afin qu'une section masquée ne puisse pas cacher une erreur
+de contrat. Un bloc requis ou fixe masqué est réaffiché par `completePage` ; ce
+sont des garanties, pas des préférences.

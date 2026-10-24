@@ -1,0 +1,230 @@
+---
+description: ثبّت @wocart/theme، وعرّف مكوّنًا، وجمّع كتالوجًا، واعرض أول صفحة مركّبة.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# بناء قالب
+
+تأخذك هذه الصفحة من مشروع Astro إلى قسم واحد قابل للتحرير معروض على صفحة. إنها
+أقصر مثال كامل؛ وتشرح الصفحات التالية الحقول والتركيب وتكامل واجهة المتجر بمزيد
+من التفصيل.
+
+## ما الذي تبنيه
+
+قالب CodFlow يبقى مشروع Astro. تكتب مكوّنات `.astro` عادية. ويطلب منك
+`@wocart/theme` إضافة **تعريف** صغير بجانب كل مكوّن تريد أن يحرّره التاجر.
+
+يجيب التعريف عن خمسة أسئلة:
+
+| السؤال | خاصية التعريف |
+| --- | --- |
+| كيف يُسمّى هذا المكوّن في البيانات المحفوظة؟ | `type` |
+| أي مكوّن Astro يرسمه؟ | `component` |
+| ما الذي يستطيع التاجر تغييره؟ | `fields` |
+| هل يمكنه احتواء كتل فرعية؟ | `slots` |
+| هل يحتاج بيانات إضافية من الخادم؟ | `load` |
+
+الصفحة التي يراها المتسوق مبنية من **مستند**: JSON يبيّن أي المكوّنات تظهر وأي
+القيم تحمل. ويوفّر كودك المكوّنات وقيمها الافتراضية؛ ويوفّر المستند خيارات
+التاجر.
+
+<Callout type="info" title="تحتاج تصميمًا ثابتًا فقط؟">
+إذا كان متجر واحد يملك القالب ولن يحرّره أحد من لوحة تحكم، فلا تحتاج تعريفات أو
+مستندات أو بيانًا. ابنِ صفحات Astro عادية بـ
+[`@wocart/storefront`](/ar/sdk/storefront) وتجاوز بقية هذه الصفحة.
+</Callout>
+
+## التثبيت
+
+```bash
+npm install @wocart/theme @wocart/storefront
+```
+
+يلزم Astro 7 للعارض ومكوّنات `.astro`. النواة محايدة تجاه إطار العمل، لكن
+`InstanceView.astro` و`ThemeStyles.astro` والمساعدات تحت `@wocart/theme/astro`
+خاصة بـ Astro.
+
+## 1. عرّف مكوّنًا
+
+يلفّ التعريف مكوّنًا حقيقيًا. الحقول هي السطح القابل للتحرير؛ وخطاف `load`
+إثراء اختياري على الخادم.
+
+```ts
+// src/theme/components/best-sellers.def.ts
+import { defineComponent } from "@wocart/theme";
+import BestSellers from "./BestSellers.astro";
+
+export const bestSellers = defineComponent({
+  type: "best-sellers",
+  component: BestSellers,
+  label: "Best sellers",
+  fields: [
+    {
+      key: "collection",
+      kind: "collection",
+      label: "Collection",
+      default: "best-sellers",
+    },
+    {
+      key: "limit",
+      kind: "number",
+      label: "Number of products",
+      default: 8,
+      min: 1,
+      max: 24,
+    },
+  ],
+  load: async ({ storefront, props }) => ({
+    products: await storefront.products.list({
+      collection: props.collection,
+      limit: props.limit,
+    }),
+  }),
+});
+```
+
+يحفظ `defineComponent` مفاتيح الحقول وأنواعها وخيارات الاختيار كقيم حرفية. وتُشتق
+props المكوّن من التعريف نفسه:
+
+```astro
+---
+// src/theme/components/BestSellers.astro
+import type { InferProps } from "@wocart/theme";
+import type { bestSellers } from "./best-sellers.def";
+
+const { products = [] } = Astro.props as InferProps<typeof bestSellers>;
+---
+```
+
+الحقل ذو `default` حاضر دائمًا في `props`؛ والحقل بلا قيمة افتراضية اختياري.
+وكل ما يعيده `load` يُدمج فوق قيم الحقول.
+
+## 2. جمّع الكتالوج
+
+الكتالوج هو الوحدة التي يستهلكها العارض والمدقق. يجب أن تساوي مفاتيح المكوّنات
+`type` الخاص بها، لأن المستندات تشير إلى النوع.
+
+```ts
+// src/theme/theme.ts
+import { defineTheme, type PageData, type SurfaceSpec } from "@wocart/theme";
+import { bestSellers } from "./components/best-sellers.def";
+
+const homeDocument = {
+  version: 1,
+  surface: "home",
+  sections: [{ id: "best-sellers-1", type: "best-sellers" }],
+} satisfies PageData;
+
+const home: SurfaceSpec = {
+  key: "home",
+  label: "Home",
+  pageType: "home",
+  document: homeDocument,
+};
+
+export const theme = defineTheme({
+  key: "my-theme",
+  version: "1.0.0",
+  surfaces: [home],
+  components: { "best-sellers": bestSellers },
+});
+```
+
+`document` الخاص بالسطح هو الافتراضي المُضمَّن مع القالب. يستخدمه
+`resolveSurfaceDocument` عندما لا يكون المتجر قد حفظ شيئًا، أو عندما يتعذر عرض
+المستند المحفوظ.
+
+## 3. تحقق من الكتالوج
+
+التعريفات كود، لذا المدقق اختبار وقت تجميع، لا حارس وقت تشغيل.
+
+```ts
+import { validateThemeDefinition } from "@wocart/theme";
+import { theme } from "./theme/theme";
+
+const issues = validateThemeDefinition(theme);
+if (issues.length > 0) {
+  throw new Error(issues.map((issue) => `${issue.path}: ${issue.message}`).join("\n"));
+}
+```
+
+شغّله في مجموعة اختبارات القالب. يتحقق من توافق المفتاح والنوع، وقواعد الحقول،
+وإعلانات الفتحات، والكتل الثابتة، والكتل المطلوبة، والإعدادات المسبقة، ومفاتيح
+المحتوى، والمستندات الافتراضية.
+
+## 4. اعرض السطح
+
+`InstanceView` واحد لكل قسم، وذاكرة قراءة واحدة لكل عرض صفحة.
+
+```astro
+---
+// src/pages/index.astro
+import { resolveSurfaceDocument, type ThemeRenderContext } from "@wocart/theme";
+import InstanceView from "@wocart/theme/astro/InstanceView.astro";
+import { createReadCache } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+const store = Astro.locals.store;
+const saved = await store.client.pageData.get("home");
+const { page } = resolveSurfaceDocument(theme, "home", saved, {
+  content: store.content,
+  locales: [store.locale, ...store.fallbackLocales],
+});
+
+const context: ThemeRenderContext = {
+  store: store.config,
+  content: store.content,
+  locale: store.locale,
+  fallbackLocales: store.fallbackLocales,
+  isRTL: store.isRTL,
+  url: store.pathname,
+};
+
+const reads = createReadCache();
+---
+{page.sections.map((section) => (
+  <InstanceView
+    instance={section}
+    theme={theme}
+    context={context}
+    storefront={store.client}
+    reads={reads}
+  />
+))}
+```
+
+ذاكرة القراءة محدودة بـ**عرض صفحة واحد**. خطافات `load` التي تقرأ المورد نفسه
+تتشارك طلبًا واحدًا؛ ويُتشارك الرفض أيضًا، لذا لا تعيد قراءة فاشلة المحاولة مرة
+لكل قسم.
+
+## 5. أخرج البيان
+
+يقرأ المحررون وأدوات الإصدار البيان، لا القالب المترجَم. وتضع نقطة نهاية
+مُولَّدة مسبقًا البيان في `/wocart-theme.json`.
+
+```ts
+// src/pages/wocart-theme.json.ts
+import { themeManifestEndpoint } from "@wocart/theme/astro";
+import { theme } from "../theme/theme";
+
+export const prerender = true;
+export const GET = themeManifestEndpoint(theme);
+```
+
+تشتق نقطة النهاية البيان وتتحقق منه عند تحميل الوحدة. والبيان غير الصالح يُفشل
+البناء بدلًا من نشره.
+
+## إلى أين بعد ذلك
+
+- [استخدام الذكاء الاصطناعي لبناء قالب](/ar/sdk/theme/agents) — أعطِ المساعد
+  القواعد قبل أن يغيّر القالب.
+- [الأدوات وخريطة الطريق](/ar/sdk/theme/tools) — CLI وعدة البدء ومهارات الذكاء
+  الاصطناعي المخططة.
+- [الحقول](/ar/sdk/theme/fields) — اختر الحقل المناسب لكل قيمة قابلة للتحرير.
+- [التركيب](/ar/sdk/theme/composition) — الفتحات والكتل والأقسام المطلوبة.
+- [الصفحات والعرض](/ar/sdk/theme/pages) — القوالب والمناطق وسياسة استخلاص المستند الكاملة.
+- [التنسيق واللون](/ar/sdk/theme/style) — امنح التجار عناصر تحكم في التنسيق
+  واللون.
+- [اختبار قالب](/ar/sdk/theme/testing) — الفحوص الأربعة التي يجب أن يجتازها
+  القالب.

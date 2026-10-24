@@ -1,0 +1,215 @@
+---
+description: Lisez les pages légales et personnalisées, les menus, les pages d'atterrissage et le document de page enregistré d'un thème éditable.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Pages et menus
+
+Les pages de boutique, les menus et les pages d'atterrissage sont du contenu
+marchand. Le SDK les lit ; le thème décide où ils se placent et à quoi ils
+ressemblent.
+
+## Pages de boutique
+
+`pages.get(slug)` renvoie une page légale ou personnalisée publiée :
+
+```ts
+const page = await store.pages.get("terms");
+
+if (!page) return Astro.rewrite("/404");
+
+page;
+// {
+//   id,
+//   kind: "terms" | "privacy" | "refund" | "shipping" | "custom",
+//   slug,
+//   locale,
+//   title,
+//   bodyHtml,
+//   metaTitle,
+//   metaDescription,
+// }
+```
+
+`bodyHtml` est déjà assaini par le serveur. Affichez-le avec `set:html` et ne le
+ré-assainissez pas sous une autre forme :
+
+```astro
+<article>
+  <h1>{page.title}</h1>
+  <div set:html={page.bodyHtml} />
+</article>
+```
+
+Un slug brouillon, non publié ou inconnu renvoie `null`. C'est un vrai 404, pas
+une page sans corps.
+
+Résolvez les pages légales par `kind` lorsqu'une règle en nomme une. Un marchand
+peut renommer un slug, mais la page Conditions reste `kind: "terms"`.
+
+```ts
+const terms = config.pages.find((item) => item.kind === "terms");
+```
+
+`pages.get` est rechargé à chaque appel. Une modification du marchand
+atteint le prochain rendu serveur, sous réserve du cache de votre route.
+
+## Menus
+
+`menus.get(handle)` renvoie une arborescence de menu :
+
+```ts
+const menu = await store.menus.get("main-menu");
+
+menu;
+// {
+//   handle: "main-menu",
+//   title: "Main menu",
+//   items: [
+//     {
+//       label: "Women",
+//       href: "/category/women",
+//       type: "category",
+//       children: [],
+//     },
+//   ],
+// }
+```
+
+Chaque élément possède :
+
+| Champ | Signification |
+| --- | --- |
+| `label` | Dans la langue du client lorsqu'elle est traduite |
+| `href` | Un chemin de boutique sans préfixe de langue, ou l'URL absolue du marchand |
+| `type` | `home`, `catalog`, `category`, `product`, `page`, `landing` ou `url` |
+| `children` | Éléments imbriqués, sur trois niveaux au maximum |
+
+Les éléments qui ne mènent vers aucune page publique sont déjà supprimés. Ne
+revérifiez pas la visibilité.
+
+Localisez uniquement les chemins de boutique ; laissez les URL externes
+tranquilles :
+
+```astro
+---
+import { localizeHref } from "@wocart/storefront";
+---
+<a href={localizeHref(item.href, config.locale, routing)}>{item.label}</a>
+```
+
+Un menu inconnu ou une lecture échouée renvoie `null`. Affichez votre propre
+navigation de secours, pas un en-tête vide.
+
+Un menu est une arborescence, alors affichez-le récursivement et préservez
+RTL/LTR avec le `dir` de la page. Le SDK ne le rend pas pour vous.
+
+## Pages d'atterrissage
+
+`pages.landing(slug)` renvoie une page d'atterrissage publiée avec une pile
+d'images ordonnée et, éventuellement, un produit lié :
+
+```ts
+const landing = await store.pages.landing("ramadan");
+
+if (!landing) return Astro.redirect("/", 302);
+```
+
+La forme de la donnée :
+
+```ts
+type LandingPage = {
+  id: string;
+  slug: string;
+  name: string;
+  status: "draft" | "published" | "archived";
+  imageGap: number;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  publishedAt: string | null;
+  images: Array<{
+    id: string;
+    src: string;
+    altText: string | null;
+    position: number;
+    width: number | null;
+    height: number | null;
+  }>;
+  product: Product | null;
+  tracking: {
+    pixelId: string | null;
+    conversionEvent: "Lead" | "Purchase" | "Purchase_Confirmed" | "Purchase_Delivered";
+  };
+};
+```
+
+`images` est ordonné par `position` ; `imageGap` est l'espace entre elles en
+pixels. La largeur et la hauteur sont capturées au téléversement, alors réservez
+la boîte et évitez un décalage de mise en page.
+
+`product` est un produit complet, pas une carte de liste. Le formulaire de
+commande peut l'utiliser tel quel. Il vaut `null` lorsque le produit n'est plus
+public ; dans ce cas, affichez le contenu de la page d'atterrissage sans
+formulaire de commande.
+
+Une page d'atterrissage brouillon, archivée ou inconnue renvoie `null`.
+Redirigez vers la page d'accueil au lieu d'afficher une impasse.
+
+Le `tracking` de la page est déjà résolu. Utilisez ce pixel et cet événement, pas
+le pixel par défaut de la boutique, lorsque la page d'atterrissage déclenche son
+événement navigateur.
+
+## Le document de page enregistré
+
+Un thème éditable lit le document de composition de la boutique avec
+`pageData.get(surface)` :
+
+```ts
+const document = await store.pageData.get("home");
+```
+
+La forme de transport est délibérément souple :
+
+```ts
+type PageDocumentPayload = {
+  version: number;
+  surface: string;
+  sections: unknown[];
+  [key: string]: unknown;
+};
+```
+
+`sections` reste `unknown[]` afin qu'un document plus récent atteigne votre thème
+inchangé. Le sens d'une section appartient au schéma du thème. Analysez-le avec
+`parsePageData` de [`@wocart/theme`](/fr/sdk/theme) ; ne le castez pas vers votre
+type de section local.
+
+```ts
+import { parsePageData } from "@wocart/theme";
+
+const parsed = parsePageData(document);
+```
+
+Avec `theme` défini sur le client, le serveur renvoie le document de ce thème
+pour la surface. Sans cela, le serveur renvoie le document le plus récemment
+enregistré pour la surface. Une boutique sans document enregistré renvoie `null` ;
+affichez votre valeur par défaut livrée.
+
+<Callout type="info" title="Côté lecture uniquement">
+Le document de page est écrit par CodFlow Studio, pas par cette vitrine. Ce
+dépôt n'a aucun point de terminaison d'écriture de thème. Lisez `pageData`,
+affichez-le, et gardez le contrat d'édition de votre thème dans `@wocart/theme`.
+</Callout>
+
+## Une liste de vérification pour le rendu de page
+
+- Une page de boutique utilise `pages.get` et répond par un vrai 404 sur `null`.
+- Une page légale résout son lien via `kind`, pas via un slug codé en dur.
+- Un menu se parcourt récursivement via `children` et ne localise que les chemins
+  internes.
+- Une page d'atterrissage utilise son propre `tracking`, pas `config.pixelId`.
+- Une surface éditable utilise `pageData.get(surface)` et `parsePageData`.
+- Un document manquant affiche la valeur par défaut du thème, pas une page vide.
+- Le cache de route connaît la fréquence à laquelle chacun de ces éléments peut
+  changer.

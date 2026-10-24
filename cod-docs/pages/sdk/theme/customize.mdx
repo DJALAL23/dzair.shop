@@ -1,0 +1,162 @@
+---
+description: A safe workflow for changing copy, images, styles, settings and section order in a @wocart/theme theme.
+---
+
+# Customize a theme
+
+Use this page when the theme already has an editable structure and you want to
+change what a merchant sees. You do not need to understand every type in the
+SDK. Most changes are values in a **definition** (the code that declares what
+can change) or a **page document** (the saved JSON for one page).
+
+If the theme is a fixed Astro design with no editable fields, there is nothing
+to customize from saved data yet. Start with [Build a theme](/sdk/theme/build).
+
+## What lives where
+
+| You want to change… | Where it lives | Safe change |
+| --- | --- | --- |
+| Wording, alt text, button labels | A field value in the page document | Change the stored `props` |
+| A photo or logo | An `image` field | Store a media **key**, never a URL |
+| Products or a collection | `productList`, `collectionList`, `collection` or `product` | Change the handles |
+| Spacing, width, alignment | A `style` field | Use the theme's steps and choices |
+| Section colors | A `colorScheme` field | Use one of the store's scheme ids |
+| Order or visibility of sections | The page document | Move the instance or set `hidden: true` |
+| Fonts, corners, card shape | Theme settings | Change the setting value |
+| A new editable option | A component definition | Add a field, then validate |
+| A new kind of section | Code | Define a component and add it to the catalog |
+
+The **manifest** is the theme's menu of editable parts. If a field is not in
+the manifest, it is not editable; change the theme's code instead.
+
+## The safe loop
+
+1. **Find the surface.** Is this the home page, a product template, a category,
+   a collection, a landing page, a text page, the header or the footer? The
+   surface key is in the page document and in the manifest.
+2. **Find the instance.** Each section and block has an `id` and a `type`.
+   Read its definition or the manifest entry for that type.
+3. **Change a declared prop.** Use a value the field accepts. Do not invent a
+   key; an undeclared key is ignored with `unknown-prop`.
+4. **Validate.** `validatePageData(theme, document)` checks the whole document
+   against the catalog. `checkPageData(theme, document)` is the strict
+   writer-side check before saving.
+5. **Look at it.** Render the page normally, or open the preview route in
+   CodFlow Studio to see an unsaved draft.
+
+## Change copy
+
+```json
+{
+  "id": "hero-1",
+  "type": "hero",
+  "props": {
+    "title": "Livraison partout en Algérie",
+    "subtitle": "Payez à la réception."
+  }
+}
+```
+
+A translated value can also be a map:
+
+```json
+{
+  "title": {
+    "ar": "توصيل إلى كل الولايات",
+    "fr": "Livraison dans toutes les wilayas"
+  }
+}
+```
+
+A plain string means “the same in every language”. Do not use one language's
+map as the default for another; resolution tries the current language, the
+store's fallback chain, the content pack, then the field default.
+
+## Hide a section
+
+```json
+{ "id": "faq-1", "type": "faq", "hidden": true }
+```
+
+Hidden sections stay in the document but render nothing — no `load`, no
+children. A **required** block is different: completion brings it back, because
+the page cannot render without it.
+
+## Move a section
+
+Do not renumber ids. Use a document operation; it applies the same slot,
+placement and required-block rules as every other editing tool:
+
+```ts
+import { moveInstance } from "@wocart/theme";
+
+const edit = moveInstance(theme, page, "faq-1", { index: 0 });
+if (!edit.ok) console.error(edit.issue.code, edit.issue.message);
+```
+
+`insertInstance`, `removeInstance`, `duplicateInstance`, `setInstanceProps` and
+`setInstanceHidden` follow the same pattern. They return a new document and
+never change the input.
+
+## Change style and color
+
+A `style` field stores choices, not CSS:
+
+```json
+{
+  "style": {
+    "spacing": {
+      "paddingBlockStart": { "base": "s6", "lg": "s8" },
+      "paddingBlockEnd": { "base": "s6", "lg": "s8" }
+    },
+    "size": { "width": { "base": "wide" } }
+  }
+}
+```
+
+Only the steps and widths the theme sizes exist. A `colorScheme` field stores a
+scheme id such as `"scheme-3"`; the colors themselves live in the store's
+`colorSchemes` setting, not in the page document.
+
+## Change the source
+
+When a value is not editable yet, the change is in the definition:
+
+| Change | Definition change |
+| --- | --- |
+| New text option | Add a `text` / `textarea` field with a `key` |
+| Different default | Change the field's `default` |
+| Different inherited copy | Point `contentKey` at a pack key, or change the pack |
+| New choice | Add a `select` field with `options` and `optionLabels` |
+| New repeatable group | Add a `list` field with item `fields` |
+| Let a section hold a new block | Add the type to the slot's `allow` list |
+| New starting layout | Add or change a preset |
+
+Then run the theme's catalog validation and tests again.
+
+## Do not
+
+- **Do not rename a `type` or a theme `key`.** Saved documents refer to the
+  type, and merchant text edits are keyed by the theme.
+- **Do not store an image URL.** An `image` field stores the media object's key;
+  the URL is derived at render.
+- **Do not write CSS into a page document.** Use style steps and color schemes.
+- **Do not bypass the operations** for moves, deletes, duplicates or hiding if
+  you have the theme catalog. The operations know about slots, required blocks
+  and limits.
+- **Do not edit `dist/` or a generated manifest.** Edit definitions and
+  documents; regenerate.
+
+## Working with an assistant
+
+Give the assistant:
+
+1. the theme's `manifest` (or the component definition),
+2. the target document and surface,
+3. the exact result you want,
+4. the validation command or test the theme uses.
+
+Ask it to check `DocumentIssue.code` after every operation, and to run
+`validateThemeDefinition(theme)` after changing a definition. The next page
+lists the rules an assistant must not guess:
+[Use AI to build a theme](/sdk/theme/agents).

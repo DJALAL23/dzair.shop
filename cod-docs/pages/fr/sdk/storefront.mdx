@@ -1,0 +1,130 @@
+---
+description: Construisez une vitrine CodFlow avec des lectures typées du catalogue, un panier sûr côté navigateur, la commande et les routes Astro.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# SDK Storefront
+
+`@wocart/storefront` est la connexion de votre vitrine à CodFlow. Il lit le
+catalogue, les données de livraison et les contenus enregistrés de la boutique,
+et envoie les paniers, les avis, les codes OTP et les commandes au serveur qui
+détient les règles.
+
+Vos pages Astro décident de l'apparence de la boutique. Le SDK décide de ce qui
+peut être lu et envoyé sans risque. Les prix, le stock, les frais de livraison,
+les remises et l'acceptation d'une commande restent sur le serveur.
+
+<Callout type="info" title="Une vitrine figée est un vrai choix">
+Vous n'avez pas besoin des outils d'édition de CodFlow pour construire une
+vitrine. Un site Astro avec ce SDK et vos propres composants est complet. Le
+[SDK Theme](/fr/sdk/theme), facultatif, ajoute l'édition par le marchand, les
+documents de page enregistrés et l'aperçu.
+</Callout>
+
+## À qui s'adresse ce guide
+
+| Si vous êtes… | Commencez par |
+| --- | --- |
+| Nouveau sur CodFlow, développeur assisté par IA ou en train de créer avec l'IA | [Démarrage rapide](/fr/sdk/storefront/quickstart) |
+| En train de construire une vitrine Astro sur mesure pour une boutique | [Démarrage rapide](/fr/sdk/storefront/quickstart), puis [Actions et routes Astro](/fr/sdk/storefront/astro) |
+| En train de créer un thème modifiable | [SDK Theme](/fr/sdk/theme), puis ce SDK pour les données commerciales |
+| Un assistant IA qui travaille sur une vitrine | [Créer une vitrine avec l'IA](/fr/sdk/storefront/agents) |
+| À la recherche d'une méthode ou d'un type précis | La [référence API](/sdk/storefront/reference/README) (en anglais) |
+
+Le guide commence par une page fonctionnelle et ajoute un domaine à la fois.
+Vous pouvez vous arrêter dès que votre vitrine fait ce dont vous avez besoin.
+
+## Ce que le SDK vous apporte
+
+- **Des lectures typées.** Les produits, catégories, pages, menus, tarifs et la
+  configuration arrivent dans les formes validées par le serveur.
+- **Des échecs prévisibles.** Les lectures renvoient `null`, `[]` ou `{}` et
+  signalent la cause via `onError`. Les écritures renvoient un résultat sur
+  lequel vous pouvez brancher votre logique.
+- **Un point d'entrée sûr pour le navigateur.** Le point d'entrée racine n'a ni
+  fabrique de client ni clé API. Le code navigateur peut l'importer librement ;
+  la clé reste sur le serveur.
+- **Des adaptateurs Astro.** Les routes de même origine, le moteur de formulaire
+  de commande et le middleware qui rend un formulaire refusé sont prêts à être
+  branchés.
+- **Des assistants navigateur.** Le store du panier, la machine à états OTP, les
+  URL d'images, le formatage monétaire et le préremplissage WhatsApp font partie
+  du paquet.
+
+## Ce que vous installez
+
+```bash
+npm install @wocart/storefront zod
+```
+
+`zod` 4.x est une dépendance homologue. Le paquet est ESM uniquement et ses
+outils nécessitent Node 22.12 ou plus récent. Astro 7 est vérifié, mais le cœur
+n'importe pas Astro ; les adaptateurs sous `@wocart/storefront/astro` sont
+structurels.
+
+## Trois imports, une frontière
+
+| Import | S'exécute dans | Ce qu'il contient |
+| --- | --- | --- |
+| `@wocart/storefront` | Navigateur et serveur | Types, assistants monnaie et images, données de référence, panier, machine OTP, chemins de routes, charges Meta |
+| `@wocart/storefront/server` | Serveur uniquement | `createStoreClient`, contrôles d'aperçu et de revalidation |
+| `@wocart/storefront/astro` | Serveur uniquement | `createStorefrontRoutes`, `createProxyEndpoint`, `placeOrderInput`, `executePlaceOrder`, `runFormAction` |
+| `@wocart/storefront/review-media` | Navigateur uniquement | Redimensionnement de photos et enregistrement vocal pour un formulaire d'avis |
+
+<Callout type="caution" title="La clé de boutique n'a qu'un seul domicile">
+`@wocart/storefront/server` contient la clé API de la boutique. Ne l'importez
+jamais depuis un script navigateur, un îlot ou une variable publique. Le code
+navigateur appelle vos propres routes de même origine, et ces routes appellent
+le SDK côté serveur.
+</Callout>
+
+## Ce que couvre le client
+
+| Espace de noms | Utilisez-le pour |
+| --- | --- |
+| `config` | Identité de la boutique, langues, politique de commande et indicateurs de fonctionnalité |
+| `products` | Listes de produits, fiche produit et avis |
+| `collections` | Listes de produits choisies par le marchand et pages de collection |
+| `categories` | Navigation du catalogue |
+| `pages` | Pages légales et CMS, pages d'atterrissage |
+| `menus` | Menus de navigation de la boutique |
+| `pageData` | Le document de page enregistré pour un thème modifiable |
+| `shipping` | Tarifs de livraison par défaut par wilaya |
+| `geo` | Wilayas et communes |
+| `cart` | Recalcul des prix côté serveur, coupons et devis de livraison |
+| `orders` | Création de commande, OTP, panier abandonné et suivi |
+
+## Ce qu'il ne fait pas
+
+Le SDK ne rend pas les pages, ne stocke pas le panier du navigateur sur le
+serveur, ne téléverse pas d'images vers R2, n'écrit pas de documents de page et
+ne décide pas de la mise en page, des textes ou des animations d'un thème. Il ne
+rend pas non plus fiable un prix périmé dans le navigateur.
+
+Les règles commerciales vivent sur le serveur. Si une fonctionnalité a besoin
+d'une nouvelle règle, modifiez d'abord le contrat du serveur, puis utilisez-la
+ici.
+
+## Plan du guide
+
+| Page | Ce qu'elle couvre |
+| --- | --- |
+| [Démarrage rapide](/fr/sdk/storefront/quickstart) | Installer, créer le client, afficher un catalogue et une fiche produit |
+| [Fonctionnement](/fr/sdk/storefront/how-it-works) | Couches, types de pages, résultats, cache et frontière de sécurité |
+| [Créer une vitrine avec l'IA](/fr/sdk/storefront/agents) | Un workflow sûr et les règles qu'un assistant ne doit pas enfreindre |
+| [Configuration et langues](/fr/sdk/storefront/config) | Réglages de la boutique, politique de commande, localisation et textes du thème |
+| [Produits et collections](/fr/sdk/storefront/catalog) | Listes, fiche, variantes, offres, prix par quantité et catégories |
+| [Avis](/fr/sdk/storefront/reviews) | Lire les avis, prouver un achat, téléverser des médias et soumettre |
+| [Pages et menus](/fr/sdk/storefront/content) | Pages légales, navigation, pages d'atterrissage et documents de page enregistrés |
+| [Panier et devis](/fr/sdk/storefront/basket) | Le panier navigateur, la validation serveur, les coupons et la livraison gratuite |
+| [Commande et OTP](/fr/sdk/storefront/checkout) | Passer une commande, vérifier un téléphone, suivre les conversions et l'abandon |
+| [Livraison et géographie](/fr/sdk/storefront/delivery) | Tarifs par défaut, vrais devis, wilayas et communes |
+| [Argent, images, WhatsApp et événements Meta](/fr/sdk/storefront/presentation) | Assistants d'affichage et événements navigateur cohérents |
+| [Actions et routes Astro](/fr/sdk/storefront/astro) | Actions de formulaire, middleware et API de même origine |
+| [Aperçu et revalidation](/fr/sdk/storefront/preview) | Aperçus de brouillon et publication instantanée pour les thèmes modifiables |
+| [Tester une vitrine](/fr/sdk/storefront/testing) | Ce qu'il faut tester, la définition de « terminé » et les erreurs courantes |
+| [Surface d'API publique](/fr/sdk/storefront/api) | Chaque export par point d'entrée, les namespaces du client et les schémas |
+
+La [référence API](/sdk/storefront/reference/README) est générée à partir des
+déclarations TypeScript publiées. Ce guide suit `@wocart/storefront` 1.19.0.

@@ -1,0 +1,320 @@
+---
+description: Read product reviews, prove a purchase with an order number and phone, upload photos or a voice note, and submit.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Reviews
+
+Reviews are product data. They are read on the server, and they are written
+through a small browser flow that proves the shopper bought the product.
+
+A store can turn reviews off with `config.reviewsEnabled`. When it is off, do
+not render the review section or call the review writes.
+
+## Read reviews
+
+```ts
+const { rows, total } = await store.products.reviews.list(product.id, {
+  limit: 20,
+  offset: 0,
+});
+```
+
+`rows` is a page of reviews, `total` is the full count. Both come from a single
+envelope; do not derive the total from the page length.
+
+A failed read is `{ rows: [], total: 0 }`. Render the empty state, not an error
+page, when a product has no reviews or the read is briefly degraded.
+
+A review has:
+
+```ts
+type Review = {
+  id: string;
+  customerName: string;
+  rating: number;              // 1–5
+  title: string | null;
+  body: string;
+  createdAt: string;
+  verified: boolean;           // the order reached the customer
+  media: ReviewMedia[];        // photos first, then a voice note
+};
+```
+
+`verified: true` means the review rests on a delivered order. Show it as a
+verified purchase. Do not use the customer's full name as an identifier.
+
+`media` may be empty on older servers. A media item is:
+
+```ts
+type ReviewMedia = {
+  id: string;
+  kind: "image" | "audio";
+  url: string;
+  thumbUrl: string | null; // photos only
+  width: number | null;
+  height: number | null;
+  durationMs: number | null; // voice only
+};
+```
+
+`url` and `thumbUrl` are already public URLs. Do not build a media URL from an
+object key.
+
+## The review flow
+
+Writing a review has four steps:
+
+1. **Find the purchase.** The shopper enters the order number and the phone used
+   for the order.
+2. **Choose a product.** The eligible order lists its products, each marked
+   already reviewed or not.
+3. **Attach media (optional).** Photos and a voice note are uploaded before the
+   review is submitted.
+4. **Submit the review.** The server decides whether it is published now or
+   waits for the store to check it.
+
+The server owns the rules: the order must be delivered, the phone must match, a
+product can be reviewed once, and the store's moderation decides visibility.
+
+## 1. Prove the purchase
+
+```ts
+const response = await fetch("/api/review-eligibility", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    orderNumber,
+    phone,
+    ...(turnstileToken ? { turnstileToken } : {}),
+  }),
+});
+
+const eligibility = await response.json();
+if (!eligibility.success) {
+  // ORDER_NOT_FOUND or REVIEW_ORDER_NOT_DELIVERED
+  return;
+}
+
+eligibility.data;
+// {
+//   orderNumber,
+//   customerName,
+//   products: [{ productId, name, imageSrc, reviewed }],
+//   media: {
+//     maxPhotos,
+//     voiceMaxSeconds,
+//     grant,
+//     expiresAt,
+//   } | null,
+// }
+```
+
+`media: null` means text only. Never show a photo picker or a record button when
+the grant is absent.
+
+`grant` is short-lived. Send it with every upload and with the review. If it
+expires, ask the shopper to prove the purchase again; do not reuse an old grant.
+
+If the store enables Turnstile, pass the widget token in `turnstileToken`. The
+server checks it with the rest of the request.
+
+## 2. Show what can be reviewed
+
+```ts
+for (const product of eligibility.data.products) {
+  renderProductChoice({
+    name: product.name,
+    image: product.imageSrc,
+    disabled: product.reviewed,
+  });
+}
+```
+
+An already-reviewed product stays visible but cannot be reviewed again. Do not
+silently remove it; the shopper needs to see that the review exists.
+
+## 3. Upload media
+
+Media is uploaded **before** submitting the review. Each upload answers with an
+`uploadId`; the review carries all of them.
+
+### Photos
+
+`prepareReviewPhoto` is browser-only and lives on its own entry point:
+
+```ts
+import { prepareReviewPhoto } from "@wocart/storefront/review-media";
+
+const prepared = await prepareReviewPhoto(photoFile);
+```
+
+It draws the photo in the correct orientation, limits its longest edge to
+1,600 px, and re-encodes it as WebP (or JPEG). If the browser cannot do that, it
+returns the original file; the server still converts it and removes EXIF.
+
+Upload the prepared file as it is:
+
+```ts
+const uploaded = await fetch("/api/review-upload", {
+  method: "PUT",
+  headers: {
+    "Content-Type": prepared.type,
+    "X-Review-Grant": grant,
+  },
+  body: prepared,
+});
+
+const { data } = await uploaded.json();
+// { uploadId, kind: "image", bytes }
+```
+
+Do not send a base64 string or a data URL. The route forwards the file as a
+stream, and the server reads its kind from its bytes.
+
+### Voice notes
+
+```ts
+import {
+  canRecordVoice,
+  createVoiceRecorder,
+} from "@wocart/storefront/review-media";
+
+const media = eligibility.data.media;
+if (canRecordVoice() && media?.voiceMaxSeconds) {
+  const recorder = createVoiceRecorder({
+    maxSeconds: media.voiceMaxSeconds,
+    onTick: (elapsedMs) => updateTimer(elapsedMs),
+    onLimit: (voice) => uploadVoice(voice),
+  });
+
+  await recorder.start();
+  const voice = await recorder.stop();
+  await uploadVoice(voice);
+}
+```
+
+The recorder records mono audio at about 32 kb/s and stops at the store's limit.
+The upload sends both the file and its duration:
+
+```ts
+async function uploadVoice(voice: { blob: Blob; durationMs: number; mimeType: string }) {
+  const response = await fetch("/api/review-upload", {
+    method: "PUT",
+    headers: {
+      "Content-Type": voice.mimeType,
+      "X-Review-Grant": grant,
+      "X-Media-Duration-Ms": String(voice.durationMs),
+    },
+    body: voice.blob,
+  });
+  return response.json();
+}
+```
+
+`canRecordVoice()` returns false on browsers without microphone recording;
+hide the record button rather than showing one that cannot work.
+
+A photo is kept by the server as WebP; that conversion is also what removes its
+EXIF and GPS data. Do not add a second client-side “strip metadata” step.
+
+## 4. Submit
+
+```ts
+const response = await fetch("/api/submit-review", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    orderNumber,
+    phone,
+    productId,
+    rating,               // 1–5
+    title: title || undefined,
+    body,
+    grant,
+    uploads: uploadIds,   // every uploadId, or omit for text only
+  }),
+});
+
+const result = await response.json();
+if (!result.success) {
+  if (result.domainError?.category === "validation") {
+    // Show result.domainError.fieldIssues.
+  }
+  return;
+}
+
+result.data;
+// { id, visibility: "published" | "after_review" }
+```
+
+The route is the same-origin one shown below; the browser never imports the
+server client. `visibility` may be absent on older servers. Treat absence as
+“the store's normal moderation”, not as proof that the review is public.
+
+Do not clear the form on a failure. The shopper should be able to fix the body,
+rating or attachments and try again.
+
+## The same-origin routes
+
+The browser does not hold the store key. Bind the SDK's review routes once:
+
+```ts
+// src/theme/api-routes.ts
+import type { APIContext } from "astro";
+import { createStorefrontRoutes } from "@wocart/storefront/astro";
+
+export const routes = createStorefrontRoutes<APIContext>({
+  client: (context) => context.locals.store.client,
+});
+```
+
+Then export the handlers you need:
+
+```ts
+// src/pages/api/review-eligibility.ts
+import { routes } from "../../theme/api-routes";
+export const POST = routes.reviewEligibility;
+```
+
+```ts
+// src/pages/api/review-upload.ts
+import { routes } from "../../theme/api-routes";
+export const PUT = routes.reviewUpload;
+```
+
+```ts
+// src/pages/api/submit-review.ts
+import { routes } from "../../theme/api-routes";
+export const POST = routes.reviewSubmit;
+```
+
+And for the list:
+
+```ts
+// src/pages/api/product-reviews/[productId].ts
+import { routes } from "../../../theme/api-routes";
+export const GET = routes.reviewsList;
+```
+
+The routes add the cross-origin check, input bounds, grant header and stream
+handling. Do not reimplement those in a component.
+
+<Callout type="caution" title="Review media is browser code">
+`@wocart/storefront/review-media` touches canvas, the microphone and the DOM.
+Never import it from page frontmatter, middleware, an action or an API route.
+</Callout>
+
+## Empty and unavailable states
+
+- `reviewsEnabled: false` — render no review UI and call no review endpoint.
+- `rows: []` — “No reviews yet”; the form may still be available.
+- `media: null` — text-only review form.
+- `maxPhotos: 0` — no photo picker.
+- `voiceMaxSeconds: null` — no voice recorder.
+- `reviewed: true` — show the product, disable the action.
+- `eligibility.success === false` — keep the form and show the server's reason.
+
+Do not turn a wrong order number into “no reviews”. It is a refusal of the
+proof, not an empty review list.

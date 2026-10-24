@@ -1,0 +1,217 @@
+---
+description: Créez le client de boutique, affichez un catalogue et une fiche produit, et gardez la clé API sur le serveur.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Démarrage rapide
+
+Cette page construit la plus petite couture complète de vitrine : un client
+réservé au serveur, une liste de produits et une fiche produit qui répond par un
+vrai 404. C'est du code Astro normal ; le SDK fournit les données de la boutique.
+
+## Ce qu'il vous faut
+
+- Un projet Astro 7 avec le rendu serveur activé.
+- L'origine API et la clé API d'une boutique.
+- `@wocart/storefront` et `zod` installés.
+
+```bash
+npm install @wocart/storefront zod
+```
+
+<Callout type="caution" title="Ne mettez pas la clé dans le navigateur">
+La clé API de la boutique est un secret serveur. Elle appartient à une variable
+d'environnement serveur et à `@wocart/storefront/server`. Elle ne doit jamais
+être une variable `PUBLIC_*`, une valeur rendue dans le HTML ou un argument
+passé à une fonction du navigateur.
+</Callout>
+
+## 1. Ajoutez les valeurs d'environnement
+
+Une vitrine a besoin de deux valeurs serveur :
+
+| Nom | Ce que c'est |
+| --- | --- |
+| `COD_SERVER_URL` | L'origine API de la boutique, par exemple `https://api.my-store.com` |
+| `STORE_API_KEY` | La clé API de la boutique |
+
+Avec le schéma d'environnement d'Astro, déclarez les deux comme valeurs serveur.
+La clé est un secret ; l'origine peut l'être aussi, puisque seul le code serveur
+en a besoin.
+
+```js
+// astro.config.mjs
+import { defineConfig, envField } from "astro/config";
+
+export default defineConfig({
+  env: {
+    schema: {
+      COD_SERVER_URL: envField.string({ context: "server", access: "secret" }),
+      STORE_API_KEY: envField.string({ context: "server", access: "secret" }),
+    },
+  },
+});
+```
+
+Le SDK ne lit lui-même aucune variable d'environnement. Vous lui passez les
+valeurs, ce qui permet de réutiliser le même client dans Astro, un Worker, un
+test ou un script.
+
+## 2. Créez un seul module serveur
+
+Gardez la création du client dans un seul fichier. Si l'origine ou la clé est
+fausse, c'est ce fichier qu'il faut inspecter ; aucune page ne doit construire
+son propre client.
+
+```ts
+// src/theme/store.ts
+import { createStoreClient } from "@wocart/storefront/server";
+import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
+
+export function getStore(locale?: string) {
+  return createStoreClient({
+    serverUrl: COD_SERVER_URL,
+    apiKey: STORE_API_KEY,
+    ...(locale ? { locale } : {}),
+    onError: (error) => {
+      console.warn(`[store] ${error.operation} failed: ${error.code}`);
+    },
+  });
+}
+```
+
+C'est la même forme que celle utilisée par Theme-00 dans `src/theme/sdk.ts`. Le
+client est créé à chaque appel, donc une requête ne peut pas retenir le travail
+en attente d'une autre. Un client sert une boutique et une langue ; ne le
+partagez pas entre plusieurs boutiques.
+
+L'option `locale` sert à lire les textes du marchand dans une autre langue
+publiée. Omissez-la pour la langue principale de la boutique. [Configuration et
+langues](/fr/sdk/storefront/config) explique le reste.
+
+## 3. Affichez une liste de produits
+
+Une lecture renvoie une valeur vide lorsqu'elle ne peut pas aboutir. Un
+catalogue vide est un état à concevoir, pas une exception à attraper.
+
+```astro
+---
+// src/pages/products/index.astro
+import { formatMoney } from "@wocart/storefront";
+import { getStore } from "../../theme/store";
+
+const store = getStore();
+const [config, products] = await Promise.all([
+  store.config.get(),
+  store.products.list({ limit: 12 }),
+]);
+---
+<html lang={config?.lang ?? "ar"}>
+  <body>
+    <h1>Products</h1>
+
+    {products.length === 0 ? (
+      <p>No products are available right now.</p>
+    ) : (
+      <ul>
+        {products.map((product) => (
+          <li>
+            <a href={`/products/${product.handle}`}>{product.name}</a>
+            <span>
+              {formatMoney(product.price, {
+                symbol: config?.currencySymbol ?? "دج",
+                locale: config?.locale ?? "ar-DZ",
+              })}
+            </span>
+          </li>
+        ))}
+      </ul>
+    )}
+  </body>
+</html>
+```
+
+`config.get()` et `products.list()` s'exécutent en parallèle car aucun n'a besoin
+du résultat de l'autre. Chaque appel fait sa propre requête ; un client
+n'attend jamais un appel identique déjà en cours. Partagez le résultat dans le
+rendu au lieu de demander deux fois.
+
+## 4. Affichez une fiche produit
+
+Utilisez le **handle** public du produit, jamais un identifiant interne. Un
+produit absent est un vrai 404, pas une page vide avec un code 200.
+
+```astro
+---
+// src/pages/products/[handle].astro
+import { formatMoney } from "@wocart/storefront";
+import { getStore } from "../../theme/store";
+
+const store = getStore();
+const [config, product] = await Promise.all([
+  store.config.get(),
+  store.products.get(Astro.params.handle!),
+]);
+
+if (!product) return Astro.rewrite("/404");
+---
+<article>
+  <h1>{product.name}</h1>
+  <p>
+    {formatMoney(product.price, {
+      symbol: product.currency,
+      locale: config?.locale ?? "ar-DZ",
+    })}
+  </p>
+  {product.description &&
+    (product.descriptionFormat === "html" ? (
+      <div set:html={product.description} />
+    ) : (
+      <p>{product.description}</p>
+    ))}
+</article>
+```
+
+Le fichier de route vous appartient. Le chemin appartient à la plateforme : un
+produit vit à `/products/:handle`. Construisez les liens avec `storefrontPath`
+plutôt qu'en écrivant la chaîne à la main.
+
+```ts
+import { storefrontPath } from "@wocart/storefront";
+
+storefrontPath("product", { handle: product.handle }); // /products/linen-shirt
+storefrontPath("checkout"); // /checkout
+```
+
+Un paramètre manquant lève une erreur. C'est volontaire : un lien vers nulle part
+doit échouer là où il est construit, pas s'afficher comme une URL cassée.
+
+## 5. Gardez le navigateur à distance
+
+Le navigateur n'importe jamais `@wocart/storefront/server`. Il importe la racine
+pour les types et les assistants, et appelle vos routes de même origine pour les
+données qui nécessitent la clé.
+
+```ts
+// Browser code: safe.
+import { createBasketStore, formatMoney } from "@wocart/storefront";
+
+// Server code only: never in a browser script.
+import { createStoreClient } from "@wocart/storefront/server";
+```
+
+Les routes proxy, l'action de commande et le middleware demandent une courte
+mise en place :
+
+- [Actions et routes Astro](/fr/sdk/storefront/astro) branche la frontière du navigateur.
+- [Panier et devis](/fr/sdk/storefront/basket) ajoute le panier.
+- [Commande et OTP](/fr/sdk/storefront/checkout) passe une commande.
+- [Configuration et langues](/fr/sdk/storefront/config) ajoute le routage par langue.
+
+<Callout type="info" title="Vous construisez un thème modifiable ?">
+Ajoutez [`@wocart/theme`](/fr/sdk/theme) à côté de ce SDK. Les données de la vitrine
+viennent toujours de ces espaces de noms ; le SDK Theme fournit les documents de
+page modifiés et le moteur de rendu. `pageData.get("home")` vous indique ce que la
+boutique a enregistré.
+</Callout>

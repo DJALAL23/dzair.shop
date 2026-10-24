@@ -1,0 +1,90 @@
+---
+description: Planned CLI, starter kit and AI skills for building CodFlow themes — what is coming and what to use today.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Tools and roadmap
+
+<Callout type="caution" title="The CLI and the starter kit are not available yet">
+The CLI and starter kit on this page are **planned**. They are listed so you can
+choose a path now, not because you should wait for them. The AI skill is real and
+in the repository; everything else described as available works today.
+</Callout>
+
+## What you can use today
+
+You do not need a special tool to build a CodFlow theme. The current path is:
+
+| Need | Use today |
+| --- | --- |
+| A working example to copy | The Theme-00 [reference implementation](/sdk/theme/reference-implementation) |
+| The full setup sequence | [Build a complete theme](/sdk/theme/tutorial) |
+| Safe changes to copy, images and layout | [Customize a theme](/sdk/theme/customize) |
+| Rules for an AI assistant | [Use AI to build a theme](/sdk/theme/agents) and the repository's `wocart-theme` skill |
+| A repeatable release check | [Testing a theme](/sdk/theme/testing) |
+| A pre-flight list | [Production and upgrades](/sdk/theme/production) |
+
+If you only need a custom design for one store and nobody will edit it from a
+dashboard, you can skip this tooling entirely. Build an Astro storefront with
+[`@wocart/storefront`](/sdk/storefront).
+
+## AI skills
+
+The repository ships an agent skill, `.agents/skills/wocart-theme/`. It is a set
+of procedures, not a library: an agent reads it before touching a theme.
+
+| Reference | What it makes an agent do |
+| --- | --- |
+| `SKILL.md` | The four workflows, the rules that never bend, and the commands every change must end with |
+| `references/sdk-discovery.md` | Inspect the installed version, read the declarations and tests, verify every API before using it |
+| `references/theme-architecture.md` | Split theme SDK from storefront SDK, read Theme-00 without copying it, build a new theme on supported contracts |
+| `references/theme-quality.md` | Prove types, schema, pages, Arabic/RTL, responsive, states, integration and build — no claim without a passing check |
+| `references/docs-maintenance.md` | A contract change triggers the English, French and Arabic pages, the examples and the skills |
+
+Point your assistant at the skill and at the manifest, and it stops guessing
+field names. The rules it enforces are the ones on
+[Use AI to build a theme](/sdk/theme/agents).
+
+## Coming soon
+
+### Theme CLI
+
+A command-line companion for the boring, repeatable parts:
+
+- create a theme from the starter kit;
+- validate the component catalog, manifest and shipped documents;
+- check that a theme is ready to share or publish;
+- run the same checks locally and in CI.
+
+The CLI will use the contract documented here. It will not invent a second way
+to define themes.
+
+### Starter kit
+
+A small, complete theme to start from instead of an empty folder. It is planned
+to include:
+
+- one page surface and one shared area;
+- one section with editable fields;
+- one slot with a child block;
+- a manifest endpoint;
+- the contract tests described in [Testing a theme](/sdk/theme/testing).
+
+The starter kit is meant to be read, run and then changed. It is not a finished
+storefront design.
+
+## Which path should you take?
+
+| Your goal | Start now | Wait for tooling? |
+| --- | --- | --- |
+| A fixed custom storefront for one shop | Astro + `@wocart/storefront` | No |
+| A theme a merchant can edit | [Build a complete theme](/sdk/theme/tutorial) | No; the starter kit will save setup time later |
+| A theme to share or sell | Build, then [Manifest](/sdk/theme/manifest) and [Testing](/sdk/theme/testing) | Not required, but the CLI will make releases easier |
+| Build with an AI assistant | [Use AI to build a theme](/sdk/theme/agents) plus the `wocart-theme` skill | No |
+
+## How this page will change
+
+When the CLI or the starter kit ships, its section here becomes install and
+usage instructions. Until then, treat those two as direction, not as an API
+promise — and the skill as a file you can read today.

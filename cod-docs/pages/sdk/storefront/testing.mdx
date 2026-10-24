@@ -1,0 +1,277 @@
+---
+description: Test a storefront against the SDK's failure contracts, fakes and a real store, and know when it is done.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Testing a storefront
+
+A storefront test has two jobs: prove the page renders when the server is
+healthy, and prove it still says something useful when the server is not.
+
+The SDK's read contract makes the second job testable: a failed read resolves to
+an empty value instead of throwing.
+
+## Test the contracts, not the markup
+
+Start with a fake server. Point the client at a test origin and replace
+`globalThis.fetch`:
+
+```ts
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createStoreClient } from "@wocart/storefront/server";
+
+function serve(body: unknown, status = 200) {
+  const fetch = vi.fn(async () => new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  }));
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
+const store = () => createStoreClient({
+  serverUrl: "https://api.test",
+  apiKey: "test-key",
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("catalogue degradation", () => {
+  it("lists nothing instead of throwing", async () => {
+    serve({ error: "down" }, 503);
+    await expect(store().products.list()).resolves.toEqual([]);
+  });
+
+  it("reports the failure once", async () => {
+    const onError = vi.fn();
+    serve({ error: "down" }, 503);
+    await createStoreClient({
+      serverUrl: "https://api.test",
+      apiKey: "test-key",
+      onError,
+    }).products.list();
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "products.list" }),
+    );
+  });
+});
+```
+
+The first test proves the page's empty state is reachable. The second proves the
+operator can see the degradation the shopper cannot.
+
+Do the same for the reads each page depends on:
+
+| Read | Failure value to assert |
+| --- | --- |
+| `config.get` | `null` |
+| `products.get` | `null` |
+| `products.page` | `{ items: [], hasNext: false }` |
+| `categories.list` | `[]` |
+| `collections.get` | `null` |
+| `menus.get` | `null` |
+| `pages.get` | `null` |
+| `shipping.rates` | `{}` |
+| `geo.communes` | `[]` |
+| `orders.tracking` | `null` |
+
+A page test then asserts the visible result: a 404 rewrite for a missing
+product, a retry for empty communes, a hidden review form, no conversion event.
+
+## Test the writes
+
+A write returns a result; it does not throw. Cover three branches:
+
+```ts
+it("keeps the form on a refusal", async () => {
+  serve({
+    error: "Out of stock",
+    domainError: {
+      category: "business",
+      code: "OUT_OF_STOCK",
+      message: "Out of stock",
+      retryable: false,
+      operation: "orders.create",
+      sideEffect: "rejected",
+    },
+  }, 422);
+
+  const result = await store().orders.create({
+    // the minimum valid order
+  } as never);
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.domainError.category).toBe("business");
+  }
+});
+```
+
+Also cover:
+
+- a validation failure with `fieldIssues`;
+- a coupon refusal (`couponRefusalOf(result)` is not null);
+- a transport failure (`fetch` rejects), where the result is still a
+  `ClientResult`, not an exception.
+
+The checkout UI test should assert that a failed submit keeps the shopper's
+input.
+
+## Test the browser helpers directly
+
+Pure helpers need no server:
+
+```ts
+import {
+  buildWhatsAppHref,
+  formatMoney,
+  resolvePrefillText,
+  servedLanguage,
+} from "@wocart/storefront";
+
+expect(formatMoney(5000, { symbol: "دج", locale: "ar-DZ" })).toContain("دج");
+
+expect(
+  resolvePrefillText({
+    template: "{product} — {url}",
+    storeName: "Shop",
+    productName: "Robe",
+    url: "https://shop.test/products/robe?utm_source=ads",
+  }),
+).toBe("Robe — https://shop.test/products/robe");
+
+expect(
+  servedLanguage(
+    {
+      lang: "ar",
+      locales: [
+        { code: "ar", nativeName: "العربية", direction: "rtl" },
+        { code: "fr", nativeName: "Français", direction: "ltr" },
+      ],
+    },
+    "fr",
+  )?.direction,
+).toBe("ltr");
+```
+
+Test the fallback paths too: no product, no order, an overlong prefill, an
+unknown locale, an image with no media domain.
+
+`createBasketStore` accepts a memory adapter, so it tests without a browser:
+
+```ts
+import {
+  createBasketStore,
+  createMemoryStorageAdapter,
+} from "@wocart/storefront";
+
+const basket = createBasketStore({
+  storage: createMemoryStorageAdapter(),
+});
+
+basket.addLine(line);
+basket.addLine({ ...line, quantity: 2 });
+expect(basket.getLines()).toHaveLength(1);
+expect(basket.getCount()).toBe(3);
+```
+
+## Test the routes
+
+The route factory is easiest to test as an HTTP boundary: call the exported
+handler with an `APIContext` and a fake client, then assert the status and
+body.
+
+At minimum, assert:
+
+- a cross-origin POST is 403;
+- a bad body is 400;
+- a review upload without `X-Review-Grant` is refused;
+- a server business refusal maps to 422;
+- a rate limit maps to 429;
+- a failed read route keeps its envelope shape.
+
+The route's status mapping is part of the public contract. It should not change
+between a test and production.
+
+## Build-time checks
+
+Run these in the theme before shipping:
+
+```sh
+npm run typecheck
+npm run test
+npm run build
+```
+
+And in the theme's own setup, `astro check` if the project uses it.
+
+A build catches the failures unit tests cannot:
+
+- a server-only import in a browser island;
+- a missing Astro action or API route export;
+- a page that is prerendered while reading request data;
+- a broken environment schema.
+
+<Callout type="caution" title="A build can succeed with an empty store">
+A missing `STORE_API_KEY` makes the client throw at construction; an unreachable
+server makes reads empty. Neither fails a static build. Run at least one build
+or preview against a real store before calling the theme done.
+</Callout>
+
+## A live smoke test
+
+Use a staging store, not production, for:
+
+1. Home, catalogue, category, collection and a product page.
+2. A product with variants: pick each option, confirm the price changes.
+3. Add to basket, change quantity, remove a line.
+4. Quote with a wilaya, then change the wilaya and confirm the fee changes.
+5. Apply a valid and an invalid coupon.
+6. Submit a product order and a basket order.
+7. A landing page with a linked product.
+8. A store page and a menu.
+9. A review: wrong order number, correct order, a photo, a voice note.
+10. Checkout with OTP on and off.
+11. Thank-you: the order appears; the pixel fires once with `eventID = orderId`.
+
+Do not run this suite in CI against a shared store; it writes orders.
+
+## Definition of done
+
+A storefront using the SDK is ready when:
+
+- every page renders its empty and error state without an exception;
+- every internal link goes through `localizeHref`;
+- the primary language has no prefix and other languages do;
+- no store key or Zod schema is in the browser bundle;
+- all writes go through the Astro routes or actions;
+- an order is repriced by the server, not by the browser;
+- the basket is capped and the quote is authoritative;
+- the thank-you page fires no event when `orders.tracking` returns `null`;
+- preview is excluded from caching and revalidation drops the page tag;
+- `npm run typecheck`, `npm run test` and `npm run build` pass.
+
+## Compatibility
+
+The SDK follows semantic versioning:
+
+- a patch fixes behaviour without changing the API;
+- a minor adds backwards-compatible features;
+- a major may remove or change exports.
+
+Pin the exact version in the theme. Read `CHANGELOG.md` before upgrading; a
+newer theme may assume a new SDK export while an older storefront build is
+still running.
+
+The theme key is part of the contract. `defineTheme({ key })` and the client's
+`theme` option must agree; changing the key orphans the merchant's text edits
+and page documents for that theme.
+
+<Callout type="info" title="Deep imports are not public">
+Import only from `@wocart/storefront`, `/server`, `/astro` and `/review-media`.
+A deep path into `dist/` or `src/` may move in any release. If the public
+surface is missing something a storefront needs, that is an SDK change, not a
+deep import.
+</Callout>

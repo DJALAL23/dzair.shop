@@ -1,0 +1,133 @@
+---
+description: Connect AI clients to CodFlow through the OAuth-secured MCP server.
+---
+
+# MCP server
+
+CodFlow exposes a remote [Model Context Protocol](https://modelcontextprotocol.io/) server named **CodFlow CRM**. AI clients can list a store's orders, customers, products and shipments, and run write actions with the same permissions as the signed-in dashboard user.
+
+The server is reachable at:
+
+| Environment | URL |
+| --- | --- |
+| Production | `https://api.codflow.store/mcp` |
+| Local | `http://localhost:8787/mcp` |
+
+The endpoint is protected by OAuth. A client cannot call a tool without a valid access token, and the token carries the user's CodFlow scopes.
+
+## How authorization works
+
+The MCP server uses the OAuth 2.1 protected-resource model:
+
+- The server publishes protected-resource and authorization-server metadata at the standard OAuth well-known locations.
+- Clients discover both documents automatically from the MCP endpoint.
+- The server supports dynamic client registration at `/oauth/register` and Client ID Metadata Documents.
+- The authorization endpoint is `/authorize`; tokens are issued at `/oauth/token`.
+- Access tokens last **1 hour**; refresh tokens last **30 days**.
+
+When a client connects, it opens the CodFlow consent screen. Sign in with the dashboard account whose data and permissions the agent should use. The screen shows the requested scopes, and the server only grants scopes the user actually holds. An administrator can grant any requested scope.
+
+:::note
+The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing, make sure that value matches the origin your client uses (`http://localhost:8787`).
+:::
+
+## Connect a client
+
+<Stepper>
+
+1. **Open your client's MCP or connector settings**
+
+   Add a remote MCP server. Use the production URL, or the local URL while developing.
+
+1. **Start the connection**
+
+   The client discovers the OAuth metadata and opens the CodFlow sign-in and consent screen.
+
+1. **Approve the scopes**
+
+   Sign in with the account the agent should act as. Review the scopes. The server will not grant more than the account already has.
+
+1. **List the tools**
+
+   After the callback completes, ask the client to list the CodFlow tools. Only tools allowed by the token's scopes are registered, so the model never sees a tool it cannot call.
+
+</Stepper>
+
+## Client configuration
+
+<CodeTabs>
+
+```json title="Cursor"
+{
+  "mcpServers": {
+    "codflow": {
+      "url": "https://api.codflow.store/mcp"
+    }
+  }
+}
+```
+
+```json title="VS Code"
+{
+  "servers": {
+    "codflow": {
+      "type": "http",
+      "url": "https://api.codflow.store/mcp"
+    }
+  }
+}
+```
+
+```json title="Generic"
+{
+  "mcpServers": {
+    "codflow": {
+      "type": "http",
+      "url": "https://api.codflow.store/mcp"
+    }
+  }
+}
+```
+
+</CodeTabs>
+
+Use the same shape with `http://localhost:8787/mcp` for a local server. The exact settings path differs by client; the URL and the OAuth flow are the same.
+
+## Tools
+
+Tools are grouped by domain and gated by the same scopes as the REST API. A few examples:
+
+| Domain | Example tools |
+| --- | --- |
+| Customers | `listCustomers`, `getCustomerDetails`, `findCustomerByPhone`, `getCustomerOrderHistory` |
+| Products | `listProducts`, `getProductDetails`, `createNewProduct`, `updateProductDetails` |
+| Orders | `listOrders`, `getOrderDetails`, `createOrder`, `updateOrderStatus` |
+| Shipments | `getShipment`, `handOffOrderToCarrier`, `reportShipmentEvent` |
+| Delivery | Drivers, driver payments, delivery companies and shipping profiles |
+| Catalog | Variants, product groups, stock, offers and coupons |
+| Storefront | Landing pages, reviews, customer groups and customer tags |
+| Reference | Wilayas and communes |
+
+Every tool has a typed input schema and, where it returns structured data, an output schema. The client receives human-readable titles and safety annotations alongside the tool definition.
+
+## Permissions and safety
+
+- **Registration-time gating.** A tool is registered only when the token has the required scope. A model cannot discover or call a tool outside the user's permissions.
+- **Admin bypass.** An admin's token can grant every scope; a staff token can grant only the scopes the staff user holds.
+- **Destructive annotations.** Deletes, stock adjustments, order status changes, settlements and carrier hand-offs are marked with `destructiveHint: true`. MCP clients that support confirmation should ask before running them; review your client's confirmation settings.
+- **Audit trail.** Tool calls made through MCP are recorded in the activity log against the signed-in user.
+- **Rate limiting.** Tool calls are rate-limited per user or client subject.
+- **Revocation.** Revoke a connection from **MCP** in the dashboard. The underlying management API is under `/api/mcp`:
+  - `GET /api/mcp/me` — your connections
+  - `DELETE /api/mcp/connections/{clientId}` — revoke your connection
+  - `GET /api/mcp/team` — team connections (admin)
+  - `DELETE /api/mcp/connections/{clientId}/users/{userId}` — revoke a user's connection (admin)
+
+## Troubleshooting
+
+- **No tools appear.** The token may have no scopes, or the user's role may not include any tool domains. Reconnect and approve at least one scope.
+- **401 with a `WWW-Authenticate` challenge.** The client has no valid token. Let it restart the OAuth flow; do not paste a dashboard API key into the MCP URL.
+- **403 on a tool call.** The token's scopes do not cover that tool, or the account became inactive. Check the user in the dashboard.
+- **Local client cannot complete OAuth.** Confirm `WORKER_SELF_URL` matches the URL you configured, and that the client can reach `http://localhost:8787`.
+
+The MCP server is separate from the REST API. It does not appear as operations in the [API reference](/api); use this guide for its endpoint and OAuth behavior.

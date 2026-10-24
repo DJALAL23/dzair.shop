@@ -1,0 +1,277 @@
+---
+description: Format prices, serve resized product images, build WhatsApp prefills, and send the Meta browser events.
+---
+
+# Money, images, WhatsApp and Meta events
+
+These helpers are for presentation. They do not change what a shopper is
+charged, which image the merchant chose, or which conversion the server
+records.
+
+## Money
+
+`formatMoney(amount, { symbol, locale, decimals })` is the one formatter:
+
+```ts
+import { formatMoney } from "@wocart/storefront";
+
+formatMoney(product.price, {
+  symbol: config.currencySymbol,
+  locale: config.locale,
+});
+```
+
+It formats the number for the locale, then places the symbol:
+
+| Locale | Result |
+| --- | --- |
+| `ar-DZ` | `5.000 دج` (suffix, Western digits) |
+| `fr-FR` | `DA 5 000` (prefix, narrow no-break space) |
+| `en-US` | `DA 5,000` |
+
+The default is zero decimals; DZD prices are integers. Pass `decimals: 2` only
+when the store actually uses fractional amounts.
+
+Always pass `config.locale` and `config.currencySymbol`, not a hardcoded
+`"DZD"` and not the primary language. A French shopper on an Arabic store
+should read French formatting.
+
+`amount` is in the store's whole currency unit. Do not divide by 100.
+
+## Images
+
+### The product's representative image
+
+`productImageSource(product)` picks the merchant's cover, or the first usable
+gallery image, or `null`:
+
+```ts
+import { productImageSource } from "@wocart/storefront";
+
+const src = productImageSource(product);
+```
+
+`coverImage` is frequently null even when a product has photos. Reading it
+directly leaves empty squares in cards and baskets.
+
+### Resize on the media domain
+
+Cloudflare Image Resizing runs on the media domain; the URL keeps that host:
+
+```ts
+import { getCardImage, getGalleryImage } from "@wocart/storefront";
+
+const card = src ? getCardImage(src, mediaDomain) : null;
+const full = src ? getGalleryImage(src, mediaDomain) : null;
+```
+
+The helpers return the original URL when they cannot build a resize URL — no
+media domain, or an image hosted elsewhere. That fallback is why a store with
+no media domain still renders.
+
+The presets are:
+
+| Helper | Size | Use |
+| --- | --- | --- |
+| `getCardImage` | 400×400 | Grid cards |
+| `getGalleryImage` | 800×800 | Product gallery |
+| `getThumbnailImage` | 80×80 | Gallery thumbnails |
+| `getHeroImage` | 1200×600 | Hero banners |
+| `getCategoryImage` | 300×200 | Category tiles |
+| `getLogoImage` | 200×80 | Header logo, contained |
+
+`IMAGE_SIZES` exposes the raw presets.
+
+### Bind the domain once
+
+```ts
+import { createImageHelpers } from "@wocart/storefront";
+
+const images = createImageHelpers(mediaDomain);
+
+images.getCardImage(src);
+images.getGalleryImage(src);
+images.generateSrcSet(src, 400, 400);
+```
+
+`createImageHelpers` is the recommended form in a theme: every call carries the
+configured domain, so no call site silently ships an unoptimized image.
+
+### Responsive images
+
+```ts
+const srcset = images.generateSrcSet(src, 400, 400);
+// "… 1x, … 1.5x, … 2x"
+```
+
+Pass the same width and height the layout uses and set them on the `<img>`.
+Reserving the box prevents layout shift:
+
+```astro
+<img
+  src={images.getCardImage(src)}
+  srcset={images.generateSrcSet(src, 400, 400)}
+  width="400"
+  height="400"
+  alt={product.name}
+  loading="lazy"
+/>
+```
+
+A gallery's first image may use `loading="eager"` and a higher priority; the
+thumbnails stay lazy.
+
+### Image keys
+
+A theme setting may store an object key such as `products/3f2a9c.webp`. Turn it
+into a public URL with `mediaUrl(key, mediaDomain)`, then resize it:
+
+```ts
+import { mediaUrl, mediaImageUrl } from "@wocart/storefront";
+
+const url = mediaUrl("products/3f2a9c.webp", mediaDomain);
+const resized = url ? mediaImageUrl(url, { width: 1200, quality: 85 }, mediaDomain) : null;
+```
+
+`mediaUrl` rejects empty keys, empty/`.`/`..` segments, whitespace, control
+characters, backslashes, `?`, `#` and overlong keys. Do not concatenate a
+domain and a key by hand.
+
+`mediaImageUrl` only rewrites URLs on the media origin; anything else comes back
+as `null`, and `optimizeImage` returns the original.
+
+## WhatsApp
+
+`config.whatsapp` is the resolved widget configuration, or `null`. Its `href`
+is the merchant's WhatsApp link; do not build a `wa.me` URL yourself.
+
+### Whether to render
+
+```ts
+import { showsWidgetOn } from "@wocart/storefront";
+
+if (
+  config.whatsapp &&
+  showsWidgetOn(config.whatsapp.surfaces, Astro.url.pathname)
+) {
+  renderWhatsAppLauncher(config.whatsapp);
+}
+```
+
+The surfaces are `home`, `catalog`, `product`, `pages`, `thankYou`, `checkout`
+and `landing`. `showsWidgetOn` uses the path matcher, so a product URL resolves
+to `product` even with a language prefix.
+
+A `null` widget means disabled. Do not render a fallback launcher.
+
+### Resolve the prefill
+
+The merchant's template carries `{store}`, `{product}`, `{url}` and `{order}`:
+
+```ts
+import { buildWhatsAppHref, resolvePrefillText } from "@wocart/storefront";
+
+const template =
+  pageType === "product"
+    ? config.whatsapp.prefillProduct
+    : config.whatsapp.prefillGeneral;
+
+const text = resolvePrefillText({
+  template: template ?? "",
+  storeName: config.name,
+  productName: product?.name,
+  url: Astro.url.href,
+  orderNumber: pageType === "thankYou" ? orderNumber : undefined,
+});
+
+const href = buildWhatsAppHref(config.whatsapp.href, text);
+```
+
+Rules the helper owns:
+
+- `{product}` falls back to the store name when there is no product.
+- `{order}` resolves to nothing when there is no order.
+- `{url}` is stripped of `utm_*`, `*clid` and `fbclid` parameters. A shopper
+  arriving from an ad does not hand the merchant a tracking-laden link.
+- The result is capped at `MAX_RESOLVED_PREFILL_LENGTH` (900 characters) at a
+  word boundary.
+- An unknown placeholder is left as written; the dashboard's counter is where a
+  merchant typo is caught.
+
+`buildWhatsAppHref` appends `text=` with `&` when the base href already has a
+query, so a merchant link with a prefilled number or source keeps it.
+
+On the thank-you surface use `prefillThankYou` and pass the order number:
+
+```ts
+const text = resolvePrefillText({
+  template: config.whatsapp.prefillThankYou ?? "",
+  storeName: config.name,
+  url: Astro.url.href,
+  orderNumber,
+});
+```
+
+The launcher's position, accent, caption and attention state are already
+resolved on the widget object. Use them; do not invent defaults that differ from
+the dashboard's.
+
+## Meta browser events
+
+The SDK builds Meta payloads and wraps the pixel function:
+
+```ts
+import {
+  buildMetaAddToCartPayload,
+  buildMetaViewContentPayload,
+  createMetaPixelTracker,
+} from "@wocart/storefront";
+
+const pixel = createMetaPixelTracker({
+  getPixel: () =>
+    typeof window.fbq === "function" ? (window.fbq as never) : null,
+});
+
+pixel.track(
+  "ViewContent",
+  buildMetaViewContentPayload(product.id, view.basePrice),
+);
+
+const addToCart = buildMetaAddToCartPayload(basket.getLines());
+if (addToCart) pixel.track("AddToCart", addToCart);
+```
+
+A product payload carries `content_ids`, `content_type: "product"`, `value` and
+`currency: "DZD"`. A cart payload adds `contents` and `num_items`.
+
+The helpers are pure and return `null` for an empty basket:
+
+```ts
+const payload = buildMetaAddToCartPayload(basket.getLines());
+if (payload) pixel.track("AddToCart", payload);
+```
+
+`buildMetaInitiateCheckoutPayload(lines, value)` is the same shape with the
+checkout value.
+
+Use `trackSingle(pixelId, event, params, { eventID })` when the sale belongs to
+one pixel. The **Purchase** event is different: its pixel and event are the
+server's decision. Read them from `orders.tracking` and send nothing when it
+returns `null` — see [Checkout and OTP](/sdk/storefront/checkout).
+
+<Callout type="caution" title="A browser event is not the conversion">
+The browser event and the server's Conversions API event are two halves of one
+conversion. They must carry the same `eventID` and go to the same pixel. Do not
+invent a pixel, an event name or an event ID on the thank-you page.
+</Callout>
+
+## A presentation checklist
+
+- Prices use `config.locale` and `config.currencySymbol`.
+- Product images come from `productImageSource`, not `coverImage` alone.
+- Resize helpers are bound to the media domain once.
+- `<img>` carries width, height and `alt`.
+- The WhatsApp widget renders only when `config.whatsapp` exists and the
+  surface is enabled.
+- The prefill goes through `resolvePrefillText` and `buildWhatsAppHref`.
+- Meta payloads come from the builders; Purchase comes from `orders.tracking`.

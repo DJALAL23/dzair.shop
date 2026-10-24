@@ -1,0 +1,122 @@
+---
+description: Build a CodFlow storefront with typed catalog reads, a browser-safe basket, checkout and Astro routes.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Storefront SDK
+
+`@wocart/storefront` is the storefront's connection to CodFlow. It reads the
+store's catalog, delivery data and saved content, and it sends baskets,
+reviews, OTP codes and orders through the server that owns the rules.
+
+Your Astro pages decide how the store looks. The SDK decides what is safe to
+read and send. Prices, stock, delivery fees, discounts and whether an order is
+accepted stay on the server.
+
+<Callout type="info" title="A fixed storefront is a real choice">
+You do not need CodFlow's editing tools to build a storefront. An Astro site
+with this SDK and your own components is complete. The optional
+[Theme SDK](/sdk/theme) adds merchant editing, saved page documents and
+preview.
+</Callout>
+
+## Who this is for
+
+| If you are… | Start with |
+| --- | --- |
+| New to CodFlow, a vibe coder, or building with AI | [Quick start](/sdk/storefront/quickstart) |
+| Building a custom Astro storefront for one store | [Quick start](/sdk/storefront/quickstart), then [Astro actions and routes](/sdk/storefront/astro) |
+| Making an editable theme | [Theme SDK](/sdk/theme), then this SDK for the commerce data |
+| An AI assistant working on a storefront | [Use AI to build a storefront](/sdk/storefront/agents) |
+| Looking for one method or type | The [API reference](/sdk/storefront/reference/README) |
+
+The guide begins with one working page and adds one area at a time. You can
+stop when your storefront does what you need.
+
+## What the SDK gives you
+
+- **Typed reads.** Products, categories, pages, menus, rates and config arrive
+  as the shapes the server validated.
+- **Predictable failures.** Reads resolve to `null`, `[]` or `{}` and report
+  the cause through `onError`. Writes return a result you can branch on.
+- **A browser-safe root.** The root entry has no client factory and no API key.
+  Browser code imports it freely; the key stays on the server.
+- **Astro adapters.** Same-origin routes, the place-order form engine and the
+  middleware that renders a refused form are ready to wire.
+- **Browser helpers.** The basket store, OTP state machine, image URLs, money
+  formatting and WhatsApp prefill are part of the package.
+
+## What you install
+
+```bash
+npm install @wocart/storefront zod
+```
+
+`zod` 4.x is a peer dependency. The package is ESM-only and its tooling needs
+Node 22.12 or newer. Astro 7 is verified, but the core has no Astro import; the
+adapters under `@wocart/storefront/astro` are structural.
+
+## Three imports, one boundary
+
+| Import | Runs in | What it holds |
+| --- | --- | --- |
+| `@wocart/storefront` | Browser and server | Types, money and image helpers, reference data, basket, OTP machine, route paths, Meta payloads |
+| `@wocart/storefront/server` | Server only | `createStoreClient`, preview and revalidation checks |
+| `@wocart/storefront/astro` | Server only | `createStorefrontRoutes`, `createProxyEndpoint`, `placeOrderInput`, `executePlaceOrder`, `runFormAction` |
+| `@wocart/storefront/review-media` | Browser only | Photo resizing and voice recording for a review form |
+
+<Callout type="caution" title="The store key has one home">
+`@wocart/storefront/server` holds the store API key. Never import it from a
+browser script, island or public variable. Browser code calls your own
+same-origin routes, and those routes call the SDK on the server.
+</Callout>
+
+## What the client covers
+
+| Namespace | Use it for |
+| --- | --- |
+| `config` | Store identity, languages, checkout policy and feature flags |
+| `products` | Product lists, product detail and reviews |
+| `collections` | A merchant's curated product lists and collection pages |
+| `categories` | Catalog navigation |
+| `pages` | Legal and CMS pages, landing pages |
+| `menus` | The store's navigation menus |
+| `pageData` | The saved page document for an editable theme |
+| `shipping` | Default delivery prices per wilaya |
+| `geo` | Wilayas and communes |
+| `cart` | Server re-pricing, coupons and delivery quotes |
+| `orders` | Order creation, OTP, abandoned checkout and tracking |
+
+## What it does not do
+
+The SDK does not render pages, store the browser's basket on the server,
+upload images to R2, write page documents, or decide a theme's layout, copy and
+motion. It also does not make a stale browser price trustworthy.
+
+Commerce rules live in the server. If a feature needs a new rule, change the
+server contract first, then use it here.
+
+## Guide map
+
+| Page | What it covers |
+| --- | --- |
+| [Quick start](/sdk/storefront/quickstart) | Install, create the client, render a catalog and a product page |
+| [How it works](/sdk/storefront/how-it-works) | Layers, page types, results, caching and the security boundary |
+| [Use AI to build a storefront](/sdk/storefront/agents) | A safe workflow and the rules an assistant must not break |
+| [Store config and languages](/sdk/storefront/config) | Store settings, checkout policy, localization and theme text |
+| [Products and collections](/sdk/storefront/catalog) | Lists, detail, variants, offers, quantity pricing and categories |
+| [Reviews](/sdk/storefront/reviews) | Read reviews, prove a purchase, upload media and submit |
+| [Pages and menus](/sdk/storefront/content) | Legal pages, navigation, landing pages and saved page documents |
+| [Basket and quotes](/sdk/storefront/basket) | The browser basket, server validation, coupons and free delivery |
+| [Checkout and OTP](/sdk/storefront/checkout) | Place an order, verify a phone, track conversions and abandonment |
+| [Delivery and geography](/sdk/storefront/delivery) | Default rates, real quotes, wilayas and communes |
+| [Money, images, WhatsApp and Meta events](/sdk/storefront/presentation) | Display helpers and browser events that stay consistent |
+| [Astro actions and routes](/sdk/storefront/astro) | Form actions, middleware and the same-origin API |
+| [Preview and revalidation](/sdk/storefront/preview) | Draft previews and instant publish for editable themes |
+| [Testing a storefront](/sdk/storefront/testing) | What to test, the definition of done and common mistakes |
+| [Public API surface](/sdk/storefront/api) | Every export per entry point, the client namespaces and the schemas |
+
+The [API reference](/sdk/storefront/reference/README) is generated from the
+published TypeScript declarations. This guide follows `@wocart/storefront`
+1.19.0.

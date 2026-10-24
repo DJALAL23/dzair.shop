@@ -1,0 +1,204 @@
+---
+description: Slots, blocks, fixed and required blocks, presets and the limits that keep a @wocart/theme page composed.
+---
+
+# Composition
+
+Think of a page as a tree. The page holds **sections**; a section can hold
+smaller **blocks**, and a block can hold blocks too. A named space where a
+component accepts children is a **slot**.
+
+Some blocks must always be present: a product page cannot lose its buy button,
+for example. The SDK enforces these rules when a document is edited, so the
+renderer can trust the document it receives.
+
+You can skip this page if your theme has no editable sections or nested blocks.
+If you are new, start with sections and add slots only when a section really
+needs child blocks.
+
+## Sections and blocks
+
+| Placement | Where it can go |
+| --- | --- |
+| `"section"` | The top level of a surface or area |
+| `"block"` | Only inside a slot |
+| `"both"` | Anywhere |
+| absent | Anywhere |
+
+The document operations enforce placement. The renderer never rejects a saved
+section for being in the “wrong” place; it renders it, and `validatePageData`
+reports the issue.
+
+## Declare a slot
+
+A slot is a named place a component lets children go.
+
+```ts
+const productMain = defineComponent({
+  // …
+  slots: [
+    {
+      name: "info",
+      allow: [
+        "product-title",
+        "product-rating",
+        "product-price",
+        "product-order",
+      ],
+      max: 16,
+      required: [{ type: "product-order", max: 1 }],
+    },
+  ],
+});
+```
+
+| Rule | Effect |
+| --- | --- |
+| `name` | `"default"` or a lowercase kebab-case name |
+| `multiple: false` | Keep the first child, report the rest |
+| `allow` | Only these component types; omitted means any |
+| `max` | At most this many instances (up to 50) |
+| `required` | These types must be present; each has its own `min` / `max` |
+
+`allow` is applied before `multiple: false`, so a disallowed child never
+displaces an allowed one. Narrowing `allow` later is a breaking change for
+saved pages: children that no longer fit are dropped with `disallowed-child`.
+
+A child in an undeclared slot is dropped with `unknown-slot`. A component with
+no `default` slot drops children pushed as default with `undeclared-children`.
+
+## Render the blocks
+
+The renderer gives every component a `blocks` prop. A component places each
+slot where the design wants it, and each fixed block where it belongs.
+
+```astro
+---
+import Blocks from "@wocart/theme/astro/Blocks.astro";
+import Block from "@wocart/theme/astro/Block.astro";
+import { hasBlocks, type BlocksHandle } from "@wocart/theme/astro";
+
+const { blocks } = Astro.props as { blocks: BlocksHandle };
+---
+<section>
+  {hasBlocks(blocks, "info") && (
+    <div class="info"><Blocks of={blocks} slot="info" /></div>
+  )}
+  <Block of={blocks} name="gallery" />
+</section>
+```
+
+`<Blocks>` renders a slot's children through `InstanceView`, so `load`, issues,
+hidden blocks and preview markers work at every depth. `<slot />` still works
+for default children; a component can use either mechanism.
+
+`blocks` is reserved. No field may use that key.
+
+`hasBlocks(blocks, slot)` is true when the slot has at least one visible block,
+so a component can skip an empty wrapper. `isPreview(blocks)` is true in a
+CodFlow Studio preview, where a section with nothing to show yet may draw a
+placeholder. A shopper never sees that placeholder.
+
+## Fixed blocks
+
+A fixed block is placed by the component's own code. An editor can change its
+fields and fill its slots, but cannot remove, move, duplicate or hide it.
+
+```ts
+const productMain = defineComponent({
+  // …
+  fixed: [{ name: "gallery", type: "product-gallery", label: "Gallery" }],
+});
+```
+
+```astro
+<Block of={blocks} name="gallery" />
+```
+
+The block renders even when the document does not store it, using its defaults.
+Its id is derived from the owner and name (`fixedBlockId`). Stored values for a
+fixed block that the definition no longer declares are removed with
+`unknown-fixed`; a wrong type is replaced with a default and reported
+`fixed-type-mismatch`.
+
+## Required blocks
+
+A required block may move, but it cannot disappear. A slot or surface lists
+them:
+
+```ts
+slots: [
+  {
+    name: "info",
+    allow: ["product-order", "product-countdown"],
+    required: [{ type: "product-order", max: 1 }],
+  },
+]
+```
+
+The operations refuse to remove, hide or move out the last `min` of a required
+type, or to insert past its `max`. A document that lacks one — an old document,
+or one saved before a theme update — renders it anyway, added at the end of its
+slot, and the reader reports `missing-required-block`.
+
+A **product surface must guarantee an order form**. Give the order form's
+component `role: "order-form"` and require it through a section, fixed block or
+slot. Assembly refuses a product surface that does not
+(`order-form-not-guaranteed`).
+
+```ts
+const productOrder = defineComponent({
+  type: "product-order",
+  role: "order-form",
+  // …
+});
+```
+
+The order form's fields are not the theme's: the store's checkout form is set
+in the merchant dashboard and enforced by the server. The theme supplies its
+markup and style.
+
+## Presets
+
+A preset is a ready-made configuration offered on insertion: props over the
+field defaults, plus children for slots.
+
+```ts
+presets: [
+  {
+    key: "with-grid",
+    label: "Hero with products",
+    props: { layout: "columns" },
+    slots: { aside: [{ type: "product-grid", props: { limit: 2 } }] },
+  },
+]
+```
+
+Presets are validated at assembly by building them.
+`instantiatePreset(theme, type, key, newId)` creates the instances, each with
+an id from `newId`.
+
+## Limits
+
+| Limit | Value |
+| --- | --- |
+| Instances per slot | 50 (`THEME_LIMITS.slotInstances`) |
+| Sections per surface or area | 50 (`THEME_LIMITS.sections`) |
+| Instances per document | 1,000 (`THEME_LIMITS.documentInstances`) |
+| Nesting below a section | 6 (`THEME_LIMITS.depth`) |
+
+A slot or surface `max` can set a lower number. The reader renders up to the
+limit and reports `limit-exceeded`; the operations refuse to go past it.
+Assembly refuses a fixed or required block that contains itself or nests deeper
+than the limit.
+
+## Hidden instances
+
+```json
+{ "id": "faq-1", "type": "faq", "hidden": true }
+```
+
+The renderer skips the instance, its `load` and its children. The reader still
+checks it, so a hidden section cannot hide a contract error. A hidden required
+or fixed block is shown again by `completePage`; those are guarantees, not
+preferences.

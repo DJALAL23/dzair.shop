@@ -1,0 +1,172 @@
+---
+description: Un workflow sûr pour modifier les textes, les images, les styles, les réglages et l'ordre des sections dans un thème @wocart/theme.
+---
+
+# Personnaliser un thème
+
+Utilisez cette page lorsque le thème possède déjà une structure modifiable et que
+vous voulez changer ce qu'un marchand voit. Vous n'avez pas besoin de comprendre
+chaque type du SDK. La plupart des modifications sont des valeurs dans une
+**définition** (le code qui déclare ce qui peut changer) ou un **document de
+page** (le JSON enregistré pour une page).
+
+Si le thème est un design Astro figé sans champs modifiables, il n'y a encore
+rien à personnaliser depuis les données enregistrées. Commencez par
+[Construire un thème](/fr/sdk/theme/build).
+
+## Où se trouve quoi
+
+| Vous voulez changer… | Où cela vit | Modification sûre |
+| --- | --- | --- |
+| Les textes, le texte alternatif, les libellés de boutons | Une valeur de champ dans le document de page | Modifiez les `props` enregistrées |
+| Une photo ou un logo | Un champ `image` | Enregistrez une **clé** de média, jamais une URL |
+| Des produits ou une collection | `productList`, `collectionList`, `collection` ou `product` | Modifiez les handles |
+| L'espacement, la largeur, l'alignement | Un champ `style` | Utilisez les étapes et les choix du thème |
+| Les couleurs des sections | Un champ `colorScheme` | Utilisez l'un des identifiants de jeu de couleurs de la boutique |
+| L'ordre ou la visibilité des sections | Le document de page | Déplacez l'instance ou définissez `hidden: true` |
+| Les polices, les coins, la forme des cartes | Les réglages du thème | Modifiez la valeur du réglage |
+| Une nouvelle option modifiable | Une définition de composant | Ajoutez un champ, puis validez |
+| Un nouveau type de section | Le code | Définissez un composant et ajoutez-le au catalogue |
+
+Le **manifeste** est le menu des parties modifiables du thème. Si un champ n'est
+pas dans le manifeste, il n'est pas modifiable ; modifiez plutôt le code du
+thème.
+
+## La boucle sûre
+
+1. **Trouvez la surface.** S'agit-il de la page d'accueil, d'un gabarit de
+   produit, d'une catégorie, d'une collection, d'une page d'atterrissage, d'une
+   page de texte, de l'en-tête ou du pied de page ? La clé de surface se trouve
+   dans le document de page et dans le manifeste.
+2. **Trouvez l'instance.** Chaque section et chaque bloc a un `id` et un `type`.
+   Lisez sa définition ou l'entrée du manifeste pour ce type.
+3. **Modifiez une prop déclarée.** Utilisez une valeur acceptée par le champ.
+   N'inventez pas de clé ; une clé non déclarée est ignorée avec `unknown-prop`.
+4. **Validez.** `validatePageData(theme, document)` vérifie tout le document par
+   rapport au catalogue. `checkPageData(theme, document)` est la vérification
+   stricte côté écriture avant l'enregistrement.
+5. **Regardez le résultat.** Rendez la page normalement, ou ouvrez la route
+   d'aperçu dans CodFlow Studio pour voir un brouillon non enregistré.
+
+## Modifier les textes
+
+```json
+{
+  "id": "hero-1",
+  "type": "hero",
+  "props": {
+    "title": "Livraison partout en Algérie",
+    "subtitle": "Payez à la réception."
+  }
+}
+```
+
+Une valeur traduite peut aussi être une table de correspondance :
+
+```json
+{
+  "title": {
+    "ar": "توصيل إلى كل الولايات",
+    "fr": "Livraison dans toutes les wilayas"
+  }
+}
+```
+
+Une chaîne simple signifie « la même chose dans toutes les langues ». N'utilisez
+pas la table d'une langue comme valeur par défaut pour une autre ; la résolution
+essaie la langue actuelle, la chaîne de repli de la boutique, le pack de contenu,
+puis la valeur par défaut du champ.
+
+## Masquer une section
+
+```json
+{ "id": "faq-1", "type": "faq", "hidden": true }
+```
+
+Les sections masquées restent dans le document mais ne rendent rien — pas de
+`load`, pas d'enfants. Un bloc **requis** est différent : la complétion le
+ramène, car la page ne peut pas être rendue sans lui.
+
+## Déplacer une section
+
+Ne renumérotez pas les identifiants. Utilisez une opération de document ; elle
+applique les mêmes règles de slot, de placement et de bloc requis que tout autre
+outil d'édition :
+
+```ts
+import { moveInstance } from "@wocart/theme";
+
+const edit = moveInstance(theme, page, "faq-1", { index: 0 });
+if (!edit.ok) console.error(edit.issue.code, edit.issue.message);
+```
+
+`insertInstance`, `removeInstance`, `duplicateInstance`, `setInstanceProps` et
+`setInstanceHidden` suivent le même modèle. Ils renvoient un nouveau document et
+ne modifient jamais l'entrée.
+
+## Modifier le style et la couleur
+
+Un champ `style` enregistre des choix, pas du CSS :
+
+```json
+{
+  "style": {
+    "spacing": {
+      "paddingBlockStart": { "base": "s6", "lg": "s8" },
+      "paddingBlockEnd": { "base": "s6", "lg": "s8" }
+    },
+    "size": { "width": { "base": "wide" } }
+  }
+}
+```
+
+Seules les étapes et largeurs que le thème dimensionne existent. Un champ
+`colorScheme` enregistre un identifiant de jeu de couleurs tel que `"scheme-3"` ;
+les couleurs elles-mêmes vivent dans le réglage `colorSchemes` de la boutique,
+pas dans le document de page.
+
+## Modifier la source
+
+Lorsqu'une valeur n'est pas encore modifiable, la modification se fait dans la
+définition :
+
+| Modification | Changement de définition |
+| --- | --- |
+| Nouvelle option de texte | Ajoutez un champ `text` / `textarea` avec une `key` |
+| Valeur par défaut différente | Modifiez le `default` du champ |
+| Texte hérité différent | Pointez `contentKey` vers une clé de pack, ou changez le pack |
+| Nouveau choix | Ajoutez un champ `select` avec `options` et `optionLabels` |
+| Nouveau groupe répétable | Ajoutez un champ `list` avec les `fields` des éléments |
+| Permettre à une section de contenir un nouveau bloc | Ajoutez le type à la liste `allow` du slot |
+| Nouvelle mise en page initiale | Ajoutez ou modifiez un préréglage |
+
+Exécutez ensuite à nouveau la validation du catalogue et les tests du thème.
+
+## À ne pas faire
+
+- **Ne renommez pas un `type` ni une `key` de thème.** Les documents enregistrés
+  se réfèrent au type, et les modifications de texte des marchands sont associées
+  à la clé du thème.
+- **N'enregistrez pas d'URL d'image.** Un champ `image` enregistre la clé de
+  l'objet média ; l'URL est dérivée au rendu.
+- **N'écrivez pas de CSS dans un document de page.** Utilisez les étapes de style
+  et les jeux de couleurs.
+- **Ne contournez pas les opérations** pour les déplacements, suppressions,
+  duplications ou masquages si vous disposez du catalogue du thème. Les opérations
+  connaissent les slots, les blocs requis et les limites.
+- **Ne modifiez pas `dist/` ni un manifeste généré.** Modifiez les définitions et
+  les documents ; régénérez.
+
+## Travailler avec un assistant
+
+Donnez à l'assistant :
+
+1. le `manifest` du thème (ou la définition du composant),
+2. le document cible et la surface,
+3. le résultat exact que vous voulez,
+4. la commande de validation ou le test qu'utilise le thème.
+
+Demandez-lui de vérifier `DocumentIssue.code` après chaque opération, et
+d'exécuter `validateThemeDefinition(theme)` après avoir modifié une définition.
+La page suivante liste les règles qu'un assistant ne doit pas deviner :
+[Utiliser l'IA pour construire un thème](/fr/sdk/theme/agents).

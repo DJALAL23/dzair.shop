@@ -1,0 +1,320 @@
+---
+description: List products, open a product by handle, choose a variant, read offers and quantity pricing, and use categories and collections.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Products and collections
+
+The catalogue has four read shapes:
+
+| Read | Returns | Use it on |
+| --- | --- | --- |
+| `products.list(filters)` | `ProductList[]` | Grids, rails, search results |
+| `products.page(filters)` | `{ items, hasNext }` | Paginated catalogue pages |
+| `products.get(handle)` | `Product \| null` | A product page |
+| `collections.get(handle)` | `StoreCollection \| null` | A collection's page |
+
+`ProductList` is a compact card shape. `Product` is the full detail shape with
+variants, images, offers and quantity pricing.
+
+## List products
+
+```ts
+const products = await store.products.list({
+  collection: "best-sellers",
+  limit: 8,
+});
+```
+
+The filters are:
+
+| Filter | What it does |
+| --- | --- |
+| `categoryId` | Products in that category |
+| `collection` | Products in that collection, in the merchant's order |
+| `onSale` | Products priced below their compare-at price |
+| `limit` | Server-side cap; the server clamps a larger value |
+| `offset` | Skip that many products |
+
+`featured` still exists but is deprecated. Use `collection: "featured"`; the
+merchant's featured collection is the same list, without a special flag.
+
+Use `products.page` when the page needs a next link:
+
+```ts
+const page = await store.products.page({ limit: 24, offset });
+
+if (page.hasNext) {
+  // link to ?offset=24
+}
+```
+
+`page` asks the server for one row beyond the page and trims it, so `hasNext` is
+exact without a count query. A failed read is an empty final page, the same way
+`list` degrades.
+
+An unknown collection or category lists nothing. Do not treat that as an error
+on a catalogue page; show the empty state.
+
+## Product cards
+
+`ProductList` carries what a card needs:
+
+```ts
+type ProductList = {
+  id: string;
+  name: string;
+  handle: string;
+  price: number;
+  compareAtPrice: number | null;
+  currency: string;
+  coverImage: ProductImage | null;
+  reviewStats: { avgRating: number; reviewCount: number } | null;
+  type: "PHYSICAL" | "DIGITAL";
+  inventory: number;
+  trackInventory: boolean;
+  lowStockThreshold: number;
+  // …status and visibility fields the server already filtered on
+};
+```
+
+The list is already filtered to what a shopper may see. Do not re-check
+`status` or `visibility` in the browser and do not call an internal admin field.
+
+A list has no variant data. If a card needs “from 2,500 DA” for a variable
+product, `ProductList.price` is the representative price the server sends; the
+exact price comes from the product detail.
+
+### Image
+
+`coverImage` is often null: a merchant may upload a gallery without choosing a
+cover. Use `productImageSource`, which falls back to the first usable gallery
+image:
+
+```ts
+import { getCardImage, productImageSource } from "@wocart/storefront";
+
+const src = productImageSource(product);
+const cardUrl = src ? getCardImage(src, mediaDomain) : null;
+```
+
+Render a placeholder when `cardUrl` is null. Do not render a broken `<img>` with
+an empty `src`.
+
+## Product detail
+
+A product page reads by **handle**, the public URL segment:
+
+```astro
+---
+import { formatMoney, getProductView } from "@wocart/storefront";
+import { getStore } from "../../theme/store";
+
+const store = getStore();
+const config = await store.config.get();
+if (!config) return new Response("Store unavailable", { status: 503 });
+
+const product = await store.products.get(Astro.params.handle!);
+if (!product) return Astro.rewrite("/404");
+
+const view = getProductView(product);
+---
+<article>
+  <h1>{product.name}</h1>
+  <p>{formatMoney(view.basePrice, { symbol: config.currencySymbol, locale: config.locale })}</p>
+  {view.hasDiscount && <p>Save {view.discountPct}%</p>}
+  {view.isOutOfStock && <p>Out of stock</p>}
+</article>
+```
+
+`getProductView` answers the first sellable variant and the product's stock
+state:
+
+```ts
+type ProductView = {
+  defaultVariant: ProductVariant | null;
+  basePrice: number;
+  comparePrice: number | null;
+  hasDiscount: boolean;
+  discountPct: number;
+  isOutOfStock: boolean;
+  isLowStock: boolean;
+};
+```
+
+For a variable product, `product.inventory` is a product-level summary. Check
+`variant.inventory` before letting a shopper order a specific variant.
+
+## Variants
+
+A variable product carries:
+
+```ts
+product.hasVariants; // true
+product.variantOptions;
+// [
+//   { name: "Size", values: [{ value: "M", hexColor: null }, …] },
+//   { name: "Color", values: [{ value: "Red", hexColor: "#c00" }, …] },
+// ]
+product.variants;
+// [{ id, variations: { Size: "M", Color: "Red" }, price, inventory, … }]
+```
+
+The helper functions keep the picker honest:
+
+```ts
+import {
+  initialVariant,
+  optionStates,
+  pickOption,
+  variantFor,
+} from "@wocart/storefront";
+
+let selection = initialVariant(product)?.variations ?? {};
+const states = optionStates(product, selection);
+
+const picked = pickOption(product, selection, "Size", "L");
+selection = picked.selection;
+
+const variant = variantFor(product.variants, selection);
+```
+
+`initialVariant` opens on the merchant's default when it can be sold, otherwise
+the first sellable variant. `pickOption` always returns a variant that exists,
+or leaves the selection unchanged. `optionStates` tells a value apart as:
+
+- `available` — a sellable variant has it with the other choices;
+- `sold_out` — the variant exists but has no stock;
+- `unavailable` — no variant combines that value with the other choices.
+
+Render `unavailable` values as disabled, and `sold_out` as visibly unavailable.
+The server still validates the submitted variant.
+
+## Prices and offers
+
+Prices are integers in the store's currency (DZD). Format them with
+`formatMoney`; never divide by 100 unless your store's currency data says so.
+
+A product can carry three kinds of promotion:
+
+| Kind | Field | Meaning |
+| --- | --- | --- |
+| Compare-at price | `compareAtPrice` | A crossed-out reference price |
+| Quantity pricing | `quantityPricing.tiers` | “2 for 3,500 DA” tiers |
+| Buy X, get Y | `offers` | A gift or free delivery |
+
+### Quantity tiers
+
+```ts
+import { getQuantityTierViews } from "@wocart/storefront";
+
+const tiers = product.quantityPricing
+  ? getQuantityTierViews(product.quantityPricing, view.basePrice)
+  : [];
+```
+
+Each tier gives `quantity`, `price`, `perUnit`, `savingsAmount`, `savePct` and
+`freeShipping`. These are display values. The total the shopper pays is always
+the server's cart quote.
+
+### Buy X, get Y
+
+```ts
+import { getOfferTierView } from "@wocart/storefront";
+
+const offer = product.offers[0];
+if (offer) {
+  const tile = getOfferTierView(offer, view.basePrice, view.comparePrice);
+  // tile.price, tile.savingsAmount, tile.isFreeShipping
+}
+```
+
+An offer can be `free` (a gift) or `free_shipping`. The server decides whether
+the quantity qualifies and appends the reward. If the shopper picks a specific
+tier, put its `offerId` on the basket line; a shared tier is then priced as the
+shopper chose.
+
+<Callout type="info" title="Do not calculate the promotion">
+A page may show “Buy 2, get 1 free”. It must not add the gift itself, subtract a
+discount, or waive delivery. Send the chosen `offerId` and let
+`cart.validate` / `cart.quote` answer with the priced lines, rewards and total.
+</Callout>
+
+## Categories
+
+`categories.list()` returns a flat, ordered list. Build the tree from
+`parentId`; the SDK does not return nested children.
+
+```ts
+const categories = await store.categories.list();
+
+const roots = categories.filter((category) => category.parentId === null);
+const childrenOf = (id: string) =>
+  categories.filter((category) => category.parentId === id);
+```
+
+Category pages read by `slug`:
+
+```astro
+---
+const category = (await store.categories.list()).find(
+  (item) => item.slug === Astro.params.slug,
+);
+
+if (!category) return Astro.rewrite("/404");
+
+const products = await store.products.list({
+  categoryId: category.id,
+  limit: 24,
+});
+---
+```
+
+`categories.list()` is cached for the client's lifetime after a successful read.
+A category rename is visible on the next server render, not in an old client.
+
+## Collections
+
+A collection is a merchant-curated list with its own page:
+
+```astro
+---
+const collection = await store.collections.get(Astro.params.handle!);
+if (!collection) return Astro.rewrite("/404");
+
+const products = await store.products.list({
+  collection: collection.handle,
+  limit: 24,
+});
+---
+<h1>{collection.title}</h1>
+{collection.description && <p>{collection.description}</p>}
+```
+
+`collections.get` returns the name and description; the products come from
+`products.list({ collection })` in the merchant's order. Both are translated
+when the client's language is published.
+
+## Descriptions and SEO
+
+`product.descriptionFormat` says how to render the description:
+
+- `"text"` — render it as text, with line breaks preserved.
+- `"html"` — render it with `set:html`.
+
+`descriptionPlain` is the text-only version for meta descriptions and anywhere
+markup would be wrong. Use it for `<meta name="description">` and JSON-LD.
+
+Category and product rows carry `metaTitle` and `metaDescription` where present;
+the store-level fallbacks are `config.metaTitle` and `config.metaDescription`.
+
+## What this page does not cover
+
+Reviews live on [Reviews](/sdk/storefront/reviews). The basket and server quote
+live on [Basket and quotes](/sdk/storefront/basket). Images and money helpers
+are on [Money, images, WhatsApp and Meta events](/sdk/storefront/presentation).
+
+There is no full-text product search method in this SDK. If a storefront needs
+search, it needs a server endpoint for it; do not fake one by downloading the
+whole catalogue into the browser.
