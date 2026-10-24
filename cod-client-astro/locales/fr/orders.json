@@ -372,7 +372,9 @@
     "driver_missing_address_other": "{count} commandes n'ont pas d'adresse et ne sont pas envoyées — ajoutez-en une d'abord :",
     "driver_desk_to_door_one": "{count} client a choisi un point relais ; votre livreur apporte ce colis à son adresse.",
     "driver_desk_to_door_many": "{count} clients ont choisi un point relais ; votre livreur apporte ces colis à leur adresse.",
-    "driver_desk_to_door_other": "{count} clients ont choisi un point relais ; votre livreur apporte ces colis à leur adresse."
+    "driver_desk_to_door_other": "{count} clients ont choisi un point relais ; votre livreur apporte ces colis à leur adresse.",
+    "select_all": "Sélectionner toutes les commandes prêtes à expédier",
+    "limit": "Un envoi prend au plus {count} commandes ; les {count} premières sont sélectionnées."
   },
   "parcel": {
     "title": "Modifier le colis",

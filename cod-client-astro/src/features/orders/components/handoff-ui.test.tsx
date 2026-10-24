@@ -22,6 +22,8 @@ vi.mock("@/features/auth/components/RequireAuth", () => ({
   canScope: () => true,
 }));
 
+import { ConfirmDialogProvider } from "@/components/ui";
+import { OrdersList } from "./OrdersList";
 import { HandoffDialog } from "./HandoffDialog";
 import { BulkHandoffDialog } from "./BulkHandoffDialog";
 
@@ -98,6 +100,36 @@ async function render(ui: React.ReactNode) {
 
 const buttonNamed = (name: RegExp) => Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((b) => name.test(b.textContent ?? ""))!;
 const choose = (label: RegExp) => Array.from(document.querySelectorAll<HTMLElement>('[role="radio"], [aria-checked]')).find((el) => label.test(el.textContent ?? ""))!;
+
+describe("the order list ships several orders at once", () => {
+  it("offers the ready orders for selection on the All tab, and selects them all from the header", async () => {
+    api.listOrders.mockResolvedValue({
+      orders: [order("a"), order("b", { status: "new", stage: "new" }), order("c"), order("d", { stage: "in_transit", shipmentId: "s1" })],
+      nextCursor: null,
+    });
+    await render(<ConfirmDialogProvider><OrdersList /></ConfirmDialogProvider>);
+
+    const rowBoxes = () => Array.from(host.querySelectorAll<HTMLInputElement>('tbody input[type="checkbox"]'));
+    expect(rowBoxes().map((box) => box.getAttribute("aria-label"))).toEqual(["ORD-a", "ORD-c"]);
+
+    const header = host.querySelector<HTMLInputElement>('thead input[type="checkbox"]')!;
+    await act(async () => { header.click(); });
+    expect(rowBoxes().every((box) => box.checked)).toBe(true);
+    expect(buttonNamed(/Ship 2 orders/)).toBeTruthy();
+
+    await act(async () => { rowBoxes()[0].click(); });
+    expect(header.indeterminate).toBe(true);
+    expect(buttonNamed(/Ship 1 order/)).toBeTruthy();
+  });
+
+  it("shows no selection column where nothing can be shipped", async () => {
+    window.history.replaceState(null, "", "/orders/?view=delivered");
+    api.listOrders.mockResolvedValue({ orders: [order("d", { stage: "delivered", shipmentId: "s1" })], nextCursor: null });
+    await render(<ConfirmDialogProvider><OrdersList /></ConfirmDialogProvider>);
+
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+  });
+});
 
 describe("giving an order to the store's driver", () => {
   it("asks for no delivery type or stop desk, and says a stop-desk order goes to the door", async () => {

@@ -362,7 +362,9 @@
     "driver_missing_address_one": "{count} order has no address and is left out — add one first:",
     "driver_missing_address_other": "{count} orders have no address and are left out — add one first:",
     "driver_desk_to_door_one": "{count} customer chose a stop desk; your driver brings that parcel to their address.",
-    "driver_desk_to_door_other": "{count} customers chose a stop desk; your driver brings those parcels to their addresses."
+    "driver_desk_to_door_other": "{count} customers chose a stop desk; your driver brings those parcels to their addresses.",
+    "select_all": "Select every order ready to ship",
+    "limit": "One shipment takes at most {count} orders; the first {count} are selected."
   },
   "parcel": {
     "title": "Change the parcel",

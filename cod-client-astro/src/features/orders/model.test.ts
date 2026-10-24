@@ -16,6 +16,8 @@ import {
   deliveryTimeline,
   driversFor,
   driverHandoffPlan,
+  BULK_HANDOFF_LIMIT,
+  bulkSelection,
   formatMoney,
   latestStatusLabel,
   handoffKinds,
@@ -175,6 +177,16 @@ describe("handing an order off", () => {
     expect(plan.deliverable.map((o) => o.id)).toEqual(["home", "desk"]);
     expect(plan.missingAddress.map((o) => o.id)).toEqual(["none", "blank"]);
     expect(plan.deskToDoor.map((o) => o.id)).toEqual(["desk"]);
+  });
+
+  it("selects the shippable orders, at most as many as one bulk handoff takes", () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `o${i}`);
+    expect(bulkSelection(new Set(), ids(3))).toBe("none");
+    expect(bulkSelection(new Set(["o1"]), ids(3))).toBe("some");
+    expect(bulkSelection(new Set(ids(3)), ids(3))).toBe("all");
+    expect(bulkSelection(new Set(["gone"]), ids(3))).toBe("none");
+    expect(bulkSelection(new Set(ids(BULK_HANDOFF_LIMIT)), ids(BULK_HANDOFF_LIMIT + 20))).toBe("all");
+    expect(BULK_HANDOFF_LIMIT).toBe(100);
   });
 
   it("offers only the drivers who take orders", () => {

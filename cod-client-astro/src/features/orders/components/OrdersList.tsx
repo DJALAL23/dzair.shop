@@ -3,7 +3,7 @@ import { AlertTriangle, Archive, PackageOpen, Send } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { getOrderStageCounts, listDeliveryCompanies, listDrivers, listOrders, listWilayas, type OrderQuery } from "@/features/orders/api";
-import { handoffKinds, ORDER_QUEUES, viewCounts, viewQuery, type OrderView } from "@/features/orders/model";
+import { BULK_HANDOFF_LIMIT, bulkSelection, handoffKinds, ORDER_QUEUES, viewCounts, viewQuery, type OrderView } from "@/features/orders/model";
 import type { DeliveryCompany, Driver, OrderListItem, Wilaya } from "@/features/orders/types";
 import {
   Alert,
@@ -74,7 +74,10 @@ export function OrdersList() {
   const request = useRef(0);
 
   const kinds = may("delivery:read") ? handoffKinds(may) : [];
-  const selectable = view === "to_ship" && kinds.length > 0;
+  const canShipMany = kinds.length > 0 && view !== "archived";
+  const shippable = canShipMany ? (orders ?? []).filter((order) => order.stage === "ready_to_ship").map((order) => order.id) : [];
+  const selectable = canShipMany && (view === "to_ship" || shippable.length > 0);
+  const selectionState = bulkSelection(selected, shippable);
 
   function query(cursor: string | null = null): OrderQuery {
     return {
@@ -142,9 +145,13 @@ export function OrdersList() {
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
-      else next.add(id);
+      else if (next.size < BULK_HANDOFF_LIMIT) next.add(id);
       return next;
     });
+  }
+
+  function toggleAll() {
+    setSelected(selectionState === "all" ? new Set() : new Set(shippable.slice(0, BULK_HANDOFF_LIMIT)));
   }
 
   const hasFilters = Object.values(filters).some(Boolean);
@@ -245,6 +252,15 @@ export function OrdersList() {
               {t("filters.clear")}
             </Button>
           )}
+          {selectable && shippable.length > 1 && (
+            <label className="flex items-center gap-2 px-1 text-xs font-semibold text-muted-foreground md:hidden">
+              <SelectAllBox state={selectionState} onToggle={toggleAll} label={t("bulk.select_all")} />
+              {t("bulk.select_all")}
+            </label>
+          )}
+          {selectable && selected.size >= BULK_HANDOFF_LIMIT && shippable.length > BULK_HANDOFF_LIMIT && (
+            <p className="text-xs font-medium text-muted-foreground">{t("bulk.limit", { count: BULK_HANDOFF_LIMIT })}</p>
+          )}
           {selectable && (
             <Button type="button" className="ms-auto" disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
               <Send size={14} aria-hidden="true" />
@@ -277,7 +293,11 @@ export function OrdersList() {
                   <TableRow className="hover:bg-transparent">
                     {selectable && (
                       <TableHead className="w-10">
-                        <span className="sr-only">{t("bulk.select")}</span>
+                        {shippable.length > 0 ? (
+                          <SelectAllBox state={selectionState} onToggle={toggleAll} label={t("bulk.select_all")} />
+                        ) : (
+                          <span className="sr-only">{t("bulk.select")}</span>
+                        )}
                       </TableHead>
                     )}
                     <TableHead>{t("table.order_number")}</TableHead>
@@ -321,5 +341,23 @@ export function OrdersList() {
         />
       )}
     </div>
+  );
+}
+
+/** Selects every order on the list that can be shipped; shows "some" as indeterminate. */
+function SelectAllBox({ state, onToggle, label }: { state: "none" | "some" | "all"; onToggle: () => void; label: string }) {
+  const box = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (box.current) box.current.indeterminate = state === "some";
+  }, [state]);
+  return (
+    <input
+      ref={box}
+      type="checkbox"
+      checked={state === "all"}
+      onChange={onToggle}
+      aria-label={label}
+      className="size-4 cursor-pointer rounded accent-[var(--primary)] pointer-coarse:size-5"
+    />
   );
 }

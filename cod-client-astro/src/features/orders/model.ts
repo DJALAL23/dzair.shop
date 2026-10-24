@@ -214,6 +214,16 @@ export function driverHandoffPlan<T extends Pick<OrderBase, "address" | "deliver
   };
 }
 
+/** How many orders one bulk handoff takes (the server's limit). */
+export const BULK_HANDOFF_LIMIT = 100;
+
+/** How much of what can be shipped is selected; "all" once a bulk handoff is full. */
+export function bulkSelection(selected: ReadonlySet<string>, selectable: readonly string[]): "none" | "some" | "all" {
+  const count = selectable.filter((id) => selected.has(id)).length;
+  if (count === 0) return "none";
+  return count === selectable.length || count >= BULK_HANDOFF_LIMIT ? "all" : "some";
+}
+
 // ─── Acting on a shipment ────────────────────────────────────────────────────
 
 /** What this person may do to the shipment now: what the server says is open, that their permissions allow. */
