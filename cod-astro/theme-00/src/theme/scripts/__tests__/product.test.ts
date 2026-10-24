@@ -896,6 +896,41 @@ describe("Delivery quote for the product form", () => {
     expect(itemPrice()).toContain("3");
   });
 
+  it("shows what the chosen quantity costs in the sticky bar, not the price of one piece", async () => {
+    build({ tiers: `<b id="sticky-price">2 500</b>` });
+    quoteServer((body) => ({ subtotal: body.quantity * 2500 - (body.quantity > 1 ? 500 : 0), lines: [], delivery: { available: true, fee: 400, total: 0 } }));
+    initProductPage();
+    await settle();
+    const sticky = () => document.getElementById("sticky-price")!.textContent ?? "";
+    expect(sticky()).toContain("2");
+    expect(sticky()).toContain("500");
+
+    const qty = document.getElementById("qty-input") as HTMLInputElement;
+    qty.value = "3";
+    qty.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(sticky()).toContain("7");
+    expect(sticky()).toContain("500");
+    await settle();
+    expect(sticky()).toContain("7");
+    expect(sticky()).toContain("000");
+  });
+
+  it("under quantity pricing, the sticky bar keeps its figure until the server prices the quantity", async () => {
+    build({ quantityPriced: true, tiers: `<b id="sticky-price">2 500</b>` });
+    const answers: Array<() => void> = [];
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => {
+      answers.push(() => resolve({ ok: true, json: async () => ({ success: true, data: { subtotal: 4500, lines: [], delivery: { available: true, fee: 0, total: 4500 } } }) } as unknown as Response));
+    })));
+    initProductPage();
+    await settle();
+    expect(document.getElementById("sticky-price")!.textContent).toBe("2 500");
+
+    answers[0]!();
+    await settle();
+    expect(document.getElementById("sticky-price")!.textContent).toContain("4");
+    expect(document.getElementById("sticky-price")!.textContent).toContain("500");
+  });
+
   it("orders a tier's quantity from its tile, and marks the tile the quantity matches", async () => {
     build({
       quantityPriced: true,

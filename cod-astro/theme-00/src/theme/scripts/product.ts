@@ -277,9 +277,16 @@ export function initProductPage(): () => void {
     syncCouponRow(answer?.coupon?.applied ? answer.coupon : null);
 
     // 1. Update main price displays
-    document.querySelectorAll<HTMLElement>("#price-display-desktop, #price-display-mobile, #sticky-price").forEach((el) => {
+    document.querySelectorAll<HTMLElement>("#price-display-desktop, #price-display-mobile").forEach((el) => {
       el.innerHTML = `${formatAmount(currentPrice)} <span style="font-size:.6em;font-weight:700"> ${cur}</span>`;
     });
+    // The sticky bar is the order in short: what the chosen quantity, offer
+    // and code cost, as the summary says it — never the price of one piece.
+    // Under quantity pricing it keeps its figure until the server answers.
+    const stickyPrice = document.getElementById("sticky-price");
+    if (stickyPrice && itemTotal !== null) {
+      stickyPrice.innerHTML = `${formatAmount(itemTotal)}<span class="price-cur">${cur}</span>`;
+    }
 
     // 2. Update order summary rows
     const summaryItemPrice = document.getElementById("summary-item-price");

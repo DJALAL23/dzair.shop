@@ -12,6 +12,9 @@ import { storefrontPath } from "@wocart/storefront";
 
 // Store context comes from middleware (Astro.locals.store — Theme Zero S2).
 const { config, content } = Astro.locals.store;
+// A product, collection or page that does not exist yet may tomorrow: a "not
+// found" is never cached under the route rule of the page that rewrote here.
+Astro.cache.set(false);
 ---
 
 <StoreLayout
