@@ -109,6 +109,8 @@ export function createAuth(env: AuthEnv, cloudflare?: AuthCloudflareContext) {
           customRules: {
             "/request-password-reset": { window: 3600, max: 3 },
             "/sign-in/magic-link": { window: 3600, max: 5 },
+            // Every dashboard page reads the session once, and an office shares one IP.
+            "/get-session": { window: 60, max: 600 },
           },
         },
         emailAndPassword: {

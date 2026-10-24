@@ -17,7 +17,7 @@ export function PublicAuthPageApp({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    fetchIdentity().then(() => {
+    fetchIdentity().catch(() => null).then(() => {
       if (!alive) return;
       revealGate("reverse");
       hideGateSpinner("reverse");

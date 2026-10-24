@@ -15,7 +15,7 @@ export function SignInPageApp() {
 
   useEffect(() => {
     let alive = true;
-    fetchIdentity().then((id) => {
+    fetchIdentity().catch(() => null).then((id) => {
       if (!alive) return;
       if (resolveGate(id) === "authenticated") {
         window.location.replace(postSignInTarget(next));

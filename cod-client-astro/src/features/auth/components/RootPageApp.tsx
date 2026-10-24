@@ -58,11 +58,18 @@ export function RootGate() {
   useEffect(() => {
     if (dynamicRoute) return;
     let alive = true;
-    fetchIdentity().then((id) => {
-      if (!alive) return;
-      setDone(true);
-       window.location.replace(resolveGate(id) === "authenticated" ? "/dashboard" : "/sign-in");
-    });
+    fetchIdentity().then(
+      (id) => {
+        if (!alive) return;
+        setDone(true);
+        window.location.replace(resolveGate(id) === "authenticated" ? "/dashboard" : "/sign-in");
+      },
+      () => {
+        if (!alive) return;
+        setDone(true);
+        window.location.replace("/dashboard");
+      },
+    );
     return () => {
       alive = false;
     };

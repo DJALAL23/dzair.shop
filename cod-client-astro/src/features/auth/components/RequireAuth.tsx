@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { fetchIdentity } from "@/lib/session";
 import { resolveGate, signInRedirect, type GateState, type Identity } from "@/lib/gate";
 import GateSpinner from "@/features/auth/components/GateSpinner";
+import { Alert, Button } from "@/components/ui";
+import { useT } from "@/i18n/react";
 import { revealGate, hideGateSpinner } from "@/lib/reveal";
 
 const IdentityContext = createContext<Identity | null>(null);
@@ -24,30 +26,52 @@ export function canScope(identity: Identity | null, scope: string): boolean {
  * checked or the redirect fires — never labeled intermediate states.
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
+  const auth = useT("auth");
+  const common = useT("common");
   const [state, setState] = useState<GateState>("pending");
   const [identity, setIdentity] = useState<Identity | null>(null);
+  const [check, setCheck] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    fetchIdentity().then((id) => {
-      if (!alive) return;
-      setIdentity(id ?? null);
-      setState(resolveGate(id));
-    });
+    setState("pending");
+    fetchIdentity().then(
+      (id) => {
+        if (!alive) return;
+        setIdentity(id ?? null);
+        setState(resolveGate(id));
+      },
+      () => {
+        if (alive) setState("unavailable");
+      },
+    );
     return () => {
       alive = false;
     };
-  }, []);
+  }, [check]);
 
   useEffect(() => {
     if (state === "anonymous") {
       window.location.replace(signInRedirect(window.location.pathname));
     }
-    if (state === "authenticated") {
+    if (state === "authenticated" || state === "unavailable") {
       revealGate("required");
       hideGateSpinner("required");
     }
   }, [state]);
+
+  if (state === "unavailable") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-4">
+        <Alert role="alert" tone="critical" className="max-w-md">
+          <span className="flex-1">{auth("session_unavailable")}</span>
+          <Button type="button" variant="ghost" onClick={() => setCheck((n) => n + 1)}>
+            {common("retry")}
+          </Button>
+        </Alert>
+      </div>
+    );
+  }
 
   if (state !== "authenticated") {
     return (

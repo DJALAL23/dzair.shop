@@ -14,7 +14,8 @@ export interface Identity {
   scopes: string[];
 }
 
-export type GateState = "pending" | "anonymous" | "authenticated";
+/** `unavailable`: the session could not be checked — never treated as signed out. */
+export type GateState = "pending" | "anonymous" | "authenticated" | "unavailable";
 
 /** undefined = still checking · null = checked, no session · object = authed */
 export function resolveGate(identity: Identity | null | undefined): GateState {
