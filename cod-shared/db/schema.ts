@@ -941,6 +941,14 @@ export const stores = sqliteTable("stores", {
   reviewVoiceMaxSeconds: integer("review_voice_max_seconds"),
   /** What a shopper's review publishes without the merchant checking it. */
   reviewAutoPublish: text("review_auto_publish", { enum: REVIEW_AUTO_PUBLISH }).notNull().default("text_only"),
+
+  // ── Shipping labels (appended by migration 0057) ──────────────────────────
+  /**
+   * The labels the store prints for its own drivers, as one JSON blob
+   * (cod-shared/shipping-label/config.ts). NULL = the defaults. Last for the
+   * positional mock-db reason above.
+   */
+  shippingLabelJson: text("shipping_label_json"),
 });
 
 /**

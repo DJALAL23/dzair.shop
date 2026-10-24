@@ -186,7 +186,7 @@ export async function getStoreConfig(
   // The storefront API key is the credential the caller already presented; it
   // has no business in a payload a theme may hand to templates.
   const [translated] = overlayTranslations("store", [store], storeTranslations);
-  const { checkoutFormJson, whatsappWidgetJson, storeApiKey, ...publicStore } = translated!;
+  const { checkoutFormJson, whatsappWidgetJson, shippingLabelJson: _labels, storeApiKey, ...publicStore } = translated!;
 
   return {
     ...publicStore,

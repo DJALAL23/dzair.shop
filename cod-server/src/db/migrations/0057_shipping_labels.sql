@@ -1,0 +1,16 @@
+-- Shipping labels for the store's own drivers. A carrier prints its own
+-- label; the store's driver is not a carrier, so CodFlow draws the label from
+-- the order, the store's identity and these settings
+-- (cod-shared/shipping-label/config.ts).
+--
+-- One additive nullable column, inert until a merchant saves label settings.
+-- NULL is the defaults, which is what every store reads today; applying this
+-- migration changes nothing for any store. Rollback for the whole feature is
+-- `UPDATE stores SET shipping_label_json = NULL`.
+--
+-- One JSON column rather than a table, as checkout_form_json and
+-- whatsapp_widget_json: the settings are presentation with no lifecycle of
+-- their own, the store row is already read wherever they are needed, and
+-- each new stores column breaks the positional mock-db fixtures, while the
+-- field set is expected to grow.
+ALTER TABLE `stores` ADD COLUMN `shipping_label_json` text;
