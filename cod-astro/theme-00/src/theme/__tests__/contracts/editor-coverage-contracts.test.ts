@@ -50,6 +50,8 @@ const SHARED_UI_LABELS = new Set([
   "productSaving",
   // The review form's own title, also the button that opens it.
   "reviewFormTitle",
+  // The track-order page's name, the same wherever it is linked.
+  "trackTitle",
   // A listing's words: its count, the "all" button, its empty states.
   "listingCount",
   "listingRange",

@@ -5,7 +5,7 @@
 // the whitelist, the basket-or-product rule, attribution forwarding, the wire
 // body — lives in @wocart/storefront/astro (S8).
 import { ActionError, defineAction } from "astro:actions";
-import { executePlaceOrder, placeOrderInput } from "@wocart/storefront/astro";
+import { executePlaceOrder, lookupOrder, orderLookupInput, placeOrderInput } from "@wocart/storefront/astro";
 import { getStoreClient } from "@/theme/sdk";
 import type { RefusedForCoupon } from "@/theme/pages/order-outcome";
 
@@ -43,5 +43,13 @@ export const server = {
 
       return result.data;
     },
+  }),
+
+  // A shopper following an order: the SDK words the outcome, and what was
+  // asked comes back so a refused form keeps it.
+  orderStatus: defineAction({
+    accept: "form",
+    input: orderLookupInput,
+    handler: async (input, context) => ({ asked: input, lookup: await lookupOrder(input, context.request, getStoreClient()) }),
   }),
 };

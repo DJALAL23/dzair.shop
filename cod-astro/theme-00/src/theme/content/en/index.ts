@@ -18,6 +18,7 @@ import { enStates } from "./states";
 import { enMisc } from "./misc";
 import { enProduct } from "./product";
 import { enListing } from "./listing";
+import { enTrackOrder } from "./track-order";
 
 export const en: StoreFrontContent = {
   ...enHome,
@@ -35,4 +36,5 @@ export const en: StoreFrontContent = {
   ...enMisc,
   ...enProduct,
   ...enListing,
+  ...enTrackOrder,
 };

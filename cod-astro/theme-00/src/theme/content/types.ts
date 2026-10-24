@@ -22,6 +22,7 @@ import type { StatesStrings } from "./types/states";
 import type { MiscStrings } from "./types/misc";
 import type { ProductStrings } from "./types/product";
 import type { ListingStrings } from "./types/listing";
+import type { TrackOrderStrings } from "./types/track-order";
 
 export type StoreFrontContent = HomeStrings &
   LayoutStrings &
@@ -37,4 +38,5 @@ export type StoreFrontContent = HomeStrings &
   StatesStrings &
   MiscStrings &
   ProductStrings &
-  ListingStrings;
+  ListingStrings &
+  TrackOrderStrings;

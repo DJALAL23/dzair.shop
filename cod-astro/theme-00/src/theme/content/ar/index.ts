@@ -18,6 +18,7 @@ import { arStates } from "./states";
 import { arMisc } from "./misc";
 import { arProduct } from "./product";
 import { arListing } from "./listing";
+import { arTrackOrder } from "./track-order";
 
 export const ar: StoreFrontContent = {
   ...arHome,
@@ -35,4 +36,5 @@ export const ar: StoreFrontContent = {
   ...arMisc,
   ...arProduct,
   ...arListing,
+  ...arTrackOrder,
 };

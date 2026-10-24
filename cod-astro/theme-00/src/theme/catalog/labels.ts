@@ -43,6 +43,7 @@ export const FIELD = {
   showDescription: text("إظهار الوصف", "Afficher la description", "Show the description"),
   showCount: text("إظهار عدد المنتجات", "Afficher le nombre de produits", "Show the product count"),
   showSort: text("إظهار الترتيب", "Afficher le tri", "Show the sort order"),
+  showTrackOrder: text("رابط تتبّع الطلب", "Lien de suivi de commande", "Order tracking link"),
   showBreadcrumbs: text("مسار التنقل", "Fil d’Ariane", "Breadcrumbs"),
   headerAlign: text("محاذاة العنوان", "Alignement du titre", "Title alignment"),
   headScheme: text("ألوان شريط العنوان", "Couleurs du bandeau de titre", "Title band colors"),

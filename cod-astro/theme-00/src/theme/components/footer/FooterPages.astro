@@ -4,15 +4,16 @@ import { storefrontPath } from "@wocart/storefront";
 import type { footerPages } from "@/theme/catalog/footer/footer.def";
 
 type Props = InferProps<typeof footerPages>;
-const { title } = Astro.props;
+const { title, showTrackOrder } = Astro.props;
 const store = Astro.locals.store;
 const pages = store.config.pages ?? [];
 ---
 
-{pages.length > 0 && (
+{(pages.length > 0 || showTrackOrder) && (
   <nav class="footer-col" aria-label={title || undefined}>
     {title && <h2 class="footer-title">{title}</h2>}
     <ul class="footer-links">
+      {showTrackOrder && <li><a href={store.href(storefrontPath("trackOrder"))}>{store.content.trackTitle}</a></li>}
       {pages.map((page) => (
         <li><a href={store.href(storefrontPath("page", { slug: page.slug }))}>{page.title}</a></li>
       ))}

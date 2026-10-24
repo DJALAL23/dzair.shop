@@ -112,7 +112,7 @@ describe("placeOrder binding (src/actions/index.ts)", () => {
   });
 
   it("registers placeOrder as a form action — the name and acceptance the forms post to", () => {
-    expect(Object.keys(server)).toEqual(["placeOrder"]);
+    expect(Object.keys(server)).toEqual(["placeOrder", "orderStatus"]);
     expect(action.accept).toBe("form");
   });
 

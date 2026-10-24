@@ -49,7 +49,10 @@ export const footerPages = defineComponent({
   label: BLOCK.footerPages,
   group: GROUP.footer,
   placement: "block",
-  fields: [{ key: "title", kind: "text", label: FIELD.title, contentKey: "footerSupport" }],
+  fields: [
+    { key: "title", kind: "text", label: FIELD.title, contentKey: "footerSupport" },
+    { key: "showTrackOrder", kind: "boolean", label: FIELD.showTrackOrder, default: true },
+  ],
 });
 
 /** A title and a few lines the merchant writes. */

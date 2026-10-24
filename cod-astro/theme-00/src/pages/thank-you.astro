@@ -1,6 +1,6 @@
 ---
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
-import { buildWhatsAppHref, resolvePrefillText } from "@wocart/storefront";
+import { buildWhatsAppHref, resolvePrefillText, storefrontPath } from "@wocart/storefront";
 import { formatAmount } from "@/theme/utils/money";
 import { readThankYou } from "@/theme/pages/order-outcome";
 import { Icon } from "astro-icon/components";
@@ -143,6 +143,14 @@ const steps = [
         </div>
       ))}
     </div>
+
+    <a
+      href={`${Astro.locals.store.href(storefrontPath("trackOrder"))}?${new URLSearchParams({ order: orderNumber })}`}
+      class="btn-secondary mb-3"
+    >
+      <Icon name="heroicons:truck" class="w-5 h-5" />
+      {content.trackTitle}
+    </a>
 
     <a
       href={Astro.locals.store.href("/")}
