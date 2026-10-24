@@ -431,7 +431,10 @@
     "count_one": "{count} unit refused at the door",
     "count_other": "{count} units refused at the door",
     "saved_one": "{count} unit of {product} back in stock",
-    "saved_other": "{count} units of {product} back in stock"
+    "saved_other": "{count} units of {product} back in stock",
+    "error_not_delivered": "Refused units are recorded once the order is delivered.",
+    "error_closed": "This order is cancelled or came back: every unit is already back in stock.",
+    "error_changed": "This line changed meanwhile. Reload the order and try again."
   },
   "loading_more": "Loading…",
   "removal": {

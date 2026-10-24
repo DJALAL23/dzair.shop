@@ -61,6 +61,12 @@ export function lineReturnRefusal(outcome: Extract<LineReturn, { ok: false }>, o
         ERROR_CODES.INVALID_STATUS_TRANSITION,
         context,
       );
+    case "not_delivered":
+      return new BusinessLogicError(
+        "Units refused at the door are recorded once the order is delivered; before that, nothing has been refused",
+        ERROR_CODES.ORDER_NOT_DELIVERED,
+        context,
+      );
     case "changed":
       return new ConflictError("The line changed meanwhile; reload the order and try again", ERROR_CODES.ORDER_CHANGED, context);
   }

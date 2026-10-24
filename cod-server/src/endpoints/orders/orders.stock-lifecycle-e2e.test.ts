@@ -164,6 +164,14 @@ async function seedOrder(opts: SeedOrderOpts = {}) {
   return { orderId: id, customerId, productId, lineId: `op-lc-${seq}` };
 }
 
+/** The customer received the parcel — the moment units can be refused at the door. */
+async function delivered(orderId: string) {
+  const now = new Date().toISOString();
+  await db.insert(schema.drivers).values({ id: "dr-lc", firstName: "LC", lastName: "Driver", phone: "0661000001", createdAt: now, updatedAt: now }).onConflictDoNothing();
+  await db.update(schema.orders).set({ status: "ready" }).where(eq(schema.orders.id, orderId));
+  await db.insert(schema.shipments).values({ id: `sh-${orderId}`, orderId, kind: "driver", driverId: "dr-lc", handoffState: "accepted", deliveryType: "home", codAmount: 0, revision: "r", deliveredAt: now, createdAt: now, updatedAt: now });
+}
+
 async function inventoryOf(productId: string) {
   return (await db.select({ inv: schema.products.inventory }).from(schema.products)
     .where(eq(schema.products.id, productId)).get())?.inv;
@@ -232,20 +240,21 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     expect((await movementsFor(productId)).map((m) => m.delta)).toEqual([-2, 2]);
   });
 
-  it("T5: partial return then cancel — restock totals exactly the sold quantity", async () => {
+  it("T5: units refused before delivery move nothing; the cancel restocks exactly the sold quantity", async () => {
     const { orderId, productId, lineId } = await seedOrder({ qty: 4, price: 4000 });
 
-    await setOrderProductReturn(db, orderId, lineId, 1);
-    expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY - 3);
+    expect(await setOrderProductReturn(db, orderId, lineId, 1)).toEqual({ ok: false, reason: "not_delivered" });
+    expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY - 4);
 
     await updateOrderStatus(db, orderId, "cancelled");
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY); // I1
     expect(await lineOf(lineId)).toMatchObject({ status: "returned", returnedQuantity: 4 });
-    expect((await movementsFor(productId)).map((m) => m.delta)).toEqual([-4, 1, 3]); // I6
+    expect((await movementsFor(productId)).map((m) => m.delta)).toEqual([-4, 4]); // I6
   });
 
-  it("T6: return correction (2 → 1) on active order — inventory follows the delta", async () => {
+  it("T6: return correction (2 → 1) on a delivered order — inventory follows the delta", async () => {
     const { orderId, productId, lineId } = await seedOrder({ qty: 4, price: 4000 });
+    await delivered(orderId);
 
     await setOrderProductReturn(db, orderId, lineId, 2);
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY - 2);

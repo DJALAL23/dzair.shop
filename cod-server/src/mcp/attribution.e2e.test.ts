@@ -64,6 +64,12 @@ describe("an agent's writes are the granting person's", () => {
     const history = await d1.db.select().from(schema.orderStatusHistory).where(eq(schema.orderStatusHistory.orderId, ORDER)).all();
     expect(history.map((h) => [h.status, h.by])).toEqual([["ready", "u-ada"]]);
 
+    // Units are refused at the door: the order is delivered first.
+    const [handoff] = await handOffToDriver(d1.db, { orderIds: [ORDER], driverId: "dr1", createdBy: null });
+    if (!handoff.ok) throw new Error(handoff.reason);
+    await recordShipmentEvents(d1.db, handoff.shipmentId, [
+      { source: "merchant", status: { vocabulary: "driver", value: "delivered" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() },
+    ]);
     await run("recordOrderProductReturn", { orderId: ORDER, productLineId: LINE, returnedQuantity: 1 });
     expect((await movements()).map((m) => [m.type, m.createdBy, m.createdByName])).toEqual([["ORDER_RETURNED", "u-ada", "Ada"]]);
   });

@@ -20,6 +20,7 @@ import {
   bulkSelection,
   formatMoney,
   latestStatusLabel,
+  lineReturnError,
   handoffKinds,
   offeredActions,
   ORDER_QUEUES,
@@ -38,6 +39,17 @@ import {
 import type { CarrierCapabilities, DeliveryCompany, Driver, ShipmentEvent } from "./types";
 
 const scopes = (...granted: string[]): May => (scope) => granted.includes(scope);
+
+describe("units refused at the door", () => {
+  it("are explained by why the server refused them", () => {
+    const t = (key: string) => key;
+    const refused = (code: string) => Object.assign(new Error("server words"), { code });
+    expect(lineReturnError(refused("ORDER_NOT_DELIVERED"), t)).toBe("refused.error_not_delivered");
+    expect(lineReturnError(refused("INVALID_STATUS_TRANSITION"), t)).toBe("refused.error_closed");
+    expect(lineReturnError(refused("ORDER_CHANGED"), t)).toBe("refused.error_changed");
+    expect(lineReturnError(refused("SOMETHING_ELSE"), t)).toBe("server words");
+  });
+});
 
 describe("the order list's work queues", () => {
   it("puts every stage in exactly one queue", () => {

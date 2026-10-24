@@ -444,7 +444,10 @@
     "count_other": "{count} unités refusées à la porte",
     "saved_one": "{count} unité de {product} remise en stock",
     "saved_many": "{count} d'unités de {product} remises en stock",
-    "saved_other": "{count} unités de {product} remises en stock"
+    "saved_other": "{count} unités de {product} remises en stock",
+    "error_not_delivered": "Les unités refusées s'enregistrent une fois la commande livrée.",
+    "error_closed": "Cette commande est annulée ou revenue : toutes les unités sont déjà en stock.",
+    "error_changed": "Cette ligne a changé entre-temps. Rechargez la commande et réessayez."
   },
   "loading_more": "Chargement…",
   "removal": {

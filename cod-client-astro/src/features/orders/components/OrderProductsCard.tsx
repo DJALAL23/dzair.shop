@@ -4,7 +4,7 @@ import { Button, Card, Input } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { setLineReturn } from "@/features/orders/api";
-import { deliveryLabel, formatMoney, lineBeforeCoupon, offerLineLabel, orderTotal, subtotalBeforeCoupon } from "@/features/orders/model";
+import { deliveryLabel, formatMoney, lineBeforeCoupon, lineReturnError, offerLineLabel, orderTotal, subtotalBeforeCoupon } from "@/features/orders/model";
 import type { OrderDetail, OrderProduct } from "@/features/orders/types";
 import type { Locale } from "@/i18n/config";
 
@@ -24,7 +24,7 @@ function RefusedUnits({ orderId, line, onChanged }: { orderId: string; line: Ord
       setEditing(false);
       await onChanged();
     } catch (cause) {
-      notify.error(cause instanceof Error ? cause.message : String(cause));
+      notify.error(lineReturnError(cause, t));
     } finally {
       setBusy(false);
     }

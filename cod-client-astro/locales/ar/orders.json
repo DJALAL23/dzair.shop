@@ -483,7 +483,10 @@
     "saved_two": "عادت وحدتان من {product} للمخزون",
     "saved_few": "عادت {count} وحدات من {product} للمخزون",
     "saved_many": "عاد {count} وحدة من {product} للمخزون",
-    "saved_other": "عاد {count} وحدة من {product} للمخزون"
+    "saved_other": "عاد {count} وحدة من {product} للمخزون",
+    "error_not_delivered": "تُسجَّل الوحدات المرفوضة بعد تسليم الطلب.",
+    "error_closed": "هذا الطلب ملغى أو عاد: كل الوحدات رجعت إلى المخزون.",
+    "error_changed": "تغيّر هذا السطر في الأثناء. أعد تحميل الطلب وحاول مجددًا."
   },
   "loading_more": "جارٍ التحميل…",
   "removal": {

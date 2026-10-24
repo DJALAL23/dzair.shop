@@ -586,7 +586,7 @@ export async function updateOrder(
 
 export type LineReturn =
   | { ok: true; id: string; status: "fulfilled" | "partially_returned" | "returned"; returnedQuantity: number; quantity: number }
-  | { ok: false; reason: "line_not_found" | "out_of_range" | "order_closed" | "changed"; quantity?: number };
+  | { ok: false; reason: "line_not_found" | "out_of_range" | "order_closed" | "not_delivered" | "changed"; quantity?: number };
 
 /**
  * Record how many units of one order line the customer refused at the door,
@@ -625,9 +625,12 @@ export async function setOrderProductReturn(
 
   const orderOpen = sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.status} <> 'cancelled')
     and not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId} and ${shipments.returnedAt} is not null)`;
+  // Units are refused at the door: the customer received the parcel and kept part of it.
+  const delivered = sql`exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId} and ${shipments.deliveredAt} is not null)`;
   const applies = and(
     sql`exists (select 1 from ${orderProducts} where ${orderProducts.id} = ${productLineId} and coalesce(${orderProducts.returnedQuantity}, 0) = ${before})`,
     orderOpen,
+    delivered,
   )!;
 
   const statements: BatchStatement[] = [];
@@ -679,12 +682,13 @@ export async function setOrderProductReturn(
   if (((results.at(-1) as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0) {
     return { ok: true, id: productLineId, status, returnedQuantity: newReturnedQty, quantity };
   }
-  const open = await db
-    .select({ id: orders.id })
+  const state = await db
+    .select({ open: sql<number>`${orderOpen}`, delivered: sql<number>`${delivered}` })
     .from(orders)
-    .where(and(eq(orders.id, orderId), orderOpen))
+    .where(eq(orders.id, orderId))
     .get();
-  return { ok: false, reason: open ? "changed" : "order_closed" };
+  if (!state || !Number(state.open)) return { ok: false, reason: "order_closed" };
+  return { ok: false, reason: Number(state.delivered) ? "changed" : "not_delivered" };
 }
 
 export type OrderDeletion = { ok: true } | { ok: false; reason: "not_found" | "has_shipment" | "changed" };

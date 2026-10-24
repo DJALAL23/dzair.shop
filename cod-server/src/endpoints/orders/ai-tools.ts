@@ -504,6 +504,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
       "returnedQuantity=line.quantity → line status 'returned'. " +
       "0 < returnedQuantity < line.quantity → line status 'partially_returned'. " +
       "Returned units are automatically restocked. Calls are idempotent — correcting a previous return adjusts the delta. " +
+      "Only on a delivered order — before delivery nothing has been refused (a parcel refused whole comes back as a return). " +
       "Blocked once the order is cancelled or its parcel came back. " +
       "Use getOrderDetails first to find the productLineId (it's the id field in the products array).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input

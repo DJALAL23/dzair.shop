@@ -261,7 +261,9 @@ const returnOrderProductRoute = defineRoute({
 
 The server computes the line status ("fulfilled" | "partially_returned" | "returned") from returnedQuantity vs. the line quantity, restocks the delta (repeated calls are idempotent), and logs an ORDER_RETURNED stock movement.
 
-Refused (422) once the order is cancelled or its parcel came back — every remaining unit is already back in stock; checked in the same write, so neither can happen in between.`,
+Only on a **delivered** order: the customer opened the parcel at the door and kept part of it. Before delivery nothing has been refused (422 ORDER_NOT_DELIVERED) — a parcel refused whole comes back as a return, and its stock with it.
+
+Refused (422) once the order is cancelled or its parcel came back — every remaining unit is already back in stock. Both are checked in the same write, so neither can happen in between.`,
   operationId: "returnOrderProduct",
   params: IdParamSchema.extend({
     productLineId: z.string().openapi({ description: "Order product line ID" }),

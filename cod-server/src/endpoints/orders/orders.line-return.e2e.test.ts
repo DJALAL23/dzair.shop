@@ -1,7 +1,9 @@
 /**
  * Units of one order line refused at the door, on real D1: the difference is
  * put back in stock (or taken out again when the return is corrected down),
- * with its movement; never once the order is cancelled or its parcel came
+ * with its movement — only on a delivered order, where the customer opened
+ * the parcel and kept part of it; never before delivery, when nothing has
+ * been refused yet; never once the order is cancelled or its parcel came
  * back — those already put every remaining unit back — and never twice for
  * the same change, whatever runs in between.
  */
@@ -42,7 +44,15 @@ beforeEach(async () => {
     { id: "l-untracked", orderId: "o1", productId: "untracked", productName: "Service", quantity: 1, pricePerUnit: 0, lineTotal: 0, createdAt: T },
     { id: "l-varied", orderId: "o1", productId: "varied", variantId: "v1", productName: "Chemise", quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: T },
   ]);
+  await d1.db.delete(schema.drivers);
+  await d1.db.insert(schema.drivers).values({ id: "dr1", firstName: "A", lastName: "B", phone: "0661111111", createdAt: T, updatedAt: T });
+  // The customer received the parcel: the moment units can be refused at the door.
+  await d1.db.insert(schema.shipments).values({ id: "s1", orderId: "o1", kind: "driver", driverId: "dr1", handoffState: "accepted", deliveryType: "home", codAmount: 3000, revision: "r", deliveredAt: T, createdAt: T, updatedAt: T });
 });
+
+/** The order as it was before its delivery: given to the driver, still on the way — or not handed off at all. */
+const onTheWay = () => d1.db.update(schema.shipments).set({ deliveredAt: null, outForDeliveryAt: T }).where(eq(schema.shipments.id, "s1"));
+const notHandedOff = () => d1.db.delete(schema.shipments);
 
 const stock = async (id: string) => (await d1.db.select().from(schema.products).where(eq(schema.products.id, id)).get())!.inventory;
 const variantStock = async () => (await d1.db.select().from(schema.productVariants).where(eq(schema.productVariants.id, "v1")).get())!.inventory;
@@ -90,8 +100,33 @@ describe("a line return", () => {
   });
 });
 
+describe("only once the order is delivered", () => {
+  it("not before it is handed to delivery: nothing has been refused, and no stock moves", async () => {
+    await notHandedOff();
+    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1)).toEqual({ ok: false, reason: "not_delivered" });
+    expect(await stock("tracked")).toBe(10);
+    expect(await line("l-tracked")).toMatchObject({ status: "fulfilled", returnedQuantity: 0 });
+    expect(await movements()).toEqual([]);
+  });
+
+  it("not while the parcel is still on its way", async () => {
+    await onTheWay();
+    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1)).toEqual({ ok: false, reason: "not_delivered" });
+    expect(await stock("tracked")).toBe(10);
+    expect(await movements()).toEqual([]);
+  });
+
+  it("checked in the same write: a delivery recorded in between lets the return through", async () => {
+    await onTheWay();
+    const delivered = () => d1.db.update(schema.shipments).set({ deliveredAt: T }).where(eq(schema.shipments.id, "s1"));
+    expect((await setOrderProductReturn(interleaved(d1.db, delivered), "o1", "l-tracked", 1)).ok).toBe(true);
+    expect(await stock("tracked")).toBe(11);
+  });
+});
+
 describe("refused once every remaining unit is already back", () => {
   it("the order is cancelled", async () => {
+    await notHandedOff();
     await updateOrderStatus(d1.db, "o1", "cancelled");
     const before = await stock("tracked");
     expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1)).toEqual({ ok: false, reason: "order_closed" });
@@ -99,19 +134,11 @@ describe("refused once every remaining unit is already back", () => {
   });
 
   it("the order's parcel came back", async () => {
-    await d1.db.insert(schema.drivers).values({ id: "dr1", firstName: "A", lastName: "B", phone: "0661111111", createdAt: T, updatedAt: T });
-    await d1.db.insert(schema.shipments).values({ id: "s1", orderId: "o1", kind: "driver", driverId: "dr1", handoffState: "accepted", deliveryType: "home", codAmount: 3000, revision: "r", createdAt: T, updatedAt: T });
+    await onTheWay();
     await recordShipmentEvents(d1.db, "s1", [{ source: "merchant", status: { vocabulary: "driver", value: "returned" }, interpretation: { kind: "milestone", milestone: "returned" }, occurredAt: new Date().toISOString() }]);
     expect(await stock("tracked")).toBe(13);
     expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1)).toEqual({ ok: false, reason: "order_closed" });
     expect(await stock("tracked")).toBe(13);
-  });
-
-  it("the order is cancelled while the return is being recorded", async () => {
-    const outcome = await setOrderProductReturn(interleaved(d1.db, () => updateOrderStatus(d1.db, "o1", "cancelled")), "o1", "l-tracked", 2);
-    expect(outcome).toEqual({ ok: false, reason: "order_closed" });
-    expect(await stock("tracked")).toBe(13);
-    expect((await movements()).filter((m) => m.productId === "tracked").map((m) => [m.type, m.delta])).toEqual([["ORDER_CANCELLED", 3]]);
   });
 });
 

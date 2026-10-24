@@ -401,6 +401,15 @@ export function filterAbandonedOrders(
   });
 }
 
+/** Why units refused at the door could not be recorded, in the merchant's words. */
+export function lineReturnError(cause: unknown, t: Translate): string {
+  const code = typeof cause === "object" && cause !== null ? (cause as { code?: unknown }).code : undefined;
+  if (code === "ORDER_NOT_DELIVERED") return t("refused.error_not_delivered");
+  if (code === "INVALID_STATUS_TRANSITION") return t("refused.error_closed");
+  if (code === "ORDER_CHANGED") return t("refused.error_changed");
+  return cause instanceof Error ? cause.message : String(cause);
+}
+
 /** Why clearing an order away was refused, in the merchant's words. */
 export function orderRemovalError(cause: unknown, t: Translate): string {
   const code = typeof cause === "object" && cause !== null ? (cause as { code?: unknown }).code : undefined;
