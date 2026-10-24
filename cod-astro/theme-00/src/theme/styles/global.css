@@ -9,9 +9,10 @@
  * line is the amount paid at the door.
  *
  * Every color comes from a color scheme (`colorSchemes` setting). An element
- * wearing one carries `.scheme` and the SDK's `.wc-scheme-<id>`, whose rule
- * sets the `--wc-color-*` roles; `.scheme` derives the theme's tokens from
- * them, so a section recolors with its scheme and nothing else changes.
+ * wearing one carries the SDK's `schemeClass(id)` — `.wc-scheme` and
+ * `.wc-scheme-<id>`, whose rule sets the `--wc-color-*` roles; `.wc-scheme`
+ * derives the theme's tokens from them, so a section recolors with its scheme
+ * and nothing else changes.
  * BaseHead injects the rest per request: the schemes, the two faces
  * (`--font-text`, `--font-display`) and the corners (`--r-*`).
  *
@@ -153,7 +154,7 @@
 
 /* ── Schemes: every token is derived from the scheme an element wears ─────── */
 :root,
-.scheme {
+.wc-scheme {
   --clr-bg: var(--wc-color-background);
   --clr-ink: var(--wc-color-heading);
   --clr-text: var(--wc-color-text);
@@ -174,11 +175,11 @@
 /* Text on the accent: white or black, whichever the accent's lightness carries. */
 @supports (color: oklch(from red l c h)) {
   :root,
-  .scheme {
+  .wc-scheme {
     --clr-on-accent: oklch(from var(--wc-color-accent) clamp(0, (0.7 - l) * 1000, 1) 0 0);
   }
 }
-.scheme {
+.wc-scheme {
   background-color: var(--clr-bg);
   color: var(--clr-text);
 }

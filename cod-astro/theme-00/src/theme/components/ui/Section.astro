@@ -24,6 +24,6 @@ const outer = styleClasses(style?.spacing ? { spacing: style.spacing } : undefin
 const width = styleClasses(style?.size ? { size: style.size } : undefined);
 ---
 
-<Tag id={id} class:list={["section scheme", schemeClass(scheme), outer, className]} aria-label={label}>
+<Tag id={id} class:list={["section", schemeClass(scheme), outer, className]} aria-label={label}>
   {bleed ? <slot /> : <div class:list={["frame", width, inner]}><slot /></div>}
 </Tag>

@@ -24,7 +24,7 @@ const centered = logoPosition === "center";
 ---
 
 <header
-  class:list={["site-header scheme", schemeClass(scheme), sticky && "is-sticky", centered ? "is-centered" : "is-start"]}
+  class:list={["site-header", schemeClass(scheme), sticky && "is-sticky", centered ? "is-centered" : "is-start"]}
   style={`--logo-w: ${logoWidth}px`}
 >
   <div class="header-bar frame">
@@ -83,7 +83,7 @@ const centered = logoPosition === "center";
 </header>
 
 {links.length > 0 && (
-  <nav id="site-menu" popover class:list={["site-menu scheme", schemeClass(scheme)]} aria-label={content.ariaMainNavigation}>
+  <nav id="site-menu" popover class:list={["site-menu", schemeClass(scheme)]} aria-label={content.ariaMainNavigation}>
     <div class="site-menu-head">
       <span class="header-name">{config.name}</span>
       <button type="button" popovertarget="site-menu" popovertargetaction="hide" class="icon-btn" aria-label={content.navMenuClose}>

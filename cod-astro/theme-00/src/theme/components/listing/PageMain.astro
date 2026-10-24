@@ -18,8 +18,8 @@ const width = styleClasses(style?.size ? { size: style.size } : undefined);
 ---
 
 {page && (
-  <article class:list={["text-page scheme", schemeClass(scheme)]} aria-labelledby="page-title">
-    <header class:list={["page-head scheme", schemeClass(headScheme), headerAlign === "center" && "is-center"]}>
+  <article class:list={["text-page", schemeClass(scheme)]} aria-labelledby="page-title">
+    <header class:list={["page-head", schemeClass(headScheme), headerAlign === "center" && "is-center"]}>
       <div class:list={["frame", width]}>
         {showBreadcrumbs && (
           <nav class="crumbs" aria-label={content.ariaBreadcrumb}>

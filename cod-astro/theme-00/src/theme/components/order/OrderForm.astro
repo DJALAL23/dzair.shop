@@ -106,7 +106,7 @@ const comparePrice = getProductView(product).comparePrice;
       />
     </div>
 
-    <div class:list={["waybill", scheme && "scheme", schemeClass(scheme)]}>
+    <div class:list={["waybill", schemeClass(scheme)]}>
       <div class="waybill-head">
         <h2 class="order-title">{content.formTitle}</h2>
         <span class="cod-chip"><Icon name="heroicons:banknotes" aria-hidden="true" />{content.orderCtaSubtext}</span>
@@ -192,7 +192,7 @@ const comparePrice = getProductView(product).comparePrice;
   .order-choices { display: flex; flex-direction: column; gap: 1.25rem; }
   .order-choices:empty { display: none; }
   .waybill { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem 1rem; }
-  .waybill:not(.scheme) { background: var(--clr-plate); }
+  .waybill:not(.wc-scheme) { background: var(--clr-plate); }
   @media (min-width: 640px) { .waybill { padding: 1.75rem; } }
   .order-title { font-size: var(--text-xl); font-weight: 600; }
   .cod-chip {

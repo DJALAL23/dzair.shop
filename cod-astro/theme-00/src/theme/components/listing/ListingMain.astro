@@ -24,8 +24,8 @@ const count = view ? (view.page === 1 && !view.hasNext ? message(content, "listi
 ---
 
 {view && (
-  <section class:list={["listing scheme", schemeClass(scheme)]} aria-labelledby="listing-title">
-    <header class:list={["listing-head scheme", schemeClass(headScheme), headerAlign === "center" && "is-center", view.image && "has-image"]}>
+  <section class:list={["listing", schemeClass(scheme)]} aria-labelledby="listing-title">
+    <header class:list={["listing-head", schemeClass(headScheme), headerAlign === "center" && "is-center", view.image && "has-image"]}>
       <div class:list={["frame", width]}>
         {showBreadcrumbs && (
           <nav class="crumbs" aria-label={content.ariaBreadcrumb}>

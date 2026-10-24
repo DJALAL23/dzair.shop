@@ -145,7 +145,7 @@ describe("the layout", () => {
     expect(html).toContain("--font-text: var(--font-tajawal)");
     expect(html).toContain("--font-display: var(--font-almarai)");
     const bodyClasses = /<body class="([^"]*)"/.exec(html)?.[1]?.split(/\s+/) ?? [];
-    expect(bodyClasses).toEqual(expect.arrayContaining(["scheme", "wc-scheme-scheme-1"]));
+    expect(bodyClasses).toEqual(expect.arrayContaining(["wc-scheme", "wc-scheme-scheme-1"]));
     expect(html).not.toContain("#123456");
   });
 

@@ -28,7 +28,7 @@ const units = { days: content.countdownDays, hours: content.countdownHours, minu
 ---
 
 <Section style={style}>
-  <div class:list={["banner scheme", schemeClass(scheme), photo ? "has-photo" : "no-photo", imageSide === "start" && "photo-start"]}>
+  <div class:list={["banner", schemeClass(scheme), photo ? "has-photo" : "no-photo", imageSide === "start" && "photo-start"]}>
     {photo && (
       <div class="banner-photo">
         <Image

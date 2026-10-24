@@ -19,7 +19,7 @@ const shown = hasBlocks(blocks, "default") || isPreview(blocks);
 ---
 
 {shown && (
-  <div class:list={["announce scheme", schemeClass(scheme)]} data-announce data-autoplay={autoplay ? "" : undefined} style="padding-top: var(--safe-top)">
+  <div class:list={["announce", schemeClass(scheme)]} data-announce data-autoplay={autoplay ? "" : undefined} style="padding-top: var(--safe-top)">
     <div class="announce-inner frame">
       <button type="button" class="announce-turn" data-announce-step="-1" aria-label={content.announcePrevious} hidden>
         <Icon name="heroicons:chevron-left" class="flip-rtl" aria-hidden="true" />

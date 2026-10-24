@@ -93,7 +93,7 @@ const fonts = { body: themeFont(settings.font, BODY_FONT), heading: themeFont(se
     softNavigation={softNavigation}
   />
 
-  <body class:list={["scheme", schemeClass(settings.pageScheme), !hideMobileNav && "has-mobile-nav"]} style={`--card-aspect: ${cardAspect(settings.cardImageRatio)}`} data-card-button={settings.cardButton ? "" : undefined}>
+  <body class:list={[schemeClass(settings.pageScheme), !hideMobileNav && "has-mobile-nav"]} style={`--card-aspect: ${cardAspect(settings.cardImageRatio)}`} data-card-button={settings.cardButton ? "" : undefined}>
     {!marketing && <Area area="header" />}
 
     <main transition:animate={pageMotion}>
