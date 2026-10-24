@@ -146,18 +146,24 @@ describe("the parcel's life with the carrier", () => {
 });
 
 describe("a driver has no carrier", () => {
-  it.each(["validate", "update", "resolve", "lookup", "addRemark", "listRemarks", "label", "askReturn", "requestNewAttempt", "confirmReturn", "sync"] as const)("%s", (action) => {
+  it.each(["validate", "update", "resolve", "lookup", "addRemark", "listRemarks", "askReturn", "requestNewAttempt", "confirmReturn", "sync"] as const)("%s", (action) => {
     expect(code(driver(), null, action)).toBe("OPERATION_NOT_SUPPORTED");
   });
 
   it("even if carrier capabilities were passed for it", () => {
-    for (const action of ["validate", "update", "label", "sync", "askReturn"] as const) {
+    for (const action of ["validate", "update", "sync", "askReturn"] as const) {
       expect(code(driver(), ECOTRACK_CAPABILITIES, action)).toBe("OPERATION_NOT_SUPPORTED");
     }
   });
 
-  it("offers voiding and reporting", () => {
-    expect(availableActions(driver(), null)).toEqual(["void", "report"]);
+  it("has CodFlow's label while the parcel is out, and none once it is closed", () => {
+    expect(code(driver(), null, "label")).toBe("ok");
+    expect(code(driver({ deliveredAt: AT }), null, "label")).toBe("SHIPMENT_CLOSED");
+    expect(code(driver({ returnedAt: AT }), null, "label")).toBe("SHIPMENT_CLOSED");
+  });
+
+  it("offers voiding, its label and reporting", () => {
+    expect(availableActions(driver(), null)).toEqual(["void", "label", "report"]);
   });
 
   it("a carrier shipment whose company lost its adapter offers nothing that needs the carrier", () => {

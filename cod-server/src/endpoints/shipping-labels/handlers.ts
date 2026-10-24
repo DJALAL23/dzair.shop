@@ -20,8 +20,8 @@ async function settingsOrThrow(c: Context<AppContext>) {
 
 /** GET /shipping-labels/settings — the settings, and the sender they print. */
 export async function getLabelSettings(c: Context<AppContext>) {
-  const { config, sender, store } = await settingsOrThrow(c);
-  return c.json({ success: true, data: { config, sender, currency: { code: store.currency, symbol: store.currencySymbol } } }, 200);
+  const { config, sender, store, legal } = await settingsOrThrow(c);
+  return c.json({ success: true, data: { config, sender, legalPhone: legal?.contactPhone ?? null, currency: { code: store.currency, symbol: store.currencySymbol } } }, 200);
 }
 
 /** PUT /shipping-labels/settings — replace them; every problem is reported at once. */
@@ -34,7 +34,7 @@ export async function putLabelSettings(c: Context<AppContext>) {
     throw new ValidationError(result.issues[0].message, ERROR_CODES.VALIDATION_FAILED, { issues: result.issues });
   }
   const config = await saveShippingLabelConfig(db, store.id, result.config);
-  return c.json({ success: true, data: { config, sender: labelSender(store, legal, config), currency: { code: store.currency, symbol: store.currencySymbol } } }, 200);
+  return c.json({ success: true, data: { config, sender: labelSender(store, legal, config), legalPhone: legal?.contactPhone ?? null, currency: { code: store.currency, symbol: store.currencySymbol } } }, 200);
 }
 
 /** POST /shipping-labels — the labels of these driver shipments. */

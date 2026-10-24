@@ -102,6 +102,7 @@ describe("label settings", () => {
     expect(body.data).toEqual({
       config: { size: "100x150", language: "fr", showLogo: true, senderPhone: null, showItems: true, showNotes: true, openParcel: "unset", footer: null },
       sender: { name: "Maison Lina", logoUrl: "https://media.example.com/logo.webp", phone: "0661234567", address: "12 Rue Didouche Mourad, Alger" },
+      legalPhone: "0661234567",
       currency: { code: "DZD", symbol: "دج" },
     });
   });
@@ -111,6 +112,7 @@ describe("label settings", () => {
     expect(saved.status).toBe(200);
     expect(saved.body.data.config).toMatchObject({ language: "ar", openParcel: "allowed", senderPhone: "023 45 67 89", footer: "شكرا لثقتكم", showItems: true });
     expect(saved.body.data.sender.phone).toBe("023 45 67 89");
+    expect(saved.body.data.legalPhone).toBe("0661234567");
     expect(JSON.parse((await stored())!)).toMatchObject({ language: "ar", openParcel: "allowed" });
 
     expect((await call("PUT", "/api/shipping-labels/settings", {})).status).toBe(200);

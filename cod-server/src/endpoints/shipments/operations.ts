@@ -56,7 +56,10 @@ interface CarrierTarget extends Target {
 }
 
 async function carrierTarget(db: AppDb, shipmentId: string, action: ShipmentAction): Promise<CarrierTarget> {
-  const found = await target(db, shipmentId, action);
+  return carrierTargetOf(await target(db, shipmentId, action), shipmentId, action);
+}
+
+async function carrierTargetOf(found: Target, shipmentId: string, action: ShipmentAction): Promise<CarrierTarget> {
   const ref = carrierRefOf(found.row);
   if (!found.company || !ref) throw new Error(`Shipment ${shipmentId} passed "${action}" without a carrier parcel`);
   return { ...found, company: found.company, ref, carrier: await connectedCarrier(found.company) };
@@ -256,7 +259,11 @@ export async function syncOne(db: AppDb, shipmentId: string): Promise<RecordedEv
 
 /** The label, fetched for the merchant — carrier labels sit behind credentials or expiring links. */
 export async function shipmentLabel(db: AppDb, shipmentId: string): Promise<{ body: ArrayBuffer | ReadableStream; contentType: string; name: string }> {
-  const t = await carrierTarget(db, shipmentId, "label");
+  const found = await target(db, shipmentId, "label");
+  if (found.row.kind === "driver") {
+    throw new BusinessLogicError("The store's driver has no carrier label: print it from POST /shipping-labels", ERROR_CODES.OPERATION_NOT_SUPPORTED, { shipmentId });
+  }
+  const t = await carrierTargetOf(found, shipmentId, "label");
   const label: CarrierLabel = await ask(db, t, "label", () => t.carrier.label!(t.ref));
   const name = `label-${t.row.trackingNumber ?? t.row.carrierParcelId}.pdf`;
   if (label.kind === "pdf") return { body: label.body, contentType: "application/pdf", name };

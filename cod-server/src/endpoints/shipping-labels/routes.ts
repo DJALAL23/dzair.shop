@@ -47,7 +47,12 @@ const ParcelSchema = z
 
 const SettingsResponse = z.object({
   success: z.boolean(),
-  data: z.object({ config: ConfigSchema, sender: SenderSchema, currency: CurrencySchema }),
+  data: z.object({
+    config: ConfigSchema,
+    sender: SenderSchema,
+    legalPhone: z.string().nullable().openapi({ description: "The legal profile's contact phone: what prints when the settings name no sender phone" }),
+    currency: CurrencySchema,
+  }),
 });
 
 const settingsRoute = defineRoute({

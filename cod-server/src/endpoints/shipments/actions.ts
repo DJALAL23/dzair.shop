@@ -37,7 +37,6 @@ const CARRIER_ONLY: ReadonlySet<ShipmentAction> = new Set([
   "lookup",
   "addRemark",
   "listRemarks",
-  "label",
   "askReturn",
   "requestNewAttempt",
   "confirmReturn",
@@ -93,7 +92,9 @@ export function checkAction(subject: ShipmentSubject, capabilities: CarrierCapab
       return caps.remarks.list ? OK : notSupported("reading remarks");
 
     case "label":
-      if (!caps.label) return notSupported("labels");
+      // The store's driver has no carrier to print one: CodFlow draws it (/shipping-labels) while the parcel is out.
+      if (subject.kind === "driver") return closedVerdict(delivery) ?? OK;
+      if (!capabilities?.label) return notSupported("labels");
       return delivery.cancelledAt ? notNow("The parcel was cancelled") : OK;
 
     case "askReturn":

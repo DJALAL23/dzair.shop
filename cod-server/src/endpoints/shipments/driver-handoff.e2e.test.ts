@@ -81,7 +81,10 @@ describe("giving an order to the driver", () => {
     const { data } = (await res.json()) as any;
     expect(data).toMatchObject({ orderId: "o1", orderNumber: "ORD-o1", outcome: "accepted" });
     expect(data.shipment).toMatchObject({ kind: "driver", driverId: "dr1", companyId: null, handoffState: "accepted", codAmount: 1900, driverFee: 300, deliveryType: "home" });
-    expect(data.shipment.actions).toEqual(["void", "report"]);
+    expect(data.shipment.actions).toEqual(["void", "label", "report"]);
+    const carrierLabel = await call("GET", `/api/shipments/${data.shipment.id}/label`);
+    expect(carrierLabel.status).toBe(422);
+    expect(await codeOf(carrierLabel)).toBe("OPERATION_NOT_SUPPORTED");
     expect(data).not.toHaveProperty("validationError");
 
     const shipment = await shipmentOf("o1");
