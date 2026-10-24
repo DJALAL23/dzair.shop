@@ -4,17 +4,13 @@
 // middleware read the request and built the draft's store context; nothing
 // here is stored, cached or indexed (no route rule may cache this path).
 //
-// A template is previewed for the resource the draft's `path` names, else for
-// the store's first product, category, collection (of the store's default
-// ones) or text page. A store with none of those yet still previews: the
-// template renders empty, so its sections can be seen and arranged. An area
-// (the header, the footer) is previewed on the page the editor shows — the one
-// its `path` names, else the home page — and only the area's sections are
-// marked for the editor. Without a verified preview, or for a surface this
-// theme does not compose, the route is a 404.
-import { matchStorefrontPath } from "@wocart/storefront";
-import { areaSurface } from "@wocart/theme";
-import { createReadCache } from "@wocart/theme/astro";
+// What it shows is the SDK's `previewTarget`: a template previews the
+// resource the draft's `path` names, else the store's first of its kind (or
+// renders empty, so its sections can still be arranged); an area previews on
+// the page its `path` names, else the home page, with only its own sections
+// marked. Without a verified preview, or for a surface this theme does not
+// compose, the route is a 404.
+import { createReadCache, previewTarget } from "@wocart/theme/astro";
 import HomeSurface from "@/theme/pages/HomeSurface.astro";
 import ProductSurface from "@/theme/pages/ProductSurface.astro";
 import SurfacePage from "@/theme/pages/SurfacePage.astro";
@@ -26,47 +22,20 @@ import { theme00 } from "@/theme/theme";
 
 export const prerender = false;
 
-/** The collections every store is given; a collection preview without a path shows the first of them there is. */
-const DEFAULT_COLLECTIONS = ["best-sellers", "new-arrivals", "featured"];
-const COMPOSED = ["home", "product", "collection", "category", "catalog", "page"] as const;
-type Composed = (typeof COMPOSED)[number];
-
 const notFound = () => new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
 const preview = Astro.locals.preview;
 if (preview === undefined) return notFound();
-const { draft } = preview;
-const { client, config } = Astro.locals.store;
-const match = draft.path ? matchStorefrontPath(draft.path) : null;
-const isArea = (theme00.areas ?? []).some((area) => areaSurface(area.key) === draft.surface);
-const isComposed = (key: string | undefined): key is Composed => (COMPOSED as readonly string[]).includes(key ?? "");
-/** The page the preview shows: the surface itself, or the page an area is edited on. */
-const shown: string = isArea ? (isComposed(match?.type) ? match!.type : "home") : draft.surface;
-if (!isComposed(shown)) return notFound();
-const named = match?.type === shown ? match.params : {};
-
-/** The route's parameters for a template: the resource the path names, else the store's first of its kind. */
-let params: Record<string, string> = {};
-let product = null;
-if (shown === "product") {
-  const handle = named.handle ?? (await client.products.list({ limit: 1 }))[0]?.handle;
-  product = handle ? await client.products.get(handle) : null;
-} else if (shown === "collection") {
-  let handle = named.handle;
-  if (handle === undefined) for (const candidate of DEFAULT_COLLECTIONS) if (handle === undefined && (await client.collections.get(candidate))) handle = candidate;
-  if (handle !== undefined) params = { handle };
-} else if (shown === "category") {
-  const slug = named.slug ?? (await client.categories.list())[0]?.slug;
-  if (slug !== undefined) params = { slug };
-} else if (shown === "page") {
-  const slug = named.slug ?? config.pages?.[0]?.slug;
-  if (slug !== undefined) params = { slug };
-}
+const { client } = Astro.locals.store;
+const target = await previewTarget(theme00, preview.draft, client);
+const shown = target?.pageType;
+if (target === null || (shown !== "home" && shown !== "product" && shown !== "collection" && shown !== "category" && shown !== "catalog" && shown !== "page")) return notFound();
+const product = shown === "product" && target.params.handle ? await client.products.get(target.params.handle) : null;
 
 for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims))) {
   Astro.response.headers.set(name, value);
 }
-// The page's own document: the draft's when the page is what is edited, else what the store saved.
-const document = isArea ? await client.pageData.get(shown) : (draft.document ?? (await client.pageData.get(draft.surface)));
+const { document, params } = target;
+const isArea = target.area !== null;
 ---
 
 {shown === "product" ? (

@@ -24,8 +24,8 @@ export function testStore(overrides: Partial<StoreContext> & { routing?: LocaleR
     pathname: "/",
     href: (path) => localizeHref(path, locale, routing),
     ...overrides,
-    // A test's client stands in for the namespaces it names; the rest read as empty.
-    client: { ...EMPTY_CLIENT, ...(overrides.client as object | undefined) } as unknown as StoreClient,
+    // A test's client stands in for the namespaces it names; the rest read as empty, and its config is the store's.
+    client: { ...EMPTY_CLIENT, config: { get: async () => overrides.config ?? DEFAULT_CONFIG }, ...(overrides.client as object | undefined) } as unknown as StoreClient,
   };
 }
 
