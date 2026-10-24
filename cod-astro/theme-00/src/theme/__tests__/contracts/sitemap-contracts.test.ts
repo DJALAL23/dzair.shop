@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sitemapXml } from "../sitemap";
+import { sitemapXml } from "@wocart/storefront/server";
 
 describe("sitemapXml", () => {
   it("lists every page once per published language, each with all its alternates", () => {

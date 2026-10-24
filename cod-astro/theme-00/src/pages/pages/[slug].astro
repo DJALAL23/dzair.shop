@@ -4,6 +4,7 @@
 // store's saved page document, or the theme's default. Draft, archived and
 // unknown slugs are a real 404, never a soft 200. The body arrives already
 // sanitised by the platform and is rendered as given (`PageMain.astro`).
+import { notFound } from "@wocart/storefront/astro";
 import { createReadCache } from "@wocart/theme/astro";
 import SurfacePage from "@/theme/pages/SurfacePage.astro";
 import { pageCatalog } from "@/theme/catalog/families/page";
@@ -14,7 +15,7 @@ const { slug } = Astro.params;
 const { config, content, locale, client } = Astro.locals.store;
 
 const [page, saved] = await Promise.all([client.pages.get(slug ?? ""), client.pageData.get("page")]);
-if (!page) return Astro.rewrite("/404");
+if (!page) return notFound(Astro);
 const reads = createReadCache();
 reads.get(pageBySlug(page.slug), async () => page);
 

@@ -1,6 +1,7 @@
 ---
 // A product page: the product template (`theme/pages/ProductSurface.astro`)
 // over the store's saved product document, or the theme's default.
+import { notFound } from "@wocart/storefront/astro";
 import ProductSurface from "@/theme/pages/ProductSurface.astro";
 import { actions } from "astro:actions";
 import { orderOutcome } from "@/theme/pages/order-outcome";
@@ -17,7 +18,7 @@ if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redi
 
 // The product first: an unknown handle is a real 404, never an empty 200.
 const [product, saved] = await Promise.all([Astro.locals.store.client.products.get(slug!), Astro.locals.store.client.pageData.get("product")]);
-if (!product) return Astro.rewrite("/404");
+if (!product) return notFound(Astro);
 ---
 
 <ProductSurface product={product} document={saved} softNavigation={!turnstileOn} />

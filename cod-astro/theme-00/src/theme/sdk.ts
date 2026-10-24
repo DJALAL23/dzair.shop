@@ -30,7 +30,7 @@
 import { createStoreClient, readPreviewRequest, readRevalidateRequest, type PreviewRequest, type RevalidateRequest, type StoreClient } from "@wocart/storefront/server";
 
 export type { StoreClient };
-export { REVALIDATE_PATH, previewResponseHeaders } from "@wocart/storefront/server";
+export { REVALIDATE_PATH, catalogPaths, previewResponseHeaders, sitemapXml } from "@wocart/storefront/server";
 export type { PreviewClaims, PreviewDraft } from "@wocart/storefront/server";
 import { COD_SERVER_URL, STORE_API_KEY, WOCART_PREVIEW_KEY } from "astro:env/server";
 import { THEME_KEY } from "@/theme/key";

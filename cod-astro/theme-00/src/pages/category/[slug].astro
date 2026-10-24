@@ -1,6 +1,7 @@
 ---
 // A category's page: the listing template (`theme/pages/SurfacePage.astro`)
 // over the store's saved category document, or the theme's default.
+import { notFound } from "@wocart/storefront/astro";
 import { createReadCache } from "@wocart/theme/astro";
 import SurfacePage from "@/theme/pages/SurfacePage.astro";
 import { listingCatalog } from "@/theme/catalog/families/listing";
@@ -13,7 +14,7 @@ const { config, content, locale, client } = Astro.locals.store;
 // The category first: an unknown slug is a real 404, never an empty 200.
 const [categories, saved] = await Promise.all([client.categories.list(), client.pageData.get("category")]);
 const category = categories.find((candidate) => candidate.slug === slug);
-if (!category) return Astro.rewrite("/404");
+if (!category) return notFound(Astro);
 const reads = createReadCache();
 reads.get(CATEGORIES_READ, async () => categories);
 ---

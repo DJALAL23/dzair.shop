@@ -5,6 +5,7 @@
 // SAME OrderForm the product page uses — same DOM contract, same scripts — so
 // offers, OTP, wilaya cascade, and tracking all work unmodified.
 // ─────────────────────────────────────────────────────────────────────────────
+import { notFound } from "@wocart/storefront/astro";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import OrderForm from "@/theme/components/order/OrderForm.astro";
 import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
@@ -37,7 +38,7 @@ const { fieldErrors, serverError, couponRefusal } = outcome;
 // Draft/archived/unknown → the store home (same contract as the product
 // page's missing-product path — ad traffic lands on the store instead of
 // a dead end).
-if (!lp) return Astro.rewrite("/404");
+if (!lp) return notFound(Astro);
 
 const product = lp.product;
 const cur = config.currencySymbol;
