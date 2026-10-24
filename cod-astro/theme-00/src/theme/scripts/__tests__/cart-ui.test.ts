@@ -86,6 +86,7 @@ function buildDom(options: { currency?: string } = {}): void {
             <p id="cart-free-delivery-text"></p>
             <div id="cart-free-delivery-bar"></div>
           </div>
+          <p id="cart-full-note" hidden>Your cart is full</p>
           <p id="cart-blocked-note" hidden>Fix before checkout</p>
           <span id="cart-subtotal"></span>
           <button type="button" id="cart-checkout">Checkout</button>
@@ -938,6 +939,39 @@ describe("Meta Pixel", () => {
     const addEvents = fbq.mock.calls.filter((call) => call[1] === "AddToCart");
     expect(addEvents).toHaveLength(1);
     expect(addEvents[0][2]).toMatchObject({ content_ids: ["p1"], num_items: 2, currency: "DZD" });
+  });
+
+  it("reports what each add put in, never the basket already there", async () => {
+    const fbq = vi.fn();
+    (window as unknown as { fbq: unknown }).fbq = fbq;
+    await boot();
+    el<HTMLInputElement>("qty-input").value = "2";
+    click(addButton());
+    el<HTMLInputElement>("qty-input").value = "1";
+    click(addButton());
+
+    const addEvents = fbq.mock.calls.filter((call) => call[1] === "AddToCart");
+    expect(addEvents.map((call) => call[2].num_items)).toEqual([2, 1]);
+    expect(storedCart()).toEqual([expect.objectContaining({ quantity: 3 })]);
+  });
+
+  it("says a full basket has no room, adds nothing and reports nothing", async () => {
+    const fbq = vi.fn();
+    (window as unknown as { fbq: unknown }).fbq = fbq;
+    const full = Array.from({ length: 20 }, (_, i) => ({ productId: `other-${i}`, productName: `Other ${i}`, variantId: null, variantLabel: null, quantity: 1, unitPrice: 500 }));
+    localStorage.setItem(CART_KEY, JSON.stringify(full));
+    await boot();
+    el<HTMLInputElement>("variant-selections-input").value = JSON.stringify([{ variantId: "v-blue", variantLabel: "Blue" }, { variantId: "v-red", variantLabel: "Red" }]);
+
+    click(addButton());
+
+    expect(el("cart-full-note").hidden).toBe(false);
+    expect(storedCart()).toHaveLength(20);
+    expect(fbq.mock.calls.filter((call) => call[1] === "AddToCart")).toEqual([]);
+
+    // Making room clears the note.
+    click(document.querySelector("[data-cart-remove]")!);
+    expect(el("cart-full-note").hidden).toBe(true);
   });
 
   it("stays silent for a store with no pixel", async () => {

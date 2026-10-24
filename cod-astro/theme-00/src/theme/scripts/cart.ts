@@ -23,10 +23,12 @@ import {
   createBasketStore,
   toOrderItems as projectOrderItems,
   type BasketLine,
+  type BasketSelectionLine,
+  type CreateOrderVariantSelection,
 } from "@wocart/storefront";
 
 export { MAX_BASKET_LINES, MAX_BASKET_LINE_QUANTITY };
-export type { BasketLine };
+export type { BasketLine, BasketSelectionLine };
 
 const store = createBasketStore();
 
@@ -58,6 +60,11 @@ export function cartSubtotal(lines: BasketLine[] = getCart()): number {
 /** Returns the resulting cart so callers can render without a second read. */
 export function addLine(line: BasketLine): BasketLine[] {
   return [...store.addLine(line)];
+}
+
+/** An offer chosen piece by piece: one line per variant, all of them or none. Returns the resulting cart. */
+export function addSelections(line: BasketSelectionLine, selections: readonly CreateOrderVariantSelection[]): BasketLine[] {
+  return [...store.addSelections(line, selections)];
 }
 
 export function setQuantity(key: string, quantity: number): BasketLine[] {

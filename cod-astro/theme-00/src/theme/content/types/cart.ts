@@ -23,6 +23,8 @@ export type CartStrings = Plural<"cartItems"> &
   cartFreeDeliveryRemaining: string;
   cartLineUnavailable: string;
   cartFixBeforeCheckout: string;
+  /** An add that found no room: the basket holds as many lines or pieces as it can. */
+  cartFull: string;
   cartDeliveryNote: string;
   cartContinueShopping: string;
 

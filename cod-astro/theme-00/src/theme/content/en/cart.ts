@@ -24,6 +24,7 @@ export const enCart: CartStrings = {
   cartLineOutOfStock_one: "Only {count} left",
   cartLineOutOfStock_other: "Only {count} left",
   cartFixBeforeCheckout: "Remove the unavailable items to continue.",
+  cartFull: "Your cart is full: check out, or remove an item to add another.",
   cartDeliveryNote: "Delivery is calculated at checkout.",
   cartContinueShopping: "Continue shopping",
 

@@ -8,7 +8,7 @@
 // preview of a store with no product yet renders the template empty, so the
 // editor can still show and arrange its sections.
 import { createReadCache } from "@wocart/theme/astro";
-import type { Product } from "@wocart/storefront";
+import { productMeta, type Product } from "@wocart/storefront";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import Sections from "@/theme/components/surface/Sections.astro";
 import { productCatalog } from "@/theme/catalog/families/product";
@@ -27,11 +27,13 @@ const { product, document, preview = false, softNavigation = true } = Astro.prop
 const { config, content, locale } = Astro.locals.store;
 const reads = createReadCache();
 if (product) reads.get(productRead(product.handle), async () => product);
+// What search engines and shared links read: what the merchant wrote for them, else the product's name and description.
+const meta = product ? productMeta(product) : null;
 ---
 
 <StoreLayout
-  title={product ? message(content, "productPageTitle", { product: product.name, storeName: config.name }, locale) : config.name}
-  description={product?.descriptionPlain?.slice(0, 160) || undefined}
+  title={meta ? message(content, "productPageTitle", { product: meta.title, storeName: config.name }, locale) : config.name}
+  description={meta?.description ?? undefined}
   hideMobileNav={true}
   softNavigation={softNavigation}
 >

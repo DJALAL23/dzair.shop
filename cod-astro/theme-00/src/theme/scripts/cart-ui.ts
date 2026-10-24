@@ -34,9 +34,12 @@ import {
   subscribe,
   isCartAvailable,
   addLine,
+  addSelections,
   MAX_BASKET_LINE_QUANTITY,
   type BasketLine,
+  type BasketSelectionLine,
 } from "./cart";
+import { addedLines } from "@wocart/storefront";
 import {
   createValidator,
   renderCartLine,
@@ -115,11 +118,19 @@ function parseSelections(raw: string): Array<{ variantId: string; variantLabel?:
   }
 }
 
-/** What one tap on an add button should put in the basket. */
-export function linesForButton(button: HTMLElement): BasketLine[] {
+/**
+ * What one tap on an add button asks the basket for: a line, or — for an offer
+ * whose pieces each have a variant — the product's line and those choices,
+ * which the basket turns into one line per variant, all of them or none.
+ */
+export type BasketAdd =
+  | { line: BasketLine }
+  | { line: BasketSelectionLine; selections: Array<{ variantId: string; variantLabel?: string }> };
+
+export function basketAddFor(button: HTMLElement): BasketAdd | null {
   const productId = button.dataset.productId ?? "";
   const productName = button.dataset.productName ?? "";
-  if (!productId || !productName) return [];
+  if (!productId || !productName) return null;
 
   const base = {
     productId,
@@ -129,15 +140,15 @@ export function linesForButton(button: HTMLElement): BasketLine[] {
   };
 
   if (!liveFormFor(productId)) {
-    return [
-      {
+    return {
+      line: {
         ...base,
         variantId: button.dataset.variantId || null,
         variantLabel: button.dataset.variantLabel || null,
         quantity: 1,
         unitPrice: toPrice(button.dataset.unitPrice),
       },
-    ];
+    };
   }
 
   const unitPrice = toPrice(fieldValue("price-input")) || toPrice(button.dataset.unitPrice);
@@ -145,29 +156,11 @@ export function linesForButton(button: HTMLElement): BasketLine[] {
   // so the cart and the order price the deal the shopper chose.
   const offerId = fieldValue("offer-id-input") || undefined;
 
-  // A multi-unit offer tier lets the shopper pick a variant per unit. One cart
-  // line per distinct variant is the honest representation — a basket line
-  // cannot mean "three units, three different colours".
   const selections = parseSelections(fieldValue("variant-selections-input"));
-  if (selections.length > 0) {
-    const byVariant = new Map<string, { label: string | null; quantity: number }>();
-    for (const selection of selections) {
-      const existing = byVariant.get(selection.variantId);
-      if (existing) existing.quantity += 1;
-      else byVariant.set(selection.variantId, { label: selection.variantLabel || null, quantity: 1 });
-    }
-    return [...byVariant].map(([variantId, entry]) => ({
-      ...base,
-      variantId,
-      variantLabel: entry.label,
-      quantity: entry.quantity,
-      unitPrice,
-      offerId,
-    }));
-  }
+  if (selections.length > 0) return { line: { ...base, unitPrice, offerId }, selections };
 
-  return [
-    {
+  return {
+    line: {
       ...base,
       variantId: fieldValue("variant-id-input") || null,
       variantLabel: fieldValue("variant-label-input") || null,
@@ -175,7 +168,7 @@ export function linesForButton(button: HTMLElement): BasketLine[] {
       unitPrice,
       offerId,
     },
-  ];
+  };
 }
 
 /** Returns a teardown. Calling it twice on the same root is a no-op. */
@@ -200,6 +193,7 @@ export function initCart(): () => void {
   const subtotalEl = document.getElementById("cart-subtotal");
   const itemsLabel = document.getElementById("cart-items-label");
   const blockedNote = document.getElementById("cart-blocked-note");
+  const fullNote = document.getElementById("cart-full-note");
   const checkoutBtn = document.getElementById("cart-checkout") as HTMLButtonElement | null;
   const freeWrap = document.getElementById("cart-free-delivery");
   const freeText = document.getElementById("cart-free-delivery-text");
@@ -248,6 +242,7 @@ export function initCart(): () => void {
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
   function render(): void {
+    if (fullNote) fullNote.hidden = true;
     const lines = getCart();
     const count = cartCount(lines);
 
@@ -444,14 +439,19 @@ export function initCart(): () => void {
       // inside a linked product card from navigating away mid-add.
       event.preventDefault();
 
-      const lines = linesForButton(button);
-      if (lines.length === 0) return;
-      for (const line of lines) addLine(line);
-
-      // What was just added, not the whole basket — see pixel.ts.
-      trackAddToCart(lines);
+      const add = basketAddFor(button);
+      if (!add) return;
+      const before = getCart();
+      const added = addedLines(before, "selections" in add ? addSelections(add.line, add.selections) : addLine(add.line));
 
       render();
+      // Nothing went in: the basket has no room left, and says so.
+      if (added.length === 0) {
+        if (fullNote) fullNote.hidden = false;
+      } else {
+        // What was just added, not the whole basket — see pixel.ts.
+        trackAddToCart(added);
+      }
       open();
     },
     { signal },

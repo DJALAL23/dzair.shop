@@ -32,6 +32,7 @@ export const arCart: CartStrings = {
   cartLineOutOfStock_many: "بقيت {count} قطعة فقط",
   cartLineOutOfStock_other: "بقيت {count} قطعة فقط",
   cartFixBeforeCheckout: "احذف المنتجات غير المتوفرة للمتابعة.",
+  cartFull: "سلتك ممتلئة: أكمل طلبك أو احذف منتجًا لتضيف غيره.",
   cartDeliveryNote: "يُحتسب التوصيل عند إتمام الطلب.",
   cartContinueShopping: "مواصلة التسوق",
 

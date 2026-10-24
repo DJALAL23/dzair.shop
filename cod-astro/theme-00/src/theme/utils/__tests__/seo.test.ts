@@ -1,19 +1,22 @@
 /**
- * SEO metadata tests — the rule that markup never reaches structured data.
- *
- * Slice 5 of the rich-text description plan. `getProductJsonLd` and any meta
- * description read `productMetaDescription`, which must:
- *   • prefer the platform's plain-text derivation (`descriptionPlain`),
+ * SEO metadata — the rule that markup never reaches a meta description or
+ * structured data. The product page reads the SDK's `productMeta` and
+ * `productStructuredData`, which must:
+ *   • prefer what the merchant wrote for search engines, then the platform's
+ *     plain-text derivation (`descriptionPlain`),
  *   • fall back to the stored text for legacy `text` rows (plain by definition),
- *   • yield `undefined` — never markup — for an `html` row without plain text.
+ *   • yield no description — never markup — for an `html` row without plain text.
  *
  * The third case is the one that matters: a missing `descriptionPlain` must
  * never cause sanitised HTML to be embedded in JSON-LD.
  */
 /// <reference types="vitest/globals" />
 
-import { ProductSchema, type ProductDetail } from "@wocart/storefront";
-import { productMetaDescription, getProductJsonLd, openGraphLocale } from "../seo";
+import { ProductSchema, jsonLd, productMeta, productStructuredData, type ProductDetail } from "@wocart/storefront";
+import { openGraphLocale } from "../seo";
+
+const productMetaDescription = (p: ProductDetail) => productMeta(p).description ?? undefined;
+const getProductJsonLd = (p: ProductDetail) => productStructuredData(p, { url: "https://shop.dz/products/casque-bluetooth", storeName: "Boutique" });
 
 /** Built through the SDK's own schema, so the fixture cannot drift from the catalog contract. */
 function product(overrides: Partial<ProductDetail> = {}): ProductDetail {
@@ -54,7 +57,7 @@ function product(overrides: Partial<ProductDetail> = {}): ProductDetail {
   });
 }
 
-describe("productMetaDescription", () => {
+describe("the product's meta description", () => {
   it("prefers descriptionPlain for a rich description", () => {
     expect(productMetaDescription(product())).toBe("Son excellent");
   });
@@ -68,7 +71,7 @@ describe("productMetaDescription", () => {
   it("returns undefined for an html row that has no plain text (never leaks markup)", () => {
     const p = product({ descriptionPlain: null });
     expect(productMetaDescription(p)).toBeUndefined();
-    expect(JSON.stringify(getProductJsonLd(p, p.price))).not.toContain("<p>");
+    expect(JSON.stringify(getProductJsonLd(p))).not.toContain("<p>");
   });
 
   it("falls back to the stored text for a legacy text row", () => {
@@ -102,10 +105,10 @@ describe("productMetaDescription", () => {
   });
 });
 
-describe("getProductJsonLd", () => {
+describe("the product's structured data", () => {
   it("carries the plain description and no tags anywhere in the payload", () => {
     const p = product();
-    const jsonLd = JSON.stringify(getProductJsonLd(p, p.price));
+    const jsonLd = JSON.stringify(getProductJsonLd(p));
     expect(jsonLd).toContain("Son excellent");
     expect(jsonLd).not.toContain("<p>");
     expect(jsonLd).not.toContain("<strong>");
@@ -113,15 +116,26 @@ describe("getProductJsonLd", () => {
 
   it("keeps the offer/availability contract intact", () => {
     const p = product({ trackInventory: true, inventory: 0 });
-    const jsonLd = getProductJsonLd(p, p.price) as Record<string, any>;
+    const jsonLd = getProductJsonLd(p) as Record<string, any>;
     expect(jsonLd.name).toBe("Casque Bluetooth");
     expect(jsonLd.offers.availability).toBe("https://schema.org/OutOfStock");
     expect(jsonLd.offers.priceCurrency).toBe("DZD");
   });
 
+  it("prefers what the merchant wrote for search engines", () => {
+    const p = product({ metaTitle: "Casque sans fil", metaDescription: "Le casque des trajets." });
+    expect(productMeta(p)).toEqual({ title: "Casque sans fil", description: "Le casque des trajets." });
+  });
+
+  it("can never end its script: a name holding </script> is escaped", () => {
+    const text = jsonLd(getProductJsonLd(product({ name: "Casque </script><script>alert(1)</script>" })));
+    expect(text).not.toContain("</script>");
+    expect(JSON.parse(text).name).toBe("Casque </script><script>alert(1)</script>");
+  });
+
   it("omits description entirely (JSON.stringify drops undefined) when unavailable", () => {
     const p = product({ descriptionPlain: null });
-    const jsonLd = JSON.stringify(getProductJsonLd(p, p.price));
+    const jsonLd = JSON.stringify(getProductJsonLd(p));
     expect(jsonLd).not.toContain("\"description\"");
   });
 });

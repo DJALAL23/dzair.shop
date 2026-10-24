@@ -102,6 +102,14 @@ describe("the layout", () => {
       request: new Request("https://example.dz/fr"),
     });
 
+  it("names one canonical address per page: its path in its language and its listing page, never a sort or an ad's click id", async () => {
+    const html = await (await AstroContainer.create()).renderToString(StoreLayout, {
+      locals: testLocals({ locale: "fr", routing, content: fr, pathname: "/collections/ete" }),
+      request: new Request("https://example.dz/fr/collections/ete?page=2&sort=newest&fbclid=abc&utm_source=meta"),
+    });
+    expect(html).toContain('<link rel="canonical" href="https://example.dz/fr/collections/ete?page=2">');
+  });
+
   it("renders the header and footer the store saved, with the menus their sections name", async () => {
     const asked: string[] = [];
     const saved: Record<string, unknown> = {

@@ -26,6 +26,7 @@ export const frCart: CartStrings = {
   cartLineOutOfStock_many: "Il n'en reste que {count}",
   cartLineOutOfStock_other: "Il n'en reste que {count}",
   cartFixBeforeCheckout: "Retirez les articles indisponibles pour continuer.",
+  cartFull: "Votre panier est plein : passez commande ou retirez un article pour en ajouter un autre.",
   cartDeliveryNote: "La livraison est calculée à la commande.",
   cartContinueShopping: "Continuer mes achats",
 

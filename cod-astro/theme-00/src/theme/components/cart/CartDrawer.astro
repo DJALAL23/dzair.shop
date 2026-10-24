@@ -147,6 +147,16 @@ const { content, currency } = Astro.props;
       style="border-color: var(--clr-border)"
       hidden
     >
+      <p
+        id="cart-full-note"
+        class="mb-3 rounded-[var(--radius-input)] px-3 py-2 text-[0.75rem] font-bold"
+        style="background: var(--clr-plate); color: var(--clr-ink)"
+        role="status"
+        hidden
+      >
+        {content.cartFull}
+      </p>
+
       <!-- Blocked lines stop checkout, and say so inline rather than on submit. -->
       <p
         id="cart-blocked-note"

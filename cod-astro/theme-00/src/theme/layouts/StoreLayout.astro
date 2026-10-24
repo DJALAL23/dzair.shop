@@ -5,7 +5,7 @@ import Area from "@/theme/components/surface/Area.astro";
 import CartDrawer from "@/theme/components/cart/CartDrawer.astro";
 import MobileNav from "@/theme/components/layout/MobileNav.astro";
 import WhatsAppWidget from "@/theme/components/chat/WhatsAppWidget.astro";
-import { alternateLinks, matchStorefrontPath, showsWidgetOn } from "@wocart/storefront";
+import { alternateLinks, canonicalUrl, matchStorefrontPath, showsWidgetOn } from "@wocart/storefront";
 import { message } from "@/theme/content/messages";
 import type { StoreConfig } from "@wocart/storefront";
 import { schemeClass } from "@wocart/theme";
@@ -60,7 +60,7 @@ const isRTL = store.isRTL;
 // This page's own URL in its language, and its other language versions —
 // computed from the store context, never from Astro.url, which a `/fr/…`
 // request reaches only after the middleware rewrote it.
-const canonical = new URL(`${store.href(store.pathname)}${Astro.url.search}`, Astro.url.origin).href;
+const canonical = canonicalUrl(Astro.url.origin, store, Astro.url.search);
 const alternates = store.routing.published.length > 1 ? alternateLinks(store.pathname, store.routing, Astro.url.origin) : [];
 
 const pageTitle = title ?? config.metaTitle ?? config.name;
