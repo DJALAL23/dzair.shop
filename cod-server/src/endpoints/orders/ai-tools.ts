@@ -326,43 +326,21 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
         const delivery = await orderDelivery(db, parsed.data);
         const deliveryFee = delivery.deliveryFee;
 
-        // Auto-create customer if not in DB
-        const { wilayas, communes, customers } = await import("@/db/schema");
-        const { eq } = await import("drizzle-orm");
-        const existingCustomer = await db
-          .select({ id: customers.id })
-          .from(customers)
-          .where(eq(customers.id, parsed.data.customerId))
-          .get();
-
-        if (!existingCustomer) {
-          const [wilayaRow, communeRow] = await Promise.all([
-            db.select({ nameAr: wilayas.nameAr }).from(wilayas).where(eq(wilayas.id, parsed.data.wilayaId)).get(),
-            parsed.data.communeId
-              ? db.select({ nameAr: communes.nameAr }).from(communes).where(eq(communes.id, parsed.data.communeId)).get()
-              : Promise.resolve(null),
-          ]);
-          await db.insert(customers).values({
-            id: parsed.data.customerId,
-            name: parsed.data.customerName,
-            phone: parsed.data.phone,
-            phone2: null,
-            wilayaId: parsed.data.wilayaId,
-            communeId: parsed.data.communeId ?? null,
-            wilaya: wilayaRow?.nameAr ?? String(parsed.data.wilayaId),
-            commune: communeRow?.nameAr ?? null,
-            address: parsed.data.address ?? null,
-            totalOrders: 0,
-            totalSpent: 0,
-            createdAt: now,
-            lastOrderAt: null,
-          });
-        }
+        const { orderCustomerId } = await import("../../../../cod-shared/queries/customers");
+        const customerId = await orderCustomerId(db, {
+          customerId: parsed.data.customerId,
+          name: parsed.data.customerName,
+          phone: parsed.data.phone,
+          wilayaId: parsed.data.wilayaId,
+          communeId: parsed.data.communeId,
+          address: parsed.data.address,
+          now,
+        });
 
         const orderData = {
           id: orderId,
           orderNumber: drawnNumber,
-          customerId: parsed.data.customerId,
+          customerId,
           customerName: parsed.data.customerName,
           phone: parsed.data.phone,
           wilayaId: parsed.data.wilayaId,
@@ -406,7 +384,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
             deliveryFee,
             price: parsed.data.price,
             codAmount: parsed.data.price + deliveryFee,
-            customerId: parsed.data.customerId,
+            customerId,
             customerName: parsed.data.customerName,
             phone: parsed.data.phone,
             wilayaId: parsed.data.wilayaId,

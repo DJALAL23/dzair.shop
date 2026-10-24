@@ -219,7 +219,7 @@ describe("Orders — targeted business-logic tests", () => {
       ],
     };
     const existingCustomer = () => ({
-      select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ get: vi.fn(async () => ({ id: "cust_1" })) })) })) })),
+      select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ all: vi.fn(async () => [{ id: "cust_1" }]) })) })) })),
       insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
     });
 

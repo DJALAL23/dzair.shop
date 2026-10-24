@@ -145,6 +145,53 @@ export async function getCustomerByPhone(db: AppDb, phone: string) {
     .get();
 }
 
+/**
+ * The customer an order the merchant enters belongs to: the one chosen, else
+ * the one who already has this phone — a phone is one customer, as the
+ * storefront checkout links it — else a new customer, created here.
+ */
+export async function orderCustomerId(
+  db: AppDb,
+  data: { customerId: string; name: string; phone: string; wilayaId: number; communeId?: string | null; address?: string | null; now: string },
+): Promise<string> {
+  const known = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(or(eq(customers.id, data.customerId), eq(customers.phone, data.phone)))
+    .all();
+  const chosen = known.find((row) => row.id === data.customerId) ?? known[0];
+  if (chosen) return chosen.id;
+
+  const [wilayaRow, communeRow] = await Promise.all([
+    db.select({ nameAr: wilayas.nameAr }).from(wilayas).where(eq(wilayas.id, data.wilayaId)).get(),
+    data.communeId
+      ? db.select({ nameAr: communes.nameAr }).from(communes).where(eq(communes.id, data.communeId)).get()
+      : Promise.resolve(null),
+  ]);
+  const [created] = await db
+    .insert(customers)
+    .values({
+      id: data.customerId,
+      name: data.name,
+      phone: data.phone,
+      phone2: null,
+      wilayaId: data.wilayaId,
+      communeId: data.communeId ?? null,
+      wilaya: wilayaRow?.nameAr ?? String(data.wilayaId),
+      commune: communeRow?.nameAr ?? null,
+      address: data.address ?? null,
+      totalOrders: 0,
+      totalSpent: 0,
+      createdAt: data.now,
+      lastOrderAt: null,
+    })
+    .onConflictDoNothing({ target: customers.phone })
+    .returning({ id: customers.id });
+  if (created) return created.id;
+  const raced = await db.select({ id: customers.id }).from(customers).where(eq(customers.phone, data.phone)).get();
+  return raced!.id;
+}
+
 export async function createCustomer(db: AppDb, customerData: CreateCustomerData) {
   const now = new Date().toISOString();
   const customerId = crypto.randomUUID();

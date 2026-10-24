@@ -10,14 +10,13 @@ import { drawOrderNumber } from "../../../../cod-shared/lib/order-number";
 import { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
-import { wilayas, communes, customers } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import * as queries from "./queries";
 import * as validation from "./validation";
 import { lineReturnRefusal, refusalFor } from "./refusals";
 import { loadOrderDetail } from "./detail";
 import { orderDelivery } from "./delivery";
 import { quoteOrderDelivery } from "../../../../cod-shared/queries/delivery-quote";
+import { orderCustomerId } from "../../../../cod-shared/queries/customers";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -87,43 +86,21 @@ export async function createOrder(c: Context<AppContext>) {
     const delivery = await orderDelivery(db, validated);
     const deliveryFee = delivery.deliveryFee;
 
-    // Auto-create customer if not in DB (walk-in / manual entry)
-    const existingCustomer = await db
-      .select({ id: customers.id })
-      .from(customers)
-      .where(eq(customers.id, validated.customerId))
-      .get();
-
-    if (!existingCustomer) {
-      const [wilayaRow, communeRow] = await Promise.all([
-        db.select({ nameAr: wilayas.nameAr }).from(wilayas).where(eq(wilayas.id, validated.wilayaId)).get(),
-        validated.communeId
-          ? db.select({ nameAr: communes.nameAr }).from(communes).where(eq(communes.id, validated.communeId)).get()
-          : Promise.resolve(null),
-      ]);
-
-      await db.insert(customers).values({
-        id: validated.customerId,
-        name: validated.customerName,
-        phone: validated.phone,
-        phone2: null,
-        wilayaId: validated.wilayaId,
-        communeId: validated.communeId ?? null,
-        wilaya: wilayaRow?.nameAr ?? String(validated.wilayaId),
-        commune: communeRow?.nameAr ?? null,
-        address: validated.address ?? null,
-        totalOrders: 0,
-        totalSpent: 0,
-        createdAt: now,
-        lastOrderAt: null,
-      });
-    }
+    const customerId = await orderCustomerId(db, {
+      customerId: validated.customerId,
+      name: validated.customerName,
+      phone: validated.phone,
+      wilayaId: validated.wilayaId,
+      communeId: validated.communeId,
+      address: validated.address,
+      now,
+    });
 
     // Prepare order data
     const orderData = {
       id: orderId,
       orderNumber: drawnNumber,
-      customerId: validated.customerId,
+      customerId,
       customerName: validated.customerName,
       phone: validated.phone,
       wilayaId: validated.wilayaId,
@@ -174,7 +151,7 @@ export async function createOrder(c: Context<AppContext>) {
           deliveryFee,
           price: validated.price,
           codAmount: validated.price + deliveryFee,
-          customerId: validated.customerId,
+          customerId,
           customerName: validated.customerName,
           phone: validated.phone,
           wilayaId: validated.wilayaId,
