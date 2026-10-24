@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { LABEL_WORDS, formatLabelAmount, formatLabelPhone, moreItems, placeName } from "./label";
+import { LABEL_WORDS, formatLabelAmount, formatLabelPhone, labelCurrency, moreItems, placeName } from "./label";
 
 describe("what a label prints", () => {
   it("writes amounts with Latin digits grouped by thousands, in either language", () => {
     expect(formatLabelAmount(3700, "DA")).toBe("3 700 DA");
     expect(formatLabelAmount(1250000.4, "DA")).toBe("1 250 000 DA");
     expect(formatLabelAmount(0, "دج")).toBe("0 دج");
+  });
+
+  it("prints the dinar as an Algerian label does, in each language", () => {
+    expect(labelCurrency({ code: "DZD", symbol: "دج" }, "fr")).toBe("DA");
+    expect(labelCurrency({ code: "DZD", symbol: "دج" }, "ar")).toBe("دج");
+    expect(labelCurrency({ code: "EUR", symbol: "€" }, "fr")).toBe("€");
   });
 
   it("groups an Algerian mobile for reading aloud, and leaves other numbers as written", () => {

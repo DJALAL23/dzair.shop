@@ -42,8 +42,8 @@ export interface LabelParcel {
 export interface LabelBatch {
   config: ShippingLabelConfig;
   sender: LabelSender;
-  /** The store's currency symbol, e.g. "DA". */
-  currency: string;
+  /** The store's currency: its code ("DZD") and symbol ("دج"). */
+  currency: { code: string; symbol: string };
   parcels: LabelParcel[];
 }
 
@@ -116,6 +116,12 @@ export function formatLabelAmount(amount: number, currency: string): string {
   const whole = Math.round(amount);
   const grouped = String(Math.abs(whole)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   return `${whole < 0 ? "-" : ""}${grouped} ${currency}`;
+}
+
+/** The currency as an Algerian label prints it: "DA" in French, "دج" in Arabic; any other currency by its symbol. */
+export function labelCurrency(currency: { code: string; symbol: string }, language: LabelLanguage): string {
+  if (currency.code === "DZD") return language === "ar" ? "دج" : "DA";
+  return currency.symbol || currency.code;
 }
 
 /** "0551234567" as "0551 23 45 67"; any other form as written. */

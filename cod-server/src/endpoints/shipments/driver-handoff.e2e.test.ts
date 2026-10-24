@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { AppContext } from "@/types";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
+import { countingD1 } from "@/test-utils/counting-d1";
 import * as schema from "@/db/schema";
 import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ecotrack/test/mock-server";
 import { handOffToDriver } from "../../../../cod-shared/shipments/handoff";
@@ -58,33 +59,6 @@ afterEach(() => {
 });
 
 const seed = (s: OrderSeed) => seedOrder(d1.db, commune16, s);
-
-/** The D1 binding, counting each trip to the database: a statement run on its own, or a whole batch. */
-function countingD1(raw: D1Database) {
-  let trips = 0;
-  const targets = new WeakMap<object, D1PreparedStatement>();
-  const statement = (target: D1PreparedStatement): D1PreparedStatement => {
-    const proxy = new Proxy(target, {
-      get(t, prop) {
-        const value = Reflect.get(t, prop, t);
-        if (prop === "bind") return (...args: unknown[]) => statement(value.apply(t, args));
-        if (prop === "all" || prop === "run" || prop === "first" || prop === "raw") return (...args: unknown[]) => (trips++, value.apply(t, args));
-        return typeof value === "function" ? value.bind(t) : value;
-      },
-    });
-    targets.set(proxy, target);
-    return proxy;
-  };
-  const counted = new Proxy(raw, {
-    get(t, prop) {
-      const value = Reflect.get(t, prop, t);
-      if (prop === "prepare") return (sql: string) => statement(value.call(t, sql));
-      if (prop === "batch") return (statements: D1PreparedStatement[]) => (trips++, value.call(t, statements.map((s) => targets.get(s) ?? s)));
-      return typeof value === "function" ? value.bind(t) : value;
-    },
-  });
-  return { raw: counted, trips: () => trips };
-}
 const call = (method: string, path: string, body?: unknown) => jsonRequest(app, method, path, body);
 const giveToDriver = (orderId: string, body: Record<string, unknown> = {}) => call("POST", `/api/orders/${orderId}/shipment`, { kind: "driver", driverId: "dr1", ...body });
 const codeOf = async (res: Response) => ((await res.json()) as any).code;
