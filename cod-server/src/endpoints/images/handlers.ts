@@ -1,7 +1,7 @@
 import { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
-import { productImages } from "@/db/schema";
+import { productImages, productVariants, products } from "@/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 import { NotFoundError, ValidationError, SystemError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -201,6 +201,11 @@ export async function saveProductImage(c: Context<AppContext>) {
     );
   }
 
+  const product = await db.select({ id: products.id }).from(products).where(eq(products.id, productId)).get();
+  if (!product) {
+    throw new NotFoundError("Product", productId);
+  }
+
   // Get current max position to append at end
   const existing = await db
     .select()
@@ -348,7 +353,10 @@ export async function deleteProductImage(c: Context<AppContext>) {
     }
   }
 
-  await db.delete(productImages).where(eq(productImages.id, imageId));
+  await db.batch([
+    db.update(productVariants).set({ imageId: null }).where(and(eq(productVariants.productId, productId), eq(productVariants.imageId, imageId))),
+    db.delete(productImages).where(eq(productImages.id, imageId)),
+  ]);
 
   return c.json({ success: true }, 200);
 }

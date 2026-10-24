@@ -143,6 +143,7 @@ const saveProductImageRoute = defineRoute({
       description: "Image record created",
       content: jsonContent(SuccessResponseSchema(ProductImageSchema)),
     },
+    404: { description: "No product with this ID (PRODUCT_NOT_FOUND)" },
   },
   handler: ih.saveProductImage,
 });
@@ -185,7 +186,7 @@ const deleteProductImageRoute = defineRoute({
   auth: { scope: SCOPES.PRODUCTS_MANAGE },
   tags: ["Products"],
   summary: "Delete product image",
-  description: "Deletes the image record from the database and removes the object from R2.",
+  description: "Deletes the image record from the database and removes the object from R2. Variants that showed the image are left without one.",
   operationId: "deleteProductImage",
   params: imageIdParams,
   responses: {

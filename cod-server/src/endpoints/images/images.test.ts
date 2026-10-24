@@ -23,6 +23,9 @@ const mockDb = {
   insert: vi.fn().mockReturnThis(),
   values: vi.fn(),
   delete: vi.fn().mockReturnThis(),
+  update: vi.fn().mockReturnThis(),
+  set: vi.fn().mockReturnThis(),
+  batch: vi.fn(),
 } as any;
 
 vi.mock("@/db", () => ({
@@ -276,6 +279,7 @@ describe("Images Endpoint - Error Scenarios", () => {
     });
 
     it("should return 201 when image record is saved successfully", async () => {
+      mockDb.get.mockResolvedValue({ id: "prod_123" });
       mockDb.all.mockResolvedValue([]);
       mockDb.insert.mockReturnValue({
         values: vi.fn().mockResolvedValue(undefined),
@@ -361,14 +365,16 @@ describe("Images Endpoint - Error Scenarios", () => {
       });
       mockBucket.delete.mockResolvedValue(undefined);
       mockDb.delete.mockReturnValue({
-        where: vi.fn().mockResolvedValue(undefined),
+        where: vi.fn().mockReturnValue("delete-image"),
       });
+      mockDb.batch.mockResolvedValue([]);
 
       const res = await app.request("/api/products/prod_123/images/img_123", {
         method: "DELETE",
       });
 
       expect(res.status).toBe(200);
+      expect(mockDb.batch).toHaveBeenCalledTimes(1);
       const body: any = await res.json();
       expect(body).toMatchObject({
         success: true,
