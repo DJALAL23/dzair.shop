@@ -25,8 +25,7 @@ themes start from this one; it is the worked example.
   `home.page.json` — instances are JSON). Customization lands here.
 - `public/`, `scripts/` — static assets and repo-owned validator scripts.
 - `lighthouse-tests/` — deliberately separate tool with its own package.json
-  and lockfile; the theme workspace itself follows the single-root-lockfile
-  rule.
+  and lockfile.
 - `wrangler.jsonc` — mechanics only (`name`, `main`, `compat`, `assets`). It
   carries **no `routes`**: a store's domain is set at deploy time by the
   platform, never committed here (the repo rule for wrangler configs is
@@ -35,25 +34,24 @@ themes start from this one; it is the worked example.
 
 ## Commands
 
-Install at the repo root (`npm ci`), then run inside this directory:
+Theme-00 is **not a workspace**: it installs `@wocart/*` from the npm
+registry at exact versions, with its own lockfile, exactly like a theme
+written outside this repository. Run everything inside this directory:
 
 ```sh
+npm ci              # this theme's own lockfile
 npm run dev         # astro dev :4321 (expects cod-server on :8787)
 npm run build       # astro build
-npm test            # vitest --run (unit/property tests)
+npm test            # vitest --run (unit, contract and guard tests)
 npx astro check     # typecheck + diagnostics
 npm run validate    # string + style validators, then build
 ```
 
 There is no `typecheck` script; `npx astro check` is the typecheck here. The
-dashboard Worker also defaults to :4321 — run one on `--port 4322` when both
-are up. Target this package by its workspace name, `cod-astro-theme-00`.
-
-The home surface imports `@wocart/theme/astro` **by package name**, so the
-workspace dists must exist first — after a fresh install run
-`npm run build --workspace @wocart/storefront && npm run build --workspace
-@wocart/theme` (dev, tests, `astro check` and the build all read them; a
-stale `dist/astro/InstanceView.astro` fails confusingly).
+dashboard Worker also defaults to :4321 — run this theme on `--port 4322` when
+both are up. An SDK change reaches this theme only through a release: publish
+it, then pin the new exact version here (`npm run verify:sdks` at the repo
+root runs this theme against the packed SDKs before that).
 
 ## Definition of done
 
@@ -61,9 +59,8 @@ A theme is not finished until this exact sequence passes — the same gates CI
 runs in the `theme-00` job (`.github/workflows/ci.yml`), in this order:
 
 ```sh
-npm run build --workspace @wocart/storefront   # the dists the theme imports
-npm run build --workspace @wocart/theme
 cd cod-astro/<theme>
+npm ci
 npx astro check      # 0 errors (hints are advisory)
 npm test             # includes the structural guard tests in __tests__/guards/
 npm run validate:all # string + style rules
@@ -117,8 +114,8 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   the forms its grammar uses (Arabic six). `packs.test.ts` checks them.
 - **No hardcoded design tokens** (colors, radii, fonts) in component styles.
   See `THEME_GUIDE.md`.
-- The `"overrides": { "vite": "^8.2.2" }` pin lives in the **root**
-  `package.json` (npm ignores overrides inside workspace members) and is
+- This theme's `package.json` carries its own `"overrides": { "vite": … }`
+  pin (the root's does not reach a non-workspace package), and it is
   load-bearing: it keeps a single Vite major across astro/vitest/plugins.
   Removing it reintroduces a dev-server boot crash; bump it together with
   astro's Vite major. `npm ls vite` must show one version.
@@ -160,8 +157,11 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   `rtl:-translate-x-full` compiles to nothing. Both bit the cart drawer: it
   un-hid one full width off-screen and never appeared. Open/closed geometry
   belongs in CSS keyed on a data attribute — see `CartDrawer.astro`.
-- **Page scripts bind through `onEachPage`** (`src/theme/scripts/page-lifecycle.ts`),
-  on the first load and after every client-side navigation. A module binds once on
+- **Page scripts bind through `@wocart/theme/lifecycle`** — `onEachPage` for a
+  page's behaviour, `bindEach` for each element of a kind (also re-run when an
+  editor's preview swaps a section in) — on the first load and after every
+  client-side navigation. No script names the swap events itself
+  (`client-navigation.test.ts`). A module binds once on
   import, so a layout that *also* calls the init function binds every handler
   twice — one tap adding two items. Import for side effect; `initCart()`,
   `initCheckout()` and `initProductPage()` are idempotent per root and return a
@@ -206,11 +206,9 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   reads go through the catalog's keyed `load`s + the page's ONE
   `createReadCache()` (`catalog.products` shared by three sections — proven;
   see `__tests__/contracts/home-adsorption.test.ts`); copy fields use the
-  `contentKey` bridge (`copyOverrides` in `catalog/shared.ts`); other surfaces
-  are NOT
-  migrated — do not copy the pattern to them without a slice
-  ([`docs/editable-surfaces.md`](./docs/editable-surfaces.md) is the plan).
-  Consumption is by package name; `dist` must be built first (see Commands).
+  `contentKey` bridge (`copyOverrides` in `catalog/shared.ts`). Every page a
+  merchant edits is composed the same way: home, product, collection,
+  category, catalog and text page, and the header and footer areas.
 - **Every word a home section renders is editable (2026-10-12).** Section copy
   is a field whose `key` equals its `contentKey`; store-wide UI vocabulary
   ("View all", aria labels) stays in the pack. Links are `url` fields (the SDK
@@ -236,7 +234,8 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   and `pages/home.page.json`, so the manifest carries everything an editor
   shows. `__tests__/contracts/manifest-artifact.test.ts` pins it.
 - **Images, rich text and lists come from the SDK's field kinds.** An image
-  field stores a media key, resolved with `mediaKeyUrl` (`utils/images.ts`);
+  field stores a media key, resolved with `pickedPicture` (`utils/images.ts`,
+  the SDK's `pictureOf`: its URL, alt text and focal point);
   rich text is rendered with `richTextToHtml` into `.rich-description`; a
   list's items carry their own ids. See the image banner, rich-text block,
   FAQ and featured product (`catalog/home/*.def.ts`,
@@ -249,10 +248,11 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   `theme/sdk.ts` checks the editor's token with `WOCART_PREVIEW_KEY` (unset:
   404) — and builds the draft's store context with `resolvePreviewStore`
   (`runtime/store.ts`); a preview never runs a form action. The page renders
-  `theme/pages/HomeSurface.astro`, the same surface `/` renders, with
-  `preview` set, so every section is marked and `PreviewBridge.astro` loads
-  `@wocart/theme/preview`. Only the home surface is composed, so any other
-  surface is a 404. Never add a route rule that caches the path.
+  surface the SDK's `previewTarget` picks — the template the draft names, for
+  the resource its path names or the store's first of its kind, or the page an
+  area is edited on — with `preview` set, so every section is marked and
+  `PreviewBridge.astro` loads `@wocart/theme/preview`. A surface this theme
+  does not compose is a 404. Never add a route rule that caches the path.
   `__tests__/contracts/preview-route.test.ts` pins the route, the headers and
   the bridge over its real markup.
 - **A publish shows at once through `/wocart-revalidate`**
@@ -296,3 +296,24 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   the string validator is weakest against. `resolveContent` accepts only
   string values for keys the pack declares — a nested or unknown shape in
   the store's per-language overrides is ignored by design.
+- **The browser talks to the platform only through the SDK.** The order form
+  and the basket quote with `createQuoter`; an unfinished checkout is tracked
+  by `createBrowserAbandonedCheckoutTracker` and converted on the thank-you
+  page by `convertAbandonedCheckout`; the review form runs on
+  `createReviewSession`; an offer chosen piece by piece goes into the basket
+  through `addSelections`, and AddToCart reports `addedLines`. The paths those
+  call are the routes in `src/theme/scripts/api-paths.ts`.
+- **Listings, search and following an order are the platform's.** Listings read
+  `products.page` (the rows, the next page and the total) with `?sort=` from
+  the SDK's `PRODUCT_SORTS`; `/search` is `products.search`; `/track-order`
+  (the platform's page type, `?order=` fills the number) is an Astro Action
+  on `lookupOrder` that a plain form posts.
+- **What search engines read is the SDK's.** A product's title and
+  description are `productMeta`, its JSON-LD `productStructuredData` written
+  with `jsonLd`, and every page's canonical is `canonicalUrl` (its path in its
+  language and its listing page, never a sort, a coupon or an ad's click id).
+  A missing product, category, collection, text page or landing page returns
+  `notFound(Astro)`.
+- **Colours derive on the SDK's scheme marker.** Tokens are derived on
+  `:root, .wc-scheme`; an element wearing a scheme carries `schemeClass(id)`
+  and no marker of the theme's own (`color-schemes.test.ts`).

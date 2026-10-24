@@ -35,7 +35,7 @@ src/
 │   ├── sdk.ts                   #   the ONE platform read seam
 │   ├── utils/                   #   money.ts, images.ts, seo.ts, related-products.ts
 │   ├── layouts/StoreLayout.astro
-│   ├── runtime/store.ts         #   DEFAULT_CONFIG + getStoreContext()
+│   ├── runtime/store.ts         #   DEFAULT_CONFIG + the store context (on the SDK's resolveStoreRequest)
 │   ├── scripts/                 #   browser behavior: product.ts, checkout.ts, cart.ts
 │   └── styles/global.css        #   design tokens
 ├── pages/                       # index, products/, category/, thank-you, api/*
@@ -158,13 +158,14 @@ Add a section = add `catalog/home/<type>.def.ts` + register it in `theme.ts`.
    Select options carry their editor words in `optionLabels`.
 
 6. **An editor previews drafts on the real storefront.** `/wocart-preview`
-   renders the same home surface as `/` (`theme/pages/HomeSurface.astro`)
+   renders the surface the SDK's `previewTarget` picks — the page the draft
+   edits, for the resource its path names or the store's first of its kind —
    from the draft an editor sends, with each section marked for the editor
-   and the SDK's bridge loaded. A section with browser behavior binds it
-   again on `wocart:section-load`: a re-rendered section's scripts do not run
-   twice. When the whole page is swapped, the bridge fires `astro:page-load`,
-   so page behavior mounted with `onEachPage` (`scripts/page-lifecycle.ts`)
-   mounts again, as after a soft navigation.
+   and the SDK's bridge loaded. A section with browser behavior binds it with
+   `bindEach` (`@wocart/theme/lifecycle`), which binds a re-rendered section
+   once more and never twice. When the whole page is swapped, the bridge fires
+   `astro:page-load`, so page behavior mounted with `onEachPage` mounts again,
+   as after a soft navigation.
 
 7. **A publish shows at once.** Pages are cached at the edge (route rules
    in `astro.config.mjs`); after a merchant publishes, the Cloud calls
@@ -466,8 +467,8 @@ payload:
 That trust is the contract: sanitising happens once, on the write path, in the
 platform (`cod-shared/lib/rich-text.ts`) — so this theme, which is swappable and
 imports nothing from the platform, never parses HTML. For `<meta>` and JSON-LD use
-the product's `descriptionPlain` (tags stripped, entities decoded);
-`getProductJsonLd` in `src/theme/utils/seo.ts` already does.
+the product's `descriptionPlain` (tags stripped, entities decoded); the SDK's
+`productMeta` and `productStructuredData` already do.
 
 `src/theme/components/product/ProductDescription.astro` is the one place that
 branch lives. Every tag the allow-list permits is styled under
@@ -512,7 +513,7 @@ These are real bugs the theme shipped fixes for. Do not re-introduce them.
    empty Content-Type; the release pipeline now sets and verifies the
    Content-Type of every asset. Changing this policy needs the owner's approval.
 
-2. **Page scripts bind through `onEachPage`** (`src/theme/scripts/page-lifecycle.ts`).
+2. **Page scripts bind through `onEachPage`** (`@wocart/theme/lifecycle`).
    A soft navigation swaps the body without firing `DOMContentLoaded`, so a
    script that binds only there goes dead on the second page. `onEachPage` runs
    `boot` on the first load and after each navigation, and runs the teardown
