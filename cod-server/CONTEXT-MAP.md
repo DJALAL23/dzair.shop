@@ -33,6 +33,7 @@ Convention: one `CONTEXT.md` per endpoint folder; cross-folder terms live in the
 | ✅ written | Product Groups | [./src/endpoints/product-groups/CONTEXT.md](./src/endpoints/product-groups/CONTEXT.md) | Category tree for products: nesting, slugs, SEO fields, live product counts (routes call it "categories") |
 | ✅ written | Users | [./src/endpoints/users/CONTEXT.md](./src/endpoints/users/CONTEXT.md) | Team management: roles, scope grants/revokes, one-time API keys (admin-role gated) |
 | ✅ written | Store | [./src/endpoints/store/CONTEXT.md](./src/endpoints/store/CONTEXT.md) | Public storefront: catalog, shipping rates, COD checkout, reviews (X-Store-API-Key auth) |
+| ✅ written | Events | [./src/endpoints/events/CONTEXT.md](./src/endpoints/events/CONTEXT.md) | Business Events: the catalogue, the Event Log, Consumers (webhooks, chats, customers, Meta) and their Deliveries |
 
 All endpoint folders are now documented — no candidates remain. Future folders follow the same convention: one CONTEXT.md per folder, registered here with a ✅ row.
 ## Relationships
@@ -47,9 +48,11 @@ All endpoint folders are now documented — no candidates remain. Future folders
 - **Offers → Coupons**: Offers price the basket first; a coupon covers only the lines no offer applied to
 - **Coupons → Orders**: A coupon's discount is carried by the order's lines; a cancelled order gives its use back
 - **Store → Orders**: Public storefront creates orders; abandoned carts become abandoned orders
+- **Orders, Shipments → Events**: Every change to an order or shipment records its Business Event with the change; Events delivers it to the Consumers that asked for it
+- **Events → Store Settings**: Meta conversions are a Consumer, configured by the store's pixel settings
 
 ## Shared Concepts
 
 - **Wilaya/Commune**: Algerian administrative divisions (58 wilayas, ~1500 communes)
 - **COD Amount**: Total to collect = product price + delivery fee
-- **Store**: Multi-tenant - each merchant has their own store with isolated data
+- **Store**: One store per deployment — each merchant's store has its own Worker and its own D1, so its data is isolated by deployment, not by a `store_id` on every row
