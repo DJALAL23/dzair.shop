@@ -7,6 +7,7 @@ import * as queries from "./queries";
 import type { StoreProductsParams } from "../../../../cod-shared/queries/store";
 import { storeOrderSchema, validateCartSchema } from "./validation";
 import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
+import { meetsFreeDeliveryThreshold } from "../../../../cod-shared/queries/shipping-resolution";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { assertOtpVerification } from "./otp-gate";
 import { assertTurnstile } from "./turnstile-gate";
@@ -602,6 +603,15 @@ export async function validateCart(c: Context<AppContext>) {
     : undefined;
   const threshold = store?.freeShippingThreshold ?? null;
   const thresholdActive = threshold != null && threshold > 0;
+  // Why delivery is free for this basket, wherever it goes: one answer, so a
+  // basket already free by an offer or a coupon is never told to spend more.
+  const freeBy: "offer" | "coupon" | "threshold" | null = basket.freeShippingOfferId
+    ? "offer"
+    : quote.couponOutcome?.applied && quote.couponOutcome.freeShipping
+      ? "coupon"
+      : meetsFreeDeliveryThreshold(threshold, subtotal)
+        ? "threshold"
+        : null;
 
 
   return c.json(
@@ -635,10 +645,11 @@ export async function validateCart(c: Context<AppContext>) {
           /** Earned by an offer: a single-product basket's free-shipping offer, or a quantity tier that includes it. */
           fromOffer: basket.freeShippingOfferId !== null,
           threshold: thresholdActive ? threshold : null,
-          qualified: thresholdActive ? subtotal >= threshold : false,
-          /** How much more to spend to qualify. 0 once qualified or inactive. */
-          remaining:
-            thresholdActive && subtotal < threshold ? threshold - subtotal : 0,
+          /** Delivery is free for this basket — by an offer, the coupon or the store's amount. */
+          qualified: freeBy !== null,
+          /** How much more to spend for the store's free delivery. 0 once delivery is free, or with no amount set. */
+          remaining: freeBy === null && thresholdActive ? threshold - subtotal : 0,
+          by: freeBy,
         },
         coupon: couponAnswer(quote.couponOutcome),
         ...(quote.delivery === undefined

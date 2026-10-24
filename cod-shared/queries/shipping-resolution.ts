@@ -261,14 +261,18 @@ export async function resolveDeliveryFee(
   // what "free delivery over 10,000" means to a shopper looking at 10,000.
   // A threshold of 0 is rejected at the settings seam, so it cannot silently
   // mean "everything ships free".
-  if (
-    settings.freeShippingThreshold != null &&
-    settings.freeShippingThreshold > 0 &&
-    subtotal != null &&
-    subtotal >= settings.freeShippingThreshold
-  ) {
-    return 0;
-  }
+  if (meetsFreeDeliveryThreshold(settings.freeShippingThreshold, subtotal)) return 0;
 
   return fee;
+}
+
+/**
+ * The store's "free delivery above" rule, the one place it is decided: a
+ * subtotal at or above the amount ships free. No amount (null) or 0 is no
+ * free delivery — a 0 is refused at the settings seam, so it can never
+ * silently mean "everything ships free" — and without a subtotal there is
+ * nothing to judge.
+ */
+export function meetsFreeDeliveryThreshold(threshold: number | null | undefined, subtotal: number | null | undefined): boolean {
+  return threshold != null && threshold > 0 && subtotal != null && subtotal >= threshold;
 }

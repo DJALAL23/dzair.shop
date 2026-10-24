@@ -290,7 +290,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
       "Optional: city, notes, " +
       "orderType ('online'|'offline', default 'online'), " +
       "deliveryType ('home'|'stop_desk', default 'home'), " +
-      "deliveryFee (number >= 0 — for offline orders only; online orders auto-resolve from shipping profile). " +
+      "deliveryFee (number >= 0 — kept as given on an offline order; otherwise the store decides it as its checkout does: shipping profiles, free above the store's free-delivery amount, free by an offer for a basket of its product alone). " +
       "variantId and variantLabel are optional per product line. " +
       "codAmount = price + deliveryFee (auto-computed). " +
       "Stock is deducted automatically on creation for tracked products.",
@@ -321,28 +321,10 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
         const now = date.toISOString();
         const orderId = crypto.randomUUID();
 
-        // Resolve delivery fee from shipping profile
-        const { resolveDeliveryFee, applyFreeShippingOffer } = await import("./resolve-fee");
-        let deliveryFee = parsed.data.deliveryFee ?? 0;
-        if (parsed.data.wilayaId) {
-          try {
-            const productIds = parsed.data.products.map((p) => p.productId);
-            const resolved = await resolveDeliveryFee(db, {
-              wilayaId: parsed.data.wilayaId,
-              communeId: parsed.data.communeId ?? null,
-              deliveryType: parsed.data.deliveryType,
-              productIds,
-            });
-            if (parsed.data.orderType === "online" || parsed.data.deliveryFee == null) {
-              deliveryFee = resolved.deliveryFee;
-            }
-            const productQuantities = new Map(parsed.data.products.map((p) => [p.productId, p.quantity]));
-            deliveryFee = await applyFreeShippingOffer(db, deliveryFee, productIds, productQuantities);
-          } catch (err) {
-            if (parsed.data.orderType === "online") throw err;
-            deliveryFee = parsed.data.deliveryFee ?? 0;
-          }
-        }
+        // Delivery as the storefront decides it; a fee typed for an offline order is kept.
+        const { orderDelivery } = await import("./delivery");
+        const delivery = await orderDelivery(db, parsed.data);
+        const deliveryFee = delivery.deliveryFee;
 
         // Auto-create customer if not in DB
         const { wilayas, communes, customers } = await import("@/db/schema");
@@ -393,6 +375,8 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           orderType: parsed.data.orderType,
           deliveryType: parsed.data.deliveryType,
           deliveryFee,
+          deliveryOfferId: delivery.deliveryOfferId,
+          deliveryOfferName: delivery.deliveryOfferName,
           codAmount: parsed.data.price + deliveryFee,
           createdAt: now,
           updatedAt: now,

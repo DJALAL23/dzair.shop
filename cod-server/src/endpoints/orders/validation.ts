@@ -157,3 +157,23 @@ export type UpdateOrderInput = z.infer<typeof updateOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 export type OrderFiltersInput = z.infer<typeof orderFiltersSchema>;
 export type ReturnOrderProductInput = z.infer<typeof returnOrderProductSchema>;
+
+/** What delivery would cost on an order being entered: its lines, subtotal and destination. */
+export const deliveryQuoteSchema = z.object({
+  lines: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        variantId: z.string().min(1).nullish(),
+        quantity: z.number().int().positive(),
+      }),
+    )
+    .min(1)
+    .max(100),
+  subtotal: z.number().min(0),
+  wilayaId: z.number().int().min(1).max(58),
+  communeId: z.string().min(1).nullish(),
+  deliveryType: z.enum(["home", "stop_desk"]),
+});
+
+export type DeliveryQuoteInput = z.infer<typeof deliveryQuoteSchema>;

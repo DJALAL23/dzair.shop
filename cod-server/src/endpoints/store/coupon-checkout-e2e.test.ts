@@ -204,6 +204,7 @@ describe("what a coupon takes off", () => {
     await coupon("LIVRAISON", { kind: "free_shipping", value: 0 });
     const { shown, row } = await quotedThenPlaced([{ productId: "sac", quantity: 1 }], "LIVRAISON");
     expect(shown.coupon).toEqual({ code: "LIVRAISON", applied: true, discount: 0, freeShipping: true });
+    expect(shown.freeDelivery).toMatchObject({ qualified: true, remaining: 0, by: "coupon" });
     expect(row).toMatchObject({ price: 1000, deliveryFee: 0, codAmount: 1000, couponCode: "LIVRAISON", couponDiscount: 0 });
 
     await d1.db.update(schema.stores).set({ freeShippingThreshold: 1000 }).where(eq(schema.stores.id, STORE));

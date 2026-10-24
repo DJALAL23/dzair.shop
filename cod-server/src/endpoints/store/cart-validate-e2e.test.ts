@@ -340,6 +340,21 @@ describe("POST /store/cart/validate — offers and free delivery", () => {
     expect(body.data.freeDelivery.fromOffer).toBe(true);
   });
 
+  it("is free by an offer even below the store's amount: nothing left to spend, and says why", async () => {
+    await db.update(schema.stores).set({ freeShippingThreshold: 10_000 });
+    const id = await seedProduct({ price: 1000 });
+    await seedOffer({
+      triggerProductId: id,
+      triggerQuantity: 2,
+      discountType: "free_shipping",
+      rewardProductId: null,
+    });
+
+    const { body } = await validate([{ productId: id, productName: "P", quantity: 2 }]);
+
+    expect(body.data.freeDelivery).toEqual({ fromOffer: true, threshold: 10_000, qualified: true, remaining: 0, by: "offer" });
+  });
+
   it("does NOT report offer free delivery once a second product joins", async () => {
     const cheap = await seedProduct({ price: 200 });
     const pricey = await seedProduct({ price: 50_000 });
@@ -380,6 +395,7 @@ describe("POST /store/cart/validate — offers and free delivery", () => {
     expect(body.data.freeDelivery).toMatchObject({
       qualified: true,
       remaining: 0,
+      by: "threshold",
     });
   });
 
@@ -392,6 +408,7 @@ describe("POST /store/cart/validate — offers and free delivery", () => {
       threshold: null,
       qualified: false,
       remaining: 0,
+      by: null,
     });
   });
 

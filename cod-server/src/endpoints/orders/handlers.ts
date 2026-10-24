@@ -16,7 +16,8 @@ import * as queries from "./queries";
 import * as validation from "./validation";
 import { lineReturnRefusal, refusalFor } from "./refusals";
 import { loadOrderDetail } from "./detail";
-import { resolveDeliveryFee, applyFreeShippingOffer } from "./resolve-fee";
+import { orderDelivery } from "./delivery";
+import { quoteOrderDelivery } from "../../../../cod-shared/queries/delivery-quote";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -83,34 +84,8 @@ export async function createOrder(c: Context<AppContext>) {
     const now = date.toISOString();
     const orderId = crypto.randomUUID();
 
-    // Auto-resolve delivery fee from shipping profile.
-    // Dashboard orders (orderType="offline") may pass an explicit fee override.
-    // Online orders always use the shipping profile to enforce coverage rules.
-    let deliveryFee = validated.deliveryFee ?? 0;
-    if (validated.wilayaId) {
-      try {
-        const productIds = validated.products.map((p) => p.productId);
-        const resolved = await resolveDeliveryFee(db, {
-          wilayaId: validated.wilayaId,
-          communeId: validated.communeId ?? null,
-          deliveryType: validated.deliveryType,
-          productIds,
-        });
-        // For online orders, always use resolved fee. For offline/dashboard orders,
-        // use the resolved fee unless admin explicitly passed a fee override.
-        if (validated.orderType === "online" || validated.deliveryFee == null) {
-          deliveryFee = resolved.deliveryFee;
-        }
-        // Apply free-shipping offer override
-        const productQuantities = new Map(validated.products.map((p) => [p.productId, p.quantity]));
-        deliveryFee = await applyFreeShippingOffer(db, deliveryFee, productIds, productQuantities);
-      } catch (err) {
-        // If the order is offline (dashboard), allow fee=0 and skip coverage check errors.
-        // Online orders: re-throw to block order creation for uncovered zones.
-        if (validated.orderType === "online") throw err;
-        deliveryFee = validated.deliveryFee ?? 0;
-      }
-    }
+    const delivery = await orderDelivery(db, validated);
+    const deliveryFee = delivery.deliveryFee;
 
     // Auto-create customer if not in DB (walk-in / manual entry)
     const existingCustomer = await db
@@ -162,6 +137,8 @@ export async function createOrder(c: Context<AppContext>) {
       orderType: validated.orderType,
       deliveryType: validated.deliveryType,
       deliveryFee,
+      deliveryOfferId: delivery.deliveryOfferId,
+      deliveryOfferName: delivery.deliveryOfferName,
       codAmount: validated.price + deliveryFee,
       createdAt: now,
       updatedAt: now,
@@ -396,4 +373,16 @@ export async function unarchiveOrder(c: Context<AppContext>) {
   if (!outcome.ok) throw refusalFor(outcome, orderId, "it cannot be restored");
   await logActivity(db, c.get("user"), ACTIONS.ORDER_UNARCHIVED, { type: "order", id: orderId });
   return c.json({ success: true, data: { archivedAt: null } }, 200);
+}
+
+/**
+ * POST /orders/delivery-quote — what delivery would cost on an order the
+ * merchant is entering, and why it is free when it is: the fee the order
+ * will charge if the merchant leaves it as it is.
+ */
+export async function quoteDelivery(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const body = (c.req as any).valid("json") as validation.DeliveryQuoteInput;
+  const quote = await quoteOrderDelivery(db, { ...body, communeId: body.communeId ?? null, now: new Date().toISOString() });
+  return c.json({ success: true, data: quote }, 200);
 }

@@ -611,9 +611,10 @@ const validateCartRoute = defineRoute({
             ),
             freeDelivery: z.object({
               fromOffer: z.boolean(),
-              threshold: z.number().int().nullable(),
-              qualified: z.boolean(),
-              remaining: z.number(),
+              threshold: z.number().int().nullable().openapi({ description: "The store's free-delivery amount; null when it has none" }),
+              qualified: z.boolean().openapi({ description: "Delivery is free for this basket, wherever it goes: by an offer, the coupon or the store's amount" }),
+              remaining: z.number().openapi({ description: "How much more to spend for the store's free delivery; 0 once delivery is free, or with no amount" }),
+              by: z.enum(["offer", "coupon", "threshold"]).nullable().openapi({ description: "Why delivery is free; null when it is not" }),
             }),
             coupon: z
               .union([

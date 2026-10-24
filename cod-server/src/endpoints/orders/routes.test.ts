@@ -11,7 +11,7 @@ import { openApiValidationHook } from "@/openapi/validation-hook";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import ordersRouter from "./routes";
 import * as queries from "./queries";
-import * as resolveFee from "./resolve-fee";
+import * as delivery from "./delivery";
 import { ValidationError } from "@/lib/errors/classes";
 import { assertOrderAddress } from "@/lib/order-address";
 
@@ -25,7 +25,7 @@ vi.mock("../../../../cod-shared/shipments/queries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../../cod-shared/shipments/queries")>()),
   getOrderShipment: vi.fn(async () => undefined),
 }));
-vi.mock("./resolve-fee");
+vi.mock("./delivery");
 vi.mock("@/lib/activity", () => ({
   logActivity: vi.fn(async () => {}),
   ACTIONS: {
@@ -232,8 +232,7 @@ describe("Orders routes (OpenAPIHono)", () => {
 
     it("creates an order and returns computed COD amount with 201", async () => {
       vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
-      vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
-      vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(600);
+      vi.mocked(delivery.orderDelivery).mockResolvedValue({ deliveryFee: 600, deliveryOfferId: null, deliveryOfferName: null });
       mockDb = dbSelectReturning({ id: "cust_1" }); // existing customer
 
       const res = await app.request("/api/orders", {
@@ -267,8 +266,7 @@ describe("Orders routes (OpenAPIHono)", () => {
      */
     it("stores a normalised email when staff enter one", async () => {
       vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
-      vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
-      vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(600);
+      vi.mocked(delivery.orderDelivery).mockResolvedValue({ deliveryFee: 600, deliveryOfferId: null, deliveryOfferName: null });
       mockDb = dbSelectReturning({ id: "cust_1" });
 
       const res = await app.request("/api/orders", {
@@ -287,8 +285,7 @@ describe("Orders routes (OpenAPIHono)", () => {
 
     it("creates an order without one — every phone order taken today", async () => {
       vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
-      vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
-      vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(600);
+      vi.mocked(delivery.orderDelivery).mockResolvedValue({ deliveryFee: 600, deliveryOfferId: null, deliveryOfferName: null });
       mockDb = dbSelectReturning({ id: "cust_1" });
 
       const res = await app.request("/api/orders", {
@@ -306,8 +303,7 @@ describe("Orders routes (OpenAPIHono)", () => {
     it("treats an empty email box as no email, not as a value", async () => {
       // A form always submits its inputs; an untouched box must not become "".
       vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
-      vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
-      vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(600);
+      vi.mocked(delivery.orderDelivery).mockResolvedValue({ deliveryFee: 600, deliveryOfferId: null, deliveryOfferName: null });
       mockDb = dbSelectReturning({ id: "cust_1" });
 
       const res = await app.request("/api/orders", {

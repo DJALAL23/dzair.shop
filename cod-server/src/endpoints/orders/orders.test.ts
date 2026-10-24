@@ -9,9 +9,8 @@
  *   1. Status transition completeness (every valid and invalid move)
  *   2. Driver assignment auto-advance: confirmed/unreachable stay unchanged
  *   3. Unassign driver: locked status guard, dispatched (unlocked) path
- *   9. createOrder offline: fee-resolution error silently falls back
+ *   9. createOrder: charges and records the delivery the store decides
  *  10. returnOrderProduct: second call corrects without double-restocking
- *  11. applyFreeShippingOffer: date filtering absent — expired offer applies
  *  12. createOrder: companyId not found → 404
  *  13. assignDriver: driver not found → 404
  */
@@ -23,7 +22,7 @@ import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
 import ordersRouter from "./routes";
 import * as queries from "./queries";
-import * as resolveFee from "./resolve-fee";
+import * as delivery from "./delivery";
 
 // The address rule is tested against the real reference tables
 // (store.queries-e2e); this file's mocked database cannot answer it.
@@ -35,7 +34,7 @@ vi.mock("../../../../cod-shared/shipments/queries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../../cod-shared/shipments/queries")>()),
   getOrderShipment: vi.fn(async () => undefined),
 }));
-vi.mock("./resolve-fee");
+vi.mock("./delivery");
 vi.mock("@/lib/activity", () => ({
   logActivity: vi.fn(async () => {}),
   ACTIONS: {
@@ -201,9 +200,11 @@ describe("Orders — targeted business-logic tests", () => {
     });
   });
 
-  // ─── 9. createOrder offline: fee-resolution error silently swallowed ───────
+  // ─── 9. createOrder: the delivery the store decides ─────────────────────────
 
-  describe("POST /api/orders — offline order fee-resolution fallback", () => {
+  describe("POST /api/orders — the delivery the order charges", () => {
+    // What the store decides is proved on real D1 (orders.delivery-quote.e2e.test.ts);
+    // here, that the handler charges it, records its offer, and lets a refusal through.
     const baseOrder = {
       customerId: "cust_1",
       customerName: "Ahmed Benali",
@@ -217,79 +218,34 @@ describe("Orders — targeted business-logic tests", () => {
         { productId: "prod_1", productName: "Galaxy A54", quantity: 1, pricePerUnit: 9000, lineTotal: 9000 },
       ],
     };
-
-    it("uses explicit deliveryFee when resolveDeliveryFee throws for offline order", async () => {
-      vi.mocked(resolveFee.resolveDeliveryFee).mockRejectedValue(
-        new Error("No shipping profile configured")
-      );
-      vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
-      mockDb = {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(async () => ({ id: "cust_1" })),
-            })),
-          })),
-        })),
-        insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
-      };
-
-      const res = await app.request("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...baseOrder, deliveryFee: 500 }),
-      });
-
-      // Offline order succeeds despite resolveDeliveryFee throwing
-      expect(res.status).toBe(201);
-      const body: any = await res.json();
-      // Falls back to explicit deliveryFee=500
-      expect(body.data.deliveryFee).toBe(500);
-      expect(body.data.codAmount).toBe(9500); // 9000 + 500
+    const existingCustomer = () => ({
+      select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ get: vi.fn(async () => ({ id: "cust_1" })) })) })) })),
+      insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
     });
 
-    it("falls back to 0 when resolveDeliveryFee throws and no explicit fee provided", async () => {
-      vi.mocked(resolveFee.resolveDeliveryFee).mockRejectedValue(
-        new Error("No shipping profile configured")
-      );
+    it("charges what the store's delivery decides, and records the offer that made it free", async () => {
+      vi.mocked(delivery.orderDelivery).mockResolvedValue({ deliveryFee: 0, deliveryOfferId: "of_1", deliveryOfferName: "Livraison offerte" });
       vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
-      mockDb = {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(async () => ({ id: "cust_1" })),
-            })),
-          })),
-        })),
-        insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
-      };
+      mockDb = existingCustomer();
 
-      const res = await app.request("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(baseOrder), // no deliveryFee
-      });
+      const res = await app.request("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(baseOrder) });
 
       expect(res.status).toBe(201);
       const body: any = await res.json();
-      // Silent fallback to 0 — merchant may not notice
-      expect(body.data.deliveryFee).toBe(0);
-      expect(body.data.codAmount).toBe(9000);
+      expect(body.data).toMatchObject({ deliveryFee: 0, codAmount: 9000 });
+      expect(vi.mocked(queries.createOrder).mock.calls.at(-1)![1]).toMatchObject({ deliveryFee: 0, deliveryOfferId: "of_1", deliveryOfferName: "Livraison offerte", codAmount: 9000 });
     });
 
-    it("rethrows fee-resolution errors for online orders", async () => {
-      vi.mocked(resolveFee.resolveDeliveryFee).mockRejectedValue(
-        new Error("No shipping profile configured")
-      );
+    it("lets the store's refusal through, creating nothing", async () => {
+      const { BusinessLogicError } = await import("@/lib/errors/classes");
+      vi.mocked(delivery.orderDelivery).mockRejectedValue(new BusinessLogicError("Home delivery is not available there", "DELIVERY_NOT_AVAILABLE" as never));
+      vi.mocked(queries.createOrder).mockClear();
 
-      const res = await app.request("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...baseOrder, orderType: "online" }),
-      });
+      const res = await app.request("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...baseOrder, orderType: "online" }) });
 
-      // Online orders do NOT swallow errors
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(422);
+      expect(((await res.json()) as any).code).toBe("DELIVERY_NOT_AVAILABLE");
+      expect(queries.createOrder).not.toHaveBeenCalled();
     });
   });
 
@@ -325,51 +281,6 @@ describe("Orders — targeted business-logic tests", () => {
         expect(res.status, reason).toBe(status);
         if (code) expect(((await res.json()) as any).code, reason).toBe(code);
       }
-    });
-  });
-
-  // ─── 11. applyFreeShippingOffer: expired offers still apply ───────────────
-
-  describe("createOrder — free shipping offer date filtering", () => {
-    it("applies free shipping when offer is active (no date check in current code)", async () => {
-      // This test documents the gap: applyFreeShippingOffer only checks status="active",
-      // not startsAt/endsAt. An expired offer with status="active" still zeroes the fee.
-      // The test passes today because the mock returns 0 — confirming the code path runs
-      // even for offers that would be expired by date.
-      vi.mocked(resolveFee.resolveDeliveryFee).mockResolvedValue({ deliveryFee: 600 } as any);
-      vi.mocked(resolveFee.applyFreeShippingOffer).mockResolvedValue(0); // offer applied
-      vi.mocked(queries.createOrder).mockImplementation(async (_db, order) => ({ id: order.id, orderNumber: order.orderNumber }) as any);
-      mockDb = {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(async () => ({ id: "cust_1" })),
-            })),
-          })),
-        })),
-        insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
-      };
-
-      const res = await app.request("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: "cust_1",
-          customerName: "Ahmed Benali",
-          phone: "0551234567",
-          wilayaId: 16,
-          communeId: "16001",
-          address: "12 Rue Didouche Mourad",
-          price: 9000,
-          products: [{ productId: "prod_1", productName: "Galaxy A54", quantity: 2, pricePerUnit: 4500, lineTotal: 9000 }],
-        }),
-      });
-
-      expect(res.status).toBe(201);
-      const body: any = await res.json();
-      // Fee was zeroed by the "active" offer — regardless of date
-      expect(body.data.deliveryFee).toBe(0);
-      expect(body.data.codAmount).toBe(9000); // price + 0 delivery
     });
   });
 });

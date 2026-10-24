@@ -15,6 +15,7 @@ import { handOffOrderRoute } from "../shipments/routes";
 
 import {
   createOrderSchema,
+  deliveryQuoteSchema,
   updateOrderSchema,
   updateOrderStatusSchema,
   returnOrderProductSchema,
@@ -76,6 +77,42 @@ const getOrderRoute = defineRoute({
   handler: handlers.getOrder,
 });
 
+const deliveryQuoteRoute = defineRoute({
+  method: "post",
+  path: "/delivery-quote",
+  auth: { scope: SCOPES.ORDERS_CREATE },
+  tags: ["Orders"],
+  summary: "Quote an order's delivery",
+  description: `What delivery would cost on an order being entered, decided as the storefront checkout decides it — the fee \`POST /orders\` charges when no fee is typed — and why it is free when it is: \`{ by: "threshold", threshold }\` (the store's free-delivery amount) or \`{ by: "offer", offerId, offerName }\`. \`{ available: false }\` where the store does not deliver. A read: nothing is written.`,
+  operationId: "quoteOrderDelivery",
+  body: deliveryQuoteSchema,
+  responses: {
+    200: {
+      description: "The quote",
+      content: jsonContent(
+        z.object({
+          success: z.boolean(),
+          data: z.union([
+            z.object({ available: z.literal(false) }),
+            z.object({
+              available: z.literal(true),
+              rate: z.number().openapi({ description: "The store's rate there, before anything makes it free" }),
+              fee: z.number().openapi({ description: "What the order charges for delivery" }),
+              free: z
+                .union([
+                  z.object({ by: z.literal("threshold"), threshold: z.number() }),
+                  z.object({ by: z.literal("offer"), offerId: z.string(), offerName: z.string().nullable() }),
+                ])
+                .nullable(),
+            }),
+          ]),
+        }),
+      ),
+    },
+  },
+  handler: handlers.quoteDelivery,
+});
+
 const createOrderRoute = defineRoute({
   method: "post",
   path: "/",
@@ -88,7 +125,7 @@ const createOrderRoute = defineRoute({
 
 **Inventory:** Products with \`trackInventory\` enabled will have their stock decremented automatically.
 
-**Delivery fee:** auto-resolved from shipping profiles for online orders; offline/dashboard orders may pass an explicit \`deliveryFee\` override.
+**Delivery fee:** decided as the storefront checkout decides it (\`POST /orders/delivery-quote\` shows it): every product's shipping profile, the dearest winning; a commune's own price; free at the store's free-delivery amount; free by an offer for a basket of its product alone, which the order records (\`deliveryOfferId\`). An offline order may pass an explicit \`deliveryFee\`, which is then kept as typed. Where the store does not deliver, an online order is refused (422 DELIVERY_NOT_AVAILABLE).
 
 **Delivery** is chosen later, when the ready order is handed to a carrier or a driver (\`POST /orders/{id}/shipment\`).`,
   operationId: "createOrder",
@@ -298,6 +335,7 @@ const router = new OpenAPIHono<AppContext>();
 
 router.openapi(listOrdersRoute.route, listOrdersRoute.handler);
 
+router.openapi(deliveryQuoteRoute.route, deliveryQuoteRoute.handler);
 router.openapi(getOrderRoute.route, getOrderRoute.handler);
 router.openapi(createOrderRoute.route, createOrderRoute.handler);
 router.openapi(updateOrderRoute.route, updateOrderRoute.handler);
