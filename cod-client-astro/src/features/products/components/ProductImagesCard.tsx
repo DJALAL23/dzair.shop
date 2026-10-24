@@ -27,7 +27,7 @@ export function ProductImagesCard({
               className="size-full object-cover"
             />
             <span className="absolute bottom-2 start-2 rounded-md bg-black/60 px-2 py-1 text-[11px] font-semibold text-white">
-              #{image.position}
+              #{index + 1}
             </span>
             {index === 0 && (
               <span className="absolute end-2 top-2 rounded-md bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground">
