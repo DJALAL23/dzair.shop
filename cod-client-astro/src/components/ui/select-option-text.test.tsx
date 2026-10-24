@@ -44,4 +44,21 @@ describe("a select option's words", () => {
     const native = [...host.querySelectorAll("option")].map((option) => option.textContent);
     expect(native).toEqual(["Pick one…", "Classic 1.4.0 (current)", "3 items"]);
   });
+
+  it("read the words inside an element, never an empty option", () => {
+    act(() =>
+      root.render(
+        <Select aria-label="Wilaya" value="16" onChange={() => {}}>
+          <option value="">Choose…</option>
+          <option value="16">
+            <span>
+              {"16"} — {"الجزائر"} · <b>{"Alger"}</b>
+            </span>
+          </option>
+        </Select>,
+      ),
+    );
+    const trigger = host.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]')!;
+    expect(trigger.textContent).toContain("16 — الجزائر · Alger");
+  });
 });

@@ -81,5 +81,10 @@ describe("a driver's pay grid", () => {
 
     const options = Array.from(host.querySelectorAll("form option")).map((o) => o.getAttribute("value")).filter(Boolean);
     expect(options).toEqual(["1", "2"]);
+    const trigger = host.querySelector<HTMLButtonElement>('form button[aria-haspopup="listbox"]')!;
+    expect(trigger.textContent).toContain("01 — أدرار · Adrar");
+    act(() => trigger.click());
+    const shown = Array.from(document.querySelectorAll('[role="option"]')).map((o) => o.textContent?.trim());
+    expect(shown).toEqual(["Choose a wilaya…", "01 — أدرار · Adrar", "02 — الشلف · Chlef"]);
   });
 });

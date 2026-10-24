@@ -230,10 +230,7 @@ export function DriverCompensationsSection({
                 </option>
                 {availableWilayas.map((wilaya) => (
                   <option key={wilaya.id} value={String(wilaya.id)}>
-                    <span>
-                      {String(wilaya.id).padStart(2, "0")} — {wilaya.nameAr} ·{" "}
-                      {wilaya.name}
-                    </span>
+                    {`${String(wilaya.id).padStart(2, "0")} — ${wilaya.nameAr} · ${wilaya.name}`}
                   </option>
                 ))}
               </Select>
