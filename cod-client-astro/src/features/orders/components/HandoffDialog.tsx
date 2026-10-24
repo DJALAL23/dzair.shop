@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Building2, Check, Search, Send, Truck } from "lucide-react";
+import { AlertTriangle, Building2, Check, MapPin, Search, Send, Truck } from "lucide-react";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { handOffOrder, listStopDesks, type CarrierHandoff, type DriverHandoff } from "@/features/orders/api";
@@ -127,11 +127,12 @@ export function HandoffDialog({
   const available = driversFor(drivers);
   const company = carriers.find((item) => item.id === companyId) ?? null;
   const fields = company?.capabilities?.parcelFields ?? { weight: false, fragile: false, remarks: false };
-  const stopDesk = deliveryType === "stop_desk";
+  const toDriver = kind === "driver";
+  const stopDesk = !toDriver && deliveryType === "stop_desk";
   const missingAddress = !stopDesk && !order.address?.trim();
   const ready =
     !missingAddress &&
-    (kind === "carrier" ? Boolean(company) && (!stopDesk || stationCode.trim() !== "") : available.some((driver) => driver.id === driverId));
+    (toDriver ? available.some((driver) => driver.id === driverId) : Boolean(company) && (!stopDesk || stationCode.trim() !== ""));
 
   useEffect(() => {
     if (companyId && !carriers.some((item) => item.id === companyId)) setCompanyId("");
@@ -155,7 +156,7 @@ export function HandoffDialog({
             ...(fields.fragile && fragile ? { fragile: true } : {}),
             ...(fields.remarks && remarks.trim() ? { remarks: remarks.trim() } : {}),
           }
-        : { kind, driverId, ...typeOverride, ...desk };
+        : { kind, driverId };
     try {
       const result = await handOffOrder(order.id, handoff);
       await onDone();
@@ -232,13 +233,15 @@ export function HandoffDialog({
           </div>
         )}
 
-        <Field label={t("ship.delivery_type")}>
-          <Select value={deliveryType} onChange={(event) => setDeliveryType(event.currentTarget.value === "stop_desk" ? "stop_desk" : "home")}>
-            <option value="home">{t("delivery_type.home")}</option>
-            <option value="stop_desk">{t("delivery_type.stop_desk")}</option>
-          </Select>
-          {deliveryType !== order.deliveryType && <p className="mt-1.5 text-xs font-medium text-muted-foreground">{t("ship.type_changed")}</p>}
-        </Field>
+        {!toDriver && (
+          <Field label={t("ship.delivery_type")}>
+            <Select value={deliveryType} onChange={(event) => setDeliveryType(event.currentTarget.value === "stop_desk" ? "stop_desk" : "home")}>
+              <option value="home">{t("delivery_type.home")}</option>
+              <option value="stop_desk">{t("delivery_type.stop_desk")}</option>
+            </Select>
+            {deliveryType !== order.deliveryType && <p className="mt-1.5 text-xs font-medium text-muted-foreground">{t("ship.type_changed")}</p>}
+          </Field>
+        )}
 
         {kind === "carrier" ? (
           <>
@@ -307,18 +310,17 @@ export function HandoffDialog({
                 </div>
               )}
             </Field>
-            {stopDesk && (
-              <Field label={t("ship.desk")}>
-                <Input value={stationCode} onChange={(event) => setStationCode(event.currentTarget.value)} placeholder={t("ship.desk_code")} className="font-mono" />
-              </Field>
-            )}
+            <p className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-xs font-medium text-muted-foreground">
+              <MapPin size={14} className="mt-px shrink-0" aria-hidden="true" />
+              {t(order.deliveryType === "stop_desk" ? "ship.driver_desk_to_door" : "ship.driver_to_door")}
+            </p>
           </>
         )}
 
         {missingAddress && (
           <div role="alert" className="rounded-lg border border-border bg-muted/50 p-3 text-sm">
             <p className="font-semibold text-foreground">{t("ship.missing_address_title")}</p>
-            <p className="mt-0.5 text-xs font-medium text-muted-foreground">{t("ship.missing_address_hint")}</p>
+            <p className="mt-0.5 text-xs font-medium text-muted-foreground">{t(toDriver ? "ship.missing_address_hint_driver" : "ship.missing_address_hint")}</p>
           </div>
         )}
         {error && (

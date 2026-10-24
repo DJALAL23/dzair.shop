@@ -1,18 +1,21 @@
 import { useState } from "react";
-import { AlertTriangle, Building2, Check, Send, Truck, XCircle } from "lucide-react";
+import { AlertTriangle, Building2, Check, MapPin, Send, Truck, XCircle } from "lucide-react";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { handOffToCarrier, handOffToDriver } from "@/features/orders/api";
-import { carriersForAll, driversFor } from "@/features/orders/model";
+import { carriersForAll, driverHandoffPlan, driversFor } from "@/features/orders/model";
 import type { BulkHandoff, DeliveryCompany, Driver, OrderListItem } from "@/features/orders/types";
 import { Button, Dialog, Field } from "@/components/ui";
 import { Choice } from "@/features/orders/components/HandoffDialog";
 
 /**
- * Shipping the selected ready orders together, each as the customer asked
- * (home or desk): to one carrier, or to one driver. Each order ends on its
- * own — the result says which were handed off, which the carrier did not
- * confirm (never ship those again), and why any were refused.
+ * Shipping the selected ready orders together: to one carrier, each as the
+ * customer asked (home or desk), or to one of the store's drivers, who
+ * brings every parcel to the customer's address — an order with no address
+ * is left out and named, and a customer who chose a desk is told apart.
+ * Each order ends on its own — the result says which were handed off, which
+ * the carrier did not confirm (never ship those again), and why any were
+ * refused.
  */
 export function BulkHandoffDialog({
   orders,
@@ -38,12 +41,14 @@ export function BulkHandoffDialog({
   const carriers = carriersForAll(companies, orders.map((order) => order.deliveryType));
   const available = driversFor(drivers);
   const options = kind === "carrier" ? carriers.map((c) => ({ id: c.id, label: c.name })) : available.map((d) => ({ id: d.id, label: `${d.firstName} ${d.lastName}` }));
+  const plan = driverHandoffPlan(orders);
+  const sending = kind === "driver" ? plan.deliverable : orders;
 
   async function submit() {
     setBusy(true);
     setError(null);
     try {
-      const ids = orders.map((order) => order.id);
+      const ids = sending.map((order) => order.id);
       const outcome = kind === "carrier" ? await handOffToCarrier(targetId, ids) : await handOffToDriver(targetId, ids);
       setResult(outcome);
       if (outcome.summary.accepted > 0) notify.success(t("bulk.accepted_count", { count: outcome.summary.accepted }));
@@ -81,6 +86,7 @@ export function BulkHandoffDialog({
             )}
           </ul>
           {unknown > 0 && <p className="text-muted-foreground">{t("bulk.unknown_hint")}</p>}
+          {kind === "driver" && plan.missingAddress.length > 0 && <LeftOut orders={plan.missingAddress} />}
           {result.results.some((item) => item.outcome !== "accepted") && (
             <ul className="max-h-56 divide-y divide-border overflow-y-auto rounded-lg border border-border">
               {result.results
@@ -139,17 +145,46 @@ export function BulkHandoffDialog({
             </div>
           )}
         </Field>
-        <p className="text-xs font-medium text-muted-foreground">{t("bulk.as_asked")}</p>
+        {kind === "carrier" ? (
+          <p className="text-xs font-medium text-muted-foreground">{t("bulk.as_asked")}</p>
+        ) : (
+          <div className="space-y-2">
+            {plan.missingAddress.length > 0 && <LeftOut orders={plan.missingAddress} />}
+            {plan.deskToDoor.length > 0 && (
+              <p className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-xs font-medium text-muted-foreground">
+                <MapPin size={14} className="mt-px shrink-0" aria-hidden="true" />
+                {t("bulk.driver_desk_to_door", { count: plan.deskToDoor.length })}
+              </p>
+            )}
+          </div>
+        )}
         {error && (
           <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm font-medium text-destructive">
             {error}
           </p>
         )}
-        <Button type="button" className="w-full" disabled={!targetId || busy} onClick={() => void submit()}>
+        <Button type="button" className="w-full" disabled={!targetId || busy || sending.length === 0} onClick={() => void submit()}>
           <Send size={16} />
-          {busy ? t("ship.sending") : t("bulk.submit", { count: orders.length })}
+          {busy ? t("ship.sending") : t("bulk.submit", { count: sending.length })}
         </Button>
       </div>
     </Dialog>
+  );
+}
+
+/** The orders a driver cannot take: no street address to bring them to. */
+function LeftOut({ orders }: { orders: OrderListItem[] }) {
+  const t = useT("orders");
+  return (
+    <div role="alert" className="rounded-lg border border-border bg-muted/50 p-3 text-xs font-medium">
+      <p className="text-foreground">{t("bulk.driver_missing_address", { count: orders.length })}</p>
+      <p className="mt-1 flex flex-wrap gap-x-2 gap-y-1">
+        {orders.map((order) => (
+          <a key={order.id} href={`/orders/${encodeURIComponent(order.id)}`} className="font-semibold text-link hover:underline">
+            {order.orderNumber}
+          </a>
+        ))}
+      </p>
+    </div>
   );
 }

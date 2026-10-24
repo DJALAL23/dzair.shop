@@ -334,7 +334,10 @@
     "unknown_lead": "{carrier} did not confirm the parcel for {order}.",
     "unknown_body": "The parcel may exist anyway. Do not ship this order again — open it to find the parcel or confirm none was made.",
     "open_to_resolve": "Open the order",
-    "close": "Close"
+    "close": "Close",
+    "driver_to_door": "Your driver brings the parcel to the customer's address.",
+    "driver_desk_to_door": "The customer chose stop-desk pickup. Your driver brings it to their address instead; the amount to collect does not change.",
+    "missing_address_hint_driver": "Your driver delivers to the customer's address. Edit the order to add one."
   },
   "bulk": {
     "select": "Select",
@@ -355,7 +358,11 @@
     "unknown_count_other": "{count} not confirmed by the carrier",
     "refused_count_one": "{count} refused",
     "refused_count_other": "{count} refused",
-    "unconfirmed": "Not confirmed — open to resolve"
+    "unconfirmed": "Not confirmed — open to resolve",
+    "driver_missing_address_one": "{count} order has no address and is left out — add one first:",
+    "driver_missing_address_other": "{count} orders have no address and are left out — add one first:",
+    "driver_desk_to_door_one": "{count} customer chose a stop desk; your driver brings that parcel to their address.",
+    "driver_desk_to_door_other": "{count} customers chose a stop desk; your driver brings those parcels to their addresses."
   },
   "parcel": {
     "title": "Change the parcel",

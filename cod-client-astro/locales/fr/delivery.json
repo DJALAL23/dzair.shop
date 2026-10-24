@@ -104,7 +104,11 @@
     "given_other": "{count} commandes confiées au livreur",
     "assign_one": "Confier {count} commande",
     "assign_many": "Confier {count} de commandes",
-    "assign_other": "Confier {count} commandes"
+    "assign_other": "Confier {count} commandes",
+    "no_address": "Sans adresse",
+    "desk_to_door": "A choisi un point relais — livrée à l'adresse",
+    "select_all": "Tout sélectionner",
+    "driver_to_door": "Votre livreur livre à l'adresse de chaque client ; une commande sans adresse ne peut pas lui être confiée."
   },
   "driver_form": {
     "title_add": "Ajouter un nouveau livreur",

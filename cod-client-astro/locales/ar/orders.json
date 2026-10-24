@@ -342,7 +342,10 @@
     "unknown_lead": "لم تؤكد {carrier} طرد {order}.",
     "unknown_body": "قد يكون الطرد موجودًا رغم ذلك. لا تعِد شحن هذا الطلب — افتحه للعثور على الطرد أو لتأكيد عدم إنشائه.",
     "open_to_resolve": "فتح الطلب",
-    "close": "إغلاق"
+    "close": "إغلاق",
+    "driver_to_door": "يوصل سائقك الطرد إلى عنوان الزبون.",
+    "driver_desk_to_door": "اختار الزبون الاستلام من مكتب. سيوصله سائقك إلى عنوانه بدلًا من ذلك؛ المبلغ المطلوب لا يتغير.",
+    "missing_address_hint_driver": "يوصل سائقك إلى عنوان الزبون. عدّل الطلب لإضافة عنوان."
   },
   "bulk": {
     "select": "تحديد",
@@ -387,7 +390,19 @@
     "refused_count_few": "رُفضت {count} طلبات",
     "refused_count_many": "رُفض {count} طلبًا",
     "refused_count_other": "رُفض {count} طلب",
-    "unconfirmed": "غير مؤكد — افتحه للمعالجة"
+    "unconfirmed": "غير مؤكد — افتحه للمعالجة",
+    "driver_missing_address_zero": "لا يوجد طلب بلا عنوان",
+    "driver_missing_address_one": "طلب واحد بلا عنوان ولن يُرسل — أضف عنوانًا أولًا:",
+    "driver_missing_address_two": "طلبان بلا عنوان ولن يُرسلا — أضف عنوانًا أولًا:",
+    "driver_missing_address_few": "{count} طلبات بلا عنوان ولن تُرسل — أضف عنوانًا أولًا:",
+    "driver_missing_address_many": "{count} طلبًا بلا عنوان ولن تُرسل — أضف عنوانًا أولًا:",
+    "driver_missing_address_other": "{count} طلب بلا عنوان ولن تُرسل — أضف عنوانًا أولًا:",
+    "driver_desk_to_door_zero": "لم يختر أي زبون مكتب استلام",
+    "driver_desk_to_door_one": "اختار زبون واحد مكتب استلام؛ سيوصل سائقك طرده إلى عنوانه.",
+    "driver_desk_to_door_two": "اختار زبونان مكتب استلام؛ سيوصل سائقك طرديهما إلى عنوانيهما.",
+    "driver_desk_to_door_few": "اختار {count} زبائن مكتب استلام؛ سيوصل سائقك طرودهم إلى عناوينهم.",
+    "driver_desk_to_door_many": "اختار {count} زبونًا مكتب استلام؛ سيوصل سائقك طرودهم إلى عناوينهم.",
+    "driver_desk_to_door_other": "اختار {count} زبون مكتب استلام؛ سيوصل سائقك طرودهم إلى عناوينهم."
   },
   "parcel": {
     "title": "تعديل الطرد",

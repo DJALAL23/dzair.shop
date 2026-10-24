@@ -102,7 +102,11 @@
     "given_one": "{count} order given to the driver",
     "given_other": "{count} orders given to the driver",
     "assign_one": "Give {count} order",
-    "assign_other": "Give {count} orders"
+    "assign_other": "Give {count} orders",
+    "no_address": "No address",
+    "desk_to_door": "Chose a stop desk — delivered to the address",
+    "select_all": "Select all",
+    "driver_to_door": "Your driver delivers to each customer's address; an order with no address cannot be given."
   },
   "driver_form": {
     "title_add": "Add new driver",

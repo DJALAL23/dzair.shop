@@ -128,11 +128,10 @@ export interface CarrierHandoff {
   remarks?: string;
 }
 
+/** The store's driver delivers to the customer's address: no delivery type or stop desk to choose. */
 export interface DriverHandoff {
   kind: "driver";
   driverId: string;
-  deliveryType?: DeliveryType;
-  stationCode?: string;
 }
 
 /** Hand one ready order to a carrier or to the store's driver. */

@@ -199,6 +199,21 @@ export function driversFor(drivers: Driver[]): Driver[] {
   return drivers.filter((driver) => driver.status !== "inactive");
 }
 
+/**
+ * What giving these orders to the store's driver does. The driver delivers to
+ * the customer's door, never to a stop desk: an order with no street address
+ * cannot be given, and one whose customer chose a stop desk is brought to
+ * their address instead, for the same amount.
+ */
+export function driverHandoffPlan<T extends Pick<OrderBase, "address" | "deliveryType">>(orders: readonly T[]) {
+  const deliverable = orders.filter((order) => Boolean(order.address?.trim()));
+  return {
+    deliverable,
+    missingAddress: orders.filter((order) => !order.address?.trim()),
+    deskToDoor: deliverable.filter((order) => order.deliveryType === "stop_desk"),
+  };
+}
+
 // ─── Acting on a shipment ────────────────────────────────────────────────────
 
 /** What this person may do to the shipment now: what the server says is open, that their permissions allow. */

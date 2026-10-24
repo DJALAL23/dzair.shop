@@ -15,6 +15,7 @@ import {
   deliveredBy,
   deliveryTimeline,
   driversFor,
+  driverHandoffPlan,
   formatMoney,
   latestStatusLabel,
   handoffKinds,
@@ -161,6 +162,19 @@ describe("handing an order off", () => {
     expect(carriersForAll(companies, ["home", "home"]).map((c) => c.id)).toEqual(["both", "home-only"]);
     expect(carriersForAll(companies, ["stop_desk"]).map((c) => c.id)).toEqual(["both", "desk-only"]);
     expect(carriersForAll(companies, ["home", "stop_desk"]).map((c) => c.id)).toEqual(["both"]);
+  });
+
+  it("gives a driver only orders with a street address, bringing stop-desk ones to the door", () => {
+    const orders = [
+      { id: "home", address: "12 Rue Didouche", deliveryType: "home" as const },
+      { id: "desk", address: "5 Cité 200 Logements", deliveryType: "stop_desk" as const },
+      { id: "none", address: null, deliveryType: "home" as const },
+      { id: "blank", address: "   ", deliveryType: "stop_desk" as const },
+    ];
+    const plan = driverHandoffPlan(orders);
+    expect(plan.deliverable.map((o) => o.id)).toEqual(["home", "desk"]);
+    expect(plan.missingAddress.map((o) => o.id)).toEqual(["none", "blank"]);
+    expect(plan.deskToDoor.map((o) => o.id)).toEqual(["desk"]);
   });
 
   it("offers only the drivers who take orders", () => {

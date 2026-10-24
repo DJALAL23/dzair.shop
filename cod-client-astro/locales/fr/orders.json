@@ -336,7 +336,10 @@
     "unknown_lead": "{carrier} n'a pas confirmé le colis de {order}.",
     "unknown_body": "Le colis existe peut-être quand même. Ne renvoyez pas cette commande — ouvrez-la pour retrouver le colis ou confirmer qu'aucun n'a été créé.",
     "open_to_resolve": "Ouvrir la commande",
-    "close": "Fermer"
+    "close": "Fermer",
+    "driver_to_door": "Votre livreur apporte le colis à l'adresse du client.",
+    "driver_desk_to_door": "Le client a choisi le retrait en point relais. Votre livreur l'apporte à son adresse à la place ; le montant à encaisser ne change pas.",
+    "missing_address_hint_driver": "Votre livreur livre à l'adresse du client. Modifiez la commande pour en ajouter une."
   },
   "bulk": {
     "select": "Sélectionner",
@@ -363,7 +366,13 @@
     "refused_count_one": "{count} refusée",
     "refused_count_many": "{count} refusées",
     "refused_count_other": "{count} refusées",
-    "unconfirmed": "Non confirmée — ouvrir pour régler"
+    "unconfirmed": "Non confirmée — ouvrir pour régler",
+    "driver_missing_address_one": "{count} commande n'a pas d'adresse et n'est pas envoyée — ajoutez-en une d'abord :",
+    "driver_missing_address_many": "{count} commandes n'ont pas d'adresse et ne sont pas envoyées — ajoutez-en une d'abord :",
+    "driver_missing_address_other": "{count} commandes n'ont pas d'adresse et ne sont pas envoyées — ajoutez-en une d'abord :",
+    "driver_desk_to_door_one": "{count} client a choisi un point relais ; votre livreur apporte ce colis à son adresse.",
+    "driver_desk_to_door_many": "{count} clients ont choisi un point relais ; votre livreur apporte ces colis à leur adresse.",
+    "driver_desk_to_door_other": "{count} clients ont choisi un point relais ; votre livreur apporte ces colis à leur adresse."
   },
   "parcel": {
     "title": "Modifier le colis",

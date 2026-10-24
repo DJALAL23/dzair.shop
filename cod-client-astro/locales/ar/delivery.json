@@ -110,7 +110,11 @@
     "assign_two": "تسليم طلبين",
     "assign_few": "تسليم {count} طلبات",
     "assign_many": "تسليم {count} طلبًا",
-    "assign_other": "تسليم {count} طلب"
+    "assign_other": "تسليم {count} طلب",
+    "no_address": "بلا عنوان",
+    "desk_to_door": "اختار مكتب استلام — يُوصَل إلى العنوان",
+    "select_all": "تحديد الكل",
+    "driver_to_door": "يوصل سائقك إلى عنوان كل زبون؛ لا يمكن تسليمه طلبًا بلا عنوان."
   },
   "driver_form": {
     "title_add": "إضافة سائق جديد",
