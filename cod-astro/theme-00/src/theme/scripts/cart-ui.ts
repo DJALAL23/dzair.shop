@@ -50,7 +50,7 @@ import {
   type ValidationResult,
 } from "./cart-render";
 import { trackAddToCart } from "./pixel";
-import { onEachPage } from "./page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 import { storefrontPath } from "@wocart/storefront";
 
 /** Where the basket is actually ordered, in the page's language (set by the server). */

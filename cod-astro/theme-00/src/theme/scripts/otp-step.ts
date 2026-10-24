@@ -16,7 +16,7 @@
  * No-JS reality: the form POSTs directly and the server's
  * OTP_VERIFICATION_REQUIRED error renders in the existing serverError alert.
  */
-import { onEachPage } from "./page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 import {
   STOREFRONT_OPERATIONS,
   createOtpMachine,

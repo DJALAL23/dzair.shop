@@ -15,7 +15,7 @@ import {
   buildWhatsAppHref,
 } from "@wocart/storefront";
 import { readProductPageData } from "../bridges/product-page-data";
-import { onEachPage } from "./page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 
 export function initWhatsAppWidget(
   container: HTMLElement | null = document.getElementById("wa-widget"),

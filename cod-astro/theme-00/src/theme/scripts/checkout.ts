@@ -52,7 +52,7 @@ import {
 import { trackInitiateCheckout } from "./pixel";
 import { collectCustomFieldAnswers } from "./custom-fields";
 import { initRequiredSelects } from "./select-required";
-import { onEachPage } from "./page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 
 /** One controller per page, so a second call is a no-op rather than a duplicate. */
 const controllers = new WeakMap<HTMLElement, () => void>();

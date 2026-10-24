@@ -24,7 +24,7 @@
  * (store has Turnstile disabled).
  */
 
-import { onEachPage } from "./page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 
 export function initTurnstileField(): void {
   const field = document.getElementById("turnstile-field");

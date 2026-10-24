@@ -187,7 +187,9 @@ describe("browser policy bindings", () => {
       (f) => f.relPath === "theme/scripts/track-abandonment.ts",
     );
 
-    expect(abandonment?.content).toContain("createAbandonedCheckoutTracker");
+    expect(abandonment?.content).toContain("createBrowserAbandonedCheckoutTracker");
+    // The page wiring — session storage, Meta cookies, keepalive POST, beacon — is the SDK's too.
+    expect(abandonment?.content).not.toMatch(/sessionStorage|sendBeacon|document\.cookie|keepalive/);
     expect(abandonment?.content).toContain("tracker.schedule");
     expect(abandonment?.content).toContain("tracker.captureOnExit");
     expect(abandonment?.content).not.toContain("toLocalAlgerianMobile");

@@ -7,7 +7,7 @@
  * refusal an order came back with); this only words it. A reason the theme
  * does not know yet reads the general refusal.
  */
-import type { CouponOutcome, CouponRefusal } from "@wocart/storefront";
+import { couponRefusalTone, type COUPON_REFUSAL_REASONS, type CouponOutcome, type CouponRefusal } from "@wocart/storefront";
 import type { CouponStrings } from "@/theme/content/types/coupon";
 import { message, pluralKeys } from "@/theme/content/messages";
 import { formatCurrency } from "@/theme/utils/money";
@@ -22,9 +22,6 @@ export interface CouponNotice {
   tone: "applied" | "refused" | "hint";
   text: string;
 }
-
-/** The reasons about the basket, not about the code. */
-const HINTS = new Set(["identify_first", "no_eligible_products", "offer_applied", "below_minimum_subtotal", "below_minimum_quantity", "delivery_already_free"]);
 
 /** The coupon copy a notice needs — what an order form hands its script. */
 export const COUPON_COPY_KEYS = [
@@ -53,18 +50,21 @@ export function couponCopy(pack: CouponStrings): CouponCopy {
   return Object.fromEntries(COUPON_COPY_KEYS.flatMap((key) => (source[key] === undefined ? [] : [[key, source[key]]])));
 }
 
-/** The reasons worded without a figure. */
-const REFUSAL_KEY = new Map<string, keyof CouponCopy>([
-  ["not_found", "couponNotFound"],
-  ["expired", "couponExpired"],
-  ["used_up", "couponUsedUp"],
-  ["identify_first", "couponIdentifyFirst"],
-  ["not_eligible", "couponNotEligible"],
-  ["already_used", "couponAlreadyUsed"],
-  ["no_eligible_products", "couponNoEligibleProducts"],
-  ["offer_applied", "couponOfferApplied"],
-  ["delivery_already_free", "couponDeliveryAlreadyFree"],
-]);
+/** The reasons worded with a figure, each by its own branch below. */
+type FigureReason = "below_minimum_quantity" | "below_minimum_subtotal" | "not_started";
+
+/** The reasons worded without a figure: every other reason the SDK names, or the type check fails. */
+const REFUSAL_KEY: Record<Exclude<(typeof COUPON_REFUSAL_REASONS)[number], FigureReason>, keyof CouponCopy> = {
+  not_found: "couponNotFound",
+  expired: "couponExpired",
+  used_up: "couponUsedUp",
+  identify_first: "couponIdentifyFirst",
+  not_eligible: "couponNotEligible",
+  already_used: "couponAlreadyUsed",
+  no_eligible_products: "couponNoEligibleProducts",
+  offer_applied: "couponOfferApplied",
+  delivery_already_free: "couponDeliveryAlreadyFree",
+};
 
 export function couponNotice(
   answer: CouponOutcome | ({ applied: false } & CouponRefusal),
@@ -80,7 +80,7 @@ export function couponNotice(
     return { tone: "applied", text };
   }
   const refused = (text: string | undefined): CouponNotice => ({
-    tone: text !== undefined && HINTS.has(answer.reason) ? "hint" : "refused",
+    tone: text !== undefined ? couponRefusalTone(answer.reason) : "refused",
     text: text ?? copy.couponRefused ?? "",
   });
   // Reasons that carry a figure are worded with it, and only with it.
@@ -94,6 +94,6 @@ export function couponNotice(
     const date = answer.startsAt ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(new Date(answer.startsAt)) : null;
     return refused(date === null ? undefined : message(copy, "couponNotStarted", { date }, locale));
   }
-  const key = REFUSAL_KEY.get(answer.reason);
+  const key: keyof CouponCopy | undefined = REFUSAL_KEY[answer.reason as keyof typeof REFUSAL_KEY];
   return refused(key ? copy[key] : undefined);
 }

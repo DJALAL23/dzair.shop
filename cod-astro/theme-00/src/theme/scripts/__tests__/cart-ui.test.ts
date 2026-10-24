@@ -194,10 +194,12 @@ function storedCart(): Array<Record<string, unknown>> {
   return JSON.parse(localStorage.getItem(CART_KEY) ?? "[]");
 }
 
-function validationResponse(body: unknown) {
+/** The server's verdict as it sends it: `rewards` always comes, and every line names its product and variant. */
+function validationResponse(body: Record<string, unknown>) {
+  const lines = ((body.lines ?? []) as Record<string, unknown>[]).map((line) => ({ productName: String(line.productId), variantLabel: null, ...line }));
   return Promise.resolve({
     ok: true,
-    json: () => Promise.resolve({ data: body }),
+    json: () => Promise.resolve({ data: { rewards: [], ...body, lines } }),
   } as unknown as Response);
 }
 

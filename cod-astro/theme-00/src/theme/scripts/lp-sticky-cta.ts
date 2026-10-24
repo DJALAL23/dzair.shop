@@ -4,7 +4,7 @@
  */
 
 import { initStickyCta } from "./sticky-cta";
-import { onEachPage } from "./page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 
 export { initStickyCta, initStickyCta as initLpStickyCta };
 

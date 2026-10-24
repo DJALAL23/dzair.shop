@@ -13,8 +13,9 @@
 
 import { embeddedMessage, embeddedTemplate } from "@/theme/content/messages";
 import { getCart, lineKey, setQuantity, removeLine, toOrderItems, type BasketLine } from "./cart";
-import type { CartValidation, CartValidationLine, DeliveryDestination } from "@wocart/storefront";
+import { createQuoter, type CartValidation, type CartValidationLine, type DeliveryDestination } from "@wocart/storefront";
 import { formatAmount, formatCurrency } from "../utils/money";
+import { API_PATHS } from "./api-paths";
 
 /** The server's verdict on the basket — the SDK schema's types, not a mirror of them. */
 export type ValidatedLine = CartValidationLine;
@@ -30,7 +31,6 @@ export interface FreeDeliveryCopy {
   remaining: string;
 }
 
-export const VALIDATE_URL = "/api/cart/validate";
 
 
 /** Curried once per page; the formatting itself is the SDK's one money function. */
@@ -42,12 +42,14 @@ export function moneyFormatter(currency: string): (n: number) => string {
  * Asks the server for the truth about a basket — and, given a destination,
  * what delivering it there costs (`delivery`, the order's own quote).
  *
- * Holds its own request counter so a slow earlier answer can never overwrite a
- * newer one — the shopper tapping `+` three times must end on the third
- * answer, not on whichever response happens to land last.
+ * The SDK's quoter keeps only the latest answer, so the shopper tapping `+`
+ * three times ends on the third answer, not on whichever lands last.
+ * `undefined` means nothing to apply (stale, offline, blocked — the basket
+ * still works from local state, and checkout re-checks everything); `null`
+ * means the basket is known to be empty.
  */
-export function createValidator(url: string = VALIDATE_URL) {
-  let latest = 0;
+export function createValidator(endpoint: string = API_PATHS.cartValidate) {
+  const quoter = createQuoter({ endpoint });
 
   return async function validate(
     lines: BasketLine[],
@@ -56,23 +58,8 @@ export function createValidator(url: string = VALIDATE_URL) {
     asks: { couponCode?: string; phone?: string } = {},
   ): Promise<ValidationResult | null | undefined> {
     if (lines.length === 0) return null;
-    const id = ++latest;
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: toOrderItems(lines), ...(destination ? { destination } : {}), ...asks }),
-      });
-      if (!res.ok) return undefined;
-      const payload = await res.json();
-      // `undefined` means "nothing to apply"; `null` means "known to be empty".
-      if (id !== latest) return undefined;
-      return (payload?.data as ValidationResult | undefined) ?? null;
-    } catch {
-      // Offline or blocked. The basket still works from local state, and
-      // checkout re-checks everything server-side regardless.
-      return undefined;
-    }
+    const answer = await quoter.quote({ items: toOrderItems(lines) }, { ...(destination ? { destination } : {}), ...asks });
+    return answer.status === "fresh" ? answer.quote : undefined;
   };
 }
 

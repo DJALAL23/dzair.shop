@@ -9,7 +9,7 @@
  * jump-to-form link.
  */
 
-import { onEachPage } from "./page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 
 export function initStickyCta(): (() => void) | void {
   const cta = document.getElementById("product-sticky-cta") ?? document.getElementById("lp-sticky-cta");

@@ -31,9 +31,9 @@ const across = Math.min(5, Math.max(2, Math.round(columns)));
 )}
 
 <script>
-  import { onEachElement } from "@/theme/scripts/page-lifecycle";
+  import { bindEach } from "@wocart/theme/lifecycle";
 
-  onEachElement("[data-product-tabs]", (root) => {
+  bindEach("[data-product-tabs]", (root) => {
     const list = root.querySelector<HTMLElement>(".tab-list");
     const panels = [...root.querySelectorAll<HTMLElement>(".tab-panel")];
     if (!list || panels.length < 2) return;

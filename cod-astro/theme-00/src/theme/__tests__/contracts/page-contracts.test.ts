@@ -182,3 +182,13 @@ describe("the checkout page", () => {
     expect(scriptsOf(source).has("checkout")).toBe(true);
   });
 });
+
+describe("the thank-you page", () => {
+  const source = read(join(PAGES, "thank-you.astro"));
+
+  it("loads its own controller, which marks the checkout converted and clears the basket", () => {
+    // Without it the merchant keeps calling a shopper whose order arrived.
+    expect(source).toMatch(/<script src="\.\.\/theme\/scripts\/thank-you\.ts"><\/script>/);
+    expect(source).toMatch(/data-order-placed data-order-id=\{orderId\} data-order-number=\{orderNumber\}/);
+  });
+});

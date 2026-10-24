@@ -35,11 +35,11 @@ const shown = hasBlocks(blocks, "default") || isPreview(blocks);
 )}
 
 <script>
-  import { onEachElement } from "@/theme/scripts/page-lifecycle";
+  import { bindEach } from "@wocart/theme/lifecycle";
 
   const TURN_MS = 5000;
 
-  onEachElement("[data-announce]", (bar) => {
+  bindEach("[data-announce]", (bar) => {
     const items = () => [...bar.querySelectorAll<HTMLElement>(".announce-item")];
     if (items().length < 2) return;
     let index = 0;

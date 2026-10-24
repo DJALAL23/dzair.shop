@@ -12,7 +12,7 @@
 import { canRecordVoice, createVoiceRecorder, prepareReviewPhoto, type VoiceRecorder } from "@wocart/storefront/review-media";
 import type { ReviewEligibility, ReviewableProduct } from "@wocart/storefront";
 import { embeddedMessage } from "@/theme/content/messages";
-import { onEachPage } from "./page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 
 type Copy = Record<string, string>;
 type FileItem = {

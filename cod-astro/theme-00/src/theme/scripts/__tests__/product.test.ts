@@ -11,6 +11,9 @@
 import * as fc from "fast-check";
 import { initProductPage } from "../product.ts";
 
+/** A quote as the server sends it: what it always carries, then the case's own fields. */
+const served = (data: Record<string, unknown>) => ({ lines: [], rewards: [], freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 }, ...data });
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) }) as unknown as Response));
 });
@@ -756,7 +759,7 @@ describe("Delivery quote for the product form", () => {
   function quoteServer(answer: (body: any) => unknown) {
     const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
       const body = JSON.parse(String(init.body));
-      const data = answer(body);
+      const data = served(answer(body) as Record<string, unknown>);
       return { ok: true, json: async () => ({ success: true, data }) } as unknown as Response;
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -818,7 +821,7 @@ describe("Delivery quote for the product form", () => {
             ok: true,
             json: async () => ({
               success: true,
-              data: { subtotal: 0, lines: [], delivery: { available: true, fee: body.quantity === 1 ? 900 : 300, total: 0 } },
+              data: served({ subtotal: 0, lines: [], delivery: { available: true, fee: body.quantity === 1 ? 900 : 300, total: 0 } }),
             }),
           } as unknown as Response),
         );
@@ -881,7 +884,7 @@ describe("Delivery quote for the product form", () => {
     build({ quantityPriced: true });
     const answers: Array<() => void> = [];
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => {
-      answers.push(() => resolve({ ok: true, json: async () => ({ success: true, data: { subtotal: 3500, lines: [], delivery: { available: true, fee: 0, total: 3500 } } }) } as unknown as Response));
+      answers.push(() => resolve({ ok: true, json: async () => ({ success: true, data: served({ subtotal: 3500, lines: [], delivery: { available: true, fee: 0, total: 3500 } }) }) } as unknown as Response));
     })));
     initProductPage();
     await settle();
@@ -919,7 +922,7 @@ describe("Delivery quote for the product form", () => {
     build({ quantityPriced: true, tiers: `<b id="sticky-price">2 500</b>` });
     const answers: Array<() => void> = [];
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => {
-      answers.push(() => resolve({ ok: true, json: async () => ({ success: true, data: { subtotal: 4500, lines: [], delivery: { available: true, fee: 0, total: 4500 } } }) } as unknown as Response));
+      answers.push(() => resolve({ ok: true, json: async () => ({ success: true, data: served({ subtotal: 4500, lines: [], delivery: { available: true, fee: 0, total: 4500 } }) }) } as unknown as Response));
     })));
     initProductPage();
     await settle();
@@ -1341,7 +1344,7 @@ describe("Option buttons and the variant ordered", () => {
 
   it("a sold-out product without variants keeps its order button held when the quote answers", async () => {
     build({ variants: [], inventory: 0, tiers: " " });
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ success: true, data: { subtotal: 2800, lines: [], delivery: { available: true, fee: 400 } } }) }) as unknown as Response));
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ success: true, data: served({ subtotal: 2800, lines: [], delivery: { available: true, fee: 400, total: 3200 } }) }) }) as unknown as Response));
     container.insertAdjacentHTML("beforeend", `<div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div><input id="f-wilaya" value="16" />`);
     initProductPage();
     await new Promise((resolve) => setTimeout(resolve, 0));

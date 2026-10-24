@@ -7,7 +7,7 @@
  * `fbq`, and nothing happens.
  */
 
-import { onEachPage } from "./page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 import { fbqSafe } from "./pixel";
 
 let firstPage = true;

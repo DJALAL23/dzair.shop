@@ -38,7 +38,7 @@ const length = durationMs && durationMs > 0 ? durationMs : 0;
 </div>
 
 <script>
-  import { onEachPage } from "@/theme/scripts/page-lifecycle";
+  import { onEachPage } from "@wocart/theme/lifecycle";
   import { initVoicePlayers } from "@/theme/scripts/voice-player";
 
   onEachPage(() => initVoicePlayers(document));

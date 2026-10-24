@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { PREVIEW_PROTOCOL_VERSION, previewEndMarker, previewStartMarker } from "@wocart/theme";
 import { startPreviewBridge } from "@wocart/theme/preview";
-import { onEachPage } from "../page-lifecycle";
+import { onEachPage } from "@wocart/theme/lifecycle";
 
 function swapBody(): void {
   document.body.replaceWith(document.createElement("body"));

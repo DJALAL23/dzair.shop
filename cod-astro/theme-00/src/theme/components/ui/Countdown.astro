@@ -32,10 +32,10 @@ const pad = (value: number) => String(value).padStart(2, "0");
 )}
 
 <script>
-  import { onEachElement } from "@/theme/scripts/page-lifecycle";
+  import { bindEach } from "@wocart/theme/lifecycle";
   import { countdownEnd, timeLeft } from "@/theme/utils/countdown";
 
-  onEachElement("[data-countdown]", (element) => {
+  bindEach("[data-countdown]", (element) => {
     const end = countdownEnd(element.dataset.countdown);
     if (end === null) {
       element.remove();

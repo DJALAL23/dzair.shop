@@ -14,7 +14,7 @@ import {
   deliveryDestination,
   toggleAddressFields,
 } from "./delivery-fields";
-import { createQuoter, type QuoteAnswer } from "./quote";
+import { API_PATHS } from "./api-paths";
 import { initCouponField } from "./coupon-field";
 // fbq only exists when the merchant configured a pixel — one shared guard.
 import { trackProductInitiateCheckout, trackViewContent } from "./pixel";
@@ -24,8 +24,19 @@ import { initRequiredSelects } from "./select-required";
 import { formatAmount } from "../utils/money";
 // The product page's one SSR→browser contract — see bridges/.
 import { readProductPageData } from "../bridges/product-page-data";
-import { getOfferTierView, initialVariant, optionStates, pickOption, toLocalAlgerianMobile, variantFor, type OptionSelection } from "@wocart/storefront";
-import { onEachPage } from "./page-lifecycle";
+import {
+  createQuoter,
+  getOfferTierView,
+  initialVariant,
+  optionStates,
+  pickOption,
+  toLocalAlgerianMobile,
+  variantFor,
+  type CartValidation,
+  type OptionSelection,
+  type ProductQuoteInput,
+} from "@wocart/storefront";
+import { onEachPage } from "@wocart/theme/lifecycle";
 
 export function initProductPage(): () => void {
   // ── DATA BRIDGE ────────────────────────────────────────────────────────────
@@ -81,8 +92,8 @@ export function initProductPage(): () => void {
   /** Whether the selected variant combination is sold out. */
   let variantOos          = false;
   /** The server's answer for one destination and one form; a newer form never shows an older answer. */
-  let quote: { key: string; answer: QuoteAnswer } | null = null;
-  const askQuote = createQuoter();
+  let quote: { key: string; answer: CartValidation } | null = null;
+  const quoter = createQuoter({ endpoint: API_PATHS.cartValidate });
   /** The code box: Apply asks the quote again with the code. */
   const coupon = initCouponField(document, refreshShipping);
 
@@ -535,8 +546,8 @@ export function initProductPage(): () => void {
    * The product's order form as the order will read it: the same fields, and
    * no others. The quote is built from these, so it prices what would be ordered.
    */
-  function productFormBody(): Record<string, unknown> {
-    const body: Record<string, unknown> = {
+  function productFormBody(): ProductQuoteInput {
+    const body: ProductQuoteInput = {
       productId,
       productName,
       quantity: Math.max(1, parseInt(qtyInput?.value || "1") || 1),
@@ -571,7 +582,7 @@ export function initProductPage(): () => void {
   }
 
   /** Shows the server's answer. Without a destination, or from a server that predates quotes, the rate table prices delivery. */
-  function applyQuote(answer: QuoteAnswer): void {
+  function applyQuote(answer: CartValidation): void {
     coupon?.show(answer.coupon);
     const delivery = answer.delivery;
     if (delivery === undefined) {
@@ -587,12 +598,12 @@ export function initProductPage(): () => void {
 
   async function requestQuote(key: string): Promise<void> {
     const destination = deliveryDestination();
-    const answer = await askQuote({ ...productFormBody(), destination, ...couponAsk() });
-    // Undefined: stale or failed. A key that has moved on: the shopper changed
-    // the form or the destination while this was on its way.
-    if (answer === undefined || key !== shippingKey()) return;
-    quote = { key, answer };
-    applyQuote(answer);
+    const result = await quoter.quote(productFormBody(), { ...(destination ? { destination } : {}), ...couponAsk() });
+    // Stale or failed: keep what is shown. A key that has moved on: the shopper
+    // changed the form or the destination while this was on its way.
+    if (result.status !== "fresh" || key !== shippingKey()) return;
+    quote = { key, answer: result.quote };
+    applyQuote(result.quote);
   }
 
   /**

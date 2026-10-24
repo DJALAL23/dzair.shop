@@ -5,13 +5,12 @@
  * POST /api/abandoned (which forwards to cod-server with the server-side
  * store key) when the visitor has typed a valid name + phone and pauses for
  * 3 seconds without submitting. All updates use the same sessionId (UPSERT
- * on the server), so there is exactly one DB record per browser tab.
+ * on the server), so there is exactly one DB record per browser tab. The
+ * SDK's browser tracker holds that id, the timers, the Meta cookies, and the
+ * final capture when the shopper leaves; this file reads the form.
  *
- * On page exit (tab close, navigation), a final capture is attempted via
- * navigator.sendBeacon so abandoners who never submit are still recorded.
- *
- * Conversion is handled by the inline script on the product page
- * (POST /api/abandoned/convert) — see pages/products/[slug].astro.
+ * Conversion is the thank-you page's (`convertAbandonedCheckout`, POST
+ * /api/abandoned/convert).
  *
  * Two shapes, one record. On a product page the checkout is about the ONE
  * product whose form the shopper is filling, and that is what gets captured —
@@ -27,41 +26,13 @@
  * affect the order flow, page speed, or console cleanliness.
  */
 
-import {
-  createAbandonedCheckoutTracker,
-  type AbandonedCheckoutSnapshot,
-} from "@wocart/storefront";
+import { createBrowserAbandonedCheckoutTracker, type AbandonedCheckoutSnapshot } from "@wocart/storefront";
+import { API_PATHS } from "./api-paths";
 import { getCart, cartSubtotal, subscribe } from "./cart";
-import { onEachPage } from "./page-lifecycle";
-
-const UPSERT_URL = "/api/abandoned";
+import { onEachPage } from "@wocart/theme/lifecycle";
 
 function initAbandonmentTracking(): () => void {
-  const tracker = createAbandonedCheckoutTracker({
-    storage: {
-      getItem: (key) => sessionStorage.getItem(key),
-      setItem: (key, value) => sessionStorage.setItem(key, value),
-    },
-    createId: () => crypto.randomUUID(),
-    schedule: (callback, delayMs) => setTimeout(callback, delayMs),
-    cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
-    readCookie: (name) =>
-      document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))?.[1] || undefined,
-    send: async (data) => {
-      await fetch(UPSERT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        keepalive: true,
-      });
-    },
-    beacon: (data) => {
-      navigator.sendBeacon(
-        UPSERT_URL,
-        new Blob([JSON.stringify(data)], { type: "application/json" }),
-      );
-    },
-  });
+  const tracker = createBrowserAbandonedCheckoutTracker({ endpoint: API_PATHS.abandonedUpsert });
 
   function getWilayaName(wilayaId: number | undefined): string | undefined {
     if (!wilayaId) return undefined;

@@ -7,12 +7,17 @@ const files = themeSourceFiles();
 const contentOf = (relPath: string) => files.find((file) => file.relPath === relPath)!.content;
 
 describe("client-side navigation", () => {
-  it("binds page scripts through onEachPage, never on DOMContentLoaded alone", () => {
+  it("binds page scripts through the SDK's lifecycle, never on DOMContentLoaded alone", () => {
     const offenders = files
-      .filter((file) => file.relPath.endsWith(".ts") && file.relPath !== "theme/scripts/page-lifecycle.ts")
+      .filter((file) => file.relPath.endsWith(".ts"))
       .filter((file) => /DOMContentLoaded|document\.readyState/.test(file.content))
       .map((file) => file.relPath);
     expect(offenders).toEqual([]);
+    // The swap events are the SDK's to name: a theme that listens for them itself runs a second lifecycle.
+    const ownLifecycle = files.filter((file) => /["'](?:wocart:section-load|astro:page-load|astro:before-swap)["']/.test(file.content)).map((file) => file.relPath);
+    expect(ownLifecycle).toEqual([]);
+    const binders = files.filter((file) => /from "@wocart\/theme\/lifecycle"/.test(file.content));
+    expect(binders.length).toBeGreaterThanOrEqual(10);
   });
 
   it("keeps native order forms out of the router", () => {
