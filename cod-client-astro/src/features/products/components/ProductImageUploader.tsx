@@ -1,16 +1,22 @@
 import { useCallback, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, UploadCloud, X } from "lucide-react";
-import { reorderProductImages } from "@/features/products/api";
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_MB, partitionUploadFiles } from "@/features/uploads/api";
 import { useImageUpload } from "@/features/uploads/useImageUpload";
 import type { ProductImage } from "@/features/products/types";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 
-export interface PendingImage {
-  clientId: string;
-  key: string;
-  url: string;
+/** One tile of the editor, in the order the merchant sees: saved already, or uploaded and saved with the product. */
+export type FormImage =
+  | { kind: "saved"; image: ProductImage }
+  | { kind: "new"; clientId: string; key: string; url: string };
+
+export function formImageId(img: FormImage) {
+  return img.kind === "saved" ? img.image.id : img.clientId;
+}
+
+function formImageSrc(img: FormImage) {
+  return img.kind === "saved" ? img.image.src : img.url;
 }
 
 function swapAt<T>(arr: T[], i: number, j: number): T[] {
@@ -19,34 +25,18 @@ function swapAt<T>(arr: T[], i: number, j: number): T[] {
   return next;
 }
 
-interface DisplayImage {
-  id: string;
-  url: string;
-  isExisting: boolean;
-}
-
-export function ProductImageUploader({ existingImages, pendingImages, productId, disabled, onPendingAdd, onPendingRemove, onExistingRemove, onExistingReorder, onPendingReorder }: {
-  existingImages: ProductImage[];
-  pendingImages: PendingImage[];
-  productId?: string;
+export function ProductImageUploader({ images, disabled, onAdd, onRemove, onReorder }: {
+  images: FormImage[];
   disabled?: boolean;
-  onPendingAdd: (img: PendingImage) => void;
-  onPendingRemove: (clientId: string) => void;
-  onExistingRemove: (imageId: string) => void;
-  onExistingReorder: (reordered: ProductImage[]) => void;
-  onPendingReorder: (reordered: PendingImage[]) => void;
+  onAdd: (img: FormImage) => void;
+  onRemove: (id: string) => void;
+  onReorder: (reordered: FormImage[]) => void;
 }) {
   const common = useT("common");
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [reordering, setReordering] = useState(false);
   const { upload, progress } = useImageUpload("products");
   const uploading = progress !== null;
-
-  const allImages: DisplayImage[] = [
-    ...existingImages.map((img) => ({ id: img.id, url: img.src, isExisting: true as const })),
-    ...pendingImages.map((img) => ({ id: img.clientId, url: img.url, isExisting: false as const })),
-  ];
 
   async function handleFiles(files: FileList | File[]) {
     const selected = Array.from(files);
@@ -57,7 +47,7 @@ export function ProductImageUploader({ existingImages, pendingImages, productId,
     try {
       for (const file of accepted) {
         const { key, url } = await upload(file);
-        onPendingAdd({ clientId: crypto.randomUUID(), key, url });
+        onAdd({ kind: "new", clientId: crypto.randomUUID(), key, url });
       }
       notify.success(common("feedback.uploaded"));
     } catch {
@@ -72,37 +62,22 @@ export function ProductImageUploader({ existingImages, pendingImages, productId,
     void handleFiles(event.dataTransfer.files);
   }, [disabled]);
 
-  async function moveImage(index: number, direction: -1 | 1) {
+  function moveImage(index: number, direction: -1 | 1) {
     const target = index + direction;
-    if (target < 0 || target >= allImages.length) return;
-    const reordered = swapAt(allImages, index, target);
-    const newExisting = reordered.filter((item) => item.isExisting).map((item) => existingImages.find((img) => img.id === item.id)!).filter(Boolean);
-    const newPending = reordered.filter((item) => !item.isExisting).map((item) => pendingImages.find((img) => img.clientId === item.id)!).filter(Boolean);
-    onExistingReorder(newExisting);
-    onPendingReorder(newPending);
-    if (productId && newExisting.length > 0) {
-      setReordering(true);
-      try {
-        onExistingReorder((await reorderProductImages(productId, newExisting.map((img) => img.id))).data);
-        notify.success(common("feedback.updated"));
-      } catch {
-        notify.error(common("feedback.action_failed"));
-      } finally {
-        setReordering(false);
-      }
-    }
+    if (target < 0 || target >= images.length) return;
+    onReorder(swapAt(images, index, target));
   }
 
   return <div className="space-y-4">
-    {allImages.length > 0 && <div className={`grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 ${reordering ? "pointer-events-none opacity-60" : ""}`}>
-      {allImages.map((img, index) => <div key={img.id} className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
-        <img src={img.url} alt="" className="size-full object-cover" />
+    {images.length > 0 && <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+      {images.map((img, index) => <div key={formImageId(img)} className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
+        <img src={formImageSrc(img)} alt="" className="size-full object-cover" />
         <span className="absolute start-1.5 top-1.5 rounded-md bg-black/50 px-1.5 py-0.5 text-[11px] font-semibold text-white">{index + 1}</span>
-        {!img.isExisting && <span className="absolute end-1.5 top-1.5 rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">{common("new_badge")}</span>}
+        {img.kind === "new" && <span className="absolute end-1.5 top-1.5 rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">{common("new_badge")}</span>}
         <div className="absolute inset-0 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-          {index > 0 && <button type="button" disabled={disabled || reordering} onClick={() => void moveImage(index, -1)} className="absolute start-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label={common("image.move_earlier")}><ChevronLeft size={16} /></button>}
-          {index < allImages.length - 1 && <button type="button" disabled={disabled || reordering} onClick={() => void moveImage(index, 1)} className="absolute end-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label={common("image.move_later")}><ChevronRight size={16} /></button>}
-          <button type="button" disabled={disabled} onClick={() => img.isExisting ? onExistingRemove(img.id) : onPendingRemove(img.id)} className="absolute bottom-1.5 end-1.5 grid size-7 place-items-center rounded-full bg-destructive text-white hover:bg-destructive/80 disabled:opacity-50" aria-label={common("image.remove")}><X size={14} /></button>
+          {index > 0 && <button type="button" disabled={disabled} onClick={() => moveImage(index, -1)} className="absolute start-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label={common("image.move_earlier")}><ChevronLeft size={16} /></button>}
+          {index < images.length - 1 && <button type="button" disabled={disabled} onClick={() => moveImage(index, 1)} className="absolute end-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 disabled:opacity-30" aria-label={common("image.move_later")}><ChevronRight size={16} /></button>}
+          <button type="button" disabled={disabled} onClick={() => onRemove(formImageId(img))} className="absolute bottom-1.5 end-1.5 grid size-7 place-items-center rounded-full bg-destructive text-white hover:bg-destructive/80 disabled:opacity-50" aria-label={common("image.remove")}><X size={14} /></button>
         </div>
       </div>)}
     </div>}

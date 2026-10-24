@@ -16,6 +16,7 @@ import {
   listProductImages,
   listShippingProfiles,
   listVariants,
+  reorderProductImages,
   saveProductImage,
   updateProduct,
   updateVariant,
@@ -40,7 +41,8 @@ import type {
 import { Alert, Card, FormPage, useConfirmDialog } from "@/components/ui";
 import {
   ProductImageUploader,
-  type PendingImage,
+  formImageId,
+  type FormImage,
 } from "@/features/products/components/ProductImageUploader";
 import { ProductBasicInfoCard } from "@/features/products/components/ProductBasicInfoCard";
 import { ProductPricingCard } from "@/features/products/components/ProductPricingCard";
@@ -90,9 +92,11 @@ export function ProductForm({ productId }: { productId?: string }) {
   const [collections, setCollections] = useState<CollectionSummary[] | null>(null);
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [shippingProfiles, setShippingProfiles] = useState<ShippingProfile[]>([]);
-  const [existingImages, setExistingImages] = useState<ProductImage[]>([]);
-  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
-  const [deletedImageIds, setDeletedImageIds] = useState<string[]>([]);
+  /** The product's images as the server holds them, in their order. */
+  const [savedImages, setSavedImages] = useState<ProductImage[]>([]);
+  /** The images as the editor shows them; Save makes the server match. */
+  const [images, setImages] = useState<FormImage[]>([]);
+  const shownSavedImages = images.flatMap((img) => (img.kind === "saved" ? [img.image] : []));
 
   const [hasVariantsSwitch, setHasVariantsSwitch] = useState(false);
   const [variantOptions, setVariantOptions] = useState<VariantOptionFormState[]>([]);
@@ -160,7 +164,8 @@ export function ProductForm({ productId }: { productId?: string }) {
     ])
       .then(([product, loadedVariants, loadedImages]) => {
         if (!alive || !product) return;
-        setExistingImages(loadedImages);
+        setSavedImages(loadedImages);
+        setImages(loadedImages.map((image) => ({ kind: "saved", image })));
         setName(product.name);
         setSlug(product.handle);
         setSku(product.sku ?? "");
@@ -263,6 +268,35 @@ export function ProductForm({ productId }: { productId?: string }) {
     return Object.keys(next).length === 0;
   }
 
+  /**
+   * Makes the product's images what the editor shows. Each step is recorded as
+   * it lands, so a retry after a failure resumes instead of repeating it. New
+   * images are appended by the server, then one reorder sets the shown order.
+   */
+  async function saveImages(id: string) {
+    const shownIds = new Set(images.map(formImageId));
+    let saved = savedImages;
+    let shown = images;
+    for (const image of savedImages) {
+      if (shownIds.has(image.id)) continue;
+      await deleteProductImage(id, image.id);
+      saved = saved.filter((item) => item.id !== image.id);
+      setSavedImages(saved);
+    }
+    for (const image of images) {
+      if (image.kind !== "new") continue;
+      const created = (await saveProductImage(id, { key: image.key, src: image.url })).data;
+      saved = [...saved, created];
+      shown = shown.map((item) => (item === image ? { kind: "saved", image: created } : item));
+      setSavedImages(saved);
+      setImages(shown);
+    }
+    const order = shown.map(formImageId);
+    if (order.join() !== saved.map((item) => item.id).join()) {
+      setSavedImages((await reorderProductImages(id, order)).data);
+    }
+  }
+
   async function save() {
     if (!validate()) return;
     setBusy(true);
@@ -359,7 +393,12 @@ export function ProductForm({ productId }: { productId?: string }) {
             failedVariantLabel = variantLabel(row.variations) || row.sku.trim();
             if (row.existingId)
               await updateVariant(savedId, row.existingId, variantData as never);
-            else await createVariant(savedId, variantData as never);
+            else {
+              const created = (await createVariant(savedId, variantData as never)).data;
+              setVariantRows((rows) =>
+                rows.map((item) => (item.key === row.key ? { ...item, existingId: created.id } : item)),
+              );
+            }
           }
           failedVariantLabel = null;
         }
@@ -367,16 +406,7 @@ export function ProductForm({ productId }: { productId?: string }) {
         for (const variantId of variantsToDelete) {
           await deleteVariant(savedId, variantId);
         }
-        for (const imageId of deletedImageIds) {
-          await deleteProductImage(savedId, imageId);
-        }
-        for (let i = 0; i < pendingImages.length; i++) {
-          await saveProductImage(savedId, {
-            key: pendingImages[i].key,
-            src: pendingImages[i].url,
-            position: existingImages.length - deletedImageIds.length + i + 1,
-          });
-        }
+        await saveImages(savedId);
         failedStep = null;
         notify.flashSuccess(t(editing ? "form.success_edit" : "form.success_add"));
         window.location.assign("/products");
@@ -424,7 +454,7 @@ export function ProductForm({ productId }: { productId?: string }) {
     );
 
   const margin = calcMargin(price, costPrice);
-  const showImageCol = editing && existingImages.length > 0;
+  const showImageCol = editing && shownSavedImages.length > 0;
   const backHref = productId
     ? `/products/${encodeURIComponent(productId)}`
     : "/products";
@@ -481,24 +511,16 @@ export function ProductForm({ productId }: { productId?: string }) {
 
         <Card title={t("form.section_images")}>
           <ProductImageUploader
-            existingImages={existingImages}
-            pendingImages={pendingImages}
-            productId={productId}
+            images={images}
             disabled={busy}
-            onPendingAdd={(img) => setPendingImages((prev) => [...prev, img])}
-            onPendingRemove={(clientId) =>
-              setPendingImages((prev) =>
-                prev.filter((item) => item.clientId !== clientId),
-              )
-            }
-            onExistingRemove={(imageId) => {
-              setExistingImages((prev) =>
-                prev.filter((item) => item.id !== imageId),
+            onAdd={(img) => setImages((prev) => [...prev, img])}
+            onRemove={(id) => {
+              setImages((prev) => prev.filter((item) => formImageId(item) !== id));
+              setVariantRows((rows) =>
+                rows.map((row) => (row.imageId === id ? { ...row, imageId: null } : row)),
               );
-              setDeletedImageIds((prev) => [...prev, imageId]);
             }}
-            onExistingReorder={setExistingImages}
-            onPendingReorder={setPendingImages}
+            onReorder={setImages}
           />
         </Card>
 
@@ -522,7 +544,7 @@ export function ProductForm({ productId }: { productId?: string }) {
           setVariantOptions={setVariantOptions}
           variantRows={variantRows}
           setVariantRows={setVariantRows}
-          existingImages={existingImages}
+          existingImages={shownSavedImages}
           errors={errors}
           setErrors={setErrors}
           busy={busy}
