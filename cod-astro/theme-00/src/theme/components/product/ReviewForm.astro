@@ -33,6 +33,7 @@ const copy = JSON.stringify({
   errorGrant: c.reviewFormErrorGrant,
   errorUploadMissing: c.reviewFormErrorUploadMissing,
   errorMediaLimit: c.reviewFormErrorMediaLimit,
+  minLength: c.reviewFormMinLengthError,
   ratingRequired: c.reviewFormRatingRequired,
   nothingLeft: c.reviewFormNothingLeft,
   waitUploads: c.reviewFormWaitUploads,
@@ -59,7 +60,6 @@ const copy = JSON.stringify({
   data-photos-hint={messageData(c, "reviewFormPhotosHint")}
   data-voice-hint={messageData(c, "reviewFormVoiceHint")}
   data-too-many={messageData(c, "reviewFormErrorTooManyPhotos")}
-  data-min-length={messageData(c, "reviewFormMinLengthError")}
 >
   <div class="carton overflow-hidden">
     <div class="border-b border-border px-5 py-4 sm:px-6">

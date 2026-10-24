@@ -47,12 +47,8 @@ function initReviewForm(): void | (() => void) {
   const timer = $<HTMLElement>("[data-voice-timer]");
 
   const session = createReviewSession({ routes: { eligibility: API_PATHS.reviewEligibility, upload: API_PATHS.reviewUpload, submit: API_PATHS.reviewSubmit } });
-  const minLength = () => embeddedMessage(root!.dataset.minLength, "reviewFormMinLengthError", { count: REVIEW_TEXT_LIMITS.bodyMin });
   /** Why the server refused, as the copy says it. */
-  const refusal = (code: string | null, step: ReviewStep) => {
-    const key = reviewRefusalKey(code, step);
-    return key === "minLength" ? minLength() : copy[key] || copy.errorGeneric || "";
-  };
+  const refusal = (code: string | null, step: ReviewStep) => copy[reviewRefusalKey(code, step)] || copy.errorGeneric || "";
   let opened: ReviewEligibility | null = null;
   let rating = 0;
   let files: FileItem[] = [];
@@ -289,7 +285,7 @@ function initReviewForm(): void | (() => void) {
     if (!productId) return showError(copy.nothingLeft);
     if (!rating) return showError(copy.ratingRequired);
     const body = $<HTMLTextAreaElement>("#review-body").value.trim();
-    if (body.length < REVIEW_TEXT_LIMITS.bodyMin && !hasVoice()) return showError(minLength());
+    if (body.length < REVIEW_TEXT_LIMITS.bodyMin && !hasVoice()) return showError(copy.minLength);
     if (files.some((item) => item.state !== "sent")) return showError(copy.waitUploads);
     const button = $<HTMLButtonElement>("[data-submit-button]");
     busy(button, true);

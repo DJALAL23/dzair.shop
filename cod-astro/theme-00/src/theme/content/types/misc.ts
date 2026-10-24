@@ -8,7 +8,6 @@ import type { Plural } from "./plural";
 
 export type MiscStrings = Plural<"lowStock"> &
   Plural<"qtyMaxStock"> &
-  Plural<"reviewFormMinLengthError"> &
   Plural<"ariaStarRating"> & {
   required: string;
   featured: string;
@@ -23,6 +22,7 @@ export type MiscStrings = Plural<"lowStock"> &
   pagerLabel: string;
   /** Where the shopper is when the listing knows its size. */
   pagerPageOf: string;
+  reviewFormMinLengthError: string;
   reviewFormRatingRequired: string;
   offerSavingsText: string;
   offerUnitLabel: string;

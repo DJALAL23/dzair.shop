@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { REVIEW_REFUSAL_CODES } from "@wocart/storefront";
+import { REVIEW_REFUSAL_CODES, REVIEW_TEXT_LIMITS } from "@wocart/storefront";
 import { ar } from "@/theme/content/ar";
 import { en } from "@/theme/content/en";
 import { fr } from "@/theme/content/fr";
@@ -37,5 +37,14 @@ describe("what a review refusal says", () => {
     expect(reviewRefusalKey("A_CODE_FROM_A_NEWER_SERVER", "upload")).toBe("errorGeneric");
     expect(reviewRefusalKey(null, "submit")).toBe("errorGeneric");
     expect(reviewRefusalKey("hasOwnProperty", "find")).toBe("errorGeneric");
+  });
+
+  it("says the platform's own shortest review in every language, so the words never drift from the rule", () => {
+    // The sentence keeps the key merchants may have edited since 3.0.3, so it names the figure itself.
+    expect(formCopy.get("minLength")).toBe("reviewFormMinLengthError");
+    for (const [locale, pack] of [["ar", ar], ["fr", fr], ["en", en]] as const) {
+      expect(pack.reviewFormMinLengthError, locale).toContain(String(REVIEW_TEXT_LIMITS.bodyMin));
+    }
+    expect(reviewRefusalKey("VALIDATION_FAILED", "submit")).toBe("minLength");
   });
 });
