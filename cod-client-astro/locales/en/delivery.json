@@ -380,5 +380,57 @@
   "wilaya_count_one": "{count} wilaya",
   "wilaya_count_other": "{count} wilayas",
   "active_count_one": "{count} active",
-  "active_count_other": "{count} active"
+  "active_count_other": "{count} active",
+  "labels": {
+    "settings": {
+      "title": "Shipping labels",
+      "subtitle": "The labels you print for the parcels your own drivers deliver",
+      "carrier_note": "Delivery companies print their own labels. These are for your drivers, who deliver to the customer's address.",
+      "section_label": "Label",
+      "section_content": "What it shows",
+      "language": "Language of the label",
+      "language_fr": "French",
+      "language_ar": "Arabic",
+      "size": "100 × 150 mm thermal label (4 × 6 in)",
+      "show_logo": "Show your logo",
+      "no_logo": "Add your logo in Settings to print it.",
+      "sender_phone": "Sender's phone",
+      "sender_phone_hint": "Leave empty to print {phone}, your legal profile's number.",
+      "sender_phone_hint_none": "Leave empty to print no phone.",
+      "show_items": "List what is in the parcel",
+      "show_notes": "Print the order's notes for the driver",
+      "open_parcel": "Opening the parcel",
+      "open_unset": "Don't print anything",
+      "open_allowed": "The customer may open the parcel before paying",
+      "open_forbidden": "The customer may not open the parcel",
+      "footer": "Your own line at the bottom",
+      "footer_hint": "{count} / {max}",
+      "preview": "Preview",
+      "preview_hint": "Shown with an example order, at the label's real size.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Label settings saved",
+      "save_error": "The settings could not be saved",
+      "load_error": "The label settings could not be loaded"
+    },
+    "print": {
+      "print_one": "Print {count} label",
+      "print_other": "Print {count} labels",
+      "print_sheet": "Print the delivery sheet",
+      "missing_one": "{count} shipment is not printed here: a delivery company prints its own label.",
+      "missing_other": "{count} shipments are not printed here: a delivery company prints its own label.",
+      "nothing": "There is nothing to print",
+      "loading": "Preparing…",
+      "error": "The labels could not be loaded",
+      "sheet_empty": "This driver has no parcel out",
+      "close": "Close"
+    },
+    "actions": {
+      "print_label": "Print label",
+      "print_labels_one": "Print {count} label",
+      "print_labels_other": "Print {count} labels",
+      "print_open_labels": "Print labels",
+      "delivery_sheet": "Delivery sheet"
+    }
+  }
 }

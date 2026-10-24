@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { Button, Dialog } from "@/components/ui";
+import { Printer } from "lucide-react";
+import { Button, Dialog, LinkButton } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { handOffToDriver, listOrders } from "@/features/orders/api";
 import { driverHandoffPlan } from "@/features/orders/model";
+import { printLabelsHref } from "@/features/shipping-labels/model";
 import { driverErrorMessage, driverFullName } from "@/features/delivery/model";
 import type { Driver } from "@/features/delivery/types";
 import type { BulkHandoff, OrderListItem } from "@/features/orders/types";
@@ -55,6 +57,7 @@ export function AssignOrdersDialog({ driver, onClose, onDone }: { driver: Driver
   const pickable = plan.deliverable.map((order) => order.id);
   const allPicked = pickable.length > 0 && pickable.every((id) => selected.includes(id));
   const refused = result?.results.filter((item) => item.outcome === "refused") ?? [];
+  const printable = result?.results.flatMap((item) => (item.outcome === "accepted" && item.shipment ? [item.shipment.id] : [])) ?? [];
 
   return (
     <Dialog onClose={close} title={<span>{t("assign_dialog.title")} — {driverFullName(driver)}</span>} className="max-w-lg">
@@ -71,7 +74,13 @@ export function AssignOrdersDialog({ driver, onClose, onDone }: { driver: Driver
               ))}
             </ul>
           )}
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            {printable.length > 0 && (
+              <LinkButton href={printLabelsHref({ shipmentIds: printable })} target="_blank" rel="noopener" variant="secondary">
+                <Printer size={15} aria-hidden="true" />
+                {t("labels.actions.print_labels", { count: printable.length })}
+              </LinkButton>
+            )}
             <Button type="button" onClick={onClose}>
               {t("assign_dialog.done")}
             </Button>

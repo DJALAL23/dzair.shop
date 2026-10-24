@@ -7,6 +7,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   Pencil,
+  Printer,
   RefreshCw,
   RotateCcw,
   Search,
@@ -33,6 +34,7 @@ import {
 import { attentionReason, deliveryTimeline, eventLabel, formatMoney, latestStatusLabel, offeredActions } from "@/features/orders/model";
 import type { DeliveryCompany, OrderDetail, Shipment, ShipmentAction } from "@/features/orders/types";
 import { EditParcelDialog, RemarksDialog, ReportDialog, ResolveDialog } from "@/features/orders/components/ShipmentDialogs";
+import { printLabelsHref } from "@/features/shipping-labels/model";
 
 type Open = "report" | "resolve" | "parcel" | "remarks" | null;
 
@@ -111,6 +113,7 @@ export function OrderShipmentCard({
   onChanged: () => void | Promise<void>;
 }) {
   const t = useT("orders");
+  const delivery = useT("delivery");
   const locale = useLocale();
   const identity = useIdentity();
   const confirm = useConfirmDialog();
@@ -161,7 +164,9 @@ export function OrderShipmentCard({
         }),
     },
     { action: "report", icon: <Send size={14} />, label: t(`report.${shipment.kind}.title`), onSelect: () => setOpen("report") },
-    { action: "label", icon: <Download size={14} />, label: t("actions.label"), onSelect: () => void run("label", () => downloadLabel(shipment), t("actions.label_done")) },
+    shipment.kind === "driver"
+      ? { action: "label", icon: <Printer size={14} />, label: delivery("labels.actions.print_label"), onSelect: () => window.open(printLabelsHref({ shipmentIds: [shipment.id] }), "_blank") }
+      : { action: "label", icon: <Download size={14} />, label: t("actions.label"), onSelect: () => void run("label", () => downloadLabel(shipment), t("actions.label_done")) },
     { action: "sync", icon: <RefreshCw size={14} />, label: t("actions.sync"), onSelect: () => void run("sync", () => syncShipment(shipment.id), t("actions.sync_done")) },
     { action: "update", icon: <Pencil size={14} />, label: t("actions.update"), onSelect: () => setOpen("parcel") },
     {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Package, Pencil, Truck, X } from "lucide-react";
+import { FileText, Package, Pencil, Printer, Truck, X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -30,6 +30,7 @@ import type {
 import { DriverStatusBadge } from "@/features/delivery/components/DriverStatusBadge";
 import { DriverShipmentsCard } from "@/features/delivery/components/DriverShipmentsCard";
 import { AssignOrdersDialog } from "@/features/delivery/components/AssignOrdersDialog";
+import { deliverySheetHref, printLabelsHref } from "@/features/shipping-labels/model";
 import { DriverSettlementCard } from "@/features/delivery/components/DriverSettlementCard";
 
 function Loading() {
@@ -54,6 +55,7 @@ export function DriverDetail({ driverId }: { driverId: string }) {
 
   const canManage = canScope(identity, SCOPES.DELIVERY_MANAGE);
   const canAssign = canScope(identity, SCOPES.ORDERS_ASSIGN);
+  const canReadOrders = canScope(identity, SCOPES.ORDERS_READ);
 
   async function load() {
     setError(null);
@@ -183,6 +185,18 @@ export function DriverDetail({ driverId }: { driverId: string }) {
             ? ` (${driver.compensationWilayaCount})`
             : ""}
         </LinkButton>
+        {canReadOrders && (driver.openShipmentCount ?? 0) > 0 && (
+          <>
+            <LinkButton href={printLabelsHref({ driverId: driver.id })} target="_blank" rel="noopener" variant="secondary">
+              <Printer size={15} aria-hidden="true" />
+              {t("labels.actions.print_open_labels")}
+            </LinkButton>
+            <LinkButton href={deliverySheetHref(driver.id)} target="_blank" rel="noopener" variant="secondary">
+              <FileText size={15} aria-hidden="true" />
+              {t("labels.actions.delivery_sheet")}
+            </LinkButton>
+          </>
+        )}
       </div>
       <DriverShipmentsCard shipments={driver.recentShipments ?? []} />
       <DriverSettlementCard driverId={driver.id} pending={pending} onSettled={load} />

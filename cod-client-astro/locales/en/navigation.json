@@ -26,7 +26,8 @@
     "navigation_menus": "Navigation",
     "checkout_form": "Checkout form",
     "whatsapp": "WhatsApp button",
-    "online_store": "Online store"
+    "online_store": "Online store",
+    "delivery_labels": "Labels"
   },
   "navbar": {
     "search_placeholder": "Search orders, customers, tracking…"

@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { AlertTriangle, Building2, Check, MapPin, Send, Truck, XCircle } from "lucide-react";
+import { AlertTriangle, Building2, Check, MapPin, Printer, Send, Truck, XCircle } from "lucide-react";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { handOffToCarrier, handOffToDriver } from "@/features/orders/api";
 import { carriersForAll, driverHandoffPlan, driversFor } from "@/features/orders/model";
 import type { BulkHandoff, DeliveryCompany, Driver, OrderListItem } from "@/features/orders/types";
-import { Button, Dialog, Field } from "@/components/ui";
+import { Button, Dialog, Field, LinkButton } from "@/components/ui";
+import { printLabelsHref } from "@/features/shipping-labels/model";
 import { Choice } from "@/features/orders/components/HandoffDialog";
 
 /**
@@ -33,6 +34,7 @@ export function BulkHandoffDialog({
   onDone: () => void;
 }) {
   const t = useT("orders");
+  const delivery = useT("delivery");
   const [kind, setKind] = useState<"carrier" | "driver">(kinds[0] ?? "carrier");
   const [targetId, setTargetId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,6 +64,7 @@ export function BulkHandoffDialog({
 
   if (result) {
     const { accepted, unknown, refused } = result.summary;
+    const printable = result.results.flatMap((item) => (item.outcome === "accepted" && item.shipment ? [item.shipment.id] : []));
     return (
       <Dialog title={t("bulk.result_title")} onClose={onClose}>
         <div className="space-y-4 text-sm">
@@ -101,7 +104,13 @@ export function BulkHandoffDialog({
                 ))}
             </ul>
           )}
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            {kind === "driver" && printable.length > 0 && (
+              <LinkButton href={printLabelsHref({ shipmentIds: printable })} target="_blank" rel="noopener" variant="secondary">
+                <Printer size={15} aria-hidden="true" />
+                {delivery("labels.actions.print_labels", { count: printable.length })}
+              </LinkButton>
+            )}
             <Button type="button" onClick={onClose}>
               {t("ship.close")}
             </Button>

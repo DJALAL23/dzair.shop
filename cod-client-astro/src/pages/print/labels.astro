@@ -1,0 +1,44 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import GateSpinner from "@/features/auth/components/GateSpinner";
+import PrintLabelsApp from "@/features/shipping-labels/components/PrintLabelsApp";
+---
+
+<BaseLayout title="CodFlow">
+  <main class="min-h-screen">
+    <div data-gate-spinner="required" class="flex min-h-screen items-center justify-center" aria-busy="true">
+      <GateSpinner branded />
+    </div>
+    <div data-auth-gate="required" hidden>
+      <PrintLabelsApp client:only="react" />
+    </div>
+  </main>
+</BaseLayout>
+
+<style is:global>
+  @page {
+    size: 100mm 150mm;
+    margin: 0;
+  }
+  @media print {
+    html,
+    body,
+    .print-sheet {
+      background: #fff !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      gap: 0 !important;
+    }
+    .print-toolbar,
+    astro-dev-toolbar {
+      display: none !important;
+    }
+    .label-page {
+      box-shadow: none !important;
+      break-after: page;
+    }
+    .label-page:last-child {
+      break-after: auto;
+    }
+  }
+</style>

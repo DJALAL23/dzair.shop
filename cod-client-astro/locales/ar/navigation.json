@@ -26,7 +26,8 @@
     "navigation_menus": "التنقل",
     "checkout_form": "نموذج الطلب",
     "whatsapp": "زر واتساب",
-    "online_store": "المتجر الإلكتروني"
+    "online_store": "المتجر الإلكتروني",
+    "delivery_labels": "الملصقات"
   },
   "navbar": {
     "search_placeholder": "ابحث عن طلب، عميل أو رقم تتبع…"

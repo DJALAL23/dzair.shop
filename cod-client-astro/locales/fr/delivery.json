@@ -389,5 +389,60 @@
   "wilaya_count_other": "{count} wilayas",
   "active_count_one": "{count} en cours",
   "active_count_many": "{count} en cours",
-  "active_count_other": "{count} en cours"
+  "active_count_other": "{count} en cours",
+  "labels": {
+    "settings": {
+      "title": "Étiquettes d'expédition",
+      "subtitle": "Les étiquettes que vous imprimez pour les colis livrés par vos propres livreurs",
+      "carrier_note": "Les sociétés de livraison impriment leurs propres étiquettes. Celles-ci sont pour vos livreurs, qui livrent à l'adresse du client.",
+      "section_label": "Étiquette",
+      "section_content": "Ce qu'elle affiche",
+      "language": "Langue de l'étiquette",
+      "language_fr": "Français",
+      "language_ar": "Arabe",
+      "size": "Étiquette thermique 100 × 150 mm (4 × 6 po)",
+      "show_logo": "Afficher votre logo",
+      "no_logo": "Ajoutez votre logo dans les Paramètres pour l'imprimer.",
+      "sender_phone": "Téléphone de l'expéditeur",
+      "sender_phone_hint": "Laissez vide pour imprimer {phone}, le numéro de votre profil légal.",
+      "sender_phone_hint_none": "Laissez vide pour n'imprimer aucun numéro.",
+      "show_items": "Lister le contenu du colis",
+      "show_notes": "Imprimer les remarques de la commande pour le livreur",
+      "open_parcel": "Ouverture du colis",
+      "open_unset": "Ne rien imprimer",
+      "open_allowed": "Le client peut ouvrir le colis avant de payer",
+      "open_forbidden": "Le client ne peut pas ouvrir le colis",
+      "footer": "Votre ligne en bas de l'étiquette",
+      "footer_hint": "{count} / {max}",
+      "preview": "Aperçu",
+      "preview_hint": "Affichée avec une commande d'exemple, à la taille réelle de l'étiquette.",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "saved": "Réglages des étiquettes enregistrés",
+      "save_error": "Les réglages n'ont pas pu être enregistrés",
+      "load_error": "Les réglages des étiquettes n'ont pas pu être chargés"
+    },
+    "print": {
+      "print_one": "Imprimer {count} étiquette",
+      "print_many": "Imprimer {count} étiquettes",
+      "print_other": "Imprimer {count} étiquettes",
+      "print_sheet": "Imprimer le bordereau",
+      "missing_one": "{count} expédition n'est pas imprimée ici : la société de livraison imprime sa propre étiquette.",
+      "missing_many": "{count} expéditions ne sont pas imprimées ici : la société de livraison imprime sa propre étiquette.",
+      "missing_other": "{count} expéditions ne sont pas imprimées ici : la société de livraison imprime sa propre étiquette.",
+      "nothing": "Il n'y a rien à imprimer",
+      "loading": "Préparation…",
+      "error": "Les étiquettes n'ont pas pu être chargées",
+      "sheet_empty": "Ce livreur n'a aucun colis en cours",
+      "close": "Fermer"
+    },
+    "actions": {
+      "print_label": "Imprimer l'étiquette",
+      "print_labels_one": "Imprimer {count} étiquette",
+      "print_labels_many": "Imprimer {count} étiquettes",
+      "print_labels_other": "Imprimer {count} étiquettes",
+      "print_open_labels": "Imprimer les étiquettes",
+      "delivery_sheet": "Bordereau de livraison"
+    }
+  }
 }
