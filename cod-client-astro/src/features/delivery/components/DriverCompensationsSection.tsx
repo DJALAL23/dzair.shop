@@ -28,6 +28,7 @@ import {
   formatDeliveryMoney,
 } from "@/features/delivery/model";
 import type {
+  ConfiguredCompensation,
   Driver,
   DriverCompensation,
   Wilaya,
@@ -56,7 +57,9 @@ export function DriverCompensationsSection({
   const [message, setMessage] = useState<string | null>(null);
 
   const canManage = canScope(identity, SCOPES.DELIVERY_MANAGE);
-  const sorted = [...compensations].sort((a, b) => a.wilayaId - b.wilayaId);
+  const sorted = compensations
+    .filter((row): row is ConfiguredCompensation => row.feePerDelivery !== null)
+    .sort((a, b) => a.wilayaId - b.wilayaId);
   const takenIds = new Set(sorted.map((row) => row.wilayaId));
   const availableWilayas = wilayas.filter((wilaya) => !takenIds.has(wilaya.id));
   const totalFee = sorted.reduce((sum, row) => sum + row.feePerDelivery, 0);
@@ -86,7 +89,7 @@ export function DriverCompensationsSection({
     setDraftWilaya(availableWilayas[0]?.id ?? null);
     setDraftFee("");
   }
-  function startEdit(row: DriverCompensation) {
+  function startEdit(row: ConfiguredCompensation) {
     setEditing(row.wilayaId);
     setDraftWilaya(row.wilayaId);
     setDraftFee(String(row.feePerDelivery));
@@ -114,7 +117,7 @@ export function DriverCompensationsSection({
       ),
     );
   }
-  async function handleDelete(row: DriverCompensation) {
+  async function handleDelete(row: ConfiguredCompensation) {
     if (
       !(await confirm({
         title: t("compensations.confirm_delete_title"),
@@ -183,7 +186,7 @@ export function DriverCompensationsSection({
             <p className="mt-1 text-xl font-semibold leading-none tabular-nums text-foreground">
               {sorted.length}
               <span className="ms-2 text-xs font-semibold text-muted-foreground/30">
-                / 58
+                / {wilayas.length}
               </span>
             </p>
           </div>

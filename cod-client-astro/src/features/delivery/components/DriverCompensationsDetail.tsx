@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -85,7 +85,7 @@ export function DriverCompensationsDetail({ driverId }: { driverId: string }) {
         href={`/delivery/drivers/${encodeURIComponent(driver.id)}`}
         className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
-        <X size={14} className="rotate-45" />
+        <ArrowLeft size={14} className="rtl:rotate-180" aria-hidden="true" />
         {t("actions.back_to_driver")}
       </a>
       <a

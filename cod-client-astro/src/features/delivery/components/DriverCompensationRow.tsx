@@ -7,7 +7,7 @@ import {
 import { IconButton } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { formatDeliveryMoney } from "@/features/delivery/model";
-import type { DriverCompensation } from "@/features/delivery/types";
+import type { ConfiguredCompensation } from "@/features/delivery/types";
 
 export function CompensationRow({
   row,
@@ -22,14 +22,14 @@ export function CompensationRow({
   onSave,
   onCancel,
 }: {
-  row: DriverCompensation;
+  row: ConfiguredCompensation;
   wilayaLabel: (id: number) => string;
   canManage: boolean;
   isEditing: boolean;
   draftFee: string;
   busy: boolean;
-  onStartEdit: (row: DriverCompensation) => void;
-  onDelete: (row: DriverCompensation) => void;
+  onStartEdit: (row: ConfiguredCompensation) => void;
+  onDelete: (row: ConfiguredCompensation) => void;
   onFeeChange: (value: string) => void;
   onSave: () => void;
   onCancel: () => void;

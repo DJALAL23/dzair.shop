@@ -72,10 +72,14 @@ export interface DriverCompensation {
   wilayaId: number;
   wilayaName?: string;
   wilayaNameAr?: string;
-  feePerDelivery: number;
+  /** Null for a wilaya the driver has no rate in: the grid lists every wilaya. */
+  feePerDelivery: number | null;
   createdAt?: string;
   updatedAt?: string;
 }
+
+/** A wilaya the driver has a rate in. */
+export type ConfiguredCompensation = DriverCompensation & { feePerDelivery: number };
 
 export interface DriverPayment {
   id: string;
