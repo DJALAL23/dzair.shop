@@ -8,6 +8,7 @@ import type { Plural } from "./plural";
 
 export type MiscStrings = Plural<"lowStock"> &
   Plural<"qtyMaxStock"> &
+  Plural<"reviewFormMinLengthError"> &
   Plural<"ariaStarRating"> & {
   required: string;
   featured: string;
@@ -20,7 +21,6 @@ export type MiscStrings = Plural<"lowStock"> &
   pagerPrevious: string;
   pagerNext: string;
   pagerLabel: string;
-  reviewFormMinLengthError: string;
   reviewFormRatingRequired: string;
   offerSavingsText: string;
   offerUnitLabel: string;

@@ -75,4 +75,10 @@ export const arReviews: ReviewsStrings = {
   reviewFormErrorTooManyPhotos_other: "يمكنك إضافة {count} صورة على الأكثر.",
   reviewFormErrorFileType: "أرسل صورة أو ملفًا صوتيًا.",
   reviewFormErrorFileTooLarge: "هذا الملف كبير جدًا.",
+  reviewFormErrorOrderFormat: "هذا ليس رقم طلب. تجده في صفحة التأكيد، مثل ORD-20261023-0042.",
+  reviewFormErrorDisabled: "المتجر لا يستقبل التقييمات حاليًا.",
+  reviewFormErrorProduct: "لا يمكن تقييم هذا المنتج من هذا الطلب.",
+  reviewFormErrorGrant: "انتهت مهلة إرسال الملفات. ابحث عن طلبك من جديد.",
+  reviewFormErrorUploadMissing: "لم يصل أحد الملفات. أرسله من جديد.",
+  reviewFormErrorMediaLimit: "هذا أكثر من عدد الصور أو الرسائل الصوتية الذي يقبله المتجر.",
 };

@@ -66,4 +66,10 @@ export const frReviews: ReviewsStrings = {
   reviewFormErrorTooManyPhotos_other: "Vous pouvez ajouter jusqu’à {count} photos.",
   reviewFormErrorFileType: "Envoyez une photo ou un fichier audio.",
   reviewFormErrorFileTooLarge: "Ce fichier est trop lourd.",
+  reviewFormErrorOrderFormat: "Ce n'est pas un numéro de commande. Il figure sur la page de confirmation, par exemple ORD-20261023-0042.",
+  reviewFormErrorDisabled: "La boutique ne reçoit pas d'avis pour le moment.",
+  reviewFormErrorProduct: "Ce produit ne peut pas être évalué depuis cette commande.",
+  reviewFormErrorGrant: "Le délai d'envoi des fichiers est passé. Retrouvez votre commande.",
+  reviewFormErrorUploadMissing: "Un fichier n'est pas arrivé. Envoyez-le à nouveau.",
+  reviewFormErrorMediaLimit: "C'est plus de photos ou de notes vocales que la boutique n'en accepte.",
 };

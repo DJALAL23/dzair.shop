@@ -7,6 +7,7 @@
 // data, and its text would not fit an island's URL. The behaviour is
 // `scripts/review-form.ts`; everything a shopper reads is rendered here.
 import { Icon } from "astro-icon/components";
+import { REVIEW_TEXT_LIMITS } from "@wocart/storefront";
 import { message, messageData } from "@/theme/content/messages";
 import type { StoreFrontContent } from "@/theme/content";
 
@@ -26,7 +27,12 @@ const copy = JSON.stringify({
   errorDuplicate: c.reviewFormErrorDuplicate,
   errorFileType: c.reviewFormErrorFileType,
   errorFileTooLarge: c.reviewFormErrorFileTooLarge,
-  minLength: c.reviewFormMinLengthError,
+  errorOrderFormat: c.reviewFormErrorOrderFormat,
+  errorDisabled: c.reviewFormErrorDisabled,
+  errorProduct: c.reviewFormErrorProduct,
+  errorGrant: c.reviewFormErrorGrant,
+  errorUploadMissing: c.reviewFormErrorUploadMissing,
+  errorMediaLimit: c.reviewFormErrorMediaLimit,
   ratingRequired: c.reviewFormRatingRequired,
   nothingLeft: c.reviewFormNothingLeft,
   waitUploads: c.reviewFormWaitUploads,
@@ -53,6 +59,7 @@ const copy = JSON.stringify({
   data-photos-hint={messageData(c, "reviewFormPhotosHint")}
   data-voice-hint={messageData(c, "reviewFormVoiceHint")}
   data-too-many={messageData(c, "reviewFormErrorTooManyPhotos")}
+  data-min-length={messageData(c, "reviewFormMinLengthError")}
 >
   <div class="carton overflow-hidden">
     <div class="border-b border-border px-5 py-4 sm:px-6">
@@ -112,12 +119,12 @@ const copy = JSON.stringify({
 
       <div>
         <label for="review-title" class="form-label">{c.reviewFormTitleLabel}</label>
-        <input id="review-title" name="title" type="text" maxlength="150" placeholder={c.reviewFormTitlePlaceholder} class="form-input" dir="auto" />
+        <input id="review-title" name="title" type="text" maxlength={REVIEW_TEXT_LIMITS.titleMax} placeholder={c.reviewFormTitlePlaceholder} class="form-input" dir="auto" />
       </div>
 
       <div>
         <label for="review-body" class="form-label">{c.reviewFormBodyLabel}</label>
-        <textarea id="review-body" name="body" rows="4" maxlength="2000" class="form-input" dir="auto" placeholder={c.reviewFormBodyPlaceholder}></textarea>
+        <textarea id="review-body" name="body" rows="4" maxlength={REVIEW_TEXT_LIMITS.bodyMax} class="form-input" dir="auto" placeholder={c.reviewFormBodyPlaceholder}></textarea>
         <p class="mt-1.5 text-xs text-ink-2" data-body-hint hidden>{c.reviewFormBodyVoiceHint}</p>
       </div>
 

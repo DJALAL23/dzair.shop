@@ -1,86 +1,32 @@
 /**
  * The review form's behaviour (components/product/ReviewForm.astro).
  *
- * Step 1 proves the purchase (`/api/review-eligibility`); step 2 rates,
- * writes or records, and sends files. Each file goes to `/api/review-upload`
- * the moment it is added — a photo shrunk in the browser first — with its
- * progress shown and a retry on a dropped connection, so the final submit
- * (`/api/submit-review`) only names what already arrived. Every rule (who may
- * review, the limits, what is kept) is the server's; this script only shows
- * them. All text comes rendered from the component.
+ * Step 1 proves the purchase; step 2 rates, writes or records, and sends
+ * files. Each file is sent the moment it is added — a photo shrunk in the
+ * browser first — with its progress shown and retries on a dropped
+ * connection, so the final submit only names what already arrived. The SDK's
+ * review session does all of that talking to the server; every rule (who may
+ * review, the limits, what is kept) is the server's, and this script only
+ * shows them. All text comes rendered from the component.
  */
-import { canRecordVoice, createVoiceRecorder, prepareReviewPhoto, type VoiceRecorder } from "@wocart/storefront/review-media";
-import type { ReviewEligibility, ReviewableProduct } from "@wocart/storefront";
-import { embeddedMessage } from "@/theme/content/messages";
+import { REVIEW_TEXT_LIMITS, type ReviewEligibility, type ReviewableProduct } from "@wocart/storefront";
+import { canRecordVoice, createReviewSession, createVoiceRecorder, type VoiceRecorder } from "@wocart/storefront/review-media";
 import { onEachPage } from "@wocart/theme/lifecycle";
+import { embeddedMessage } from "@/theme/content/messages";
+import { reviewRefusalKey, type ReviewStep } from "@/theme/utils/review-refusals";
+import { API_PATHS } from "./api-paths";
 
 type Copy = Record<string, string>;
 type FileItem = {
   key: string;
   kind: "image" | "audio";
   node: HTMLLIElement;
-  blob: Blob | null;
+  file: Blob;
   durationMs?: number;
   uploadId: string | null;
-  state: "preparing" | "sending" | "sent" | "failed";
+  state: "sending" | "sent" | "failed";
   cancel?: () => void;
 };
-
-const ATTEMPTS = 3;
-
-/** Why the server refused, as the copy says it. */
-function refusal(copy: Copy, code: unknown): string {
-  switch (code) {
-    case "ORDER_NOT_FOUND":
-      return copy.errorInvalidOrder;
-    case "REVIEW_ORDER_NOT_DELIVERED":
-      return copy.errorNotDelivered;
-    case "REVIEW_RATE_LIMITED":
-      return copy.errorRateLimited;
-    case "ORDER_ALREADY_REVIEWED":
-      return copy.errorDuplicate;
-    case "INVALID_FILE_TYPE":
-      return copy.errorFileType;
-    case "FILE_TOO_LARGE":
-      return copy.errorFileTooLarge;
-    default:
-      return copy.errorGeneric;
-  }
-}
-
-async function postJson(url: string, body: unknown): Promise<{ ok: boolean; status: number; json: Record<string, any> }> {
-  const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  let json: Record<string, any> = {};
-  try {
-    json = await response.json();
-  } catch {
-    json = {};
-  }
-  return { ok: response.ok, status: response.status, json };
-}
-
-/** One upload attempt, with its progress; resolves with the server's answer. */
-function put(blob: Blob, headers: Record<string, string>, onProgress: (share: number) => void, register: (abort: () => void) => void) {
-  return new Promise<{ status: number; json: Record<string, any> }>((resolve) => {
-    const request = new XMLHttpRequest();
-    request.open("PUT", "/api/review-upload");
-    for (const [name, value] of Object.entries(headers)) request.setRequestHeader(name, value);
-    request.upload.onprogress = (event) => event.lengthComputable && onProgress(event.loaded / event.total);
-    request.onload = () => {
-      let json: Record<string, any> = {};
-      try {
-        json = JSON.parse(request.responseText);
-      } catch {
-        json = {};
-      }
-      resolve({ status: request.status, json });
-    };
-    request.onerror = () => resolve({ status: 0, json: {} });
-    request.ontimeout = () => resolve({ status: 0, json: {} });
-    register(() => request.abort());
-    request.send(blob);
-  });
-}
 
 function initReviewForm(): void | (() => void) {
   const root = document.querySelector<HTMLElement>("[data-review-form]");
@@ -100,7 +46,13 @@ function initReviewForm(): void | (() => void) {
   const stopButton = $<HTMLButtonElement>("[data-voice-stop]");
   const timer = $<HTMLElement>("[data-voice-timer]");
 
-  let proof: { orderNumber: string; phone: string } | null = null;
+  const session = createReviewSession({ routes: { eligibility: API_PATHS.reviewEligibility, upload: API_PATHS.reviewUpload, submit: API_PATHS.reviewSubmit } });
+  const minLength = () => embeddedMessage(root!.dataset.minLength, "reviewFormMinLengthError", { count: REVIEW_TEXT_LIMITS.bodyMin });
+  /** Why the server refused, as the copy says it. */
+  const refusal = (code: string | null, step: ReviewStep) => {
+    const key = reviewRefusalKey(code, step);
+    return key === "minLength" ? minLength() : copy[key] || copy.errorGeneric || "";
+  };
   let opened: ReviewEligibility | null = null;
   let rating = 0;
   let files: FileItem[] = [];
@@ -132,15 +84,12 @@ function initReviewForm(): void | (() => void) {
     const button = $<HTMLButtonElement>("[data-find-button]");
     busy(button, true);
     try {
-      const answer = await postJson("/api/review-eligibility", { orderNumber, phone });
-      if (!answer.ok) return showError(refusal(copy, answer.json.code));
-      const eligibility = answer.json.data as ReviewEligibility;
+      const answer = await session.find({ orderNumber, phone });
+      if (answer.status === "refused") return showError(refusal(answer.code, "find"));
+      const eligibility = answer.eligibility;
       if (!eligibility.products.some((product) => !product.reviewed)) return showError(copy.nothingLeft);
-      proof = { orderNumber, phone };
       opened = eligibility;
       openWriting(eligibility);
-    } catch {
-      showError(copy.errorGeneric);
     } finally {
       busy(button, false);
     }
@@ -188,12 +137,11 @@ function initReviewForm(): void | (() => void) {
   }
 
   const onChangeOrder = () => {
-    for (const item of files) item.cancel?.();
+    session.reset();
     recorder?.cancel();
     files = [];
     photoList.replaceChildren();
     voiceList.replaceChildren();
-    proof = null;
     opened = null;
     write.hidden = true;
     find.hidden = false;
@@ -224,10 +172,10 @@ function initReviewForm(): void | (() => void) {
     $<HTMLElement>("[data-body-hint]").hidden = !files.some((item) => item.kind === "audio");
   };
 
-  function addItem(kind: FileItem["kind"], blobOrFile: Blob, durationMs?: number) {
+  function addItem(kind: FileItem["kind"], file: Blob, durationMs?: number) {
     const node = fileTemplate.content.firstElementChild!.cloneNode(true) as HTMLLIElement;
-    const item: FileItem = { key: crypto.randomUUID(), kind, node, blob: null, durationMs, uploadId: null, state: "preparing" };
-    const preview = URL.createObjectURL(blobOrFile);
+    const item: FileItem = { key: crypto.randomUUID(), kind, node, file, durationMs, uploadId: null, state: "sending" };
+    const preview = URL.createObjectURL(file);
     if (kind === "image") {
       const image = node.querySelector("img")!;
       image.src = preview;
@@ -249,42 +197,28 @@ function initReviewForm(): void | (() => void) {
     files.push(item);
     (kind === "image" ? photoList : voiceList).append(node);
     updateBodyHint();
-    void (async () => {
-      item.blob = kind === "image" ? await prepareReviewPhoto(blobOrFile) : blobOrFile;
-      await send(item);
-    })();
+    void send(item);
   }
 
   function show(item: FileItem, state: FileItem["state"], progress = 0, message?: string) {
     item.state = state;
     const status = item.node.querySelector<HTMLElement>("[data-status]")!;
-    status.textContent = state === "sending" || state === "preparing" ? copy.sending : state === "failed" ? message ?? copy.notSent : "";
+    status.textContent = state === "sending" ? copy.sending : state === "failed" ? message ?? copy.notSent : "";
     item.node.querySelector<HTMLElement>("[data-progress]")!.style.inlineSize = `${Math.round((state === "sent" ? 1 : progress) * 100)}%`;
     item.node.querySelector<HTMLElement>("[data-retry]")!.hidden = state !== "failed";
   }
 
   async function send(item: FileItem) {
-    if (!item.blob || !opened?.media) return;
     show(item, "sending");
-    const headers: Record<string, string> = { "Content-Type": "application/octet-stream", "X-Review-Grant": opened.media.grant };
-    if (item.durationMs) headers["X-Media-Duration-Ms"] = String(Math.round(item.durationMs));
-    for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
-      let aborted = false;
-      const answer = await put(item.blob, headers, (share) => show(item, "sending", share), (abort) => {
-        item.cancel = () => {
-          aborted = true;
-          abort();
-        };
-      });
-      if (aborted || !files.includes(item)) return;
-      if (answer.status === 201) {
-        item.uploadId = answer.json.data?.uploadId ?? null;
-        return show(item, item.uploadId ? "sent" : "failed");
-      }
-      const transient = answer.status === 0 || answer.status >= 500;
-      if (!transient || attempt === ATTEMPTS) return show(item, "failed", 0, refusal(copy, answer.json.code));
-      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
+    const upload = session.upload(item.file, { kind: item.kind, ...(item.durationMs ? { durationMs: item.durationMs } : {}), onProgress: (share) => show(item, "sending", share) });
+    item.cancel = upload.cancel;
+    const answer = await upload.result;
+    if (answer.status === "cancelled" || !files.includes(item)) return;
+    if (answer.status === "sent") {
+      item.uploadId = answer.uploadId;
+      return show(item, "sent");
     }
+    show(item, "failed", 0, refusal(answer.code, "upload"));
   }
 
   const onPhotos = (event: Event) => {
@@ -350,31 +284,23 @@ function initReviewForm(): void | (() => void) {
   const onSubmit = async (event: Event) => {
     event.preventDefault();
     clearError();
-    if (!proof || !opened) return;
+    if (!opened) return;
     const productId = new FormData(write).get("productId")?.toString() ?? opened.products.find((product) => !product.reviewed)?.productId;
+    if (!productId) return showError(copy.nothingLeft);
     if (!rating) return showError(copy.ratingRequired);
     const body = $<HTMLTextAreaElement>("#review-body").value.trim();
-    if (body.length < 10 && !hasVoice()) return showError(copy.minLength);
+    if (body.length < REVIEW_TEXT_LIMITS.bodyMin && !hasVoice()) return showError(minLength());
     if (files.some((item) => item.state !== "sent")) return showError(copy.waitUploads);
     const button = $<HTMLButtonElement>("[data-submit-button]");
     busy(button, true);
     try {
-      const title = $<HTMLInputElement>("#review-title").value.trim();
-      const answer = await postJson("/api/submit-review", {
-        ...proof,
-        productId,
-        rating,
-        body,
-        ...(title ? { title } : {}),
-        ...(files.length ? { grant: opened.media?.grant, uploads: files.map((item) => item.uploadId) } : {}),
-      });
-      if (!answer.ok) return showError(refusal(copy, answer.json.code));
-      $<HTMLElement>("[data-success-text]").textContent = answer.json.data?.visibility === "published" ? copy.successPublished : copy.successPending;
+      const title = $<HTMLInputElement>("#review-title").value;
+      const answer = await session.submit({ productId, rating, body, title, uploads: files.flatMap((item) => (item.uploadId ? [item.uploadId] : [])) });
+      if (answer.status === "refused") return showError(refusal(answer.code, "submit"));
+      $<HTMLElement>("[data-success-text]").textContent = answer.result.visibility === "published" ? copy.successPublished : copy.successPending;
       write.hidden = true;
       success.hidden = false;
       success.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    } catch {
-      showError(copy.errorGeneric);
     } finally {
       busy(button, false);
     }
@@ -393,7 +319,7 @@ function initReviewForm(): void | (() => void) {
   for (const [target, type, listener] of listeners) target.addEventListener(type, listener);
   return () => {
     for (const [target, type, listener] of listeners) target.removeEventListener(type, listener);
-    for (const item of files) item.cancel?.();
+    session.reset();
     recorder?.cancel();
   };
 }

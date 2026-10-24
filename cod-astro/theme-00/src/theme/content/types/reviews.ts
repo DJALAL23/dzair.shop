@@ -64,4 +64,15 @@ export type ReviewsStrings = Plural<"reviewFormPhotosHint"> & Plural<"reviewForm
   reviewFormErrorRateLimited: string;
   reviewFormErrorFileType: string;
   reviewFormErrorFileTooLarge: string;
+  /** What was typed is not an order number. */
+  reviewFormErrorOrderFormat: string;
+  reviewFormErrorDisabled: string;
+  /** The product chosen is not one the order holds. */
+  reviewFormErrorProduct: string;
+  /** The time to send files has run out: the shopper finds the order again. */
+  reviewFormErrorGrant: string;
+  /** A file the review names never arrived. */
+  reviewFormErrorUploadMissing: string;
+  /** More photos or voice notes than the store takes. */
+  reviewFormErrorMediaLimit: string;
 };

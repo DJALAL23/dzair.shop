@@ -63,4 +63,10 @@ export const enReviews: ReviewsStrings = {
   reviewFormErrorTooManyPhotos_other: "You can add up to {count} photos.",
   reviewFormErrorFileType: "Send a photo or an audio file.",
   reviewFormErrorFileTooLarge: "This file is too large.",
+  reviewFormErrorOrderFormat: "That isn't an order number. It's on your confirmation page, like ORD-20261023-0042.",
+  reviewFormErrorDisabled: "This store isn't taking reviews right now.",
+  reviewFormErrorProduct: "This product can't be reviewed from this order.",
+  reviewFormErrorGrant: "The time to send files has run out. Find your order again.",
+  reviewFormErrorUploadMissing: "A file didn't arrive. Send it again.",
+  reviewFormErrorMediaLimit: "That's more photos or voice notes than the store takes.",
 };
