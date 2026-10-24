@@ -6,6 +6,7 @@
  */
 
 import { MAX_ORDER_NUMBER_DRAWS, drawOrderNumber, isOrderNumberCollision } from "../lib/order-number";
+import { safeLikeTerm } from "./search";
 import {
   eq,
   and,
@@ -302,9 +303,11 @@ export async function cartNames(db: AppDb, snapshot: CatalogSnapshot, locale: St
 /**
  * Fields the store API keeps only because published `@wocart/storefront`
  * releases require them: `deletedAt` is always null (a removed product is
- * gone, never served). Drop it once no supported SDK release reads it.
+ * gone, never served), and so is `costPrice` — what the merchant paid is
+ * theirs, never a shopper's to read. Drop them once no supported SDK release
+ * reads them.
  */
-const PUBLISHED_SDK_FIELDS = { deletedAt: null } as const;
+const PUBLISHED_SDK_FIELDS = { deletedAt: null, costPrice: null } as const;
 
 /**
  * `storeFeatured`, which published SDKs up to 1.7 require on every product:
@@ -313,31 +316,118 @@ const PUBLISHED_SDK_FIELDS = { deletedAt: null } as const;
  */
 const storeFeaturedColumn = isFeaturedSql.mapWith(Boolean).as("store_featured");
 
-export async function getStoreProducts(
-  db: AppDb,
-  params: {
-    /** Only this collection's products (by handle), in the merchant's order. */
-    collection?: string;
-    /** Only products priced below their compare-at price. */
-    onSale?: boolean;
-    /** Deprecated: the `featured` collection. */
-    featured?: boolean;
-    categoryId?: string;
-    limit?: number;
-    offset?: number;
-  },
-  locale: StoreLocale | null = null,
-) {
-  const conditions: any[] = [
-    eq(products.showInStore, true),
-    eq(products.status, "ACTIVE"),
-    eq(products.visibility, true),
-  ];
+/**
+ * How a storefront listing is ordered. Absent, a listing keeps its natural
+ * order: a collection's own, a search's best match first, else newest.
+ */
+export const STOREFRONT_PRODUCT_SORTS = ["newest", "price-ascending", "price-descending"] as const;
+export type StorefrontProductSort = (typeof STOREFRONT_PRODUCT_SORTS)[number];
 
+/** A search reads at most this many words; each must match. */
+export const STOREFRONT_SEARCH_WORDS = 5;
+
+export interface StoreProductsParams {
+  /** Only this collection's products (by handle), in the merchant's order. */
+  collection?: string;
+  /** Only products priced below their compare-at price. */
+  onSale?: boolean;
+  /** Deprecated: the `featured` collection. */
+  featured?: boolean;
+  categoryId?: string;
+  /** Only products whose name — the catalog's or the served language's — or tags hold every word. */
+  search?: string;
+  sort?: StorefrontProductSort;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * The words a search matches: LIKE's own wildcards and escape dropped, each
+ * cut to what D1 takes inside `%…%`, the first few distinct ones kept.
+ */
+export function searchWords(text: string): string[] {
+  const words = text.replace(/[%_\\]/g, " ").trim().toLocaleLowerCase().split(/\s+/).filter(Boolean).map(safeLikeTerm);
+  return [...new Set(words)].slice(0, STOREFRONT_SEARCH_WORDS);
+}
+
+/** A product's name — the catalog's or its translation in `locale` — contains `pattern`. */
+function nameLike(pattern: string, locale: StoreLocale | null) {
+  const translated =
+    locale === null
+      ? sql`0`
+      : sql`EXISTS (SELECT 1 FROM translations t WHERE t.resource_type = 'product' AND t.resource_id = ${products.id} AND t.locale = ${locale} AND t.key = 'name' AND t.value LIKE ${pattern})`;
+  return sql`(${products.name} LIKE ${pattern} OR ${translated})`;
+}
+
+/** The gates every storefront listing applies: active, shown in the store, visible. */
+const listable = () => [eq(products.showInStore, true), eq(products.status, "ACTIVE"), eq(products.visibility, true)];
+
+/** What a storefront listing selects, joins and orders by, shared by its page and its count. */
+function storeProductsQuery(params: StoreProductsParams, locale: StoreLocale | null) {
+  const conditions: any[] = listable();
   const collection = params.collection ?? (params.featured ? FEATURED_COLLECTION : undefined);
   if (params.categoryId) conditions.push(eq(products.categoryId, params.categoryId));
   if (params.onSale) conditions.push(sql`${products.compareAtPrice} IS NOT NULL AND ${products.compareAtPrice} > ${products.price}`);
+  if (collection !== undefined) conditions.push(eq(collections.handle, collection));
+  const words = params.search === undefined ? [] : searchWords(params.search);
+  if (params.search !== undefined && words.length === 0) conditions.push(sql`0`);
+  for (const word of words) conditions.push(sql`(${nameLike(`%${word}%`, locale)} OR ${products.tags} LIKE ${`%${word}%`})`);
 
+  // The id breaks every tie, so paging with `offset` never repeats or skips a
+  // product that shares a position, a price or a creation time with another.
+  const order =
+    params.sort === "newest"
+      ? [desc(products.createdAt), asc(products.id)]
+      : params.sort === "price-ascending"
+        ? [asc(products.price), asc(products.id)]
+        : params.sort === "price-descending"
+          ? [desc(products.price), asc(products.id)]
+          : collection !== undefined
+            ? [asc(collectionProducts.position), desc(products.createdAt), asc(products.id)]
+            : words.length > 0
+              ? [sql`CASE WHEN ${and(...words.map((word) => nameLike(`%${word}%`, locale)))} THEN 0 ELSE 1 END`, desc(products.createdAt), asc(products.id)]
+              : [desc(products.createdAt), asc(products.id)];
+  return { where: and(...conditions), collection, order };
+}
+
+/** How many products a storefront listing holds, across all its pages. */
+export async function countStoreProducts(db: AppDb, params: StoreProductsParams, locale: StoreLocale | null = null): Promise<number> {
+  const { where, collection } = storeProductsQuery(params, locale);
+  const query = db.select({ count: sql<number>`count(*)` }).from(products).$dynamic();
+  const joined =
+    collection === undefined
+      ? query
+      : query
+          .innerJoin(collectionProducts, eq(collectionProducts.productId, products.id))
+          .innerJoin(collections, eq(collections.id, collectionProducts.collectionId));
+  const row = await joined.where(where).get();
+  return Number(row?.count ?? 0);
+}
+
+/**
+ * The photo a collection shows until a merchant can pick one: the first
+ * image of the first product it lists, in the merchant's order, that has one.
+ */
+export async function collectionCover(db: AppDb, handle: string): Promise<typeof productImages.$inferSelect | null> {
+  const row = await db
+    .select(getTableColumns(productImages))
+    .from(collectionProducts)
+    .innerJoin(collections, eq(collections.id, collectionProducts.collectionId))
+    .innerJoin(products, eq(products.id, collectionProducts.productId))
+    .innerJoin(productImages, eq(productImages.productId, products.id))
+    .where(and(eq(collections.handle, handle), ...listable()))
+    .orderBy(asc(collectionProducts.position), desc(products.createdAt), asc(products.id), asc(productImages.position), asc(productImages.id))
+    .limit(1)
+    .get();
+  return row ?? null;
+}
+
+export async function getStoreProducts(
+  db: AppDb,
+  params: StoreProductsParams,
+  locale: StoreLocale | null = null,
+) {
+  const { where, collection, order } = storeProductsQuery(params, locale);
   const query = db
     .select({
       ...getTableColumns(products),
@@ -347,17 +437,13 @@ export async function getStoreProducts(
     })
     .from(products)
     .$dynamic();
-  // A collection keeps the merchant's order; any other list is newest first.
-  // The id breaks ties, so paging with `offset` never repeats or skips a
-  // product that shares a position or a creation time with another.
-  const ordered =
+  const joined =
     collection === undefined
-      ? query.where(and(...conditions)).orderBy(desc(products.createdAt), asc(products.id))
+      ? query
       : query
           .innerJoin(collectionProducts, eq(collectionProducts.productId, products.id))
-          .innerJoin(collections, eq(collections.id, collectionProducts.collectionId))
-          .where(and(...conditions, eq(collections.handle, collection)))
-          .orderBy(asc(collectionProducts.position), desc(products.createdAt), asc(products.id));
+          .innerJoin(collections, eq(collections.id, collectionProducts.collectionId));
+  const ordered = joined.where(where).orderBy(...order);
   const sourceRows = await ordered
     .limit(params.limit ?? 24)
     .offset(params.offset ?? 0)

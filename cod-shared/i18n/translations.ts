@@ -13,6 +13,7 @@
  * language; a translation exists only for the other languages.
  */
 import { RICH_TEXT_MAX_CHARS } from "../lib/rich-text";
+import { SEO_TEXT } from "../lib/seo";
 import type { StoreLocale } from "./locales";
 
 /** A product's variant option, as `products.variant_options` stores it. */
@@ -37,12 +38,14 @@ export const TRANSLATABLE = {
   product: {
     name: { kind: "text", maxLength: 255 },
     description: { kind: "html", maxLength: RICH_TEXT_MAX_CHARS },
+    metaTitle: { kind: "text", maxLength: SEO_TEXT.titleMax },
+    metaDescription: { kind: "text", maxLength: SEO_TEXT.descriptionMax },
   },
   category: {
     name: { kind: "text", maxLength: 255 },
     description: { kind: "text", maxLength: 5000 },
-    metaTitle: { kind: "text", maxLength: 60 },
-    metaDescription: { kind: "text", maxLength: 160 },
+    metaTitle: { kind: "text", maxLength: SEO_TEXT.titleMax },
+    metaDescription: { kind: "text", maxLength: SEO_TEXT.descriptionMax },
   },
   offer: {
     name: { kind: "text", maxLength: 200 },

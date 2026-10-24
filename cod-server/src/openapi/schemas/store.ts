@@ -179,8 +179,8 @@ const storeBaseFields = {
   currency: z.string().openapi({ example: "DZD" }),
   price: z.number().openapi({ example: 45000 }),
   compareAtPrice: z.number().nullable(),
-  costPrice: z.number().nullable().openapi({
-    description: "Internal cost price for merchant reference",
+  costPrice: z.null().openapi({
+    description: "Always null: what the merchant paid is never served to a storefront. Kept for SDK releases that require the key.",
   }),
   type: z.enum(["PHYSICAL", "DIGITAL"]),
   hasVariants: z.boolean(),
@@ -201,6 +201,12 @@ const storeBaseFields = {
   publishedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  metaTitle: z.string().nullable().openapi({
+    description: "The title search engines and shared links show, in the requested language when translated; null: use the product's name.",
+  }),
+  metaDescription: z.string().nullable().openapi({
+    description: "The description search engines and shared links show, in the requested language when translated; null: use `descriptionPlain`, shortened.",
+  }),
 };
 
 export const StoreProductListSchema = z

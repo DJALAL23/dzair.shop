@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { RICH_TEXT_MAX_CHARS } from "../../../../cod-shared/lib/rich-text";
 import { OPTION_TEXT } from "../../../../cod-shared/i18n/translations";
+import { SEO_TEXT } from "../../../../cod-shared/lib/seo";
+
+/** A search-engine title or description; empty clears it, so the product's own name or description shows. */
+const seoText = (max: number) =>
+  z.string().trim().max(max).transform((value) => (value === "" ? null : value)).nullable().optional();
 
 // Capped like their translations, so every option can be translated in full.
 const variantOptionSchema = z.object({
@@ -38,6 +43,8 @@ export const createProductSchema = z.object({
   /** The collections the product is in (ids); it joins the end of each. */
   collectionIds: z.array(z.string().min(1)).max(100).optional(),
   shippingProfileId: z.string().optional().nullable(),
+  metaTitle: seoText(SEO_TEXT.titleMax),
+  metaDescription: seoText(SEO_TEXT.descriptionMax),
 }).superRefine((data, ctx) => {
   if (!data.hasVariants && !data.sku) {
     ctx.addIssue({
@@ -71,6 +78,8 @@ export const updateProductSchema = z.object({
   /** Replaces the collections the product is in (ids). */
   collectionIds: z.array(z.string().min(1)).max(100).optional(),
   shippingProfileId: z.string().optional().nullable(),
+  metaTitle: seoText(SEO_TEXT.titleMax),
+  metaDescription: seoText(SEO_TEXT.descriptionMax),
 });
 
 export const updateStatusSchema = z.object({

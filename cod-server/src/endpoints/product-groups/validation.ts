@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SEO_TEXT } from "../../../../cod-shared/lib/seo";
 
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -8,8 +9,8 @@ export const createGroupSchema = z.object({
   description: z.string().optional().nullable(),
   parentId: z.string().optional().nullable(),
   imageUrl: z.string().url().optional().nullable(),
-  metaTitle: z.string().max(60).optional().nullable(),
-  metaDescription: z.string().max(160).optional().nullable(),
+  metaTitle: z.string().max(SEO_TEXT.titleMax).optional().nullable(),
+  metaDescription: z.string().max(SEO_TEXT.descriptionMax).optional().nullable(),
   metaKeywords: z.string().optional().nullable(),
   position: z.number().int().min(0).default(0),
 });
@@ -20,8 +21,8 @@ export const updateGroupSchema = z.object({
   description: z.string().optional().nullable(),
   parentId: z.string().optional().nullable(),
   imageUrl: z.string().url().optional().nullable(),
-  metaTitle: z.string().max(60).optional().nullable(),
-  metaDescription: z.string().max(160).optional().nullable(),
+  metaTitle: z.string().max(SEO_TEXT.titleMax).optional().nullable(),
+  metaDescription: z.string().max(SEO_TEXT.descriptionMax).optional().nullable(),
   metaKeywords: z.string().optional().nullable(),
   position: z.number().int().min(0).optional(),
 });

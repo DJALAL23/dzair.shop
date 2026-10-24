@@ -159,7 +159,17 @@
     "variants_count_other": "{count} متغير",
     "error_sku_required": "أدخل رمز SKU لهذا المنتج — يُعرّفه في المخزون والطلبات.",
     "shipping_profile": "ملف الشحن",
-    "shipping_profile_default": "افتراضي (إعداد المتجر)"
+    "shipping_profile_default": "افتراضي (إعداد المتجر)",
+    "section_seo": "الظهور في محركات البحث",
+    "seo_help": "كيف يظهر هذا المنتج في Google وفي الروابط المشاركة. اترك الحقل فارغًا لاستعمال اسم المنتج أو وصفه.",
+    "meta_title_label": "عنوان SEO",
+    "meta_title_help": "يظهر كعنوان للنتيجة. إذا تُرك فارغًا: اسم المنتج.",
+    "meta_title_placeholder": "اسم المنتج",
+    "meta_description_label": "وصف SEO",
+    "meta_description_help": "يظهر تحت العنوان. إذا تُرك فارغًا: بداية وصف المنتج.",
+    "meta_description_placeholder": "جملة قصيرة تشجع الزبون على النقر",
+    "seo_preview": "معاينة نتيجة البحث",
+    "seo_preview_empty": "أضف وصفًا حتى تجد محركات البحث ما تعرضه."
   },
   "status_options": {
     "active": "نشط",

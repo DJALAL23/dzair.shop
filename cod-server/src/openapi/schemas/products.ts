@@ -203,6 +203,8 @@ export const ProductSchema = z
     }),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
+    metaTitle: z.string().nullable().openapi({ description: "Search-engine title (60 characters at most); null: the product's name", example: null }),
+    metaDescription: z.string().nullable().openapi({ description: "Search-engine description (160 characters at most); null: the product's description, shortened", example: null }),
 
     variantsCount: z.number().int().openapi({
       description: "Number of variants attached to this product",

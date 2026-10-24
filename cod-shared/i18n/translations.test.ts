@@ -89,7 +89,7 @@ describe("translationView", () => {
       ],
     );
     expect(view).toEqual({
-      source: { name: "هاتف جديد", description: null },
+      source: { name: "هاتف جديد", description: null, metaTitle: null, metaDescription: null },
       options: [],
       translations: {
         fr: { name: { value: "Téléphone", outdated: true }, description: { value: "<p>D</p>", outdated: false } },
@@ -139,6 +139,8 @@ describe("translatableSources", () => {
     expect(fields.map(({ key, source, field }) => [key, source, field.maxLength])).toEqual([
       ["name", "قميص", 255],
       ["description", null, TRANSLATABLE.product.description.maxLength],
+      ["metaTitle", null, 60],
+      ["metaDescription", null, 160],
       [optionKey("اللون"), "اللون", 255],
       [optionKey("اللون", "أحمر"), "أحمر", 255],
       [optionKey("اللون", "أزرق"), "أزرق", 255],

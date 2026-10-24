@@ -156,7 +156,17 @@
     "variants_count_other": "{count} variantes",
     "error_sku_required": "Saisissez un SKU pour ce produit — il l'identifie dans le stock et les commandes.",
     "shipping_profile": "Profil d'expédition",
-    "shipping_profile_default": "Par défaut (réglage de la boutique)"
+    "shipping_profile_default": "Par défaut (réglage de la boutique)",
+    "section_seo": "Référencement dans les moteurs de recherche",
+    "seo_help": "Comment ce produit apparaît sur Google et dans les liens partagés. Laissez un champ vide pour utiliser le nom ou la description du produit.",
+    "meta_title_label": "Titre SEO",
+    "meta_title_help": "Affiché comme titre du résultat. Vide : le nom du produit.",
+    "meta_title_placeholder": "Nom du produit",
+    "meta_description_label": "Description SEO",
+    "meta_description_help": "Affichée sous le titre. Vide : le début de la description du produit.",
+    "meta_description_placeholder": "Une phrase courte qui donne envie de cliquer",
+    "seo_preview": "Aperçu du résultat de recherche",
+    "seo_preview_empty": "Ajoutez une description pour que les moteurs de recherche aient quelque chose à afficher."
   },
   "status_options": {
     "active": "Actif",

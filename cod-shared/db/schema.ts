@@ -589,6 +589,10 @@ export const products = sqliteTable("products", {
     .references(() => shippingProfiles.id, { onDelete: "set null" }),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  /** The title search engines and shared links show; null: the product's name. */
+  metaTitle: text("meta_title"),
+  /** The description search engines and shared links show; null: the product's own description, shortened. */
+  metaDescription: text("meta_description"),
 });
 
 export const productVariants = sqliteTable("product_variants", {

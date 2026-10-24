@@ -5,6 +5,7 @@
 
 import { z } from "@hono/zod-openapi";
 import { COLLECTION_HANDLE_RE, COLLECTION_MAX_PRODUCTS } from "../../../../cod-shared/catalog/collections";
+import { StoreProductImageSchema } from "./store";
 
 export const CollectionHandleSchema = z.string().regex(COLLECTION_HANDLE_RE).openapi({
   description: "Lowercase letters, digits and hyphens; how a theme names the collection",
@@ -59,5 +60,9 @@ export const StorefrontCollectionSchema = z
     handle: CollectionHandleSchema,
     title: z.string().openapi({ description: "In the requested language when the store translated it" }),
     description: z.string().nullable(),
+    productCount: z.number().int().min(0).openapi({ description: "How many products a shopper sees in it" }),
+    image: StoreProductImageSchema.nullable().openapi({
+      description: "The first photo of the first product it lists, in the merchant's order, that has one; null when none does",
+    }),
   })
   .openapi("StorefrontCollection");

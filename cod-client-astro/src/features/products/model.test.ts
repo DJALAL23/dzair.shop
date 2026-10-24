@@ -22,6 +22,7 @@ import {
   stockGroupUpdatedAt,
   toSlug,
   variantLabel,
+  searchListing,
 } from "./model";
 import type { Product, StockAlertItem } from "./types";
 
@@ -253,5 +254,23 @@ describe("what removing a product does, in words", () => {
       { text: "removal.landing_orders_kept:4", kept: true },
       { text: "removal.orders_to_ship:2", warning: true },
     ]);
+  });
+});
+
+describe("searchListing", () => {
+  const product = { metaTitle: "", metaDescription: "", name: "Robe en coton", description: "<p>Une robe <strong>légère</strong>&nbsp;pour l'été.</p>" };
+
+  it("shows what the merchant wrote for search engines", () => {
+    expect(searchListing({ ...product, metaTitle: " Robe d'été ", metaDescription: " Livraison partout " })).toEqual({ title: "Robe d'été", description: "Livraison partout" });
+  });
+
+  it("falls back to the name and the description as text", () => {
+    expect(searchListing(product)).toEqual({ title: "Robe en coton", description: "Une robe légère pour l'été." });
+  });
+
+  it("shortens a long description at a word, within what a search result shows", () => {
+    const listing = searchListing({ ...product, description: `<p>${"cotons ".repeat(40)}</p>` });
+    expect(listing.description.length).toBeLessThanOrEqual(160);
+    expect(listing.description.endsWith(" cotons…")).toBe(true);
   });
 });

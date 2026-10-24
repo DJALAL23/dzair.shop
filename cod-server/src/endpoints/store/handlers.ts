@@ -4,6 +4,7 @@ import { storefrontClientIp } from "@/lib/storefront-client-ip";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import * as queries from "./queries";
+import type { StoreProductsParams } from "../../../../cod-shared/queries/store";
 import { storeOrderSchema, validateCartSchema } from "./validation";
 import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -24,6 +25,7 @@ import {
 // subtotal to diverge from what the engine charges.
 import { resolveStorefrontMenu } from "../../../../cod-shared/queries/menus";
 import { getStorefrontCollection } from "../../../../cod-shared/queries/collections";
+import { findShopperOrder } from "../../../../cod-shared/queries/store-order-status";
 import { resolveConversionForStage, conversionSourceUrl } from "@/workflows/capi-helpers";
 import { startCapiWorkflow } from "@/lib/conversions";
 import { stores, orders } from "../../../../cod-shared/db/schema";
@@ -61,19 +63,34 @@ export async function getStoreConfig(c: Context<AppContext>) {
   return c.json({ success: true, data: store }, 200);
 }
 
-export async function listStoreProducts(c: Context<AppContext>) {
-  const db = getDb(c.env.DB);
+function storeProductsParams(c: Context<AppContext>): StoreProductsParams {
   const queryData: any = (c.req as any).valid?.("query");
   const rawFeatured = queryData?.featured ?? c.req.query("featured");
   const featured = rawFeatured === "true";
   const categoryId = queryData?.categoryId ?? c.req.query("categoryId") ?? undefined;
   const collection = queryData?.collection ?? c.req.query("collection") ?? undefined;
   const onSale = (queryData?.onSale ?? c.req.query("onSale")) === "true";
+  const sort = queryData?.sort ?? undefined;
   const limit = Math.min(parseInt(String(queryData?.limit ?? c.req.query("limit") ?? "24")), 100);
   const offset = Math.max(parseInt(String(queryData?.offset ?? c.req.query("offset") ?? "0")) || 0, 0);
+  return { featured, collection, onSale, categoryId, sort, limit, offset };
+}
+
+/** A page of a listing and the listing's size, read together. */
+async function productPage(c: Context<AppContext>, params: StoreProductsParams) {
+  const db = getDb(c.env.DB);
   const { translate } = await servedLanguage(c, db);
-  const data = await queries.getStoreProducts(db, { featured, collection, onSale, categoryId, limit, offset }, translate);
-  return c.json({ success: true, data, count: data.length }, 200);
+  const [data, total] = await Promise.all([queries.getStoreProducts(db, params, translate), queries.countStoreProducts(db, params, translate)]);
+  return c.json({ success: true, data, count: data.length, total }, 200);
+}
+
+export async function listStoreProducts(c: Context<AppContext>) {
+  return productPage(c, storeProductsParams(c));
+}
+
+export async function searchStoreProducts(c: Context<AppContext>) {
+  const { q } = (c.req as any).valid("query") as { q: string };
+  return productPage(c, { ...storeProductsParams(c), search: q });
 }
 
 export async function getStoreProduct(c: Context<AppContext>) {
@@ -220,9 +237,11 @@ export async function getStoreCollection(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const storeId = c.get("storeId")!;
   const served = await servedLanguage(c, db);
-  const collection = await getStorefrontCollection(db, storeId, c.req.param("handle")!, served.translate);
-  if (!collection) throw new NotFoundError("Collection", c.req.param("handle"));
-  return c.json({ success: true, data: collection }, 200);
+  const handle = c.req.param("handle")!;
+  const collection = await getStorefrontCollection(db, storeId, handle, served.translate);
+  if (!collection) throw new NotFoundError("Collection", handle);
+  const [productCount, image] = await Promise.all([queries.countStoreProducts(db, { collection: handle }, served.translate), queries.collectionCover(db, handle)]);
+  return c.json({ success: true, data: { ...collection, productCount, image } }, 200);
 }
 
 export async function getStoreMenu(c: Context<AppContext>) {
@@ -636,3 +655,28 @@ export async function validateCart(c: Context<AppContext>) {
   );
 }
 
+
+/** Look-ups are limited per order and per shopper, so neither a phone nor an order number can be guessed. */
+async function limitOrderLookups(c: Context<AppContext>, orderNumber: string): Promise<void> {
+  const limiter = c.env.REVIEW_RATE_LIMITER;
+  if (!limiter) return;
+  const ip = storefrontClientIp(c);
+  const keys = [`order-status:${orderNumber.trim().toUpperCase()}`, ...(ip ? [`order-status-ip:${ip}`] : [])];
+  for (const key of keys) {
+    let allowed = true;
+    try {
+      allowed = (await limiter.limit({ key })).success;
+    } catch {
+      continue;
+    }
+    if (!allowed) throw new BusinessLogicError("Too many look-ups — try again in a minute", ERROR_CODES.ORDER_LOOKUP_RATE_LIMITED, { windowSeconds: 60 });
+  }
+}
+
+export async function getShopperOrderStatus(c: Context<AppContext>) {
+  const { orderNumber, phone } = (c.req as any).valid("json") as { orderNumber: string; phone: string };
+  await limitOrderLookups(c, orderNumber);
+  const status = await findShopperOrder(getDb(c.env.DB), { orderNumber, phone });
+  if (!status) throw new NotFoundError("Order");
+  return c.json({ success: true, data: status }, 200);
+}

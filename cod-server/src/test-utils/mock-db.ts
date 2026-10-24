@@ -249,6 +249,8 @@ export function productRow(overrides: Record<string, unknown> = {}): Record<stri
     shipping_profile_id: null,
     created_at: NOW,
     updated_at: NOW,
+    meta_title: null,
+    meta_description: null,
     ...overrides,
   };
 }

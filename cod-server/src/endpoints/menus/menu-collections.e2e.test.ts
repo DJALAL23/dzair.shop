@@ -130,9 +130,9 @@ describe("menus that link to collections", () => {
   });
 
   it("give a storefront the collection's title and description, in a language, and 404 for an unknown handle", async () => {
-    expect((await call("GET", "/store/collections/robes-ete")).body.data).toEqual({ handle: "robes-ete", title: "Robes d'été", description: "Légères" });
+    expect((await call("GET", "/store/collections/robes-ete")).body.data).toEqual({ handle: "robes-ete", title: "Robes d'été", description: "Légères", productCount: 0, image: null });
     await d1.db.insert(schema.translations).values({ resourceType: "collection", resourceId: "c1", locale: "ar", key: "title", value: "فساتين الصيف", sourceDigest: "d", updatedAt: T });
-    expect((await call("GET", "/store/collections/robes-ete?locale=ar")).body.data).toEqual({ handle: "robes-ete", title: "فساتين الصيف", description: "Légères" });
+    expect((await call("GET", "/store/collections/robes-ete?locale=ar")).body.data).toEqual({ handle: "robes-ete", title: "فساتين الصيف", description: "Légères", productCount: 0, image: null });
     expect((await call("GET", "/store/collections/nope")).status).toBe(404);
   });
 });

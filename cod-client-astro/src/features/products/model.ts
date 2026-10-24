@@ -1,6 +1,7 @@
 import type { Translate } from "@/i18n/core";
 import type { Consequence } from "@/components/ui/confirm-dialog";
 import type { Product, ProductRemoval, ProductStatus, StockAlertItem, StockMovement, VariantOption, VariantOptionFormState } from "./types";
+import { SEO_TEXT } from "../../../../cod-shared/lib/seo";
 
 export type ProductSortKey = "name" | "price" | "totalInventory" | "createdAt";
 
@@ -297,4 +298,24 @@ export function productRemovalConsequences(removal: ProductRemoval, t: Translate
     ...(removal.landingPageOrders > 0 ? [{ text: t("removal.landing_orders_kept", { count: removal.landingPageOrders }), kept: true }] : []),
     ...(removal.ordersToShip > 0 ? [{ text: t("removal.orders_to_ship", { count: removal.ordersToShip }), warning: true }] : []),
   ];
+}
+
+/**
+ * What a search result shows for a product: its search-engine title and
+ * description, else its name and its description as text, shortened as the
+ * storefront shortens it.
+ */
+export function searchListing(product: { metaTitle: string; metaDescription: string; name: string; description: string }): { title: string; description: string } {
+  const title = product.metaTitle.trim() || product.name.trim();
+  const written = product.metaDescription.trim();
+  if (written) return { title, description: written };
+  const text = product.description.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  return { title, description: shorten(text, SEO_TEXT.descriptionMax) };
+}
+
+function shorten(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }

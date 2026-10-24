@@ -4,16 +4,17 @@
  */
 import { z } from "@hono/zod-openapi";
 import { REVIEW_TEXT } from "../../../../../cod-shared/reviews/policy";
+import { ORDER_NUMBER_RE } from "../../../../../cod-shared/lib/order-number";
 
 const optional = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((v) => (v === "" || v == null ? undefined : v), schema.optional());
 
-const orderNumber = z
+export const orderNumber = z
   .string()
   .trim()
-  .regex(/^ORD-\d{8}-\d+$/i, "Invalid order number format (expected ORD-YYYYMMDD-NNNN)")
+  .regex(ORDER_NUMBER_RE, "Invalid order number format (expected ORD-YYYYMMDD-NNNN)")
   .openapi({ description: "The customer-facing order number, as on the thank-you page and the SMS", example: "ORD-20261016-1234" });
 
-const phone = z.string().trim().min(6).max(32).openapi({ description: "The phone the order was placed with, however it is typed", example: "0551 23 45 67" });
+export const phone = z.string().trim().min(6).max(32).openapi({ description: "The phone the order was placed with, however it is typed", example: "0551 23 45 67" });
 
 export const reviewsQuerySchema = z.object({
   productId: z.string().min(1).openapi({ description: "Product ID to fetch reviews for." }),

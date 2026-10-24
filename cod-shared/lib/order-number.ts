@@ -7,6 +7,12 @@
  * a lost order.
  */
 
+/**
+ * What a shopper may type as an order number: `ORD-`, the day, and digits, in
+ * any case. Mirrored by `@wocart/storefront` (`ORDER_NUMBER_PATTERN`).
+ */
+export const ORDER_NUMBER_RE = /^ORD-\d{8}-\d+$/i;
+
 /** Draws are capped: a collision is rare, so a handful of draws is ample. */
 export const MAX_ORDER_NUMBER_DRAWS = 5;
 

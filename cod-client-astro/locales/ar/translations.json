@@ -17,7 +17,9 @@
   "fields": {
     "product": {
       "name": "الاسم",
-      "description": "الوصف"
+      "description": "الوصف",
+      "metaTitle": "عنوان SEO",
+      "metaDescription": "وصف SEO"
     },
     "category": {
       "name": "الاسم",

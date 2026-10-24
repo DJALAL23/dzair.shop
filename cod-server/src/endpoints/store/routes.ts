@@ -12,10 +12,13 @@ import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import * as h from "./handlers";
 import { COUPON_REFUSAL_REASONS } from "../../../../cod-shared/queries/checkout-coupon";
+import { STOREFRONT_PRODUCT_SORTS } from "../../../../cod-shared/queries/store";
 import { THEME_KEY_RE } from "../../../../cod-shared/i18n/content-overrides";
 import { PAGE_DOCUMENT_SURFACE_RE } from "../../../../cod-shared/queries/page-document-surface";
 import { storeOrderSchema, validateCartSchema } from "./validation";
 import reviewsRouter from "./reviews/routes";
+import { orderNumber as orderNumberSchema, phone as orderPhoneSchema } from "./reviews/validation";
+import { SHOPPER_ORDER_STAGES } from "../../../../cod-shared/orders/shopper-stage";
 import { MenuHandleSchema, StorefrontMenuSchema } from "@/openapi/schemas/menus";
 import { CollectionHandleSchema, StorefrontCollectionSchema } from "@/openapi/schemas/collections";
 import {
@@ -39,6 +42,17 @@ const countEnvelope = <T extends z.ZodType>(itemSchema: T) =>
       success: z.boolean().openapi({ example: true }),
       data: z.array(itemSchema),
       count: z.number().int().openapi({ description: "Number of items in `data`" }),
+    })
+  );
+
+/** A page of a listing: what it holds, and how many the whole listing holds. */
+const pageEnvelope = <T extends z.ZodType>(itemSchema: T) =>
+  jsonContent(
+    z.object({
+      success: z.boolean().openapi({ example: true }),
+      data: z.array(itemSchema),
+      count: z.number().int().openapi({ description: "Number of items in `data`" }),
+      total: z.number().int().openapi({ description: "Number of products in the whole listing, across its pages" }),
     })
   );
 
@@ -77,6 +91,9 @@ const productsQuerySchema = z.object({
     description: "Deprecated: same as `collection=featured`.",
   }),
   categoryId: z.string().optional().openapi({ description: "Filter by category ID." }),
+  sort: z.enum(STOREFRONT_PRODUCT_SORTS).optional().openapi({
+    description: "The order: `newest`, `price-ascending` or `price-descending`. Absent: a collection's own order, a search's best match first, else newest.",
+  }),
   limit: z.coerce.number().int().min(1).max(100).default(24).openapi({
     description: "Maximum number of products to return. Server cap: 100.",
   }),
@@ -84,6 +101,13 @@ const productsQuerySchema = z.object({
     description: "Products to skip, for paging through the whole catalog (e.g. a sitemap).",
   }),
   locale: localeQuery,
+});
+
+const searchQuerySchema = productsQuerySchema.extend({
+  q: z.string().trim().min(1).max(100).openapi({
+    description: "What the shopper typed. Every word must be in the product's name — the catalog's or the requested language's — or its tags; case is ignored for Latin letters.",
+    example: "robe coton",
+  }),
 });
 
 const handleParams = z.object({
@@ -164,10 +188,29 @@ const listStoreProductsRoute = defineRoute({
   responses: {
     200: {
       description: "List of products",
-      content: countEnvelope(StoreProductListSchema),
+      content: pageEnvelope(StoreProductListSchema),
     },
   },
   handler: h.listStoreProducts,
+});
+
+const searchStoreProductsRoute = defineRoute({
+  method: "get",
+  path: "/search",
+  auth: "store",
+  tags: ["Store API"],
+  summary: "Search store products",
+  description:
+    "The products a shopper's words find, with the list endpoint's gates, filters, paging and sort; without a `sort`, products whose name holds every word come first. Its own path, so a server without search answers 404 rather than the whole catalog.",
+  operationId: "searchStoreProducts",
+  query: searchQuerySchema,
+  responses: {
+    200: {
+      description: "The products found",
+      content: pageEnvelope(StoreProductListSchema),
+    },
+  },
+  handler: h.searchStoreProducts,
 });
 
 const getStoreProductRoute = defineRoute({
@@ -456,6 +499,47 @@ const createStoreOrderRoute = defineRoute({
 
 // ─── Cart ─────────────────────────────────────────────────────────────────────
 
+const ShopperOrderStatusSchema = z
+  .object({
+    orderNumber: z.string(),
+    placedAt: z.string().openapi({ description: "When the order was placed (ISO 8601)" }),
+    stage: z.enum(SHOPPER_ORDER_STAGES).openapi({
+      description:
+        "Where the order is, in the shopper's words: `placed` (not confirmed yet), `confirmed`, `preparing`, `shipped`, `out_for_delivery`, `delivered`, `returned` (refused at the door) or `cancelled`.",
+    }),
+    deliveryType: z.enum(["home", "stop_desk"]),
+    lines: z.array(
+      z.object({
+        name: z.string().openapi({ description: "As it was sold, in the catalog's language" }),
+        variantLabel: z.string().nullable(),
+        quantity: z.number().int(),
+      }),
+    ),
+    total: z.number().openapi({ description: "What the shopper pays on delivery" }),
+    tracking: z
+      .object({ number: z.string(), carrier: z.string().nullable() })
+      .nullable()
+      .openapi({ description: "The carrier's tracking number once the parcel is with it; null before, or with the store's own driver" }),
+  })
+  .openapi("ShopperOrderStatus");
+
+const shopperOrderStatusRoute = defineRoute({
+  method: "post",
+  path: "/orders/status",
+  auth: "store",
+  tags: ["Store API"],
+  summary: "Find where a shopper's order is",
+  description:
+    "The order's number and the phone it was placed with prove it is the shopper's, as for a review; a wrong number and a wrong phone both answer 404 ORDER_NOT_FOUND. Attempts are limited per order and per shopper (ORDER_LOOKUP_RATE_LIMITED, with `windowSeconds`). The answer is what a shopper may know — the step it is at, its lines and total, and the carrier's tracking number once shipped — never the address, the notes or the merchant's own statuses. A POST, so the phone never sits in a URL or a log.",
+  operationId: "getShopperOrderStatus",
+  body: z.object({ orderNumber: orderNumberSchema, phone: orderPhoneSchema }),
+  responses: {
+    200: { description: "The order's status", content: jsonContent(SuccessResponseSchema(ShopperOrderStatusSchema)) },
+    404: { description: "No order has this number and phone" },
+  },
+  handler: h.getShopperOrderStatus,
+});
+
 const validateCartRoute = defineRoute({
   method: "post",
   path: "/cart/validate",
@@ -569,11 +653,13 @@ router.openapi(getStoreConfigRoute.route, getStoreConfigRoute.handler);
 router.openapi(getStoreMenuRoute.route, getStoreMenuRoute.handler);
 router.openapi(getStoreCollectionRoute.route, getStoreCollectionRoute.handler);
 router.openapi(listStoreProductsRoute.route, listStoreProductsRoute.handler);
+router.openapi(searchStoreProductsRoute.route, searchStoreProductsRoute.handler);
 router.openapi(getStoreProductRoute.route, getStoreProductRoute.handler);
 router.openapi(getStoreLandingPageRoute.route, getStoreLandingPageRoute.handler);
 router.openapi(getStorePageRoute.route, getStorePageRoute.handler);
 router.openapi(getStorePageDocumentRoute.route, getStorePageDocumentRoute.handler);
 router.openapi(getStoreOrderTrackingRoute.route, getStoreOrderTrackingRoute.handler);
+router.openapi(shopperOrderStatusRoute.route, shopperOrderStatusRoute.handler);
 router.openapi(listStoreCategoriesRoute.route, listStoreCategoriesRoute.handler);
 router.openapi(getShippingRatesRoute.route, getShippingRatesRoute.handler);
 router.openapi(communesRoute.route, communesRoute.handler);

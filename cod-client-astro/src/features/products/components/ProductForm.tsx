@@ -50,6 +50,7 @@ import {
 } from "@/features/products/components/ProductVariantsCard";
 import { ProductSettingsCard } from "@/features/products/components/ProductSettingsCard";
 import { ProductCollectionsCard } from "@/features/products/components/ProductCollectionsCard";
+import { ProductSeoCard } from "@/features/products/components/ProductSeoCard";
 import { listCollections } from "@/features/collections/api";
 import type { CollectionSummary } from "@/features/collections/types";
 
@@ -71,6 +72,8 @@ export function ProductForm({ productId }: { productId?: string }) {
   const [shippingProfileId, setShippingProfileId] = useState("");
   const [description, setDescription] = useState("");
   const [descriptionFormat, setDescriptionFormat] = useState<"text" | "html">("html");
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
   const [price, setPrice] = useState("");
   const priceRef = useRef("");
   priceRef.current = price;
@@ -165,6 +168,8 @@ export function ProductForm({ productId }: { productId?: string }) {
         setShippingProfileId(product.shippingProfileId ?? "");
         setDescription(product.description ?? "");
         setDescriptionFormat(product.descriptionFormat ?? "text");
+        setMetaTitle(product.metaTitle ?? "");
+        setMetaDescription(product.metaDescription ?? "");
         setPrice(String(product.price));
         setCompareAtPrice(
           product.compareAtPrice ? String(product.compareAtPrice) : "",
@@ -306,6 +311,8 @@ export function ProductForm({ productId }: { productId?: string }) {
         shippingProfileId: optionalId(shippingProfileId, editing),
         description: optionalDescription(description, editing),
         descriptionFormat,
+        metaTitle: metaTitle.trim(),
+        metaDescription: metaDescription.trim(),
         price: Math.round(Number(price)),
         compareAtPrice: optionalMoney(compareAtPrice, editing),
         costPrice: optionalMoney(costPrice, editing),
@@ -520,6 +527,17 @@ export function ProductForm({ productId }: { productId?: string }) {
           setErrors={setErrors}
           busy={busy}
           showImageCol={showImageCol}
+        />
+
+        <ProductSeoCard
+          metaTitle={metaTitle}
+          setMetaTitle={setMetaTitle}
+          metaDescription={metaDescription}
+          setMetaDescription={setMetaDescription}
+          name={name}
+          description={description}
+          handle={slug || toSlug(name)}
+          busy={busy}
         />
     </FormPage>
   );

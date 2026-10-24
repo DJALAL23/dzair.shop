@@ -17,7 +17,9 @@
   "fields": {
     "product": {
       "name": "Name",
-      "description": "Description"
+      "description": "Description",
+      "metaTitle": "SEO title",
+      "metaDescription": "SEO description"
     },
     "category": {
       "name": "Name",

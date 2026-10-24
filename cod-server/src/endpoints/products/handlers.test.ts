@@ -131,6 +131,8 @@ describe("Products Endpoint - Error Scenarios", () => {
         variantsCount: 0,
         totalInventory: 10,
         shippingProfileId: null,
+        metaTitle: null,
+        metaDescription: null,
       });
 
       const res = await app.request("/products/prod_123", {
@@ -220,6 +222,8 @@ describe("Products Endpoint - Error Scenarios", () => {
         variantsCount: 0,
         totalInventory: 0,
         shippingProfileId: null,
+        metaTitle: null,
+        metaDescription: null,
       });
 
       const res = await app.request("/products", {

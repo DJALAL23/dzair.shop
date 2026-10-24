@@ -37,20 +37,22 @@ describe("translationFields", () => {
     expect(translationFields(view()).map(({ key, control }) => [key, control])).toEqual([
       ["name", "input"],
       ["description", "rich"],
+      ["metaTitle", "input"],
+      ["metaDescription", "input"],
     ]);
     expect(translationFields(view({ resource: "category" })).find(({ key }) => key === "metaTitle")?.control).toBe("input");
     expect(translationFields(view({ resource: "store" })).find(({ key }) => key === "metaDescription")?.control).toBe("textarea");
   });
 
   it("follows the product's fields with each option's name and values, as short inputs", () => {
-    expect(translationFields(withOptions).slice(2)).toEqual([
+    expect(translationFields(withOptions).slice(4)).toEqual([
       { key: color.key, kind: "text", maxLength: 255, control: "input", part: { kind: "option", option: "اللون" } },
       { key: color.values[0]!.key, kind: "text", maxLength: 255, control: "input", part: { kind: "value", option: "اللون" } },
     ]);
   });
 
   it("drafts, patches and counts option fields like any other", () => {
-    expect(draftFor(withOptions, "fr")).toEqual({ name: "Téléphone", description: "", [color.key]: "", [color.values[0]!.key]: "" });
+    expect(draftFor(withOptions, "fr")).toEqual({ name: "Téléphone", description: "", metaTitle: "", metaDescription: "", [color.key]: "", [color.values[0]!.key]: "" });
     expect(pendingCount(withOptions, "fr")).toBe(2);
     expect(patchFor(withOptions, "fr", { ...draftFor(withOptions, "fr"), [color.values[0]!.key]: " Rouge " })).toEqual({
       locale: "fr",
@@ -72,8 +74,8 @@ describe("translationFields", () => {
 
 describe("draftFor / patchFor — a merge patch of one language", () => {
   it("starts from the stored translations, empty where there is none", () => {
-    expect(draftFor(view(), "fr")).toEqual({ name: "Téléphone", description: "" });
-    expect(draftFor(view(), "en")).toEqual({ name: "", description: "" });
+    expect(draftFor(view(), "fr")).toEqual({ name: "Téléphone", description: "", metaTitle: "", metaDescription: "" });
+    expect(draftFor(view(), "en")).toEqual({ name: "", description: "", metaTitle: "", metaDescription: "" });
   });
 
   it("sends nothing when nothing changed, whitespace included", () => {

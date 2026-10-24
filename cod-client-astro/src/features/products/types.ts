@@ -71,6 +71,10 @@ export interface Product {
   trackInventory: boolean;
   categoryId?: string | null;
   shippingProfileId?: string | null;
+  /** Null: search engines read the name. */
+  metaTitle?: string | null;
+  /** Null: search engines read the description, shortened. */
+  metaDescription?: string | null;
   tags: string[];
   visibility: boolean;
   status: ProductStatus;

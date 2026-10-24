@@ -205,6 +205,8 @@ export const ERROR_CODES = {
   REVIEW_ORDER_NOT_DELIVERED: "REVIEW_ORDER_NOT_DELIVERED",
   /** Too many attempts for one order in a short time. */
   REVIEW_RATE_LIMITED: "REVIEW_RATE_LIMITED",
+  /** Too many order look-ups for one order, or from one shopper, in a short time. */
+  ORDER_LOOKUP_RATE_LIMITED: "ORDER_LOOKUP_RATE_LIMITED",
   /** The upload grant is missing, altered, for another order, or past its end. */
   REVIEW_UPLOAD_GRANT_INVALID: "REVIEW_UPLOAD_GRANT_INVALID",
   /** A named upload was never received, or was already cleaned away. */

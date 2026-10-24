@@ -43,6 +43,10 @@ export interface CreateProductData {
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
   showInStore: boolean;
   shippingProfileId?: string | null;
+  /** Null or absent: search engines read the product's name. */
+  metaTitle?: string | null;
+  /** Null or absent: search engines read the product's own description, shortened. */
+  metaDescription?: string | null;
 }
 
 export interface UpdateProductData {
@@ -66,6 +70,8 @@ export interface UpdateProductData {
   status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
   showInStore?: boolean;
   shippingProfileId?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
 }
 
 function toHandle(name: string, id: string) {
@@ -261,6 +267,8 @@ export async function createProduct(db: AppDb, data: CreateProductData) {
     status: data.status,
     showInStore: data.showInStore,
     shippingProfileId: data.shippingProfileId ?? null,
+    metaTitle: data.metaTitle ?? null,
+    metaDescription: data.metaDescription ?? null,
     publishedAt: data.status === "ACTIVE" ? now : null,
     createdAt: now,
     updatedAt: now,
@@ -313,6 +321,8 @@ export async function updateProduct(db: AppDb, productId: string, data: UpdatePr
   }
   if (data.showInStore !== undefined) updates.showInStore = data.showInStore;
   if (data.shippingProfileId !== undefined) updates.shippingProfileId = data.shippingProfileId ?? null;
+  if (data.metaTitle !== undefined) updates.metaTitle = data.metaTitle ?? null;
+  if (data.metaDescription !== undefined) updates.metaDescription = data.metaDescription ?? null;
 
   const statements: BatchStatement[] = [
     db.update(products).set(updates).where(eq(products.id, productId)),

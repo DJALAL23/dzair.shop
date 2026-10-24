@@ -149,7 +149,7 @@ describe("editing translations", () => {
         { locale: "fr", published: true },
         { locale: "en", published: false },
       ],
-      source: { name: "هاتف", description: "<p>وصف الهاتف</p>" },
+      source: { name: "هاتف", description: "<p>وصف الهاتف</p>", metaTitle: null, metaDescription: null },
       options: [],
       translations: {},
     });

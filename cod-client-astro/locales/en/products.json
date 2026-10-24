@@ -155,7 +155,17 @@
     "variants_count_other": "{count} variants",
     "error_sku_required": "Enter a SKU for this product — it identifies it in stock and orders.",
     "shipping_profile": "Shipping profile",
-    "shipping_profile_default": "Default (store setting)"
+    "shipping_profile_default": "Default (store setting)",
+    "section_seo": "Search engine listing",
+    "seo_help": "How this product appears on Google and in shared links. Leave a field empty to use the product's name or description.",
+    "meta_title_label": "SEO title",
+    "meta_title_help": "Shown as the result's title. Empty: the product's name.",
+    "meta_title_placeholder": "Product name",
+    "meta_description_label": "SEO description",
+    "meta_description_help": "Shown under the title. Empty: the start of the product's description.",
+    "meta_description_placeholder": "A short sentence that makes shoppers click",
+    "seo_preview": "Search result preview",
+    "seo_preview_empty": "Add a description so search engines have something to show."
   },
   "status_options": {
     "active": "Active",
