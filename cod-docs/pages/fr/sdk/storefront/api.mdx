@@ -76,6 +76,7 @@ aides et des types ; la validation reste sur le serveur, là où la donnée entr
 | `createOtpMachine(...)`, `createOtpTransport(...)`, `mapOtpResponse(...)`, `otpTransportFailure(...)` | Vérification du téléphone : états, transport, mapping des réponses, échec de transport |
 | `createAbandonedCheckoutTracker(ports)` | Signaler une commande inachevée, puis sa conversion |
 | `createBrowserAbandonedCheckoutTracker({ endpoint })`, `convertAbandonedCheckout(...)`, `ABANDONED_CHECKOUT_SESSION_KEY` | Le même traceur relié à une page de navigateur, et la conversion de la page de remerciement |
+| `bindCheckoutKey(form)` | Un passage en caisse, une commande : la clé que portent les envois d'un formulaire de commande |
 | `readShippingRates(value)`, `readCouponOutcome(value)` | Lire en navigateur les tarifs embarqués dans une page ou le résultat d'un coupon, sans Zod |
 | `createQuoter({ endpoint })`, `readCartQuote(value)` | Demander le devis depuis le navigateur en ne gardant que la dernière réponse ; en lire un sans Zod |
 | `couponRefusalTone(reason)`, `COUPON_REFUSAL_REASONS`, `COUPON_HINT_REASONS` | Si le refus d'un code est un indice sur le panier ou un refus du code |

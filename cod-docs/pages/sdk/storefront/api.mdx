@@ -75,6 +75,7 @@ server, where data enters.
 | `createOtpMachine(...)`, `createOtpTransport(...)`, `mapOtpResponse(...)`, `otpTransportFailure(...)` | Phone verification: states, transport, response mapping, a transport-level failure |
 | `createAbandonedCheckoutTracker(ports)` | Report an unfinished checkout, then its conversion |
 | `createBrowserAbandonedCheckoutTracker({ endpoint })`, `convertAbandonedCheckout(...)`, `ABANDONED_CHECKOUT_SESSION_KEY` | The same tracker wired to a browser page, and the thank-you page's conversion |
+| `bindCheckoutKey(form)` | One checkout attempt, one order: the key a checkout form's submissions carry |
 | `readShippingRates(value)`, `readCouponOutcome(value)` | Read a page's embedded rates or a quote's coupon outcome in the browser, without Zod |
 | `createQuoter({ endpoint })`, `readCartQuote(value)` | Ask the quote from the browser, keeping only the latest answer; read one without Zod |
 | `couponRefusalTone(reason)`, `COUPON_REFUSAL_REASONS`, `COUPON_HINT_REASONS` | Whether a code's refusal is a hint about the basket or a refusal of the code |

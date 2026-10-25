@@ -75,6 +75,7 @@ npm install @wocart/storefront zod
 | `createOtpMachine(...)`, `createOtpTransport(...)`, `mapOtpResponse(...)`, `otpTransportFailure(...)` | التحقق من الهاتف: الحالات، النقل، تحويل الأجوبة، وفشل النقل |
 | `createAbandonedCheckoutTracker(ports)` | الإبلاغ عن إتمام غير مكتمل، ثم عن تحوّله |
 | `createBrowserAbandonedCheckoutTracker({ endpoint })`, `convertAbandonedCheckout(...)`, `ABANDONED_CHECKOUT_SESSION_KEY` | المتتبّع نفسه مربوطًا بصفحة متصفح، وتحويل صفحة الشكر |
+| `bindCheckoutKey(form)` | عملية دفع واحدة، طلب واحد: المفتاح الذي تحمله إرسالات نموذج إتمام الطلب |
 | `readShippingRates(value)`, `readCouponOutcome(value)` | قراءة أسعار التوصيل المضمّنة في صفحة أو نتيجة كوبون في المتصفح، بلا Zod |
 | `createQuoter({ endpoint })`, `readCartQuote(value)` | اطلب عرض السعر من المتصفح مع الاحتفاظ بآخر جواب فقط؛ واقرأه دون Zod |
 | `couponRefusalTone(reason)`, `COUPON_REFUSAL_REASONS`, `COUPON_HINT_REASONS` | هل رفض الرمز تلميح بشأن السلة أم رفض للرمز نفسه |

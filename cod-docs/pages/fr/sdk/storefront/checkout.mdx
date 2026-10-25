@@ -97,6 +97,7 @@ avant l'exécution de l'action ; utilisez donc exactement ses noms.
 | `couponCode` | Jusqu'à 64 caractères |
 | `otpToken` | Renseigné après la vérification du téléphone |
 | `turnstileToken` | Renseigné par le widget de protection contre les robots |
+| `checkoutKey` | Ajouté par `bindCheckoutKey` ; la commande de ce passage en caisse n'est passée qu'une fois |
 | `customFieldResponses` | Tableau JSON pour les champs définis par le marchand |
 | `items` | Tableau JSON pour une commande panier |
 | `productId`, `productName`, `pricePerUnit`, `quantity`, `variantId`, `offerId` | Le formulaire produit unique ; `pricePerUnit` est requis par le contrôle de forme |
@@ -143,6 +144,28 @@ L'action peut refuser pour un champ, une règle métier ou un coupon.
 
 Ne les remplacez pas par un message générique du type « une erreur est survenue ». Un acheteur
 qui a choisi une taille épuisée doit savoir quel choix modifier.
+
+## Un passage en caisse, une commande
+
+Un acheteur qui double-clique, recharge la page d'où sa commande a été envoyée,
+ou réessaie après une coupure de connexion renvoie le même passage en caisse.
+Liez une clé au formulaire une fois, et le serveur ne passe la commande de ce
+passage en caisse qu'une fois :
+
+```ts
+import { bindCheckoutKey } from "@wocart/storefront";
+
+bindCheckoutKey(document.querySelector<HTMLFormElement>("form.order-form")!);
+```
+
+Chaque envoi porte alors `checkoutKey`. La même clé renvoyée répond avec la
+commande déjà passée, exactement comme la première fois : ni deuxième commande,
+ni deuxième déduction de stock, ni deuxième notification. La clé reste la même
+tant que l'acheteur ne change rien et elle est tirée à nouveau dès qu'il modifie
+un champ ; une commande différente ne reçoit donc jamais la réponse de la
+première. Elle est tirée dans le navigateur au premier envoi, jamais rendue dans
+la page, car une page de boutique est mise en cache pour tous les acheteurs.
+Pour un autre téléphone, la clé échoue avec `CHECKOUT_KEY_IN_USE`.
 
 ## Remerciement et suivi
 
@@ -385,6 +408,7 @@ serveur plus récent ajoute prend vos mots génériques.
 - Le jeton OTP se trouve dans `otpToken` ; un changement de téléphone le
   réinitialise.
 - Le jeton Turnstile se trouve dans `turnstileToken`.
+- `bindCheckoutKey` est lié au formulaire de commande.
 - L'action redirige en cas de succès ; elle ne rend pas la page de remerciement.
 - La page de remerciement ne déclenche que le pixel et l'événement renvoyés par
   `orders.tracking`.

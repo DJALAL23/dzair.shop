@@ -96,6 +96,7 @@ the action runs, so use its names exactly.
 | `couponCode` | Up to 64 characters |
 | `otpToken` | Set after phone verification |
 | `turnstileToken` | Set by the bot-protection widget |
+| `checkoutKey` | Added by `bindCheckoutKey`; places the checkout's order once |
 | `customFieldResponses` | JSON array for merchant-defined fields |
 | `items` | JSON array for a basket order |
 | `productId`, `productName`, `pricePerUnit`, `quantity`, `variantId`, `offerId` | The single-product form; `pricePerUnit` is required by the shape check |
@@ -141,6 +142,27 @@ The action can refuse for a field, a business rule, or a coupon.
 
 Do not replace these with a generic “something went wrong”. A shopper who chose
 a sold-out size needs to know which choice to change.
+
+## One checkout, one order
+
+A shopper who double-clicks, refreshes the page their order was posted from, or
+retries after a dropped connection sends the same checkout again. Bind a key to
+the form once and the server places that checkout's order once:
+
+```ts
+import { bindCheckoutKey } from "@wocart/storefront";
+
+bindCheckoutKey(document.querySelector<HTMLFormElement>("form.order-form")!);
+```
+
+Every submission then carries `checkoutKey`. The same key again answers with
+the order already placed, exactly as the first time: no second order, no second
+stock deduction, no second notification. The key stays the same while the
+shopper changes nothing and is drawn anew once they change any field, so a
+different order is never answered with the first. It is drawn in the browser at
+the first submission, never rendered into the page, because a storefront page is
+cached for every shopper. For another phone the key fails with
+`CHECKOUT_KEY_IN_USE`.
 
 ## Thank-you and tracking
 
@@ -369,6 +391,7 @@ a newer server adds reads your general words.
 - OTP is rendered only when `config.otpEnabled` is true.
 - The OTP token is in `otpToken`; a changed phone resets it.
 - Turnstile's token is in `turnstileToken`.
+- `bindCheckoutKey` is bound to the checkout form.
 - The action redirects on success; it does not render the thank-you page.
 - The thank-you page fires only the pixel and event `orders.tracking` returns.
 - `eventID` is the order id.
