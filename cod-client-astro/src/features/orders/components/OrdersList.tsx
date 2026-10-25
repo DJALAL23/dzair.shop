@@ -2,7 +2,8 @@ import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Archive, PackageOpen, Send } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
-import { getOrderStageCounts, listDeliveryCompanies, listDrivers, listOrders, listWilayas, type OrderQuery } from "@/features/orders/api";
+import { getOrderStageCounts, listDeliveryCompanies, listDrivers, listOrders, type OrderQuery } from "@/features/orders/api";
+import { listWilayas } from "@/features/geography/api";
 import { BULK_HANDOFF_LIMIT, bulkSelection, handoffKinds, ORDER_QUEUES, viewCounts, viewQuery, type OrderView } from "@/features/orders/model";
 import type { DeliveryCompany, Driver, OrderListItem, Wilaya } from "@/features/orders/types";
 import {

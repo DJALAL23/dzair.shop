@@ -307,19 +307,7 @@ export interface ShippingRule {
   stopDeskEnabled: boolean;
 }
 
-export interface Wilaya {
-  id: number;
-  name: string;
-  nameAr: string;
-}
-
-export interface Commune {
-  id: string;
-  wilayaId: number;
-  name: string;
-  nameAr: string;
-  postalCode: string | null;
-}
+export type { Commune, Wilaya } from "@/features/geography/types";
 
 export const ABANDONED_STATUSES = [
   "pending",

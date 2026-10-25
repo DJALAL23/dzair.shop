@@ -1,5 +1,4 @@
 import { apiFetch } from "@/lib/api";
-import type { Commune, Wilaya } from "@/features/orders/types";
 import type {
   Customer,
   CustomerGroup,
@@ -125,10 +124,3 @@ export function unassignCustomerTag(tagId: string, customerId: string) {
   return apiFetch<DataEnvelope<null>>(`/api/customer-tags/${encodeURIComponent(tagId)}/assignments/${encodeURIComponent(customerId)}`, { method: "DELETE" });
 }
 
-export async function listWilayas() {
-  return (await apiFetch<ListEnvelope<Wilaya>>("/api/wilayas")).data;
-}
-
-export async function listCommunes(wilayaId: number) {
-  return (await apiFetch<ListEnvelope<Commune>>(`/api/wilayas/${wilayaId}/communes`)).data;
-}

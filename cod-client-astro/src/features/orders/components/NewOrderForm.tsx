@@ -9,11 +9,10 @@ import {
   createOrder,
   quoteDelivery,
   type DeliveryQuote,
-  listCommunes,
   listCustomers,
   listProducts,
-  listWilayas,
 } from "@/features/orders/api";
+import { listWilayas, listCommunes } from "@/features/geography/api";
 import type {
   Commune,
   Customer,

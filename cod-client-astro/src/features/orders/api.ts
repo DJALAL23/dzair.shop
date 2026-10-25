@@ -3,7 +3,6 @@ import type {
   AbandonedOrder,
   AbandonedStats,
   BulkHandoff,
-  Commune,
   Customer,
   DeliveryCompany,
   DeliveryType,
@@ -21,7 +20,6 @@ import type {
   ShipmentRemark,
   ShippingRule,
   StopDesk,
-  Wilaya,
   OrderRemoval,
 } from "./types";
 import type { MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
@@ -238,13 +236,6 @@ export async function listProducts() {
   return (await apiFetch<ListEnvelope<Product>>("/api/products?status=ACTIVE&limit=100&offset=0")).data;
 }
 
-export async function listWilayas() {
-  return (await apiFetch<ListEnvelope<Wilaya>>("/api/wilayas")).data;
-}
-
-export async function listCommunes(wilayaId: number) {
-  return (await apiFetch<ListEnvelope<Commune>>(`/api/wilayas/${wilayaId}/communes`)).data;
-}
 
 /** Why delivery is free on an order being entered. */
 export type FreeDelivery = { by: "threshold"; threshold: number } | { by: "offer"; offerId: string; offerName: string | null };

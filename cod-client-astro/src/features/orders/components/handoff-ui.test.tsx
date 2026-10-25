@@ -7,7 +7,6 @@ import type { Driver, OrderListItem } from "@/features/orders/types";
 const api = vi.hoisted(() => ({
   listOrders: vi.fn(),
   getOrderStageCounts: vi.fn(),
-  listWilayas: vi.fn(),
   listDeliveryCompanies: vi.fn(),
   listDrivers: vi.fn(),
   listStopDesks: vi.fn(),
@@ -17,6 +16,8 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/api", () => ({ apiFetch: vi.fn(), ApiError: class ApiError extends Error {} }));
 vi.mock("@/features/orders/api", () => api);
+const geography = vi.hoisted(() => ({ listWilayas: vi.fn(), listCommunes: vi.fn() }));
+vi.mock("@/features/geography/api", () => geography);
 vi.mock("@/features/auth/components/RequireAuth", () => ({
   useIdentity: () => ({ role: "admin", scopes: [] }),
   canScope: () => true,
@@ -39,7 +40,7 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   for (const fn of Object.values(api)) fn.mockReset();
-  api.listWilayas.mockResolvedValue([]);
+  geography.listWilayas.mockResolvedValue([]);
   api.listDeliveryCompanies.mockResolvedValue([]);
   api.listDrivers.mockResolvedValue([driver]);
   api.getOrderStageCounts.mockResolvedValue({ stages: [], needsAttention: 0, archived: 0 });

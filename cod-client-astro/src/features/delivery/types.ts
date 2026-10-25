@@ -93,11 +93,7 @@ export interface DriverPayment {
   createdAt: string;
 }
 
-export interface Wilaya {
-  id: number;
-  name: string;
-  nameAr: string;
-}
+export type { Wilaya } from "@/features/geography/types";
 
 export interface DriverFormValues {
   firstName: string;

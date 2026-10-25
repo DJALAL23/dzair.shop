@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
-import { listCommunes, listWilayas, updateOrder } from "@/features/orders/api";
+import { updateOrder } from "@/features/orders/api";
+import { listWilayas, listCommunes } from "@/features/geography/api";
 import type { Commune, OrderDetail, Wilaya } from "@/features/orders/types";
 import { Button, Dialog, Field, Input, Select, Textarea } from "@/components/ui";
 

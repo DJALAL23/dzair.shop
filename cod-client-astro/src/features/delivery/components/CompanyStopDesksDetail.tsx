@@ -17,9 +17,9 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
   fetchCompanyStopDesks,
   listAllDeliveryCompanies,
-  listWilayas,
   toggleCompanyStopDesk,
 } from "@/features/delivery/api";
+import { listWilayas } from "@/features/geography/api";
 import type { DeliveryCompany, StopDesk, Wilaya } from "@/features/delivery/types";
 import { getProviderConfig } from "@/features/delivery/types";
 import {

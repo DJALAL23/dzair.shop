@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import type { InboxResult } from "../../../../cod-shared/inbound/results";
-import type { Driver, DriverCompensation, DriverPayment, PendingSettlement, DriverPaymentType, DriverStatus, VehicleType, Wilaya, DeliveryCompany, StopDesk, ShippingProfile, ShippingProfileWithRules, CommuneOverride } from "./types";
+import type { Driver, DriverCompensation, DriverPayment, PendingSettlement, DriverPaymentType, DriverStatus, VehicleType, DeliveryCompany, StopDesk, ShippingProfile, ShippingProfileWithRules, CommuneOverride } from "./types";
 
 interface ListEnvelope<T> {
   success: boolean;
@@ -96,9 +96,6 @@ export async function listPendingSettlements(driverId: string) {
   return (await apiFetch<ListEnvelope<PendingSettlement>>(`/api/driver-payments/${encodeURIComponent(driverId)}/pending`)).data;
 }
 
-export async function listWilayas() {
-  return (await apiFetch<ListEnvelope<Wilaya>>("/api/wilayas")).data;
-}
 
 // ─── Delivery Company API ─────────────────────────────────────────────────────
 

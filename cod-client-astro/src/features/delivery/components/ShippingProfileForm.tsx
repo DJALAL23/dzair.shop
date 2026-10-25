@@ -9,10 +9,10 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
   createShippingProfile,
   getShippingProfile,
-  listWilayas,
   setShippingRules,
   updateShippingProfile,
 } from "@/features/delivery/api";
+import { listWilayas } from "@/features/geography/api";
 import {
   buildRateMap,
   defaultRateEntry,

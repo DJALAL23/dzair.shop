@@ -10,8 +10,8 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
   getDriver,
   listDriverCompensations,
-  listWilayas,
 } from "@/features/delivery/api";
+import { listWilayas } from "@/features/geography/api";
 import {
   driverErrorMessage,
   driverFullName,
