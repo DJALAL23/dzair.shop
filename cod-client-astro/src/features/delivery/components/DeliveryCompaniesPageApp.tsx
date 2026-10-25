@@ -11,7 +11,7 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { listAllDeliveryCompanies } from "@/features/delivery/api";
 import type { DeliveryCompany, ProviderConfig } from "@/features/delivery/types";
 import { PROVIDER_CONFIGS } from "@/features/delivery/types";
-import { isCompanyConnected, webhookSetup } from "@/features/delivery/model";
+import { isCompanyConnected, webhookNeedsAction, webhookSetup } from "@/features/delivery/model";
 import { Alert, Badge, Card, EmptyState, ListToolbar, PageHeader, SearchInput, TableSkeleton, Tabs } from "@/components/ui";
 
 type TabKey = "connected" | "available";
@@ -156,6 +156,7 @@ function DeliveryCompaniesList() {
                       <span className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium text-foreground">{provider.name}</span>
                         <Badge tone="success" dot>{t("connected")}</Badge>
+                        {webhookNeedsAction(provider, companyOf(provider)) && <Badge tone="warning">{t("webhook_needs_setup")}</Badge>}
                       </span>
                       <Capabilities provider={provider} webhookReady={webhook.kind !== "none" && webhook.ready} />
                     </span>

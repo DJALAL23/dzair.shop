@@ -10,6 +10,7 @@ import {
   statusMapDraft,
   statusMapFrom,
   webhookSetup,
+  webhookNeedsAction,
   driverErrorMessage,
   driverFullName,
   isSettled,
@@ -205,6 +206,15 @@ describe("a company's webhook setup", () => {
     expect(webhookSetup({ provider: "yalidine", updates: "webhook" }, { ...company, webhookSecretSet: true })).toEqual({ kind: "secret", ready: true });
     expect(webhookSetup({ provider: "yalidine", updates: "pull" }, company)).toEqual({ kind: "none" });
     expect(webhookSetup({ provider: "ecotrack", updates: "pull" }, company)).toEqual({ kind: "none" });
+  });
+
+  it("needs the merchant's action while a pushing carrier's webhook is not set up — never for one that is checked", () => {
+    const company = { webhookEndpointId: null, webhookSecretSet: false };
+    expect(webhookNeedsAction({ provider: "yalidine", updates: "webhook" }, company)).toBe(true);
+    expect(webhookNeedsAction({ provider: "yalidine", updates: "webhook" }, { ...company, webhookSecretSet: true })).toBe(false);
+    expect(webhookNeedsAction({ provider: "zr_express", updates: "webhook" }, company)).toBe(true);
+    expect(webhookNeedsAction({ provider: "zr_express", updates: "webhook" }, { ...company, webhookEndpointId: "ep" })).toBe(false);
+    expect(webhookNeedsAction({ provider: "ecotrack", updates: "pull" }, company)).toBe(false);
   });
 });
 

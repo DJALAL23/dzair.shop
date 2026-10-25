@@ -305,6 +305,19 @@ export function webhookSetup(
   return { kind: "secret", ready: Boolean(company?.webhookSecretSet) };
 }
 
+/**
+ * A connected company whose carrier pushes updates but whose webhook is not
+ * set up yet: its updates arrive unverified now, and a coming platform
+ * version refuses unsigned ones.
+ */
+export function webhookNeedsAction(
+  config: Pick<ProviderConfig, "provider" | "updates">,
+  company: Pick<DeliveryCompany, "webhookEndpointId" | "webhookSecretSet"> | null,
+): boolean {
+  const webhook = webhookSetup(config, company);
+  return webhook.kind !== "none" && !webhook.ready;
+}
+
 /** A carrier host the merchant typed: an http(s) address without trailing slashes, or null. */
 export function carrierHostFrom(value: string): string | null {
   const text = value.trim().replace(/\/+$/, "");
