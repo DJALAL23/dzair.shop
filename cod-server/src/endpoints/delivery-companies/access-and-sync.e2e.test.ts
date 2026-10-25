@@ -7,6 +7,7 @@
  * nothing about the scopes themselves.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -34,7 +35,7 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: harness.raw } as never;
-    c.set("user", {
+    signIn(c, {
       id: "staff_1",
       email: "staff@example.com",
       name: "Staff",

@@ -9,7 +9,7 @@
 import type { OrderStatus } from "../orders/lifecycle";
 import type { Milestone } from "../shipments/interpretation";
 import type { Actor, Origin } from "./actor";
-import type { OrderSnapshot, ShipmentSnapshot } from "./snapshots";
+import type { OrderSnapshot, ShipmentSnapshot, SqlJson } from "./snapshots";
 
 export type EventSubject = "order" | "shipment";
 
@@ -100,6 +100,9 @@ export interface EventDataMap {
 
 export type EventData<T extends EventType> = EventDataMap[T];
 
+/** An event's data as a writer gives it: each part a value, or a snapshot D1 builds as the event is written. */
+export type DraftData<T extends EventType> = { [K in keyof EventData<T>]: EventData<T>[K] | SqlJson<EventData<T>[K]> };
+
 /** A Business Event as a writer hands it over, before the Event Log numbers it. */
 export type BusinessEventDraft = {
   [T in EventType]: {
@@ -111,6 +114,6 @@ export type BusinessEventDraft = {
     occurredAt: string;
     actor: Actor;
     origin: Origin;
-    data: EventData<T>;
+    data: DraftData<T>;
   };
 }[EventType];

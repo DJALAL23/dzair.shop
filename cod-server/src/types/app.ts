@@ -1,6 +1,7 @@
 import type { InferSelectModel } from "drizzle-orm";
 import type { users } from "@/db/schema";
 import type { Env } from "./env";
+import type { Author } from "../../../cod-shared/events/actor";
 
 /**
  * Authenticated user — schema row + resolved scopes.
@@ -15,6 +16,8 @@ export type Actor = Pick<AuthUser, "id" | "name" | "role" | "scopes">;
 export interface AppVariables {
   /** Set by authMiddleware on /api/* routes */
   user: AuthUser;
+  /** Set by authMiddleware on /api/* routes: the staff member, from the dashboard (a session) or the API (their key). */
+  author: Author;
   /** Set by storeAuthMiddleware on /store/* routes */
   storeId?: string;
 }

@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -53,7 +54,7 @@ function mountWith(scopes: string[]) {
   const instance = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   instance.use("*", async (c, next) => {
     c.env = { DB: harness.raw } as never;
-    c.set("user", staff(scopes));
+    signIn(c, staff(scopes));
     await next();
   });
   instance.onError(errorHandler);

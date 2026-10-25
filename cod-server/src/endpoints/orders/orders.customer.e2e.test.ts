@@ -7,6 +7,7 @@
  * a new customer for a new phone; and the AI tool links it the same way.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -30,7 +31,7 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: d1.raw } as never;
-    c.set("user", { id: "u1", email: "s@example.com", name: "Staff", role: "admin", status: "active", apiKey: "k", scopes: [] } as never);
+    signIn(c, { id: "u1", email: "s@example.com", name: "Staff", role: "admin", status: "active", apiKey: "k", scopes: [] } as never);
     await next();
   });
   app.onError(errorHandler);

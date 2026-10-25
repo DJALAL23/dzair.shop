@@ -13,6 +13,7 @@
  *     the tests seed it directly.)
  */
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { signIn } from "@/test-utils/sign-in";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "@/db/schema";
@@ -120,7 +121,7 @@ describe("store languages through the real routes", () => {
     app.use("*", async (c, next) => {
       c.env = { DB: harness.raw } as AppContext["Bindings"];
       c.set("storeId", STORE_ID);
-      c.set("user", { id: "admin", role: "admin", status: "active" } as never);
+      signIn(c, { id: "admin", role: "admin", status: "active" } as never);
       await next();
     });
     app.onError(errorHandler);

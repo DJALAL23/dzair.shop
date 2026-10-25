@@ -6,6 +6,7 @@
  * drift too). And no answer, nor the document, carries a credential.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -48,7 +49,7 @@ beforeAll(async () => {
   registerSpecEndpoint(app);
   app.use("/api/*", async (c, next) => {
     c.env = { DB: d1.raw, CAPI_WORKFLOW: { create: async () => ({}) } } as never;
-    c.set("user", { id: "staff_1", email: "s@example.com", name: "Staff", role: "admin", status: "active", apiKey: "k", scopes: ["*"] } as never);
+    signIn(c, { id: "staff_1", email: "s@example.com", name: "Staff", role: "admin", status: "active", apiKey: "k", scopes: ["*"] } as never);
     await next();
   });
   app.onError(errorHandler);

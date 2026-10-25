@@ -15,7 +15,7 @@ import {
   ORDER_STATUSES,
 } from "./validation";
 import type { AppDb } from "@/db";
-import { actorOf, type McpProps } from "@/mcp/props";
+import { agentAuthorOf, type McpProps } from "@/mcp/props";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 
 /**
@@ -373,7 +373,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           createdAt: now,
         }));
 
-        const { orderNumber } = await queries.createOrder(db, orderData, productsData, actorOf(props));
+        const { orderNumber } = await queries.createOrder(db, orderData, productsData, agentAuthorOf(props));
 
         return {
           success: true,
@@ -439,8 +439,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           };
         }
 
-        const actor = actorOf(props);
-        const change = await queries.updateOrderStatus(db, parsed.data.orderId, parsed.data.status, actor.id, actor.name);
+        const change = await queries.updateOrderStatus(db, parsed.data.orderId, parsed.data.status, agentAuthorOf(props));
         if (!change.ok) {
           return { success: false, error: refusalFor(change, parsed.data.orderId, "its status no longer changes").message };
         }
@@ -489,14 +488,12 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
         }
 
-        const actor = actorOf(props);
         const result = await queries.setOrderProductReturn(
           db,
           parsed.data.orderId,
           parsed.data.productLineId,
           parsed.data.returnedQuantity,
-          actor.id,
-          actor.name,
+          agentAuthorOf(props),
         );
         if (!result.ok) {
           return { success: false, error: lineReturnRefusal(result, parsed.data.orderId, parsed.data.productLineId).message };
@@ -531,7 +528,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
         const order = await queries.getOrderById(db, parsed.data.orderId);
         if (!order) return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
 
-        const deletion = await queries.deleteOrder(db, parsed.data.orderId);
+        const deletion = await queries.deleteOrder(db, parsed.data.orderId, agentAuthorOf(props));
         if (!deletion.ok) {
           return { success: false, error: refusalFor(deletion, parsed.data.orderId, "it cannot be deleted; archive it once its delivery has ended").message };
         }

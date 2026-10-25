@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -54,7 +55,7 @@ describe("Product Groups routes (OpenAPIHono)", () => {
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
       c.env = { DB: mockDb } as any;
-      c.set("user", mockUser as any);
+      signIn(c, mockUser as any);
       await next();
     });
     app.onError(errorHandler);

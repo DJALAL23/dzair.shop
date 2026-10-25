@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { Hono } from "hono";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -42,7 +43,7 @@ describe("Drivers Endpoint - Error Scenarios", () => {
     // Add middleware to inject mock env and user
     app.use("*", async (c, next) => {
       c.env = { DB: mockDb } as any;
-      c.set("user", {
+      signIn(c, {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",

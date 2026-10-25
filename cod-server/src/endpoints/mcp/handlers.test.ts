@@ -13,6 +13,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { Hono } from "hono";
 import type { GrantSummary } from "@cloudflare/workers-oauth-provider";
 
@@ -111,7 +112,7 @@ function appWithUser(env: Env, user: { id: string; name: string; email: string; 
   const hono = new Hono<AppContext>();
   hono.onError(errorHandler);
   hono.use("*", async (c, next) => {
-    c.set("user", { ...user, scopes: ["mcp:view"] } as never);
+    signIn(c, { ...user, scopes: ["mcp:view"] } as never);
     await next();
   });
   hono.get("/me", listMyConnections);

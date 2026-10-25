@@ -60,7 +60,7 @@ export async function updateStatus(c: Context<AppContext>) {
   // Get user from context (set by auth middleware)
   const user = c.get("user");
 
-  const change = await queries.updateOrderStatus(db, orderId, validated.status, user?.id, user?.name ?? undefined);
+  const change = await queries.updateOrderStatus(db, orderId, validated.status, c.get("author"));
   if (!change.ok) throw refusalFor(change, orderId, "its status no longer changes");
 
   // Never blocks the response; the runtime keeps the start alive with waitUntil.

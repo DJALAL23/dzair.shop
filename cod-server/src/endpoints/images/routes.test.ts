@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import type { AppContext } from "@/types";
@@ -48,7 +49,7 @@ describe("Images routes", () => {
     };
     app.use("*", async (c, next) => {
       c.env = testEnv as any;
-      c.set("user", {
+      signIn(c, {
         id: "admin_user_001",
         email: "admin@example.com",
         name: "Admin User",

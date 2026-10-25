@@ -136,8 +136,7 @@ export async function createOrder(c: Context<AppContext>) {
     }));
 
     const actor = c.get("user");
-    // Create order — passes actor so stock movements are attributed correctly
-    const { orderNumber } = await queries.createOrder(db, orderData, productsData, actor ? { id: actor.id, name: actor.name ?? "Unknown" } : null);
+    const { orderNumber } = await queries.createOrder(db, orderData, productsData, c.get("author"));
     await logActivity(db, actor, ACTIONS.ORDER_CREATED, {
       type: "order", id: orderId, label: orderNumber,
     });
@@ -232,7 +231,7 @@ export async function updateOrder(c: Context<AppContext>) {
     address: validated.address,
     deliveryType: validated.deliveryType,
     notes: validated.notes,
-  });
+  }, c.get("author"));
   if (!edit.ok) throw refusalFor(edit, orderId, "its address, phone, wilaya, commune and delivery type are the parcel's");
 
   const actor = c.get("user");
@@ -288,7 +287,7 @@ export async function returnOrderProduct(c: Context<AppContext>) {
 
   const user = c.get("user");
 
-  const outcome = await queries.setOrderProductReturn(db, orderId, productLineId, validated.returnedQuantity, user?.id, user?.name ?? undefined);
+  const outcome = await queries.setOrderProductReturn(db, orderId, productLineId, validated.returnedQuantity, c.get("author"));
   if (!outcome.ok) throw lineReturnRefusal(outcome, orderId, productLineId);
   const { ok: _, ...result } = outcome;
 
@@ -312,7 +311,7 @@ export async function deleteOrder(c: Context<AppContext>) {
   const order = await queries.getOrderById(db, orderId);
   if (!order) throw new NotFoundError("Order", orderId);
 
-  const deletion = await queries.deleteOrder(db, orderId);
+  const deletion = await queries.deleteOrder(db, orderId, c.get("author"));
   if (!deletion.ok) throw refusalFor(deletion, orderId, "it cannot be deleted; archive it once its delivery has ended");
 
   await logActivity(db, c.get("user"), ACTIONS.ORDER_DELETED, { type: "order", id: orderId, label: order.orderNumber });

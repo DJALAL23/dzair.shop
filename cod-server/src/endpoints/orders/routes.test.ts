@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -122,6 +123,9 @@ function orderRow(overrides: Record<string, any> = {}) {
   };
 }
 
+/** The Author authMiddleware gives the signed-in admin below. */
+const ADMIN_AUTHOR = { actor: { kind: "staff", id: "admin_user_001", name: "Admin User" }, origin: "dashboard" };
+
 describe("Orders routes (OpenAPIHono)", () => {
   let app: OpenAPIHono<AppContext>;
 
@@ -132,7 +136,7 @@ describe("Orders routes (OpenAPIHono)", () => {
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
       c.env = { DB: mockDb } as any;
-      c.set("user", {
+      signIn(c, {
         id: "admin_user_001",
         email: "admin@example.com",
         name: "Admin User",
@@ -347,7 +351,7 @@ describe("Orders routes (OpenAPIHono)", () => {
       const res = await app.request("/api/orders/ord_1", { method: "DELETE" });
 
       expect(res.status).toBe(200);
-      expect(queries.deleteOrder).toHaveBeenCalledWith(mockDb, "ord_1");
+      expect(queries.deleteOrder).toHaveBeenCalledWith(mockDb, "ord_1", ADMIN_AUTHOR);
     });
 
     it("returns 404 when deleting a missing order", async () => {
@@ -382,7 +386,8 @@ describe("Orders routes (OpenAPIHono)", () => {
       expect(queries.updateOrder).toHaveBeenCalledWith(
         mockDb,
         "ord_1",
-        expect.objectContaining({ customerName: "Ahmed Benali", phone: "0661234567" })
+        expect.objectContaining({ customerName: "Ahmed Benali", phone: "0661234567" }),
+        ADMIN_AUTHOR,
       );
     });
 
@@ -471,7 +476,8 @@ describe("Orders routes (OpenAPIHono)", () => {
       expect(queries.updateOrder).toHaveBeenCalledWith(
         mockDb,
         "ord_1",
-        expect.objectContaining({ notes: "Call before delivery" })
+        expect.objectContaining({ notes: "Call before delivery" }),
+        ADMIN_AUTHOR,
       );
     });
 
@@ -576,7 +582,7 @@ describe("Orders routes (OpenAPIHono)", () => {
 
       expect(res.status).toBe(200);
       expect(queries.updateOrderStatus).toHaveBeenCalledWith(
-        mockDb, "ord_1", "preparing", "admin_user_001", "Admin User"
+        mockDb, "ord_1", "preparing", ADMIN_AUTHOR
       );
     });
 

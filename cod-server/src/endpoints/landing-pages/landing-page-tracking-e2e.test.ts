@@ -10,6 +10,7 @@
  * test here does; the RBAC middleware itself is covered by the route tests.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -29,7 +30,7 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: harness.raw } as never;
-    c.set("user", {
+    signIn(c, {
       id: "admin_user_001",
       email: "admin@example.com",
       name: "Admin User",

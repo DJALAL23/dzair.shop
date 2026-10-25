@@ -10,6 +10,7 @@ import type { AppDb } from "../db/client";
 import { insertSelectRow } from "../db/insert-select";
 import { businessEvents } from "../db/schema";
 import { EVENT_CATALOGUE, type BusinessEventDraft } from "./catalogue";
+import { SqlJson } from "./snapshots";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 
@@ -35,10 +36,16 @@ export function recordEvent(db: AppDb, event: BusinessEventDraft, when?: SQL): B
           origin: sql`${event.origin}`,
           occurredAt: sql`${event.occurredAt}`,
           recordedAt: sql`${new Date().toISOString()}`,
-          data: sql`${JSON.stringify(event.data)}`,
+          data: dataSql(event.data),
         }) as never,
       )
       .from(sql`(select 1)`)
       .where(when ?? sql`1`),
   );
+}
+
+/** The data as one JSON value: plain parts as written, snapshots as D1 builds them. */
+function dataSql(data: BusinessEventDraft["data"]): SQL {
+  const fields = Object.entries(data).map(([key, part]) => sql`${key}, json(${part instanceof SqlJson ? part.sql : JSON.stringify(part)})`);
+  return sql`json_object(${sql.join(fields, sql`, `)})`;
 }

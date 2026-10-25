@@ -7,6 +7,7 @@
  * auth'd context. No mocked queries.
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -64,7 +65,7 @@ beforeAll(async () => {
   // never invokes them for the router's matched handlers.
   app.use("*", async (c, next) => {
     c.env = { DB: d1 } as any;
-    c.set("user", {
+    signIn(c, {
       id: "user-1", email: "test@example.com", name: "Test User",
       role: "user", status: "active", apiKey: "cod_key_test",
       scopes: currentScopes,

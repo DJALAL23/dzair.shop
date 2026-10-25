@@ -5,6 +5,7 @@
  * processed again by hand; a sync records only what is new.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -35,7 +36,7 @@ beforeAll(async () => {
   d1 = await createTestD1();
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.set("user", { id: "staff_1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes } as never);
+    signIn(c, { id: "staff_1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes } as never);
     await next();
   });
   app.onError(errorHandler);

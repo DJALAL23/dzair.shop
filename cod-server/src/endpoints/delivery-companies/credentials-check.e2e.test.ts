@@ -8,6 +8,7 @@
  * EcoTrack company is born with manual validation.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -34,7 +35,7 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: harness.raw } as never;
-    c.set("user", { id: "staff_1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes: Object.values(SCOPES) } as never);
+    signIn(c, { id: "staff_1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes: Object.values(SCOPES) } as never);
     await next();
   });
   app.onError(errorHandler);

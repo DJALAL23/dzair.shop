@@ -56,6 +56,9 @@ import {
   offerPriceTiers,
 } from "../db/schema";
 import type { AppDb } from "../db/client";
+import type { Author } from "../events/actor";
+import { recordEvent } from "../events/record";
+import { orderSnapshot } from "../events/snapshots";
 import { deriveDescriptionPlain } from "./products";
 import { resolveDeliveryFee } from "./shipping-resolution";
 import { normalizeOrderLines } from "./cart";
@@ -892,6 +895,9 @@ function buildDeductStatements(
   ];
 }
 
+/** Every storefront order is a shopper's, through the storefront. */
+const CHECKOUT: Author = { actor: { kind: "shopper", id: null, name: null }, origin: "storefront" };
+
 export async function createStoreOrder(
   db: AppDb,
   data: StoreOrderData & {
@@ -1077,6 +1083,8 @@ export async function createStoreOrder(
     for (const input of deductions) {
       statements.push(...buildDeductStatements(db, input));
     }
+
+    statements.push(recordEvent(db, { type: "order.created", subjectId: id, orderId: id, occurredAt: now, ...CHECKOUT, data: { order: orderSnapshot(id) } }));
 
     try {
       await db.batch(statements as [BatchStatement, ...BatchStatement[]]);

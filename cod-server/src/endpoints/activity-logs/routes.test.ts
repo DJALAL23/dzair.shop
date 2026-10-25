@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -31,7 +32,7 @@ function makeApp(user: any) {
   const app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: mockDb } as any;
-    if (user) c.set("user", user);
+    if (user) signIn(c, user);
     await next();
   });
   app.onError(errorHandler);

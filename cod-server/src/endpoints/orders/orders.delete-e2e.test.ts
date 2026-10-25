@@ -8,6 +8,7 @@
  * (webhook_events.shipment_id is SET NULL), as the carrier's record.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { SYSTEM, staff } from "@/test-utils/events";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -112,7 +113,7 @@ describe("deleteOrder — real D1 (E2E)", () => {
   it("keeps a delivered order whole — its shipment, events, logs and inbox rows; it is archived instead", async () => {
     await seedOrder("ord-e2e-del-1", true);
 
-    expect(await deleteOrder(db, "ord-e2e-del-1")).toEqual({ ok: false, reason: "has_shipment" });
+    expect(await deleteOrder(db, "ord-e2e-del-1", SYSTEM)).toEqual({ ok: false, reason: "has_shipment" });
 
     expect(await db.select().from(schema.orders).where(eq(schema.orders.id, "ord-e2e-del-1")).get()).toBeDefined();
     expect(await db.select().from(schema.orderProducts).where(eq(schema.orderProducts.orderId, "ord-e2e-del-1")).all()).toHaveLength(1);
@@ -132,7 +133,7 @@ describe("deleteOrder — real D1 (E2E)", () => {
     });
     await db.insert(schema.capiEventLog).values({ id: "capi-3", orderId: "ord-e2e-del-3", eventName: "Lead", stage: "placed", status: "sent", sentAt: now });
 
-    expect(await deleteOrder(db, "ord-e2e-del-3")).toEqual({ ok: true });
+    expect(await deleteOrder(db, "ord-e2e-del-3", SYSTEM)).toEqual({ ok: true });
 
     expect(await db.select().from(schema.companyApiLogs).where(eq(schema.companyApiLogs.orderId, "ord-e2e-del-3")).all()).toHaveLength(0);
     expect(await db.select().from(schema.capiEventLog).where(eq(schema.capiEventLog.orderId, "ord-e2e-del-3")).all()).toHaveLength(0);
@@ -142,7 +143,7 @@ describe("deleteOrder — real D1 (E2E)", () => {
   it("deletes an order with no carrier activity", async () => {
     await seedOrder("ord-e2e-del-2", false);
 
-    await deleteOrder(db, "ord-e2e-del-2");
+    await deleteOrder(db, "ord-e2e-del-2", SYSTEM);
 
     expect(await db.select().from(schema.orders).where(eq(schema.orders.id, "ord-e2e-del-2")).get()).toBeUndefined();
   });

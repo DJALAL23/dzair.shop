@@ -1,9 +1,17 @@
 /**
- * A Business Event's order and shipment as a writer would snapshot them —
- * complete, valid against the catalogue, for tests that need event data.
+ * Business Events in tests: an order and a shipment as a writer snapshots
+ * them, the Authors tests act as, and a reader that holds every logged event
+ * to its catalogue schema.
  */
-import { money } from "../../../cod-shared/events/money";
-import type { OrderSnapshot, ShipmentSnapshot } from "../../../cod-shared/events/snapshots";
+import { asc, eq } from "drizzle-orm";
+import * as schema from "@/db/schema";
+import type { AppDb } from "@/db";
+import { EVENT_DATA_SCHEMAS } from "@/events/catalogue";
+import type { Author } from "../../../cod-shared/events/actor";
+import { EVENT_CATALOGUE, type EventDataMap, type EventType } from "../../../cod-shared/events/catalogue";
+import type { Money, OrderSnapshot, ShipmentSnapshot } from "../../../cod-shared/events/snapshots";
+
+const money = (dinars: number): Money => ({ amount: dinars.toFixed(2), currency: "DZD" });
 
 export const sampleOrder: OrderSnapshot = {
   id: "0b7e4c1a-2f7d-4a52-9d1e-1f3c5a9b7e21",
@@ -80,3 +88,29 @@ export const sampleShipment: ShipmentSnapshot = {
   deliveryAttempts: 0,
 };
 
+
+/** The system, on a schedule — the Author tests use when who acted does not matter. */
+export const SYSTEM: Author = { actor: { kind: "system", id: null, name: null }, origin: "schedule" };
+
+/** A staff member at the dashboard. */
+export function staff(id = "u-test", name = "Test staff"): Author {
+  return { actor: { kind: "staff", id, name }, origin: "dashboard" };
+}
+
+type EventRow = typeof schema.businessEvents.$inferSelect;
+export type LoggedEvent = { [T in EventType]: Omit<EventRow, "type" | "data"> & { type: T; data: EventDataMap[T] } }[EventType];
+
+/**
+ * An order's Business Events in Sequence order, each held to its type's
+ * catalogue schema on the way out: a test that reads an event this way also
+ * proves the writer kept the contract.
+ */
+export async function eventsOf(db: AppDb, orderId: string): Promise<LoggedEvent[]> {
+  const rows = await db.select().from(schema.businessEvents).where(eq(schema.businessEvents.orderId, orderId)).orderBy(asc(schema.businessEvents.seq)).all();
+  return rows.map((row) => {
+    if (row.version !== EVENT_CATALOGUE[row.type].version) throw new Error(`${row.type} #${row.seq} is version ${row.version}, the catalogue's is ${EVENT_CATALOGUE[row.type].version}`);
+    const parsed = EVENT_DATA_SCHEMAS[row.type].safeParse(JSON.parse(row.data));
+    if (!parsed.success) throw new Error(`${row.type} #${row.seq} breaks its schema: ${parsed.error.message}`);
+    return { ...row, data: parsed.data } as LoggedEvent;
+  });
+}

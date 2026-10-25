@@ -9,6 +9,7 @@
  *   P3  dashboard createOrder oversell floor + concurrent double-sell race
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { SYSTEM, staff } from "@/test-utils/events";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -98,7 +99,7 @@ describe("P3: dashboard createOrder — oversell guard & race", () => {
     const res = await createOrder(db, orderInsert(oid, productId, 0, 10000, { customerId }), [{
       id: `op-${seq}`, orderId: oid, productId, productName: "MI",
       quantity: 5, pricePerUnit: 2000, lineTotal: 10000, createdAt: NOW(),
-    }]).then(() => "ok", (e: Error) => e);
+    }], SYSTEM).then(() => "ok", (e: Error) => e);
 
     expect(res).toBeInstanceOf(Error);
     // Nothing was written: no order, no lines, stats untouched, stock intact
@@ -122,10 +123,10 @@ describe("P3: dashboard createOrder — oversell guard & race", () => {
     const results = await Promise.allSettled([
       createOrder(db, { ...orderInsert(o1, productId, 0, 10000, { customerId: c1 }), orderNumber: `ORD-MI-${seq}-1` }, [{
         id: `op-${seq}a`, orderId: o1, productId, productName: "MI", quantity: 1, pricePerUnit: 10000, lineTotal: 10000, createdAt: now,
-      }]),
+      }], SYSTEM),
       createOrder(db, { ...orderInsert(o2, productId, 0, 10000, { customerId: c2 }), orderNumber: `ORD-MI-${seq}-2` }, [{
         id: `op-${seq}b`, orderId: o2, productId, productName: "MI", quantity: 1, pricePerUnit: 10000, lineTotal: 10000, createdAt: now,
-      }]),
+      }], SYSTEM),
     ]);
 
     const fulfilled = results.filter((r) => r.status === "fulfilled").length;

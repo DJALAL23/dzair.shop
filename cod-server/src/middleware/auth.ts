@@ -64,5 +64,6 @@ export async function authMiddleware(c: Context<AppContext>, next: Next) {
     : (await db.select({ scope: userScopes.scope }).from(userScopes).where(eq(userScopes.userId, user.id))).map((r) => r.scope);
 
   c.set("user", { ...user, scopes });
+  c.set("author", { actor: { kind: "staff", id: user.id, name: user.name }, origin: bearerMatch ? "dashboard" : "api" });
   await next();
 }

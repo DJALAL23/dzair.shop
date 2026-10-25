@@ -15,6 +15,7 @@
  * write — proving atomicity with real SQL rather than mocks.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { SYSTEM, staff } from "@/test-utils/events";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -117,8 +118,7 @@ async function seedOrder(opts: SeedOrderOpts = {}) {
     [{
       id: `op-lc-${seq}`, orderId: id, productId, productName: "LC Product",
       quantity: qty, pricePerUnit: price / qty, lineTotal: price, createdAt: now,
-    }],
-    { id: "user_1", name: "Admin" },
+    }], staff("user_1", "Admin")
   );
 
   return { orderId: id, customerId, productId, lineId: `op-lc-${seq}` };
@@ -181,7 +181,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
   it("T2: manual cancel restocks, rolls back totalSpent, marks lines returned", async () => {
     const { orderId, productId, customerId, lineId } = await seedOrder();
 
-    await updateOrderStatus(db, orderId, "cancelled");
+    await updateOrderStatus(db, orderId, "cancelled", SYSTEM);
 
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY); // I1
     expect(await customerOf(customerId)).toMatchObject({ totalSpent: 0 }); // I3
@@ -193,8 +193,8 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
   it("T3: double manual cancel — wasAlreadyTerminal guard prevents double restock", async () => {
     const { orderId, productId } = await seedOrder();
 
-    await updateOrderStatus(db, orderId, "cancelled");
-    await updateOrderStatus(db, orderId, "cancelled");
+    await updateOrderStatus(db, orderId, "cancelled", SYSTEM);
+    await updateOrderStatus(db, orderId, "cancelled", SYSTEM);
 
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY); // I1
     expect((await movementsFor(productId)).map((m) => m.delta)).toEqual([-2, 2]);
@@ -203,10 +203,10 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
   it("T5: units refused before delivery move nothing; the cancel restocks exactly the sold quantity", async () => {
     const { orderId, productId, lineId } = await seedOrder({ qty: 4, price: 4000 });
 
-    expect(await setOrderProductReturn(db, orderId, lineId, 1)).toEqual({ ok: false, reason: "not_delivered" });
+    expect(await setOrderProductReturn(db, orderId, lineId, 1, SYSTEM)).toEqual({ ok: false, reason: "not_delivered" });
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY - 4);
 
-    await updateOrderStatus(db, orderId, "cancelled");
+    await updateOrderStatus(db, orderId, "cancelled", SYSTEM);
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY); // I1
     expect(await lineOf(lineId)).toMatchObject({ status: "returned", returnedQuantity: 4 });
     expect((await movementsFor(productId)).map((m) => m.delta)).toEqual([-4, 4]); // I6
@@ -216,10 +216,10 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     const { orderId, productId, lineId } = await seedOrder({ qty: 4, price: 4000 });
     await delivered(orderId);
 
-    await setOrderProductReturn(db, orderId, lineId, 2);
+    await setOrderProductReturn(db, orderId, lineId, 2, SYSTEM);
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY - 2);
 
-    await setOrderProductReturn(db, orderId, lineId, 1);
+    await setOrderProductReturn(db, orderId, lineId, 1, SYSTEM);
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY - 3); // I1
     expect(await lineOf(lineId)).toMatchObject({ status: "partially_returned", returnedQuantity: 1 });
     expect((await movementsFor(productId)).map((m) => m.delta)).toEqual([-4, 2, -1]); // I6
@@ -228,7 +228,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
   it("T9: deleteOrder on an active order — stats and stock fully rolled back", async () => {
     const { orderId, productId, customerId } = await seedOrder();
 
-    await deleteOrder(db, orderId);
+    await deleteOrder(db, orderId, SYSTEM);
 
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY); // I1
     expect(await customerOf(customerId)).toMatchObject({ totalOrders: 0, totalSpent: 0 }); // I2/I3
@@ -250,10 +250,10 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     }, [{
       id: `op-lc-${seq}`, orderId, productId, productName: "LC Product",
       quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: now,
-    }], { id: "u1", name: "A" });
+    }], staff("u1", "A"));
 
-    await updateOrderStatus(db, orderId, "cancelled"); // totalSpent 7000 → 5000
-    await deleteOrder(db, orderId);
+    await updateOrderStatus(db, orderId, "cancelled", SYSTEM); // totalSpent 7000 → 5000
+    await deleteOrder(db, orderId, SYSTEM);
 
     // I2/I3: the order is gone; its cancelled spend was already rolled back
     // at cancel time. Deleting must not subtract it a second time.
@@ -276,7 +276,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     }, [{
       id: `op-lc-${seq}`, orderId, productId, productName: "LC Product",
       quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: now,
-    }], { id: "u1", name: "A" })).rejects.toThrow();
+    }], staff("u1", "A"))).rejects.toThrow();
 
     // Nothing committed: no order, no lines, stats untouched, stock intact
     expect(await db.select().from(schema.orders).where(eq(schema.orders.id, orderId)).get()).toBeUndefined();
@@ -295,7 +295,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     );
 
     await expect(
-      updateOrderStatus(faulty, orderId, "cancelled"),
+      updateOrderStatus(faulty, orderId, "cancelled", SYSTEM),
     ).rejects.toThrow();
 
     // I5: if atomic, the status write rolled back too — retry is safe.
@@ -320,7 +320,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
       }, [{
         id: `op-lc-${seq}`, orderId, productId, productName: "LC Product",
         quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: now,
-      }], { id: "u1", name: "A" }),
+      }], staff("u1", "A")),
     ).rejects.toThrow();
 
     // I5: the orders row must not exist without its products/stats.

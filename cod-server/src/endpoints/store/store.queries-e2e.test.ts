@@ -13,6 +13,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { SYSTEM, staff } from "@/test-utils/events";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -333,10 +334,10 @@ describe("createOrder (dashboard) — a taken order number is drawn again", () =
       updatedAt: now,
     });
     const taken = `ORD-${now.split("T")[0].replace(/-/g, "")}-0077`;
-    await createOrder(db, row(crypto.randomUUID(), taken), []);
+    await createOrder(db, row(crypto.randomUUID(), taken), [], SYSTEM);
 
     const random = vi.spyOn(Math, "random").mockReturnValueOnce(0.5);
-    const second = await createOrder(db, row(crypto.randomUUID(), taken), []);
+    const second = await createOrder(db, row(crypto.randomUUID(), taken), [], SYSTEM);
 
     expect(random).toHaveBeenCalled();
     expect(second.orderNumber).not.toBe(taken);

@@ -17,6 +17,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { SYSTEM, staff } from "@/test-utils/events";
 import {
   makeMockDb,
   f,
@@ -61,8 +62,7 @@ describe("createOrder", () => {
       baseOrder,
       [{ id: "op_1", orderId: "ord_1", productId: "prod_1", productName: "Galaxy A54",
          variantId: null, variantLabel: null, sku: null, quantity: 2,
-         pricePerUnit: 4500, lineTotal: 9000, createdAt: NOW }],
-      { id: "user_1", name: "Admin" },
+         pricePerUnit: 4500, lineTotal: 9000, createdAt: NOW }], staff("user_1", "Admin")
     );
 
     expect(result).toEqual({ id: "ord_1", orderNumber: "ORD-20260101-0001" });
@@ -79,7 +79,7 @@ describe("createOrder", () => {
       { id: "op_1", orderId: "ord_1", productId: "prod_1", productName: "T-Shirt",
         variantId: null, variantLabel: null, sku: null, quantity: 3,
         pricePerUnit: 3000, lineTotal: 9000, createdAt: NOW },
-    ], null);
+    ], SYSTEM);
 
     // If inventory=10 and qty=3, qtyAfter should be 7.
     // The mock db doesn't capture the UPDATE value directly, but we can verify
@@ -101,7 +101,7 @@ describe("createOrder", () => {
         { id: "op_1", orderId: "ord_1", productId: "prod_1", productName: "T-Shirt",
           variantId: null, variantLabel: null, sku: null, quantity: 5,
           pricePerUnit: 3000, lineTotal: 15000, createdAt: NOW },
-      ], null)
+      ], SYSTEM)
     ).resolves.toMatchObject({ id: "ord_1" });
   });
 
@@ -116,7 +116,7 @@ describe("createOrder", () => {
         { id: "op_1", orderId: "ord_1", productId: "prod_1", productName: "T-Shirt",
           variantId: "var_1", variantLabel: "أحمر / L", sku: null, quantity: 2,
           pricePerUnit: 3000, lineTotal: 6000, createdAt: NOW },
-      ], null)
+      ], SYSTEM)
     ).resolves.toMatchObject({ id: "ord_1" });
     // inventory=8, qty=2 → qtyAfter=6, delta=-2
   });
@@ -132,7 +132,7 @@ describe("createOrder", () => {
         { id: "op_1", orderId: "ord_1", productId: "prod_1", productName: "T-Shirt",
           variantId: null, variantLabel: null, sku: null, quantity: 10,
           pricePerUnit: 3000, lineTotal: 30000, createdAt: NOW },
-      ], null)
+      ], SYSTEM)
     ).resolves.toMatchObject({ id: "ord_1" });
   });
 
@@ -151,7 +151,7 @@ describe("createOrder", () => {
         { id: "op_2", orderId: "ord_1", productId: "prod_2", productName: "P2",
           variantId: null, variantLabel: null, sku: null, quantity: 1,
           pricePerUnit: 2000, lineTotal: 2000, createdAt: NOW },
-      ], null)
+      ], SYSTEM)
     ).resolves.toMatchObject({ id: "ord_1" });
   });
 
@@ -159,7 +159,7 @@ describe("createOrder", () => {
     const db = makeMockDb([]); // no reads needed
 
     await expect(
-      createOrder(db, baseOrder, [], null)
+      createOrder(db, baseOrder, [], SYSTEM)
     ).resolves.toMatchObject({ id: "ord_1" });
   });
 });

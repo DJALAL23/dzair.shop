@@ -11,6 +11,7 @@
  * stats math on real attributed orders, compare view.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -61,7 +62,7 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: rawD1 as any, IMAGES: r2BucketStub } as any;
-    c.set("user", {
+    signIn(c, {
       id: "admin_user_001",
       email: "admin@example.com",
       name: "Admin User",

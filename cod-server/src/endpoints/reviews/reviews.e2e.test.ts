@@ -13,6 +13,7 @@
  * limits.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Miniflare } from "miniflare";
 import { eq } from "drizzle-orm";
@@ -53,7 +54,7 @@ beforeAll(async () => {
       MEDIA_DOMAIN: "media.example.com",
       REVIEW_MEDIA_WORKFLOW: { create: async (options: { id: string; params: ReviewMediaJob }) => (jobs.push(options), {} as never) },
     } as never;
-    c.set("user", { id: "u1", email: "s@example.com", name: "Samia", role: "staff", status: "active", apiKey: "k", scopes } as never);
+    signIn(c, { id: "u1", email: "s@example.com", name: "Samia", role: "staff", status: "active", apiKey: "k", scopes } as never);
     await next();
   });
   app.onError(errorHandler);

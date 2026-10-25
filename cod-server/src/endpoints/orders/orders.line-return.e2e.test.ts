@@ -8,6 +8,7 @@
  * the same change, whatever runs in between.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { SYSTEM, staff } from "@/test-utils/events";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import { interleaved } from "@/test-utils/interleaved";
@@ -61,41 +62,41 @@ const movements = () => d1.db.select().from(schema.stockMovements).all();
 
 describe("a line return", () => {
   it("puts the refused units back, with the line's state and a movement", async () => {
-    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 2, "u1", "Staff")).toEqual({ ok: true, id: "l-tracked", status: "partially_returned", returnedQuantity: 2, quantity: 3 });
+    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 2, staff("u1", "Staff"))).toEqual({ ok: true, id: "l-tracked", status: "partially_returned", returnedQuantity: 2, quantity: 3 });
     expect(await stock("tracked")).toBe(12);
     expect(await line("l-tracked")).toMatchObject({ status: "partially_returned", returnedQuantity: 2 });
     expect((await movements()).map((m) => [m.productId, m.type, m.delta, m.qtyBefore, m.qtyAfter, m.reference, m.createdBy])).toEqual([["tracked", "ORDER_RETURNED", 2, 10, 12, "o1", "u1"]]);
 
-    expect((await setOrderProductReturn(d1.db, "o1", "l-tracked", 3)).ok).toBe(true);
+    expect((await setOrderProductReturn(d1.db, "o1", "l-tracked", 3, SYSTEM)).ok).toBe(true);
     expect(await line("l-tracked")).toMatchObject({ status: "returned", returnedQuantity: 3 });
     expect(await stock("tracked")).toBe(13);
   });
 
   it("a return corrected down takes the units out again; to zero, the line is fulfilled", async () => {
-    await setOrderProductReturn(d1.db, "o1", "l-tracked", 3);
-    expect((await setOrderProductReturn(d1.db, "o1", "l-tracked", 1)).ok).toBe(true);
+    await setOrderProductReturn(d1.db, "o1", "l-tracked", 3, SYSTEM);
+    expect((await setOrderProductReturn(d1.db, "o1", "l-tracked", 1, SYSTEM)).ok).toBe(true);
     expect(await stock("tracked")).toBe(11);
-    expect((await setOrderProductReturn(d1.db, "o1", "l-tracked", 0)).ok).toBe(true);
+    expect((await setOrderProductReturn(d1.db, "o1", "l-tracked", 0, SYSTEM)).ok).toBe(true);
     expect(await line("l-tracked")).toMatchObject({ status: "fulfilled", returnedQuantity: 0 });
     expect(await stock("tracked")).toBe(10);
     expect((await movements()).map((m) => m.delta)).toEqual([3, -2, -1]);
   });
 
   it("a variant's stock moves, an untracked product's line changes alone, and the same quantity again moves nothing", async () => {
-    await setOrderProductReturn(d1.db, "o1", "l-varied", 1);
+    await setOrderProductReturn(d1.db, "o1", "l-varied", 1, SYSTEM);
     expect(await variantStock()).toBe(6);
-    expect((await setOrderProductReturn(d1.db, "o1", "l-untracked", 1)).ok).toBe(true);
+    expect((await setOrderProductReturn(d1.db, "o1", "l-untracked", 1, SYSTEM)).ok).toBe(true);
     expect(await line("l-untracked")).toMatchObject({ status: "returned", returnedQuantity: 1 });
     expect(await stock("untracked")).toBe(0);
-    expect((await setOrderProductReturn(d1.db, "o1", "l-varied", 1)).ok).toBe(true);
+    expect((await setOrderProductReturn(d1.db, "o1", "l-varied", 1, SYSTEM)).ok).toBe(true);
     expect(await variantStock()).toBe(6);
     expect(await movements()).toHaveLength(1);
   });
 
   it("refuses a quantity out of range, and a line of another order", async () => {
-    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 4)).toEqual({ ok: false, reason: "out_of_range", quantity: 3 });
-    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", -1)).toEqual({ ok: false, reason: "out_of_range", quantity: 3 });
-    expect(await setOrderProductReturn(d1.db, "other", "l-tracked", 1)).toEqual({ ok: false, reason: "line_not_found" });
+    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 4, SYSTEM)).toEqual({ ok: false, reason: "out_of_range", quantity: 3 });
+    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", -1, SYSTEM)).toEqual({ ok: false, reason: "out_of_range", quantity: 3 });
+    expect(await setOrderProductReturn(d1.db, "other", "l-tracked", 1, SYSTEM)).toEqual({ ok: false, reason: "line_not_found" });
     expect(await movements()).toEqual([]);
   });
 });
@@ -103,7 +104,7 @@ describe("a line return", () => {
 describe("only once the order is delivered", () => {
   it("not before it is handed to delivery: nothing has been refused, and no stock moves", async () => {
     await notHandedOff();
-    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1)).toEqual({ ok: false, reason: "not_delivered" });
+    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1, SYSTEM)).toEqual({ ok: false, reason: "not_delivered" });
     expect(await stock("tracked")).toBe(10);
     expect(await line("l-tracked")).toMatchObject({ status: "fulfilled", returnedQuantity: 0 });
     expect(await movements()).toEqual([]);
@@ -111,7 +112,7 @@ describe("only once the order is delivered", () => {
 
   it("not while the parcel is still on its way", async () => {
     await onTheWay();
-    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1)).toEqual({ ok: false, reason: "not_delivered" });
+    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1, SYSTEM)).toEqual({ ok: false, reason: "not_delivered" });
     expect(await stock("tracked")).toBe(10);
     expect(await movements()).toEqual([]);
   });
@@ -119,7 +120,7 @@ describe("only once the order is delivered", () => {
   it("checked in the same write: a delivery recorded in between lets the return through", async () => {
     await onTheWay();
     const delivered = () => d1.db.update(schema.shipments).set({ deliveredAt: T }).where(eq(schema.shipments.id, "s1"));
-    expect((await setOrderProductReturn(interleaved(d1.db, delivered), "o1", "l-tracked", 1)).ok).toBe(true);
+    expect((await setOrderProductReturn(interleaved(d1.db, delivered), "o1", "l-tracked", 1, SYSTEM)).ok).toBe(true);
     expect(await stock("tracked")).toBe(11);
   });
 });
@@ -127,9 +128,9 @@ describe("only once the order is delivered", () => {
 describe("refused once every remaining unit is already back", () => {
   it("the order is cancelled", async () => {
     await notHandedOff();
-    await updateOrderStatus(d1.db, "o1", "cancelled");
+    await updateOrderStatus(d1.db, "o1", "cancelled", SYSTEM);
     const before = await stock("tracked");
-    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1)).toEqual({ ok: false, reason: "order_closed" });
+    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1, SYSTEM)).toEqual({ ok: false, reason: "order_closed" });
     expect(await stock("tracked")).toBe(before);
   });
 
@@ -137,21 +138,21 @@ describe("refused once every remaining unit is already back", () => {
     await onTheWay();
     await recordShipmentEvents(d1.db, "s1", [{ source: "merchant", status: { vocabulary: "driver", value: "returned" }, interpretation: { kind: "milestone", milestone: "returned" }, occurredAt: new Date().toISOString() }]);
     expect(await stock("tracked")).toBe(13);
-    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1)).toEqual({ ok: false, reason: "order_closed" });
+    expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1, SYSTEM)).toEqual({ ok: false, reason: "order_closed" });
     expect(await stock("tracked")).toBe(13);
   });
 });
 
 describe("never twice for the same change", () => {
   it("another return of the line recorded in between: this one is refused, to be read again", async () => {
-    const outcome = await setOrderProductReturn(interleaved(d1.db, () => setOrderProductReturn(d1.db, "o1", "l-tracked", 2)), "o1", "l-tracked", 2);
+    const outcome = await setOrderProductReturn(interleaved(d1.db, () => setOrderProductReturn(d1.db, "o1", "l-tracked", 2, SYSTEM)), "o1", "l-tracked", 2, SYSTEM);
     expect(outcome).toEqual({ ok: false, reason: "changed" });
     expect(await stock("tracked")).toBe(12);
     expect(await movements()).toHaveLength(1);
   });
 
   it("the same return sent five times at once moves the units once", async () => {
-    await Promise.all(Array.from({ length: 5 }, () => setOrderProductReturn(d1.db, "o1", "l-tracked", 2)));
+    await Promise.all(Array.from({ length: 5 }, () => setOrderProductReturn(d1.db, "o1", "l-tracked", 2, SYSTEM)));
     expect(await stock("tracked")).toBe(12);
     expect(await movements()).toHaveLength(1);
   });

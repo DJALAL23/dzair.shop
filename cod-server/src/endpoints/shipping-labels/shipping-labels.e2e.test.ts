@@ -12,6 +12,7 @@
  * cost the trips of two.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
@@ -39,7 +40,7 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: d1.raw } as never;
-    c.set("user", { id: "u1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes } as never);
+    signIn(c, { id: "u1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes } as never);
     await next();
   });
   app.onError(errorHandler);

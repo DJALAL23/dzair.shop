@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import type { AppDb } from "@/db";
 import { communes, orders, wilayas } from "@/db/schema";
 import type { Actor } from "@/types";
+import { staffOf, type Author } from "../../../../cod-shared/events/actor";
 import { ConflictError, NotFoundError, BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ACTIONS, logActivity } from "@/lib/activity";
 import { assertOrderAddress } from "@/lib/order-address";
@@ -100,7 +101,7 @@ export interface ParcelChanges {
  * cash, weight and fragility. The carrier is always sent the full delivery
  * details with the changes applied: some replace them as a whole.
  */
-export async function updateParcel(db: AppDb, shipmentId: string, changes: ParcelChanges, actor: Actor | null): Promise<void> {
+export async function updateParcel(db: AppDb, shipmentId: string, changes: ParcelChanges, author: Author): Promise<void> {
   const fields = Object.entries(changes).filter(([, v]) => v !== undefined).map(([k]) => k);
   if (fields.length === 0) throw new ValidationError("Nothing to change", ERROR_CODES.VALIDATION_FAILED);
   const t = await carrierTarget(db, shipmentId, "update");
@@ -159,7 +160,7 @@ export async function updateParcel(db: AppDb, shipmentId: string, changes: Parce
     wilayaId: changes.wilayaId,
     communeId: changes.communeId,
   };
-  if (Object.values(orderFields).some((v) => v !== undefined)) await updateOrder(db, t.row.orderId, orderFields, { throughShipment: true });
+  if (Object.values(orderFields).some((v) => v !== undefined)) await updateOrder(db, t.row.orderId, orderFields, author, { throughShipment: true });
   await recordParcelEdit(
     db,
     shipmentId,
@@ -168,7 +169,7 @@ export async function updateParcel(db: AppDb, shipmentId: string, changes: Parce
       ...(changes.weight !== undefined ? { weight: changes.weight } : {}),
       ...(changes.fragile !== undefined ? { isFragile: changes.fragile } : {}),
     },
-    { fields, actorId: actorIdOf(actor) },
+    { fields, actorId: staffOf(author.actor)?.id ?? null },
   );
 }
 

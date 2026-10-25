@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -79,7 +80,7 @@ function mountAs(user: typeof admin | typeof staffNoScope) {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: mockDb } as any;
-    c.set("user", user as any);
+    signIn(c, user as any);
     await next();
   });
   app.onError(errorHandler);

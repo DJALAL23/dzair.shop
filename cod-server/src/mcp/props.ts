@@ -1,4 +1,5 @@
 import type { Actor } from "@/types";
+import type { Author } from "../../../cod-shared/events/actor";
 
 /**
  * McpProps — the per-request identity snapshot handed to the MCP server.
@@ -35,4 +36,9 @@ export interface McpProps extends Record<string, unknown> {
 /** The grant as the one acting: an admin holds every permission, as on the dashboard (`authMiddleware`). */
 export function actorOf(props: McpProps): Actor {
   return { id: props.userId, name: props.name || props.email, role: props.role, scopes: props.role === "admin" ? ["*"] : props.scopes };
+}
+
+/** The grant as the Author of a change: an agent, acting for the staff member who connected it. */
+export function agentAuthorOf(props: McpProps): Author {
+  return { actor: { kind: "agent", id: props.userId, name: props.name || props.email }, origin: "agent" };
 }

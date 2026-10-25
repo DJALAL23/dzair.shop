@@ -13,6 +13,7 @@
  *   S4  order-only edits (notes, email) leave the customer untouched
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { SYSTEM, staff } from "@/test-utils/events";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -125,7 +126,7 @@ describe("updateOrder — customer sync (real D1)", () => {
       wilayaId: 31,
       communeId: "c-31-001",
       address: "45 Boulevard Front de Mer",
-    });
+    }, SYSTEM);
 
     const order = await getOrder(orderId);
     const customer = await getCustomer(customerId);
@@ -149,7 +150,7 @@ describe("updateOrder — customer sync (real D1)", () => {
     const orderId = await seedOrder(customerId, "CS Customer", phone);
     const newPhone = nextPhone();
 
-    await updateOrder(db, orderId, { phone: newPhone });
+    await updateOrder(db, orderId, { phone: newPhone }, SYSTEM);
 
     const order = await getOrder(orderId);
     const customer = await getCustomer(customerId);
@@ -167,7 +168,7 @@ describe("updateOrder — customer sync (real D1)", () => {
     await updateOrder(db, orderId, {
       phone: second.phone,
       customerName: "Second Holder",
-    });
+    }, SYSTEM);
 
     const order = await getOrder(orderId);
     const firstAfter = await getCustomer(first.id);
@@ -190,7 +191,7 @@ describe("updateOrder — customer sync (real D1)", () => {
     await updateOrder(db, orderId, {
       notes: "Call before delivery",
       customerEmail: "shopper@example.com",
-    });
+    }, SYSTEM);
 
     const customer = await getCustomer(customerId);
     const order = await getOrder(orderId);
@@ -211,7 +212,7 @@ describe("updateOrder — customer sync (real D1)", () => {
     const orderBefore = await getOrder(orderId);
     expect(orderBefore?.phone).not.toBe(phone);
 
-    await updateOrder(db, orderId, { phone });
+    await updateOrder(db, orderId, { phone }, SYSTEM);
 
     const order = await getOrder(orderId);
     const customer = await getCustomer(customerId);

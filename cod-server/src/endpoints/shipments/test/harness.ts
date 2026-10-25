@@ -7,6 +7,7 @@
  * and points it at the harness database.
  */
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { signIn } from "@/test-utils/sign-in";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
 import type { AppDb } from "@/db";
@@ -24,7 +25,7 @@ export function shipmentsApp(d1: TestD1, scopes: () => string[], more: Record<st
   const app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: d1.raw } as never;
-    c.set("user", { id: "staff_1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes: scopes() } as never);
+    signIn(c, { id: "staff_1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes: scopes() } as never);
     await next();
   });
   app.onError(errorHandler);

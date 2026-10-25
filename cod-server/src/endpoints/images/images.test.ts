@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { Hono } from "hono";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -56,7 +57,7 @@ describe("Images Endpoint - Error Scenarios", () => {
         R2_BUCKET_NAME: "test-bucket",
         MEDIA_DOMAIN: "media.example.com",
       } as any;
-      c.set("user", { id: "user-123", email: "test@example.com" } as any);
+      signIn(c, { id: "user-123", email: "test@example.com" } as any);
       await next();
     });
     

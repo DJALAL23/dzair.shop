@@ -115,7 +115,7 @@ export async function validate(c: Context<AppContext>) {
 /** PATCH /shipments/{id} */
 export async function update(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  await operations.updateParcel(db, shipmentIdOf(c), (c.req as any).valid("json") as z.infer<typeof updateParcelSchema>, actorOf(c));
+  await operations.updateParcel(db, shipmentIdOf(c), (c.req as any).valid("json") as z.infer<typeof updateParcelSchema>, c.get("author"));
   return respondWithShipment(c, db);
 }
 

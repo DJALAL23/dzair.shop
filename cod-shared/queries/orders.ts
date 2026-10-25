@@ -46,6 +46,10 @@ type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 import { insertSelectRow } from "../db/insert-select";
 import { linesToRestock, restockStatements } from "../inventory/restock";
 import { getCustomerByPhone, updateCustomer, type UpdateCustomerData } from "./customers";
+import { creditOf, staffOf, type Author } from "../events/actor";
+import { ORDER_STATUS_EVENT, type OrderField } from "../events/catalogue";
+import { recordEvent } from "../events/record";
+import { orderSnapshot } from "../events/snapshots";
 
 export interface OrderFilters {
   status?: (typeof orders.$inferSelect)["status"] | "all";
@@ -249,9 +253,10 @@ export async function createOrder(
   db: AppDb,
   orderData: typeof orders.$inferInsert,
   productsData: Array<NewOrderLine>,
-  actor?: { id: string; name: string } | null,
+  author: Author,
 ) {
   const now = orderData.createdAt ?? new Date().toISOString();
+  const credit = creditOf(author.actor);
 
   const statements: BatchStatement[] = [
     db.insert(orders).values(orderData),
@@ -267,7 +272,7 @@ export async function createOrder(
       orderId: orderData.id!,
       status: orderData.status!,
       timestamp: orderData.createdAt!,
-      by: null,
+      by: staffOf(author.actor)?.id ?? null,
     }),
   );
 
@@ -310,8 +315,8 @@ export async function createOrder(
           qtyAfter: sql`(SELECT inventory - ${qty} FROM product_variants WHERE id = ${item.variantId} AND inventory >= ${qty})`,
           reason: null,
           reference: orderData.id ?? null,
-          createdBy: actor?.id ?? "system",
-          createdByName: actor?.name ?? "النظام",
+          createdBy: credit.id,
+          createdByName: credit.name,
           createdAt: now,
         }),
       );
@@ -341,8 +346,8 @@ export async function createOrder(
           qtyAfter: sql`(SELECT inventory - ${qty} FROM products WHERE id = ${item.productId} AND inventory >= ${qty})`,
           reason: null,
           reference: orderData.id ?? null,
-          createdBy: actor?.id ?? "system",
-          createdByName: actor?.name ?? "النظام",
+          createdBy: credit.id,
+          createdByName: credit.name,
           createdAt: now,
         }),
       );
@@ -363,8 +368,12 @@ export async function createOrder(
     }
   }
 
-  // Atomic: order row, lines, history, customer stats, stock deduction, and
-  // ledger commit together or not at all. Guarded deductions make the batch
+  statements.push(
+    recordEvent(db, { type: "order.created", subjectId: orderData.id!, orderId: orderData.id!, occurredAt: now, ...author, data: { order: orderSnapshot(orderData.id!) } }),
+  );
+
+  // Atomic: order row, lines, history, customer stats, stock deduction,
+  // ledger and the order.created event commit together or not at all. Guarded deductions make the batch
   // fail (and roll back entirely) when stock is insufficient — no silent
   // floor-at-zero, no lost-update races. A taken order number rolls it back
   // the same way, so the order row is drawn again and the batch retried.
@@ -401,9 +410,9 @@ export async function updateOrderStatus(
   db: AppDb,
   orderId: string,
   newStatus: OrderStatus,
-  userId?: string,
-  userName?: string,
+  author: Author,
 ): Promise<StatusChange> {
+  if (newStatus === "new") throw new Error("An order never moves back to new: the lifecycle has no such transition");
   const now = new Date().toISOString();
 
   const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
@@ -425,7 +434,7 @@ export async function updateOrderStatus(
             orderId: sql`${orderId}`,
             status: sql`${newStatus}`,
             timestamp: sql`${now}`,
-            by: sql`${userId ?? null}`,
+            by: sql`${staffOf(author.actor)?.id ?? null}`,
           }) as never,
         )
         .from(sql`(select 1)`)
@@ -451,12 +460,20 @@ export async function updateOrderStatus(
         lines,
         "ORDER_CANCELLED",
         orderId,
-        { id: userId ?? "system", name: userName ?? "النظام" },
+        creditOf(author.actor),
         now,
         claimed,
       ),
     );
   }
+
+  statements.push(
+    recordEvent(
+      db,
+      { type: ORDER_STATUS_EVENT[newStatus], subjectId: orderId, orderId, occurredAt: now, ...author, data: { order: orderSnapshot(orderId), previousStatus: order.status } },
+      claimed,
+    ),
+  );
 
   // Atomic: a mid-sequence failure leaves no partial state, so a retry is safe.
   const [history] = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
@@ -504,6 +521,7 @@ export async function updateOrder(
   db: AppDb,
   orderId: string,
   updates: UpdateOrderData,
+  author: Author,
   options: { throughShipment?: boolean } = {},
 ): Promise<OrderEdit> {
   const current = await db
@@ -511,9 +529,13 @@ export async function updateOrder(
       customerId: orders.customerId,
       customerName: orders.customerName,
       phone: orders.phone,
+      customerEmail: orders.customerEmail,
       wilayaId: orders.wilayaId,
       communeId: orders.communeId,
+      city: orders.city,
       address: orders.address,
+      deliveryType: orders.deliveryType,
+      notes: orders.notes,
     })
     .from(orders)
     .where(eq(orders.id, orderId))
@@ -565,6 +587,8 @@ export async function updateOrder(
   // Atomic with the handoff: a reservation and this edit can never both win.
   const touchesDelivery = DELIVERY_DETAIL_FIELDS.some((field) => updates[field] !== undefined);
   const locked = touchesDelivery && !options.throughShipment;
+  const changedFields = orderFieldsChanged(current, updates);
+  const now = patch.updatedAt as string;
   const [result] = await db.batch([
     db
       .update(orders)
@@ -574,6 +598,12 @@ export async function updateOrder(
           ? and(eq(orders.id, orderId), sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`)
           : eq(orders.id, orderId),
       ),
+    // Recorded only when the edit just before it applied (`changes()` is its
+    // count), with the order as the edit left it; an edit that changes
+    // nothing records nothing.
+    ...(changedFields.length
+      ? [recordEvent(db, { type: "order.updated", subjectId: orderId, orderId, occurredAt: now, ...author, data: { order: orderSnapshot(orderId), changedFields } }, sql`changes() > 0`)]
+      : []),
   ]);
   if (((result as { meta?: { changes?: number } }).meta?.changes ?? 0) === 0) return { ok: false, reason: "has_shipment" };
 
@@ -582,6 +612,22 @@ export async function updateOrder(
     await updateCustomer(db, customerTarget, customerUpdates);
   }
   return { ok: true };
+}
+
+/** The parts of the order this edit changes, as `order.updated` names them. */
+function orderFieldsChanged(
+  current: { customerName: string; phone: string; customerEmail: string | null; wilayaId: number | null; communeId: string | null; city: string | null; address: string | null; deliveryType: "home" | "stop_desk"; notes: string | null },
+  updates: UpdateOrderData,
+): OrderField[] {
+  const differs = <K extends keyof UpdateOrderData & keyof typeof current>(key: K) =>
+    updates[key] !== undefined && (updates[key] ?? null) !== (current[key] ?? null);
+  const changed: OrderField[] = [];
+  if (differs("customerName")) changed.push("customerName");
+  if (differs("phone")) changed.push("customerPhone");
+  if (differs("customerEmail")) changed.push("customerEmail");
+  if (differs("wilayaId") || differs("communeId") || differs("city") || differs("address") || differs("deliveryType")) changed.push("destination");
+  if (differs("notes")) changed.push("notes");
+  return changed;
 }
 
 export type LineReturn =
@@ -604,8 +650,7 @@ export async function setOrderProductReturn(
   orderId: string,
   productLineId: string,
   newReturnedQty: number,
-  userId?: string,
-  userName?: string,
+  author: Author,
 ): Promise<LineReturn> {
   const now = new Date().toISOString();
   const line = await db
@@ -653,8 +698,8 @@ export async function setOrderProductReturn(
             qtyAfter: sql`max(0, ${stock} + ${delta})`.as("qty_after"),
             reason: sql`null`.as("reason"),
             reference: sql`${orderId}`.as("reference"),
-            createdBy: sql`${userId ?? "system"}`.as("created_by"),
-            createdByName: sql`${userName ?? "النظام"}`.as("created_by_name"),
+            createdBy: sql`${creditOf(author.actor).id}`.as("created_by"),
+            createdByName: sql`${creditOf(author.actor).name}`.as("created_by_name"),
             createdAt: sql`${now}`.as("created_at"),
           })
           .from(sql`(select 1)`)
@@ -677,9 +722,21 @@ export async function setOrderProductReturn(
       .set({ status, returnedQuantity: newReturnedQty })
       .where(and(eq(orderProducts.id, productLineId), applies)),
   );
+  const lineUpdate = statements.length - 1;
+  // Recorded only when the line update just before it applied (`changes()`
+  // is that statement's count), and after it, so the order reads as returned.
+  if (delta !== 0) {
+    statements.push(
+      recordEvent(
+        db,
+        { type: "order.line_returned", subjectId: orderId, orderId, occurredAt: now, ...author, data: { order: orderSnapshot(orderId), lineId: productLineId, previousReturnedQuantity: before } },
+        sql`changes() > 0`,
+      ),
+    );
+  }
 
   const results = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
-  if (((results.at(-1) as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0) {
+  if (((results[lineUpdate] as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0) {
     return { ok: true, id: productLineId, status, returnedQuantity: newReturnedQty, quantity };
   }
   const state = await db
@@ -712,15 +769,15 @@ const orderFinishedSql = sql`(orders.status = 'cancelled' or exists (select 1 fr
  * shipment (the statements of a batch run as one transaction); if it changed
  * meanwhile, the deletion is planned again.
  */
-export async function deleteOrder(db: AppDb, orderId: string): Promise<OrderDeletion> {
+export async function deleteOrder(db: AppDb, orderId: string, author: Author): Promise<OrderDeletion> {
   for (let attempt = 1; attempt <= DELETE_ATTEMPTS; attempt++) {
-    const outcome = await attemptDelete(db, orderId);
+    const outcome = await attemptDelete(db, orderId, author);
     if (outcome.ok || outcome.reason !== "changed") return outcome;
   }
   return { ok: false, reason: "changed" };
 }
 
-async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion> {
+async function attemptDelete(db: AppDb, orderId: string, author: Author): Promise<OrderDeletion> {
   const now = new Date().toISOString();
   const [order, shipment] = await db.batch([
     db.select().from(orders).where(eq(orders.id, orderId)),
@@ -735,9 +792,11 @@ async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion>
     sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
   )!;
 
-  // totalOrders always drops; totalSpent only while the order still counted
-  // as spend — a cancelled order already rolled it back.
+  // The event first: its snapshot is the order as it was, before anything is
+  // undone. totalOrders always drops; totalSpent only while the order still
+  // counted as spend — a cancelled order already rolled it back.
   const statements: BatchStatement[] = [
+    recordEvent(db, { type: "order.deleted", subjectId: orderId, orderId, occurredAt: now, ...author, data: { order: orderSnapshot(orderId) } }, asRead),
     db
       .update(customers)
       .set({
@@ -747,7 +806,7 @@ async function attemptDelete(db: AppDb, orderId: string): Promise<OrderDeletion>
       .where(and(eq(customers.id, read.customerId), asRead)),
   ];
   const lines = await linesToRestock(db, orderId);
-  statements.push(...restockStatements(db, lines, "ORDER_CANCELLED", orderId, { id: "system", name: "النظام" }, now, asRead, "Order deleted - inventory restored"));
+  statements.push(...restockStatements(db, lines, "ORDER_CANCELLED", orderId, creditOf(author.actor), now, asRead, "Order deleted - inventory restored"));
   statements.push(db.delete(orders).where(and(eq(orders.id, orderId), asRead)));
 
   const results = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);

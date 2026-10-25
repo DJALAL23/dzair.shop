@@ -10,6 +10,7 @@
  *     the coupon stands, its uses and the discount it gave.
  */
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { signIn } from "@/test-utils/sign-in";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import * as schema from "@/db/schema";
@@ -31,7 +32,7 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: d1.raw } as AppContext["Bindings"];
-    c.set("user", { id: "admin", name: "Admin", role: "admin", status: "active", scopes: ["*"] } as never);
+    signIn(c, { id: "admin", name: "Admin", role: "admin", status: "active", scopes: ["*"] } as never);
     await next();
   });
   app.onError(errorHandler);

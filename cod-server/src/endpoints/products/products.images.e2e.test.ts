@@ -8,6 +8,7 @@
  * at a row that is gone.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -38,7 +39,7 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = { DB: d1.raw, IMAGES: bucket } as never;
-    c.set("user", { id: "u1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes: ["products:read", "products:manage"] } as never);
+    signIn(c, { id: "u1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes: ["products:read", "products:manage"] } as never);
     await next();
   });
   app.onError(errorHandler);
