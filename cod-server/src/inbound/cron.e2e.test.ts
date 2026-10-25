@@ -16,7 +16,8 @@ import { acceptCarrierHandoff, markHandoffUnknown, reserveCarrierShipment } from
 import { recordShipmentEvents } from "../../../cod-shared/shipments/record-events";
 import { seedOrder, seedStore } from "@/endpoints/shipments/test/harness";
 import { syncShipments } from "@/endpoints/shipments/sync";
-import { INBOUND_CRON, LIMITS, expireStaleReservations, lookUpUnknownHandoffs, runInboundCron, sweepInbox, syncPullCarriers } from "./cron";
+import { INBOUND_CRON, LIMITS, expireStaleReservations, lookUpUnknownHandoffs, runInboundCron, syncPullCarriers } from "./cron";
+import { drain } from "@/events/drain";
 
 const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
 vi.mock("@/db", () => dbModule);
@@ -226,13 +227,14 @@ describe("pull-only carriers", () => {
   });
 });
 
-describe("the inbox", () => {
+describe("the inbox, in the drain", () => {
   it("processes the events that are due, and only those", async () => {
     const due = { id: "due", provider: "yalidine", eventId: "e1", companyId: "yal", eventType: "parcel_payment_updated", rawPayload: JSON.stringify({ type: "parcel_payment_updated", event: { event_id: "e1", occurred_at: "2026-10-14 10:00:00", data: {} } }), result: "error", attempts: 1, nextAttemptAt: ago(MINUTE), createdAt: ago(10 * MINUTE) };
     await d1.db.insert(schema.webhookEvents).values(due);
     await d1.db.insert(schema.webhookEvents).values({ ...due, id: "later", eventId: "e2", nextAttemptAt: new Date(Date.now() + 10 * MINUTE).toISOString() });
-    const outcomes = await sweepInbox(env(), waitUntil);
-    expect(outcomes.map((o) => [o.id, o.result])).toEqual([["due", "deferred_settlement"]]);
+    const report = await drain(env(), { waitUntil, kinds: {} });
+    expect(report.inbox).toBe(1);
+    expect((await d1.db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, "due")).get())!.result).toBe("deferred_settlement");
     expect((await d1.db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, "later")).get())!.result).toBe("error");
   });
 });
@@ -243,14 +245,15 @@ describe("one run", () => {
     await setTimes(stale, { createdAt: ago(LIMITS.staleReservationMs + MINUTE) });
     const pull = await shipment("o2", "eco", "accepted", await parcelAtEcotrack("ORD-o2"));
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    // The first read of the run is the inbox pass's.
+    // The first read of the run is the stale-reservation pass's.
     vi.spyOn(d1.db, "select").mockImplementationOnce(() => {
-      throw new Error("inbox read failed");
+      throw new Error("reservations read failed");
     });
     await runInboundCron(env(), waitUntil);
     vi.restoreAllMocks();
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("inbox pass failed"), "inbox read failed");
-    expect((await row(stale))!.handoffState).toBe("unknown");
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("stale reservations pass failed"), "reservations read failed");
+    expect((await row(stale))!.handoffState).toBe("submitting");
     expect((await row(pull))!.lastSyncedAt).not.toBeNull();
+    expect(error).not.toHaveBeenCalledWith(expect.stringContaining("drain pass failed"), expect.anything());
   });
 });

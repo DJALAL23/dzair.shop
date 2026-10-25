@@ -2,6 +2,8 @@
  * Cloudflare Worker environment bindings.
  * Declared in wrangler.toml — keep this in sync.
  */
+
+import type { DrainMessage } from "@/events/drain";
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 
 export interface Env {
@@ -74,6 +76,13 @@ export interface Env {
    * Fires CAPI Purchase events at order delivery — decoupled from status handler.
    */
   CAPI_WORKFLOW: Workflow;
+  /**
+   * The events queue (ADR 0017). It carries only "work is due" and wakes the
+   * drain (`src/events/drain.ts`), which processes the carriers' webhook inbox
+   * and delivers Business Events. Required: every store's deployment
+   * provisions it, with this Worker as its consumer.
+   */
+  EVENTS_QUEUE: Queue<DrainMessage>;
   /**
    * Cloudflare Workflow binding for CodLandingPageImageUploadWorkflow.
    * Durable background upload of MCP-agent images into the landing page stack.

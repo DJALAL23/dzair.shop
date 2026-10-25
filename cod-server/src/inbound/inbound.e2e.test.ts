@@ -17,6 +17,7 @@ import { getShipmentWithEvents } from "../../../cod-shared/shipments/queries";
 import { MAX_ATTEMPTS } from "../../../cod-shared/inbound/inbox";
 import webhooksRouter from "@/endpoints/webhooks/routes";
 import { processInboxEvent } from "./process";
+import { drain } from "@/events/drain";
 
 const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
 vi.mock("@/db", () => dbModule);
@@ -83,19 +84,25 @@ async function settled() {
   while (pending.length) await Promise.all(pending.splice(0));
 }
 
+/** What the queue consumer the request woke does: drain. */
+async function drained() {
+  await drain(env(), { waitUntil: (p) => void pending.push(p), kinds: {} });
+  await settled();
+}
+
 async function yalidine(type: string, events: Array<{ event_id: string; occurred_at: string; data: Record<string, unknown> }>, secret: string | null = SECRET_A) {
   const body = JSON.stringify({ type, events });
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (secret) headers["X-Yalidine-Signature"] = await hmacHex(body, secret);
   const res = await app.request("/webhooks/yalidine", { method: "POST", body, headers }, env(), ctx());
-  await settled();
+  await drained();
   return res;
 }
 
 async function zr(eventType: string, data: Record<string, unknown>, occurredAt = "2026-10-14T09:00:00Z", id = crypto.randomUUID()) {
   const body = JSON.stringify({ eventType, occurredAt, data });
   const res = await app.request("/webhooks/zr_express", { method: "POST", body, headers: { "Content-Type": "application/json", ...(await svixHeaders(id, body)) } }, env(), ctx());
-  await settled();
+  await drained();
   return res;
 }
 

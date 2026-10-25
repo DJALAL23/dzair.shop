@@ -11,6 +11,7 @@ import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
 import type { ActorKind, Origin } from "../events/actor";
 import type { EventSubject, EventType } from "../events/catalogue";
+import { ATTEMPT_OUTCOMES, DELIVERY_STATES } from "../events/deliveries-model";
 
 const authNow = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
@@ -2119,4 +2120,69 @@ export const businessEvents = sqliteTable("business_events", {
   recordedAt: text("recorded_at").notNull(),
   /** The type's data, as `cod-server/src/events/catalogue.ts` promises it. */
   data: text("data").notNull(),
+  /** When its Deliveries were created; null while it waits to be fanned out (migration 0060). */
+  fannedOutAt: text("fanned_out_at"),
+}, (t) => ({
+  unfanned: index("business_events_unfanned").on(t.seq).where(sql`fanned_out_at IS NULL`),
+}));
+
+// ─── Event Deliveries (ADR 0017; migration 0060) ──────────────────────────────
+
+/** Who receives the store's Business Events: a webhook, a chat, an inbox, the customer, Meta. */
+export const eventConsumers = sqliteTable("event_consumers", {
+  id: text("id").primaryKey(),
+  /** The Consumer Kind: how it is reached (`cod-server/src/events/consumers`). */
+  kind: text("kind").notNull(),
+  name: text("name").notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  /** JSON: the Subscription's patterns (`cod-shared/events/subscription.ts`). */
+  subscription: text("subscription").notNull(),
+  /** The catalogue version its Deliveries are written in, pinned when it was created. */
+  catalogueVersion: integer("catalogue_version").notNull().default(1),
+  /** JSON: the kind's own settings. */
+  settings: text("settings").notNull().default("{}"),
+  /** A webhook's Signing Secret, and the previous one while a rotation settles. Never sent to the browser in full (ADR 0001). */
+  signingSecret: text("signing_secret"),
+  previousSigningSecret: text("previous_signing_secret"),
+  secretRotatedAt: text("secret_rotated_at"),
+  /** Since when every Attempt has failed; null once one succeeds. */
+  failingSince: text("failing_since"),
+  /** Why the store stopped delivering to it, when it did. */
+  disabledReason: text("disabled_reason"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
+
+/** One Business Event on its way to one Consumer. */
+export const eventDeliveries = sqliteTable("event_deliveries", {
+  id: text("id").primaryKey(),
+  eventSeq: integer("event_seq").notNull().references(() => businessEvents.seq, { onDelete: "cascade" }),
+  consumerId: text("consumer_id").notNull().references(() => eventConsumers.id, { onDelete: "cascade" }),
+  state: text("state", { enum: DELIVERY_STATES }).notNull().default("due"),
+  attempts: integer("attempts").notNull().default(0),
+  /** When it may be tried (again) — also its lease while an Attempt runs; null once settled. */
+  nextAttemptAt: text("next_attempt_at"),
+  lastError: text("last_error"),
+  createdAt: text("created_at").notNull(),
+  settledAt: text("settled_at"),
+}, (t) => ({
+  once: uniqueIndex("event_deliveries_event_seq_consumer_id_unique").on(t.eventSeq, t.consumerId),
+  due: index("event_deliveries_due").on(t.nextAttemptAt).where(sql`state = 'due'`),
+  byConsumer: index("event_deliveries_consumer").on(t.consumerId, t.createdAt),
+}));
+
+/** One try at a Delivery, with what the Consumer answered. */
+export const eventDeliveryAttempts = sqliteTable("event_delivery_attempts", {
+  id: text("id").primaryKey(),
+  deliveryId: text("delivery_id").notNull().references(() => eventDeliveries.id, { onDelete: "cascade" }),
+  attempt: integer("attempt").notNull(),
+  attemptedAt: text("attempted_at").notNull(),
+  durationMs: integer("duration_ms").notNull(),
+  outcome: text("outcome", { enum: ATTEMPT_OUTCOMES }).notNull(),
+  httpStatus: integer("http_status"),
+  /** The first kilobyte of what the Consumer answered. */
+  responseExcerpt: text("response_excerpt"),
+  error: text("error"),
+}, (t) => ({
+  byDelivery: index("event_delivery_attempts_delivery").on(t.deliveryId, t.attempt),
+}));

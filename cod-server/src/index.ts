@@ -50,6 +50,9 @@ import abandonedOrdersRoutes from "@/endpoints/abandoned-orders/routes";
 import storeAbandonedRoutes from "@/endpoints/abandoned-orders/store-routes";
 import storeOtpRoutes from "@/endpoints/store-otp/store-routes";
 
+import { drainAndContinue, wake, type DrainMessage } from "@/events/drain";
+import { pruneEventLog } from "../../cod-shared/events/deliveries";
+import { getDb } from "@/db";
 import { sweepAbandonedOrders } from "@/cron/sweep-abandoned-orders";
 import { runOrphanImageSweep } from "@/cron/sweep-orphan-images";
 import { runStuckReviewSweep } from "@/cron/settle-stuck-reviews";
@@ -208,9 +211,21 @@ function getOAuthProvider(env: Env): OAuthProvider<Env> {
   return oauthProviderInstance;
 }
 
+/** Requests that only read never record work; every other one may have, so it wakes the drain. */
+const READS = new Set(["GET", "HEAD", "OPTIONS"]);
+
 export default {
-  fetch: (request: Request, env: Env, ctx: ExecutionContext) =>
-    getOAuthProvider(env).fetch(request, env, ctx),
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const response = await getOAuthProvider(env).fetch(request, env, ctx);
+    if (!READS.has(request.method)) {
+      ctx.waitUntil(wake(env).catch((error: unknown) => console.error("[events] wake failed (the schedule drains instead):", (error as Error)?.message)));
+    }
+    return response;
+  },
+  /** The events queue only ever says "work is due": drain. A drain that throws is retried by the queue, then by the schedule. */
+  async queue(_batch: MessageBatch<DrainMessage>, env: Env, ctx: ExecutionContext): Promise<void> {
+    await drainAndContinue(env, { waitUntil: (promise) => ctx.waitUntil(promise) });
+  },
   async scheduled(
     event: ScheduledEvent,
     env: Env,
@@ -224,5 +239,6 @@ export default {
     ctx.waitUntil(runOrphanImageSweep(env));
     ctx.waitUntil(runStuckReviewSweep(env));
     ctx.waitUntil(getOAuthProvider(env).purgeExpiredData(env, { batchSize: 50 }));
+    ctx.waitUntil(pruneEventLog(getDb(env.DB), new Date()));
   },
 };

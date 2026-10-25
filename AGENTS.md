@@ -205,6 +205,12 @@ other is how these drift.
   1.7 columns, and `oauthResource(s)`, `oauthClientResource(s)`,
   `oauthClientAssertion(s)` do not exist yet. Core auth + dashboard work;
   MCP client token flows may need that alignment before heavy use.
+- **Business Events are written with the change, never after it** (ADR
+  0016): a `cod-shared` writer of orders or shipments records its event with
+  `recordEvent` in its own batch, under its own claim, given an `Author`.
+  Never dispatch a side effect from a handler. The deployed `wrangler.toml`
+  must declare the `EVENTS_QUEUE` producer and consumer (ADR 0017), like the
+  crons; a release that requires it is not deployed without it.
 - The dashboard Worker and the storefront both default to port **4321** — run
   one on `--port 4322` when developing both at once.
 - Inbound webhooks exist only for **Yalidine** and **ZR Express**; they are

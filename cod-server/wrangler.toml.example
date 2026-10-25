@@ -71,6 +71,21 @@ class_name = "CodReviewMediaWorkflow"
 
 # Review attempts per order number (a phone cannot be guessed for one order).
 # namespace_id: any positive integer unique in your Cloudflare account.
+# The events queue (docs/adr/0017). It carries only "work is due": this
+# Worker consumes it and drains — the carriers' webhook inbox and the Business
+# Events' Deliveries, whose state lives in D1. Create it once per store:
+#   wrangler queues create codflow-events
+# One message per invocation, a few retries, no dead-letter queue: a lost
+# message loses nothing, the five-minute schedule drains too.
+[[queues.producers]]
+binding = "EVENTS_QUEUE"
+queue   = "codflow-events"
+
+[[queues.consumers]]
+queue          = "codflow-events"
+max_batch_size = 1
+max_retries    = 3
+
 [[ratelimits]]
 name = "REVIEW_RATE_LIMITER"
 namespace_id = "1001"
@@ -150,6 +165,15 @@ class_name = "CodLandingPageImageUploadWorkflow"
 name       = "review-media-workflow"
 binding    = "REVIEW_MEDIA_WORKFLOW"
 class_name = "CodReviewMediaWorkflow"
+
+[[env.production.queues.producers]]
+binding = "EVENTS_QUEUE"
+queue   = "codflow-events"
+
+[[env.production.queues.consumers]]
+queue          = "codflow-events"
+max_batch_size = 1
+max_retries    = 3
 
 [[env.production.ratelimits]]
 name = "REVIEW_RATE_LIMITER"

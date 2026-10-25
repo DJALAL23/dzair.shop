@@ -1,7 +1,7 @@
 /**
  * Carrier webhooks — received into the inbox and answered at once; the events
- * are processed after the answer (`src/inbound`). The URLs are the ones the
- * carriers hold, unchanged.
+ * are processed after the answer, by the drain this request wakes
+ * (`src/events/drain.ts`). The URLs are the ones the carriers hold, unchanged.
  *
  * Rules from the carriers' docs:
  *   - the raw body is read before anything parses it (signatures cover the bytes);
@@ -17,21 +17,12 @@ import { AppError } from "@/lib/errors/classes";
 import type { CarrierProvider } from "@/carriers/contract";
 import { ERROR_CATEGORIES, ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { receiveWebhook } from "@/inbound/receive";
-import { processInbox } from "@/inbound/process";
 
 async function receive(c: Context<AppContext>, provider: CarrierProvider) {
   const rawBody = await c.req.text();
   const received = await receiveWebhook(getDb(c.env.DB), provider, rawBody, c.req.raw.headers);
   if (received.status !== 200) {
     throw new AppError(received.error, ERROR_CODES.INVALID_WEBHOOK_PAYLOAD, ERROR_CATEGORIES.VALIDATION, received.status, { provider });
-  }
-  if (received.inboxIds.length > 0) {
-    const waitUntil = (promise: Promise<unknown>) => c.executionCtx.waitUntil(promise);
-    waitUntil(
-      processInbox(c.env, waitUntil, received.inboxIds).catch((error: unknown) =>
-        console.error(`[webhook][${provider}] processing after receipt failed (the sweep retries):`, (error as Error)?.message),
-      ),
-    );
   }
   return c.json({ received: true }, 200);
 }

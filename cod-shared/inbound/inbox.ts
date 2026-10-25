@@ -13,6 +13,7 @@ import { and, asc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { webhookEvents } from "../db/schema";
 
+import { retrySchedule } from "../lib/retry-schedule";
 import { RETRYABLE_RESULTS, type InboxResult } from "./results";
 
 export { INBOX_RESULTS, RETRYABLE_RESULTS, type InboxResult } from "./results";
@@ -20,21 +21,14 @@ export { INBOX_RESULTS, RETRYABLE_RESULTS, type InboxResult } from "./results";
 /** What a processed event turned out to be. */
 export type InboxSettlement = Exclude<InboxResult, "pending" | "error" | "dead">;
 
+/** Waits after each failed try (minutes): eight tries over about a day, then a dead letter. */
+const RETRIES = retrySchedule([1, 5, 15, 60, 180, 360, 720]);
 /** Tries before an event is a dead letter. */
-export const MAX_ATTEMPTS = 8;
+export const MAX_ATTEMPTS = RETRIES.maxAttempts;
 /** How long a claim holds before another pass may take the event. */
 export const LEASE_MS = 5 * 60_000;
-/** Wait after the n-th failed try (minutes); the last try is the eighth. */
-const BACKOFF_MINUTES = [1, 5, 15, 60, 180, 360, 720] as const;
 
 export type InboxRow = typeof webhookEvents.$inferSelect;
-
-/** When to try again after `attempts` failed tries, or null when they are spent. */
-export function nextAttemptAfter(attempts: number, now: Date): string | null {
-  if (attempts >= MAX_ATTEMPTS) return null;
-  const minutes = BACKOFF_MINUTES[Math.max(attempts, 1) - 1];
-  return new Date(now.getTime() + minutes * 60_000).toISOString();
-}
 
 export interface InboxEnvelope {
   eventId: string;
@@ -135,7 +129,7 @@ export async function settleInboxEvent(db: AppDb, id: string, result: InboxSettl
 
 /** Processing failed: try again later with backoff, or keep it as a dead letter once the tries are spent. */
 export async function failInboxEvent(db: AppDb, row: Pick<InboxRow, "id" | "attempts">, error: string, now = new Date()): Promise<"error" | "dead"> {
-  const next = nextAttemptAfter(row.attempts, now);
+  const next = RETRIES.nextAttemptAfter(row.attempts, now);
   await db
     .update(webhookEvents)
     .set({ result: next ? "error" : "dead", errorMsg: error.slice(0, 2000), nextAttemptAt: next, processedAt: now.toISOString() })

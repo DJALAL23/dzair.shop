@@ -1,12 +1,13 @@
 /**
  * The inbound pipeline's schedule — every five minutes (plan §5.5):
  *
- *   1. the inbox: events whose processing is due again;
- *   2. reservations that never finished (the Worker ended between the
+ *   1. reservations that never finished (the Worker ended between the
  *      carrier call and recording its answer) become unknown handoffs;
- *   3. unknown handoffs are looked up by order number, where the carrier can;
- *   4. pull-only carriers (EcoTrack platform, NOEST, Guepex): open shipments
- *      not synced recently, oldest first, within each company's budget.
+ *   2. unknown handoffs are looked up by order number, where the carrier can;
+ *   3. pull-only carriers (EcoTrack platform, NOEST, Guepex): open shipments
+ *      not synced recently, oldest first, within each company's budget;
+ *   4. the drain (`src/events/drain.ts`): the webhook inbox's events due
+ *      again, and the Business Events the passes above recorded.
  *
  * Each pass is bounded, so one run stays well inside a scheduled invocation
  * and inside the carriers' rate limits; whatever is left waits for the next.
@@ -20,18 +21,15 @@ import type { Env } from "@/types";
 import { isCarrierError } from "@/carriers/contract";
 import { carrierCapabilities } from "@/carriers/registry";
 import { scheduleShipmentConversions, type WaitUntil } from "@/lib/conversions";
-import { dueInboxEvents } from "../../../cod-shared/inbound/inbox";
 import { markHandoffUnknown, recordSynced } from "../../../cod-shared/shipments/handoff";
 import type { ShipmentBusinessEvent } from "../../../cod-shared/shipments/record-events";
 import { connectedCarrier, resolveHandoff } from "@/endpoints/shipments/carrier-handoff";
 import { syncShipments } from "@/endpoints/shipments/sync";
-import { processInbox } from "./process";
+import { drainAndContinue } from "@/events/drain";
 
 export const INBOUND_CRON = "*/5 * * * *";
 
 export const LIMITS = {
-  /** Inbox events per run. */
-  inbox: 100,
   /** A reservation still submitting after this long will not be settled by its request. */
   staleReservationMs: 10 * 60_000,
   /** Unknown handoffs looked up per run, and how long before one is looked up again. */
@@ -44,13 +42,7 @@ export const LIMITS = {
 
 const before = (now: Date, ms: number) => new Date(now.getTime() - ms).toISOString();
 
-/** 1. Process inbox events whose processing is due. */
-export async function sweepInbox(env: Env, waitUntil: WaitUntil, now = new Date()) {
-  const ids = await dueInboxEvents(getDb(env.DB), LIMITS.inbox, now);
-  return ids.length ? processInbox(env, waitUntil, ids) : [];
-}
-
-/** 2. A reservation still submitting long after its request ended: its outcome is unknown. */
+/** 1. A reservation still submitting long after its request ended: its outcome is unknown. */
 export async function expireStaleReservations(db: AppDb, now = new Date()): Promise<string[]> {
   const stale = await db
     .select({ id: shipments.id })
@@ -64,7 +56,7 @@ export async function expireStaleReservations(db: AppDb, now = new Date()): Prom
   return expired;
 }
 
-/** 3. Look unknown handoffs up by order number, at carriers that support it; each at most every `lookupEveryMs`. */
+/** 2. Look unknown handoffs up by order number, at carriers that support it; each at most every `lookupEveryMs`. */
 export async function lookUpUnknownHandoffs(db: AppDb, now = new Date()): Promise<{ found: string[]; notFound: string[]; failed: string[] }> {
   const candidates = await db
     .select({ id: shipments.id, provider: deliveryCompanies.provider, providerConfig: deliveryCompanies.providerConfig })
@@ -91,7 +83,7 @@ export async function lookUpUnknownHandoffs(db: AppDb, now = new Date()): Promis
   return outcome;
 }
 
-/** 4. Sync open shipments of pull-only carriers, oldest first. A company that throttles or fails stops for this run. */
+/** 3. Sync open shipments of pull-only carriers, oldest first. A company that throttles or fails stops for this run. */
 export async function syncPullCarriers(env: Env, waitUntil: WaitUntil, now = new Date()): Promise<{ synced: string[]; stopped: string[] }> {
   const db = getDb(env.DB);
   const companies = (await db.select().from(deliveryCompanies).where(eq(deliveryCompanies.active, true)).all()).filter(
@@ -139,10 +131,11 @@ export async function syncPullCarriers(env: Env, waitUntil: WaitUntil, now = new
 export async function runInboundCron(env: Env, waitUntil: WaitUntil, now = new Date()): Promise<void> {
   const db = getDb(env.DB);
   const passes: Array<[string, () => Promise<unknown>]> = [
-    ["inbox", () => sweepInbox(env, waitUntil, now)],
     ["stale reservations", () => expireStaleReservations(db, now)],
     ["unknown handoffs", () => lookUpUnknownHandoffs(db, now)],
     ["pull sync", () => syncPullCarriers(env, waitUntil, now)],
+    // Last, so what the passes above recorded is delivered in this run.
+    ["drain", () => drainAndContinue(env, { waitUntil })],
   ];
   for (const [name, pass] of passes) {
     try {
