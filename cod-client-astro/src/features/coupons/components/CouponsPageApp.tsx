@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { MoreHorizontal, Pencil, Plus, Ticket, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import {
   Alert,
   Badge,
@@ -231,7 +231,7 @@ function Gated() {
   const t = useT("coupons");
   const identity = useIdentity();
   return (
-    <DashboardChrome currentPath="/coupons">
+    <DashboardPage>
       <PageHeader
         title={t("page_title")}
         actions={
@@ -244,7 +244,7 @@ function Gated() {
         }
       />
       <CouponsList />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

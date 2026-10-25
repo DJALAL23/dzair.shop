@@ -1,13 +1,13 @@
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { NewOrderForm } from "@/features/orders/components/NewOrderForm";
 
 export default function NewOrderPageApp() {
   return (
     <RequireAuth>
-      <DashboardChrome currentPath="/orders/new">
+      <DashboardPage>
         <NewOrderForm />
-      </DashboardChrome>
+      </DashboardPage>
     </RequireAuth>
   );
 }

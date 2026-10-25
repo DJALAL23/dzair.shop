@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant frameless (&:where([data-frameless] *));
 
 @theme inline {
   --color-background: var(--background);

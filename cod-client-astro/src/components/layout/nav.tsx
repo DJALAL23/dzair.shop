@@ -293,7 +293,8 @@ export function useNavSections(): NavSection[] {
     .filter((section) => section.items.length > 0);
 }
 
-export function isCurrentPath(currentPath: string, href: string): boolean {
+export function isCurrentPath(pathname: string, href: string): boolean {
+  const currentPath = pathname.replace(/(.)\/+$/, "$1");
   if (href === "/") return currentPath === "/";
   if (href === "/orders") {
     return (

@@ -5,7 +5,7 @@ import {
   RequireAuth,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -378,12 +378,9 @@ function OfferForm({ offerId }: { offerId?: string }) {
 
 function Gated({ offerId }: { offerId?: string }) {
   return (
-    <DashboardChrome
-      narrow
-      currentPath={offerId ? `/offers/${offerId}` : "/offers/new"}
-    >
+    <DashboardPage narrow>
       <OfferForm offerId={offerId} />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

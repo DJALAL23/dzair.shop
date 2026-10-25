@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Scale, Trophy } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { Alert, Card, LinkButton, PageHeader, Select, Skeleton } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -169,7 +169,7 @@ export default function LandingPageComparePageApp() {
   const t = useT("landing-pages");
   return (
     <RequireAuth>
-      <DashboardChrome currentPath="/landing-pages">
+      <DashboardPage>
         <PageHeader
           title={t("compare_title")}
           subtitle={t("page_subtitle")}
@@ -177,7 +177,7 @@ export default function LandingPageComparePageApp() {
           backLabel={t("page_title")}
         />
         <Gated />
-      </DashboardChrome>
+      </DashboardPage>
     </RequireAuth>
   );
 }

@@ -104,4 +104,22 @@ describe("checking the session", () => {
     await settle(refreshing);
     expect(knownIdentity()).toBeNull();
   });
+
+  it("tells a watcher every answer from then on, and nothing once it stops watching", async () => {
+    fetchMock.mockResolvedValue(respond(200, { user, scopes: [] }));
+    const { fetchIdentity, refreshJwt, watchIdentity } = await load();
+    const seen: unknown[] = [];
+    const stop = watchIdentity((identity) => seen.push(identity && identity.user.id));
+    await settle(fetchIdentity());
+    expect(seen).toEqual(["u1"]);
+
+    fetchMock.mockResolvedValue(respond(200, null));
+    await settle(refreshJwt());
+    expect(seen).toEqual(["u1", null]);
+
+    stop();
+    fetchMock.mockResolvedValue(respond(200, { user, scopes: [] }));
+    await settle(refreshJwt());
+    expect(seen).toEqual(["u1", null]);
+  });
 });

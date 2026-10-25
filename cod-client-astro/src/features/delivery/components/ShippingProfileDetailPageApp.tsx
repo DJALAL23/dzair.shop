@@ -5,7 +5,7 @@ import {
   RequireAuth,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { Alert, Badge, Card, CellEmpty, EmptyState, LinkButton, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui";
 import { formatMoney } from "@/features/orders/model";
 import { useLocale, useT } from "@/i18n/react";
@@ -127,11 +127,9 @@ function ShippingProfileDetail({ profileId }: { profileId: string }) {
 
 function Gated({ profileId }: { profileId: string }) {
   return (
-    <DashboardChrome
-      currentPath={`/delivery/shipping-profiles/${profileId}`}
-    >
+    <DashboardPage>
       <ShippingProfileDetail profileId={profileId} />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

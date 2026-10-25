@@ -1,12 +1,12 @@
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { DriverDetail } from "@/features/delivery/components/DriverDetail";
 
 function Gated({ driverId }: { driverId: string }) {
   return (
-    <DashboardChrome currentPath={`/delivery/drivers/${driverId}`}>
+    <DashboardPage>
       <DriverDetail driverId={driverId} />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

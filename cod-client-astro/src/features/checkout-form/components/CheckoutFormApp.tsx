@@ -13,7 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { RequireAuth, canScope, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import {
   Alert,
   Badge,
@@ -354,9 +354,9 @@ function CheckoutFormContent() {
 export default function CheckoutFormApp() {
   return (
     <RequireAuth>
-      <DashboardChrome narrow currentPath="/checkout-form">
+      <DashboardPage narrow>
         <CheckoutFormContent />
-      </DashboardChrome>
+      </DashboardPage>
     </RequireAuth>
   );
 }

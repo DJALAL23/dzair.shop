@@ -1,5 +1,5 @@
 ---
-import BaseLayout from "@/layouts/BaseLayout.astro";
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import GateSpinner from "@/features/auth/components/GateSpinner";
 import OrdersPageApp from "@/features/orders/components/OrdersPageApp";
 
@@ -7,18 +7,16 @@ import OrdersPageApp from "@/features/orders/components/OrdersPageApp";
 // [hidden] region that RequireAuth reveals after the session verdict.
 ---
 
-<BaseLayout title="CodFlow">
-  <main class="min-h-screen">
-    <div
-      data-gate-spinner="required"
-      class="flex min-h-screen items-center justify-center"
-      aria-busy="true"
-    >
-      <GateSpinner branded />
-    </div>
+<DashboardLayout>
+  <div
+    data-gate-spinner="required"
+    class="flex min-h-[60vh] items-center justify-center"
+    aria-busy="true"
+  >
+    <GateSpinner branded />
+  </div>
 
-    <div data-auth-gate="required" hidden>
-      <OrdersPageApp client:only="react" />
-    </div>
-  </main>
-</BaseLayout>
+  <div data-auth-gate="required" hidden>
+    <OrdersPageApp client:only="react" />
+  </div>
+</DashboardLayout>

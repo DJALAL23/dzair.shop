@@ -14,7 +14,7 @@ import {
   RequireAuth,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import {
   deleteAbandonedOrder,
   getAbandonedStats,
@@ -598,9 +598,9 @@ function AbandonedOrdersView() {
 export default function AbandonedOrdersPageApp() {
   return (
     <RequireAuth>
-      <DashboardChrome currentPath="/orders/abandoned">
+      <DashboardPage>
         <AbandonedOrdersView />
-      </DashboardChrome>
+      </DashboardPage>
     </RequireAuth>
   );
 }

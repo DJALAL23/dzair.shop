@@ -1,0 +1,54 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { FrameSidebar, FrameTopbar } from "@/components/layout/frame";
+import { FRAMELESS_PATH } from "@/components/layout/frame-path";
+
+interface Props {
+  title?: string;
+}
+
+const { title } = Astro.props;
+---
+
+<BaseLayout title={title}>
+  <script is:inline define:vars={{ framelessPath: FRAMELESS_PATH.source }}>
+    // One page shell serves framed detail routes and frameless ones (the SPA
+    // fallback), so the frame is hidden by path, before the first paint and
+    // after every ClientRouter swap.
+    var applyFrameMode = function () {
+      document.documentElement.toggleAttribute("data-frameless", new RegExp(framelessPath).test(location.pathname));
+    };
+    applyFrameMode();
+    if (!window.__codflowFrameBound) {
+      window.__codflowFrameBound = true;
+      document.addEventListener("astro:after-swap", applyFrameMode);
+    }
+  </script>
+  <div class="flex h-[100dvh] overflow-hidden bg-background text-foreground">
+    <div
+      data-frame="sidebar"
+      class="relative z-[60] flex shrink-0 flex-col md:w-60 md:bg-sidebar frameless:hidden"
+      transition:name="dashboard-sidebar"
+      transition:animate="none"
+    >
+      <FrameSidebar client:only="react" transition:persist="codflow-frame-sidebar" />
+    </div>
+    <div class="flex min-w-0 flex-1 flex-col md:pe-2 md:pb-2 frameless:p-0!">
+      <div
+        data-frame="topbar"
+        class="relative z-50 h-14 shrink-0 frameless:hidden"
+        transition:name="dashboard-topbar"
+        transition:animate="none"
+      >
+        <FrameTopbar client:only="react" transition:persist="codflow-frame-topbar" />
+      </div>
+      <main
+        id="dashboard-main"
+        tabindex="-1"
+        class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain bg-card outline-none md:rounded-2xl md:border md:border-border frameless:rounded-none! frameless:border-0! frameless:bg-background!"
+      >
+        <slot />
+      </main>
+    </div>
+  </div>
+</BaseLayout>

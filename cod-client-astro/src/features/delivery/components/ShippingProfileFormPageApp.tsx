@@ -1,5 +1,5 @@
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { ShippingProfileForm } from "@/features/delivery/components/ShippingProfileForm";
 
 interface Props {
@@ -8,15 +8,9 @@ interface Props {
 
 function Gated({ profileId }: Props) {
   return (
-    <DashboardChrome
-      currentPath={
-        profileId
-          ? `/delivery/shipping-profiles/${profileId}/edit`
-          : "/delivery/shipping-profiles/new"
-      }
-    >
+    <DashboardPage>
       <ShippingProfileForm profileId={profileId} />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

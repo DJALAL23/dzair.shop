@@ -1,7 +1,7 @@
 import { useEffect, useState, type SyntheticEvent } from "react";
 import { KeyRound, UserRound } from "lucide-react";
 import { RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { PageHeader, Input, Select, Button, Alert } from "@/components/ui";
 import { authClient } from "@/lib/auth/client";
 import { fetchIdentity } from "@/lib/session";
@@ -258,10 +258,10 @@ function ProfileContent() {
 function Gated() {
   const t = useT("profile");
   return (
-    <DashboardChrome narrow currentPath="/profile">
+    <DashboardPage narrow>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
       <ProfileContent />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIdentity } from "@/features/auth/components/RequireAuth";
-import { getMyStore } from "@/features/settings/api";
+import { cachedStoreSummary, readStoreSummary, watchStoreSummary, type StoreSummary } from "@/features/settings/store-summary";
 import { useT } from "@/i18n/react";
 import { Logo } from "@/components/brand/Logo";
 import {
@@ -12,42 +12,26 @@ import {
   type NavNode,
 } from "@/components/layout/nav";
 
-interface StoreSummary {
-  name: string;
-  domain: string | null;
-  logoUrl: string | null;
-}
-
-const STORE_CACHE = "codflow:store-summary";
-
-function cachedStore(): StoreSummary | null {
-  try {
-    const raw = sessionStorage.getItem(STORE_CACHE);
-    return raw ? (JSON.parse(raw) as StoreSummary) : null;
-  } catch {
-    return null;
-  }
-}
-
 /** The store the merchant runs, and a way to open its storefront. Admins only: the store's record is theirs. */
 function StoreBlock() {
   const identity = useIdentity();
   const isAdmin = identity?.role === "admin";
-  const [store, setStore] = useState<StoreSummary | null>(() => (isAdmin ? cachedStore() : null));
+  const [store, setStore] = useState<StoreSummary | null>(() => (isAdmin ? cachedStoreSummary() : null));
 
   useEffect(() => {
     if (!isAdmin) return;
-    getMyStore()
-      .then(({ name, domain, logoUrl }) => {
-        const summary = { name, domain, logoUrl };
-        setStore(summary);
-        try {
-          sessionStorage.setItem(STORE_CACHE, JSON.stringify(summary));
-        } catch {
-          /* storage unavailable */
-        }
-      })
-      .catch(() => undefined);
+    let alive = true;
+    readStoreSummary().then(
+      (summary) => {
+        if (alive) setStore(summary);
+      },
+      () => undefined,
+    );
+    const stop = watchStoreSummary(setStore);
+    return () => {
+      alive = false;
+      stop();
+    };
   }, [isAdmin]);
 
   if (!isAdmin || !store) {
@@ -119,6 +103,11 @@ function NavGroupItem({ item, currentPath, onNavigate }: { item: NavGroup; curre
   const tN = useT("navigation");
   const within = groupContainsCurrent(item, currentPath);
   const [open, setOpen] = useState(within);
+  const [openedAt, setOpenedAt] = useState(currentPath);
+  if (openedAt !== currentPath) {
+    setOpenedAt(currentPath);
+    setOpen(within);
+  }
   const href = item.href ?? item.children[0]?.href ?? "/";
   const current = isCurrentPath(currentPath, href);
   const hasChildren = item.children.length > 0;
@@ -212,7 +201,7 @@ export function SidebarContent({ currentPath, onNavigate }: { currentPath: strin
 
 export function DashboardSidebar({ currentPath }: { currentPath: string }) {
   return (
-    <aside className="hidden w-60 shrink-0 flex-col bg-sidebar md:flex">
+    <aside className="hidden min-h-0 w-60 flex-1 flex-col bg-sidebar md:flex">
       <SidebarContent currentPath={currentPath} />
     </aside>
   );

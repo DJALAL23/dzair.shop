@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { fetchIdentity, knownIdentity } from "@/lib/session";
+import { fetchIdentity, knownIdentity, watchIdentity } from "@/lib/session";
 import { resolveGate, signInRedirect, type GateState, type Identity } from "@/lib/gate";
 import GateSpinner from "@/features/auth/components/GateSpinner";
 import { Alert, Button } from "@/components/ui";
@@ -18,6 +18,33 @@ export function canScope(identity: Identity | null, scope: string): boolean {
   if (!identity) return false;
   if (identity.role === "admin") return true;
   return identity.scopes.includes(scope);
+}
+
+/**
+ * The merchant, for chrome that lives outside a page's gate (the dashboard
+ * frame). Renders nothing until the server answers signed in, and follows
+ * every later answer; the page's own gate sends anyone else away.
+ */
+export function SignedIn({ children }: { children: ReactNode }) {
+  const [identity, setIdentity] = useState<Identity | null>(() => knownIdentity() ?? null);
+
+  useEffect(() => {
+    let alive = true;
+    const stop = watchIdentity(setIdentity);
+    fetchIdentity().then(
+      (id) => {
+        if (alive) setIdentity(id);
+      },
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+      stop();
+    };
+  }, []);
+
+  if (!identity) return null;
+  return <IdentityContext.Provider value={identity}>{children}</IdentityContext.Provider>;
 }
 
 /**

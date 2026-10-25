@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Plus, RefreshCw } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { StageBadge } from "@/features/orders/components/StageBadge";
 import { EmptyState, LinkButton, Alert, PageHeader, Card, Select } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
@@ -358,9 +358,9 @@ function DashboardOverview() {
 export default function DashboardPageApp() {
   return (
     <RequireAuth>
-      <DashboardChrome currentPath="/dashboard">
+      <DashboardPage>
         <DashboardOverview />
-      </DashboardChrome>
+      </DashboardPage>
     </RequireAuth>
   );
 }

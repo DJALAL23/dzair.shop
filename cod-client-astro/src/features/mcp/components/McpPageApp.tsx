@@ -1,6 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { PageHeader } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { McpPageContent } from "@/features/mcp/components/McpPageContent";
@@ -8,7 +8,7 @@ import { McpPageContent } from "@/features/mcp/components/McpPageContent";
 function Gated() {
   const t = useT("mcp");
   return (
-    <DashboardChrome currentPath="/mcp">
+    <DashboardPage>
       <PageHeader
         title={
           <span className="inline-flex items-center gap-2.5">
@@ -21,7 +21,7 @@ function Gated() {
         subtitle={t("page_subtitle")}
       />
       <McpPageContent />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

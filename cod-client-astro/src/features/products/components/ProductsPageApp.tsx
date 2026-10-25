@@ -4,7 +4,7 @@ import {
   RequireAuth,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { LinkButton, PageHeader } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -14,7 +14,7 @@ function Gated() {
   const t = useT("products");
   const identity = useIdentity();
   return (
-    <DashboardChrome currentPath="/products">
+    <DashboardPage>
       <PageHeader
         title={t("page_title")}
         actions={
@@ -27,7 +27,7 @@ function Gated() {
         }
       />
       <ProductsList />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -91,7 +91,7 @@ function CustomerGroupForm({ groupId }: { groupId?: string }) {
 }
 
 function Gated({ groupId }: { groupId?: string }) {
-  return <DashboardChrome narrow currentPath={groupId ? `/customer-groups/${groupId}/edit` : "/customer-groups/new"}><CustomerGroupForm groupId={groupId} /></DashboardChrome>;
+  return <DashboardPage narrow><CustomerGroupForm groupId={groupId} /></DashboardPage>;
 }
 
 export default function CustomerGroupFormPageApp({ groupId }: { groupId?: string }) { return <RequireAuth><Gated groupId={groupId} /></RequireAuth>; }

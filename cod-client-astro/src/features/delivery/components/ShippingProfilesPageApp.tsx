@@ -4,7 +4,7 @@ import {
   RequireAuth,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { LinkButton, PageHeader } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -14,7 +14,7 @@ function Gated() {
   const t = useT("settings");
   const identity = useIdentity();
   return (
-    <DashboardChrome currentPath="/delivery/shipping-profiles">
+    <DashboardPage>
       <PageHeader
         title={t("shipping.title")}
         subtitle={t("shipping.subtitle")}
@@ -28,7 +28,7 @@ function Gated() {
         }
       />
       <ShippingProfilesList />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

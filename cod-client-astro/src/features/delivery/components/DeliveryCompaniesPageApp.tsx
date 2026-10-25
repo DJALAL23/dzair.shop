@@ -5,7 +5,7 @@ import {
   RequireAuth,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { listAllDeliveryCompanies } from "@/features/delivery/api";
@@ -196,10 +196,10 @@ function DeliveryCompaniesList() {
 function Gated() {
   const t = useT("delivery_companies");
   return (
-    <DashboardChrome currentPath="/delivery/companies">
+    <DashboardPage>
       <PageHeader title={t("page_title")} />
       <DeliveryCompaniesList />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

@@ -1,14 +1,12 @@
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { ProductForm } from "@/features/products/components/ProductForm";
 
 function Gated({ productId }: { productId?: string }) {
   return (
-    <DashboardChrome
-      currentPath={productId ? `/products/${productId}/edit` : "/products/new"}
-    >
+    <DashboardPage>
       <ProductForm productId={productId} />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

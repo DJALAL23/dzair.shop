@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Percent, Shuffle, Truck, Wallet } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { Alert, Button, Card, Field, FormPage, Input, SearchPickList, Switch } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
@@ -227,9 +227,9 @@ function CouponForm({ couponId }: { couponId?: string }) {
 export default function CouponFormPageApp({ couponId }: { couponId?: string }) {
   return (
     <RequireAuth>
-      <DashboardChrome narrow currentPath={couponId ? `/coupons/${couponId}` : "/coupons/new"}>
+      <DashboardPage narrow>
         <CouponForm couponId={couponId} />
-      </DashboardChrome>
+      </DashboardPage>
     </RequireAuth>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
 import { RequireAuth, canScope, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { Alert, Button, Card, Field, Input, PageHeader, Select, SwitchField } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
@@ -142,10 +142,10 @@ export default function LabelSettingsPageApp() {
   const t = useT("delivery");
   return (
     <RequireAuth>
-      <DashboardChrome currentPath="/delivery/labels">
+      <DashboardPage>
         <PageHeader title={t("labels.settings.title")} subtitle={t("labels.settings.subtitle")} />
         <Gated />
-      </DashboardChrome>
+      </DashboardPage>
     </RequireAuth>
   );
 }

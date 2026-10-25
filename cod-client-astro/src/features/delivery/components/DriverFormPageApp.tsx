@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { createDriver, getDriver, updateDriver } from "@/features/delivery/api";
@@ -109,7 +109,7 @@ function DriverForm({ driverId }: { driverId?: string }) {
 }
 
 function Gated({ driverId }: { driverId?: string }) {
-  return <DashboardChrome narrow currentPath={driverId ? `/delivery/drivers/${driverId}/edit` : "/delivery/drivers/new"}><DriverForm driverId={driverId} /></DashboardChrome>;
+  return <DashboardPage narrow><DriverForm driverId={driverId} /></DashboardPage>;
 }
 
 export default function DriverFormPageApp({ driverId }: { driverId?: string }) { return <RequireAuth><Gated driverId={driverId} /></RequireAuth>; }

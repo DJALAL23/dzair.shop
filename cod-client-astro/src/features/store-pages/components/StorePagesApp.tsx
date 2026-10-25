@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Building2, ChevronRight, FilePlus, ShieldCheck } from "lucide-react";
 import { RequireAuth, canScope, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { Alert, Button, PageHeader, TableSkeleton, Tabs } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -216,9 +216,9 @@ function pageFromUrl() {
 
 function Gated() {
   return (
-    <DashboardChrome currentPath="/pages">
+    <DashboardPage>
       <StorePagesContent />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

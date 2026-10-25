@@ -1,12 +1,12 @@
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { TeamList } from "@/features/team/components/TeamList";
 
 function Gated() {
   return (
-    <DashboardChrome currentPath="/team">
+    <DashboardPage>
       <TeamList />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

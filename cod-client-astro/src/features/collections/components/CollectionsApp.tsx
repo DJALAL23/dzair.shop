@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Layers, Plus } from "lucide-react";
 import { RequireAuth, canScope, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import {
   Alert,
   Button,
@@ -220,9 +220,9 @@ function NewCollectionDialog({ onClose, onCreated }: { onClose: () => void; onCr
 
 function Gated() {
   return (
-    <DashboardChrome currentPath="/collections">
+    <DashboardPage>
       <CollectionsContent />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

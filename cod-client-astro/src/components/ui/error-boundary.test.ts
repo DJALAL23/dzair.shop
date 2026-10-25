@@ -39,8 +39,8 @@ describe("lazily loaded components", () => {
     expect(unguarded).toEqual([]);
   });
 
-  it("the chrome contains any page failure inside the dashboard", () => {
-    const chrome = readFileSync(join(SRC, "components/layout/chrome.tsx"), "utf8");
-    expect(chrome).toMatch(/<ErrorBoundary[\s\S]*\{children\}[\s\S]*<\/ErrorBoundary>/);
+  it("a dashboard page contains any failure inside the frame", () => {
+    const page = readFileSync(join(SRC, "components/layout/page.tsx"), "utf8");
+    expect(page).toMatch(/<ErrorBoundary[\s\S]*\{children\}[\s\S]*<\/ErrorBoundary>/);
   });
 });

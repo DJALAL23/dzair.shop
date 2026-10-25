@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { AlertTriangle, History, Package, Pencil, SearchX, Wallet, X, XCircle } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import {
   Alert,
   Badge,
@@ -227,7 +227,7 @@ function StockOverviewList() {
 
 function Gated() {
   const t = useT("products");
-  return <DashboardChrome currentPath="/products/stock"><PageHeader title={t("stock_overview.page_title")} /><StockOverviewList /></DashboardChrome>;
+  return <DashboardPage><PageHeader title={t("stock_overview.page_title")} /><StockOverviewList /></DashboardPage>;
 }
 
 export default function StockOverviewPageApp() { return <RequireAuth><Gated /></RequireAuth>; }

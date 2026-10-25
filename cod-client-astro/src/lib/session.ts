@@ -9,6 +9,7 @@ let cachedJwt: string | null = null;
 let inflight: Promise<Identity | null> | null = null;
 /** The server's last answer this page session: undefined until one arrives. */
 let answered: Identity | null | undefined = undefined;
+const watchers = new Set<(identity: Identity | null) => void>();
 
 /** The session could not be checked — rate limited, a server error or no connection. Not the same as signed out. */
 export class SessionUnavailableError extends Error {
@@ -73,7 +74,9 @@ export function fetchIdentity(): Promise<Identity | null> {
   inflight = check;
   check.then(
     (identity) => {
-      if (inflight === check) answered = identity;
+      if (inflight !== check) return;
+      answered = identity;
+      watchers.forEach((watch) => watch(identity));
     },
     () => {
       if (inflight === check) inflight = null;
@@ -90,6 +93,14 @@ export function fetchIdentity(): Promise<Identity | null> {
  */
 export function knownIdentity(): Identity | null | undefined {
   return answered;
+}
+
+/** Calls the listener with every answer the server gives from now on, until the returned function is called. */
+export function watchIdentity(listener: (identity: Identity | null) => void): () => void {
+  watchers.add(listener);
+  return () => {
+    watchers.delete(listener);
+  };
 }
 
 /** Current JWT if already fetched; refreshes via fetchIdentity when absent. */

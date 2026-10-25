@@ -9,7 +9,7 @@ import {
   Upload,
 } from "lucide-react";
 import { RequireAuth, canScope, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import {
   Alert,
   Button,
@@ -579,9 +579,9 @@ function ChoiceGroup<T extends string>({
 export default function WhatsAppWidgetApp() {
   return (
     <RequireAuth>
-      <DashboardChrome narrow currentPath="/whatsapp">
+      <DashboardPage narrow>
         <WhatsAppWidgetContent />
-      </DashboardChrome>
+      </DashboardPage>
     </RequireAuth>
   );
 }

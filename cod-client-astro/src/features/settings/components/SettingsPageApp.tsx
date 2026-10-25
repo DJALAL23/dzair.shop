@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { Alert, PageHeader } from "@/components/ui";
 import { useT } from "@/i18n/react";
-import { getMyStore, updateMyStore } from "@/features/settings/api";
+import { getMyStore } from "@/features/settings/api";
 import { settingsErrorMessage } from "@/features/settings/model";
+import { saveMyStore } from "@/features/settings/store-summary";
 import type { CategoryId } from "@/features/settings/model";
 import type { StoreConfig, UpdateStoreData } from "@/features/settings/types";
 import { SettingsSidebar } from "@/features/settings/components/SettingsSidebar";
@@ -49,8 +50,7 @@ function SettingsContent() {
 
   async function handleSave(payload: UpdateStoreData) {
     try {
-      const updated = await updateMyStore(payload);
-      setStoreConfig(updated);
+      setStoreConfig(await saveMyStore(payload));
     } catch (cause) {
       throw new Error(settingsErrorMessage(cause, t));
     }
@@ -161,10 +161,10 @@ function SettingsContent() {
 function Gated() {
   const t = useT("settings");
   return (
-    <DashboardChrome currentPath="/settings">
+    <DashboardPage>
       <PageHeader title={t("store.title")} />
       <SettingsContent />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

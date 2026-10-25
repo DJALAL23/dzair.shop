@@ -1,12 +1,12 @@
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { CustomerDetail } from "@/features/customers/components/CustomerDetail";
 
 function Gated({ customerId }: { customerId: string }) {
   return (
-    <DashboardChrome currentPath={`/customers/${customerId}`}>
+    <DashboardPage>
       <CustomerDetail customerId={customerId} />
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 

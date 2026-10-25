@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -88,7 +88,7 @@ function CustomerTagForm({ tagId }: { tagId?: string }) {
 }
 
 function Gated({ tagId }: { tagId?: string }) {
-  return <DashboardChrome narrow currentPath={tagId ? `/customer-tags/${tagId}/edit` : "/customer-tags/new"}><CustomerTagForm tagId={tagId} /></DashboardChrome>;
+  return <DashboardPage narrow><CustomerTagForm tagId={tagId} /></DashboardPage>;
 }
 
 export default function CustomerTagFormPageApp({ tagId }: { tagId?: string }) { return <RequireAuth><Gated tagId={tagId} /></RequireAuth>; }

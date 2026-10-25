@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Star, X } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardChrome } from "@/components/layout/chrome";
+import { DashboardPage } from "@/components/layout/page";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -192,7 +192,7 @@ function Gated() {
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(0);
   return (
-    <DashboardChrome currentPath="/reviews">
+    <DashboardPage>
       <PageHeader
         title={t("page_title")}
         actions={
@@ -206,7 +206,7 @@ function Gated() {
       />
       <ReviewsList refresh={added} />
       {adding && <AddReviewDialog onClose={() => setAdding(false)} onCreated={() => setAdded((n) => n + 1)} />}
-    </DashboardChrome>
+    </DashboardPage>
   );
 }
 
