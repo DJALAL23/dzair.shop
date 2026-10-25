@@ -109,31 +109,24 @@ export async function registerZrWebhook(c: Context<AppContext>) {
     throw new ExternalApiError("ZR Express", "Did not return an endpoint ID", { companyId: id });
   }
 
-  // Fetch the signing secret for this endpoint
-  const secretRes = await fetch(
-    `${ZR_BASE_URL}/api/v1/webhooks/endpoints/${endpointId}/secret`,
-    { headers: zrHeaders }
-  );
-
-  if (!secretRes.ok) {
-    const errorBody = await secretRes.text().catch(() => "");
+  // Its signing secret: without it, nothing ZR sends could be verified, and
+  // unsigned deliveries are refused — so an endpoint is never kept without one.
+  const secretRes = await fetch(`${ZR_BASE_URL}/api/v1/webhooks/endpoints/${endpointId}/secret`, { headers: zrHeaders });
+  const secret = secretRes.ok ? ((await secretRes.json().catch(() => ({}))) as { secret?: string }).secret?.trim() || null : null;
+  if (!secret) {
+    const errorBody = secretRes.ok ? "no secret in the answer" : await secretRes.text().catch(() => "");
     console.error("[webhook][zr] Failed to fetch endpoint secret:", secretRes.status, errorBody);
-    // Store the endpointId anyway — secret can be fetched later
+    // Undo the registration, and forget the endpoint replaced above: the
+    // company has no working webhook until it is registered again.
+    await fetch(`${ZR_BASE_URL}/api/v1/webhooks/endpoints/${endpointId}`, { method: "DELETE", headers: zrHeaders }).catch((err) =>
+      console.warn("[webhook][zr] Failed to delete the endpoint whose secret could not be fetched:", err),
+    );
     await db
       .update(deliveryCompanies)
-      .set({ webhookEndpointId: endpointId, updatedAt: new Date().toISOString() })
+      .set({ webhookEndpointId: null, webhookSecret: null, updatedAt: new Date().toISOString() })
       .where(eq(deliveryCompanies.id, id));
-
-    return c.json({
-      success: true,
-      webhookUrl,
-      endpointId,
-      warning: "Endpoint registered but secret could not be fetched — signature verification will be skipped",
-    }, 200);
+    throw new ExternalApiError("ZR Express", `The webhook's signing secret could not be fetched (${errorBody || `HTTP ${secretRes.status}`}); nothing was registered — try again`, { companyId: id });
   }
-
-  const secretData = (await secretRes.json()) as { secret?: string };
-  const secret = secretData.secret ?? null;
 
   await db
     .update(deliveryCompanies)

@@ -153,27 +153,18 @@ describe("receiving", () => {
     expect(await inbox()).toHaveLength(0);
   });
 
-  it("a single company without a secret takes unsigned deliveries; with a secret it does not", async () => {
+  it("a company without a secret takes no unsigned delivery: what a carrier says must be proven to be the carrier's", async () => {
     await d1.db.delete(schema.deliveryCompanies).where(eq(schema.deliveryCompanies.id, "yal-b"));
     await d1.db.update(schema.deliveryCompanies).set({ webhookSecret: null }).where(eq(schema.deliveryCompanies.id, "yal-a"));
-    expect((await yalidine("parcel_status_updated", [status("yal-9", "Livré")], null)).status).toBe(200);
-    expect(await inbox()).toHaveLength(1);
-
-    await d1.db.update(schema.deliveryCompanies).set({ webhookSecret: SECRET_A }).where(eq(schema.deliveryCompanies.id, "yal-a"));
-    expect((await yalidine("parcel_status_updated", [status("yal-9", "Livré", "2026-10-14 11:00:00")], null)).status).toBe(401);
-  });
-
-  it("several companies with no secret: an unsigned delivery could be anyone's, so it is refused", async () => {
-    await d1.db.update(schema.deliveryCompanies).set({ webhookSecret: null });
     expect((await yalidine("parcel_status_updated", [status("yal-9", "Livré")], null)).status).toBe(401);
+    expect((await yalidine("parcel_status_updated", [status("yal-9", "Livré")], SECRET_A)).status).toBe(401);
     expect(await inbox()).toHaveLength(0);
   });
 
-  it("Guepex takes no webhooks, so it never makes a single unsigned Yalidine company ambiguous", async () => {
-    await d1.db.delete(schema.deliveryCompanies).where(eq(schema.deliveryCompanies.id, "yal-b"));
-    await d1.db.update(schema.deliveryCompanies).set({ webhookSecret: null }).where(eq(schema.deliveryCompanies.id, "yal-a"));
-    expect((await yalidine("parcel_status_updated", [status("yal-9", "Livré")], null)).status).toBe(200);
-    expect((await inbox())[0].companyId).toBe("yal-a");
+  it("several companies with no secret: an unsigned delivery is refused", async () => {
+    await d1.db.update(schema.deliveryCompanies).set({ webhookSecret: null });
+    expect((await yalidine("parcel_status_updated", [status("yal-9", "Livré")], null)).status).toBe(401);
+    expect(await inbox()).toHaveLength(0);
   });
 
   it("an inactive company, or one that takes no webhooks (Guepex), is never the target", async () => {

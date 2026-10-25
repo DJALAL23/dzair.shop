@@ -307,8 +307,8 @@ export function webhookSetup(
 
 /**
  * A connected company whose carrier pushes updates but whose webhook is not
- * set up yet: its updates arrive unverified now, and a coming platform
- * version refuses unsigned ones.
+ * set up yet: the server refuses unsigned deliveries, so none of its updates
+ * reach the store until it is.
  */
 export function webhookNeedsAction(
   config: Pick<ProviderConfig, "provider" | "updates">,

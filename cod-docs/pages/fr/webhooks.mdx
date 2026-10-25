@@ -65,7 +65,7 @@ Les deux flux commencent sur la page d'identifiants de la société de livraison
 
 Envoyez un événement de test depuis le transporteur et confirmez que la société de livraison le reçoit.
 
-Définissez toujours un secret de webhook. Si une boutique a exactement une société de livraison associée aux webhooks d'un transporteur et que cette société n'a pas de secret, le serveur accepte encore une livraison non signée pour compatibilité — et journalise un avertissement. Ce repli n'est pas sûr pour un endpoint public.
+Un webhook a besoin de son secret. Une livraison qu'aucun secret de société ne vérifie est refusée avec `401` et jamais stockée : ce qu'un transporteur rapporte devient un événement métier dont les systèmes des marchands et les clients peuvent être informés, il faut donc prouver qu'il vient du transporteur. Si ZR Express ne donne pas son secret de signature, l'enregistrement est annulé et rien n'est conservé ; enregistrez à nouveau.
 
 ## Vérification de la signature
 

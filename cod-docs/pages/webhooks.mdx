@@ -65,7 +65,7 @@ Both flows start on the delivery company's credentials page in the dashboard.
 
 Send a test event from the carrier and confirm the delivery company receives it.
 
-Always set a webhook secret. If a store has exactly one webhook company for a carrier and that company has no secret, the server still accepts an unsigned delivery for compatibility — and logs a warning. That fallback is not safe for a public endpoint.
+A webhook needs its secret. A delivery no company's secret verifies is refused with `401` and never stored: what a carrier reports becomes a Business Event that merchants' systems and customers may be told about, so it must be proven to come from the carrier. If ZR Express does not give its signing secret, the registration is undone and nothing is kept; register again.
 
 ## Signature verification
 

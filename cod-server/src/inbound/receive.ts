@@ -5,9 +5,9 @@
  *
  * The company is the one whose webhook secret verifies the signature, so two
  * companies on the same carrier (two Yalidine accounts) never mix. A delivery
- * no secret verifies is refused — unless the store has exactly one company
- * for that carrier and it has no secret set, the old behaviour, kept with a
- * warning.
+ * no secret verifies is refused: what a carrier reports becomes a Business
+ * Event the merchant's systems and customers may be told about, so it must be
+ * proven to come from the carrier.
  */
 
 import { and, eq } from "drizzle-orm";
@@ -44,12 +44,7 @@ export async function receiveWebhook(db: AppDb, provider: CarrierProvider, rawBo
       break;
     }
   }
-  if (!companyId) {
-    const [only] = companies;
-    if (companies.length !== 1 || only.webhookSecret) return { status: 401, error: "The webhook signature matches no company" };
-    console.warn(`[inbound] ${provider} company ${only.id} has no webhook secret — accepting an unsigned delivery`);
-    companyId = only.id;
-  }
+  if (!companyId) return { status: 401, error: "The webhook signature matches no company" };
 
   let envelopes;
   try {
