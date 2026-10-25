@@ -1,7 +1,8 @@
 /**
  * The Event Catalogue keeps its promises (ADR 0018):
  *   - every current version is released, and no released type disappears;
- *   - a current version never breaks its released snapshot;
+ *   - a current version never breaks its released snapshot, and its snapshot
+ *     is advanced with every field it adds, so none is published unpromised;
  *   - the schemas consumers are promised are exactly the types writers build;
  *   - data writers build is accepted by its schema.
  */
@@ -44,6 +45,11 @@ describe("the Event Catalogue", () => {
 
   it.each(released.map((r) => [r.file, r] as const))("never breaks the released %s", (_, snapshot) => {
     expect(breakingChanges(snapshot.schema, eventDataJsonSchema(snapshot.type as EventType))).toEqual([]);
+  });
+
+  it.each(EVENT_TYPES)("promises every field %s's current version publishes", (type) => {
+    const snapshot = released.find((r) => r.file === releasedSnapshotName(type, EVENT_CATALOGUE[type].version));
+    expect(snapshot?.schema, `${type}'s snapshot is behind its schema — run npm run events:release-catalogue`).toEqual(eventDataJsonSchema(type));
   });
 
   it("promises consumers exactly the data writers build", () => {
