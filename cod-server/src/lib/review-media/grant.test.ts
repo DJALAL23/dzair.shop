@@ -20,7 +20,8 @@ describe("an upload grant", () => {
     const [payload, signature] = token.split(".");
     const raised = btoa(JSON.stringify({ ...JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))), maxPhotos: 60 })).replace(/=+$/, "");
     expect(await readUploadGrant(SECRET, `${raised}.${signature}`, NOW)).toBeNull();
-    expect(await readUploadGrant(SECRET, `${payload}.${signature.slice(0, -2)}AA`, NOW)).toBeNull();
+    const changed = signature.at(-2) === "A" ? "B" : "A";
+    expect(await readUploadGrant(SECRET, `${payload}.${signature.slice(0, -2)}${changed}${signature.at(-1)}`, NOW)).toBeNull();
     for (const junk of ["", ".", "a.b.c", `${payload}.`, "%%%.%%%", "x".repeat(3000)]) expect(await readUploadGrant(SECRET, junk, NOW)).toBeNull();
   });
 
