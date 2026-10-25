@@ -11,7 +11,7 @@ import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
 import type { ActorKind, Origin } from "../events/actor";
 import type { EventSubject, EventType } from "../events/catalogue";
-import { ATTEMPT_OUTCOMES, DELIVERY_STATES } from "../events/deliveries-model";
+import { ATTEMPT_OUTCOMES, CONSUMER_DISABLED_REASONS, DELIVERY_STATES } from "../events/deliveries-model";
 
 const authNow = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
@@ -2154,7 +2154,7 @@ export const eventConsumers = sqliteTable("event_consumers", {
   /** Since when every Attempt has failed; null once one succeeds. */
   failingSince: text("failing_since"),
   /** Why the store stopped delivering to it, when it did. */
-  disabledReason: text("disabled_reason"),
+  disabledReason: text("disabled_reason", { enum: CONSUMER_DISABLED_REASONS }),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

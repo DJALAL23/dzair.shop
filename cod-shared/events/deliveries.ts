@@ -5,10 +5,12 @@
  * once, or the same wake delivered twice, change nothing twice.
  */
 
-import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, between, eq, inArray, isNull, lte, ne, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { businessEvents, eventConsumers, eventDeliveries, eventDeliveryAttempts } from "../db/schema";
+import { insertSelectRow } from "../db/insert-select";
 import { retrySchedule } from "../lib/retry-schedule";
+import { EVENT_TYPES } from "./catalogue";
 import type { AttemptOutcomeKind, DeliveryState } from "./deliveries-model";
 import { toBusinessEvent, type BusinessEvent } from "./log";
 import { readSubscription, subscribesTo } from "./subscription";
@@ -25,6 +27,8 @@ export const FAILING_DISABLES_AFTER_MS = 3 * 24 * 60 * 60_000;
 export const SETTLED_KEPT_MS = 30 * 24 * 60 * 60_000;
 /** Business Events are kept this long, once nothing is still on its way. */
 export const EVENTS_KEPT_MS = 90 * 24 * 60 * 60_000;
+/** The most events one Replay may span; a longer range is replayed in parts. */
+export const REPLAY_MAX_EVENTS = 1000;
 /** The most of a Consumer's answer an Attempt keeps. */
 const EXCERPT_CHARS = 1000;
 
@@ -126,6 +130,58 @@ export async function claimDelivery(db: AppDb, id: string, now: Date): Promise<C
   return { id, attempt: claimed.attempts, consumer: row.consumer, event: toBusinessEvent(row.event) };
 }
 
+/** A version 4 UUID drawn by SQLite, one per row an `INSERT … SELECT` writes. */
+const uuidSql = sql`lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))`;
+
+/**
+ * Deliver again, on the merchant's word: a settled Delivery (delivered,
+ * skipped or dead) becomes due now, its Attempts starting over and its
+ * history kept. One still due is already on its way and is left as it is.
+ * Over a Sequence range (a Replay), an event the Consumer subscribes to that
+ * never had a Delivery to it — recorded while it was disabled, or before it
+ * existed — gets one. The caller checks the Consumer is enabled.
+ */
+export async function reopenDeliveries(
+  db: AppDb,
+  consumer: ConsumerRow,
+  scope: { deliveryId: string } | { fromSequence: number; toSequence: number },
+  now: Date,
+): Promise<{ reopened: number; created: number }> {
+  const at = now.toISOString();
+  const reopen = { state: "due" as const, attempts: 0, nextAttemptAt: at, lastError: null, settledAt: null };
+  const settled = and(eq(eventDeliveries.consumerId, consumer.id), ne(eventDeliveries.state, "due"));
+  if ("deliveryId" in scope) {
+    const reopened = await db.update(eventDeliveries).set(reopen).where(and(settled, eq(eventDeliveries.id, scope.deliveryId))).returning({ id: eventDeliveries.id });
+    return { reopened: reopened.length, created: 0 };
+  }
+
+  const { fromSequence, toSequence } = scope;
+  if (!(Number.isInteger(fromSequence) && Number.isInteger(toSequence) && fromSequence <= toSequence && toSequence - fromSequence < REPLAY_MAX_EVENTS)) {
+    throw new Error(`A Replay spans 1 to ${REPLAY_MAX_EVENTS} Sequences, from the first to the last`);
+  }
+  const types = EVENT_TYPES.filter((type) => subscribesTo(readSubscription(consumer.subscription), type));
+  if (types.length === 0) return { reopened: 0, created: 0 };
+  const inRange = and(between(businessEvents.seq, fromSequence, toSequence), inArray(businessEvents.type, types));
+  const [reopened, created] = await db.batch([
+    db
+      .update(eventDeliveries)
+      .set(reopen)
+      .where(and(settled, inArray(eventDeliveries.eventSeq, db.select({ seq: businessEvents.seq }).from(businessEvents).where(inRange))))
+      .returning({ id: eventDeliveries.id }),
+    db
+      .insert(eventDeliveries)
+      .select(
+        db
+          .select(insertSelectRow(eventDeliveries, { id: uuidSql, eventSeq: businessEvents.seq, consumerId: sql`${consumer.id}`, state: sql`'due'`, attempts: sql`0`, nextAttemptAt: sql`${at}`, createdAt: sql`${at}` }) as never)
+          .from(businessEvents)
+          .where(inRange),
+      )
+      .onConflictDoNothing()
+      .returning({ id: eventDeliveries.id }),
+  ]);
+  return { reopened: reopened.length, created: created.length };
+}
+
 /**
  * Record an Attempt and what it settles: delivered, skipped, due again after
  * its wait (no sooner than a Retry-After asked), or dead once the Attempts
@@ -181,7 +237,7 @@ export async function settleDelivery(
           ? {
               failingSince: sql`coalesce(${eventConsumers.failingSince}, ${at})`,
               enabled: sql`case when ${eventConsumers.failingSince} is not null and ${eventConsumers.failingSince} <= ${before(timing.finishedAt, FAILING_DISABLES_AFTER_MS)} then 0 else ${eventConsumers.enabled} end`,
-              disabledReason: sql`case when ${eventConsumers.failingSince} is not null and ${eventConsumers.failingSince} <= ${before(timing.finishedAt, FAILING_DISABLES_AFTER_MS)} then 'Every delivery failed for 3 days' else ${eventConsumers.disabledReason} end`,
+              disabledReason: sql`case when ${eventConsumers.failingSince} is not null and ${eventConsumers.failingSince} <= ${before(timing.finishedAt, FAILING_DISABLES_AFTER_MS)} then 'failing' else ${eventConsumers.disabledReason} end`,
             }
           : { failingSince: null },
       )

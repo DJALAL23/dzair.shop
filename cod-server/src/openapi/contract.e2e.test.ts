@@ -27,6 +27,8 @@ import driversRouter from "@/endpoints/drivers/routes";
 import driverPaymentsRouter from "@/endpoints/driver-payments/routes";
 import analyticsRouter from "@/endpoints/analytics/routes";
 import eventsRouter from "@/endpoints/events/routes";
+import eventConsumersRouter from "@/endpoints/event-consumers/routes";
+import eventDeliveriesRouter from "@/endpoints/event-deliveries/routes";
 import { seedOrder, seedStore, T0, type OrderSeed } from "@/endpoints/shipments/test/harness";
 
 const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
@@ -61,6 +63,8 @@ beforeAll(async () => {
   app.route("/api/driver-payments", driverPaymentsRouter);
   app.route("/api/analytics", analyticsRouter);
   app.route("/api/events", eventsRouter);
+  app.route("/api/event-consumers", eventConsumersRouter);
+  app.route("/api/event-deliveries", eventDeliveriesRouter);
   doc = (await (await app.request("/api/openapi.json", {}, { WORKER_URL: "https://api.example.com" } as never)).json()) as OpenApiDocument;
 }, 120_000);
 
@@ -153,6 +157,27 @@ describe("the document is what the API answers", () => {
     await api("GET", `/api/events/${log.data[2].id}`, "/api/events/{id}", 200);
     await api("GET", "/api/events/evt_missing", "/api/events/{id}", 404);
     await api("GET", "/api/events?type=order.everything", "/api/events", 400);
+  });
+
+  it("the Consumers, a Replay to one, and its Deliveries", async () => {
+    await seed({ id: "o1", status: "new" });
+    await api("PATCH", "/api/orders/o1/status", "/api/orders/{id}/status", 200, { status: "confirmed" });
+    const consumers = await api("GET", "/api/event-consumers", "/api/event-consumers", 200);
+    expect(consumers.data.map((c: { id: string }) => c.id)).toContain("meta-conversions");
+    await api("GET", "/api/event-consumers/meta-conversions", "/api/event-consumers/{id}", 200);
+    await api("PATCH", "/api/event-consumers/meta-conversions", "/api/event-consumers/{id}", 200, { enabled: false });
+    await api("POST", "/api/event-consumers/meta-conversions/replay", "/api/event-consumers/{id}/replay", 409, { fromSequence: 1, toSequence: 10 });
+    await api("PATCH", "/api/event-consumers/meta-conversions", "/api/event-consumers/{id}", 200, { enabled: true });
+    await api("POST", "/api/event-consumers/meta-conversions/replay", "/api/event-consumers/{id}/replay", 400, { fromSequence: 5, toSequence: 1 });
+    const replay = await api("POST", "/api/event-consumers/meta-conversions/replay", "/api/event-consumers/{id}/replay", 202, { fromSequence: 1, toSequence: 1000 });
+    expect(replay.data.created).toBeGreaterThan(0);
+    const listed = await api("GET", "/api/event-deliveries?consumerId=meta-conversions", "/api/event-deliveries", 200);
+    await api("GET", `/api/event-deliveries?eventId=${listed.data[0].event.id}`, "/api/event-deliveries", 200);
+    await api("GET", `/api/event-deliveries/${listed.data[0].id}`, "/api/event-deliveries/{id}", 200);
+    await api("POST", `/api/event-deliveries/${listed.data[0].id}/retry`, "/api/event-deliveries/{id}/retry", 409);
+    await api("GET", "/api/event-deliveries", "/api/event-deliveries", 400);
+    await api("GET", "/api/event-consumers/ghost", "/api/event-consumers/{id}", 404);
+    await api("GET", "/api/event-deliveries/ghost", "/api/event-deliveries/{id}", 404);
   });
 
   it("the delivery companies, what their carriers can do, their settings and their inbox", async () => {

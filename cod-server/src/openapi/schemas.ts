@@ -193,3 +193,11 @@ export {
   type OrderType,
   type OrderProductStatus,
 } from "./schemas/orders";
+
+export {
+  EventConsumerSchema,
+  EventDeliverySchema,
+  EventDeliveryAttemptSchema,
+  EventDeliveryDetailSchema,
+  RedeliverySchema,
+} from "./schemas/event-consumers";

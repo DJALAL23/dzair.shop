@@ -208,7 +208,7 @@ describe("an Attempt", () => {
     await d1.db.update(schema.eventConsumers).set({ kind: "ok" }).where(eq(schema.eventConsumers.id, "back"));
     await run({ memory: impl, ok: recovered.impl });
     const byId = Object.fromEntries((await d1.db.select().from(schema.eventConsumers).all()).map((c) => [c.id, c]));
-    expect(byId.down).toMatchObject({ enabled: false, disabledReason: "Every delivery failed for 3 days" });
+    expect(byId.down).toMatchObject({ enabled: false, disabledReason: "failing" });
     expect(byId.back).toMatchObject({ enabled: true, failingSince: null });
   });
 

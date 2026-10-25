@@ -149,3 +149,13 @@ events by Sequence or Occurred At, never by arrival.
 **The event keeps what was true**: a Business Event carries the facts as they
 were when it was recorded; a later edit or deletion of its Subject never
 changes it.
+
+**A stopped Consumer receives nothing**: while a Consumer is stopped — by the
+merchant, or because every Attempt failed for three days — what is recorded
+is not delivered to it, and what was waiting is skipped. Started again, it
+receives what is recorded from then on; what it missed reaches it only
+through a Replay.
+
+**Delivering again records nothing**: a retry or a Replay makes Deliveries
+due again; it never records a Business Event, so a Consumer recognises what
+it receives again by the event's id.

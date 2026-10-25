@@ -51,6 +51,12 @@ export const ERROR_CODES = {
   // BUSINESS EVENTS
   // ============================================================================
   BUSINESS_EVENT_NOT_FOUND: "BUSINESS_EVENT_NOT_FOUND",
+  EVENT_CONSUMER_NOT_FOUND: "EVENT_CONSUMER_NOT_FOUND",
+  EVENT_DELIVERY_NOT_FOUND: "EVENT_DELIVERY_NOT_FOUND",
+  /** A disabled Consumer receives nothing: start it again before replaying to it. */
+  EVENT_CONSUMER_DISABLED: "EVENT_CONSUMER_DISABLED",
+  /** The Delivery is already on its way. */
+  EVENT_DELIVERY_ALREADY_DUE: "EVENT_DELIVERY_ALREADY_DUE",
 
   // ============================================================================
   // BUSINESS LOGIC ERRORS - ORDERS

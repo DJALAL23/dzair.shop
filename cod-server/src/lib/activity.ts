@@ -101,6 +101,12 @@ export const ACTIONS = {
   REVIEW_CREATED:          "review.created",
   REVIEW_MEDIA_REMOVED:    "review.media_removed",
 
+  // Business Events: the merchant's word on who receives them
+  EVENT_CONSUMER_ENABLED:  "event_consumer.enabled",
+  EVENT_CONSUMER_DISABLED: "event_consumer.disabled",
+  EVENT_CONSUMER_REPLAYED: "event_consumer.replayed",
+  EVENT_DELIVERY_RETRIED:  "event_delivery.retried",
+
   // Users / Team
   USER_CREATED:            "user.created",
   USER_UPDATED:            "user.updated",
