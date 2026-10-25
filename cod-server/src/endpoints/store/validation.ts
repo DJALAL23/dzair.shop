@@ -172,6 +172,13 @@ export const storeOrderSchema = z.object({
     z.string().min(1).max(60).optional()
   ),
   couponCode: couponCodeField,
+  // The checkout attempt's key, stamped by the shopper's browser on its first
+  // submit: a double click, a resubmitted form or a retried request carries the
+  // same key and gets back the order already placed (migration 0062).
+  checkoutKey: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : v),
+    z.string().uuid().optional()
+  ),
 })
   /**
    * An order is either a basket or a single product — never neither.

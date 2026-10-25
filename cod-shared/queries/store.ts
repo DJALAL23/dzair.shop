@@ -131,6 +131,30 @@ export interface StoreOrderData {
   fbp?: string;
   ipAddress?: string;
   userAgent?: string;
+  /** The checkout attempt's key: an order already placed with it is never placed again (migration 0062). */
+  checkoutKey?: string;
+}
+
+/** Another request of the same checkout attempt placed its order first; read it with `orderPlacedWith`. */
+export class CheckoutAlreadyPlacedError extends Error {
+  constructor(readonly checkoutKey: string) {
+    super("This checkout's order was already placed");
+    this.name = "CheckoutAlreadyPlacedError";
+  }
+}
+
+const isCheckoutKeyCollision = (error: unknown) =>
+  /UNIQUE constraint failed: orders\.checkout_key/.test(`${error instanceof Error ? error.message : String(error)} ${error instanceof Error ? String((error as { cause?: unknown }).cause ?? "") : ""}`);
+
+/** The order a checkout attempt placed, as its answer reported it, or null when none was. */
+export async function orderPlacedWith(db: AppDb, checkoutKey: string) {
+  return (
+    (await db
+      .select({ id: orders.id, orderNumber: orders.orderNumber, phone: orders.phone, price: orders.price, deliveryFee: orders.deliveryFee, couponDiscount: orders.couponDiscount })
+      .from(orders)
+      .where(eq(orders.checkoutKey, checkoutKey))
+      .get()) ?? null
+  );
 }
 
 /**
@@ -1054,6 +1078,7 @@ export async function createStoreOrder(
         // Ride the existing insert rather than adding statements: the commit is
         // one atomic batch and D1 caps how many statements it may carry.
         customerEmail: data.customerEmail ?? null,
+        checkoutKey: data.checkoutKey ?? null,
         customFieldsJson: serializeCustomFieldAnswers(data.customFieldAnswers ?? []),
       }),
     ];
@@ -1092,6 +1117,7 @@ export async function createStoreOrder(
     } catch (error) {
       const raised = raisedCouponRefusal(error);
       if (raised) throw new CouponNotApplicableError(raised);
+      if (data.checkoutKey && isCheckoutKeyCollision(error)) throw new CheckoutAlreadyPlacedError(data.checkoutKey);
       if (attempt >= MAX_ORDER_NUMBER_DRAWS || !isOrderNumberCollision(error)) throw error;
       orderNumber = drawOrderNumber(now);
     }

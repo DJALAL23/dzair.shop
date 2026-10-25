@@ -6,7 +6,7 @@ import { getDb } from "@/db";
 import * as queries from "./queries";
 import type { StoreProductsParams } from "../../../../cod-shared/queries/store";
 import { storeOrderSchema, validateCartSchema } from "./validation";
-import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
+import { ConflictError, NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
 import { meetsFreeDeliveryThreshold } from "../../../../cod-shared/queries/shipping-resolution";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { assertOtpVerification } from "./otp-gate";
@@ -295,6 +295,13 @@ export async function createStoreOrder(c: Context<AppContext>) {
   const submitted: import("./validation").StoreOrderInput =
     bodyData ?? storeOrderSchema.parse(await c.req.json());
 
+  // The same checkout attempt again answers with its order, before any gate:
+  // its Turnstile token was spent by the first request.
+  if (submitted.checkoutKey) {
+    const placed = await queries.orderPlacedWith(db, submitted.checkoutKey);
+    if (placed) return checkoutReplay(c, placed, submitted.phone);
+  }
+
   // Turnstile bot gate — runs before the SKU/stock lookups so bot traffic is
   // rejected before spending D1 reads. No-op when the store has it disabled.
   await assertTurnstile(c, db, submitted);
@@ -443,10 +450,17 @@ export async function createStoreOrder(c: Context<AppContext>) {
       },
       snapshot
     )
-    .catch((error: unknown) => {
+    .catch(async (error: unknown) => {
       // The use was taken by another order since the code was checked.
-      throw error instanceof queries.CouponNotApplicableError ? couponNotApplicable(error.refusal) : error;
+      if (error instanceof queries.CouponNotApplicableError) throw couponNotApplicable(error.refusal);
+      // Another request of this checkout placed it a moment earlier.
+      if (error instanceof queries.CheckoutAlreadyPlacedError) return { replay: await queries.orderPlacedWith(db, error.checkoutKey) };
+      throw error;
     });
+  if ("replay" in order) {
+    if (!order.replay) throw new Error("The checkout's order was placed by another request, then removed before it could be read");
+    return checkoutReplay(c, order.replay, submitted.phone);
+  }
 
   return c.json(
     {
@@ -461,6 +475,27 @@ export async function createStoreOrder(c: Context<AppContext>) {
       },
     },
     201
+  );
+}
+
+/** The order a checkout attempt already placed, answered as it was the first time — for the same phone only. */
+function checkoutReplay(c: Context<AppContext>, placed: NonNullable<Awaited<ReturnType<typeof queries.orderPlacedWith>>>, phone: string) {
+  if (placed.phone !== phone) {
+    throw new ConflictError("This checkout already placed an order for another phone", ERROR_CODES.CHECKOUT_KEY_IN_USE);
+  }
+  return c.json(
+    {
+      success: true,
+      data: {
+        orderId: placed.id,
+        orderNumber: placed.orderNumber,
+        price: placed.price,
+        deliveryFee: placed.deliveryFee,
+        total: placed.price + placed.deliveryFee,
+        couponDiscount: placed.couponDiscount,
+      },
+    },
+    201,
   );
 }
 

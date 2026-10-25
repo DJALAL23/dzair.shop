@@ -518,7 +518,11 @@ export const orders = sqliteTable("orders", {
   couponDiscount: integer("coupon_discount").notNull().default(0),
   /** The name `deliveryOfferId` had when the order was placed — kept when the offer is renamed or deleted (migration 0053). */
   deliveryOfferName: text("delivery_offer_name"),
-});
+  /** The storefront's key for the checkout attempt that placed it: the same key places no second order (migration 0062). */
+  checkoutKey: text("checkout_key"),
+}, (t) => ({
+  checkoutKeyUnique: uniqueIndex("orders_checkout_key").on(t.checkoutKey).where(sql`checkout_key IS NOT NULL`),
+}));
 
 export const orderStatusHistory = sqliteTable("order_status_history", {
   id: text("id").primaryKey(),

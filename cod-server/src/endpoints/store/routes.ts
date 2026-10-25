@@ -468,6 +468,8 @@ const createStoreOrderRoute = defineRoute({
 
 **Free Shipping (\`discountType: "free_shipping"\`):** the delivery fee is overridden to 0 — reflected in both \`deliveryFee\` and \`total\`. This applies only when the basket holds a **single distinct product**; in a multi-product basket free delivery is earned by the store's basket threshold instead, so one cheap promotional item cannot ship an expensive basket for free.
 
+**One checkout, one order (\`checkoutKey\`):** a UUID the shopper's browser stamps on the checkout attempt. Sent again — a double click, a resubmitted form, a retried request — it answers with the order already placed, as it answered the first time, without placing another; for another phone it is refused with CHECKOUT_KEY_IN_USE. Without it, every request places an order.
+
 **Multi-unit variant orders:** when different variants are selected per unit, send \`variantSelections\` — one entry per unit. Identical variants are grouped into a single line and inventory deducts per-variant.`,
   operationId: "createStoreOrder",
   body: storeOrderSchema,
@@ -489,6 +491,7 @@ const createStoreOrderRoute = defineRoute({
       ),
     },
     404: { description: "Referenced SKU/product record missing (REQUIRED_FIELD_MISSING)" },
+    409: { description: "The checkout key already placed an order for another phone (CHECKOUT_KEY_IN_USE)" },
     422: {
       description:
         "Insufficient stock (INSUFFICIENT_STOCK), missing SKU before accepting orders, or a coupon that does not apply (COUPON_NOT_APPLICABLE)",

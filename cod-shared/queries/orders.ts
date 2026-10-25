@@ -101,9 +101,10 @@ export function parseOrderCursor(
 /**
  * An order's columns as a response shows them. The shopper's ad-click
  * signals (fbc, fbp, IP address, user agent) are kept for the conversions
- * the server reports, never shown.
+ * the server reports, and the checkout key only to place the order once;
+ * neither is shown.
  */
-const { fbc: _fbc, fbp: _fbp, ipAddress: _ipAddress, userAgent: _userAgent, ...orderResponseColumns } = getTableColumns(orders);
+const { fbc: _fbc, fbp: _fbp, ipAddress: _ipAddress, userAgent: _userAgent, checkoutKey: _checkoutKey, ...orderResponseColumns } = getTableColumns(orders);
 
 /**
  * Get all orders with optional filtering.
