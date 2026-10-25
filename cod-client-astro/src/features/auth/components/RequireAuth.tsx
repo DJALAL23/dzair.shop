@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { fetchIdentity } from "@/lib/session";
+import { fetchIdentity, knownIdentity } from "@/lib/session";
 import { resolveGate, signInRedirect, type GateState, type Identity } from "@/lib/gate";
 import GateSpinner from "@/features/auth/components/GateSpinner";
 import { Alert, Button } from "@/components/ui";
@@ -28,13 +28,14 @@ export function canScope(identity: Identity | null, scope: string): boolean {
 export function RequireAuth({ children }: { children: ReactNode }) {
   const auth = useT("auth");
   const common = useT("common");
-  const [state, setState] = useState<GateState>("pending");
-  const [identity, setIdentity] = useState<Identity | null>(null);
+  // A page reached by a click inside the dashboard already has the answer: no spinner.
+  const [state, setState] = useState<GateState>(() => resolveGate(knownIdentity()));
+  const [identity, setIdentity] = useState<Identity | null>(() => knownIdentity() ?? null);
   const [check, setCheck] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    setState("pending");
+    if (check > 0) setState("pending");
     fetchIdentity().then(
       (id) => {
         if (!alive) return;

@@ -5,11 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const session = vi.hoisted(() => {
   class SessionUnavailableError extends Error {}
-  return { fetchIdentity: vi.fn(), SessionUnavailableError };
+  return { fetchIdentity: vi.fn(), knownIdentity: vi.fn(), SessionUnavailableError };
 });
 vi.mock("@/lib/session", () => session);
 
-import { RequireAuth } from "./RequireAuth";
+import { RequireAuth, useIdentity } from "./RequireAuth";
+
+function Who() {
+  return <p id="who">{useIdentity()?.user.email ?? "nobody"}</p>;
+}
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -23,6 +27,7 @@ beforeEach(() => {
   host = document.getElementById("host") as HTMLDivElement;
   root = createRoot(host);
   session.fetchIdentity.mockReset();
+  session.knownIdentity.mockReset();
   replace = vi.fn();
   Object.defineProperty(window, "location", {
     configurable: true,
@@ -74,4 +79,50 @@ describe("the sign-in gate", () => {
     expect(document.getElementById("page")?.textContent).toBe("Orders");
     expect(replace).not.toHaveBeenCalled();
   });
+
+  it("shows the page at once when the session is already known, without waiting for a check", async () => {
+    session.knownIdentity.mockReturnValue(identity);
+    session.fetchIdentity.mockReturnValue(new Promise(() => {}));
+    await act(async () => {
+      root.render(
+        <RequireAuth>
+          <p id="page">Orders</p>
+        </RequireAuth>,
+      );
+    });
+
+    expect(document.getElementById("page")?.textContent).toBe("Orders");
+    expect(document.querySelector("[data-auth-state]")).toBeNull();
+    expect(gate().hidden).toBe(false);
+  });
+
+  it("gives the page the known merchant from its first render", async () => {
+    session.knownIdentity.mockReturnValue(identity);
+    session.fetchIdentity.mockReturnValue(new Promise(() => {}));
+    await act(async () => {
+      root.render(
+        <RequireAuth>
+          <Who />
+        </RequireAuth>,
+      );
+    });
+
+    expect(document.getElementById("who")?.textContent).toBe("amina@example.com");
+  });
+
+  it("sends a visitor known to be signed out to sign in at once", async () => {
+    session.knownIdentity.mockReturnValue(null);
+    session.fetchIdentity.mockReturnValue(new Promise(() => {}));
+    await act(async () => {
+      root.render(
+        <RequireAuth>
+          <p id="page">Orders</p>
+        </RequireAuth>,
+      );
+    });
+
+    expect(replace).toHaveBeenCalledWith("/sign-in?next=%2Forders%2F");
+    expect(document.getElementById("page")).toBeNull();
+  });
 });
+

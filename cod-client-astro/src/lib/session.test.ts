@@ -86,4 +86,22 @@ describe("checking the session", () => {
     expect(await settle(fetchIdentity())).toMatchObject({ value: { user: { id: "u1" } } });
     expect(fetchMock.mock.calls.length).toBe(calls + 1);
   });
+
+  it("remembers the server's answer for the page session — never a check that failed — and forgets it to check again", async () => {
+    fetchMock.mockResolvedValue(respond(429, { message: "Too many requests" }, { "X-Retry-After": "60" }));
+    const { fetchIdentity, knownIdentity, refreshJwt } = await load();
+    expect(knownIdentity()).toBeUndefined();
+    await settle(fetchIdentity());
+    expect(knownIdentity()).toBeUndefined();
+
+    fetchMock.mockResolvedValue(respond(200, { user, scopes: ["orders:read"] }));
+    await settle(fetchIdentity());
+    expect(knownIdentity()).toMatchObject({ user: { id: "u1" }, scopes: ["orders:read"] });
+
+    fetchMock.mockResolvedValue(respond(200, null));
+    const refreshing = refreshJwt();
+    expect(knownIdentity()).toBeUndefined();
+    await settle(refreshing);
+    expect(knownIdentity()).toBeNull();
+  });
 });

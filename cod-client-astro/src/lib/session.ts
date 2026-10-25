@@ -7,6 +7,8 @@ import type { Identity } from "./gate";
 // calls drop cookies and die on CORS (the "stuck Checking session" bug).
 let cachedJwt: string | null = null;
 let inflight: Promise<Identity | null> | null = null;
+/** The server's last answer this page session: undefined until one arrives. */
+let answered: Identity | null | undefined = undefined;
 
 /** The session could not be checked — rate limited, a server error or no connection. Not the same as signed out. */
 export class SessionUnavailableError extends Error {
@@ -69,10 +71,25 @@ export function fetchIdentity(): Promise<Identity | null> {
     };
   })();
   inflight = check;
-  check.catch(() => {
-    if (inflight === check) inflight = null;
-  });
+  check.then(
+    (identity) => {
+      if (inflight === check) answered = identity;
+    },
+    () => {
+      if (inflight === check) inflight = null;
+    },
+  );
   return check;
+}
+
+/**
+ * The session as the server last answered it on this page session, without
+ * waiting: undefined while no answer has come. A page opened by a click
+ * inside the dashboard renders at once from it; the server still checks
+ * every API call, and signing out reloads the page, which forgets it.
+ */
+export function knownIdentity(): Identity | null | undefined {
+  return answered;
 }
 
 /** Current JWT if already fetched; refreshes via fetchIdentity when absent. */
@@ -86,6 +103,7 @@ export async function currentJwt(): Promise<string | null> {
 export async function refreshJwt(): Promise<string | null> {
   cachedJwt = null;
   inflight = null;
+  answered = undefined;
   await fetchIdentity();
   return cachedJwt;
 }
