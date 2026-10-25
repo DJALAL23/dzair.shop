@@ -8,8 +8,7 @@ const SIZES: Record<number, string> = {
 /**
  * Bare ring spinner (inline, for buttons and small waits).
  * The branded variant (`<GateSpinner branded />`) shows the CodFlow logo
- * with a soft pulse for full-page loading gates — no text, per the
- * silent-gates rule.
+ * for the public auth pages' gates — no text, per the silent-gates rule.
  */
 export default function GateSpinner({
   size = 7,
@@ -21,7 +20,7 @@ export default function GateSpinner({
   if (branded) {
     return (
       <span role="status" className="inline-flex flex-col items-center gap-4">
-        <Logo variant="dark" height={36} className="w-auto shimmer" />
+        <Logo variant="dark" height={36} className="w-auto" />
       </span>
     );
   }

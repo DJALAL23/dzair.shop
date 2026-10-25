@@ -1,20 +1,14 @@
 ---
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
-import GateSpinner from "@/features/auth/components/GateSpinner";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
 import OrdersPageApp from "@/features/orders/components/OrdersPageApp";
 
-// Static shell ships NOTHING of the gated UI: a silent spinner plus a
+// Static shell ships NOTHING of the gated UI: the page skeleton plus a
 // [hidden] region that RequireAuth reveals after the session verdict.
 ---
 
 <DashboardLayout>
-  <div
-    data-gate-spinner="required"
-    class="flex min-h-[60vh] items-center justify-center"
-    aria-busy="true"
-  >
-    <GateSpinner branded />
-  </div>
+  <PageSkeleton gate="required" />
 
   <div data-auth-gate="required" hidden>
     <OrdersPageApp client:only="react" />

@@ -1,8 +1,12 @@
 ---
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
 import { RootGate } from "@/features/auth/components/RootPageApp";
 ---
 
 <DashboardLayout>
-  <RootGate client:only="react" />
+  <PageSkeleton gate="required" />
+  <div data-auth-gate="required" hidden>
+    <RootGate client:only="react" />
+  </div>
 </DashboardLayout>

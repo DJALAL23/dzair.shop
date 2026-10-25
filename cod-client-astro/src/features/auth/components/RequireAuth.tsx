@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { fetchIdentity, knownIdentity, watchIdentity } from "@/lib/session";
 import { resolveGate, signInRedirect, type GateState, type Identity } from "@/lib/gate";
-import GateSpinner from "@/features/auth/components/GateSpinner";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
 import { Alert, Button } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { revealGate, hideGateSpinner } from "@/lib/reveal";
@@ -49,8 +49,8 @@ export function SignedIn({ children }: { children: ReactNode }) {
 
 /**
  * The gate every authenticated page mounts inside its root island.
- * Silent by design: at most one unlabeled skeleton while the session is
- * checked or the redirect fires — never labeled intermediate states.
+ * Silent by design: the page skeleton while the session is checked or the
+ * redirect fires — never labeled intermediate states.
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const auth = useT("auth");
@@ -101,17 +101,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
 
-  if (state !== "authenticated") {
-    return (
-      <div
-        data-auth-state={state}
-        className="flex min-h-[60vh] items-center justify-center"
-        aria-busy="true"
-      >
-        <GateSpinner />
-      </div>
-    );
-  }
+  if (state !== "authenticated") return <PageSkeleton authState={state} />;
 
   return <IdentityContext.Provider value={identity}>{children}</IdentityContext.Provider>;
 }

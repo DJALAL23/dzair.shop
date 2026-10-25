@@ -394,6 +394,9 @@ html[lang="ar"] body {
     );
     background-size: 200% 100%;
     background-repeat: no-repeat;
+    background-clip: border-box;
+    -webkit-background-clip: border-box;
+    -webkit-text-fill-color: currentColor;
     animation: cf-shimmer 1.4s ease-in-out infinite;
   }
 

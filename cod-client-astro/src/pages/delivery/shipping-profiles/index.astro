@@ -1,13 +1,11 @@
 ---
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
-import GateSpinner from "@/features/auth/components/GateSpinner";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
 import ShippingProfilesPageApp from "@/features/delivery/components/ShippingProfilesPageApp";
 ---
 
 <DashboardLayout>
-  <div data-gate-spinner="required" class="flex min-h-[60vh] items-center justify-center" aria-busy="true">
-    <GateSpinner branded />
-  </div>
+  <PageSkeleton gate="required" />
   <div data-auth-gate="required" hidden>
     <ShippingProfilesPageApp client:only="react" />
   </div>

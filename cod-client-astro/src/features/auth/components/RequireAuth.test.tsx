@@ -5,11 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const session = vi.hoisted(() => {
   class SessionUnavailableError extends Error {}
-  return { fetchIdentity: vi.fn(), knownIdentity: vi.fn(), SessionUnavailableError };
+  return { fetchIdentity: vi.fn(), knownIdentity: vi.fn(), watchIdentity: vi.fn(() => () => undefined), SessionUnavailableError };
 });
 vi.mock("@/lib/session", () => session);
 
+import { renderToStaticMarkup } from "react-dom/server";
 import { RequireAuth, useIdentity } from "./RequireAuth";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
 
 function Who() {
   return <p id="who">{useIdentity()?.user.email ?? "nobody"}</p>;
@@ -124,5 +126,32 @@ describe("the sign-in gate", () => {
     expect(replace).toHaveBeenCalledWith("/sign-in?next=%2Forders%2F");
     expect(document.getElementById("page")).toBeNull();
   });
-});
 
+  it("shows the page skeleton while the session is checked, the one the static shell shows", async () => {
+    session.knownIdentity.mockReturnValue(undefined);
+    session.fetchIdentity.mockReturnValue(new Promise(() => {}));
+    await mount();
+
+    const pending = host.querySelector<HTMLElement>("[data-skeleton]");
+    expect(pending?.dataset.authState).toBe("pending");
+    expect(pending?.outerHTML.replace(/ data-auth-state="[^"]*"/, "")).toBe(
+      renderToStaticMarkup(<PageSkeleton />),
+    );
+    expect(document.getElementById("page")).toBeNull();
+  });
+
+  it("swaps the static skeleton for the page once the merchant is known", async () => {
+    document.body.innerHTML = `<main>${renderToStaticMarkup(<PageSkeleton gate="required" />)}<div data-auth-gate="required" hidden><div id="host"></div></div></main>`;
+    host = document.getElementById("host") as HTMLDivElement;
+    act(() => root.unmount());
+    root = createRoot(host);
+    expect(document.querySelector('[data-gate-spinner="required"]')).not.toBeNull();
+
+    session.fetchIdentity.mockResolvedValue(identity);
+    await mount();
+
+    expect(document.querySelector("[data-skeleton]")).toBeNull();
+    expect(gate().hidden).toBe(false);
+    expect(document.getElementById("page")?.textContent).toBe("Orders");
+  });
+});

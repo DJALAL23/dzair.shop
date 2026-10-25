@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchIdentity } from "@/lib/session";
 import { resolveGate } from "@/lib/gate";
+import { hideGateSpinner, revealGate } from "@/lib/reveal";
 import OrderDetailPageApp from "@/features/orders/components/OrderDetailPageApp";
 import CustomerDetailPageApp from "@/features/customers/components/CustomerDetailPageApp";
 import CustomerFormPageApp from "@/features/customers/components/CustomerFormPageApp";
@@ -57,6 +58,8 @@ export function RootGate() {
 
   useEffect(() => {
     if (dynamicRoute) return;
+    revealGate("required");
+    hideGateSpinner("required");
     let alive = true;
     fetchIdentity().then(
       (id) => {

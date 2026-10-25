@@ -1,14 +1,12 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import GateSpinner from "@/features/auth/components/GateSpinner";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
 import PrintLabelsApp from "@/features/shipping-labels/components/PrintLabelsApp";
 ---
 
 <BaseLayout title="CodFlow">
   <main class="min-h-screen">
-    <div data-gate-spinner="required" class="flex min-h-screen items-center justify-center" aria-busy="true">
-      <GateSpinner branded />
-    </div>
+    <PageSkeleton gate="required" />
     <div data-auth-gate="required" hidden>
       <PrintLabelsApp client:only="react" />
     </div>
