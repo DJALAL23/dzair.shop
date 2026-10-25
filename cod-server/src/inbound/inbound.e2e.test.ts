@@ -4,6 +4,7 @@
  * turned into conversions — plus what happens when processing fails.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { SYSTEM, eventsOf } from "@/test-utils/events";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -45,7 +46,7 @@ beforeEach(async () => {
   created.mockClear();
   pending = [];
   const db = d1.db;
-  for (const table of [schema.shipmentEvents, schema.webhookEvents, schema.shipments, schema.orderProducts, schema.orderStatusHistory, schema.orders, schema.customers, schema.deliveryCompanies]) {
+  for (const table of [schema.businessEvents, schema.shipmentEvents, schema.webhookEvents, schema.shipments, schema.orderProducts, schema.orderStatusHistory, schema.orders, schema.customers, schema.deliveryCompanies]) {
     await db.delete(table);
   }
   await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T0 });
@@ -106,7 +107,7 @@ async function shipmentAt(orderId: string, companyId: string, parcel: { carrierP
   const reserved = await reserveCarrierShipment(d1.db, { orderId, companyId, deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
   if (!reserved.ok) throw new Error("reservation failed");
   if (parcel === "unknown") await markHandoffUnknown(d1.db, reserved.shipmentId, "timeout");
-  else await acceptCarrierHandoff(d1.db, reserved.shipmentId, { ...parcel, carrierData: null, labelUrl: null }, { validated: true });
+  else await acceptCarrierHandoff(d1.db, reserved.shipmentId, { ...parcel, carrierData: null, labelUrl: null }, { validated: true , author: SYSTEM });
   return reserved.shipmentId;
 }
 
@@ -381,7 +382,32 @@ describe("the inbox keeps its audit when a shipment goes", () => {
     const id = await shipmentAt("oa", "yal-a", { carrierParcelId: "yal-1", trackingNumber: "yal-1" });
     await yalidine("parcel_status_updated", [status("yal-1", "En préparation")]);
     expect(await events(id)).toHaveLength(1);
-    expect(await voidShipment(d1.db, id)).toMatchObject({ ok: true });
+    expect(await voidShipment(d1.db, id, SYSTEM)).toMatchObject({ ok: true });
     expect((await inbox())[0]).toMatchObject({ result: "ok", shipmentId: null });
+  });
+});
+
+describe("Business Events", () => {
+  it("a signed delivery records shipment.delivered once, as the carrier, at the carrier's time", async () => {
+    await shipmentAt("oa", "yal-a", { carrierParcelId: "yal-1", trackingNumber: "yal-1" });
+    await yalidine("parcel_status_updated", [status("yal-1", "Livré", "2026-10-14 10:00:00")]);
+    await yalidine("parcel_status_updated", [status("yal-1", "Livré", "2026-10-14 10:00:00")]);
+
+    const delivered = (await eventsOf(d1.db, "oa")).filter((e) => e.type === "shipment.delivered");
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0]).toMatchObject({ actorKind: "carrier", actorId: "yal-a", actorName: "Yalidine A", origin: "carrier_webhook", subjectType: "shipment" });
+    expect(Date.parse(delivered[0]!.occurredAt)).toBe(Date.parse(delivered[0]!.type === "shipment.delivered" ? delivered[0]!.data.shipment.deliveredAt! : ""));
+    expect(delivered[0]!.type === "shipment.delivered" && delivered[0]!.data).toMatchObject({
+      shipment: { carrier: { companyId: "yal-a", name: "Yalidine A", provider: "yalidine" }, trackingNumber: "yal-1" },
+      order: { id: "oa", number: "ORD-oa" },
+    });
+  });
+
+  it("the carrier's creation event hands the parcel off, as the carrier", async () => {
+    await shipmentAt("oa", "yal-a", "unknown");
+    await yalidine("parcel_created", [{ event_id: "cr-1", occurred_at: "2026-10-14 10:00:00", data: { order_id: "ORD-oa", tracking: "yal-77" } }]);
+    const [handedOff] = await eventsOf(d1.db, "oa");
+    expect(handedOff).toMatchObject({ type: "shipment.handed_off", actorKind: "carrier", actorId: "yal-a", origin: "carrier_webhook" });
+    expect(handedOff!.type === "shipment.handed_off" && handedOff!.data.shipment.trackingNumber).toBe("yal-77");
   });
 });

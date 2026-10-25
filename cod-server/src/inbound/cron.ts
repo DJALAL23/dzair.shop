@@ -13,6 +13,7 @@
  */
 
 import { and, asc, eq, isNull, lt, or } from "drizzle-orm";
+import { SYSTEM_ACTING, carrierAuthor } from "@/lib/acting";
 import { getDb, type AppDb } from "@/db";
 import { deliveryCompanies, shipments } from "@/db/schema";
 import type { Env } from "@/types";
@@ -75,7 +76,7 @@ export async function lookUpUnknownHandoffs(db: AppDb, now = new Date()): Promis
   const outcome = { found: [] as string[], notFound: [] as string[], failed: [] as string[] };
   for (const candidate of candidates.filter((c) => carrierCapabilities(c)?.findByReference).slice(0, LIMITS.lookups)) {
     try {
-      const resolved = await resolveHandoff(db, candidate.id, { action: "lookup" }, null);
+      const resolved = await resolveHandoff(db, candidate.id, { action: "lookup" }, SYSTEM_ACTING);
       if (resolved.outcome === "accepted" && resolved.result.outcome === "accepted") {
         outcome.found.push(candidate.id);
         continue;
@@ -119,7 +120,7 @@ export async function syncPullCarriers(env: Env, waitUntil: WaitUntil, now = new
     if (due.length === 0) continue;
     try {
       const carrier = await connectedCarrier(company);
-      const recorded = await syncShipments(db, carrier, due);
+      const recorded = await syncShipments(db, carrier, due, carrierAuthor(company, "carrier_sync"));
       for (const [id, result] of recorded) {
         synced.push(id);
         events.push(...result.businessEvents);

@@ -13,7 +13,7 @@
  *   S4  order-only edits (notes, email) leave the customer untouched
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { SYSTEM, staff } from "@/test-utils/events";
+import { SYSTEM } from "@/test-utils/events";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";

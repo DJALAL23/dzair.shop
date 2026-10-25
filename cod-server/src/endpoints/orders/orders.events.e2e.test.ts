@@ -64,7 +64,7 @@ async function shipped(orderId: string) {
   await db().update(schema.orders).set({ status: "ready" }).where(eq(schema.orders.id, orderId));
   const reserved = await reserveCarrierShipment(db(), { orderId, companyId: "co", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
   if (!reserved.ok) throw new Error(reserved.reason);
-  await acceptCarrierHandoff(db(), reserved.shipmentId, { carrierParcelId: `P-${orderId}`, trackingNumber: `T-${orderId}`, carrierData: null, labelUrl: null }, { validated: true });
+  await acceptCarrierHandoff(db(), reserved.shipmentId, { carrierParcelId: `P-${orderId}`, trackingNumber: `T-${orderId}`, carrierData: null, labelUrl: null }, { validated: true , author: SYSTEM });
   return reserved.shipmentId;
 }
 
@@ -72,7 +72,7 @@ async function delivered(orderId: string) {
   const shipmentId = await shipped(orderId);
   await recordShipmentEvents(db(), shipmentId, [
     { source: "webhook", status: { vocabulary: "yalidine", value: "Livré" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: "2026-10-21T10:00:00.000Z" },
-  ]);
+  ], SYSTEM);
 }
 
 const typesOf = async (orderId: string) => (await eventsOf(db(), orderId)).map((e) => e.type);
@@ -179,7 +179,7 @@ describe("a status change", () => {
     await placed("o1");
     await shipped("o1");
     expect(await updateOrderStatus(db(), "o1", "cancelled", SYSTEM)).toEqual({ ok: false, reason: "has_shipment" });
-    expect(await typesOf("o1")).toEqual(["order.created"]);
+    expect(await typesOf("o1")).toEqual(["order.created", "shipment.handed_off"]);
   });
 
   it("records nothing when any write of the change fails", async () => {
@@ -260,7 +260,7 @@ describe("order.updated", () => {
     await shipped("o1");
     expect(await updateOrder(db(), "o1", { address: "Ailleurs" }, staff())).toEqual({ ok: false, reason: "has_shipment" });
     expect(await updateOrder(db(), "o1", { notes: "Fragile" }, staff())).toEqual({ ok: true });
-    expect(await typesOf("o1")).toEqual(["order.created", "order.updated"]);
+    expect(await typesOf("o1")).toEqual(["order.created", "shipment.handed_off", "order.updated"]);
   });
 
   it("records the edit a shipment makes after the carrier took it", async () => {
@@ -322,7 +322,7 @@ describe("order.deleted", () => {
     await placed("o1");
     await shipped("o1");
     expect(await deleteOrder(db(), "o1", SYSTEM)).toEqual({ ok: false, reason: "has_shipment" });
-    expect(await typesOf("o1")).toEqual(["order.created"]);
+    expect(await typesOf("o1")).toEqual(["order.created", "shipment.handed_off"]);
   });
 
   it("deletes the order as it now is when it changed meanwhile, and records both", async () => {

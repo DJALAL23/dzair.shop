@@ -9,6 +9,7 @@ import type { AppDb } from "@/db";
 import { and, desc, eq } from "drizzle-orm";
 import { shipmentEvents } from "@/db/schema";
 import type { CarrierAdapter, CarrierUpdate } from "@/carriers/contract";
+import type { Author } from "../../../../cod-shared/events/actor";
 import { recordSynced } from "../../../../cod-shared/shipments/handoff";
 import { carrierRefOf, type ShipmentRow } from "../../../../cod-shared/shipments/queries";
 import { recordShipmentEvents, type RecordedEvents } from "../../../../cod-shared/shipments/record-events";
@@ -16,7 +17,8 @@ import { recordShipmentEvents, type RecordedEvents } from "../../../../cod-share
 type SyncCarrier = Pick<CarrierAdapter, "interpret" | "fetchHistory" | "capabilities">;
 
 /** Sync shipments of one carrier company. A carrier failure stops the call and leaves the rest unstamped. */
-export async function syncShipments(db: AppDb, carrier: SyncCarrier, rows: readonly ShipmentRow[]): Promise<Map<string, RecordedEvents>> {
+/** `author` is the carrier company the facts come from. */
+export async function syncShipments(db: AppDb, carrier: SyncCarrier, rows: readonly ShipmentRow[], author: Author): Promise<Map<string, RecordedEvents>> {
   if (!carrier.fetchHistory) throw new Error("This carrier's history cannot be read");
   const recorded = new Map<string, RecordedEvents>();
   const addressable = rows.flatMap((row) => {
@@ -42,6 +44,7 @@ export async function syncShipments(db: AppDb, carrier: SyncCarrier, rows: reado
             occurredAt: update.occurredAt,
             raw: update.raw,
           })),
+          author,
         ),
       );
       await recordSynced(db, row.id, updates.map((u) => u.match.trackingNumber).find((t): t is string => !!t) ?? null);
@@ -70,8 +73,8 @@ async function withoutRepeatedSnapshots(db: AppDb, shipmentId: string, updates: 
   return kept;
 }
 
-export async function syncShipment(db: AppDb, carrier: SyncCarrier, row: ShipmentRow): Promise<RecordedEvents> {
-  const recorded = (await syncShipments(db, carrier, [row])).get(row.id);
+export async function syncShipment(db: AppDb, carrier: SyncCarrier, row: ShipmentRow, author: Author): Promise<RecordedEvents> {
+  const recorded = (await syncShipments(db, carrier, [row], author)).get(row.id);
   if (!recorded) throw new Error(`Shipment ${row.id} cannot be synced`);
   return recorded;
 }

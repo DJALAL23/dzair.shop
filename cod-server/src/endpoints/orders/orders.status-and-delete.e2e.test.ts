@@ -75,7 +75,7 @@ async function shipment(orderId: string, state: "submitting" | "unknown" | "acce
   const reserved = await reserveCarrierShipment(db(), { orderId, companyId: "co", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
   if (!reserved.ok) throw new Error(`reservation failed: ${reserved.reason}`);
   if (state === "unknown") await markHandoffUnknown(db(), reserved.shipmentId, "timeout");
-  if (state === "accepted") await acceptCarrierHandoff(db(), reserved.shipmentId, { carrierParcelId: `P-${orderId}`, trackingNumber: `T-${orderId}`, carrierData: null, labelUrl: null }, { validated: true });
+  if (state === "accepted") await acceptCarrierHandoff(db(), reserved.shipmentId, { carrierParcelId: `P-${orderId}`, trackingNumber: `T-${orderId}`, carrierData: null, labelUrl: null }, { validated: true , author: SYSTEM });
   return reserved.shipmentId;
 }
 
@@ -217,7 +217,7 @@ describe("deleting an order", () => {
   });
 
   const close = (id: string, milestone: "delivered" | "returned" | "cancelled") =>
-    recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: milestone }, interpretation: { kind: "milestone", milestone }, occurredAt: T0 }]);
+    recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: milestone }, interpretation: { kind: "milestone", milestone }, occurredAt: T0 }], SYSTEM);
 
   it.each(["submitting", "unknown", "accepted"] as const)("is refused once it has a shipment, open (%s) — nothing changes", async (state) => {
     await seedOrder("o1", "ready");
@@ -267,7 +267,7 @@ describe("deleting an order", () => {
 
 describe("archiving an order", () => {
   const close = (id: string, milestone: "delivered" | "returned" | "cancelled") =>
-    recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: milestone }, interpretation: { kind: "milestone", milestone }, occurredAt: T0 }]);
+    recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: milestone }, interpretation: { kind: "milestone", milestone }, occurredAt: T0 }], SYSTEM);
   const archivedAt = async (id: string) => (await db().select({ a: schema.orders.archivedAt }).from(schema.orders).where(eq(schema.orders.id, id)).get())?.a;
 
   it.each(["delivered", "returned", "cancelled"] as const)("archives once its shipment ended (%s), keeps the first date, and restores", async (milestone) => {
@@ -295,7 +295,7 @@ describe("archiving an order", () => {
 
   it("the server and the dashboard agree on which orders are finished, at every stage", async () => {
     const milestone = (id: string, m: "out_for_delivery" | "return_started" | "delivered" | "returned" | "cancelled") =>
-      recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: m }, interpretation: { kind: "milestone", milestone: m }, occurredAt: T0 }]);
+      recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: m }, interpretation: { kind: "milestone", milestone: m }, occurredAt: T0 }], SYSTEM);
     const ready = (id: string) => db().update(schema.orders).set({ status: "ready" }).where(eq(schema.orders.id, id));
     const shipped = async (id: string, state: "submitting" | "accepted" = "accepted") => {
       await ready(id);
@@ -365,7 +365,7 @@ describe("what clearing an order away would do", () => {
     await seedOrder("o1", "ready");
     const id = await shipment("o1", "accepted");
     expect(await orderRemoval(db(), "o1")).toMatchObject({ shipment: "open", deletable: false, archivable: false, restockUnits: 0 });
-    await recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: "Livré" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: T0 }]);
+    await recordShipmentEvents(db(), id, [{ source: "webhook", status: { vocabulary: "t", value: "Livré" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: T0 }], SYSTEM);
     expect(await orderRemoval(db(), "o1")).toMatchObject({ shipment: "closed", deletable: false, archivable: true });
     await archiveOrder(db(), "o1");
     expect(await orderRemoval(db(), "o1")).toMatchObject({ archivable: false, archivedAt: expect.any(String) });

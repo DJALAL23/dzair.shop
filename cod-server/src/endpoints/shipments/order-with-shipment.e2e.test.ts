@@ -5,6 +5,7 @@
  * deletion — while a closed shipment lets it go.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -109,7 +110,7 @@ describe("what an order with a shipment refuses", () => {
     expect((await order("POST", "/archive")).status).toBe(409);
 
     const shipment = await d1.db.select().from(schema.shipments).where(eq(schema.shipments.orderId, "o1")).get();
-    await recordShipmentEvents(d1.db, shipment!.id, [{ source: "webhook", status: { vocabulary: "activity", value: "livred" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() }]);
+    await recordShipmentEvents(d1.db, shipment!.id, [{ source: "webhook", status: { vocabulary: "activity", value: "livred" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() }], SYSTEM);
     expect(await codeOf(await order("DELETE"))).toBe("ORDER_HAS_SHIPMENT");
     expect((await order("POST", "/archive")).status).toBe(200);
     expect(await d1.db.select({ archivedAt: schema.orders.archivedAt }).from(schema.orders).all()).toEqual([{ archivedAt: expect.any(String) }]);

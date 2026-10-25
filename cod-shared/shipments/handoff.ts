@@ -28,6 +28,9 @@ import { checkVoid, type ShipmentRuleVerdict } from "./interpretation";
 import { eventKey, type ShipmentEventSource } from "./model";
 import { deliveryFactsOf } from "./queries";
 import { chunkIds } from "../queries/d1-limits";
+import { staffOf, type Author } from "../events/actor";
+import { recordEvent } from "../events/record";
+import { orderSnapshot, shipmentSnapshot } from "../events/snapshots";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 
@@ -138,7 +141,7 @@ export function reserveCarrierShipment(db: AppDb, input: CarrierReservation): Pr
 export interface DriverHandoff {
   orderIds: readonly string[];
   driverId: string;
-  createdBy: string | null;
+  author: Author;
 }
 
 /** An order with a street address: the store's driver brings the parcel to the customer's door. */
@@ -159,6 +162,7 @@ export async function handOffToDriver(db: AppDb, input: DriverHandoff): Promise<
   if (input.orderIds.length === 0) return [];
   const fee = sql`coalesce((select ${driverCompensations.feePerDelivery} from ${driverCompensations} where ${driverCompensations.driverId} = ${input.driverId} and ${driverCompensations.wilayaId} = "orders"."wilaya_id"), 0)`;
   const now = new Date().toISOString();
+  const createdBy = staffOf(input.author.actor)?.id ?? null;
   const planned = input.orderIds.map((orderId) => ({ orderId, id: crypto.randomUUID(), revision: crypto.randomUUID() }));
   const statements = planned.flatMap(({ orderId, id, revision }) => [
     db.insert(shipments).select(
@@ -174,7 +178,7 @@ export async function handOffToDriver(db: AppDb, input: DriverHandoff): Promise<
             stationCode: value(null),
             codAmount: sql`${orders.price} + ${orders.deliveryFee}`,
             driverFee: fee,
-            createdBy: value(input.createdBy),
+            createdBy: value(createdBy),
             revision: sql`${revision}`,
             createdAt: sql`${now}`,
             updatedAt: sql`${now}`,
@@ -183,13 +187,32 @@ export async function handOffToDriver(db: AppDb, input: DriverHandoff): Promise<
         .from(orders)
         .where(and(eq(orders.id, orderId), eq(orders.status, "ready"), hasNoShipment, hasStreetAddress, driverCanTake(input.driverId))),
     ),
-    codflowEvent(db, id, revision, "handoff", "assigned_to_driver", { actorId: input.createdBy }),
+    codflowEvent(db, id, revision, "handoff", "assigned_to_driver", { actorId: createdBy }),
+    handedOff(db, { shipmentId: id, orderId, revision, now, author: input.author }),
   ]);
   const results = await db.batch(statements as unknown as [BatchStatement, ...BatchStatement[]]);
-  const accepted = planned.map((_, i) => changed(results[i * 2]));
+  const accepted = planned.map((_, i) => changed(results[i * STATEMENTS_PER_DRIVER_ORDER]));
   const refused = planned.filter((_, i) => !accepted[i]).map((p) => p.orderId);
   const reasons = refused.length ? await driverRefusals(db, refused, input.driverId) : new Map<string, ReservationRefusal>();
   return planned.map(({ orderId, id }, i) => (accepted[i] ? { ok: true, shipmentId: id } : { ok: false, reason: reasons.get(orderId) ?? "order_not_found" }));
+}
+
+/** The shipment, its history step, and its Business Event. */
+const STATEMENTS_PER_DRIVER_ORDER = 3;
+
+/** True while the shipment still has the revision a change gave it (or read it with). */
+const standsAt = (shipmentId: string, revision: string) =>
+  sql`exists (select 1 from ${shipments} where ${shipments.id} = ${shipmentId} and ${shipments.revision} = ${revision})`;
+/** The shipment's order, found in the statement itself. */
+const orderOfShipment = (shipmentId: string) => sql`(select ${shipments.orderId} from ${shipments} where ${shipments.id} = ${shipmentId})`;
+
+/** `shipment.handed_off`, recorded while the handoff's own revision stands. */
+function handedOff(db: AppDb, h: { shipmentId: string; orderId: string | SQL; revision: string; now: string; author: Author }): BatchStatement {
+  return recordEvent(
+    db,
+    { type: "shipment.handed_off", subjectId: h.shipmentId, orderId: h.orderId, occurredAt: h.now, ...h.author, data: { shipment: shipmentSnapshot(h.shipmentId), order: orderSnapshot(h.orderId) } },
+    standsAt(h.shipmentId, h.revision),
+  );
 }
 
 /** Why each of these orders was not given to the driver, read in one trip. */
@@ -288,7 +311,7 @@ export async function acceptCarrierHandoff(
   db: AppDb,
   shipmentId: string,
   parcel: AcceptedParcel,
-  options: { validated: boolean; actorId?: string | null; source?: ShipmentEventSource },
+  options: { validated: boolean; author: Author; source?: ShipmentEventSource },
 ): Promise<boolean> {
   const now = new Date().toISOString();
   const revision = crypto.randomUUID();
@@ -307,8 +330,9 @@ export async function acceptCarrierHandoff(
       })
       .where(and(eq(shipments.id, shipmentId), inArray(shipments.handoffState, ["submitting", "unknown"]))),
     codflowEvent(db, shipmentId, revision, options.source ?? "handoff", options.validated ? "created_and_validated" : "created", {
-      actorId: options.actorId ?? null,
+      actorId: staffOf(options.author.actor)?.id ?? null,
     }),
+    handedOff(db, { shipmentId, orderId: orderOfShipment(shipmentId), revision, now, author: options.author }),
   ]);
   return changed(result);
 }
@@ -452,13 +476,19 @@ export type VoidOutcome = { ok: true; orderId: string } | Extract<ShipmentRuleVe
  * the record, guarded on the revision it checked so a delivery recorded in
  * between is never erased.
  */
-export async function voidShipment(db: AppDb, shipmentId: string): Promise<VoidOutcome> {
+export async function voidShipment(db: AppDb, shipmentId: string, author: Author): Promise<VoidOutcome> {
   for (let attempt = 1; attempt <= 5; attempt++) {
     const row = await db.select().from(shipments).where(eq(shipments.id, shipmentId)).get();
     if (!row) return { ok: false, code: "SHIPMENT_NOT_FOUND" };
     const verdict = checkVoid(deliveryFactsOf(row));
     if (!verdict.ok) return verdict;
-    const [result] = await db.batch([
+    // The event first: it keeps the shipment as it was, before the row and its history go.
+    const [, result] = await db.batch([
+      recordEvent(
+        db,
+        { type: "shipment.voided", subjectId: shipmentId, orderId: row.orderId, occurredAt: new Date().toISOString(), ...author, data: { shipment: shipmentSnapshot(shipmentId), order: orderSnapshot(row.orderId) } },
+        standsAt(shipmentId, row.revision),
+      ),
       db.delete(shipments).where(and(eq(shipments.id, shipmentId), eq(shipments.revision, row.revision))),
     ]);
     if (changed(result)) return { ok: true, orderId: row.orderId };

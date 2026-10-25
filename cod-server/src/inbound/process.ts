@@ -18,6 +18,7 @@
  */
 
 import { eq } from "drizzle-orm";
+import { carrierAuthor } from "@/lib/acting";
 import type { AppDb } from "@/db";
 import { getDb } from "@/db";
 import type { Env } from "@/types";
@@ -70,7 +71,7 @@ export async function processInboxEvent(db: AppDb, id: string, now = new Date())
         return nothing(id, "ignored");
       }
       const carrier = buildCarrier(company);
-      await acceptCarrierHandoff(db, shipment.id, parcel, { validated: !carrier.capabilities.separateValidation, source: "system" });
+      await acceptCarrierHandoff(db, shipment.id, parcel, { validated: !carrier.capabilities.separateValidation, source: "system", author: carrierAuthor(company, "carrier_webhook") });
       await settleInboxEvent(db, id, "ok", { shipmentId: shipment.id, tracking: parcel.trackingNumber, reason: "unknown handoff found by the carrier's creation event" });
       return nothing(id, "ok");
     }
@@ -91,7 +92,7 @@ export async function processInboxEvent(db: AppDb, id: string, now = new Date())
         db,
         shipment.id,
         { carrierParcelId: update.match.carrierParcelId, trackingNumber: tracking, carrierData: null, labelUrl: null },
-        { validated: !carrier.capabilities.separateValidation, source: "system" },
+        { validated: !carrier.capabilities.separateValidation, source: "system", author: carrierAuthor(company, "carrier_webhook") },
       );
     }
     await adoptCarrierIdentity(db, shipment.id, update.match);
@@ -107,7 +108,7 @@ export async function processInboxEvent(db: AppDb, id: string, now = new Date())
         webhookEventId: row.id,
         raw: update.raw,
       },
-    ]);
+    ], carrierAuthor(company, "carrier_webhook"));
     const result = interpretation.kind === "unknown" ? "unknown_status" : "ok";
     await settleInboxEvent(db, id, result, { shipmentId: shipment.id, tracking: tracking ?? shipment.trackingNumber, reason: update.reason });
     return { id, result, businessEvents: recorded.businessEvents };

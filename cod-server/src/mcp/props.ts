@@ -1,4 +1,5 @@
-import type { Actor } from "@/types";
+import type { StaffActor } from "@/types";
+import type { Acting } from "@/lib/acting";
 import type { Author } from "../../../cod-shared/events/actor";
 
 /**
@@ -34,11 +35,16 @@ export interface McpProps extends Record<string, unknown> {
 }
 
 /** The grant as the one acting: an admin holds every permission, as on the dashboard (`authMiddleware`). */
-export function actorOf(props: McpProps): Actor {
+export function actorOf(props: McpProps): StaffActor {
   return { id: props.userId, name: props.name || props.email, role: props.role, scopes: props.role === "admin" ? ["*"] : props.scopes };
 }
 
 /** The grant as the Author of a change: an agent, acting for the staff member who connected it. */
 export function agentAuthorOf(props: McpProps): Author {
   return { actor: { kind: "agent", id: props.userId, name: props.name || props.email }, origin: "agent" };
+}
+
+/** The grant at an entry point: the agent as Author, and the staff member it acts for. */
+export function agentActingOf(props: McpProps): Acting & { staff: StaffActor } {
+  return { author: agentAuthorOf(props), staff: actorOf(props) };
 }

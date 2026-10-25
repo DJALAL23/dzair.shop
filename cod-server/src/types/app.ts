@@ -9,8 +9,8 @@ import type { Author } from "../../../cod-shared/events/actor";
  */
 export type AuthUser = InferSelectModel<typeof users> & { scopes: string[] };
 
-/** Who acts — a dashboard user or an MCP grant: enough to attribute the act and check a permission. */
-export type Actor = Pick<AuthUser, "id" | "name" | "role" | "scopes">;
+/** The staff member acting — signed in on the dashboard, or behind an MCP grant: enough to check a permission and to sign the activity log. */
+export type StaffActor = Pick<AuthUser, "id" | "name" | "role" | "scopes">;
 
 /** Typed Hono context variables (set/get on c) */
 export interface AppVariables {

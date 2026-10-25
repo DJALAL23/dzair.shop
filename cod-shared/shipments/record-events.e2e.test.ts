@@ -4,6 +4,7 @@
  * many writers race.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "../db/schema";
@@ -78,7 +79,7 @@ describe("recording", () => {
       ev("Sorti en livraison", milestone("out_for_delivery"), 10),
       ev("Tentative échouée", { kind: "failed_attempt" }, 20, { reason: "Client ne répond pas", raw: { id: 7 } }),
       ev("Livré", milestone("delivered"), 30, { status: { vocabulary: "status", value: "Livré", label: "Delivered" } }),
-    ]);
+    ], SYSTEM);
     expect(result).toMatchObject({ recorded: 3, duplicates: 0, reached: ["out_for_delivery", "delivered"], anomalies: [] });
     expect(result.businessEvents.map((e) => e.type)).toEqual(["ShipmentOutForDelivery", "DeliveryAttemptFailed", "ShipmentDelivered"]);
     expect(await shipment("s-carrier")).toMatchObject({
@@ -98,28 +99,28 @@ describe("recording", () => {
 
   it("records the same fact once, whichever channel brings it and however often", async () => {
     const livre = ev("Livré", milestone("delivered"), 30);
-    await recordShipmentEvents(d1.db, "s-carrier", [livre, livre]);
-    const again = await recordShipmentEvents(d1.db, "s-carrier", [{ ...livre, source: "pull" }]);
+    await recordShipmentEvents(d1.db, "s-carrier", [livre, livre], SYSTEM);
+    const again = await recordShipmentEvents(d1.db, "s-carrier", [{ ...livre, source: "pull" }], SYSTEM);
     expect(again).toMatchObject({ recorded: 0, duplicates: 1, reached: [] });
     expect(await events("s-carrier")).toHaveLength(1);
   });
 
   it("an older report arriving late is history: it records its milestone, not the current status", async () => {
-    await recordShipmentEvents(d1.db, "s-carrier", [ev("Livré", milestone("delivered"), 30)]);
-    await recordShipmentEvents(d1.db, "s-carrier", [ev("Sorti en livraison", milestone("out_for_delivery"), 10)]);
+    await recordShipmentEvents(d1.db, "s-carrier", [ev("Livré", milestone("delivered"), 30)], SYSTEM);
+    await recordShipmentEvents(d1.db, "s-carrier", [ev("Sorti en livraison", milestone("out_for_delivery"), 10)], SYSTEM);
     expect(await shipment("s-carrier")).toMatchObject({ providerStatus: "Livré", outForDeliveryAt: at(10), deliveredAt: at(30) });
   });
 
   it("an unknown shipment is an error", async () => {
-    await expect(recordShipmentEvents(d1.db, "nope", [ev("Livré", milestone("delivered"), 1)])).rejects.toBeInstanceOf(ShipmentNotFoundError);
+    await expect(recordShipmentEvents(d1.db, "nope", [ev("Livré", milestone("delivered"), 1)], SYSTEM)).rejects.toBeInstanceOf(ShipmentNotFoundError);
   });
 
   it("marks attention on an exception and records the anomaly of a contradiction", async () => {
-    await recordShipmentEvents(d1.db, "s-carrier", [ev("En alerte", { kind: "exception" }, 5, { reason: "Téléphone injoignable" })]);
+    await recordShipmentEvents(d1.db, "s-carrier", [ev("En alerte", { kind: "exception" }, 5, { reason: "Téléphone injoignable" })], SYSTEM);
     expect((await shipment("s-carrier"))!.attentionSince).toBe(at(5));
-    await recordShipmentEvents(d1.db, "s-carrier", [ev("Livré", milestone("delivered"), 10)]);
+    await recordShipmentEvents(d1.db, "s-carrier", [ev("Livré", milestone("delivered"), 10)], SYSTEM);
     expect((await shipment("s-carrier"))!.attentionSince).toBeNull();
-    const result = await recordShipmentEvents(d1.db, "s-carrier", [ev("Retourné au vendeur", milestone("returned"), 20)]);
+    const result = await recordShipmentEvents(d1.db, "s-carrier", [ev("Retourné au vendeur", milestone("returned"), 20)], SYSTEM);
     expect(result.anomalies).toEqual(["conflicting_outcome"]);
     expect((await shipment("s-carrier"))!.returnedAt).toBeNull();
     expect((await events("s-carrier")).find((r) => r.providerStatus === "Retourné au vendeur")!.anomaly).toBe("conflicting_outcome");
@@ -128,24 +129,24 @@ describe("recording", () => {
 
 describe("a driver's delivery", () => {
   it("credits the driver once: delivered count, earnings and the cash they now hold", async () => {
-    await recordShipmentEvents(d1.db, "s-driver", [ev("delivered", milestone("delivered"), 30, { source: "merchant" })]);
-    await recordShipmentEvents(d1.db, "s-driver", [ev("delivered", milestone("delivered"), 31, { source: "merchant" }), ev("collected", { kind: "collection" }, 40)]);
+    await recordShipmentEvents(d1.db, "s-driver", [ev("delivered", milestone("delivered"), 30, { source: "merchant" })], SYSTEM);
+    await recordShipmentEvents(d1.db, "s-driver", [ev("delivered", milestone("delivered"), 31, { source: "merchant" }), ev("collected", { kind: "collection" }, 40)], SYSTEM);
     expect(await driver()).toMatchObject({ totalDelivered: 1, totalEarnings: 300, pendingCash: 1900 });
   });
 
   it("a carrier's delivery never touches a driver", async () => {
-    await recordShipmentEvents(d1.db, "s-carrier", [ev("Livré", milestone("delivered"), 30)]);
+    await recordShipmentEvents(d1.db, "s-carrier", [ev("Livré", milestone("delivered"), 30)], SYSTEM);
     expect(await driver()).toMatchObject({ totalDelivered: 0, totalEarnings: 0, pendingCash: 0 });
   });
 });
 
 describe("a return", () => {
   it("puts back exactly the units still out — once — and rolls back the customer's spend once", async () => {
-    await recordShipmentEvents(d1.db, "s-driver", [ev("return started", milestone("return_started"), 10)]);
+    await recordShipmentEvents(d1.db, "s-driver", [ev("return started", milestone("return_started"), 10)], SYSTEM);
     expect(await inventory()).toEqual({ tracked: 10, variant: 5, untracked: 0 });
 
-    await recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 20, { source: "merchant" })]);
-    await recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 25, { source: "merchant" })]);
+    await recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 20, { source: "merchant" })], SYSTEM);
+    await recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 25, { source: "merchant" })], SYSTEM);
 
     expect(await inventory()).toEqual({ tracked: 12, variant: 6, untracked: 0 });
     expect(await spent()).toBe(1000);
@@ -164,8 +165,8 @@ describe("a return", () => {
   });
 
   it("a return reported after a delivery restocks nothing", async () => {
-    await recordShipmentEvents(d1.db, "s-driver", [ev("delivered", milestone("delivered"), 10)]);
-    await recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 20)]);
+    await recordShipmentEvents(d1.db, "s-driver", [ev("delivered", milestone("delivered"), 10)], SYSTEM);
+    await recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 20)], SYSTEM);
     expect(await inventory()).toEqual({ tracked: 10, variant: 5, untracked: 0 });
     expect(await spent()).toBe(2500);
   });
@@ -174,9 +175,9 @@ describe("a return", () => {
 describe("racing writers", () => {
   it("two writers delivering the same driver shipment credit the driver once", async () => {
     await Promise.all([
-      recordShipmentEvents(d1.db, "s-driver", [ev("delivered", milestone("delivered"), 30, { source: "merchant" })]),
-      recordShipmentEvents(d1.db, "s-driver", [ev("Livré", milestone("delivered"), 31)]),
-      recordShipmentEvents(d1.db, "s-driver", [ev("collected", { kind: "collection" }, 32)]),
+      recordShipmentEvents(d1.db, "s-driver", [ev("delivered", milestone("delivered"), 30, { source: "merchant" })], SYSTEM),
+      recordShipmentEvents(d1.db, "s-driver", [ev("Livré", milestone("delivered"), 31)], SYSTEM),
+      recordShipmentEvents(d1.db, "s-driver", [ev("collected", { kind: "collection" }, 32)], SYSTEM),
     ]);
     expect(await driver()).toMatchObject({ totalDelivered: 1, pendingCash: 1900 });
     expect(await events("s-driver")).toHaveLength(3);
@@ -184,8 +185,8 @@ describe("racing writers", () => {
 
   it("two writers returning the same shipment restock once", async () => {
     await Promise.all([
-      recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 20, { source: "merchant" })]),
-      recordShipmentEvents(d1.db, "s-driver", [ev("Retourné au vendeur", milestone("returned"), 21)]),
+      recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 20, { source: "merchant" })], SYSTEM),
+      recordShipmentEvents(d1.db, "s-driver", [ev("Retourné au vendeur", milestone("returned"), 21)], SYSTEM),
     ]);
     expect(await inventory()).toEqual({ tracked: 12, variant: 6, untracked: 0 });
     expect(await spent()).toBe(1000);
@@ -200,8 +201,8 @@ describe("racing writers", () => {
       await d1.db.update(schema.products).set({ inventory: 10 }).where(eq(schema.products.id, "p-tracked"));
       await d1.db.update(schema.productVariants).set({ inventory: 5 }).where(eq(schema.productVariants.id, "v1"));
       await Promise.all([
-        recordShipmentEvents(d1.db, "s-driver", [ev("Livré", milestone("delivered"), 30)]),
-        recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 30, { source: "merchant" })]),
+        recordShipmentEvents(d1.db, "s-driver", [ev("Livré", milestone("delivered"), 30)], SYSTEM),
+        recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 30, { source: "merchant" })], SYSTEM),
       ]);
       const s = (await shipment("s-driver"))!;
       expect([s.deliveredAt, s.returnedAt].filter(Boolean)).toHaveLength(1);
@@ -211,9 +212,9 @@ describe("racing writers", () => {
 
   it("concurrent milestones all land: none is lost to another writer's update", async () => {
     await Promise.all([
-      recordShipmentEvents(d1.db, "s-carrier", [ev("Sorti en livraison", milestone("out_for_delivery"), 10)]),
-      recordShipmentEvents(d1.db, "s-carrier", [ev("Tentative échouée", { kind: "failed_attempt" }, 15)]),
-      recordShipmentEvents(d1.db, "s-carrier", [ev("Livré", milestone("delivered"), 30)]),
+      recordShipmentEvents(d1.db, "s-carrier", [ev("Sorti en livraison", milestone("out_for_delivery"), 10)], SYSTEM),
+      recordShipmentEvents(d1.db, "s-carrier", [ev("Tentative échouée", { kind: "failed_attempt" }, 15)], SYSTEM),
+      recordShipmentEvents(d1.db, "s-carrier", [ev("Livré", milestone("delivered"), 30)], SYSTEM),
     ]);
     expect(await shipment("s-carrier")).toMatchObject({ outForDeliveryAt: at(10), deliveredAt: at(30), deliveryAttempts: 1, providerStatus: "Livré" });
   });
@@ -221,7 +222,7 @@ describe("racing writers", () => {
 
 describe("all or nothing", () => {
   it("a write that fails part-way leaves no fact, no event and no restock behind", async () => {
-    const write = recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 20, { webhookEventId: "no-such-inbox-row" })]);
+    const write = recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 20, { webhookEventId: "no-such-inbox-row" })], SYSTEM);
     await expect(write).rejects.toThrow();
     expect((await shipment("s-driver"))!.returnedAt).toBeNull();
     expect(await events("s-driver")).toHaveLength(0);

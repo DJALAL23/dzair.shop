@@ -7,7 +7,7 @@
  */
 
 import { BusinessLogicError, ConflictError, PermissionError, type AppError } from "@/lib/errors/classes";
-import type { Actor } from "@/types";
+import type { StaffActor } from "@/types";
 import type { CarrierCapabilities } from "@/carriers/contract";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { SCOPE_FOR_KIND } from "../../../../cod-shared/shipments/actions";
@@ -32,7 +32,7 @@ export function requireAction(row: ShipmentRow, capabilities: CarrierCapabilitie
 }
 
 
-export function requireKindScope(actor: Actor, kind: ShipmentKind, what: string): void {
+export function requireKindScope(actor: StaffActor, kind: ShipmentKind, what: string): void {
   const needed = SCOPE_FOR_KIND[kind];
   if (!hasPermission(actor.scopes ?? [], needed)) throw new PermissionError(`${what} a ${kind} shipment needs ${needed}`, needed);
 }

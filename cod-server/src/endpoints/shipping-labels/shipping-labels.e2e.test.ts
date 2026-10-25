@@ -12,6 +12,7 @@
  * cost the trips of two.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { drizzle } from "drizzle-orm/d1";
@@ -83,7 +84,7 @@ async function readyOrder(id: string, overrides: Partial<typeof schema.orders.$i
 
 async function givenToDriver(ids: string[], driverId = "dr1") {
   for (const id of ids) await readyOrder(id);
-  const handed = await handOffToDriver(d1.db, { orderIds: ids, driverId, createdBy: null });
+  const handed = await handOffToDriver(d1.db, { orderIds: ids, driverId, author: SYSTEM });
   return handed.map((r) => {
     if (!r.ok) throw new Error(r.reason);
     return r.shipmentId;
@@ -205,7 +206,7 @@ describe("a driver's delivery sheet", () => {
     await givenToDriver(["other"], "dr2");
     await recordShipmentEvents(d1.db, delivered, [
       { source: "merchant", status: { vocabulary: "driver", value: "delivered" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() },
-    ]);
+    ], SYSTEM);
     const { status, body } = await call("GET", "/api/shipping-labels/delivery-sheet/dr1");
     expect(status).toBe(200);
     expect(body.data.driver).toEqual({ id: "dr1", name: "Samir Bey", phone: "0770000001" });

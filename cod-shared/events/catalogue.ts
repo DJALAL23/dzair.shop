@@ -6,6 +6,7 @@
  * types writers build events from.
  */
 
+import type { SQL } from "drizzle-orm";
 import type { OrderStatus } from "../orders/lifecycle";
 import type { Milestone } from "../shipments/interpretation";
 import type { Actor, Origin } from "./actor";
@@ -109,8 +110,8 @@ export type BusinessEventDraft = {
     type: T;
     /** The order's or the shipment's id, as the type's subject says. */
     subjectId: string;
-    /** The order it concerns, for the order's timeline. */
-    orderId: string;
+    /** The order it concerns, for the order's timeline — or the statement that finds it, for a writer that knows only the shipment. */
+    orderId: string | SQL;
     occurredAt: string;
     actor: Actor;
     origin: Origin;

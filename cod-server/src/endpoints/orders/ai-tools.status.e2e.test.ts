@@ -4,6 +4,7 @@
  * the order has a shipment — and its effects are the route's.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
@@ -65,7 +66,7 @@ describe("updateOrderStatus (AI tool)", () => {
 
   it("refuses any change once the order has a shipment", async () => {
     await order(ID, "ready");
-    await handOffToDriver(d1.db, { orderIds: [ID], driverId: "dr1", createdBy: null });
+    await handOffToDriver(d1.db, { orderIds: [ID], driverId: "dr1", author: SYSTEM });
     const refused = await setStatus(ID, "cancelled");
     expect(refused).toMatchObject({ success: false });
     expect(refused.error).toContain("shipment");

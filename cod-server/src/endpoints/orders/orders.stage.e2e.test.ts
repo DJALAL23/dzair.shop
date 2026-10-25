@@ -4,6 +4,7 @@
  * needs them; the list filters on both; the counts add up to the orders.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -53,7 +54,7 @@ beforeEach(async () => {
   const driven = (await json(await call("POST", "/api/orders/driven/shipment", { kind: "driver", driverId: "dr1" }))).data.shipment.id;
   await recordShipmentEvents(d1.db, driven, [
     { source: "merchant", status: { vocabulary: "driver", value: "delivered" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() },
-  ]);
+  ], SYSTEM);
   server.override("/api/v1/create/order", () => new Response("{}", { status: 500 }));
   await call("POST", "/api/orders/lost/shipment", { kind: "carrier", companyId: "eco" });
 });

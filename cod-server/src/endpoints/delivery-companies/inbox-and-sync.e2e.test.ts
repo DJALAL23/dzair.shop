@@ -5,6 +5,7 @@
  * processed again by hand; a sync records only what is new.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
@@ -74,7 +75,7 @@ async function shipmentAt(orderId: string, companyId: string, tracking: string) 
   await seedOrder(d1.db, commune16, { id: orderId });
   const reserved = await reserveCarrierShipment(d1.db, { orderId, companyId, deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
   if (!reserved.ok) throw new Error("reservation failed");
-  await acceptCarrierHandoff(d1.db, reserved.shipmentId, { carrierParcelId: tracking, trackingNumber: tracking, carrierData: null, labelUrl: null }, { validated: true });
+  await acceptCarrierHandoff(d1.db, reserved.shipmentId, { carrierParcelId: tracking, trackingNumber: tracking, carrierData: null, labelUrl: null }, { validated: true , author: SYSTEM });
   return reserved.shipmentId;
 }
 

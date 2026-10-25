@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
-import { SYSTEM, staff } from "@/test-utils/events";
+import { SYSTEM } from "@/test-utils/events";
 import { Miniflare } from "miniflare";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";

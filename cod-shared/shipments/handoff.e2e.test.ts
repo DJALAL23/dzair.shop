@@ -2,6 +2,7 @@
  * The handoff protocol and shipment lookups on real D1.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { SYSTEM, staff } from "@/test-utils/events";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "../db/schema";
@@ -97,15 +98,15 @@ describe("settling a carrier handoff", () => {
 
   it("accepted: the carrier's identity is recorded with the step", async () => {
     const id = await reserve();
-    expect(await acceptCarrierHandoff(d1.db, id, parcel, { validated: false, actorId: "u1" })).toBe(true);
+    expect(await acceptCarrierHandoff(d1.db, id, parcel, { validated: false, author: staff("u1") })).toBe(true);
     expect(await shipmentOf("ready")).toMatchObject({ handoffState: "accepted", carrierParcelId: "yal-1", trackingNumber: "yal-1", labelUrl: "https://l", validatedAt: null });
     expect(await steps(id)).toEqual([["handoff", "created"]]);
-    expect(await acceptCarrierHandoff(d1.db, id, parcel, { validated: false })).toBe(false);
+    expect(await acceptCarrierHandoff(d1.db, id, parcel, { validated: false , author: SYSTEM })).toBe(false);
   });
 
   it("accepted and validated at once", async () => {
     const id = await reserve();
-    await acceptCarrierHandoff(d1.db, id, parcel, { validated: true });
+    await acceptCarrierHandoff(d1.db, id, parcel, { validated: true , author: SYSTEM });
     expect((await shipmentOf("ready"))!.validatedAt).not.toBeNull();
     expect(await steps(id)).toEqual([["handoff", "created_and_validated"]]);
   });
@@ -119,7 +120,7 @@ describe("settling a carrier handoff", () => {
 
   it("an accepted shipment is never discarded", async () => {
     const id = await reserve();
-    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false });
+    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false , author: SYSTEM });
     expect(await discardReservation(d1.db, id)).toBe(false);
     expect(await shipmentOf("ready")).toBeDefined();
   });
@@ -129,7 +130,7 @@ describe("settling a carrier handoff", () => {
     expect(await markHandoffUnknown(d1.db, id, "Yalidine POST /parcels/ timed out")).toBe(true);
     expect((await shipmentOf("ready"))!.handoffState).toBe("unknown");
     expect(await discardReservation(d1.db, id)).toBe(false);
-    expect(await acceptCarrierHandoff(d1.db, id, parcel, { validated: false, source: "system" })).toBe(true);
+    expect(await acceptCarrierHandoff(d1.db, id, parcel, { validated: false, source: "system" , author: SYSTEM })).toBe(true);
     const history = (await getShipmentWithEvents(d1.db, id))!.events;
     expect(history.map((e) => [e.source, e.providerStatus, e.reason])).toEqual([
       ["system", "handoff_outcome_unknown", "Yalidine POST /parcels/ timed out"],
@@ -139,14 +140,14 @@ describe("settling a carrier handoff", () => {
 
   it("only a reservation can become unknown — never a parcel the carrier accepted", async () => {
     const id = await reserve();
-    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false });
+    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false , author: SYSTEM });
     expect(await markHandoffUnknown(d1.db, id, "late timeout")).toBe(false);
     expect((await shipmentOf("ready"))!.handoffState).toBe("accepted");
   });
 
   it("validated later, once", async () => {
     const id = await reserve();
-    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false });
+    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false , author: SYSTEM });
     expect(await markValidated(d1.db, id, "u1")).toBe(true);
     expect(await markValidated(d1.db, id, "u1")).toBe(false);
     expect((await steps(id)).map(([, s]) => s)).toEqual(["created", "validated"]);
@@ -154,7 +155,7 @@ describe("settling a carrier handoff", () => {
 
   it("a CodFlow step never changes the carrier's status", async () => {
     const id = await reserve();
-    await acceptCarrierHandoff(d1.db, id, parcel, { validated: true });
+    await acceptCarrierHandoff(d1.db, id, parcel, { validated: true , author: SYSTEM });
     expect((await shipmentOf("ready"))!.providerStatus).toBeNull();
   });
 
@@ -163,7 +164,7 @@ describe("settling a carrier handoff", () => {
     expect(await releaseUnknownHandoff(d1.db, id)).toBe(false);
     await markHandoffUnknown(d1.db, id, "timeout");
     const accepted = await reserve2();
-    await acceptCarrierHandoff(d1.db, accepted, { ...parcel, carrierParcelId: "yal-2", trackingNumber: "yal-2" }, { validated: false });
+    await acceptCarrierHandoff(d1.db, accepted, { ...parcel, carrierParcelId: "yal-2", trackingNumber: "yal-2" }, { validated: false , author: SYSTEM });
     expect(await releaseUnknownHandoff(d1.db, accepted)).toBe(false);
     expect(await shipmentOf("ready2")).toBeDefined();
     expect(await releaseUnknownHandoff(d1.db, id)).toBe(true);
@@ -176,7 +177,7 @@ describe("settling a carrier handoff", () => {
     expect(await recordParcelEdit(d1.db, id, { codAmount: 9 }, { fields: ["amount"], actorId: "u1" })).toBe(false);
     expect((await shipmentOf("ready"))!.codAmount).toBe(1900);
 
-    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false });
+    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false , author: SYSTEM });
     const before = (await shipmentOf("ready"))!.revision;
     expect(await recordParcelEdit(d1.db, id, { codAmount: 2500, isFragile: false }, { fields: ["amount", "fragile"], actorId: "u1" })).toBe(true);
     const after = await shipmentOf("ready");
@@ -187,7 +188,7 @@ describe("settling a carrier handoff", () => {
 
   it("a sync stamps the time and adopts a tracking number the carrier assigned late — never replacing one", async () => {
     const id = await reserve();
-    await acceptCarrierHandoff(d1.db, id, { ...parcel, trackingNumber: null }, { validated: false });
+    await acceptCarrierHandoff(d1.db, id, { ...parcel, trackingNumber: null }, { validated: false , author: SYSTEM });
     await recordSynced(d1.db, id, null);
     expect(await shipmentOf("ready")).toMatchObject({ trackingNumber: null, lastSyncedAt: expect.any(String) });
     await recordSynced(d1.db, id, "ZR-LATE-1");
@@ -198,7 +199,7 @@ describe("settling a carrier handoff", () => {
 
   it("a note keeps a step in the history without touching the shipment; the same step at the same instant is one note", async () => {
     const id = await reserve();
-    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false });
+    await acceptCarrierHandoff(d1.db, id, parcel, { validated: false , author: SYSTEM });
     const before = await shipmentOf("ready");
     vi.useFakeTimers({ now: Date.now() + 60_000, toFake: ["Date"] });
     try {
@@ -220,7 +221,7 @@ describe("settling a carrier handoff", () => {
 
 describe("handing off to the store's driver", () => {
   it("is accepted at once, with the driver's fee for the order's wilaya frozen", async () => {
-    const [r] = await handOffToDriver(d1.db, { orderIds: ["ready"], driverId: "dr1", createdBy: "u1" });
+    const [r] = await handOffToDriver(d1.db, { orderIds: ["ready"], driverId: "dr1", author: staff("u1") });
     expect(r.ok).toBe(true);
     expect(await shipmentOf("ready")).toMatchObject({ kind: "driver", driverId: "dr1", handoffState: "accepted", driverFee: 350, codAmount: 1900 });
     expect(await steps(r.ok ? r.shipmentId : "")).toEqual([["handoff", "assigned_to_driver"]]);
@@ -230,12 +231,12 @@ describe("handing off to the store's driver", () => {
   });
 
   it("pays nothing where the driver has no fee set", async () => {
-    await handOffToDriver(d1.db, { orderIds: ["ready2"], driverId: "dr1", createdBy: null });
+    await handOffToDriver(d1.db, { orderIds: ["ready2"], driverId: "dr1", author: SYSTEM });
     expect((await shipmentOf("ready2"))!.driverFee).toBe(0);
   });
 
   it("refuses an order that is not ready", async () => {
-    expect(await handOffToDriver(d1.db, { orderIds: ["confirmed"], driverId: "dr1", createdBy: null })).toEqual([{ ok: false, reason: "order_not_ready" }]);
+    expect(await handOffToDriver(d1.db, { orderIds: ["confirmed"], driverId: "dr1", author: SYSTEM })).toEqual([{ ok: false, reason: "order_not_ready" }]);
   });
 });
 
@@ -243,15 +244,15 @@ describe("voiding", () => {
   const accepted = async () => {
     const r = await reserveCarrierShipment(d1.db, reservation());
     if (!r.ok) throw new Error();
-    await acceptCarrierHandoff(d1.db, r.shipmentId, parcel, { validated: false });
+    await acceptCarrierHandoff(d1.db, r.shipmentId, parcel, { validated: false , author: SYSTEM });
     return r.shipmentId;
   };
   const report = (id: string, value: string, interpretation: Parameters<typeof recordShipmentEvents>[2][number]["interpretation"], minute: number) =>
-    recordShipmentEvents(d1.db, id, [{ source: "webhook", status: { vocabulary: "status", value }, interpretation, occurredAt: new Date(Date.parse(T0) + minute * 60_000).toISOString() }]);
+    recordShipmentEvents(d1.db, id, [{ source: "webhook", status: { vocabulary: "status", value }, interpretation, occurredAt: new Date(Date.parse(T0) + minute * 60_000).toISOString() }], SYSTEM);
 
   it("removes a shipment that never left, with its history; the order can be sent again", async () => {
     const id = await accepted();
-    expect(await voidShipment(d1.db, id)).toEqual({ ok: true, orderId: "ready" });
+    expect(await voidShipment(d1.db, id, SYSTEM)).toEqual({ ok: true, orderId: "ready" });
     expect(await shipmentOf("ready")).toBeUndefined();
     expect(await d1.db.select().from(schema.shipmentEvents).where(eq(schema.shipmentEvents.shipmentId, id)).all()).toEqual([]);
     expect((await reserveCarrierShipment(d1.db, reservation())).ok).toBe(true);
@@ -261,21 +262,21 @@ describe("voiding", () => {
     const r = await reserveCarrierShipment(d1.db, reservation());
     if (!r.ok) throw new Error();
     await markHandoffUnknown(d1.db, r.shipmentId, "timeout");
-    expect((await voidShipment(d1.db, r.shipmentId)).ok).toBe(true);
+    expect((await voidShipment(d1.db, r.shipmentId, SYSTEM)).ok).toBe(true);
 
     const id = await accepted();
     await report(id, "Annulé", { kind: "milestone", milestone: "cancelled" }, 5);
-    expect((await voidShipment(d1.db, id)).ok).toBe(true);
+    expect((await voidShipment(d1.db, id, SYSTEM)).ok).toBe(true);
   });
 
   it("refuses once the parcel is in the final mile, coming back, or closed", async () => {
     const id = await accepted();
     await report(id, "Sorti en livraison", { kind: "milestone", milestone: "out_for_delivery" }, 5);
-    expect(await voidShipment(d1.db, id)).toEqual({ ok: false, code: "SHIPMENT_NOT_VOIDABLE" });
+    expect(await voidShipment(d1.db, id, SYSTEM)).toEqual({ ok: false, code: "SHIPMENT_NOT_VOIDABLE" });
     await report(id, "Livré", { kind: "milestone", milestone: "delivered" }, 10);
-    expect(await voidShipment(d1.db, id)).toEqual({ ok: false, code: "SHIPMENT_CLOSED" });
+    expect(await voidShipment(d1.db, id, SYSTEM)).toEqual({ ok: false, code: "SHIPMENT_CLOSED" });
     expect(await shipmentOf("ready")).toBeDefined();
-    expect(await voidShipment(d1.db, "nope")).toEqual({ ok: false, code: "SHIPMENT_NOT_FOUND" });
+    expect(await voidShipment(d1.db, "nope", SYSTEM)).toEqual({ ok: false, code: "SHIPMENT_NOT_FOUND" });
   });
 
   it("a delivery recorded between the void's check and its delete stops the void", async () => {
@@ -304,7 +305,7 @@ describe("voiding", () => {
           };
         },
       });
-    const outcome = await voidShipment(wrap(d1.db) as typeof d1.db, id);
+    const outcome = await voidShipment(wrap(d1.db) as typeof d1.db, id, SYSTEM);
     expect(outcome).toEqual({ ok: false, code: "SHIPMENT_CLOSED" });
     expect((await shipmentOf("ready"))!.deliveredAt).not.toBeNull();
   });
@@ -314,7 +315,7 @@ describe("voiding", () => {
       await d1.db.delete(schema.shipments);
       const id = await accepted();
       const outcomes = await Promise.allSettled([
-        voidShipment(d1.db, id),
+        voidShipment(d1.db, id, SYSTEM),
         report(id, "Livré", { kind: "milestone", milestone: "delivered" }, 10),
       ]);
       const row = await shipmentOf("ready");
@@ -329,7 +330,7 @@ describe("finding the shipment an update is about", () => {
   it("by the carrier's parcel id, then tracking number, then our order number — at that company only", async () => {
     const r = await reserveCarrierShipment(d1.db, reservation());
     if (!r.ok) throw new Error();
-    await acceptCarrierHandoff(d1.db, r.shipmentId, { ...parcel, carrierParcelId: "uuid-9", trackingNumber: "16-AB-ZR" }, { validated: false });
+    await acceptCarrierHandoff(d1.db, r.shipmentId, { ...parcel, carrierParcelId: "uuid-9", trackingNumber: "16-AB-ZR" }, { validated: false , author: SYSTEM });
     for (const match of [{ carrierParcelId: "uuid-9" }, { trackingNumber: "16-AB-ZR" }, { reference: "ORD-ready" }, { carrierParcelId: "old", trackingNumber: "16-AB-ZR" }]) {
       expect((await findCarrierShipment(d1.db, "co1", match))?.id).toBe(r.shipmentId);
     }
@@ -341,7 +342,7 @@ describe("finding the shipment an update is about", () => {
     const r = await reserveCarrierShipment(d1.db, reservation());
     if (!r.ok) throw new Error();
     expect(carrierRefOf((await shipmentOf("ready"))!)).toBeNull();
-    await acceptCarrierHandoff(d1.db, r.shipmentId, parcel, { validated: false });
+    await acceptCarrierHandoff(d1.db, r.shipmentId, parcel, { validated: false , author: SYSTEM });
     expect(carrierRefOf((await shipmentOf("ready"))!)).toEqual({ carrierParcelId: "yal-1", trackingNumber: "yal-1", carrierData: { label: "https://l" } });
   });
 });

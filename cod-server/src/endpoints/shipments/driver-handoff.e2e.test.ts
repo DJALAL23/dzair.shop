@@ -6,6 +6,8 @@
  * that has carried parcels keeps them — it is never deleted from under them.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { SYSTEM_ACTING } from "@/lib/acting";
+import { SYSTEM } from "@/test-utils/events";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
@@ -67,11 +69,11 @@ const activity = (action: string) => d1.db.select().from(schema.activityLogs).wh
 const deliver = (shipmentId: string) =>
   recordShipmentEvents(d1.db, shipmentId, [
     { source: "merchant", status: { vocabulary: "driver", value: "delivered" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() },
-  ]);
+  ], SYSTEM);
 const outForDelivery = (shipmentId: string) =>
   recordShipmentEvents(d1.db, shipmentId, [
     { source: "merchant", status: { vocabulary: "driver", value: "out_for_delivery" }, interpretation: { kind: "milestone", milestone: "out_for_delivery" }, occurredAt: new Date().toISOString() },
-  ]);
+  ], SYSTEM);
 
 describe("giving an order to the driver", () => {
   it("is accepted at once, with the cash to collect and the driver's fee for the wilaya frozen", async () => {
@@ -174,19 +176,19 @@ describe("giving an order to the driver", () => {
   it("a driver deactivated or deleted after the check never receives the order", async () => {
     await seed({ id: "o1" });
     await d1.db.update(schema.drivers).set({ status: "inactive" }).where(eq(schema.drivers.id, "dr1"));
-    expect(await handOffToDriver(d1.db, { orderIds: ["o1"], driverId: "dr1", createdBy: null })).toEqual([{ ok: false, reason: "driver_unavailable" }]);
-    expect(await handOffToDriver(d1.db, { orderIds: ["o1"], driverId: "gone", createdBy: null })).toEqual([{ ok: false, reason: "driver_unavailable" }]);
+    expect(await handOffToDriver(d1.db, { orderIds: ["o1"], driverId: "dr1", author: SYSTEM })).toEqual([{ ok: false, reason: "driver_unavailable" }]);
+    expect(await handOffToDriver(d1.db, { orderIds: ["o1"], driverId: "gone", author: SYSTEM })).toEqual([{ ok: false, reason: "driver_unavailable" }]);
     expect(await shipmentOf("o1")).toBeUndefined();
 
     await d1.db.update(schema.orders).set({ status: "confirmed" }).where(eq(schema.orders.id, "o1"));
-    expect(await handOffToDriver(d1.db, { orderIds: ["o1"], driverId: "gone", createdBy: null })).toEqual([{ ok: false, reason: "order_not_ready" }]);
+    expect(await handOffToDriver(d1.db, { orderIds: ["o1"], driverId: "gone", author: SYSTEM })).toEqual([{ ok: false, reason: "order_not_ready" }]);
   });
 
   it("…and the request that checked the driver first is told so", async () => {
     await seed({ id: "o1" });
     const driver = await driverFor(d1.db, "dr1");
     await d1.db.update(schema.drivers).set({ status: "inactive" }).where(eq(schema.drivers.id, "dr1"));
-    const [result] = await handOffToDriverOrders(d1.db, driver, [{ orderId: "o1" }], null);
+    const [result] = await handOffToDriverOrders(d1.db, driver, [{ orderId: "o1" }], SYSTEM_ACTING);
     expect(result).toMatchObject({ orderId: "o1", outcome: "refused" });
     expect(result.outcome === "refused" && result.error.code).toBe("DRIVER_UNAVAILABLE");
   });

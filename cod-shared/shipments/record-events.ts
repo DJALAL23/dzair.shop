@@ -25,6 +25,10 @@ import { linesToRestock, restockStatements } from "../inventory/restock";
 import { applyEvent, type Anomaly, type Interpretation, type Milestone } from "./interpretation";
 import { eventKey, type ShipmentEventSource } from "./model";
 import { deliveryFactsOf } from "./queries";
+import { creditOf, type Author } from "../events/actor";
+import { MILESTONE_EVENT, type BusinessEventDraft } from "../events/catalogue";
+import { recordEvent } from "../events/record";
+import { orderSnapshot, shipmentSnapshot } from "../events/snapshots";
 
 export interface IncomingShipmentEvent {
   source: ShipmentEventSource;
@@ -66,7 +70,6 @@ export class ShipmentNotFoundError extends Error {
 }
 
 const MAX_ATTEMPTS = 5;
-const SYSTEM_ACTOR = { id: "system", name: "النظام" };
 
 const BUSINESS_EVENT: Record<Milestone, ShipmentBusinessEvent["type"]> = {
   out_for_delivery: "ShipmentOutForDelivery",
@@ -79,15 +82,18 @@ const BUSINESS_EVENT: Record<Milestone, ShipmentBusinessEvent["type"]> = {
 /**
  * Record reported events on a shipment. Events it already has are ignored;
  * the rest are applied in the order given (carriers' own order is not
- * trusted for meaning — `applyEvent` orders by time).
+ * trusted for meaning — `applyEvent` orders by time). Each milestone reached
+ * and each failed attempt records its Business Event in the same batch, by
+ * `author`.
  */
 export async function recordShipmentEvents(
   db: AppDb,
   shipmentId: string,
   incoming: readonly IncomingShipmentEvent[],
+  author: Author,
 ): Promise<RecordedEvents> {
   for (let attempt = 1; ; attempt++) {
-    const outcome = await attemptRecord(db, shipmentId, incoming);
+    const outcome = await attemptRecord(db, shipmentId, incoming, author);
     if (outcome !== "lost_race") return outcome;
     if (attempt >= MAX_ATTEMPTS) {
       throw new Error(`Shipment ${shipmentId} kept changing while recording events; gave up after ${MAX_ATTEMPTS} attempts`);
@@ -99,6 +105,7 @@ async function attemptRecord(
   db: AppDb,
   shipmentId: string,
   incoming: readonly IncomingShipmentEvent[],
+  author: Author,
 ): Promise<RecordedEvents | "lost_race"> {
   const row = await db.select().from(shipments).where(eq(shipments.id, shipmentId)).get();
   if (!row) throw new ShipmentNotFoundError(shipmentId);
@@ -135,6 +142,12 @@ async function attemptRecord(
 
   type BatchStatement = Parameters<AppDb["batch"]>[0][number];
   const eventStatements: BatchStatement[] = [];
+  const published: BusinessEventDraft[] = [];
+  const publish = (draft: { type: typeof MILESTONE_EVENT[Milestone] } | { type: "shipment.delivery_failed"; attempt: number }, event: IncomingShipmentEvent) => {
+    const base = { subjectId: shipmentId, orderId: row.orderId, occurredAt: event.occurredAt, ...author };
+    const data = { shipment: shipmentSnapshot(shipmentId), order: orderSnapshot(row.orderId), reason: event.reason ?? null };
+    published.push(draft.type === "shipment.delivery_failed" ? { ...base, type: draft.type, data: { ...data, attempt: draft.attempt } } : { ...base, type: draft.type, data });
+  };
   for (const [key, event] of fresh) {
     const before = facts;
     const step = applyEvent(before, { providerStatus: event.status.value, interpretation: event.interpretation, occurredAt: event.occurredAt });
@@ -143,9 +156,11 @@ async function attemptRecord(
     if (step.anomaly) anomalies.push(step.anomaly);
     for (const milestone of step.reached) {
       businessEvents.push({ type: BUSINESS_EVENT[milestone], shipmentId, orderId: row.orderId, occurredAt: event.occurredAt });
+      publish({ type: MILESTONE_EVENT[milestone] }, event);
     }
     if (step.next.deliveryAttempts > before.deliveryAttempts) {
       businessEvents.push({ type: "DeliveryAttemptFailed", shipmentId, orderId: row.orderId, occurredAt: event.occurredAt });
+      publish({ type: "shipment.delivery_failed", attempt: step.next.deliveryAttempts }, event);
     }
     const milestone = event.interpretation.kind === "milestone" ? event.interpretation.milestone : null;
     eventStatements.push(
@@ -223,7 +238,7 @@ async function attemptRecord(
       .where(eq(orders.id, row.orderId))
       .get();
     const lines = await linesToRestock(db, row.orderId);
-    effects.push(...restockStatements(db, lines, "ORDER_RETURNED", row.orderId, SYSTEM_ACTOR, now, guard));
+    effects.push(...restockStatements(db, lines, "ORDER_RETURNED", row.orderId, creditOf(author.actor), now, guard));
     if (order) {
       effects.push(
         db
@@ -234,7 +249,9 @@ async function attemptRecord(
     }
   }
 
-  const results = await db.batch([claim, ...eventStatements, ...effects] as [BatchStatement, ...BatchStatement[]]);
+  // The Business Events last, so each carries the shipment as this batch leaves it.
+  const eventLog = published.map((draft) => recordEvent(db, draft, guard));
+  const results = await db.batch([claim, ...eventStatements, ...effects, ...eventLog] as [BatchStatement, ...BatchStatement[]]);
   const claimed = (results[0] as { meta?: { changes?: number } }).meta?.changes ?? 0;
   if (claimed === 0) return "lost_race";
 

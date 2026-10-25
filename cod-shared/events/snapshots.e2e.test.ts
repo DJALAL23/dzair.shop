@@ -8,7 +8,7 @@ import fc from "fast-check";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import { EVENT_DATA_SCHEMAS } from "@/events/catalogue";
 import * as schema from "../db/schema";
-import { orderSnapshot, type OrderSnapshot } from "./snapshots";
+import { orderSnapshot, shipmentSnapshot, type OrderSnapshot } from "./snapshots";
 
 let d1: TestD1;
 const T0 = "2026-10-20T08:00:00.000Z";
@@ -21,7 +21,7 @@ beforeAll(async () => {
 afterAll(async () => d1?.dispose());
 
 beforeEach(async () => {
-  for (const table of [schema.orderProducts, schema.orders, schema.customers]) await d1.db.delete(table);
+  for (const table of [schema.shipments, schema.deliveryCompanies, schema.orderProducts, schema.orders, schema.customers]) await d1.db.delete(table);
   await d1.db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T0 });
 });
 
@@ -86,5 +86,29 @@ describe("the order snapshot", () => {
       const expected = `${Math.floor(c / 100)}.${String(c % 100).padStart(2, "0")}`;
       expect((await snapshot(`p${i}`)).subtotal.amount, `${c} centimes`).toBe(expected);
     }
+  });
+});
+
+describe("the shipment snapshot", () => {
+  const shipmentSchema = EVENT_DATA_SCHEMAS["shipment.voided"].shape.shipment;
+
+  it("holds a carrier kept from before carriers had adapters, and a status with no label", async () => {
+    await order("o1");
+    await d1.db.insert(schema.deliveryCompanies).values({ id: "old", name: "Ancien transporteur", nameAr: "-", code: "old", createdAt: T0, updatedAt: T0 });
+    await d1.db.insert(schema.shipments).values({
+      id: "s1", orderId: "o1", kind: "carrier", companyId: "old", handoffState: "accepted", carrierParcelId: "OLD-1", deliveryType: "home", codAmount: 5400,
+      providerStatus: "En cours", revision: "r", createdAt: "2026-10-20 09:00:00", updatedAt: T0,
+    });
+    const row = await d1.db.get<{ s: string }>(sql`select ${shipmentSnapshot("s1").sql} as s`);
+    const parsed = shipmentSchema.safeParse(JSON.parse(row!.s));
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.data).toMatchObject({
+      carrier: { companyId: "old", name: "Ancien transporteur", provider: null },
+      driver: null,
+      providerStatus: { value: "En cours", label: null },
+      codAmount: { amount: "5400.00" },
+      handedOffAt: "2026-10-20T09:00:00.000Z",
+      deliveredAt: null,
+    });
   });
 });

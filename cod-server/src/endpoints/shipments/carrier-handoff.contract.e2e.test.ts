@@ -5,6 +5,7 @@
  * Either way the parcel may exist, so the shipment must be kept as unknown.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { SYSTEM_ACTING } from "@/lib/acting";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
@@ -65,7 +66,7 @@ describe("an adapter that breaks its promises", () => {
     stub.adapter = adapter({
       createShipments: async (inputs) => [{ reference: inputs[0].reference, ok: true, parcel: parcelFor(inputs[0]) }],
     });
-    const results = await handOffToCarrier(d1.db, company, [{ orderId: "o1" }, { orderId: "o2" }], null);
+    const results = await handOffToCarrier(d1.db, company, [{ orderId: "o1" }, { orderId: "o2" }], SYSTEM_ACTING);
     expect(results.map((r) => r.outcome)).toEqual(["accepted", "unknown"]);
     expect(await stateOf("o2")).toBe("unknown");
   });
@@ -76,7 +77,7 @@ describe("an adapter that breaks its promises", () => {
         throw new TypeError("Cannot read properties of undefined (reading 'tracking')");
       },
     });
-    const [result] = await handOffToCarrier(d1.db, company, [{ orderId: "o1" }], null);
+    const [result] = await handOffToCarrier(d1.db, company, [{ orderId: "o1" }], SYSTEM_ACTING);
     expect(result).toMatchObject({ outcome: "unknown", message: expect.stringMatching(/reading 'tracking'/) });
     expect(await stateOf("o1")).toBe("unknown");
   });
@@ -87,7 +88,7 @@ describe("an adapter that breaks its promises", () => {
         throw new Error("socket hang up");
       },
     });
-    const results = await handOffToCarrier(d1.db, company, [{ orderId: "o1" }, { orderId: "o2" }], null);
+    const results = await handOffToCarrier(d1.db, company, [{ orderId: "o1" }, { orderId: "o2" }], SYSTEM_ACTING);
     expect(results.map((r) => r.outcome)).toEqual(["unknown", "unknown"]);
   });
 });

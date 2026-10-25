@@ -70,7 +70,7 @@ const order = z.object({
 const shipment = z.object({
   id: z.string(),
   kind: z.enum(SHIPMENT_KINDS),
-  carrier: z.object({ companyId: z.string(), name: z.string(), provider: z.string() }).nullable(),
+  carrier: z.object({ companyId: z.string(), name: z.string(), provider: z.string().nullable() }).nullable(),
   driver: z.object({ id: z.string(), name: z.string(), phone: z.string() }).nullable(),
   trackingNumber: z.string().nullable(),
   deliveryType,

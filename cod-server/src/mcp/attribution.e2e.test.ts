@@ -5,6 +5,7 @@
  * returned, a driver settled, stock adjusted.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
@@ -65,11 +66,11 @@ describe("an agent's writes are the granting person's", () => {
     expect(history.map((h) => [h.status, h.by])).toEqual([["ready", "u-ada"]]);
 
     // Units are refused at the door: the order is delivered first.
-    const [handoff] = await handOffToDriver(d1.db, { orderIds: [ORDER], driverId: "dr1", createdBy: null });
+    const [handoff] = await handOffToDriver(d1.db, { orderIds: [ORDER], driverId: "dr1", author: SYSTEM });
     if (!handoff.ok) throw new Error(handoff.reason);
     await recordShipmentEvents(d1.db, handoff.shipmentId, [
       { source: "merchant", status: { vocabulary: "driver", value: "delivered" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() },
-    ]);
+    ], SYSTEM);
     await run("recordOrderProductReturn", { orderId: ORDER, productLineId: LINE, returnedQuantity: 1 });
     expect((await movements()).map((m) => [m.type, m.createdBy, m.createdByName])).toEqual([["ORDER_RETURNED", "u-ada", "Ada"]]);
   });
@@ -85,11 +86,11 @@ describe("an agent's writes are the granting person's", () => {
 
   it("a driver settled — the model names no one", async () => {
     await d1.db.update(schema.orders).set({ status: "ready" }).where(eq(schema.orders.id, ORDER));
-    const [handoff] = await handOffToDriver(d1.db, { orderIds: [ORDER], driverId: "dr1", createdBy: null });
+    const [handoff] = await handOffToDriver(d1.db, { orderIds: [ORDER], driverId: "dr1", author: SYSTEM });
     if (!handoff.ok) throw new Error(handoff.reason);
     await recordShipmentEvents(d1.db, handoff.shipmentId, [
       { source: "merchant", status: { vocabulary: "driver", value: "delivered" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() },
-    ]);
+    ], SYSTEM);
     await run("createDriverSettlement", { driverId: "dr1", type: "cod_remittance", shipmentIds: [handoff.shipmentId], agentName: "Totally the owner" });
     expect(await d1.db.select({ by: schema.driverPayments.createdBy, name: schema.driverPayments.createdByName }).from(schema.driverPayments).all()).toEqual([{ by: "u-ada", name: "Ada" }]);
   });

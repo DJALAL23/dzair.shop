@@ -9,6 +9,7 @@
  * merchant's reports follow who may say what.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -72,12 +73,12 @@ async function accepted(orderId: string, companyId: string, carrierData: unknown
   await seedOrder({ id: orderId });
   const reserved = await reserveCarrierShipment(d1.db, { orderId, companyId, deliveryType: "home", stationCode: null, weight: 1, isFragile: null, createdBy: null });
   if (!reserved.ok) throw new Error("reservation failed");
-  await acceptCarrierHandoff(d1.db, reserved.shipmentId, { carrierParcelId: `P-${orderId}`, trackingNumber: `T-${orderId}`, carrierData, labelUrl: null }, { validated: true });
+  await acceptCarrierHandoff(d1.db, reserved.shipmentId, { carrierParcelId: `P-${orderId}`, trackingNumber: `T-${orderId}`, carrierData, labelUrl: null }, { validated: true , author: SYSTEM });
   return reserved.shipmentId;
 }
 
 const report = (id: string, status: string, interpretation: Parameters<typeof recordShipmentEvents>[2][number]["interpretation"], occurredAt = AT) =>
-  recordShipmentEvents(d1.db, id, [{ source: "webhook", status: { vocabulary: "test", value: status }, interpretation, occurredAt }]);
+  recordShipmentEvents(d1.db, id, [{ source: "webhook", status: { vocabulary: "test", value: status }, interpretation, occurredAt }], SYSTEM);
 
 /** Every fetch the test did not expect is a failure: no carrier call may be made. */
 function noCarrierCalls() {
@@ -431,7 +432,7 @@ describe("what the merchant reports", () => {
       await d1.db.insert(schema.drivers).values({ id: "dr1", firstName: "Amine", lastName: "B", phone: "0661111111", createdAt: T0, updatedAt: T0 });
       await d1.db.insert(schema.driverCompensations).values({ id: "comp1", driverId: "dr1", wilayaId: 16, feePerDelivery: 300, createdAt: T0, updatedAt: T0 });
       await seedOrder({ id: "d1" });
-      const [handed] = await handOffToDriver(d1.db, { orderIds: ["d1"], driverId: "dr1", createdBy: null });
+      const [handed] = await handOffToDriver(d1.db, { orderIds: ["d1"], driverId: "dr1", author: SYSTEM });
       if (!handed.ok) throw new Error("driver handoff failed");
       id = handed.shipmentId;
     });

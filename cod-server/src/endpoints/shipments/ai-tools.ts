@@ -2,7 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { AppDb } from "@/db";
 import type { Env } from "@/types/env";
-import { actorOf, type McpProps } from "@/mcp/props";
+import { agentActingOf, type McpProps } from "@/mcp/props";
 import { scheduleShipmentConversions } from "@/lib/conversions";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 import { handOffOne } from "./handoff-results";
@@ -117,7 +117,7 @@ export const getShipmentTools = (db: AppDb, env: Env, props: McpProps) => ({
       if (!parsed.success) return invalid(parsed.error, "orderId, companyId; optional deliveryType (home|stop_desk), stationCode, weight (kg > 0), fragile, remarks");
       const { orderId, ...request } = parsed.data;
       try {
-        const handoff = await handOffOne(db, orderId, { kind: "carrier", ...request }, actorOf(props));
+        const handoff = await handOffOne(db, orderId, { kind: "carrier", ...request }, agentActingOf(props));
         const message = handoff.outcome === "accepted"
           ? `Order ${handoff.orderNumber} handed to the carrier${handoff.shipment?.trackingNumber ? `, tracking ${handoff.shipment.trackingNumber}` : ""}`
           : `The carrier did not confirm order ${handoff.orderNumber}'s parcel. Do not hand it off again: the merchant resolves it from the shipment.`;
@@ -141,7 +141,7 @@ export const getShipmentTools = (db: AppDb, env: Env, props: McpProps) => ({
       if (!parsed.success) return invalid(parsed.error, "orderId, driverId");
       const { orderId, ...request } = parsed.data;
       try {
-        const handoff = await handOffOne(db, orderId, { kind: "driver", ...request }, actorOf(props));
+        const handoff = await handOffOne(db, orderId, { kind: "driver", ...request }, agentActingOf(props));
         return { success: true, handoff, message: `Order ${handoff.orderNumber} given to the driver` };
       } catch (error) {
         return failure(error);
@@ -161,7 +161,7 @@ export const getShipmentTools = (db: AppDb, env: Env, props: McpProps) => ({
       if (!parsed.success) return invalid(parsed.error, "shipmentId, status (out_for_delivery|failed_attempt|delivered|returned); optional reason, occurredAt (ISO)");
       const { shipmentId, ...report } = parsed.data;
       try {
-        const recorded = await reportShipmentEvent(db, shipmentId, report, actorOf(props));
+        const recorded = await reportShipmentEvent(db, shipmentId, report, agentActingOf(props));
         const scheduled: Promise<unknown>[] = [];
         await scheduleShipmentConversions(env, (p) => void scheduled.push(p), db, recorded.businessEvents);
         await Promise.allSettled(scheduled);

@@ -76,7 +76,8 @@ export interface OrderSnapshot {
 export interface ShipmentSnapshot {
   id: string;
   kind: ShipmentKind;
-  carrier: { companyId: string; name: string; provider: string } | null;
+  /** `provider` is null for a company kept from before carriers had adapters. */
+  carrier: { companyId: string; name: string; provider: string | null } | null;
   driver: { id: string; name: string; phone: string } | null;
   trackingNumber: string | null;
   deliveryType: "home" | "stop_desk";
@@ -151,7 +152,33 @@ const orderJson = (orderId: SQL) => sql`(select json_object(
   'customFields', case when json_valid(o.custom_fields_json) then json(o.custom_fields_json) else json('[]') end
 ) from orders o where o.id = ${orderId})`;
 
+const idSql = (id: string | SQL) => (typeof id === "string" ? sql`${id}` : id);
+
 /** The order as it stands where this statement runs in the batch. */
-export function orderSnapshot(orderId: string): SqlJson<OrderSnapshot> {
-  return new SqlJson(orderJson(sql`${orderId}`));
+export function orderSnapshot(orderId: string | SQL): SqlJson<OrderSnapshot> {
+  return new SqlJson(orderJson(idSql(orderId)));
+}
+
+const shipmentJson = (shipmentId: SQL) => sql`(select json_object(
+  'id', s.id,
+  'kind', s.kind,
+  'carrier', json((select json_object('companyId', dc.id, 'name', dc.name, 'provider', dc.provider) from delivery_companies dc where dc.id = s.company_id)),
+  'driver', json((select json_object('id', d.id, 'name', trim(d.first_name || ' ' || d.last_name), 'phone', d.phone) from drivers d where d.id = s.driver_id)),
+  'trackingNumber', s.tracking_number,
+  'deliveryType', s.delivery_type,
+  'stationCode', s.station_code,
+  'codAmount', ${moneySql(sql`s.cod_amount`)},
+  'providerStatus', case when s.provider_status is null then null else json_object('value', s.provider_status, 'label', s.provider_status_label) end,
+  'handedOffAt', ${instantSql(sql`s.created_at`)},
+  'outForDeliveryAt', ${instantSql(sql`s.out_for_delivery_at`)},
+  'deliveredAt', ${instantSql(sql`s.delivered_at`)},
+  'returnStartedAt', ${instantSql(sql`s.return_started_at`)},
+  'returnedAt', ${instantSql(sql`s.returned_at`)},
+  'cancelledAt', ${instantSql(sql`s.cancelled_at`)},
+  'deliveryAttempts', s.delivery_attempts
+) from shipments s where s.id = ${shipmentId})`;
+
+/** The shipment as it stands where this statement runs in the batch. */
+export function shipmentSnapshot(shipmentId: string | SQL): SqlJson<ShipmentSnapshot> {
+  return new SqlJson(shipmentJson(idSql(shipmentId)));
 }

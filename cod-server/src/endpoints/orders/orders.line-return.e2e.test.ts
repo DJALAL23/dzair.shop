@@ -136,7 +136,7 @@ describe("refused once every remaining unit is already back", () => {
 
   it("the order's parcel came back", async () => {
     await onTheWay();
-    await recordShipmentEvents(d1.db, "s1", [{ source: "merchant", status: { vocabulary: "driver", value: "returned" }, interpretation: { kind: "milestone", milestone: "returned" }, occurredAt: new Date().toISOString() }]);
+    await recordShipmentEvents(d1.db, "s1", [{ source: "merchant", status: { vocabulary: "driver", value: "returned" }, interpretation: { kind: "milestone", milestone: "returned" }, occurredAt: new Date().toISOString() }], SYSTEM);
     expect(await stock("tracked")).toBe(13);
     expect(await setOrderProductReturn(d1.db, "o1", "l-tracked", 1, SYSTEM)).toEqual({ ok: false, reason: "order_closed" });
     expect(await stock("tracked")).toBe(13);

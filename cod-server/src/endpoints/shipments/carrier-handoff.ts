@@ -26,7 +26,7 @@ import type { AppDb } from "@/db";
 import { communes, deliveryCompanies, orderProducts, orders, productVariants, shipments, wilayas } from "@/db/schema";
 import { AppError, BusinessLogicError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ACTIONS, logActivity } from "@/lib/activity";
-import type { Actor } from "@/types";
+import type { Acting } from "@/lib/acting";
 import { CarrierRequestError, callCarrier } from "@/carriers/app-errors";
 import { loggedCarrierCall } from "@/carriers/call-log";
 import { CarrierError, type CarrierAdapter, type CarrierBulkItem, type CarrierParcel, type CarrierShipmentInput } from "@/carriers/contract";
@@ -366,13 +366,13 @@ async function completeAcceptance(
   carrier: Pick<CarrierAdapter, "capabilities" | "validate">,
   target: AcceptanceTarget,
   parcel: CarrierParcel,
-  actor: Actor | null,
+  acting: Acting,
   how: { source: ShipmentEventSource; autoValidate: boolean },
 ): Promise<SettledHandoff> {
   const { shipmentId, orderId, orderNumber } = target;
   const needsValidation = carrier.capabilities.separateValidation;
   try {
-    const accepted = await acceptCarrierHandoff(db, shipmentId, parcel, { validated: !needsValidation, actorId: actor?.id ?? null, source: how.source });
+    const accepted = await acceptCarrierHandoff(db, shipmentId, parcel, { validated: !needsValidation, author: acting.author, source: how.source });
     if (!accepted) throw new Error("the shipment was no longer waiting for the carrier");
   } catch (cause) {
     // The parcel exists at the carrier but could not be recorded: keep what is
@@ -389,15 +389,15 @@ async function completeAcceptance(
       await loggedCarrierCall(db, { companyId: company.id, orderId, operation: "validate" }, () =>
         carrier.validate!({ carrierParcelId: parcel.carrierParcelId, trackingNumber: parcel.trackingNumber, carrierData: parcel.carrierData }),
       );
-      validated = await markValidated(db, shipmentId, actor?.id ?? null);
+      validated = await markValidated(db, shipmentId, acting.staff?.id ?? null);
     } catch (error) {
       validationError = (error as Error)?.message ?? String(error);
-      await noteShipmentStep(db, shipmentId, "validation_failed", { source: "handoff", reason: validationError, actorId: actor?.id ?? null });
+      await noteShipmentStep(db, shipmentId, "validation_failed", { source: "handoff", reason: validationError, actorId: acting.staff?.id ?? null });
     }
   }
 
-  if (actor) {
-    await logActivity(db, actor, ACTIONS.ORDER_DISPATCHED, { type: "order", id: orderId, label: orderNumber }, {
+  if (acting.staff) {
+    await logActivity(db, acting.staff, ACTIONS.ORDER_DISPATCHED, { type: "order", id: orderId, label: orderNumber }, {
       companyName: company.name,
       shipmentId,
       trackingNumber: parcel.trackingNumber,
@@ -436,7 +436,7 @@ export async function handOffToCarrier(
   db: AppDb,
   company: DeliveryCompanyRow,
   requests: HandoffRequest[],
-  actor: Actor | null,
+  acting: Acting,
 ): Promise<HandoffResult[]> {
   const carrier = await carrierFor(company);
   const distinct = [...new Map(requests.map((r) => [r.orderId, r])).values()];
@@ -467,7 +467,7 @@ export async function handOffToCarrier(
       stationCode: prepared.stationCode,
       weight: prepared.weight,
       isFragile: prepared.fragile,
-      createdBy: actor?.id ?? null,
+      createdBy: acting.staff?.id ?? null,
     });
     if (!reservation.ok) {
       results.set(request.orderId, { orderId: request.orderId, orderNumber: prepared.order.orderNumber, outcome: "refused", error: reservationRefusal(reservation.reason, prepared.order) });
@@ -487,7 +487,7 @@ export async function handOffToCarrier(
             carrier,
             { shipmentId: prepared.shipmentId, orderId: prepared.order.id, orderNumber: prepared.order.orderNumber },
             outcome.parcel,
-            actor,
+            acting,
             { source: "handoff", autoValidate: true },
           )
         : await settleFailed(db, company, prepared, outcome.error);
@@ -516,7 +516,7 @@ export type ResolveResult =
  *   attach  — the merchant found the parcel at the carrier and gives its tracking number;
  *   release — the merchant attests the carrier has no parcel; the order is ready again.
  */
-export async function resolveHandoff(db: AppDb, shipmentId: string, resolution: Resolution, actor: Actor | null): Promise<ResolveResult> {
+export async function resolveHandoff(db: AppDb, shipmentId: string, resolution: Resolution, acting: Acting): Promise<ResolveResult> {
   const row = await getShipment(db, shipmentId);
   if (!row) throw new NotFoundError("Shipment", shipmentId);
   const company = row.companyId ? await getDeliveryCompanyRaw(db, row.companyId) : null;
@@ -530,8 +530,8 @@ export async function resolveHandoff(db: AppDb, shipmentId: string, resolution: 
     if (!(await releaseUnknownHandoff(db, shipmentId))) {
       throw new ConflictError("The shipment was resolved meanwhile", ERROR_CODES.SHIPMENT_ACTION_NOT_AVAILABLE, context);
     }
-    if (actor) {
-      await logActivity(db, actor, ACTIONS.SHIPMENT_RELEASED, { type: "order", id: row.orderId, label: target.orderNumber }, { shipmentId, companyId: row.companyId });
+    if (acting.staff) {
+      await logActivity(db, acting.staff, ACTIONS.SHIPMENT_RELEASED, { type: "order", id: row.orderId, label: target.orderNumber }, { shipmentId, companyId: row.companyId });
     }
     return { outcome: "released", orderId: row.orderId };
   }
@@ -544,7 +544,7 @@ export async function resolveHandoff(db: AppDb, shipmentId: string, resolution: 
       ),
     );
     if (!parcel) return { outcome: "not_found" };
-    return { outcome: "accepted", result: await completeAcceptance(db, company!, carrier, target, parcel, actor, { source: "system", autoValidate: false }) };
+    return { outcome: "accepted", result: await completeAcceptance(db, company!, carrier, target, parcel, acting, { source: "system", autoValidate: false }) };
   }
 
   const trackingNumber = resolution.trackingNumber.trim();
@@ -554,5 +554,5 @@ export async function resolveHandoff(db: AppDb, shipmentId: string, resolution: 
     throw new ConflictError(`Parcel ${trackingNumber} already belongs to another shipment`, ERROR_CODES.ORDER_HAS_SHIPMENT, { ...context, otherShipmentId: taken.id });
   }
   const parcel: CarrierParcel = { carrierParcelId, trackingNumber, carrierData: null, labelUrl: null };
-  return { outcome: "accepted", result: await completeAcceptance(db, company!, { capabilities: capabilities! }, target, parcel, actor, { source: "merchant", autoValidate: false }) };
+  return { outcome: "accepted", result: await completeAcceptance(db, company!, { capabilities: capabilities! }, target, parcel, acting, { source: "merchant", autoValidate: false }) };
 }

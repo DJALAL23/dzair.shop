@@ -7,6 +7,7 @@
  * from under it, while an unsettled one takes its credit back with it.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -72,12 +73,12 @@ const drift = async (id = "dr1") => (await getDriverCashReconciliation(d1.db, id
 /** An order given to the driver; delivered unless asked otherwise. Returns its shipment id. */
 async function driverShipment(orderId: string, options: { driverId?: string; price?: number; deliveryFee?: number; delivered?: boolean } = {}) {
   await seedOrder(d1.db, commune16, { id: orderId, price: options.price ?? 1500, deliveryFee: options.deliveryFee ?? 400 });
-  const [handed] = await handOffToDriver(d1.db, { orderIds: [orderId], driverId: options.driverId ?? "dr1", createdBy: null });
+  const [handed] = await handOffToDriver(d1.db, { orderIds: [orderId], driverId: options.driverId ?? "dr1", author: SYSTEM });
   if (!handed.ok) throw new Error(`handoff of ${orderId} failed: ${handed.reason}`);
   if (options.delivered !== false) {
     await recordShipmentEvents(d1.db, handed.shipmentId, [
       { source: "merchant", status: { vocabulary: "driver", value: "delivered" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: new Date().toISOString() },
-    ]);
+    ], SYSTEM);
   }
   return handed.shipmentId;
 }
@@ -293,7 +294,7 @@ describe("a driver's delivery keeps its order", () => {
       if (state === "returned") {
         await recordShipmentEvents(d1.db, id, [
           { source: "merchant", status: { vocabulary: "driver", value: "returned" }, interpretation: { kind: "milestone", milestone: "returned" }, occurredAt: new Date().toISOString() },
-        ]);
+        ], SYSTEM);
       }
       if (state === "settled") await pay("cod_remittance", [id]);
       const before = await driver();

@@ -6,6 +6,7 @@
  */
 
 import type { Context } from "hono";
+import { actingOf } from "@/lib/acting";
 import type { AppContext } from "@/types";
 import { getDb, type AppDb } from "@/db";
 import { handOffToCarrier, resolveHandoff } from "./carrier-handoff";
@@ -34,7 +35,7 @@ import type { z } from "@hono/zod-openapi";
 export async function handOffOrder(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const body = (c.req as any).valid("json") as z.infer<typeof orderHandoffSchema>;
-  const item = await handOffOne(db, c.req.param("id")!, body, c.get("user"));
+  const item = await handOffOne(db, c.req.param("id")!, body, actingOf(c));
   return c.json({ success: true, data: item }, item.outcome === "accepted" ? 201 : 202);
 }
 
@@ -48,7 +49,7 @@ export async function handOffBulk(c: Context<AppContext>) {
     db,
     company,
     body.orderIds.map((orderId) => ({ orderId, deliveryType: body.deliveryType })),
-    c.get("user") ?? null,
+    actingOf(c),
   );
   return c.json({ success: true, data: bulkData(await resultItems(db, carrierOf(company), results), results) }, 200);
 }
@@ -58,7 +59,7 @@ export async function handOffDriverBulk(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const body = (c.req as any).valid("json") as z.infer<typeof bulkDriverHandoffSchema>;
   const driver = await driverFor(db, body.driverId);
-  const results = await handOffToDriverOrders(db, driver, body.orderIds.map((orderId) => ({ orderId })), c.get("user"));
+  const results = await handOffToDriverOrders(db, driver, body.orderIds.map((orderId) => ({ orderId })), actingOf(c));
   return c.json({ success: true, data: bulkData(await resultItems(db, null, results), results) }, 200);
 }
 
@@ -73,7 +74,7 @@ export async function resolveShipmentHandoff(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const shipmentId = c.req.param("id")!;
   const body = (c.req as any).valid("json") as z.infer<typeof resolveHandoffSchema>;
-  const resolved = await resolveHandoff(db, shipmentId, body, c.get("user") ?? null);
+  const resolved = await resolveHandoff(db, shipmentId, body, actingOf(c));
 
   switch (resolved.outcome) {
     case "released":
@@ -90,7 +91,6 @@ export async function resolveShipmentHandoff(c: Context<AppContext>) {
 // ─── Operations on a shipment ─────────────────────────────────────────────────
 
 const shipmentIdOf = (c: Context<AppContext>) => c.req.param("id")!;
-const actorOf = (c: Context<AppContext>) => c.get("user") ?? null;
 
 async function respondWithShipment(c: Context<AppContext>, db: AppDb, extra: Record<string, unknown> = {}) {
   const shipment = await loadShipmentView(db, shipmentIdOf(c), { events: false });
@@ -108,21 +108,21 @@ async function scheduleConversions(c: Context<AppContext>, db: AppDb, recorded: 
 export async function validate(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const body = ((c.req as any).valid("json") ?? {}) as z.infer<typeof validateShipmentSchema>;
-  await operations.validateShipment(db, shipmentIdOf(c), body, actorOf(c));
+  await operations.validateShipment(db, shipmentIdOf(c), body, actingOf(c));
   return respondWithShipment(c, db);
 }
 
 /** PATCH /shipments/{id} */
 export async function update(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  await operations.updateParcel(db, shipmentIdOf(c), (c.req as any).valid("json") as z.infer<typeof updateParcelSchema>, c.get("author"));
+  await operations.updateParcel(db, shipmentIdOf(c), (c.req as any).valid("json") as z.infer<typeof updateParcelSchema>, actingOf(c));
   return respondWithShipment(c, db);
 }
 
 /** POST /shipments/{id}/void */
 export async function voidOne(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  const { orderId } = await operations.voidShipmentOperation(db, shipmentIdOf(c), c.get("user"));
+  const { orderId } = await operations.voidShipmentOperation(db, shipmentIdOf(c), actingOf(c));
   return c.json({ success: true, data: { orderId } }, 200);
 }
 
@@ -136,7 +136,7 @@ export async function remarks(c: Context<AppContext>) {
 export async function addRemark(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const { content } = (c.req as any).valid("json") as z.infer<typeof remarkSchema>;
-  await operations.addRemark(db, shipmentIdOf(c), content, actorOf(c));
+  await operations.addRemark(db, shipmentIdOf(c), content, actingOf(c));
   return respondWithShipment(c, db);
 }
 
@@ -153,21 +153,21 @@ export async function label(c: Context<AppContext>) {
 /** POST /shipments/{id}/ask-return */
 export async function askReturn(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  await operations.askReturn(db, shipmentIdOf(c), actorOf(c));
+  await operations.askReturn(db, shipmentIdOf(c), actingOf(c));
   return respondWithShipment(c, db);
 }
 
 /** POST /shipments/{id}/request-new-attempt */
 export async function requestNewAttempt(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  await operations.requestNewAttempt(db, shipmentIdOf(c), actorOf(c));
+  await operations.requestNewAttempt(db, shipmentIdOf(c), actingOf(c));
   return respondWithShipment(c, db);
 }
 
 /** POST /shipments/{id}/confirm-return */
 export async function confirmReturn(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
-  const recorded = await operations.confirmReturn(db, shipmentIdOf(c), actorOf(c));
+  const recorded = await operations.confirmReturn(db, shipmentIdOf(c), actingOf(c));
   await scheduleConversions(c, db, recorded);
   return respondWithShipment(c, db, recordedSummary(recorded));
 }
@@ -184,7 +184,7 @@ export async function sync(c: Context<AppContext>) {
 export async function report(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const body = (c.req as any).valid("json") as z.infer<typeof merchantReportSchema>;
-  const recorded = await operations.reportShipmentEvent(db, shipmentIdOf(c), body, c.get("user"));
+  const recorded = await operations.reportShipmentEvent(db, shipmentIdOf(c), body, actingOf(c));
   await scheduleConversions(c, db, recorded);
   return respondWithShipment(c, db, recordedSummary(recorded));
 }

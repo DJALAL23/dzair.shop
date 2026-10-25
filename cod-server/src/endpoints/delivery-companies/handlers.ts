@@ -5,6 +5,7 @@
  */
 
 import { Context } from "hono";
+import { carrierAuthor } from "@/lib/acting";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import { eq, and, lt, sql, desc, asc, count, isNull } from "drizzle-orm";
@@ -21,7 +22,7 @@ import { syncShipments } from "@/endpoints/shipments/sync";
 import { scheduleShipmentConversions } from "@/lib/conversions";
 import { processInbox } from "@/inbound/process";
 import { requeueInboxEvent } from "../../../../cod-shared/inbound/inbox";
-import { NotFoundError, ValidationError, BusinessLogicError, ConflictError, ExternalApiError } from "@/lib/errors/classes";
+import { NotFoundError, ValidationError, BusinessLogicError, ConflictError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { syncCarrierGeoNames } from "../../../../cod-shared/queries/carrier-geo";
 
@@ -398,7 +399,7 @@ export async function syncCompanyShipments(c: Context<AppContext>) {
     .limit(SYNC_NOW_LIMIT + 1)
     .all();
   const due = open.slice(0, SYNC_NOW_LIMIT);
-  const recorded = await callCarrier(context, () => syncShipments(db, carrier, due));
+  const recorded = await callCarrier(context, () => syncShipments(db, carrier, due, carrierAuthor(company, "carrier_sync")));
   const results = [...recorded.values()];
   await scheduleShipmentConversions(c.env, (p) => c.executionCtx.waitUntil(p), db, results.flatMap((r) => r.businessEvents));
 

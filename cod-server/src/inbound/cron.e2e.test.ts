@@ -5,6 +5,7 @@
  * bounded, oldest first, and stopping a company that throttles.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { SYSTEM } from "@/test-utils/events";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
@@ -71,7 +72,7 @@ async function shipment(orderId: string, companyId: string, state: "submitting" 
   if (state === "unknown") await markHandoffUnknown(d1.db, reserved.shipmentId, "timeout");
   if (state === "accepted") {
     const t = tracking ?? `T-${orderId}`;
-    await acceptCarrierHandoff(d1.db, reserved.shipmentId, { carrierParcelId: t, trackingNumber: t, carrierData: null, labelUrl: null }, { validated: true });
+    await acceptCarrierHandoff(d1.db, reserved.shipmentId, { carrierParcelId: t, trackingNumber: t, carrierData: null, labelUrl: null }, { validated: true , author: SYSTEM });
   }
   return reserved.shipmentId;
 }
@@ -161,7 +162,7 @@ describe("pull-only carriers", () => {
 
   it("closed shipments, recently synced ones and webhook carriers are left alone", async () => {
     const closed = await shipment("o1", "eco", "accepted", await parcelAtEcotrack("ORD-o1"));
-    await recordShipmentEvents(d1.db, closed, [{ source: "webhook", status: { vocabulary: "activity", value: "livred" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: "2026-10-14T10:00:00.000Z" }]);
+    await recordShipmentEvents(d1.db, closed, [{ source: "webhook", status: { vocabulary: "activity", value: "livred" }, interpretation: { kind: "milestone", milestone: "delivered" }, occurredAt: "2026-10-14T10:00:00.000Z" }], SYSTEM);
     const recent = await shipment("o2", "eco", "accepted", await parcelAtEcotrack("ORD-o2"));
     await setTimes(recent, { lastSyncedAt: ago(LIMITS.syncEveryMs - MINUTE) });
     await shipment("o3", "yal", "accepted");
@@ -212,7 +213,7 @@ describe("pull-only carriers", () => {
       },
     };
     const rows = await Promise.all(ids.map(row));
-    const recorded = await syncShipments(d1.db, carrier as never, rows as never);
+    const recorded = await syncShipments(d1.db, carrier as never, rows as never, SYSTEM);
     expect(batches).toEqual([["T-b1", "T-b2"], ["T-b3"]]);
     expect([...recorded.values()].map((r) => r.recorded)).toEqual([1, 1, 1]);
   });

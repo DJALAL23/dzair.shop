@@ -38,6 +38,7 @@ export function shipmentsApp(d1: TestD1, scopes: () => string[], more: Record<st
 /** Clears the tables and seeds the store; returns a commune of wilaya 16. */
 export async function seedStore(db: AppDb, ecotrack: { baseUrl: string; token: string }): Promise<string> {
   for (const table of [
+    schema.businessEvents,
     schema.shipmentEvents,
     schema.driverPaymentLines,
     schema.driverPayments,

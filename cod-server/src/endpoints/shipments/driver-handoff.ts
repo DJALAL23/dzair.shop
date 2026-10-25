@@ -19,7 +19,7 @@ import type { AppDb } from "@/db";
 import { drivers, orders } from "@/db/schema";
 import { AppError, BusinessLogicError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ACTIONS, logActivities } from "@/lib/activity";
-import type { Actor } from "@/types";
+import type { Acting } from "@/lib/acting";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { chunkIds } from "../../../../cod-shared/queries/d1-limits";
 import { handOffToDriver, type ReservationRefusal } from "../../../../cod-shared/shipments/handoff";
@@ -75,11 +75,11 @@ export async function handOffToDriverOrders(
   db: AppDb,
   driver: DriverRow,
   requests: readonly DriverHandoffRequest[],
-  actor: Actor | null,
+  acting: Acting,
 ): Promise<DriverHandoffResult[]> {
   const orderIds = requests.map((request) => request.orderId);
   const facts = await orderFacts(db, orderIds);
-  const handed = await handOffToDriver(db, { orderIds, driverId: driver.id, createdBy: actor?.id ?? null });
+  const handed = await handOffToDriver(db, { orderIds, driverId: driver.id, author: acting.author });
 
   const results = handed.map((outcome, i): DriverHandoffResult => {
     const orderId = orderIds[i];
@@ -89,10 +89,10 @@ export async function handOffToDriverOrders(
     return { orderId, orderNumber: order.orderNumber, outcome: "refused", error: refusal(outcome.reason, order, driver.id) };
   });
 
-  if (actor) {
+  if (acting.staff) {
     await logActivities(
       db,
-      actor,
+      acting.staff,
       ACTIONS.ORDER_DRIVER_ASSIGNED,
       results.flatMap((r) =>
         r.outcome === "accepted" ? [{ entity: { type: "order", id: r.orderId, label: r.orderNumber }, metadata: { driverId: driver.id, shipmentId: r.shipmentId } }] : [],

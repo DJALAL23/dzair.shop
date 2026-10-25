@@ -8,7 +8,8 @@ import { inArray } from "drizzle-orm";
 import type { z } from "@hono/zod-openapi";
 import type { AppDb } from "@/db";
 import { shipments } from "@/db/schema";
-import type { Actor } from "@/types";
+import type { StaffActor } from "@/types";
+import type { Acting } from "@/lib/acting";
 import { NotFoundError } from "@/lib/errors/classes";
 import { carrierCapabilities } from "@/carriers/registry";
 import { getDeliveryCompanyRaw } from "../../../../cod-shared/queries/delivery-companies";
@@ -68,12 +69,12 @@ export function bulkData(items: readonly HandoffItem[], results: readonly AnyHan
  * Hand one order off, with the permission its kind takes: accepted, or
  * unknown (a carrier's — resolve it, never send it again); a refusal throws.
  */
-export async function handOffOne(db: AppDb, orderId: string, request: z.infer<typeof orderHandoffSchema>, actor: Actor): Promise<Exclude<HandoffItem, { outcome: "refused" }>> {
-  requireKindScope(actor, request.kind, "Creating");
+export async function handOffOne(db: AppDb, orderId: string, request: z.infer<typeof orderHandoffSchema>, acting: Acting & { staff: StaffActor }): Promise<Exclude<HandoffItem, { outcome: "refused" }>> {
+  requireKindScope(acting.staff, request.kind, "Creating");
 
   if (request.kind === "driver") {
     const driver = await driverFor(db, request.driverId);
-    const [result] = await handOffToDriverOrders(db, driver, [{ orderId }], actor);
+    const [result] = await handOffToDriverOrders(db, driver, [{ orderId }], acting);
     if (result.outcome === "refused") throw result.error;
     const [item] = await resultItems(db, null, [result]);
     return item as Exclude<HandoffItem, { outcome: "refused" }>;
@@ -84,7 +85,7 @@ export async function handOffOne(db: AppDb, orderId: string, request: z.infer<ty
     db,
     company,
     [{ orderId, deliveryType: request.deliveryType, stationCode: request.stationCode, weight: request.weight, fragile: request.fragile, remarks: request.remarks }],
-    actor,
+    acting,
   );
   if (result.outcome === "refused") throw result.error;
   const [item] = await resultItems(db, carrierOf(company), [result]);
