@@ -14,7 +14,8 @@ import type { z } from "zod";
 import { EVENT_CATALOGUE, EVENT_TYPES, type EventDataMap, type EventType } from "../../../cod-shared/events/catalogue";
 import { sampleOrder, sampleShipment } from "@/test-utils/events";
 import { breakingChanges } from "./compatibility";
-import { EVENT_DATA_SCHEMAS, eventDataJsonSchema, parseReleasedSnapshotName, releasedSnapshotName } from "./catalogue";
+import type { BusinessEvent } from "../../../cod-shared/events/log";
+import { BUSINESS_EVENT_SCHEMA, EVENT_DATA_SCHEMAS, eventDataJsonSchema, parseReleasedSnapshotName, releasedSnapshotName } from "./catalogue";
 
 const RELEASED = resolve(import.meta.dirname, "released");
 const released = readdirSync(RELEASED).map((file) => {
@@ -58,6 +59,23 @@ describe("the Event Catalogue", () => {
 
   it.each(EVENT_TYPES)("accepts the data a writer builds for %s", (type) => {
     expect(EVENT_DATA_SCHEMAS[type].safeParse(SAMPLE[type]).error).toBeUndefined();
+  });
+
+  it("publishes every event exactly as the Event Log reads it", () => {
+    expectTypeOf<z.output<typeof BUSINESS_EVENT_SCHEMA>>().toEqualTypeOf<BusinessEvent>();
+  });
+
+  it.each(EVENT_TYPES)("accepts %s published with its envelope, and refuses it without what its data promises", (type) => {
+    const subject = EVENT_CATALOGUE[type].subject;
+    const published = {
+      id: "evt_1", sequence: 7, type, version: EVENT_CATALOGUE[type].version, subject: { type: subject, id: "s1" }, orderId: "o1",
+      occurredAt: "2026-10-25T09:14:03.120Z", recordedAt: "2026-10-25T09:14:03.180Z",
+      actor: { kind: "staff", id: "u1", name: "Nadia" }, origin: "dashboard", data: SAMPLE[type],
+    };
+    expect(BUSINESS_EVENT_SCHEMA.safeParse(published).error).toBeUndefined();
+    expect(BUSINESS_EVENT_SCHEMA.safeParse({ ...published, actor: { kind: "system", id: "u1", name: "Nadia" } }).success).toBe(false);
+    expect(BUSINESS_EVENT_SCHEMA.safeParse({ ...published, data: { order: {} } }).success).toBe(false);
+    expect(BUSINESS_EVENT_SCHEMA.safeParse({ ...published, subject: { type: subject === "order" ? "shipment" : "order", id: "s1" } }).success).toBe(false);
   });
 });
 

@@ -27,7 +27,7 @@ import { capiEventLog, communes, landingPages, orders, stores } from "@/db/schem
 import { sendCapiEvent } from "@/lib/capi";
 import { resolveCapiDispatch, resolveConversionForStage, conversionSourceUrl, shouldTriggerCapiPurchase, type ConversionStage } from "@/workflows/capi-helpers";
 import { resolveTrackingConfig } from "../../../../cod-shared/queries/tracking-config";
-import type { DeliverableEvent } from "../../../../cod-shared/events/deliveries";
+import type { BusinessEvent } from "../../../../cod-shared/events/log";
 import type { ConsumerKind } from "./kind";
 
 export const META_CAPI_KIND = "meta_capi";
@@ -36,7 +36,7 @@ export const META_CAPI_KIND = "meta_capi";
 const META_WINDOW_MS = 7 * 24 * 60 * 60_000;
 
 /** The conversion stage an event can be, or null when it is none. */
-function stageOf(event: DeliverableEvent): ConversionStage | null {
+function stageOf(event: BusinessEvent): ConversionStage | null {
   switch (event.type) {
     case "order.created":
       return event.origin === "storefront" ? "checkout" : null;

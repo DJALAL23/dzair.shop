@@ -9,9 +9,8 @@ import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { businessEvents, eventConsumers, eventDeliveries, eventDeliveryAttempts } from "../db/schema";
 import { retrySchedule } from "../lib/retry-schedule";
-import type { Actor } from "./actor";
-import type { EventDataMap, EventSubject, EventType } from "./catalogue";
 import type { AttemptOutcomeKind, DeliveryState } from "./deliveries-model";
+import { toBusinessEvent, type BusinessEvent } from "./log";
 import { readSubscription, subscribesTo } from "./subscription";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
@@ -34,28 +33,11 @@ const before = (now: Date, ms: number) => new Date(now.getTime() - ms).toISOStri
 
 export type ConsumerRow = typeof eventConsumers.$inferSelect;
 
-/** A Business Event as a Consumer Kind receives it. */
-export type DeliverableEvent = {
-  [T in EventType]: {
-    id: string;
-    sequence: number;
-    type: T;
-    version: number;
-    subject: { type: EventSubject; id: string };
-    orderId: string;
-    occurredAt: string;
-    recordedAt: string;
-    actor: Actor;
-    origin: (typeof businessEvents.$inferSelect)["origin"];
-    data: EventDataMap[T];
-  };
-}[EventType];
-
 export interface ClaimedDelivery {
   id: string;
   /** This Attempt's number, counting from 1. */
   attempt: number;
-  event: DeliverableEvent;
+  event: BusinessEvent;
   consumer: ConsumerRow;
 }
 
@@ -141,25 +123,7 @@ export async function claimDelivery(db: AppDb, id: string, now: Date): Promise<C
     .where(eq(eventDeliveries.id, id))
     .get();
   if (!row) return null;
-  const { event } = row;
-  return {
-    id,
-    attempt: claimed.attempts,
-    consumer: row.consumer,
-    event: {
-      id: event.id,
-      sequence: event.seq,
-      type: event.type,
-      version: event.version,
-      subject: { type: event.subjectType, id: event.subjectId },
-      orderId: event.orderId,
-      occurredAt: event.occurredAt,
-      recordedAt: event.recordedAt,
-      actor: { kind: event.actorKind, id: event.actorId, name: event.actorName } as Actor,
-      origin: event.origin,
-      data: JSON.parse(event.data),
-    } as DeliverableEvent,
-  };
+  return { id, attempt: claimed.attempts, consumer: row.consumer, event: toBusinessEvent(row.event) };
 }
 
 /**

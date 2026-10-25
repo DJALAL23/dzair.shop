@@ -26,6 +26,7 @@ import deliveryCompaniesRouter from "@/endpoints/delivery-companies/routes";
 import driversRouter from "@/endpoints/drivers/routes";
 import driverPaymentsRouter from "@/endpoints/driver-payments/routes";
 import analyticsRouter from "@/endpoints/analytics/routes";
+import eventsRouter from "@/endpoints/events/routes";
 import { seedOrder, seedStore, T0, type OrderSeed } from "@/endpoints/shipments/test/harness";
 
 const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
@@ -59,6 +60,7 @@ beforeAll(async () => {
   app.route("/api/drivers", driversRouter);
   app.route("/api/driver-payments", driverPaymentsRouter);
   app.route("/api/analytics", analyticsRouter);
+  app.route("/api/events", eventsRouter);
   doc = (await (await app.request("/api/openapi.json", {}, { WORKER_URL: "https://api.example.com" } as never)).json()) as OpenApiDocument;
 }, 120_000);
 
@@ -115,6 +117,8 @@ describe("the document is what the API answers", () => {
     const again = await api("POST", "/api/orders/o1/shipment", "/api/orders/{id}/shipment", 201, { kind: "carrier", companyId: "eco-manual" });
     await api("POST", `/api/shipments/${again.data.shipment.id}/validate`, "/api/shipments/{id}/validate", 200, {});
     await api("POST", "/api/orders/o1/shipment", "/api/orders/{id}/shipment", 409, { kind: "carrier", companyId: "eco" });
+    const newest = await api("GET", "/api/events?orderId=o1", "/api/events", 200);
+    expect(newest.data.map((event: { type: string }) => event.type)).toEqual(expect.arrayContaining(["order.ready", "shipment.handed_off", "shipment.voided"]));
   });
 
   it("a carrier that does not confirm, then resolved", async () => {
@@ -144,6 +148,11 @@ describe("the document is what the API answers", () => {
     await api("GET", "/api/driver-payments/dr1", "/api/driver-payments/{driverId}", 200);
     await api("GET", "/api/drivers/dr1", "/api/drivers/{id}", 200);
     await api("GET", "/api/analytics/order-stages", "/api/analytics/order-stages", 200);
+    const log = await api("GET", "/api/events?orderId=o1&after=0", "/api/events", 200);
+    expect(log.data.map((event: { type: string }) => event.type)).toEqual(["shipment.handed_off", "shipment.out_for_delivery", "shipment.delivered"]);
+    await api("GET", `/api/events/${log.data[2].id}`, "/api/events/{id}", 200);
+    await api("GET", "/api/events/evt_missing", "/api/events/{id}", 404);
+    await api("GET", "/api/events?type=order.everything", "/api/events", 400);
   });
 
   it("the delivery companies, what their carriers can do, their settings and their inbox", async () => {

@@ -6,13 +6,14 @@
 
 import type { AppDb } from "@/db";
 import type { Env } from "@/types";
-import type { AttemptOutcome, ConsumerRow, DeliverableEvent } from "../../../../cod-shared/events/deliveries";
+import type { AttemptOutcome, ConsumerRow } from "../../../../cod-shared/events/deliveries";
+import type { BusinessEvent } from "../../../../cod-shared/events/log";
 import type { Cost } from "../meter";
 
 export interface Attempt {
   /** The Delivery this Attempt is for: the same on every Attempt of it. */
   deliveryId: string;
-  event: DeliverableEvent;
+  event: BusinessEvent;
   consumer: ConsumerRow;
   /** This Attempt's number, counting from 1. */
   attempt: number;

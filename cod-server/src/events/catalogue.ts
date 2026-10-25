@@ -6,11 +6,12 @@
  * change a consumer could trip on.
  */
 
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 import { ORDER_STATUSES } from "../../../cod-shared/orders/lifecycle";
 import { SHIPMENT_KINDS } from "../../../cod-shared/shipments/model";
 import { STORE_LOCALES } from "../../../cod-shared/i18n/locales";
-import { ORDER_FIELDS, type EventData, type EventType } from "../../../cod-shared/events/catalogue";
+import { ORDER_FIELDS, EVENT_CATALOGUE, EVENT_TYPES, type EventData, type EventType } from "../../../cod-shared/events/catalogue";
+import { ORIGINS } from "../../../cod-shared/events/actor";
 
 const money = z.object({
   amount: z.string().regex(/^\d+\.\d{2}$/),
@@ -111,6 +112,34 @@ export const EVENT_DATA_SCHEMAS = {
   "shipment.cancelled": shipmentReport,
   "shipment.voided": shipmentChange,
 } satisfies { [T in EventType]: z.ZodType<EventData<T>> };
+
+const actor = z.union([
+  z.object({ kind: z.enum(["staff", "agent", "carrier"]), id: z.string(), name: z.string() }),
+  z.object({ kind: z.enum(["shopper", "system"]), id: z.null(), name: z.null() }),
+]);
+
+const publishedAs = <T extends EventType>(type: T) =>
+  z.object({
+    id: z.string(),
+    sequence: z.number().int(),
+    type: z.literal(type),
+    version: z.number().int(),
+    subject: z.object({ type: z.literal(EVENT_CATALOGUE[type].subject), id: z.string() }),
+    orderId: z.string(),
+    occurredAt: instant,
+    recordedAt: instant,
+    actor,
+    origin: z.enum(ORIGINS),
+    data: EVENT_DATA_SCHEMAS[type] as (typeof EVENT_DATA_SCHEMAS)[T],
+  });
+
+type Published = { [T in EventType]: ReturnType<typeof publishedAs<T>> };
+
+/** Every Business Event as it is published — the API's Event Log and every Consumer receive this shape. */
+export const BUSINESS_EVENT_SCHEMA = z.discriminatedUnion(
+  "type",
+  EVENT_TYPES.map(publishedAs) as unknown as [Published[EventType], ...Published[EventType][]],
+);
 
 /** The JSON Schema consumers are promised for a type's current version. */
 export function eventDataJsonSchema(type: EventType): Record<string, unknown> {

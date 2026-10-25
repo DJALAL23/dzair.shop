@@ -9,7 +9,8 @@ import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import { sampleOrder } from "@/test-utils/events";
 import * as schema from "@/db/schema";
 import type { Env } from "@/types";
-import type { AttemptOutcome, DeliverableEvent } from "../../../cod-shared/events/deliveries";
+import type { AttemptOutcome } from "../../../cod-shared/events/deliveries";
+import type { BusinessEvent } from "../../../cod-shared/events/log";
 import { DELIVERY_RETRIES, claimDelivery, fanOut, pruneEventLog, settleDelivery } from "../../../cod-shared/events/deliveries";
 import { recordEvent } from "../../../cod-shared/events/record";
 import type { BusinessEventDraft } from "../../../cod-shared/events/catalogue";
@@ -34,8 +35,8 @@ beforeEach(async () => {
 });
 
 /** A kind that records what it received, really spends the D1 trips it declares, and answers what `answer` says. */
-function memoryKind(kind: string, answer: (event: DeliverableEvent, attempt: number) => AttemptOutcome | Promise<AttemptOutcome> = () => ({ kind: "delivered", httpStatus: 200 }), cost = { external: 0, services: 1 }) {
-  const received: Array<{ event: DeliverableEvent; attempt: number }> = [];
+function memoryKind(kind: string, answer: (event: BusinessEvent, attempt: number) => AttemptOutcome | Promise<AttemptOutcome> = () => ({ kind: "delivered", httpStatus: 200 }), cost = { external: 0, services: 1 }) {
+  const received: Array<{ event: BusinessEvent; attempt: number }> = [];
   const impl: ConsumerKind = {
     kind,
     cost,
