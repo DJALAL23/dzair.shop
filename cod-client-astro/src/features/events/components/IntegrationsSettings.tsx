@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { Plug } from "lucide-react";
-import { Badge, Button, Card, useConfirmDialog, type BadgeTone } from "@/components/ui";
+import { MoreHorizontal, Plug, Plus, Webhook } from "lucide-react";
+import { Badge, Button, Card, DropdownItem, DropdownMenu, DropdownSeparator, useConfirmDialog, type BadgeTone } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { relativeTime } from "@/lib/relative-time";
-import { listConsumerDeliveries, listEventConsumers, retryEventDelivery, setEventConsumerEnabled } from "@/features/events/api";
-import { canRetry, consumerStatus, kindLabelKey, redeliveryError, suggestedReplayRange, type ConsumerStatus } from "@/features/events/model";
+import { deleteWebhook, listConsumerDeliveries, listEventConsumers, retryEventDelivery, rotateSigningSecret, updateEventConsumer } from "@/features/events/api";
+import { canRetry, consumerStatus, kindLabelKey, actionError, suggestedReplayRange, type ConsumerStatus } from "@/features/events/model";
 import { DeliveryStateBadge } from "@/features/events/components/DeliveryStateBadge";
 import { ReplayDialog } from "@/features/events/components/ReplayDialog";
-import type { EventConsumer, EventDelivery } from "@/features/events/types";
+import { SigningSecretDialog } from "@/features/events/components/SigningSecretDialog";
+import { TestEventDialog } from "@/features/events/components/TestEventDialog";
+import { WebhookDialog } from "@/features/events/components/WebhookDialog";
+import type { EventConsumer, EventDelivery, IssuedSecret } from "@/features/events/types";
+import { WEBHOOK_CONSUMERS_MAX } from "../../../../../cod-shared/events/webhooks";
 
 const STATUS_TONES: Record<ConsumerStatus, BadgeTone> = { active: "success", failing: "warning", stopped_by_merchant: "neutral", stopped_failing: "critical", stopped_gone: "critical" };
 
@@ -17,6 +21,10 @@ export function IntegrationsSettings() {
   const t = useT("events");
   const [consumers, setConsumers] = useState<EventConsumer[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [issued, setIssued] = useState<IssuedSecret | null>(null);
+  const webhooks = consumers?.filter((consumer) => consumer.webhook !== null).length ?? 0;
+  const full = webhooks >= WEBHOOK_CONSUMERS_MAX;
 
   async function load() {
     try {
@@ -32,7 +40,19 @@ export function IntegrationsSettings() {
   }, []);
 
   return (
-    <Card title={t("integrations.title")} subtitle={t("integrations.subtitle")}>
+    <Card
+      title={t("integrations.title")}
+      subtitle={t("integrations.subtitle")}
+      action={
+        consumers && (
+          <Button size="sm" disabled={full} title={full ? t("integrations.limit", { max: WEBHOOK_CONSUMERS_MAX }) : undefined} onClick={() => setAdding(true)}>
+            <Plus size={14} aria-hidden="true" />
+            {t("integrations.add_webhook")}
+          </Button>
+        )
+      }
+    >
+      {full && <p className="mb-3 text-xs text-muted-foreground">{t("integrations.limit", { max: WEBHOOK_CONSUMERS_MAX })}</p>}
       {failed ? (
         <p role="alert" className="text-sm text-destructive">{t("integrations.load_error")}</p>
       ) : consumers === null ? (
@@ -42,20 +62,33 @@ export function IntegrationsSettings() {
       ) : (
         <ul className="divide-y divide-border">
           {consumers.map((consumer) => (
-            <ConsumerRow key={consumer.id} consumer={consumer} onChanged={() => void load()} />
+            <ConsumerRow key={consumer.id} consumer={consumer} onChanged={() => void load()} onIssued={setIssued} />
           ))}
         </ul>
       )}
+      {adding && (
+        <WebhookDialog
+          onClose={() => setAdding(false)}
+          onSaved={({ signingSecret }) => {
+            setAdding(false);
+            setIssued({ signingSecret: signingSecret! });
+            void load();
+          }}
+        />
+      )}
+      {issued && <SigningSecretDialog secret={issued} onClose={() => setIssued(null)} />}
     </Card>
   );
 }
 
-function ConsumerRow({ consumer, onChanged }: { consumer: EventConsumer; onChanged: () => void }) {
+function ConsumerRow({ consumer, onChanged, onIssued }: { consumer: EventConsumer; onChanged: () => void; onIssued: (secret: IssuedSecret) => void }) {
   const t = useT("events");
   const locale = useLocale();
   const confirm = useConfirmDialog();
   const [busy, setBusy] = useState(false);
   const [showDeliveries, setShowDeliveries] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [replayRange, setReplayRange] = useState<{ fromSequence: number; toSequence: number } | null | undefined>(undefined);
   const status = consumerStatus(consumer);
   const kindKey = kindLabelKey(consumer.kind);
@@ -68,12 +101,35 @@ function ConsumerRow({ consumer, onChanged }: { consumer: EventConsumer; onChang
     }
     setBusy(true);
     try {
-      await setEventConsumerEnabled(consumer.id, !consumer.enabled);
+      await updateEventConsumer(consumer.id, { enabled: !consumer.enabled });
       onChanged();
     } catch (cause) {
-      notify.error(redeliveryError(cause, t));
+      notify.error(actionError(cause, t));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function rotate() {
+    const sure = await confirm({ title: t("rotate_confirm.title", { name: consumer.name }), description: t("rotate_confirm.body"), confirmLabel: t("rotate_confirm.confirm") });
+    if (!sure) return;
+    try {
+      onIssued(await rotateSigningSecret(consumer.id));
+      onChanged();
+    } catch (cause) {
+      notify.error(actionError(cause, t));
+    }
+  }
+
+  async function remove() {
+    const sure = await confirm({ title: t("delete_confirm.title", { name: consumer.name }), description: t("delete_confirm.body"), confirmLabel: t("delete_confirm.confirm"), tone: "danger" });
+    if (!sure) return;
+    try {
+      await deleteWebhook(consumer.id);
+      notify.success(t("webhook.deleted"));
+      onChanged();
+    } catch (cause) {
+      notify.error(actionError(cause, t));
     }
   }
 
@@ -91,10 +147,21 @@ function ConsumerRow({ consumer, onChanged }: { consumer: EventConsumer; onChang
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-semibold">
-            <Plug size={15} aria-hidden="true" className="text-muted-foreground" />
+            {consumer.webhook ? <Webhook size={15} aria-hidden="true" className="text-muted-foreground" /> : <Plug size={15} aria-hidden="true" className="text-muted-foreground" />}
             {consumer.name}
             {kindLabel && <span className="text-xs font-normal text-muted-foreground">{kindLabel}</span>}
           </p>
+          {consumer.webhook && (
+            <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+              <p dir="ltr" className="break-all text-start font-mono">{consumer.webhook.url}</p>
+              <p>
+                {t("webhook.secret_label")} <bdi dir="ltr">{consumer.webhook.signingSecret}</bdi>
+                {consumer.webhook.previousSecretSignsUntil && Date.parse(consumer.webhook.previousSecretSignsUntil) > Date.now() && (
+                  <> · {t("webhook.previous_until", { time: relativeTime(consumer.webhook.previousSecretSignsUntil, locale) })}</>
+                )}
+              </p>
+            </div>
+          )}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <Badge tone={STATUS_TONES[status]} size="sm">
               {t(`status.${status}`, status === "failing" ? { since: relativeTime(consumer.failingSince!, locale) } : undefined)}
@@ -112,13 +179,44 @@ function ConsumerRow({ consumer, onChanged }: { consumer: EventConsumer; onChang
               {t("actions.replay")}
             </Button>
           )}
+          {consumer.webhook && (
+            <Button variant="outline" size="sm" onClick={() => setTesting(true)}>
+              {t("actions.test")}
+            </Button>
+          )}
           <Button variant={consumer.enabled ? "dangerOutline" : "primary"} size="sm" disabled={busy} onClick={() => void toggle()}>
             {t(consumer.enabled ? "actions.stop" : "actions.start")}
           </Button>
+          {!consumer.builtIn && (
+            <DropdownMenu trigger={<MoreHorizontal size={16} aria-hidden="true" />} triggerLabel={t("actions.more", { name: consumer.name })}>
+              {consumer.webhook && (
+                <>
+                  <DropdownItem onClick={() => setEditing(true)}>{t("actions.edit")}</DropdownItem>
+                  <DropdownItem onClick={() => void rotate()}>{t("actions.rotate")}</DropdownItem>
+                  <DropdownSeparator />
+                </>
+              )}
+              <DropdownItem danger onClick={() => void remove()}>
+                {t("actions.delete")}
+              </DropdownItem>
+            </DropdownMenu>
+          )}
         </div>
       </div>
       {showDeliveries && <DeliveriesList consumer={consumer} onChanged={onChanged} />}
       {replayRange !== undefined && <ReplayDialog consumer={consumer} initialRange={replayRange} onClose={() => setReplayRange(undefined)} onDone={onChanged} />}
+      {testing && <TestEventDialog consumer={consumer} onClose={() => setTesting(false)} />}
+      {editing && (
+        <WebhookDialog
+          consumer={consumer}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            notify.success(t("webhook.saved"));
+            onChanged();
+          }}
+        />
+      )}
     </li>
   );
 }
@@ -156,7 +254,7 @@ function DeliveriesList({ consumer, onChanged }: { consumer: EventConsumer; onCh
       await load();
       onChanged();
     } catch (cause) {
-      notify.error(redeliveryError(cause, t));
+      notify.error(actionError(cause, t));
     } finally {
       setRetrying(null);
     }

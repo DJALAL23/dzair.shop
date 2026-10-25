@@ -18,7 +18,7 @@
 
 import type { AttemptOutcome, ConsumerRow } from "../../../../cod-shared/events/deliveries";
 import type { EventType } from "../../../../cod-shared/events/catalogue";
-import { WEBHOOK_KIND, readWebhookSettings, signingKey, signingSecretsAt, webhookUrlProblem } from "../../../../cod-shared/events/webhooks";
+import { WEBHOOK_KIND, readWebhookSettings, signingKey, signingSecretsAt, webhookUrlProblem, type WebhookTest } from "../../../../cod-shared/events/webhooks";
 import { exampleEvent } from "../examples";
 import type { ConsumerKind } from "./kind";
 
@@ -146,16 +146,6 @@ export const webhook: ConsumerKind = {
     return sendWebhook({ url, secrets: signingSecretsAt(consumer, now), id: event.id, body: JSON.stringify(event), now }, fetch);
   },
 };
-
-/** What a Test Event came to: the Attempt it would have been, recorded nowhere. */
-export interface WebhookTest {
-  event: { id: string; type: EventType };
-  outcome: WebhookOutcome["kind"];
-  httpStatus: number | null;
-  durationMs: number;
-  response: string | null;
-  error: string | null;
-}
 
 /**
  * Send a Test Event to a webhook Consumer, at once: an example of `type`,

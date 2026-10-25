@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { REPLAY_MAX_EVENTS as SERVER_REPLAY_MAX } from "../../../../cod-shared/events/deliveries";
-import { actorLabel, canRetry, consumerStatus, eventByline, kindLabelKey, redeliveryError, REPLAY_MAX_EVENTS, replayRangeProblem, suggestedReplayRange } from "./model";
+import { actorLabel, canRetry, consumerStatus, coveredByWider, endpointProblem, eventByline, kindLabelKey, actionError, pickPattern, REPLAY_MAX_EVENTS, replayRangeProblem, suggestedReplayRange, tightSubscription, typesOf, webhookChange } from "./model";
 import type { BusinessEvent, EventConsumer, EventDelivery } from "./types";
 
 const t = (key: string, values?: Record<string, string | number>) => (values ? `${key}(${Object.entries(values).map(([k, v]) => `${k}=${v}`).join(",")})` : key);
@@ -72,9 +72,84 @@ describe("delivering again", () => {
   });
 
   it("words the server's refusals, and anything else as a general failure", () => {
-    expect(redeliveryError({ code: "EVENT_CONSUMER_DISABLED" }, t)).toBe("errors.consumer_disabled");
-    expect(redeliveryError({ code: "EVENT_DELIVERY_ALREADY_DUE" }, t)).toBe("errors.already_due");
-    expect(redeliveryError(new Error("offline"), t)).toBe("errors.generic");
-    expect(redeliveryError(null, t)).toBe("errors.generic");
+    expect(actionError({ code: "EVENT_CONSUMER_DISABLED" }, t)).toBe("errors.consumer_disabled");
+    expect(actionError({ code: "EVENT_DELIVERY_ALREADY_DUE" }, t)).toBe("errors.already_due");
+    expect(actionError(new Error("offline"), t)).toBe("errors.generic");
+    expect(actionError(null, t)).toBe("errors.generic");
+  });
+
+  it("words every refusal a webhook action can meet, and nothing it does not know", () => {
+    expect(actionError({ code: "EVENT_CONSUMER_BUILT_IN" }, t)).toBe("errors.built_in");
+    expect(actionError({ code: "EVENT_CONSUMER_LIMIT_REACHED" }, t)).toBe("errors.limit_reached");
+    expect(actionError({ code: "EVENT_CONSUMER_NOT_FOUND" }, t)).toBe("errors.not_found");
+    expect(actionError({ code: "VALIDATION_FAILED" }, t)).toBe("errors.invalid");
+    expect(actionError({ code: "constructor" }, t)).toBe("errors.generic");
+    expect(actionError({ code: 409 }, t)).toBe("errors.generic");
+  });
+});
+
+describe("picking what a webhook receives", () => {
+  it("lists each subject's types in the catalogue's order", () => {
+    expect(typesOf("shipment")[0]).toBe("shipment.handed_off");
+    expect(typesOf("order")).toContain("order.line_returned");
+    expect(typesOf("order").every((type) => type.startsWith("order."))).toBe(true);
+  });
+
+  it("knows what a wider pattern covers", () => {
+    expect(coveredByWider(["*"], "order.created")).toBe(true);
+    expect(coveredByWider(["*"], "order.*")).toBe(true);
+    expect(coveredByWider(["*"], "*")).toBe(false);
+    expect(coveredByWider(["order.*"], "order.created")).toBe(true);
+    expect(coveredByWider(["order.*"], "shipment.delivered")).toBe(false);
+    expect(coveredByWider(["order.*"], "order.*")).toBe(false);
+    expect(coveredByWider(["order.created"], "order.created")).toBe(false);
+  });
+
+  it("keeps a Subscription tight, in order, and never widens it", () => {
+    expect(tightSubscription(["shipment.delivered", "order.created", "order.created"])).toEqual(["order.created", "shipment.delivered"]);
+    expect(tightSubscription(["order.created", "order.*", "shipment.delivered"])).toEqual(["order.*", "shipment.delivered"]);
+    expect(tightSubscription(["shipment.*", "*", "order.created"])).toEqual(["*"]);
+    expect(tightSubscription(typesOf("order"))).toEqual(typesOf("order"));
+  });
+
+  it("ticks and unticks a pattern", () => {
+    expect(pickPattern([], "order.created", true)).toEqual(["order.created"]);
+    expect(pickPattern(["order.created", "order.ready"], "order.*", true)).toEqual(["order.*"]);
+    expect(pickPattern(["order.*"], "order.*", false)).toEqual([]);
+    expect(pickPattern(["order.*", "shipment.delivered"], "*", true)).toEqual(["*"]);
+    expect(pickPattern(["*"], "*", false)).toEqual([]);
+    expect(pickPattern(["order.created", "shipment.delivered"], "order.created", false)).toEqual(["shipment.delivered"]);
+  });
+
+  it("leaves a pattern a wider one covers as it is", () => {
+    expect(pickPattern(["order.*"], "order.created", false)).toEqual(["order.*"]);
+    expect(pickPattern(["*"], "shipment.*", false)).toEqual(["*"]);
+  });
+});
+
+describe("an endpoint URL", () => {
+  it("is judged as the server judges it, the spaces around it aside", () => {
+    expect(endpointProblem("  https://erp.example.dz/hooks ")).toBeNull();
+    expect(endpointProblem("http://erp.example.dz/")).toBe("not_https");
+    expect(endpointProblem("https://192.168.1.4/")).toBe("private_host");
+    expect(endpointProblem("erp")).toBe("invalid");
+  });
+});
+
+describe("an edit to a webhook", () => {
+  const hook = consumer({ kind: "webhook", builtIn: false, name: "ERP", subscription: ["order.*", "shipment.delivered"], webhook: { url: "https://erp.example.dz/", signingSecret: "••••abcd", secretRotatedAt: null, previousSecretSignsUntil: null } });
+
+  it("sends nothing it did not change, the Subscription compared in its tightest form", () => {
+    expect(webhookChange(hook, { name: "ERP", url: "https://erp.example.dz/", subscription: ["shipment.delivered", "order.*", "order.created"] })).toEqual({});
+  });
+
+  it("compares the Subscription as it is stored, however its patterns were ordered", () => {
+    const stored = { ...hook, subscription: ["shipment.delivered", "order.*"] as typeof hook.subscription };
+    expect(webhookChange(stored, { name: "ERP", url: "https://erp.example.dz/", subscription: ["order.*", "shipment.delivered"] })).toEqual({});
+  });
+
+  it("sends each field it did change", () => {
+    expect(webhookChange(hook, { name: "ERP 2", url: "https://erp2.example.dz/", subscription: ["*"] })).toEqual({ name: "ERP 2", url: "https://erp2.example.dz/", subscription: ["*"] });
+    expect(webhookChange(hook, { name: "ERP", url: "https://erp.example.dz/", subscription: ["order.*"] })).toEqual({ subscription: ["order.*"] });
   });
 });

@@ -1,4 +1,6 @@
-import type { Actor, BusinessEvent, ConsumerDisabledReason, EventConsumer, EventDelivery } from "./types";
+import { EVENT_CATALOGUE, EVENT_TYPES } from "../../../../cod-shared/events/catalogue";
+import { webhookUrlProblem } from "../../../../cod-shared/events/webhooks";
+import type { Actor, BusinessEvent, ConsumerDisabledReason, EventConsumer, EventDelivery, EventSubject, SubscriptionPattern, WebhookUrlProblem } from "./types";
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
@@ -32,7 +34,7 @@ export function consumerStatus(consumer: EventConsumer): ConsumerStatus {
 }
 
 /** The Consumer Kinds the dashboard can name; a kind it does not know is shown by its Consumer's name alone. */
-export const KNOWN_KINDS = ["meta_capi"] as const;
+export const KNOWN_KINDS = ["meta_capi", "webhook"] as const;
 
 export function kindLabelKey(kind: string): string | null {
   return (KNOWN_KINDS as readonly string[]).includes(kind) ? `kinds.${kind}` : null;
@@ -65,10 +67,65 @@ export function replayRangeProblem(fromSequence: number, toSequence: number): Re
   return null;
 }
 
-/** A refused retry or Replay, in the merchant's words. */
-export function redeliveryError(cause: unknown, t: Translate): string {
+const REFUSALS: Record<string, string> = {
+  EVENT_CONSUMER_DISABLED: "errors.consumer_disabled",
+  EVENT_DELIVERY_ALREADY_DUE: "errors.already_due",
+  EVENT_CONSUMER_BUILT_IN: "errors.built_in",
+  EVENT_CONSUMER_LIMIT_REACHED: "errors.limit_reached",
+  EVENT_CONSUMER_NOT_FOUND: "errors.not_found",
+  VALIDATION_FAILED: "errors.invalid",
+};
+
+/** A refused action on a Consumer or a Delivery, in the merchant's words. */
+export function actionError(cause: unknown, t: Translate): string {
   const code = (cause as { code?: unknown } | null)?.code;
-  if (code === "EVENT_CONSUMER_DISABLED") return t("errors.consumer_disabled");
-  if (code === "EVENT_DELIVERY_ALREADY_DUE") return t("errors.already_due");
-  return t("errors.generic");
+  return t(typeof code === "string" && Object.hasOwn(REFUSALS, code) ? REFUSALS[code]! : "errors.generic");
+}
+
+export const SUBJECTS = [...new Set(EVENT_TYPES.map((type) => EVENT_CATALOGUE[type].subject))] as EventSubject[];
+
+/** The Event Types of one subject, in the catalogue's order. */
+export const typesOf = (subject: EventSubject) => EVENT_TYPES.filter((type) => EVENT_CATALOGUE[type].subject === subject);
+
+/** Whether a wider pattern the merchant chose already covers this one: `*` covers all, `order.*` every order type. */
+export function coveredByWider(patterns: readonly SubscriptionPattern[], pattern: SubscriptionPattern): boolean {
+  if (pattern === "*") return false;
+  if (patterns.includes("*")) return true;
+  if (pattern.endsWith(".*")) return false;
+  return patterns.includes(`${EVENT_CATALOGUE[pattern as keyof typeof EVENT_CATALOGUE].subject}.*` as SubscriptionPattern);
+}
+
+const PATTERN_ORDER: SubscriptionPattern[] = ["*", ...SUBJECTS.map((subject) => `${subject}.*` as SubscriptionPattern), ...EVENT_TYPES];
+
+/**
+ * A Subscription in its tightest form: each pattern once, none a wider one
+ * already covers, in the catalogue's order. It never widens what was picked
+ * — every order type picked one by one stays that list, because `order.*`
+ * would also take the order types added later.
+ */
+export function tightSubscription(patterns: readonly SubscriptionPattern[]): SubscriptionPattern[] {
+  return PATTERN_ORDER.filter((pattern) => patterns.includes(pattern) && !coveredByWider(patterns, pattern));
+}
+
+/** The Subscription after the merchant ticks or unticks one pattern; one a wider pattern covers changes nothing. */
+export function pickPattern(patterns: readonly SubscriptionPattern[], pattern: SubscriptionPattern, on: boolean): SubscriptionPattern[] {
+  return tightSubscription(on ? [...patterns, pattern] : patterns.filter((p) => p !== pattern));
+}
+
+/** What keeps a typed URL from being an endpoint, before the server says so too. */
+export function endpointProblem(url: string): WebhookUrlProblem | null {
+  return webhookUrlProblem(url);
+}
+
+/** What an edit really changes, field by field: an endpoint saved as it was is not a new endpoint. */
+export function webhookChange(
+  consumer: EventConsumer,
+  fields: { name: string; url: string; subscription: SubscriptionPattern[] },
+): Partial<{ name: string; url: string; subscription: SubscriptionPattern[] }> {
+  const subscription = tightSubscription(fields.subscription);
+  return {
+    ...(fields.name !== consumer.name ? { name: fields.name } : {}),
+    ...(fields.url !== consumer.webhook?.url ? { url: fields.url } : {}),
+    ...(subscription.join() !== tightSubscription(consumer.subscription).join() ? { subscription } : {}),
+  };
 }

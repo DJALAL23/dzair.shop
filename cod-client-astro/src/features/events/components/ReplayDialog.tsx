@@ -4,7 +4,7 @@ import { Button, Dialog, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { replayToEventConsumer } from "@/features/events/api";
-import { redeliveryError, replayRangeProblem } from "@/features/events/model";
+import { actionError, replayRangeProblem } from "@/features/events/model";
 import type { EventConsumer } from "@/features/events/types";
 
 /** Deliver a range of Business Events again to one Consumer. */
@@ -37,7 +37,7 @@ export function ReplayDialog({
       onDone();
       onClose();
     } catch (cause) {
-      setError(redeliveryError(cause, t));
+      setError(actionError(cause, t));
     } finally {
       setBusy(false);
     }

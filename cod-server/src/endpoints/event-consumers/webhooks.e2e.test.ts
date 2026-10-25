@@ -246,6 +246,15 @@ describe("changing a webhook", () => {
     expect(received).toEqual([]);
   });
 
+  it("keeps the failing streak when saved with the URL it already has", async () => {
+    const id = (await create()).body.data.consumer.id;
+    await d1.db.update(schema.eventConsumers).set({ failingSince: T }).where(eq(schema.eventConsumers.id, id));
+    expect((await call("PATCH", `/api/event-consumers/${id}`, { name: "Renamed", url: HOOK.url })).body.data).toMatchObject({ name: "Renamed", failingSince: T });
+    expect((await call("PATCH", `/api/event-consumers/${id}`, { url: HOOK.url, enabled: true })).body.data).toMatchObject({ failingSince: T });
+    await d1.db.update(schema.eventConsumers).set({ enabled: false, disabledReason: "failing" }).where(eq(schema.eventConsumers.id, id));
+    expect((await call("PATCH", `/api/event-consumers/${id}`, { url: HOOK.url, enabled: true })).body.data).toMatchObject({ enabled: true, failingSince: null });
+  });
+
   it("refuses a private URL, keeping the one it has", async () => {
     const id = (await create()).body.data.consumer.id;
     expect((await call("PATCH", `/api/event-consumers/${id}`, { url: "https://10.0.0.1/" })).status).toBe(400);

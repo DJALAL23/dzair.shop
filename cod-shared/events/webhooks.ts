@@ -6,6 +6,8 @@
  * before the merchant saves.
  */
 
+import type { EventType } from "./catalogue";
+
 /** As stored on `event_consumers.kind`. */
 export const WEBHOOK_KIND = "webhook";
 /** The most webhook Consumers a store may have: each multiplies the rows every Business Event writes. */
@@ -116,4 +118,18 @@ export function signingSecretsAt(consumer: { signingSecret: string | null; previ
   if (!consumer.signingSecret) throw new Error("A webhook Consumer without a Signing Secret");
   const until = previousSecretSignsUntil(consumer.secretRotatedAt, consumer.previousSigningSecret);
   return until && now.toISOString() < until ? [consumer.signingSecret, consumer.previousSigningSecret!] : [consumer.signingSecret];
+}
+
+/** What sending to an endpoint can come to: a Test Event, or one Attempt of a Delivery — never skipped. */
+export const WEBHOOK_TEST_OUTCOMES = ["delivered", "retry", "reject"] as const;
+
+/** What a Test Event came to: the Attempt it would have been, recorded nowhere. */
+export interface WebhookTest {
+  event: { id: string; type: EventType };
+  outcome: (typeof WEBHOOK_TEST_OUTCOMES)[number];
+  httpStatus: number | null;
+  durationMs: number;
+  /** The start of what the endpoint answered. */
+  response: string | null;
+  error: string | null;
 }

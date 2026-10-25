@@ -189,15 +189,16 @@ export async function updateConsumer(db: AppDb, id: string, change: ConsumerChan
   const set: ConsumerSet = { updatedAt: now.toISOString() };
   if (change.name !== undefined) set.name = change.name;
   if (change.subscription !== undefined) set.subscription = storedSubscription(change.subscription);
-  if (change.url !== undefined) {
-    set.settings = storedWebhookSettings(change.url);
-    set.failingSince = null;
-  }
+  if (change.url !== undefined) set.settings = storedWebhookSettings(change.url);
   if (change.enabled === true) {
     set.enabled = true;
     set.disabledReason = null;
-    if (change.url === undefined) set.failingSince = sql`case when ${eventConsumers.enabled} then ${eventConsumers.failingSince} else null end`;
   }
+  // A failing streak ends when a stopped Consumer starts again, or its endpoint really changes.
+  const streakEnds: SQL[] = [];
+  if (change.enabled === true) streakEnds.push(sql`${eventConsumers.enabled} = 0`);
+  if (change.url !== undefined) streakEnds.push(sql`json_extract(${eventConsumers.settings}, '$.url') is not ${change.url}`);
+  if (streakEnds.length > 0) set.failingSince = sql`case when ${sql.join(streakEnds, sql` or `)} then null else ${eventConsumers.failingSince} end`;
   if (change.enabled === false) {
     set.enabled = false;
     set.disabledReason = sql`case when ${eventConsumers.enabled} then 'merchant' else ${eventConsumers.disabledReason} end`;

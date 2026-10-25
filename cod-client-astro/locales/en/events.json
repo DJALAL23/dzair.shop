@@ -52,13 +52,16 @@
     "dead": "Gave up"
   },
   "kinds": {
-    "meta_capi": "Meta conversions"
+    "meta_capi": "Meta conversions",
+    "webhook": "Webhook"
   },
   "integrations": {
     "title": "Integrations",
     "subtitle": "Who receives your store's events, and how each delivery went.",
     "none": "No integration receives your store's events yet.",
-    "load_error": "The integrations could not be loaded."
+    "load_error": "The integrations could not be loaded.",
+    "add_webhook": "Add webhook",
+    "limit": "A store can have up to {max} webhooks. Delete one to add another."
   },
   "status": {
     "active": "Active",
@@ -82,7 +85,12 @@
     "all": "All",
     "load_more": "Show more",
     "retry": "Try again",
-    "replay": "Deliver again…"
+    "replay": "Deliver again…",
+    "test": "Send test event",
+    "edit": "Edit",
+    "more": "More actions for {name}",
+    "rotate": "Change signing secret",
+    "delete": "Delete"
   },
   "stop_confirm": {
     "title": "Stop {name}?",
@@ -113,6 +121,66 @@
   "errors": {
     "consumer_disabled": "Start this integration first.",
     "already_due": "This delivery is already on its way.",
-    "generic": "That did not work. Try again."
+    "generic": "That did not work. Try again.",
+    "built_in": "This integration is managed by its own settings.",
+    "limit_reached": "Your store already has as many webhooks as it can. Delete one first.",
+    "not_found": "This integration no longer exists. Reload the page.",
+    "invalid": "Check the fields and try again."
+  },
+  "webhook": {
+    "create_title": "Add a webhook",
+    "create_body": "Your own system receives your store's events: each one is POSTed to its address as JSON, signed so it can check it came from your store.",
+    "edit_title": "Edit {name}",
+    "name": "Name",
+    "name_placeholder": "Order system",
+    "url": "Endpoint URL",
+    "url_hint": "A public https address on your server.",
+    "events": "Events it receives",
+    "every_event": "Every event, including ones added later",
+    "every_order": "All order events, including ones added later",
+    "every_shipment": "All delivery events, including ones added later",
+    "no_events": "Choose at least one event.",
+    "name_missing": "Give it a name.",
+    "create_submit": "Add webhook",
+    "save": "Save",
+    "saved": "Webhook saved.",
+    "deleted": "Webhook deleted.",
+    "previous_until": "The previous secret stops signing {time}.",
+    "url_problem": {
+      "invalid": "Enter a full address, starting with https://",
+      "too_long": "This address is too long.",
+      "not_https": "Use an https:// address.",
+      "credentials": "Remove the user name and password from the address: each request is proven by its signature.",
+      "private_host": "Use an address on the public internet, not a local or private one."
+    },
+    "secret_label": "Signing secret"
+  },
+  "secret": {
+    "created_title": "Webhook added: copy its signing secret",
+    "rotated_title": "Copy the new signing secret",
+    "body": "Your endpoint uses it to check each request comes from your store. It is shown only now: keep it in your server's secrets.",
+    "rotated_body": "Switch your endpoint to it. The previous secret keeps signing requests too, so none is refused meanwhile, and stops {time}.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "done": "I've saved it"
+  },
+  "rotate_confirm": {
+    "title": "Change the signing secret of {name}?",
+    "body": "A new secret is made. For a day, each request is signed with both; after that, only with the new one.",
+    "confirm": "Change secret"
+  },
+  "delete_confirm": {
+    "title": "Delete {name}?",
+    "body": "It stops receiving events, and its delivery history is deleted. Your store's events are kept.",
+    "confirm": "Delete"
+  },
+  "test": {
+    "title": "Send a test event",
+    "body": "An example event is sent now to the address below, signed like a real one. Its event number is 0 and its id starts with test_, so your endpoint can tell it apart.",
+    "type": "Event",
+    "send": "Send",
+    "delivered": "Delivered: your endpoint answered HTTP {status} in {ms} ms.",
+    "failed": "Not delivered:",
+    "answer": "Its answer"
   }
 }

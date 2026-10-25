@@ -52,13 +52,16 @@
     "dead": "Abandonné"
   },
   "kinds": {
-    "meta_capi": "Conversions Meta"
+    "meta_capi": "Conversions Meta",
+    "webhook": "Webhook"
   },
   "integrations": {
     "title": "Intégrations",
     "subtitle": "Qui reçoit les événements de votre boutique, et comment s'est passé chaque envoi.",
     "none": "Aucune intégration ne reçoit encore les événements de votre boutique.",
-    "load_error": "Les intégrations n'ont pas pu être chargées."
+    "load_error": "Les intégrations n'ont pas pu être chargées.",
+    "add_webhook": "Ajouter un webhook",
+    "limit": "Une boutique peut avoir jusqu'à {max} webhooks. Supprimez-en un pour en ajouter un autre."
   },
   "status": {
     "active": "Active",
@@ -84,7 +87,12 @@
     "all": "Tous",
     "load_more": "Afficher plus",
     "retry": "Réessayer",
-    "replay": "Renvoyer…"
+    "replay": "Renvoyer…",
+    "test": "Envoyer un test",
+    "edit": "Modifier",
+    "more": "Autres actions pour {name}",
+    "rotate": "Changer le secret de signature",
+    "delete": "Supprimer"
   },
   "stop_confirm": {
     "title": "Arrêter {name} ?",
@@ -117,6 +125,66 @@
   "errors": {
     "consumer_disabled": "Démarrez d'abord cette intégration.",
     "already_due": "Cet envoi est déjà en cours.",
-    "generic": "Cela n'a pas marché. Réessayez."
+    "generic": "Cela n'a pas marché. Réessayez.",
+    "built_in": "Cette intégration est gérée par ses propres réglages.",
+    "limit_reached": "Votre boutique a déjà le nombre maximal de webhooks. Supprimez-en un d'abord.",
+    "not_found": "Cette intégration n'existe plus. Rechargez la page.",
+    "invalid": "Vérifiez les champs et réessayez."
+  },
+  "webhook": {
+    "create_title": "Ajouter un webhook",
+    "create_body": "Votre propre système reçoit les événements de votre boutique : chacun est envoyé en POST à son adresse, en JSON, signé pour qu'il puisse vérifier qu'il vient de votre boutique.",
+    "edit_title": "Modifier {name}",
+    "name": "Nom",
+    "name_placeholder": "Système de commandes",
+    "url": "URL de destination",
+    "url_hint": "Une adresse https publique sur votre serveur.",
+    "events": "Événements reçus",
+    "every_event": "Tous les événements, y compris ceux ajoutés plus tard",
+    "every_order": "Tous les événements de commande, y compris ceux ajoutés plus tard",
+    "every_shipment": "Tous les événements de livraison, y compris ceux ajoutés plus tard",
+    "no_events": "Choisissez au moins un événement.",
+    "name_missing": "Donnez-lui un nom.",
+    "create_submit": "Ajouter le webhook",
+    "save": "Enregistrer",
+    "saved": "Webhook enregistré.",
+    "deleted": "Webhook supprimé.",
+    "previous_until": "L'ancien secret cesse de signer {time}.",
+    "url_problem": {
+      "invalid": "Saisissez une adresse complète, commençant par https://",
+      "too_long": "Cette adresse est trop longue.",
+      "not_https": "Utilisez une adresse en https://.",
+      "credentials": "Retirez le nom d'utilisateur et le mot de passe de l'adresse : chaque requête est prouvée par sa signature.",
+      "private_host": "Utilisez une adresse publique sur Internet, pas une adresse locale ou privée."
+    },
+    "secret_label": "Secret de signature"
+  },
+  "secret": {
+    "created_title": "Webhook ajouté : copiez son secret de signature",
+    "rotated_title": "Copiez le nouveau secret de signature",
+    "body": "Votre serveur s'en sert pour vérifier que chaque requête vient de votre boutique. Il n'est affiché qu'une fois : gardez-le dans les secrets de votre serveur.",
+    "rotated_body": "Passez votre serveur au nouveau secret. L'ancien continue de signer les requêtes, pour qu'aucune ne soit refusée entre-temps, et s'arrête {time}.",
+    "copy": "Copier",
+    "copied": "Copié",
+    "done": "Je l'ai enregistré"
+  },
+  "rotate_confirm": {
+    "title": "Changer le secret de signature de {name} ?",
+    "body": "Un nouveau secret est créé. Pendant un jour, chaque requête est signée avec les deux ; ensuite, seulement avec le nouveau.",
+    "confirm": "Changer le secret"
+  },
+  "delete_confirm": {
+    "title": "Supprimer {name} ?",
+    "body": "Il ne reçoit plus d'événements et son historique d'envois est supprimé. Les événements de votre boutique sont conservés.",
+    "confirm": "Supprimer"
+  },
+  "test": {
+    "title": "Envoyer un événement de test",
+    "body": "Un exemple d'événement est envoyé maintenant à l'adresse ci-dessous, signé comme un vrai. Son numéro est 0 et son id commence par test_, pour que votre serveur le reconnaisse.",
+    "type": "Événement",
+    "send": "Envoyer",
+    "delivered": "Livré : votre serveur a répondu HTTP {status} en {ms} ms.",
+    "failed": "Non livré :",
+    "answer": "Sa réponse"
   }
 }

@@ -7,6 +7,7 @@
 import { z } from "@hono/zod-openapi";
 import { EVENT_TYPES } from "../../../../cod-shared/events/catalogue";
 import { ATTEMPT_OUTCOMES, CONSUMER_DISABLED_REASONS, DELIVERY_STATES } from "../../../../cod-shared/events/deliveries-model";
+import { WEBHOOK_TEST_OUTCOMES } from "../../../../cod-shared/events/webhooks";
 
 export const EventConsumerSchema = z
   .object({
@@ -55,7 +56,7 @@ export const SigningSecretSchema = z
 export const WebhookTestSchema = z
   .object({
     event: z.object({ id: z.string().openapi({ example: "test_0b7e4c1a-2f7d-4a52-9d1e-1f3c5a9b7e21" }), type: z.enum(EVENT_TYPES) }),
-    outcome: z.enum(["delivered", "retry", "reject"]).openapi({ description: "What a Delivery's Attempt would have come to" }),
+    outcome: z.enum(WEBHOOK_TEST_OUTCOMES).openapi({ description: "What a Delivery's Attempt would have come to" }),
     httpStatus: z.number().int().nullable(),
     durationMs: z.number().int(),
     response: z.string().nullable().openapi({ description: "The start of what the endpoint answered" }),

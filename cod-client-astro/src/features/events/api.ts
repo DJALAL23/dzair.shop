@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import type { BusinessEvent, DeliveryState, EventConsumer, EventDelivery, Redelivery } from "./types";
+import type { BusinessEvent, DeliveryState, EventConsumer, EventDelivery, EventType, IssuedSecret, Redelivery, SubscriptionPattern, WebhookTest } from "./types";
 
 interface DataEnvelope<T> {
   success: boolean;
@@ -25,8 +25,32 @@ export async function listEventConsumers() {
   return (await apiFetch<DataEnvelope<EventConsumer[]>>("/api/event-consumers")).data;
 }
 
-export async function setEventConsumerEnabled(id: string, enabled: boolean) {
-  return (await apiFetch<DataEnvelope<EventConsumer>>(`/api/event-consumers/${encodeURIComponent(id)}`, json("PATCH", { enabled }))).data;
+export interface WebhookFields {
+  name: string;
+  url: string;
+  subscription: SubscriptionPattern[];
+}
+
+/** A new webhook, and its Signing Secret — the only answer that ever holds it in full. */
+export async function createWebhook(fields: WebhookFields) {
+  return (await apiFetch<DataEnvelope<{ consumer: EventConsumer; signingSecret: string }>>("/api/event-consumers", json("POST", { kind: "webhook", ...fields }))).data;
+}
+
+/** Start or stop any Consumer; rename, repoint or resubscribe a webhook. */
+export async function updateEventConsumer(id: string, change: Partial<WebhookFields> & { enabled?: boolean }) {
+  return (await apiFetch<DataEnvelope<EventConsumer>>(`/api/event-consumers/${encodeURIComponent(id)}`, json("PATCH", change))).data;
+}
+
+export async function deleteWebhook(id: string) {
+  await apiFetch(`/api/event-consumers/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function rotateSigningSecret(id: string) {
+  return (await apiFetch<DataEnvelope<Required<IssuedSecret>>>(`/api/event-consumers/${encodeURIComponent(id)}/rotate-secret`, json("POST"))).data;
+}
+
+export async function sendTestEvent(id: string, type: EventType) {
+  return (await apiFetch<DataEnvelope<WebhookTest>>(`/api/event-consumers/${encodeURIComponent(id)}/test`, json("POST", { type }))).data;
 }
 
 export async function replayToEventConsumer(id: string, range: { fromSequence: number; toSequence: number }) {
