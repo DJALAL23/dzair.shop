@@ -1,0 +1,121 @@
+{
+  "card": {
+    "title": "Envoyé aux intégrations",
+    "subtitle": "Ce qui est arrivé à cette commande, tel que vos intégrations l'ont appris. Conservé 90 jours.",
+    "none": "Rien d'envoyé pour l'instant.",
+    "deliveries": "Qui l'a reçu",
+    "no_deliveries": "Aucune intégration ne reçoit cet événement.",
+    "load_error": "Les événements n'ont pas pu être chargés."
+  },
+  "types": {
+    "order": {
+      "created": "Commande passée",
+      "updated": "Commande modifiée",
+      "confirmed": "Commande confirmée",
+      "unreachable": "Client injoignable",
+      "preparing": "En préparation",
+      "ready": "Prête à expédier",
+      "cancelled": "Commande annulée",
+      "line_returned": "Unités refusées à la livraison",
+      "deleted": "Commande supprimée"
+    },
+    "shipment": {
+      "handed_off": "Remise à la livraison",
+      "out_for_delivery": "En cours de livraison",
+      "delivery_failed": "Tentative de livraison échouée",
+      "delivered": "Livrée",
+      "return_started": "Retour engagé",
+      "returned": "Retournée",
+      "cancelled": "Livraison annulée",
+      "voided": "Remise annulée"
+    }
+  },
+  "actor": {
+    "agent": "L'assistant IA de {name}",
+    "shopper": "Le client",
+    "system": "Automatiquement"
+  },
+  "origin": {
+    "dashboard": "depuis le tableau de bord",
+    "api": "via l'API",
+    "agent": "via un assistant IA",
+    "storefront": "sur la boutique",
+    "carrier_webhook": "signalé par le transporteur",
+    "carrier_sync": "d'après le suivi du transporteur",
+    "schedule": "selon la planification"
+  },
+  "byline": "{who}, {through}",
+  "states": {
+    "due": "En cours",
+    "delivered": "Livré",
+    "skipped": "Ignoré",
+    "dead": "Abandonné"
+  },
+  "kinds": {
+    "meta_capi": "Conversions Meta"
+  },
+  "integrations": {
+    "title": "Intégrations",
+    "subtitle": "Qui reçoit les événements de votre boutique, et comment s'est passé chaque envoi.",
+    "none": "Aucune intégration ne reçoit encore les événements de votre boutique.",
+    "load_error": "Les intégrations n'ont pas pu être chargées."
+  },
+  "status": {
+    "active": "Active",
+    "failing": "En échec depuis {since}",
+    "stopped_by_merchant": "Arrêtée",
+    "stopped_failing": "Arrêtée : tous les envois ont échoué pendant 3 jours"
+  },
+  "counts": {
+    "due_one": "{count} en cours",
+    "due_many": "{count} en cours",
+    "due_other": "{count} en cours",
+    "dead_one": "{count} abandonné",
+    "dead_many": "{count} abandonnés",
+    "dead_other": "{count} abandonnés"
+  },
+  "actions": {
+    "stop": "Arrêter",
+    "start": "Démarrer",
+    "deliveries": "Envois",
+    "hide_deliveries": "Masquer les envois",
+    "only_dead": "Abandonnés seulement",
+    "all": "Tous",
+    "load_more": "Afficher plus",
+    "retry": "Réessayer",
+    "replay": "Renvoyer…"
+  },
+  "stop_confirm": {
+    "title": "Arrêter {name} ?",
+    "body": "Arrêtée, elle ne reçoit rien et ce qui attendait est ignoré. Redémarrez-la puis renvoyez ce qu'elle a manqué avec « Renvoyer ».",
+    "confirm": "Arrêter"
+  },
+  "deliveries": {
+    "none": "Aucun envoi pour l'instant.",
+    "event": "Événement n° {sequence}",
+    "attempts_one": "{count} tentative",
+    "attempts_many": "{count} tentatives",
+    "attempts_other": "{count} tentatives"
+  },
+  "replay": {
+    "title": "Renvoyer des événements",
+    "body": "Chaque événement de cette plage que {name} reçoit lui est renvoyé, ses tentatives reprises de zéro. Les événements sont numérotés dans l'ordre où ils sont arrivés.",
+    "from": "De l'événement n°",
+    "to": "À l'événement n°",
+    "submit": "Renvoyer",
+    "done_one": "{count} envoi est en cours.",
+    "done_many": "{count} envois sont en cours.",
+    "done_other": "{count} envois sont en cours.",
+    "not_whole": "Utilisez des numéros d'événement entiers à partir de 1.",
+    "reversed": "Le premier événement vient avant le dernier.",
+    "too_long": "Renvoyez au plus 1 000 événements à la fois."
+  },
+  "retry": {
+    "done": "L'envoi est de nouveau en cours."
+  },
+  "errors": {
+    "consumer_disabled": "Démarrez d'abord cette intégration.",
+    "already_due": "Cet envoi est déjà en cours.",
+    "generic": "Cela n'a pas marché. Réessayez."
+  }
+}

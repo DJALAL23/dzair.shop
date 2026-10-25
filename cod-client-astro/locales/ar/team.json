@@ -123,7 +123,11 @@
       "order.archived": "أرشف طلبًا",
       "order.unarchived": "استعاد طلبًا مؤرشفًا",
       "review.created": "أضاف تقييمًا",
-      "review.media_removed": "حذف صورة أو رسالة صوتية من تقييم"
+      "review.media_removed": "حذف صورة أو رسالة صوتية من تقييم",
+      "event_consumer.enabled": "شغّل تكاملًا",
+      "event_consumer.disabled": "أوقف تكاملًا",
+      "event_consumer.replayed": "أعاد إرسال أحداث إلى تكامل",
+      "event_delivery.retried": "أعاد محاولة إرسال إلى تكامل"
     },
     "table": {
       "action": "الإجراء",

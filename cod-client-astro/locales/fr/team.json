@@ -123,7 +123,11 @@
       "order.archived": "A archivé une commande",
       "order.unarchived": "A restauré une commande archivée",
       "review.created": "A ajouté un avis",
-      "review.media_removed": "A retiré une photo ou une note vocale d’un avis"
+      "review.media_removed": "A retiré une photo ou une note vocale d’un avis",
+      "event_consumer.enabled": "A démarré une intégration",
+      "event_consumer.disabled": "A arrêté une intégration",
+      "event_consumer.replayed": "A renvoyé des événements à une intégration",
+      "event_delivery.retried": "A réessayé un envoi d'intégration"
     },
     "table": {
       "action": "Action",

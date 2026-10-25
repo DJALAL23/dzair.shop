@@ -1,0 +1,117 @@
+{
+  "card": {
+    "title": "Sent to integrations",
+    "subtitle": "What happened to this order, as your integrations were told. Kept for 90 days.",
+    "none": "Nothing sent yet.",
+    "deliveries": "Who received it",
+    "no_deliveries": "No integration receives this event.",
+    "load_error": "The events could not be loaded."
+  },
+  "types": {
+    "order": {
+      "created": "Order placed",
+      "updated": "Order edited",
+      "confirmed": "Order confirmed",
+      "unreachable": "Customer unreachable",
+      "preparing": "Being prepared",
+      "ready": "Ready to ship",
+      "cancelled": "Order cancelled",
+      "line_returned": "Units refused at the door",
+      "deleted": "Order deleted"
+    },
+    "shipment": {
+      "handed_off": "Handed to delivery",
+      "out_for_delivery": "Out for delivery",
+      "delivery_failed": "Delivery attempt failed",
+      "delivered": "Delivered",
+      "return_started": "Return started",
+      "returned": "Returned",
+      "cancelled": "Delivery cancelled",
+      "voided": "Handoff undone"
+    }
+  },
+  "actor": {
+    "agent": "{name}'s AI assistant",
+    "shopper": "The customer",
+    "system": "Automatically"
+  },
+  "origin": {
+    "dashboard": "from the dashboard",
+    "api": "through the API",
+    "agent": "through an AI assistant",
+    "storefront": "on the store",
+    "carrier_webhook": "reported by the carrier",
+    "carrier_sync": "from the carrier's tracking",
+    "schedule": "on schedule"
+  },
+  "byline": "{who}, {through}",
+  "states": {
+    "due": "On its way",
+    "delivered": "Delivered",
+    "skipped": "Skipped",
+    "dead": "Gave up"
+  },
+  "kinds": {
+    "meta_capi": "Meta conversions"
+  },
+  "integrations": {
+    "title": "Integrations",
+    "subtitle": "Who receives your store's events, and how each delivery went.",
+    "none": "No integration receives your store's events yet.",
+    "load_error": "The integrations could not be loaded."
+  },
+  "status": {
+    "active": "Active",
+    "failing": "Failing since {since}",
+    "stopped_by_merchant": "Stopped",
+    "stopped_failing": "Stopped: every delivery failed for 3 days"
+  },
+  "counts": {
+    "due_one": "{count} on its way",
+    "due_other": "{count} on their way",
+    "dead_one": "{count} given up",
+    "dead_other": "{count} given up"
+  },
+  "actions": {
+    "stop": "Stop",
+    "start": "Start",
+    "deliveries": "Deliveries",
+    "hide_deliveries": "Hide deliveries",
+    "only_dead": "Given up only",
+    "all": "All",
+    "load_more": "Show more",
+    "retry": "Try again",
+    "replay": "Deliver again…"
+  },
+  "stop_confirm": {
+    "title": "Stop {name}?",
+    "body": "It receives nothing while stopped, and what is waiting is skipped. Start it again and deliver what it missed with “Deliver again”.",
+    "confirm": "Stop"
+  },
+  "deliveries": {
+    "none": "No deliveries yet.",
+    "event": "Event #{sequence}",
+    "attempts_one": "{count} attempt",
+    "attempts_other": "{count} attempts"
+  },
+  "replay": {
+    "title": "Deliver events again",
+    "body": "Every event in this range that {name} receives is delivered to it again, its attempts started over. Events are numbered in the order they happened.",
+    "from": "From event #",
+    "to": "To event #",
+    "submit": "Deliver again",
+    "done_one": "{count} delivery is on its way.",
+    "done_other": "{count} deliveries are on their way.",
+    "not_whole": "Use whole event numbers from 1.",
+    "reversed": "The first event comes before the last.",
+    "too_long": "Deliver at most 1,000 events at a time."
+  },
+  "retry": {
+    "done": "The delivery is on its way again."
+  },
+  "errors": {
+    "consumer_disabled": "Start this integration first.",
+    "already_due": "This delivery is already on its way.",
+    "generic": "That did not work. Try again."
+  }
+}

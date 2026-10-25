@@ -16,6 +16,7 @@ describe("settings model", () => {
       "verification",
       "bot_protection",
       "email",
+      "integrations",
       "api",
     ]);
 

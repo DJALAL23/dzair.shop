@@ -21,6 +21,7 @@ import { VerificationSettings } from "@/features/settings/components/Verificatio
 import { TurnstileSettings } from "@/features/settings/components/TurnstileSettings";
 import { EmailSettings } from "@/features/settings/components/EmailSettings";
 import { ApiSettings } from "@/features/settings/components/ApiSettings";
+import { IntegrationsSettings } from "@/features/events/components/IntegrationsSettings";
 
 function SettingsContent() {
   const t = useT("settings");
@@ -125,6 +126,8 @@ function SettingsContent() {
         return <TurnstileSettings />;
       case "email":
         return <EmailSettings />;
+      case "integrations":
+        return <IntegrationsSettings />;
       case "api":
         return <ApiSettings storeConfig={storeConfig} />;
       default:

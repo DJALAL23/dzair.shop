@@ -123,7 +123,11 @@
       "order.archived": "Archived an order",
       "order.unarchived": "Restored an archived order",
       "review.created": "Added a review",
-      "review.media_removed": "Removed a photo or voice note from a review"
+      "review.media_removed": "Removed a photo or voice note from a review",
+      "event_consumer.enabled": "Started an integration",
+      "event_consumer.disabled": "Stopped an integration",
+      "event_consumer.replayed": "Delivered events again to an integration",
+      "event_delivery.retried": "Retried an integration delivery"
     },
     "table": {
       "action": "Action",

@@ -156,7 +156,8 @@
     "tracking_per_page_next_step": "Now open a landing page in the Studio and give it its own pixel. Pages you don't change keep using the store pixel.",
     "languages_title": "Languages",
     "languages_subtitle": "The languages your storefront is offered in. Add a language, translate, then publish it.",
-    "otp_key_stored": "Stored key"
+    "otp_key_stored": "Stored key",
+    "integrations_title": "Integrations"
   },
   "shipping": {
     "title": "Shipping rates",
