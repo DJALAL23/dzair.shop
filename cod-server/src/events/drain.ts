@@ -92,7 +92,7 @@ export async function drain(env: Env, { kinds = CONSUMER_KINDS, budget = DRAIN_B
     else if (!kind) outcome = { kind: "reject", error: `No consumer kind "${claimed.consumer.kind}" on this platform version` };
     else {
       try {
-        outcome = await kind.deliver({ deliveryId: claimed.id, event: claimed.event, consumer: claimed.consumer, attempt: claimed.attempt, db, fetch: meter.fetch, env });
+        outcome = await kind.deliver({ deliveryId: claimed.id, event: claimed.event, consumer: claimed.consumer, attempt: claimed.attempt, now: startedAt, db, fetch: meter.fetch, env });
       } catch (error) {
         outcome = { kind: "retry", error: (error as Error)?.message ?? String(error) };
       }

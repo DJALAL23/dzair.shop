@@ -49,7 +49,7 @@ export type AttemptOutcome =
   | { kind: "delivered"; httpStatus?: number; response?: string }
   | { kind: "skipped"; reason: string }
   | { kind: "retry"; error: string; httpStatus?: number; response?: string; retryAfterSeconds?: number }
-  | { kind: "reject"; error: string; httpStatus?: number; response?: string };
+  | { kind: "reject"; error: string; httpStatus?: number; response?: string; consumerGone?: true };
 
 /**
  * Create the Deliveries of up to `limit` events waiting to be fanned out:
@@ -186,7 +186,9 @@ export async function reopenDeliveries(
  * Record an Attempt and what it settles: delivered, skipped, due again after
  * its wait (no sooner than a Retry-After asked), or dead once the Attempts
  * are spent or the Consumer refused it for good. A failure marks the
- * Consumer failing; one failing for `FAILING_DISABLES_AFTER_MS` is disabled.
+ * Consumer failing, and a delivery ends its failing streak; one failing for
+ * `FAILING_DISABLES_AFTER_MS` is disabled, and one whose endpoint said it is
+ * gone is disabled at once.
  * Applies only while this Attempt still holds the Delivery. Returns the
  * Delivery's state, or null when another drain took it meanwhile.
  */
@@ -213,6 +215,21 @@ export async function settleDelivery(
   const stillOurs = and(eq(eventDeliveries.id, claimed.id), eq(eventDeliveries.state, "due"), eq(eventDeliveries.attempts, claimed.attempt));
   const holds = sql`exists (select 1 from ${eventDeliveries} where ${eventDeliveries.id} = ${claimed.id} and ${eventDeliveries.state} = 'due' and ${eventDeliveries.attempts} = ${claimed.attempt})`;
   const outcomeKind: AttemptOutcomeKind = outcome.kind;
+  const failingSince = sql`coalesce(${eventConsumers.failingSince}, ${at})`;
+  const failedTooLong = sql`${eventConsumers.failingSince} is not null and ${eventConsumers.failingSince} <= ${before(timing.finishedAt, FAILING_DISABLES_AFTER_MS)}`;
+  // A Skipped Delivery never reached the Consumer, so it says nothing about whether it works.
+  const consumerChange =
+    outcome.kind === "delivered"
+      ? { failingSince: null }
+      : outcome.kind === "skipped"
+        ? null
+        : outcome.kind === "reject" && outcome.consumerGone
+          ? { failingSince, enabled: false, disabledReason: "gone" as const }
+          : {
+              failingSince,
+              enabled: sql`case when ${failedTooLong} then 0 else ${eventConsumers.enabled} end`,
+              disabledReason: sql`case when ${failedTooLong} then 'failing' else ${eventConsumers.disabledReason} end`,
+            };
   const statements: BatchStatement[] = [
     db.insert(eventDeliveryAttempts).select(
       db
@@ -230,18 +247,7 @@ export async function settleDelivery(
         .from(sql`(select 1)`)
         .where(holds),
     ),
-    db
-      .update(eventConsumers)
-      .set(
-        failed
-          ? {
-              failingSince: sql`coalesce(${eventConsumers.failingSince}, ${at})`,
-              enabled: sql`case when ${eventConsumers.failingSince} is not null and ${eventConsumers.failingSince} <= ${before(timing.finishedAt, FAILING_DISABLES_AFTER_MS)} then 0 else ${eventConsumers.enabled} end`,
-              disabledReason: sql`case when ${eventConsumers.failingSince} is not null and ${eventConsumers.failingSince} <= ${before(timing.finishedAt, FAILING_DISABLES_AFTER_MS)} then 'failing' else ${eventConsumers.disabledReason} end`,
-            }
-          : { failingSince: null },
-      )
-      .where(and(eq(eventConsumers.id, claimed.consumer.id), holds)),
+    ...(consumerChange ? [db.update(eventConsumers).set(consumerChange).where(and(eq(eventConsumers.id, claimed.consumer.id), holds))] : []),
     db
       .update(eventDeliveries)
       .set({

@@ -272,6 +272,15 @@ describe("sendCapiEvent — error classification", () => {
     await expect(sendCapiEvent(PIXEL, TOKEN, basePayload())).rejects.toThrow("Meta CAPI network error");
   });
 
+  it("gives up waiting for an answer at its deadline (retryable)", async () => {
+    const neverAnswers = vi.fn(
+      (_url: string, init: RequestInit) => new Promise<Response>((_, reject) => init.signal?.addEventListener("abort", () => reject(init.signal!.reason))),
+    );
+    const started = Date.now();
+    await expect(sendCapiEvent(PIXEL, TOKEN, basePayload(), neverAnswers as typeof fetch, 30)).rejects.toThrow("Meta CAPI network error");
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
   it("throws on Meta 5xx (retryable)", async () => {
     const captured = stubFetch(
       () => new Response(JSON.stringify({ error: { message: "Transient failure" } }), { status: 502 })

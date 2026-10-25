@@ -1,4 +1,4 @@
-import type { Actor, BusinessEvent, EventConsumer, EventDelivery } from "./types";
+import type { Actor, BusinessEvent, ConsumerDisabledReason, EventConsumer, EventDelivery } from "./types";
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
@@ -22,10 +22,12 @@ export function eventByline(event: BusinessEvent, t: Translate): string {
   return t("byline", { who: actorLabel(event.actor, t), through: t(`origin.${event.origin}`) });
 }
 
-export type ConsumerStatus = "active" | "failing" | "stopped_by_merchant" | "stopped_failing";
+export type ConsumerStatus = "active" | "failing" | "stopped_by_merchant" | "stopped_failing" | "stopped_gone";
+
+const STOPPED: Record<ConsumerDisabledReason, ConsumerStatus> = { merchant: "stopped_by_merchant", failing: "stopped_failing", gone: "stopped_gone" };
 
 export function consumerStatus(consumer: EventConsumer): ConsumerStatus {
-  if (!consumer.enabled) return consumer.disabledReason === "failing" ? "stopped_failing" : "stopped_by_merchant";
+  if (!consumer.enabled) return STOPPED[consumer.disabledReason ?? "merchant"];
   return consumer.failingSince ? "failing" : "active";
 }
 

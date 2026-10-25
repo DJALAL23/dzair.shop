@@ -60,7 +60,7 @@ export const metaCapi: ConsumerKind = {
   kind: META_CAPI_KIND,
   cost: { external: 1, services: 10 },
 
-  async deliver({ deliveryId, event, db, fetch }) {
+  async deliver({ deliveryId, event, db, fetch, now }) {
     const stage = stageOf(event);
     if (!stage || !("order" in event.data)) return { kind: "skipped", reason: `${event.type} is not a conversion here` };
     const order = event.data.order;
@@ -83,14 +83,13 @@ export const metaCapi: ConsumerKind = {
     if (!dispatch.send) return { kind: "skipped", reason: dispatch.message };
     const pixel = tracking!;
 
-    if (Date.now() - Date.parse(event.occurredAt) >= META_WINDOW_MS) {
+    if (now.getTime() - Date.parse(event.occurredAt) >= META_WINDOW_MS) {
       return { kind: "skipped", reason: `The ${stage} happened on ${event.occurredAt}, outside Meta's 7-day window` };
     }
 
-    const now = new Date().toISOString();
     await db.run(
       sql`insert into capi_event_log (id, order_id, event_name, stage, status, pixel_id, sent_at)
-          values (${deliveryId}, ${order.id}, ${decision.eventName}, ${stage}, 'claimed', ${pixel.pixelId}, ${now})
+          values (${deliveryId}, ${order.id}, ${decision.eventName}, ${stage}, 'claimed', ${pixel.pixelId}, ${now.toISOString()})
           on conflict do nothing`,
     );
     const claim = await db

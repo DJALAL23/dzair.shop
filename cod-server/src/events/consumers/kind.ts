@@ -17,6 +17,8 @@ export interface Attempt {
   consumer: ConsumerRow;
   /** This Attempt's number, counting from 1. */
   attempt: number;
+  /** When the Attempt started, by the drain's clock. */
+  now: Date;
   /** The store's database and fetch, counted against the invocation's budget. */
   db: AppDb;
   fetch: typeof fetch;

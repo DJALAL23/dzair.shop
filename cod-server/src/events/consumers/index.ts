@@ -2,7 +2,9 @@
 
 import type { ConsumerKinds } from "./kind";
 import { META_CAPI_KIND, metaCapi } from "./meta-capi";
+import { WEBHOOK_KIND, webhook } from "./webhook";
 
 export const CONSUMER_KINDS: ConsumerKinds = {
   [META_CAPI_KIND]: metaCapi,
+  [WEBHOOK_KIND]: webhook,
 };

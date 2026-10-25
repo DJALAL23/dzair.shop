@@ -60,7 +60,7 @@ export const EVENT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         kind: z.string().describe("How it is reached: meta_capi (Meta conversions)…"),
         name: z.string(),
         enabled: z.boolean(),
-        disabledReason: z.string().nullable().describe("failing (every Attempt failed for 3 days) | merchant; null while enabled"),
+        disabledReason: z.string().nullable().describe("failing (every Attempt failed for 3 days) | merchant | gone (its endpoint answered HTTP 410); null while enabled"),
         deliveries: z.looseObject({ due: z.number().int(), dead: z.number().int() }).describe("On their way, and given up on"),
       }),
     ),

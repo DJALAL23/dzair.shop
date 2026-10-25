@@ -84,11 +84,15 @@ export interface CapiResult {
   error?: string;
 }
 
+/** How long Meta has to answer: an unanswered request is a network error, retried. */
+export const META_TIMEOUT_MS = 15_000;
+
 export async function sendCapiEvent(
   pixelId: string,
   accessToken: string,
   payload: CapiEventPayload,
   request: typeof fetch = fetch,
+  timeoutMs = META_TIMEOUT_MS,
 ): Promise<CapiResult> {
   const ud = payload.userData;
 
@@ -146,6 +150,7 @@ export async function sendCapiEvent(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
     throw new Error(`Meta CAPI network error: ${err instanceof Error ? err.message : String(err)}`);

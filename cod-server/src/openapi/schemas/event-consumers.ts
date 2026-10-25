@@ -15,7 +15,7 @@ export const EventConsumerSchema = z
     enabled: z.boolean(),
     subscription: z.array(z.string()).openapi({ description: "The Event Types it receives, each named exactly, by subject (`order.*`), or `*`", example: ["order.created", "shipment.delivered"] }),
     catalogueVersion: z.number().int().openapi({ description: "The catalogue version its Deliveries are written in" }),
-    disabledReason: z.enum(CONSUMER_DISABLED_REASONS).nullable().openapi({ description: "Why it stopped receiving, while disabled: `failing` (every Attempt failed for 3 days) or `merchant`" }),
+    disabledReason: z.enum(CONSUMER_DISABLED_REASONS).nullable().openapi({ description: "Why it stopped receiving, while disabled: `failing` (every Attempt failed for 3 days), `merchant`, or `gone` (its endpoint answered HTTP 410 Gone)" }),
     failingSince: z.string().nullable().openapi({ description: "Since when every Attempt has failed; null once one succeeds" }),
     deliveries: z.object({
       due: z.number().int().openapi({ description: "Deliveries on their way" }),

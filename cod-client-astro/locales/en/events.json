@@ -64,7 +64,8 @@
     "active": "Active",
     "failing": "Failing since {since}",
     "stopped_by_merchant": "Stopped",
-    "stopped_failing": "Stopped: every delivery failed for 3 days"
+    "stopped_failing": "Stopped: every delivery failed for 3 days",
+    "stopped_gone": "Stopped: the endpoint said it is gone (HTTP 410)"
   },
   "counts": {
     "due_one": "{count} on its way",

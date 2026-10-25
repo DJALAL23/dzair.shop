@@ -212,6 +212,16 @@ describe("an Attempt", () => {
     expect(byId.back).toMatchObject({ enabled: true, failingSince: null });
   });
 
+  it("lets no Skipped Delivery end a failing streak: nothing reached the Consumer", async () => {
+    await consumer("down", "memory", ["*"], { failingSince: at(-60).toISOString() });
+    await record("o1");
+    const { impl } = memoryKind("memory", () => ({ kind: "skipped", reason: "not this stage" }));
+    await run({ memory: impl });
+    expect(await deliveries()).toMatchObject([{ state: "skipped" }]);
+    const [down] = await d1.db.select().from(schema.eventConsumers).all();
+    expect(down).toMatchObject({ enabled: true, failingSince: at(-60).toISOString() });
+  });
+
   it("settles nothing for a drain whose lease was taken over", async () => {
     await consumer("c1", "memory", ["*"]);
     await record("o1");

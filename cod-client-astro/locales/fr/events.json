@@ -64,7 +64,8 @@
     "active": "Active",
     "failing": "En échec depuis {since}",
     "stopped_by_merchant": "Arrêtée",
-    "stopped_failing": "Arrêtée : tous les envois ont échoué pendant 3 jours"
+    "stopped_failing": "Arrêtée : tous les envois ont échoué pendant 3 jours",
+    "stopped_gone": "Arrêtée : l'adresse a répondu qu'elle n'existe plus (HTTP 410)"
   },
   "counts": {
     "due_one": "{count} en cours",

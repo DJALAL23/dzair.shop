@@ -151,10 +151,15 @@ were when it was recorded; a later edit or deletion of its Subject never
 changes it.
 
 **A stopped Consumer receives nothing**: while a Consumer is stopped — by the
-merchant, or because every Attempt failed for three days — what is recorded
+merchant, because every Attempt failed for three days, or because its endpoint
+answered that it is gone — what is recorded
 is not delivered to it, and what was waiting is skipped. Started again, it
 receives what is recorded from then on; what it missed reaches it only
 through a Replay.
+
+**Only a delivery proves a Consumer works**: a failed Attempt starts or
+continues its failing streak, a delivered one ends it, and a Skipped Delivery
+— which never reached it — changes neither.
 
 **Delivering again records nothing**: a retry or a Replay makes Deliveries
 due again; it never records a Business Event, so a Consumer recognises what

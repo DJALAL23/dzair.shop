@@ -10,7 +10,7 @@ import { DeliveryStateBadge } from "@/features/events/components/DeliveryStateBa
 import { ReplayDialog } from "@/features/events/components/ReplayDialog";
 import type { EventConsumer, EventDelivery } from "@/features/events/types";
 
-const STATUS_TONES: Record<ConsumerStatus, BadgeTone> = { active: "success", failing: "warning", stopped_by_merchant: "neutral", stopped_failing: "critical" };
+const STATUS_TONES: Record<ConsumerStatus, BadgeTone> = { active: "success", failing: "warning", stopped_by_merchant: "neutral", stopped_failing: "critical", stopped_gone: "critical" };
 
 /** Settings → Integrations: who receives the store's Business Events, and the merchant's word on them. */
 export function IntegrationsSettings() {

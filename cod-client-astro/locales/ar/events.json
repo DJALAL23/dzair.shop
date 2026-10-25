@@ -64,7 +64,8 @@
     "active": "يعمل",
     "failing": "يفشل منذ {since}",
     "stopped_by_merchant": "متوقّف",
-    "stopped_failing": "متوقّف: فشلت كل الإرسالات طوال 3 أيام"
+    "stopped_failing": "متوقّف: فشلت كل الإرسالات طوال 3 أيام",
+    "stopped_gone": "متوقّف: أجاب العنوان بأنه لم يعد موجودًا (HTTP 410)"
   },
   "counts": {
     "due_zero": "لا شيء في الطريق",
