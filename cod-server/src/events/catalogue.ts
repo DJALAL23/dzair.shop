@@ -135,10 +135,13 @@ const publishedAs = <T extends EventType>(type: T) =>
 
 type Published = { [T in EventType]: ReturnType<typeof publishedAs<T>> };
 
+/** Each Event Type's Business Event as it is published, envelope and data. */
+export const PUBLISHED_EVENT_SCHEMAS = Object.fromEntries(EVENT_TYPES.map((type) => [type, publishedAs(type)])) as unknown as Published;
+
 /** Every Business Event as it is published — the API's Event Log and every Consumer receive this shape. */
 export const BUSINESS_EVENT_SCHEMA = z.discriminatedUnion(
   "type",
-  EVENT_TYPES.map(publishedAs) as unknown as [Published[EventType], ...Published[EventType][]],
+  EVENT_TYPES.map((type) => PUBLISHED_EVENT_SCHEMAS[type]) as unknown as [Published[EventType], ...Published[EventType][]],
 );
 
 /** The JSON Schema consumers are promised for a type's current version. */

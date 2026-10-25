@@ -14,6 +14,7 @@ import type { Context } from "hono";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { imagePaths } from "@/endpoints/images/openapi";
+import { registerEventWebhooks } from "@/events/webhooks-openapi";
 
 function resolveBaseUrl(c: Context<AppContext>): string {
   return (
@@ -157,6 +158,8 @@ export function registerSpecEndpoint(app: OpenAPIHono<AppContext>): void {
     description:
       "Store API key for public storefront endpoints. Different from the dashboard API key.",
   });
+
+  registerEventWebhooks(app.openAPIRegistry);
 
   app.get("/api/openapi.json", (c: Context<AppContext>) => {
     const baseUrl = resolveBaseUrl(c);

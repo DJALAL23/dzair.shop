@@ -14,25 +14,26 @@ import type { OrderSnapshot, ShipmentSnapshot, SqlJson } from "./snapshots";
 
 export type EventSubject = "order" | "shipment";
 
+/** Each Event Type: its subject, its current version, and what it means, as the published reference says it. */
 export const EVENT_CATALOGUE = {
-  "order.created": { subject: "order", version: 1 },
-  "order.updated": { subject: "order", version: 1 },
-  "order.confirmed": { subject: "order", version: 1 },
-  "order.unreachable": { subject: "order", version: 1 },
-  "order.preparing": { subject: "order", version: 1 },
-  "order.ready": { subject: "order", version: 1 },
-  "order.cancelled": { subject: "order", version: 1 },
-  "order.line_returned": { subject: "order", version: 1 },
-  "order.deleted": { subject: "order", version: 1 },
-  "shipment.handed_off": { subject: "shipment", version: 1 },
-  "shipment.out_for_delivery": { subject: "shipment", version: 1 },
-  "shipment.delivery_failed": { subject: "shipment", version: 1 },
-  "shipment.delivered": { subject: "shipment", version: 1 },
-  "shipment.return_started": { subject: "shipment", version: 1 },
-  "shipment.returned": { subject: "shipment", version: 1 },
-  "shipment.cancelled": { subject: "shipment", version: 1 },
-  "shipment.voided": { subject: "shipment", version: 1 },
-} as const satisfies Record<string, { subject: EventSubject; version: number }>;
+  "order.created": { subject: "order", version: 1, summary: "An order was placed: on the store, in the dashboard, through the API or by an AI agent." },
+  "order.updated": { subject: "order", version: 1, summary: "An order's customer, destination or notes were edited." },
+  "order.confirmed": { subject: "order", version: 1, summary: "The customer confirmed the order, usually on the phone." },
+  "order.unreachable": { subject: "order", version: 1, summary: "The customer could not be reached to confirm the order." },
+  "order.preparing": { subject: "order", version: 1, summary: "The order is being prepared." },
+  "order.ready": { subject: "order", version: 1, summary: "The order is packed and ready to hand to delivery." },
+  "order.cancelled": { subject: "order", version: 1, summary: "The order was cancelled." },
+  "order.line_returned": { subject: "order", version: 1, summary: "Units of an order line were refused at the door and came back." },
+  "order.deleted": { subject: "order", version: 1, summary: "The order was deleted; the event carries it as it was." },
+  "shipment.handed_off": { subject: "shipment", version: 1, summary: "The order was handed to a carrier or to one of the store's drivers." },
+  "shipment.out_for_delivery": { subject: "shipment", version: 1, summary: "The parcel left for the customer." },
+  "shipment.delivery_failed": { subject: "shipment", version: 1, summary: "An attempt to deliver the parcel failed." },
+  "shipment.delivered": { subject: "shipment", version: 1, summary: "The parcel was delivered and paid for on delivery." },
+  "shipment.return_started": { subject: "shipment", version: 1, summary: "The parcel is on its way back to the store." },
+  "shipment.returned": { subject: "shipment", version: 1, summary: "The parcel is back with the store." },
+  "shipment.cancelled": { subject: "shipment", version: 1, summary: "The shipment was cancelled before it was delivered." },
+  "shipment.voided": { subject: "shipment", version: 1, summary: "The handoff was undone: the order is no longer with delivery." },
+} as const satisfies Record<string, { subject: EventSubject; version: number; summary: string }>;
 
 export type EventType = keyof typeof EVENT_CATALOGUE;
 export const EVENT_TYPES = Object.keys(EVENT_CATALOGUE) as EventType[];

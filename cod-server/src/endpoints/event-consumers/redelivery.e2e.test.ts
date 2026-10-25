@@ -31,6 +31,8 @@ let app: OpenAPIHono<AppContext>;
 let scopes: string[] = ["*"];
 let role: "admin" | "staff" = "admin";
 const T = "2026-10-25T10:00:00.000Z";
+/** Still waiting when any drain of these tests runs: they run on the real clock, as the routes do. */
+const NOT_YET = "2099-01-01T00:00:00.000Z";
 
 beforeAll(async () => {
   d1 = await createTestD1();
@@ -105,7 +107,7 @@ describe("a Replay", () => {
     await delivery("d1", "hook", 1, "delivered", 1);
     await delivery("d2", "hook", 2, "dead", 8);
     await delivery("d3", "hook", 3, "skipped", 1);
-    await delivery("d4", "hook", 4, "due", 2, "2026-10-25T18:00:00.000Z");
+    await delivery("d4", "hook", 4, "due", 2, NOT_YET);
     // Sequence 5 was recorded while the Consumer was stopped; 6 is not an order event; 7 is outside the range.
   });
 
@@ -117,7 +119,7 @@ describe("a Replay", () => {
 
     const rows = await deliveriesOf("hook");
     expect(rows.map((d) => [d.eventSeq, d.state, d.attempts])).toEqual([[1, "due", 0], [2, "due", 0], [3, "due", 0], [4, "due", 2], [5, "due", 0]]);
-    expect(rows.find((d) => d.eventSeq === 4)!.nextAttemptAt).toBe("2026-10-25T18:00:00.000Z");
+    expect(rows.find((d) => d.eventSeq === 4)!.nextAttemptAt).toBe(NOT_YET);
     expect(rows.find((d) => d.eventSeq === 2)).toMatchObject({ lastError: null, settledAt: null });
     expect(rows.find((d) => d.eventSeq === 5)!.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
@@ -182,7 +184,7 @@ describe("retrying one Delivery", () => {
     await consumer("hook", ["*"]);
     await events("order.created", "order.confirmed");
     await delivery("dead", "hook", 1, "dead", 8);
-    await delivery("waiting", "hook", 2, "due", 1, "2026-10-25T18:00:00.000Z");
+    await delivery("waiting", "hook", 2, "due", 1, NOT_YET);
   });
 
   it("makes a dead one due now, and the drain delivers it", async () => {
