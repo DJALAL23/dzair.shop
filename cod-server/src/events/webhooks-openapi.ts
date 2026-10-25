@@ -35,8 +35,8 @@ export function registerEventWebhooks(registry: OpenAPIHono["openAPIRegistry"]):
       method: "post",
       path: type,
       tags: ["Events"],
-      summary: type,
-      description: `${EVENT_CATALOGUE[type].summary}\n\nPOSTed to every webhook subscribed to \`${type}\`, \`${EVENT_CATALOGUE[type].subject}.*\` or \`*\`, signed per the Standard Webhooks specification. Delivered at least once and in no promised order: recognise an event by its id, order events by their \`sequence\` or \`occurredAt\`.`,
+      summary: EVENT_CATALOGUE[type].summary,
+      description: `POSTed to every webhook subscribed to \`${type}\`, \`${EVENT_CATALOGUE[type].subject}.*\` or \`*\`, signed per the Standard Webhooks specification. Delivered at least once and in no promised order: recognise an event by its id, order events by their \`sequence\` or \`occurredAt\`.`,
       operationId: `webhook.${type}`,
       request: {
         headers: signedHeaders,

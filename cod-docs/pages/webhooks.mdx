@@ -1,112 +1,342 @@
 ---
-description: Receive and verify Yalidine and ZR Express delivery events.
+description: Receive your store's events on your own server, signed, retried and replayable.
 ---
 
 # Webhooks
 
-Carriers push delivery updates to CodFlow. The server verifies the signature, stores the events in an inbox, answers the carrier immediately, and processes the events after the response. Your integration reads the resulting shipment state through the API.
+A webhook sends your store's Business Events to an endpoint on your own server as they happen: an order placed, confirmed, handed to a carrier, delivered. Each event is POSTed as JSON, signed per the [Standard Webhooks](https://www.standardwebhooks.com/) specification, and tried again until your endpoint accepts it.
 
-Inbound webhooks exist for **Yalidine** and **ZR Express**. NOEST and EcoTrack do not send webhooks; their shipments are synced every five minutes by a cron job and on demand through the shipment sync endpoints.
+Carriers reporting deliveries to your store is the other direction; read [Carrier webhooks](/carrier-webhooks) for that.
 
-## Endpoints
+## Add a webhook
 
-| Carrier | Endpoint | Delivery shape | Signature |
-| --- | --- | --- | --- |
-| Yalidine | `POST /webhooks/yalidine` | A batch of events of one type | HMAC-SHA256 in `x-yalidine-signature` |
-| Yalidine | `GET /webhooks/yalidine` | CRC challenge | Echoes `crc_token` as plain text |
-| ZR Express | `POST /webhooks/zr_express` | One Svix event per request | Svix HMAC-SHA256 |
-
-The paths are the URLs the carriers hold. Do not put them behind auth: the carriers cannot send your API key. The signature is the authentication.
-
-## How intake works
-
-<Stepper>
-
-1. **Carrier to CodFlow**
-
-   The carrier sends a signed `POST` to `/webhooks/yalidine` or `/webhooks/zr_express`.
-
-1. **Verify and split**
-
-   CodFlow checks the signature against the company's secret and splits the carrier envelope into individual events.
-
-1. **Store in the inbox**
-
-   Each event goes into `webhook_events`, keyed by its provider event ID.
-
-1. **Answer the carrier**
-
-   CodFlow returns `200 {"received":true}` without waiting for processing.
-
-1. **Process after the response**
-
-   `waitUntil(processInbox)` applies shipment and delivery milestones. Failures are retried by the inbox sweep.
-
-</Stepper>
-
-The carrier gets its `200` as soon as the events are stored. Processing failures do not fail the webhook; the inbox sweep retries them. Yalidine requires an answer within 10 seconds and retries a failed delivery seven times over 40 hours, so this split matters.
-
-## Set up a webhook
-
-Both flows start on the delivery company's credentials page in the dashboard.
-
-### Yalidine
-
-1. Open the company's credentials page and copy the receiver URL from the webhook setup card.
-2. In Yalidine's Webhooks Dashboard, create an endpoint with that URL.
-3. Subscribe to the event types you need. Yalidine validates the URL with the CRC challenge.
-4. Copy the signing secret from Yalidine back into the card and save it. Store the same value in your secret manager.
-
-### ZR Express
-
-1. Open the company's credentials page and choose **Register webhook**.
-2. The server registers the endpoint with ZR Express and fetches the signing secret for you.
-3. The card shows the endpoint as registered. Use **Unregister** to remove it.
-
-Send a test event from the carrier and confirm the delivery company receives it.
-
-A webhook needs its secret. A delivery no company's secret verifies is refused with `401` and never stored: what a carrier reports becomes a Business Event that merchants' systems and customers may be told about, so it must be proven to come from the carrier. If ZR Express does not give its signing secret, the registration is undone and nothing is kept; register again.
-
-## Signature verification
-
-### Yalidine
-
-Yalidine signs the raw request body with HMAC-SHA256 using the company's webhook secret. The signature arrives in `x-yalidine-signature` (or `x_yalidine_signature`). The server accepts lowercase hex, uppercase hex and base64 representations, and compares in constant time.
-
-The GET challenge is separate: when Yalidine sends `subscribe` and `crc_token` query parameters, the server echoes the token as plain text. This lets Yalidine verify the URL before it starts sending events.
-
-### ZR Express
-
-ZR Express uses Svix. The signed content is:
-
-```text
-{svix-id}.{svix-timestamp}.{rawBody}
-```
-
-The signature arrives in `svix-signature`, and the server accepts any of the space-separated `v1,<base64>` entries. A missing `svix-id`, `svix-timestamp` or `svix-signature` is rejected.
-
-## Idempotency and ordering
-
-- Yalidine batches many events in one request. Each event has its own `event_id`, which is the inbox key.
-- ZR Express sends one event per request. `svix-id` is the inbox key.
-- Duplicate deliveries are ignored by the inbox, so a carrier retry cannot apply the same event twice.
-- Events can arrive out of order. The server applies shipment milestones by their event timestamp, not by arrival order.
-
-## Local development
-
-Carriers need a public HTTPS URL. Expose your local Worker with a tunnel you trust, then configure that origin with the carrier. For Yalidine, create the endpoint at `<tunnel-origin>/webhooks/yalidine` and save its secret in the company's webhook card. For ZR Express, send the tunnel origin as `X-Worker-URL` when you register, so the endpoint it creates points at the tunnel instead of `localhost`.
-
-The local receiver is still `http://localhost:8787/webhooks/yalidine` or `/webhooks/zr_express`, so you can replay a signed payload with `curl` while developing:
+In the dashboard, open **Settings → Integrations → Add webhook**, give it a name, the URL of your endpoint and the events it receives. Through the API, `POST /api/event-consumers` with the `settings:integrations` scope:
 
 ```bash
-curl -X POST http://localhost:8787/webhooks/yalidine \
+curl -X POST http://localhost:8787/api/event-consumers \
+  -H "X-API-Key: cod_your_api_key_here" \
   -H "Content-Type: application/json" \
-  -H "x-yalidine-signature: <hex hmac of the raw body>" \
-  --data-binary @event.json
+  -d '{"kind":"webhook","name":"Order system","url":"https://erp.example.dz/hooks/codflow","subscription":["order.*","shipment.delivered"]}'
 ```
+
+The answer holds the webhook and its **Signing Secret**, `whsec_…`. It is shown this once: store it in your server's secrets. Every later answer shows it masked.
+
+- The URL must be `https`, on the public internet (no private, local or reserved address), with no user name or password in it.
+- A store has at most 10 webhooks.
+- A webhook receives the events recorded after it was added. To send it older ones, use a Replay (see below).
+
+A subscription names Event Types exactly (`order.confirmed`), by subject (`order.*`, `shipment.*`), or all of them (`*`). A subject or `*` also takes the types added to the catalogue later.
+
+## What your endpoint receives
+
+Each Delivery is one `POST` to your URL:
+
+| Header | Value |
+| --- | --- |
+| `content-type` | `application/json` |
+| `user-agent` | `CodFlow-Webhooks/1` |
+| `webhook-id` | The event's id. The same on every attempt and every Replay. |
+| `webhook-timestamp` | When this attempt was sent, in Unix seconds. |
+| `webhook-signature` | `v1,<signature>`, one per Signing Secret, separated by spaces. |
+
+The body is the Business Event, exactly as the [Event Log API](/api) returns it:
+
+```json
+{
+  "id": "0f9e8d7c-6b5a-4f3e-8d2c-1b0a09080702",
+  "sequence": 1042,
+  "type": "order.confirmed",
+  "version": 1,
+  "subject": {
+    "type": "order",
+    "id": "7f3c2a9e-4b1d-4e8a-9c55-2d6f0b8e1a47"
+  },
+  "orderId": "7f3c2a9e-4b1d-4e8a-9c55-2d6f0b8e1a47",
+  "occurredAt": "2026-10-25T09:40:55.000Z",
+  "recordedAt": "2026-10-25T09:40:55.480Z",
+  "actor": {
+    "kind": "staff",
+    "id": "1d3f5a7c-9e1b-4d3f-a5c7-9e1b3d5f7a9c",
+    "name": "Samira"
+  },
+  "origin": "dashboard",
+  "data": {
+    "order": {
+      "id": "7f3c2a9e-4b1d-4e8a-9c55-2d6f0b8e1a47",
+      "number": "ORD-20261025-0042",
+      "status": "confirmed",
+      "type": "online",
+      "placedAt": "2026-10-25T09:14:03.120Z",
+      "locale": "ar",
+      "customer": {
+        "id": "5a0e7c13-8f2b-4d9e-a6c4-1b3d5f7e9a20",
+        "name": "Amina Benali",
+        "phone": "0551234567",
+        "email": null
+      },
+      "destination": {
+        "wilaya": {
+          "id": 16,
+          "name": "Alger",
+          "nameAr": "الجزائر"
+        },
+        "commune": {
+          "id": "16001",
+          "name": "Alger Centre",
+          "nameAr": "الجزائر الوسطى"
+        },
+        "city": null,
+        "address": "12 rue Didouche Mourad",
+        "deliveryType": "home",
+        "stationCode": null
+      },
+      "lines": [
+        {
+          "id": "b2d4f6a8-1c3e-4a5b-8d7f-9e0a1b2c3d4e",
+          "productId": "e8a1c3b5-7d9f-4b2a-a4c6-8e0f2a4c6e8a",
+          "variantId": "f1b3d5c7-9e1a-4c3b-b5d7-9f1b3d5f7a9c",
+          "name": "Robe kabyle",
+          "variantLabel": "Rouge / M",
+          "sku": "RK-R-M",
+          "quantity": 2,
+          "unitPrice": {
+            "amount": "4500.00",
+            "currency": "DZD"
+          },
+          "discount": {
+            "amount": "500.00",
+            "currency": "DZD"
+          },
+          "total": {
+            "amount": "8500.00",
+            "currency": "DZD"
+          },
+          "gift": false,
+          "offer": {
+            "id": "a7c9e1b3-5d7f-4a9c-8e1b-3d5f7a9c1e3b",
+            "name": "La deuxième à -500 DA"
+          },
+          "returnedQuantity": 0
+        }
+      ],
+      "subtotal": {
+        "amount": "8500.00",
+        "currency": "DZD"
+      },
+      "deliveryFee": {
+        "amount": "500.00",
+        "currency": "DZD"
+      },
+      "total": {
+        "amount": "9000.00",
+        "currency": "DZD"
+      },
+      "coupon": null,
+      "freeDeliveryOffer": null,
+      "notes": "Appeler avant de passer",
+      "customFields": [
+        {
+          "id": "c3e5a7b9-1d3f-4b5a-9c7e-1f3a5b7d9e1f",
+          "label": "Taille habituelle",
+          "type": "select",
+          "value": "M"
+        }
+      ]
+    },
+    "previousStatus": "new"
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `id` | The event's unique id. Recognise an event you already handled by it. |
+| `sequence` | Its position in the store's Event Log: a later event has a higher number. |
+| `type`, `version` | The Event Type and the version of its `data`. |
+| `subject` | What the event is about: an order or a shipment. |
+| `orderId` | The order it concerns. |
+| `occurredAt` | When it happened: a carrier may report a delivery hours later. |
+| `recordedAt` | When the store recorded it. |
+| `actor`, `origin` | Who caused it (staff, AI agent, shopper, carrier, system) and through what (dashboard, API, storefront, carrier webhook…). |
+| `data` | The order, and the shipment for a delivery event, as they were when it happened. |
+
+Money is a decimal string with its currency: `{ "amount": "9000.00", "currency": "DZD" }`. An event never exceeds 64 KB.
+
+## Verify the signature
+
+Check every request before you act on it. The signature is the base64 HMAC-SHA256 of `<webhook-id>.<webhook-timestamp>.<raw body>`, keyed by the bytes the Signing Secret encodes: the part after `whsec_`, base64-decoded.
+
+1. Read the **raw** body as it arrived. Parsing and re-serialising the JSON changes the bytes, and the signature no longer matches.
+2. Refuse a `webhook-timestamp` more than five minutes from your clock, so a captured request cannot be replayed later.
+3. Accept the request when one of the space-separated `v1,` signatures matches, compared in constant time.
+
+### Node.js
+
+```js
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+const TOLERANCE_SECONDS = 5 * 60;
+
+/** Whether a request came from your store, signed with this Signing Secret. */
+export function verifyWebhook(secret, headers, rawBody) {
+  const id = headers["webhook-id"];
+  const timestamp = Number(headers["webhook-timestamp"]);
+  const signatures = headers["webhook-signature"];
+  if (!id || !signatures || !Number.isInteger(timestamp)) return false;
+  if (Math.abs(Date.now() / 1000 - timestamp) > TOLERANCE_SECONDS) return false;
+
+  const key = Buffer.from(secret.slice("whsec_".length), "base64");
+  const expected = createHmac("sha256", key).update(`${id}.${timestamp}.${rawBody}`).digest();
+  return signatures.split(" ").some((entry) => {
+    const [version, signature = ""] = entry.split(",");
+    const given = Buffer.from(signature, "base64");
+    return version === "v1" && given.length === expected.length && timingSafeEqual(given, expected);
+  });
+}
+```
+
+Pass the raw body as a string, for example with `express.text({ type: "application/json" })`.
+
+### PHP
+
+```php
+<?php
+
+const TOLERANCE_SECONDS = 5 * 60;
+
+/** Whether a request came from your store, signed with this Signing Secret. */
+function verify_webhook(string $secret, array $headers, string $rawBody): bool
+{
+    $id = $headers['webhook-id'] ?? '';
+    $timestamp = $headers['webhook-timestamp'] ?? '';
+    $signatures = $headers['webhook-signature'] ?? '';
+    if ($id === '' || $signatures === '' || !ctype_digit($timestamp)) return false;
+    if (abs(time() - (int) $timestamp) > TOLERANCE_SECONDS) return false;
+
+    $key = base64_decode(substr($secret, strlen('whsec_')), true);
+    if ($key === false) return false;
+    $expected = base64_encode(hash_hmac('sha256', "$id.$timestamp.$rawBody", $key, true));
+    foreach (explode(' ', $signatures) as $entry) {
+        [$version, $signature] = array_pad(explode(',', $entry, 2), 2, '');
+        if ($version === 'v1' && hash_equals($expected, $signature)) return true;
+    }
+    return false;
+}
+```
+
+The raw body is `file_get_contents('php://input')` (in Laravel, `$request->getContent()`); give the headers with lower-case names.
+
+### Python
+
+```python
+import base64
+import hashlib
+import hmac
+import time
+
+TOLERANCE_SECONDS = 5 * 60
+
+
+def verify_webhook(secret: str, headers: dict, raw_body: bytes) -> bool:
+    """Whether a request came from your store, signed with this Signing Secret."""
+    msg_id = headers.get("webhook-id", "")
+    timestamp = headers.get("webhook-timestamp", "")
+    signatures = headers.get("webhook-signature", "")
+    if not msg_id or not signatures or not timestamp.isdigit():
+        return False
+    if abs(time.time() - int(timestamp)) > TOLERANCE_SECONDS:
+        return False
+
+    key = base64.b64decode(secret.removeprefix("whsec_"))
+    signed = f"{msg_id}.{timestamp}.".encode() + raw_body
+    expected = base64.b64encode(hmac.new(key, signed, hashlib.sha256).digest()).decode()
+    return any(
+        version == "v1" and hmac.compare_digest(expected, signature)
+        for version, _, signature in (entry.partition(",") for entry in signatures.split(" "))
+    )
+```
+
+The raw body is `request.get_data()` in Flask, or `await request.body()` in FastAPI.
+
+Any Standard Webhooks library verifies these requests too, for example `new Webhook(secret).verify(rawBody, headers)` with the `standardwebhooks` package.
+
+### Rotating the Signing Secret
+
+**Change signing secret** in the dashboard, or `POST /api/event-consumers/{id}/rotate-secret`, answers a new secret once. For 24 hours every request carries a signature by each secret, so switch your endpoint to the new one within that time and nothing is refused. After that, only the new secret signs.
+
+## Answer quickly
+
+Your answer decides what happens next:
+
+| Your endpoint answers | What the store does |
+| --- | --- |
+| Any `2xx`, within 15 seconds | Delivered. |
+| `410 Gone` | Stops this webhook and sends it nothing more until you start it again. |
+| Anything else: another status, a redirect, no answer in time, no connection | Tries again later, on the schedule below. |
+
+Answer `2xx` as soon as you have stored the event, then do the work. Redirects are not followed: give the final URL. A `Retry-After` header on a refusal is respected, up to a day.
+
+## Retries, duplicates and order
+
+A Delivery is tried 8 times. The first attempt goes out seconds after the event; each failure waits before the next:
+
+| Attempt | Waits after the one before |
+| --- | --- |
+| 1 | none: seconds after the event |
+| 2 | 5 minutes |
+| 3 | 30 minutes |
+| 4 | 2 hours |
+| 5 | 6 hours |
+| 6 | 12 hours |
+| 7 | 24 hours |
+| 8 | 24 hours |
+
+After the last failure the Delivery is **dead**: it stays in the dashboard, where you can try it again. Retries run on a five-minute schedule, so a wait can be up to five minutes longer. A webhook whose every attempt fails for three days is stopped; start it again from the dashboard once your endpoint is fixed.
+
+Deliveries are **at least once** and in **no promised order**:
+
+- You may receive an event twice. Keep the `webhook-id` of what you handled and ignore it the second time.
+- Two events can arrive out of order. Order them by `sequence`, or by `occurredAt` for when they happened.
+
+## Delivering again
+
+From **Settings → Integrations → Deliveries**, or through the API:
+
+- **Try again** one Delivery: `POST /api/event-deliveries/{id}/retry`.
+- **Deliver again** a range of events: `POST /api/event-consumers/{id}/replay` with `fromSequence` and `toSequence`, at most 1,000 events at a time. Events recorded while the webhook was stopped are included.
+
+An event delivered again keeps its id, so your endpoint recognises it.
+
+## Test events
+
+**Send test event** in the dashboard, or `POST /api/event-consumers/{id}/test` with an optional `type`, sends an example of an Event Type to your endpoint at once, signed like any other, and shows what your endpoint answered. A test event has `sequence` `0` and an `id` starting with `test_`; it is not in your Event Log.
+
+## Event types
+
+| Event Type | When |
+| --- | --- |
+| `order.created` | An order was placed: on the store, in the dashboard, through the API or by an AI agent. |
+| `order.updated` | An order's customer, destination or notes were edited. |
+| `order.confirmed` | The customer confirmed the order, usually on the phone. |
+| `order.unreachable` | The customer could not be reached to confirm the order. |
+| `order.preparing` | The order is being prepared. |
+| `order.ready` | The order is packed and ready to hand to delivery. |
+| `order.cancelled` | The order was cancelled. |
+| `order.line_returned` | Units of an order line were refused at the door and came back. |
+| `order.deleted` | The order was deleted; the event carries it as it was. |
+| `shipment.handed_off` | The order was handed to a carrier or to one of the store's drivers. |
+| `shipment.out_for_delivery` | The parcel left for the customer. |
+| `shipment.delivery_failed` | An attempt to deliver the parcel failed. |
+| `shipment.delivered` | The parcel was delivered and paid for on delivery. |
+| `shipment.return_started` | The parcel is on its way back to the store. |
+| `shipment.returned` | The parcel is back with the store. |
+| `shipment.cancelled` | The shipment was cancelled before it was delivered. |
+| `shipment.voided` | The handoff was undone: the order is no longer with delivery. |
+
+Each type's full schema is in the [API reference](/api) under Webhooks.
 
 ## Related
 
-- [Shipments](/api/shipments) in the API reference
-- [Errors](/errors) for the delivery failure envelope
-- [Delivery companies](/api/delivery-companies) for provider configuration and sync
+- [Authentication](/authentication) for API keys and the `settings:integrations` scope
+- [Errors](/errors) for the error envelope
+- [Carrier webhooks](/carrier-webhooks) for deliveries your carriers report

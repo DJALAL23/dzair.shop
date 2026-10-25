@@ -1,112 +1,342 @@
 ---
-description: استقبل أحداث توصيل Yalidine وZR Express وتحقق منها.
+description: استقبل أحداث متجرك على خادمك، موقَّعة ومُعادة المحاولة وقابلة لإعادة الإرسال.
 ---
 
 # Webhooks
 
-تدفع شركات التوصيل تحديثات التوصيل إلى CodFlow. يتحقق الخادم من التوقيع، ويخزّن الأحداث في صندوق وارد، ويجيب شركة التوصيل فورًا، ثم يعالج الأحداث بعد الاستجابة. ويقرأ تكاملك حالة الشحنة الناتجة عبر API.
+يرسل الـ webhook أحداث الأعمال (Business Events) الخاصة بمتجرك إلى عنوان على خادمك لحظة وقوعها: طلب جديد، طلب مؤكَّد، تسليم إلى شركة توصيل، توصيل ناجح. يُرسَل كل حدث بطلب `POST` بصيغة JSON، موقَّعًا وفق مواصفة [Standard Webhooks](https://www.standardwebhooks.com/)، وتُعاد المحاولة إلى أن يقبله خادمك.
 
-توجد Webhooks واردة لـ **Yalidine** و**ZR Express**. أما NOEST وEcoTrack فلا ترسلان Webhooks؛ بل تُزامَن شحناتهما كل خمس دقائق عبر مهمة cron وعند الطلب عبر نقاط نهاية مزامنة الشحنات.
+أما شركات التوصيل التي تبلّغ متجرك عن التسليمات فهي الاتجاه الآخر: اقرأ [Webhooks شركات التوصيل](/ar/carrier-webhooks).
 
-## نقاط النهاية
+## إضافة webhook
 
-| شركة التوصيل | نقطة النهاية | شكل الإرسال | التوقيع |
-| --- | --- | --- | --- |
-| Yalidine | `POST /webhooks/yalidine` | دفعة أحداث من نوع واحد | HMAC-SHA256 في `x-yalidine-signature` |
-| Yalidine | `GET /webhooks/yalidine` | تحدّي CRC | يعيد `crc_token` كنص عادي |
-| ZR Express | `POST /webhooks/zr_express` | حدث Svix واحد لكل طلب | Svix HMAC-SHA256 |
+في لوحة التحكم افتح **الإعدادات ← التكاملات ← إضافة webhook**، وأعطه اسمًا وعنوان URL لخادمك والأحداث التي يستقبلها. وعبر الـ API، `POST /api/event-consumers` بصلاحية `settings:integrations`:
 
-المسارات هي عناوين URL التي تحتفظ بها شركات التوصيل. لا تضعها خلف مصادقة: فشركات التوصيل لا تستطيع إرسال مفتاح API الخاص بك. التوقيع هو المصادقة.
+```bash
+curl -X POST http://localhost:8787/api/event-consumers \
+  -H "X-API-Key: cod_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"webhook","name":"Order system","url":"https://erp.example.dz/hooks/codflow","subscription":["order.*","shipment.delivered"]}'
+```
 
-## كيف يعمل الاستلام
+يحتوي الرد على الـ webhook و**مفتاح التوقيع** الخاص به، `whsec_…`. لا يُعرض إلا هذه المرة: احفظه ضمن أسرار خادمك. وكل رد بعده يعرضه مُقنَّعًا.
 
-<Stepper>
+- يجب أن يكون العنوان `https`، عامًا على الإنترنت (لا عنوان خاصًا أو محليًا أو محجوزًا)، بلا اسم مستخدم ولا كلمة مرور.
+- للمتجر 10 webhooks على الأكثر.
+- يستقبل الـ webhook الأحداث المسجَّلة بعد إضافته. ولإرسال أحداث أقدم إليه استعمل إعادة الإرسال (Replay، انظر أدناه).
 
-1. **من شركة التوصيل إلى CodFlow**
+يسمّي الاشتراك أنواع الأحداث بدقة (`order.confirmed`)، أو حسب الموضوع (`order.*`، `shipment.*`)، أو كلها (`*`). والموضوع أو `*` يشمل أيضًا الأنواع التي تُضاف إلى الكتالوج لاحقًا.
 
-   ترسل شركة التوصيل طلب `POST` موقّعًا إلى `/webhooks/yalidine` أو `/webhooks/zr_express`.
+## ما يستقبله خادمك
 
-1. **التحقق والتقسيم**
+كل إرسال هو طلب `POST` واحد إلى عنوانك:
 
-   يتحقق CodFlow من التوقيع باستخدام سر الشركة ويقسّم غلاف شركة التوصيل إلى أحداث فردية.
+| الترويسة | القيمة |
+| --- | --- |
+| `content-type` | `application/json` |
+| `user-agent` | `CodFlow-Webhooks/1` |
+| `webhook-id` | معرّف الحدث. هو نفسه في كل محاولة وكل إعادة إرسال. |
+| `webhook-timestamp` | وقت إرسال هذه المحاولة، بثواني Unix. |
+| `webhook-signature` | `v1,<signature>`، واحد لكل مفتاح توقيع، تفصل بينها مسافات. |
 
-1. **التخزين في صندوق الوارد**
+جسم الطلب هو حدث الأعمال نفسه، تمامًا كما تعيده [API سجل الأحداث](/api):
 
-   يُخزَّن كل حدث في `webhook_events` بمفتاح معرّف الحدث من المزوّد.
+```json
+{
+  "id": "0f9e8d7c-6b5a-4f3e-8d2c-1b0a09080702",
+  "sequence": 1042,
+  "type": "order.confirmed",
+  "version": 1,
+  "subject": {
+    "type": "order",
+    "id": "7f3c2a9e-4b1d-4e8a-9c55-2d6f0b8e1a47"
+  },
+  "orderId": "7f3c2a9e-4b1d-4e8a-9c55-2d6f0b8e1a47",
+  "occurredAt": "2026-10-25T09:40:55.000Z",
+  "recordedAt": "2026-10-25T09:40:55.480Z",
+  "actor": {
+    "kind": "staff",
+    "id": "1d3f5a7c-9e1b-4d3f-a5c7-9e1b3d5f7a9c",
+    "name": "Samira"
+  },
+  "origin": "dashboard",
+  "data": {
+    "order": {
+      "id": "7f3c2a9e-4b1d-4e8a-9c55-2d6f0b8e1a47",
+      "number": "ORD-20261025-0042",
+      "status": "confirmed",
+      "type": "online",
+      "placedAt": "2026-10-25T09:14:03.120Z",
+      "locale": "ar",
+      "customer": {
+        "id": "5a0e7c13-8f2b-4d9e-a6c4-1b3d5f7e9a20",
+        "name": "Amina Benali",
+        "phone": "0551234567",
+        "email": null
+      },
+      "destination": {
+        "wilaya": {
+          "id": 16,
+          "name": "Alger",
+          "nameAr": "الجزائر"
+        },
+        "commune": {
+          "id": "16001",
+          "name": "Alger Centre",
+          "nameAr": "الجزائر الوسطى"
+        },
+        "city": null,
+        "address": "12 rue Didouche Mourad",
+        "deliveryType": "home",
+        "stationCode": null
+      },
+      "lines": [
+        {
+          "id": "b2d4f6a8-1c3e-4a5b-8d7f-9e0a1b2c3d4e",
+          "productId": "e8a1c3b5-7d9f-4b2a-a4c6-8e0f2a4c6e8a",
+          "variantId": "f1b3d5c7-9e1a-4c3b-b5d7-9f1b3d5f7a9c",
+          "name": "Robe kabyle",
+          "variantLabel": "Rouge / M",
+          "sku": "RK-R-M",
+          "quantity": 2,
+          "unitPrice": {
+            "amount": "4500.00",
+            "currency": "DZD"
+          },
+          "discount": {
+            "amount": "500.00",
+            "currency": "DZD"
+          },
+          "total": {
+            "amount": "8500.00",
+            "currency": "DZD"
+          },
+          "gift": false,
+          "offer": {
+            "id": "a7c9e1b3-5d7f-4a9c-8e1b-3d5f7a9c1e3b",
+            "name": "La deuxième à -500 DA"
+          },
+          "returnedQuantity": 0
+        }
+      ],
+      "subtotal": {
+        "amount": "8500.00",
+        "currency": "DZD"
+      },
+      "deliveryFee": {
+        "amount": "500.00",
+        "currency": "DZD"
+      },
+      "total": {
+        "amount": "9000.00",
+        "currency": "DZD"
+      },
+      "coupon": null,
+      "freeDeliveryOffer": null,
+      "notes": "Appeler avant de passer",
+      "customFields": [
+        {
+          "id": "c3e5a7b9-1d3f-4b5a-9c7e-1f3a5b7d9e1f",
+          "label": "Taille habituelle",
+          "type": "select",
+          "value": "M"
+        }
+      ]
+    },
+    "previousStatus": "new"
+  }
+}
+```
 
-1. **الرد على شركة التوصيل**
+| الحقل | معناه |
+| --- | --- |
+| `id` | المعرّف الفريد للحدث. به تتعرّف على حدث عالجته من قبل. |
+| `sequence` | موضعه في سجل أحداث المتجر: الحدث الأحدث رقمه أكبر. |
+| `type`، `version` | نوع الحدث ونسخة `data` الخاصة به. |
+| `subject` | موضوع الحدث: طلب أو شحنة. |
+| `orderId` | الطلب المعني. |
+| `occurredAt` | متى وقع: قد تبلّغ شركة التوصيل عن تسليم بعد ساعات. |
+| `recordedAt` | متى سجّله المتجر. |
+| `actor`، `origin` | من تسبّب فيه (الفريق، وكيل ذكاء اصطناعي، الزبون، شركة التوصيل، النظام) وعبر ماذا (لوحة التحكم، الـ API، واجهة المتجر، webhook شركة التوصيل…). |
+| `data` | الطلب، والشحنة في أحداث التوصيل، كما كانا لحظة وقوعه. |
 
-   يعيد CodFlow `200 {"received":true}` دون انتظار المعالجة.
-
-1. **المعالجة بعد الاستجابة**
-
-   يطبّق `waitUntil(processInbox)` مراحل الشحن والتوصيل. وتُعاد محاولة الإخفاقات عبر مسح صندوق الوارد.
-
-</Stepper>
-
-تحصل شركة التوصيل على `200` بمجرد تخزين الأحداث. ولا تُفشل إخفاقات المعالجة الـ webhook؛ إذ يعيد مسح صندوق الوارد محاولتها. وتتطلب Yalidine استجابة خلال 10 ثوانٍ وتعيد محاولة التسليم الفاشل سبع مرات على مدى 40 ساعة، ولهذا يهم هذا الفصل.
-
-## إعداد Webhook
-
-يبدأ المساران من صفحة بيانات اعتماد شركة التوصيل في لوحة التحكم.
-
-### Yalidine
-
-1. افتح صفحة بيانات اعتماد الشركة وانسخ عنوان URL للاستقبال من بطاقة إعداد الـ webhook.
-2. في Webhooks Dashboard الخاصة بـ Yalidine، أنشئ نقطة نهاية بهذا العنوان.
-3. اشترك في أنواع الأحداث التي تحتاجها. تتحقق Yalidine من العنوان عبر تحدّي CRC.
-4. انسخ سر التوقيع من Yalidine إلى البطاقة واحفظه. واحفظ القيمة نفسها في مدير الأسرار لديك.
-
-### ZR Express
-
-1. افتح صفحة بيانات اعتماد الشركة واختر **Register webhook**.
-2. يسجّل الخادم نقطة النهاية لدى ZR Express ويجلب سر التوقيع نيابة عنك.
-3. تعرض البطاقة نقطة النهاية كمسجّلة. استخدم **Unregister** لإزالتها.
-
-أرسل حدث اختبار من الشركة الناقلة وتأكد من وصوله إلى شركة التوصيل في لوحة التحكم.
-
-يحتاج webhook إلى سره. يُرفض التسليم الذي لا يتحقق منه سر أي شركة بالرمز `401` ولا يُخزَّن أبدًا: فما تبلّغ عنه شركة التوصيل يصبح حدثًا تجاريًا قد تُبلَّغ به أنظمة التجار والعملاء، لذا يجب إثبات أنه صادر عن شركة التوصيل. وإذا لم تُعطِ ZR Express سر التوقيع، يُلغى التسجيل ولا يُحفظ شيء؛ سجّل من جديد.
+المبالغ نصوص عشرية مع عملتها: `{ "amount": "9000.00", "currency": "DZD" }`. ولا يتجاوز أي حدث 64 كيلوبايت.
 
 ## التحقق من التوقيع
 
-### Yalidine
+تحقّق من كل طلب قبل أن تتصرف بناءً عليه. التوقيع هو HMAC-SHA256 بترميز base64 للنص `<webhook-id>.<webhook-timestamp>.<الجسم الخام>`، ومفتاحه البايتات التي يرمّزها مفتاح التوقيع: الجزء الذي بعد `whsec_` بعد فكّ ترميز base64.
 
-توقّع Yalidine جسم الطلب الخام بـ HMAC-SHA256 باستخدام سر webhook الخاص بالشركة. يصل التوقيع في `x-yalidine-signature` (أو `x_yalidine_signature`). ويقبل الخادم التمثيلات السداسية العشرية (hex) بالأحرف الصغيرة والكبيرة وbase64، ويقارن في زمن ثابت.
+1. اقرأ الجسم **الخام** كما وصل. تحليل الـ JSON ثم إعادة كتابته يغيّر البايتات فلا يطابق التوقيع.
+2. ارفض أي `webhook-timestamp` يبعد أكثر من خمس دقائق عن ساعتك، حتى لا يُعاد إرسال طلب مُعترَض لاحقًا.
+3. اقبل الطلب إذا طابق أحدُ توقيعات `v1,` المفصولة بمسافات، بمقارنة ثابتة الزمن.
 
-تحدّي GET منفصل: عندما ترسل Yalidine معاملات الاستعلام `subscribe` و`crc_token`، يعيد الخادم الرمز كنص عادي. يتيح ذلك لـ Yalidine التحقق من العنوان قبل بدء إرسال الأحداث.
+### Node.js
 
-### ZR Express
+```js
+import { createHmac, timingSafeEqual } from "node:crypto";
 
-تستخدم ZR Express نظام Svix. المحتوى الموقّع هو:
+const TOLERANCE_SECONDS = 5 * 60;
 
-```text
-{svix-id}.{svix-timestamp}.{rawBody}
+/** Whether a request came from your store, signed with this Signing Secret. */
+export function verifyWebhook(secret, headers, rawBody) {
+  const id = headers["webhook-id"];
+  const timestamp = Number(headers["webhook-timestamp"]);
+  const signatures = headers["webhook-signature"];
+  if (!id || !signatures || !Number.isInteger(timestamp)) return false;
+  if (Math.abs(Date.now() / 1000 - timestamp) > TOLERANCE_SECONDS) return false;
+
+  const key = Buffer.from(secret.slice("whsec_".length), "base64");
+  const expected = createHmac("sha256", key).update(`${id}.${timestamp}.${rawBody}`).digest();
+  return signatures.split(" ").some((entry) => {
+    const [version, signature = ""] = entry.split(",");
+    const given = Buffer.from(signature, "base64");
+    return version === "v1" && given.length === expected.length && timingSafeEqual(given, expected);
+  });
+}
 ```
 
-يصل التوقيع في `svix-signature`، ويقبل الخادم أي عنصر `v1,<base64>` مفصول بمسافات. ويُرفض أي `svix-id` أو `svix-timestamp` أو `svix-signature` مفقود.
+مرّر الجسم الخام نصًّا، مثلًا عبر `express.text({ type: "application/json" })`.
 
-## التكرار الآمن والترتيب
+### PHP
 
-- تجمع Yalidine أحداثًا كثيرة في طلب واحد. ولكل حدث `event_id` خاص به، وهو مفتاح صندوق الوارد.
-- ترسل ZR Express حدثًا واحدًا لكل طلب. و`svix-id` هو مفتاح صندوق الوارد.
-- يتجاهل صندوق الوارد التسليمات المكررة، لذا لا تستطيع إعادة محاولة شركة التوصيل تطبيق الحدث نفسه مرتين.
-- قد تصل الأحداث بترتيب مختلف. يطبّق الخادم مراحل الشحن وفق طابع وقت الحدث، لا وفق ترتيب الوصول.
+```php
+<?php
 
-## التطوير المحلي
+const TOLERANCE_SECONDS = 5 * 60;
 
-تحتاج شركات التوصيل إلى عنوان HTTPS عام. اكشف Worker المحلي عبر نفق تثق به، ثم اضبط ذلك الأصل لدى شركة التوصيل. بالنسبة إلى Yalidine، أنشئ نقطة النهاية على `<tunnel-origin>/webhooks/yalidine` واحفظ سرها في بطاقة webhook الخاصة بالشركة. وبالنسبة إلى ZR Express، أرسل أصل النفق كـ `X-Worker-URL` عند التسجيل، حتى تشير نقطة النهاية المنشأة إلى النفق بدلًا من `localhost`.
+/** Whether a request came from your store, signed with this Signing Secret. */
+function verify_webhook(string $secret, array $headers, string $rawBody): bool
+{
+    $id = $headers['webhook-id'] ?? '';
+    $timestamp = $headers['webhook-timestamp'] ?? '';
+    $signatures = $headers['webhook-signature'] ?? '';
+    if ($id === '' || $signatures === '' || !ctype_digit($timestamp)) return false;
+    if (abs(time() - (int) $timestamp) > TOLERANCE_SECONDS) return false;
 
-يبقى المستقبل المحلي `http://localhost:8787/webhooks/yalidine` أو `/webhooks/zr_express`، لذا يمكنك إعادة إرسال حمولة موقّعة باستخدام `curl` أثناء التطوير:
-
-```bash
-curl -X POST http://localhost:8787/webhooks/yalidine \
-  -H "Content-Type: application/json" \
-  -H "x-yalidine-signature: <hex hmac of the raw body>" \
-  --data-binary @event.json
+    $key = base64_decode(substr($secret, strlen('whsec_')), true);
+    if ($key === false) return false;
+    $expected = base64_encode(hash_hmac('sha256', "$id.$timestamp.$rawBody", $key, true));
+    foreach (explode(' ', $signatures) as $entry) {
+        [$version, $signature] = array_pad(explode(',', $entry, 2), 2, '');
+        if ($version === 'v1' && hash_equals($expected, $signature)) return true;
+    }
+    return false;
+}
 ```
 
-## ذو صلة
+الجسم الخام هو `file_get_contents('php://input')` (وفي Laravel ‏`$request->getContent()`)؛ ومرّر الترويسات بأسماء بأحرف صغيرة.
 
-- [الشحنات](/api/shipments) في مرجع API
-- [الأخطاء](/ar/errors) لغلاف إخفاق التوصيل
-- [شركات التوصيل](/api/delivery-companies) لإعداد المزوّد والمزامنة
+### Python
+
+```python
+import base64
+import hashlib
+import hmac
+import time
+
+TOLERANCE_SECONDS = 5 * 60
+
+
+def verify_webhook(secret: str, headers: dict, raw_body: bytes) -> bool:
+    """Whether a request came from your store, signed with this Signing Secret."""
+    msg_id = headers.get("webhook-id", "")
+    timestamp = headers.get("webhook-timestamp", "")
+    signatures = headers.get("webhook-signature", "")
+    if not msg_id or not signatures or not timestamp.isdigit():
+        return False
+    if abs(time.time() - int(timestamp)) > TOLERANCE_SECONDS:
+        return False
+
+    key = base64.b64decode(secret.removeprefix("whsec_"))
+    signed = f"{msg_id}.{timestamp}.".encode() + raw_body
+    expected = base64.b64encode(hmac.new(key, signed, hashlib.sha256).digest()).decode()
+    return any(
+        version == "v1" and hmac.compare_digest(expected, signature)
+        for version, _, signature in (entry.partition(",") for entry in signatures.split(" "))
+    )
+```
+
+الجسم الخام هو `request.get_data()` في Flask، أو `await request.body()` في FastAPI.
+
+وتتحقق أي مكتبة Standard Webhooks من هذه الطلبات أيضًا، مثل `new Webhook(secret).verify(rawBody, headers)` مع حزمة `standardwebhooks`.
+
+### تغيير مفتاح التوقيع
+
+**تغيير مفتاح التوقيع** في لوحة التحكم، أو `POST /api/event-consumers/{id}/rotate-secret`، يعطي مفتاحًا جديدًا مرة واحدة. ولمدة 24 ساعة يحمل كل طلب توقيعًا بكل مفتاح، فانقل خادمك إلى الجديد خلالها ولن يُرفض شيء. بعدها لا يوقّع إلا المفتاح الجديد.
+
+## أجب بسرعة
+
+جوابك يحدّد ما يحدث بعد ذلك:
+
+| يجيب خادمك | ما يفعله المتجر |
+| --- | --- |
+| أي `2xx` خلال 15 ثانية | تمّ التسليم. |
+| `410 Gone` | يوقف هذا الـ webhook ولا يرسل إليه شيئًا حتى تعيد تشغيله. |
+| غير ذلك: حالة أخرى، أو إعادة توجيه، أو لا جواب في الوقت، أو تعذّر الاتصال | يعيد المحاولة لاحقًا وفق الجدول أدناه. |
+
+أجب بـ `2xx` بمجرد حفظ الحدث، ثم أنجز العمل. لا تُتَّبع إعادات التوجيه: أعطِ العنوان النهائي. وتُحترَم ترويسة `Retry-After` في الرفض، حتى يوم واحد.
+
+## إعادة المحاولة والتكرار والترتيب
+
+يُحاوَل تسليم كل إرسال 8 مرات. تنطلق المحاولة الأولى بعد ثوانٍ من الحدث، وكل فشل ينتظر قبل التالية:
+
+| المحاولة | الانتظار بعد السابقة |
+| --- | --- |
+| 1 | لا انتظار: بعد ثوانٍ من الحدث |
+| 2 | 5 دقائق |
+| 3 | 30 دقيقة |
+| 4 | ساعتان |
+| 5 | 6 ساعات |
+| 6 | 12 ساعة |
+| 7 | 24 ساعة |
+| 8 | 24 ساعة |
+
+بعد آخر فشل يصير الإرسال **متخلًّى عنه**: يبقى في لوحة التحكم حيث يمكنك إعادة محاولته. تجري إعادات المحاولة كل خمس دقائق، فقد يطول الانتظار حتى خمس دقائق إضافية. والـ webhook الذي تفشل كل محاولاته طوال ثلاثة أيام يُوقَف؛ أعد تشغيله من لوحة التحكم بعد إصلاح خادمك.
+
+التسليم **مرة واحدة على الأقل** وبلا **ترتيب مضمون**:
+
+- قد تستقبل الحدث مرتين. احفظ `webhook-id` ما عالجته وتجاهله في المرة الثانية.
+- قد يصل حدثان بغير ترتيبهما. رتّبهما حسب `sequence`، أو حسب `occurredAt` لوقت وقوعهما.
+
+## الإرسال من جديد
+
+من **الإعدادات ← التكاملات ← الإرسالات**، أو عبر الـ API:
+
+- **أعد المحاولة** لإرسال واحد: `POST /api/event-deliveries/{id}/retry`.
+- **أعد الإرسال…** لمجال من الأحداث: `POST /api/event-consumers/{id}/replay` مع `fromSequence` و`toSequence`، بحد أقصى 1000 حدث في كل مرة. وتُشمل الأحداث المسجَّلة أثناء توقف الـ webhook.
+
+الحدث المُرسَل من جديد يحتفظ بمعرّفه، فيتعرّف عليه خادمك.
+
+## الأحداث التجريبية
+
+**إرسال حدث تجريبي** في لوحة التحكم، أو `POST /api/event-consumers/{id}/test` مع `type` اختياري، يرسل فورًا إلى خادمك مثالًا لنوع حدث، موقَّعًا كغيره، ويعرض ما أجاب به خادمك. للحدث التجريبي `sequence` يساوي `0` و`id` يبدأ بـ `test_`؛ وهو ليس في سجل أحداثك.
+
+## أنواع الأحداث
+
+| نوع الحدث | متى |
+| --- | --- |
+| `order.created` | تم تقديم طلب: في المتجر، أو في لوحة التحكم، أو عبر الـ API، أو بواسطة وكيل ذكاء اصطناعي. |
+| `order.updated` | عُدّل زبون الطلب أو وجهته أو ملاحظاته. |
+| `order.confirmed` | أكّد الزبون الطلب، عادةً عبر الهاتف. |
+| `order.unreachable` | تعذّر الوصول إلى الزبون لتأكيد الطلب. |
+| `order.preparing` | الطلب قيد التحضير. |
+| `order.ready` | الطلب مغلَّف وجاهز للتسليم إلى التوصيل. |
+| `order.cancelled` | أُلغي الطلب. |
+| `order.line_returned` | رُفضت وحدات من سطر في الطلب عند الباب وعادت. |
+| `order.deleted` | حُذف الطلب؛ ويحمله الحدث كما كان. |
+| `shipment.handed_off` | سُلّم الطلب إلى شركة توصيل أو إلى أحد سائقي المتجر. |
+| `shipment.out_for_delivery` | خرج الطرد نحو الزبون. |
+| `shipment.delivery_failed` | فشلت محاولة لتوصيل الطرد. |
+| `shipment.delivered` | سُلّم الطرد ودُفع ثمنه عند الاستلام. |
+| `shipment.return_started` | الطرد في طريق العودة إلى المتجر. |
+| `shipment.returned` | عاد الطرد إلى المتجر. |
+| `shipment.cancelled` | أُلغيت الشحنة قبل توصيلها. |
+| `shipment.voided` | أُلغي التسليم: الطلب لم يعد لدى التوصيل. |
+
+المخطط الكامل لكل نوع في [مرجع الـ API](/api) تحت Webhooks.
+
+## انظر أيضًا
+
+- [المصادقة](/ar/authentication) لمفاتيح الـ API وصلاحية `settings:integrations`
+- [الأخطاء](/ar/errors) لصيغة الأخطاء
+- [Webhooks شركات التوصيل](/ar/carrier-webhooks) للتسليمات التي تبلّغ عنها شركات التوصيل

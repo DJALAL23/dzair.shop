@@ -1,0 +1,114 @@
+---
+description: Receive and verify Yalidine and ZR Express delivery events.
+---
+
+# Carrier webhooks
+
+Carriers push delivery updates to CodFlow. The server verifies the signature, stores the events in an inbox, answers the carrier immediately, and processes the events after the response. Your integration reads the resulting shipment state through the API.
+
+To receive your own store's events on your server, read [Webhooks](/webhooks) instead.
+
+Inbound webhooks exist for **Yalidine** and **ZR Express**. NOEST and EcoTrack do not send webhooks; their shipments are synced every five minutes by a cron job and on demand through the shipment sync endpoints.
+
+## Endpoints
+
+| Carrier | Endpoint | Delivery shape | Signature |
+| --- | --- | --- | --- |
+| Yalidine | `POST /webhooks/yalidine` | A batch of events of one type | HMAC-SHA256 in `x-yalidine-signature` |
+| Yalidine | `GET /webhooks/yalidine` | CRC challenge | Echoes `crc_token` as plain text |
+| ZR Express | `POST /webhooks/zr_express` | One Svix event per request | Svix HMAC-SHA256 |
+
+The paths are the URLs the carriers hold. Do not put them behind auth: the carriers cannot send your API key. The signature is the authentication.
+
+## How intake works
+
+<Stepper>
+
+1. **Carrier to CodFlow**
+
+   The carrier sends a signed `POST` to `/webhooks/yalidine` or `/webhooks/zr_express`.
+
+1. **Verify and split**
+
+   CodFlow checks the signature against the company's secret and splits the carrier envelope into individual events.
+
+1. **Store in the inbox**
+
+   Each event goes into `webhook_events`, keyed by its provider event ID.
+
+1. **Answer the carrier**
+
+   CodFlow returns `200 {"received":true}` without waiting for processing.
+
+1. **Process after the response**
+
+   A few seconds later the events queue wakes the drain, which applies each event's shipment milestones and records their Business Events. The five-minute schedule runs the same drain, so an event a lost wake missed is still processed.
+
+</Stepper>
+
+The carrier gets its `200` as soon as the events are stored. Processing failures do not fail the webhook; the drain retries them on the inbox's schedule. Yalidine requires an answer within 10 seconds and retries a failed delivery seven times over 40 hours, so this split matters.
+
+## Set up a webhook
+
+Both flows start on the delivery company's credentials page in the dashboard.
+
+### Yalidine
+
+1. Open the company's credentials page and copy the receiver URL from the webhook setup card.
+2. In Yalidine's Webhooks Dashboard, create an endpoint with that URL.
+3. Subscribe to the event types you need. Yalidine validates the URL with the CRC challenge.
+4. Copy the signing secret from Yalidine back into the card and save it. Store the same value in your secret manager.
+
+### ZR Express
+
+1. Open the company's credentials page and choose **Register webhook**.
+2. The server registers the endpoint with ZR Express and fetches the signing secret for you.
+3. The card shows the endpoint as registered. Use **Unregister** to remove it.
+
+Send a test event from the carrier and confirm the delivery company receives it.
+
+A webhook needs its secret. A delivery no company's secret verifies is refused with `401` and never stored: what a carrier reports becomes a Business Event that merchants' systems and customers may be told about, so it must be proven to come from the carrier. If ZR Express does not give its signing secret, the registration is undone and nothing is kept; register again.
+
+## Signature verification
+
+### Yalidine
+
+Yalidine signs the raw request body with HMAC-SHA256 using the company's webhook secret. The signature arrives in `x-yalidine-signature` (or `x_yalidine_signature`). The server accepts lowercase hex, uppercase hex and base64 representations, and compares in constant time.
+
+The GET challenge is separate: when Yalidine sends `subscribe` and `crc_token` query parameters, the server echoes the token as plain text. This lets Yalidine verify the URL before it starts sending events.
+
+### ZR Express
+
+ZR Express uses Svix. The signed content is:
+
+```text
+{svix-id}.{svix-timestamp}.{rawBody}
+```
+
+The signature arrives in `svix-signature`, and the server accepts any of the space-separated `v1,<base64>` entries. A missing `svix-id`, `svix-timestamp` or `svix-signature` is rejected.
+
+## Idempotency and ordering
+
+- Yalidine batches many events in one request. Each event has its own `event_id`, which is the inbox key.
+- ZR Express sends one event per request. `svix-id` is the inbox key.
+- Duplicate deliveries are ignored by the inbox, so a carrier retry cannot apply the same event twice.
+- Events can arrive out of order. The server applies shipment milestones by their event timestamp, not by arrival order.
+
+## Local development
+
+Carriers need a public HTTPS URL. Expose your local Worker with a tunnel you trust, then configure that origin with the carrier. For Yalidine, create the endpoint at `<tunnel-origin>/webhooks/yalidine` and save its secret in the company's webhook card. For ZR Express, send the tunnel origin as `X-Worker-URL` when you register, so the endpoint it creates points at the tunnel instead of `localhost`.
+
+The local receiver is still `http://localhost:8787/webhooks/yalidine` or `/webhooks/zr_express`, so you can replay a signed payload with `curl` while developing:
+
+```bash
+curl -X POST http://localhost:8787/webhooks/yalidine \
+  -H "Content-Type: application/json" \
+  -H "x-yalidine-signature: <hex hmac of the raw body>" \
+  --data-binary @event.json
+```
+
+## Related
+
+- [Shipments](/api/shipments) in the API reference
+- [Errors](/errors) for the delivery failure envelope
+- [Delivery companies](/api/delivery-companies) for provider configuration and sync

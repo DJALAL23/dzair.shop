@@ -39,6 +39,7 @@ const config: ZudokuConfig = {
             { label: "Getting started", href: "/getting-started" },
             { label: "Authentication", href: "/authentication" },
             { label: "Webhooks", href: "/webhooks" },
+            { label: "Carrier webhooks", href: "/carrier-webhooks" },
             { label: "MCP server", href: "/mcp" },
           ],
         },
@@ -92,6 +93,8 @@ const config: ZudokuConfig = {
       "http",
       "html",
       "astro",
+      "php",
+      "python",
     ],
   },
   theme: {

@@ -14,7 +14,7 @@ import { EVENT_DATA_SCHEMAS } from "./catalogue";
 import { exampleEvent } from "./examples";
 import { eventComponentName } from "./webhooks-openapi";
 
-type Webhook = { post: { tags: string[]; description: string; parameters: Array<{ name: string; in: string; required: boolean }>; requestBody: { required: boolean; content: { "application/json": { schema: { $ref: string }; example: unknown } } }; responses: Record<string, unknown> } };
+type Webhook = { post: { tags: string[]; summary: string; description: string; parameters: Array<{ name: string; in: string; required: boolean }>; requestBody: { required: boolean; content: { "application/json": { schema: { $ref: string }; example: unknown } } }; responses: Record<string, unknown> } };
 let doc: OpenApiDocument & { webhooks: Record<string, Webhook> };
 
 beforeAll(async () => {
@@ -35,7 +35,8 @@ describe("the webhooks section", () => {
   it.each(EVENT_TYPES)("describes %s as the catalogue says, signed", (type) => {
     const { post } = doc.webhooks[type]!;
     expect(post.tags).toEqual(["Events"]);
-    expect(post.description.startsWith(EVENT_CATALOGUE[type].summary)).toBe(true);
+    expect(post.summary).toBe(EVENT_CATALOGUE[type].summary);
+    expect(post.description).toContain(`\`${type}\`, \`${EVENT_CATALOGUE[type].subject}.*\` or \`*\``);
     expect(post.parameters.map((p) => [p.name, p.in, p.required])).toEqual([
       ["webhook-id", "header", true],
       ["webhook-timestamp", "header", true],

@@ -22,6 +22,7 @@ const corePages: Page[] = [
   { slug: "/authentication", en: "Authentication", fr: "Authentification", ar: "المصادقة" },
   { slug: "/errors", en: "Errors", fr: "Erreurs", ar: "الأخطاء" },
   { slug: "/webhooks", en: "Webhooks", fr: "Webhooks", ar: "Webhooks" },
+  { slug: "/carrier-webhooks", en: "Carrier webhooks", fr: "Webhooks des transporteurs", ar: "Webhooks شركات التوصيل" },
   { slug: "/mcp", en: "MCP server", fr: "Serveur MCP", ar: "خادم MCP" },
 ];
 

@@ -103,6 +103,7 @@ CodFlow v1.1.0 — here's what works today:
 - ✅ Carrier company management (credentials, stop-desk sync, reconciliation)
 - ✅ Team RBAC with granular permission scopes and API keys
 - ✅ Meta Pixel & CAPI configuration UI
+- ✅ Webhooks for your own systems: every order and delivery event, signed (Standard Webhooks), retried for about three days, replayable, with a test send and each delivery's log
 - ✅ Abandoned order recovery
 - ✅ MCP agent connection management
 - ✅ Legal pages editor — TipTap rich-text, per-locale (store's own language first), one-click reset to the current CodFlow template, and the business-details form templates render from
@@ -303,6 +304,7 @@ wrangler secret put STORE_API_KEY
                │              carrier calls│
                │                     │     └─────────▶ Meta Conversions API
                │                     │                 (Purchase @ delivered)
+               │                     │                 + the merchant's webhooks (signed)
                │                     │
                │              ┌──────▼─────┐
                │              │ Carriers    │   Yalidine • ZR Express  (webhooks)
