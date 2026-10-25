@@ -16,7 +16,6 @@ describe("settings model", () => {
       "verification",
       "bot_protection",
       "email",
-      "integrations",
       "api",
     ]);
 
@@ -156,5 +155,15 @@ describe("what shoppers can send with a review", () => {
     expect(reviewMediaSettings("voice", 4, 90)).toEqual({ reviewMaxPhotos: 0, reviewVoiceMaxSeconds: 90 });
     expect(reviewMediaSettings("photos_voice", 9, 120)).toEqual({ reviewMaxPhotos: 6, reviewVoiceMaxSeconds: 120 });
     expect(reviewMediaSettings("photos", 0, 30)).toEqual({ reviewMaxPhotos: 1, reviewVoiceMaxSeconds: null });
+  });
+});
+
+describe("a link into Settings", () => {
+  it("opens the section it names, and General for anything else", async () => {
+    const { categoryFromSearch } = await import("./model");
+    expect(categoryFromSearch("?section=analytics")).toBe("analytics");
+    expect(categoryFromSearch("?section=integrations")).toBe("general");
+    expect(categoryFromSearch("?section=nope")).toBe("general");
+    expect(categoryFromSearch("")).toBe("general");
   });
 });

@@ -10,7 +10,7 @@ Les transporteurs qui signalent des livraisons à votre boutique, c'est l'autre 
 
 ## Ajouter un webhook
 
-Dans le tableau de bord, ouvrez **Paramètres → Intégrations → Ajouter un webhook**, donnez-lui un nom, l'URL de votre endpoint et les événements qu'il reçoit. Par l'API, `POST /api/event-consumers` avec le scope `settings:integrations` :
+Dans le tableau de bord, ouvrez **Intégrations** dans le menu latéral et choisissez **Ajouter un webhook** ; donnez-lui un nom, l'URL de votre endpoint et les événements qu'il reçoit. Par l'API, `POST /api/event-consumers` avec le scope `settings:integrations` :
 
 ```bash
 curl -X POST http://localhost:8787/api/event-consumers \
@@ -300,7 +300,7 @@ Les livraisons sont **au moins une fois** et **sans ordre garanti** :
 
 ## Livrer à nouveau
 
-Depuis **Paramètres → Intégrations → Envois**, ou par l'API :
+Depuis **Intégrations → Envois** dans le tableau de bord, ou par l'API :
 
 - **Réessayer** une livraison : `POST /api/event-deliveries/{id}/retry`.
 - **Renvoyer…** une plage d'événements : `POST /api/event-consumers/{id}/replay` avec `fromSequence` et `toSequence`, au plus 1 000 événements à la fois. Les événements enregistrés pendant que le webhook était arrêté sont inclus.

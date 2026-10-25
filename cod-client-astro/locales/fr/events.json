@@ -5,7 +5,8 @@
     "none": "Rien d'envoyé pour l'instant.",
     "deliveries": "Qui l'a reçu",
     "no_deliveries": "Aucune intégration ne reçoit cet événement.",
-    "load_error": "Les événements n'ont pas pu être chargés."
+    "load_error": "Les événements n'ont pas pu être chargés.",
+    "manage": "Gérer les intégrations"
   },
   "types": {
     "order": {
@@ -82,7 +83,6 @@
     "stop": "Arrêter",
     "start": "Démarrer",
     "deliveries": "Envois",
-    "hide_deliveries": "Masquer les envois",
     "only_dead": "Abandonnés seulement",
     "all": "Tous",
     "load_more": "Afficher plus",
@@ -92,7 +92,8 @@
     "edit": "Modifier",
     "more": "Autres actions pour {name}",
     "rotate": "Changer le secret de signature",
-    "delete": "Supprimer"
+    "delete": "Supprimer",
+    "switch": "{name} reçoit les événements"
   },
   "stop_confirm": {
     "title": "Arrêter {name} ?",
@@ -104,7 +105,8 @@
     "event": "Événement n° {sequence}",
     "attempts_one": "{count} tentative",
     "attempts_many": "{count} tentatives",
-    "attempts_other": "{count} tentatives"
+    "attempts_other": "{count} tentatives",
+    "title": "Envois vers {name}"
   },
   "replay": {
     "title": "Renvoyer des événements",
@@ -186,5 +188,21 @@
     "delivered": "Livré : votre serveur a répondu HTTP {status} en {ms} ms.",
     "failed": "Non livré :",
     "answer": "Sa réponse"
+  },
+  "page": {
+    "subtitle": "Envoyez vos commandes et vos livraisons aux outils que vous utilisez, en temps réel.",
+    "empty_body": "Votre serveur reçoit chaque étape des commandes et des livraisons en temps réel.",
+    "figures": {
+      "active": "Actives",
+      "due": "En cours",
+      "dead": "Abandonnés"
+    },
+    "native_title": "Intégrations natives",
+    "native_badge": "Intégrée",
+    "meta_hint": "Vos achats, envoyés à Meta pour mesurer vos publicités.",
+    "configure": "Ouvrir ses paramètres",
+    "webhooks_title": "Webhooks",
+    "webhooks_subtitle": "Vos propres systèmes, informés des événements que vous choisissez.",
+    "webhooks_none": "Aucun webhook pour l'instant"
   }
 }

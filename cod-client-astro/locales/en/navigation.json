@@ -27,7 +27,8 @@
     "checkout_form": "Checkout form",
     "whatsapp": "WhatsApp button",
     "online_store": "Online store",
-    "delivery_labels": "Labels"
+    "delivery_labels": "Labels",
+    "integrations": "Integrations"
   },
   "navbar": {
     "search_placeholder": "Search orders, customers, tracking…"
@@ -54,5 +55,8 @@
     "arabic": "العربية",
     "english": "English",
     "french": "Français"
+  },
+  "badge": {
+    "new": "New"
   }
 }

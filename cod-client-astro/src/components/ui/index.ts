@@ -15,6 +15,7 @@ export { PageHeader } from "./page-header";
 export { Badge, type BadgeTone } from "./badge";
 export { Alert } from "./alert";
 export { EmptyState } from "./empty-state";
+export { NewBadge } from "./new-badge";
 export { StatCard, StatGroup, type StatCardTone } from "./stat-card";
 export {
   DropdownMenu,

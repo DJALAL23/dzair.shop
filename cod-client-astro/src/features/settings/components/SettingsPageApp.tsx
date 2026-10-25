@@ -7,7 +7,7 @@ import { useT } from "@/i18n/react";
 import { getMyStore } from "@/features/settings/api";
 import { settingsErrorMessage } from "@/features/settings/model";
 import { saveMyStore } from "@/features/settings/store-summary";
-import type { CategoryId } from "@/features/settings/model";
+import { categoryFromSearch, type CategoryId } from "@/features/settings/model";
 import type { StoreConfig, UpdateStoreData } from "@/features/settings/types";
 import { SettingsSidebar } from "@/features/settings/components/SettingsSidebar";
 import { GeneralSettings } from "@/features/settings/components/GeneralSettings";
@@ -22,7 +22,6 @@ import { VerificationSettings } from "@/features/settings/components/Verificatio
 import { TurnstileSettings } from "@/features/settings/components/TurnstileSettings";
 import { EmailSettings } from "@/features/settings/components/EmailSettings";
 import { ApiSettings } from "@/features/settings/components/ApiSettings";
-import { IntegrationsSettings } from "@/features/events/components/IntegrationsSettings";
 
 function SettingsContent() {
   const t = useT("settings");
@@ -31,7 +30,7 @@ function SettingsContent() {
   const identity = useIdentity();
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
-  const [activeCategory, setActiveCategory] = useState<CategoryId>("general");
+  const [activeCategory, setActiveCategory] = useState<CategoryId>(() => categoryFromSearch(window.location.search));
 
   const isAdmin = identity?.role === "admin";
 
@@ -126,8 +125,6 @@ function SettingsContent() {
         return <TurnstileSettings />;
       case "email":
         return <EmailSettings />;
-      case "integrations":
-        return <IntegrationsSettings />;
       case "api":
         return <ApiSettings storeConfig={storeConfig} />;
       default:

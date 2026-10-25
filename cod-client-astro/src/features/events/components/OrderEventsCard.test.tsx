@@ -75,11 +75,13 @@ describe("an order's events, as its integrations were told", () => {
     expect(items[2]).toContain("Delivered");
     expect(items[2]).toContain("Yalidine, reported by the carrier");
     expect(button("Who received it")).toBeUndefined();
+    expect(host.querySelector('a[href="/integrations"]')).toBeNull();
   });
 
   it("opens an event on who received it, for those who manage integrations", async () => {
     server.events = [event("e1", "order.created", { kind: "shopper", id: null, name: null }, "storefront")];
     await mount(true);
+    expect(host.querySelector('a[href="/integrations"]')!.textContent).toBe("Manage integrations");
     await act(async () => button("Who received it")!.click());
     expect(server.paths).toContain("/api/event-deliveries?eventId=e1");
     expect(text()).toContain("Meta conversions");

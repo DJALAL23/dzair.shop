@@ -21,6 +21,7 @@ import {
   Ticket,
   Truck,
   Users,
+  Webhook,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
@@ -238,6 +239,14 @@ export function useNavSections(): NavSection[] {
     {
       id: "admin",
       items: [
+        {
+          kind: "leaf",
+          href: "/integrations",
+          label: tN("sidebar.integrations"),
+          icon: Webhook,
+          scope: "settings:integrations",
+          badge: tN("badge.new"),
+        },
         {
           kind: "leaf",
           href: "/team",

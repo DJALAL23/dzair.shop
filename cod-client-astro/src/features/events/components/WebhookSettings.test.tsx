@@ -50,7 +50,7 @@ const notifications = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notify: notifications }));
 
 import { ConfirmDialogProvider } from "@/components/ui";
-import { IntegrationsSettings } from "./IntegrationsSettings";
+import { Integrations } from "./Integrations";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -89,7 +89,7 @@ async function mount() {
   await act(async () => {
     root.render(
       <ConfirmDialogProvider>
-        <IntegrationsSettings />
+        <Integrations />
       </ConfirmDialogProvider>,
     );
   });
@@ -230,7 +230,8 @@ describe("a webhook in the list", () => {
     server.consumers = [webhook({})];
     server.test = { event: { id: "test_1", type: "shipment.handed_off" }, outcome: "delivered", httpStatus: 200, durationMs: 42, response: '{"ok":true}', error: null };
     await mount();
-    await click(button("Send test event", row("hook"))!);
+    await click(button("More actions for Order system")!);
+    await click(button("Send test event")!);
     expect(dialog()!.textContent).toContain("https://erp.example.dz/hooks");
     expect(dialog()!.querySelector<HTMLElement & { value: string }>("select")!.value).toBe("shipment.handed_off");
     await click(button("Send", dialog()!)!);
@@ -262,6 +263,9 @@ describe("a built-in Consumer", () => {
     server.consumers = [meta()];
     await mount();
     const actions = buttons(row("meta-conversions")).map((b) => b.textContent?.trim() || b.getAttribute("aria-label"));
-    expect(actions).toEqual(["Deliveries", "Deliver again…", "Stop"]);
+    expect(actions).toEqual(["Deliveries", "Meta conversions receives events", "More actions for Meta conversions"]);
+    await click(button("More actions for Meta conversions")!);
+    const items = Array.from(document.body.querySelectorAll('[role="menuitem"]')).map((item) => item.textContent?.trim());
+    expect(items).toEqual(["Deliver again…", "Open its settings"]);
   });
 });

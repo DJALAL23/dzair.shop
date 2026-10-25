@@ -10,7 +10,7 @@ description: استقبل أحداث متجرك على خادمك، موقَّع
 
 ## إضافة webhook
 
-في لوحة التحكم افتح **الإعدادات ← التكاملات ← إضافة webhook**، وأعطه اسمًا وعنوان URL لخادمك والأحداث التي يستقبلها. وعبر الـ API، `POST /api/event-consumers` بصلاحية `settings:integrations`:
+في لوحة التحكم افتح **التكاملات** من القائمة الجانبية واختر **إضافة webhook**، وأعطه اسمًا وعنوان URL لخادمك والأحداث التي يستقبلها. وعبر الـ API، `POST /api/event-consumers` بصلاحية `settings:integrations`:
 
 ```bash
 curl -X POST http://localhost:8787/api/event-consumers \
@@ -300,7 +300,7 @@ def verify_webhook(secret: str, headers: dict, raw_body: bytes) -> bool:
 
 ## الإرسال من جديد
 
-من **الإعدادات ← التكاملات ← الإرسالات**، أو عبر الـ API:
+من **التكاملات ← الإرسالات** في لوحة التحكم، أو عبر الـ API:
 
 - **أعد المحاولة** لإرسال واحد: `POST /api/event-deliveries/{id}/retry`.
 - **أعد الإرسال…** لمجال من الأحداث: `POST /api/event-consumers/{id}/replay` مع `fromSequence` و`toSequence`، بحد أقصى 1000 حدث في كل مرة. وتُشمل الأحداث المسجَّلة أثناء توقف الـ webhook.

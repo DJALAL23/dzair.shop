@@ -5,7 +5,8 @@
     "none": "Nothing sent yet.",
     "deliveries": "Who received it",
     "no_deliveries": "No integration receives this event.",
-    "load_error": "The events could not be loaded."
+    "load_error": "The events could not be loaded.",
+    "manage": "Manage integrations"
   },
   "types": {
     "order": {
@@ -80,7 +81,6 @@
     "stop": "Stop",
     "start": "Start",
     "deliveries": "Deliveries",
-    "hide_deliveries": "Hide deliveries",
     "only_dead": "Given up only",
     "all": "All",
     "load_more": "Show more",
@@ -90,7 +90,8 @@
     "edit": "Edit",
     "more": "More actions for {name}",
     "rotate": "Change signing secret",
-    "delete": "Delete"
+    "delete": "Delete",
+    "switch": "{name} receives events"
   },
   "stop_confirm": {
     "title": "Stop {name}?",
@@ -101,7 +102,8 @@
     "none": "No deliveries yet.",
     "event": "Event #{sequence}",
     "attempts_one": "{count} attempt",
-    "attempts_other": "{count} attempts"
+    "attempts_other": "{count} attempts",
+    "title": "Deliveries to {name}"
   },
   "replay": {
     "title": "Deliver events again",
@@ -182,5 +184,21 @@
     "delivered": "Delivered: your endpoint answered HTTP {status} in {ms} ms.",
     "failed": "Not delivered:",
     "answer": "Its answer"
+  },
+  "page": {
+    "subtitle": "Send your orders and deliveries to the tools you use, as they happen.",
+    "empty_body": "Your server receives each order and delivery step as it happens.",
+    "figures": {
+      "active": "Active",
+      "due": "On their way",
+      "dead": "Given up"
+    },
+    "native_title": "Native integrations",
+    "native_badge": "Native",
+    "meta_hint": "Your purchases, sent to Meta to measure your ads.",
+    "configure": "Open its settings",
+    "webhooks_title": "Webhooks",
+    "webhooks_subtitle": "Your own systems, told of the events you choose.",
+    "webhooks_none": "No webhooks yet"
   }
 }

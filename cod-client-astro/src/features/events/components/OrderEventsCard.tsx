@@ -34,7 +34,17 @@ export function OrderEventsCard({ orderId, canSeeDeliveries }: { orderId: string
   }, [orderId]);
 
   return (
-    <Card title={t("card.title")} subtitle={t("card.subtitle")}>
+    <Card
+      title={t("card.title")}
+      subtitle={t("card.subtitle")}
+      action={
+        canSeeDeliveries && (
+          <a href="/integrations" className="text-xs font-semibold text-foreground underline-offset-4 hover:underline">
+            {t("card.manage")}
+          </a>
+        )
+      }
+    >
       {failed ? (
         <p role="alert" className="text-sm text-destructive">{t("card.load_error")}</p>
       ) : events === null ? (

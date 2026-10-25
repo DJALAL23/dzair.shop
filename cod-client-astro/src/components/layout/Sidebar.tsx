@@ -5,6 +5,7 @@ import { useIdentity } from "@/features/auth/components/RequireAuth";
 import { cachedStoreSummary, readStoreSummary, watchStoreSummary, type StoreSummary } from "@/features/settings/store-summary";
 import { useT } from "@/i18n/react";
 import { Logo } from "@/components/brand/Logo";
+import { NewBadge } from "@/components/ui/new-badge";
 import {
   isCurrentPath,
   useNavSections,
@@ -165,6 +166,11 @@ function NavItem({ item, currentPath, onNavigate }: { item: NavNode; currentPath
       <a href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={`${ROW} ${active ? ROW_ACTIVE : ROW_IDLE}`}>
         <NavIcon icon={item.icon} active={active} />
         <span className="truncate">{item.label}</span>
+        {item.badge && (
+          <span className="ms-auto">
+            <NewBadge label={item.badge} />
+          </span>
+        )}
       </a>
     </li>
   );

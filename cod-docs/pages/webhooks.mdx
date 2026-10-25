@@ -10,7 +10,7 @@ Carriers reporting deliveries to your store is the other direction; read [Carrie
 
 ## Add a webhook
 
-In the dashboard, open **Settings → Integrations → Add webhook**, give it a name, the URL of your endpoint and the events it receives. Through the API, `POST /api/event-consumers` with the `settings:integrations` scope:
+In the dashboard, open **Integrations** in the sidebar and choose **Add webhook**; give it a name, the URL of your endpoint and the events it receives. Through the API, `POST /api/event-consumers` with the `settings:integrations` scope:
 
 ```bash
 curl -X POST http://localhost:8787/api/event-consumers \
@@ -300,7 +300,7 @@ Deliveries are **at least once** and in **no promised order**:
 
 ## Delivering again
 
-From **Settings → Integrations → Deliveries**, or through the API:
+From **Integrations → Deliveries** in the dashboard, or through the API:
 
 - **Try again** one Delivery: `POST /api/event-deliveries/{id}/retry`.
 - **Deliver again** a range of events: `POST /api/event-consumers/{id}/replay` with `fromSequence` and `toSequence`, at most 1,000 events at a time. Events recorded while the webhook was stopped are included.

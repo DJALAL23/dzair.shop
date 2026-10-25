@@ -5,7 +5,8 @@
     "none": "لم يُرسل شيء بعد.",
     "deliveries": "من استلمه",
     "no_deliveries": "لا يستقبل أي تكامل هذا الحدث.",
-    "load_error": "تعذّر تحميل الأحداث."
+    "load_error": "تعذّر تحميل الأحداث.",
+    "manage": "إدارة التكاملات"
   },
   "types": {
     "order": {
@@ -88,7 +89,6 @@
     "stop": "إيقاف",
     "start": "تشغيل",
     "deliveries": "الإرسالات",
-    "hide_deliveries": "إخفاء الإرسالات",
     "only_dead": "المتوقّفة فقط",
     "all": "الكل",
     "load_more": "عرض المزيد",
@@ -98,7 +98,8 @@
     "edit": "تعديل",
     "more": "إجراءات أخرى لـ {name}",
     "rotate": "تغيير مفتاح التوقيع",
-    "delete": "حذف"
+    "delete": "حذف",
+    "switch": "{name} يستقبل الأحداث"
   },
   "stop_confirm": {
     "title": "إيقاف {name}؟",
@@ -113,7 +114,8 @@
     "attempts_two": "محاولتان",
     "attempts_few": "{count} محاولات",
     "attempts_many": "{count} محاولة",
-    "attempts_other": "{count} محاولة"
+    "attempts_other": "{count} محاولة",
+    "title": "الإرسالات إلى {name}"
   },
   "replay": {
     "title": "إعادة إرسال الأحداث",
@@ -198,5 +200,21 @@
     "delivered": "تم التسليم: أجاب خادمك HTTP {status} خلال {ms} ms.",
     "failed": "لم يُسلَّم:",
     "answer": "جوابه"
+  },
+  "page": {
+    "subtitle": "أرسل طلباتك وعمليات التوصيل إلى الأدوات التي تستخدمها، لحظة حدوثها.",
+    "empty_body": "يستقبل خادمك كل خطوة من الطلبات والتوصيل لحظة حدوثها.",
+    "figures": {
+      "active": "تعمل",
+      "due": "في الطريق",
+      "dead": "متوقّفة"
+    },
+    "native_title": "تكاملات مدمجة",
+    "native_badge": "مدمج",
+    "meta_hint": "مشترياتك تُرسل إلى Meta لقياس إعلاناتك.",
+    "configure": "فتح إعداداته",
+    "webhooks_title": "Webhooks",
+    "webhooks_subtitle": "أنظمتك الخاصة، تُبلَّغ بالأحداث التي تختارها.",
+    "webhooks_none": "لا يوجد webhook بعد"
   }
 }

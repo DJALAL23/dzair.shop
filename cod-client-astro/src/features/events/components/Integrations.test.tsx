@@ -48,7 +48,7 @@ const notifications = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("@/lib/notify", () => ({ notify: notifications }));
 
 import { ConfirmDialogProvider } from "@/components/ui";
-import { IntegrationsSettings } from "./IntegrationsSettings";
+import { Integrations } from "./Integrations";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -87,7 +87,7 @@ async function mount() {
   await act(async () => {
     root.render(
       <ConfirmDialogProvider>
-        <IntegrationsSettings />
+        <Integrations />
       </ConfirmDialogProvider>,
     );
   });
@@ -97,6 +97,11 @@ const settle = () => act(async () => {});
 const text = () => document.body.textContent ?? "";
 const button = (label: string, scope: Pick<Element, "querySelectorAll"> = document.body) =>
   Array.from(scope.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent?.trim() === label)!;
+const toggle = (id: string) => row(id).querySelector<HTMLButtonElement>('[role="switch"]')!;
+const menu = async (id: string, label: string) => {
+  await click(row(id).querySelector<HTMLButtonElement>('button[aria-label^="More actions for"]')!);
+  return button(label);
+};
 const row = (id: string) => host.querySelector<HTMLElement>(`[data-consumer="${id}"]`)!;
 const click = async (target: HTMLElement) => {
   await act(async () => target.click());
@@ -109,7 +114,7 @@ const type = async (input: HTMLInputElement, value: string) => {
   });
 };
 
-describe("Settings → Integrations", () => {
+describe("the Integrations page", () => {
   it("lists each Consumer with how it stands", async () => {
     server.consumers = [
       consumer({ deliveries: { due: 2, dead: 3 } }),
@@ -123,36 +128,81 @@ describe("Settings → Integrations", () => {
     expect(row("meta-conversions").textContent).toContain("3 given up");
     expect(row("hook").textContent).toContain("Stopped: every delivery failed for 3 days");
     expect(row("hook").textContent).not.toContain("webhook_future");
-    expect(button("Deliver again…", row("hook"))).toBeUndefined();
+    expect(row("hook").querySelector('button[aria-label^="More actions for"]')).toBeNull();
     expect(row("ads").textContent).toContain("Ads account");
-    expect(row("ads").textContent).toContain("Meta conversions");
+    expect(row("ads").textContent).toContain("Your purchases, sent to Meta to measure your ads.");
   });
 
-  it("says so when no integration receives the events", async () => {
+  it("says so when no integration receives the events, and offers to add a webhook right there", async () => {
     await mount();
-    expect(text()).toContain("No integration receives your store's events yet.");
+    expect(text()).toContain("No webhooks yet");
+    expect(text()).toContain("Your server receives each order and delivery step as it happens.");
+    expect(Array.from(host.querySelectorAll("button")).filter((b) => b.textContent?.trim() === "Add webhook")).toHaveLength(2);
+    expect(host.querySelector("h1")!.textContent).toContain("Integrations");
+    expect(host.querySelector("header")!.textContent).toContain("New");
+    expect(text()).not.toContain("Native integrations");
+  });
+
+  it("sets the native integrations apart from the webhooks, and sends each native one to its own settings", async () => {
+    server.consumers = [
+      consumer({}),
+      consumer({ id: "hook", kind: "webhook", name: "Order system", builtIn: false, webhook: { url: "https://erp.example.dz/hooks", signingSecret: "••••abcd", previousSecretSignsUntil: null } as EventConsumer["webhook"] }),
+    ];
+    await mount();
+    const [native, hooks] = Array.from(host.querySelectorAll("section")).filter((section) => section.querySelector("[data-consumer]"));
+    expect(native.textContent).toContain("Native integrations");
+    expect(native.querySelector("[data-consumer]")!.getAttribute("data-consumer")).toBe("meta-conversions");
+    expect(row("meta-conversions").textContent).toContain("Native");
+    expect(row("meta-conversions").textContent).toContain("Your purchases, sent to Meta to measure your ads.");
+    expect(hooks.textContent).toContain("Webhooks");
+    expect(hooks.querySelector("[data-consumer]")!.getAttribute("data-consumer")).toBe("hook");
+    expect(row("hook").textContent).not.toContain("Native");
+
+    await menu("meta-conversions", "Open its settings");
+    expect(document.body.querySelector<HTMLAnchorElement>('a[href="/settings?section=analytics"]')!.textContent).toBe("Open its settings");
+  });
+
+  it("sums up how the integrations stand: how many work, what is on its way, what was given up", async () => {
+    server.consumers = [
+      consumer({ deliveries: { due: 2, dead: 3 } }),
+      consumer({ id: "hook", name: "Order hook", enabled: false, disabledReason: "failing", deliveries: { due: 0, dead: 4 } }),
+      consumer({ id: "ads", name: "Ads account", deliveries: { due: 5, dead: 0 } }),
+    ];
+    await mount();
+    const figures = Array.from(host.querySelectorAll("section")).map((section) => section.textContent);
+    expect(figures).toContain("Active2 / 3");
+    expect(figures).toContain("On their way7");
+    expect(figures).toContain("Given up7");
+  });
+
+  it("shows no figures before there is anything to sum", async () => {
+    await mount();
+    expect(text()).not.toContain("On their way");
   });
 
   it("stops a Consumer only once the merchant confirms", async () => {
     server.consumers = [consumer({})];
     await mount();
-    await click(button("Stop", row("meta-conversions")));
+    expect(toggle("meta-conversions").getAttribute("aria-checked")).toBe("true");
+    expect(toggle("meta-conversions").getAttribute("aria-label")).toBe("Meta conversions receives events");
+    await click(toggle("meta-conversions"));
     expect(text()).toContain("Stop Meta conversions?");
     await click(button("Cancel", document.body.querySelector<HTMLElement>('[role="alertdialog"], [role="dialog"]')!));
     expect(server.calls.filter((c) => c.method === "PATCH")).toEqual([]);
     expect(row("meta-conversions").textContent).toContain("Active");
 
-    await click(button("Stop", row("meta-conversions")));
+    await click(toggle("meta-conversions"));
     const dialog = document.body.querySelector<HTMLElement>('[role="alertdialog"], [role="dialog"]')!;
     await click(button("Stop", dialog));
     expect(server.calls.filter((c) => c.method === "PATCH")).toEqual([{ method: "PATCH", path: "/api/event-consumers/meta-conversions", body: { enabled: false } }]);
     expect(row("meta-conversions").textContent).toContain("Stopped");
+    expect(toggle("meta-conversions").getAttribute("aria-checked")).toBe("false");
   });
 
   it("starts a stopped one at once", async () => {
     server.consumers = [consumer({ enabled: false, disabledReason: "merchant" })];
     await mount();
-    await click(button("Start", row("meta-conversions")));
+    await click(toggle("meta-conversions"));
     expect(server.calls.filter((c) => c.method === "PATCH")).toEqual([{ method: "PATCH", path: "/api/event-consumers/meta-conversions", body: { enabled: true } }]);
     expect(row("meta-conversions").textContent).toContain("Active");
   });
@@ -162,13 +212,16 @@ describe("Settings → Integrations", () => {
     server.deliveries = [delivery(4, "dead"), delivery(5, "delivered")];
     await mount();
     await click(button("Deliveries", row("meta-conversions")));
-    const listed = () => Array.from(host.querySelectorAll("[data-delivery]")).map((li) => li.getAttribute("data-delivery"));
+    const sheet = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(sheet.querySelector("h2")!.textContent).toBe("Deliveries to Meta conversions");
+    expect(row("meta-conversions").querySelector("[data-delivery]")).toBeNull();
+    const listed = () => Array.from(document.body.querySelectorAll("[data-delivery]")).map((li) => li.getAttribute("data-delivery"));
     expect(listed()).toEqual(["d4"]);
-    expect(host.querySelector('[data-delivery="d4"]')!.textContent).toContain("Event #4");
-    expect(host.querySelector('[data-delivery="d4"]')!.textContent).toContain("8 attempts");
-    expect(host.querySelector('[data-delivery="d4"]')!.textContent).toContain("HTTP 500");
+    expect(document.body.querySelector('[data-delivery="d4"]')!.textContent).toContain("Event #4");
+    expect(document.body.querySelector('[data-delivery="d4"]')!.textContent).toContain("8 attempts");
+    expect(document.body.querySelector('[data-delivery="d4"]')!.textContent).toContain("HTTP 500");
 
-    await click(button("Try again", host.querySelector('[data-delivery="d4"]')!));
+    await click(button("Try again", document.body.querySelector('[data-delivery="d4"]')!));
     expect(server.calls).toContainEqual({ method: "POST", path: "/api/event-deliveries/d4/retry" });
     expect(notifications.success).toHaveBeenCalledWith("The delivery is on its way again.");
 
@@ -190,7 +243,7 @@ describe("Settings → Integrations", () => {
     server.consumers = [consumer({ deliveries: { due: 0, dead: 2 } })];
     server.deliveries = [delivery(9, "delivered"), delivery(7, "dead"), delivery(4, "dead")];
     await mount();
-    await click(button("Deliver again…", row("meta-conversions")));
+    await click((await menu("meta-conversions", "Deliver again…"))!);
     const [from, to] = Array.from(document.body.querySelectorAll<HTMLInputElement>('input[type="number"]'));
     expect([from!.value, to!.value]).toEqual(["4", "7"]);
 

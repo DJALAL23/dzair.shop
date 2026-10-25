@@ -153,4 +153,27 @@ describe("the dashboard frame", () => {
     await act(async () => session.watchers.forEach((watch) => watch(null)));
     expect(host.innerHTML).toBe("");
   });
+
+  it("offers Integrations, marked new, to whoever may manage them, and lights it on its page", async () => {
+    await mount(<FrameSidebar />, "/integrations/");
+    const link = host.querySelector<HTMLAnchorElement>('a[href="/integrations"]')!;
+    expect(link.textContent).toBe("IntegrationsNew");
+    expect(current()).toEqual(["/integrations"]);
+  });
+
+  it("keeps Integrations from staff without the permission the server asks for it", async () => {
+    const staff = (scopes: string[]) => ({ ...admin, role: "staff" as const, scopes });
+    session.knownIdentity.mockReturnValue(staff(["orders:read"]));
+    session.fetchIdentity.mockResolvedValue(staff(["orders:read"]));
+    await mount(<FrameSidebar />, "/orders");
+    expect(host.querySelector('a[href="/integrations"]')).toBeNull();
+
+    act(() => root.unmount());
+    root = createRoot(host);
+    session.knownIdentity.mockReturnValue(staff(["settings:integrations"]));
+    session.fetchIdentity.mockResolvedValue(staff(["settings:integrations"]));
+    await mount(<FrameSidebar />, "/orders");
+    expect(host.querySelector('a[href="/integrations"]')).not.toBeNull();
+    expect(host.querySelector('a[href="/settings"]')).toBeNull();
+  });
 });

@@ -156,8 +156,7 @@
     "tracking_per_page_next_step": "Ouvrez maintenant une page de destination dans le Studio et donnez-lui son propre pixel. Les pages que vous ne modifiez pas continuent d'utiliser le pixel de la boutique.",
     "languages_title": "Langues",
     "languages_subtitle": "Les langues dans lesquelles votre boutique est proposée. Ajoutez une langue, traduisez, puis publiez-la.",
-    "otp_key_stored": "Clé enregistrée",
-    "integrations_title": "Intégrations"
+    "otp_key_stored": "Clé enregistrée"
   },
   "shipping": {
     "title": "Tarifs de livraison",
