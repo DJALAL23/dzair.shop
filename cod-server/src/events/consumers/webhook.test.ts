@@ -178,6 +178,7 @@ describe("the answer", () => {
     const endless = new ReadableStream<Uint8Array>({
       pull(controller) {
         pulled += 1;
+        if (pulled > 1000) return controller.close();
         controller.enqueue(new TextEncoder().encode("x".repeat(1024)));
       },
     });
