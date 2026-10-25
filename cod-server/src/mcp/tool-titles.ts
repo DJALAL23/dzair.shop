@@ -145,4 +145,9 @@ export const TOOL_TITLES: Record<string, string> = {
   handOffOrderToCarrier: "Hand order to carrier",
   handOffOrderToDriver: "Give order to driver",
   reportShipmentEvent: "Report delivery progress",
+
+  // ─── Business Events ──────────────────────────────────────────────────────
+  listBusinessEvents: "Read the Event Log",
+  listEventConsumers: "List event consumers",
+  listEventDeliveries: "List event deliveries",
 };

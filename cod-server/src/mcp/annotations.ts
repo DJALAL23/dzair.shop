@@ -31,6 +31,9 @@ import { DANGEROUS_TOOLS } from "./elicit";
  */
 const READ_ONLY_OVERRIDES: ReadonlySet<string> = new Set([
   "getLandingPageImageUploadStatus",
+  // Integrations are steered under settings:integrations; reading them changes nothing.
+  "listEventConsumers",
+  "listEventDeliveries",
 ]);
 
 /**

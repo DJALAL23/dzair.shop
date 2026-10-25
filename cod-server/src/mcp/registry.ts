@@ -52,6 +52,7 @@ import { getCustomerTagTools }   from "@/endpoints/customer-tags/ai-tools";
 import { getOrderTools }         from "@/endpoints/orders/ai-tools";
 import { getShipmentTools }      from "@/endpoints/shipments/ai-tools";
 import { getDeliveryCompanyTools } from "@/endpoints/delivery-companies/ai-tools";
+import { getEventTools }         from "@/endpoints/events/ai-tools";
 
 type ToolFactory = (
   db: ReturnType<typeof getDb>,
@@ -435,6 +436,18 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   {
     requires: [SCOPES.ORDERS_ASSIGN],
     build: (db, env, props) => pick(getShipmentTools(db, env, props), ["handOffOrderToDriver", "reportShipmentEvent"]),
+  },
+
+  // ─── Business Events ──────────────────────────────────────────────────────
+  // The Event Log is order history, read like orders; who receives it and how
+  // their Deliveries went are the store's integrations.
+  {
+    requires: [SCOPES.ORDERS_READ],
+    build: (db) => pick(getEventTools(db), ["listBusinessEvents"]),
+  },
+  {
+    requires: [SCOPES.SETTINGS_INTEGRATIONS],
+    build: (db) => pick(getEventTools(db), ["listEventConsumers", "listEventDeliveries"]),
   },
 ];
 

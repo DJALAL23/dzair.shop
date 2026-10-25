@@ -105,6 +105,12 @@ describe("TOOL_ANNOTATIONS", () => {
     }
   });
 
+  it("the integrations reads, gated by settings:integrations, are overridden to read-only", () => {
+    for (const name of ["listEventConsumers", "listEventDeliveries"]) {
+      expect(TOOL_ANNOTATIONS[name], name).toMatchObject({ readOnlyHint: true, destructiveHint: false, idempotentHint: true });
+    }
+  });
+
   it("the manage-gated status poll is overridden to read-only", () => {
     expect(TOOL_ANNOTATIONS["getLandingPageImageUploadStatus"]?.readOnlyHint).toBe(true);
     expect(TOOL_ANNOTATIONS["getLandingPageImageUploadStatus"]?.destructiveHint).toBe(false);
