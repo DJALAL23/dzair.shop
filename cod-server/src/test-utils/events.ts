@@ -20,6 +20,7 @@ export const sampleOrder: OrderSnapshot = {
   status: "confirmed",
   type: "online",
   placedAt: "2026-10-25T09:14:03.120Z",
+  locale: "fr",
   customer: { id: "c-1", name: "Amina B.", phone: "0551234567", email: null },
   destination: {
     wilaya: { id: 16, name: "Alger", nameAr: "الجزائر" },

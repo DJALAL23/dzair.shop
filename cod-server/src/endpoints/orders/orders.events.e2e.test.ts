@@ -131,7 +131,7 @@ describe("order.created", () => {
   it("is the shopper's, through the storefront, at checkout", async () => {
     const order = await createStoreOrder(db(), {
       customerName: "Karim", phone: "0551234567", wilayaId: 16, communeId: "c-16-001", deliveryType: "home",
-      productId: "robe", productName: "Robe", quantity: 1, pricePerUnit: 2500, customerId: "c1", deliveryFee: 400,
+      productId: "robe", productName: "Robe", quantity: 1, pricePerUnit: 2500, customerId: "c1", deliveryFee: 400, locale: "fr",
     });
     const [event] = await eventsOf(db(), order.id);
     expect(event).toMatchObject({ type: "order.created", actorKind: "shopper", actorId: null, actorName: null, origin: "storefront" });

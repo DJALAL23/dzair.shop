@@ -66,7 +66,7 @@ async function tracking(conversionEvent: "Lead" | "Purchase" | "Purchase_Confirm
 async function checkout(extra: { wilayaId?: number; communeId?: string; landingPageId?: string | null } = {}) {
   const order = await createStoreOrder(d1.db, {
     customerName: "Amina Benali", phone: "0551234567", wilayaId: extra.wilayaId ?? 16, communeId: extra.communeId ?? "c-16-001", deliveryType: "home",
-    productId: "robe", productName: "Robe", quantity: 2, pricePerUnit: 2500, customerId: "c1", deliveryFee: 400,
+    productId: "robe", productName: "Robe", quantity: 2, pricePerUnit: 2500, customerId: "c1", deliveryFee: 400, locale: "ar",
     fbc: "fb.1.123.abc", fbp: "fb.1.456.def", ipAddress: "41.100.1.2", userAgent: "Mozilla/5.0", landingPageId: extra.landingPageId ?? null,
   });
   await d1.db.update(schema.orders).set({ address: "12 rue Didouche" }).where(eq(schema.orders.id, order.id));

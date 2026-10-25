@@ -71,6 +71,14 @@ const localeQuery = z.string().max(35).optional().openapi({
 
 const localeQuerySchema = z.object({ locale: localeQuery });
 
+const orderLocaleQuerySchema = z.object({
+  locale: z.string().max(35).optional().openapi({
+    description:
+      "The language the shopper checked out in (BCP 47, e.g. `fr`): recorded on the order, and the language its customer messages are written in, when the store publishes it; the primary language otherwise. The `Content-Language` response header names the one recorded.",
+    example: "fr",
+  }),
+});
+
 const configQuerySchema = z.object({
   locale: localeQuery,
   theme: z.string().regex(THEME_KEY_RE).optional().openapi({
@@ -472,6 +480,7 @@ const createStoreOrderRoute = defineRoute({
 
 **Multi-unit variant orders:** when different variants are selected per unit, send \`variantSelections\` — one entry per unit. Identical variants are grouped into a single line and inventory deducts per-variant.`,
   operationId: "createStoreOrder",
+  query: orderLocaleQuerySchema,
   body: storeOrderSchema,
   responses: {
     201: {

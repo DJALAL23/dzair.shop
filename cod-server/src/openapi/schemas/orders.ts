@@ -17,6 +17,7 @@ import { z } from "@hono/zod-openapi";
 import { ShipmentSchema } from "./shipments";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
+import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
 
 // ─── Enums & Constants ────────────────────────────────────────────────────────
 
@@ -157,6 +158,10 @@ const OrderBaseSchema = z.object({
   couponId: z.string().nullable().openapi({ description: "The coupon the order was placed with; null when none, or once the coupon is deleted" }),
   couponCode: z.string().nullable().openapi({ description: "The code the order used, kept when the coupon is deleted" }),
   couponDiscount: z.number().int().openapi({ description: "What the coupon took off; `price` is already net of it" }),
+  locale: z.enum(STORE_LOCALES).nullable().openapi({
+    description: "The language the order was placed in — the shopper's storefront language, the store's primary for a dashboard or agent order — and the one its customer messages are written in; null for an order placed before it was recorded",
+    example: "fr",
+  }),
 });
 
 export const OrderRemovalSchema = z

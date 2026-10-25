@@ -81,8 +81,9 @@ This is the same shape Theme-00 uses in `src/theme/sdk.ts`. It creates the
 client per call, so a request cannot hold another request's pending work. One
 client serves one store and one language; do not share it between stores.
 
-The `locale` option is for reading merchant text in another published language.
-Omit it for the store's primary language. [Store config and
+The `locale` option is for reading merchant text in another published language,
+and it is the language an order the client places is recorded in, so the
+customer's messages are written in it. Omit it for the store's primary language. [Store config and
 languages](/sdk/storefront/config) explains the rest.
 
 ## 3. Render a product list

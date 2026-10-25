@@ -6,6 +6,7 @@
 
 import { sql, type SQL } from "drizzle-orm";
 import type { CustomFieldType } from "../checkout-form/policy";
+import type { StoreLocale } from "../i18n/locales";
 import type { OrderStatus } from "../orders/lifecycle";
 import type { ShipmentKind } from "../shipments/model";
 
@@ -51,6 +52,8 @@ export interface OrderSnapshot {
   status: OrderStatus;
   type: "online" | "offline";
   placedAt: string;
+  /** The language the order was placed in; null for one placed before it was recorded. */
+  locale: StoreLocale | null;
   customer: { id: string; name: string; phone: string; email: string | null };
   destination: {
     wilaya: Place<number> | null;
@@ -116,6 +119,7 @@ const orderJson = (orderId: SQL) => sql`(select json_object(
   'status', o.status,
   'type', o.order_type,
   'placedAt', ${instantSql(sql`o.created_at`)},
+  'locale', o.locale,
   'customer', json_object('id', o.customer_id, 'name', o.customer_name, 'phone', o.phone, 'email', o.customer_email),
   'destination', json_object(
     'wilaya', json((select json_object('id', w.id, 'name', w.name, 'nameAr', w.name_ar) from wilayas w where w.id = o.wilaya_id)),

@@ -20,8 +20,10 @@ import {
   stockMovements,
   deliveryCompanies,
   shipments,
+  stores,
 } from "../db/schema";
 import type { OrderStatus } from "../orders/lifecycle";
+import type { StoreLocale } from "../i18n/locales";
 import {
   eq,
   desc,
@@ -250,17 +252,23 @@ export async function getOrderById(db: AppDb, orderId: string) {
 /** A line of a new order: it always names the product it sells (only a removed product's old lines lose the link). */
 export type NewOrderLine = typeof orderProducts.$inferInsert & { productId: string };
 
+/**
+ * Create an order from the dashboard or an AI agent. It is placed in the
+ * store's primary language; only a storefront checkout records the shopper's
+ * own, and its checkout key.
+ */
 export async function createOrder(
   db: AppDb,
-  orderData: typeof orders.$inferInsert,
+  orderData: Omit<typeof orders.$inferInsert, "locale" | "checkoutKey">,
   productsData: Array<NewOrderLine>,
   author: Author,
 ) {
   const now = orderData.createdAt ?? new Date().toISOString();
   const credit = creditOf(author.actor);
 
+  const primaryLanguage = sql<StoreLocale>`(select ${stores.lang} from ${stores} limit 1)`;
   const statements: BatchStatement[] = [
-    db.insert(orders).values(orderData),
+    db.insert(orders).values({ ...orderData, locale: primaryLanguage }),
   ];
 
   if (productsData.length > 0) {
@@ -380,7 +388,7 @@ export async function createOrder(
   // the same way, so the order row is drawn again and the batch retried.
   let orderNumber = orderData.orderNumber;
   for (let attempt = 1; ; attempt += 1) {
-    statements[0] = db.insert(orders).values({ ...orderData, orderNumber });
+    statements[0] = db.insert(orders).values({ ...orderData, orderNumber, locale: primaryLanguage });
     try {
       await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
       break;

@@ -27,11 +27,12 @@ import {
   serializeCheckoutFormPolicy,
   type CheckoutFormPolicy,
 } from "../checkout-form/policy";
+import { DEFAULT_STORE_LOCALE, type StoreLocale } from "../i18n/locales";
 
 export interface StoreCheckoutForm {
   policy: CheckoutFormPolicy;
   /** `stores.lang` — the language a policy rejection must be written in. */
-  lang: string;
+  lang: StoreLocale;
 }
 
 /**
@@ -52,7 +53,7 @@ export async function getCheckoutFormPolicy(
 
   return {
     policy: parseCheckoutFormPolicy(row?.checkoutFormJson ?? null),
-    lang: row?.lang ?? "ar",
+    lang: row?.lang ?? DEFAULT_STORE_LOCALE,
   };
 }
 

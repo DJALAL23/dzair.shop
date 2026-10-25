@@ -218,6 +218,8 @@ export function orderRow(overrides: Record<string, unknown> = {}): Record<string
     coupon_code: null,
     coupon_discount: 0,
     delivery_offer_name: null,
+    checkout_key: null,
+    locale: "ar",
     ...overrides,
   };
 }

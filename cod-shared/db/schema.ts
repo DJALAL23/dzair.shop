@@ -520,6 +520,8 @@ export const orders = sqliteTable("orders", {
   deliveryOfferName: text("delivery_offer_name"),
   /** The storefront's key for the checkout attempt that placed it: the same key places no second order (migration 0062). */
   checkoutKey: text("checkout_key"),
+  /** The language it was placed in: the shopper's storefront language, the primary for a dashboard or agent order; null before migration 0063. */
+  locale: text("locale", { enum: STORE_LOCALES }),
 }, (t) => ({
   checkoutKeyUnique: uniqueIndex("orders_checkout_key").on(t.checkoutKey).where(sql`checkout_key IS NOT NULL`),
 }));

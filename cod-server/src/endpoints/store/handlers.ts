@@ -362,9 +362,14 @@ export async function createStoreOrder(c: Context<AppContext>) {
 
   // ONE catalog read for the whole checkout. The SKU check, the stock check and
   // the order engine all answer their questions from this same snapshot, so a
-  // product row is fetched once per order instead of once per question.
+  // product row is fetched once per order instead of once per question. The
+  // language the storefront was served in is the one the order records.
   const now = new Date().toISOString();
-  const snapshot = await queries.loadCatalogSnapshot(db, lines, now);
+  const [snapshot, locale] = await Promise.all([
+    queries.loadCatalogSnapshot(db, lines, now),
+    queries.checkoutLocale(db, c.get("storeId")!, lang, queryParam(c, "locale")),
+  ]);
+  c.header("Content-Language", locale);
 
   const skuMissing = queries.findMissingSku(snapshot, lines);
   if (skuMissing) {
@@ -446,6 +451,7 @@ export async function createStoreOrder(c: Context<AppContext>) {
         ipAddress,
         userAgent,
         customerEmail: data.email,
+        locale,
         customFieldAnswers,
       },
       snapshot

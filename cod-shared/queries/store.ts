@@ -133,6 +133,8 @@ export interface StoreOrderData {
   userAgent?: string;
   /** The checkout attempt's key: an order already placed with it is never placed again (migration 0062). */
   checkoutKey?: string;
+  /** The language the shopper checked out in: the one the storefront was served in. */
+  locale: StoreLocale;
 }
 
 /** Another request of the same checkout attempt placed its order first; read it with `orderPlacedWith`. */
@@ -258,6 +260,17 @@ export async function resolveStorefrontLocale(db: AppDb, storeId: string, reques
   ]);
   if (!store) return null;
   return servedLocale(requested, storeLanguages(store.lang, rows));
+}
+
+/**
+ * The language a checkout is recorded in: the one the shopper asked for when
+ * the store publishes it, the primary otherwise. The primary is the caller's,
+ * already read with the checkout's policy; the store's languages are read
+ * only when another is asked for.
+ */
+export async function checkoutLocale(db: AppDb, storeId: string, primary: StoreLocale, requested?: string | null): Promise<StoreLocale> {
+  if (!requested || requested === primary) return primary;
+  return servedLocale(requested, storeLanguages(primary, await listStoreLocales(db, storeId))).locale;
 }
 
 /**
@@ -1079,6 +1092,7 @@ export async function createStoreOrder(
         // one atomic batch and D1 caps how many statements it may carry.
         customerEmail: data.customerEmail ?? null,
         checkoutKey: data.checkoutKey ?? null,
+        locale: data.locale,
         customFieldsJson: serializeCustomFieldAnswers(data.customFieldAnswers ?? []),
       }),
     ];

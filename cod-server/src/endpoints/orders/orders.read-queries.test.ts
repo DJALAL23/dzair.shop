@@ -33,9 +33,9 @@ function opRow(overrides: Record<string, unknown> = {}): Record<string, unknown>
   };
 }
 
-/** An order row as the list and the detail select it: without the shopper's ad-click signals. */
+/** An order row as the list and the detail select it: without the shopper's ad-click signals or the checkout key. */
 function responseColumns(): Record<string, unknown> {
-  const { fbc: _fbc, fbp: _fbp, ip_address: _ip, user_agent: _ua, ...row } = orderRow();
+  const { fbc: _fbc, fbp: _fbp, ip_address: _ip, user_agent: _ua, checkout_key: _key, ...row } = orderRow();
   return row;
 }
 

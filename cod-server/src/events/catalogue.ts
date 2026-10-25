@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { ORDER_STATUSES } from "../../../cod-shared/orders/lifecycle";
 import { SHIPMENT_KINDS } from "../../../cod-shared/shipments/model";
+import { STORE_LOCALES } from "../../../cod-shared/i18n/locales";
 import { ORDER_FIELDS, type EventData, type EventType } from "../../../cod-shared/events/catalogue";
 
 const money = z.object({
@@ -46,6 +47,7 @@ const order = z.object({
   status: z.enum(ORDER_STATUSES),
   type: z.enum(["online", "offline"]),
   placedAt: instant,
+  locale: z.enum(STORE_LOCALES).nullable(),
   customer: z.object({ id: z.string(), name: z.string(), phone: z.string(), email: z.string().nullable() }),
   destination: z.object({
     wilaya: place(z.number().int()).nullable(),
