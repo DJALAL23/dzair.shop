@@ -116,7 +116,7 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
     <div id="checkout-main" class="space-y-5" hidden>
       <CheckoutSummary content={content} />
 
-      <form method="POST" action={actions.placeOrder} id="checkout-form" class="space-y-5" data-astro-reload>
+      <form method="POST" action={actions.placeOrder} id="checkout-form" class="space-y-5" data-checkout data-astro-reload>
         {/* The basket, serialised at submit time so it always matches what the
             summary above is showing. */}
         <input type="hidden" name="items" value="" id="cart-items-input" />
@@ -170,6 +170,7 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
 </StoreLayout>
 
 <script src="../theme/scripts/checkout.ts"></script>
+<script src="../theme/scripts/checkout-key.ts"></script>
 {/* Without this the basket path — the higher-value one — would capture no
     abandoners at all, while product pages kept capturing them. */}
 <script src="../theme/scripts/track-abandonment.ts"></script>

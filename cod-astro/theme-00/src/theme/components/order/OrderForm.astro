@@ -70,7 +70,7 @@ const comparePrice = getProductView(product).comparePrice;
 
 <!-- The order form: the product's options and offers, then the checkout panel. -->
 <div class="order" id="order-section">
-  <form method="POST" action={actions.placeOrder} class="order-form" data-astro-reload>
+  <form method="POST" action={actions.placeOrder} class="order-form" data-checkout data-astro-reload>
     <!-- Hidden product fields -->
     <input type="hidden" name="productId"          value={product.id} />
     <!-- Meta Pixel tracking (populated by JS at submit time) -->
@@ -248,3 +248,5 @@ const comparePrice = getProductView(product).comparePrice;
   .order-consent { color: var(--clr-text); font-size: var(--text-xs); text-align: center; }
   .order-consent a { color: var(--clr-ink); text-decoration: underline; text-underline-offset: 0.25em; }
 </style>
+
+<script src="../../scripts/checkout-key.ts"></script>
