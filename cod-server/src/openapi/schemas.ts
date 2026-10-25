@@ -200,4 +200,7 @@ export {
   EventDeliveryAttemptSchema,
   EventDeliveryDetailSchema,
   RedeliverySchema,
+  SigningSecretSchema,
+  WebhookCreatedSchema,
+  WebhookTestSchema,
 } from "./schemas/event-consumers";

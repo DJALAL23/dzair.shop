@@ -127,7 +127,12 @@
       "event_consumer.enabled": "شغّل تكاملًا",
       "event_consumer.disabled": "أوقف تكاملًا",
       "event_consumer.replayed": "أعاد إرسال أحداث إلى تكامل",
-      "event_delivery.retried": "أعاد محاولة إرسال إلى تكامل"
+      "event_delivery.retried": "أعاد محاولة إرسال إلى تكامل",
+      "event_consumer.created": "أضاف webhook",
+      "event_consumer.updated": "عدّل webhook",
+      "event_consumer.deleted": "حذف webhook",
+      "event_consumer.secret_rotated": "غيّر مفتاح توقيع webhook",
+      "event_consumer.tested": "أرسل حدثًا تجريبيًا إلى webhook"
     },
     "table": {
       "action": "الإجراء",

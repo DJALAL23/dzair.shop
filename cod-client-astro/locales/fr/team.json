@@ -127,7 +127,12 @@
       "event_consumer.enabled": "A démarré une intégration",
       "event_consumer.disabled": "A arrêté une intégration",
       "event_consumer.replayed": "A renvoyé des événements à une intégration",
-      "event_delivery.retried": "A réessayé un envoi d'intégration"
+      "event_delivery.retried": "A réessayé un envoi d'intégration",
+      "event_consumer.created": "A ajouté un webhook",
+      "event_consumer.updated": "A modifié un webhook",
+      "event_consumer.deleted": "A supprimé un webhook",
+      "event_consumer.secret_rotated": "A changé le secret de signature d'un webhook",
+      "event_consumer.tested": "A envoyé un événement de test à un webhook"
     },
     "table": {
       "action": "Action",

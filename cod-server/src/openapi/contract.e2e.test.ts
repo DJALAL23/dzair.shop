@@ -180,6 +180,32 @@ describe("the document is what the API answers", () => {
     await api("GET", "/api/event-deliveries/ghost", "/api/event-deliveries/{id}", 404);
   });
 
+  it("a webhook added, edited, tested, rotated and deleted — its secret in no answer but the two that issue it", async () => {
+    globalThis.fetch = (async () => new Response('{"received":true}', { status: 200 })) as typeof fetch;
+    const hook = { kind: "webhook", name: "ERP", url: "https://erp.example.dz/hooks", subscription: ["order.*"] };
+    const created = await api("POST", "/api/event-consumers", "/api/event-consumers", 201, hook);
+    const id = created.data.consumer.id;
+    await api("POST", "/api/event-consumers", "/api/event-consumers", 400, { ...hook, url: "https://127.0.0.1/" });
+    await api("GET", `/api/event-consumers/${id}`, "/api/event-consumers/{id}", 200);
+    await api("PATCH", `/api/event-consumers/${id}`, "/api/event-consumers/{id}", 200, { name: "ERP 2", subscription: ["*"] });
+    await api("PATCH", "/api/event-consumers/meta-conversions", "/api/event-consumers/{id}", 409, { name: "Mine" });
+    const test = await api("POST", `/api/event-consumers/${id}/test`, "/api/event-consumers/{id}/test", 200, { type: "shipment.delivered" });
+    expect(test.data.outcome).toBe("delivered");
+    await api("POST", `/api/event-consumers/${id}/test`, "/api/event-consumers/{id}/test", 400, { type: "order.shipped" });
+    await api("POST", "/api/event-consumers/meta-conversions/test", "/api/event-consumers/{id}/test", 409, {});
+    const rotated = await api("POST", `/api/event-consumers/${id}/rotate-secret`, "/api/event-consumers/{id}/rotate-secret", 200);
+    await api("POST", "/api/event-consumers/ghost/rotate-secret", "/api/event-consumers/{id}/rotate-secret", 404);
+    const listed = await api("GET", "/api/event-consumers", "/api/event-consumers", 200);
+    expect(listed.data.find((c: { id: string }) => c.id === id).webhook.previousSecretSignsUntil).toBe(rotated.data.previousSecretSignsUntil);
+    await api("DELETE", "/api/event-consumers/meta-conversions", "/api/event-consumers/{id}", 409);
+    await api("DELETE", `/api/event-consumers/${id}`, "/api/event-consumers/{id}", 200);
+    await api("DELETE", `/api/event-consumers/${id}`, "/api/event-consumers/{id}", 404);
+
+    const secrets = [created.data.signingSecret, rotated.data.signingSecret].map((secret: string) => secret.slice("whsec_".length, -4));
+    const holding = answered.filter((text) => secrets.some((secret) => text.includes(secret)));
+    expect(holding).toEqual([JSON.stringify(created), JSON.stringify(rotated)]);
+  });
+
   it("the delivery companies, what their carriers can do, their settings and their inbox", async () => {
     const list = (await api("GET", "/api/delivery-companies", "/api/delivery-companies", 200)).data;
     const capabilities = (id: string) => list.find((c: any) => c.id === id).capabilities;
@@ -216,26 +242,46 @@ describe("no credential leaves the server", () => {
     expect((await api("GET", "/api/delivery-companies/zr", "/api/delivery-companies/{id}", 200)).data.webhookSecretSet).toBe(false);
   });
 
-  it("nor does the document describe one: a response field named like a credential is a yes/no", () => {
+  it("nor does the document describe one: a response field named like a credential is a yes/no, a time, or says what it holds", () => {
     const credentialName = /secret|token|password|api.?key|guid/i;
     const found: string[] = [];
-    const visit = (node: any, at: string) => {
-      if (!node || typeof node !== "object") return;
-      if (node.properties) {
-        for (const [key, value] of Object.entries<any>(node.properties)) {
-          if (credentialName.test(key) && value.type !== "boolean") found.push(`${at}.${key}`);
-          visit(value, `${at}.${key}`);
+    const issuedBy = new Set<string>();
+    /** `x-credential: masked` shows how it is masked; `issued` is the one answer that makes it, a POST's. */
+    const check = (key: string, value: any, at: string, method: string | null) => {
+      if (!credentialName.test(key) || value.type === "boolean" || value.format === "date-time") return;
+      const declared = value["x-credential"];
+      if (declared === "masked" && String(value.example ?? "").startsWith("••••")) return;
+      if (declared === "issued") {
+        if (method === null || method === "post") {
+          if (method) issuedBy.add(at);
+          return;
         }
       }
-      for (const key of ["items", "additionalProperties"]) visit(node[key], at);
-      for (const key of ["anyOf", "oneOf", "allOf"]) (node[key] ?? []).forEach((s: unknown) => visit(s, at));
+      found.push(`${at}.${key}`);
+    };
+    const visit = (node: any, at: string, method: string | null, seen = new Set<string>()) => {
+      if (!node || typeof node !== "object") return;
+      if (typeof node.$ref === "string") {
+        if (method === null || seen.has(node.$ref)) return;
+        seen.add(node.$ref);
+        return visit(doc.components?.schemas?.[node.$ref.split("/").at(-1)!], at, method, seen);
+      }
+      if (node.properties) {
+        for (const [key, value] of Object.entries<any>(node.properties)) {
+          check(key, value, `${at}.${key}`, method);
+          visit(value, `${at}.${key}`, method, seen);
+        }
+      }
+      for (const key of ["items", "additionalProperties"]) visit(node[key], at, method, seen);
+      for (const key of ["anyOf", "oneOf", "allOf"]) (node[key] ?? []).forEach((s: unknown) => visit(s, at, method, seen));
     };
     for (const [path, operations] of Object.entries(doc.paths)) {
       for (const [method, operation] of Object.entries(operations)) {
-        for (const [status, response] of Object.entries(operation.responses ?? {})) visit(response.content?.["application/json"]?.schema, `${method.toUpperCase()} ${path} ${status}`);
+        for (const [status, response] of Object.entries(operation.responses ?? {})) visit(response.content?.["application/json"]?.schema, `${method.toUpperCase()} ${path} ${status}`, method);
       }
     }
-    for (const [name, component] of Object.entries(doc.components?.schemas ?? {})) visit(component, name);
+    for (const [name, component] of Object.entries(doc.components?.schemas ?? {})) visit(component, name, null);
     expect(found).toEqual([]);
+    expect([...issuedBy].map((at) => at.replace(/\.data\..*$/, ""))).toEqual(["POST /api/event-consumers 201", "POST /api/event-consumers/{id}/rotate-secret 200"]);
   });
 });

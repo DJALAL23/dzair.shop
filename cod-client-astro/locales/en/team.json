@@ -127,7 +127,12 @@
       "event_consumer.enabled": "Started an integration",
       "event_consumer.disabled": "Stopped an integration",
       "event_consumer.replayed": "Delivered events again to an integration",
-      "event_delivery.retried": "Retried an integration delivery"
+      "event_delivery.retried": "Retried an integration delivery",
+      "event_consumer.created": "Added a webhook",
+      "event_consumer.updated": "Edited a webhook",
+      "event_consumer.deleted": "Deleted a webhook",
+      "event_consumer.secret_rotated": "Changed a webhook's signing secret",
+      "event_consumer.tested": "Sent a test event to a webhook"
     },
     "table": {
       "action": "Action",

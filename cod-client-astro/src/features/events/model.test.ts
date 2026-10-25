@@ -6,8 +6,8 @@ import type { BusinessEvent, EventConsumer, EventDelivery } from "./types";
 const t = (key: string, values?: Record<string, string | number>) => (values ? `${key}(${Object.entries(values).map(([k, v]) => `${k}=${v}`).join(",")})` : key);
 
 const consumer = (over: Partial<EventConsumer> = {}): EventConsumer => ({
-  id: "c", kind: "meta_capi", name: "Meta", enabled: true, subscription: ["*"], catalogueVersion: 1, disabledReason: null, failingSince: null,
-  deliveries: { due: 0, dead: 0 }, createdAt: "", updatedAt: "", ...over,
+  id: "c", kind: "meta_capi", name: "Meta", enabled: true, subscription: ["*"], catalogueVersion: 1, builtIn: true, disabledReason: null, failingSince: null,
+  deliveries: { due: 0, dead: 0 }, webhook: null, createdAt: "", updatedAt: "", ...over,
 });
 const delivery = (sequence: number, state: EventDelivery["state"]): EventDelivery => ({
   id: `d${sequence}`, consumerId: "c", state, attempts: 1, nextAttemptAt: null, lastError: null, createdAt: "", settledAt: null,

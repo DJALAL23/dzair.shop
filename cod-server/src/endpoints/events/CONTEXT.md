@@ -79,6 +79,12 @@ webhook endpoints, a Telegram chat, an email address, the order's customer
 over WhatsApp or SMS, or a built-in integration such as Meta conversions.
 _Avoid_: Subscriber, listener, integration, hook
 
+**Built-in Consumer**:
+A Consumer the store creates and keeps from its own settings — Meta
+conversions, from the pixel settings. The merchant can stop and start it, but
+not rename, repoint or delete it; every other Consumer is the merchant's own.
+_Avoid_: System consumer, default integration
+
 **Consumer Kind**:
 How a Consumer is reached — webhook, Telegram, email, WhatsApp, SMS, Meta
 conversions. Each kind has its own settings and its own way of sending.
@@ -105,6 +111,13 @@ The key a webhook Consumer uses to prove a Delivery came from this store. It
 can be rotated; the previous one keeps verifying for a while.
 _Avoid_: Token, API key, webhook secret (that is the carrier's secret on
 inbound webhooks)
+
+**Test Event**:
+An example of an Event Type sent to a webhook Consumer on the merchant's word,
+signed like a Delivery, to check the endpoint. It is not a Business Event: it
+is in no Event Log, has no Delivery, carries Sequence 0 and an id starting
+`test_`.
+_Avoid_: Ping, sample delivery
 
 ### Getting it there
 

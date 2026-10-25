@@ -6,6 +6,8 @@
  * before the merchant saves.
  */
 
+/** As stored on `event_consumers.kind`. */
+export const WEBHOOK_KIND = "webhook";
 /** The most webhook Consumers a store may have: each multiplies the rows every Business Event writes. */
 export const WEBHOOK_CONSUMERS_MAX = 10;
 /** After a rotation, Deliveries are signed with the previous Signing Secret too, for this long. */

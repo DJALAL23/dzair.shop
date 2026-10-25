@@ -17,7 +17,7 @@ import { drain } from "@/events/drain";
 import { recordEvent } from "../../../../cod-shared/events/record";
 import { readBusinessEvent } from "../../../../cod-shared/events/log";
 import { DELIVERY_RETRIES } from "../../../../cod-shared/events/deliveries";
-import { WEBHOOK_KIND } from "./webhook";
+import { WEBHOOK_KIND } from "../../../../cod-shared/events/webhooks";
 
 const SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
 const T0 = new Date("2026-10-25T10:00:00.000Z");

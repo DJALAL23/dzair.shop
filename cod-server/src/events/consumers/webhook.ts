@@ -16,11 +16,12 @@
  * Retry-After asked.
  */
 
-import type { AttemptOutcome } from "../../../../cod-shared/events/deliveries";
-import { readWebhookSettings, signingKey, signingSecretsAt, webhookUrlProblem } from "../../../../cod-shared/events/webhooks";
+import type { AttemptOutcome, ConsumerRow } from "../../../../cod-shared/events/deliveries";
+import type { EventType } from "../../../../cod-shared/events/catalogue";
+import { WEBHOOK_KIND, readWebhookSettings, signingKey, signingSecretsAt, webhookUrlProblem } from "../../../../cod-shared/events/webhooks";
+import { exampleEvent } from "../examples";
 import type { ConsumerKind } from "./kind";
 
-export const WEBHOOK_KIND = "webhook";
 /** How long an endpoint has to answer an Attempt. */
 export const WEBHOOK_TIMEOUT_MS = 15_000;
 /** The largest event a webhook carries. */
@@ -92,8 +93,11 @@ export interface WebhookRequest {
   now: Date;
 }
 
+/** What sending to an endpoint can come to: it is never skipped. */
+export type WebhookOutcome = Exclude<AttemptOutcome, { kind: "skipped" }>;
+
 /** POST one signed event to an endpoint, and say what came of it. */
-export async function sendWebhook(request: WebhookRequest, outbound: typeof fetch, timeoutMs = WEBHOOK_TIMEOUT_MS): Promise<AttemptOutcome> {
+export async function sendWebhook(request: WebhookRequest, outbound: typeof fetch, timeoutMs = WEBHOOK_TIMEOUT_MS): Promise<WebhookOutcome> {
   const problem = webhookUrlProblem(request.url);
   if (problem) return { kind: "reject", error: `The endpoint's URL is refused (${problem}): use a public https URL` };
   const size = encoder.encode(request.body).byteLength;
@@ -142,3 +146,34 @@ export const webhook: ConsumerKind = {
     return sendWebhook({ url, secrets: signingSecretsAt(consumer, now), id: event.id, body: JSON.stringify(event), now }, fetch);
   },
 };
+
+/** What a Test Event came to: the Attempt it would have been, recorded nowhere. */
+export interface WebhookTest {
+  event: { id: string; type: EventType };
+  outcome: WebhookOutcome["kind"];
+  httpStatus: number | null;
+  durationMs: number;
+  response: string | null;
+  error: string | null;
+}
+
+/**
+ * Send a Test Event to a webhook Consumer, at once: an example of `type`,
+ * signed like any Delivery, with Sequence 0 and an id starting `test_` so an
+ * endpoint can tell it from the store's Business Events — it is in no Event
+ * Log and has no Delivery.
+ */
+export async function sendTestEvent(consumer: ConsumerRow, type: EventType, outbound: typeof fetch, now: Date): Promise<WebhookTest> {
+  const id = `test_${crypto.randomUUID()}`;
+  const event = { ...exampleEvent(type), id, sequence: 0, occurredAt: now.toISOString(), recordedAt: now.toISOString() };
+  const started = Date.now();
+  const outcome = await sendWebhook({ url: readWebhookSettings(consumer.settings).url, secrets: signingSecretsAt(consumer, now), id, body: JSON.stringify(event), now }, outbound);
+  return {
+    event: { id, type },
+    outcome: outcome.kind,
+    httpStatus: outcome.httpStatus ?? null,
+    durationMs: Date.now() - started,
+    response: outcome.response ?? null,
+    error: outcome.kind === "delivered" ? null : outcome.error,
+  };
+}

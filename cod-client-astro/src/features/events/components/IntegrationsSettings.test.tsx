@@ -57,7 +57,7 @@ let root: Root;
 
 const consumer = (over: Partial<EventConsumer>): EventConsumer => ({
   id: "meta-conversions", kind: "meta_capi", name: "Meta conversions", enabled: true, subscription: ["order.created"], catalogueVersion: 1,
-  disabledReason: null, failingSince: null, deliveries: { due: 0, dead: 0 }, createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-01T00:00:00Z", ...over,
+  builtIn: true, disabledReason: null, failingSince: null, deliveries: { due: 0, dead: 0 }, webhook: null, createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-01T00:00:00Z", ...over,
 });
 const delivery = (sequence: number, state: EventDelivery["state"], consumerId = "meta-conversions"): EventDelivery => ({
   id: `d${sequence}`, consumerId, state, attempts: state === "dead" ? 8 : 1, nextAttemptAt: null, lastError: state === "dead" ? "HTTP 500" : null,

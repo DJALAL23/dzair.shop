@@ -1,6 +1,7 @@
 /**
  * Consumers and Deliveries as the merchant's API shows them (Events context).
- * A Signing Secret and a kind's settings are never part of either.
+ * A Signing Secret is shown in full only in the answer that makes it; a
+ * kind's settings, only as far as the merchant typed them in.
  */
 
 import { z } from "@hono/zod-openapi";
@@ -10,9 +11,10 @@ import { ATTEMPT_OUTCOMES, CONSUMER_DISABLED_REASONS, DELIVERY_STATES } from "..
 export const EventConsumerSchema = z
   .object({
     id: z.string(),
-    kind: z.string().openapi({ description: "How it is reached: `meta_capi` (Meta conversions)", example: "meta_capi" }),
+    kind: z.string().openapi({ description: "How it is reached: `webhook` (an endpoint of the merchant's own) or `meta_capi` (Meta conversions)", example: "webhook" }),
     name: z.string(),
     enabled: z.boolean(),
+    builtIn: z.boolean().openapi({ description: "Kept by the store's own settings (Meta conversions): it can be started and stopped, not edited or deleted" }),
     subscription: z.array(z.string()).openapi({ description: "The Event Types it receives, each named exactly, by subject (`order.*`), or `*`", example: ["order.created", "shipment.delivered"] }),
     catalogueVersion: z.number().int().openapi({ description: "The catalogue version its Deliveries are written in" }),
     disabledReason: z.enum(CONSUMER_DISABLED_REASONS).nullable().openapi({ description: "Why it stopped receiving, while disabled: `failing` (every Attempt failed for 3 days), `merchant`, or `gone` (its endpoint answered HTTP 410 Gone)" }),
@@ -21,10 +23,45 @@ export const EventConsumerSchema = z
       due: z.number().int().openapi({ description: "Deliveries on their way" }),
       dead: z.number().int().openapi({ description: "Deliveries given up on, waiting for a Replay" }),
     }),
+    webhook: z
+      .object({
+        url: z.string(),
+        signingSecret: z.string().openapi({ description: "The Signing Secret, masked: shown in full only when it is made", example: "••••Xw4=", "x-credential": "masked" }),
+        secretRotatedAt: z.iso.datetime({ offset: true }).nullable(),
+        previousSecretSignsUntil: z.iso.datetime({ offset: true }).nullable().openapi({ description: "After a rotation, until when Deliveries are also signed with the previous secret" }),
+      })
+      .nullable()
+      .openapi({ description: "A webhook Consumer's endpoint; null for any other kind" }),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
   .openapi("EventConsumer");
+
+const signingSecret = z.string().openapi({
+  description: "The Signing Secret, in full: shown this once. Verify Deliveries with it (Standard Webhooks)",
+  example: "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw",
+  "x-credential": "issued",
+});
+
+export const WebhookCreatedSchema = z.object({ consumer: EventConsumerSchema, signingSecret }).openapi("WebhookCreated");
+
+export const SigningSecretSchema = z
+  .object({
+    signingSecret,
+    previousSecretSignsUntil: z.iso.datetime({ offset: true }).openapi({ description: "Until when Deliveries are also signed with the secret this one replaces" }),
+  })
+  .openapi("SigningSecret");
+
+export const WebhookTestSchema = z
+  .object({
+    event: z.object({ id: z.string().openapi({ example: "test_0b7e4c1a-2f7d-4a52-9d1e-1f3c5a9b7e21" }), type: z.enum(EVENT_TYPES) }),
+    outcome: z.enum(["delivered", "retry", "reject"]).openapi({ description: "What a Delivery's Attempt would have come to" }),
+    httpStatus: z.number().int().nullable(),
+    durationMs: z.number().int(),
+    response: z.string().nullable().openapi({ description: "The start of what the endpoint answered" }),
+    error: z.string().nullable(),
+  })
+  .openapi("WebhookTest");
 
 const deliveryFields = {
   id: z.string(),

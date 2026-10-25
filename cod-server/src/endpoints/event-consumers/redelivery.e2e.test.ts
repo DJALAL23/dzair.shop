@@ -241,8 +241,10 @@ describe("the Consumers", () => {
     expect((await d1.db.select().from(schema.activityLogs).orderBy(asc(schema.activityLogs.createdAt)).all()).map((log) => log.action)).toEqual(["event_consumer.disabled", "event_consumer.enabled"]);
   });
 
-  it("refuses a change this API does not make, and a Consumer that does not exist", async () => {
-    expect((await call("PATCH", "/api/event-consumers/hook", { name: "Renamed" })).status).toBe(400);
+  it("refuses an empty change, an edit to a built-in Consumer, and a Consumer that does not exist", async () => {
+    expect((await call("PATCH", "/api/event-consumers/hook", {})).status).toBe(400);
+    expect((await call("PATCH", "/api/event-consumers/hook", { kind: "webhook" })).status).toBe(400);
+    expect((await call("PATCH", "/api/event-consumers/hook", { name: "Renamed" })).body.code).toBe("EVENT_CONSUMER_BUILT_IN");
     expect((await call("PATCH", "/api/event-consumers/ghost", { enabled: false })).body.code).toBe("EVENT_CONSUMER_NOT_FOUND");
     expect((await call("GET", "/api/event-consumers/ghost")).body.code).toBe("EVENT_CONSUMER_NOT_FOUND");
   });

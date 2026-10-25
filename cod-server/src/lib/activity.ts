@@ -105,6 +105,11 @@ export const ACTIONS = {
   EVENT_CONSUMER_ENABLED:  "event_consumer.enabled",
   EVENT_CONSUMER_DISABLED: "event_consumer.disabled",
   EVENT_CONSUMER_REPLAYED: "event_consumer.replayed",
+  EVENT_CONSUMER_CREATED:  "event_consumer.created",
+  EVENT_CONSUMER_UPDATED:  "event_consumer.updated",
+  EVENT_CONSUMER_DELETED:  "event_consumer.deleted",
+  EVENT_CONSUMER_SECRET_ROTATED: "event_consumer.secret_rotated",
+  EVENT_CONSUMER_TESTED:   "event_consumer.tested",
   EVENT_DELIVERY_RETRIED:  "event_delivery.retried",
 
   // Users / Team
