@@ -1597,8 +1597,8 @@ export const landingPageImages = sqliteTable("landing_page_images", {
   createdAt: text("created_at").notNull(),
 });
 
-// `dashboard_brand` (migrations 0000 and 0008) is no longer read: the
-// dashboard never showed its values. A later migration drops it.
+// `dashboard_brand` (migrations 0000 and 0008) is dropped by migration 0064:
+// the dashboard never showed its values.
 
 // ─── Meta Pixel / CAPI ───────────────────────────────────────────────────────
 
