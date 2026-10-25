@@ -5,7 +5,7 @@
  * processed again by hand; a sync records only what is new.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
-import { SYSTEM } from "@/test-utils/events";
+import { SYSTEM, metaConversionsOf } from "@/test-utils/events";
 import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
@@ -30,7 +30,6 @@ let server: EcotrackMockServer;
 let commune16: string;
 let scopes: string[] = [];
 const realFetch = globalThis.fetch;
-const created = vi.fn(async (_: unknown) => ({ id: "wf" }));
 const pending: Promise<unknown>[] = [];
 
 beforeAll(async () => {
@@ -51,7 +50,6 @@ afterAll(async () => {
 beforeEach(async () => {
   dbModule.getDb.mockReturnValue(d1.db);
   scopes = ["delivery:read", "delivery:manage"];
-  created.mockClear();
   server = createEcotrackMockServer();
   globalThis.fetch = ((url: string | URL, init?: RequestInit) => server.fetch(url, init)) as typeof fetch;
   commune16 = await seedStore(d1.db, server);
@@ -61,7 +59,7 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-const env = () => ({ DB: d1.raw, CAPI_WORKFLOW: { create: created } }) as never;
+const env = () => ({ DB: d1.raw }) as never;
 const ctx = () => ({ waitUntil: (p: Promise<unknown>) => pending.push(p), passThroughOnException() {} }) as never;
 const call = (method: string, path: string) => app.request(`/api/delivery-companies${path}`, { method }, env(), ctx());
 
@@ -98,7 +96,8 @@ describe("syncing a company's shipments now", () => {
     expect(((await res.json()) as any).data).toEqual({ synced: 2, recorded: 5, reached: 1, moreRemain: false });
     expect((await d1.db.select().from(schema.shipments).where(eq(schema.shipments.id, b)).get())!.deliveredAt).not.toBeNull();
     expect((await d1.db.select().from(schema.shipments).where(eq(schema.shipments.id, a)).get())!.lastSyncedAt).not.toBeNull();
-    expect(created).toHaveBeenCalledTimes(1);
+    const delivered = await d1.db.select({ orderId: schema.shipments.orderId }).from(schema.shipments).where(eq(schema.shipments.id, b)).get();
+    expect(await metaConversionsOf(d1.db, delivered!.orderId)).toEqual(["shipment.delivered"]);
 
     const again = ((await (await call("POST", "/eco/sync-shipments")).json()) as any).data;
     expect(again).toEqual({ synced: 1, recorded: 0, reached: 0, moreRemain: false });

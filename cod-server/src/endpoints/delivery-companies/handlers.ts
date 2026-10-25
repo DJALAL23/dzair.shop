@@ -19,8 +19,7 @@ import type { CarrierProvider } from "../../../../cod-shared/carriers/providers"
 import { callCarrier, requireCapability } from "@/carriers/app-errors";
 import type { CarrierAdapter } from "@/carriers/contract";
 import { syncShipments } from "@/endpoints/shipments/sync";
-import { scheduleShipmentConversions } from "@/lib/conversions";
-import { processInbox } from "@/inbound/process";
+import { processInboxEvent } from "@/inbound/process";
 import { requeueInboxEvent } from "../../../../cod-shared/inbound/inbox";
 import { NotFoundError, ValidationError, BusinessLogicError, ConflictError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -401,7 +400,6 @@ export async function syncCompanyShipments(c: Context<AppContext>) {
   const due = open.slice(0, SYNC_NOW_LIMIT);
   const recorded = await callCarrier(context, () => syncShipments(db, carrier, due, carrierAuthor(company, "carrier_sync")));
   const results = [...recorded.values()];
-  await scheduleShipmentConversions(c.env, (p) => c.executionCtx.waitUntil(p), db, results.flatMap((r) => r.businessEvents));
 
   return c.json({
     success: true,
@@ -652,7 +650,7 @@ export async function retryWebhookEvent(c: Context<AppContext>) {
   if (!(await requeueInboxEvent(db, eventId))) {
     throw new ConflictError(`An event that is "${event.result}" is not processed again`, ERROR_CODES.VALIDATION_FAILED, { eventId, result: event.result });
   }
-  const [outcome] = await processInbox(c.env, (p) => c.executionCtx.waitUntil(p), [eventId]);
+  const outcome = await processInboxEvent(db, eventId);
   const row = await db.select({ result: webhookEvents.result, errorMsg: webhookEvents.errorMsg, shipmentId: webhookEvents.shipmentId }).from(webhookEvents).where(eq(webhookEvents.id, eventId)).get();
   return c.json({ success: true, data: { result: outcome?.result ?? row?.result, errorMsg: row?.errorMsg ?? null, shipmentId: row?.shipmentId ?? null } }, 200);
 }

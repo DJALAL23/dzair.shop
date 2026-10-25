@@ -124,12 +124,12 @@ CodFlow v1.1.0 — here's what works today:
 
 ### Growth Engine
 - ✅ Meta Pixel (browser) + Conversions API (server) dual setup with event deduplication
-- ✅ Merchant-chosen conversion event: `Lead` at order placement or `Purchase` at confirmed delivery
+- ✅ Merchant-chosen conversion event: `Lead` or `Purchase` at order placement, `Purchase` at phone confirmation, or `Purchase` at delivery
 - ✅ Test Mode toggle routes CAPI events to Meta's test stream (`test_event_code`)
 - ✅ Graph API v26.0 with 7-day attribution window compliance
 - ✅ PII hashed per Meta spec (phone, names, city, zip, country, external_id); IP, User-Agent, `fbp`, `fbc` sent unhashed as required
 - ✅ `fbp` and `fbc` attribution preservation
-- ✅ Durable retry with Cloudflare Workflows (network + Meta 5xx, exponential backoff)
+- ✅ Every conversion recorded with the order change that causes it, then sent from the store's own D1 — from the dashboard, an AI agent, the storefront or a carrier alike — retried over about three days (network + Meta 5xx)
 - ✅ CAPI event audit log (`capi_event_log`) for every send attempt
 
 ### AI & Agentic (MCP)
@@ -299,7 +299,7 @@ wrangler secret put STORE_API_KEY
        │  (Astro 7)    │  API    │ (Hono + Workflows) API   │  (Astro 7)      │
        └───────┬───────┘         └───┬─────┬───────┘        └─────────────────┘
                │                     │     │
-               │               /webhooks   │ CodCapiWorkflow
+               │               /webhooks   │ Business Events → drain
                │              carrier calls│
                │                     │     └─────────▶ Meta Conversions API
                │                     │                 (Purchase @ delivered)

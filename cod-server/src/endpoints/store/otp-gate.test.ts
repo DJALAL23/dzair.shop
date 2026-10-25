@@ -19,21 +19,12 @@ import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import storeRouter from "./routes";
 import * as storeQueries from "./queries";
 import * as otpConfigQueries from "../../../../cod-shared/queries/otp-config";
-import * as capiHelpers from "@/workflows/capi-helpers";
 import { signOtpToken } from "@/endpoints/store-otp/token";
 
 vi.mock("@/db", () => ({ getDb: vi.fn(() => ({})) }));
 vi.mock("./queries");
-vi.mock("@/workflows/capi-helpers", () => ({
-  shouldTriggerCapiPurchase: vi.fn(() => false),
-  shouldTriggerCapiConfirmed: vi.fn(() => false),
-  getCapiWorkflowId: vi.fn((id: string, stage: string, event: string) => `capi-${id}-${stage}-${event}`),
-  resolveConversionForStage: vi.fn(() => ({ shouldFire: false })),
-  resolveCapiDispatch: vi.fn(() => ({ send: false, reason: "tracking-disabled", message: "mock skip" })),
-}));
 vi.mock("../../../../cod-shared/queries/otp-config");
 vi.mock("../../../../cod-shared/queries/turnstile-config");
-vi.mock("@/lib/capi", () => ({ sendCapiEvent: vi.fn(async () => undefined) }));
 import { DEFAULT_CHECKOUT_FORM_POLICY } from "../../../../cod-shared/checkout-form/policy";
 
 // The address rule is tested against the real reference tables

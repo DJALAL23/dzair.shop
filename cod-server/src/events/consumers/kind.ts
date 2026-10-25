@@ -10,6 +10,8 @@ import type { AttemptOutcome, ConsumerRow, DeliverableEvent } from "../../../../
 import type { Cost } from "../meter";
 
 export interface Attempt {
+  /** The Delivery this Attempt is for: the same on every Attempt of it. */
+  deliveryId: string;
   event: DeliverableEvent;
   consumer: ConsumerRow;
   /** This Attempt's number, counting from 1. */

@@ -35,7 +35,8 @@ export function recordEvent(db: AppDb, event: BusinessEventDraft, when?: SQL): B
           actorName: sql`${event.actor.name}`,
           origin: sql`${event.origin}`,
           occurredAt: sql`${event.occurredAt}`,
-          recordedAt: sql`${new Date().toISOString()}`,
+          // D1's clock as the row is written, so Recorded At never runs backwards against the Sequence.
+          recordedAt: sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
           data: dataSql(event.data),
         }) as never,
       )

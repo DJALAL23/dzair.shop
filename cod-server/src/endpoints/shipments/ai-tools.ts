@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { AppDb } from "@/db";
 import type { Env } from "@/types/env";
 import { agentActingOf, type McpProps } from "@/mcp/props";
-import { scheduleShipmentConversions } from "@/lib/conversions";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 import { handOffOne } from "./handoff-results";
 import { reportShipmentEvent } from "./operations";
@@ -162,9 +161,6 @@ export const getShipmentTools = (db: AppDb, env: Env, props: McpProps) => ({
       const { shipmentId, ...report } = parsed.data;
       try {
         const recorded = await reportShipmentEvent(db, shipmentId, report, agentActingOf(props));
-        const scheduled: Promise<unknown>[] = [];
-        await scheduleShipmentConversions(env, (p) => void scheduled.push(p), db, recorded.businessEvents);
-        await Promise.allSettled(scheduled);
         return {
           success: true,
           shipment: await loadShipmentView(db, shipmentId, { events: false }),

@@ -223,8 +223,8 @@ export default {
     return response;
   },
   /** The events queue only ever says "work is due": drain. A drain that throws is retried by the queue, then by the schedule. */
-  async queue(_batch: MessageBatch<DrainMessage>, env: Env, ctx: ExecutionContext): Promise<void> {
-    await drainAndContinue(env, { waitUntil: (promise) => ctx.waitUntil(promise) });
+  async queue(_batch: MessageBatch<DrainMessage>, env: Env): Promise<void> {
+    await drainAndContinue(env);
   },
   async scheduled(
     event: ScheduledEvent,
@@ -232,7 +232,7 @@ export default {
     ctx: ExecutionContext
   ): Promise<void> {
     if (event.cron === INBOUND_CRON) {
-      ctx.waitUntil(runInboundCron(env, (promise) => ctx.waitUntil(promise)));
+      ctx.waitUntil(runInboundCron(env));
       return;
     }
     ctx.waitUntil(sweepAbandonedOrders(env));

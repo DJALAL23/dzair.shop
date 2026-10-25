@@ -18,8 +18,7 @@ import { drain, drainAndContinue, wake, workIsDue } from "./drain";
 
 let d1: TestD1;
 const send = vi.fn(async () => {});
-const env = () => ({ DB: d1.raw, EVENTS_QUEUE: { send }, CAPI_WORKFLOW: { create: vi.fn() } }) as unknown as Env;
-const waitUntil = () => {};
+const env = () => ({ DB: d1.raw, EVENTS_QUEUE: { send } }) as unknown as Env;
 const T0 = new Date("2026-10-25T10:00:00.000Z");
 const at = (minutes: number) => new Date(T0.getTime() + minutes * 60_000);
 
@@ -61,7 +60,7 @@ const record = (orderId: string, type?: "order.confirmed" | "order.cancelled") =
 
 const deliveries = () => d1.db.select().from(schema.eventDeliveries).orderBy(asc(schema.eventDeliveries.createdAt)).all();
 const attemptsOf = (deliveryId: string) => d1.db.select().from(schema.eventDeliveryAttempts).where(eq(schema.eventDeliveryAttempts.deliveryId, deliveryId)).orderBy(asc(schema.eventDeliveryAttempts.attempt)).all();
-const run = (kinds: Record<string, ConsumerKind>, now = T0) => drain(env(), { waitUntil, kinds, now: () => now });
+const run = (kinds: Record<string, ConsumerKind>, now = T0) => drain(env(), { kinds, now: () => now });
 
 describe("fan-out", () => {
   it("gives each event one Delivery per enabled Consumer subscribed to it, that existed when it was recorded", async () => {
@@ -235,13 +234,13 @@ describe("the budget", () => {
     const { impl, received } = memoryKind("heavy", undefined, { external: 0, services: 10 });
     const budget = { external: 45, services: 40 };
 
-    const first = await drainAndContinue(env(), { waitUntil, kinds: { heavy: impl }, budget, now: () => T0 });
+    const first = await drainAndContinue(env(), { kinds: { heavy: impl }, budget, now: () => T0 });
     expect(first.more).toBe(true);
     expect(received.length).toBeGreaterThan(0);
     expect(received.length).toBeLessThan(5);
     expect(send).toHaveBeenCalledTimes(1);
 
-    for (let i = 0; i < 5 && (await workIsDue(d1.db, T0)); i++) await drain(env(), { waitUntil, kinds: { heavy: impl }, budget, now: () => T0 });
+    for (let i = 0; i < 5 && (await workIsDue(d1.db, T0)); i++) await drain(env(), { kinds: { heavy: impl }, budget, now: () => T0 });
     expect(received).toHaveLength(5);
     expect((await deliveries()).every((d) => d.state === "delivered")).toBe(true);
   });
@@ -250,10 +249,10 @@ describe("the budget", () => {
     await consumer("c1", "heavy", ["*"]);
     await record("o1");
     const { impl } = memoryKind("heavy", undefined, { external: 0, services: 1000 });
-    const report = await drainAndContinue(env(), { waitUntil, kinds: { heavy: impl }, now: () => T0 });
+    const report = await drainAndContinue(env(), { kinds: { heavy: impl }, now: () => T0 });
     expect(report).toMatchObject({ fannedOut: 1, more: true });
     send.mockClear();
-    const stuck = await drainAndContinue(env(), { waitUntil, kinds: { heavy: impl }, now: () => T0 });
+    const stuck = await drainAndContinue(env(), { kinds: { heavy: impl }, now: () => T0 });
     expect(stuck).toMatchObject({ fannedOut: 0, more: true });
     expect(send).not.toHaveBeenCalled();
   });

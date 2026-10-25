@@ -27,8 +27,7 @@ import {
 import { resolveStorefrontMenu } from "../../../../cod-shared/queries/menus";
 import { getStorefrontCollection } from "../../../../cod-shared/queries/collections";
 import { findShopperOrder } from "../../../../cod-shared/queries/store-order-status";
-import { resolveConversionForStage, conversionSourceUrl } from "@/workflows/capi-helpers";
-import { startCapiWorkflow } from "@/lib/conversions";
+import { resolveConversionForStage } from "@/workflows/capi-helpers";
 import { stores, orders } from "../../../../cod-shared/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -448,65 +447,6 @@ export async function createStoreOrder(c: Context<AppContext>) {
       // The use was taken by another order since the code was checked.
       throw error instanceof queries.CouponNotApplicableError ? couponNotApplicable(error.refusal) : error;
     });
-
-  // Meta CAPI conversion event at checkout — evaluated against merchant's tracking mode.
-  // When mode is instant "Purchase", sends Purchase (matching the thank-you Pixel).
-  // When mode is "Lead", sends Lead (matching the thank-you Pixel).
-  // When mode is "Purchase_Confirmed" or "Purchase_Delivered", skips at checkout
-  // and fires down-funnel via server CAPI.
-  if (c.env.CAPI_WORKFLOW) {
-    try {
-      const storeId = c.get("storeId");
-      const tracking =
-        storeId && typeof db.select === "function"
-          ? await resolveTrackingConfig(db, { storeId, landingPageId })
-          : null;
-      const decision = resolveConversionForStage(tracking?.conversionEvent, "checkout");
-
-      if (decision.shouldFire && decision.eventName) {
-        let storeRow: { domain: string | null } | undefined = undefined;
-        if (storeId && typeof db.select === "function") {
-          storeRow = await db
-            .select({ domain: stores.domain })
-            .from(stores)
-            .where(eq(stores.id, storeId))
-            .get();
-        }
-
-        // The landing page the ad pointed at, when this order came from one —
-        // same rule the Workflow uses for every later stage, so an order's
-        // source URL does not change between its checkout and delivery events.
-        //
-        // Keyed on landingPageId, not the raw slug: attribution is
-        // best-effort, and a slug that did not resolve is not this order's
-        // page. The Workflow reads the attributed page from the order, so
-        // naming an unresolved slug here would give one order two source URLs.
-        let eventSourceUrl = conversionSourceUrl(
-          storeRow?.domain,
-          landingPageId ? data.landingPageSlug : null,
-        );
-
-        if (!eventSourceUrl) {
-          const referer = c.req.header("Referer");
-          if (referer && (referer.startsWith("http://") || referer.startsWith("https://"))) {
-            eventSourceUrl = referer;
-          }
-        }
-
-        startCapiWorkflow(c.env, (p) => c.executionCtx.waitUntil(p), {
-          orderId: order.id,
-          eventName: decision.eventName,
-          stage: "checkout",
-          trigger: "order_created",
-          eventSourceUrl,
-        });
-      }
-    } catch (err) {
-      console.error("[capi-workflow] checkout evaluation failed:", (err as Error)?.message);
-    }
-  } else {
-    console.error("[capi-workflow] CAPI_WORKFLOW binding is undefined — worker needs re-provision");
-  }
 
   return c.json(
     {

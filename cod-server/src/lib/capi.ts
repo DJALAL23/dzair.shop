@@ -1,13 +1,10 @@
 /**
- * Meta Conversions API (CAPI) client.
- *
- * Shared by:
- *  - endpoints/store/handlers.ts — inline Lead mirror at order placement
- *  - workflows/capi.ts           — durable Purchase event at delivery
+ * Meta Conversions API (CAPI) client, used by the Meta conversions Consumer
+ * Kind (`src/events/consumers/meta-capi.ts`).
  *
  * All PII is SHA-256 hashed before sending (Meta requirement).
  * Phones are normalised to the Algerian country code 213.
- * Throws on network errors and Meta 5xx (retryable by the Workflow);
+ * Throws on network errors and Meta 5xx (an Attempt to retry);
  * returns { success: false } on 4xx (Meta rejects the whole batch).
  */
 
@@ -91,6 +88,7 @@ export async function sendCapiEvent(
   pixelId: string,
   accessToken: string,
   payload: CapiEventPayload,
+  request: typeof fetch = fetch,
 ): Promise<CapiResult> {
   const ud = payload.userData;
 
@@ -144,7 +142,7 @@ export async function sendCapiEvent(
 
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await request(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

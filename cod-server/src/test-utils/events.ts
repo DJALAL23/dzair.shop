@@ -3,12 +3,13 @@
  * them, the Authors tests act as, and a reader that holds every logged event
  * to its catalogue schema.
  */
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
 import { EVENT_DATA_SCHEMAS } from "@/events/catalogue";
 import type { Author } from "../../../cod-shared/events/actor";
 import { EVENT_CATALOGUE, type EventDataMap, type EventType } from "../../../cod-shared/events/catalogue";
+import { fanOut } from "../../../cod-shared/events/deliveries";
 import type { Money, OrderSnapshot, ShipmentSnapshot } from "../../../cod-shared/events/snapshots";
 
 const money = (dinars: number): Money => ({ amount: dinars.toFixed(2), currency: "DZD" });
@@ -113,4 +114,17 @@ export async function eventsOf(db: AppDb, orderId: string): Promise<LoggedEvent[
     if (!parsed.success) throw new Error(`${row.type} #${row.seq} breaks its schema: ${parsed.error.message}`);
     return { ...row, data: parsed.data } as LoggedEvent;
   });
+}
+
+/** The types of an order's Business Events that Meta conversions will receive, once fanned out. */
+export async function metaConversionsOf(db: AppDb, orderId: string): Promise<EventType[]> {
+  await fanOut(db, new Date(), 100);
+  const rows = await db
+    .select({ type: schema.businessEvents.type })
+    .from(schema.eventDeliveries)
+    .innerJoin(schema.businessEvents, eq(schema.businessEvents.seq, schema.eventDeliveries.eventSeq))
+    .where(and(eq(schema.eventDeliveries.consumerId, "meta-conversions"), eq(schema.businessEvents.orderId, orderId)))
+    .orderBy(asc(schema.businessEvents.seq))
+    .all();
+  return rows.map((r) => r.type);
 }

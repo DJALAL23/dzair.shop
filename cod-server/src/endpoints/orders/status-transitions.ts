@@ -15,7 +15,6 @@ import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
-import { scheduleStatusConversion } from "@/lib/conversions";
 
 /**
  * PATCH /orders/:id/status
@@ -62,9 +61,6 @@ export async function updateStatus(c: Context<AppContext>) {
 
   const change = await queries.updateOrderStatus(db, orderId, validated.status, c.get("author"));
   if (!change.ok) throw refusalFor(change, orderId, "its status no longer changes");
-
-  // Never blocks the response; the runtime keeps the start alive with waitUntil.
-  scheduleStatusConversion(c.env, (p) => c.executionCtx.waitUntil(p), orderId, validated.status);
 
   await logActivity(db, user, ACTIONS.ORDER_STATUS_CHANGED, {
     type: "order", id: orderId,

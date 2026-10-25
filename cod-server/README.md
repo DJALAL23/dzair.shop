@@ -4,7 +4,7 @@ The backend engine for CodFlow — a COD-first e-commerce platform for Algeria
 that is **agentic-ready**. It exposes the merchant REST API, the public
 storefront API, delivery-carrier webhooks, and a complete **MCP remote server**
 (RFC 9728) so AI agents can operate the store with RBAC-scoped tools. Built on
-Cloudflare Workers, Hono, and Drizzle ORM, with Durable Objects and Cloudflare
+Cloudflare Workers, Hono, and Drizzle ORM, with D1, Queues and Cloudflare
 Workflows under the hood.
 
 This package is part of the [CodFlow monorepo](../README.md). The dashboard
@@ -141,14 +141,15 @@ wrangler secret put R2_SECRET_ACCESS_KEY
 ```
 cod-server/
 ├── src/
-│   ├── index.ts               # Hono app entry — wires routes, MCP server, CAPI workflow, cron
+│   ├── index.ts               # Worker entry — routes, MCP server, the events queue, cron
 │   ├── types/                 # Env bindings (mirrors wrangler.toml), app context types
 │   ├── db/                    # D1 + Drizzle helpers (schema re-export, migrate, migrations/)
 │   ├── middleware/            # better-auth session/bearer auth, store API key, CORS, error handling
 │   ├── endpoints/             # One folder per domain (see route list below)
 │   ├── lib/                   # Meta CAPI client, activity log, shared errors
 │   ├── mcp/                   # MCP remote server (OAuth provider wiring + scope-gated tool registry)
-│   ├── workflows/             # Durable Cloudflare Workflows (CodCapiWorkflow)
+│   ├── events/                # Business Events: the catalogue's schemas, the drain, Consumer Kinds (Meta conversions)
+│   ├── workflows/             # Durable Cloudflare Workflows (landing-page images, review media)
 │   ├── cron/                  # Scheduled handlers (abandoned-order sweep)
 │   ├── openapi/               # OpenAPI assembly: security schemes, Swagger UI, shared Zod schemas — the served spec generates from route definitions
 │   ├── rbac/                  # Scope-based authorization middleware
@@ -194,12 +195,15 @@ dashboard's sign-in sessions mint the access tokens via the login-ticket relay
 (`/authorize`), and dangerous tools require HMAC-sealed stateless
 confirmation. The tool factories are gated by RBAC scopes.
 
-### Meta CAPI workflow
-`src/workflows/` (CodCapiWorkflow) fires Meta Conversions API `Purchase` events
-when an order reaches `delivered` — or `out_for_delivery` for long-haul southern
-wilayas (5–10 day delivery). Decoupled from the order status handler — an
-analytics failure can never affect order state. Disabled for stores without an
-enabled `storePixelConfig` (or a missing `accessToken`).
+### Meta conversions
+Meta conversions are a Consumer of Business Events (`src/events/consumers/meta-capi.ts`):
+the store's built-in Consumer receives `order.created` (a shopper's checkout),
+`order.confirmed` (from any surface), `shipment.delivered`, and
+`shipment.out_for_delivery` for long-haul southern wilayas (5–10 day delivery).
+The merchant's tracking settings decide what is sent; `event_time` is when it
+happened. Delivered by the drain, never by the change itself — an analytics
+failure can never affect order state. Nothing is sent for a store without an
+enabled `storePixelConfig` with an `accessToken`.
 
 ### Abandoned orders
 An hourly cron sweeps pending orders older than 30 minutes to `abandoned`.

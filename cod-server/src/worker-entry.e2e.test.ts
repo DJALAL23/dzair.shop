@@ -17,7 +17,6 @@ const env = () =>
   ({
     DB: d1.raw,
     EVENTS_QUEUE: { send },
-    CAPI_WORKFLOW: { create: vi.fn() },
     WORKER_SELF_URL: "https://api.store.test/",
     OAUTH_KV: { get: async () => null, put: async () => {}, delete: async () => {}, list: async () => ({ keys: [], list_complete: true }) },
     ENVIRONMENT: "test",
@@ -71,7 +70,7 @@ describe("the Worker", () => {
 
   it("drains when the queue's message arrives", async () => {
     await pendingWork();
-    await worker.queue({ messages: [{ body: { kind: "drain" } }], ackAll() {}, retryAll() {} } as never, env(), ctx());
+    await worker.queue({ messages: [{ body: { kind: "drain" } }], ackAll() {}, retryAll() {} } as never, env());
     const [event] = await d1.db.select().from(schema.businessEvents).all();
     expect(event!.fannedOutAt).not.toBeNull();
   });

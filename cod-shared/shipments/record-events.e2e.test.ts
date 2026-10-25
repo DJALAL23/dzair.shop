@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { SYSTEM } from "@/test-utils/events";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "../db/schema";
 import type { Interpretation } from "./interpretation";
@@ -25,7 +25,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const db = d1.db;
-  for (const table of [schema.shipmentEvents, schema.driverPaymentLines, schema.shipments, schema.stockMovements, schema.orderProducts, schema.orders, schema.productVariants, schema.products, schema.customers, schema.drivers, schema.deliveryCompanies]) {
+  for (const table of [schema.businessEvents, schema.shipmentEvents, schema.driverPaymentLines, schema.shipments, schema.stockMovements, schema.orderProducts, schema.orders, schema.productVariants, schema.products, schema.customers, schema.drivers, schema.deliveryCompanies]) {
     await db.delete(table);
   }
   await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", totalOrders: 2, totalSpent: 2500, createdAt: T0 });
@@ -81,7 +81,8 @@ describe("recording", () => {
       ev("Livré", milestone("delivered"), 30, { status: { vocabulary: "status", value: "Livré", label: "Delivered" } }),
     ], SYSTEM);
     expect(result).toMatchObject({ recorded: 3, duplicates: 0, reached: ["out_for_delivery", "delivered"], anomalies: [] });
-    expect(result.businessEvents.map((e) => e.type)).toEqual(["ShipmentOutForDelivery", "DeliveryAttemptFailed", "ShipmentDelivered"]);
+    const logged = await d1.db.select({ type: schema.businessEvents.type }).from(schema.businessEvents).where(eq(schema.businessEvents.subjectId, "s-carrier")).orderBy(asc(schema.businessEvents.seq)).all();
+    expect(logged.map((e) => e.type)).toEqual(["shipment.out_for_delivery", "shipment.delivery_failed", "shipment.delivered"]);
     expect(await shipment("s-carrier")).toMatchObject({
       providerStatus: "Livré",
       providerStatusLabel: "Delivered",

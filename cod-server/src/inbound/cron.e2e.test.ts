@@ -5,7 +5,7 @@
  * bounded, oldest first, and stopping a company that throttles.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
-import { SYSTEM } from "@/test-utils/events";
+import { SYSTEM, metaConversionsOf } from "@/test-utils/events";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
@@ -27,9 +27,7 @@ let server: EcotrackMockServer;
 let commune16: string;
 let noestCalls: string[];
 const realFetch = globalThis.fetch;
-const created = vi.fn(async (_: unknown) => ({ id: "wf" }));
-const env = () => ({ DB: d1.raw, CAPI_WORKFLOW: { create: created } }) as never;
-const waitUntil = () => {};
+const env = () => ({ DB: d1.raw, EVENTS_QUEUE: { send: async () => {} } }) as never;
 const MINUTE = 60_000;
 
 beforeAll(async () => {
@@ -42,7 +40,6 @@ afterAll(async () => {
 
 beforeEach(async () => {
   dbModule.getDb.mockReturnValue(d1.db);
-  created.mockClear();
   server = createEcotrackMockServer();
   noestCalls = [];
   globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
@@ -146,19 +143,19 @@ describe("unknown handoffs", () => {
 });
 
 describe("pull-only carriers", () => {
-  it("open shipments are synced from the carrier's history; a delivery starts its conversion", async () => {
+  it("open shipments are synced from the carrier's history; a delivery reaches Meta conversions", async () => {
     const t1 = await parcelAtEcotrack("ORD-o1");
     const t2 = await parcelAtEcotrack("ORD-o2");
     const a = await shipment("o1", "eco", "accepted", t1);
     const b = await shipment("o2", "eco", "accepted", t2);
     server.parcel(t2)!.activity.push({ date: "2026-10-14", time: "16:00:00", status: "livred", station: "" });
-    const { synced, stopped } = await syncPullCarriers(env(), waitUntil);
+    const { synced, stopped } = await syncPullCarriers(env());
     expect(synced.sort()).toEqual([a, b].sort());
     expect(stopped).toEqual([]);
     expect((await row(b))!.deliveredAt).not.toBeNull();
     expect((await row(a))!.lastSyncedAt).not.toBeNull();
-    expect(created).toHaveBeenCalledTimes(1);
-    expect(created.mock.calls[0][0]).toMatchObject({ params: { orderId: "o2", stage: "delivered" } });
+    expect(await metaConversionsOf(d1.db, "o2")).toEqual(["shipment.delivered"]);
+    expect(await metaConversionsOf(d1.db, "o1")).toEqual([]);
   });
 
   it("closed shipments, recently synced ones and webhook carriers are left alone", async () => {
@@ -168,7 +165,7 @@ describe("pull-only carriers", () => {
     await setTimes(recent, { lastSyncedAt: ago(LIMITS.syncEveryMs - MINUTE) });
     await shipment("o3", "yal", "accepted");
     const pending = await shipment("o4", "eco", "unknown");
-    expect((await syncPullCarriers(env(), waitUntil)).synced).toEqual([]);
+    expect((await syncPullCarriers(env())).synced).toEqual([]);
     expect(server.callsFor("/api/v1/get/tracking/info")).toHaveLength(0);
     expect((await row(pending))!.lastSyncedAt).toBeNull();
   });
@@ -177,7 +174,7 @@ describe("pull-only carriers", () => {
     const eco = await shipment("o1", "eco", "accepted", await parcelAtEcotrack("ORD-o1"));
     const noest = await shipment("o2", "noest", "accepted");
     server.override("/api/v1/get/tracking/info", () => new Response("{}", { status: 429 }));
-    const { synced, stopped } = await syncPullCarriers(env(), waitUntil);
+    const { synced, stopped } = await syncPullCarriers(env());
     expect(stopped).toContain("eco");
     expect(synced).toContain(noest);
     expect((await row(eco))!.lastSyncedAt).toBeNull();
@@ -191,7 +188,7 @@ describe("pull-only carriers", () => {
       await setTimes(id, { lastSyncedAt: ago((LIMITS.syncPerCompany + 2 - i) * LIMITS.syncEveryMs) });
       ids.push(id);
     }
-    const { synced } = await syncPullCarriers(env(), waitUntil);
+    const { synced } = await syncPullCarriers(env());
     expect(synced).toEqual(ids.slice(0, LIMITS.syncPerCompany));
   });
 
@@ -199,7 +196,7 @@ describe("pull-only carriers", () => {
     for (let i = 0; i < LIMITS.syncPerCompany; i++) await shipment(`u${i}`, "eco", "unknown");
     const real = await shipment("real", "eco", "accepted", await parcelAtEcotrack("ORD-real"));
     await setTimes(real, { lastSyncedAt: ago(LIMITS.syncEveryMs + MINUTE) });
-    expect((await syncPullCarriers(env(), waitUntil)).synced).toEqual([real]);
+    expect((await syncPullCarriers(env())).synced).toEqual([real]);
   });
 
   it("histories are read in the carrier's own batches", async () => {
@@ -222,7 +219,7 @@ describe("pull-only carriers", () => {
   it("an inactive company, or one without credentials, is not synced", async () => {
     await shipment("o1", "off", "accepted");
     await shipment("o2", "unconnected", "accepted");
-    expect((await syncPullCarriers(env(), waitUntil)).synced).toEqual([]);
+    expect((await syncPullCarriers(env())).synced).toEqual([]);
     expect(server.requests).toHaveLength(0);
   });
 });
@@ -232,7 +229,7 @@ describe("the inbox, in the drain", () => {
     const due = { id: "due", provider: "yalidine", eventId: "e1", companyId: "yal", eventType: "parcel_payment_updated", rawPayload: JSON.stringify({ type: "parcel_payment_updated", event: { event_id: "e1", occurred_at: "2026-10-14 10:00:00", data: {} } }), result: "error", attempts: 1, nextAttemptAt: ago(MINUTE), createdAt: ago(10 * MINUTE) };
     await d1.db.insert(schema.webhookEvents).values(due);
     await d1.db.insert(schema.webhookEvents).values({ ...due, id: "later", eventId: "e2", nextAttemptAt: new Date(Date.now() + 10 * MINUTE).toISOString() });
-    const report = await drain(env(), { waitUntil, kinds: {} });
+    const report = await drain(env(), { kinds: {} });
     expect(report.inbox).toBe(1);
     expect((await d1.db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, "due")).get())!.result).toBe("deferred_settlement");
     expect((await d1.db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, "later")).get())!.result).toBe("error");
@@ -249,7 +246,7 @@ describe("one run", () => {
     vi.spyOn(d1.db, "select").mockImplementationOnce(() => {
       throw new Error("reservations read failed");
     });
-    await runInboundCron(env(), waitUntil);
+    await runInboundCron(env());
     vi.restoreAllMocks();
     expect(error).toHaveBeenCalledWith(expect.stringContaining("stale reservations pass failed"), "reservations read failed");
     expect((await row(stale))!.handoffState).toBe("submitting");

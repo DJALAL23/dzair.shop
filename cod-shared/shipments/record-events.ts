@@ -43,14 +43,6 @@ export interface IncomingShipmentEvent {
   raw?: unknown;
 }
 
-/** What a recorded shipment change means to the rest of CodFlow (CAPI, notifications). */
-export interface ShipmentBusinessEvent {
-  type: "ShipmentOutForDelivery" | "ShipmentDelivered" | "ShipmentReturnStarted" | "ShipmentReturned" | "ShipmentCancelled" | "DeliveryAttemptFailed";
-  shipmentId: string;
-  orderId: string;
-  occurredAt: string;
-}
-
 export interface RecordedEvents {
   /** Events new to this shipment. */
   recorded: number;
@@ -59,7 +51,6 @@ export interface RecordedEvents {
   /** Milestones set for the first time by this call. */
   reached: Milestone[];
   anomalies: Anomaly[];
-  businessEvents: ShipmentBusinessEvent[];
 }
 
 export class ShipmentNotFoundError extends Error {
@@ -70,14 +61,6 @@ export class ShipmentNotFoundError extends Error {
 }
 
 const MAX_ATTEMPTS = 5;
-
-const BUSINESS_EVENT: Record<Milestone, ShipmentBusinessEvent["type"]> = {
-  out_for_delivery: "ShipmentOutForDelivery",
-  delivered: "ShipmentDelivered",
-  return_started: "ShipmentReturnStarted",
-  returned: "ShipmentReturned",
-  cancelled: "ShipmentCancelled",
-};
 
 /**
  * Record reported events on a shipment. Events it already has are ignored;
@@ -130,12 +113,11 @@ async function attemptRecord(
     : new Set<string>();
   const fresh = [...unique.entries()].filter(([key]) => !known.has(key));
   const duplicates = incoming.length - fresh.length;
-  if (fresh.length === 0) return { recorded: 0, duplicates, reached: [], anomalies: [], businessEvents: [] };
+  if (fresh.length === 0) return { recorded: 0, duplicates, reached: [], anomalies: [] };
 
   let facts = deliveryFactsOf(row);
   const reached: Milestone[] = [];
   const anomalies: Anomaly[] = [];
-  const businessEvents: ShipmentBusinessEvent[] = [];
   const now = new Date().toISOString();
   const revision = crypto.randomUUID();
   const guard = sql`exists (select 1 from ${shipments} where ${shipments.id} = ${shipmentId} and ${shipments.revision} = ${revision})`;
@@ -155,11 +137,9 @@ async function attemptRecord(
     reached.push(...step.reached);
     if (step.anomaly) anomalies.push(step.anomaly);
     for (const milestone of step.reached) {
-      businessEvents.push({ type: BUSINESS_EVENT[milestone], shipmentId, orderId: row.orderId, occurredAt: event.occurredAt });
       publish({ type: MILESTONE_EVENT[milestone] }, event);
     }
     if (step.next.deliveryAttempts > before.deliveryAttempts) {
-      businessEvents.push({ type: "DeliveryAttemptFailed", shipmentId, orderId: row.orderId, occurredAt: event.occurredAt });
       publish({ type: "shipment.delivery_failed", attempt: step.next.deliveryAttempts }, event);
     }
     const milestone = event.interpretation.kind === "milestone" ? event.interpretation.milestone : null;
@@ -255,5 +235,5 @@ async function attemptRecord(
   const claimed = (results[0] as { meta?: { changes?: number } }).meta?.changes ?? 0;
   if (claimed === 0) return "lost_race";
 
-  return { recorded: fresh.length, duplicates, reached, anomalies, businessEvents };
+  return { recorded: fresh.length, duplicates, reached, anomalies };
 }

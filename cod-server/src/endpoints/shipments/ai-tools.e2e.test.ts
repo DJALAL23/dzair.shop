@@ -6,6 +6,7 @@
  * access, and every result matches the output schema the tool advertises.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { metaConversionsOf } from "@/test-utils/events";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
@@ -26,7 +27,6 @@ let app: OpenAPIHono<AppContext>;
 let server: EcotrackMockServer;
 let commune16: string;
 const realFetch = globalThis.fetch;
-const capi = { create: vi.fn() };
 
 beforeAll(async () => {
   d1 = await createTestD1();
@@ -39,7 +39,6 @@ afterAll(async () => {
 
 beforeEach(async () => {
   dbModule.getDb.mockReturnValue(d1.db);
-  capi.create.mockReset().mockResolvedValue({});
   server = createEcotrackMockServer();
   globalThis.fetch = ((url: string | URL, init?: RequestInit) => server.fetch(url, init)) as typeof fetch;
   commune16 = await seedStore(d1.db, server);
@@ -56,11 +55,11 @@ afterEach(() => {
 
 const seed = (s: OrderSeed) => seedOrder(d1.db, commune16, s);
 const grant = (scopes: string[], role: McpProps["role"] = "staff"): McpProps => ({ userId: "u-ada", role, scopes, name: "Ada", email: "ada@example.com" });
-const visible = (props: McpProps) => Object.keys(buildToolsForUser({ DB: d1.raw, CAPI_WORKFLOW: capi } as never, props)).sort();
+const visible = (props: McpProps) => Object.keys(buildToolsForUser({ DB: d1.raw } as never, props)).sort();
 
 /** Calls the tool as an MCP client would; the result's structuredContent exists only when it matches the advertised output schema. */
 async function call(props: McpProps, name: string, args: Record<string, unknown>) {
-  const tool = buildToolsForUser({ DB: d1.raw, CAPI_WORKFLOW: capi } as never, props)[name];
+  const tool = buildToolsForUser({ DB: d1.raw } as never, props)[name];
   if (!tool) throw new Error(`${name} is not offered to this grant`);
   const result = await executeMcpTool({ db: d1.db, actor: { id: props.userId, name: props.name, role: props.role }, name, tool, args });
   expect(result.structuredContent, `${name}'s result matches its output schema`).toBeDefined();
@@ -141,7 +140,7 @@ describe("giving an order to the store's driver", () => {
 });
 
 describe("reporting what happened", () => {
-  it("a driver's delivery: the milestone, the driver's cash, the conversion — once; the closed shipment takes no more reports", async () => {
+  it("a driver's delivery: the milestone, the driver's cash, Meta conversions' event — once; the closed shipment takes no more reports", async () => {
     await seed({ id: "o1", price: 2000, deliveryFee: 400 });
     const { handoff } = await call(assigner, "handOffOrderToDriver", { orderId: "o1", driverId: "dr1" });
     const at = new Date().toISOString();
@@ -154,14 +153,13 @@ describe("reporting what happened", () => {
     const delivered = await call(assigner, "reportShipmentEvent", { shipmentId: handoff.shipment.id, status: "delivered" });
     expect(delivered).toMatchObject({ success: true, recorded: 1, duplicates: 0, reached: ["delivered"], shipment: { deliveredAt: expect.any(String) } });
     expect((await driver()).pendingCash).toBe(2400);
-    expect(capi.create).toHaveBeenCalledTimes(1);
-    expect(capi.create.mock.calls[0][0].params).toMatchObject({ orderId: "o1" });
+    expect(await metaConversionsOf(d1.db, "o1")).toEqual(["shipment.out_for_delivery", "shipment.delivered"]);
 
     const again = await call(assigner, "reportShipmentEvent", { shipmentId: handoff.shipment.id, status: "delivered" });
     expect(again).toMatchObject({ success: false, isError: true });
     expect(again.error).toContain("closed");
     expect((await driver()).pendingCash).toBe(2400);
-    expect(capi.create).toHaveBeenCalledTimes(1);
+    expect(await metaConversionsOf(d1.db, "o1")).toEqual(["shipment.out_for_delivery", "shipment.delivered"]);
   });
 
   it("on a driver's shipment it takes the assignment permission, even when the tool is offered for dispatch", async () => {

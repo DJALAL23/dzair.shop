@@ -72,8 +72,10 @@ export interface Env {
   /** OAuth helpers injected into `env` by the OAuthProvider before handlers run. */
   OAUTH_PROVIDER?: OAuthHelpers;
   /**
-   * Cloudflare Workflow binding for CodCapiWorkflow.
-   * Fires CAPI Purchase events at order delivery — decoupled from status handler.
+   * CodCapiWorkflow's binding. Nothing starts it any more: Meta conversions
+   * are a Consumer of Business Events (`src/events/consumers/meta-capi.ts`).
+   * Kept bound so instances started before that release can finish; removed
+   * once none can remain (docs/events/PLAN.md, Phase 16).
    */
   CAPI_WORKFLOW: Workflow;
   /**

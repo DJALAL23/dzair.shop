@@ -20,9 +20,7 @@ import { deliveryCompanies, shipments } from "@/db/schema";
 import type { Env } from "@/types";
 import { isCarrierError } from "@/carriers/contract";
 import { carrierCapabilities } from "@/carriers/registry";
-import { scheduleShipmentConversions, type WaitUntil } from "@/lib/conversions";
 import { markHandoffUnknown, recordSynced } from "../../../cod-shared/shipments/handoff";
-import type { ShipmentBusinessEvent } from "../../../cod-shared/shipments/record-events";
 import { connectedCarrier, resolveHandoff } from "@/endpoints/shipments/carrier-handoff";
 import { syncShipments } from "@/endpoints/shipments/sync";
 import { drainAndContinue } from "@/events/drain";
@@ -84,14 +82,13 @@ export async function lookUpUnknownHandoffs(db: AppDb, now = new Date()): Promis
 }
 
 /** 3. Sync open shipments of pull-only carriers, oldest first. A company that throttles or fails stops for this run. */
-export async function syncPullCarriers(env: Env, waitUntil: WaitUntil, now = new Date()): Promise<{ synced: string[]; stopped: string[] }> {
+export async function syncPullCarriers(env: Env, now = new Date()): Promise<{ synced: string[]; stopped: string[] }> {
   const db = getDb(env.DB);
   const companies = (await db.select().from(deliveryCompanies).where(eq(deliveryCompanies.active, true)).all()).filter(
     (company) => company.apiToken && carrierCapabilities(company)?.updates === "pull",
   );
   const synced: string[] = [];
   const stopped: string[] = [];
-  const events: ShipmentBusinessEvent[] = [];
   for (const company of companies) {
     const due = await db
       .select()
@@ -113,29 +110,25 @@ export async function syncPullCarriers(env: Env, waitUntil: WaitUntil, now = new
     try {
       const carrier = await connectedCarrier(company);
       const recorded = await syncShipments(db, carrier, due, carrierAuthor(company, "carrier_sync"));
-      for (const [id, result] of recorded) {
-        synced.push(id);
-        events.push(...result.businessEvents);
-      }
+      synced.push(...recorded.keys());
     } catch (error) {
       stopped.push(company.id);
       const kind = isCarrierError(error) ? error.kind : "error";
       console.warn(`[inbound] sync of ${company.name} stopped (${kind}): ${(error as Error)?.message}`);
     }
   }
-  await scheduleShipmentConversions(env, waitUntil, db, events);
   return { synced, stopped };
 }
 
 /** One scheduled run of the inbound pipeline; a failing pass never stops the others. */
-export async function runInboundCron(env: Env, waitUntil: WaitUntil, now = new Date()): Promise<void> {
+export async function runInboundCron(env: Env, now = new Date()): Promise<void> {
   const db = getDb(env.DB);
   const passes: Array<[string, () => Promise<unknown>]> = [
     ["stale reservations", () => expireStaleReservations(db, now)],
     ["unknown handoffs", () => lookUpUnknownHandoffs(db, now)],
-    ["pull sync", () => syncPullCarriers(env, waitUntil, now)],
+    ["pull sync", () => syncPullCarriers(env, now)],
     // Last, so what the passes above recorded is delivered in this run.
-    ["drain", () => drainAndContinue(env, { waitUntil })],
+    ["drain", () => drainAndContinue(env)],
   ];
   for (const [name, pass] of passes) {
     try {

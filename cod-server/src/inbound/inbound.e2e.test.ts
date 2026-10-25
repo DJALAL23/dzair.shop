@@ -1,17 +1,16 @@
 /**
  * Carrier webhooks end to end on real D1: received through the real routes
  * with real signatures, stored, answered, processed into shipment events, and
- * turned into conversions — plus what happens when processing fails.
+ * recorded as Business Events — plus what happens when processing fails.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
-import { SYSTEM, eventsOf } from "@/test-utils/events";
+import { SYSTEM, eventsOf, metaConversionsOf } from "@/test-utils/events";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
-import { getCapiWorkflowId } from "@/workflows/capi-helpers";
 import { acceptCarrierHandoff, markHandoffUnknown, reserveCarrierShipment, voidShipment } from "../../../cod-shared/shipments/handoff";
 import { getShipmentWithEvents } from "../../../cod-shared/shipments/queries";
 import { MAX_ATTEMPTS } from "../../../cod-shared/inbound/inbox";
@@ -28,7 +27,6 @@ const T0 = "2026-10-14T08:00:00.000Z";
 const SECRET_A = "yal-secret-company-a";
 const SECRET_B = "yal-secret-company-b";
 const ZR_SECRET = `whsec_${btoa("zr-secret-bytes-0123456789")}`;
-const created = vi.fn(async (_: unknown) => ({ id: "wf" }));
 let pending: Promise<unknown>[] = [];
 
 beforeAll(async () => {
@@ -44,7 +42,6 @@ afterAll(async () => {
 
 beforeEach(async () => {
   dbModule.getDb.mockReturnValue(d1.db);
-  created.mockClear();
   pending = [];
   const db = d1.db;
   for (const table of [schema.businessEvents, schema.shipmentEvents, schema.webhookEvents, schema.shipments, schema.orderProducts, schema.orderStatusHistory, schema.orders, schema.customers, schema.deliveryCompanies]) {
@@ -77,7 +74,7 @@ async function svixHeaders(id: string, body: string, secret = ZR_SECRET) {
   return { "svix-id": id, "svix-timestamp": timestamp, "svix-signature": `v1,${signature}` };
 }
 
-const env = () => ({ DB: d1.raw, CAPI_WORKFLOW: { create: created } }) as never;
+const env = () => ({ DB: d1.raw }) as never;
 const ctx = () => ({ waitUntil: (p: Promise<unknown>) => pending.push(p), passThroughOnException() {} }) as never;
 /** Every background job the request started, including the ones those start. */
 async function settled() {
@@ -86,7 +83,7 @@ async function settled() {
 
 /** What the queue consumer the request woke does: drain. */
 async function drained() {
-  await drain(env(), { waitUntil: (p) => void pending.push(p), kinds: {} });
+  await drain(env(), { kinds: {} });
   await settled();
 }
 
@@ -310,25 +307,19 @@ describe("ZR Express", () => {
 // ─── Conversions ─────────────────────────────────────────────────────────────
 
 describe("conversions", () => {
-  it("a delivery starts the delivered-stage conversion, once", async () => {
+  // Whether each becomes a conversion — the tracking mode, a long-haul final
+  // mile — is Meta conversions' to decide (src/events/consumers/meta-capi.e2e.test.ts).
+  it("a delivery reaches Meta conversions, once", async () => {
     await shipmentAt("oa", "yal-a", { carrierParcelId: "yal-1", trackingNumber: "yal-1" });
     await yalidine("parcel_status_updated", [status("yal-1", "Livré")]);
     await yalidine("parcel_status_updated", [status("yal-1", "Livré")]);
-    expect(created).toHaveBeenCalledTimes(1);
-    expect(created.mock.calls[0][0]).toMatchObject({ id: getCapiWorkflowId("oa", "delivered", "Purchase"), params: { orderId: "oa", stage: "delivered", eventName: "Purchase", triggerStatus: "delivered" } });
+    expect(await metaConversionsOf(d1.db, "oa")).toEqual(["shipment.delivered"]);
   });
 
-  it("the final mile starts it for a long-haul wilaya (Adrar), not for Algiers", async () => {
-    await shipmentAt("far", "yal-a", { carrierParcelId: "yal-far", trackingNumber: "yal-far" }, 1);
-    await shipmentAt("near", "yal-a", { carrierParcelId: "yal-near", trackingNumber: "yal-near" }, 16);
-    await yalidine("parcel_status_updated", [status("yal-far", "Sorti en livraison"), status("yal-near", "Sorti en livraison")]);
-    expect(created.mock.calls.map(([call]) => (call as { params: { orderId: string } }).params.orderId)).toEqual(["far"]);
-  });
-
-  it("a return starting is not a conversion", async () => {
+  it("a return starting never reaches it", async () => {
     await shipmentAt("oa", "yal-a", { carrierParcelId: "yal-1", trackingNumber: "yal-1" });
     await yalidine("parcel_status_updated", [status("yal-1", "Retour vers vendeur")]);
-    expect(created).not.toHaveBeenCalled();
+    expect(await metaConversionsOf(d1.db, "oa")).toEqual([]);
   });
 });
 

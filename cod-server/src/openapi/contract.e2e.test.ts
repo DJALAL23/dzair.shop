@@ -48,7 +48,7 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   registerSpecEndpoint(app);
   app.use("/api/*", async (c, next) => {
-    c.env = { DB: d1.raw, CAPI_WORKFLOW: { create: async () => ({}) } } as never;
+    c.env = { DB: d1.raw } as never;
     signIn(c, { id: "staff_1", email: "s@example.com", name: "Staff", role: "admin", status: "active", apiKey: "k", scopes: ["*"] } as never);
     await next();
   });

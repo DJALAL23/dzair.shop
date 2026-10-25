@@ -14,30 +14,27 @@
  *   record    — `recordShipmentEvents`, linked to the inbox event.
  *
  * An event whose processing throws is retried with backoff, then kept as a
- * dead letter. The milestones it reached are returned for conversions.
+ * dead letter. What it records reaches Meta and every other Consumer as
+ * Business Events, written with it.
  */
 
 import { eq } from "drizzle-orm";
 import { carrierAuthor } from "@/lib/acting";
 import type { AppDb } from "@/db";
-import { getDb } from "@/db";
-import type { Env } from "@/types";
 import { buildCarrier, carrierWebhook } from "@/carriers/registry";
-import { scheduleShipmentConversions, type WaitUntil } from "@/lib/conversions";
 import { deliveryCompanies } from "@/db/schema";
 import { claimInboxEvent, failInboxEvent, settleInboxEvent, type InboxResult } from "../../../cod-shared/inbound/inbox";
 import { acceptCarrierHandoff, adoptCarrierIdentity } from "../../../cod-shared/shipments/handoff";
 import { findCarrierShipment } from "../../../cod-shared/shipments/queries";
-import { recordShipmentEvents, type ShipmentBusinessEvent } from "../../../cod-shared/shipments/record-events";
+import { recordShipmentEvents } from "../../../cod-shared/shipments/record-events";
 
 export interface InboxOutcome {
   id: string;
   /** `skipped` when another pass holds the event, or it is not due. */
   result: InboxResult | "skipped";
-  businessEvents: ShipmentBusinessEvent[];
 }
 
-const nothing = (id: string, result: InboxOutcome["result"]): InboxOutcome => ({ id, result, businessEvents: [] });
+const nothing = (id: string, result: InboxOutcome["result"]): InboxOutcome => ({ id, result });
 
 export async function processInboxEvent(db: AppDb, id: string, now = new Date()): Promise<InboxOutcome> {
   const row = await claimInboxEvent(db, id, now);
@@ -98,7 +95,7 @@ export async function processInboxEvent(db: AppDb, id: string, now = new Date())
     await adoptCarrierIdentity(db, shipment.id, update.match);
 
     const interpretation = carrier.interpret(update.status);
-    const recorded = await recordShipmentEvents(db, shipment.id, [
+    await recordShipmentEvents(db, shipment.id, [
       {
         source: "webhook",
         status: update.status,
@@ -111,19 +108,10 @@ export async function processInboxEvent(db: AppDb, id: string, now = new Date())
     ], carrierAuthor(company, "carrier_webhook"));
     const result = interpretation.kind === "unknown" ? "unknown_status" : "ok";
     await settleInboxEvent(db, id, result, { shipmentId: shipment.id, tracking: tracking ?? shipment.trackingNumber, reason: update.reason });
-    return { id, result, businessEvents: recorded.businessEvents };
+    return { id, result };
   } catch (error) {
     const result = await failInboxEvent(db, row, (error as Error)?.message ?? String(error), now);
     console.error(`[inbound] event ${id} (${row.provider} ${row.eventType}) failed, attempt ${row.attempts}: ${(error as Error)?.message}`);
     return nothing(id, result);
   }
-}
-
-/** Process inbox events in order, then schedule the conversions their milestones call for. */
-export async function processInbox(env: Env, waitUntil: WaitUntil, ids: readonly string[]): Promise<InboxOutcome[]> {
-  const db = getDb(env.DB);
-  const outcomes: InboxOutcome[] = [];
-  for (const id of ids) outcomes.push(await processInboxEvent(db, id));
-  await scheduleShipmentConversions(env, waitUntil, db, outcomes.flatMap((o) => o.businessEvents));
-  return outcomes;
 }

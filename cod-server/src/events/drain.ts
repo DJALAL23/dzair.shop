@@ -15,10 +15,8 @@ import { getDb, type AppDb } from "@/db";
 import type { Env } from "@/types";
 import { businessEvents, eventDeliveries, webhookEvents } from "@/db/schema";
 import { processInboxEvent } from "@/inbound/process";
-import { scheduleShipmentConversions, type WaitUntil } from "@/lib/conversions";
 import { dueInboxEvents } from "../../../cod-shared/inbound/inbox";
 import { claimDelivery, dueDeliveries, fanOut, settleDelivery, type AttemptOutcome } from "../../../cod-shared/events/deliveries";
-import type { ShipmentBusinessEvent } from "../../../cod-shared/shipments/record-events";
 import { CONSUMER_KINDS } from "./consumers";
 import type { ConsumerKinds } from "./consumers/kind";
 import { DRAIN_BUDGET, createMeter, type Cost } from "./meter";
@@ -45,30 +43,25 @@ export interface DrainReport {
 }
 
 export interface DrainOptions {
-  /** Keeps Meta conversions' Workflow starts alive until they move onto the Event Log (plan, Phase 7). */
-  waitUntil: WaitUntil;
   kinds?: ConsumerKinds;
   /** What this invocation may spend; the Free plan's limits unless said otherwise. */
   budget?: Cost;
   now?: () => Date;
 }
 
-export async function drain(env: Env, { waitUntil, kinds = CONSUMER_KINDS, budget = DRAIN_BUDGET, now = () => new Date() }: DrainOptions): Promise<DrainReport> {
+export async function drain(env: Env, { kinds = CONSUMER_KINDS, budget = DRAIN_BUDGET, now = () => new Date() }: DrainOptions = {}): Promise<DrainReport> {
   const meter = createMeter(env.DB, budget);
   const db = meter.db;
   const report: DrainReport = { inbox: 0, fannedOut: 0, attempts: { delivered: 0, skipped: 0, retry: 0, reject: 0 }, more: false };
 
-  const conversions: ShipmentBusinessEvent[] = [];
   for (const id of await dueInboxEvents(db, SCAN, now())) {
     if (!meter.fits(INBOX_EVENT)) {
       report.more = true;
       break;
     }
-    const outcome = await processInboxEvent(db, id, now());
+    await processInboxEvent(db, id, now());
     report.inbox += 1;
-    conversions.push(...outcome.businessEvents);
   }
-  await scheduleShipmentConversions(env, waitUntil, db, conversions);
 
   for (;;) {
     if (!meter.fits(FAN_OUT)) {
@@ -99,7 +92,7 @@ export async function drain(env: Env, { waitUntil, kinds = CONSUMER_KINDS, budge
     else if (!kind) outcome = { kind: "reject", error: `No consumer kind "${claimed.consumer.kind}" on this platform version` };
     else {
       try {
-        outcome = await kind.deliver({ event: claimed.event, consumer: claimed.consumer, attempt: claimed.attempt, db, fetch: meter.fetch, env });
+        outcome = await kind.deliver({ deliveryId: claimed.id, event: claimed.event, consumer: claimed.consumer, attempt: claimed.attempt, db, fetch: meter.fetch, env });
       } catch (error) {
         outcome = { kind: "retry", error: (error as Error)?.message ?? String(error) };
       }
@@ -115,7 +108,7 @@ export async function drain(env: Env, { waitUntil, kinds = CONSUMER_KINDS, budge
  * did nothing: a unit that cannot advance waits for the schedule instead of
  * looping.
  */
-export async function drainAndContinue(env: Env, options: DrainOptions): Promise<DrainReport> {
+export async function drainAndContinue(env: Env, options: DrainOptions = {}): Promise<DrainReport> {
   const report = await drain(env, options);
   const progressed = report.inbox + report.fannedOut + Object.values(report.attempts).reduce((a, b) => a + b, 0) > 0;
   if (report.more && progressed) await env.EVENTS_QUEUE.send({ kind: "drain" });
