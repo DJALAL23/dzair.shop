@@ -80,9 +80,10 @@ over WhatsApp or SMS, or a built-in integration such as Meta conversions.
 _Avoid_: Subscriber, listener, integration, hook
 
 **Built-in Consumer**:
-A Consumer the store creates and keeps from its own settings — Meta
-conversions, from the pixel settings. The merchant can stop and start it, but
-not rename, repoint or delete it; every other Consumer is the merchant's own.
+A Consumer an App creates and keeps from its own setup — Meta conversions,
+from the Meta App (see the [Apps context](../../../../cod-shared/apps/CONTEXT.md)).
+The merchant can stop and start it, but not rename, repoint or delete it;
+every other Consumer is the merchant's own.
 _Avoid_: System consumer, default integration
 
 **Consumer Kind**:
