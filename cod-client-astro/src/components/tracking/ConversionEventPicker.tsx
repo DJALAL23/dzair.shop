@@ -33,42 +33,42 @@ interface EventOptionMeta {
 export const CONVERSION_EVENT_OPTIONS: EventOptionMeta[] = [
   {
     value: "Purchase",
-    titleKey: "store.tracking_event_purchase_instant_title",
-    stageKey: "store.tracking_event_purchase_instant_stage",
-    hintKey: "store.tracking_event_purchase_instant_hint",
-    timingKey: "store.tracking_event_purchase_instant_timing",
-    tagKey: "store.tracking_event_purchase_instant_tag",
+    titleKey: "meta.event_purchase_instant_title",
+    stageKey: "meta.event_purchase_instant_stage",
+    hintKey: "meta.event_purchase_instant_hint",
+    timingKey: "meta.event_purchase_instant_timing",
+    tagKey: "meta.event_purchase_instant_tag",
     isRecommended: true,
   },
   {
     value: "Purchase_Confirmed",
-    titleKey: "store.tracking_event_purchase_confirmed_title",
-    stageKey: "store.tracking_event_purchase_confirmed_stage",
-    hintKey: "store.tracking_event_purchase_confirmed_hint",
-    timingKey: "store.tracking_event_purchase_confirmed_timing",
-    tagKey: "store.tracking_event_purchase_confirmed_tag",
+    titleKey: "meta.event_purchase_confirmed_title",
+    stageKey: "meta.event_purchase_confirmed_stage",
+    hintKey: "meta.event_purchase_confirmed_hint",
+    timingKey: "meta.event_purchase_confirmed_timing",
+    tagKey: "meta.event_purchase_confirmed_tag",
   },
   {
     value: "Purchase_Delivered",
-    titleKey: "store.tracking_event_purchase_delivered_title",
-    stageKey: "store.tracking_event_purchase_delivered_stage",
-    hintKey: "store.tracking_event_purchase_delivered_hint",
-    timingKey: "store.tracking_event_purchase_delivered_timing",
-    tagKey: "store.tracking_event_purchase_delivered_tag",
+    titleKey: "meta.event_purchase_delivered_title",
+    stageKey: "meta.event_purchase_delivered_stage",
+    hintKey: "meta.event_purchase_delivered_hint",
+    timingKey: "meta.event_purchase_delivered_timing",
+    tagKey: "meta.event_purchase_delivered_tag",
   },
   {
     value: "Lead",
-    titleKey: "store.tracking_event_lead_title",
-    stageKey: "store.tracking_event_lead_stage",
-    hintKey: "store.tracking_event_lead_hint",
-    timingKey: "store.tracking_event_lead_timing",
-    tagKey: "store.tracking_event_lead_tag",
+    titleKey: "meta.event_lead_title",
+    stageKey: "meta.event_lead_stage",
+    hintKey: "meta.event_lead_hint",
+    timingKey: "meta.event_lead_timing",
+    tagKey: "meta.event_lead_tag",
   },
 ];
 
 /** The human name of a conversion event, for summaries and badges. */
 export function useConversionEventLabel() {
-  const t = useT("settings");
+  const t = useT("apps");
   return (value: ConversionEvent) => {
     const option = CONVERSION_EVENT_OPTIONS.find((candidate) => candidate.value === value);
     return option ? t(option.titleKey) : value;
@@ -88,11 +88,11 @@ export function ConversionEventPicker({
   /** One column and no timing, for the narrower dialog. */
   compact?: boolean;
 }) {
-  const t = useT("settings");
+  const t = useT("apps");
   const name = useId();
 
   return (
-    <div className={`grid gap-2 ${compact ? "" : "sm:grid-cols-2"}`} role="radiogroup" aria-label={t("store.tracking_event_label")}>
+    <div className={`grid gap-2 ${compact ? "" : "sm:grid-cols-2"}`} role="radiogroup" aria-label={t("meta.event_label")}>
       {CONVERSION_EVENT_OPTIONS.map((option) => {
         const isSelected = value === option.value;
         return (
@@ -113,7 +113,7 @@ export function ConversionEventPicker({
             />
             <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-medium text-foreground">{t(option.titleKey)}</span>
-              {option.isRecommended && <Badge tone="info">{t("store.tracking_event_recommended")}</Badge>}
+              {option.isRecommended && <Badge tone="info">{t("meta.event_recommended")}</Badge>}
             </span>
             {!compact && <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{t(option.timingKey)}</span>}
             <InfoTip>

@@ -94,8 +94,8 @@
     "badge_own": "Pixel propre",
     "badge_own_test": "Pixel propre · test",
     "badge_inactive": "Inactif",
-    "inactive_tracking_off": "Le suivi Meta est désactivé pour toute la boutique, rien n'est envoyé.",
-    "inactive_master_switch": "Activez les pixels par page de destination dans Paramètres → Suivi pour que cette page utilise le sien.",
+    "inactive_tracking_off": "L'application Meta est désactivée, rien n'est envoyé.",
+    "inactive_master_switch": "Activez les pixels par page de destination dans l'application Meta pour que cette page utilise le sien.",
     "inactive_switched_off": "Le pixel propre à cette page est désactivé, elle envoie donc au pixel de la boutique.",
     "dialog_title": "Le pixel Meta de cette page",
     "dialog_description": "Les visiteurs, les commandes et les ventes de cette page sont envoyés au pixel ci-dessous au lieu du pixel de la boutique — jamais aux deux.",
@@ -105,7 +105,8 @@
     "use_store_pixel": "Utiliser le pixel de la boutique",
     "required": "est obligatoire",
     "last_event_sent": "Dernier événement envoyé",
-    "last_event_failed": "Dernier événement refusé par Meta"
+    "last_event_failed": "Dernier événement refusé par Meta",
+    "open_meta_app": "Ouvrir l'application Meta"
   },
   "count_one": "{count} page de vente",
   "count_many": "{count} pages de vente",

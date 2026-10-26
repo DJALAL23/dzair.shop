@@ -25,10 +25,10 @@
     "store_pages": "Pages",
     "navigation_menus": "Navigation",
     "checkout_form": "Checkout form",
-    "whatsapp": "WhatsApp button",
     "online_store": "Online store",
     "delivery_labels": "Labels",
-    "integrations": "Integrations"
+    "integrations": "Integrations",
+    "apps": "Apps"
   },
   "navbar": {
     "search_placeholder": "Search orders, customers, tracking…"

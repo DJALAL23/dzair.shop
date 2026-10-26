@@ -89,7 +89,7 @@ async function mount() {
   await act(async () => {
     root.render(
       <ConfirmDialogProvider>
-        <Integrations />
+        <Integrations canManage showApiKey={false} />
       </ConfirmDialogProvider>,
     );
   });
@@ -255,17 +255,5 @@ describe("a webhook in the list", () => {
     await mount();
     expect(row("hook").textContent).toMatch(/The previous secret stops signing in 3 hours\./);
     expect(row("old").textContent).not.toContain("previous secret");
-  });
-});
-
-describe("a built-in Consumer", () => {
-  it("is started and stopped, never edited, tested, re-keyed or deleted", async () => {
-    server.consumers = [meta()];
-    await mount();
-    const actions = buttons(row("meta-conversions")).map((b) => b.textContent?.trim() || b.getAttribute("aria-label"));
-    expect(actions).toEqual(["Deliveries", "Meta conversions receives events", "More actions for Meta conversions"]);
-    await click(button("More actions for Meta conversions")!);
-    const items = Array.from(document.body.querySelectorAll('[role="menuitem"]')).map((item) => item.textContent?.trim());
-    expect(items).toEqual(["Deliver again…", "Open its settings"]);
   });
 });

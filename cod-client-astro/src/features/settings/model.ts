@@ -1,9 +1,9 @@
 import { REVIEW_MAX_PHOTOS, type ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
-import { BarChart2, Key, Languages, Mail, Search, Shield, ShieldCheck, ShoppingCart, Star, Store, Truck, type LucideIcon } from "lucide-react";
+import { Languages, Search, ShoppingCart, Star, Store, Truck, type LucideIcon } from "lucide-react";
 import { STORE_LOCALES, type StoreLocale } from "../../../../cod-shared/i18n/locales";
 import type { StoreLanguage } from "./types";
 
-export type CategoryId = "general" | "languages" | "seo" | "cart" | "delivery" | "reviews" | "analytics" | "verification" | "bot_protection" | "email" | "api";
+export type CategoryId = "general" | "languages" | "seo" | "cart" | "delivery" | "reviews";
 
 export interface SettingsCategory {
   id: CategoryId;
@@ -12,7 +12,7 @@ export interface SettingsCategory {
   labelKey: string;
 }
 
-/** The settings categories, in sidebar order. */
+/** The settings categories, in sidebar order: the store itself. Its Apps and Integrations have their own pages. */
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "general", icon: Store, labelKey: "general_title" },
   { id: "languages", icon: Languages, labelKey: "languages_title" },
@@ -20,14 +20,9 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "cart", icon: ShoppingCart, labelKey: "cart_title" },
   { id: "delivery", icon: Truck, labelKey: "delivery_pricing_title" },
   { id: "reviews", icon: Star, labelKey: "reviews_title" },
-  { id: "analytics", icon: BarChart2, labelKey: "tracking_title" },
-  { id: "verification", icon: ShieldCheck, labelKey: "otp_title" },
-  { id: "bot_protection", icon: Shield, labelKey: "bot_protection_title" },
-  { id: "email", icon: Mail, labelKey: "email_title" },
-  { id: "api", icon: Key, labelKey: "api_key_title" },
 ];
 
-/** The category a link opens Settings on (`/settings?section=analytics`); General otherwise. */
+/** The category a link opens Settings on (`/settings?section=reviews`); General otherwise. */
 export function categoryFromSearch(search: string): CategoryId {
   const section = new URLSearchParams(search).get("section");
   return SETTINGS_CATEGORIES.find((category) => category.id === section)?.id ?? "general";

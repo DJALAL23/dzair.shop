@@ -37,7 +37,7 @@ import {
   landingPagePublicUrl,
   trackingView,
 } from "@/features/landing-pages/model";
-import { getPixelConfig } from "@/features/settings/api";
+import { metaSwitches } from "@/features/apps/meta/api";
 import { LandingPageTrackingDialog } from "@/features/landing-pages/components/LandingPageTrackingDialog";
 import {
   TrackingBadge,
@@ -231,6 +231,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
 
   const canManage = canScope(identity, SCOPES.LANDING_PAGES_MANAGE);
   const canRead = canScope(identity, SCOPES.LANDING_PAGES_READ);
+  const canSeeMeta = canScope(identity, SCOPES.META_READ);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -259,18 +260,14 @@ function Gated({ landingPageId }: { landingPageId: string }) {
     let alive = true;
     void (async () => {
       try {
-        const [page, store] = await Promise.all([
+        const [page, switches] = await Promise.all([
           getLandingPageTracking(landingPageId),
-          getPixelConfig(),
+          metaSwitches(canSeeMeta),
         ]);
         if (!alive) return;
         setTracking(page.config);
         setLastEvent(page.lastEvent);
-        setStoreSwitches(
-          store
-            ? { enabled: store.enabled, perPageTrackingEnabled: store.perPageTrackingEnabled }
-            : null,
-        );
+        setStoreSwitches(switches);
       } catch {
         // Non-critical — the Studio must still open.
       }
@@ -278,7 +275,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
     return () => {
       alive = false;
     };
-  }, [canRead, landingPageId]);
+  }, [canRead, canSeeMeta, landingPageId]);
 
   // Debounced autosave: name + gap persist 800ms after the last edit.
   useEffect(() => {
@@ -841,6 +838,11 @@ function Gated({ landingPageId }: { landingPageId: string }) {
               {perPageAvailable
                 ? t("tracking.card_store_hint")
                 : t("tracking.inactive_master_switch")}
+              {!perPageAvailable && canSeeMeta && (
+                <a href="/apps/meta" className="mt-1 block font-semibold text-foreground underline-offset-4 hover:underline">
+                  {t("tracking.open_meta_app")}
+                </a>
+              )}
             </p>
           ) : (
             <dl className="mt-2 space-y-1 text-xs">

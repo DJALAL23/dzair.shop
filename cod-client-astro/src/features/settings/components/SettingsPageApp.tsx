@@ -17,11 +17,6 @@ import { SeoSettings } from "@/features/settings/components/SeoSettings";
 import { ReviewsSettings } from "@/features/settings/components/ReviewsSettings";
 import { DeliveryPricingSettings } from "@/features/settings/components/DeliveryPricingSettings";
 import { CartSettings } from "@/features/settings/components/CartSettings";
-import { TrackingSettings } from "@/features/settings/components/TrackingSettings";
-import { VerificationSettings } from "@/features/settings/components/VerificationSettings";
-import { TurnstileSettings } from "@/features/settings/components/TurnstileSettings";
-import { EmailSettings } from "@/features/settings/components/EmailSettings";
-import { ApiSettings } from "@/features/settings/components/ApiSettings";
 
 function SettingsContent() {
   const t = useT("settings");
@@ -117,16 +112,6 @@ function SettingsContent() {
         );
       case "reviews":
         return <ReviewsSettings storeConfig={storeConfig} onSave={handleSave} />;
-      case "analytics":
-        return <TrackingSettings />;
-      case "verification":
-        return <VerificationSettings />;
-      case "bot_protection":
-        return <TurnstileSettings />;
-      case "email":
-        return <EmailSettings />;
-      case "api":
-        return <ApiSettings storeConfig={storeConfig} />;
       default:
         return null;
     }

@@ -3,13 +3,13 @@
  * Pure model: no API imports, fully unit-testable.
  */
 
-import { normalizeAlgerianPhone } from "../../../../cod-shared/lib/phone";
+import { normalizeAlgerianPhone } from "../../../../../cod-shared/lib/phone";
 import {
   DEFAULT_WHATSAPP_WIDGET_CONFIG,
   WIDGET_LIMITS,
   WIDGET_TEXT_FIELDS,
   toWhatsAppHref,
-} from "../../../../cod-shared/whatsapp-widget/config";
+} from "../../../../../cod-shared/whatsapp-widget/config";
 import type {
   WhatsAppWidgetConfig,
   WhatsAppWidgetDraft,

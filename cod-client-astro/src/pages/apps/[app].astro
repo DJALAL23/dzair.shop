@@ -1,0 +1,19 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
+import AppPageApp from "@/features/apps/components/AppPageApp";
+import { APP_KEYS, type AppKey } from "../../../../cod-shared/apps/catalog";
+
+export function getStaticPaths() {
+  return APP_KEYS.map((app) => ({ params: { app } }));
+}
+
+const appKey = Astro.params.app as AppKey;
+---
+
+<DashboardLayout>
+  <PageSkeleton gate="required" />
+  <div data-auth-gate="required" hidden>
+    <AppPageApp appKey={appKey} client:only="react" />
+  </div>
+</DashboardLayout>

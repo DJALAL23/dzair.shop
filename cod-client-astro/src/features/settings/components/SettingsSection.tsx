@@ -12,6 +12,7 @@ export function SettingsSection({
   children,
   onSave,
   savedAt,
+  readOnly = false,
 }: {
   icon: LucideIcon;
   title: string;
@@ -20,6 +21,8 @@ export function SettingsSection({
   onSave: () => Promise<void>;
   /** When this section was last saved, for settings stored on their own. */
   savedAt?: string | null;
+  /** Shown to someone who may see these settings but not change them: no field can be edited, nothing saved. */
+  readOnly?: boolean;
 }) {
   const t = useT("settings");
   const locale = useLocale();
@@ -60,7 +63,7 @@ export function SettingsSection({
           <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
         </div>
       </div>
-      <div className="space-y-5 px-5 py-5">{children}</div>
+      <fieldset disabled={readOnly} className="min-w-0 space-y-5 px-5 py-5">{children}</fieldset>
       <div className="flex items-center justify-end gap-3 border-t border-border px-5 py-4">
         {savedAt && status === "idle" && (
           <span className="me-auto text-xs text-muted-foreground">
@@ -76,10 +79,12 @@ export function SettingsSection({
         {status === "error" && (
           <span className="text-xs font-medium text-destructive">{error}</span>
         )}
-        <Button type="button" onClick={() => void handleSave()} disabled={busy}>
-          {busy && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
-          {busy ? t("store.saving") : t("store.save")}
-        </Button>
+        {!readOnly && (
+          <Button type="button" onClick={() => void handleSave()} disabled={busy}>
+            {busy && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
+            {busy ? t("store.saving") : t("store.save")}
+          </Button>
+        )}
       </div>
     </section>
   );

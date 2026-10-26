@@ -8,8 +8,6 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { RequireAuth, canScope, useIdentity } from "@/features/auth/components/RequireAuth";
-import { DashboardPage } from "@/components/layout/page";
 import {
   Alert,
   Button,
@@ -17,16 +15,15 @@ import {
   Field,
   InfoTip,
   Input,
-  PageHeader,
   StickyFormActions,
   SwitchField,
   Textarea,
 } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
-import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { useImageUpload } from "@/features/uploads/useImageUpload";
-import { getWhatsAppWidget, putWhatsAppWidget } from "@/features/whatsapp-widget/api";
+import { getWhatsAppButtonApp, saveWhatsAppButtonApp } from "@/features/apps/whatsapp-button/api";
+import type { AppBodyProps } from "@/features/apps/types";
 import {
   getPhonePreview,
   isDirty,
@@ -34,20 +31,19 @@ import {
   toPayload,
   validateDraft,
   type WhatsAppDefaults,
-} from "@/features/whatsapp-widget/model";
+} from "@/features/apps/whatsapp-button/model";
 import type {
   SaveBlocker,
   WhatsAppWidgetCapabilities,
   WhatsAppWidgetConfig,
   WhatsAppWidgetDraft,
   WhatsAppWidgetSurfaces,
-} from "@/features/whatsapp-widget/types";
+} from "@/features/apps/whatsapp-button/types";
 
-function WhatsAppWidgetContent() {
+/** The WhatsApp button App: the number, what its chat panel shows, and where the button appears. */
+export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) {
   const t = useT("whatsapp");
   const common = useT("common");
-  const identity = useIdentity();
-  const canManage = canScope(identity, SCOPES.WHATSAPP_WIDGET_MANAGE);
 
   const [saved, setSaved] = useState<WhatsAppWidgetConfig | null>(null);
   const [capabilities, setCapabilities] = useState<WhatsAppWidgetCapabilities | null>(null);
@@ -75,7 +71,7 @@ function WhatsAppWidgetContent() {
   async function load() {
     setLoadError(null);
     try {
-      const { config, capabilities: caps } = await getWhatsAppWidget();
+      const { config, capabilities: caps } = await getWhatsAppButtonApp();
       setSaved(config);
       setCapabilities(caps);
       setDraft(toDraft(config, getDefaults()));
@@ -165,11 +161,12 @@ function WhatsAppWidgetContent() {
     if (!draft || blockers.length > 0) return;
     setSaving(true);
     try {
-      const { config, capabilities: caps } = await putWhatsAppWidget(toPayload(draft) as unknown as Record<string, unknown>);
+      const { config, capabilities: caps } = await saveWhatsAppButtonApp(toPayload(draft) as unknown as Record<string, unknown>);
       setSaved(config);
       setCapabilities(caps);
       setDraft(toDraft(config, getDefaults()));
       notify.success(t("saved_toast"));
+      onSaved();
     } catch (cause: any) {
       notify.error(cause?.message || t("save_failed"));
     } finally {
@@ -191,8 +188,6 @@ function WhatsAppWidgetContent() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title={t("page_title")} subtitle={t("page_subtitle")} />
-
       <Card title={t("connect_title")} help={t("connect_subtitle")}>
         <div className="space-y-4">
           <SwitchField
@@ -573,15 +568,5 @@ function ChoiceGroup<T extends string>({
         })}
       </div>
     </div>
-  );
-}
-
-export default function WhatsAppWidgetApp() {
-  return (
-    <RequireAuth>
-      <DashboardPage narrow>
-        <WhatsAppWidgetContent />
-      </DashboardPage>
-    </RequireAuth>
   );
 }

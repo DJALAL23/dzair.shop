@@ -174,8 +174,9 @@
     "collections": "Collections",
     "navigation": "Navigation",
     "checkoutForm": "Formulaire de commande",
-    "whatsappWidget": "Widget WhatsApp",
     "mcp": "Agents IA (MCP)",
+    "apps": "Applications",
+    "integrations": "Intégrations",
     "settings": "Paramètres"
   },
   "scope_actions": {
@@ -187,11 +188,7 @@
     "assign": "Assigner",
     "manage": "Gérer",
     "dispatch": "Expédier",
-    "team": "Équipe",
-    "integrations": "Intégrations",
-    "notifications": "Notifications",
-    "email": "Envoi d'e-mails",
-    "verification": "Vérification"
+    "team": "Équipe"
   },
   "invite_dialog_extra": {
     "permissions_label": "Permissions",
@@ -216,5 +213,6 @@
   "error_generic": "Une erreur est survenue. Veuillez réessayer.",
   "count_one": "{count} membre",
   "count_many": "{count} membres",
-  "count_other": "{count} membres"
+  "count_other": "{count} membres",
+  "scope_app": "{app} · {action}"
 }

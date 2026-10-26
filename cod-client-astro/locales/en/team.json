@@ -174,8 +174,9 @@
     "collections": "Collections",
     "navigation": "Navigation",
     "checkoutForm": "Checkout form",
-    "whatsappWidget": "WhatsApp widget",
     "mcp": "AI agents (MCP)",
+    "apps": "Apps",
+    "integrations": "Integrations",
     "settings": "Settings"
   },
   "scope_actions": {
@@ -187,11 +188,7 @@
     "assign": "Assign",
     "manage": "Manage",
     "dispatch": "Dispatch",
-    "team": "Team",
-    "integrations": "Integrations",
-    "notifications": "Notifications",
-    "email": "Email sending",
-    "verification": "Verification"
+    "team": "Team"
   },
   "invite_dialog_extra": {
     "permissions_label": "Permissions",
@@ -214,5 +211,6 @@
   "error_permission_denied": "Admin access required",
   "error_generic": "Something went wrong. Please try again.",
   "count_one": "{count} member",
-  "count_other": "{count} members"
+  "count_other": "{count} members",
+  "scope_app": "{app} · {action}"
 }

@@ -26,6 +26,7 @@ vi.mock("@/lib/api", () => {
       if (method !== "GET" && server.refuse) throw new ApiError("refused", server.refuse.status, server.refuse.code);
       const url = new URL(path, "https://api.test");
       if (method === "GET" && url.pathname === "/api/event-consumers") return { success: true, data: server.consumers };
+      if (method === "GET" && url.pathname === "/api/stores/me") return { success: true, data: { storeApiKey: "sk_store_key" } };
       if (method === "GET" && url.pathname === "/api/event-deliveries") {
         const state = url.searchParams.get("state");
         const data = server.deliveries.filter((d) => d.consumerId === url.searchParams.get("consumerId") && (!state || d.state === state));
@@ -64,6 +65,9 @@ const delivery = (sequence: number, state: EventDelivery["state"], consumerId = 
   createdAt: "2026-10-25T09:00:00Z", settledAt: null, event: { id: `e${sequence}`, sequence, type: "order.created", orderId: "o1", occurredAt: "2026-10-25T09:00:00Z" },
 });
 
+const hook = (id: string, over: Partial<EventConsumer> = {}) =>
+  consumer({ id, kind: "webhook", name: `Hook ${id}`, builtIn: false, webhook: { url: `https://erp.example.dz/${id}`, signingSecret: "••••abcd", previousSecretSignsUntil: null } as EventConsumer["webhook"], ...over });
+
 beforeEach(() => {
   window.localStorage.setItem("locale", "en");
   server.consumers = [];
@@ -83,11 +87,11 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-async function mount() {
+async function mount({ canManage = true, showApiKey = false } = {}) {
   await act(async () => {
     root.render(
       <ConfirmDialogProvider>
-        <Integrations />
+        <Integrations canManage={canManage} showApiKey={showApiKey} />
       </ConfirmDialogProvider>,
     );
   });
@@ -115,58 +119,28 @@ const type = async (input: HTMLInputElement, value: string) => {
 };
 
 describe("the Integrations page", () => {
-  it("lists each Consumer with how it stands", async () => {
-    server.consumers = [
-      consumer({ deliveries: { due: 2, dead: 3 } }),
-      consumer({ id: "hook", kind: "webhook_future", name: "Order hook", enabled: false, disabledReason: "failing" }),
-      consumer({ id: "ads", name: "Ads account", deliveries: { due: 0, dead: 0 } }),
-    ];
-    await mount();
-    expect(row("meta-conversions").textContent!.match(/Meta conversions/g)).toHaveLength(1);
-    expect(row("meta-conversions").textContent).toContain("Active");
-    expect(row("meta-conversions").textContent).toContain("2 on their way");
-    expect(row("meta-conversions").textContent).toContain("3 given up");
-    expect(row("hook").textContent).toContain("Stopped: every delivery failed for 3 days");
-    expect(row("hook").textContent).not.toContain("webhook_future");
-    expect(row("hook").querySelector('button[aria-label^="More actions for"]')).toBeNull();
-    expect(row("ads").textContent).toContain("Ads account");
-    expect(row("ads").textContent).toContain("Your purchases, sent to Meta to measure your ads.");
-  });
-
-  it("says so when no integration receives the events, and offers to add a webhook right there", async () => {
+  it("says so when no webhook receives the events, and offers to add one right there", async () => {
     await mount();
     expect(text()).toContain("No webhooks yet");
     expect(text()).toContain("Your server receives each order and delivery step as it happens.");
     expect(Array.from(host.querySelectorAll("button")).filter((b) => b.textContent?.trim() === "Add webhook")).toHaveLength(2);
     expect(host.querySelector("h1")!.textContent).toContain("Integrations");
-    expect(host.querySelector("header")!.textContent).toContain("New");
-    expect(text()).not.toContain("Native integrations");
   });
 
-  it("sets the native integrations apart from the webhooks, and sends each native one to its own settings", async () => {
-    server.consumers = [
-      consumer({}),
-      consumer({ id: "hook", kind: "webhook", name: "Order system", builtIn: false, webhook: { url: "https://erp.example.dz/hooks", signingSecret: "••••abcd", previousSecretSignsUntil: null } as EventConsumer["webhook"] }),
-    ];
+  it("lists the merchant's webhooks only: a Built-in Consumer is on its App's page", async () => {
+    server.consumers = [consumer({}), hook("erp")];
     await mount();
-    const [native, hooks] = Array.from(host.querySelectorAll("section")).filter((section) => section.querySelector("[data-consumer]"));
-    expect(native.textContent).toContain("Native integrations");
-    expect(native.querySelector("[data-consumer]")!.getAttribute("data-consumer")).toBe("meta-conversions");
-    expect(row("meta-conversions").textContent).toContain("Native");
-    expect(row("meta-conversions").textContent).toContain("Your purchases, sent to Meta to measure your ads.");
-    expect(hooks.textContent).toContain("Webhooks");
-    expect(hooks.querySelector("[data-consumer]")!.getAttribute("data-consumer")).toBe("hook");
-    expect(row("hook").textContent).not.toContain("Native");
-
-    await menu("meta-conversions", "Open its settings");
-    expect(document.body.querySelector<HTMLAnchorElement>('a[href="/settings?section=analytics"]')!.textContent).toBe("Open its settings");
+    expect(Array.from(host.querySelectorAll("[data-consumer]")).map((li) => li.getAttribute("data-consumer"))).toEqual(["erp"]);
+    expect(text()).not.toContain("Meta conversions");
+    expect(text()).toContain("Webhooks");
   });
 
-  it("sums up how the integrations stand: how many work, what is on its way, what was given up", async () => {
+  it("sums up how the webhooks stand: how many work, what is on its way, what was given up", async () => {
     server.consumers = [
-      consumer({ deliveries: { due: 2, dead: 3 } }),
-      consumer({ id: "hook", name: "Order hook", enabled: false, disabledReason: "failing", deliveries: { due: 0, dead: 4 } }),
-      consumer({ id: "ads", name: "Ads account", deliveries: { due: 5, dead: 0 } }),
+      consumer({ deliveries: { due: 9, dead: 9 } }),
+      hook("a", { deliveries: { due: 2, dead: 3 } }),
+      hook("b", { enabled: false, disabledReason: "failing", deliveries: { due: 0, dead: 4 } }),
+      hook("c", { deliveries: { due: 5, dead: 0 } }),
     ];
     await mount();
     const figures = Array.from(host.querySelectorAll("section")).map((section) => section.textContent);
@@ -180,80 +154,23 @@ describe("the Integrations page", () => {
     expect(text()).not.toContain("On their way");
   });
 
-  it("stops a Consumer only once the merchant confirms", async () => {
-    server.consumers = [consumer({})];
-    await mount();
-    expect(toggle("meta-conversions").getAttribute("aria-checked")).toBe("true");
-    expect(toggle("meta-conversions").getAttribute("aria-label")).toBe("Meta conversions receives events");
-    await click(toggle("meta-conversions"));
-    expect(text()).toContain("Stop Meta conversions?");
-    await click(button("Cancel", document.body.querySelector<HTMLElement>('[role="alertdialog"], [role="dialog"]')!));
-    expect(server.calls.filter((c) => c.method === "PATCH")).toEqual([]);
-    expect(row("meta-conversions").textContent).toContain("Active");
-
-    await click(toggle("meta-conversions"));
-    const dialog = document.body.querySelector<HTMLElement>('[role="alertdialog"], [role="dialog"]')!;
-    await click(button("Stop", dialog));
-    expect(server.calls.filter((c) => c.method === "PATCH")).toEqual([{ method: "PATCH", path: "/api/event-consumers/meta-conversions", body: { enabled: false } }]);
-    expect(row("meta-conversions").textContent).toContain("Stopped");
-    expect(toggle("meta-conversions").getAttribute("aria-checked")).toBe("false");
+  it("offers adding a webhook only to whoever may manage them", async () => {
+    server.consumers = [hook("erp")];
+    await mount({ canManage: false });
+    expect(button("Add webhook")).toBeUndefined();
+    expect(toggle("erp").disabled).toBe(true);
   });
 
-  it("starts a stopped one at once", async () => {
-    server.consumers = [consumer({ enabled: false, disabledReason: "merchant" })];
+  it("shows the store's API key to an admin only", async () => {
     await mount();
-    await click(toggle("meta-conversions"));
-    expect(server.calls.filter((c) => c.method === "PATCH")).toEqual([{ method: "PATCH", path: "/api/event-consumers/meta-conversions", body: { enabled: true } }]);
-    expect(row("meta-conversions").textContent).toContain("Active");
-  });
+    expect(text()).not.toContain("Store API key");
+    expect(server.calls.some((c) => c.path === "/api/stores/me")).toBe(false);
 
-  it("opens the Deliveries on the ones given up on, and retries one", async () => {
-    server.consumers = [consumer({ deliveries: { due: 0, dead: 1 } })];
-    server.deliveries = [delivery(4, "dead"), delivery(5, "delivered")];
-    await mount();
-    await click(button("Deliveries", row("meta-conversions")));
-    const sheet = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
-    expect(sheet.querySelector("h2")!.textContent).toBe("Deliveries to Meta conversions");
-    expect(row("meta-conversions").querySelector("[data-delivery]")).toBeNull();
-    const listed = () => Array.from(document.body.querySelectorAll("[data-delivery]")).map((li) => li.getAttribute("data-delivery"));
-    expect(listed()).toEqual(["d4"]);
-    expect(document.body.querySelector('[data-delivery="d4"]')!.textContent).toContain("Event #4");
-    expect(document.body.querySelector('[data-delivery="d4"]')!.textContent).toContain("8 attempts");
-    expect(document.body.querySelector('[data-delivery="d4"]')!.textContent).toContain("HTTP 500");
-
-    await click(button("Try again", document.body.querySelector('[data-delivery="d4"]')!));
-    expect(server.calls).toContainEqual({ method: "POST", path: "/api/event-deliveries/d4/retry" });
-    expect(notifications.success).toHaveBeenCalledWith("The delivery is on its way again.");
-
-    await click(button("All"));
-    expect(listed()).toEqual(["d4", "d5"]);
-  });
-
-  it("words a refused retry", async () => {
-    server.consumers = [consumer({ deliveries: { due: 0, dead: 1 } })];
-    server.deliveries = [delivery(4, "dead")];
-    server.refuse = { status: 409, code: "EVENT_DELIVERY_ALREADY_DUE" };
-    await mount();
-    await click(button("Deliveries", row("meta-conversions")));
-    await click(button("Try again"));
-    expect(notifications.error).toHaveBeenCalledWith("This delivery is already on its way.");
-  });
-
-  it("replays the range of what was given up on, and refuses a reversed range", async () => {
-    server.consumers = [consumer({ deliveries: { due: 0, dead: 2 } })];
-    server.deliveries = [delivery(9, "delivered"), delivery(7, "dead"), delivery(4, "dead")];
-    await mount();
-    await click((await menu("meta-conversions", "Deliver again…"))!);
-    const [from, to] = Array.from(document.body.querySelectorAll<HTMLInputElement>('input[type="number"]'));
-    expect([from!.value, to!.value]).toEqual(["4", "7"]);
-
-    await type(from!, "8");
-    expect(text()).toContain("The first event comes before the last.");
-    expect(button("Deliver again").disabled).toBe(true);
-
-    await type(from!, "3");
-    await click(button("Deliver again"));
-    expect(server.calls).toContainEqual({ method: "POST", path: "/api/event-consumers/meta-conversions/replay", body: { fromSequence: 3, toSequence: 7 } });
-    expect(notifications.success).toHaveBeenCalledWith("3 deliveries are on their way.");
+    act(() => root.unmount());
+    root = createRoot(host);
+    await mount({ showApiKey: true });
+    await settle();
+    expect(text()).toContain("Store API key");
+    expect(host.querySelector<HTMLInputElement>('input[aria-label="Storefront API key"]')!.value).toBe("sk_store_key");
   });
 });

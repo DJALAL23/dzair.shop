@@ -62,7 +62,7 @@ describe("the dashboard frame", () => {
     expect(gated.length).toBeGreaterThan(30);
     for (const path of gated) {
       const source = readFileSync(join(SRC, path), "utf8");
-      expect(source, path).toMatch(/<PageSkeleton gate="required" \/>\s*<div data-auth-gate="required" hidden>\s*<\w+ client:only="react" \/>\s*<\/div>/);
+      expect(source, path).toMatch(/<PageSkeleton gate="required" \/>\s*<div data-auth-gate="required" hidden>\s*<\w+(?: \w+=\{\w+\})* client:only="react" \/>\s*<\/div>/);
       expect(source, path).not.toMatch(/GateSpinner|data-gate-spinner/);
     }
   });

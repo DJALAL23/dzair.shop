@@ -25,10 +25,10 @@
     "store_pages": "Pages",
     "navigation_menus": "Navigation",
     "checkout_form": "Formulaire de commande",
-    "whatsapp": "Bouton WhatsApp",
     "online_store": "Boutique en ligne",
     "delivery_labels": "Étiquettes",
-    "integrations": "Intégrations"
+    "integrations": "Intégrations",
+    "apps": "Applications"
   },
   "navbar": {
     "search_placeholder": "Rechercher commandes, clients, suivi…"

@@ -10,6 +10,7 @@ import {
   parseTeamRoute,
   sortTeamMembers,
   teamErrorMessage,
+  scopeLabel,
   teamScopeCount,
 } from "./model";
 import type { TeamMember } from "./types";
@@ -79,5 +80,17 @@ describe("team model", () => {
     expect(formatTeamDate("2026-08-26T00:00:00.000Z", "en")).toBe("8/26/2026");
     expect(formatTeamDate("not-a-date", "en")).toBe("-");
     expect(formatRelativeTime("not-a-date", "en")).toBe("-");
+  });
+});
+
+describe("a permission's name on the Team page", () => {
+  const team = (key: string, values?: Record<string, string>) => (values ? `${values.app}/${values.action}` : key);
+  const apps = (key: string) => `[${key}]`;
+
+  it("names an App's permission after its App, and any other after its action alone", () => {
+    expect(scopeLabel("meta:manage", team, apps)).toBe("[names.meta]/scope_actions.manage");
+    expect(scopeLabel("whatsapp-button:read", team, apps)).toBe("[names.whatsapp-button]/scope_actions.read");
+    expect(scopeLabel("integrations:read", team, apps)).toBe("scope_actions.read");
+    expect(scopeLabel("orders:delete", team, apps)).toBe("scope_actions.delete");
   });
 });

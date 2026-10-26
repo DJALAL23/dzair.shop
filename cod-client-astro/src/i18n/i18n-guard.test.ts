@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SCOPE_CATEGORIES } from "../../../cod-shared/rbac/scopes";
+import { APP_CATEGORIES, APP_KEYS } from "../../../cod-shared/apps/catalog";
+import { APP_STATUSES } from "../../../cod-shared/queries/apps";
 
 const ROOT = join(import.meta.dirname, "../..");
 const SRC = join(ROOT, "src");
@@ -12,7 +14,7 @@ const NAMESPACES = [
   "customer-groups", "customer-tags", "reviews", "products", "product-groups",
   "offers", "coupons", "landing-pages", "delivery", "delivery_companies", "settings",
   "team", "mcp", "profile", "store-pages", "menus", "collections", "checkout-form", "whatsapp",
-  "translations", "events",
+  "translations", "events", "apps",
 ] as const;
 const EXTENSIONS = new Set([".astro", ".js", ".jsx", ".ts", ".tsx"]);
 
@@ -182,6 +184,16 @@ describe("i18n dictionaries", () => {
       .map((scope) => scope.split(":").pop() ?? "")
       .filter((action) => !(action in team.scope_actions));
     expect(missingActions).toEqual([]);
+  });
+
+  it("names every App, says what it does, and words every App category and App Status", () => {
+    const apps = enFlat.apps;
+    const missing = [
+      ...APP_KEYS.flatMap((key) => [`names.${key}`, `descriptions.${key}`]),
+      ...APP_CATEGORIES.map((category) => `categories.${category}`),
+      ...APP_STATUSES.map((status) => `status.${status}`),
+    ].filter((key) => !apps[key]);
+    expect(missing).toEqual([]);
   });
 
   it("translates every order status and stock movement type", () => {

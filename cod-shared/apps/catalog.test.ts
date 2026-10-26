@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_SCOPES } from "../rbac/scopes";
+import { ALL_SCOPES, SCOPE_CATEGORIES } from "../rbac/scopes";
 import { APP_CATALOG, APP_KEYS, appOf, consumerOwner, consumerPermissions, INTEGRATIONS, isAppKey } from "./catalog";
 
 describe("the App catalog", () => {
@@ -17,6 +17,13 @@ describe("the App catalog", () => {
     }
     expect(ALL_SCOPES).toContain(INTEGRATIONS.permissions.read);
     expect(ALL_SCOPES).toContain(INTEGRATIONS.permissions.manage);
+  });
+
+  it("groups the Apps' and the Integrations' permissions on the Team page, and every permission once", () => {
+    expect(SCOPE_CATEGORIES.apps.scopes).toEqual(APP_CATALOG.flatMap((app) => [app.permissions.read, app.permissions.manage]));
+    expect(SCOPE_CATEGORIES.integrations.scopes).toEqual([INTEGRATIONS.permissions.read, INTEGRATIONS.permissions.manage]);
+    const grouped = Object.values(SCOPE_CATEGORIES).flatMap((category) => [...category.scopes]);
+    expect([...grouped].sort()).toEqual([...ALL_SCOPES].sort());
   });
 
   it("tells an App Key from anything else", () => {

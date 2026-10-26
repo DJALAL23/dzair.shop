@@ -10,10 +10,10 @@ import type { BusinessEvent, EventConsumer, EventDelivery } from "@/features/eve
 
 /**
  * What this order's integrations were told: its Business Events, oldest
- * first, each with who caused it and through what. For a merchant who manages
- * integrations, an event opens on who received it.
+ * first, each with who caused it and through what. For a merchant who may see
+ * a Consumer (a webhook, or an App's own), an event opens on who received it.
  */
-export function OrderEventsCard({ orderId, canSeeDeliveries }: { orderId: string; canSeeDeliveries: boolean }) {
+export function OrderEventsCard({ orderId, canSeeDeliveries, canOpenIntegrations }: { orderId: string; canSeeDeliveries: boolean; canOpenIntegrations: boolean }) {
   const t = useT("events");
   const locale = useLocale();
   const [events, setEvents] = useState<BusinessEvent[] | null>(null);
@@ -38,7 +38,7 @@ export function OrderEventsCard({ orderId, canSeeDeliveries }: { orderId: string
       title={t("card.title")}
       subtitle={t("card.subtitle")}
       action={
-        canSeeDeliveries && (
+        canOpenIntegrations && (
           <a href="/integrations" className="text-xs font-semibold text-foreground underline-offset-4 hover:underline">
             {t("card.manage")}
           </a>

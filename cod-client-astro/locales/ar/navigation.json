@@ -25,10 +25,10 @@
     "store_pages": "الصفحات",
     "navigation_menus": "التنقل",
     "checkout_form": "نموذج الطلب",
-    "whatsapp": "زر واتساب",
     "online_store": "المتجر الإلكتروني",
     "delivery_labels": "الملصقات",
-    "integrations": "التكاملات"
+    "integrations": "التكاملات",
+    "apps": "التطبيقات"
   },
   "navbar": {
     "search_placeholder": "ابحث عن طلب، عميل أو رقم تتبع…"

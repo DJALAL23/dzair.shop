@@ -193,12 +193,18 @@
       "due": "On their way",
       "dead": "Given up"
     },
-    "native_title": "Native integrations",
-    "native_badge": "Native",
-    "meta_hint": "Your purchases, sent to Meta to measure your ads.",
-    "configure": "Open its settings",
     "webhooks_title": "Webhooks",
     "webhooks_subtitle": "Your own systems, told of the events you choose.",
     "webhooks_none": "No webhooks yet"
+  },
+  "api_key": {
+    "title": "Store API key",
+    "subtitle": "Read-only key used by your storefront to authenticate with the API",
+    "label": "Storefront API key",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "reveal": "Reveal",
+    "hide": "Hide",
+    "missing": "API key not available. It will appear here after your next re-deployment."
   }
 }

@@ -53,8 +53,8 @@ afterEach(() => {
   host.remove();
 });
 
-async function mount(canSeeDeliveries: boolean) {
-  await act(async () => root.render(<OrderEventsCard orderId="o1" canSeeDeliveries={canSeeDeliveries} />));
+async function mount(canSeeDeliveries: boolean, canOpenIntegrations = canSeeDeliveries) {
+  await act(async () => root.render(<OrderEventsCard orderId="o1" canSeeDeliveries={canSeeDeliveries} canOpenIntegrations={canOpenIntegrations} />));
 }
 const text = () => host.textContent ?? "";
 const button = (label: string) => Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent?.trim() === label);
@@ -78,7 +78,7 @@ describe("an order's events, as its integrations were told", () => {
     expect(host.querySelector('a[href="/integrations"]')).toBeNull();
   });
 
-  it("opens an event on who received it, for those who manage integrations", async () => {
+  it("opens an event on who received it, for those who may see a Consumer", async () => {
     server.events = [event("e1", "order.created", { kind: "shopper", id: null, name: null }, "storefront")];
     await mount(true);
     expect(host.querySelector('a[href="/integrations"]')!.textContent).toBe("Manage integrations");
@@ -87,6 +87,14 @@ describe("an order's events, as its integrations were told", () => {
     expect(text()).toContain("Meta conversions");
     expect(text()).toContain("Gave up");
     expect(text()).toContain("HTTP 500");
+  });
+
+  it("opens who received it for whoever may see Meta conversions, sending them to Integrations only with its permission", async () => {
+    server.events = [event("e1", "order.created", { kind: "shopper", id: null, name: null }, "storefront")];
+    await mount(true, false);
+    expect(host.querySelector('a[href="/integrations"]')).toBeNull();
+    await act(async () => button("Who received it")!.click());
+    expect(text()).toContain("Meta conversions");
   });
 
   it("says when nothing was sent, and when the events cannot be loaded", async () => {

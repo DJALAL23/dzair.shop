@@ -7,9 +7,9 @@ import {
   Gift,
   Home,
   Inbox,
+  LayoutGrid,
   Layers,
   Megaphone,
-  MessageCircle,
   Package,
   PackageX,
   Settings,
@@ -26,13 +26,16 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
+import { APP_CATALOG } from "../../../../cod-shared/apps/catalog";
+import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 
 export type NavLeaf = {
   kind: "leaf";
   label: string;
   icon: LucideIcon;
   href: string;
-  scope?: string;
+  /** One permission, "admin", or a list of which any one is enough. */
+  scope?: string | readonly string[];
   badge?: string;
 };
 
@@ -227,13 +230,6 @@ export function useNavSections(): NavSection[] {
           icon: ClipboardList,
           scope: "checkout_form:read",
         },
-        {
-          kind: "leaf",
-          href: "/whatsapp",
-          label: tN("sidebar.whatsapp"),
-          icon: MessageCircle,
-          scope: "whatsapp_widget:read",
-        },
       ],
     },
     {
@@ -241,18 +237,18 @@ export function useNavSections(): NavSection[] {
       items: [
         {
           kind: "leaf",
-          href: "/integrations",
-          label: tN("sidebar.integrations"),
-          icon: Webhook,
-          scope: "settings:integrations",
+          href: "/apps",
+          label: tN("sidebar.apps"),
+          icon: LayoutGrid,
+          scope: APP_CATALOG.map((app) => app.permissions.read),
           badge: tN("badge.new"),
         },
         {
           kind: "leaf",
-          href: "/team",
-          label: tN("sidebar.team"),
-          icon: Shield,
-          scope: "admin",
+          href: "/integrations",
+          label: tN("sidebar.integrations"),
+          icon: Webhook,
+          scope: SCOPES.INTEGRATIONS_READ,
         },
         {
           kind: "leaf",
@@ -260,6 +256,13 @@ export function useNavSections(): NavSection[] {
           label: tN("sidebar.mcp"),
           icon: Sparkles,
           scope: "mcp:view",
+        },
+        {
+          kind: "leaf",
+          href: "/team",
+          label: tN("sidebar.team"),
+          icon: Shield,
+          scope: "admin",
         },
         {
           kind: "leaf",
@@ -272,32 +275,18 @@ export function useNavSections(): NavSection[] {
     },
   ];
 
+  const allowed = (scope: NavLeaf["scope"]) => {
+    if (!scope) return true;
+    if (scope === "admin") return identity?.role === "admin";
+    return typeof scope === "string" ? canScope(identity, scope) : scope.some((one) => canScope(identity, one));
+  };
+
   return sections
     .map((section) => ({
       ...section,
       items: section.items
-        .map((item) =>
-          item.kind === "group"
-            ? {
-                ...item,
-                children: item.children.filter((child) =>
-                  child.scope === "admin"
-                    ? identity?.role === "admin"
-                    : !child.scope || canScope(identity, child.scope),
-                ),
-              }
-            : item,
-        )
-        .filter((item) => {
-          if (item.scope) {
-            if (item.scope === "admin") {
-              if (identity?.role !== "admin") return false;
-            } else if (!canScope(identity, item.scope)) {
-              return false;
-            }
-          }
-          return true;
-        }),
+        .map((item) => (item.kind === "group" ? { ...item, children: item.children.filter((child) => allowed(child.scope)) } : item))
+        .filter((item) => allowed(item.scope)),
     }))
     .filter((section) => section.items.length > 0);
 }

@@ -61,6 +61,9 @@ export default defineConfig({
   // session:false skips SESSION KV provisioning and drops the session
   // runtime from the Worker bundle.
   session: false,
+  redirects: {
+    "/whatsapp": "/apps/whatsapp-button",
+  },
   env: {
     schema: {
       PUBLIC_API_URL: envField.string({ context: "client", access: "public" }),

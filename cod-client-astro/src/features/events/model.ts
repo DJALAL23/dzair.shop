@@ -1,5 +1,6 @@
 import { EVENT_CATALOGUE, EVENT_TYPES } from "../../../../cod-shared/events/catalogue";
 import { webhookUrlProblem } from "../../../../cod-shared/events/webhooks";
+import { consumerOwnerPermissions, INTEGRATIONS } from "../../../../cod-shared/apps/catalog";
 import type { Actor, BusinessEvent, ConsumerDisabledReason, EventConsumer, EventDelivery, EventSubject, SubscriptionPattern, WebhookUrlProblem } from "./types";
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
@@ -41,6 +42,11 @@ export function kindLabelKey(kind: string): string | null {
 }
 
 /** A settled Delivery can be tried again; one still due is on its way. */
+/** On an order: who may open an event on who received it (anyone who may see some Consumer), and who is sent on to Integrations. */
+export function orderEventsAccess(may: (scope: string) => boolean): { canSeeDeliveries: boolean; canOpenIntegrations: boolean } {
+  return { canSeeDeliveries: consumerOwnerPermissions("read").some((scope) => may(scope)), canOpenIntegrations: may(INTEGRATIONS.permissions.read) };
+}
+
 export const canRetry = (delivery: EventDelivery, consumer: EventConsumer) => consumer.enabled && delivery.state !== "due";
 
 /**

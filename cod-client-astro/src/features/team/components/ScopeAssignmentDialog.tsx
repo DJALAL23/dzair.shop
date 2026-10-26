@@ -5,7 +5,7 @@ import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPE_CATEGORIES } from "../../../../../cod-shared/rbac/scopes";
 import { grantTeamMemberScope, revokeTeamMemberScope } from "@/features/team/api";
-import { teamErrorMessage } from "@/features/team/model";
+import { scopeLabel, teamErrorMessage } from "@/features/team/model";
 import type { TeamMember } from "@/features/team/types";
 
 interface Props {
@@ -17,6 +17,7 @@ interface Props {
 
 export function ScopeAssignmentDialog({ open, onClose, user, onSuccess }: Props) {
   const t = useT("team");
+  const apps = useT("apps");
   const [loading, setLoading] = useState(false);
   const [userScopes, setUserScopes] = useState<string[]>([]);
   const [toGrant, setToGrant] = useState<string[]>([]);
@@ -129,7 +130,6 @@ export function ScopeAssignmentDialog({ open, onClose, user, onSuccess }: Props)
                 const checked = isScopeChecked(scope);
                 const changed = willChange(scope);
                 const granting = toGrant.includes(scope);
-                const action = scope.split(":").pop() ?? "";
                 return (
                   <label
                     key={scope}
@@ -153,7 +153,7 @@ export function ScopeAssignmentDialog({ open, onClose, user, onSuccess }: Props)
                         <span
                           className={`block truncate text-sm font-semibold ${checked ? "text-foreground" : "text-muted-foreground"}`}
                         >
-                          {t(`scope_actions.${action}`)}
+                          {scopeLabel(scope, t, apps)}
                         </span>
                         <span className="block truncate font-mono text-[11px] text-muted-foreground/50" dir="ltr">
                           {scope}

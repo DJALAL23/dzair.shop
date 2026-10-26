@@ -12,11 +12,6 @@ describe("settings model", () => {
       "cart",
       "delivery",
       "reviews",
-      "analytics",
-      "verification",
-      "bot_protection",
-      "email",
-      "api",
     ]);
 
     // Keyed by id rather than by index: inserting a category should require
@@ -29,10 +24,7 @@ describe("settings model", () => {
       general: "general_title",
       cart: "cart_title",
       delivery: "delivery_pricing_title",
-      verification: "otp_title",
-      bot_protection: "bot_protection_title",
-      email: "email_title",
-      api: "api_key_title",
+      reviews: "reviews_title",
     });
   });
 
@@ -161,7 +153,8 @@ describe("what shoppers can send with a review", () => {
 describe("a link into Settings", () => {
   it("opens the section it names, and General for anything else", async () => {
     const { categoryFromSearch } = await import("./model");
-    expect(categoryFromSearch("?section=analytics")).toBe("analytics");
+    expect(categoryFromSearch("?section=reviews")).toBe("reviews");
+    expect(categoryFromSearch("?section=analytics")).toBe("general");
     expect(categoryFromSearch("?section=integrations")).toBe("general");
     expect(categoryFromSearch("?section=nope")).toBe("general");
     expect(categoryFromSearch("")).toBe("general");

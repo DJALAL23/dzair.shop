@@ -154,25 +154,35 @@ describe("the dashboard frame", () => {
     expect(host.innerHTML).toBe("");
   });
 
-  it("offers Integrations, marked new, to whoever may manage them, and lights it on its page", async () => {
-    await mount(<FrameSidebar />, "/integrations/");
-    const link = host.querySelector<HTMLAnchorElement>('a[href="/integrations"]')!;
-    expect(link.textContent).toBe("IntegrationsNew");
-    expect(current()).toEqual(["/integrations"]);
+  it("offers Apps, marked new, then Integrations, AI agents, Team and Settings, and lights each on its own pages", async () => {
+    await mount(<FrameSidebar />, "/apps/meta");
+    const admin = Array.from(host.querySelectorAll<HTMLAnchorElement>("a[href]")).map((link) => link.getAttribute("href"));
+    expect(admin.slice(admin.indexOf("/apps"))).toEqual(["/apps", "/integrations", "/mcp", "/team", "/settings"]);
+    expect(host.querySelector<HTMLAnchorElement>('a[href="/apps"]')!.textContent).toBe("AppsNew");
+    expect(host.querySelector<HTMLAnchorElement>('a[href="/integrations"]')!.textContent).toBe("Integrations");
+    expect(host.querySelector('a[href="/whatsapp"]')).toBeNull();
+    expect(current()).toEqual(["/apps"]);
   });
 
-  it("keeps Integrations from staff without the permission the server asks for it", async () => {
+  it("offers Apps to staff who may see one App, and Integrations to those who may read them", async () => {
     const staff = (scopes: string[]) => ({ ...admin, role: "staff" as const, scopes });
-    session.knownIdentity.mockReturnValue(staff(["orders:read"]));
-    session.fetchIdentity.mockResolvedValue(staff(["orders:read"]));
-    await mount(<FrameSidebar />, "/orders");
+    const remount = async (scopes: string[]) => {
+      act(() => root.unmount());
+      root = createRoot(host);
+      session.knownIdentity.mockReturnValue(staff(scopes));
+      session.fetchIdentity.mockResolvedValue(staff(scopes));
+      await mount(<FrameSidebar />, "/orders");
+    };
+    await remount(["orders:read", "settings:integrations", "whatsapp_widget:read"]);
+    expect(host.querySelector('a[href="/apps"]')).toBeNull();
     expect(host.querySelector('a[href="/integrations"]')).toBeNull();
 
-    act(() => root.unmount());
-    root = createRoot(host);
-    session.knownIdentity.mockReturnValue(staff(["settings:integrations"]));
-    session.fetchIdentity.mockResolvedValue(staff(["settings:integrations"]));
-    await mount(<FrameSidebar />, "/orders");
+    await remount(["orders:read", "turnstile:read"]);
+    expect(host.querySelector('a[href="/apps"]')).not.toBeNull();
+    expect(host.querySelector('a[href="/integrations"]')).toBeNull();
+
+    await remount(["orders:read", "integrations:read"]);
+    expect(host.querySelector('a[href="/apps"]')).toBeNull();
     expect(host.querySelector('a[href="/integrations"]')).not.toBeNull();
     expect(host.querySelector('a[href="/settings"]')).toBeNull();
   });

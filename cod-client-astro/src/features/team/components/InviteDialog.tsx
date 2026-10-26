@@ -5,7 +5,7 @@ import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPE_CATEGORIES } from "../../../../../cod-shared/rbac/scopes";
 import { createTeamMember } from "@/features/team/api";
-import { teamErrorMessage } from "@/features/team/model";
+import { scopeLabel, teamErrorMessage } from "@/features/team/model";
 import type { TeamMemberFormValues, TeamRole } from "@/features/team/types";
 
 interface Props {
@@ -55,6 +55,7 @@ function GroupCheckbox({
 
 export function InviteDialog({ open, onClose, onSuccess }: Props) {
   const t = useT("team");
+  const apps = useT("apps");
   const common = useT("common");
   const [loading, setLoading] = useState(false);
   const [dialogState, setDialogState] = useState<DialogState>("form");
@@ -348,8 +349,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
                       {isExpanded && (
                         <div className="space-y-1 bg-muted/20 px-4 pb-3 pt-1">
                           {groupScopes.map((scope) => {
-                            const action = scope.split(":").pop() ?? "";
-                            return (
+                                        return (
                               <label
                                 key={scope}
                                 className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted"
@@ -363,7 +363,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
                                 />
                                 <span className="min-w-0">
                                   <span className="block truncate text-sm font-medium text-foreground/90">
-                                    {t(`scope_actions.${action}`)}
+                                    {scopeLabel(scope, t, apps)}
                                   </span>
                                   <span className="block truncate text-[11px] font-mono text-muted-foreground/50" dir="ltr">
                                     {scope}

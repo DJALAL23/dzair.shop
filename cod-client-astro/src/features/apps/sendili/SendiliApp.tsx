@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import { Eye, EyeOff, Mail, Send } from "lucide-react";
 import { Button, Input, Select, SwitchField } from "@/components/ui";
 import { useT } from "@/i18n/react";
-import { getEmailConfig, saveEmailConfig, testEmailConnection } from "@/features/settings/api";
-import type { EmailConnectionCheck } from "@/features/settings/types";
+import { getSendiliApp, saveSendiliApp, testSendiliKey } from "@/features/apps/sendili/api";
+import type { SendiliKeyCheck } from "@/features/apps/sendili/types";
+import type { AppBodyProps } from "@/features/apps/types";
 import { FieldRow, SettingsSection } from "@/features/settings/components/SettingsSection";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function EmailSettings() {
-  const t = useT("settings");
+/** The Sendili App: the store's emails, sent through the merchant's Sendili account. */
+export default function SendiliApp({ canManage, onSaved }: AppBodyProps) {
+  const t = useT("apps");
   const [apiKey, setApiKey] = useState("");
   const [apiKeyMasked, setApiKeyMasked] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
@@ -19,7 +21,7 @@ export function EmailSettings() {
   const [domains, setDomains] = useState<string[]>([]);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
-  const [check, setCheck] = useState<EmailConnectionCheck | null>(null);
+  const [check, setCheck] = useState<SendiliKeyCheck | null>(null);
 
   const localPart = fromEmail.split("@")[0] ?? "";
   const currentDomain = fromEmail.includes("@") ? (fromEmail.split("@").pop() as string) : "";
@@ -35,7 +37,7 @@ export function EmailSettings() {
 
   useEffect(() => {
     let alive = true;
-    getEmailConfig().then((data) => {
+    getSendiliApp().then((data) => {
       if (!alive || !data) return;
       setEnabled(data.enabled);
       setFromEmail(data.fromEmail);
@@ -44,7 +46,7 @@ export function EmailSettings() {
       setLastSaved(data.updatedAt);
       // Silent: load the verified domains with the STORED key so the picker
       // is ready on arrival (cheap account read, one call per page visit).
-      testEmailConnection()
+      testSendiliKey()
         .then((result) => {
           if (!alive || !result.ok || !result.domains?.length) return;
           setDomains(result.domains);
@@ -65,7 +67,7 @@ export function EmailSettings() {
     const submitted = apiKey.trim();
     if (!submitted.startsWith("sk_") || submitted.length < 20) return;
     try {
-      const result = await testEmailConnection(submitted);
+      const result = await testSendiliKey(submitted);
       setCheck(result);
       if (result.ok && result.domains?.length) {
         setDomains(result.domains);
@@ -78,12 +80,12 @@ export function EmailSettings() {
 
   async function handleSave() {
     if (!EMAIL_PATTERN.test(fromEmail.trim())) {
-      throw new Error(`${t("store.email_from_label")}: ${t("store.field_required")}`);
+      throw new Error(`${t("sendili.from_label")}: ${t("page.field_required")}`);
     }
     if (enabled && !apiKey.trim() && !apiKeyMasked) {
-      throw new Error(`${t("store.email_key_label")}: ${t("store.field_required")}`);
+      throw new Error(`${t("sendili.key_label")}: ${t("page.field_required")}`);
     }
-    const result = await saveEmailConfig({
+    const result = await saveSendiliApp({
       apiKey: apiKey.trim() || undefined,
       fromEmail: fromEmail.trim(),
       fromName: fromName.trim() || null,
@@ -92,20 +94,21 @@ export function EmailSettings() {
     setApiKeyMasked(result.apiKeyMasked);
     setLastSaved(result.updatedAt);
     setApiKey("");
+    onSaved();
   }
 
   async function handleTest() {
     setChecking(true);
     setCheck(null);
     try {
-      const result = await testEmailConnection(apiKey.trim() || undefined);
+      const result = await testSendiliKey(apiKey.trim() || undefined);
       setCheck(result);
       if (result.ok && result.domains?.length) {
         setDomains(result.domains);
         if (!fromEmail.includes("@")) applyDomain(result.domains[0]);
       }
     } catch {
-      setCheck({ ok: false, message: t("store.email_check_failed") });
+      setCheck({ ok: false, message: t("sendili.check_failed") });
     } finally {
       setChecking(false);
     }
@@ -122,18 +125,19 @@ export function EmailSettings() {
     <SettingsSection
       savedAt={lastSaved}
       icon={Mail}
-      title={t("store.email_title")}
-      subtitle={t("store.email_subtitle")}
+      title={t("sendili.title")}
+      subtitle={t("sendili.subtitle")}
       onSave={handleSave}
+      readOnly={!canManage}
     >
       <SwitchField
-        label={t("store.email_enabled_label")}
-        help={t("store.email_enabled_hint")}
+        label={t("sendili.enabled_label")}
+        help={t("sendili.enabled_hint")}
         checked={enabled}
         onChange={setEnabled}
       />
 
-      <FieldRow label={t("store.email_key_label")} help={t("store.email_key_hint")}>
+      <FieldRow label={t("sendili.key_label")} help={t("sendili.key_hint")}>
         <div className="relative">
           <Input
             type={showKey ? "text" : "password"}
@@ -141,7 +145,7 @@ export function EmailSettings() {
             value={apiKey}
             onChange={(event) => setApiKey(event.currentTarget.value)}
             onBlur={() => void handleKeyBlur()}
-            placeholder={apiKeyMasked ?? t("store.email_key_placeholder")}
+            placeholder={apiKeyMasked ?? t("sendili.key_placeholder")}
             className="pe-10"
             autoComplete="off"
           />
@@ -149,7 +153,7 @@ export function EmailSettings() {
             type="button"
             onClick={() => setShowKey((current) => !current)}
             tabIndex={-1}
-            aria-label={showKey ? t("store.api_key_hide") : t("store.api_key_reveal")}
+            aria-label={showKey ? t("secret.hide") : t("secret.reveal")}
             className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
           >
             {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -158,11 +162,11 @@ export function EmailSettings() {
       </FieldRow>
 
       <FieldRow
-        label={t("store.email_from_label")}
+        label={t("sendili.from_label")}
         help={
           <>
-            <span className="block">{t("store.email_from_hint")}</span>
-            <span className="mt-1.5 block">{t("store.email_domains_hint")}</span>
+            <span className="block">{t("sendili.from_hint")}</span>
+            <span className="mt-1.5 block">{t("sendili.domains_hint")}</span>
           </>
         }
       >
@@ -172,7 +176,7 @@ export function EmailSettings() {
               dir="ltr"
               value={localPart}
               onChange={(event) => setLocalPart(event.currentTarget.value)}
-              placeholder={t("store.email_local_placeholder")}
+              placeholder={t("sendili.local_placeholder")}
               className="flex-1"
               autoComplete="off"
               spellCheck={false}
@@ -198,16 +202,16 @@ export function EmailSettings() {
             dir="ltr"
             value={fromEmail}
             onChange={(event) => setFromEmail(event.currentTarget.value)}
-            placeholder={t("store.email_from_placeholder")}
+            placeholder={t("sendili.from_placeholder")}
           />
         )}
       </FieldRow>
 
-      <FieldRow label={t("store.email_from_name_label")}>
+      <FieldRow label={t("sendili.from_name_label")}>
         <Input
           value={fromName}
           onChange={(event) => setFromName(event.currentTarget.value)}
-          placeholder={t("store.email_from_name_placeholder")}
+          placeholder={t("sendili.from_name_placeholder")}
         />
       </FieldRow>
 
@@ -215,10 +219,10 @@ export function EmailSettings() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Send size={15} aria-hidden="true" />
-            {t("store.email_check_title")}
+            {t("sendili.check_title")}
           </div>
           <Button type="button" variant="secondary" size="sm" onClick={() => void handleTest()} disabled={checking || (!apiKey.trim() && !apiKeyMasked)}>
-            {checking ? t("store.email_checking") : t("store.email_check_btn")}
+            {checking ? t("sendili.checking") : t("sendili.check_btn")}
           </Button>
         </div>
 
@@ -233,16 +237,16 @@ export function EmailSettings() {
             {check.ok ? (
               check.domains?.length ? (
                 <>
-                  {t("store.email_check_ok")} — {t("store.email_domains_label")}:{" "}
+                  {t("sendili.check_ok")} — {t("sendili.domains_label")}:{" "}
                   <span dir="ltr">{check.domains.join(", ")}</span>
                 </>
               ) : (
-                t("store.email_check_ok")
+                t("sendili.check_ok")
               )
             ) : (
               <>
-                {check.outOfCredits ? t("store.email_check_no_credits") : null}
-                {check.message ?? t("store.email_check_failed")}
+                {check.outOfCredits ? t("sendili.check_no_credits") : null}
+                {check.message ?? t("sendili.check_failed")}
               </>
             )}
           </div>

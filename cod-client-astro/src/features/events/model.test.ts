@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { REPLAY_MAX_EVENTS as SERVER_REPLAY_MAX } from "../../../../cod-shared/events/deliveries";
-import { actorLabel, canRetry, consumerStatus, coveredByWider, endpointProblem, eventByline, kindLabelKey, actionError, pickPattern, REPLAY_MAX_EVENTS, replayRangeProblem, suggestedReplayRange, tightSubscription, typesOf, webhookChange } from "./model";
+import { actorLabel, canRetry, consumerStatus, coveredByWider, endpointProblem, eventByline, kindLabelKey, actionError, pickPattern, REPLAY_MAX_EVENTS, replayRangeProblem, suggestedReplayRange, tightSubscription, typesOf, webhookChange, orderEventsAccess } from "./model";
 import type { BusinessEvent, EventConsumer, EventDelivery } from "./types";
 
 const t = (key: string, values?: Record<string, string | number>) => (values ? `${key}(${Object.entries(values).map(([k, v]) => `${k}=${v}`).join(",")})` : key);
@@ -151,5 +151,15 @@ describe("an edit to a webhook", () => {
   it("sends each field it did change", () => {
     expect(webhookChange(hook, { name: "ERP 2", url: "https://erp2.example.dz/", subscription: ["*"] })).toEqual({ name: "ERP 2", url: "https://erp2.example.dz/", subscription: ["*"] });
     expect(webhookChange(hook, { name: "ERP", url: "https://erp.example.dz/", subscription: ["order.*"] })).toEqual({ subscription: ["order.*"] });
+  });
+});
+
+describe("an order's events, by who is looking", () => {
+  const holding = (...scopes: string[]) => (scope: string) => scopes.includes(scope);
+
+  it("opens who received an event to whoever may see some Consumer, and sends only Integrations' readers on to them", () => {
+    expect(orderEventsAccess(holding("integrations:read"))).toEqual({ canSeeDeliveries: true, canOpenIntegrations: true });
+    expect(orderEventsAccess(holding("meta:read"))).toEqual({ canSeeDeliveries: true, canOpenIntegrations: false });
+    expect(orderEventsAccess(holding("orders:read", "settings:integrations", "meta:manage"))).toEqual({ canSeeDeliveries: false, canOpenIntegrations: false });
   });
 });

@@ -39,7 +39,7 @@ export function LandingPageTrackingDialog({
   onSaved: (tracking: LandingPageTracking | null) => void;
 }) {
   const t = useT("landing-pages");
-  const settings = useT("settings");
+  const meta = useT("apps");
   const common = useT("common");
 
   const [pixelId, setPixelId] = useState("");
@@ -70,21 +70,21 @@ export function LandingPageTrackingDialog({
 
   async function handleSave() {
     if (!pixelId.trim()) {
-      notify.error(`${settings("store.tracking_pixel_id_label")} — ${t("tracking.required")}`);
+      notify.error(`${meta("meta.pixel_id_label")} — ${t("tracking.required")}`);
       return;
     }
     if (!conversionEvent) {
-      notify.error(`${settings("store.tracking_event_label")} — ${t("tracking.required")}`);
+      notify.error(`${meta("meta.event_label")} — ${t("tracking.required")}`);
       return;
     }
     // Required on create, optional afterwards — the server enforces the same
     // rule, this only saves the merchant a round trip.
     if (!existing && !accessToken.trim()) {
-      notify.error(`${settings("store.tracking_token_label")} — ${t("tracking.required")}`);
+      notify.error(`${meta("meta.token_label")} — ${t("tracking.required")}`);
       return;
     }
     if (testMode && !testEventCode.trim()) {
-      notify.error(`${settings("store.tracking_test_code_label")} — ${t("tracking.required")}`);
+      notify.error(`${meta("meta.test_code_label")} — ${t("tracking.required")}`);
       return;
     }
 
@@ -155,18 +155,18 @@ export function LandingPageTrackingDialog({
       }
     >
       <div className="space-y-4">
-        <Field label={settings("store.tracking_pixel_id_label")} hint={t("tracking.pixel_id_hint")}>
+        <Field label={meta("meta.pixel_id_label")} hint={t("tracking.pixel_id_hint")}>
           <Input
             ref={pixelRef}
             dir="ltr"
             value={pixelId}
             disabled={busy}
             onChange={(event) => setPixelId(event.currentTarget.value)}
-            placeholder={settings("store.tracking_pixel_id_placeholder")}
+            placeholder={meta("meta.pixel_id_placeholder")}
           />
         </Field>
 
-        <Field label={settings("store.tracking_token_label")} hint={t("tracking.token_hint")}>
+        <Field label={meta("meta.token_label")} hint={t("tracking.token_hint")}>
           <div className="relative">
             <Input
               type={showToken ? "text" : "password"}
@@ -175,7 +175,7 @@ export function LandingPageTrackingDialog({
               disabled={busy}
               onChange={(event) => setAccessToken(event.currentTarget.value)}
               placeholder={
-                existing?.accessTokenMasked ?? settings("store.tracking_token_placeholder")
+                existing?.accessTokenMasked ?? meta("meta.token_placeholder")
               }
               className="pe-10"
             />
@@ -184,7 +184,7 @@ export function LandingPageTrackingDialog({
               onClick={() => setShowToken((current) => !current)}
               tabIndex={-1}
               aria-label={
-                showToken ? settings("store.api_key_hide") : settings("store.api_key_reveal")
+                showToken ? meta("secret.hide") : meta("secret.reveal")
               }
               className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
             >
@@ -193,29 +193,29 @@ export function LandingPageTrackingDialog({
           </div>
           {existing && !accessToken && (
             <p className="text-xs text-muted-foreground">
-              {settings("store.otp_key_stored")}:{" "}
+              {meta("secret.stored")}:{" "}
               <span dir="ltr">{existing.accessTokenMasked}</span>
             </p>
           )}
         </Field>
 
         <Field
-          label={settings("store.tracking_ad_account_label")}
-          hint={settings("store.tracking_ad_account_hint")}
+          label={meta("meta.ad_account_label")}
+          hint={meta("meta.ad_account_hint")}
         >
           <Input
             dir="ltr"
             value={adAccountName}
             disabled={busy}
             onChange={(event) => setAdAccountName(event.currentTarget.value)}
-            placeholder={settings("store.tracking_ad_account_placeholder")}
+            placeholder={meta("meta.ad_account_placeholder")}
           />
         </Field>
 
         <div className="space-y-2.5">
           <div>
             <span className="text-xs font-semibold text-foreground">
-              {settings("store.tracking_event_label")}
+              {meta("meta.event_label")}
             </span>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {t("tracking.event_description")}
@@ -232,17 +232,17 @@ export function LandingPageTrackingDialog({
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <span className="text-sm font-semibold text-foreground">
-              {settings("store.tracking_test_mode_label")}
+              {meta("meta.test_mode_label")}
             </span>
             <p className="text-xs text-muted-foreground">
-              {settings("store.tracking_test_mode_hint")}
+              {meta("meta.test_mode_hint")}
             </p>
           </div>
           <button
             type="button"
             role="switch"
             aria-checked={testMode}
-            aria-label={settings("store.tracking_test_mode_label")}
+            aria-label={meta("meta.test_mode_label")}
             disabled={busy}
             onClick={() => setTestMode((current) => !current)}
             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
@@ -260,18 +260,18 @@ export function LandingPageTrackingDialog({
         {testMode && (
           <>
             <p className="rounded-lg border border-tone-warning-border bg-tone-warning-bg px-3 py-2 text-xs font-semibold text-tone-warning-text">
-              {settings("store.tracking_test_mode_warning")}
+              {meta("meta.test_mode_warning")}
             </p>
             <Field
-              label={settings("store.tracking_test_code_label")}
-              hint={settings("store.tracking_test_code_hint")}
+              label={meta("meta.test_code_label")}
+              hint={meta("meta.test_code_hint")}
             >
               <Input
                 dir="ltr"
                 value={testEventCode}
                 disabled={busy}
                 onChange={(event) => setTestEventCode(event.currentTarget.value)}
-                placeholder={settings("store.tracking_test_code_placeholder")}
+                placeholder={meta("meta.test_code_placeholder")}
               />
             </Field>
           </>

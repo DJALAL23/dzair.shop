@@ -197,12 +197,18 @@
       "due": "En cours",
       "dead": "Abandonnés"
     },
-    "native_title": "Intégrations natives",
-    "native_badge": "Intégrée",
-    "meta_hint": "Vos achats, envoyés à Meta pour mesurer vos publicités.",
-    "configure": "Ouvrir ses paramètres",
     "webhooks_title": "Webhooks",
     "webhooks_subtitle": "Vos propres systèmes, informés des événements que vous choisissez.",
     "webhooks_none": "Aucun webhook pour l'instant"
+  },
+  "api_key": {
+    "title": "Clé API de la boutique",
+    "subtitle": "Clé en lecture seule utilisée par votre vitrine pour s'authentifier auprès de l'API",
+    "label": "Clé API de la vitrine",
+    "copy": "Copier",
+    "copied": "Copié !",
+    "reveal": "Afficher",
+    "hide": "Masquer",
+    "missing": "Clé API non disponible. Elle apparaîtra ici après votre prochain redéploiement."
   }
 }

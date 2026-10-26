@@ -1,4 +1,5 @@
 import { SCOPE_CATEGORIES } from "../../../../cod-shared/rbac/scopes";
+import { isAppKey } from "../../../../cod-shared/apps/catalog";
 import type { ActivityLogMeta, TeamMember, TeamRole, TeamStatus } from "./types";
 
 export type TeamRoute =
@@ -59,6 +60,15 @@ export function teamScopeCount(user: Pick<TeamMember, "role" | "scopes">) {
     return Object.values(SCOPE_CATEGORIES).reduce((total, category) => total + category.scopes.length, 0);
   }
   return Array.isArray(user.scopes) ? user.scopes.length : 0;
+}
+
+type Translate = (key: string, values?: Record<string, string>) => string;
+
+/** A permission as the Team page names it: its action, and for an App's, which App. */
+export function scopeLabel(scope: string, team: Translate, apps: Translate) {
+  const [resource, action = ""] = scope.split(":");
+  const label = team(`scope_actions.${action}`);
+  return isAppKey(resource) ? team("scope_app", { app: apps(`names.${resource}`), action: label }) : label;
 }
 
 export function teamErrorMessage(cause: unknown, t: (key: string) => string) {

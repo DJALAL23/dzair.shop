@@ -93,14 +93,6 @@ export const SCOPES = {
   SETTINGS_VIEW: "settings:view",
   /** Manage team members and permissions */
   SETTINGS_TEAM: "settings:team",
-  /** Manage integrations and API connections */
-  SETTINGS_INTEGRATIONS: "settings:integrations",
-  /** Manage notification templates */
-  SETTINGS_NOTIFICATIONS: "settings:notifications",
-  /** Manage WhatsApp OTP verification settings (dzverify key, enable/disable) and checkout Turnstile bot protection (site/secret keys, enable/disable) */
-  SETTINGS_VERIFICATION: "settings:verification",
-  /** Manage transactional email sending settings (Sendili key, sender address, enable/disable) */
-  SETTINGS_EMAIL: "settings:email",
 
   // Reviews
   /** View product reviews and their moderation status */
@@ -128,13 +120,6 @@ export const SCOPES = {
   CHECKOUT_FORM_READ: "checkout_form:read",
   /** Change which fields the storefront order form asks for, and manage custom fields */
   CHECKOUT_FORM_MANAGE: "checkout_form:manage",
-
-  // WhatsApp Widget (the storefront contact handoff: the number, what the chat
-  // panel shows, and which pages the launcher appears on)
-  /** View the WhatsApp widget configuration */
-  WHATSAPP_WIDGET_READ: "whatsapp_widget:read",
-  /** Change the WhatsApp number, the widget's content, appearance and placement */
-  WHATSAPP_WIDGET_MANAGE: "whatsapp_widget:manage",
 
   // Apps (cod-shared/apps): one pair per App, named by its App Key
   /** See the Meta App: its pixel, its conversions and how they are delivered */
@@ -311,10 +296,6 @@ export const SCOPE_CATEGORIES = {
     label: "Checkout Form",
     scopes: [SCOPES.CHECKOUT_FORM_READ, SCOPES.CHECKOUT_FORM_MANAGE],
   },
-  whatsappWidget: {
-    label: "WhatsApp Widget",
-    scopes: [SCOPES.WHATSAPP_WIDGET_READ, SCOPES.WHATSAPP_WIDGET_MANAGE],
-  },
   abandonedOrders: {
     label: "Abandoned Orders",
     scopes: [SCOPES.ABANDONED_ORDERS_READ, SCOPES.ABANDONED_ORDERS_MANAGE],
@@ -327,15 +308,27 @@ export const SCOPE_CATEGORIES = {
     label: "AI Agents (MCP)",
     scopes: [SCOPES.MCP_VIEW],
   },
+  apps: {
+    label: "Apps",
+    scopes: [
+      SCOPES.META_READ,
+      SCOPES.META_MANAGE,
+      SCOPES.DZVERIFY_READ,
+      SCOPES.DZVERIFY_MANAGE,
+      SCOPES.TURNSTILE_READ,
+      SCOPES.TURNSTILE_MANAGE,
+      SCOPES.SENDILI_READ,
+      SCOPES.SENDILI_MANAGE,
+      SCOPES.WHATSAPP_BUTTON_READ,
+      SCOPES.WHATSAPP_BUTTON_MANAGE,
+    ],
+  },
+  integrations: {
+    label: "Integrations",
+    scopes: [SCOPES.INTEGRATIONS_READ, SCOPES.INTEGRATIONS_MANAGE],
+  },
   settings: {
     label: "Settings",
-    scopes: [
-      SCOPES.SETTINGS_VIEW,
-      SCOPES.SETTINGS_TEAM,
-      SCOPES.SETTINGS_INTEGRATIONS,
-      SCOPES.SETTINGS_NOTIFICATIONS,
-      SCOPES.SETTINGS_VERIFICATION,
-      SCOPES.SETTINGS_EMAIL,
-    ],
+    scopes: [SCOPES.SETTINGS_VIEW, SCOPES.SETTINGS_TEAM],
   },
 } as const;
