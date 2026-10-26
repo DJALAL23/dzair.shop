@@ -11,7 +11,7 @@ The plan: [docs/apps/PLAN.md](../../docs/apps/PLAN.md).
 
 **App**:
 An optional product a store can have, named after what it brings — Meta,
-DZVerify, Turnstile, Sendili, the WhatsApp button, later Telegram. One App,
+DZVerify, Turnstile, Sendili, the WhatsApp button, Telegram. One App,
 one page, one on/off, however many things it does inside the store.
 _Avoid_: Plugin, extension, add-on, integration, module
 
@@ -90,8 +90,13 @@ App with a phone check today and an order confirmation later; it is never split
 into a "verification" and a "notification".
 
 **A Built-in Consumer belongs to an App**: Meta conversions is the Meta App's,
-seen and steered with the Meta App's permission, on the Meta App Page. The
-merchant's webhooks are Integrations.
+seen and steered with the Meta App's permission, on the Meta App Page; the
+team's Telegram chat is the Telegram App's. The merchant's webhooks are
+Integrations.
+
+**An App's secrets are its own columns**: the Telegram bot's token and webhook
+secret are kept in `store_telegram_config`, like every App's keys, and never
+in a Consumer's settings or an answer (ADR 0020).
 
 **Turning an App off loses nothing**: its setup stays, so turning it on again
 works at once. Only removing it forgets its keys.

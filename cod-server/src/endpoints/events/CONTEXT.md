@@ -81,7 +81,8 @@ _Avoid_: Subscriber, listener, integration, hook
 
 **Built-in Consumer**:
 A Consumer an App creates and keeps from its own setup — Meta conversions,
-from the Meta App (see the [Apps context](../../../../cod-shared/apps/CONTEXT.md)).
+from the Meta App; the team's Telegram chat, from the Telegram App (see the
+[Apps context](../../../../cod-shared/apps/CONTEXT.md)).
 The merchant can stop and start it, but not rename, repoint or delete it;
 every other Consumer is the merchant's own.
 _Avoid_: System consumer, default integration
@@ -100,6 +101,18 @@ _Avoid_: Medium, transport
 Who a Channel's message is for: the merchant's team, or the customer of the
 order the Business Event is about.
 _Avoid_: Target, addressee
+
+**Team Message**:
+What a Business Event says to the store's team on a Channel: plain text, in
+one of the store's languages, written from the event alone — never from what
+the database says when it is sent (`cod-shared/events/messages/`).
+_Avoid_: Notification template, alert
+
+**Pairing Link**:
+A one-time `t.me` link to the merchant's own bot: the chat whose owner presses
+Start on it, before it expires, becomes the Telegram Consumer's Recipient.
+Kept only as a hash; a new link replaces the one before.
+_Avoid_: Invite link, activation code, chat id
 
 **Subscription**:
 The Event Types a Consumer asked for, named exactly or by subject
@@ -165,8 +178,9 @@ were when it was recorded; a later edit or deletion of its Subject never
 changes it.
 
 **A stopped Consumer receives nothing**: while a Consumer is stopped — by the
-merchant, because every Attempt failed for three days, or because its endpoint
-answered that it is gone — what is recorded
+merchant, because every Attempt failed for three days, because its endpoint
+answered that it is gone, because its Telegram chat blocked the bot, or
+because no Telegram chat is connected yet — what is recorded
 is not delivered to it, and what was waiting is skipped. Started again, it
 receives what is recorded from then on; what it missed reaches it only
 through a Replay.
@@ -174,6 +188,10 @@ through a Replay.
 **Only a delivery proves a Consumer works**: a failed Attempt starts or
 continues its failing streak, a delivered one ends it, and a Skipped Delivery
 — which never reached it — changes neither.
+
+**A blocked bot stops, an unblocked one starts again**: a Telegram chat that
+blocks the bot stops its Consumer at once; unblocking it starts again a
+Consumer the block stopped, never one the merchant stopped.
 
 **Delivering again records nothing**: a retry or a Replay makes Deliveries
 due again; it never records a Business Event, so a Consumer recognises what
