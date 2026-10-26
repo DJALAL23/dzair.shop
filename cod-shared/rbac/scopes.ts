@@ -136,6 +136,34 @@ export const SCOPES = {
   /** Change the WhatsApp number, the widget's content, appearance and placement */
   WHATSAPP_WIDGET_MANAGE: "whatsapp_widget:manage",
 
+  // Apps (cod-shared/apps): one pair per App, named by its App Key
+  /** See the Meta App: its pixel, its conversions and how they are delivered */
+  META_READ: "meta:read",
+  /** Set up, turn on or off and remove the Meta App; start, stop and replay Meta conversions */
+  META_MANAGE: "meta:manage",
+  /** See the DZVerify App: whether the phone check runs and in which language */
+  DZVERIFY_READ: "dzverify:read",
+  /** Set up, test, turn on or off and remove the DZVerify App */
+  DZVERIFY_MANAGE: "dzverify:manage",
+  /** See the Turnstile App: whether the bot check runs and its site key */
+  TURNSTILE_READ: "turnstile:read",
+  /** Set up, turn on or off and remove the Turnstile App */
+  TURNSTILE_MANAGE: "turnstile:manage",
+  /** See the Sendili App: whether the store sends email and from which address */
+  SENDILI_READ: "sendili:read",
+  /** Set up, test, turn on or off and remove the Sendili App */
+  SENDILI_MANAGE: "sendili:manage",
+  /** See the WhatsApp button App: the number, what the chat panel shows and where */
+  WHATSAPP_BUTTON_READ: "whatsapp-button:read",
+  /** Change the WhatsApp button's number, content, look and placement, and remove it */
+  WHATSAPP_BUTTON_MANAGE: "whatsapp-button:manage",
+
+  // Integrations (the merchant's own systems: webhooks and the API key)
+  /** See the store's webhooks and how their deliveries went */
+  INTEGRATIONS_READ: "integrations:read",
+  /** Add, edit, test, stop, replay and delete webhooks, and rotate their signing secrets */
+  INTEGRATIONS_MANAGE: "integrations:manage",
+
   // Store Pages (legal pages: Terms, Privacy, Refund, Shipping, and custom pages)
   /** View store pages list, content, and the legal profile */
   STORE_PAGES_READ: "store_pages:read",
