@@ -18,6 +18,7 @@ import {
   type AuthRequest,
 } from "@cloudflare/workers-oauth-provider";
 import { mintLoginTicket } from "../../../cod-shared/lib/login-ticket";
+import { ALL_SCOPES } from "../../../cod-shared/rbac/scopes";
 import {
   authorizeGet,
   authorizePost,
@@ -249,6 +250,22 @@ describe("authorize helpers", () => {
     });
     expect(fr).toContain('class="domain">Commandes<');
     expect(fr).toContain(">consultation</span></label>");
+  });
+
+  it("names every permission the server offers, in each language, never by its raw code", () => {
+    for (const lang of ["en", "fr", "ar"] as const) {
+      const html = renderConsentPage({ clientName: "ChatGPT", grantableScopes: ALL_SCOPES, formAction: "/authorize", csrfToken: "tok", ticket: "t", denyUrl: "https://x.test/cb", lang });
+      const raw = ALL_SCOPES.filter((scope) => html.includes(`>${scope}</span></label>`) || html.includes(`class="domain">${scope.split(":")[0]}<`));
+      expect(raw, lang).toEqual([]);
+    }
+  });
+
+  it("names an App's permissions after the App", () => {
+    const html = renderConsentPage({ clientName: "ChatGPT", grantableScopes: ["meta:manage", "whatsapp-button:read", "integrations:read"], formAction: "/authorize", csrfToken: "tok", ticket: "t", denyUrl: "https://x.test/cb", lang: "fr" });
+    expect(html).toContain('class="domain">Meta<');
+    expect(html).toContain('class="domain">Bouton WhatsApp<');
+    expect(html).toContain('class="domain">Intégrations<');
+    expect(html).toContain(">contrôle total</span></label>");
   });
 
   it("groups multiple scopes of one domain under a single heading", () => {

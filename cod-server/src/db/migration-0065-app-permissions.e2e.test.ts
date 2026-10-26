@@ -39,7 +39,7 @@ beforeAll(async () => {
     }
   }
   before = await all("SELECT * FROM user_scopes ORDER BY id");
-  await d1.applyRemaining();
+  await d1.applyRemaining({ until: "0066_drop_settings_permissions.sql" });
 });
 
 afterAll(async () => {

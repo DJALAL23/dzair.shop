@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The old permission rows go (migration 0066, after v4.0.0); the AI-agent
+  consent page names every permission in en/fr/ar. The five-minute schedule
+  drains only what its invocation has left, waking the queue for the rest,
+  so a Free-plan store stays inside its limits; the server's own log lines
+  are kept in Workers Logs.
+
 - Apps and Integrations (major; `docs/BREAKING-CHANGES.md`). Meta tracking,
   DZVerify, Turnstile, Sendili and the WhatsApp button are Apps: each has its
   own page (`/apps/<key>`), its own API (`/api/apps/<key>`) and its own read

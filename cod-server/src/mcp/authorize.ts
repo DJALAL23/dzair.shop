@@ -138,7 +138,10 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     customer_tags: "Customer tags", product_groups: "Product groups",
     stock: "Stock", settings: "Settings", reviews: "Reviews", offers: "Offers",
     abandoned_orders: "Abandoned orders", landing_pages: "Landing pages",
-    mcp: "AI app connections",
+    mcp: "AI app connections", coupons: "Coupons", checkout_form: "Checkout form",
+    store_pages: "Store pages", collections: "Collections", navigation: "Navigation",
+    meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
+    "whatsapp-button": "WhatsApp button", integrations: "Integrations",
   },
   fr: {
     dashboard: "Tableau de bord", orders: "Commandes", customers: "Clients",
@@ -146,7 +149,10 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     customer_tags: "Étiquettes clients", product_groups: "Groupes de produits",
     stock: "Stock", settings: "Paramètres", reviews: "Avis", offers: "Offres",
     abandoned_orders: "Commandes abandonnées", landing_pages: "Pages de destination",
-    mcp: "Connexions d'apps IA",
+    mcp: "Connexions d'apps IA", coupons: "Codes promo", checkout_form: "Formulaire de commande",
+    store_pages: "Pages de la boutique", collections: "Collections", navigation: "Navigation",
+    meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
+    "whatsapp-button": "Bouton WhatsApp", integrations: "Intégrations",
   },
   ar: {
     dashboard: "لوحة التحكم", orders: "الطلبات", customers: "العملاء",
@@ -154,7 +160,10 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     customer_tags: "وسوم العملاء", product_groups: "مجموعات المنتجات",
     stock: "المخزون", settings: "الإعدادات", reviews: "التقييمات", offers: "العروض",
     abandoned_orders: "الطلبات المتروكة", landing_pages: "صفحات الهبوط",
-    mcp: "اتصالات تطبيقات الذكاء الاصطناعي",
+    mcp: "اتصالات تطبيقات الذكاء الاصطناعي", coupons: "الكوبونات", checkout_form: "نموذج الطلب",
+    store_pages: "صفحات المتجر", collections: "المجموعات", navigation: "التنقل",
+    meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
+    "whatsapp-button": "زر واتساب", integrations: "التكاملات",
   },
 };
 
@@ -163,23 +172,17 @@ const ACTION_LABELS: Record<Lang, Record<string, string>> = {
     view: "view", read: "view", create: "create", update: "edit",
     delete: "delete", assign: "assign drivers", manage: "full control",
     dispatch: "dispatch to carriers", team: "team management",
-    integrations: "integrations", notifications: "notifications",
-    verification: "verification settings", email: "email settings",
   },
   fr: {
     view: "consultation", read: "consultation", create: "création",
     update: "modification", delete: "suppression", assign: "attribution des livreurs",
     manage: "contrôle total", dispatch: "expédition vers transporteurs",
-    team: "gestion d'équipe", integrations: "intégrations",
-    notifications: "notifications", verification: "paramètres de vérification",
-    email: "paramètres e-mail",
+    team: "gestion d'équipe",
   },
   ar: {
     view: "عرض", read: "عرض", create: "إنشاء", update: "تعديل",
     delete: "حذف", assign: "تعيين سائقين", manage: "تحكم كامل",
     dispatch: "إرسال لشركات التوصيل", team: "إدارة الفريق",
-    integrations: "التكاملات", notifications: "الإشعارات",
-    verification: "إعدادات التحقق", email: "إعدادات البريد",
   },
 };
 
