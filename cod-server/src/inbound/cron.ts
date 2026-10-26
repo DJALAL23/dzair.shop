@@ -7,7 +7,8 @@
  *   3. pull-only carriers (EcoTrack platform, NOEST, Guepex): open shipments
  *      not synced recently, oldest first, within each company's budget;
  *   4. the drain (`src/events/drain.ts`): the webhook inbox's events due
- *      again, and the Business Events the passes above recorded.
+ *      again, and the Business Events the passes above recorded — within
+ *      what the passes leave of this invocation; the queue drains the rest.
  *
  * Each pass is bounded, so one run stays well inside a scheduled invocation
  * and inside the carriers' rate limits; whatever is left waits for the next.
@@ -24,6 +25,7 @@ import { markHandoffUnknown, recordSynced } from "../../../cod-shared/shipments/
 import { connectedCarrier, resolveHandoff } from "@/endpoints/shipments/carrier-handoff";
 import { syncShipments } from "@/endpoints/shipments/sync";
 import { drainAndContinue } from "@/events/drain";
+import { SCHEDULED_DRAIN_BUDGET } from "@/events/meter";
 
 export const INBOUND_CRON = "*/5 * * * *";
 
@@ -128,7 +130,7 @@ export async function runInboundCron(env: Env, now = new Date()): Promise<void> 
     ["unknown handoffs", () => lookUpUnknownHandoffs(db, now)],
     ["pull sync", () => syncPullCarriers(env, now)],
     // Last, so what the passes above recorded is delivered in this run.
-    ["drain", () => drainAndContinue(env)],
+    ["drain", () => drainAndContinue(env, { budget: SCHEDULED_DRAIN_BUDGET })],
   ];
   for (const [name, pass] of passes) {
     try {

@@ -19,6 +19,14 @@ export interface Cost {
 /** Below the Free plan's limits, with room for the wake a drain may send when it stops. */
 export const DRAIN_BUDGET: Cost = { external: 45, services: 900 };
 
+/**
+ * The five-minute schedule's drain: what its carrier passes leave of the same
+ * invocation (ten lookups, a few history reads per company, their D1 trips).
+ * More than this is woken onto the queue, whose drain has an invocation of its
+ * own; when the queue cannot take it, the schedule still moves this much.
+ */
+export const SCHEDULED_DRAIN_BUDGET: Cost = { external: 20, services: 300 };
+
 export interface Meter {
   /** The store's database, counted. */
   db: AppDb;

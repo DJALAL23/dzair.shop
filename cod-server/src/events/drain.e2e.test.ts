@@ -16,6 +16,9 @@ import { recordEvent } from "../../../cod-shared/events/record";
 import type { BusinessEventDraft } from "../../../cod-shared/events/catalogue";
 import type { ConsumerKind } from "./consumers/kind";
 import { drain, drainAndContinue, wake, workIsDue } from "./drain";
+import { DRAIN_BUDGET, SCHEDULED_DRAIN_BUDGET } from "./meter";
+import { createWebhookConsumer } from "../../../cod-shared/events/consumers";
+import { runInboundCron } from "@/inbound/cron";
 
 let d1: TestD1;
 const send = vi.fn(async () => {});
@@ -266,6 +269,38 @@ describe("the budget", () => {
     const stuck = await drainAndContinue(env(), { kinds: { heavy: impl }, now: () => T0 });
     expect(stuck).toMatchObject({ fannedOut: 0, more: true });
     expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe("the five-minute schedule's drain", () => {
+  it("spends only what the carrier passes leave of its invocation, and wakes the queue for the rest", async () => {
+    const hooked: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL) => {
+      hooked.push(String(url));
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
+    try {
+      const created = await createWebhookConsumer(d1.db, { name: "ERP", url: "https://erp.example.dz/hooks", subscription: ["*"] }, T0);
+      expect(created.ok).toBe(true);
+      for (let i = 0; i < 40; i++) await record(`o${i}`);
+
+      await runInboundCron(env());
+      expect(hooked.length).toBeGreaterThan(0);
+      expect(hooked.length).toBeLessThanOrEqual(SCHEDULED_DRAIN_BUDGET.external);
+      expect(send).toHaveBeenCalledWith({ kind: "drain" });
+
+      await drainAndContinue(env());
+      expect(hooked).toHaveLength(40);
+      expect((await deliveries()).every((d) => d.state === "delivered")).toBe(true);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("leaves room in a Free invocation for the passes before it", () => {
+    expect(SCHEDULED_DRAIN_BUDGET.external).toBeLessThan(DRAIN_BUDGET.external);
+    expect(SCHEDULED_DRAIN_BUDGET.services).toBeLessThan(DRAIN_BUDGET.services);
   });
 });
 
