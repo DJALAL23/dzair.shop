@@ -179,7 +179,9 @@ Public routes: `/`, `/health`, `/images`, `/api` (OpenAPI spec + docs),
 - `/api/products`, `/api/product-groups`, `/api/products/:id/variants` (variants are nested, not a top-level route), `/api/stock`, `/api/offers`, `/api/reviews`
 - `/api/wilayas`, `/api/shipping-profiles`
 - `/api/delivery-companies` — carrier adapters (Yalidine, ZR Express, NOEST, EcoTrack) + webhook handlers
-- `/api/stores` — `me`, `pixel-config` (the public storefront API lives at `/store/*`)
+- `/api/stores` — `me` (the public storefront API lives at `/store/*`)
+- `/api/apps` — the store's Apps and their App Status; each App under `/api/apps/<key>` (Meta, DZVerify, Turnstile, Sendili, WhatsApp button), with its own permissions
+- `/api/event-consumers`, `/api/event-deliveries` — webhooks (Integrations) and the Apps' Built-in Consumers, each seen with its owner's permission
 - `/api/users` — staff/admin + API keys
 - `/api/analytics`, `/api/activity-logs`, `/api/abandoned-orders`
 - `/api/images` — R2 presigned upload

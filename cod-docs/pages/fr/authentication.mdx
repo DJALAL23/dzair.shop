@@ -53,7 +53,7 @@ Host: localhost:8787
 X-Store-API-Key: your_store_api_key_here
 ```
 
-Le serveur hache la clé présentée et la recherche dans `store_api_keys`. Une clé valide correspond à exactement une boutique ; chaque requête de vitrine est limitée à cette boutique. La clé est créée pour la boutique et peut être copiée depuis **Paramètres → Clé API boutique** dans le tableau de bord.
+Le serveur hache la clé présentée et la recherche dans `store_api_keys`. Une clé valide correspond à exactement une boutique ; chaque requête de vitrine est limitée à cette boutique. La clé est créée pour la boutique et peut être copiée par un administrateur depuis **Intégrations → Clé API de la boutique** dans le tableau de bord.
 
 Une clé de boutique n'authentifie pas les appels `/api/*`. Une clé marchand n'authentifie pas les appels `/store/*`.
 
@@ -70,6 +70,9 @@ Les scopes suivent la forme `resource:action`, par exemple :
 | `products:read` | Lire le catalogue |
 | `products:manage` | Gérer les variantes et l'inventaire |
 | `delivery:dispatch` | Créer des expéditions avec un transporteur |
+| `integrations:read` | Voir les webhooks et le résultat de leurs livraisons |
+| `integrations:manage` | Ajouter, modifier, tester, rejouer et supprimer des webhooks |
+| `meta:read`, `meta:manage` | Voir ou configurer l'application Meta. Chaque application a sa propre paire, nommée par sa clé : `dzverify`, `turnstile`, `sendili`, `whatsapp-button` |
 | `settings:team` | Gérer les membres de l'équipe et les permissions |
 | `mcp:view` | Voir et révoquer vos propres connexions MCP |
 

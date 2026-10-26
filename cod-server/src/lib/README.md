@@ -38,7 +38,7 @@ await logActivity(db, actor, ACTIONS.ORDER_CREATED, {
 Client for sending CAPI events (e.g., `Purchase` at delivery) to
 `https://graph.facebook.com`, used by the `CodCapiWorkflow` in
 `src/workflows/capi.ts`. Per-store activation is gated by the `storePixelConfig`
-row (see Settings → Meta in the dashboard).
+row (the Meta App: Apps → Meta in the dashboard).
 
 ### 3. Shared errors (`errors/`)
 `BusinessLogicError`, `ConflictError`, `NotFoundError` — mapped to consistent

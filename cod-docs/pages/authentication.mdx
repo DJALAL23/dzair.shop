@@ -53,7 +53,7 @@ Host: localhost:8787
 X-Store-API-Key: your_store_api_key_here
 ```
 
-The server hashes the presented key and looks it up in `store_api_keys`. A valid key resolves to exactly one store; every storefront query is scoped to that store. The key is created for the store and can be copied from **Settings → Store API key** in the dashboard.
+The server hashes the presented key and looks it up in `store_api_keys`. A valid key resolves to exactly one store; every storefront query is scoped to that store. The key is created for the store and can be copied by an admin from **Integrations → Store API key** in the dashboard.
 
 A store key does not authenticate `/api/*` calls. A merchant key does not authenticate `/store/*` calls.
 
@@ -70,6 +70,9 @@ Scopes follow the form `resource:action`, for example:
 | `products:read` | Read the catalog |
 | `products:manage` | Manage variants and inventory |
 | `delivery:dispatch` | Create shipments with a carrier |
+| `integrations:read` | See webhooks and how their deliveries went |
+| `integrations:manage` | Add, change, test, replay and delete webhooks |
+| `meta:read`, `meta:manage` | See or set up the Meta App. Every App has its own pair, named by its App Key: `dzverify`, `turnstile`, `sendili`, `whatsapp-button` |
 | `settings:team` | Manage team members and permissions |
 | `mcp:view` | See and revoke your own MCP connections |
 

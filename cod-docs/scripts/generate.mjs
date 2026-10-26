@@ -32,7 +32,7 @@ const tagDescriptions = {
   Navigation: "Storefront menus, links and structure.",
   Collections: "Curated product collections.",
   "Checkout Form": "Checkout fields, validation and display settings.",
-  "WhatsApp Widget": "WhatsApp contact widget configuration.",
+  Apps: "The store's Apps — Meta, DZVerify, Turnstile, Sendili, the WhatsApp button: where each stands, its setup, and removing it.",
   "Shipping Profiles": "Delivery zones, rates and shipping rules.",
   "Driver Payments": "Driver settlement lines and payouts.",
   "Store Settings": "Store identity, languages, currency and preferences.",
@@ -74,7 +74,11 @@ const tagGroups = [
   },
   {
     name: "Store",
-    tags: ["Store Settings", "Store Pages", "Navigation", "Checkout Form", "WhatsApp Widget"],
+    tags: ["Store Settings", "Store Pages", "Navigation", "Checkout Form"],
+  },
+  {
+    name: "Apps and integrations",
+    tags: ["Apps", "Events"],
   },
   {
     name: "Operations",

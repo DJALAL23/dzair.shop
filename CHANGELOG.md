@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Apps and Integrations (major; `docs/BREAKING-CHANGES.md`). Meta tracking,
+  DZVerify, Turnstile, Sendili and the WhatsApp button are Apps: each has its
+  own page (`/apps/<key>`), its own API (`/api/apps/<key>`) and its own read
+  and manage permissions; `/apps` lists them with where each stands, and an
+  App can be removed, forgetting its keys. Integrations holds the merchant's
+  webhooks and the store API key; Meta conversions moved to the Meta App's
+  page. Settings keeps the store itself. Migration 0065 gives every holder of
+  an old permission (`settings:verification`, `settings:email`,
+  `settings:integrations`, `whatsapp_widget:*`) its new ones.
+
 - store setup: one source of seed data, `cod-shared/starter/`, and one script,
   `cod-server/scripts/seed-store.ts` (`npm run db:setup:local` /
   `db:setup:remote`). A store gets the header and footer menus, the default

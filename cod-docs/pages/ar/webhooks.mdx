@@ -10,7 +10,7 @@ description: استقبل أحداث متجرك على خادمك، موقَّع
 
 ## إضافة webhook
 
-في لوحة التحكم افتح **التكاملات** من القائمة الجانبية واختر **إضافة webhook**، وأعطه اسمًا وعنوان URL لخادمك والأحداث التي يستقبلها. وعبر الـ API، `POST /api/event-consumers` بصلاحية `settings:integrations`:
+في لوحة التحكم افتح **التكاملات** من القائمة الجانبية واختر **إضافة webhook**، وأعطه اسمًا وعنوان URL لخادمك والأحداث التي يستقبلها. وعبر الـ API، `POST /api/event-consumers` بصلاحية `integrations:manage` (وتعرض `integrations:read` الـ webhooks وعمليات تسليمها):
 
 ```bash
 curl -X POST http://localhost:8787/api/event-consumers \
@@ -337,6 +337,6 @@ def verify_webhook(secret: str, headers: dict, raw_body: bytes) -> bool:
 
 ## انظر أيضًا
 
-- [المصادقة](/ar/authentication) لمفاتيح الـ API وصلاحية `settings:integrations`
+- [المصادقة](/ar/authentication) لمفاتيح الـ API وصلاحيتي `integrations:read` و`integrations:manage`
 - [الأخطاء](/ar/errors) لصيغة الأخطاء
 - [Webhooks شركات التوصيل](/ar/carrier-webhooks) للتسليمات التي تبلّغ عنها شركات التوصيل

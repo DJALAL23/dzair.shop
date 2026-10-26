@@ -493,7 +493,7 @@ decline — the feature is inert by default (no `store_email_config` row).
 1. Ask the developer to: create a [sendili.com](https://sendili.com) account,
    buy credits, **verify their sending domain** (DNS records in the Sendili
    dashboard), and create an API key (`sk_live_…`).
-2. In the deployed dashboard: sign in as admin → **Settings → Email Sending** →
+2. In the deployed dashboard: sign in as admin → **Apps → Sendili** →
    paste the key (domains auto-load) → set the from address by typing the
    local part (`support`, `notify`…) and picking the verified domain →
    toggle **Enable email sending** → **Save**.

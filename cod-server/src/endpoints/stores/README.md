@@ -1,6 +1,6 @@
 # Stores Management API (Merchant)
 
-Private management API for configuring store-wide settings, branding, localization, and Meta pixel tracking. This endpoint is used by the merchant/admin to control the look and feel of the storefront.
+Private management API for configuring store-wide settings, branding and localization. This endpoint is used by the merchant/admin to control the look and feel of the storefront.
 
 Not to be confused with `/api/store/*` — the public storefront API.
 
@@ -53,26 +53,9 @@ Update store configuration. Partial updates are supported; set nullable fields t
 
 Field rules: `lang` takes `"ar"`, `"fr"` or `"en"` — set alone, it also adds and publishes that language; `languages` (`[{ "locale", "published" }]`) replaces the store's list, must publish the primary (the new one when `lang` changes in the same save), and removing a language removes its theme text edits (those edits are written by CodFlow Cloud's visual editor, not by this API); URLs are validated; `metaTitle` ≤ 200, `metaDescription` ≤ 500 chars. Colors, the font and an announcement bar are not store fields: they are a theme's settings (migrations 0047, 0048).
 
-### GET /api/stores/pixel-config
-Retrieve the store's Meta pixel tracking configuration, or `null` when none has been configured yet.
-
-**Authorization:** Admin role required (`requireAdmin()`)
-
-### POST /api/stores/pixel-config
-Upsert the Meta pixel configuration used for server-side conversion events.
-
-**Authorization:** Admin role required (`requireAdmin()`)
-
-**Request Body:**
-```json
-{
-  "pixelId": "1234567890123456",
-  "accessToken": "EAAG...",
-  "testEventCode": null,
-  "enabled": true
-}
-```
-Only `pixelId` is required. Omitted optional fields fall back to defaults (`accessToken` empty string, `enabled` true). `testEventCode` is for integration testing only — set to `null` in production.
+The Meta pixel and conversions setup is no longer a store route: it is the
+Meta App, `GET` / `PUT` / `DELETE /api/apps/meta` (`src/endpoints/apps/`), like
+the store's other Apps (`cod-shared/apps/CONTEXT.md`).
 
 ## Implementation Details
 

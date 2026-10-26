@@ -389,7 +389,7 @@ against the packed SDKs.
 - ✅ **WhatsApp OTP Verification** — [DZVerify.com](https://dzverify.com) phone verification at checkout
 - ✅ **Cloudflare Turnstile** — optional per-store bot protection on the checkout form (off by default)
 - ✅ **EcoTrack Integration** — 80+ Algerian couriers behind one API
-- ✅ **Transactional Email (Sendili)** — [Sendili.com](https://sendili.com) powers team-invite emails and password-reset emails; merchants configure their API key and verified sending domain in Settings → Email Sending
+- ✅ **Transactional Email (Sendili)** — [Sendili.com](https://sendili.com) powers team-invite emails and password-reset emails; merchants configure their API key and verified sending domain in the Sendili App (Apps → Sendili)
 
 ---
 

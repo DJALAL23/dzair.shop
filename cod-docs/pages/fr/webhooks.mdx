@@ -10,7 +10,7 @@ Les transporteurs qui signalent des livraisons à votre boutique, c'est l'autre 
 
 ## Ajouter un webhook
 
-Dans le tableau de bord, ouvrez **Intégrations** dans le menu latéral et choisissez **Ajouter un webhook** ; donnez-lui un nom, l'URL de votre endpoint et les événements qu'il reçoit. Par l'API, `POST /api/event-consumers` avec le scope `settings:integrations` :
+Dans le tableau de bord, ouvrez **Intégrations** dans le menu latéral et choisissez **Ajouter un webhook** ; donnez-lui un nom, l'URL de votre endpoint et les événements qu'il reçoit. Par l'API, `POST /api/event-consumers` avec le scope `integrations:manage` (`integrations:read` liste les webhooks et leurs livraisons) :
 
 ```bash
 curl -X POST http://localhost:8787/api/event-consumers \
@@ -337,6 +337,6 @@ Le schéma complet de chaque type est dans la [référence de l'API](/api), sous
 
 ## Voir aussi
 
-- [Authentification](/fr/authentication) pour les clés d'API et le scope `settings:integrations`
+- [Authentification](/fr/authentication) pour les clés d'API et les scopes `integrations:read` et `integrations:manage`
 - [Erreurs](/fr/errors) pour l'enveloppe d'erreur
 - [Webhooks des transporteurs](/fr/carrier-webhooks) pour les livraisons signalées par vos transporteurs

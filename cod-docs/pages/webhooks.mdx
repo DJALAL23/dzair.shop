@@ -10,7 +10,7 @@ Carriers reporting deliveries to your store is the other direction; read [Carrie
 
 ## Add a webhook
 
-In the dashboard, open **Integrations** in the sidebar and choose **Add webhook**; give it a name, the URL of your endpoint and the events it receives. Through the API, `POST /api/event-consumers` with the `settings:integrations` scope:
+In the dashboard, open **Integrations** in the sidebar and choose **Add webhook**; give it a name, the URL of your endpoint and the events it receives. Through the API, `POST /api/event-consumers` with the `integrations:manage` scope (`integrations:read` lists webhooks and their deliveries):
 
 ```bash
 curl -X POST http://localhost:8787/api/event-consumers \
@@ -337,6 +337,6 @@ Each type's full schema is in the [API reference](/api) under Webhooks.
 
 ## Related
 
-- [Authentication](/authentication) for API keys and the `settings:integrations` scope
+- [Authentication](/authentication) for API keys and the `integrations:read` and `integrations:manage` scopes
 - [Errors](/errors) for the error envelope
 - [Carrier webhooks](/carrier-webhooks) for deliveries your carriers report
