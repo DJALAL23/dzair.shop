@@ -128,6 +128,8 @@ describe("an App Page", () => {
     expect(header.querySelector('a[href="/apps"]')!.getAttribute("aria-label")).toBe("Back to Apps");
     expect(text()).toContain("Bot check at checkout");
     expect(button("Save changes")).toBeDefined();
+    const reveal = host.querySelector<HTMLButtonElement>('button[aria-label="Reveal"]')!;
+    expect(reveal.parentElement!.getAttribute("dir")).toBe("ltr");
   });
 
   it("lets a member who may only see the App look, never change or remove it", async () => {

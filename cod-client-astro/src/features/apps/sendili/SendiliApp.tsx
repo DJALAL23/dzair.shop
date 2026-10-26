@@ -138,7 +138,7 @@ export default function SendiliApp({ canManage, onSaved }: AppBodyProps) {
       />
 
       <FieldRow label={t("sendili.key_label")} help={t("sendili.key_hint")}>
-        <div className="relative">
+        <div dir="ltr" className="relative">
           <Input
             type={showKey ? "text" : "password"}
             dir="ltr"

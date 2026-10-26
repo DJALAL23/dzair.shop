@@ -116,7 +116,7 @@ export function MetaSetupSection({ canManage, onSaved }: AppBodyProps) {
       </FieldRow>
 
       <FieldRow label={t("meta.token_label")} help={t("meta.token_hint")}>
-        <div className="relative">
+        <div dir="ltr" className="relative">
           <Input
             type={showToken ? "text" : "password"}
             dir="ltr"

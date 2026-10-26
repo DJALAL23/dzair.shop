@@ -167,7 +167,7 @@ export function LandingPageTrackingDialog({
         </Field>
 
         <Field label={meta("meta.token_label")} hint={t("tracking.token_hint")}>
-          <div className="relative">
+          <div dir="ltr" className="relative">
             <Input
               type={showToken ? "text" : "password"}
               dir="ltr"

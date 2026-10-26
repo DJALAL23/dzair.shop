@@ -86,7 +86,7 @@ export default function TurnstileApp({ canManage, onSaved }: AppBodyProps) {
       </FieldRow>
 
       <FieldRow label={t("turnstile.secret_key_label")} help={t("turnstile.secret_key_hint")}>
-        <div className="relative">
+        <div dir="ltr" className="relative">
           <Input
             type={showSecret ? "text" : "password"}
             dir="ltr"

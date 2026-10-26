@@ -55,7 +55,7 @@ export function ApiKeyCard() {
           <div className="space-y-1.5">
             <span className="text-sm font-medium text-foreground">{t("api_key.label")}</span>
             <div className="flex items-center gap-2">
-              <div className="relative flex-1">
+              <div dir="ltr" className="relative flex-1">
                 <input
                   readOnly
                   dir="ltr"
