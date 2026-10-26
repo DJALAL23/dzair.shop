@@ -32,6 +32,8 @@ vi.mock("@/lib/api", () => ({
       return { success: true, message: "App removed" };
     }
     if (method === "GET" && path === "/api/apps/meta") return { success: true, data: null };
+    if (method === "GET" && path === "/api/apps/sendili") return { success: true, data: { fromEmail: "noreply@acme.dz", fromName: null, enabled: true, apiKeyMasked: "••••a9f2", createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-01T00:00:00Z" } };
+    if (method === "POST" && path === "/api/apps/sendili/test") return { success: true, data: { ok: true, domains: ["acme.dz"] } };
     if (method === "GET" && path === "/api/event-consumers") return { success: true, data: server.consumers };
     throw new Error(`unexpected ${method} ${path}`);
   }),
@@ -173,6 +175,29 @@ describe("an App Page", () => {
     await open(<AppPageApp appKey="turnstile" />, identity("admin", []));
     expect(host.querySelector("header")!.textContent).toContain("Not set up");
     expect(button("Remove app")).toBeUndefined();
+  });
+
+  it("asks for the keys in the dashboard's language before saving, whether the App is on or off", async () => {
+    server.apps = server.apps.map((app) => (app.key === "turnstile" ? { ...app, status: "not_set_up" } : app));
+    server.turnstile = null;
+    await open(<AppPageApp appKey="turnstile" />, identity("admin", []));
+    expect(host.querySelector<HTMLButtonElement>('[role="switch"]')!.getAttribute("aria-checked")).toBe("false");
+    await act(async () => button("Save changes")!.click());
+    await settle();
+    expect(text()).toContain("Site key This field is required");
+    expect(writes()).toEqual([]);
+  });
+
+  it("loads Sendili's verified domains for whoever may manage it, and tests no key for someone who may only look", async () => {
+    await open(<AppPageApp appKey="sendili" />, identity("staff", ["sendili:read"]));
+    expect(host.querySelector("select")!.value).toBe("acme.dz");
+    expect(Array.from(host.querySelectorAll<HTMLInputElement>("input")).map((input) => input.value)).toContain("noreply");
+    expect(server.calls.filter((call) => call.path === "/api/apps/sendili/test")).toEqual([]);
+
+    act(() => root.unmount());
+    root = createRoot(host);
+    await open(<AppPageApp appKey="sendili" />, identity("staff", ["sendili:read", "sendili:manage"]));
+    expect(server.calls.filter((call) => call.path === "/api/apps/sendili/test")).toEqual([{ method: "POST", path: "/api/apps/sendili/test" }]);
   });
 
   it("shows the Meta App's own conversions, never the merchant's webhooks", async () => {

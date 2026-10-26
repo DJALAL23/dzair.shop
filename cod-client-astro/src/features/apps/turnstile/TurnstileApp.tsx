@@ -32,10 +32,10 @@ export default function TurnstileApp({ canManage, onSaved }: AppBodyProps) {
   }, []);
 
   async function handleSave() {
-    if (enabled && !siteKey.trim() && !siteKeyStored) {
+    if (!siteKey.trim() && !siteKeyStored) {
       throw new Error(`${t("turnstile.site_key_label")} ${t("page.field_required")}`);
     }
-    if (enabled && !secretKey.trim() && !secretKeyMasked) {
+    if (!secretKey.trim() && !secretKeyMasked) {
       throw new Error(`${t("turnstile.secret_key_label")} ${t("page.field_required")}`);
     }
     const result = await saveTurnstileApp({

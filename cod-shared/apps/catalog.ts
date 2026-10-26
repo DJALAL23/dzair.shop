@@ -10,9 +10,6 @@ import { WEBHOOK_KIND } from "../events/webhooks";
 export const APP_CATEGORIES = ["marketing", "checkout_protection", "messaging", "storefront"] as const;
 export type AppCategory = (typeof APP_CATEGORIES)[number];
 
-export const CONNECTION_POINTS = ["checkout_check", "storefront_add_on", "consumer_kind", "email_sender", "api"] as const;
-export type ConnectionPoint = (typeof CONNECTION_POINTS)[number];
-
 export interface Permissions {
   read: string;
   manage: string;
@@ -21,7 +18,6 @@ export interface Permissions {
 export interface App {
   key: string;
   category: AppCategory;
-  connectionPoints: readonly ConnectionPoint[];
   permissions: Permissions;
   /** The Consumer Kinds whose Built-in Consumers this App creates and keeps. */
   consumerKinds: readonly string[];
@@ -31,35 +27,30 @@ export const APP_CATALOG = [
   {
     key: "meta",
     category: "marketing",
-    connectionPoints: ["storefront_add_on", "consumer_kind"],
     permissions: { read: SCOPES.META_READ, manage: SCOPES.META_MANAGE },
     consumerKinds: ["meta_capi"],
   },
   {
     key: "dzverify",
     category: "checkout_protection",
-    connectionPoints: ["checkout_check"],
     permissions: { read: SCOPES.DZVERIFY_READ, manage: SCOPES.DZVERIFY_MANAGE },
     consumerKinds: [],
   },
   {
     key: "turnstile",
     category: "checkout_protection",
-    connectionPoints: ["checkout_check", "storefront_add_on"],
     permissions: { read: SCOPES.TURNSTILE_READ, manage: SCOPES.TURNSTILE_MANAGE },
     consumerKinds: [],
   },
   {
     key: "sendili",
     category: "messaging",
-    connectionPoints: ["email_sender"],
     permissions: { read: SCOPES.SENDILI_READ, manage: SCOPES.SENDILI_MANAGE },
     consumerKinds: [],
   },
   {
     key: "whatsapp-button",
     category: "storefront",
-    connectionPoints: ["storefront_add_on"],
     permissions: { read: SCOPES.WHATSAPP_BUTTON_READ, manage: SCOPES.WHATSAPP_BUTTON_MANAGE },
     consumerKinds: [],
   },

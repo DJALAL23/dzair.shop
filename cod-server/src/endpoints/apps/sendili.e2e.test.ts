@@ -88,7 +88,7 @@ describe("testing the Sendili key", () => {
   it("answers the verified domains, for the from-address picker", async () => {
     await setUp();
     sendiliAnswers(async () => ({ domains: ["acme.dz", "mail.acme.dz"], raw: { plan: "free" } }));
-    expect((await admin.post("/api/apps/sendili/test", {})).body.data).toEqual({ ok: true, domains: ["acme.dz", "mail.acme.dz"], account: { plan: "free" } });
+    expect((await admin.post("/api/apps/sendili/test", {})).body.data).toEqual({ ok: true, domains: ["acme.dz", "mail.acme.dz"] });
   });
 
   it("tests the key sent rather than the one stored", async () => {

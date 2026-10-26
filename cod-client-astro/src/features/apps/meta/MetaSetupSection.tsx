@@ -45,7 +45,7 @@ export function MetaSetupSection({ canManage, onSaved }: AppBodyProps) {
   }, []);
 
   async function handleSave() {
-    if (enabled && !pixelId.trim()) {
+    if (!pixelId.trim()) {
       throw new Error(
         `${t("meta.pixel_id_label")} ${t("page.field_required")}`,
       );

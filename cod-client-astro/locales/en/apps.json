@@ -1,7 +1,7 @@
 {
   "page": {
     "title": "Apps",
-    "subtitle": "What your store adds to itself: turn each App on, set it up, turn it off.",
+    "subtitle": "Add more to your store: turn each App on, set it up, or turn it off.",
     "back": "Back to Apps",
     "load_error": "The Apps could not be loaded.",
     "none": "No App to show.",

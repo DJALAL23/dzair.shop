@@ -36,7 +36,7 @@ export default function DZVerifyApp({ canManage, onSaved }: AppBodyProps) {
   }, []);
 
   async function handleSave() {
-    if (enabled && !apiKey.trim() && !apiKeyMasked) {
+    if (!apiKey.trim() && !apiKeyMasked) {
       throw new Error(`${t("dzverify.key_label")} ${t("page.field_required")}`);
     }
     const result = await saveDZVerifyApp({

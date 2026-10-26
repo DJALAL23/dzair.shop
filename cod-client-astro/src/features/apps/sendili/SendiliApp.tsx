@@ -46,6 +46,9 @@ export default function SendiliApp({ canManage, onSaved }: AppBodyProps) {
       setLastSaved(data.updatedAt);
       // Silent: load the verified domains with the STORED key so the picker
       // is ready on arrival (cheap account read, one call per page visit).
+      // Testing a key takes sendili:manage; someone who may only look sees
+      // the saved address as it is.
+      if (!canManage) return;
       testSendiliKey()
         .then((result) => {
           if (!alive || !result.ok || !result.domains?.length) return;
@@ -82,7 +85,7 @@ export default function SendiliApp({ canManage, onSaved }: AppBodyProps) {
     if (!EMAIL_PATTERN.test(fromEmail.trim())) {
       throw new Error(`${t("sendili.from_label")}: ${t("page.field_required")}`);
     }
-    if (enabled && !apiKey.trim() && !apiKeyMasked) {
+    if (!apiKey.trim() && !apiKeyMasked) {
       throw new Error(`${t("sendili.key_label")}: ${t("page.field_required")}`);
     }
     const result = await saveSendiliApp({

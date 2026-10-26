@@ -1,7 +1,7 @@
 {
   "page": {
     "title": "Applications",
-    "subtitle": "Ce que votre boutique s'ajoute : activez chaque application, configurez-la, désactivez-la.",
+    "subtitle": "Ajoutez des fonctions à votre boutique : activez chaque application, configurez-la ou désactivez-la.",
     "back": "Retour aux applications",
     "load_error": "Les applications n'ont pas pu être chargées.",
     "none": "Aucune application à afficher.",

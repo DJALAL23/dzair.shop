@@ -108,6 +108,8 @@ const ConfigSchema = z
     ctaLabel: z.string().nullable(),
     prefillGeneral: z.string().nullable(),
     prefillProduct: z.string().nullable(),
+    thankYouButtonLabel: z.string().nullable(),
+    prefillThankYou: z.string().nullable(),
     accent: z.enum(["whatsapp", "primary"]),
     position: z.enum(["right", "left"]),
     attention: z.boolean(),

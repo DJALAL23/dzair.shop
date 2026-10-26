@@ -76,7 +76,7 @@ async function testSendili(c: Context<AppContext>) {
 
   try {
     const account = await createSendiliClient(apiKey).getAccount();
-    return c.json({ success: true, data: { ok: true, domains: account.domains, account: account.raw } }, 200);
+    return c.json({ success: true, data: { ok: true, domains: account.domains } }, 200);
   } catch (err) {
     if (!(err instanceof SendiliError)) throw new ExternalApiError("sendili", err instanceof Error ? err.message : "Connection check failed");
     if (err.code === SENDILI_ERRORS.UNAUTHORIZED) {
@@ -135,7 +135,6 @@ const testRoute = defineRoute({
             reason: z.string().optional(),
             message: z.string().optional(),
             domains: z.array(z.string()).optional().openapi({ description: "Verified sending domains — for the from-address picker.", example: ["acme.com"] }),
-            account: z.record(z.string(), z.unknown()).optional().openapi({ description: "The account (usage, plan) as Sendili returns it." }),
             outOfCredits: z.boolean().optional(),
           }),
         }),
