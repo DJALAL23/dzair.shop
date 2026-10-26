@@ -36,6 +36,8 @@ describe("a Consumer's state", () => {
     [{ enabled: false, disabledReason: "merchant" as const }, "stopped_by_merchant"],
     [{ enabled: false, disabledReason: "failing" as const }, "stopped_failing"],
     [{ enabled: false, disabledReason: "gone" as const }, "stopped_gone"],
+    [{ enabled: false, disabledReason: "bot_blocked" as const }, "stopped_bot_blocked"],
+    [{ enabled: false, disabledReason: "not_connected" as const }, "stopped_not_connected"],
   ])("%o is %s", (over, status) => {
     expect(consumerStatus(consumer(over))).toBe(status);
   });

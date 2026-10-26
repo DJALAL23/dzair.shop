@@ -12,7 +12,7 @@ import { TestEventDialog } from "@/features/events/components/TestEventDialog";
 import { WebhookDialog } from "@/features/events/components/WebhookDialog";
 import type { EventConsumer, EventDelivery, IssuedSecret } from "@/features/events/types";
 
-const STATUS_TONES: Record<ConsumerStatus, BadgeTone> = { active: "success", failing: "warning", stopped_by_merchant: "neutral", stopped_failing: "critical", stopped_gone: "critical" };
+const STATUS_TONES: Record<ConsumerStatus, BadgeTone> = { active: "success", failing: "warning", stopped_by_merchant: "neutral", stopped_failing: "critical", stopped_gone: "critical", stopped_bot_blocked: "critical", stopped_not_connected: "warning" };
 
 function Tile({ native, children }: { native: boolean; children: ReactNode }) {
   return (

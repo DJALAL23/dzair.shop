@@ -6,6 +6,7 @@
 import { SCOPES } from "../rbac/scopes";
 import { hasPermission } from "../rbac/utils";
 import { WEBHOOK_KIND } from "../events/webhooks";
+import { TELEGRAM_KIND } from "../events/telegram";
 
 export const APP_CATEGORIES = ["marketing", "checkout_protection", "messaging", "storefront"] as const;
 export type AppCategory = (typeof APP_CATEGORIES)[number];
@@ -53,6 +54,12 @@ export const APP_CATALOG = [
     category: "storefront",
     permissions: { read: SCOPES.WHATSAPP_BUTTON_READ, manage: SCOPES.WHATSAPP_BUTTON_MANAGE },
     consumerKinds: [],
+  },
+  {
+    key: "telegram",
+    category: "messaging",
+    permissions: { read: SCOPES.TELEGRAM_READ, manage: SCOPES.TELEGRAM_MANAGE },
+    consumerKinds: [TELEGRAM_KIND],
   },
 ] as const satisfies readonly App[];
 

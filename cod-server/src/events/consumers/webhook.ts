@@ -128,7 +128,7 @@ export async function sendWebhook(request: WebhookRequest, outbound: typeof fetc
   const answer = await answerExcerpt(response);
   const detail = { httpStatus, ...(answer === undefined ? {} : { response: answer }) };
   if (httpStatus >= 200 && httpStatus < 300) return { kind: "delivered", ...detail };
-  if (httpStatus === 410) return { kind: "reject", consumerGone: true, error: "The endpoint answered 410 Gone: it asks to receive nothing more", ...detail };
+  if (httpStatus === 410) return { kind: "reject", stopsConsumer: "gone", error: "The endpoint answered 410 Gone: it asks to receive nothing more", ...detail };
   if (httpStatus >= 300 && httpStatus < 400) {
     const location = response.headers.get("location");
     return { kind: "retry", error: `The endpoint redirected (HTTP ${httpStatus}${location ? ` to ${location}` : ""}); redirects are not followed — save the URL it points to`, ...detail };

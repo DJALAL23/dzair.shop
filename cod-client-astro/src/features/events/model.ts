@@ -25,9 +25,9 @@ export function eventByline(event: BusinessEvent, t: Translate): string {
   return t("byline", { who: actorLabel(event.actor, t), through: t(`origin.${event.origin}`) });
 }
 
-export type ConsumerStatus = "active" | "failing" | "stopped_by_merchant" | "stopped_failing" | "stopped_gone";
+export type ConsumerStatus = "active" | "failing" | "stopped_by_merchant" | "stopped_failing" | "stopped_gone" | "stopped_bot_blocked" | "stopped_not_connected";
 
-const STOPPED: Record<ConsumerDisabledReason, ConsumerStatus> = { merchant: "stopped_by_merchant", failing: "stopped_failing", gone: "stopped_gone" };
+const STOPPED: Record<ConsumerDisabledReason, ConsumerStatus> = { merchant: "stopped_by_merchant", failing: "stopped_failing", gone: "stopped_gone", bot_blocked: "stopped_bot_blocked", not_connected: "stopped_not_connected" };
 
 export function consumerStatus(consumer: EventConsumer): ConsumerStatus {
   if (!consumer.enabled) return STOPPED[consumer.disabledReason ?? "merchant"];
@@ -35,7 +35,7 @@ export function consumerStatus(consumer: EventConsumer): ConsumerStatus {
 }
 
 /** The Consumer Kinds the dashboard can name; a kind it does not know is shown by its Consumer's name alone. */
-export const KNOWN_KINDS = ["meta_capi", "webhook"] as const;
+export const KNOWN_KINDS = ["meta_capi", "webhook", "telegram"] as const;
 
 export function kindLabelKey(kind: string): string | null {
   return (KNOWN_KINDS as readonly string[]).includes(kind) ? `kinds.${kind}` : null;

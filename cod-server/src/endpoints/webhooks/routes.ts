@@ -1,9 +1,10 @@
 /**
  * Webhook Routes
  *
- * Public router — NO auth middleware anywhere in this file. A delivery is
- * authenticated by its signature, which also tells which company it is for
- * (Svix HMAC-SHA256 for ZR Express, HMAC-SHA256 for Yalidine).
+ * Public router — NO auth middleware anywhere in this file. A carrier delivery
+ * is authenticated by its signature, which also tells which company it is for
+ * (Svix HMAC-SHA256 for ZR Express, HMAC-SHA256 for Yalidine); a Telegram
+ * update by the secret its bot was given (`./telegram.ts`).
  *
  * Mount order in index.ts:
  *   app.route("/webhooks", webhooksRouter)  ← BEFORE app.use("/api/*", authMiddleware)
@@ -25,6 +26,7 @@ import {
   handleYalidineWebhook,
   handleZrWebhook,
 } from "./handlers";
+import { handleTelegramUpdate, TELEGRAM_SECRET_HEADER } from "./telegram";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -140,6 +142,38 @@ const zrWebhookRoute = defineRoute({
   handler: handleZrWebhook,
 });
 
+const telegramUpdateRoute = defineRoute({
+  method: "post",
+  path: "/telegram/{consumerId}",
+  auth: "public",
+  tags: ["Webhooks"],
+  summary: "Telegram bot update",
+  description: `Receives the updates of the merchant's own Telegram bot (the Telegram App), sent by Telegram to the URL the store gave it with \`setWebhook\`, for messages and chat membership only.
+
+**Which bot:** the Telegram Consumer named in the path, whose secret must be in \`${TELEGRAM_SECRET_HEADER}\` — checked before the body is read. Without it the update is refused with **401** and changes nothing.
+
+**What it does:** \`/start <code>\` in a private chat connects that chat when the code is the bot's open pairing code, unexpired and unused, and the answer asks Telegram to send the bot's reply (\`{ method: "sendMessage", chat_id, text }\`); the connected chat blocking the bot stops its Consumer (\`bot_blocked\`), unblocking it starts it again. Anything else is acknowledged and ignored. A body that is not JSON is refused with **400**.`,
+  operationId: "telegramUpdate",
+  params: z.object({ consumerId: z.string().openapi({ description: "The Telegram Consumer the bot sends through" }) }),
+  headers: z.object({
+    [TELEGRAM_SECRET_HEADER]: z.string().optional().openapi({ description: "The secret the store gave Telegram for this bot" }),
+  }),
+  responses: {
+    200: {
+      description: "Acknowledged; for a /start, the bot's reply for Telegram to send",
+      content: jsonContent(
+        z.union([
+          z.object({ received: z.boolean().openapi({ example: true }) }),
+          z.object({ method: z.literal("sendMessage"), chat_id: z.number().int(), text: z.string() }),
+        ]),
+      ),
+    },
+    400: webhookErrorResponse("INVALID_WEBHOOK_PAYLOAD", "VALIDATION", "Not JSON (INVALID_WEBHOOK_PAYLOAD)"),
+    401: webhookErrorResponse("INVALID_WEBHOOK_PAYLOAD", "VALIDATION", "No secret, or not this bot's (INVALID_WEBHOOK_PAYLOAD)"),
+  },
+  handler: handleTelegramUpdate,
+});
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 const webhooksRouter = new OpenAPIHono<AppContext>();
@@ -147,5 +181,6 @@ const webhooksRouter = new OpenAPIHono<AppContext>();
 webhooksRouter.openapi(yalidineChallengeRoute.route, yalidineChallengeRoute.handler);
 webhooksRouter.openapi(yalidineWebhookRoute.route, yalidineWebhookRoute.handler);
 webhooksRouter.openapi(zrWebhookRoute.route, zrWebhookRoute.handler);
+webhooksRouter.openapi(telegramUpdateRoute.route, telegramUpdateRoute.handler);
 
 export default webhooksRouter;

@@ -8,8 +8,9 @@ export type AttemptOutcomeKind = (typeof ATTEMPT_OUTCOMES)[number];
 
 /**
  * Why the store stopped delivering to a Consumer: every Attempt failed for
- * too long, the merchant turned it off, or its endpoint answered that it is
- * gone (HTTP 410).
+ * too long, the merchant turned it off, its endpoint answered that it is
+ * gone (HTTP 410), the Telegram chat blocked the bot, or no Telegram chat is
+ * connected to it yet.
  */
-export const CONSUMER_DISABLED_REASONS = ["failing", "merchant", "gone"] as const;
+export const CONSUMER_DISABLED_REASONS = ["failing", "merchant", "gone", "bot_blocked", "not_connected"] as const;
 export type ConsumerDisabledReason = (typeof CONSUMER_DISABLED_REASONS)[number];

@@ -30,10 +30,10 @@ export interface Api {
   delete(path: string): Promise<Answer>;
 }
 
-export function apiAs(d1: TestD1, user: AuthUser, routers: Record<string, OpenAPIHono<AppContext>>): Api {
+export function apiAs(d1: TestD1, user: AuthUser, routers: Record<string, OpenAPIHono<AppContext>>, env: Record<string, unknown> = {}): Api {
   const app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: d1.raw } as never;
+    c.env = { DB: d1.raw, ...env } as never;
     signIn(c, user);
     await next();
   });

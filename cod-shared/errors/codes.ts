@@ -63,6 +63,20 @@ export const ERROR_CODES = {
   EVENT_CONSUMER_LIMIT_REACHED: "EVENT_CONSUMER_LIMIT_REACHED",
 
   // ============================================================================
+  // TELEGRAM APP
+  // ============================================================================
+  /** Telegram does not know the token as a bot's, or it is not shaped like one. */
+  TELEGRAM_TOKEN_REFUSED: "TELEGRAM_TOKEN_REFUSED",
+  /** No bot is saved yet. */
+  TELEGRAM_NOT_SET_UP: "TELEGRAM_NOT_SET_UP",
+  /** The bot is saved, but no chat has pressed Start on a pairing link yet. */
+  TELEGRAM_NOT_CONNECTED: "TELEGRAM_NOT_CONNECTED",
+  /** Telegram only sends updates to https: the server's public URL (`WORKER_SELF_URL`) is not one. */
+  TELEGRAM_NEEDS_PUBLIC_URL: "TELEGRAM_NEEDS_PUBLIC_URL",
+  /** Telegram refused the call for good: what it said is in the error. */
+  TELEGRAM_REFUSED: "TELEGRAM_REFUSED",
+
+  // ============================================================================
   // BUSINESS LOGIC ERRORS - ORDERS
   // ============================================================================
   ORDER_NOT_FOUND: "ORDER_NOT_FOUND",

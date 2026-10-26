@@ -65,6 +65,7 @@ describe("the list of Apps", () => {
       { key: "turnstile", category: "checkout_protection", status: "on" },
       { key: "sendili", category: "messaging", status: "on" },
       { key: "whatsapp-button", category: "storefront", status: "on" },
+      { key: "telegram", category: "messaging", status: "not_set_up" },
     ]);
   });
 

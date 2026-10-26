@@ -7,9 +7,10 @@
 
 import { eq, inArray } from "drizzle-orm";
 import type { AppDb } from "../db/client";
-import { eventConsumers, landingPagePixelConfig, storeEmailConfig, storeOtpConfig, storePixelConfig, stores, storeTurnstileConfig } from "../db/schema";
+import { eventConsumers, landingPagePixelConfig, storeEmailConfig, storeOtpConfig, storePixelConfig, stores, storeTelegramConfig, storeTurnstileConfig } from "../db/schema";
 import { APP_CATALOG, consumerOwner, type AppKey } from "../apps/catalog";
 import { parseWhatsAppWidgetConfig, resolveStorefrontWidget } from "../whatsapp-widget/config";
+import { forgetTelegramBot } from "./telegram";
 
 export const APP_STATUSES = ["not_set_up", "on", "off", "needs_attention"] as const;
 export type AppStatus = (typeof APP_STATUSES)[number];
@@ -27,17 +28,18 @@ function whatsappButtonStatus(json: string | null | undefined): AppStatus {
 }
 
 export async function appStatuses(db: AppDb, storeId: string): Promise<Record<AppKey, AppStatus>> {
-  const [meta, dzverify, turnstile, sendili, store, consumers] = await Promise.all([
+  const [meta, dzverify, turnstile, sendili, store, consumers, telegramBots] = await Promise.all([
     db.select({ enabled: storePixelConfig.enabled }).from(storePixelConfig).where(eq(storePixelConfig.storeId, storeId)).get(),
     db.select({ enabled: storeOtpConfig.enabled }).from(storeOtpConfig).where(eq(storeOtpConfig.storeId, storeId)).get(),
     db.select({ enabled: storeTurnstileConfig.enabled }).from(storeTurnstileConfig).where(eq(storeTurnstileConfig.storeId, storeId)).get(),
     db.select({ enabled: storeEmailConfig.enabled }).from(storeEmailConfig).where(eq(storeEmailConfig.storeId, storeId)).get(),
     db.select({ whatsappWidgetJson: stores.whatsappWidgetJson }).from(stores).where(eq(stores.id, storeId)).get(),
     db
-      .select({ kind: eventConsumers.kind, failingSince: eventConsumers.failingSince, disabledReason: eventConsumers.disabledReason })
+      .select({ kind: eventConsumers.kind, enabled: eventConsumers.enabled, failingSince: eventConsumers.failingSince, disabledReason: eventConsumers.disabledReason })
       .from(eventConsumers)
       .where(inArray(eventConsumers.kind, APP_CATALOG.flatMap((app) => app.consumerKinds)))
       .all(),
+    db.select({ consumerId: storeTelegramConfig.consumerId }).from(storeTelegramConfig).all(),
   ]);
 
   const troubled = (key: AppKey) =>
@@ -47,19 +49,23 @@ export async function appStatuses(db: AppDb, storeId: string): Promise<Record<Ap
         (consumer.failingSince !== null || (consumer.disabledReason !== null && consumer.disabledReason !== "merchant")),
     );
 
+  const telegram = telegramBots.length > 0 ? consumers.find((consumer) => consumerOwner(consumer.kind) === "telegram") : undefined;
+
   return {
     meta: statusOf(meta, troubled("meta")),
     dzverify: statusOf(dzverify, troubled("dzverify")),
     turnstile: statusOf(turnstile, troubled("turnstile")),
     sendili: statusOf(sendili, troubled("sendili")),
     "whatsapp-button": whatsappButtonStatus(store?.whatsappWidgetJson),
+    telegram: statusOf(telegram && { enabled: telegram.enabled || telegram.disabledReason !== "merchant" }, troubled("telegram")),
   };
 }
 
 /**
  * Forget an App's setup and every key it holds, as if it had never been set
- * up: Meta loses its store pixel and every landing page's own. Its Built-in
- * Consumers stay, with nothing to send until it is set up again.
+ * up: Meta loses its store pixel and every landing page's own, Telegram its
+ * bot and chat. Its Built-in Consumers stay, with nothing to send until it is
+ * set up again.
  */
 export async function removeApp(db: AppDb, storeId: string, key: AppKey): Promise<void> {
   switch (key) {
@@ -80,6 +86,9 @@ export async function removeApp(db: AppDb, storeId: string, key: AppKey): Promis
       return;
     case "whatsapp-button":
       await db.update(stores).set({ whatsappWidgetJson: null }).where(eq(stores.id, storeId));
+      return;
+    case "telegram":
+      await forgetTelegramBot(db, new Date());
       return;
     default:
       throw new Error(`No removal for the App ${key satisfies never}`);

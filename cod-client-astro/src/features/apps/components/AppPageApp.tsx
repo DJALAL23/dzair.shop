@@ -40,8 +40,9 @@ function AppPage({ appKey }: { appKey: AppKey }) {
     if (!sure) return;
     setRemoving(true);
     try {
-      await removeApp(appKey);
-      notify.success(t("remove.done", { name }));
+      const { updatesStopped } = await removeApp(appKey);
+      if (updatesStopped) notify.success(t("remove.done", { name }));
+      else notify.error(t("remove.partly", { name }));
       setGeneration((current) => current + 1);
       await refresh();
     } catch {

@@ -54,7 +54,8 @@
   },
   "kinds": {
     "meta_capi": "Conversions Meta",
-    "webhook": "Webhook"
+    "webhook": "Webhook",
+    "telegram": "Telegram"
   },
   "integrations": {
     "title": "Intégrations",
@@ -69,7 +70,9 @@
     "failing": "En échec depuis {since}",
     "stopped_by_merchant": "Arrêtée",
     "stopped_failing": "Arrêtée : tous les envois ont échoué pendant 3 jours",
-    "stopped_gone": "Arrêtée : l'adresse a répondu qu'elle n'existe plus (HTTP 410)"
+    "stopped_gone": "Arrêtée : l'adresse a répondu qu'elle n'existe plus (HTTP 410)",
+    "stopped_bot_blocked": "Arrêtée : la discussion Telegram a bloqué le bot",
+    "stopped_not_connected": "Arrêtée : aucune discussion Telegram n'est encore connectée"
   },
   "counts": {
     "due_one": "{count} en cours",

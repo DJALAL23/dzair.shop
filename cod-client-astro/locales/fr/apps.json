@@ -25,14 +25,16 @@
     "dzverify": "DZVerify",
     "turnstile": "Turnstile",
     "sendili": "Sendili",
-    "whatsapp-button": "Bouton WhatsApp"
+    "whatsapp-button": "Bouton WhatsApp",
+    "telegram": "Telegram"
   },
   "descriptions": {
     "meta": "Votre pixel Meta sur la vitrine et vos commandes envoyées à Meta, pour mesurer et piloter vos publicités.",
     "dzverify": "Les clients confirment leur téléphone avec un code WhatsApp avant de commander.",
     "turnstile": "La vérification anti-robots de Cloudflare sur votre formulaire de commande, invisible pour les vrais clients.",
     "sendili": "Les e-mails de votre boutique, comme les invitations d'équipe et les réinitialisations de mot de passe, envoyés depuis votre propre domaine.",
-    "whatsapp-button": "Un bouton WhatsApp sur votre vitrine qui ouvre une discussion avec vous."
+    "whatsapp-button": "Un bouton WhatsApp sur votre vitrine qui ouvre une discussion avec vous.",
+    "telegram": "Votre propre bot Telegram vous prévient, vous et votre équipe, des nouvelles commandes et des livraisons, au fil de l'eau."
   },
   "remove": {
     "title": "Retirer l'application",
@@ -42,7 +44,8 @@
     "confirm_body": "Sa configuration et toutes ses clés sont oubliées. Vous pourrez la configurer de nouveau plus tard.",
     "confirm": "Retirer",
     "done": "{name} retirée",
-    "failed": "L'application n'a pas pu être retirée. Réessayez."
+    "failed": "L'application n'a pas pu être retirée. Réessayez.",
+    "partly": "{name} a été retirée, mais Telegram n'a pas pu être prévenu d'arrêter d'envoyer les messages du bot à la boutique."
   },
   "secret": {
     "reveal": "Afficher",
@@ -159,5 +162,71 @@
     "check_ok": "Connexion OK",
     "check_no_credits": "Crédits épuisés — rechargez sur sendili.com.",
     "check_failed": "Échec de la vérification de connexion."
+  },
+  "telegram": {
+    "bot_title": "Votre bot",
+    "bot_subtitle": "Le bot qui vous écrit. Vous le créez dans Telegram, et il reste à vous.",
+    "step_1": "Dans Telegram, ouvrez @BotFather et envoyez /newbot.",
+    "step_2": "Choisissez son nom, puis un nom d'utilisateur qui se termine par « bot ».",
+    "step_3": "Copiez le jeton que BotFather vous donne et collez-le ci-dessous.",
+    "token_label": "Jeton du bot",
+    "token_hint": "Gardé sur le serveur de votre boutique et plus jamais affiché. Telegram le vérifie avant qu'il soit enregistré.",
+    "token_placeholder": "123456789:AA…",
+    "token_saved": "Jeton",
+    "save_token": "Enregistrer le bot",
+    "saving": "Vérification avec Telegram…",
+    "change_token": "Utiliser un autre jeton",
+    "cancel": "Annuler",
+    "chat_title": "Votre discussion",
+    "chat_subtitle": "Là où le bot envoie les notifications de votre boutique.",
+    "not_connected": "Aucune discussion n'est encore connectée. Ouvrez Telegram depuis ici et appuyez sur Démarrer : votre discussion se connecte aussitôt.",
+    "connect": "Connecter dans Telegram",
+    "reconnect": "Connecter une autre discussion",
+    "waiting": "En attente de votre appui sur Démarrer dans Telegram…",
+    "link_expires": "Le lien fonctionne une fois et expire {when}.",
+    "open_link": "L'ouvrir à nouveau",
+    "connected": "Discussion connectée",
+    "connected_to": "Connecté à {name}",
+    "connected_since": "Connecté {when}",
+    "test": "Envoyer un message de test",
+    "testing": "Envoi…",
+    "test_sent": "Envoyé. Regardez votre discussion Telegram.",
+    "test_failed": {
+      "blocked": "Telegram a refusé : la discussion a bloqué le bot. Débloquez-le dans Telegram, puis réessayez.",
+      "chat_not_found": "Telegram ne trouve pas la discussion. Connectez-la à nouveau.",
+      "unauthorized": "Telegram n'accepte plus le jeton. Enregistrez-en un nouveau depuis @BotFather.",
+      "bad_request": "Telegram a refusé le message.",
+      "rate_limited": "Telegram demande de ralentir. Réessayez dans une minute.",
+      "unavailable": "Telegram rencontre un problème. Réessayez plus tard.",
+      "unreachable": "Telegram est injoignable. Réessayez plus tard."
+    },
+    "settings_title": "Notifications",
+    "settings_subtitle": "Ce que le bot vous dit, et en quelle langue.",
+    "enabled_label": "Envoyer les notifications",
+    "enabled_hint": "Désactivé, rien n'est envoyé. Votre bot et votre discussion sont gardés.",
+    "enabled_needs_chat": "Connectez d'abord une discussion.",
+    "language_label": "Langue",
+    "language_hint": "La langue dans laquelle le bot écrit.",
+    "language_store": "La langue de la boutique",
+    "language_store_now": "La langue de la boutique ({language})",
+    "events_label": "Événements",
+    "events_hint": "Les nouvelles commandes et l'issue des livraisons sont activées par défaut.",
+    "events_required": "Choisissez au moins un événement.",
+    "deliveries_title": "Ce qui a été envoyé",
+    "deliveries_subtitle": "Chaque notification et la réponse de Telegram.",
+    "attention": {
+      "bot_blocked": "La discussion a bloqué le bot : rien n'est envoyé. Débloquez le bot dans Telegram, les notifications reprennent d'elles-mêmes.",
+      "failing": "Telegram refuse les notifications. Regardez ce qui a été envoyé ci-dessous, puis envoyez un message de test."
+    },
+    "errors": {
+      "load": "L'app Telegram n'a pas pu être chargée.",
+      "token_refused": "Telegram n'accepte pas ce jeton. Copiez-le à nouveau depuis @BotFather.",
+      "needs_public_url": "Telegram ne peut joindre votre boutique qu'en https. Définissez l'URL publique du serveur, puis réessayez.",
+      "refused": "Telegram a refusé d'envoyer les messages du bot à votre boutique. Réessayez dans un instant.",
+      "not_set_up": "Enregistrez d'abord un bot.",
+      "not_connected": "Connectez d'abord une discussion.",
+      "unreachable": "Telegram est injoignable. Réessayez dans un instant.",
+      "failed": "Cela n'a pas fonctionné. Réessayez."
+    }
   }
 }

@@ -25,14 +25,16 @@
     "dzverify": "DZVerify",
     "turnstile": "Turnstile",
     "sendili": "Sendili",
-    "whatsapp-button": "WhatsApp button"
+    "whatsapp-button": "WhatsApp button",
+    "telegram": "Telegram"
   },
   "descriptions": {
     "meta": "Your Meta pixel on the storefront and your orders sent to Meta, to measure and steer your ads.",
     "dzverify": "Customers confirm their phone with a WhatsApp code before they order.",
     "turnstile": "Cloudflare's bot check on your order form, invisible to real customers.",
     "sendili": "Your store's emails, such as team invites and password resets, sent from your own domain.",
-    "whatsapp-button": "A WhatsApp button on your storefront that opens a chat with you."
+    "whatsapp-button": "A WhatsApp button on your storefront that opens a chat with you.",
+    "telegram": "Your own Telegram bot tells you and your team about new orders and deliveries, as they happen."
   },
   "remove": {
     "title": "Remove the App",
@@ -42,7 +44,8 @@
     "confirm_body": "Its setup and every key it holds are forgotten. You can set it up again later.",
     "confirm": "Remove",
     "done": "{name} removed",
-    "failed": "The App could not be removed. Please try again."
+    "failed": "The App could not be removed. Please try again.",
+    "partly": "{name} was removed, but Telegram could not be told to stop sending the bot's messages to the store."
   },
   "secret": {
     "reveal": "Reveal",
@@ -159,5 +162,71 @@
     "check_ok": "Connection OK",
     "check_no_credits": "Out of credits — top up at sendili.com.",
     "check_failed": "Connection check failed."
+  },
+  "telegram": {
+    "bot_title": "Your bot",
+    "bot_subtitle": "The bot that writes to you. You create it in Telegram, and it stays yours.",
+    "step_1": "In Telegram, open @BotFather and send /newbot.",
+    "step_2": "Choose its name, then a username ending in “bot”.",
+    "step_3": "Copy the token BotFather gives you and paste it below.",
+    "token_label": "Bot token",
+    "token_hint": "Kept on your store's server and never shown again. Telegram checks it before it is saved.",
+    "token_placeholder": "123456789:AA…",
+    "token_saved": "Token",
+    "save_token": "Save the bot",
+    "saving": "Checking with Telegram…",
+    "change_token": "Use another token",
+    "cancel": "Cancel",
+    "chat_title": "Your chat",
+    "chat_subtitle": "Where the bot sends your store's notifications.",
+    "not_connected": "No chat is connected yet. Open Telegram from here and press Start: your chat connects at once.",
+    "connect": "Connect in Telegram",
+    "reconnect": "Connect another chat",
+    "waiting": "Waiting for you to press Start in Telegram…",
+    "link_expires": "The link works once and expires {when}.",
+    "open_link": "Open it again",
+    "connected": "Chat connected",
+    "connected_to": "Connected to {name}",
+    "connected_since": "Connected {when}",
+    "test": "Send a test message",
+    "testing": "Sending…",
+    "test_sent": "Sent. Check your Telegram chat.",
+    "test_failed": {
+      "blocked": "Telegram refused: the chat blocked the bot. Unblock it in Telegram, then try again.",
+      "chat_not_found": "Telegram cannot find the chat. Connect it again.",
+      "unauthorized": "Telegram no longer accepts the token. Save a new one from @BotFather.",
+      "bad_request": "Telegram refused the message.",
+      "rate_limited": "Telegram asked to slow down. Try again in a minute.",
+      "unavailable": "Telegram is having trouble. Try again later.",
+      "unreachable": "Telegram could not be reached. Try again later."
+    },
+    "settings_title": "Notifications",
+    "settings_subtitle": "What the bot tells you, and in which language.",
+    "enabled_label": "Send notifications",
+    "enabled_hint": "Turned off, nothing is sent. Your bot and chat are kept.",
+    "enabled_needs_chat": "Connect a chat first.",
+    "language_label": "Language",
+    "language_hint": "The language the bot writes in.",
+    "language_store": "The store's language",
+    "language_store_now": "The store's language ({language})",
+    "events_label": "Events",
+    "events_hint": "New orders and how deliveries end are on by default.",
+    "events_required": "Choose at least one event.",
+    "deliveries_title": "What was sent",
+    "deliveries_subtitle": "Each notification and what Telegram answered.",
+    "attention": {
+      "bot_blocked": "The chat blocked the bot, so nothing is sent. Unblock the bot in Telegram: notifications start again by themselves.",
+      "failing": "Telegram is refusing the notifications. Look at what was sent below, then send a test message."
+    },
+    "errors": {
+      "load": "The Telegram App could not be loaded.",
+      "token_refused": "Telegram does not accept this token. Copy it again from @BotFather.",
+      "needs_public_url": "Telegram can only reach your store over https. Set the server's public URL, then try again.",
+      "refused": "Telegram refused to send the bot's messages to your store. Try again in a moment.",
+      "not_set_up": "Save a bot first.",
+      "not_connected": "Connect a chat first.",
+      "unreachable": "Telegram could not be reached. Try again in a moment.",
+      "failed": "That did not work. Try again."
+    }
   }
 }

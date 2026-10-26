@@ -2192,3 +2192,25 @@ export const eventDeliveryAttempts = sqliteTable("event_delivery_attempts", {
 }, (t) => ({
   byDelivery: index("event_delivery_attempts_delivery").on(t.deliveryId, t.attempt),
 }));
+
+/**
+ * The Telegram App's bot, beside the Telegram Consumer it sends through
+ * (ADR 0020). `botToken` and `webhookSecret` are secrets: never sent to the
+ * browser. `chatId` is null until the merchant presses Start on the pairing
+ * link; the pairing code is kept only as its SHA-256.
+ */
+export const storeTelegramConfig = sqliteTable("store_telegram_config", {
+  consumerId: text("consumer_id").primaryKey().references(() => eventConsumers.id, { onDelete: "cascade" }),
+  botToken: text("bot_token").notNull(),
+  botId: integer("bot_id").notNull(),
+  botUsername: text("bot_username").notNull(),
+  /** The `secret_token` Telegram sends back on every update, in `X-Telegram-Bot-Api-Secret-Token`. */
+  webhookSecret: text("webhook_secret").notNull(),
+  chatId: integer("chat_id"),
+  chatName: text("chat_name"),
+  connectedAt: text("connected_at"),
+  pairingCodeHash: text("pairing_code_hash"),
+  pairingExpiresAt: text("pairing_expires_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

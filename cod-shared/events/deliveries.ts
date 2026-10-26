@@ -11,7 +11,7 @@ import { businessEvents, eventConsumers, eventDeliveries, eventDeliveryAttempts 
 import { insertSelectRow } from "../db/insert-select";
 import { retrySchedule } from "../lib/retry-schedule";
 import { EVENT_TYPES } from "./catalogue";
-import type { AttemptOutcomeKind, DeliveryState } from "./deliveries-model";
+import type { AttemptOutcomeKind, ConsumerDisabledReason, DeliveryState } from "./deliveries-model";
 import { toBusinessEvent, type BusinessEvent } from "./log";
 import { readSubscription, subscribesTo } from "./subscription";
 
@@ -49,7 +49,10 @@ export type AttemptOutcome =
   | { kind: "delivered"; httpStatus?: number; response?: string }
   | { kind: "skipped"; reason: string }
   | { kind: "retry"; error: string; httpStatus?: number; response?: string; retryAfterSeconds?: number }
-  | { kind: "reject"; error: string; httpStatus?: number; response?: string; consumerGone?: true };
+  | { kind: "reject"; error: string; httpStatus?: number; response?: string; stopsConsumer?: ConsumerStop };
+
+/** Why a refusal stops its Consumer at once: the endpoint is gone, or the Telegram chat blocked the bot. */
+export type ConsumerStop = Extract<ConsumerDisabledReason, "gone" | "bot_blocked">;
 
 /**
  * Create the Deliveries of up to `limit` events waiting to be fanned out:
@@ -187,8 +190,9 @@ export async function reopenDeliveries(
  * its wait (no sooner than a Retry-After asked), or dead once the Attempts
  * are spent or the Consumer refused it for good. A failure marks the
  * Consumer failing, and a delivery ends its failing streak; one failing for
- * `FAILING_DISABLES_AFTER_MS` is disabled, and one whose endpoint said it is
- * gone is disabled at once.
+ * `FAILING_DISABLES_AFTER_MS` is disabled, and one whose refusal stops it —
+ * its endpoint is gone, its Telegram chat blocked the bot — is disabled at
+ * once.
  * Applies only while this Attempt still holds the Delivery. Returns the
  * Delivery's state, or null when another drain took it meanwhile.
  */
@@ -223,8 +227,8 @@ export async function settleDelivery(
       ? { failingSince: null }
       : outcome.kind === "skipped"
         ? null
-        : outcome.kind === "reject" && outcome.consumerGone
-          ? { failingSince, enabled: false, disabledReason: "gone" as const }
+        : outcome.kind === "reject" && outcome.stopsConsumer
+          ? { failingSince, enabled: false, disabledReason: outcome.stopsConsumer }
           : {
               failingSince,
               enabled: sql`case when ${failedTooLong} then 0 else ${eventConsumers.enabled} end`,

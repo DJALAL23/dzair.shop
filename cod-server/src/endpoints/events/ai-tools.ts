@@ -63,7 +63,7 @@ export const EVENT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         enabled: z.boolean(),
         builtIn: z.boolean().describe("Kept by its App (Meta conversions, by the Meta App); only started and stopped"),
         webhook: z.looseObject({ url: z.string() }).nullable().describe("A webhook's endpoint; its Signing Secret is never shown"),
-        disabledReason: z.string().nullable().describe("failing (every Attempt failed for 3 days) | merchant | gone (its endpoint answered HTTP 410); null while enabled"),
+        disabledReason: z.string().nullable().describe("failing (every Attempt failed for 3 days) | merchant | gone (its endpoint answered HTTP 410) | bot_blocked (its Telegram chat blocked the bot) | not_connected (no Telegram chat connected yet); null while enabled"),
         deliveries: z.looseObject({ due: z.number().int(), dead: z.number().int() }).describe("On their way, and given up on"),
       }),
     ),

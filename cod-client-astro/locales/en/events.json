@@ -54,7 +54,8 @@
   },
   "kinds": {
     "meta_capi": "Meta conversions",
-    "webhook": "Webhook"
+    "webhook": "Webhook",
+    "telegram": "Telegram"
   },
   "integrations": {
     "title": "Integrations",
@@ -69,7 +70,9 @@
     "failing": "Failing since {since}",
     "stopped_by_merchant": "Stopped",
     "stopped_failing": "Stopped: every delivery failed for 3 days",
-    "stopped_gone": "Stopped: the endpoint said it is gone (HTTP 410)"
+    "stopped_gone": "Stopped: the endpoint said it is gone (HTTP 410)",
+    "stopped_bot_blocked": "Stopped: the Telegram chat blocked the bot",
+    "stopped_not_connected": "Stopped: no Telegram chat is connected yet"
   },
   "counts": {
     "due_one": "{count} on its way",

@@ -18,7 +18,7 @@ export const EventConsumerSchema = z
     builtIn: z.boolean().openapi({ description: "Kept by its App (Meta conversions, by the Meta App): it can be started and stopped, not edited or deleted" }),
     subscription: z.array(z.string()).openapi({ description: "The Event Types it receives, each named exactly, by subject (`order.*`), or `*`", example: ["order.created", "shipment.delivered"] }),
     catalogueVersion: z.number().int().openapi({ description: "The catalogue version its Deliveries are written in" }),
-    disabledReason: z.enum(CONSUMER_DISABLED_REASONS).nullable().openapi({ description: "Why it stopped receiving, while disabled: `failing` (every Attempt failed for 3 days), `merchant`, or `gone` (its endpoint answered HTTP 410 Gone)" }),
+    disabledReason: z.enum(CONSUMER_DISABLED_REASONS).nullable().openapi({ description: "Why it stopped receiving, while disabled: `failing` (every Attempt failed for 3 days), `merchant`, `gone` (its endpoint answered HTTP 410 Gone), `bot_blocked` (its Telegram chat blocked the bot), or `not_connected` (no Telegram chat connected yet)" }),
     failingSince: z.string().nullable().openapi({ description: "Since when every Attempt has failed; null once one succeeds" }),
     deliveries: z.object({
       due: z.number().int().openapi({ description: "Deliveries on their way" }),

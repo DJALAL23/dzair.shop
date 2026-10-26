@@ -142,6 +142,10 @@ export const SCOPES = {
   WHATSAPP_BUTTON_READ: "whatsapp-button:read",
   /** Change the WhatsApp button's number, content, look and placement, and remove it */
   WHATSAPP_BUTTON_MANAGE: "whatsapp-button:manage",
+  /** See the Telegram App: its bot, the chat it reaches, which events it tells and in which language */
+  TELEGRAM_READ: "telegram:read",
+  /** Connect, test, steer and disconnect the Telegram App's bot */
+  TELEGRAM_MANAGE: "telegram:manage",
 
   // Integrations (the merchant's own systems: webhooks and the API key)
   /** See the store's webhooks and how their deliveries went */
@@ -321,6 +325,8 @@ export const SCOPE_CATEGORIES = {
       SCOPES.SENDILI_MANAGE,
       SCOPES.WHATSAPP_BUTTON_READ,
       SCOPES.WHATSAPP_BUTTON_MANAGE,
+      SCOPES.TELEGRAM_READ,
+      SCOPES.TELEGRAM_MANAGE,
     ],
   },
   integrations: {

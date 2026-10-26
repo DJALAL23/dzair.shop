@@ -141,7 +141,7 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     mcp: "AI app connections", coupons: "Coupons", checkout_form: "Checkout form",
     store_pages: "Store pages", collections: "Collections", navigation: "Navigation",
     meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
-    "whatsapp-button": "WhatsApp button", integrations: "Integrations",
+    "whatsapp-button": "WhatsApp button", integrations: "Integrations", telegram: "Telegram",
   },
   fr: {
     dashboard: "Tableau de bord", orders: "Commandes", customers: "Clients",
@@ -152,7 +152,7 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     mcp: "Connexions d'apps IA", coupons: "Codes promo", checkout_form: "Formulaire de commande",
     store_pages: "Pages de la boutique", collections: "Collections", navigation: "Navigation",
     meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
-    "whatsapp-button": "Bouton WhatsApp", integrations: "Intégrations",
+    "whatsapp-button": "Bouton WhatsApp", integrations: "Intégrations", telegram: "Telegram",
   },
   ar: {
     dashboard: "لوحة التحكم", orders: "الطلبات", customers: "العملاء",
@@ -163,7 +163,7 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     mcp: "اتصالات تطبيقات الذكاء الاصطناعي", coupons: "الكوبونات", checkout_form: "نموذج الطلب",
     store_pages: "صفحات المتجر", collections: "المجموعات", navigation: "التنقل",
     meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
-    "whatsapp-button": "زر واتساب", integrations: "التكاملات",
+    "whatsapp-button": "زر واتساب", integrations: "التكاملات", telegram: "تيليغرام",
   },
 };
 

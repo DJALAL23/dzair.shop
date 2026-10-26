@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "../db/schema";
 import { serializeWhatsAppWidgetConfig, DEFAULT_WHATSAPP_WIDGET_CONFIG } from "../whatsapp-widget/config";
-import { appStatuses } from "./apps";
+import { appStatuses, removeApp } from "./apps";
 
 let d1: TestD1;
 const STORE = "store-apps";
@@ -20,7 +20,8 @@ beforeAll(async () => {
 afterAll(async () => d1?.dispose());
 
 beforeEach(async () => {
-  for (const table of [schema.storePixelConfig, schema.storeOtpConfig, schema.storeTurnstileConfig, schema.storeEmailConfig, schema.stores]) await d1.db.delete(table);
+  for (const table of [schema.storePixelConfig, schema.storeOtpConfig, schema.storeTurnstileConfig, schema.storeEmailConfig, schema.storeTelegramConfig, schema.stores]) await d1.db.delete(table);
+  await d1.db.delete(schema.eventConsumers).where(eq(schema.eventConsumers.kind, "telegram"));
   await d1.db.update(schema.eventConsumers).set({ enabled: true, failingSince: null, disabledReason: null }).where(eq(schema.eventConsumers.kind, "meta_capi"));
   await d1.db.insert(schema.stores).values({ id: STORE, name: "Store", createdAt: T0, updatedAt: T0 });
 });
@@ -43,6 +44,7 @@ describe("App Status", () => {
       turnstile: "not_set_up",
       sendili: "not_set_up",
       "whatsapp-button": "not_set_up",
+      telegram: "not_set_up",
     });
   });
 
@@ -59,6 +61,7 @@ describe("App Status", () => {
       turnstile: "on",
       sendili: "off",
       "whatsapp-button": "on",
+      telegram: "not_set_up",
     });
   });
 
@@ -99,5 +102,28 @@ describe("App Status", () => {
 
     await d1.db.update(schema.stores).set({ whatsappWidgetJson: widget({ enabled: false, phone: "0551234567" }) }).where(eq(schema.stores.id, STORE));
     expect((await appStatuses(d1.db, STORE))["whatsapp-button"]).toBe("off");
+  });
+
+  it("follows the Telegram App's bot, chat and Consumer", async () => {
+    const telegram = async () => (await appStatuses(d1.db, STORE)).telegram;
+    const consumer = (changes: Partial<typeof schema.eventConsumers.$inferInsert>) => d1.db.update(schema.eventConsumers).set(changes).where(eq(schema.eventConsumers.id, "tg"));
+    await d1.db.insert(schema.eventConsumers).values({ id: "tg", kind: "telegram", name: "Telegram", enabled: false, disabledReason: "not_connected", subscription: '["order.created"]', ...at });
+    expect(await telegram()).toBe("not_set_up");
+
+    await d1.db.insert(schema.storeTelegramConfig).values({ consumerId: "tg", botToken: "1:x", botId: 1, botUsername: "b", webhookSecret: "s", ...at });
+    expect(await telegram()).toBe("needs_attention");
+
+    await consumer({ enabled: true, disabledReason: null });
+    expect(await telegram()).toBe("on");
+    await consumer({ failingSince: T0 });
+    expect(await telegram()).toBe("needs_attention");
+    await consumer({ failingSince: null, enabled: false, disabledReason: "bot_blocked" });
+    expect(await telegram()).toBe("needs_attention");
+    await consumer({ disabledReason: "merchant" });
+    expect(await telegram()).toBe("off");
+
+    await removeApp(d1.db, STORE, "telegram");
+    expect(await telegram()).toBe("not_set_up");
+    expect(await d1.db.select({ id: schema.eventConsumers.id }).from(schema.eventConsumers).where(eq(schema.eventConsumers.id, "tg")).get()).toEqual({ id: "tg" });
   });
 });

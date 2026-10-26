@@ -9,7 +9,8 @@ describe("every Consumer Kind the store delivers to", () => {
     expect(unowned).toEqual([]);
   });
 
-  it("gives Meta conversions to the Meta App", () => {
+  it("gives Meta conversions to the Meta App, and Telegram chats to the Telegram App", () => {
     expect(consumerOwner(META_CAPI_KIND)).toBe("meta");
+    expect(consumerOwner("telegram")).toBe("telegram");
   });
 });

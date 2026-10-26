@@ -29,6 +29,9 @@ import analyticsRouter from "@/endpoints/analytics/routes";
 import eventsRouter from "@/endpoints/events/routes";
 import eventConsumersRouter from "@/endpoints/event-consumers/routes";
 import eventDeliveriesRouter from "@/endpoints/event-deliveries/routes";
+import telegramAppRouter from "@/endpoints/apps/telegram";
+import webhooksRouter from "@/endpoints/webhooks/routes";
+import { TELEGRAM_SECRET_HEADER } from "@/endpoints/webhooks/telegram";
 import { seedOrder, seedStore, T0, type OrderSeed } from "@/endpoints/shipments/test/harness";
 
 const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
@@ -51,8 +54,12 @@ beforeAll(async () => {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   registerSpecEndpoint(app);
   app.use("/api/*", async (c, next) => {
-    c.env = { DB: d1.raw } as never;
+    c.env = { DB: d1.raw, WORKER_SELF_URL: "https://api.example.com/" } as never;
     signIn(c, { id: "staff_1", email: "s@example.com", name: "Staff", role: "admin", status: "active", apiKey: "k", scopes: ["*"] } as never);
+    await next();
+  });
+  app.use("/webhooks/*", async (c, next) => {
+    c.env = { DB: d1.raw } as never;
     await next();
   });
   app.onError(errorHandler);
@@ -65,6 +72,8 @@ beforeAll(async () => {
   app.route("/api/events", eventsRouter);
   app.route("/api/event-consumers", eventConsumersRouter);
   app.route("/api/event-deliveries", eventDeliveriesRouter);
+  app.route("/api/apps", telegramAppRouter);
+  app.route("/webhooks", webhooksRouter);
   doc = (await (await app.request("/api/openapi.json", {}, { WORKER_URL: "https://api.example.com" } as never)).json()) as OpenApiDocument;
 }, 120_000);
 
@@ -204,6 +213,41 @@ describe("the document is what the API answers", () => {
     const secrets = [created.data.signingSecret, rotated.data.signingSecret].map((secret: string) => secret.slice("whsec_".length, -4));
     const holding = answered.filter((text) => secrets.some((secret) => text.includes(secret)));
     expect(holding).toEqual([JSON.stringify(created), JSON.stringify(rotated)]);
+  });
+
+  it("the Telegram App saved, connected, tested, changed and removed — its token in no answer", async () => {
+    const token = "987654321:AAcontract-test-token-not-a-real-bot";
+    globalThis.fetch = (async (url: string | URL) => {
+      const method = String(url).split("/").at(-1);
+      if (method === "getMe") return Response.json({ ok: true, result: { id: 987654321, is_bot: true, first_name: "Acme", username: "acme_orders_bot" } });
+      if (method === "sendMessage") return Response.json({ ok: false, error_code: 403, description: "Forbidden: bot was blocked by the user" }, { status: 403 });
+      return Response.json({ ok: true, result: true });
+    }) as typeof fetch;
+    expect((await api("GET", "/api/apps/telegram", "/api/apps/telegram", 200)).data).toBeNull();
+    await api("PUT", "/api/apps/telegram/bot", "/api/apps/telegram/bot", 400, { token: "nope" });
+    await api("POST", "/api/apps/telegram/pairing", "/api/apps/telegram/pairing", 409);
+    const saved = await api("PUT", "/api/apps/telegram/bot", "/api/apps/telegram/bot", 200, { token });
+    await api("POST", "/api/apps/telegram/test", "/api/apps/telegram/test", 409);
+    const link = await api("POST", "/api/apps/telegram/pairing", "/api/apps/telegram/pairing", 200);
+
+    const secret = (await d1.db.select().from(schema.storeTelegramConfig).get())!.webhookSecret;
+    const update = async (secretHeader: string, body: unknown, status: number) => {
+      const res = await app.request(`/webhooks/telegram/${saved.data.consumerId}`, { method: "POST", headers: { "Content-Type": "application/json", [TELEGRAM_SECRET_HEADER]: secretHeader }, body: JSON.stringify(body) });
+      const json = await res.json();
+      expect(res.status).toBe(status);
+      expect(responseErrors(doc, "POST", "/webhooks/telegram/{consumerId}", status, json)).toEqual([]);
+    };
+    await update("wrong", {}, 401);
+    await update(secret, { update_id: 1, message: { chat: { id: 4242, type: "private", first_name: "Amina" }, text: `/start ${new URL(link.data.url).searchParams.get("start")}` } }, 200);
+    await update(secret, { update_id: 2, message: { chat: { id: 4242, type: "private" }, text: "hi" } }, 200);
+
+    expect((await api("POST", "/api/apps/telegram/test", "/api/apps/telegram/test", 200)).data.reason).toBe("blocked");
+    await api("PATCH", "/api/apps/telegram", "/api/apps/telegram", 200, { events: ["order.created"], language: "en", enabled: false });
+    await api("PATCH", "/api/apps/telegram", "/api/apps/telegram", 400, { events: [] });
+    await api("GET", "/api/apps/telegram", "/api/apps/telegram", 200);
+    await api("DELETE", "/api/apps/telegram", "/api/apps/telegram", 200);
+    await api("PATCH", "/api/apps/telegram", "/api/apps/telegram", 409, { enabled: true });
+    expect(answered.filter((text) => text.includes(token.split(":")[1]!))).toEqual([]);
   });
 
   it("the delivery companies, what their carriers can do, their settings and their inbox", async () => {

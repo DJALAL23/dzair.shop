@@ -9,6 +9,7 @@ import { getDZVerifyApp, saveDZVerifyApp, testDZVerifyKey } from "./dzverify/api
 import { getTurnstileApp, saveTurnstileApp } from "./turnstile/api";
 import { getSendiliApp, saveSendiliApp, testSendiliKey } from "./sendili/api";
 import { getWhatsAppButtonApp, saveWhatsAppButtonApp } from "./whatsapp-button/api";
+import { changeTelegramApp, getTelegramApp, openTelegramPairing, saveTelegramBot, sendTelegramTest } from "./telegram/api";
 
 const put = (body: unknown) => expect.objectContaining({ method: "PUT", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
 const post = (body: unknown) => expect.objectContaining({ method: "POST", body: JSON.stringify(body) });
@@ -25,8 +26,11 @@ describe("the Apps API", () => {
     expect(seam.apiFetch).toHaveBeenCalledWith("/api/apps");
 
     seam.apiFetch.mockResolvedValue({ success: true, message: "App removed" });
-    await removeApp("whatsapp-button");
+    await expect(removeApp("whatsapp-button")).resolves.toEqual({ updatesStopped: true });
     expect(seam.apiFetch).toHaveBeenCalledWith("/api/apps/whatsapp-button", { method: "DELETE" });
+
+    seam.apiFetch.mockResolvedValue({ success: true, data: { updatesStopped: false, error: "Telegram answered 401: Unauthorized" } });
+    await expect(removeApp("telegram")).resolves.toEqual({ updatesStopped: false });
   });
 
   it("reads the Meta App (null before it is set up) and saves it with PUT", async () => {
@@ -104,5 +108,20 @@ describe("the Apps API", () => {
 
     await expect(saveWhatsAppButtonApp({ enabled: false })).resolves.toEqual(response);
     expect(seam.apiFetch).toHaveBeenCalledWith("/api/apps/whatsapp-button", put({ enabled: false }));
+  });
+
+  it("reads the Telegram App, saves its bot, opens a pairing link, tests and changes it", async () => {
+    seam.apiFetch.mockResolvedValue({ success: true, data: null });
+    await expect(getTelegramApp()).resolves.toBeNull();
+    expect(seam.apiFetch).toHaveBeenCalledWith("/api/apps/telegram");
+
+    await saveTelegramBot("123:AAtoken");
+    expect(seam.apiFetch).toHaveBeenCalledWith("/api/apps/telegram/bot", put({ token: "123:AAtoken" }));
+    await openTelegramPairing();
+    expect(seam.apiFetch).toHaveBeenCalledWith("/api/apps/telegram/pairing", post({}));
+    await sendTelegramTest();
+    expect(seam.apiFetch).toHaveBeenCalledWith("/api/apps/telegram/test", post({}));
+    await changeTelegramApp({ events: ["order.created"], language: null });
+    expect(seam.apiFetch).toHaveBeenCalledWith("/api/apps/telegram", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ events: ["order.created"], language: null }) }));
   });
 });

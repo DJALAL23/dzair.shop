@@ -18,6 +18,10 @@ import dzverify from "./dzverify";
 import turnstile from "./turnstile";
 import sendili from "./sendili";
 import whatsappButton from "./whatsapp-button";
+import telegram from "./telegram";
+
+/** Apps whose removal also tells an outside service, through their own route. */
+const REMOVED_BY_THEIR_OWN_ROUTE: readonly AppKey[] = ["telegram"];
 
 const AppSchema = z
   .object({
@@ -51,7 +55,7 @@ const listRoute = defineRoute({
   handler: listApps,
 });
 
-const removeRoutes = APP_CATALOG.map((app) =>
+const removeRoutes = APP_CATALOG.filter((app) => !REMOVED_BY_THEIR_OWN_ROUTE.includes(app.key)).map((app) =>
   defineRoute({
     method: "delete",
     path: `/${app.key}`,
@@ -72,6 +76,6 @@ const removeRoutes = APP_CATALOG.map((app) =>
 const router = new OpenAPIHono<AppContext>();
 router.openapi(listRoute.route, listRoute.handler);
 for (const remove of removeRoutes) router.openapi(remove.route, remove.handler);
-for (const app of [meta, dzverify, turnstile, sendili, whatsappButton]) router.route("/", app);
+for (const app of [meta, dzverify, turnstile, sendili, whatsappButton, telegram]) router.route("/", app);
 
 export default router;

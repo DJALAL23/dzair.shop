@@ -99,7 +99,7 @@ describe("what the endpoint answers decides the Attempt", () => {
 
   it("410: dead, and the Consumer stops as it asked", async () => {
     const { fetch } = endpoint(() => new Response("unsubscribed", { status: 410 }));
-    expect(await send(fetch)).toEqual({ kind: "reject", consumerGone: true, httpStatus: 410, response: "unsubscribed", error: "The endpoint answered 410 Gone: it asks to receive nothing more" });
+    expect(await send(fetch)).toEqual({ kind: "reject", stopsConsumer: "gone", httpStatus: 410, response: "unsubscribed", error: "The endpoint answered 410 Gone: it asks to receive nothing more" });
   });
 
   it.each([301, 302, 303, 307, 308])("%i: retried, the redirect not followed", async (status) => {
@@ -159,7 +159,7 @@ describe("what is never sent", () => {
     const { fetch, sent } = endpoint(() => new Response("ok"));
     const outcome = await send(fetch, { url });
     expect(outcome.kind).toBe("reject");
-    expect(outcome).not.toHaveProperty("consumerGone");
+    expect(outcome).not.toHaveProperty("stopsConsumer");
     expect(sent).toEqual([]);
   });
 

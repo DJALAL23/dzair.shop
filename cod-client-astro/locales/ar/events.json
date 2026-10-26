@@ -54,7 +54,8 @@
   },
   "kinds": {
     "meta_capi": "تحويلات Meta",
-    "webhook": "Webhook"
+    "webhook": "Webhook",
+    "telegram": "تيليغرام"
   },
   "integrations": {
     "title": "التكاملات",
@@ -69,7 +70,9 @@
     "failing": "يفشل منذ {since}",
     "stopped_by_merchant": "متوقّف",
     "stopped_failing": "متوقّف: فشلت كل الإرسالات طوال 3 أيام",
-    "stopped_gone": "متوقّف: أجاب العنوان بأنه لم يعد موجودًا (HTTP 410)"
+    "stopped_gone": "متوقّف: أجاب العنوان بأنه لم يعد موجودًا (HTTP 410)",
+    "stopped_bot_blocked": "متوقّف: حُظر البوت في محادثة تيليغرام",
+    "stopped_not_connected": "متوقّف: لم تُربط أي محادثة تيليغرام بعد"
   },
   "counts": {
     "due_zero": "لا شيء في الطريق",
