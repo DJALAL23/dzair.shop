@@ -73,16 +73,20 @@ function failed(step: string, result: TelegramFailure): AppError {
   return telegramRefused(ERROR_CODES.TELEGRAM_REFUSED, `${step}: ${result.error}`, 400);
 }
 
-/** Where Telegram sends the bot's updates: this server's public origin, which Telegram needs to be https. */
+/**
+ * Where Telegram sends the bot's updates: `TELEGRAM_UPDATES_ORIGIN` when set
+ * (a tunnel to a local server), else this server's public origin. Telegram
+ * needs it to be https.
+ */
 function updatesUrl(c: Context<AppContext>, consumerId: string): string {
   let origin: URL | null = null;
   try {
-    origin = new URL(c.env.WORKER_SELF_URL ?? "");
+    origin = new URL(c.env.TELEGRAM_UPDATES_ORIGIN || c.env.WORKER_SELF_URL || "");
   } catch {
     origin = null;
   }
   if (origin?.protocol !== "https:") {
-    throw telegramRefused(ERROR_CODES.TELEGRAM_NEEDS_PUBLIC_URL, "Telegram sends a bot's updates only to https: set this server's public URL (WORKER_SELF_URL)", 409);
+    throw telegramRefused(ERROR_CODES.TELEGRAM_NEEDS_PUBLIC_URL, "Telegram sends a bot's updates only to https: set this server's public URL (WORKER_SELF_URL, or TELEGRAM_UPDATES_ORIGIN for a tunnel)", 409);
   }
   return `${origin.origin}/webhooks/telegram/${consumerId}`;
 }

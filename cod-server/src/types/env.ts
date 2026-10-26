@@ -56,6 +56,12 @@ export interface Env {
    */
   WORKER_SELF_URL: string;
   /**
+   * Where Telegram sends the Telegram App's bot updates, when it is not
+   * `WORKER_SELF_URL` — a tunnel to a local server, whose own URL Telegram
+   * cannot reach. Optional; must be https.
+   */
+  TELEGRAM_UPDATES_ORIGIN?: string;
+  /**
    * HMAC secret (>= 32 bytes) shared with the Astro dashboard for the MCP OAuth
    * login tickets minted after dashboard sign-in. Optional: when missing or too
    * short, the MCP authorize flow fails closed.

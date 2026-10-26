@@ -71,7 +71,7 @@ export const ERROR_CODES = {
   TELEGRAM_NOT_SET_UP: "TELEGRAM_NOT_SET_UP",
   /** The bot is saved, but no chat has pressed Start on a pairing link yet. */
   TELEGRAM_NOT_CONNECTED: "TELEGRAM_NOT_CONNECTED",
-  /** Telegram only sends updates to https: the server's public URL (`WORKER_SELF_URL`) is not one. */
+  /** Telegram only sends updates to https: the server's public URL (`TELEGRAM_UPDATES_ORIGIN`, else `WORKER_SELF_URL`) is not one. */
   TELEGRAM_NEEDS_PUBLIC_URL: "TELEGRAM_NEEDS_PUBLIC_URL",
   /** Telegram refused the call for good: what it said is in the error. */
   TELEGRAM_REFUSED: "TELEGRAM_REFUSED",

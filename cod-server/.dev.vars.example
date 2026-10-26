@@ -34,6 +34,13 @@
 # MEDIA_DOMAIN=media.example.com
 # R2_BUCKET_NAME=codflow-images
 
+# ── Telegram App, on a local server ───────────────────────────────────────────
+# Telegram calls the server back with the bot's updates (pairing, blocks) and
+# cannot reach localhost. Run a tunnel (cloudflared tunnel --url
+# http://localhost:8787) and put its https origin here; WORKER_SELF_URL stays
+# as it is, since the dashboard's sign-in is checked against it.
+# TELEGRAM_UPDATES_ORIGIN=https://<name>.trycloudflare.com
+
 # ── MCP SDK v2 (used by the stateless elicitation + OAuth work) ───────────────
 # HMAC key that seals stateless MCP elicitation request state (must be >= 32
 # bytes). Generate one with:  openssl rand -hex 32

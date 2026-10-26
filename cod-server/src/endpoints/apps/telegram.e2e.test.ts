@@ -162,6 +162,18 @@ describe("saving a bot", () => {
     expect(calls).toEqual([]);
   });
 
+  it("sends the bot's updates to TELEGRAM_UPDATES_ORIGIN when it is set: a tunnel to a local server", async () => {
+    const local = as(["telegram:manage"], { WORKER_SELF_URL: "https://localhost:8787/", TELEGRAM_UPDATES_ORIGIN: "https://quiet-river.trycloudflare.com" });
+    expect((await local.put("/api/apps/telegram/bot", { token: TOKEN })).status).toBe(200);
+    const config = (await configRow())!;
+    expect(calls[1]!.body.url).toBe(`https://quiet-river.trycloudflare.com/webhooks/telegram/${config.consumerId}`);
+
+    calls = [];
+    const plain = await as(["telegram:manage"], { WORKER_SELF_URL: "https://api.acme.dz/", TELEGRAM_UPDATES_ORIGIN: "http://localhost:8787" }).put("/api/apps/telegram/bot", { token: TOKEN });
+    expect(plain.body.code).toBe(ERROR_CODES.TELEGRAM_NEEDS_PUBLIC_URL);
+    expect(calls).toEqual([]);
+  });
+
   it("keeps the chat for the same bot, and needs a chat again for another bot", async () => {
     await connected();
     await saveBot();
