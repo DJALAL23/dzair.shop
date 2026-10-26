@@ -1,9 +1,9 @@
 /**
  * Stores (Management) Routes
  *
- * Dashboard endpoints for reading and updating the store configuration and
- * Meta pixel tracking config. Single-tenant: the store is resolved from the
- * D1 database, not from the path. All routes are admin-only.
+ * Dashboard endpoints for reading and updating the store's own settings.
+ * Single-tenant: the store is resolved from the D1 database, not from the
+ * path. All routes are admin-only. What an App sets up is under /api/apps.
  *
  * Not to be confused with /api/store/* — the public storefront API.
  * Built with defineRoute() — the standard route-builder pattern.
@@ -12,16 +12,11 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
-import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import * as handlers from "./handlers";
 import { registerTranslationRoutes } from "../translations/routes";
 import { getStore } from "../../../../cod-shared/queries/stores";
 import { updateStoreSchema } from "./validation";
-import {
-  StoreSchema,
-  StorePixelConfigSchema,
-  SuccessResponseSchema,
-} from "@/openapi/schemas";
+import { StoreSchema, SuccessResponseSchema } from "@/openapi/schemas";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -78,281 +73,12 @@ const updateMyStoreRoute = defineRoute({
   handler: handlers.updateMyStore,
 });
 
-const getPixelConfigRoute = defineRoute({
-  method: "get",
-  path: "/pixel-config",
-  auth: "admin",
-  tags: ["Store Settings"],
-  summary: "Get pixel configuration",
-  description:
-    "Returns the store's Meta pixel tracking configuration, or `null` when none has been configured yet.",
-  operationId: "getPixelConfig",
-  responses: {
-    200: {
-      description: "Pixel configuration (null when not configured)",
-      content: jsonContent(
-        z.object({
-          success: z.boolean().openapi({ example: true }),
-          data: StorePixelConfigSchema.nullable(),
-        })
-      ),
-    },
-  },
-  handler: handlers.getPixelConfig,
-});
-
-const savePixelConfigRoute = defineRoute({
-  method: "post",
-  path: "/pixel-config",
-  auth: "admin",
-  tags: ["Store Settings"],
-  summary: "Save pixel configuration",
-  description:
-    "Upserts the store's Meta pixel tracking configuration. `perPageTrackingEnabled` is the master switch for per-landing-page pixels; omitting it keeps the stored value. `conversionEvent` is required — the merchant explicitly chooses whether the Conversions API optimizes for `Lead` (fires at order placement, deduplicated with the browser pixel) or `Purchase` (fires at confirmed delivery). An empty `accessToken` keeps the previously stored token.",
-  operationId: "savePixelConfig",
-  body: handlers.pixelConfigSchema,
-  responses: {
-    200: {
-      description: "Saved pixel configuration",
-      content: jsonContent(SuccessResponseSchema(StorePixelConfigSchema)),
-    },
-  },
-  handler: handlers.savePixelConfig,
-});
-
-// ─── WhatsApp OTP verification config (dzverify) ──────────────────────────────
-
-const otpConfigResponse = z.object({
-  success: z.boolean(),
-  data: z
-    .object({
-      language: z.enum(["en", "fr", "ar"]),
-      enabled: z.boolean(),
-      apiKeyMasked: z.string().openapi({ example: "••••a9f2" }),
-      createdAt: z.string().datetime(),
-      updatedAt: z.string().datetime(),
-    })
-    .nullable(),
-});
-
-const getOtpConfigRoute = defineRoute({
-  method: "get",
-  path: "/otp-config",
-  auth: { scope: SCOPES.SETTINGS_VERIFICATION },
-  tags: ["Store Settings"],
-  summary: "Get WhatsApp OTP verification configuration",
-  description:
-    "Returns the store's dzverify OTP configuration, or `null` when never configured (verification disabled). The API key is never returned — only a masked hint.",
-  operationId: "getOtpConfig",
-  responses: {
-    200: { description: "OTP configuration (null when not configured)", content: jsonContent(otpConfigResponse) },
-  },
-  handler: handlers.getOtpConfig,
-});
-
-const saveOtpConfigRoute = defineRoute({
-  method: "post",
-  path: "/otp-config",
-  auth: { scope: SCOPES.SETTINGS_VERIFICATION },
-  tags: ["Store Settings"],
-  summary: "Save WhatsApp OTP verification configuration",
-  description:
-    "Upserts the store's dzverify OTP configuration. An empty `apiKey` keeps the stored key. Requires a key before enabling. No row = verification disabled (safe default).",
-  operationId: "saveOtpConfig",
-  body: handlers.otpConfigSchema,
-  responses: {
-    200: { description: "Saved OTP configuration", content: jsonContent(otpConfigResponse) },
-    400: { description: "No API key stored or submitted (REQUIRED_FIELD_MISSING)" },
-  },
-  handler: handlers.saveOtpConfig,
-});
-
-const testOtpConfigRoute = defineRoute({
-  method: "post",
-  path: "/otp-config/test",
-  auth: { scope: SCOPES.SETTINGS_VERIFICATION },
-  tags: ["Store Settings"],
-  summary: "Test dzverify connection",
-  description:
-    "Checks the stored (or submitted) dzverify API key against the provider's quota endpoint. A key lacking the usage:read scope is reported as valid with quota unavailable. Negative outcomes return 200 with ok:false — the check itself succeeded.",
-  operationId: "testOtpConnection",
-  body: handlers.testOtpConfigSchema,
-  responses: {
-    200: {
-      description: "Connection check executed",
-      content: jsonContent(
-        z.object({
-          success: z.boolean(),
-          data: z.object({
-            ok: z.boolean(),
-            reason: z.string().optional(),
-            message: z.string().optional(),
-            balanceDa: z.number().optional(),
-            otpEstimate: z.number().optional().openapi({ description: "How many more OTPs the balance covers" }),
-            plan: z.string().optional(),
-            outOfCredits: z.boolean().optional(),
-          }),
-        })
-      ),
-    },
-    400: { description: "No API key stored or submitted (REQUIRED_FIELD_MISSING)" },
-    502: { description: "dzverify unreachable (EXTERNAL_API_FAILURE)" },
-  },
-  handler: handlers.testOtpConnection,
-});
-
-// ─── Cloudflare Turnstile config (checkout bot protection) ───────────────────
-
-const turnstileConfigResponse = z.object({
-  success: z.boolean(),
-  data: z
-    .object({
-      siteKey: z.string().openapi({
-        description: "Public widget site key — rendered into storefront HTML.",
-        example: "0x4AAAAAAAxxxxxxxxxxxx",
-      }),
-      enabled: z.boolean(),
-      secretKeyMasked: z.string().openapi({ example: "••••a9f2" }),
-      createdAt: z.string().datetime(),
-      updatedAt: z.string().datetime(),
-    })
-    .nullable(),
-});
-
-const getTurnstileConfigRoute = defineRoute({
-  method: "get",
-  path: "/turnstile-config",
-  auth: { scope: SCOPES.SETTINGS_VERIFICATION },
-  tags: ["Store Settings"],
-  summary: "Get Cloudflare Turnstile configuration",
-  description:
-    "Returns the store's Turnstile configuration, or `null` when never configured (bot protection disabled). The secret key is never returned — only a masked hint.",
-  operationId: "getTurnstileConfig",
-  responses: {
-    200: { description: "Turnstile configuration (null when not configured)", content: jsonContent(turnstileConfigResponse) },
-  },
-  handler: handlers.getTurnstileConfig,
-});
-
-const saveTurnstileConfigRoute = defineRoute({
-  method: "post",
-  path: "/turnstile-config",
-  auth: { scope: SCOPES.SETTINGS_VERIFICATION },
-  tags: ["Store Settings"],
-  summary: "Save Cloudflare Turnstile configuration",
-  description:
-    "Upserts the store's Turnstile configuration. Empty `siteKey`/`secretKey` keep the stored values. Enabling requires both keys. No row = Turnstile disabled (safe default).",
-  operationId: "saveTurnstileConfig",
-  body: handlers.turnstileConfigSchema,
-  responses: {
-    200: { description: "Saved Turnstile configuration", content: jsonContent(turnstileConfigResponse) },
-    400: { description: "Site/secret key missing (REQUIRED_FIELD_MISSING)" },
-  },
-  handler: handlers.saveTurnstileConfig,
-});
-
-// ─── Sendili transactional email config ──────────────────────────────────────
-
-const emailConfigResponse = z.object({
-  success: z.boolean(),
-  data: z
-    .object({
-      fromEmail: z.string().email().openapi({ example: "noreply@acme.com" }),
-      fromName: z.string().nullable().openapi({ example: "Acme Store" }),
-      enabled: z.boolean(),
-      apiKeyMasked: z.string().openapi({ example: "••••a9f2" }),
-      createdAt: z.string().datetime(),
-      updatedAt: z.string().datetime(),
-    })
-    .nullable(),
-});
-
-const getEmailConfigRoute = defineRoute({
-  method: "get",
-  path: "/email-config",
-  auth: { scope: SCOPES.SETTINGS_EMAIL },
-  tags: ["Store Settings"],
-  summary: "Get transactional email configuration",
-  description:
-    "Returns the store's Sendili email configuration, or `null` when never configured (email sending disabled). The API key is never returned — only a masked hint.",
-  operationId: "getEmailConfig",
-  responses: {
-    200: { description: "Email configuration (null when not configured)", content: jsonContent(emailConfigResponse) },
-  },
-  handler: handlers.getEmailConfig,
-});
-
-const saveEmailConfigRoute = defineRoute({
-  method: "post",
-  path: "/email-config",
-  auth: { scope: SCOPES.SETTINGS_EMAIL },
-  tags: ["Store Settings"],
-  summary: "Save transactional email configuration",
-  description:
-    "Upserts the store's Sendili email configuration. An empty `apiKey` keeps the stored key. Requires a key before enabling. No row = email sending disabled (safe default).",
-  operationId: "saveEmailConfig",
-  body: handlers.emailConfigSchema,
-  responses: {
-    200: { description: "Saved email configuration", content: jsonContent(emailConfigResponse) },
-    400: { description: "No API key stored or submitted (REQUIRED_FIELD_MISSING), or invalid fromEmail" },
-  },
-  handler: handlers.saveEmailConfig,
-});
-
-const testEmailConfigRoute = defineRoute({
-  method: "post",
-  path: "/email-config/test",
-  auth: { scope: SCOPES.SETTINGS_EMAIL },
-  tags: ["Store Settings"],
-  summary: "Test Sendili connection",
-  description:
-    "Checks the stored (or submitted) Sendili API key against GET /v1/account and returns the verified sending domains for the from-address picker. Negative outcomes return 200 with ok:false — the check itself succeeded.",
-  operationId: "testEmailConnection",
-  body: handlers.testEmailConfigSchema,
-  responses: {
-    200: {
-      description: "Connection check executed",
-      content: jsonContent(
-        z.object({
-          success: z.boolean(),
-          data: z.object({
-            ok: z.boolean(),
-            reason: z.string().optional(),
-            message: z.string().optional(),
-            domains: z.array(z.string()).optional().openapi({
-              description: "Verified sending domains — populate the from-address picker.",
-              example: ["acme.com"],
-            }),
-            account: z.record(z.string(), z.unknown()).optional().openapi({
-              description: "Raw account payload (usage, plan) as returned by Sendili.",
-            }),
-            outOfCredits: z.boolean().optional(),
-          }),
-        })
-      ),
-    },
-    400: { description: "No API key stored or submitted (REQUIRED_FIELD_MISSING)" },
-    502: { description: "Sendili unreachable (EXTERNAL_API_FAILURE)" },
-  },
-  handler: handlers.testEmailConnection,
-});
-
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 const router = new OpenAPIHono<AppContext>();
 
 router.openapi(getMyStoreRoute.route, getMyStoreRoute.handler);
 router.openapi(updateMyStoreRoute.route, updateMyStoreRoute.handler);
-router.openapi(getPixelConfigRoute.route, getPixelConfigRoute.handler);
-router.openapi(savePixelConfigRoute.route, savePixelConfigRoute.handler);
-router.openapi(getOtpConfigRoute.route, getOtpConfigRoute.handler);
-router.openapi(saveOtpConfigRoute.route, saveOtpConfigRoute.handler);
-router.openapi(testOtpConfigRoute.route, testOtpConfigRoute.handler);
-router.openapi(getTurnstileConfigRoute.route, getTurnstileConfigRoute.handler);
-router.openapi(saveTurnstileConfigRoute.route, saveTurnstileConfigRoute.handler);
-router.openapi(getEmailConfigRoute.route, getEmailConfigRoute.handler);
-router.openapi(saveEmailConfigRoute.route, saveEmailConfigRoute.handler);
-router.openapi(testEmailConfigRoute.route, testEmailConfigRoute.handler);
 
 // The store's own translatable text (announcement bar, SEO) — ADR 0005.
 registerTranslationRoutes(router, {

@@ -25,6 +25,7 @@ import shippingProfilesRouter from "@/endpoints/shipping-profiles/routes";
 import driversRouter from "@/endpoints/drivers/routes";
 import usersRouter from "@/endpoints/users/routes";
 import storesRouter from "@/endpoints/stores/routes";
+import appsRouter from "@/endpoints/apps/routes";
 import productsRouter from "@/endpoints/products/routes";
 import { stockRouter, productStockRouter } from "@/endpoints/stock/routes";
 import offersRouter from "@/endpoints/offers/routes";
@@ -53,6 +54,7 @@ function buildApp() {
   app.route("/api/drivers", driversRouter);
   app.route("/api/users", usersRouter);
   app.route("/api/stores", storesRouter);
+  app.route("/api/apps", appsRouter);
   app.route("/api/products", productsRouter);
   app.route("/api/stock", stockRouter);
   app.route("/api/products", productStockRouter);
@@ -589,15 +591,15 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(updateMe.summary).toBe("Update store configuration");
     expect(updateMe.operationId).toBe("updateMyStore");
 
-    const getPixel = spec.paths["/api/stores/pixel-config"]?.get;
-    expect(getPixel).toBeDefined();
-    expect(getPixel.summary).toBe("Get pixel configuration");
-    expect(getPixel.operationId).toBe("getPixelConfig");
+    const getMeta = spec.paths["/api/apps/meta"]?.get;
+    expect(getMeta).toBeDefined();
+    expect(getMeta.summary).toBe("Get the Meta App");
+    expect(getMeta.operationId).toBe("getMetaApp");
 
-    const savePixel = spec.paths["/api/stores/pixel-config"]?.post;
-    expect(savePixel).toBeDefined();
-    expect(savePixel.summary).toBe("Save pixel configuration");
-    expect(savePixel.operationId).toBe("savePixelConfig");
+    const saveMeta = spec.paths["/api/apps/meta"]?.put;
+    expect(saveMeta).toBeDefined();
+    expect(saveMeta.summary).toBe("Set up the Meta App");
+    expect(saveMeta.operationId).toBe("saveMetaApp");
 
     expect(spec.components.schemas.Store).toBeDefined();
     expect(spec.components.schemas.Store.properties.storeApiKey).toBeDefined();

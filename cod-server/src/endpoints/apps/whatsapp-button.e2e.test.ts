@@ -1,5 +1,5 @@
 /**
- * GET / PUT /api/whatsapp-widget — real-D1 E2E through the real router.
+ * The WhatsApp button App through the API — real D1, the real router.
  *
  * The save path is where this feature could quietly lie to a merchant: a
  * number that looks saved but never normalised produces a launcher that opens
@@ -17,7 +17,7 @@ import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
-import whatsappWidgetRouter from "./routes";
+import appsRouter from "./routes";
 import {
   DEFAULT_WHATSAPP_WIDGET_CONFIG,
   WIDGET_TEXT_FIELDS,
@@ -58,14 +58,14 @@ function mountWith(scopes: string[]) {
     await next();
   });
   instance.onError(errorHandler);
-  instance.route("/api/whatsapp-widget", whatsappWidgetRouter);
+  instance.route("/api/apps", appsRouter);
   return instance;
 }
 
 beforeAll(async () => {
   harness = await createTestD1();
-  app = mountWith(["whatsapp_widget:read", "whatsapp_widget:manage"]);
-  readOnlyApp = mountWith(["whatsapp_widget:read"]);
+  app = mountWith(["whatsapp-button:read", "whatsapp-button:manage"]);
+  readOnlyApp = mountWith(["whatsapp-button:read"]);
 }, 120_000);
 
 afterAll(async () => {
@@ -83,12 +83,12 @@ beforeEach(async () => {
 });
 
 async function get() {
-  const res = await app.request("/api/whatsapp-widget");
+  const res = await app.request("/api/apps/whatsapp-button");
   return { status: res.status, json: (await res.json()) as any };
 }
 
 async function put(body: unknown, instance = app) {
-  const res = await instance.request("/api/whatsapp-widget", {
+  const res = await instance.request("/api/apps/whatsapp-button", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -107,7 +107,7 @@ async function storedColumn(): Promise<string | null> {
 
 const ON = { enabled: true, phone: "0551234567" };
 
-describe("GET /api/whatsapp-widget", () => {
+describe("GET /api/apps/whatsapp-button", () => {
   it("gives a store that never configured one the defaults, and no widget", async () => {
     const { status, json } = await get();
     expect(status).toBe(200);
@@ -292,7 +292,7 @@ describe("the preview is the shop window, not a second opinion", () => {
 
 describe("permissions", () => {
   it("lets a read-only member look", async () => {
-    const res = await readOnlyApp.request("/api/whatsapp-widget");
+    const res = await readOnlyApp.request("/api/apps/whatsapp-button");
     expect(res.status).toBe(200);
   });
 
@@ -302,9 +302,9 @@ describe("permissions", () => {
     expect(await storedColumn()).toBeNull();
   });
 
-  it("refuses a member with no widget scopes at all", async () => {
-    const outsider = mountWith(["orders:read"]);
-    expect((await outsider.request("/api/whatsapp-widget")).status).toBe(403);
+  it("refuses a member with no permission on the button, or only the one it replaced", async () => {
+    const outsider = mountWith(["orders:read", "whatsapp_widget:read", "whatsapp_widget:manage"]);
+    expect((await outsider.request("/api/apps/whatsapp-button")).status).toBe(403);
     expect((await put(ON, outsider)).status).toBe(403);
   });
 });

@@ -434,10 +434,11 @@ describe("buildToolsForUser — scope gating", () => {
     expect(names(makeProps({ scopes: [SCOPES.ORDERS_READ] }))).toContain("getShipment");
   });
 
-  it("the Event Log is read with orders; who receives it is the store's integrations", () => {
+  it("the Event Log is read with orders; who receives it, with its owner's permission", () => {
     expect(names(makeProps({ scopes: [SCOPES.ORDERS_READ] }))).toContain("listBusinessEvents");
     expect(names(makeProps({ scopes: [SCOPES.ORDERS_READ] }))).not.toContain("listEventDeliveries");
-    expect(names(makeProps({ scopes: [SCOPES.SETTINGS_INTEGRATIONS] }))).toEqual(["listEventConsumers", "listEventDeliveries"]);
+    expect(names(makeProps({ scopes: [SCOPES.INTEGRATIONS_READ] }))).toEqual(["listEventConsumers", "listEventDeliveries"]);
+    expect(names(makeProps({ scopes: [SCOPES.META_READ] }))).toEqual(["listEventConsumers", "listEventDeliveries"]);
   });
 
   it("wildcard '*' in scopes acts like admin (matches hasPermission semantics)", () => {

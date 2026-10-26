@@ -3,8 +3,8 @@
  * and the real drain on one D1: a retry or a Replay makes Deliveries due
  * again — or creates the ones a Consumer never had — without recording a
  * single Business Event again, and the drain delivers them. A stopped
- * Consumer is refused, one Delivery is never made twice, and only
- * `settings:integrations` may do any of it.
+ * Consumer is refused, one Delivery is never made twice, and only its
+ * owner's permissions may do any of it.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHono } from "@hono/zod-openapi";
@@ -33,6 +33,8 @@ let role: "admin" | "staff" = "admin";
 const T = "2026-10-25T10:00:00.000Z";
 /** Still waiting when any drain of these tests runs: they run on the real clock, as the routes do. */
 const NOT_YET = "2099-01-01T00:00:00.000Z";
+/** A built-in kind with an owner, the Meta App, so these Consumers are seen and steered as any built-in one; the drain is handed a stand-in for it. */
+const KIND = "meta_capi";
 
 beforeAll(async () => {
   d1 = await createTestD1();
@@ -64,7 +66,7 @@ async function call(method: string, path: string, body?: unknown) {
 
 async function consumer(id: string, subscription: string[], extra: Partial<typeof schema.eventConsumers.$inferInsert> = {}) {
   await d1.db.insert(schema.eventConsumers).values({
-    id, kind: "memory", name: `Consumer ${id}`, subscription: JSON.stringify(subscription), settings: '{"token":"kind-secret"}',
+    id, kind: KIND, name: `Consumer ${id}`, subscription: JSON.stringify(subscription), settings: '{"token":"kind-secret"}',
     signingSecret: "whsec_never_shown", createdAt: T, updatedAt: T, ...extra,
   });
 }
@@ -90,15 +92,15 @@ async function delivery(id: string, consumerId: string, eventSeq: number, state:
 const deliveriesOf = (consumerId: string) => d1.db.select().from(schema.eventDeliveries).where(eq(schema.eventDeliveries.consumerId, consumerId)).orderBy(asc(schema.eventDeliveries.eventSeq)).all();
 const eventCount = async () => (await d1.db.select().from(schema.businessEvents).all()).length;
 
-/** The memory kind delivers everything, and remembers what it received. */
+/** The stand-in delivers everything, and remembers what it received. */
 function memoryKind() {
   const received: BusinessEvent[] = [];
-  const impl: ConsumerKind = { kind: "memory", cost: { external: 0, services: 0 }, async deliver({ event }) { received.push(event); return { kind: "delivered", httpStatus: 200 }; } };
+  const impl: ConsumerKind = { kind: KIND, cost: { external: 0, services: 0 }, async deliver({ event }) { received.push(event); return { kind: "delivered", httpStatus: 200 }; } };
   return { impl, received };
 }
 /** A drain a minute from now: what the merchant made due now is due to it. */
 const runDrain = (kind: ConsumerKind, now = new Date(Date.now() + 60_000)) =>
-  drain({ DB: d1.raw, EVENTS_QUEUE: { send: async () => {} } } as unknown as Env, { kinds: { memory: kind }, now: () => now });
+  drain({ DB: d1.raw, EVENTS_QUEUE: { send: async () => {} } } as unknown as Env, { kinds: { [KIND]: kind }, now: () => now });
 
 describe("a Replay", () => {
   beforeEach(async () => {
@@ -228,7 +230,7 @@ describe("the Consumers", () => {
     const { status, body } = await call("GET", "/api/event-consumers");
     expect(status).toBe(200);
     expect(body.data.map((c: { id: string }) => c.id)).toEqual(["hook", "meta"]);
-    expect(body.data[0]).toMatchObject({ kind: "memory", enabled: true, subscription: ["order.*"], deliveries: { due: 1, dead: 2 }, failingSince: "2026-10-24T00:00:00.000Z", disabledReason: null });
+    expect(body.data[0]).toMatchObject({ kind: KIND, enabled: true, subscription: ["order.*"], deliveries: { due: 1, dead: 2 }, failingSince: "2026-10-24T00:00:00.000Z", disabledReason: null });
     const text = JSON.stringify(body);
     expect(text).not.toContain("whsec_never_shown");
     expect(text).not.toContain("kind-secret");
@@ -297,18 +299,31 @@ describe("who may see and steer them", () => {
     await delivery("d1", "hook", 1, "dead", 8);
   });
 
-  it("only those with settings:integrations", async () => {
+  it("only those with its owner's permissions: the Meta App's", async () => {
     role = "staff";
-    scopes = ["orders:read", "orders:write", "settings:read"];
-    for (const [method, path, body] of [
-      ["GET", "/api/event-consumers"], ["GET", "/api/event-consumers/hook"], ["PATCH", "/api/event-consumers/hook", { enabled: false }],
+    const routes = [
+      ["GET", "/api/event-consumers/hook"], ["PATCH", "/api/event-consumers/hook", { enabled: false }],
       ["POST", "/api/event-consumers/hook/replay", { fromSequence: 1, toSequence: 1 }],
-      ["GET", "/api/event-deliveries?consumerId=hook"], ["GET", "/api/event-deliveries/d1"], ["POST", "/api/event-deliveries/d1/retry"],
-    ] as const) expect((await call(method, path, body)).status, `${method} ${path}`).toBe(403);
+      ["GET", "/api/event-deliveries/d1"], ["POST", "/api/event-deliveries/d1/retry"],
+    ] as const;
+
+    scopes = ["orders:read", "orders:write"];
+    for (const [method, path, body] of routes) expect((await call(method, path, body)).status, `${method} ${path}`).toBe(403);
+
+    scopes = ["integrations:read", "integrations:manage"];
+    expect((await call("GET", "/api/event-consumers")).body.data).toEqual([]);
+    expect((await call("GET", "/api/event-deliveries?consumerId=hook")).body.data).toEqual([]);
+    for (const [method, path, body] of routes) expect((await call(method, path, body)).status, `${method} ${path}`).toBe(404);
+
+    scopes = ["meta:read"];
+    expect((await call("GET", "/api/event-consumers/hook")).status).toBe(200);
+    expect((await call("GET", "/api/event-deliveries/d1")).status).toBe(200);
+    expect((await call("POST", "/api/event-deliveries/d1/retry")).status).toBe(403);
+    expect((await call("PATCH", "/api/event-consumers/hook", { enabled: false })).status).toBe(403);
     expect((await deliveriesOf("hook"))[0]!.state).toBe("dead");
 
-    scopes = ["settings:integrations"];
-    expect((await call("GET", "/api/event-consumers")).status).toBe(200);
+    scopes = ["meta:read", "meta:manage"];
     expect((await call("POST", "/api/event-deliveries/d1/retry")).status).toBe(202);
   });
+
 });

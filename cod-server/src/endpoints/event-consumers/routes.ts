@@ -9,6 +9,7 @@ import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
+import { consumerOwnerPermissions } from "../../../../cod-shared/apps/catalog";
 import { REPLAY_MAX_EVENTS } from "../../../../cod-shared/events/deliveries";
 import { WEBHOOK_CONSUMERS_MAX } from "../../../../cod-shared/events/webhooks";
 import { consumerChangeSchema, replaySchema, testEventSchema, webhookCreateSchema } from "./validation";
@@ -27,10 +28,16 @@ import * as handlers from "./handlers";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({ "application/json": { schema } });
 
+/** Any Consumer's owner's: each Consumer is then seen and steered with its own owner's (./access). */
+const SEE = { anyOf: consumerOwnerPermissions("read") };
+const STEER = { anyOf: consumerOwnerPermissions("manage") };
+/** What only a webhook is open to: the merchant's Integrations. */
+const WEBHOOKS = { scope: SCOPES.INTEGRATIONS_MANAGE };
+
 const listConsumersRoute = defineRoute({
   method: "get",
   path: "/",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: SEE,
   tags: ["Events"],
   summary: "List Consumers",
   description: "Who receives the store's Business Events, with how many Deliveries are on their way and how many were given up on.",
@@ -42,7 +49,7 @@ const listConsumersRoute = defineRoute({
 const createConsumerRoute = defineRoute({
   method: "post",
   path: "/",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: WEBHOOKS,
   tags: ["Events"],
   summary: "Add a webhook",
   description:
@@ -60,7 +67,7 @@ const createConsumerRoute = defineRoute({
 const getConsumerRoute = defineRoute({
   method: "get",
   path: "/{id}",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: SEE,
   tags: ["Events"],
   summary: "Get a Consumer",
   operationId: "getEventConsumer",
@@ -75,7 +82,7 @@ const getConsumerRoute = defineRoute({
 const updateConsumerRoute = defineRoute({
   method: "patch",
   path: "/{id}",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: STEER,
   tags: ["Events"],
   summary: "Change a Consumer",
   description:
@@ -87,7 +94,7 @@ const updateConsumerRoute = defineRoute({
     200: { description: "The Consumer as it now stands", content: jsonContent(SuccessResponseSchema(EventConsumerSchema)) },
     400: { description: "Not a change this API makes (VALIDATION_FAILED)" },
     404: { description: "No Consumer with this id (EVENT_CONSUMER_NOT_FOUND)" },
-    409: { description: "A built-in Consumer is kept by the store's own settings: only start or stop it (EVENT_CONSUMER_BUILT_IN)" },
+    409: { description: "A built-in Consumer is kept by its App: only start or stop it (EVENT_CONSUMER_BUILT_IN)" },
   },
   handler: handlers.updateEventConsumer,
 });
@@ -95,7 +102,7 @@ const updateConsumerRoute = defineRoute({
 const deleteConsumerRoute = defineRoute({
   method: "delete",
   path: "/{id}",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: WEBHOOKS,
   tags: ["Events"],
   summary: "Delete a webhook",
   description: "The webhook goes with its Deliveries and their Attempts. The Business Events stay in the Event Log.",
@@ -104,7 +111,7 @@ const deleteConsumerRoute = defineRoute({
   responses: {
     200: { description: "Deleted", content: jsonContent(MessageResponseSchema) },
     404: { description: "No Consumer with this id (EVENT_CONSUMER_NOT_FOUND)" },
-    409: { description: "A built-in Consumer is kept by the store's own settings: stop it instead (EVENT_CONSUMER_BUILT_IN)" },
+    409: { description: "A built-in Consumer is kept by its App: stop it instead (EVENT_CONSUMER_BUILT_IN)" },
   },
   handler: handlers.deleteEventConsumer,
 });
@@ -112,7 +119,7 @@ const deleteConsumerRoute = defineRoute({
 const rotateSecretRoute = defineRoute({
   method: "post",
   path: "/{id}/rotate-secret",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: WEBHOOKS,
   tags: ["Events"],
   summary: "Rotate a webhook's Signing Secret",
   description:
@@ -130,7 +137,7 @@ const rotateSecretRoute = defineRoute({
 const testEventRoute = defineRoute({
   method: "post",
   path: "/{id}/test",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: WEBHOOKS,
   tags: ["Events"],
   summary: "Send a Test Event to a webhook",
   description:
@@ -150,7 +157,7 @@ const testEventRoute = defineRoute({
 const replayRoute = defineRoute({
   method: "post",
   path: "/{id}/replay",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: STEER,
   tags: ["Events"],
   summary: "Replay Business Events to a Consumer",
   description:

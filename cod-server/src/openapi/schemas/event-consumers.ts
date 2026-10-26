@@ -15,7 +15,7 @@ export const EventConsumerSchema = z
     kind: z.string().openapi({ description: "How it is reached: `webhook` (an endpoint of the merchant's own) or `meta_capi` (Meta conversions)", example: "webhook" }),
     name: z.string(),
     enabled: z.boolean(),
-    builtIn: z.boolean().openapi({ description: "Kept by the store's own settings (Meta conversions): it can be started and stopped, not edited or deleted" }),
+    builtIn: z.boolean().openapi({ description: "Kept by its App (Meta conversions, by the Meta App): it can be started and stopped, not edited or deleted" }),
     subscription: z.array(z.string()).openapi({ description: "The Event Types it receives, each named exactly, by subject (`order.*`), or `*`", example: ["order.created", "shipment.delivered"] }),
     catalogueVersion: z.number().int().openapi({ description: "The catalogue version its Deliveries are written in" }),
     disabledReason: z.enum(CONSUMER_DISABLED_REASONS).nullable().openapi({ description: "Why it stopped receiving, while disabled: `failing` (every Attempt failed for 3 days), `merchant`, or `gone` (its endpoint answered HTTP 410 Gone)" }),

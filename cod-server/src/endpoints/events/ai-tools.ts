@@ -6,6 +6,7 @@ import { isSubscriptionPattern, type SubscriptionPattern } from "../../../../cod
 import { readEventLog } from "../../../../cod-shared/events/log";
 import { DELIVERY_PAGE_MAX, listConsumers, listDeliveries } from "../../../../cod-shared/events/consumers";
 import { DELIVERY_STATES } from "../../../../cod-shared/events/deliveries-model";
+import { consumerKindsFor } from "../../../../cod-shared/apps/catalog";
 
 const patterns = z
   .string()
@@ -60,7 +61,7 @@ export const EVENT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         kind: z.string().describe("How it is reached: webhook (an endpoint of the merchant's own) | meta_capi (Meta conversions)"),
         name: z.string(),
         enabled: z.boolean(),
-        builtIn: z.boolean().describe("Kept by the store's own settings; only started and stopped"),
+        builtIn: z.boolean().describe("Kept by its App (Meta conversions, by the Meta App); only started and stopped"),
         webhook: z.looseObject({ url: z.string() }).nullable().describe("A webhook's endpoint; its Signing Secret is never shown"),
         disabledReason: z.string().nullable().describe("failing (every Attempt failed for 3 days) | merchant | gone (its endpoint answered HTTP 410); null while enabled"),
         deliveries: z.looseObject({ due: z.number().int(), dead: z.number().int() }).describe("On their way, and given up on"),
@@ -84,7 +85,8 @@ export const EVENT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
 
 const invalid = (error: z.ZodError) => ({ success: false as const, error: `Invalid arguments: ${error.issues.map((issue) => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ")}` });
 
-export const getEventTools = (db: AppDb) => ({
+/** `scopes`: the caller's, which decide whose Consumers they see — every one, for an admin's `*`. */
+export const getEventTools = (db: AppDb, scopes: readonly string[]) => ({
   listBusinessEvents: tool({
     description:
       "Read the store's Event Log: what happened to its orders and parcels, who did it and through what — an order created, confirmed, cancelled, a parcel handed off, delivered, returned. " +
@@ -101,9 +103,9 @@ export const getEventTools = (db: AppDb) => ({
   }),
 
   listEventConsumers: tool({
-    description: "List who receives the store's Business Events (Meta conversions, and the integrations the merchant adds), whether each is enabled and why not, and how many Deliveries are on their way or were given up on.",
+    description: "List who receives the store's Business Events (Meta conversions, and the webhooks the merchant adds), whether each is enabled and why not, and how many Deliveries are on their way or were given up on.",
     inputSchema: z.object({}).passthrough(),
-    execute: async () => ({ success: true, consumers: await listConsumers(db) }),
+    execute: async () => ({ success: true, consumers: await listConsumers(db, consumerKindsFor(scopes, "read")) }),
   }),
 
   listEventDeliveries: tool({
@@ -112,7 +114,7 @@ export const getEventTools = (db: AppDb) => ({
     execute: async (args) => {
       const parsed = listEventDeliveriesSchema.safeParse(args);
       if (!parsed.success) return invalid(parsed.error);
-      const page = await listDeliveries(db, parsed.data);
+      const page = await listDeliveries(db, consumerKindsFor(scopes, "read"), parsed.data);
       return { success: true, count: page.deliveries.length, nextCursor: page.next, deliveries: page.deliveries };
     },
   }),

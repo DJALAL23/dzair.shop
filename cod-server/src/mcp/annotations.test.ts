@@ -105,7 +105,7 @@ describe("TOOL_ANNOTATIONS", () => {
     }
   });
 
-  it("the integrations reads, gated by settings:integrations, are overridden to read-only", () => {
+  it("who receives the events, read with an owner's read permission, is read-only", () => {
     for (const name of ["listEventConsumers", "listEventDeliveries"]) {
       expect(TOOL_ANNOTATIONS[name], name).toMatchObject({ readOnlyHint: true, destructiveHint: false, idempotentHint: true });
     }

@@ -71,7 +71,7 @@ export function resolveCapiDispatch(
     return {
       send: false,
       reason: "no-access-token",
-      message: "No CAPI access token — configure it in Settings → Tracking",
+      message: "No CAPI access token — set up the Meta App",
     };
   }
 

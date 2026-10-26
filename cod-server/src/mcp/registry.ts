@@ -27,9 +27,10 @@
 import type { Tool } from "ai";
 import { hasPermission } from "../../../cod-shared/rbac/utils";
 import { SCOPES } from "../../../cod-shared/rbac/scopes";
+import { consumerOwnerPermissions } from "../../../cod-shared/apps/catalog";
 import { getDb } from "@/db";
 import type { Env } from "@/types/env";
-import type { McpProps } from "./props";
+import { actorOf, type McpProps } from "./props";
 
 // Factories from the existing ai-tools files. These are Vercel-AI-SDK
 // tool bundles — NOT MCP tools yet. The server factory (src/mcp/server-factory.ts)
@@ -439,16 +440,18 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   },
 
   // ─── Business Events ──────────────────────────────────────────────────────
-  // The Event Log is order history, read like orders; who receives it and how
-  // their Deliveries went are the store's integrations.
+  // The Event Log is order history, read like orders. A Consumer and its
+  // Deliveries are seen with their owner's permission: Integrations' for
+  // webhooks, the Meta App's for Meta conversions — offered under either,
+  // each tool lists only what its caller may see.
   {
     requires: [SCOPES.ORDERS_READ],
-    build: (db) => pick(getEventTools(db), ["listBusinessEvents"]),
+    build: (db) => pick(getEventTools(db, []), ["listBusinessEvents"]),
   },
-  {
-    requires: [SCOPES.SETTINGS_INTEGRATIONS],
-    build: (db) => pick(getEventTools(db), ["listEventConsumers", "listEventDeliveries"]),
-  },
+  ...consumerOwnerPermissions("read").map((permission) => ({
+    requires: [permission],
+    build: ((db, _env, props) => pick(getEventTools(db, actorOf(props).scopes), ["listEventConsumers", "listEventDeliveries"])) satisfies ToolFactory,
+  })),
 ];
 
 /**

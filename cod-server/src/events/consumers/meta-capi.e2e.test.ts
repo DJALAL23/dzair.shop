@@ -263,7 +263,7 @@ describe("what the merchant's settings say", () => {
     expect(sent).toEqual([]);
     expect(await skipReasons()).toEqual(expect.arrayContaining([
       "Tracking disabled in store settings",
-      "No CAPI access token — configure it in Settings → Tracking",
+      "No CAPI access token — set up the Meta App",
       expect.stringContaining("checkout stage does not fire"),
     ]));
   });

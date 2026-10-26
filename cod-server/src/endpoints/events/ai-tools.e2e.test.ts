@@ -31,14 +31,17 @@ beforeEach(async () => {
       origin: "agent", occurredAt: T, recordedAt: T, data: JSON.stringify({ order: { ...sampleOrder, id: orderId }, previousStatus: "new" }),
     });
   }
-  await d1.db.insert(schema.eventConsumers).values({ id: "hook", kind: "memory", name: "Hook", subscription: '["*"]', settings: '{"token":"kind-secret"}', signingSecret: "whsec_hidden", createdAt: T, updatedAt: T });
+  await d1.db.insert(schema.eventConsumers).values([
+    { id: "hook", kind: "webhook", name: "Hook", subscription: '["*"]', settings: '{"url":"https://hooks.example.com/in","token":"kind-secret"}', signingSecret: "whsec_hidden", createdAt: T, updatedAt: T },
+    { id: "meta", kind: "meta_capi", name: "Meta conversions", subscription: '["order.created"]', createdAt: T, updatedAt: "2026-10-25T10:00:01.000Z" },
+  ]);
   for (const seq of [1, 2]) {
     await d1.db.insert(schema.eventDeliveries).values({ id: `d${seq}`, consumerId: "hook", eventSeq: seq, state: seq === 1 ? "dead" : "delivered", attempts: seq === 1 ? 8 : 1, lastError: seq === 1 ? "HTTP 500" : null, createdAt: T, settledAt: T });
   }
 });
 
-async function run(name: "listBusinessEvents" | "listEventConsumers" | "listEventDeliveries", args: Record<string, unknown> = {}) {
-  const tools = getEventTools(d1.db);
+async function run(name: "listBusinessEvents" | "listEventConsumers" | "listEventDeliveries", args: Record<string, unknown> = {}, scopes = ["*"]) {
+  const tools = getEventTools(d1.db, scopes);
   const result = await (tools[name].execute as (args: unknown, options: unknown) => Promise<any>)(args, { toolCallId: "t", messages: [] });
   expect(EVENT_TOOL_OUTPUT_SCHEMAS[name]!.safeParse(result).error).toBeUndefined();
   return result;
@@ -67,12 +70,21 @@ describe("listBusinessEvents", () => {
 describe("listEventConsumers and listEventDeliveries", () => {
   it("show who receives the events and what failed, never a secret", async () => {
     const consumers = await run("listEventConsumers");
-    expect(consumers.consumers).toEqual([expect.objectContaining({ id: "hook", enabled: true, deliveries: { due: 0, dead: 1 } })]);
+    expect(consumers.consumers).toEqual([expect.objectContaining({ id: "hook", enabled: true, deliveries: { due: 0, dead: 1 } }), expect.objectContaining({ id: "meta" })]);
     const dead = await run("listEventDeliveries", { consumerId: "hook", state: "dead" });
     expect(dead.deliveries.map((d: { id: string; lastError: string }) => [d.id, d.lastError])).toEqual([["d1", "HTTP 500"]]);
     const text = JSON.stringify([consumers, dead]);
     expect(text).not.toContain("whsec_hidden");
     expect(text).not.toContain("kind-secret");
+  });
+
+  it("show each caller only the Consumers its owner's permission sees", async () => {
+    const ids = async (scopes: string[]) => (await run("listEventConsumers", {}, scopes)).consumers.map((c: { id: string }) => c.id);
+    expect(await ids(["integrations:read"])).toEqual(["hook"]);
+    expect(await ids(["meta:read"])).toEqual(["meta"]);
+    expect(await ids(["orders:read"])).toEqual([]);
+    expect((await run("listEventDeliveries", { consumerId: "hook" }, ["meta:read"])).deliveries).toEqual([]);
+    expect((await run("listEventDeliveries", { consumerId: "hook" }, ["integrations:read"])).count).toBe(2);
   });
 
   it("asks for the Consumer", async () => {

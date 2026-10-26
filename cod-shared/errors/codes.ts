@@ -57,7 +57,7 @@ export const ERROR_CODES = {
   EVENT_CONSUMER_DISABLED: "EVENT_CONSUMER_DISABLED",
   /** The Delivery is already on its way. */
   EVENT_DELIVERY_ALREADY_DUE: "EVENT_DELIVERY_ALREADY_DUE",
-  /** A built-in Consumer is kept by the store's own settings: it can be started and stopped, nothing more. */
+  /** A built-in Consumer is kept by its App: it can be started and stopped, nothing more. */
   EVENT_CONSUMER_BUILT_IN: "EVENT_CONSUMER_BUILT_IN",
   /** The store has as many webhook Consumers as it may. */
   EVENT_CONSUMER_LIMIT_REACHED: "EVENT_CONSUMER_LIMIT_REACHED",

@@ -4,6 +4,7 @@
  */
 
 import { SCOPES } from "../rbac/scopes";
+import { hasPermission } from "../rbac/utils";
 import { WEBHOOK_KIND } from "../events/webhooks";
 
 export const APP_CATEGORIES = ["marketing", "checkout_protection", "messaging", "storefront"] as const;
@@ -95,4 +96,25 @@ export function consumerPermissions(kind: string): Permissions | null {
   const owner = consumerOwner(kind);
   if (owner === null) return null;
   return owner === "integrations" ? INTEGRATIONS.permissions : appOf(owner).permissions;
+}
+
+/** May someone holding these permissions see (read) or steer (manage) a Consumer of this kind? */
+export function mayConsumer(scopes: readonly string[], kind: string, level: keyof Permissions): boolean {
+  const permissions = consumerPermissions(kind);
+  return permissions !== null && hasPermission([...scopes], permissions[level]);
+}
+
+const OWNERS: readonly { permissions: Permissions; consumerKinds: readonly string[] }[] = [
+  INTEGRATIONS,
+  ...APP_CATALOG.filter((app) => app.consumerKinds.length > 0),
+];
+
+/** Every permission that sees (read) or steers (manage) some Consumer: its owners'. */
+export function consumerOwnerPermissions(level: keyof Permissions): string[] {
+  return OWNERS.map((owner) => owner.permissions[level]);
+}
+
+/** The Consumer Kinds whose Consumers someone holding these permissions may see or steer. */
+export function consumerKindsFor(scopes: readonly string[], level: keyof Permissions): string[] {
+  return OWNERS.flatMap((owner) => owner.consumerKinds).filter((kind) => mayConsumer(scopes, kind, level));
 }

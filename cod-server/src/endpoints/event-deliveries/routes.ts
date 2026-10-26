@@ -7,17 +7,21 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
-import { SCOPES } from "../../../../cod-shared/rbac/scopes";
+import { consumerOwnerPermissions } from "../../../../cod-shared/apps/catalog";
 import { EventDeliveryDetailSchema, EventDeliverySchema, IdParamSchema, ListResponseSchema, RedeliverySchema, SuccessResponseSchema } from "@/openapi/schemas";
 import { deliveryListQuerySchema } from "./validation";
 import * as handlers from "./handlers";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({ "application/json": { schema } });
 
+/** Any Consumer's owner's: each Delivery is then seen and steered with its Consumer's owner's (../event-consumers/access). */
+const SEE = { anyOf: consumerOwnerPermissions("read") };
+const STEER = { anyOf: consumerOwnerPermissions("manage") };
+
 const listDeliveriesRoute = defineRoute({
   method: "get",
   path: "/",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: SEE,
   tags: ["Events"],
   summary: "List Deliveries",
   description: "A Consumer's Deliveries, newest event first and paged with `before`, or every Delivery of one Business Event. `state=dead` lists those given up on.",
@@ -40,7 +44,7 @@ const listDeliveriesRoute = defineRoute({
 const getDeliveryRoute = defineRoute({
   method: "get",
   path: "/{id}",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: SEE,
   tags: ["Events"],
   summary: "Get a Delivery",
   description: "The Delivery with every Attempt it took and what the Consumer answered.",
@@ -56,7 +60,7 @@ const getDeliveryRoute = defineRoute({
 const retryDeliveryRoute = defineRoute({
   method: "post",
   path: "/{id}/retry",
-  auth: { scope: SCOPES.SETTINGS_INTEGRATIONS },
+  auth: STEER,
   tags: ["Events"],
   summary: "Retry a Delivery",
   description: "Make a settled Delivery — dead, skipped or delivered — due again now, its Attempts started over; its history is kept.",

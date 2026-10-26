@@ -7,7 +7,7 @@
  * do beyond what the merchant typed in.
  */
 
-import { and, desc, eq, lt, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql, type SQL } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { businessEvents, eventConsumers, eventDeliveries, eventDeliveryAttempts } from "../db/schema";
 import { insertSelectRow } from "../db/insert-select";
@@ -33,7 +33,7 @@ export interface ConsumerView {
   kind: string;
   name: string;
   enabled: boolean;
-  /** Built in: created and kept by the store's own settings (Meta conversions); only started and stopped here. */
+  /** Built in: created and kept by its App (Meta conversions, by the Meta App); only started and stopped here. */
   builtIn: boolean;
   subscription: SubscriptionPattern[];
   catalogueVersion: number;
@@ -89,8 +89,9 @@ function toConsumerView({ due, dead, subscription, settings, signingSecret, prev
   return { ...row, builtIn: !MERCHANT_KINDS.includes(row.kind), subscription: readSubscription(subscription), deliveries: { due, dead }, webhook };
 }
 
-export async function listConsumers(db: AppDb): Promise<ConsumerView[]> {
-  return (await db.select(consumerView).from(eventConsumers).orderBy(eventConsumers.createdAt, eventConsumers.id).all()).map(toConsumerView);
+/** The Consumers of these kinds — those the caller may see. */
+export async function listConsumers(db: AppDb, kinds: readonly string[]): Promise<ConsumerView[]> {
+  return (await db.select(consumerView).from(eventConsumers).where(inArray(eventConsumers.kind, [...kinds])).orderBy(eventConsumers.createdAt, eventConsumers.id).all()).map(toConsumerView);
 }
 
 export async function readConsumer(db: AppDb, id: string): Promise<ConsumerView | null> {
@@ -314,20 +315,23 @@ export const DELIVERY_PAGE_MAX = 100;
 
 /**
  * A Consumer's Deliveries, newest event first, paged `before` an event's
- * Sequence; or every Delivery of one Business Event. Narrowed by state.
+ * Sequence; or every Delivery of one Business Event. Narrowed by state, and
+ * kept to the Consumers of these kinds — those the caller may see.
  */
 export async function listDeliveries(
   db: AppDb,
+  kinds: readonly string[],
   query: ({ consumerId: string; eventId?: undefined } | { eventId: string; consumerId?: undefined }) & { state?: DeliveryState; before?: number; limit: number },
 ): Promise<{ deliveries: DeliveryView[]; next: number | null }> {
   const limit = Math.min(Math.max(1, Math.trunc(query.limit)), DELIVERY_PAGE_MAX);
-  const where: SQL[] = [query.consumerId !== undefined ? eq(eventDeliveries.consumerId, query.consumerId) : eq(businessEvents.id, query.eventId)];
+  const where: SQL[] = [query.consumerId !== undefined ? eq(eventDeliveries.consumerId, query.consumerId) : eq(businessEvents.id, query.eventId), inArray(eventConsumers.kind, [...kinds])];
   if (query.state) where.push(eq(eventDeliveries.state, query.state));
   if (query.before !== undefined) where.push(lt(businessEvents.seq, query.before));
   const rows = await db
     .select(deliveryView)
     .from(eventDeliveries)
     .innerJoin(businessEvents, eq(businessEvents.seq, eventDeliveries.eventSeq))
+    .innerJoin(eventConsumers, eq(eventConsumers.id, eventDeliveries.consumerId))
     .where(and(...where))
     .orderBy(desc(businessEvents.seq), eventDeliveries.consumerId)
     .limit(limit + 1)

@@ -1,19 +1,81 @@
 /**
- * WhatsApp Widget routes — the storefront's contact handoff: the number, what
- * the chat panel shows, and which pages the launcher appears on.
- * See report-md/WHATSAPP_WIDGET_PLAN.md. Built with defineRoute().
+ * The WhatsApp button App: the storefront's contact handoff — the number, what
+ * the chat panel shows, and which pages the button appears on (a Storefront
+ * Add-on). The storefront reads it as `whatsapp` in `/store/config`.
  */
 
 import { OpenAPIHono, z } from "@hono/zod-openapi";
+import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
-import { SCOPES } from "../../../../cod-shared/rbac/scopes";
+import { ValidationError } from "@/lib/errors/classes";
 import { StoreWhatsAppWidgetSchema } from "@/openapi/schemas";
-import * as h from "./handlers";
+import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
+import { SCOPES } from "../../../../cod-shared/rbac/scopes";
+import { saveWhatsAppWidgetConfig } from "../../../../cod-shared/queries/whatsapp-widget";
+import {
+  WIDGET_ACCENTS,
+  WIDGET_LIMITS,
+  WIDGET_POSITIONS,
+  WIDGET_PREFILL_TOKENS,
+  WIDGET_SURFACE_KEYS,
+  WIDGET_SURFACES,
+  WIDGET_TEXT_FIELDS,
+  parseWhatsAppWidgetConfig,
+  resolveStorefrontWidget,
+  serializeWhatsAppWidgetConfig,
+  type WhatsAppWidgetConfig,
+} from "../../../../cod-shared/whatsapp-widget/config";
+import { validateWhatsAppWidgetInput } from "../../../../cod-shared/whatsapp-widget/validate";
+import { jsonContent, storeOf } from "./shared";
 
-const jsonContent = <T extends z.ZodType>(schema: T) => ({
-  "application/json": { schema },
-});
+/**
+ * The server's own rules, travelling with the config so the dashboard renders
+ * its editor from them rather than keeping a second copy. A cap changed here
+ * changes the UI on the next load, with no client deploy.
+ */
+const CAPABILITIES = {
+  textFields: WIDGET_TEXT_FIELDS,
+  surfaces: WIDGET_SURFACES,
+  surfaceOrder: WIDGET_SURFACE_KEYS,
+  accents: WIDGET_ACCENTS,
+  positions: WIDGET_POSITIONS,
+  prefillTokens: WIDGET_PREFILL_TOKENS,
+  limits: WIDGET_LIMITS,
+} as const;
+
+/**
+ * The config, plus what the storefront would actually render from it.
+ *
+ * `preview` is the same projection `/store/config` serves, so the dashboard's
+ * preview cannot drift from the shop window: if the widget will not render,
+ * the merchant sees null here and the screen says why. It is not a second
+ * opinion — it is the same function.
+ */
+function payload(config: WhatsAppWidgetConfig) {
+  return {
+    config,
+    preview: resolveStorefrontWidget(serializeWhatsAppWidgetConfig(config)),
+    capabilities: CAPABILITIES,
+  };
+}
+
+async function getWhatsAppButton(c: Context<AppContext>) {
+  const { store } = await storeOf(c);
+  return c.json({ success: true, data: payload(parseWhatsAppWidgetConfig(store.whatsappWidgetJson)) }, 200);
+}
+
+async function saveWhatsAppButton(c: Context<AppContext>) {
+  const { db, store } = await storeOf(c);
+  // The route body is deliberately loose: the button's own validator is the
+  // one definition of what is acceptable, and reports every problem at once.
+  const result = validateWhatsAppWidgetInput((c.req as any).valid("json"));
+  if (!result.ok) {
+    throw new ValidationError(result.issues[0].message, ERROR_CODES.VALIDATION_FAILED, { issues: result.issues });
+  }
+  const config = await saveWhatsAppWidgetConfig(db, store.id, result.config);
+  return c.json({ success: true, data: payload(config) }, 200);
+}
 
 const SurfacesSchema = z
   .object({
@@ -25,7 +87,7 @@ const SurfacesSchema = z
     checkout: z.boolean(),
     landing: z.boolean(),
   })
-  .openapi("WhatsAppWidgetSurfaces", {
+  .openapi("WhatsAppButtonSurfaces", {
     description:
       "Which kinds of storefront page the launcher appears on. A fixed registry rather " +
       "than URL patterns, and every surface off is a valid paused state.",
@@ -51,7 +113,7 @@ const ConfigSchema = z
     attention: z.boolean(),
     surfaces: SurfacesSchema,
   })
-  .openapi("WhatsAppWidgetConfig");
+  .openapi("WhatsAppButtonConfig");
 
 /**
  * The request body is documented, not re-validated.
@@ -67,9 +129,9 @@ const ConfigSchema = z
  */
 const ConfigInputSchema = z
   .record(z.string(), z.unknown())
-  .openapi("WhatsAppWidgetConfigInput", {
+  .openapi("WhatsAppButtonConfigInput", {
     description:
-      "A widget document. Same shape as WhatsAppWidgetConfig, with every key optional — " +
+      "The button's setup. Same shape as WhatsAppButtonConfig, with every key optional — " +
       "an omitted key takes its default. `phone` is accepted in any form the merchant " +
       "knows (0551234567, 00213…, +213…, spaced) and stored normalised. Unknown keys, an " +
       "unreachable number, a non-https avatar and every text cap are refused, with each " +
@@ -116,51 +178,49 @@ const ResponseSchema = z.object({
   }),
 });
 
-const getWhatsAppWidgetRoute = defineRoute({
+const getRoute = defineRoute({
   method: "get",
-  path: "/",
-  auth: { scope: SCOPES.WHATSAPP_WIDGET_READ },
-  tags: ["WhatsApp Widget"],
-  summary: "Get the WhatsApp widget configuration",
+  path: "/whatsapp-button",
+  auth: { scope: SCOPES.WHATSAPP_BUTTON_READ },
+  tags: ["Apps"],
+  summary: "Get the WhatsApp button App",
   description:
-    "The storefront's WhatsApp contact widget. A store that has never configured one gets " +
-    "the defaults, which are 'no widget' — nothing renders until a number is saved and the " +
-    "widget is switched on.",
-  operationId: "getWhatsAppWidget",
+    "The storefront's WhatsApp button. A store that never set it up gets the defaults, which are 'no button' — nothing renders until a number is saved and the button is switched on.",
+  operationId: "getWhatsAppButtonApp",
   responses: {
-    200: { description: "The current configuration", content: jsonContent(ResponseSchema) },
+    200: { description: "Its setup", content: jsonContent(ResponseSchema) },
   },
-  handler: h.getWhatsAppWidget,
+  handler: getWhatsAppButton,
 });
 
-const putWhatsAppWidgetRoute = defineRoute({
+const saveRoute = defineRoute({
   method: "put",
-  path: "/",
-  auth: { scope: SCOPES.WHATSAPP_WIDGET_MANAGE },
-  tags: ["WhatsApp Widget"],
-  summary: "Replace the WhatsApp widget configuration",
+  path: "/whatsapp-button",
+  auth: { scope: SCOPES.WHATSAPP_BUTTON_MANAGE },
+  tags: ["Apps"],
+  summary: "Set up the WhatsApp button App",
   description: `Replaces the whole configuration — a key you omit takes its default rather than keeping the stored value, so what the screen shows is what the store gets.
 
 **The number is normalised here, once.** Send it however the merchant typed it; it is stored in E.164 and every reader downstream sees the same string.
 
-**Switching the widget on without a number is refused** (\`PHONE_REQUIRED\`): it would leave the merchant looking at an "on" switch and a storefront with no widget.
+**Switching the button on without a number is refused** (\`PHONE_REQUIRED\`): it would leave the merchant looking at an "on" switch and a storefront with no button.
 
 **Unknown keys are refused** rather than ignored, so a typo cannot silently vanish. Every problem is reported at once in \`context.issues\`.
 
-Saving the defaults clears the stored configuration entirely (the column goes back to NULL), which is also the documented rollback for the feature.
+Saving the defaults clears the stored configuration entirely, as removing the App does.
 
 Turning every surface off is accepted — it is a deliberate "paused" state and keeps the merchant's text.`,
-  operationId: "putWhatsAppWidget",
+  operationId: "saveWhatsAppButtonApp",
   body: ConfigInputSchema,
   responses: {
-    200: { description: "The saved configuration", content: jsonContent(ResponseSchema) },
-    400: { description: "The configuration was refused — see `context.issues`" },
+    200: { description: "Its setup", content: jsonContent(ResponseSchema) },
+    400: { description: "The setup was refused — see `context.issues`" },
   },
-  handler: h.putWhatsAppWidget,
+  handler: saveWhatsAppButton,
 });
 
 const router = new OpenAPIHono<AppContext>();
-router.openapi(getWhatsAppWidgetRoute.route, getWhatsAppWidgetRoute.handler);
-router.openapi(putWhatsAppWidgetRoute.route, putWhatsAppWidgetRoute.handler);
+router.openapi(getRoute.route, getRoute.handler);
+router.openapi(saveRoute.route, saveRoute.handler);
 
 export default router;

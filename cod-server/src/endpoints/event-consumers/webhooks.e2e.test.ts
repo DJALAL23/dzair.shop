@@ -170,16 +170,46 @@ describe("adding a webhook", () => {
     expect(await d1.db.select().from(schema.eventConsumers).all()).toHaveLength(2);
   });
 
-  it("needs settings:integrations", async () => {
+  it("needs integrations:manage, and integrations:read to see them", async () => {
     role = "staff";
-    scopes = ["orders:read"];
+    scopes = ["orders:read", "settings:integrations"];
     expect((await create()).status).toBe(403);
+    expect((await call("GET", "/api/event-consumers")).status).toBe(403);
+
+    scopes = ["integrations:read"];
+    expect((await create()).status).toBe(403);
+    expect((await call("GET", "/api/event-consumers")).body.data).toEqual([]);
+
+    scopes = ["integrations:read", "integrations:manage"];
+    const { status, body } = await create();
+    expect(status).toBe(201);
+    const id = body.data.consumer.id;
+    expect((await call("GET", "/api/event-consumers")).body.data.map((c: { id: string }) => c.id)).toEqual([id]);
+    expect((await call("POST", `/api/event-consumers/${id}/rotate-secret`)).status).toBe(200);
+
+    scopes = ["integrations:read"];
+    for (const [method, path, payload] of [
+      ["PATCH", `/api/event-consumers/${id}`, { enabled: false }], ["POST", `/api/event-consumers/${id}/rotate-secret`],
+      ["POST", `/api/event-consumers/${id}/test`, {}], ["DELETE", `/api/event-consumers/${id}`],
+    ] as const) expect((await call(method, path, payload)).status, `${method} ${path}`).toBe(403);
+  });
+
+  it("keeps Meta conversions to the Meta App's permissions", async () => {
+    role = "staff";
+    scopes = ["integrations:read", "integrations:manage"];
+    expect((await call("GET", "/api/event-consumers/meta-conversions")).status).toBe(404);
+    expect((await call("PATCH", "/api/event-consumers/meta-conversions", { enabled: false })).status).toBe(404);
+    expect((await call("DELETE", "/api/event-consumers/meta-conversions")).status).toBe(404);
+
+    scopes = ["meta:read", "integrations:manage"];
     expect((await call("PATCH", "/api/event-consumers/meta-conversions", { enabled: false })).status).toBe(403);
-    expect((await call("POST", "/api/event-consumers/meta-conversions/rotate-secret")).status).toBe(403);
-    expect((await call("POST", "/api/event-consumers/meta-conversions/test", {})).status).toBe(403);
     expect((await call("DELETE", "/api/event-consumers/meta-conversions")).status).toBe(403);
-    scopes = ["settings:integrations"];
-    expect((await create()).status).toBe(201);
+
+    scopes = ["meta:read", "meta:manage"];
+    expect((await call("GET", "/api/event-consumers")).body.data.map((c: { id: string }) => c.id)).toEqual(["meta-conversions"]);
+    expect((await call("PATCH", "/api/event-consumers/meta-conversions", { enabled: false })).status).toBe(200);
+    expect((await create()).status).toBe(403);
+    expect((await call("DELETE", "/api/event-consumers/meta-conversions")).status).toBe(403);
   });
 });
 

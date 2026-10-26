@@ -400,7 +400,7 @@ const saveLandingPageTrackingRoute = defineRoute({
   auth: { scope: SCOPES.LANDING_PAGES_MANAGE },
   tags: ["Landing Pages"],
   summary: "Save landing page tracking",
-  description: `Give this page its own pixel, REPLACING the store's for its visitors and for the orders attributed to it — never adding to it. Takes effect only while the store's per-page tracking switch is on (Settings → Tracking).
+  description: `Give this page its own pixel, REPLACING the store's for its visitors and for the orders attributed to it — never adding to it. Takes effect only while the Meta App's per-page tracking switch is on (the Meta App's page).
 
 **\`accessToken\`** is required when creating the override and optional afterwards: an empty value keeps the stored token, because the dashboard only ever holds a masked hint.
 

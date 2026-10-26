@@ -3,8 +3,8 @@
 # grant/revoke scopes, rotate API keys, or read settings? Expected: 403.
 ep GET    "/api/stores/me"                         ADMIN_ONLY
 ep PATCH  "/api/stores/me"                         ADMIN_ONLY             '{}'
-ep GET    "/api/stores/pixel-config"               ADMIN_ONLY
-ep POST   "/api/stores/pixel-config"               ADMIN_ONLY             '{}'
+ep GET    "/api/apps/meta"                         ADMIN_ONLY
+ep PUT    "/api/apps/meta"                         ADMIN_ONLY             '{}'
 ep GET    "/api/users"                             ADMIN_ONLY
 ep POST   "/api/users"                             ADMIN_ONLY             '{}'
 ep GET    "/api/users/{id}"                        ADMIN_ONLY

@@ -108,7 +108,7 @@ persona_scope() {
     s-stock-manage)            echo "stock:manage" ;;
     s-settings-view)           echo "settings:view" ;;
     s-settings-team)           echo "settings:team" ;;
-    s-settings-integrations)   echo "settings:integrations" ;;
+    s-integrations-manage)     echo "integrations:manage" ;;
     s-settings-notifications)  echo "settings:notifications" ;;
     s-reviews-read)            echo "reviews:read" ;;
     s-reviews-manage)          echo "reviews:manage" ;;

@@ -158,7 +158,7 @@ describe("who may read it", () => {
   });
 
   it("no one else", async () => {
-    scopes = ["products:read", "settings:integrations"];
+    scopes = ["products:read", "integrations:read"];
     expect((await get("/api/events")).status).toBe(403);
     expect((await get("/api/events/evt_1")).status).toBe(403);
   });
