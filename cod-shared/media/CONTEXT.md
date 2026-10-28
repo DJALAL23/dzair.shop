@@ -13,8 +13,9 @@ One file the store keeps to show, recorded as one row in `media`.
 _Avoid_: Asset, image object, upload
 
 **Media Key**:
-A file's identity, and the only thing stored where it is used:
-`<folder>/<32 hex>.<ext>`. Rich text holds it as `media:<key>`.
+A file's identity, and the only thing stored where it is used: a path the
+server chose under one of the store's folders — `products/`, `landing/`,
+`reviews/`. Rich text holds it as `media:<key>`.
 _Avoid_: R2 key, path, filename, URL
 
 **Pending**:

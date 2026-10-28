@@ -60,6 +60,8 @@ function storeRow(overrides: Record<string, any> = {}) {
     reviewVoiceMaxSeconds: null,
     reviewAutoPublish: "text_only" as const,
     shippingLabelJson: null,
+    logoKey: null,
+    ogImageKey: null,
     ...overrides,
   };
 }

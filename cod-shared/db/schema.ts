@@ -5,6 +5,7 @@ import { HANDOFF_STATES, SETTLEMENT_COMPONENTS, SHIPMENT_EVENT_SOURCES, SHIPMENT
 import { INTERPRETATION_KIND_VALUES, MILESTONES } from "../shipments/interpretation";
 import { CARRIER_PROVIDERS } from "../carriers/providers";
 import { REVIEW_AUTO_PUBLISH, REVIEW_MEDIA_KINDS, REVIEW_SOURCES, REVIEW_STATUSES } from "../reviews/model";
+import { MEDIA_HOSTS, MEDIA_KINDS, MEDIA_STATUSES } from "../media/model";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
 import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
@@ -553,6 +554,8 @@ export const productCategories = sqliteTable("product_categories", {
   position: integer("position").notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  /** The image's Media Key (migration 0068). Replaces `image_url`, dropped by migration 0069. */
+  imageKey: text("image_key"),
 });
 
 export const products = sqliteTable("products", {
@@ -640,6 +643,8 @@ export const productImages = sqliteTable("product_images", {
   position: integer("position").notNull().default(1),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  /** The image's Media Key (migration 0068). Replaces `src`, `r2_key` and the `src_*` columns, dropped by migration 0069. */
+  mediaKey: text("media_key"),
 });
 
 /** Status lifecycle value for orders — derived from the column enum. */
@@ -958,6 +963,12 @@ export const stores = sqliteTable("stores", {
    * positional mock-db reason above.
    */
   shippingLabelJson: text("shipping_label_json"),
+
+  // ── Media keys (appended by migration 0068, ADR 0021) ─────────────────────
+  /** The logo's Media Key. Replaces `logo_url`, dropped by migration 0069. */
+  logoKey: text("logo_key"),
+  /** The share image's Media Key. Replaces `og_image`, dropped by migration 0069. */
+  ogImageKey: text("og_image_key"),
 });
 
 /**
@@ -1259,8 +1270,11 @@ export const reviewMedia = sqliteTable("review_media", {
   durationMs: integer("duration_ms"),
   position: integer("position").notNull().default(0),
   createdAt: text("created_at").notNull(),
+  /** The file's Media Key (migration 0068). Replaces `r2_key`, dropped by migration 0069. */
+  mediaKey: text("media_key"),
 }, (t) => ({
   reviewIdx: index("idx_review_media_review").on(t.reviewId, t.position),
+  mediaKeyUnique: uniqueIndex("idx_review_media_media_key").on(t.mediaKey),
 }));
 
 // ─── Activity Logs ────────────────────────────────────────────────────────────
@@ -1595,7 +1609,36 @@ export const landingPageImages = sqliteTable("landing_page_images", {
   width: integer("width"),
   height: integer("height"),
   createdAt: text("created_at").notNull(),
+  /** The image's Media Key (migration 0068). Replaces `r2_key` and `src`, dropped by migration 0069. */
+  mediaKey: text("media_key"),
 });
+
+// ─── Media (migration 0068, ADR 0021) ────────────────────────────────────────
+
+/**
+ * One file the store keeps to show (cod-shared/media). Tables and documents
+ * that show it hold only its `key`; its bytes are on `host`. Pending until the
+ * host confirms the upload; nothing attaches a pending key. No foreign key
+ * points here: keys also live in JSON and HTML, so every reference is checked
+ * one way (`queries/image-references.ts`).
+ */
+export const media = sqliteTable("media", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  host: text("host", { enum: MEDIA_HOSTS }).notNull(),
+  /** The host's own id for the file (ImageKit's `fileId`); null on R2. */
+  hostRef: text("host_ref"),
+  kind: text("kind", { enum: MEDIA_KINDS }).notNull(),
+  contentType: text("content_type").notNull(),
+  bytes: integer("bytes"),
+  width: integer("width"),
+  height: integer("height"),
+  status: text("status", { enum: MEDIA_STATUSES }).notNull(),
+  createdAt: text("created_at").notNull(),
+  readyAt: text("ready_at"),
+}, (t) => ({
+  statusIdx: index("idx_media_status_created").on(t.status, t.createdAt),
+}));
 
 // `dashboard_brand` (migrations 0000 and 0008) is dropped by migration 0064:
 // the dashboard never showed its values.

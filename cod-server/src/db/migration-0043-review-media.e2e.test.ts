@@ -29,7 +29,7 @@ beforeAll(async () => {
     "INSERT INTO reviews (id, store_id, product_id, order_id, order_number, customer_name, rating, body, created_at, updated_at) VALUES ('rN', 's1', 'p1', 'oN', 'ORD-N', 'Karim', 2, 'Pas encore reçue', ?1, ?1)",
   ];
   for (const sql of seed) await run(sql, T);
-  await d1.applyRemaining();
+  await d1.applyRemaining({ until: "0044" });
 }, 120_000);
 
 afterAll(async () => {

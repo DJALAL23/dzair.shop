@@ -20,7 +20,7 @@ beforeAll(async () => {
     .bind(T)
     .run();
   [before] = await all("select * from stores");
-  await d1.applyRemaining();
+  await d1.applyRemaining({ until: "0058" });
 }, 120_000);
 
 afterAll(async () => {

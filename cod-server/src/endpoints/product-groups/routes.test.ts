@@ -44,6 +44,7 @@ function categoryRow(overrides: Record<string, any> = {}) {
     position: 0,
     createdAt: NOW,
     updatedAt: NOW,
+    imageKey: null,
     ...overrides,
   };
 }
