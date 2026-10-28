@@ -22,7 +22,8 @@ import { parseImageDimensions } from "@/lib/image-dimensions";
 import { audioDurationMs } from "./audio-duration";
 import type { ReviewMediaJob, ReviewMediaUpload } from "./job";
 import { reviewMedia, reviews } from "../../../../cod-shared/db/schema";
-import { photoKeys, sniffMedia, voiceKey, type VoiceContentType } from "../../../../cod-shared/reviews/media";
+import { photoKeys, voiceKey, type VoiceContentType } from "../../../../cod-shared/reviews/media";
+import { sniffMedia } from "../../../../cod-shared/media/keys";
 import { REVIEW_PHOTO_MAX_BYTES, VOICE_DURATION_TOLERANCE_MS, voiceMaxBytes } from "../../../../cod-shared/reviews/policy";
 import type { ReviewMediaKind, ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
 

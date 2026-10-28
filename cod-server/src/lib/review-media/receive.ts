@@ -7,7 +7,9 @@
  */
 import { BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-import { newMediaId, sniffMedia, uploadKey, uploadPrefix } from "../../../../cod-shared/reviews/media";
+import { newMediaId, uploadKey, uploadPrefix } from "../../../../cod-shared/reviews/media";
+import { sniffMedia } from "../../../../cod-shared/media/keys";
+import { readCapped } from "../../../../cod-shared/media/stream";
 import { REVIEW_PHOTO_MAX_BYTES, voiceMaxBytes } from "../../../../cod-shared/reviews/policy";
 import type { ReviewMediaKind, ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
 
@@ -22,30 +24,6 @@ export interface ReceivedFile {
   uploadId: string;
   kind: ReviewMediaKind;
   bytes: number;
-}
-
-/** Reads at most `cap` bytes; null when the body is larger. */
-async function readCapped(body: ReadableStream<Uint8Array>, cap: number): Promise<Uint8Array | null> {
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > cap) {
-      await reader.cancel().catch(() => {});
-      return null;
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(size);
-  let at = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, at);
-    at += chunk.byteLength;
-  }
-  return bytes;
 }
 
 export async function receiveFile(

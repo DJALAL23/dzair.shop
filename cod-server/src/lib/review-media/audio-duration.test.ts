@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { sniffMedia } from "../../../../cod-shared/reviews/media";
+import { sniffMedia } from "../../../../cod-shared/media/keys";
 import { audioDurationMs } from "./audio-duration";
 
 function box(type: string, body: Uint8Array): Uint8Array {

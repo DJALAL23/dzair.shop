@@ -1,12 +1,13 @@
 import { getTableName, like, sql, type Column } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { AppDb } from "../db/client";
+import type { AppDb, StoreDb } from "../db/client";
 import {
   landingPageImages,
   pageDocuments,
   productCategories,
   productImages,
   products,
+  reviewMedia,
   storeContentOverrides,
   storePageTranslations,
   storeThemeSettings,
@@ -49,6 +50,14 @@ export const IMAGE_REFERENCE_SOURCES: ReadonlyArray<{ table: SQLiteTable; column
   { table: stores, column: stores.ogImage },
   { table: landingPageImages, column: landingPageImages.r2Key },
   { table: landingPageImages, column: landingPageImages.src },
+  { table: productImages, column: productImages.mediaKey },
+  { table: landingPageImages, column: landingPageImages.mediaKey },
+  { table: productCategories, column: productCategories.imageKey },
+  { table: stores, column: stores.logoKey },
+  { table: stores, column: stores.ogImageKey },
+  { table: reviewMedia, column: reviewMedia.mediaKey },
+  { table: reviewMedia, column: reviewMedia.thumbKey },
+  { table: reviewMedia, column: reviewMedia.r2Key },
 ];
 
 /**
@@ -70,7 +79,7 @@ export async function collectReferencedImageKeys(db: AppDb): Promise<Set<string>
  * The keys, among `keys`, that stored data still shows somewhere — one query,
  * whatever the number of keys. What is not returned is safe to delete.
  */
-export async function stillReferencedImageKeys(db: AppDb, keys: readonly string[]): Promise<Set<string>> {
+export async function stillReferencedImageKeys(db: StoreDb, keys: readonly string[]): Promise<Set<string>> {
   if (keys.length === 0) return new Set();
   const used = sql.join(
     IMAGE_REFERENCE_SOURCES.map(({ table, column }) => {
@@ -79,6 +88,6 @@ export async function stillReferencedImageKeys(db: AppDb, keys: readonly string[
     }),
     sql` or `,
   );
-  const rows = await db.all<{ key: string }>(sql`select k.value as key from json_each(${JSON.stringify([...new Set(keys)])}) k where ${used}`);
-  return new Set(rows.map((row) => row.key));
+  const rows = await db.values<[string]>(sql`select k.value from json_each(${JSON.stringify([...new Set(keys)])}) k where ${used}`);
+  return new Set(rows.map(([key]) => key));
 }

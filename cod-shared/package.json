@@ -5,6 +5,7 @@
   "description": "Shared drizzle schema, queries, RBAC, and errors consumed by cod-server and cod-client-astro. Not published — imported via relative path.",
   "type": "module",
   "dependencies": {
+    "aws4fetch": "1.0.20",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
