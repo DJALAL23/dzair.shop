@@ -246,7 +246,7 @@ export async function getStoreConfig(
     // number that no longer normalises. The theme holds one rule about this
     // feature: render it, or don't. Costs no extra query: the column rides the
     // store row this function already selected in full.
-    whatsapp: resolveStorefrontWidget(whatsappWidgetJson),
+    whatsapp: resolveStorefrontWidget(whatsappWidgetJson, delivery),
     pixelId: tracking.pixelId,
     conversionEvent: tracking.conversionEvent,
     pages,

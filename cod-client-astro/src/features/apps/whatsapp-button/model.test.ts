@@ -16,7 +16,7 @@ const SAVED_CONFIG: WhatsAppWidgetConfig = {
   phone: "+213551234567",
   agentName: "Amine",
   caption: "Replies in minutes",
-  avatarUrl: "https://example.com/avatar.jpg",
+  avatarKey: "products/avatar.webp",
   welcomeMessage: "Hello!",
   launcherLabel: "Chat with us",
   ctaLabel: "Open WhatsApp",
@@ -42,7 +42,7 @@ describe("toDraft and toPayload round-trip", () => {
     expect(draft.phone).toBe("");
     expect(draft.agentName).toBe("");
     expect(draft.caption).toBe("");
-    expect(draft.avatarUrl).toBe("");
+    expect(draft.avatar).toBeNull();
     expect(draft.welcomeMessage).toBe("");
     expect(draft.launcherLabel).toBe("");
     expect(draft.ctaLabel).toBe("");
@@ -56,7 +56,7 @@ describe("toDraft and toPayload round-trip", () => {
     expect(payload.phone).toBeNull();
     expect(payload.agentName).toBeNull();
     expect(payload.caption).toBeNull();
-    expect(payload.avatarUrl).toBeNull();
+    expect(payload.avatarKey).toBeNull();
   });
 
   it("trims whitespace from text fields when constructing payload", () => {
@@ -161,13 +161,27 @@ describe("validateDraft (save blockers)", () => {
     expect(blockers).toEqual([{ field: "agentName", message: "agent_name_too_long" }]);
   });
 
-  it("blocks saving when avatarUrl is http instead of https", () => {
-    const draft: WhatsAppWidgetDraft = {
-      ...toDraft(SAVED_CONFIG),
-      avatarUrl: "http://insecure.com/pic.jpg",
-    };
-    const blockers = validateDraft(draft);
-    expect(blockers).toEqual([{ field: "avatarUrl", message: "avatar_url_https_only" }]);
+});
+
+describe("the avatar", () => {
+  const AVATAR_URL = "https://ik.imagekit.io/acct/products/avatar.webp";
+
+  it("shows the saved avatar at its URL and saves it by its key", () => {
+    const draft = toDraft(SAVED_CONFIG, undefined, AVATAR_URL);
+    expect(draft.avatar).toEqual({ key: "products/avatar.webp", url: AVATAR_URL });
+    expect(toPayload(draft).avatarKey).toBe("products/avatar.webp");
+    expect(resolveDraftPreview(draft)?.avatarUrl).toBe(AVATAR_URL);
+    expect(isDirty(draft, SAVED_CONFIG)).toBe(false);
+  });
+
+  it("saves a new upload by its key, and a removal as none", () => {
+    const uploaded = { ...toDraft(SAVED_CONFIG, undefined, AVATAR_URL), avatar: { key: "products/new.webp", url: "https://ik.imagekit.io/acct/products/new.webp" } };
+    expect(toPayload(uploaded).avatarKey).toBe("products/new.webp");
+    expect(isDirty(uploaded, SAVED_CONFIG)).toBe(true);
+
+    const removed = { ...toDraft(SAVED_CONFIG, undefined, AVATAR_URL), avatar: null };
+    expect(toPayload(removed).avatarKey).toBeNull();
+    expect(isDirty(removed, SAVED_CONFIG)).toBe(true);
   });
 });
 

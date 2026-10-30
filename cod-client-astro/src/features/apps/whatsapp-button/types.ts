@@ -20,7 +20,7 @@ export interface WhatsAppWidgetConfig {
   phone: string | null;
   agentName: string | null;
   caption: string | null;
-  avatarUrl: string | null;
+  avatarKey: string | null;
   welcomeMessage: string | null;
   launcherLabel: string | null;
   ctaLabel: string | null;
@@ -62,6 +62,8 @@ export interface WhatsAppWidgetCapabilities {
 
 export interface WhatsAppWidgetResponse {
   config: WhatsAppWidgetConfig;
+  /** Where browsers fetch the saved avatar. */
+  avatarUrl: string | null;
   preview: StorefrontWhatsAppPreview | null;
   capabilities: WhatsAppWidgetCapabilities;
 }
@@ -71,7 +73,8 @@ export interface WhatsAppWidgetDraft {
   phone: string;
   agentName: string;
   caption: string;
-  avatarUrl: string;
+  /** An uploaded image: its key is saved, its URL shown. */
+  avatar: { key: string; url: string } | null;
   welcomeMessage: string;
   launcherLabel: string;
   ctaLabel: string;

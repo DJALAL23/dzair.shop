@@ -21,7 +21,7 @@ import {
 } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
-import { uploadFailure } from "@/features/uploads/api";
+import { ACCEPTED_IMAGE_TYPES, uploadFailure } from "@/features/uploads/api";
 import { useImageUpload } from "@/features/uploads/useImageUpload";
 import { getWhatsAppButtonApp, saveWhatsAppButtonApp } from "@/features/apps/whatsapp-button/api";
 import type { AppBodyProps } from "@/features/apps/types";
@@ -36,8 +36,8 @@ import {
 import type {
   SaveBlocker,
   WhatsAppWidgetCapabilities,
-  WhatsAppWidgetConfig,
   WhatsAppWidgetDraft,
+  WhatsAppWidgetResponse,
   WhatsAppWidgetSurfaces,
 } from "@/features/apps/whatsapp-button/types";
 
@@ -46,7 +46,7 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
   const t = useT("whatsapp");
   const common = useT("common");
 
-  const [saved, setSaved] = useState<WhatsAppWidgetConfig | null>(null);
+  const [saved, setSaved] = useState<Pick<WhatsAppWidgetResponse, "config" | "avatarUrl"> | null>(null);
   const [capabilities, setCapabilities] = useState<WhatsAppWidgetCapabilities | null>(null);
   const [draft, setDraft] = useState<WhatsAppWidgetDraft | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
@@ -72,10 +72,10 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
   async function load() {
     setLoadError(null);
     try {
-      const { config, capabilities: caps } = await getWhatsAppButtonApp();
-      setSaved(config);
+      const { config, avatarUrl, capabilities: caps } = await getWhatsAppButtonApp();
+      setSaved({ config, avatarUrl });
       setCapabilities(caps);
-      setDraft(toDraft(config, getDefaults()));
+      setDraft(toDraft(config, getDefaults(), avatarUrl));
     } catch (cause) {
       setLoadError(cause);
     }
@@ -113,7 +113,7 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
   // Capabilities & limits read directly from the API response
   const limits = capabilities.limits;
   const blockers: SaveBlocker[] = validateDraft(draft, capabilities);
-  const dirty = isDirty(draft, saved);
+  const dirty = isDirty(draft, saved.config);
   const phonePreview = getPhonePreview(draft.phone);
 
   function patch(next: Partial<WhatsAppWidgetDraft>) {
@@ -150,7 +150,7 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
     if (!file) return;
     try {
       const uploaded = await uploadAvatar(file);
-      patch({ avatarUrl: uploaded.url });
+      patch({ avatar: { key: uploaded.key, url: uploaded.url } });
     } catch (cause) {
       notify.error(common(`feedback.${uploadFailure(cause)}`));
     } finally {
@@ -162,10 +162,10 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
     if (!draft || blockers.length > 0) return;
     setSaving(true);
     try {
-      const { config, capabilities: caps } = await saveWhatsAppButtonApp(toPayload(draft) as unknown as Record<string, unknown>);
-      setSaved(config);
+      const { config, avatarUrl, capabilities: caps } = await saveWhatsAppButtonApp(toPayload(draft) as unknown as Record<string, unknown>);
+      setSaved({ config, avatarUrl });
       setCapabilities(caps);
-      setDraft(toDraft(config, getDefaults()));
+      setDraft(toDraft(config, getDefaults(), avatarUrl));
       notify.success(t("saved_toast"));
       onSaved();
     } catch (cause: any) {
@@ -228,9 +228,9 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
       <Card title={t("identity_title")} help={t("identity_subtitle")}>
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            {draft.avatarUrl ? (
+            {draft.avatar ? (
               <div className="size-12 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
-                <img src={draft.avatarUrl} alt="" className="size-full object-cover" />
+                <img src={draft.avatar.url} alt="" className="size-full object-cover" />
               </div>
             ) : (
               <div className="grid size-12 shrink-0 place-items-center rounded-full border border-dashed border-border bg-muted text-muted-foreground">
@@ -245,7 +245,7 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept={ACCEPTED_IMAGE_TYPES.join(",")}
                 className="hidden"
                 onChange={(e) => void handleAvatarFileSelect(e)}
               />
@@ -260,8 +260,8 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
                   {uploadProgress !== null ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
                   {t("avatar_upload")}
                 </Button>
-                {draft.avatarUrl && (
-                  <Button type="button" variant="ghost" size="sm" disabled={!canManage} onClick={() => patch({ avatarUrl: "" })}>
+                {draft.avatar && (
+                  <Button type="button" variant="ghost" size="sm" disabled={!canManage} onClick={() => patch({ avatar: null })}>
                     <Trash2 size={13} />
                     {t("avatar_remove")}
                   </Button>
@@ -449,7 +449,7 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
           }
         >
           {dirty && (
-            <Button type="button" variant="secondary" onClick={() => setDraft(toDraft(saved, getDefaults()))} disabled={saving}>
+            <Button type="button" variant="secondary" onClick={() => setDraft(toDraft(saved.config, getDefaults(), saved.avatarUrl))} disabled={saving}>
               {t("reset")}
             </Button>
           )}

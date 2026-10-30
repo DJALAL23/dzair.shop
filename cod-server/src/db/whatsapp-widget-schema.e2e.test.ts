@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
+import { TEST_DELIVERY } from "@/test-utils/media";
 import { stores } from "@/db/schema";
 import {
   DEFAULT_WHATSAPP_WIDGET_CONFIG,
@@ -54,7 +55,7 @@ describe("stores.whatsapp_widget_json", () => {
     expect(parseWhatsAppWidgetConfig(await readColumn())).toEqual(
       DEFAULT_WHATSAPP_WIDGET_CONFIG,
     );
-    expect(resolveStorefrontWidget(await readColumn())).toBeNull();
+    expect(resolveStorefrontWidget(await readColumn(), TEST_DELIVERY)).toBeNull();
   });
 
   it("round-trips a real configuration through D1", async () => {
@@ -76,7 +77,7 @@ describe("stores.whatsapp_widget_json", () => {
     expect(parseWhatsAppWidgetConfig(await readColumn())).toEqual(config);
     // Arabic and the emoji survive the round trip — the storefront renders the
     // merchant's own words, so a mangled column is a mangled shop window.
-    const widget = resolveStorefrontWidget(await readColumn());
+    const widget = resolveStorefrontWidget(await readColumn(), TEST_DELIVERY);
     expect(widget?.href).toBe("https://wa.me/213551234567");
     expect(widget?.welcomeMessage).toBe("مرحبا 👋 كيفاش نعاونك؟");
     expect(widget?.surfaces.checkout).toBe(true);
@@ -86,7 +87,7 @@ describe("stores.whatsapp_widget_json", () => {
     await write(null);
 
     expect(await readColumn()).toBeNull();
-    expect(resolveStorefrontWidget(await readColumn())).toBeNull();
+    expect(resolveStorefrontWidget(await readColumn(), TEST_DELIVERY)).toBeNull();
   });
 
   it("keeps a store rendering when the column holds something unreadable", async () => {
@@ -95,7 +96,7 @@ describe("stores.whatsapp_widget_json", () => {
     expect(parseWhatsAppWidgetConfig(await readColumn())).toEqual(
       DEFAULT_WHATSAPP_WIDGET_CONFIG,
     );
-    expect(resolveStorefrontWidget(await readColumn())).toBeNull();
+    expect(resolveStorefrontWidget(await readColumn(), TEST_DELIVERY)).toBeNull();
 
     await write(null);
   });

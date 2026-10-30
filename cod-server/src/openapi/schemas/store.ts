@@ -438,7 +438,7 @@ export const StoreWhatsAppWidgetSchema = z
       example: "نرد خلال دقائق",
     }),
     avatarUrl: z.string().nullable().openapi({
-      description: "https only. Null means the theme falls back to the store logo.",
+      description: "The avatar's URL, from the store's Media Delivery. Null means the theme falls back to the store logo.",
     }),
     welcomeMessage: z.string().nullable(),
     launcherLabel: z.string().nullable().openapi({

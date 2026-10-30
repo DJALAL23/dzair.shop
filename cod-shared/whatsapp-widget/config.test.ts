@@ -19,6 +19,9 @@ import {
   toWhatsAppHref,
   type WhatsAppWidgetConfig,
 } from "./config";
+import type { MediaDelivery } from "../media/delivery";
+
+const DELIVERY: MediaDelivery = { kind: "imagekit", origin: "https://ik.imagekit.io/acct/stores/maysa" };
 
 function stored(overrides: Partial<WhatsAppWidgetConfig> = {}): string {
   return serializeWhatsAppWidgetConfig({
@@ -139,18 +142,22 @@ describe("parseWhatsAppWidgetConfig — switches absent from an older blob", () 
 });
 
 describe("parseWhatsAppWidgetConfig — avatar", () => {
-  it("keeps an https URL", () => {
-    const url = "https://media.example.com/agent.jpg";
-    expect(parseWhatsAppWidgetConfig(JSON.stringify({ avatarUrl: url })).avatarUrl).toBe(url);
+  it("keeps a Media Key", () => {
+    expect(parseWhatsAppWidgetConfig(JSON.stringify({ avatarKey: "products/agent.webp" })).avatarKey).toBe("products/agent.webp");
   });
 
   it.each([
-    "http://media.example.com/agent.jpg",
+    "https://media.example.com/agent.jpg",
     "javascript:alert(1)",
-    "data:image/png;base64,AAAA",
-    "not a url",
-  ])("drops %s — every shopper's browser would load it", (url) => {
-    expect(parseWhatsAppWidgetConfig(JSON.stringify({ avatarUrl: url })).avatarUrl).toBeNull();
+    "products/../secret",
+    "staging/reviews/agent.jpg",
+    42,
+  ])("drops %s — only one of the store's images is shown", (value) => {
+    expect(parseWhatsAppWidgetConfig(JSON.stringify({ avatarKey: value })).avatarKey).toBeNull();
+  });
+
+  it("drops an avatar stored as a URL, before keys", () => {
+    expect(parseWhatsAppWidgetConfig(JSON.stringify({ avatarUrl: "https://media.example.com/agent.jpg" })).avatarKey).toBeNull();
   });
 });
 
@@ -176,7 +183,7 @@ describe("toWhatsAppHref", () => {
 
 describe("resolveStorefrontWidget", () => {
   it("returns the widget when it is on and dialable", () => {
-    const widget = resolveStorefrontWidget(stored({ agentName: "Amine", attention: false }));
+    const widget = resolveStorefrontWidget(stored({ agentName: "Amine", attention: false }), DELIVERY);
     expect(widget).not.toBeNull();
     expect(widget?.href).toBe("https://wa.me/213551234567");
     expect(widget?.agentName).toBe("Amine");
@@ -184,23 +191,23 @@ describe("resolveStorefrontWidget", () => {
   });
 
   it("is null when the merchant switched it off", () => {
-    expect(resolveStorefrontWidget(stored({ enabled: false }))).toBeNull();
+    expect(resolveStorefrontWidget(stored({ enabled: false }), DELIVERY)).toBeNull();
   });
 
   it("is null when it is on but has no number", () => {
-    expect(resolveStorefrontWidget(stored({ phone: null }))).toBeNull();
+    expect(resolveStorefrontWidget(stored({ phone: null }), DELIVERY)).toBeNull();
   });
 
   it("is null when the stored number no longer normalises", () => {
-    expect(resolveStorefrontWidget(stored({ phone: "0211234567" }))).toBeNull();
+    expect(resolveStorefrontWidget(stored({ phone: "0211234567" }), DELIVERY)).toBeNull();
   });
 
   it("is null for an unconfigured store", () => {
-    expect(resolveStorefrontWidget(null)).toBeNull();
+    expect(resolveStorefrontWidget(null, DELIVERY)).toBeNull();
   });
 
   it("never exposes the raw phone — only the link built from it", () => {
-    const widget = resolveStorefrontWidget(stored());
+    const widget = resolveStorefrontWidget(stored(), DELIVERY);
     expect(widget).not.toHaveProperty("phone");
     expect(widget).not.toHaveProperty("enabled");
   });
@@ -210,7 +217,7 @@ describe("resolveStorefrontWidget", () => {
       stored({
         agentName: "Amine",
         caption: "Online",
-        avatarUrl: "https://media.example.com/a.jpg",
+        avatarKey: "products/a.webp",
         welcomeMessage: "Hi",
         launcherLabel: "Chat",
         ctaLabel: "Message us",
@@ -220,12 +227,13 @@ describe("resolveStorefrontWidget", () => {
         position: "left",
         attention: false,
       }),
+      DELIVERY,
     );
     expect(widget).toEqual({
       href: "https://wa.me/213551234567",
       agentName: "Amine",
       caption: "Online",
-      avatarUrl: "https://media.example.com/a.jpg",
+      avatarUrl: "https://ik.imagekit.io/acct/stores/maysa/products/a.webp",
       welcomeMessage: "Hi",
       launcherLabel: "Chat",
       ctaLabel: "Message us",
@@ -241,7 +249,7 @@ describe("resolveStorefrontWidget", () => {
   });
 
   it("carries the surface map the theme gates on", () => {
-    const widget = resolveStorefrontWidget(stored({ surfaces: { checkout: true } as never }));
+    const widget = resolveStorefrontWidget(stored({ surfaces: { checkout: true } as never }), DELIVERY);
     expect(widget?.surfaces.checkout).toBe(true);
     expect(widget?.surfaces.landing).toBe(false);
   });
@@ -257,7 +265,7 @@ describe("isDefaultWhatsAppWidgetConfig", () => {
     ["a number", { phone: "+213551234567" }],
     ["being on", { enabled: true }],
     ["a caption", { caption: "Online" }],
-    ["an avatar", { avatarUrl: "https://media.example.com/a.jpg" }],
+    ["an avatar", { avatarKey: "products/a.webp" }],
     ["the accent", { accent: "primary" as const }],
     ["the side", { position: "left" as const }],
     ["the pulse off", { attention: false }],
@@ -285,7 +293,7 @@ describe("serializeWhatsAppWidgetConfig", () => {
       phone: "+213551234567",
       agentName: "Amine",
       caption: "نرد خلال دقائق",
-      avatarUrl: "https://media.example.com/agent.jpg",
+      avatarKey: "products/agent.webp",
       welcomeMessage: "مرحبا 👋",
       launcherLabel: "تواصل معنا",
       ctaLabel: "راسلنا على واتساب",

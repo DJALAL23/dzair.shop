@@ -16,6 +16,7 @@ import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 import * as schema from "@/db/schema";
 import appsRouter from "./routes";
 import {
@@ -53,7 +54,7 @@ function staff(scopes: string[]) {
 function mountWith(scopes: string[]) {
   const instance = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   instance.use("*", async (c, next) => {
-    c.env = { DB: harness.raw } as never;
+    c.env = { DB: harness.raw, ...TEST_MEDIA_VARS } as never;
     signIn(c, staff(scopes));
     await next();
   });
@@ -191,10 +192,10 @@ describe("PUT — what is refused", () => {
     expect(json.context.issues[0]).toMatchObject({ path: "surfaces.blog", code: "UNKNOWN_KEY" });
   });
 
-  it("refuses an avatar the shopper's browser would block", async () => {
-    const { status, json } = await put({ ...ON, avatarUrl: "http://x.test/a.jpg" });
+  it("refuses an avatar that is not an uploaded image's key", async () => {
+    const { status, json } = await put({ ...ON, avatarKey: "http://x.test/a.jpg" });
     expect(status).toBe(400);
-    expect(json.context.issues[0].code).toBe("INVALID_AVATAR_URL");
+    expect(json.context.issues[0].code).toBe("INVALID_AVATAR_KEY");
   });
 
   it("refuses text past its cap", async () => {

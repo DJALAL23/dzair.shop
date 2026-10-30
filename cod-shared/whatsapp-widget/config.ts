@@ -27,6 +27,8 @@
  */
 
 import { normalizeAlgerianPhone } from "../lib/phone";
+import { mediaUrl, type MediaDelivery } from "../media/delivery";
+import { isMediaKey } from "../media/keys";
 
 // ─── Vocabulary ───────────────────────────────────────────────────────────────
 
@@ -61,7 +63,8 @@ export interface WhatsAppWidgetConfig {
   // ── Identity. Null means "the theme's own default", never an empty widget. ──
   agentName: string | null;
   caption: string | null;
-  avatarUrl: string | null;
+  /** The agent's photo, by its Media Key; the storefront receives its URL. */
+  avatarKey: string | null;
   // ── Text ──
   welcomeMessage: string | null;
   launcherLabel: string | null;
@@ -151,7 +154,6 @@ export type WidgetTextFieldKey = keyof typeof WIDGET_TEXT_FIELDS;
 export const WIDGET_TEXT_FIELD_KEYS = Object.keys(WIDGET_TEXT_FIELDS) as WidgetTextFieldKey[];
 
 export const WIDGET_LIMITS = {
-  MAX_AVATAR_URL_LENGTH: 500,
   /**
    * The hard cap on a prefilled message AFTER tokens resolve, before it is
    * encoded into the wa.me URL. Browsers and WhatsApp both truncate silently
@@ -182,7 +184,7 @@ export const DEFAULT_WHATSAPP_WIDGET_CONFIG: WhatsAppWidgetConfig = {
   phone: null,
   agentName: null,
   caption: null,
-  avatarUrl: null,
+  avatarKey: null,
   welcomeMessage: null,
   launcherLabel: null,
   ctaLabel: null,
@@ -226,23 +228,9 @@ function readText(raw: unknown, max: number): string | null {
   return trimmed.length > max ? trimmed.slice(0, max) : trimmed;
 }
 
-/**
- * An avatar is loaded by every shopper's browser, so a stored value that is
- * not a plain https URL is dropped rather than rendered. The write path
- * refuses the same thing; this is the backstop for a row nobody wrote through
- * the API.
- */
-function readAvatarUrl(raw: unknown): string | null {
-  const value = readText(raw, WIDGET_LIMITS.MAX_AVATAR_URL_LENGTH);
-  return value && isHttpsUrl(value) ? value : null;
-}
-
-export function isHttpsUrl(value: string): boolean {
-  try {
-    return new URL(value).protocol === "https:";
-  } catch {
-    return false;
-  }
+/** A stored avatar that is not a Media Key is dropped rather than rendered: the backstop for a row nobody wrote through the API. */
+function readAvatarKey(raw: unknown): string | null {
+  return isMediaKey(raw) ? raw : null;
 }
 
 function readEnum<T extends string>(raw: unknown, allowed: readonly T[], fallback: T): T {
@@ -290,7 +278,7 @@ export function parseWhatsAppWidgetConfig(
     phone: readText(raw.phone, 20),
     agentName: readText(raw.agentName, WIDGET_TEXT_FIELDS.agentName.max),
     caption: readText(raw.caption, WIDGET_TEXT_FIELDS.caption.max),
-    avatarUrl: readAvatarUrl(raw.avatarUrl),
+    avatarKey: readAvatarKey(raw.avatarKey),
     welcomeMessage: readText(raw.welcomeMessage, WIDGET_TEXT_FIELDS.welcomeMessage.max),
     launcherLabel: readText(raw.launcherLabel, WIDGET_TEXT_FIELDS.launcherLabel.max),
     ctaLabel: readText(raw.ctaLabel, WIDGET_TEXT_FIELDS.ctaLabel.max),
@@ -327,6 +315,7 @@ export function toWhatsAppHref(phone: string | null | undefined): string | null 
  */
 export function resolveStorefrontWidget(
   json: string | null | undefined,
+  delivery: MediaDelivery,
 ): StorefrontWhatsAppWidget | null {
   const config = parseWhatsAppWidgetConfig(json);
   if (!config.enabled) return null;
@@ -338,7 +327,7 @@ export function resolveStorefrontWidget(
     href,
     agentName: config.agentName,
     caption: config.caption,
-    avatarUrl: config.avatarUrl,
+    avatarUrl: config.avatarKey ? mediaUrl(config.avatarKey, delivery) : null,
     welcomeMessage: config.welcomeMessage,
     launcherLabel: config.launcherLabel,
     ctaLabel: config.ctaLabel,
@@ -370,7 +359,7 @@ export function isDefaultWhatsAppWidgetConfig(config: WhatsAppWidgetConfig): boo
     config.position === d.position &&
     config.attention === d.attention &&
     WIDGET_TEXT_FIELD_KEYS.every((key) => config[key] === d[key]) &&
-    config.avatarUrl === d.avatarUrl &&
+    config.avatarKey === d.avatarKey &&
     WIDGET_SURFACE_KEYS.every((key) => config.surfaces[key] === d.surfaces[key])
   );
 }
@@ -382,7 +371,7 @@ export function serializeWhatsAppWidgetConfig(config: WhatsAppWidgetConfig): str
     phone: config.phone,
     agentName: config.agentName,
     caption: config.caption,
-    avatarUrl: config.avatarUrl,
+    avatarKey: config.avatarKey,
     welcomeMessage: config.welcomeMessage,
     launcherLabel: config.launcherLabel,
     ctaLabel: config.ctaLabel,

@@ -9,7 +9,7 @@ import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import { ValidationError } from "@/lib/errors/classes";
-import { StoreWhatsAppWidgetSchema } from "@/openapi/schemas";
+import { MediaKeySchema, StoreWhatsAppWidgetSchema } from "@/openapi/schemas";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import { saveWhatsAppWidgetConfig } from "../../../../cod-shared/queries/whatsapp-widget";
@@ -27,6 +27,8 @@ import {
   type WhatsAppWidgetConfig,
 } from "../../../../cod-shared/whatsapp-widget/config";
 import { validateWhatsAppWidgetInput } from "../../../../cod-shared/whatsapp-widget/validate";
+import { mediaUrl, type MediaDelivery } from "../../../../cod-shared/media/delivery";
+import { mediaDeliveryOf, mediaOf, releaseShown } from "@/lib/media";
 import { jsonContent, storeOf } from "./shared";
 
 /**
@@ -52,17 +54,18 @@ const CAPABILITIES = {
  * the merchant sees null here and the screen says why. It is not a second
  * opinion — it is the same function.
  */
-function payload(config: WhatsAppWidgetConfig) {
+function payload(config: WhatsAppWidgetConfig, delivery: MediaDelivery) {
   return {
     config,
-    preview: resolveStorefrontWidget(serializeWhatsAppWidgetConfig(config)),
+    avatarUrl: config.avatarKey ? mediaUrl(config.avatarKey, delivery) : null,
+    preview: resolveStorefrontWidget(serializeWhatsAppWidgetConfig(config), delivery),
     capabilities: CAPABILITIES,
   };
 }
 
 async function getWhatsAppButton(c: Context<AppContext>) {
   const { store } = await storeOf(c);
-  return c.json({ success: true, data: payload(parseWhatsAppWidgetConfig(store.whatsappWidgetJson)) }, 200);
+  return c.json({ success: true, data: payload(parseWhatsAppWidgetConfig(store.whatsappWidgetJson), mediaDeliveryOf(c.env)) }, 200);
 }
 
 async function saveWhatsAppButton(c: Context<AppContext>) {
@@ -73,8 +76,12 @@ async function saveWhatsAppButton(c: Context<AppContext>) {
   if (!result.ok) {
     throw new ValidationError(result.issues[0].message, ERROR_CODES.VALIDATION_FAILED, { issues: result.issues });
   }
+  const { avatarKey } = result.config;
+  if (avatarKey) await mediaOf(c.env).ready(avatarKey);
+  const before = parseWhatsAppWidgetConfig(store.whatsappWidgetJson).avatarKey;
   const config = await saveWhatsAppWidgetConfig(db, store.id, result.config);
-  return c.json({ success: true, data: payload(config) }, 200);
+  if (before && before !== avatarKey) await releaseShown(c.env, [before], "WhatsApp button avatar");
+  return c.json({ success: true, data: payload(config, mediaDeliveryOf(c.env)) }, 200);
 }
 
 const SurfacesSchema = z
@@ -102,7 +109,7 @@ const ConfigSchema = z
     }),
     agentName: z.string().nullable(),
     caption: z.string().nullable(),
-    avatarUrl: z.string().nullable(),
+    avatarKey: MediaKeySchema.nullable().openapi({ description: "The agent's photo, from a completed upload; null shows the store's logo." }),
     welcomeMessage: z.string().nullable(),
     launcherLabel: z.string().nullable(),
     ctaLabel: z.string().nullable(),
@@ -136,7 +143,7 @@ const ConfigInputSchema = z
       "The button's setup. Same shape as WhatsAppButtonConfig, with every key optional — " +
       "an omitted key takes its default. `phone` is accepted in any form the merchant " +
       "knows (0551234567, 00213…, +213…, spaced) and stored normalised. Unknown keys, an " +
-      "unreachable number, a non-https avatar and every text cap are refused, with each " +
+      "unreachable number, an avatar that is not an uploaded image's Media Key and every text cap are refused, with each " +
       "problem listed in `context.issues`.",
     example: {
       enabled: true,
@@ -155,6 +162,7 @@ const ResponseSchema = z.object({
   success: z.boolean().openapi({ example: true }),
   data: z.object({
     config: ConfigSchema,
+    avatarUrl: z.string().url().nullable().openapi({ description: "Where browsers fetch the avatar, from the store's Media Delivery" }),
     preview: StoreWhatsAppWidgetSchema.nullable().openapi({
       description:
         "Exactly what `/store/config` would hand the storefront for this configuration, " +

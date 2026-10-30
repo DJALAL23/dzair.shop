@@ -132,27 +132,22 @@ describe("text", () => {
 });
 
 describe("avatar", () => {
-  it("accepts an https URL", () => {
-    const url = "https://media.example.com/agent.jpg";
-    expect(expectOk({ avatarUrl: url }).avatarUrl).toBe(url);
+  it("accepts an uploaded image's Media Key", () => {
+    expect(expectOk({ avatarKey: "products/agent.webp" }).avatarKey).toBe("products/agent.webp");
   });
 
-  it.each(["http://media.example.com/a.jpg", "javascript:alert(1)", "/relative.jpg", "nope"])(
-    "refuses %s",
-    (url) => {
-      const issues = issuesOf({ avatarUrl: url });
-      expect(issues).toHaveLength(1);
-      expect(issues[0]).toMatchObject({ path: "avatarUrl", code: "INVALID_AVATAR_URL" });
-    },
-  );
-
-  it("refuses one past the length cap", () => {
-    const url = `https://media.example.com/${"a".repeat(600)}.jpg`;
-    expect(codesOf({ avatarUrl: url })).toEqual(["INVALID_AVATAR_URL"]);
+  it.each(["https://media.example.com/a.jpg", "products/../a.jpg", "staging/reviews/a.jpg", "nope", 7])("refuses %s", (value) => {
+    const issues = issuesOf({ avatarKey: value });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ path: "avatarKey", code: "INVALID_AVATAR_KEY" });
   });
 
-  it.each([null, "", "  "])("reads %p as no avatar", (input) => {
-    expect(expectOk({ avatarUrl: input }).avatarUrl).toBeNull();
+  it("refuses an avatar given as a URL, the way it was before keys", () => {
+    expect(codesOf({ avatarUrl: "https://media.example.com/a.jpg" })).toEqual(["UNKNOWN_KEY"]);
+  });
+
+  it.each([null, ""])("reads %p as no avatar", (input) => {
+    expect(expectOk({ avatarKey: input }).avatarKey).toBeNull();
   });
 });
 
@@ -210,12 +205,12 @@ describe("reporting", () => {
     const issues = issuesOf({
       phone: "0211234567",
       accent: "neon",
-      avatarUrl: "http://x.test/a.jpg",
+      avatarKey: "http://x.test/a.jpg",
       caption: "x".repeat(WIDGET_TEXT_FIELDS.caption.max + 1),
       surfaces: { blog: true },
     });
     expect(issues.map((issue) => issue.code).sort()).toEqual([
-      "INVALID_AVATAR_URL",
+      "INVALID_AVATAR_KEY",
       "INVALID_CHOICE",
       "INVALID_PHONE",
       "TEXT_TOO_LONG",

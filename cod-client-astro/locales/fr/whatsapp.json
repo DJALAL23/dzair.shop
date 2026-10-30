@@ -89,8 +89,6 @@
   "prefill_product_too_long": "Le modèle de message produit dépasse le nombre maximum de caractères.",
   "thank_you_button_label_too_long": "Le texte du bouton de remerciement dépasse le nombre maximum de caractères.",
   "prefill_thank_you_too_long": "Le modèle de message de remerciement dépasse le nombre maximum de caractères.",
-  "avatar_url_too_long": "L'URL de l'avatar dépasse la longueur maximale.",
-  "avatar_url_https_only": "L'URL de l'avatar doit utiliser HTTPS.",
   "load_failed": "Impossible de charger les paramètres du widget WhatsApp.",
   "save_failed": "Impossible d'enregistrer les paramètres du widget WhatsApp.",
   "agent_name_help": "Le nom affiché en haut de la fenêtre de chat. S'il est vide, le nom de votre boutique est utilisé.",

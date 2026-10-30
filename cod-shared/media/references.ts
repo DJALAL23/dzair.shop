@@ -1,12 +1,12 @@
 /**
  * Every place stored data can show a file, in one place: a missed one means
  * a shown file gets deleted, by a release or the sweep. Columns hold Media
- * Keys; rich text holds `media:<key>`; theme data holds keys in JSON — an
- * `image` field's `{ key }` in a page document or a theme setting, live, in a
- * draft not yet published, or in a publication kept as a restore point
- * (ADR 0010). A source is matched as text, so a key is protected wherever in
- * the value it sits. A new column or document that can show a file must be
- * added here.
+ * Keys; rich text holds `media:<key>`; JSON holds keys too — an `image`
+ * field's `{ key }` in a page document or a theme setting, live, in a draft
+ * not yet published, or in a publication kept as a restore point (ADR 0010),
+ * and the WhatsApp button's avatar. A source is matched as text, so a key is
+ * protected wherever in the value it sits. A new column or document that can
+ * show a file must be added here.
  */
 import { getTableName, sql, type Column } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
@@ -33,6 +33,7 @@ export const MEDIA_REFERENCES: ReadonlyArray<{ table: SQLiteTable; column: Colum
   { table: productCategories, column: productCategories.imageKey },
   { table: stores, column: stores.logoKey },
   { table: stores, column: stores.ogImageKey },
+  { table: stores, column: stores.whatsappWidgetJson },
   { table: reviewMedia, column: reviewMedia.mediaKey },
   { table: reviewMedia, column: reviewMedia.thumbKey },
   { table: products, column: products.description },

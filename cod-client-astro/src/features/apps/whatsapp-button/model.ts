@@ -33,13 +33,14 @@ export interface WhatsAppDefaults {
 export function toDraft(
   config: WhatsAppWidgetConfig,
   defaults?: WhatsAppDefaults,
+  avatarUrl: string | null = null,
 ): WhatsAppWidgetDraft {
   return {
     enabled: config.enabled,
     phone: config.phone ?? "",
     agentName: config.agentName ?? "",
     caption: config.caption ?? defaults?.caption ?? "",
-    avatarUrl: config.avatarUrl ?? "",
+    avatar: config.avatarKey ? { key: config.avatarKey, url: avatarUrl ?? "" } : null,
     welcomeMessage: config.welcomeMessage ?? defaults?.welcomeMessage ?? "",
     launcherLabel: config.launcherLabel ?? "",
     ctaLabel: config.ctaLabel ?? defaults?.ctaLabel ?? "",
@@ -67,7 +68,7 @@ export function toPayload(draft: WhatsAppWidgetDraft): WhatsAppWidgetConfig {
     phone: normalizedPhone ?? cleanText(draft.phone),
     agentName: cleanText(draft.agentName),
     caption: cleanText(draft.caption),
-    avatarUrl: cleanText(draft.avatarUrl),
+    avatarKey: draft.avatar?.key ?? null,
     welcomeMessage: cleanText(draft.welcomeMessage),
     launcherLabel: cleanText(draft.launcherLabel),
     ctaLabel: cleanText(draft.ctaLabel),
@@ -89,7 +90,7 @@ export function isDirty(draft: WhatsAppWidgetDraft, saved: WhatsAppWidgetConfig)
   if (payload.phone !== saved.phone) return true;
   if (payload.agentName !== saved.agentName) return true;
   if (payload.caption !== saved.caption) return true;
-  if (payload.avatarUrl !== saved.avatarUrl) return true;
+  if (payload.avatarKey !== saved.avatarKey) return true;
   if (payload.welcomeMessage !== saved.welcomeMessage) return true;
   if (payload.launcherLabel !== saved.launcherLabel) return true;
   if (payload.ctaLabel !== saved.ctaLabel) return true;
@@ -178,16 +179,6 @@ export function validateDraft(
     blockers.push({ field: "prefillThankYou", message: "prefill_thank_you_too_long" });
   }
 
-  // Avatar URL
-  if (draft.avatarUrl && draft.avatarUrl.trim()) {
-    const trimmed = draft.avatarUrl.trim();
-    if (trimmed.length > (textLimits.avatarUrl ?? WIDGET_LIMITS.MAX_AVATAR_URL_LENGTH)) {
-      blockers.push({ field: "avatarUrl", message: "avatar_url_too_long" });
-    } else if (!trimmed.startsWith("https://")) {
-      blockers.push({ field: "avatarUrl", message: "avatar_url_https_only" });
-    }
-  }
-
   return blockers;
 }
 
@@ -207,7 +198,7 @@ export function resolveDraftPreview(
     href,
     agentName: cleanText(draft.agentName),
     caption: cleanText(draft.caption),
-    avatarUrl: cleanText(draft.avatarUrl),
+    avatarUrl: draft.avatar?.url || null,
     welcomeMessage: cleanText(draft.welcomeMessage),
     launcherLabel: cleanText(draft.launcherLabel),
     ctaLabel: cleanText(draft.ctaLabel),

@@ -9,7 +9,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { eventConsumers, landingPagePixelConfig, storeEmailConfig, storeOtpConfig, storePixelConfig, stores, storeTelegramConfig, storeTurnstileConfig } from "../db/schema";
 import { APP_CATALOG, consumerOwner, type AppKey } from "../apps/catalog";
-import { parseWhatsAppWidgetConfig, resolveStorefrontWidget } from "../whatsapp-widget/config";
+import { parseWhatsAppWidgetConfig, toWhatsAppHref } from "../whatsapp-widget/config";
 import { forgetTelegramBot } from "./telegram";
 
 export const APP_STATUSES = ["not_set_up", "on", "off", "needs_attention"] as const;
@@ -23,8 +23,9 @@ function statusOf(row: { enabled: boolean } | undefined, troubled: boolean): App
 
 function whatsappButtonStatus(json: string | null | undefined): AppStatus {
   if (json == null) return "not_set_up";
-  if (!parseWhatsAppWidgetConfig(json).enabled) return "off";
-  return resolveStorefrontWidget(json) ? "on" : "needs_attention";
+  const config = parseWhatsAppWidgetConfig(json);
+  if (!config.enabled) return "off";
+  return toWhatsAppHref(config.phone) ? "on" : "needs_attention";
 }
 
 export async function appStatuses(db: AppDb, storeId: string): Promise<Record<AppKey, AppStatus>> {

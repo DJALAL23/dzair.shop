@@ -1,6 +1,6 @@
 /**
  * The images a store sets by key — a category's, the store's logo and share
- * image — through the real routes on real D1, their files in the store's
+ * image, the WhatsApp button's avatar — through the real routes on real D1, their files in the store's
  * media (the R2 host on a real bucket).
  *
  * Proved: each is set only from a ready file and answered as a MediaImage at
@@ -22,6 +22,7 @@ import { webp } from "../../../../cod-shared/media/hosts/testing/files";
 import productGroupsRouter from "../product-groups/routes";
 import storesRouter from "../stores/routes";
 import storeRoutes from "../store/routes";
+import appsRouter from "../apps/routes";
 
 const T = "2026-10-20T08:00:00.000Z";
 const KEY = (n: string) => `products/${n.repeat(32)}.webp`;
@@ -47,6 +48,7 @@ beforeAll(async () => {
   app.route("/api/product-groups", productGroupsRouter);
   app.route("/api/stores", storesRouter);
   app.route("/store", storeRoutes);
+  app.route("/api/apps", appsRouter);
 }, 120_000);
 
 afterAll(async () => {
@@ -131,5 +133,44 @@ describe("the store's logo and share image", () => {
     expect(await held(KEY("c"))).toBe(true);
     await update({ ogImageKey: null });
     expect(await held(KEY("c"))).toBe(false);
+  });
+});
+
+describe("the WhatsApp button's avatar", () => {
+  const save = (body: Record<string, unknown>) => app.request("/api/apps/whatsapp-button", json("PUT", { enabled: true, phone: "0551234567", ...body }));
+  const stored = async () => (await d1.db.select({ json: schema.stores.whatsappWidgetJson }).from(schema.stores).get())?.json ?? null;
+
+  it("is set from a ready file and kept as its key; the dashboard and every storefront get its URL", async () => {
+    const saved = await answer(await save({ avatarKey: KEY("a") }));
+    expect(saved.status).toBe(200);
+    expect(saved.body.data).toMatchObject({ config: { avatarKey: KEY("a") }, avatarUrl: image(KEY("a")).url, preview: { avatarUrl: image(KEY("a")).url } });
+    expect(JSON.parse((await stored())!).avatarKey).toBe(KEY("a"));
+    expect(await stored()).not.toContain(TEST_DELIVERY.origin);
+
+    expect((await answer(await app.request("/api/apps/whatsapp-button"))).body.data.avatarUrl).toBe(image(KEY("a")).url);
+    expect((await answer(await app.request("/store/config"))).body.data.whatsapp.avatarUrl).toBe(image(KEY("a")).url);
+  });
+
+  it("is refused as a URL, or a key not ready, and nothing is saved", async () => {
+    expect(await answer(await save({ avatarKey: image(KEY("a")).url }))).toMatchObject({ status: 400, body: { context: { issues: [{ path: "avatarKey", code: "INVALID_AVATAR_KEY" }] } } });
+    expect(await answer(await save({ avatarKey: KEY("e") }))).toMatchObject({ status: 409, body: { code: "MEDIA_NOT_READY" } });
+    expect(await stored()).toBeNull();
+  });
+
+  it("releases the file it showed once replaced or removed, but not one still shown", async () => {
+    await save({ avatarKey: KEY("a") });
+    await save({ avatarKey: KEY("b") });
+    expect([await held(KEY("a")), await held(KEY("b"))]).toEqual([false, true]);
+
+    await app.request("/api/stores/me", json("PATCH", { logoKey: KEY("b") }));
+    await save({ avatarKey: null });
+    expect(await held(KEY("b"))).toBe(true);
+  });
+
+  it("keeps its file when another image lets the same file go", async () => {
+    await app.request("/api/stores/me", json("PATCH", { logoKey: KEY("c") }));
+    await save({ avatarKey: KEY("c") });
+    await app.request("/api/stores/me", json("PATCH", { logoKey: null }));
+    expect(await held(KEY("c"))).toBe(true);
   });
 });

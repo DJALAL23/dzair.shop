@@ -22,19 +22,18 @@ import { normalizeAlgerianPhone } from "../lib/phone";
 import {
   DEFAULT_WHATSAPP_WIDGET_CONFIG,
   WIDGET_ACCENTS,
-  WIDGET_LIMITS,
   WIDGET_POSITIONS,
   WIDGET_SURFACE_KEYS,
   WIDGET_SURFACES,
   WIDGET_TEXT_FIELDS,
   WIDGET_TEXT_FIELD_KEYS,
-  isHttpsUrl,
   type WhatsAppWidgetConfig,
   type WidgetAccent,
   type WidgetPosition,
   type WidgetSurfaces,
   type WidgetTextFieldKey,
 } from "./config";
+import { isMediaKey } from "../media/keys";
 
 export type WidgetIssueCode =
   | "NOT_AN_OBJECT"
@@ -43,7 +42,7 @@ export type WidgetIssueCode =
   | "INVALID_PHONE"
   | "PHONE_REQUIRED"
   | "TEXT_TOO_LONG"
-  | "INVALID_AVATAR_URL"
+  | "INVALID_AVATAR_KEY"
   | "INVALID_CHOICE";
 
 export interface WidgetIssue {
@@ -61,7 +60,7 @@ export type WidgetValidationResult =
 const TOP_LEVEL_KEYS = new Set<string>([
   "enabled",
   "phone",
-  "avatarUrl",
+  "avatarKey",
   "accent",
   "position",
   "attention",
@@ -134,34 +133,14 @@ function readEnumStrict<T extends string>(
   return value as T;
 }
 
-function readAvatarUrlStrict(raw: Record<string, unknown>, issues: WidgetIssue[]): string | null {
-  const value = raw.avatarUrl;
-  if (value === undefined || value === null) return null;
-  if (typeof value !== "string") {
-    issues.push({ path: "avatarUrl", code: "INVALID_FIELD", message: "avatarUrl must be text." });
+function readAvatarKeyStrict(raw: Record<string, unknown>, issues: WidgetIssue[]): string | null {
+  const value = raw.avatarKey;
+  if (value === undefined || value === null || value === "") return null;
+  if (!isMediaKey(value)) {
+    issues.push({ path: "avatarKey", code: "INVALID_AVATAR_KEY", message: "avatarKey must be the Media Key of an uploaded image." });
     return null;
   }
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (trimmed.length > WIDGET_LIMITS.MAX_AVATAR_URL_LENGTH) {
-    issues.push({
-      path: "avatarUrl",
-      code: "INVALID_AVATAR_URL",
-      message: `avatarUrl must be at most ${WIDGET_LIMITS.MAX_AVATAR_URL_LENGTH} characters.`,
-    });
-    return null;
-  }
-  // Every shopper's browser loads this. An http image on an https storefront is
-  // a mixed-content block in practice, so it is refused rather than stored.
-  if (!isHttpsUrl(trimmed)) {
-    issues.push({
-      path: "avatarUrl",
-      code: "INVALID_AVATAR_URL",
-      message: "avatarUrl must be an https URL.",
-    });
-    return null;
-  }
-  return trimmed;
+  return value;
 }
 
 function readSurfacesStrict(raw: Record<string, unknown>, issues: WidgetIssue[]): WidgetSurfaces {
@@ -260,7 +239,7 @@ export function validateWhatsAppWidgetInput(input: unknown): WidgetValidationRes
   const text = {} as Record<WidgetTextFieldKey, string | null>;
   for (const key of WIDGET_TEXT_FIELD_KEYS) text[key] = readTextStrict(input, key, issues);
 
-  const avatarUrl = readAvatarUrlStrict(input, issues);
+  const avatarKey = readAvatarKeyStrict(input, issues);
   const accent = readEnumStrict<WidgetAccent>(
     input,
     "accent",
@@ -292,7 +271,7 @@ export function validateWhatsAppWidgetInput(input: unknown): WidgetValidationRes
       phone,
       agentName: text.agentName,
       caption: text.caption,
-      avatarUrl,
+      avatarKey,
       welcomeMessage: text.welcomeMessage,
       launcherLabel: text.launcherLabel,
       ctaLabel: text.ctaLabel,
