@@ -61,7 +61,7 @@ const filled = rating ? Math.round(rating.avgRating) : 0;
   <div class="plate card-photo">
     {image ? (
       <Image
-        src={image.src}
+        src={image.url}
         alt={image.altText ?? product.name}
         width={600}
         height={800}

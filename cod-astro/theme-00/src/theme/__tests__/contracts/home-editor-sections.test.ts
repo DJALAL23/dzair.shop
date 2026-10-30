@@ -30,7 +30,6 @@ import shippedHome from "@/theme/pages/home.page.json";
 import { fakeStorefront, makeProduct, renderSections } from "../support/home-render";
 
 vi.mock("astro:env/server", () => ({
-  MEDIA_DOMAIN: "media.boutique.test",
   COD_SERVER_URL: "http://localhost:8787",
   STORE_API_KEY: "test-key",
 }));
@@ -43,7 +42,7 @@ const text = (value: string, extra: JsonObject = {}): JsonObject => ({ type: "te
 
 const robe: Product = {
   ...makeProduct({ id: "prod_robe", name: "Robe kabyle", handle: "robe-kabyle", price: 8900, compareAtPrice: 9900 }),
-  images: [{ id: "img_1", src: "https://media.boutique.test/products/robe.webp", altText: "Robe brodée", position: 1 }],
+  images: [{ id: "img_1", key: "products/robe.webp", url: "https://media.boutique.test/products/robe.webp", width: null, height: null, altText: "Robe brodée", position: 1 }],
   variants: [],
   offers: [],
   category: null,

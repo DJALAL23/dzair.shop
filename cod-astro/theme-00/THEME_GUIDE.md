@@ -48,7 +48,7 @@ src/
 | Seam | The only file | What may cross it |
 | --- | --- | --- |
 | Platform reads | `src/theme/sdk.ts` | `@wocart/storefront/server` |
-| Image URLs | `src/theme/utils/images.ts` | `createImageHelpers(MEDIA_DOMAIN)` |
+| Image URLs | `src/theme/utils/images.ts` | `mediaImageUrl` / `pictureOf` at `config.media` |
 
 Everything else renders what those two hand it. A component that calls the
 platform itself is a regression.

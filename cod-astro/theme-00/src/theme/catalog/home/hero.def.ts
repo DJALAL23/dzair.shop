@@ -45,7 +45,7 @@ export const hero = defineComponent({
       : await reads.get(collectionRead(props.collection, HERO_READ), () => storefront.products.list({ collection: props.collection, limit: HERO_READ }));
     const lead = products.find((product) => product.coverImage && product.inventory !== 0) ?? products.find((product) => product.coverImage) ?? null;
     return {
-      lead: lead ? { src: lead.coverImage!.src, alt: lead.coverImage!.altText ?? lead.name } : null,
+      lead: lead ? { src: lead.coverImage!.url, alt: lead.coverImage!.altText ?? lead.name } : null,
       content: copyOverrides(context.content, props),
     };
   },

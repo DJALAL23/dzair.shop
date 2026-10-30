@@ -27,5 +27,5 @@ reads.get(CATEGORIES_READ, async () => categories);
   reads={reads}
   title={category.metaTitle || message(content, "documentTitle", { title: category.name, storeName: config.name }, locale)}
   description={category.metaDescription || category.description || undefined}
-  ogImage={category.imageUrl || undefined}
+  ogImage={category.image?.url}
 />

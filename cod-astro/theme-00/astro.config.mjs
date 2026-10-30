@@ -54,13 +54,6 @@ export default defineConfig({
         access: "secret",
         optional: true,
       }),
-      // Optional media/CDN domain serving R2 images (e.g. media.yourdomain.com).
-      // Unset → the image optimizer passes original URLs through unchanged.
-      MEDIA_DOMAIN: envField.string({
-        context: "server",
-        access: "secret",
-        optional: true,
-      }),
       // Optional editor preview public key (an Ed25519 JWK). Unset → the
       // preview route answers 404; a storefront verifies tokens, never makes them.
       WOCART_PREVIEW_KEY: envField.string({

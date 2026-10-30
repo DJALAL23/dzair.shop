@@ -14,8 +14,8 @@ const whatsapp = showWhatsapp ? config.whatsapp : null;
 
 <div class="footer-col footer-about">
   <a href={Astro.locals.store.href("/")} class="footer-brand" aria-label={config.name}>
-    {config.logoUrl ? (
-      <Image src={config.logoUrl} alt={config.name} width={320} height={96} quality={90} loading="lazy" decoding="async" />
+    {config.logo ? (
+      <Image src={config.logo.url} alt={config.name} width={320} height={96} quality={90} loading="lazy" decoding="async" />
     ) : (
       <span>{config.name}</span>
     )}

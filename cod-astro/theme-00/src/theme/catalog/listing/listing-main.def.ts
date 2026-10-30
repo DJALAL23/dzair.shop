@@ -77,13 +77,13 @@ export const listingMain = defineComponent({
       const collection = handle === "" ? null : await reads.get(collectionByHandle(handle), () => storefront.collections.get(handle));
       if (!collection) return { view: null };
       const result = await storefront.products.page({ collection: handle, ...pageRequest(page, sort) });
-      return { view: { kind: "collection", title: collection.title, description: collection.description, image: collection.image?.src ?? null, ...paged(result), path: storefrontPath("collection", { handle }), categories, active: null } };
+      return { view: { kind: "collection", title: collection.title, description: collection.description, image: collection.image?.url ?? null, ...paged(result), path: storefrontPath("collection", { handle }), categories, active: null } };
     }
     if (params.surface === "category") {
       const category = categories.find((candidate) => candidate.slug === params.slug);
       if (!category) return { view: null };
       const result = await storefront.products.page({ categoryId: category.id, ...pageRequest(page, sort) });
-      return { view: { kind: "category", title: category.name, description: category.description, image: category.imageUrl, ...paged(result), path: storefrontPath("category", { slug: category.slug }), categories, active: category.slug } };
+      return { view: { kind: "category", title: category.name, description: category.description, image: category.image?.url ?? null, ...paged(result), path: storefrontPath("category", { slug: category.slug }), categories, active: category.slug } };
     }
     const result = await storefront.products.page(pageRequest(page, sort));
     return { view: { kind: "catalog", title: context.content.allProductsSection ?? "", description: null, image: null, ...paged(result), path: storefrontPath("catalog"), categories, active: null } };

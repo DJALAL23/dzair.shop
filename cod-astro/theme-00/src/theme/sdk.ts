@@ -41,11 +41,13 @@ import { THEME_KEY } from "@/theme/key";
  * cod-server serves its translations (ADR 0005). Pages never call this:
  * they read `Astro.locals.store.client`, the request's own.
  */
+/** The store's server, as every client of this theme reaches it. */
+export const storeServerUrl = (): string => COD_SERVER_URL ?? "http://localhost:8787";
+
 export function getStoreClient(locale?: string): StoreClient {
   const apiKey = STORE_API_KEY;
-  const serverUrl = COD_SERVER_URL ?? "http://localhost:8787";
   return createStoreClient({
-      serverUrl,
+      serverUrl: storeServerUrl(),
       apiKey: apiKey as string,
       // The store's edits to this theme's text come back with the config.
       theme: THEME_KEY,

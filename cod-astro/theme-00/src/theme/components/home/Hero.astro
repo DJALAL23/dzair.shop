@@ -18,7 +18,7 @@ type Props = InferProps<typeof hero> & {
 
 const { content, ctaPrimaryHref, ctaSecondaryHref, image, photoSide, scheme, style, lead } = Astro.props;
 const store = Astro.locals.store;
-const own = pickedPicture(image);
+const own = pickedPicture(image, store.config.media);
 const photo = own ? { src: own.src, alt: own.alt } : lead;
 const focus = own?.position ?? "50% 55%";
 ---

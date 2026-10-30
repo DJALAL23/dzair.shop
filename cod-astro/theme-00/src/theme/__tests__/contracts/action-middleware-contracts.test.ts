@@ -40,6 +40,7 @@ const storeConfig = (locale?: string) => ({
 vi.mock("@/theme/sdk", () => ({
   getStoreClient: (locale?: string) => ({ orders: { create: createOrder }, config: { get: async () => storeConfig(locale) } }),
   readThemePreview: (request: Request) => readThemePreview(request),
+  storeServerUrl: () => "http://localhost:8787",
   REVALIDATE_PATH: "/wocart-revalidate",
 }));
 

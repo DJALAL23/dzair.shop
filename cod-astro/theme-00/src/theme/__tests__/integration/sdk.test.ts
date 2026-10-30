@@ -53,15 +53,11 @@ const LIVE_PRODUCT = {
   coverImage: {
     id: "img_watch_1",
     productId: "prod_smart_watch",
-    src: "https://media.codflow.store/stores/store_01/products/watch-1.jpg",
-    r2Key: "stores/store_01/products/watch-1.jpg",
-    srcSm: null,
-    srcMd: null,
-    srcLg: null,
+    key: "products/watch-1.jpg",
+    url: "https://ik.imagekit.io/wocart/stores/store_01/products/watch-1.jpg",
     altText: "ساعة ذكية سوداء",
     width: 1200,
     height: 1200,
-    type: 1,
     position: 0,
     createdAt: "2026-08-03T10:01:00.000Z",
     updatedAt: "2026-08-03T10:01:00.000Z",
@@ -83,7 +79,6 @@ interface FetchCall {
 const env = vi.hoisted(() => ({
   COD_SERVER_URL: undefined as string | undefined,
   STORE_API_KEY: undefined as string | undefined,
-  MEDIA_DOMAIN: undefined as string | undefined,
 }));
 
 vi.mock("astro:env/server", () => ({
@@ -92,9 +87,6 @@ vi.mock("astro:env/server", () => ({
   },
   get STORE_API_KEY() {
     return env.STORE_API_KEY;
-  },
-  get MEDIA_DOMAIN() {
-    return env.MEDIA_DOMAIN;
   },
 }));
 
@@ -118,7 +110,6 @@ describe("theme adapter — getStoreClient()", () => {
   afterEach(() => {
     env.COD_SERVER_URL = undefined;
     env.STORE_API_KEY = undefined;
-    env.MEDIA_DOMAIN = undefined;
     vi.unstubAllGlobals();
   });
 

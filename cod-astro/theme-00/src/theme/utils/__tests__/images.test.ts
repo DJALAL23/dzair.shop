@@ -1,95 +1,48 @@
 // @vitest-environment node
 /**
- * The theme's image binding (`src/theme/utils/images.ts`).
- *
- * `@vitest-environment node` is required for the same reason as
- * `src/theme/sdk.test.ts`: the module reads `astro:env/server`, which refuses
- * to load under the suite's default happy-dom environment.
- *
- * This is the file that replaced `src/core/utils/image-optimizer.ts`. The
- * legacy helper embedded the media domain at module scope and did its own
- * string surgery; the theme now binds the SDK's `createImageHelpers` once, and
- * these tests pin the two states a store actually runs in — a configured media
- * domain (Cloudflare Image Resizing URL) and no domain (original R2 URL).
+ * The theme's image bindings: the helpers (`utils/images.ts`) at this theme's
+ * sizes, and the image service (`utils/image-service.ts`), which reads the
+ * delivery the store context keeps.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { ImageTransform } from "astro";
+import type { MediaDelivery } from "@wocart/storefront";
+import { pickedPicture, thumbnailImage } from "../images";
 
-const env = vi.hoisted(() => ({
-  MEDIA_DOMAIN: undefined as string | undefined,
-}));
-
-vi.mock("astro:env/server", () => ({
-  get MEDIA_DOMAIN() {
-    return env.MEDIA_DOMAIN;
-  },
-}));
-
-const MEDIA_DOMAIN = "media.example.test";
-const IMAGE_URL = `https://${MEDIA_DOMAIN}/stores/store_01/products/watch-1.jpg`;
+const IMAGEKIT: MediaDelivery = { kind: "imagekit", origin: "https://ik.imagekit.io/wocart/stores/maysa" };
+const DIRECT: MediaDelivery = { kind: "direct", origin: "http://localhost:8787/media" };
+const PHOTO = `${IMAGEKIT.origin}/products/watch-1.jpg`;
+const config = { service: { entrypoint: "", config: {} }, domains: [], remotePatterns: [] } as never;
+const logger = {} as never;
 
 describe("theme image binding", () => {
-  beforeEach(() => {
-    vi.resetModules();
+  it("gives the cart thumbnail at the size it renders", () => {
+    expect(thumbnailImage(PHOTO, IMAGEKIT)).toBe(`${PHOTO}?tr=w-80,h-80,c-maintain_ratio,q-80,f-auto`);
   });
 
-  afterEach(() => {
-    env.MEDIA_DOMAIN = undefined;
+  it("keeps a photo's URL when its delivery does not resize", () => {
+    expect(thumbnailImage(`${DIRECT.origin}/products/a.png`, DIRECT)).toBe(`${DIRECT.origin}/products/a.png`);
   });
 
-  it("renders the cart thumbnail through the bound SDK helper", async () => {
-    env.MEDIA_DOMAIN = MEDIA_DOMAIN;
-
-    const { getThumbnailImage } = await import("@/theme/utils/images");
-
-    expect(getThumbnailImage(IMAGE_URL)).toBe(
-      `https://${MEDIA_DOMAIN}/cdn-cgi/image/onerror=redirect,width=80,height=80,format=webp,quality=80,fit=cover/stores/store_01/products/watch-1.jpg`
-    );
-  });
-
-  it("passes product images through untouched when MEDIA_DOMAIN is unset", async () => {
-    const { getThumbnailImage, getCardImage, generateSrcSet } = await import(
-      "@/theme/utils/images"
-    );
-
-    expect(getThumbnailImage(IMAGE_URL)).toBe(IMAGE_URL);
-    expect(getCardImage(IMAGE_URL)).toBe(IMAGE_URL);
-    expect(generateSrcSet(IMAGE_URL, 400, 400)).toBe(
-      `${IMAGE_URL} 1x, ${IMAGE_URL} 1.5x, ${IMAGE_URL} 2x`
-    );
-  });
-
-  it("leaves a URL from another origin alone", async () => {
-    env.MEDIA_DOMAIN = MEDIA_DOMAIN;
-
-    const { getCardImage } = await import("@/theme/utils/images");
-
-    expect(getCardImage("https://external.example.test/watch.jpg")).toBe(
-      "https://external.example.test/watch.jpg"
-    );
-  });
-
-  it("re-exports the whole toolkit — a missing helper is a binding bug", async () => {
-    env.MEDIA_DOMAIN = MEDIA_DOMAIN;
-
-    const images = await import("@/theme/utils/images");
-    const helperNames = [
-      "optimizeImage",
-      "generateSrcSet",
-      "getCardImage",
-      "getGalleryImage",
-      "getThumbnailImage",
-      "getHeroImage",
-      "getCategoryImage",
-      "getLogoImage",
-    ] as const;
-
-    for (const name of helperNames) {
-      expect(typeof images[name], `helper: ${name}`).toBe("function");
-    }
-    expect(images.IMAGE_SIZES.GALLERY_THUMB).toEqual({
-      width: 80,
-      height: 80,
-      quality: 80,
+  it("draws a picked image from its key, at the store's delivery", () => {
+    expect(pickedPicture({ key: "products/hero.webp", alt: "Robe", focal: { x: 0.3, y: 0.7 } }, IMAGEKIT)).toEqual({
+      src: `${IMAGEKIT.origin}/products/hero.webp`,
+      alt: "Robe",
+      width: undefined,
+      height: undefined,
+      position: "30% 70%",
     });
+    expect(pickedPicture(null, IMAGEKIT)).toBeNull();
+  });
+});
+
+describe("theme image service", () => {
+  it("passes every image through until a store's delivery is kept, then resizes with it", async () => {
+    const { default: service, keepStoreMedia } = await import("../image-service");
+    const url = () => service.getURL({ src: PHOTO, width: 480 } as ImageTransform, config, logger);
+
+    expect(await url()).toBe(PHOTO);
+    keepStoreMedia(IMAGEKIT);
+    expect(await url()).toBe(`${PHOTO}?tr=w-480`);
   });
 });

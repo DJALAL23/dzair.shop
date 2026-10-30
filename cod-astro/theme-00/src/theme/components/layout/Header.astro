@@ -34,8 +34,8 @@ const centered = logoPosition === "center";
       </button>
     )}
     <a href={store.href("/")} class="header-logo" aria-label={config.name}>
-      {config.logoUrl ? (
-        <Image src={config.logoUrl} alt={config.name} width={480} height={160} quality={90} loading="eager" decoding="async" />
+      {config.logo ? (
+        <Image src={config.logo.url} alt={config.name} width={480} height={160} quality={90} loading="eager" decoding="async" />
       ) : (
         <span class="header-name">{config.name}</span>
       )}

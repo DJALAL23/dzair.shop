@@ -65,7 +65,7 @@ const alternates = store.routing.published.length > 1 ? alternateLinks(store.pat
 
 const pageTitle = title ?? config.metaTitle ?? config.name;
 const pageDesc = description ?? config.metaDescription ?? message(content, "defaultMetaDescription", { storeName: config.name }, locale);
-const pageOg = ogImage ?? config.ogImage ?? "";
+const pageOg = ogImage ?? config.ogImage?.url ?? "";
 
 // The merchant's choices for this theme, checked against its declaration: a
 // value it does not accept falls back to the theme's default.

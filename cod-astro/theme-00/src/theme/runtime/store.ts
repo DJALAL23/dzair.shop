@@ -14,7 +14,8 @@
  * successful read is cached for the client's lifetime (one fetch per isolate,
  * not one per render) and any failure still falls back to DEFAULT_CONFIG.
  */
-import { getStoreClient, type PreviewDraft, type StoreClient } from "@/theme/sdk";
+import { getStoreClient, storeServerUrl, type PreviewDraft, type StoreClient } from "@/theme/sdk";
+import { keepStoreMedia } from "@/theme/utils/image-service";
 import { resolveContent } from "@/theme/content";
 import { localizeHref, servedLanguage, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
 import { resolvePreviewStore as resolvePreview, resolveStoreRequest as resolveRequest, type ResolvedStore } from "@wocart/storefront/astro";
@@ -24,7 +25,7 @@ export const DEFAULT_CONFIG: StoreConfig = {
   id: "",
   name: "متجري",
   domain: null,
-  logoUrl: null,
+  logo: null,
   themeId: "theme-00",
   primaryColor: "#7c3aed",
   accentColor: "#f59e0b",
@@ -40,6 +41,8 @@ export const DEFAULT_CONFIG: StoreConfig = {
   metaTitle: null,
   metaDescription: null,
   ogImage: null,
+  // The store's own server, where a `direct` store serves its files.
+  media: { kind: "direct", origin: `${storeServerUrl()}/media` },
   announcementBar: null,
   reviewsEnabled: true,
   cartEnabled: false,
@@ -123,6 +126,7 @@ export async function resolvePreviewStore(draft: PreviewDraft): Promise<StoreCon
 }
 
 function storeContext({ config, client, routing, locale, pathname }: ResolvedStore): StoreContext {
+  if (config.media !== DEFAULT_CONFIG.media) keepStoreMedia(config.media);
   // Only this language's overrides: another language's map would mix languages.
   const content = resolveContent(locale, config.contentOverrides[locale]);
   // The server describes every language it serves; a config that somehow

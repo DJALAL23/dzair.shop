@@ -50,7 +50,7 @@ export const customerTestimonials = defineComponent({
       .slice(0, SHOWN)
       .map(({ review, product }) => ({
         review,
-        product: { name: product.name, handle: product.handle, image: product.coverImage?.src ?? null },
+        product: { name: product.name, handle: product.handle, image: product.coverImage?.url ?? null },
       }));
     return { items, content };
   },

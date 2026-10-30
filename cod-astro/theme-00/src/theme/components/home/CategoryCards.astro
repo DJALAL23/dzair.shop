@@ -26,7 +26,7 @@ const { blocks, categories, products = [], content, limit, showAll, headingAlign
 const store = Astro.locals.store;
 
 const photoFor = (category: Category) =>
-  category.imageUrl ?? products.find((product) => product.categoryId === category.id && product.coverImage)?.coverImage?.src ?? null;
+  category.image?.url ?? products.find((product) => product.categoryId === category.id && product.coverImage)?.coverImage?.url ?? null;
 
 // A copy: the page shares this array with other sections, so sorting in place
 // would reorder their reads too.

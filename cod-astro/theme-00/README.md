@@ -35,7 +35,7 @@ release, bump the pins (`wocart-sdk/README.md` → Releasing).
 - Abandoned-order tracking (`POST /store/abandoned`) with the Meta Pixel
 - Three locale packs: **Arabic, French, English** (RTL-first, default Arabic)
 - Partner-overridable design tokens (colors, font) injected at request time
-- Cloudflare Image Resizing optimization for R2 images (`MEDIA_DOMAIN`)
+- Images resized by the store's own media delivery (ImageKit or Cloudflare), read from its config
 
 The behavior above is implemented by `@wocart/storefront`, reached through the
 theme's two seams: `src/theme/sdk.ts` (reads) and `src/theme/utils/images.ts`
@@ -69,7 +69,6 @@ Defined in `astro.config.mjs` → `env.schema`, read from `.dev.vars` locally an
 |----------|----------|---------|
 | `STORE_API_KEY` | yes | Per-store key sent as `X-Store-API-Key` to the `/store/*` API. Must match the key seeded into D1 (dev default: `codflow-dev-store-key`). |
 | `COD_SERVER_URL` | yes | Base URL of the `cod-server` Worker (dev: `http://localhost:8787`). |
-| `MEDIA_DOMAIN` | no | Media/CDN domain serving R2 images (no scheme). Unset → the image optimizer passes original URLs through unchanged. |
 | `WOCART_PREVIEW_KEY` | no | The editor's public key (an Ed25519 JWK), set by CodFlow Cloud's deploy. It opens `/wocart-preview` for the editor, and lets `/wocart-revalidate` drop cached pages after a publish. Unset → both answer 404. |
 
 ## Scripts
@@ -179,7 +178,7 @@ not a local `wrangler deploy`.
 - **[`THEME_CONSUMER_CHECKLIST.md`](./THEME_CONSUMER_CHECKLIST.md)** — theme creation and verification checklist
 - **[`CONTENT_KEYS_REFERENCE.md`](./CONTENT_KEYS_REFERENCE.md)** — all storefront content keys (155) grouped by section
 - **[`src/theme/sdk.ts`](./src/theme/sdk.ts)** — the one platform read seam (SDK client factory)
-- **[`src/theme/utils/images.ts`](./src/theme/utils/images.ts)** — the image-URL binding (SDK helpers + `MEDIA_DOMAIN`)
+- **[`src/theme/utils/images.ts`](./src/theme/utils/images.ts)** — the image-URL binding (SDK helpers at the store's `config.media`)
 - **[`src/theme/README.md`](./src/theme/README.md)** — customizing the theme layer
 - **[`docs/history/`](./docs/history/)** — archived migration history and audits ([`PRODUCT_ZERO_AUDIT.md`](./docs/history/PRODUCT_ZERO_AUDIT.md), [`THEME_ZERO_PLAN.md`](./docs/history/THEME_ZERO_PLAN.md), [`PRODUCT_VIEW_BOUNDARY_ANALYSIS.md`](./docs/history/PRODUCT_VIEW_BOUNDARY_ANALYSIS.md))
 - **[`wocart-sdk/storefront/USAGE.md`](../../wocart-sdk/storefront/USAGE.md)** — what the SDK promises a theme author

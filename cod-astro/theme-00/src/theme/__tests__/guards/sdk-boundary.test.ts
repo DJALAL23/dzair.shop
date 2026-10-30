@@ -98,22 +98,22 @@ describe("legacy core removal", () => {
     expect(config).not.toContain("passthroughImageService");
   });
 
-  it("the image toolkit is bound in exactly one theme module", () => {
+  it("the image helpers are bound in exactly one theme module", () => {
     const importers = files
-      .filter((f) => f.content.includes("createImageHelpers"))
+      .filter((f) => /\b(mediaImageUrl|mediaImageSrcset|pictureOf)\b/.test(f.content) && !f.relPath.includes("__tests__"))
       .map((f) => f.relPath)
       .sort();
 
     expect(importers).toEqual(["theme/utils/images.ts"]);
   });
 
-  it("the cart thumbnail is built by the bound helper", () => {
+  it("the cart thumbnail is built by the bound helper, at the store's delivery", () => {
     const productDetail = files.find(
       (f) => f.relPath === "theme/components/product-page/ProductOrder.astro",
     );
 
     expect(productDetail?.content).toContain('from "@/theme/utils/images"');
-    expect(productDetail?.content).toContain("getThumbnailImage(cartImageSrc)");
+    expect(productDetail?.content).toContain("thumbnailImage(cartImageSrc, config.media)");
   });
 });
 

@@ -11,8 +11,6 @@ declare global {
     STORE_API_KEY: string;
     /** Base URL of cod-server (e.g. https://api.yourdomain.com). Local: http://localhost:8787 */
     COD_SERVER_URL: string;
-    /** Optional media/CDN domain serving R2 images (e.g. media.yourdomain.com) — used by the image optimizer */
-    MEDIA_DOMAIN?: string;
     /** Optional editor preview public key (an Ed25519 JWK) — unset, `/wocart-preview` is off */
     WOCART_PREVIEW_KEY?: string;
   }

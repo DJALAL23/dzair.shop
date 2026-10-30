@@ -23,7 +23,7 @@ import { testLocals } from "../support/locals";
 const routing: LocaleRouting = { primary: "ar", published: ["ar", "fr"] };
 const hrefs = (html: string) => [...html.matchAll(/href="([^"]*)"/g)].map((match) => match[1]!);
 const category = (slug: string, name: string): Category =>
-  ({ id: `cat_${slug}`, name, slug, description: `Tout en ${name}`, parentId: null, imageUrl: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }) as Category;
+  ({ id: `cat_${slug}`, name, slug, description: `Tout en ${name}`, parentId: null, image: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }) as Category;
 const CATEGORIES = [category("robes", "Robes"), category("sacs", "Sacs")];
 
 /**

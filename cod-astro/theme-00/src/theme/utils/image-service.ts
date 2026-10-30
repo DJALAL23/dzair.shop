@@ -1,13 +1,21 @@
 /**
  * The theme's image service: `@wocart/theme/image-service` bound to the
- * store's media domain — the one binding point for `<Image>`, as
+ * store's media delivery — the one binding point for `<Image>`, as
  * `utils/images.ts` is for the image helpers.
  *
- * Every media-domain image is resized by Cloudflare on the media domain, on
- * either host (Cloudflare or Vercel); unset `MEDIA_DOMAIN` passes every image
- * through. Read per image, so one build serves every store.
+ * Astro asks the service for a URL without the request, so the store context
+ * keeps the delivery of every config it reads (`keepStoreMedia`) and the
+ * service reads the last one kept. The theme's fallback config is never kept:
+ * a failed read leaves the last delivery known. Before any is known every
+ * image passes through.
  */
-import { MEDIA_DOMAIN } from "astro:env/server";
+import type { MediaDelivery } from "@wocart/storefront";
 import { mediaImageService } from "@wocart/theme/image-service";
 
-export default mediaImageService(() => MEDIA_DOMAIN);
+let storeMedia: MediaDelivery | null = null;
+
+export function keepStoreMedia(media: MediaDelivery): void {
+  storeMedia = media;
+}
+
+export default mediaImageService(() => storeMedia);

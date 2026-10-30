@@ -30,7 +30,7 @@ const excerpt = featured?.descriptionPlain ? featured.descriptionPlain.slice(0, 
     <div class="spotlight">
       <div class="plate spotlight-photo">
         {photo && (
-          <Image src={photo.src} alt={photo.altText ?? featured.name} width={1000} height={1250} widths={[480, 720, 1000]} sizes="(min-width: 1024px) 50vw, 100vw" loading="lazy" decoding="async" />
+          <Image src={photo.url} alt={photo.altText ?? featured.name} width={1000} height={1250} widths={[480, 720, 1000]} sizes="(min-width: 1024px) 50vw, 100vw" loading="lazy" decoding="async" />
         )}
         {view.hasDiscount && <span class="badge badge-sale num spotlight-tag">-{view.discountPct}%</span>}
       </div>

@@ -64,7 +64,7 @@ function makeCategory(overrides: Partial<Category>): Category {
     slug: "fixture-category",
     description: null,
     parentId: null,
-    imageUrl: null,
+    image: null,
     metaTitle: null,
     metaDescription: null,
     metaKeywords: null,

@@ -16,7 +16,6 @@ const env = vi.hoisted(() => ({ WOCART_PREVIEW_KEY: undefined as string | undefi
 vi.mock("astro:env/server", () => ({
   COD_SERVER_URL: "http://localhost:8787",
   STORE_API_KEY: "test-key",
-  MEDIA_DOMAIN: undefined,
   get WOCART_PREVIEW_KEY() {
     return env.WOCART_PREVIEW_KEY;
   },

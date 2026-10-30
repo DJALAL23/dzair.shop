@@ -22,7 +22,6 @@ import { makeProduct } from "../support/home-render";
 import shippedHome from "@/theme/pages/home.page.json";
 
 vi.mock("astro:env/server", () => ({
-  MEDIA_DOMAIN: "media.boutique.test",
   COD_SERVER_URL: "http://localhost:8787",
   STORE_API_KEY: "test-key",
   WOCART_PREVIEW_KEY: undefined,
@@ -77,7 +76,7 @@ function store(empty = false) {
       page: async () => ({ items: empty ? [] : [makeProduct({ handle: "lampe" })], hasNext: false, total: empty ? 0 : 1 }),
       get: async (handle: string) => (empty ? null : handle === "robe-kabyle" ? ROBE : handle === "lampe" ? { ...ROBE, name: "Lampe", handle } : null),
     },
-    categories: { list: async () => (empty ? [] : [{ id: "cat_robes", name: "Robes", slug: "robes", description: null, parentId: null, imageUrl: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }]) },
+    categories: { list: async () => (empty ? [] : [{ id: "cat_robes", name: "Robes", slug: "robes", description: null, parentId: null, image: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }]) },
     collections: { get: async (handle: string) => (!empty && handle === "best-sellers" ? { handle, title: "Meilleures ventes", description: null } : null) },
     pages: { get: async () => null },
   } as unknown as StoreClient;

@@ -22,7 +22,7 @@ const products = Array.from({ length: 6 }, (_, index) =>
 const categories = Array.from(
   { length: 6 },
   (_, index) =>
-    ({ id: `cat_${index}`, name: `Category ${index}`, slug: `category-${index}`, position: index, imageUrl: null }) as unknown as Category,
+    ({ id: `cat_${index}`, name: `Category ${index}`, slug: `category-${index}`, position: index, image: null }) as unknown as Category,
 );
 const storefront = fakeStorefront(products, categories);
 

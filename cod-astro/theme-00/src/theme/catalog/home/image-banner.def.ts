@@ -56,7 +56,7 @@ export const imageBanner = defineComponent({
     const withPhoto = onSale.filter((product) => product.coverImage);
     const lead = withPhoto[1] ?? withPhoto[0] ?? null;
     return {
-      lead: lead ? { src: lead.coverImage!.src, alt: lead.coverImage!.altText ?? lead.name } : null,
+      lead: lead ? { src: lead.coverImage!.url, alt: lead.coverImage!.altText ?? lead.name } : null,
       content: copyOverrides(context.content, props),
     };
   },

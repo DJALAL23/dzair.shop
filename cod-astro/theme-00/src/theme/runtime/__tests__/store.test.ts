@@ -16,13 +16,14 @@
  * The config fixture is a live capture (wocart-sdk/storefront/fixtures/cod-server/
  * store-config.json) in its real `{ success, data }` envelope.
  */
+import type { ImageTransform } from "astro";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const LIVE_CONFIG = {
   id: "store_01",
   name: "متجر الجزائر",
   domain: "algiers-gadgets.codflow.store",
-  logoUrl: "https://media.codflow.store/stores/store_01/logo.png",
+  logo: { key: "products/logo.png", url: "https://ik.imagekit.io/wocart/stores/store_01/products/logo.png", width: 512, height: 512 },
   themeId: "theme-00",
   primaryColor: "#7c3aed",
   accentColor: "#f59e0b",
@@ -41,6 +42,7 @@ const LIVE_CONFIG = {
   metaTitle: "متجر الجزائر",
   metaDescription: "الدفع عند الاستلام في كل ولايات الوطن",
   ogImage: null,
+  media: { kind: "imagekit", origin: "https://ik.imagekit.io/wocart/stores/store_01" },
   announcementBar: null,
   reviewsEnabled: true,
   cartEnabled: false,
@@ -111,7 +113,6 @@ const LIVE_CONFIG = {
 const env = vi.hoisted(() => ({
   COD_SERVER_URL: undefined as string | undefined,
   STORE_API_KEY: undefined as string | undefined,
-  MEDIA_DOMAIN: undefined as string | undefined,
 }));
 
 vi.mock("astro:env/server", () => ({
@@ -120,9 +121,6 @@ vi.mock("astro:env/server", () => ({
   },
   get STORE_API_KEY() {
     return env.STORE_API_KEY;
-  },
-  get MEDIA_DOMAIN() {
-    return env.MEDIA_DOMAIN;
   },
 }));
 
@@ -170,7 +168,6 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
   afterEach(() => {
     env.COD_SERVER_URL = undefined;
     env.STORE_API_KEY = undefined;
-    env.MEDIA_DOMAIN = undefined;
     vi.unstubAllGlobals();
   });
 
@@ -286,6 +283,23 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
 
     expect(ctx.config.name).toBe(DEFAULT_CONFIG.name);
     expect(ctx.isRTL).toBe(true);
+  });
+
+  it("hands the image service the store's delivery, and keeps it through a failed read", async () => {
+    const { default: service } = await import("@/theme/utils/image-service");
+    const photo = `${LIVE_CONFIG.media.origin}/products/watch-1.jpg`;
+    const url = () => service.getURL({ src: photo, width: 320 } as ImageTransform, {} as never, {} as never);
+
+    expect(await url()).toBe(photo);
+    stubConfigServer();
+    await storeFor("/");
+    expect(await url()).toBe(`${photo}?tr=w-320`);
+
+    vi.stubGlobal("fetch", async () => {
+      throw new Error("network down");
+    });
+    await storeFor("/");
+    expect(await url()).toBe(`${photo}?tr=w-320`);
   });
 });
 

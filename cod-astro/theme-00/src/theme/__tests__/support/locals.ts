@@ -3,10 +3,13 @@
  * store context middleware builds for a real request, so components read
  * links, language and the SDK client exactly as they do in production.
  */
-import { localizeHref, type LocaleRouting } from "@wocart/storefront";
+import { localizeHref, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
 import type { StoreClient } from "@/theme/sdk";
 import { en } from "@/theme/content/en";
 import { DEFAULT_CONFIG, type StoreContext } from "@/theme/runtime/store";
+
+/** A store as its server answers: the theme's defaults, with its media served from its own domain. */
+export const TEST_CONFIG: StoreConfig = { ...DEFAULT_CONFIG, media: { kind: "cloudflare", origin: "https://media.boutique.test" } };
 
 /** A store with no menus and no saved pages: every area renders the theme's default. */
 const EMPTY_CLIENT = { menus: { get: async () => null }, pageData: { get: async () => null } };
@@ -15,7 +18,7 @@ export function testStore(overrides: Partial<StoreContext> & { routing?: LocaleR
   const routing = overrides.routing ?? { primary: "en", published: ["en"] };
   const locale = overrides.locale ?? routing.primary;
   return {
-    config: DEFAULT_CONFIG,
+    config: TEST_CONFIG,
     content: en,
     locale,
     fallbackLocales: locale === routing.primary ? [] : [routing.primary],
@@ -25,7 +28,7 @@ export function testStore(overrides: Partial<StoreContext> & { routing?: LocaleR
     href: (path) => localizeHref(path, locale, routing),
     ...overrides,
     // A test's client stands in for the namespaces it names; the rest read as empty, and its config is the store's.
-    client: { ...EMPTY_CLIENT, config: { get: async () => overrides.config ?? DEFAULT_CONFIG }, ...(overrides.client as object | undefined) } as unknown as StoreClient,
+    client: { ...EMPTY_CLIENT, config: { get: async () => overrides.config ?? TEST_CONFIG }, ...(overrides.client as object | undefined) } as unknown as StoreClient,
   };
 }
 

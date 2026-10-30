@@ -12,7 +12,7 @@ import { actions } from "astro:actions";
 import OrderForm from "@/theme/components/order/OrderForm.astro";
 import AddToCartButton from "@/theme/components/cart/AddToCartButton.astro";
 import { orderOutcome } from "@/theme/pages/order-outcome";
-import { getThumbnailImage } from "@/theme/utils/images";
+import { thumbnailImage } from "@/theme/utils/images";
 import type { productOrder } from "@/theme/catalog/product/product-main.def";
 
 type Props = InferProps<typeof productOrder> & { product: Product | null };
@@ -22,7 +22,7 @@ const { fieldErrors, serverError, couponRefusal } = orderOutcome(Astro.getAction
 const view = product ? getProductView(product) : null;
 // Thumbnail for the cart drawer and the checkout summary, at the size it renders.
 const cartImageSrc = product ? productImageSource(product) : null;
-const cartImage = cartImageSrc ? getThumbnailImage(cartImageSrc) : null;
+const cartImage = cartImageSrc ? thumbnailImage(cartImageSrc, config.media) : null;
 ---
 
 {product && view && (

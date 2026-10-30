@@ -52,14 +52,8 @@ const comparePrice = view?.comparePrice ?? null;
 const isOutOfStock = view?.isOutOfStock ?? false;
 const defaultVariantId = defaultVariant?.id ?? null;
 
-const images: Array<{
-  id: string;
-  src: string;
-  altText: string | null;
-  width: number | null;
-  height: number | null;
-}> = lp.images ?? [];
-const firstImage = images[0]?.src ?? "";
+const images = lp.images ?? [];
+const firstImage = images[0]?.url ?? "";
 // Which pixel THIS page reports to — resolved by cod-server inside the batch
 // that loaded the page, so the head and the events below name the same pixel
 // the Conversions API will mirror to. The theme never works this out itself:
@@ -78,7 +72,7 @@ const metaDescription = lp.metaDescription || config.metaDescription || undefine
   description={metaDescription}
   ogImage={firstImage}
   marketing={true}
-  preloadImages={images.slice(0, 2).map((i) => i.src)}
+  preloadImages={images.slice(0, 2).map((i) => i.url)}
 >
   {product && (
     <div>
@@ -109,7 +103,7 @@ const metaDescription = lp.metaDescription || config.metaDescription || undefine
       <div class="mx-auto w-full max-w-xl">
         {images.map((image, index) => (
           <img
-            src={image.src}
+            src={image.url}
             alt={image.altText ?? product.name}
             width={image.width ?? undefined}
             height={image.height ?? undefined}

@@ -31,7 +31,7 @@ const goTo = (index: number) => message(content, "ariaGoToImage", { n: index + 1
       {total > 0 ? product.images.map((img, index) => (
         <div class="gallery-slide" data-image-id={img.id}>
           <Image
-            src={img.src}
+            src={img.url}
             alt={img.altText ?? product.name}
             width={1200}
             height={1500}
@@ -68,7 +68,7 @@ const goTo = (index: number) => message(content, "ariaGoToImage", { n: index + 1
     <div class="gallery-thumbs">
       {product.images.map((img, index) => (
         <button type="button" class:list={["gallery-thumb plate", index === 0 && "is-active"]} data-index={index} aria-label={goTo(index)}>
-          <Image src={img.src} alt="" width={168} height={168} loading="lazy" decoding="async" quality={80} />
+          <Image src={img.url} alt="" width={168} height={168} loading="lazy" decoding="async" quality={80} />
         </button>
       ))}
     </div>

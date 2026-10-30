@@ -10,7 +10,7 @@ import InstanceView from "@wocart/theme/astro/InstanceView.astro";
 import { createReadCache, type RendererIssue } from "@wocart/theme/astro";
 import type { ComponentInstance, ThemeRenderContext } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
-import { DEFAULT_CONFIG } from "@/theme/runtime/store";
+import { TEST_CONFIG } from "./locals";
 import { en } from "@/theme/content/en";
 import type { LocaleRouting } from "@wocart/storefront";
 import { testLocals } from "./locals";
@@ -82,7 +82,7 @@ export async function renderSections(
   } = {},
 ): Promise<string> {
   const context: ThemeRenderContext = {
-    store: DEFAULT_CONFIG,
+    store: TEST_CONFIG,
     content: options.content ?? en,
     locale: options.locale ?? "en",
     fallbackLocales: [],

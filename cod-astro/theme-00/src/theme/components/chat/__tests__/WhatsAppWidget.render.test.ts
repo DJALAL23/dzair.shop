@@ -158,18 +158,18 @@ describe("WhatsAppWidget component markup & accessibility", () => {
     expect(img?.getAttribute("loading")).toBe("lazy");
   });
 
-  it("falls back to store logoUrl when avatarUrl is null", async () => {
+  it("falls back to the store's logo when avatarUrl is null", async () => {
     const { document } = await renderWidget(
       { avatarUrl: null },
-      { logoUrl: "https://cdn.example.com/logo.png" },
+      { logo: { key: "products/logo.png", url: "https://cdn.example.com/logo.png", width: 256, height: 256 } },
     );
     const img = document.querySelector(".wa-header-avatar img");
     expect(img).not.toBeNull();
     expect(img?.getAttribute("src")).toBe("https://cdn.example.com/logo.png");
   });
 
-  it("renders generic SVG avatar when both avatarUrl and logoUrl are null", async () => {
-    const { document } = await renderWidget({ avatarUrl: null }, { logoUrl: null });
+  it("renders generic SVG avatar when there is neither an avatar nor a logo", async () => {
+    const { document } = await renderWidget({ avatarUrl: null }, { logo: null });
     const img = document.querySelector(".wa-header-avatar img");
     expect(img).toBeNull();
     const fallbackSvg = document.querySelector(".wa-avatar-fallback svg");

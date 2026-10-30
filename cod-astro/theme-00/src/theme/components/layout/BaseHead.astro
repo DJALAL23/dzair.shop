@@ -45,7 +45,6 @@ interface Props {
 const { title, description, ogImage, noindex, config, locale, canonical, alternates, schemes, themeColor, fonts, radii, isRTL, preloadImages, softNavigation = true } = Astro.props;
 const subset = isRTL ? "arabic" : "latin";
 
-import { MEDIA_DOMAIN } from "astro:env/server";
 ---
 
 <head>
@@ -89,8 +88,8 @@ import { MEDIA_DOMAIN } from "astro:env/server";
   {/* The color schemes of the store; the style classes ship inside the theme stylesheet. */}
   <ThemeStyles schemes={schemes} stylesheet={false} />
 
-  <!-- R2 media domain — early connection for product images -->
-  {MEDIA_DOMAIN && <link rel="preconnect" href={`https://${MEDIA_DOMAIN}`} />}
+  <!-- The store's media — early connection for product images -->
+  <link rel="preconnect" href={new URL(config.media.origin).origin} />
 
   <!-- LCP image preload — starts the first stack images' fetches from the
        head (fetchpriority on the img alone waits for the parser to reach it).

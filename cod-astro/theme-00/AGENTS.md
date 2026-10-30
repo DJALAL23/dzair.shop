@@ -142,8 +142,8 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   and refuses a localhost value without `--force-local`. Local dev reads it
   from this package's `.dev.vars`. Real secrets go in `.dev.vars` (gitignored)
   or `wrangler secret put` — never in `wrangler.jsonc`.
-- `MEDIA_DOMAIN` is optional; unset, the image optimizer passes URLs through
-  unchanged.
+- Images need no variable: the store's config carries its media delivery
+  (`config.media`), which `utils/images.ts` and the image service read.
 - `WOCART_PREVIEW_KEY` is optional: the editor's preview public key (an
   Ed25519 JWK, a secret like the others). Unset, `/wocart-preview` is a 404.
 - **astro-icon uses an explicit allowlist** (`icon({ include: { heroicons: […] } })`
