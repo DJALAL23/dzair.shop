@@ -67,6 +67,7 @@ const idParams = z.object({
 
 const updateBodySchema = z.object({
   ...groupBaseFields,
+  name: groupBaseFields.name.optional(),
   position: z.number().int().min(0).optional(),
 });
 

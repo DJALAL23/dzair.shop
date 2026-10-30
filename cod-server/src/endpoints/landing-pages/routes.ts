@@ -287,7 +287,7 @@ const saveLandingPageImageRoute = defineRoute({
       description: "Alt text for accessibility",
     }),
     position: z.number().int().min(1).optional().openapi({
-      description: "Stack position (auto-appended at the end if not provided)",
+      description: "Where it goes, 1 = top of the page; the images from there move down one. Omitted or past the end: last",
     }),
   }),
   responses: {

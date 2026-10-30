@@ -207,6 +207,18 @@ describe("an image from the agent's URL", () => {
     expect(await mediaRows()).toHaveLength(1);
     expect(await imageRows()).toHaveLength(1);
   });
+
+  it("at a position past the end goes last", async () => {
+    vi.stubGlobal("fetch", respond(PNG_1X1));
+    expect((await run(payload({ position: 9 }))).output.position).toBe(1);
+  });
+
+  it("at a position goes there, the images from there moving down one", async () => {
+    vi.stubGlobal("fetch", respond(PNG_1X1));
+    await d1.db.insert(schema.landingPageImages).values({ id: "first", landingPageId: PAGE, mediaKey: "landing/first.webp", position: 1, createdAt: T });
+    expect((await run(payload({ position: 1 }))).output.position).toBe(1);
+    expect((await imageRows()).sort((a, b) => a.position - b.position).map((row) => [row.id === "first", row.position])).toEqual([[false, 1], [true, 2]]);
+  });
 });
 
 describe("an image the agent sent as bytes", () => {

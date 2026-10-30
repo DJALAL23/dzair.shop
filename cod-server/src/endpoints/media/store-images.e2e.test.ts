@@ -63,7 +63,7 @@ beforeEach(async () => {
 
 describe("a category's image", () => {
   const create = (body: Record<string, unknown>) => app.request("/api/product-groups", json("POST", { name: "Robes", ...body }));
-  const patch = (id: string, body: Record<string, unknown>) => app.request(`/api/product-groups/${id}`, json("PATCH", { name: "Robes", ...body }));
+  const patch = (id: string, body: Record<string, unknown>) => app.request(`/api/product-groups/${id}`, json("PATCH", body));
 
   it("is set from a ready file and shown at the store's URL", async () => {
     const created = await answer(await create({ imageKey: KEY("a") }));

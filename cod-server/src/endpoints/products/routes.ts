@@ -128,7 +128,7 @@ const attachProductImageRoute = defineRoute({
       description: "Alt text for accessibility",
     }),
     position: z.number().int().min(1).optional().openapi({
-      description: "Display order (auto-appended at end if not provided)",
+      description: "Where it goes, 1 = first; the images from there move down one. Omitted or past the end: last",
     }),
   }),
   responses: {

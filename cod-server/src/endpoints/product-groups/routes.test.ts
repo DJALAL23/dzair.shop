@@ -205,6 +205,29 @@ describe("Product Groups routes (OpenAPIHono)", () => {
       expect(body.data.name).toBe("Updated Electronics");
     });
 
+    it("changes only what it is sent: no name is needed", async () => {
+      vi.mocked(writes.updateProductGroup).mockResolvedValue({ ...categoryRow({ position: 3 }), children: [], productsCount: 0 });
+
+      const res = await app.request("/api/product-groups/cat_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: 3 }),
+      });
+
+      expect(res.status).toBe(200);
+      expect(vi.mocked(writes.updateProductGroup).mock.calls[0]![3]).toEqual({ position: 3 });
+    });
+
+    it("refuses an empty name", async () => {
+      const res = await app.request("/api/product-groups/cat_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "" }),
+      });
+
+      expect(res.status).toBe(400);
+    });
+
     it("returns 400 for invalid slug", async () => {
       const res = await app.request("/api/product-groups/cat_123", {
         method: "PATCH",

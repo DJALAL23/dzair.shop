@@ -9,7 +9,7 @@
 import type { MediaDelivery } from "../media/delivery";
 import { landingImageViews } from "../media/views";
 import { storefrontPath } from "../storefront/routes";
-import { eq, desc, and, sql, isNull, count } from "drizzle-orm";
+import { eq, desc, and, sql, isNull, count, gte } from "drizzle-orm";
 import {
   landingPages,
   landingPageImages,
@@ -431,6 +431,10 @@ export async function deleteLandingPage(db: AppDb, id: string) {
   await db.delete(landingPages).where(eq(landingPages.id, id));
 }
 
+/**
+ * Adds an image to the stack: at the end, or at `position` — the images from
+ * there move down one. A position past the end is the end.
+ */
 export async function addLandingPageImage(
   db: AppDb,
   landingPageId: string,
@@ -445,19 +449,26 @@ export async function addLandingPageImage(
     .from(landingPageImages)
     .where(eq(landingPageImages.landingPageId, landingPageId))
     .get();
-  const nextPosition = image.position ?? Number(lastRow?.maxPos ?? 0) + 1;
+  const end = Number(lastRow?.maxPos ?? 0) + 1;
+  const position = Math.min(image.position ?? end, end);
 
-  await db.insert(landingPageImages).values({
-    id,
-    landingPageId,
-    mediaKey: image.mediaKey,
-    altText: image.altText ?? null,
-    source: image.source ?? "upload",
-    position: nextPosition,
-    width: image.width ?? null,
-    height: image.height ?? null,
-    createdAt: now,
-  });
+  await db.batch([
+    db
+      .update(landingPageImages)
+      .set({ position: sql`${landingPageImages.position} + 1` })
+      .where(and(eq(landingPageImages.landingPageId, landingPageId), gte(landingPageImages.position, position))),
+    db.insert(landingPageImages).values({
+      id,
+      landingPageId,
+      mediaKey: image.mediaKey,
+      altText: image.altText ?? null,
+      source: image.source ?? "upload",
+      position,
+      width: image.width ?? null,
+      height: image.height ?? null,
+      createdAt: now,
+    }),
+  ]);
 
   return getLandingPageImages(db, landingPageId, delivery);
 }

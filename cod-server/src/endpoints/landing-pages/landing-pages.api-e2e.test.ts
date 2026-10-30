@@ -199,6 +199,14 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
 
     const list = (await (await app.request(`/api/landing-pages/${id}/images`)).json()) as any;
     expect(list.data.map((i: any) => i.position)).toEqual([1, 2, 3]);
+
+    // A position takes that place; the images from there move down one
+    const placed = await addImage(id, "landing/img-top.jpg", { position: 2 });
+    expect((((await placed.json()) as any).data as any[]).map((i) => [i.key, i.position])).toEqual([
+      ["landing/img-1.jpg", 1], ["landing/img-top.jpg", 2], ["landing/img-2.jpg", 3], ["landing/img-3.jpg", 4],
+    ]);
+    const placedId = (await db.select().from(schema.landingPageImages).where(eq(schema.landingPageImages.mediaKey, "landing/img-top.jpg")).get())!.id;
+    await app.request(`/api/landing-pages/${id}/images/${placedId}`, { method: "DELETE" });
     const imgIds = list.data.map((i: any) => i.id);
 
     // Reorder 3,1,2

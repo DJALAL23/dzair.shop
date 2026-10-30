@@ -113,6 +113,16 @@ describe("a product's images", () => {
     expect(await held(KEY("a"))).toBe(true);
   });
 
+  it("takes the position it is given, the images from there moving down one; past the end is the end", async () => {
+    const first = await app.request("/api/products/p1/images", json("POST", { mediaKey: KEY("d"), position: 1 }));
+    expect(((await first.json()) as { data: { position: number } }).data.position).toBe(1);
+    expect((await listed()).map((img) => [img.key, img.position])).toEqual([[KEY("d"), 1], [KEY("a"), 2], [KEY("b"), 3], [KEY("c"), 4]]);
+
+    await d1.db.delete(schema.productImages).where(eq(schema.productImages.mediaKey, KEY("d")));
+    const beyond = await app.request("/api/products/p1/images", json("POST", { mediaKey: KEY("d"), position: 99 }));
+    expect(((await beyond.json()) as { data: { position: number } }).data.position).toBe(5);
+  });
+
   it("refuses a position below 1", async () => {
     const res = await app.request("/api/products/p1/images", json("POST", { mediaKey: KEY("d"), position: 0 }));
 

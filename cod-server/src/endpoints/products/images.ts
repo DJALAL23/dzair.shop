@@ -4,7 +4,7 @@
  * else shows it.
  */
 import type { Context } from "hono";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, max, sql } from "drizzle-orm";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import { NotFoundError, ValidationError } from "@/lib/errors/classes";
@@ -25,7 +25,7 @@ export async function listProductImages(c: Context<AppContext>) {
   return c.json({ success: true, data: await gallery(c, c.req.param("id")!) }, 200);
 }
 
-/** POST /api/products/:id/images — attach a ready image, last unless a position is given. */
+/** POST /api/products/:id/images — attach a ready image: last, or at a position, the images from there moving down one. */
 export async function attachProductImage(c: Context<AppContext>) {
   const productId = c.req.param("id")!;
   const db = getDb(c.env.DB);
@@ -35,22 +35,20 @@ export async function attachProductImage(c: Context<AppContext>) {
   if (!product) throw new NotFoundError("Product", productId);
   const file = await mediaOf(c.env).ready(mediaKey);
 
-  const last = await db.select({ position: productImages.position }).from(productImages).where(eq(productImages.productId, productId)).orderBy(asc(productImages.position)).all();
+  const last = await db.select({ position: max(productImages.position) }).from(productImages).where(eq(productImages.productId, productId)).get();
+  const end = (last?.position ?? 0) + 1;
+  const at = Math.min(position ?? end, end);
   const now = new Date().toISOString();
-  const [row] = await db
-    .insert(productImages)
-    .values({
-      id: crypto.randomUUID(),
-      productId,
-      mediaKey: file.key,
-      altText: altText ?? null,
-      width: file.width,
-      height: file.height,
-      position: position ?? (last.length > 0 ? Math.max(...last.map((image) => image.position)) + 1 : 1),
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
+  const [, [row]] = await db.batch([
+    db
+      .update(productImages)
+      .set({ position: sql`${productImages.position} + 1` })
+      .where(and(eq(productImages.productId, productId), gte(productImages.position, at))),
+    db
+      .insert(productImages)
+      .values({ id: crypto.randomUUID(), productId, mediaKey: file.key, altText: altText ?? null, width: file.width, height: file.height, position: at, createdAt: now, updatedAt: now })
+      .returning(),
+  ]);
   return c.json({ success: true, data: productImageView(row!, mediaDeliveryOf(c.env)) }, 201);
 }
 
