@@ -4,16 +4,17 @@
  * All API domains are migrated to @hono/zod-openapi: the served document is
  * the spec auto-generated from route definitions registered via app.openapi().
  *
- * Single documented exception: `/images/{key}` (public R2 serving) stays on a
- * plain-Hono router because it needs Hono's regex param (`:key{.+}`) so keys
- * containing slashes match — not expressible as a createRoute path. Its path
- * entry comes from endpoints/images/openapi.ts and is merged in below.
+ * Single documented exception: `/media/{key}` (files the store server serves
+ * itself) stays on a plain-Hono router because it needs Hono's regex param
+ * (`:key{.+}`) so keys containing slashes match — not expressible as a
+ * createRoute path. Its path entry comes from endpoints/media/openapi.ts and is
+ * merged in below.
  */
 
 import type { Context } from "hono";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
-import { imagePaths } from "@/endpoints/images/openapi";
+import { mediaPaths } from "@/endpoints/media/openapi";
 import { registerEventWebhooks } from "@/events/webhooks-openapi";
 
 function resolveBaseUrl(c: Context<AppContext>): string {
@@ -176,9 +177,9 @@ export function registerSpecEndpoint(app: OpenAPIHono<AppContext>): void {
 
     return c.json({
       ...generated,
-      // /images/{key} is the single plain-Hono route (regex param) — its
+      // /media/{key} is the single plain-Hono route (regex param) — its
       // documentation merges in alongside the generated paths.
-      paths: { ...imagePaths, ...generated.paths },
+      paths: { ...mediaPaths, ...generated.paths },
     });
   });
 

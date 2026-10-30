@@ -3,6 +3,7 @@
  * shopper's — find the order, send photos and a voice note, submit.
  * Mounted under /store/reviews (store API key). Built with defineRoute().
  */
+import { MediaImageSchema } from "@/openapi/schemas";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
@@ -81,7 +82,7 @@ A wrong number and a wrong phone both answer **404 ORDER_NOT_FOUND**. An order n
             z.object({
               productId: z.string(),
               name: z.string(),
-              imageSrc: z.string().nullable(),
+              image: MediaImageSchema.nullable().openapi({ description: "The product's first image" }),
               reviewed: z.boolean().openapi({ description: "Already reviewed from this order" }),
             }),
           ),

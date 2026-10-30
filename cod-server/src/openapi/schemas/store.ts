@@ -7,6 +7,7 @@
 import { z } from "@hono/zod-openapi";
 import { REVIEW_AUTO_PUBLISH, REVIEW_MAX_PHOTOS, REVIEW_VOICE_LENGTHS } from "../../../../cod-shared/reviews/model";
 import { ProductCategoryRowSchema } from "./products";
+import { MediaDeliverySchema, MediaImageSchema } from "./media";
 import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
 
 /** A store language (`cod-shared/i18n/locales.ts`). */
@@ -46,7 +47,7 @@ export const StoreSchema = z
     id: z.string().openapi({ example: "store_01" }),
     name: z.string().openapi({ example: "My Shop" }),
     domain: z.string().nullable().openapi({ description: "Custom storefront domain", example: null }),
-    logoUrl: z.string().url().nullable().openapi({ example: "https://cdn.example.com/logo.png" }),
+    logo: MediaImageSchema.nullable().openapi({ description: "The store's logo" }),
     themeId: z.string().openapi({
       description: 'The storefront theme\'s slug, e.g. "theme-00"',
       example: "theme-00",
@@ -59,7 +60,7 @@ export const StoreSchema = z
     currencySymbol: z.string().openapi({ example: "دج" }),
     metaTitle: z.string().nullable().openapi({ example: "My Shop — Best Products" }),
     metaDescription: z.string().nullable().openapi({ example: "Find the best products at My Shop." }),
-    ogImage: z.string().url().nullable().openapi({ example: "https://cdn.example.com/og.png" }),
+    ogImage: MediaImageSchema.nullable().openapi({ description: "The image links to the store show when shared" }),
     reviewsEnabled: z.boolean().openapi({
       description: "When false, reviews are hidden on the storefront and submission is disabled",
       example: true,
@@ -142,15 +143,11 @@ export const StorePixelConfigSchema = z
 
 // ─── Storefront API (public, X-Store-API-Key) ─────────────────────────────────
 
-export const StoreProductImageSchema = z.object({
+export const StoreProductImageSchema = MediaImageSchema.extend({
   id: z.string(),
-  src: z.string().url().openapi({ description: "Original image URL" }),
-  srcSm: z.string().url().nullable().openapi({ example: null }),
-  srcMd: z.string().url().nullable().openapi({ example: null }),
-  srcLg: z.string().url().nullable().openapi({ example: null }),
   altText: z.string().nullable().openapi({ description: "Alt text for accessibility" }),
   position: z.number().int().min(1).openapi({ description: "Display order (1 = first)" }),
-});
+}).openapi("StoreProductImage");
 
 export const StoreReviewStatsSchema = z.object({
   avgRating: z.number().openapi({
@@ -491,7 +488,7 @@ export const StoreConfigSchema = z
     id: z.string().openapi({ description: "Store UUID" }),
     name: z.string().openapi({ example: "متجري" }),
     domain: z.string().nullable(),
-    logoUrl: z.string().nullable(),
+    logo: MediaImageSchema.nullable(),
     themeId: z.string().openapi({ example: "theme-00" }),
     primaryColor: z.string().openapi({
       description: "Deprecated: the value saved before colors and fonts became theme settings (migration 0047), no longer editable. Kept because @wocart/storefront up to 1.7 requires it; read `themeSettings` instead.",
@@ -532,7 +529,8 @@ export const StoreConfigSchema = z
     currencySymbol: z.string().openapi({ example: "دج" }),
     metaTitle: z.string().nullable(),
     metaDescription: z.string().nullable(),
-    ogImage: z.string().nullable(),
+    ogImage: MediaImageSchema.nullable(),
+    media: MediaDeliverySchema.openapi({ description: "How the storefront fetches and resizes every image key (ADR 0021)" }),
     announcementBar: z.null().openapi({
       description: "Deprecated: always null. Kept because @wocart/storefront up to 1.7 requires the field; a theme's announcement is its own setting (`themeSettings`).",
     }),

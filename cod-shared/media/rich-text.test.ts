@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mediaDelivery } from "./delivery";
-import { toServedHtml, toStoredHtml } from "./rich-text";
+import { mediaKeysIn, toServedHtml, toStoredHtml } from "./rich-text";
 
 const delivery = mediaDelivery("imagekit", "https://ik.imagekit.io/wocart/stores/maysa");
 const URL_A = "https://ik.imagekit.io/wocart/stores/maysa/products/a.webp";
@@ -23,5 +23,12 @@ describe("rich text", () => {
   it("round-trips: what is stored is served, and what is served is stored back the same", () => {
     const stored = `<p><img src="media:products/a.webp"> and <img src="https://cdn.example.com/x.jpg"></p>`;
     expect(toStoredHtml(toServedHtml(stored, delivery), delivery)).toBe(stored);
+  });
+});
+
+describe("the keys rich text shows", () => {
+  it("are its media: keys, once each", () => {
+    expect(mediaKeysIn(`<img src="media:products/a.webp"><img src="media:products/a.webp"><img src="media:../x"><img src="${URL_A}">`)).toEqual(["products/a.webp"]);
+    expect(mediaKeysIn(null)).toEqual([]);
   });
 });

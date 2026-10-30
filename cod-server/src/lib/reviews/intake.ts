@@ -15,6 +15,9 @@
  * guessed for one order); the limit is by order, not by IP, because Algerian
  * mobile networks put many shoppers behind one address.
  */
+import type { MediaDelivery } from "../../../../cod-shared/media/delivery";
+import type { MediaImage } from "../../../../cod-shared/media/model";
+import { imageOf } from "../../../../cod-shared/media/views";
 import type { AppDb } from "@/db";
 import { BusinessLogicError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -26,11 +29,13 @@ import { isMediaId } from "../../../../cod-shared/reviews/media";
 import { findReceived, receiveFile, type ReceivedFile } from "@/lib/review-media/receive";
 import { issueUploadGrant, readUploadGrant, type UploadGrant } from "@/lib/review-media/grant";
 import { reviewMediaInstanceId, type ReviewMediaJob, type ReviewMediaUpload } from "@/lib/review-media/job";
+import type { Staging } from "@/lib/staging";
 
 export interface IntakeDeps {
   db: AppDb;
   storeId: string;
-  bucket: R2Bucket;
+  staging: Staging;
+  delivery: MediaDelivery;
   workflow?: Pick<Workflow, "create">;
   uploadSecret?: string;
   limiter?: Pick<RateLimit, "limit">;
@@ -44,7 +49,7 @@ export interface MediaAllowance {
 export interface ReviewOpening {
   orderNumber: string;
   customerName: string;
-  products: ReviewableProduct[];
+  products: Array<Omit<ReviewableProduct, "imageKey"> & { image: MediaImage | null }>;
   /** null: this review takes text only (the store's choice, or media is not set up). */
   media: (MediaAllowance & { grant: string; expiresAt: number }) | null;
 }
@@ -96,7 +101,8 @@ export async function openReview(deps: IntakeDeps, proof: { orderNumber: string;
     const { token, grant } = await issueUploadGrant(deps.uploadSecret!, { orderId: order.id, ...allowance });
     media = { ...allowance, grant: token, expiresAt: grant.expiresAt };
   }
-  return { orderNumber: order.orderNumber, customerName: order.customerName, products: order.products, media };
+  const products = order.products.map(({ imageKey, ...product }) => ({ ...product, image: imageOf(imageKey, deps.delivery) }));
+  return { orderNumber: order.orderNumber, customerName: order.customerName, products, media };
 }
 
 async function grantFrom(deps: IntakeDeps, token: string | undefined): Promise<UploadGrant> {
@@ -110,7 +116,7 @@ export async function receiveUpload(
   input: { grant: string | undefined; body: ReadableStream<Uint8Array> | null; declaredBytes?: number; declaredDurationMs?: number },
 ): Promise<ReceivedFile> {
   const grant = await grantFrom(deps, input.grant);
-  return receiveFile(deps.bucket, {
+  return receiveFile(deps.staging, {
     folder: grant.id,
     body: input.body,
     declaredBytes: input.declaredBytes,
@@ -140,7 +146,7 @@ async function collectUploads(deps: IntakeDeps, policy: ReviewPolicy, orderId: s
   if (grant.orderId !== orderId) throw new BusinessLogicError("The upload permission is for another order", ERROR_CODES.REVIEW_UPLOAD_GRANT_INVALID);
   if (ids.some((id) => !isMediaId(id))) throw new BusinessLogicError("A file of this review was not received", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND);
 
-  const uploads: ReviewMediaUpload[] = await findReceived(deps.bucket, grant.id, ids);
+  const uploads: ReviewMediaUpload[] = await findReceived(deps.staging, grant.id, ids);
   const photos = uploads.filter((upload) => upload.kind === "image").length;
   const voices = uploads.length - photos;
   if (photos > policy.maxPhotos) throw new BusinessLogicError(`At most ${policy.maxPhotos} photos`, ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: "image", max: policy.maxPhotos });

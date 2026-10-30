@@ -238,6 +238,19 @@ describe.each(SETUPS)("the Media Library, %s", (_name, makeRig, reach) => {
     });
   });
 
+  describe("a key about to be shown", () => {
+    it("is ready, kept by this host; anything else is refused", async () => {
+      const { image } = await uploaded(png());
+      expect(await library.ready(image.key)).toMatchObject({ key: image.key, status: "ready" });
+      const pending = await library.requestUpload({ folder: "products", contentType: "image/png", bytes: 10 });
+      await expect(library.ready(pending.key)).rejects.toMatchObject({ reason: "not_ready" });
+      await expect(library.ready("products/never.png")).rejects.toMatchObject({ reason: "not_ready" });
+      await expect(library.ready("https://x.dz/products/a.png")).rejects.toMatchObject({ reason: "key_invalid" });
+      await run(`INSERT INTO media (id, "key", host, kind, content_type, status, created_at) VALUES (?1, 'products/other-host.png', ?2, 'image', 'image/png', 'ready', '2026-01-01')`, crypto.randomUUID(), rig.host.kind === "r2" ? "imagekit" : "r2");
+      await expect(library.ready("products/other-host.png")).rejects.toMatchObject({ reason: "not_ready" });
+    });
+  });
+
   describe("a relayed upload", () => {
     it("is capped at its ticket's size, typed by its bytes, and refused once its ticket has expired", async (context) => {
       const probe = await library.requestUpload({ folder: "products", contentType: "image/png", bytes: 100 });
@@ -380,6 +393,16 @@ describe.each(SETUPS)("the Media Library, %s", (_name, makeRig, reach) => {
       }
       expect(object).toMatchObject({ contentType: "image/png", bytes: 64 });
       expect(await library.open("../products/served.png")).toBeNull();
+    });
+
+    it("opens only a ready file: never one still uploading", async () => {
+      if (!rig.host.open) return;
+      const file = webp(256);
+      const ticket = await library.requestUpload({ folder: "products", contentType: "image/webp", bytes: file.byteLength });
+      expect((await rig.send(ticket, { body: file, contentType: "image/webp" }, library)).ok).toBe(true);
+      expect(await library.open(ticket.key)).toBeNull();
+      await library.completeUpload(ticket.mediaId, {});
+      expect(await library.open(ticket.key)).toMatchObject({ contentType: "image/webp", bytes: 256 });
     });
   });
 });

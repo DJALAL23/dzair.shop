@@ -6,6 +6,7 @@
  * BusinessLogicError / ConflictError: product existence, slug uniqueness,
  * and the delete-with-orders guard turn raw DB crashes into friendly errors.
  */
+import type { MediaDelivery } from "../../../../cod-shared/media/delivery";
 import { eq } from "drizzle-orm";
 import { products } from "@/db/schema";
 import type { AppDb } from "@/db";
@@ -65,7 +66,7 @@ export async function updateLandingPage(
   id: string,
   data: UpdateLandingPageData,
 ) {
-  const existing = await shared.getLandingPageById(db, id);
+  const existing = await shared.getLandingPageRow(db, id);
   if (!existing) throw new NotFoundError("Landing Page", id);
 
   if (data.slug && data.slug !== existing.slug) {
@@ -93,7 +94,7 @@ export async function updateLandingPage(
 }
 
 export async function deleteLandingPageWithGuard(db: AppDb, id: string) {
-  const existing = await shared.getLandingPageById(db, id);
+  const existing = await shared.getLandingPageRow(db, id);
   if (!existing) throw new NotFoundError("Landing Page", id);
 
   const orderCount = await shared.countLandingPageOrders(db, id);
@@ -112,8 +113,9 @@ export async function reorderLandingPageImagesChecked(
   db: AppDb,
   landingPageId: string,
   imageIds: string[],
+  delivery: MediaDelivery,
 ) {
-  const existing = await shared.getLandingPageImages(db, landingPageId);
+  const existing = await shared.getLandingPageImages(db, landingPageId, delivery);
   const existingIds = new Set(existing.map((img) => img.id));
 
   if (new Set(imageIds).size !== imageIds.length) {
@@ -140,5 +142,5 @@ export async function reorderLandingPageImagesChecked(
     );
   }
 
-  return shared.reorderLandingPageImages(db, landingPageId, imageIds);
+  return shared.reorderLandingPageImages(db, landingPageId, imageIds, delivery);
 }

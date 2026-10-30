@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SEO_TEXT } from "../../../../cod-shared/lib/seo";
+import { MediaKeySchema } from "@/openapi/schemas/media";
 
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -8,7 +9,7 @@ export const createGroupSchema = z.object({
   slug: z.string().regex(slugRegex, "Slug must be lowercase letters, numbers and hyphens").optional(),
   description: z.string().optional().nullable(),
   parentId: z.string().optional().nullable(),
-  imageUrl: z.string().url().optional().nullable(),
+  imageKey: MediaKeySchema.optional().nullable(),
   metaTitle: z.string().max(SEO_TEXT.titleMax).optional().nullable(),
   metaDescription: z.string().max(SEO_TEXT.descriptionMax).optional().nullable(),
   metaKeywords: z.string().optional().nullable(),
@@ -20,7 +21,7 @@ export const updateGroupSchema = z.object({
   slug: z.string().regex(slugRegex, "Slug must be lowercase letters, numbers and hyphens").optional(),
   description: z.string().optional().nullable(),
   parentId: z.string().optional().nullable(),
-  imageUrl: z.string().url().optional().nullable(),
+  imageKey: MediaKeySchema.optional().nullable(),
   metaTitle: z.string().max(SEO_TEXT.titleMax).optional().nullable(),
   metaDescription: z.string().max(SEO_TEXT.descriptionMax).optional().nullable(),
   metaKeywords: z.string().optional().nullable(),

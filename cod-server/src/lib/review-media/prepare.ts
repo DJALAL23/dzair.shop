@@ -10,14 +10,17 @@
  *                   passing failure throws, to be retried.
  *   attachMedia     records what was kept and lands the review — published or
  *                   waiting — once; if the review is gone meanwhile, its files
- *                   go too
- *   clearUploads    removes the files as sent
+ *                   are released
+ *   clearUploads    removes the files as sent from Staging
+ * Files as sent are read from Staging; what is kept is stored by the Media
+ * Library (ADR 0021).
  *
  * Every step can run again: a kept file's key comes from its upload's id, and
  * its row is written once.
  */
 import { and, eq } from "drizzle-orm";
 import type { AppDb } from "@/db";
+import type { MediaLibrary } from "../../../../cod-shared/media/library";
 import { parseImageDimensions } from "@/lib/image-dimensions";
 import { audioDurationMs } from "./audio-duration";
 import type { ReviewMediaJob, ReviewMediaUpload } from "./job";
@@ -26,17 +29,17 @@ import { photoKeys, voiceKey, type VoiceContentType } from "../../../../cod-shar
 import { sniffMedia } from "../../../../cod-shared/media/keys";
 import { REVIEW_PHOTO_MAX_BYTES, VOICE_DURATION_TOLERANCE_MS, voiceMaxBytes } from "../../../../cod-shared/reviews/policy";
 import type { ReviewMediaKind, ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
+import type { Staging } from "@/lib/staging";
 
 export const PHOTO_EDGE = 1600;
 export const THUMB_EDGE = 480;
 const PHOTO_QUALITY = 80;
 const THUMB_QUALITY = 75;
-const IMMUTABLE = "public, max-age=31536000, immutable";
 
 export interface KeptMedia {
   id: string;
   kind: ReviewMediaKind;
-  r2Key: string;
+  mediaKey: string;
   thumbKey: string | null;
   contentType: string;
   bytes: number;
@@ -49,7 +52,8 @@ export type DropReason = "missing" | "unreadable" | "too_large" | "too_long" | "
 export type PreparedUpload = { kept: true; media: KeptMedia } | { kept: false; reason: DropReason };
 
 export interface PrepareDeps {
-  bucket: R2Bucket;
+  staging: Pick<Staging, "read">;
+  media: MediaLibrary;
   images?: ImagesBinding;
 }
 
@@ -90,13 +94,13 @@ async function preparePhoto(deps: PrepareDeps, reviewId: string, upload: ReviewM
   }
   const id = mediaIdOf(upload);
   const { key, thumbKey } = photoKeys(reviewId, id);
-  const options = { httpMetadata: { contentType: "image/webp", cacheControl: IMMUTABLE } };
-  await deps.bucket.put(key, full, options);
-  await deps.bucket.put(thumbKey, thumb, options);
   const size = parseImageDimensions(full);
+  const thumbSize = parseImageDimensions(thumb);
+  await deps.media.store({ key, contentType: "image/webp", body: full, width: size?.width ?? null, height: size?.height ?? null });
+  await deps.media.store({ key: thumbKey, contentType: "image/webp", body: thumb, width: thumbSize?.width ?? null, height: thumbSize?.height ?? null });
   return {
     kept: true,
-    media: { id, kind: "image", r2Key: key, thumbKey, contentType: "image/webp", bytes: full.byteLength, width: size?.width ?? null, height: size?.height ?? null, durationMs: null },
+    media: { id, kind: "image", mediaKey: key, thumbKey, contentType: "image/webp", bytes: full.byteLength, width: size?.width ?? null, height: size?.height ?? null, durationMs: null },
   };
 }
 
@@ -110,17 +114,17 @@ async function prepareVoice(deps: PrepareDeps, job: Pick<ReviewMediaJob, "review
 
   const id = mediaIdOf(upload);
   const key = voiceKey(job.reviewId, id, contentType);
-  await deps.bucket.put(key, bytes, { httpMetadata: { contentType, cacheControl: IMMUTABLE } });
+  await deps.media.store({ key, contentType, body: bytes });
   return {
     kept: true,
-    media: { id, kind: "audio", r2Key: key, thumbKey: null, contentType, bytes: bytes.byteLength, width: null, height: null, durationMs: measured ?? declared },
+    media: { id, kind: "audio", mediaKey: key, thumbKey: null, contentType, bytes: bytes.byteLength, width: null, height: null, durationMs: measured ?? declared },
   };
 }
 
 export async function prepareUpload(deps: PrepareDeps, job: Pick<ReviewMediaJob, "reviewId" | "voiceMaxSeconds">, upload: ReviewMediaUpload): Promise<PreparedUpload> {
-  const object = await deps.bucket.get(upload.key);
-  if (!object) return { kept: false, reason: "missing" };
-  const bytes = new Uint8Array(await object.arrayBuffer());
+  const file = await deps.staging.read(upload.key);
+  if (!file) return { kept: false, reason: "missing" };
+  const { bytes } = file;
   const sniffed = sniffMedia(bytes.subarray(0, 16));
   if (!sniffed) return { kept: false, reason: "unreadable" };
   if (sniffed.kind === "image") return preparePhoto(deps, job.reviewId, upload, bytes);
@@ -133,17 +137,17 @@ export async function prepareUpload(deps: PrepareDeps, job: Pick<ReviewMediaJob,
  * "settled": it already landed without its files (the stuck-review sweep) —
  * either way the files kept for it are deleted instead.
  */
-export async function attachMedia(db: AppDb, bucket: Pick<R2Bucket, "delete">, job: ReviewMediaJob, outcomes: PreparedUpload[]): Promise<"attached" | "gone" | "settled"> {
+export async function attachMedia(db: AppDb, media: Pick<MediaLibrary, "release">, job: ReviewMediaJob, outcomes: PreparedUpload[]): Promise<"attached" | "gone" | "settled"> {
   const kept = outcomes.flatMap((outcome) => (outcome.kept ? [outcome.media] : []));
   const dropped = outcomes.length - kept.length;
   const review = await db.select({ id: reviews.id, status: reviews.status }).from(reviews).where(eq(reviews.id, job.reviewId)).get();
   if (review && review.status !== "processing" && kept.length > 0) {
-    const attached = await db.select({ r2Key: reviewMedia.r2Key }).from(reviewMedia).where(eq(reviewMedia.reviewId, job.reviewId)).all();
-    if (attached.some((row) => row.r2Key === kept[0].r2Key)) return "attached";
+    const attached = await db.select({ mediaKey: reviewMedia.mediaKey }).from(reviewMedia).where(eq(reviewMedia.reviewId, job.reviewId)).all();
+    if (attached.some((row) => row.mediaKey === kept[0].mediaKey)) return "attached";
   }
   if (!review || review.status !== "processing") {
-    const keys = kept.flatMap((media) => [media.r2Key, ...(media.thumbKey ? [media.thumbKey] : [])]);
-    if (keys.length) await bucket.delete(keys);
+    const keys = kept.flatMap((file) => [file.mediaKey, ...(file.thumbKey ? [file.thumbKey] : [])]);
+    if (keys.length) await media.release(keys);
     return review ? "settled" : "gone";
   }
   const now = new Date().toISOString();
@@ -152,11 +156,11 @@ export async function attachMedia(db: AppDb, bucket: Pick<R2Bucket, "delete">, j
     .update(reviews)
     .set({ status: kept.length > 0 ? job.statusWithMedia : job.statusWithoutMedia, mediaDropped: dropped, updatedAt: now })
     .where(and(eq(reviews.id, job.reviewId), eq(reviews.status, "processing")));
-  if (rows.length) await db.batch([db.insert(reviewMedia).values(rows).onConflictDoNothing({ target: reviewMedia.r2Key }), land]);
+  if (rows.length) await db.batch([db.insert(reviewMedia).values(rows).onConflictDoNothing({ target: reviewMedia.mediaKey }), land]);
   else await land;
   return "attached";
 }
 
-export async function clearUploads(bucket: Pick<R2Bucket, "delete">, job: Pick<ReviewMediaJob, "uploads">): Promise<void> {
-  if (job.uploads.length) await bucket.delete(job.uploads.map((upload) => upload.key));
+export async function clearUploads(staging: Pick<Staging, "delete">, job: Pick<ReviewMediaJob, "uploads">): Promise<void> {
+  await staging.delete(job.uploads.map((upload) => upload.key));
 }

@@ -1,10 +1,12 @@
 import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
-import { reviewMediaUrl } from "@/lib/review-media/urls";
+import { mediaDeliveryOf } from "@/lib/media";
+import { mediaUrl } from "../../../../../cod-shared/media/delivery";
 import { openReview, receiveUpload, submitReview, type IntakeDeps } from "@/lib/reviews/intake";
 import { getReviewPolicy, listApprovedReviews } from "../../../../../cod-shared/queries/store-reviews";
 import type { ReviewSubmissionInput } from "./validation";
+import { staging } from "@/lib/staging";
 
 type Valid<T> = { valid: (target: "json" | "query") => T };
 
@@ -12,7 +14,8 @@ function deps(c: Context<AppContext>): IntakeDeps {
   return {
     db: getDb(c.env.DB),
     storeId: c.get("storeId")!,
-    bucket: c.env.IMAGES,
+    staging: staging(c.env.MEDIA_BUCKET),
+    delivery: mediaDeliveryOf(c.env),
     workflow: c.env.REVIEW_MEDIA_WORKFLOW,
     uploadSecret: (c.env.REVIEW_UPLOAD_SECRET?.length ?? 0) >= 32 ? c.env.REVIEW_UPLOAD_SECRET : undefined,
     limiter: c.env.REVIEW_RATE_LIMITER,
@@ -24,8 +27,8 @@ export async function listReviews(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const storeId = c.get("storeId")!;
   if (!(await getReviewPolicy(db, storeId)).enabled) return c.json({ success: true, data: [], count: 0, total: 0 }, 200);
-  const mediaUrl = reviewMediaUrl(c.env, c.req.url);
-  const { rows, total } = await listApprovedReviews(db, { storeId, productId, limit, offset, mediaUrl });
+  const delivery = mediaDeliveryOf(c.env);
+  const { rows, total } = await listApprovedReviews(db, { storeId, productId, limit, offset, mediaUrl: (key) => mediaUrl(key, delivery) });
   return c.json({ success: true, data: rows, count: rows.length, total }, 200);
 }
 

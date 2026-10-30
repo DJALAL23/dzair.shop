@@ -24,6 +24,7 @@ import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
 import { deleteProduct, getAllProducts } from "../../../../cod-shared/queries/products";
 import { getStoreProductByHandle, getStoreProducts } from "../../../../cod-shared/queries/store";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 const registry: Miniflare[] = [];
 let db: AppDb;
@@ -105,8 +106,8 @@ beforeAll(async () => {
 
     if (!big && i % 4 === 0) {
       await db.insert(schema.productImages).values([
-        { id: `img-${id}-2`, productId: id, src: `${id}-second.jpg`, position: 2, type: 1, createdAt: now, updatedAt: now },
-        { id: `img-${id}-1`, productId: id, src: `${id}-first.jpg`, position: 1, type: 1, createdAt: now, updatedAt: now },
+        { id: `img-${id}-2`, productId: id, mediaKey: `products/${id}-second.jpg`, position: 2, type: 1, createdAt: now, updatedAt: now },
+        { id: `img-${id}-1`, productId: id, mediaKey: `products/${id}-first.jpg`, width: 800, height: 600, position: 1, type: 1, createdAt: now, updatedAt: now },
       ]);
     }
 
@@ -141,7 +142,7 @@ afterAll(async () => {
 
 describe("getAllProducts — real D1", () => {
   it("returns the full mixed catalog with correct derived fields", async () => {
-    const rows = await getAllProducts(db, { limit: 200 });
+    const rows = await getAllProducts(db, TEST_DELIVERY, { limit: 200 });
 
     expect(rows.length).toBe(CATALOG + BIG_CATALOG - 1);
 
@@ -152,7 +153,7 @@ describe("getAllProducts — real D1", () => {
       totalInventory: 106,
       reviewCount: 1,
       avgRating: 4,
-      primaryImageSrc: "prod-0-first.jpg",
+      primaryImage: { key: "products/prod-0-first.jpg", url: `${TEST_DELIVERY.origin}/products/prod-0-first.jpg`, width: 800, height: 600 },
     });
     expect(variantRow!.variants.map((v) => v.id)).toEqual([
       "var-prod-0-a", "var-prod-0-b", "var-prod-0-c",
@@ -171,42 +172,42 @@ describe("getAllProducts — real D1", () => {
     expect(pendingOnly).toMatchObject({ reviewCount: 0, avgRating: null });
 
     const noImages = rows.find((r) => r.id === "prod-2");
-    expect(noImages!.primaryImageSrc).toBeNull();
+    expect(noImages!.primaryImage).toBeNull();
   });
 
   it("a removed product is gone from the catalog and the store", async () => {
     expect(await db.select().from(schema.products).where(eq(schema.products.id, "prod-9")).all()).toEqual([]);
-    const rows = await getAllProducts(db, { limit: 200 });
+    const rows = await getAllProducts(db, TEST_DELIVERY, { limit: 200 });
     expect(rows.find((r) => r.id === "prod-9")).toBeUndefined();
-    expect((await getStoreProducts(db, { limit: 200 })).find((r) => r.id === "prod-9")).toBeUndefined();
+    expect((await getStoreProducts(db, { limit: 200 }, null, TEST_DELIVERY)).find((r) => r.id === "prod-9")).toBeUndefined();
   });
 
   it("filters by status and respects limit/offset", async () => {
-    const drafts = await getAllProducts(db, { status: "DRAFT" });
+    const drafts = await getAllProducts(db, TEST_DELIVERY, { status: "DRAFT" });
     expect(drafts.map((r) => r.id)).toEqual(["prod-7"]);
 
-    const page1 = await getAllProducts(db, { limit: 10, offset: 0 });
-    const page2 = await getAllProducts(db, { limit: 10, offset: 10 });
+    const page1 = await getAllProducts(db, TEST_DELIVERY, { limit: 10, offset: 0 });
+    const page2 = await getAllProducts(db, TEST_DELIVERY, { limit: 10, offset: 10 });
     expect(page1).toHaveLength(10);
     expect(page2).toHaveLength(10);
     expect(page1[0].id).not.toBe(page2[0].id);
 
-    const empty = await getAllProducts(db, { limit: 10, offset: 500 });
+    const empty = await getAllProducts(db, TEST_DELIVERY, { limit: 10, offset: 500 });
     expect(empty).toEqual([]);
   });
 
   it("search matches name but no longer scans description text (Slice 9 hygiene)", async () => {
-    const byName = await getAllProducts(db, { search: "E2E Product 2" });
+    const byName = await getAllProducts(db, TEST_DELIVERY, { search: "E2E Product 2" });
     expect(byName.map((r) => r.id).sort()).toEqual(
       ["prod-2", ...Array.from({ length: 10 }, (_, i) => `prod-2${i}`)].sort(),
     );
 
-    const byDescriptionMarker = await getAllProducts(db, { search: "ZZDESCMARKERZZ" });
+    const byDescriptionMarker = await getAllProducts(db, TEST_DELIVERY, { search: "ZZDESCMARKERZZ" });
     expect(byDescriptionMarker).toEqual([]);
   });
 
   it("chunks variant fetches for pages beyond the 90-id boundary", async () => {
-    const rows = await getAllProducts(db, { limit: 200 });
+    const rows = await getAllProducts(db, TEST_DELIVERY, { limit: 200 });
     expect(rows.length).toBeGreaterThan(91);
 
     const bulk = rows.filter((r) => r.id.startsWith("prod-big-"));
@@ -219,7 +220,7 @@ describe("getStoreProducts — real D1", () => {
   it("lists store-visible ACTIVE products, and answers storeFeatured from the featured collection", async () => {
     await db.insert(schema.collections).values({ id: "col-featured", storeId: "store-e2e", handle: "featured", title: "Featured", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" });
     await db.insert(schema.collectionProducts).values({ collectionId: "col-featured", productId: "prod-1", position: 0, addedAt: "2026-01-01T00:00:00.000Z" });
-    const rows = await getStoreProducts(db, { limit: 200 });
+    const rows = await getStoreProducts(db, { limit: 200 }, null, TEST_DELIVERY);
 
     expect(rows.find((r) => r.id === "prod-9")).toBeUndefined();
     expect(rows.find((r) => r.id === "prod-8")).toBeUndefined();
@@ -227,15 +228,15 @@ describe("getStoreProducts — real D1", () => {
 
     const featured = rows.find((r) => r.id === "prod-1")!;
     expect(featured.storeFeatured).toBe(true);
-    expect((await getStoreProductByHandle(db, featured.handle))?.storeFeatured).toBe(true);
+    expect((await getStoreProductByHandle(db, featured.handle, { delivery: TEST_DELIVERY }))?.storeFeatured).toBe(true);
     // Published @wocart/storefront releases require the field: always null.
     expect(rows.every((r) => (r as { deletedAt?: unknown }).deletedAt === null)).toBe(true);
-    expect((await getStoreProductByHandle(db, rows[0].handle) as { deletedAt?: unknown } | null)?.deletedAt).toBeNull();
+    expect((await getStoreProductByHandle(db, rows[0].handle, { delivery: TEST_DELIVERY }) as { deletedAt?: unknown } | null)?.deletedAt).toBeNull();
     expect(rows.filter((r) => r.id !== "prod-1").every((r) => r.storeFeatured === false)).toBe(true);
   });
 
   it("derives inventory from ACTIVE variants only", async () => {
-    const rows = await getStoreProducts(db, { limit: 200 });
+    const rows = await getStoreProducts(db, { limit: 200 }, null, TEST_DELIVERY);
 
     const variantProduct = rows.find((r) => r.id === "prod-0");
     expect(variantProduct!.inventory).toBe(7);
@@ -245,17 +246,17 @@ describe("getStoreProducts — real D1", () => {
   });
 
   it("picks the cover image with the lowest position per product", async () => {
-    const rows = await getStoreProducts(db, { limit: 200 });
+    const rows = await getStoreProducts(db, { limit: 200 }, null, TEST_DELIVERY);
 
     const withImages = rows.find((r) => r.id === "prod-0");
-    expect(withImages!.coverImage).toMatchObject({ id: "img-prod-0-1", src: "prod-0-first.jpg" });
+    expect(withImages!.coverImage).toMatchObject({ id: "img-prod-0-1", key: "products/prod-0-first.jpg", url: `${TEST_DELIVERY.origin}/products/prod-0-first.jpg` });
 
     const withoutImages = rows.find((r) => r.id === "prod-1");
     expect(withoutImages!.coverImage).toBeNull();
   });
 
   it("maps reviewStats from approved reviews only", async () => {
-    const rows = await getStoreProducts(db, { limit: 200 });
+    const rows = await getStoreProducts(db, { limit: 200 }, null, TEST_DELIVERY);
 
     const approved = rows.find((r) => r.id === "prod-0");
     expect(approved!.reviewStats).toEqual({ avgRating: 4, reviewCount: 1 });
@@ -268,19 +269,19 @@ describe("getStoreProducts — real D1", () => {
   });
 
   it("respects the limit cap", async () => {
-    const all = await getStoreProducts(db, { limit: 200 });
-    const page1 = await getStoreProducts(db, { limit: 5 });
+    const all = await getStoreProducts(db, { limit: 200 }, null, TEST_DELIVERY);
+    const page1 = await getStoreProducts(db, { limit: 5 }, null, TEST_DELIVERY);
 
     expect(page1[0].id).toBe(all[0].id);
     expect(page1).toHaveLength(5);
     expect(page1.every((r) => all.some((a) => a.id === r.id))).toBe(true);
-    expect(await getStoreProducts(db, { limit: 500, featured: true })).toEqual(
-      await getStoreProducts(db, { limit: 5, featured: true }),
+    expect(await getStoreProducts(db, { limit: 500, featured: true }, null, TEST_DELIVERY)).toEqual(
+      await getStoreProducts(db, { limit: 5, featured: true }, null, TEST_DELIVERY),
     );
   });
 
   it("featured filter returns only the featured product", async () => {
-    const rows = await getStoreProducts(db, { featured: true, limit: 10 });
+    const rows = await getStoreProducts(db, { featured: true, limit: 10 }, null, TEST_DELIVERY);
     expect(rows.map((r) => r.id)).toEqual(["prod-1"]);
   });
 });

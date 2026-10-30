@@ -100,7 +100,7 @@ Terms owned by neighboring contexts — use them, don't redefine them here:
 - **Return outcomes per line**: Orders context (fulfilled / partially returned / returned)
 - **Review counts and average ratings**: Reviews context — this module merely embeds aggregates from approved reviews
 - **Delivery fee profile link**: Shipping Profiles context — one nullable pointer, resolved there
-- **Image uploads**: the images endpoint folder handles R2 storage; this context only associates records
+- **Image uploads**: the Media Library (`cod-shared/media`, `/api/media`) keeps the files; this context attaches them by key
 
 ## Edge Cases
 

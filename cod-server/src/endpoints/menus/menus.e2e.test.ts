@@ -21,6 +21,7 @@ import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import type { AppContext } from "@/types";
 import storeRoutes from "../store/routes";
 import menusRouter from "./routes";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 const STORE_ID = "store-menus";
 const T = "2026-10-01T00:00:00.000Z";
@@ -32,7 +33,7 @@ beforeAll(async () => {
   d1 = await createTestD1();
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: d1.raw } as AppContext["Bindings"];
+    c.env = { DB: d1.raw, ...TEST_MEDIA_VARS } as AppContext["Bindings"];
     c.set("storeId", STORE_ID);
     signIn(c, { id: "admin", name: "Admin", role: "admin", status: "active", scopes: ["*"] } as never);
     await next();

@@ -99,8 +99,7 @@ describe("Slice 1 — landing pages schema on real D1", () => {
     });
     for (const [imgId, pos] of [["lpimg-1", 1], ["lpimg-2", 2], ["lpimg-3", 3]] as const) {
       await db.insert(landingPageImages).values({
-        id: imgId, landingPageId: "lp-2", r2Key: `landing/${imgId}.jpg`,
-        src: `https://media.example/landing/${imgId}.jpg`, position: pos, createdAt: NOW(),
+        id: imgId, landingPageId: "lp-2", mediaKey: `landing/${imgId}.jpg`, position: pos, createdAt: NOW(),
       });
     }
 

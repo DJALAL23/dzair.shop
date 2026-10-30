@@ -33,7 +33,7 @@ Every file read in full:
 |------|---------------|--------|
 | Slug | `.unique()` DB index (schema.ts:553); auto-generated name+id8 when omitted (shared queries:34-36, :83); regex `^[a-z0-9]+(?:-[a-z0-9]+)*$` (routes.ts:33) | ✅ |
 | Group SEO Fields | metaTitle ≤60 / metaDescription ≤160 / metaKeywords nullable (routes.ts:50-52; validation) | ✅ |
-| Group Image | imageUrl URL-validated, clearable via null | ✅ |
+| Group Image | imageKey: a ready Media Key (lib/product-groups.ts), clearable via null; the replaced file released | ✅ |
 
 ### Counting & Deletion
 

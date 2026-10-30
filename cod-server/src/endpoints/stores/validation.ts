@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { REVIEW_AUTO_PUBLISH, REVIEW_MAX_PHOTOS } from "../../../../cod-shared/reviews/model";
 import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
+import { MediaKeySchema } from "@/openapi/schemas/media";
 
 const storeLocale = z.enum(STORE_LOCALES);
 
@@ -20,7 +21,8 @@ const storeLanguages = z
 
 export const updateStoreSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  logoUrl: z.string().url().nullable().optional(),
+  /** The logo's Media Key, from a completed upload; null removes it. */
+  logoKey: MediaKeySchema.nullable().optional(),
   /**
    * The storefront's custom domain (e.g. "demo.codflow.store"). Merchants
    * connect their own domain and set it here; landing page links and share
@@ -40,7 +42,8 @@ export const updateStoreSchema = z.object({
   currencySymbol: z.string().min(1).max(10).optional(),
   metaTitle: z.string().max(200).nullable().optional(),
   metaDescription: z.string().max(500).nullable().optional(),
-  ogImage: z.string().url().nullable().optional(),
+  /** The share image's Media Key, from a completed upload; null removes it. */
+  ogImageKey: MediaKeySchema.nullable().optional(),
   reviewsEnabled: z.boolean().optional(),
   reviewMaxPhotos: z.number().int().min(0).max(REVIEW_MAX_PHOTOS).optional(),
   /** null turns voice notes off. */

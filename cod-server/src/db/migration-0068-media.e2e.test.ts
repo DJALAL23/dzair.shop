@@ -125,6 +125,30 @@ describe("migration 0068 on a store with media", () => {
     for (const [table, sql] of Object.entries(OLD_COLUMNS)) expect(await all(sql), table).toEqual(before[table]);
   });
 
+  it("lets the server write images by key alone, and requires a key where every image has one", async () => {
+    await run("INSERT INTO product_images (id, product_id, media_key, created_at, updated_at) VALUES ('n1', 'p1', 'products/new.webp', ?1, ?1)", T2);
+    await run("INSERT INTO landing_page_images (id, landing_page_id, media_key, created_at) VALUES ('n2', 'lp1', 'landing/new.webp', ?1)", T2);
+    await run("INSERT INTO review_media (id, review_id, kind, content_type, bytes, media_key, created_at) VALUES ('n3', 'r1', 'image', 'image/webp', 10, 'reviews/r1/new.webp', ?1)", T2);
+    await expect(run("INSERT INTO landing_page_images (id, landing_page_id, created_at) VALUES ('n4', 'lp1', ?1)", T2)).rejects.toThrow(/NOT NULL/);
+    await expect(run("INSERT INTO review_media (id, review_id, kind, content_type, bytes, created_at) VALUES ('n5', 'r1', 'image', 'image/webp', 10, ?1)", T2)).rejects.toThrow(/NOT NULL/);
+    await run("DELETE FROM product_images WHERE id = 'n1'");
+    await run("DELETE FROM landing_page_images WHERE id = 'n2'");
+    await run("DELETE FROM review_media WHERE id = 'n3'");
+  });
+
+  it("keeps the rebuilt tables' indexes and cascades", async () => {
+    const indexes = await all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('idx_product_images_product_position', 'idx_landing_page_images_lp', 'idx_review_media_review') ORDER BY name");
+    expect(indexes.map((row) => row.name)).toEqual(["idx_landing_page_images_lp", "idx_product_images_product_position", "idx_review_media_review"]);
+    const fks = await all<{ t: string; ref: string; on_delete: string }>(
+      "SELECT m.name AS t, f.\"table\" AS ref, f.on_delete FROM sqlite_master m, pragma_foreign_key_list(m.name) f WHERE m.name IN ('product_images', 'landing_page_images', 'review_media') ORDER BY m.name",
+    );
+    expect(fks).toEqual([
+      { t: "landing_page_images", ref: "landing_pages", on_delete: "CASCADE" },
+      { t: "product_images", ref: "products", on_delete: "CASCADE" },
+      { t: "review_media", ref: "reviews", on_delete: "CASCADE" },
+    ]);
+  });
+
   it("refuses a second row for one key", async () => {
     await expect(run(`INSERT INTO media (id, "key", host, kind, content_type, status, created_at) VALUES ('x', 'products/a1.jpg', 'imagekit', 'image', 'image/jpeg', 'pending', ?1)`, T2)).rejects.toThrow(/UNIQUE/);
   });

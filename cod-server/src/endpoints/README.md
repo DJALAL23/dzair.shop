@@ -21,7 +21,7 @@ anywhere. New endpoints must use `defineRoute()` (see
 | `delivery-companies` | 13 | CRUD + stop-desks + webhook config; RBAC stays on router-level `use()` patterns (preserves existing gating) |
 | `driver-payments` | 3 | Payment create + history + pending settlement |
 | `drivers` | 8 | Driver CRUD + status + per-wilaya compensations |
-| `images` | 3 | Upload (multipart via `bodyContent`) + presign + public serve (plain-Hono exception, see below) |
+| `media` | 4 | An upload's ticket, relayed bytes and completion + public serve of the store's own files (plain-Hono exception, see below) |
 | `offers` | 5 | Promotional offer CRUD |
 | `orders` | 17 | Full order lifecycle |
 | `product-groups` | 5 | Category tree CRUD |
@@ -41,7 +41,7 @@ anywhere. New endpoints must use `defineRoute()` (see
 
 - `variants/` — no `routes.ts`; handlers are mounted directly inside `products/routes.ts`.
 - `mcp/` — MCP server surface, not part of the REST API (plain Hono by design).
-- `images/{key}` public serve — stays plain-Hono (regex param); the documentation stub for it is intentional.
+- `media/{key}` public serve — stays plain-Hono (regex param); the documentation stub for it is intentional.
 - Router-level RBAC (not per-route `auth`): `activity-logs` (throw-based
   `adminOnly`) and `delivery-companies` (`use()` scope patterns) — both kept
   deliberately to preserve existing behavior; see each file's docblock.

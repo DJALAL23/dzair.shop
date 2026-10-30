@@ -26,6 +26,7 @@ import * as schema from "@/db/schema";
 import { handOffToDriver } from "../../../../cod-shared/shipments/handoff";
 import { recordShipmentEvents } from "../../../../cod-shared/shipments/record-events";
 import labelsRouter from "./routes";
+import { TEST_MEDIA_VARS, TEST_DELIVERY } from "@/test-utils/media";
 
 const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
 vi.mock("@/db", () => dbModule);
@@ -40,7 +41,7 @@ beforeAll(async () => {
   d1 = await createTestD1();
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: d1.raw } as never;
+    c.env = { DB: d1.raw, ...TEST_MEDIA_VARS } as never;
     signIn(c, { id: "u1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes } as never);
     await next();
   });
@@ -61,7 +62,7 @@ beforeEach(async () => {
   for (const table of [schema.shipmentEvents, schema.shipments, schema.orderProducts, schema.orders, schema.customers, schema.driverCompensations, schema.drivers, schema.deliveryCompanies, schema.storeLegalProfile, schema.stores]) {
     await db.delete(table);
   }
-  await db.insert(schema.stores).values({ id: "s1", name: "Maison Lina", logoUrl: "https://media.example.com/logo.webp", currency: "DZD", currencySymbol: "دج", createdAt: T, updatedAt: T });
+  await db.insert(schema.stores).values({ id: "s1", name: "Maison Lina", logoKey: "products/logo.webp", currency: "DZD", currencySymbol: "دج", createdAt: T, updatedAt: T });
   await db.insert(schema.storeLegalProfile).values({ storeId: "s1", address: "12 Rue Didouche Mourad, Alger", contactPhone: "0661234567", updatedAt: T });
   await db.insert(schema.customers).values({ id: "c1", name: "Amina", phone: "0551234567", wilaya: "Alger", createdAt: T });
   await db.insert(schema.drivers).values([
@@ -103,7 +104,7 @@ describe("label settings", () => {
     expect(status).toBe(200);
     expect(body.data).toEqual({
       config: { size: "100x150", language: "fr", showLogo: true, senderPhone: null, showItems: true, showNotes: true, openParcel: "unset", footer: null },
-      sender: { name: "Maison Lina", logoUrl: "https://media.example.com/logo.webp", phone: "0661234567", address: "12 Rue Didouche Mourad, Alger" },
+      sender: { name: "Maison Lina", logoUrl: `${TEST_DELIVERY.origin}/products/logo.webp`, phone: "0661234567", address: "12 Rue Didouche Mourad, Alger" },
       legalPhone: "0661234567",
       currency: { code: "DZD", symbol: "دج" },
     });
@@ -228,7 +229,7 @@ describe("a store with no legal profile", () => {
     await call("PUT", "/api/shipping-labels/settings", { senderPhone: "0551 00 00 00" });
     const [id] = await givenToDriver(["o1"]);
     const { body } = await call("POST", "/api/shipping-labels", { shipmentIds: [id] });
-    expect(body.data.sender).toEqual({ name: "Maison Lina", logoUrl: "https://media.example.com/logo.webp", phone: "0551 00 00 00", address: null });
+    expect(body.data.sender).toEqual({ name: "Maison Lina", logoUrl: `${TEST_DELIVERY.origin}/products/logo.webp`, phone: "0551 00 00 00", address: null });
     await d1.db.update(schema.stores).set({ shippingLabelJson: null }).where(eq(schema.stores.id, "s1"));
   });
 });

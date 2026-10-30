@@ -1,8 +1,7 @@
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { transform } from "esbuild";
+import { build } from "esbuild";
 import { Miniflare } from "miniflare";
 import { RICH_TEXT_ATTRS, RICH_TEXT_DANGEROUS_TAGS, RICH_TEXT_SCHEMES, RICH_TEXT_TAGS, RICH_TEXT_STYLE_PATTERNS, RICH_TEXT_DATA_VALUES } from "./rich-text";
 import type { RichTextRemoval, SanitizeRichTextResult } from "./rich-text";
@@ -10,11 +9,10 @@ import type { RichTextRemoval, SanitizeRichTextResult } from "./rich-text";
 // HTMLRewriter does not exist in the Node vitest pool (proven: typeof is
 // "undefined" there), so every sanitize/plain/unsupported call runs inside a
 // real workerd via a programmatic Miniflare instance — the same devDependency
-// and pattern the repo's e2e tests already use. The module source is
-// esbuild-transformed (loader: "ts") and registered as a workerd module; no
-// fake or polyfilled parser is involved anywhere.
+// and pattern the repo's e2e tests already use. The module is esbuild-bundled
+// and registered as a workerd module; no fake or polyfilled parser is
+// involved anywhere.
 const here = dirname(fileURLToPath(import.meta.url));
-const moduleSource = readFileSync(join(here, "rich-text.ts"), "utf8");
 
 const WORKER = `
 import { sanitizeRichText, toPlainText, unsupportedElements } from "./rich-text.mjs";
@@ -38,11 +36,11 @@ export default {
 let mf: Miniflare | undefined;
 
 beforeAll(async () => {
-  const lib = await transform(moduleSource, { loader: "ts", format: "esm" });
+  const lib = await build({ entryPoints: [join(here, "rich-text.ts")], bundle: true, format: "esm", platform: "neutral", write: false, logLevel: "warning" });
   mf = new Miniflare({
     modules: [
       { type: "ESModule", path: "index.mjs", contents: WORKER },
-      { type: "ESModule", path: "rich-text.mjs", contents: lib.code },
+      { type: "ESModule", path: "rich-text.mjs", contents: lib.outputFiles[0]!.text },
     ],
   });
 });
@@ -238,6 +236,18 @@ describe("sanitizeRichText — XSS corpus", () => {
     expect(good.html).toContain('decoding="async"');
     expect(good.html).toContain('referrerpolicy="no-referrer"');
     expect(good.removed).toEqual([]);
+  });
+
+  it("keeps the store's own image by key, and nothing else under media:", async () => {
+    const own = await sanitize('<img src="media:products/3f2a9c0b1d2e4f5061728394a5b6c7d8.webp" alt="o">');
+    expect(own.html).toContain('src="media:products/3f2a9c0b1d2e4f5061728394a5b6c7d8.webp"');
+    expect(own.removed).toEqual([]);
+
+    for (const src of ["media:javascript:alert(1)", "media:products/../secret", "media:elsewhere/a.webp", "media:", "MEDIA:products/a.webp"]) {
+      const { html, removed } = await sanitize(`<img src="${src}" alt="x">`);
+      expect(html, src).not.toContain("src=");
+      expect(names(removed), src).toContain("attribute:src");
+    }
   });
 
   it("removes svg with its subtree and records no inner elements", async () => {

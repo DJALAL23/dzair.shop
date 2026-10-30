@@ -7,13 +7,14 @@
 import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
+import { mediaDeliveryOf } from "@/lib/media";
 import { NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { validateShippingLabelInput } from "../../../../cod-shared/shipping-label/config";
 import { labelSender, loadDeliverySheet, loadDriverLabels, loadLabelSettings, saveShippingLabelConfig } from "../../../../cod-shared/queries/shipping-labels";
 
 async function settingsOrThrow(c: Context<AppContext>) {
-  const settings = await loadLabelSettings(getDb(c.env.DB));
+  const settings = await loadLabelSettings(getDb(c.env.DB), mediaDeliveryOf(c.env));
   if (!settings) throw new NotFoundError("Store");
   return settings;
 }
@@ -34,13 +35,13 @@ export async function putLabelSettings(c: Context<AppContext>) {
     throw new ValidationError(result.issues[0].message, ERROR_CODES.VALIDATION_FAILED, { issues: result.issues });
   }
   const config = await saveShippingLabelConfig(db, store.id, result.config);
-  return c.json({ success: true, data: { config, sender: labelSender(store, legal, config), legalPhone: legal?.contactPhone ?? null, currency: { code: store.currency, symbol: store.currencySymbol } } }, 200);
+  return c.json({ success: true, data: { config, sender: labelSender(store, legal, config, mediaDeliveryOf(c.env)), legalPhone: legal?.contactPhone ?? null, currency: { code: store.currency, symbol: store.currencySymbol } } }, 200);
 }
 
 /** POST /shipping-labels — the labels of these driver shipments. */
 export async function getDriverLabels(c: Context<AppContext>) {
   const body = (c.req as any).valid("json") as { shipmentIds: string[] };
-  const loaded = await loadDriverLabels(getDb(c.env.DB), body.shipmentIds);
+  const loaded = await loadDriverLabels(getDb(c.env.DB), body.shipmentIds, mediaDeliveryOf(c.env));
   if (!loaded) throw new NotFoundError("Store");
   return c.json({ success: true, data: { ...loaded.batch, missing: loaded.missing } }, 200);
 }
@@ -48,7 +49,7 @@ export async function getDriverLabels(c: Context<AppContext>) {
 /** GET /shipping-labels/delivery-sheet/{driverId} — the parcels still out with a driver. */
 export async function getDeliverySheet(c: Context<AppContext>) {
   const driverId = c.req.param("driverId")!;
-  const sheet = await loadDeliverySheet(getDb(c.env.DB), driverId);
+  const sheet = await loadDeliverySheet(getDb(c.env.DB), driverId, mediaDeliveryOf(c.env));
   if (!sheet) throw new NotFoundError("Driver", driverId);
   return c.json({ success: true, data: { ...sheet.batch, driver: sheet.driver, total: sheet.total } }, 200);
 }

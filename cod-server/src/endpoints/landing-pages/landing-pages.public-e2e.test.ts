@@ -20,6 +20,7 @@ import { storeAuthMiddleware } from "@/middleware/storeAuth";
 import storeRouter from "../store/routes";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
+import { TEST_MEDIA_VARS, TEST_DELIVERY } from "@/test-utils/media";
 
 let db: AppDb;
 let rawD1: D1Database;
@@ -50,7 +51,7 @@ beforeAll(async () => {
 
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: rawD1 as any } as any;
+    c.env = { DB: rawD1 as any, ...TEST_MEDIA_VARS } as any;
     await next();
   });
   app.use("/store/*", storeAuthMiddleware);
@@ -128,7 +129,7 @@ async function seedPublishedLp(slug: string, productId: string) {
   for (let i = 1; i <= 3; i++) {
     await db.insert(schema.landingPageImages).values({
       id: `${slug}-img-${i}`, landingPageId: slug,
-      r2Key: `landing/${slug}-${i}.jpg`, src: `https://m.example/${slug}-${i}.jpg`,
+      mediaKey: `landing/${slug}-${i}.jpg`,
       altText: `صورة ${i}`, source: "upload", position: i, createdAt: now,
     });
   }
@@ -152,11 +153,10 @@ describe("Slice 4 — public GET /store/landing-pages/{slug} (real D1 + store au
     });
     expect(body.data.images).toHaveLength(3);
     expect(body.data.images[0]).toMatchObject({ position: 1, altText: "صورة 1" });
-    expect(body.data.images.map((i: any) => i.src)).toEqual([
-      "https://m.example/live-page-1.jpg",
-      "https://m.example/live-page-2.jpg",
-      "https://m.example/live-page-3.jpg",
-    ]);
+    expect(body.data.images.map((i: any) => [i.key, i.url])).toEqual(
+      [1, 2, 3].map((n) => [`landing/live-page-${n}.jpg`, `${TEST_DELIVERY.origin}/landing/live-page-${n}.jpg`]),
+    );
+    expect(body.data.images[0]).not.toHaveProperty("src");
 
     // The product arrives in the exact store-product shape the product page
     // consumes — variants/offers/inventory included.

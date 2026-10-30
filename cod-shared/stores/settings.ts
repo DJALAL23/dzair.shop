@@ -7,6 +7,9 @@
  * (`stores.lang`), always published; any other language it has added is
  * published (shown to shoppers) or not (being translated).
  */
+import type { MediaDelivery } from "../media/delivery";
+import type { MediaImage } from "../media/model";
+import { imageOf } from "../media/views";
 import type { stores } from "../db/schema";
 import { STORE_LOCALE_INFO, isStoreLocale, orderLocales, type StoreLocale, type StoreLocaleInfo } from "../i18n/locales";
 
@@ -31,7 +34,11 @@ export interface StoreLanguage extends LocaleRow {
  */
 type ThemePresentationColumns = "primaryColor" | "accentColor" | "bgColor" | "fontFamily";
 
-export type StoreSettings = Omit<StoreRow, ThemePresentationColumns> & { languages: StoreLanguage[] };
+export type StoreSettings = Omit<StoreRow, ThemePresentationColumns | "logoUrl" | "ogImage" | "logoKey" | "ogImageKey"> & {
+  logo: MediaImage | null;
+  ogImage: MediaImage | null;
+  languages: StoreLanguage[];
+};
 
 /**
  * The store's languages: the primary first and always published, then the
@@ -81,9 +88,10 @@ export function servedLocale(
 export function toStoreSettings(
   row: StoreRow,
   localeRows: readonly { locale: string; published: boolean }[],
+  delivery: MediaDelivery,
 ): StoreSettings {
-  const { primaryColor: _primary, accentColor: _accent, bgColor: _bg, fontFamily: _font, ...settings } = row;
-  return { ...settings, languages: storeLanguages(row.lang, localeRows) };
+  const { primaryColor: _primary, accentColor: _accent, bgColor: _bg, fontFamily: _font, logoUrl: _logoUrl, ogImage: _ogImage, logoKey, ogImageKey, ...settings } = row;
+  return { ...settings, logo: imageOf(logoKey, delivery), ogImage: imageOf(ogImageKey, delivery), languages: storeLanguages(row.lang, localeRows) };
 }
 
 /** What a settings save may change about languages, beside the plain columns. */

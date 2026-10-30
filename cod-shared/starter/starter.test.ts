@@ -28,7 +28,6 @@ import {
 import { DEFAULT_SHIPPING_PROFILE, DEFAULT_SHIPPING_ZONES, defaultShippingSql } from "./shipping";
 
 const NOW = "2026-10-20T08:00:00.000Z";
-const MEDIA = "https://media.boutique.dz";
 const STORE: StarterStore = { id: "store-1", name: "Boutique", lang: "ar" };
 
 const unique = (values: readonly unknown[]) => new Set(values).size === values.length;
@@ -177,7 +176,7 @@ describe("demoCatalogSql", () => {
 
   it("writes its own columns in the primary language and translates into every other", async () => {
     for (const lang of STORE_LOCALES) {
-      const sql = (await demoCatalogSql({ ...STORE, lang }, { mediaOrigin: MEDIA, now: NOW })).join("\n");
+      const sql = (await demoCatalogSql({ ...STORE, lang }, NOW)).join("\n");
       const handbag = STARTER_PRODUCTS.find((p) => p.key === "handbag")!;
       const productRow = sql.split("\n").find((line) => line.startsWith("INSERT OR IGNORE INTO products") && line.includes("'leather-handbag'"))!;
       expect(productRow).toContain(`'${handbag.name[lang].replace(/'/g, "''")}'`);
@@ -187,7 +186,7 @@ describe("demoCatalogSql", () => {
   });
 
   it("gives every row it creates an id under the starter prefix", async () => {
-    const sql = await demoCatalogSql(STORE, { mediaOrigin: MEDIA, now: NOW });
+    const sql = await demoCatalogSql(STORE, NOW);
     const prefix = starterPrefix(STORE.id);
     for (const statement of sql.filter((s) => /INTO (products|product_categories|product_variants|product_images|offers|coupons|store_menu_items) /.test(s))) {
       const firstValue = statement.match(/ SELECT '([^']*)'/)![1]!;
@@ -195,10 +194,20 @@ describe("demoCatalogSql", () => {
     }
   });
 
-  it("serves the pictures from the store's media, one origin, no double slash", async () => {
-    const sql = (await demoCatalogSql(STORE, { mediaOrigin: `${MEDIA}/`, now: NOW })).join("\n");
-    for (const name of STARTER_IMAGES) expect(sql).toContain(`'https://media.boutique.dz/${starterImageKey(name)}'`);
-    expect(sql).not.toContain("dz//");
+  it("shows each picture by its key, only once the store's media holds it ready", async () => {
+    const sql = await demoCatalogSql(STORE, NOW);
+    const ready = (name: string) => `EXISTS (SELECT 1 FROM media WHERE key = '${starterImageKey(name)}' AND status = 'ready')`;
+    for (const product of STARTER_PRODUCTS) {
+      const image = sql.find((s) => s.startsWith("INSERT OR IGNORE INTO product_images") && s.includes(`'${starterImageKey(product.image)}'`) && s.includes(`:image:${product.key}'`))!;
+      expect(image).toContain(`AND ${ready(product.image)}`);
+    }
+    for (const category of STARTER_CATEGORIES) {
+      const update = sql.find((s) => s.startsWith("UPDATE product_categories") && s.includes(`:category:${category.key}'`))!;
+      expect(update).toBe(
+        `UPDATE product_categories SET image_key = '${starterImageKey(category.image)}' WHERE id = 'store-1:starter:category:${category.key}' AND image_key IS NULL AND updated_at = created_at AND ${ready(category.image)} AND ${starterCatalogApplies(STORE.id)}`,
+      );
+    }
+    expect(sql.join("\n")).not.toMatch(/https?:|image_url|\bsrc\b|r2_key/);
   });
 
   it("guards every statement on a store without products or categories of its own", async () => {
@@ -206,7 +215,7 @@ describe("demoCatalogSql", () => {
     expect(applies).toBe(
       "(NOT EXISTS (SELECT 1 FROM products WHERE substr(id, 1, length('store-1:starter:')) <> 'store-1:starter:') AND NOT EXISTS (SELECT 1 FROM product_categories WHERE substr(id, 1, length('store-1:starter:')) <> 'store-1:starter:'))",
     );
-    for (const statement of await demoCatalogSql(STORE, { mediaOrigin: MEDIA, now: NOW })) expect(statement).toContain(` WHERE ${applies}`);
+    for (const statement of await demoCatalogSql(STORE, NOW)) expect(statement).toContain(statement.startsWith("UPDATE") ? ` AND ${applies}` : ` WHERE ${applies}`);
   });
 
   it("quotes a store id with an apostrophe", async () => {
@@ -224,9 +233,9 @@ describe("starter templates", () => {
 
   it.each(STORES.map((store) => [store.name, store] as const))("fill to the very SQL made for %s", async (_name, store) => {
     const { applies, languages } = await starterTemplates();
-    const values = { storeId: store.id, storeName: store.name, now: NOW, mediaOrigin: `${MEDIA}/` };
+    const values = { storeId: store.id, storeName: store.name, now: NOW };
     expect(fillStarterTemplate(languages[store.lang].defaults, values)).toEqual(await storeDefaultsSql(store, NOW));
-    expect(fillStarterTemplate(languages[store.lang].catalog, values)).toEqual(await demoCatalogSql(store, { mediaOrigin: MEDIA, now: NOW }));
+    expect(fillStarterTemplate(languages[store.lang].catalog, values)).toEqual(await demoCatalogSql(store, NOW));
     expect(fillStarterTemplate([applies], values)).toEqual([`SELECT ${starterCatalogApplies(store.id)} AS applies`]);
   });
 
@@ -235,7 +244,7 @@ describe("starter templates", () => {
     for (const lang of STORE_LOCALES) {
       const sql = [...languages[lang].defaults, ...languages[lang].catalog].join("\n");
       for (const token of Object.values(STARTER_PLACEHOLDERS)) expect(sql, `${lang} ${token}`).toContain(token);
-      const filled = fillStarterTemplate([sql], { storeId: "s", storeName: "n", now: NOW, mediaOrigin: MEDIA })[0]!;
+      const filled = fillStarterTemplate([sql], { storeId: "s", storeName: "n", now: NOW })[0]!;
       expect(filled).not.toMatch(/\{\{[a-zA-Z.]+\}\}/);
     }
   });

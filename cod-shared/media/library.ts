@@ -7,7 +7,6 @@
 import { and, desc, eq, inArray, like, lt, or } from "drizzle-orm";
 import type { StoreDb } from "../db/client";
 import { media } from "../db/schema";
-import { stillReferencedImageKeys } from "../queries/image-references";
 import { mediaImage, mediaUrl, type MediaDelivery } from "./delivery";
 import { MediaError } from "./errors";
 import type { HostFile, HostObject, MediaHost } from "./hosts/host";
@@ -25,6 +24,7 @@ import {
   type UploadFolder,
 } from "./keys";
 import type { MediaImage } from "./model";
+import { shownKeys } from "./references";
 import { readCapped } from "./stream";
 
 export type StoredMedia = typeof media.$inferSelect;
@@ -124,6 +124,14 @@ export function mediaLibrary(config: MediaLibraryConfig) {
 
     /** A stored row as the API returns it. */
     image,
+
+    /** The ready file at `key`, for a caller about to show it: refused (`not_ready`) when there is none, it is pending, or another host keeps it. */
+    async ready(key: string): Promise<StoredMedia> {
+      if (!isMediaKey(key)) throw new MediaError("key_invalid", "Not a Media Key", { key });
+      const row = await byKey(key);
+      if (row === null || row.status !== "ready" || row.host !== host.kind) throw new MediaError("not_ready", "No ready image has this key; complete its upload first", { key });
+      return row;
+    },
 
     /** Ticket one browser upload of `bytes` bytes of `contentType` into `folder`; its row is pending until `completeUpload` confirms it. */
     async requestUpload(upload: { folder: UploadFolder; contentType: string; bytes: number }): Promise<UploadTicket> {
@@ -245,7 +253,7 @@ export function mediaLibrary(config: MediaLibraryConfig) {
     async release(keys: readonly string[]): Promise<{ released: string[]; kept: string[] }> {
       const wanted = [...new Set(keys.filter(isMediaKey))];
       const rows = (await rowsOf(wanted)).filter((row) => row.host === host.kind);
-      const shown = await stillReferencedImageKeys(db, rows.map((row) => row.key));
+      const shown = await shownKeys(db, rows.map((row) => row.key));
       const gone = rows.filter((row) => !shown.has(row.key));
       await forget(gone);
       const released = new Set(gone.map((row) => row.key));
@@ -275,7 +283,7 @@ export function mediaLibrary(config: MediaLibraryConfig) {
         .orderBy(media.createdAt)
         .limit(limit)
         .all();
-      const shown = await stillReferencedImageKeys(db, candidates.map((row) => row.key));
+      const shown = await shownKeys(db, candidates.map((row) => row.key));
       const orphans = candidates.filter((row) => !shown.has(row.key));
       if (!dryRun) await forget(orphans);
       return {
@@ -313,9 +321,14 @@ export function mediaLibrary(config: MediaLibraryConfig) {
       };
     },
 
-    /** A file's bytes, for a host the store's server serves itself (`direct` delivery); null on any other host. */
+    /**
+     * A ready file's bytes, for a host the store's server serves itself
+     * (`direct` delivery); null for any other file, and on any other host.
+     */
     async open(key: string): Promise<HostObject | null> {
-      return isMediaKey(key) && host.open ? host.open(key) : null;
+      if (!isMediaKey(key) || !host.open) return null;
+      const row = await byKey(key);
+      return row?.status === "ready" && row.host === host.kind ? host.open(key) : null;
     },
   };
 }

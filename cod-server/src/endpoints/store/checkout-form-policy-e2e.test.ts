@@ -29,6 +29,7 @@ import {
   DEFAULT_CHECKOUT_FORM_POLICY,
   type CheckoutFormPolicy,
 } from "../../../../cod-shared/checkout-form/policy";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 let harness: TestD1;
 let app: OpenAPIHono<AppContext>;
@@ -75,7 +76,7 @@ beforeAll(async () => {
 
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: recordingD1(harness.raw) } as never;
+    c.env = { DB: recordingD1(harness.raw), ...TEST_MEDIA_VARS } as never;
     c.set("storeId", STORE_ID);
     await next();
   });

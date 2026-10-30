@@ -19,6 +19,7 @@ import storePagesRouter from "./routes";
 import * as queries from "./queries";
 import { NotFoundError, ConflictError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 const mockDb = {} as any;
 vi.mock("@/db", () => ({
@@ -79,7 +80,7 @@ let app: OpenAPIHono<AppContext>;
 function mountAs(user: typeof admin | typeof staffNoScope) {
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: mockDb } as any;
+    c.env = { DB: mockDb, ...TEST_MEDIA_VARS } as any;
     signIn(c, user as any);
     await next();
   });

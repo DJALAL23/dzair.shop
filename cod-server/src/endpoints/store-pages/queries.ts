@@ -10,6 +10,7 @@
  * through every call here as an explicit parameter — this module never
  * resolves it itself, so every function stays testable with any storeId.
  */
+import type { MediaDelivery } from "../../../../cod-shared/media/delivery";
 import type { AppDb } from "@/db";
 import { NotFoundError, ConflictError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -34,8 +35,8 @@ function conflict(slug: string): ConflictError {
   );
 }
 
-export async function getStorePageOrThrow(db: AppDb, storeId: string, id: string) {
-  const page = await shared.getStorePageById(db, storeId, id);
+export async function getStorePageOrThrow(db: AppDb, storeId: string, id: string, delivery: MediaDelivery) {
+  const page = await shared.getStorePageById(db, storeId, id, delivery);
   if (!page) throw new NotFoundError("Store Page", id);
   return page;
 }
@@ -44,12 +45,13 @@ export async function createCustomPage(
   db: AppDb,
   storeId: string,
   data: CreateCustomPageData,
+  delivery: MediaDelivery,
 ) {
   if (await shared.slugExists(db, storeId, data.slug)) throw conflict(data.slug);
 
   try {
-    const { id } = await shared.createCustomPage(db, storeId, data);
-    return getStorePageOrThrow(db, storeId, id);
+    const { id } = await shared.createCustomPage(db, storeId, data, delivery);
+    return getStorePageOrThrow(db, storeId, id, delivery);
   } catch (err) {
     // Race: a concurrent writer took the slug between the check and the insert.
     if (isSlugUniqueViolation(err)) throw conflict(data.slug);
@@ -62,8 +64,9 @@ export async function updateStorePageMeta(
   storeId: string,
   id: string,
   data: UpdateStorePageMetaData,
+  delivery: MediaDelivery,
 ) {
-  await getStorePageOrThrow(db, storeId, id);
+  await getStorePageOrThrow(db, storeId, id, delivery);
 
   if (data.slug && (await shared.slugExists(db, storeId, data.slug, id))) {
     throw conflict(data.slug);
@@ -75,7 +78,7 @@ export async function updateStorePageMeta(
     if (isSlugUniqueViolation(err)) throw conflict(data.slug!);
     throw err;
   }
-  return getStorePageOrThrow(db, storeId, id);
+  return getStorePageOrThrow(db, storeId, id, delivery);
 }
 
 /**
@@ -84,8 +87,8 @@ export async function updateStorePageMeta(
  * back, so it can be unpublished but never deleted. `seed-defaults` is the
  * visible recovery path if one is ever removed by direct DB access.
  */
-export async function deleteStorePage(db: AppDb, storeId: string, id: string) {
-  const page = await getStorePageOrThrow(db, storeId, id);
+export async function deleteStorePage(db: AppDb, storeId: string, id: string, delivery: MediaDelivery) {
+  const page = await getStorePageOrThrow(db, storeId, id, delivery);
   if (page.kind !== "custom") {
     throw new BusinessLogicError(
       `"${page.kind}" is a legal page and cannot be deleted — unpublish it instead`,
@@ -102,9 +105,10 @@ export async function saveTranslation(
   pageId: string,
   locale: PageLocale,
   data: SaveTranslationData,
+  delivery: MediaDelivery,
 ) {
-  await getStorePageOrThrow(db, storeId, pageId);
-  return shared.saveTranslation(db, pageId, locale, data);
+  await getStorePageOrThrow(db, storeId, pageId, delivery);
+  return shared.saveTranslation(db, pageId, locale, data, delivery);
 }
 
 export async function resetTranslationToTemplate(
@@ -112,8 +116,9 @@ export async function resetTranslationToTemplate(
   storeId: string,
   pageId: string,
   locale: PageLocale,
+  delivery: MediaDelivery,
 ) {
-  const page = await getStorePageOrThrow(db, storeId, pageId);
+  const page = await getStorePageOrThrow(db, storeId, pageId, delivery);
   if (page.kind === "custom") {
     throw new BusinessLogicError(
       "A custom page has no template to reset to",
@@ -121,7 +126,7 @@ export async function resetTranslationToTemplate(
       { id: pageId },
     );
   }
-  const result = await shared.resetTranslationToTemplate(db, storeId, pageId, locale);
+  const result = await shared.resetTranslationToTemplate(db, storeId, pageId, locale, delivery);
   if (!result) throw new NotFoundError("Store", storeId);
   return result;
 }

@@ -10,6 +10,7 @@
 import { describe, it, expect } from "vitest";
 import { makeMockDb, f, a, productRow, variantRow } from "@/test-utils/mock-db";
 import { getAllProducts } from "../../../../cod-shared/queries/products";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 describe("getAllProducts", () => {
   it("maps one row with review stats and cover image from the main select", async () => {
@@ -19,20 +20,20 @@ describe("getAllProducts", () => {
           ...productRow(),
           review_count: 7,
           avg_rating: 4.5,
-          primary_image_src: "https://example.com/cover.jpg",
+          primary_image_json: JSON.stringify({ key: "products/cover.jpg", width: 800, height: 600 }),
         },
       ]),
       a([variantRow({ id: "var_1", position: 2 }), variantRow({ id: "var_2", position: 1 })]),
     ]);
 
-    const rows = await getAllProducts(db);
+    const rows = await getAllProducts(db, TEST_DELIVERY);
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       id: "prod_1",
       reviewCount: 7,
       avgRating: 4.5,
-      primaryImageSrc: "https://example.com/cover.jpg",
+      primaryImage: { key: "products/cover.jpg", url: `${TEST_DELIVERY.origin}/products/cover.jpg`, width: 800, height: 600 },
       variantsCount: 2,
       totalInventory: 10,
       hasVariants: false,
@@ -43,16 +44,16 @@ describe("getAllProducts", () => {
 
   it("falls back to product inventory when a product has no variants", async () => {
     const db = makeMockDb([
-      a([{ ...productRow(), review_count: 0, avg_rating: null, primary_image_src: null }]),
+      a([{ ...productRow(), review_count: 0, avg_rating: null, primary_image_json: null }]),
       a([]),
     ]);
 
-    const rows = await getAllProducts(db);
+    const rows = await getAllProducts(db, TEST_DELIVERY);
 
     expect(rows[0]).toMatchObject({
       variantsCount: 0,
       totalInventory: 10,
-      primaryImageSrc: null,
+      primaryImage: null,
       reviewCount: 0,
       avgRating: null,
       variants: [],
@@ -62,7 +63,7 @@ describe("getAllProducts", () => {
   it("returns [] for an empty page without running the variant follow-up", async () => {
     const db = makeMockDb([a([])]);
 
-    const rows = await getAllProducts(db);
+    const rows = await getAllProducts(db, TEST_DELIVERY);
 
     expect(rows).toEqual([]);
   });
@@ -83,7 +84,7 @@ describe("getAllProducts", () => {
       a([]),
     ]);
 
-    const rows = await getAllProducts(db);
+    const rows = await getAllProducts(db, TEST_DELIVERY);
 
     expect(rows[0].variantOptions).toEqual([{ name: "اللون", values: [{ value: "أحمر" }] }]);
     expect(rows[0].tags).toEqual(["sale"]);
@@ -102,7 +103,7 @@ describe("getAllProducts", () => {
       a([variantRow({ product_id: "prod_90" })]),
     ]);
 
-    const rows = await getAllProducts(db, { limit: 91 });
+    const rows = await getAllProducts(db, TEST_DELIVERY, { limit: 91 });
 
     expect(rows).toHaveLength(91);
     expect(rows[0]).toMatchObject({ id: "prod_0", variantsCount: 1 });

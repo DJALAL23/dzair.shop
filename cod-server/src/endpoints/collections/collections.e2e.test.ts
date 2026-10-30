@@ -25,6 +25,7 @@ import { defaultCollectionsSql } from "../../../../cod-shared/catalog/collection
 import storeRoutes from "../store/routes";
 import productsRouter from "../products/routes";
 import collectionsRouter from "./routes";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 const T = "2026-10-01T00:00:00.000Z";
 const STORE = "s1";
@@ -63,7 +64,7 @@ describe("collections through the real routes", () => {
     d1 = await createTestD1();
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
-      c.env = { DB: d1.raw } as AppContext["Bindings"];
+      c.env = { DB: d1.raw, ...TEST_MEDIA_VARS } as AppContext["Bindings"];
       c.set("storeId", STORE);
       signIn(c, { id: "admin", name: "Admin", role: "admin", status: "active", scopes: ["*"] } as never);
       await next();

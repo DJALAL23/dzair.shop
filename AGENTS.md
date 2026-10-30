@@ -6,7 +6,7 @@ TypeScript, deployed on Cloudflare (Workers, D1, R2, KV).
 ## Layout
 
 - `cod-server/` — Cloudflare Workers API (Hono). Merchant `/api/*`, public
-  `/store/*`, `/webhooks`, `/images`, `/mcp`. D1 via Drizzle.
+  `/store/*`, `/webhooks`, `/media`, `/mcp`. D1 via Drizzle.
 - `cod-client-astro/` — the merchant dashboard (Astro 7). Prerendered static
   pages + a Worker surface for `/api/auth/*` and `/mcp/oauth/login`; React
   islands fetch data from cod-server through `src/lib/api.ts` (the only module
@@ -96,14 +96,14 @@ locally (or `COD_OPENAPI_URL` pointing at a saved spec).
 ## Cloud resource configuration
 
 Resource names and URLs are **not** hardcoded in scripts. The seeders, the
-D1 migration wrapper (`cod-server/scripts/d1.mjs`), the R2 CORS setup and
+D1 migration wrapper (`cod-server/scripts/d1.mjs`), the R2 lifecycle rule and
 the storefront deploy helper all read `<repo-root>/.env` through
 `cod-server/scripts/cloud-env.mjs`. Precedence is
 **`process.env` > `.env` > built-in default**; the committed template is
 `<repo-root>/.env.example`.
 
 Keys: `COD_ACCOUNT_ID`, `COD_DB_NAME`, `COD_R2_BUCKET_NAME`,
-`COD_SERVER_URL`, `COD_MEDIA_DOMAIN`. Add a key to `DEFAULTS` in
+`COD_SERVER_URL`. Add a key to `DEFAULTS` in
 `cloud-env.mjs` and to `.env.example` together — a key in one and not the
 other is how these drift.
 
@@ -296,7 +296,7 @@ other is how these drift.
   script is `cod-server/scripts/seed-store.ts` (`npm run db:setup:local` /
   `db:setup:remote`): it creates the store row and API key when missing, the
   defaults always, the catalog with `--images=<dir>` (its pictures,
-  `starter-<name>.webp`, go to the store's R2 first). CodFlow Cloud runs the
+  `starter-<name>.webp`, go to the store's media first, on its host). CodFlow Cloud runs the
   same SQL from each platform release (`starterTemplates`). Never add seed
   data anywhere else. The dashboard's Pages screen → "Add Terms, Privacy,
   Refund & Shipping" (`POST /api/store-pages/seed-defaults`) writes the same

@@ -20,8 +20,8 @@ beforeAll(async () => {
     "INSERT INTO products (id, name, handle, price, created_at, updated_at) VALUES ('p1', 'Robe', 'robe', 1500, ?1, ?1)",
     "INSERT INTO products (id, name, handle, price, created_at, updated_at) VALUES ('p2', 'Foulard', 'foulard', 500, ?1, ?1)",
     "INSERT INTO products (id, name, handle, price, created_at, updated_at) VALUES ('p3', 'Sac', 'sac', 3000, ?1, ?1)",
-    "INSERT INTO product_images (id, product_id, src, position, created_at, updated_at) VALUES ('i2', 'p1', 'https://m/robe-2.webp', 2, ?1, ?1)",
-    "INSERT INTO product_images (id, product_id, src, position, created_at, updated_at) VALUES ('i1', 'p1', 'https://m/robe-1.webp', 1, ?1, ?1)",
+    "INSERT INTO product_images (id, product_id, media_key, position, created_at, updated_at) VALUES ('i2', 'p1', 'products/robe-2.webp', 2, ?1, ?1)",
+    "INSERT INTO product_images (id, product_id, media_key, position, created_at, updated_at) VALUES ('i1', 'p1', 'products/robe-1.webp', 1, ?1, ?1)",
     // Delivered: a robe (two lines of it), a scarf, and a bag refused in full at the door.
     "INSERT INTO orders (id, order_number, customer_id, customer_name, phone, price, status, created_at, updated_at) VALUES ('oD', 'ORD-20261016-1234', 'c1', 'Karim', '0551 23 45 67', 6500, 'ready', ?1, ?1)",
     "INSERT INTO order_products (id, order_id, product_id, product_name, quantity, price_per_unit, line_total, created_at) VALUES ('l1', 'oD', 'p1', 'Robe', 1, 1500, 1500, ?1)",
@@ -53,8 +53,8 @@ describe("who may review", () => {
       order: {
         id: "oD", orderNumber: "ORD-20261016-1234", customerId: "c1", customerName: "Karim",
         products: [
-          { productId: "p1", name: "Robe", imageSrc: "https://m/robe-1.webp", reviewed: false },
-          { productId: "p2", name: "Foulard", imageSrc: null, reviewed: true },
+          { productId: "p1", name: "Robe", imageKey: "products/robe-1.webp", reviewed: false },
+          { productId: "p2", name: "Foulard", imageKey: null, reviewed: true },
         ],
       },
     });

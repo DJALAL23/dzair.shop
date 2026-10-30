@@ -19,6 +19,7 @@ import {
   LandingPageSchema,
   LandingPageListItemSchema,
   LandingPageImageSchema,
+  MediaKeySchema,
   LandingPageTrackingSchema,
   LandingPageTrackingStateSchema,
   ListResponseSchema,
@@ -277,31 +278,16 @@ const saveLandingPageImageRoute = defineRoute({
   tags: ["Landing Pages"],
   summary: "Save landing page image",
   description:
-    "Append an already-uploaded R2 image to the stack. Upload first via POST /api/images/presign with folder=landing, then call this with the returned key and URL.",
+    "Appends an uploaded image to the stack by its Media Key. Upload it first (POST /api/media/uploads with folder `landing`, send the file, complete the upload); its size comes from the upload.",
   operationId: "saveLandingPageImage",
   params: idParams,
   body: z.object({
-    key: z.string().min(1).openapi({
-      description: "R2 object key returned by the presign upload",
-      example: "landing/abc123def456.jpg",
-    }),
-    src: z.string().min(1).openapi({
-      description: "Public URL of the image",
-      example: "https://media.codflow.store/landing/abc123.jpg",
-    }),
+    mediaKey: MediaKeySchema,
     altText: z.string().nullable().optional().openapi({
       description: "Alt text for accessibility",
     }),
     position: z.number().int().min(1).optional().openapi({
       description: "Stack position (auto-appended at the end if not provided)",
-    }),
-    width: z.number().int().min(1).max(20000).nullable().optional().openapi({
-      description: "Intrinsic pixel width (client-measured at upload) — lets the storefront reserve layout space",
-      example: 1080,
-    }),
-    height: z.number().int().min(1).max(20000).nullable().optional().openapi({
-      description: "Intrinsic pixel height (client-measured at upload)",
-      example: 1350,
     }),
   }),
   responses: {

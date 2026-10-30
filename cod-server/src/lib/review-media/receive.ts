@@ -2,8 +2,8 @@
  * Receiving one review file — a shopper's under their grant, or a merchant's
  * for a review they enter: read while counting (never past the limit), typed
  * by its bytes, checked against what may be attached, and stored as sent
- * under `review-uploads/<folder>/<upload>` until the review's media job
- * prepares it (or the bucket's lifecycle rule clears it).
+ * in Staging, `staging/reviews/<folder>/<upload>`, until the review's media
+ * job prepares it (or the bucket's lifecycle rule clears it).
  */
 import { BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -12,6 +12,7 @@ import { sniffMedia } from "../../../../cod-shared/media/keys";
 import { readCapped } from "../../../../cod-shared/media/stream";
 import { REVIEW_PHOTO_MAX_BYTES, voiceMaxBytes } from "../../../../cod-shared/reviews/policy";
 import type { ReviewMediaKind, ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
+import type { Staging } from "@/lib/staging";
 
 export interface FileAllowance {
   /** 0 = no photos. */
@@ -27,7 +28,7 @@ export interface ReceivedFile {
 }
 
 export async function receiveFile(
-  bucket: R2Bucket,
+  staging: Pick<Staging, "list" | "put">,
   input: {
     folder: string;
     body: ReadableStream<Uint8Array> | null;
@@ -59,15 +60,14 @@ export async function receiveFile(
   }
   if (bytes.byteLength > (sniffed.kind === "image" ? photoCap : voiceCap)) throw tooLarge();
 
-  const listed = await bucket.list({ prefix: uploadPrefix(input.folder), include: ["customMetadata"], limit: 100 });
-  const already = listed.objects.filter((object) => object.customMetadata?.kind === sniffed.kind).length;
+  const already = (await staging.list(uploadPrefix(input.folder))).filter((file) => file.custom.kind === sniffed.kind).length;
   const max = input.folderLimit[sniffed.kind];
   if (already >= max) throw new BusinessLogicError("Too many files sent for this review", ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: sniffed.kind, max });
 
   const uploadId = newMediaId();
-  await bucket.put(uploadKey(input.folder, uploadId), bytes, {
-    httpMetadata: { contentType: sniffed.contentType },
-    customMetadata: {
+  await staging.put(uploadKey(input.folder, uploadId), bytes, {
+    contentType: sniffed.contentType,
+    custom: {
       ...input.metadata,
       kind: sniffed.kind,
       contentType: sniffed.contentType,
@@ -78,18 +78,18 @@ export async function receiveFile(
 }
 
 /** The uploads a review names, as stored; throws when one was never received. */
-export async function findReceived(bucket: Pick<R2Bucket, "head">, folder: string, uploadIds: string[]) {
-  const heads = await Promise.all(uploadIds.map((id) => bucket.head(uploadKey(folder, id))));
+export async function findReceived(staging: Pick<Staging, "head">, folder: string, uploadIds: string[]) {
+  const heads = await Promise.all(uploadIds.map((id) => staging.head(uploadKey(folder, id))));
   return heads.map((head, i) => {
-    const kind = head?.customMetadata?.kind;
+    const kind = head?.custom.kind;
     if (!head || (kind !== "image" && kind !== "audio")) {
       throw new BusinessLogicError("A file of this review was not received — send it again", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND, { uploadId: uploadIds[i] });
     }
-    const declared = Number(head.customMetadata?.declaredDurationMs);
+    const declared = Number(head.custom.declaredDurationMs);
     return {
       key: head.key,
       kind: kind as ReviewMediaKind,
-      contentType: head.customMetadata?.contentType ?? head.httpMetadata?.contentType ?? "application/octet-stream",
+      contentType: head.custom.contentType ?? head.contentType ?? "application/octet-stream",
       bytes: head.size,
       ...(Number.isInteger(declared) && declared > 0 ? { declaredDurationMs: declared } : {}),
     };

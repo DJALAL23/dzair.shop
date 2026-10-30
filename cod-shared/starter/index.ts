@@ -8,9 +8,10 @@
  *   when the store lacks it; nothing the merchant has is touched.
  * - `demoCatalogSql` — a store with no products or categories of its own
  *   (`starterCatalogApplies`): `content.ts`'s catalog in the store's primary
- *   language, translated into the others, its pictures at
- *   `starterImageKey(name)` in the store's media, menu links to it and the
- *   default collections filled.
+ *   language, translated into the others, menu links to it and the default
+ *   collections filled. Its pictures are the store's media at
+ *   `starterImageKey(name)`, put there first by `storeStarterPictures`; one
+ *   not ready yet is left out, and added by a later run.
  *
  * Every starter row's id begins with `starterPrefix(storeId)`, so the starter
  * can be told apart from the merchant's own data. Running either again
@@ -35,6 +36,7 @@ import {
   STARTER_PRODUCTS,
   type Words,
 } from "./content";
+import type { MediaLibrary } from "../media/library";
 import { defaultShippingSql } from "./shipping";
 
 /** Moves when the starter's content changes; a deployment records the version it applied. */
@@ -56,6 +58,20 @@ export interface StarterStore {
 export const starterPrefix = (storeId: string) => `${storeId}:starter:`;
 export const starterImageKey = (name: string) => `products/starter-${name}.webp`;
 export { STARTER_IMAGES };
+
+/**
+ * Puts the starter pictures in the store's media, each read by its file name
+ * (`starter-<name>.webp`), before `demoCatalogSql` shows them. A picture
+ * already there is kept as it is.
+ */
+export async function storeStarterPictures(media: MediaLibrary, read: (fileName: string) => Promise<Uint8Array>): Promise<string[]> {
+  const keys: string[] = [];
+  for (const name of STARTER_IMAGES) {
+    const body = await read(`starter-${name}.webp`);
+    keys.push((await media.store({ key: starterImageKey(name), contentType: "image/webp", body, width: STARTER_IMAGE_SIZE, height: STARTER_IMAGE_SIZE })).key);
+  }
+  return keys;
+}
 
 const q = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const num = (value: number | undefined) => (value === undefined ? "NULL" : String(value));
@@ -86,8 +102,7 @@ export async function storeDefaultsSql(store: StarterStore, now: string): Promis
  * fixed ids). Translations go to every language but the primary one, so a
  * language the merchant adds later finds the catalog already in it.
  */
-export async function demoCatalogSql(store: StarterStore, options: { mediaOrigin: string; now: string }): Promise<string[]> {
-  const { mediaOrigin, now } = options;
+export async function demoCatalogSql(store: StarterStore, now: string): Promise<string[]> {
   const lang = store.lang;
   const prefix = starterPrefix(store.id);
   const id = (...parts: string[]) => `${prefix}${parts.join(":")}`;
@@ -101,7 +116,7 @@ export async function demoCatalogSql(store: StarterStore, options: { mediaOrigin
       insert("translations", { resource_type: q(resource), resource_id: q(resourceId), locale: q(locale), key: q(key), value: q(words[locale]), source_digest: q(digest), updated_at: q(now) }, also),
     );
   };
-  const imageUrl = (name: string) => `${mediaOrigin.replace(/\/+$/, "")}/${starterImageKey(name)}`;
+  const ready = (name: string) => `EXISTS (SELECT 1 FROM media WHERE key = ${q(starterImageKey(name))} AND status = 'ready')`;
   const statements: string[] = [];
 
   for (const [index, category] of STARTER_CATEGORIES.entries()) {
@@ -112,11 +127,11 @@ export async function demoCatalogSql(store: StarterStore, options: { mediaOrigin
         name: q(category.name[lang]),
         slug: q(category.slug),
         description: q(category.description[lang]),
-        image_url: q(imageUrl(category.image)),
         position: String(index + 1),
         created_at: q(now),
         updated_at: q(now),
       }),
+      `UPDATE product_categories SET image_key = ${q(starterImageKey(category.image))} WHERE id = ${q(categoryId)} AND image_key IS NULL AND updated_at = created_at AND ${ready(category.image)} AND ${empty}`,
       ...(await translate("category", categoryId, "name", category.name)),
       ...(await translate("category", categoryId, "description", category.description)),
     );
@@ -153,19 +168,22 @@ export async function demoCatalogSql(store: StarterStore, options: { mediaOrigin
         created_at: q(now),
         updated_at: q(now),
       }),
-      insert("product_images", {
-        id: q(id("image", product.key)),
-        product_id: q(productId),
-        src: q(imageUrl(product.image)),
-        r2_key: q(starterImageKey(product.image)),
-        alt_text: q(product.name[lang]),
-        width: String(STARTER_IMAGE_SIZE),
-        height: String(STARTER_IMAGE_SIZE),
-        type: "1",
-        position: "1",
-        created_at: q(now),
-        updated_at: q(now),
-      }),
+      insert(
+        "product_images",
+        {
+          id: q(id("image", product.key)),
+          product_id: q(productId),
+          media_key: q(starterImageKey(product.image)),
+          alt_text: q(product.name[lang]),
+          width: String(STARTER_IMAGE_SIZE),
+          height: String(STARTER_IMAGE_SIZE),
+          type: "1",
+          position: "1",
+          created_at: q(now),
+          updated_at: q(now),
+        },
+        ready(product.image),
+      ),
       ...(await translate("product", productId, "name", product.name)),
       ...(await translate("product", productId, "description", product.description)),
     );
@@ -288,7 +306,6 @@ export const STARTER_PLACEHOLDERS = {
   storeName: "{{store.name}}",
   storeNameHtml: "{{store.nameHtml}}",
   now: "{{now}}",
-  mediaOrigin: "{{mediaOrigin}}",
 } as const;
 
 export interface StarterTemplate {
@@ -304,19 +321,18 @@ export async function starterTemplates(): Promise<{ applies: string; languages: 
   const languages = {} as Record<StoreLocale, StarterTemplate>;
   for (const lang of STORE_LOCALES) {
     const store: StarterStore = { id: P.storeId, name: P.storeName, nameHtml: P.storeNameHtml, lang };
-    languages[lang] = { defaults: await storeDefaultsSql(store, P.now), catalog: await demoCatalogSql(store, { mediaOrigin: P.mediaOrigin, now: P.now }) };
+    languages[lang] = { defaults: await storeDefaultsSql(store, P.now), catalog: await demoCatalogSql(store, P.now) };
   }
   return { applies: `SELECT ${starterCatalogApplies(P.storeId)} AS applies`, languages };
 }
 
 /** A template's statements for one store: each placeholder replaced, in one pass, by its value escaped for an SQL string. */
-export function fillStarterTemplate(statements: readonly string[], values: { storeId: string; storeName: string; now: string; mediaOrigin: string }): string[] {
+export function fillStarterTemplate(statements: readonly string[], values: { storeId: string; storeName: string; now: string }): string[] {
   const byToken = new Map<string, string>([
     [STARTER_PLACEHOLDERS.storeId, values.storeId],
     [STARTER_PLACEHOLDERS.storeName, values.storeName],
     [STARTER_PLACEHOLDERS.storeNameHtml, escapeHtml(values.storeName)],
     [STARTER_PLACEHOLDERS.now, values.now],
-    [STARTER_PLACEHOLDERS.mediaOrigin, values.mediaOrigin.replace(/\/+$/, "")],
   ]);
   const token = new RegExp([...byToken.keys()].map((key) => key.replace(/[.{}]/g, "\\$&")).join("|"), "g");
   return statements.map((statement) => statement.replace(token, (found) => byToken.get(found)!.replace(/'/g, "''")));

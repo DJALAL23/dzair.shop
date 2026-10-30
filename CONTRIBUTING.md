@@ -197,11 +197,12 @@ in gitignored `.dev.vars` files or `wrangler secret put` in production.
 
 | Variable | Owner | Purpose |
 |----------|-------|---------|
-| `WORKER_URL`, `MEDIA_DOMAIN`, `R2_BUCKET_NAME`, `BETTER_AUTH_URL`, `WORKER_SELF_URL` | `cod-server` | public URLs + R2 (see `src/types/env.ts`) |
+| `WORKER_URL`, `BETTER_AUTH_URL`, `WORKER_SELF_URL` | `cod-server` | public URLs (see `src/types/env.ts`) |
+| `MEDIA_HOST`, `MEDIA_DELIVERY`, `MEDIA_ORIGIN`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_FOLDER` | `cod-server` | where the store's media is kept and how browsers fetch it (ADR 0021) |
 | `PUBLIC_APP_URL`, `PUBLIC_API_URL`, `PUBLIC_TRUSTED_ORIGINS` | `cod-client-astro` (wrangler `[vars]`) | dashboard origin, API origin, auth cookie origins |
 | `PUBLIC_API_URL` | `cod-client-astro` (`.dev.vars`, local only) | the API origin local development builds against — never in `.env`, where it is ignored |
 | `COD_SERVER_URL`, `STORE_API_KEY`, `MEDIA_DOMAIN` | `cod-astro/theme-00` | backend base URL + store key + media CDN |
-| `BETTER_AUTH_SECRET`, `MCP_LOGIN_TICKET_SECRET`, R2 creds, `CF_ACCOUNT_ID` | all | secrets — never in a wrangler config file |
+| `BETTER_AUTH_SECRET`, `MCP_LOGIN_TICKET_SECRET`, `IMAGEKIT_PRIVATE_KEY` | all | secrets — never in a wrangler config file |
 
 ---
 

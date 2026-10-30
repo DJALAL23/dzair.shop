@@ -14,7 +14,7 @@ vi.mock("@/inbound/cron", async (importOriginal) => ({
   runInboundCron: jobs.inbound,
 }));
 vi.mock("@/cron/sweep-abandoned-orders", () => ({ sweepAbandonedOrders: jobs.abandoned }));
-vi.mock("@/cron/sweep-orphan-images", () => ({ runOrphanImageSweep: jobs.images }));
+vi.mock("@/cron/media-sweep", () => ({ runMediaSweep: jobs.images }));
 vi.mock("@cloudflare/workers-oauth-provider", () => ({
   OAuthProvider: class {
     fetch() {

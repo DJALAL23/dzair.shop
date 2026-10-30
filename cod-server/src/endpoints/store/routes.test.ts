@@ -13,6 +13,7 @@ import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { DEFAULT_CHECKOUT_FORM_POLICY } from "../../../../cod-shared/checkout-form/policy";
 import storeRouter from "./routes";
 import * as queries from "./queries";
+import { TEST_MEDIA_VARS, TEST_DELIVERY } from "@/test-utils/media";
 
 // The address rule is tested against the real reference tables
 // (store.queries-e2e); this file's mocked database cannot answer it.
@@ -57,7 +58,7 @@ function listProductRow(overrides: Record<string, any> = {}) {
     publishedAt: NOW,
     createdAt: NOW,
     updatedAt: NOW,
-    coverImage: { id: "img_1", src: "https://cdn.example.com/a.jpg", position: 1 },
+    coverImage: { id: "img_1", key: "products/a.jpg", url: `${TEST_DELIVERY.origin}/products/a.jpg`, width: null, height: null, altText: null, position: 1 },
     reviewStats: { avgRating: 4.5, reviewCount: 12 },
     ...overrides,
   };
@@ -70,7 +71,7 @@ function detailRow(overrides: Record<string, any> = {}) {
     tags: ["sale"],
     category: {
       id: "cat_1", name: "Electronics", slug: "electronics", description: null,
-      parentId: null, imageUrl: null, position: 0, createdAt: NOW, updatedAt: NOW,
+      parentId: null, image: null, position: 0, createdAt: NOW, updatedAt: NOW,
     },
     variants: [],
     images: [],
@@ -97,7 +98,7 @@ describe("Store API routes (OpenAPIHono)", () => {
   beforeEach(() => {
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
-      c.env = { DB: mockDb } as any;
+      c.env = { DB: mockDb, ...TEST_MEDIA_VARS } as any;
       c.set("storeId", "store_1");
       await next();
     });
@@ -165,6 +166,7 @@ describe("Store API routes (OpenAPIHono)", () => {
         mockDb,
         expect.objectContaining({ featured: true, limit: 12 }),
         null,
+        TEST_DELIVERY,
       );
       expect(res.headers.get("Content-Language")).toBe("ar");
     });

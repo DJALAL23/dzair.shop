@@ -15,6 +15,7 @@ import { resolve } from "node:path";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
+import { TEST_MEDIA_VARS } from "./media";
 
 export const MIGRATIONS_DIR = resolve(__dirname, "../db/migrations");
 
@@ -49,10 +50,13 @@ export function migrationStatements(files: readonly string[]): string[] {
 export interface TestD1 {
   db: AppDb;
   raw: D1Database;
+  /** The worker's `MEDIA_BUCKET`: its staging, and its media (`MEDIA_HOST` is `r2`). */
+  bucket: R2Bucket;
   /**
    * A request to the worker given as `worker` (see `bundleWorker`), served by
    * the real workerd runtime over this same database. Without a worker, a
-   * placeholder answers "ok".
+   * placeholder answers "ok". Its media is the store server's in local
+   * development (`TEST_MEDIA_VARS`).
    */
   fetch: (url: string, init?: RequestInit) => Promise<Response>;
   /**
@@ -132,14 +136,18 @@ async function startTestD1(options: { before?: string; worker?: string }): Promi
     compatibilityDate: "2024-11-27",
     compatibilityFlags: ["nodejs_compat"],
     d1Databases: { DB: "test-db" },
+    r2Buckets: ["MEDIA_BUCKET"],
+    bindings: { ...TEST_MEDIA_VARS },
   });
 
   const files = migrationFiles();
   const cut = options.before === undefined ? files.length : files.findIndex((file) => file >= options.before!);
   if (cut === -1) throw new Error(`no migration sorts at or after ${options.before}`);
   let raw: D1Database;
+  let bucket: R2Bucket;
   try {
     raw = await mf.getD1Database("DB");
+    bucket = (await mf.getR2Bucket("MEDIA_BUCKET")) as unknown as R2Bucket;
     await replay(raw, files.slice(0, cut));
   } catch (error) {
     await mf.dispose().catch(() => {});
@@ -149,6 +157,7 @@ async function startTestD1(options: { before?: string; worker?: string }): Promi
   return {
     db: drizzle(raw as unknown as D1Database, { schema }) as unknown as AppDb,
     raw,
+    bucket,
     fetch: async (url, init) => (await mf.getWorker()).fetch(url, init as never) as unknown as Response,
     applyRemaining: ({ until }: { until?: string } = {}) => {
       const end = until === undefined ? files.length : files.findIndex((file) => file >= until);

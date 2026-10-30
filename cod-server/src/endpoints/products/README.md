@@ -71,7 +71,7 @@ List all products with comprehensive filtering, searching, and analytics (review
 **Response Includes:**
 - `variantsCount`: Total number of variations.
 - `totalInventory`: Sum of all variant stock (or base stock if no variants).
-- `primaryImageSrc`: The first image in the position order.
+- `primaryImage`: The first image in the position order, as a `MediaImage` (`key`, `url`, `width`, `height`).
 - `reviewCount` & `avgRating`: Aggregated feedback metrics.
 
 ### GET /api/products/:id
@@ -131,9 +131,9 @@ What `DELETE` would take with it and what stays: variants, images, reviews, offe
 
 ### Images (`/api/products/:id/images`)
 - `GET`: List all images for a product ordered by position.
-- `POST`: Associate an R2-uploaded image (`key`, `src`) with the product.
+- `POST`: Attach an image by the `mediaKey` of a completed upload (`POST /api/media/uploads`); its size comes from the file.
 - `PATCH /reorder`: Set display order — send the complete ordered array of image IDs.
-- `DELETE /{imageId}`: Remove an image record and its corresponding R2 object.
+- `DELETE /{imageId}`: Remove an image; its file is deleted once nothing else in the store shows it.
 
 ### Variants (`/api/products/:productId/variants`)
 - `GET`: List all variants for a product (position order).
@@ -146,6 +146,6 @@ What `DELETE` would take with it and what stays: variants, images, reviews, offe
 
 - **Handle Management:** Ensures SEO-friendly, unique URL slugs for every product.
 - **Hierarchical Inventory:** Automatically aggregates stock from variants to provide a high-level product inventory count.
-- **Media Integration:** Tight coupling with Cloudflare R2 for reliable, edge-cached product imagery.
+- **Media:** images are held by Media Key; the store's Media Library keeps the files on its host (ImageKit or R2) and the API answers each with its URL.
 - **Review Aggregation:** Real-time calculation of average ratings and review counts for the product listing.
 - **RBAC:** Granular control over catalog reading (`products:read`) and management (`products:manage`).

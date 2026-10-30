@@ -63,7 +63,7 @@ E-commerce in Algeria is **95%+ Cash on Delivery (الدفع عند الاستل
 | The Reality | Western/Local Platforms | CodFlow |
 | :--- | :--- | :--- |
 | **Transaction fees eat margins** | 2–5% per order + monthly SaaS fees | **$0 transaction fees** — pay only Cloudflare hosting ($0–$5/mo) |
-| **Your data locked in their system** | Can't export, can't migrate, vendor lock-in | **You own everything** — D1 database, R2 images, full control |
+| **Your data locked in their system** | Can't export, can't migrate, vendor lock-in | **You own everything** — D1 database, your media on the host you choose, full control |
 | **Expensive hosting** | VPS servers, maintenance, scaling costs | **Serverless Cloudflare** — auto-scales, zero maintenance |
 | **4+ carrier portals** | Juggle Yalidine, ZR, NOEST, EcoTrack separately | **Unified carrier API** — one integration for all carriers |
 | **In-house drivers ignored** | No native driver dispatch or per-wilaya pay | **Built-in driver management** with compensation and per-delivery cash settlement |
@@ -188,10 +188,10 @@ wrangler kv namespace create OAUTH_KV
 
 ### 3. Configure Environment
 ```bash
-# Repo root — resource names for the seeders, the D1 wrapper, the R2 CORS
-# setup and the storefront deploy helper. Precedence: process.env > .env > default.
+# Repo root — resource names for the seeders, the D1 wrapper, the R2 lifecycle
+# rule and the storefront deploy helper. Precedence: process.env > .env > default.
 cp .env.example .env
-# Set COD_ACCOUNT_ID, COD_DB_NAME, COD_R2_BUCKET_NAME, COD_SERVER_URL, COD_MEDIA_DOMAIN
+# Set COD_ACCOUNT_ID, COD_DB_NAME, COD_R2_BUCKET_NAME, COD_SERVER_URL
 
 # Backend
 cd cod-server
@@ -240,12 +240,19 @@ cd cod-astro/theme-00 && npm run dev
 > different ports (`astro dev --port 4322` for one of them) or run only one
 > at a time.
 
-### 6. Enable Image Uploads
+### 6. Media
 
-Product image uploads require R2 API tokens and CORS configuration. See the [R2 setup guide](./cod-server/src/endpoints/images/README.md) for:
-- Creating R2 API tokens
-- Setting CORS policy on the bucket
-- Adding a custom domain for serving images
+Images work locally out of the box: they are kept in the local R2 bucket and
+served by the backend at `/media/<key>`. To keep them on ImageKit instead, set
+`MEDIA_HOST`, `MEDIA_DELIVERY`, `MEDIA_ORIGIN` and `IMAGEKIT_*` as
+`cod-server/wrangler.toml.example` and `.dev.vars.example` show. Once, for each
+bucket, clear uploads that were never prepared:
+
+```bash
+cd cod-server && npm run r2:lifecycle
+```
+
+How media works, and how to add another host: [ADR 0021](./docs/adr/0021-media-hosts-behind-one-module.md).
 
 **Need more detail?** See [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) for production deployment.
 
@@ -278,7 +285,7 @@ wrangler secret put STORE_API_KEY
 
 **Important:** Cloudflare blocks Worker-to-Worker fetch between `*.workers.dev` hosts. For production, put at least `cod-server` on a custom domain and point `COD_SERVER_URL` at it.
 
-**R2 Image Uploads:** For production image uploads, see [R2 setup guide](./cod-server/src/endpoints/images/README.md) for API tokens, CORS policy, and custom domain configuration.
+**Media:** a deployed store keeps its images on ImageKit (`MEDIA_HOST = "imagekit"`, `wrangler secret put IMAGEKIT_PRIVATE_KEY --env production`) or in its R2 bucket behind a custom domain (`MEDIA_HOST = "r2"`, `MEDIA_DELIVERY = "cloudflare"`); see `cod-server/wrangler.toml.example`.
 
 **Full deployment guide:** [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)
 
@@ -311,7 +318,7 @@ wrangler secret put STORE_API_KEY
                │              │  APIs       │   NOEST • EcoTrack • Guepex (pulled every 5 min)
                │              └─────────────┘
                │
-               │        /images (R2)      /mcp (AI agents, OAuth-scoped)
+               │        /api/media        /mcp (AI agents, OAuth-scoped)
                └──────────────────────────────────────────────────────▶
 ```
 

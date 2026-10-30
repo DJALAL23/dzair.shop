@@ -1,10 +1,11 @@
 /**
- * Where review media lives in R2, and what a received file is.
+ * Where review media lives, and what a received file is.
  *
- *   review-uploads/<grant>/<upload>   a file as the shopper sent it — the
- *                                     bucket's lifecycle rule deletes this
- *                                     prefix after a day, so an upload never
- *                                     submitted costs nothing to clean
+ *   staging/reviews/<grant>/<upload>  a file as the shopper sent it, in the
+ *                                     store's Staging — the bucket's
+ *                                     lifecycle rule clears `staging/` after
+ *                                     a day, so an upload never submitted
+ *                                     costs nothing to clean
  *   reviews/<review>/<media>.webp     a kept photo, 1600 px at most
  *   reviews/<review>/<media>-t.webp   its thumbnail for lists
  *   reviews/<review>/<media>.<ext>    a kept voice note, as recorded
@@ -14,7 +15,7 @@
  */
 import { AUDIO_TYPES, IMAGE_TYPES, extensionOf, type AudioType, type ImageType } from "../media/keys";
 
-export const REVIEW_UPLOAD_PREFIX = "review-uploads/";
+export const REVIEW_UPLOAD_PREFIX = "staging/reviews/";
 export const REVIEW_MEDIA_PREFIX = "reviews/";
 
 const ID = /^[a-f0-9]{32}$/;

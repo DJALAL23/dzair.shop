@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MediaKeySchema } from "@/openapi/schemas/media";
 
 // Base object — no refinements so .partial() works cleanly for updates
 const landingPageBaseSchema = z.object({
@@ -27,15 +28,10 @@ export const reorderLandingPageImagesSchema = z.object({
 });
 
 export const saveLandingPageImageSchema = z.object({
-  key: z.string().min(1),
-  src: z.string().min(1),
+  /** A completed upload's Media Key; its size comes from the upload. */
+  mediaKey: MediaKeySchema,
   altText: z.string().nullable().optional(),
   position: z.number().int().min(1).optional(),
-  /** Intrinsic pixel dimensions (client-measured at upload) — optional,
-   *  fail-open: an image without dims still saves, the storefront just
-   *  can't reserve its layout space. */
-  width: z.number().int().min(1).max(20000).nullable().optional(),
-  height: z.number().int().min(1).max(20000).nullable().optional(),
 });
 
 /**

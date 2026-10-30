@@ -13,16 +13,16 @@
 # (both workers share the auth D1 tables). Generate with: openssl rand -hex 32
 # BETTER_AUTH_SECRET=
 
-# ── Only needed if you exercise the R2 image presign flow locally ─────────────
-# (R2 credentials are stored as wrangler secrets in production:
-#  `wrangler secret put CF_ACCOUNT_ID` etc. — do not put them in wrangler.toml.)
-
-# Your Cloudflare account ID — the long hex string on your Cloudflare dashboard.
-# CF_ACCOUNT_ID=
-# R2 API token access key id (https://dash.cloudflare.com/profile/api-tokens → R2)
-# R2_ACCESS_KEY_ID=
-# R2 API token secret access key
-# R2_SECRET_ACCESS_KEY=
+# ── Media on ImageKit, locally (optional) ─────────────────────────────────────
+# Out of the box, local media is kept in the local bucket and served by this
+# server (wrangler.toml [vars]). To keep it on your ImageKit account instead
+# (ImageKit → Developer options; the private key is a secret):
+# MEDIA_HOST=imagekit
+# MEDIA_DELIVERY=imagekit
+# IMAGEKIT_PUBLIC_KEY=public_…
+# IMAGEKIT_PRIVATE_KEY=private_…
+# IMAGEKIT_FOLDER=/dev/your-name
+# MEDIA_ORIGIN=https://ik.imagekit.io/your_imagekit_id/dev/your-name
 
 # ── Optional overrides ────────────────────────────────────────────────────────
 # Overrides the [vars] block in wrangler.toml for local runs if you need to test
@@ -31,8 +31,6 @@
 # BETTER_AUTH_URL=http://localhost:4321/api/auth
 # WORKER_SELF_URL=http://localhost:8787/
 # WORKER_URL=http://localhost:8787
-# MEDIA_DOMAIN=media.example.com
-# R2_BUCKET_NAME=codflow-images
 
 # ── Telegram App, on a local server ───────────────────────────────────────────
 # Telegram calls the server back with the bot's updates (pairing, blocks) and

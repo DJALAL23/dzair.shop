@@ -108,9 +108,18 @@ export {
   StockAlertItemSchema,
   StockOverviewSchema,
   OfferSchema,
-  UploadedImageSchema,
-  PresignedUploadSchema,
 } from "./schemas/products";
+
+// ─── Media ────────────────────────────────────────────────────────────────────
+
+export {
+  MediaKeySchema,
+  MediaImageSchema,
+  MediaDeliverySchema,
+  UploadRequestSchema,
+  UploadTicketSchema,
+  UploadReportSchema,
+} from "./schemas/media";
 
 // ─── Landing Pages ────────────────────────────────────────────────────────────
 

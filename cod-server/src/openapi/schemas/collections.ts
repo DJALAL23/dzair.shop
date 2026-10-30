@@ -6,6 +6,7 @@
 import { z } from "@hono/zod-openapi";
 import { COLLECTION_HANDLE_RE, COLLECTION_MAX_PRODUCTS } from "../../../../cod-shared/catalog/collections";
 import { StoreProductImageSchema } from "./store";
+import { MediaImageSchema } from "./media";
 
 export const CollectionHandleSchema = z.string().regex(COLLECTION_HANDLE_RE).openapi({
   description: "Lowercase letters, digits and hyphens; how a theme names the collection",
@@ -48,7 +49,7 @@ export const CollectionDetailSchema = z
         id: z.string(),
         name: z.string(),
         handle: z.string(),
-        imageUrl: z.string().nullable(),
+        image: MediaImageSchema.nullable().openapi({ description: "Its gallery's first image" }),
         visible: z.boolean().openapi({ description: "Whether shoppers see it now (active, visible, listed in the store); a hidden product is left out of the storefront list" }),
       }),
     ),

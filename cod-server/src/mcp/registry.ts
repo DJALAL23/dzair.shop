@@ -171,7 +171,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // ─── Products ─────────────────────────────────────────────────────────────
   {
     requires: [SCOPES.PRODUCTS_READ],
-    build: (db) => pick(getProductTools(db), [
+    build: (db, env) => pick(getProductTools(db, env), [
       "listProducts",
       "getProductDetails",
     ]),
@@ -189,14 +189,14 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // ─── Product Groups ───────────────────────────────────────────────────────
   {
     requires: [SCOPES.PRODUCT_GROUPS_READ],
-    build: (db) => pick(getProductGroupTools(db), [
+    build: (db, env) => pick(getProductGroupTools(db, env), [
       "listProductGroups",
       "getProductGroupDetails",
     ]),
   },
   {
     requires: [SCOPES.PRODUCT_GROUPS_MANAGE],
-    build: (db) => pick(getProductGroupTools(db), [
+    build: (db, env) => pick(getProductGroupTools(db, env), [
       "createProductGroup",
       "updateProductGroup",
       "deleteProductGroup",

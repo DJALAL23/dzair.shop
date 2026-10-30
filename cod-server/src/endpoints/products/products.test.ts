@@ -17,6 +17,7 @@ import {
 } from "./validation";
 import { getProductById, deleteProduct, createProduct } from "./queries";
 import { makeMockDb, f, a, productRow, NOW } from "@/test-utils/mock-db";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
@@ -227,7 +228,7 @@ describe("productFiltersSchema", () => {
 describe("getProductById", () => {
   it("returns null when product is not found (or soft-deleted)", async () => {
     const db = makeMockDb([f(null)]);
-    const result = await getProductById(db, "prod_missing");
+    const result = await getProductById(db, "prod_missing", TEST_DELIVERY);
     expect(result).toBeNull();
   });
 
@@ -238,7 +239,7 @@ describe("getProductById", () => {
       a([]),  // productVariants.all()
       a([]),  // productImages.all()
     ]);
-    const result = await getProductById(db, "prod_1");
+    const result = await getProductById(db, "prod_1", TEST_DELIVERY);
     expect(result).not.toBeNull();
     expect(result!.id).toBe("prod_1");
   });
@@ -251,7 +252,7 @@ describe("getProductById", () => {
       a([]),                               // productVariants.all()
       a([]),                               // productImages.all()
     ]);
-    const result = await getProductById(db, "prod_1");
+    const result = await getProductById(db, "prod_1", TEST_DELIVERY);
     expect(result).not.toBeNull();
   });
 
@@ -262,7 +263,7 @@ describe("getProductById", () => {
       a([]),
       a([]),
     ]);
-    const result = await getProductById(db, "prod_1");
+    const result = await getProductById(db, "prod_1", TEST_DELIVERY);
     expect(result!.variantOptions).toEqual(variantOptions);
   });
 
@@ -272,7 +273,7 @@ describe("getProductById", () => {
       a([]),
       a([]),
     ]);
-    const result = await getProductById(db, "prod_1");
+    const result = await getProductById(db, "prod_1", TEST_DELIVERY);
     expect(result!.variantOptions).toBeNull();
   });
 
@@ -283,7 +284,7 @@ describe("getProductById", () => {
       a([]),
       a([]),
     ]);
-    const result = await getProductById(db, "prod_1");
+    const result = await getProductById(db, "prod_1", TEST_DELIVERY);
     expect(result!.tags).toEqual(tags);
   });
 
@@ -293,7 +294,7 @@ describe("getProductById", () => {
       a([]),
       a([]),
     ]);
-    const result = await getProductById(db, "prod_1");
+    const result = await getProductById(db, "prod_1", TEST_DELIVERY);
     expect(result!.tags).toEqual([]);
   });
 });
@@ -317,7 +318,7 @@ describe("createProduct", () => {
       visibility: true,
       status: "ACTIVE",
       showInStore: true,
-    });
+    }, TEST_DELIVERY);
 
     expect(result).not.toBeNull();
     expect(result!.name).toBe("T-Shirt");
@@ -340,7 +341,7 @@ describe("createProduct", () => {
       visibility: true,
       status: "ACTIVE",
       showInStore: true,
-    });
+    }, TEST_DELIVERY);
 
     expect(result!.publishedAt).toBeTruthy();
   });
@@ -362,7 +363,7 @@ describe("createProduct", () => {
       visibility: false,
       status: "DRAFT",
       showInStore: false,
-    });
+    }, TEST_DELIVERY);
 
     expect(result!.publishedAt).toBeNull();
   });

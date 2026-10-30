@@ -5,7 +5,7 @@
  * HTMLRewriter does not exist in the Node vitest pool (established in
  * rich-text.test.ts), so `sanitizeRichText`/`toPlainText` run inside a real
  * workerd via Miniflare, same pattern as `cod-shared/lib/rich-text.test.ts`:
- * rich-text.ts is esbuild-transformed and registered as a virtual module, no
+ * rich-text.ts is esbuild-bundled and registered as a virtual module, no
  * filesystem bundling needed since it has no imports of its own. The HTML
  * under test is produced on the Node side — the template pack and the
  * serializer are pure functions and need no workerd runtime.
@@ -15,11 +15,10 @@
  * else, and this is what makes that claim true rather than merely asserted.
  */
 
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { transform } from "esbuild";
+import { build } from "esbuild";
 import { Miniflare } from "miniflare";
 import { LEGAL_PAGE_KINDS, PAGE_LOCALES } from "./kinds";
 import type { LegalPageKind, PageLocale } from "./kinds";
@@ -28,7 +27,6 @@ import { serializeLegalDocument } from "./serialize";
 import type { StoreLegalFacts } from "./types";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const richTextSource = readFileSync(join(here, "../lib/rich-text.ts"), "utf8");
 
 const WORKER = `
 import { sanitizeRichText, toPlainText } from "./rich-text.mjs";
@@ -51,11 +49,11 @@ export default {
 let mf: Miniflare | undefined;
 
 beforeAll(async () => {
-  const lib = await transform(richTextSource, { loader: "ts", format: "esm" });
+  const lib = await build({ entryPoints: [join(here, "../lib/rich-text.ts")], bundle: true, format: "esm", platform: "neutral", write: false, logLevel: "warning" });
   mf = new Miniflare({
     modules: [
       { type: "ESModule", path: "index.mjs", contents: WORKER },
-      { type: "ESModule", path: "rich-text.mjs", contents: lib.code },
+      { type: "ESModule", path: "rich-text.mjs", contents: lib.outputFiles[0]!.text },
     ],
   });
 });

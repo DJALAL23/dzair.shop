@@ -25,6 +25,7 @@ import { Miniflare } from "miniflare";
 
 const here = resolve(__dirname);
 const MIGRATIONS_DIR = resolve(here, "../../cod-server/src/db/migrations");
+const DELIVERY = { kind: "direct", origin: "http://localhost:8787/media" };
 
 const WORKER_SOURCE = `
 import { drizzle } from "drizzle-orm/d1";
@@ -125,7 +126,7 @@ function assertClean(value: unknown): void {
 describe("seedStorePages", () => {
   it("creates all 4 legal kinds, each with 3 locale translations, source=template", async () => {
     await insertStore("seed-store-1", "متجر البذور");
-    const seeded = await call<{ created: string[] }>("seedStorePages", "seed-store-1");
+    const seeded = await call<{ created: string[] }>("seedStorePages", "seed-store-1", DELIVERY);
     expect(seeded.created.sort()).toEqual(["privacy", "refund", "shipping", "terms"]);
 
     const pages = await call<Array<{ kind: string; translations: Array<{ locale: string; source: string }> }>>(
@@ -141,8 +142,8 @@ describe("seedStorePages", () => {
 
   it("is idempotent: seeding twice does not duplicate pages", async () => {
     await insertStore("seed-store-2", "Boutique Idempotente");
-    await call("seedStorePages", "seed-store-2");
-    const second = await call<{ created: string[] }>("seedStorePages", "seed-store-2");
+    await call("seedStorePages", "seed-store-2", DELIVERY);
+    const second = await call<{ created: string[] }>("seedStorePages", "seed-store-2", DELIVERY);
     expect(second.created).toEqual([]);
 
     const pages = await call<unknown[]>("listStorePages", "seed-store-2");
@@ -152,8 +153,8 @@ describe("seedStorePages", () => {
   it("gives each store's pages independent unique slugs, unaffected by another store's slugs", async () => {
     await insertStore("seed-store-3", "Boutique A");
     await insertStore("seed-store-4", "Boutique B");
-    await call("seedStorePages", "seed-store-3");
-    await call("seedStorePages", "seed-store-4");
+    await call("seedStorePages", "seed-store-3", DELIVERY);
+    await call("seedStorePages", "seed-store-4", DELIVERY);
 
     const a = await call<Array<{ slug: string }>>("listStorePages", "seed-store-3");
     const b = await call<Array<{ slug: string }>>("listStorePages", "seed-store-4");
@@ -164,44 +165,30 @@ describe("seedStorePages", () => {
 describe("write chokepoint (saveTranslation)", () => {
   it("sanitises hostile HTML before it reaches D1, and flips source to merchant", async () => {
     await insertStore("write-store-1", "Test Store", "en");
-    await call("seedStorePages", "write-store-1");
+    await call("seedStorePages", "write-store-1", DELIVERY);
     const pages = await call<Array<{ id: string; kind: string }>>("listStorePages", "write-store-1");
     const refund = pages.find((p) => p.kind === "refund")!;
 
-    const saved = await call<{ bodyHtml: string; bodyPlain: string; source: string }>(
-      "saveTranslation",
-      refund.id,
-      "en",
-      { title: "Refund Policy", bodyHtml: HOSTILE_HTML },
-    );
+    const saved = await call<{ bodyHtml: string; bodyPlain: string; source: string }>("saveTranslation", refund.id, "en", { title: "Refund Policy", bodyHtml: HOSTILE_HTML }, DELIVERY);
 
     assertClean(saved.bodyHtml);
     assertClean(saved.bodyPlain);
     expect(saved.source).toBe("merchant");
     expect(saved.bodyHtml).toContain("<strong>7 days</strong>");
 
-    const detail = await call<{ bodies: Record<string, { source: string; bodyHtml: string }> }>(
-      "getStorePageById",
-      "write-store-1",
-      refund.id,
-    );
+    const detail = await call<{ bodies: Record<string, { source: string; bodyHtml: string }> }>("getStorePageById", "write-store-1", refund.id, DELIVERY);
     expect(detail.bodies.en.source).toBe("merchant");
     assertClean(detail.bodies.en.bodyHtml);
   });
 
   it("resetTranslationToTemplate re-renders from the template and flips source back", async () => {
     await insertStore("write-store-2", "Reset Store", "en");
-    await call("seedStorePages", "write-store-2");
+    await call("seedStorePages", "write-store-2", DELIVERY);
     const pages = await call<Array<{ id: string; kind: string }>>("listStorePages", "write-store-2");
     const terms = pages.find((p) => p.kind === "terms")!;
 
-    await call("saveTranslation", terms.id, "en", { title: "Custom Title", bodyHtml: "<p>merchant text</p>" });
-    const reset = await call<{ source: string; title: string }>(
-      "resetTranslationToTemplate",
-      "write-store-2",
-      terms.id,
-      "en",
-    );
+    await call("saveTranslation", terms.id, "en", { title: "Custom Title", bodyHtml: "<p>merchant text</p>" }, DELIVERY);
+    const reset = await call<{ source: string; title: string }>("resetTranslationToTemplate", "write-store-2", terms.id, "en", DELIVERY);
     expect(reset.source).toBe("template");
     expect(reset.title).toBe("Terms and Conditions");
   });
@@ -213,8 +200,8 @@ describe("write chokepoint (saveTranslation)", () => {
       locale: "en",
       title: "FAQ",
       bodyHtml: "<p>Q and A</p>",
-    });
-    const result = await call("resetTranslationToTemplate", "write-store-3", created.id, "en");
+    }, DELIVERY);
+    const result = await call("resetTranslationToTemplate", "write-store-3", created.id, "en", DELIVERY);
     expect(result).toBeNull();
   });
 });
@@ -222,13 +209,8 @@ describe("write chokepoint (saveTranslation)", () => {
 describe("resolvePublishedPage — locale fallback and draft gating", () => {
   it("serves the exact requested locale when it exists", async () => {
     await insertStore("resolve-store-1", "Resolve Store", "en");
-    await call("seedStorePages", "resolve-store-1");
-    const resolved = await call<{ locale: string; title: string }>(
-      "resolvePublishedPage",
-      "resolve-store-1",
-      "terms",
-      "fr",
-    );
+    await call("seedStorePages", "resolve-store-1", DELIVERY);
+    const resolved = await call<{ locale: string; title: string }>("resolvePublishedPage", "resolve-store-1", "terms", DELIVERY, "fr");
     expect(resolved.locale).toBe("fr");
     expect(resolved.title).toBe("Conditions générales de vente");
   });
@@ -241,15 +223,10 @@ describe("resolvePublishedPage — locale fallback and draft gating", () => {
       title: "من نحن",
       bodyHtml: "<p>نبذة</p>",
       showInFooter: false,
-    });
+    }, DELIVERY);
     await call("updateStorePageMeta", "resolve-store-2", created.id, { status: "published" });
 
-    const resolved = await call<{ locale: string; title: string } | null>(
-      "resolvePublishedPage",
-      "resolve-store-2",
-      "about",
-      "fr",
-    );
+    const resolved = await call<{ locale: string; title: string } | null>("resolvePublishedPage", "resolve-store-2", "about", DELIVERY, "fr");
     expect(resolved?.locale).toBe("ar");
     expect(resolved?.title).toBe("من نحن");
   });
@@ -261,14 +238,14 @@ describe("resolvePublishedPage — locale fallback and draft gating", () => {
       locale: "en",
       title: "Coming Soon",
       bodyHtml: "<p>...</p>",
-    });
-    const resolved = await call("resolvePublishedPage", "resolve-store-3", created.slug, "en");
+    }, DELIVERY);
+    const resolved = await call("resolvePublishedPage", "resolve-store-3", created.slug, DELIVERY, "en");
     expect(resolved).toBeNull();
   });
 
   it("returns null for an unknown slug", async () => {
     await insertStore("resolve-store-4", "Empty Store", "en");
-    const resolved = await call("resolvePublishedPage", "resolve-store-4", "does-not-exist", "en");
+    const resolved = await call("resolvePublishedPage", "resolve-store-4", "does-not-exist", DELIVERY, "en");
     expect(resolved).toBeNull();
   });
 });
@@ -276,7 +253,7 @@ describe("resolvePublishedPage — locale fallback and draft gating", () => {
 describe("getFooterPages", () => {
   it("returns only published + showInFooter pages, in position order, titled in the requested locale", async () => {
     await insertStore("footer-store-1", "Footer Store", "en");
-    await call("seedStorePages", "footer-store-1");
+    await call("seedStorePages", "footer-store-1", DELIVERY);
 
     const hiddenPage = await call<{ id: string }>("createCustomPage", "footer-store-1", {
       slug: "hidden",
@@ -284,7 +261,7 @@ describe("getFooterPages", () => {
       title: "Hidden",
       bodyHtml: "<p>x</p>",
       showInFooter: false,
-    });
+    }, DELIVERY);
     await call("updateStorePageMeta", "footer-store-1", hiddenPage.id, { status: "published" });
 
     // A page created via createCustomPage starts as 'draft' regardless of
@@ -295,7 +272,7 @@ describe("getFooterPages", () => {
       title: "Draft",
       bodyHtml: "<p>x</p>",
       showInFooter: true,
-    });
+    }, DELIVERY);
 
     const footer = await call<Array<{ slug: string; title: string; position: number }>>(
       "getFooterPages",
@@ -318,11 +295,11 @@ describe("slug collision handling", () => {
       locale: "en",
       title: "Manual Terms",
       bodyHtml: "<p>x</p>",
-    });
+    }, DELIVERY);
     expect(first.slug).toBe("terms");
 
     // seedStorePages must still land its legal "terms" page under a free slug.
-    await call("seedStorePages", "slug-store-1");
+    await call("seedStorePages", "slug-store-1", DELIVERY);
     const pages = await call<Array<{ kind: string; slug: string }>>("listStorePages", "slug-store-1");
     const legalTerms = pages.find((p) => p.kind === "terms")!;
     expect(legalTerms.slug).not.toBe("terms");
@@ -336,7 +313,7 @@ describe("slug collision handling", () => {
       locale: "en",
       title: "Help",
       bodyHtml: "<p>x</p>",
-    });
+    }, DELIVERY);
     const withoutExclude = await call<boolean>("slugExists", "slug-store-2", "help");
     const withExclude = await call<boolean>("slugExists", "slug-store-2", "help", created.id);
     expect(withoutExclude).toBe(true);
@@ -352,9 +329,9 @@ describe("deleteStorePage", () => {
       locale: "en",
       title: "Temp",
       bodyHtml: "<p>x</p>",
-    });
+    }, DELIVERY);
     await call("deleteStorePage", "delete-store-1", created.id);
-    const after = await call("getStorePageById", "delete-store-1", created.id);
+    const after = await call("getStorePageById", "delete-store-1", created.id, DELIVERY);
     expect(after).toBeNull();
   });
 });
@@ -377,13 +354,8 @@ describe("legal profile", () => {
     expect(profile.contactEmail).toBe("help@example.dz");
     expect(profile.returnWindowDays).toBe(5);
 
-    await call("seedStorePages", "profile-store-1");
-    const resolved = await call<{ bodyHtml: string }>(
-      "resolvePublishedPage",
-      "profile-store-1",
-      "refund-policy",
-      "en",
-    );
+    await call("seedStorePages", "profile-store-1", DELIVERY);
+    const resolved = await call<{ bodyHtml: string }>("resolvePublishedPage", "profile-store-1", "refund-policy", DELIVERY, "en");
     expect(resolved.bodyHtml).toContain("within 5 days");
     expect(resolved.bodyHtml).toContain("help@example.dz");
   });

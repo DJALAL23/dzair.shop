@@ -5,6 +5,7 @@
  */
 
 import { z } from "@hono/zod-openapi";
+import { MediaKeySchema } from "./media";
 
 export const LandingPageStatusEnum = z.enum(["draft", "published", "archived"]);
 
@@ -23,14 +24,8 @@ export const LandingPageImageSchema = z
   .object({
     id: z.string().openapi({ example: "lpimg_abc123" }),
     landingPageId: z.string().openapi({ example: "lp_abc123" }),
-    r2Key: z.string().openapi({
-      description: "R2 object key under the landing/ namespace",
-      example: "landing/abc123def456.jpg",
-    }),
-    src: z.string().openapi({
-      description: "Public URL of the image",
-      example: "https://media.codflow.store/landing/abc123.jpg",
-    }),
+    key: MediaKeySchema,
+    url: z.string().url().openapi({ description: "Where browsers fetch it, from the store's Media Delivery" }),
     altText: z.string().nullable().openapi({
       description: "Alt text for accessibility",
       example: "Samsung A55 — عرض خاص",

@@ -15,6 +15,8 @@ export type MediaErrorReason =
   | "folder_refused"
   /** Not a Media Key. */
   | "key_invalid"
+  /** A key no ready file has: never uploaded, still pending, or kept by another host. */
+  | "not_ready"
   /** No pending upload has this id. */
   | "upload_unknown"
   /** The host does not hold the file the upload should have sent. */

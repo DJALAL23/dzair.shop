@@ -1,9 +1,11 @@
 import { eq, and, like, or, sum, sql, inArray, getTableColumns } from "drizzle-orm";
 import { products, productCategories, productVariants, productImages, reviews, reviewMedia, stockMovements, landingPages, landingPageImages } from "../db/schema";
 import type { AppDb } from "../db/client";
-import { sanitizeRichText, toPlainText } from "../lib/rich-text";
+import { toPlainText } from "../lib/rich-text";
 import { safeLikeTerm } from "./search";
-import { imageKeysInText } from "../lib/orphan-images";
+import type { MediaDelivery } from "../media/delivery";
+import { mediaKeysIn, storedRichText } from "../media/rich-text";
+import { categoryView, firstImage, productImageViews, servedDescription } from "../media/views";
 import type { VariantOption } from "../i18n/translations";
 import { pruneOptionTranslations } from "./translations";
 
@@ -90,9 +92,10 @@ function normaliseFormat(value: unknown): DescriptionFormat {
 async function sanitiseForFormat(
   description: string | null,
   format: DescriptionFormat,
+  delivery: MediaDelivery,
 ): Promise<string | null> {
   if (description === null || format !== "html") return description;
-  return (await sanitizeRichText(description)).html;
+  return storedRichText(description, delivery);
 }
 
 /**
@@ -110,7 +113,7 @@ export async function deriveDescriptionPlain(
   return description;
 }
 
-async function buildProductDetail(db: AppDb, productId: string) {
+async function buildProductDetail(db: AppDb, productId: string, delivery: MediaDelivery) {
   const product = await db.select().from(products).where(eq(products.id, productId)).get();
   if (!product) return null;
 
@@ -139,10 +142,11 @@ async function buildProductDetail(db: AppDb, productId: string) {
     ...product,
     variantOptions,
     tags,
+    description: servedDescription(product.description, product.descriptionFormat, delivery),
     descriptionPlain: await deriveDescriptionPlain(product.description, product.descriptionFormat),
-    category,
+    category: category ? categoryView(category, delivery) : null,
     variants: parsedVariants,
-    images,
+    images: productImageViews(images, delivery),
     variantsCount: parsedVariants.length,
     totalInventory,
   };
@@ -159,7 +163,7 @@ function chunkIds(ids: string[]): string[][] {
   return chunks;
 }
 
-export async function getAllProducts(db: AppDb, filters?: ProductFilters) {
+export async function getAllProducts(db: AppDb, delivery: MediaDelivery, filters?: ProductFilters) {
   const conditions: ReturnType<typeof eq>[] = [];
 
   if (filters?.categoryId) conditions.push(eq(products.categoryId, filters.categoryId) as any);
@@ -178,7 +182,7 @@ export async function getAllProducts(db: AppDb, filters?: ProductFilters) {
       ...getTableColumns(products),
       reviewCount: sql<number>`(SELECT COUNT(*) FROM reviews WHERE reviews.product_id = products.id AND reviews.status = 'approved')`,
       avgRating: sql<number | null>`(SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.product_id = products.id AND r.status = 'approved')`,
-      primaryImageSrc: sql<string | null>`(SELECT src FROM product_images WHERE product_images.product_id = products.id ORDER BY product_images.position LIMIT 1)`,
+      primaryImageJson: sql<string | null>`(SELECT json_object('key', media_key, 'width', width, 'height', height) FROM product_images WHERE product_images.product_id = products.id AND media_key IS NOT NULL ORDER BY product_images.position LIMIT 1)`,
     })
     .from(products)
     .where(conditions.length ? and(...conditions) : undefined)
@@ -210,7 +214,7 @@ export async function getAllProducts(db: AppDb, filters?: ProductFilters) {
   }
 
   return Promise.all(rows.map(async (p) => {
-    const { reviewCount, avgRating, primaryImageSrc, ...productData } = p;
+    const { reviewCount, avgRating, primaryImageJson, ...productData } = p;
     const variants = variantsByProduct.get(p.id) ?? [];
     const totalInventory =
       variants.length > 0
@@ -221,10 +225,11 @@ export async function getAllProducts(db: AppDb, filters?: ProductFilters) {
       ...productData,
       variantOptions: p.variantOptions ? JSON.parse(p.variantOptions) : null,
       tags: p.tags ? JSON.parse(p.tags) : [],
+      description: servedDescription(p.description, p.descriptionFormat, delivery),
       descriptionPlain: await deriveDescriptionPlain(p.description, p.descriptionFormat),
       variantsCount: variants.length,
       totalInventory,
-      primaryImageSrc,
+      primaryImage: firstImage(primaryImageJson, delivery),
       variants: variants.map((v) => ({ ...v, variations: JSON.parse(v.variations) as Record<string, string> })),
       reviewCount,
       avgRating,
@@ -232,17 +237,17 @@ export async function getAllProducts(db: AppDb, filters?: ProductFilters) {
   }));
 }
 
-export async function getProductById(db: AppDb, productId: string) {
-  return buildProductDetail(db, productId);
+export async function getProductById(db: AppDb, productId: string, delivery: MediaDelivery) {
+  return buildProductDetail(db, productId, delivery);
 }
 
-export async function createProduct(db: AppDb, data: CreateProductData) {
+export async function createProduct(db: AppDb, data: CreateProductData, delivery: MediaDelivery) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const handle = data.handle || toHandle(data.name, id);
 
   const descriptionFormat = normaliseFormat(data.descriptionFormat);
-  const description = await sanitiseForFormat(data.description ?? null, descriptionFormat);
+  const description = await sanitiseForFormat(data.description ?? null, descriptionFormat, delivery);
 
   await db.insert(products).values({
     id,
@@ -274,10 +279,10 @@ export async function createProduct(db: AppDb, data: CreateProductData) {
     updatedAt: now,
   });
 
-  return buildProductDetail(db, id);
+  return buildProductDetail(db, id, delivery);
 }
 
-export async function updateProduct(db: AppDb, productId: string, data: UpdateProductData) {
+export async function updateProduct(db: AppDb, productId: string, data: UpdateProductData, delivery: MediaDelivery) {
   const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
   if (data.name !== undefined) updates.name = data.name;
@@ -297,6 +302,7 @@ export async function updateProduct(db: AppDb, productId: string, data: UpdatePr
     const description = await sanitiseForFormat(
       data.description !== undefined ? data.description ?? null : current?.description ?? null,
       format,
+      delivery,
     );
     updates.description = description;
     updates.descriptionFormat = format;
@@ -364,7 +370,7 @@ export async function updateProduct(db: AppDb, productId: string, data: UpdatePr
   }
 
   await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
-  return buildProductDetail(db, productId);
+  return buildProductDetail(db, productId, delivery);
 }
 
 /** What removing a product takes with it, and what stays. */
@@ -410,23 +416,22 @@ export async function productRemoval(db: AppDb, productId: string): Promise<Prod
  * landing pages by trigger; order lines and abandoned checkouts keep what was
  * sold and lose only the link (migration 0042).
  *
- * Returns the stored file keys it showed — gallery, inline description
- * images, landing page images, its reviews' photos and voice notes — for the
- * caller to remove from storage once
- * nothing else shows them (`stillReferencedImageKeys`). Null when there was no
- * such product.
+ * Returns the Media Keys it showed — gallery, description images, landing
+ * page images, its reviews' photos and voice notes — for the caller to
+ * release (the Media Library keeps any that something else still shows).
+ * Null when there was no such product.
  */
 export async function deleteProduct(db: AppDb, productId: string): Promise<{ name: string; imageKeys: string[] } | null> {
   const [gallery, own, landing, reviewFiles] = await db.batch([
-    db.select({ r2Key: productImages.r2Key, src: productImages.src }).from(productImages).where(eq(productImages.productId, productId)),
+    db.select({ key: productImages.mediaKey }).from(productImages).where(eq(productImages.productId, productId)),
     db.select({ description: products.description }).from(products).where(eq(products.id, productId)),
     db
-      .select({ r2Key: landingPageImages.r2Key })
+      .select({ key: landingPageImages.mediaKey })
       .from(landingPageImages)
       .innerJoin(landingPages, eq(landingPages.id, landingPageImages.landingPageId))
       .where(eq(landingPages.productId, productId)),
     db
-      .select({ r2Key: reviewMedia.r2Key, thumbKey: reviewMedia.thumbKey })
+      .select({ key: reviewMedia.mediaKey, thumbKey: reviewMedia.thumbKey })
       .from(reviewMedia)
       .innerJoin(reviews, eq(reviews.id, reviewMedia.reviewId))
       .where(eq(reviews.productId, productId)),
@@ -434,15 +439,11 @@ export async function deleteProduct(db: AppDb, productId: string): Promise<{ nam
   const deleted = await db.delete(products).where(eq(products.id, productId)).returning({ name: products.name });
   if (deleted.length === 0) return null;
 
-  const imageKeys = new Set<string>();
-  for (const image of gallery) {
-    if (image.r2Key) imageKeys.add(image.r2Key);
-    for (const key of imageKeysInText(image.src)) imageKeys.add(key);
-  }
-  for (const key of imageKeysInText(own[0]?.description)) imageKeys.add(key);
-  for (const image of landing) imageKeys.add(image.r2Key);
+  const imageKeys = new Set<string>(mediaKeysIn(own[0]?.description));
+  for (const image of gallery) if (image.key) imageKeys.add(image.key);
+  for (const image of landing) imageKeys.add(image.key);
   for (const file of reviewFiles) {
-    imageKeys.add(file.r2Key);
+    imageKeys.add(file.key);
     if (file.thumbKey) imageKeys.add(file.thumbKey);
   }
   return { name: deleted[0].name, imageKeys: [...imageKeys] };
@@ -478,11 +479,7 @@ export async function findProductIdentityConflict(
   return { field, existingId: row.id };
 }
 
-export async function getProductImages(db: AppDb, productId: string) {
-  return db
-    .select()
-    .from(productImages)
-    .where(eq(productImages.productId, productId))
-    .orderBy(productImages.position)
-    .all();
+export async function getProductImages(db: AppDb, productId: string, delivery: MediaDelivery) {
+  const rows = await db.select().from(productImages).where(eq(productImages.productId, productId)).orderBy(productImages.position).all();
+  return productImageViews(rows, delivery);
 }

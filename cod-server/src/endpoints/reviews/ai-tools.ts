@@ -110,7 +110,7 @@ export const REVIEW_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
   }),
 };
 
-export const getReviewTools = (db: ReturnType<typeof getDb>, env?: Pick<Env, "IMAGES">) => ({
+export const getReviewTools = (db: ReturnType<typeof getDb>, env: Env) => ({
 
   listReviews: tool({
     description:
@@ -238,7 +238,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>, env?: Pick<Env, "IM
       }
 
       try {
-        const removed = await removeReview(db, env?.IMAGES, parsed.data.reviewId);
+        const removed = await removeReview(db, env, parsed.data.reviewId);
         if (!removed) {
           return {
             success: false,

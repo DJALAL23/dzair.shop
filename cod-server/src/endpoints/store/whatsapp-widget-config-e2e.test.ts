@@ -28,6 +28,7 @@ import {
   serializeWhatsAppWidgetConfig,
   type WhatsAppWidgetConfig,
 } from "../../../../cod-shared/whatsapp-widget/config";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 let harness: TestD1;
 let app: OpenAPIHono<AppContext>;
@@ -60,7 +61,7 @@ beforeAll(async () => {
 
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: recordingD1(harness.raw, sqlLog) } as never;
+    c.env = { DB: recordingD1(harness.raw, sqlLog), ...TEST_MEDIA_VARS } as never;
     c.set("storeId", STORE_ID);
     await next();
   });

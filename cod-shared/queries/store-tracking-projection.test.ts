@@ -16,6 +16,7 @@ import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import { getStoreConfig } from "./store";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 let harness: TestD1;
 const NOW = () => new Date().toISOString();
@@ -59,7 +60,7 @@ describe("getStoreConfig — the tracking projection", () => {
   it("exposes the pixel id and the conversion event under the keys the theme reads", async () => {
     await setTracking({ pixelId: "7777777777", conversionEvent: "Lead" });
 
-    const config = await getStoreConfig(harness.db, STORE_ID);
+    const config = await getStoreConfig(harness.db, STORE_ID, TEST_DELIVERY);
 
     expect(config?.pixelId).toBe("7777777777");
     expect(config?.conversionEvent).toBe("Lead");
@@ -68,7 +69,7 @@ describe("getStoreConfig — the tracking projection", () => {
   it("never carries the access token, in any form", async () => {
     await setTracking();
 
-    const config = await getStoreConfig(harness.db, STORE_ID);
+    const config = await getStoreConfig(harness.db, STORE_ID, TEST_DELIVERY);
 
     const serialised = JSON.stringify(config);
     expect(serialised).not.toContain("EAAG-must-never-ship");
@@ -79,14 +80,14 @@ describe("getStoreConfig — the tracking projection", () => {
   it("loads no pixel when tracking is switched off", async () => {
     await setTracking({ enabled: false, conversionEvent: "Lead" });
 
-    const config = await getStoreConfig(harness.db, STORE_ID);
+    const config = await getStoreConfig(harness.db, STORE_ID, TEST_DELIVERY);
 
     expect(config?.pixelId).toBeNull();
     expect(config?.conversionEvent).toBe("Purchase");
   });
 
   it("loads no pixel when the store has never configured tracking", async () => {
-    const config = await getStoreConfig(harness.db, STORE_ID);
+    const config = await getStoreConfig(harness.db, STORE_ID, TEST_DELIVERY);
 
     expect(config?.pixelId).toBeNull();
     expect(config?.conversionEvent).toBe("Purchase");

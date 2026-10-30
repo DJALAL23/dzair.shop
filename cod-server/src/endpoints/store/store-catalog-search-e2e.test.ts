@@ -12,6 +12,7 @@ import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import storeRouter from "./routes";
+import { TEST_MEDIA_VARS, TEST_DELIVERY } from "@/test-utils/media";
 
 let d1: TestD1;
 vi.mock("@/db", () => ({ getDb: () => d1.db }));
@@ -36,9 +37,9 @@ beforeAll(async () => {
     ["INSERT INTO translations (resource_type, resource_id, locale, key, value, source_digest, updated_at) VALUES ('product', 'p-hidden', 'fr', 'name', 'Robe cachée', 'd', ?1)", T(0)],
     ["INSERT INTO translations (resource_type, resource_id, locale, key, value, source_digest, updated_at) VALUES ('product', 'p-body', 'en', 'name', 'Baby bodysuit', 'd', ?1)", T(0)],
     ["INSERT INTO translations (resource_type, resource_id, locale, key, value, source_digest, updated_at) VALUES ('product', 'p-robe', 'fr', 'tagline', 'Parfaite pour la plage', 'd', ?1)", T(0)],
-    ["INSERT INTO product_images (id, product_id, src, position, created_at, updated_at) VALUES ('i-robe-2', 'p-robe', 'https://m.example/robe-2.webp', 2, ?1, ?1)", T(0)],
-    ["INSERT INTO product_images (id, product_id, src, position, created_at, updated_at) VALUES ('i-robe-1', 'p-robe', 'https://m.example/robe-1.webp', 1, ?1, ?1)", T(0)],
-    ["INSERT INTO product_images (id, product_id, src, position, created_at, updated_at) VALUES ('i-hidden', 'p-hidden', 'https://m.example/hidden.webp', 1, ?1, ?1)", T(0)],
+    ["INSERT INTO product_images (id, product_id, media_key, position, created_at, updated_at) VALUES ('i-robe-2', 'p-robe', 'products/robe-2.webp', 2, ?1, ?1)", T(0)],
+    ["INSERT INTO product_images (id, product_id, media_key, position, created_at, updated_at) VALUES ('i-robe-1', 'p-robe', 'products/robe-1.webp', 1, ?1, ?1)", T(0)],
+    ["INSERT INTO product_images (id, product_id, media_key, position, created_at, updated_at) VALUES ('i-hidden', 'p-hidden', 'products/hidden.webp', 1, ?1, ?1)", T(0)],
     ["INSERT INTO collections (id, store_id, handle, title, created_at, updated_at) VALUES ('c-best', 's1', 'best-sellers', 'Best', ?1, ?1)", T(0)],
     ["INSERT INTO collections (id, store_id, handle, title, created_at, updated_at) VALUES ('c-empty', 's1', 'empty', 'Empty', ?1, ?1)", T(0)],
     // The merchant's order: a hidden product first (it has a photo, but no shopper sees it), then one without a photo, then the robe.
@@ -57,7 +58,7 @@ afterAll(async () => {
 function app() {
   const router = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   router.use("*", async (c, next) => {
-    c.env = { DB: {} } as never;
+    c.env = { DB: {}, ...TEST_MEDIA_VARS } as never;
     c.set("storeId", "s1");
     await next();
   });
@@ -169,7 +170,7 @@ describe("GET /store/collections/{handle} — its size and its photo", () => {
     const { status, body } = await get("/store/collections/best-sellers");
     expect(status).toBe(200);
     expect(body.data).toMatchObject({ handle: "best-sellers", title: "Best", productCount: 2 });
-    expect(body.data.image).toMatchObject({ id: "i-robe-1", src: "https://m.example/robe-1.webp", position: 1 });
+    expect(body.data.image).toMatchObject({ id: "i-robe-1", key: "products/robe-1.webp", url: `${TEST_DELIVERY.origin}/products/robe-1.webp`, position: 1 });
   });
 
   it("answers a collection with nothing to show as empty, with no photo", async () => {

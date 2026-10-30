@@ -4,11 +4,14 @@
  * what a shopper of a brand-new store finds, in its languages, and what a
  * checkout quotes; that running the setup again changes nothing; that a
  * store with its own catalog gets no starter; that the legal pages are the
- * ones the dashboard writes; and that the starter goes away like any data.
+ * ones the dashboard writes; that a picture not in the store's media yet is
+ * left out; and that the starter goes away like any data, its files with it.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bundleWorker, createTestD1, type TestD1 } from "@/test-utils/d1";
-import { demoCatalogSql, starterPrefix, storeDefaultsSql, type StarterStore } from "../../../cod-shared/starter";
+import { TEST_DELIVERY, testMedia } from "@/test-utils/media";
+import { webp } from "../../../cod-shared/media/hosts/testing/files";
+import { demoCatalogSql, starterImageKey, starterPrefix, storeDefaultsSql, storeStarterPictures, type StarterStore } from "../../../cod-shared/starter";
 import { STARTER_CATEGORIES, STARTER_IMAGES, STARTER_PRODUCTS } from "../../../cod-shared/starter/content";
 
 const WORKER = `
@@ -17,25 +20,21 @@ import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
 import { getDb } from "@/db";
 import { removeProduct } from "@/lib/remove-product";
+import { mediaDeliveryOf } from "@/lib/media";
 import { seedStorePages } from "../../../cod-shared/queries/store-pages";
 import storeRoutes from "../endpoints/store/routes";
 const app = new OpenAPIHono({ defaultHook: openApiValidationHook });
 app.use("/store/*", async (c, next) => { c.set("storeId", "store-1"); await next(); });
 app.onError(errorHandler);
 app.route("/store", storeRoutes);
-app.post("/seed-pages/:store", async (c) => c.json(await seedStorePages(getDb(c.env.DB), c.req.param("store"))));
-app.post("/remove-product/:id", async (c) => {
-  const deleted = [];
-  const bucket = { delete: async (keys) => { deleted.push(...[keys].flat()); } };
-  const removed = await removeProduct(getDb(c.env.DB), bucket, c.req.param("id"));
-  return c.json({ removed, deleted });
-});
+app.post("/seed-pages/:store", async (c) => c.json(await seedStorePages(getDb(c.env.DB), c.req.param("store"), mediaDeliveryOf(c.env))));
+app.post("/remove-product/:id", async (c) => c.json(await removeProduct(getDb(c.env.DB), c.env, c.req.param("id"))));
 export default app;
 `;
 
 const NOW = "2026-10-20T08:00:00.000Z";
 const LATER = "2026-11-02T10:30:00.000Z";
-const MEDIA = "https://media.boutique.dz";
+const url = (name: string) => `${TEST_DELIVERY.origin}/${starterImageKey(name)}`;
 const STORE: StarterStore = { id: "store-1", name: "Boutique Amel", lang: "ar" };
 const P = starterPrefix(STORE.id);
 
@@ -43,8 +42,9 @@ async function apply(d1: TestD1, statements: readonly string[]): Promise<void> {
   for (let i = 0; i < statements.length; i += 50) await d1.raw.batch(statements.slice(i, i + 50).map((s) => d1.raw.prepare(s)));
 }
 
-async function setUp(d1: TestD1, store: StarterStore, now: string): Promise<void> {
-  await apply(d1, [...(await storeDefaultsSql(store, now)), ...(await demoCatalogSql(store, { mediaOrigin: MEDIA, now }))]);
+async function setUp(d1: TestD1, store: StarterStore, now: string, { pictures = true } = {}): Promise<void> {
+  if (pictures) await storeStarterPictures(testMedia(d1), async () => webp());
+  await apply(d1, [...(await storeDefaultsSql(store, now)), ...(await demoCatalogSql(store, now))]);
 }
 
 async function createStore(d1: TestD1, store: StarterStore, locales = ["ar", "fr"]): Promise<void> {
@@ -125,7 +125,7 @@ describe("a new store, set up by a run cut short and retried", () => {
       expect(product.categoryId).toBe(`${P}category:${source.category}`);
       expect(JSON.parse(product.tags)).toEqual(source.tags);
       expect(product.inventory).toBe(source.option ? source.option.variants.reduce((sum, v) => sum + v.inventory, 0) : source.inventory);
-      expect(product.coverImage).toMatchObject({ src: `${MEDIA}/products/starter-${source.image}.webp`, width: 1200, height: 1200, altText: source.name.ar });
+      expect(product.coverImage).toMatchObject({ key: starterImageKey(source.image), url: url(source.image), width: 1200, height: 1200, altText: source.name.ar });
     }
   });
 
@@ -142,9 +142,7 @@ describe("a new store, set up by a run cut short and retried", () => {
 
   it("lists the four categories in order, each with a picture", async () => {
     const categories = await get<any[]>(d1, "/store/categories");
-    expect(categories.map((c) => [c.slug, c.name, c.imageUrl])).toEqual(
-      STARTER_CATEGORIES.map((c) => [c.slug, c.name.ar, `${MEDIA}/products/starter-${c.image}.webp`]),
-    );
+    expect(categories.map((c) => [c.slug, c.name, c.image?.url])).toEqual(STARTER_CATEGORIES.map((c) => [c.slug, c.name.ar, url(c.image)]));
   });
 
   it("fills the three default collections, in the starter's order", async () => {
@@ -257,20 +255,20 @@ describe("a new store, set up by a run cut short and retried", () => {
   });
 
   it("goes away like the merchant's own data, its pictures with it when nothing else shows them", async () => {
-    const remove = async (key: string) => (await (await d1.fetch(`http://store.test/remove-product/${P}product:${key}`, { method: "POST" })).json()) as { removed: unknown; deleted: string[] };
+    const remove = async (key: string) => (await (await d1.fetch(`http://store.test/remove-product/${P}product:${key}`, { method: "POST" })).json()) as { removedImages: number };
+    const held = async (name: string) => [(await d1.bucket.head(starterImageKey(name))) !== null, (await rows(d1, "SELECT 1 FROM media WHERE key = ?1", starterImageKey(name))).length === 1];
 
-    const bottle = await remove("bottle");
-    expect(bottle.removed).toMatchObject({ removedImages: 1 });
-    expect(bottle.deleted).toEqual(["products/starter-bottle.webp"]);
+    expect(await remove("bottle")).toMatchObject({ removedImages: 1 });
+    expect(await held("bottle")).toEqual([false, false]);
     const id = `${P}product:bottle`;
     for (const [table, column] of [["product_variants", "product_id"], ["product_images", "product_id"], ["collection_products", "product_id"], ["offers", "trigger_product_id"], ["translations", "resource_id"]] as const) {
       expect(await rows(d1, `SELECT 1 FROM ${table} WHERE ${column} = ?1`, id), table).toEqual([]);
     }
     expect(await rows(d1, "SELECT 1 FROM translations WHERE resource_id = ?1", `${P}offer:bottle-2-plus-1`)).toEqual([]);
 
-    const handbag = await remove("handbag");
-    expect(handbag.deleted).toEqual([]);
-    expect((await get<any[]>(d1, "/store/categories"))[0].imageUrl).toBe(`${MEDIA}/products/starter-handbag.webp`);
+    expect(await remove("handbag")).toMatchObject({ removedImages: 0 });
+    expect(await held("handbag")).toEqual([true, true]);
+    expect((await get<any[]>(d1, "/store/categories"))[0].image.url).toBe(url("handbag"));
   });
 });
 
@@ -371,5 +369,30 @@ describe("a store that has its own data", () => {
     const footer = await rows<{ id: string; position: number }>(d1, "SELECT id, position FROM store_menu_items WHERE menu_id = 'store-1:menu:footer' AND parent_id IS NULL ORDER BY position");
     expect(footer.slice(-3).map((item) => item.id)).toEqual(["mine", `${P}menu:footer:best-sellers`, `${P}menu:footer:new-arrivals`]);
     expect(footer.slice(-2).map((item) => item.position)).toEqual([8, 9]);
+  });
+});
+
+describe("a new store whose pictures are not in its media yet", () => {
+  let d1: TestD1;
+
+  beforeAll(async () => {
+    d1 = await createTestD1({ worker: await bundleWorker(WORKER, __dirname) });
+    await createStore(d1, STORE);
+    await setUp(d1, STORE, NOW, { pictures: false });
+  }, 120_000);
+
+  afterAll(async () => d1?.dispose());
+
+  it("opens with the catalog and no picture", async () => {
+    expect((await get<any[]>(d1, "/store/products?limit=24")).map((p) => p.coverImage)).toEqual(STARTER_PRODUCTS.map(() => null));
+    expect((await get<any[]>(d1, "/store/categories")).map((c) => c.image)).toEqual(STARTER_CATEGORIES.map(() => null));
+  });
+
+  it("gets every picture from a later run, but not on a category the merchant changed", async () => {
+    await d1.raw.prepare("UPDATE product_categories SET name = 'Sacs', updated_at = ?1 WHERE id = ?2").bind(LATER, `${P}category:${STARTER_CATEGORIES[0]!.key}`).run();
+    await setUp(d1, STORE, LATER);
+    const products = await get<any[]>(d1, "/store/products?limit=24");
+    for (const product of products) expect(product.coverImage?.url).toBe(url(STARTER_PRODUCTS.find((p) => p.handle === product.handle)!.image));
+    expect((await get<any[]>(d1, "/store/categories")).map((c) => c.image?.url ?? null)).toEqual(STARTER_CATEGORIES.map((c, i) => (i === 0 ? null : url(c.image))));
   });
 });

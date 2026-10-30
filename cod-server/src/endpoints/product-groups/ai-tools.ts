@@ -7,6 +7,9 @@ import {
   updateGroupSchema,
 } from "./validation";
 import { getDb } from "@/db";
+import { mediaDeliveryOf } from "@/lib/media";
+import { createProductGroup, deleteProductGroup, updateProductGroup } from "@/lib/product-groups";
+import type { Env } from "@/types/env";
 import { toolOutput } from "@/lib/tool-output-schema";
 
 /**
@@ -42,7 +45,7 @@ const productGroupRowSchema = z.looseObject({
   slug: z.string().describe("Unique URL-safe identifier"),
   description: z.string().nullable().optional(),
   parentId: z.string().nullable().optional().describe("Parent group UUID — null for top-level groups"),
-  imageUrl: z.string().nullable().optional(),
+  image: z.object({ key: z.string(), url: z.string(), width: z.number().nullable(), height: z.number().nullable() }).nullable().optional(),
   position: z.number().int().optional().describe("Display order among siblings; lower sorts first"),
   productsCount: z.number().int().optional().describe("Non-deleted products filed under this group (any status) — doubles as the deletion guard"),
 });
@@ -81,11 +84,11 @@ export const PRODUCT_GROUP_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  *
  * Domain rules encoded here:
  * - slug must be lowercase letters, numbers, and hyphens only (auto-generated from name if omitted)
- * - imageUrl must be a valid URL when provided
+ * - imageKey must be the Media Key of a completed upload
  * - position is an integer >= 0 (controls display order, default 0)
  * - deleteProductGroup is blocked when productsCount > 0 (PRODUCT_GROUP_HAS_PRODUCTS)
  */
-export const getProductGroupTools = (db: ReturnType<typeof getDb>) => ({
+export const getProductGroupTools = (db: ReturnType<typeof getDb>, env: Env) => ({
 
   listProductGroups: tool({
     description:
@@ -109,7 +112,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        const groups = await queries.getAllGroups(db, parsed.data);
+        const groups = await queries.getAllGroups(db, mediaDeliveryOf(env), parsed.data);
         return {
           success: true,
           count: groups.length,
@@ -119,7 +122,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>) => ({
             slug: g.slug,
             description: g.description,
             parentId: g.parentId,
-            imageUrl: g.imageUrl,
+            image: g.image,
             metaTitle: g.metaTitle,
             metaDescription: g.metaDescription,
             metaKeywords: g.metaKeywords,
@@ -158,7 +161,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>) => ({
       }
 
       try {
-        const group = await queries.getGroupById(db, parsed.data.groupId);
+        const group = await queries.getGroupById(db, parsed.data.groupId, mediaDeliveryOf(env));
         if (!group) {
           return {
             success: false,
@@ -181,7 +184,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>) => ({
       "Required: name (string). " +
       "Optional: slug (auto-generated from name if omitted — must be lowercase letters, numbers, hyphens only e.g. 'smart-phones'), " +
       "description, parentId (UUID of parent group to nest this under), " +
-      "imageUrl (valid URL), position (integer >= 0, controls display order, default 0), " +
+      "imageKey (a Media Key from a completed upload), position (integer >= 0, controls display order, default 0), " +
       "metaTitle (SEO page title, max 60 chars), metaDescription (SEO description, max 160 chars), " +
       "metaKeywords (comma-separated keywords for search engines).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
@@ -200,14 +203,14 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>) => ({
             `Required: name (non-empty string). ` +
             `Optional: slug (lowercase letters/numbers/hyphens only, e.g. "smart-phones" — auto-generated if omitted), ` +
             `description (string or null), parentId (UUID or null), ` +
-            `imageUrl (valid URL or null), position (integer >= 0, default 0), ` +
+            `imageKey (a Media Key from a completed upload, or null), position (integer >= 0, default 0), ` +
             `metaTitle (string max 60 chars or null), metaDescription (string max 160 chars or null), ` +
             `metaKeywords (comma-separated string or null).`,
         };
       }
 
       try {
-        const group = await queries.createGroup(db, parsed.data);
+        const group = await createProductGroup(env, db, parsed.data);
         return {
           success: true,
           group,
@@ -246,14 +249,14 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>) => ({
             `Invalid update arguments: ${errorDetails}. ` +
             `Expected: groupId (UUID), updates object with optional fields: ` +
             `name (string), slug (lowercase/numbers/hyphens), description (string or null), ` +
-            `parentId (UUID or null), imageUrl (valid URL or null), position (integer >= 0), ` +
+            `parentId (UUID or null), imageKey (a Media Key from a completed upload, or null), position (integer >= 0), ` +
             `metaTitle (string max 60 chars or null), metaDescription (string max 160 chars or null), ` +
             `metaKeywords (comma-separated string or null).`,
         };
       }
 
       try {
-        const group = await queries.updateGroup(db, parsed.data.groupId, parsed.data.updates);
+        const group = await updateProductGroup(env, db, parsed.data.groupId, parsed.data.updates);
         if (!group) {
           return {
             success: false,
@@ -299,7 +302,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>) => ({
 
       try {
         // Verify group exists and check productsCount before attempting delete
-        const group = await queries.getGroupById(db, parsed.data.groupId);
+        const group = await queries.getGroupById(db, parsed.data.groupId, mediaDeliveryOf(env));
         if (!group) {
           return {
             success: false,
@@ -316,7 +319,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>) => ({
           };
         }
 
-        await queries.deleteGroup(db, parsed.data.groupId);
+        await deleteProductGroup(env, db, parsed.data.groupId);
         return {
           success: true,
           message: `Product group "${group.name}" (${parsed.data.groupId}) deleted successfully`,

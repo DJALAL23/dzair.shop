@@ -74,6 +74,14 @@ export function newMediaKey(folder: UploadFolder, contentType: ImageType): strin
  * letters, digits, `.`, `_` and `-` that start with a letter or digit — so no
  * empty, `.` or `..` segment, no space, query, fragment or escape.
  */
+/** How rich text names one of the store's images: this prefix and its key. */
+export const MEDIA_REF = "media:";
+
+/** A rich-text image source naming one of the store's images by key. */
+export function isMediaRef(value: string): boolean {
+  return value.startsWith(MEDIA_REF) && isMediaKey(value.slice(MEDIA_REF.length));
+}
+
 export function isMediaKey(value: unknown): value is string {
   if (typeof value !== "string" || value.length === 0 || value.length > MAX_KEY_LENGTH) return false;
   const [folder, ...rest] = value.split("/");

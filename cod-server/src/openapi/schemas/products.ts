@@ -5,6 +5,7 @@
  */
 
 import { z } from "@hono/zod-openapi";
+import { MediaImageSchema, MediaKeySchema } from "./media";
 
 export const ProductVariantOptionSchema = z.object({
   name: z.string().openapi({ example: "Color" }),
@@ -22,27 +23,13 @@ export const ProductImageSchema = z
   .object({
     id: z.string().openapi({ example: "img_abc123" }),
     productId: z.string().openapi({ example: "prod_abc123" }),
-    src: z.string().openapi({
-      format: "uri",
-      description: "Original URL of the image",
-      example: "https://cdn.example.com/products/abc123.jpg",
-    }),
-    r2Key: z.string().nullable().openapi({
-      description: "R2 object key; null when the image is stored off-origin",
-      example: "products/abc123def456.jpg",
-    }),
-    srcSm: z.string().url().nullable().openapi({ example: null }),
-    srcMd: z.string().url().nullable().openapi({ example: null }),
-    srcLg: z.string().url().nullable().openapi({ example: null }),
+    key: MediaKeySchema,
+    url: z.string().url().openapi({ description: "Where browsers fetch it, from the store's Media Delivery", example: "https://ik.imagekit.io/wocart/stores/maysa/products/3f2a9c0b1d2e4f5061728394a5b6c7d8.webp" }),
+    width: z.number().int().nullable().openapi({ example: 1200 }),
+    height: z.number().int().nullable().openapi({ example: 900 }),
     altText: z.string().nullable().openapi({
       description: "Alt text for accessibility",
       example: "Galaxy A54 front view",
-    }),
-    width: z.number().int().nullable().openapi({ example: null }),
-    height: z.number().int().nullable().openapi({ example: null }),
-    type: z.number().int().openapi({
-      description: "1 = image, 2 = video",
-      example: 1,
     }),
     position: z.number().int().min(1).openapi({
       description: "Display order (1 = first)",
@@ -103,7 +90,7 @@ export const ProductCategoryRowSchema = z.object({
     description: "Parent group ID for nested hierarchies; null for top-level groups",
     example: null,
   }),
-  imageUrl: z.string().url().nullable().openapi({ example: "https://example.com/img.jpg" }),
+  image: MediaImageSchema.nullable().openapi({ description: "The group's image, from its Media Key" }),
   metaTitle: z.string().nullable().openapi({
     description: "SEO page title (max 60 chars)",
     example: "Electronics | CodFlow",
@@ -219,9 +206,8 @@ export const ProductSchema = z
       description: "Variants ordered by position; variations are parsed into objects",
     }),
 
-    primaryImageSrc: z.string().nullable().optional().openapi({
-      description: "First image URL by position. Included in list responses only.",
-      example: "https://cdn.example.com/products/abc123.jpg",
+    primaryImage: MediaImageSchema.nullable().optional().openapi({
+      description: "The gallery's first image. Included in list responses only.",
     }),
     reviewCount: z.number().int().optional().openapi({
       description: "Approved review count. Included in list responses only.",
@@ -429,35 +415,6 @@ export const OfferSchema = z
     updatedAt: z.string().datetime(),
   })
   .openapi("Offer");
-
-export const UploadedImageSchema = z
-  .object({
-    key: z.string().openapi({
-      description: "R2 object key — pass to POST /api/products/{id}/images as `key`",
-      example: "products/abc123def456.jpg",
-    }),
-    url: z.string().url().openapi({
-      description: "Public URL for the uploaded image",
-      example: "https://cdn.example.com/products/abc123def456.jpg",
-    }),
-  })
-  .openapi("UploadedImage");
-
-export const PresignedUploadSchema = z
-  .object({
-    presignedUrl: z.string().url().openapi({
-      description: "PUT this URL directly from the browser to upload the file",
-    }),
-    key: z.string().openapi({
-      description: "R2 object key — pass to POST /api/products/{id}/images as `key`",
-      example: "products/abc123def456.jpg",
-    }),
-    publicUrl: z.string().url().openapi({
-      description: "Permanent public URL served via custom domain",
-    }),
-  })
-  .openapi("PresignedUpload");
-
 
 export const ProductRemovalSchema = z
   .object({

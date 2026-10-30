@@ -300,6 +300,19 @@ export const ERROR_CODES = {
   IMAGE_NOT_FOUND: "IMAGE_NOT_FOUND",
   INVALID_FILE_TYPE: "INVALID_FILE_TYPE",
   FILE_TOO_LARGE: "FILE_TOO_LARGE",
+
+  // ============================================================================
+  // MEDIA (ADR 0021)
+  // ============================================================================
+  MEDIA_NOT_CONFIGURED: "MEDIA_NOT_CONFIGURED",
+  MEDIA_NOT_FOUND: "MEDIA_NOT_FOUND",
+  MEDIA_KEY_INVALID: "MEDIA_KEY_INVALID",
+  MEDIA_NOT_READY: "MEDIA_NOT_READY",
+  MEDIA_UPLOAD_UNKNOWN: "MEDIA_UPLOAD_UNKNOWN",
+  MEDIA_UPLOAD_MISSING: "MEDIA_UPLOAD_MISSING",
+  MEDIA_UPLOAD_MISMATCH: "MEDIA_UPLOAD_MISMATCH",
+  MEDIA_HOST_REFUSED: "MEDIA_HOST_REFUSED",
+  MEDIA_HOST_UNAVAILABLE: "MEDIA_HOST_UNAVAILABLE",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - WEBHOOKS

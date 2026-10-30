@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "@/db/schema";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import { getStoreProducts } from "../../../../cod-shared/queries/store";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 let harness: TestD1;
 const SAME_INSTANT = "2026-10-01T10:00:00.000Z";
@@ -34,13 +35,13 @@ describe("paging the storefront catalog", () => {
   it.each([1, 2, 3, 7, 10])("with pages of %i, visits every product exactly once, in one stable order", async (size) => {
     const seen: string[] = [];
     for (let offset = 0; ; offset += size) {
-      const page = await getStoreProducts(harness.db, { limit: size, offset });
+      const page = await getStoreProducts(harness.db, { limit: size, offset }, null, TEST_DELIVERY);
       seen.push(...page.map((product) => product.id));
       if (page.length < size) break;
     }
     expect(seen).toHaveLength(7);
     expect(new Set(seen).size).toBe(7);
-    const whole = (await getStoreProducts(harness.db, { limit: 100 })).map((product) => product.id);
+    const whole = (await getStoreProducts(harness.db, { limit: 100 }, null, TEST_DELIVERY)).map((product) => product.id);
     expect(seen).toEqual(whole);
   });
 
@@ -53,9 +54,9 @@ describe("paging the storefront catalog", () => {
     }
     const seen: string[] = [];
     for (let offset = 0; offset < 6; offset += 2) {
-      seen.push(...(await getStoreProducts(harness.db, { collection: "best-sellers", limit: 2, offset })).map((product) => product.id));
+      seen.push(...(await getStoreProducts(harness.db, { collection: "best-sellers", limit: 2, offset }, null, TEST_DELIVERY)).map((product) => product.id));
     }
     expect(seen).toEqual(order);
-    expect(await getStoreProducts(harness.db, { collection: "nope" })).toEqual([]);
+    expect(await getStoreProducts(harness.db, { collection: "nope" }, null, TEST_DELIVERY)).toEqual([]);
   });
 });

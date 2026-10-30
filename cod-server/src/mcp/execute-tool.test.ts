@@ -227,8 +227,6 @@ describe("executeMcpTool", () => {
           success: true,
           uploadJobId: "lpimg-elidedtest000000000000000000000",
           status: "processing" as const,
-          r2Key: "landing/elidedtest0000000000000000000000.png",
-          src: "https://media.example.com/landing/x.png",
           note: "n",
         })),
         args: { landingPageId: "lp-1", imageBase64: huge },

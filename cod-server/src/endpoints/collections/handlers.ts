@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import type { z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
+import { mediaDeliveryOf } from "@/lib/media";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
@@ -25,8 +26,8 @@ async function requireStore(c: Context<AppContext>) {
 
 const body = <T>(c: Context<AppContext>) => (c.req as unknown as { valid: (target: "json") => T }).valid("json");
 
-async function detailOrThrow(db: ReturnType<typeof getDb>, storeId: string, id: string) {
-  const collection = await getCollection(db, storeId, id);
+async function detailOrThrow(c: Context<AppContext>, db: ReturnType<typeof getDb>, storeId: string, id: string) {
+  const collection = await getCollection(db, storeId, id, mediaDeliveryOf(c.env));
   if (!collection) throw new NotFoundError("Collection", id);
   return collection;
 }
@@ -42,7 +43,7 @@ export async function list(c: Context<AppContext>) {
 
 export async function get(c: Context<AppContext>) {
   const { db, store } = await requireStore(c);
-  return c.json({ success: true, data: await detailOrThrow(db, store.id, c.req.param("id")!) }, 200);
+  return c.json({ success: true, data: await detailOrThrow(c, db, store.id, c.req.param("id")!) }, 200);
 }
 
 export async function create(c: Context<AppContext>) {
@@ -51,7 +52,7 @@ export async function create(c: Context<AppContext>) {
   const result = await createCollection(db, store.id, input);
   if (!result.ok) throw handleTaken(input.handle);
   await logActivity(db, c.get("user"), ACTIONS.COLLECTION_CREATED, { type: "collection", id: result.id, label: input.title }, { handle: input.handle });
-  return c.json({ success: true, data: await detailOrThrow(db, store.id, result.id) }, 201);
+  return c.json({ success: true, data: await detailOrThrow(c, db, store.id, result.id) }, 201);
 }
 
 export async function update(c: Context<AppContext>) {
@@ -61,7 +62,7 @@ export async function update(c: Context<AppContext>) {
   const result = await updateCollection(db, store.id, id, input);
   if (!result.ok && result.reason === "not_found") throw new NotFoundError("Collection", id);
   if (!result.ok) throw handleTaken(input.handle!);
-  const collection = await detailOrThrow(db, store.id, id);
+  const collection = await detailOrThrow(c, db, store.id, id);
   await logActivity(db, c.get("user"), ACTIONS.COLLECTION_UPDATED, { type: "collection", id, label: collection.title }, input);
   return c.json({ success: true, data: collection }, 200);
 }
@@ -76,7 +77,7 @@ export async function saveProducts(c: Context<AppContext>) {
     const { ok: _ok, ...problem } = result;
     throw new ValidationError("The collection's products cannot be saved as sent", ERROR_CODES.INVALID_COLLECTION_PRODUCTS, problem);
   }
-  const collection = await detailOrThrow(db, store.id, id);
+  const collection = await detailOrThrow(c, db, store.id, id);
   await logActivity(db, c.get("user"), ACTIONS.COLLECTION_PRODUCTS_SAVED, { type: "collection", id, label: collection.title }, { count: productIds.length });
   return c.json({ success: true, data: collection }, 200);
 }
@@ -84,7 +85,7 @@ export async function saveProducts(c: Context<AppContext>) {
 export async function remove(c: Context<AppContext>) {
   const { db, store } = await requireStore(c);
   const id = c.req.param("id")!;
-  const collection = await detailOrThrow(db, store.id, id);
+  const collection = await detailOrThrow(c, db, store.id, id);
   await deleteCollection(db, store.id, id);
   await logActivity(db, c.get("user"), ACTIONS.COLLECTION_DELETED, { type: "collection", id, label: collection.title }, { handle: collection.handle });
   return c.json({ success: true, data: { id } }, 200);

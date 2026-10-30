@@ -12,6 +12,7 @@ import { errorHandler } from "@/middleware/error";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
 import * as handlers from "./handlers";
 import * as queries from "./queries";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 // Mock the queries module
 vi.mock("@/lib/product-collections", () => ({
@@ -52,7 +53,7 @@ describe("Products Endpoint - Error Scenarios", () => {
     
     // Add middleware to inject mock env and user
     app.use("*", async (c, next) => {
-      c.env = { DB: mockDb } as any;
+      c.env = { DB: mockDb, ...TEST_MEDIA_VARS } as any;
       signIn(c, {
         id: "user-123",
         email: "test@example.com",

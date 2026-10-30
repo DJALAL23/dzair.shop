@@ -547,6 +547,7 @@ export const productCategories = sqliteTable("product_categories", {
   slug: text("slug").notNull().unique(),
   description: text("description"),
   parentId: text("parent_id"), // self-reference at app level
+  /** Not read: the image's URL before Media Keys (migration 0068); dropped by migration 0069. */
   imageUrl: text("image_url"),
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
@@ -554,7 +555,7 @@ export const productCategories = sqliteTable("product_categories", {
   position: integer("position").notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-  /** The image's Media Key (migration 0068). Replaces `image_url`, dropped by migration 0069. */
+  /** The image's Media Key (migration 0068). */
   imageKey: text("image_key"),
 });
 
@@ -631,7 +632,8 @@ export const productVariants = sqliteTable("product_variants", {
 export const productImages = sqliteTable("product_images", {
   id: text("id").primaryKey(),
   productId: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
-  src: text("src").notNull(), // original URL
+  /** Not read: the URL the image had before Media Keys (migration 0068); dropped by migration 0069, with `r2_key` and the `src_*` columns. */
+  src: text("src"),
   r2Key: text("r2_key"),
   srcSm: text("src_sm"),
   srcMd: text("src_md"),
@@ -643,7 +645,7 @@ export const productImages = sqliteTable("product_images", {
   position: integer("position").notNull().default(1),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-  /** The image's Media Key (migration 0068). Replaces `src`, `r2_key` and the `src_*` columns, dropped by migration 0069. */
+  /** The image's Media Key (migration 0068); null only for an image of another site, which the API does not show. */
   mediaKey: text("media_key"),
 });
 
@@ -849,6 +851,7 @@ export const stores = sqliteTable("stores", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   domain: text("domain"),
+  /** Not read: the logo's URL before Media Keys (migration 0068); dropped by migration 0069. */
   logoUrl: text("logo_url"),
 
   // ── Theme ─────────────────────────────────────────────────────────────────
@@ -876,6 +879,7 @@ export const stores = sqliteTable("stores", {
   // ── SEO ───────────────────────────────────────────────────────────────────
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
+  /** Not read: the share image's URL before Media Keys (migration 0068); dropped by migration 0069. */
   ogImage: text("og_image"),
 
   // ── Optional features ─────────────────────────────────────────────────────
@@ -965,9 +969,9 @@ export const stores = sqliteTable("stores", {
   shippingLabelJson: text("shipping_label_json"),
 
   // ── Media keys (appended by migration 0068, ADR 0021) ─────────────────────
-  /** The logo's Media Key. Replaces `logo_url`, dropped by migration 0069. */
+  /** The logo's Media Key. */
   logoKey: text("logo_key"),
-  /** The share image's Media Key. Replaces `og_image`, dropped by migration 0069. */
+  /** The share image's Media Key. */
   ogImageKey: text("og_image_key"),
 });
 
@@ -1261,7 +1265,8 @@ export const reviewMedia = sqliteTable("review_media", {
     .notNull()
     .references(() => reviews.id, { onDelete: "cascade" }),
   kind: text("kind", { enum: REVIEW_MEDIA_KINDS }).notNull(),
-  r2Key: text("r2_key").notNull().unique(),
+  /** Not read: the key before Media Keys (migration 0068); dropped by migration 0069. */
+  r2Key: text("r2_key").unique(),
   thumbKey: text("thumb_key").unique(),
   contentType: text("content_type").notNull(),
   bytes: integer("bytes").notNull(),
@@ -1270,11 +1275,10 @@ export const reviewMedia = sqliteTable("review_media", {
   durationMs: integer("duration_ms"),
   position: integer("position").notNull().default(0),
   createdAt: text("created_at").notNull(),
-  /** The file's Media Key (migration 0068). Replaces `r2_key`, dropped by migration 0069. */
-  mediaKey: text("media_key"),
+  /** The file's Media Key (migration 0068). */
+  mediaKey: text("media_key").notNull().unique(),
 }, (t) => ({
   reviewIdx: index("idx_review_media_review").on(t.reviewId, t.position),
-  mediaKeyUnique: uniqueIndex("idx_review_media_media_key").on(t.mediaKey),
 }));
 
 // ─── Activity Logs ────────────────────────────────────────────────────────────
@@ -1601,16 +1605,17 @@ export const landingPageImages = sqliteTable("landing_page_images", {
   landingPageId: text("landing_page_id")
     .notNull()
     .references(() => landingPages.id, { onDelete: "cascade" }),
-  r2Key: text("r2_key").notNull(),
-  src: text("src").notNull(),
+  /** Not read: the key and URL before Media Keys (migration 0068); dropped by migration 0069. */
+  r2Key: text("r2_key"),
+  src: text("src"),
   altText: text("alt_text"),
   source: text("source", { enum: ["upload", "ai"] }).notNull().default("upload"),
   position: integer("position").notNull().default(1),
   width: integer("width"),
   height: integer("height"),
   createdAt: text("created_at").notNull(),
-  /** The image's Media Key (migration 0068). Replaces `r2_key` and `src`, dropped by migration 0069. */
-  mediaKey: text("media_key"),
+  /** The image's Media Key (migration 0068). */
+  mediaKey: text("media_key").notNull(),
 });
 
 // ─── Media (migration 0068, ADR 0021) ────────────────────────────────────────
@@ -1620,7 +1625,7 @@ export const landingPageImages = sqliteTable("landing_page_images", {
  * that show it hold only its `key`; its bytes are on `host`. Pending until the
  * host confirms the upload; nothing attaches a pending key. No foreign key
  * points here: keys also live in JSON and HTML, so every reference is checked
- * one way (`queries/image-references.ts`).
+ * one way (`media/references.ts`).
  */
 export const media = sqliteTable("media", {
   id: text("id").primaryKey(),

@@ -25,6 +25,7 @@ import type { AppDb } from "@/db";
 import { getStoreConfig } from "../../../../cod-shared/queries/store";
 import { updateStore } from "../../../../cod-shared/queries/stores";
 import { updateStoreSchema } from "./validation";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 const registry: Miniflare[] = [];
 let db: AppDb;
@@ -96,7 +97,7 @@ describe("cart switch — defaults to off", () => {
   it("the storefront config reports the cart off for such a store", async () => {
     const id = await seedLegacyStore();
 
-    const config = await getStoreConfig(db, id);
+    const config = await getStoreConfig(db, id, TEST_DELIVERY);
     expect(config!.cartEnabled).toBe(false);
   });
 
@@ -104,7 +105,7 @@ describe("cart switch — defaults to off", () => {
     // A merchant who never opens Settings must see NOTHING change.
     const id = await seedLegacyStore();
 
-    const config = await getStoreConfig(db, id);
+    const config = await getStoreConfig(db, id, TEST_DELIVERY);
     expect(config).toMatchObject({
       reviewsEnabled: true,
       status: "active",
@@ -123,7 +124,7 @@ describe("cart switch — round trip through the update path", () => {
 
     await updateStore(db, id, { cartEnabled: true });
 
-    expect((await getStoreConfig(db, id))!.cartEnabled).toBe(true);
+    expect((await getStoreConfig(db, id, TEST_DELIVERY))!.cartEnabled).toBe(true);
   });
 
   it("turns back off again", async () => {
@@ -132,7 +133,7 @@ describe("cart switch — round trip through the update path", () => {
     await updateStore(db, id, { cartEnabled: true });
     await updateStore(db, id, { cartEnabled: false });
 
-    expect((await getStoreConfig(db, id))!.cartEnabled).toBe(false);
+    expect((await getStoreConfig(db, id, TEST_DELIVERY))!.cartEnabled).toBe(false);
   });
 
   it("is not disturbed by an unrelated settings save", async () => {
@@ -142,7 +143,7 @@ describe("cart switch — round trip through the update path", () => {
 
     await updateStore(db, id, { reviewsEnabled: false });
 
-    const config = await getStoreConfig(db, id);
+    const config = await getStoreConfig(db, id, TEST_DELIVERY);
     expect(config!.cartEnabled).toBe(true);
     expect(config!.reviewsEnabled).toBe(false);
   });
@@ -156,7 +157,7 @@ describe("cart switch — round trip through the update path", () => {
 
     await updateStore(db, id, { cartEnabled: true });
 
-    const config = await getStoreConfig(db, id);
+    const config = await getStoreConfig(db, id, TEST_DELIVERY);
     expect(config).toMatchObject({
       cartEnabled: true,
       freeShippingThreshold: 10_000,

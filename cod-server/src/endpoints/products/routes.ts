@@ -7,7 +7,7 @@ import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import * as h from "./handlers";
 import * as vh from "../variants/handlers";
-import * as ih from "../images/handlers";
+import * as ih from "./images";
 import {
   createProductSchema,
   updateProductSchema,
@@ -19,6 +19,7 @@ import {
   ProductSchema,
   ProductDetailSchema,
   ProductImageSchema,
+  MediaKeySchema,
   ProductVariantSchema,
   ProductRemovalSchema,
   SuccessResponseSchema,
@@ -54,7 +55,7 @@ const listProductsRoute = defineRoute({
   tags: ["Products"],
   summary: "List products",
   description:
-    "Returns a paginated list of products. Soft-deleted products are never returned. Each item includes `variantsCount`, `totalInventory`, `primaryImageSrc`, and `variants` array.",
+    "Returns a paginated list of products. Soft-deleted products are never returned. Each item includes `variantsCount`, `totalInventory`, `primaryImage` (its gallery's first image), and `variants` array.",
   operationId: "listProducts",
   query: productFiltersSchema,
   responses: {
@@ -111,26 +112,18 @@ const listProductImagesRoute = defineRoute({
   handler: ih.listProductImages,
 });
 
-const saveProductImageRoute = defineRoute({
+const attachProductImageRoute = defineRoute({
   method: "post",
   path: "/{id}/images",
   auth: { scope: SCOPES.PRODUCTS_MANAGE },
   tags: ["Products"],
   summary: "Save product image",
   description:
-    "Associates an already-uploaded R2 image with a product. Upload the file first via POST /api/images/upload, then call this endpoint with the returned `key` and `url`.",
-  operationId: "saveProductImage",
+    "Attaches an uploaded image to a product by its Media Key. Upload it first: POST /api/media/uploads, send the file as the ticket says, then POST /api/media/uploads/{id}/complete.",
+  operationId: "attachProductImage",
   params: idParams,
   body: z.object({
-    key: z.string().min(1).openapi({
-      description: "R2 object key returned by the upload endpoint",
-      example: "products/abc123def456.jpg",
-    }),
-    src: z.string().min(1).openapi({
-      format: "uri",
-      description: "Public URL of the image",
-      example: "https://cdn.example.com/products/abc123.jpg",
-    }),
+    mediaKey: MediaKeySchema,
     altText: z.string().nullable().optional().openapi({
       description: "Alt text for accessibility",
     }),
@@ -144,8 +137,9 @@ const saveProductImageRoute = defineRoute({
       content: jsonContent(SuccessResponseSchema(ProductImageSchema)),
     },
     404: { description: "No product with this ID (PRODUCT_NOT_FOUND)" },
+    409: { description: "The key's upload is not complete (MEDIA_NOT_READY)" },
   },
-  handler: ih.saveProductImage,
+  handler: ih.attachProductImage,
 });
 
 const reorderProductImagesRoute = defineRoute({
@@ -180,13 +174,13 @@ const reorderProductImagesRoute = defineRoute({
   handler: ih.reorderProductImages,
 });
 
-const deleteProductImageRoute = defineRoute({
+const removeProductImageRoute = defineRoute({
   method: "delete",
   path: "/{id}/images/{imageId}",
   auth: { scope: SCOPES.PRODUCTS_MANAGE },
   tags: ["Products"],
   summary: "Delete product image",
-  description: "Deletes the image record from the database and removes the object from R2. Variants that showed the image are left without one.",
+  description: "Removes the image from the product; its file is deleted once nothing else shows it. Variants that showed the image are left without one.",
   operationId: "deleteProductImage",
   params: imageIdParams,
   responses: {
@@ -195,7 +189,7 @@ const deleteProductImageRoute = defineRoute({
       content: jsonContent(z.object({ success: z.boolean().openapi({ example: true }) })),
     },
   },
-  handler: ih.deleteProductImage,
+  handler: ih.removeProductImage,
 });
 
 // ─── PATCH /{id}/status (registered before /{id} to avoid param capture) ──────
@@ -402,9 +396,9 @@ router.openapi(createProductRoute.route, createProductRoute.handler);
 
 // /{id}/images and /{id}/status must come before /{id}
 router.openapi(listProductImagesRoute.route, listProductImagesRoute.handler);
-router.openapi(saveProductImageRoute.route, saveProductImageRoute.handler);
+router.openapi(attachProductImageRoute.route, attachProductImageRoute.handler);
 router.openapi(reorderProductImagesRoute.route, reorderProductImagesRoute.handler);
-router.openapi(deleteProductImageRoute.route, deleteProductImageRoute.handler);
+router.openapi(removeProductImageRoute.route, removeProductImageRoute.handler);
 router.openapi(updateProductStatusRoute.route, updateProductStatusRoute.handler);
 
 router.openapi(getProductRoute.route, getProductRoute.handler);

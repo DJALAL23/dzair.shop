@@ -8,6 +8,9 @@
  * whole ordered list at once, and a product added from its own page
  * (`setProductCollections`) goes to the end of each collection it joins.
  */
+import type { MediaDelivery } from "../media/delivery";
+import type { MediaImage } from "../media/model";
+import { firstImage } from "../media/views";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { collectionProducts, collections, products } from "../db/schema";
 import type { AppDb } from "../db/client";
@@ -28,7 +31,8 @@ export interface CollectionProduct {
   id: string;
   name: string;
   handle: string;
-  imageUrl: string | null;
+  /** Its gallery's first image. */
+  image: MediaImage | null;
   /** Whether shoppers see it now: active, visible and listed in the store. */
   visible: boolean;
 }
@@ -59,7 +63,7 @@ export async function listCollections(db: AppDb, storeId: string): Promise<Colle
     .all();
 }
 
-export async function getCollection(db: AppDb, storeId: string, id: string): Promise<CollectionDetail | null> {
+export async function getCollection(db: AppDb, storeId: string, id: string, delivery: MediaDelivery): Promise<CollectionDetail | null> {
   const collection = await db.select().from(collections).where(and(eq(collections.id, id), eq(collections.storeId, storeId))).get();
   if (!collection) return null;
   const rows = await db
@@ -70,7 +74,7 @@ export async function getCollection(db: AppDb, storeId: string, id: string): Pro
       status: products.status,
       visibility: products.visibility,
       showInStore: products.showInStore,
-      imageUrl: sql<string | null>`(SELECT pi.src FROM product_images pi WHERE pi.product_id = ${products.id} ORDER BY pi.position LIMIT 1)`,
+      imageJson: sql<string | null>`(SELECT json_object('key', pi.media_key, 'width', pi.width, 'height', pi.height) FROM product_images pi WHERE pi.product_id = ${products.id} AND pi.media_key IS NOT NULL ORDER BY pi.position LIMIT 1)`,
     })
     .from(collectionProducts)
     .innerJoin(products, eq(products.id, collectionProducts.productId))
@@ -87,7 +91,7 @@ export async function getCollection(db: AppDb, storeId: string, id: string): Pro
       id: row.id,
       name: row.name,
       handle: row.handle,
-      imageUrl: row.imageUrl,
+      image: firstImage(row.imageJson, delivery),
       visible: row.status === "ACTIVE" && row.visibility && row.showInStore,
     })),
   };

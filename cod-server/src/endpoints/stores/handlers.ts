@@ -7,6 +7,7 @@ import { planStoreLanguages, storeLanguages, toStoreSettings } from "../../../..
 import { NotFoundError, SystemError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import type { z } from "@hono/zod-openapi";
+import { mediaDeliveryOf, mediaOf, releaseShown } from "@/lib/media";
 
 export async function getMyStore(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -17,7 +18,7 @@ export async function getMyStore(c: Context<AppContext>) {
   }
 
   const localeRows = await queries.listStoreLocales(db, store.id);
-  return c.json({ success: true, data: toStoreSettings(store, localeRows) }, 200);
+  return c.json({ success: true, data: toStoreSettings(store, localeRows, mediaDeliveryOf(c.env)) }, 200);
 }
 
 export async function updateMyStore(c: Context<AppContext>) {
@@ -43,10 +44,13 @@ export async function updateMyStore(c: Context<AppContext>) {
       ERROR_CODES.VALIDATION_FAILED,
     );
   }
+  for (const key of [columns.logoKey, columns.ogImageKey]) if (key) await mediaOf(c.env).ready(key);
   const updated = await queries.updateStore(db, store.id, columns, plan.rows);
   if (!updated) {
     throw new SystemError("Failed to update store");
   }
+  const replaced = [store.logoKey, store.ogImageKey].filter((key): key is string => key !== null && key !== updated.logoKey && key !== updated.ogImageKey);
+  await releaseShown(c.env, replaced, `store ${store.id}`);
   const localeRows = plan.rows ?? current;
-  return c.json({ success: true, data: toStoreSettings(updated, localeRows) }, 200);
+  return c.json({ success: true, data: toStoreSettings(updated, localeRows, mediaDeliveryOf(c.env)) }, 200);
 }

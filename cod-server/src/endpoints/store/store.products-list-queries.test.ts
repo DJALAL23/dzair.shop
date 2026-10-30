@@ -9,6 +9,13 @@
 import { describe, it, expect } from "vitest";
 import { makeMockDb, a, productRow } from "@/test-utils/mock-db";
 import { getStoreProducts } from "../../../../cod-shared/queries/store";
+import { TEST_DELIVERY } from "@/test-utils/media";
+
+/** A product_images row, its columns in schema order: the mock db maps a full-table select by position. */
+function imageRow(id: string, mediaKey: string, position: number) {
+  const at = "2024-01-01T00:00:00.000Z";
+  return { id, product_id: "prod_1", src: null, r2_key: null, src_sm: null, src_md: null, src_lg: null, alt_text: null, width: null, height: null, type: 1, position, created_at: at, updated_at: at, media_key: mediaKey };
+}
 
 describe("getStoreProducts", () => {
   it("maps cover image, variant inventory, and review stats from one batch", async () => {
@@ -20,11 +27,11 @@ describe("getStoreProducts", () => {
           review_count: 12,
         },
       ]),
-      a([{ id: "img_1", product_id: "prod_1", src: "cover.jpg", position: 2 }]),
+      a([imageRow("img_1", "products/cover.jpg", 2)]),
       a([{ productId: "prod_1", total: 14 }]),
     ]);
 
-    const rows = await getStoreProducts(db, {});
+    const rows = await getStoreProducts(db, {}, null, TEST_DELIVERY);
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -32,22 +39,22 @@ describe("getStoreProducts", () => {
       inventory: 14,
       reviewStats: { avgRating: 4.7, reviewCount: 12 },
     });
-    expect(rows[0].coverImage).toMatchObject({ id: "img_1", src: "cover.jpg" });
+    expect(rows[0].coverImage).toMatchObject({ id: "img_1", key: "products/cover.jpg", url: `${TEST_DELIVERY.origin}/products/cover.jpg` });
   });
 
   it("picks the first cover image by position within a product", async () => {
     const db = makeMockDb([
       a([{ ...productRow(), avg_rating: null, review_count: 0 }]),
       a([
-        { id: "img_b", product_id: "prod_1", src: "first.jpg", position: 1 },
-        { id: "img_a", product_id: "prod_1", src: "second.jpg", position: 2 },
+        imageRow("img_b", "products/first.jpg", 1),
+        imageRow("img_a", "products/second.jpg", 2),
       ]),
       a([]),
     ]);
 
-    const rows = await getStoreProducts(db, {});
+    const rows = await getStoreProducts(db, {}, null, TEST_DELIVERY);
 
-    expect(rows[0].coverImage).toMatchObject({ id: "img_b", src: "first.jpg" });
+    expect(rows[0].coverImage).toMatchObject({ id: "img_b", key: "products/first.jpg" });
   });
 
   it("simple product inventory comes from the product row (no variant sum)", async () => {
@@ -57,7 +64,7 @@ describe("getStoreProducts", () => {
       a([]),
     ]);
 
-    const rows = await getStoreProducts(db, {});
+    const rows = await getStoreProducts(db, {}, null, TEST_DELIVERY);
 
     expect(rows[0]).toMatchObject({ inventory: 42, coverImage: null });
   });
@@ -69,7 +76,7 @@ describe("getStoreProducts", () => {
       a([]),
     ]);
 
-    const rows = await getStoreProducts(db, {});
+    const rows = await getStoreProducts(db, {}, null, TEST_DELIVERY);
 
     expect(rows[0]).toMatchObject({ inventory: 0 });
   });
@@ -81,7 +88,7 @@ describe("getStoreProducts", () => {
       a([]),
     ]);
 
-    const rows = await getStoreProducts(db, {});
+    const rows = await getStoreProducts(db, {}, null, TEST_DELIVERY);
 
     expect(rows[0].reviewStats).toBeNull();
   });
@@ -89,7 +96,7 @@ describe("getStoreProducts", () => {
   it("returns [] for an empty page without the follow-up batch", async () => {
     const db = makeMockDb([a([])]);
 
-    const rows = await getStoreProducts(db, {});
+    const rows = await getStoreProducts(db, {}, null, TEST_DELIVERY);
 
     expect(rows).toEqual([]);
   });

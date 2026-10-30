@@ -18,6 +18,7 @@ import type { AppDb } from "@/db";
 import { updateVariant, createVariant, deleteVariant } from "../../../../cod-shared/queries/variants";
 import { updateProduct } from "../../../../cod-shared/queries/products";
 import { adjustStock } from "../stock/queries";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 let db: AppDb;
 let rawD1: D1Database;
@@ -190,7 +191,7 @@ describe("F3: catalog inventory edits write the ledger", () => {
       status: "ACTIVE", visibility: true, showInStore: true,      createdAt: NOW(), updatedAt: NOW(),
     });
 
-    await updateProduct(db, productId, { inventory: 15 });
+    await updateProduct(db, productId, { inventory: 15 }, TEST_DELIVERY);
 
     expect(await movementsFor({ productId })).toHaveLength(0);
   });
@@ -198,7 +199,7 @@ describe("F3: catalog inventory edits write the ledger", () => {
   it("simple product inventory edit logs the movement", async () => {
     const productId = await seedProduct(10);
 
-    await updateProduct(db, productId, { inventory: 7 });
+    await updateProduct(db, productId, { inventory: 7 }, TEST_DELIVERY);
 
     const mv = await movementsFor({ productId });
     expect(mv).toHaveLength(1);

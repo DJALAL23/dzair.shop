@@ -20,6 +20,7 @@ import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import type { AppContext } from "@/types";
 import { createStoreOrder, findOrCreateCustomer } from "../../../../cod-shared/queries/store";
 import storeRoutes from "./routes";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 const T = "2026-10-01T00:00:00.000Z";
 const STORE = "s1";
@@ -30,7 +31,7 @@ beforeAll(async () => {
   d1 = await createTestD1();
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: d1.raw } as AppContext["Bindings"];
+    c.env = { DB: d1.raw, ...TEST_MEDIA_VARS } as AppContext["Bindings"];
     c.set("storeId", STORE);
     await next();
   });

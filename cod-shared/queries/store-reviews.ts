@@ -19,7 +19,8 @@ import { DEFAULT_REVIEW_POLICY, reviewPolicy, type ReviewPolicy } from "../revie
 export interface ReviewableProduct {
   productId: string;
   name: string;
-  imageSrc: string | null;
+  /** The product's first image, by key. */
+  imageKey: string | null;
   /** Already reviewed from this order: it cannot be reviewed again. */
   reviewed: boolean;
 }
@@ -61,11 +62,11 @@ export async function findReviewableOrder(db: AppDb, input: PurchaseProof): Prom
   if (!found || ("phone" in input && !samePhone(found.phone, input.phone))) return { ok: false, reason: "not_found" };
   if (!found.deliveredAt) return { ok: false, reason: "not_delivered" };
 
-  const lines = await db.all<{ productId: string; name: string; kept: number; imageSrc: string | null; reviewed: number }>(sql`
+  const lines = await db.all<{ productId: string; name: string; kept: number; imageKey: string | null; reviewed: number }>(sql`
     select op.product_id as productId,
       min(op.product_name) as name,
       sum(op.quantity - op.returned_quantity) as kept,
-      (select pi.src from product_images pi where pi.product_id = op.product_id order by pi.position limit 1) as imageSrc,
+      (select pi.media_key from product_images pi where pi.product_id = op.product_id and pi.media_key is not null order by pi.position limit 1) as imageKey,
       exists (select 1 from reviews r where r.order_id = op.order_id and r.product_id = op.product_id) as reviewed
     from order_products op
     where op.order_id = ${found.id} and op.product_id is not null
@@ -81,7 +82,7 @@ export async function findReviewableOrder(db: AppDb, input: PurchaseProof): Prom
       customerName: found.customerName,
       products: lines
         .filter((line) => Number(line.kept) > 0)
-        .map((line) => ({ productId: line.productId, name: line.name, imageSrc: line.imageSrc ?? null, reviewed: Boolean(line.reviewed) })),
+        .map((line) => ({ productId: line.productId, name: line.name, imageKey: line.imageKey ?? null, reviewed: Boolean(line.reviewed) })),
     },
   };
 }
@@ -162,7 +163,7 @@ export async function listApprovedReviews(
         id: reviewMedia.id,
         reviewId: reviewMedia.reviewId,
         kind: reviewMedia.kind,
-        r2Key: reviewMedia.r2Key,
+        mediaKey: reviewMedia.mediaKey,
         thumbKey: reviewMedia.thumbKey,
         width: reviewMedia.width,
         height: reviewMedia.height,
@@ -179,7 +180,7 @@ export async function listApprovedReviews(
     list.push({
       id: item.id,
       kind: item.kind,
-      url: query.mediaUrl(item.r2Key),
+      url: query.mediaUrl(item.mediaKey),
       thumbUrl: item.thumbKey ? query.mediaUrl(item.thumbKey) : null,
       width: item.width,
       height: item.height,

@@ -13,6 +13,8 @@
  *   • legacy rows (inserted without the column) keep description + 'text'
  *   • T2 invariant: no reader ever returns the hostile payload unfiltered
  *   • the MCP create/update path sanitises identically
+ *   • the store's own images are stored by key (`media:<key>`) and served at
+ *     the store's URL; another site's image is kept as it is
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -26,6 +28,7 @@ const here = resolve(__dirname);
 
 const WORKER_SOURCE = `
 import { drizzle } from "drizzle-orm/d1";
+import { mediaDelivery } from "../../../../cod-shared/media/delivery";
 import {
   createProduct,
   updateProduct,
@@ -40,27 +43,31 @@ import {
 export default {
   async fetch(request: Request, env: { DB: D1Database }): Promise<Response> {
     const db = drizzle(env.DB);
+    const delivery = mediaDelivery("direct", "http://localhost:8787/media");
     const { fn, args } = (await request.json()) as { fn: string; args: unknown[] };
     try {
       let result: unknown;
       switch (fn) {
         case "createProduct":
-          result = await createProduct(db, args[0] as never);
+          result = await createProduct(db, args[0] as never, delivery);
           break;
         case "updateProduct":
-          result = await updateProduct(db, args[0] as string, args[1] as never);
+          result = await updateProduct(db, args[0] as string, args[1] as never, delivery);
           break;
         case "getProductById":
-          result = await getProductById(db, args[0] as string);
+          result = await getProductById(db, args[0] as string, delivery);
           break;
         case "getAllProducts":
-          result = await getAllProducts(db, args[0] as never);
+          result = await getAllProducts(db, delivery, args[0] as never);
           break;
         case "getStoreProductByHandle":
-          result = await getStoreProductByHandle(db, args[0] as string);
+          result = await getStoreProductByHandle(db, args[0] as string, { delivery });
           break;
         case "getStoreProducts":
-          result = await getStoreProducts(db, args[0] as never);
+          result = await getStoreProducts(db, args[0] as never, null, delivery);
+          break;
+        case "storedDescription":
+          result = (await env.DB.prepare("SELECT description FROM products WHERE id = ?1").bind(args[0]).first())?.description;
           break;
         default:
           return Response.json({ ok: false, error: "unknown fn " + fn }, { status: 400 });
@@ -444,5 +451,26 @@ describe("clearing optional product fields on update", () => {
     const updated = await call<Record<string, unknown>>("updateProduct", created.id, { compareAtPrice: null });
     expect(updated.compareAtPrice).toBeNull();
     expect(updated.costPrice).toBe(3000);
+  });
+});
+
+describe("the store's own images in a description", () => {
+  const ORIGIN = "http://localhost:8787/media";
+  const KEY = "products/3f2a9c0b1d2e4f5061728394a5b6c7d8.webp";
+  const html = `<p>Voir</p><img src="${ORIGIN}/${KEY}" alt="robe"><img src="https://m.example/i.jpg" alt="ailleurs">`;
+
+  it("are stored by key, served at the store's URL, and survive being saved again", async () => {
+    const product = await call<Record<string, any>>("createProduct", { ...BASE_PRODUCT, sku: "RT-MEDIA", description: html, descriptionFormat: "html" });
+    const stored = await call<string>("storedDescription", product.id);
+    expect(stored).toContain(`src="media:${KEY}"`);
+    expect(stored).not.toContain(ORIGIN);
+    expect(stored).toContain('src="https://m.example/i.jpg"');
+    expect(product.description).toContain(`src="${ORIGIN}/${KEY}"`);
+    expect(product.description).not.toContain("media:");
+
+    const resaved = await call<Record<string, any>>("updateProduct", product.id, { description: product.description });
+    expect(await call<string>("storedDescription", product.id)).toBe(stored);
+    expect(resaved.description).toBe(product.description);
+    expect((await call<Record<string, any>>("getStoreProductByHandle", product.handle)).description).toBe(product.description);
   });
 });

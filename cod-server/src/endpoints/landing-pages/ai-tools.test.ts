@@ -36,11 +36,14 @@ const landingQueries = vi.hoisted(() => ({
   getLandingPageImage: vi.fn(),
   getLandingPageImages: vi.fn(),
   deleteLandingPageImage: vi.fn(),
-  countOtherLandingPageImageReferences: vi.fn(),
+  getLandingPageRow: vi.fn(),
   reorderLandingPageImagesChecked: vi.fn(),
 }));
 
 vi.mock("./queries", () => landingQueries);
+
+const releaseShown = vi.hoisted(() => vi.fn(async () => 1));
+vi.mock("@/lib/media", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/media")>()), releaseShown }));
 
 const sharedLandingQueries = vi.hoisted(() => ({
   resolveStorefrontBaseUrl: vi.fn(),
@@ -56,9 +59,10 @@ import {
   LANDING_PAGE_TOOL_OUTPUT_SCHEMAS,
   mapUploadJobStatus,
 } from "./ai-tools";
+import { TEST_DELIVERY, TEST_MEDIA_VARS } from "@/test-utils/media";
 
 const db = {} as never;
-const ENV = { STOREFRONT_URL: "https://fallback.example.com" };
+const ENV = { STOREFRONT_URL: "https://fallback.example.com", ...TEST_MEDIA_VARS };
 /** Valid RFC 9562 v4 UUID — zod 4's uuid() enforces version + variant nibbles. */
 const UUID = "6f0c9b8e-3d2a-4e5f-8a7b-9c1d2e3f4a5b";
 
@@ -97,8 +101,8 @@ const lpWithImages = {
     {
       id: "img-1",
       landingPageId: UUID,
-      r2Key: "landing/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
-      src: "https://media.example.com/landing/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+      key: "landing/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+      url: `${TEST_DELIVERY.origin}/landing/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png`,
       altText: null,
       source: "upload",
       position: 1,
@@ -109,8 +113,8 @@ const lpWithImages = {
     {
       id: "img-2",
       landingPageId: UUID,
-      r2Key: "landing/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png",
-      src: "https://media.example.com/landing/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png",
+      key: "landing/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png",
+      url: `${TEST_DELIVERY.origin}/landing/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png`,
       altText: null,
       source: "ai",
       position: 2,
@@ -133,6 +137,7 @@ describe("publishLandingPage", () => {
 
   it("returns failure for a nonexistent landing page and never publishes (F4)", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(null);
+    landingQueries.getLandingPageRow.mockResolvedValue(null);
 
     const res = await call("publishLandingPage", { landingPageId: UUID });
 
@@ -143,6 +148,7 @@ describe("publishLandingPage", () => {
 
   it("publishes but warns when the image stack is empty, with the fallback URL (F4 + F7)", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(lpEmptyStack);
+    landingQueries.getLandingPageRow.mockResolvedValue(lpEmptyStack);
 
     const res = await call("publishLandingPage", { landingPageId: UUID });
 
@@ -157,6 +163,7 @@ describe("publishLandingPage", () => {
 
   it("publishes without a warning when the stack has images", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(lpWithImages);
+    landingQueries.getLandingPageRow.mockResolvedValue(lpWithImages);
 
     const res = await call("publishLandingPage", { landingPageId: UUID });
 
@@ -206,6 +213,7 @@ describe("createLandingPage — strict layer-2 (F5)", () => {
   it("creates a valid draft and returns the fallback publicUrl", async () => {
     landingQueries.createLandingPage.mockResolvedValue({ id: UUID, slug: "lp-abc12345" });
     landingQueries.getLandingPageById.mockResolvedValue(lpWithImages);
+    landingQueries.getLandingPageRow.mockResolvedValue(lpWithImages);
 
     const res = await call("createLandingPage", { name: "My page", productId: UUID });
 
@@ -236,6 +244,7 @@ describe("updateLandingPage — strict layer-2 (F5)", () => {
 
   it("applies a valid partial update", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(lpWithImages);
+    landingQueries.getLandingPageRow.mockResolvedValue(lpWithImages);
 
     const res = await call("updateLandingPage", {
       landingPageId: UUID,
@@ -346,17 +355,21 @@ function makeUploadEnv(statusToReturn?: Record<string, unknown>, getThrows = fal
   const put = vi.fn(async () => undefined);
   const env = {
     STOREFRONT_URL: "https://fallback.example.com",
-    MEDIA_DOMAIN: "media.example.com",
-    IMAGES: { put },
+    ...TEST_MEDIA_VARS,
+    MEDIA_BUCKET: { put },
     LP_IMAGE_UPLOAD_WORKFLOW: workflow,
   };
   return { env, workflow, put };
 }
 
+/** The job a returned uploadJobId names: its staged bytes and its file share it. */
+const jobOf = (res: Record<string, unknown>) => String(res.uploadJobId).slice("lpimg-".length);
+
 describe("uploadLandingPageImage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     landingQueries.getLandingPageById.mockResolvedValue(LANDING_PAGE);
+    landingQueries.getLandingPageRow.mockResolvedValue(LANDING_PAGE);
   });
 
   it("enqueues a url upload and returns the polling contract", async () => {
@@ -376,8 +389,7 @@ describe("uploadLandingPageImage", () => {
     expect(res.success).toBe(true);
     expect(res.status).toBe("processing");
     expect(res.uploadJobId).toMatch(/^lpimg-[a-f0-9]{32}$/);
-    expect(res.r2Key).toMatch(/^landing\/[a-f0-9]{32}\.webp$/);
-    expect(res.src).toBe(`https://media.example.com/${res.r2Key}`);
+    expect(res).not.toHaveProperty("key");
     expect(res.note).toContain("getLandingPageImageUploadStatus");
 
     expect(put).not.toHaveBeenCalled();
@@ -387,7 +399,7 @@ describe("uploadLandingPageImage", () => {
     expect(createArgs.params).toMatchObject({
       kind: "url",
       landingPageId: UUID,
-      r2Key: res.r2Key,
+      job: jobOf(res),
       contentType: "image/png",
       imageUrl: "https://images.openai.example/gen.png",
       altText: "Hero",
@@ -395,7 +407,7 @@ describe("uploadLandingPageImage", () => {
     });
   });
 
-  it("writes base64 bytes to R2 then enqueues a bytes verification job", async () => {
+  it("stages base64 bytes in the store's bucket, then enqueues a bytes job", async () => {
     const { env, workflow, put } = makeUploadEnv();
 
     const res = await call(
@@ -405,19 +417,9 @@ describe("uploadLandingPageImage", () => {
     );
 
     expect(res.success).toBe(true);
-    expect(put).toHaveBeenCalledWith(
-      res.r2Key,
-      expect.any(Uint8Array),
-      {
-        httpMetadata: {
-          contentType: "image/png",
-          cacheControl: "public, max-age=31536000, immutable",
-        },
-        customMetadata: { source: "ai", uploadedAt: expect.any(String) },
-      },
-    );
+    expect(put).toHaveBeenCalledWith(`staging/landing/${jobOf(res)}`, expect.any(Uint8Array), { httpMetadata: { contentType: "image/png" }, customMetadata: undefined });
     const createArgs = workflow.create.mock.calls[0][0];
-    expect(createArgs.params).toMatchObject({ kind: "bytes", r2Key: res.r2Key });
+    expect(createArgs.params).toMatchObject({ kind: "bytes", job: jobOf(res) });
     expect(createArgs.params.imageUrl).toBeUndefined();
   });
 
@@ -491,7 +493,7 @@ describe("uploadLandingPageImage", () => {
       expect(createArgs.params).toMatchObject({
         kind: "url",
         landingPageId: UUID,
-        r2Key: res.r2Key,
+        job: jobOf(res),
         contentType: "image/png",
         imageUrl: "https://files.oaiusercontent.example/file_abc123?sig=xyz",
       });
@@ -638,6 +640,7 @@ describe("uploadLandingPageImage", () => {
 
   it("refuses to enqueue for a nonexistent landing page", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(null);
+    landingQueries.getLandingPageRow.mockResolvedValue(null);
     const { env, workflow } = makeUploadEnv();
 
     const res = await call(
@@ -699,7 +702,7 @@ describe("getLandingPageImageUploadStatus", () => {
   it("returns the image record on 'complete'", async () => {
     const { env } = makeUploadEnv({
       status: "complete",
-      output: { imageId: "img-9", r2Key: "landing/x.png", position: 1 },
+      output: { imageId: "img-9", key: "landing/x.png", url: `${TEST_DELIVERY.origin}/landing/x.png`, position: 1 },
     });
 
     const res = await call("getLandingPageImageUploadStatus", { uploadJobId: "lpimg-abc" }, env);
@@ -785,94 +788,47 @@ describe("mapUploadJobStatus (pure)", () => {
 
 describe("removeLandingPageImage", () => {
   const IMG_UUID = "7d1e0c9a-4b3f-4c6d-9e8a-1f2a3b4c5d6e";
-  const imageRow = { id: IMG_UUID, landingPageId: UUID, r2Key: R2_KEY, position: 1 };
+  const imageRow = { id: IMG_UUID, landingPageId: UUID, mediaKey: R2_KEY, position: 1 };
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("deletes the R2 object on the last reference, then the row, and returns the stack", async () => {
+  it("deletes the row, then releases its file to the store's media, and returns the stack", async () => {
     landingQueries.getLandingPageImage.mockResolvedValue(imageRow);
-    landingQueries.countOtherLandingPageImageReferences.mockResolvedValue(0);
     landingQueries.deleteLandingPageImage.mockResolvedValue(undefined);
     landingQueries.getLandingPageImages.mockResolvedValue([]);
 
-    const put = vi.fn();
-    const del = vi.fn(async () => undefined);
-    const env = {
-      STOREFRONT_URL: "https://fallback.example.com",
-      IMAGES: { put, delete: del },
-    };
-
-    const res = await call(
-      "removeLandingPageImage",
-      { landingPageId: UUID, imageId: IMG_UUID },
-      env,
-    );
+    const res = await call("removeLandingPageImage", { landingPageId: UUID, imageId: IMG_UUID });
 
     expect(res.success).toBe(true);
     expect(res.images).toEqual([]);
     expect(res.count).toBe(0);
-    expect(del).toHaveBeenCalledWith(R2_KEY);
     expect(landingQueries.deleteLandingPageImage).toHaveBeenCalledWith(db, UUID, IMG_UUID);
+    expect(releaseShown).toHaveBeenCalledWith(expect.objectContaining({ MEDIA_HOST: "r2" }), [R2_KEY], expect.any(String));
+    expect(landingQueries.deleteLandingPageImage.mock.invocationCallOrder[0]).toBeLessThan(releaseShown.mock.invocationCallOrder[0]!);
   });
 
-  it("keeps the shared R2 object when another page still references it", async () => {
+  it("removes the image even when its file cannot be deleted now", async () => {
     landingQueries.getLandingPageImage.mockResolvedValue(imageRow);
-    landingQueries.countOtherLandingPageImageReferences.mockResolvedValue(2);
     landingQueries.deleteLandingPageImage.mockResolvedValue(undefined);
     landingQueries.getLandingPageImages.mockResolvedValue([]);
+    releaseShown.mockResolvedValueOnce(0);
 
-    const del = vi.fn();
-    const env = {
-      STOREFRONT_URL: "https://fallback.example.com",
-      IMAGES: { put: vi.fn(), delete: del },
-    };
-
-    const res = await call(
-      "removeLandingPageImage",
-      { landingPageId: UUID, imageId: IMG_UUID },
-      env,
-    );
+    const res = await call("removeLandingPageImage", { landingPageId: UUID, imageId: IMG_UUID });
 
     expect(res.success).toBe(true);
-    expect(del).not.toHaveBeenCalled();
     expect(landingQueries.deleteLandingPageImage).toHaveBeenCalled();
-  });
-
-  it("aborts before the DB delete when the R2 delete fails", async () => {
-    landingQueries.getLandingPageImage.mockResolvedValue(imageRow);
-    landingQueries.countOtherLandingPageImageReferences.mockResolvedValue(0);
-
-    const del = vi.fn(async () => {
-      throw new Error("R2 is down");
-    });
-    const env = {
-      STOREFRONT_URL: "https://fallback.example.com",
-      IMAGES: { put: vi.fn(), delete: del },
-    };
-
-    const res = await call(
-      "removeLandingPageImage",
-      { landingPageId: UUID, imageId: IMG_UUID },
-      env,
-    );
-
-    expect(res.success).toBe(false);
-    expect(res.error).toContain("storage");
-    expect(landingQueries.deleteLandingPageImage).not.toHaveBeenCalled();
   });
 
   it("fails for an image that does not exist on that landing page", async () => {
     landingQueries.getLandingPageImage.mockResolvedValue(null);
 
-    const res = await call("removeLandingPageImage", { landingPageId: UUID, imageId: IMG_UUID }, {
-      STOREFRONT_URL: "https://fallback.example.com",
-      IMAGES: { put: vi.fn(), delete: vi.fn() },
-    });
+    const res = await call("removeLandingPageImage", { landingPageId: UUID, imageId: IMG_UUID });
 
     expect(res.success).toBe(false);
     expect(res.error).toContain("not found");
+    expect(releaseShown).not.toHaveBeenCalled();
   });
 
   it("rejects unknown fields", async () => {
@@ -909,10 +865,7 @@ describe("reorderLandingPageImages", () => {
 
     expect(res.success).toBe(true);
     expect(res.images).toEqual(ordered);
-    expect(landingQueries.reorderLandingPageImagesChecked).toHaveBeenCalledWith(db, UUID, [
-      ID_B,
-      ID_A,
-    ]);
+    expect(landingQueries.reorderLandingPageImagesChecked).toHaveBeenCalledWith(db, UUID, [ID_B, ID_A], TEST_DELIVERY);
   });
 
   it("surfaces the checked wrapper's validation failures", async () => {
@@ -946,6 +899,7 @@ describe("duplicateLandingPage", () => {
   it("returns the fresh draft with its new slug and link", async () => {
     landingQueries.duplicateLandingPage.mockResolvedValue("new-id-1");
     landingQueries.getLandingPageById.mockResolvedValue({ ...lpWithImages, id: "new-id-1", slug: "lp-copy0001" });
+    landingQueries.getLandingPageRow.mockResolvedValue({ ...lpWithImages, id: "new-id-1", slug: "lp-copy0001" });
 
     const res = await call("duplicateLandingPage", { landingPageId: UUID });
 
@@ -972,6 +926,7 @@ describe("unpublishLandingPage", () => {
 
   it("returns the page to draft and reports the (now dead) link", async () => {
     landingQueries.getLandingPageById.mockResolvedValue({ ...lpWithImages, status: "published" });
+    landingQueries.getLandingPageRow.mockResolvedValue({ ...lpWithImages, status: "published" });
     landingQueries.unpublishLandingPage.mockResolvedValue(undefined);
 
     const res = await call("unpublishLandingPage", { landingPageId: UUID });
@@ -983,6 +938,7 @@ describe("unpublishLandingPage", () => {
 
   it("fails for a nonexistent landing page and never unpublishes", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(null);
+    landingQueries.getLandingPageRow.mockResolvedValue(null);
 
     const res = await call("unpublishLandingPage", { landingPageId: UUID });
 
@@ -999,6 +955,7 @@ describe("archiveLandingPage", () => {
 
   it("archives and returns the page state with history preserved", async () => {
     landingQueries.getLandingPageById.mockResolvedValue({ ...lpWithImages, status: "published" });
+    landingQueries.getLandingPageRow.mockResolvedValue({ ...lpWithImages, status: "published" });
     landingQueries.archiveLandingPage.mockResolvedValue(undefined);
 
     const res = await call("archiveLandingPage", { landingPageId: UUID });
@@ -1010,6 +967,7 @@ describe("archiveLandingPage", () => {
 
   it("fails for a nonexistent landing page and never archives", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(null);
+    landingQueries.getLandingPageRow.mockResolvedValue(null);
 
     const res = await call("archiveLandingPage", { landingPageId: UUID });
 
@@ -1059,6 +1017,7 @@ describe("output schemas match what the tools actually return (structuredContent
 
   it("publishLandingPage empty-stack warning variant validates (warning is declared)", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(lpEmptyStack);
+    landingQueries.getLandingPageRow.mockResolvedValue(lpEmptyStack);
 
     const res = await call("publishLandingPage", { landingPageId: UUID });
 
@@ -1068,6 +1027,7 @@ describe("output schemas match what the tools actually return (structuredContent
 
   it("publishLandingPage handled failure validates against the failure envelope", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(null);
+    landingQueries.getLandingPageRow.mockResolvedValue(null);
 
     const res = await call("publishLandingPage", { landingPageId: UUID });
 
@@ -1088,8 +1048,8 @@ describe("output schemas match what the tools actually return (structuredContent
       status: "complete",
       output: {
         imageId: "img-9",
-        r2Key: R2_KEY,
-        src: `https://media.example.com/${R2_KEY}`,
+        key: R2_KEY,
+        url: `${TEST_DELIVERY.origin}/${R2_KEY}`,
         position: 1,
         width: 1080,
         height: 1350,
@@ -1109,12 +1069,13 @@ describe("output schemas match what the tools actually return (structuredContent
 
   it("archiveLandingPage and reorderLandingPageImages results validate", async () => {
     landingQueries.getLandingPageById.mockResolvedValue(lpWithImages);
+    landingQueries.getLandingPageRow.mockResolvedValue(lpWithImages);
     landingQueries.archiveLandingPage.mockResolvedValue(undefined);
     const archived = await call("archiveLandingPage", { landingPageId: UUID });
     expect(LANDING_PAGE_TOOL_OUTPUT_SCHEMAS["archiveLandingPage"]!.safeParse(archived).success).toBe(true);
 
     landingQueries.reorderLandingPageImagesChecked.mockResolvedValue([
-      { id: "img-1", position: 1, r2Key: R2_KEY, src: "s", altText: null, width: 1, height: 1, source: "ai", createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "img-1", landingPageId: UUID, position: 1, key: R2_KEY, url: `${TEST_DELIVERY.origin}/${R2_KEY}`, altText: null, width: 1, height: 1, source: "ai", createdAt: "2026-01-01T00:00:00.000Z" },
     ]);
     const reordered = await call("reorderLandingPageImages", {
       landingPageId: UUID,

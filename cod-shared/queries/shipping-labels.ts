@@ -9,6 +9,7 @@
  * trip as one. Ids go in chunks under D1's 100 bound values.
  */
 
+import { mediaUrl, type MediaDelivery } from "../media/delivery";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { communes, drivers, orderProducts, orders, shipments, storeLegalProfile, stores, wilayas } from "../db/schema";
@@ -31,23 +32,23 @@ export async function saveShippingLabelConfig(db: AppDb, storeId: string, config
 }
 
 /** The store as the sender its labels print. */
-export function labelSender(store: Pick<StoreRow, "name" | "logoUrl">, legal: Pick<LegalRow, "address" | "contactPhone"> | undefined, config: ShippingLabelConfig): LabelSender {
+export function labelSender(store: Pick<StoreRow, "name" | "logoKey">, legal: Pick<LegalRow, "address" | "contactPhone"> | undefined, config: ShippingLabelConfig, delivery: MediaDelivery): LabelSender {
   return {
     name: store.name,
-    logoUrl: store.logoUrl ?? null,
+    logoUrl: store.logoKey ? mediaUrl(store.logoKey, delivery) : null,
     phone: config.senderPhone ?? legal?.contactPhone ?? null,
     address: legal?.address ?? null,
   };
 }
 
 /** The store, its legal profile, and its settings with the sender they print — one trip. */
-export async function loadLabelSettings(db: AppDb) {
+export async function loadLabelSettings(db: AppDb, delivery: MediaDelivery) {
   const [storeRows, legalRows] = await db.batch([db.select().from(stores).limit(1), legalOfTheStore(db)]);
   const store = (storeRows as StoreRow[])[0];
   if (!store) return null;
   const legal = (legalRows as LegalRow[])[0];
   const config = parseShippingLabelConfig(store.shippingLabelJson);
-  return { store, legal, config, sender: labelSender(store, legal, config) };
+  return { store, legal, config, sender: labelSender(store, legal, config, delivery) };
 }
 
 /** Single store per database, like getStore. */
@@ -123,11 +124,11 @@ function toParcel(row: ParcelRow, lines: readonly LineRow[]): LabelParcel {
   };
 }
 
-function batchOf(store: StoreRow, legal: LegalRow | undefined, parcels: LabelParcel[]): LabelBatch {
+function batchOf(store: StoreRow, legal: LegalRow | undefined, parcels: LabelParcel[], delivery: MediaDelivery): LabelBatch {
   const config = parseShippingLabelConfig(store.shippingLabelJson);
   return {
     config,
-    sender: labelSender(store, legal, config),
+    sender: labelSender(store, legal, config, delivery),
     currency: { code: store.currency, symbol: store.currencySymbol },
     parcels,
   };
@@ -137,7 +138,7 @@ function batchOf(store: StoreRow, legal: LegalRow | undefined, parcels: LabelPar
  * The labels of these driver shipments, in the order asked. `missing` names
  * the ids that are no shipment, or a carrier's — which prints its own label.
  */
-export async function loadDriverLabels(db: AppDb, shipmentIds: readonly string[]): Promise<{ batch: LabelBatch; missing: string[] } | null> {
+export async function loadDriverLabels(db: AppDb, shipmentIds: readonly string[], delivery: MediaDelivery): Promise<{ batch: LabelBatch; missing: string[] } | null> {
   const ids = [...new Set(shipmentIds)];
   const chunks = chunkIds(ids);
   const statements = [
@@ -153,7 +154,7 @@ export async function loadDriverLabels(db: AppDb, shipmentIds: readonly string[]
   const lines = (rest.slice(chunks.length) as LineRow[][]).flat();
   const byId = new Map(parcelRows.map((row) => [row.shipmentId!, toParcel(row, lines)]));
   return {
-    batch: batchOf(store, (legalRows as LegalRow[])[0], ids.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []))),
+    batch: batchOf(store, (legalRows as LegalRow[])[0], ids.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])), delivery),
     missing: ids.filter((id) => !byId.has(id)),
   };
 }
@@ -166,7 +167,7 @@ const stillOut = and(isNull(shipments.deliveredAt), isNull(shipments.returnedAt)
  * they were given, and what they have to collect in all. Null when the
  * driver does not exist.
  */
-export async function loadDeliverySheet(db: AppDb, driverId: string) {
+export async function loadDeliverySheet(db: AppDb, driverId: string, delivery: MediaDelivery) {
   const open = and(eq(shipments.kind, "driver"), eq(shipments.driverId, driverId), stillOut);
   const [storeRows, legalRows, driverRows, parcelRows, lineRows] = await db.batch([
     db.select().from(stores).limit(1),
@@ -180,7 +181,7 @@ export async function loadDeliverySheet(db: AppDb, driverId: string) {
   if (!store || !driver) return null;
   const parcels = (parcelRows as ParcelRow[]).map((row) => toParcel(row, lineRows as LineRow[]));
   return {
-    batch: batchOf(store, (legalRows as LegalRow[])[0], parcels),
+    batch: batchOf(store, (legalRows as LegalRow[])[0], parcels, delivery),
     driver: { id: driver.id, name: `${driver.firstName} ${driver.lastName}`.trim(), phone: driver.phone },
     total: { parcels: parcels.length, amount: parcels.reduce((sum, parcel) => sum + parcel.amount, 0) },
   };

@@ -12,9 +12,12 @@ import { errorHandler } from "@/middleware/error";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
 import * as handlers from "./handlers";
 import * as queries from "./queries";
+import * as writes from "@/lib/product-groups";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 // Mock the queries module
 vi.mock("./queries");
+vi.mock("@/lib/product-groups");
 
 // Mock the database
 const mockDb = {} as any;
@@ -30,7 +33,7 @@ describe("Product Groups Endpoint - Error Scenarios", () => {
     
     // Add middleware to inject mock env and user
     app.use("*", async (c, next) => {
-      c.env = { DB: mockDb } as any;
+      c.env = { DB: mockDb, ...TEST_MEDIA_VARS } as any;
       signIn(c, {
         id: "user-123",
         email: "test@example.com",
@@ -84,14 +87,13 @@ describe("Product Groups Endpoint - Error Scenarios", () => {
         slug: "electronics-abc12345",
         description: "Electronic products",
         parentId: null,
-        imageUrl: null,
         metaTitle: null,
         metaDescription: null,
         metaKeywords: null,
         position: 0,
         createdAt: new Date("2024-01-01").toISOString(),
         updatedAt: new Date("2024-01-01").toISOString(),
-        imageKey: null,
+        image: null,
         children: [],
         productsCount: 5,
       });
@@ -115,7 +117,7 @@ describe("Product Groups Endpoint - Error Scenarios", () => {
   describe("PATCH /product-groups/:id", () => {
     it("should return 404 with PRODUCT_GROUP_NOT_FOUND code when group does not exist", async () => {
       // Mock updateGroup to return null
-      vi.mocked(queries.updateGroup).mockResolvedValue(null);
+      vi.mocked(writes.updateProductGroup).mockResolvedValue(null);
 
       const res = await app.request("/product-groups/group_nonexistent", {
         method: "PATCH",
@@ -142,20 +144,19 @@ describe("Product Groups Endpoint - Error Scenarios", () => {
 
     it("should return 200 when group is updated successfully", async () => {
       // Mock successful update
-      vi.mocked(queries.updateGroup).mockResolvedValue({
+      vi.mocked(writes.updateProductGroup).mockResolvedValue({
         id: "group_123",
         name: "Updated Electronics",
         slug: "electronics-abc12345",
         description: "Updated description",
         parentId: null,
-        imageUrl: null,
         metaTitle: null,
         metaDescription: null,
         metaKeywords: null,
         position: 0,
         createdAt: new Date("2024-01-01").toISOString(),
         updatedAt: new Date("2024-01-02").toISOString(),
-        imageKey: null,
+        image: null,
         children: [],
         productsCount: 5,
       });
@@ -211,14 +212,13 @@ describe("Product Groups Endpoint - Error Scenarios", () => {
         slug: "electronics-abc12345",
         description: "Electronic products",
         parentId: null,
-        imageUrl: null,
         metaTitle: null,
         metaDescription: null,
         metaKeywords: null,
         position: 0,
         createdAt: new Date("2024-01-01").toISOString(),
         updatedAt: new Date("2024-01-01").toISOString(),
-        imageKey: null,
+        image: null,
         children: [],
         productsCount: 5,
       });
@@ -249,18 +249,17 @@ describe("Product Groups Endpoint - Error Scenarios", () => {
         slug: "empty-group-abc12345",
         description: null,
         parentId: null,
-        imageUrl: null,
         metaTitle: null,
         metaDescription: null,
         metaKeywords: null,
         position: 0,
         createdAt: new Date("2024-01-01").toISOString(),
         updatedAt: new Date("2024-01-01").toISOString(),
-        imageKey: null,
+        image: null,
         children: [],
         productsCount: 0,
       });
-      vi.mocked(queries.deleteGroup).mockResolvedValue({ success: true });
+      vi.mocked(writes.deleteProductGroup).mockResolvedValue();
 
       const res = await app.request("/product-groups/group_123", {
         method: "DELETE",
@@ -299,14 +298,13 @@ describe("Product Groups Endpoint - Error Scenarios", () => {
         slug: "electronics-abc12345",
         description: "Electronic products",
         parentId: null,
-        imageUrl: null,
         metaTitle: null,
         metaDescription: null,
         metaKeywords: null,
         position: 0,
         createdAt: new Date("2024-01-01").toISOString(),
         updatedAt: new Date("2024-01-01").toISOString(),
-        imageKey: null,
+        image: null,
         children: [],
         productsCount: 5,
       });

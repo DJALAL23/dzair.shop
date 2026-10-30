@@ -1,6 +1,6 @@
 /**
- * Removing a product through the real route stack onto real D1, with a
- * storage bucket that records what it was asked to delete.
+ * Removing a product through the real route stack onto real D1, with its
+ * files in the store's media (the R2 host on a real bucket).
  *
  * Proved: what the merchant is told beforehand is what happens; a product
  * that orders hold can be removed, and those orders keep their lines; the
@@ -16,6 +16,8 @@ import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
+import { TEST_MEDIA_VARS, testMedia } from "@/test-utils/media";
+import { webp } from "../../../../cod-shared/media/hosts/testing/files";
 import * as schema from "@/db/schema";
 import productsRouter from "./routes";
 
@@ -24,24 +26,33 @@ vi.mock("@/db", () => dbModule);
 
 const T = "2026-10-16T10:00:00.000Z";
 const KEY = (n: string) => `products/${n.repeat(32)}.webp`;
-const url = (key: string) => `https://media.example.com/${key}`;
+const ref = (key: string) => `media:${key}`;
+const FILES = [KEY("a"), KEY("b"), KEY("c"), KEY("d"), "landing/own.webp", "landing/shared.webp"];
 
 let d1: TestD1;
 let app: OpenAPIHono<AppContext>;
-let deletedKeys: string[] = [];
 let storageFails = false;
-const bucket = {
-  delete: async (keys: string | string[]) => {
-    if (storageFails) throw new Error("R2 unavailable");
-    deletedKeys.push(...(Array.isArray(keys) ? keys : [keys]));
-  },
-};
+
+/** The keys whose file and row the store's media still holds. */
+async function held(): Promise<string[]> {
+  const rows = new Set((await d1.db.select({ key: schema.media.key }).from(schema.media).all()).map((row) => row.key));
+  const kept: string[] = [];
+  for (const key of FILES) if (rows.has(key) && (await d1.bucket.head(key))) kept.push(key);
+  return kept.sort();
+}
 
 beforeAll(async () => {
   d1 = await createTestD1();
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: d1.raw, IMAGES: bucket } as never;
+    const bucket = new Proxy(d1.bucket, {
+      get(target, name) {
+        if (name === "delete" && storageFails) return () => Promise.reject(new Error("R2 unavailable"));
+        const value = Reflect.get(target, name);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    c.env = { DB: d1.raw, MEDIA_BUCKET: bucket, ...TEST_MEDIA_VARS } as never;
     signIn(c, { id: "u1", email: "s@example.com", name: "Staff", role: "staff", status: "active", apiKey: "k", scopes: ["products:read", "products:manage"] } as never);
     await next();
   });
@@ -55,17 +66,18 @@ afterAll(async () => {
 
 beforeEach(async () => {
   dbModule.getDb.mockReturnValue(d1.db);
-  deletedKeys = [];
   storageFails = false;
   const db = d1.db;
   for (const table of [
-    schema.shipments, schema.reviews, schema.orderProducts, schema.orderStatusHistory, schema.orders, schema.abandonedOrders,
+    schema.media, schema.shipments, schema.reviews, schema.orderProducts, schema.orderStatusHistory, schema.orders, schema.abandonedOrders,
     schema.landingPageImages, schema.landingPages, schema.offers, schema.stockMovements, schema.productImages,
     schema.productVariants, schema.products, schema.productCategories, schema.customers, schema.deliveryCompanies, schema.stores,
   ]) {
     await db.delete(table);
   }
-  await db.insert(schema.stores).values({ id: "s1", name: "Store", logoUrl: url(KEY("c")), createdAt: T, updatedAt: T });
+  for (const key of await held()) await d1.bucket.delete(key);
+  for (const key of FILES) await testMedia(d1).store({ key, contentType: "image/webp", body: webp() });
+  await db.insert(schema.stores).values({ id: "s1", name: "Store", logoKey: KEY("c"), createdAt: T, updatedAt: T });
   await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T });
   await db.insert(schema.deliveryCompanies).values({ id: "co", name: "ZR", nameAr: "-", code: "zr_express", provider: "zr_express", createdAt: T, updatedAt: T });
 
@@ -73,15 +85,15 @@ beforeEach(async () => {
   await db.insert(schema.products).values({
     ...product, id: "p1", name: "Robe", handle: "robe", sku: "ROBE", hasVariants: true,
     // An inline image of its own, and the store logo (still shown by the store).
-    description: `<p><img src="${url(KEY("b"))}"><img src="${url(KEY("c"))}"></p>`,
+    description: `<p><img src="${ref(KEY("b"))}"><img src="${ref(KEY("c"))}"></p>`,
     descriptionFormat: "html",
   });
-  await db.insert(schema.products).values({ ...product, id: "p2", name: "Foulard", handle: "foulard", sku: "FOU", description: `<img src="${url(KEY("d"))}">`, descriptionFormat: "html" });
+  await db.insert(schema.products).values({ ...product, id: "p2", name: "Foulard", handle: "foulard", sku: "FOU", description: `<img src="${ref(KEY("d"))}">`, descriptionFormat: "html" });
   await db.insert(schema.productVariants).values({ id: "v1", productId: "p1", variations: "{}", price: 1500, sku: "ROBE-M", inventory: 4, createdAt: T, updatedAt: T });
   await db.insert(schema.productImages).values([
-    { id: "i1", productId: "p1", src: url(KEY("a")), r2Key: KEY("a"), createdAt: T, updatedAt: T },
+    { id: "i1", productId: "p1", mediaKey: KEY("a"), createdAt: T, updatedAt: T },
     // The same file as p2's description: it must stay.
-    { id: "i2", productId: "p1", src: url(KEY("d")), r2Key: KEY("d"), position: 2, createdAt: T, updatedAt: T },
+    { id: "i2", productId: "p1", mediaKey: KEY("d"), position: 2, createdAt: T, updatedAt: T },
   ]);
   await db.insert(schema.offers).values({ id: "of1", name: "Gift", triggerProductId: "p2", rewardProductId: "p1", createdAt: T, updatedAt: T });
   await db.insert(schema.landingPages).values([
@@ -90,9 +102,9 @@ beforeEach(async () => {
     { id: "lp2", slug: "foulard-ete", name: "Foulard été", productId: "p2", createdAt: T, updatedAt: T },
   ]);
   await db.insert(schema.landingPageImages).values([
-    { id: "li1", landingPageId: "lp1", r2Key: "landing/own.webp", src: "https://media.example.com/landing/own.webp", createdAt: T },
-    { id: "li2", landingPageId: "lp1", r2Key: "landing/shared.webp", src: "https://media.example.com/landing/shared.webp", createdAt: T },
-    { id: "li3", landingPageId: "lp2", r2Key: "landing/shared.webp", src: "https://media.example.com/landing/shared.webp", createdAt: T },
+    { id: "li1", landingPageId: "lp1", mediaKey: "landing/own.webp", createdAt: T },
+    { id: "li2", landingPageId: "lp1", mediaKey: "landing/shared.webp", createdAt: T },
+    { id: "li3", landingPageId: "lp2", mediaKey: "landing/shared.webp", createdAt: T },
   ]);
 
   const order = { customerId: "c1", customerName: "Karim", phone: "0551234567", price: 1500, createdAt: T, updatedAt: T };
@@ -162,18 +174,19 @@ describe("what removing a product does", () => {
 
   it("deletes only the image files nothing else still shows", async () => {
     await request("DELETE", "/p1");
-    expect(deletedKeys.sort()).toEqual([KEY("a"), KEY("b"), "landing/own.webp"].sort());
+    expect(await held()).toEqual([KEY("c"), KEY("d"), "landing/shared.webp"].sort());
   });
 
   it("a storage failure leaves the files for the sweep; the product is still removed", async () => {
     storageFails = true;
     expect((await request("DELETE", "/p1")).status).toBe(200);
     expect(await d1.db.select().from(schema.products).where(eq(schema.products.id, "p1")).all()).toEqual([]);
+    expect(await held()).toEqual([...FILES].sort());
   });
 
   it("an unknown product is not found", async () => {
     expect((await request("DELETE", "/nope")).status).toBe(404);
-    expect(deletedKeys).toEqual([]);
+    expect(await held()).toEqual([...FILES].sort());
   });
 });
 

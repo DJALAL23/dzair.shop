@@ -41,6 +41,7 @@ import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import storeRouter from "./routes";
 import { CodCapiWorkflow } from "@/workflows/capi";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 let harness: TestD1;
 let app: OpenAPIHono<AppContext>;
@@ -53,7 +54,7 @@ beforeAll(async () => {
 
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: harness.raw } as never;
+    c.env = { DB: harness.raw, ...TEST_MEDIA_VARS } as never;
     c.set("storeId", STORE_ID);
     await next();
   });

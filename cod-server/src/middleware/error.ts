@@ -8,6 +8,8 @@
 import { Context } from "hono";
 import { ZodError } from "zod";
 import { AppError } from "@/lib/errors/classes";
+import { mediaAppError } from "@/lib/media";
+import { MediaError } from "../../../cod-shared/media/errors";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../cod-shared/errors/codes";
 
 /**
@@ -57,6 +59,9 @@ export function errorHandler(err: Error, c: Context): Response {
 
     return c.json(response, 400);
   }
+
+  // A Media Library refusal or failure, as the server answers it
+  if (err instanceof MediaError) err = mediaAppError(err);
 
   // Handle custom AppError instances
   if (err instanceof AppError) {

@@ -11,6 +11,7 @@ import {
   eq,
   and,
   isNull,
+  isNotNull,
   desc,
   sql,
   getTableColumns,
@@ -64,6 +65,8 @@ import { resolveDeliveryFee } from "./shipping-resolution";
 import { normalizeOrderLines } from "./cart";
 import { resolvePublicTracking } from "./tracking-config";
 import { chunkIds } from "./d1-limits";
+import type { MediaDelivery } from "../media/delivery";
+import { categoryView, imageOf, productImageView, productImageViews, servedDescription } from "../media/views";
 import { isFeaturedSql } from "./collections";
 import { FEATURED_COLLECTION } from "../catalog/collections";
 import { getFooterPages, getPublicLegalContact } from "./store-pages";
@@ -172,6 +175,7 @@ export async function orderPlacedWith(db: AppDb, checkoutKey: string) {
 export async function getStoreConfig(
   db: AppDb,
   storeId: string,
+  delivery: MediaDelivery,
   request: { theme?: string; locale?: string } = {},
 ) {
   const [store, localeRows] = await Promise.all([
@@ -215,10 +219,14 @@ export async function getStoreConfig(
   // The storefront API key is the credential the caller already presented; it
   // has no business in a payload a theme may hand to templates.
   const [translated] = overlayTranslations("store", [store], storeTranslations);
-  const { checkoutFormJson, whatsappWidgetJson, shippingLabelJson: _labels, storeApiKey, ...publicStore } = translated!;
+  const { checkoutFormJson, whatsappWidgetJson, shippingLabelJson: _labels, storeApiKey, logoUrl: _logoUrl, ogImage: _ogImage, logoKey, ogImageKey, ...publicStore } = translated!;
 
   return {
     ...publicStore,
+    logo: imageOf(logoKey, delivery),
+    ogImage: imageOf(ogImageKey, delivery),
+    // How the storefront fetches and resizes every image key (ADR 0021).
+    media: delivery,
     locale: served.locale,
     // The published languages, primary first, with what a theme needs to
     // render each, and only their edits — an unpublished language's drafts
@@ -448,24 +456,25 @@ export async function countStoreProducts(db: AppDb, params: StoreProductsParams,
  * The photo a collection shows until a merchant can pick one: the first
  * image of the first product it lists, in the merchant's order, that has one.
  */
-export async function collectionCover(db: AppDb, handle: string): Promise<typeof productImages.$inferSelect | null> {
+export async function collectionCover(db: AppDb, handle: string, delivery: MediaDelivery) {
   const row = await db
     .select(getTableColumns(productImages))
     .from(collectionProducts)
     .innerJoin(collections, eq(collections.id, collectionProducts.collectionId))
     .innerJoin(products, eq(products.id, collectionProducts.productId))
     .innerJoin(productImages, eq(productImages.productId, products.id))
-    .where(and(eq(collections.handle, handle), ...listable()))
+    .where(and(eq(collections.handle, handle), isNotNull(productImages.mediaKey), ...listable()))
     .orderBy(asc(collectionProducts.position), desc(products.createdAt), asc(products.id), asc(productImages.position), asc(productImages.id))
     .limit(1)
     .get();
-  return row ?? null;
+  return row ? productImageView(row, delivery) : null;
 }
 
 export async function getStoreProducts(
   db: AppDb,
   params: StoreProductsParams,
-  locale: StoreLocale | null = null,
+  locale: StoreLocale | null,
+  delivery: MediaDelivery,
 ) {
   const { where, collection, order } = storeProductsQuery(params, locale);
   const query = db
@@ -498,7 +507,7 @@ export async function getStoreProducts(
     db
       .select()
       .from(productImages)
-      .where(inArray(productImages.productId, chunk))
+      .where(and(inArray(productImages.productId, chunk), isNotNull(productImages.mediaKey)))
       .orderBy(productImages.productId, productImages.position),
   );
   const inventoryStatements = chunkIds(ids).map((chunk) =>
@@ -544,8 +553,9 @@ export async function getStoreProducts(
       ...productData,
       ...PUBLISHED_SDK_FIELDS,
       inventory,
+      description: servedDescription(p.description, p.descriptionFormat, delivery),
       descriptionPlain: await deriveDescriptionPlain(p.description, p.descriptionFormat),
-      coverImage: coverImageByProduct.get(p.id) ?? null,
+      coverImage: productImageView(coverImageByProduct.get(p.id) ?? null, delivery),
       reviewStats:
         reviewCount > 0 ? { avgRating: avgRating ?? 0, reviewCount } : null,
     };
@@ -563,15 +573,16 @@ export async function getStoreProducts(
 export async function getStoreProductByHandle(
   db: AppDb,
   handle: string,
-  opts?: { allowUnlisted?: boolean; locale?: StoreLocale | null },
+  opts: { delivery: MediaDelivery; allowUnlisted?: boolean; locale?: StoreLocale | null },
 ) {
-  const locale = opts?.locale ?? null;
+  const { delivery } = opts;
+  const locale = opts.locale ?? null;
   const conditions = [
     eq(products.handle, handle),
     eq(products.status, "ACTIVE"),
     eq(products.visibility, true),
   ];
-  if (!opts?.allowUnlisted) conditions.push(eq(products.showInStore, true));
+  if (!opts.allowUnlisted) conditions.push(eq(products.showInStore, true));
 
   const source = await db
     .select({ ...getTableColumns(products), storeFeatured: storeFeaturedColumn })
@@ -720,13 +731,14 @@ export async function getStoreProductByHandle(
     inventory: totalInventory,
     variantOptions: product.variantOptions ? JSON.parse(product.variantOptions) : null,
     tags: product.tags ? JSON.parse(product.tags) : [],
+    description: servedDescription(product.description, product.descriptionFormat, delivery),
     descriptionPlain: await deriveDescriptionPlain(product.description, product.descriptionFormat),
-    category: translatedCategory,
+    category: translatedCategory ? categoryView(translatedCategory, delivery) : null,
     variants: variants.map((v) => ({
       ...v,
       variations: translated.variations(product.id, JSON.parse(v.variations)),
     })),
-    images,
+    images: productImageViews(images, delivery),
     quantityPricing,
     offers: resolvedOffers,
     reviewStats:
@@ -739,11 +751,10 @@ export async function getStoreProductByHandle(
   };
 }
 
-export async function getStoreCategories(db: AppDb, locale: StoreLocale | null = null) {
+export async function getStoreCategories(db: AppDb, locale: StoreLocale | null, delivery: MediaDelivery) {
   const rows = await db.select().from(productCategories).orderBy(productCategories.position).all();
-  if (locale === null) return rows;
-  const translated = await listTranslations(db, "category", rows.map((row) => row.id), locale);
-  return overlayTranslations("category", rows, translated);
+  const served = locale === null ? rows : overlayTranslations("category", rows, await listTranslations(db, "category", rows.map((row) => row.id), locale));
+  return served.map((row) => categoryView(row, delivery));
 }
 
 export async function getStoreCommunes(db: AppDb, wilayaId: number) {

@@ -28,7 +28,7 @@ export interface ReviewFilters {
 export interface ReviewMediaRow {
   id: string;
   kind: ReviewMediaKind;
-  r2Key: string;
+  mediaKey: string;
   thumbKey: string | null;
   contentType: string;
   bytes: number;
@@ -84,7 +84,7 @@ const mediaFields = {
   reviewId: reviewMedia.reviewId,
   id: reviewMedia.id,
   kind: reviewMedia.kind,
-  r2Key: reviewMedia.r2Key,
+  mediaKey: reviewMedia.mediaKey,
   thumbKey: reviewMedia.thumbKey,
   contentType: reviewMedia.contentType,
   bytes: reviewMedia.bytes,
@@ -144,7 +144,7 @@ export async function updateReviewStatus(db: AppDb, id: string, status: Moderati
   return getReviewById(db, id);
 }
 
-const keysOf = (rows: Array<{ r2Key: string; thumbKey: string | null }>) => rows.flatMap((row) => [row.r2Key, ...(row.thumbKey ? [row.thumbKey] : [])]);
+const keysOf = (rows: Array<{ mediaKey: string; thumbKey: string | null }>) => rows.flatMap((row) => [row.mediaKey, ...(row.thumbKey ? [row.thumbKey] : [])]);
 
 /** Removes a review and its media rows; returns what it was and the R2 keys of its files, or null. */
 export async function deleteReview(db: AppDb, id: string): Promise<{ review: MerchantReview; fileKeys: string[] } | null> {
@@ -155,12 +155,12 @@ export async function deleteReview(db: AppDb, id: string): Promise<{ review: Mer
   return { review, fileKeys: keysOf(review.media) };
 }
 
-/** Takes one photo or the voice note off a review; returns its R2 keys, or null when it is not on that review. */
+/** Takes one photo or the voice note off a review; returns its Media Keys, or null when it is not on that review. */
 export async function deleteReviewMedia(db: AppDb, reviewId: string, mediaId: string): Promise<{ fileKeys: string[]; kind: ReviewMediaKind } | null> {
   const [removed] = await db
     .delete(reviewMedia)
     .where(and(eq(reviewMedia.id, mediaId), eq(reviewMedia.reviewId, reviewId)))
-    .returning({ r2Key: reviewMedia.r2Key, thumbKey: reviewMedia.thumbKey, kind: reviewMedia.kind });
+    .returning({ mediaKey: reviewMedia.mediaKey, thumbKey: reviewMedia.thumbKey, kind: reviewMedia.kind });
   if (!removed) return null;
   await db.update(reviews).set({ updatedAt: new Date().toISOString() }).where(eq(reviews.id, reviewId));
   return { fileKeys: keysOf([removed]), kind: removed.kind };

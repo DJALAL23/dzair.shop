@@ -20,6 +20,7 @@ import { storeAuthMiddleware } from "@/middleware/storeAuth";
 import storeRouter from "../store/routes";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 let db: AppDb;
 let rawD1: D1Database;
@@ -50,7 +51,7 @@ beforeAll(async () => {
 
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: rawD1 as any } as any;
+    c.env = { DB: rawD1 as any, ...TEST_MEDIA_VARS } as any;
     await next();
   });
   app.use("/store/*", storeAuthMiddleware);
@@ -144,7 +145,7 @@ async function seedPublishedLp(slug: string, productId: string) {
   });
   await db.insert(schema.landingPageImages).values({
     id: `${slug}-img-1`, landingPageId: slug,
-    r2Key: `landing/${slug}-1.jpg`, src: `https://m.example/${slug}-1.jpg`,
+    mediaKey: `landing/${slug}-1.jpg`,
     altText: "صورة 1", source: "upload", position: 1, createdAt: now,
   });
 }

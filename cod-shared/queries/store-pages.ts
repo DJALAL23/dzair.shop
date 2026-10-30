@@ -16,7 +16,9 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { storePages, storePageTranslations, storeLegalProfile, stores } from "../db/schema";
 import type { AppDb } from "../db/client";
-import { sanitizeRichText, toPlainText } from "../lib/rich-text";
+import { toPlainText } from "../lib/rich-text";
+import type { MediaDelivery } from "../media/delivery";
+import { storedRichText, toServedHtml } from "../media/rich-text";
 import {
   LEGAL_PAGE_KINDS,
   LEGAL_PAGE_DEFAULTS,
@@ -136,8 +138,9 @@ async function writeTranslation(
   input: SaveTranslationInput,
   source: "template" | "merchant",
   now: string,
+  delivery: MediaDelivery,
 ): Promise<StorePageTranslationRow> {
-  const bodyHtml = (await sanitizeRichText(input.bodyHtml)).html;
+  const bodyHtml = await storedRichText(input.bodyHtml, delivery);
   const bodyPlain = await toPlainText(bodyHtml);
 
   const row: StorePageTranslationRow = {
@@ -168,7 +171,7 @@ async function writeTranslation(
       },
     });
 
-  return row;
+  return { ...row, bodyHtml: toServedHtml(row.bodyHtml, delivery) };
 }
 
 /**
@@ -181,8 +184,9 @@ export async function saveTranslation(
   pageId: string,
   locale: PageLocale,
   input: SaveTranslationInput,
+  delivery: MediaDelivery,
 ): Promise<StorePageTranslationRow> {
-  return writeTranslation(db, pageId, locale, input, "merchant", new Date().toISOString());
+  return writeTranslation(db, pageId, locale, input, "merchant", new Date().toISOString(), delivery);
 }
 
 /**
@@ -199,6 +203,7 @@ export async function resetTranslationToTemplate(
   storeId: string,
   pageId: string,
   locale: PageLocale,
+  delivery: MediaDelivery,
 ): Promise<StorePageTranslationRow | null> {
   const page = await db
     .select()
@@ -222,6 +227,7 @@ export async function resetTranslationToTemplate(
     { title: rendered.title, bodyHtml: rendered.bodyHtml, metaDescription: rendered.metaDescription },
     "template",
     now,
+    delivery,
   );
 
   await db
@@ -252,6 +258,7 @@ function isLegalKind(kind: StorePageKind): kind is LegalPageKind {
 export async function seedStorePages(
   db: AppDb,
   storeId: string,
+  delivery: MediaDelivery,
 ): Promise<{ created: LegalPageKind[] }> {
   const store = await db.select({ name: stores.name }).from(stores).where(eq(stores.id, storeId)).get();
   if (!store) return { created: [] };
@@ -299,6 +306,7 @@ export async function seedStorePages(
         { title: rendered.title, bodyHtml: rendered.bodyHtml, metaDescription: rendered.metaDescription },
         "template",
         now,
+        delivery,
       );
     }
   }
@@ -361,6 +369,7 @@ export async function getStorePageById(
   db: AppDb,
   storeId: string,
   id: string,
+  delivery: MediaDelivery,
 ): Promise<StorePageDetail | null> {
   const page = await db
     .select()
@@ -375,7 +384,7 @@ export async function getStorePageById(
     .where(eq(storePageTranslations.pageId, id));
 
   const bodies = Object.fromEntries(PAGE_LOCALES.map((l) => [l, undefined])) as StorePageDetail["bodies"];
-  for (const t of translations) bodies[t.locale] = t;
+  for (const t of translations) bodies[t.locale] = { ...t, bodyHtml: toServedHtml(t.bodyHtml, delivery) };
 
   return { ...summarise(page, translations), bodies };
 }
@@ -429,6 +438,7 @@ export async function resolvePublishedPage(
   db: AppDb,
   storeId: string,
   slug: string,
+  delivery: MediaDelivery,
   locale: PageLocale,
   primary: PageLocale = locale,
 ): Promise<ResolvedStorePage | null> {
@@ -458,7 +468,7 @@ export async function resolvePublishedPage(
     slug: page.slug,
     locale: resolved.locale as PageLocale,
     title: resolved.title,
-    bodyHtml: resolved.bodyHtml,
+    bodyHtml: toServedHtml(resolved.bodyHtml, delivery),
     metaTitle: resolved.metaTitle,
     metaDescription: resolved.metaDescription,
     bodyPlain: resolved.bodyPlain,
@@ -512,6 +522,7 @@ export async function createCustomPage(
   db: AppDb,
   storeId: string,
   input: CreateCustomPageInput,
+  delivery: MediaDelivery,
 ): Promise<{ id: string; slug: string }> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -536,6 +547,7 @@ export async function createCustomPage(
     { title: input.title, bodyHtml: input.bodyHtml, metaTitle: input.metaTitle, metaDescription: input.metaDescription },
     "merchant",
     now,
+    delivery,
   );
 
   return { id, slug: input.slug };

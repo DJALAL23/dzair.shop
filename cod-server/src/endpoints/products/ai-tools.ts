@@ -10,6 +10,8 @@ import {
   updateStatusSchema,
 } from "./validation";
 import { getDb } from "@/db";
+import { mediaDeliveryOf } from "@/lib/media";
+import type { Env } from "@/types/env";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 
 /**
@@ -76,7 +78,7 @@ export const PRODUCT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         hasVariants: z.boolean(),
         variantsCount: z.number().int(),
         totalInventory: z.number().int().describe("Variant stock sum, or own stock for simple products"),
-        primaryImageSrc: z.string().nullable(),
+        primaryImage: z.object({ key: z.string(), url: z.string(), width: z.number().nullable(), height: z.number().nullable() }).nullable().describe("The first image of the gallery"),
         categoryId: z.string().nullable(),
         tags: z.array(z.string()),
         reviewCount: z.number().int().describe("Approved reviews only"),
@@ -124,7 +126,7 @@ export const PRODUCT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * - Status values: DRAFT | ACTIVE | ARCHIVED. Setting ACTIVE auto-sets publishedAt.
  * - Delete removes the product for good, even one that orders hold (their lines keep what was sold).
  */
-export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: Pick<R2Bucket, "delete"> }) => ({
+export const getProductTools = (db: ReturnType<typeof getDb>, env: Env) => ({
 
   listProducts: tool({
     description:
@@ -145,7 +147,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
       }
 
       try {
-        const products = await queries.getAllProducts(db, parsed.data);
+        const products = await queries.getAllProducts(db, mediaDeliveryOf(env), parsed.data);
         return {
           success: true,
           count: products.length,
@@ -160,7 +162,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
             hasVariants: p.hasVariants,
             variantsCount: p.variantsCount,
             totalInventory: p.totalInventory,
-            primaryImageSrc: p.primaryImageSrc,
+            primaryImage: p.primaryImage,
             categoryId: p.categoryId,
             tags: p.tags,
             reviewCount: p.reviewCount,
@@ -198,7 +200,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
       }
 
       try {
-        const product = await queries.getProductById(db, parsed.data.productId);
+        const product = await queries.getProductById(db, parsed.data.productId, mediaDeliveryOf(env));
         if (!product) {
           return {
             success: false,
@@ -268,7 +270,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
         const { collectionIds, ...data } = parsed.data;
         const collections = await checkProductCollections(db, collectionIds);
         if (!collections.ok) return { success: false, error: `Unknown collections: ${collections.unknown.join(", ")}.` };
-        const product = await queries.createProduct(db, data);
+        const product = await queries.createProduct(db, data, mediaDeliveryOf(env));
         await collections.apply(product!.id);
         return {
           success: true,
@@ -331,7 +333,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
         const { collectionIds, ...updates } = parsed.data.updates;
         const collections = await checkProductCollections(db, collectionIds);
         if (!collections.ok) return { success: false, error: `Unknown collections: ${collections.unknown.join(", ")}.` };
-        const product = await queries.updateProduct(db, parsed.data.productId, updates);
+        const product = await queries.updateProduct(db, parsed.data.productId, updates, mediaDeliveryOf(env));
         if (!product) {
           return {
             success: false,
@@ -376,7 +378,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
       try {
         const product = await queries.updateProduct(db, parsed.data.productId, {
           status: parsed.data.status,
-        });
+        }, mediaDeliveryOf(env));
         if (!product) {
           return {
             success: false,
@@ -414,7 +416,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env?: { IMAGES?: P
       try {
         const removal = await queries.productRemoval(db, parsed.data.productId);
         if (!removal) return { success: false, error: `Product not found with ID: ${parsed.data.productId}` };
-        await removeProduct(db, env?.IMAGES, parsed.data.productId);
+        await removeProduct(db, env, parsed.data.productId);
         return {
           success: true,
           message:

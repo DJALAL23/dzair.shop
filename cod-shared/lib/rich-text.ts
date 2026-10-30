@@ -1,3 +1,5 @@
+import { isMediaRef } from "../media/keys";
+
 export type RichTextRemovalKind = "element" | "attribute" | "comment";
 
 export interface RichTextRemoval {
@@ -246,8 +248,8 @@ function isAllowedHref(value: string): boolean {
   return (RICH_TEXT_SCHEMES as readonly string[]).includes(scheme.toLowerCase());
 }
 
-function isHttpsSrc(value: string): boolean {
-  return urlScheme(value) === "https";
+function isImageSrc(value: string): boolean {
+  return urlScheme(value) === "https" || isMediaRef(value);
 }
 
 function isValidAttrValue(attr: string, value: string): boolean {
@@ -261,7 +263,7 @@ function isValidAttrValue(attr: string, value: string): boolean {
     );
   }
   if (attr === "href") return isAllowedHref(value);
-  if (attr === "src") return isHttpsSrc(value);
+  if (attr === "src") return isImageSrc(value);
   return true;
 }
 

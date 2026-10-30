@@ -32,7 +32,8 @@ import {
   translationView,
   type TranslatableResource,
 } from "../../../../cod-shared/i18n/translations";
-import { sanitizeRichText } from "../../../../cod-shared/lib/rich-text";
+import { mediaDeliveryOf } from "@/lib/media";
+import { storedRichText, toServedHtml } from "../../../../cod-shared/media/rich-text";
 import { getStore, listStoreLocales } from "../../../../cod-shared/queries/stores";
 import { listResourceTranslations, writeTranslations } from "../../../../cod-shared/queries/translations";
 import { storeLanguages } from "../../../../cod-shared/stores/settings";
@@ -120,6 +121,17 @@ export function registerTranslationRoutes(router: OpenAPIHono<AppContext>, optio
       listStoreLocales(db, store.id),
     ]);
     const view = await translationView(resource, record, rows);
+    // Rich text is stored with the store's images as keys; it is read with their URLs.
+    const delivery = mediaDeliveryOf(c.env);
+    for (const { key, field } of translatableSources(resource, record)) {
+      if (field.kind !== "html") continue;
+      const source = view.source[key];
+      if (source) view.source[key] = toServedHtml(source, delivery);
+      for (const fields of Object.values(view.translations)) {
+        const translated = fields?.[key];
+        if (translated) translated.value = toServedHtml(translated.value, delivery);
+      }
+    }
     const targetLocales = storeLanguages(store.lang, localeRows)
       .filter((language) => !language.primary)
       .map(({ locale, published }) => ({ locale, published }));
@@ -184,7 +196,7 @@ export function registerTranslationRoutes(router: OpenAPIHono<AppContext>, optio
           remove.push(key);
           continue;
         }
-        const stored = target!.field.kind === "html" ? (await sanitizeRichText(value)).html : value;
+        const stored = target!.field.kind === "html" ? await storedRichText(value, mediaDeliveryOf(c.env)) : value;
         set.push({ key, value: stored, sourceDigest: await sourceDigest(target!.source) });
       }
       const options = parseVariantOptions(record.variantOptions);

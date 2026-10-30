@@ -83,7 +83,7 @@ Create a new product group.
     "slug": "summer-2026",
     "description": "Seasonal highlights",
     "parentId": "uuid-or-null",
-    "imageUrl": "https://example.com/img.jpg",
+    "imageKey": "products/3f2a9c0b1d2e4f5061728394a5b6c7d8.webp",
     "metaTitle": "SEO title (max 60 chars)",
     "metaDescription": "SEO description (max 160 chars)",
     "metaKeywords": "comma, separated, keywords",
@@ -96,7 +96,7 @@ Create a new product group.
     letters, numbers, hyphens).
   - `description` — optional, string or `null`.
   - `parentId` — optional, string or `null`.
-  - `imageUrl` — optional, must be a valid URL or `null`.
+  - `imageKey` — optional, the Media Key of a completed upload, or `null` to clear it; answered as `image` (a `MediaImage`).
   - `metaTitle` — optional, string ≤ 60 chars or `null`.
   - `metaDescription` — optional, string ≤ 160 chars or `null`.
   - `metaKeywords` — optional, string or `null`.
@@ -154,7 +154,7 @@ The exposed tools are:
 - **`getProductGroupDetails`** — Fetch one group by `groupId` (UUID), including
   its `children` and `productsCount`.
 - **`createProductGroup`** — Create a group. `name` required; same optional
-  fields as POST (`slug`, `description`, `parentId`, `imageUrl`, `position`,
+  fields as POST (`slug`, `description`, `parentId`, `imageKey`, `position`,
   `metaTitle`, `metaDescription`, `metaKeywords`).
 - **`updateProductGroup`** — Partial update by `groupId` (UUID) + `updates`
   object; `parentId: null` moves to top level, SEO fields `null` clear them.

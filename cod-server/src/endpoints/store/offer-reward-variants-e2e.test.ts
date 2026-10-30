@@ -14,6 +14,7 @@ import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
 import { getStoreProductByHandle } from "../../../../cod-shared/queries/store";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 let harness: TestD1;
 let db: AppDb;
@@ -120,7 +121,7 @@ describe("a product page's offer reward variants", () => {
     await offer("offer-b", "trigger", "gift-b", "gift-b-blue");
 
     sqlLog = [];
-    const page = await getStoreProductByHandle(db, "handle-trigger");
+    const page = await getStoreProductByHandle(db, "handle-trigger", { delivery: TEST_DELIVERY });
 
     const labels = Object.fromEntries(page!.offers.map((o) => [o.id, o.rewardVariantLabel]));
     expect(labels).toEqual({ "offer-a": "Red", "offer-b": "Blue" });
@@ -149,7 +150,7 @@ describe("a product page's offer reward variants", () => {
       updatedAt: NOW(),
     });
 
-    const page = await getStoreProductByHandle(db, "handle-trigger");
+    const page = await getStoreProductByHandle(db, "handle-trigger", { delivery: TEST_DELIVERY });
 
     const worth = Object.fromEntries(page!.offers.map((o) => [o.id, o.rewardUnitPrice]));
     expect(worth).toEqual({ "offer-a": 650, "offer-b": 400 });
@@ -172,7 +173,7 @@ describe("a product page's offer reward variants", () => {
       updatedAt: NOW(),
     });
 
-    const page = await getStoreProductByHandle(db, "handle-trigger");
+    const page = await getStoreProductByHandle(db, "handle-trigger", { delivery: TEST_DELIVERY });
 
     expect(page!.offers[0]!.rewardVariantLabel).toBeNull();
     expect(variantReads()).toHaveLength(0);

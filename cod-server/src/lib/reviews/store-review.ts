@@ -15,6 +15,7 @@ import { REVIEW_TEXT } from "../../../../cod-shared/reviews/policy";
 import { isMediaId } from "../../../../cod-shared/reviews/media";
 import { findReceived, receiveFile, type ReceivedFile } from "@/lib/review-media/receive";
 import { reviewMediaInstanceId, type ReviewMediaJob } from "@/lib/review-media/job";
+import type { Staging } from "@/lib/staging";
 
 /** What the store may attach: the hard limits, whatever shoppers are allowed. */
 export const STORE_ALLOWANCE = { maxPhotos: REVIEW_MAX_PHOTOS, voiceMaxSeconds: REVIEW_VOICE_LENGTHS[REVIEW_VOICE_LENGTHS.length - 1] };
@@ -27,17 +28,17 @@ export function staffFolder(userId: string): string {
 export interface StoreReviewDeps {
   db: AppDb;
   storeId: string;
-  bucket: R2Bucket;
+  staging: Staging;
   workflow?: Pick<Workflow, "create">;
 }
 
 export async function receiveStaffUpload(
-  deps: Pick<StoreReviewDeps, "bucket" | "workflow">,
+  deps: Pick<StoreReviewDeps, "staging" | "workflow">,
   userId: string,
   input: { body: ReadableStream<Uint8Array> | null; declaredBytes?: number; declaredDurationMs?: number },
 ): Promise<ReceivedFile> {
   if (!deps.workflow) throw new BusinessLogicError("Photos and voice notes are not set up on this server", ERROR_CODES.REVIEW_MEDIA_LIMIT, { max: 0 });
-  return receiveFile(deps.bucket, {
+  return receiveFile(deps.staging, {
     folder: staffFolder(userId),
     ...input,
     allowance: STORE_ALLOWANCE,
@@ -81,7 +82,7 @@ export async function createStoreReview(deps: StoreReviewDeps, actor: { id: stri
   const ids = [...new Set(input.uploads ?? [])];
   if (ids.some((id) => !isMediaId(id))) throw new BusinessLogicError("A file of this review was not received", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND);
   if (ids.length > 0 && !deps.workflow) throw new BusinessLogicError("Photos and voice notes are not set up on this server", ERROR_CODES.REVIEW_MEDIA_LIMIT, { max: 0 });
-  const uploads = ids.length ? await findReceived(deps.bucket, staffFolder(actor.id), ids) : [];
+  const uploads = ids.length ? await findReceived(deps.staging, staffFolder(actor.id), ids) : [];
   const photos = uploads.filter((upload) => upload.kind === "image").length;
   if (photos > STORE_ALLOWANCE.maxPhotos) throw new BusinessLogicError(`At most ${STORE_ALLOWANCE.maxPhotos} photos`, ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: "image", max: STORE_ALLOWANCE.maxPhotos });
   if (uploads.length - photos > 1) throw new BusinessLogicError("At most one voice note", ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: "audio", max: 1 });

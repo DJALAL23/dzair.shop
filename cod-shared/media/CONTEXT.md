@@ -38,7 +38,8 @@ _Avoid_: File id, external id
 
 **Staging**:
 The store's private R2 area, `staging/`, cleared after a day, for files that
-must be prepared before they are kept. Never served.
+must be prepared before they are kept. Never served, and it never reaches a
+kept file.
 _Avoid_: Temp bucket, uploads folder
 
 **Preparation**:

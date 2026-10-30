@@ -18,7 +18,6 @@ const DEFAULTS = {
   COD_DB_NAME: "codflow-os-db",
   COD_R2_BUCKET_NAME: "codflow-images",
   COD_SERVER_URL: "http://localhost:8787",
-  COD_MEDIA_DOMAIN: "media.example.com",
 };
 
 function parseEnv(text) {
@@ -58,6 +57,5 @@ export function getCloudEnv() {
     dbName: merged.COD_DB_NAME,
     bucketName: merged.COD_R2_BUCKET_NAME,
     serverUrl: merged.COD_SERVER_URL,
-    mediaDomain: merged.COD_MEDIA_DOMAIN,
   };
 }

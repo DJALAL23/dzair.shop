@@ -23,6 +23,7 @@ import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import type { AppContext } from "@/types";
 import storeRoutes from "../store/routes";
 import storesRouter from "./routes";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 const now = () => new Date().toISOString();
 
@@ -119,7 +120,7 @@ describe("store languages through the real routes", () => {
     harness = await createTestD1();
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
-      c.env = { DB: harness.raw } as AppContext["Bindings"];
+      c.env = { DB: harness.raw, ...TEST_MEDIA_VARS } as AppContext["Bindings"];
       c.set("storeId", STORE_ID);
       signIn(c, { id: "admin", role: "admin", status: "active" } as never);
       await next();

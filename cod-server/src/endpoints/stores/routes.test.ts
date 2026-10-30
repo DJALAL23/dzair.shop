@@ -11,6 +11,7 @@ import { openApiValidationHook } from "@/openapi/validation-hook";
 import { ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
 import storesRouter from "./routes";
 import * as queries from "./queries";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 const mockDb = {
   select: vi.fn(),
@@ -72,7 +73,7 @@ describe("Stores routes (OpenAPIHono)", () => {
   beforeEach(() => {
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
-      c.env = { DB: mockDb } as any;
+      c.env = { DB: mockDb, ...TEST_MEDIA_VARS } as any;
       signIn(c, {
         id: "admin_user_001",
         email: "admin@example.com",

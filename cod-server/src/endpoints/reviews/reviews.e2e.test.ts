@@ -1,6 +1,7 @@
 /**
  * Reviews as the merchant works with them, through the real /api/reviews
- * routes on real D1 and a real (local) R2 bucket.
+ * routes on real D1, the review's files in the store's media (the R2 host on
+ * a real local bucket).
  *
  * Proved: the list shows landed reviews with their media and filters by
  * status, source and media; decisions need reviews:manage and never touch a
@@ -15,12 +16,13 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { Miniflare } from "miniflare";
 import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
+import { TEST_DELIVERY, TEST_MEDIA_VARS, testMedia } from "@/test-utils/media";
+import { webp } from "../../../../cod-shared/media/hosts/testing/files";
 import * as schema from "@/db/schema";
 import type { ReviewMediaJob } from "@/lib/review-media/job";
 import { removeProduct } from "@/lib/remove-product";
@@ -35,7 +37,6 @@ const OGG = Uint8Array.from([0x4f, 0x67, 0x67, 0x53, ...new Array(100).fill(1)])
 const ALL = ["reviews:read", "reviews:manage", "reviews:create"];
 
 let d1: TestD1;
-let r2mf: Miniflare;
 let bucket: R2Bucket;
 let app: OpenAPIHono<AppContext>;
 let scopes: string[];
@@ -43,15 +44,14 @@ let jobs: Array<{ id: string; params: ReviewMediaJob }>;
 
 beforeAll(async () => {
   d1 = await createTestD1();
-  r2mf = new Miniflare({ modules: true, script: "export default { fetch() { return new Response('ok'); } }", r2Buckets: ["IMAGES"] });
-  bucket = (await r2mf.getR2Bucket("IMAGES")) as unknown as R2Bucket;
+  bucket = d1.bucket;
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
     c.env = {
       DB: d1.raw,
-      IMAGES: bucket,
+      MEDIA_BUCKET: bucket,
       ENVIRONMENT: "production",
-      MEDIA_DOMAIN: "media.example.com",
+      ...TEST_MEDIA_VARS,
       REVIEW_MEDIA_WORKFLOW: { create: async (options: { id: string; params: ReviewMediaJob }) => (jobs.push(options), {} as never) },
     } as never;
     signIn(c, { id: "u1", email: "s@example.com", name: "Samia", role: "staff", status: "active", apiKey: "k", scopes } as never);
@@ -63,14 +63,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await d1?.dispose();
-  await r2mf?.dispose();
 });
 
 beforeEach(async () => {
   scopes = ALL;
   jobs = [];
   const db = d1.db;
-  for (const table of [schema.activityLogs, schema.reviewMedia, schema.reviews, schema.shipments, schema.orderProducts, schema.orders, schema.products, schema.customers, schema.deliveryCompanies, schema.stores]) {
+  for (const table of [schema.media, schema.activityLogs, schema.reviewMedia, schema.reviews, schema.shipments, schema.orderProducts, schema.orders, schema.products, schema.customers, schema.deliveryCompanies, schema.stores]) {
     await db.delete(table);
   }
   const listed = await bucket.list();
@@ -110,10 +109,12 @@ beforeEach(async () => {
     { ...review, id: "rP", customerName: "Sofiane", status: "processing", createdAt: "2026-10-16T09:30:00.000Z" },
   ]);
   await db.insert(schema.reviewMedia).values([
-    { id: "m1", reviewId: "rA", kind: "image", r2Key: "reviews/rA/m1.webp", thumbKey: "reviews/rA/m1-t.webp", contentType: "image/webp", bytes: 9000, width: 1600, height: 1200, position: 0, createdAt: T },
-    { id: "m2", reviewId: "rA", kind: "audio", r2Key: "reviews/rA/m2.ogg", contentType: "audio/ogg", bytes: 7000, durationMs: 12000, position: 1, createdAt: T },
+    { id: "m1", reviewId: "rA", kind: "image", mediaKey: "reviews/rA/m1.webp", thumbKey: "reviews/rA/m1-t.webp", contentType: "image/webp", bytes: 9000, width: 1600, height: 1200, position: 0, createdAt: T },
+    { id: "m2", reviewId: "rA", kind: "audio", mediaKey: "reviews/rA/m2.ogg", contentType: "audio/ogg", bytes: 7000, durationMs: 12000, position: 1, createdAt: T },
   ]);
-  for (const key of ["reviews/rA/m1.webp", "reviews/rA/m1-t.webp", "reviews/rA/m2.ogg"]) await bucket.put(key, JPEG);
+  const media = testMedia(d1);
+  for (const key of ["reviews/rA/m1.webp", "reviews/rA/m1-t.webp"]) await media.store({ key, contentType: "image/webp", body: webp() });
+  await media.store({ key: "reviews/rA/m2.ogg", contentType: "audio/ogg", body: OGG });
 });
 
 const call = (method: string, path: string, body?: unknown) =>
@@ -129,11 +130,12 @@ describe("the moderation list", () => {
     expect(res.data[0]).toMatchObject({
       productName: "Robe", orderNumber: "ORD-20261010-1111", source: "storefront", verified: true,
       media: [
-        { id: "m1", kind: "image", url: "https://media.example.com/reviews/rA/m1.webp", thumbUrl: "https://media.example.com/reviews/rA/m1-t.webp", width: 1600 },
-        { id: "m2", kind: "audio", url: "https://media.example.com/reviews/rA/m2.ogg", thumbUrl: null, durationMs: 12000 },
+        { id: "m1", kind: "image", url: `${TEST_DELIVERY.origin}/reviews/rA/m1.webp`, thumbUrl: `${TEST_DELIVERY.origin}/reviews/rA/m1-t.webp`, width: 1600 },
+        { id: "m2", kind: "audio", url: `${TEST_DELIVERY.origin}/reviews/rA/m2.ogg`, thumbUrl: null, durationMs: 12000 },
       ],
     });
     expect(res.data[0].media[0].r2Key).toBeUndefined();
+    expect(res.data[0].media[0].mediaKey).toBeUndefined();
   });
 
   it("filters by status, by who entered it, and by having media", async () => {
@@ -183,7 +185,7 @@ describe("removing", () => {
   });
 
   it("a product takes its reviews' files with it", async () => {
-    await removeProduct(d1.db, bucket, "p1");
+    await removeProduct(d1.db, { DB: d1.raw, MEDIA_BUCKET: bucket, ...TEST_MEDIA_VARS } as never, "p1");
     expect(await d1.db.select().from(schema.reviews).all()).toEqual([]);
     expect(await stored("reviews/")).toEqual([]);
   });
@@ -233,7 +235,7 @@ describe("entering a review the store received", () => {
     const photo = (await json(await app.request("/api/reviews/uploads", { method: "POST", body: JPEG }))).data;
     const voice = (await json(await app.request("/api/reviews/uploads", { method: "POST", headers: { "X-Media-Duration-Ms": "15000" }, body: OGG }))).data;
     expect([photo.kind, voice.kind]).toEqual(["image", "audio"]);
-    expect(await stored("review-uploads/staff/u1/")).toHaveLength(2);
+    expect(await stored("staging/reviews/staff/u1/")).toHaveLength(2);
 
     const { data } = await json(await call("POST", "", { productId: "p2", customerId: "c2", rating: 4, body: "", uploads: [photo.uploadId, voice.uploadId], publish: false }));
     expect(data).toMatchObject({ status: "processing", review: null });

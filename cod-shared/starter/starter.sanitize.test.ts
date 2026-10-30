@@ -7,10 +7,9 @@
  * HTMLRewriter — is `toPlainText`'s for every legal page, with a store name
  * that needs escaping.
  */
-import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { transform } from "esbuild";
+import { build } from "esbuild";
 import { Miniflare } from "miniflare";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { STORE_LOCALES } from "../i18n/locales";
@@ -36,11 +35,11 @@ export default {
 let mf: Miniflare | undefined;
 
 beforeAll(async () => {
-  const lib = await transform(readFileSync(join(here, "../lib/rich-text.ts"), "utf8"), { loader: "ts", format: "esm" });
+  const lib = await build({ entryPoints: [join(here, "../lib/rich-text.ts")], bundle: true, format: "esm", platform: "neutral", write: false, logLevel: "warning" });
   mf = new Miniflare({
     modules: [
       { type: "ESModule", path: "index.mjs", contents: WORKER },
-      { type: "ESModule", path: "rich-text.mjs", contents: lib.code },
+      { type: "ESModule", path: "rich-text.mjs", contents: lib.outputFiles[0]!.text },
     ],
   });
 });

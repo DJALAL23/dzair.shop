@@ -1,6 +1,7 @@
 import { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
+import { mediaDeliveryOf } from "@/lib/media";
 import * as queries from "./queries";
 import { getStore } from "../../../../cod-shared/queries/stores";
 import { getLegalProfile, upsertLegalProfile } from "../../../../cod-shared/queries/store-pages";
@@ -48,7 +49,7 @@ export async function listStorePages(c: Context<AppContext>) {
 export async function getStorePage(c: Context<AppContext>) {
   const { db, store } = await requireStore(c);
   const id = c.req.param("id")!;
-  const data = await queries.getStorePageOrThrow(db, store.id, id);
+  const data = await queries.getStorePageOrThrow(db, store.id, id, mediaDeliveryOf(c.env));
   return c.json({ success: true, data }, 200);
 }
 
@@ -57,7 +58,7 @@ export async function createCustomPage(c: Context<AppContext>) {
   const body: any = (c.req as any).valid?.("json");
   const data = body ?? createCustomPageSchema.parse(await c.req.json());
 
-  const result = await queries.createCustomPage(db, store.id, data);
+  const result = await queries.createCustomPage(db, store.id, data, mediaDeliveryOf(c.env));
 
   const actor = c.get("user");
   await logActivity(db, actor, ACTIONS.STORE_PAGE_CREATED, {
@@ -73,7 +74,7 @@ export async function updateStorePage(c: Context<AppContext>) {
   const body: any = (c.req as any).valid?.("json");
   const data = body ?? updateStorePageMetaSchema.parse(await c.req.json());
 
-  const result = await queries.updateStorePageMeta(db, store.id, id, data);
+  const result = await queries.updateStorePageMeta(db, store.id, id, data, mediaDeliveryOf(c.env));
 
   const actor = c.get("user");
   await logActivity(db, actor, ACTIONS.STORE_PAGE_UPDATED, {
@@ -87,7 +88,7 @@ export async function deleteStorePage(c: Context<AppContext>) {
   const { db, store } = await requireStore(c);
   const id = c.req.param("id")!;
 
-  await queries.deleteStorePage(db, store.id, id);
+  await queries.deleteStorePage(db, store.id, id, mediaDeliveryOf(c.env));
 
   const actor = c.get("user");
   await logActivity(db, actor, ACTIONS.STORE_PAGE_DELETED, { type: "store_page", id });
@@ -102,7 +103,7 @@ export async function saveTranslation(c: Context<AppContext>) {
   const body: any = (c.req as any).valid?.("json");
   const data = body ?? saveTranslationSchema.parse(await c.req.json());
 
-  const result = await queries.saveTranslation(db, store.id, id, locale, data);
+  const result = await queries.saveTranslation(db, store.id, id, locale, data, mediaDeliveryOf(c.env));
 
   const actor = c.get("user");
   await logActivity(db, actor, ACTIONS.STORE_PAGE_TRANSLATION_SAVED, {
@@ -117,7 +118,7 @@ export async function resetTranslation(c: Context<AppContext>) {
   const id = c.req.param("id")!;
   const locale = requireLocaleParam(c);
 
-  const result = await queries.resetTranslationToTemplate(db, store.id, id, locale);
+  const result = await queries.resetTranslationToTemplate(db, store.id, id, locale, mediaDeliveryOf(c.env));
 
   const actor = c.get("user");
   await logActivity(db, actor, ACTIONS.STORE_PAGE_TRANSLATION_RESET, {
@@ -129,7 +130,7 @@ export async function resetTranslation(c: Context<AppContext>) {
 
 export async function seedDefaults(c: Context<AppContext>) {
   const { db, store } = await requireStore(c);
-  const result = await queries.seedStorePages(db, store.id);
+  const result = await queries.seedStorePages(db, store.id, mediaDeliveryOf(c.env));
 
   if (result.created.length > 0) {
     const actor = c.get("user");

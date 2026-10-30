@@ -1,6 +1,7 @@
 import { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
+import { mediaDeliveryOf, mediaOf, releaseShown } from "@/lib/media";
 import * as queries from "./queries";
 import {
   createLandingPageSchema,
@@ -74,7 +75,7 @@ export async function getLandingPage(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const withPublicUrl = await publicUrlDecorator(c);
   const id = c.req.param("id")!;
-  const data = await queries.getLandingPageById(db, id);
+  const data = await queries.getLandingPageById(db, id, mediaDeliveryOf(c.env));
   if (!data) throw new NotFoundError("Landing Page", id);
   return c.json({ success: true, data: withPublicUrl(data) }, 200);
 }
@@ -107,7 +108,7 @@ function trackingResponse(
 /** The landing page must exist before anything is said about its tracking. */
 async function requireLandingPage(c: Context<AppContext>, db: ReturnType<typeof getDb>) {
   const id = c.req.param("id")!;
-  const exists = await queries.getLandingPageById(db, id);
+  const exists = await queries.getLandingPageRow(db, id);
   if (!exists) throw new NotFoundError("Landing Page", id);
   return { id, landingPage: exists };
 }
@@ -196,7 +197,7 @@ export async function createLandingPage(c: Context<AppContext>) {
   const body: any = (c.req as any).valid?.("json");
   const data = body ?? createLandingPageSchema.parse(await c.req.json());
   const { id } = await queries.createLandingPage(db, data);
-  const result = await queries.getLandingPageById(db, id);
+  const result = await queries.getLandingPageById(db, id, mediaDeliveryOf(c.env));
   if (!result) throw new SystemError("Failed to load created landing page");
 
   const actor = c.get("user");
@@ -212,13 +213,13 @@ export async function updateLandingPage(c: Context<AppContext>) {
   const withPublicUrl = await publicUrlDecorator(c);
   const id = c.req.param("id")!;
 
-  const existing = await queries.getLandingPageById(db, id);
+  const existing = await queries.getLandingPageRow(db, id);
   if (!existing) throw new NotFoundError("Landing Page", id);
 
   const body: any = (c.req as any).valid?.("json");
   const data = body ?? updateLandingPageSchema.parse(await c.req.json());
   await queries.updateLandingPage(db, id, data);
-  const result = await queries.getLandingPageById(db, id);
+  const result = await queries.getLandingPageById(db, id, mediaDeliveryOf(c.env));
   if (!result) throw new SystemError("Failed to load updated landing page");
 
   const actor = c.get("user");
@@ -250,7 +251,7 @@ export async function duplicateLandingPage(c: Context<AppContext>) {
   const newId = await queries.duplicateLandingPage(db, id);
   if (!newId) throw new NotFoundError("Landing Page", id);
 
-  const result = await queries.getLandingPageById(db, newId);
+  const result = await queries.getLandingPageById(db, newId, mediaDeliveryOf(c.env));
   if (!result) throw new SystemError("Failed to load duplicated landing page");
 
   const actor = c.get("user");
@@ -267,11 +268,11 @@ export async function publishLandingPage(c: Context<AppContext>) {
   const withPublicUrl = await publicUrlDecorator(c);
   const id = c.req.param("id")!;
 
-  const existing = await queries.getLandingPageById(db, id);
+  const existing = await queries.getLandingPageRow(db, id);
   if (!existing) throw new NotFoundError("Landing Page", id);
 
   await queries.publishLandingPage(db, id);
-  const result = await queries.getLandingPageById(db, id);
+  const result = await queries.getLandingPageById(db, id, mediaDeliveryOf(c.env));
   if (!result) throw new SystemError("Failed to load landing page");
 
   const actor = c.get("user");
@@ -287,11 +288,11 @@ export async function unpublishLandingPage(c: Context<AppContext>) {
   const withPublicUrl = await publicUrlDecorator(c);
   const id = c.req.param("id")!;
 
-  const existing = await queries.getLandingPageById(db, id);
+  const existing = await queries.getLandingPageRow(db, id);
   if (!existing) throw new NotFoundError("Landing Page", id);
 
   await queries.unpublishLandingPage(db, id);
-  const result = await queries.getLandingPageById(db, id);
+  const result = await queries.getLandingPageById(db, id, mediaDeliveryOf(c.env));
   if (!result) throw new SystemError("Failed to load landing page");
 
   const actor = c.get("user");
@@ -306,7 +307,7 @@ export async function archiveLandingPage(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const id = c.req.param("id")!;
 
-  const existing = await queries.getLandingPageById(db, id);
+  const existing = await queries.getLandingPageRow(db, id);
   if (!existing) throw new NotFoundError("Landing Page", id);
 
   await queries.archiveLandingPage(db, id);
@@ -336,7 +337,7 @@ export async function compareLandingPages(c: Context<AppContext>) {
 export async function listLandingPageImages(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const id = c.req.param("id")!;
-  const data = await queries.getLandingPageImages(db, id);
+  const data = await queries.getLandingPageImages(db, id, mediaDeliveryOf(c.env));
   return c.json({ success: true, data, count: data.length }, 200);
 }
 
@@ -344,26 +345,24 @@ export async function saveLandingPageImage(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const id = c.req.param("id")!;
 
-  const existing = await queries.getLandingPageById(db, id);
+  const existing = await queries.getLandingPageRow(db, id);
   if (!existing) throw new NotFoundError("Landing Page", id);
 
   const body: any = (c.req as any).valid?.("json");
   const data = body ?? saveLandingPageImageSchema.parse(await c.req.json());
-  // The API contract names the field `key` (mirrors the product image API);
-  // the shared query stores it as `r2Key`.
+  const file = await mediaOf(c.env).ready(data.mediaKey);
   const images = await queries.addLandingPageImage(db, id, {
-    r2Key: data.key,
-    src: data.src,
+    mediaKey: file.key,
     altText: data.altText ?? null,
     position: data.position,
-    width: data.width ?? null,
-    height: data.height ?? null,
-  });
+    width: file.width,
+    height: file.height,
+  }, mediaDeliveryOf(c.env));
 
   const actor = c.get("user");
   await logActivity(db, actor, ACTIONS.LANDING_PAGE_UPDATED, {
     type: "landing_page", id, label: existing.name,
-  }, { action: "image_added", r2Key: data.key });
+  }, { action: "image_added", mediaKey: file.key });
 
   return c.json({ success: true, data: images }, 201);
 }
@@ -372,12 +371,12 @@ export async function reorderLandingPageImages(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const id = c.req.param("id")!;
 
-  const existing = await queries.getLandingPageById(db, id);
+  const existing = await queries.getLandingPageRow(db, id);
   if (!existing) throw new NotFoundError("Landing Page", id);
 
   const body: any = (c.req as any).valid?.("json");
   const data = body ?? reorderLandingPageImagesSchema.parse(await c.req.json());
-  const images = await queries.reorderLandingPageImagesChecked(db, id, data.imageIds);
+  const images = await queries.reorderLandingPageImagesChecked(db, id, data.imageIds, mediaDeliveryOf(c.env));
 
   const actor = c.get("user");
   await logActivity(db, actor, ACTIONS.LANDING_PAGE_UPDATED, {
@@ -391,35 +390,11 @@ export async function deleteLandingPageImage(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const id = c.req.param("id")!;
   const imageId = c.req.param("imageId")!;
-  const bucket = c.env.IMAGES;
 
   const image = await queries.getLandingPageImage(db, id, imageId);
   if (!image) throw new NotFoundError("Image", imageId);
 
-  // R2 delete first — a storage failure aborts so the DB record never
-  // points at a missing object (same contract as product images).
-  // Shared-object guard: duplicates reference the SAME immutable R2 key;
-  // only remove the object when this is its last landing-page reference.
-  if (image.r2Key) {
-    const otherRefs = await queries.countOtherLandingPageImageReferences(
-      db,
-      image.r2Key,
-      imageId,
-    );
-    if (otherRefs === 0) {
-      try {
-        await bucket.delete(image.r2Key);
-      } catch (error) {
-        console.error(`R2 delete failed for key: ${image.r2Key}`, error);
-        throw new SystemError(
-          "Failed to delete image from storage",
-          ERROR_CODES.INTERNAL_SERVER_ERROR,
-          { imageId, r2Key: image.r2Key, error: error instanceof Error ? error.message : String(error) },
-        );
-      }
-    }
-  }
-
   await queries.deleteLandingPageImage(db, id, imageId);
+  await releaseShown(c.env, [image.mediaKey], `image ${imageId} of landing page ${id}`);
   return c.json({ success: true }, 200);
 }

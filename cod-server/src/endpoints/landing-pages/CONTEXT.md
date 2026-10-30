@@ -57,7 +57,7 @@ _Avoid_: Deleted, disabled
 Terms owned by neighboring contexts — use them, don't redefine them:
 
 - **The order form, OTP gate, offers, pricing, wilaya cascade**: Store context. The landing page renders the existing form via the established DOM contract; the charged price is always the catalog price (server-authoritative — no price override exists on landing pages)
-- **Image upload plumbing**: the images endpoint folder owns presign; landing pages reuse it with a landing folder
+- **Image upload plumbing**: the Media Library (`cod-shared/media`, `/api/media`) owns uploads; landing pages upload into its `landing` folder and attach by key
 - **Product identity, variants, pricing**: Products context
 - **Pixel/CAPI attribution (fbc/fbp)**: orthogonal Meta-side tracking that already flows; landing page attribution is our internal analytics and never feeds Meta
 

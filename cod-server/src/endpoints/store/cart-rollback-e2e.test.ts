@@ -29,6 +29,7 @@ import {
   findOrCreateCustomer,
   getStoreConfig,
 } from "../../../../cod-shared/queries/store";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 const registry: Miniflare[] = [];
 let db: AppDb;
@@ -149,11 +150,11 @@ const inventoryOf = async (productId: string) =>
 
 describe("the switch itself", () => {
   it("is what the storefront reads", async () => {
-    expect((await getStoreConfig(db, storeId))?.cartEnabled).toBe(true);
+    expect((await getStoreConfig(db, storeId, TEST_DELIVERY))?.cartEnabled).toBe(true);
 
     await rollback();
 
-    expect((await getStoreConfig(db, storeId))?.cartEnabled).toBe(false);
+    expect((await getStoreConfig(db, storeId, TEST_DELIVERY))?.cartEnabled).toBe(false);
   });
 
   it("can be turned back on without any other step", async () => {
@@ -166,14 +167,14 @@ describe("the switch itself", () => {
       .set({ cartEnabled: true })
       .where(eq(schema.stores.id, storeId));
 
-    expect((await getStoreConfig(db, storeId))?.cartEnabled).toBe(true);
+    expect((await getStoreConfig(db, storeId, TEST_DELIVERY))?.cartEnabled).toBe(true);
   });
 
   it("leaves every other store setting alone", async () => {
-    const before = await getStoreConfig(db, storeId);
+    const before = await getStoreConfig(db, storeId, TEST_DELIVERY);
 
     await rollback();
-    const after = await getStoreConfig(db, storeId);
+    const after = await getStoreConfig(db, storeId, TEST_DELIVERY);
 
     expect({ ...after, cartEnabled: true }).toEqual({ ...before, cartEnabled: true });
   });

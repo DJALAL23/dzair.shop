@@ -14,6 +14,7 @@ import productsRouter from "./routes";
 import * as queries from "./queries";
 import * as variantQueries from "../variants/queries";
 import { NotFoundError, BusinessLogicError, ConflictError } from "@/lib/errors/classes";
+import { TEST_DELIVERY, TEST_MEDIA_VARS } from "@/test-utils/media";
 
 vi.mock("@/lib/product-collections", () => ({
   checkProductCollections: vi.fn(async () => ({ ok: true, apply: async () => {} })),
@@ -31,14 +32,6 @@ vi.mock("@/lib/activity", () => ({
     PRODUCT_STATUS_CHANGED: "product.status_changed",
     PRODUCT_DELETED: "product.deleted",
   },
-}));
-vi.mock("../images/handlers", () => ({
-  listProductImages: async (c: any) =>
-    c.json({ success: true, data: [imageRow()] }, 200),
-  saveProductImage: async (c: any) => c.json({ success: true, data: imageRow() }, 201),
-  reorderProductImages: async (c: any) =>
-    c.json({ success: true, data: [imageRow()] }, 200),
-  deleteProductImage: async (c: any) => c.json({ success: true }, 200),
 }));
 
 const NOW = new Date().toISOString();
@@ -93,7 +86,7 @@ function productListRow(overrides: Record<string, any> = {}) {
     ...productRow(overrides),
     variantsCount: 2,
     totalInventory: 30,
-    primaryImageSrc: "https://cdn.example.com/products/abc123.jpg",
+    primaryImage: { key: "products/abc123.jpg", url: `${TEST_DELIVERY.origin}/products/abc123.jpg`, width: null, height: null },
     reviewCount: 4,
     avgRating: 4.5,
     variants: [variantRow()],
@@ -115,15 +108,11 @@ function imageRow(overrides: Record<string, any> = {}) {
   return {
     id: "img_1",
     productId: "prod_1",
-    src: "https://cdn.example.com/products/abc123.jpg",
-    r2Key: "products/abc123.jpg",
-    srcSm: null,
-    srcMd: null,
-    srcLg: null,
-    altText: null,
+    key: "products/abc123.jpg",
+    url: `${TEST_DELIVERY.origin}/products/abc123.jpg`,
     width: null,
     height: null,
-    type: 1,
+    altText: null,
     position: 1,
     createdAt: NOW,
     updatedAt: NOW,
@@ -160,7 +149,7 @@ describe("Products routes (OpenAPIHono)", () => {
   beforeEach(() => {
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
-      c.env = { DB: mockDb } as any;
+      c.env = { DB: mockDb, ...TEST_MEDIA_VARS } as any;
       signIn(c, {
         id: "admin_user_001",
         email: "admin@example.com",
@@ -191,7 +180,7 @@ describe("Products routes (OpenAPIHono)", () => {
       expect(body.success).toBe(true);
       expect(body.count).toBe(1);
       expect(body.data[0].name).toBe("Samsung Galaxy A54");
-      expect(body.data[0].primaryImageSrc).toContain("https://");
+      expect(body.data[0].primaryImage).toEqual({ key: "products/abc123.jpg", url: `${TEST_DELIVERY.origin}/products/abc123.jpg`, width: null, height: null });
     });
 
     it("passes filters through to the query", async () => {
@@ -202,6 +191,7 @@ describe("Products routes (OpenAPIHono)", () => {
       expect(res.status).toBe(200);
       expect(queries.getAllProducts).toHaveBeenCalledWith(
         mockDb,
+        TEST_DELIVERY,
         expect.objectContaining({ status: "ACTIVE", limit: 10, offset: 5 })
       );
     });
@@ -240,7 +230,8 @@ describe("Products routes (OpenAPIHono)", () => {
       expect(body.success).toBe(true);
       expect(queries.createProduct).toHaveBeenCalledWith(
         mockDb,
-        expect.objectContaining({ name: "Plain Tee", sku: "TEE-BASIC" })
+        expect.objectContaining({ name: "Plain Tee", sku: "TEE-BASIC" }),
+        TEST_DELIVERY
       );
     });
 
@@ -263,7 +254,8 @@ describe("Products routes (OpenAPIHono)", () => {
           visibility: true,
           status: "ACTIVE",
           showInStore: true,
-        })
+        }),
+        TEST_DELIVERY
       );
     });
 
@@ -388,7 +380,7 @@ describe("Products routes (OpenAPIHono)", () => {
       });
 
       expect(res.status).toBe(200);
-      expect(queries.updateProduct).toHaveBeenCalledWith(mockDb, "prod_1", { status: "ARCHIVED" });
+      expect(queries.updateProduct).toHaveBeenCalledWith(mockDb, "prod_1", { status: "ARCHIVED" }, TEST_DELIVERY);
     });
 
     it("returns 400 for an invalid status", async () => {
@@ -415,37 +407,18 @@ describe("Products routes (OpenAPIHono)", () => {
   // ─── Product images ─────────────────────────────────────────────────────────
 
   describe("images routes", () => {
-    it("GET /{id}/images returns 200 with ordered images", async () => {
-      const res = await app.request("/api/products/prod_1/images");
+    it("POST /{id}/images refuses an image that is not a Media Key", async () => {
+      for (const json of [{}, { mediaKey: "https://cdn.example.com/products/new.jpg" }, { src: "https://cdn.example.com/x.jpg" }]) {
+        const res = await app.request("/api/products/prod_1/images", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(json),
+        });
 
-      expect(res.status).toBe(200);
-      const body: any = await res.json();
-      expect(body.data[0].position).toBe(1);
-    });
-
-    it("POST /{id}/images returns 201 after saving", async () => {
-      const res = await app.request("/api/products/prod_1/images", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          key: "products/new.jpg",
-          src: "https://cdn.example.com/products/new.jpg",
-        }),
-      });
-
-      expect(res.status).toBe(201);
-    });
-
-    it("POST /{id}/images returns 400 when key or src is missing", async () => {
-      const res = await app.request("/api/products/prod_1/images", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ src: "https://cdn.example.com/x.jpg" }),
-      });
-
-      expect(res.status).toBe(400);
-      const body: any = await res.json();
-      expect(body.category).toBe(ERROR_CATEGORIES.VALIDATION);
+        expect(res.status).toBe(400);
+        const body: any = await res.json();
+        expect(body.category).toBe(ERROR_CATEGORIES.VALIDATION);
+      }
     });
 
     it("PATCH /{id}/images/reorder returns 400 for an empty array", async () => {
@@ -456,14 +429,6 @@ describe("Products routes (OpenAPIHono)", () => {
       });
 
       expect(res.status).toBe(400);
-    });
-
-    it("DELETE /{id}/images/{imageId} returns 200", async () => {
-      const res = await app.request("/api/products/prod_1/images/img_1", {
-        method: "DELETE",
-      });
-
-      expect(res.status).toBe(200);
     });
   });
 

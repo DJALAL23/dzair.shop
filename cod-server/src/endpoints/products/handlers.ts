@@ -7,6 +7,7 @@ import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, ConflictError, SystemError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { removeProduct } from "@/lib/remove-product";
+import { mediaDeliveryOf } from "@/lib/media";
 import { checkProductCollections, withCollections } from "@/lib/product-collections";
 
 async function checkedCollections(db: ReturnType<typeof getDb>, collectionIds: readonly string[] | undefined) {
@@ -26,14 +27,14 @@ export async function listProducts(c: Context<AppContext>) {
     limit: c.req.query("limit"),
     offset: c.req.query("offset"),
   });
-  const data = await queries.getAllProducts(db, filters);
+  const data = await queries.getAllProducts(db, mediaDeliveryOf(c.env), filters);
   return c.json({ success: true, data, count: data.length }, 200);
 }
 
 export async function getProduct(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const productId = c.req.param("id")!;
-  const product = await queries.getProductById(db, productId);
+  const product = await queries.getProductById(db, productId, mediaDeliveryOf(c.env));
   if (!product) {
     throw new NotFoundError("Product", productId);
   }
@@ -74,7 +75,7 @@ export async function createProduct(c: Context<AppContext>) {
   }
 
   try {
-    const product = await queries.createProduct(db, validated);
+    const product = await queries.createProduct(db, validated, mediaDeliveryOf(c.env));
     if (!product) {
       throw new SystemError("Failed to create product");
     }
@@ -134,7 +135,7 @@ export async function updateProduct(c: Context<AppContext>) {
     }
   }
 
-  const product = await queries.updateProduct(db, productId, validated);
+  const product = await queries.updateProduct(db, productId, validated, mediaDeliveryOf(c.env));
   if (!product) {
     throw new NotFoundError("Product", productId);
   }
@@ -151,7 +152,7 @@ export async function updateProductStatus(c: Context<AppContext>) {
   const productId = c.req.param("id")!;
   const jsonData: any = (c.req as any).valid?.("json");
   const { status } = jsonData ?? validation.updateStatusSchema.parse(await c.req.json());
-  const product = await queries.updateProduct(db, productId, { status });
+  const product = await queries.updateProduct(db, productId, { status }, mediaDeliveryOf(c.env));
   if (!product) {
     throw new NotFoundError("Product", productId);
   }
@@ -171,7 +172,7 @@ export async function updateProductStatus(c: Context<AppContext>) {
 export async function deleteProduct(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const id = c.req.param("id")!;
-  const removed = await removeProduct(db, c.env.IMAGES, id);
+  const removed = await removeProduct(db, c.env, id);
   if (!removed) throw new NotFoundError("Product", id);
   await logActivity(db, c.get("user"), ACTIONS.PRODUCT_DELETED, { type: "product", id, label: removed.name });
   return c.json({ success: true, message: "Product deleted" }, 200);

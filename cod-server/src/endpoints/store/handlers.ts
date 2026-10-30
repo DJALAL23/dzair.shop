@@ -3,6 +3,7 @@ import { assertOrderAddress } from "@/lib/order-address";
 import { storefrontClientIp } from "@/lib/storefront-client-ip";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
+import { mediaDeliveryOf } from "@/lib/media";
 import * as queries from "./queries";
 import type { StoreProductsParams } from "../../../../cod-shared/queries/store";
 import { storeOrderSchema, validateCartSchema } from "./validation";
@@ -52,7 +53,7 @@ async function servedLanguage(c: Context<AppContext>, db: ReturnType<typeof getD
 export async function getStoreConfig(c: Context<AppContext>) {
   const storeId = c.get("storeId")!;
   const db = getDb(c.env.DB);
-  const store = await queries.getStoreConfig(db, storeId, {
+  const store = await queries.getStoreConfig(db, storeId, mediaDeliveryOf(c.env), {
     theme: queryParam(c, "theme"),
     locale: queryParam(c, "locale"),
   });
@@ -80,7 +81,7 @@ function storeProductsParams(c: Context<AppContext>): StoreProductsParams {
 async function productPage(c: Context<AppContext>, params: StoreProductsParams) {
   const db = getDb(c.env.DB);
   const { translate } = await servedLanguage(c, db);
-  const [data, total] = await Promise.all([queries.getStoreProducts(db, params, translate), queries.countStoreProducts(db, params, translate)]);
+  const [data, total] = await Promise.all([queries.getStoreProducts(db, params, translate, mediaDeliveryOf(c.env)), queries.countStoreProducts(db, params, translate)]);
   return c.json({ success: true, data, count: data.length, total }, 200);
 }
 
@@ -97,7 +98,7 @@ export async function getStoreProduct(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const handle = c.req.param("handle")!;
   const { translate } = await servedLanguage(c, db);
-  const data = await queries.getStoreProductByHandle(db, handle, { locale: translate });
+  const data = await queries.getStoreProductByHandle(db, handle, { locale: translate, delivery: mediaDeliveryOf(c.env) });
   if (!data) {
     throw new NotFoundError("Product", handle);
   }
@@ -110,7 +111,7 @@ export async function getStoreLandingPage(c: Context<AppContext>) {
 
   // Two round trips total: the row by slug, then ONE batched call carrying
   // images + stats + the product ref.
-  const lp = await queries.getLandingPageDetailBySlug(db, slug);
+  const lp = await queries.getLandingPageDetailBySlug(db, slug, mediaDeliveryOf(c.env));
   if (!lp || lp.status !== "published") {
     // Unknown, draft, or archived — same answer so nothing leaks.
     throw new NotFoundError("Landing Page", slug);
@@ -124,6 +125,7 @@ export async function getStoreLandingPage(c: Context<AppContext>) {
   // not deleted) still apply, and the order engine guards sellability.
   const product = lp.product?.handle
     ? await queries.getStoreProductByHandle(db, lp.product.handle, {
+        delivery: mediaDeliveryOf(c.env),
         allowUnlisted: true,
       })
     : null;
@@ -227,7 +229,7 @@ export async function getStorePage(c: Context<AppContext>) {
   const slug = c.req.param("slug")!;
   const served = await servedLanguage(c, db);
 
-  const page = await queries.resolvePublishedPage(db, storeId, slug, served.locale, served.primary);
+  const page = await queries.resolvePublishedPage(db, storeId, slug, mediaDeliveryOf(c.env), served.locale, served.primary);
   if (!page) throw new NotFoundError("Store Page", slug);
 
   return c.json({ success: true, data: page }, 200);
@@ -240,7 +242,7 @@ export async function getStoreCollection(c: Context<AppContext>) {
   const handle = c.req.param("handle")!;
   const collection = await getStorefrontCollection(db, storeId, handle, served.translate);
   if (!collection) throw new NotFoundError("Collection", handle);
-  const [productCount, image] = await Promise.all([queries.countStoreProducts(db, { collection: handle }, served.translate), queries.collectionCover(db, handle)]);
+  const [productCount, image] = await Promise.all([queries.countStoreProducts(db, { collection: handle }, served.translate), queries.collectionCover(db, handle, mediaDeliveryOf(c.env))]);
   return c.json({ success: true, data: { ...collection, productCount, image } }, 200);
 }
 
@@ -265,7 +267,7 @@ export async function getStorePageDocument(c: Context<AppContext>) {
 export async function listStoreCategories(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const { translate } = await servedLanguage(c, db);
-  const data = await queries.getStoreCategories(db, translate);
+  const data = await queries.getStoreCategories(db, translate, mediaDeliveryOf(c.env));
   return c.json({ success: true, data, count: data.length }, 200);
 }
 

@@ -1,24 +1,26 @@
 /**
  * CodLandingPageImageUploadWorkflow — durable background upload of a landing
- * page image from an MCP agent (ChatGPT, Claude, ...).
+ * page image from an MCP agent (ChatGPT, Claude, ...), on the Media Library
+ * (ADR 0021).
  *
  * Two entry shapes share one tail:
  *   kind "url"   — the agent supplies a fetchable http(s) image URL; this
  *                  workflow downloads it (retried, size-capped, magic-byte-
- *                  verified) and writes the object to R2. Image bytes can
- *                  never travel through workflow params (1 MiB payload cap),
- *                  so the URL is fetched here, inside a durable step.
- *   kind "bytes" — the tool already wrote the decoded base64 bytes to R2 via
- *                  the bucket binding; this workflow verifies the object and
- *                  continues.
+ *                  verified). Image bytes can never travel through workflow
+ *                  params (1 MiB payload cap), so the URL is fetched here,
+ *                  inside a durable step.
+ *   kind "bytes" — the tool already put the decoded base64 bytes in Staging
+ *                  (`staging/landing/<job>`); this workflow reads them there.
  *
- * Both kinds then measure intrinsic dimensions (fail-open; client-declared
- * width/height are the fallback), insert the landing_page_images row with
- * source "ai" (idempotent on r2Key), audit the addition, and return the image
- * record as the instance output that getLandingPageImageUploadStatus polls.
+ * Both are then prepared — re-encoded to WebP when the Images binding can
+ * (else kept as sent), measured — and stored by the Media Library as
+ * `landing/<job>.<ext>`; the landing_page_images row is inserted with source
+ * "ai" (idempotent on its key), Staging is cleared, the addition audited, and
+ * the image returned as the instance output getLandingPageImageUploadStatus
+ * polls.
  *
- * Instance ID: `lpimg-<32 hex>` — minted by the upload tool, unique per
- * upload attempt (Workflows instance IDs are unique forever).
+ * Instance ID: `lpimg-<job>` — minted by the upload tool, unique per upload
+ * attempt (Workflows instance IDs are unique forever).
  */
 
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
@@ -30,15 +32,14 @@ import { parseImageDimensions, sniffImageType } from "@/lib/image-dimensions";
 import {
   canonicalImageContentType,
   IMAGE_CONTENT_TYPES,
-  LANDING_IMAGE_R2_KEY_PATTERN,
+  LANDING_UPLOAD_JOB_PATTERN,
   MAX_IMAGE_BYTES,
   WEBP_QUALITY,
 } from "@/lib/landing-image-upload";
-import {
-  addLandingPageImage,
-  getLandingPageById,
-  getLandingPageImages,
-} from "../../../cod-shared/queries/landing-pages";
+import { mediaDeliveryOf, mediaOf } from "@/lib/media";
+import { staging, stagingKey } from "@/lib/staging";
+import { addLandingPageImage, getLandingPageImages, getLandingPageRow } from "../../../cod-shared/queries/landing-pages";
+import { extensionOf, type ImageType } from "../../../cod-shared/media/keys";
 import { ACTIONS, logActivity } from "@/lib/activity";
 
 const actorSchema = z.strictObject({
@@ -49,14 +50,10 @@ const actorSchema = z.strictObject({
 
 const baseShape = {
   landingPageId: z.string().uuid(),
-  r2Key: z.string().regex(LANDING_IMAGE_R2_KEY_PATTERN),
+  job: z.string().regex(LANDING_UPLOAD_JOB_PATTERN),
   contentType: z.enum(IMAGE_CONTENT_TYPES),
   altText: z.string().max(1000).nullable().optional(),
   position: z.number().int().min(1).optional(),
-  /** Client-declared intrinsic size — used only when server-side header
-   *  parsing fails (fail-open; the storefront renders without dims either way). */
-  width: z.number().int().min(1).max(20000).optional(),
-  height: z.number().int().min(1).max(20000).optional(),
   actor: actorSchema,
 };
 
@@ -72,37 +69,32 @@ export const CodLandingPageImageUploadParamsSchema = z.discriminatedUnion("kind"
   }),
 ]);
 
-export type CodLandingPageImageUploadParams = z.infer<
-  typeof CodLandingPageImageUploadParamsSchema
->;
+export type CodLandingPageImageUploadParams = z.infer<typeof CodLandingPageImageUploadParamsSchema>;
 
 export type CodLandingPageImageUploadOutput = {
-  imageId: string | null;
-  r2Key: string;
-  src: string;
-  position: number | null;
+  imageId: string;
+  key: string;
+  url: string;
+  position: number;
   width: number | null;
   height: number | null;
   altText: string | null;
-  /** True when the stored object is WebP (transcoded now, or the source already was). */
+  /** True when the stored file is WebP (re-encoded now, or the source already was). */
   converted: boolean;
-  /** Content type of the stored object — image/webp, or the source type on fallback. */
+  /** The stored file's type — image/webp, or the source type when it could not be re-encoded. */
   storedContentType: string;
 };
 
-interface StoredImageMeta {
+interface PreparedImage {
+  key: string;
   size: number;
-  width: number | null;
-  height: number | null;
   storedContentType: string;
   converted: boolean;
 }
 
 function formatIssues(error: z.ZodError): string {
   return error.issues
-    .map((issue) =>
-      issue.path.length > 0 ? `${issue.path.join(".")}: ${issue.message}` : issue.message,
-    )
+    .map((issue) => (issue.path.length > 0 ? `${issue.path.join(".")}: ${issue.message}` : issue.message))
     .join("; ");
 }
 
@@ -150,9 +142,9 @@ async function readBodyWithCap(response: Response, capBytes: number): Promise<Ui
  * Billed as unique transformations — 5,000/month free, one per upload.
  *
  * Fail-open by design: an absent binding, a plan/quota error, or any encode
- * failure returns null and the caller stores the original bytes under the
- * final key with the source content type — the upload never breaks because
- * of the optimization step, it just degrades to the original format.
+ * failure returns null and the caller keeps the original bytes, under a key
+ * with their own extension — the upload never breaks because of the
+ * optimization step, it just keeps the original format.
  */
 async function transcodeToWebp(
   env: Env,
@@ -188,15 +180,14 @@ async function transcodeToWebp(
   }
 }
 
-/**
- * Download the image URL, validate it, transcode to WebP, and write the object
- * to R2 — all inside one step because step results are capped at 1 MiB and
- * image bytes must not cross a step boundary. Only small metadata is returned.
- */
-async function fetchAndStoreImage(
-  env: Env,
-  params: Extract<CodLandingPageImageUploadParams, { kind: "url" }>,
-): Promise<StoredImageMeta> {
+/** The source bytes: downloaded from the agent's URL, or read from Staging. */
+async function acquire(env: Env, params: CodLandingPageImageUploadParams): Promise<Uint8Array> {
+  if (params.kind === "bytes") {
+    const staged = await staging(env.MEDIA_BUCKET).read(stagingKey("landing", params.job));
+    if (!staged) throw new NonRetryableError("The staged image is gone (Staging clears after a day). Upload it again.");
+    if (staged.bytes.byteLength > MAX_IMAGE_BYTES) throw new NonRetryableError(`Staged image exceeds the 8 MB cap (${staged.bytes.byteLength} bytes).`);
+    return staged.bytes;
+  }
   const response = await fetch(params.imageUrl, { redirect: "follow" });
   if ([401, 403, 404].includes(response.status)) {
     throw new NonRetryableError(
@@ -204,257 +195,83 @@ async function fetchAndStoreImage(
         "Re-generate the image and provide its direct download URL.",
     );
   }
-  if (!response.ok) {
-    throw new Error(`Image URL fetch failed with HTTP ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`Image URL fetch failed with HTTP ${response.status}`);
   const declaredLength = Number(response.headers.get("content-length") ?? "0");
-  if (declaredLength > MAX_IMAGE_BYTES) {
-    throw new NonRetryableError(
-      `Image exceeds the 8 MB cap (content-length: ${declaredLength} bytes).`,
-    );
-  }
-
+  if (declaredLength > MAX_IMAGE_BYTES) throw new NonRetryableError(`Image exceeds the 8 MB cap (content-length: ${declaredLength} bytes).`);
   const bytes = await readBodyWithCap(response, MAX_IMAGE_BYTES);
-  if (bytes.byteLength === 0) {
-    throw new NonRetryableError("Image URL returned an empty body.");
-  }
-
-  const sniffed = sniffImageType(bytes);
-  const claimed = canonicalImageContentType(params.contentType);
-  if (!sniffed) {
-    throw new NonRetryableError(
-      "Fetched bytes are not a recognized image (png, jpeg, webp, or gif).",
-    );
-  }
-  if (sniffed !== claimed) {
-    throw new NonRetryableError(
-      `Content mismatch: the URL served ${sniffed} but contentType claimed ${params.contentType}.`,
-    );
-  }
-
-  // Source already WebP → store as-is (no billed transformation).
-  // Otherwise transcode; on failure keep the original bytes.
-  let storedBytes = bytes;
-  let storedContentType = claimed;
-  let converted = false;
-  if (sniffed !== "image/webp") {
-    const webp = await transcodeToWebp(env, bytes);
-    if (webp) {
-      storedBytes = webp;
-      storedContentType = "image/webp";
-      converted = true;
-    }
-  } else {
-    converted = true;
-  }
-
-  const dimensions = parseImageDimensions(storedBytes);
-  try {
-    await env.IMAGES.put(params.r2Key, storedBytes, {
-      httpMetadata: {
-        contentType: storedContentType,
-        cacheControl: "public, max-age=31536000, immutable",
-      },
-      customMetadata: {
-        source: "ai",
-        uploadedAt: new Date().toISOString(),
-      },
-    });
-  } catch (error) {
-    throw new Error(
-      `R2 write failed for key ${params.r2Key}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  return {
-    size: storedBytes.byteLength,
-    width: dimensions?.width ?? null,
-    height: dimensions?.height ?? null,
-    storedContentType,
-    converted,
-  };
+  if (bytes.byteLength === 0) throw new NonRetryableError("Image URL returned an empty body.");
+  return bytes;
 }
 
 /**
- * Verify the tool's direct R2 write landed, transcode the stored original to
- * WebP in place (same key — the .webp object replaces the source bytes), and
- * measure the final object. Idempotent: a re-run after a successful transcode
- * finds WebP at the key and skips the transformation.
+ * Acquire, check, prepare and store — one step, because step results are
+ * capped at 1 MiB and image bytes must not cross a step boundary. A re-run
+ * after the store landed finds the key ready and stores nothing again.
  */
-async function readTranscodeAndMeasureObject(
-  env: Env,
-  params: Extract<CodLandingPageImageUploadParams, { kind: "bytes" }>,
-): Promise<StoredImageMeta> {
-  const object = await env.IMAGES.get(params.r2Key);
-  if (!object) {
-    throw new NonRetryableError(
-      `R2 object ${params.r2Key} is missing — the direct upload did not land. Retry the upload.`,
-    );
-  }
-  const buffer = new Uint8Array(await object.arrayBuffer());
-  if (buffer.byteLength > MAX_IMAGE_BYTES) {
-    throw new NonRetryableError(
-      `Stored image exceeds the 8 MB cap (${buffer.byteLength} bytes).`,
-    );
-  }
-  const sniffed = sniffImageType(buffer);
+async function prepareAndStore(env: Env, params: CodLandingPageImageUploadParams): Promise<PreparedImage> {
+  const bytes = await acquire(env, params);
+  const sniffed = sniffImageType(bytes);
   const claimed = canonicalImageContentType(params.contentType);
-  if (!sniffed) {
-    throw new NonRetryableError(
-      "Stored bytes are not a recognized image (png, jpeg, webp, or gif).",
-    );
-  }
-  if (sniffed !== claimed) {
-    throw new NonRetryableError(
-      `Content mismatch: stored bytes are ${sniffed} but contentType claimed ${params.contentType}.`,
-    );
-  }
+  if (!sniffed) throw new NonRetryableError("The bytes are not a recognized image (png, jpeg, webp, or gif).");
+  if (sniffed !== claimed) throw new NonRetryableError(`Content mismatch: the bytes are ${sniffed} but contentType claimed ${params.contentType}.`);
 
-  // Already WebP (source was WebP, or a prior run transcoded) — measure only.
-  if (sniffed === "image/webp") {
-    const dimensions = parseImageDimensions(buffer);
-    return {
-      size: buffer.byteLength,
-      width: dimensions?.width ?? null,
-      height: dimensions?.height ?? null,
-      storedContentType: "image/webp",
-      converted: true,
-    };
-  }
-
-  const webp = await transcodeToWebp(env, buffer);
-  if (!webp) {
-    const dimensions = parseImageDimensions(buffer);
-    return {
-      size: buffer.byteLength,
-      width: dimensions?.width ?? null,
-      height: dimensions?.height ?? null,
-      storedContentType: claimed,
-      converted: false,
-    };
-  }
-
-  const dimensions = parseImageDimensions(webp);
-  try {
-    await env.IMAGES.put(params.r2Key, webp, {
-      httpMetadata: {
-        contentType: "image/webp",
-        cacheControl: "public, max-age=31536000, immutable",
-      },
-      customMetadata: {
-        source: "ai",
-        uploadedAt: new Date().toISOString(),
-      },
-    });
-  } catch (error) {
-    throw new Error(
-      `R2 write failed for key ${params.r2Key}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-  return {
-    size: webp.byteLength,
+  const webp = sniffed === "image/webp" ? bytes : await transcodeToWebp(env, bytes);
+  const stored = webp ?? bytes;
+  const storedContentType = (webp ? "image/webp" : sniffed) as ImageType;
+  const dimensions = parseImageDimensions(stored);
+  const file = await mediaOf(env).store({
+    key: `landing/${params.job}.${extensionOf(storedContentType)}`,
+    contentType: storedContentType,
+    body: stored,
     width: dimensions?.width ?? null,
     height: dimensions?.height ?? null,
-    storedContentType: "image/webp",
-    converted: true,
-  };
+  });
+  return { key: file.key, size: file.bytes ?? stored.byteLength, storedContentType, converted: webp !== null };
 }
 
-export class CodLandingPageImageUploadWorkflow extends WorkflowEntrypoint<
-  Env,
-  CodLandingPageImageUploadParams
-> {
-  async run(
-    event: WorkflowEvent<CodLandingPageImageUploadParams>,
-    step: WorkflowStep,
-  ): Promise<CodLandingPageImageUploadOutput> {
+export class CodLandingPageImageUploadWorkflow extends WorkflowEntrypoint<Env, CodLandingPageImageUploadParams> {
+  async run(event: WorkflowEvent<CodLandingPageImageUploadParams>, step: WorkflowStep): Promise<CodLandingPageImageUploadOutput> {
     // Step 0 — runtime schema validation (params are untrusted input).
     const parsed = CodLandingPageImageUploadParamsSchema.safeParse(event.payload);
-    if (!parsed.success) {
-      throw new NonRetryableError(
-        `Invalid landing page image upload payload: ${formatIssues(parsed.error)}`,
-      );
-    }
+    if (!parsed.success) throw new NonRetryableError(`Invalid landing page image upload payload: ${formatIssues(parsed.error)}`);
     const params = parsed.data;
 
-    // Step 1 — acquire the bytes (durable, retried), transcode to WebP, store.
-    // One step per path: image bytes must not cross a step boundary
-    // (1 MiB non-stream step-result cap).
-    const stored: StoredImageMeta =
-      params.kind === "url"
-        ? await step.do(
-            "fetch-transcode-store-image",
-            {
-              retries: { limit: 3, delay: "5 seconds", backoff: "exponential" },
-              timeout: "2 minutes",
-            },
-            async () => fetchAndStoreImage(this.env, params),
-          )
-        : await step.do("transcode-stored-object", async () =>
-            readTranscodeAndMeasureObject(this.env, params),
-          );
-
-    // Step 2 — insert the landing_page_images row (idempotent on r2Key: an
-    // engine restart after a committed insert re-runs this step and finds
-    // the row instead of duplicating it).
-    const record = await step.do(
-      "insert-image-record",
-      { retries: { limit: 3, delay: "5 seconds", backoff: "exponential" } },
-      async () => {
-        const db = getDb(this.env.DB);
-
-        const landingPage = await getLandingPageById(db, params.landingPageId);
-        if (!landingPage) {
-          throw new NonRetryableError(
-            `Landing page ${params.landingPageId} no longer exists — nothing to attach the image to.`,
-          );
-        }
-
-        const existing = (await getLandingPageImages(db, params.landingPageId)).find(
-          (image) => image.r2Key === params.r2Key,
-        );
-        if (existing) {
-          return {
-            imageId: existing.id,
-            src: existing.src,
-            position: existing.position,
-            width: existing.width,
-            height: existing.height,
-            altText: existing.altText,
-            landingPageName: landingPage.name,
-          };
-        }
-
-        const src = `https://${this.env.MEDIA_DOMAIN}/${params.r2Key}`;
-        const images = await addLandingPageImage(db, params.landingPageId, {
-          r2Key: params.r2Key,
-          src,
-          altText: params.altText ?? null,
-          ...(params.position !== undefined ? { position: params.position } : {}),
-          width: stored.width ?? params.width ?? null,
-          height: stored.height ?? params.height ?? null,
-          source: "ai",
-        });
-        const image = images.find((row) => row.r2Key === params.r2Key);
-        if (!image) {
-          throw new Error(
-            `Inserted image row for key ${params.r2Key} not found in the resulting stack.`,
-          );
-        }
-        return {
-          imageId: image.id,
-          src: image.src,
-          position: image.position,
-          width: image.width,
-          height: image.height,
-          altText: image.altText,
-          landingPageName: landingPage.name,
-        };
-      },
+    // Step 1 — the file, prepared and kept.
+    const prepared = await step.do(
+      "prepare-and-store-image",
+      { retries: { limit: 3, delay: "5 seconds", backoff: "exponential" }, timeout: "2 minutes" },
+      () => prepareAndStore(this.env, params),
     );
 
-    // Step 3 — audit trail (best-effort: logActivity swallows its own errors,
+    // Step 2 — the landing_page_images row (idempotent on its key: an engine
+    // restart after a committed insert re-runs this step and finds the row).
+    const record = await step.do("insert-image-record", { retries: { limit: 3, delay: "5 seconds", backoff: "exponential" } }, async () => {
+      const db = getDb(this.env.DB);
+      const delivery = mediaDeliveryOf(this.env);
+      const landingPage = await getLandingPageRow(db, params.landingPageId);
+      if (!landingPage) throw new NonRetryableError(`Landing page ${params.landingPageId} no longer exists — nothing to attach the image to.`);
+      const ready = await mediaOf(this.env).ready(prepared.key);
+      const shown = (await getLandingPageImages(db, params.landingPageId, delivery)).find((image) => image.key === prepared.key);
+      const image =
+        shown ??
+        (
+          await addLandingPageImage(
+            db,
+            params.landingPageId,
+            { mediaKey: prepared.key, altText: params.altText ?? null, ...(params.position !== undefined ? { position: params.position } : {}), width: ready.width, height: ready.height, source: "ai" },
+            delivery,
+          )
+        ).find((row) => row.key === prepared.key);
+      if (!image) throw new Error(`Inserted image row for key ${prepared.key} not found in the resulting stack.`);
+      return { imageId: image.id, url: image.url, position: image.position, width: image.width, height: image.height, altText: image.altText, landingPageName: landingPage.name };
+    });
+
+    // Step 3 — the staged bytes are no longer needed.
+    if (params.kind === "bytes") {
+      await step.do("clear-staging", () => staging(this.env.MEDIA_BUCKET).delete([stagingKey("landing", params.job)]));
+    }
+
+    // Step 4 — audit trail (best-effort: logActivity swallows its own errors,
     // so an audit failure can never fail an upload that already landed).
     await step.do("audit-image-added", async () => {
       await logActivity(
@@ -467,26 +284,26 @@ export class CodLandingPageImageUploadWorkflow extends WorkflowEntrypoint<
           action: "image_added",
           source: "ai",
           imageId: record.imageId,
-          r2Key: params.r2Key,
+          mediaKey: prepared.key,
           uploadKind: params.kind,
           uploadJobId: event.instanceId,
-          byteSize: stored.size,
-          storedContentType: stored.storedContentType,
-          convertedToWebp: stored.converted,
+          byteSize: prepared.size,
+          storedContentType: prepared.storedContentType,
+          convertedToWebp: prepared.converted,
         },
       );
     });
 
     return {
       imageId: record.imageId,
-      r2Key: params.r2Key,
-      src: record.src,
+      key: prepared.key,
+      url: record.url,
       position: record.position,
       width: record.width,
       height: record.height,
       altText: record.altText,
-      converted: stored.converted,
-      storedContentType: stored.storedContentType,
+      converted: prepared.converted,
+      storedContentType: prepared.storedContentType,
     };
   }
 }

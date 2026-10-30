@@ -9,28 +9,32 @@ import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 export interface Env {
   /** D1 database binding */
   DB: D1Database;
-  /** R2 bucket for product images */
-  IMAGES: R2Bucket;
   /**
-   * Cloudflare Images binding (write-time transcode to WebP for landing page
-   * uploads). Optional: when absent, uploads fall back to the original
-   * format — the optimization never blocks an upload.
+   * The store's own R2 bucket: its Staging (`staging/`, private, cleared after
+   * a day) always, and its media too when MEDIA_HOST is `r2`.
+   */
+  MEDIA_BUCKET: R2Bucket;
+  /** Where the store's media is kept: `imagekit` or `r2` (ADR 0021). Required. */
+  MEDIA_HOST?: string;
+  /** How browsers fetch the store's media: `imagekit`, `cloudflare` or `direct`. Required. */
+  MEDIA_DELIVERY?: string;
+  /** The URL a Media Key is appended to, e.g. `https://ik.imagekit.io/<id>/stores/<store>`. Required. */
+  MEDIA_ORIGIN?: string;
+  /** ImageKit's public key (MEDIA_HOST `imagekit`). */
+  IMAGEKIT_PUBLIC_KEY?: string;
+  /** ImageKit's private key (secret; MEDIA_HOST `imagekit`). */
+  IMAGEKIT_PRIVATE_KEY?: string;
+  /** The store's folder in the ImageKit account, e.g. `/stores/maysa` (MEDIA_HOST `imagekit`). */
+  IMAGEKIT_FOLDER?: string;
+  /**
+   * Cloudflare Images binding: Preparation re-encodes staged photos to WebP
+   * (which drops EXIF and GPS). Without it a staged photo is never kept.
    */
   IMAGE_TRANSFORM?: ImagesBinding;
   /** Deployment environment: "development" | "production" */
   ENVIRONMENT: string;
   /** Worker URL for API documentation (e.g., "http://localhost:8787" or "https://api.yourdomain.com") */
   WORKER_URL?: string;
-  /** Custom domain for serving R2 images publicly (e.g. "media.example.com") */
-  MEDIA_DOMAIN: string;
-  /** R2 bucket name — needed by the S3-compat presign API */
-  R2_BUCKET_NAME: string;
-  /** Cloudflare account ID — used to build R2 S3 endpoint URL */
-  CF_ACCOUNT_ID: string;
-  /** R2 API token key ID (secret — set via wrangler secret put) */
-  R2_ACCESS_KEY_ID: string;
-  /** R2 API token secret (secret — set via wrangler secret put) */
-  R2_SECRET_ACCESS_KEY: string;
   /** Comma-separated list of allowed CORS origins (e.g., "http://localhost:3000,https://app.example.com") */
   ALLOWED_ORIGINS?: string;
   /**

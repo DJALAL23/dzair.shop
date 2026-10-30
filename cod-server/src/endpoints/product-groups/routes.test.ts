@@ -11,6 +11,8 @@ import { openApiValidationHook } from "@/openapi/validation-hook";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
 import productGroupsRouter from "./routes";
 import * as queries from "./queries";
+import * as writes from "@/lib/product-groups";
+import { TEST_DELIVERY, TEST_MEDIA_VARS } from "@/test-utils/media";
 
 const mockDb = {
   select: vi.fn(),
@@ -20,6 +22,7 @@ vi.mock("@/db", () => ({
   getDb: vi.fn(() => mockDb),
 }));
 vi.mock("./queries");
+vi.mock("@/lib/product-groups");
 
 const mockUser = {
   id: "user_admin_001",
@@ -37,14 +40,13 @@ function categoryRow(overrides: Record<string, any> = {}) {
     slug: "electronics-abc12345",
     description: "Electronic products",
     parentId: null,
-    imageUrl: null,
     metaTitle: null,
     metaDescription: null,
     metaKeywords: null,
     position: 0,
     createdAt: NOW,
     updatedAt: NOW,
-    imageKey: null,
+    image: null,
     ...overrides,
   };
 }
@@ -55,7 +57,7 @@ describe("Product Groups routes (OpenAPIHono)", () => {
   beforeEach(() => {
     app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
-      c.env = { DB: mockDb } as any;
+      c.env = { DB: mockDb, ...TEST_MEDIA_VARS } as any;
       signIn(c, mockUser as any);
       await next();
     });
@@ -86,7 +88,7 @@ describe("Product Groups routes (OpenAPIHono)", () => {
       const res = await app.request("/api/product-groups?search=elec&parentId=cat_1");
 
       expect(res.status).toBe(200);
-      expect(queries.getAllGroups).toHaveBeenCalledWith(mockDb, {
+      expect(queries.getAllGroups).toHaveBeenCalledWith(mockDb, TEST_DELIVERY, {
         search: "elec",
         parentId: "cat_1",
       });
@@ -96,7 +98,7 @@ describe("Product Groups routes (OpenAPIHono)", () => {
   describe("POST /api/product-groups", () => {
     it("creates a product group successfully and returns 201", async () => {
       const created = { ...categoryRow(), children: [], productsCount: 0 };
-      vi.mocked(queries.createGroup).mockResolvedValue(created);
+      vi.mocked(writes.createProductGroup).mockResolvedValue(created);
 
       const res = await app.request("/api/product-groups", {
         method: "POST",
@@ -141,11 +143,11 @@ describe("Product Groups routes (OpenAPIHono)", () => {
       });
     });
 
-    it("returns 400 for invalid imageUrl", async () => {
+    it("returns 400 for an image that is not a Media Key", async () => {
       const res = await app.request("/api/product-groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Electronics", imageUrl: "not-a-url" }),
+        body: JSON.stringify({ name: "Electronics", imageKey: "https://media.example/products/a.webp" }),
       });
 
       expect(res.status).toBe(400);
@@ -169,7 +171,7 @@ describe("Product Groups routes (OpenAPIHono)", () => {
         success: true,
         data: group,
       });
-      expect(queries.getGroupById).toHaveBeenCalledWith(mockDb, "cat_123");
+      expect(queries.getGroupById).toHaveBeenCalledWith(mockDb, "cat_123", TEST_DELIVERY);
     });
 
     it("returns 404 when group is not found", async () => {
@@ -189,7 +191,7 @@ describe("Product Groups routes (OpenAPIHono)", () => {
   describe("PATCH /api/product-groups/:id", () => {
     it("updates group successfully", async () => {
       const updated = { ...categoryRow({ name: "Updated Electronics" }), children: [], productsCount: 2 };
-      vi.mocked(queries.updateGroup).mockResolvedValue(updated);
+      vi.mocked(writes.updateProductGroup).mockResolvedValue(updated);
 
       const res = await app.request("/api/product-groups/cat_123", {
         method: "PATCH",
@@ -218,7 +220,7 @@ describe("Product Groups routes (OpenAPIHono)", () => {
     });
 
     it("returns 404 when group is not found", async () => {
-      vi.mocked(queries.updateGroup).mockResolvedValue(null);
+      vi.mocked(writes.updateProductGroup).mockResolvedValue(null);
 
       const res = await app.request("/api/product-groups/cat_missing", {
         method: "PATCH",
@@ -241,7 +243,7 @@ describe("Product Groups routes (OpenAPIHono)", () => {
         children: [],
         productsCount: 0,
       });
-      vi.mocked(queries.deleteGroup).mockResolvedValue({ success: true } as any);
+      vi.mocked(writes.deleteProductGroup).mockResolvedValue();
 
       const res = await app.request("/api/product-groups/cat_123", {
         method: "DELETE",

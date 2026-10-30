@@ -7,7 +7,7 @@
  * workflow would reject.
  */
 
-/** Decoded-byte cap — matches the browser proxy-upload cap (images endpoint). */
+/** Decoded-byte cap on an agent's image. */
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 /**
@@ -17,7 +17,7 @@ export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
  */
 export const WEBP_QUALITY = 85;
 
-/** Platform image whitelist — identical to images/presign.ts ALLOWED_TYPES. */
+/** The image types the store keeps (cod-shared/media/keys IMAGE_TYPES), with the image/jpg alias agents send. */
 export const IMAGE_CONTENT_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -33,28 +33,19 @@ export function canonicalImageContentType(contentType: string): string {
   return contentType === "image/jpg" ? "image/jpeg" : contentType;
 }
 
-/** Server-generated key shape: landing/<uuid-no-dashes>.<ext> — traversal-proof by construction. */
-export const LANDING_IMAGE_R2_KEY_PATTERN = /^landing\/[a-f0-9]{32}\.(jpg|png|webp|gif)$/;
+/** An upload job's id: 32 hex, shared by its workflow instance, its staged bytes and its Media Key. */
+export const LANDING_UPLOAD_JOB_PATTERN = /^[a-f0-9]{32}$/;
 
 /**
- * Mint the R2 key and the workflow instance ID from ONE uuid so the job,
- * its storage object, and its audit rows share a traceable identity:
- *   r2Key     = landing/<hex>.webp — the stored format is always WebP (the
- *               upload workflow transcodes; on transcode failure the original
- *               bytes stay at this key under their source content type)
+ * Mint one upload job's identity from ONE uuid, so the job, its staged bytes,
+ * its stored file and its audit rows share a traceable identity:
+ *   job        = <hex>
  *   instanceId = lpimg-<hex>   (matches the Workflows ID charset, ≤ 100 chars)
+ * The Media Key is `landing/<hex>.<ext>`, the extension the prepared file's.
  */
-export function mintLandingImageUploadIds(): {
-  hex: string;
-  r2Key: string;
-  instanceId: string;
-} {
-  const hex = crypto.randomUUID().replace(/-/g, "");
-  return {
-    hex,
-    r2Key: `landing/${hex}.webp`,
-    instanceId: `lpimg-${hex}`,
-  };
+export function mintLandingImageUploadIds(): { job: string; instanceId: string } {
+  const job = crypto.randomUUID().replace(/-/g, "");
+  return { job, instanceId: `lpimg-${job}` };
 }
 
 /** Base64 input cap: 8 MB decoded → ~11.18 M base64 chars, plus slack for

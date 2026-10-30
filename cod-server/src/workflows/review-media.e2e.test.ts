@@ -1,5 +1,6 @@
 /**
- * CodReviewMediaWorkflow on real D1 and a real (local) R2 bucket, with real
+ * CodReviewMediaWorkflow on real D1 and the store's real (local) bucket, its
+ * files kept by the store's media (the R2 host), with real
  * photos and recordings. The image service is a stand-in that answers with
  * real WebP files and can be made to fail; the step runner retries like
  * Workflows does (3 retries), then lets the failure through.
@@ -15,9 +16,9 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Miniflare } from "miniflare";
 import { eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
+import { TEST_MEDIA_VARS } from "@/test-utils/media";
 import * as schema from "@/db/schema";
 import { CodReviewMediaWorkflow } from "./review-media";
 import { runStuckReviewSweep } from "@/cron/settle-stuck-reviews";
@@ -29,7 +30,6 @@ const G = "a".repeat(32);
 const id = (n: number) => String(n).repeat(32).slice(0, 32);
 
 let d1: TestD1;
-let r2mf: Miniflare;
 let bucket: R2Bucket;
 let imageCalls: Array<{ width?: number }>;
 let imageFailures: Array<"transient" | "bad">;
@@ -76,11 +76,11 @@ const runner = (names: string[]) => ({
   async sleepUntil() {},
 });
 
-const workflow = () => new CodReviewMediaWorkflow({} as never, { DB: d1.raw, IMAGES: bucket, IMAGE_TRANSFORM: imagesOn ? images : undefined } as never);
+const workflow = () => new CodReviewMediaWorkflow({} as never, { DB: d1.raw, MEDIA_BUCKET: bucket, ...TEST_MEDIA_VARS, IMAGE_TRANSFORM: imagesOn ? images : undefined } as never);
 const run = async (job: ReviewMediaJob, steps: string[] = []) => workflow().run({ payload: job } as never, runner(steps) as never);
 
 async function sent(uploadId: string, bytes: Uint8Array, kind: "image" | "audio", contentType: string, declaredDurationMs?: number) {
-  const key = `review-uploads/${G}/${uploadId}`;
+  const key = `staging/reviews/${G}/${uploadId}`;
   await bucket.put(key, bytes, { customMetadata: { kind, contentType } });
   return { key, kind, contentType, bytes: bytes.byteLength, ...(declaredDurationMs ? { declaredDurationMs } : {}) };
 }
@@ -91,23 +91,23 @@ const job = (uploads: ReviewMediaJob["uploads"], overrides: Partial<ReviewMediaJ
 const review = () => d1.db.select().from(schema.reviews).where(eq(schema.reviews.id, "r1")).get();
 const media = () => d1.db.select().from(schema.reviewMedia).orderBy(schema.reviewMedia.position).all();
 const keys = async (prefix: string) => (await bucket.list({ prefix })).objects.map((o) => o.key).sort();
+/** The keys the store's media holds ready. */
+const kept = async () => (await d1.db.select({ key: schema.media.key, status: schema.media.status }).from(schema.media).all()).filter((row) => row.status === "ready").map((row) => row.key).sort();
 
 beforeAll(async () => {
   d1 = await createTestD1();
-  r2mf = new Miniflare({ modules: true, script: "export default { fetch() { return new Response('ok'); } }", r2Buckets: ["IMAGES"] });
-  bucket = (await r2mf.getR2Bucket("IMAGES")) as unknown as R2Bucket;
+  bucket = d1.bucket;
 }, 120_000);
 
 afterAll(async () => {
   await d1?.dispose();
-  await r2mf?.dispose();
 });
 
 beforeEach(async () => {
   imageCalls = [];
   imageFailures = [];
   imagesOn = true;
-  for (const table of [schema.reviewMedia, schema.reviews, schema.products, schema.stores]) await d1.db.delete(table);
+  for (const table of [schema.media, schema.reviewMedia, schema.reviews, schema.products, schema.stores]) await d1.db.delete(table);
   const listed = await bucket.list();
   if (listed.objects.length) await bucket.delete(listed.objects.map((o) => o.key));
   await d1.db.insert(schema.stores).values({ id: "s1", name: "Store", createdAt: T, updatedAt: T });
@@ -125,8 +125,8 @@ describe("preparing a review's files", () => {
     expect(imageCalls).toEqual([{ width: 1600, height: 1600, fit: "scale-down" }, { width: 480, height: 480, fit: "scale-down" }]);
 
     expect(await media()).toMatchObject([
-      { id: id(1), kind: "image", r2Key: `reviews/r1/${id(1)}.webp`, thumbKey: `reviews/r1/${id(1)}-t.webp`, contentType: "image/webp", width: 64, height: 48, durationMs: null, position: 0 },
-      { id: id(2), kind: "audio", r2Key: `reviews/r1/${id(2)}.webm`, thumbKey: null, contentType: "audio/webm", bytes: fixture("voice.webm").byteLength, durationMs: 3208, position: 1 },
+      { id: id(1), kind: "image", mediaKey: `reviews/r1/${id(1)}.webp`, thumbKey: `reviews/r1/${id(1)}-t.webp`, contentType: "image/webp", width: 64, height: 48, durationMs: null, position: 0 },
+      { id: id(2), kind: "audio", mediaKey: `reviews/r1/${id(2)}.webm`, thumbKey: null, contentType: "audio/webm", bytes: fixture("voice.webm").byteLength, durationMs: 3208, position: 1 },
     ]);
     expect(await review()).toMatchObject({ status: "pending", mediaDropped: 0 });
 
@@ -134,7 +134,8 @@ describe("preparing a review's files", () => {
     expect(new Uint8Array(await stored!.arrayBuffer())).toEqual(fixture("photo-full.webp"));
     expect(stored!.httpMetadata).toMatchObject({ contentType: "image/webp", cacheControl: "public, max-age=31536000, immutable" });
     expect(await keys("reviews/")).toEqual([`reviews/r1/${id(1)}-t.webp`, `reviews/r1/${id(1)}.webp`, `reviews/r1/${id(2)}.webm`]);
-    expect(await keys("review-uploads/")).toEqual([]);
+    expect(await kept()).toEqual([`reviews/r1/${id(1)}-t.webp`, `reviews/r1/${id(1)}.webp`, `reviews/r1/${id(2)}.webm`]);
+    expect(await keys("staging/")).toEqual([]);
   });
 
   it("never keeps a photo unconverted: without the image service it is dropped", async () => {
@@ -159,7 +160,7 @@ describe("preparing a review's files", () => {
     expect(await run(job([broken, junk]))).toMatchObject({ kept: 0, dropped: ["unreadable", "unreadable"] });
     expect(await review()).toMatchObject({ status: "approved", mediaDropped: 2 });
     expect(await keys("reviews/")).toEqual([]);
-    expect(await keys("review-uploads/")).toEqual([]);
+    expect(await keys("staging/")).toEqual([]);
   });
 
   it("drops a file the service keeps failing on, once retries run out", async () => {
@@ -198,7 +199,7 @@ describe("preparing a review's files", () => {
     await d1.db.delete(schema.reviews);
     expect(await run(job([photo]))).toMatchObject({ landed: "gone" });
     expect(await keys("reviews/")).toEqual([]);
-    expect(await keys("review-uploads/")).toEqual([]);
+    expect(await keys("staging/")).toEqual([]);
   });
 
   it("refuses a job that is not one", async () => {

@@ -12,56 +12,29 @@
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { signIn } from "@/test-utils/sign-in";
-import { Miniflare } from "miniflare";
-import { readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
-import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
+import { createTestD1, type TestD1 } from "@/test-utils/d1";
+import { TEST_MEDIA_VARS, testMedia } from "@/test-utils/media";
+import { webp } from "../../../../cod-shared/media/hosts/testing/files";
 import landingPagesRouter from "./routes";
 import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
 
+let d1: TestD1;
 let db: AppDb;
-let rawD1: D1Database;
 let app: OpenAPIHono<AppContext>;
 
-/** R2 bucket stub — tracks deleted keys so shared-object guards are testable. */
-const r2DeletedKeys: string[] = [];
-const r2BucketStub = {
-  delete: async (key: string) => {
-    r2DeletedKeys.push(key);
-  },
-} as unknown as R2Bucket;
-
 beforeAll(async () => {
-  const mf = new Miniflare({
-    script: "export default { fetch() { return new Response('ok'); } }",
-    modules: true,
-    d1Databases: { DB: "test-db" },
-  });
-  rawD1 = await mf.getD1Database("DB");
-  const dir = resolve(__dirname, "../../db/migrations");
-  const prepared: D1PreparedStatement[] = [];
-  for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
-    const statements = readFileSync(`${dir}/${file}`, "utf8")
-      .split("--> statement-breakpoint")
-      .flatMap((s) => s.split(/;\s*\n/))
-      .map((s) => s.replace(/;+\s*$/, "").trim())
-      .filter((s) => s.replace(/--[^\n]*/g, "").trim().length > 0);
-    for (const statement of statements) prepared.push(rawD1.prepare(statement));
-  }
-  for (let i = 0; i < prepared.length; i += 50) {
-    await rawD1.batch(prepared.slice(i, i + 50));
-  }
-  db = drizzle(rawD1 as unknown as D1Database, { schema }) as unknown as AppDb;
+  d1 = await createTestD1();
+  db = d1.db;
 
   app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
   app.use("*", async (c, next) => {
-    c.env = { DB: rawD1 as any, IMAGES: r2BucketStub } as any;
+    c.env = { DB: d1.raw, MEDIA_BUCKET: d1.bucket, ...TEST_MEDIA_VARS } as never;
     signIn(c, {
       id: "admin_user_001",
       email: "admin@example.com",
@@ -75,14 +48,23 @@ beforeAll(async () => {
   });
   app.onError(errorHandler);
   app.route("/api/landing-pages", landingPagesRouter);
-
-  registry.push(mf);
 }, 120_000);
 
-const registry: Miniflare[] = [];
 afterAll(async () => {
-  for (const mf of registry) await mf.dispose();
+  await d1?.dispose();
 });
+
+/** Puts a file in the store's media and attaches it to the landing page by its key. */
+async function addImage(landingPageId: string, key: string, extra: Record<string, unknown> = {}): Promise<Response> {
+  await testMedia(d1).store({ key, contentType: "image/webp", body: webp() });
+  return app.request(`/api/landing-pages/${landingPageId}/images`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mediaKey: key, ...extra }),
+  });
+}
+
+const held = async (key: string) => (await d1.bucket.head(key)) !== null;
 
 const NOW = () => new Date().toISOString();
 let seq = 0;
@@ -208,24 +190,12 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
     const created = (await (await createLp({ name: "Images LP", productId })).json()) as any;
     const id = created.data.id;
 
-    const add1 = await app.request(`/api/landing-pages/${id}/images`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "landing/img-1.jpg", src: "https://m.example/img-1.jpg", altText: "الأول" }),
-    });
+    const add1 = await addImage(id, "landing/img-1.jpg", { altText: "الأول" });
     expect(add1.status).toBe(201);
     expect(((await add1.json()) as any).data).toHaveLength(1);
 
-    await app.request(`/api/landing-pages/${id}/images`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "landing/img-2.jpg", src: "https://m.example/img-2.jpg" }),
-    });
-    await app.request(`/api/landing-pages/${id}/images`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "landing/img-3.jpg", src: "https://m.example/img-3.jpg" }),
-    });
+    await addImage(id, "landing/img-2.jpg");
+    await addImage(id, "landing/img-3.jpg");
 
     const list = (await (await app.request(`/api/landing-pages/${id}/images`)).json()) as any;
     expect(list.data.map((i: any) => i.position)).toEqual([1, 2, 3]);
@@ -238,7 +208,7 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
       body: JSON.stringify({ imageIds: [imgIds[2], imgIds[0], imgIds[1]] }),
     });
     const reordered: any[] = ((await reorder.json()) as any).data;
-    expect(reordered[0].src).toContain("img-3");
+    expect(reordered[0].key).toBe("landing/img-3.jpg");
     expect(reordered.map((i: any) => i.position)).toEqual([1, 2, 3]);
 
     // Duplicate IDs rejected (ValidationError → 400, same taxonomy as products reorder)
@@ -314,11 +284,7 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
 
     // Clean LP deletes, images cascade
     const clean = (await (await createLp({ name: "Clean", productId, slug: `clean-${crypto.randomUUID().slice(0, 6)}` })).json()) as any;
-    await app.request(`/api/landing-pages/${clean.data.id}/images`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "landing/clean-1.jpg", src: "https://m.example/clean-1.jpg" }),
-    });
+    await addImage(clean.data.id, "landing/clean-1.jpg");
     const del = await app.request(`/api/landing-pages/${clean.data.id}`, { method: "DELETE" });
     expect(del.status).toBe(200);
     const images = await db.select().from(schema.landingPageImages)
@@ -446,23 +412,15 @@ describe("publicUrl resolution — store domain wins, env falls back, relative l
   });
 });
 
-describe("duplicate + shared R2-object guard", () => {
-  it("duplicate: fresh draft, new slug, zeroed stats, images share R2 keys", async () => {
+describe("duplicate + shared file guard", () => {
+  it("duplicate: fresh draft, new slug, zeroed stats, images share their files", async () => {
     const productId = await seedProduct();
     const created: any = await (await createLp({ name: "Original Creative", productId, slug: `dup-src-${crypto.randomUUID().slice(0, 6)}` })).json();
     const sourceId = created.data.id;
 
     // Two images on the source
-    await app.request(`/api/landing-pages/${sourceId}/images`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: `landing/dup-${crypto.randomUUID().slice(0, 6)}.jpg`, src: "https://m.example/dup-1.jpg" }),
-    });
-    await app.request(`/api/landing-pages/${sourceId}/images`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: `landing/dup2-${crypto.randomUUID().slice(0, 6)}.jpg`, src: "https://m.example/dup-2.jpg" }),
-    });
+    await addImage(sourceId, `landing/dup-${crypto.randomUUID().slice(0, 6)}.jpg`);
+    await addImage(sourceId, `landing/dup2-${crypto.randomUUID().slice(0, 6)}.jpg`);
     // Views + attributed order on the source — must NOT copy
     await db.update(schema.landingPages).set({ views: 77 }).where(eq(schema.landingPages.id, sourceId));
     const cust = await seedCustomer();
@@ -488,11 +446,11 @@ describe("duplicate + shared R2-object guard", () => {
     expect(dup.data.stats).toMatchObject({ views: 0, orders: 0, revenue: 0 });
     expect(dup.data.images).toHaveLength(2);
 
-    // Images reference the SAME R2 keys (immutable objects shared)
+    // Images show the SAME files (immutable, shared)
     const sourceImages = await db.select().from(schema.landingPageImages)
       .where(eq(schema.landingPageImages.landingPageId, sourceId));
-    const dupImages = dup.data.images as Array<{ r2Key: string }>;
-    expect(dupImages.map((i) => i.r2Key).sort()).toEqual(sourceImages.map((i) => i.r2Key).sort());
+    const dupImages = dup.data.images as Array<{ key: string }>;
+    expect(dupImages.map((i) => i.key).sort()).toEqual(sourceImages.map((i) => i.mediaKey).sort());
 
     // Source stats untouched
     const srcDetail: any = await (await app.request(`/api/landing-pages/${sourceId}`)).json();
@@ -500,36 +458,31 @@ describe("duplicate + shared R2-object guard", () => {
     expect(srcDetail.data.stats.orders).toBe(1);
   });
 
-  it("deleting an image on the ORIGINAL leaves the shared R2 object while the duplicate references it", async () => {
+  it("deleting an image on the ORIGINAL leaves the shared file while the duplicate shows it", async () => {
     const productId = await seedProduct();
     const created: any = await (await createLp({ name: "Shared Key Original", productId, slug: `shared-${crypto.randomUUID().slice(0, 6)}` })).json();
     const sourceId = created.data.id;
     const sharedKey = `landing/shared-${crypto.randomUUID().slice(0, 6)}.jpg`;
 
-    await app.request(`/api/landing-pages/${sourceId}/images`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: sharedKey, src: "https://m.example/shared.jpg" }),
-    });
+    await addImage(sourceId, sharedKey);
     const dup: any = await (await app.request(`/api/landing-pages/${sourceId}/duplicate`, { method: "POST" })).json();
 
     // Delete the image on the ORIGINAL — the duplicate still references the key
     const sourceImages = await db.select().from(schema.landingPageImages)
       .where(eq(schema.landingPageImages.landingPageId, sourceId));
-    const deletedBefore = r2DeletedKeys.length;
     const del = await app.request(`/api/landing-pages/${sourceId}/images/${sourceImages[0].id}`, { method: "DELETE" });
     expect(del.status).toBe(200);
 
-    // R2 object NOT removed (the duplicate's row still references it)
-    expect(r2DeletedKeys.length).toBe(deletedBefore);
+    // The file stays (the duplicate's row still shows it)
+    expect(await held(sharedKey)).toBe(true);
     const dupImages = await db.select().from(schema.landingPageImages)
       .where(eq(schema.landingPageImages.landingPageId, dup.data.id));
-    expect(dupImages.map((i) => i.r2Key)).toEqual([sharedKey]);
+    expect(dupImages.map((i) => i.mediaKey)).toEqual([sharedKey]);
 
-    // Now delete the duplicate's image too — the last reference goes, R2 removed
+    // Now delete the duplicate's image too — the last one showing it goes, and the file with it
     const del2 = await app.request(`/api/landing-pages/${dup.data.id}/images/${dupImages[0].id}`, { method: "DELETE" });
     expect(del2.status).toBe(200);
-    expect(r2DeletedKeys[r2DeletedKeys.length - 1]).toBe(sharedKey);
+    expect(await held(sharedKey)).toBe(false);
   });
 
   it("duplicate of a missing LP is a 404", async () => {

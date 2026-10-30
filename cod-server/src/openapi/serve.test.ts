@@ -30,7 +30,7 @@ import productsRouter from "@/endpoints/products/routes";
 import { stockRouter, productStockRouter } from "@/endpoints/stock/routes";
 import offersRouter from "@/endpoints/offers/routes";
 import driverPaymentsRouter from "@/endpoints/driver-payments/routes";
-import { uploadRouter } from "@/endpoints/images/routes";
+import { uploadsRouter as mediaUploadsRouter } from "@/endpoints/media/routes";
 import ordersRouter from "@/endpoints/orders/routes";
 import shipmentsRouter from "@/endpoints/shipments/routes";
 import webhooksRouter from "@/endpoints/webhooks/routes";
@@ -60,7 +60,7 @@ function buildApp() {
   app.route("/api/products", productStockRouter);
   app.route("/api/offers", offersRouter);
   app.route("/api/driver-payments", driverPaymentsRouter);
-  app.route("/api/images", uploadRouter);
+  app.route("/api/media", mediaUploadsRouter);
   app.route("/api/orders", ordersRouter);
   app.route("/api/shipments", shipmentsRouter);
   app.route("/webhooks", webhooksRouter);
@@ -630,7 +630,7 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(spec.paths["/api/products/{id}/status"]?.patch?.operationId).toBe("updateProductStatus");
 
     expect(spec.paths["/api/products/{id}/images"]?.get?.operationId).toBe("listProductImages");
-    expect(spec.paths["/api/products/{id}/images"]?.post?.operationId).toBe("saveProductImage");
+    expect(spec.paths["/api/products/{id}/images"]?.post?.operationId).toBe("attachProductImage");
     expect(spec.paths["/api/products/{id}/images/reorder"]?.patch?.operationId).toBe("reorderProductImages");
     expect(spec.paths["/api/products/{id}/images/{imageId}"]?.delete?.operationId).toBe("deleteProductImage");
 
@@ -721,27 +721,22 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(create.requestBody.content["application/json"].schema.properties.orderIds).toBeUndefined();
   });
 
-  it("documents the migrated images upload/presign endpoints from Zod schemas", async () => {
+  it("documents a media upload's three steps from Zod schemas, and no URL-based image endpoint", async () => {
     const app = buildApp();
     const res = await app.request("/api/openapi.json", {}, { WORKER_URL: "https://x" } as any);
     const spec: any = await res.json();
 
-    const upload = spec.paths["/api/images/upload"]?.post;
-    expect(upload).toBeDefined();
-    expect(upload.summary).toBe("Upload image");
-    expect(upload.tags).toEqual(["Images"]);
-    expect(upload.operationId).toBe("uploadImage");
-    expect(upload.security).toEqual([{ ApiKeyAuth: [] }]);
-    expect(
-      upload.requestBody.content["multipart/form-data"].schema.properties.file
-    ).toBeDefined();
+    const request = spec.paths["/api/media/uploads"]?.post;
+    expect(request).toMatchObject({ tags: ["Media"], operationId: "requestMediaUpload", security: [{ ApiKeyAuth: [] }] });
+    expect(request.requestBody.content["application/json"].schema.properties).toHaveProperty("folder");
+    expect(spec.paths["/api/media/uploads/{id}/content"]?.put?.operationId).toBe("receiveMediaUpload");
+    expect(spec.paths["/api/media/uploads/{id}/complete"]?.post?.operationId).toBe("completeMediaUpload");
 
-    const presign = spec.paths["/api/images/presign"]?.post;
-    expect(presign).toBeDefined();
-    expect(presign.operationId).toBe("presignUpload");
-
-    expect(spec.components.schemas.UploadedImage).toBeDefined();
-    expect(spec.components.schemas.PresignedUpload).toBeDefined();
+    expect(spec.components.schemas.MediaImage.properties).toHaveProperty("key");
+    expect(spec.components.schemas.MediaDelivery).toBeDefined();
+    expect(Object.keys(spec.paths).filter((path) => path.startsWith("/api/images"))).toEqual([]);
+    expect(spec.components.schemas.UploadedImage).toBeUndefined();
+    expect(spec.components.schemas.PresignedUpload).toBeUndefined();
   });
 
   it("documents the migrated orders endpoints from Zod schemas", async () => {
@@ -887,16 +882,17 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(spec.paths["/api/analytics/dashboard-stats"]).toBeUndefined();
   });
 
-  it("documents the plain-Hono /images/{key} route via its documentation-only stub", async () => {
+  it("documents the plain-Hono /media/{key} route via its documentation-only stub", async () => {
     const app = buildApp();
     const res = await app.request("/api/openapi.json", {}, { WORKER_URL: "https://x" } as any);
     const spec: any = await res.json();
 
     // The regex-param serving route cannot be a createRoute — it is the one
     // hand-written path entry, merged into the generated document.
-    const serve = spec.paths["/images/{key}"]?.get;
+    const serve = spec.paths["/media/{key}"]?.get;
     expect(serve).toBeDefined();
-    expect(serve.operationId).toBe("serveImage");
+    expect(serve.operationId).toBe("serveMedia");
+    expect(spec.paths["/images/{key}"]).toBeUndefined();
     expect(serve.security).toEqual([]);
   });
 

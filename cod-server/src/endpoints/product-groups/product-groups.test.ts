@@ -13,6 +13,7 @@ import { describe, it, expect } from "vitest";
 import { createGroupSchema, updateGroupSchema, groupFiltersSchema } from "./validation";
 import { getGroupById, createGroup, updateGroup, deleteGroup } from "./queries";
 import { makeMockDb, f, a, categoryRow } from "@/test-utils/mock-db";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 // ─── createGroupSchema ─────────────────────────────────────────────────────────
 
@@ -41,20 +42,13 @@ describe("createGroupSchema", () => {
     expect(createGroupSchema.safeParse({ name: "Shirts", slug: "cotton shirts" }).success).toBe(false);
   });
 
-  it("accepts valid imageUrl", () => {
-    expect(
-      createGroupSchema.safeParse({ name: "ملابس", imageUrl: "https://example.com/img.jpg" }).success
-    ).toBe(true);
+  it("takes an image by its Media Key, never a URL", () => {
+    expect(createGroupSchema.safeParse({ name: "ملابس", imageKey: "https://media.example/products/a.webp" }).success).toBe(false);
+    expect(createGroupSchema.safeParse({ name: "ملابس", imageKey: "products/3f2a9c0b1d2e4f5061728394a5b6c7d8.webp" }).success).toBe(true);
   });
 
-  it("rejects invalid imageUrl", () => {
-    expect(
-      createGroupSchema.safeParse({ name: "ملابس", imageUrl: "not-a-url" }).success
-    ).toBe(false);
-  });
-
-  it("accepts null imageUrl", () => {
-    expect(createGroupSchema.safeParse({ name: "ملابس", imageUrl: null }).success).toBe(true);
+  it("accepts a null image", () => {
+    expect(createGroupSchema.safeParse({ name: "ملابس", imageKey: null }).success).toBe(true);
   });
 
   it("accepts optional parentId for sub-categories", () => {
@@ -111,7 +105,7 @@ describe("groupFiltersSchema", () => {
 describe("getGroupById", () => {
   it("returns null when group does not exist", async () => {
     const db = makeMockDb([f(null)]);
-    const result = await getGroupById(db as any, "cat_missing");
+    const result = await getGroupById(db as any, "cat_missing", TEST_DELIVERY);
     expect(result).toBeNull();
   });
 
@@ -122,7 +116,7 @@ describe("getGroupById", () => {
       a([]),           // children (Promise.all[0])
       f({ count: 0 }), // productsCount (Promise.all[1])
     ]);
-    const result = await getGroupById(db as any, "cat_1");
+    const result = await getGroupById(db as any, "cat_1", TEST_DELIVERY);
     expect(result).not.toBeNull();
     expect(result!.id).toBe("cat_1");
     expect(result!.children).toEqual([]);
@@ -136,7 +130,7 @@ describe("getGroupById", () => {
       a([childCat]),   // 1 child
       f({ count: 0 }),
     ]);
-    const result = await getGroupById(db as any, "cat_1");
+    const result = await getGroupById(db as any, "cat_1", TEST_DELIVERY);
     expect(result!.children).toHaveLength(1);
   });
 
@@ -146,7 +140,7 @@ describe("getGroupById", () => {
       a([]),
       f({ count: 5 }),
     ]);
-    const result = await getGroupById(db as any, "cat_1");
+    const result = await getGroupById(db as any, "cat_1", TEST_DELIVERY);
     expect(result!.productsCount).toBe(5);
   });
 });
@@ -161,7 +155,7 @@ describe("createGroup", () => {
       a([]),
       f({ count: 0 }),
     ]);
-    const result = await createGroup(db as any, { name: "إكسسوارات", position: 0 });
+    const result = await createGroup(db as any, { name: "إكسسوارات", position: 0 }, TEST_DELIVERY);
     expect(result).not.toBeNull();
     expect(result!.id).toBeDefined();
   });
@@ -172,7 +166,7 @@ describe("createGroup", () => {
       a([]),
       f({ count: 0 }),
     ]);
-    const result = await createGroup(db as any, { name: "إكسسوارات", position: 0 });
+    const result = await createGroup(db as any, { name: "إكسسوارات", position: 0 }, TEST_DELIVERY);
     expect(result!.slug).toBeDefined();
   });
 
@@ -186,7 +180,7 @@ describe("createGroup", () => {
       name: "Accessories",
       slug: "accessories",
       position: 1,
-    });
+    }, TEST_DELIVERY);
     expect(result!.slug).toBe("accessories");
   });
 });
@@ -201,7 +195,7 @@ describe("updateGroup", () => {
       a([]),
       f({ count: 2 }),
     ]);
-    const result = await updateGroup(db as any, "cat_1", { name: "ملابس نسائية" });
+    const result = await updateGroup(db as any, "cat_1", { name: "ملابس نسائية" }, TEST_DELIVERY);
     expect(result).not.toBeNull();
     expect(result!.productsCount).toBe(2);
   });

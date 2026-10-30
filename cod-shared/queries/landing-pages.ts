@@ -6,6 +6,8 @@
  * join orders by attribution; the conversion rate is computed by the caller
  * because a zero-view page has an undefined rate, not zero.
  */
+import type { MediaDelivery } from "../media/delivery";
+import { landingImageViews } from "../media/views";
 import { storefrontPath } from "../storefront/routes";
 import { eq, desc, and, sql, isNull, count } from "drizzle-orm";
 import {
@@ -72,8 +74,8 @@ export interface UpdateLandingPageData {
 }
 
 export interface LandingPageImageInput {
-  r2Key: string;
-  src: string;
+  /** A ready Media Key (the caller checks it with the Media Library). */
+  mediaKey: string;
   altText?: string | null;
   position?: number;
   /** Intrinsic pixel size — reserved by the storefront to prevent CLS. */
@@ -216,7 +218,12 @@ export function generateLandingPageSlug(): string {
  *      call to D1 instead of three parallel-but-separate queries. Used by
  *      every REST detail read and every MCP write tool's post-mutation read.
  */
-export async function getLandingPageById(db: AppDb, id: string) {
+/** The page's own row, without its images, stats or product: for checks and names. */
+export async function getLandingPageRow(db: AppDb, id: string) {
+  return (await db.select().from(landingPages).where(eq(landingPages.id, id)).get()) ?? null;
+}
+
+export async function getLandingPageById(db: AppDb, id: string, delivery: MediaDelivery) {
   const row = await db
     .select()
     .from(landingPages)
@@ -249,7 +256,7 @@ export async function getLandingPageById(db: AppDb, id: string) {
 
   return {
     ...row,
-    images,
+    images: landingImageViews(images, delivery),
     product: productRow
       ? (productRow as unknown as { id: string; name: string; handle: string; price: number })
       : null,
@@ -272,7 +279,7 @@ type BatchStatement = Parameters<AppDb["batch"]>[0][number];
  *      call to D1 (batched statements), instead of re-selecting the row by
  *      id and issuing four more queries.
  */
-export async function getLandingPageDetailBySlug(db: AppDb, slug: string) {
+export async function getLandingPageDetailBySlug(db: AppDb, slug: string, delivery: MediaDelivery) {
   const row = await db
     .select()
     .from(landingPages)
@@ -315,7 +322,7 @@ export async function getLandingPageDetailBySlug(db: AppDb, slug: string) {
 
   return {
     ...row,
-    images,
+    images: landingImageViews(images, delivery),
     product: productRow
       ? (productRow as unknown as { id: string; name: string; handle: string; price: number })
       : null,
@@ -331,14 +338,14 @@ export async function getLandingPageDetailBySlug(db: AppDb, slug: string) {
   };
 }
 
-export async function getLandingPageBySlug(db: AppDb, slug: string) {
+export async function getLandingPageBySlug(db: AppDb, slug: string, delivery: MediaDelivery) {
   const row = await db
     .select()
     .from(landingPages)
     .where(eq(landingPages.slug, slug))
     .get();
   if (!row) return null;
-  return getLandingPageById(db, row.id);
+  return getLandingPageById(db, row.id, delivery);
 }
 
 export async function createLandingPage(
@@ -428,6 +435,7 @@ export async function addLandingPageImage(
   db: AppDb,
   landingPageId: string,
   image: LandingPageImageInput,
+  delivery: MediaDelivery,
 ) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -442,8 +450,7 @@ export async function addLandingPageImage(
   await db.insert(landingPageImages).values({
     id,
     landingPageId,
-    r2Key: image.r2Key,
-    src: image.src,
+    mediaKey: image.mediaKey,
     altText: image.altText ?? null,
     source: image.source ?? "upload",
     position: nextPosition,
@@ -452,16 +459,12 @@ export async function addLandingPageImage(
     createdAt: now,
   });
 
-  return getLandingPageImages(db, landingPageId);
+  return getLandingPageImages(db, landingPageId, delivery);
 }
 
-export async function getLandingPageImages(db: AppDb, landingPageId: string) {
-  return db
-    .select()
-    .from(landingPageImages)
-    .where(eq(landingPageImages.landingPageId, landingPageId))
-    .orderBy(landingPageImages.position)
-    .all();
+export async function getLandingPageImages(db: AppDb, landingPageId: string, delivery: MediaDelivery) {
+  const rows = await db.select().from(landingPageImages).where(eq(landingPageImages.landingPageId, landingPageId)).orderBy(landingPageImages.position).all();
+  return landingImageViews(rows, delivery);
 }
 
 export async function getLandingPageImage(
@@ -485,6 +488,7 @@ export async function reorderLandingPageImages(
   db: AppDb,
   landingPageId: string,
   imageIds: string[],
+  delivery: MediaDelivery,
 ) {
   const now = new Date().toISOString();
   // One atomic batch: every position update + the parent touch in a SINGLE
@@ -508,7 +512,7 @@ export async function reorderLandingPageImages(
       .where(eq(landingPages.id, landingPageId)),
   );
   await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
-  return getLandingPageImages(db, landingPageId);
+  return getLandingPageImages(db, landingPageId, delivery);
 }
 
 export async function deleteLandingPageImage(
@@ -603,8 +607,7 @@ export async function duplicateLandingPage(db: AppDb, id: string): Promise<strin
       db.insert(landingPageImages).values({
         id: crypto.randomUUID(),
         landingPageId: newId,
-        r2Key: image.r2Key,
-        src: image.src,
+        mediaKey: image.mediaKey,
         altText: image.altText,
         source: image.source,
         position: image.position,
@@ -628,24 +631,6 @@ export async function duplicateLandingPage(db: AppDb, id: string): Promise<strin
   await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
 
   return newId;
-}
-
-/**
- * Count landing-page image rows referencing an R2 key besides the given one —
- * powers the shared-object guard on image deletion (duplicates reference the
- * same immutable R2 object).
- */
-export async function countOtherLandingPageImageReferences(
-  db: AppDb,
-  r2Key: string,
-  excludeImageId: string,
-): Promise<number> {
-  const row = await db
-    .select({ c: count() })
-    .from(landingPageImages)
-    .where(and(eq(landingPageImages.r2Key, r2Key), sql`${landingPageImages.id} <> ${excludeImageId}`))
-    .get();
-  return Number(row?.c ?? 0);
 }
 
 export async function slugExists(db: AppDb, slug: string): Promise<boolean> {

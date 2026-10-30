@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { getStoreConfig } from "./store";
+import { TEST_DELIVERY } from "@/test-utils/media";
 
 const STORE_ROW = {
   id: "store-1",
@@ -66,7 +67,7 @@ describe("getStoreConfig turnstile projection", () => {
       undefined,
     ]);
 
-    const config = await getStoreConfig(db, "store-1");
+    const config = await getStoreConfig(db, "store-1", TEST_DELIVERY);
 
     expect(config?.turnstileEnabled).toBe(false);
     expect(config?.turnstileSiteKey).toBeNull();
@@ -84,7 +85,7 @@ describe("getStoreConfig turnstile projection", () => {
       undefined,
     ]);
 
-    const config = await getStoreConfig(db, "store-1");
+    const config = await getStoreConfig(db, "store-1", TEST_DELIVERY);
 
     expect(config?.turnstileEnabled).toBe(true);
     expect(config?.turnstileSiteKey).toBe("0x4AAA-site");
@@ -93,7 +94,7 @@ describe("getStoreConfig turnstile projection", () => {
   it("disabled turnstile row → turnstileEnabled=false and siteKey hidden", async () => {
     const db = makeDb([STORE_ROW, [], undefined, undefined, { enabled: false, siteKey: "0x4AAA-site" }, [], undefined]);
 
-    const config = await getStoreConfig(db, "store-1");
+    const config = await getStoreConfig(db, "store-1", TEST_DELIVERY);
 
     expect(config?.turnstileEnabled).toBe(false);
     expect(config?.turnstileSiteKey).toBeNull();
@@ -110,7 +111,7 @@ describe("getStoreConfig turnstile projection", () => {
       undefined,
     ]);
 
-    const config = await getStoreConfig(db, "store-1");
+    const config = await getStoreConfig(db, "store-1", TEST_DELIVERY);
 
     expect(JSON.stringify(config)).not.toContain("0x4AAA-secret");
     expect(JSON.stringify(config)).not.toContain("secretKey");

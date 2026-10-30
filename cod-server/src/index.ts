@@ -35,7 +35,7 @@ import appsRoutes from "@/endpoints/apps/routes";
 import shippingLabelRoutes from "@/endpoints/shipping-labels/routes";
 import shippingProfilesRoutes from "@/endpoints/shipping-profiles/routes";
 import driverPaymentsRoutes from "@/endpoints/driver-payments/routes";
-import { uploadRouter, serveRouter } from "@/endpoints/images/routes";
+import { uploadsRouter as mediaUploadsRouter, serveRouter as mediaServeRouter } from "@/endpoints/media/routes";
 import activityLogsRoutes from "@/endpoints/activity-logs/routes";
 import eventsRoutes from "@/endpoints/events/routes";
 import eventConsumersRoutes from "@/endpoints/event-consumers/routes";
@@ -57,7 +57,7 @@ import { drainAndContinue, wake, type DrainMessage } from "@/events/drain";
 import { pruneEventLog } from "../../cod-shared/events/deliveries";
 import { getDb } from "@/db";
 import { sweepAbandonedOrders } from "@/cron/sweep-abandoned-orders";
-import { runOrphanImageSweep } from "@/cron/sweep-orphan-images";
+import { runMediaSweep } from "@/cron/media-sweep";
 import { runStuckReviewSweep } from "@/cron/settle-stuck-reviews";
 
 // MCP remote server (remote Model Context Protocol endpoint for Claude / AI agents).
@@ -85,8 +85,8 @@ const app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
 app.use("*", corsMiddleware);
 app.onError(errorHandler);
 
-// Image serving — no auth required (public, cacheable)
-app.route("/images", serveRouter);
+// Media the store server serves itself (`direct` delivery) — public, cacheable
+app.route("/media", mediaServeRouter);
 
 // OpenAPI documentation — no auth required (public)
 // Must be mounted BEFORE app.use("/api/*", authMiddleware)
@@ -125,7 +125,7 @@ app.get("/health", (c) => {
 app.use("/api/*", authMiddleware);
 
 // Mount endpoint routes
-app.route("/api/images", uploadRouter);
+app.route("/api/media", mediaUploadsRouter);
 app.route("/api/activity-logs", activityLogsRoutes);
 app.route("/api/events", eventsRoutes);
 app.route("/api/event-consumers", eventConsumersRoutes);
@@ -242,7 +242,7 @@ export default {
       return;
     }
     ctx.waitUntil(sweepAbandonedOrders(env));
-    ctx.waitUntil(runOrphanImageSweep(env));
+    ctx.waitUntil(runMediaSweep(env));
     ctx.waitUntil(runStuckReviewSweep(env));
     ctx.waitUntil(getOAuthProvider(env).purgeExpiredData(env, { batchSize: 50 }));
     ctx.waitUntil(pruneEventLog(getDb(env.DB), new Date()));

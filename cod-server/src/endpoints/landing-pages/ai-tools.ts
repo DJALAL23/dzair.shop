@@ -5,6 +5,8 @@ import * as queries from "./queries";
 import { createLandingPageSchema, updateLandingPageSchema } from "./validation";
 import { getDb } from "@/db";
 import type { Env } from "@/types/env";
+import { mediaDeliveryOf, releaseShown } from "@/lib/media";
+import { staging, stagingKey } from "@/lib/staging";
 import { sniffImageType } from "@/lib/image-dimensions";
 import {
   BASE64_MAX_INPUT_LENGTH,
@@ -121,24 +123,6 @@ export const uploadLandingPageImageSchema = z
       .min(1)
       .optional()
       .describe("Stack position, 1 = top of the page. Omit to append at the end of the stack."),
-    width: z
-      .number()
-      .int()
-      .min(1)
-      .max(20000)
-      .optional()
-      .describe(
-        "Intrinsic pixel width — only if you know it; the server measures automatically and its measurement wins.",
-      ),
-    height: z
-      .number()
-      .int()
-      .min(1)
-      .max(20000)
-      .optional()
-      .describe(
-        "Intrinsic pixel height — only if you know it; the server measures automatically and its measurement wins.",
-      ),
   })
   .refine(
     (data) =>
@@ -183,8 +167,8 @@ export const LANDING_PAGE_TOOL_META: Record<string, Record<string, unknown>> = {
 /** One landing_page_images row — the ordered image stack entry. */
 const lpImageRowSchema = z.looseObject({
   id: z.string().describe("Image row UUID — used by removeLandingPageImage and reorderLandingPageImages"),
-  r2Key: z.string().describe("R2 storage object key (landing/<hex>.<ext>)"),
-  src: z.string().describe("Public image URL on the media domain"),
+  key: z.string().describe("The image's Media Key (landing/<hex>.<ext>)"),
+  url: z.string().describe("Where browsers fetch the image"),
   altText: z.string().nullable().describe("Alt text, or null"),
   position: z.number().int().describe("Stack position — 1 is the top of the page"),
   width: z.number().int().nullable().describe("Intrinsic pixel width, or null when unmeasured"),
@@ -271,8 +255,6 @@ export const LANDING_PAGE_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
   uploadLandingPageImage: toolOutput({
     uploadJobId: z.string().describe("Poll getLandingPageImageUploadStatus with this ID until 'complete' or 'failed'"),
     status: z.literal("processing").describe("The upload runs in the background"),
-    r2Key: z.string(),
-    src: z.string().describe("The public URL the image will be served from once stored"),
     note: z.string(),
   }),
   getLandingPageImageUploadStatus: toolOutput({
@@ -283,18 +265,18 @@ export const LANDING_PAGE_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     image: z
       .looseObject({
         imageId: z.string().describe("The inserted image row's UUID — used by removeLandingPageImage and reorderLandingPageImages"),
-        r2Key: z.string(),
-        src: z.string().describe("Public image URL"),
+        key: z.string().describe("The image's Media Key"),
+        url: z.string().describe("Where browsers fetch the image"),
         position: z.number().int().nullable().describe("Stack position — 1 is the top of the page"),
         width: z.number().int().nullable(),
         height: z.number().int().nullable(),
         altText: z.string().nullable(),
-        converted: z.boolean().optional().describe("True when the stored object is WebP (transcoded, or the source already was)"),
-        storedContentType: z.string().optional().describe("Content type of the stored object — image/webp, or the source type when conversion was unavailable"),
+        converted: z.boolean().optional().describe("True when the stored file is WebP (re-encoded, or the source already was)"),
+        storedContentType: z.string().optional().describe("The stored file's type — image/webp, or the source type when it could not be re-encoded"),
       })
       .nullable()
       .optional()
-      .describe("On complete: the inserted image (imageId, src, position)"),
+      .describe("On complete: the inserted image (imageId, key, url, position)"),
     error: z.string().optional().describe("On failed: what went wrong and how to recover"),
     note: z.string().optional(),
     advice: z.string().optional().describe("Next-step guidance"),
@@ -425,12 +407,8 @@ export const LANDING_PAGE_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
   archiveLandingPage: archiveLandingPageSchema.shape,
 };
 
-/** Env surface the landing-page tools consume: deployment vars, the R2
- *  bucket, and the background upload workflow binding. */
-export type LandingPageToolEnv = Pick<
-  Env,
-  "STOREFRONT_URL" | "IMAGES" | "MEDIA_DOMAIN" | "LP_IMAGE_UPLOAD_WORKFLOW"
->;
+/** The landing-page tools read the store's Worker env: media, the storefront URL, the upload workflow. */
+export type LandingPageToolEnv = Env;
 
 /** Verified session identity — structurally satisfied by McpProps. Only the
  *  upload tool needs it (the background workflow audits through this actor). */
@@ -466,7 +444,7 @@ function formatIssues(error: z.ZodError): string {
  */
 export const getLandingPageTools = (
   db: ReturnType<typeof getDb>,
-  env?: LandingPageToolEnv,
+  env: LandingPageToolEnv,
   session?: LandingPageToolSession,
 ) => ({
 
@@ -499,7 +477,7 @@ export const getLandingPageTools = (
           },
           { limit: parsed.data.limit, offset: parsed.data.offset },
         );
-        const baseUrl = await resolveStorefrontBaseUrl(db, env?.STOREFRONT_URL);
+        const baseUrl = await resolveStorefrontBaseUrl(db, env.STOREFRONT_URL);
         return {
           success: true,
           count: pages.length,
@@ -539,7 +517,7 @@ export const getLandingPageTools = (
           };
         }
 
-        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId);
+        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId, mediaDeliveryOf(env));
         if (!lp) {
           return { success: false, error: `Landing page ${parsed.data.landingPageId} not found` };
         }
@@ -596,8 +574,8 @@ export const getLandingPageTools = (
         }
 
         const { id, slug } = await queries.createLandingPage(db, parsed.data);
-        const lp = await queries.getLandingPageById(db, id);
-        const baseUrl = await resolveStorefrontBaseUrl(db, env?.STOREFRONT_URL);
+        const lp = await queries.getLandingPageById(db, id, mediaDeliveryOf(env));
+        const baseUrl = await resolveStorefrontBaseUrl(db, env.STOREFRONT_URL);
         return {
           success: true,
           landingPage: lp,
@@ -629,7 +607,7 @@ export const getLandingPageTools = (
         }
 
         await queries.updateLandingPage(db, parsed.data.landingPageId, parsed.data.updates);
-        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId);
+        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId, mediaDeliveryOf(env));
         return { success: true, landingPage: lp };
       } catch (error) {
         return { success: false, error: `Failed to update landing page: ${(error as Error).message}` };
@@ -653,16 +631,16 @@ export const getLandingPageTools = (
           };
         }
 
-        const existing = await queries.getLandingPageById(db, parsed.data.landingPageId);
+        const existing = await queries.getLandingPageRow(db, parsed.data.landingPageId);
         if (!existing) {
           return { success: false, error: `Landing page ${parsed.data.landingPageId} not found` };
         }
 
         await queries.publishLandingPage(db, parsed.data.landingPageId);
-        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId);
+        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId, mediaDeliveryOf(env));
         const slug = lp?.slug ?? existing.slug;
-        const imageCount = lp?.images?.length ?? existing.images?.length ?? 0;
-        const baseUrl = await resolveStorefrontBaseUrl(db, env?.STOREFRONT_URL);
+        const imageCount = lp?.images.length ?? 0;
+        const baseUrl = await resolveStorefrontBaseUrl(db, env.STOREFRONT_URL);
         return {
           success: true,
           landingPage: lp,
@@ -741,12 +719,12 @@ export const getLandingPageTools = (
             error:
               `Invalid arguments: ${formatIssues(parsed.error)}. ` +
               "Expected: landingPageId (UUID), contentType (image/png|jpeg|webp|gif), and exactly one of image (chat clients — file object), imageUrl (http(s) URL), or imageBase64 (programmatic clients only); " +
-              "optional: altText, position, width, height. Unknown fields are rejected.",
+              "optional: altText, position. Unknown fields are rejected.",
           };
         }
         const data = parsed.data;
 
-        if (!env?.LP_IMAGE_UPLOAD_WORKFLOW || !env.MEDIA_DOMAIN) {
+        if (!env.LP_IMAGE_UPLOAD_WORKFLOW) {
           return {
             success: false,
             error:
@@ -760,12 +738,12 @@ export const getLandingPageTools = (
           };
         }
 
-        const existing = await queries.getLandingPageById(db, data.landingPageId);
+        const existing = await queries.getLandingPageRow(db, data.landingPageId);
         if (!existing) {
           return { success: false, error: `Landing page ${data.landingPageId} not found` };
         }
 
-        const { r2Key, instanceId } = mintLandingImageUploadIds();
+        const { job, instanceId } = mintLandingImageUploadIds();
 
         // Resolve the three input shapes to the workflow's two entry kinds.
         let kind: "url" | "bytes";
@@ -794,9 +772,6 @@ export const getLandingPageTools = (
           }
           kind = "bytes";
 
-          if (!env.IMAGES) {
-            return { success: false, error: "Image upload is not available — R2 storage is not bound." };
-          }
           let bytes: Uint8Array;
           try {
             bytes = decodeBase64Image(imageBase64);
@@ -827,13 +802,7 @@ export const getLandingPageTools = (
             };
           }
           try {
-            await env.IMAGES.put(r2Key, bytes, {
-              httpMetadata: {
-                contentType: claimed,
-                cacheControl: "public, max-age=31536000, immutable",
-              },
-              customMetadata: { source: "ai", uploadedAt: new Date().toISOString() },
-            });
+            await staging(env.MEDIA_BUCKET).put(stagingKey("landing", job), bytes, { contentType: claimed });
           } catch (err) {
             return {
               success: false,
@@ -849,13 +818,11 @@ export const getLandingPageTools = (
             params: {
               kind,
               landingPageId: data.landingPageId,
-              r2Key,
+              job,
               contentType: data.contentType,
               ...(imageUrl !== undefined ? { imageUrl } : {}),
               ...(data.altText !== undefined ? { altText: data.altText } : {}),
               ...(data.position !== undefined ? { position: data.position } : {}),
-              ...(data.width !== undefined ? { width: data.width } : {}),
-              ...(data.height !== undefined ? { height: data.height } : {}),
               actor: {
                 id: session.userId,
                 name: session.name || session.email || session.userId,
@@ -874,8 +841,6 @@ export const getLandingPageTools = (
           success: true,
           uploadJobId: instance.id,
           status: "processing",
-          r2Key,
-          src: `https://${env.MEDIA_DOMAIN}/${r2Key}`,
           note: "The upload runs in the background. Call getLandingPageImageUploadStatus with uploadJobId until status is 'complete' or 'failed'.",
         };
       } catch (error) {
@@ -887,7 +852,7 @@ export const getLandingPageTools = (
   getLandingPageImageUploadStatus: tool({
     description:
       "Check the progress of a background uploadLandingPageImage job — pass the uploadJobId that tool returned. " +
-      "Returns status: 'processing' (still running — keep polling), 'complete' (the image is in the stack; includes imageId, src, and position), " +
+      "Returns status: 'processing' (still running — keep polling), 'complete' (the image is in the stack; includes imageId, key, url and position), " +
       "'failed' (includes a recoverable error — e.g. re-generate the image and retry with a fresh URL), 'stopped', or " +
       "'unknown' (job state no longer retained — check getLandingPageDetails to see whether the image landed before re-uploading).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
@@ -901,7 +866,7 @@ export const getLandingPageTools = (
           };
         }
 
-        if (!env?.LP_IMAGE_UPLOAD_WORKFLOW) {
+        if (!env.LP_IMAGE_UPLOAD_WORKFLOW) {
           return {
             success: false,
             error:
@@ -938,7 +903,7 @@ export const getLandingPageTools = (
   removeLandingPageImage: tool({
     description:
       "Remove an image from a landing page's stack — get the current image IDs from getLandingPageDetails. " +
-      "Storage note: duplicated pages can share the same underlying image object; the storage object itself is deleted only when this was its LAST referencing image. " +
+      "Storage note: duplicated pages share their images; an image's file is deleted only once nothing else shows it. " +
       "Returns the updated stack. Removing is final for this page — restoring means re-uploading via uploadLandingPageImage.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -960,35 +925,9 @@ export const getLandingPageTools = (
           };
         }
 
-        // Same contract as the dashboard path: R2 delete FIRST — a storage
-        // failure aborts so the DB record never points at a missing object;
-        // shared objects (duplicates) survive until their last reference goes.
-        if (image.r2Key) {
-          const otherRefs = await queries.countOtherLandingPageImageReferences(
-            db,
-            image.r2Key,
-            imageId,
-          );
-          if (otherRefs === 0) {
-            if (!env?.IMAGES) {
-              return {
-                success: false,
-                error: "Image removal is not available — R2 storage is not bound on this deployment.",
-              };
-            }
-            try {
-              await env.IMAGES.delete(image.r2Key);
-            } catch (err) {
-              return {
-                success: false,
-                error: `Failed to delete image from storage: ${(err as Error).message}`,
-              };
-            }
-          }
-        }
-
         await queries.deleteLandingPageImage(db, landingPageId, imageId);
-        const images = await queries.getLandingPageImages(db, landingPageId);
+        await releaseShown(env, [image.mediaKey], `image ${imageId} of landing page ${landingPageId}`);
+        const images = await queries.getLandingPageImages(db, landingPageId, mediaDeliveryOf(env));
         return { success: true, images, count: images.length };
       } catch (error) {
         return { success: false, error: `Failed to remove image: ${(error as Error).message}` };
@@ -1016,6 +955,7 @@ export const getLandingPageTools = (
           db,
           parsed.data.landingPageId,
           parsed.data.imageIds,
+          mediaDeliveryOf(env),
         );
         return { success: true, images, count: images.length };
       } catch (error) {
@@ -1045,11 +985,11 @@ export const getLandingPageTools = (
           return { success: false, error: `Landing page ${parsed.data.landingPageId} not found` };
         }
 
-        const lp = await queries.getLandingPageById(db, newId);
+        const lp = await queries.getLandingPageById(db, newId, mediaDeliveryOf(env));
         if (!lp) {
           return { success: false, error: "Failed to load the duplicated landing page" };
         }
-        const baseUrl = await resolveStorefrontBaseUrl(db, env?.STOREFRONT_URL);
+        const baseUrl = await resolveStorefrontBaseUrl(db, env.STOREFRONT_URL);
         return {
           success: true,
           landingPage: lp,
@@ -1078,14 +1018,14 @@ export const getLandingPageTools = (
           };
         }
 
-        const existing = await queries.getLandingPageById(db, parsed.data.landingPageId);
+        const existing = await queries.getLandingPageRow(db, parsed.data.landingPageId);
         if (!existing) {
           return { success: false, error: `Landing page ${parsed.data.landingPageId} not found` };
         }
 
         await queries.unpublishLandingPage(db, parsed.data.landingPageId);
-        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId);
-        const baseUrl = await resolveStorefrontBaseUrl(db, env?.STOREFRONT_URL);
+        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId, mediaDeliveryOf(env));
+        const baseUrl = await resolveStorefrontBaseUrl(db, env.STOREFRONT_URL);
         return {
           success: true,
           landingPage: lp,
@@ -1114,13 +1054,13 @@ export const getLandingPageTools = (
           };
         }
 
-        const existing = await queries.getLandingPageById(db, parsed.data.landingPageId);
+        const existing = await queries.getLandingPageRow(db, parsed.data.landingPageId);
         if (!existing) {
           return { success: false, error: `Landing page ${parsed.data.landingPageId} not found` };
         }
 
         await queries.archiveLandingPage(db, parsed.data.landingPageId);
-        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId);
+        const lp = await queries.getLandingPageById(db, parsed.data.landingPageId, mediaDeliveryOf(env));
         return {
           success: true,
           landingPage: lp,

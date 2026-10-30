@@ -19,6 +19,7 @@ import {
   SuccessResponseSchema,
   ListResponseSchema,
 } from "@/openapi/schemas";
+import { MediaKeySchema } from "@/openapi/schemas/media";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -42,7 +43,7 @@ const groupBaseFields = {
   parentId: z.string().nullable().optional().openapi({
     description: "Parent group ID to nest under; null/omitted for top-level",
   }),
-  imageUrl: z.string().url().nullable().optional(),
+  imageKey: MediaKeySchema.nullable().optional().openapi({ description: "The image's Media Key, from a completed upload (POST /api/media/uploads)" }),
   metaTitle: z.string().max(60).nullable().optional(),
   metaDescription: z.string().max(160).nullable().optional(),
   metaKeywords: z.string().nullable().optional(),

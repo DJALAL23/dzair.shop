@@ -13,10 +13,12 @@ import { NonRetryableError } from "cloudflare:workflows";
 import { z } from "zod";
 import type { Env } from "@/types/env";
 import { getDb } from "@/db";
+import { mediaOf } from "@/lib/media";
 import { attachMedia, clearUploads, prepareUpload, type PreparedUpload } from "@/lib/review-media/prepare";
 import type { ReviewMediaJob } from "@/lib/review-media/job";
 import { REVIEW_MEDIA_KINDS } from "../../../cod-shared/reviews/model";
 import { REVIEW_UPLOAD_PREFIX } from "../../../cod-shared/reviews/media";
+import { staging } from "@/lib/staging";
 
 const landing = z.enum(["pending", "approved"]);
 
@@ -46,7 +48,8 @@ export class CodReviewMediaWorkflow extends WorkflowEntrypoint<Env, ReviewMediaJ
     const parsed = ReviewMediaJobSchema.safeParse(event.payload);
     if (!parsed.success) throw new NonRetryableError(`Invalid review media job: ${parsed.error.issues.map((issue) => issue.message).join("; ")}`);
     const job = parsed.data;
-    const deps = { bucket: this.env.IMAGES, images: this.env.IMAGE_TRANSFORM };
+    const media = mediaOf(this.env);
+    const deps = { staging: staging(this.env.MEDIA_BUCKET), media, images: this.env.IMAGE_TRANSFORM };
 
     const outcomes: PreparedUpload[] = [];
     for (const [index, upload] of job.uploads.entries()) {
@@ -58,8 +61,8 @@ export class CodReviewMediaWorkflow extends WorkflowEntrypoint<Env, ReviewMediaJ
       }
     }
 
-    const landed = await step.do("attach-media", RETRIED, () => attachMedia(getDb(this.env.DB), this.env.IMAGES, job, outcomes));
-    await step.do("clear-uploads", RETRIED, () => clearUploads(this.env.IMAGES, job));
+    const landed = await step.do("attach-media", RETRIED, () => attachMedia(getDb(this.env.DB), media, job, outcomes));
+    await step.do("clear-uploads", RETRIED, () => clearUploads(deps.staging, job));
 
     return {
       reviewId: job.reviewId,
