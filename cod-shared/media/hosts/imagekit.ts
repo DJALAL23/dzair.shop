@@ -180,3 +180,70 @@ export function imagekitHost(config: ImageKitConfig): MediaHost {
     },
   };
 }
+
+/** Which value of an ImageKit account a check found wrong. */
+export type ImageKitAccountProblem = "private_key" | "public_key" | "url_endpoint";
+
+export interface ImageKitAccount {
+  /** Where the account serves its files, e.g. `https://ik.imagekit.io/your_id`. */
+  urlEndpoint: string;
+  publicKey: string;
+  privateKey: string;
+}
+
+/** A 1×1 PNG: the smallest file ImageKit stores as an image. */
+const CHECK_PNG = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="), (c) => c.charCodeAt(0));
+
+/**
+ * Whether an account can keep a store's images: the private key answers the
+ * API, an upload signed with the public key is stored, and the URL endpoint
+ * serves it. The file is removed afterwards. Throws `host_unavailable` when
+ * ImageKit cannot be reached or does not answer as it should.
+ */
+export async function checkImageKitAccount(
+  account: ImageKitAccount,
+  options: Pick<ImageKitConfig, "fetch" | "uploadOrigin" | "apiOrigin"> & { uploadWaitMs?: number } = {},
+): Promise<{ ok: true } | { ok: false; problem: ImageKitAccountProblem }> {
+  const send = options.fetch ?? ((request: Request) => fetch(request));
+  const timedOut = (error: unknown) => error instanceof DOMException && error.name === "TimeoutError";
+  const reach = async (request: Request) => {
+    try {
+      return await send(request);
+    } catch (error) {
+      if (timedOut(error)) throw error;
+      throw new MediaError("host_unavailable", "ImageKit could not be reached", { error: error instanceof Error ? error.message : String(error) });
+    }
+  };
+  const unexpected = (step: string, status: number) => new MediaError("host_unavailable", `ImageKit answered ${status} to the account check (${step})`, { status });
+
+  const listed = await reach(new Request(`${options.apiOrigin ?? "https://api.imagekit.io"}/v1/files?limit=1`, { headers: { Authorization: `Basic ${btoa(`${account.privateKey}:`)}` } }));
+  if (listed.status === 401 || listed.status === 403) return { ok: false, problem: "private_key" };
+  if (!listed.ok) throw unexpected("files", listed.status);
+
+  const folder = "/wocart-account-check";
+  const host = imagekitHost({ ...options, publicKey: account.publicKey, privateKey: account.privateKey, folder });
+  const key = `products/${crypto.randomUUID().replace(/-/g, "")}.png`;
+  const ticket = await host.ticket({ key, contentType: "image/png", bytes: CHECK_PNG.byteLength, expiresAt: new Date(Date.now() + 5 * 60_000) });
+  if (ticket.kind !== "form") throw unexpected("ticket", 0);
+  const form = new FormData();
+  for (const [name, value] of Object.entries(ticket.fields)) form.append(name, value);
+  form.append(ticket.fileField, new Blob([CHECK_PNG], { type: "image/png" }), ticket.fields.fileName);
+  // The token is signed with a private key the account just accepted, so silence names the public key:
+  // ImageKit never answers an upload signed for a public key it does not have.
+  let uploaded: Response;
+  try {
+    uploaded = await reach(new Request(ticket.url, { method: "POST", body: form, signal: AbortSignal.timeout(options.uploadWaitMs ?? 15_000) }));
+  } catch (error) {
+    if (timedOut(error)) return { ok: false, problem: "public_key" };
+    throw error;
+  }
+  if (!uploaded.ok) throw unexpected("upload", uploaded.status);
+  const { fileId } = (await uploaded.json()) as { fileId?: string };
+
+  try {
+    const served = await reach(new Request(`${account.urlEndpoint.replace(/\/+$/, "")}${folder}/${key}`));
+    return served.ok && served.headers.get("content-type")?.startsWith("image/") ? { ok: true } : { ok: false, problem: "url_endpoint" };
+  } finally {
+    await host.delete([{ key, hostRef: fileId ?? null }]);
+  }
+}

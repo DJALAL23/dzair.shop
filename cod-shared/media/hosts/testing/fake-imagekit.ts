@@ -3,10 +3,12 @@
  * for tests: upload V2 checks the JWT's signature, `kid`, expiry and single
  * use, refuses fields that differ from the token's payload, and runs
  * `checks`; the server API takes the private key as Basic auth; an
- * overwrite keeps the file's id; a batch delete naming any file already gone
+ * overwrite keeps the file's id; an upload signed for a public key the
+ * account does not have is never answered; a batch delete naming any file already gone
  * answers 404 and deletes none. With `listLag`, the file list (search by
  * name) shows a change only after that many more list calls, as a live
- * account's does for a few seconds. Requests can be made to fail.
+ * account's does for a few seconds. `urlEndpoint` serves stored files as an
+ * account's URL endpoint does. Requests can be made to fail.
  */
 import { sniffMedia } from "../../keys";
 
@@ -19,12 +21,15 @@ interface StoredFile {
   mime: string;
   width: number | null;
   height: number | null;
+  bytes: Uint8Array;
 }
 
 export interface FakeImageKit {
   fetch: (request: Request) => Promise<Response>;
   uploadOrigin: string;
   apiOrigin: string;
+  /** Where the account serves its files: this, then a file's path. */
+  urlEndpoint: string;
   /** Every stored file, by path. */
   files: Map<string, StoredFile>;
   /** Answer the next `times` requests with `status`. */
@@ -72,6 +77,7 @@ function passesChecks(checks: string, file: { size: number; mime: string }): boo
 export function fakeImageKit(keys: { publicKey: string; privateKey: string }, options: { listLag?: number } = {}): FakeImageKit {
   const uploadOrigin = "https://upload.imagekit.test";
   const apiOrigin = "https://api.imagekit.test";
+  const urlEndpoint = "https://ik.imagekit.test/fake_id";
   const files = new Map<string, StoredFile>();
   const changes: Array<{ at: number; filePath: string; file: StoredFile | null }> = [];
   let listCalls = 0;
@@ -105,6 +111,7 @@ export function fakeImageKit(keys: { publicKey: string; privateKey: string }, op
       mime,
       width: image ? 640 : null,
       height: image ? 480 : null,
+      bytes,
     };
     files.set(filePath, stored);
     changed(filePath, stored);
@@ -113,6 +120,11 @@ export function fakeImageKit(keys: { publicKey: string; privateKey: string }, op
 
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    if (request.url.startsWith(`${urlEndpoint}/`)) {
+      calls.set("GET delivery", (calls.get("GET delivery") ?? 0) + 1);
+      const file = files.get(request.url.slice(urlEndpoint.length).split("?")[0]!);
+      return file ? new Response(file.bytes, { headers: { "Content-Type": file.mime } }) : refuse(404, "Not found");
+    }
     const route = `${request.method} ${url.origin === uploadOrigin ? "upload" : "api"}${url.pathname.replace(/\/v1\/files\/[^/]+\/details$/, "/v1/files/:id/details")}`;
     calls.set(route, (calls.get(route) ?? 0) + 1);
     if (failures.times > 0) {
@@ -127,7 +139,10 @@ export function fakeImageKit(keys: { publicKey: string; privateKey: string }, op
       if (request.headers.has("Authorization")) return refuse(400, "Your request contains both token and basic auth parameter. Use only one method, you might be exposing your private API key.");
       if (usedTokens.has(token)) return refuse(400, "Your request has invalid token.");
       const verified = await verifyJwt(token, keys.privateKey);
-      if (verified === null || verified.header.alg !== "HS256" || verified.header.kid !== keys.publicKey) return refuse(400, "Your request has invalid token.");
+      if (verified !== null && verified.header.kid !== keys.publicKey) {
+        return new Promise<Response>((_, reject) => request.signal.addEventListener("abort", () => reject(request.signal.reason)));
+      }
+      if (verified === null || verified.header.alg !== "HS256") return refuse(400, "Your request has invalid token.");
       usedTokens.add(token);
       const { iat, exp, ...signed } = verified.payload;
       if (typeof exp !== "number" || exp * 1000 < Date.now() || typeof iat !== "number") return refuse(400, "Your request contains expired token.");
@@ -179,6 +194,7 @@ export function fakeImageKit(keys: { publicKey: string; privateKey: string }, op
     fetch: handle,
     uploadOrigin,
     apiOrigin,
+    urlEndpoint,
     files,
     calls,
     failNext(times, status) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MediaError } from "../errors";
-import { imagekitHost } from "./imagekit";
+import { checkImageKitAccount, imagekitHost } from "./imagekit";
 import { followTicket } from "./testing/browser";
 import { fakeImageKit } from "./testing/fake-imagekit";
 import { png } from "./testing/files";
@@ -134,5 +134,57 @@ describe("ImageKit's deletes", () => {
   it("refuse a 404 that names no missing file", async () => {
     const odd = imagekitHost({ ...KEYS, folder: "/stores/maysa", fetch: async () => new Response(JSON.stringify({ message: "?" }), { status: 404 }) });
     await expect(odd.delete([{ key: "products/a.png", hostRef: "f1" }])).rejects.toMatchObject({ reason: "host_refused" });
+  });
+});
+
+describe("checking an ImageKit account before a store uses it", () => {
+  const keys = { publicKey: "public_check", privateKey: "private_check" };
+  const setup = () => {
+    const fake = fakeImageKit(keys);
+    const options = { fetch: fake.fetch, uploadOrigin: fake.uploadOrigin, apiOrigin: fake.apiOrigin, uploadWaitMs: 50 };
+    return { fake, check: (account: Partial<Parameters<typeof checkImageKitAccount>[0]> = {}) => checkImageKitAccount({ urlEndpoint: fake.urlEndpoint, ...keys, ...account }, options) };
+  };
+
+  it("passes an account whose keys upload and whose URL endpoint serves, and leaves nothing behind", async () => {
+    const { fake, check } = setup();
+    expect(await check()).toEqual({ ok: true });
+    expect(fake.calls.get("GET delivery")).toBe(1);
+    expect([...fake.files.keys()]).toEqual([]);
+  });
+
+  it("names the private key the API refuses, before uploading anything", async () => {
+    const { fake, check } = setup();
+    expect(await check({ privateKey: "private_other" })).toEqual({ ok: false, problem: "private_key" });
+    expect(fake.calls.get("POST upload/api/v2/files/upload")).toBeUndefined();
+  });
+
+  it("names the public key whose upload ImageKit never answers", async () => {
+    const { fake, check } = setup();
+    expect(await check({ publicKey: "public_other" })).toEqual({ ok: false, problem: "public_key" });
+    expect([...fake.files.keys()]).toEqual([]);
+  });
+
+  it("names the URL endpoint that does not serve the account's files, and still removes the file", async () => {
+    const { fake, check } = setup();
+    expect(await check({ urlEndpoint: "https://ik.imagekit.test/another_id" })).toEqual({ ok: false, problem: "url_endpoint" });
+    expect([...fake.files.keys()]).toEqual([]);
+  });
+
+  it("names a URL endpoint that answers every path with a page, not the image", async () => {
+    const { fake } = setup();
+    const site = "https://shop.example";
+    const fetch = (request: Request) => (request.url.startsWith(`${site}/`) ? Promise.resolve(new Response("<!doctype html>", { headers: { "Content-Type": "text/html" } })) : fake.fetch(request));
+    expect(await checkImageKitAccount({ urlEndpoint: site, ...keys }, { fetch, uploadOrigin: fake.uploadOrigin, apiOrigin: fake.apiOrigin })).toEqual({ ok: false, problem: "url_endpoint" });
+  });
+
+  it("accepts a URL endpoint written with a trailing slash", async () => {
+    const { fake, check } = setup();
+    expect(await check({ urlEndpoint: `${fake.urlEndpoint}/` })).toEqual({ ok: true });
+  });
+
+  it("is unavailable, not a wrong key, when ImageKit fails", async () => {
+    const { fake, check } = setup();
+    fake.failNext(1, 503);
+    await expect(check()).rejects.toMatchObject({ reason: "host_unavailable" });
   });
 });

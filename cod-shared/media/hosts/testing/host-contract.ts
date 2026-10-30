@@ -25,9 +25,13 @@ export interface HostUnderTest {
 
 const later = () => new Date(Date.now() + 600_000);
 
+const SETTLES_MS = 30_000;
+/** Room for a test's two `eventually` lookups, so it ends on its own assertion and not on the runner's timeout. */
+const settling = 2 * SETTLES_MS + 10_000;
+
 /** Asks again until the answer passes, for up to 30 seconds. */
 async function eventually<T>(ask: () => Promise<T>, passes: (answer: T) => boolean): Promise<T> {
-  const until = Date.now() + 30_000;
+  const until = Date.now() + SETTLES_MS;
   for (;;) {
     const answer = await ask();
     if (passes(answer) || Date.now() > until) return answer;
@@ -58,7 +62,7 @@ export function describeHostContract(name: string, setup: () => Promise<HostUnde
       expect(held).toMatchObject({ bytes: 300, contentType: "image/png" });
       expect((await t.host.confirm(key, held!.hostRef))?.bytes, "the whole file's size, not what confirming read").toBe(300);
       expect(await eventually(() => t.host.confirm(key, null), (found) => found !== null), "found by its key alone, as a never-confirmed upload is").toMatchObject({ bytes: 300, contentType: "image/png", hostRef: held!.hostRef });
-    });
+    }, settling);
 
     it("holds nothing at a key no one sent", async () => {
       expect(await t.host.confirm(freshKey("png"), null)).toBeNull();
@@ -111,7 +115,7 @@ export function describeHostContract(name: string, setup: () => Promise<HostUnde
       expect(await t.host.confirm(byRef, ref)).toBeNull();
       expect(await eventually(() => t.host.confirm(byKey, null), (found) => found === null)).toBeNull();
       await t.host.delete([{ key: byRef, hostRef: ref }]);
-    });
+    }, settling);
 
     it("says an outage is worth retrying, and loses nothing to it", async () => {
       const key = freshKey("webp");
@@ -125,7 +129,7 @@ export function describeHostContract(name: string, setup: () => Promise<HostUnde
       expect(await eventually(() => t.host.confirm(key, null), (found) => found !== null)).not.toBeNull();
       t.failNext(1);
       await expect(t.host.confirm(key, null)).rejects.toMatchObject({ reason: "host_unavailable" });
-    });
+    }, settling);
 
     it("says refused credentials are not worth retrying", async (context) => {
       if (!t.refuseNext) return context.skip();
