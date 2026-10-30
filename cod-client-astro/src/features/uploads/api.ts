@@ -1,22 +1,13 @@
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
+import { IMAGE_TYPES, MEDIA_MAX_BYTES, type UploadFolder } from "../../../../cod-shared/media/keys";
+import type { MediaImage } from "../../../../cod-shared/media/model";
+import type { UploadSend, UploadTicket } from "../../../../cod-shared/media/library";
 
-export type ImageUploadFolder = "products" | "landing";
+export type ImageUploadFolder = UploadFolder;
+export type { MediaImage };
 
-interface PresignedUpload {
-  presignedUrl: string;
-  key: string;
-  publicUrl: string;
-}
-
-export interface UploadedImage {
-  key: string;
-  url: string;
-  width: number | null;
-  height: number | null;
-}
-
-export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
-export const MAX_UPLOAD_MB = 10;
+export const ACCEPTED_IMAGE_TYPES: readonly string[] = IMAGE_TYPES;
+export const MAX_UPLOAD_MB = MEDIA_MAX_BYTES / (1024 * 1024);
 
 export type ImageUploadRejection = "unsupported_type" | "file_too_large";
 
@@ -27,9 +18,10 @@ export class ImageUploadRejectedError extends Error {
   }
 }
 
+/** The store's media host refused or could not take the file the ticket sent it. */
 export class ImageUploadFailedError extends Error {
   constructor(public readonly status: number) {
-    super(`R2 upload failed: ${status}`);
+    super(`Upload failed: ${status}`);
     this.name = "ImageUploadFailedError";
   }
 }
@@ -43,20 +35,45 @@ function json(init: RequestInit = {}): RequestInit {
   return { ...init, headers: { ...init.headers, "Content-Type": "application/json" } };
 }
 
-/** The one presign call — every dashboard image upload goes through here. */
-export async function presignImageUpload(contentType: string, folder: ImageUploadFolder): Promise<PresignedUpload> {
+/** An Upload Ticket for this file: where and how to send it. */
+export async function requestUpload(file: File, folder: ImageUploadFolder): Promise<UploadTicket> {
   return (
-    await apiFetch<DataEnvelope<PresignedUpload>>(
-      "/api/images/presign",
-      json({ method: "POST", body: JSON.stringify({ contentType, folder }) }),
+    await apiFetch<DataEnvelope<UploadTicket>>(
+      "/api/media/uploads",
+      json({ method: "POST", body: JSON.stringify({ folder, contentType: file.type, bytes: file.size }) }),
     )
   ).data;
 }
 
-/** Direct browser → R2 PUT against the presigned URL. */
-export async function putFileToR2(presignedUrl: string, file: File): Promise<void> {
-  const putRes = await fetch(presignedUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
-  if (!putRes.ok) throw new ImageUploadFailedError(putRes.status);
+/**
+ * Sends the file as its ticket says: a form to the media host, a PUT to a
+ * signed URL, or a PUT to the store's server. Answers the host's own id for
+ * the file when it gives one (a form upload's `fileId`).
+ */
+export async function sendUpload(send: UploadSend, file: File): Promise<{ hostRef: string | null }> {
+  if (send.kind === "relay") {
+    await apiFetch<void>(send.url, { method: send.method, headers: send.headers, body: file });
+    return { hostRef: null };
+  }
+  if (send.kind === "put") {
+    const response = await fetch(send.url, { method: send.method, headers: send.headers, body: file });
+    if (!response.ok) throw new ImageUploadFailedError(response.status);
+    return { hostRef: null };
+  }
+  const form = new FormData();
+  for (const [name, value] of Object.entries(send.fields)) form.append(name, value);
+  form.append(send.fileField, file, send.fields.fileName ?? file.name);
+  const response = await fetch(send.url, { method: send.method, body: form });
+  if (!response.ok) throw new ImageUploadFailedError(response.status);
+  const { fileId } = (await response.json()) as { fileId?: string };
+  return { hostRef: fileId ?? null };
+}
+
+/** The upload, confirmed by the store's server: the image as every answer carries it. */
+export async function completeUpload(mediaId: string, report: { hostRef: string | null; width: number | null; height: number | null }): Promise<MediaImage> {
+  return (
+    await apiFetch<DataEnvelope<MediaImage>>(`/api/media/uploads/${encodeURIComponent(mediaId)}/complete`, json({ method: "POST", body: JSON.stringify(report) }))
+  ).data;
 }
 
 /** Same selection semantics the three uploaders had: unsupported types are
@@ -69,9 +86,9 @@ export function partitionUploadFiles(files: File[]): {
 } {
   const unsupportedCount = files.filter((file) => !ACCEPTED_IMAGE_TYPES.includes(file.type)).length;
   const typeAccepted = files.filter((file) => ACCEPTED_IMAGE_TYPES.includes(file.type));
-  const tooLargeCount = typeAccepted.filter((file) => file.size > MAX_UPLOAD_MB * 1024 * 1024).length;
+  const tooLargeCount = typeAccepted.filter((file) => file.size > MEDIA_MAX_BYTES).length;
   return {
-    accepted: typeAccepted.filter((file) => file.size <= MAX_UPLOAD_MB * 1024 * 1024),
+    accepted: typeAccepted.filter((file) => file.size <= MEDIA_MAX_BYTES),
     unsupportedCount,
     tooLargeCount,
   };
@@ -80,13 +97,12 @@ export function partitionUploadFiles(files: File[]): {
 /** Throws ImageUploadRejectedError for a file that must not be uploaded. */
 export function validateUploadFile(file: File): void {
   if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) throw new ImageUploadRejectedError("unsupported_type");
-  if (file.size > MAX_UPLOAD_MB * 1024 * 1024) throw new ImageUploadRejectedError("file_too_large");
+  if (file.size > MEDIA_MAX_BYTES) throw new ImageUploadRejectedError("file_too_large");
 }
 
 /** Intrinsic pixel size of a file, measured locally. Resolves null on decode
  *  failure or in non-DOM runtimes — dimension capture is fail-open, never
- *  blocks an upload; the storefront just renders that image without reserved
- *  space. Moved here from the landing-page studio. */
+ *  blocks an upload; the host's own measure is kept when it has one. */
 export function measureImageDimensions(file: File): Promise<{ width: number; height: number } | null> {
   if (typeof Image === "undefined" || typeof URL?.createObjectURL !== "function") {
     return Promise.resolve(null);
@@ -106,11 +122,45 @@ export function measureImageDimensions(file: File): Promise<{ width: number; hei
   });
 }
 
-/** Presign → PUT → measure. One implementation for all dashboard uploads. */
-export async function uploadImageFile(file: File, folder: ImageUploadFolder): Promise<UploadedImage> {
+export type UploadFailure =
+  | "unsupported_file"
+  | "file_too_large"
+  | "upload_failed"
+  | "upload_expired"
+  | "media_not_configured"
+  | "media_host_refused"
+  | "media_host_unavailable";
+
+/** Why an upload failed, as the `common` namespace's `feedback.*` key that says it. */
+export function uploadFailure(cause: unknown): UploadFailure {
+  if (cause instanceof ImageUploadRejectedError) return cause.reason === "unsupported_type" ? "unsupported_file" : "file_too_large";
+  if (cause instanceof ImageUploadFailedError) return cause.status >= 500 || cause.status === 429 ? "media_host_unavailable" : "media_host_refused";
+  if (cause instanceof ApiError) {
+    switch (cause.code) {
+      case "INVALID_FILE_TYPE":
+        return "unsupported_file";
+      case "FILE_TOO_LARGE":
+        return "file_too_large";
+      case "MEDIA_NOT_CONFIGURED":
+        return "media_not_configured";
+      case "MEDIA_HOST_REFUSED":
+        return "media_host_refused";
+      case "MEDIA_HOST_UNAVAILABLE":
+        return "media_host_unavailable";
+      case "MEDIA_UPLOAD_UNKNOWN":
+      case "MEDIA_UPLOAD_MISSING":
+      case "MEDIA_UPLOAD_MISMATCH":
+        return "upload_expired";
+    }
+  }
+  return "upload_failed";
+}
+
+/** Ticket → send → measure → complete. One implementation for all dashboard uploads. */
+export async function uploadImageFile(file: File, folder: ImageUploadFolder): Promise<MediaImage> {
   validateUploadFile(file);
-  const { presignedUrl, key, publicUrl } = await presignImageUpload(file.type, folder);
-  await putFileToR2(presignedUrl, file);
-  const dims = await measureImageDimensions(file);
-  return { key, url: publicUrl, width: dims?.width ?? null, height: dims?.height ?? null };
+  const ticket = await requestUpload(file, folder);
+  const { hostRef } = await sendUpload(ticket.send, file);
+  const size = await measureImageDimensions(file);
+  return completeUpload(ticket.mediaId, { hostRef, width: size?.width ?? null, height: size?.height ?? null });
 }

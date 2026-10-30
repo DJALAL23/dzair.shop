@@ -6,12 +6,12 @@ import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 import { createProductGroup, getProductGroup, listProductGroups, updateProductGroup } from "@/features/product-groups/api";
-import { clearable, productGroupErrorMessage, toSlug } from "@/features/product-groups/model";
+import { groupInput, productGroupErrorMessage, toSlug } from "@/features/product-groups/model";
 import type { ProductCategory, ProductCategoryFormValues } from "@/features/product-groups/types";
 import { Alert, Card, Field, FormPage, Input, Select, Textarea } from "@/components/ui";
 import { CategoryImageUploader } from "@/features/product-groups/components/CategoryImageUploader";
 
-const EMPTY_FORM: ProductCategoryFormValues = { name: "", slug: "", description: "", parentId: "", imageUrl: "", metaTitle: "", metaDescription: "", metaKeywords: "" };
+const EMPTY_FORM: ProductCategoryFormValues = { name: "", slug: "", description: "", parentId: "", image: null, metaTitle: "", metaDescription: "", metaKeywords: "" };
 
 function ProductGroupForm({ groupId }: { groupId?: string }) {
   const t = useT("product-groups");
@@ -36,7 +36,7 @@ function ProductGroupForm({ groupId }: { groupId?: string }) {
       .then(([groups, group]) => {
         if (!alive) return;
         setAllGroups(groups);
-        if (group) setForm({ name: group.name, slug: group.slug, description: group.description ?? "", parentId: group.parentId ?? "", imageUrl: group.imageUrl ?? "", metaTitle: group.metaTitle ?? "", metaDescription: group.metaDescription ?? "", metaKeywords: group.metaKeywords ?? "" });
+        if (group) setForm({ name: group.name, slug: group.slug, description: group.description ?? "", parentId: group.parentId ?? "", image: group.image ?? null, metaTitle: group.metaTitle ?? "", metaDescription: group.metaDescription ?? "", metaKeywords: group.metaKeywords ?? "" });
       })
       .catch((cause) => { if (alive) setMessage(productGroupErrorMessage(cause, t)); })
       .finally(() => { if (alive) setLoading(false); });
@@ -54,16 +54,7 @@ function ProductGroupForm({ groupId }: { groupId?: string }) {
     if (!validate()) return;
     setBusy(true);
     setMessage(null);
-    const body = {
-      name: form.name.trim(),
-      slug: form.slug.trim() || toSlug(form.name),
-      description: clearable(form.description, editing),
-      parentId: clearable(form.parentId, editing),
-      imageUrl: clearable(form.imageUrl, editing),
-      metaTitle: clearable(form.metaTitle, editing),
-      metaDescription: clearable(form.metaDescription, editing),
-      metaKeywords: clearable(form.metaKeywords, editing),
-    };
+    const body = groupInput(form, editing);
     try {
       if (groupId) await updateProductGroup(groupId, body);
       else await createProductGroup(body);
@@ -113,7 +104,7 @@ function ProductGroupForm({ groupId }: { groupId?: string }) {
         </div>
       </Card>
       <Card title={t("form.section_image")} help={t("form.image_help")}>
-        <CategoryImageUploader value={form.imageUrl || null} onChange={(url) => update("imageUrl", url ?? "")} disabled={busy} />
+        <CategoryImageUploader value={form.image} onChange={(image) => update("image", image)} disabled={busy} />
       </Card>
       <Card title={t("form.section_seo")}>
         <div className="grid gap-4">

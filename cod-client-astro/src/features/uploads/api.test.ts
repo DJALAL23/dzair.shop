@@ -1,172 +1,206 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const seam = vi.hoisted(() => ({ apiFetch: vi.fn() }));
+const seam = vi.hoisted(() => {
+  class ApiError extends Error {
+    constructor(message: string, public status: number, public code?: string) {
+      super(message);
+    }
+  }
+  return { apiFetch: vi.fn(), ApiError };
+});
 vi.mock("@/lib/api", () => seam);
 
+import type { UploadSend, UploadTicket } from "../../../../cod-shared/media/library";
 import {
   ACCEPTED_IMAGE_TYPES,
   ImageUploadFailedError,
   ImageUploadRejectedError,
   MAX_UPLOAD_MB,
+  completeUpload,
   measureImageDimensions,
   partitionUploadFiles,
-  presignImageUpload,
-  putFileToR2,
+  requestUpload,
+  sendUpload,
+  uploadFailure,
   uploadImageFile,
   validateUploadFile,
 } from "./api";
 
 function makeFile(input: { type?: string; size?: number } = {}): File {
   const { type = "image/jpeg", size = 100 } = input;
-  const bytes = new Uint8Array(size);
-  return new File([bytes], "img.jpg", { type });
+  return new File([new Uint8Array(size)], "img.jpg", { type });
 }
 
-const PRESIGNED = {
-  presignedUrl: "https://r2.example/presigned-put",
-  key: "products/abc123.jpg",
-  publicUrl: "https://media.example/products/abc123.jpg",
+const FORM: UploadSend = {
+  kind: "form",
+  method: "POST",
+  url: "https://upload.imagekit.io/api/v2/files/upload",
+  fields: { token: "jwt", fileName: "3f2a.jpg" },
+  fileField: "file",
 };
+const PUT: UploadSend = { kind: "put", method: "PUT", url: "https://bucket.example/signed", headers: { "Content-Type": "image/jpeg" } };
+const RELAY: UploadSend = { kind: "relay", method: "PUT", url: "/api/media/uploads/m1/content", headers: { "Content-Type": "image/jpeg" } };
+
+const ticket = (send: UploadSend): UploadTicket => ({ mediaId: "m1", key: "products/3f2a.jpg", expiresAt: "2026-10-30T12:10:00.000Z", send });
+const IMAGE = { key: "products/3f2a.jpg", url: "https://ik.imagekit.io/acct/products/3f2a.jpg", width: 1200, height: 900 };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  seam.apiFetch.mockResolvedValue({ success: true, data: PRESIGNED });
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("presignImageUpload", () => {
-  it("posts contentType + folder to the existing presign endpoint and unwraps the envelope", async () => {
-    await expect(presignImageUpload("image/png", "products")).resolves.toEqual(PRESIGNED);
-    expect(seam.apiFetch).toHaveBeenCalledTimes(1);
+describe("requestUpload", () => {
+  it("asks for a ticket with the folder, the file's type and its size", async () => {
+    seam.apiFetch.mockResolvedValue({ success: true, data: ticket(FORM) });
+
+    await expect(requestUpload(makeFile({ type: "image/png", size: 321 }), "landing")).resolves.toEqual(ticket(FORM));
     const [path, init] = seam.apiFetch.mock.calls[0] as [string, RequestInit];
-    expect(path).toBe("/api/images/presign");
+    expect(path).toBe("/api/media/uploads");
     expect(init.method).toBe("POST");
-    expect(init.body).toBe(JSON.stringify({ contentType: "image/png", folder: "products" }));
-  });
-
-  it("sends the landing folder unchanged", async () => {
-    await presignImageUpload("image/webp", "landing");
-    expect(seam.apiFetch.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ contentType: "image/webp", folder: "landing" }));
-  });
-
-  it("propagates seam errors", async () => {
-    seam.apiFetch.mockRejectedValue(new Error("401"));
-    await expect(presignImageUpload("image/png", "products")).rejects.toThrow("401");
+    expect(JSON.parse(init.body as string)).toEqual({ folder: "landing", contentType: "image/png", bytes: 321 });
   });
 });
 
-describe("file validation (MIME/size rejection)", () => {
-  it("accepts every type the endpoint allow-lists", () => {
-    for (const type of ACCEPTED_IMAGE_TYPES) {
-      expect(() => validateUploadFile(makeFile({ type }))).not.toThrow();
-    }
-  });
-
-  it("rejects unsupported MIME before any network call", async () => {
-    const fetchMock = vi.fn();
+describe("sendUpload", () => {
+  it("posts a form with the ticket's fields and the file under the ticket's name, and answers the host's fileId", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ fileId: "ik-file-1" }));
     vi.stubGlobal("fetch", fetchMock);
+    const file = makeFile();
 
-    expect(() => validateUploadFile(makeFile({ type: "application/pdf" }))).toThrow(ImageUploadRejectedError);
-    expect(() => validateUploadFile(makeFile({ type: "application/pdf" }))).toThrow(
-      expect.objectContaining({ reason: "unsupported_type" }) as never,
-    );
-
-    await expect(uploadImageFile(makeFile({ type: "image/svg+xml" }), "products")).rejects.toMatchObject({
-      reason: "unsupported_type",
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(sendUpload(FORM, file)).resolves.toEqual({ hostRef: "ik-file-1" });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(FORM.url);
+    expect(init.method).toBe("POST");
+    const form = init.body as FormData;
+    expect(form.get("token")).toBe("jwt");
+    expect((form.get("file") as File).name).toBe("3f2a.jpg");
+    expect((form.get("file") as File).size).toBe(file.size);
+    expect(init.headers).toBeUndefined();
     expect(seam.apiFetch).not.toHaveBeenCalled();
   });
 
-  it("rejects files over 10 MB before any network call", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+  it("answers no host reference when the form's answer names no file", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({})));
 
-    const tooBig = makeFile({ size: MAX_UPLOAD_MB * 1024 * 1024 + 1 });
-    expect(() => validateUploadFile(tooBig)).toThrow(ImageUploadRejectedError);
-    expect(() => validateUploadFile(tooBig)).toThrow(
-      expect.objectContaining({ reason: "file_too_large" }) as never,
-    );
-    await expect(uploadImageFile(tooBig, "products")).rejects.toMatchObject({ reason: "file_too_large" });
-    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(sendUpload(FORM, makeFile())).resolves.toEqual({ hostRef: null });
+  });
+
+  it("puts the file to a signed URL with the ticket's headers", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const file = makeFile();
+
+    await expect(sendUpload(PUT, file)).resolves.toEqual({ hostRef: null });
+    expect(fetchMock).toHaveBeenCalledWith(PUT.url, { method: "PUT", headers: PUT.headers, body: file });
     expect(seam.apiFetch).not.toHaveBeenCalled();
   });
 
-  it("accepts a file exactly at the size cap", () => {
+  it("relays the file through the store's server, signed in, never with a bare fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    seam.apiFetch.mockResolvedValue(undefined);
+    const file = makeFile();
+
+    await expect(sendUpload(RELAY, file)).resolves.toEqual({ hostRef: null });
+    expect(seam.apiFetch).toHaveBeenCalledWith(RELAY.url, { method: "PUT", headers: RELAY.headers, body: file });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["form", FORM],
+    ["put", PUT],
+  ] as const)("fails with the host's status when a %s upload is refused", async (_kind, send) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 403 })));
+
+    await expect(sendUpload(send, makeFile())).rejects.toMatchObject({ name: "ImageUploadFailedError", status: 403 });
+  });
+});
+
+describe("completeUpload", () => {
+  it("reports the upload and answers the image", async () => {
+    seam.apiFetch.mockResolvedValue({ success: true, data: IMAGE });
+
+    await expect(completeUpload("m/1", { hostRef: "ik-file-1", width: 10, height: 20 })).resolves.toEqual(IMAGE);
+    const [path, init] = seam.apiFetch.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe("/api/media/uploads/m%2F1/complete");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ hostRef: "ik-file-1", width: 10, height: 20 });
+  });
+});
+
+describe("uploadImageFile (ticket → send → complete)", () => {
+  it("completes with the host's reference and answers the server's image", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ fileId: "ik-file-1" })));
+    seam.apiFetch.mockResolvedValueOnce({ success: true, data: ticket(FORM) }).mockResolvedValueOnce({ success: true, data: IMAGE });
+
+    await expect(uploadImageFile(makeFile(), "products")).resolves.toEqual(IMAGE);
+    const [path, init] = seam.apiFetch.mock.calls[1] as [string, RequestInit];
+    expect(path).toBe("/api/media/uploads/m1/complete");
+    expect(JSON.parse(init.body as string)).toEqual({ hostRef: "ik-file-1", width: null, height: null });
+  });
+
+  it("never completes an upload the host refused", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 400 })));
+    seam.apiFetch.mockResolvedValueOnce({ success: true, data: ticket(FORM) });
+
+    await expect(uploadImageFile(makeFile(), "products")).rejects.toBeInstanceOf(ImageUploadFailedError);
+    expect(seam.apiFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for no ticket when the file is refused", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+
+    await expect(uploadImageFile(makeFile({ type: "application/zip" }), "landing")).rejects.toBeInstanceOf(ImageUploadRejectedError);
+    expect(seam.apiFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("uploadFailure", () => {
+  it.each([
+    [new ImageUploadRejectedError("unsupported_type"), "unsupported_file"],
+    [new ImageUploadRejectedError("file_too_large"), "file_too_large"],
+    [new ImageUploadFailedError(403), "media_host_refused"],
+    [new ImageUploadFailedError(429), "media_host_unavailable"],
+    [new ImageUploadFailedError(503), "media_host_unavailable"],
+    [new seam.ApiError("x", 400, "INVALID_FILE_TYPE"), "unsupported_file"],
+    [new seam.ApiError("x", 413, "FILE_TOO_LARGE"), "file_too_large"],
+    [new seam.ApiError("x", 503, "MEDIA_NOT_CONFIGURED"), "media_not_configured"],
+    [new seam.ApiError("x", 502, "MEDIA_HOST_REFUSED"), "media_host_refused"],
+    [new seam.ApiError("x", 503, "MEDIA_HOST_UNAVAILABLE"), "media_host_unavailable"],
+    [new seam.ApiError("x", 404, "MEDIA_UPLOAD_UNKNOWN"), "upload_expired"],
+    [new seam.ApiError("x", 409, "MEDIA_UPLOAD_MISSING"), "upload_expired"],
+    [new seam.ApiError("x", 409, "MEDIA_UPLOAD_MISMATCH"), "upload_expired"],
+    [new seam.ApiError("x", 500, "INTERNAL"), "upload_failed"],
+    [new TypeError("Failed to fetch"), "upload_failed"],
+  ])("says %o as %s", (cause, key) => {
+    expect(uploadFailure(cause)).toBe(key);
+  });
+});
+
+describe("file validation", () => {
+  it("accepts every image type the server takes", () => {
+    for (const type of ACCEPTED_IMAGE_TYPES) expect(() => validateUploadFile(makeFile({ type }))).not.toThrow();
+  });
+
+  it("refuses an unsupported type", () => {
+    expect(() => validateUploadFile(makeFile({ type: "application/pdf" }))).toThrow(expect.objectContaining({ reason: "unsupported_type" }) as never);
+  });
+
+  it("refuses a file over the cap and accepts one exactly at it", () => {
+    expect(() => validateUploadFile(makeFile({ size: MAX_UPLOAD_MB * 1024 * 1024 + 1 }))).toThrow(expect.objectContaining({ reason: "file_too_large" }) as never);
     expect(() => validateUploadFile(makeFile({ size: MAX_UPLOAD_MB * 1024 * 1024 }))).not.toThrow();
   });
 
-  it("partitionUploadFiles preserves the call sites' selection semantics", () => {
+  it("partitions a selection: unsupported over all files, oversized over the supported ones", () => {
     const good = makeFile({ type: "image/png" });
     const big = makeFile({ type: "image/png", size: MAX_UPLOAD_MB * 1024 * 1024 + 5 });
     const bad = makeFile({ type: "text/html" });
 
-    const result = partitionUploadFiles([good, big, bad, bad]);
-    expect(result.accepted).toEqual([good]);
-    expect(result.unsupportedCount).toBe(2);
-    expect(result.tooLargeCount).toBe(1);
-
+    expect(partitionUploadFiles([good, big, bad, bad])).toEqual({ accepted: [good], unsupportedCount: 2, tooLargeCount: 1 });
     expect(partitionUploadFiles([])).toEqual({ accepted: [], unsupportedCount: 0, tooLargeCount: 0 });
-    expect(partitionUploadFiles([bad]).accepted).toEqual([]);
-    expect(partitionUploadFiles([good]).unsupportedCount).toBe(0);
-  });
-});
-
-describe("putFileToR2", () => {
-  it("PUTs the file with its Content-Type", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const file = makeFile({ type: "image/png" });
-    await expect(putFileToR2(PRESIGNED.presignedUrl, file)).resolves.toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledWith(
-      PRESIGNED.presignedUrl,
-      expect.objectContaining({ method: "PUT", body: file }),
-    );
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect((init.headers as Record<string, string>)["Content-Type"]).toBe("image/png");
-  });
-
-  it.each([403, 500])("throws ImageUploadFailedError on non-2xx PUT (%s)", async (status) => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(putFileToR2(PRESIGNED.presignedUrl, makeFile())).rejects.toMatchObject({
-      name: "ImageUploadFailedError",
-      status,
-    });
-  });
-});
-
-describe("uploadImageFile (presign → PUT → measure)", () => {
-  it("returns key + publicUrl, measuring dimensions fail-open", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await uploadImageFile(makeFile({ type: "image/jpeg" }), "products");
-    expect(result).toEqual({ key: PRESIGNED.key, url: PRESIGNED.publicUrl, width: null, height: null });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(seam.apiFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("aborts after a failed PUT and never reports success", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 403 }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(uploadImageFile(makeFile(), "products")).rejects.toBeInstanceOf(ImageUploadFailedError);
-    expect(seam.apiFetch).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not presign when validation rejects", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-    await expect(uploadImageFile(makeFile({ type: "application/zip" }), "landing")).rejects.toBeInstanceOf(
-      ImageUploadRejectedError,
-    );
-    expect(seam.apiFetch).not.toHaveBeenCalled();
   });
 });
 

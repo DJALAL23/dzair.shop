@@ -1,17 +1,24 @@
 import type { UploadFunction } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension";
-import { uploadImageFile } from "@/features/uploads/api";
+import { uploadFailure, uploadImageFile } from "@/features/uploads/api";
+import { editorT } from "@/i18n/editor";
+import { notify } from "@/lib/notify";
 
 /**
  * Inline description images go through the dashboard's single upload seam
- * (`features/uploads`), not the template's demo uploader: presign → direct
- * PUT to R2 → return the public URL the editor stores in `img src`.
+ * (`features/uploads`), not the template's demo uploader, and return the URL
+ * the editor puts in `img src`; the server stores it as `media:<key>`.
  *
- * Rejections (wrong type, over the size cap) propagate as thrown errors, which
- * the upload node reports through its `onError` handler.
+ * A failure is said in a toast, then rethrown so the upload node shows its
+ * error state.
  */
 export const uploadDescriptionImage: UploadFunction = async (file, onProgress) => {
   onProgress?.({ progress: 0 });
-  const uploaded = await uploadImageFile(file, "products");
-  onProgress?.({ progress: 100 });
-  return uploaded.url;
+  try {
+    const uploaded = await uploadImageFile(file, "products");
+    onProgress?.({ progress: 100 });
+    return uploaded.url;
+  } catch (cause) {
+    notify.error(editorT(`feedback.${uploadFailure(cause)}`, "common"));
+    throw cause;
+  }
 };

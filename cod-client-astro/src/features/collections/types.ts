@@ -1,3 +1,5 @@
+import type { MediaImage } from "../../../../cod-shared/media/model";
+
 /** `GET /api/collections` — one row of the list. */
 export interface CollectionSummary {
   id: string;
@@ -11,7 +13,7 @@ export interface CollectionProduct {
   id: string;
   name: string;
   handle: string;
-  imageUrl: string | null;
+  image: MediaImage | null;
   /** Whether shoppers see it now; a hidden product is left out of the storefront list. */
   visible: boolean;
 }

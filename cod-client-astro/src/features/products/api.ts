@@ -96,7 +96,7 @@ export async function listProductImages(productId: string) {
   return (await apiFetch<DataEnvelope<ProductImage[]>>(`/api/products/${encodeURIComponent(productId)}/images`)).data;
 }
 
-export function saveProductImage(productId: string, body: { key: string; src: string; altText?: string; position?: number }) {
+export function saveProductImage(productId: string, body: { mediaKey: string; altText?: string; position?: number }) {
   return apiFetch<DataEnvelope<ProductImage>>(`/api/products/${encodeURIComponent(productId)}/images`, json({ method: "POST", body: JSON.stringify(body) }));
 }
 

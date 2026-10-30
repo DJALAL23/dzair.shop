@@ -108,7 +108,7 @@ export function CollectionEditor({ collectionId, onBack, onChanged }: { collecti
           id: product.id,
           name: product.name,
           handle: product.handle,
-          imageUrl: product.primaryImageSrc ?? null,
+          image: product.primaryImage ?? null,
           visible: product.status === "ACTIVE" && product.visibility && product.showInStore,
         },
       ]),
@@ -184,8 +184,8 @@ export function CollectionEditor({ collectionId, onBack, onChanged }: { collecti
             {products.map((product, index) => (
               <li key={product.id} className="flex items-center gap-3 py-2">
                 <span className="w-6 shrink-0 text-center text-xs tabular-nums text-muted-foreground">{index + 1}</span>
-                {product.imageUrl ? (
-                  <img src={product.imageUrl} alt="" className="size-10 shrink-0 rounded-md object-cover" loading="lazy" />
+                {product.image ? (
+                  <img src={product.image.url} alt="" className="size-10 shrink-0 rounded-md object-cover" loading="lazy" />
                 ) : (
                   <span className="size-10 shrink-0 rounded-md bg-muted" aria-hidden="true" />
                 )}

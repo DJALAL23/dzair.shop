@@ -54,7 +54,7 @@ const product = (overrides: Partial<Product> = {}): Product => ({
   images: [],
   variantsCount: 0,
   totalInventory: 10,
-  primaryImageSrc: null,
+  primaryImage: null,
   reviewCount: 0,
   avgRating: null,
   createdAt: "2026-08-26T00:00:00.000Z",

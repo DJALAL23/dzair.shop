@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, UploadCloud, X } from "lucide-react";
-import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_MB, partitionUploadFiles } from "@/features/uploads/api";
+import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_MB, partitionUploadFiles, uploadFailure } from "@/features/uploads/api";
 import { useImageUpload } from "@/features/uploads/useImageUpload";
 import type { ProductImage } from "@/features/products/types";
 import { useT } from "@/i18n/react";
@@ -16,7 +16,7 @@ export function formImageId(img: FormImage) {
 }
 
 function formImageSrc(img: FormImage) {
-  return img.kind === "saved" ? img.image.src : img.url;
+  return img.kind === "saved" ? img.image.url : img.url;
 }
 
 function swapAt<T>(arr: T[], i: number, j: number): T[] {
@@ -50,8 +50,8 @@ export function ProductImageUploader({ images, disabled, onAdd, onRemove, onReor
         onAdd({ kind: "new", clientId: crypto.randomUUID(), key, url });
       }
       notify.success(common("feedback.uploaded"));
-    } catch {
-      notify.error(common("feedback.upload_failed"));
+    } catch (cause) {
+      notify.error(common(`feedback.${uploadFailure(cause)}`));
     }
   }
 

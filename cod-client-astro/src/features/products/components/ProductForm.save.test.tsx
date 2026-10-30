@@ -51,9 +51,10 @@ function image(id: string, position: number): ProductImage {
   return {
     id,
     productId: PRODUCT_ID,
-    src: `https://cdn.test/products/${id}.webp`,
-    r2Key: `products/${id}.webp`,
-    type: 1,
+    key: `products/${id}.webp`,
+    url: `https://cdn.test/products/${id}.webp`,
+    width: null,
+    height: null,
     position,
     createdAt: "2026-10-01T00:00:00.000Z",
     updatedAt: "2026-10-01T00:00:00.000Z",
@@ -113,11 +114,11 @@ beforeEach(() => {
   api.listShippingProfiles.mockResolvedValue([]);
   api.updateProduct.mockResolvedValue({ data: { id: PRODUCT_ID } });
   api.listProductImages.mockImplementation(async () => ordered());
-  api.saveProductImage.mockImplementation(async (_id: string, body: { key: string; src: string; position?: number }) => {
+  api.saveProductImage.mockImplementation(async (_id: string, body: { mediaKey: string; position?: number }) => {
     if (body.position !== undefined && (!Number.isInteger(body.position) || body.position < 1))
       throw serverRejects(400, "VALIDATION_FAILED", [{ path: "position", message: "Too small: expected number to be >=1" }]);
     const position = body.position ?? Math.max(0, ...server.images.map((img) => img.position)) + 1;
-    const saved = { ...image(`saved-${server.nextId++}`, position), src: body.src, r2Key: body.key };
+    const saved = { ...image(`saved-${server.nextId++}`, position), key: body.mediaKey, url: `https://cdn.test/${body.mediaKey}` };
     server.images.push(saved);
     return { data: saved };
   });
@@ -190,7 +191,7 @@ async function save() {
   await click(saveButton());
 }
 
-const savedSources = () => ordered().map((img) => img.src);
+const savedSources = () => ordered().map((img) => img.url);
 const alertText = () => host.querySelector('[role="alert"]')?.textContent ?? "";
 
 describe("editing a product's images saves exactly what the merchant sees", () => {
@@ -252,7 +253,7 @@ describe("editing a product's images saves exactly what the merchant sees", () =
     expect(alertText()).toBe("");
     expect(savedSources()).toEqual(["https://cdn.test/products/one.png", "https://cdn.test/products/two.png"]);
     expect(api.deleteProductImage.mock.calls.map(([, imageId]) => imageId)).toEqual(["old"]);
-    expect(api.saveProductImage.mock.calls.map(([, body]) => body.key)).toEqual([
+    expect(api.saveProductImage.mock.calls.map(([, body]) => body.mediaKey)).toEqual([
       "products/one.png",
       "products/two.png",
       "products/two.png",

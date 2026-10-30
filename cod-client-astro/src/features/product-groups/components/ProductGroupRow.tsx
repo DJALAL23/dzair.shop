@@ -28,8 +28,8 @@ export function GroupDesktopRow({
           href={`/product-groups/${encodeURIComponent(group.id)}/edit`}
           media={
             <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted shadow-card">
-              {group.imageUrl ? (
-                <img src={group.imageUrl} alt="" className="size-full object-cover" />
+              {group.image ? (
+                <img src={group.image.url} alt="" className="size-full object-cover" />
               ) : (
                 <FolderOpen size={15} aria-hidden="true" className="text-subtle-foreground" />
               )}
@@ -91,9 +91,9 @@ export function GroupMobileCard({
     <article className="border-b border-border p-4 last:border-0">
       <div className="flex items-start gap-3">
         <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-muted">
-          {group.imageUrl ? (
+          {group.image ? (
             <img
-              src={group.imageUrl}
+              src={group.image.url}
               alt={group.name}
               className="size-full object-cover"
             />

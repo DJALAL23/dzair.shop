@@ -16,7 +16,7 @@ function sourceFiles(dir: string): string[] {
 const seam = vi.hoisted(() => ({ getMyStore: vi.fn(), updateMyStore: vi.fn() }));
 vi.mock("./api", () => seam);
 
-const store = { id: "s1", name: "Maysa", domain: "maysashop.online", logoUrl: null, lang: "ar" };
+const store = { id: "s1", name: "Maysa", domain: "maysashop.online", logo: null, lang: "ar" };
 
 beforeEach(() => {
   vi.resetModules();
@@ -33,7 +33,7 @@ describe("the store summary", () => {
     await readStoreSummary();
 
     expect(seam.getMyStore).toHaveBeenCalledTimes(1);
-    expect(first).toEqual({ name: "Maysa", domain: "maysashop.online", logoUrl: null });
+    expect(first).toEqual({ name: "Maysa", domain: "maysashop.online", logo: null });
     expect(second).toEqual(first);
   });
 
@@ -55,7 +55,7 @@ describe("the store summary", () => {
     storeSummaryChanged({ ...store, name: "Maysa Shop" });
     expect(seen).toEqual(["Maysa Shop"]);
     await expect(readStoreSummary()).resolves.toMatchObject({ name: "Maysa Shop" });
-    expect(cachedStoreSummary()).toEqual({ name: "Maysa Shop", domain: "maysashop.online", logoUrl: null });
+    expect(cachedStoreSummary()).toEqual({ name: "Maysa Shop", domain: "maysashop.online", logo: null });
     expect(seam.getMyStore).toHaveBeenCalledTimes(1);
 
     stop();
@@ -64,14 +64,14 @@ describe("the store summary", () => {
   });
 
   it("is told of every save of the store, and the dashboard saves the store nowhere else", async () => {
-    seam.updateMyStore.mockResolvedValue({ ...store, name: "Maysa Shop", logoUrl: "https://media.example.com/logo.webp" });
+    seam.updateMyStore.mockResolvedValue({ ...store, name: "Maysa Shop", logo: { key: "products/logo.webp", url: "https://media.example.com/products/logo.webp", width: 512, height: 512 } });
     const { saveMyStore, watchStoreSummary } = await import("./store-summary");
     const seen: unknown[] = [];
     watchStoreSummary((summary) => seen.push(summary));
 
     await expect(saveMyStore({ name: "Maysa Shop" })).resolves.toMatchObject({ id: "s1", name: "Maysa Shop" });
     expect(seam.updateMyStore).toHaveBeenCalledWith({ name: "Maysa Shop" });
-    expect(seen).toEqual([{ name: "Maysa Shop", domain: "maysashop.online", logoUrl: "https://media.example.com/logo.webp" }]);
+    expect(seen).toEqual([{ name: "Maysa Shop", domain: "maysashop.online", logo: { key: "products/logo.webp", url: "https://media.example.com/products/logo.webp", width: 512, height: 512 } }]);
 
     const callers = sourceFiles(SRC).filter((file) => /\bupdateMyStore\(/.test(readFileSync(file, "utf8"))).map((file) => relative(SRC, file));
     expect(callers.sort()).toEqual(["features/settings/api.ts", "features/settings/store-summary.ts"]);

@@ -17,7 +17,7 @@ const group = (overrides: Partial<ProductCategory> = {}): ProductCategory => ({
   slug: "electronics",
   description: null,
   parentId: null,
-  imageUrl: null,
+  image: null,
   metaTitle: null,
   metaDescription: null,
   metaKeywords: null,
@@ -69,7 +69,8 @@ describe("product-groups model", () => {
   });
 });
 
-import { clearable } from "./model";
+import { clearable, groupInput } from "./model";
+import type { ProductCategoryFormValues } from "./types";
 
 describe("product group update payload: a cleared field is sent as null", () => {
   it("sends null for an emptied field when editing, so the server clears it", () => {
@@ -82,5 +83,21 @@ describe("product group update payload: a cleared field is sent as null", () => 
   it("trims and keeps a filled field", () => {
     expect(clearable("  Phones ", true)).toBe("Phones");
     expect(clearable("Phones", false)).toBe("Phones");
+  });
+});
+
+describe("product group image: saved by its Media Key", () => {
+  const form = (image: ProductCategoryFormValues["image"]): ProductCategoryFormValues => ({
+    name: "Phones", slug: "phones", description: "", parentId: "", image, metaTitle: "", metaDescription: "", metaKeywords: "",
+  });
+  const image = { key: "products/3f2a.webp", url: "https://ik.imagekit.io/acct/products/3f2a.webp", width: 800, height: 600 };
+
+  it("sends the image's key, never its URL", () => {
+    expect(groupInput(form(image), true).imageKey).toBe("products/3f2a.webp");
+    expect(groupInput(form(image), false).imageKey).toBe("products/3f2a.webp");
+  });
+  it("sends null for a removed image when editing, and leaves it out when creating", () => {
+    expect(groupInput(form(null), true).imageKey).toBeNull();
+    expect(groupInput(form(null), false).imageKey).toBeUndefined();
   });
 });

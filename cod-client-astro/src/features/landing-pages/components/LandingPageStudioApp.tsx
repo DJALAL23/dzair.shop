@@ -44,7 +44,7 @@ import {
   inactiveReason,
 } from "@/features/landing-pages/components/TrackingBadge";
 import { useConversionEventLabel } from "@/components/tracking/ConversionEventPicker";
-import { partitionUploadFiles, ACCEPTED_IMAGE_TYPES } from "@/features/uploads/api";
+import { partitionUploadFiles, ACCEPTED_IMAGE_TYPES, uploadFailure } from "@/features/uploads/api";
 import { useImageUpload } from "@/features/uploads/useImageUpload";
 import type {
   LandingPage,
@@ -316,12 +316,14 @@ function Gated({ landingPageId }: { landingPageId: string }) {
 
       try {
         for (const file of accepted) {
-          const { key, url, width, height } = await upload(file);
-          const images = await saveLandingPageImage(landingPageId, {
-            key,
-            src: url,
-            ...(width !== null && height !== null ? { width, height } : {}),
+          const image = await upload(file).catch((cause: unknown) => {
+            const message = common(`feedback.${uploadFailure(cause)}`);
+            setActionError(message);
+            notify.error(message);
+            return null;
           });
+          if (!image) return;
+          const images = await saveLandingPageImage(landingPageId, { mediaKey: image.key });
           setLp((prev) => (prev ? { ...prev, images } : prev));
         }
         notify.success(common("feedback.uploaded"));
@@ -702,7 +704,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                   {index + 1}
                 </span>
                 <img
-                  src={image.src}
+                  src={image.url}
                   alt={image.altText ?? ""}
                   loading="lazy"
                   className="h-12 w-12 shrink-0 rounded object-cover"
@@ -771,7 +773,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
             lp.images.map((image, index) => (
               <img
                 key={image.id}
-                src={image.src}
+                src={image.url}
                 alt={image.altText ?? ""}
                 loading={index === 0 ? "eager" : "lazy"}
                 className="block w-full"

@@ -1,4 +1,4 @@
-import type { ProductCategory } from "./types";
+import type { ProductCategory, ProductCategoryFormValues, ProductGroupInput } from "./types";
 
 export type ProductGroupSortKey = "name" | "productsCount" | "createdAt";
 
@@ -66,6 +66,20 @@ export function clearable(value: string, editing: boolean): string | null | unde
   const trimmed = value.trim();
   if (trimmed === "") return editing ? null : undefined;
   return trimmed;
+}
+
+/** What the form saves: every clearable field as `clearable` says, the image by its key. */
+export function groupInput(form: ProductCategoryFormValues, editing: boolean): ProductGroupInput {
+  return {
+    name: form.name.trim(),
+    slug: form.slug.trim() || toSlug(form.name),
+    description: clearable(form.description, editing),
+    parentId: clearable(form.parentId, editing),
+    imageKey: form.image?.key ?? (editing ? null : undefined),
+    metaTitle: clearable(form.metaTitle, editing),
+    metaDescription: clearable(form.metaDescription, editing),
+    metaKeywords: clearable(form.metaKeywords, editing),
+  };
 }
 
 export function toSlug(name: string) {

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
+import { uploadFailure } from "@/features/uploads/api";
 import { useImageUpload } from "@/features/uploads/useImageUpload";
 import { getWhatsAppButtonApp, saveWhatsAppButtonApp } from "@/features/apps/whatsapp-button/api";
 import type { AppBodyProps } from "@/features/apps/types";
@@ -150,8 +151,8 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
     try {
       const uploaded = await uploadAvatar(file);
       patch({ avatarUrl: uploaded.url });
-    } catch {
-      // error is surfaced in useImageUpload state
+    } catch (cause) {
+      notify.error(common(`feedback.${uploadFailure(cause)}`));
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }

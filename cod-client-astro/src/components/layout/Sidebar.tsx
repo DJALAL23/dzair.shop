@@ -53,8 +53,8 @@ function StoreBlock() {
   return (
     <div className="flex shrink-0 flex-col items-center gap-2 px-4 pb-4 pt-6 text-center">
       <a href="/settings" className="rounded-2xl" aria-label={store.name}>
-        {store.logoUrl ? (
-          <img src={store.logoUrl} alt="" className="size-12 rounded-2xl bg-card object-contain shadow-card" />
+        {store.logo ? (
+          <img src={store.logo.url} alt="" className="size-12 rounded-2xl bg-card object-contain shadow-card" />
         ) : (
           <span className="grid size-12 place-items-center rounded-2xl bg-[var(--tone-magic-bg)] text-base font-semibold text-[var(--tone-magic-text)] shadow-[inset_0_0_0_1px_var(--tone-magic-border)]">
             {initials || "·"}

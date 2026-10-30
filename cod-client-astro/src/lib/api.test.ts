@@ -39,4 +39,10 @@ describe("apiFetch", () => {
       headers: { Authorization: "Bearer fresh-jwt" },
     });
   });
+
+  it("answers nothing for a 204, which has no body to read", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+
+    await expect(apiFetch<void>("/api/media/uploads/m1/content", { method: "PUT" })).resolves.toBeUndefined();
+  });
 });

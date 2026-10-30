@@ -22,7 +22,7 @@ export function ProductImagesCard({
             className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted"
           >
             <img
-              src={image.srcMd || image.src}
+              src={image.url}
               alt={image.altText || `${productName} - ${index + 1}`}
               className="size-full object-cover"
             />

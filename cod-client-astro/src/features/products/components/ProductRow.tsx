@@ -27,8 +27,8 @@ function Thumbnail({ product, size }: { product: Product; size: "sm" | "md" }) {
     <span
       className={`grid shrink-0 place-items-center overflow-hidden rounded-lg bg-muted shadow-card ${size === "sm" ? "size-9" : "size-11"}`}
     >
-      {product.primaryImageSrc ? (
-        <img src={product.primaryImageSrc} alt="" className="size-full object-cover" />
+      {product.primaryImage ? (
+        <img src={product.primaryImage.url} alt="" className="size-full object-cover" />
       ) : (
         <Package size={size === "sm" ? 15 : 18} aria-hidden="true" className="text-subtle-foreground" />
       )}

@@ -25,8 +25,10 @@ afterEach(() => {
 const image = (id: string, position: number): ProductImage => ({
   id,
   productId: "prod-1",
-  src: `https://cdn.test/${id}.webp`,
-  type: 1,
+  key: `products/${id}.webp`,
+  url: `https://cdn.test/${id}.webp`,
+  width: null,
+  height: null,
   position,
   createdAt: "2026-10-01T00:00:00.000Z",
   updatedAt: "2026-10-01T00:00:00.000Z",

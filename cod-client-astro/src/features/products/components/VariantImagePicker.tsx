@@ -122,7 +122,7 @@ export function VariantImagePicker({
         }`}
       >
         {selected ? (
-          <img src={selected.src} alt="" className="size-full object-cover" />
+          <img src={selected.url} alt="" className="size-full object-cover" />
         ) : (
           <span aria-hidden="true" className="text-base leading-none">
             +
@@ -158,7 +158,7 @@ export function VariantImagePicker({
                     }`}
                   >
                     <img
-                      src={img.src}
+                      src={img.url}
                       alt=""
                       className="size-full object-cover"
                     />

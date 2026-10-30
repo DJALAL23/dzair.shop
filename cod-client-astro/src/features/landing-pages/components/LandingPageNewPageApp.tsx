@@ -125,9 +125,9 @@ function Gated() {
               onClick={() => void onPick(product)}
               className="flex items-center gap-3 rounded-xl bg-card p-3 text-start transition hover:border-brand/40 disabled:opacity-60 shadow-card"
             >
-              {product.images?.[0]?.src ? (
+              {product.images?.[0]?.url ? (
                 <img
-                  src={product.images[0].src}
+                  src={product.images[0].url}
                   alt={product.name}
                   className="size-14 shrink-0 rounded-lg object-cover"
                 />

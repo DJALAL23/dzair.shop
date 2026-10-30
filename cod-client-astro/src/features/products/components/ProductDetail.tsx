@@ -133,8 +133,8 @@ export function ProductDetail({ productId }: { productId: string }) {
         subtitle={[product.sku, category?.name].filter(Boolean).join(" · ") || product.handle}
         media={
           <span className="grid size-12 place-items-center overflow-hidden rounded-lg bg-muted shadow-card">
-            {product.primaryImageSrc ? (
-              <img src={product.primaryImageSrc} alt="" className="size-full object-cover" />
+            {product.primaryImage ? (
+              <img src={product.primaryImage.url} alt="" className="size-full object-cover" />
             ) : (
               <Package size={20} aria-hidden="true" className="text-muted-foreground" />
             )}

@@ -1,3 +1,5 @@
+import type { MediaImage } from "../../../../cod-shared/media/model";
+
 export type ProductType = "PHYSICAL" | "DIGITAL";
 export type ProductStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 /** How a product description is stored. Mirrors the API enum — see ADR 0002. */
@@ -9,7 +11,7 @@ export interface ProductCategory {
   slug: string;
   description?: string | null;
   parentId?: string | null;
-  imageUrl?: string | null;
+  image?: MediaImage | null;
   position: number;
   productsCount?: number;
   createdAt: string;
@@ -87,7 +89,7 @@ export interface Product {
   images: ProductImage[];
   variantsCount?: number;
   totalInventory?: number;
-  primaryImageSrc?: string | null;
+  primaryImage?: MediaImage | null;
   reviewCount?: number;
   avgRating?: number | null;
   createdAt: string;
@@ -97,15 +99,11 @@ export interface Product {
 export interface ProductImage {
   id: string;
   productId: string;
-  src: string;
-  r2Key?: string | null;
-  srcSm?: string | null;
-  srcMd?: string | null;
-  srcLg?: string | null;
+  key: string;
+  url: string;
+  width: number | null;
+  height: number | null;
   altText?: string | null;
-  width?: number | null;
-  height?: number | null;
-  type: number;
   position: number;
   createdAt: string;
   updatedAt: string;

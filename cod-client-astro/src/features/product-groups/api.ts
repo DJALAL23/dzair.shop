@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import type { ProductCategory } from "./types";
+import type { ProductCategory, ProductGroupInput } from "./types";
 
 interface ListEnvelope<T> {
   success: boolean;
@@ -39,11 +39,11 @@ export async function getProductGroup(id: string) {
   return (await apiFetch<DataEnvelope<ProductCategory>>(`/api/product-groups/${encodeURIComponent(id)}`)).data;
 }
 
-export function createProductGroup(body: Partial<ProductCategory>) {
+export function createProductGroup(body: ProductGroupInput) {
   return apiFetch<DataEnvelope<ProductCategory>>("/api/product-groups", json({ method: "POST", body: JSON.stringify(body) }));
 }
 
-export function updateProductGroup(id: string, body: Partial<ProductCategory>) {
+export function updateProductGroup(id: string, body: ProductGroupInput) {
   return apiFetch<DataEnvelope<ProductCategory>>(`/api/product-groups/${encodeURIComponent(id)}`, json({ method: "PATCH", body: JSON.stringify(body) }));
 }
 

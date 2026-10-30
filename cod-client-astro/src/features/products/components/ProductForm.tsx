@@ -285,7 +285,7 @@ export function ProductForm({ productId }: { productId?: string }) {
     }
     for (const image of images) {
       if (image.kind !== "new") continue;
-      const created = (await saveProductImage(id, { key: image.key, src: image.url })).data;
+      const created = (await saveProductImage(id, { mediaKey: image.key })).data;
       saved = [...saved, created];
       shown = shown.map((item) => (item === image ? { kind: "saved", image: created } : item));
       setSavedImages(saved);

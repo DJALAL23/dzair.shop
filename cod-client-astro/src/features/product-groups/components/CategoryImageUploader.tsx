@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
 import { Loader2, UploadCloud, X } from "lucide-react";
-import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_MB, partitionUploadFiles } from "@/features/uploads/api";
+import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_MB, partitionUploadFiles, uploadFailure, type MediaImage } from "@/features/uploads/api";
 import { useImageUpload } from "@/features/uploads/useImageUpload";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 
-export function CategoryImageUploader({ value, onChange, disabled }: { value?: string | null; onChange: (url: string | null) => void; disabled?: boolean }) {
+export function CategoryImageUploader({ value, onChange, disabled }: { value: MediaImage | null; onChange: (image: MediaImage | null) => void; disabled?: boolean }) {
   const common = useT("common");
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -23,17 +23,16 @@ export function CategoryImageUploader({ value, onChange, disabled }: { value?: s
       return;
     }
     try {
-      const { url } = await upload(accepted[0]);
-      onChange(url);
+      onChange(await upload(accepted[0]));
       notify.success(common("feedback.uploaded"));
-    } catch {
-      notify.error(common("feedback.upload_failed"));
+    } catch (cause) {
+      notify.error(common(`feedback.${uploadFailure(cause)}`));
     }
   }
 
   return <div className="space-y-4">
     {value && <div className="group relative aspect-video max-w-md overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
-      <img src={value} alt={common("image.category_alt")} className="size-full object-cover" />
+      <img src={value.url} alt={common("image.category_alt")} className="size-full object-cover" />
       <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
         <button type="button" disabled={disabled} onClick={() => onChange(null)} className="grid size-10 place-items-center rounded-full bg-destructive text-white hover:bg-destructive/80 disabled:opacity-50" aria-label={common("image.remove")}><X size={20} /></button>
       </div>

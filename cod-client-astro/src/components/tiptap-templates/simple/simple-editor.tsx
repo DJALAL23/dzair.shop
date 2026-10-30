@@ -157,7 +157,7 @@ const MobileToolbarContent = ({
  * wired to this app.
  *
  * Adaptations to the vendored template, all deliberate: props with two-way value
- * sync so the value lives in the product form; the dashboard's R2 upload seam
+ * sync so the value lives in the product form; the dashboard's upload seam
  * instead of the demo uploader; h2–h4, no code/code-block, no theme toggle (the
  * dashboard owns light/dark); every string from the dictionaries.
  */

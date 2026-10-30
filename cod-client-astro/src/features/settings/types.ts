@@ -1,3 +1,4 @@
+import type { MediaImage } from "../../../../cod-shared/media/model";
 import type { ReviewAutoPublish, ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
 import type { StoreLocale } from "../../../../cod-shared/i18n/locales";
 import type { LocaleRow, StoreLanguage } from "../../../../cod-shared/stores/settings";
@@ -13,7 +14,7 @@ export interface StoreConfig {
   id: string;
   name: string;
   domain: string | null;
-  logoUrl: string | null;
+  logo: MediaImage | null;
   themeId: string;
   /** The primary language: the storefront's language and first fallback. */
   lang: StoreLang;
@@ -23,7 +24,7 @@ export interface StoreConfig {
   currencySymbol: string;
   metaTitle: string | null;
   metaDescription: string | null;
-  ogImage: string | null;
+  ogImage: MediaImage | null;
   reviewsEnabled: boolean;
   /** Photos a shopper may add to a review: 0 (none) to 6. */
   reviewMaxPhotos: number;
@@ -46,12 +47,10 @@ export type UpdateStoreData = Partial<
     StoreConfig,
     | "name"
     | "domain"
-    | "logoUrl"
     | "lang"
     | "currencySymbol"
     | "metaTitle"
     | "metaDescription"
-    | "ogImage"
     | "reviewsEnabled"
     | "reviewMaxPhotos"
     | "reviewVoiceMaxSeconds"

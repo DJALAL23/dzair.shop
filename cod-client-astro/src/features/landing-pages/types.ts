@@ -12,8 +12,8 @@ export interface LandingPageTrackingSummary {
 export interface LandingPageImage {
   id: string;
   landingPageId: string;
-  r2Key: string;
-  src: string;
+  key: string;
+  url: string;
   altText: string | null;
   source: "upload" | "ai";
   position: number;
@@ -91,15 +91,11 @@ export interface UpdateLandingPageInput {
   metaDescription?: string | null;
 }
 
+/** A completed upload, by its Media Key; its size comes from the upload. */
 export interface SaveLandingPageImageInput {
-  key: string;
-  src: string;
+  mediaKey: string;
   altText?: string | null;
-  /** Intrinsic pixel size, measured in the browser before upload — the
-   *  storefront renders width/height from these so the page doesn't shift
-   *  while images load. Omitted when measurement fails (fail-open). */
-  width?: number;
-  height?: number;
+  position?: number;
 }
 
 /**

@@ -28,7 +28,7 @@ let storeSummaryChanged: typeof import("@/features/settings/store-summary").stor
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const admin = { user: { id: "u1", name: "Amina", email: "amina@example.com" }, role: "admin" as const, scopes: [] };
-const store = { id: "s1", name: "Maysa", domain: "maysashop.online", logoUrl: null };
+const store = { id: "s1", name: "Maysa", domain: "maysashop.online", logo: null };
 
 let root: Root;
 let host: HTMLDivElement;
@@ -135,7 +135,7 @@ describe("the dashboard frame", () => {
 
   it("shows a store saved in Settings without reading it again", async () => {
     await mount(<FrameSidebar />, "/settings");
-    await act(async () => storeSummaryChanged({ name: "Maysa Shop", domain: "maysa.shop", logoUrl: null }));
+    await act(async () => storeSummaryChanged({ name: "Maysa Shop", domain: "maysa.shop", logo: null }));
 
     expect(host.textContent).toContain("Maysa Shop");
     expect(host.textContent).toContain("maysa.shop");

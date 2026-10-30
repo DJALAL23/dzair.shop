@@ -71,6 +71,10 @@
     "action_failed": "The action could not be completed. Please try again.",
     "copy_failed": "The content could not be copied. Please try again.",
     "upload_failed": "The file could not be uploaded. Please try again.",
+    "upload_expired": "The upload took too long and expired. Please try again.",
+    "media_not_configured": "Image uploads are not set up on this store's server yet.",
+    "media_host_refused": "The image host refused the file. Check the store's media settings.",
+    "media_host_unavailable": "The image host is not answering right now. Please try again in a moment.",
     "unsupported_file": "This file type is not supported.",
     "file_too_large": "This file is too large."
   },

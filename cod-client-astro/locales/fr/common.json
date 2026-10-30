@@ -71,6 +71,10 @@
     "action_failed": "Impossible de terminer l'action. Veuillez réessayer.",
     "copy_failed": "Impossible de copier le contenu. Veuillez réessayer.",
     "upload_failed": "Impossible de téléverser le fichier. Veuillez réessayer.",
+    "upload_expired": "Le téléversement a pris trop de temps et a expiré. Veuillez réessayer.",
+    "media_not_configured": "Le téléversement d'images n'est pas encore configuré sur le serveur de cette boutique.",
+    "media_host_refused": "L'hébergeur d'images a refusé le fichier. Vérifiez les réglages médias de la boutique.",
+    "media_host_unavailable": "L'hébergeur d'images ne répond pas pour le moment. Veuillez réessayer dans un instant.",
     "unsupported_file": "Ce type de fichier n'est pas pris en charge.",
     "file_too_large": "Ce fichier est trop volumineux."
   },
