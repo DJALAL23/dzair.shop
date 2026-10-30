@@ -88,7 +88,7 @@ export function fakeImageKit(keys: { publicKey: string; privateKey: string }, op
   const basic = `Basic ${btoa(`${keys.privateKey}:`)}`;
 
   async function store(form: FormData, overwrite: boolean): Promise<Response> {
-    const file = form.get("file");
+    const file: unknown = form.get("file");
     if (!(file instanceof Blob)) return refuse(400, "Your request is missing file parameter.");
     const bytes = new Uint8Array(await file.arrayBuffer());
     const mime = sniffMedia(bytes.subarray(0, 16))?.contentType ?? "application/octet-stream";
