@@ -29,7 +29,7 @@ export function staging(bucket: R2Bucket) {
     async put(key: string, bytes: Uint8Array, metadata: { contentType: string; custom?: Record<string, string> }): Promise<void> {
       await bucket.put(staged(key), bytes, { httpMetadata: { contentType: metadata.contentType }, customMetadata: metadata.custom });
     },
-    async read(key: string): Promise<(StagedFile & { bytes: Uint8Array }) | null> {
+    async read(key: string): Promise<(StagedFile & { bytes: Uint8Array<ArrayBuffer> }) | null> {
       const object = await bucket.get(staged(key));
       if (object === null) return null;
       return { key: object.key, size: object.size, contentType: object.httpMetadata?.contentType ?? null, custom: object.customMetadata ?? {}, bytes: new Uint8Array(await object.arrayBuffer()) };

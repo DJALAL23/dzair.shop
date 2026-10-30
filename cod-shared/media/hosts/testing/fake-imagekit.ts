@@ -21,7 +21,7 @@ interface StoredFile {
   mime: string;
   width: number | null;
   height: number | null;
-  bytes: Uint8Array;
+  bytes: Uint8Array<ArrayBuffer>;
 }
 
 export interface FakeImageKit {

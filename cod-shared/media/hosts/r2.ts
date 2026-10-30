@@ -122,7 +122,7 @@ function s3Host(access: R2S3Access, send: (request: Request) => Promise<Response
       return { hostRef: null, bytes: Number(total ?? 0), contentType: typeOf(new Uint8Array(await response.arrayBuffer())), width: null, height: null };
     },
 
-    async put({ key, contentType, body }: { key: string; contentType: MediaType; body: Uint8Array }) {
+    async put({ key, contentType, body }: { key: string; contentType: MediaType; body: Uint8Array<ArrayBuffer> }) {
       await call(client.sign(objectUrl(key), { method: "PUT", headers: { "Content-Type": contentType, "Cache-Control": MEDIA_CACHE_CONTROL }, body: body as BodyInit }));
       return { hostRef: null, bytes: body.byteLength, contentType, width: null, height: null };
     },

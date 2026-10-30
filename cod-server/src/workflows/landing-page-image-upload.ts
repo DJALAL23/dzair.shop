@@ -103,7 +103,7 @@ function formatIssues(error: z.ZodError): string {
  * cap is exceeded — an unbounded arrayBuffer() on a lying/large response
  * would buffer the whole payload in Worker memory before any check runs.
  */
-async function readBodyWithCap(response: Response, capBytes: number): Promise<Uint8Array> {
+async function readBodyWithCap(response: Response, capBytes: number): Promise<Uint8Array<ArrayBuffer>> {
   if (!response.body) {
     const buffer = new Uint8Array(await response.arrayBuffer());
     if (buffer.byteLength > capBytes) {
@@ -148,8 +148,8 @@ async function readBodyWithCap(response: Response, capBytes: number): Promise<Ui
  */
 async function transcodeToWebp(
   env: Env,
-  bytes: Uint8Array,
-): Promise<Uint8Array | null> {
+  bytes: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array<ArrayBuffer> | null> {
   if (!env.IMAGE_TRANSFORM) {
     console.error("[lp-image-upload] IMAGE_TRANSFORM binding not provisioned — storing original format");
     return null;
@@ -181,7 +181,7 @@ async function transcodeToWebp(
 }
 
 /** The source bytes: downloaded from the agent's URL, or read from Staging. */
-async function acquire(env: Env, params: CodLandingPageImageUploadParams): Promise<Uint8Array> {
+async function acquire(env: Env, params: CodLandingPageImageUploadParams): Promise<Uint8Array<ArrayBuffer>> {
   if (params.kind === "bytes") {
     const staged = await staging(env.MEDIA_BUCKET).read(stagingKey("landing", params.job));
     if (!staged) throw new NonRetryableError("The staged image is gone (Staging clears after a day). Upload it again.");

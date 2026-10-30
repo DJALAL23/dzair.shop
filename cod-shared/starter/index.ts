@@ -64,7 +64,7 @@ export { STARTER_IMAGES };
  * (`starter-<name>.webp`), before `demoCatalogSql` shows them. A picture
  * already there is kept as it is.
  */
-export async function storeStarterPictures(media: MediaLibrary, read: (fileName: string) => Promise<Uint8Array>): Promise<string[]> {
+export async function storeStarterPictures(media: MediaLibrary, read: (fileName: string) => Promise<Uint8Array<ArrayBuffer>>): Promise<string[]> {
   const keys: string[] = [];
   for (const name of STARTER_IMAGES) {
     const body = await read(`starter-${name}.webp`);

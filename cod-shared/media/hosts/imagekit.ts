@@ -142,7 +142,7 @@ export function imagekitHost(config: ImageKitConfig): MediaHost {
       return asHostFile(file, file.mime ?? "application/octet-stream");
     },
 
-    async put({ key, contentType, body }: { key: string; contentType: MediaType; body: Uint8Array }) {
+    async put({ key, contentType, body }: { key: string; contentType: MediaType; body: Uint8Array<ArrayBuffer> }) {
       const { folder, fileName, filePath } = placeOf(key);
       const form = new FormData();
       form.set("file", new Blob([body], { type: contentType }), fileName);

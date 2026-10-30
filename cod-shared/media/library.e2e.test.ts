@@ -25,13 +25,13 @@ interface Rig {
   host: MediaHost;
   delivery: MediaDelivery;
   /** A browser following the send instructions of a ticket. */
-  send(ticket: { mediaId: string; send: UploadSend }, file: { body: Uint8Array; contentType: string }, library: MediaLibrary): Promise<{ ok: boolean; hostRef: string | null }>;
+  send(ticket: { mediaId: string; send: UploadSend }, file: { body: Uint8Array<ArrayBuffer>; contentType: string }, library: MediaLibrary): Promise<{ ok: boolean; hostRef: string | null }>;
   failNext(times: number): void;
   holds(key: string): Promise<boolean>;
   dispose(): Promise<void>;
 }
 
-async function formOrPut(send: UploadSend, file: { body: Uint8Array; contentType: string }, fetcher: (request: Request) => Promise<Response>) {
+async function formOrPut(send: UploadSend, file: { body: Uint8Array<ArrayBuffer>; contentType: string }, fetcher: (request: Request) => Promise<Response>) {
   if (send.kind === "put") return { ok: (await fetcher(new Request(send.url, { method: "PUT", headers: send.headers, body: file.body as BodyInit }))).ok, hostRef: null };
   if (send.kind !== "form") throw new Error("this host does not relay");
   const form = new FormData();
@@ -136,7 +136,7 @@ describe.each(SETUPS)("the Media Library, %s", (_name, makeRig, reach) => {
   const row = (key: string) => d1.raw.prepare(`SELECT * FROM media WHERE "key" = ?1`).bind(key).first<Record<string, unknown>>();
   const age = (key: string, days: number) => run(`UPDATE media SET created_at = ?2 WHERE "key" = ?1`, key, new Date(clock.at - days * DAY).toISOString());
 
-  async function uploaded(body: Uint8Array, contentType = "image/png", report: { width?: number; height?: number } = {}) {
+  async function uploaded(body: Uint8Array<ArrayBuffer>, contentType = "image/png", report: { width?: number; height?: number } = {}) {
     const ticket = await library.requestUpload({ folder: "products", contentType, bytes: body.byteLength });
     const sent = await rig.send(ticket, { body, contentType }, library);
     expect(sent.ok).toBe(true);

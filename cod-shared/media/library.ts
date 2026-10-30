@@ -209,7 +209,7 @@ export function mediaLibrary(config: MediaLibraryConfig) {
      * picture) or under a fresh key in `folder`. A key already ready is kept
      * as it is — a key never holds other bytes — so a retried write is safe.
      */
-    async store(file: { key?: string; folder?: UploadFolder; contentType: string; body: Uint8Array; width?: number | null; height?: number | null }): Promise<StoredMedia> {
+    async store(file: { key?: string; folder?: UploadFolder; contentType: string; body: Uint8Array<ArrayBuffer>; width?: number | null; height?: number | null }): Promise<StoredMedia> {
       if (!isMediaType(file.contentType)) throw new MediaError("type_refused", "Not a type the store keeps", { contentType: file.contentType });
       if (sniffMedia(file.body.subarray(0, 16))?.contentType !== file.contentType) throw new MediaError("type_refused", "The bytes are not the type given", { contentType: file.contentType });
       let key: string;

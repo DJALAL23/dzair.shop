@@ -3,7 +3,7 @@ import type { HostTicket, MediaHost } from "../host";
 
 export async function followTicket(
   ticket: HostTicket,
-  file: { key: string; body: Uint8Array; contentType: string },
+  file: { key: string; body: Uint8Array<ArrayBuffer>; contentType: string },
   send: (request: Request) => Promise<Response>,
   relay: MediaHost,
 ): Promise<{ ok: boolean; hostRef: string | null }> {
@@ -12,7 +12,7 @@ export async function followTicket(
     return { ok: true, hostRef: null };
   }
   if (ticket.kind === "put") {
-    const response = await send(new Request(ticket.url, { method: "PUT", headers: ticket.headers, body: file.body as BodyInit }));
+    const response = await send(new Request(ticket.url, { method: "PUT", headers: ticket.headers, body: file.body }));
     return { ok: response.ok, hostRef: null };
   }
   const form = new FormData();

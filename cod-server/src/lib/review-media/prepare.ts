@@ -63,7 +63,7 @@ function isBadImage(error: unknown): boolean {
   return code >= 9400 && code < 9500;
 }
 
-async function toWebp(images: ImagesBinding, bytes: Uint8Array, edge: number, quality: number): Promise<Uint8Array> {
+async function toWebp(images: ImagesBinding, bytes: Uint8Array<ArrayBuffer>, edge: number, quality: number): Promise<Uint8Array<ArrayBuffer>> {
   const result = await images
     .input(new Blob([bytes]).stream())
     .transform({ width: edge, height: edge, fit: "scale-down" })
@@ -77,14 +77,14 @@ async function toWebp(images: ImagesBinding, bytes: Uint8Array, edge: number, qu
 
 const mediaIdOf = (upload: ReviewMediaUpload) => upload.key.slice(upload.key.lastIndexOf("/") + 1);
 
-async function preparePhoto(deps: PrepareDeps, reviewId: string, upload: ReviewMediaUpload, bytes: Uint8Array): Promise<PreparedUpload> {
+async function preparePhoto(deps: PrepareDeps, reviewId: string, upload: ReviewMediaUpload, bytes: Uint8Array<ArrayBuffer>): Promise<PreparedUpload> {
   if (bytes.byteLength > REVIEW_PHOTO_MAX_BYTES) return { kept: false, reason: "too_large" };
   if (!deps.images) {
     console.error(`[reviews] review ${reviewId}: no image service (IMAGE_TRANSFORM) — a photo is never kept unconverted, dropped`);
     return { kept: false, reason: "no_image_service" };
   }
-  let full: Uint8Array;
-  let thumb: Uint8Array;
+  let full: Uint8Array<ArrayBuffer>;
+  let thumb: Uint8Array<ArrayBuffer>;
   try {
     full = await toWebp(deps.images, bytes, PHOTO_EDGE, PHOTO_QUALITY);
     thumb = await toWebp(deps.images, bytes, THUMB_EDGE, THUMB_QUALITY);
@@ -104,7 +104,7 @@ async function preparePhoto(deps: PrepareDeps, reviewId: string, upload: ReviewM
   };
 }
 
-async function prepareVoice(deps: PrepareDeps, job: Pick<ReviewMediaJob, "reviewId" | "voiceMaxSeconds">, upload: ReviewMediaUpload, bytes: Uint8Array, contentType: VoiceContentType): Promise<PreparedUpload> {
+async function prepareVoice(deps: PrepareDeps, job: Pick<ReviewMediaJob, "reviewId" | "voiceMaxSeconds">, upload: ReviewMediaUpload, bytes: Uint8Array<ArrayBuffer>, contentType: VoiceContentType): Promise<PreparedUpload> {
   if (!job.voiceMaxSeconds) return { kept: false, reason: "not_allowed" };
   const maxSeconds = job.voiceMaxSeconds as ReviewVoiceLength;
   if (bytes.byteLength > voiceMaxBytes(maxSeconds)) return { kept: false, reason: "too_large" };

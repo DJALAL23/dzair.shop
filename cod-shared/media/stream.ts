@@ -1,5 +1,5 @@
 /** Reads a body up to `cap` bytes; null when it is larger, without reading the rest. */
-export async function readCapped(body: ReadableStream<Uint8Array>, cap: number): Promise<Uint8Array | null> {
+export async function readCapped(body: ReadableStream<Uint8Array>, cap: number): Promise<Uint8Array<ArrayBuffer> | null> {
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;

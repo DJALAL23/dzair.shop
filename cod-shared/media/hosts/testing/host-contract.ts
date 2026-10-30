@@ -15,7 +15,7 @@ import { jpeg, png, webp } from "./files";
 
 export interface HostUnderTest {
   host: MediaHost;
-  browser(ticket: HostTicket, file: { key: string; body: Uint8Array; contentType: string }): Promise<{ ok: boolean; hostRef: string | null }>;
+  browser(ticket: HostTicket, file: { key: string; body: Uint8Array<ArrayBuffer>; contentType: string }): Promise<{ ok: boolean; hostRef: string | null }>;
   /** Make the host's next `times` answers fail as an outage does. */
   failNext(times: number): void;
   /** Make the host's next answer refuse the credentials; absent where there are none (a binding). */
@@ -49,7 +49,7 @@ export function describeHostContract(name: string, setup: () => Promise<HostUnde
     });
     afterAll(async () => t?.dispose?.());
 
-    async function upload(key: string, body: Uint8Array, contentType: string, declared = body.byteLength) {
+    async function upload(key: string, body: Uint8Array<ArrayBuffer>, contentType: string, declared = body.byteLength) {
       const ticket = await t.host.ticket({ key, contentType: contentType as "image/png", bytes: declared, expiresAt: later() });
       return { ticket, sent: await t.browser(ticket, { key, body, contentType }) };
     }

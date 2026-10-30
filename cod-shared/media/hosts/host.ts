@@ -44,7 +44,7 @@ export interface MediaHost {
   confirm(key: string, hostRef: string | null): Promise<HostFile | null>;
 
   /** Store bytes at `key`, replacing what is there. */
-  put(object: { key: string; contentType: MediaType; body: Uint8Array }): Promise<HostFile>;
+  put(object: { key: string; contentType: MediaType; body: Uint8Array<ArrayBuffer> }): Promise<HostFile>;
 
   /** Delete these files; one already gone counts as deleted. */
   delete(files: ReadonlyArray<{ key: string; hostRef: string | null }>): Promise<void>;
