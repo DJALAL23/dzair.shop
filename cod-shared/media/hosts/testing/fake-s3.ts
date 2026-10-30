@@ -20,8 +20,9 @@ const QUERY_SIGNATURE = ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Date", "X
 
 const toDate = (amzDate: string) => new Date(`${amzDate.slice(0, 4)}-${amzDate.slice(4, 6)}-${amzDate.slice(6, 8)}T${amzDate.slice(9, 11)}:${amzDate.slice(11, 13)}:${amzDate.slice(13, 15)}Z`);
 
-export function fakeS3(access: R2S3Access): FakeS3 {
-  const endpoint = "https://r2.s3.test";
+/** `endpoint` is where it answers: the account's own address when a test reaches R2 as production does. */
+export function fakeS3(access: R2S3Access, options: { endpoint?: string } = {}): FakeS3 {
+  const endpoint = options.endpoint ?? "https://r2.s3.test";
   const client = new AwsClient({ accessKeyId: access.accessKeyId, secretAccessKey: access.secretAccessKey, service: "s3", region: "auto" });
   const objects = new Map<string, { body: Uint8Array; contentType: string }>();
   let failures = { times: 0, status: 0 };
