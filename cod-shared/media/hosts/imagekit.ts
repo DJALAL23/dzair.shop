@@ -97,6 +97,9 @@ export function imagekitHost(config: ImageKitConfig): MediaHost {
     return files.find((file) => file.filePath === filePath)?.fileId ?? null;
   }
 
+  const batchDelete = (fileIds: string[]) =>
+    call(api("/v1/files/batch/deleteByFileIds", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileIds }) }), [404]);
+
   async function details(fileId: string): Promise<ImageKitFile | null> {
     const response = await call(api(`/v1/files/${encodeURIComponent(fileId)}/details`), [404]);
     return response.status === 404 ? null : ((await response.json()) as ImageKitFile);
@@ -156,8 +159,16 @@ export function imagekitHost(config: ImageKitConfig): MediaHost {
     async delete(files) {
       const refs = (await Promise.all(files.map((file) => file.hostRef ?? findRef(file.key)))).filter((ref): ref is string => ref !== null);
       for (let i = 0; i < refs.length; i += DELETE_BATCH) {
-        const fileIds = refs.slice(i, i + DELETE_BATCH);
-        const response = await call(api("/v1/files/batch/deleteByFileIds", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileIds }) }));
+        let fileIds = refs.slice(i, i + DELETE_BATCH);
+        let response = await batchDelete(fileIds);
+        // A batch naming any file already gone deletes none of them: send the rest again.
+        while (response.status === 404) {
+          const { missingFileIds = [] } = (await response.json()) as { missingFileIds?: string[] };
+          if (missingFileIds.length === 0) throw new MediaError("host_refused", "ImageKit answered 404 to a delete without naming the missing files", { fileIds });
+          fileIds = fileIds.filter((fileId) => !missingFileIds.includes(fileId));
+          if (fileIds.length === 0) break;
+          response = await batchDelete(fileIds);
+        }
         if (response.status !== 207) continue;
         const { errors = [] } = (await response.json()) as { errors?: Array<{ fileId: string; error: string }> };
         for (const failed of errors) {

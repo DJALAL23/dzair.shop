@@ -8,14 +8,24 @@ import { describeHostContract } from "./testing/host-contract";
 
 const KEYS = { publicKey: "public_test", privateKey: "private_test" };
 
-function setup(folder = "/stores/maysa") {
-  const fake = fakeImageKit(KEYS);
+function setup(folder = "/stores/maysa", listLag = 0) {
+  const fake = fakeImageKit(KEYS, { listLag });
   const host = imagekitHost({ ...KEYS, folder, fetch: fake.fetch, uploadOrigin: fake.uploadOrigin, apiOrigin: fake.apiOrigin });
   return { fake, host };
 }
 
 describeHostContract("ImageKit", async () => {
   const { fake, host } = setup();
+  return {
+    host,
+    browser: (ticket, file) => followTicket(ticket, file, fake.fetch, host),
+    failNext: (times) => fake.failNext(times, 503),
+    refuseNext: () => fake.failNext(1, 401),
+  };
+});
+
+describeHostContract("ImageKit, its file list catching up late", async () => {
+  const { fake, host } = setup("/stores/maysa", 3);
   return {
     host,
     browser: (ticket, file) => followTicket(ticket, file, fake.fetch, host),
@@ -109,5 +119,20 @@ describe("ImageKit's deletes", () => {
     await host.delete(files);
     expect(fake.files.size).toBe(0);
     expect(fake.calls.get("POST api/v1/files/batch/deleteByFileIds")).toBe(3);
+  });
+
+  it("delete the rest of a batch that names a file already gone", async () => {
+    const { fake, host } = setup();
+    const put = async (name: string) => ({ key: `products/${name}.png`, hostRef: (await host.put({ key: `products/${name}.png`, contentType: "image/png", body: png(16) })).hostRef });
+    const gone = await put("gone");
+    await host.delete([gone]);
+    const kept = [await put("a"), await put("b")];
+    await host.delete([kept[0]!, gone, kept[1]!]);
+    expect(fake.files.size).toBe(0);
+  });
+
+  it("refuse a 404 that names no missing file", async () => {
+    const odd = imagekitHost({ ...KEYS, folder: "/stores/maysa", fetch: async () => new Response(JSON.stringify({ message: "?" }), { status: 404 }) });
+    await expect(odd.delete([{ key: "products/a.png", hostRef: "f1" }])).rejects.toMatchObject({ reason: "host_refused" });
   });
 });

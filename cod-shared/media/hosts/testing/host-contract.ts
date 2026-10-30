@@ -2,6 +2,11 @@
  * What every Media Host does, as one suite: a host is added by passing it.
  * `browser` plays a shopper's or merchant's browser following a ticket (for a
  * relaying host, the server storing what it received).
+ *
+ * A file is found by its ref at once. Found by its key alone, it may take the
+ * host a moment (ImageKit's list catches up in seconds): those lookups are
+ * `eventually` true. The Media Library relies on them only where that holds —
+ * a completion the browser sent no ref with, and the sweep of old uploads.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MediaError } from "../../errors";
@@ -19,6 +24,16 @@ export interface HostUnderTest {
 }
 
 const later = () => new Date(Date.now() + 600_000);
+
+/** Asks again until the answer passes, for up to 30 seconds. */
+async function eventually<T>(ask: () => Promise<T>, passes: (answer: T) => boolean): Promise<T> {
+  const until = Date.now() + 30_000;
+  for (;;) {
+    const answer = await ask();
+    if (passes(answer) || Date.now() > until) return answer;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
 let n = 0;
 const freshKey = (ext: string) => `products/${(++n).toString(16).padStart(8, "0")}${crypto.randomUUID().replace(/-/g, "").slice(8)}.${ext}`;
 
@@ -42,7 +57,7 @@ export function describeHostContract(name: string, setup: () => Promise<HostUnde
       const held = await t.host.confirm(key, sent.hostRef);
       expect(held).toMatchObject({ bytes: 300, contentType: "image/png" });
       expect((await t.host.confirm(key, held!.hostRef))?.bytes, "the whole file's size, not what confirming read").toBe(300);
-      expect(await t.host.confirm(key, null), "found by its key alone, as a never-confirmed upload is").toMatchObject({ bytes: 300, contentType: "image/png", hostRef: held!.hostRef });
+      expect(await eventually(() => t.host.confirm(key, null), (found) => found !== null), "found by its key alone, as a never-confirmed upload is").toMatchObject({ bytes: 300, contentType: "image/png", hostRef: held!.hostRef });
     });
 
     it("holds nothing at a key no one sent", async () => {
@@ -77,8 +92,9 @@ export function describeHostContract(name: string, setup: () => Promise<HostUnde
       const key = freshKey("webp");
       const first = await t.host.put({ key, contentType: "image/webp", body: webp(500) });
       expect(first).toMatchObject({ bytes: 500, contentType: "image/webp" });
-      await t.host.put({ key, contentType: "image/webp", body: webp(700) });
-      expect(await t.host.confirm(key, null)).toMatchObject({ bytes: 700, contentType: "image/webp" });
+      const second = await t.host.put({ key, contentType: "image/webp", body: webp(700) });
+      expect(second.hostRef, "the same file, written again").toBe(first.hostRef);
+      expect(await t.host.confirm(key, second.hostRef)).toMatchObject({ bytes: 700, contentType: "image/webp" });
     });
 
     it("deletes files by their refs or their keys alone, and a file already gone counts as deleted", async () => {
@@ -86,13 +102,14 @@ export function describeHostContract(name: string, setup: () => Promise<HostUnde
       const byKey = freshKey("png");
       const ref = (await t.host.put({ key: byRef, contentType: "image/webp", body: webp() })).hostRef;
       await upload(byKey, png(), "image/png");
+      await eventually(() => t.host.confirm(byKey, null), (found) => found !== null);
       await t.host.delete([
         { key: byRef, hostRef: ref },
         { key: byKey, hostRef: null },
         { key: freshKey("webp"), hostRef: null },
       ]);
-      expect(await t.host.confirm(byRef, null)).toBeNull();
-      expect(await t.host.confirm(byKey, null)).toBeNull();
+      expect(await t.host.confirm(byRef, ref)).toBeNull();
+      expect(await eventually(() => t.host.confirm(byKey, null), (found) => found === null)).toBeNull();
       await t.host.delete([{ key: byRef, hostRef: ref }]);
     });
 
@@ -105,7 +122,7 @@ export function describeHostContract(name: string, setup: () => Promise<HostUnde
       await t.host.put({ key, contentType: "image/webp", body: webp() });
       t.failNext(1);
       await expect(t.host.delete([{ key, hostRef: null }])).rejects.toMatchObject({ reason: "host_unavailable" });
-      expect(await t.host.confirm(key, null)).not.toBeNull();
+      expect(await eventually(() => t.host.confirm(key, null), (found) => found !== null)).not.toBeNull();
       t.failNext(1);
       await expect(t.host.confirm(key, null)).rejects.toMatchObject({ reason: "host_unavailable" });
     });

@@ -1,8 +1,12 @@
 /**
- * ImageKit as its API reference describes it, for tests: upload V2 checks the
- * JWT's signature, `kid`, expiry and single use, refuses fields that differ
- * from the token's payload, and runs `checks`; the server API takes the
- * private key as Basic auth. Requests can be made to fail.
+ * ImageKit as its API reference describes it and a live account answers,
+ * for tests: upload V2 checks the JWT's signature, `kid`, expiry and single
+ * use, refuses fields that differ from the token's payload, and runs
+ * `checks`; the server API takes the private key as Basic auth; an
+ * overwrite keeps the file's id; a batch delete naming any file already gone
+ * answers 404 and deletes none. With `listLag`, the file list (search by
+ * name) shows a change only after that many more list calls, as a live
+ * account's does for a few seconds. Requests can be made to fail.
  */
 import { sniffMedia } from "../../keys";
 
@@ -65,10 +69,13 @@ function passesChecks(checks: string, file: { size: number; mime: string }): boo
   return true;
 }
 
-export function fakeImageKit(keys: { publicKey: string; privateKey: string }): FakeImageKit {
+export function fakeImageKit(keys: { publicKey: string; privateKey: string }, options: { listLag?: number } = {}): FakeImageKit {
   const uploadOrigin = "https://upload.imagekit.test";
   const apiOrigin = "https://api.imagekit.test";
   const files = new Map<string, StoredFile>();
+  const changes: Array<{ at: number; filePath: string; file: StoredFile | null }> = [];
+  let listCalls = 0;
+  const changed = (filePath: string, file: StoredFile | null) => changes.push({ at: listCalls, filePath, file });
   const usedTokens = new Set<string>();
   const calls = new Map<string, number>();
   let failures: { times: number; status: number } = { times: 0, status: 0 };
@@ -90,7 +97,7 @@ export function fakeImageKit(keys: { publicKey: string; privateKey: string }): F
     }
     const image = mime.startsWith("image/");
     const stored: StoredFile = {
-      fileId: crypto.randomUUID().replace(/-/g, "").slice(0, 24),
+      fileId: files.get(filePath)?.fileId ?? crypto.randomUUID().replace(/-/g, "").slice(0, 24),
       name,
       folder,
       filePath,
@@ -100,6 +107,7 @@ export function fakeImageKit(keys: { publicKey: string; privateKey: string }): F
       height: image ? 480 : null,
     };
     files.set(filePath, stored);
+    changed(filePath, stored);
     return json({ fileId: stored.fileId, name, filePath, size: stored.size, width: stored.width, height: stored.height, fileType: image ? "image" : "non-image" });
   }
 
@@ -141,25 +149,28 @@ export function fakeImageKit(keys: { publicKey: string; privateKey: string }): F
       return file ? json({ type: "file", ...file }) : refuse(404, "The requested file does not exist.");
     }
     if (route === "GET api/v1/files") {
+      listCalls += 1;
+      const listed = new Map<string, StoredFile>();
+      for (const change of changes) {
+        if (change.at + (options.listLag ?? 0) > listCalls) continue;
+        if (change.file) listed.set(change.filePath, change.file);
+        else listed.delete(change.filePath);
+      }
       const path = url.searchParams.get("path") ?? "/";
       const name = /^name = "(.*)"$/.exec(url.searchParams.get("searchQuery") ?? "")?.[1];
-      return json([...files.values()].filter((file) => file.folder === path.replace(/\/$/, "") && (name === undefined || file.name === name)).map((file) => ({ type: "file", ...file })));
+      return json([...listed.values()].filter((file) => file.folder === path.replace(/\/$/, "") && (name === undefined || file.name === name)).map((file) => ({ type: "file", ...file })));
     }
     if (route === "POST api/v1/files/batch/deleteByFileIds") {
       const { fileIds } = (await request.json()) as { fileIds: string[] };
       if (fileIds.length > 100) return refuse(400, "A maximum of 100 files can be deleted at a time.");
-      const deleted: string[] = [];
-      const errors: Array<{ fileId: string; error: string }> = [];
-      for (const fileId of fileIds) {
-        const file = [...files.values()].find((stored) => stored.fileId === fileId);
-        if (file) {
-          files.delete(file.filePath);
-          deleted.push(fileId);
-        } else {
-          errors.push({ fileId, error: "The requested file does not exist." });
-        }
+      const found = fileIds.map((fileId) => [...files.values()].find((stored) => stored.fileId === fileId));
+      const missingFileIds = fileIds.filter((_, i) => found[i] === undefined);
+      if (missingFileIds.length) return json({ message: "The requested file(s) does not exist.", missingFileIds }, 404);
+      for (const file of found) {
+        files.delete(file!.filePath);
+        changed(file!.filePath, null);
       }
-      return json(errors.length ? { successfullyDeletedFileIds: deleted, errors } : { successfullyDeletedFileIds: deleted }, errors.length ? 207 : 200);
+      return json({ successfullyDeletedFileIds: fileIds });
     }
     return refuse(404, `fake ImageKit has no route ${route}`);
   }
