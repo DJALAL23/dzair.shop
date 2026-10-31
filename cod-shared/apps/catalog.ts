@@ -22,6 +22,11 @@ export interface App {
   permissions: Permissions;
   /** The Consumer Kinds whose Built-in Consumers this App creates and keeps. */
   consumerKinds: readonly string[];
+  /**
+   * Whether removing it forgets something. Reviews holds no keys, only the
+   * store's rules for its customers' reviews, so it is turned off, never removed.
+   */
+  removable: boolean;
 }
 
 export const APP_CATALOG = [
@@ -30,42 +35,58 @@ export const APP_CATALOG = [
     category: "marketing",
     permissions: { read: SCOPES.META_READ, manage: SCOPES.META_MANAGE },
     consumerKinds: ["meta_capi"],
+    removable: true,
   },
   {
     key: "dzverify",
     category: "checkout_protection",
     permissions: { read: SCOPES.DZVERIFY_READ, manage: SCOPES.DZVERIFY_MANAGE },
     consumerKinds: [],
+    removable: true,
   },
   {
     key: "turnstile",
     category: "checkout_protection",
     permissions: { read: SCOPES.TURNSTILE_READ, manage: SCOPES.TURNSTILE_MANAGE },
     consumerKinds: [],
+    removable: true,
   },
   {
     key: "sendili",
     category: "messaging",
     permissions: { read: SCOPES.SENDILI_READ, manage: SCOPES.SENDILI_MANAGE },
     consumerKinds: [],
+    removable: true,
   },
   {
     key: "whatsapp-button",
     category: "storefront",
     permissions: { read: SCOPES.WHATSAPP_BUTTON_READ, manage: SCOPES.WHATSAPP_BUTTON_MANAGE },
     consumerKinds: [],
+    removable: true,
   },
   {
     key: "telegram",
     category: "messaging",
     permissions: { read: SCOPES.TELEGRAM_READ, manage: SCOPES.TELEGRAM_MANAGE },
     consumerKinds: [TELEGRAM_KIND],
+    removable: true,
+  },
+  {
+    key: "reviews",
+    category: "storefront",
+    permissions: { read: SCOPES.REVIEWS_READ, manage: SCOPES.REVIEWS_MANAGE },
+    consumerKinds: [],
+    removable: false,
   },
 ] as const satisfies readonly App[];
 
 export type AppKey = (typeof APP_CATALOG)[number]["key"];
 
 export const APP_KEYS: readonly AppKey[] = APP_CATALOG.map((app) => app.key);
+
+/** The Apps whose removal forgets their setup. */
+export type RemovableAppKey = Extract<(typeof APP_CATALOG)[number], { removable: true }>["key"];
 
 export function isAppKey(value: string): value is AppKey {
   return (APP_KEYS as readonly string[]).includes(value);

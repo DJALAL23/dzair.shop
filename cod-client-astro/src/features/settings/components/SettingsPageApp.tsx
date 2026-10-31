@@ -14,7 +14,6 @@ import { GeneralSettings } from "@/features/settings/components/GeneralSettings"
 import { LanguagesSettings } from "@/features/settings/components/LanguagesSettings";
 import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
 import { SeoSettings } from "@/features/settings/components/SeoSettings";
-import { ReviewsSettings } from "@/features/settings/components/ReviewsSettings";
 import { DeliveryPricingSettings } from "@/features/settings/components/DeliveryPricingSettings";
 import { CartSettings } from "@/features/settings/components/CartSettings";
 
@@ -110,8 +109,6 @@ function SettingsContent() {
         return (
           <DeliveryPricingSettings storeConfig={storeConfig} onSave={handleSave} />
         );
-      case "reviews":
-        return <ReviewsSettings storeConfig={storeConfig} onSave={handleSave} />;
       default:
         return null;
     }

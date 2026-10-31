@@ -1,9 +1,8 @@
-import { REVIEW_MAX_PHOTOS, type ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
-import { Languages, Search, ShoppingCart, Star, Store, Truck, type LucideIcon } from "lucide-react";
+import { Languages, Search, ShoppingCart, Store, Truck, type LucideIcon } from "lucide-react";
 import { STORE_LOCALES, type StoreLocale } from "../../../../cod-shared/i18n/locales";
 import type { StoreLanguage } from "./types";
 
-export type CategoryId = "general" | "languages" | "seo" | "cart" | "delivery" | "reviews";
+export type CategoryId = "general" | "languages" | "seo" | "cart" | "delivery";
 
 export interface SettingsCategory {
   id: CategoryId;
@@ -19,10 +18,9 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "seo", icon: Search, labelKey: "seo_title" },
   { id: "cart", icon: ShoppingCart, labelKey: "cart_title" },
   { id: "delivery", icon: Truck, labelKey: "delivery_pricing_title" },
-  { id: "reviews", icon: Star, labelKey: "reviews_title" },
 ];
 
-/** The category a link opens Settings on (`/settings?section=reviews`); General otherwise. */
+/** The category a link opens Settings on (`/settings?section=cart`); General otherwise. */
 export function categoryFromSearch(search: string): CategoryId {
   const section = new URLSearchParams(search).get("section");
   return SETTINGS_CATEGORIES.find((category) => category.id === section)?.id ?? "general";
@@ -83,28 +81,4 @@ export function makeDefault(draft: LanguageDraft, locale: StoreLocale): Language
 /** The `PATCH /api/stores/me` body for a language save. */
 export function languagesPayload(draft: LanguageDraft): { lang: StoreLocale; languages: LanguageDraft["languages"] } {
   return { lang: draft.primary, languages: draft.languages };
-}
-
-// ─── Reviews ─────────────────────────────────────────────────────────────────
-
-/** What a shopper may send with a review, as the merchant chooses it. */
-export const SHOPPER_REVIEW_MEDIA = ["text", "photos", "voice", "photos_voice"] as const;
-export type ShopperReviewMedia = (typeof SHOPPER_REVIEW_MEDIA)[number];
-
-export function shopperReviewMedia(store: { reviewMaxPhotos: number; reviewVoiceMaxSeconds: number | null }): ShopperReviewMedia {
-  const photos = store.reviewMaxPhotos > 0;
-  const voice = store.reviewVoiceMaxSeconds !== null;
-  return photos && voice ? "photos_voice" : photos ? "photos" : voice ? "voice" : "text";
-}
-
-/** The store columns a choice saves: photos and voice length kept only when the choice takes them. */
-export function reviewMediaSettings(
-  choice: ShopperReviewMedia,
-  photos: number,
-  voiceSeconds: ReviewVoiceLength,
-): { reviewMaxPhotos: number; reviewVoiceMaxSeconds: ReviewVoiceLength | null } {
-  return {
-    reviewMaxPhotos: choice === "photos" || choice === "photos_voice" ? Math.min(Math.max(Math.trunc(photos), 1), REVIEW_MAX_PHOTOS) : 0,
-    reviewVoiceMaxSeconds: choice === "voice" || choice === "photos_voice" ? voiceSeconds : null,
-  };
 }

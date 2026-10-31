@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from "react";
-import { BarChart2, Loader2, Mail, MessageCircle, Send, Shield, ShieldCheck, type LucideIcon } from "lucide-react";
+import { BarChart2, Loader2, Mail, MessageCircle, Send, Shield, ShieldCheck, Star, type LucideIcon } from "lucide-react";
 import { Alert, ErrorBoundary } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import type { AppBodyProps, AppKey } from "./types";
@@ -18,6 +18,7 @@ export const APP_REGISTRY: Record<AppKey, AppEntry> = {
   sendili: { icon: Mail, Body: lazy(() => import("./sendili/SendiliApp")) },
   "whatsapp-button": { icon: MessageCircle, Body: lazy(() => import("./whatsapp-button/WhatsAppButtonApp")) },
   telegram: { icon: Send, Body: lazy(() => import("./telegram/TelegramApp")) },
+  reviews: { icon: Star, Body: lazy(() => import("./reviews/ReviewsApp")) },
 };
 
 /** An App's body, loading in place; a body that fails to load or render says so inside the page. */

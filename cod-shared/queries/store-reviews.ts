@@ -102,6 +102,21 @@ export async function getReviewPolicy(db: AppDb, storeId: string): Promise<Revie
   return row ? reviewPolicy(row) : { ...DEFAULT_REVIEW_POLICY, enabled: false };
 }
 
+/** Saves the rules the merchant changed (the Reviews App), and answers the policy now in force. */
+export async function saveReviewPolicy(db: AppDb, storeId: string, rules: Partial<ReviewPolicy>, now = new Date()): Promise<ReviewPolicy> {
+  await db
+    .update(stores)
+    .set({
+      ...(rules.enabled !== undefined && { reviewsEnabled: rules.enabled }),
+      ...(rules.maxPhotos !== undefined && { reviewMaxPhotos: rules.maxPhotos }),
+      ...(rules.voiceMaxSeconds !== undefined && { reviewVoiceMaxSeconds: rules.voiceMaxSeconds }),
+      ...(rules.autoPublish !== undefined && { reviewAutoPublish: rules.autoPublish }),
+      updatedAt: now.toISOString(),
+    })
+    .where(eq(stores.id, storeId));
+  return getReviewPolicy(db, storeId);
+}
+
 // ─── What the storefront shows ───────────────────────────────────────────────
 
 export interface PublicReviewMedia {

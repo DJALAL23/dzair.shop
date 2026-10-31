@@ -67,7 +67,7 @@ function AppPage({ appKey }: { appKey: AppKey }) {
       <div className="space-y-6">
         {!access.manage && <Alert tone="info">{t("page.read_only")}</Alert>}
         <AppBody key={generation} appKey={appKey} canManage={access.manage} onSaved={() => void refresh()} />
-        {access.manage && canRemove(status) && (
+        {access.manage && canRemove(appKey, status) && (
           <section aria-labelledby="remove-app" className="flex flex-col gap-3 rounded-xl bg-card px-5 py-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h2 id="remove-app" className="text-sm font-semibold text-foreground">{t("remove.title")}</h2>

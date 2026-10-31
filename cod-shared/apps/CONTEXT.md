@@ -11,7 +11,7 @@ The plan: [docs/apps/PLAN.md](../../docs/apps/PLAN.md).
 
 **App**:
 An optional product a store can have, named after what it brings — Meta,
-DZVerify, Turnstile, Sendili, the WhatsApp button, Telegram. One App,
+DZVerify, Turnstile, Sendili, the WhatsApp button, Telegram, Reviews. One App,
 one page, one on/off, however many things it does inside the store.
 _Avoid_: Plugin, extension, add-on, integration, module
 
@@ -76,7 +76,7 @@ _Avoid_: Guard, gate, middleware
 
 **Storefront Add-on**:
 A Connection Point that puts something on the storefront — Meta's pixel,
-Turnstile's widget, the WhatsApp button.
+Turnstile's widget, the WhatsApp button, the review form and list.
 _Avoid_: Script, embed, widget
 
 **Email Sender**:
@@ -100,3 +100,8 @@ in a Consumer's settings or an answer (ADR 0020).
 
 **Turning an App off loses nothing**: its setup stays, so turning it on again
 works at once. Only removing it forgets its keys.
+
+**An App with nothing to forget is never removed, only turned off**: Reviews
+keeps the store's rules for its customers' reviews, no key, so removing it
+could only take the reviews with it. It is On or Off, never Not set up. Its
+App Page holds the rules; the reviews themselves are moderated under Reviews.

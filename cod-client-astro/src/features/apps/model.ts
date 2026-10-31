@@ -20,7 +20,7 @@ export function mayReadAnApp(may: (scope: string) => boolean): boolean {
   return APP_CATALOG.some((app) => may(app.permissions.read));
 }
 
-/** Removing forgets what an App was set up with; there is nothing to forget before it is set up. */
-export function canRemove(status: AppStatus | null): boolean {
-  return status !== null && status !== "not_set_up";
+/** Removing forgets what an App was set up with; there is nothing to forget before it is set up, nor for an App that is only turned off. */
+export function canRemove(key: AppKey, status: AppStatus | null): boolean {
+  return appOf(key).removable && status !== null && status !== "not_set_up";
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SETTINGS_CATEGORIES, settingsErrorMessage, reviewMediaSettings, shopperReviewMedia } from "./model";
+import { SETTINGS_CATEGORIES, settingsErrorMessage } from "./model";
 
 const t = (key: string) => key;
 
@@ -11,7 +11,6 @@ describe("settings model", () => {
       "seo",
       "cart",
       "delivery",
-      "reviews",
     ]);
 
     // Keyed by id rather than by index: inserting a category should require
@@ -24,7 +23,6 @@ describe("settings model", () => {
       general: "general_title",
       cart: "cart_title",
       delivery: "delivery_pricing_title",
-      reviews: "reviews_title",
     });
   });
 
@@ -133,27 +131,11 @@ describe("editing the store's languages", () => {
   });
 });
 
-describe("what shoppers can send with a review", () => {
-  it("is read from the store's photo and voice settings", () => {
-    expect(shopperReviewMedia({ reviewMaxPhotos: 0, reviewVoiceMaxSeconds: null })).toBe("text");
-    expect(shopperReviewMedia({ reviewMaxPhotos: 3, reviewVoiceMaxSeconds: null })).toBe("photos");
-    expect(shopperReviewMedia({ reviewMaxPhotos: 0, reviewVoiceMaxSeconds: 60 })).toBe("voice");
-    expect(shopperReviewMedia({ reviewMaxPhotos: 2, reviewVoiceMaxSeconds: 30 })).toBe("photos_voice");
-  });
-
-  it("saves only what the choice takes, within the limits", () => {
-    expect(reviewMediaSettings("text", 4, 90)).toEqual({ reviewMaxPhotos: 0, reviewVoiceMaxSeconds: null });
-    expect(reviewMediaSettings("photos", 4, 90)).toEqual({ reviewMaxPhotos: 4, reviewVoiceMaxSeconds: null });
-    expect(reviewMediaSettings("voice", 4, 90)).toEqual({ reviewMaxPhotos: 0, reviewVoiceMaxSeconds: 90 });
-    expect(reviewMediaSettings("photos_voice", 9, 120)).toEqual({ reviewMaxPhotos: 6, reviewVoiceMaxSeconds: 120 });
-    expect(reviewMediaSettings("photos", 0, 30)).toEqual({ reviewMaxPhotos: 1, reviewVoiceMaxSeconds: null });
-  });
-});
-
 describe("a link into Settings", () => {
   it("opens the section it names, and General for anything else", async () => {
     const { categoryFromSearch } = await import("./model");
-    expect(categoryFromSearch("?section=reviews")).toBe("reviews");
+    expect(categoryFromSearch("?section=cart")).toBe("cart");
+    expect(categoryFromSearch("?section=reviews")).toBe("general");
     expect(categoryFromSearch("?section=analytics")).toBe("general");
     expect(categoryFromSearch("?section=integrations")).toBe("general");
     expect(categoryFromSearch("?section=nope")).toBe("general");

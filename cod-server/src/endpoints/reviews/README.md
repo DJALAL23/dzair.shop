@@ -37,6 +37,7 @@ The work behind the handlers:
 | POST | `/uploads` | `reviews:create` | One photo or voice note (≤ 120 s) as the body, for a review being entered. |
 | GET | `/order-options` | `reviews:create` | A customer's orders that brought a product, delivered or not, reviewed or not. |
 
-The store's choices — photos per review, voice note length, what publishes
-without checking — are saved with the store settings (`PATCH /api/stores/me`:
-`reviewMaxPhotos`, `reviewVoiceMaxSeconds`, `reviewAutoPublish`).
+The store's rules — whether it takes reviews, photos per review, voice note
+length, what publishes without checking — are the Reviews App's
+(`GET/PUT /api/apps/reviews`: `enabled`, `maxPhotos`, `voiceMaxSeconds`,
+`autoPublish`, with `reviews:read` / `reviews:manage`).

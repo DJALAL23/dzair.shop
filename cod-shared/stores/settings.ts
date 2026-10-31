@@ -34,7 +34,10 @@ export interface StoreLanguage extends LocaleRow {
  */
 type ThemePresentationColumns = "primaryColor" | "accentColor" | "bgColor" | "fontFamily";
 
-export type StoreSettings = Omit<StoreRow, ThemePresentationColumns | "logoUrl" | "ogImage" | "logoKey" | "ogImageKey"> & {
+/** The store's rules for reviews: the Reviews App's setup (`/api/apps/reviews`), not a store setting. */
+type ReviewColumns = "reviewsEnabled" | "reviewMaxPhotos" | "reviewVoiceMaxSeconds" | "reviewAutoPublish";
+
+export type StoreSettings = Omit<StoreRow, ThemePresentationColumns | ReviewColumns | "logoUrl" | "ogImage" | "logoKey" | "ogImageKey"> & {
   logo: MediaImage | null;
   ogImage: MediaImage | null;
   languages: StoreLanguage[];
@@ -90,7 +93,21 @@ export function toStoreSettings(
   localeRows: readonly { locale: string; published: boolean }[],
   delivery: MediaDelivery,
 ): StoreSettings {
-  const { primaryColor: _primary, accentColor: _accent, bgColor: _bg, fontFamily: _font, logoUrl: _logoUrl, ogImage: _ogImage, logoKey, ogImageKey, ...settings } = row;
+  const {
+    primaryColor: _primary,
+    accentColor: _accent,
+    bgColor: _bg,
+    fontFamily: _font,
+    reviewsEnabled: _reviewsEnabled,
+    reviewMaxPhotos: _reviewMaxPhotos,
+    reviewVoiceMaxSeconds: _reviewVoiceMaxSeconds,
+    reviewAutoPublish: _reviewAutoPublish,
+    logoUrl: _logoUrl,
+    ogImage: _ogImage,
+    logoKey,
+    ogImageKey,
+    ...settings
+  } = row;
   return { ...settings, logo: imageOf(logoKey, delivery), ogImage: imageOf(ogImageKey, delivery), languages: storeLanguages(row.lang, localeRows) };
 }
 

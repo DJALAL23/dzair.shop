@@ -34,7 +34,7 @@ Retrieve the current store's configuration. In this single-tenant architecture, 
 - **Theme:** `themeId` (active theme slug).
 - **Localization:** `lang` (primary language), `languages` — every language the store has added, primary first: `[{ "locale": "fr", "published": true, "primary": true }, …]` — `currency`, `currencySymbol`.
 - **SEO:** `metaTitle`, `metaDescription`, `ogImage`.
-- **Settings:** `reviewsEnabled`, `status`.
+- **Settings:** `status`. The review rules are the Reviews App's (`GET/PUT /api/apps/reviews`), not store settings.
 - **Storefront key:** `storeApiKey` (plaintext; visible to the merchant in settings).
 
 ### PATCH /api/stores/me
@@ -46,8 +46,7 @@ Update store configuration. Partial updates are supported; set nullable fields t
 ```json
 {
   "name": "My New Store Name",
-  "metaTitle": "My New Store — Algiers",
-  "reviewsEnabled": true
+  "metaTitle": "My New Store — Algiers"
 }
 ```
 

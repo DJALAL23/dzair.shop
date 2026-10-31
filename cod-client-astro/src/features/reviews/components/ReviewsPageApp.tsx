@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Star, X } from "lucide-react";
+import { Plus, SlidersHorizontal, Star, X } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardPage } from "@/components/layout/page";
 import { useT } from "@/i18n/react";
@@ -10,7 +10,7 @@ import { buildReviewsUrl, readReviewView, reviewErrorMessage, type ReviewView } 
 import type { Review, ReviewListResult, ReviewMedia, ReviewStatus } from "@/features/reviews/types";
 import { ReviewCard } from "@/features/reviews/components/ReviewCard";
 import { AddReviewDialog } from "@/features/reviews/components/AddReviewDialog";
-import { Alert, Button, EmptyState, FilterPill, ListToolbar, PageHeader, Pagination, Tabs, useConfirmDialog } from "@/components/ui";
+import { Alert, Button, EmptyState, FilterPill, LinkButton, ListToolbar, PageHeader, Pagination, Tabs, useConfirmDialog } from "@/components/ui";
 
 const LIMIT = 20;
 const STATUS_TABS: Array<ReviewStatus | "all"> = ["all", "pending", "approved", "rejected"];
@@ -196,12 +196,18 @@ function Gated() {
       <PageHeader
         title={t("page_title")}
         actions={
-          canScope(identity, SCOPES.REVIEWS_CREATE) ? (
-            <Button type="button" onClick={() => setAdding(true)}>
-              <Plus size={16} aria-hidden="true" />
-              {t("add.open")}
-            </Button>
-          ) : undefined
+          <>
+            <LinkButton href="/apps/reviews" variant="secondary">
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              {t("rules_link")}
+            </LinkButton>
+            {canScope(identity, SCOPES.REVIEWS_CREATE) && (
+              <Button type="button" onClick={() => setAdding(true)}>
+                <Plus size={16} aria-hidden="true" />
+                {t("add.open")}
+              </Button>
+            )}
+          </>
         }
       />
       <ReviewsList refresh={added} />

@@ -1,5 +1,6 @@
 {
   "page_title": "Reviews",
+  "rules_link": "Review rules",
   "total_one": "{count} review",
   "total_other": "{count} reviews",
   "new_badge_one": "{count} new",

@@ -38,9 +38,13 @@ describe("who may do what with an App", () => {
   });
 
   it("offers removal only once there is a setup to forget", () => {
-    expect(canRemove(null)).toBe(false);
-    expect(canRemove("not_set_up")).toBe(false);
-    for (const status of ["on", "off", "needs_attention"] as const) expect(canRemove(status)).toBe(true);
+    expect(canRemove("dzverify", null)).toBe(false);
+    expect(canRemove("dzverify", "not_set_up")).toBe(false);
+    for (const status of ["on", "off", "needs_attention"] as const) expect(canRemove("dzverify", status)).toBe(true);
+  });
+
+  it("never offers to remove Reviews, which is only turned off", () => {
+    for (const status of ["on", "off"] as const) expect(canRemove("reviews", status)).toBe(false);
   });
 });
 

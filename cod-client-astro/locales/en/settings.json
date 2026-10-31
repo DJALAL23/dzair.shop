@@ -21,10 +21,6 @@
     "saved": "Saved successfully",
     "save_error": "Failed to save. Please try again.",
     "loading": "Loading store settings...",
-    "reviews_title": "Reviews",
-    "reviews_subtitle": "Allow customers to submit and view product reviews",
-    "reviews_enabled_label": "Enable reviews system",
-    "reviews_enabled_hint": "When enabled, customers can submit reviews and they appear on product pages",
     "tracking_last_saved": "Last saved",
     "error_load": "Could not load store settings",
     "domain_label": "Storefront domain",
@@ -142,29 +138,5 @@
     "add_placeholder": "Choose a language",
     "add": "Add"
   },
-  "nav_label": "Settings navigation",
-  "reviews": {
-    "media_label": "What shoppers can send with a review",
-    "media_text": "Text only",
-    "media_photos": "Text and photos",
-    "media_voice": "Text and a voice note",
-    "media_photos_voice": "Text, photos and a voice note",
-    "media_hint_text": "Shoppers rate the product and write a few words.",
-    "media_hint_photos": "Photos are resized and their location data removed. On the product page they show small until opened.",
-    "media_hint_voice": "A voice note can replace the text, for shoppers who prefer to speak. It loads only when someone plays it.",
-    "media_hint_photos_voice": "Photos show small until opened; a voice note loads only when played, so neither slows the product page.",
-    "photos_label": "Photos per review",
-    "photos_count_one": "{count} photo",
-    "photos_count_other": "{count} photos",
-    "voice_label": "Longest voice note",
-    "voice_seconds_one": "{count} second",
-    "voice_seconds_other": "{count} seconds",
-    "publish_label": "Publish without checking",
-    "publish_off": "Nothing — I check every review",
-    "publish_text_only": "Text reviews only",
-    "publish_all": "Every review",
-    "publish_hint_off": "Every review waits in Reviews until you approve it.",
-    "publish_hint_text_only": "Text reviews go live at once; any with a photo or a voice note waits for you, since that is where a face or a phone number can appear.",
-    "publish_hint_all": "Every review goes live at once, photos and voice notes included. You can still hide or delete any of them."
-  }
+  "nav_label": "Settings navigation"
 }

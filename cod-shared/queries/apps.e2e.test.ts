@@ -37,7 +37,7 @@ async function metaConversions(changes: Partial<typeof schema.eventConsumers.$in
 }
 
 describe("App Status", () => {
-  it("is Not set up for every App of a new store", async () => {
+  it("is Not set up for every App of a new store, but Reviews, which a store takes from the start", async () => {
     expect(await appStatuses(d1.db, STORE)).toEqual({
       meta: "not_set_up",
       dzverify: "not_set_up",
@@ -45,6 +45,7 @@ describe("App Status", () => {
       sendili: "not_set_up",
       "whatsapp-button": "not_set_up",
       telegram: "not_set_up",
+      reviews: "on",
     });
   });
 
@@ -53,7 +54,7 @@ describe("App Status", () => {
     await d1.db.insert(schema.storeOtpConfig).values({ id: "o", storeId: STORE, apiKey: "k", enabled: false, ...at });
     await d1.db.insert(schema.storeTurnstileConfig).values({ id: "t", storeId: STORE, siteKey: "s", secretKey: "x", enabled: true, ...at });
     await d1.db.insert(schema.storeEmailConfig).values({ id: "e", storeId: STORE, apiKey: "k", fromEmail: "a@b.dz", enabled: false, ...at });
-    await d1.db.update(schema.stores).set({ whatsappWidgetJson: widget({ enabled: true, phone: "0551234567" }) }).where(eq(schema.stores.id, STORE));
+    await d1.db.update(schema.stores).set({ whatsappWidgetJson: widget({ enabled: true, phone: "0551234567" }), reviewsEnabled: false }).where(eq(schema.stores.id, STORE));
 
     expect(await appStatuses(d1.db, STORE)).toEqual({
       meta: "on",
@@ -62,6 +63,7 @@ describe("App Status", () => {
       sendili: "off",
       "whatsapp-button": "on",
       telegram: "not_set_up",
+      reviews: "off",
     });
   });
 

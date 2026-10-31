@@ -8,7 +8,7 @@
 import { eq, inArray } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { eventConsumers, landingPagePixelConfig, storeEmailConfig, storeOtpConfig, storePixelConfig, stores, storeTelegramConfig, storeTurnstileConfig } from "../db/schema";
-import { APP_CATALOG, consumerOwner, type AppKey } from "../apps/catalog";
+import { APP_CATALOG, consumerOwner, type AppKey, type RemovableAppKey } from "../apps/catalog";
 import { parseWhatsAppWidgetConfig, toWhatsAppHref } from "../whatsapp-widget/config";
 import { forgetTelegramBot } from "./telegram";
 
@@ -34,7 +34,7 @@ export async function appStatuses(db: AppDb, storeId: string): Promise<Record<Ap
     db.select({ enabled: storeOtpConfig.enabled }).from(storeOtpConfig).where(eq(storeOtpConfig.storeId, storeId)).get(),
     db.select({ enabled: storeTurnstileConfig.enabled }).from(storeTurnstileConfig).where(eq(storeTurnstileConfig.storeId, storeId)).get(),
     db.select({ enabled: storeEmailConfig.enabled }).from(storeEmailConfig).where(eq(storeEmailConfig.storeId, storeId)).get(),
-    db.select({ whatsappWidgetJson: stores.whatsappWidgetJson }).from(stores).where(eq(stores.id, storeId)).get(),
+    db.select({ whatsappWidgetJson: stores.whatsappWidgetJson, reviewsEnabled: stores.reviewsEnabled }).from(stores).where(eq(stores.id, storeId)).get(),
     db
       .select({ kind: eventConsumers.kind, enabled: eventConsumers.enabled, failingSince: eventConsumers.failingSince, disabledReason: eventConsumers.disabledReason })
       .from(eventConsumers)
@@ -59,6 +59,7 @@ export async function appStatuses(db: AppDb, storeId: string): Promise<Record<Ap
     sendili: statusOf(sendili, troubled("sendili")),
     "whatsapp-button": whatsappButtonStatus(store?.whatsappWidgetJson),
     telegram: statusOf(telegram && { enabled: telegram.enabled || telegram.disabledReason !== "merchant" }, troubled("telegram")),
+    reviews: store?.reviewsEnabled ? "on" : "off",
   };
 }
 
@@ -68,7 +69,7 @@ export async function appStatuses(db: AppDb, storeId: string): Promise<Record<Ap
  * bot and chat. Its Built-in Consumers stay, with nothing to send until it is
  * set up again.
  */
-export async function removeApp(db: AppDb, storeId: string, key: AppKey): Promise<void> {
+export async function removeApp(db: AppDb, storeId: string, key: RemovableAppKey): Promise<void> {
   switch (key) {
     case "meta":
       await db.batch([

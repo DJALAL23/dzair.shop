@@ -10,8 +10,8 @@
  * typed name), rests only on an order of that customer that brought the
  * product, is verified only when that order was delivered, and needs
  * reviews:create; its files go to the media job; removing a product removes
- * its reviews' files too; the store's review choices are saved within their
- * limits.
+ * its reviews' files too. The store's review rules are the Reviews App's
+ * (`endpoints/apps/reviews.e2e.test.ts`).
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { signIn } from "@/test-utils/sign-in";
@@ -26,9 +26,6 @@ import { webp } from "../../../../cod-shared/media/hosts/testing/files";
 import * as schema from "@/db/schema";
 import type { ReviewMediaJob } from "@/lib/review-media/job";
 import { removeProduct } from "@/lib/remove-product";
-import { updateStore } from "../../../../cod-shared/queries/stores";
-import { getReviewPolicy } from "../../../../cod-shared/queries/store-reviews";
-import { updateStoreSchema } from "../stores/validation";
 import reviewsRouter from "./routes";
 
 const T = "2026-10-16T10:00:00.000Z";
@@ -253,18 +250,5 @@ describe("entering a review the store received", () => {
     expect(await json(res)).toMatchObject({ code: "INVALID_FILE_TYPE" });
     scopes = ["reviews:read", "reviews:manage"];
     expect((await app.request("/api/reviews/uploads", { method: "POST", body: JPEG })).status).toBe(403);
-  });
-});
-
-describe("the store's review choices", () => {
-  it("are saved within their limits and read back as the policy", async () => {
-    const choices = updateStoreSchema.parse({ reviewMaxPhotos: 5, reviewVoiceMaxSeconds: 90, reviewAutoPublish: "all" });
-    await updateStore(d1.db, "s1", choices);
-    expect(await getReviewPolicy(d1.db, "s1")).toEqual({ enabled: true, maxPhotos: 5, voiceMaxSeconds: 90, autoPublish: "all" });
-    await updateStore(d1.db, "s1", updateStoreSchema.parse({ reviewVoiceMaxSeconds: null, reviewMaxPhotos: 0 }));
-    expect(await getReviewPolicy(d1.db, "s1")).toMatchObject({ maxPhotos: 0, voiceMaxSeconds: null });
-    for (const bad of [{ reviewMaxPhotos: 7 }, { reviewVoiceMaxSeconds: 45 }, { reviewAutoPublish: "some" }, { reviewMaxPhotos: 1.5 }]) {
-      expect(updateStoreSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
-    }
   });
 });

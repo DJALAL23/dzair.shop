@@ -1,5 +1,6 @@
 {
   "page_title": "Avis",
+  "rules_link": "Règles des avis",
   "total_one": "{count} avis",
   "total_many": "{count} d'avis",
   "total_other": "{count} avis",

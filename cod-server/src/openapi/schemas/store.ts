@@ -5,7 +5,6 @@
  */
 
 import { z } from "@hono/zod-openapi";
-import { REVIEW_AUTO_PUBLISH, REVIEW_MAX_PHOTOS, REVIEW_VOICE_LENGTHS } from "../../../../cod-shared/reviews/model";
 import { ProductCategoryRowSchema } from "./products";
 import { MediaDeliverySchema, MediaImageSchema } from "./media";
 import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
@@ -61,22 +60,6 @@ export const StoreSchema = z
     metaTitle: z.string().nullable().openapi({ example: "My Shop — Best Products" }),
     metaDescription: z.string().nullable().openapi({ example: "Find the best products at My Shop." }),
     ogImage: MediaImageSchema.nullable().openapi({ description: "The image links to the store show when shared" }),
-    reviewsEnabled: z.boolean().openapi({
-      description: "When false, reviews are hidden on the storefront and submission is disabled",
-      example: true,
-    }),
-    reviewMaxPhotos: z.number().int().min(0).max(REVIEW_MAX_PHOTOS).openapi({
-      description: "Photos a shopper may add to a review (0 = none)",
-      example: 3,
-    }),
-    reviewVoiceMaxSeconds: z.number().int().nullable().openapi({
-      description: `Longest voice note a shopper may add, in seconds (${REVIEW_VOICE_LENGTHS.join(", ")}); null = no voice notes`,
-      example: 60,
-    }),
-    reviewAutoPublish: z.enum(REVIEW_AUTO_PUBLISH).openapi({
-      description: "Which shopper reviews publish without checking: none (off), text-only ones (text_only: anything with a photo or voice note waits), or all",
-      example: "text_only",
-    }),
     cartEnabled: z.boolean().openapi({
       description:
         "When true the storefront renders the shopping cart alongside the direct order form",

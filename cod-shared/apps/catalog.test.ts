@@ -4,7 +4,7 @@ import { APP_CATALOG, APP_KEYS, appOf, consumerOwner, consumerPermissions, INTEG
 
 describe("the App catalog", () => {
   it("keys every App by lowercase words joined by hyphens, once", () => {
-    expect(APP_KEYS).toEqual(["meta", "dzverify", "turnstile", "sendili", "whatsapp-button", "telegram"]);
+    expect(APP_KEYS).toEqual(["meta", "dzverify", "turnstile", "sendili", "whatsapp-button", "telegram", "reviews"]);
     for (const key of APP_KEYS) expect(key).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
     expect(new Set(APP_KEYS).size).toBe(APP_KEYS.length);
   });
@@ -20,7 +20,9 @@ describe("the App catalog", () => {
   });
 
   it("groups the Apps' and the Integrations' permissions on the Team page, and every permission once", () => {
-    expect(SCOPE_CATEGORIES.apps.scopes).toEqual(APP_CATALOG.flatMap((app) => [app.permissions.read, app.permissions.manage]));
+    const ownArea = (app: (typeof APP_CATALOG)[number]) => app.key in SCOPE_CATEGORIES;
+    expect(SCOPE_CATEGORIES.apps.scopes).toEqual(APP_CATALOG.filter((app) => !ownArea(app)).flatMap((app) => [app.permissions.read, app.permissions.manage]));
+    expect(SCOPE_CATEGORIES.reviews.scopes).toEqual(expect.arrayContaining([appOf("reviews").permissions.read, appOf("reviews").permissions.manage]));
     expect(SCOPE_CATEGORIES.integrations.scopes).toEqual([INTEGRATIONS.permissions.read, INTEGRATIONS.permissions.manage]);
     const grouped = Object.values(SCOPE_CATEGORIES).flatMap((category) => [...category.scopes]);
     expect([...grouped].sort()).toEqual([...ALL_SCOPES].sort());
@@ -31,6 +33,10 @@ describe("the App catalog", () => {
     expect(isAppKey("whatsapp_widget")).toBe(false);
     expect(isAppKey("acme.crm")).toBe(false);
     expect(appOf("sendili").category).toBe("messaging");
+  });
+
+  it("turns Reviews off rather than removing it, and removes every other App", () => {
+    expect(APP_CATALOG.filter((app) => !app.removable).map((app) => app.key)).toEqual(["reviews"]);
   });
 });
 
