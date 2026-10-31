@@ -7,18 +7,23 @@ import {
   ChevronUp,
   Copy,
   ExternalLink,
-  GripVertical,
-  ImageIcon,
   Loader2,
   Pencil,
   Eye,
   Settings2,
-  SlidersHorizontal,
   UploadCloud,
   X,
 } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
-import { Alert, Badge, Button, ConfirmDialogProvider, IconButton } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  ConfirmDialogProvider,
+  Field,
+  IconButton,
+  Input,
+} from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
@@ -43,6 +48,7 @@ import {
   TrackingBadge,
   inactiveReason,
 } from "@/features/landing-pages/components/TrackingBadge";
+import type { TrackingView } from "@/features/landing-pages/model";
 import { useConversionEventLabel } from "@/components/tracking/ConversionEventPicker";
 import { partitionUploadFiles, ACCEPTED_IMAGE_TYPES, uploadFailure } from "@/features/uploads/api";
 import { useImageUpload } from "@/features/uploads/useImageUpload";
@@ -63,7 +69,7 @@ function swapAt<T>(arr: T[], i: number, j: number): T[] {
   return next;
 }
 
-type Pane = "images" | "preview" | "settings";
+type Pane = "edit" | "preview";
 
 const DESKTOP_QUERY = "(min-width: 1024px)";
 
@@ -81,18 +87,17 @@ function useIsDesktop() {
   return desktop;
 }
 
-/** On a phone the three panes are three screens; this bar, in thumb's reach, moves between them. */
+/** On a phone the two panes are two screens; this bar, in thumb's reach, moves between them. */
 function StudioTabBar({ pane, onChange }: { pane: Pane; onChange: (pane: Pane) => void }) {
   const t = useT("landing-pages");
   const items: { key: Pane; label: string; Icon: typeof Eye }[] = [
-    { key: "images", label: t("studio.tab_images"), Icon: ImageIcon },
+    { key: "edit", label: t("studio.tab_edit"), Icon: Pencil },
     { key: "preview", label: t("studio.tab_preview"), Icon: Eye },
-    { key: "settings", label: t("studio.tab_settings"), Icon: SlidersHorizontal },
   ];
   return (
     <nav
       aria-label={t("studio.tabs_label")}
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       {items.map(({ key, label, Icon }) => {
         const active = pane === key;
@@ -138,7 +143,7 @@ function SaveIndicator({ state, label }: { state: SaveState; label: string }) {
  * The Studio's own chrome — deliberately NOT the dashboard layout.
  *
  * An editor surface owns the whole viewport: a compact studio bar (back,
- * identity, autosave, publish, link actions, slug editing) over a three-pane
+ * identity, autosave, publish, link actions, slug editing) over a two-pane
  * work area, each pane scrolling independently. No main sidebar, no dashboard
  * topbar — the merchant is "inside" the page they're building. Authentication
  * and scope gating stay identical to every dashboard surface.
@@ -180,13 +185,112 @@ function StudioShell({
           <SaveIndicator state={saveState} label={saveLabel} />
         </header>
         <div className={`min-h-0 flex-1 overflow-y-auto lg:overflow-hidden ${pane ? "pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0" : ""}`}>
-          <div className="grid grid-cols-1 lg:h-full lg:grid-cols-[300px_minmax(0,1fr)_240px]">
+          <div className="grid grid-cols-1 lg:h-full lg:grid-cols-[320px_minmax(0,1fr)]">
             {children}
           </div>
         </div>
         {pane && onPaneChange && <StudioTabBar pane={pane} onChange={onPaneChange} />}
       </div>
     </ConfirmDialogProvider>
+  );
+}
+
+/**
+ * Where this page's conversions go. A summary plus an Edit button rather
+ * than a form: a pixel id, a credential and a four-option conversion picker
+ * belong in a dialog, not beside the image stack.
+ */
+function TrackingSection({
+  view,
+  perPageAvailable,
+  hasOwnPixel,
+  lastEvent,
+  canManage,
+  canSeeMeta,
+  onEdit,
+}: {
+  view: TrackingView;
+  perPageAvailable: boolean;
+  hasOwnPixel: boolean;
+  lastEvent: LandingPageTrackingActivity | null;
+  canManage: boolean;
+  canSeeMeta: boolean;
+  onEdit: () => void;
+}) {
+  const t = useT("landing-pages");
+  const conversionEventLabel = useConversionEventLabel();
+
+  return (
+    <section className="p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">{t("tracking.card_title")}</h2>
+        <TrackingBadge view={view} />
+      </div>
+
+      {view.kind === "store" ? (
+        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+          <p>{perPageAvailable ? t("tracking.card_store_hint") : t("tracking.inactive_master_switch")}</p>
+          {!perPageAvailable && canSeeMeta && (
+            <a
+              href="/apps/meta"
+              className="inline-flex items-center gap-1 font-semibold text-link underline-offset-4 hover:underline"
+            >
+              {t("tracking.open_meta_app")}
+              <ArrowRight size={12} aria-hidden="true" className="rtl:rotate-180" />
+            </a>
+          )}
+        </div>
+      ) : (
+        <>
+          <dl className="mt-3 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <dt className="text-muted-foreground">{t("tracking.card_pixel")}</dt>
+              <dd className="truncate font-medium tabular-nums" dir="ltr">
+                {view.pixelId}
+              </dd>
+            </div>
+            {view.kind === "own" && (
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-muted-foreground">{t("tracking.card_event")}</dt>
+                <dd className="truncate font-semibold">{conversionEventLabel(view.conversionEvent)}</dd>
+              </div>
+            )}
+          </dl>
+          {view.kind === "inactive" && (
+            <p className="mt-2 text-xs leading-relaxed text-tone-warning-text">
+              {inactiveReason(view.reason, t)}
+            </p>
+          )}
+        </>
+      )}
+
+      {/* Proof, not just configuration: a merchant who has just pointed a
+          campaign at a new pixel wants to see an event land. A failure
+          carries Meta's own message — a silent "nothing yet" when the
+          token was rejected leaves them waiting instead of fixing it. */}
+      {lastEvent && (
+        <p
+          className={`mt-3 rounded-lg bg-muted/60 px-2.5 py-2 text-xs leading-relaxed ${
+            lastEvent.status === "failed" ? "text-destructive" : "text-muted-foreground"
+          }`}
+        >
+          {lastEvent.status === "failed"
+            ? `${t("tracking.last_event_failed")} — ${lastEvent.error ?? ""}`
+            : t("tracking.last_event_sent")}
+          <span className="block tabular-nums opacity-80" dir="ltr">
+            {lastEvent.eventName} · {new Date(lastEvent.sentAt).toLocaleString()}
+            {lastEvent.pixelId ? ` · ••••${lastEvent.pixelId.slice(-4)}` : ""}
+          </span>
+        </p>
+      )}
+
+      {canManage && perPageAvailable && (
+        <Button variant="outline" size="sm" className="mt-3 w-full" onClick={onEdit}>
+          <Settings2 size={13} aria-hidden="true" />
+          {hasOwnPixel ? t("tracking.card_edit") : t("tracking.card_add")}
+        </Button>
+      )}
+    </section>
   );
 }
 
@@ -205,7 +309,6 @@ function Gated({ landingPageId }: { landingPageId: string }) {
   const [publishing, setPublishing] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [name, setName] = useState("");
-  const [imageGap, setImageGap] = useState(0);
 
   // Slug editing: committed value (autosaved) + in-flight draft while editing
   const [slugDraft, setSlugDraft] = useState<string | null>(null);
@@ -218,7 +321,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
   const [trackingOpen, setTrackingOpen] = useState(false);
 
   const [publishOpen, setPublishOpen] = useState(false);
-  const [pane, setPane] = useState<Pane>("images");
+  const [pane, setPane] = useState<Pane>("edit");
   const isDesktop = useIsDesktop();
   const inputRef = useRef<HTMLInputElement>(null);
   const saveTimer = useRef<number | null>(null);
@@ -227,7 +330,6 @@ function Gated({ landingPageId }: { landingPageId: string }) {
   // Editing is only offered once the store has asked for per-page pixels —
   // otherwise the merchant would configure something the server ignores.
   const perPageAvailable = storeSwitches?.enabled === true && storeSwitches.perPageTrackingEnabled;
-  const conversionEventLabel = useConversionEventLabel();
 
   const canManage = canScope(identity, SCOPES.LANDING_PAGES_MANAGE);
   const canRead = canScope(identity, SCOPES.LANDING_PAGES_READ);
@@ -239,7 +341,6 @@ function Gated({ landingPageId }: { landingPageId: string }) {
       const data = await getLandingPage(landingPageId);
       setLp(data);
       setName(data.name);
-      setImageGap(data.imageGap);
       setSlugDraft(null);
       setSaveState("idle");
     } catch (cause) {
@@ -277,22 +378,17 @@ function Gated({ landingPageId }: { landingPageId: string }) {
     };
   }, [canRead, canSeeMeta, landingPageId]);
 
-  // Debounced autosave: name + gap persist 800ms after the last edit.
+  // Debounced autosave: the name persists 800ms after the last edit.
   useEffect(() => {
     if (!lp || !canManage) return;
-    const drifted =
-      (name.trim() !== "" && name !== lp.name) || imageGap !== lp.imageGap;
-    if (!drifted) return;
+    if (name.trim() === "" || name === lp.name) return;
 
     setSaveState("saving");
     if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => {
       void (async () => {
         try {
-          const updated = await updateLandingPage(landingPageId, {
-            ...(name.trim() !== "" && name !== lp.name ? { name: name.trim() } : {}),
-            ...(imageGap !== lp.imageGap ? { imageGap } : {}),
-          });
+          const updated = await updateLandingPage(landingPageId, { name: name.trim() });
           setLp(updated.data);
           setSaveState("saved");
         } catch (cause) {
@@ -304,7 +400,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
     return () => {
       if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
     };
-  }, [lp, name, imageGap, canManage, landingPageId, t]);
+  }, [lp, name, canManage, landingPageId, t]);
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -626,35 +722,47 @@ function Gated({ landingPageId }: { landingPageId: string }) {
         </div>
       )}
 
-      {/* LEFT — identity, upload & stack */}
-      <aside className={`${pane === "images" ? "flex" : "hidden"} flex-col gap-4 border-border p-4 lg:flex lg:min-h-0 lg:overflow-y-auto lg:border-e`}>
-        <div className="space-y-3">
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-muted-foreground">
-              {t("studio.name_label")}
-            </span>
-            <input
+      {/* LEFT — identity, tracking, upload & stack */}
+      <aside className={`${pane === "edit" ? "flex" : "hidden"} flex-col divide-y divide-border bg-card lg:flex lg:min-h-0 lg:overflow-y-auto lg:border-e lg:border-border`}>
+        <section className="space-y-3 p-4">
+          <Field label={t("studio.name_label")}>
+            <Input
               type="text"
               value={name}
               onChange={(event) => setName(event.currentTarget.value)}
               disabled={!canManage}
-              className="h-11 w-full rounded-lg border border-border bg-background px-3 text-base lg:h-9 lg:text-sm"
             />
-          </label>
-          <div className="flex items-center gap-2">
+          </Field>
+          <div className="flex min-w-0 items-center gap-2">
             <Badge tone={isPublished ? "success" : "warning"}>
               {isPublished ? t("status_published") : t("status_draft")}
             </Badge>
-            <span className="text-xs text-muted-foreground">
-              {lp.product?.name ?? ""}
-            </span>
+            {lp.product?.name && (
+              <span className="truncate text-xs text-muted-foreground">{lp.product.name}</span>
+            )}
           </div>
-        </div>
+        </section>
 
-        <div className="border-t border-border pt-4">
-          <p className="text-xs font-semibold text-muted-foreground">
-            {t("studio.left_title")}
-          </p>
+        {!isDesktop && (
+          <section className="space-y-3 p-4">
+            <h2 className="text-sm font-semibold">{t("studio.link_title")}</h2>
+            {slugControl}
+            {isPublished && <div className="flex gap-2">{linkActions(true)}</div>}
+          </section>
+        )}
+
+        <TrackingSection
+          view={trackingState}
+          perPageAvailable={perPageAvailable}
+          hasOwnPixel={tracking !== null}
+          lastEvent={lastEvent}
+          canManage={canManage}
+          canSeeMeta={canSeeMeta}
+          onEdit={() => setTrackingOpen(true)}
+        />
+
+        <section className="p-4">
+          <h2 className="text-sm font-semibold">{t("studio.left_title")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t("studio.left_hint")}</p>
           <button
             type="button"
@@ -662,7 +770,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
             disabled={!canManage || uploading}
             onDragOver={(event) => event.preventDefault()}
             onDrop={onDrop}
-            className="mt-3 flex min-h-24 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-5 text-sm text-muted-foreground transition hover:border-brand/50 disabled:opacity-50"
+            className="mt-3 flex min-h-24 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-5 text-sm text-muted-foreground transition-colors hover:border-input hover:text-foreground disabled:opacity-50"
           >
             {uploading ? (
               <>
@@ -699,7 +807,6 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                 key={image.id}
                 className="flex items-center gap-2 rounded-lg border border-border bg-background p-2"
               >
-                <GripVertical size={14} className="shrink-0 text-muted-foreground/50" />
                 <span className="w-5 shrink-0 text-center text-[0.7rem] font-semibold text-muted-foreground">
                   {index + 1}
                 </span>
@@ -748,7 +855,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       </aside>
 
       {/* CENTER — live preview of the page a shopper lands on.
@@ -777,7 +884,7 @@ function Gated({ landingPageId }: { landingPageId: string }) {
                 alt={image.altText ?? ""}
                 loading={index === 0 ? "eager" : "lazy"}
                 className="block w-full"
-                style={index === 0 ? undefined : { marginTop: `${imageGap}px` }}
+                style={index === 0 ? undefined : { marginTop: `${lp.imageGap}px` }}
               />
             ))
           )}
@@ -792,139 +899,6 @@ function Gated({ landingPageId }: { landingPageId: string }) {
           </div>
         </div>
       </section>
-
-      {/* RIGHT — the only spacing setting */}
-      <aside className={`${pane === "settings" ? "flex" : "hidden"} flex-col border-border p-4 lg:flex lg:min-h-0 lg:overflow-y-auto lg:border-s`}>
-        {!isDesktop && (
-          <div className="mb-6 space-y-3 rounded-xl border border-border p-3">
-            <p className="text-xs font-semibold text-muted-foreground">{t("studio.link_title")}</p>
-            {slugControl}
-            {isPublished && <div className="flex gap-2">{linkActions(true)}</div>}
-          </div>
-        )}
-        <p className="text-xs font-semibold text-muted-foreground">
-          {t("studio.right_title")}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">{t("studio.gap_hint")}</p>
-        <div className="mt-4">
-          <label className="block">
-            <span className="mb-2 flex items-center justify-between text-xs font-semibold">
-              {t("studio.image_gap")}
-              <span className="tabular-nums text-muted-foreground">{imageGap}px</span>
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={64}
-              value={imageGap}
-              disabled={!canManage}
-              onChange={(event) => setImageGap(Number(event.currentTarget.value))}
-              className="h-8 w-full accent-primary lg:h-auto"
-            />
-          </label>
-        </div>
-        {/* Where this page's conversions go. A summary plus an Edit button
-            rather than a form: a pixel id, a credential and a four-option
-            conversion picker do not belong in a 240px column, and the three
-            panes stay about how the page looks. */}
-        <div className="mt-6 rounded-xl border border-border p-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[0.7rem] font-semibold text-muted-foreground">
-              {t("tracking.card_title")}
-            </p>
-            <TrackingBadge view={trackingState} />
-          </div>
-
-          {trackingState.kind === "store" ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              {perPageAvailable
-                ? t("tracking.card_store_hint")
-                : t("tracking.inactive_master_switch")}
-              {!perPageAvailable && canSeeMeta && (
-                <a href="/apps/meta" className="mt-1 block font-semibold text-foreground underline-offset-4 hover:underline">
-                  {t("tracking.open_meta_app")}
-                </a>
-              )}
-            </p>
-          ) : (
-            <dl className="mt-2 space-y-1 text-xs">
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-muted-foreground">{t("tracking.card_pixel")}</dt>
-                <dd className="truncate font-medium tabular-nums" dir="ltr">
-                  {trackingState.pixelId}
-                </dd>
-              </div>
-              {trackingState.kind === "own" && (
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">{t("tracking.card_event")}</dt>
-                  <dd className="truncate font-semibold">
-                    {conversionEventLabel(trackingState.conversionEvent)}
-                  </dd>
-                </div>
-              )}
-              {trackingState.kind === "inactive" && (
-                <p className="pt-1 text-[11px] leading-relaxed text-tone-warning-text">
-                  {inactiveReason(trackingState.reason, t)}
-                </p>
-              )}
-            </dl>
-          )}
-
-          {/* Proof, not just configuration: a merchant who has just pointed a
-              campaign at a new pixel wants to see an event land. A failure
-              carries Meta's own message — a silent "nothing yet" when the
-              token was rejected leaves them waiting instead of fixing it. */}
-          {lastEvent && (
-            <p
-              className={`mt-2 text-[11px] leading-relaxed ${
-                lastEvent.status === "failed" ? "text-destructive" : "text-muted-foreground"
-              }`}
-            >
-              {lastEvent.status === "failed"
-                ? `${t("tracking.last_event_failed")} — ${lastEvent.error ?? ""}`
-                : t("tracking.last_event_sent")}
-              <span className="block tabular-nums opacity-80" dir="ltr">
-                {lastEvent.eventName} · {new Date(lastEvent.sentAt).toLocaleString()}
-                {lastEvent.pixelId ? ` · ••••${lastEvent.pixelId.slice(-4)}` : ""}
-              </span>
-            </p>
-          )}
-
-          {canManage && perPageAvailable && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 w-full"
-              onClick={() => setTrackingOpen(true)}
-            >
-              <Settings2 size={13} aria-hidden="true" />
-              {tracking ? t("tracking.card_edit") : t("tracking.card_add")}
-            </Button>
-          )}
-        </div>
-
-        <div className="mt-auto pt-4">
-          <div className="rounded-xl border border-border p-3">
-            <p className="text-[0.7rem] font-semibold text-muted-foreground">
-              {t("page_title")}
-            </p>
-            <dl className="mt-2 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{t("list.views")}</dt>
-                <dd className="font-medium tabular-nums">{lp.views.toLocaleString()}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{t("list.orders")}</dt>
-                <dd className="font-medium tabular-nums">{lp.stats.orders.toLocaleString()}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{t("list.revenue")}</dt>
-                <dd className="font-medium tabular-nums">{lp.stats.revenue.toLocaleString()}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-      </aside>
 
       <LandingPageTrackingDialog
         landingPageId={landingPageId}
