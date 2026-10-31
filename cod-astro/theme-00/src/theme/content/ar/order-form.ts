@@ -21,7 +21,7 @@ export const arOrderForm: OrderFormStrings = {
   formAddressPlaceholder: "الشارع، الحي، رقم المبنى...",
   formDeliveryLabel: "طريقة التوصيل",
   formHomeDelivery: "توصيل للمنزل",
-  formStopDesk: "مكتب البريد",
+  formStopDesk: "الاستلام من المكتب",
   formNotesLabel: "ملاحظات",
   formNotesPlaceholder: "أي تفاصيل إضافية للتوصيل...",
   formEmailLabel: "البريد الإلكتروني",

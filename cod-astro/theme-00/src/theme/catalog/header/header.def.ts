@@ -27,6 +27,8 @@ export const header = defineComponent({
     },
     { key: "logoWidth", kind: "number", label: FIELD.logoWidth, min: 80, max: 240, step: 10, default: 140, display: "slider" },
     { key: "sticky", kind: "boolean", label: FIELD.sticky, default: true },
+    { key: "showSearch", kind: "boolean", label: FIELD.showSearch, default: true },
+    { key: "showLanguage", kind: "boolean", label: FIELD.showLanguage, default: true },
     schemeField("scheme-1"),
   ],
   load: async ({ storefront, reads, props }) => ({

@@ -172,11 +172,14 @@
   /* A photo's ground while it loads, and behind a photo that does not fill. */
   --clr-photo: color-mix(in oklab, var(--wc-color-text) 6%, var(--wc-color-background));
 }
-/* Text on the accent: white or black, whichever the accent's lightness carries. */
+/* Text on the accent: white or black, whichever the accent's lightness carries.
+   A field lifts off its background towards white on a light scheme, and only a
+   little on a dark one, so its text stays readable in every scheme. */
 @supports (color: oklch(from red l c h)) {
   :root,
   .wc-scheme {
     --clr-on-accent: oklch(from var(--wc-color-accent) clamp(0, (0.7 - l) * 1000, 1) 0 0);
+    --clr-field: oklch(from var(--wc-color-background) calc(l + (1 - l) * 0.3 * clamp(0, (l - 0.6) * 1000, 1) + 0.08 * (1 - clamp(0, (l - 0.6) * 1000, 1))) c h);
   }
 }
 .wc-scheme {
@@ -574,9 +577,10 @@ textarea.form-input { min-height: 6rem; padding-block: 0.875rem; resize: vertica
 }
 .waybill-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
   color: var(--clr-ink);
 }
 .waybill-legend {

@@ -130,7 +130,7 @@ const wilayaOptions = WILAYAS.map((w) => ({
        a wilaya name beside its code and the selected-check: the longer names
        wrapped onto a second line. Name and phone above stay paired on phones
        because their answers are short. -->
-  <div class="field-pair is-wide">
+  <div class="field-pair">
     <div>
       <Select
         id="f-wilaya"
@@ -236,10 +236,10 @@ const wilayaOptions = WILAYAS.map((w) => ({
 </div>
 
 <style>
-  .fields { display: flex; flex-direction: column; gap: 0.75rem; }
+  /* Two fields share a line only where the form is wide enough for each placeholder to show whole. */
+  .fields { display: flex; flex-direction: column; gap: 0.75rem; container-type: inline-size; }
   .field-pair { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
-  @media (min-width: 360px) { .field-pair { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 639px) { .field-pair.is-wide { grid-template-columns: 1fr; } }
+  @container (min-width: 32rem) { .field-pair { grid-template-columns: 1fr 1fr; } }
   .field { position: relative; }
   .field :global(.field-icon) {
     position: absolute;

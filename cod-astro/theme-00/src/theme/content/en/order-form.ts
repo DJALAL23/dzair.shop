@@ -21,7 +21,7 @@ export const enOrderForm: OrderFormStrings = {
   formAddressPlaceholder: "Street, district, building...",
   formDeliveryLabel: "Delivery method",
   formHomeDelivery: "Home delivery",
-  formStopDesk: "Post office pickup",
+  formStopDesk: "Pick up at the desk",
   formNotesLabel: "Notes",
   formNotesPlaceholder: "Any additional delivery details...",
   formEmailLabel: "Email",

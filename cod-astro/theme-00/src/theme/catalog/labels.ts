@@ -94,6 +94,8 @@ export const FIELD = {
   logoPosition: text("موضع الشعار", "Position du logo", "Logo position"),
   logoWidth: text("عرض الشعار", "Largeur du logo", "Logo width"),
   sticky: text("يبقى ظاهراً عند التمرير", "Reste visible au défilement", "Stays visible on scroll"),
+  showSearch: text("زر البحث", "Bouton de recherche", "Search button"),
+  showLanguage: text("اختيار اللغة", "Choix de la langue", "Language picker"),
   autoplay: text("تبديل الرسائل تلقائياً", "Faire défiler les messages", "Rotate messages"),
   about: text("نبذة", "Présentation", "About text"),
   showWhatsapp: text("زر واتساب", "Bouton WhatsApp", "WhatsApp button"),

@@ -21,7 +21,7 @@ export const frOrderForm: OrderFormStrings = {
   formAddressPlaceholder: "Rue, quartier, numéro de bâtiment...",
   formDeliveryLabel: "Mode de livraison",
   formHomeDelivery: "Livraison à domicile",
-  formStopDesk: "Bureau de poste",
+  formStopDesk: "Retrait au bureau",
   formNotesLabel: "Notes",
   formNotesPlaceholder: "Détails supplémentaires pour la livraison...",
   formEmailLabel: "E-mail",

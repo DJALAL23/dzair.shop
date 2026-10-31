@@ -16,7 +16,7 @@ import type { header } from "@/theme/catalog/header/header.def";
 
 type Props = InferProps<typeof header> & { storeMenu: StoreMenu | null };
 
-const { storeMenu, logoPosition, logoWidth, sticky, scheme } = Astro.props;
+const { storeMenu, logoPosition, logoWidth, sticky, showSearch, showLanguage, scheme } = Astro.props;
 const store = Astro.locals.store;
 const { config, content } = store;
 const links = menuLinks(storeMenu, store.href, store.pathname) ?? [];
@@ -73,10 +73,12 @@ const centered = logoPosition === "center";
       </nav>
     )}
     <div class="header-end">
-      <LanguageSwitcher />
-      <a href={store.href("/search")} class="icon-btn" aria-label={content.searchLabel}>
-        <Icon name="heroicons:magnifying-glass" aria-hidden="true" />
-      </a>
+      {showLanguage && <LanguageSwitcher />}
+      {showSearch && (
+        <a href={store.href("/search")} class="icon-btn" aria-label={content.searchLabel}>
+          <Icon name="heroicons:magnifying-glass" aria-hidden="true" />
+        </a>
+      )}
       {config.cartEnabled && <CartBadge content={content} />}
     </div>
   </div>
