@@ -434,6 +434,22 @@ export async function deleteLandingPage(db: AppDb, id: string) {
   await db.delete(landingPages).where(eq(landingPages.id, id));
 }
 
+/** Why a new order of a landing page's images is refused: each of its images, once, and no other. */
+export type LandingImageOrderProblem =
+  | { reason: "duplicate"; received: number }
+  | { reason: "foreign"; imageId: string }
+  | { reason: "incomplete"; expected: number; received: number };
+
+/** The problem with ordering a page's images as `imageIds`, or null when it names each of `existingIds` once. */
+export function landingImageOrderProblem(existingIds: readonly string[], imageIds: readonly string[]): LandingImageOrderProblem | null {
+  if (new Set(imageIds).size !== imageIds.length) return { reason: "duplicate", received: imageIds.length };
+  const existing = new Set(existingIds);
+  const foreign = imageIds.find((imageId) => !existing.has(imageId));
+  if (foreign !== undefined) return { reason: "foreign", imageId: foreign };
+  if (imageIds.length !== existingIds.length) return { reason: "incomplete", expected: existingIds.length, received: imageIds.length };
+  return null;
+}
+
 /**
  * Adds an image to the stack: at the end, or at `position` — the images from
  * there move down one. A position past the end is the end.

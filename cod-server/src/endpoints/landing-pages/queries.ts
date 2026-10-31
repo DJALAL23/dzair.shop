@@ -116,30 +116,15 @@ export async function reorderLandingPageImagesChecked(
   delivery: MediaDelivery,
 ) {
   const existing = await shared.getLandingPageImages(db, landingPageId, delivery);
-  const existingIds = new Set(existing.map((img) => img.id));
-
-  if (new Set(imageIds).size !== imageIds.length) {
-    throw new ValidationError(
-      "imageIds must not contain duplicates",
-      ERROR_CODES.VALIDATION_FAILED,
-      { received: imageIds.length },
-    );
+  const problem = shared.landingImageOrderProblem(existing.map((img) => img.id), imageIds);
+  if (problem?.reason === "duplicate") {
+    throw new ValidationError("imageIds must not contain duplicates", ERROR_CODES.VALIDATION_FAILED, { received: problem.received });
   }
-  for (const imageId of imageIds) {
-    if (!existingIds.has(imageId)) {
-      throw new ValidationError(
-        `Image ${imageId} does not belong to landing page ${landingPageId}`,
-        ERROR_CODES.VALIDATION_FAILED,
-        { imageId, landingPageId },
-      );
-    }
+  if (problem?.reason === "foreign") {
+    throw new ValidationError(`Image ${problem.imageId} does not belong to landing page ${landingPageId}`, ERROR_CODES.VALIDATION_FAILED, { imageId: problem.imageId, landingPageId });
   }
-  if (imageIds.length !== existing.length) {
-    throw new ValidationError(
-      "imageIds must include all images for this landing page",
-      ERROR_CODES.VALIDATION_FAILED,
-      { expected: existing.length, received: imageIds.length },
-    );
+  if (problem?.reason === "incomplete") {
+    throw new ValidationError("imageIds must include all images for this landing page", ERROR_CODES.VALIDATION_FAILED, { expected: problem.expected, received: problem.received });
   }
 
   return shared.reorderLandingPageImages(db, landingPageId, imageIds, delivery);
