@@ -126,12 +126,13 @@ test (`no-third-party-fonts.test.ts`) fails the build if one appears.
 
 ## Images
 
-Product and category photos are served through Cloudflare Image Resizing:
-`<Image>` builds `/cdn-cgi/image/…` URLs on the store's own domain. The store's
-zone must have **Images → Transformations** enabled, or product photos do not
-load. The adapter falls back to the original file when a resize fails, but
-without the zone setting there is no fallback at all. The dev server uses the
-original files.
+Product and category photos are resized by the store's media delivery, which the
+server gives the storefront in its store configuration (`media`): ImageKit's own
+resizer when the store keeps its images on ImageKit, or Cloudflare Image Resizing on
+the store's zone when they are in R2. `<Image>` builds each URL with
+`@wocart/storefront`'s `mediaImageUrl`. On a Cloudflare zone, **Images →
+Transformations** must be enabled, or resized photos do not load. The original file
+is the fallback when a resize fails. The dev server uses the original files.
 
 ## Accessibility
 

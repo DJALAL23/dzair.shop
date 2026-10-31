@@ -204,106 +204,71 @@ A value in `.env` is silently ignored. Set the production origin in
 `cod-client-astro/wrangler.toml` `[vars]`, and the local one in `.dev.vars`
 (`PUBLIC_API_URL=http://localhost:8787`).
 
-## Step 3b — Configure R2 for Image Uploads
+## Step 3b — Choose Where Images Live
 
-This step requires values only the developer can retrieve from the Cloudflare
-dashboard. The agent must ask for them — do not guess or skip.
+Images are kept on ImageKit or in the developer's R2 bucket, and shoppers' browsers
+fetch them through the delivery this server is configured with. The R2 bucket from
+Step 2 is always needed: it holds *Staging*, where uploads wait to be prepared. It
+needs no CORS policy and no API token, because cod-server writes to it through its
+own binding.
 
 ### Agent instructions
 
-**Ask the developer for these four things before proceeding:**
+Ask the developer which host to use. Both work. A store keeps its images where they
+start, so decide now.
 
-1. The **media subdomain** they want to use for serving images
-   (e.g. `media.yourdomain.com`). They must add this as a custom domain on
-   the R2 bucket first:
-   > Cloudflare dashboard → R2 → `<project>-images` → Settings →
-   > Custom Domains → Connect Domain → enter the subdomain → wait for Active.
+- **Option A — ImageKit (recommended: loads fast in Algeria).** Ask for the URL endpoint
+  (`https://ik.imagekit.io/<id>`), the public key and the private key from ImageKit →
+  Developer options. The folder is this store's own, e.g. `/stores/<store-name>`.
+- **Option B — Cloudflare R2 behind the developer's domain.** Ask for the bucket's
+  custom domain (e.g. `media.yourdomain.com`). Its zone must have **Images →
+  Transformations** turned on, or resized photos do not load.
 
-2. Their **Cloudflare Account ID**
-   (Cloudflare dashboard → top-right account menu, or any Workers page sidebar).
+### 1. Set the media variables in wrangler.toml
 
-3. An **R2 API token** created specifically for this bucket:
-   > Cloudflare dashboard → R2 → Manage R2 API Tokens → Create API Token →
-   > Permissions: Object Read & Write → Bucket: `<project>-images` → Create.
-   >
-   > This shows two values **once** — copy both:
-   > - Access Key ID
-   > - Secret Access Key
-
-Once the developer provides all four values, continue with the steps below.
-
----
-
-### 1. Give the developer the CORS JSON to paste
-
-Tell the developer to set the CORS policy on the bucket manually:
-
-> Cloudflare dashboard → R2 → `<project>-images` → Settings → CORS Policy →
-> Add CORS policy → paste this JSON (replacing the dashboard domain):
-
-```json
-[
-  {
-    "AllowedOrigins": [
-      "https://<dashboard-domain>",
-      "http://localhost:4321"
-    ],
-    "AllowedMethods": ["PUT", "GET", "HEAD"],
-    "AllowedHeaders": ["Content-Type", "Content-Length"],
-    "ExposeHeaders": ["ETag"],
-    "MaxAgeSeconds": 3600
-  }
-]
-```
-
-Wait for the developer to confirm it is saved before continuing.
-
-### 2. Set MEDIA_DOMAIN in wrangler.toml
-
-Update `MEDIA_DOMAIN` in `cod-server/wrangler.toml` `[vars]` and
-`[env.production]` to the media subdomain the developer provided. No scheme —
-hostname only:
+Write them under `[vars]`, and the same ones in `[env.production]`. Option A:
 
 ```toml
-MEDIA_DOMAIN = "media.yourdomain.com"
+MEDIA_HOST = "imagekit"
+MEDIA_DELIVERY = "imagekit"
+MEDIA_ORIGIN = "https://ik.imagekit.io/<id>/stores/<store-name>"
+IMAGEKIT_PUBLIC_KEY = "public_..."
+IMAGEKIT_FOLDER = "/stores/<store-name>"
 ```
 
-### 3. Set R2 secrets on the cod-server worker
+Option B:
 
-After cod-server is deployed (Step 6), set the three secrets using the values
-the developer provided. Use stdin redirect — never echo secrets into the shell:
+```toml
+MEDIA_HOST = "r2"
+MEDIA_DELIVERY = "cloudflare"
+MEDIA_ORIGIN = "https://media.yourdomain.com"
+```
+
+`MEDIA_ORIGIN` is where the host serves the store's files: the ImageKit URL endpoint
+followed by the folder, or the R2 custom domain. Option B needs no secret.
+
+### 2. Set the ImageKit private key (Option A only)
+
+The private key is a secret, never a `wrangler.toml` value. After cod-server is
+deployed (Step 6), set it with stdin redirect so it is never echoed:
 
 ```bash
-printf '<CF_ACCOUNT_ID>' | env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put CF_ACCOUNT_ID --name <server-worker-name>
-printf '<R2_ACCESS_KEY_ID>' | env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put R2_ACCESS_KEY_ID --name <server-worker-name>
-printf '<R2_SECRET_ACCESS_KEY>' | env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put R2_SECRET_ACCESS_KEY --name <server-worker-name>
+printf '<IMAGEKIT_PRIVATE_KEY>' | env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put IMAGEKIT_PRIVATE_KEY --name <server-worker-name>
 ```
 
-Also add them to `cod-server/.dev.vars` for local dev:
+### 3. Local development
 
-```
-CF_ACCOUNT_ID=<value>
-R2_ACCESS_KEY_ID=<value>
-R2_SECRET_ACCESS_KEY=<value>
-MEDIA_DOMAIN=media.yourdomain.com
-```
+Locally the defaults need no account: `MEDIA_HOST=r2`, `MEDIA_DELIVERY=direct` and
+`MEDIA_ORIGIN=http://localhost:8787/media` serve the local bucket through this server.
+Nothing goes in `.dev.vars` unless the developer wants ImageKit locally.
 
-### 4. Set MEDIA_DOMAIN on the storefront and redeploy
+### 4. The storefront needs nothing
 
-After Theme-00 is deployed (Step 6):
+The storefront takes no media variable, on Cloudflare or on Vercel. The server tells it
+how images are delivered in its store configuration (`media`), so there is no
+`MEDIA_DOMAIN` step.
 
-- **If storefront is on Cloudflare Workers:**
-  ```bash
-  printf 'media.yourdomain.com' | env -u CLOUDFLARE_ACCOUNT_ID npx wrangler secret put MEDIA_DOMAIN --name <storefront-worker-name>
-  cd cod-astro/theme-00 && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
-  ```
-- **If storefront is on Vercel:**
-  ```bash
-  cd cod-astro/theme-00 && printf "media.yourdomain.com" | npx vercel env add MEDIA_DOMAIN production
-  npx vercel --prod
-  ```
-
-### 5. Redeploy cod-server with updated MEDIA_DOMAIN
+### 5. Redeploy cod-server
 
 ```bash
 cd cod-server && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
@@ -311,16 +276,28 @@ cd cod-server && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy
 
 ### Verify
 
+Ask for an upload ticket. It writes nothing; the server answers how a file would be sent:
+
 ```bash
-# presignedUrl must appear and publicUrl must start with https://media.yourdomain.com/
-curl -s -X POST https://<api-domain>/api/images/presign \
+curl -s -X POST https://<api-domain>/api/media/uploads \
   -H "Content-Type: application/json" \
   -H "X-API-Key: <admin-api-key>" \
-  -d '{"contentType":"image/jpeg"}'
+  -d '{"folder":"products","contentType":"image/jpeg","bytes":1024}'
 ```
 
-If `publicUrl` starts with the Worker URL instead of the media domain,
-`MEDIA_DOMAIN` is not set or the worker was not redeployed after setting it.
+`data.send.kind` is `form` on ImageKit (the browser posts to `upload.imagekit.io`) and
+`relay` on R2 (the browser sends the bytes to this server).
+
+Then check what the storefront is told:
+
+```bash
+curl -s -H "X-Store-API-Key: <store-api-key>" https://<api-domain>/store/config
+```
+
+Its `media` field must show the delivery and origin set in Step 1.
+
+If the ticket answers `MEDIA_NOT_CONFIGURED`, one of `MEDIA_HOST`, `MEDIA_DELIVERY` or
+`MEDIA_ORIGIN` is missing, or the ImageKit secret is not set on the Worker.
 
 ---
 
@@ -438,9 +415,6 @@ npx vercel link                                     # link or create project
 printf "vercel" | npx vercel env add DEPLOY_TARGET production
 printf "https://<your-cod-server-url>" | npx vercel env add COD_SERVER_URL production
 printf "<your-raw-store-api-key>" | npx vercel env add STORE_API_KEY production
-# If MEDIA_DOMAIN was configured:
-printf "<media.yourdomain.com>" | npx vercel env add MEDIA_DOMAIN production
-
 npx vercel --prod                                   # builds with npm run build:vercel and deploys
 ```
 
@@ -619,7 +593,7 @@ scripts.
 | **`wrangler r2 bucket create` fails** | R2 subscription not enabled on Cloudflare account | Navigate to dash.cloudflare.com → R2, add a payment card to activate the Free Tier, then retry. |
 | **Local D1 split-brain / missing tables** | Wrangler ran without `--persist-to` | Always run local migrations and commands with `--persist-to ../.wrangler-shared`. cod-client-astro's astro dev reads the same path via the adapter's `persistState`. |
 | **Better Auth 500 on sign-in** | `BETTER_AUTH_SECRET` missing | Ensure `BETTER_AUTH_SECRET` is set in `cod-client-astro/.dev.vars` (local) or via `wrangler secret put` (production). |
-| **Image uploads fail in browser** | R2 CORS not configured for PUT requests | Cloudflare dashboard → R2 → bucket → Settings → CORS Policy. Add the JSON from Step 3b with your dashboard domain in `AllowedOrigins`. |
-| **Presign returns 500 with missing credentials error** | `CF_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, or `R2_SECRET_ACCESS_KEY` not set on the Worker | Run `wrangler secret put` for all three on the cod-server worker, then redeploy. |
-| **`publicUrl` points to Worker URL instead of media domain** | `MEDIA_DOMAIN` not set in `wrangler.toml` or worker not redeployed after setting it | Set `MEDIA_DOMAIN` in `[vars]` and redeploy cod-server. For Theme-00 image resizing, also set `MEDIA_DOMAIN` as a secret on the storefront worker (or Vercel env) and redeploy. |
+| **Image uploads fail in browser** | ImageKit or the R2 host refuses the upload | ImageKit: check `IMAGEKIT_PUBLIC_KEY` and the `IMAGEKIT_PRIVATE_KEY` secret (`MEDIA_HOST_REFUSED` in the server's answer). R2: the server relays the bytes, so no CORS policy is involved. |
+| **`MEDIA_NOT_CONFIGURED` on upload** | `MEDIA_HOST`, `MEDIA_DELIVERY` or `MEDIA_ORIGIN` missing from `[vars]`, or `IMAGEKIT_PRIVATE_KEY` not set on the Worker | Set the variables (Step 3b, step 1), the secret (step 2), then redeploy cod-server. |
+| **Images show from the Worker URL instead of the store's host** | `MEDIA_ORIGIN` wrong or missing | `MEDIA_ORIGIN` must be where the host serves the store's files (the ImageKit endpoint plus the folder, or the R2 custom domain). Fix it, then redeploy cod-server. |
 

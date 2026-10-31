@@ -146,7 +146,7 @@ CodFlow v1.1.0 — here's what works today:
 - ✅ D1 scale layer: indexed hot paths, atomic batched order writes, keyset pagination
 - ✅ Auto-generated OpenAPI 3.1 spec at `/api/docs`
 - ✅ Standardized error envelopes with semantic codes
-- ✅ R2 image storage with edge caching
+- ✅ Images on ImageKit or Cloudflare R2, resized for each screen, cached immutably
 - ✅ KV-backed rate limiting
 
 **Known Limitations:**  

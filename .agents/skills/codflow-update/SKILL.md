@@ -238,7 +238,7 @@ MISSING from the live file.
   (`[[kv_namespaces]]`, `[[r2_buckets]]`, `[[d1_databases]]`, …), new
   top-level settings.
 - **Keep the user's value** for: `database_id`, KV `id`s, `bucket_name`,
-  `MEDIA_DOMAIN`, all URL vars (`WORKER_URL`, `BETTER_AUTH_URL`,
+  `MEDIA_ORIGIN`, `IMAGEKIT_FOLDER`, all URL vars (`WORKER_URL`, `BETTER_AUTH_URL`,
   `PUBLIC_APP_URL`, `PUBLIC_API_URL`, `PUBLIC_TRUSTED_ORIGINS`,
   `COD_SERVER_URL`), and every `name =` worker name. Never reset a worker
   name to the template default — that deploys onto (or creates) a DIFFERENT

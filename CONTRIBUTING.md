@@ -201,7 +201,7 @@ in gitignored `.dev.vars` files or `wrangler secret put` in production.
 | `MEDIA_HOST`, `MEDIA_DELIVERY`, `MEDIA_ORIGIN`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_FOLDER` | `cod-server` | where the store's media is kept and how browsers fetch it (ADR 0021) |
 | `PUBLIC_APP_URL`, `PUBLIC_API_URL`, `PUBLIC_TRUSTED_ORIGINS` | `cod-client-astro` (wrangler `[vars]`) | dashboard origin, API origin, auth cookie origins |
 | `PUBLIC_API_URL` | `cod-client-astro` (`.dev.vars`, local only) | the API origin local development builds against — never in `.env`, where it is ignored |
-| `COD_SERVER_URL`, `STORE_API_KEY`, `MEDIA_DOMAIN` | `cod-astro/theme-00` | backend base URL + store key + media CDN |
+| `COD_SERVER_URL`, `STORE_API_KEY` | `cod-astro/theme-00` | backend base URL + store key |
 | `BETTER_AUTH_SECRET`, `MCP_LOGIN_TICKET_SECRET`, `IMAGEKIT_PRIVATE_KEY` | all | secrets — never in a wrangler config file |
 
 ---

@@ -101,13 +101,11 @@ npm run deploy                 # default environment
 npm run deploy -- --env production   # after editing [env.production] in wrangler.toml
 ```
 
-R2 credentials (`CF_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`)
-must be set as secrets in production, not in `wrangler.toml`:
+The ImageKit private key is a secret in production, not a `wrangler.toml` value, and
+only needed with `MEDIA_HOST = "imagekit"`:
 
 ```bash
-wrangler secret put CF_ACCOUNT_ID
-wrangler secret put R2_ACCESS_KEY_ID
-wrangler secret put R2_SECRET_ACCESS_KEY
+wrangler secret put IMAGEKIT_PRIVATE_KEY --env production
 ```
 
 ## Environment Variables
@@ -118,8 +116,10 @@ wrangler secret put R2_SECRET_ACCESS_KEY
 |----------|---------|---------------|
 | `ENVIRONMENT` | `development` \| `production` | `development` |
 | `WORKER_URL` | Public URL of this Worker (used in OpenAPI docs) | `http://localhost:8787` |
-| `MEDIA_DOMAIN` | Domain fronting the R2 bucket (public image URLs) | `media.example.com` |
-| `R2_BUCKET_NAME` | R2 bucket name | `codflow-images` |
+| `MEDIA_HOST` | Where images are kept: `r2` (the `MEDIA_BUCKET` bucket) or `imagekit` | `r2` |
+| `MEDIA_DELIVERY` | How browsers fetch them: `direct` (as kept), `cloudflare` (resized by Cloudflare) or `imagekit` | `direct` |
+| `MEDIA_ORIGIN` | Where the store's files are served from | `http://localhost:8787/media` |
+| `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_FOLDER` | With `MEDIA_HOST = "imagekit"` only | — |
 | `BETTER_AUTH_URL` | Dashboard Worker's Better Auth origin — `iss` + JWKS source for the JWTs the dashboard issues | `http://localhost:4321/api/auth` |
 | `WORKER_SELF_URL` | This Worker's own origin — required `aud` claim for MCP tokens | `http://localhost:8787/` |
 
@@ -132,9 +132,7 @@ wrangler secret put R2_SECRET_ACCESS_KEY
 | `MCP_LOGIN_TICKET_SECRET` | HMAC key for the MCP OAuth login-ticket relay — must match cod-client-astro's |
 | `MCP_REQUEST_STATE_KEY` | HMAC key sealing stateless MCP elicitation state |
 | `COOKIE_ENCRYPTION_KEY` | Cookie-encryption key for the OAuth consent flow |
-| `CF_ACCOUNT_ID` | Cloudflare account id — builds the R2 S3 endpoint |
-| `R2_ACCESS_KEY_ID` | R2 API token access key (presigned image uploads) |
-| `R2_SECRET_ACCESS_KEY` | R2 API token secret |
+| `IMAGEKIT_PRIVATE_KEY` | ImageKit private key, with `MEDIA_HOST = "imagekit"` only |
 
 ## Project Structure
 
@@ -184,7 +182,7 @@ Public routes: `/`, `/health`, `/images`, `/api` (OpenAPI spec + docs),
 - `/api/event-consumers`, `/api/event-deliveries` — webhooks (Integrations) and the Apps' Built-in Consumers, each seen with its owner's permission
 - `/api/users` — staff/admin + API keys
 - `/api/analytics`, `/api/activity-logs`, `/api/abandoned-orders`
-- `/api/images` — R2 presigned upload
+- `/api/media` — image uploads: a ticket, the bytes, then confirmation; a store's own files are served at `/media/:key`
 - `/api/mcp` — MCP agent connection management (`/me`, `/team`; the `/mcp` endpoint itself serves the MCP protocol)
 
 ## Notable Subsystems
