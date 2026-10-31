@@ -23,4 +23,9 @@ export type LayoutStrings = {
   footerRights: string;
   /** The footer's WhatsApp button, when the store's widget has no label of its own. */
   footerWhatsapp: string;
+  /** A social link's accessible name, by network, when the merchant gave it no label. */
+  socialInstagram: string;
+  socialFacebook: string;
+  socialTiktok: string;
+  socialYoutube: string;
 };

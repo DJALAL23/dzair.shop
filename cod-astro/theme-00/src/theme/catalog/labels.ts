@@ -84,6 +84,9 @@ export const FIELD = {
   autoplay: text("تبديل الرسائل تلقائياً", "Faire défiler les messages", "Rotate messages"),
   about: text("نبذة", "Présentation", "About text"),
   showWhatsapp: text("زر واتساب", "Bouton WhatsApp", "WhatsApp button"),
+  socialLinks: text("روابط التواصل الاجتماعي", "Réseaux sociaux", "Social links"),
+  network: text("الشبكة", "Réseau", "Network"),
+  socialLabel: text("الاسم (اختياري)", "Nom (facultatif)", "Name (optional)"),
   showLanguages: text("إظهار اختيار اللغة", "Afficher le choix de langue", "Show language picker"),
   scheme: text("الألوان", "Couleurs", "Colors"),
   style: text("المسافات والعرض", "Espacement et largeur", "Spacing and width"),
@@ -119,6 +122,10 @@ export const FIELD = {
 
 /** The words an editor shows for a select field's options. */
 export const OPTION = {
+  instagram: text("إنستغرام", "Instagram", "Instagram"),
+  facebook: text("فيسبوك", "Facebook", "Facebook"),
+  tiktok: text("تيك توك", "TikTok", "TikTok"),
+  youtube: text("يوتيوب", "YouTube", "YouTube"),
   orderFirst: text("الطلب أولاً", "Commander d'abord", "Order first"),
   cartFirst: text("السلة أولاً", "Panier d'abord", "Cart first"),
   side: text("بجانب الصورة", "À côté", "Beside"),

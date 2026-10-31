@@ -42,6 +42,11 @@ const SHARED_UI_LABELS = new Set([
   "viewAllCta",
   "allProductsSection",
   "footerWhatsapp",
+  // A social link's accessible name when the merchant gave it none.
+  "socialInstagram",
+  "socialFacebook",
+  "socialTiktok",
+  "socialYoutube",
   // Facts about a product, worded once: stock, reviews, the saving.
   "productReviewCount",
   "productInStock",

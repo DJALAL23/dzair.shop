@@ -16,6 +16,7 @@
 import { testLocals } from "../../../__tests__/support/locals";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import FooterPages from "@/theme/components/footer/FooterPages.astro";
+import FooterAbout from "@/theme/components/footer/FooterAbout.astro";
 import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en } from "@/theme/content/en";
 import type { StoreConfig, StorePageLink } from "@wocart/storefront";
@@ -74,5 +75,33 @@ describe("Footer — the policy links column", () => {
     });
     expect(html).toContain('href="/pages/conditions-generales"');
     expect(html).toContain("Conditions Générales de Vente");
+  });
+});
+
+describe("Footer — the about column", () => {
+  async function about(props: Record<string, unknown>, config: StoreConfig = DEFAULT_CONFIG): Promise<string> {
+    const container = await AstroContainer.create();
+    return container.renderToString(FooterAbout, { props: { showWhatsapp: false, ...props }, locals: testLocals({ config }) });
+  }
+  const link = (network: string, href: string, label = "") => ({ id: `s-${network}`, network, href, label });
+
+  it("links each social page the merchant added, in a new tab that cannot reach back", async () => {
+    const html = await about({ socialLinks: [link("instagram", "https://instagram.com/store"), link("tiktok", "https://tiktok.com/@store", "Our TikTok")] });
+    expect(html.match(/<a href="https:\/\/(instagram|tiktok)\.com[^>]*target="_blank" rel="noopener noreferrer"/g)).toHaveLength(2);
+    expect(html).toContain(`aria-label="${en.socialInstagram}"`);
+    expect(html).toContain('aria-label="Our TikTok"');
+  });
+
+  it("draws nothing for a social link without an address, and no list without links", async () => {
+    expect(await about({ socialLinks: [link("facebook", "")] })).not.toContain("footer-social");
+    expect(await about({})).not.toContain("footer-social");
+  });
+
+  it("shows the store's logo, or its name when it has none", async () => {
+    const withLogo = await about({}, { ...DEFAULT_CONFIG, name: "Maya", logo: { key: "logo.png", url: "https://media.example.test/logo.png", width: 400, height: 120 } } as StoreConfig);
+    expect(withLogo).toMatch(/<img[^>]*alt="Maya"/);
+    const withoutLogo = await about({}, { ...DEFAULT_CONFIG, name: "Maya", logo: null });
+    expect(withoutLogo).not.toContain("<img");
+    expect(withoutLogo).toContain("<span>Maya</span>");
   });
 });

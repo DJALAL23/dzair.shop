@@ -19,4 +19,8 @@ export const enLayout: LayoutStrings = {
   footerSupport: "Customer Support",
   footerRights: "All rights reserved",
   footerWhatsapp: "Chat with us on WhatsApp",
+  socialInstagram: "Instagram",
+  socialFacebook: "Facebook",
+  socialTiktok: "TikTok",
+  socialYoutube: "YouTube",
 };

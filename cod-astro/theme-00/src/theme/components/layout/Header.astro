@@ -35,7 +35,7 @@ const centered = logoPosition === "center";
     )}
     <a href={store.href("/")} class="header-logo" aria-label={config.name}>
       {config.logo ? (
-        <Image src={config.logo.url} alt={config.name} width={480} height={160} quality={90} loading="eager" decoding="async" />
+        <Image src={config.logo.url} alt={config.name} width={480} height={160} fit="scale-down" quality={90} loading="eager" decoding="async" />
       ) : (
         <span class="header-name">{config.name}</span>
       )}

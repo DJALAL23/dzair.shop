@@ -19,4 +19,8 @@ export const frLayout: LayoutStrings = {
   footerSupport: "Support client",
   footerRights: "Tous droits réservés",
   footerWhatsapp: "Écrivez-nous sur WhatsApp",
+  socialInstagram: "Instagram",
+  socialFacebook: "Facebook",
+  socialTiktok: "TikTok",
+  socialYoutube: "YouTube",
 };

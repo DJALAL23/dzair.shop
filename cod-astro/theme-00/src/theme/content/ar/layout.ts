@@ -19,4 +19,8 @@ export const arLayout: LayoutStrings = {
   footerSupport: "خدمة العملاء",
   footerRights: "جميع الحقوق محفوظة",
   footerWhatsapp: "تواصل معنا عبر واتساب",
+  socialInstagram: "إنستغرام",
+  socialFacebook: "فيسبوك",
+  socialTiktok: "تيك توك",
+  socialYoutube: "يوتيوب",
 };
