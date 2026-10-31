@@ -37,7 +37,15 @@ function formatDate(val: string): string {
   return Number.isNaN(d.getTime()) ? val.slice(0, 10) : dateFormat.format(d);
 }
 const starLabel = (n: number) => message(copy, "ariaStarRating", { count: n }, locale);
-const playerCopy = { label: copy.reviewsVoiceNote, play: copy.reviewsPlayVoice, pause: copy.reviewsPauseVoice, seek: copy.reviewsSeekVoice };
+const playerCopy = {
+  label: copy.reviewsVoiceNote,
+  play: copy.reviewsPlayVoice,
+  pause: copy.reviewsPauseVoice,
+  seek: copy.reviewsSeekVoice,
+  retry: copy.reviewsVoiceRetry,
+  error: copy.reviewsVoiceError,
+  position: copy.reviewsVoicePosition,
+};
 const photoLabel = (index: number) => message(copy, "reviewsOpenPhoto", { index }, locale);
 const photos = (review: Review) => review.media.filter((item: ReviewMedia) => item.kind === "image");
 const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.kind === "audio") ?? null;
@@ -273,6 +281,9 @@ const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.
         const player = holder.querySelector("[data-voice]");
         player.querySelector("[data-voice-audio]").src = voice.url;
         player.dataset.durationMs = String(Number(voice.durationMs) > 0 ? Number(voice.durationMs) : 0);
+        const seek = player.querySelector("[data-voice-seek]");
+        seek.max = String(Math.max(1, Math.round(Number(player.dataset.durationMs) / 1000)));
+        seek.disabled = player.dataset.durationMs === "0";
         const length = formatDuration(voice.durationMs);
         player.querySelector("[data-voice-time]").textContent = length ? "0:00 / " + length : "0:00";
         holder.hidden = false;

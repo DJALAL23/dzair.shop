@@ -1,40 +1,64 @@
 ---
-// A review's voice note in the theme's own player: a round play button, a
+// A review's voice note in the theme's own player: a round play button that
+// turns into a spinner while the note loads and a retry if it fails, a
 // position track and the time. The audio is not fetched until it is played
 // (`preload="none"`), and the controls are drawn here rather than by the
 // browser, so the player looks the same on every browser and in both
 // languages. Its behaviour is `scripts/voice-player.ts`.
 import { Icon } from "astro-icon/components";
 import { formatClock } from "@/theme/utils/clock";
+import { message } from "@/theme/content/messages";
 
 interface Props {
   /** The note's address; empty for a card a script fills in later. */
   src: string;
   /** The note's length; null while it is not known. */
   durationMs: number | null;
-  copy: { label: string; play: string; pause: string; seek: string };
+  copy: { label: string; play: string; pause: string; seek: string; retry: string; error: string; position: string };
 }
 
 const { src, durationMs, copy } = Astro.props;
 const length = durationMs && durationMs > 0 ? durationMs : 0;
+const total = formatClock(length);
+const position = message({ position: copy.position }, "position", { elapsed: formatClock(0), total }, Astro.locals.store.locale);
 ---
 
 <div
   class="voice"
   data-voice
+  data-state="idle"
   role="group"
   aria-label={copy.label}
+  aria-busy="false"
   data-duration-ms={length}
   data-play-label={copy.play}
   data-pause-label={copy.pause}
+  data-retry-label={copy.retry}
+  data-error-label={copy.error}
+  data-position-label={copy.position}
 >
   <audio data-voice-audio preload="none" src={src || undefined}></audio>
   <button type="button" class="voice-toggle" data-voice-toggle aria-label={copy.play}>
-    <Icon name="heroicons:play-solid" class="voice-play" aria-hidden="true" />
-    <Icon name="heroicons:pause-solid" class="voice-pause" aria-hidden="true" />
+    <Icon name="heroicons:play-solid" class="voice-icon voice-play" aria-hidden="true" />
+    <Icon name="heroicons:pause-solid" class="voice-icon voice-pause" aria-hidden="true" />
+    <Icon name="heroicons:arrow-path" class="voice-icon voice-retry" aria-hidden="true" />
+    <span class="voice-spinner" aria-hidden="true"></span>
   </button>
-  <input type="range" dir="ltr" class="voice-seek" data-voice-seek min="0" max="1000" step="1" value="0" aria-label={copy.seek} />
-  <span class="voice-time num" dir="ltr" data-voice-time>0:00 / {formatClock(length)}</span>
+  <input
+    type="range"
+    dir="ltr"
+    class="voice-seek"
+    data-voice-seek
+    min="0"
+    max={Math.max(1, Math.round(length / 1000))}
+    step="1"
+    value="0"
+    disabled={length === 0}
+    aria-label={copy.seek}
+    aria-valuetext={position}
+  />
+  <span class="voice-time num" dir="ltr" data-voice-time aria-hidden="true">0:00 / {total}</span>
+  <span class="voice-error" data-voice-error role="status" aria-live="polite"></span>
 </div>
 
 <script>
@@ -47,6 +71,7 @@ const length = durationMs && durationMs > 0 ? durationMs : 0;
 <style>
   .voice {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
     min-width: 0;
@@ -69,9 +94,15 @@ const length = durationMs && durationMs > 0 ? durationMs : 0;
   }
   .voice-toggle:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 2px; }
   .voice-toggle :global(svg) { width: 1rem; height: 1rem; }
-  .voice-pause { display: none; }
-  .voice.is-playing .voice-play { display: none; }
-  .voice.is-playing .voice-pause { display: block; }
+  .voice-toggle :global(.voice-icon) { display: none; }
+  .voice:is([data-state="idle"], [data-state="paused"]) .voice-toggle :global(.voice-play),
+  .voice[data-state="playing"] .voice-toggle :global(.voice-pause),
+  .voice[data-state="error"] .voice-toggle :global(.voice-retry) { display: block; }
+  .voice[data-state="error"] .voice-toggle { background: var(--clr-error); }
+  .voice-spinner { display: none; width: 1.125rem; height: 1.125rem; border: 2px solid currentColor; border-inline-end-color: transparent; border-radius: var(--radius-round); animation: voice-spin 0.8s linear infinite; }
+  .voice[data-state="loading"] .voice-spinner { display: block; }
+  @keyframes voice-spin { to { transform: rotate(1turn); } }
+  @media (prefers-reduced-motion: reduce) { .voice-spinner { animation-duration: 2.4s; } }
   .voice-seek {
     flex: 1;
     min-width: 0;
@@ -109,10 +140,13 @@ const length = durationMs && durationMs > 0 ? durationMs : 0;
     background: var(--clr-ink);
   }
   .voice-seek:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 3px; }
+  .voice-seek:disabled { cursor: default; opacity: 0.6; }
   .voice-time {
     flex: none;
     color: var(--clr-text);
     font-size: var(--text-xs);
     font-variant-numeric: tabular-nums;
   }
+  .voice-error { flex-basis: 100%; color: var(--clr-error); font-size: var(--text-xs); }
+  .voice-error:empty { display: none; }
 </style>

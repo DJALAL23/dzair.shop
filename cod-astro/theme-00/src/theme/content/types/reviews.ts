@@ -31,6 +31,11 @@ export type ReviewsStrings = Plural<"reviewFormPhotosHint"> & Plural<"reviewForm
   reviewsPlayVoice: string;
   reviewsPauseVoice: string;
   reviewsSeekVoice: string;
+  /** "{elapsed}", "{total}": where the note is, as a screen reader says it. */
+  reviewsVoicePosition: string;
+  /** The note could not be played; its button then retries. */
+  reviewsVoiceError: string;
+  reviewsVoiceRetry: string;
   /** "{index}": which photo. */
   reviewsOpenPhoto: string;
   reviewsClosePhoto: string;

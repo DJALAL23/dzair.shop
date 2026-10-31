@@ -13,12 +13,21 @@ import { describe, expect, it } from "vitest";
 import VoicePlayer from "../VoicePlayer.astro";
 import { en } from "@/theme/content/en";
 import { fr } from "@/theme/content/fr";
+import { testLocals } from "@/theme/__tests__/support/locals";
 
-const copy = (pack: typeof en) => ({ label: pack.reviewsVoiceNote, play: pack.reviewsPlayVoice, pause: pack.reviewsPauseVoice, seek: pack.reviewsSeekVoice });
+const copy = (pack: typeof en) => ({
+  label: pack.reviewsVoiceNote,
+  play: pack.reviewsPlayVoice,
+  pause: pack.reviewsPauseVoice,
+  seek: pack.reviewsSeekVoice,
+  retry: pack.reviewsVoiceRetry,
+  error: pack.reviewsVoiceError,
+  position: pack.reviewsVoicePosition,
+});
 
 async function render(props: { src: string; durationMs: number | null }, pack = en) {
   const container = await AstroContainer.create();
-  return container.renderToString(VoicePlayer, { props: { ...props, copy: copy(pack) } });
+  return container.renderToString(VoicePlayer, { props: { ...props, copy: copy(pack) }, locals: testLocals() });
 }
 
 describe("the voice note player", () => {
@@ -45,9 +54,19 @@ describe("the voice note player", () => {
     expect(html).toContain('data-duration-ms="65400"');
   });
 
-  it("starts from an empty source for a card a script fills in later", async () => {
+  it("is a group a screen reader can follow: a one-second track that never mirrors, its position in words, a place for its error", async () => {
+    const html = await render({ src: "/a.webm", durationMs: 65_400 });
+    expect(html).toMatch(/role="group"[^>]*aria-label="Voice review"/);
+    expect(html).toMatch(/<input type="range" dir="ltr"[^>]*max="65" step="1"/);
+    expect(html).toContain('aria-valuetext="0:00 of 1:05"');
+    expect(html).toMatch(/data-voice-error role="status" aria-live="polite"/);
+    expect(html).toContain(`data-retry-label="${en.reviewsVoiceRetry}"`);
+  });
+
+  it("starts from an empty source for a card a script fills in later, its track waiting for a length", async () => {
     const html = await render({ src: "", durationMs: null });
     expect(html).toContain("0:00 / 0:00");
     expect(html).not.toMatch(/<audio[^>]*\ssrc=/);
+    expect(html).toMatch(/<input type="range"[^>]*disabled/);
   });
 });
