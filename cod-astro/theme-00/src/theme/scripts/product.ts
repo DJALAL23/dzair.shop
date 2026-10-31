@@ -21,7 +21,7 @@ import { trackProductInitiateCheckout, trackViewContent } from "./pixel";
 import { initCustomFields } from "./custom-fields";
 import { initRequiredSelects } from "./select-required";
 // One money formatter for the whole theme — see utils/money.ts.
-import { formatAmount } from "../utils/money";
+import { formatAmount, formatCurrency } from "../utils/money";
 // The product page's one SSR→browser contract — see bridges/.
 import { readProductPageData } from "../bridges/product-page-data";
 import {
@@ -289,7 +289,7 @@ export function initProductPage(): () => void {
 
     // 1. Update main price displays
     document.querySelectorAll<HTMLElement>("#price-display-desktop, #price-display-mobile").forEach((el) => {
-      el.innerHTML = `${formatAmount(currentPrice)} <span style="font-size:.6em;font-weight:700"> ${cur}</span>`;
+      el.innerHTML = `${formatAmount(currentPrice)}&nbsp;<span style="font-size:.6em;font-weight:700">${cur}</span>`;
     });
     // The sticky bar is the order in short: what the chosen quantity, offer
     // and code cost, as the summary says it — never the price of one piece.
@@ -301,7 +301,7 @@ export function initProductPage(): () => void {
 
     // 2. Update order summary rows
     const summaryItemPrice = document.getElementById("summary-item-price");
-    if (summaryItemPrice) summaryItemPrice.textContent = itemTotal === null ? "…" : `${formatAmount(itemTotal + couponOff)} ${cur}`;
+    if (summaryItemPrice) summaryItemPrice.textContent = itemTotal === null ? "…" : formatCurrency(itemTotal + couponOff, cur);
     
     const summaryQtyLabel = document.getElementById("summary-qty-label");
     if (summaryQtyLabel) summaryQtyLabel.textContent = `${qty} ×`;
@@ -315,16 +315,16 @@ export function initProductPage(): () => void {
     } else if (shippingEl && totalEl && itemTotal !== null) {
       if (undeliverable) {
         shippingEl.textContent = shippingUnavailable;
-        totalEl.textContent = `${formatAmount(itemTotal)} ${cur}`;
+        totalEl.textContent = formatCurrency(itemTotal, cur);
       } else if (isNaN(currentShipping)) {
         shippingEl.textContent = shippingCalc;
-        totalEl.textContent = `${formatAmount(itemTotal)} ${cur}`;
+        totalEl.textContent = formatCurrency(itemTotal, cur);
       } else if (currentShipping === 0) {
         shippingEl.textContent = shippingFree;
-        totalEl.textContent = `${formatAmount(itemTotal)} ${cur}`;
+        totalEl.textContent = formatCurrency(itemTotal, cur);
       } else {
-        shippingEl.textContent = `${formatAmount(currentShipping)} ${cur}`;
-        totalEl.textContent = `${formatAmount(itemTotal + currentShipping)} ${cur}`;
+        shippingEl.textContent = formatCurrency(currentShipping, cur);
+        totalEl.textContent = formatCurrency(itemTotal + currentShipping, cur);
       }
     }
 
@@ -346,7 +346,7 @@ export function initProductPage(): () => void {
     const label = row.querySelector<HTMLElement>("[data-coupon-label]");
     const amount = row.querySelector<HTMLElement>("[data-coupon-amount]");
     if (label) label.textContent = embeddedTemplate(row.dataset.labelTemplate ?? "{code}", { code: applied.code });
-    if (amount) amount.textContent = `−${formatAmount(applied.discount)} ${cur}`;
+    if (amount) amount.textContent = `−${formatCurrency(applied.discount, cur)}`;
   }
 
   // ── VARIANT OPTION CLICKS ──────────────────────────────────────────────────

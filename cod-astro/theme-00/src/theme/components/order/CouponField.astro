@@ -33,7 +33,6 @@ const refused = couponRefusal ? couponNotice({ applied: false, ...couponRefusal 
     data-coupon-toggle
     aria-expanded={refused ? "true" : "false"}
     aria-controls="coupon-box"
-    hidden={refused !== null}
   >
     <Icon name="heroicons:tag" class="h-4 w-4 shrink-0" aria-hidden="true" />
     <span>{content.couponToggle}</span>

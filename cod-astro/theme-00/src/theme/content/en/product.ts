@@ -9,7 +9,7 @@ export const enProduct: ProductStrings = {
   productInStock: "In stock",
   productReviewCount_one: "{count} review",
   productReviewCount_other: "{count} reviews",
-  productSaving: "Save {amount} {currency}",
+  productSaving: "Save {amount}\u00A0{currency}",
   productDeliveryNote: "Delivery to all 58 wilayas, to your home or a courier desk",
   productCountdownLabel: "Offer ends in",
   productDescriptionTitle: "Description",

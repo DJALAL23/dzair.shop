@@ -31,7 +31,7 @@ export const arMisc: MiscStrings = {
   pagerPageOf: "الصفحة {page} من {pages}",
   reviewFormMinLengthError: "اكتب 10 أحرف على الأقل، أو أضف رسالة صوتية",
   reviewFormRatingRequired: "يرجى اختيار تقييم من 1 إلى 5 نجوم",
-  offerSavingsText: "توفير {amount} {currency}",
+  offerSavingsText: "توفير {amount}\u00A0{currency}",
   offerUnitLabel: "الوحدة {n}",
   ariaMainNavigation: "التنقل الرئيسي",
   ariaLanguageSwitcher: "اللغة",

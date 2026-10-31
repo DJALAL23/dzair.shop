@@ -30,7 +30,7 @@ describe("message — the real packs", () => {
   });
 
   it("fills every placeholder with this theme's digits", () => {
-    expect(message(ar, "offerSavingsText", { amount: "4.500", currency: "دج" }, "ar")).toBe("توفير 4.500 دج");
+    expect(message(ar, "offerSavingsText", { amount: "4.500", currency: "دج" }, "ar")).toBe("توفير 4.500\u00A0دج");
     expect(message(en, "ariaGoToImage", { n: 2, total: 12 }, "en")).toContain("2");
   });
 });

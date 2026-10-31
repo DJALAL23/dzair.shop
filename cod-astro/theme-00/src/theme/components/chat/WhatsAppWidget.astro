@@ -144,7 +144,13 @@ const ctaBg = isPrimary ? "var(--clr-primary)" : "var(--clr-whatsapp-deep)";
 
 <style>
   .wa-launcher {
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, opacity 0.2s ease, visibility 0.2s;
+  }
+  .wa-widget[data-yield="true"] .wa-launcher {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(0.75rem);
+    pointer-events: none;
   }
   .wa-launcher:hover {
     transform: scale(1.05);

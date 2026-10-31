@@ -5,7 +5,7 @@
 import type { InferProps } from "@wocart/theme";
 import { getProductView, type Product } from "@wocart/storefront";
 import { message } from "@/theme/content/messages";
-import { formatAmount } from "@/theme/utils/money";
+import { formatAmount, formatCurrency } from "@/theme/utils/money";
 import type { productPrice } from "@/theme/catalog/product/product-main.def";
 
 type Props = InferProps<typeof productPrice> & { product: Product | null };
@@ -19,7 +19,7 @@ const saving = view && view.hasDiscount && view.comparePrice != null ? view.comp
 {view && (
   <div class="product-price">
     <span class:list={["price product-price-now", view.hasDiscount && "is-sale"]} id="price-display-desktop">{formatAmount(view.basePrice)}<span class="price-cur">{cur}</span></span>
-    {view.hasDiscount && view.comparePrice != null && <span class="price-was">{formatAmount(view.comparePrice)} {cur}</span>}
+    {view.hasDiscount && view.comparePrice != null && <span class="price-was">{formatCurrency(view.comparePrice, cur)}</span>}
     {showSaving && saving > 0 && <span class="product-saving num">{message(content, "productSaving", { amount: formatAmount(saving), currency: cur }, locale)}</span>}
   </div>
 )}

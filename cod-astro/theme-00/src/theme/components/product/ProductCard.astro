@@ -9,7 +9,7 @@ import { Image } from "astro:assets";
 import { getProductListView, getProductView, type Product, type ProductList } from "@wocart/storefront";
 import type { ProductCardCopy } from "@/theme/bridges/island-props";
 import { Icon } from "astro-icon/components";
-import { formatAmount } from "@/theme/utils/money";
+import { formatAmount, formatCurrency } from "@/theme/utils/money";
 import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
@@ -108,16 +108,18 @@ const filled = rating ? Math.round(rating.avgRating) : 0;
     <p class="card-name">{product.name}</p>
     <p class="card-price">
       <span class:list={["price", hasDiscount && "is-sale"]}>{formatAmount(basePrice)}<span class="price-cur">{currencySymbol}</span></span>
-      {hasDiscount && comparePrice != null && <span class="price-was">{formatAmount(comparePrice)} {currencySymbol}</span>}
+      {hasDiscount && comparePrice != null && <span class="price-was">{formatCurrency(comparePrice, currencySymbol)}</span>}
     </p>
   </div>
 </a>
 
 <style>
+  /* The card fills its cell, so every price of a row sits on the same line. */
   .product-card {
     display: flex;
     flex-direction: column;
     gap: 0.625rem;
+    height: 100%;
     min-width: 0;
     color: var(--clr-ink);
     text-decoration: none;

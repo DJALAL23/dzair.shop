@@ -20,7 +20,7 @@ export const frCart: CartStrings = {
   cartIncreaseLabel: "Augmenter la quantité",
   cartDecreaseLabel: "Diminuer la quantité",
   cartFreeDeliveryEarned: "Livraison gratuite débloquée",
-  cartFreeDeliveryRemaining: "Ajoutez {amount} {currency} pour la livraison gratuite",
+  cartFreeDeliveryRemaining: "Ajoutez {amount}\u00A0{currency} pour la livraison gratuite",
   cartLineUnavailable: "Plus disponible",
   cartLineOutOfStock_one: "Il n'en reste que {count}",
   cartLineOutOfStock_many: "Il n'en reste que {count}",

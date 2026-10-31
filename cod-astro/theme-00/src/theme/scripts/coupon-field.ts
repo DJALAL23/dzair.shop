@@ -78,10 +78,10 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
   /** The shopper submitted while the code was being checked: place the order once it applies. */
   let submitWhenApplied = false;
 
-  function open(): void {
-    box!.hidden = false;
-    toggle!.hidden = true;
-    toggle!.setAttribute("aria-expanded", "true");
+  /** The link stays: it opens the code box and closes it again; a code already applied stays applied. */
+  function show(open: boolean): void {
+    box!.hidden = !open;
+    toggle!.setAttribute("aria-expanded", String(open));
   }
 
   function say(message: string, tone?: CouponNotice["tone"]): void {
@@ -103,8 +103,8 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
   }
 
   toggle.addEventListener("click", () => {
-    open();
-    input.focus();
+    show(box.hidden !== false);
+    if (!box.hidden) input.focus();
   });
   apply.addEventListener("click", () => use(input.value.trim() || undefined));
   remove.addEventListener("click", () => {
@@ -149,7 +149,7 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
   const start = brought ?? remembered();
   if (start && !input.value) {
     input.value = start;
-    open();
+    show(true);
     applied = start;
   }
 

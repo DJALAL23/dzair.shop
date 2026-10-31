@@ -2,7 +2,7 @@
 import { Image } from "astro:assets";
 import { getOfferTierView, getProductView, getQuantityTierViews, optionStates, productImageSource, type Offer, type OptionSelection, type ProductDetail } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
-import { formatAmount } from "@/theme/utils/money";
+import { formatAmount, formatCurrency } from "@/theme/utils/money";
 import { safeHex } from "@/theme/utils/brand";
 import { message } from "@/theme/content/messages";
 import { Icon } from "astro-icon/components";
@@ -60,7 +60,7 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
         </span>
         <span class="tier-name">{content.offerBuyOne}</span>
         <span class="tier-price" id="tier-price-base">{formatAmount(basePrice)}<span class="price-cur">{cur}</span></span>
-        {comparePrice != null && <span class="tier-was">{formatAmount(comparePrice)} {cur}</span>}
+        {comparePrice != null && <span class="tier-was">{formatCurrency(comparePrice, cur)}</span>}
       </label>
 
       {tiers.map(({ offer, view }) => {
@@ -84,7 +84,7 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
             </span>
             <span class="tier-name">{offer.name}</span>
             <span class="tier-price" id={`tier-price-${offer.id}`}>{formatAmount(view.price)}<span class="price-cur">{cur}</span></span>
-            {view.comparePrice != null && <span class="tier-was">{formatAmount(view.comparePrice)} {cur}</span>}
+            {view.comparePrice != null && <span class="tier-was">{formatCurrency(view.comparePrice, cur)}</span>}
             {view.isFreeShipping ? (
               <span class="tier-reward">{content.offerFreeShippingBadge}</span>
             ) : (
@@ -188,7 +188,7 @@ const bestId = tiers.reduce<{ id: string | null; saved: number }>(
             <span class="tier-qty">{message(content, "offerQuantity", { count: tier.quantity }, locale)}</span>
             <span class="tier-check" aria-hidden="true"><Icon name="heroicons:check" /></span>
             <span class="tier-price">{formatAmount(tier.price)}<span class="price-cur">{cur}</span></span>
-            <span class="tier-name">{message(content, "qtyTierEach", { price: `${formatAmount(tier.perUnit)} ${cur}` }, locale)}</span>
+            <span class="tier-name">{message(content, "qtyTierEach", { price: formatCurrency(tier.perUnit, cur) }, locale)}</span>
             {tier.savePct > 0 && <span class="tier-save">{message(content, "qtyTierSave", { pct: tier.savePct }, locale)}</span>}
             {tier.freeShipping && <span class="tier-reward">{content.offerFreeShippingBadge}</span>}
           </button>

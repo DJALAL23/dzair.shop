@@ -5,7 +5,7 @@ import Area from "@/theme/components/surface/Area.astro";
 import CartDrawer from "@/theme/components/cart/CartDrawer.astro";
 import MobileNav from "@/theme/components/layout/MobileNav.astro";
 import WhatsAppWidget from "@/theme/components/chat/WhatsAppWidget.astro";
-import { alternateLinks, canonicalUrl, matchStorefrontPath, showsWidgetOn } from "@wocart/storefront";
+import { alternateLinks, canonicalUrl, localWhatsAppWidget, matchStorefrontPath, showsWidgetOn } from "@wocart/storefront";
 import { message } from "@/theme/content/messages";
 import type { StoreConfig } from "@wocart/storefront";
 import { schemeClass } from "@wocart/theme";
@@ -52,6 +52,7 @@ const pageMotion = {
 
 const store = Astro.locals.store;
 const config = Astro.props.config ?? store.config;
+const whatsapp = localWhatsAppWidget(config);
 const content = store.content;
 const locale = store.locale;
 const isRTL = store.isRTL;
@@ -118,9 +119,9 @@ const fonts = { body: themeFont(settings.font, BODY_FONT), heading: themeFont(se
     {/* WhatsApp Chat Widget — merchant-configurable contact handoff.
         Rendered only when configured, non-null, and enabled on the current surface. 
         EXCEPTION: On thank-you page, we show an inline button instead of the floating widget. */}
-    {config.whatsapp && showsWidgetOn(config.whatsapp.surfaces, store.pathname) && matchStorefrontPath(store.pathname)?.type !== "thankYou" && (
+    {whatsapp && showsWidgetOn(whatsapp.surfaces, store.pathname) && matchStorefrontPath(store.pathname)?.type !== "thankYou" && (
       <>
-        <WhatsAppWidget widget={config.whatsapp} content={content} config={config} />
+        <WhatsAppWidget widget={whatsapp} content={content} config={config} />
         {/* Imported for side effect: binds on every page through onEachPage */}
         <script>
           import "@/theme/scripts/whatsapp-widget";

@@ -8,6 +8,7 @@
  * - Click-outside dismissal
  * - Dynamic prefill resolution at click time
  * - One-time session attention pulse (~8s) suppressed under reduced motion
+ * - Steps aside while an order form runs under it, so it never covers the form
  */
 
 import {
@@ -153,6 +154,30 @@ export function initWhatsAppWidget(
     updateCtaHref();
   }
 
+  // The closed launcher steps aside while an order form runs under it: in the
+  // screen's bottom band, on the launcher's side.
+  const forms = document.querySelectorAll("form.order-form, #checkout-form");
+  const underLauncher = new Set<Element>();
+  const besideLauncher = (form: Element) => {
+    const a = form.getBoundingClientRect();
+    const b = launcherEl.getBoundingClientRect();
+    return a.left < b.right && a.right > b.left;
+  };
+  const watch =
+    forms.length > 0 && "IntersectionObserver" in window
+      ? new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting && besideLauncher(entry.target)) underLauncher.add(entry.target);
+              else underLauncher.delete(entry.target);
+            }
+            rootEl.dataset.yield = String(underLauncher.size > 0 && panelEl.hidden);
+          },
+          { rootMargin: "-80% 0px 0px 0px" },
+        )
+      : null;
+  forms.forEach((form) => watch?.observe(form));
+
   // Bind event listeners
   launcherEl.addEventListener("click", onLauncherClick);
   closeBtnEl.addEventListener("click", onCloseClick);
@@ -163,6 +188,7 @@ export function initWhatsAppWidget(
   // Return teardown
   return () => {
     if (pulseTimer) clearTimeout(pulseTimer);
+    watch?.disconnect();
     launcherEl.removeEventListener("click", onLauncherClick);
     closeBtnEl.removeEventListener("click", onCloseClick);
     ctaBtnEl.removeEventListener("click", onCtaClick);

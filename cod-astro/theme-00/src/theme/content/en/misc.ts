@@ -23,7 +23,7 @@ export const enMisc: MiscStrings = {
   pagerPageOf: "Page {page} of {pages}",
   reviewFormMinLengthError: "Write at least 10 characters, or add a voice note",
   reviewFormRatingRequired: "Please select a rating from 1 to 5 stars",
-  offerSavingsText: "Save {amount} {currency}",
+  offerSavingsText: "Save {amount}\u00A0{currency}",
   offerUnitLabel: "Unit {n}",
   ariaMainNavigation: "Main navigation",
   ariaLanguageSwitcher: "Language",

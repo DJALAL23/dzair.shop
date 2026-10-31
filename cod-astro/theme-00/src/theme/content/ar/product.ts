@@ -13,7 +13,7 @@ export const arProduct: ProductStrings = {
   productReviewCount_few: "{count} تقييمات",
   productReviewCount_many: "{count} تقييماً",
   productReviewCount_other: "{count} تقييم",
-  productSaving: "وفّر {amount} {currency}",
+  productSaving: "وفّر {amount}\u00A0{currency}",
   productDeliveryNote: "توصيل إلى 58 ولاية، للمنزل أو لمكتب التوصيل",
   productCountdownLabel: "ينتهي العرض بعد",
   productDescriptionTitle: "الوصف",

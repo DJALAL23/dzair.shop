@@ -11,7 +11,7 @@ import { getProductView, storefrontPath } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import type { featuredProduct } from "@/theme/catalog/home/featured-product.def";
 import Section from "@/theme/components/ui/Section.astro";
-import { formatAmount } from "@/theme/utils/money";
+import { formatAmount, formatCurrency } from "@/theme/utils/money";
 
 type Props = Pick<InferProps<typeof featuredProduct>, "featured" | "currencySymbol" | "scheme" | "style"> & {
   blocks: BlocksHandle;
@@ -45,7 +45,7 @@ const excerpt = featured?.descriptionPlain ? featured.descriptionPlain.slice(0, 
         )}
         <p class="spotlight-price">
           <span class:list={["price", view.hasDiscount && "is-sale"]}>{formatAmount(view.basePrice)}<span class="price-cur">{currencySymbol}</span></span>
-          {view.hasDiscount && view.comparePrice !== null && <span class="price-was">{formatAmount(view.comparePrice)} {currencySymbol}</span>}
+          {view.hasDiscount && view.comparePrice !== null && <span class="price-was">{formatCurrency(view.comparePrice, currencySymbol)}</span>}
         </p>
         {excerpt && <p class="spotlight-text">{excerpt}</p>}
         <a href={Astro.locals.store.href(storefrontPath("product", { handle: featured.handle }))} class="btn-primary btn-auto spotlight-cta">{content.featuredProductCta}</a>

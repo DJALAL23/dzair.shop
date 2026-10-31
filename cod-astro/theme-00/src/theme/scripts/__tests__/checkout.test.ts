@@ -38,7 +38,7 @@ function buildDom(): void {
       data-copy-out-of-stock='${OUT_OF_STOCK}'
       data-copy-unavailable="No longer available"
       data-copy-free-earned="Free delivery earned"
-      data-copy-free-remaining="{amount} {currency} to free delivery"
+      data-copy-free-remaining="{amount}&nbsp;{currency} to free delivery"
       data-copy-shipping-calculated="Calculated after selecting wilaya"
       data-copy-shipping-free="Free"
       data-copy-shipping-unavailable="Not delivered here"
@@ -142,7 +142,7 @@ async function boot() {
 }
 
 /** Formatted exactly as the controller formats it — no hardcoded separator. */
-const money = (n: number) => `${n.toLocaleString("ar-DZ")} DA`;
+const money = (n: number) => `${n.toLocaleString("ar-DZ")}\u00A0DA`;
 
 function el<T extends HTMLElement>(id: string): T {
   const node = document.getElementById(id);
@@ -266,7 +266,7 @@ describe("delivery", () => {
 
     chooseWilaya("16");
 
-    expect(el("checkout-delivery").textContent).toBe("400 DA");
+    expect(el("checkout-delivery").textContent).toBe("400\u00A0DA");
     expect(el("checkout-total").textContent).toBe(money(1400));
   });
 
@@ -277,7 +277,7 @@ describe("delivery", () => {
 
     chooseDelivery("stop_desk");
 
-    expect(el("checkout-delivery").textContent).toBe("250 DA");
+    expect(el("checkout-delivery").textContent).toBe("250\u00A0DA");
     expect(el("checkout-total").textContent).toBe(money(1250));
   });
 
@@ -288,7 +288,7 @@ describe("delivery", () => {
     chooseWilaya("16");
     chooseWilaya("31");
 
-    expect(el("checkout-delivery").textContent).toBe("600 DA");
+    expect(el("checkout-delivery").textContent).toBe("600\u00A0DA");
     expect(el("checkout-total").textContent).toBe(money(1600));
   });
 
@@ -427,7 +427,7 @@ describe("the server's delivery quote", () => {
 
     chooseWilaya("16");
 
-    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("900 DA"));
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("900\u00A0DA"));
     expect(el("checkout-total").textContent).toBe(money(1900));
   });
 
@@ -445,7 +445,7 @@ describe("the server's delivery quote", () => {
     // Another wilaya the store does serve releases it.
     serverQuotes(() => ({ available: true, fee: 600, total: 1600 }));
     chooseWilaya("31");
-    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("600 DA"));
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("600\u00A0DA"));
     expect(el<HTMLButtonElement>("submit-btn").disabled).toBe(false);
   });
 
@@ -454,13 +454,13 @@ describe("the server's delivery quote", () => {
     serverQuotes((d) => (d.wilayaId === 16 ? { available: true, fee: 900, total: 1900 } : undefined));
     await boot();
     chooseWilaya("16");
-    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("900 DA"));
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("900\u00A0DA"));
 
     // Wilaya 31's answer carries no quote (an older server): the 900 for wilaya
     // 16 must not stand — the rate table's 600 for 31 is shown instead.
     chooseWilaya("31");
 
-    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("600 DA"));
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("600\u00A0DA"));
     expect(el("checkout-total").textContent).toBe(money(1600));
   });
 });
@@ -608,7 +608,7 @@ describe("editing the basket here", () => {
 
     click(document.querySelector("[data-cart-increase]")!);
 
-    expect(el("checkout-delivery").textContent).toBe("400 DA");
+    expect(el("checkout-delivery").textContent).toBe("400\u00A0DA");
     expect(el("checkout-total").textContent).toBe(money(2400));
   });
 });

@@ -32,6 +32,8 @@ describe("the code box", () => {
   it("opens with the reason when the order came back refused for its code", async () => {
     const doc = await render({ reason: "already_used" });
     expect(doc.querySelector("[data-coupon-box]")!.hasAttribute("hidden")).toBe(false);
+    expect(doc.querySelector("[data-coupon-toggle]")!.hasAttribute("hidden")).toBe(false);
+    expect(doc.querySelector("[data-coupon-toggle]")!.getAttribute("aria-expanded")).toBe("true");
     const status = doc.querySelector("[data-coupon-status]")!;
     expect(doc.querySelector("[data-coupon-status-row]")!.hasAttribute("hidden")).toBe(false);
     expect(status.textContent?.trim()).toBe(en.couponAlreadyUsed);

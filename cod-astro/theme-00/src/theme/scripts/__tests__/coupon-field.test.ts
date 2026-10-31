@@ -37,12 +37,29 @@ describe("the code box", () => {
     window.history.replaceState(null, "", "/products/robe");
   });
 
+  it("closes again from the same link, and keeps a code already applied", () => {
+    const root = mount();
+    const field = initCouponField(root, vi.fn())!;
+    const toggle = root.querySelector<HTMLButtonElement>("[data-coupon-toggle]")!;
+    const box = root.querySelector<HTMLElement>("[data-coupon-box]")!;
+    toggle.click();
+    input(root).value = "dix";
+    root.querySelector<HTMLButtonElement>("[data-coupon-apply]")!.click();
+    toggle.click();
+    expect([box.hidden, toggle.hidden, toggle.getAttribute("aria-expanded")]).toEqual([true, false, "false"]);
+    expect(field.code()).toBe("dix");
+    toggle.click();
+    expect([box.hidden, toggle.getAttribute("aria-expanded")]).toEqual([false, "true"]);
+  });
+
   it("opens behind its link, and applies the code on Apply or Enter — Enter never submits the order", () => {
     const root = mount();
     const asked = vi.fn();
     const field = initCouponField(root, asked)!;
-    root.querySelector<HTMLButtonElement>("[data-coupon-toggle]")!.click();
+    const toggle = root.querySelector<HTMLButtonElement>("[data-coupon-toggle]")!;
+    toggle.click();
     expect(root.querySelector<HTMLElement>("[data-coupon-box]")!.hidden).toBe(false);
+    expect([toggle.hidden, toggle.getAttribute("aria-expanded")]).toEqual([false, "true"]);
 
     input(root).value = "  dix ";
     root.querySelector<HTMLButtonElement>("[data-coupon-apply]")!.click();

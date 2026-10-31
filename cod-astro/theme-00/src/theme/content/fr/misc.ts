@@ -25,7 +25,7 @@ export const frMisc: MiscStrings = {
   pagerPageOf: "Page {page} sur {pages}",
   reviewFormMinLengthError: "Écrivez au moins 10 caractères, ou ajoutez une note vocale",
   reviewFormRatingRequired: "Veuillez choisir une évaluation de 1 à 5 étoiles",
-  offerSavingsText: "Économie de {amount} {currency}",
+  offerSavingsText: "Économie de {amount}\u00A0{currency}",
   offerUnitLabel: "Unité {n}",
   ariaMainNavigation: "Navigation principale",
   ariaLanguageSwitcher: "Langue",

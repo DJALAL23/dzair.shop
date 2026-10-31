@@ -10,7 +10,7 @@ export const frProduct: ProductStrings = {
   productReviewCount_one: "{count} avis",
   productReviewCount_many: "{count} d’avis",
   productReviewCount_other: "{count} avis",
-  productSaving: "Économisez {amount} {currency}",
+  productSaving: "Économisez {amount}\u00A0{currency}",
   productDeliveryNote: "Livraison dans les 58 wilayas, à domicile ou au bureau du livreur",
   productCountdownLabel: "L’offre se termine dans",
   productDescriptionTitle: "Description",

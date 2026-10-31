@@ -23,7 +23,7 @@ export const arCart: CartStrings = {
   cartIncreaseLabel: "زيادة الكمية",
   cartDecreaseLabel: "إنقاص الكمية",
   cartFreeDeliveryEarned: "حصلت على توصيل مجاني",
-  cartFreeDeliveryRemaining: "أضف {amount} {currency} للحصول على توصيل مجاني",
+  cartFreeDeliveryRemaining: "أضف {amount}\u00A0{currency} للحصول على توصيل مجاني",
   cartLineUnavailable: "لم يعد متوفراً",
   cartLineOutOfStock_zero: "نفدت الكمية",
   cartLineOutOfStock_one: "بقيت قطعة واحدة فقط",

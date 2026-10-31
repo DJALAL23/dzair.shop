@@ -19,7 +19,7 @@ export const enCart: CartStrings = {
   cartIncreaseLabel: "Increase quantity",
   cartDecreaseLabel: "Decrease quantity",
   cartFreeDeliveryEarned: "Free delivery unlocked",
-  cartFreeDeliveryRemaining: "Spend {amount} {currency} more for free delivery",
+  cartFreeDeliveryRemaining: "Spend {amount}\u00A0{currency} more for free delivery",
   cartLineUnavailable: "No longer available",
   cartLineOutOfStock_one: "Only {count} left",
   cartLineOutOfStock_other: "Only {count} left",

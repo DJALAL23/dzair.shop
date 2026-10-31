@@ -1,7 +1,7 @@
 ---
 import type { Offer, ProductDetail } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
-import { formatAmount } from "@/theme/utils/money";
+import { formatAmount, formatCurrency } from "@/theme/utils/money";
 
 interface Props {
   product: ProductDetail;
@@ -20,7 +20,7 @@ const { product, basePrice, cur, offers, content } = Astro.props;
       <span id="summary-qty-label" class="num">1 ×</span>
       <span>{product.name}</span>
     </span>
-    <span id="summary-item-price" class="num summary-amount">{formatAmount(basePrice)} {cur}</span>
+    <span id="summary-item-price" class="num summary-amount">{formatCurrency(basePrice, cur)}</span>
   </p>
 
   <!-- Coupon line: filled by the product script from the server's quote -->
@@ -58,7 +58,7 @@ const { product, basePrice, cur, offers, content } = Astro.props;
 <!-- The amount paid at the door -->
 <div class="cod-total">
   <span class="cod-total-label">{content.totalLabel}</span>
-  <span id="summary-total" class="price num">{formatAmount(basePrice)} {cur}</span>
+  <span id="summary-total" class="price num">{formatCurrency(basePrice, cur)}</span>
 </div>
 
 <style>
