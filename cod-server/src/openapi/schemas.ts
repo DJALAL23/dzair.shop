@@ -162,6 +162,7 @@ export {
   StoreProductListSchema,
   StoreOfferSummarySchema,
   StoreProductDetailSchema,
+  PageDocumentSchema,
   StoreLandingPageSchema,
   StorePublicTrackingSchema,
   StoreOrderTrackingSchema,

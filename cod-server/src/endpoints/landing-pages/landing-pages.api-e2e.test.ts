@@ -466,6 +466,23 @@ describe("duplicate + shared file guard", () => {
     expect(srcDetail.data.stats.orders).toBe(1);
   });
 
+  it("duplicate: copies the page's own documents for every theme, addressed to the copy", async () => {
+    const productId = await seedProduct();
+    const created: any = await (await createLp({ name: "Designed", productId, slug: `dup-doc-${crypto.randomUUID().slice(0, 6)}` })).json();
+    const sourceId = created.data.id;
+    const storeId = `store-dup-${crypto.randomUUID().slice(0, 6)}`;
+    await db.insert(schema.stores).values({ id: storeId, name: "Dup store", lang: "ar", createdAt: NOW(), updatedAt: NOW() });
+    const layout = { version: 1, surface: `lp:${sourceId}`, sections: [{ id: "faq", type: "faq" }, { id: "order", type: "landing-order" }], hiddenAreas: ["header"] };
+    for (const themeKey of ["theme-00", "theme-baby"]) {
+      await db.insert(schema.pageDocuments).values({ id: `pd-${themeKey}-${sourceId}`, storeId, themeKey, surface: `lp:${sourceId}`, document: JSON.stringify(layout), createdAt: NOW(), updatedAt: NOW() });
+    }
+    const dup: any = await (await app.request(`/api/landing-pages/${sourceId}/duplicate`, { method: "POST" })).json();
+    const copies = await db.select().from(schema.pageDocuments).where(eq(schema.pageDocuments.surface, `lp:${dup.data.id}`)).all();
+    expect(copies.map((row) => row.themeKey).sort()).toEqual(["theme-00", "theme-baby"]);
+    for (const copy of copies) expect(JSON.parse(copy.document)).toEqual({ ...layout, surface: `lp:${dup.data.id}` });
+    expect(await db.select().from(schema.pageDocuments).where(eq(schema.pageDocuments.surface, `lp:${sourceId}`)).all()).toHaveLength(2);
+  });
+
   it("deleting an image on the ORIGINAL leaves the shared file while the duplicate shows it", async () => {
     const productId = await seedProduct();
     const created: any = await (await createLp({ name: "Shared Key Original", productId, slug: `shared-${crypto.randomUUID().slice(0, 6)}` })).json();

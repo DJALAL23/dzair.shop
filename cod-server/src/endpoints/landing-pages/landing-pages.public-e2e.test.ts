@@ -206,3 +206,56 @@ describe("Slice 4 — public GET /store/landing-pages/{slug} (real D1 + store au
     expect(res.status).toBe(401);
   });
 });
+
+describe("a landing page's own document, its language and an editor's preview", () => {
+  const document = (id: string) => ({ version: 1, surface: `lp:${id}`, sections: [{ id: "order", type: "landing-order" }], hiddenAreas: ["header"] });
+
+  it("answers the page's own document for the theme that asks, and none otherwise", async () => {
+    const { id } = await seedProduct();
+    await seedPublishedLp("with-layout", id);
+    await db.insert(schema.pageDocuments).values({
+      id: "pd-with-layout", storeId: "store-lp-1", themeKey: "theme-00", surface: "lp:with-layout",
+      document: JSON.stringify(document("with-layout")), createdAt: NOW(), updatedAt: NOW(),
+    });
+    const read = async (query: string) => ((await (await getAndSettle(`/store/landing-pages/with-layout${query}`)).json()) as any).data.document;
+    expect(await read("?theme=theme-00")).toEqual(document("with-layout"));
+    expect(await read("?theme=theme-baby")).toBeNull();
+    expect(await read("")).toBeNull();
+  });
+
+  it("serves the page's product in the shopper's language", async () => {
+    const { id } = await seedProduct();
+    await seedPublishedLp("in-french", id);
+    await db.insert(schema.storeLocales).values([
+      { storeId: "store-lp-1", locale: "ar", published: true, createdAt: NOW() },
+      { storeId: "store-lp-1", locale: "fr", published: true, createdAt: NOW() },
+    ]);
+    await db.insert(schema.translations).values({ resourceType: "product", resourceId: id, locale: "fr", key: "name", value: "Robe en coton", sourceDigest: "d", updatedAt: NOW() });
+    const name = async (query: string) => ((await (await getAndSettle(`/store/landing-pages/in-french${query}`)).json()) as any).data.product.name;
+    expect(await name("?locale=fr")).toBe("Robe en coton");
+    expect(await name("")).toMatch(/^LPS Product /);
+  });
+
+  it("shows an editor a draft page and counts no visit, while a shopper sees neither", async () => {
+    const { id } = await seedProduct();
+    await db.insert(schema.landingPages).values({
+      id: "being-designed", slug: "being-designed", name: "Draft", productId: id, status: "draft", createdAt: NOW(), updatedAt: NOW(),
+    });
+    expect((await getAndSettle("/store/landing-pages/being-designed")).status).toBe(404);
+    expect((await getAndSettle("/store/landing-pages/being-designed?preview=1")).status).toBe(200);
+    await seedPublishedLp("popular", id);
+    await getAndSettle("/store/landing-pages/popular?preview=1");
+    await getAndSettle("/store/landing-pages/popular");
+    const views = async (slug: string) => (await db.select({ views: schema.landingPages.views }).from(schema.landingPages).where(eq(schema.landingPages.id, slug)).get())?.views;
+    expect(await views("being-designed")).toBe(0);
+    expect(await views("popular")).toBe(1);
+  });
+
+  it("keeps an archived page out of a preview too", async () => {
+    const { id } = await seedProduct();
+    await db.insert(schema.landingPages).values({
+      id: "retired", slug: "retired", name: "Retired", productId: id, status: "archived", createdAt: NOW(), updatedAt: NOW(),
+    });
+    expect((await getAndSettle("/store/landing-pages/retired?preview=1")).status).toBe(404);
+  });
+});

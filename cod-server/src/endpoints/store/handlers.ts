@@ -10,6 +10,7 @@ import { storeOrderSchema, validateCartSchema } from "./validation";
 import { ConflictError, NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
 import { meetsFreeDeliveryThreshold } from "../../../../cod-shared/queries/shipping-resolution";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
+import { landingDocumentSurface } from "../../../../cod-shared/queries/page-document-surface";
 import { assertOtpVerification } from "./otp-gate";
 import { assertTurnstile } from "./turnstile-gate";
 // Pure, like normalizeOrderLines: the whole Checkout Form Policy contract is a
@@ -108,12 +109,15 @@ export async function getStoreProduct(c: Context<AppContext>) {
 export async function getStoreLandingPage(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const slug = c.req.param("slug")!;
+  const preview = queryParam(c, "preview") === "1";
+  const theme = queryParam(c, "theme");
 
   // Two round trips total: the row by slug, then ONE batched call carrying
   // images + stats + the product ref.
   const lp = await queries.getLandingPageDetailBySlug(db, slug, mediaDeliveryOf(c.env));
-  if (!lp || lp.status !== "published") {
-    // Unknown, draft, or archived — same answer so nothing leaks.
+  if (!lp || !(lp.status === "published" || (preview && lp.status === "draft"))) {
+    // Unknown, draft, or archived — same answer so nothing leaks. An editor's
+    // preview also sees a draft: the store API key that asks is the storefront's own.
     throw new NotFoundError("Landing Page", slug);
   }
 
@@ -123,22 +127,29 @@ export async function getStoreLandingPage(c: Context<AppContext>) {
   // still renders: the merchant published the link deliberately, and the
   // landing page is its sales channel. The other gates (ACTIVE, visibility,
   // not deleted) still apply, and the order engine guards sellability.
-  const product = lp.product?.handle
-    ? await queries.getStoreProductByHandle(db, lp.product.handle, {
-        delivery: mediaDeliveryOf(c.env),
-        allowUnlisted: true,
-      })
-    : null;
+  const { translate } = await servedLanguage(c, db);
+  const [product, document] = await Promise.all([
+    lp.product?.handle
+      ? queries.getStoreProductByHandle(db, lp.product.handle, {
+          locale: translate,
+          delivery: mediaDeliveryOf(c.env),
+          allowUnlisted: true,
+        })
+      : null,
+    theme === undefined ? null : queries.getPageDocument(db, c.get("storeId")!, landingDocumentSurface(lp.id), theme),
+  ]);
 
-  // One render = one view. Atomic single-row UPDATE, deferred via waitUntil
+  // One render = one view; an editor's preview is not a visit. Atomic single-row UPDATE, deferred via waitUntil
   // so the write never blocks the render response (Cloudflare's documented
   // pattern for analytics-after-response; same seam the CAPI trigger uses).
   // A counting failure is logged and swallowed — it must never break a render.
-  c.executionCtx.waitUntil(
-    queries.incrementLandingPageViews(db, lp.id).catch((err) => {
-      console.error("[landing-pages] view increment failed:", err);
-    }),
-  );
+  if (!preview) {
+    c.executionCtx.waitUntil(
+      queries.incrementLandingPageViews(db, lp.id).catch((err) => {
+        console.error("[landing-pages] view increment failed:", err);
+      }),
+    );
+  }
 
   return c.json(
     {
@@ -154,6 +165,7 @@ export async function getStoreLandingPage(c: Context<AppContext>) {
         publishedAt: lp.publishedAt,
         images: lp.images,
         product,
+        document,
         // Which pixel this page loads and fires at — resolved server-side,
         // inside the batch above, so the browser never works it out for
         // itself and cannot disagree with the Conversions API mirror.

@@ -25,6 +25,7 @@ import {
   StoreConfigSchema,
   StoreProductListSchema,
   StoreProductDetailSchema,
+  PageDocumentSchema,
   StoreLandingPageSchema,
   StoreOrderTrackingSchema,
   StorePagePublicSchema,
@@ -126,6 +127,18 @@ const lpSlugParams = z.object({
   slug: z.string().openapi({ example: "lp-9f3a2b1c" }),
 });
 
+const landingQuerySchema = z.object({
+  locale: localeQuery,
+  theme: z.string().regex(THEME_KEY_RE).optional().openapi({
+    description: "The requesting theme's key (`defineTheme({ key })`): the page's own document for that theme comes with it.",
+    example: "theme-00",
+  }),
+  preview: z.enum(["1"]).optional().openapi({
+    description: "`1` for an editor's preview: a draft page answers too, and no visit is counted. Never sent for a shopper's page.",
+    example: "1",
+  }),
+});
+
 const pageSlugParams = z.object({
   slug: z.string().openapi({ example: "refund-policy" }),
 });
@@ -144,14 +157,6 @@ const pageDocumentQuerySchema = z.object({
   }),
 });
 
-const PageDocumentSchema = z
-  .object({
-    version: z.number().int(),
-    surface: z.string(),
-    sections: z.array(z.unknown()),
-  })
-  .passthrough()
-  .openapi("PageDocument");
 
 const wilayaIdParams = z.object({
   wilayaId: z.coerce.number().int().min(1).max(58).openapi({
@@ -248,9 +253,10 @@ const getStoreLandingPageRoute = defineRoute({
   tags: ["Store API"],
   summary: "Get published landing page",
   description:
-    "Get a published landing page by its public slug: the ordered image stack, spacing settings, and the linked product in its full store-product shape (variants, offers, inventory) so the storefront order form works unmodified. Store-hidden products (`showInStore=false`) still render here — the landing page is their sales channel; the catalog list and the product's own page stay hidden. Draft/archived/unknown slugs return 404. Each successful GET increments the page's view counter (non-unique in v1).",
+    "Get a published landing page by its public slug: the ordered image stack, spacing settings, the linked product in its full store-product shape (variants, offers, inventory) in the requested language (`?locale=`), so the storefront order form works unmodified, and the page's own document for the requesting `?theme=`. Store-hidden products (`showInStore=false`) still render here — the landing page is their sales channel; the catalog list and the product's own page stay hidden. Draft/archived/unknown slugs return 404; with `?preview=1` a draft answers too. Each successful GET increments the page's view counter (non-unique in v1), except a preview.",
   operationId: "getStoreLandingPage",
   params: lpSlugParams,
+  query: landingQuerySchema,
   responses: {
     200: {
       description: "Published landing page with its product",

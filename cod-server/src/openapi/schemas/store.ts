@@ -355,6 +355,16 @@ export const StorePublicTrackingSchema = z
   })
   .openapi("StorePublicTracking");
 
+/** A page document as the store saved it for a theme (`{ version, surface, sections, … }`), read verbatim. */
+export const PageDocumentSchema = z
+  .object({
+    version: z.number().int(),
+    surface: z.string(),
+    sections: z.array(z.unknown()),
+  })
+  .passthrough()
+  .openapi("PageDocument");
+
 export const StoreLandingPageSchema = z
   .object({
     id: z.string().openapi({ example: "lp_abc123" }),
@@ -367,9 +377,8 @@ export const StoreLandingPageSchema = z
     publishedAt: z.string().datetime().nullable().openapi({ example: null }),
     images: z
       .array(
-        z.object({
+        MediaImageSchema.extend({
           id: z.string().openapi({ example: "lpimg_abc123" }),
-          src: z.string().openapi({ example: "https://media.codflow.store/landing/abc.jpg" }),
           altText: z.string().nullable().openapi({ example: "عرض خاص" }),
           position: z.number().int().openapi({ example: 1 }),
         }),
@@ -378,6 +387,10 @@ export const StoreLandingPageSchema = z
     product: StoreProductDetailSchema.nullable().openapi({
       description:
         "The product in its full store-product shape — the landing page renders the same data the product page does, so the order form works unmodified. Null when the product is no longer publicly visible.",
+    }),
+    document: PageDocumentSchema.nullable().openapi({
+      description:
+        "This page's own composition (its `lp:<id>` page document) for the requesting `theme`, written by CodFlow Cloud's editor; null when it has none or no `theme` is named — the theme then renders its `landing` default.",
     }),
     tracking: StorePublicTrackingSchema.openapi({
       description:

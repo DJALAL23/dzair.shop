@@ -15,3 +15,10 @@
  * behind it.
  */
 export const PAGE_DOCUMENT_SURFACE_RE = /^[a-z0-9][a-z0-9._:-]{0,63}$/;
+/** The prefix of a landing page's own document: `lp:<landing page id>` (ADR 0022), mirrored by `@wocart/theme`'s `landingSurface`. */
+export const LANDING_DOCUMENT_PREFIX = "lp:";
+
+/** The surface a landing page's own document is stored under, by the page's id — which stays when its slug changes. */
+export function landingDocumentSurface(landingPageId: string): string {
+  return `${LANDING_DOCUMENT_PREFIX}${landingPageId}`;
+}

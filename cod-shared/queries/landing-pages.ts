@@ -14,12 +14,15 @@ import {
   landingPages,
   landingPageImages,
   landingPagePixelConfig,
+  pageDocuments,
   storePixelConfig,
   orders,
   products,
   stores,
 } from "../db/schema";
 import type { AppDb } from "../db/client";
+import { insertSelectRow } from "../db/insert-select";
+import { landingDocumentSurface } from "./page-document-surface";
 import {
   publicTrackingFrom,
   type StoreConfigRow,
@@ -566,7 +569,8 @@ export async function compareLandingPages(db: AppDb, productId: string) {
  * image-delete path reference-counts keys so a shared object is only
  * removed from R2 when the last row referencing it goes away.
  * Attribution, views, and published state are NEVER copied — a duplicate is
- * a fresh creative test, not a stats clone.
+ * a fresh creative test, not a stats clone. The page's own documents (its
+ * composition, one per theme) are copied, addressed to the new page.
  */
 export async function duplicateLandingPage(db: AppDb, id: string): Promise<string | null> {
   const source = await db
@@ -628,6 +632,25 @@ export async function duplicateLandingPage(db: AppDb, id: string): Promise<strin
       }),
     );
   }
+  const copySurface = landingDocumentSurface(newId);
+  statements.push(
+    db.insert(pageDocuments).select(
+      db
+        .select(
+          insertSelectRow(pageDocuments, {
+            id: sql`lower(hex(randomblob(16)))`,
+            storeId: pageDocuments.storeId,
+            themeKey: pageDocuments.themeKey,
+            surface: sql`${copySurface}`,
+            document: sql`json_set(${pageDocuments.document}, '$.surface', ${copySurface})`,
+            createdAt: sql`${now}`,
+            updatedAt: sql`${now}`,
+          }),
+        )
+        .from(pageDocuments)
+        .where(eq(pageDocuments.surface, landingDocumentSurface(id))),
+    ),
+  );
   if (sourceTracking) {
     statements.push(
       db.insert(landingPagePixelConfig).values({
