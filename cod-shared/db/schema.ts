@@ -549,7 +549,7 @@ export const productCategories = sqliteTable("product_categories", {
   slug: text("slug").notNull().unique(),
   description: text("description"),
   parentId: text("parent_id"), // self-reference at app level
-  /** Not read: the image's URL before Media Keys (migration 0068); dropped by the media clean-up migration (0070). */
+  /** Not read: the image's URL before Media Keys (migration 0068); dropped by a later media clean-up migration. */
   imageUrl: text("image_url"),
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
@@ -634,7 +634,7 @@ export const productVariants = sqliteTable("product_variants", {
 export const productImages = sqliteTable("product_images", {
   id: text("id").primaryKey(),
   productId: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
-  /** Not read: the URL the image had before Media Keys (migration 0068); dropped by the media clean-up migration (0070), with `r2_key` and the `src_*` columns. */
+  /** Not read: the URL the image had before Media Keys (migration 0068); dropped by a later media clean-up migration, with `r2_key` and the `src_*` columns. */
   src: text("src"),
   r2Key: text("r2_key"),
   srcSm: text("src_sm"),
@@ -853,7 +853,7 @@ export const stores = sqliteTable("stores", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   domain: text("domain"),
-  /** Not read: the logo's URL before Media Keys (migration 0068); dropped by the media clean-up migration (0070). */
+  /** Not read: the logo's URL before Media Keys (migration 0068); dropped by a later media clean-up migration. */
   logoUrl: text("logo_url"),
 
   // ── Theme ─────────────────────────────────────────────────────────────────
@@ -881,7 +881,7 @@ export const stores = sqliteTable("stores", {
   // ── SEO ───────────────────────────────────────────────────────────────────
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
-  /** Not read: the share image's URL before Media Keys (migration 0068); dropped by the media clean-up migration (0070). */
+  /** Not read: the share image's URL before Media Keys (migration 0068); dropped by a later media clean-up migration. */
   ogImage: text("og_image"),
 
   // ── Optional features ─────────────────────────────────────────────────────
@@ -1267,7 +1267,7 @@ export const reviewMedia = sqliteTable("review_media", {
     .notNull()
     .references(() => reviews.id, { onDelete: "cascade" }),
   kind: text("kind", { enum: REVIEW_MEDIA_KINDS }).notNull(),
-  /** Not read: the key before Media Keys (migration 0068); dropped by the media clean-up migration (0070). */
+  /** Not read: the key before Media Keys (migration 0068); dropped by a later media clean-up migration. */
   r2Key: text("r2_key").unique(),
   thumbKey: text("thumb_key").unique(),
   contentType: text("content_type").notNull(),
@@ -1607,7 +1607,7 @@ export const landingPageImages = sqliteTable("landing_page_images", {
   landingPageId: text("landing_page_id")
     .notNull()
     .references(() => landingPages.id, { onDelete: "cascade" }),
-  /** Not read: the key and URL before Media Keys (migration 0068); dropped by the media clean-up migration (0070). */
+  /** Not read: the key and URL before Media Keys (migration 0068); dropped by a later media clean-up migration. */
   r2Key: text("r2_key"),
   src: text("src"),
   altText: text("alt_text"),
