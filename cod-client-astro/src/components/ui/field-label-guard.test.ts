@@ -14,7 +14,7 @@ const SOURCE_EXTENSIONS = new Set([".astro", ".js", ".jsx", ".ts", ".tsx"]);
 const COMPOSITE_WIDGETS = [
   "RichTextDescriptionEditor",
   "PageBodyEditor",
-  "CategoryImageUploader",
+  "ImageUploader",
   "PRESET_COLORS.map",
   "SearchPickList",
 ];
@@ -34,7 +34,8 @@ function sourceFiles(directory: string, acc: string[] = []): string[] {
 
 /** The `<Field` opening tag enclosing `index`, or null when there is none. */
 function enclosingFieldTag(source: string, index: number): string | null {
-  const open = source.lastIndexOf("<Field", index);
+  let open = source.lastIndexOf("<Field", index);
+  while (open !== -1 && /\w/.test(source[open + "<Field".length] ?? "")) open = source.lastIndexOf("<Field", open - 1);
   if (open === -1) return null;
   const close = source.indexOf(">", open);
   if (close === -1 || close > index) return null;

@@ -9,13 +9,14 @@ import { createProductGroup, getProductGroup, listProductGroups, updateProductGr
 import { groupInput, productGroupErrorMessage, toSlug } from "@/features/product-groups/model";
 import type { ProductCategory, ProductCategoryFormValues } from "@/features/product-groups/types";
 import { Alert, Card, Field, FormPage, Input, Select, Textarea } from "@/components/ui";
-import { CategoryImageUploader } from "@/features/product-groups/components/CategoryImageUploader";
+import { ImageUploader } from "@/features/uploads/components/ImageUploader";
 
 const EMPTY_FORM: ProductCategoryFormValues = { name: "", slug: "", description: "", parentId: "", image: null, metaTitle: "", metaDescription: "", metaKeywords: "" };
 
 function ProductGroupForm({ groupId }: { groupId?: string }) {
   const t = useT("product-groups");
   const auth = useT("auth");
+  const common = useT("common");
   const identity = useIdentity();
   const editing = Boolean(groupId);
   const [form, setForm] = useState<ProductCategoryFormValues>(EMPTY_FORM);
@@ -104,7 +105,7 @@ function ProductGroupForm({ groupId }: { groupId?: string }) {
         </div>
       </Card>
       <Card title={t("form.section_image")} help={t("form.image_help")}>
-        <CategoryImageUploader value={form.image} onChange={(image) => update("image", image)} disabled={busy} />
+        <ImageUploader value={form.image} onChange={(image) => update("image", image)} alt={common("image.category_alt")} disabled={busy} />
       </Card>
       <Card title={t("form.section_seo")}>
         <div className="grid gap-4">

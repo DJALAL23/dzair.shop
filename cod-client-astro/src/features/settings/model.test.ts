@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SETTINGS_CATEGORIES, settingsErrorMessage } from "./model";
+import { TRANSLATABLE } from "../../../../cod-shared/i18n/translations";
+import { SETTINGS_CATEGORIES, STORE_TRANSLATED_FIELDS, settingsErrorMessage } from "./model";
 
 const t = (key: string) => key;
 
@@ -128,6 +129,13 @@ describe("editing the store's languages", () => {
   it("saves the default and the whole list", () => {
     const draft: LanguageDraft = { primary: "fr", languages: [{ locale: "fr", published: true }] };
     expect(languagesPayload(draft)).toEqual({ lang: "fr", languages: [{ locale: "fr", published: true }] });
+  });
+});
+
+describe("the store's translations", () => {
+  it("translates every translatable store field in exactly one tab", () => {
+    const shown = Object.values(STORE_TRANSLATED_FIELDS).flat();
+    expect([...shown].sort()).toEqual(Object.keys(TRANSLATABLE.store).sort());
   });
 });
 

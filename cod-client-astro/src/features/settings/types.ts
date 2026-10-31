@@ -6,7 +6,6 @@ export type { StoreLanguage };
 
 /** A store language (`cod-shared/i18n/locales.ts`). */
 export type StoreLang = StoreLocale;
-export type StoreStatus = "active" | "inactive";
 
 /** The single tenant's configuration as returned by the stores API. */
 export interface StoreConfig {
@@ -30,7 +29,6 @@ export interface StoreConfig {
   freeShippingThreshold: number | null;
   /** Which rate a basket spanning several shipping profiles pays. */
   cartShippingMode: "highest" | "default_profile";
-  status: StoreStatus;
   storeApiKey: string | null;
 }
 
@@ -46,9 +44,12 @@ export type UpdateStoreData = Partial<
     | "cartEnabled"
     | "freeShippingThreshold"
     | "cartShippingMode"
-    | "status"
   >
 > & {
+  /** The logo's Media Key, from a completed upload; null removes it. */
+  logoKey?: string | null;
+  /** The share image's Media Key, from a completed upload; null removes it. */
+  ogImageKey?: string | null;
   /** Replaces the store's languages; must publish the primary. */
   languages?: LocaleRow[];
 };

@@ -105,6 +105,27 @@ describe("pendingCount", () => {
   });
 });
 
+describe("an editor that shows some of a resource's fields", () => {
+  const store = view({
+    resource: "store",
+    id: "me",
+    source: { metaTitle: "متجري", metaDescription: "أفضل متجر", currencySymbol: "دج" },
+    translations: { fr: { currencySymbol: { value: "DA", outdated: false } } },
+  });
+  const seo = ["metaTitle", "metaDescription"];
+
+  it("shows, drafts and counts only those fields", () => {
+    expect(translationFields(store, seo).map(({ key }) => key)).toEqual(seo);
+    expect(draftFor(store, "fr", seo)).toEqual({ metaTitle: "", metaDescription: "" });
+    expect(pendingCount(store, "fr", seo)).toBe(2);
+    expect(pendingCount(store, "fr", ["currencySymbol"])).toBe(0);
+  });
+
+  it("saves only those fields, never touching the others' translations", () => {
+    expect(patchFor(store, "fr", { metaTitle: "Ma boutique", metaDescription: "" }, seo)).toEqual({ locale: "fr", values: { metaTitle: "Ma boutique" } });
+  });
+});
+
 describe("languageInfo", () => {
   it("comes from the shared registry", () => {
     expect(languageInfo("ar")).toMatchObject({ nativeName: "العربية", direction: "rtl" });

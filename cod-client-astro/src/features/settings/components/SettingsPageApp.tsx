@@ -7,7 +7,7 @@ import { useT } from "@/i18n/react";
 import { getMyStore } from "@/features/settings/api";
 import { settingsErrorMessage } from "@/features/settings/model";
 import { saveMyStore } from "@/features/settings/store-summary";
-import { categoryFromSearch, type CategoryId } from "@/features/settings/model";
+import { categoryFromSearch, STORE_TRANSLATED_FIELDS, type CategoryId } from "@/features/settings/model";
 import type { StoreConfig, UpdateStoreData } from "@/features/settings/types";
 import { SettingsSidebar } from "@/features/settings/components/SettingsSidebar";
 import { GeneralSettings } from "@/features/settings/components/GeneralSettings";
@@ -81,28 +81,44 @@ function SettingsContent() {
       </div>
     );
 
+  const languagesKey = storeConfig.languages.map((l) => l.locale).join(",");
+
   const renderCategoryView = () => {
     switch (activeCategory) {
       case "general":
-        return <GeneralSettings storeConfig={storeConfig} onSave={handleSave} />;
-      case "languages":
         return (
           <div className="space-y-6">
-            <LanguagesSettings
-              key={`${storeConfig.lang}:${storeConfig.languages.map((l) => `${l.locale}${l.published ? "+" : "-"}`).join(",")}`}
-              storeConfig={storeConfig}
-              onSave={handleSave}
-            />
+            <GeneralSettings storeConfig={storeConfig} onSave={handleSave} />
             <TranslationsCard
-              key={storeConfig.languages.map((l) => l.locale).join(",")}
+              key={`${languagesKey}:${storeConfig.currencySymbol}`}
               resource="store"
               id="me"
+              fields={STORE_TRANSLATED_FIELDS.general}
               canEdit
             />
           </div>
         );
+      case "languages":
+        return (
+          <LanguagesSettings
+            key={`${storeConfig.lang}:${storeConfig.languages.map((l) => `${l.locale}${l.published ? "+" : "-"}`).join(",")}`}
+            storeConfig={storeConfig}
+            onSave={handleSave}
+          />
+        );
       case "seo":
-        return <SeoSettings storeConfig={storeConfig} onSave={handleSave} />;
+        return (
+          <div className="space-y-6">
+            <SeoSettings storeConfig={storeConfig} onSave={handleSave} />
+            <TranslationsCard
+              key={`${languagesKey}:${storeConfig.metaTitle}:${storeConfig.metaDescription}`}
+              resource="store"
+              id="me"
+              fields={STORE_TRANSLATED_FIELDS.seo}
+              canEdit
+            />
+          </div>
+        );
       case "cart":
         return <CartSettings storeConfig={storeConfig} onSave={handleSave} />;
       case "delivery":

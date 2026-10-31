@@ -32,11 +32,14 @@ export function TranslationsCard({
   resource,
   id,
   canEdit,
+  fields: keys,
 }: {
   resource: TranslatableResource;
   id: string;
   /** Without the resource's write scope the translations are shown, not editable. */
   canEdit: boolean;
+  /** Only these fields, when the resource's fields are edited in more than one place. */
+  fields?: readonly string[];
 }) {
   const t = useT("translations");
   const common = useT("common");
@@ -62,7 +65,7 @@ export function TranslationsCard({
     void load();
   }, [resource, id]);
 
-  const fields = useMemo(() => (view ? translationFields(view) : []), [view]);
+  const fields = useMemo(() => (view ? translationFields(view, keys) : []), [view, keys]);
 
   if (loadError) {
     return (
@@ -93,8 +96,8 @@ export function TranslationsCard({
     );
   }
 
-  const draft = drafts[active] ?? draftFor(view, active);
-  const patch = patchFor(view, active, draft);
+  const draft = drafts[active] ?? draftFor(view, active, keys);
+  const patch = patchFor(view, active, draft, keys);
   const target = languageInfo(active);
   const source = languageInfo(view.sourceLocale);
 
@@ -150,7 +153,7 @@ export function TranslationsCard({
     >
       <div role="tablist" aria-label={t("languages_label")} className="mb-5 flex flex-wrap gap-2">
         {view.targetLocales.map(({ locale, published }) => {
-          const pending = pendingCount(view, locale);
+          const pending = pendingCount(view, locale, keys);
           const selected = locale === active;
           return (
             <button

@@ -65,7 +65,6 @@ export const updateStoreSchema = z.object({
     .optional(),
   /** Which rate a basket spanning several shipping profiles pays. */
   cartShippingMode: z.enum(["highest", "default_profile"]).optional(),
-  status: z.enum(["active", "inactive"]).optional(),
 });
 
 export type UpdateStoreInput = z.infer<typeof updateStoreSchema>;

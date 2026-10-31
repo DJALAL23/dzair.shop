@@ -34,7 +34,7 @@ Retrieve the current store's configuration. In this single-tenant architecture, 
 - **Theme:** `themeId` (active theme slug).
 - **Localization:** `lang` (primary language), `languages` — every language the store has added, primary first: `[{ "locale": "fr", "published": true, "primary": true }, …]` — `currency`, `currencySymbol`.
 - **SEO:** `metaTitle`, `metaDescription`, `ogImage`.
-- **Settings:** `status`. The review rules are the Reviews App's (`GET/PUT /api/apps/reviews`), not store settings.
+- **Not here:** the review rules are the Reviews App's (`GET/PUT /api/apps/reviews`). A store has no status setting: nothing ever read it, so it is neither shown nor taken (the column stays for `/store/config`).
 - **Storefront key:** `storeApiKey` (plaintext; visible to the merchant in settings).
 
 ### PATCH /api/stores/me

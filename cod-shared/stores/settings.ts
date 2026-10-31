@@ -37,7 +37,10 @@ type ThemePresentationColumns = "primaryColor" | "accentColor" | "bgColor" | "fo
 /** The store's rules for reviews: the Reviews App's setup (`/api/apps/reviews`), not a store setting. */
 type ReviewColumns = "reviewsEnabled" | "reviewMaxPhotos" | "reviewVoiceMaxSeconds" | "reviewAutoPublish";
 
-export type StoreSettings = Omit<StoreRow, ThemePresentationColumns | ReviewColumns | "logoUrl" | "ogImage" | "logoKey" | "ogImageKey"> & {
+/** Never read by anything: a store is not switched off from its settings. The column stays because `/store/config` still sends it to @wocart/storefront, whose contract has it. */
+type UnusedColumns = "status";
+
+export type StoreSettings = Omit<StoreRow, ThemePresentationColumns | ReviewColumns | UnusedColumns | "logoUrl" | "ogImage" | "logoKey" | "ogImageKey"> & {
   logo: MediaImage | null;
   ogImage: MediaImage | null;
   languages: StoreLanguage[];
@@ -102,6 +105,7 @@ export function toStoreSettings(
     reviewMaxPhotos: _reviewMaxPhotos,
     reviewVoiceMaxSeconds: _reviewVoiceMaxSeconds,
     reviewAutoPublish: _reviewAutoPublish,
+    status: _status,
     logoUrl: _logoUrl,
     ogImage: _ogImage,
     logoKey,

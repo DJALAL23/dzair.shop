@@ -34,8 +34,12 @@ export interface TranslationFieldSpec extends TranslatableField {
   part: { kind: "field" } | { kind: "option"; option: string } | { kind: "value"; option: string };
 }
 
-/** Every field an editor shows for a resource: its registry fields, then each variant option and its values. */
-export function translationFields(view: Pick<TranslationView, "resource" | "options">): TranslationFieldSpec[] {
+/**
+ * Every field an editor shows for a resource: its registry fields, then each
+ * variant option and its values — or only the fields `keys` names, for an
+ * editor that shows a resource's fields in more than one place.
+ */
+export function translationFields(view: Pick<TranslationView, "resource" | "options">, keys?: readonly string[]): TranslationFieldSpec[] {
   const fields: TranslationFieldSpec[] = Object.entries(TRANSLATABLE[view.resource] as Record<string, TranslatableField>).map(
     ([key, field]) => ({
       key,
@@ -50,14 +54,14 @@ export function translationFields(view: Pick<TranslationView, "resource" | "opti
       fields.push({ key, ...OPTION_TEXT, control: "input", part: { kind: "value", option: option.name } });
     }
   }
-  return fields;
+  return keys ? fields.filter((field) => keys.includes(field.key)) : fields;
 }
 
 /** The editable values for one language: its stored translations, "" where there is none. */
-export function draftFor(view: TranslationView, locale: StoreLocale): Record<string, string> {
+export function draftFor(view: TranslationView, locale: StoreLocale, keys?: readonly string[]): Record<string, string> {
   const stored = view.translations[locale] ?? {};
   return Object.fromEntries(
-    translationFields(view).map(({ key }) => [key, stored[key]?.value ?? ""]),
+    translationFields(view, keys).map(({ key }) => [key, stored[key]?.value ?? ""]),
   );
 }
 
@@ -69,10 +73,11 @@ export function patchFor(
   view: TranslationView,
   locale: StoreLocale,
   draft: Readonly<Record<string, string>>,
+  keys?: readonly string[],
 ): TranslationPatch | null {
   const stored = view.translations[locale] ?? {};
   const values: Record<string, string | null> = {};
-  for (const { key } of translationFields(view)) {
+  for (const { key } of translationFields(view, keys)) {
     const next = (draft[key] ?? "").trim();
     const current = stored[key]?.value ?? "";
     if (next === current.trim()) continue;
@@ -84,9 +89,9 @@ export function patchFor(
 }
 
 /** How many fields of one language still need a translator: missing or outdated. */
-export function pendingCount(view: TranslationView, locale: StoreLocale): number {
+export function pendingCount(view: TranslationView, locale: StoreLocale, keys?: readonly string[]): number {
   const stored = view.translations[locale] ?? {};
-  return translationFields(view).filter(({ key }) => {
+  return translationFields(view, keys).filter(({ key }) => {
     const hasSource = (view.source[key] ?? "").trim() !== "";
     const translation = stored[key];
     return hasSource && (translation === undefined || translation.outdated);

@@ -73,7 +73,6 @@ export const StoreSchema = z
       description: "Which rate a basket spanning several shipping profiles pays",
       example: "highest",
     }),
-    status: z.enum(["active", "inactive"]).openapi({ example: "active" }),
     storeApiKey: z.string().nullable().openapi({
       description:
         "Plaintext storefront API key — visible to the merchant in Store Settings. Not the dashboard API key.",
