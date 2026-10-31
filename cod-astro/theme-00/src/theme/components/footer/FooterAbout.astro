@@ -4,6 +4,7 @@
 // opening in a new tab.
 import { Image } from "astro:assets";
 import { Icon } from "astro-icon/components";
+import { localWhatsAppWidget } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
 import type { footerAbout } from "@/theme/catalog/footer/footer.def";
 import SocialIcon from "@/theme/components/ui/SocialIcon.astro";
@@ -11,7 +12,7 @@ import SocialIcon from "@/theme/components/ui/SocialIcon.astro";
 type Props = InferProps<typeof footerAbout>;
 const { text, showWhatsapp, socialLinks = [] } = Astro.props;
 const { config, content } = Astro.locals.store;
-const whatsapp = showWhatsapp ? config.whatsapp : null;
+const whatsapp = showWhatsapp ? localWhatsAppWidget(config) : null;
 const networkName = { instagram: content.socialInstagram, facebook: content.socialFacebook, tiktok: content.socialTiktok, youtube: content.socialYoutube };
 const social = socialLinks.filter((link) => link.href);
 ---
