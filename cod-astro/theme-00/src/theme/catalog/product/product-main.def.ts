@@ -1,5 +1,5 @@
 import { defineComponent } from "@wocart/theme";
-import { BLOCK, FIELD, GROUP, OPTION, SECTION } from "../labels";
+import { BLOCK, FIELD, GROUP, HELP, OPTION, SECTION } from "../labels";
 import { SCHEME_OF } from "@/theme/appearance";
 import { schemeField, styleField } from "../shared";
 import { routeProduct } from "./shared";
@@ -149,7 +149,8 @@ export const productCountdown = defineComponent({
       default: "midnight",
       display: "segmented",
     },
-    { key: "endsOn", kind: "text", label: FIELD.endsOn, visibleIf: { field: "countdown", equals: "date" } },
+    { key: "endsOn", kind: "text", label: FIELD.endsOn, description: HELP.endsOn, visibleIf: { field: "countdown", equals: "date" } },
+    { key: "endsAt", kind: "text", label: FIELD.endsAt, description: HELP.endsAt, visibleIf: { field: "countdown", equals: "date" } },
   ],
   capabilities: ON_PRODUCT,
 });

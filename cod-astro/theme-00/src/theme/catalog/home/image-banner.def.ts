@@ -1,5 +1,5 @@
 import { defineComponent } from "@wocart/theme";
-import { FIELD, GROUP, OPTION, SECTION } from "../labels";
+import { FIELD, GROUP, HELP, OPTION, SECTION } from "../labels";
 import ImageBanner from "@/theme/components/home/ImageBanner.astro";
 import { SCHEME_OF } from "@/theme/appearance";
 import { copyOverrides, onSaleRead, schemeField, styleField } from "../shared";
@@ -43,7 +43,8 @@ export const imageBanner = defineComponent({
       default: "none",
       display: "segmented",
     },
-    { key: "endsOn", kind: "text", label: FIELD.endsOn, visibleIf: { field: "countdown", equals: "date" } },
+    { key: "endsOn", kind: "text", label: FIELD.endsOn, description: HELP.endsOn, visibleIf: { field: "countdown", equals: "date" } },
+    { key: "endsAt", kind: "text", label: FIELD.endsAt, description: HELP.endsAt, visibleIf: { field: "countdown", equals: "date" } },
     { key: "bannerCta", kind: "text", label: FIELD.button, contentKey: "bannerCta" },
     { key: "ctaHref", kind: "url", label: FIELD.buttonLink, default: "/products" },
     schemeField(SCHEME_OF.sand),

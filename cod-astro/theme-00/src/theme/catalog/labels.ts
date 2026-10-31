@@ -38,6 +38,12 @@ export const SECTION = {
   pageMain: text("محتوى الصفحة", "Contenu de la page", "Page content"),
 };
 
+/** The help an editor shows under a field. */
+export const HELP = {
+  endsOn: text("مثال: 2026-11-30. بتوقيت الجزائر؛ يختفي العدّ عند انتهائه.", "Exemple : 2026-11-30. Heure d'Alger ; le compte à rebours disparaît à la fin.", "For example 2026-11-30. Algiers time; the countdown disappears when it ends."),
+  endsAt: text("اتركه فارغاً لينتهي في منتصف ليل ذلك اليوم. مثال: 18:00.", "Laissez vide pour finir à minuit ce jour-là. Exemple : 18:00.", "Leave empty to end at midnight that day. For example 18:00."),
+};
+
 export const FIELD = {
   showCategoryNav: text("أزرار الفئات", "Boutons des catégories", "Category buttons"),
   showDescription: text("إظهار الوصف", "Afficher la description", "Show the description"),
@@ -63,6 +69,7 @@ export const FIELD = {
   tag: text("الوسم", "Étiquette", "Tag"),
   countdown: text("العدّ التنازلي", "Compte à rebours", "Countdown"),
   endsOn: text("ينتهي يوم (سنة-شهر-يوم)", "Se termine le (AAAA-MM-JJ)", "Ends on (YYYY-MM-DD)"),
+  endsAt: text("على الساعة (س:د)", "À (HH:MM)", "At (HH:MM)"),
   showAllTile: text("بطاقة «كل المنتجات»", "Carte « Tous les produits »", "“All products” tile"),
   message: (n: number) => text(`الرسالة ${n}`, `Message ${n}`, `Message ${n}`),
   speed: text("السرعة", "Vitesse", "Speed"),

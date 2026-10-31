@@ -3,12 +3,13 @@
 // the merchant chose. Past its end it is gone.
 import type { InferProps } from "@wocart/theme";
 import Countdown from "@/theme/components/ui/Countdown.astro";
+import { countdownTarget } from "@/theme/utils/countdown";
 import type { productCountdown } from "@/theme/catalog/product/product-main.def";
 
 type Props = InferProps<typeof productCountdown>;
-const { label, countdown, endsOn } = Astro.props;
+const { label, countdown, endsOn, endsAt } = Astro.props;
 const { content } = Astro.locals.store;
-const ends = countdown === "date" ? endsOn : "midnight";
+const ends = countdownTarget(countdown, endsOn, endsAt);
 const units = { days: content.countdownDays, hours: content.countdownHours, minutes: content.countdownMinutes, seconds: content.countdownSeconds };
 ---
 

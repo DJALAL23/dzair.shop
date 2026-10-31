@@ -11,6 +11,7 @@ import type { StoreFrontContent } from "@/theme/content";
 import type { imageBanner } from "@/theme/catalog/home/image-banner.def";
 import Section from "@/theme/components/ui/Section.astro";
 import Countdown from "@/theme/components/ui/Countdown.astro";
+import { countdownTarget } from "@/theme/utils/countdown";
 import { pickedPicture } from "@/theme/utils/images";
 
 type Props = InferProps<typeof imageBanner> & {
@@ -18,12 +19,12 @@ type Props = InferProps<typeof imageBanner> & {
   lead: { src: string; alt: string } | null;
 };
 
-const { image, imageSide, body, countdown, endsOn, ctaHref, scheme, style, content, lead } = Astro.props;
+const { image, imageSide, body, countdown, endsOn, endsAt, ctaHref, scheme, style, content, lead } = Astro.props;
 const { href, config } = Astro.locals.store;
 const own = pickedPicture(image, config.media);
 const photo = own ? { src: own.src, alt: own.alt } : lead;
 const focus = own?.position ?? "50% 50%";
-const ends = countdown === "midnight" ? "midnight" : countdown === "date" ? endsOn : undefined;
+const ends = countdownTarget(countdown, endsOn, endsAt);
 const units = { days: content.countdownDays, hours: content.countdownHours, minutes: content.countdownMinutes, seconds: content.countdownSeconds };
 ---
 
