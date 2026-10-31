@@ -10,3 +10,6 @@ export type AppDb = ReturnType<typeof getDb>;
 
 /** A store's database however it is reached: the Worker's binding (`getDb`) or D1 over HTTP (`remoteDb`). */
 export type StoreDb = BaseSQLiteDatabase<"async", unknown, typeof schema>;
+
+/** A store's database that runs several statements as one transaction, reached either way. */
+export type BatchStoreDb = StoreDb & Pick<AppDb, "batch">;

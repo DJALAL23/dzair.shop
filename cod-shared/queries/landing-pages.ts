@@ -20,7 +20,7 @@ import {
   products,
   stores,
 } from "../db/schema";
-import type { AppDb } from "../db/client";
+import type { AppDb, BatchStoreDb, StoreDb } from "../db/client";
 import { insertSelectRow } from "../db/insert-select";
 import { landingDocumentSurface } from "./page-document-surface";
 import {
@@ -222,7 +222,7 @@ export function generateLandingPageSlug(): string {
  *      every REST detail read and every MCP write tool's post-mutation read.
  */
 /** The page's own row, without its images, stats or product: for checks and names. */
-export async function getLandingPageRow(db: AppDb, id: string) {
+export async function getLandingPageRow(db: StoreDb, id: string) {
   return (await db.select().from(landingPages).where(eq(landingPages.id, id)).get()) ?? null;
 }
 
@@ -377,7 +377,7 @@ export async function createLandingPage(
 }
 
 export async function updateLandingPage(
-  db: AppDb,
+  db: StoreDb,
   id: string,
   data: UpdateLandingPageData,
 ) {
@@ -455,7 +455,7 @@ export function landingImageOrderProblem(existingIds: readonly string[], imageId
  * there move down one. A position past the end is the end.
  */
 export async function addLandingPageImage(
-  db: AppDb,
+  db: BatchStoreDb,
   landingPageId: string,
   image: LandingPageImageInput,
   delivery: MediaDelivery,
@@ -492,13 +492,13 @@ export async function addLandingPageImage(
   return getLandingPageImages(db, landingPageId, delivery);
 }
 
-export async function getLandingPageImages(db: AppDb, landingPageId: string, delivery: MediaDelivery) {
+export async function getLandingPageImages(db: StoreDb, landingPageId: string, delivery: MediaDelivery) {
   const rows = await db.select().from(landingPageImages).where(eq(landingPageImages.landingPageId, landingPageId)).orderBy(landingPageImages.position).all();
   return landingImageViews(rows, delivery);
 }
 
 export async function getLandingPageImage(
-  db: AppDb,
+  db: StoreDb,
   landingPageId: string,
   imageId: string,
 ) {
@@ -515,7 +515,7 @@ export async function getLandingPageImage(
 }
 
 export async function reorderLandingPageImages(
-  db: AppDb,
+  db: BatchStoreDb,
   landingPageId: string,
   imageIds: string[],
   delivery: MediaDelivery,
@@ -546,7 +546,7 @@ export async function reorderLandingPageImages(
 }
 
 export async function deleteLandingPageImage(
-  db: AppDb,
+  db: StoreDb,
   landingPageId: string,
   imageId: string,
 ) {
