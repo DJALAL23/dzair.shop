@@ -42,28 +42,30 @@ function pixelSourceOf(source: string): string {
   return match![1];
 }
 
-const landingPage = read("pages/lp/[slug].astro");
+const landingSurface = read("theme/pages/LandingSurface.astro");
+const landingOrder = read("theme/components/landing/LandingOrder.astro");
 const thankYou = read("pages/thank-you.astro");
 const productDetail = read("theme/components/product-page/ProductMain.astro");
 
 describe("the landing page", () => {
   it("renders the pixel the server resolved for it, not the store's", () => {
-    // `lp.tracking` is computed by cod-shared inside the batch this page
-    // already runs. Falling back to `config.pixelId` here would put a page
-    // with its own pixel back on the store's.
-    expect(landingPage).toMatch(/lp\.tracking/);
+    // `landing.tracking` is computed by cod-shared inside the batch the page
+    // read runs. Falling back to `config.pixelId` would put a page with its
+    // own pixel back on the store's.
+    expect(landingSurface).toMatch(/const pageConfig = \{ \.\.\.config, pixelId: landing\.tracking\.pixelId \};/);
   });
 
   it("loads and fires at one and the same pixel", () => {
     // The head initialises whatever config the layout gets; product.ts fires
-    // ViewContent and InitiateCheckout at data-pixel-id. If those two name
-    // different values, the page installs one pixel and reports to another —
-    // and with trackSingle the events would reach nothing at all.
-    expect(layoutConfigOf(landingPage)).toBe(pixelSourceOf(landingPage));
+    // ViewContent and InitiateCheckout at data-pixel-id, which the order
+    // section writes. Both must name the page's resolved pixel.
+    expect(layoutConfigOf(landingSurface)).toBe("pageConfig");
+    expect(landingOrder).toMatch(/pixelId: landing\.tracking\.pixelId/);
   });
 
   it("does not fall back to the bare store config for either", () => {
-    expect(layoutConfigOf(landingPage)).not.toBe("config");
+    expect(landingSurface).not.toMatch(/config\.pixelId/);
+    expect(landingOrder).not.toMatch(/config\.pixelId/);
   });
 });
 

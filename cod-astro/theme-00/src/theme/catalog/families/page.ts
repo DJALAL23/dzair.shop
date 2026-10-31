@@ -16,6 +16,8 @@ import { customerTestimonials } from "../home/customer-testimonials.def";
 import { featuresBar } from "../home/features-bar.def";
 import { whatsappCta } from "../home/whatsapp-cta.def";
 import { marquee } from "../home/marquee.def";
+import { howItWorks } from "../home/how-it-works.def";
+import { offerCountdown } from "../home/offer-countdown.def";
 
 export const pageSurface: SurfaceSpec = {
   key: "page",
@@ -38,5 +40,7 @@ export const pageCatalog = defineTheme({
     "features-bar": featuresBar,
     "whatsapp-cta": whatsappCta,
     marquee,
+    "how-it-works": howItWorks,
+    "offer-countdown": offerCountdown,
   },
 });

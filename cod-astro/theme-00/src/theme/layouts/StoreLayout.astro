@@ -25,17 +25,16 @@ interface Props {
    */
   config?: StoreConfig;
   hideMobileNav?: boolean;
-  /** Marketing mode (landing pages): no header, no mobile nav, no footer —
-   *  the page is images + form + sticky CTA, nothing else. */
-  marketing?: boolean;
+  /** Whether the page shows the store's header and footer areas: a landing page may leave them out. */
+  header?: boolean;
+  footer?: boolean;
   /** LCP images (landing page stack top) — preloaded in <head>. */
   preloadImages?: string[];
   /** Client-side navigation to and from this page. Off where a widget needs a fresh document. */
   softNavigation?: boolean;
 }
 
-const { title, description, ogImage, noindex, marketing = false, preloadImages, softNavigation = true } = Astro.props;
-const hideMobileNav = marketing || Astro.props.hideMobileNav;
+const { title, description, ogImage, noindex, header = true, footer = true, preloadImages, softNavigation = true, hideMobileNav = false } = Astro.props;
 
 // Client-side navigation: the page content lifts out and settles in, so a move
 // between pages reads as one motion. The header and footer stay in place.
@@ -94,13 +93,13 @@ const fonts = { body: themeFont(settings.font, BODY_FONT), heading: themeFont(se
   />
 
   <body class:list={[schemeClass(settings.pageScheme), !hideMobileNav && "has-mobile-nav"]} style={`--card-aspect: ${cardAspect(settings.cardImageRatio)}`} data-card-button={settings.cardButton ? "" : undefined}>
-    {!marketing && <Area area="header" />}
+    {header && <Area area="header" />}
 
     <main transition:animate={pageMotion}>
       <slot />
     </main>
 
-    {!marketing && <Area area="footer" />}
+    {footer && <Area area="footer" />}
 
     {/* One drawer per page, outside the main flow so its fixed positioning is
         never trapped by a transformed ancestor. Rendered only when the cart is

@@ -12,6 +12,10 @@ import type { LocalizedText } from "@wocart/theme";
 const text = (ar: string, fr: string, en: string): LocalizedText => ({ ar, fr, en });
 
 export const SECTION = {
+  landingImages: text("صور الصفحة", "Images de la page", "Page images"),
+  landingOrder: text("استمارة الطلب", "Formulaire de commande", "Order form"),
+  landingProduct: text("اسم المنتج وسعره", "Nom et prix du produit", "Product name and price"),
+  offerCountdown: text("العدّ التنازلي للعرض", "Compte à rebours de l'offre", "Offer countdown"),
   thankYouMain: text("تأكيد الطلب", "Confirmation de commande", "Order confirmation"),
   productMain: text("المنتج", "Produit", "Product"),
   productReviews: text("تقييمات المنتج", "Avis sur le produit", "Product reviews"),
@@ -43,6 +47,8 @@ export const SECTION = {
 export const HELP = {
   endsOn: text("مثال: 2026-11-30. بتوقيت الجزائر؛ يختفي العدّ عند انتهائه.", "Exemple : 2026-11-30. Heure d'Alger ; le compte à rebours disparaît à la fin.", "For example 2026-11-30. Algiers time; the countdown disappears when it ends."),
   endsAt: text("اتركه فارغاً لينتهي في منتصف ليل ذلك اليوم. مثال: 18:00.", "Laissez vide pour finir à minuit ce jour-là. Exemple : 18:00.", "Leave empty to end at midnight that day. For example 18:00."),
+  firstImage: text("الصورة الأولى من صور الصفحة التي يعرضها هذا القسم.", "La première des images de la page que montre cette section.", "The first of the page's images this section shows."),
+  imageCount: text("0 لعرض كل الصور التي تليها.", "0 pour montrer toutes les suivantes.", "0 shows every image after it."),
 };
 
 export const FIELD = {
@@ -91,6 +97,11 @@ export const FIELD = {
   autoplay: text("تبديل الرسائل تلقائياً", "Faire défiler les messages", "Rotate messages"),
   about: text("نبذة", "Présentation", "About text"),
   showWhatsapp: text("زر واتساب", "Bouton WhatsApp", "WhatsApp button"),
+  firstImage: text("من الصورة رقم", "À partir de l'image n°", "From image number"),
+  imageCount: text("عدد الصور", "Nombre d'images", "Number of images"),
+  stickyCta: text("زر «اطلب الآن» الثابت على الهاتف", "Bouton « Commander » fixe sur mobile", "Sticky “Order now” button on phones"),
+  stickyCtaLabel: text("نص الزر الثابت", "Texte du bouton fixe", "Sticky button text"),
+  showRating: text("إظهار التقييم", "Afficher la note", "Show the rating"),
   socialLinks: text("روابط التواصل الاجتماعي", "Réseaux sociaux", "Social links"),
   network: text("الشبكة", "Réseau", "Network"),
   socialLabel: text("الاسم (اختياري)", "Nom (facultatif)", "Name (optional)"),
@@ -172,6 +183,7 @@ export const GROUP = {
   product: text("صفحة المنتج", "Page produit", "Product page"),
   listing: text("قوائم المنتجات", "Listes de produits", "Product lists"),
   page: text("صفحات النص", "Pages de texte", "Text pages"),
+  landing: text("صفحة الهبوط", "Page d'atterrissage", "Landing page"),
   header: text("رأس الصفحة", "En-tête", "Header"),
   footer: text("تذييل الصفحة", "Pied de page", "Footer"),
 };
@@ -211,6 +223,7 @@ export const SURFACE = {
   catalog: text("كل المنتجات", "Tous les produits", "All products"),
   page: text("صفحة نصية", "Page de texte", "Text page"),
   thankYou: text("صفحة الشكر", "Page de remerciement", "Thank-you page"),
+  landing: text("صفحة هبوط", "Page d'atterrissage", "Landing page"),
 };
 
 /** The theme's global settings (`settings.ts`), as the editor groups them. */

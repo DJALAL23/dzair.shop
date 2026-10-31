@@ -37,7 +37,7 @@ describe("the manifest file", () => {
 
   it("carries every surface, the home and product pages with their default documents, and every text pack", async () => {
     const manifest = (await endpoint.GET().json()) as Awaited<ReturnType<typeof validateThemeManifest>>["manifest"] & object;
-    expect(manifest.surfaces.map((surface) => surface.key)).toEqual(["home", "product", "collection", "category", "catalog", "page", "thank-you"]);
+    expect(manifest.surfaces.map((surface) => surface.key)).toEqual(["home", "product", "collection", "category", "catalog", "page", "thank-you", "landing"]);
     expect(manifest.surfaces[0]).toEqual({ key: "home", label: theme00.surfaces[0].label, pageType: "home", document: shippedHome });
     expect(manifest.surfaces[1]).toMatchObject({ key: "product", pageType: "product", document: shippedProduct, required: [{ type: "product-main", min: 1, max: 1 }] });
     expect(manifest.content).toEqual({ ar: { ...ar }, fr: { ...fr }, en: { ...en } });

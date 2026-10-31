@@ -1,0 +1,28 @@
+---
+// A countdown to the end of an offer, as a section: the boxes a banner uses,
+// under the merchant's line. Gone once the offer ends.
+import type { InferProps } from "@wocart/theme";
+import { countdownTarget } from "@wocart/storefront";
+import Countdown from "@/theme/components/ui/Countdown.astro";
+import Section from "@/theme/components/ui/Section.astro";
+import type { StoreFrontContent } from "@/theme/content";
+import type { offerCountdown } from "@/theme/catalog/home/offer-countdown.def";
+
+type Props = Pick<InferProps<typeof offerCountdown>, "countdown" | "endsOn" | "endsAt" | "scheme" | "style"> & { content: StoreFrontContent };
+const { countdown, endsOn, endsAt, scheme, style, content } = Astro.props;
+const ends = countdownTarget(countdown, endsOn, endsAt);
+const units = { days: content.countdownDays, hours: content.countdownHours, minutes: content.countdownMinutes, seconds: content.countdownSeconds };
+---
+
+<Section scheme={scheme} style={style} class="offer-countdown">
+  <div class="offer-countdown-inner">
+    {content.productCountdownLabel && <p class="offer-countdown-title">{content.productCountdownLabel}</p>}
+    <Countdown ends={ends} units={units} look="boxes" label={content.productCountdownLabel} />
+  </div>
+</Section>
+
+<style>
+  .offer-countdown:not(:has(:global(.countdown))) { display: none; }
+  .offer-countdown-inner { display: grid; justify-items: center; gap: 0.875rem; text-align: center; }
+  .offer-countdown-title { font-family: var(--font-heading); font-size: var(--text-xl); color: var(--clr-ink); }
+</style>

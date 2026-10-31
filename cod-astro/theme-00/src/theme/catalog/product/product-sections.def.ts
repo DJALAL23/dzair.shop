@@ -15,7 +15,7 @@ const ON_PRODUCT = { surfaces: ["product"] };
  */
 const inPreview = (input: { context: { params?: Readonly<Record<string, string | undefined>> } }) => input.context.params?.preview === "true";
 
-/** What shoppers who received the product say about it, and the form to add a review. */
+/** What shoppers who received the product say about it, and the form to add a review — on a landing page, of the product it sells. */
 export const productReviews = defineComponent({
   type: "product-reviews",
   component: ProductReviews,
@@ -30,7 +30,7 @@ export const productReviews = defineComponent({
     styleField(),
   ],
   load: async (input) => ({ product: await routeProduct(input), content: copyOverrides(input.context.content, input.props), inline: inPreview(input) }),
-  capabilities: { insertable: true, ...ON_PRODUCT },
+  capabilities: { insertable: true, surfaces: ["product", "landing"] },
 });
 
 /** Products from the same category, for the shopper who decides this one is not it. */

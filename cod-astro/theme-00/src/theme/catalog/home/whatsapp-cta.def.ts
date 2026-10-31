@@ -6,7 +6,7 @@ import { copyOverrides, schemeField, sectionSpacing, styleField } from "../share
 
 export const whatsappCta = defineComponent({
   type: "whatsapp-cta",
-  capabilities: { insertable: true, surfaces: ["home", "page", "thank-you", "area:footer"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "thank-you", "area:footer"] },
   component: WhatsAppCTA,
   label: SECTION.whatsappCta,
   group: GROUP.home,

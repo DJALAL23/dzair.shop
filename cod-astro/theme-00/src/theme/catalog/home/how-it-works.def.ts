@@ -7,7 +7,7 @@ import { copyOverrides, schemeField, sectionSpacing, styleField } from "../share
 /** How a cash-on-delivery order goes, in its three steps. */
 export const howItWorks = defineComponent({
   type: "how-it-works",
-  capabilities: { insertable: true, surfaces: ["home"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "landing"] },
   component: HowItWorks,
   label: SECTION.howItWorks,
   group: GROUP.home,

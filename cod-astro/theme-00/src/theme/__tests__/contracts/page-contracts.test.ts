@@ -198,7 +198,7 @@ describe("the image a shared link shows", () => {
     const own: [string, string][] = [
       ["theme/pages/ProductSurface.astro", "ogImage={product?.images[0]?.url}"],
       ["pages/category/[slug].astro", "ogImage={category.image?.url}"],
-      ["pages/lp/[slug].astro", "ogImage={firstImage}"],
+      ["theme/pages/LandingSurface.astro", "ogImage={cover ? imageSource(cover.url, config.media, 1200) : undefined}"],
     ];
     for (const [file, prop] of own) expect(readFileSync(join(SRC_DIR, file), "utf8"), file).toContain(prop);
     expect(readFileSync(join(SRC_DIR, "theme/layouts/StoreLayout.astro"), "utf8")).toContain("ogImage ?? config.ogImage?.url");

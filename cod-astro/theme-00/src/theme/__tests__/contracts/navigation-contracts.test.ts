@@ -157,12 +157,12 @@ describe("the layout", () => {
     expect(html).not.toContain("#123456");
   });
 
-  it("asks for no menu and no area on a marketing page", async () => {
+  it("asks for no menu and no area on a page that leaves out the header and footer", async () => {
     const asked: string[] = [];
     const client = { menus: { get: async (handle: string) => (asked.push(handle), null) }, pageData: { get: async (surface: string) => (asked.push(surface), null) } };
     const container = await AstroContainer.create();
     await container.renderToString(StoreLayout, {
-      props: { marketing: true },
+      props: { header: false, footer: false },
       locals: testLocals({ client: client as never }),
       request: new Request("https://example.dz/lp/promo"),
     });

@@ -17,6 +17,7 @@ import SurfacePage from "@/theme/pages/SurfacePage.astro";
 import { listingCatalog } from "@/theme/catalog/families/listing";
 import { pageCatalog } from "@/theme/catalog/families/page";
 import { thankYouCatalog } from "@/theme/catalog/families/thank-you";
+import LandingSurface from "@/theme/pages/LandingSurface.astro";
 import PreviewBridge from "@/theme/components/preview/PreviewBridge.astro";
 import { previewResponseHeaders } from "@/theme/sdk";
 import { theme00 } from "@/theme/theme";
@@ -29,8 +30,11 @@ if (preview === undefined) return notFound();
 const { client } = Astro.locals.store;
 const target = await previewTarget(theme00, preview.draft, client);
 const shown = target?.pageType;
-if (target === null || (shown !== "home" && shown !== "product" && shown !== "collection" && shown !== "category" && shown !== "catalog" && shown !== "page" && shown !== "thankYou")) return notFound();
+if (target === null || (shown !== "home" && shown !== "product" && shown !== "collection" && shown !== "category" && shown !== "catalog" && shown !== "page" && shown !== "thankYou" && shown !== "landing")) return notFound();
 const product = shown === "product" && target.params.handle ? await client.products.get(target.params.handle) : null;
+// A landing page previews as a draft too, and its preview counts no visit.
+const landing = shown === "landing" && target.params.slug ? await client.pages.landing(target.params.slug, { preview: true }) : null;
+if (shown === "landing" && landing === null) return notFound();
 
 for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims))) {
   Astro.response.headers.set(name, value);
@@ -39,7 +43,11 @@ const { document, params } = target;
 const isArea = target.area !== null;
 ---
 
-{shown === "product" ? (
+{landing !== null ? (
+  <LandingSurface landing={landing} document={isArea ? landing.document : document} preview={!isArea} area={target.area} softNavigation={false}>
+    <PreviewBridge editor={preview.claims.editor} token={preview.token} />
+  </LandingSurface>
+) : shown === "product" ? (
   <ProductSurface product={product} document={document} preview={!isArea} softNavigation={false}>
     <PreviewBridge editor={preview.claims.editor} token={preview.token} />
   </ProductSurface>

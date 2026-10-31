@@ -1,0 +1,89 @@
+---
+// The landing page's one order form — the same form, data bridge and
+// delivery island the product page uses, so offers, OTP, the wilaya cascade
+// and tracking work unchanged — and, while the form is out of view on a
+// phone, a sticky button down to it. The order names the page, so the
+// merchant sees which ad sold.
+import type { InferProps } from "@wocart/theme";
+import { getProductView, type LandingPage } from "@wocart/storefront";
+import { actions } from "astro:actions";
+import { Icon } from "astro-icon/components";
+import OrderForm from "@/theme/components/order/OrderForm.astro";
+import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
+import Section from "@/theme/components/ui/Section.astro";
+import { pageDataCopy } from "@/theme/bridges/island-props";
+import { PRODUCT_PAGE_DATA_ID, buildProductPageData } from "@/theme/bridges/product-page-data";
+import { orderOutcome } from "@/theme/pages/order-outcome";
+import type { StoreFrontContent } from "@/theme/content";
+import type { landingOrder } from "@/theme/catalog/landing/landing.def";
+
+type Props = Pick<InferProps<typeof landingOrder>, "showAssurance" | "stickyCta" | "scheme" | "style"> & {
+  landing: LandingPage | null;
+  content: StoreFrontContent;
+  /** In the editor's preview the delivery island renders inline, where it is placed. */
+  inline?: boolean;
+};
+const { landing, content, showAssurance = true, stickyCta = true, scheme, style, inline = false } = Astro.props;
+const { config, isRTL } = Astro.locals.store;
+const product = landing?.product ?? null;
+const view = product ? getProductView(product) : null;
+const { fieldErrors, serverError, couponRefusal } = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
+---
+
+{landing && product && view && (
+  <Section scheme={scheme} style={style} id="order-section-wrapper">
+    <div
+      id={PRODUCT_PAGE_DATA_ID}
+      class="sr-only"
+      {...buildProductPageData({ product, currencySymbol: config.currencySymbol, isRTL, basePrice: view.basePrice, pixelId: landing.tracking.pixelId, copy: pageDataCopy(content) })}
+    />
+    {inline ? <ShippingIsland /> : <ShippingIsland server:defer />}
+    <OrderForm
+      product={product}
+      content={content}
+      fieldErrors={fieldErrors}
+      serverError={serverError}
+      couponRefusal={couponRefusal}
+      basePrice={view.basePrice}
+      defaultVariant={view.defaultVariant ?? null}
+      cur={config.currencySymbol}
+      isRTL={isRTL}
+      offers={product.offers}
+      defaultVariantId={view.defaultVariant?.id ?? null}
+      isOutOfStock={view.isOutOfStock}
+      otpEnabled={config.otpEnabled === true}
+      turnstileEnabled={config.turnstileEnabled === true}
+      turnstileSiteKey={config.turnstileSiteKey ?? null}
+      formPolicy={config.checkoutForm}
+      landingPageSlug={landing.slug}
+      showAssurance={showAssurance}
+      scheme={scheme}
+    />
+    {stickyCta && !view.isOutOfStock && (
+      <a href="#order-section-wrapper" id="lp-sticky-cta" class="btn-primary lp-sticky-cta">
+        {content.orderCta}
+        <Icon name="heroicons:chevron-down" class="w-5 h-5" aria-hidden="true" />
+      </a>
+    )}
+  </Section>
+)}
+
+<style>
+  .lp-sticky-cta {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 0.75rem);
+    inset-inline: 0;
+    margin-inline: auto;
+    width: min(24rem, calc(100% - 2rem));
+    z-index: 45;
+    box-shadow: var(--shadow-primary);
+    font-weight: 800;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+  .lp-sticky-cta.is-hidden {
+    transform: translateY(150%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) { .lp-sticky-cta { transition: none; } }
+</style>

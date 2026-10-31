@@ -1,0 +1,62 @@
+---
+// ── The landing surface ─────────────────────────────────────────────────────
+// A landing page — an ad's destination — composed in the theme editor, each
+// page with its own document (`lp:<id>`), or the theme's `landing` default.
+// The route reads the page first (a draft, archived or unknown slug goes to
+// the store home) and primes the read cache, so every section takes the same
+// page. Its head loads the pixel the page reports to, resolved by the server,
+// and leaves out the header and footer when the page's document does. No
+// phone tab bar: the page leads to its order form, not around the store.
+import { createReadCache } from "@wocart/theme/astro";
+import { isAreaShown, landingSurface, resolveSurfaceDocument } from "@wocart/theme";
+import type { LandingPage } from "@wocart/storefront";
+import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import Sections from "@/theme/components/surface/Sections.astro";
+import { landingCatalog } from "@/theme/catalog/families/landing";
+import { theme00 } from "@/theme/theme";
+import { landingRead } from "@/theme/catalog/product/shared";
+import { imageSource } from "@/theme/utils/images";
+
+interface Props {
+  landing: LandingPage;
+  /** The page's document: its own (`landing.document`), or a preview's draft. */
+  document: unknown;
+  preview?: boolean;
+  /** The area an editor is editing over this page; it always shows. */
+  area?: string | null;
+  softNavigation?: boolean;
+}
+
+const { landing, document, preview = false, area = null, softNavigation = true } = Astro.props;
+const { config, content, locale } = Astro.locals.store;
+const reads = createReadCache();
+reads.get(landingRead(landing.slug), async () => landing);
+const surface = landingSurface(landing.id);
+const page = resolveSurfaceDocument(landingCatalog, surface, document, { content, locales: [locale] }).page;
+// The areas are the whole theme's; the route's catalog holds only the landing page's sections.
+const shown = (key: string) => area === `area:${key}` || isAreaShown(theme00, page, key);
+const images = [...landing.images].sort((a, b) => a.position - b.position);
+const cover = images[0];
+const pageConfig = { ...config, pixelId: landing.tracking.pixelId };
+const title = landing.metaTitle || (landing.product ? `${landing.product.name} — ${config.name}` : config.name);
+---
+
+<StoreLayout
+  config={pageConfig}
+  softNavigation={softNavigation}
+  title={title}
+  description={landing.metaDescription || config.metaDescription || undefined}
+  ogImage={cover ? imageSource(cover.url, config.media, 1200) : undefined}
+  noindex={true}
+  header={shown("header")}
+  footer={shown("footer")}
+  hideMobileNav={true}
+  preloadImages={images.slice(0, 2).map((image) => imageSource(image.url, config.media, 1080))}
+>
+  <Sections theme={landingCatalog} surface={surface} document={page} preview={preview} params={{ slug: landing.slug, surface: "landing", preview: preview ? "true" : undefined }} reads={reads} />
+  <slot />
+</StoreLayout>
+
+<script src="../scripts/product.ts"></script>
+<script src="../scripts/sticky-cta.ts"></script>
+<script src="../scripts/track-abandonment.ts"></script>

@@ -1,0 +1,50 @@
+---
+// The product a landing page sells, in a line: its name, its price and the
+// price before the offer, its stars when shoppers rated it.
+import type { InferProps } from "@wocart/theme";
+import { getProductView, type LandingPage } from "@wocart/storefront";
+import { Icon } from "astro-icon/components";
+import Section from "@/theme/components/ui/Section.astro";
+import { message } from "@/theme/content/messages";
+import { formatAmount } from "@/theme/utils/money";
+import type { landingProduct } from "@/theme/catalog/landing/landing.def";
+
+type Props = Pick<InferProps<typeof landingProduct>, "showRating" | "scheme" | "style"> & { landing: LandingPage | null };
+const { landing, showRating = true, scheme, style } = Astro.props;
+const { config, content, locale } = Astro.locals.store;
+const product = landing?.product ?? null;
+const view = product ? getProductView(product) : null;
+const stats = showRating && product?.reviewStats && product.reviewStats.reviewCount > 0 ? product.reviewStats : null;
+const filled = stats ? Math.round(stats.avgRating) : 0;
+---
+
+{product && view && (
+  <Section scheme={scheme} style={style}>
+    <div class="landing-product">
+      <h1 class="landing-product-name">{product.name}</h1>
+      <p class="landing-product-price">
+        <span class:list={["price", view.hasDiscount && "is-sale"]}>{formatAmount(view.basePrice)}<span class="price-cur">{config.currencySymbol}</span></span>
+        {view.hasDiscount && view.comparePrice != null && <span class="price-was">{formatAmount(view.comparePrice)} {config.currencySymbol}</span>}
+      </p>
+      {stats && (
+        <p class="landing-product-stars" role="img" aria-label={message(content, "ariaStarRating", { count: filled }, locale)}>
+          <span class="stars" aria-hidden="true">{[1, 2, 3, 4, 5].map((star) => <Icon name="heroicons:star-solid" class:list={[star > filled && "is-empty"]} />)}</span>
+          <span class="num" aria-hidden="true">{message(content, "productReviewCount", { count: stats.reviewCount }, locale)}</span>
+        </p>
+      )}
+    </div>
+  </Section>
+)}
+
+<style>
+  .landing-product { display: grid; justify-items: center; gap: 0.5rem; text-align: center; }
+  .landing-product-name { font-family: var(--font-heading); font-size: var(--text-2xl); line-height: 1.25; color: var(--clr-ink); }
+  .landing-product-price { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 0.25rem 0.75rem; }
+  .landing-product-price .price { font-family: var(--font-heading); font-size: var(--text-3xl); line-height: 1.2; }
+  .landing-product-price .price-was { font-size: var(--text-lg); }
+  .landing-product-stars { display: inline-flex; align-items: center; gap: 0.5rem; font-size: var(--text-sm); color: var(--clr-text); }
+  .landing-product-stars .stars { display: inline-flex; color: var(--clr-rating); }
+  .landing-product-stars :global(svg) { width: 1.125rem; height: 1.125rem; }
+  .landing-product-stars :global(.is-empty) { color: var(--clr-border); }
+  @media (min-width: 1024px) { .landing-product-name { font-size: var(--text-3xl); } }
+</style>

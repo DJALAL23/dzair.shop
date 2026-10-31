@@ -9,7 +9,7 @@ const SHOWN = 6;
 /** The best recent reviews of the most reviewed products, each with the product it is about. */
 export const customerTestimonials = defineComponent({
   type: "customer-testimonials",
-  capabilities: { insertable: true, surfaces: ["home", "page"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "landing"] },
   component: CustomerTestimonials,
   label: SECTION.customerTestimonials,
   group: GROUP.home,

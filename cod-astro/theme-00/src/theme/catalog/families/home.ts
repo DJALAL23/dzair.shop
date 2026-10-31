@@ -12,6 +12,7 @@ import { hero } from "../home/hero.def";
 import { categoryCards } from "../home/category-cards.def";
 import { bestSellers } from "../home/best-sellers.def";
 import { howItWorks } from "../home/how-it-works.def";
+import { offerCountdown } from "../home/offer-countdown.def";
 import { newArrivals } from "../home/new-arrivals.def";
 import { featuredProducts } from "../home/featured-products.def";
 import { onSale } from "../home/on-sale.def";
@@ -41,6 +42,7 @@ export const homeCatalog = defineTheme({
     "category-cards": categoryCards,
     "best-sellers": bestSellers,
     "how-it-works": howItWorks,
+    "offer-countdown": offerCountdown,
     "new-arrivals": newArrivals,
     "featured-products": featuredProducts,
     "on-sale": onSale,

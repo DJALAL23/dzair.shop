@@ -3,7 +3,7 @@
 // merchant chose. The server writes the time left; the browser keeps it
 // running and, past the end, removes it. A cached page counts from the
 // visitor's own clock, never from the moment it was cached.
-import { countdownEnd, timeLeft, type CountdownEnd } from "@/theme/utils/countdown";
+import { countdownEnd, timeLeft, type CountdownEnd } from "@wocart/storefront";
 
 interface Props {
   ends: CountdownEnd | undefined;
@@ -33,7 +33,7 @@ const pad = (value: number) => String(value).padStart(2, "0");
 
 <script>
   import { bindEach } from "@wocart/theme/lifecycle";
-  import { countdownEnd, timeLeft } from "@/theme/utils/countdown";
+  import { countdownEnd, timeLeft } from "@wocart/storefront";
 
   bindEach("[data-countdown]", (element) => {
     const end = countdownEnd(element.dataset.countdown);
@@ -61,7 +61,7 @@ const pad = (value: number) => String(value).padStart(2, "0");
 </script>
 
 <style>
-  .countdown-parts { display: flex; gap: 0.5rem; }
+  .countdown-parts { display: flex; gap: 0.5rem; direction: ltr; unicode-bidi: isolate; }
   .is-boxes .countdown-part {
     display: grid;
     min-width: 3.875rem;
@@ -79,7 +79,7 @@ const pad = (value: number) => String(value).padStart(2, "0");
   }
   .is-line { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
   .is-line .countdown-label { font-weight: 600; color: var(--clr-ink); }
-  .is-line .countdown-parts { gap: 0.25rem; direction: ltr; unicode-bidi: isolate; }
+  .is-line .countdown-parts { gap: 0.25rem; }
   .is-line .countdown-part { display: inline-flex; align-items: baseline; gap: 0.125rem; }
   .is-line .countdown-part + .countdown-part::before { content: ":"; margin-inline-end: 0.25rem; color: var(--clr-muted); }
   .is-line b { font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 600; color: var(--clr-ink); }

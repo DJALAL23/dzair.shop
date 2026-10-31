@@ -1,0 +1,44 @@
+---
+// The landing page's own images, stacked in their saved order with the
+// page's gap: all, or a range. Edge to edge on a phone, the section's width
+// on a wide screen. Each image reserves its space before it arrives, so the
+// form below never jumps.
+import type { InferProps } from "@wocart/theme";
+import type { LandingPage } from "@wocart/storefront";
+import Section from "@/theme/components/ui/Section.astro";
+import { imageSrcset, imageSource } from "@/theme/utils/images";
+import type { landingImages } from "@/theme/catalog/landing/landing.def";
+
+type Props = Pick<InferProps<typeof landingImages>, "first" | "count" | "scheme" | "style"> & { landing: LandingPage | null };
+const { landing, first = 1, count = 0, scheme, style } = Astro.props;
+const { media } = Astro.locals.store.config;
+const start = Math.max(1, Math.floor(first)) - 1;
+const images = landing ? [...landing.images].sort((a, b) => a.position - b.position).slice(start, count > 0 ? start + count : undefined) : [];
+const opensPage = start === 0;
+---
+
+{landing && images.length > 0 && (
+  <Section scheme={scheme} style={style} inner="landing-frame">
+    <div class="landing-stack" style={`--landing-gap: ${landing.imageGap}px`}>
+      {images.map((image, index) => (
+        <img
+          src={imageSource(image.url, media, 1080)}
+          srcset={imageSrcset(image.url, media, [480, 720, 1080, 1440])}
+          sizes="(min-width: 768px) 672px, 100vw"
+          alt={image.altText ?? landing.name}
+          width={image.width ?? undefined}
+          height={image.height ?? undefined}
+          loading={opensPage && index < 2 ? "eager" : "lazy"}
+          fetchpriority={opensPage && index === 0 ? "high" : undefined}
+          decoding="async"
+        />
+      ))}
+    </div>
+  </Section>
+)}
+
+<style>
+  .section :global(.frame.landing-frame) { padding-inline: 0; }
+  .landing-stack { display: grid; gap: var(--landing-gap); }
+  .landing-stack img { display: block; width: 100%; height: auto; background: var(--clr-surface); }
+</style>
