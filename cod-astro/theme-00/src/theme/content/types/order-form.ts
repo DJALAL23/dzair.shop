@@ -35,15 +35,4 @@ export type OrderFormStrings = {
   formFieldInvalid: string;
   formSubmit: string;
   formConfirmNote: string;
-  /**
-   * The pre-order consent line. Contains exactly two tokens, `{terms}` and
-   * `{refund}`, which OrderForm.astro replaces with real links to the
-   * store's Terms and Refund pages (resolved by kind, from `config.pages` —
-   * never a hardcoded slug). The whole sentence — word order included — is
-   * this key's job, because "I agree to X" then "and Y" bolted on afterward
-   * does not read naturally in every language this pack supports. The line
-   * is skipped entirely when either page is not configured, never rendered
-   * with a dead or missing link.
-   */
-  checkoutConsentText: string;
 };

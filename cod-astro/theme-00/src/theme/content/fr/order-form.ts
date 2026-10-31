@@ -32,5 +32,4 @@ export const frOrderForm: OrderFormStrings = {
   formSubmit: "Confirmer la commande",
   formConfirmNote: "Notre équipe vous contactera pour confirmer votre commande dans les 24 heures",
 
-  checkoutConsentText: "En passant cette commande, vous acceptez nos {terms} et notre {refund}.",
 };

@@ -5,14 +5,12 @@ import type {
   Offer,
   ProductDetail,
   ProductVariant,
-  StorePageLink,
 } from "@wocart/storefront";
 import { getProductView, type CouponRefusal } from "@wocart/storefront";
 import type { StoreFrontContent } from "@/theme/content";
 import type { FieldErrors } from "@/theme/types";
 import { Icon } from "astro-icon/components";
 import { schemeClass } from "@wocart/theme";
-import { resolveCheckoutConsent } from "@/theme/utils/checkout-consent";
 
 import VariantSelector from "./VariantSelector.astro";
 import OfferTiers from "./OfferTiers.astro";
@@ -21,7 +19,6 @@ import OrderSummary from "./OrderSummary.astro";
 import CouponField from "./CouponField.astro";
 import OtpStep from "./OtpStep.astro";
 import TurnstileField from "./TurnstileField.astro";
-import { storefrontPath } from "@wocart/storefront";
 
 interface Props {
   product: ProductDetail;
@@ -42,8 +39,6 @@ interface Props {
   turnstileSiteKey?: string | null;
   /** Landing page attribution — rides the form like fbc/fbp (best-effort). */
   landingPageSlug?: string | null;
-  /** For the pre-order consent line — resolved by kind, never a hardcoded slug. */
-  pages?: StorePageLink[];
   /**
    * The merchant's order-form configuration (config.checkoutForm). Passed
    * straight through to CustomerFields, which defaults it to today's form when
@@ -58,12 +53,7 @@ interface Props {
   scheme?: string | undefined;
 }
 
-const { product, content, fieldErrors, serverError, couponRefusal = null, basePrice, defaultVariant, cur, isRTL, offers, defaultVariantId, isOutOfStock = false, otpEnabled = false, turnstileEnabled = false, turnstileSiteKey = null, landingPageSlug = null, pages = [], formPolicy, buttonOrder = "order-first", showAssurance = true, scheme } = Astro.props;
-
-// Skipped entirely when either page is missing — never a dangling sentence
-// or a link to nowhere. See checkout-consent.ts for the split logic and its
-// own unit tests.
-const consentParts = resolveCheckoutConsent(content.checkoutConsentText, pages);
+const { product, content, fieldErrors, serverError, couponRefusal = null, basePrice, defaultVariant, cur, isRTL, offers, defaultVariantId, isOutOfStock = false, otpEnabled = false, turnstileEnabled = false, turnstileSiteKey = null, landingPageSlug = null, formPolicy, buttonOrder = "order-first", showAssurance = true, scheme } = Astro.props;
 
 const comparePrice = getProductView(product).comparePrice;
 ---
@@ -168,20 +158,6 @@ const comparePrice = getProductView(product).comparePrice;
       )}
 
       <p class="order-note">{content.formConfirmNote}</p>
-
-      {consentParts && (
-        <p class="order-consent">
-          {consentParts.beforeTerms}
-          <a href={Astro.locals.store.href(storefrontPath("page", { slug: consentParts.termsPage.slug }))}>
-            {consentParts.termsPage.title}
-          </a>
-          {consentParts.betweenLinks}
-          <a href={Astro.locals.store.href(storefrontPath("page", { slug: consentParts.refundPage.slug }))}>
-            {consentParts.refundPage.title}
-          </a>
-          {consentParts.afterRefund}
-        </p>
-      )}
     </div>
   </form>
 </div>
@@ -245,8 +221,6 @@ const comparePrice = getProductView(product).comparePrice;
   }
   .assure :global(svg) { width: 1.375rem; height: 1.375rem; }
   .order-note { color: var(--clr-text); font-size: var(--text-sm); text-align: center; }
-  .order-consent { color: var(--clr-text); font-size: var(--text-xs); text-align: center; }
-  .order-consent a { color: var(--clr-ink); text-decoration: underline; text-underline-offset: 0.25em; }
 </style>
 
 <script src="../../scripts/checkout-key.ts"></script>

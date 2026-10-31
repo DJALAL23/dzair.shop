@@ -32,5 +32,4 @@ export const arOrderForm: OrderFormStrings = {
   formSubmit: "تأكيد الطلب",
   formConfirmNote: "سيتصل بك فريقنا لتأكيد طلبك خلال 24 ساعة",
 
-  checkoutConsentText: "بإتمامك لهذا الطلب، فإنك توافق على {terms} وعلى {refund}.",
 };
