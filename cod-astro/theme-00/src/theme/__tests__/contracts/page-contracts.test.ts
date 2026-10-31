@@ -192,3 +192,15 @@ describe("the thank-you page", () => {
     expect(source).toMatch(/data-order-placed data-order-id=\{orderId\} data-order-number=\{orderNumber\}/);
   });
 });
+
+describe("the image a shared link shows", () => {
+  it("is the page's own on a product, a category and a landing page; the store's share image elsewhere", () => {
+    const own: [string, string][] = [
+      ["theme/pages/ProductSurface.astro", "ogImage={product?.images[0]?.url}"],
+      ["pages/category/[slug].astro", "ogImage={category.image?.url}"],
+      ["pages/lp/[slug].astro", "ogImage={firstImage}"],
+    ];
+    for (const [file, prop] of own) expect(readFileSync(join(SRC_DIR, file), "utf8"), file).toContain(prop);
+    expect(readFileSync(join(SRC_DIR, "theme/layouts/StoreLayout.astro"), "utf8")).toContain("ogImage ?? config.ogImage?.url");
+  });
+});

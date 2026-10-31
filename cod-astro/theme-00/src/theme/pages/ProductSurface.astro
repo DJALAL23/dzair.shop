@@ -34,6 +34,7 @@ const meta = product ? productMeta(product) : null;
 <StoreLayout
   title={meta ? message(content, "productPageTitle", { product: meta.title, storeName: config.name }, locale) : config.name}
   description={meta?.description ?? undefined}
+  ogImage={product?.images[0]?.url}
   hideMobileNav={true}
   softNavigation={softNavigation}
 >
