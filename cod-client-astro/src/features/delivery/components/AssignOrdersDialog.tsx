@@ -60,21 +60,14 @@ export function AssignOrdersDialog({ driver, onClose, onDone }: { driver: Driver
   const printable = result?.results.flatMap((item) => (item.outcome === "accepted" && item.shipment ? [item.shipment.id] : [])) ?? [];
 
   return (
-    <Dialog onClose={close} title={<span>{t("assign_dialog.title")} — {driverFullName(driver)}</span>} className="max-w-lg">
-      {result ? (
-        <div className="space-y-3 text-sm">
-          <p className="font-semibold">{t("assign_dialog.given", { count: result.summary.accepted })}</p>
-          {refused.length > 0 && (
-            <ul className="max-h-56 divide-y divide-border overflow-y-auto rounded-lg border border-border">
-              {refused.map((item) => (
-                <li key={item.orderId} className="flex items-start justify-between gap-3 p-2.5">
-                  <span className="shrink-0 font-semibold">{item.orderNumber ?? item.orderId}</span>
-                  <span className="text-end text-xs text-muted-foreground">{item.outcome === "refused" ? item.error.message : ""}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="flex flex-wrap justify-end gap-2">
+    <Dialog
+      onClose={close}
+      placement="end"
+      title={t("assign_dialog.title")}
+      description={driverFullName(driver)}
+      footer={
+        result ? (
+          <>
             {printable.length > 0 && (
               <LinkButton href={printLabelsHref({ shipmentIds: printable })} target="_blank" rel="noopener" variant="secondary">
                 <Printer size={15} aria-hidden="true" />
@@ -84,10 +77,35 @@ export function AssignOrdersDialog({ driver, onClose, onDone }: { driver: Driver
             <Button type="button" onClick={onClose}>
               {t("assign_dialog.done")}
             </Button>
-          </div>
+          </>
+        ) : (
+          <>
+            <Button type="button" variant="secondary" onClick={close} disabled={loading}>
+              {t("assign_dialog.cancel")}
+            </Button>
+            <Button type="button" onClick={() => void give()} disabled={loading || selected.length === 0}>
+              {t("assign_dialog.assign", { count: selected.length })}
+            </Button>
+          </>
+        )
+      }
+    >
+      {result ? (
+        <div className="space-y-3 text-sm">
+          <p className="font-semibold">{t("assign_dialog.given", { count: result.summary.accepted })}</p>
+          {refused.length > 0 && (
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {refused.map((item) => (
+                <li key={item.orderId} className="flex items-start justify-between gap-3 p-2.5">
+                  <span className="shrink-0 font-semibold">{item.orderNumber ?? item.orderId}</span>
+                  <span className="text-end text-xs text-muted-foreground">{item.outcome === "refused" ? item.error.message : ""}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : (
-        <>
+        <div className="space-y-3">
           <p className="text-sm text-muted-foreground">{t("assign_dialog.select_orders")}</p>
           <p className="text-xs font-medium text-muted-foreground">{t("assign_dialog.driver_to_door")}</p>
           {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
@@ -111,7 +129,7 @@ export function AssignOrdersDialog({ driver, onClose, onDone }: { driver: Driver
                   {t("assign_dialog.select_all")}
                 </label>
               )}
-              <div className="max-h-72 space-y-1.5 overflow-y-auto">
+              <div className="space-y-1.5">
                 {orders.map((order) => {
                   const noAddress = !order.address?.trim();
                   return (
@@ -146,15 +164,7 @@ export function AssignOrdersDialog({ driver, onClose, onDone }: { driver: Driver
               </div>
             </div>
           )}
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={close} disabled={loading}>
-              {t("assign_dialog.cancel")}
-            </Button>
-            <Button type="button" onClick={() => void give()} disabled={loading || selected.length === 0}>
-              {t("assign_dialog.assign", { count: selected.length })}
-            </Button>
-          </div>
-        </>
+        </div>
       )}
     </Dialog>
   );

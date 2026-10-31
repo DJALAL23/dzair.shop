@@ -108,7 +108,7 @@ export function Dialog({
         tabIndex={-1}
         className={`relative w-full overflow-y-auto bg-card shadow-2xl ${
           placement === "end"
-            ? "max-h-[85dvh] animate-sheet rounded-t-2xl p-4 sm:h-full sm:max-h-full sm:w-[440px] sm:animate-drawer sm:rounded-none sm:p-5 sm:[--drawer-from:1] rtl:sm:[--drawer-from:-1]"
+            ? "flex max-h-[85dvh] animate-sheet flex-col rounded-t-2xl p-4 sm:h-full sm:max-h-full sm:w-[440px] sm:animate-drawer sm:rounded-none sm:p-5 sm:[--drawer-from:1] rtl:sm:[--drawer-from:-1]"
             : "max-h-[calc(100dvh-1.5rem)] max-w-lg animate-sheet rounded-xl p-4 sm:max-h-[calc(100dvh-2rem)] sm:p-5"
         } ${className}`}
       >
@@ -150,7 +150,13 @@ export function Dialog({
         </div>
         {children && <div className="mt-4">{children}</div>}
         {footer && (
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div
+            className={`mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end ${
+              placement === "end"
+                ? "sticky -bottom-4 -mx-4 -mb-4 border-t border-border bg-card px-4 py-3 sm:-bottom-5 sm:-mx-5 sm:-mb-5 sm:mt-auto sm:px-5"
+                : ""
+            }`}
+          >
             {footer}
           </div>
         )}

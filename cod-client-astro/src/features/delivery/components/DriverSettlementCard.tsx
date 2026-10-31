@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { History, X } from "lucide-react";
 import {
   canScope,
@@ -9,6 +9,7 @@ import {
   Alert,
   StatCard, StatGroup,
   Card,
+  Dialog,
   Table,
   TableHeader,
   TableBody,
@@ -64,9 +65,7 @@ export function DriverSettlementCard({
   const identity = useIdentity();
   const confirm = useConfirmDialog();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showHistory, setShowHistory] = useState(false);
-  const [history, setHistory] = useState<DriverPayment[] | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,17 +88,6 @@ export function DriverSettlementCard({
   function toggleAll() {
     setSelectedIds(isAllSelected ? new Set() : new Set(open.map((row) => row.shipmentId)));
   }
-  async function loadHistory() {
-    if (historyLoading || history !== null) return;
-    setHistoryLoading(true);
-    try {
-      setHistory(await listDriverPayments(driverId));
-    } catch (cause) {
-      setError(driverErrorMessage(cause, t));
-    } finally {
-      setHistoryLoading(false);
-    }
-  }
   async function settle(type: DriverPaymentType) {
     const { shipmentIds, amount } = settlementOf(type, selected);
     if (shipmentIds.length === 0) return;
@@ -114,7 +102,6 @@ export function DriverSettlementCard({
     try {
       await createDriverPayment({ driverId, type, shipmentIds });
       setSelectedIds(new Set());
-      setHistory(null);
       notify.success(t(`payments.success_${ACTION[type]}`));
       await onSettled();
     } catch (cause) {
@@ -128,16 +115,9 @@ export function DriverSettlementCard({
 
   return (
     <Card
-      title={t("table.recent_deliveries")}
+      title={t("payments.title")}
       action={
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            setShowHistory((current) => !current);
-            if (!showHistory) void loadHistory();
-          }}
-        >
+        <Button type="button" variant="secondary" onClick={() => setHistoryOpen(true)}>
           <History size={15} />
           {t("payments.tab_history")}
         </Button>
@@ -243,7 +223,7 @@ export function DriverSettlementCard({
                     {t("table.order")}
                   </TableHead>
                   <TableHead className="text-end">
-                    {t("payments.amount_label")} (COD)
+                    {t("payments.cod_column")}
                   </TableHead>
                   <TableHead className="text-end">
                     {t("payments.fee_badge")}
@@ -327,51 +307,55 @@ export function DriverSettlementCard({
           </div>
         </>
       )}
-      {showHistory && (
-        <div className="mt-4 border-t border-border pt-4">
-          <h3 className="mb-3 text-sm font-semibold text-foreground">
-            {t("payments.tab_history")}
-          </h3>
-          {historyLoading ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              {t("payments.loading")}
-            </p>
-          ) : history === null || history.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              {t("payments.no_history")}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {history.map((payment) => (
-                <div
-                  key={payment.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 p-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold">
-                      {t(`payments.type_${payment.type}`)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      #{payment.orderCount}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium tabular-nums">
-                      {formatDeliveryMoney(payment.amount, locale)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {payment.createdByName}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDeliveryDate(payment.createdAt, locale)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {historyOpen && <PaymentHistorySheet driverId={driverId} onClose={() => setHistoryOpen(false)} />}
     </Card>
+  );
+}
+
+/** What has been settled with the driver, newest first: each payment, what it covered, who recorded it and when. */
+function PaymentHistorySheet({ driverId, onClose }: { driverId: string; onClose: () => void }) {
+  const t = useT("delivery");
+  const locale = useLocale();
+  const [history, setHistory] = useState<DriverPayment[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    listDriverPayments(driverId).then(
+      (loaded) => alive && setHistory(loaded),
+      () => alive && setFailed(true),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [driverId]);
+
+  return (
+    <Dialog onClose={onClose} placement="end" icon={<History size={17} aria-hidden="true" />} title={t("payments.history_title")}>
+      {failed ? (
+        <p role="alert" className="text-sm text-destructive">{t("payments.error_load_history")}</p>
+      ) : history === null ? (
+        <p role="status" aria-busy="true" className="py-6 text-center text-sm text-muted-foreground">{t("payments.loading")}</p>
+      ) : history.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">{t("payments.no_history")}</p>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {history.map((payment) => (
+            <li key={payment.id} className="flex items-start justify-between gap-3 p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">{t(`payments.type_${payment.type}`)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("payments.history_orders", { count: payment.orderCount })}
+                  {payment.createdByName ? ` · ${payment.createdByName}` : ""}
+                  {" · "}
+                  {formatDeliveryDate(payment.createdAt, locale)}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-medium tabular-nums">{formatDeliveryMoney(payment.amount, locale)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Dialog>
   );
 }

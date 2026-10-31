@@ -14,7 +14,7 @@ import { OrderProductsCard } from "@/features/orders/components/OrderProductsCar
 import { OrderShipmentCard } from "@/features/orders/components/OrderShipmentCard";
 import { OrderNextStepCard } from "@/features/orders/components/OrderNextStepCard";
 import { OrderProgressCard } from "@/features/orders/components/OrderProgressCard";
-import { OrderEventsCard } from "@/features/events/components/OrderEventsCard";
+import { OrderEventsButton } from "@/features/events/components/OrderEventsSheet";
 import { orderEventsAccess } from "@/features/events/model";
 import { OrderMobileActionBar } from "@/features/orders/components/OrderMobileActionBar";
 import { EditOrderDialog } from "@/features/orders/components/EditOrderDialog";
@@ -216,8 +216,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           ) : (
             <OrderNextStepCard moves={moves} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
           )}
-          <OrderProgressCard history={order.statusHistory} />
-          <OrderEventsCard orderId={order.id} {...orderEventsAccess(may)} />
+          <OrderProgressCard history={order.statusHistory} action={<OrderEventsButton orderId={order.id} {...orderEventsAccess(may)} />} />
         </div>
       </div>
 

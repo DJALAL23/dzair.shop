@@ -1,15 +1,16 @@
+import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 import { useLocale, useT } from "@/i18n/react";
 import { Card } from "@/components/ui";
 import type { StatusHistoryItem } from "@/features/orders/types";
 
 /** The order's processing as it happened: who confirmed, prepared or cancelled it, and when. */
-export function OrderProgressCard({ history }: { history: StatusHistoryItem[] }) {
+export function OrderProgressCard({ history, action }: { history: StatusHistoryItem[]; action?: ReactNode }) {
   const t = useT("orders");
   const locale = useLocale();
   const steps = [...history].sort((left, right) => right.timestamp.localeCompare(left.timestamp));
   return (
-    <Card title={t("progress.title")}>
+    <Card title={t("progress.title")} action={action}>
       {steps.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("progress.none")}</p>
       ) : (

@@ -56,9 +56,10 @@ export function OrderCustomerCard({ order }: OrderCustomerCardProps) {
             <p className="mt-1 text-sm font-medium">
               {order.wilaya ?? "-"}
             </p>
-            <p className="text-sm text-muted-foreground">
-              {order.commune ?? "-"}
-            </p>
+            {/* A wilaya's capital shares its name (Adrar, Adrar): say it once. */}
+            {order.commune && order.commune !== order.wilaya && (
+              <p className="text-sm text-muted-foreground">{order.commune}</p>
+            )}
             <p className="mt-1 text-sm text-foreground">
               {order.address ?? "-"}
             </p>
