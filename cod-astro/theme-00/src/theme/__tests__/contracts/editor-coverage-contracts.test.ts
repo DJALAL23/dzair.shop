@@ -53,8 +53,9 @@ const SHARED_UI_LABELS = new Set([
   "outOfStock",
   "lowStock",
   "productSaving",
-  // The review form's own title, also the button that opens it.
+  // The review form's own title, also the button that opens it, and its dialog's close button.
   "reviewFormTitle",
+  "reviewFormClose",
   // The track-order page's name, the same wherever it is linked.
   "trackTitle",
   // A listing's words: its count, the "all" button, its empty states.

@@ -39,6 +39,8 @@ export type ReviewsStrings = Plural<"reviewFormPhotosHint"> & Plural<"reviewForm
   /** "{index}": which photo. */
   reviewsOpenPhoto: string;
   reviewsClosePhoto: string;
+  /** The review form's dialog: its close button. */
+  reviewFormClose: string;
   reviewFormIntro: string;
   reviewFormPhoneLabel: string;
   reviewFormPhonePlaceholder: string;

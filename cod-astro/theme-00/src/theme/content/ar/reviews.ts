@@ -31,6 +31,7 @@ export const arReviews: ReviewsStrings = {
   reviewsVoiceRetry: "إعادة المحاولة",
   reviewsOpenPhoto: "فتح الصورة {index}",
   reviewsClosePhoto: "إغلاق",
+  reviewFormClose: "إغلاق نموذج التقييم",
   reviewFormIntro: "وصلتك طلبيتك؟ أخبر الزبائن الآخرين برأيك.",
   reviewFormPhoneLabel: "رقم الهاتف",
   reviewFormPhonePlaceholder: "مثال: 0551 23 45 67",

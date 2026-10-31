@@ -302,7 +302,16 @@ function initReviewForm(): void | (() => void) {
     }
   };
 
+  const onClose = () => {
+    if (!recorder) return;
+    recorder.cancel();
+    recorder = null;
+    stopButton.hidden = true;
+    recordButton.hidden = false;
+  };
+
   const listeners: Array<[EventTarget, string, EventListener]> = [
+    [root.closest("dialog") ?? root, "close", onClose],
     [find, "submit", onFind],
     [write, "submit", onSubmit],
     [$("[data-change-order]"), "click", onChangeOrder],

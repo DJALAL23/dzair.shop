@@ -31,6 +31,7 @@ export const enReviews: ReviewsStrings = {
   reviewsVoiceRetry: "Try again",
   reviewsOpenPhoto: "Open photo {index}",
   reviewsClosePhoto: "Close",
+  reviewFormClose: "Close the review form",
   reviewFormIntro: "Received your order? Tell other shoppers what you think.",
   reviewFormPhoneLabel: "Phone number",
   reviewFormPhonePlaceholder: "e.g. 0551 23 45 67",

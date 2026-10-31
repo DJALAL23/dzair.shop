@@ -1,9 +1,11 @@
 ---
 // The product's reviews under one title: the summary and the reviews
 // themselves stream in (a server island), so the cached page never waits for
-// them; in a preview they render inline. The form to add one opens from a
-// button beside the title. Until the first review arrives, a line says so and
-// invites the shopper who received it. Shown only when the store takes reviews.
+// them; in a preview they render inline. The form to add one opens in a
+// dialog from a button beside the title, and closing it (its button, Escape or
+// a tap outside) returns to that button. Until the first review arrives, a line
+// says so and invites the shopper who received it. Shown only when the store
+// takes reviews.
 import type { InferProps } from "@wocart/theme";
 import type { Product } from "@wocart/storefront";
 import { Icon } from "astro-icon/components";
@@ -25,17 +27,20 @@ const hasReviews = (product?.reviewStats?.reviewCount ?? 0) > 0;
     <div class="reviews-head">
       <h2 class="section-title">{content.reviewsTitle}</h2>
       {showForm && (
-        <details class="review-write">
-          <summary class="btn-secondary btn-auto">
-            <Icon name="heroicons:chat-bubble-left-ellipsis" aria-hidden="true" />
-            {content.reviewFormTitle}
-          </summary>
-          <div class="review-write-panel">
-            <ReviewForm productId={product.id} content={content} />
-          </div>
-        </details>
+        <button type="button" class="btn-secondary btn-auto review-open" data-review-open aria-haspopup="dialog">
+          <Icon name="heroicons:chat-bubble-left-ellipsis" aria-hidden="true" />
+          {content.reviewFormTitle}
+        </button>
       )}
     </div>
+    {showForm && (
+      <dialog class="review-dialog" data-review-dialog aria-label={content.reviewFormTitle}>
+        <button type="button" class="review-dialog-close" data-review-close aria-label={content.reviewFormClose}>
+          <Icon name="heroicons:x-mark" aria-hidden="true" />
+        </button>
+        <ReviewForm productId={product.id} content={content} />
+      </dialog>
+    )}
     {hasReviews && inline && (
       <ReviewsIsland productId={product.id} copy={reviewsIslandCopy(content)} stats={product.reviewStats} />
     )}
@@ -60,12 +65,41 @@ const hasReviews = (product?.reviewStats?.reviewCount ?? 0) > 0;
 
 <style>
   .reviews-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
-  .review-write > summary { list-style: none; gap: 0.5rem; }
-  .review-write > summary::-webkit-details-marker { display: none; }
-  .review-write > summary :global(svg) { width: 1.125rem; height: 1.125rem; }
-  .review-write[open] { flex-basis: 100%; }
-  .review-write[open] > summary { margin-inline-start: auto; }
-  .review-write-panel { max-width: 42rem; margin-top: 1rem; }
+  .review-open { gap: 0.5rem; }
+  .review-open :global(svg) { width: 1.125rem; height: 1.125rem; }
+  .review-dialog {
+    width: min(40rem, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
+    padding: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 0;
+    border-radius: var(--radius-panel);
+    background: var(--clr-bg);
+    color: var(--clr-text);
+    box-shadow: var(--shadow-lg);
+  }
+  .review-dialog::backdrop { background: color-mix(in oklab, var(--clr-ink) 55%, transparent); }
+  .review-dialog-close {
+    position: sticky;
+    top: 0.75rem;
+    z-index: 1;
+    float: inline-end;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: 0.75rem 0.75rem -3.5rem;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-round);
+    background: var(--clr-surface);
+    color: var(--clr-ink);
+    cursor: pointer;
+  }
+  .review-dialog :global(.review-form-section h2) { padding-inline-end: 3rem; }
+  .review-dialog-close:focus-visible { outline: 2px solid var(--clr-ink); outline-offset: 2px; }
+  .review-dialog-close :global(svg) { width: 1.25rem; height: 1.25rem; }
   .reviews-empty {
     display: grid;
     justify-items: center;
@@ -85,3 +119,28 @@ const hasReviews = (product?.reviewStats?.reviewCount ?? 0) > 0;
   @keyframes wait { 50% { opacity: 0.55; } }
   @media (prefers-reduced-motion: reduce) { .wait-card { animation: none; } }
 </style>
+
+<script>
+  import { bindEach } from "@wocart/theme/lifecycle";
+
+  bindEach<HTMLDialogElement>("[data-review-dialog]", (dialog) => {
+    const opener = dialog.closest("section")?.querySelector<HTMLButtonElement>("[data-review-open]");
+    const open = () => dialog.showModal();
+    const close = () => dialog.close();
+    const outside = (event: MouseEvent) => {
+      if (event.target === dialog) dialog.close();
+    };
+    const back = () => opener?.focus();
+    const closer = dialog.querySelector("[data-review-close]");
+    opener?.addEventListener("click", open);
+    closer?.addEventListener("click", close);
+    dialog.addEventListener("click", outside);
+    dialog.addEventListener("close", back);
+    return () => {
+      opener?.removeEventListener("click", open);
+      closer?.removeEventListener("click", close);
+      dialog.removeEventListener("click", outside);
+      dialog.removeEventListener("close", back);
+    };
+  });
+</script>

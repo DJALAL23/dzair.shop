@@ -31,6 +31,7 @@ export const frReviews: ReviewsStrings = {
   reviewsVoiceRetry: "Réessayer",
   reviewsOpenPhoto: "Ouvrir la photo {index}",
   reviewsClosePhoto: "Fermer",
+  reviewFormClose: "Fermer le formulaire d’avis",
   reviewFormIntro: "Vous avez reçu votre commande ? Dites aux autres clients ce que vous en pensez.",
   reviewFormPhoneLabel: "Numéro de téléphone",
   reviewFormPhonePlaceholder: "ex. 0551 23 45 67",
