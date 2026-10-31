@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "surface": "thank-you",
+  "sections": [
+    { "id": "thank-you-main", "type": "thank-you-main" }
+  ]
+}

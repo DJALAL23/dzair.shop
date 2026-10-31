@@ -14,7 +14,7 @@ import Sections from "@/theme/components/surface/Sections.astro";
 interface Props {
   /** The catalog the surface renders from: the listing or the text-page catalog. */
   theme: ThemeDefinition;
-  surface: "catalog" | "category" | "collection" | "page";
+  surface: "catalog" | "category" | "collection" | "page" | "thank-you";
   /** What the store saved (`null` when absent), or a preview's draft. */
   document: unknown;
   params?: Readonly<Record<string, string | undefined>>;

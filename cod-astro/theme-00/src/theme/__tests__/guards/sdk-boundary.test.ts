@@ -316,7 +316,7 @@ describe("S10 platform rule bindings", () => {
     const component = files.find(
       (f) => f.relPath === "theme/components/chat/WhatsAppWidget.astro",
     );
-    const thankYou = files.find((f) => f.relPath === "pages/thank-you.astro");
+    const thankYou = files.find((f) => f.relPath === "theme/components/thank-you/ThankYouMain.astro");
 
     expect(script?.content).toContain('from "@wocart/storefront"');
     expect(component?.content).toContain(

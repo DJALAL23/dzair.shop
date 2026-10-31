@@ -20,6 +20,8 @@ import { homeSurface } from "./catalog/families/home";
 import { productSurface } from "./catalog/families/product";
 import { catalogSurface, categorySurface, collectionSurface } from "./catalog/families/listing";
 import { pageSurface } from "./catalog/families/page";
+import { thankYouSurface } from "./catalog/families/thank-you";
+import { thankYouMain } from "./catalog/thank-you/thank-you-main.def";
 import { shellCatalog } from "./catalog/families/shell";
 import { hero } from "./catalog/home/hero.def";
 import { categoryCards } from "./catalog/home/category-cards.def";
@@ -71,7 +73,7 @@ export const theme00 = defineTheme({
   content: { ar: { ...ar }, fr: { ...fr }, en: { ...en } },
   // The composed pages, each with the document it renders before the store
   // saves one (each page's own catalog declares it).
-  surfaces: [homeSurface, productSurface, collectionSurface, categorySurface, catalogSurface, pageSurface],
+  surfaces: [homeSurface, productSurface, collectionSurface, categorySurface, catalogSurface, pageSurface, thankYouSurface],
   // The parts every page shares, composed of sections and edited once.
   areas: shellCatalog.areas,
   settings: THEME_SETTINGS,
@@ -94,6 +96,7 @@ export const theme00 = defineTheme({
     "related-products": relatedProducts,
     "listing-main": listingMain,
     "page-main": pageMain,
+    "thank-you-main": thankYouMain,
     marquee,
     "product-tabs": productTabs,
     "product-tab": productTab,

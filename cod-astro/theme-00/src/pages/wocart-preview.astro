@@ -16,6 +16,7 @@ import ProductSurface from "@/theme/pages/ProductSurface.astro";
 import SurfacePage from "@/theme/pages/SurfacePage.astro";
 import { listingCatalog } from "@/theme/catalog/families/listing";
 import { pageCatalog } from "@/theme/catalog/families/page";
+import { thankYouCatalog } from "@/theme/catalog/families/thank-you";
 import PreviewBridge from "@/theme/components/preview/PreviewBridge.astro";
 import { previewResponseHeaders } from "@/theme/sdk";
 import { theme00 } from "@/theme/theme";
@@ -28,7 +29,7 @@ if (preview === undefined) return notFound();
 const { client } = Astro.locals.store;
 const target = await previewTarget(theme00, preview.draft, client);
 const shown = target?.pageType;
-if (target === null || (shown !== "home" && shown !== "product" && shown !== "collection" && shown !== "category" && shown !== "catalog" && shown !== "page")) return notFound();
+if (target === null || (shown !== "home" && shown !== "product" && shown !== "collection" && shown !== "category" && shown !== "catalog" && shown !== "page" && shown !== "thankYou")) return notFound();
 const product = shown === "product" && target.params.handle ? await client.products.get(target.params.handle) : null;
 
 for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims))) {
@@ -47,7 +48,7 @@ const isArea = target.area !== null;
     <PreviewBridge editor={preview.claims.editor} token={preview.token} />
   </HomeSurface>
 ) : (
-  <SurfacePage theme={shown === "page" ? pageCatalog : listingCatalog} surface={shown as "catalog" | "category" | "collection" | "page"} document={document} params={params} reads={createReadCache()} preview={!isArea}>
+  <SurfacePage theme={shown === "page" ? pageCatalog : shown === "thankYou" ? thankYouCatalog : listingCatalog} surface={shown === "thankYou" ? "thank-you" : (shown as "catalog" | "category" | "collection" | "page")} document={document} params={params} reads={createReadCache()} preview={!isArea}>
     <PreviewBridge editor={preview.claims.editor} token={preview.token} />
   </SurfacePage>
 )}

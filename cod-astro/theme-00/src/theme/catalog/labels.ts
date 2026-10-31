@@ -12,6 +12,7 @@ import type { LocalizedText } from "@wocart/theme";
 const text = (ar: string, fr: string, en: string): LocalizedText => ({ ar, fr, en });
 
 export const SECTION = {
+  thankYouMain: text("تأكيد الطلب", "Confirmation de commande", "Order confirmation"),
   productMain: text("المنتج", "Produit", "Product"),
   productReviews: text("تقييمات المنتج", "Avis sur le produit", "Product reviews"),
   relatedProducts: text("منتجات مشابهة", "Produits similaires", "Related products"),
@@ -117,6 +118,8 @@ export const FIELD = {
   feature: (n: number) => text(`الميزة ${n}`, `Avantage ${n}`, `Feature ${n}`),
   stepTitle: (n: number) => text(`عنوان الخطوة ${n}`, `Titre de l'étape ${n}`, `Step ${n} title`),
   stepText: (n: number) => text(`نص الخطوة ${n}`, `Texte de l'étape ${n}`, `Step ${n} text`),
+  showSteps: text("الخطوات التالية", "Les étapes suivantes", "Next steps"),
+  paymentNote: text("ملاحظة الدفع", "Note sur le paiement", "Payment note"),
   image: text("الصورة", "Image", "Image"),
   imageSide: text("موضع الصورة", "Côté de l'image", "Image side"),
   text: text("النص", "Texte", "Text"),
@@ -214,6 +217,7 @@ export const SURFACE = {
   category: text("صفحة الفئة", "Page de catégorie", "Category page"),
   catalog: text("كل المنتجات", "Tous les produits", "All products"),
   page: text("صفحة نصية", "Page de texte", "Text page"),
+  thankYou: text("صفحة الشكر", "Page de remerciement", "Thank-you page"),
 };
 
 /** The theme's global settings (`settings.ts`), as the editor groups them. */

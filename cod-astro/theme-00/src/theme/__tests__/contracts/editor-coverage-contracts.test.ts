@@ -58,6 +58,11 @@ const SHARED_UI_LABELS = new Set([
   "reviewFormClose",
   // The track-order page's name, the same wherever it is linked.
   "trackTitle",
+  // An order's facts and the store's WhatsApp defaults, worded once for the store.
+  "orderNumberLabel",
+  "totalAmountLabel",
+  "waThankYouButtonDefault",
+  "waPrefillThankYouDefault",
   // A listing's words: its count, the "all" button, its empty states.
   "listingCount",
   "listingRange",

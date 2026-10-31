@@ -8,7 +8,7 @@ const MAX_QUESTIONS = 20;
 
 export const faq = defineComponent({
   type: "faq",
-  capabilities: { insertable: true, surfaces: ["home", "page"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "thank-you"] },
   component: Faq,
   label: SECTION.faq,
   group: GROUP.home,

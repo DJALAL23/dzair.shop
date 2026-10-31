@@ -5,7 +5,7 @@ import { copyOverrides, schemeField, styleField } from "../shared";
 
 export const richText = defineComponent({
   type: "rich-text",
-  capabilities: { insertable: true, surfaces: ["home", "page", "area:footer"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "thank-you", "area:footer"] },
   component: RichTextBlock,
   label: SECTION.richText,
   group: GROUP.home,

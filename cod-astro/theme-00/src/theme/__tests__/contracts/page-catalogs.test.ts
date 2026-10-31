@@ -14,6 +14,7 @@ import { homeCatalog } from "@/theme/catalog/families/home";
 import { productCatalog } from "@/theme/catalog/families/product";
 import { listingCatalog } from "@/theme/catalog/families/listing";
 import { pageCatalog } from "@/theme/catalog/families/page";
+import { thankYouCatalog } from "@/theme/catalog/families/thank-you";
 import { shellCatalog } from "@/theme/catalog/families/shell";
 
 const families: Array<{ name: string; catalog: ThemeDefinition; surfaces: string[] }> = [
@@ -21,6 +22,7 @@ const families: Array<{ name: string; catalog: ThemeDefinition; surfaces: string
   { name: "product", catalog: productCatalog, surfaces: ["product"] },
   { name: "listing", catalog: listingCatalog, surfaces: ["collection", "category", "catalog"] },
   { name: "page", catalog: pageCatalog, surfaces: ["page"] },
+  { name: "thank-you", catalog: thankYouCatalog, surfaces: ["thank-you"] },
   { name: "shell", catalog: shellCatalog, surfaces: ["area:header", "area:footer"] },
 ];
 
