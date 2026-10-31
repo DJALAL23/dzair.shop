@@ -1,6 +1,6 @@
 {
   "page_title": "Clients",
-  "search_placeholder": "Rechercher par nom ou téléphone...",
+  "search_placeholder": "Rechercher par nom, téléphone ou e-mail...",
   "filter_wilaya": "Wilaya",
   "no_customers": "Aucun client trouvé",
   "new_customer": "Nouveau client",
@@ -81,6 +81,8 @@
     "phone_placeholder": "0555123456",
     "phone2_label": "Mobile 2 (Optionnel)",
     "phone2_placeholder": "0555789012",
+    "email_label": "E-mail (Optionnel)",
+    "email_placeholder": "nom@exemple.com",
     "wilaya_label": "Wilaya",
     "wilaya_placeholder": "Sélectionnez la wilaya",
     "commune_label": "Commune",
@@ -96,6 +98,7 @@
     "error_name_required": "Le nom du client est obligatoire",
     "error_phone_required": "Un numéro mobile algérien valide est obligatoire",
     "error_phone2_invalid": "Saisissez un numéro mobile algérien valide",
+    "error_email_invalid": "Saisissez une adresse e-mail valide",
     "error_wilaya_required": "Veuillez sélectionner une wilaya",
     "address_section": "Adresse"
   },

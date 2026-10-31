@@ -61,6 +61,7 @@ function customerRow(overrides: Record<string, any> = {}) {
     totalSpent: 15000,
     createdAt: NOW,
     lastOrderAt: null,
+    email: null,
     ...overrides,
   };
 }

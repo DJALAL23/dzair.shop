@@ -106,6 +106,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         totalSpent: 15000,
         createdAt: new Date("2024-01-01").toISOString(),
         lastOrderAt: new Date("2024-01-15").toISOString(),
+        email: null,
         recentOrders: [],
       });
 
@@ -142,6 +143,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         totalSpent: 0,
         createdAt: new Date("2024-01-01").toISOString(),
         lastOrderAt: null,
+        email: null,
       });
 
       const res = await app.request("/customers", {
@@ -189,6 +191,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         totalSpent: 0,
         createdAt: new Date().toISOString(),
         lastOrderAt: null,
+        email: null,
         recentOrders: [],
       });
 
@@ -262,6 +265,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         totalSpent: 0,
         createdAt: new Date("2024-01-01").toISOString(),
         lastOrderAt: null,
+        email: null,
       });
 
       const res = await app.request("/customers/cust_123", {
@@ -326,6 +330,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         totalSpent: 15000,
         createdAt: new Date("2024-01-01").toISOString(),
         lastOrderAt: new Date("2024-01-15").toISOString(),
+        email: null,
         recentOrders: [],
       });
 
@@ -367,6 +372,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         totalSpent: 9000,
         createdAt: new Date("2024-01-01").toISOString(),
         lastOrderAt: new Date("2024-01-15").toISOString(),
+        email: null,
         recentOrders: [],
       });
 
@@ -401,6 +407,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         totalSpent: 0,
         createdAt: new Date("2024-01-01").toISOString(),
         lastOrderAt: null,
+        email: null,
         recentOrders: [],
       });
       
@@ -452,6 +459,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         totalSpent: 15000,
         createdAt: new Date("2024-01-01").toISOString(),
         lastOrderAt: new Date("2024-01-15").toISOString(),
+        email: null,
         recentOrders: [],
       });
 

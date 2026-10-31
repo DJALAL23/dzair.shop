@@ -765,9 +765,14 @@ export async function getStoreCommunes(db: AppDb, wilayaId: number) {
     .all();
 }
 
+/**
+ * The shopper's customer, by phone: created on their first order, refreshed
+ * with the name and destination of each later one. Their email is filled
+ * only while they have none, never overwritten.
+ */
 export async function findOrCreateCustomer(
   db: AppDb,
-  data: { phone: string; name: string; wilayaId: number; communeId?: string },
+  data: { phone: string; name: string; email?: string; wilayaId: number; communeId?: string },
 ) {
   const [wilayaRecord, communeRecord] = await Promise.all([
     db
@@ -799,6 +804,7 @@ export async function findOrCreateCustomer(
       communeId: data.communeId ?? null,
       wilaya: wilayaName,
       commune: communeName,
+      email: data.email ?? null,
       createdAt: now,
     })
     .onConflictDoUpdate({
@@ -809,6 +815,7 @@ export async function findOrCreateCustomer(
         communeId: data.communeId ?? null,
         wilaya: wilayaName,
         commune: communeName,
+        email: sql`coalesce(${customers.email}, excluded.email)`,
       },
     })
     .returning();

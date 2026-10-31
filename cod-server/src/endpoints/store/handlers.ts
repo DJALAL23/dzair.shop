@@ -421,6 +421,7 @@ export async function createStoreOrder(c: Context<AppContext>) {
   const customer = await queries.findOrCreateCustomer(db, {
     phone: data.phone,
     name: data.customerName,
+    email: data.email,
     wilayaId: data.wilayaId,
     communeId: data.communeId,
   });

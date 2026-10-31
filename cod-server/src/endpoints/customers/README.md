@@ -90,6 +90,7 @@ Register a new customer profile.
     "name": "Sarah Ahmed",
     "phone": "0770112233",
     "phone2": "0550112233",
+    "email": "sarah@example.com",
     "wilayaId": 16,
     "communeId": "uuid",
     "address": "12 Rue Didouche Mourad"
@@ -99,6 +100,8 @@ Register a new customer profile.
   - `name` — required, non-empty.
   - `phone` — required, must match `^0[5-7]\d{8}$` (Algerian mobile).
   - `phone2` — optional, same format; empty string is treated as absent.
+  - `email` — optional, a valid email; stored trimmed and lower-cased; empty
+    is treated as absent. Not unique: the phone is what identifies a customer.
   - `wilayaId` — required, integer 1–58.
   - `communeId` — required, non-empty string.
   - `address` — optional string.
@@ -108,7 +111,12 @@ Register a new customer profile.
 ### PATCH /api/customers/:id
 
 Update customer profile information. Partial updates; set `phone2`,
-`communeId`, or `address` to `null` to clear them.
+`email`, `communeId`, or `address` to `null` to clear them (an empty `email`
+clears it too).
+
+A customer's email is also given by their orders: the first order that
+brings one — from the storefront, the dashboard or an AI agent — fills it
+while the customer has none. A later order never overwrites it.
 
 - **Authorization:** `customers:update`
 - **Duplicate Check:** If `phone` is being changed, `409 DUPLICATE_PHONE`

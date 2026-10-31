@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { editedEmailField, newEmailField } from "@/lib/email-field";
 import { parseOrderCursor } from "../../../../cod-shared/queries/orders";
 import { ORDER_STAGES, type OrderStage } from "../../../../cod-shared/orders/stage";
 import { SHIPMENT_KINDS } from "../../../../cod-shared/shipments/model";
@@ -28,14 +29,7 @@ export const createOrderSchema = z.object({
    * Normalised exactly like the storefront path so one customer's email is one
    * string in the column, whichever way the order was created.
    */
-  customerEmail: z.preprocess(
-    (v) => {
-      if (typeof v !== "string") return v ?? undefined;
-      const trimmed = v.trim().toLowerCase();
-      return trimmed === "" ? undefined : trimmed;
-    },
-    z.string().max(254).email("Invalid email address").optional()
-  ),
+  customerEmail: newEmailField(),
   address: z.string().nullish(),
   price: z.number().positive(),
   notes: z.string().nullish(),
@@ -81,15 +75,7 @@ export const updateOrderSchema = z.object({
     .string()
     .regex(/^0[5-7]\d{8}$/, "Invalid Algerian phone number")
     .optional(),
-  customerEmail: z.preprocess(
-    (v) => {
-      if (v === null) return null;
-      if (typeof v !== "string") return v ?? undefined;
-      const trimmed = v.trim().toLowerCase();
-      return trimmed === "" ? null : trimmed;
-    },
-    z.string().max(254).email("Invalid email address").nullable().optional()
-  ),
+  customerEmail: editedEmailField(),
   wilayaId: z.number().int().min(1).max(58).optional(),
   communeId: z.string().min(1, "Commune is required").optional(),
   city: z.string().nullish(),

@@ -29,7 +29,7 @@ This CRM is designed for Algerian e-commerce, so understanding the local context
 
 ### Customer Data Structure
 Each customer record contains:
-- Basic info: name, phone (required), phone2 (optional)
+- Basic info: name, phone (required), phone2 and email (optional)
 - Location: wilayaId (1-58, required), communeId (optional), address (optional)
 - Metrics: totalOrders, totalSpent, lastOrderAt (auto-calculated)
 - Relationships: groups (for segmentation), tags (for categorization)
@@ -108,6 +108,7 @@ Use this to register new customers in the system.
 
 **Optional fields:**
 - `phone2`: Secondary phone
+- `email`: Email address (stored lower-cased)
 - `communeId`: UUID of the commune
 - `address`: Full address string
 
@@ -141,6 +142,7 @@ Use this to update existing customer information. Only include fields you want t
 - `name`: New name
 - `phone`: New primary phone
 - `phone2`: New secondary phone (or null to clear)
+- `email`: New email (or null to clear)
 - `wilayaId`: New wilaya (1-58)
 - `communeId`: New commune UUID (or null to clear)
 - `address`: New address (or null to clear)

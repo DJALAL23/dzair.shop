@@ -1,4 +1,4 @@
-import { MapPin, Phone } from "lucide-react";
+import { Mail, MapPin, Phone } from "lucide-react";
 import { Card } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import type { Customer } from "@/features/customers/types";
@@ -6,7 +6,7 @@ import type { Customer } from "@/features/customers/types";
 interface CustomerContactCardProps {
   customer: Pick<
     Customer,
-    "phone" | "phone2" | "wilaya" | "commune" | "address"
+    "phone" | "phone2" | "email" | "wilaya" | "commune" | "address"
   >;
 }
 
@@ -36,6 +36,16 @@ export function CustomerContactCard({ customer }: CustomerContactCardProps) {
                 className="mt-1 block text-sm text-link"
               >
                 {customer.phone2}
+              </a>
+            )}
+            {customer.email && (
+              <a
+                href={`mailto:${customer.email}`}
+                dir="ltr"
+                className="mt-1 flex items-center gap-1 text-sm text-link"
+              >
+                <Mail size={13} aria-hidden="true" />
+                {customer.email}
               </a>
             )}
           </div>

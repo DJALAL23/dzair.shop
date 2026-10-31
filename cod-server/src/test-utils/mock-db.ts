@@ -272,6 +272,7 @@ export function customerRow(overrides: Record<string, unknown> = {}): Record<str
     total_spent: 7500,
     created_at: NOW,
     last_order_at: NOW,
+    email: null,
     ...overrides,
   };
 }

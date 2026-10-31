@@ -1,6 +1,6 @@
 {
   "page_title": "Customers",
-  "search_placeholder": "Search by name or phone...",
+  "search_placeholder": "Search by name, phone or email...",
   "filter_wilaya": "Wilaya",
   "no_customers": "No customers found",
   "new_customer": "New customer",
@@ -81,6 +81,8 @@
     "phone_placeholder": "0555123456",
     "phone2_label": "Mobile 2 (Optional)",
     "phone2_placeholder": "0555789012",
+    "email_label": "Email (Optional)",
+    "email_placeholder": "name@example.com",
     "wilaya_label": "Wilaya",
     "wilaya_placeholder": "Select wilaya",
     "commune_label": "Commune",
@@ -96,6 +98,7 @@
     "error_name_required": "Customer name is required",
     "error_phone_required": "A valid Algerian mobile number is required",
     "error_phone2_invalid": "Enter a valid Algerian mobile number",
+    "error_email_invalid": "Enter a valid email address",
     "error_wilaya_required": "Please select a wilaya",
     "address_section": "Address"
   },

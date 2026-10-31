@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Phone } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardPage } from "@/components/layout/page";
 import { useLocale, useT } from "@/i18n/react";
@@ -12,7 +12,10 @@ import type { Commune, Wilaya } from "@/features/orders/types";
 import type { CustomerFormValues } from "@/features/customers/types";
 import { Alert, Card, Field, FormPage, Input, Select, Textarea } from "@/components/ui";
 
-const EMPTY_FORM: CustomerFormValues = { name: "", phone: "", phone2: "", wilayaId: "", communeId: "", address: "" };
+const EMPTY_FORM: CustomerFormValues = { name: "", phone: "", phone2: "", email: "", wilayaId: "", communeId: "", address: "" };
+
+/** A shape check for a helpful message; the server is what decides. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function CustomerForm({ customerId }: { customerId?: string }) {
   const t = useT("customers");
@@ -39,7 +42,7 @@ function CustomerForm({ customerId }: { customerId?: string }) {
       .then(([nextWilayas, customer]) => {
         if (!alive) return;
         setWilayas(nextWilayas);
-        if (customer) setForm({ name: customer.name, phone: customer.phone, phone2: customer.phone2 ?? "", wilayaId: customer.wilayaId ? String(customer.wilayaId) : "", communeId: customer.communeId ?? "", address: customer.address ?? "" });
+        if (customer) setForm({ name: customer.name, phone: customer.phone, phone2: customer.phone2 ?? "", email: customer.email ?? "", wilayaId: customer.wilayaId ? String(customer.wilayaId) : "", communeId: customer.communeId ?? "", address: customer.address ?? "" });
       })
       .catch((cause) => { if (alive) setMessage(customerErrorMessage(cause, t)); })
       .finally(() => { if (alive) setLoading(false); });
@@ -63,6 +66,7 @@ function CustomerForm({ customerId }: { customerId?: string }) {
     if (!form.name.trim()) next.name = t("form.error_name_required");
     if (!/^0[5-7]\d{8}$/.test(form.phone.trim())) next.phone = t("form.error_phone_required");
     if (form.phone2.trim() && !/^0[5-7]\d{8}$/.test(form.phone2.trim())) next.phone2 = t("form.error_phone2_invalid");
+    if (form.email.trim() && !EMAIL_SHAPE.test(form.email.trim())) next.email = t("form.error_email_invalid");
     if (!form.wilayaId) next.wilayaId = t("form.error_wilaya_required");
     if (!form.communeId) next.communeId = t("form.error_commune_required");
     setErrors(next);
@@ -75,8 +79,8 @@ function CustomerForm({ customerId }: { customerId?: string }) {
     const body = { name: form.name.trim(), phone: form.phone.trim(), phone2: form.phone2.trim() || null, wilayaId: Number(form.wilayaId), communeId: form.communeId, address: form.address.trim() };
     try {
       const customer = customerId
-        ? await updateCustomer(customerId, { ...body, address: body.address || null })
-        : await createCustomer({ ...body, address: body.address || undefined });
+        ? await updateCustomer(customerId, { ...body, email: form.email.trim() || null, address: body.address || null })
+        : await createCustomer({ ...body, email: form.email.trim() || undefined, address: body.address || undefined });
       notify.flashSuccess(t(customerId ? "form.success_edit" : "form.success_add"));
       window.location.assign(`/customers/${encodeURIComponent(customer.id)}`);
     } catch (cause) {
@@ -114,6 +118,12 @@ function CustomerForm({ customerId }: { customerId?: string }) {
           </Field>
           <Field label={t("form.phone2_label")} error={errors.phone2}>
             {phoneInput("phone2", t("form.phone2_placeholder"))}
+          </Field>
+          <Field label={t("form.email_label")} error={errors.email} className="sm:col-span-2">
+            <div className="relative">
+              <Mail size={15} aria-hidden="true" className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input type="email" value={form.email} onChange={(event) => update("email", event.currentTarget.value)} placeholder={t("form.email_placeholder")} inputMode="email" autoComplete="email" dir="ltr" className="ps-9" disabled={busy} />
+            </div>
           </Field>
         </div>
       </Card>

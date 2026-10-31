@@ -4,7 +4,7 @@
  * deleteCustomer stays in cod-server because it raises BusinessLogicError.
  */
 
-import { eq, and, like, or, desc, exists, sql } from "drizzle-orm";
+import { eq, and, like, or, desc, exists, isNull, sql } from "drizzle-orm";
 import {
   customers,
   orders,
@@ -34,6 +34,7 @@ export interface CreateCustomerData {
   name: string;
   phone: string;
   phone2?: string;
+  email?: string;
   wilayaId: number;
   communeId?: string;
   address?: string;
@@ -43,6 +44,7 @@ export interface UpdateCustomerData {
   name?: string;
   phone?: string;
   phone2?: string | null;
+  email?: string | null;
   wilayaId?: number;
   communeId?: string | null;
   address?: string | null;
@@ -61,6 +63,7 @@ export async function getAllCustomers(db: AppDb, filters?: CustomerFilters) {
       or(
         like(customers.name, term),
         like(customers.phone, term),
+        like(customers.email, term),
       ),
     );
   }
@@ -148,11 +151,12 @@ export async function getCustomerByPhone(db: AppDb, phone: string) {
 /**
  * The customer an order the merchant enters belongs to: the one chosen, else
  * the one who already has this phone — a phone is one customer, as the
- * storefront checkout links it — else a new customer, created here.
+ * storefront checkout links it — else a new customer, created here. The
+ * order's email becomes the customer's only when they have none yet.
  */
 export async function orderCustomerId(
   db: AppDb,
-  data: { customerId: string; name: string; phone: string; wilayaId: number; communeId?: string | null; address?: string | null; now: string },
+  data: { customerId: string; name: string; phone: string; email?: string | null; wilayaId: number; communeId?: string | null; address?: string | null; now: string },
 ): Promise<string> {
   const known = await db
     .select({ id: customers.id })
@@ -160,7 +164,10 @@ export async function orderCustomerId(
     .where(or(eq(customers.id, data.customerId), eq(customers.phone, data.phone)))
     .all();
   const chosen = known.find((row) => row.id === data.customerId) ?? known[0];
-  if (chosen) return chosen.id;
+  if (chosen) {
+    if (data.email) await fillCustomerEmail(db, chosen.id, data.email);
+    return chosen.id;
+  }
 
   const [wilayaRow, communeRow] = await Promise.all([
     db.select({ nameAr: wilayas.nameAr }).from(wilayas).where(eq(wilayas.id, data.wilayaId)).get(),
@@ -175,6 +182,7 @@ export async function orderCustomerId(
       name: data.name,
       phone: data.phone,
       phone2: null,
+      email: data.email ?? null,
       wilayaId: data.wilayaId,
       communeId: data.communeId ?? null,
       wilaya: wilayaRow?.nameAr ?? String(data.wilayaId),
@@ -189,7 +197,13 @@ export async function orderCustomerId(
     .returning({ id: customers.id });
   if (created) return created.id;
   const raced = await db.select({ id: customers.id }).from(customers).where(eq(customers.phone, data.phone)).get();
+  if (data.email) await fillCustomerEmail(db, raced!.id, data.email);
   return raced!.id;
+}
+
+/** An order's email given to its customer, only if they have none: a later order never overwrites it. */
+export async function fillCustomerEmail(db: AppDb, customerId: string, email: string) {
+  await db.update(customers).set({ email }).where(and(eq(customers.id, customerId), isNull(customers.email)));
 }
 
 export async function createCustomer(db: AppDb, customerData: CreateCustomerData) {
@@ -217,6 +231,7 @@ export async function createCustomer(db: AppDb, customerData: CreateCustomerData
     name: customerData.name,
     phone: customerData.phone,
     phone2: customerData.phone2 || null,
+    email: customerData.email ?? null,
     wilayaId: customerData.wilayaId,
     communeId: customerData.communeId ?? null,
     wilaya: wilayaRow?.nameAr ?? String(customerData.wilayaId),

@@ -17,7 +17,7 @@ export type CustomerRoute =
 export function filterCustomers(customers: Customer[], filters: CustomerFilters) {
   const query = filters.query.trim().toLocaleLowerCase();
   return customers.filter((customer) => {
-    if (query && `${customer.name} ${customer.phone} ${customer.phone2 ?? ""} ${customer.wilaya} ${customer.commune ?? ""} ${customer.address ?? ""}`.toLocaleLowerCase().indexOf(query) === -1) {
+    if (query && `${customer.name} ${customer.phone} ${customer.phone2 ?? ""} ${customer.email ?? ""} ${customer.wilaya} ${customer.commune ?? ""} ${customer.address ?? ""}`.toLocaleLowerCase().indexOf(query) === -1) {
       return false;
     }
     return filters.wilaya === "all" || String(customer.wilayaId ?? "") === filters.wilaya;

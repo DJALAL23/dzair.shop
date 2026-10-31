@@ -5,6 +5,7 @@ export interface Customer {
   name: string;
   phone: string;
   phone2: string | null;
+  email: string | null;
   wilayaId: number | null;
   communeId: string | null;
   wilaya: string;
@@ -66,6 +67,7 @@ export interface CustomerFormValues {
   name: string;
   phone: string;
   phone2: string;
+  email: string;
   wilayaId: string;
   communeId: string;
   address: string;

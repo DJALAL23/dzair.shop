@@ -14,6 +14,7 @@ const customer = (overrides: Partial<Customer> = {}): Customer => ({
   name: "Ahmed Benali",
   phone: "0551234567",
   phone2: null,
+  email: null,
   wilayaId: 16,
   communeId: "c-16-001",
   wilaya: "الجزائر",
@@ -44,6 +45,7 @@ describe("customers model", () => {
   it("filters by customer fields and wilaya", () => {
     expect(filterCustomers([customer(), customer({ id: "2", name: "Salima", phone: "0771234567", wilayaId: 31 })], { query: "0551", wilaya: "all" }).map((item) => item.id)).toEqual(["customer-1"]);
     expect(filterCustomers([customer(), customer({ id: "2", wilayaId: 31 })], { query: "", wilaya: "31" }).map((item) => item.id)).toEqual(["2"]);
+    expect(filterCustomers([customer(), customer({ id: "2", email: "salima@example.com" })], { query: "salima@", wilaya: "all" }).map((item) => item.id)).toEqual(["2"]);
   });
 
   it("sorts and paginates customer collections", () => {

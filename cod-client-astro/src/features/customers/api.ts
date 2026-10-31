@@ -70,6 +70,7 @@ export async function createCustomer(body: {
   name: string;
   phone: string;
   phone2?: string | null;
+  email?: string;
   wilayaId: number;
   communeId: string;
   address?: string;
@@ -81,6 +82,7 @@ export async function updateCustomer(id: string, body: Partial<{
   name: string;
   phone: string;
   phone2: string | null;
+  email: string | null;
   wilayaId: number;
   communeId: string | null;
   address: string | null;

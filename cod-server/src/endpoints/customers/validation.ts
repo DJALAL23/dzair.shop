@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { editedEmailField, newEmailField } from "@/lib/email-field";
 
 export const createCustomerSchema = z.object({
   name: z.string().min(1, "Name is required").describe("The full name of the customer"),
@@ -13,6 +14,7 @@ export const createCustomerSchema = z.object({
     (v) => (v === "" || v == null ? undefined : v),
     z.string().regex(/^0[5-7]\d{8}$/, "Invalid Algerian phone number").optional()
   ).describe("Secondary Algerian phone number (optional)"),
+  email: newEmailField().describe("Email address (optional); stored lower-cased"),
   wilayaId: z.number().int().min(1).max(58).describe("The numeric ID of the Algerian wilaya (1-58)"),
   communeId: z.string().min(1, "Commune is required").describe("The commune's text ID in \"c-XX-YYY\" format (e.g. \"c-16-001\")"),
   address: z.string().optional().describe("Full residential or business address (optional)"),
@@ -25,6 +27,7 @@ export const updateCustomerSchema = z.object({
     (v) => (v === "" ? null : v),
     z.string().regex(/^0[5-7]\d{8}$/, "Invalid Algerian phone number").nullable().optional()
   ).describe("Updated secondary Algerian phone number (can be null)"),
+  email: editedEmailField().describe("Updated email address (null or empty clears it)"),
   wilayaId: z.number().int().min(1).max(58).optional().describe("Updated numeric ID of the wilaya (1-58)"),
   communeId: z.string().min(1, "Commune is required").nullable().optional().describe("Updated ID of the commune (can be null to clear)"),
   address: z.string().optional().nullable().describe("Updated full address"),
@@ -32,7 +35,7 @@ export const updateCustomerSchema = z.object({
 
 export const customerFiltersSchema = z.object({
   wilayaId: z.coerce.number().int().min(1).max(58).optional().describe("Filter by Algerian wilaya ID (1-58)"),
-  search: z.string().optional().describe("Search term for name or phone number"),
+  search: z.string().optional().describe("Search term for name, phone number or email"),
   groupId: z.string().optional().describe("Filter by customer group UUID"),
   tagId: z.string().optional().describe("Filter by customer tag UUID"),
   limit: z.coerce.number().int().positive().max(100).default(50).describe("Maximum number of results to return (max 100)"),

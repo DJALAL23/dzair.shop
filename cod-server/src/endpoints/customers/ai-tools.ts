@@ -233,7 +233,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   createNewCustomer: tool({
-    description: "Registers a new customer in the CRM. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, communeId (UUID), address (string). Note: wilayaId must be a number between 1 and 58.",
+    description: "Registers a new customer in the CRM. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, email, communeId (UUID), address (string). Note: wilayaId must be a number between 1 and 58.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -245,7 +245,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid customer data: ${errorDetails}. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, communeId (UUID), address (string)`,
+          error: `Invalid customer data: ${errorDetails}. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, email, communeId (UUID), address (string)`,
         };
       }
 
@@ -273,7 +273,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   updateCustomerProfile: tool({
-    description: "Updates an existing customer's information. Only provided fields will be modified. Required: customerId (UUID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, wilayaId (1-58), communeId (UUID or null), address (string or null).",
+    description: "Updates an existing customer's information. Only provided fields will be modified. Required: customerId (UUID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1-58), communeId (UUID or null), address (string or null).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -285,7 +285,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid update arguments: ${errorDetails}. Expected: customerId (UUID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, wilayaId (1-58), communeId (UUID or null), address (string or null)`,
+          error: `Invalid update arguments: ${errorDetails}. Expected: customerId (UUID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1-58), communeId (UUID or null), address (string or null)`,
         };
       }
 

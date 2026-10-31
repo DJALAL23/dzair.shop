@@ -74,6 +74,7 @@ function dbSelectReturning(result: any) {
       })),
     })),
     insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
   };
 }
 

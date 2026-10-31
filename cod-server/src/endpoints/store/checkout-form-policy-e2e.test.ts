@@ -303,15 +303,24 @@ describe("email", () => {
     expect(json.context?.reason).toBe("EMAIL_INVALID");
   });
 
-  it("leaves customers.email alone — a returning phone keeps its record", async () => {
-    // store/CONTEXT.md: "Repeat buyers keep their record". The email is an order
-    // snapshot; syncing it onto the customer is the digital-products plan's call
-    // to make, not this feature's.
-    await setPolicy({ email: "required" });
-    await postOrder(orderBody({ email: "shopper@example.com" }));
-    const customers = await harness.db.select().from(schema.customers);
-    expect(customers).toHaveLength(1);
-    expect(Object.keys(customers[0])).not.toContain("email");
+  it("gives a new customer the order's email, and never overwrites a returning one's", async () => {
+    // store/CONTEXT.md: "Repeat buyers keep their record" — their email too.
+    await setPolicy({ email: "optional" });
+    await postOrder(orderBody({ email: "Shopper@Example.com" }));
+    const first = await harness.db.select({ email: schema.customers.email }).from(schema.customers);
+    expect(first).toEqual([{ email: "shopper@example.com" }]);
+
+    await postOrder(orderBody({ email: "other@example.com" }));
+    const after = await harness.db.select({ email: schema.customers.email }).from(schema.customers);
+    expect(after).toEqual([{ email: "shopper@example.com" }]);
+  });
+
+  it("fills a returning customer's email while they have none", async () => {
+    await setPolicy({ email: "optional" });
+    await postOrder(orderBody({}));
+    expect(await harness.db.select({ email: schema.customers.email }).from(schema.customers)).toEqual([{ email: null }]);
+    await postOrder(orderBody({ email: "late@example.com" }));
+    expect(await harness.db.select({ email: schema.customers.email }).from(schema.customers)).toEqual([{ email: "late@example.com" }]);
   });
 });
 

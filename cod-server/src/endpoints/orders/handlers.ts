@@ -90,6 +90,7 @@ export async function createOrder(c: Context<AppContext>) {
       customerId: validated.customerId,
       name: validated.customerName,
       phone: validated.phone,
+      email: validated.customerEmail,
       wilayaId: validated.wilayaId,
       communeId: validated.communeId,
       address: validated.address,

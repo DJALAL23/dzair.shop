@@ -1,6 +1,6 @@
 {
   "page_title": "العملاء",
-  "search_placeholder": "البحث بالاسم أو الهاتف...",
+  "search_placeholder": "البحث بالاسم أو الهاتف أو البريد الإلكتروني...",
   "filter_wilaya": "الولاية",
   "no_customers": "لا يوجد عملاء",
   "new_customer": "عميل جديد",
@@ -81,6 +81,8 @@
     "phone_placeholder": "0555123456",
     "phone2_label": "الجوال 2 (اختياري)",
     "phone2_placeholder": "0555789012",
+    "email_label": "البريد الإلكتروني (اختياري)",
+    "email_placeholder": "name@example.com",
     "wilaya_label": "الولاية",
     "wilaya_placeholder": "اختر الولاية",
     "commune_label": "البلدية",
@@ -96,6 +98,7 @@
     "error_name_required": "اسم العميل مطلوب",
     "error_phone_required": "يرجى إدخال رقم جوال جزائري صحيح",
     "error_phone2_invalid": "يرجى إدخال رقم جوال جزائري صحيح",
+    "error_email_invalid": "يرجى إدخال بريد إلكتروني صحيح",
     "error_wilaya_required": "يرجى اختيار الولاية",
     "address_section": "العنوان"
   },

@@ -11,6 +11,7 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
+import { editedEmailField, newEmailField } from "@/lib/email-field";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import * as handlers from "./handlers";
 import {
@@ -47,7 +48,7 @@ const listQuerySchema = z.object({
   wilayaId: z.coerce.number().int().min(1).max(58).optional().openapi({
     description: "Filter by wilaya ID (1–58)",
   }),
-  search: z.string().optional().openapi({ description: "Search by customer name or phone" }),
+  search: z.string().optional().openapi({ description: "Search by customer name, phone or email" }),
   groupId: z.string().optional().openapi({
     description: "Filter to customers in a specific customer group",
   }),
@@ -69,6 +70,7 @@ const createBodySchema = z.object({
     (v) => (v === "" || v == null ? undefined : v),
     z.string().regex(phoneRegex, "Invalid Algerian phone number").optional()
   ).openapi({ description: "Secondary phone number (optional)" }),
+  email: newEmailField().openapi({ description: "Email address (optional); stored lower-cased", example: "amina@example.com" }),
   wilayaId: z.number().int().min(1).max(58).openapi({
     description: "Official wilaya number (1–58)",
     example: 16,
@@ -87,6 +89,7 @@ const updateBodySchema = z.object({
     (v) => (v === "" ? null : v),
     z.string().regex(phoneRegex, "Invalid Algerian phone number").nullable().optional()
   ).openapi({ description: "Secondary phone. Set to null to clear it." }),
+  email: editedEmailField().openapi({ description: "Email address. Set to null or empty to clear it." }),
   wilayaId: z.number().int().min(1).max(58).optional().openapi({
     description: "Official wilaya number (1–58)",
     example: 16,
