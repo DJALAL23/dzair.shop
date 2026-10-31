@@ -83,6 +83,7 @@ A wrong number and a wrong phone both answer **404 ORDER_NOT_FOUND**. An order n
               productId: z.string(),
               name: z.string(),
               image: MediaImageSchema.nullable().openapi({ description: "The product's first image" }),
+              imageSrc: z.string().nullable().openapi({ description: "The same image's URL, for storefront SDKs that read it (@wocart/storefront ≤ 2.0)" }),
               reviewed: z.boolean().openapi({ description: "Already reviewed from this order" }),
             }),
           ),

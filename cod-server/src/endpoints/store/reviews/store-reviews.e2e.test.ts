@@ -142,6 +142,15 @@ describe("finding the order to review", () => {
     expect(limiterKeys).toEqual(["review:ORD-20261016-1111"]);
   });
 
+  it("names each product's photo as an image and as the URL a storefront on @wocart/storefront 2.0 reads", async () => {
+    await d1.db.insert(schema.productImages).values({ id: "img1", productId: "p1", mediaKey: "products/robe.webp", width: 800, height: 1000, position: 1, createdAt: T, updatedAt: T } as never);
+    const { data } = await body(await open());
+    const url = `${TEST_DELIVERY.origin}/products/robe.webp`;
+    expect(data.products[0]).toMatchObject({ productId: "p1", image: { key: "products/robe.webp", url }, imageSrc: url });
+    expect(data.products[1]).toMatchObject({ productId: "p2", image: null, imageSrc: null });
+    await d1.db.delete(schema.productImages);
+  });
+
   it("answers a wrong phone like an unknown order, and an undelivered order plainly", async () => {
     expect(await body(await open("0661234567"))).toMatchObject({ code: "ORDER_NOT_FOUND" });
     expect((await open("0661234567")).status).toBe(404);

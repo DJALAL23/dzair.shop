@@ -49,7 +49,8 @@ export interface MediaAllowance {
 export interface ReviewOpening {
   orderNumber: string;
   customerName: string;
-  products: Array<Omit<ReviewableProduct, "imageKey"> & { image: MediaImage | null }>;
+  /** `imageSrc` is the image's URL, for storefront SDKs that read it rather than `image` (@wocart/storefront ≤ 2.0). */
+  products: Array<Omit<ReviewableProduct, "imageKey"> & { image: MediaImage | null; imageSrc: string | null }>;
   /** null: this review takes text only (the store's choice, or media is not set up). */
   media: (MediaAllowance & { grant: string; expiresAt: number }) | null;
 }
@@ -101,7 +102,10 @@ export async function openReview(deps: IntakeDeps, proof: { orderNumber: string;
     const { token, grant } = await issueUploadGrant(deps.uploadSecret!, { orderId: order.id, ...allowance });
     media = { ...allowance, grant: token, expiresAt: grant.expiresAt };
   }
-  const products = order.products.map(({ imageKey, ...product }) => ({ ...product, image: imageOf(imageKey, deps.delivery) }));
+  const products = order.products.map(({ imageKey, ...product }) => {
+    const image = imageOf(imageKey, deps.delivery);
+    return { ...product, image, imageSrc: image?.url ?? null };
+  });
   return { orderNumber: order.orderNumber, customerName: order.customerName, products, media };
 }
 
