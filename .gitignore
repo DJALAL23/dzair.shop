@@ -64,3 +64,6 @@ partner-client-astro/
 
 # Verified SDK tarballs (npm run verify:sdks)
 .sdk-packs/
+
+# Internal media plan: a local working document, never published.
+docs/media/PLAN.md
