@@ -18,7 +18,7 @@ set -uo pipefail
 SEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SEC_DIR/lib/common.sh"
 
-DOMAINS="public wilayas orders products stock images customers customer-groups customer-tags product-groups drivers delivery-companies driver-payments shipping-profiles admin reviews offers analytics abandoned-orders"
+DOMAINS="public wilayas orders products stock media customers customer-groups customer-tags product-groups drivers delivery-companies driver-payments shipping-profiles admin reviews offers analytics abandoned-orders"
 GRAND_PASS=0; GRAND_FAIL=0; FAILED_DOMAINS=""
 
 if [[ "${1:-}" == "--teardown" ]]; then

@@ -24,7 +24,7 @@ Convention: one `CONTEXT.md` per endpoint folder; cross-folder terms live in the
 | ✅ written | Variants | [./src/endpoints/variants/CONTEXT.md](./src/endpoints/variants/CONTEXT.md) | Sellable combinations of variable products: pricing, SKUs, deletion semantics (routes mounted via products/) |
 | ✅ written | Analytics | [./src/endpoints/analytics/CONTEXT.md](./src/endpoints/analytics/CONTEXT.md) | Dashboard metrics: orders by stage and needing attention (read-only) |
 | ✅ written | Abandoned Orders | [./src/endpoints/abandoned-orders/CONTEXT.md](./src/endpoints/abandoned-orders/CONTEXT.md) | Captured half-finished checkouts: session capture, 30-min sweep, recovery stats (storefront + dashboard surfaces) |
-| ✅ written | Images | [./src/endpoints/images/CONTEXT.md](./src/endpoints/images/CONTEXT.md) | R2 media pipeline: proxy & presigned uploads, immutable public serving, record linking |
+| ✅ written | Media | [../cod-shared/media/CONTEXT.md](../cod-shared/media/CONTEXT.md) | Images and voice notes kept by key on the store's host (ImageKit or R2): upload tickets, confirmation, references, the sweep |
 | ✅ written | Activity Logs | [./src/endpoints/activity-logs/CONTEXT.md](./src/endpoints/activity-logs/CONTEXT.md) | Admin-only audit trail: who did what across every context (fire-and-forget writes) |
 | ✅ written | MCP | [./src/endpoints/mcp/CONTEXT.md](./src/endpoints/mcp/CONTEXT.md) | AI-agent surface: OAuth-verified tool sessions, scope-gated registry, HITL confirmations, connection revocation |
 | ✅ written | Store Settings | [./src/endpoints/stores/CONTEXT.md](./src/endpoints/stores/CONTEXT.md) | Merchant configuration: branding, theme, localization, SEO, Meta pixel (single-tenant, admin-only) |
