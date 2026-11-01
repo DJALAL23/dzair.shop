@@ -153,6 +153,28 @@ export type WidgetTextFieldKey = keyof typeof WIDGET_TEXT_FIELDS;
 
 export const WIDGET_TEXT_FIELD_KEYS = Object.keys(WIDGET_TEXT_FIELDS) as WidgetTextFieldKey[];
 
+/** The texts a shopper reads, each translated into the store's other languages (resource `whatsappWidget`). */
+export const WIDGET_TRANSLATED_FIELDS = [
+  "caption",
+  "welcomeMessage",
+  "launcherLabel",
+  "ctaLabel",
+  "prefillGeneral",
+  "prefillProduct",
+  "thankYouButtonLabel",
+  "prefillThankYou",
+] as const satisfies readonly WidgetTextFieldKey[];
+
+export type WidgetTranslatedField = (typeof WIDGET_TRANSLATED_FIELDS)[number];
+
+/**
+ * The language a page is served in: the store's primary, where the merchant's
+ * own texts are read, or another with the texts translated into it.
+ */
+export type WidgetLanguage =
+  | { primary: true }
+  | { primary: false; translations: Readonly<Partial<Record<WidgetTranslatedField, string>>> };
+
 export const WIDGET_LIMITS = {
   /**
    * The hard cap on a prefilled message AFTER tokens resolve, before it is
@@ -312,10 +334,17 @@ export function toWhatsAppHref(phone: string | null | undefined): string | null 
  * Three different failures collapse into that one null — switched off, no
  * number, and a stored number that no longer normalises — because the theme
  * should hold exactly one rule about this feature: render it, or don't.
+ *
+ * Each text is in the page's language or null, never another language's:
+ * the merchant's own on the primary language, its translation on another.
+ * Null is the theme's words, which every theme has in every language it
+ * speaks — so an untranslated text, or one the merchant left empty, reads
+ * as the theme's.
  */
 export function resolveStorefrontWidget(
   json: string | null | undefined,
   delivery: MediaDelivery,
+  language: WidgetLanguage,
 ): StorefrontWhatsAppWidget | null {
   const config = parseWhatsAppWidgetConfig(json);
   if (!config.enabled) return null;
@@ -323,18 +352,19 @@ export function resolveStorefrontWidget(
   const href = toWhatsAppHref(config.phone);
   if (!href) return null;
 
+  const text = (key: WidgetTranslatedField) => (config[key] === null ? null : language.primary ? config[key] : (language.translations[key] ?? null));
   return {
     href,
     agentName: config.agentName,
-    caption: config.caption,
+    caption: text("caption"),
     avatarUrl: config.avatarKey ? mediaUrl(config.avatarKey, delivery) : null,
-    welcomeMessage: config.welcomeMessage,
-    launcherLabel: config.launcherLabel,
-    ctaLabel: config.ctaLabel,
-    prefillGeneral: config.prefillGeneral,
-    prefillProduct: config.prefillProduct,
-    thankYouButtonLabel: config.thankYouButtonLabel,
-    prefillThankYou: config.prefillThankYou,
+    welcomeMessage: text("welcomeMessage"),
+    launcherLabel: text("launcherLabel"),
+    ctaLabel: text("ctaLabel"),
+    prefillGeneral: text("prefillGeneral"),
+    prefillProduct: text("prefillProduct"),
+    thankYouButtonLabel: text("thankYouButtonLabel"),
+    prefillThankYou: text("prefillThankYou"),
     accent: config.accent,
     position: config.position,
     attention: config.attention,

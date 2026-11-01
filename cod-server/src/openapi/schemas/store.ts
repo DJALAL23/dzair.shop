@@ -158,9 +158,6 @@ const storeBaseFields = {
   currency: z.string().openapi({ example: "DZD" }),
   price: z.number().openapi({ example: 45000 }),
   compareAtPrice: z.number().nullable(),
-  costPrice: z.null().openapi({
-    description: "Always null: what the merchant paid is never served to a storefront. Kept for SDK releases that require the key.",
-  }),
   type: z.enum(["PHYSICAL", "DIGITAL"]),
   hasVariants: z.boolean(),
   sku: z.string().nullable(),
@@ -170,33 +167,35 @@ const storeBaseFields = {
     description: "Threshold for low stock warnings",
   }),
   categoryId: z.string().nullable(),
-  visibility: z.boolean(),
-  status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]),
-  showInStore: z.boolean(),
-  storeFeatured: z.boolean().openapi({
-    description: "Deprecated: whether the product is in the `featured` collection. Kept because @wocart/storefront up to 1.7 requires it.",
-  }),
-  deletedAt: z.null().openapi({ description: "Always null: a removed product is never served. Kept for @wocart/storefront releases that require the field; it will be dropped" }),
-  publishedAt: z.string().datetime().nullable(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
   metaTitle: z.string().nullable().openapi({
     description: "The title search engines and shared links show, in the requested language when translated; null: use the product's name.",
   }),
   metaDescription: z.string().nullable().openapi({
     description: "The description search engines and shared links show, in the requested language when translated; null: use `descriptionPlain`, shortened.",
   }),
+  variantOptions: z
+    .array(
+      z.object({
+        name: z.string().openapi({ example: "Color" }),
+        values: z.array(
+          z.object({
+            value: z.string().openapi({ example: "Red" }),
+            hexColor: z.string().nullable().openapi({ example: "#FF0000" }),
+          })
+        ),
+      })
+    )
+    .nullable()
+    .openapi({ description: "Parsed variant option axes. null for simple products." }),
+  tags: z.array(z.string()).openapi({
+    description: "Parsed tag list",
+    example: ["sale", "new"],
+  }),
 };
 
 export const StoreProductListSchema = z
   .object({
     ...storeBaseFields,
-    variantOptions: z.string().nullable().openapi({
-      description: "Raw JSON string — parsed before use",
-    }),
-    tags: z.string().nullable().openapi({
-      description: "Raw JSON string array — parsed before use",
-    }),
     coverImage: StoreProductImageSchema.nullable().openapi({
       description: "First image by position, or null if no images",
     }),
@@ -271,24 +270,6 @@ export const StoreOfferSummarySchema = z.object({
 export const StoreProductDetailSchema = z
   .object({
     ...storeBaseFields,
-    variantOptions: z
-      .array(
-        z.object({
-          name: z.string().openapi({ example: "Color" }),
-          values: z.array(
-            z.object({
-              value: z.string().openapi({ example: "Red" }),
-              hexColor: z.string().nullable().openapi({ example: "#FF0000" }),
-            })
-          ),
-        })
-      )
-      .nullable()
-      .openapi({ description: "Parsed variant option axes. null for simple products." }),
-    tags: z.array(z.string()).openapi({
-      description: "Parsed tag list",
-      example: ["sale", "new"],
-    }),
     category: ProductCategoryRowSchema.nullable().openapi({
       description: "Joined category, or null if no category assigned.",
     }),
@@ -296,25 +277,17 @@ export const StoreProductDetailSchema = z
       .array(
         z.object({
           id: z.string(),
-          productId: z.string(),
           variations: z.record(z.string(), z.string()).openapi({
-            description: "Parsed key-value map of option name → value",
+            description: "Option name → value, in the requested language",
             example: { Color: "Red", Size: "M" },
           }),
-          currency: z.string().openapi({ example: "DZD" }),
           price: z.number().openapi({ example: 45000 }),
           compareAtPrice: z.number().nullable(),
           sku: z.string().nullable(),
-          barcode: z.string().nullable(),
           inventory: z.number().int(),
           lowStockThreshold: z.number().int(),
-          weightKg: z.number().nullable(),
-          imageId: z.string().nullable(),
+          imageId: z.string().nullable().openapi({ description: "The product image this variant shows" }),
           isDefault: z.boolean(),
-          active: z.boolean(),
-          position: z.number().int(),
-          createdAt: z.string().datetime(),
-          updatedAt: z.string().datetime(),
         })
       )
       .openapi({
@@ -435,11 +408,9 @@ export const StoreWhatsAppWidgetSchema = z
     avatarUrl: z.string().nullable().openapi({
       description: "The avatar's URL, from the store's Media Delivery. Null means the theme falls back to the store logo.",
     }),
-    welcomeMessage: z.string().nullable(),
-    launcherLabel: z.string().nullable().openapi({
-      description: "Text beside the floating launcher. Null renders the icon alone.",
-    }),
-    ctaLabel: z.string().nullable(),
+    welcomeMessage: z.string().nullable().openapi({ description: "The bubble in the panel, before the shopper opens WhatsApp." }),
+    launcherLabel: z.string().nullable().openapi({ description: "Text on the floating launcher." }),
+    ctaLabel: z.string().nullable().openapi({ description: "The panel's button that opens WhatsApp." }),
     prefillGeneral: z.string().nullable().openapi({
       description:
         "The message WhatsApp opens with on a page that has no product. May contain " +
@@ -448,6 +419,11 @@ export const StoreWhatsAppWidgetSchema = z
     prefillProduct: z.string().nullable().openapi({
       description: "Same, for a product or landing page. May also contain {product}.",
       example: "سلام، بغيت نسقسي على {product}",
+    }),
+    thankYouButtonLabel: z.string().nullable().openapi({ description: "The WhatsApp button on the order confirmation." }),
+    prefillThankYou: z.string().nullable().openapi({
+      description: "The message that button opens WhatsApp with. May contain {order}.",
+      example: "سلام، درت الطلب {order}",
     }),
     accent: z.enum(["whatsapp", "primary"]).openapi({
       description: "Brand green, or the store's own primary colour.",
@@ -476,7 +452,12 @@ export const StoreWhatsAppWidgetSchema = z
           "floating control competing for the same thumb costs the order.",
       }),
   })
-  .openapi("StoreWhatsAppWidget");
+  .openapi("StoreWhatsAppWidget", {
+    description:
+      "Every text is in the served language or null, never another language's: the " +
+      "merchant's own in the primary language, its translation in another. Null is the " +
+      "theme's own words for it, in the page's language.",
+  });
 
 export const StoreConfigSchema = z
   .object({
@@ -484,26 +465,6 @@ export const StoreConfigSchema = z
     name: z.string().openapi({ example: "متجري" }),
     domain: z.string().nullable(),
     logo: MediaImageSchema.nullable(),
-    themeId: z.string().openapi({ example: "theme-00" }),
-    primaryColor: z.string().openapi({
-      description: "Deprecated: the value saved before colors and fonts became theme settings (migration 0047), no longer editable. Kept because @wocart/storefront up to 1.7 requires it; read `themeSettings` instead.",
-      example: "#3a58ee",
-    }),
-    accentColor: z.string().openapi({
-      description: "Deprecated: the value saved before colors and fonts became theme settings (migration 0047), no longer editable. Kept because @wocart/storefront up to 1.7 requires it; read `themeSettings` instead.",
-      example: "#f59e0b",
-    }),
-    bgColor: z.string().openapi({
-      description: "Deprecated: the value saved before colors and fonts became theme settings (migration 0047), no longer editable. Kept because @wocart/storefront up to 1.7 requires it; read `themeSettings` instead.",
-      example: "#f8f8f8",
-    }),
-    fontFamily: z.string().openapi({
-      description: "Deprecated: the value saved before colors and fonts became theme settings (migration 0047), no longer editable. Kept because @wocart/storefront up to 1.7 requires it; read `themeSettings` instead.",
-      example: "Cairo, sans-serif",
-    }),
-    fontUrl: z.null().openapi({
-      description: "Deprecated: always null. Kept because @wocart/storefront up to 1.7 requires the field; the store's font is a theme setting (`themeSettings`).",
-    }),
     lang: StoreLocaleEnum.openapi({ description: "The store's primary language", example: "ar" }),
     locale: StoreLocaleEnum.openapi({
       description: "The language this config is served in: `?locale=` when the store publishes it, else `lang`",
@@ -526,9 +487,6 @@ export const StoreConfigSchema = z
     metaDescription: z.string().nullable(),
     ogImage: MediaImageSchema.nullable(),
     media: MediaDeliverySchema.openapi({ description: "How the storefront fetches and resizes every image key (ADR 0021)" }),
-    announcementBar: z.null().openapi({
-      description: "Deprecated: always null. Kept because @wocart/storefront up to 1.7 requires the field; a theme's announcement is its own setting (`themeSettings`).",
-    }),
     reviewsEnabled: z.boolean().openapi({
       description: "When false, the reviews section is hidden on the storefront",
       example: true,
@@ -564,9 +522,6 @@ export const StoreConfigSchema = z
         "null when Turnstile is disabled. The siteverify secret key is never exposed.",
       example: "0x4AAAAAAAxxxxxxxxxxxx",
     }),
-    status: z.enum(["active", "inactive"]),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
     pages: z
       .array(
         z.object({
@@ -584,20 +539,18 @@ export const StoreConfigSchema = z
           "Refund from here by `kind`, never by a hardcoded slug — a merchant may rename " +
           "any page's slug freely.",
       }),
-    legalContact: z
+    contact: z
       .object({
-        contactEmail: z.string().nullable(),
-        contactPhone: z.string().nullable(),
-        deliveryMinDays: z.number().int(),
-        deliveryMaxDays: z.number().int(),
+        phone: z.string().nullable().openapi({ example: "0551234567" }),
+        email: z.string().nullable().openapi({ example: "contact@example.dz" }),
+        address: z.string().nullable().openapi({ example: "12 rue Didouche Mourad, Alger" }),
       })
-      .nullable()
       .openapi({
         description:
-          "The public subset of the store's legal profile — contact details and the " +
-          "delivery window, both used in the footer and the policy pages. Null until the " +
-          "merchant saves a legal profile (Settings → Store Pages); RC/NIF are never " +
-          "exposed here, only inside the documents themselves.",
+          "How a shopper reaches the store, from its legal profile (Settings → Store Pages); " +
+          "each null until the merchant writes it. RC, NIF and the legal name are never " +
+          "exposed here, only inside the documents themselves. The WhatsApp number is " +
+          "`whatsapp.href`.",
       }),
     checkoutForm: z
       .object({

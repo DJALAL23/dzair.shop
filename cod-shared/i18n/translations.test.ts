@@ -23,7 +23,7 @@ describe("the translatable registry", () => {
     for (const key of ["price", "handle", "id", "constructor", "__proto__", "toString"]) {
       expect(translatableField("product", key)).toBeNull();
     }
-    expect(TRANSLATABLE_RESOURCES.sort()).toEqual(["category", "collection", "menuItem", "offer", "product", "store"]);
+    expect(TRANSLATABLE_RESOURCES.sort()).toEqual(["category", "collection", "menuItem", "offer", "product", "store", "whatsappWidget"]);
   });
 });
 
@@ -51,7 +51,7 @@ describe("overlayTranslations", () => {
     value: fc.string(),
   });
 
-  it("replaces exactly the translated, translatable fields — everything else keeps its source", () => {
+  it("replaces exactly the translated, translatable fields with a source — everything else keeps its own", () => {
     fc.assert(
       fc.property(fc.uniqueArray(record, { selector: (r) => r.id }), fc.array(row), (records, rows) => {
         const result = overlayTranslations("product", records, rows);
@@ -60,7 +60,7 @@ describe("overlayTranslations", () => {
           const source = records[index]!;
           for (const [key, value] of Object.entries(source)) {
             const last = rows.filter((r) => r.resourceId === source.id && r.key === key).at(-1);
-            const expected = last !== undefined && productKeys.includes(key) ? last.value : value;
+            const expected = last !== undefined && productKeys.includes(key) && typeof value === "string" && value !== "" ? last.value : value;
             expect((translated as Record<string, unknown>)[key]).toEqual(expected);
           }
           expect(Object.keys(translated).sort()).toEqual(Object.keys(source).sort());
@@ -68,6 +68,11 @@ describe("overlayTranslations", () => {
       }),
       { numRuns: 1000 },
     );
+  });
+
+  it("leaves a field the record leaves empty empty: a translation translates its source", () => {
+    const [product] = overlayTranslations("product", [{ id: "p-1", name: "هاتف", metaTitle: null }], [{ resourceId: "p-1", key: "metaTitle", value: "Téléphone pas cher" }]);
+    expect(product!.metaTitle).toBeNull();
   });
 
   it("never mutates its input", () => {

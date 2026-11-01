@@ -164,7 +164,7 @@ describe("store-hidden products (showInStore=false) — landing pages keep selli
     const body: any = await res.json();
 
     expect(body.data.product).toMatchObject({
-      id, handle, price: 5000, inventory: 10, showInStore: false,
+      id, handle, price: 5000, inventory: 10,
     });
     expect(Array.isArray(body.data.product.offers)).toBe(true);
   });

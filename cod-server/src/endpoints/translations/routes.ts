@@ -196,6 +196,9 @@ export function registerTranslationRoutes(router: OpenAPIHono<AppContext>, optio
           remove.push(key);
           continue;
         }
+        if (!target!.source) {
+          throw new ValidationError(`The ${label.toLowerCase()} has no ${key} to translate — write it in the primary language first`, ERROR_CODES.VALIDATION_FAILED, { field: key });
+        }
         const stored = target!.field.kind === "html" ? await storedRichText(value, mediaDeliveryOf(c.env)) : value;
         set.push({ key, value: stored, sourceDigest: await sourceDigest(target!.source) });
       }

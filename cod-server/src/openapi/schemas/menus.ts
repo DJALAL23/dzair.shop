@@ -7,7 +7,7 @@
  */
 
 import { z } from "@hono/zod-openapi";
-import { MENU_DESTINATION_TYPES, MENU_HANDLE_RE, MENU_MAX_ITEMS, MENU_RESOURCE_DESTINATIONS, isMenuUrl } from "../../../../cod-shared/navigation/menus";
+import { MENU_DESTINATION_TYPES, MENU_HANDLE_RE, MENU_MAX_ITEMS, MENU_PAGE_DESTINATIONS, MENU_RESOURCE_DESTINATIONS, isMenuUrl } from "../../../../cod-shared/navigation/menus";
 
 export const MenuHandleSchema = z.string().regex(MENU_HANDLE_RE).openapi({
   description: "Lowercase letters, digits and hyphens; how a theme names the menu",
@@ -16,9 +16,9 @@ export const MenuHandleSchema = z.string().regex(MENU_HANDLE_RE).openapi({
 
 export const MenuDestinationSchema = z
   .discriminatedUnion("type", [
-    z.object({ type: z.enum(["home", "catalog"]) }),
+    z.object({ type: z.enum(MENU_PAGE_DESTINATIONS).openapi({ description: "A page of the store: the home, every product, search, order tracking or contact" }) }),
     z.object({
-      type: z.enum(["category", "collection", "product", "page", "landing"]),
+      type: z.enum(MENU_RESOURCE_DESTINATIONS),
       ref: z.string().min(1).max(100).openapi({ description: "The category, collection, product, store page or landing page id" }),
     }),
     z.object({

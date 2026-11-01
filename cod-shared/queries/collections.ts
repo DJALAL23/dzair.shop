@@ -236,13 +236,6 @@ export async function setProductCollections(
   return { ok: true };
 }
 
-/**
- * The deprecated `storeFeatured` field published SDKs require on a product:
- * whether the product is in the `featured` collection.
- */
-export const isFeaturedSql = sql<number>`EXISTS (SELECT 1 FROM collection_products cp JOIN collections c ON c.id = cp.collection_id WHERE cp.product_id = products.id AND c.handle = ${FEATURED_COLLECTION})`;
-
-
 export interface StorefrontCollection {
   handle: string;
   title: string;

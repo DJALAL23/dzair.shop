@@ -15,6 +15,8 @@ router, guarded by that router's scopes:
 | offer | `/api/offers/{id}/translations` | `offers:read` | `offers:manage` |
 | store | `/api/stores/me/translations` | admin | admin |
 | menuItem | `/api/menus/items/{id}/translations` | `navigation:read` | `navigation:manage` |
+| collection | `/api/collections/{id}/translations` | `collections:read` | `collections:manage` |
+| whatsappWidget | `/api/apps/whatsapp-button/translations` | `whatsapp-button:read` | `whatsapp-button:manage` |
 
 **GET** returns the source fields (primary language), the languages it can be
 translated into (`targetLocales`: every added language but the primary, so an
@@ -37,8 +39,16 @@ field, `null` removes its translation:
 ```
 
 Refused with 400: the primary language (edit the resource itself), a language
-the store has not added, a field that is not translatable, an empty or
-over-long value. `html` fields are sanitised exactly like their source.
+the store has not added, a field that is not translatable, a field the source
+leaves empty (there is nothing to translate), an empty or over-long value.
+`html` fields are sanitised exactly like their source. A storefront read shows
+a translation only over a source text: a field emptied in the primary language
+is empty in every language.
+
+The WhatsApp button's texts are read differently on the storefront: a text with
+no translation in the served language is `null`, the theme's own words, never
+the primary language's (`resolveStorefrontWidget`). Emptying a text, or saving
+the button back to nothing, deletes its translations.
 Translating into an added but unpublished language is allowed — that is how a
 store prepares a language before publishing it.
 

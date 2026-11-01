@@ -21,6 +21,7 @@ import {
   WIDGET_SURFACE_KEYS,
   WIDGET_SURFACES,
   WIDGET_TEXT_FIELDS,
+  WIDGET_TRANSLATED_FIELDS,
   parseWhatsAppWidgetConfig,
   resolveStorefrontWidget,
   serializeWhatsAppWidgetConfig,
@@ -30,6 +31,8 @@ import { validateWhatsAppWidgetInput } from "../../../../cod-shared/whatsapp-wid
 import { mediaUrl, type MediaDelivery } from "../../../../cod-shared/media/delivery";
 import { mediaDeliveryOf, mediaOf, releaseShown } from "@/lib/media";
 import { jsonContent, storeOf } from "./shared";
+import { registerTranslationRoutes } from "../translations/routes";
+import { getStore } from "../../../../cod-shared/queries/stores";
 
 /**
  * The server's own rules, travelling with the config so the dashboard renders
@@ -58,7 +61,7 @@ function payload(config: WhatsAppWidgetConfig, delivery: MediaDelivery) {
   return {
     config,
     avatarUrl: config.avatarKey ? mediaUrl(config.avatarKey, delivery) : null,
-    preview: resolveStorefrontWidget(serializeWhatsAppWidgetConfig(config), delivery),
+    preview: resolveStorefrontWidget(serializeWhatsAppWidgetConfig(config), delivery, { primary: true }),
     capabilities: CAPABILITIES,
   };
 }
@@ -232,5 +235,22 @@ Turning every surface off is accepted — it is a deliberate "paused" state and 
 const router = new OpenAPIHono<AppContext>();
 router.openapi(getRoute.route, getRoute.handler);
 router.openapi(saveRoute.route, saveRoute.handler);
+
+// The button's texts in the store's other languages (ADR 0005): a page in a
+// language with no translation shows the theme's words in that language.
+registerTranslationRoutes(router, {
+  resource: "whatsappWidget",
+  path: "/whatsapp-button/translations",
+  read: { scope: SCOPES.WHATSAPP_BUTTON_READ },
+  write: { scope: SCOPES.WHATSAPP_BUTTON_MANAGE },
+  label: "WhatsApp button",
+  tag: "Apps",
+  load: async (db) => {
+    const store = await getStore(db);
+    if (!store) return null;
+    const config = parseWhatsAppWidgetConfig(store.whatsappWidgetJson);
+    return { id: store.id, ...Object.fromEntries(WIDGET_TRANSLATED_FIELDS.map((key) => [key, config[key]])) };
+  },
+});
 
 export default router;

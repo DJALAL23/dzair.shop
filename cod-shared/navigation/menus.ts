@@ -16,21 +16,30 @@ export const MENU_MAX_DEPTH = 3;
 /** At most this many items in one menu. */
 export const MENU_MAX_ITEMS = 100;
 
-export const MENU_DESTINATION_TYPES = ["home", "catalog", "category", "collection", "product", "page", "landing", "url"] as const;
+export const MENU_DESTINATION_TYPES = ["home", "catalog", "search", "trackOrder", "contact", "category", "collection", "product", "page", "landing", "url"] as const;
 export type MenuDestinationType = (typeof MENU_DESTINATION_TYPES)[number];
+
+/** The destinations that are one page of the store, with no resource to name. */
+export const MENU_PAGE_DESTINATIONS = ["home", "catalog", "search", "trackOrder", "contact"] as const satisfies readonly MenuDestinationType[];
+
+export const isPageDestination = (type: MenuDestinationType): type is (typeof MENU_PAGE_DESTINATIONS)[number] =>
+  (MENU_PAGE_DESTINATIONS as readonly string[]).includes(type);
 
 /** The destinations that name one resource, by its id. */
 export const MENU_RESOURCE_DESTINATIONS = ["category", "collection", "product", "page", "landing"] as const satisfies readonly MenuDestinationType[];
 
 export type MenuDestination =
-  | { type: "home" | "catalog" }
-  | { type: "category" | "collection" | "product" | "page" | "landing"; ref: string }
+  | { type: (typeof MENU_PAGE_DESTINATIONS)[number] }
+  | { type: (typeof MENU_RESOURCE_DESTINATIONS)[number]; ref: string }
   | { type: "url"; url: string };
 
 /** The storefront page type a destination opens (every type but `url`). */
 export const DESTINATION_PAGE_TYPE: Record<Exclude<MenuDestinationType, "url">, StorefrontPageType> = {
   home: "home",
   catalog: "catalog",
+  search: "search",
+  trackOrder: "trackOrder",
+  contact: "contact",
   category: "category",
   collection: "collection",
   product: "product",

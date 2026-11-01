@@ -105,7 +105,7 @@ describe("cart switch — defaults to off", () => {
     // A merchant who never opens Settings must see NOTHING change.
     const id = await seedLegacyStore();
 
-    const config = await getStoreConfig(db, id, TEST_DELIVERY);
+    const config = await db.select().from(schema.stores).where(eq(schema.stores.id, id)).get();
     expect(config).toMatchObject({
       reviewsEnabled: true,
       status: "active",
@@ -157,7 +157,7 @@ describe("cart switch — round trip through the update path", () => {
 
     await updateStore(db, id, { cartEnabled: true });
 
-    const config = await getStoreConfig(db, id, TEST_DELIVERY);
+    const config = await db.select().from(schema.stores).where(eq(schema.stores.id, id)).get();
     expect(config).toMatchObject({
       cartEnabled: true,
       freeShippingThreshold: 10_000,

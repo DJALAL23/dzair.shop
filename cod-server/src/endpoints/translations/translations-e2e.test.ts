@@ -115,7 +115,7 @@ beforeEach(async () => {
       createdAt: now(),
       updatedAt: now(),
     },
-    { id: "p-2", name: "سماعات", handle: "buds", price: 2000, inventory: 10, createdAt: now(), updatedAt: now() },
+    { id: "p-2", name: "سماعات", description: "سماعات بدون سلك", handle: "buds", price: 2000, inventory: 10, createdAt: now(), updatedAt: now() },
   ]);
   await harness.db.insert(schema.offers).values({
     id: "o-1",
@@ -194,6 +194,7 @@ describe("editing translations", () => {
     ["an empty translation", "fr", { name: "  " }],
     ["an over-long translation", "fr", { name: "x".repeat(256) }],
     ["a non-string value", "fr", { name: 3 }],
+    ["a field the source leaves empty", "fr", { metaTitle: "Téléphone pas cher" }],
   ])("refuses %s", async (_name, locale, values) => {
     expect((await translate("/api/products/p-1/translations", locale, values)).status).toBe(400);
     expect(await storedKeys("product")).toEqual([]);
@@ -452,7 +453,7 @@ describe("variant options", () => {
     expect(reward).toMatchObject({ rewardProductName: "Chemise", rewardVariantLabel: "Rouge / M" });
 
     const listed = (await request("/store/products?locale=fr")).body.data.find((product: any) => product.id === "p-3");
-    expect(JSON.parse(listed.variantOptions)[0].name).toBe("Couleur");
+    expect(listed.variantOptions[0].name).toBe("Couleur");
 
     const primary = (await request("/store/products/shirt")).body.data;
     expect(primary.variantOptions[0].name).toBe("اللون");

@@ -80,7 +80,7 @@ const router = new OpenAPIHono<AppContext>();
 router.openapi(getMyStoreRoute.route, getMyStoreRoute.handler);
 router.openapi(updateMyStoreRoute.route, updateMyStoreRoute.handler);
 
-// The store's own translatable text (announcement bar, SEO) — ADR 0005.
+// The store's own translatable text (SEO, the currency symbol) — ADR 0005.
 registerTranslationRoutes(router, {
   resource: "store",
   path: "/me/translations",

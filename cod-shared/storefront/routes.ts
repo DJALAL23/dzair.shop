@@ -24,6 +24,10 @@ export const STOREFRONT_PAGE_PATHS = {
   thankYou: "/thank-you",
   /** Where a shopper follows an order by its number and phone; `?order=<number>` fills the number in. */
   trackOrder: "/track-order",
+  /** The store's products matching a query; `?q=<words>` is the query. */
+  search: "/search",
+  /** How to reach the store: its WhatsApp, phone, email and address. */
+  contact: "/contact",
 } as const;
 
 export type StorefrontPageType = keyof typeof STOREFRONT_PAGE_PATHS;

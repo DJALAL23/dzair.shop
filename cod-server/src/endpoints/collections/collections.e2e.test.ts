@@ -181,12 +181,9 @@ describe("collections through the real routes", () => {
     expect(await storefront("onSale=true")).toEqual(["b"]);
   });
 
-  it("still answer storeFeatured, and featured=true, to the SDKs that read them", async () => {
-    await call("PUT", `/api/collections/${await collectionId("featured")}/products`, { productIds: ["a"] });
-    const listed = (await call("GET", "/store/products")).body.data;
-    expect(listed.map((p: { id: string; storeFeatured: boolean }) => [p.id, p.storeFeatured])).toEqual([["c", false], ["b", false], ["a", true]]);
-    expect((await call("GET", "/store/products/a")).body.data.storeFeatured).toBe(true);
-    expect(await storefront("featured=true")).toEqual(["a"]);
+  it("list a collection's products on the storefront, in the merchant's order", async () => {
+    await call("PUT", `/api/collections/${await collectionId("featured")}/products`, { productIds: ["b", "a"] });
+    expect(await storefront("collection=featured")).toEqual(["b", "a"]);
   });
 
   it("let a product go for good: it leaves its collections, the collections stay", async () => {

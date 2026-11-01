@@ -11,14 +11,14 @@
  */
 import { STORE_LOCALES, type StoreLocale } from "../i18n/locales";
 import { sourceDigest } from "../i18n/translations";
-import type { MenuDestination } from "./menus";
+import type { MENU_PAGE_DESTINATIONS } from "./menus";
 
 type Localized = Record<StoreLocale, string>;
 
 interface DefaultItem {
   key: string;
   label: Localized;
-  destination: Extract<MenuDestination, { type: "home" | "catalog" }>;
+  destination: { type: (typeof MENU_PAGE_DESTINATIONS)[number] };
 }
 
 interface DefaultMenu {
@@ -29,10 +29,12 @@ interface DefaultMenu {
 
 const HOME: DefaultItem = { key: "home", label: { ar: "الرئيسية", fr: "Accueil", en: "Home" }, destination: { type: "home" } };
 const CATALOG: DefaultItem = { key: "catalog", label: { ar: "كل المنتجات", fr: "Tous les produits", en: "All products" }, destination: { type: "catalog" } };
+const TRACK_ORDER: DefaultItem = { key: "track-order", label: { ar: "تتبع طلبي", fr: "Suivre ma commande", en: "Track my order" }, destination: { type: "trackOrder" } };
+const CONTACT: DefaultItem = { key: "contact", label: { ar: "اتصل بنا", fr: "Contact", en: "Contact" }, destination: { type: "contact" } };
 
 export const DEFAULT_MENUS: readonly DefaultMenu[] = [
   { handle: "main-menu", title: { ar: "القائمة الرئيسية", fr: "Menu principal", en: "Main menu" }, items: [HOME, CATALOG] },
-  { handle: "footer", title: { ar: "تذييل الصفحة", fr: "Pied de page", en: "Footer" }, items: [HOME, CATALOG] },
+  { handle: "footer", title: { ar: "تذييل الصفحة", fr: "Pied de page", en: "Footer" }, items: [HOME, CATALOG, TRACK_ORDER, CONTACT] },
 ];
 
 const q = (value: string) => `'${value.replace(/'/g, "''")}'`;

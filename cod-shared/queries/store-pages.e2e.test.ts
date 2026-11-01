@@ -360,23 +360,16 @@ describe("legal profile", () => {
     expect(resolved.bodyHtml).toContain("help@example.dz");
   });
 
-  it("getPublicLegalContact exposes only the safe subset (no RC/NIF)", async () => {
+  it("getPublicContact exposes the phone, email and address, never RC, NIF or the legal name", async () => {
     await insertStore("profile-store-2", "Profile Store 2", "en");
+    expect(await call("getPublicContact", "profile-store-2")).toEqual({ phone: null, email: null, address: null });
     await call("upsertLegalProfile", "profile-store-2", {
+      legalName: "SARL Exemple",
       rcNumber: "16/00-9999999B25",
       nif: "000116009999999",
       contactEmail: "c@example.dz",
-      deliveryMinDays: 1,
-      deliveryMaxDays: 3,
+      address: "12 rue Didouche Mourad, Alger",
     });
-    const publicContact = await call<Record<string, unknown>>("getPublicLegalContact", "profile-store-2");
-    expect(publicContact).toEqual({
-      contactEmail: "c@example.dz",
-      contactPhone: null,
-      deliveryMinDays: 1,
-      deliveryMaxDays: 3,
-    });
-    expect(publicContact).not.toHaveProperty("rcNumber");
-    expect(publicContact).not.toHaveProperty("nif");
+    expect(await call("getPublicContact", "profile-store-2")).toEqual({ phone: null, email: "c@example.dz", address: "12 rue Didouche Mourad, Alger" });
   });
 });

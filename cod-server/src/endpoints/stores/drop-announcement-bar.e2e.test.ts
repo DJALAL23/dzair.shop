@@ -1,7 +1,6 @@
 /**
  * Migration 0048 drops stores.announcement_bar and its translations: an
- * announcement is a theme's own setting. /store/config keeps answering
- * `announcementBar: null`, which @wocart/storefront up to 1.7 requires.
+ * announcement is a theme's own setting, and /store/config has none.
  * Real D1, real migrations, real route.
  */
 import { OpenAPIHono } from "@hono/zod-openapi";
@@ -40,7 +39,7 @@ describe("migration 0048", () => {
     expect(keys).toEqual(["metaTitle"]);
   });
 
-  it("leaves /store/config answering announcementBar: null for the SDKs that require it", async () => {
+  it("leaves /store/config serving its translated text, with no announcement — a theme setting", async () => {
     const app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
       c.env = { DB: d1.raw, ...TEST_MEDIA_VARS } as AppContext["Bindings"];
@@ -52,7 +51,7 @@ describe("migration 0048", () => {
     const response = await app.request("/store/config?locale=fr");
     const { data } = (await response.json()) as { data: Record<string, unknown> };
     expect(response.status).toBe(200);
-    expect(data).toHaveProperty("announcementBar", null);
+    expect(data).not.toHaveProperty("announcementBar");
     expect(data.metaTitle).toBe("Boutique");
   });
 });

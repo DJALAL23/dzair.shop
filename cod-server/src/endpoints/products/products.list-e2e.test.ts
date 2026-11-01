@@ -217,22 +217,12 @@ describe("getAllProducts — real D1", () => {
 });
 
 describe("getStoreProducts — real D1", () => {
-  it("lists store-visible ACTIVE products, and answers storeFeatured from the featured collection", async () => {
-    await db.insert(schema.collections).values({ id: "col-featured", storeId: "store-e2e", handle: "featured", title: "Featured", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" });
-    await db.insert(schema.collectionProducts).values({ collectionId: "col-featured", productId: "prod-1", position: 0, addedAt: "2026-01-01T00:00:00.000Z" });
+  it("lists store-visible ACTIVE products only", async () => {
     const rows = await getStoreProducts(db, { limit: 200 }, null, TEST_DELIVERY);
-
     expect(rows.find((r) => r.id === "prod-9")).toBeUndefined();
     expect(rows.find((r) => r.id === "prod-8")).toBeUndefined();
     expect(rows.find((r) => r.id === "prod-7")).toBeUndefined();
-
-    const featured = rows.find((r) => r.id === "prod-1")!;
-    expect(featured.storeFeatured).toBe(true);
-    expect((await getStoreProductByHandle(db, featured.handle, { delivery: TEST_DELIVERY }))?.storeFeatured).toBe(true);
-    // Published @wocart/storefront releases require the field: always null.
-    expect(rows.every((r) => (r as { deletedAt?: unknown }).deletedAt === null)).toBe(true);
-    expect((await getStoreProductByHandle(db, rows[0].handle, { delivery: TEST_DELIVERY }) as { deletedAt?: unknown } | null)?.deletedAt).toBeNull();
-    expect(rows.filter((r) => r.id !== "prod-1").every((r) => r.storeFeatured === false)).toBe(true);
+    expect(rows.find((r) => r.id === "prod-1")).toBeDefined();
   });
 
   it("derives inventory from ACTIVE variants only", async () => {
@@ -275,13 +265,12 @@ describe("getStoreProducts — real D1", () => {
     expect(page1[0].id).toBe(all[0].id);
     expect(page1).toHaveLength(5);
     expect(page1.every((r) => all.some((a) => a.id === r.id))).toBe(true);
-    expect(await getStoreProducts(db, { limit: 500, featured: true }, null, TEST_DELIVERY)).toEqual(
-      await getStoreProducts(db, { limit: 5, featured: true }, null, TEST_DELIVERY),
-    );
   });
 
-  it("featured filter returns only the featured product", async () => {
-    const rows = await getStoreProducts(db, { featured: true, limit: 10 }, null, TEST_DELIVERY);
+  it("lists a collection's products only", async () => {
+    await db.insert(schema.collections).values({ id: "col-featured", storeId: "store-e2e", handle: "featured", title: "Featured", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" });
+    await db.insert(schema.collectionProducts).values({ collectionId: "col-featured", productId: "prod-1", position: 0, addedAt: "2026-01-01T00:00:00.000Z" });
+    const rows = await getStoreProducts(db, { collection: "featured", limit: 10 }, null, TEST_DELIVERY);
     expect(rows.map((r) => r.id)).toEqual(["prod-1"]);
   });
 });

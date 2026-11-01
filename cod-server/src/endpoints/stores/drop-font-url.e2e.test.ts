@@ -1,8 +1,7 @@
 /**
- * Migration 0046 drops stores.font_url, which nothing read, and the
- * storefront config keeps answering `fontUrl: null`: every published
- * @wocart/storefront up to 1.7 requires the field, so a deployed theme keeps
- * reading its config. Real D1, real migrations, real route.
+ * Migration 0046 drops stores.font_url, which nothing read; the store's font
+ * is its theme's setting, and /store/config has neither. Real D1, real
+ * migrations, real route.
  */
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { sql } from "drizzle-orm";
@@ -38,7 +37,7 @@ describe("migration 0046", () => {
     expect(await d1.raw.prepare("SELECT name, font_family FROM stores").first()).toEqual({ name: "Boutique", font_family: "Tajawal, sans-serif" });
   });
 
-  it("leaves /store/config answering fontUrl: null for the SDKs that require it", async () => {
+  it("leaves /store/config serving, with neither the font nor its URL — the font is a theme setting", async () => {
     const app = new OpenAPIHono<AppContext>({ defaultHook: openApiValidationHook });
     app.use("*", async (c, next) => {
       c.env = { DB: d1.raw, ...TEST_MEDIA_VARS } as AppContext["Bindings"];
@@ -50,7 +49,8 @@ describe("migration 0046", () => {
     const response = await app.request("/store/config");
     expect(response.status).toBe(200);
     const { data } = (await response.json()) as { data: Record<string, unknown> };
-    expect(data).toHaveProperty("fontUrl", null);
-    expect(data.fontFamily).toBe("Tajawal, sans-serif");
+    expect(data.name).toBe("Boutique");
+    expect(data).not.toHaveProperty("fontUrl");
+    expect(data).not.toHaveProperty("fontFamily");
   });
 });

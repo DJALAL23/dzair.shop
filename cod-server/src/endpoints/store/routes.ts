@@ -96,9 +96,6 @@ const productsQuerySchema = z.object({
   onSale: z.enum(["true", "false"]).optional().openapi({
     description: "When true, only products priced below their compare-at price.",
   }),
-  featured: z.enum(["true", "false"]).optional().openapi({
-    description: "Deprecated: same as `collection=featured`.",
-  }),
   categoryId: z.string().optional().openapi({ description: "Filter by category ID." }),
   sort: z.enum(STOREFRONT_PRODUCT_SORTS).optional().openapi({
     description: "The order: `newest`, `price-ascending` or `price-descending`. Absent: a collection's own order, a search's best match first, else newest.",

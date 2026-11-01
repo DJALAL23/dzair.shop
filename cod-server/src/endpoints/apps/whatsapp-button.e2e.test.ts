@@ -309,3 +309,52 @@ describe("permissions", () => {
     expect((await put(ON, outsider)).status).toBe(403);
   });
 });
+
+describe("translations — the button's texts in the store's other languages", () => {
+  const path = "/api/apps/whatsapp-button/translations";
+  const patch = (body: unknown, instance = app) =>
+    instance.request(path, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const rows = () => harness.raw.prepare("SELECT locale, key, value FROM translations WHERE resource_type = 'whatsappWidget' ORDER BY locale, key").all();
+
+  beforeEach(async () => {
+    await harness.raw.prepare("DELETE FROM translations").run();
+    await harness.db.update(schema.stores).set({ lang: "ar" }).where(eq(schema.stores.id, STORE_ID));
+    await harness.db.insert(schema.storeLocales).values({ storeId: STORE_ID, locale: "fr", published: true, createdAt: NOW() });
+    await put({ ...ON, welcomeMessage: "مرحبا", ctaLabel: "راسلنا", agentName: "أمين" });
+  });
+
+  it("lists the merchant's texts as the source, and not the agent's name", async () => {
+    const res = await app.request(path);
+    const { data } = (await res.json()) as any;
+    expect(res.status).toBe(200);
+    expect(data.sourceLocale).toBe("ar");
+    expect(data.targetLocales).toEqual([{ locale: "fr", published: true }]);
+    expect(data.source).toMatchObject({ welcomeMessage: "مرحبا", ctaLabel: "راسلنا", caption: null });
+    expect(data.source).not.toHaveProperty("agentName");
+  });
+
+  it("stores a language's texts, and refuses one the merchant left empty", async () => {
+    expect((await patch({ locale: "fr", values: { welcomeMessage: "Bonjour" } })).status).toBe(200);
+    expect((await rows()).results).toEqual([{ locale: "fr", key: "welcomeMessage", value: "Bonjour" }]);
+    const refused = await patch({ locale: "fr", values: { caption: "En ligne" } });
+    expect(refused.status).toBe(400);
+    expect((await rows()).results).toHaveLength(1);
+  });
+
+  it("forgets a text's translations when the merchant empties it, and keeps the others", async () => {
+    await patch({ locale: "fr", values: { welcomeMessage: "Bonjour", ctaLabel: "Écrivez-nous" } });
+    await put({ ...ON, ctaLabel: "راسلنا", agentName: "أمين" });
+    expect((await rows()).results).toEqual([{ locale: "fr", key: "ctaLabel", value: "Écrivez-nous" }]);
+  });
+
+  it("forgets every translation when the merchant saves back to nothing", async () => {
+    await patch({ locale: "fr", values: { welcomeMessage: "Bonjour" } });
+    await put({});
+    expect((await rows()).results).toEqual([]);
+  });
+
+  it("lets a read-only member look, never translate", async () => {
+    expect((await readOnlyApp.request(path)).status).toBe(200);
+    expect((await patch({ locale: "fr", values: { welcomeMessage: "Bonjour" } }, readOnlyApp)).status).toBe(403);
+  });
+});

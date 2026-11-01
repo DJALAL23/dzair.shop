@@ -166,6 +166,30 @@ describe("GET /store/config — whatsapp", () => {
   });
 });
 
+describe("GET /store/config — whatsapp, in the page's language", () => {
+  const french = async () => {
+    const res = await app.request("/store/config?locale=fr");
+    return ((await res.json()) as any).data.whatsapp;
+  };
+
+  beforeEach(async () => {
+    await harness.db.insert(schema.storeLocales).values({ storeId: STORE_ID, locale: "fr", published: true, createdAt: NOW() });
+    await store({ ...ON, agentName: "أمين", welcomeMessage: "مرحبا", ctaLabel: "راسلنا" });
+  });
+
+  it("serves the merchant's own texts in the primary language", async () => {
+    expect((await config()).data.whatsapp).toMatchObject({ welcomeMessage: "مرحبا", ctaLabel: "راسلنا" });
+  });
+
+  it("serves a translated text in its language, and null — the theme's words — for one not translated", async () => {
+    await harness.raw
+      .prepare("INSERT INTO translations (resource_type, resource_id, locale, key, value, source_digest, updated_at) VALUES ('whatsappWidget', ?1, 'fr', 'welcomeMessage', 'Bonjour', 'd', ?2)")
+      .bind(STORE_ID, NOW())
+      .run();
+    expect(await french()).toMatchObject({ agentName: "أمين", welcomeMessage: "Bonjour", ctaLabel: null });
+  });
+});
+
 describe("the raw column never leaves the server", () => {
   it("is absent from the payload, configured or not", async () => {
     expect((await config()).data).not.toHaveProperty("whatsappWidgetJson");

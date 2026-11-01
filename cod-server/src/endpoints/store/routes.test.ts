@@ -155,7 +155,7 @@ describe("Store API routes (OpenAPIHono)", () => {
     it("returns 200 with catalog and count", async () => {
       vi.mocked(queries.getStoreProducts).mockResolvedValue([listProductRow()] as any);
 
-      const res = await app.request("/store/products?featured=true&limit=12");
+      const res = await app.request("/store/products?collection=featured&limit=12");
 
       expect(res.status).toBe(200);
       const body: any = await res.json();
@@ -164,7 +164,7 @@ describe("Store API routes (OpenAPIHono)", () => {
       expect(body.data[0].reviewStats.avgRating).toBe(4.5);
       expect(queries.getStoreProducts).toHaveBeenCalledWith(
         mockDb,
-        expect.objectContaining({ featured: true, limit: 12 }),
+        expect.objectContaining({ collection: "featured", limit: 12 }),
         null,
         TEST_DELIVERY,
       );

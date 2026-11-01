@@ -1,9 +1,9 @@
 /**
- * /store/config's pages[] + legalContact, and GET /store/pages/{slug} —
+ * /store/config's pages[] + contact, and GET /store/pages/{slug} —
  * Slice 3 real-D1 E2E (plain Node, same pattern as storefront-tracking-e2e.test.ts).
  *
  * No esbuild/workerd bundling needed here: every function this slice adds to
- * the READ path (getFooterPages, getPublicLegalContact, resolvePublishedPage)
+ * the READ path (getFooterPages, getPublicContact, resolvePublishedPage)
  * is a plain Drizzle read — the write chokepoint's sanitizeRichText already
  * ran when the fixture rows below were written (by Slice 1/2's own e2e
  * suites), so these rows are inserted directly, pre-sanitised, matching what
@@ -143,19 +143,20 @@ describe("GET /store/config — pages[]", () => {
   });
 });
 
-describe("GET /store/config — legalContact", () => {
-  it("is null when the store never set a legal profile", async () => {
+describe("GET /store/config — contact", () => {
+  it("is every detail null when the store never set a legal profile", async () => {
     const res = await app.request("/store/config");
     const body: any = await res.json();
-    expect(body.data.legalContact).toBeNull();
+    expect(body.data.contact).toEqual({ phone: null, email: null, address: null });
   });
 
-  it("exposes only the public subset — never RC/NIF", async () => {
+  it("exposes the phone, email and address — never RC, NIF or the legal name", async () => {
     await harness.db.insert(schema.storeLegalProfile).values({
       storeId: STORE_ID,
       legalName: "SARL Test",
       rcNumber: "16/00-1234567B25",
       nif: "000116001234567",
+      address: "12 rue Didouche Mourad, Alger",
       contactEmail: "contact@example.dz",
       contactPhone: "+213 555 00 00 00",
       returnWindowDays: 7,
@@ -166,12 +167,12 @@ describe("GET /store/config — legalContact", () => {
 
     const res = await app.request("/store/config");
     const body: any = await res.json();
-    expect(body.data.legalContact).toEqual({
-      contactEmail: "contact@example.dz",
-      contactPhone: "+213 555 00 00 00",
-      deliveryMinDays: 1,
-      deliveryMaxDays: 4,
+    expect(body.data.contact).toEqual({
+      phone: "+213 555 00 00 00",
+      email: "contact@example.dz",
+      address: "12 rue Didouche Mourad, Alger",
     });
+    expect(JSON.stringify(body.data)).not.toContain("SARL Test");
     expect(JSON.stringify(body.data)).not.toContain("1234567B25");
     expect(JSON.stringify(body.data)).not.toContain("000116001234567");
   });

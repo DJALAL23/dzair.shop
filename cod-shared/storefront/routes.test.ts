@@ -20,6 +20,6 @@ describe("storefront page paths", () => {
   });
 
   it("names every page type the platform links to", () => {
-    expect(Object.keys(STOREFRONT_PAGE_PATHS)).toEqual(["home", "catalog", "category", "collection", "product", "page", "landing", "checkout", "thankYou", "trackOrder"]);
+    expect(Object.keys(STOREFRONT_PAGE_PATHS)).toEqual(["home", "catalog", "category", "collection", "product", "page", "landing", "checkout", "thankYou", "trackOrder", "search", "contact"]);
   });
 });

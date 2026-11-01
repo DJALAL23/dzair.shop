@@ -15,7 +15,7 @@ import { and, asc, desc, eq, inArray, like, or } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { collections, landingPages, productCategories, products, storeMenuItems, storeMenus, storePages } from "../db/schema";
 import type { AppDb } from "../db/client";
-import { DESTINATION_PAGE_TYPE, MENU_MAX_DEPTH, MENU_MAX_ITEMS, MENU_RESOURCE_DESTINATIONS, type MenuDestination } from "../navigation/menus";
+import { DESTINATION_PAGE_TYPE, MENU_MAX_DEPTH, MENU_MAX_ITEMS, MENU_RESOURCE_DESTINATIONS, isPageDestination, type MenuDestination } from "../navigation/menus";
 import { storefrontPath } from "../storefront/routes";
 import { listTranslations } from "./translations";
 import { safeLikeTerm } from "./search";
@@ -82,7 +82,7 @@ export type MenuItemsProblem =
 
 function destinationOf(row: ItemRow): MenuDestination {
   if (row.destinationType === "url") return { type: "url", url: row.url ?? "" };
-  if (row.destinationType === "home" || row.destinationType === "catalog") return { type: row.destinationType };
+  if (isPageDestination(row.destinationType)) return { type: row.destinationType };
   return { type: row.destinationType, ref: row.destinationRef ?? "" };
 }
 
@@ -118,9 +118,7 @@ async function resolveTargets(db: AppDb, rows: readonly ItemRow[]): Promise<Map<
 
 function targetOf(row: ItemRow, targets: Map<string, ResolvedTarget>): ResolvedTarget {
   if (row.destinationType === "url") return { status: "ok", label: null, path: row.url };
-  if (row.destinationType === "home" || row.destinationType === "catalog") {
-    return { status: "ok", label: null, path: storefrontPath(DESTINATION_PAGE_TYPE[row.destinationType]) };
-  }
+  if (isPageDestination(row.destinationType)) return { status: "ok", label: null, path: storefrontPath(DESTINATION_PAGE_TYPE[row.destinationType]) };
   return targets.get(`${row.destinationType}:${row.destinationRef}`) ?? { status: "missing", label: null, path: null };
 }
 

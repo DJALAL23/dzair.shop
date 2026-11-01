@@ -67,9 +67,7 @@ import { resolvePublicTracking } from "./tracking-config";
 import { chunkIds } from "./d1-limits";
 import type { MediaDelivery } from "../media/delivery";
 import { categoryView, imageOf, productImageView, productImageViews, servedDescription } from "../media/views";
-import { isFeaturedSql } from "./collections";
-import { FEATURED_COLLECTION } from "../catalog/collections";
-import { getFooterPages, getPublicLegalContact } from "./store-pages";
+import { getFooterPages, getPublicContact } from "./store-pages";
 import {
   loadCatalogSnapshot,
   priceCartLines,
@@ -179,13 +177,33 @@ export async function getStoreConfig(
   request: { theme?: string; locale?: string } = {},
 ) {
   const [store, localeRows] = await Promise.all([
-    db.select().from(stores).where(eq(stores.id, storeId)).get(),
+    db
+      .select({
+        id: stores.id,
+        name: stores.name,
+        domain: stores.domain,
+        logoKey: stores.logoKey,
+        lang: stores.lang,
+        currency: stores.currency,
+        currencySymbol: stores.currencySymbol,
+        metaTitle: stores.metaTitle,
+        metaDescription: stores.metaDescription,
+        ogImageKey: stores.ogImageKey,
+        reviewsEnabled: stores.reviewsEnabled,
+        cartEnabled: stores.cartEnabled,
+        freeShippingThreshold: stores.freeShippingThreshold,
+        checkoutFormJson: stores.checkoutFormJson,
+        whatsappWidgetJson: stores.whatsappWidgetJson,
+      })
+      .from(stores)
+      .where(eq(stores.id, storeId))
+      .get(),
     listStoreLocales(db, storeId),
   ]);
   if (!store) return null;
   const languages = storeLanguages(store.lang, localeRows);
   const served = servedLocale(request.locale, languages);
-  const [tracking, otpRow, turnstileRow, pages, legalContact, overrideRows, themeSettings, storeTranslations] = await Promise.all([
+  const [tracking, otpRow, turnstileRow, pages, contact, overrideRows, themeSettings, storeTranslations, widgetTranslations] = await Promise.all([
     // Which pixel this storefront loads is resolved in one place for every
     // sender — see queries/tracking-config.ts. The public accessor cannot
     // return the Conversions API token, which is what keeps it out of the
@@ -206,51 +224,55 @@ export async function getStoreConfig(
     // The footer renders on every page, so its link list rides along here
     // rather than costing a second round trip per page view (plan D6/R7).
     getFooterPages(db, storeId, served.locale),
-    getPublicLegalContact(db, storeId),
+    getPublicContact(db, storeId),
     request.theme === undefined ? [] : listContentOverrides(db, storeId, request.theme),
     request.theme === undefined ? {} : getThemeSettings(db, storeId, request.theme),
     served.translate === null ? [] : listTranslations(db, "store", [storeId], served.translate),
+    served.translate === null ? [] : listTranslations(db, "whatsappWidget", [storeId], served.translate),
   ]);
-  // The raw policy column never leaves the server. This function spreads the
-  // whole store row, so a column is public the moment it exists unless it is
-  // removed by name here — the storefront gets the resolved projection instead,
-  // which is also the only shape a theme should ever have to understand.
-  //
-  // The storefront API key is the credential the caller already presented; it
-  // has no business in a payload a theme may hand to templates.
+  // What a theme reads, field by field: a column becomes public only by being
+  // named here. The raw policy and widget columns, the API key and the
+  // server's own settings (shipping mode, review rules) never leave it.
   const [translated] = overlayTranslations("store", [store], storeTranslations);
-  const { checkoutFormJson, whatsappWidgetJson, shippingLabelJson: _labels, storeApiKey, logoUrl: _logoUrl, ogImage: _ogImage, logoKey, ogImageKey, ...publicStore } = translated!;
 
   return {
-    ...publicStore,
-    logo: imageOf(logoKey, delivery),
-    ogImage: imageOf(ogImageKey, delivery),
-    // How the storefront fetches and resizes every image key (ADR 0021).
-    media: delivery,
+    id: store.id,
+    name: store.name,
+    domain: store.domain,
+    logo: imageOf(store.logoKey, delivery),
+    lang: store.lang,
     locale: served.locale,
     // The published languages, primary first, with what a theme needs to
     // render each, and only their edits — an unpublished language's drafts
     // never reach a shopper.
     locales: servedLanguageInfo(languages),
-    // The column is gone (migration 0046); @wocart/storefront up to 1.7
-    // requires the field, so it is always answered, empty.
-    fontUrl: null,
-    // Gone too (migration 0048): a theme's announcement is its own setting.
-    announcementBar: null,
+    currency: store.currency,
+    currencySymbol: translated!.currencySymbol,
+    metaTitle: translated!.metaTitle,
+    metaDescription: translated!.metaDescription,
+    ogImage: imageOf(store.ogImageKey, delivery),
+    // How the storefront fetches and resizes every image key (ADR 0021).
+    media: delivery,
+    reviewsEnabled: store.reviewsEnabled,
+    cartEnabled: store.cartEnabled,
+    freeShippingThreshold: store.freeShippingThreshold,
     contentOverrides: groupOverrides(overrideRows, servedLocales(languages)),
     // The merchant's values for the requesting theme's settings, as saved:
     // the theme resolves them against its declaration and its defaults.
     themeSettings,
-    checkoutForm: parseCheckoutFormPolicy(checkoutFormJson),
+    checkoutForm: parseCheckoutFormPolicy(store.checkoutFormJson),
     // Null whenever there is nothing to render — switched off, no number, or a
     // number that no longer normalises. The theme holds one rule about this
-    // feature: render it, or don't. Costs no extra query: the column rides the
-    // store row this function already selected in full.
-    whatsapp: resolveStorefrontWidget(whatsappWidgetJson, delivery),
+    // feature: render it, or don't. Its texts come in the served language.
+    whatsapp: resolveStorefrontWidget(
+      store.whatsappWidgetJson,
+      delivery,
+      served.translate === null ? { primary: true } : { primary: false, translations: Object.fromEntries(widgetTranslations.map((row) => [row.key, row.value])) },
+    ),
     pixelId: tracking.pixelId,
     conversionEvent: tracking.conversionEvent,
     pages,
-    legalContact,
+    contact,
     otpEnabled: otpRow?.enabled === true,
     turnstileEnabled: turnstileRow?.enabled === true,
     turnstileSiteKey: turnstileRow?.enabled === true ? turnstileRow.siteKey : null,
@@ -289,7 +311,7 @@ export async function checkoutLocale(db: AppDb, storeId: string, primary: StoreL
  * product's variant selections to match, so the two still agree.
  */
 async function translateProducts<
-  T extends { id: string; descriptionFormat?: "text" | "html"; variantOptions: string | null },
+  T extends { id: string; description?: string | null; descriptionFormat?: "text" | "html"; variantOptions: string | null },
 >(
   db: AppDb,
   records: readonly T[],
@@ -305,7 +327,7 @@ async function translateProducts<
   const products = overlayTranslations("product", records, rows).map((record) => {
     const translated = fields.get(record.id) ?? {};
     let product = record;
-    if (Object.hasOwn(translated, "description") && record.descriptionFormat !== undefined) {
+    if (Object.hasOwn(translated, "description") && record.description && record.descriptionFormat !== undefined) {
       product = { ...product, descriptionFormat: "html" as const };
     }
     if (Object.keys(translated).some((key) => key.startsWith(OPTION_KEY_PREFIX))) {
@@ -349,20 +371,46 @@ export async function cartNames(db: AppDb, snapshot: CatalogSnapshot, locale: St
 }
 
 /**
- * Fields the store API keeps only because published `@wocart/storefront`
- * releases require them: `deletedAt` is always null (a removed product is
- * gone, never served), and so is `costPrice` — what the merchant paid is
- * theirs, never a shopper's to read. Drop them once no supported SDK release
- * reads them.
+ * A product as a storefront reads it, column by column: a column becomes
+ * public only by being named here. What the merchant paid, the shipping
+ * profile and the listing gates (always passed by a served product) stay on
+ * the server.
  */
-const PUBLISHED_SDK_FIELDS = { deletedAt: null, costPrice: null } as const;
+const STOREFRONT_PRODUCT_COLUMNS = {
+  id: products.id,
+  name: products.name,
+  description: products.description,
+  descriptionFormat: products.descriptionFormat,
+  handle: products.handle,
+  currency: products.currency,
+  price: products.price,
+  compareAtPrice: products.compareAtPrice,
+  type: products.type,
+  hasVariants: products.hasVariants,
+  variantOptions: products.variantOptions,
+  sku: products.sku,
+  inventory: products.inventory,
+  trackInventory: products.trackInventory,
+  lowStockThreshold: products.lowStockThreshold,
+  categoryId: products.categoryId,
+  tags: products.tags,
+  metaTitle: products.metaTitle,
+  metaDescription: products.metaDescription,
+};
 
-/**
- * `storeFeatured`, which published SDKs up to 1.7 require on every product:
- * membership of the `featured` collection, since the flag became one
- * (migration 0049).
- */
-const storeFeaturedColumn = isFeaturedSql.mapWith(Boolean).as("store_featured");
+/** The served product's own fields: its JSON columns parsed, its description in both renderings. */
+async function storefrontProduct<T extends { variantOptions: string | null; tags: string | null; description: string | null; descriptionFormat: "text" | "html" }>(
+  product: T,
+  delivery: MediaDelivery,
+) {
+  return {
+    ...product,
+    variantOptions: product.variantOptions ? (JSON.parse(product.variantOptions) as unknown) : null,
+    tags: product.tags ? (JSON.parse(product.tags) as string[]) : [],
+    description: servedDescription(product.description, product.descriptionFormat, delivery),
+    descriptionPlain: await deriveDescriptionPlain(product.description, product.descriptionFormat),
+  };
+}
 
 /**
  * How a storefront listing is ordered. Absent, a listing keeps its natural
@@ -379,8 +427,6 @@ export interface StoreProductsParams {
   collection?: string;
   /** Only products priced below their compare-at price. */
   onSale?: boolean;
-  /** Deprecated: the `featured` collection. */
-  featured?: boolean;
   categoryId?: string;
   /** Only products whose name — the catalog's or the served language's — or tags hold every word. */
   search?: string;
@@ -413,7 +459,7 @@ const listable = () => [eq(products.showInStore, true), eq(products.status, "ACT
 /** What a storefront listing selects, joins and orders by, shared by its page and its count. */
 function storeProductsQuery(params: StoreProductsParams, locale: StoreLocale | null) {
   const conditions: any[] = listable();
-  const collection = params.collection ?? (params.featured ? FEATURED_COLLECTION : undefined);
+  const collection = params.collection;
   if (params.categoryId) conditions.push(eq(products.categoryId, params.categoryId));
   if (params.onSale) conditions.push(sql`${products.compareAtPrice} IS NOT NULL AND ${products.compareAtPrice} > ${products.price}`);
   if (collection !== undefined) conditions.push(eq(collections.handle, collection));
@@ -479,10 +525,9 @@ export async function getStoreProducts(
   const { where, collection, order } = storeProductsQuery(params, locale);
   const query = db
     .select({
-      ...getTableColumns(products),
+      ...STOREFRONT_PRODUCT_COLUMNS,
       avgRating: sql<number | null>`(SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.product_id = products.id AND r.status = 'approved')`,
       reviewCount: sql<number>`COALESCE((SELECT COUNT(*) FROM reviews r WHERE r.product_id = products.id AND r.status = 'approved'), 0)`,
-      storeFeatured: storeFeaturedColumn,
     })
     .from(products)
     .$dynamic();
@@ -550,11 +595,8 @@ export async function getStoreProducts(
       ? variantInventoryByProduct.get(p.id) ?? 0
       : productData.inventory;
     return {
-      ...productData,
-      ...PUBLISHED_SDK_FIELDS,
+      ...(await storefrontProduct(productData, delivery)),
       inventory,
-      description: servedDescription(p.description, p.descriptionFormat, delivery),
-      descriptionPlain: await deriveDescriptionPlain(p.description, p.descriptionFormat),
       coverImage: productImageView(coverImageByProduct.get(p.id) ?? null, delivery),
       reviewStats:
         reviewCount > 0 ? { avgRating: avgRating ?? 0, reviewCount } : null,
@@ -585,7 +627,7 @@ export async function getStoreProductByHandle(
   if (!opts.allowUnlisted) conditions.push(eq(products.showInStore, true));
 
   const source = await db
-    .select({ ...getTableColumns(products), storeFeatured: storeFeaturedColumn })
+    .select(STOREFRONT_PRODUCT_COLUMNS)
     .from(products)
     .where(and(...conditions))
     .get();
@@ -726,17 +768,19 @@ export async function getStoreProductByHandle(
     : product.inventory;
 
   return {
-    ...product,
-    ...PUBLISHED_SDK_FIELDS,
+    ...(await storefrontProduct(product, delivery)),
     inventory: totalInventory,
-    variantOptions: product.variantOptions ? JSON.parse(product.variantOptions) : null,
-    tags: product.tags ? JSON.parse(product.tags) : [],
-    description: servedDescription(product.description, product.descriptionFormat, delivery),
-    descriptionPlain: await deriveDescriptionPlain(product.description, product.descriptionFormat),
     category: translatedCategory ? categoryView(translatedCategory, delivery) : null,
     variants: variants.map((v) => ({
-      ...v,
+      id: v.id,
       variations: translated.variations(product.id, JSON.parse(v.variations)),
+      price: v.price,
+      compareAtPrice: v.compareAtPrice,
+      sku: v.sku,
+      inventory: v.inventory,
+      lowStockThreshold: v.lowStockThreshold,
+      imageId: v.imageId,
+      isDefault: v.isDefault,
     })),
     images: productImageViews(images, delivery),
     quantityPricing,

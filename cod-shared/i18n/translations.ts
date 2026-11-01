@@ -14,6 +14,7 @@
  */
 import { RICH_TEXT_MAX_CHARS } from "../lib/rich-text";
 import { SEO_TEXT } from "../lib/seo";
+import { WIDGET_TEXT_FIELDS } from "../whatsapp-widget/config";
 import type { StoreLocale } from "./locales";
 
 /** A product's variant option, as `products.variant_options` stores it. */
@@ -62,6 +63,17 @@ export const TRANSLATABLE = {
     metaDescription: { kind: "text", maxLength: 500 },
     /** "دج" in Arabic reads "DA" in French and English. */
     currencySymbol: { kind: "text", maxLength: 10 },
+  },
+  /** The WhatsApp button App's texts, keyed by the store's id. The agent's name is a name: the same in every language. */
+  whatsappWidget: {
+    caption: { kind: "text", maxLength: WIDGET_TEXT_FIELDS.caption.max },
+    welcomeMessage: { kind: "text", maxLength: WIDGET_TEXT_FIELDS.welcomeMessage.max },
+    launcherLabel: { kind: "text", maxLength: WIDGET_TEXT_FIELDS.launcherLabel.max },
+    ctaLabel: { kind: "text", maxLength: WIDGET_TEXT_FIELDS.ctaLabel.max },
+    prefillGeneral: { kind: "text", maxLength: WIDGET_TEXT_FIELDS.prefillGeneral.max },
+    prefillProduct: { kind: "text", maxLength: WIDGET_TEXT_FIELDS.prefillProduct.max },
+    thankYouButtonLabel: { kind: "text", maxLength: WIDGET_TEXT_FIELDS.thankYouButtonLabel.max },
+    prefillThankYou: { kind: "text", maxLength: WIDGET_TEXT_FIELDS.prefillThankYou.max },
   },
 } as const satisfies Record<string, Record<string, TranslatableField>>;
 
@@ -227,9 +239,10 @@ export interface TranslationRow {
 
 /**
  * Overlay translations on resources, field by field: a key with a
- * translation takes it, every other field keeps its source. Keys the
- * registry does not declare for `resource` are ignored, so a stray row can
- * never overwrite a non-translatable field (a price, an id).
+ * translation takes it, every other field keeps its source. A translation
+ * translates its source, so a field the record leaves empty stays empty.
+ * Keys the registry does not declare for `resource` are ignored, so a stray
+ * row can never overwrite a non-translatable field (a price, an id).
  */
 export function overlayTranslations<T extends { id: string }>(
   resource: TranslatableResource,
@@ -246,7 +259,9 @@ export function overlayTranslations<T extends { id: string }>(
   }
   return records.map((record) => {
     const fields = byResource.get(record.id);
-    return fields === undefined ? record : { ...record, ...fields };
+    if (fields === undefined) return record;
+    const source = record as Readonly<Record<string, unknown>>;
+    return { ...record, ...Object.fromEntries(Object.entries(fields).filter(([key]) => typeof source[key] === "string" && source[key] !== "")) };
   });
 }
 

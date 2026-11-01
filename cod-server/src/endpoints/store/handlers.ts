@@ -67,15 +67,13 @@ export async function getStoreConfig(c: Context<AppContext>) {
 
 function storeProductsParams(c: Context<AppContext>): StoreProductsParams {
   const queryData: any = (c.req as any).valid?.("query");
-  const rawFeatured = queryData?.featured ?? c.req.query("featured");
-  const featured = rawFeatured === "true";
   const categoryId = queryData?.categoryId ?? c.req.query("categoryId") ?? undefined;
   const collection = queryData?.collection ?? c.req.query("collection") ?? undefined;
   const onSale = (queryData?.onSale ?? c.req.query("onSale")) === "true";
   const sort = queryData?.sort ?? undefined;
   const limit = Math.min(parseInt(String(queryData?.limit ?? c.req.query("limit") ?? "24")), 100);
   const offset = Math.max(parseInt(String(queryData?.offset ?? c.req.query("offset") ?? "0")) || 0, 0);
-  return { featured, collection, onSale, categoryId, sort, limit, offset };
+  return { collection, onSale, categoryId, sort, limit, offset };
 }
 
 /** A page of a listing and the listing's size, read together. */

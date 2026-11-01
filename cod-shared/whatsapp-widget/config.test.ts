@@ -22,6 +22,7 @@ import {
 import type { MediaDelivery } from "../media/delivery";
 
 const DELIVERY: MediaDelivery = { kind: "imagekit", origin: "https://ik.imagekit.io/acct/stores/maysa" };
+const PRIMARY = { primary: true } as const;
 
 function stored(overrides: Partial<WhatsAppWidgetConfig> = {}): string {
   return serializeWhatsAppWidgetConfig({
@@ -183,7 +184,7 @@ describe("toWhatsAppHref", () => {
 
 describe("resolveStorefrontWidget", () => {
   it("returns the widget when it is on and dialable", () => {
-    const widget = resolveStorefrontWidget(stored({ agentName: "Amine", attention: false }), DELIVERY);
+    const widget = resolveStorefrontWidget(stored({ agentName: "Amine", attention: false }), DELIVERY, PRIMARY);
     expect(widget).not.toBeNull();
     expect(widget?.href).toBe("https://wa.me/213551234567");
     expect(widget?.agentName).toBe("Amine");
@@ -191,23 +192,23 @@ describe("resolveStorefrontWidget", () => {
   });
 
   it("is null when the merchant switched it off", () => {
-    expect(resolveStorefrontWidget(stored({ enabled: false }), DELIVERY)).toBeNull();
+    expect(resolveStorefrontWidget(stored({ enabled: false }), DELIVERY, PRIMARY)).toBeNull();
   });
 
   it("is null when it is on but has no number", () => {
-    expect(resolveStorefrontWidget(stored({ phone: null }), DELIVERY)).toBeNull();
+    expect(resolveStorefrontWidget(stored({ phone: null }), DELIVERY, PRIMARY)).toBeNull();
   });
 
   it("is null when the stored number no longer normalises", () => {
-    expect(resolveStorefrontWidget(stored({ phone: "0211234567" }), DELIVERY)).toBeNull();
+    expect(resolveStorefrontWidget(stored({ phone: "0211234567" }), DELIVERY, PRIMARY)).toBeNull();
   });
 
   it("is null for an unconfigured store", () => {
-    expect(resolveStorefrontWidget(null, DELIVERY)).toBeNull();
+    expect(resolveStorefrontWidget(null, DELIVERY, PRIMARY)).toBeNull();
   });
 
   it("never exposes the raw phone — only the link built from it", () => {
-    const widget = resolveStorefrontWidget(stored(), DELIVERY);
+    const widget = resolveStorefrontWidget(stored(), DELIVERY, PRIMARY);
     expect(widget).not.toHaveProperty("phone");
     expect(widget).not.toHaveProperty("enabled");
   });
@@ -228,6 +229,7 @@ describe("resolveStorefrontWidget", () => {
         attention: false,
       }),
       DELIVERY,
+      PRIMARY,
     );
     expect(widget).toEqual({
       href: "https://wa.me/213551234567",
@@ -248,8 +250,25 @@ describe("resolveStorefrontWidget", () => {
     });
   });
 
+  it("reads each text in the page's language: the merchant's on the primary, its translation on another", () => {
+    const json = stored({ agentName: "أمين", welcomeMessage: "مرحبا", ctaLabel: "راسلنا", prefillGeneral: "سلام" });
+    const french = resolveStorefrontWidget(json, DELIVERY, { primary: false, translations: { welcomeMessage: "Bonjour", ctaLabel: "Écrivez-nous" } });
+    expect(french).toMatchObject({ agentName: "أمين", welcomeMessage: "Bonjour", ctaLabel: "Écrivez-nous" });
+    expect(resolveStorefrontWidget(json, DELIVERY, PRIMARY)).toMatchObject({ welcomeMessage: "مرحبا", ctaLabel: "راسلنا" });
+  });
+
+  it("is null, the theme's words, for a text not translated into the page's language — never the primary's", () => {
+    const widget = resolveStorefrontWidget(stored({ welcomeMessage: "مرحبا", prefillGeneral: "سلام" }), DELIVERY, { primary: false, translations: {} });
+    expect(widget).toMatchObject({ welcomeMessage: null, prefillGeneral: null });
+  });
+
+  it("ignores a translation of a text the merchant left empty", () => {
+    const widget = resolveStorefrontWidget(stored({ caption: null }), DELIVERY, { primary: false, translations: { caption: "En ligne" } });
+    expect(widget?.caption).toBeNull();
+  });
+
   it("carries the surface map the theme gates on", () => {
-    const widget = resolveStorefrontWidget(stored({ surfaces: { checkout: true } as never }), DELIVERY);
+    const widget = resolveStorefrontWidget(stored({ surfaces: { checkout: true } as never }), DELIVERY, PRIMARY);
     expect(widget?.surfaces.checkout).toBe(true);
     expect(widget?.surfaces.landing).toBe(false);
   });

@@ -10,6 +10,7 @@ import type { AppDb } from "../db/client";
 import { eventConsumers, landingPagePixelConfig, storeEmailConfig, storeOtpConfig, storePixelConfig, stores, storeTelegramConfig, storeTurnstileConfig } from "../db/schema";
 import { APP_CATALOG, consumerOwner, type AppKey, type RemovableAppKey } from "../apps/catalog";
 import { parseWhatsAppWidgetConfig, toWhatsAppHref } from "../whatsapp-widget/config";
+import { forgetWidgetTranslations } from "./whatsapp-widget";
 import { forgetTelegramBot } from "./telegram";
 
 export const APP_STATUSES = ["not_set_up", "on", "off", "needs_attention"] as const;
@@ -87,7 +88,7 @@ export async function removeApp(db: AppDb, storeId: string, key: RemovableAppKey
       await db.delete(storeEmailConfig).where(eq(storeEmailConfig.storeId, storeId));
       return;
     case "whatsapp-button":
-      await db.update(stores).set({ whatsappWidgetJson: null }).where(eq(stores.id, storeId));
+      await db.batch([db.update(stores).set({ whatsappWidgetJson: null }).where(eq(stores.id, storeId)), forgetWidgetTranslations(db, storeId)]);
       return;
     case "telegram":
       await forgetTelegramBot(db, new Date());

@@ -55,7 +55,7 @@ describe("stores.whatsapp_widget_json", () => {
     expect(parseWhatsAppWidgetConfig(await readColumn())).toEqual(
       DEFAULT_WHATSAPP_WIDGET_CONFIG,
     );
-    expect(resolveStorefrontWidget(await readColumn(), TEST_DELIVERY)).toBeNull();
+    expect(resolveStorefrontWidget(await readColumn(), TEST_DELIVERY, { primary: true })).toBeNull();
   });
 
   it("round-trips a real configuration through D1", async () => {
@@ -77,7 +77,7 @@ describe("stores.whatsapp_widget_json", () => {
     expect(parseWhatsAppWidgetConfig(await readColumn())).toEqual(config);
     // Arabic and the emoji survive the round trip — the storefront renders the
     // merchant's own words, so a mangled column is a mangled shop window.
-    const widget = resolveStorefrontWidget(await readColumn(), TEST_DELIVERY);
+    const widget = resolveStorefrontWidget(await readColumn(), TEST_DELIVERY, { primary: true });
     expect(widget?.href).toBe("https://wa.me/213551234567");
     expect(widget?.welcomeMessage).toBe("مرحبا 👋 كيفاش نعاونك؟");
     expect(widget?.surfaces.checkout).toBe(true);
@@ -87,7 +87,7 @@ describe("stores.whatsapp_widget_json", () => {
     await write(null);
 
     expect(await readColumn()).toBeNull();
-    expect(resolveStorefrontWidget(await readColumn(), TEST_DELIVERY)).toBeNull();
+    expect(resolveStorefrontWidget(await readColumn(), TEST_DELIVERY, { primary: true })).toBeNull();
   });
 
   it("keeps a store rendering when the column holds something unreadable", async () => {
@@ -96,7 +96,7 @@ describe("stores.whatsapp_widget_json", () => {
     expect(parseWhatsAppWidgetConfig(await readColumn())).toEqual(
       DEFAULT_WHATSAPP_WIDGET_CONFIG,
     );
-    expect(resolveStorefrontWidget(await readColumn(), TEST_DELIVERY)).toBeNull();
+    expect(resolveStorefrontWidget(await readColumn(), TEST_DELIVERY, { primary: true })).toBeNull();
 
     await write(null);
   });

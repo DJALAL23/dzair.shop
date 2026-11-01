@@ -123,7 +123,7 @@ describe("a new store, set up by a run cut short and retried", () => {
       expect(product.name).toBe(source.name.ar);
       expect(product.price).toBe(source.option ? source.option.variants[0]!.price : source.price);
       expect(product.categoryId).toBe(`${P}category:${source.category}`);
-      expect(JSON.parse(product.tags)).toEqual(source.tags);
+      expect(product.tags).toEqual(source.tags);
       expect(product.inventory).toBe(source.option ? source.option.variants.reduce((sum, v) => sum + v.inventory, 0) : source.inventory);
       expect(product.coverImage).toMatchObject({ key: starterImageKey(source.image), url: url(source.image), width: 1200, height: 1200, altText: source.name.ar });
     }
@@ -157,7 +157,7 @@ describe("a new store, set up by a run cut short and retried", () => {
     expect(main.items.map((item: any) => item.href)).toEqual(["/", "/products", ...STARTER_CATEGORIES.map((c) => `/category/${c.slug}`)]);
     expect(main.items.slice(2).map((item: any) => item.label)).toEqual(STARTER_CATEGORIES.map((c) => c.name.ar));
     const footer = await get(d1, "/store/menus/footer");
-    expect(footer.items.map((item: any) => item.href)).toEqual(["/", "/products", "/collections/best-sellers", "/collections/new-arrivals"]);
+    expect(footer.items.map((item: any) => item.href)).toEqual(["/", "/products", "/track-order", "/contact", "/collections/best-sellers", "/collections/new-arrivals"]);
   });
 
   it("speaks French, a published language", async () => {
@@ -333,7 +333,7 @@ describe("a store that has its own data", () => {
       expect(await rows(fresh, "SELECT COUNT(*) AS n FROM collection_products")).toEqual([{ n: 8 }]);
 
       const footer = await rows<{ id: string }>(fresh, "SELECT id FROM store_menu_items WHERE menu_id = 'store-1:menu:footer' ORDER BY position");
-      expect(footer.map((item) => item.id)).toEqual(["home", "catalog", "best-sellers", "new-arrivals"].map((key, i) => (i < 2 ? `store-1:menu:footer:${key}` : `${P}menu:footer:${key}`)));
+      expect(footer.map((item) => item.id)).toEqual(["home", "catalog", "track-order", "contact", "best-sellers", "new-arrivals"].map((key, i) => (i < 4 ? `store-1:menu:footer:${key}` : `${P}menu:footer:${key}`)));
       await fresh.raw.prepare("DELETE FROM store_menu_items WHERE id = ?1").bind(footer[1]!.id).run();
       await setUp(fresh, STORE, "2026-12-01T00:00:00.000Z");
       expect(await rows(fresh, "SELECT COUNT(*) AS n FROM store_menu_items WHERE menu_id = 'store-1:menu:footer'")).toEqual([{ n: footer.length - 1 }]);

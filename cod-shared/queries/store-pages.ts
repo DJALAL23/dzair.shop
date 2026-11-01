@@ -587,28 +587,21 @@ export async function getLegalProfile(
 }
 
 /** The subset `/store/config` may expose to the storefront — no RC/NIF. */
-export interface PublicLegalContact {
-  contactEmail: string | null;
-  contactPhone: string | null;
-  deliveryMinDays: number;
-  deliveryMaxDays: number;
+/** How a shopper reaches the store, from its legal profile: each null until the merchant writes it. */
+export interface PublicContact {
+  phone: string | null;
+  email: string | null;
+  address: string | null;
 }
 
-export async function getPublicLegalContact(
-  db: AppDb,
-  storeId: string,
-): Promise<PublicLegalContact | null> {
+/** The store's public contact details; RC, NIF and the legal name stay inside the documents. */
+export async function getPublicContact(db: AppDb, storeId: string): Promise<PublicContact> {
   const row = await db
-    .select({
-      contactEmail: storeLegalProfile.contactEmail,
-      contactPhone: storeLegalProfile.contactPhone,
-      deliveryMinDays: storeLegalProfile.deliveryMinDays,
-      deliveryMaxDays: storeLegalProfile.deliveryMaxDays,
-    })
+    .select({ phone: storeLegalProfile.contactPhone, email: storeLegalProfile.contactEmail, address: storeLegalProfile.address })
     .from(storeLegalProfile)
     .where(eq(storeLegalProfile.storeId, storeId))
     .get();
-  return row ?? null;
+  return row ?? { phone: null, email: null, address: null };
 }
 
 export async function upsertLegalProfile(

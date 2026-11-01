@@ -51,15 +51,20 @@ const menu = async (handle: string, locale = "") => {
 describe("default menus", () => {
   it("give a store main-menu and footer, in its primary language and translated", async () => {
     await seed("2026-10-02T00:00:00.000Z");
-    for (const handle of ["main-menu", "footer"]) {
-      const fr = await menu(handle);
-      expect(fr.status).toBe(200);
-      expect(fr.body.data.items).toEqual([
-        { label: "Accueil", href: "/", type: "home", children: [] },
-        { label: "Tous les produits", href: "/products", type: "catalog", children: [] },
-      ]);
-      expect((await menu(handle, "ar")).body.data.items.map((item) => item.label)).toEqual(["الرئيسية", "كل المنتجات"]);
-    }
+    const header = await menu("main-menu");
+    expect(header.status).toBe(200);
+    expect(header.body.data.items).toEqual([
+      { label: "Accueil", href: "/", type: "home", children: [] },
+      { label: "Tous les produits", href: "/products", type: "catalog", children: [] },
+    ]);
+    expect((await menu("main-menu", "ar")).body.data.items.map((item) => item.label)).toEqual(["الرئيسية", "كل المنتجات"]);
+    expect((await menu("footer")).body.data.items).toEqual([
+      { label: "Accueil", href: "/", type: "home", children: [] },
+      { label: "Tous les produits", href: "/products", type: "catalog", children: [] },
+      { label: "Suivre ma commande", href: "/track-order", type: "trackOrder", children: [] },
+      { label: "Contact", href: "/contact", type: "contact", children: [] },
+    ]);
+    expect((await menu("footer", "ar")).body.data.items.map((item) => item.label)).toEqual(["الرئيسية", "كل المنتجات", "تتبع طلبي", "اتصل بنا"]);
   });
 
   it("change nothing when setup runs again, nor bring back an item the merchant removed", async () => {
@@ -78,6 +83,6 @@ describe("default menus", () => {
     await seed("2026-10-02T00:00:00.000Z");
     const header = await menu("main-menu");
     expect(header.body.data).toMatchObject({ title: "Le mien", items: [] });
-    expect((await menu("footer")).body.data.items).toHaveLength(2);
+    expect((await menu("footer")).body.data.items).toHaveLength(4);
   });
 });
