@@ -21,45 +21,46 @@ Both live on `@wocart/storefront/astro`, a server-only entry point.
 The route's client must be the request's own, not a module singleton:
 
 ```ts
-// src/theme/sdk.ts
+// src/lib/store.ts
 import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
 import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
 
 export function getStoreClient(locale?: string): StoreClient {
   return createStoreClient({
-    serverUrl: COD_SERVER_URL,
-    apiKey: STORE_API_KEY,
-    ...(locale ? { locale } : {}),
-    theme: "theme-00",
+    serverUrl: COD_SERVER_URL ?? "",
+    apiKey: STORE_API_KEY ?? "",
+    ...(locale === undefined ? {} : { locale }),
   });
 }
 ```
 
-`serverUrl` and `apiKey` come from the server environment in a real theme,
-never from `PUBLIC_*` variables. A shared client would carry one visitor's language
-and cache into another's request.
+`serverUrl` and `apiKey` come from server secrets, never from `PUBLIC_*`
+variables. A shared client would carry one visitor's language and cache into
+another's request. An editable theme also passes `theme: THEME_KEY`
+([theme quick start](/sdk/theme/build#4-one-place-that-creates-the-store-client)).
 
 ## The route factory
 
 ```ts
-// src/theme/api-routes.ts
+// src/lib/api-routes.ts
 import type { APIContext } from "astro";
 import { createStorefrontRoutes } from "@wocart/storefront/astro";
-import { getStoreClient } from "./sdk";
 
 export const routes = createStorefrontRoutes<APIContext>({
-  client: (context) => {
-    const locale = context.locals.store?.locale;
-    return getStoreClient(locale);
-  },
+  client: (context) => context.locals.store.client,
 });
 ```
+
+`context.locals.store` is the request store your middleware sets with
+`resolveStoreRequest` ([below](#request-bound-services)). An `/api/…` request
+has no language in its URL; the SDK gives it the language of the page that
+called it, so the client already speaks that language.
 
 Each exported handler is one line:
 
 ```ts
 // src/pages/api/cart/validate.ts
-import { routes } from "../../../theme/api-routes";
+import { routes } from "../../../lib/api-routes";
 export const POST = routes.cartValidate;
 ```
 
@@ -104,25 +105,37 @@ stay identical:
 // src/pages/api/availability.ts
 import { z } from "zod";
 import { createProxyEndpoint } from "@wocart/storefront/astro";
-import { getStoreClient } from "../../theme/sdk";
+import { getStoreClient } from "../../lib/store";
 
-const input = z.object({ productId: z.string().min(1).max(200) });
+const input = z.object({ handle: z.string().min(1).max(255) });
 
 export const POST = createProxyEndpoint({
   method: "POST",
   inputSchema: input,
-  csrfProtection: true,
-  client: (body) => getStoreClient().products.get(body.productId),
+  client: async ({ handle }) => {
+    const product = await getStoreClient().products.get(handle);
+    return { success: true, data: { available: product !== null && product.inventory > 0 } };
+  },
 });
 ```
+
+`client` returns a result: `{ success: true, data }`, which the route answers
+as `{ data }`, or a client write's own failure, which it answers with the
+status its `domainError` implies. A **read** never fails — it resolves to
+`null` or `[]` — so wrap it as a success, the way the SDK's own `communes`
+route does. A POST is checked for its origin by default (`csrfProtection`).
 
 For a GET with path params:
 
 ```ts
-export const GET = createProxyEndpoint({
+// src/pages/api/stock/[wilayaId].ts
+import { createProxyEndpoint } from "@wocart/storefront/astro";
+import { getStoreClient } from "../../../lib/store";
+
+export const GET = createProxyEndpoint<{ wilayaId: number }, unknown>({
   method: "GET",
   pathParams: { wilayaId: "number" },
-  client: ({ wilayaId }) => getStoreClient().geo.communes(wilayaId),
+  client: async ({ wilayaId }) => ({ success: true, data: await getStoreClient().shipping.rate(wilayaId) }),
 });
 ```
 
@@ -182,19 +195,26 @@ reaches the thank-you page, and a refused order shows no message. Redirect from
 the page after it reads `getActionResult()`.
 </Callout>
 
-The page handler owns the decision:
+The page that rendered the form owns the decision, with
+`Astro.getActionResult`:
 
 ```astro
 ---
-import { getActionResult } from "astro:actions";
 import { actions } from "astro:actions";
+import { storefrontPath } from "@wocart/storefront";
 
-const result = getActionResult(actions.placeOrder);
-if (result && !result.error) {
-  return Astro.redirect(thankYouHref(result.data));
+const placed = Astro.getActionResult(actions.placeOrder);
+if (placed?.data) {
+  const query = new URLSearchParams({ order: placed.data.orderNumber });
+  return Astro.redirect(`${storefrontPath("thankYou")}?${query}`, 303);
 }
 ---
 ```
+
+A refused order needs no code here: the page renders again from the same POST,
+and the form reads `Astro.getActionResult(actions.placeOrder)?.error` to show
+it. The [complete theme](/sdk/theme/tutorial#3-placing-the-order-and-confirming-it) has the whole
+flow, run against a real store.
 
 ## Request-bound services
 
@@ -209,20 +229,57 @@ context it builds:
 ```ts
 // src/middleware.ts
 import { defineMiddleware } from "astro:middleware";
-import { resolveStoreRequest } from "@wocart/storefront/astro";
+import { getActionContext } from "astro:actions";
+import { COD_SERVER_URL } from "astro:env/server";
+import { unavailableStoreConfig } from "@wocart/storefront";
+import { resolveStoreRequest, runFormAction } from "@wocart/storefront/astro";
+import { getStoreClient } from "./lib/store";
 
-const STORE = { client: createStore, fallback: FALLBACK_CONFIG };
+const STORE = {
+  client: getStoreClient,
+  fallback: unavailableStoreConfig({ serverUrl: COD_SERVER_URL ?? "", locale: "ar" }),
+};
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  if (context.isPrerendered) return next();
+
   const request = await resolveStoreRequest(
     { url: context.url, referer: context.request.headers.get("Referer") },
     STORE,
   );
   if (request.kind === "redirect") return context.redirect(request.location, request.status);
-  context.locals.store = buildContext(request);
+  context.locals.store = request;
+
+  const { action, setActionResult, serializeActionResult } = getActionContext(context);
+  await runFormAction({
+    action: action && { calledFrom: action.calledFrom, name: action.name, handler: action.handler },
+    setActionResult,
+    serializeActionResult,
+  });
+
   return request.rewrite === null ? next() : next(request.rewrite);
 });
 ```
+
+Declare what it sets, so pages and routes are typed:
+
+```ts
+// src/env.d.ts
+/// <reference types="astro/client" />
+import type { ResolvedStore } from "@wocart/storefront/astro";
+
+declare global {
+  namespace App {
+    interface Locals {
+      store: ResolvedStore;
+    }
+  }
+}
+```
+
+An editable theme builds a richer context on the same call — its text, its
+direction, a link helper — as the
+[theme quick start](/sdk/theme/build#7-the-requests-store) shows.
 
 An editor's preview resolves the draft's store with
 `resolvePreviewStore(draft, STORE)` instead. Set `locals` before `next()` and
@@ -250,8 +307,9 @@ home page answers 200 — a "soft 404" for search engines and ad reviews.
 
 ## The sitemap
 
-`catalogPaths(client, config)` walks the store's pages — home, the catalog, each
-category, every product a page at a time, each published text page — and
+`catalogPaths(client, config)` walks the store's pages (home, the catalog, each
+category, every product a page at a time, and each text page in
+`config.pages`, the ones the merchant shows in the footer) and
 `sitemapXml(paths, routing, origin)` writes them in every published language,
 each with its language alternates:
 
@@ -267,6 +325,12 @@ export const GET: APIRoute = async ({ locals, url }) => {
   });
 };
 ```
+
+Any other page you want listed (a collection, the contact page) you add to
+the paths yourself before calling `sitemapXml`. That choice is the theme's.
+Theme-00 lists exactly what `catalogPaths` returns, leaves landing pages out
+(they are ad destinations, often unlisted from the store), and marks its
+checkout, search, order tracking and thank-you pages `noindex`.
 
 ## A wiring checklist
 
