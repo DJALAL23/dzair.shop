@@ -109,7 +109,7 @@ async function fetchSpec() {
   }
 }
 
-const apiOverview = `Complete reference for the CodFlow REST API: merchant endpoints under \`/api\`, storefront endpoints under \`/store\`, plus images and webhooks.
+const apiOverview = `Complete reference for the Wocart REST API: merchant endpoints under \`/api\`, storefront endpoints under \`/store\`, plus images and webhooks.
 
 ## Authentication
 
@@ -136,7 +136,7 @@ function shapeSpec(spec) {
   spec.servers = servers;
 
   if (spec.info) {
-    spec.info.title = spec.info.title?.trim() || "CodFlow API";
+    spec.info.title = spec.info.title?.trim() || "Wocart API";
     spec.info.description = apiOverview;
   }
 
@@ -243,6 +243,8 @@ async function main() {
     path.join(themeRoot, "dist/astro/index.d.ts"),
     path.join(themeRoot, "dist/image-service.d.ts"),
     path.join(themeRoot, "dist/preview-bridge.d.ts"),
+    path.join(themeRoot, "dist/lifecycle.d.ts"),
+    path.join(themeRoot, "dist/messages-entry.d.ts"),
   ];
 
   assertEntryPoints("@wocart/storefront", storefrontEntryPoints);
