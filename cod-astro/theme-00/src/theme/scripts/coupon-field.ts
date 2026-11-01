@@ -23,8 +23,8 @@ export const COUPON_STORAGE_KEY = "theme00:coupon";
 export interface CouponField {
   /** The code applied, which the quote is asked with; undefined for none. */
   code(): string | undefined;
-  /** Shows a quote's answer about the applied code; call it with every answer the page receives. */
-  show(outcome: CouponOutcome | null | undefined): void;
+  /** Shows a quote's answer about the applied code (null: asked without one); call it with every answer the page receives. */
+  show(outcome: CouponOutcome | null): void;
 }
 
 function remembered(): string | null {
@@ -72,7 +72,7 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
   const currency = field.dataset.currency ?? "";
   const form = field.closest("form");
   let applied: string | undefined;
-  /** The quote has answered for the applied code — `outcome` is what it said (undefined from a server that predates coupons). */
+  /** The quote has answered for the applied code — `outcome` is what it said. */
   let settled = false;
   let outcome: CouponOutcome | undefined;
   /** The shopper submitted while the code was being checked: place the order once it applies. */
@@ -160,8 +160,7 @@ export function initCouponField(root: ParentNode, onApply: () => void): CouponFi
       outcome = answer ?? undefined;
       const resume = submitWhenApplied;
       submitWhenApplied = false;
-      // No code applied, or an answer that says nothing of one (a server that
-      // predates coupons): nothing to tell.
+      // No code applied, or an answer asked without one: nothing to tell.
       if (!applied || !answer) {
         say("");
         if (resume) form?.requestSubmit();

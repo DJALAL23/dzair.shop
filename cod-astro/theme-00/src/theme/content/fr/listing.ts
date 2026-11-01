@@ -8,7 +8,6 @@ export const frListing: ListingStrings = {
   listingCount_one: "{count} produit",
   listingCount_many: "{count} de produits",
   listingCount_other: "{count} produits",
-  listingRange: "{first}–{last} {noun}",
   listingRangeTotal_one: "{first}–{last} sur {count} produit",
   listingRangeTotal_many: "{first}–{last} sur {count} de produits",
   listingRangeTotal_other: "{first}–{last} sur {count} produits",

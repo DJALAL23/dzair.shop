@@ -17,6 +17,10 @@ import SurfacePage from "@/theme/pages/SurfacePage.astro";
 import { listingCatalog } from "@/theme/catalog/families/listing";
 import { pageCatalog } from "@/theme/catalog/families/page";
 import { thankYouCatalog } from "@/theme/catalog/families/thank-you";
+import { searchCatalog } from "@/theme/catalog/families/search";
+import { trackOrderCatalog } from "@/theme/catalog/families/track-order";
+import { checkoutCatalog } from "@/theme/catalog/families/checkout";
+import { contactCatalog } from "@/theme/catalog/families/contact";
 import LandingSurface from "@/theme/pages/LandingSurface.astro";
 import PreviewBridge from "@/theme/components/preview/PreviewBridge.astro";
 import { previewResponseHeaders } from "@/theme/sdk";
@@ -29,8 +33,21 @@ const preview = Astro.locals.preview;
 if (preview === undefined) return notFound();
 const { client } = Astro.locals.store;
 const target = await previewTarget(theme00, preview.draft, client);
+// The page types this theme composes with one catalog of their own, by the surface each renders.
+const SURFACE_PAGES = {
+  collection: { theme: listingCatalog, surface: "collection" },
+  category: { theme: listingCatalog, surface: "category" },
+  catalog: { theme: listingCatalog, surface: "catalog" },
+  page: { theme: pageCatalog, surface: "page" },
+  thankYou: { theme: thankYouCatalog, surface: "thank-you" },
+  search: { theme: searchCatalog, surface: "search" },
+  trackOrder: { theme: trackOrderCatalog, surface: "track-order" },
+  checkout: { theme: checkoutCatalog, surface: "checkout" },
+  contact: { theme: contactCatalog, surface: "contact" },
+} as const;
 const shown = target?.pageType;
-if (target === null || (shown !== "home" && shown !== "product" && shown !== "collection" && shown !== "category" && shown !== "catalog" && shown !== "page" && shown !== "thankYou" && shown !== "landing")) return notFound();
+const surfacePage = shown !== undefined && shown in SURFACE_PAGES ? SURFACE_PAGES[shown as keyof typeof SURFACE_PAGES] : null;
+if (target === null || (shown !== "home" && shown !== "product" && shown !== "landing" && surfacePage === null)) return notFound();
 const product = shown === "product" && target.params.handle ? await client.products.get(target.params.handle) : null;
 // A landing page previews as a draft too, and its preview counts no visit.
 const landing = shown === "landing" && target.params.slug ? await client.pages.landing(target.params.slug, { preview: true }) : null;
@@ -56,7 +73,7 @@ const isArea = target.area !== null;
     <PreviewBridge editor={preview.claims.editor} token={preview.token} />
   </HomeSurface>
 ) : (
-  <SurfacePage theme={shown === "page" ? pageCatalog : shown === "thankYou" ? thankYouCatalog : listingCatalog} surface={shown === "thankYou" ? "thank-you" : (shown as "catalog" | "category" | "collection" | "page")} document={document} params={params} reads={createReadCache()} preview={!isArea}>
+  <SurfacePage theme={surfacePage!.theme} surface={surfacePage!.surface} document={document} params={params} reads={createReadCache()} preview={!isArea}>
     <PreviewBridge editor={preview.claims.editor} token={preview.token} />
   </SurfacePage>
 )}

@@ -1,0 +1,16 @@
+---
+// How a shopper reaches the store, in the store's composition of the page:
+// its WhatsApp, phone, email and address from the store's own details, the
+// merchant's hours and note in each language.
+import StoreLayout from "@/theme/layouts/StoreLayout.astro";
+import Sections from "@/theme/components/surface/Sections.astro";
+import { contactCatalog } from "@/theme/catalog/families/contact";
+import { message } from "@/theme/content/messages";
+
+const { config, content, locale, client } = Astro.locals.store;
+const saved = await client.pageData.get("contact");
+---
+
+<StoreLayout title={message(content, "documentTitle", { title: content.contactTitle, storeName: config.name }, locale)} description={content.contactIntro}>
+  <Sections theme={contactCatalog} surface="contact" document={saved} params={{ surface: "contact" }} />
+</StoreLayout>

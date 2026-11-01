@@ -12,7 +12,7 @@
  * Plus one container render: a saved override reaches real HTML through the
  * real renderer, with the shipped default providing everything else.
  */
-import { testLocals } from "../support/locals";
+import { testLocals, TEST_CONFIG } from "../support/locals";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it, vi } from "vitest";
 import type { ProductList } from "@wocart/storefront";
@@ -22,7 +22,6 @@ import { createReadCache } from "@wocart/theme/astro";
 import type { ComponentInstance, ThemeRenderContext } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
 import { makeProduct } from "../support/home-render";
-import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en as enContent } from "@/theme/content/en";
 import { resolveSurfaceDocument } from "@wocart/theme";
 import { reportSurface } from "@/theme/pages/surface-report";
@@ -202,7 +201,7 @@ describe("home persistence — the saved document through the real renderer", ()
 
     const decision = resolveHome(SAVED_OVERRIDE);
     const context: ThemeRenderContext = {
-      store: DEFAULT_CONFIG, content: enContent, locale: "en", isRTL: false, url: "/",
+      store: TEST_CONFIG, content: enContent, locale: "en", isRTL: false, url: "/",
     };
     const reads = createReadCache();
     const container = await AstroContainer.create();

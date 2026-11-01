@@ -6,16 +6,10 @@
  * - Launcher toggle + close button
  * - Escape key dismissal + focus return to launcher
  * - Click-outside dismissal
- * - Dynamic prefill resolution at click time
  * - One-time session attention pulse (~8s) suppressed under reduced motion
  * - Steps aside while an order form runs under it, so it never covers the form
  */
 
-import {
-  resolvePrefillText,
-  buildWhatsAppHref,
-} from "@wocart/storefront";
-import { readProductPageData } from "../bridges/product-page-data";
 import { onEachPage } from "@wocart/theme/lifecycle";
 
 export function initWhatsAppWidget(
@@ -39,10 +33,6 @@ export function initWhatsAppWidget(
   const closeBtnEl = closeBtn;
   const ctaBtnEl = ctaBtn;
 
-  const baseHref = ctaBtnEl.getAttribute("data-base-href") || ctaBtnEl.href;
-  const storeName = rootEl.dataset.storeName || "";
-  const prefillGeneral = rootEl.dataset.prefillGeneral || "";
-  const prefillProduct = rootEl.dataset.prefillProduct || "";
   const attentionEnabled = rootEl.dataset.attention === "true";
 
   let pulseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -118,40 +108,8 @@ export function initWhatsAppWidget(
     }
   }
 
-  function updateCtaHref() {
-    // One definition of the bridge (Theme Zero S3) — the widget only needs the
-    // product name to pick its prefill template.
-    const productName = readProductPageData()?.productName || null;
-    const hasProduct = Boolean(productName);
-
-    const template = hasProduct
-      ? (prefillProduct || prefillGeneral)
-      : prefillGeneral;
-
-    let orderNumber: string | null = null;
-    try {
-      const params = new URLSearchParams(window.location.search);
-      orderNumber = params.get("order");
-    } catch {
-      orderNumber = null;
-    }
-
-    const currentUrl = typeof window !== "undefined" ? window.location.href : "";
-
-    const text = resolvePrefillText({
-      template,
-      storeName,
-      productName,
-      url: currentUrl,
-      orderNumber,
-    });
-
-    ctaBtnEl.href = buildWhatsAppHref(baseHref, text);
-  }
-
   function onCtaClick() {
     dismissPulse();
-    updateCtaHref();
   }
 
   // The closed launcher steps aside while an order form runs under it: in the

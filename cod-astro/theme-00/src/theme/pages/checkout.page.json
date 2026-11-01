@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "surface": "checkout",
+  "sections": [
+    { "id": "checkout-main", "type": "checkout-main" }
+  ]
+}

@@ -35,9 +35,9 @@ export function pageSpan(page: number, shown: number): { first: number; last: nu
   return { first: shown > 0 ? offset + 1 : 0, last: offset + shown };
 }
 
-/** How many pages a listing of `total` products fills; null when its size is unknown. */
-export function pageCount(total: number | null): number | null {
-  return total === null ? null : Math.max(1, Math.ceil(total / LISTING_PAGE_SIZE));
+/** How many pages a listing of `total` products fills. */
+export function pageCount(total: number): number {
+  return Math.max(1, Math.ceil(total / LISTING_PAGE_SIZE));
 }
 
 /** A listing's address at a page and an order, under its localized path; the first page carries no `page`. `keep` rides along (a search's words). */

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "surface": "search",
+  "sections": [
+    { "id": "search-main", "type": "search-main" }
+  ]
+}

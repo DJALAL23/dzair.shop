@@ -12,7 +12,7 @@ const paragraphs = (ar: string, fr: string, en: string) => ({ ar: paragraph(ar),
 
 export const faq = defineComponent({
   type: "faq",
-  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "thank-you"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "thank-you", "track-order", "contact"] },
   component: Faq,
   label: SECTION.faq,
   group: GROUP.home,

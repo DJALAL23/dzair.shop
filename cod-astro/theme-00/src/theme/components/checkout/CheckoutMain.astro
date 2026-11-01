@@ -1,0 +1,161 @@
+---
+// The basket's checkout (`checkout-main`). The basket lives in the shopper's
+// browser, so its lines cannot be server-rendered: this ships the shell, and
+// the checkout script fills it from the basket and re-prices it through the
+// quote endpoint — the loading and empty states are real states here. The
+// route redirects a placed order to the thank-you page before this renders;
+// a refused one renders its errors here.
+import { actions } from "astro:actions";
+import { Icon } from "astro-icon/components";
+import type { InferProps } from "@wocart/theme";
+import Section from "@/theme/components/ui/Section.astro";
+import CheckoutSummary from "@/theme/components/cart/CheckoutSummary.astro";
+import CustomerFields from "@/theme/components/order/CustomerFields.astro";
+import OtpStep from "@/theme/components/order/OtpStep.astro";
+import TurnstileField from "@/theme/components/order/TurnstileField.astro";
+import CouponField from "@/theme/components/order/CouponField.astro";
+import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
+import type { StoreFrontContent } from "@/theme/content";
+import { messageData } from "@/theme/content/messages";
+import type { checkoutMain } from "@/theme/catalog/checkout/checkout-main.def";
+import { orderOutcome } from "@/theme/pages/order-outcome";
+
+type Props = Pick<InferProps<typeof checkoutMain>, "scheme" | "style"> & {
+  content: StoreFrontContent;
+};
+
+const { content, scheme, style } = Astro.props;
+const { config, isRTL } = Astro.locals.store;
+const { fieldErrors, serverError, couponRefusal } = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
+const otpEnabled = config.otpEnabled === true;
+const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turnstileSiteKey);
+---
+
+<Section scheme={scheme} style={style}>
+  <div
+    id="checkout-root"
+    data-currency={config.currencySymbol}
+    data-copy-items={messageData(content, "cartItems")}
+    data-copy-out-of-stock={messageData(content, "cartLineOutOfStock")}
+    data-copy-unavailable={content.cartLineUnavailable}
+    data-copy-free-earned={content.cartFreeDeliveryEarned}
+    data-copy-free-remaining={content.cartFreeDeliveryRemaining}
+    data-copy-shipping-calculated={content.shippingCalculated}
+    data-copy-shipping-free={content.shippingFree}
+    data-copy-shipping-unavailable={content.shippingUnavailable}
+    data-copy-commune-loading={content.formCommuneLoading}
+    data-copy-commune-placeholder={content.formCommunePlaceholder}
+    data-copy-commune-disabled={content.formCommuneDisabled}
+  >
+    <h1 class="mb-5 text-[1.375rem] font-black" style="color: var(--clr-ink)">
+      {content.checkoutTitle}
+    </h1>
+
+    {serverError && (
+      <div
+        class="mb-5 flex items-start gap-3 rounded-[var(--radius-card)] px-4 py-3 text-[0.875rem] font-bold"
+        style="background: var(--clr-error-bg); color: var(--clr-error)"
+        role="alert"
+      >
+        <Icon name="heroicons:exclamation-triangle" class="h-5 w-5 shrink-0" />
+        <p>{serverError}</p>
+      </div>
+    )}
+
+    {/* Hydrating. Replaced by one of the two states below within a frame. */}
+    <p
+      id="checkout-loading"
+      class="py-10 text-center text-[0.875rem] font-bold"
+      style="color: var(--clr-text)"
+    >
+      {content.checkoutLoading}
+    </p>
+
+    {/* Arrived with nothing in the basket, or emptied the last line here. */}
+    <div
+      id="checkout-empty"
+      class="flex flex-col items-center justify-center gap-3 py-12 text-center"
+      hidden
+    >
+      <div
+        class="flex h-16 w-16 items-center justify-center rounded-full"
+        style="background: var(--clr-plate); color: var(--clr-text)"
+      >
+        <Icon name="heroicons:shopping-bag" class="h-7 w-7" />
+      </div>
+      <p class="text-[0.9375rem] font-black" style="color: var(--clr-ink)">
+        {content.cartEmptyTitle}
+      </p>
+      <p class="text-[0.8125rem] font-medium" style="color: var(--clr-text)">
+        {content.cartEmptyHint}
+      </p>
+      <a
+        href={Astro.locals.store.href("/")}
+        class="mt-2 text-[0.8125rem] font-black underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2"
+        style="color: var(--clr-primary); --tw-ring-color: var(--clr-primary)"
+      >
+        {content.cartContinueShopping}
+      </a>
+    </div>
+
+    <div id="checkout-main" class="space-y-5" hidden>
+      <CheckoutSummary content={content} />
+
+      <form method="POST" action={actions.placeOrder} id="checkout-form" class="space-y-5" data-checkout data-astro-reload>
+        {/* The basket, serialised at submit time so it always matches what the
+            summary above is showing. */}
+        <input type="hidden" name="items" value="" id="cart-items-input" />
+        {/* Meta Pixel tracking (populated by JS at submit time) */}
+        <input type="hidden" name="fbc" id="fbc-input" value="" />
+        <input type="hidden" name="fbp" id="fbp-input" value="" />
+        {/* WhatsApp OTP proof — set by the OTP step script after verification */}
+        <input type="hidden" name="otpToken" id="otp-token-input" value="" />
+
+        <div
+          class="rounded-[var(--radius-card)] border px-4 py-5 sm:px-5"
+          style="border-color: var(--clr-border); background: var(--clr-surface)"
+        >
+          <CustomerFields
+            content={content}
+            fieldErrors={fieldErrors}
+            isRTL={isRTL}
+            formPolicy={config.checkoutForm}
+          />
+
+          {otpEnabled && <OtpStep content={content} isRTL={isRTL} />}
+
+          {turnstileEnabled && (
+            <TurnstileField siteKey={config.turnstileSiteKey!} content={content} />
+          )}
+          <div class="mt-5">
+            <CouponField content={content} cur={config.currencySymbol} couponRefusal={couponRefusal} />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          id="submit-btn"
+          class="btn-primary !h-[3.75rem] w-full !text-[1.0625rem] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {content.formSubmit}
+        </button>
+
+        <p
+          class="px-4 text-center text-[0.8125rem] font-bold"
+          style="color: var(--clr-text)"
+        >
+          {content.formConfirmNote}
+        </p>
+      </form>
+    </div>
+  </div>
+
+  {/* Delivery rates bridge, read by delivery-fields.ts. */}
+  <ShippingIsland />
+</Section>
+
+<script src="../../scripts/checkout.ts"></script>
+<script src="../../scripts/checkout-key.ts"></script>
+{/* Without this the basket path — the higher-value one — would capture no
+    abandoners at all, while product pages kept capturing them. */}
+<script src="../../scripts/track-abandonment.ts"></script>

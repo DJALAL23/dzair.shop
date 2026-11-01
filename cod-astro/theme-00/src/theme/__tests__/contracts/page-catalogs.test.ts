@@ -16,6 +16,10 @@ import { listingCatalog } from "@/theme/catalog/families/listing";
 import { pageCatalog } from "@/theme/catalog/families/page";
 import { thankYouCatalog } from "@/theme/catalog/families/thank-you";
 import { landingCatalog } from "@/theme/catalog/families/landing";
+import { searchCatalog } from "@/theme/catalog/families/search";
+import { trackOrderCatalog } from "@/theme/catalog/families/track-order";
+import { checkoutCatalog } from "@/theme/catalog/families/checkout";
+import { contactCatalog } from "@/theme/catalog/families/contact";
 import { shellCatalog } from "@/theme/catalog/families/shell";
 
 const families: Array<{ name: string; catalog: ThemeDefinition; surfaces: string[] }> = [
@@ -25,6 +29,10 @@ const families: Array<{ name: string; catalog: ThemeDefinition; surfaces: string
   { name: "page", catalog: pageCatalog, surfaces: ["page"] },
   { name: "thank-you", catalog: thankYouCatalog, surfaces: ["thank-you"] },
   { name: "landing", catalog: landingCatalog, surfaces: ["landing"] },
+  { name: "search", catalog: searchCatalog, surfaces: ["search"] },
+  { name: "track-order", catalog: trackOrderCatalog, surfaces: ["track-order"] },
+  { name: "checkout", catalog: checkoutCatalog, surfaces: ["checkout"] },
+  { name: "contact", catalog: contactCatalog, surfaces: ["contact"] },
   { name: "shell", catalog: shellCatalog, surfaces: ["area:header", "area:footer"] },
 ];
 

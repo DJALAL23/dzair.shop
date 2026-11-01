@@ -16,12 +16,11 @@ import { localizeHref, type LocaleRouting, type StoreMenu } from "@wocart/storef
 import Header from "@/theme/components/layout/Header.astro";
 import FooterMenu from "@/theme/components/footer/FooterMenu.astro";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
-import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { menuLinks } from "@/theme/runtime/navigation";
 import { DEFAULT_SCHEMES } from "@/theme/appearance";
 import { theme00 } from "@/theme/theme";
 import { fr } from "@/theme/content/fr";
-import { testLocals } from "../support/locals";
+import { testLocals, TEST_CONFIG } from "../support/locals";
 
 const routing: LocaleRouting = { primary: "ar", published: ["ar", "fr"] };
 const href = (path: string) => localizeHref(path, "fr", routing);
@@ -98,7 +97,7 @@ describe("the header and the footer's menu", () => {
 describe("the layout", () => {
   const render = async (client: object, themeSettings: Record<string, unknown> = {}) =>
     (await AstroContainer.create()).renderToString(StoreLayout, {
-      locals: testLocals({ locale: "fr", routing, content: fr, config: { ...DEFAULT_CONFIG, themeSettings }, client: client as never }),
+      locals: testLocals({ locale: "fr", routing, content: fr, config: { ...TEST_CONFIG, themeSettings }, client: client as never }),
       request: new Request("https://example.dz/fr"),
     });
 

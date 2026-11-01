@@ -7,7 +7,6 @@ import type { ListingStrings } from "../types/listing";
 export const enListing: ListingStrings = {
   listingCount_one: "{count} product",
   listingCount_other: "{count} products",
-  listingRange: "{first}–{last} {noun}",
   listingRangeTotal_one: "{first}–{last} of {count} product",
   listingRangeTotal_other: "{first}–{last} of {count} products",
   sortLabel: "Sort by",

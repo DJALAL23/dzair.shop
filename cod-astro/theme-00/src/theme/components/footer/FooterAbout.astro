@@ -4,15 +4,17 @@
 // opening in a new tab.
 import { Image } from "astro:assets";
 import { Icon } from "astro-icon/components";
-import { localWhatsAppWidget } from "@wocart/storefront";
+import { canonicalUrl } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
 import type { footerAbout } from "@/theme/catalog/footer/footer.def";
 import SocialIcon from "@/theme/components/ui/SocialIcon.astro";
+import { storeWhatsApp } from "@/theme/utils/whatsapp";
 
 type Props = InferProps<typeof footerAbout>;
 const { text, showWhatsapp, socialLinks = [] } = Astro.props;
-const { config, content } = Astro.locals.store;
-const whatsapp = showWhatsapp ? localWhatsAppWidget(config) : null;
+const store = Astro.locals.store;
+const { config, content } = store;
+const whatsapp = showWhatsapp ? storeWhatsApp(store, { kind: "general", url: canonicalUrl(Astro.url.origin, store, Astro.url.search) }, { cta: content.footerWhatsapp }) : null;
 const networkName = { instagram: content.socialInstagram, facebook: content.socialFacebook, tiktok: content.socialTiktok, youtube: content.socialYoutube };
 const social = socialLinks.filter((link) => link.href);
 ---
@@ -29,7 +31,7 @@ const social = socialLinks.filter((link) => link.href);
   {whatsapp && (
     <a href={whatsapp.href} class="footer-whatsapp" rel="noopener noreferrer" target="_blank">
       <Icon name="heroicons:chat-bubble-left-right" aria-hidden="true" />
-      {whatsapp.ctaLabel ?? content.footerWhatsapp}
+      {whatsapp.ctaLabel}
     </a>
   )}
   {social.length > 0 && (

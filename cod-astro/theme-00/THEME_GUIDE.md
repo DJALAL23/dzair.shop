@@ -35,7 +35,7 @@ src/
 │   ├── sdk.ts                   #   the ONE platform read seam
 │   ├── utils/                   #   money.ts, images.ts, seo.ts, related-products.ts
 │   ├── layouts/StoreLayout.astro
-│   ├── runtime/store.ts         #   DEFAULT_CONFIG + the store context (on the SDK's resolveStoreRequest)
+│   ├── runtime/store.ts         #   UNAVAILABLE_STORE + the store context (on the SDK's resolveStoreRequest)
 │   ├── scripts/                 #   browser behavior: product.ts, checkout.ts, cart.ts
 │   └── styles/global.css        #   design tokens
 ├── pages/                       # index, products/, category/, thank-you, api/*

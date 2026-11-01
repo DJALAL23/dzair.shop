@@ -31,7 +31,7 @@ import type { PageDataCopy } from "./island-props";
 /** The hidden element the product surfaces render the bridge into. */
 export const PRODUCT_PAGE_DATA_ID = "page-data";
 
-/** The variant fields the scripts use (a subset of the SDK's `ProductVariant`). */
+/** The variant fields the scripts use (a subset of the SDK's `ProductVariant`), in the merchant's order. */
 export interface ProductPageVariant {
   id: string;
   price: number;
@@ -39,8 +39,6 @@ export interface ProductPageVariant {
   inventory: number;
   variations: Record<string, string>;
   isDefault: boolean;
-  active: boolean;
-  position: number;
   imageId: string | null;
 }
 
@@ -59,12 +57,13 @@ export interface ProductPageOffer {
   rewardQuantity: number;
   rewardProductName: string;
   rewardVariantLabel: string | null;
+  /** What one gift unit is worth; null: the product's own price stands in. */
+  rewardUnitPrice: number | null;
 }
 
 /** What `readProductPageData` returns — the scripts' whole view of the page. */
 export interface ProductPageData {
   productId: string;
-  /** Also used by the WhatsApp widget to pick its product prefill. */
   productName: string;
   currencySymbol: string;
   isRTL: boolean;
@@ -210,8 +209,6 @@ function toVariants(rows: unknown[]): ProductPageVariant[] {
       inventory: finiteNumber(r.inventory) ?? 0,
       variations: stringRecord(r.variations),
       isDefault: r.isDefault === true,
-      active: r.active === true,
-      position: finiteNumber(r.position) ?? 0,
       imageId: typeof r.imageId === "string" ? r.imageId : null,
     });
   }
@@ -246,6 +243,7 @@ function toOffers(rows: unknown[]): ProductPageOffer[] {
       rewardQuantity: finiteNumber(r.rewardQuantity) ?? 1,
       rewardProductName: typeof r.rewardProductName === "string" ? r.rewardProductName : "",
       rewardVariantLabel: typeof r.rewardVariantLabel === "string" ? r.rewardVariantLabel : null,
+      rewardUnitPrice: finiteNumber(r.rewardUnitPrice),
     });
   }
   return out;

@@ -10,9 +10,10 @@
 
 import * as fc from "fast-check";
 import { initProductPage } from "../product.ts";
+import { serverQuote } from "@/theme/__tests__/support/quote";
 
-/** A quote as the server sends it: what it always carries, then the case's own fields. */
-const served = (data: Record<string, unknown>) => ({ lines: [], rewards: [], freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 }, ...data });
+/** A quote as the server sends it (`serverQuote`). */
+const served = (data: Record<string, unknown>) => serverQuote(data);
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) }) as unknown as Response));

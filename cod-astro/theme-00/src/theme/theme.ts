@@ -22,6 +22,14 @@ import { catalogSurface, categorySurface, collectionSurface } from "./catalog/fa
 import { pageSurface } from "./catalog/families/page";
 import { thankYouSurface } from "./catalog/families/thank-you";
 import { landingSurface } from "./catalog/families/landing";
+import { searchSurface } from "./catalog/families/search";
+import { trackOrderSurface } from "./catalog/families/track-order";
+import { checkoutSurface } from "./catalog/families/checkout";
+import { contactSurface } from "./catalog/families/contact";
+import { searchMain } from "./catalog/search/search-main.def";
+import { trackOrderMain } from "./catalog/track-order/track-order-main.def";
+import { checkoutMain } from "./catalog/checkout/checkout-main.def";
+import { contactMain } from "./catalog/contact/contact-main.def";
 import { landingImages, landingOrder, landingProduct } from "./catalog/landing/landing.def";
 import { offerCountdown } from "./catalog/home/offer-countdown.def";
 import { thankYouMain } from "./catalog/thank-you/thank-you-main.def";
@@ -76,7 +84,7 @@ export const theme00 = defineTheme({
   content: { ar: { ...ar }, fr: { ...fr }, en: { ...en } },
   // The composed pages, each with the document it renders before the store
   // saves one (each page's own catalog declares it).
-  surfaces: [homeSurface, productSurface, collectionSurface, categorySurface, catalogSurface, pageSurface, thankYouSurface, landingSurface],
+  surfaces: [homeSurface, productSurface, collectionSurface, categorySurface, catalogSurface, pageSurface, thankYouSurface, landingSurface, searchSurface, trackOrderSurface, checkoutSurface, contactSurface],
   // The parts every page shares, composed of sections and edited once.
   areas: shellCatalog.areas,
   settings: THEME_SETTINGS,
@@ -100,6 +108,10 @@ export const theme00 = defineTheme({
     "listing-main": listingMain,
     "page-main": pageMain,
     "thank-you-main": thankYouMain,
+    "search-main": searchMain,
+    "track-order-main": trackOrderMain,
+    "checkout-main": checkoutMain,
+    "contact-main": contactMain,
     "landing-images": landingImages,
     "landing-order": landingOrder,
     "landing-product": landingProduct,

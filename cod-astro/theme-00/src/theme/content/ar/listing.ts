@@ -11,7 +11,6 @@ export const arListing: ListingStrings = {
   listingCount_few: "{count} منتجات",
   listingCount_many: "{count} منتجًا",
   listingCount_other: "{count} منتج",
-  listingRange: "{first}–{last} {noun}",
   listingRangeTotal_zero: "{first}–{last} من {count}",
   listingRangeTotal_one: "{first}–{last} من منتج واحد",
   listingRangeTotal_two: "{first}–{last} من منتجين",

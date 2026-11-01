@@ -14,7 +14,7 @@ const SALE_READ = 8;
  */
 export const imageBanner = defineComponent({
   type: "image-banner",
-  capabilities: { insertable: true, surfaces: ["home", "page", "landing"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "contact"] },
   component: ImageBanner,
   label: SECTION.imageBanner,
   group: GROUP.home,

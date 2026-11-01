@@ -8,8 +8,9 @@ import WhatsAppWidget from "../WhatsAppWidget.astro";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import type { StoreContext } from "@/theme/runtime/store";
 import { en as enContent } from "@/theme/content/en";
-import { DEFAULT_CONFIG } from "@/theme/runtime/store";
+import { TEST_CONFIG } from "@/theme/__tests__/support/locals";
 import type { StoreWhatsAppWidget, StoreConfig } from "@wocart/storefront";
+import { storeWhatsApp } from "@/theme/utils/whatsapp";
 
 const BASE_WIDGET: StoreWhatsAppWidget = {
   href: "https://wa.me/213551234567",
@@ -38,7 +39,7 @@ const BASE_WIDGET: StoreWhatsAppWidget = {
 };
 
 const BASE_CONFIG: StoreConfig = {
-  ...DEFAULT_CONFIG,
+  ...TEST_CONFIG,
   id: "store-test",
   name: "Boutique Dz",
 };
@@ -48,9 +49,10 @@ async function renderWidget(widgetPartial: Partial<StoreWhatsAppWidget> = {}, co
   const widget: StoreWhatsAppWidget = { ...BASE_WIDGET, ...widgetPartial };
   const config: StoreConfig = { ...BASE_CONFIG, ...configPartial };
 
+  const contact = storeWhatsApp({ config: { ...config, whatsapp: widget }, content: enContent }, { kind: "general", url: "https://example.dz/" })!;
   const html = await container.renderToString(WhatsAppWidget, {
     props: {
-      widget,
+      contact,
       content: enContent,
       config,
     },
@@ -61,7 +63,7 @@ async function renderWidget(widgetPartial: Partial<StoreWhatsAppWidget> = {}, co
   return { html, document: window.document };
 }
 
-async function renderLayout(pathname: string, config: StoreConfig) {
+async function renderLayout(pathname: string, config: StoreConfig, props: Record<string, unknown> = {}) {
   const container = await AstroContainer.create();
   const store: StoreContext = {
     config,
@@ -83,6 +85,7 @@ async function renderLayout(pathname: string, config: StoreConfig) {
     // `cfContext` that the layout never touches; `store` itself is typed.
     locals: { store } as unknown as App.Locals,
     request: new Request(`https://example.dz${pathname}`),
+    props,
   });
 
   const window = new Window();
@@ -212,6 +215,13 @@ describe("StoreLayout surface gating and off state", () => {
     };
     const { document } = await renderLayout("/", config);
     expect(document.getElementById("wa-widget")).toBeNull();
+  });
+
+  it("starts a product page's chat with its product, in the theme's words when the merchant wrote none", async () => {
+    const config: StoreConfig = { ...BASE_CONFIG, whatsapp: BASE_WIDGET };
+    const { document } = await renderLayout("/products/robe", config, { whatsapp: { kind: "product", product: "Robe kabyle" } });
+    const text = new URL(document.getElementById("wa-cta")!.getAttribute("href")!).searchParams.get("text");
+    expect(text).toBe(enContent.waPrefillProductDefault.replace("{product}", "Robe kabyle").replace("{url}", "https://example.dz/products/robe"));
   });
 
   it("renders widget markup on an allowed surface", async () => {

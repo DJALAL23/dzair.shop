@@ -37,6 +37,7 @@ const meta = product ? productMeta(product) : null;
   ogImage={product?.images[0]?.url}
   hideMobileNav={true}
   softNavigation={softNavigation}
+  whatsapp={product ? { kind: "product", product: product.name } : undefined}
 >
   <Sections theme={productCatalog} surface="product" document={document} preview={preview} params={{ handle: product?.handle, preview: preview ? "true" : undefined }} reads={reads} />
   <slot />

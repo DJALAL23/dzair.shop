@@ -1,20 +1,21 @@
 ---
 // ── A composed page ─────────────────────────────────────────────────────────
-// A listing (all products, a category, a collection) or a text page: the
-// store's saved document for its surface, a draft in a preview, or the
-// theme's shipped default (`resolveSurfaceDocument`), rendered with the
-// route's parameters (`slug`, `handle`, `page`). The route reads its resource
-// first — an unknown one is a 404 before anything streams — and hands the
-// read over, so the sections never read it again.
+// A listing (all products, a category, a collection), a text page or one of
+// the store's own pages (thank-you, search, order tracking, checkout,
+// contact): the store's saved document for its surface, a draft in a
+// preview, or the theme's shipped default (`resolveSurfaceDocument`),
+// rendered with the route's parameters (`slug`, `handle`, `page`). The route
+// reads its resource first — an unknown one is a 404 before anything streams
+// — and hands the read over, so the sections never read it again.
 import type { ReadCache } from "@wocart/theme";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import type { ThemeDefinition } from "@wocart/theme";
 import Sections from "@/theme/components/surface/Sections.astro";
 
 interface Props {
-  /** The catalog the surface renders from: the listing or the text-page catalog. */
+  /** The catalog the surface renders from: the route's own. */
   theme: ThemeDefinition;
-  surface: "catalog" | "category" | "collection" | "page" | "thank-you";
+  surface: "catalog" | "category" | "collection" | "page" | "thank-you" | "search" | "track-order" | "checkout" | "contact";
   /** What the store saved (`null` when absent), or a preview's draft. */
   document: unknown;
   params?: Readonly<Record<string, string | undefined>>;

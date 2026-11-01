@@ -1,10 +1,3 @@
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  CUSTOMIZE HERE (Custom mode) — DEFAULT_CONFIG only                  ║
-// ║  Edit DEFAULT_CONFIG to change the fallback store name/meta when the ║
-// ║  API is unreachable (colors and font are settings: settings.ts).     ║
-// ║  The read itself goes through the theme adapter                      ║
-// ║  (src/theme/sdk.ts) — the one place an SDK client is created.        ║
-// ╚══════════════════════════════════════════════════════════════════════╝
 /**
  * Per-request store data helpers.
  * Call once per page — pass the returned config to StoreLayout to avoid
@@ -12,63 +5,19 @@
  *
  * The config comes from the SDK client behind the theme adapter, so a
  * successful read is cached for the client's lifetime (one fetch per isolate,
- * not one per render) and any failure still falls back to DEFAULT_CONFIG.
+ * not one per render) and any failure falls back to UNAVAILABLE_STORE. The
+ * read itself goes through the theme adapter (`src/theme/sdk.ts`) — the one
+ * place an SDK client is created.
  */
 import { getStoreClient, storeServerUrl, type PreviewDraft, type StoreClient } from "@/theme/sdk";
 import { keepStoreMedia } from "@/theme/utils/image-service";
 import { resolveContent } from "@/theme/content";
-import { localizeHref, servedLanguage, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
+import { localizeHref, servedLanguage, unavailableStoreConfig, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
 import { resolvePreviewStore as resolvePreview, resolveStoreRequest as resolveRequest, type ResolvedStore } from "@wocart/storefront/astro";
 import type { StoreFrontContent } from "@/theme/content";
 
-export const DEFAULT_CONFIG: StoreConfig = {
-  id: "",
-  name: "متجري",
-  domain: null,
-  logo: null,
-  themeId: "theme-00",
-  primaryColor: "#7c3aed",
-  accentColor: "#f59e0b",
-  bgColor: "#f8f8f8",
-  fontFamily: "Cairo, sans-serif",
-  fontUrl: null,
-  lang: "ar",
-  locale: "ar",
-  currency: "DZD",
-  currencySymbol: "دج",
-  locales: [{ code: "ar", nativeName: "العربية", direction: "rtl" }],
-  contentOverrides: {},
-  metaTitle: null,
-  metaDescription: null,
-  ogImage: null,
-  // The store's own server, where a `direct` store serves its files.
-  media: { kind: "direct", origin: `${storeServerUrl()}/media` },
-  announcementBar: null,
-  reviewsEnabled: true,
-  cartEnabled: false,
-  freeShippingThreshold: null,
-  otpEnabled: false,
-  turnstileEnabled: false,
-  turnstileSiteKey: null,
-  status: "active",
-  cartShippingMode: "highest",
-  createdAt: "1970-01-01T00:00:00.000Z",
-  updatedAt: "1970-01-01T00:00:00.000Z",
-  // Mirrors CustomerFields' built-in default, so the API-unreachable path
-  // renders the exact form it rendered before the policy feature existed.
-  checkoutForm: {
-    address: "optional",
-    notes: "optional",
-    email: "hidden",
-    deliveryOptions: { home: true, stopDesk: true },
-    customFields: [],
-  },
-  pixelId: null,
-  conversionEvent: "Purchase",
-  pages: [],
-  legalContact: null,
-  whatsapp: null,
-};
+/** The store a page renders when its config cannot be read: the SDK's, in this theme's default language. */
+export const UNAVAILABLE_STORE: StoreConfig = unavailableStoreConfig({ serverUrl: storeServerUrl(), locale: "ar" });
 
 export interface StoreContext {
   config: StoreConfig;
@@ -95,7 +44,7 @@ export interface StoreContext {
 }
 
 /** What the SDK resolves a request with: this theme's one client factory, and the store it renders when the config cannot be read. */
-const STORE = { client: getStoreClient, fallback: DEFAULT_CONFIG };
+const STORE = { client: getStoreClient, fallback: UNAVAILABLE_STORE };
 
 /**
  * What a request resolves to: a page in one language — with the route to
@@ -126,7 +75,7 @@ export async function resolvePreviewStore(draft: PreviewDraft): Promise<StoreCon
 }
 
 function storeContext({ config, client, routing, locale, pathname }: ResolvedStore): StoreContext {
-  if (config.media !== DEFAULT_CONFIG.media) keepStoreMedia(config.media);
+  if (config.id !== UNAVAILABLE_STORE.id) keepStoreMedia(config.media);
   // Only this language's overrides: another language's map would mix languages.
   const content = resolveContent(locale, config.contentOverrides[locale]);
   // The server describes every language it serves; a config that somehow

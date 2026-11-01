@@ -5,7 +5,7 @@
  * Pages have always called `getStoreContext()` for config; S5 changes the
  * source of truth from the legacy `@/core/api/client` fetch (deleted since) to
  * the SDK client created in `src/theme/sdk.ts`, without changing the function's
- * contract: values from the server, `resolveContent` applied, `DEFAULT_CONFIG`
+ * contract: values from the server, `resolveContent` applied, `UNAVAILABLE_STORE`
  * on any failure.
  *
  * The caching test is the one that pins the delegation: the SDK client caches
@@ -24,12 +24,6 @@ const LIVE_CONFIG = {
   name: "متجر الجزائر",
   domain: "algiers-gadgets.codflow.store",
   logo: { key: "products/logo.png", url: "https://ik.imagekit.io/wocart/stores/store_01/products/logo.png", width: 512, height: 512 },
-  themeId: "theme-00",
-  primaryColor: "#7c3aed",
-  accentColor: "#f59e0b",
-  bgColor: "#f8f8f8",
-  fontFamily: "Cairo, sans-serif",
-  fontUrl: null,
   lang: "ar",
   locale: "ar",
   currency: "DZD",
@@ -39,18 +33,14 @@ const LIVE_CONFIG = {
     { code: "fr", nativeName: "Français", direction: "ltr" },
   ],
   contentOverrides: { ar: { heroTitle: "عرض اليوم" }, fr: { heroTitle: "L'offre du jour" } },
+  themeSettings: {},
   metaTitle: "متجر الجزائر",
   metaDescription: "الدفع عند الاستلام في كل ولايات الوطن",
   ogImage: null,
   media: { kind: "imagekit", origin: "https://ik.imagekit.io/wocart/stores/store_01" },
-  announcementBar: null,
   reviewsEnabled: true,
   cartEnabled: false,
   freeShippingThreshold: 8000,
-  cartShippingMode: "highest",
-  status: "active",
-  createdAt: "2026-08-01T09:15:00.000Z",
-  updatedAt: "2026-09-20T11:02:31.000Z",
   checkoutForm: {
     address: "optional",
     notes: "optional",
@@ -97,12 +87,7 @@ const LIVE_CONFIG = {
     { id: "page_refund", kind: "refund", slug: "refund-policy", title: "سياسة الإرجاع", position: 1 },
     { id: "page_terms", kind: "terms", slug: "terms", title: "شروط الاستخدام", position: 2 },
   ],
-  legalContact: {
-    contactEmail: "support@algiers-gadgets.dz",
-    contactPhone: "0551234567",
-    deliveryMinDays: 2,
-    deliveryMaxDays: 5,
-  },
+  contact: { phone: "0551234567", email: "support@algiers-gadgets.dz", address: null },
   otpEnabled: true,
   turnstileEnabled: false,
   turnstileSiteKey: null,
@@ -273,15 +258,15 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
     expect(configReads()).toBe(2);
   });
 
-  it("falls back to DEFAULT_CONFIG when the config read fails", async () => {
+  it("renders the unavailable store when the config read fails", async () => {
     vi.stubGlobal("fetch", async () => {
       throw new Error("network down");
     });
 
-    const { DEFAULT_CONFIG } = await import("@/theme/runtime/store");
+    const { UNAVAILABLE_STORE } = await import("@/theme/runtime/store");
     const ctx = await storeFor("/");
 
-    expect(ctx.config.name).toBe(DEFAULT_CONFIG.name);
+    expect(ctx.config).toBe(UNAVAILABLE_STORE);
     expect(ctx.isRTL).toBe(true);
   });
 

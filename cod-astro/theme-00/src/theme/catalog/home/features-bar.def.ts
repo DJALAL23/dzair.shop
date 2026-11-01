@@ -42,7 +42,7 @@ const iconField = <K extends string>(n: number, key: K, fallback: keyof typeof F
 /** Four short promises, each an icon, a title and a line under it. */
 export const featuresBar = defineComponent({
   type: "features-bar",
-  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "thank-you", "collection", "category", "catalog", "area:footer"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "thank-you", "collection", "category", "catalog", "search", "track-order", "checkout", "contact", "area:footer"] },
   component: FeaturesBar,
   label: SECTION.featuresBar,
   group: GROUP.home,

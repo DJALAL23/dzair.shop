@@ -16,9 +16,8 @@ import { createReadCache } from "@wocart/theme/astro";
 import type { Category, LocaleRouting, ProductList } from "@wocart/storefront";
 import { theme00 } from "@/theme/theme";
 import { fr } from "@/theme/content/fr";
-import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { makeProduct } from "../support/home-render";
-import { testLocals } from "../support/locals";
+import { testLocals, TEST_CONFIG } from "../support/locals";
 
 const routing: LocaleRouting = { primary: "ar", published: ["ar", "fr"] };
 const hrefs = (html: string) => [...html.matchAll(/href="([^"]*)"/g)].map((match) => match[1]!);
@@ -28,9 +27,9 @@ const CATEGORIES = [category("robes", "Robes"), category("sacs", "Sacs")];
 
 /**
  * A listing's params name its kind, as the page template passes them: `surface` is the page's own.
- * The catalog answers a page as the SDK does; `counts: false` is a server that predates totals.
+ * The catalog answers a page as the SDK does.
  */
-async function render(type: "listing-main" | "page-main", params: Record<string, string>, listed: ProductList[] = [], options: { counts?: boolean } = {}) {
+async function render(type: "listing-main" | "page-main", params: Record<string, string>, listed: ProductList[] = []) {
   const asked: Array<Record<string, unknown>> = [];
   const client = {
     products: {
@@ -38,7 +37,7 @@ async function render(type: "listing-main" | "page-main", params: Record<string,
         asked.push(filters);
         const offset = filters.offset ?? 0;
         const limit = filters.limit ?? listed.length;
-        return { items: listed.slice(offset, offset + limit), hasNext: offset + limit < listed.length, total: options.counts === false ? null : listed.length };
+        return { items: listed.slice(offset, offset + limit), hasNext: offset + limit < listed.length, total: listed.length };
       },
     },
     collections: { get: async (handle: string) => (handle === "robes-ete" ? { handle, title: "Robes d'été", description: "Légères et fraîches" } : null) },
@@ -50,7 +49,7 @@ async function render(type: "listing-main" | "page-main", params: Record<string,
     props: {
       instance: { id: "main", type, props: {} },
       theme: theme00,
-      context: { store: DEFAULT_CONFIG, content: fr, locale: "fr", isRTL: false, url: "/", params },
+      context: { store: TEST_CONFIG, content: fr, locale: "fr", isRTL: false, url: "/", params },
       storefront: client as never,
       reads: createReadCache(),
     },
@@ -94,14 +93,6 @@ describe("a collection's page", () => {
     for (const label of [fr.sortDefault, fr.sortNewest, fr.sortPriceDescending]) expect(html).toContain(label);
     const unknown = await render("listing-main", { surface: "collection", handle: "robes-ete", sort: "cheapest" }, products);
     expect(unknown.asked[0]).not.toHaveProperty("sort");
-  });
-
-  it("says only the rows a page holds when the server does not count the listing", async () => {
-    const products = Array.from({ length: 60 }, (_, i) => makeProduct({ id: `p${i}`, name: `P${i}`, handle: `p-${i}` }));
-    const { html } = await render("listing-main", { surface: "collection", handle: "robes-ete" }, products, { counts: false });
-    expect(html).toContain("1–24 produit");
-    expect(html).not.toContain("sur 60");
-    expect(html).not.toContain("Page 1 sur");
   });
 
   it("says an empty collection is empty, and points to the catalog", async () => {

@@ -19,6 +19,7 @@ import { frMisc } from "./misc";
 import { frProduct } from "./product";
 import { frListing } from "./listing";
 import { frTrackOrder } from "./track-order";
+import { frContact } from "./contact";
 
 export const fr: StoreFrontContent = {
   ...frHome,
@@ -37,4 +38,5 @@ export const fr: StoreFrontContent = {
   ...frProduct,
   ...frListing,
   ...frTrackOrder,
+  ...frContact,
 };

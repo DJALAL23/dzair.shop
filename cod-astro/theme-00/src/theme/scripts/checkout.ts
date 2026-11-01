@@ -9,8 +9,7 @@
  * very page, so each change of wilaya, commune or delivery type asks the server
  * again: its answer carries the delivery quote, computed by the same function
  * that charges the order, and the fee and total shown are that quote. Until it
- * answers — or from a server that predates quotes — the merchant's wilaya rate
- * stands in.
+ * answers, the merchant's wilaya rate stands in.
  *
  * Nothing here is trusted for money. The server re-prices every line and
  * re-resolves delivery when the order is placed.
@@ -225,7 +224,7 @@ export function initCheckout(): () => void {
     // optimistic view stands rather than flickering to a worse one.
     if (result === undefined) return;
     validated = result;
-    coupon?.show(result?.coupon);
+    coupon?.show(result?.coupon ?? null);
     quotedFor = key;
     render();
   }

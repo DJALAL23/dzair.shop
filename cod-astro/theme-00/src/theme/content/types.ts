@@ -23,6 +23,7 @@ import type { MiscStrings } from "./types/misc";
 import type { ProductStrings } from "./types/product";
 import type { ListingStrings } from "./types/listing";
 import type { TrackOrderStrings } from "./types/track-order";
+import type { ContactStrings } from "./types/contact";
 
 export type StoreFrontContent = HomeStrings &
   LayoutStrings &
@@ -39,4 +40,5 @@ export type StoreFrontContent = HomeStrings &
   MiscStrings &
   ProductStrings &
   ListingStrings &
-  TrackOrderStrings;
+  TrackOrderStrings &
+  ContactStrings;

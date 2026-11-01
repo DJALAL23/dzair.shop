@@ -82,8 +82,8 @@ price, signals, order form, countdown, description, rows, policies, text),
   within Astro's 2048-byte caching budget)
 
 ### `runtime/`
-- `store.ts` - `DEFAULT_CONFIG` (fallback colors/font/meta) and
-  `getStoreContext()` (per-request store config + resolved content)
+- `store.ts` - `UNAVAILABLE_STORE` (the SDK's shell for a store that cannot
+  be read) and the per-request store context (config + resolved content)
 - `navigation.ts` - `menuLinks()`: a store menu as header/footer links in the
   request's language
 

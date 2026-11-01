@@ -117,6 +117,7 @@ export default defineConfig({
           "squares-2x2",       // mobile nav products
           "check-circle",      // review success, verified buyer
           "credit-card",       // trust: COD payment
+          "envelope",          // contact: the store's email
           "bolt",              // trust: fast / low stock
           "phone",             // thank-you step 1
           "cube",              // thank-you step 2 (package)

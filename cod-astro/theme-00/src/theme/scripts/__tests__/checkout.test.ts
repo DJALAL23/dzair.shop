@@ -16,6 +16,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { en } from "@/theme/content/en";
 import { messageData } from "@/theme/content/messages";
+import { serverQuote } from "@/theme/__tests__/support/quote";
 
 // Built from the real English pack exactly as the server renders them.
 const CART_ITEMS = messageData(en, "cartItems");
@@ -170,12 +171,11 @@ function chooseDelivery(value: string): void {
   input.dispatchEvent(new window.Event("change", { bubbles: true }));
 }
 
-/** The server's verdict as it sends it: `rewards` always comes, and every line names its product and variant. */
+/** The server's verdict as it sends it (`serverQuote`), or none. */
 function validationResponse(body: Record<string, unknown> | null) {
-  const lines = ((body?.lines ?? []) as Record<string, unknown>[]).map((line) => ({ productName: String(line.productId), variantLabel: null, ...line }));
   return Promise.resolve({
     ok: true,
-    json: () => Promise.resolve({ data: body === null ? null : { rewards: [], ...body, lines } }),
+    json: () => Promise.resolve({ data: body === null ? null : serverQuote(body) }),
   } as unknown as Response);
 }
 

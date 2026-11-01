@@ -2,20 +2,22 @@
 // A closing band in the section's colors: one question, one line, one
 // action. The button opens the store's WhatsApp when its contact widget is
 // on, else the link the merchant set.
-import { localWhatsAppWidget } from "@wocart/storefront";
+import { canonicalUrl } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
 import type { StoreFrontContent } from "@/theme/content";
 import type { whatsappCta } from "@/theme/catalog/home/whatsapp-cta.def";
 import { Icon } from "astro-icon/components";
 import Section from "@/theme/components/ui/Section.astro";
+import { storeWhatsApp } from "@/theme/utils/whatsapp";
 
 type Props = Pick<InferProps<typeof whatsappCta>, "ctaHref" | "scheme" | "style"> & {
   content: StoreFrontContent;
 };
 
 const { content, ctaHref, scheme, style } = Astro.props;
-const whatsapp = localWhatsAppWidget(Astro.locals.store.config);
-const href = whatsapp ? whatsapp.href : Astro.locals.store.href(ctaHref);
+const store = Astro.locals.store;
+const whatsapp = storeWhatsApp(store, { kind: "general", url: canonicalUrl(Astro.url.origin, store, Astro.url.search) });
+const href = whatsapp ? whatsapp.href : store.href(ctaHref);
 ---
 
 <Section scheme={scheme} style={style}>

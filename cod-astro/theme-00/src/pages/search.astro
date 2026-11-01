@@ -1,73 +1,19 @@
 ---
-// Search. The platform finds the products a shopper's words name — in the
+// Search: the platform finds the products a shopper's words name — in the
 // page's language or the catalog's — best match first unless an order is
-// chosen, a page at a time. Never indexed: a search is not a page of the store.
-import { Icon } from "astro-icon/components";
-import type { ProductPage } from "@wocart/storefront";
+// chosen, a page at a time, in the store's composition of the page. Never
+// indexed: a search is not a page of the store.
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
-import ProductCard from "@/theme/components/product/ProductCard.astro";
-import ListingPager from "@/theme/components/listing/ListingPager.astro";
-import ListingSort from "@/theme/components/listing/ListingSort.astro";
+import Sections from "@/theme/components/surface/Sections.astro";
+import { searchCatalog } from "@/theme/catalog/families/search";
 import { message } from "@/theme/content/messages";
-import { LISTING_PAGE_SIZE, pageRequest, requestedPage, requestedSort } from "@/theme/utils/pagination";
 
-const store = Astro.locals.store;
-const { config, content, locale, client } = store;
+const { config, content, locale, client } = Astro.locals.store;
 const query = (Astro.url.searchParams.get("q") ?? "").trim();
-const page = requestedPage(Astro.url.searchParams.get("page"));
-const sort = requestedSort(Astro.url.searchParams.get("sort"));
-const searchPath = store.href("/search");
-
-const result: ProductPage = query ? await client.products.search(query, pageRequest(page, sort)) : { items: [], hasNext: false, total: 0 };
-const count = result.total ?? result.items.length;
-const title = query ? message(content, "searchResults", { count, query }, locale) : content.searchTitle;
+const saved = await client.pageData.get("search");
+const params = { q: query, page: Astro.url.searchParams.get("page") ?? undefined, sort: Astro.url.searchParams.get("sort") ?? undefined, surface: "search" };
 ---
 
-<StoreLayout config={config} title={message(content, "documentTitle", { title, storeName: config.name }, locale)} description={content.searchHint} noindex={true}>
-  <div class="search frame">
-    <header class="search-head">
-      <h1>{title}</h1>
-      <form method="get" action={searchPath} role="search" class="search-form">
-        <label class="sr-only" for="search-q">{content.searchPlaceholder}</label>
-        <span class="search-field">
-          <Icon name="heroicons:magnifying-glass" aria-hidden="true" />
-          <input class="form-input" id="search-q" type="search" name="q" value={query} placeholder={content.searchPlaceholder} enterkeyhint="search" maxlength="100" />
-        </span>
-        <button type="submit" class="btn-primary btn-auto">{content.searchSubmit}</button>
-      </form>
-    </header>
-
-    {query && (result.items.length > 0 || sort) && <ListingSort action={searchPath} sort={sort} keep={{ q: query }} content={content} />}
-
-    {query && result.items.length > 0 ? (
-      <ul class="product-row listing-grid" style="--across: 4">
-        {result.items.map((product, i) => (
-          <li><ProductCard product={product} currencySymbol={config.currencySymbol} eager={i < 2} copy={content} /></li>
-        ))}
-      </ul>
-    ) : (
-      <div class="search-empty">
-        <span class="search-empty-icon" aria-hidden="true"><Icon name="heroicons:magnifying-glass" /></span>
-        {query && <h2>{content.searchEmpty}</h2>}
-        <p>{content.searchHint}</p>
-      </div>
-    )}
-
-    {query && <ListingPager basePath={searchPath} page={page} hasNext={result.hasNext} total={result.total} sort={sort} keep={{ q: query }} content={content} />}
-  </div>
+<StoreLayout title={message(content, "documentTitle", { title: query || content.searchTitle, storeName: config.name }, locale)} description={content.searchHint} noindex={true}>
+  <Sections theme={searchCatalog} surface="search" document={saved} params={params} />
 </StoreLayout>
-
-<style>
-  .search { padding-block: 2rem 4rem; }
-  .search-head { max-width: 40rem; margin: 0 auto 1.75rem; text-align: center; }
-  .search-head h1 { color: var(--clr-ink); font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); font-weight: 600; }
-  .search-form { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
-  .search-field { position: relative; flex: 1; }
-  .search-field :global(svg) { position: absolute; inset-inline-start: 0.875rem; top: 50%; width: 1.25rem; height: 1.25rem; color: var(--clr-muted); transform: translateY(-50%); pointer-events: none; }
-  .search-field .form-input { padding-inline-start: 2.75rem; }
-  .product-row { margin: 0; padding: 0; list-style: none; }
-  .search-empty { display: grid; justify-items: center; gap: 0.5rem; padding-block: 3rem; color: var(--clr-muted); text-align: center; }
-  .search-empty h2 { color: var(--clr-ink); font-size: var(--text-lg); font-weight: 600; }
-  .search-empty-icon { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: var(--radius-round); background: var(--clr-plate); color: var(--clr-ink); }
-  .search-empty-icon :global(svg) { width: 1.5rem; height: 1.5rem; }
-</style>

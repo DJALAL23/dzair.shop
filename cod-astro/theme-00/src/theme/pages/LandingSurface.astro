@@ -50,6 +50,7 @@ const title = landing.metaTitle || (landing.product ? `${landing.product.name} â
   noindex={true}
   header={shown("header")}
   footer={shown("footer")}
+  whatsapp={landing.product ? { kind: "product", product: landing.product.name } : undefined}
   hideMobileNav={true}
   preloadImages={images.slice(0, 2).map((image) => imageSource(image.url, config.media, 1080))}
 >

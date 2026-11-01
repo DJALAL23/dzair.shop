@@ -7,7 +7,7 @@ const paragraph = (text: string) => ({ type: "doc", version: 1, content: [{ type
 
 export const richText = defineComponent({
   type: "rich-text",
-  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "thank-you", "area:footer"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "thank-you", "search", "track-order", "checkout", "contact", "area:footer"] },
   component: RichTextBlock,
   label: SECTION.richText,
   group: GROUP.home,

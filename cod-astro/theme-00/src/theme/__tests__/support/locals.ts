@@ -6,10 +6,38 @@
 import { localizeHref, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
 import type { StoreClient } from "@/theme/sdk";
 import { en } from "@/theme/content/en";
-import { DEFAULT_CONFIG, type StoreContext } from "@/theme/runtime/store";
+import type { StoreContext } from "@/theme/runtime/store";
 
-/** A store as its server answers: the theme's defaults, with its media served from its own domain. */
-export const TEST_CONFIG: StoreConfig = { ...DEFAULT_CONFIG, media: { kind: "cloudflare", origin: "https://media.boutique.test" } };
+/** A store as its server answers: one language, nothing switched on beyond reviews, its media served from its own domain. */
+export const TEST_CONFIG: StoreConfig = {
+  id: "store_test",
+  name: "متجري",
+  domain: null,
+  logo: null,
+  lang: "ar",
+  locale: "ar",
+  locales: [{ code: "ar", nativeName: "العربية", direction: "rtl" }],
+  currency: "DZD",
+  currencySymbol: "دج",
+  metaTitle: null,
+  metaDescription: null,
+  ogImage: null,
+  media: { kind: "cloudflare", origin: "https://media.boutique.test" },
+  reviewsEnabled: true,
+  cartEnabled: false,
+  freeShippingThreshold: null,
+  contentOverrides: {},
+  themeSettings: {},
+  checkoutForm: { address: "optional", notes: "optional", email: "hidden", deliveryOptions: { home: true, stopDesk: true }, customFields: [] },
+  whatsapp: null,
+  pixelId: null,
+  conversionEvent: "Purchase",
+  pages: [],
+  contact: { phone: null, email: null, address: null },
+  otpEnabled: false,
+  turnstileEnabled: false,
+  turnstileSiteKey: null,
+};
 
 /** A store with no menus and no saved pages: every area renders the theme's default. */
 const EMPTY_CLIENT = { menus: { get: async () => null }, pageData: { get: async () => null } };

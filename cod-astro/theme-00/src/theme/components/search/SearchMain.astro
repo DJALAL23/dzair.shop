@@ -1,0 +1,73 @@
+---
+// The search box and what it finds (`search-main`). Never indexed: a search
+// is not a page of the store.
+import { Icon } from "astro-icon/components";
+import type { InferProps } from "@wocart/theme";
+import { storefrontPath } from "@wocart/storefront";
+import Section from "@/theme/components/ui/Section.astro";
+import ProductCard from "@/theme/components/product/ProductCard.astro";
+import ListingPager from "@/theme/components/listing/ListingPager.astro";
+import ListingSort from "@/theme/components/listing/ListingSort.astro";
+import type { StoreFrontContent } from "@/theme/content";
+import { message } from "@/theme/content/messages";
+import type { SearchView, searchMain } from "@/theme/catalog/search/search-main.def";
+
+type Props = Pick<InferProps<typeof searchMain>, "showSort" | "columns" | "scheme" | "style"> & {
+  content: StoreFrontContent;
+  view: SearchView;
+};
+
+const { content, view, showSort = true, columns = 4, scheme, style } = Astro.props;
+const store = Astro.locals.store;
+const { config, locale } = store;
+const { query, page, sort, result } = view;
+const searchPath = store.href(storefrontPath("search"));
+const across = Math.min(5, Math.max(2, Math.round(columns)));
+const title = query ? message(content, "searchResults", { count: result.total, query }, locale) : content.searchTitle;
+---
+
+<Section scheme={scheme} style={style}>
+  <header class="search-head">
+    <h1>{title}</h1>
+    <form method="get" action={searchPath} role="search" class="search-form">
+      <label class="sr-only" for="search-q">{content.searchPlaceholder}</label>
+      <span class="search-field">
+        <Icon name="heroicons:magnifying-glass" aria-hidden="true" />
+        <input class="form-input" id="search-q" type="search" name="q" value={query} placeholder={content.searchPlaceholder} enterkeyhint="search" maxlength="100" />
+      </span>
+      <button type="submit" class="btn-primary btn-auto">{content.searchSubmit}</button>
+    </form>
+  </header>
+
+  {showSort && query && (result.items.length > 0 || sort) && <ListingSort action={searchPath} sort={sort} keep={{ q: query }} content={content} />}
+
+  {query && result.items.length > 0 ? (
+    <ul class="product-row listing-grid" style={`--across: ${across}`}>
+      {result.items.map((product, i) => (
+        <li><ProductCard product={product} currencySymbol={config.currencySymbol} eager={i < 2} copy={content} /></li>
+      ))}
+    </ul>
+  ) : (
+    <div class="search-empty">
+      <span class="search-empty-icon" aria-hidden="true"><Icon name="heroicons:magnifying-glass" /></span>
+      {query && <h2>{content.searchEmpty}</h2>}
+      <p>{content.searchHint}</p>
+    </div>
+  )}
+
+  {query && <ListingPager basePath={searchPath} page={page} hasNext={result.hasNext} total={result.total} sort={sort} keep={{ q: query }} content={content} />}
+</Section>
+
+<style>
+  .search-head { max-width: 40rem; margin: 0 auto 1.75rem; text-align: center; }
+  .search-head h1 { color: var(--clr-ink); font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); font-weight: 600; }
+  .search-form { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
+  .search-field { position: relative; flex: 1; }
+  .search-field :global(svg) { position: absolute; inset-inline-start: 0.875rem; top: 50%; width: 1.25rem; height: 1.25rem; color: var(--clr-muted); transform: translateY(-50%); pointer-events: none; }
+  .search-field .form-input { padding-inline-start: 2.75rem; }
+  .product-row { margin: 0; padding: 0; list-style: none; }
+  .search-empty { display: grid; justify-items: center; gap: 0.5rem; padding-block: 3rem; color: var(--clr-muted); text-align: center; }
+  .search-empty h2 { color: var(--clr-ink); font-size: var(--text-lg); font-weight: 600; }
+  .search-empty-icon { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: var(--radius-round); background: var(--clr-plate); color: var(--clr-ink); }
+  .search-empty-icon :global(svg) { width: 1.5rem; height: 1.5rem; }
+</style>

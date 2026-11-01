@@ -7,7 +7,7 @@ import { schemeField } from "../shared";
 /** A band of short promises that scrolls across the page; a shopper who asked for less motion sees it still. */
 export const marquee = defineComponent({
   type: "marquee",
-  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "thank-you", "area:footer"] },
+  capabilities: { insertable: true, surfaces: ["home", "page", "landing", "thank-you", "search", "track-order", "contact", "area:footer"] },
   component: Marquee,
   label: SECTION.marquee,
   group: GROUP.home,

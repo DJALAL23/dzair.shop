@@ -104,7 +104,7 @@ describe("the code box", () => {
     expect(status(root).dataset.tone).toBe("hint");
     expect(input(root).classList.contains("error")).toBe(false);
 
-    field.show(undefined);
+    field.show(null);
     expect(statusRow(root).hidden).toBe(true);
   });
 
@@ -240,12 +240,12 @@ describe("the code box", () => {
       expect(other.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }))).toBe(true);
     });
 
-    it("leaves the order to the server when the server says nothing of coupons", () => {
+    it("leaves the order to the server when an answer says nothing of the code", () => {
       const root = mount();
       const field = initCouponField(root, () => {})!;
       input(root).value = "DIX";
       root.querySelector<HTMLButtonElement>("[data-coupon-apply]")!.click();
-      field.show(undefined);
+      field.show(null);
       expect(submit(root)).toBe(true);
     });
   });

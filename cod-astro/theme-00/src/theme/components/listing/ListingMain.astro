@@ -21,15 +21,12 @@ const { content, config, locale } = store;
 const across = Math.min(5, Math.max(2, Math.round(columns)));
 const outer = styleClasses(style?.spacing ? { spacing: style.spacing } : undefined);
 const width = styleClasses(style?.size ? { size: style.size } : undefined);
-// The whole listing's size when the server counts it; the page's own rows otherwise.
-const whole = view ? (view.total ?? (view.page === 1 && !view.hasNext ? view.products.length : null)) : null;
+// The whole listing's size on its one page; which rows of how many otherwise.
 const count = !view
   ? ""
-  : whole !== null && view.page === 1 && !view.hasNext
-    ? message(content, "listingCount", { count: whole }, locale)
-    : whole !== null
-      ? message(content, "listingRangeTotal", { first: view.first, last: view.last, count: whole }, locale)
-      : message(content, "listingRange", { first: view.first, last: view.last, noun: content.productCountLabel }, locale);
+  : view.page === 1 && !view.hasNext
+    ? message(content, "listingCount", { count: view.total }, locale)
+    : message(content, "listingRangeTotal", { first: view.first, last: view.last, count: view.total }, locale);
 ---
 
 {view && (

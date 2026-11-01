@@ -79,6 +79,7 @@ function store(empty = false) {
     categories: { list: async () => (empty ? [] : [{ id: "cat_robes", name: "Robes", slug: "robes", description: null, parentId: null, image: null, metaTitle: null, metaDescription: null, metaKeywords: null, position: 0, createdAt: "", updatedAt: "" }]) },
     collections: { get: async (handle: string) => (!empty && handle === "best-sellers" ? { handle, title: "Meilleures ventes", description: null } : null) },
     pages: { get: async () => null },
+    shipping: { rates: async () => ({}) },
   } as unknown as StoreClient;
   return testStore({ client });
 }
@@ -173,8 +174,16 @@ describe("the preview route", () => {
 
   it("is a 404 without a verified preview, and for a surface this theme does not compose", async () => {
     expect((await render(PreviewPage)).response.status).toBe(404);
-    expect((await render(PreviewPage, { draft: { surface: "checkout" } })).response.status).toBe(404);
+    expect((await render(PreviewPage, { draft: { surface: "blog" } })).response.status).toBe(404);
     expect((await render(PreviewPage, { draft: { surface: "area:sidebar" } })).response.status).toBe(404);
+  });
+
+  it("previews every page of the store's own — search, order tracking, checkout, contact — with its main section marked", async () => {
+    for (const [surface, main] of [["search", "search-main"], ["track-order", "track-order-main"], ["checkout", "checkout-main"], ["contact", "contact-main"]]) {
+      const { response, html } = await render(PreviewPage, { draft: { surface } });
+      expect(response.status, surface).toBe(200);
+      expect(starts(html), surface).toContain(main);
+    }
   });
 
   it("previews a store with no product, category, collection or text page yet: the template renders empty, never an error", async () => {

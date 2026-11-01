@@ -11,15 +11,14 @@ import type { LocaleRouting } from "@wocart/storefront";
 import FooterAbout from "@/theme/components/footer/FooterAbout.astro";
 import FooterMenu from "@/theme/components/footer/FooterMenu.astro";
 import FooterPages from "@/theme/components/footer/FooterPages.astro";
-import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { fr } from "@/theme/content/fr";
 import { fakeStorefront, makeProduct, renderSections } from "../support/home-render";
-import { testLocals } from "../support/locals";
+import { testLocals, TEST_CONFIG } from "../support/locals";
 
 const routing: LocaleRouting = { primary: "ar", published: ["ar", "fr"] };
-const product = makeProduct({ id: "p-1", handle: "phone", storeFeatured: true });
+const product = makeProduct({ id: "p-1", handle: "phone" });
 /** A catalog larger than a section shows, so its "view all" link renders. */
-const catalog = [product, ...Array.from({ length: 11 }, (_, i) => makeProduct({ id: `p-${i + 2}`, handle: `item-${i + 2}`, storeFeatured: true }))];
+const catalog = [product, ...Array.from({ length: 11 }, (_, i) => makeProduct({ id: `p-${i + 2}`, handle: `item-${i + 2}` }))];
 
 /** Every href in the markup. */
 const hrefs = (html: string) => [...html.matchAll(/href="([^"]*)"/g)].map((match) => match[1]!);
@@ -58,7 +57,7 @@ describe("links in French", () => {
   it("localizes the footer's navigation and policy links", async () => {
     const container = await AstroContainer.create();
     const config = {
-      ...DEFAULT_CONFIG,
+      ...TEST_CONFIG,
       pages: [{ id: "p", kind: "terms" as const, slug: "conditions", title: "Conditions", position: 1 }],
     };
     const locals = testLocals({ locale: "fr", routing, content: fr, config });

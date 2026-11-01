@@ -16,7 +16,6 @@ const products = Array.from({ length: 6 }, (_, index) =>
     id: `prod_${index}`,
     name: `Product ${index}`,
     handle: `product-${index}`,
-    storeFeatured: index < 5,
   }),
 );
 const categories = Array.from(

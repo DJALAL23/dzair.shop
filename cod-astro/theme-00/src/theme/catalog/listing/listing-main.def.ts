@@ -20,8 +20,8 @@ export interface ListingView {
   hasNext: boolean;
   first: number;
   last: number;
-  /** How many products the whole listing holds; null from a server that does not count. */
-  total: number | null;
+  /** How many products the whole listing holds. */
+  total: number;
   /** The order asked for; none is the listing's own. */
   sort: ProductSort | undefined;
   /** The listing's own path, for its pages and the active chip. */

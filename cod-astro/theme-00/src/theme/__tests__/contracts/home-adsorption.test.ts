@@ -24,8 +24,7 @@ import type {
 } from "@wocart/theme";
 import { theme00 } from "@/theme/theme";
 import { makeProduct } from "../support/home-render";
-import { testLocals } from "../support/locals";
-import { DEFAULT_CONFIG } from "@/theme/runtime/store";
+import { testLocals, TEST_CONFIG } from "../support/locals";
 import { en } from "@/theme/content/en";
 import homePage from "@/theme/pages/home.page.json";
 
@@ -112,7 +111,7 @@ const containerPromise = AstroContainer.create();
 
 function createHarness(
   storefront: StoreClient,
-  store = DEFAULT_CONFIG,
+  store = TEST_CONFIG,
 ): { render: (instance: ComponentInstance) => Promise<string>; reads: ReadCache } {
   const reads = createReadCache();
   const context: ThemeRenderContext = {
@@ -253,7 +252,7 @@ describe("home adsorption — collections are the merchant's", () => {
 describe("home adsorption — reviews (config default, override, in-section read)", () => {
   it("config off, no override: the section is absent and no review read happens", async () => {
     const stub = createStorefrontStub([FEATURED]);
-    const { render } = createHarness(stub.client, { ...DEFAULT_CONFIG, reviewsEnabled: false });
+    const { render } = createHarness(stub.client, { ...TEST_CONFIG, reviewsEnabled: false });
     const html = await render(shippedSection("customer-testimonials"));
     expect(decode(html)).not.toContain(en.testimonialsTitle);
     expect(stub.reviewsList).not.toHaveBeenCalled();
@@ -261,7 +260,7 @@ describe("home adsorption — reviews (config default, override, in-section read
 
   it("config on: the section renders reviews fetched by the section itself", async () => {
     const stub = createStorefrontStub([FEATURED]);
-    const { render } = createHarness(stub.client, { ...DEFAULT_CONFIG, reviewsEnabled: true });
+    const { render } = createHarness(stub.client, { ...TEST_CONFIG, reviewsEnabled: true });
     const html = await render(shippedSection("customer-testimonials"));
     expect(decode(html)).toContain(en.testimonialsTitle);
     expect(html).toContain("Fast and honest");
@@ -270,7 +269,7 @@ describe("home adsorption — reviews (config default, override, in-section read
 
   it("a stored `enabled` beats the config (boolean field, no default)", async () => {
     const stub = createStorefrontStub([FEATURED]);
-    const { render } = createHarness(stub.client, { ...DEFAULT_CONFIG, reviewsEnabled: false });
+    const { render } = createHarness(stub.client, { ...TEST_CONFIG, reviewsEnabled: false });
     const html = await render({
       id: "cmp_reviews_on",
       type: "customer-testimonials",
@@ -283,7 +282,7 @@ describe("home adsorption — reviews (config default, override, in-section read
 describe("home adsorption — the full page", () => {
   it("renders every shipped section in order through one renderer cache", async () => {
     const stub = createStorefrontStub([FEATURED, PLAIN], { "best-sellers": [FEATURED], "new-arrivals": [PLAIN] }, [PLAIN]);
-    const { render } = createHarness(stub.client, { ...DEFAULT_CONFIG, reviewsEnabled: true });
+    const { render } = createHarness(stub.client, { ...TEST_CONFIG, reviewsEnabled: true });
     let html = "";
     for (const section of shipped.page?.sections ?? []) {
       html += await render(section);

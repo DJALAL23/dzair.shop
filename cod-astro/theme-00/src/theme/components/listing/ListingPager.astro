@@ -13,18 +13,18 @@ interface Props {
   basePath: string;
   page: number;
   hasNext: boolean;
-  /** How many products the whole listing holds; null when the server does not say. */
-  total?: number | null;
+  /** How many products the whole listing holds. */
+  total: number;
   sort?: ProductSort | undefined;
   /** Fields every page keeps, such as a search's words. */
   keep?: Record<string, string>;
   content: StoreFrontContent;
 }
 
-const { basePath, page, hasNext, total = null, sort, keep = {}, content } = Astro.props;
+const { basePath, page, hasNext, total, sort, keep = {}, content } = Astro.props;
 const pageHref = (n: number) => listingHref(basePath, n, sort, keep);
 const pages = pageCount(total);
-const known = pages !== null && pages >= page;
+const known = pages >= page;
 ---
 
 {(page > 1 || hasNext) && (

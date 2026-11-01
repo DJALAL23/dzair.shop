@@ -16,7 +16,6 @@ export const enMisc: MiscStrings = {
   noResultsLabel: "No results found",
   loadMoreLabel: "Load More",
   allLabel: "All",
-  productCountLabel: "Products",
   pagerPrevious: "Previous",
   pagerNext: "Next",
   pagerLabel: "Page navigation",

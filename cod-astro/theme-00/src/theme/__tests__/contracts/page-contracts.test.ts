@@ -178,8 +178,8 @@ describe("the checkout page", () => {
     expect(source).toMatch(/noindex=\{true\}/);
   });
 
-  it("loads its own controller", () => {
-    expect(scriptsOf(source).has("checkout")).toBe(true);
+  it("loads its own controller beside the form it drives", () => {
+    expect(scriptsOf(read(join(SRC_DIR, "theme/components/checkout/CheckoutMain.astro"))).has("checkout")).toBe(true);
   });
 });
 

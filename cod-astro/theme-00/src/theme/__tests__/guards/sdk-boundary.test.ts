@@ -21,7 +21,7 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { STOREFRONT_ROUTES } from "@wocart/storefront";
+import { STOREFRONT_PAGE_PATHS } from "@wocart/storefront";
 
 import { type SourceFile, SRC_DIR, themeSourceFiles } from "./theme-source";
 
@@ -311,20 +311,19 @@ describe("S10 platform rule bindings", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("the widget and the thank-you button bind the SDK's resolver", () => {
-    const script = files.find((f) => f.relPath === "theme/scripts/whatsapp-widget.ts");
-    const component = files.find(
-      (f) => f.relPath === "theme/components/chat/WhatsAppWidget.astro",
-    );
-    const thankYou = files.find((f) => f.relPath === "theme/components/thank-you/ThankYouMain.astro");
+  it("every WhatsApp link comes from the SDK, through the theme's one binding", () => {
+    // `whatsAppContact` resolves the page's message and every text in its
+    // language; a link built anywhere else skips the merchant's words, the
+    // cap and the token rules.
+    const binding = "theme/utils/whatsapp.ts";
+    const of = (test: (content: string) => boolean) => files.filter((f) => test(f.content)).map((f) => f.relPath).sort();
 
-    expect(script?.content).toContain('from "@wocart/storefront"');
-    expect(component?.content).toContain(
-      'import { resolvePrefillText, buildWhatsAppHref } from "@wocart/storefront"',
-    );
-    expect(thankYou?.content).toContain("buildWhatsAppHref(");
-    // A page that builds its own `?text=` skips the cap and the token rules.
-    expect(thankYou?.content).not.toContain("?text=");
+    expect(of((content) => content.includes("whatsAppContact("))).toEqual([binding]);
+    expect(of((content) => /wa\.me|api\.whatsapp\.com|\?text=/.test(content))).toEqual([]);
+    expect(of((content) => content.includes("config.whatsapp") || content.includes(".whatsapp.href"))).toEqual([]);
+    for (const relPath of of((content) => content.includes("storeWhatsApp("))) {
+      if (relPath !== binding) expect(files.find((f) => f.relPath === relPath)?.content, relPath).toContain('from "@/theme/utils/whatsapp"');
+    }
   });
 
   it("the widget surface gate is defined only in the SDK", () => {
@@ -352,7 +351,7 @@ describe("S10 platform rule bindings", () => {
     ].map((match) => match[1]);
 
     for (const path of suppressed) {
-      expect(STOREFRONT_ROUTES.map((route) => route.path)).toContain(path);
+      expect(Object.values(STOREFRONT_PAGE_PATHS)).toContain(path);
     }
   });
 

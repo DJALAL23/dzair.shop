@@ -222,7 +222,7 @@ describe("an editor composing the home page from the manifest alone", () => {
     page = must(setInstanceProps(catalog, page, "banner", { image: { key: "products/3f2a9c.webp", alt: { ar: "فساتين", fr: "Robes", en: "Dresses" } } }));
     page = must(insertInstance(catalog, page, createInstance(catalog.components.faq, "faq", { questions: [{ id: "q1", props: { question: "COD?" } }] })));
     page = must(insertInstance(catalog, page, createInstance(catalog.components["featured-product"], "spotlight", { product: "robe-kabyle" })));
-    page = must(setInstanceHidden(page, "cmp_h6feat", true));
+    page = must(setInstanceHidden(catalog, page, "cmp_h6feat", true));
 
     expect(checkPageData(catalog, page)).toEqual([]);
     expect(validatePageData(theme00, page, { content: en, locales: ["en"] }).issues).toEqual([]);

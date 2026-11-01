@@ -208,7 +208,8 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   see `__tests__/contracts/home-adsorption.test.ts`); copy fields use the
   `contentKey` bridge (`copyOverrides` in `catalog/shared.ts`). Every page a
   merchant edits is composed the same way: home, product, collection,
-  category, catalog and text page, and the header and footer areas.
+  category, catalog and text page, thank-you, landing, search, order
+  tracking, checkout and contact, and the header and footer areas.
 - **Every word a home section renders is editable (2026-10-12).** Section copy
   is a field whose `key` equals its `contentKey`; store-wide UI vocabulary
   ("View all", aria labels) stays in the pack. Links are `url` fields (the SDK
@@ -303,6 +304,16 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   `createReviewSession`; an offer chosen piece by piece goes into the basket
   through `addSelections`, and AddToCart reports `addedLines`. The paths those
   call are the routes in `src/theme/scripts/api-paths.ts`.
+- **The store's WhatsApp is the App's, reached one way.** Every WhatsApp link
+  — the launcher, the footer, the home band, the contact card, the thank-you
+  and tracking buttons — comes from `storeWhatsApp` (`utils/whatsapp.ts`, the
+  SDK's `whatsAppContact` with this theme's words). The launcher's message is
+  built on the server for the page: `StoreLayout` takes the page's product
+  (`whatsapp={{ kind: "product", product }}`). No component writes a `wa.me`
+  link or reads `config.whatsapp` (`sdk-boundary.test.ts`).
+- **A store that cannot be read renders the SDK's shell** —
+  `UNAVAILABLE_STORE`, the SDK's `unavailableStoreConfig`: nothing to buy,
+  and an empty `id`. Never write a fallback config by hand.
 - **Listings, search and following an order are the platform's.** Listings read
   `products.page` (the rows, the next page and the total) with `?sort=` from
   the SDK's `PRODUCT_SORTS`; `/search` is `products.search`; `/track-order`

@@ -581,7 +581,7 @@ export function initProductPage(): () => void {
     return JSON.stringify({ destination: deliveryDestination() ?? null, form: productFormBody(), coupon: couponAsk() });
   }
 
-  /** Shows the server's answer. Without a destination, or from a server that predates quotes, the rate table prices delivery. */
+  /** Shows the server's answer. Without a destination yet, the rate table prices delivery. */
   function applyQuote(answer: CartValidation): void {
     coupon?.show(answer.coupon);
     const delivery = answer.delivery;

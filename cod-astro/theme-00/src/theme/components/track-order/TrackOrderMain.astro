@@ -1,0 +1,195 @@
+---
+// Where a shopper's order is (`track-order-main`). A plain form posts the
+// order number and the phone to an action; the page renders from the same
+// POST, so it needs no script, and the answer is never cached. A link from
+// the thank-you page (`?order=`) arrives with the number filled in.
+import { Icon } from "astro-icon/components";
+import { actions } from "astro:actions";
+import { SHOPPER_ORDER_JOURNEY, SHOPPER_ORDER_STAGES, canonicalUrl, storefrontPath } from "@wocart/storefront";
+import type { OrderLookup } from "@wocart/storefront/astro";
+import type { InferProps } from "@wocart/theme";
+import Section from "@/theme/components/ui/Section.astro";
+import type { StoreFrontContent } from "@/theme/content";
+import { message } from "@/theme/content/messages";
+import type { trackOrderMain } from "@/theme/catalog/track-order/track-order-main.def";
+import { formatAmount } from "@/theme/utils/money";
+import { storeWhatsApp, whatsappWords } from "@/theme/utils/whatsapp";
+
+type Props = Pick<InferProps<typeof trackOrderMain>, "scheme" | "style"> & {
+  content: StoreFrontContent;
+};
+
+/** How an order number looks, shown where a shopper types one. */
+const ORDER_EXAMPLE = "ORD-20261023-0042";
+
+const { content, scheme, style } = Astro.props;
+const store = Astro.locals.store;
+const { config, locale } = store;
+const result = Astro.getActionResult(actions.orderStatus);
+const lookup: OrderLookup | { status: "missing" } | null = result?.data?.lookup ?? (result?.error ? { status: "missing" } : null);
+const asked = result?.data?.asked ?? { orderNumber: (Astro.url.searchParams.get("order") ?? "").trim().slice(0, 64), phone: "" };
+const order = lookup?.status === "found" ? lookup.order : null;
+
+function refusal(answer: typeof lookup): string | null {
+  switch (answer?.status) {
+    case "missing":
+      return content.trackMissing;
+    case "invalid-number":
+      return message(content, "trackInvalidNumber", { example: ORDER_EXAMPLE }, locale);
+    case "invalid-phone":
+      return content.trackInvalidPhone;
+    case "not-found":
+      return content.trackNotFound;
+    case "rate-limited":
+      return answer.retryAfterSeconds ? message(content, "trackRateLimited", { count: Math.ceil(answer.retryAfterSeconds / 60) }, locale) : content.trackRateLimitedSoon;
+    case "failed":
+      return content.trackFailed;
+    default:
+      return null;
+  }
+}
+const refused = refusal(lookup);
+
+type Words = { title: keyof StoreFrontContent; hint: keyof StoreFrontContent };
+const STAGE_WORDS: Record<(typeof SHOPPER_ORDER_STAGES)[number], Words> = {
+  placed: { title: "trackStagePlaced", hint: "trackStagePlacedHint" },
+  confirmed: { title: "trackStageConfirmed", hint: "trackStageConfirmedHint" },
+  preparing: { title: "trackStagePreparing", hint: "trackStagePreparingHint" },
+  shipped: { title: "trackStageShipped", hint: "trackStageShippedHint" },
+  out_for_delivery: { title: "trackStageOutForDelivery", hint: "trackStageOutForDeliveryHint" },
+  delivered: { title: "trackStageDelivered", hint: "trackStageDeliveredHint" },
+  returned: { title: "trackStageReturned", hint: "trackStageReturnedHint" },
+  cancelled: { title: "trackStageCancelled", hint: "trackStageCancelledHint" },
+};
+const known = (stage: string): stage is (typeof SHOPPER_ORDER_STAGES)[number] => (SHOPPER_ORDER_STAGES as readonly string[]).includes(stage);
+// A step a newer server names has the general words, and no place on the journey.
+const words: Words | null = order ? (known(order.stage) ? STAGE_WORDS[order.stage] : { title: "trackStageOther", hint: "trackStageOtherHint" }) : null;
+const reached = order ? (SHOPPER_ORDER_JOURNEY as readonly string[]).indexOf(order.stage) : -1;
+const ended = order?.stage === "returned" || order?.stage === "cancelled";
+const placedOn = order ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(new Date(order.placedAt)) : "";
+// A question about this order goes to the store's WhatsApp, named in the message.
+const whatsapp = order
+  ? storeWhatsApp(store, { kind: "order", order: order.orderNumber, url: canonicalUrl(Astro.url.origin, store, Astro.url.search) }, { orderButton: content.trackContact, messages: { ...whatsappWords(content).messages, order: content.trackWhatsAppPrefill } })
+  : null;
+const pagePath = store.href(storefrontPath("trackOrder"));
+---
+
+<Section scheme={scheme} style={style}>
+  <header class="track-head">
+    <h1>{content.trackTitle}</h1>
+    {!order && <p>{content.trackIntro}</p>}
+  </header>
+
+  {order && words ? (
+    <article class="track-card" aria-labelledby="track-stage">
+      <div class="track-number">
+        <span>{content.trackNumberLabel}</span>
+        <strong dir="ltr">{order.orderNumber}</strong>
+        <small>{message(content, "trackPlacedOn", { date: placedOn }, locale)}</small>
+      </div>
+
+      <div class:list={["track-stage", ended && "is-ended", order.stage === "delivered" && "is-done"]}>
+        <span class="track-stage-icon" aria-hidden="true"><Icon name={ended ? "heroicons:exclamation-triangle" : order.stage === "delivered" ? "heroicons:check-circle" : "heroicons:truck"} /></span>
+        <div>
+          <h2 id="track-stage">{content[words.title]}</h2>
+          <p>{content[words.hint]}</p>
+        </div>
+      </div>
+
+      {reached >= 0 && (
+        <ol class="track-journey" aria-label={content.trackProgress}>
+          {SHOPPER_ORDER_JOURNEY.map((stage, index) => (
+            <li class:list={[index < reached && "is-done", index === reached && "is-current"]} aria-current={index === reached ? "step" : undefined}>
+              <span class="track-dot" aria-hidden="true">{index < reached && <Icon name="heroicons:check" />}</span>
+              <span>{content[STAGE_WORDS[stage].title]}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <dl class="track-facts">
+        <div><dt>{content.trackDeliveryLabel}</dt><dd>{order.deliveryType === "stop_desk" ? content.trackDeliveryStopDesk : content.trackDeliveryHome}</dd></div>
+        <div><dt>{content.trackTotalLabel}</dt><dd class="num">{formatAmount(order.total)} <span>{config.currencySymbol}</span></dd></div>
+        {order.tracking && <div class="is-wide"><dt>{content.trackTrackingLabel}</dt><dd dir="ltr">{order.tracking.carrier ? `${order.tracking.carrier} · ${order.tracking.number}` : order.tracking.number}</dd></div>}
+      </dl>
+
+      <section aria-labelledby="track-items">
+        <h3 id="track-items" class="track-items-title">{content.trackItemsTitle}</h3>
+        <ul class="track-lines">
+          {order.lines.map((line) => (
+            <li><span>{line.name}{line.variantLabel && <small> · {line.variantLabel}</small>}</span><span class="num" dir="ltr">×{line.quantity}</span></li>
+          ))}
+        </ul>
+      </section>
+
+      <div class="track-actions">
+        {whatsapp && (
+          <a class="btn-primary" href={whatsapp.href} target="_blank" rel="noopener noreferrer"><Icon name="heroicons:chat-bubble-left" aria-hidden="true" />{whatsapp.orderButtonLabel}</a>
+        )}
+        <a class="btn-secondary" href={pagePath}>{content.trackAnother}</a>
+      </div>
+    </article>
+  ) : (
+    <form class="track-card" method="POST" action={`${pagePath}${actions.orderStatus}`} data-astro-reload>
+      <div>
+        <label class="form-label" for="track-number">{content.trackNumberLabel}</label>
+        <input class="form-input" id="track-number" name="orderNumber" value={asked.orderNumber} autocomplete="off" autocapitalize="characters" spellcheck="false" dir="ltr" placeholder={ORDER_EXAMPLE} maxlength="64" required aria-describedby="track-number-hint" />
+        <p class="track-hint" id="track-number-hint">{message(content, "trackNumberHint", { example: ORDER_EXAMPLE }, locale)}</p>
+      </div>
+      <div>
+        <label class="form-label" for="track-phone">{content.trackPhoneLabel}</label>
+        <input class="form-input" id="track-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" value={asked.phone} maxlength="32" required />
+      </div>
+      {refused && <p class="track-refusal" role="alert"><Icon name="heroicons:exclamation-triangle" aria-hidden="true" />{refused}</p>}
+      <button type="submit" class="btn-primary"><Icon name="heroicons:magnifying-glass" aria-hidden="true" />{content.trackSubmit}</button>
+    </form>
+  )}
+</Section>
+
+<style>
+  .track-head { max-width: 34rem; margin: 0 auto 1.75rem; text-align: center; }
+  .track-head h1 { color: var(--clr-ink); font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); font-weight: 600; }
+  .track-head p { margin-top: 0.625rem; color: var(--clr-muted); font-size: var(--text-sm); }
+  .track-card { display: grid; gap: 1.25rem; max-width: 36rem; margin-inline: auto; padding: 1.5rem; border: 1px solid var(--clr-border); border-radius: var(--radius-card); background: var(--clr-surface); }
+  @media (min-width: 640px) { .track-card { padding: 2rem; } }
+  .track-hint { margin-top: 0.375rem; color: var(--clr-muted); font-size: var(--text-xs); }
+  .track-refusal { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.75rem 0.875rem; border-radius: var(--radius-input); background: var(--clr-error-bg); color: var(--clr-error); font-size: var(--text-sm); font-weight: 600; }
+  .track-refusal :global(svg) { flex: none; width: 1.125rem; height: 1.125rem; margin-top: 0.125rem; }
+  .track-card :global(.btn-primary svg), .track-card :global(.btn-secondary svg) { width: 1.125rem; height: 1.125rem; }
+  .track-number { display: grid; gap: 0.25rem; padding: 1rem 1.125rem; border: 1px dashed var(--clr-border-strong); border-radius: var(--radius-input); background: var(--clr-plate); }
+  .track-number span, .track-number small { color: var(--clr-muted); font-size: var(--text-xs); }
+  .track-number strong { color: var(--clr-ink); font-size: var(--text-xl); letter-spacing: 0.04em; }
+  .track-stage { display: flex; gap: 0.875rem; align-items: flex-start; padding: 1rem; border-radius: var(--radius-input); background: var(--clr-plate); }
+  .track-stage h2 { color: var(--clr-ink); font-size: var(--text-lg); font-weight: 600; }
+  .track-stage p { margin-top: 0.25rem; color: var(--clr-text); font-size: var(--text-sm); }
+  .track-stage-icon { display: grid; flex: none; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: var(--radius-round); background: var(--clr-surface); color: var(--clr-primary); }
+  .track-stage-icon :global(svg) { width: 1.375rem; height: 1.375rem; }
+  .track-stage.is-done .track-stage-icon { color: var(--clr-success); }
+  .track-stage.is-ended { background: var(--clr-error-bg); }
+  .track-stage.is-ended .track-stage-icon { color: var(--clr-error); }
+  .track-journey { display: grid; margin: 0; padding: 0; list-style: none; }
+  .track-journey li { position: relative; display: flex; gap: 0.75rem; align-items: center; padding-block: 0.4375rem; color: var(--clr-muted); font-size: var(--text-sm); }
+  .track-journey li:not(:last-child)::after { content: ""; position: absolute; inset-block: calc(50% + 0.75rem) calc(-50% + 0.75rem); inset-inline-start: 0.6875rem; width: 2px; background: var(--clr-border); }
+  .track-journey li.is-done:not(:last-child)::after { background: var(--clr-primary); }
+  .track-journey li.is-done, .track-journey li.is-current { color: var(--clr-ink); }
+  .track-journey li.is-current { font-weight: 600; }
+  .track-dot { position: relative; z-index: 1; display: grid; flex: none; place-items: center; width: 1.5rem; height: 1.5rem; border: 2px solid var(--clr-border-strong); border-radius: var(--radius-round); background: var(--clr-surface); color: var(--clr-on-primary); }
+  .track-dot :global(svg) { width: 0.875rem; height: 0.875rem; }
+  .is-done .track-dot { border-color: var(--clr-primary); background: var(--clr-primary); }
+  .is-current .track-dot { border-color: var(--clr-primary); box-shadow: 0 0 0 4px color-mix(in oklab, var(--clr-primary) 18%, transparent); }
+  @media (min-width: 640px) {
+    .track-journey { grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; }
+    .track-journey li { flex-direction: column; gap: 0.5rem; padding-block: 0; text-align: center; font-size: var(--text-xs); }
+    .track-journey li:not(:last-child)::after { inset-block: 0.6875rem auto; inset-inline: calc(50% + 0.75rem) calc(-50% + 0.75rem); width: auto; height: 2px; }
+  }
+  .track-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem; margin: 0; }
+  .track-facts div { display: grid; gap: 0.125rem; padding: 0.75rem; border-radius: var(--radius-input); background: var(--clr-plate); }
+  .track-facts .is-wide { grid-column: 1 / -1; }
+  .track-facts dt { color: var(--clr-muted); font-size: var(--text-xs); }
+  .track-facts dd { margin: 0; color: var(--clr-ink); font-weight: 600; }
+  .track-items-title { margin-bottom: 0.5rem; color: var(--clr-ink); font-size: var(--text-sm); font-weight: 600; }
+  .track-lines { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+  .track-lines li { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.625rem 0.875rem; border-radius: var(--radius-input); background: var(--clr-plate); color: var(--clr-ink); font-size: var(--text-sm); }
+  .track-lines small { color: var(--clr-muted); }
+  .track-actions { display: grid; gap: 0.625rem; }
+</style>

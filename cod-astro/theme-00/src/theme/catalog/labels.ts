@@ -41,6 +41,10 @@ export const SECTION = {
   featuredProduct: text("منتج بارز", "Produit à la une", "Featured product"),
   listingMain: text("قائمة المنتجات", "Liste des produits", "Product list"),
   pageMain: text("محتوى الصفحة", "Contenu de la page", "Page content"),
+  searchMain: text("نتائج البحث", "Résultats de recherche", "Search results"),
+  trackOrderMain: text("تتبّع الطلب", "Suivi de commande", "Order tracking"),
+  checkoutMain: text("إتمام الطلب", "Validation de commande", "Checkout"),
+  contactMain: text("طرق التواصل", "Moyens de contact", "Ways to reach the store"),
 };
 
 /** The help an editor shows under a field. */
@@ -48,6 +52,7 @@ export const HELP = {
   endsOn: text("مثال: 2026-11-30. بتوقيت الجزائر؛ يختفي العدّ عند انتهائه.", "Exemple : 2026-11-30. Heure d'Alger ; le compte à rebours disparaît à la fin.", "For example 2026-11-30. Algiers time; the countdown disappears when it ends."),
   endsAt: text("اتركه فارغاً لينتهي في منتصف ليل ذلك اليوم. مثال: 18:00.", "Laissez vide pour finir à minuit ce jour-là. Exemple : 18:00.", "Leave empty to end at midnight that day. For example 18:00."),
   firstImage: text("الصورة الأولى من صور الصفحة التي يعرضها هذا القسم.", "La première des images de la page que montre cette section.", "The first of the page's images this section shows."),
+  hours: text("مثال: من السبت إلى الخميس، 9:00–18:00. اتركه فارغاً إن لم تُرد عرضها.", "Exemple : du samedi au jeudi, 9 h – 18 h. Laissez vide pour ne pas les afficher.", "For example Saturday to Thursday, 9:00–18:00. Leave empty to show none."),
   imageCount: text("0 لعرض كل الصور التي تليها.", "0 pour montrer toutes les suivantes.", "0 shows every image after it."),
 };
 
@@ -136,6 +141,10 @@ export const FIELD = {
   question: text("السؤال", "Question", "Question"),
   answer: text("الجواب", "Réponse", "Answer"),
   product: text("المنتج", "Produit", "Product"),
+  intro: text("نص تمهيدي", "Introduction", "Introduction"),
+  hours: text("أوقات العمل", "Horaires", "Opening hours"),
+  contactNote: text("ملاحظة", "Note", "Note"),
+  showStorePages: text("صفحات المتجر", "Pages de la boutique", "Store pages"),
 };
 
 /** The words an editor shows for a select field's options. */
@@ -185,6 +194,7 @@ export const GROUP = {
   product: text("صفحة المنتج", "Page produit", "Product page"),
   listing: text("قوائم المنتجات", "Listes de produits", "Product lists"),
   page: text("صفحات النص", "Pages de texte", "Text pages"),
+  store: text("صفحات المتجر", "Pages de la boutique", "Store pages"),
   landing: text("صفحة الهبوط", "Page d'atterrissage", "Landing page"),
   header: text("رأس الصفحة", "En-tête", "Header"),
   footer: text("تذييل الصفحة", "Pied de page", "Footer"),
@@ -226,6 +236,10 @@ export const SURFACE = {
   page: text("صفحة نصية", "Page de texte", "Text page"),
   thankYou: text("صفحة الشكر", "Page de remerciement", "Thank-you page"),
   landing: text("صفحة هبوط", "Page d'atterrissage", "Landing page"),
+  search: text("صفحة البحث", "Page de recherche", "Search page"),
+  trackOrder: text("صفحة تتبّع الطلب", "Page de suivi de commande", "Order tracking page"),
+  checkout: text("صفحة إتمام الطلب", "Page de validation", "Checkout page"),
+  contact: text("صفحة الاتصال", "Page de contact", "Contact page"),
 };
 
 /** The theme's global settings (`settings.ts`), as the editor groups them. */

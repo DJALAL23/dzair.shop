@@ -96,7 +96,7 @@ src/
 │   │   ├── ar|en|fr/    #     one file per area (home, order-form, cart, …)
 │   │   └── types/       #     one type per area; types.ts composes StoreFrontContent
 │   ├── bridges/         #   SSR ↔ browser contracts & island prop picks (product-page-data.ts, island-props.ts)
-│   ├── runtime/         #   store.ts (DEFAULT_CONFIG + getStoreContext)
+│   ├── runtime/         #   store.ts (UNAVAILABLE_STORE + the store context)
 │   ├── catalog/         #   Home component catalog (definitions — code)
 │   │   ├── home/        #     one *.def.ts per section (hero, best-sellers, …)
 │   │   └── shared.ts    #     read keys + the copyOverrides bridge

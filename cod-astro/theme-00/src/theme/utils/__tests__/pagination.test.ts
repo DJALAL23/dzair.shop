@@ -41,11 +41,10 @@ describe("pageSpan and pageCount", () => {
     expect(pageSpan(4, 0)).toEqual({ first: 0, last: 3 * LISTING_PAGE_SIZE });
   });
 
-  it("counts the pages a total fills, at least one, and none when the size is unknown", () => {
+  it("counts the pages a total fills, at least one", () => {
     expect(pageCount(0)).toBe(1);
     expect(pageCount(LISTING_PAGE_SIZE)).toBe(1);
     expect(pageCount(LISTING_PAGE_SIZE + 1)).toBe(2);
-    expect(pageCount(null)).toBeNull();
   });
 });
 

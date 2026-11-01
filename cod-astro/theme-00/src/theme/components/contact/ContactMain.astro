@@ -1,0 +1,101 @@
+---
+// The store's ways to reach it (`contact-main`): its WhatsApp, phone, email
+// and address — each a card once the store has it — the merchant's opening
+// hours and note when written, and the store's own pages beneath.
+import { Icon } from "astro-icon/components";
+import { canonicalUrl, storefrontPath } from "@wocart/storefront";
+import type { InferProps } from "@wocart/theme";
+import Section from "@/theme/components/ui/Section.astro";
+import type { StoreFrontContent } from "@/theme/content";
+import type { contactMain } from "@/theme/catalog/contact/contact-main.def";
+import { storeWhatsApp } from "@/theme/utils/whatsapp";
+
+type Props = Pick<InferProps<typeof contactMain>, "hours" | "note" | "showStorePages" | "scheme" | "style"> & {
+  content: StoreFrontContent;
+};
+
+const { content, hours, note, showStorePages = true, scheme, style } = Astro.props;
+const store = Astro.locals.store;
+const { config } = store;
+const { phone, email, address } = config.contact;
+const whatsapp = storeWhatsApp(store, { kind: "general", url: canonicalUrl(Astro.url.origin, store, Astro.url.search) });
+
+type Card = { icon: string; title: string; detail: string; href?: string; whatsapp?: boolean; ltr?: boolean };
+const cards: Card[] = [
+  ...(whatsapp ? [{ icon: "heroicons:chat-bubble-left-right", title: content.contactWhatsapp, detail: whatsapp.ctaLabel, href: whatsapp.href, whatsapp: true }] : []),
+  ...(phone ? [{ icon: "heroicons:phone", title: content.contactPhone, detail: phone, href: `tel:${phone.replace(/\s+/g, "")}`, ltr: true }] : []),
+  ...(email ? [{ icon: "heroicons:envelope", title: content.contactEmail, detail: email, href: `mailto:${email}`, ltr: true }] : []),
+  ...(address ? [{ icon: "heroicons:map-pin", title: content.contactAddress, detail: address }] : []),
+  ...(hours ? [{ icon: "heroicons:clock", title: content.contactHours, detail: hours }] : []),
+];
+const pages = showStorePages ? config.pages.map((page) => ({ title: page.title, href: store.href(storefrontPath("page", { slug: page.slug })) })) : [];
+---
+
+<Section scheme={scheme} style={style}>
+  <header class="contact-head">
+    <h1>{content.contactTitle}</h1>
+    {content.contactIntro && <p>{content.contactIntro}</p>}
+  </header>
+
+  {cards.length > 0 ? (
+    <ul class="contact-cards">
+      {cards.map((card) => (
+        <li>
+          {card.href ? (
+            <a class:list={["contact-card", card.whatsapp && "is-whatsapp"]} href={card.href} target={card.whatsapp ? "_blank" : undefined} rel={card.whatsapp ? "noopener noreferrer" : undefined}>
+              <span class="contact-card-icon" aria-hidden="true"><Icon name={card.icon} /></span>
+              <span class="contact-card-text"><strong>{card.title}</strong><span dir={card.ltr ? "ltr" : undefined}>{card.detail}</span></span>
+            </a>
+          ) : (
+            <div class="contact-card">
+              <span class="contact-card-icon" aria-hidden="true"><Icon name={card.icon} /></span>
+              <span class="contact-card-text"><strong>{card.title}</strong><span class="is-prose">{card.detail}</span></span>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <p class="contact-none">{content.contactNone}</p>
+  )}
+
+  {note && <p class="contact-note">{note}</p>}
+
+  {pages.length > 0 && (
+    <nav class="contact-pages" aria-labelledby="contact-pages-title">
+      <h2 id="contact-pages-title">{content.contactPagesTitle}</h2>
+      <ul>
+        {pages.map((page) => (
+          <li><a href={page.href}>{page.title}<Icon name={store.isRTL ? "heroicons:chevron-left" : "heroicons:chevron-right"} aria-hidden="true" /></a></li>
+        ))}
+      </ul>
+    </nav>
+  )}
+</Section>
+
+<style>
+  .contact-head { max-width: 34rem; margin: 0 auto 1.75rem; text-align: center; }
+  .contact-head h1 { color: var(--clr-ink); font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); font-weight: 600; }
+  .contact-head p { margin-top: 0.625rem; color: var(--clr-muted); font-size: var(--text-sm); }
+  .contact-cards { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+  @media (min-width: 640px) { .contact-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .contact-card { display: flex; gap: 0.875rem; align-items: flex-start; height: 100%; padding: 1rem 1.125rem; border: 1px solid var(--clr-border); border-radius: var(--radius-card); background: var(--clr-surface); color: var(--clr-ink); text-decoration: none; }
+  a.contact-card { transition: border-color 0.15s ease; }
+  a.contact-card:hover { border-color: var(--clr-border-strong); }
+  a.contact-card:focus-visible { outline: 2px solid var(--clr-primary); outline-offset: 2px; }
+  .contact-card-icon { display: grid; flex: none; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: var(--radius-round); background: var(--clr-plate); color: var(--clr-primary); }
+  .contact-card.is-whatsapp .contact-card-icon { background: var(--clr-whatsapp); color: var(--clr-on-whatsapp); }
+  .contact-card-icon :global(svg) { width: 1.25rem; height: 1.25rem; }
+  .contact-card-text { display: grid; gap: 0.125rem; min-width: 0; }
+  .contact-card-text strong { font-size: var(--text-sm); font-weight: 600; }
+  .contact-card-text span { overflow-wrap: anywhere; color: var(--clr-text); font-size: var(--text-sm); }
+  .contact-card-text .is-prose { white-space: pre-line; }
+  .contact-none { padding: 1.25rem; border: 1px dashed var(--clr-border-strong); border-radius: var(--radius-card); color: var(--clr-muted); font-size: var(--text-sm); text-align: center; }
+  .contact-note { margin-top: 1rem; padding: 1rem 1.125rem; border-radius: var(--radius-card); background: var(--clr-plate); color: var(--clr-text); font-size: var(--text-sm); white-space: pre-line; }
+  .contact-pages { margin-top: 2rem; }
+  .contact-pages h2 { margin-bottom: 0.75rem; color: var(--clr-ink); font-size: var(--text-lg); font-weight: 600; }
+  .contact-pages ul { display: grid; margin: 0; padding: 0; border-top: 1px solid var(--clr-border); list-style: none; }
+  .contact-pages a { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding-block: 0.875rem; border-bottom: 1px solid var(--clr-border); color: var(--clr-ink); font-size: var(--text-sm); text-decoration: none; }
+  .contact-pages a:hover { color: var(--clr-primary); }
+  .contact-pages :global(svg) { flex: none; width: 1rem; height: 1rem; color: var(--clr-muted); }
+</style>

@@ -24,25 +24,14 @@ describe("initWhatsAppWidget", () => {
     document.body.innerHTML = "";
   });
 
-  function createWidgetDom(options: {
-    attention?: string;
-    prefillGeneral?: string;
-    prefillProduct?: string;
-    storeName?: string;
-  } = {}) {
-    const {
-      attention = "true",
-      prefillGeneral = "Hello {store}",
-      prefillProduct = "Inquiry about {product} — {url}",
-      storeName = "Algiers Shop",
-    } = options;
+  const HREF = "https://wa.me/213551234567?text=Hello%20Algiers%20Shop";
+
+  function createWidgetDom(options: { attention?: string } = {}) {
+    const { attention = "true" } = options;
 
     document.body.innerHTML = `
       <div id="wa-widget"
            class="wa-widget"
-           data-store-name="${storeName}"
-           data-prefill-general="${prefillGeneral}"
-           data-prefill-product="${prefillProduct}"
            data-attention="${attention}">
         <button id="wa-launcher" aria-expanded="false" aria-controls="wa-panel" aria-label="Open WhatsApp">
           Launcher
@@ -50,7 +39,7 @@ describe("initWhatsAppWidget", () => {
         <div id="wa-panel" role="dialog" hidden>
           <button id="wa-close" aria-label="Close">Close</button>
           <div id="wa-content">Hello there</div>
-          <a id="wa-cta" href="https://wa.me/213551234567" data-base-href="https://wa.me/213551234567">Chat</a>
+          <a id="wa-cta" href="${HREF}">Chat</a>
         </div>
       </div>
     `;
@@ -141,35 +130,12 @@ describe("initWhatsAppWidget", () => {
     teardown?.();
   });
 
-  it("resolves general prefill text when page has no product", () => {
-    const { container, ctaBtn } = createWidgetDom({
-      storeName: "MyStore",
-      prefillGeneral: "Inquiry to {store}",
-    });
-    const teardown = initWhatsAppWidget(container);
-
+  it("opens the link the page was rendered with, whatever page it is on", () => {
+    const { ctaBtn } = createWidgetDom();
+    document.body.insertAdjacentHTML("beforeend", '<div id="page-data" data-product-name="Sneakers DZ"></div>');
+    const teardown = initWhatsAppWidget();
     ctaBtn.click();
-    expect(ctaBtn.href).toBe("https://wa.me/213551234567?text=Inquiry%20to%20MyStore");
-
-    teardown?.();
-  });
-
-  it("resolves product prefill text when #page-data has data-product-name", () => {
-    const { container, ctaBtn } = createWidgetDom({
-      storeName: "MyStore",
-      prefillProduct: "Interested in {product}",
-    });
-
-    const pageData = document.createElement("div");
-    pageData.id = "page-data";
-    pageData.setAttribute("data-product-name", "Sneakers DZ");
-    document.body.appendChild(pageData);
-
-    const teardown = initWhatsAppWidget(container);
-
-    ctaBtn.click();
-    expect(ctaBtn.href).toBe("https://wa.me/213551234567?text=Interested%20in%20Sneakers%20DZ");
-
+    expect(ctaBtn.href).toBe(HREF);
     teardown?.();
   });
 

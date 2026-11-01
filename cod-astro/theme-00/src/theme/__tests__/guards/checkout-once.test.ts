@@ -12,7 +12,7 @@ describe("one checkout, one order", () => {
   );
 
   it("finds the order forms — a renamed action must not pass vacuously", () => {
-    expect(orderForms.map((form) => form.file).sort()).toEqual(["pages/checkout.astro", "theme/components/order/OrderForm.astro"]);
+    expect(orderForms.map((form) => form.file).sort()).toEqual(["theme/components/checkout/CheckoutMain.astro", "theme/components/order/OrderForm.astro"]);
   });
 
   it("gives every order form its checkout key, loaded beside it", () => {

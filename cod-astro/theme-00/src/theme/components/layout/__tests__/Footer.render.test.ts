@@ -13,11 +13,10 @@
  */
 /// <reference types="vitest/globals" />
 
-import { testLocals } from "../../../__tests__/support/locals";
+import { testLocals, TEST_CONFIG } from "../../../__tests__/support/locals";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import FooterPages from "@/theme/components/footer/FooterPages.astro";
 import FooterAbout from "@/theme/components/footer/FooterAbout.astro";
-import { DEFAULT_CONFIG } from "@/theme/runtime/store";
 import { en } from "@/theme/content/en";
 import type { StoreConfig, StorePageLink } from "@wocart/storefront";
 
@@ -40,7 +39,7 @@ async function render(config: StoreConfig): Promise<string> {
 describe("Footer — the policy links column", () => {
   it("renders a real <a href> for every configured page, never a dead <span>", async () => {
     const html = await render({
-      ...DEFAULT_CONFIG,
+      ...TEST_CONFIG,
       pages: [
         page({ id: "sp_terms", kind: "terms", slug: "terms", title: "Terms and Conditions", position: 1 }),
         page({ id: "sp_refund", kind: "refund", slug: "refund-policy", title: "Refund and Return", position: 3 }),
@@ -54,7 +53,7 @@ describe("Footer — the policy links column", () => {
   });
 
   it("renders no page links, and no hardcoded label, when the store has none", async () => {
-    const html = await render({ ...DEFAULT_CONFIG, pages: [] });
+    const html = await render({ ...TEST_CONFIG, pages: [] });
 
     expect(html).not.toContain("/pages/");
     // The old hardcoded fallback labels this feature replaced — must never
@@ -64,13 +63,13 @@ describe("Footer — the policy links column", () => {
   });
 
   it("renders no dead contact span when pages are empty", async () => {
-    const html = await render({ ...DEFAULT_CONFIG, pages: [] });
+    const html = await render({ ...TEST_CONFIG, pages: [] });
     expect(html).not.toContain("Contact");
   });
 
   it("titles links exactly as the server resolved them — no client-side relabeling", async () => {
     const html = await render({
-      ...DEFAULT_CONFIG,
+      ...TEST_CONFIG,
       pages: [page({ slug: "conditions-generales", title: "Conditions Générales de Vente" })],
     });
     expect(html).toContain('href="/pages/conditions-generales"');
@@ -79,7 +78,7 @@ describe("Footer — the policy links column", () => {
 });
 
 describe("Footer — the about column", () => {
-  async function about(props: Record<string, unknown>, config: StoreConfig = DEFAULT_CONFIG): Promise<string> {
+  async function about(props: Record<string, unknown>, config: StoreConfig = TEST_CONFIG): Promise<string> {
     const container = await AstroContainer.create();
     return container.renderToString(FooterAbout, { props: { showWhatsapp: false, ...props }, locals: testLocals({ config }) });
   }
@@ -98,9 +97,9 @@ describe("Footer — the about column", () => {
   });
 
   it("shows the store's logo, or its name when it has none", async () => {
-    const withLogo = await about({}, { ...DEFAULT_CONFIG, name: "Maya", logo: { key: "logo.png", url: "https://media.example.test/logo.png", width: 400, height: 120 } } as StoreConfig);
+    const withLogo = await about({}, { ...TEST_CONFIG, name: "Maya", logo: { key: "logo.png", url: "https://media.example.test/logo.png", width: 400, height: 120 } } as StoreConfig);
     expect(withLogo).toMatch(/<img[^>]*alt="Maya"/);
-    const withoutLogo = await about({}, { ...DEFAULT_CONFIG, name: "Maya", logo: null });
+    const withoutLogo = await about({}, { ...TEST_CONFIG, name: "Maya", logo: null });
     expect(withoutLogo).not.toContain("<img");
     expect(withoutLogo).toContain("<span>Maya</span>");
   });

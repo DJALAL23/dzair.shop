@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "surface": "contact",
+  "sections": [
+    { "id": "contact-main", "type": "contact-main" }
+  ]
+}

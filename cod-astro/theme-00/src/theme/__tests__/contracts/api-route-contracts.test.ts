@@ -298,6 +298,7 @@ describe("/api/product-reviews/[productId]", () => {
 describe("/api/submit-review", () => {
   const body = {
     orderNumber: "ORD-1",
+    phone: "0551234567",
     productId: "prod-1",
     rating: 5,
     body: "Excellent service, livraison rapide.",
