@@ -35,10 +35,57 @@ const productSurface: SurfaceSpec = {
 | `pageType` | The platform page type the surface renders |
 | `document` | The theme's shipped default |
 | `required` | Top-level sections that must exist |
-| `max` | At most this many top-level sections (up to 50) |
+| `max` | At most this many top-level sections (1–50; absent: 50) |
+| `hideableAreas` | The theme's areas a page of this surface may leave out ([below](#a-page-without-its-header-or-footer)) |
 
-Page types are `home`, `catalog`, `category`, `collection`, `product`, `page`,
-`landing`, `checkout` and `thankYou`.
+A surface key is lowercase and starts with a letter or digit. It can never
+start with `lp:` or `area:`: those prefixes name a landing page's own
+document and an area's.
+
+## Every platform page type
+
+`pageType` is one of the platform's page types, the same names, with the same
+URLs, as `STOREFRONT_PAGE_PATHS` in `@wocart/storefront`. A theme composes
+**each** of them as a surface with one required main section: a page type the
+theme declares no surface for cannot be composed in Studio, and its preview is
+a 404 (`previewTarget` answers `null`). The SDK accepts a theme with fewer
+surfaces; Theme-00 and Theme Baby declare all twelve, and their tests fail on
+a missing one.
+
+| `pageType` | Path | What the route reads and passes to its sections | Theme-00's surface and main section |
+| --- | --- | --- | --- |
+| `home` | `/` | `pageData.get("home")` | `home`, no required section |
+| `catalog` | `/products` | `?page=`, `?sort=` (from `PRODUCT_SORTS`) | `catalog`, `listing-main` |
+| `category` | `/category/:slug` | The category by `slug`; `?page=`, `?sort=`; 404 when unknown | `category`, `listing-main` |
+| `collection` | `/collections/:handle` | `collections.get(handle)`; `?page=`, `?sort=`; 404 when unknown | `collection`, `listing-main` |
+| `product` | `/products/:handle` | `products.get(handle)`; 404 when unknown | `product`, `product-main` (with a fixed order form) |
+| `page` | `/pages/:slug` | `pages.get(slug)`; 404 when unknown | `page`, `page-main` |
+| `landing` | `/lp/:slug` | `pages.landing(slug)` with its own `document`; 404 when unknown | `landing`, `landing-order` |
+| `checkout` | `/checkout` | The browser basket; only when `config.cartEnabled` (Theme-00 redirects to `/` otherwise) | `checkout`, `checkout-main` |
+| `thankYou` | `/thank-you` | The order the query names (the theme's choice of keys) | `thank-you`, `thank-you-main` |
+| `trackOrder` | `/track-order` | `lookupOrder` from a posted form; `?order=<number>` fills the number in | `track-order`, `track-order-main` |
+| `search` | `/search` | `products.search(q)`; `?q=<words>`, `?page=`, `?sort=` | `search`, `search-main` |
+| `contact` | `/contact` | `config.contact` and `whatsAppContact` | `contact`, `contact-main` |
+
+The section names are Theme-00's choice; one required main section per page
+type is the rule. On the product and landing surfaces the required section
+must always render an order form, or `validateThemeDefinition` reports
+`order-form-not-guaranteed` ([Composition](/sdk/theme/composition)).
+
+### What the contact page may say
+
+The contact page shows only what the store has:
+
+- its phone, email and address from `config.contact`, each shown once the
+  merchant set it (each is `null` until then);
+- its WhatsApp from `whatsAppContact`, when the store has the App;
+- opening hours and a note as the merchant's own section fields, per language,
+  shown only once written.
+
+The theme's words label these (`Phone`, `Opening hours`) and never fill one
+in. A default such as "Open every day 9:00–18:00" in a content pack is a store
+fact written as a theme word: it shows on every store that never set its
+hours.
 
 ### Templates
 
@@ -56,6 +103,29 @@ const context: ThemeRenderContext = {
 
 Sections read the resource through `context.params` and a read key that
 includes it, so the page and its sections share one read.
+
+### Landing pages
+
+A landing page is composed per page. The theme declares **one** `landing`
+surface (the key must be `landing`, its `pageType` `landing`): its rules, its
+sections and its default document apply to every landing page. Each page
+stores its own document under `landingSurface(page.id)`, `lp:<id>`, and the
+storefront receives it with the page itself, as `LandingPage.document`:
+
+```ts
+import { landingSurface, resolveSurfaceDocument } from "@wocart/theme";
+
+const landing = await store.client.pages.landing(Astro.params.slug!);
+if (landing === null) return notFound(Astro);
+
+const surface = landingSurface(landing.id); // "lp:<id>"
+const { page } = resolveSurfaceDocument(theme, surface, landing.document, scope);
+```
+
+`resolveSurfaceDocument`, the document operations, `isInsertableOn` and
+`previewTarget` read an `lp:` surface by the surface it follows:
+`templateSurface("lp:<id>")` is `"landing"` (`LANDING_TEMPLATE`). No other
+surface may use `pageType: "landing"`.
 
 ### Alternates
 
@@ -83,7 +153,33 @@ areas: [
 
 An area's document is the surface `area:<key>`; `areaSurface("header")` builds
 that string. A component stays in the header by declaring
-`capabilities: { surfaces: ["area:header"] }`.
+`capabilities: { surfaces: ["area:header"] }`. An area key is lowercase
+kebab-case and unique among the theme's areas.
+
+### A page without its header or footer
+
+A surface may let its pages leave areas out. A landing page that sends an
+ad's visitor straight to its order form is the case:
+
+```ts
+{ key: "landing", label: "Landing page", pageType: "landing", hideableAreas: ["header", "footer"], /* … */ }
+```
+
+The page's document lists the areas it hides in `hiddenAreas`. Read it with
+`isAreaShown(theme, page, key)`, never from the array: only an area the surface
+lists in `hideableAreas` can be hidden. Studio offers the choice
+(`hideableAreas(theme, surface)`) and writes it with `setAreaHidden`.
+
+```astro
+---
+import { isAreaShown } from "@wocart/theme";
+---
+{isAreaShown(theme, page, "header") && <Sections theme={theme} surface="area:header" document={headerDocument} />}
+```
+
+While Studio edits an area over a page, show that area even if the page hides
+it, so the merchant can see what they edit; Theme-00's landing page does
+(`area === "area:header" || isAreaShown(…)`).
 
 ## The document
 
@@ -100,9 +196,10 @@ A page document is JSON:
 }
 ```
 
-`version` is `1`. `surface` is the surface or area key. `sections` is the top
-level. An instance has `id`, `type`, optional `props`, `children`, `slots`,
-`fixed` and `hidden`.
+`version` is `1`. `surface` is the surface key, `area:<key>` or `lp:<id>`.
+`sections` is the top level. An instance has `id`, `type`, optional `props`,
+`children`, `slots`, `fixed` and `hidden`. `hiddenAreas` lists the areas the
+page leaves out.
 
 A document may also name its provenance:
 
@@ -146,7 +243,10 @@ what you render is what the contract requires.
 
 ## Render a page
 
-One `InstanceView` per section, one read cache per page render:
+One `InstanceView` per section, one read cache per page render.
+`Astro.locals.store` below is the theme's own request store, built by its
+middleware — the [quick start](/sdk/theme/build#7-the-requests-store) shows the
+whole thing:
 
 ```astro
 ---
@@ -195,6 +295,17 @@ const reads = createReadCache();
 An unknown type renders nothing; the rest of the page survives. A `load` that
 throws is reported as `load-failed` and the base props still render.
 
+## One catalog per route
+
+A route imports its catalog, and with it every component the catalog names.
+A theme with many sections can give each route a catalog of its own surface
+and the components that surface uses, so the thank-you page does not load the
+home page's sections. Theme-00 does this (`src/theme/catalog/families/`): each
+family is a `defineTheme` with the same `key` and `version`, one surface and
+its components, and a contract test checks that the families together are
+exactly the full catalog the manifest describes. That is a performance choice,
+not a rule; a small theme renders every route with its one catalog.
+
 ## Issues
 
 A page has two report channels:
@@ -231,7 +342,7 @@ and is not rendered. A component can declare several slots; it can also
 transfer Astro's own slots inside itself when it needs more than one filled.
 
 <Callout type="info" title="Preview is a separate render mode">
-A preview in CodFlow Studio uses the same `InstanceView` with `preview` set.
+A preview in Wocart Studio uses the same `InstanceView` with `preview` set.
 The markers it adds are read by the preview bridge, not by shoppers. See
 [Preview](/sdk/theme/preview).
 </Callout>
