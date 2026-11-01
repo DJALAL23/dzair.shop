@@ -607,10 +607,10 @@ export async function getStoreProducts(
 /**
  * Resolve a product by handle in its full store-product shape.
  *
- * The four catalog green lights apply by default (status=ACTIVE, visibility,
- * showInStore, not soft-deleted). `allowUnlisted` drops ONLY the showInStore
- * gate — landing pages link their product deliberately, so a store-hidden
- * (unlisted) product still renders there; the other gates still apply.
+ * The three catalog green lights apply by default (status=ACTIVE, visibility,
+ * showInStore). `allowUnlisted` drops ONLY the showInStore gate — landing
+ * pages link their product deliberately, so a store-hidden (unlisted) product
+ * still renders there; the other gates still apply.
  */
 export async function getStoreProductByHandle(
   db: AppDb,

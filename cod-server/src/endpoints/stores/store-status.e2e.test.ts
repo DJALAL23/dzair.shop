@@ -1,7 +1,7 @@
 /**
  * A store is not switched off from its settings: nothing ever read its
- * status, so the store settings API neither shows nor takes it. The column
- * stays, and `/store/config` still sends it to @wocart/storefront.
+ * status, so neither the store settings API nor `/store/config` shows it, and
+ * the settings never take it. The column stays.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";

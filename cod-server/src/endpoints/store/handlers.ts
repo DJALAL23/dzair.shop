@@ -123,8 +123,8 @@ export async function getStoreLandingPage(c: Context<AppContext>) {
   // same shape (variants, offers, inventory, review stats) so the theme's
   // form + scripts work unmodified. A store-hidden product (showInStore=false)
   // still renders: the merchant published the link deliberately, and the
-  // landing page is its sales channel. The other gates (ACTIVE, visibility,
-  // not deleted) still apply, and the order engine guards sellability.
+  // landing page is its sales channel. The other gates (ACTIVE, visibility)
+  // still apply, and the order engine guards sellability.
   const { translate } = await servedLanguage(c, db);
   const [product, document] = await Promise.all([
     lp.product?.handle
