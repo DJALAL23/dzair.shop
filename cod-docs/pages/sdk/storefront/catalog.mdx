@@ -11,12 +11,17 @@ The catalogue has four read shapes:
 | Read | Returns | Use it on |
 | --- | --- | --- |
 | `products.list(filters)` | `ProductList[]` | Grids, rails, search results |
-| `products.page(filters)` | `{ items, hasNext }` | Paginated catalogue pages |
+| `products.page(filters)` | `{ items, hasNext, total }` | Paginated catalogue pages |
+| `products.search(text, filters)` | `{ items, hasNext, total }` | Search results |
 | `products.get(handle)` | `Product \| null` | A product page |
 | `collections.get(handle)` | `StoreCollection \| null` | A collection's page |
 
 `ProductList` is a compact card shape. `Product` is the full detail shape with
 variants, images, offers and quantity pricing.
+
+In the snippets, `store` is the request's `StoreClient` — `getStoreClient()`
+from the [quick start](/sdk/storefront/quickstart), or `Astro.locals.store.client`
+behind [`resolveStoreRequest`](/sdk/storefront/config#one-request-one-language).
 
 ## List products
 
@@ -38,8 +43,8 @@ The filters are:
 | `offset` | Skip that many products |
 | `sort` | The order: `newest`, `price-ascending` or `price-descending` (`PRODUCT_SORTS`); absent, the listing's own |
 
-`featured` still exists but is deprecated. Use `collection: "featured"`; the
-merchant's featured collection is the same list, without a special flag.
+There is no `featured` filter: the merchant's featured products are the
+`featured` collection, `collection: "featured"`.
 
 Use `products.page` when the page needs a next link:
 
@@ -70,11 +75,12 @@ import { PRODUCT_SORTS } from "@wocart/storefront";
 const page = await store.products.page({ collection: handle, limit: 24, offset, sort: "price-ascending" });
 page.items;   // this page's products
 page.hasNext; // whether another page follows
-page.total;   // how many the whole listing holds; null from a server that does not count
+page.total;   // how many the whole listing holds; 0 on a failed read
 ```
 
-Say "1–24 of 60 products" and "page 1 of 3" when `total` is known, and only the
-page's own rows when it is not.
+`total` is always a number. A failed read is `{ items: [], hasNext: false,
+total: 0 }`, so "no products" and "the read failed" look the same on the page;
+the client's `onError` tells them apart.
 
 ### Search
 
@@ -88,8 +94,9 @@ const results = await store.products.search(query, { limit: 24, offset, sort });
 results.total; // how many products the words find
 ```
 
-Blank words find nothing, and a server that predates search answers an empty
-page — never the whole catalog.
+The words are trimmed and cut to 100 characters. Blank words find nothing
+without asking the server, never the whole catalog. A failed read is an empty
+page, like `products.page`.
 
 ## Product cards
 
@@ -100,21 +107,31 @@ type ProductList = {
   id: string;
   name: string;
   handle: string;
+  description: string | null;
+  descriptionFormat: "html" | "text";
+  descriptionPlain: string | null;
+  currency: string;
   price: number;
   compareAtPrice: number | null;
-  currency: string;
-  coverImage: ProductImage | null;
-  reviewStats: { avgRating: number; reviewCount: number } | null;
   type: "PHYSICAL" | "DIGITAL";
+  hasVariants: boolean;
+  variantOptions: { name: string; values: { value: string; hexColor: string | null }[] }[] | null;
+  sku: string | null;
   inventory: number;
   trackInventory: boolean;
   lowStockThreshold: number;
-  // …status and visibility fields the server already filtered on
+  categoryId: string | null;
+  tags: string[];
+  metaTitle: string | null;
+  metaDescription: string | null;
+  reviewStats: { avgRating: number; reviewCount: number } | null;
+  coverImage: ProductImage | null;
 };
 ```
 
-The list is already filtered to what a shopper may see. Do not re-check
-`status` or `visibility` in the browser and do not call an internal admin field.
+The list is already filtered to what a shopper may see: it carries no status
+or visibility field to re-check. `variantOptions` and `tags` arrive parsed, as
+on a product page.
 
 A list has no variant data. If a card needs “from 2,500 DA” for a variable
 product, `ProductList.price` is the representative price the server sends; the
@@ -127,14 +144,15 @@ cover. Use `productImageSource`, which falls back to the first usable gallery
 image:
 
 ```ts
-import { getCardImage, productImageSource } from "@wocart/storefront";
+import { mediaImageUrl, productImageSource } from "@wocart/storefront";
 
 const src = productImageSource(product);
-const cardUrl = src ? getCardImage(src, mediaDomain) : null;
+const cardUrl = src ? (mediaImageUrl(src, { width: 400, height: 400, fit: "cover" }, config.media) ?? src) : null;
 ```
 
 Render a placeholder when `cardUrl` is null. Do not render a broken `<img>` with
-an empty `src`.
+an empty `src`. Resizing and `config.media` are covered in
+[Money, images, WhatsApp and Meta events](/sdk/storefront/presentation#images).
 
 ## Product detail
 
@@ -143,14 +161,11 @@ A product page reads by **handle**, the public URL segment:
 ```astro
 ---
 import { formatMoney, getProductView } from "@wocart/storefront";
-import { getStore } from "../../theme/store";
+import { notFound } from "@wocart/storefront/astro";
 
-const store = getStore();
-const config = await store.config.get();
-if (!config) return new Response("Store unavailable", { status: 503 });
-
-const product = await store.products.get(Astro.params.handle!);
-if (!product) return Astro.rewrite("/404");
+const { client, config } = Astro.locals.store;
+const product = await client.products.get(Astro.params.handle!);
+if (product === null) return notFound(Astro);
 
 const view = getProductView(product);
 ---
@@ -192,8 +207,13 @@ product.variantOptions;
 //   { name: "Color", values: [{ value: "Red", hexColor: "#c00" }, …] },
 // ]
 product.variants;
-// [{ id, variations: { Size: "M", Color: "Red" }, price, inventory, … }]
+// [{ id, variations: { Size: "M", Color: "Red" }, price, compareAtPrice, sku,
+//    inventory, lowStockThreshold, imageId, isDefault }]
 ```
+
+`variants` holds only the variants a shopper can pick, in the merchant's
+order. Take them as they come: there is no `active` flag or position to
+filter or sort on.
 
 The helper functions keep the picker honest:
 
@@ -227,8 +247,9 @@ The server still validates the submitted variant.
 
 ## Prices and offers
 
-Prices are integers in the store's currency (DZD). Format them with
-`formatMoney`; never divide by 100 unless your store's currency data says so.
+Prices are amounts in the store's currency (`config.currency`, DZD for an
+Algerian store), not cents. Format them with `formatMoney` and the store's
+`currencySymbol`; never divide by 100.
 
 A product can carry three kinds of promotion:
 
@@ -247,6 +268,8 @@ const tiers = product.quantityPricing
   ? getQuantityTierViews(product.quantityPricing, view.basePrice)
   : [];
 ```
+
+`product.quantityPricing` is `null` when the product has no quantity tiers.
 
 Each tier gives `quantity`, `price`, `perUnit`, `savingsAmount`, `savePct` and
 `freeShipping`. These are display values. The total the shopper pays is always
@@ -292,11 +315,13 @@ Category pages read by `slug`:
 
 ```astro
 ---
+import { notFound } from "@wocart/storefront/astro";
+
 const category = (await store.categories.list()).find(
   (item) => item.slug === Astro.params.slug,
 );
 
-if (!category) return Astro.rewrite("/404");
+if (!category) return notFound(Astro);
 
 const products = await store.products.list({
   categoryId: category.id,
@@ -323,13 +348,13 @@ const page = await store.products.page({ collection: collection.handle, limit: 2
 ---
 <h1>{collection.title}</h1>
 {collection.description && <p>{collection.description}</p>}
-{collection.image && <img src={collection.image.src} alt="" />}
+{collection.image && <img src={collection.image.url} alt="" />}
 ```
 
-`collections.get` returns the name, the description, how many products a shopper
-sees in it (`productCount`) and the photo of its first listed product (`image`);
-both of those are absent from a server that predates them. The products come
-from `products.page({ collection })` in the merchant's order. All of it is
+`collections.get` returns the handle, the title, the description, how many
+products a shopper sees in it (`productCount`) and the photo of its first
+listed product (`image`, a `ProductImage` or `null`). The products come from
+`products.page({ collection })` in the merchant's order. All of it is
 translated when the client's language is published.
 
 ## Descriptions and SEO

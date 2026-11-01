@@ -14,9 +14,10 @@ the theme decides where they sit and how they look.
 `pages.get(slug)` returns a published legal or custom page:
 
 ```ts
-const page = await store.pages.get("terms");
+import { notFound } from "@wocart/storefront/astro";
 
-if (!page) return Astro.rewrite("/404");
+const page = await store.pages.get(Astro.params.slug!);
+if (page === null) return notFound(Astro);
 
 page;
 // {
@@ -82,12 +83,20 @@ Every item has:
 | --- | --- |
 | `label` | In the client's language when translated |
 | `href` | A store path without language prefix, or the merchant's absolute URL |
-| `type` | `home`, `catalog`, `category`, `product`, `page`, `landing` or `url` |
-| `children` | Nested items, at most three levels |
+| `type` | The destination: `home`, `catalog`, `search`, `trackOrder`, `contact`, `category`, `collection`, `product`, `page`, `landing` or `url` |
+| `children` | Nested items; a menu has at most three levels and 100 items |
 
-Items that lead nowhere public are already removed. Do not re-check visibility.
+The server turns every destination into its path, so a theme never builds a
+menu link itself: render `href` as it is. A `url` item is the merchant's own
+address: a path of this store, an `http(s)` address, a `mailto:` or `tel:`
+link, or a `#`/`?` fragment; the server refuses anything else. Items that lead
+nowhere public are already removed. Do not re-check visibility.
 
-Localize only store paths; leave external URLs alone:
+A new store's footer menu links order tracking and the contact page, so a
+theme that renders the store's menus reaches those pages without a link of
+its own.
+
+Localize only store paths; `localizeHref` leaves external URLs alone:
 
 ```astro
 ---
@@ -105,12 +114,13 @@ A menu is a tree, so render it recursively and preserve RTL/LTR with the page's
 ## Landing pages
 
 `pages.landing(slug)` returns a published landing page with an ordered image
-stack and, optionally, one linked product:
+stack, optionally one linked product, and its own page document:
 
 ```ts
-const landing = await store.pages.landing("ramadan");
+import { notFound } from "@wocart/storefront/astro";
 
-if (!landing) return Astro.redirect("/", 302);
+const landing = await store.pages.landing(Astro.params.slug!);
+if (landing === null) return notFound(Astro);
 ```
 
 The shape:
@@ -127,7 +137,8 @@ type LandingPage = {
   publishedAt: string | null;
   images: Array<{
     id: string;
-    src: string;
+    key: string;
+    url: string;
     altText: string | null;
     position: number;
     width: number | null;
@@ -138,6 +149,7 @@ type LandingPage = {
     pixelId: string | null;
     conversionEvent: "Lead" | "Purchase" | "Purchase_Confirmed" | "Purchase_Delivered";
   };
+  document: PageDocumentPayload | null;
 };
 ```
 
@@ -149,11 +161,23 @@ layout shift.
 unchanged. It is `null` when the product is no longer public; in that case show
 the landing content without an order form.
 
-A draft, archived or unknown landing page returns `null`. Redirect to the home
-page instead of rendering a dead end.
+A draft, archived or unknown landing page returns `null`. Answer it with
+`notFound(Astro)`: a real 404 that is never cached, so the page shows the
+moment the merchant publishes it. A redirect to the home page would answer an
+ad's link with a 200, a soft 404 for search engines and ad reviews.
 
 The page's `tracking` is already resolved. Use that pixel and event, not the
 store's default pixel, when the landing page fires its browser event.
+
+`document` is this landing page's own composition for the client's `theme`
+(its `lp:<id>` page document), or `null` when it has none or the client names
+no theme: the theme then renders its `landing` surface's default. Render it
+with `resolveSurfaceDocument(theme, landingSurface(landing.id), landing.document, scope)`
+from `@wocart/theme`; [Pages and rendering](/sdk/theme/pages) covers landing
+pages.
+
+`pages.landing(slug, { preview: true })` also answers a draft and counts no
+visit. It is for an editor's preview only; a shopper's page never passes it.
 
 ## The saved page document
 
@@ -176,15 +200,19 @@ type PageDocumentPayload = {
 ```
 
 `sections` stays `unknown[]` so a newer document reaches your theme unchanged.
-The meaning of a section belongs to the theme schema. Parse it with
-`parsePageData` from [`@wocart/theme`](/sdk/theme); do not cast it to your local
-section type.
+The meaning of a section belongs to the theme schema. Do not cast it to your local section type; the [Theme SDK](/sdk/theme) reads it.
+
+Render it with `resolveSurfaceDocument` from `@wocart/theme`, which picks the
+saved document or the theme's default, repairs and completes it, and reports
+what it changed:
 
 ```ts
-import { parsePageData } from "@wocart/theme";
+import { resolveSurfaceDocument } from "@wocart/theme";
 
-const parsed = parsePageData(document);
+const { page, source, issues } = resolveSurfaceDocument(theme, "home", document, scope);
 ```
+
+See [Pages and rendering](/sdk/theme/pages#what-renders).
 
 With `theme` set on the client, the server returns that theme's document for the
 surface. Without it, the server returns the most recently saved document for the
@@ -192,9 +220,9 @@ surface. A store with no saved document returns `null`; render your shipped
 default.
 
 <Callout type="info" title="Read side only">
-The page document is written by CodFlow Studio, not by this storefront. This
-repository has no theme-writing endpoint. Read `pageData`, render it, and keep
-your theme's editing contract in `@wocart/theme`.
+Page documents are written by Wocart Studio, never by a storefront: the
+public API has no endpoint that writes one. Read `pageData`, render it, and
+keep your theme's editing contract in `@wocart/theme`.
 </Callout>
 
 ## A page-rendering checklist
@@ -203,6 +231,6 @@ your theme's editing contract in `@wocart/theme`.
 - A legal page resolves its link through `kind`, not a hardcoded slug.
 - A menu recurses through `children` and localizes only internal paths.
 - A landing page uses its own `tracking`, not `config.pixelId`.
-- An editable surface uses `pageData.get(surface)` and `parsePageData`.
+- An editable surface uses `pageData.get(surface)` and `resolveSurfaceDocument`.
 - A missing document renders the theme's default, not an empty page.
 - The route cache is aware of how often each of these can change.
