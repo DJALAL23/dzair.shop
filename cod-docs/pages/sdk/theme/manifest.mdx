@@ -56,7 +56,7 @@ module loads, so an invalid manifest fails the build instead of shipping.
   "contractVersion": 1,
   "key": "my-theme",
   "version": "1.0.0",
-  "sdkVersion": "2.1.0",
+  "sdkVersion": "4.0.0",
   "surfaces": [],
   "areas": [],
   "locales": ["ar", "fr"],
@@ -80,7 +80,7 @@ module loads, so an invalid manifest fails the build instead of shipping.
 | `contractVersion` | Manifest schema and interpretation contract; currently `1` |
 | `key`, `version` | The theme's identity and version |
 | `sdkVersion` | The `@wocart/theme` that generated the manifest |
-| `surfaces`, `areas` | The surfaces and shared areas the theme declares |
+| `surfaces`, `areas` | The surfaces and shared areas the theme declares, each with its default document, `required`, `max` and, for a surface, `pageType` and `hideableAreas` |
 | `locales`, `content` | Declared languages and their content packs |
 | `settings`, `style` | Store-wide settings and the step sizes |
 | `preview` | Whether the theme serves a preview route |
@@ -155,9 +155,9 @@ const issues = checkPageData(theme, edit.page);
 | --- | --- |
 | `insertInstance(theme, page, instance, placement)` | Add at a location |
 | `moveInstance(theme, page, id, placement)` | Move to another location or index |
-| `duplicateInstance(theme, page, id)` | Copy with new ids |
+| `duplicateInstance(theme, page, id, newId)` | Copy right after the original, every copied instance with an id from `newId` |
 | `removeInstance(theme, page, id)` | Delete, unless required or fixed |
-| `setInstanceProps(theme, page, id, props)` | Merge props |
+| `setInstanceProps(theme, page, id, changes)` | Merge props, each checked by its field; `undefined` removes a stored value |
 | `setInstanceHidden(theme, page, id, hidden)` | Hide or show |
 
 They return `{ ok: true, page }` or `{ ok: false, issue }`, never mutate the
@@ -185,7 +185,15 @@ it did:
 - an `allow` list, range, list bound or rich-text format narrowed,
 - a slot became single,
 - a field became required with no default or content fallback,
+- a fixed block was removed or changed type,
+- a component stopped being insertable, or is allowed on fewer surfaces,
+- a surface's or area's `max` was lowered,
+- a style size the theme gave a step or width was removed,
+- a language was dropped from `locales`,
 - the theme key changed.
+
+[Production and upgrades](/sdk/theme/production#a-themes-own-versions) has
+the same list as a table.
 
 Everything else is additive. Saved data is never migrated: the reader degrades
 with reports, and this diff tells you beforehand what will degrade.
@@ -197,7 +205,7 @@ Three contracts version independently:
 | Version | What it covers | When it changes |
 | --- | --- | --- |
 | `contractVersion` | Manifest schema and how consumers interpret it | Only a breaking change to that shape; currently `1` |
-| theme `version` | The theme itself | Semver; a breaking diff belongs in a new major |
+| theme `version` | The theme itself | Semver; a breaking diff needs a new major, and Wocart Cloud refuses a release that is breaking under the same major |
 | `PageData.version` | The page-document envelope | Currently `1` |
 
 A non-semver theme version is reported, not rejected: registration stays
