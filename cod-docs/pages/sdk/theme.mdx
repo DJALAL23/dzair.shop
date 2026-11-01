@@ -1,163 +1,241 @@
 ---
-description: Build a CodFlow storefront theme in Astro, or make it editable by merchants, without needing to understand the whole platform first.
+description: Build a Wocart storefront theme in Astro that merchants can edit in Wocart Studio — what @wocart/theme is, when you need it, and where to start.
 ---
 
 import { Callout } from "zudoku/ui/Callout";
+import { Card, CardDescription, CardHeader, CardTitle } from "zudoku/ui/Card";
+import { Link } from "zudoku/components";
+import { BotIcon, BookOpenIcon, RocketIcon, SlidersHorizontalIcon } from "zudoku/icons";
 
 # Theme SDK
 
-A CodFlow theme is an Astro storefront. `@wocart/storefront` gives it products,
-collections, carts and checkout. `@wocart/theme` is an optional layer that also
-lets a merchant change the theme's text, images, styles and section order
-without touching code.
+A Wocart theme is an Astro storefront. Two published packages power it:
 
-You do **not** need `@wocart/theme` to build a theme. Use it when you want the
-theme to be editable, reusable or ready to share with other stores.
-
-It is a small helper package, not a framework. Your Astro project, components
-and CSS stay yours; the SDK adds the rules that make saved merchant changes
-safe to read and render.
-
-## Who this is for
-
-| If you are… | What to read |
+| Package | What it gives the theme |
 | --- | --- |
-| New to CodFlow themes, a vibe coder, or building with AI | [Build a theme](/sdk/theme/build), then [Customize a theme](/sdk/theme/customize) |
-| Building a custom Astro storefront for one store, with no code-free editing | You can skip this package. Use [`@wocart/storefront`](/sdk/storefront) and Astro |
-| Making a theme a merchant can edit in CodFlow Studio | [Build a theme](/sdk/theme/build), then [Fields](/sdk/theme/fields), [Composition](/sdk/theme/composition) and [Pages](/sdk/theme/pages) |
-| Preparing a theme for the marketplace, or to share or sell | The editable path above, plus [Manifest](/sdk/theme/manifest), [Settings and copy](/sdk/theme/settings-copy) and [Testing](/sdk/theme/testing) |
-| An AI assistant working on a theme | [Use AI to build a theme](/sdk/theme/agents) |
+| [`@wocart/storefront`](/sdk/storefront) | Commerce: the store's config, products, collections, menus, basket, checkout, delivery, reviews, and the Astro request plumbing |
+| `@wocart/theme` | The editable layer: component definitions, JSON page documents, composition rules, style and color, settings, the manifest, preview, and an Astro renderer |
 
-The guide starts simple and adds detail page by page. You can stop as soon as
-your theme does what you need.
+`@wocart/theme` is what lets a merchant change a theme's text, images, colors,
+spacing and section order in Wocart Studio without touching its code. It is a
+small contract, not a framework: your Astro project, components and CSS stay
+yours.
 
-## Two ways to build
+This guide follows **`@wocart/theme` 4.0.0** and **`@wocart/storefront`
+3.0.0**, which read platform v7. Every code sample on the
+[quick start](/sdk/theme/build) and the [complete theme](/sdk/theme/tutorial)
+pages was built, type-checked, tested and run against a real store with
+exactly those versions.
 
-| | A custom storefront | An editable theme |
-| --- | --- | --- |
-| Who changes the design | You, in code | You in code; a merchant changes content and layout |
-| What you write | Astro pages and components | Astro components, plus definitions and default documents |
-| What you need | `@wocart/storefront` | `@wocart/storefront` and `@wocart/theme` |
-| Where settings live | Your code or environment | Stored settings and JSON page documents |
-| Good for | One shop with a fixed design | Themes reused across stores, or sold as a product |
+<div className="not-prose my-10 grid gap-4 sm:grid-cols-2">
+  <Link to="/sdk/theme/build" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <RocketIcon className="size-4" />
+        </div>
+        <CardTitle>Quick start</CardTitle>
+        <CardDescription>
+          The smallest complete editable theme, every file in full.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/sdk/theme/tutorial" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <BookOpenIcon className="size-4" />
+        </div>
+        <CardTitle>Build a complete theme</CardTitle>
+        <CardDescription>
+          Shared header, product page with ordering, colors, preview and tests.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/sdk/theme/fields" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <SlidersHorizontalIcon className="size-4" />
+        </div>
+        <CardTitle>Fields</CardTitle>
+        <CardDescription>
+          Every field kind, its rules, defaults and the typed props a component receives.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link to="/sdk/theme/agents" className="group">
+    <Card className="h-full transition-colors group-hover:border-primary/40">
+      <CardHeader>
+        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <BotIcon className="size-4" />
+        </div>
+        <CardTitle>AI agent kit</CardTitle>
+        <CardDescription>
+          The skill, the prompts, and the rules an agent must not guess.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+</div>
 
-A custom storefront is the simpler choice. An editable theme costs more setup
-because every editable choice has to be declared, stored and validated. The
-rest of this guide is about that second path.
+## Do you need it?
 
-<Callout type="info" title="One store, or many?">
-If the theme belongs to one store and you control every change in code, a
-custom Astro storefront is enough. You do not need an editor, a manifest or
-preview.
+| You are building… | Use |
+| --- | --- |
+| A storefront for one shop, changed only by you in code | `@wocart/storefront` and Astro. Skip this package. |
+| A theme a merchant edits in Wocart Studio | Both packages. Start with the [quick start](/sdk/theme/build). |
+| A theme for many stores, a client, or the marketplace | Both packages, plus the [manifest](/sdk/theme/manifest), [testing](/sdk/theme/testing) and [production](/sdk/theme/production) pages |
+| A theme with an AI coding agent | Both packages, and give the agent the [agent kit](/sdk/theme/agents) first |
 
-If another store will use the theme — through the marketplace, a client, or a
-merchant who edits it in CodFlow Studio — build the editable path. That is what
-makes the theme portable without you changing its code for every store.
-</Callout>
+An editable theme costs more setup than a fixed one, because every editable
+choice is declared, stored and checked. That cost buys a theme any store can
+install and any merchant can change safely.
+
+## How it works in one picture
+
+```text
+   code (you write it)                    data (the store saves it)
+ ┌──────────────────────────┐          ┌────────────────────────────┐
+ │ defineComponent(...)     │          │ page document (JSON)       │
+ │   fields, slots, load    │          │   { version, surface,      │
+ │ defineTheme(...)         │          │     sections: [instances] }│
+ │   surfaces, areas,       │          │ theme settings (JSON)      │
+ │   settings, content      │          │ text edits per language    │
+ └────────────┬─────────────┘          └──────────────┬─────────────┘
+              │ themeManifest()                       │ storefront client
+              ▼                                       ▼
+   /wocart-theme.json ──► Wocart Studio     resolveSurfaceDocument()
+   (what is editable)      writes data ──►  InstanceView renders your
+                                            .astro components
+```
+
+- **Code is the catalog.** Each component you want editable gets a
+  *definition*: its type, its fields, where it may go, and an optional
+  server-side `load`.
+- **Data is the page.** A page is a *document*: an ordered list of component
+  instances with their saved values. The theme ships a default document for
+  every page; a store may save its own.
+- **The manifest connects them.** It is the code half turned into JSON, so
+  Wocart Studio knows what can be edited without running your theme.
+- **Reading never breaks a page.** A saved document is untrusted: the SDK
+  repairs what it can, reports the rest, and never throws the page away over
+  one bad section.
 
 ## Words you will see
 
-These words appear everywhere in the guide. You do not need to memorize them
-now; come back when a page uses one.
-
-| Word | Plain meaning |
+| Word | Meaning |
 | --- | --- |
-| **Component** | A reusable piece of a page, such as a hero, product grid or footer |
-| **Field** | One thing a merchant can change in a component, such as a title, image or limit |
-| **Instance** | One placed copy of a component, with its own saved values |
-| **Document** | The ordered list of sections and blocks that makes one page |
-| **Surface** | A place a document fills: the home page, a product template, the header |
-| **Slot** | A named space inside a component where child blocks may go |
-| **Setting** | A choice for the whole store, such as a font or the color schemes |
-| **Manifest** | A JSON description of everything the theme makes editable |
-| **Theme key** | The permanent id of a theme; saved merchant edits are stored under it |
+| **Component** | A reusable piece of a page, such as a hero, a product grid or a header |
+| **Definition** | The code that makes a component editable: `defineComponent({...})` |
+| **Field** | One thing a merchant can change on a component: a title, an image, a number |
+| **Instance** | One placed copy of a component in a document, with its own `id` and values |
+| **Section** | An instance at the top level of a page |
+| **Block** | An instance inside another component's slot |
+| **Slot** | A named place inside a component where blocks may go |
+| **Document** | The JSON that composes one page: `{ version, surface, sections }` |
+| **Surface** | Which page a document fills: `home`, `product`, `area:header` … |
+| **Area** | A part every page shares, such as the header, composed and edited once |
+| **Setting** | A choice for the whole store, such as its color schemes or the header menu |
+| **Content pack** | The theme's own text, one flat map of keys to strings per language |
+| **Manifest** | The JSON description of everything a theme makes editable |
+| **Theme key** | The theme's permanent identity on the platform; saved edits are stored under it |
 
-A page is not a fixed Astro file in an editable theme. Astro renders a
-**document** — data that says which components appear and what values they
-hold. The theme supplies the components and their defaults.
+## What the package guarantees
 
-## The two halves
-
-The SDK separates what only code can know from what a store can save.
-
-| | Code-owned | Data-owned |
-| --- | --- | --- |
-| What it is | Component definitions, fields, defaults, slots, optional `load` functions | JSON page documents and store settings |
-| Who writes it | The theme developer | A merchant, an editor, a CLI or an assistant |
-| When it is checked | At build time and when the theme loads | Every time a saved document is read |
-| What reads it | The renderer and the manifest | `parsePageData` and `validatePageData` |
-
-The **manifest** connects the two. It turns the code half into plain JSON, so a
-tool can show the right fields without running Astro or theme code.
-
-## What the package gives you
-
-- **A typed component catalog.** Define a component once; get its field types
-  and its props from the same definition.
-- **Safe reads.** A damaged or outdated saved document is repaired where
-  possible, reported where not, and never takes down the whole page.
-- **Layout rules.** Slots, required blocks, fixed blocks and limits are applied
-  when a document is edited, not left to each component.
-- **One renderer.** `InstanceView.astro` fills defaults, runs optional
-  server-side `load` hooks, renders child blocks and calls your `.astro`
-  component.
-- **A JSON manifest.** Editors and other tools can read the theme without
-  importing `.astro` files.
-- **The plumbing for editing.** Document operations, preview markers, a preview
-  bridge, rich text, settings and translations.
+- **One typed definition per component.** Field keys, kinds and select options
+  keep their literal types; the component's props are derived from the same
+  definition (`InferProps`), so the two cannot drift.
+- **Safe reads.** `parsePageData`, `validatePageData` and
+  `resolveSurfaceDocument` turn any saved value into a renderable page plus a
+  list of issues. Only a broken envelope makes a document unusable, and then
+  the theme's default renders.
+- **Layout rules that hold.** Slots, allowed types, required and fixed blocks,
+  placement and limits are applied by the same code for the renderer, the
+  reader and every editor.
+- **Safe values.** Links, colors, images, rich text, style and color schemes
+  are closed formats. A saved value cannot carry a `javascript:` link, raw CSS
+  or HTML.
+- **One renderer.** `InstanceView.astro` resolves values, runs `load`, renders
+  your component, and places its blocks.
+- **The editor plumbing.** The manifest, document operations, preview markers,
+  the preview bridge, settings, content packs and plural messages.
 
 ## What it does not do
 
-The package does not fetch commerce data, upload images, write to the database
-or replace Astro. It validates and renders what it is given. Commerce reads
-come from [`@wocart/storefront`](/sdk/storefront); persistence belongs to the
-platform.
+- It does not fetch commerce data. Reads go through the
+  [`@wocart/storefront`](/sdk/storefront) client a `load` receives.
+- It does not save anything. Wocart Studio and the platform write documents,
+  settings and text edits; a theme only reads them.
+- It does not upload images, define your CSS, or replace Astro.
 
-<Callout type="info" title="This is the theme contract, not the storefront engine">
-For catalog reads, carts, checkout, reviews and store context, use
-[`@wocart/storefront`](/sdk/storefront). A `load` hook receives that package's
-server-side `StoreClient`.
-</Callout>
+## The rules every theme follows
+
+Each rule below exists because breaking it fails a merchant or a shopper in a
+way a test of the theme alone would not show. The **Enforced by** column says
+what catches a break: the SDK (for every theme), or the guard tests Theme-00
+and Theme Baby carry (a pattern to copy, not something the SDK runs for you).
+
+| Rule | Why | Enforced by |
+| --- | --- | --- |
+| Pin `@wocart/theme` and `@wocart/storefront` exactly, 4.x with 3.x | A theme on `@wocart/storefront` 2.x reads a v7 store as unreadable | npm's peer range |
+| Create the store client per request, on the server only, with `theme: <your key>` | Without `theme`, the store's text edits, settings and documents for your theme never arrive; a shared client mixes languages | You; `createStoreClient` throws `MISSING_CONFIGURATION` on an empty URL or key |
+| Render `unavailableStoreConfig(…)` when the store cannot be read; never a config written by hand | A hand-written config falls behind the config's shape and can look like a working checkout | The `fallback` option of `resolveStoreRequest` |
+| Compose every platform page type as a surface with one required main section: home, catalog, category, collection, product, text page, landing, checkout, thank-you, order tracking, search, contact | A page type with no surface cannot be composed or previewed in Studio (`previewTarget` answers `null`, so the preview is a 404) | The first-party themes' tests |
+| Read saved data through `resolveSurfaceDocument` and `resolveThemeSettings` | Saved data is untrusted; one bad section must never break a page | The SDK repairs and reports; it never throws |
+| Never write: no endpoint saves a document, a setting or merchant text | Studio is the only writer; a theme that writes bypasses its checks | The platform's API has no such endpoint |
+| Every shopper-facing word comes from a content pack, in every language the theme declares, with plural messages through `formatMessage` | A hard-coded word shows French to an Arabic shopper; a count needs its language's plural forms | `validateThemeDefinition` (labels, `contentKey`s), `pluralFormIssues`; the first-party string validators |
+| No theme word states a fact about a store: its delivery reach, hours, phone, address or prices | It is true of one store and false of the next | Review only: no test can tell a fact from a word |
+| Build every platform link with `storefrontPath` and `localizeHref`; render menu items' `href` as given | A hand-written path breaks when a page moves or a language is added | The first-party themes' tests |
+| Reach the store's WhatsApp only through `whatsAppContact`, behind one module holding your words | A hand-written `wa.me` link ignores the merchant's number, texts and message rules | The first-party themes' guard tests |
+| Take colours from the page's or section's color scheme | A hard-coded colour ignores the merchant's palette | `colorScheme` fields and `schemeClass`; the first-party themes' tests |
+| Resolve images from media keys with `config.media` | A hard-coded host breaks on another store's media host | `validateThemeDefinition` refuses an image `default` |
+| Keep Zod and the server entries out of browser code | A schema ships Zod to every shopper; `/server` would carry the store key | The first-party themes' guard tests |
+| Never rename the theme key, a component `type` or a field `key` once stores use them | Every saved edit is keyed by them | `diffThemeManifests` reports a breaking change |
+
+The [agent kit](/sdk/theme/agents) states the same rules as must and never
+lists, with the commands that check each one.
 
 ## Install
 
 ```bash
-npm install @wocart/theme @wocart/storefront
+npm install --save-exact @wocart/theme@4.0.0 @wocart/storefront@3.0.0 zod
 ```
 
-`@wocart/storefront` is a required peer: the render context uses its
-`StoreConfig`, and `load` hooks receive its `StoreClient`. Astro 7 is an
-optional peer, needed only for the `./astro` renderer. The package is ESM-only
-and needs Node 22.12 or newer for tooling.
-
-## Guide map
-
-| Page | What it covers |
+| Requirement | Value |
 | --- | --- |
-| [Build a theme](/sdk/theme/build) | Install, define a component, assemble a catalog, render a page, emit the manifest |
-| [Build a complete theme](/sdk/theme/tutorial) | An empty project to a shipped theme: layout, areas, both surfaces, endpoints, tests, deploy |
-| [Customize a theme](/sdk/theme/customize) | The safe loop for changing copy, images, styles and section order |
-| [Use AI to build a theme](/sdk/theme/agents) | Rules and exact APIs for an AI-assisted workflow |
-| [Fields](/sdk/theme/fields) | Every field kind, defaults, conditions and typed props |
-| [Composition](/sdk/theme/composition) | Slots, blocks, fixed and required blocks, presets and limits |
-| [Pages and rendering](/sdk/theme/pages) | Surfaces, areas, documents, resolution and `InstanceView` |
-| [Style and color](/sdk/theme/style) | Style steps, breakpoints, color schemes and the stylesheet |
-| [Settings and copy](/sdk/theme/settings-copy) | Store settings, languages, content packs and messages |
-| [Manifest and editing](/sdk/theme/manifest) | The JSON catalog, document operations and versioning |
-| [Preview](/sdk/theme/preview) | Draft rendering, markers and the preview bridge |
-| [Images](/sdk/theme/images) | Media keys, `mediaUrl` and the image service |
-| [Testing a theme](/sdk/theme/testing) | The four contract checks and the degradations to test |
-| [Production and upgrades](/sdk/theme/production) | Accessibility, RTL, responsive, states, performance, security, deploy, versions |
-| [Reference implementation](/sdk/theme/reference-implementation) | How Theme-00 is built: contract, choices, guards |
-| [Public API surface](/sdk/theme/api) | Every export per entry point, stable vs deprecated vs internal |
-| [Tools and roadmap](/sdk/theme/tools) | What ships today, the AI skill, and the planned CLI and starter kit |
+| Node | 22.12 or newer |
+| Module format | ESM only |
+| `@wocart/storefront` | Required peer of `@wocart/theme`, `^3.0.0` |
+| `astro` | Optional peer, `^7.0.0` — required for the `./astro` renderer, which every Astro theme uses |
+| `zod` | `^4.4.3`: a required peer of `@wocart/storefront`, a dependency of `@wocart/theme`. Validation runs on the server and in the build; keep it out of browser code |
 
-The [API reference](/sdk/theme/reference/README) is generated from the
-published TypeScript declarations. This guide follows `@wocart/theme` 2.1.0.
+## Where to go next
 
-<Callout type="caution" title="Choose the theme key carefully">
-`defineTheme({ key })` identifies a theme to the server. Merchant text edits
-are stored under that key, and a storefront only receives them when its SDK
-client passes the same key. Renaming it orphans every merchant edit made under
-the old name.
+| If you want to… | Read |
+| --- | --- |
+| Render your first editable section, end to end | [Quick start](/sdk/theme/build) |
+| Build a full theme: header, product page with ordering, colors, preview, tests | [Build a complete theme](/sdk/theme/tutorial) |
+| Work with an AI agent | [Agent kit](/sdk/theme/agents) |
+| Choose the right field for a value | [Fields](/sdk/theme/fields) |
+| Nest blocks, require an order form, add presets | [Composition](/sdk/theme/composition) |
+| Understand surfaces, areas, documents and rendering | [Pages and rendering](/sdk/theme/pages) |
+| Give merchants spacing and color controls | [Style and color](/sdk/theme/style) |
+| Translate the theme and add store-wide settings | [Settings and copy](/sdk/theme/settings-copy) |
+| Let Studio read and edit the theme | [The manifest](/sdk/theme/manifest) and [Preview](/sdk/theme/preview) |
+| Show store images at the right size | [Images](/sdk/theme/images) |
+| Prove the theme works | [Testing a theme](/sdk/theme/testing) |
+| Ship and upgrade it | [Production and upgrades](/sdk/theme/production) |
+| Decode an issue code | [Issues and fixes](/sdk/theme/troubleshooting) |
+| See every export | [Public API surface](/sdk/theme/api) and the generated [API reference](/sdk/theme/reference/README) |
+| Learn from the reference theme | [Theme-00](/sdk/theme/reference-implementation) |
+
+<Callout type="caution" title="Choose the theme key once">
+`defineTheme({ key })` is the theme's identity. Merchant text edits, page
+documents and settings are stored under it, and a storefront receives them
+only when its client passes the same key. Renaming it orphans every edit made
+under the old name.
 </Callout>
