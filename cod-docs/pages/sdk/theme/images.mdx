@@ -1,11 +1,11 @@
 ---
-description: Store image fields as media keys, resolve them safely and resize them on the media domain with @wocart/theme.
+description: Store image fields as media keys, resolve them with the store's media delivery, and resize them on any media host with @wocart/theme.
 ---
 
 # Images
 
-An image field does not store a URL. It stores the object's **key** in the
-store's own media:
+An image field does not store a URL. It stores the image's **media key** in
+the store's own media:
 
 ```json
 {
@@ -13,69 +13,108 @@ store's own media:
     "key": "products/3f2a9c.webp",
     "alt": { "ar": "فستان أزرق", "fr": "Robe bleue" },
     "width": 1200,
-    "height": 1600
+    "height": 1600,
+    "focal": { "x": 0.5, "y": 0.3 }
   }
 }
 ```
 
 | Value | Meaning |
 | --- | --- |
-| `key` | The object's key in the store's media bucket; no leading slash |
-| `alt` | Alt text, per language; it reaches the component in the rendered language |
-| `width`, `height` | Optional intrinsic size, so the layout can reserve space |
-| `focal` | Optional focal point, each axis from 0 to 1 |
+| `key` | The image's media key: a path the platform chose under one of the store's folders (`products/`, `landing/`, `reviews/`); no leading slash, no `..` |
+| `alt` | Alt text, a string or one per language; it reaches the component in the rendered language |
+| `width`, `height` | Optional intrinsic size in whole pixels, so the layout can reserve space |
+| `focal` | Optional focal point, `{ x, y }`, each from 0 to 1 |
 
-The URL is derived at render, so changing the media domain or moving the store
-never rewrites a document. An image field has **no default**: a theme cannot
-know a store's media, so the component renders its own fallback.
+The URL is derived at render from the store's media delivery, so moving the
+store's images to another host never rewrites a document. An image field has
+**no default**: a theme cannot know a store's media, so
+`validateThemeDefinition` refuses a `default` on one, and the component renders
+its own fallback when nothing is picked.
 
 The SDK never uploads. The platform places the file in the store's media and
 saves the key; the theme only reads that key.
 
+## The store's media delivery
+
+`config.media` is the store's `MediaDelivery`, `{ kind, origin }`: where every
+key is served from (`<origin>/<key>`) and how that origin resizes.
+
+| `kind` | Resizing |
+| --- | --- |
+| `imagekit` | ImageKit's `?tr=` transformations |
+| `cloudflare` | Cloudflare's `/cdn-cgi/image/…`, with `onerror=redirect`, so a failed resize shows the original |
+| `direct` | None: images are served as stored |
+
+A theme never names a host and needs no environment variable for images: the
+same build serves stores on all three kinds.
+
 ## Resolve a key
+
+A component receives the image with `alt` already in the rendered language.
+`pictureOf(image, delivery)` from `@wocart/storefront` turns it into what an
+`<img>` needs:
 
 ```astro
 ---
-import { mediaUrl } from "@wocart/storefront";
-import { MEDIA_DOMAIN } from "astro:env/server";
+import { mediaImageUrl, pictureOf } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
 import type { banner } from "./banner.def";
 
 const { image } = Astro.props as InferProps<typeof banner>;
-const src = image && mediaUrl(image.key, MEDIA_DOMAIN);
+const { media } = Astro.locals.store.config;
+const picture = pictureOf(image, media);
+const src = picture ? (mediaImageUrl(picture.src, { width: 1200, fit: "scale-down", format: "auto" }, media) ?? picture.src) : null;
 ---
-{src
-  ? <img src={src} alt={image.alt ?? ""} width={image.width} height={image.height} loading="lazy" />
+{picture && src
+  ? <img src={src} alt={picture.alt} width={picture.width} height={picture.height} style={picture.position ? `object-position: ${picture.position}` : undefined} loading="lazy" />
   : <div class="banner-fallback" />}
 ```
 
-`mediaUrl` returns `null` when no domain is configured, so an image never
-silently points at a broken host. Use the resolved `alt`; do not rebuild it
-from the language map.
+- `pictureOf` answers `null` when nothing is picked, the key is not a media
+  key, or there is no delivery. Render the fallback then, never a broken
+  `<img>`.
+- `picture.alt` is the resolved alt text, `""` when the merchant wrote none.
+  Do not rebuild it from the language map.
+- `picture.position` is the focal point as `object-position` (`50% 30%`), for
+  an image cropped with `object-fit: cover`.
+- `mediaImageUrl` answers `null` when the delivery cannot resize (a `direct`
+  delivery): keep `picture.src` then. The sizes, formats and `srcset` helpers
+  are on [Money, images, WhatsApp and Meta events](/sdk/storefront/presentation#images).
 
-## Resize on the media domain
+Theme-00 keeps every size it shows in one module (`src/theme/utils/images.ts`)
+that binds these helpers, so no component chooses a size of its own.
 
-`@wocart/theme/image-service` adapts Astro's image pipeline to Cloudflare Image
-Resizing **on the media domain**, wherever the storefront runs:
+## Astro's `<Image>` on any media host
 
-```text
-https://<media-domain>/cdn-cgi/image/onerror=redirect,width=640,format=webp/products/3f2a9c.webp
-```
+`@wocart/theme/image-service` adapts Astro's image pipeline to the store's
+media delivery. Every `<Image>` and `getImage()` of a store image is resized by
+the store's own resizer (ImageKit or Cloudflare), so a storefront on Cloudflare
+and one on Vercel get the same URLs and no second image bill. Any other image
+(another host, a file imported into the theme) is served as it is, and so is
+every image of a `direct` delivery.
 
-A storefront on Cloudflare and one on Vercel therefore get the same URLs, the
-same edge cache and no second image bill. Any other image — another host, a
-file imported into the theme — is served as it is. With no media domain, every
-image passes through unchanged.
-
-Bind it once, in the theme:
+Astro asks the service for a URL without the request, so the service reads the
+delivery through a function you give it, on **every image**, never at build:
 
 ```ts
 // src/image-service.ts
-import { MEDIA_DOMAIN } from "astro:env/server";
+import type { MediaDelivery } from "@wocart/storefront";
 import { mediaImageService } from "@wocart/theme/image-service";
 
-export default mediaImageService(() => MEDIA_DOMAIN);
+let storeMedia: MediaDelivery | null = null;
+
+export function keepStoreMedia(media: MediaDelivery): void {
+  storeMedia = media;
+}
+
+export default mediaImageService(() => storeMedia);
 ```
+
+Call `keepStoreMedia(config.media)` where the request's store is built, for
+every config read from the server (not for the unavailable store, whose `id`
+is `""`). Before any delivery is known, every image passes through unchanged.
+This is how Theme-00 binds it (`src/theme/utils/image-service.ts`).
 
 ```js
 // astro.config.mjs
@@ -87,24 +126,21 @@ image: { service: { entrypoint: "./src/image-service.ts" } },
 | `@astrojs/cloudflare` | `imageService: "custom"` |
 | `@astrojs/vercel` | Leave `imageService` off; the entrypoint is used |
 
-The domain is read on **every image**, not at build: one theme build serves
-every store. The media domain's Cloudflare zone needs Image Transformations
-enabled (Images → Transformations); that is available on the Free plan.
-
 ## What the service does
 
-`mediaImageParams(options)` maps Astro's transform to the media URL:
+`mediaImageParams(options)` maps Astro's transform to the resize parameters
+`mediaImageUrl` takes:
 
-| Astro option | Media parameter |
+| Astro option | Parameter |
 | --- | --- |
 | `width`, `height` | `width`, `height` |
 | `format` | `format` |
-| `quality` | `quality` |
-| `fit` | `cover`, `contain`, `squeeze` (for `fill`), `scale-down`, `crop`, `pad` |
+| `quality` (a number) | `quality` |
+| `fit` | `cover`, `contain`, `scale-down`, `crop`, `pad` and `squeeze` pass as they are; `fill` becomes `squeeze` |
 
-`mediaImageService(() => domain)` returns an Astro service whose `getURL`
-resolves through `mediaImageUrl`. It extends Astro's base service, so
-`<Image>` and `getImage()` keep their usual behavior.
+`mediaImageService(delivery)` returns an Astro service whose `getURL` resolves
+through `mediaImageUrl` and falls back to the original URL. It extends Astro's
+base service, so `<Image>` and `getImage()` keep their usual behavior.
 
 `focal` is not applied by the service: it is a hint for the theme's own CSS or
 markup. `width` and `height` are the intrinsic values; a transform can still
@@ -115,20 +151,19 @@ request another size.
 ```astro
 ---
 import { Image } from "astro:assets";
-import { mediaUrl } from "@wocart/storefront";
-import { MEDIA_DOMAIN } from "astro:env/server";
+import { pictureOf } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
 import type { hero } from "./hero.def";
 
 const { image } = Astro.props as InferProps<typeof hero>;
-const src = image && mediaUrl(image.key, MEDIA_DOMAIN);
+const picture = pictureOf(image, Astro.locals.store.config.media);
 ---
-{src && (
+{picture && (
   <Image
-    src={src}
-    alt={image.alt ?? ""}
-    width={image.width ?? 1200}
-    height={image.height ?? 800}
+    src={picture.src}
+    alt={picture.alt}
+    width={picture.width ?? 1200}
+    height={picture.height ?? 800}
     widths={[480, 768, 1200]}
     sizes="(min-width: 768px) 50vw, 100vw"
   />
@@ -141,9 +176,11 @@ handled by Astro's base service as usual.
 ## Rules
 
 - **Never store a URL in an image field.** Store the key; resolve at render.
-- **Never build a media URL by string concatenation.** Use `mediaUrl` or the
-  service; they handle the domain, encoding and absence.
+- **Never build a media URL by string concatenation**, and never name a media
+  host. Use `pictureOf`, `mediaUrl`, `mediaImageUrl` or the service with
+  `config.media`.
 - **Never omit `alt`.** An empty alt is valid only for a decorative image.
 - **Do not assume a format.** A store may hold WebP, JPEG or another supported
-  type; the service asks for what the transform needs.
-- **Do not read the field as a string.** It is a `MediaReference` object.
+  type; ask for `format: "auto"` and let the host choose.
+- **Do not read the field as a string.** It is an image reference,
+  `{ key, alt?, width?, height?, focal? }`.
