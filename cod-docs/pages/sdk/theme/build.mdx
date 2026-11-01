@@ -1,189 +1,454 @@
 ---
-description: Install @wocart/theme, define a component, assemble a catalog and render the first composed page.
+description: From an empty folder to a Wocart theme that renders an editable home page from a real store — every file, every command, verified.
 ---
 
 import { Callout } from "zudoku/ui/Callout";
 
-# Build a theme
+# Quick start
 
-This page takes you from an Astro project to one editable section rendered on a
-page. It is the shortest complete example; later pages explain fields,
-composition and storefront integration in more detail.
+This page builds the smallest complete editable theme: an Astro storefront that
+connects to a store, renders its home page from a page document, lets a
+merchant edit the hero's text in Wocart Studio, and publishes its manifest.
+Every file is shown in full. Copy them in order and the theme builds.
 
-## What you are building
+When you finish, [Build a complete theme](/sdk/theme/tutorial) continues from
+this exact project: a shared header, a product page that takes orders, color
+schemes, preview and tests.
 
-A CodFlow theme is still an Astro project. You write normal `.astro`
-components. `@wocart/theme` asks you to add a small **definition** beside each
-component you want a merchant to edit.
-
-A definition answers five questions:
-
-| Question | Definition property |
-| --- | --- |
-| What is this component called in saved data? | `type` |
-| Which Astro component draws it? | `component` |
-| What can a merchant change? | `fields` |
-| Can it hold child blocks? | `slots` |
-| Does it need extra data from the server? | `load` |
-
-The page a shopper sees is built from a **document**: JSON that says which
-components appear and what values they hold. Your code supplies the components
-and their defaults; the document supplies the merchant's choices.
-
-<Callout type="info" title="Only need a fixed design?">
-If one store owns the theme and nobody will edit it from a dashboard, you do
-not need definitions, documents or a manifest. Build normal Astro pages with
-[`@wocart/storefront`](/sdk/storefront) and skip the rest of this page.
+<Callout type="info" title="What you need">
+Node 22.12 or newer, and a store to read from: the URL of its API
+(`COD_SERVER_URL`) and a store API key (`STORE_API_KEY`). A self-hosted Wocart
+gives you both; locally the API runs on `http://localhost:8787`.
 </Callout>
 
-## Install
+## 1. Create the project
 
 ```bash
-npm install @wocart/theme @wocart/storefront
+npm create astro@latest my-theme -- --template minimal --typescript strict --no-git
+cd my-theme
+npm install --save-exact @wocart/theme@4.0.0 @wocart/storefront@3.0.0
+npm install @astrojs/node zod
+npm install -D @astrojs/check typescript vitest
 ```
 
-Astro 7 is needed for the renderer and the `.astro` components. The core entry
-is framework-neutral, but `InstanceView.astro`, `ThemeStyles.astro` and the
-helpers under `@wocart/theme/astro` are Astro-specific.
+`@astrojs/node` is only this guide's adapter; any Astro server adapter works
+(Theme-00 uses Cloudflare and Vercel). `zod` is a required peer of
+`@wocart/storefront`. Pin the two Wocart packages exactly: a theme is rendered
+by its own deployment, and a floating range lets two builds of the same commit
+differ.
 
-## 1. Define a component
+The two packages move together. `@wocart/theme` 4.0.0 declares
+`@wocart/storefront` `^3.0.0` as its peer, and `@wocart/storefront` 3.0.0
+reads the payloads of platform v7.0.0. A theme on `@wocart/storefront` 2.x
+cannot read a v7 store's config and renders every page as an unreadable
+store.
 
-A definition wraps a real component. The fields are the editable surface; the
-`load` hook is optional server-side enrichment.
+## 2. Configure Astro
 
-```ts
-// src/theme/components/best-sellers.def.ts
-import { defineComponent } from "@wocart/theme";
-import BestSellers from "./BestSellers.astro";
+```js title="astro.config.mjs"
+import { defineConfig, envField } from "astro/config";
+import node from "@astrojs/node";
 
-export const bestSellers = defineComponent({
-  type: "best-sellers",
-  component: BestSellers,
-  label: "Best sellers",
-  fields: [
-    {
-      key: "collection",
-      kind: "collection",
-      label: "Collection",
-      default: "best-sellers",
+export default defineConfig({
+  output: "server",
+  adapter: node({ mode: "standalone" }),
+  env: {
+    schema: {
+      COD_SERVER_URL: envField.string({ context: "server", access: "secret", optional: true }),
+      STORE_API_KEY: envField.string({ context: "server", access: "secret", optional: true }),
+      WOCART_PREVIEW_KEY: envField.string({ context: "server", access: "secret", optional: true }),
     },
-    {
-      key: "limit",
-      kind: "number",
-      label: "Number of products",
-      default: 8,
-      min: 1,
-      max: 24,
-    },
-  ],
-  load: async ({ storefront, props }) => ({
-    products: await storefront.products.list({
-      collection: props.collection,
-      limit: props.limit,
-    }),
-  }),
+  },
 });
 ```
 
-`defineComponent` keeps the field keys, kinds and select options as literals.
-The component's props are derived from the same definition:
+- **`output: "server"`**: pages render per request, because the store, its
+  language and its saved documents are decided per request.
+- **Every value is a server secret.** None is `PUBLIC_*`; the API key must
+  never reach a browser.
+- **They are `optional` on purpose.** One theme build serves every store, so
+  the build has no store values. The build also prerenders the manifest, and
+  that loads the middleware and the module that reads these variables. A
+  required secret would fail every build. At request time a missing value
+  still fails loudly: `createStoreClient` throws `MISSING_CONFIGURATION`
+  rather than rendering an empty store.
 
-```astro
----
-// src/theme/components/BestSellers.astro
-import type { InferProps } from "@wocart/theme";
-import type { bestSellers } from "./best-sellers.def";
+Images need no variable: the store's config says where its images are served
+from (`config.media`).
 
-const { products = [] } = Astro.props as InferProps<typeof bestSellers>;
----
+For local development, put the two values in `.env` (never commit it):
+
+```bash title=".env"
+COD_SERVER_URL=http://localhost:8787
+STORE_API_KEY=your-store-api-key
 ```
 
-A field with a `default` is always present in `props`; one without a default is
-optional. Whatever `load` returns is merged over the field values.
+## 3. The theme's identity
 
-## 2. Assemble the catalog
-
-The catalog is the unit the renderer and validator consume. Component keys must
-equal their `type`, because documents refer to the type.
-
-```ts
-// src/theme/theme.ts
-import { defineTheme, type PageData, type SurfaceSpec } from "@wocart/theme";
-import { bestSellers } from "./components/best-sellers.def";
-
-const homeDocument = {
-  version: 1,
-  surface: "home",
-  sections: [{ id: "best-sellers-1", type: "best-sellers" }],
-} satisfies PageData;
-
-const home: SurfaceSpec = {
-  key: "home",
-  label: "Home",
-  pageType: "home",
-  document: homeDocument,
-};
-
-export const theme = defineTheme({
-  key: "my-theme",
-  version: "1.0.0",
-  surfaces: [home],
-  components: { "best-sellers": bestSellers },
-});
+```ts title="src/theme/key.ts"
+export const THEME_KEY = "my-theme";
+export const THEME_VERSION = "1.0.0";
 ```
 
-A surface's `document` is the theme's shipped default. `resolveSurfaceDocument`
-uses it when the store has saved nothing, or when the saved document cannot be
-rendered.
+The key is lowercase kebab-case, at most 64 characters, and permanent: the
+platform stores every merchant edit for this theme under it. It lives in its
+own small module so server code can import it without loading every component.
 
-## 3. Validate the catalog
+## 4. One place that creates the store client
 
-Definitions are code, so the validator is an assembly-time test, not a runtime
-guard.
+```ts title="src/theme/sdk.ts"
+import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
+import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
+import { THEME_KEY } from "./key";
 
-```ts
-import { validateThemeDefinition } from "@wocart/theme";
-import { theme } from "./theme/theme";
+export const storeServerUrl = (): string => COD_SERVER_URL ?? "";
 
-const issues = validateThemeDefinition(theme);
-if (issues.length > 0) {
-  throw new Error(issues.map((issue) => `${issue.path}: ${issue.message}`).join("\n"));
+export function getStoreClient(locale?: string): StoreClient {
+  return createStoreClient({
+    serverUrl: storeServerUrl(),
+    apiKey: STORE_API_KEY ?? "",
+    theme: THEME_KEY,
+    ...(locale === undefined ? {} : { locale }),
+    onError: (error) => {
+      console.warn(`[my-theme] degraded read: ${error.operation} (${error.code})`);
+    },
+  });
 }
 ```
 
-Run this in the theme's test suite. It checks key/type agreement, field rules,
-slot declarations, fixed blocks, required blocks, presets, content keys and
-default documents.
+This is the theme's one seam with the platform, and it is server-only.
 
-## 4. Render the surface
+| Option | Why it is there |
+| --- | --- |
+| `theme` | The store's text edits, settings and page documents for **this** theme arrive only when the client names it |
+| `locale` | Set for a language other than the store's primary, so the server answers in that language |
+| `onError` | Reads never throw: a failed read returns `null` or `[]`. This is the only place the theme can see why |
 
-One `InstanceView` per section, one read cache per page render.
+A new client per call keeps one request's reads and caches out of another's.
 
-```astro
+## 5. The store that cannot be read
+
+```ts title="src/theme/fallback.ts"
+import { unavailableStoreConfig } from "@wocart/storefront";
+import { storeServerUrl } from "./sdk";
+
+export const FALLBACK_CONFIG = unavailableStoreConfig({ serverUrl: storeServerUrl(), locale: "ar" });
+```
+
+When the store's config cannot be read (the API is down, the key is wrong),
+the theme renders this config instead of crashing. Never write a fallback
+config by hand: `unavailableStoreConfig` always has the config's current
+shape, and it decides once what an unreadable store offers.
+
+- **Nothing to buy.** The cart, the checkout form's address and delivery
+  options, the code by SMS, Turnstile, reviews and the WhatsApp button are
+  all off, so the page can never look like a working checkout.
+- **An empty `id`.** `config.id === ""` is how a page tells this config apart
+  from a real store.
+- **One language.** `locale` (default `"ar"`) is its only language. Its name
+  and direction come from the runtime's `Intl` data, because the platform's
+  list of languages lives on the server.
+- **Images from `serverUrl`.** Its media delivery is `direct`, from
+  `<serverUrl>/media`.
+
+## 6. The theme's own text
+
+```ts title="src/theme/content.ts"
+export const content = {
+  ar: { heroTitle: "مرحبا بكم", heroSubtitle: "اكتشفوا منتجاتنا" },
+  fr: { heroTitle: "Bienvenue", heroSubtitle: "Découvrez nos produits" },
+  en: { heroTitle: "Welcome", heroSubtitle: "Discover our products" },
+} satisfies Record<string, Record<string, string>>;
+
+export function packFor(locale: string): Record<string, string> {
+  return Object.hasOwn(content, locale) ? content[locale as keyof typeof content] : content.ar;
+}
+```
+
+A **content pack** is one flat map of keys to text per language. A field can
+take its starting text from a pack key, and a merchant's edit for that key, in
+that language, replaces it. Every pack must have the same keys.
+
+A pack holds the theme's words, never a fact about a store. "Delivered to
+all 58 wilayas", opening hours, a phone number or a return period is true of
+one store and false of the next. Facts come from the store's data
+(`config.contact`, its pages, its shipping rates) or from a field the
+merchant writes.
+
+## 7. The request's store
+
+```ts title="src/theme/store.ts"
+import { localizeHref, servedLanguage, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
+import {
+  resolvePreviewStore as resolvePreview,
+  resolveStoreRequest as resolveRequest,
+  type ResolvedStore,
+} from "@wocart/storefront/astro";
+import type { PreviewDraft, StoreClient } from "@wocart/storefront/server";
+import type { ThemeRenderContext } from "@wocart/theme";
+import { packFor } from "./content";
+import { FALLBACK_CONFIG } from "./fallback";
+import { getStoreClient } from "./sdk";
+
+export interface StoreContext {
+  config: StoreConfig;
+  client: StoreClient;
+  locale: string;
+  fallbackLocales: readonly string[];
+  isRTL: boolean;
+  content: Record<string, string>;
+  routing: LocaleRouting;
+  pathname: string;
+  href: (path: string) => string;
+}
+
+const STORE = { client: getStoreClient, fallback: FALLBACK_CONFIG };
+
+export async function resolveStoreRequest(url: URL, referer: string | null) {
+  const request = await resolveRequest({ url, referer }, STORE);
+  if (request.kind === "redirect") return request;
+  return { kind: "page" as const, store: storeContext(request), rewrite: request.rewrite };
+}
+
+export async function resolvePreviewStore(draft: PreviewDraft): Promise<StoreContext> {
+  return storeContext(await resolvePreview(draft, STORE));
+}
+
+function storeContext({ config, client, routing, locale, pathname }: ResolvedStore): StoreContext {
+  return {
+    config,
+    client,
+    locale,
+    fallbackLocales: locale === routing.primary ? [] : [routing.primary],
+    isRTL: servedLanguage(config, locale)?.direction === "rtl",
+    content: { ...packFor(locale), ...config.contentOverrides[locale] },
+    routing,
+    pathname,
+    href: (path) => localizeHref(path, locale, routing),
+  };
+}
+
+export function renderContext(
+  store: StoreContext,
+  params: Readonly<Record<string, string | undefined>> = {},
+): ThemeRenderContext {
+  return {
+    store: store.config,
+    content: store.content,
+    locale: store.locale,
+    fallbackLocales: store.fallbackLocales,
+    isRTL: store.isRTL,
+    url: store.pathname,
+    params,
+  };
+}
+```
+
+`StoreContext` is **your** type: everything a page needs about the request,
+built once. The rules that decide it are the SDK's, in `resolveStoreRequest`:
+
+- The store's **primary language has no prefix** (`/products/robe`); another
+  published language does (`/fr/products/robe`). The primary's own prefix
+  redirects permanently to the unprefixed URL; a language the store stopped
+  publishing redirects temporarily to the primary page.
+- An **endpoint or server island** (`/api/…`, `/_server-islands/…`) takes the
+  language of the page that asked for it, from its same-origin `Referer`, and
+  is never redirected.
+- `content` merges the merchant's edits for **this language only** over your
+  pack. Merging another language's edits would show French text to an Arabic
+  shopper.
+- `href("/products")` gives `/fr/products` on a French page and `/products`
+  on the primary language's. Use it for every internal link.
+
+`resolvePreviewStore` is used later, by the preview route.
+
+## 8. The middleware
+
+```ts title="src/middleware.ts"
+import { defineMiddleware } from "astro:middleware";
+import { resolveStoreRequest } from "./theme/store";
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  if (context.isPrerendered) return next();
+
+  const request = await resolveStoreRequest(context.url, context.request.headers.get("Referer"));
+  if (request.kind === "redirect") return context.redirect(request.location, request.status);
+  context.locals.store = request.store;
+
+  return request.rewrite === null ? next() : next(request.rewrite);
+});
+```
+
+`/fr/products/robe` renders the route `src/pages/products/[handle].astro`: the
+SDK returns `rewrite: "/products/robe"`, and `next(rewrite)` renders it, so you
+never duplicate routes per language. A prerendered page (the manifest) has no
+request store, so it is skipped.
+
+Tell TypeScript what the middleware puts on `locals`:
+
+```ts title="src/env.d.ts"
+/// <reference types="astro/client" />
+
+import type { StoreContext } from "./theme/store";
+
+declare global {
+  namespace App {
+    interface Locals {
+      store: StoreContext;
+    }
+  }
+}
+```
+
+## 9. Your first editable component
+
+The component is ordinary Astro. Its props come from its definition.
+
+```astro title="src/theme/components/Hero.astro"
 ---
-// src/pages/index.astro
-import { resolveSurfaceDocument, type ThemeRenderContext } from "@wocart/theme";
+import type { InferProps } from "@wocart/theme";
+import type { hero } from "./hero.def";
+
+type Props = InferProps<typeof hero>;
+const { title, subtitle, align } = Astro.props;
+---
+<section class="hero" data-align={align}>
+  <h1>{title}</h1>
+  {subtitle && <p>{subtitle}</p>}
+</section>
+```
+
+```ts title="src/theme/components/hero.def.ts"
+import { defineComponent } from "@wocart/theme";
+import Hero from "./Hero.astro";
+
+export const hero = defineComponent({
+  type: "hero",
+  component: Hero,
+  label: { ar: "الواجهة", fr: "Bannière", en: "Hero" },
+  placement: "section",
+  fields: [
+    {
+      key: "title",
+      kind: "text",
+      label: { ar: "العنوان", fr: "Titre", en: "Title" },
+      contentKey: "heroTitle",
+      required: true,
+    },
+    {
+      key: "subtitle",
+      kind: "textarea",
+      label: { ar: "النص", fr: "Texte", en: "Text" },
+      contentKey: "heroSubtitle",
+    },
+    {
+      key: "align",
+      kind: "select",
+      label: { ar: "المحاذاة", fr: "Alignement", en: "Alignment" },
+      options: ["start", "center"],
+      optionLabels: {
+        start: { ar: "البداية", fr: "Début", en: "Start" },
+        center: { ar: "الوسط", fr: "Centre", en: "Center" },
+      },
+      default: "center",
+      display: "segmented",
+    },
+  ],
+});
+```
+
+| Property | What it does here |
+| --- | --- |
+| `type` | The component's identity in saved documents. Never rename it once stores use it |
+| `component` | The real `.astro` component the renderer draws |
+| `label` | What Wocart Studio shows, in each of the theme's languages |
+| `placement: "section"` | It goes at the top level of a page, never inside another component |
+| `contentKey` | The field starts with the pack's text in the page's language |
+| `required: true` | A value must exist after the pack and the default; the pack supplies it |
+| `default` | The value until a merchant chooses another |
+
+`InferProps` makes `align` the literal union `"start" | "center"` and always
+present (it has a default), and `title` and `subtitle` optional strings.
+
+## 10. The home page's default document
+
+```json title="src/theme/documents/home.page.json"
+{
+  "version": 1,
+  "surface": "home",
+  "sections": [{ "id": "home-hero", "type": "hero" }]
+}
+```
+
+This is what the home page renders until the store saves its own. The `id` is
+unique in the document and stable: a merchant's edit is stored against it. No
+`props`, so every field takes its pack text or default.
+
+## 11. The catalog
+
+```ts title="src/theme/theme.ts"
+import { defineTheme, type PageData } from "@wocart/theme";
+import { hero } from "./components/hero.def";
+import { content } from "./content";
+import homeDocument from "./documents/home.page.json";
+import { THEME_KEY, THEME_VERSION } from "./key";
+
+export const theme = defineTheme({
+  key: THEME_KEY,
+  version: THEME_VERSION,
+  locales: ["ar", "fr", "en"],
+  content,
+  surfaces: [
+    {
+      key: "home",
+      label: { ar: "الرئيسية", fr: "Accueil", en: "Home" },
+      pageType: "home",
+      document: homeDocument as PageData,
+    },
+  ],
+  components: { hero },
+});
+```
+
+- Each key in `components` equals its definition's `type`. Always.
+- `locales` declares the theme's languages: every translated label must cover
+  all three, and every pack must exist.
+- `content` declares the packs, so the SDK checks every `contentKey` against
+  them.
+- The `as PageData` cast is only because an imported JSON file is typed
+  loosely; the SDK checks the document for real when the theme is validated.
+
+## 12. Render a surface
+
+One component renders any surface: it picks the document, then renders each
+section through the SDK's renderer.
+
+```astro title="src/theme/sections/Sections.astro"
+---
 import InstanceView from "@wocart/theme/astro/InstanceView.astro";
 import { createReadCache } from "@wocart/theme/astro";
-import { theme } from "../theme/theme";
+import { resolveSurfaceDocument, type ReadCache, type ThemeDefinition } from "@wocart/theme";
+import { renderContext } from "../store";
 
+interface Props {
+  theme: ThemeDefinition;
+  surface: string;
+  document: unknown;
+  params?: Readonly<Record<string, string | undefined>>;
+  reads?: ReadCache;
+  preview?: boolean;
+}
+
+const { theme, surface, document, params, preview = false } = Astro.props;
 const store = Astro.locals.store;
-const saved = await store.client.pageData.get("home");
-const { page } = resolveSurfaceDocument(theme, "home", saved, {
+const { page, source, issues } = resolveSurfaceDocument(theme, surface, document, {
   content: store.content,
   locales: [store.locale, ...store.fallbackLocales],
 });
+if (issues.length > 0) console.warn(`[my-theme] ${surface} (${source}):`, issues);
 
-const context: ThemeRenderContext = {
-  store: store.config,
-  content: store.content,
-  locale: store.locale,
-  fallbackLocales: store.fallbackLocales,
-  isRTL: store.isRTL,
-  url: store.pathname,
-};
-
-const reads = createReadCache();
+const context = renderContext(store, params);
+const reads = Astro.props.reads ?? createReadCache();
 ---
 {page.sections.map((section) => (
   <InstanceView
@@ -192,21 +457,72 @@ const reads = createReadCache();
     context={context}
     storefront={store.client}
     reads={reads}
+    preview={preview}
   />
 ))}
 ```
 
-The read cache is scoped to **one page render**. `load` hooks that read the same
-resource share one request; a rejection is shared too, so a failed read does not
-retry once per section.
+`resolveSurfaceDocument` renders the store's saved document when this theme
+can, and the theme's default when nothing was saved, the saved value is not a
+document, or it belongs to another theme. It also adds any required or fixed
+block the document lacks. `createReadCache()` is one cache **per page render**:
+sections that read the same resource share one request.
 
-## 5. Emit the manifest
+## 13. The layout and the page
 
-Editors and release tools read the manifest, not the compiled theme. A
-prerendered endpoint puts it at `/wocart-theme.json`.
+```astro title="src/theme/layouts/StoreLayout.astro"
+---
+interface Props {
+  title?: string;
+}
 
-```ts
-// src/pages/wocart-theme.json.ts
+const store = Astro.locals.store;
+const { title = store.config.name } = Astro.props;
+---
+<!doctype html>
+<html lang={store.locale} dir={store.isRTL ? "rtl" : "ltr"}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>
+```
+
+```astro title="src/pages/index.astro"
+---
+import StoreLayout from "../theme/layouts/StoreLayout.astro";
+import Sections from "../theme/sections/Sections.astro";
+import { theme } from "../theme/theme";
+
+const saved = await Astro.locals.store.client.pageData.get("home");
+---
+<StoreLayout>
+  <Sections theme={theme} surface="home" document={saved} />
+</StoreLayout>
+```
+
+```astro title="src/pages/404.astro"
+---
+import StoreLayout from "../theme/layouts/StoreLayout.astro";
+---
+<StoreLayout title="404">
+  <h1>404</h1>
+</StoreLayout>
+```
+
+`pageData.get("home")` returns the store's saved document for this theme, or
+`null` when there is none or the read failed. Both cases are handled by
+`resolveSurfaceDocument`.
+
+## 14. Publish the manifest
+
+```ts title="src/pages/wocart-theme.json.ts"
 import { themeManifestEndpoint } from "@wocart/theme/astro";
 import { theme } from "../theme/theme";
 
@@ -214,18 +530,85 @@ export const prerender = true;
 export const GET = themeManifestEndpoint(theme);
 ```
 
-The endpoint derives and validates the manifest when the module loads. An
-invalid manifest fails the build instead of shipping.
+The build writes `/wocart-theme.json`: the JSON description of everything your
+theme makes editable, which Wocart Studio reads. The manifest is validated when
+this module loads, so an invalid theme **fails the build** instead of shipping.
 
-## Where next
+## 15. Prove it
 
-- [Use AI to build a theme](/sdk/theme/agents) — give an assistant the rules
-  before it changes the theme.
-- [Tools and roadmap](/sdk/theme/tools) — planned CLI, starter kit and AI
-  skills.
-- [Fields](/sdk/theme/fields) — choose the right field for each editable value.
-- [Composition](/sdk/theme/composition) — slots, blocks and required sections.
-- [Pages and rendering](/sdk/theme/pages) — templates, areas and the full
-  resolution policy.
-- [Style and color](/sdk/theme/style) — give merchants style and color controls.
-- [Testing a theme](/sdk/theme/testing) — the four checks a theme should pass.
+```ts title="vitest.config.ts"
+/// <reference types="vitest/config" />
+import { getViteConfig } from "astro/config";
+
+export default getViteConfig({ test: {} });
+```
+
+```ts title="src/theme/__tests__/contract.test.ts"
+import { describe, expect, it } from "vitest";
+import { themeManifest, validatePageData, validateThemeDefinition, validateThemeManifest } from "@wocart/theme";
+import { content } from "../content";
+import { theme } from "../theme";
+
+describe("the theme contract", () => {
+  it("assembles without issues", () => {
+    expect(validateThemeDefinition(theme)).toEqual([]);
+  });
+
+  it("round-trips its manifest", () => {
+    const checked = validateThemeManifest(JSON.parse(JSON.stringify(themeManifest(theme))));
+    expect(checked.manifest).not.toBeNull();
+    expect(checked.issues).toEqual([]);
+  });
+
+  it("ships documents that validate in every language", () => {
+    for (const locale of theme.locales) {
+      for (const surface of theme.surfaces) {
+        const scope = { content: content[locale], locales: [locale] };
+        expect(validatePageData(theme, surface.document, scope).issues).toEqual([]);
+      }
+    }
+  });
+});
+```
+
+Add the scripts to `package.json`:
+
+```json
+{
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "check": "astro check",
+    "test": "vitest run"
+  }
+}
+```
+
+Then run the three checks every change must pass:
+
+```bash
+npm run check   # 0 errors
+npm test        # every contract test passes
+npm run build   # writes dist/, including dist/client/wocart-theme.json
+```
+
+Start the theme with `npm run dev` and open `http://localhost:4321`. You see
+the store's name in the tab and the hero in the store's primary language;
+`/fr` shows it in French when the store publishes French.
+
+## What you have
+
+| Piece | Where | Its job |
+| --- | --- | --- |
+| The platform seam | `src/theme/sdk.ts` | The only module that creates a store client |
+| The request store | `src/theme/store.ts`, `src/middleware.ts` | Language, redirects, the client and the text for each request |
+| A definition | `src/theme/components/hero.def.ts` | What a merchant may change on the hero |
+| A default document | `src/theme/documents/home.page.json` | The home page before the store saves one |
+| The catalog | `src/theme/theme.ts` | Everything editable, under one theme key |
+| The renderer | `src/theme/sections/Sections.astro` | Saved or default document → your components |
+| The manifest | `/wocart-theme.json` | What Wocart Studio reads |
+| The checks | `src/theme/__tests__/contract.test.ts` | Proof the contract holds |
+
+Next: [Build a complete theme](/sdk/theme/tutorial) adds a header every page
+shares, a product page that takes cash-on-delivery orders, color schemes and
+spacing controls, Studio preview, publish revalidation and render tests.
