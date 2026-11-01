@@ -1,170 +1,219 @@
 ---
-description: How to use an AI assistant to build or change a @wocart/theme theme without guessing fields or breaking saved pages.
+description: The agent kit for building Wocart themes with AI — a skill and an AGENTS.md to install, copy-paste prompts for every common job, the rules an agent must not guess, and how to check its work.
 ---
 
-# Use AI to build a theme
+import { Callout } from "zudoku/ui/Callout";
 
-AI can write a theme quickly, but a theme has rules that are easy to guess
-wrong. This page is written for both people in the conversation:
+# AI agent kit
 
-- **If you are the developer:** give this page to your assistant together with
-  the theme manifest and the document you want changed. You still decide what
-  the theme should look like.
-- **If you are the assistant:** work from the manifest and the document
-  operations. Never invent a field, a component type or an id.
+AI coding agents — Claude Code, Cursor, Codex, Copilot, Windsurf — build
+Wocart themes quickly, as long as they work from the real contract instead of
+guessing it. This kit gives them the contract in the form they read best.
 
-The goal is not to stop the assistant from writing code. The goal is to keep it
-inside the contract, so the page still renders for shoppers after every change.
+| Piece | What it is | Who reads it |
+| --- | --- | --- |
+| [The skill](#1-install-the-skill) | A procedure file: rules, workflows, verification | The agent, before every theme task |
+| [`AGENTS.md`](#2-add-agentsmd-to-the-theme) | Your theme's facts and commands, at the repo root | The agent, every time it opens the repo |
+| [`llms.txt`](#3-give-it-the-docs) | This documentation, indexed for agents | The agent, when it needs detail |
+| [Prompts](#prompts-you-can-copy) | Ready-made instructions for common jobs | You paste them |
+| [Review checklist](#check-the-agents-work) | How to tell real work from confident output | You |
 
-## Give the assistant these three things
+## Set up in two minutes
 
-| Give it | Why |
+### 1. Install the skill
+
+```bash
+mkdir -p .agents/skills/wocart-theme
+curl -fsSL https://docs.wocart.store/agents/wocart-theme/SKILL.md \
+  -o .agents/skills/wocart-theme/SKILL.md
+```
+
+For Claude Code, put the same file where it discovers skills:
+
+```bash
+mkdir -p .claude/skills/wocart-theme
+cp .agents/skills/wocart-theme/SKILL.md .claude/skills/wocart-theme/SKILL.md
+```
+
+<a href="/agents/wocart-theme/SKILL.md">Read the skill</a>. It holds the
+versions to pin, twenty-one must and never rules each with the command that
+checks it, the shape of a theme, five workflows (new theme, change a section,
+make a design editable, review, upgrade), the verification commands, and when
+to stop and report instead of improvising.
+
+### 2. Add `AGENTS.md` to the theme
+
+```bash
+curl -fsSL https://docs.wocart.store/agents/theme/AGENTS.md -o AGENTS.md
+```
+
+Then edit its table: your theme key, languages and versions. Claude Code reads
+`CLAUDE.md`; make it one line — `@AGENTS.md` — so both tools read the same
+file.
+
+### 3. Give it the docs
+
+| URL | Contents |
 | --- | --- |
-| The theme manifest | It lists the real component types, fields, slots and surfaces |
-| The target document or surface | It says what page is being changed |
-| The result you want, in plain words | It replaces guessing from a screenshot |
+| `https://docs.wocart.store/llms.txt` | The index of every page, for agents |
+| `https://docs.wocart.store/llms-full.txt` | Every page in one file |
+| `https://docs.wocart.store/sdk/theme/build.md` | Any page as Markdown: its URL plus `.md` |
 
-If the assistant changes a definition, also give it the validation command or
-test command the theme uses.
+Most agents fetch a URL when you paste it. Paste the index once at the start
+of a session, or the specific page the task needs.
 
-## The repository skill
+## Prompts you can copy
 
-CodFlow's repository ships a skill for exactly this work:
-`.agents/skills/wocart-theme/`. It is written for an agent, not for you, and it
-is the shortest way to make an assistant behave:
+Each prompt names the skill, the pages to read, the result, and the proof you
+expect. Replace the parts in angle brackets.
 
-| File | What the agent gets |
-| --- | --- |
-| `SKILL.md` | The workflows, the non-negotiable rules, the verification commands |
-| `references/sdk-discovery.md` | How to read the installed SDK's declarations and tests before using an API |
-| `references/theme-architecture.md` | Which SDK owns what, and how to use Theme-00 without copying it |
-| `references/theme-quality.md` | What must pass before anyone says the theme works |
-| `references/docs-maintenance.md` | What a contract change obliges in English, French and Arabic |
+### Start a new theme
 
-The skill does not replace the manifest or the code: it tells the agent to read
-them.
+```text
+Create a new Wocart theme in this empty folder, following
+.agents/skills/wocart-theme/SKILL.md (workflow A) and exactly the files of
+https://docs.wocart.store/sdk/theme/build.md, then
+https://docs.wocart.store/sdk/theme/tutorial.md.
 
-## Read these first
+Theme key: <my-theme>. Languages: ar (primary), fr, en.
+Design: <describe it, or attach screenshots>.
 
-| If you need to… | Read |
-| --- | --- |
-| Know which fields exist | `manifest.components[type].fields` |
-| Know which slots and blocks exist | `manifest.components[type].slots`, `fixed`, `placement` |
-| Know which surfaces and areas exist | `manifest.surfaces`, `manifest.areas` |
-| Know the store's settings | `manifest.settings` |
-| Change a document | [Manifest and editing](/sdk/theme/manifest) |
-| Understand a refusal | `DocumentIssue.code` and `PageDataIssue.code` |
+Build the home surface end to end first and run `npx astro check`,
+`npx vitest run` and `npx astro build`. Show me their output before you add the
+product page. Do not invent any API: check each import in node_modules/@wocart.
+```
 
-The manifest is generated from the live theme. Do not infer a field from a
-component's markup, a screenshot or an older README.
+### Add a section
 
-## Invariants
+```text
+Add a "<testimonials>" section to the home page of this Wocart theme. Follow
+workflow B of .agents/skills/wocart-theme/SKILL.md.
 
-These are the rules the assistant must follow. A developer does not need to
-memorize them, but they explain why some changes are refused.
+A merchant must be able to change: <the heading, up to 6 quotes each with a name
+and a photo, the color scheme, the spacing>. Put every default string in all
+three content packs. Add it to the home page's default document. Add a render
+test. Then run check, test and build and show me the results.
+```
 
-1. **Definitions are code; documents are data.** Never put functions, class
-   instances or undefined values into a document.
-2. **`type` is identity.** Do not rename it. Saved instances reference it.
-3. **A component key equals its `type`.** `components["best-sellers"]` must
-   hold a definition whose `type` is `"best-sellers"`.
-4. **`id` is unique in the document.** Use `newInstanceId()`, or keep the id
-   another tool already gave the instance; do not invent one that may collide.
-5. **Defaults are materialized only at creation.** `createInstance` fills
-   defaults; a later reader also falls back through content and defaults.
-6. **`load` output wins over field props.** If a field and a `load` result use
-   the same key, the loaded value wins.
-7. **Hidden means not rendered, not removed.** It stays in the document, and a
-   required block cannot be hidden away.
-8. **Required and fixed blocks are guaranteed.** `completePage` adds them when
-   a document lacks them.
-9. **Images are media keys, not URLs.** An `image` value is a
-   `MediaReference`; resolve it at render.
-10. **No CSS in documents.** `style` values are steps and choices;
-    `colorScheme` values are scheme ids.
-11. **A saved document is untrusted.** Validate on read and degrade with
-    reports; never throw the page away for one bad section.
-12. **Theme code reads; the platform writes.** Do not add endpoints that save
-    page documents, settings or merchant text. The theme receives saved data.
+### Turn a design into an editable section
 
-## Change protocol
+```text
+Here is a design for a section: <screenshot or HTML>. Rebuild it as a Wocart
+theme section following workflow C of .agents/skills/wocart-theme/SKILL.md.
 
-1. **Locate the surface.** `home`, `product`, `collection`, `category`,
-   `catalog`, `page`, or an area such as `area:header`.
-2. **Open the document.** `resolveSurfaceDocument(theme, surface, saved)` gives
-   the document that will render, already completed. If you are editing, start
-   from `completePage(theme, page).page`.
-3. **Choose the component.** Use a type in the manifest whose `placement` and
-   `capabilities.surfaces` allow this location.
-4. **Create the instance.**
-   ```ts
-   import { createInstance, manifestCatalog, newInstanceId } from "@wocart/theme";
-   const definition = manifestCatalog(manifest).components["best-sellers"];
-   const instance = createInstance(definition!, newInstanceId(), { limit: 4 });
-   ```
-   `limit` is a field of this example's `best-sellers` definition. In a real
-   theme, pass only keys the manifest declares. `createInstance` throws on
-   unknown keys, wrong types and a required field with nothing to fill it.
-5. **Apply the change.** Use `insertInstance`, `moveInstance`,
-   `duplicateInstance`, `setInstanceProps`, `setInstanceHidden` or
-   `removeInstance`. They return `{ ok: true, page }` or
-   `{ ok: false, issue }`.
-6. **Check the whole document.** `checkPageData(theme, page)` returns every
-   issue before saving.
-7. **Validate the theme** after changing a definition:
-   `validateThemeDefinition(theme)`.
-8. **Preview and test.** Render the page, or use the preview route and the
-   bridge; run the theme's contract tests.
+Every text, image, link, number and choice a merchant would reasonably change
+becomes a field (https://docs.wocart.store/sdk/theme/fields.md). Use CSS
+logical properties so it mirrors in Arabic. Images are media keys resolved with
+pictureOf and the store's config.media. No default text may state a fact about
+a store. List the fields you chose and why before writing code.
+```
 
-## APIs to use
+### Wire the product page and ordering
 
-| Goal | API |
-| --- | --- |
-| Serialize a theme | `themeManifest(theme)` |
-| Turn a manifest into an editable catalog | `manifestCatalog(manifest)` |
-| Validate document shape and field values | `validatePageData(theme, input, scope)` |
-| Strict writer check | `checkPageData(theme, page)` |
-| Add required and fixed blocks | `completePage(theme, page)` |
-| Choose the document that renders | `resolveSurfaceDocument(theme, surface, saved, scope)` |
-| Make a new instance | `createInstance(definition, id, props)` |
-| Generate an id | `newInstanceId()` |
-| Edit a document | `insertInstance`, `moveInstance`, `duplicateInstance`, `setInstanceProps`, `setInstanceHidden`, `removeInstance` |
-| Compare two releases | `diffThemeManifests(previous, next)` |
+```text
+Add the product page to this Wocart theme following section 2 and 3 of
+https://docs.wocart.store/sdk/theme/tutorial.md: a product template surface
+that requires a product section with a fixed order form (role "order-form"),
+the placeOrder action, the 404 for unknown products and the thank-you redirect.
+Read store.config.checkoutForm to decide which fields to show
+(https://docs.wocart.store/sdk/storefront/checkout.md).
+Prove it: validateThemeDefinition is [], and with the dev server running a
+refused order re-renders with its error and a valid one redirects.
+```
 
-`manifestCatalog(manifest)` creates a `ThemeDefinition` with
-`component: null`. It is for editing and validation only; do not render it.
+### Audit languages and right-to-left
 
-## Refusals to handle
+```text
+Audit this Wocart theme for language and RTL problems. Report, with file and
+line: hardcoded shopper-facing strings, pack keys missing from any language,
+plural messages built with string replace, internal links not passed through
+the store's href, and CSS using left/right instead of logical properties.
+Run pluralFormIssues over every pack. Fix nothing until I approve the list.
+```
 
-| Code | Meaning |
-| --- | --- |
-| `unknown-type` | The type is not in this catalog; nothing renders |
-| `unknown-prop` | The prop is not declared; it is ignored |
-| `invalid-prop` | The value fails the field rules; defaults are used |
-| `missing-required-prop` | A required field has no value, content or default |
-| `unknown-slot` / `disallowed-child` | The saved child no longer fits the slot |
-| `duplicate-id` | A later instance repeats an id; the first wins |
-| `limit-exceeded` | A slot, surface or depth limit was crossed |
-| `theme-mismatch` | The document was composed for another theme |
-| `not-available` / `not-placeable` | The component is not offered on this surface or location |
-| `slot-full` / `required-block` / `fixed-block` | The operation would break composition rules |
-| `load-failed` | A `load` threw; the base props still render |
-| `missing-component` | A definition has no usable component reference |
-| `multiple-slots-unsupported` | The reference renderer can fill one named slot per instance |
+### Review a change before merging
 
-A page-level failure is different from a section-level one. Only an invalid
-envelope (`version`, `surface` or `sections` shape) makes `page` null; every
-other issue is a degradation with a report.
+```text
+Review the current diff of this Wocart theme with workflow D of
+.agents/skills/wocart-theme/SKILL.md. Answer each of the eight questions with
+evidence (file:line or command output). Run diffThemeManifests between the
+manifest on main and this branch and list every breaking change.
+```
 
-## Definition of done
+### Upgrade the SDKs
 
-- [ ] `validateThemeDefinition(theme)` returns an empty list.
-- [ ] `themeManifest` survives a JSON round trip and validates.
-- [ ] Every shipped document passes `validatePageData`.
-- [ ] The changed page renders without unexpected `onIssue` reports.
-- [ ] `diffThemeManifests` shows no accidental breaking change.
-- [ ] The preview and a normal shopper render show the same content, minus the
-      preview markers.
+```text
+Upgrade @wocart/theme and @wocart/storefront in this theme to <versions>,
+following workflow E of .agents/skills/wocart-theme/SKILL.md. Read both
+CHANGELOG.md files for every version crossed and list what affects us before
+changing code. Then bump both exact pins, fix every new issue, and show check,
+test and build output.
+```
 
-For the full document and manifest workflow, continue with
-[Manifest and editing](/sdk/theme/manifest).
+### Find why a page is empty or wrong
+
+```text
+<Describe the symptom: "the home page shows no store name, no menu and no
+products".> Diagnose it with https://docs.wocart.store/sdk/theme/troubleshooting.md.
+Start from the first-symptoms table, read the client's onError output and the
+resolveSurfaceDocument issues, and tell me the cause with evidence before
+changing anything.
+```
+
+## The rules an agent must not guess
+
+The skill carries every rule with its check. In short:
+
+**An agent must**
+
+- pin `@wocart/theme` 4.0.0 and `@wocart/storefront` 3.0.0 exactly, and find
+  every export it uses in `node_modules/@wocart/*/dist/*.d.ts`;
+- create the store client in one module, per request, with `theme: THEME_KEY`;
+- fall back to `unavailableStoreConfig` when the store cannot be read;
+- compose every platform page type as a surface with one required main
+  section, and guarantee an order form on product and landing surfaces;
+- render saved data only through `resolveSurfaceDocument` and
+  `resolveThemeSettings`;
+- put every shopper-facing word in every language's pack, counts through
+  plural keys;
+- build platform links with `storefrontPath` and the store's `href`, and the
+  store's WhatsApp only through `whatsAppContact` in one module;
+- take colours from schemes, images from media keys with `config.media`, and
+  write CSS with logical properties;
+- call a change done only when check, test and build passed, and quote them.
+
+**An agent must never**
+
+- rename the theme key, a component `type`, a field `key` or a shipped `id`;
+- write a document, setting or merchant text: Wocart Studio is the only writer;
+- state a fact about a store in a theme word (delivery reach, hours, phone,
+  address);
+- import Zod, a schema or a server entry in browser code;
+- compute a price, fee or total in the browser;
+- work around a missing API with a deep import, copied SDK code or
+  `@ts-ignore`: it stops and reports.
+
+## Check the agent's work
+
+Before you accept a change:
+
+- [ ] The agent showed `npx astro check` (0 errors), `npx vitest run` (all
+      passing) and `npx astro build` (complete) — run them yourself once.
+- [ ] `validateThemeDefinition(theme)` is `[]` (it is in the contract test).
+- [ ] No new import outside the published entry points; no `@ts-ignore` over
+      an SDK type.
+- [ ] No shopper-facing string outside the packs; each new key exists in every
+      language; no pack value states a fact about a store.
+- [ ] No `wa.me` link, no `config.whatsapp` read and no hand-written platform
+      path outside the one WhatsApp module and `storefrontPath`.
+- [ ] The page renders in Arabic with `dir="rtl"` and in each other language.
+- [ ] No renamed key, type, field or id; `diffThemeManifests` shows only the
+      breaking changes you intended.
+- [ ] If the agent said an API was missing, check the declarations: either it
+      really is (report it upstream) or the agent did not look.
+
+<Callout type="caution" title="Agents follow the docs they are given">
+An agent that never read these pages will reconstruct Wocart from patterns it
+has seen elsewhere — Shopify's Liquid, a generic React store — and the result
+will look right and be wrong. Install the skill before the first prompt.
+</Callout>

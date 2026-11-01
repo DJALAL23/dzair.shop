@@ -1,208 +1,139 @@
 ---
-description: Brief an AI coding assistant to build a storefront with the SDK, and review what it produces.
+description: The agent kit for building a Wocart storefront with AI — an installable skill, copy-paste prompts for every common job, the rules an agent must not guess, and how to check its work.
 ---
 
 import { Callout } from "zudoku/ui/Callout";
 
-# Use AI to build a storefront
+# AI agent kit
 
-An AI assistant can build a storefront with this SDK, but only if it is given
-the boundaries. Most bad output comes from an assistant filling gaps with a
-generic e-commerce pattern: a client-side total, a hardcoded language, its own
-`fetch`, or an endpoint that does not exist.
+An AI coding agent can build a storefront on this SDK quickly, but only from
+the real contract. Left alone, it fills gaps with a generic e-commerce pattern:
+a client-side total, a hardcoded language list, its own `fetch` to the store
+API, or an endpoint that does not exist. This kit gives it the boundaries.
 
-This page is the brief to hand it.
+Building an editable theme instead? Use the [Theme SDK agent kit](/sdk/theme/agents)
+too: it covers definitions, documents and Wocart Studio.
 
-## What to give the assistant
+## Set up in two minutes
 
-At minimum:
-
-1. **The package and version** — `@wocart/storefront` `1.19.0` and
-   `@wocart/theme` `2.1.0` (or the versions your project pins).
-2. **The repository instructions** — `AGENTS.md`; it names the real boundaries.
-3. **Theme-00** — the reference consumer at `cod-astro/theme-00`. Point the
-   assistant at it for patterns, not just at this documentation.
-4. **The store contract** — which languages, which currency, whether the cart,
-   reviews, OTP and Turnstile are enabled, and where the server runs.
-
-If the assistant has no access to Theme-00, give it the relevant files:
-`src/theme/sdk.ts`, `src/middleware.ts`, `src/theme/api-routes.ts`,
-`src/actions/index.ts` and one page per type.
-
-The repository also ships an agent skill, `.agents/skills/wocart-theme/`. Its
-`references/sdk-discovery.md` is the procedure for verifying an API in the
-installed package, and `references/theme-quality.md` is the gate list for a
-storefront or theme change. Hand the agent the skill before the task.
-
-## The brief
-
-```text
-Build a storefront in this Astro project using @wocart/storefront 1.19.0.
-
-Read first:
-- AGENTS.md (repository rules)
-- cod-astro/theme-00 (reference consumer)
-- the SDK docs at /sdk/storefront
-
-Store facts:
-- API origin: <COD_SERVER_URL>
-- store key: server-only env STORE_API_KEY
-- languages: <ar, fr, en>
-- cart: <on/off>, reviews: <on/off>, OTP: <on/off>
-
-Rules:
-- Import the client from @wocart/storefront/server; never put the key in a
-  browser bundle.
-- Import root helpers from @wocart/storefront; the root is browser-safe.
-- Review media comes from @wocart/storefront/review-media and is browser-only.
-- Server owns prices, stock, delivery, coupons and order totals. Never compute
-  an order total in the browser.
-- Every write goes through an Astro action or a same-origin route built with
-  the SDK's adapters. No direct fetch to the store API from a component.
-- Read the store's languages from config.locales. Do not hardcode a list. Use
-  localeRouting, resolveLocalePath and localizeHref.
-- Handle every degraded read: config null, product null, list empty, rates {}.
-- Do not invent endpoints, fields or options. If an API is missing, stop and
-  say so.
-
-Deliver:
-1. A page map with the SDK reads each page uses.
-2. The shared files (client, middleware, routes, layouts).
-3. The pages, one at a time.
-4. Tests for failure states and pricing.
-5. Typecheck, tests and build output.
+```bash
+mkdir -p .agents/skills/wocart-storefront
+curl -fsSL https://docs.wocart.store/agents/wocart-storefront/SKILL.md \
+  -o .agents/skills/wocart-storefront/SKILL.md
 ```
 
-The last point matters: asking for a page map first is how you catch a wrong
-architecture before it is spread across ten files.
+For Claude Code, copy the same file to `.claude/skills/wocart-storefront/`.
+<a href="/agents/wocart-storefront/SKILL.md">Read the skill</a>: the version to
+pin, seventeen rules, a build order, the verification commands and when to
+stop.
 
-## The invariants to enforce
+Add a short `AGENTS.md` at the repository root with your store's facts (API
+origin variable, languages, which of cart, reviews, OTP and Turnstile are on)
+and the three commands; the
+<a href="/agents/theme/AGENTS.md">theme template</a> is a starting point. Then give the
+agent the documentation index, `https://docs.wocart.store/llms.txt`; every page
+is also Markdown at its URL plus `.md`.
+
+## Prompts you can copy
+
+### Start a storefront
+
+```text
+Build a storefront in this empty Astro project following
+.agents/skills/wocart-storefront/SKILL.md and
+https://docs.wocart.store/sdk/storefront/quickstart.md, with exact pins of
+@wocart/storefront. Store facts: API origin in COD_SERVER_URL, key in
+STORE_API_KEY (server only), languages <ar primary, fr>, cart <on/off>,
+reviews <on/off>, OTP <on/off>.
+
+First give me the page map: each page and the SDK reads it uses. After I
+approve it, build the shared files (client, middleware with unavailableStoreConfig as the fallback,
+routes), then one page at a time, running `npx astro check`, `npx vitest run`
+and `npx astro build` after each and showing me the output.
+```
+
+### Add the order form
+
+```text
+Add the product order form following
+https://docs.wocart.store/sdk/storefront/checkout.md: the placeOrder action
+with placeOrderInput and executePlaceOrder, runFormAction in the middleware,
+the redirect to /thank-you from the product page with Astro.getActionResult,
+bindCheckoutKey on the form, and the fields shown according to
+config.checkoutForm. A refused order must re-render the form with its error and
+the shopper's input kept. Prove it against the running dev server: one refused
+and one placed order.
+```
+
+### Add the basket and delivery quote
+
+```text
+Add a basket drawer, shown only when config.cartEnabled, following
+https://docs.wocart.store/sdk/storefront/basket.md and
+https://docs.wocart.store/sdk/storefront/delivery.md. The basket is
+createBasketStore; the displayed total comes from createQuoter through the
+same-origin cart route, never from getSubtotal(). Show the fee and total from
+the quote when a destination is chosen, "calculated later" before, and disable
+checkout when delivery is not available or a line is blocked.
+```
+
+### Audit a storefront
+
+```text
+Audit this storefront against .agents/skills/wocart-storefront/SKILL.md and
+report with file and line: the key or any server import reaching a browser
+script; totals or fees computed in the browser; hardcoded language lists;
+internal links not passed through localizeHref; hand-written proxies; reads
+whose null or empty result is not handled; a missing 404 for null. Fix nothing
+until I approve the list.
+```
+
+### Find why something is empty
+
+```text
+<Describe the symptom, e.g. "the home page shows no products".> Diagnose it:
+check the client's onError output (operation and code), COD_SERVER_URL and the
+key, and whether the server is reachable. Report the cause with evidence
+before changing anything.
+```
+
+## The rules an agent must not guess
 
 | Rule | Why |
 | --- | --- |
-| The key stays on the server | A browser key exposes the whole store |
-| The server owns money | A browser total can be edited |
-| One client per request | Caches and language must not leak between visitors |
-| `config.locales` is the language list | The store, not the theme, decides |
-| Every internal link is localized | Otherwise a French shopper falls back to Arabic |
-| Missing reads render an empty state | Reads degrade; they do not throw |
-| Writes are `ClientResult` | A refusal is expected, not an exception |
-| Review media is browser-only | It uses canvas and the microphone |
-| The basket is display; the quote is money | `localStorage` is user-editable |
-| Preview is never cached | A draft must not reach another visitor |
-| Theme text is keyed by theme | A renamed key orphans merchant edits |
+| The key stays on the server; browser code imports only the root and `/review-media` | A browser key exposes the whole store |
+| The server owns money; a basket total is display, the quote is money | `localStorage` is editable by anyone |
+| One client per request; one module creates it | Caches and language must not leak between visitors |
+| Languages come from `config.locales` and `resolveStoreRequest` | The store, not the theme, decides which exist |
+| Every internal link goes through `localizeHref` | Otherwise a French shopper falls back to the primary language |
+| `null` on a detail read is a real 404 (`notFound(Astro)`) | A redirect or a blank 200 is a soft 404 for search and ads |
+| Routes are the SDK's factories | A hand-written proxy is a second contract that will drift |
+| Redirect from the page, never the middleware | An Astro 7 action result lives for one response |
+| Fire only the pixel and event `orders.tracking` returns | A wrong event double-counts or misses the sale |
+| Pin `@wocart/storefront` 3.0.0 exactly | 3.x reads platform v7; 2.x reads a v7 store as unreadable |
+| An unreadable store is `unavailableStoreConfig(…)` | A hand-written config falls behind the config's shape and can look like a working checkout |
+| Platform links come from `storefrontPath`; WhatsApp links from `whatsAppContact` | A hand-written path or `wa.me` link ignores the platform's paths and the merchant's number, texts and message rules |
+| Images resolve with `config.media` | The store's media host can be ImageKit, Cloudflare or direct; a hard-coded host breaks |
+| No store fact in your own words | Delivery reach, hours or a phone number written as copy is false on the next store |
 
-If an assistant proposes code that violates one of these, fix the rule in the
-brief rather than patching the symptom.
+## Check the agent's work
 
-## A safe build order
+- [ ] `npx astro check` (0 errors), `npx vitest run` (all passing) and
+      `npx astro build` (complete) were run and shown. Run them once yourself.
+- [ ] No import of `/server` or `/astro` in a `<script>` or island; no key in
+      a `PUBLIC_*` variable.
+- [ ] No `price * quantity` shown as the amount to be charged.
+- [ ] No array like `["ar", "fr"]`; no `if (locale === "ar")` for routing.
+- [ ] No `wa.me` link, no `config.whatsapp` read, no hand-written platform
+      path; no copy that states a fact about the store.
+- [ ] Every read handles `null`, `[]` or `{}`; every detail page answers 404.
+- [ ] Every new route is an SDK factory export; every new import exists in the
+      declarations.
+- [ ] If the agent says an API is missing, check the declarations: either it
+      really is (report it) or the agent did not look.
 
-1. **Read the store.** `config.get()` and `config.locales`. Render the layout,
-   header, footer and language switcher.
-2. **Build the catalogue.** Product list, product detail, category, collection.
-3. **Add the order form.** One product first, then the basket.
-4. **Add the quote.** Wilaya, commune, delivery type, coupon.
-5. **Add checkout.** Action, OTP, Turnstile, thank-you tracking.
-6. **Add content.** Pages, menus, landing pages, reviews.
-7. **Add preview and revalidation** only if the theme is editable.
-8. **Run the failure tests.** Turn off the server and load every page.
-
-Do not start with a checkout. It is the page with the most rules and the least
-visible progress.
-
-## What to check in the result
-
-### Imports
-
-```ts
-import { formatMoney } from "@wocart/storefront";             // browser-safe
-import { getStoreClient } from "./theme/sdk";                 // server only
-import { prepareReviewPhoto } from "@wocart/storefront/review-media"; // browser only
-```
-
-A server import in a `.astro` component is normal — Astro components run on the
-server. A server import in a `<script>` or an island is a leak.
-
-### Money
-
-The order total must come from `cart.validate` or the order response. A line
-built as `price * quantity` is fine for display; it is not the charge.
-
-### Languages
-
-The result should contain no array like `["ar", "fr"]` and no
-`if (locale === "ar")` branch for routing. It should use the helpers.
-
-### Failure states
-
-Ask the assistant to show each one:
-
-- server down → catalogue empty, not a crash;
-- missing product → 404;
-- no image → placeholder;
-- no reviews → empty section, form still available;
-- OTP enabled but provider down → bypass token, not a blocked order;
-- tracking lookup fails → no browser event.
-
-### Routes
-
-The route files should export the SDK handlers directly. A hand-written `fetch`
-proxy with its own status mapping is a second contract that will drift.
-
-## Reviewing an AI change
-
-Use the same checklist for every generated page:
-
-1. Does it read through the SDK namespace, not `fetch`?
-2. Does it use `config.locale` and `config.currencySymbol`?
-3. Does it handle `null`/empty without inventing data?
-4. Does it use `productImageSource` instead of `coverImage` alone?
-5. Does it pass only the basket to checkout and let the server price it?
-6. Does it localize every internal link?
-7. Does it avoid adding a schema or a validator to the browser?
-8. Does it add a test for the failure path?
-9. Do typecheck and tests pass?
-10. Is every new endpoint in the SDK's documented list?
-
-A “yes” to all ten is a reviewable change. A “no” to any one is a reason to stop
-before merging.
-
-## Common mistakes
-
-- **Inventing an endpoint.** If the docs do not name it, it does not exist.
-- **A client-side total.** It will disagree with the server the first time a
-  coupon or offer applies.
-- **Shipping by a guessed fee.** Use the quote; the rate table is a placeholder.
-- **A shared client.** It leaks language and caches across requests.
-- **Adding Zod to the browser.** The server validates; the browser reads what
-  it was given.
-- **Writing a theme editor.** Theme text and page documents are written by
-  CodFlow Studio, which is outside this repository.
-- **Caching the preview.** A draft must never be shared.
-- **Hardcoding `/pages/terms`.** Resolve legal pages by `kind`.
-
-## A short prompt for one page
-
-```text
-Implement the product page in src/pages/products/[handle].astro.
-
-Use Astro.locals.store.client. Read products.get(handle). Return a 404 rewrite
-when it is null.
-
-Show name, price via formatMoney with config.currencySymbol and config.locale,
-gallery images via createImageHelpers, variants via initialVariant/pickOption,
-quantity tiers via getQuantityTierViews, and the WhatsApp launcher when
-showsWidgetOn(config.whatsapp.surfaces, pathname).
-
-The order form posts to the placeOrder action with productId, productName,
-variantSelections, quantity and offerId. No price is computed in the browser.
-
-Add tests for: missing product, out-of-stock, no image, server failure.
-Run typecheck, tests and build, and report the exact commands and output.
-```
-
-<Callout type="info" title="The assistant is not the source of truth">
-When the assistant and this documentation disagree, read the SDK source and
-Theme-00. When the assistant invents a field, stop and check the type. A
-plausible answer is not an available API.
+<Callout type="caution" title="Install the skill before the first prompt">
+An agent that has not read these pages reconstructs Wocart from other stores
+it has seen, and the result looks right and is wrong in exactly the places
+that cost money.
 </Callout>

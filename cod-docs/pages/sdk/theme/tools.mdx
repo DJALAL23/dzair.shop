@@ -1,5 +1,5 @@
 ---
-description: Planned CLI, starter kit and AI skills for building CodFlow themes — what is coming and what to use today.
+description: What exists today to build Wocart themes — the verified walkthroughs and the AI agent kit — and the planned CLI and starter kit.
 ---
 
 import { Callout } from "zudoku/ui/Callout";
@@ -8,20 +8,21 @@ import { Callout } from "zudoku/ui/Callout";
 
 <Callout type="caution" title="The CLI and the starter kit are not available yet">
 The CLI and starter kit on this page are **planned**. They are listed so you can
-choose a path now, not because you should wait for them. The AI skill is real and
-in the repository; everything else described as available works today.
+choose a path now, not because you should wait for them. The AI agent kit is
+published with these docs; everything else described as available works today.
 </Callout>
 
 ## What you can use today
 
-You do not need a special tool to build a CodFlow theme. The current path is:
+You do not need a special tool to build a Wocart theme. The current path is:
 
 | Need | Use today |
 | --- | --- |
 | A working example to copy | The Theme-00 [reference implementation](/sdk/theme/reference-implementation) |
 | The full setup sequence | [Build a complete theme](/sdk/theme/tutorial) |
 | Safe changes to copy, images and layout | [Customize a theme](/sdk/theme/customize) |
-| Rules for an AI assistant | [Use AI to build a theme](/sdk/theme/agents) and the repository's `wocart-theme` skill |
+| A working theme to start from | The [quick start](/sdk/theme/build): every file, verified |
+| Rules for an AI agent | The [AI agent kit](/sdk/theme/agents) |
 | A repeatable release check | [Testing a theme](/sdk/theme/testing) |
 | A pre-flight list | [Production and upgrades](/sdk/theme/production) |
 
@@ -29,22 +30,17 @@ If you only need a custom design for one store and nobody will edit it from a
 dashboard, you can skip this tooling entirely. Build an Astro storefront with
 [`@wocart/storefront`](/sdk/storefront).
 
-## AI skills
+## The AI agent kit
 
-The repository ships an agent skill, `.agents/skills/wocart-theme/`. It is a set
-of procedures, not a library: an agent reads it before touching a theme.
+Available today, published with these docs:
 
-| Reference | What it makes an agent do |
+| File | What it gives an agent |
 | --- | --- |
-| `SKILL.md` | The four workflows, the rules that never bend, and the commands every change must end with |
-| `references/sdk-discovery.md` | Inspect the installed version, read the declarations and tests, verify every API before using it |
-| `references/theme-architecture.md` | Split theme SDK from storefront SDK, read Theme-00 without copying it, build a new theme on supported contracts |
-| `references/theme-quality.md` | Prove types, schema, pages, Arabic/RTL, responsive, states, integration and build — no claim without a passing check |
-| `references/docs-maintenance.md` | A contract change triggers the English, French and Arabic pages, the examples and the skills |
+| <a href="/agents/wocart-theme/SKILL.md"><code>/agents/wocart-theme/SKILL.md</code></a> | The versions to pin, twenty-one must and never rules with their checks, five workflows (new theme, change a section, make a design editable, review, upgrade), the verification commands, and when to stop |
+| <a href="/agents/theme/AGENTS.md"><code>/agents/theme/AGENTS.md</code></a> | A template for your theme repository's root: its facts and commands |
+| `/llms.txt`, `/llms-full.txt` | This documentation, indexed and in one file |
 
-Point your assistant at the skill and at the manifest, and it stops guessing
-field names. The rules it enforces are the ones on
-[Use AI to build a theme](/sdk/theme/agents).
+Install and prompts: [AI agent kit](/sdk/theme/agents).
 
 ## Coming soon
 
@@ -81,10 +77,10 @@ storefront design.
 | A fixed custom storefront for one shop | Astro + `@wocart/storefront` | No |
 | A theme a merchant can edit | [Build a complete theme](/sdk/theme/tutorial) | No; the starter kit will save setup time later |
 | A theme to share or sell | Build, then [Manifest](/sdk/theme/manifest) and [Testing](/sdk/theme/testing) | Not required, but the CLI will make releases easier |
-| Build with an AI assistant | [Use AI to build a theme](/sdk/theme/agents) plus the `wocart-theme` skill | No |
+| Build with an AI agent | The [AI agent kit](/sdk/theme/agents) | No |
 
 ## How this page will change
 
 When the CLI or the starter kit ships, its section here becomes install and
 usage instructions. Until then, treat those two as direction, not as an API
-promise — and the skill as a file you can read today.
+promise — and the agent kit as files you can use today.
