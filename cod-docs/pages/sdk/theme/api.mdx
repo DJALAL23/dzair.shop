@@ -6,13 +6,13 @@ import { Callout } from "zudoku/ui/Callout";
 
 # Public API surface
 
-This page is the curated map of `@wocart/theme` 2.1.0: what each entry point
+This page is the curated map of `@wocart/theme` 4.0.0: what each entry point
 exports, what it is for, and what is not part of the contract. The
 [generated reference](/sdk/theme/reference/README) has every signature; this page
 tells you which ones to reach for.
 
 ```sh
-npm install @wocart/theme @wocart/storefront
+npm install --save-exact @wocart/theme@4.0.0 @wocart/storefront@3.0.0
 ```
 
 | Import | Runs in | Holds |
@@ -24,6 +24,8 @@ npm install @wocart/theme @wocart/storefront
 | `@wocart/theme/astro/ThemeStyles.astro` | Server and build | Stylesheet link and color-scheme CSS |
 | `@wocart/theme/image-service` | Build | `mediaImageService` for Astro's `image.service` |
 | `@wocart/theme/preview` | Browser | `startPreviewBridge` for a theme's preview page |
+| `@wocart/theme/lifecycle` | Browser | `bindEach`, `onEachPage`: browser behaviour that survives page and section swaps |
+| `@wocart/theme/messages` | Browser | `formatMessage` and the plural helpers, without the rest of the contract |
 
 The root entry imports no Astro module and performs no I/O, so it runs in a unit
 test or a script. Validation belongs on the server or in the build: a schema in
@@ -42,7 +44,7 @@ a shopper's page ships Zod to every visitor.
 | `validateThemeManifest(input)` | Boundary for JSON: serializability, structure, then the same relational rules. `{ manifest, issues }` |
 | `manifestCatalog(manifest)` | A `ThemeDefinition` with `component: null` — for editing and validation, never for rendering |
 | `diffThemeManifests(previous, next)` | `{ breaking, additive }` between two releases |
-| `THEME_SDK_VERSION` | The package version the manifest records (`"2.3.0"`) |
+| `THEME_SDK_VERSION` | The package version the manifest records (`"4.0.0"`) |
 | `THEME_MANIFEST_CONTRACT_VERSION` | Version of the manifest format (`1`) |
 | `THEME_MANIFEST_PATH` | `/wocart-theme.json` |
 
@@ -81,10 +83,10 @@ input.
 | `findInstance(page, id)` | `{ instance, parent, slot, index, depth, fixed? }` or `null` |
 | `newInstanceId()` | `cmp_` plus 16 hex digits |
 | `checkPageData(theme, input)` | Every issue a writer must fix before saving: `DocumentIssue[]` |
+| `setAreaHidden(theme, page, key, hidden)` | Leave an area (the header, the footer) out of this page, or bring it back; only an area the surface lists in `hideableAreas` |
 
-`removeInstance(page, id)` and `setInstanceHidden(page, id, hidden)` still accept
-the theme-less form; it is **deprecated**, because a writer without the theme
-cannot know a slot's required types.
+Every operation takes the theme first: without it, a writer could not know a
+slot's required types or a block that must stay shown.
 
 ## Composition
 
@@ -95,7 +97,12 @@ cannot know a slot's required types.
 | `COMPONENT_PLACEMENTS` | `["section", "block", "both"]` |
 | `COMPONENT_ROLES` | `["order-form"]` |
 | `THEME_LIMITS` | `{ slotInstances: 50, sections: 50, documentInstances: 1000, depth: 6 }` |
-| `areaSurface(key)` | `"area:header"` — the surface an area's document is stored under |
+| `areaSurface(key)` | `"area:header"`: the surface an area's document is stored under |
+| `landingSurface(id)` | `"lp:<id>"`: the surface one landing page's own document is stored under |
+| `templateSurface(surface)` | The surface a document follows: `"landing"` for an `lp:` surface, else the surface itself |
+| `LANDING_TEMPLATE` | `"landing"`: the surface every landing page's document follows |
+| `hideableAreas(theme, surface)` | The areas a page of that surface may leave out |
+| `isAreaShown(theme, page, key)` | Whether a page shows an area, after its `hiddenAreas` |
 | `fixedBlockId(ownerId, name)` | The id a fixed block renders with when the document does not store it |
 
 ## Settings and copy
@@ -105,10 +112,19 @@ cannot know a slot's required types.
 | `resolveThemeSettings(theme, stored, scope?)` | Effective settings: `{ values, issues }`, typed by `InferSettings` |
 | `checkThemeSettings(theme, values)` | Writer check: every key declared, every value accepted, each `colorScheme` naming a real scheme |
 | `localize(value, locales)` | A `LocalizedText` in the first language that has one |
-| `formatMessage(pack, key, values, options?)` | Placeholders and CLDR plurals from a locale file |
+| `formatMessage(pack, key, values, { locale, formatNumber? })` | Placeholders and CLDR plurals from a content pack; `locale` is required |
+| `pluralMessageKeys(pack)` | The base keys of every plural message in a pack |
 | `messageForms(pack, key)` | The CLDR forms a message key defines |
 | `pluralFormIssues(pack, locale)` | Forms the language needs but the pack lacks, or carries unused |
 | `PLURAL_CATEGORIES` | CLDR's six categories |
+
+## Rich text
+
+| Export | What it does |
+| --- | --- |
+| `richTextToHtml(document, { href?, inline? })` | Escaped HTML (`p`, `h2`–`h4`, `ul`/`ol`, `strong`, `em`, `u`, `s`, `a`, `br`), safe for `set:html`; unsafe links are dropped |
+| `richTextToPlainText(document)` | The words only, one block per line — for a meta description or an `aria-label` |
+| `RICH_TEXT_FORMATS` | The seven formats a `richtext` field may allow, in editor order |
 
 ## Style
 
@@ -153,8 +169,8 @@ The four components: `InstanceView.astro` (the renderer), `Blocks.astro`
 
 | Export | What it does |
 | --- | --- |
-| `mediaImageService(mediaDomain)` | An Astro image service that resizes media-domain images on the media domain; `mediaDomain` is a getter, so a build-time value is read after env loading |
-| `mediaImageParams(options)` | The query parameters the service builds for an Astro transform |
+| `mediaImageService(delivery)` | An Astro image service that resizes store images with the store's media delivery (ImageKit or Cloudflare) and passes every other image, and every image of a `direct` delivery, through; `delivery` is a function read on every image, answering `config.media` (or a promise of it) |
+| `mediaImageParams(options)` | The resize parameters the service asks `mediaImageUrl` for, from an Astro transform |
 | `startPreviewBridge({ editorOrigin, token, endpoint?, window? })` | The browser side of a preview page: markup patches, hover/select messages, re-render requests. Returns `{ stop() }` |
 | `PREVIEW_SECTION_LOAD_EVENT` | `"wocart:section-load"` — dispatched per section the bridge swapped in |
 
