@@ -9,6 +9,10 @@ can be saved and read back, its default pages pass validation, and those pages
 render. These four checks prove those promises in your own test suite. Add
 checks for your own behavior after these pass.
 
+The [complete theme](/sdk/theme/tutorial#8-tests-that-prove-the-promises) has
+all of them as runnable files, including the Vitest configuration Astro
+components need (`getViteConfig` from `astro/config`).
+
 ## 1. The theme definition is valid
 
 ```ts
@@ -18,8 +22,11 @@ import { theme } from "../theme/theme";
 expect(validateThemeDefinition(theme)).toEqual([]);
 ```
 
-With declared content packs, assembly also checks every default document and
-preset. An empty array is the only pass.
+Once the catalog itself is sound, assembly also reads every default document
+and builds every preset through it, so a shipped document naming an unknown
+type or an invalid value fails here (`invalid-document`, `invalid-preset`).
+When the theme declares `content`, every `contentKey` is checked against every
+pack. An empty array is the only pass.
 
 ## 2. The manifest reloads cleanly
 
@@ -42,28 +49,23 @@ the one advisory issue; fix it rather than allow it.
 ```ts
 import { validatePageData } from "@wocart/theme";
 
-for (const surface of theme.surfaces ?? []) {
-  if (surface.document === undefined) continue;
-  expect(
-    validatePageData(theme, surface.document, {
-      content: theme.content?.["fr"],
-      locales: ["fr"],
-    }),
-  ).toEqual([]);
-}
-
-for (const area of theme.areas ?? []) {
-  expect(
-    validatePageData(theme, area.document, {
-      content: theme.content?.["fr"],
-      locales: ["fr"],
-    }),
-  ).toEqual([]);
+const documents = [
+  ...(theme.surfaces ?? []).map((surface) => surface.document),
+  ...(theme.areas ?? []).map((area) => area.document),
+];
+for (const locale of theme.locales ?? []) {
+  const scope = { content: theme.content?.[locale], locales: [locale] };
+  for (const document of documents) {
+    if (document === undefined) continue;
+    expect(validatePageData(theme, document, scope).issues).toEqual([]);
+  }
 }
 ```
 
-Run it for every declared language, not only the primary. A translated value
-that only one language resolves can hide a missing content key.
+`validatePageData` returns `{ page, issues }`; assert on `issues`. Run it for
+every declared language, not only the primary: a required text field filled
+only through one language's pack shows up as `missing-required-prop` in the
+others.
 
 ## 4. Default pages render
 
@@ -164,7 +166,9 @@ const saved = {
 
 const result = resolveSurfaceDocument(theme, "home", saved, { locales: ["fr"] });
 
-expect(result.page.sections).toHaveLength(1);
+expect(result.source).toBe("saved");
+// The unknown section stays in the document, reported; the renderer draws nothing for it.
+expect(result.page.sections.map((section) => section.type)).toEqual(["removed-layout", "hero"]);
 expect(result.issues).toContainEqual(
   expect.objectContaining({ code: "unknown-type", path: "sections[0].type" }),
 );
@@ -174,10 +178,10 @@ expect(result.issues).toContainEqual(
 | --- | --- |
 | No saved document | The shipped default |
 | Invalid envelope | The shipped default, with `page: null` from `parsePageData` |
-| Document for another theme | The shipped default, `theme-mismatch` |
-| Unknown section type | That section gone, the rest rendered |
+| Document for another theme | The shipped default, `reason: "other-theme"`, a `theme-mismatch` issue |
+| Unknown section type | Kept in the document with an `unknown-type` issue; it renders nothing, the rest renders |
 | Empty `sections` | Empty page — the merchant emptied it |
-| Hidden required block | Added back by `completePage` |
+| Hidden required section or block | Shown again (`hidden` dropped), with a `missing-required-block` issue |
 | List over its `max` | Rendered up to `max`, `limit-exceeded` |
 
 ## Release checks
@@ -192,7 +196,8 @@ expect(breaking).toEqual([]);
 ```
 
 If a breaking change is intentional, bump the theme's major version and say
-what will degrade. Also run `pluralFormIssues(pack, locale)` over every pack:
+what will degrade; Wocart Cloud refuses a breaking release under the same
+major. Also run `pluralFormIssues(pack, locale)` over every pack:
 it reports a plural form the language needs but the pack lacks, or a form the
 language never uses.
 
@@ -200,18 +205,44 @@ language never uses.
 
 The four checks do not execute browser scripts. Test separately:
 
-- a section that binds behavior on `PREVIEW_SECTION_LOAD_EVENT` mounts again
-  after a patch or a swap,
+- a section whose behaviour is bound with `bindEach` mounts again after a
+  patch or a swap (no script listens for the swap events itself),
 - a full-page preview replacement dispatches `astro:page-load`,
 - the basket and checkout scripts keep working after a preview update,
 - a shopper's page contains no `wocart:start` / `wocart:end` comments.
 
 ## Keep the renderer out of browser tests
 
-`@wocart/theme` and Zod are server/build dependencies. A browser script can
-import the SDK's browser-safe helpers, but never the renderer or the
-validators. The SDK's `browser-bundle.test.ts` and the theme's own
-`no-validator-in-browser.test.ts` guard this; keep those tests green.
+`@wocart/theme`'s root entry and Zod are server and build dependencies. A
+`<script>` may import only the browser entries — `@wocart/storefront` (its
+root), `@wocart/theme/lifecycle`, `@wocart/theme/messages` and, on the preview
+route, `@wocart/theme/preview` — never `@wocart/storefront/server`, the
+renderer or the validators. Both packages test their own browser entries for
+this; Theme-00 adds a guard over its built scripts
+(`no-validator-in-browser.test.ts`), worth copying.
+
+## Guard tests: the rules as failing tests
+
+The SDK checks the contract; it cannot see a theme's source. Theme-00 and
+Theme Baby turn their rules into tests that read the theme's own files and
+fail on a break. They are worth copying as a pattern (adapt the paths to your
+layout):
+
+| Rule | What the guard asserts |
+| --- | --- |
+| One client | Only the theme's one SDK module calls `createStoreClient` |
+| Published entry points | No import of `@wocart/*/dist/…` or `src/…`, no import of platform internals |
+| WhatsApp | Only the theme's binding module calls `whatsAppContact`; no file contains `wa.me` or reads `config.whatsapp` |
+| Platform links | No hand-written platform path (`"/products/"`, `"/track-order"`, …) outside `storefrontPath` |
+| Browser bundle | No browser script imports Zod, a schema, `@wocart/storefront/server` or the root of `@wocart/theme` |
+| Copy | No literal text in markup; every pack key exists in every language and is used; plural messages carry each language's forms |
+| Colours | Tokens are derived on `.wc-scheme`, and no element carries a scheme marker of its own |
+| Page types | The manifest carries a surface for every platform page type |
+| Not found | Every resource route answers a missing resource with `notFound` |
+
+Theme-00's are under `src/theme/__tests__/guards/`, Theme Baby's in
+`tests/unit/guards.test.ts`. Prove each guard once by breaking the code and
+watching it fail: a guard that never fails checks nothing.
 
 ## Definition of done
 
