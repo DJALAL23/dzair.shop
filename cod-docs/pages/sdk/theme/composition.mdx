@@ -25,9 +25,10 @@ needs child blocks.
 | `"both"` | Anywhere |
 | absent | Anywhere |
 
-The document operations enforce placement. The renderer never rejects a saved
-section for being in the “wrong” place; it renders it, and `validatePageData`
-reports the issue.
+The document operations enforce placement, and `checkPageData` — the writer's
+check before saving — reports a section that may only be a block
+(`not-placeable`). The renderer and `validatePageData` never reject a saved
+instance for its placement: a document already saved renders as it is.
 
 ## Declare a slot
 
@@ -96,7 +97,7 @@ for default children; a component can use either mechanism.
 
 `hasBlocks(blocks, slot)` is true when the slot has at least one visible block,
 so a component can skip an empty wrapper. `isPreview(blocks)` is true in a
-CodFlow Studio preview, where a section with nothing to show yet may draw a
+Wocart Studio preview, where a section with nothing to show yet may draw a
 placeholder. A shopper never sees that placeholder.
 
 ## Fixed blocks
@@ -141,10 +142,12 @@ type, or to insert past its `max`. A document that lacks one — an old document
 or one saved before a theme update — renders it anyway, added at the end of its
 slot, and the reader reports `missing-required-block`.
 
-A **product surface must guarantee an order form**. Give the order form's
-component `role: "order-form"` and require it through a section, fixed block or
-slot. Assembly refuses a product surface that does not
-(`order-form-not-guaranteed`).
+A **product or landing surface must guarantee an order form**. Give the order
+form's component `role: "order-form"` and require it through the surface's
+`required` sections and their fixed or required blocks. `validateThemeDefinition`
+reports a product or landing surface that does not
+(`order-form-not-guaranteed`): a merchant could otherwise remove the only way
+to order.
 
 ```ts
 const productOrder = defineComponent({
