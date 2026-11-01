@@ -76,6 +76,12 @@ async function loadCommunes(wilayaId: number) {
 When the wilaya changes, clear the selected commune before loading the new list.
 A commune id from the old wilaya is not valid in the new one.
 
+In the browser, the same reference data ships with the SDK's root entry:
+`communesForWilaya(wilayaId)` answers from the bundled list (Algeria's 1,551
+communes, `ALGERIA_COMMUNES`) with no request at all, and accepts the string an
+`<select>` hands over. The [complete theme's order form](/sdk/theme/tutorial#2-the-product-template)
+fills its commune list this way. `WILAYAS` is the bundled wilaya list.
+
 ## The rate table
 
 `shipping.rates()` returns the merchant's default fee for every wilaya they
@@ -143,7 +149,7 @@ if (delivery?.available) {
 shapes:
 
 ```ts
-type DeliveryQuote =
+type CartDeliveryQuote =
   | { available: true; fee: number; total: number }
   | { available: false; fee: null; total: null };
 ```
@@ -179,6 +185,7 @@ result.data.freeDelivery;
 //   threshold: 5000,
 //   qualified: true,
 //   remaining: 0,
+//   by: "threshold", // or "offer", "coupon"; null when delivery is not free
 // }
 ```
 

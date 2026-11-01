@@ -45,7 +45,7 @@ type Review = {
 `verified: true` means the review rests on a delivered order. Show it as a
 verified purchase. Do not use the customer's full name as an identifier.
 
-`media` may be empty on older servers. A media item is:
+`media` is empty when the review has no photo or voice note. A media item is:
 
 ```ts
 type ReviewMedia = {
@@ -78,6 +78,18 @@ Writing a review has four steps:
 The server owns the rules: the order must be delivered, the phone must match, a
 product can be reviewed once, and the store's moderation decides visibility.
 
+<Callout type="info" title="Use the review session">
+[`createReviewSession`](#the-review-session) runs all four steps for you, with
+upload progress, retries and photo shrinking, and turns every refusal into a
+code. The steps below show the routes it calls, for a theme that needs its own
+flow.
+</Callout>
+
+The routes answer with a status first. On success the body is `{ data }` (and
+`{ success: true, data }` for the submit); on a refusal it is
+`{ error, code, domainError, … }` with a 4xx or 5xx status. Branch on
+`response.ok`, then read `code`.
+
 ## 1. Prove the purchase
 
 ```ts
@@ -92,8 +104,8 @@ const response = await fetch("/api/review-eligibility", {
 });
 
 const eligibility = await response.json();
-if (!eligibility.success) {
-  // ORDER_NOT_FOUND or REVIEW_ORDER_NOT_DELIVERED
+if (!response.ok) {
+  // eligibility.code: ORDER_NOT_FOUND, REVIEW_ORDER_NOT_DELIVERED, …
   return;
 }
 
@@ -166,7 +178,12 @@ const uploaded = await fetch("/api/review-upload", {
   body: prepared,
 });
 
-const { data } = await uploaded.json();
+const answer = await uploaded.json();
+if (!uploaded.ok) {
+  // answer.code says why: an expired grant, a file too large or of the wrong kind…
+  return;
+}
+answer.data;
 // { uploadId, kind: "image", bytes }
 ```
 
@@ -250,8 +267,10 @@ result.data;
 ```
 
 The route is the same-origin one shown below; the browser never imports the
-server client. `visibility` may be absent on older servers. Treat absence as
-“the store's normal moderation”, not as proof that the review is public.
+server client. `visibility` is always present: `published` when the review
+shows at once, `after_review` when the merchant approves it first. Word the
+confirmation accordingly; never promise a review is public when it is
+`after_review`.
 
 Do not clear the form on a failure. The shopper should be able to fix the body,
 rating or attachments and try again.
@@ -292,7 +311,7 @@ lengths for your fields and your hints.
 The browser does not hold the store key. Bind the SDK's review routes once:
 
 ```ts
-// src/theme/api-routes.ts
+// src/lib/api-routes.ts
 import type { APIContext } from "astro";
 import { createStorefrontRoutes } from "@wocart/storefront/astro";
 
@@ -305,19 +324,19 @@ Then export the handlers you need:
 
 ```ts
 // src/pages/api/review-eligibility.ts
-import { routes } from "../../theme/api-routes";
+import { routes } from "../../lib/api-routes";
 export const POST = routes.reviewEligibility;
 ```
 
 ```ts
 // src/pages/api/review-upload.ts
-import { routes } from "../../theme/api-routes";
+import { routes } from "../../lib/api-routes";
 export const PUT = routes.reviewUpload;
 ```
 
 ```ts
 // src/pages/api/submit-review.ts
-import { routes } from "../../theme/api-routes";
+import { routes } from "../../lib/api-routes";
 export const POST = routes.reviewSubmit;
 ```
 
@@ -325,7 +344,7 @@ And for the list:
 
 ```ts
 // src/pages/api/product-reviews/[productId].ts
-import { routes } from "../../../theme/api-routes";
+import { routes } from "../../../lib/api-routes";
 export const GET = routes.reviewsList;
 ```
 
@@ -345,7 +364,8 @@ Never import it from page frontmatter, middleware, an action or an API route.
 - `maxPhotos: 0` — no photo picker.
 - `voiceMaxSeconds: null` — no voice recorder.
 - `reviewed: true` — show the product, disable the action.
-- `eligibility.success === false` — keep the form and show the server's reason.
+- A refused proof (`!response.ok`, or `status: "refused"` from the session) —
+  keep the form and word the `code`.
 
 Do not turn a wrong order number into “no reviews”. It is a refusal of the
 proof, not an empty review list.
