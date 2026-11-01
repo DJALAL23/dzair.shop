@@ -1157,7 +1157,7 @@ describe("saved documents", () => {
     expect(resolveSurfaceDocument(theme, "home", saved)).toMatchObject({ source: "default", reason: "other-theme" });
   });
 
-  it("drops an unknown section and keeps the rest", () => {
+  it("reports an unknown section and renders the rest", () => {
     const saved = { version: 1, surface: "home", sections: [{ id: "a", type: "gone" }, { id: "b", type: "hero" }] };
     const result = resolveSurfaceDocument(theme, "home", saved);
     expect(result.source).toBe("saved");
