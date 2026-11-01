@@ -10,43 +10,48 @@ import { Callout } from "zudoku/ui/Callout";
 settings or `null` when they cannot be read.
 
 ```ts
-import { getStore } from "../theme/store";
+import { getStoreClient } from "../lib/store";
 
-const store = getStore();
-const config = await store.config.get();
-
-if (config === null) {
-  return new Response("Store unavailable", { status: 503 });
-}
+const config = await getStoreClient().config.get();
 ```
 
-A null config is a real failure, not an empty store. Use your fallback layout or
-an error page; do not invent a store name and currency and continue as if the
-read succeeded.
+A null config is a real failure — the API is unreachable, the key is wrong —
+not an empty store. You have two honest answers:
+
+- **Render the SDK's unavailable store**, `unavailableStoreConfig({ serverUrl,
+  locale })`, the way `resolveStoreRequest` does with its `fallback` option
+  ([below](#one-request-one-language)). The page stays up with nothing to buy.
+- **Answer an error page** (`503`) for a page that cannot work without the
+  store.
+
+Either way, the cause is in the client's `onError`.
 
 ## What the config contains
 
 | Group | Fields | Use it for |
 | --- | --- | --- |
-| Identity | `name`, `domain`, `logoUrl`, `themeId` | Page title, header, sharing |
-| Brand | `primaryColor`, `accentColor`, `bgColor`, `fontFamily` | Legacy theme values; see the note below |
+| Identity | `id`, `name`, `domain`, `logo` | Page title, header, sharing. `id` is `""` only for the unavailable store |
 | Languages | `lang`, `locale`, `locales` | `<html lang>` and `dir`, switcher, links |
-| Currency | `currency`, `currencySymbol` | `formatMoney` |
+| Currency | `currency`, `currencySymbol` | `formatMoney`; `currencySymbol` is in `locale` (`دج` in Arabic, `DA` in French) |
 | SEO | `metaTitle`, `metaDescription`, `ogImage` | Head metadata |
+| Media | `media` | Where every image key is served from and how it is resized: pass it to the image helpers |
 | Features | `reviewsEnabled`, `cartEnabled`, `otpEnabled`, `turnstileEnabled`, `turnstileSiteKey` | Whether to render a surface; the public widget key |
-| Cart | `freeShippingThreshold`, `cartShippingMode` | Copy and display only; the quote owns the fee |
+| Cart | `freeShippingThreshold` | Copy and display only; the quote owns the fee |
 | Checkout | `checkoutForm` | Which fields to render and which are required |
 | Tracking | `pixelId`, `conversionEvent` | Meta pixel installation and event choice |
 | Pages | `pages` | Footer and consent links |
-| Legal | `legalContact` | Public contact details and delivery window |
-| WhatsApp | `whatsapp` | Launcher settings and surface switches |
+| Contact | `contact` | The store's phone, email and address, each `null` until the merchant writes it |
+| WhatsApp | `whatsapp` | The WhatsApp button App; read it through `whatsAppContact` |
 | Theme | `themeSettings`, `contentOverrides` | Editable themes |
 
-<Callout type="caution" title="Colours on the config are the old way">
-`primaryColor`, `accentColor`, `bgColor`, `fontFamily` and `announcementBar`
-are deprecated values saved before theme settings. An editable theme declares
-its colours, font and announcement in `defineTheme({ settings })` and reads
-`themeSettings`. Do not build a new theme against the deprecated fields.
+`logo` and `ogImage` are `MediaImage`s, `{ key, url, width, height }`, or
+`null`. Every field above is always present; a field the merchant has not set
+is `null`, `false`, `[]` or `{}`, never missing.
+
+<Callout type="info" title="Colours and fonts are theme settings">
+The config carries no colours, font or announcement bar. Those are the
+theme's own settings: an editable theme declares them in
+`defineTheme({ settings })` and reads them from `themeSettings`.
 </Callout>
 
 ## Feature switches
@@ -67,8 +72,9 @@ const { cartEnabled, reviewsEnabled, otpEnabled, turnstileSiteKey } = config;
 A store with `cartEnabled: false` must ship no cart markup at all. This is not
 cosmetic: the switch is the rollback path for the cart feature.
 
-The same rule applies to reviews, OTP and the WhatsApp widget. Their settings
-exist so a store can turn the surface off without a deploy.
+The same rule applies to reviews, OTP and the WhatsApp button (`whatsapp` is
+`null` when the store has none). Their settings exist so a store can turn the
+surface off without a deploy.
 
 ## Checkout policy
 
@@ -115,7 +121,7 @@ A store has a primary language (`lang`) and a list of published languages
 (`locales`):
 
 ```ts
-const config = await getStore().config.get();
+const config = await getStoreClient().config.get();
 
 config?.locales;
 // [
@@ -174,30 +180,61 @@ alternateLinks("/products/robe", routing, "https://shop.example");
 `resolveLocalePath` only treats a first segment as a language when the store
 publishes it. An unknown prefix is an ordinary path and 404s normally.
 
-### One client per language
+### One request, one language
 
-Merchant text is translated by the server. Ask for a language through the
-client; do not translate product names in the browser.
+`resolveStoreRequest` from `@wocart/storefront/astro` applies the whole
+language policy for a request: which store config, which language, which
+client, and whether to redirect.
 
 ```ts
-const primaryClient = getStore();
-const primaryConfig = await primaryClient.config.get();
+// src/middleware.ts
+import { defineMiddleware } from "astro:middleware";
+import { resolveStoreRequest } from "@wocart/storefront/astro";
+import { COD_SERVER_URL } from "astro:env/server";
+import { unavailableStoreConfig } from "@wocart/storefront";
+import { getStoreClient } from "./lib/store";
 
-const routing = localeRouting(primaryConfig!);
-const path = resolveLocalePath(Astro.url.pathname, routing);
-if (path.kind === "redirect") return Astro.redirect(path.location, 301);
+const FALLBACK_CONFIG = unavailableStoreConfig({ serverUrl: COD_SERVER_URL ?? "", locale: "ar" });
 
-const client =
-  path.locale === routing.primary ? primaryClient : getStore(path.locale);
-const config = (await client.config.get()) ?? primaryConfig;
+export const onRequest = defineMiddleware(async (context, next) => {
+  if (context.isPrerendered) return next();
+  const request = await resolveStoreRequest(
+    { url: context.url, referer: context.request.headers.get("Referer") },
+    { client: getStoreClient, fallback: FALLBACK_CONFIG },
+  );
+  if (request.kind === "redirect") return context.redirect(request.location, request.status);
+  context.locals.store = request; // client, config, locale, routing, pathname
+  return request.rewrite === null ? next() : next(request.rewrite);
+});
 ```
 
-Keep one client per language. Each client has its own cached config, categories
-and communes.
+| What it decides | How |
+| --- | --- |
+| The language | From the path's first segment when the store publishes it (`/fr/…`); else the primary |
+| The primary's own prefix | `/ar/x` on an Arabic-primary store redirects **301** to `/x` |
+| A language the store stopped publishing | Redirects **302** to the primary page — it may come back |
+| The route to render | `rewrite: "/products/robe"` for `/fr/products/robe`, so one route file serves every language |
+| The client | `client(locale)` for a non-primary language, `client()` for the primary — one client per language, each with its own caches |
+| An endpoint or server island | `/api/…` and `/_server-islands/…` take the language of the page that asked (its same-origin `Referer`), and are never redirected |
+| An unreadable config | `fallback` renders instead |
 
-If the store stops publishing the requested language, the config comes back in
-the primary language. `config.locale` tells you which language actually arrived;
-redirect if it no longer matches the URL.
+`config.locale` is the language that actually arrived. A page's links go
+through `localizeHref(path, locale, routing)`; `ResolvedStore.pathname` is the
+path without its prefix, which is what `matchStorefrontPath` and
+`showsWidgetOn` expect. The [theme quick start](/sdk/theme/build#7-the-requests-store)
+builds a full request store on top of this, including the theme's text.
+
+`unavailableStoreConfig({ serverUrl, locale })` is the fallback: an empty
+`id`, nothing to buy (no cart, checkout delivery options, OTP, Turnstile,
+reviews or WhatsApp), `locale` as its only language, and images served
+directly from `<serverUrl>/media`. Never write a fallback config by hand; the
+[theme quick start](/sdk/theme/build#5-the-store-that-cannot-be-read) shows it
+in a full project.
+
+If you need the pieces without the policy, they are pure functions:
+`localeRouting(config)` → `{ primary, published }`,
+`resolveLocalePath(pathname, routing)` → a page or a redirect, and
+`localizeHref(href, locale, routing)`.
 
 ### Links and alternates
 
@@ -208,11 +245,15 @@ by menus:
 <a href={localizeHref(item.href, config.locale, routing)}>{item.label}</a>
 ```
 
-In the head, emit one alternate per published language:
+In the head, emit one alternate per published language. Pass the page's path
+**without** its language prefix (`ResolvedStore.pathname`): on `/fr/x`,
+`Astro.url.pathname` is `/fr/x`, and every alternate would point at the
+French page.
 
 ```astro
 ---
-const alternates = alternateLinks(Astro.url.pathname, routing, Astro.url.origin);
+const { pathname, routing } = Astro.locals.store;
+const alternates = alternateLinks(pathname, routing, Astro.url.origin);
 ---
 {alternates.map((link) => (
   <link rel="alternate" hreflang={link.hreflang} href={link.href} />
@@ -234,7 +275,7 @@ const config = await store.config.get();
 config?.contentOverrides;
 // { ar: { heroTitle: "..." }, fr: { heroTitle: "..." } }
 config?.themeSettings;
-// { primaryColor: "#...", layout: "wide" }
+// { pageScheme: "light", colorSchemes: [ … ] }
 ```
 
 - `contentOverrides[locale]` is the merchant's edits to your theme's text in
@@ -247,52 +288,72 @@ config?.themeSettings;
 
 Read [Theme SDK](/sdk/theme) if you are building an editable theme.
 
-## Pages and legal details
+## Pages and contact details
 
-`config.pages` lists the published pages that opted into the footer:
+`config.pages` lists the published pages that opted into the footer, titled
+in `locale` and in display order:
 
 ```ts
+import { storefrontPath } from "@wocart/storefront";
+
 config.pages.map((page) => ({
   title: page.title,
-  href: `/pages/${page.slug}`,
+  href: storefrontPath("page", { slug: page.slug }),
   kind: page.kind, // terms | privacy | refund | shipping | custom
 }));
 ```
 
-Use `kind` when the rule names a page — “you agree to the Terms” means the
-`terms` kind, not a hardcoded `/pages/terms` slug. A merchant may rename a slug.
+Use `kind` when the rule names a page: "you agree to the Terms" means the
+`terms` kind, not a hardcoded `/pages/terms` slug. A merchant may rename a
+slug. Build the link with `storefrontPath`, then localize it with
+`localizeHref`.
 
-`config.legalContact` is the public contact block:
+`config.contact` is how a shopper reaches the store, besides WhatsApp:
 
 ```ts
-config.legalContact;
-// {
-//   contactEmail: "help@shop.example",
-//   contactPhone: "0555 12 34 56",
-//   deliveryMinDays: 2,
-//   deliveryMaxDays: 5,
-// }
+config.contact;
+// { phone: "0555 12 34 56", email: "help@shop.example", address: null }
 ```
 
-It is `null` until the merchant saves a legal profile. Do not invent an address
-or delivery promise when it is null.
+Each value is `null` until the merchant writes it. Show each one only once it
+is set, and never write a store fact in your theme's own words: a phone
+number, an address, opening hours or a delivery promise is true of one store
+and false of the next. Delivery times belong to the store's own pages (its
+`shipping` page), not to the config.
 
 ## WhatsApp
 
-`config.whatsapp` is the resolved widget, or `null` when the merchant turned it
-off. When it exists, `showsWidgetOn(config.whatsapp.surfaces, pathname)` tells
-you whether it is enabled on that surface.
+`config.whatsapp` is the WhatsApp button App's settings, or `null` when the
+store has none. Each of its texts arrives in the page's language, or `null`
+where the merchant wrote none in that language. Never read it field by field:
+`whatsAppContact(config, page, words)` resolves the link, the message and
+every text, with your theme's words where the merchant left one empty.
 
 ```ts
-import { showsWidgetOn } from "@wocart/storefront";
+import { showsWidgetOn, whatsAppContact } from "@wocart/storefront";
 
-if (
-  config.whatsapp &&
-  showsWidgetOn(config.whatsapp.surfaces, Astro.url.pathname)
-) {
-  // Render the launcher and its prefill.
+const { config, pathname } = Astro.locals.store; // pathname without its language prefix
+const contact = whatsAppContact(config, { kind: "general", url: Astro.url.href }, words);
+
+if (contact && showsWidgetOn(contact.surfaces, pathname)) {
+  // Render the floating launcher.
 }
 ```
 
-The href and prefill rules are covered in [Money, images, WhatsApp and Meta
-events](/sdk/storefront/presentation).
+`showsWidgetOn(surfaces, pathname)` decides only the floating launcher: a
+WhatsApp link elsewhere on the page (a footer, a contact card, an order
+button) does not depend on it. Pass the path **without** its language prefix:
+`/fr/products/robe` is not a storefront path, `/products/robe` is.
+
+| Switch | Pages |
+| --- | --- |
+| `home` | The home page |
+| `catalog` | All products, categories, collections |
+| `product` | Product pages |
+| `pages` | Store pages, order tracking, search and contact |
+| `thankYou` | The order confirmation |
+| `checkout` | The basket checkout |
+| `landing` | Landing pages |
+
+Any other path shows no launcher. `words` and the message rules are covered
+in [Money, images, WhatsApp and Meta events](/sdk/storefront/presentation#whatsapp).

@@ -1,125 +1,124 @@
 ---
-description: Create the Store Client, render a catalog and a product page, and keep the API key on the server.
+description: From an empty folder to an Astro storefront that lists a store's products and renders product pages with a real 404 — every file, verified against a running store.
 ---
 
 import { Callout } from "zudoku/ui/Callout";
 
 # Quick start
 
-This page builds the smallest complete storefront seam: one server-only client,
-a product list, and a product page that answers a real 404. It is normal Astro
-code; the SDK supplies the store data.
+This page builds the smallest complete storefront: one server-only client, a
+home page that lists the store's products, and a product page that answers a
+real 404. Every file is shown in full; together they type-check, build, and
+were run against a real store.
 
-## What you need
-
-- An Astro 7 project with server rendering enabled.
-- A store's API origin and store API key.
-- `@wocart/storefront` and `zod` installed.
-
-```bash
-npm install @wocart/storefront zod
-```
-
-<Callout type="caution" title="Do not put the key in the browser">
-The store API key is a server secret. It belongs in a server environment
-variable and in `@wocart/storefront/server`. It must never be a `PUBLIC_*`
-variable, a value rendered into HTML, or an argument to a browser function.
+<Callout type="info" title="What you need">
+Node 22.12 or newer, the store's API origin (`COD_SERVER_URL`) and a store API
+key (`STORE_API_KEY`). A self-hosted Wocart runs its API locally on
+`http://localhost:8787`.
 </Callout>
 
-## 1. Add the environment values
+## 1. Create the project
 
-A storefront needs two server values:
+```bash
+npm create astro@latest my-store -- --template minimal --typescript strict --no-git
+cd my-store
+npm install --save-exact @wocart/storefront@3.0.0
+npm install @astrojs/node zod
+```
 
-| Name | What it is |
-| --- | --- |
-| `COD_SERVER_URL` | The store's API origin, for example `https://api.my-store.com` |
-| `STORE_API_KEY` | The store's API key |
+`zod` 4 is the SDK's peer dependency. `@astrojs/node` is this page's adapter;
+any Astro server adapter works.
 
-With Astro's environment schema, declare both as server values. The key is a
-secret; the origin can be a secret too, since only server code needs it.
+## 2. Configure Astro
 
-```js
-// astro.config.mjs
+```js title="astro.config.mjs"
 import { defineConfig, envField } from "astro/config";
+import node from "@astrojs/node";
 
 export default defineConfig({
+  output: "server",
+  adapter: node({ mode: "standalone" }),
   env: {
     schema: {
-      COD_SERVER_URL: envField.string({ context: "server", access: "secret" }),
-      STORE_API_KEY: envField.string({ context: "server", access: "secret" }),
+      COD_SERVER_URL: envField.string({ context: "server", access: "secret", optional: true }),
+      STORE_API_KEY: envField.string({ context: "server", access: "secret", optional: true }),
     },
   },
 });
 ```
 
-The SDK reads no environment variables itself. You pass the values in, which
-keeps the same client usable in Astro, a Worker, a test or a script.
+Both values are **server secrets**: never `PUBLIC_*`, never rendered into a
+page, never passed to a browser script. They are `optional` so a build never
+needs a store; a request without them fails loudly instead (step 3). For
+local development:
 
-## 2. Create one server module
+```bash title=".env"
+COD_SERVER_URL=http://localhost:8787
+STORE_API_KEY=your-store-api-key
+```
 
-Keep client creation in one file. If the origin or key is wrong, that is the
-file to inspect; no page should build its own client.
+## 3. One module creates the client
 
-```ts
-// src/theme/store.ts
-import { createStoreClient } from "@wocart/storefront/server";
+```ts title="src/lib/store.ts"
+import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
 import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
 
-export function getStore(locale?: string) {
+export function getStoreClient(locale?: string): StoreClient {
   return createStoreClient({
-    serverUrl: COD_SERVER_URL,
-    apiKey: STORE_API_KEY,
-    ...(locale ? { locale } : {}),
+    serverUrl: COD_SERVER_URL ?? "",
+    apiKey: STORE_API_KEY ?? "",
+    ...(locale === undefined ? {} : { locale }),
     onError: (error) => {
-      console.warn(`[store] ${error.operation} failed: ${error.code}`);
+      console.warn(`[store] degraded read: ${error.operation} (${error.code})`);
     },
   });
 }
 ```
 
-This is the same shape Theme-00 uses in `src/theme/sdk.ts`. It creates the
-client per call, so a request cannot hold another request's pending work. One
-client serves one store and one language; do not share it between stores.
+- **One place.** If the origin or key is wrong, this is the file to inspect.
+  No page builds its own client.
+- **A new client per call**, so per request: one request's reads never wait on
+  another's, and a client's caches never cross requests.
+- **`createStoreClient` throws `MISSING_CONFIGURATION`** when `serverUrl` or
+  `apiKey` is empty — a loud setup error instead of a store that silently
+  looks empty.
+- **`onError`** is the only place you see why a read degraded: reads never
+  throw (step 5).
+- **`locale`** asks the server for a published language other than the
+  primary. [Store config and languages](/sdk/storefront/config) adds language
+  routing.
 
-The `locale` option is for reading merchant text in another published language,
-and it is the language an order the client places is recorded in, so the
-customer's messages are written in it. Omit it for the store's primary language. [Store config and
-languages](/sdk/storefront/config) explains the rest.
+## 4. List the products
 
-## 3. Render a product list
-
-A read resolves to an empty value when it cannot complete. An empty catalog is
-a state to design, not an exception to catch.
-
-```astro
+```astro title="src/pages/index.astro"
 ---
-// src/pages/products/index.astro
-import { formatMoney } from "@wocart/storefront";
-import { getStore } from "../../theme/store";
+import { formatMoney, storefrontPath } from "@wocart/storefront";
+import { getStoreClient } from "../lib/store";
 
-const store = getStore();
+const store = getStoreClient();
 const [config, products] = await Promise.all([
   store.config.get(),
   store.products.list({ limit: 12 }),
 ]);
+const money = (amount: number) =>
+  formatMoney(amount, { symbol: config?.currencySymbol ?? "دج", locale: config?.locale ?? "ar" });
 ---
-<html lang={config?.lang ?? "ar"}>
+<html lang={config?.locale ?? "ar"} dir={config?.locales[0]?.direction ?? "rtl"}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{config?.name ?? "Store"}</title>
+  </head>
   <body>
-    <h1>Products</h1>
-
+    <h1>{config?.name}</h1>
     {products.length === 0 ? (
-      <p>No products are available right now.</p>
+      <p>No products yet.</p>
     ) : (
       <ul>
         {products.map((product) => (
           <li>
-            <a href={`/products/${product.handle}`}>{product.name}</a>
-            <span>
-              {formatMoney(product.price, {
-                symbol: config?.currencySymbol ?? "دج",
-                locale: config?.locale ?? "ar-DZ",
-              })}
-            </span>
+            <a href={storefrontPath("product", { handle: product.handle })}>{product.name}</a>
+            <span>{money(product.price)}</span>
           </li>
         ))}
       </ul>
@@ -128,84 +127,96 @@ const [config, products] = await Promise.all([
 </html>
 ```
 
-`config.get()` and `products.list()` run in parallel because neither needs the
-other's result. Every call makes its own request; a client never waits on an
-identical pending call. Share the result inside the render instead of asking
-twice.
+- `config.get()` and `products.list()` run in parallel: neither needs the
+  other.
+- **Empty is a state, not an error.** A failed read and a store with no
+  products both give `[]`. Design the empty page; `onError` tells you which.
+- `storefrontPath("product", { handle })` gives `/products/<handle>`, the
+  platform's path for a product. Never write the string by hand.
+- `formatMoney` places the store's currency symbol for its language.
 
-## 4. Render a product page
+## 5. Render a product
 
-Use the product's public **handle**, never an internal id. A missing product is a
-real 404, not an empty page with a 200.
-
-```astro
+```astro title="src/pages/products/[handle].astro"
 ---
-// src/pages/products/[handle].astro
 import { formatMoney } from "@wocart/storefront";
-import { getStore } from "../../theme/store";
+import { notFound } from "@wocart/storefront/astro";
+import { getStoreClient } from "../../lib/store";
 
-const store = getStore();
+const store = getStoreClient();
 const [config, product] = await Promise.all([
   store.config.get(),
   store.products.get(Astro.params.handle!),
 ]);
+if (product === null) return notFound(Astro);
 
-if (!product) return Astro.rewrite("/404");
+const price = formatMoney(product.price, { symbol: config?.currencySymbol ?? "دج", locale: config?.locale ?? "ar" });
 ---
-<article>
-  <h1>{product.name}</h1>
-  <p>
-    {formatMoney(product.price, {
-      symbol: product.currency,
-      locale: config?.locale ?? "ar-DZ",
-    })}
-  </p>
-  {product.description &&
-    (product.descriptionFormat === "html" ? (
-      <div set:html={product.description} />
-    ) : (
-      <p>{product.description}</p>
-    ))}
-</article>
+<html lang={config?.locale ?? "ar"} dir={config?.locales[0]?.direction ?? "rtl"}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{product.name}</title>
+  </head>
+  <body>
+    <h1>{product.name}</h1>
+    <p>{price}</p>
+    {product.description && (product.descriptionFormat === "html"
+      ? <div set:html={product.description} />
+      : <p>{product.description}</p>)}
+  </body>
+</html>
 ```
 
-The route file is yours. The path is the platform's: a product lives at
-`/products/:handle`. Build links with `storefrontPath` rather than writing the
-string by hand.
-
-```ts
-import { storefrontPath } from "@wocart/storefront";
-
-storefrontPath("product", { handle: product.handle }); // /products/linen-shirt
-storefrontPath("checkout"); // /checkout
+```astro title="src/pages/404.astro"
+---
+---
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>404</title>
+  </head>
+  <body>
+    <h1>404</h1>
+  </body>
+</html>
 ```
 
-A missing parameter throws. That is deliberate: a link to nowhere should fail
-where it is built, not render as a broken URL.
+- **The handle is the product's public address.** Never look a product up by
+  its internal id in a URL.
+- **`null` is a real 404.** `notFound(Astro)` renders your `/404` page with
+  status 404 and turns caching off for that response, so a product published a
+  minute later is not hidden by a cached refusal.
+- **A description is either text or HTML** (`descriptionFormat`). HTML was
+  sanitized by the server when the merchant saved it: render it with
+  `set:html`, and never sanitize it again or print it as text. Text is always
+  escaped.
 
-## 5. Keep the browser at arm's length
+## 6. Run it
 
-The browser never imports `@wocart/storefront/server`. It imports the root for
-types and helpers, and calls your same-origin routes for data that needs the
-key.
-
-```ts
-// Browser code: safe.
-import { createBasketStore, formatMoney } from "@wocart/storefront";
-
-// Server code only: never in a browser script.
-import { createStoreClient } from "@wocart/storefront/server";
+```bash
+npx astro check
+npm run build
+npm run dev
 ```
 
-The proxy routes, place-order action and middleware are a short setup:
+Open `http://localhost:4321`: the store's name and products, each linking to
+its page. `/products/nope` answers 404.
 
-- [Astro actions and routes](/sdk/storefront/astro) wires the browser boundary.
-- [Basket and quotes](/sdk/storefront/basket) adds the cart.
-- [Checkout and OTP](/sdk/storefront/checkout) places an order.
-- [Store config and languages](/sdk/storefront/config) adds language routing.
+## Where next
 
-<Callout type="info" title="Building an editable theme?">
-Add [`@wocart/theme`](/sdk/theme) beside this SDK. The storefront data still
-comes from these namespaces; the theme SDK supplies the edited page documents
-and the renderer. `pageData.get("home")` tells you what the store saved.
+| Next | Page |
+| --- | --- |
+| Serve every published language at its own URL | [Store config and languages](/sdk/storefront/config) |
+| Add the order form and the same-origin API routes | [Astro actions and routes](/sdk/storefront/astro), [Checkout and OTP](/sdk/storefront/checkout) |
+| Add a basket | [Basket and quotes](/sdk/storefront/basket) |
+| Show delivery prices per wilaya | [Delivery and geography](/sdk/storefront/delivery) |
+| Let merchants edit the design in Wocart Studio | The [Theme SDK quick start](/sdk/theme/build) |
+| Build it with an AI agent | [AI agent kit](/sdk/storefront/agents) |
+
+<Callout type="caution" title="The browser never gets the key">
+Browser scripts import only `@wocart/storefront` (its root entry) and
+`@wocart/storefront/review-media`. Anything that needs the store goes through a
+route of your own that calls the SDK on the server —
+[`createStorefrontRoutes`](/sdk/storefront/astro) builds them for you.
 </Callout>
