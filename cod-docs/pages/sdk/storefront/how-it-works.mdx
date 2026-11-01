@@ -6,7 +6,7 @@ import { Callout } from "zudoku/ui/Callout";
 
 # How it works
 
-A CodFlow storefront has three layers:
+A Wocart storefront has three layers:
 
 1. **Your Astro pages** own the routes, layout, copy and interaction.
 2. **`@wocart/storefront`** reads the store and calls its server. The root entry
@@ -35,14 +35,15 @@ Create the client where the request is served, pass it to the page, and let it
 go with the response.
 
 ```ts
-// src/theme/store.ts — server only
-import { createStoreClient } from "@wocart/storefront/server";
+// src/lib/store.ts — server only
+import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
+import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
 
-export function getStore(locale?: string) {
+export function getStoreClient(locale?: string): StoreClient {
   return createStoreClient({
-    serverUrl: process.env.COD_SERVER_URL!,
-    apiKey: process.env.STORE_API_KEY!,
-    ...(locale ? { locale } : {}),
+    serverUrl: COD_SERVER_URL ?? "",
+    apiKey: STORE_API_KEY ?? "",
+    ...(locale === undefined ? {} : { locale }),
     onError: (error) => console.warn(error.operation, error.code),
   });
 }
@@ -67,6 +68,9 @@ path the platform uses, and builds links with `storefrontPath`.
 | Landing page | `/lp/:slug` | `pages.landing` |
 | Checkout | `/checkout` | Browser basket, then `cart.validate` |
 | Thank you | `/thank-you` | `orders.tracking` |
+| Track order | `/track-order` | `lookupOrder`, over `orders.status` (order number and phone); `?order=<number>` fills the number in |
+| Search | `/search` | `products.search`; `?q=<words>` is the query |
+| Contact | `/contact` | `config.contact` and `whatsAppContact` |
 
 ```ts
 import { storefrontPath } from "@wocart/storefront";
@@ -76,8 +80,11 @@ storefrontPath("category", { slug: "women" });
 storefrontPath("checkout");
 ```
 
-Other paths (`/about`, `/offers/summer`) belong to your Astro project. The SDK
-does not constrain them.
+`STOREFRONT_PAGE_PATHS` is the list; `@wocart/theme`'s `SurfacePageType` names
+the same page types for a theme's surfaces. Other paths
+(`/about`, `/offers/summer`) belong to your Astro project. The SDK does not
+constrain them, but menus, the WhatsApp launcher's switches and Studio know
+only the platform's page types.
 
 ## A read degrades; it does not throw
 
@@ -89,7 +96,7 @@ response no longer matches the contract, or the resource is not public:
 | `config.get()` | `null` |
 | `products.get()` | `null` |
 | `products.list()` | `[]` |
-| `products.page()` | `{ items: [], hasNext: false }` |
+| `products.page()` / `products.search()` | `{ items: [], hasNext: false, total: 0 }` |
 | `categories.list()` | `[]` |
 | `collections.get()` | `null` |
 | `menus.get()` | `null` |
@@ -104,7 +111,7 @@ handler. “No products yet” and “the API is briefly down” look the same t
 reader. `onError` is how the operator tells them apart.
 
 ```ts
-const products = await getStore().products.list();
+const products = await getStoreClient().products.list();
 
 if (products.length === 0) {
   return renderEmptyCatalog();
