@@ -4,67 +4,83 @@ description: Show a merchant's unsaved draft on the live storefront with the @wo
 
 # Preview
 
-Preview lets a merchant edit in CodFlow Studio and see the result on the real
+Preview lets a merchant edit in Wocart Studio and see the result on the real
 storefront: the same components, the same store data and the same CSS a shopper
 gets. The merchant changes a value; the page in the frame re-renders.
 
 A theme opts in with `preview: true` and serves a route at
-**`/wocart-preview`**. The manifest tells CodFlow Studio that the route exists.
+**`/wocart-preview`**. The manifest tells Wocart Studio that the route exists.
 
 If your theme is a fixed Astro design and nobody edits it from a dashboard, you
 do not need this page.
 
 ## The three parts
 
+The [complete theme](/sdk/theme/tutorial#7-preview-and-revalidation) builds
+all three; this section explains them.
+
 ### 1. The request
 
-CodFlow Studio frames:
+Wocart Studio opens the route in a frame:
 
 ```text
-GET /wocart-preview?token=…&surface=home&locale=fr
+GET /wocart-preview?token=…&surface=home[&locale=fr][&path=/products/robe]
 ```
 
-`readPreviewRequest` from `@wocart/storefront/server` checks the signed token
-from CodFlow Studio and returns the draft: which surface and language to show,
-and — once Studio sends one — the document, settings and text edits. Anything
-the draft leaves out renders as saved.
+and re-renders by posting the draft back to the same route, from the framed
+page itself:
 
-The route answers with `previewResponseHeaders`, so only Studio can frame it
-and no response is stored. No route rule may cache it.
+```text
+POST /wocart-preview      Content-Type: application/json
+{ "token": "…", "draft": { "surface": "home", "locale": "fr", "document": { … } } }
+```
+
+`readPreviewRequest(request, { publicKey, theme })` from
+`@wocart/storefront/server` reads either form. It answers `{ ok: true, claims,
+draft, token }` only when the token is signed by the deployment's preview key,
+was made for **this** storefront origin and **this** theme key, is for preview
+(not revalidation), and has not expired (a token lives at most an hour).
+Otherwise it answers `{ ok: false, status }` and the theme renders nothing:
+
+| Status | When |
+| --- | --- |
+| `404` | No preview key is configured: preview is off |
+| `403` | The token is missing or refused, or a draft was posted from another origin |
+| `400` | The body or the draft is malformed |
+| `405` | Neither GET nor POST |
+| `413` / `415` | The draft is over 1 MB, or not JSON |
+
+The draft (`PreviewDraft`) names what to show and carries what changed; every
+part is optional and what is absent renders as saved:
+
+| Draft field | Meaning |
+| --- | --- |
+| `surface` | The surface edited: `home`, `product`, an area (`area:header`) or a landing page (`lp:<id>`) |
+| `locale` | The language to render, when the store serves it |
+| `path` | For a template, the resource route it previews (`/products/robe`) |
+| `document` | The draft page document |
+| `settings` | Draft theme settings, replacing the saved ones |
+| `content` | Draft text edits per language, replacing those languages' saved edits |
+
+In the middleware, read the request and build the draft's store with the SDK's
+`resolvePreviewStore`, which applies `settings` and `content` over the saved
+config and turns the Meta pixel off:
 
 ```ts
-// src/middleware.ts
-import { readPreviewRequest } from "@wocart/storefront/server";
-
-const preview = await readPreviewRequest(context.request, {
-  publicKey: WOCART_PREVIEW_KEY,
-  theme: THEME_KEY,
-});
-if (!preview.ok) {
-  return new Response(null, {
-    status: preview.status,
-    headers: { "Cache-Control": "no-store" },
-  });
+if (context.url.pathname === THEME_PREVIEW_PATH) {
+  const preview = await readThemePreview(context.request);
+  if (!preview.ok) {
+    return new Response(null, { status: preview.status, headers: { "Cache-Control": "no-store" } });
+  }
+  context.locals.store = await resolvePreviewStore(preview.draft);
+  context.locals.preview = { claims: preview.claims, draft: preview.draft, token: preview.token };
+  return next();
 }
-context.locals.preview = preview;
 ```
 
-```astro
----
-// src/pages/wocart-preview.astro
-import { previewResponseHeaders } from "@wocart/storefront/server";
-
-export const prerender = false;
-const { claims, token } = Astro.locals.preview;
-for (const [name, value] of Object.entries(previewResponseHeaders(claims))) {
-  Astro.response.headers.set(name, value);
-}
----
-```
-
-The theme in the token must match the theme serving the route; a preview for
-another theme is refused. With no preview key configured, preview is off and
-every such request answers `404`.
+The route answers with `previewResponseHeaders(claims)`: only the token's
+editor may frame it, and no browser, CDN or search engine keeps it. No route
+rule may cache it.
 
 ### 2. The markers
 
@@ -72,14 +88,15 @@ every such request answers `404`.
 comments:
 
 ```html
-<!--wocart:start id=hero-1 type=hero-->
+<!--wocart:start id=home-hero type=hero-->
 <section>…</section>
-<!--wocart:end id=hero-1-->
+<!--wocart:end id=home-hero-->
 ```
 
 Comments, not wrapper elements, so a grid or a `> *` selector lays out exactly
 as it does for a shopper. A hidden instance keeps its markers with nothing
-between them. A shopper's page carries none.
+between them. A shopper's page carries none. Ids and types are URI-encoded, so
+no saved value can close the comment.
 
 The helpers are `previewStartMarker`, `previewEndMarker` and
 `parsePreviewMarker`.
@@ -87,36 +104,33 @@ The helpers are `previewStartMarker`, `previewEndMarker` and
 ### 3. The bridge
 
 `startPreviewBridge({ editorOrigin, token })` from `@wocart/theme/preview`
-runs on the preview page. It:
+runs on the preview page only. It:
 
-- reports every marked instance to CodFlow Studio,
+- reports every marked instance and where it is to Wocart Studio,
 - turns clicks into selections in edit mode,
-- re-renders the drafts Studio sends,
-- swaps in only the sections whose markup changed.
+- re-renders the drafts Studio sends, by posting them back to the route,
+- swaps in only the sections whose markup changed, or the whole page when the
+  page around them changed.
 
-It draws nothing. Outlines, toolbars and panels belong to Studio.
+It draws nothing. Outlines, toolbars and panels belong to Studio. Pass it the
+verified token's `editor` claim — the only origin it will post to or listen to
+— and the token itself:
 
 ```astro
----
-// src/pages/wocart-preview.astro
-export const prerender = false;
-const { claims, token } = Astro.locals.preview;
----
-<Layout>
-  {sections.map((instance) => (
-    <InstanceView preview {instance} {theme} {context} {storefront} {reads} />
-  ))}
-  <wocart-preview-bridge data-editor={claims.editor} data-token={token} hidden />
-</Layout>
+<wocart-preview-bridge data-editor={claims.editor} data-token={token} hidden></wocart-preview-bridge>
+
 <script>
   import { startPreviewBridge } from "@wocart/theme/preview";
-  const host = document.querySelector<HTMLElement>("wocart-preview-bridge")!;
-  startPreviewBridge({ editorOrigin: host.dataset.editor!, token: host.dataset.token! });
+
+  const host = document.querySelector<HTMLElement>("wocart-preview-bridge");
+  if (host?.dataset.editor && host.dataset.token) {
+    startPreviewBridge({ editorOrigin: host.dataset.editor, token: host.dataset.token });
+  }
 </script>
 ```
 
-CodFlow Studio sends a new draft by posting it back to the route as JSON —
-never a cross-site form, so Astro's `checkOrigin` stays on.
+A draft is always posted as JSON from the page's own origin — never a
+cross-site form — so Astro's origin check stays on.
 
 ## The protocol
 
@@ -144,8 +158,8 @@ newest draft always wins.
 
 A patch is a hint that lets the page show a change before the slow render
 arrives. The page applies what it can find and leaves the rest to the render,
-which is the page's truth. An editor always sends the render too; a page from
-before 1.6.0 ignores patches and still shows every change a moment later.
+which is the page's truth. An editor always sends the render too, so a page
+that ignores a patch still shows every change a moment later.
 
 | Patch | What it shows |
 | --- | --- |
@@ -188,17 +202,43 @@ with none of them still previews, the template empty so its sections can be
 arranged. An area (the header, the footer) previews on the page its `path`
 names when the theme composes that page, else on the home page. The resource is
 chosen by the surface's `pageType`, so an alternate template previews like its
-base. A surface the theme does not declare is `null`: answer 404.
+base. A landing page's own document (`lp:<id>`) previews with the theme's
+`landing` surface on the page its `path` names (`/lp/<slug>`); there is no
+"first landing page" to fall back on, and the target keeps the `lp:` surface,
+so the sections render that page's document. A surface the theme does not
+declare is `null`: answer 404.
 
 ```astro
 ---
-import { createReadCache, previewTarget } from "@wocart/theme/astro";
+import { previewTarget } from "@wocart/theme/astro";
 
-const target = await previewTarget(theme, Astro.locals.preview.draft, Astro.locals.store.client);
-if (!target) return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+const preview = Astro.locals.preview;
+const refuse = () => new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+if (preview === undefined) return refuse();
+
+const target = await previewTarget(theme, preview.draft, Astro.locals.store.client);
+if (target === null) return refuse();
 ---
-<Sections surface={target.surface} params={target.params} document={target.document} preview={target.area === null} reads={createReadCache()} />
+<Sections
+  theme={theme}
+  surface={target.surface}
+  document={target.document}
+  params={target.params}
+  preview={target.area === null}
+/>
 ```
+
+| `PreviewTarget` field | Meaning |
+| --- | --- |
+| `surface` | The surface the page renders: the draft's own, or for an area the page it is shown on |
+| `pageType` | That surface's page type |
+| `area` | The area being edited (`area:header`), or `null` when the page itself is edited |
+| `params` | `{ handle }` for a product or collection, `{ slug }` for a category, page or landing page — empty when the store has none yet |
+| `document` | The draft's document when the page is edited, else the store's saved one |
+
+Mark the page's sections only when the page is edited (`target.area === null`);
+while an area is edited, the layout marks the area's sections instead, so only
+what is being edited is selectable.
 
 ## Security
 
