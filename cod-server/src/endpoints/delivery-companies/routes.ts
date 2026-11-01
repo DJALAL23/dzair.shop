@@ -411,7 +411,7 @@ const syncShipmentsRoute = defineRoute({
           success: z.boolean(),
           data: z.object({
             synced: z.number().int().openapi({ description: "Shipments read" }),
-            recorded: z.number().int().openapi({ description: "Statuses new to CodFlow" }),
+            recorded: z.number().int().openapi({ description: "Statuses new to Wocart" }),
             reached: z.number().int().openapi({ description: "Milestones reached for the first time" }),
             moreRemain: z.boolean().openapi({ description: "More open shipments wait for the next sync" }),
           }),
@@ -507,7 +507,7 @@ const listWebhookEventsRoute = defineRoute({
   summary: "List inbound webhook events",
   description:
     "The company's webhook inbox, newest first: every event its carrier pushed, with what processing made of it — " +
-    "ok, ignored, unmatched (no shipment has that parcel), unknown_status (recorded, but a status CodFlow does not interpret), " +
+    "ok, ignored, unmatched (no shipment has that parcel), unknown_status (recorded, but a status Wocart does not interpret), " +
     "deferred_settlement (a money event), error (to be retried at nextAttemptAt) or dead (tries spent). " +
     "Each row names the shipment it was recorded on and its order. rawPayload is left out: the log's value is the outcome.",
   params: idParams,

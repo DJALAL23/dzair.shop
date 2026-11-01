@@ -23,7 +23,7 @@ export const CarrierCapabilitiesSchema = z
     history: z.boolean().openapi({ description: "Its status history can be read (sync)" }),
     historyBatch: z.number().int(),
     findByReference: z.boolean().openapi({ description: "A parcel can be found by the order number — resolves an unknown handoff" }),
-    updates: z.enum(["webhook", "pull"]).openapi({ description: "How its updates reach CodFlow: pushed by webhook, or pulled every few minutes" }),
+    updates: z.enum(["webhook", "pull"]).openapi({ description: "How its updates reach Wocart: pushed by webhook, or pulled every few minutes" }),
     label: z.boolean(),
     askReturn: z.boolean(),
     requestNewAttempt: z.boolean(),

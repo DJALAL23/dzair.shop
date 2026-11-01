@@ -93,7 +93,7 @@ export const ProductCategoryRowSchema = z.object({
   image: MediaImageSchema.nullable().openapi({ description: "The group's image, from its Media Key" }),
   metaTitle: z.string().nullable().openapi({
     description: "SEO page title (max 60 chars)",
-    example: "Electronics | CodFlow",
+    example: "Electronics | Wocart",
   }),
   metaDescription: z.string().nullable().openapi({
     description: "SEO description (max 160 chars)",

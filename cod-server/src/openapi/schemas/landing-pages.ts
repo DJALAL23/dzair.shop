@@ -88,7 +88,7 @@ export const LandingPageSchema = z
     publicUrl: z.string().openapi({
       description:
         "The shareable storefront URL (from the store's domain, or the deployment's storefront fallback; relative /lp/<slug> when neither is set)",
-      example: "https://demo.codflow.store/lp/lp-9f3a2b1c",
+      example: "https://demo.wocart.store/lp/lp-9f3a2b1c",
     }),
     publishedAt: z.string().datetime().nullable().openapi({ example: null }),
     createdAt: z.string().datetime(),
@@ -118,7 +118,7 @@ export const LandingPageListItemSchema = z
     revenue: z.number().min(0).openapi({ example: 180000 }),
     publicUrl: z.string().openapi({
       description: "The shareable storefront URL for this page",
-      example: "https://demo.codflow.store/lp/lp-9f3a2b1c",
+      example: "https://demo.wocart.store/lp/lp-9f3a2b1c",
     }),
     publishedAt: z.string().datetime().nullable().openapi({ example: null }),
     createdAt: z.string().datetime(),

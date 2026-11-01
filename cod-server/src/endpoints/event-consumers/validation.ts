@@ -21,7 +21,7 @@ const url = z
     const problem = webhookUrlProblem(value);
     if (problem) ctx.addIssue({ code: "custom", message: URL_PROBLEMS[problem], params: { problem } });
   })
-  .openapi({ description: "Where Deliveries are POSTed: a public https URL", example: "https://erp.example.dz/hooks/codflow" });
+  .openapi({ description: "Where Deliveries are POSTed: a public https URL", example: "https://erp.example.dz/hooks/wocart" });
 
 const subscription = z
   .array(z.string().refine(isSubscriptionPattern, { message: "Not an Event Type, a subject (`order.*`) or `*`" }))

@@ -111,7 +111,7 @@ const getShipmentRoute = defineRoute({
   auth: { scope: SCOPES.ORDERS_READ },
   tags: ["Shipments"],
   summary: "Get a shipment",
-  description: "The shipment with its full history (carrier statuses as reported, and what CodFlow concluded from them) and the actions available now.",
+  description: "The shipment with its full history (carrier statuses as reported, and what Wocart concluded from them) and the actions available now.",
   operationId: "getShipment",
   params: IdParamSchema,
   responses: {
@@ -173,7 +173,7 @@ const updateRoute = defineRoute({
   auth: { scope: SCOPES.DELIVERY_DISPATCH },
   tags: ["Shipments"],
   summary: "Edit a parcel at the carrier",
-  description: `Changes the customer's details, the destination, the cash to collect, the weight or fragility — at the carrier first, then in CodFlow: the order's contact and destination (with its customer, like an order edit) and the shipment's cash, weight and fragility. Only before the parcel leaves (and, at a carrier that validates separately, before validation). A new destination needs both \`wilayaId\` and \`communeId\`.`,
+  description: `Changes the customer's details, the destination, the cash to collect, the weight or fragility — at the carrier first, then in Wocart: the order's contact and destination (with its customer, like an order edit) and the shipment's cash, weight and fragility. Only before the parcel leaves (and, at a carrier that validates separately, before validation). A new destination needs both \`wilayaId\` and \`communeId\`.`,
   operationId: "updateShipment",
   params: IdParamSchema,
   body: updateParcelSchema,

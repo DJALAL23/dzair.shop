@@ -363,7 +363,7 @@ export const StoreLandingPageSchema = z
     }),
     document: PageDocumentSchema.nullable().openapi({
       description:
-        "This page's own composition (its `lp:<id>` page document) for the requesting `theme`, written by CodFlow Cloud's editor; null when it has none or no `theme` is named — the theme then renders its `landing` default.",
+        "This page's own composition (its `lp:<id>` page document) for the requesting `theme`, written by Wocart Cloud's editor; null when it has none or no `theme` is named — the theme then renders its `landing` default.",
     }),
     tracking: StorePublicTrackingSchema.openapi({
       description:

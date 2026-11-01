@@ -226,7 +226,7 @@ const resetTranslationRoute = defineRoute({
   path: "/{id}/translations/{locale}/reset",
   auth: { scope: SCOPES.STORE_PAGES_MANAGE },
   tags: ["Store Pages"],
-  summary: "Reset a translation to the CodFlow template",
+  summary: "Reset a translation to the Wocart template",
   description:
     "Discards whatever is currently saved for this locale and re-renders it from the current legal template and this store's legal profile. Only legal kinds have a template — called on a custom page it is refused with STORE_PAGE_NOT_LEGAL.",
   operationId: "resetStorePageTranslation",
