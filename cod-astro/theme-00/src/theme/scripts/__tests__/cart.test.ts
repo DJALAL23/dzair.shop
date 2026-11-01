@@ -358,10 +358,9 @@ describe("cart - order items", () => {
 
 // ─── Invariants ───────────────────────────────────────────────────────────────
 
-// Every run re-imports the cart for a clean module state, so these take
-// seconds — budgeted explicitly rather than racing the default timeout when
-// the whole suite runs in parallel.
-describe("cart - properties", { timeout: 30_000 }, () => {
+// One cart for the whole property, emptied at the start of every run: each
+// run starts from an empty basket, as a shopper's first add does.
+describe("cart - properties", () => {
   const lineArb = fc.record({
     productId: fc.constantFrom("p1", "p2", "p3"),
     variantId: fc.option(fc.constantFrom("red", "blue"), { nil: null }),
@@ -370,10 +369,11 @@ describe("cart - properties", { timeout: 30_000 }, () => {
   });
 
   it("never holds two lines with the same product and variant", async () => {
-    await fc.assert(
-      fc.asyncProperty(fc.array(lineArb, { maxLength: 15 }), async (adds) => {
-        installStorage();
-        const cart = await freshCart();
+    installStorage();
+    const cart = await freshCart();
+    fc.assert(
+      fc.property(fc.array(lineArb, { maxLength: 15 }), (adds) => {
+        cart.clearCart();
         for (const a of adds) cart.addLine(line(a));
 
         const keys = cart.getCart().map((l) => cart.lineKey(l.productId, l.variantId));
@@ -383,10 +383,11 @@ describe("cart - properties", { timeout: 30_000 }, () => {
   });
 
   it("never exceeds the line cap or the per-line quantity cap", async () => {
-    await fc.assert(
-      fc.asyncProperty(fc.array(lineArb, { maxLength: 30 }), async (adds) => {
-        installStorage();
-        const cart = await freshCart();
+    installStorage();
+    const cart = await freshCart();
+    fc.assert(
+      fc.property(fc.array(lineArb, { maxLength: 30 }), (adds) => {
+        cart.clearCart();
         for (const a of adds) cart.addLine(line(a));
 
         const lines = cart.getCart();
@@ -397,7 +398,7 @@ describe("cart - properties", { timeout: 30_000 }, () => {
         }
       }),
     );
-  }, 120_000);
+  });
 
   it("never reports a negative count or subtotal", async () => {
     await fc.assert(
