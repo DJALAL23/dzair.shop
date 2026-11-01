@@ -1,17 +1,17 @@
 ---
-description: Set up CodFlow locally, get an API key and make your first request.
+description: Set up Wocart locally, get an API key and make your first request.
 ---
 
 # Getting started
 
-This guide takes you from a local CodFlow server to an authenticated request. If you already have a deployed instance, skip the local setup and use its API origin instead.
+This guide takes you from a local Wocart server to an authenticated request. If you already have a deployed instance, skip the local setup and use its API origin instead.
 
 ## Base URLs
 
 | Environment | Base URL | Notes |
 | --- | --- | --- |
 | Local | `http://localhost:8787` | `wrangler dev` in `cod-server` |
-| Production | `https://api.codflow.store` | The public CodFlow API |
+| Production | `https://api.codflow.store` | The public Wocart API (the host keeps Wocart's former name) |
 
 Every merchant endpoint is under `/api/*`. Storefront endpoints are under `/store/*`, and carrier callbacks are under `/webhooks/*`.
 
@@ -42,15 +42,19 @@ Local D1 state is shared through `.wrangler-shared`. If sign-in fails on a fresh
 
 ## Get an API key
 
-CodFlow has two kinds of keys, and they are not interchangeable.
+Wocart has two kinds of keys, and they are not interchangeable.
 
 ### Merchant API key
 
 Use a merchant key for `/api/*`. It belongs to a dashboard user and inherits that user's role and scopes.
 
+<Stepper toc={false}>
+
 1. Open the dashboard and go to **Team**.
 2. Generate a key for a team member, or rotate an existing key.
 3. Copy the key when it is shown. It is not displayed again.
+
+</Stepper>
 
 Send it in the `X-API-Key` header:
 
@@ -64,9 +68,13 @@ An administrator can use every scope. A staff user can use only the tools and en
 
 Use a store key for `/store/*`. It identifies the store to the public storefront API.
 
-1. Open the dashboard and go to **Settings**.
-2. Open **Store API key** in the settings sidebar.
+<Stepper toc={false}>
+
+1. Open the dashboard and go to **Integrations**.
+2. Open **Store API key**.
 3. Reveal and copy the key.
+
+</Stepper>
 
 Send it in the `X-Store-API-Key` header:
 
@@ -94,7 +102,7 @@ curl "http://localhost:8787/store/products?limit=5" \
 
 </CodeTabs>
 
-A successful list response has a `data` array and a `count`:
+A successful list response has a `data` array and a `count`; a storefront product list also carries `total`, the size of the whole listing:
 
 ```json
 {
@@ -108,9 +116,13 @@ A successful list response has a `data` array and a `count`:
 
 The [API reference](/api) includes an interactive playground.
 
+<Stepper toc={false}>
+
 1. Choose **Local development** in the server selector (or **Production** for a deployed instance).
 2. Click **Authorize** and paste the key for the scheme you are testing: `X-API-Key` or `X-Store-API-Key`.
 3. Open an operation, fill in the parameters and send the request.
+
+</Stepper>
 
 In local development the server echoes the request origin, so this docs site at `http://localhost:3000` can call it directly.
 

@@ -4,11 +4,11 @@ description: Receive and verify Yalidine and ZR Express delivery events.
 
 # Carrier webhooks
 
-Carriers push delivery updates to CodFlow. The server verifies the signature, stores the events in an inbox, answers the carrier immediately, and processes the events after the response. Your integration reads the resulting shipment state through the API.
+Carriers push delivery updates to Wocart. The server verifies the signature, stores the events in an inbox, answers the carrier immediately, and processes the events after the response. Your integration reads the resulting shipment state through the API.
 
 To receive your own store's events on your server, read [Webhooks](/webhooks) instead.
 
-Inbound webhooks exist for **Yalidine** and **ZR Express**. NOEST and EcoTrack do not send webhooks; their shipments are synced every five minutes by a cron job and on demand through the shipment sync endpoints.
+Inbound webhooks exist for **Yalidine** and **ZR Express**. NOEST, the EcoTrack-platform companies and Guepex send none: their shipments are synced every five minutes, and on demand with `POST /shipments/{id}/sync` or `POST /delivery-companies/{id}/sync-shipments`.
 
 ## Endpoints
 
@@ -24,13 +24,13 @@ The paths are the URLs the carriers hold. Do not put them behind auth: the carri
 
 <Stepper>
 
-1. **Carrier to CodFlow**
+1. **Carrier to Wocart**
 
    The carrier sends a signed `POST` to `/webhooks/yalidine` or `/webhooks/zr_express`.
 
 1. **Verify and split**
 
-   CodFlow checks the signature against the company's secret and splits the carrier envelope into individual events.
+   Wocart checks the signature against the company's secret and splits the carrier envelope into individual events.
 
 1. **Store in the inbox**
 
@@ -38,7 +38,7 @@ The paths are the URLs the carriers hold. Do not put them behind auth: the carri
 
 1. **Answer the carrier**
 
-   CodFlow returns `200 {"received":true}` without waiting for processing.
+   Wocart returns `200 {"received":true}` without waiting for processing.
 
 1. **Process after the response**
 

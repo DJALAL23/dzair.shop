@@ -1,5 +1,5 @@
 ---
-description: The developer reference for the CodFlow commerce platform.
+description: The developer reference for the Wocart commerce platform.
 ---
 
 import { Card, CardDescription, CardHeader, CardTitle } from "zudoku/ui/Card";
@@ -8,9 +8,9 @@ import { BracesIcon, CodeIcon, PaletteIcon, RocketIcon } from "zudoku/icons";
 
 # Introduction
 
-CodFlow is a cash-on-delivery commerce platform built for Algeria. Merchants get a dashboard, a themeable storefront, and a typed REST API for orders, delivery, catalog, customers, reviews and store settings.
+Wocart is a cash-on-delivery commerce platform built for Algeria. Merchants get a dashboard, a themeable storefront, and a typed REST API for orders, delivery, catalog, customers, reviews and store settings.
 
-This site is the developer reference for that platform. Its API reference and SDK typings are generated from the OpenAPI document served by cod-server and the published packages, so endpoints and types match the code that ships. The Theme SDK guide is maintained here.
+This site is the developer reference for that platform. Its API reference and SDK typings are generated from the OpenAPI document served by cod-server and the published packages, so endpoints and types match the code that ships. The Storefront SDK and Theme SDK guides are maintained here, with an agent kit for each.
 
 <div className="not-prose my-10 grid gap-4 sm:grid-cols-2">
   <Link to="/getting-started" className="group">
@@ -21,7 +21,7 @@ This site is the developer reference for that platform. Its API reference and SD
         </div>
         <CardTitle>Getting started</CardTitle>
         <CardDescription>
-          Base URLs, API keys and your first request against a local CodFlow server.
+          Base URLs, API keys and your first request against a local Wocart server.
         </CardDescription>
       </CardHeader>
     </Card>
@@ -47,7 +47,7 @@ This site is the developer reference for that platform. Its API reference and SD
         </div>
         <CardTitle>Storefront SDK</CardTitle>
         <CardDescription>
-          The engine behind a CodFlow theme: config, catalog, cart, checkout and reviews.
+          The engine behind a Wocart theme: config, catalog, cart, checkout and reviews.
         </CardDescription>
       </CardHeader>
     </Card>
@@ -60,7 +60,7 @@ This site is the developer reference for that platform. Its API reference and SD
         </div>
         <CardTitle>Theme SDK</CardTitle>
         <CardDescription>
-          Build a swappable theme with the block contract, editor metadata and image services.
+          Build a theme merchants edit in Wocart Studio: definitions, page documents, preview and the manifest.
         </CardDescription>
       </CardHeader>
     </Card>
@@ -71,7 +71,8 @@ This site is the developer reference for that platform. Its API reference and SD
 
 - **Guides** cover the concepts that are shared by every endpoint: authentication, errors, webhooks and the MCP server.
 - **API reference** is generated from the live OpenAPI document. Operations include their parameters or request body, response schema and — where the route declares one — a security requirement. Every operation has a playground.
-- **SDK references** are generated from the published TypeScript declarations. The Storefront SDK guide is published with its package; the Theme SDK guide is written and maintained here.
+- **SDK references** are generated from the published TypeScript declarations. The Storefront SDK and Theme SDK guides are written and maintained here; every sample in the quick starts was built and run against a real store.
+- **For AI agents**: [`/llms.txt`](/llms.txt) indexes every page, each page is also Markdown at its URL plus `.md`, and the [Theme](/sdk/theme/agents) and [Storefront](/sdk/storefront/agents) agent kits install a skill that keeps an agent inside the contract.
 
 ## What you can build
 

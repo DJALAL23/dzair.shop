@@ -1,10 +1,10 @@
 ---
-description: Connect AI clients to CodFlow through the OAuth-secured MCP server.
+description: Connect AI clients to Wocart through the OAuth-secured MCP server.
 ---
 
 # MCP server
 
-CodFlow exposes a remote [Model Context Protocol](https://modelcontextprotocol.io/) server named **CodFlow CRM**. AI clients can list a store's orders, customers, products and shipments, and run write actions with the same permissions as the signed-in dashboard user.
+Wocart exposes a remote [Model Context Protocol](https://modelcontextprotocol.io/) server. It still announces itself as **CodFlow CRM** (resource name `CodFlow MCP`), Wocart's former name, kept so connected clients keep working. AI clients can list a store's orders, customers, products and shipments, and run write actions with the same permissions as the signed-in dashboard user.
 
 The server is reachable at:
 
@@ -13,7 +13,7 @@ The server is reachable at:
 | Production | `https://api.codflow.store/mcp` |
 | Local | `http://localhost:8787/mcp` |
 
-The endpoint is protected by OAuth. A client cannot call a tool without a valid access token, and the token carries the user's CodFlow scopes.
+The endpoint is protected by OAuth. A client cannot call a tool without a valid access token, and the token carries the user's Wocart scopes.
 
 ## How authorization works
 
@@ -25,7 +25,7 @@ The MCP server uses the OAuth 2.1 protected-resource model:
 - The authorization endpoint is `/authorize`; tokens are issued at `/oauth/token`.
 - Access tokens last **1 hour**; refresh tokens last **30 days**.
 
-When a client connects, it opens the CodFlow consent screen. Sign in with the dashboard account whose data and permissions the agent should use. The screen shows the requested scopes, and the server only grants scopes the user actually holds. An administrator can grant any requested scope.
+When a client connects, it opens the consent screen (still titled with the former name, CodFlow). Sign in with the dashboard account whose data and permissions the agent should use. The screen shows the requested scopes, and the server only grants scopes the user actually holds. An administrator can grant any requested scope.
 
 :::note
 The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing, make sure that value matches the origin your client uses (`http://localhost:8787`).
@@ -41,7 +41,7 @@ The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing,
 
 1. **Start the connection**
 
-   The client discovers the OAuth metadata and opens the CodFlow sign-in and consent screen.
+   The client discovers the OAuth metadata and opens the sign-in and consent screen.
 
 1. **Approve the scopes**
 
@@ -49,7 +49,7 @@ The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing,
 
 1. **List the tools**
 
-   After the callback completes, ask the client to list the CodFlow tools. Only tools allowed by the token's scopes are registered, so the model never sees a tool it cannot call.
+   After the callback completes, ask the client to list the server's tools. Only tools allowed by the token's scopes are registered, so the model never sees a tool it cannot call.
 
 </Stepper>
 
@@ -60,7 +60,7 @@ The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing,
 ```json title="Cursor"
 {
   "mcpServers": {
-    "codflow": {
+    "wocart": {
       "url": "https://api.codflow.store/mcp"
     }
   }
@@ -70,7 +70,7 @@ The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing,
 ```json title="VS Code"
 {
   "servers": {
-    "codflow": {
+    "wocart": {
       "type": "http",
       "url": "https://api.codflow.store/mcp"
     }
@@ -81,7 +81,7 @@ The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing,
 ```json title="Generic"
 {
   "mcpServers": {
-    "codflow": {
+    "wocart": {
       "type": "http",
       "url": "https://api.codflow.store/mcp"
     }

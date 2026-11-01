@@ -16,7 +16,7 @@ In the dashboard, open **Integrations** in the sidebar and choose **Add webhook*
 curl -X POST http://localhost:8787/api/event-consumers \
   -H "X-API-Key: cod_your_api_key_here" \
   -H "Content-Type: application/json" \
-  -d '{"kind":"webhook","name":"Order system","url":"https://erp.example.dz/hooks/codflow","subscription":["order.*","shipment.delivered"]}'
+  -d '{"kind":"webhook","name":"Order system","url":"https://erp.example.dz/hooks/wocart","subscription":["order.*","shipment.delivered"]}'
 ```
 
 The answer holds the webhook and its **Signing Secret**, `whsec_…`. It is shown this once: store it in your server's secrets. Every later answer shows it masked.
@@ -34,7 +34,7 @@ Each Delivery is one `POST` to your URL:
 | Header | Value |
 | --- | --- |
 | `content-type` | `application/json` |
-| `user-agent` | `CodFlow-Webhooks/1` |
+| `user-agent` | `CodFlow-Webhooks/1` (Wocart's former name, kept for compatibility) |
 | `webhook-id` | The event's id. The same on every attempt and every Replay. |
 | `webhook-timestamp` | When this attempt was sent, in Unix seconds. |
 | `webhook-signature` | `v1,<signature>`, one per Signing Secret, separated by spaces. |
