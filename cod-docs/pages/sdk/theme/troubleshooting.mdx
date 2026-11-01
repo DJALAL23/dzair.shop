@@ -1,0 +1,222 @@
+---
+description: Every issue code @wocart/theme reports — when reading a page, rendering, assembling a theme, checking a manifest, editing a document or reading settings — what it means and how to fix it, plus the symptoms you will meet first.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Issues and fixes
+
+The SDK never fails silently and rarely throws. When something is off it
+**reports an issue** — `{ path, code, message }` — and keeps the page
+rendering. This page lists every code by where it comes from, what it means,
+and the fix.
+
+| Where the issue comes from | Function | Reported as |
+| --- | --- | --- |
+| [Reading a saved document](#reading-a-document) | `parsePageData`, `validatePageData`, `resolveSurfaceDocument`, `resolveInstance` | `PageDataIssue` |
+| [Rendering](#rendering) | `InstanceView`, `Block` | `RendererIssue` through `onIssue` (default: `console.warn`) |
+| [Assembling the theme](#assembling-the-theme) | `validateThemeDefinition` | `ThemeDefinitionIssue` |
+| [Checking a manifest](#checking-a-manifest) | `validateThemeManifest`, `themeManifestEndpoint` | `ThemeManifestIssue`; the endpoint throws at build |
+| [Editing a document](#editing-a-document) | the document operations, `checkPageData` | `DocumentIssue` |
+| [Reading settings](#reading-settings) | `resolveThemeSettings`, `checkThemeSettings` | `ThemeSettingsIssue` |
+
+`path` points into the value that was checked: `sections[2].props.limit`,
+`components.hero.fields[0].default`, `settings.pageScheme`.
+
+<Callout type="info" title="Reading degrades; writing refuses">
+A **reader** (rendering a page, reading settings) repairs what it can and
+reports the rest: a bad value falls back to its default, an unknown section
+renders nothing. A **writer** (an editor, a script, an agent) gets the strict
+counterpart and must fix every issue before saving: `checkPageData`,
+`checkFieldValue`, `checkThemeSettings`, and the operations that refuse.
+</Callout>
+
+## First symptoms
+
+Start here when something looks wrong and no code is in front of you.
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `astro build` fails with `EnvInvalidVariables: COD_SERVER_URL is missing` | A store variable declared required; the build prerenders the manifest, which loads the middleware | Declare `COD_SERVER_URL`, `STORE_API_KEY` and `WOCART_PREVIEW_KEY` with `optional: true` ([quick start](/sdk/theme/build#2-configure-astro)) |
+| A request throws `MISSING_CONFIGURATION` | `createStoreClient` got an empty `serverUrl` or `apiKey` | Set `COD_SERVER_URL` and `STORE_API_KEY` for the running server |
+| The page renders the unavailable store: no name, no menu, no products, nothing to buy (`config.id === ""`) | The config read failed: wrong URL or key, or the API is unreachable | Read the client's `onError` output (`operation`, `code`); a deployed server cannot reach `localhost` |
+| Merchant text edits or saved pages never appear | The client does not pass `theme` | `createStoreClient({ …, theme: THEME_KEY })` |
+| An Arabic page shows a French label | Another language's text edits were merged | Merge only `config.contentOverrides[locale]` over the pack for `locale` |
+| `/fr/products/x` answers 404 | The middleware ignores the rewrite | `return request.rewrite === null ? next() : next(request.rewrite)` |
+| An internal link drops the shopper's language | A raw path in an `href` | Pass it through the request store's `href` (`localizeHref`) |
+| The order form answers `403 Cross-site POST form submissions are forbidden` | The page's origin differs from the URL the server sees (locally: `127.0.0.1` vs `localhost`) | Open the site on the origin the server reports |
+| Every order is refused as malformed (`errorKind: "shape"`) | A single-product form without `pricePerUnit` (or a basket without `items`) | Post `productId`, `productName` and `pricePerUnit`, or `items` |
+| A placed order shows no thank-you page | The redirect was attempted in the middleware, or the page never reads the result | Run `runFormAction` in the middleware; redirect from the page with `Astro.getActionResult` |
+| `/wocart-preview` answers 404 | No `WOCART_PREVIEW_KEY`, or the surface is not one the theme declares | Set the deployment's preview key; declare the surface |
+| `/wocart-preview` answers 403 | The token is for another storefront origin or another theme key, expired, or a draft was posted cross-origin | Open the preview from the store's own Wocart Studio |
+| A section's script stops working after a Studio edit | It bound once on import; a swapped section never re-runs scripts | Bind with `bindEach` from `@wocart/theme/lifecycle` |
+| A style choice has no effect | The theme gives that step or width no size, or the stylesheet is not linked | Add the size to `defineTheme({ style })`; render `<ThemeStyles>` and serve `wocart-styles.css` |
+| A color scheme change has no effect | The component hardcodes colors | Use the `--wc-color-*` variables of the scheme the section wears |
+| The same product is requested several times per page | Several read caches, or different read keys | One `createReadCache()` per page, passed to every section; one key per resource |
+| A field shows nothing and nothing is reported | The component reads a prop name the field does not have, or `load` returns the same key | Use `InferProps`; keep `load`'s keys out of `fields` |
+
+## Reading a document
+
+Returned by `parsePageData`, `validatePageData` and `resolveSurfaceDocument`,
+and by `resolveInstance` for one instance. Only `envelope-invalid` makes the
+document unusable; then the theme's default renders.
+
+| Code | Meaning | What the reader does | Fix |
+| --- | --- | --- | --- |
+| `envelope-invalid` | Not a JSON object; `version` is not `1`; `surface` is not a surface key; `sections` is not an array; or the saved document is for another surface | `page: null`; `resolveSurfaceDocument` renders the theme's default | Save `{ version: 1, surface, sections }` for the right surface |
+| `instance-dropped` | An instance lacks a string `id`, a kebab-case `type`, or has a malformed `props`, `children`, `slots` or `fixed` | Drops that instance and its tree | Give every instance a non-empty `id` and a valid `type` |
+| `duplicate-id` | An instance id appears twice (or a list item id twice in its list) | Keeps the first, drops the later one | Ids are unique in a document; use `newInstanceId()` |
+| `unknown-type` | No component in the catalog has this `type` | The instance renders nothing; the rest of the page renders | Restore the component, or remove the instance from the document |
+| `unknown-prop` | A stored prop the definition does not declare | Ignored | Remove it, or declare the field |
+| `invalid-prop` | A value fails its field's rules (wrong type, out of range, unsafe link, unknown option, bad image key, list past `max`) | Treated as absent: pack text or default applies | Store a value the field accepts (`checkFieldValue`) |
+| `missing-required-prop` | A `required` field has no value, no pack text and no default | Omitted; the component must not print an empty element | Give the field a value, a `default` or a `contentKey` |
+| `undeclared-children` | Children stored on a component with no `default` slot | Dropped | Declare a `default` slot, or move the children |
+| `unknown-slot` | Content in a slot the component does not declare | Dropped | Declare the slot, or move the content |
+| `slot-not-multiple` | More than one child in a `multiple: false` slot | Keeps the first | Remove the extras |
+| `disallowed-child` | A child whose type the slot's `allow` list excludes | Dropped | Allow the type, or move the child; narrowing `allow` breaks saved pages |
+| `invalid-provenance` | `theme` is not `{ key, version }` | Ignored | Write a valid provenance or none |
+| `theme-mismatch` | The document was written for another theme key | `resolveSurfaceDocument` renders the default | Expected after a theme switch; the merchant re-composes the page |
+| `unknown-fixed` | A stored fixed block the definition no longer places (also reported by `<Block>` for an undeclared name) | Ignored at render; `completePage` removes it | Declare it in `fixed`, or remove the stored entry |
+| `fixed-type-mismatch` | A stored fixed block of another type than the definition's | Rendered as the declared type with its defaults | Store the declared type |
+| `missing-required-block` | A required section or block is absent or hidden | Added (with defaults) or shown again | Expected for old documents; `completePage` fixes the stored copy |
+| `limit-exceeded` | Past a cap: 50 sections, 50 per slot, 1,000 instances, 6 levels of nesting, or a surface's or slot's own `max` | Renders up to the cap | Split the page; respect `max` |
+
+`resolveSurfaceDocument` also tells you **why** a default rendered, in its
+`reason`:
+
+| `reason` | Meaning |
+| --- | --- |
+| `null` | The saved document rendered (`source: "saved"`) |
+| `"absent"` | The store saved nothing, or the read failed |
+| `"invalid"` | What was saved is not a page document |
+| `"other-surface"` | The saved document is for another surface |
+| `"other-theme"` | It was composed for another theme |
+| `"no-overlap"` | None of its sections is in this catalog |
+
+## Which document rendered
+
+`resolveSurfaceDocument` returns `source` (`"saved"` or `"default"`) and, for
+the default, the `reason`:
+
+| `reason` | Meaning | What to do |
+| --- | --- | --- |
+| `absent` | The store saved no document for this surface | Nothing: the theme's default is the right answer |
+| `invalid` | What was saved is not a page document the SDK reads | Read `issues`; Studio re-saves a valid one |
+| `other-surface` | The saved document names another surface | Check the surface key the route passes |
+| `other-theme` | The saved document was composed for another theme key | Expected after a store switches theme; check your client passes `theme` |
+| `no-overlap` | None of the saved sections is in the catalog the route rendered with | A renamed component `type`, or a per-route catalog missing the section |
+
+## Rendering
+
+`InstanceView` reports every reading issue above for the instance it renders,
+plus three of its own:
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `missing-component` | The definition's `component` is `null` or not a component (often a string left instead of an import) | Import the real `.astro` component. A `manifestCatalog` result has `component: null` by design — never render it |
+| `load-failed` | The definition's `load` threw (or a read inside it rejected) | The component still renders with its field values; handle `null` and `[]` in the component, and find the cause in the error message |
+| `multiple-slots-unsupported` | Content for more than one **named** slot was pushed through Astro `<slot>`s | Place slots with `<Blocks of={blocks} slot="…">`, which has no limit |
+
+Collect them in tests with `onIssue`; in production the default reporter logs
+`[@wocart/theme/astro] <code>: <message>`.
+
+## Assembling the theme
+
+`validateThemeDefinition(theme)` returns `[]` for a sound catalog. Run it in a
+test; `themeManifestEndpoint` runs the manifest check at build.
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `invalid-theme` | The theme's `key` (lowercase kebab-case, ≤ 64), `version` (non-empty), `components`, `locales`, `surfaces`, `areas`, `preview` or `style` are malformed: duplicate keys, an unknown `pageType`, an alternate (`product.compact`) without its base, a required type placed only as a block | Correct the field the `path` names |
+| `invalid-settings` | `settings` is not a list of `{ key, label, fields }` groups, or a group key repeats | One kebab-case key per group |
+| `invalid-definition` | A definition is not an object, has no real `component`, or a bad `label`/`group` | Import the component; translate the label into every declared language |
+| `invalid-type` | A catalog key or `type` is not lowercase kebab-case | `best-sellers`, not `BestSellers` |
+| `type-mismatch` | A definition's `type` differs from its catalog key | `components: { "best-sellers": bestSellers }` where `bestSellers.type === "best-sellers"` |
+| `invalid-field` | A field breaks its kind's rules: both `contentKey` and `default`; a default outside `min`/`max`/`step` or not in `options`; a slider without `min`, `max`, `step`; an image with a default; `blocks` as a key; a list item keyed `id` or using `contentKey`; a `colorSchemes` field on a component; a bad `visibleIf` | Follow the message; see [Fields](/sdk/theme/fields) |
+| `duplicate-field-key` | Two fields share a key in one component, or two settings share a key across groups | Rename one |
+| `unknown-content-key` | A `contentKey` missing from the theme's packs (or from the `contentKeys` you passed) | Add the key to **every** pack, or fix the typo |
+| `invalid-slot` | A slot's name, `allow` (types must be in the catalog), `max` (1–50) or `required` is malformed, or a required type is placed only as a section | Correct the slot |
+| `duplicate-slot` | Two slots share a name | Rename one |
+| `invalid-capability` | `insertable` is not a boolean, or `surfaces` is empty or names a surface the theme does not declare | Name declared surfaces (areas as `area:<key>`) |
+| `invalid-load` | `load` is not a function | Pass an async function |
+| `invalid-preset` | A preset's key is malformed or repeated, or building it fails: an unknown type, a prop its field refuses | Fix the preset's props or children |
+| `invalid-document` | A shipped document is not a page document, is for another surface, or fails `validatePageData` | Fix the JSON; required props and required blocks may be left to the pack and to completion |
+| `invalid-content` | A content pack is malformed, is for a language not in `locales`, or a declared language has no pack | One pack per declared language, string values only |
+| `invalid-placement` | `placement` is not `section`, `block` or `both` | Use one of the three |
+| `invalid-fixed` | A fixed block's name or type is malformed or repeated, its type is placed only as a section, or fixed and required blocks contain themselves or nest more than 6 levels | Correct the `fixed` list |
+| `invalid-role` | `role` is not `order-form` | Use `"order-form"` or omit it |
+| `order-form-not-guaranteed` | A surface whose `pageType` is `product` does not always render a component with `role: "order-form"` | Require a section on the surface that reaches the order form through a fixed block or a slot's `required` ([example](/sdk/theme/tutorial#2-the-product-template)) |
+
+## Checking a manifest
+
+`validateThemeManifest(input)` reads a manifest as JSON from outside the
+theme. A structural failure returns `manifest: null`; a non-semver version is
+advisory and returns the manifest with an issue.
+
+| Code | Meaning |
+| --- | --- |
+| `invalid-manifest` | Not an object, or a top-level field is malformed |
+| `unsupported-contract` | `contractVersion` is not one this SDK reads (`1`) |
+| `invalid-identity` | The theme `key` is malformed |
+| `invalid-version` | Advisory: the theme `version` is not semver |
+| `invalid-surface` | A surface or area is malformed |
+| `invalid-settings` | The settings are malformed |
+| `invalid-component` | A component spec is malformed |
+| `invalid-content` | The content packs are malformed |
+| `type-mismatch` | A component's `type` differs from its key |
+| `non-serializable` | A function, symbol, bigint, non-finite number or cycle — the manifest must be plain JSON |
+
+`themeManifestEndpoint(theme)` throws `[@wocart/theme] the theme manifest is
+invalid` at build with the issues listed. Fix the definitions;
+`validateThemeDefinition` reports the same problems with more detail.
+
+## Editing a document
+
+The operations return `{ ok: false, issue }` instead of a document, and
+`checkPageData` returns every issue a document has before it is saved.
+
+| Code | Meaning |
+| --- | --- |
+| `invalid-document` | Not `{ version: 1, surface, sections }`, a surface the theme does not declare, or a `theme` that names another theme |
+| `invalid-instance` | The instance to insert is not a valid instance |
+| `invalid-index` | The index is outside the destination list |
+| `invalid-props` | A prop is undeclared, refused by its field, a style step the theme does not size, or a required value being removed |
+| `unknown-instance` | No instance with that id (or that parent) in the document |
+| `unknown-type` | The type is not in the catalog |
+| `unknown-slot` | The parent declares no such slot (the top level has none) |
+| `duplicate-id` | An id the document already holds |
+| `not-insertable` | The component has `insertable: false` |
+| `not-available` | Its `capabilities.surfaces` do not cover this surface |
+| `not-allowed` | The slot's `allow` list excludes the type |
+| `not-placeable` | Its `placement` forbids this level (a block at the top level, a section in a slot) |
+| `slot-full` | A `multiple: false` slot already holds one |
+| `fixed-block` | Fixed blocks are never removed, moved, copied or hidden; or a stored fixed block is undeclared or of the wrong type |
+| `required-block` | The change would leave fewer than `min` or more than `max` of a required type |
+| `limit-exceeded` | A cap would be passed: sections, slot, instances, depth |
+| `cycle` | An instance cannot move into itself or its own descendant |
+
+## Reading settings
+
+| Code | Meaning | Reader | Writer (`checkThemeSettings`) |
+| --- | --- | --- | --- |
+| `invalid-settings` | The stored settings are not an object | All defaults apply | Refused |
+| `unknown-setting` | A key the theme does not declare | Ignored | Refused |
+| `invalid-setting` | A value its field refuses; a style step the theme does not size; a `colorScheme` naming a scheme the store does not have | The default applies | Refused |
+| `missing-required-setting` | A required setting has no value or default | Absent | — |
+
+## Preview tokens
+
+`readPreviewRequest` and `readRevalidateRequest` answer a status and a reason
+instead of a draft. A refused token's reason is one of:
+
+| Reason | Meaning |
+| --- | --- |
+| `malformed` | Not a three-part compact JWS |
+| `unsupported-algorithm` | Not `EdDSA` |
+| `invalid-key` | `WOCART_PREVIEW_KEY` is not an Ed25519 public JWK |
+| `bad-signature` | Not signed by the matching private key |
+| `invalid-claims` | Missing or mistyped claims, or made for another use (a revalidation token on the preview route, or the reverse) |
+| `expired` / `not-yet-valid` | Outside its time window (30 seconds of clock skew are allowed) |
+| `too-long-lived` | Longer than allowed: one hour for a preview, five minutes for a revalidation |
+| `wrong-audience` | Made for another storefront origin |
+| `wrong-theme` | Made for another theme key |
