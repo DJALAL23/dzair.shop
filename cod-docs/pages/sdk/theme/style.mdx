@@ -83,9 +83,20 @@ const { style, scheme } = Astro.props;
 </section>
 ```
 
-`styleClasses` returns the classes for the chosen steps and widths.
-`schemeClass` returns `.wc-scheme-<id>` for a valid scheme id, or an empty
-string.
+`styleClasses` returns the classes for the chosen steps and widths (a layout
+value adds `wc-flex`). `schemeClass(id)` returns `wc-scheme wc-scheme-<id>`
+for a valid scheme id, or an empty string. The shared `wc-scheme` class
+(`SCHEME_MARKER_CLASS`) lets a theme derive its own tokens once:
+
+```css
+:root,
+.wc-scheme {
+  --button-bg: var(--wc-color-button);
+  --button-fg: var(--wc-color-button-text);
+}
+```
+
+Every element inside a section that wears a scheme then follows that scheme.
 
 ## Serve the stylesheet
 
@@ -136,8 +147,9 @@ A color scheme is a named set of colors for every role:
 
 The store's schemes are one `colorSchemes` theme setting. Each scheme has an
 `id`, a translated `name` and a hex color for every role. A theme may declare
-at most 24 schemes. Ids are lowercase letters, digits and dashes, at most 32
-characters; sections store the id, so it must stay stable.
+at most 24 schemes (`COLOR_SCHEMES_MAX`); a store keeps the same limit. Ids
+are lowercase letters, digits and dashes, at most 32 characters; sections store
+the id, so it must stay stable.
 
 ```ts
 {

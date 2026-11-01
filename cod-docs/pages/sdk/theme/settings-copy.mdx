@@ -52,7 +52,7 @@ const theme = defineTheme({
 ```ts
 import { resolveThemeSettings } from "@wocart/theme";
 
-const { values, issues } = resolveThemeSettings(theme, store.settings, {
+const { values, issues } = resolveThemeSettings(theme, store.config.themeSettings, {
   content: store.content,
   locales: [store.locale, ...store.fallbackLocales],
 });
@@ -137,12 +137,12 @@ edit saved under the old key.
 ## Store-wide labels
 
 The pack is also where store-wide labels live — “Add to cart”, “Sold out”,
-“View all”. A merchant can override them in CodFlow Studio. In a component,
+“View all”. A merchant can override them in Wocart Studio. In a component,
 either read the label through a `contentKey` field, or read the pack:
 
 ```ts
-const labels = Astro.locals.store.content;
-const addToCart = formatMessage(labels, "addToCart", {}, { locale });
+const { content, locale } = Astro.locals.store;
+const addToCart = formatMessage(content, "addToCart", {}, { locale });
 ```
 
 Keep one label key for one meaning. If two components use the same key with
@@ -188,8 +188,10 @@ the content pack, then the default. A missing translation is not an error.
 first language a value has, or `undefined` when it has none. The SDK applies
 the same chain to field values.
 
-The platform's supported languages and their direction live in
-`cod-shared/i18n/locales.ts`; a theme never mirrors that list. Render
+The store's languages arrive in its config: `config.locales` lists every
+published language with its `code`, `nativeName` and `direction`, and
+`servedLanguage(config, locale)` from `@wocart/storefront` finds one. A theme
+never hardcodes the list of supported languages. Render
 `dir={context.isRTL ? "rtl" : "ltr"}` on the document, and use logical CSS
 properties so the layout follows.
 
