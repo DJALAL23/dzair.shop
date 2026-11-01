@@ -5,10 +5,20 @@ import {
   isDirty,
   getPhonePreview,
   validateDraft,
-  resolveDraftPreview,
   DEFAULT_WHATSAPP_WIDGET_CONFIG,
 } from "./model";
-import type { WhatsAppWidgetConfig, WhatsAppWidgetDraft } from "./types";
+import { WIDGET_PREFILL_TOKENS, WIDGET_SURFACES, WIDGET_SURFACE_KEYS, WIDGET_TEXT_FIELDS } from "../../../../../cod-shared/whatsapp-widget/config";
+import type { WhatsAppWidgetCapabilities, WhatsAppWidgetConfig, WhatsAppWidgetDraft } from "./types";
+
+const CAPS: WhatsAppWidgetCapabilities = {
+  textFields: WIDGET_TEXT_FIELDS,
+  surfaces: WIDGET_SURFACES,
+  surfaceOrder: WIDGET_SURFACE_KEYS,
+  accents: ["whatsapp", "primary"],
+  positions: ["right", "left"],
+  prefillTokens: [...WIDGET_PREFILL_TOKENS],
+  limits: {},
+};
 
 const SAVED_CONFIG: WhatsAppWidgetConfig = {
   ...DEFAULT_WHATSAPP_WIDGET_CONFIG,
@@ -48,6 +58,12 @@ describe("toDraft and toPayload round-trip", () => {
     expect(draft.ctaLabel).toBe("");
     expect(draft.prefillGeneral).toBe("");
     expect(draft.prefillProduct).toBe("");
+  });
+
+  it("never fills an empty text with example words: it is saved as null, the theme's words", () => {
+    const draft = { ...toDraft(SAVED_CONFIG), welcomeMessage: "   ", prefillProduct: "" };
+    expect(toPayload(draft)).toMatchObject({ welcomeMessage: null, prefillProduct: null, ctaLabel: "Open WhatsApp" });
+    expect(isDirty(draft, SAVED_CONFIG)).toBe(true);
   });
 
   it("converts empty strings in draft to null in payload", () => {
@@ -138,7 +154,7 @@ describe("validateDraft (save blockers)", () => {
       phone: "",
       enabled: true,
     };
-    const blockers = validateDraft(draft);
+    const blockers = validateDraft(draft, CAPS);
     expect(blockers).toEqual([{ field: "phone", message: "phone_required" }]);
   });
 
@@ -148,7 +164,7 @@ describe("validateDraft (save blockers)", () => {
       phone: "invalid-phone",
       enabled: true,
     };
-    const blockers = validateDraft(draft);
+    const blockers = validateDraft(draft, CAPS);
     expect(blockers).toEqual([{ field: "phone", message: "phone_invalid" }]);
   });
 
@@ -157,7 +173,7 @@ describe("validateDraft (save blockers)", () => {
       ...toDraft(SAVED_CONFIG),
       agentName: "A".repeat(50), // max 40
     };
-    const blockers = validateDraft(draft);
+    const blockers = validateDraft(draft, CAPS);
     expect(blockers).toEqual([{ field: "agentName", message: "agent_name_too_long" }]);
   });
 
@@ -167,47 +183,19 @@ describe("the avatar", () => {
   const AVATAR_URL = "https://ik.imagekit.io/acct/products/avatar.webp";
 
   it("shows the saved avatar at its URL and saves it by its key", () => {
-    const draft = toDraft(SAVED_CONFIG, undefined, AVATAR_URL);
+    const draft = toDraft(SAVED_CONFIG, AVATAR_URL);
     expect(draft.avatar).toEqual({ key: "products/avatar.webp", url: AVATAR_URL });
     expect(toPayload(draft).avatarKey).toBe("products/avatar.webp");
-    expect(resolveDraftPreview(draft)?.avatarUrl).toBe(AVATAR_URL);
     expect(isDirty(draft, SAVED_CONFIG)).toBe(false);
   });
 
   it("saves a new upload by its key, and a removal as none", () => {
-    const uploaded = { ...toDraft(SAVED_CONFIG, undefined, AVATAR_URL), avatar: { key: "products/new.webp", url: "https://ik.imagekit.io/acct/products/new.webp" } };
+    const uploaded = { ...toDraft(SAVED_CONFIG, AVATAR_URL), avatar: { key: "products/new.webp", url: "https://ik.imagekit.io/acct/products/new.webp" } };
     expect(toPayload(uploaded).avatarKey).toBe("products/new.webp");
     expect(isDirty(uploaded, SAVED_CONFIG)).toBe(true);
 
-    const removed = { ...toDraft(SAVED_CONFIG, undefined, AVATAR_URL), avatar: null };
+    const removed = { ...toDraft(SAVED_CONFIG, AVATAR_URL), avatar: null };
     expect(toPayload(removed).avatarKey).toBeNull();
     expect(isDirty(removed, SAVED_CONFIG)).toBe(true);
-  });
-});
-
-describe("resolveDraftPreview", () => {
-  it("returns null when widget is disabled", () => {
-    const draft: WhatsAppWidgetDraft = {
-      ...toDraft(SAVED_CONFIG),
-      enabled: false,
-    };
-    expect(resolveDraftPreview(draft)).toBeNull();
-  });
-
-  it("returns null when phone is missing or unparseable", () => {
-    const draft: WhatsAppWidgetDraft = {
-      ...toDraft(SAVED_CONFIG),
-      enabled: true,
-      phone: "021999999", // landline
-    };
-    expect(resolveDraftPreview(draft)).toBeNull();
-  });
-
-  it("returns complete preview with digits-only wa.me href when valid", () => {
-    const draft = toDraft(SAVED_CONFIG);
-    const preview = resolveDraftPreview(draft);
-    expect(preview).not.toBeNull();
-    expect(preview?.href).toBe("https://wa.me/213551234567");
-    expect(preview?.agentName).toBe("Amine");
   });
 });

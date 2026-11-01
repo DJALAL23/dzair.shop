@@ -5,7 +5,7 @@
   "no_languages": "Votre boutique a une seule langue. Ajoutez-en une dans Paramètres → Langues pour traduire ce contenu.",
   "draft": "Non publiée",
   "outdated": "Obsolète",
-  "source_empty": "(vide dans votre langue par défaut)",
+  "source_empty": "(vide dans votre langue par défaut : rien à traduire)",
   "save": "Enregistrer la traduction",
   "saving": "Enregistrement…",
   "saved": "Traduction enregistrée",
@@ -41,6 +41,16 @@
     "collection": {
       "title": "Nom",
       "description": "Description"
+    },
+    "whatsappWidget": {
+      "caption": "Ligne de statut",
+      "welcomeMessage": "Message d'accueil",
+      "launcherLabel": "Texte du bouton flottant",
+      "ctaLabel": "Texte du bouton de chat",
+      "prefillGeneral": "Message par défaut",
+      "prefillProduct": "Message de la page produit",
+      "thankYouButtonLabel": "Texte du bouton de remerciement",
+      "prefillThankYou": "Message de la page de remerciement"
     }
   }
 }

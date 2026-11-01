@@ -76,6 +76,9 @@
   "destination": {
     "home": "الصفحة الرئيسية",
     "catalog": "كل المنتجات",
+    "search": "البحث",
+    "trackOrder": "تتبع الطلب",
+    "contact": "صفحة التواصل",
     "category": "فئة",
     "collection": "مجموعة",
     "product": "منتج",

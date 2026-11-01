@@ -23,6 +23,8 @@ export function translationsPath(resource: TranslatableResource, id: string): st
       return `/api/collections/${encoded}/translations`;
     case "menuItem":
       return `/api/menus/items/${encoded}/translations`;
+    case "whatsappWidget":
+      return "/api/apps/whatsapp-button/translations";
   }
 }
 

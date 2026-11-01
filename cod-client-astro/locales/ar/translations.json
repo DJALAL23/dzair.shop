@@ -5,7 +5,7 @@
   "no_languages": "لمتجرك لغة واحدة. أضف لغة أخرى من الإعدادات ← اللغات لترجمة هذا المحتوى.",
   "draft": "غير منشورة",
   "outdated": "قديمة",
-  "source_empty": "(فارغ بلغتك الافتراضية)",
+  "source_empty": "(فارغ بلغتك الافتراضية: لا شيء للترجمة)",
   "save": "حفظ الترجمة",
   "saving": "جارٍ الحفظ…",
   "saved": "تم حفظ الترجمة",
@@ -41,6 +41,16 @@
     "collection": {
       "title": "الاسم",
       "description": "الوصف"
+    },
+    "whatsappWidget": {
+      "caption": "سطر الحالة",
+      "welcomeMessage": "رسالة الترحيب",
+      "launcherLabel": "نص الزر العائم",
+      "ctaLabel": "نص زر المحادثة",
+      "prefillGeneral": "الرسالة الافتراضية",
+      "prefillProduct": "رسالة صفحة المنتج",
+      "thankYouButtonLabel": "نص زر صفحة الشكر",
+      "prefillThankYou": "رسالة صفحة الشكر"
     }
   }
 }

@@ -5,10 +5,9 @@ import { useT } from "@/i18n/react";
 import { searchMenuDestinations } from "@/features/navigation/api";
 import { itemProblem, type EditableItem } from "@/features/navigation/model";
 import type { MenuDestination, MenuDestinationType, MenuResourceType } from "@/features/navigation/types";
+import { MENU_DESTINATION_TYPES, MENU_RESOURCE_DESTINATIONS } from "../../../../../cod-shared/navigation/menus";
 
-const TYPES: MenuDestinationType[] = ["home", "catalog", "category", "collection", "product", "page", "landing", "url"];
-const isResource = (type: MenuDestinationType): type is MenuResourceType =>
-  type === "category" || type === "collection" || type === "product" || type === "page" || type === "landing";
+const isResource = (type: MenuDestinationType): type is MenuResourceType => (MENU_RESOURCE_DESTINATIONS as readonly string[]).includes(type);
 
 export type ItemChange = Pick<EditableItem, "label" | "destination" | "destinationLabel">;
 
@@ -80,7 +79,7 @@ export function MenuItemDialog({
             }}
             aria-label={t("item.destination")}
           >
-            {TYPES.map((value) => (
+            {MENU_DESTINATION_TYPES.map((value) => (
               <option key={value} value={value}>
                 {t(`destination.${value}`)}
               </option>

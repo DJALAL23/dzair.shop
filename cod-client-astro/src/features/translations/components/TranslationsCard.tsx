@@ -33,6 +33,7 @@ export function TranslationsCard({
   id,
   canEdit,
   fields: keys,
+  subtitle,
 }: {
   resource: TranslatableResource;
   id: string;
@@ -40,6 +41,8 @@ export function TranslationsCard({
   canEdit: boolean;
   /** Only these fields, when the resource's fields are edited in more than one place. */
   fields?: readonly string[];
+  /** What an untranslated text shows, when it is not the default language's. */
+  subtitle?: string;
 }) {
   const t = useT("translations");
   const common = useT("common");
@@ -90,7 +93,7 @@ export function TranslationsCard({
 
   if (view.targetLocales.length === 0 || active === null) {
     return (
-      <Card title={t("title")} subtitle={t("subtitle")}>
+      <Card title={t("title")} subtitle={subtitle ?? t("subtitle")}>
         <p className="text-sm text-muted-foreground">{t("no_languages")}</p>
       </Card>
     );
@@ -111,6 +114,9 @@ export function TranslationsCard({
     );
   }
 
+  /** A field the default language leaves empty has nothing to translate. */
+  const untranslatable = (key: string) => (view!.source[key] ?? "").trim() === "";
+
   function controlProps({ key }: { key: string }) {
     const field = fields.find((candidate) => candidate.key === key);
     return {
@@ -118,7 +124,7 @@ export function TranslationsCard({
       maxLength: field?.maxLength,
       lang: active!,
       dir: target.direction,
-      disabled: saving || !canEdit,
+      disabled: saving || !canEdit || (field?.part.kind === "field" && untranslatable(key)),
     };
   }
 
@@ -148,7 +154,7 @@ export function TranslationsCard({
   return (
     <Card
       title={t("title")}
-      subtitle={t("subtitle")}
+      subtitle={subtitle ?? t("subtitle")}
       action={<Languages size={18} className="text-muted-foreground" aria-hidden="true" />}
     >
       <div role="tablist" aria-label={t("languages_label")} className="mb-5 flex flex-wrap gap-2">
@@ -195,7 +201,7 @@ export function TranslationsCard({
                     value={draft[field.key] ?? ""}
                     onChange={(html) => edit(field.key, html)}
                     busy={saving}
-                    disabled={!canEdit}
+                    disabled={!canEdit || untranslatable(field.key)}
                   />
                 </div>
               </Field>

@@ -68,6 +68,9 @@
   "destination": {
     "home": "Home page",
     "catalog": "All products",
+    "search": "Search",
+    "trackOrder": "Order tracking",
+    "contact": "Contact page",
     "category": "Category",
     "collection": "Collection",
     "product": "Product",

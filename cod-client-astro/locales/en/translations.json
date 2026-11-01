@@ -5,7 +5,7 @@
   "no_languages": "Your store has one language. Add another in Settings → Languages to translate this.",
   "draft": "Not published",
   "outdated": "Outdated",
-  "source_empty": "(empty in your default language)",
+  "source_empty": "(empty in your default language: nothing to translate)",
   "save": "Save translation",
   "saving": "Saving…",
   "saved": "Translation saved",
@@ -41,6 +41,16 @@
     "collection": {
       "title": "Name",
       "description": "Description"
+    },
+    "whatsappWidget": {
+      "caption": "Status caption",
+      "welcomeMessage": "Welcome message",
+      "launcherLabel": "Launcher button label",
+      "ctaLabel": "Chat button label",
+      "prefillGeneral": "Default message",
+      "prefillProduct": "Product page message",
+      "thankYouButtonLabel": "Thank-you page button label",
+      "prefillThankYou": "Thank-you page message"
     }
   }
 }

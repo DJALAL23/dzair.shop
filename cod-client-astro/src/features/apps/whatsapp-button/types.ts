@@ -1,61 +1,25 @@
 /**
- * Types for the WhatsApp Widget dashboard feature.
+ * Types for the WhatsApp button App's screen. The button's own shapes are
+ * cod-shared's (`whatsapp-widget/config.ts`); only the screen's draft is here.
  */
+import type {
+  StorefrontWhatsAppWidget,
+  WhatsAppWidgetConfig,
+  WidgetAccent,
+  WidgetPosition,
+  WidgetSurfaces,
+  WidgetTextFieldKey,
+} from "../../../../../cod-shared/whatsapp-widget/config";
 
-export interface WhatsAppWidgetSurfaces {
-  home: boolean;
-  catalog: boolean;
-  product: boolean;
-  pages: boolean;
-  thankYou: boolean;
-  checkout: boolean;
-  landing: boolean;
-}
+export type { WhatsAppWidgetConfig, WidgetSurfaces as WhatsAppWidgetSurfaces };
 
-export type WhatsAppWidgetAccent = "whatsapp" | "primary";
-export type WhatsAppWidgetPosition = "right" | "left";
-
-export interface WhatsAppWidgetConfig {
-  enabled: boolean;
-  phone: string | null;
-  agentName: string | null;
-  caption: string | null;
-  avatarKey: string | null;
-  welcomeMessage: string | null;
-  launcherLabel: string | null;
-  ctaLabel: string | null;
-  prefillGeneral: string | null;
-  prefillProduct: string | null;
-  thankYouButtonLabel: string | null;
-  prefillThankYou: string | null;
-  accent: WhatsAppWidgetAccent;
-  position: WhatsAppWidgetPosition;
-  attention: boolean;
-  surfaces: WhatsAppWidgetSurfaces;
-}
-
-export interface StorefrontWhatsAppPreview {
-  href: string;
-  agentName: string | null;
-  caption: string | null;
-  avatarUrl: string | null;
-  welcomeMessage: string | null;
-  launcherLabel: string | null;
-  ctaLabel: string | null;
-  prefillGeneral: string | null;
-  prefillProduct: string | null;
-  accent: WhatsAppWidgetAccent;
-  position: WhatsAppWidgetPosition;
-  attention: boolean;
-  surfaces: WhatsAppWidgetSurfaces;
-}
-
+/** The server's rules for the editor: the text caps, the surfaces in display order, the prefill tokens. */
 export interface WhatsAppWidgetCapabilities {
-  textFields: Record<string, { max: number }>;
-  surfaces: Record<string, { default: boolean }>;
-  surfaceOrder: Array<keyof WhatsAppWidgetSurfaces>;
-  accents: WhatsAppWidgetAccent[];
-  positions: WhatsAppWidgetPosition[];
+  textFields: Record<WidgetTextFieldKey, { max: number }>;
+  surfaces: Record<keyof WidgetSurfaces, { default: boolean }>;
+  surfaceOrder: Array<keyof WidgetSurfaces>;
+  accents: WidgetAccent[];
+  positions: WidgetPosition[];
   prefillTokens: string[];
   limits: Record<string, number>;
 }
@@ -64,28 +28,21 @@ export interface WhatsAppWidgetResponse {
   config: WhatsAppWidgetConfig;
   /** Where browsers fetch the saved avatar. */
   avatarUrl: string | null;
-  preview: StorefrontWhatsAppPreview | null;
+  /** What the storefront renders from this configuration, in the primary language; null when nothing would. */
+  preview: StorefrontWhatsAppWidget | null;
   capabilities: WhatsAppWidgetCapabilities;
 }
 
-export interface WhatsAppWidgetDraft {
+/** The screen's draft: every text as typed, "" where the merchant leaves the theme's words. */
+export interface WhatsAppWidgetDraft extends Record<WidgetTextFieldKey, string> {
   enabled: boolean;
   phone: string;
-  agentName: string;
-  caption: string;
   /** An uploaded image: its key is saved, its URL shown. */
   avatar: { key: string; url: string } | null;
-  welcomeMessage: string;
-  launcherLabel: string;
-  ctaLabel: string;
-  prefillGeneral: string;
-  prefillProduct: string;
-  thankYouButtonLabel: string;
-  prefillThankYou: string;
-  accent: WhatsAppWidgetAccent;
-  position: WhatsAppWidgetPosition;
+  accent: WidgetAccent;
+  position: WidgetPosition;
   attention: boolean;
-  surfaces: WhatsAppWidgetSurfaces;
+  surfaces: WidgetSurfaces;
 }
 
 export interface SaveBlocker {

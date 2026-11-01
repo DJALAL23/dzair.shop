@@ -25,14 +25,8 @@ import { ACCEPTED_IMAGE_TYPES, uploadFailure } from "@/features/uploads/api";
 import { useImageUpload } from "@/features/uploads/useImageUpload";
 import { getWhatsAppButtonApp, saveWhatsAppButtonApp } from "@/features/apps/whatsapp-button/api";
 import type { AppBodyProps } from "@/features/apps/types";
-import {
-  getPhonePreview,
-  isDirty,
-  toDraft,
-  toPayload,
-  validateDraft,
-  type WhatsAppDefaults,
-} from "@/features/apps/whatsapp-button/model";
+import { TranslationsCard } from "@/features/translations/components/TranslationsCard";
+import { getPhonePreview, isDirty, toDraft, toPayload, validateDraft } from "@/features/apps/whatsapp-button/model";
 import type {
   SaveBlocker,
   WhatsAppWidgetCapabilities,
@@ -51,23 +45,12 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
   const [draft, setDraft] = useState<WhatsAppWidgetDraft | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
+  /** Bumped on every save, so the translations below read the texts just saved. */
+  const [revision, setRevision] = useState(0);
 
   // Avatar upload
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { upload: uploadAvatar, progress: uploadProgress } = useImageUpload("products");
-
-  // Get translated defaults for prefilling empty fields
-  function getDefaults(): WhatsAppDefaults {
-    return {
-      caption: t("default_caption"),
-      welcomeMessage: t("default_welcome"),
-      ctaLabel: t("default_cta"),
-      prefillGeneral: t("default_prefill_general"),
-      prefillProduct: t("default_prefill_product"),
-      thankYouButtonLabel: t("default_thank_you_button"),
-      prefillThankYou: t("default_prefill_thank_you"),
-    };
-  }
 
   async function load() {
     setLoadError(null);
@@ -75,7 +58,7 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
       const { config, avatarUrl, capabilities: caps } = await getWhatsAppButtonApp();
       setSaved({ config, avatarUrl });
       setCapabilities(caps);
-      setDraft(toDraft(config, getDefaults(), avatarUrl));
+      setDraft(toDraft(config, avatarUrl));
     } catch (cause) {
       setLoadError(cause);
     }
@@ -110,8 +93,7 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
     );
   }
 
-  // Capabilities & limits read directly from the API response
-  const limits = capabilities.limits;
+  const max = (key: keyof WhatsAppWidgetCapabilities["textFields"]) => capabilities.textFields[key].max;
   const blockers: SaveBlocker[] = validateDraft(draft, capabilities);
   const dirty = isDirty(draft, saved.config);
   const phonePreview = getPhonePreview(draft.phone);
@@ -165,7 +147,8 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
       const { config, avatarUrl, capabilities: caps } = await saveWhatsAppButtonApp(toPayload(draft) as unknown as Record<string, unknown>);
       setSaved({ config, avatarUrl });
       setCapabilities(caps);
-      setDraft(toDraft(config, getDefaults(), avatarUrl));
+      setDraft(toDraft(config, avatarUrl));
+      setRevision((current) => current + 1);
       notify.success(t("saved_toast"));
       onSaved();
     } catch (cause: any) {
@@ -271,20 +254,20 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <LimitField label={t("agent_name_label")} help={t("agent_name_help")} length={draft.agentName.length} max={limits.agentName ?? 40}>
+            <LimitField label={t("agent_name_label")} help={t("agent_name_help")} length={draft.agentName.length} max={max("agentName")}>
               <Input
                 disabled={!canManage}
                 value={draft.agentName}
-                maxLength={limits.agentName ?? 40}
+                maxLength={max("agentName")}
                 onChange={(e) => patch({ agentName: e.target.value })}
                 placeholder={t("agent_name_placeholder")}
               />
             </LimitField>
-            <LimitField label={t("caption_label")} help={t("caption_help")} length={draft.caption.length} max={limits.caption ?? 60}>
+            <LimitField label={t("caption_label")} help={t("caption_help")} length={draft.caption.length} max={max("caption")}>
               <Input
                 disabled={!canManage}
                 value={draft.caption}
-                maxLength={limits.caption ?? 60}
+                maxLength={max("caption")}
                 onChange={(e) => patch({ caption: e.target.value })}
                 placeholder={t("caption_placeholder")}
               />
@@ -295,56 +278,56 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
 
       <Card title={t("message_title")} help={t("message_subtitle")}>
         <div className="space-y-4">
-          <LimitField label={t("welcome_label")} help={t("welcome_hint")} length={draft.welcomeMessage.length} max={limits.welcomeMessage ?? 300}>
+          <LimitField label={t("welcome_label")} help={t("welcome_hint")} length={draft.welcomeMessage.length} max={max("welcomeMessage")}>
             <Textarea
               rows={2}
               disabled={!canManage}
               value={draft.welcomeMessage}
-              maxLength={limits.welcomeMessage ?? 300}
+              maxLength={max("welcomeMessage")}
               onChange={(e) => patch({ welcomeMessage: e.target.value })}
               placeholder={t("welcome_placeholder")}
             />
           </LimitField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <LimitField label={t("launcher_label")} help={t("launcher_help")} length={draft.launcherLabel.length} max={limits.launcherLabel ?? 30}>
+            <LimitField label={t("launcher_label")} help={t("launcher_help")} length={draft.launcherLabel.length} max={max("launcherLabel")}>
               <Input
                 disabled={!canManage}
                 value={draft.launcherLabel}
-                maxLength={limits.launcherLabel ?? 30}
+                maxLength={max("launcherLabel")}
                 onChange={(e) => patch({ launcherLabel: e.target.value })}
                 placeholder={t("launcher_placeholder")}
               />
             </LimitField>
-            <LimitField label={t("cta_label")} help={t("cta_help")} length={draft.ctaLabel.length} max={limits.ctaLabel ?? 30}>
+            <LimitField label={t("cta_label")} help={t("cta_help")} length={draft.ctaLabel.length} max={max("ctaLabel")}>
               <Input
                 disabled={!canManage}
                 value={draft.ctaLabel}
-                maxLength={limits.ctaLabel ?? 30}
+                maxLength={max("ctaLabel")}
                 onChange={(e) => patch({ ctaLabel: e.target.value })}
                 placeholder={t("cta_placeholder")}
               />
             </LimitField>
           </div>
 
-          <LimitField label={t("prefill_general_label")} help={<TemplateHelp text={t("prefill_general_help")} />} length={draft.prefillGeneral.length} max={limits.prefillTemplate ?? 300}>
+          <LimitField label={t("prefill_general_label")} help={<TemplateHelp text={t("prefill_general_help")} />} length={draft.prefillGeneral.length} max={max("prefillGeneral")}>
             <Textarea
               rows={2}
               disabled={!canManage}
               value={draft.prefillGeneral}
-              maxLength={limits.prefillTemplate ?? 300}
+              maxLength={max("prefillGeneral")}
               onChange={(e) => patch({ prefillGeneral: e.target.value })}
               placeholder={t("prefill_general_placeholder")}
             />
             <TokenChips tokens={capabilities.prefillTokens} label={t("tokens_hint")} disabled={!canManage} onInsert={(token) => insertToken("prefillGeneral", token)} />
           </LimitField>
 
-          <LimitField label={t("prefill_product_label")} help={<TemplateHelp text={t("prefill_product_help")} />} length={draft.prefillProduct.length} max={limits.prefillTemplate ?? 300}>
+          <LimitField label={t("prefill_product_label")} help={<TemplateHelp text={t("prefill_product_help")} />} length={draft.prefillProduct.length} max={max("prefillProduct")}>
             <Textarea
               rows={2}
               disabled={!canManage}
               value={draft.prefillProduct}
-              maxLength={limits.prefillTemplate ?? 300}
+              maxLength={max("prefillProduct")}
               onChange={(e) => patch({ prefillProduct: e.target.value })}
               placeholder={t("prefill_product_placeholder")}
             />
@@ -355,21 +338,21 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
 
       <Card title={t("thank_you_page_title")} help={t("thank_you_page_subtitle")}>
         <div className="space-y-4">
-          <LimitField label={t("thank_you_button_label")} length={draft.thankYouButtonLabel.length} max={limits.thankYouButtonLabel ?? 40}>
+          <LimitField label={t("thank_you_button_label")} length={draft.thankYouButtonLabel.length} max={max("thankYouButtonLabel")}>
             <Input
               disabled={!canManage}
               value={draft.thankYouButtonLabel}
-              maxLength={limits.thankYouButtonLabel ?? 40}
+              maxLength={max("thankYouButtonLabel")}
               onChange={(e) => patch({ thankYouButtonLabel: e.target.value })}
               placeholder={t("thank_you_button_placeholder")}
             />
           </LimitField>
-          <LimitField label={t("prefill_thank_you_label")} help={<TemplateHelp text={t("prefill_thank_you_help")} />} length={draft.prefillThankYou.length} max={limits.prefillThankYou ?? 300}>
+          <LimitField label={t("prefill_thank_you_label")} help={<TemplateHelp text={t("prefill_thank_you_help")} />} length={draft.prefillThankYou.length} max={max("prefillThankYou")}>
             <Textarea
               rows={2}
               disabled={!canManage}
               value={draft.prefillThankYou}
-              maxLength={limits.prefillThankYou ?? 300}
+              maxLength={max("prefillThankYou")}
               onChange={(e) => patch({ prefillThankYou: e.target.value })}
               placeholder={t("prefill_thank_you_placeholder")}
             />
@@ -377,6 +360,8 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
           </LimitField>
         </div>
       </Card>
+
+      <TranslationsCard key={revision} resource="whatsappWidget" id="me" canEdit={canManage} subtitle={t("translations_subtitle")} />
 
       <Card title={t("surfaces_title")} help={t("surfaces_subtitle")}>
         <div className="space-y-3">
@@ -449,7 +434,7 @@ export default function WhatsAppButtonApp({ canManage, onSaved }: AppBodyProps) 
           }
         >
           {dirty && (
-            <Button type="button" variant="secondary" onClick={() => setDraft(toDraft(saved.config, getDefaults(), saved.avatarUrl))} disabled={saving}>
+            <Button type="button" variant="secondary" onClick={() => setDraft(toDraft(saved.config, saved.avatarUrl))} disabled={saving}>
               {t("reset")}
             </Button>
           )}

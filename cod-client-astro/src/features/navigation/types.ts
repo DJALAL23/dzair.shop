@@ -1,8 +1,8 @@
-import type { MenuDestination, MenuDestinationType } from "../../../../cod-shared/navigation/menus";
+import type { MENU_RESOURCE_DESTINATIONS, MenuDestination, MenuDestinationType } from "../../../../cod-shared/navigation/menus";
 
 export type { MenuDestination, MenuDestinationType };
 
-export type MenuResourceType = "category" | "collection" | "product" | "page" | "landing";
+export type MenuResourceType = (typeof MENU_RESOURCE_DESTINATIONS)[number];
 
 /** `GET /api/menus` — one row of the list. */
 export interface MenuSummary {

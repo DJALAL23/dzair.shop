@@ -70,6 +70,9 @@
   "destination": {
     "home": "Page d'accueil",
     "catalog": "Tous les produits",
+    "search": "Recherche",
+    "trackOrder": "Suivi de commande",
+    "contact": "Page contact",
     "category": "Catégorie",
     "collection": "Collection",
     "product": "Produit",
