@@ -31,9 +31,9 @@ Nothing here changes the contract; it is how the contract is used well.
 The SDK gives you the pieces; the markup is yours.
 
 - **Alt text is a field, per language.** An `image` field's value is a
-  `MediaReference` whose `alt` resolves to the rendered language; pass
-  `image.alt ?? ""` and let a decorative image have an empty alt rather than a
-  filename.
+  `MediaReference` whose `alt` resolves to the rendered language;
+  `pictureOf(image, config.media).alt` is it, `""` when the merchant wrote none.
+  A decorative image has an empty alt, never a filename.
 - **Rich text renders escaped HTML.** `richTextToHtml` escapes every text node
   and attribute and drops unsafe links, so `set:html` is safe — but the heading
   levels it can emit are `h2`–`h4`. A page must own exactly one `h1`, usually
@@ -63,9 +63,9 @@ Arabic is a first-class language here, not a stylesheet afterthought.
   `margin-left`.
 - Mirror only what carries direction: chevrons, "next" arrows, progress. Do not
   mirror a logo, a phone number, a clock or a product photo.
-- Prices, phone numbers and tracking numbers stay LTR inside RTL text. A phone
-  number is `normalizeAlgerianPhone`'s job on the way to the server, and the
-  server formats it for display.
+- Prices, phone numbers and tracking numbers stay LTR inside RTL text: give a
+  phone input `dir="ltr"`. The order action normalizes an Algerian number
+  (`+213…`, `00213…`, spaces) to its local form before the server checks it.
 - Test with the longest Arabic string, not the shortest: Arabic copy often runs
   longer than its English source, and a fixed-width button clips it.
 
@@ -77,10 +77,10 @@ Arabic is a first-class language here, not a stylesheet afterthought.
 - **Steps are pixels the theme chose.** `s4` is 16 px only because the theme
   mapped it; a component that hardcodes `16px` breaks the moment a merchant
   picks `s8`.
-- **Images**: use the storefront SDK's `productImageSource`, or the media
-  domain helpers with `generateSrcSet`, so a phone does not download a hero
-  image sized for a desktop. `mediaImageService` makes Astro's `<Image>` do the
-  same through the media domain.
+- **Images**: pick the photo with `productImageSource` or `pictureOf`, and
+  size it with `mediaImageSrcset` and `sizes`, so a phone does not download a
+  hero image sized for a desktop. `mediaImageService` makes Astro's `<Image>`
+  do the same through the store's media delivery.
 - **Content decides height.** A section that assumes two lines of title breaks
   in Arabic or with a long product name. Let text wrap; set `min-height`, not
   `height`.
@@ -118,8 +118,9 @@ already returns `[]`.
   at a route, or in the build.
 - **Prerender what does not depend on the request.** The manifest and the styles
   endpoint are build artifacts (`prerender = true`).
-- **Images carry the weight.** Resize on the media domain, send `srcset`, and
-  give every image intrinsic dimensions so the layout does not shift.
+- **Images carry the weight.** Resize with the store's media delivery
+  (`config.media`), send `srcset`, and give every image intrinsic dimensions
+  so the layout does not shift.
 - **A composed page is a budget.** Fifty sections render; that does not mean
   they should. Every section is at least one read and one component tree.
 
@@ -137,7 +138,7 @@ already returns `[]`.
 - An image value is a media **key**; the URL is derived at render. A saved
   document cannot point an `<img>` at another host.
 - The theme **reads**; the platform writes. There is no endpoint in a theme that
-  saves a document, a setting or merchant text — that is CodFlow Studio, and a
+  saves a document, a setting or merchant text — that is Wocart Studio, and a
   theme that adds one has invented an authorization boundary it cannot enforce.
 - Preview tokens are signed by the editor and verified with the deployment's
   preview key; a theme without a key answers 404 on the preview route. Never
@@ -150,14 +151,18 @@ already returns `[]`.
 
 1. **Pick an adapter.** Any Astro server adapter works. Theme-00 ships both the
    Cloudflare and the Vercel adapter; the composition code is identical.
-2. **Set the secrets.** `COD_SERVER_URL` and `STORE_API_KEY` go in the host's
-   secret store. `COD_SERVER_URL` must be a public origin the deployment can
-   reach — a loopback value that works locally renders an empty store in
+2. **Read the runtime contract.** Wocart Cloud sets the same variables on
+   every storefront it deploys, on Cloudflare and on Vercel: `COD_SERVER_URL`,
+   `STORE_API_KEY` and, when preview is configured, `WOCART_PREVIEW_KEY`. A
+   theme reads exactly these names and needs no other. Declare them `optional`
+   in `astro.config.mjs`: the build has no store, and it loads the middleware
+   to prerender the manifest. Hosting yourself, put them in the host's secret
+   store. `COD_SERVER_URL` must be a public origin the deployment can reach: a
+   loopback value that works locally renders the unavailable store in
    production.
 3. **Build once, serve every store.** A theme build is not per store: the store
-   is decided per request by the key and the config. If you bind a media domain,
-   read it through a getter (`() => MEDIA_DOMAIN`) so the build does not bake
-   one store's domain into the artifact.
+   is decided per request by the key and the config, images included (the
+   config carries its media delivery). Never read a store value at build.
 4. **Know which pages are static.** `wocart-theme.json`, `wocart-styles.css` and
    any hand-written page are prerendered; a surface page is rendered per
    request. A prerendered page cannot read `Astro.locals` — a build has no store.
@@ -175,10 +180,11 @@ is marked `@deprecated` for at least one minor release before a major removes it
 
 | Fact | Value at the time of writing | Why it matters |
 | --- | --- | --- |
-| `@wocart/theme` | `2.1.0` | `THEME_SDK_VERSION` in every manifest |
-| `@wocart/theme` peers | `@wocart/storefront ^1.14.0`, `astro ^7.0.0` (optional) | npm refuses an install outside the range |
-| `@wocart/storefront` | `1.19.0` | Its root entry is browser-safe; `/server` is not |
+| `@wocart/theme` | `4.0.0` | `THEME_SDK_VERSION` in every manifest |
+| `@wocart/theme` peers | `@wocart/storefront ^3.0.0`, `astro ^7.0.0` (optional) | npm refuses an install outside the range |
+| `@wocart/storefront` | `3.0.0` | Reads platform v7; its root entry is browser-safe, `/server` and `/astro` are not |
 | `@wocart/storefront` peer | `zod ^4.4.3` | Its schemas are part of its public API |
+| Platform | v7 | A theme on `@wocart/storefront` 2.x reads a v7 store as unreadable: a store updates its platform and its theme together |
 | Manifest contract | `THEME_MANIFEST_CONTRACT_VERSION` = `1` | An editor reads manifests of this version |
 | Preview protocol | `PREVIEW_PROTOCOL_VERSION` = `1` | The editor and the bridge must agree |
 
@@ -186,25 +192,60 @@ Pin **exact** versions in a theme (`npm install --save-exact`). A theme is
 rendered by its own deployment, so a floating range only means two builds of the
 same commit can differ.
 
+### A theme's own versions
+
+A theme release is breaking when a merchant's saved data stops meaning what it
+meant. `diffThemeManifests(previous, next)` lists every such change between
+two manifests:
+
+| Breaking | Additive |
+| --- | --- |
+| The theme `key` changes | A surface, area, component, slot, fixed block, field, option or content key is added |
+| A language is dropped from `locales` | A language is added |
+| A surface, area or component is removed, or a surface renders another page type | A component becomes insertable again, or allowed on more surfaces |
+| A slot or fixed block is removed, or a fixed block changes type | A section becomes required: a document that lacks it gains one |
+| A field is removed or changes kind; a `select` option or a rich-text format is removed | |
+| A field becomes required, or a required field is added, with no default or `contentKey` | |
+| A surface's or area's `max` is lowered | |
+| A content key is removed in any language | |
+| A style size the theme gave a step or width is removed | |
+| A component stops being insertable, or is allowed on fewer surfaces | |
+
+A breaking change needs a new **major** version of the theme. Wocart Cloud
+refuses to release a theme whose manifest is breaking against the previous
+release under the same major. Prefer additive changes: add the new field or
+component and keep the old one rendering.
+
 The upgrade checklist:
 
-1. Read the package's `CHANGELOG.md` for every version you cross, not only the
-   latest.
-2. Bump the pin, then run `npx astro check`, `npm test` and `npm run build`.
-3. Run the release check — `diffThemeManifests(previous, next)` with the
-   manifests of both releases — and read every entry it calls breaking.
+1. Read both packages' `CHANGELOG.md` for every version you cross, not only
+   the latest.
+2. Bump the pins, then run `npx astro check`, `npm test` and `npm run build`.
+3. Run `diffThemeManifests(previous, next)` with the manifests of both releases
+   and read every entry it calls breaking.
 4. Run `validateThemeDefinition` again: a newer SDK may check more than the
-   older one did (2.0 added the order-form guarantee and the `blocks` reserve).
+   older one did.
 5. Re-run the preview and a shopper render, in Arabic as well as the primary.
 
-What 2.0 changed, if you are coming from 1.x:
+What changed if you are coming from `@wocart/theme` 2.x and
+`@wocart/storefront` 1.x:
 
-- A `product` surface must guarantee an order form, or assembly fails.
-- `blocks` is a reserved prop name; no field may use it.
-- The reader drops whatever passes `THEME_LIMITS` and reports `limit-exceeded`.
-- An editor on 1.x rejects a manifest that uses `style`, `colorScheme`,
-  `colorSchemes`, `productList` or `collectionList`. Upgrade the theme and the
-  editor together.
+- **Images** (storefront 2.0, theme 3.0): every image is a `MediaImage`
+  (`{ key, url, width, height }`) and the config carries `media`. The image
+  helpers take that delivery; the media-domain presets (`getCardImage`,
+  `createImageHelpers`, `optimizeImage`, `generateSrcSet`…) are gone, and
+  `mediaImageService` takes a function answering the delivery.
+- **Landing pages** (theme 3.1): one `landing` surface composes every landing
+  page; each page's own document is `lp:<id>`. A landing surface must
+  guarantee an order form like a product surface. Surfaces may let a page
+  hide areas (`hideableAreas`).
+- **The v7 payloads** (storefront 3.0): the config no longer carries colours,
+  font, announcement, `themeId`, `cartShippingMode` or `legalContact`
+  (`contact` replaces it); a fallback config is `unavailableStoreConfig`; the
+  store's WhatsApp is read only through `whatsAppContact`; `productTags`,
+  `STOREFRONT_ROUTES` and `resolveActionRedirectDecision` are gone.
+- **Search and contact** (theme 4.0): two new page types, so declare a surface
+  for each; every document operation takes the theme first.
 
 ## Common mistakes
 
@@ -215,10 +256,10 @@ What 2.0 changed, if you are coming from 1.x:
 | Narrowing `slots[].allow` | Children that no longer fit are dropped from saved pages (`disallowed-child`) |
 | Changing a shipped document's `id` | A merchant's saved edit stays attached to the old id |
 | A field key that collides with a `load` key | The loaded value wins and the field silently does nothing |
-| A `contentKey` typo | The field falls back to its default; nothing fails until `validateThemeDefinition` is given `contentKeys` |
+| A `contentKey` typo | Caught by `validateThemeDefinition` (`unknown-content-key`) when the theme declares `content`, or when you pass `contentKeys`; otherwise the field silently falls back to its default |
 | Hardcoding a color, spacing step or font in CSS | The merchant's `style` / `colorScheme` choice has no effect |
 | Storing a URL in an `image` field | The image never resolves; a media key is what the field holds |
 | Reading `Astro.locals.store` in a prerendered page | A build error, or an empty page |
 | One read cache per section | The same product is fetched once per section |
-| A theme route that saves a document | The theme has no authority to write; CodFlow Studio owns writes |
+| A theme route that saves a document | The theme has no authority to write; Wocart Studio owns writes |
 | Treating Theme-00's choices as contract | Its per-surface catalogs, content layout and design system are that theme's decisions — see [the reference analysis](/sdk/theme/reference-implementation) |
