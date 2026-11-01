@@ -328,7 +328,7 @@ const getStorePageDocumentRoute = defineRoute({
   tags: ["Store API"],
   summary: "Get the store's saved page document",
   description:
-    "The store's saved composition for one theme and surface (`home` today), written by Wocart Cloud's editor and read verbatim. `data` is `null` when the store has never saved one, or when the saved row is not a document for this surface: the theme then renders its own default. A store that has none is a normal answer, so it is a 200, not a 404.",
+    "The store's saved composition for one theme and surface (a page such as `home` or `product`, an area such as `area:header`, or one landing page's `lp:<id>`), written by Wocart Cloud's editor and read verbatim. `data` is `null` when the store has never saved one, or when the saved row is not a document for this surface: the theme then renders its own default. A store that has none is a normal answer, so it is a 200, not a 404.",
   operationId: "getStorePageDocument",
   params: pageDocumentParams,
   query: pageDocumentQuerySchema,
