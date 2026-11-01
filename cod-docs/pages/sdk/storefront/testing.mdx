@@ -68,7 +68,7 @@ Do the same for the reads each page depends on:
 | --- | --- |
 | `config.get` | `null` |
 | `products.get` | `null` |
-| `products.page` | `{ items: [], hasNext: false }` |
+| `products.page`, `products.search` | `{ items: [], hasNext: false, total: 0 }` |
 | `categories.list` | `[]` |
 | `collections.get` | `null` |
 | `menus.get` | `null` |
@@ -125,22 +125,47 @@ Pure helpers need no server:
 
 ```ts
 import {
-  buildWhatsAppHref,
   formatMoney,
-  resolvePrefillText,
   servedLanguage,
+  whatsAppContact,
+  type StoreWhatsAppWidget,
+  type WhatsAppWords,
 } from "@wocart/storefront";
 
-expect(formatMoney(5000, { symbol: "دج", locale: "ar-DZ" })).toContain("دج");
+expect(formatMoney(5000, { symbol: "دج", locale: "ar-DZ" })).toBe("5.000\u00A0دج");
 
-expect(
-  resolvePrefillText({
-    template: "{product} — {url}",
-    storeName: "Shop",
-    productName: "Robe",
-    url: "https://shop.test/products/robe?utm_source=ads",
-  }),
-).toBe("Robe — https://shop.test/products/robe");
+const widget: StoreWhatsAppWidget = {
+  href: "https://wa.me/213555123456",
+  agentName: null,
+  caption: null,
+  avatarUrl: null,
+  welcomeMessage: null,
+  launcherLabel: null,
+  ctaLabel: null,
+  prefillGeneral: null,
+  prefillProduct: null,
+  thankYouButtonLabel: null,
+  prefillThankYou: null,
+  accent: "whatsapp",
+  position: "right",
+  attention: false,
+  surfaces: { home: true, catalog: true, product: true, pages: true, thankYou: true, checkout: false, landing: true },
+};
+const words: WhatsAppWords = {
+  launcher: null,
+  caption: null,
+  welcome: null,
+  cta: "WhatsApp",
+  orderButton: "Confirm on WhatsApp",
+  messages: { general: "Hello {store}", product: "{product} — {url}", order: "Order {order}" },
+};
+const page = { kind: "product" as const, product: "Robe", url: "https://shop.test/products/robe?utm_source=ads" };
+
+// The merchant wrote no product message, so the theme's is used, without the ad parameters.
+const contact = whatsAppContact({ name: "Shop", whatsapp: widget }, page, words);
+expect(contact?.href).toBe(`https://wa.me/213555123456?text=${encodeURIComponent("Robe — https://shop.test/products/robe")}`);
+expect(contact?.ctaLabel).toBe("WhatsApp");
+expect(whatsAppContact({ name: "Shop", whatsapp: null }, page, words)).toBeNull();
 
 expect(
   servedLanguage(
@@ -156,8 +181,10 @@ expect(
 ).toBe("ltr");
 ```
 
-Test the fallback paths too: no product, no order, an overlong prefill, an
-unknown locale, an image with no media domain.
+Test the fallback paths too: no WhatsApp, no product, no order, a merchant's
+text in another language arriving as `null`, an unknown locale, and an image on
+a `direct` delivery (`mediaImageUrl` answers `null`, so the original URL
+shows).
 
 `createBasketStore` accepts a memory adapter, so it tests without a browser:
 
@@ -200,12 +227,10 @@ between a test and production.
 Run these in the theme before shipping:
 
 ```sh
-npm run typecheck
-npm run test
-npm run build
+npx astro check
+npx vitest run
+npx astro build
 ```
-
-And in the theme's own setup, `astro check` if the project uses it.
 
 A build catches the failures unit tests cannot:
 
@@ -251,7 +276,7 @@ A storefront using the SDK is ready when:
 - the basket is capped and the quote is authoritative;
 - the thank-you page fires no event when `orders.tracking` returns `null`;
 - preview is excluded from caching and revalidation drops the page tag;
-- `npm run typecheck`, `npm run test` and `npm run build` pass.
+- `npx astro check`, `npx vitest run` and `npx astro build` pass.
 
 ## Compatibility
 
@@ -264,6 +289,11 @@ The SDK follows semantic versioning:
 Pin the exact version in the theme. Read `CHANGELOG.md` before upgrading; a
 newer theme may assume a new SDK export while an older storefront build is
 still running.
+
+A major of the SDK follows a major of the platform's storefront payloads.
+`@wocart/storefront` 3.x reads platform v7. A storefront on 2.x cannot read a
+v7 store's config and renders every page as an unreadable store, so a store
+updates its platform and its theme together.
 
 The theme key is part of the contract. `defineTheme({ key })` and the client's
 `theme` option must agree; changing the key orphans the merchant's text edits
