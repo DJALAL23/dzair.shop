@@ -40,9 +40,9 @@ const storefrontGroups: Group[] = [
       { slug: "/how-it-works", en: "How it works", fr: "Fonctionnement", ar: "كيف يعمل" },
       {
         slug: "/agents",
-        en: "Use AI to build a storefront",
-        fr: "Créer une vitrine avec l'IA",
-        ar: "بناء واجهة متجر بالذكاء الاصطناعي",
+        en: "AI agent kit",
+        fr: "Kit pour agents IA",
+        ar: "حزمة وكلاء الذكاء الاصطناعي",
       },
     ],
   },
@@ -130,7 +130,7 @@ const themeGroups: Group[] = [
     label: { en: "Start here", fr: "Commencer ici", ar: "ابدأ من هنا" },
     pages: [
       { slug: "", en: "Overview", fr: "Vue d'ensemble", ar: "نظرة عامة" },
-      { slug: "/build", en: "Build a theme", fr: "Construire un thème", ar: "بناء قالب" },
+      { slug: "/build", en: "Quick start", fr: "Démarrage rapide", ar: "البدء السريع" },
       {
         slug: "/tutorial",
         en: "Build a complete theme",
@@ -140,9 +140,9 @@ const themeGroups: Group[] = [
       { slug: "/customize", en: "Customize a theme", fr: "Personnaliser un thème", ar: "تخصيص قالب" },
       {
         slug: "/agents",
-        en: "Use AI to build a theme",
-        fr: "Créer un thème avec l'IA",
-        ar: "بناء قالب بالذكاء الاصطناعي",
+        en: "AI agent kit",
+        fr: "Kit pour agents IA",
+        ar: "حزمة وكلاء الذكاء الاصطناعي",
       },
       { slug: "/tools", en: "Tools and roadmap", fr: "Outils et feuille de route", ar: "الأدوات وخارطة الطريق" },
     ],
@@ -204,6 +204,12 @@ const themeGroups: Group[] = [
         en: "Reference implementation (Theme-00)",
         fr: "Implémentation de référence (Theme-00)",
         ar: "التنفيذ المرجعي (Theme-00)",
+      },
+      {
+        slug: "/troubleshooting",
+        en: "Issues and fixes",
+        fr: "Problèmes et solutions",
+        ar: "المشكلات والحلول",
       },
     ],
   },

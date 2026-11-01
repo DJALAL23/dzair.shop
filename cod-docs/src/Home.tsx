@@ -54,14 +54,14 @@ type Copy = {
 
 const copy: Record<Locale, Copy> = {
   en: {
-    eyebrow: "Developer platform",
+    eyebrow: "Wocart developer platform",
     title: (
       <>
-        COD commerce, <span className="text-primary">from API to storefront.</span>
+        Wocart — COD commerce, <span className="text-primary">from API to storefront.</span>
       </>
     ),
     description:
-      "The platform behind cash-on-delivery storefronts across Algeria — orders, carriers, catalogs, reviews and themes, with typed SDKs and an OAuth-secured MCP server.",
+      "Wocart is the platform behind cash-on-delivery storefronts across Algeria — orders, carriers, catalogs, reviews and themes, with typed SDKs and an OAuth-secured MCP server.",
     getStarted: "Start building",
     apiReference: "API reference",
     installLabel: "Install the SDKs",
@@ -73,9 +73,9 @@ const copy: Record<Locale, Copy> = {
       { value: "OAuth", label: "MCP authentication" },
     ],
     waysEyebrow: "Choose your entry point",
-    waysTitle: "One platform, four ways in.",
+    waysTitle: "Four ways into Wocart.",
     waysBody:
-      "Integrate the REST API, build a storefront, ship a theme merchants can edit, or let an AI client work through MCP. Each path has its own guide and its own reference.",
+      "Wocart opens four doors: integrate the REST API, build a storefront, ship a theme merchants can edit, or let an AI client work through MCP. Each path has its own guide and its own reference.",
     cards: [
       {
         icon: <BracesIcon />,
@@ -99,7 +99,7 @@ const copy: Record<Locale, Copy> = {
         icon: <PaletteIcon />,
         title: "Theme SDK",
         description:
-          "A swappable theme layer: component definitions, page documents, style and preview.",
+          "Themes merchants edit in Wocart Studio: component definitions, page documents, style, preview and an AI agent kit.",
         href: "/sdk/theme",
         hint: "npm i @wocart/theme",
         cta: "Build a theme",
@@ -149,22 +149,22 @@ const copy: Record<Locale, Copy> = {
     asideNote: "Storefront config",
     ctaTitle: "Ship the storefront you want.",
     ctaBody:
-      "Use the storefront SDK for the engine and the theme SDK for the layer merchants can swap.",
+      "Build it with Wocart's two SDKs: the storefront SDK for the engine and the theme SDK for the layer merchants edit. Both ship an AI agent kit.",
     storefrontSdk: "Storefront SDK",
     themeSdk: "Theme SDK",
-    pageTitle: "CodFlow Developers — API & SDK documentation",
+    pageTitle: "Wocart Developers — API & SDK documentation",
     pageDescription:
-      "API reference and SDK documentation for CodFlow, the cash-on-delivery commerce platform for Algeria.",
+      "API reference and SDK documentation for Wocart, the cash-on-delivery commerce platform for Algeria.",
   },
   fr: {
-    eyebrow: "Plateforme développeurs",
+    eyebrow: "Plateforme développeurs Wocart",
     title: (
       <>
-        Commerce COD, <span className="text-primary">de l'API à la vitrine.</span>
+        Wocart — commerce COD, <span className="text-primary">de l'API à la vitrine.</span>
       </>
     ),
     description:
-      "La plateforme derrière les vitrines en paiement à la livraison partout en Algérie — commandes, transporteurs, catalogues, avis et thèmes, avec des SDK typés et un serveur MCP sécurisé par OAuth.",
+      "Wocart est la plateforme derrière les vitrines en paiement à la livraison partout en Algérie — commandes, transporteurs, catalogues, avis et thèmes, avec des SDK typés et un serveur MCP sécurisé par OAuth.",
     getStarted: "Commencer à intégrer",
     apiReference: "Référence API",
     installLabel: "Installez les SDK",
@@ -176,9 +176,9 @@ const copy: Record<Locale, Copy> = {
       { value: "OAuth", label: "Authentification MCP" },
     ],
     waysEyebrow: "Choisissez votre point d'entrée",
-    waysTitle: "Une plateforme, quatre entrées.",
+    waysTitle: "Quatre entrées dans Wocart.",
     waysBody:
-      "Intégrez l'API REST, construisez une vitrine, livrez un thème que les marchands peuvent éditer, ou laissez un client IA agir via MCP. Chaque parcours a son guide et sa référence.",
+      "Wocart ouvre quatre portes : intégrez l'API REST, construisez une vitrine, livrez un thème que les marchands peuvent éditer, ou laissez un client IA agir via MCP. Chaque parcours a son guide et sa référence.",
     cards: [
       {
         icon: <BracesIcon />,
@@ -202,7 +202,7 @@ const copy: Record<Locale, Copy> = {
         icon: <PaletteIcon />,
         title: "SDK Theme",
         description:
-          "Une couche de thème interchangeable : définitions de composants, documents de page, style et aperçu.",
+          "Des thèmes que les marchands éditent dans Wocart Studio : définitions de composants, documents de page, style, aperçu et kit pour agents IA.",
         href: "/sdk/theme",
         hint: "npm i @wocart/theme",
         cta: "Construire un thème",
@@ -252,22 +252,22 @@ const copy: Record<Locale, Copy> = {
     asideNote: "Configuration de la vitrine",
     ctaTitle: "Livrez la vitrine que vous voulez.",
     ctaBody:
-      "Utilisez le SDK Storefront pour le moteur et le SDK Theme pour la couche que les marchands peuvent remplacer.",
+      "Construisez-la avec les deux SDK Wocart : le SDK Storefront pour le moteur et le SDK Theme pour la couche que les marchands éditent. Les deux livrent un kit pour agents IA.",
     storefrontSdk: "SDK Storefront",
     themeSdk: "SDK Theme",
-    pageTitle: "CodFlow Developers — Documentation API et SDK",
+    pageTitle: "Wocart Developers — Documentation API et SDK",
     pageDescription:
-      "Référence API et documentation des SDK de CodFlow, la plateforme de commerce en paiement à la livraison pour l'Algérie.",
+      "Référence API et documentation des SDK de Wocart, la plateforme de commerce en paiement à la livraison pour l'Algérie.",
   },
   ar: {
-    eyebrow: "منصة المطوّرين",
+    eyebrow: "منصة Wocart للمطوّرين",
     title: (
       <>
-        تجارة COD، <span className="text-primary">من API إلى واجهة المتجر.</span>
+        Wocart — تجارة COD، <span className="text-primary">من API إلى واجهة المتجر.</span>
       </>
     ),
     description:
-      "المنصّة التي تشغّل واجهات المتاجر بالدفع عند الاستلام في الجزائر — الطلبات وشركات التوصيل والكتالوجات والمراجعات والقوالب، مع SDKs مُعرّفة الأنواع وخادم MCP محمي بـ OAuth.",
+      "Wocart هي المنصة التي تشغّل واجهات المتاجر بالدفع عند الاستلام في الجزائر — الطلبات وشركات التوصيل والكتالوجات والمراجعات والقوالب، مع SDKs مُعرّفة الأنواع وخادم MCP محمي بـ OAuth.",
     getStarted: "ابدأ البناء",
     apiReference: "مرجع API",
     installLabel: "ثبّت الـ SDKين",
@@ -279,9 +279,9 @@ const copy: Record<Locale, Copy> = {
       { value: "OAuth", label: "مصادقة MCP" },
     ],
     waysEyebrow: "اختر نقطة الدخول",
-    waysTitle: "منصّة واحدة، أربعة أبواب.",
+    waysTitle: "أربعة أبواب إلى Wocart.",
     waysBody:
-      "ادمج REST API، أو ابنِ واجهة متجر، أو أطلق قالبًا يستطيع التجار تعديله، أو دع عميل ذكاء اصطناعي يعمل عبر MCP. لكل مسار دليله ومرجعه.",
+      "تفتح Wocart أربعة أبواب: ادمج REST API، أو ابنِ واجهة متجر، أو أطلق قالبًا يستطيع التجار تعديله، أو دع عميل ذكاء اصطناعي يعمل عبر MCP. لكل مسار دليله ومرجعه.",
     cards: [
       {
         icon: <BracesIcon />,
@@ -305,7 +305,7 @@ const copy: Record<Locale, Copy> = {
         icon: <PaletteIcon />,
         title: "SDK القوالب",
         description:
-          "طبقة قالب قابلة للتبديل: تعريفات المكوّنات ومستندات الصفحات والأنماط والمعاينة.",
+          "قوالب يحرّرها التجار في Wocart Studio: تعريفات المكوّنات ومستندات الصفحات والتنسيق والمعاينة وحزمة أدوات للوكلاء.",
         href: "/sdk/theme",
         hint: "npm i @wocart/theme",
         cta: "ابنِ قالبًا",
@@ -354,12 +354,12 @@ const copy: Record<Locale, Copy> = {
     asideNote: "إعداد واجهة المتجر",
     ctaTitle: "أطلق واجهة المتجر التي تريدها.",
     ctaBody:
-      "استخدم SDK واجهة المتجر للمحرك وSDK القوالب للطبقة التي يمكن للتجار تبديلها.",
+      "ابنِها بحزمتَي Wocart: SDK واجهة المتجر للمحرك، وSDK القوالب للطبقة التي يحرّرها التجار. وكلتاهما تشحن حزمة أدوات للوكلاء.",
     storefrontSdk: "SDK واجهة المتجر",
     themeSdk: "SDK القوالب",
-    pageTitle: "CodFlow Developers — توثيق API وSDK",
+    pageTitle: "Wocart Developers — توثيق API وSDK",
     pageDescription:
-      "مرجع API وتوثيق SDK لمنصة CodFlow للدفع عند الاستلام في الجزائر.",
+      "مرجع API وتوثيق SDK لمنصة Wocart للدفع عند الاستلام في الجزائر.",
   },
 };
 

@@ -10,11 +10,11 @@ const config: ZudokuConfig = {
     title: "Developers",
     logo: {
       src: {
-        light: "/logo-codflow.svg",
-        dark: "/logo-codflow-light.svg",
+        light: "/Wocart-cloud.svg",
+        dark: "/Wocart-cloud.svg",
       },
-      alt: "CodFlow",
-      width: 120,
+      alt: "Wocart",
+      width: 60,
       height: 40,
       href: "/",
       reloadDocument: false,
@@ -24,11 +24,11 @@ const config: ZudokuConfig = {
       position: "start",
       logo: {
         src: {
-          light: "/logo-codflow.svg",
-          dark: "/logo-codflow-light.svg",
+          light: "/Wocart-cloud.svg",
+          dark: "/Wocart-cloud.svg",
         },
-        alt: "CodFlow",
-        width: 96,
+        alt: "Wocart",
+        width: 48,
         height: 32,
       },
       columns: [
@@ -70,16 +70,16 @@ const config: ZudokuConfig = {
           href: "https://github.com/bighadj22/codflow",
         },
       ],
-      copyright: `© ${new Date().getFullYear()} CodFlow. Built for Algerian commerce.`,
+      copyright: `© ${new Date().getFullYear()} Wocart. Built for Algerian commerce.`,
     },
   },
   metadata: {
-    title: "CodFlow Developers",
+    title: "Wocart Developers",
     description:
-      "API reference and SDK documentation for CodFlow, the cash-on-delivery commerce platform for Algeria.",
-    favicon: "/favicon.ico",
-    keywords: ["CodFlow", "COD", "Algeria", "ecommerce", "API", "storefront", "delivery"],
-    authors: ["CodFlow"],
+      "API reference and SDK documentation for Wocart, the cash-on-delivery commerce platform for Algeria.",
+    favicon: "/Wocart-fav.ico",
+    keywords: ["Wocart", "COD", "Algeria", "ecommerce", "API", "storefront", "delivery"],
+    authors: ["Wocart"],
   },
   syntaxHighlighting: {
     languages: [
@@ -206,10 +206,10 @@ const config: ZudokuConfig = {
     llms: {
       llmsTxt: true,
       llmsTxtFull: true,
-      title: "CodFlow Developers",
-      description: "API and SDK documentation for the CodFlow commerce platform.",
+      title: "Wocart Developers",
+      description: "API and SDK documentation for the Wocart commerce platform.",
       instructions:
-        "Use these docs when building on CodFlow: start with getting started and authentication, then use the API reference for request and response schemas. The Storefront SDK and Theme SDK guides cover the published npm packages.",
+        "Use these docs when building on Wocart. To build a storefront or theme, start with the agent kit for it (/sdk/storefront/agents or /sdk/theme/agents): install its skill, then follow the quick start. For the API, start with getting started and authentication, then the API reference for request and response schemas. Every page is also Markdown at its URL plus .md. The installed @wocart packages' type declarations are the final authority.",
     },
     defaultOptions: {
       showLastModified: false,
