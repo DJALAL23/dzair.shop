@@ -15,7 +15,7 @@ display and interaction; `cart.validate` is for money**.
 ## The browser basket
 
 ```ts
-import { createBasketStore } from "@wocart/storefront";
+import { createBasketStore, localizeHref, storefrontPath } from "@wocart/storefront";
 
 const basket = createBasketStore();
 
@@ -26,10 +26,13 @@ basket.addLine({
   variantLabel: variantLabel(variant),
   quantity: 1,
   unitPrice: view.basePrice, // display only
-  href: `/products/${product.handle}`,
+  href: localizeHref(storefrontPath("product", { handle: product.handle }), locale, routing),
   ...(cardImageUrl ? { image: cardImageUrl } : {}),
 });
 ```
+
+`href` is the link the drawer shows for the line: build it with
+`storefrontPath` in the page's language, never by hand.
 
 `createBasketStore` uses `localStorage` when it is available, a memory adapter
 in SSR or tests, and fails soft when storage is blocked. A browser that cannot
@@ -44,6 +47,7 @@ The methods are:
 | `getCount()` | Total quantity |
 | `getSubtotal()` | Optimistic display subtotal |
 | `addLine(line)` | Merges by product + variant |
+| `addSelections(line, selections)` | One offer chosen piece by piece: one line per variant, all or nothing |
 | `setQuantity(key, quantity)` | Capped; `<= 0` removes |
 | `removeLine(key)` | Removes one line |
 | `clear()` | Empties the basket |
@@ -88,7 +92,7 @@ server still applies the offer only when the quantity qualifies.
 ### Building the line from a product
 
 ```ts
-import { getProductView, productImageSource } from "@wocart/storefront";
+import { getProductView, localizeHref, productImageSource, storefrontPath } from "@wocart/storefront";
 
 const view = getProductView(product);
 const image = productImageSource(product);
@@ -102,7 +106,7 @@ basket.addLine({
     : null,
   quantity,
   unitPrice: view.basePrice,
-  href: `/products/${product.handle}`,
+  href: localizeHref(storefrontPath("product", { handle: product.handle }), locale, routing),
   ...(image ? { image } : {}),
   ...(offerId ? { offerId } : {}),
 });
@@ -208,7 +212,7 @@ should cost.
 
 ```ts
 type CartValidation = {
-  lines: CartValidationLine[];
+  lines: CartValidationLine[]; // CartValidation["lines"][number]
   subtotal: number;
   rewards: CartReward[];
   freeDelivery: {
@@ -216,10 +220,11 @@ type CartValidation = {
     threshold: number | null;
     qualified: boolean;
     remaining: number;
+    by: "offer" | "coupon" | "threshold" | null;
   };
   delivery?: { available: true; fee: number; total: number }
     | { available: false; fee: null; total: null };
-  coupon?: CouponOutcome | null;
+  coupon: CouponOutcome | null; // null when no code was sent
 };
 ```
 
@@ -236,9 +241,9 @@ type CartValidationLine = {
   quantity: number;
   unitPrice: number;
   lineTotal: number;       // offers and coupon share applied
-  offerId?: string | null;
-  offerName?: string | null;
-  discount?: number | null;
+  offerId: string | null;
+  offerName: string | null;
+  discount: number;
   maxQuantity: number | null;
   blocker: "missing" | "unlisted" | "out_of_stock" | null;
 };
@@ -260,7 +265,7 @@ as a separate “free gift” row.
 ```ts
 const free = quote.freeDelivery;
 if (free.qualified) {
-  // Delivery is free: from the threshold or an offer.
+  // Delivery is free; free.by says why: "offer", "coupon" or "threshold".
 } else if (free.threshold !== null) {
   // free.remaining is how much more the subtotal needs.
 }
