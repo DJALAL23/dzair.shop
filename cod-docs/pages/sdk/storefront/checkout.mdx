@@ -10,6 +10,11 @@ The order form is a normal HTML form. It posts to an Astro action, the action
 calls the server, and the browser lands on a thank-you page. The server prices
 the order; the browser only describes the choice.
 
+The [complete theme](/sdk/theme/tutorial#3-placing-the-order-and-confirming-it) has a working
+single-product form, its action, the product route and the thank-you redirect,
+run against a real store; this page explains every piece and adds the basket,
+OTP, bot protection and conversions.
+
 ```text
 form → src/actions/index.ts → executePlaceOrder() → cod-server
                                               ↓
@@ -28,7 +33,7 @@ whitelist and the submission.
 // src/actions/index.ts
 import { ActionError, defineAction } from "astro:actions";
 import { executePlaceOrder, placeOrderInput } from "@wocart/storefront/astro";
-import { getStoreClient } from "@/theme/sdk";
+import { getStoreClient } from "../lib/store";
 
 export const server = {
   placeOrder: defineAction({
@@ -72,7 +77,7 @@ type CreatedOrder = {
   price: number;
   deliveryFee: number;
   total: number;
-  couponDiscount?: number | null;
+  couponDiscount: number; // 0 without a coupon
 };
 ```
 
@@ -166,8 +171,11 @@ cached for every shopper. For another phone the key fails with
 
 ## Thank-you and tracking
 
-After success, redirect with the values your thank-you page reads. Theme-00's
-contract is `/thank-you?order=<number>&total=<total>&oid=<orderId>`.
+After success, redirect to the thank-you page (`storefrontPath("thankYou")`,
+`/thank-you`) with the values it reads. The query is your theme's choice;
+Theme-00's is `/thank-you?order=<number>&total=<total>&oid=<orderId>`. In an
+editable theme the thank-you page is a Studio surface like any other page
+type: see the [complete theme](/sdk/theme/tutorial#the-thank-you-page-is-a-surface).
 
 The page asks the server which pixel and event this order belongs to:
 
@@ -250,13 +258,13 @@ The same-origin routes are created by the SDK:
 
 ```ts
 // src/pages/api/otp/send.ts
-import { routes } from "../../../theme/api-routes";
+import { routes } from "../../../lib/api-routes";
 export const POST = routes.otpSend;
 ```
 
 ```ts
 // src/pages/api/otp/verify.ts
-import { routes } from "../../../theme/api-routes";
+import { routes } from "../../../lib/api-routes";
 export const POST = routes.otpVerify;
 ```
 
@@ -392,7 +400,8 @@ a newer server adds reads your general words.
 - The OTP token is in `otpToken`; a changed phone resets it.
 - Turnstile's token is in `turnstileToken`.
 - `bindCheckoutKey` is bound to the checkout form.
-- The action redirects on success; it does not render the thank-you page.
+- The page that rendered the form redirects to the thank-you page on success
+  (`Astro.getActionResult`); the middleware never redirects.
 - The thank-you page fires only the pixel and event `orders.tracking` returns.
 - `eventID` is the order id.
 - The abandoned session is marked converted after success.
