@@ -50,7 +50,7 @@ These fields store a handle or key, not a copy of the data.
 | `collection` | collection handle (`best-sellers`) | `storefront.products.list({ collection })` |
 | `product` | product handle | `storefront.products.get(handle)` |
 | `category` | category slug | `storefront.categories.list()` |
-| `image` | media object key, never a URL | `mediaUrl(key, MEDIA_DOMAIN)` |
+| `image` | media key, never a URL | `pictureOf(image, config.media)` |
 | `productList` | ordered product handles | `storefront.products.get(handle)` per item |
 | `collectionList` | ordered collection handles | `storefront.collections.get(handle)` per item |
 
@@ -75,9 +75,13 @@ else is representable, so a stored value cannot carry markup or scripts.
 ---
 import { richTextToHtml } from "@wocart/theme";
 const { body } = Astro.props;
+const store = Astro.locals.store;
 ---
 {body && <div set:html={richTextToHtml(body, { href: store.href })} />}
 ```
+
+`href` turns each stored link into the `href` to render; passing the request
+store's localizer keeps an internal link in the shopper's language.
 
 `richTextToPlainText` gives the words for a meta description or an
 `aria-label`. A field with `inline: true` is one line: a single paragraph with
@@ -86,6 +90,20 @@ marks and links, rendered without a block element.
 A list item's `id` is unique within its list, so reordering never changes which
 item is which. Item fields cannot use `contentKey`: every item would read the
 same key. A list default carries its own ids.
+
+## Rules for every field
+
+- `key` is the exact prop name the component receives. Keys are unique within
+  a component (and across all settings groups).
+- `blocks` can never be a field key: the renderer gives every component its
+  blocks under that prop.
+- A list item field cannot be keyed `id` (the item's own identity), cannot be
+  a `list` or `colorSchemes`, and cannot use `contentKey`.
+- Every default is checked at assembly with the same rules as a saved value.
+  An out-of-range number or an option that is not in `options` is an
+  `invalid-field` from `validateThemeDefinition`, never a silent bad default.
+- Labels and descriptions are a string, or a map that covers **every** language
+  the theme declares in `locales`.
 
 ## Shared field options
 
@@ -100,7 +118,7 @@ same key. A list default carries its own ids.
 | `contentKey` | `text`, `textarea` | Inherited copy from the theme's content pack |
 | `optionLabels` | `select` | Editor words for each option |
 | `min`, `max`, `step` | `number`, lists | Bounds and grid / list length |
-| `display` | `select`, `number` | `dropdown`, `radio`, `segmented`, `input` or `slider` |
+| `display` | `select`, `number` | `dropdown`, `radio`, `segmented`, `input` or `slider` (a slider needs `min`, `max` and `step`) |
 | `formats` | `richtext` | Allowed marks and blocks |
 | `inline` | `richtext` | One-line mode |
 | `itemLabel` | `list` | Item field an editor shows as its title |
@@ -124,10 +142,16 @@ and a hidden field keeps its value.
 
 For a field on an instance, the order is:
 
-1. the stored instance value,
-2. `content[contentKey]` for text fields,
-3. the field's `default`,
+1. the stored instance value — for a translatable value, the entry for the
+   rendered language, then each language in `fallbackLocales`,
+2. `content[contentKey]` for `text` and `textarea` fields,
+3. the field's `default` (a translated default in the same language order),
 4. omitted — the component's own prop default applies.
+
+Translatable kinds are `text`, `textarea`, `url` and `richtext`: their stored
+value may be one string (or document) for every language, or a map from
+language tags to values. An image's `alt` is translatable too. Every other kind
+stores one value for every language.
 
 A missing translation is not an error. A malformed map is `invalid-prop`; an
 unknown key is `unknown-prop`; a required field with no value is
@@ -179,15 +203,19 @@ The component renders its own fallback when no image was chosen.
 
 ```astro
 ---
+import { pictureOf } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
+import type { banner } from "./banner.def";
+
 const { image } = Astro.props as InferProps<typeof banner>;
+const picture = pictureOf(image, Astro.locals.store.config.media);
 ---
-{image && <img src={mediaUrl(image.key, MEDIA_DOMAIN)} alt={image.alt ?? ""} />}
+{picture && <img src={picture.src} alt={picture.alt} width={picture.width} height={picture.height} />}
 ```
 
 An image value also carries optional `width`, `height` and `focal` (a point
-from 0 to 1 on each axis). See [Images](/sdk/theme/images) for the media domain
-and the Astro image service.
+from 0 to 1 on each axis). See [Images](/sdk/theme/images) for the store's
+media delivery, resizing and the Astro image service.
 
 A list receives `[{ id, ...fields }]`. The reader drops a broken or repeated
 item and keeps the rest, up to `max`.
