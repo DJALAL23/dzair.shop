@@ -86,9 +86,8 @@ export async function verifySessionJwt(token: string, env: Env): Promise<Session
   const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[1]))) as SessionJwtPayload;
   if (!payload.sub) throw new Error("JWT missing sub");
 
-  if (typeof payload.exp === "number" && Date.now() / 1000 > payload.exp) {
-    throw new Error("Token expired");
-  }
+  if (typeof payload.exp !== "number") throw new Error("JWT missing exp");
+  if (Date.now() / 1000 > payload.exp) throw new Error("Token expired");
 
   if (payload.iss && payload.iss !== env.BETTER_AUTH_URL.replace(/\/api\/auth$/, "")) {
     throw new Error(`Invalid issuer: ${payload.iss}`);

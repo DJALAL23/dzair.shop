@@ -78,6 +78,16 @@ describe("verifySessionJwt", () => {
     await expect(verifySessionJwt(token, ENV)).rejects.toThrow(/expired/i);
   });
 
+  it("rejects a token without an expiry, even signed by the right key", async () => {
+    stubJwks();
+    const token = await signJwt({
+      sub: "user_1",
+      iss: ENV.BETTER_AUTH_URL,
+      aud: "https://api.example.com",
+    });
+    await expect(verifySessionJwt(token, ENV)).rejects.toThrow(/missing exp/i);
+  });
+
   it("rejects a token signed with a different key", async () => {
     stubJwks();
     const otherPair = (await crypto.subtle.generateKey(
