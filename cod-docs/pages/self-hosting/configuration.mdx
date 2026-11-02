@@ -35,6 +35,7 @@ wins over the default.
 | `COD_DB_NAME` | `codflow-os-db` | The D1 database's name: the same as `database_name` in both `wrangler.toml` files |
 | `COD_R2_BUCKET_NAME` | `codflow-images` | The R2 bucket's name |
 | `COD_SERVER_URL` | `http://localhost:8787` | The deployed API's origin, which the storefront calls. The storefront's deploy refuses a `localhost` value |
+| `ASTRO_KEY` | none | The storefront build's server-island key (`npx astro create-key` in `cod-astro/theme-00`). Keep it: a new key per deploy breaks pages still in the cache |
 
 ## API server
 
