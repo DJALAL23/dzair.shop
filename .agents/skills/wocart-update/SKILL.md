@@ -211,7 +211,26 @@ rm ~/.wocart-secret
 
 **Never regenerate** an existing secret. `MCP_LOGIN_TICKET_SECRET` holds the
 same value on the API server and the dashboard; `BETTER_AUTH_SECRET` is the
-dashboard's alone, and changing it signs every user out. Optional features
+dashboard's alone, and changing it signs every user out.
+
+**Optional clean-up of unused secrets.** Older guides set secrets on the API
+server that it never reads. List the API Worker's secrets (with `--env
+production` when step 0.5 found that form):
+
+```bash
+cd cod-server && npx wrangler secret list [--env production]
+```
+
+If it shows `BETTER_AUTH_SECRET`, `MCP_REQUEST_STATE_KEY`,
+`COOKIE_ENCRYPTION_KEY` or `API_KEY_SALT`, offer to delete them: the API
+server reads none of them (the dashboard keeps its own `BETTER_AUTH_SECRET`).
+Only on the developer's yes, one at a time, on the **API Worker only**:
+
+```bash
+npx wrangler secret delete <NAME> [--env production]   # Wrangler asks to confirm
+```
+
+Never delete a secret from the dashboard or the storefront. Optional features
 (email, WhatsApp verification, Turnstile, Meta, Telegram) stay off until the
 merchant turns them on in **Apps**.
 
