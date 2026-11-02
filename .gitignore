@@ -22,6 +22,8 @@ Thumbs.db
 .claude/
 
 /docs/
+/cod-astro/*
+!/cod-astro/theme-00/
 /wocart-sdk/
 /.agents/internal-skills/
 /.agents/skills/*

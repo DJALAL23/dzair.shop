@@ -65,10 +65,12 @@ A docs build fetches `/api/openapi.json` from a local cod-server, or from
   (gitignored). The real `wrangler.toml` files are gitignored; commit only the
   `.example` templates.
 - No explanatory code comments unless asked.
-- **Private folders are never committed.** `docs/`, `wocart-sdk/` and
-  `.agents/internal-skills/` are maintainers' local folders, gitignored; never
-  force-add them and never link to them from tracked files. Anything
-  developers or users need goes in `cod-docs`.
+- **Private folders are never committed.** `docs/`, `wocart-sdk/`,
+  `.agents/internal-skills/` and every theme in `cod-astro/` other than
+  `theme-00` are maintainers' local folders, gitignored; never force-add them
+  and never link to them from tracked files. A theme becomes public only by an
+  explicit `!/cod-astro/<name>/` line in `.gitignore`. Anything developers or
+  users need goes in `cod-docs`.
 
 ## Boundaries
 
