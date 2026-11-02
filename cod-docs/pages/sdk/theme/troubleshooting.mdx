@@ -38,6 +38,10 @@ Start here when something looks wrong and no code is in front of you.
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | `astro build` fails with `EnvInvalidVariables: COD_SERVER_URL is missing` | A store variable declared required; the build prerenders the manifest, which loads the middleware | Declare `COD_SERVER_URL`, `STORE_API_KEY` and `WOCART_PREVIEW_KEY` with `optional: true` ([quick start](/sdk/theme/build#2-configure-astro)) |
+| `vitest` stops at startup: "There is already a server associated with the config" | `@cloudflare/vite-plugin` newer than 1.53.1, loaded by the Cloudflare adapter through `getViteConfig` | Pin it: `"overrides": { "@cloudflare/vite-plugin": "1.53.1" }` in `package.json`, then `npm install` ([quick start](/sdk/theme/build#1-create-the-project)) |
+| `astro check` in a render test: "Property 'cfContext' is missing … 'Locals'" | The Cloudflare adapter adds a required `cfContext` to `App.Locals` | Cast the container's locals: `locals: { store } as unknown as App.Locals` |
+| The Vercel output holds `@img/sharp-*-darwin-*` or other native files | Astro's default `sharp` image service | `image: { service: passthroughImageService() }`, or the [media image service](/sdk/theme/images#astros-image-on-any-media-host) |
+| The Cloudflare build logs "Enabling sessions with Cloudflare KV with the "SESSION" KV binding" | Sessions are on by default with the Cloudflare adapter | `session: false` in `astro.config.mjs` |
 | A request throws `MISSING_CONFIGURATION` | `createStoreClient` got an empty `serverUrl` or `apiKey` | Set `COD_SERVER_URL` and `STORE_API_KEY` for the running server |
 | The page renders the unavailable store: no name, no menu, no products, nothing to buy (`config.id === ""`) | The config read failed: wrong URL or key, or the API is unreachable | Read the client's `onError` output (`operation`, `code`); a deployed server cannot reach `localhost` |
 | Merchant text edits or saved pages never appear | The client does not pass `theme` | `createStoreClient({ …, theme: THEME_KEY })` |

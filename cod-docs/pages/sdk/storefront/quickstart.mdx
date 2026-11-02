@@ -1,5 +1,5 @@
 ---
-description: From an empty folder to an Astro storefront that lists a store's products and renders product pages with a real 404 — every file, verified against a running store.
+description: From an empty folder to an Astro storefront that lists a store's products and renders product pages with a real 404 — every file, on Cloudflare and Vercel.
 ---
 
 import { Callout } from "zudoku/ui/Callout";
@@ -8,8 +8,8 @@ import { Callout } from "zudoku/ui/Callout";
 
 This page builds the smallest complete storefront: one server-only client, a
 home page that lists the store's products, and a product page that answers a
-real 404. Every file is shown in full; together they type-check, build, and
-were run against a real store.
+real 404. Every file is shown in full; together they type-check and build
+for Cloudflare and for Vercel.
 
 <Callout type="info" title="What you need">
 Node 22.12 or newer, the store's API origin (`COD_SERVER_URL`) and a store API
@@ -23,21 +23,44 @@ key (`STORE_API_KEY`). A self-hosted Wocart runs its API locally on
 npm create astro@latest my-store -- --template minimal --typescript strict --no-git
 cd my-store
 npm install --save-exact @wocart/storefront@3.0.0
-npm install @astrojs/node zod
+npm install @astrojs/cloudflare @astrojs/vercel zod
+npm install -D wrangler @astrojs/check typescript
 ```
 
-`zod` 4 is the SDK's peer dependency. `@astrojs/node` is this page's adapter;
-any Astro server adapter works.
+`zod` 4 is the SDK's peer dependency. A Wocart storefront runs on two hosts
+from the same code, Cloudflare Workers and Vercel, so it installs both
+adapters; `wrangler` runs the Cloudflare build locally. Then set the build
+scripts in `package.json`:
+
+```json
+{
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "build:vercel": "DEPLOY_TARGET=vercel astro build",
+    "preview": "astro build && wrangler dev"
+  }
+}
+```
+
+`build` is the Cloudflare build (`dist/`), `build:vercel` the Vercel build
+(`.vercel/output`).
 
 ## 2. Configure Astro
 
 ```js title="astro.config.mjs"
-import { defineConfig, envField } from "astro/config";
-import node from "@astrojs/node";
+import { defineConfig, envField, passthroughImageService } from "astro/config";
+
+const isVercel = process.env.DEPLOY_TARGET === "vercel";
+const adapter = isVercel
+  ? (await import("@astrojs/vercel")).default()
+  : (await import("@astrojs/cloudflare")).default({ imageService: "passthrough" });
 
 export default defineConfig({
   output: "server",
-  adapter: node({ mode: "standalone" }),
+  adapter,
+  session: false,
+  image: { service: passthroughImageService() },
   env: {
     schema: {
       COD_SERVER_URL: envField.string({ context: "server", access: "secret", optional: true }),
@@ -49,13 +72,41 @@ export default defineConfig({
 
 Both values are **server secrets**: never `PUBLIC_*`, never rendered into a
 page, never passed to a browser script. They are `optional` so a build never
-needs a store; a request without them fails loudly instead (step 3). For
-local development:
+needs a store; a request without them fails loudly instead (step 3).
 
-```bash title=".env"
+`DEPLOY_TARGET=vercel` builds with the Vercel adapter; without it the
+storefront builds for Cloudflare. `session: false` keeps the Cloudflare Worker
+from requiring a `SESSION` KV namespace the storefront never uses. Images pass
+through: Astro's default
+`sharp` service would put native binaries for the build machine into the
+Vercel output. To resize store images on either host, use the
+[media image service](/sdk/theme/images#astros-image-on-any-media-host).
+
+The Cloudflare build reads its runtime from `wrangler.jsonc`:
+
+```jsonc title="wrangler.jsonc"
+{
+  "name": "my-store",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-04-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  }
+}
+```
+
+`astro dev` runs in Cloudflare's local runtime, which reads its values from
+`.dev.vars`:
+
+```bash title=".dev.vars"
 COD_SERVER_URL=http://localhost:8787
 STORE_API_KEY=your-store-api-key
 ```
+
+Never commit it: add `.dev.vars`, `.wrangler/` and `.vercel/` to
+`.gitignore`.
 
 ## 3. One module creates the client
 
@@ -197,6 +248,7 @@ const price = formatMoney(product.price, { symbol: config?.currencySymbol ?? "د
 ```bash
 npx astro check
 npm run build
+npm run build:vercel
 npm run dev
 ```
 

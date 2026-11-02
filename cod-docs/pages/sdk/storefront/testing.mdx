@@ -229,7 +229,8 @@ Run these in the theme before shipping:
 ```sh
 npx astro check
 npx vitest run
-npx astro build
+npm run build          # Cloudflare
+npm run build:vercel   # Vercel
 ```
 
 A build catches the failures unit tests cannot:
@@ -276,7 +277,8 @@ A storefront using the SDK is ready when:
 - the basket is capped and the quote is authoritative;
 - the thank-you page fires no event when `orders.tracking` returns `null`;
 - preview is excluded from caching and revalidation drops the page tag;
-- `npx astro check`, `npx vitest run` and `npx astro build` pass.
+- `npx astro check`, `npx vitest run`, `npm run build` and
+  `npm run build:vercel` pass.
 
 ## Compatibility
 

@@ -24,7 +24,7 @@ curl -fsSL https://docs.wocart.store/agents/wocart-storefront/SKILL.md \
 
 For Claude Code, copy the same file to `.claude/skills/wocart-storefront/`.
 <a href="/agents/wocart-storefront/SKILL.md">Read the skill</a>: the version to
-pin, seventeen rules, a build order, the verification commands and when to
+pin, eighteen rules, a build order, the verification commands and when to
 stop.
 
 Add a short `AGENTS.md` at the repository root with your store's facts (API
@@ -48,8 +48,8 @@ reviews <on/off>, OTP <on/off>.
 
 First give me the page map: each page and the SDK reads it uses. After I
 approve it, build the shared files (client, middleware with unavailableStoreConfig as the fallback,
-routes), then one page at a time, running `npx astro check`, `npx vitest run`
-and `npx astro build` after each and showing me the output.
+routes), then one page at a time, running `npx astro check`, `npx vitest run`,
+`npm run build` and `npm run build:vercel` after each and showing me the output.
 ```
 
 ### Add the order form
@@ -115,11 +115,13 @@ before changing anything.
 | Platform links come from `storefrontPath`; WhatsApp links from `whatsAppContact` | A hand-written path or `wa.me` link ignores the platform's paths and the merchant's number, texts and message rules |
 | Images resolve with `config.media` | The store's media host can be ImageKit, Cloudflare or direct; a hard-coded host breaks |
 | No store fact in your own words | Delivery reach, hours or a phone number written as copy is false on the next store |
+| Build for Cloudflare and for Vercel from the same code (`DEPLOY_TARGET`), `session: false`, never the `sharp` image service | A store's storefront runs on either host; a build for one only cannot be deployed to the other |
 
 ## Check the agent's work
 
-- [ ] `npx astro check` (0 errors), `npx vitest run` (all passing) and
-      `npx astro build` (complete) were run and shown. Run them once yourself.
+- [ ] `npx astro check` (0 errors), `npx vitest run` (all passing),
+      `npm run build` and `npm run build:vercel` (both complete) were run and
+      shown. Run them once yourself.
 - [ ] No import of `/server` or `/astro` in a `<script>` or island; no key in
       a `PUBLIC_*` variable.
 - [ ] No `price * quantity` shown as the amount to be charged.

@@ -45,19 +45,20 @@ checks assume the layout below; adapt the paths, not the rule.
 | 11 | Resolve images from media keys with `config.media` (`pictureOf`, `mediaImageUrl`, `mediaImageSrcset`, `mediaImageService`) | `grep -rnE "MEDIA_DOMAIN|cdn-cgi|imagekit\.io" src` prints nothing |
 | 12 | Use CSS logical properties, and `dir`/`lang` from the request store | `grep -rnE "(margin|padding)-(left|right)" src` prints nothing you cannot justify |
 | 13 | Bind browser behaviour with `bindEach` / `onEachPage` from `@wocart/theme/lifecycle` | `grep -rnE "astro:page-load|wocart:section-load" src` prints nothing |
-| 14 | Prove "done" with the verification commands below, and quote their output | You quote it |
+| 14 | Build for both hosts from the same code: `@astrojs/cloudflare` by default, `@astrojs/vercel` when `DEPLOY_TARGET=vercel`, with `session: false` and the passthrough or media image service (never `sharp`); keep `wrangler.jsonc` with a `compatibility_date`, and pin `@cloudflare/vite-plugin` to 1.53.1 in `overrides` | `npm run build` writes `dist/server/wrangler.json` and `dist/client/wocart-theme.json`; `npm run build:vercel` writes `.vercel/output/static/wocart-theme.json`; `find .vercel/output -type l -o -name '*.dylib' -o -path '*darwin*'` prints nothing |
+| 15 | Prove "done" with the verification commands below, and quote their output | You quote it |
 
 ### Never
 
 | # | Never | Check |
 | --- | --- | --- |
-| 15 | Rename `defineTheme({ key })`, a component `type`, a field `key` or a shipped instance `id` that stores may have saved | `diffThemeManifests(previous, next).breaking` lists only what you intended |
-| 16 | Write: no route saves a page document, settings or merchant text; Wocart Studio is the only writer | No `POST`/`PUT` route touches documents or settings |
-| 17 | Write a fact about a store as a theme word: delivery reach ("58 wilayas"), hours, phone, address, prices, delivery times | Review every pack value: it must be true of every store |
-| 18 | Import Zod, a schema, `@wocart/storefront/server` or `/astro`, or the root of `@wocart/theme` in browser code | Grep your browser scripts for `zod`, `Schema`, `@wocart/storefront/server`, `@wocart/storefront/astro` and `from "@wocart/theme"`: nothing |
-| 19 | Compute a price, fee, discount or total in the browser, or re-implement checkout rules | Orders go through `placeOrderInput` / `executePlaceOrder`; quotes through `cart.validate` or `createQuoter` |
-| 20 | Store a URL in an `image` field, CSS in a `style` field, or HTML anywhere; `set:html` a plain text field | `set:html` appears only with `richTextToHtml` output or a product's HTML description |
-| 21 | Work around a missing API (deep import, copied SDK code, `@ts-ignore` over an SDK type) | Stop and report instead |
+| 16 | Rename `defineTheme({ key })`, a component `type`, a field `key` or a shipped instance `id` that stores may have saved | `diffThemeManifests(previous, next).breaking` lists only what you intended |
+| 17 | Write: no route saves a page document, settings or merchant text; Wocart Studio is the only writer | No `POST`/`PUT` route touches documents or settings |
+| 18 | Write a fact about a store as a theme word: delivery reach ("58 wilayas"), hours, phone, address, prices, delivery times | Review every pack value: it must be true of every store |
+| 19 | Import Zod, a schema, `@wocart/storefront/server` or `/astro`, or the root of `@wocart/theme` in browser code | Grep your browser scripts for `zod`, `Schema`, `@wocart/storefront/server`, `@wocart/storefront/astro` and `from "@wocart/theme"`: nothing |
+| 20 | Compute a price, fee, discount or total in the browser, or re-implement checkout rules | Orders go through `placeOrderInput` / `executePlaceOrder`; quotes through `cart.validate` or `createQuoter` |
+| 21 | Store a URL in an `image` field, CSS in a `style` field, or HTML anywhere; `set:html` a plain text field | `set:html` appears only with `richTextToHtml` output or a product's HTML description |
+| 22 | Work around a missing API (deep import, copied SDK code, `@ts-ignore` over an SDK type) | Stop and report instead |
 
 ## The shape of a theme
 
@@ -99,7 +100,9 @@ different wiring.
 
 1. Read https://docs.wocart.store/sdk/theme/build.md and tutorial.md.
 2. Create the project exactly as the quick start does, with exact pins
-   (`npm install --save-exact @wocart/theme@4.0.0 @wocart/storefront@3.0.0`).
+   (`npm install --save-exact @wocart/theme@4.0.0 @wocart/storefront@3.0.0`),
+   both adapters and the `astro.config.mjs` that picks one by `DEPLOY_TARGET`
+   (rule 14).
 3. Decide before coding: the theme key (permanent), the languages, one
    surface per platform page type (all twelve, rule 4) with its main section,
    the areas (`header`, `footer`) and which surfaces may hide them, the
@@ -177,9 +180,10 @@ Answer each with evidence (file and line, or command output):
 ## Verification (run all, quote the results)
 
 ```bash
-npx astro check     # 0 errors
-npx vitest run      # every test passes
-npx astro build     # completes; dist/client/wocart-theme.json exists
+npx astro check        # 0 errors
+npx vitest run         # every test passes
+npm run build          # Cloudflare: dist/server/wrangler.json and dist/client/wocart-theme.json exist
+npm run build:vercel   # Vercel: .vercel/output/static/wocart-theme.json exists
 ```
 
 The contract tests every theme keeps:
@@ -193,7 +197,7 @@ for (const locale of theme.locales) for (const document of shippedDocuments)
 for (const locale of theme.locales) expect(pluralFormIssues(content[locale], locale)).toEqual([]);
 ```
 
-With a store available (`COD_SERVER_URL`, `STORE_API_KEY` in `.env`), also run
+With a store available (`COD_SERVER_URL`, `STORE_API_KEY` in `.dev.vars`), also run
 `npm run dev` and check: `/` and every published `/<lang>` render with the
 right `lang`/`dir`; a product page renders; `/products/<unknown>` is a 404; the
 order form re-renders a refused order with its error and redirects a placed

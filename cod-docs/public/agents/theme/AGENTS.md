@@ -29,16 +29,22 @@ Update this table when they change.
 ## Commands
 
 ```bash
-npm run dev      # astro dev — needs COD_SERVER_URL and STORE_API_KEY in .env
-npm run check    # astro check — must report 0 errors
-npm test         # vitest — every test must pass
-npm run build    # astro build — must complete
+npm run dev            # astro dev — needs COD_SERVER_URL and STORE_API_KEY in .dev.vars
+npm run check          # astro check — must report 0 errors
+npm test               # vitest — every test must pass
+npm run build          # the Cloudflare build — must complete
+npm run build:vercel   # the Vercel build — must complete
 ```
 
-A change is done only when `check`, `test` and `build` pass. Quote their output.
+A change is done only when `check`, `test` and both builds pass. Quote their
+output.
 
 ## Rules
 
+- The theme runs on Cloudflare and on Vercel from the same code:
+  `astro.config.mjs` picks `@astrojs/vercel` when `DEPLOY_TARGET=vercel`,
+  `@astrojs/cloudflare` otherwise, with `session: false`. Never add Astro's
+  `sharp` image service, a host-only API or a third adapter.
 - Verify every import against `node_modules/@wocart/*/dist/*.d.ts`. No deep
   imports, no `@ts-ignore` over an SDK type.
 - Never rename the theme key, a component `type`, a field `key`, or a shipped

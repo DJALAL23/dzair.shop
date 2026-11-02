@@ -30,8 +30,9 @@ packages' declarations.
 - **Pinned exactly**: `@wocart/storefront` 3.0.0, `@wocart/theme` 4.0.0,
   Astro 7, TypeScript 6 (Theme-00 5.0.0, on platform v7). Wocart Studio runs the same SDK versions, and a theme
   release refuses a drift.
-- **Two adapters, one composition code**: the Cloudflare and Vercel builds differ
-  only in the adapter and a few platform bindings.
+- **Two adapters, one composition code**: `npm run build` (Cloudflare) and
+  `npm run build:vercel` differ only in the adapter and its cache provider,
+  chosen in `astro.config.mjs` by `DEPLOY_TARGET`.
 - **Its own commands**: `npm run dev`, `npm test`, `npx astro check`,
   `npm run validate:all`, `npm run build`. There is no `typecheck` script —
   `astro check` is the typecheck.
@@ -162,7 +163,7 @@ equivalents of at least these:
 
 | Guard | What it pins |
 | --- | --- |
-| `sdk-boundary.test.ts` | One SDK adapter; no deep imports; no `cod-shared` import |
+| `sdk-boundary.test.ts` | One SDK adapter; no deep imports |
 | `store-context.test.ts` | One place builds the request store; every internal link goes through the store's `href` |
 | `no-validator-in-browser.test.ts` | No Zod in any browser script |
 | `page-paths.test.ts`, `page-contracts.test.ts` | Each page type at its platform path, with its required script |
@@ -193,13 +194,8 @@ differ, it is a choice.
 | Client module | `src/theme/sdk.ts` | `src/lib/store.ts` | Choice of path; one module is the rule |
 | A section's frame | Each component applies its scheme and style | Every section renders through `ui/Section.astro` | Choice |
 | Cart page | Drawer plus the `checkout` surface | A `/cart` route of the theme's own, plus the `checkout` surface | Choice |
-| Builds | Cloudflare and Vercel | Cloudflare (default) and Vercel | Choice |
-
-Theme Baby's text still states a delivery reach in three places: its footer
-and checkout words (`footer.wilaya`, `checkout.assureDelivery`: "Delivery to
-all 58 wilayas") and a default benefit on its home page. Do not copy that: a
-theme word that states a store fact is never the rule, whichever theme does
-it, because it shows on every store it is false for.
+| Builds | Cloudflare (default) and Vercel, by `DEPLOY_TARGET` | Cloudflare (default) and Vercel, by `DEPLOY_TARGET` | **Rule**: both hosts |
+| Images | The media image service | Plain `<img>`, passthrough service | Choice; never `sharp` |
 
 ## How to read a section in Theme-00
 
@@ -218,10 +214,8 @@ it, because it shows on every store it is false for.
   convention, not an API.
 - Its copy, design, fonts and section list are one storefront's product
   decisions.
-- It is not the SDK's test suite. The packages' own tests in
-  `wocart-sdk/{storefront,theme}/src` define the contract; Theme-00 consumes it.
-- Its `AGENTS.md` records decisions and workarounds with dates. Some are
-  historical; the code and the packages' `CHANGELOG.md` settle what is current.
+- It is not the SDKs' test suite. The packages' own tests define the
+  contract; Theme-00 consumes it.
 
 ## Where next
 

@@ -1,5 +1,5 @@
 ---
-description: From an empty folder to a Wocart theme that renders an editable home page from a real store — every file, every command, verified.
+description: From an empty folder to a Wocart theme that renders an editable home page from a store, on Cloudflare and Vercel — every file, every command.
 ---
 
 import { Callout } from "zudoku/ui/Callout";
@@ -27,15 +27,46 @@ gives you both; locally the API runs on `http://localhost:8787`.
 npm create astro@latest my-theme -- --template minimal --typescript strict --no-git
 cd my-theme
 npm install --save-exact @wocart/theme@4.0.0 @wocart/storefront@3.0.0
-npm install @astrojs/node zod
-npm install -D @astrojs/check typescript vitest
+npm install @astrojs/cloudflare @astrojs/vercel zod
+npm install -D wrangler @astrojs/check typescript vitest
 ```
 
-`@astrojs/node` is only this guide's adapter; any Astro server adapter works
-(Theme-00 uses Cloudflare and Vercel). `zod` is a required peer of
-`@wocart/storefront`. Pin the two Wocart packages exactly: a theme is rendered
-by its own deployment, and a floating range lets two builds of the same commit
-differ.
+A Wocart theme runs on **two hosts from the same code**: Cloudflare Workers
+and Vercel. Wocart Cloud deploys a store's theme to either, so every theme
+installs both adapters and builds with each (step 2). `wrangler` runs the
+Cloudflare build locally. `zod` is a required peer of `@wocart/storefront`.
+Pin the two Wocart packages exactly: a theme is rendered by its own
+deployment, and a floating range lets two builds of the same commit differ.
+
+Then set the scripts and one override in `package.json`, and run
+`npm install` again:
+
+```json
+{
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "build:vercel": "DEPLOY_TARGET=vercel astro build",
+    "preview": "astro build && wrangler dev",
+    "check": "astro check",
+    "test": "vitest run"
+  },
+  "overrides": {
+    "@cloudflare/vite-plugin": "1.53.1"
+  }
+}
+```
+
+| Script | What it does |
+| --- | --- |
+| `build` | The Cloudflare build: the Worker in `dist/server`, the files in `dist/client` |
+| `build:vercel` | The Vercel build: the Build Output in `.vercel/output` |
+| `preview` | The Cloudflare build, served locally by `wrangler dev`; `npm run preview -- --port 4322` chooses the port |
+
+The override keeps `@cloudflare/vite-plugin` at 1.53.1. Newer releases stop
+Vitest at startup ("There is already a server associated with the config")
+when the Cloudflare adapter loads through `getViteConfig`, as the tests in
+step 15 do. Theme-00 and Theme Baby carry the same pin.
 
 The two packages move together. `@wocart/theme` 4.0.0 declares
 `@wocart/storefront` `^3.0.0` as its peer, and `@wocart/storefront` 3.0.0
@@ -46,12 +77,18 @@ store.
 ## 2. Configure Astro
 
 ```js title="astro.config.mjs"
-import { defineConfig, envField } from "astro/config";
-import node from "@astrojs/node";
+import { defineConfig, envField, passthroughImageService } from "astro/config";
+
+const isVercel = process.env.DEPLOY_TARGET === "vercel";
+const adapter = isVercel
+  ? (await import("@astrojs/vercel")).default()
+  : (await import("@astrojs/cloudflare")).default({ imageService: "passthrough" });
 
 export default defineConfig({
   output: "server",
-  adapter: node({ mode: "standalone" }),
+  adapter,
+  session: false,
+  image: { service: passthroughImageService() },
   env: {
     schema: {
       COD_SERVER_URL: envField.string({ context: "server", access: "secret", optional: true }),
@@ -64,6 +101,18 @@ export default defineConfig({
 
 - **`output: "server"`**: pages render per request, because the store, its
   language and its saved documents are decided per request.
+- **One switch, two hosts.** `DEPLOY_TARGET=vercel` builds with the Vercel
+  adapter; without it the theme builds for Cloudflare. Each adapter is
+  imported only by its own build. Nothing else in the theme knows its host.
+- **`session: false`**: a theme keeps no server sessions. Left on, the
+  Cloudflare adapter makes the Worker require a `SESSION` KV namespace that a
+  storefront deployment does not have.
+- **Images pass through.** Astro's default image service is `sharp`, which
+  puts native binaries for the build machine into the Vercel output, and an
+  output carrying them cannot be deployed. When the theme resizes store
+  images, replace the passthrough service with the media image service
+  ([Images](/sdk/theme/images#astros-image-on-any-media-host)); it serves
+  both hosts.
 - **Every value is a server secret.** None is `PUBLIC_*`; the API key must
   never reach a browser.
 - **They are `optional` on purpose.** One theme build serves every store, so
@@ -76,11 +125,40 @@ export default defineConfig({
 Images need no variable: the store's config says where its images are served
 from (`config.media`).
 
-For local development, put the two values in `.env` (never commit it):
+The Cloudflare build reads its runtime from `wrangler.jsonc`:
 
-```bash title=".env"
+```jsonc title="wrangler.jsonc"
+{
+  "name": "my-theme",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-04-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  }
+}
+```
+
+The build copies it to `dist/server/wrangler.json`, with the compatibility
+date and flags the Worker runs under. Keep the date set: a deployment reads
+it from there.
+
+`astro dev` runs the theme in Cloudflare's local runtime, which reads its
+values from `.dev.vars`:
+
+```bash title=".dev.vars"
 COD_SERVER_URL=http://localhost:8787
 STORE_API_KEY=your-store-api-key
+```
+
+Never commit it. The Astro template ignores `.env` but not these, so add them
+to `.gitignore`:
+
+```bash
+.dev.vars
+.wrangler/
+.vercel/
 ```
 
 ## 3. The theme's identity
@@ -571,26 +649,17 @@ describe("the theme contract", () => {
 });
 ```
 
-Add the scripts to `package.json`:
-
-```json
-{
-  "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "check": "astro check",
-    "test": "vitest run"
-  }
-}
-```
-
-Then run the three checks every change must pass:
+Run the checks every change must pass:
 
 ```bash
-npm run check   # 0 errors
-npm test        # every contract test passes
-npm run build   # writes dist/, including dist/client/wocart-theme.json
+npm run check          # 0 errors
+npm test               # every contract test passes
+npm run build          # Cloudflare: dist/server and dist/client, with dist/client/wocart-theme.json
+npm run build:vercel   # Vercel: .vercel/output, with .vercel/output/static/wocart-theme.json
 ```
+
+Both builds must pass: a theme that builds for one host only cannot be
+deployed to the other.
 
 Start the theme with `npm run dev` and open `http://localhost:4321`. You see
 the store's name in the tab and the hero in the store's primary language;

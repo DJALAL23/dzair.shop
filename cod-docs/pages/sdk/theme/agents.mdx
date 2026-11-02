@@ -36,7 +36,7 @@ cp .agents/skills/wocart-theme/SKILL.md .claude/skills/wocart-theme/SKILL.md
 ```
 
 <a href="/agents/wocart-theme/SKILL.md">Read the skill</a>. It holds the
-versions to pin, twenty-one must and never rules each with the command that
+versions to pin, twenty-two must and never rules each with the command that
 checks it, the shape of a theme, five workflows (new theme, change a section,
 make a design editable, review, upgrade), the verification commands, and when
 to stop and report instead of improvising.
@@ -79,8 +79,8 @@ Theme key: <my-theme>. Languages: ar (primary), fr, en.
 Design: <describe it, or attach screenshots>.
 
 Build the home surface end to end first and run `npx astro check`,
-`npx vitest run` and `npx astro build`. Show me their output before you add the
-product page. Do not invent any API: check each import in node_modules/@wocart.
+`npx vitest run`, `npm run build` and `npm run build:vercel`. Show me their
+output before you add the product page. Do not invent any API: check each import in node_modules/@wocart.
 ```
 
 ### Add a section
@@ -180,7 +180,11 @@ The skill carries every rule with its check. In short:
   store's WhatsApp only through `whatsAppContact` in one module;
 - take colours from schemes, images from media keys with `config.media`, and
   write CSS with logical properties;
-- call a change done only when check, test and build passed, and quote them.
+- build for Cloudflare and for Vercel from the same code, `DEPLOY_TARGET`
+  choosing the adapter, with `session: false` and never the `sharp` image
+  service;
+- call a change done only when check, test and both builds passed, and quote
+  them.
 
 **An agent must never**
 
@@ -198,7 +202,8 @@ The skill carries every rule with its check. In short:
 Before you accept a change:
 
 - [ ] The agent showed `npx astro check` (0 errors), `npx vitest run` (all
-      passing) and `npx astro build` (complete) — run them yourself once.
+      passing), `npm run build` and `npm run build:vercel` (both complete) —
+      run them yourself once.
 - [ ] `validateThemeDefinition(theme)` is `[]` (it is in the contract test).
 - [ ] No new import outside the published entry points; no `@ts-ignore` over
       an SDK type.

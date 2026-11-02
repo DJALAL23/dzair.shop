@@ -21,10 +21,8 @@ the end the theme has everything a real store needs from an editable theme:
 | Proof | Render tests and tests for every fallback the docs promise |
 
 Every file below is complete: create it, or replace the quick start's version
-with it. The finished project type-checks, its tests pass, it builds, and it
-was run against a real store — pages in Arabic and French, a real order placed
-through the form and confirmed on the thank-you page, a draft previewed and a
-revalidation accepted.
+with it. The finished project type-checks, its tests pass, and it builds for
+Cloudflare and for Vercel.
 
 ## The finished layout
 
@@ -1125,7 +1123,7 @@ describe("the header", () => {
     const header = theme.areas[0]!.document.sections[0]!;
     await container.renderToString(InstanceView, {
       props: { instance: header, theme, context, storefront: failing, reads: createReadCache(), onIssue: (issue: RendererIssue) => issues.push(issue) },
-      locals: { store: testStore(failing) },
+      locals: { store: testStore(failing) } as unknown as App.Locals,
     });
     expect(issues).toContainEqual(expect.objectContaining({ code: "load-failed" }));
   });
@@ -1135,7 +1133,8 @@ describe("the header", () => {
 - **Assert on `onIssue`, not on exceptions.** The renderer degrades and
   reports; it does not throw.
 - A component that reads `Astro.locals` needs `locals` in the container, as the
-  header test passes.
+  header test passes. The cast is there because the Cloudflare adapter adds a
+  required `cfContext` to `App.Locals`, which no component of the theme reads.
 - One read cache per render, as in production.
 
 Finally, tests for what the platform promises about saved documents — run them
@@ -1180,14 +1179,15 @@ describe("saved documents", () => {
 Run the three checks:
 
 ```bash
-npm run check   # 0 errors
-npm test        # 3 files, 11 tests
-npm run build   # dist/client/wocart-theme.json and wocart-styles.css
+npm run check          # 0 errors
+npm test               # 3 files, 11 tests
+npm run build          # Cloudflare: dist/client/wocart-theme.json and wocart-styles.css
+npm run build:vercel   # Vercel: the same files under .vercel/output/static
 ```
 
 ## 9. See it work
 
-With `.env` pointing at a store, `npm run dev` and:
+With `.dev.vars` pointing at a store, `npm run dev` and:
 
 | Visit | You should see |
 | --- | --- |
@@ -1210,8 +1210,14 @@ the order form answers 403.
 
 ## 10. Deploy
 
-1. **Build once** with `npm run build`. The same build serves any store; the
-   store is chosen per request by its API key and config.
+1. **Build once per host.** `npm run build` is the Cloudflare build: the
+   Worker in `dist/server`, with the runtime it was built for in
+   `dist/server/wrangler.json`, and the files in `dist/client`.
+   `npm run build:vercel` is the Vercel build, a Build Output in
+   `.vercel/output`. Wocart Cloud runs both from the same commit, so a release
+   must pass both, and the Vercel output must carry no symlinks and no native
+   binaries built for another system. Each build serves any store; the store is
+   chosen per request by its API key and config.
 2. **Read exactly these runtime variables.** They are the storefront runtime
    contract: Wocart Cloud sets them on every storefront it deploys, on
    Cloudflare and on Vercel, whatever the theme.
@@ -1223,7 +1229,9 @@ the order form answers 403.
    | `WOCART_PREVIEW_KEY` | The preview public key, when preview is configured |
 
    Images need no variable: the store's config carries its media delivery.
-   Hosting it yourself, put them in your host's secret store. `COD_SERVER_URL`
+   Hosting it yourself, put them in your host's secret store
+   (`wrangler secret put` on Cloudflare, the project's environment variables on
+   Vercel). `COD_SERVER_URL`
    must be an origin the deployment can reach: a deployed server cannot reach
    `localhost`.
 3. **Verify the deployment**: `/wocart-theme.json` validates, the stylesheet is

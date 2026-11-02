@@ -22,10 +22,8 @@ small contract, not a framework: your Astro project, components and CSS stay
 yours.
 
 This guide follows **`@wocart/theme` 4.0.0** and **`@wocart/storefront`
-3.0.0**, which read platform v7. Every code sample on the
-[quick start](/sdk/theme/build) and the [complete theme](/sdk/theme/tutorial)
-pages was built, type-checked, tested and run against a real store with
-exactly those versions.
+3.0.0**, which read platform v7. The [quick start](/sdk/theme/build) and the
+[complete theme](/sdk/theme/tutorial) are written for exactly those versions.
 
 <div className="not-prose my-10 grid gap-4 sm:grid-cols-2">
   <Link to="/sdk/theme/build" className="group">
@@ -182,6 +180,7 @@ and Theme Baby carry (a pattern to copy, not something the SDK runs for you).
 | Rule | Why | Enforced by |
 | --- | --- | --- |
 | Pin `@wocart/theme` and `@wocart/storefront` exactly, 4.x with 3.x | A theme on `@wocart/storefront` 2.x reads a v7 store as unreadable | npm's peer range |
+| Build for both hosts from the same code: `@astrojs/cloudflare` by default, `@astrojs/vercel` with `DEPLOY_TARGET=vercel`, `session: false`, and no image service that ships native binaries | Wocart Cloud deploys a store's theme to Cloudflare or to Vercel; a theme that builds for one only cannot be deployed to the other | Both builds (`npm run build`, `npm run build:vercel`); Wocart Cloud builds both before it accepts a release |
 | Create the store client per request, on the server only, with `theme: <your key>` | Without `theme`, the store's text edits, settings and documents for your theme never arrive; a shared client mixes languages | You; `createStoreClient` throws `MISSING_CONFIGURATION` on an empty URL or key |
 | Render `unavailableStoreConfig(…)` when the store cannot be read; never a config written by hand | A hand-written config falls behind the config's shape and can look like a working checkout | The `fallback` option of `resolveStoreRequest` |
 | Compose every platform page type as a surface with one required main section: home, catalog, category, collection, product, text page, landing, checkout, thank-you, order tracking, search, contact | A page type with no surface cannot be composed or previewed in Studio (`previewTarget` answers `null`, so the preview is a 404) | The first-party themes' tests |

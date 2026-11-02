@@ -149,8 +149,18 @@ already returns `[]`.
 
 ## Deploying
 
-1. **Pick an adapter.** Any Astro server adapter works. Theme-00 ships both the
-   Cloudflare and the Vercel adapter; the composition code is identical.
+1. **Build for both hosts.** A Wocart theme runs on Cloudflare Workers and on
+   Vercel from the same code: `@astrojs/cloudflare` by default and
+   `@astrojs/vercel` when `DEPLOY_TARGET=vercel`, with `session: false`
+   ([Quick start, step 2](/sdk/theme/build#2-configure-astro)). Wocart Cloud
+   builds a release twice, `npm run build` and `DEPLOY_TARGET=vercel npm run build`,
+   and refuses it if either fails. The Cloudflare build must write
+   `dist/server/wrangler.json` with a compatibility date, and
+   `dist/client/wocart-theme.json`. The Vercel output in `.vercel/output` must
+   carry no symlinks and no native binaries built for another system, which
+   is why the image service is the passthrough or the
+   [media image service](/sdk/theme/images#astros-image-on-any-media-host),
+   never `sharp`.
 2. **Read the runtime contract.** Wocart Cloud sets the same variables on
    every storefront it deploys, on Cloudflare and on Vercel: `COD_SERVER_URL`,
    `STORE_API_KEY` and, when preview is configured, `WOCART_PREVIEW_KEY`. A

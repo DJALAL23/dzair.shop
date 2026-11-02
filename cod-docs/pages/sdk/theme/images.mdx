@@ -116,6 +116,9 @@ every config read from the server (not for the unavailable store, whose `id`
 is `""`). Before any delivery is known, every image passes through unchanged.
 This is how Theme-00 binds it (`src/theme/utils/image-service.ts`).
 
+In `astro.config.mjs`, the entrypoint replaces the quick start's passthrough
+service, on both hosts:
+
 ```js
 // astro.config.mjs
 image: { service: { entrypoint: "./src/image-service.ts" } },
@@ -123,8 +126,11 @@ image: { service: { entrypoint: "./src/image-service.ts" } },
 
 | Adapter | Setting |
 | --- | --- |
-| `@astrojs/cloudflare` | `imageService: "custom"` |
+| `@astrojs/cloudflare` | `imageService: "custom"` instead of `"passthrough"` |
 | `@astrojs/vercel` | Leave `imageService` off; the entrypoint is used |
+
+Never fall back to Astro's default `sharp` service: it puts native binaries
+for the build machine into the Vercel output, which cannot be deployed.
 
 ## What the service does
 

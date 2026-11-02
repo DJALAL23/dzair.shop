@@ -70,7 +70,12 @@ reads a v7 store as unreadable.
     never a config written by hand.
 16. **No store fact in your own words**: delivery reach, hours, phone,
     address come from the store (`config.contact`, its pages) or nowhere.
-17. **No claim without a passing check.** Done means the commands below ran and
+17. **Two hosts, one code**: the storefront builds for Cloudflare
+    (`@astrojs/cloudflare`, the default) and for Vercel (`@astrojs/vercel`
+    when `DEPLOY_TARGET=vercel`), with `session: false` and an image service
+    that ships no native binaries (passthrough or the media image service,
+    never `sharp`).
+18. **No claim without a passing check.** Done means the commands below ran and
     passed, and you quote the result.
 
 ## Workflow
@@ -89,12 +94,14 @@ reads a v7 store as unreadable.
 ## Verification (run all, quote the results)
 
 ```bash
-npx astro check     # 0 errors
-npx vitest run      # all passing
-npx astro build     # completes
+npx astro check        # 0 errors
+npx vitest run         # all passing
+npm run build          # Cloudflare build completes
+npm run build:vercel   # Vercel build completes
 ```
 
-With a store available, also run `npm run dev` and check: the home page lists
+With a store available (`COD_SERVER_URL`, `STORE_API_KEY` in `.dev.vars`),
+also run `npm run dev` and check: the home page lists
 products; a product page renders; an unknown handle answers 404; each
 published `/<lang>` renders with the right `lang`/`dir`; a refused order
 re-renders the form with its error; a valid order redirects to the thank-you
