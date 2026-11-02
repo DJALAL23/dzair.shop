@@ -2,8 +2,8 @@
 
 What a store can add to itself beyond its core: a named product the merchant
 turns on, sets up and turns off, and the merchant's own systems connected to
-the store. The decision behind it: [ADR 0019](../../docs/adr/0019-apps-run-in-the-store-third-party-apps-stay-outside.md).
-The plan: [docs/apps/PLAN.md](../../docs/apps/PLAN.md).
+the store. The decision behind it (ADR 0019): Apps run in the store;
+third-party apps stay outside.
 
 ## Language
 

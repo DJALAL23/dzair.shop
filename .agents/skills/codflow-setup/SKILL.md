@@ -475,8 +475,7 @@ decline — the feature is inert by default (no `store_email_config` row).
    then invite a team member with an email the developer can check and
    confirm the invite email arrives (sign-in link + temporary password), and
    that the invited member can sign in.
-4. Docs: `docs/EMAIL-SENDING.md` (feature guide) and
-   `docs/adr/0001-sendili-key-at-rest.md` (key storage decision).
+4. Docs: https://docs.wocart.store/features/email (feature guide).
 
 No wrangler secrets, no worker config — the key lives in D1
 (`store_email_config`, applied by migration `0013` in Step 5) and is masked

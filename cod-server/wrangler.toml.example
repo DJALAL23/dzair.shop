@@ -72,7 +72,7 @@ class_name = "CodReviewMediaWorkflow"
 
 # Review attempts per order number (a phone cannot be guessed for one order).
 # namespace_id: any positive integer unique in your Cloudflare account.
-# The events queue (docs/adr/0017). It carries only "work is due": this
+# The events queue (https://docs.wocart.store/architecture). It carries only "work is due": this
 # Worker consumes it and drains — the carriers' webhook inbox and the Business
 # Events' Deliveries, whose state lives in D1. Create it once per store:
 #   wrangler queues create codflow-events
@@ -114,7 +114,7 @@ crons = ["0 * * * *", "*/5 * * * *"]
 #   WORKER_SELF_URL  → https://api.yourdomain.com/     (this Worker's own origin;
 #                       required `aud` claim for MCP bearer tokens)
 #
-# Media (docs/adr/0021): where the store's files are kept, and how browsers
+# Media (https://docs.wocart.store/self-hosting/media): where the store's files are kept, and how browsers
 # fetch them. Locally: this Worker's own bucket, served by GET /media/:key —
 # no account, no credentials. Deployed, ImageKit keeps and delivers them:
 #   MEDIA_HOST           → imagekit

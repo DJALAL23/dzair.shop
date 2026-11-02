@@ -67,3 +67,6 @@ partner-client-astro/
 
 # Internal media plan: a local working document, never published.
 docs/media/PLAN.md
+
+# Internal notes: kept locally, never committed. Public docs live in cod-docs.
+docs/

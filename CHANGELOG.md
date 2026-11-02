@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so a Free-plan store stays inside its limits; the server's own log lines
   are kept in Workers Logs.
 
-- Apps and Integrations (major; `docs/BREAKING-CHANGES.md`). Meta tracking,
+- Apps and Integrations (major; https://docs.wocart.store/self-hosting/upgrading). Meta tracking,
   DZVerify, Turnstile, Sendili and the WhatsApp button are Apps: each has its
   own page (`/apps/<key>`), its own API (`/api/apps/<key>`) and its own read
   and manage permissions; `/apps` lists them with where each stands, and an
@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shipment carries the tracking, the history as each carrier reported it and
   what CodFlow concluded, and milestones set once with their effects
   (restock, customer spend, driver cash). Existing orders are migrated with a
-  preflight and a verify script (see docs/BREAKING-CHANGES.md)
+  preflight and a verify script (see https://docs.wocart.store/self-hosting/upgrading)
 - handoff: one path for one order or many (`POST /orders/{id}/shipment`,
   `/shipments/bulk`, `/shipments/driver-bulk`); a carrier is called once per
   order however many clicks race, an unconfirmed creation is kept as
@@ -199,7 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Dashboard → Settings → Verification with the merchant's own site/secret
   keys; token verified server-side against
   `challenges.cloudflare.com/turnstile/v0/siteverify` (fail-open on provider
-  outage); see `docs/TURNSTILE.md`
+  outage); see https://docs.wocart.store/features/bot-protection
 
 - delivery: per-carrier delivery-zone name sync — `carrier_wilayas` /
   `carrier_communes` tables (migration 0021) + `POST
@@ -291,7 +291,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the rest), `bulk-dispatch`, `reconcile-orders`, `webhook/mapping` and
   `analytics/dashboard-stats`; the `company_shipments` and
   `order_assignments` tables; the order's delivery statuses — all listed with
-  their replacements in docs/BREAKING-CHANGES.md
+  their replacements in https://docs.wocart.store/self-hosting/upgrading
 
 ### Changed
 

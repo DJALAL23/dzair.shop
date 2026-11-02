@@ -85,7 +85,7 @@ export interface Env {
    * CodCapiWorkflow's binding. Nothing starts it any more: Meta conversions
    * are a Consumer of Business Events (`src/events/consumers/meta-capi.ts`).
    * Kept bound so instances started before that release can finish; removed
-   * once none can remain (docs/events/PLAN.md, Phase 16).
+   * once none can remain.
    */
   CAPI_WORKFLOW: Workflow;
   /**
