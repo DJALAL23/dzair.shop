@@ -128,10 +128,7 @@ wrangler secret put IMAGEKIT_PRIVATE_KEY --env production
 | Variable | Purpose |
 |----------|---------|
 | `STORE_API_KEY` | Shared secret the storefront sends as `X-Store-API-Key` (SHA-256 hashed at rest) |
-| `BETTER_AUTH_SECRET` | Better Auth signing secret — must match cod-client-astro's |
 | `MCP_LOGIN_TICKET_SECRET` | HMAC key for the MCP OAuth login-ticket relay — must match cod-client-astro's |
-| `MCP_REQUEST_STATE_KEY` | HMAC key sealing stateless MCP elicitation state |
-| `COOKIE_ENCRYPTION_KEY` | Cookie-encryption key for the OAuth consent flow |
 | `IMAGEKIT_PRIVATE_KEY` | ImageKit private key, with `MEDIA_HOST = "imagekit"` only |
 
 ## Project Structure

@@ -65,7 +65,7 @@ Sign in at `http://localhost:4321/sign-in` with the seeded credentials.
 | `.dev.vars` (build time, client) | `PUBLIC_API_URL` | the same value for local development |
 | `wrangler.toml [vars]` (runtime) | `PUBLIC_APP_URL` | better-auth base URL (JWT issuer) |
 | `wrangler.toml [vars]` | `PUBLIC_TRUSTED_ORIGINS` | extra origins allowed to POST to `/api/auth/*` |
-| `wrangler secret put` | `BETTER_AUTH_SECRET` | must be identical across every worker sharing the auth D1 |
+| `wrangler secret put` | `BETTER_AUTH_SECRET` | the dashboard's sign-in secret; cod-server does not need it |
 | `wrangler secret put` | `MCP_LOGIN_TICKET_SECRET` | MCP OAuth login relay — must match cod-server's |
 
 `PUBLIC_API_URL` is inlined into the browser bundle by `astro:env/client`, so

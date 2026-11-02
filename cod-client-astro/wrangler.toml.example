@@ -61,7 +61,7 @@ enabled = true
 port = 8788
 
 # ── Secrets (never in this file) ─────────────────────────────────────────────
-# wrangler secret put BETTER_AUTH_SECRET        # must MATCH cod-server's
+# wrangler secret put BETTER_AUTH_SECRET        # the dashboard's own
 # wrangler secret put MCP_LOGIN_TICKET_SECRET   # must MATCH cod-server's
 #
 # Local development: copy .dev.vars.example → .dev.vars and set both there.

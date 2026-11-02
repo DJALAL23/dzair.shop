@@ -4,8 +4,9 @@
 
 # ── Required for local dev ────────────────────────────────────────────────────
 
-# Better Auth signing secret. Generate with:  openssl rand -hex 32
-# Must match the secret used by any worker sharing the same D1 database.
+# Better Auth signing secret: the dashboard's alone (cod-server checks its
+# tokens against the public keys at /api/auth/jwks). Generate with:
+#   openssl rand -hex 32
 # BETTER_AUTH_SECRET=
 
 # HMAC key shared with cod-server for MCP OAuth login tickets (must be >= 32

@@ -140,7 +140,7 @@ cd ../cod-client-astro
 cp wrangler.toml.example wrangler.toml   # same D1 database_id as cod-server + your KV id
 cp .env.example .env
 cp .dev.vars.example .dev.vars
-# generate a secret: openssl rand -hex 32  →  BETTER_AUTH_SECRET (same as cod-server's)
+# generate a secret: openssl rand -hex 32  →  BETTER_AUTH_SECRET (the dashboard's alone)
 
 # storefront
 cd ../cod-astro/theme-00
@@ -197,11 +197,13 @@ in gitignored `.dev.vars` files or `wrangler secret put` in production.
 | Variable | Owner | Purpose |
 |----------|-------|---------|
 | `WORKER_URL`, `BETTER_AUTH_URL`, `WORKER_SELF_URL` | `cod-server` | public URLs (see `src/types/env.ts`) |
-| `MEDIA_HOST`, `MEDIA_DELIVERY`, `MEDIA_ORIGIN`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_FOLDER` | `cod-server` | where the store's media is kept and how browsers fetch it (ADR 0021) |
+| `MEDIA_HOST`, `MEDIA_DELIVERY`, `MEDIA_ORIGIN`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_FOLDER` | `cod-server` | where the store's media is kept and how browsers fetch it |
 | `PUBLIC_APP_URL`, `PUBLIC_API_URL`, `PUBLIC_TRUSTED_ORIGINS` | `cod-client-astro` (wrangler `[vars]`) | dashboard origin, API origin, auth cookie origins |
 | `PUBLIC_API_URL` | `cod-client-astro` (`.dev.vars`, local only) | the API origin local development builds against — never in `.env`, where it is ignored |
 | `COD_SERVER_URL`, `STORE_API_KEY` | `cod-astro/theme-00` | backend base URL + store key |
-| `BETTER_AUTH_SECRET`, `MCP_LOGIN_TICKET_SECRET`, `IMAGEKIT_PRIVATE_KEY` | all | secrets — never in a wrangler config file |
+| `BETTER_AUTH_SECRET` | `cod-client-astro` | the dashboard's sign-in secret — never in a wrangler config file |
+| `MCP_LOGIN_TICKET_SECRET` | `cod-server` and `cod-client-astro` | the same value on both — a secret |
+| `REVIEW_UPLOAD_SECRET`, `IMAGEKIT_PRIVATE_KEY` | `cod-server` | secrets (the ImageKit key only with ImageKit) |
 
 ---
 
