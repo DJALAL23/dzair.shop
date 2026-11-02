@@ -1,0 +1,78 @@
+---
+description: The Terms, Privacy, Refund and Shipping pages every Wocart store starts with, how merchants edit them, and pages of your own.
+---
+
+# Legal pages
+
+Meta checks that a store has clear policy pages before it runs the store's
+ads. Every Wocart store therefore starts with four pages, written for a
+cash-on-delivery store selling in Algeria:
+
+- Terms and Conditions
+- Privacy Policy
+- Refund and Return Policy
+- Shipping Policy
+
+They are published at `/pages/<slug>`, linked from the footer, and linked
+from the order form by a consent line, from the moment the store exists, in
+Arabic, French and English.
+
+**They are a starting point, not legal advice.** They describe how
+cash-on-delivery selling works (no online payment, confirmation by phone,
+inspection at the door, home or stop-desk delivery) with reference to
+Algeria's e-commerce (18-05), consumer protection (09-03) and data protection
+(18-07) laws. Review them for your business.
+
+## Edit a page
+
+Dashboard → **Pages**: pick a page, edit its title and content in the
+rich-text editor, optionally its SEO title and description, and save. A page
+still in its original wording is marked **Needs review**; saving marks it
+**Reviewed**. The mark is for you: it never hides a page.
+
+Each language has its own tab. **Reset to CodFlow template** on one of the
+four puts back the original wording for that language, after a confirmation.
+(The dashboard still uses the name CodFlow here.)
+
+## Business details
+
+Dashboard → **Pages → Business details** holds the facts the pages are written
+from: the legal name, the commercial register (RC), the tax ID (NIF), the
+address, the contact email and phone, the return window in days (0 means no
+returns after delivery; refusing at the door is always free), and the
+delivery-time range.
+
+A field left blank is left out of the pages: they never show a placeholder.
+Saving the details does not rewrite a page you have edited; it changes what a
+later **Reset to CodFlow template** produces.
+
+## Pages of your own
+
+**New page** creates a page you write yourself: an FAQ, an About page. It
+starts as a draft; publish it, and choose whether it appears in the footer.
+Unlike the four legal pages, it can be deleted.
+
+## Where pages appear
+
+- **At `/pages/<slug>`.** The slug can change; a link already shared with the
+  old one stops working, and the editor warns you before you save.
+- **In the footer**: every published page shown in the footer, in the order
+  you set.
+- **On the order form**: "By placing this order, you agree to our Terms and
+  Refund Policy", linked to both, while both are published.
+
+## A store without them
+
+A store created before legal pages existed can add them from **Pages → Add
+terms, privacy, refund & shipping**; it creates only the missing ones. Through
+the API: `POST /api/store-pages/seed-defaults`.
+
+## Permissions
+
+`store_pages:read` to see the pages, `store_pages:manage` to edit them.
+
+## For developers
+
+The pages are under `/api/store-pages`, the business details under
+`/api/store-pages/legal-profile`, and storefronts read a published page with
+the [Storefront SDK](/sdk/storefront/content).

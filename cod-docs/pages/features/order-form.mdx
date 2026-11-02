@@ -1,0 +1,57 @@
+---
+description: Choose what the storefront's order form asks — address, notes, email, delivery options and up to five questions of your own — enforced by the server.
+---
+
+# Order form
+
+Each store chooses what its order form asks. Dashboard → **Checkout form**;
+through the API, `GET` and `PUT /api/checkout-form`. A store that never
+changes it keeps the original form.
+
+## What can change
+
+| Field | Choices | Why |
+| --- | --- | --- |
+| Full name, phone, wilaya, commune | Always required | A cash-on-delivery parcel needs a name and a phone; the wilaya and commune set the delivery price |
+| Address | Required or optional | It cannot be hidden: carriers need it for a home delivery. Required applies to home delivery only; a stop-desk parcel is collected at the desk |
+| Order notes | Optional or hidden | Hiding it shortens the form; shoppers can no longer leave delivery instructions |
+| Email | Required, optional or hidden | Hidden by default |
+| Delivery options | Home, stop desk, or both | At least one stays on |
+| Your own questions | Up to 5 | Short text, long text, number, or a list of choices; each can be required |
+
+## Your own questions
+
+Answers appear on the order in the dashboard. They are never sent to
+carriers.
+
+Each answer is kept with the question's wording at the time of the order, so
+renaming or deleting a question later never changes what an old order says.
+
+## The server enforces it
+
+The storefront shows the form the store configured, and the server checks
+every order against it:
+
+- something hidden that still arrives, like a note from an old cached page,
+  is dropped and the order goes through;
+- something the shopper agreed to that the store no longer allows, like a
+  delivery option turned off, refuses the order with a message in the store's
+  language, rather than silently changing the delivery fee.
+
+Product and landing pages may be cached for a short time, so a shopper can be
+looking at the form as it was before a change. Making the form stricter can
+then refuse an order from that page, with a message asking the shopper to
+refresh; making it looser never refuses one.
+
+## What the email is for
+
+When a shopper gives one, it is shown on the order and sent to Meta, hashed,
+with the conversion, which improves how Meta matches the order to an ad. It
+is never sent in clear.
+
+Orders your team creates in the dashboard are not checked against this form.
+
+## Permissions
+
+`checkout_form:read` to see the form's settings, `checkout_form:manage` to
+change them.

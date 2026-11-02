@@ -1,0 +1,70 @@
+---
+description: The optional shopping cart — letting a shopper order several products in one delivery, with free delivery above an amount.
+---
+
+# Shopping cart
+
+A Wocart store sells **one product per order** by default: a shopper lands on
+a product page from an ad, fills the order form and receives that product.
+The shopping cart adds a second way to order several products in one
+delivery, without taking the first away.
+
+**It is off by default.** A store that never turns it on ships no cart at
+all: no cart button, no cart panel, no checkout page.
+
+## Turn it on
+
+Dashboard → **Settings → Shopping cart → Enable the shopping cart**, then
+save. The storefront has a cart at once, with no rebuild. Through the API,
+`PATCH /api/stores/me` with `cartEnabled`.
+
+With the cart on, a storefront shows **Add to cart** under the product's own
+order button, a cart in the header, a cart panel, and a checkout page that
+takes the whole basket.
+
+## What the shopper can rely on
+
+- **The server prices the basket.** The cart is kept in the shopper's
+  browser, but every price, discount and stock level is checked against the
+  catalog when the cart opens and again when the order is placed. A price
+  that changed meanwhile is corrected and shown; a product that sold out
+  blocks the order until the shopper changes it.
+- **One basket is one delivery**, with one delivery fee.
+- **Limits**: 20 different products, and up to 100 of each.
+
+## Delivery settings
+
+Both are on the same settings screen, and in `PATCH /api/stores/me`.
+
+**Free delivery above an amount** (`freeShippingThreshold`). Above this
+basket value, the store pays the delivery. Leave it empty for none. With it
+set, the cart and the checkout show how much more earns free delivery.
+
+**Baskets that mix shipping profiles** (`cartShippingMode`). This matters only
+when products have different delivery prices:
+
+| Choice | Value | The shopper pays |
+| --- | --- | --- |
+| Charge the highest rate in the basket (default) | `highest` | The rate of the product that costs most to ship |
+| Always charge the default profile | `default_profile` | The store's default rate; per-product rates are ignored for baskets |
+
+A single-product order is never affected.
+
+## Abandoned baskets
+
+When a shopper types a phone number and leaves without ordering, the
+dashboard's **Abandoned orders** list shows the whole basket, line by line,
+with its total.
+
+## Turning it off
+
+Uncheck **Enable the shopping cart** and save. The storefront goes back to
+the one-product order form. Orders already placed with several products stay
+ordinary orders: every line, its price and its stock deduction are kept, and
+they ship like any other.
+
+## For theme developers
+
+The cart is shown only when `config.cartEnabled` is true, and a theme must
+ship no cart markup otherwise. [Basket and quotes](/sdk/storefront/basket)
+covers the browser basket, quoting and coupons.

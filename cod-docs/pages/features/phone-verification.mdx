@@ -1,0 +1,69 @@
+---
+description: Ask shoppers to confirm their phone with a WhatsApp code before an order is placed, through the DZVerify App.
+---
+
+# Phone verification
+
+With phone verification on, a shopper receives a 6-digit code on
+**WhatsApp** and types it before the order is placed. Fewer fake orders and
+wrong numbers mean fewer parcels nobody answers for. The codes are sent by
+[DZVerify](https://dzverify.com).
+
+It is off by default, and it never applies to orders your team creates in the
+dashboard.
+
+## Before you start
+
+1. Create a DZVerify account at [app.dzverify.com](https://app.dzverify.com)
+   and finish its WhatsApp setup.
+2. Create an API key there. It is shown once: copy it. The balance preview
+   in the dashboard needs the key's `usage:read` scope; without it, the key
+   still sends codes.
+
+DZVerify charges per code sent; see its own pricing.
+
+## Turn it on
+
+Dashboard → **Apps → DZVerify**:
+
+1. Paste the API key. Once saved, only its last 4 characters are shown, and
+   it never reaches a browser. Saving with the field empty keeps the stored
+   key.
+2. **Check key** shows whether the key works, and the balance.
+3. Choose the language of the WhatsApp message: Arabic, French or English.
+4. Turn on **Require phone verification**, and save.
+
+Through the API: `GET`, `PUT` and `DELETE /api/apps/dzverify`, and
+`POST /api/apps/dzverify/test` to check the key. Turning it off keeps the key;
+removing the App forgets it.
+
+## What the shopper sees
+
+1. They fill in the form and tap **Place order**.
+2. A code arrives on WhatsApp; they type it, and the order is placed.
+3. A code is valid for 5 minutes and allows 5 attempts. A new one can be
+   asked for after 60 seconds.
+4. Changing the phone after verifying cancels the verification.
+
+Accepted formats include `0551234567`, `+213551234567` and `213551234567`.
+
+## Orders are never lost to it
+
+- **If DZVerify cannot send the code** (no balance left, or the service is
+  down), the order is placed anyway, unverified. Check such orders before
+  shipping them, and top up.
+- **A wrong or expired code is never skipped.** The shopper types the right
+  code or asks for a new one.
+
+Limits protect your balance: one code per phone every 60 seconds, and about
+20 codes per hour from one address, on top of DZVerify's own limits.
+
+## Permissions
+
+`dzverify:read` to see the App, `dzverify:manage` to change, test, turn off
+or remove it.
+
+## For theme developers
+
+`config.otpEnabled` says whether the form must verify the phone, and
+[Checkout and OTP](/sdk/storefront/checkout) shows the flow on the SDK.

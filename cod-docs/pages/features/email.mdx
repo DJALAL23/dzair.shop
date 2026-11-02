@@ -1,0 +1,87 @@
+---
+description: Send team invitations and password resets by email through the Sendili App. Optional and off by default.
+---
+
+# Email
+
+With the Sendili App set up, the store sends two kinds of email through
+[Sendili](https://sendili.com):
+
+- **Team invitations.** An invited member receives a sign-in link and a
+  temporary password, in Arabic or English, as chosen in the invite dialog.
+- **Password resets.** **Forgot password?** on the sign-in page sends a reset
+  link, valid for one hour and usable once.
+
+It is off by default. Until it is set up, no email is sent: the admin hands the
+temporary password to a new member, and a password reset shows the usual
+"check your email" message without an email arriving.
+
+It sends no order notifications and no marketing, and it never emails an API
+key.
+
+## Before you start
+
+1. Create a Sendili account and buy credits (one credit per recipient).
+2. Verify your sending domain in Sendili. Every email is sent from an address
+   on a domain you verified; Sendili refuses any other.
+3. Create a Sendili API key (`sk_live_…`).
+
+## Set it up
+
+Dashboard → **Apps → Sendili**:
+
+1. Paste the API key. It is checked at once, and your verified domains load.
+2. Type the sender's address (`support`, `noreply`, …) and pick one of your
+   domains.
+3. Optionally, a sender name, such as your store's name.
+4. Switch on **Enable email sending**, then save.
+
+After saving, only the key's last four characters are shown, and the key never
+leaves the server. Saving with the key field empty keeps the stored key.
+**Test connection** checks the key again and lists your domains.
+
+To stop sending, switch **Enable email sending** off and save: your key and
+your Sendili credits stay. **Remove app** forgets the key and the setup.
+
+## When an email fails
+
+An email never blocks what it accompanies:
+
+- A failed invitation still creates the member. The invite dialog says the
+  email was not sent and keeps the temporary password on screen to share by
+  hand.
+- A failed reset answers like any other: the same message whether the account
+  exists or not.
+- A retried request does not send a second copy: each email carries an
+  idempotency key, and Sendili replays the first result.
+
+Password reset requests are limited to three per hour.
+
+A failure is reported with one of these codes, never the provider's own
+message:
+
+| Code | Meaning |
+|---|---|
+| `out_of_credits` | The Sendili account has no credits left. |
+| `invalid_key` | The key is wrong or revoked. |
+| `forbidden` | The sender's domain is not verified, or sending is disabled in Sendili. |
+| `rate_limited` | Sendili is limiting requests; try again later. |
+| `validation` | Sendili refused the email as malformed. |
+| `transient` | Any other failure, such as a network error. |
+
+## Troubleshooting
+
+| What you see | What to do |
+|---|---|
+| Domains do not load after pasting the key | The key was refused. Check it, or use **Test connection** for the reason. |
+| Sends fail with `forbidden` | Verify the sender's domain in Sendili, or pick a verified one. |
+| Sends fail with `out_of_credits` | Buy credits. Invitations still create the member. |
+| A reset email never arrives | Check the failure codes above, and that the account exists: an unknown address gets no email. |
+| A reset link is refused | It expired after an hour or was already used. Request a new one. |
+| Saving says a key is required | Paste a key before enabling sending. |
+
+## Permissions
+
+`sendili:read` to see the setup; `sendili:manage` to change, test, switch off
+or remove it. Through the API: `GET` and `PUT /api/apps/sendili`,
+`POST /api/apps/sendili/test` and `DELETE /api/apps/sendili`.

@@ -1,0 +1,58 @@
+---
+description: Protect the storefront's order form from bots with Cloudflare Turnstile, through the Turnstile App.
+---
+
+# Bot protection
+
+With bot protection on, the order form is guarded by
+[Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/): a
+check, usually invisible, that tells shoppers from bots. Turnstile is free.
+
+It is off by default, works alongside [phone verification](/features/phone-verification),
+and never applies to orders your team creates in the dashboard.
+
+## Before you start
+
+In the Cloudflare dashboard, open **Turnstile → Add widget**:
+
+- choose **Managed** mode;
+- list every domain your storefront is served on, including its custom
+  domain. On a domain that is not listed, the check fails.
+
+The widget has a **site key**, public, and a **secret key**, which only the
+API server uses.
+
+## Turn it on
+
+Dashboard → **Apps → Turnstile**: paste both keys, turn on **Protect the
+order form**, and save. Once saved, only the secret's last 4 characters are
+shown; saving with a field empty keeps the stored key.
+
+Through the API: `GET`, `PUT` and `DELETE /api/apps/turnstile`. Turning it off
+keeps the keys; removing the App forgets them.
+
+## What the shopper sees
+
+Usually nothing: the check completes on its own. A visitor Cloudflare finds
+risky is shown a checkbox. A check expires after 5 minutes and is used once;
+the form takes a fresh one on the next submit.
+
+## Orders are never lost to it
+
+- **If Cloudflare's check cannot be reached**, the order is placed anyway.
+- **A missing, invalid, expired or reused check is refused**, and the shopper
+  submits again.
+
+## Testing
+
+Cloudflare's test keys work on any domain, `localhost` included:
+
+| Site key | Secret key | Result |
+| --- | --- | --- |
+| `1x00000000000000000000AA` | `1x0000000000000000000000000000000AA` | Always passes |
+| `2x00000000000000000000AB` | `2x0000000000000000000000000000000AA` | Always fails |
+
+## Permissions
+
+`turnstile:read` to see the App, `turnstile:manage` to change, turn off or
+remove it.

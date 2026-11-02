@@ -226,6 +226,13 @@ refuses to release a theme whose manifest is breaking against the previous
 release under the same major. Prefer additive changes: add the new field or
 component and keep the old one rendering.
 
+What a merchant saves for a theme is kept under its `key`: page documents,
+settings and edits to the theme's words. Store data (catalog, orders, menus,
+pages, languages) is shared by every theme. A store that moves to another
+theme sees that theme's own defaults over the same store data, and a store that
+moves back finds the first theme as it was left. Changing a theme's `key`
+leaves every merchant's saved work for it behind.
+
 The upgrade checklist:
 
 1. Read both packages' `CHANGELOG.md` for every version you cross, not only

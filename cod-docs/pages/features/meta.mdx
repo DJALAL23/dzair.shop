@@ -1,0 +1,107 @@
+---
+description: Report orders to Meta with the Pixel and the Conversions API, and choose the moment an order counts as a conversion — at checkout, at phone confirmation or at delivery.
+---
+
+# Meta Pixel and Conversions API
+
+The Meta App reports a store's orders to Meta so it can attribute them to
+ads and optimize them. It uses two channels:
+
+- **the Pixel**, in the shopper's browser: page views, product views, the
+  start of checkout and, on the thank-you page, the conversion;
+- **the Conversions API**, from the store's server: the conversion, with the
+  shopper's details hashed, so it is counted even when a browser blocks the
+  Pixel.
+
+It is off by default: until it is on, no Pixel loads and nothing is sent.
+
+## Before you start
+
+From Meta Events Manager:
+
+1. the **Pixel ID** (Data sources → your pixel);
+2. a **Conversions API access token** (your pixel → Settings → Conversions
+   API → Generate access token). It is shown once;
+3. optionally a **test event code**, from the pixel's Test events tab.
+
+Verify your storefront's domain in Meta Business Settings as well.
+
+## Turn it on
+
+Dashboard → **Apps → Meta**: turn tracking on, paste the Pixel ID and the
+token, choose the conversion event, and save. Once saved, the token is shown
+only as its last 4 characters; saving with the field empty keeps it.
+
+Through the API: `GET`, `PUT` and `DELETE /api/apps/meta`. Turning it off
+keeps the token; removing the App forgets it and every landing page's own
+pixel.
+
+## When an order counts
+
+The **conversion event** decides the moment an order becomes a conversion:
+
+| Choice | Value | Meta receives | When |
+| --- | --- | --- | --- |
+| Purchase at checkout (default) | `Purchase` | `Purchase`, from the browser and the server | When the order is placed |
+| Lead at checkout | `Lead` | `Lead`, from the browser and the server | When the order is placed |
+| Purchase at confirmation | `Purchase_Confirmed` | `Purchase`, from the server | When the order is confirmed by phone |
+| Purchase at delivery | `Purchase_Delivered` | `Purchase`, from the server | When the parcel is delivered |
+
+- **At checkout**, the browser and the server send the same event with the
+  same event ID, and Meta counts it once. It is fast to learn from, but it
+  counts orders that are later refused at the door.
+- **At confirmation or delivery**, only the server sends it, later, for orders
+  that were confirmed or delivered. Delivery counts only the cash actually
+  collected.
+- Meta refuses an event more than 7 days old. For the far southern wilayas,
+  where a delivery can take longer, a delivery conversion is sent when the
+  parcel goes out for delivery.
+
+The choice applies from the moment it is saved; events already sent stay as
+they were.
+
+## How a conversion is sent
+
+Every order change is recorded with its event in the same write, and the
+conversion is sent from it within seconds, whatever made the change: the
+storefront, the dashboard, an AI agent, a carrier's webhook or the five-minute
+carrier sync. A failed send is retried over about three days, and the Meta
+App's page lists every conversion and lets you retry one that was given up.
+Each conversion of an order is claimed once, by the delivery that sends it. If
+that delivery is retried, Meta may receive the same conversion again, and
+it removes the duplicate by its `event_id`.
+
+The ad click's cookies (`_fbc`, `_fbp`) are kept with the order when it is
+placed, so a conversion sent days later is still attributed to the ad.
+
+## What is sent
+
+- **Hashed**: phone, first and last name, email, city, postal code, country
+  and the customer's ID.
+- **As Meta requires them, unhashed**: the ad-click and browser cookies, the
+  shopper's IP address and browser.
+- **With the event**: the order's total, for a `Purchase`, and its products'
+  IDs.
+- **Never**: the address, the order notes, your ad account name.
+
+## Test mode
+
+Turn **Test mode** on with your test event code, place a test order, and the
+server's events appear in the pixel's **Test events** tab instead of your
+real data. Turn it off before you go live: while it is on, nothing counts.
+
+## Landing pages
+
+A landing page can have its own pixel. An order from that page is reported to
+that page's pixel instead of the store's.
+
+## Permissions
+
+`meta:read` to see the App and its conversions, `meta:manage` to change, turn
+off or remove it and to retry conversions.
+
+## For theme developers
+
+A theme fires the thank-you event only from what the server answers for the
+order (`orders.tracking`), never from its own rule. See
+[Money, images, WhatsApp and Meta events](/sdk/storefront/presentation).
