@@ -66,7 +66,7 @@ Then set the scripts and one override in `package.json`, and run
 The override keeps `@cloudflare/vite-plugin` at 1.53.1. Newer releases stop
 Vitest at startup ("There is already a server associated with the config")
 when the Cloudflare adapter loads through `getViteConfig`, as the tests in
-step 15 do. Theme-00 and Theme Baby carry the same pin.
+step 15 do. Theme-00 carries the same pin.
 
 The two packages move together. `@wocart/theme` 4.0.0 declares
 `@wocart/storefront` `^3.0.0` as its peer, and `@wocart/storefront` 3.0.0

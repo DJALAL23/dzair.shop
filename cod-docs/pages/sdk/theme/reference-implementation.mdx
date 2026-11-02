@@ -174,29 +174,6 @@ equivalents of at least these:
 | `home-languages-contracts.test.ts`, `packs.test.ts` | Three-language parity, and saved copy following the store's language |
 | `sdk-boundary-contracts.test.ts` | The SDKs are imported only through their entry points |
 
-## Theme Baby: a second implementation
-
-Theme Baby (`cod-astro/theme-baby`, 3.0.0) is a second first-party theme, for
-baby and kids stores, built apart from Theme-00 on the same published SDKs and
-looking nothing like it. Where the two agree, it is usually a rule; where they
-differ, it is a choice.
-
-| | Theme-00 | Theme Baby | Rule or choice |
-| --- | --- | --- | --- |
-| Page types composed | All twelve, two areas | All twelve, two areas | **Rule**: every platform page type is a surface |
-| Unreadable store | `unavailableStoreConfig` | `unavailableStoreConfig` | **Rule** |
-| WhatsApp | One binding over `whatsAppContact`, guarded | One binding over `whatsAppContact`, guarded | **Rule** |
-| Platform links | `storefrontPath`, guarded | `storefrontPath` and `localizeHref`, guarded | **Rule** |
-| Colours | Tokens derived on `.wc-scheme` | Tokens derived on `.wc-scheme`, a few fixed tokens | **Rule**: schemes; the token names are a choice |
-| Browser code | No Zod, no `/server`, only `/lifecycle` and `/messages` from `@wocart/theme` | The same, guarded on the module graph | **Rule** |
-| Where definitions live | `catalog/<family>/<type>.def.ts`, one per section | `catalog/*.ts`, grouped | Choice |
-| Catalogs | One per route (`families/`) plus the full one | One catalog | Choice |
-| Client module | `src/theme/sdk.ts` | `src/lib/store.ts` | Choice of path; one module is the rule |
-| A section's frame | Each component applies its scheme and style | Every section renders through `ui/Section.astro` | Choice |
-| Cart page | Drawer plus the `checkout` surface | A `/cart` route of the theme's own, plus the `checkout` surface | Choice |
-| Builds | Cloudflare (default) and Vercel, by `DEPLOY_TARGET` | Cloudflare (default) and Vercel, by `DEPLOY_TARGET` | **Rule**: both hosts |
-| Images | The media image service | Plain `<img>`, passthrough service | Choice; never `sharp` |
-
 ## How to read a section in Theme-00
 
 1. **Find the definition** — `src/theme/catalog/<family>/<type>.def.ts`. The

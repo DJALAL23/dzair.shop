@@ -223,9 +223,8 @@ this; Theme-00 adds a guard over its built scripts
 
 ## Guard tests: the rules as failing tests
 
-The SDK checks the contract; it cannot see a theme's source. Theme-00 and
-Theme Baby turn their rules into tests that read the theme's own files and
-fail on a break. They are worth copying as a pattern (adapt the paths to your
+The SDK checks the contract; it cannot see a theme's source. Theme-00 turns
+its rules into tests that read the theme's own files and fail on a break. They are worth copying as a pattern (adapt the paths to your
 layout):
 
 | Rule | What the guard asserts |
@@ -240,8 +239,7 @@ layout):
 | Page types | The manifest carries a surface for every platform page type |
 | Not found | Every resource route answers a missing resource with `notFound` |
 
-Theme-00's are under `src/theme/__tests__/guards/`, Theme Baby's in
-`tests/unit/guards.test.ts`. Prove each guard once by breaking the code and
+Theme-00's are under `src/theme/__tests__/guards/`. Prove each guard once by breaking the code and
 watching it fail: a guard that never fails checks nothing.
 
 ## Definition of done

@@ -49,8 +49,8 @@ URLs, as `STOREFRONT_PAGE_PATHS` in `@wocart/storefront`. A theme composes
 **each** of them as a surface with one required main section: a page type the
 theme declares no surface for cannot be composed in Studio, and its preview is
 a 404 (`previewTarget` answers `null`). The SDK accepts a theme with fewer
-surfaces; Theme-00 and Theme Baby declare all twelve, and their tests fail on
-a missing one.
+surfaces; Theme-00 declares all twelve, and its tests fail on a missing
+one.
 
 | `pageType` | Path | What the route reads and passes to its sections | Theme-00's surface and main section |
 | --- | --- | --- | --- |
