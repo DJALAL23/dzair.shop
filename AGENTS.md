@@ -162,8 +162,10 @@ A docs build fetches `/api/openapi.json` from a local cod-server, or from
   (`.dev.vars` > `wrangler.toml [vars]` > `process.env` > `.env`). Set it in
   `.dev.vars` locally and in `wrangler.toml [vars]` for production;
   `npm run deploy` refuses a bundle that contains a loopback URL.
-- `BETTER_AUTH_SECRET` and `MCP_LOGIN_TICKET_SECRET` must be identical on
-  cod-server and the dashboard.
+- `MCP_LOGIN_TICKET_SECRET` must be identical on cod-server and the
+  dashboard. `BETTER_AUTH_SECRET` is the dashboard's alone: cod-server checks
+  the dashboard's tokens against its public keys at `BETTER_AUTH_URL`, so a
+  401 on every call means `BETTER_AUTH_URL` or `WORKER_SELF_URL` is wrong.
 - The dashboard ships its own KV `secondaryStorage`
   (`src/lib/auth/server.ts`) because `better-auth-cloudflare` 0.3.1 lacks the
   `increment` its rate limiter needs; do not switch back to its `kv:`
