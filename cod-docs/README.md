@@ -48,9 +48,10 @@ Rules:
   labels, in the right group, or the other locales' sidebars break.
 - The generated API reference (`pages/sdk/*/reference/`) is English only and is
   linked from all three locales by the navigation's reference link.
-- `architecture.mdx`, `self-hosting/` and `features/` are English only for now
-  and not yet in the navigation: they wait for their French and Arabic
-  translations. Linked from the repository's README.
+- `architecture.mdx`, `self-hosting/` and `features/` are English only until
+  their French and Arabic translations. They are listed in `englishOnlyGroups`
+  in `src/i18n/navigation.ts`: the French and Arabic sidebars link to the
+  English pages, marked as English, and `check:i18n` exempts them from parity.
 
 Translation tone: natural technical French; Arabic written for Algerian
 developers, with API names kept in English where that is clearer.

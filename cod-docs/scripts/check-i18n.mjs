@@ -47,10 +47,20 @@ function headings(file) {
 
 const files = walk(pagesDir).filter((file) => /\.mdx?$/.test(file) && !file.includes(`${path.sep}reference${path.sep}`));
 const byLocale = { en: new Map(), fr: new Map(), ar: new Map() };
-const englishOnly = ["architecture", "self-hosting/", "features/"];
+const navigation = readFileSync(path.join(root, "src/i18n/navigation.ts"), "utf8");
+
+function slugsOf(constName) {
+  const start = navigation.indexOf(`const ${constName}`);
+  if (start === -1) return [];
+  const end = navigation.indexOf("\n];", start);
+  const block = navigation.slice(start, end === -1 ? undefined : end);
+  return [...block.matchAll(/slug: "([^"]*)"/g)].map((match) => match[1]);
+}
+
+const englishOnly = new Set(slugsOf("englishOnlyGroups").map((slug) => slug.replace(/^\//, "")));
 
 function isEnglishOnly(slug) {
-  return englishOnly.some((entry) => (entry.endsWith("/") ? slug.startsWith(entry) : slug === entry));
+  return englishOnly.has(slug);
 }
 
 for (const file of files) {
@@ -89,16 +99,6 @@ for (const locale of ["fr", "ar"]) {
   }
 }
 
-const navigation = readFileSync(path.join(root, "src/i18n/navigation.ts"), "utf8");
-
-function slugsOf(constName) {
-  const start = navigation.indexOf(`const ${constName}`);
-  if (start === -1) return [];
-  const end = navigation.indexOf("\n];", start);
-  const block = navigation.slice(start, end === -1 ? undefined : end);
-  return [...block.matchAll(/slug: "([^"]*)"/g)].map((match) => match[1]);
-}
-
 const sections = [
   { base: "", slugs: slugsOf("corePages") },
   { base: "/sdk/storefront", slugs: slugsOf("storefrontGroups") },
@@ -106,6 +106,12 @@ const sections = [
 ];
 
 const referenced = new Set();
+
+for (const slug of englishOnly) {
+  if (!files.some((file) => relative(file).replace(/\.mdx?$/, "") === slug)) {
+    problems.push(`src/i18n/navigation.ts: "/${slug}" has no English page (${slug}.mdx)`);
+  }
+}
 
 for (const { base, slugs } of sections) {
   for (const slug of slugs) {

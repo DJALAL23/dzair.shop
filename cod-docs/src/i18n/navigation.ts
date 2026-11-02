@@ -31,6 +31,43 @@ const coreGroup: Group = {
   pages: corePages,
 };
 
+const englishOnlyGroups: Group[] = [
+  {
+    label: { en: "Platform", fr: "Plateforme (en anglais)", ar: "المنصة (بالإنجليزية)" },
+    pages: [{ slug: "/architecture", en: "Architecture", fr: "Architecture", ar: "البنية" }],
+  },
+  {
+    label: { en: "Self-hosting", fr: "Auto-hébergement (en anglais)", ar: "الاستضافة الذاتية (بالإنجليزية)" },
+    pages: [
+      { slug: "/self-hosting/local", en: "Local setup", fr: "Installation locale", ar: "التشغيل المحلي" },
+      { slug: "/self-hosting/configuration", en: "Configuration", fr: "Configuration", ar: "الإعداد" },
+      { slug: "/self-hosting/deploy", en: "Deploy", fr: "Déploiement", ar: "النشر" },
+      { slug: "/self-hosting/media", en: "Media", fr: "Médias", ar: "الوسائط" },
+      { slug: "/self-hosting/upgrading", en: "Upgrading", fr: "Mise à niveau", ar: "الترقية" },
+      { slug: "/self-hosting/limitations", en: "Limitations", fr: "Limites", ar: "القيود" },
+    ],
+  },
+  {
+    label: { en: "Features", fr: "Fonctionnalités (en anglais)", ar: "الميزات (بالإنجليزية)" },
+    pages: [
+      { slug: "/features/cart", en: "Shopping cart", fr: "Panier", ar: "سلة التسوق" },
+      { slug: "/features/order-form", en: "Order form", fr: "Formulaire de commande", ar: "نموذج الطلب" },
+      {
+        slug: "/features/phone-verification",
+        en: "Phone verification",
+        fr: "Vérification du téléphone",
+        ar: "التحقق من الهاتف",
+      },
+      { slug: "/features/bot-protection", en: "Bot protection", fr: "Protection anti-bots", ar: "الحماية من الروبوتات" },
+      { slug: "/features/meta", en: "Meta Pixel and Conversions API", fr: "Meta Pixel et API Conversions", ar: "Meta Pixel وواجهة التحويلات" },
+      { slug: "/features/legal-pages", en: "Legal pages", fr: "Pages légales", ar: "الصفحات القانونية" },
+      { slug: "/features/email", en: "Email", fr: "E-mail", ar: "البريد الإلكتروني" },
+    ],
+  },
+];
+
+const englishOnlySlugs = new Set(englishOnlyGroups.flatMap((group) => group.pages.map((page) => page.slug)));
+
 const storefrontGroups: Group[] = [
   {
     label: { en: "Start here", fr: "Commencer ici", ar: "ابدأ من هنا" },
@@ -244,6 +281,18 @@ function fileFor(locale: LocaleCode, base: string, slug: string): string {
   return locale === "en" ? clean : `${locale}/${clean}`;
 }
 
+function englishOnlyNav(locale: LocaleCode): NavigationItem[] {
+  return englishOnlyGroups.map(
+    (group): NavigationItem => ({
+      type: "category",
+      label: group.label[locale],
+      items: group.pages.map(
+        (page): NavigationItem => ({ type: "doc", file: page.slug.replace(/^\//, ""), path: page.slug, label: page[locale] }),
+      ),
+    }),
+  );
+}
+
 function navForGroups(
   locale: LocaleCode,
   base: string,
@@ -282,10 +331,14 @@ export function localizedNavigation(pathname: string): NavigationItem[] {
   const locale = localeOf(pathname);
   const path = stripLocale(pathname).replace(/\/$/, "") || "/";
 
+  if (englishOnlySlugs.has(path)) {
+    return [...navForGroups("en", "", [coreGroup], "/api"), ...englishOnlyNav("en")];
+  }
+
   if (path === "/" || !translatedSlugs.has(path)) return [];
 
   if (corePages.some((page) => page.slug === path)) {
-    return navForGroups(locale, "", [coreGroup], "/api");
+    return [...navForGroups(locale, "", [coreGroup], "/api"), ...englishOnlyNav(locale)];
   }
 
   if (path === "/sdk/storefront" || path.startsWith("/sdk/storefront/")) {
