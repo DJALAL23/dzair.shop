@@ -1,77 +1,30 @@
-# Skills / tooling
-skills-cloudflare/
-
-# Internal planning and architecture docs
-puck/
-
-partner-server/
-partner-client/
-.github/workflows-cloud/
-codflow-main-lp/
-CLOUD_MASTER_PLAN.md
-cloud-backups/
-
-# Build artifacts
+node_modules/
+*.tsbuildinfo
 .astro/
+.vercel/
+.wrangler/
+.wrangler-shared/
+.sdk-packs/
 cod-server/dist/
 cod-client-astro/dist/
-cod-client-astro/.astro/
-.vercel/
 
-# TypeScript incremental build cache
-*.tsbuildinfo
-
-# Dependencies
-node_modules/
-
-# Environment files
 .env
 .env.local
 .env.*.local
 .dev.vars
-
-# Wrangler
-.wrangler/
-.wrangler-shared/
-# Real wrangler configs contain live resource IDs — never commit them.
-# Copy wrangler.toml.example → wrangler.toml and fill in your own IDs.
 cod-server/wrangler.toml
 cod-client-astro/wrangler.toml
 
-# OS
 .DS_Store
 Thumbs.db
-
-# Editor
 .vscode/
 .idea/
 *.swp
-
-# Local Claude Code state (per-machine)
 .claude/
 
-# Internal documentation (not for repository)
-GITHUB-GUIDE.md
-cod-server/MIGRATION_STATUS.md
-cod-server/MIGRATION_COMPLETED.md
-cod-server/OPENAPI_MIGRATION.md
-cod-server/NEXT_ENDPOINT.mdsendili.md
-partner-client-astro/
-
-# Agent skills: .agents/skills/ holds the public ones (wocart-setup and
-# wocart-update only); .agents/internal-skills/ is the maintainers' own.
+/docs/
+/wocart-sdk/
 /.agents/internal-skills/
 /.agents/skills/*
 !/.agents/skills/wocart-setup/
 !/.agents/skills/wocart-update/
-
-# The SDKs' source (@wocart/storefront, @wocart/theme): maintained privately,
-# published to npm, never committed here.
-/wocart-sdk/
-.sdk-packs/
-
-# Internal media plan: a local working document, never published.
-docs/media/PLAN.md
-
-# Internal notes: kept locally, never committed. Public docs live in cod-docs.
-/docs/
