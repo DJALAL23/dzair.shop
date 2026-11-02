@@ -16,7 +16,7 @@ description: استقبل أحداث متجرك على خادمك، موقَّع
 curl -X POST http://localhost:8787/api/event-consumers \
   -H "X-API-Key: cod_your_api_key_here" \
   -H "Content-Type: application/json" \
-  -d '{"kind":"webhook","name":"Order system","url":"https://erp.example.dz/hooks/codflow","subscription":["order.*","shipment.delivered"]}'
+  -d '{"kind":"webhook","name":"Order system","url":"https://erp.example.dz/hooks/wocart","subscription":["order.*","shipment.delivered"]}'
 ```
 
 يحتوي الرد على الـ webhook و**مفتاح التوقيع** الخاص به، `whsec_…`. لا يُعرض إلا هذه المرة: احفظه ضمن أسرار خادمك. وكل رد بعده يعرضه مُقنَّعًا.

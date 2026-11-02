@@ -16,7 +16,7 @@ Dans le tableau de bord, ouvrez **Intégrations** dans le menu latéral et chois
 curl -X POST http://localhost:8787/api/event-consumers \
   -H "X-API-Key: cod_your_api_key_here" \
   -H "Content-Type: application/json" \
-  -d '{"kind":"webhook","name":"Order system","url":"https://erp.example.dz/hooks/codflow","subscription":["order.*","shipment.delivered"]}'
+  -d '{"kind":"webhook","name":"Order system","url":"https://erp.example.dz/hooks/wocart","subscription":["order.*","shipment.delivered"]}'
 ```
 
 La réponse contient le webhook et son **secret de signature**, `whsec_…`. Il n'est affiché qu'une fois : gardez-le dans les secrets de votre serveur. Toutes les réponses suivantes l'affichent masqué.
