@@ -65,7 +65,7 @@ The system defines standardized action identifiers in `ACTIONS`:
 | **Stock** | `stock.adjusted` | Inventory adjustments across product variants. |
 | **Reviews** | `review.approved`<br>`review.rejected`<br>`review.deleted` | Customer review moderation actions. |
 | **Users / Team** | `user.created`<br>`user.updated`<br>`user.role_changed`<br>`user.scope_granted`<br>`user.scope_revoked` | Team member onboarding, role changes, and granular scope assignment. |
-| **AI / MCP** | `mcp.tool_called`<br>`mcp.tool_declined`<br>`mcp.connection_revoked` | Audit trail for remote MCP AI agent tool executions and user-declined HITL confirmations. |
+| **AI / MCP** | `mcp.tool_called`<br>`mcp.tool_declined`<br>`mcp.connection_revoked` | Audit trail for remote MCP AI agent tool executions and revoked connections. `mcp.tool_declined` appears only on rows recorded by an older version. |
 
 ---
 

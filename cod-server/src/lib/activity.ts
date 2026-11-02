@@ -119,9 +119,9 @@ export const ACTIONS = {
   USER_SCOPE_GRANTED:      "user.scope_granted",
   USER_SCOPE_REVOKED:      "user.scope_revoked",
 
-  // MCP — one row per remote MCP tool call (success or failure),
-  // plus one row for user-declined HITL elicitations. Lets ops audit
-  // exactly what each AI agent did, and when it was told "no".
+  // MCP — one row per remote MCP tool call (success or failure). Lets ops
+  // audit exactly what each AI agent did. `mcp.tool_declined` is no longer
+  // written (the client confirms, not the server); it stays for older rows.
   MCP_TOOL_CALLED:         "mcp.tool_called",
   MCP_TOOL_DECLINED:       "mcp.tool_declined",
   /** User or admin revoked an MCP client's access from the /mcp page. */

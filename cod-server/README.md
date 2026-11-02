@@ -189,8 +189,8 @@ Public routes: `/`, `/health`, `/images`, `/api` (OpenAPI spec + docs),
 manage the store, fronted by `@cloudflare/workers-oauth-provider` (discovery,
 dynamic client registration, tokens, revocation; state in `OAUTH_KV`). The
 dashboard's sign-in sessions mint the access tokens via the login-ticket relay
-(`/authorize`), and dangerous tools require HMAC-sealed stateless
-confirmation. The tool factories are gated by RBAC scopes.
+(`/authorize`), and destructive tools are labelled so the client asks the
+merchant before running them. The tool factories are gated by RBAC scopes.
 
 ### Meta conversions
 Meta conversions are a Consumer of Business Events (`src/events/consumers/meta-capi.ts`):

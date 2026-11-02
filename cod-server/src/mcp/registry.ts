@@ -152,8 +152,8 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // ─── Driver payments ──────────────────────────────────────────────────────
   // Scope semantics match the REST routes: list + pending-settlements reads
   // require delivery:read; the risky `createDriverSettlement` write requires
-  // delivery:manage and gets an extra HITL elicitation gate — wired in
-  // MCP-11 via the DANGEROUS_TOOLS set.
+  // delivery:manage and is in DANGEROUS_TOOLS, so the client asks the
+  // merchant before running it.
   {
     requires: [SCOPES.DELIVERY_READ],
     build: (db, _env, props) => pick(getDriverPaymentTools(db, props), [
