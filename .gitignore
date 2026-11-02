@@ -58,8 +58,9 @@ cod-server/OPENAPI_MIGRATION.md
 cod-server/NEXT_ENDPOINT.mdsendili.md
 partner-client-astro/
 
-# Agent skills: only wocart-setup and wocart-update are public; the rest are
-# the maintainers' own, kept locally.
+# Agent skills: .agents/skills/ holds the public ones (wocart-setup and
+# wocart-update only); .agents/internal-skills/ is the maintainers' own.
+/.agents/internal-skills/
 /.agents/skills/*
 !/.agents/skills/wocart-setup/
 !/.agents/skills/wocart-update/

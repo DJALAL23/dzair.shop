@@ -185,9 +185,7 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   which only binds the SDK formatter to the theme's locale/symbol choice; no
   other file calls `toLocaleString`, re-derives a default variant, or hardcodes
   a stock threshold.
-  `src/theme/__tests__/guards/product-zero.test.ts` guards all of it, and
-  `docs/history/PRODUCT_ZERO_AUDIT.md` holds the platform-vs-theme classification
-  of every surface — update that document when a boundary moves.
+  `src/theme/__tests__/guards/product-zero.test.ts` guards all of it.
 - **The home document is the store's saved one, or the shipped default
   (Phase 6, 2026-10-01).** `index.astro` reads `store.pageData.get("home")`
   and hands the result to `src/theme/pages/home-document.ts`

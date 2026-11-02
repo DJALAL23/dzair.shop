@@ -30,7 +30,7 @@ Reusable UI components organized by feature:
 - `CustomerTestimonials.astro` - Review cards (receives `products` + `enabled`; fetches its own review pages)
 
 Home sections are presentational: `src/pages/index.astro` owns the single
-catalog/category read. See `docs/history/PRODUCT_ZERO_AUDIT.md` §3.
+catalog/category read.
 
 #### `listing/`
 - `ListingMain.astro` - The listing template's section: all products, a category or a collection (`catalog/listing/listing-main.def.ts`)
@@ -200,8 +200,6 @@ import { resolveContent, type StoreFrontContent } from "@/theme/content";
 
 - See `src/theme/sdk.ts` + `src/theme/utils/images.ts` for the platform seams
   (extend the SDK, never re-implement it in the theme)
-- See `docs/history/PRODUCT_ZERO_AUDIT.md` for the
-  platform/theme/config/content boundaries and the P0/P1 plan
 - See `THEME_GUIDE.md` (package root) for the design system and hard rules
 - See `CONTENT_KEYS_REFERENCE.md` (package root) for every content key
 - See `CONTRIBUTING.md` (repo root) for repo-wide conventions

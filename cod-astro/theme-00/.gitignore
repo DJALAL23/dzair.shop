@@ -11,3 +11,6 @@ node_modules/
 
 # Design tool state (local, not product code)
 .impeccable/
+
+# Private notes live in the repository root /docs/, never here.
+/docs/

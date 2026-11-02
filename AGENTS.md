@@ -316,8 +316,9 @@ Two agent skills ship with the repository, in `.agents/skills/`:
 | `wocart-setup` | Setting up a self-hosted store (Cloudflare + Vercel) |
 | `wocart-update` | Updating a self-hosted store to the latest code |
 
-Maintainers may keep further skills of their own in `.agents/skills/`; they are
+Maintainers keep their own skills in `.agents/internal-skills/`, which is
 gitignored and never committed. Use one when it is present and fits the task.
+Only `wocart-setup` and `wocart-update` belong in `.agents/skills/`.
 
 ### Endpoints
 

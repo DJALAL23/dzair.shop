@@ -125,7 +125,7 @@ inventory.
   legacy `src/core/` engine is deleted and the deletion is guarded by
   `src/theme/__tests__/guards/sdk-boundary.test.ts`.
 - **Product Zero pass (2026-09-30):** the architecture audit + P0 refactor
-  landed — see [`PRODUCT_ZERO_AUDIT.md`](./docs/history/PRODUCT_ZERO_AUDIT.md).
+  landed.
   The homepage owns its data graph (one catalog read, presentational sections),
   money and the commerce view each have one module, typed props replaced every
   `any`, dead components are deleted, and the four boundaries
@@ -162,8 +162,7 @@ inventory.
   [`21-phase-6-page-data-foundation-report.md`](../../cod-sdk/theme-sdk/21-phase-6-page-data-foundation-report.md).
 - **Design + report:** the SDK, the theme contract and the page-data foundation
   are recorded under [`cod-sdk/theme-sdk/`](../../cod-sdk/theme-sdk/) (slices
-  15/16 home adsorption, 19/20/21 page data); the Product Zero boundaries in
-  [`PRODUCT_ZERO_AUDIT.md`](./docs/history/PRODUCT_ZERO_AUDIT.md).
+  15/16 home adsorption, 19/20/21 page data).
 
 ## Deployment
 
@@ -180,5 +179,4 @@ not a local `wrangler deploy`.
 - **[`src/theme/sdk.ts`](./src/theme/sdk.ts)** — the one platform read seam (SDK client factory)
 - **[`src/theme/utils/images.ts`](./src/theme/utils/images.ts)** — the image-URL binding (SDK helpers at the store's `config.media`)
 - **[`src/theme/README.md`](./src/theme/README.md)** — customizing the theme layer
-- **[`docs/history/`](./docs/history/)** — archived migration history and audits ([`PRODUCT_ZERO_AUDIT.md`](./docs/history/PRODUCT_ZERO_AUDIT.md), [`THEME_ZERO_PLAN.md`](./docs/history/THEME_ZERO_PLAN.md), [`PRODUCT_VIEW_BOUNDARY_ANALYSIS.md`](./docs/history/PRODUCT_VIEW_BOUNDARY_ANALYSIS.md))
 - **[`wocart-sdk/storefront/USAGE.md`](../../wocart-sdk/storefront/USAGE.md)** — what the SDK promises a theme author

@@ -313,9 +313,7 @@ src/theme/
 > definitions live in `catalog/`. Screen-value projections come directly from
 > `@wocart/storefront` (`getProductView`, `getProductListView`, and
 > `getOfferTierView`). `utils/money.ts` only binds the SDK money formatter to
-> this theme's locale and symbol choice. The platform-vs-theme classification,
-> with evidence, is in
-> [`PRODUCT_ZERO_AUDIT.md`](./docs/history/PRODUCT_ZERO_AUDIT.md).
+> this theme's locale and symbol choice.
 
 ---
 
@@ -587,7 +585,6 @@ A page is done when:
   existing `*.def.ts`, then register it in `theme.ts`.
 - **Need the platform contract?** `wocart-sdk/storefront/USAGE.md` and the SDK's
   shipped types.
-- **Need the boundaries?** [`PRODUCT_ZERO_AUDIT.md`](./docs/history/PRODUCT_ZERO_AUDIT.md).
 
 ## 15. What "improving the theme" looks like
 
