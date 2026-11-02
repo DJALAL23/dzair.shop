@@ -1,0 +1,136 @@
+---
+description: Every file, binding, variable and secret the Wocart API server, dashboard and storefront read, and where each one is set.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Configuration
+
+Every value lives in one of four places. Each file has an `.example` beside
+it in the repository: copy it, then change what this page says to change.
+
+| File | Holds | Committed? |
+| --- | --- | --- |
+| `.env` (repository root) | Resource names the setup and deploy scripts use | No |
+| `cod-server/wrangler.toml` | The API server's bindings and variables | No: it holds your resource IDs |
+| `cod-client-astro/wrangler.toml` | The dashboard's bindings and variables | No |
+| `.dev.vars` (in each application) | Secrets for local development | No |
+
+Deployed, a secret is never in a file: it is set with
+`wrangler secret put <NAME>` and read by the Worker at runtime.
+
+Store settings (payments, carriers, Meta, verification) are **not**
+configuration: a merchant sets them in the dashboard, and they are kept in
+the store's database.
+
+## Root `.env`
+
+Read by the database scripts, the media bucket setup and the storefront's
+deploy script. A value in the environment wins over the file, and the file
+wins over the default.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `COD_ACCOUNT_ID` | none | Your Cloudflare account ID |
+| `COD_DB_NAME` | `codflow-os-db` | The D1 database's name: the same as `database_name` in both `wrangler.toml` files |
+| `COD_R2_BUCKET_NAME` | `codflow-images` | The R2 bucket's name |
+| `COD_SERVER_URL` | `http://localhost:8787` | The deployed API's origin, which the storefront calls. The storefront's deploy refuses a `localhost` value |
+
+## API server
+
+### Bindings
+
+| Binding | Type | Required | What it is for |
+| --- | --- | --- | --- |
+| `DB` | D1 | Yes | The store's database (`migrations_dir = "src/db/migrations"`) |
+| `MEDIA_BUCKET` | R2 | Yes | Uploads waiting to be prepared, and the store's files when they are kept on R2 |
+| `OAUTH_KV` | KV | Yes | AI-agent sign-in: clients, grants and tokens |
+| `RATE_LIMIT` | KV | Recommended | Rate limits on verification codes and on AI-agent calls |
+| `IMAGE_TRANSFORM` | Images | Recommended | Re-encodes uploaded photos to WebP, which drops their location data. Without it, an uploaded photo is never kept |
+| `EVENTS_QUEUE` | Queue (producer and consumer) | Yes | Wakes the delivery of events and the carriers' webhook inbox |
+| `LP_IMAGE_UPLOAD_WORKFLOW` | Workflow | Yes | Prepares images an AI agent adds to a landing page |
+| `REVIEW_MEDIA_WORKFLOW` | Workflow | For review media | Prepares a review's photos and voice note |
+| `CAPI_WORKFLOW` | Workflow | Yes, for now | Lets conversions started by an older release finish |
+| `REVIEW_RATE_LIMITER` | Rate limit | Recommended | Review attempts per order number |
+
+The server also needs both scheduled triggers:
+
+```toml
+[triggers]
+crons = ["0 * * * *", "*/5 * * * *"]
+```
+
+<Callout type="caution" title="Production bindings are not inherited">
+In Wrangler, a binding declared at the top of `wrangler.toml` does not reach
+`[env.production]`. The example declares every binding twice; keep both lists
+complete, or a production deploy ships without the missing one.
+</Callout>
+
+### Variables
+
+| Variable | Example | Meaning |
+| --- | --- | --- |
+| `ENVIRONMENT` | `production` | `development` locally |
+| `WORKER_URL` | `https://api.yourdomain.com` | The server's public URL |
+| `WORKER_SELF_URL` | `https://api.yourdomain.com/` | The server's own origin: AI-agent tokens must be issued for it, and Telegram calls it back |
+| `BETTER_AUTH_URL` | `https://dashboard.yourdomain.com/api/auth` | Where the dashboard signs users in; the server checks the dashboard's tokens against it |
+| `ALLOWED_ORIGINS` | `https://dashboard.yourdomain.com,https://shop.yourdomain.com` | Origins allowed to call the API from a browser, comma-separated. `*` locally |
+| `STOREFRONT_URL` | `https://shop.yourdomain.com` | Optional: the storefront's address for landing-page links, until the merchant sets the store's domain |
+| `MEDIA_HOST`, `MEDIA_DELIVERY`, `MEDIA_ORIGIN`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_FOLDER` | | Where files are kept and served: [Media](/self-hosting/media) |
+| `TELEGRAM_UPDATES_ORIGIN` | `https://<name>.trycloudflare.com` | Optional, local only: a tunnel Telegram can reach |
+
+### Secrets
+
+| Secret | Required | Meaning |
+| --- | --- | --- |
+| `MCP_LOGIN_TICKET_SECRET` | For AI agents | At least 32 bytes. **The same value** as the dashboard's. Without it, AI-agent sign-in is refused |
+| `REVIEW_UPLOAD_SECRET` | For review media | At least 32 bytes. Without it, reviews are text only |
+| `IMAGEKIT_PRIVATE_KEY` | With ImageKit | ImageKit's private key |
+
+Generate a value with `openssl rand -hex 32`.
+
+## Dashboard
+
+### Bindings and variables
+
+| Name | Meaning |
+| --- | --- |
+| `DB` | The **same** D1 database as the API server: users and their sessions live there |
+| `RATE_LIMIT_KV` | Sign-in rate limits and sessions: a KV namespace of its own |
+| `PUBLIC_APP_URL` | The dashboard's own URL |
+| `PUBLIC_API_URL` | The API server's origin, which the browser calls |
+| `PUBLIC_TRUSTED_ORIGINS` | Every origin the dashboard is opened from, comma-separated: its `workers.dev` address and its custom domain. A missing one answers `403 INVALID_ORIGIN` on sign-in |
+
+`PUBLIC_API_URL` is written into the browser code when the dashboard is
+built, so changing it needs a rebuild. Locally it comes from `.dev.vars`;
+deployed, from `wrangler.toml`. A value in `.env` is ignored: `.dev.vars`
+outranks it. `npm run deploy` sets `.dev.vars` aside while it builds and
+refuses to upload a dashboard that still calls `localhost`.
+
+### Secrets
+
+| Secret | Meaning |
+| --- | --- |
+| `BETTER_AUTH_SECRET` | The sign-in secret. Set it once and keep it |
+| `MCP_LOGIN_TICKET_SECRET` | The same value as the API server's |
+
+## Storefront
+
+Theme-00 reads three values, the same on Cloudflare and on Vercel:
+
+| Name | Kind | Meaning |
+| --- | --- | --- |
+| `COD_SERVER_URL` | Variable | The API's origin. Its deploy script takes it from the root `.env` |
+| `STORE_API_KEY` | Secret | The store's API key, as it was given to `db:seed:remote` |
+| `WOCART_PREVIEW_KEY` | Secret, optional | The public key that checks preview tokens; without it, preview is off |
+
+Locally all three are in `cod-astro/theme-00/.dev.vars`.
+
+## The store API key
+
+The store API key is created by the database setup, which keeps only its
+hash. The storefront holds the key itself. Locally, both use the default in
+`cod-astro/theme-00/.dev.vars.example`. Deployed, choose one
+(`openssl rand -hex 32`), give it to `db:seed:remote` as `STORE_API_KEY`, and
+set the same value as the storefront's secret. The API server does not need
+it.

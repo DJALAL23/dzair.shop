@@ -1,0 +1,170 @@
+---
+description: Deploy your own Wocart store to Cloudflare — resources, configuration, database, the three Workers, domains and checks.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Deploy to Cloudflare
+
+This page deploys one store: the API server, the dashboard and the storefront,
+each a Cloudflare Worker, sharing one D1 database. It assumes you have
+[run Wocart locally](/self-hosting/local) from the same checkout.
+
+<Callout type="info" title="What you need">
+A Cloudflare account with R2 enabled, a domain on Cloudflare for the API
+(see [Domains](#5-domains)), and Wrangler signed in: `npx wrangler login`.
+</Callout>
+
+## 1. Create the resources
+
+Choose your own names. Every installation gets new resources: never reuse
+another project's.
+
+```bash
+npx wrangler d1 create mystore-db
+npx wrangler r2 bucket create mystore-media
+npx wrangler kv namespace create RATE_LIMIT
+npx wrangler kv namespace create OAUTH_KV
+npx wrangler kv namespace create DASHBOARD_RATE_LIMIT
+npx wrangler queues create mystore-events
+```
+
+Keep the IDs each command prints. Then put the names in the root `.env`:
+
+```bash title=".env"
+COD_ACCOUNT_ID=<your account id>
+COD_DB_NAME=mystore-db
+COD_R2_BUCKET_NAME=mystore-media
+COD_SERVER_URL=https://api.yourdomain.com
+```
+
+## 2. Configure the API server
+
+In `cod-server/wrangler.toml`, the `[env.production]` section is what a
+production deploy reads. Fill in:
+
+- the D1 `database_name` and `database_id`, the bucket name, both KV IDs and
+  the queue name, in the production bindings;
+- the production variables: `WORKER_URL`, `WORKER_SELF_URL`, `BETTER_AUTH_URL`,
+  `ALLOWED_ORIGINS`, `STOREFRONT_URL`, and the media settings
+  ([Media](/self-hosting/media)).
+
+[Configuration](/self-hosting/configuration#api-server) explains each value.
+Check that no placeholder is left:
+
+```bash
+grep -n "00000000" cod-server/wrangler.toml cod-client-astro/wrangler.toml
+```
+
+It must print nothing.
+
+## 3. Create the database and the store
+
+```bash
+cd cod-server
+npm run db:migrate:remote
+STORE_API_KEY=<a new store key> npm run db:seed:remote
+```
+
+`db:migrate:remote` applies every migration to the deployed database: sign-in
+fails until it has run. `db:seed:remote` creates the store, its API key (it
+keeps only its hash), menus, default collections, legal pages and a shipping
+profile; running it again changes nothing the store has. Generate the key with
+`openssl rand -hex 32` and keep it for the storefront (step 4).
+
+Then clear uploads that were never prepared, once for the bucket:
+
+```bash
+npm run r2:lifecycle
+```
+
+## 4. Deploy the three Workers
+
+**The API server:**
+
+```bash
+cd cod-server
+npm run deploy -- --env production
+npx wrangler secret put MCP_LOGIN_TICKET_SECRET --env production
+npx wrangler secret put REVIEW_UPLOAD_SECRET --env production
+npx wrangler secret put IMAGEKIT_PRIVATE_KEY --env production   # with ImageKit
+```
+
+**The dashboard.** In `cod-client-astro/wrangler.toml`, set the same D1
+database, the `DASHBOARD_RATE_LIMIT` namespace's ID as `RATE_LIMIT_KV`, and
+`PUBLIC_APP_URL`, `PUBLIC_API_URL`, `PUBLIC_TRUSTED_ORIGINS`. Then:
+
+```bash
+cd cod-client-astro
+npm run deploy
+npx wrangler secret put BETTER_AUTH_SECRET
+npx wrangler secret put MCP_LOGIN_TICKET_SECRET      # the same value as the API server's
+ADMIN_EMAIL=you@yourdomain.com ADMIN_NAME=You npm run seed:admin:remote
+```
+
+`seed:admin:remote` creates your account locally and in the deployed
+database, and prints its password and a merchant API key once.
+
+**The storefront.** Theme-00's deploy takes `COD_SERVER_URL` from the root
+`.env` and refuses a `localhost` value:
+
+```bash
+cd cod-astro/theme-00
+npm run deploy
+npx wrangler secret put STORE_API_KEY    # the key you gave db:seed:remote
+```
+
+Theme-00 also builds for Vercel (`npm run build:vercel`) with the same three
+values; see [Production and upgrades](/sdk/theme/production) for a theme of
+your own.
+
+## 5. Domains
+
+<Callout type="caution" title="The API needs a custom domain">
+Cloudflare blocks a Worker on `*.workers.dev` from calling another
+`*.workers.dev` Worker (error 1042), so a storefront on `workers.dev` cannot
+reach an API on `workers.dev`. Put at least the API on your own domain.
+</Callout>
+
+In the Cloudflare dashboard, open each Worker, then **Settings → Domains &
+Routes → Add → Custom domain**: for example `api.yourdomain.com`,
+`dashboard.yourdomain.com` and `shop.yourdomain.com`.
+
+Once the domains are live, make every URL match them, and redeploy what
+changed:
+
+| Where | Values |
+| --- | --- |
+| `cod-server/wrangler.toml` | `WORKER_URL`, `WORKER_SELF_URL`, `BETTER_AUTH_URL`, `ALLOWED_ORIGINS`, `STOREFRONT_URL` |
+| `cod-client-astro/wrangler.toml` | `PUBLIC_APP_URL`, `PUBLIC_API_URL`, `PUBLIC_TRUSTED_ORIGINS`. A changed `PUBLIC_API_URL` needs `npm run deploy`, which rebuilds |
+| Root `.env` | `COD_SERVER_URL`, then the storefront's `npm run deploy` |
+
+## 6. Check it
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://api.yourdomain.com/api/docs   # 200
+```
+
+Then sign in to the dashboard, open the storefront, and place a test order:
+it appears in the dashboard's orders.
+
+## When something fails
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Sign-in answers 500 | The deployed database is not migrated | `npm run db:migrate:remote` in `cod-server` |
+| Sign-in answers `403 INVALID_ORIGIN` | The dashboard's address is not in `PUBLIC_TRUSTED_ORIGINS` | Add it, then `npm run deploy` |
+| Signed in, but every screen fails with 401 | The API server does not accept the dashboard's tokens | `BETTER_AUTH_URL` must be the dashboard's `/api/auth` address, and `WORKER_SELF_URL` the API's own origin |
+| The storefront shows an empty, unavailable store | It cannot read the API | `COD_SERVER_URL` must be the API's public domain, and `STORE_API_KEY` the key given to `db:seed:remote` |
+| Image uploads fail | Media is not configured | The error code names what is missing: [Media](/self-hosting/media#when-uploads-fail) |
+| Anything else | | `npx wrangler tail <worker-name>` shows the Worker's errors while you retry |
+
+## Keep it running
+
+- **Logs**: `npx wrangler tail <worker-name>`, or the Worker's **Logs** tab.
+- **Roll back** a Worker: `npx wrangler rollback`. A rollback does not undo a
+  migration, which is why a release keeps working on the database the
+  previous one left.
+- **Back up** the database before an upgrade:
+  `npx wrangler d1 export <database> --remote --output backup.sql`.
+- **Upgrade** with [Upgrading](/self-hosting/upgrading).

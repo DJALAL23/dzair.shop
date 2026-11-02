@@ -1,0 +1,94 @@
+---
+description: What Wocart is made of, where each part runs, and how an order travels from the storefront to a delivery.
+---
+
+# Architecture
+
+Wocart is three applications on Cloudflare Workers, sharing one D1 database:
+
+```text
+Storefront (Astro) ──/store/*──▶ API server (Hono) ◀──/api/*── Dashboard (Astro)
+                                   │      │
+                    carriers ──/webhooks  └──▶ Meta Conversions API, your webhooks, Telegram
+                                   │
+                    D1 (data) · R2 (uploads) · KV (rate limits, AI-agent sign-in) · a queue
+```
+
+| Application | Folder | What it does | Runs on |
+| --- | --- | --- | --- |
+| API server | `cod-server` | Every rule: orders, prices, delivery, carriers, events. The merchant API (`/api/*`), the storefront API (`/store/*`), carrier callbacks (`/webhooks/*`), media (`/media/*`) and the MCP server (`/mcp`) | Cloudflare Workers, D1, R2, KV, Queues, Workflows |
+| Dashboard | `cod-client-astro` | The merchant's back office. Its pages are static; a small Worker handles sign-in | Cloudflare Workers |
+| Storefront | `cod-astro/theme-00` | The shop shoppers see, rendered per request | Cloudflare Workers or Vercel |
+
+A fourth folder, `cod-shared`, holds the database schema, permissions and
+error codes the other three import. It is not deployed on its own.
+
+## Who talks to whom
+
+- **The storefront** reads the store through `/store/*` with the store's API
+  key, on the server. It never touches the database, and the key never
+  reaches a shopper's browser. Themes are built on the
+  [Storefront SDK](/sdk/storefront) and the [Theme SDK](/sdk/theme).
+- **The dashboard** signs a user in and gives the browser a short-lived token;
+  every screen then calls `/api/*` with it. Permissions are checked by the API
+  server, never by the dashboard.
+- **Your own code** calls `/api/*` with a merchant API key
+  ([Authentication](/authentication)).
+- **AI agents** connect to `/mcp` through OAuth and act with the signed-in
+  user's permissions ([MCP server](/mcp)).
+
+## An order's life
+
+1. **Placed.** The shopper's order reaches `POST /store/orders`. The server
+   prices every line from the catalog; a browser's price is never trusted.
+   The order is `new`.
+2. **Processed.** The merchant confirms it by phone and prepares it:
+   `new → confirmed → preparing → ready`, or `unreachable`, or `cancelled`
+   (`PATCH /api/orders/{id}/status`).
+3. **Handed off.** A ready order gets one **shipment**, to a carrier or to the
+   store's own driver (`POST /api/orders/{id}/shipment`). A carrier is called
+   once per order; when its answer is lost, the parcel is looked up, never
+   sent twice.
+4. **Delivered.** The shipment follows the carrier:
+   - Yalidine and ZR Express call `/webhooks/*` on every change;
+   - NOEST, Guepex and the EcoTrack couriers are checked every five minutes,
+     and on demand;
+   - a driver's progress is reported from the dashboard.
+
+   Delivery, a return and a refusal at the door each happen once, with their
+   effects: stock back, the customer's spend, the driver's cash.
+
+An order's status is its processing only; everything about the delivery lives
+on its shipment.
+
+## Events
+
+Every change to an order or a shipment records a **business event**
+(`order.created`, `order.confirmed`, `shipment.delivered`, …) in the same
+database write as the change itself: the change and its event are saved
+together or not at all. The server then delivers each event to whoever
+subscribed, and retries a delivery that fails:
+
+- **Meta**, as a conversion ([Meta Pixel and Conversions API](/features/meta));
+- **your webhooks**, signed and retried for about three days ([Webhooks](/webhooks));
+- **Telegram**, as a message to the merchant's own bot.
+
+A queue wakes the delivery at once; a five-minute schedule catches anything
+left. A failed delivery is retried and can be replayed from the dashboard.
+
+## Background work
+
+| Schedule | What it does |
+| --- | --- |
+| Every five minutes | Delivers events, processes the carriers' webhook inbox, checks the carriers that send no webhooks |
+| Every hour | Marks checkouts left unfinished for more than 30 minutes as abandoned |
+
+Photos uploaded with a review or by an AI agent are prepared in the
+background (Cloudflare Workflows), after the answer.
+
+## Data
+
+Everything a store has lives in its own D1 database: catalog, orders,
+shipments, customers, settings, translations, events. Files are kept on the
+store's media host, ImageKit or R2 ([Media](/self-hosting/media)); the
+database holds only their keys. Nothing is shared between stores.

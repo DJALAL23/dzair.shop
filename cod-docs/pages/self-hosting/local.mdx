@@ -1,0 +1,131 @@
+---
+description: Run the Wocart API server, dashboard and storefront on your machine, with a local database and no Cloudflare resources.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Run Wocart locally
+
+Locally, everything runs on Cloudflare's local runtime: the database, the
+media bucket and the key-value stores are files on your machine. You need no
+Cloudflare resources until you [deploy](/self-hosting/deploy).
+
+<Callout type="info" title="What you need">
+Node 22.12 or newer, npm, and git.
+</Callout>
+
+## 1. Clone and install
+
+```bash
+git clone https://github.com/bighadj22/codflow.git
+cd codflow
+npm ci
+```
+
+One install at the root covers the API server, the dashboard and the shared
+code. The storefront has its own install (step 3).
+
+## 2. Copy the configuration
+
+Each application ships an example of every file it reads. Copy them:
+
+```bash
+cp .env.example .env
+
+cd cod-server
+cp wrangler.toml.example wrangler.toml
+cp .dev.vars.example .dev.vars
+
+cd ../cod-client-astro
+cp wrangler.toml.example wrangler.toml
+cp .dev.vars.example .dev.vars
+```
+
+Then set three values:
+
+| File | Value |
+| --- | --- |
+| `cod-client-astro/wrangler.toml` | `database_id`: the same value as in `cod-server/wrangler.toml`, so both read the same database |
+| `cod-client-astro/.dev.vars` | `BETTER_AUTH_SECRET`: any long random value (`openssl rand -hex 32`) |
+| `cod-client-astro/.dev.vars` | `PUBLIC_API_URL=http://localhost:8787` |
+
+Everything else works as shipped. [Configuration](/self-hosting/configuration)
+lists every value.
+
+## 3. Set up the storefront
+
+```bash
+cd ../cod-astro/theme-00
+npm ci
+cp .dev.vars.example .dev.vars
+```
+
+The example already holds the local store key the database setup creates in
+the next step, and the local API's address.
+
+## 4. Create the database and the admin
+
+```bash
+cd ../../cod-server
+npm run db:setup:local
+
+cd ../cod-client-astro
+ADMIN_EMAIL=you@example.com ADMIN_NAME=You npm run seed:admin
+```
+
+`db:setup:local` applies every migration and creates the store: its API key,
+menus, default collections, legal pages and a shipping profile.
+`seed:admin` creates your dashboard account and prints its password and a
+merchant API key. **Save them: they are shown once.**
+
+Running `db:setup:local` again changes nothing the store already has.
+Running `seed:admin` again for the same email gives that account a new
+password and a new API key: use it when you lose them.
+
+## 5. Start the three applications
+
+Run each in its own terminal:
+
+```bash
+cd cod-server && npm run dev                      # API on http://localhost:8787
+cd cod-client-astro && npm run dev                # dashboard on http://localhost:4321
+cd cod-astro/theme-00 && npm run dev -- --port 4322   # storefront on http://localhost:4322
+```
+
+The dashboard and the storefront both default to port 4321, so one of them
+takes another port.
+
+Sign in to the dashboard with the account from step 4. The API reference
+is served by the server at `http://localhost:8787/api/docs`.
+
+## The local data
+
+The API server and the dashboard share one local database, kept in
+`.wrangler-shared/` at the repository root. Delete that folder to start over,
+then run step 4 again.
+
+<Callout type="caution" title="Sign-in fails on a fresh checkout">
+The database was not set up. Run `npm run db:setup:local` in `cod-server`,
+then `npm run seed:admin` in `cod-client-astro`.
+</Callout>
+
+## Optional services
+
+Each of these is off until you configure it, and the store works without it:
+
+| Service | Locally |
+| --- | --- |
+| Media on ImageKit | Images are kept in the local bucket and served by the API at `/media/<key>`. To use ImageKit, see [Media](/self-hosting/media) |
+| AI agents (MCP) | Set the same `MCP_LOGIN_TICKET_SECRET` in both `.dev.vars` files |
+| Review photos and voice notes | Set `REVIEW_UPLOAD_SECRET` in `cod-server/.dev.vars`; without it reviews are text only |
+| Telegram | Telegram cannot call `localhost`: put a tunnel's https origin in `TELEGRAM_UPDATES_ORIGIN` |
+
+## Run the tests
+
+```bash
+cd cod-server && npm run typecheck && npm test
+cd cod-client-astro && npm run typecheck && npm test
+npm run verify:sdks    # at the root: the SDKs, and the storefront built against them
+```
+
+The tests need no network and no credentials.

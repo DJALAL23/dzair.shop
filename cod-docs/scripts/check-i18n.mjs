@@ -47,10 +47,17 @@ function headings(file) {
 
 const files = walk(pagesDir).filter((file) => /\.mdx?$/.test(file) && !file.includes(`${path.sep}reference${path.sep}`));
 const byLocale = { en: new Map(), fr: new Map(), ar: new Map() };
+const englishOnly = ["architecture", "self-hosting/", "features/"];
+
+function isEnglishOnly(slug) {
+  return englishOnly.some((entry) => (entry.endsWith("/") ? slug.startsWith(entry) : slug === entry));
+}
 
 for (const file of files) {
   const rel = relative(file);
-  byLocale[localeOf(rel)].set(stripLocale(rel).replace(/\.mdx?$/, ""), file);
+  const slug = stripLocale(rel).replace(/\.mdx?$/, "");
+  if (localeOf(rel) === "en" && isEnglishOnly(slug)) continue;
+  byLocale[localeOf(rel)].set(slug, file);
 }
 
 for (const [slug, englishFile] of byLocale.en) {

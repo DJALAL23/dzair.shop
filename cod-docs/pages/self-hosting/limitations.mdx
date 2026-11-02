@@ -1,0 +1,62 @@
+---
+description: What Wocart does not do yet, what has not been proven against live services, and the platform limits a self-hosted store runs into.
+---
+
+# Known limitations
+
+## Cloudflare
+
+- **Workers on `workers.dev` cannot call each other** (error 1042). Put at
+  least the API server on a custom domain ([Deploy](/self-hosting/deploy#5-domains)).
+- **A D1 database lives in one region**, and has Cloudflare's size limits per
+  database. Check Cloudflare's current D1 limits for your plan.
+
+## Carriers
+
+Every carrier integration is tested against the carriers' recorded answers,
+and the handoff, sync and webhook paths run end to end on a real database.
+
+- **EcoTrack couriers**: verified live on an EcoTrack test account — home and
+  stop-desk parcels, bulk creation, edits, notes, labels, validation,
+  cancelling, history and status sync. Not yet seen live: a parcel delivered,
+  refused or returned, so returns are verified only against EcoTrack's
+  documented API.
+- **The 2019 wilayas (49–58)**: Wocart's commune list still files their
+  communes under their former wilaya, and each new wilaya holds only its
+  capital. Carriers on the 58-wilaya split (EcoTrack, Yalidine) refuse a
+  parcel to such a commune — about 60 of them. About 110 more communes are
+  spelled too differently from EcoTrack's list to be matched; **Sync delivery
+  zones** on the company lists them.
+- **ZR Express** lets a company rename its states; a name ZR's standard
+  workflow does not know is recorded as an unknown status until the merchant
+  maps it in the company's settings.
+- **NOEST, Guepex and the EcoTrack couriers** send no webhooks. They are
+  checked every five minutes: up to 20 open parcels per company per run, each
+  at most every 30 minutes, and at once with **Sync**.
+- **Carrier payouts** (a carrier paying the merchant the cash it collected)
+  are kept but not reconciled.
+
+## Orders and shipments
+
+- An order has at most one shipment. Shipping it again means voiding the
+  first, which is possible only before it is out for delivery or after the
+  carrier cancelled it.
+- Handing off in bulk takes up to 100 orders at a time.
+
+## Meta, webhooks and Telegram
+
+These deliver through the same tested event engine, but have not yet run
+against real Meta pixels, merchants' own systems or merchants' bots in
+production.
+
+- **Meta**: an order from a store with no domain set is sent without its page
+  address (`event_source_url`).
+- **Webhooks**: an endpoint is refused when it is not https, carries
+  credentials or names a private address — judged by its name, not by what
+  it resolves to. Attempts run one after another, each up to 15 seconds, so
+  many slow endpoints delay the others until the next run.
+- **Telegram**: one private chat per store; groups and channels are not
+  supported. Telegram allows about one message a second to a chat, so a burst
+  (a carrier sync delivering twenty parcels) may be retried a few minutes
+  later. Changing bots leaves the old bot's webhook set; its updates are
+  refused.

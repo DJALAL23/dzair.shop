@@ -48,6 +48,9 @@ Rules:
   labels, in the right group, or the other locales' sidebars break.
 - The generated API reference (`pages/sdk/*/reference/`) is English only and is
   linked from all three locales by the navigation's reference link.
+- `architecture.mdx`, `self-hosting/` and `features/` are English only for now
+  and not yet in the navigation: they wait for their French and Arabic
+  translations. Linked from the repository's README.
 
 Translation tone: natural technical French; Arabic written for Algerian
 developers, with API names kept in English where that is clearer.
@@ -58,6 +61,9 @@ developers, with API names kept in English where that is clearer.
 pages/               MDX sources, English + fr/ + ar/
   sdk/storefront/    storefront SDK guide
   sdk/theme/         theme SDK guide
+  architecture.mdx   how the platform fits together
+  self-hosting/      run, configure, deploy and upgrade a store
+  features/          one page per store feature
 src/
   Home.tsx           localized landing page (en/fr/ar copy)
   i18n/navigation.ts the slug registry and localized sidebar labels
@@ -68,7 +74,6 @@ scripts/
   check-i18n.mjs     localisation and navigation check
   localize-html.mjs  sets lang/dir on the built fr/ and ar/ HTML
 zudoku.config.tsx    site config: nav, API reference, search, llms.txt
-DOCS-AUDIT.md        the October 2026 audit and its findings
 ```
 
 ## Verifying a documentation change

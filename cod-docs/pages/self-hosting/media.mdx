@@ -1,0 +1,95 @@
+---
+description: Choose where a Wocart store keeps its images and how browsers fetch them — ImageKit, R2 behind your domain, or the local bucket.
+---
+
+# Media
+
+Two settings of the API server decide a store's media:
+
+- **the host**, where the files are kept: ImageKit, or the store's R2 bucket;
+- **the delivery**, how browsers fetch and resize them.
+
+The database keeps only each file's **key** (for example
+`products/3f2a9c.webp`). The API answers every image with its URL, and
+`/store/config` gives storefronts the delivery, so a storefront has nothing to
+configure and moving to another host rewrites no data.
+
+Uploads always go through the API server, so no bucket needs a CORS policy.
+An upload waits in the bucket's `staging/` folder until it is prepared; run
+`npm run r2:lifecycle` once per bucket (in `cod-server`), and an upload that
+was never finished is deleted after a day.
+
+## The settings
+
+| Variable | Values |
+| --- | --- |
+| `MEDIA_HOST` | `imagekit`: ImageKit keeps the files. `r2`: the `MEDIA_BUCKET` bucket does |
+| `MEDIA_DELIVERY` | `imagekit`: resized by ImageKit. `cloudflare`: resized by Cloudflare Images on your zone. `direct`: served as kept |
+| `MEDIA_ORIGIN` | A file's URL is this origin, `/`, then its key |
+| `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_FOLDER` | With `MEDIA_HOST = "imagekit"` |
+| `IMAGEKIT_PRIVATE_KEY` | A secret, with `MEDIA_HOST = "imagekit"` |
+
+There is no default host: a missing or wrong value refuses uploads with
+`MEDIA_NOT_CONFIGURED`.
+
+## Locally
+
+The example configuration keeps files in the local bucket and serves them
+from the API server itself:
+
+```toml
+MEDIA_HOST = "r2"
+MEDIA_DELIVERY = "direct"
+MEDIA_ORIGIN = "http://localhost:8787/media"
+```
+
+No account and no key.
+
+## ImageKit
+
+1. In ImageKit, **Developer options** shows the public key, the private key
+   and the URL endpoint (`https://ik.imagekit.io/<id>`).
+2. Choose the store's folder, for example `/stores/mystore`. One account can
+   hold many stores.
+3. Set the variables:
+
+   ```toml
+   MEDIA_HOST = "imagekit"
+   MEDIA_DELIVERY = "imagekit"
+   MEDIA_ORIGIN = "https://ik.imagekit.io/<id>/stores/mystore"
+   IMAGEKIT_PUBLIC_KEY = "public_…"
+   IMAGEKIT_FOLDER = "/stores/mystore"
+   ```
+
+   `MEDIA_ORIGIN` is the URL endpoint followed by the folder.
+4. Set the private key: `npx wrangler secret put IMAGEKIT_PRIVATE_KEY --env production`.
+
+Locally, the same values go in `cod-server/.dev.vars`, with a folder of your
+own (`/dev/your-name`).
+
+## R2 behind your domain
+
+1. In the Cloudflare dashboard, open the bucket, then **Settings → Custom
+   Domains → Connect Domain**, for example `media.yourdomain.com`.
+2. Turn on Image Transformations for that zone.
+3. Set the variables:
+
+   ```toml
+   MEDIA_HOST = "r2"
+   MEDIA_DELIVERY = "cloudflare"
+   MEDIA_ORIGIN = "https://media.yourdomain.com"
+   ```
+
+`MEDIA_DELIVERY = "direct"` also works with R2: images are then served as
+uploaded, without resizing.
+
+After any change, redeploy the API server. Storefronts read the new delivery
+from the store's config; they need no change.
+
+## When uploads fail
+
+| Error | Fix |
+| --- | --- |
+| `MEDIA_NOT_CONFIGURED` | Set `MEDIA_HOST`, `MEDIA_DELIVERY` and `MEDIA_ORIGIN` |
+| `MEDIA_HOST_REFUSED` with ImageKit | Check `IMAGEKIT_PUBLIC_KEY` and the `IMAGEKIT_PRIVATE_KEY` secret |
+| Images upload but do not show | `MEDIA_ORIGIN` must be where the host serves the store's files |

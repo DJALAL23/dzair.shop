@@ -1,0 +1,193 @@
+---
+description: Upgrade a self-hosted Wocart store to the latest code without losing data — the order to follow, and what each release asks of you.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Upgrading
+
+An upgrade keeps every row your store has: migrations are written to run on a
+live store and to keep the running release working until the new one is
+deployed. What changes between releases is listed below, by the migration that
+brought it.
+
+## The order
+
+1. **Back up the database.**
+
+   ```bash
+   npx wrangler d1 export <database> --remote --output backup-$(date +%Y%m%d).sql
+   ```
+
+2. **Get the code and install it.**
+
+   ```bash
+   git pull
+   npm ci
+   (cd cod-astro/theme-00 && npm ci)
+   ```
+
+3. **See which migrations are new**, and read their entries below:
+
+   ```bash
+   npx wrangler d1 migrations list <database> --remote
+   ```
+
+4. **Compare your configuration with the examples.** A release may add a
+   binding, a variable or a secret: diff `cod-server/wrangler.toml` with
+   `wrangler.toml.example`, and `cod-client-astro/wrangler.toml` with its
+   example. Remember the `[env.production]` copy of every binding.
+5. **Migrate**: `npm run db:migrate:remote` in `cod-server`.
+6. **Deploy the API server, then the dashboard, then the storefront.** A new
+   dashboard calls routes only the new server has; a new storefront reads
+   fields only the new server sends.
+
+<Callout type="caution" title="A storefront and its API move together">
+When a release changes what `/store/*` sends, a storefront built on an older
+`@wocart/storefront` cannot read the new server. Deploy the storefront right
+after the server, from the same checkout.
+</Callout>
+
+## What each release asks of you
+
+Newest first. Only the entries for migrations your database has not applied
+concern you.
+
+### 0072–0073: storefront contract 3
+
+- `/store/config` no longer sends the store's colours, fonts, announcement,
+  theme id, `status`, `cartShippingMode` or `legalContact`; it sends
+  `contact`: `{ phone, email, address }`. Product reads drop internal fields
+  and send `variantOptions` and `tags` already parsed.
+- `GET /store/products?featured=true` is gone: use `collection=featured`.
+- Menu items may open search, order tracking and contact.
+- **A storefront on `@wocart/storefront` 2.x cannot read this server.** Theme-00
+  from this checkout is already on 3.0.0. A theme of your own moves to
+  `@wocart/storefront` 3.0.0 and `@wocart/theme` 4.0.0
+  ([Production and upgrades](/sdk/theme/production)).
+
+### Review settings become an App (no migration)
+
+- The review rules leave `GET`/`PATCH /api/stores/me` for
+  `GET`/`PUT /api/apps/reviews` (`enabled`, `maxPhotos`, `voiceMaxSeconds`,
+  `autoPublish`), with the `reviews:read` and `reviews:manage` permissions.
+- `status` leaves `/api/stores/me`: it never had an effect.
+- Move scripts that called the old fields.
+
+### 0071: landing page documents
+
+- Additive: two triggers. Deleting a landing page now deletes its page
+  documents (`lp:<id>`) and their drafts with it.
+
+### 0069: customer email
+
+- Additive: `customers.email`, nullable. Existing customers start without one;
+  it is not filled in from their past orders.
+
+### 0068: media hosts
+
+- The API server needs `MEDIA_HOST`, `MEDIA_DELIVERY` and `MEDIA_ORIGIN`
+  ([Media](/self-hosting/media)). Every file stored before this migration is
+  on R2: keep them there with `MEDIA_HOST = "r2"` and the bucket's domain as
+  `MEDIA_ORIGIN`.
+
+### 0067: Telegram
+
+- Additive: a new table for the Telegram App. Telegram sends the bot's updates
+  to the API server's own origin (`WORKER_SELF_URL`), so it must be public and
+  https. On a local server, set `TELEGRAM_UPDATES_ORIGIN` to an https tunnel.
+
+### 0065–0066: Apps
+
+- Meta tracking, DZVerify, Turnstile, Sendili and the WhatsApp button move to
+  `/api/apps/<key>`, each with its own read and manage permissions. 0065 gives
+  every holder of an old permission its new ones; 0066 then removes the old
+  ones. Nobody loses access.
+- Move scripts and API clients to the new paths.
+
+### 0064: unused dashboard brand
+
+- Drops the `dashboard_brand` table and its rows. Nothing ever displayed them,
+  and the release before stopped reading it. Apply it only after that release
+  is deployed.
+
+### 0062–0063: signed carrier webhooks
+
+- A Yalidine or ZR Express webhook is refused unless the company has its
+  signing secret. The dashboard marks each company without one; add it as
+  [Carrier webhooks](/carrier-webhooks) shows. Carriers retry a refused
+  webhook for hours, so nothing is lost while you add it.
+
+### 0059–0061: business events
+
+- The API server needs the events queue, as producer and consumer: create it
+  (`npx wrangler queues create <name>`) and declare it as
+  `wrangler.toml.example` does. A release that needs it does not work
+  without it.
+
+### 0056–0058: drivers and shipping labels
+
+- A shipment given to the store's own driver is always home delivery with no
+  stop desk: the database refuses any other (`DRIVER_DELIVERS_HOME`) for new
+  writes. Shipments recorded before keep their values. A customer who chose a
+  stop desk keeps that choice and its price on the order.
+- Shipping label settings for drivers are a new nullable column; nothing
+  changes until a merchant saves them.
+- A new index on drivers' shipments. No row changes.
+
+### 0049–0055: collections, offers, coupons, theme drafts, product SEO
+
+- `products.store_featured` becomes each store's `featured` collection, and
+  the column goes. Menu items can point at a collection.
+- Offers gain quantity pricing, and the database checks every offer. A gift
+  offer saved without a gift is repaired to give its own product and switched
+  off, so review your offers after migrating. An offer whose end came before
+  its start loses its end date and is switched off too.
+- Coupons are new tables. Orders keep the name of the offer that shaped them.
+- Page documents are kept per theme. A stored document that was not valid JSON,
+  or named no known surface, could never be shown and is not carried over.
+- Products gain an SEO title and description, empty until the merchant writes
+  them.
+
+### 0045–0048: theme settings and menus
+
+- A store's colours and font become Theme-00's settings; each store's choice is
+  copied over, so storefronts look the same. The announcement bar and
+  `stores.font_url` go: a theme that shows an announcement declares it as a
+  setting.
+- Navigation menus become store data, read by handle.
+
+### 0044: theme label
+
+- Stores still labelled `theme01` take `theme-00`. Nothing else changes.
+
+### 0043: review photos and voice notes
+
+- Set `REVIEW_UPLOAD_SECRET`, and add the `REVIEW_MEDIA_WORKFLOW` and
+  `REVIEW_RATE_LIMITER` bindings. Without them, reviews are text only.
+- Run `npm run r2:lifecycle` once.
+
+### 0042: deleting products and orders
+
+- Back up first: it rebuilds three log and line tables and drops
+  `products.deleted_at`.
+- Deleting a product is permanent; order lines keep its name and price, and
+  their `productId` becomes null.
+- An order with a shipment can never be deleted, even in SQL
+  (`ORDER_HAS_SHIPMENT`). Archive a finished one with
+  `POST /api/orders/{id}/archive`; `GET /api/orders/{id}/removal` says which
+  applies. A script that wipes orders must delete their shipments first.
+- `GET /api/orders` leaves archived orders out unless `archived` is passed.
+- Deploy the API server, then the dashboard.
+
+### 0038–0041: orders and shipments
+
+- An order's delivery moves to its shipment. Before migrating, run
+  `cod-server/scripts/preflight-0041.sql` on the deployed database: every
+  `guard_*` row must be 0, or the migration stops with nothing changed. After
+  it, compare with `cod-server/scripts/verify-0041.sql`.
+- Add the five-minute schedule: `crons = ["0 * * * *", "*/5 * * * *"]`.
+
+### 0035–0037: store languages
+
+- These migrations drop columns once their data has moved. Back up first.
