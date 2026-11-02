@@ -144,7 +144,7 @@ const themeGroups: Group[] = [
         fr: "Kit pour agents IA",
         ar: "حزمة وكلاء الذكاء الاصطناعي",
       },
-      { slug: "/tools", en: "Tools and roadmap", fr: "Outils et feuille de route", ar: "الأدوات وخارطة الطريق" },
+      { slug: "/tools", en: "Tools", fr: "Outils et feuille de route", ar: "الأدوات وخارطة الطريق" },
     ],
   },
   {
