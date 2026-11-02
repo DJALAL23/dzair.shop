@@ -115,8 +115,9 @@ npm install zod
 
 `zod` 4.x is a peer dependency. The package is ESM-only and its tooling needs
 Node 22.12 or newer. `@wocart/storefront` 3.x reads platform v7: a store
-updates its platform and its storefront together. Astro 7 is verified, but the core has no Astro import; the
-adapters under `@wocart/storefront/astro` are structural.
+updates its platform and its storefront together. The helpers under
+`@wocart/storefront/astro` are written for Astro 7; the rest of the package
+does not import Astro.
 
 ## Four imports, one boundary
 
@@ -152,7 +153,7 @@ same-origin routes, and those routes call the SDK on the server.
 ## What it does not do
 
 The SDK does not render pages, store the browser's basket on the server,
-upload images to R2, write page documents, or decide a theme's layout, copy and
+upload images, write page documents, or decide a theme's layout, copy and
 motion. It also does not make a stale browser price trustworthy.
 
 Commerce rules live in the server. If a feature needs a new rule, change the

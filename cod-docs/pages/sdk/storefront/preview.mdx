@@ -137,10 +137,9 @@ for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims
 
 An editable theme completes the page with `previewTarget` and the preview
 bridge; the [complete theme](/sdk/theme/tutorial#7-preview-and-revalidation)
-has every file, and it was run against a real store: a signed token opens the
-preview, a draft posted from the page's own origin re-renders, a draft posted
-from another origin is refused with 403, and a revalidation token is refused on
-the preview route.
+has every file: a signed token opens the preview, a draft posted from the
+page's own origin re-renders, a draft posted from another origin is refused
+with 403, and a revalidation token is refused on the preview route.
 
 The path `/wocart-preview` is the platform's (`THEME_PREVIEW_PATH` in
 `@wocart/theme`): Wocart Studio frames that path.
