@@ -6,8 +6,8 @@
  * Runs the REAL pipeline on the REAL artifacts: the shipped document
  * (`src/theme/pages/home.page.json`), the real definitions (`@/theme/theme`),
  * the real renderer (`@wocart/theme/astro`) and the real Home components.
- * Only `@wocart/storefront` is stubbed, at its usual seam, with the shapes
- * `wocart-sdk/storefront/fixtures/cod-server/products-list.json` captured live.
+ * Only `@wocart/storefront` is stubbed, at its usual seam, with product shapes
+ * captured from a live cod-server.
  */
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it, vi } from "vitest";

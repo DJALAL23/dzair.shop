@@ -8,7 +8,7 @@
  *     node scripts/media-smoke.mjs [--server http://localhost:8787]
  *
  * The server defaults to COD_SERVER_URL (process env, then the root .env).
- * Build the SDK first (`npm run build` in wocart-sdk/storefront). Keys are
+ * Uses `@wocart/storefront` from npm (a dev dependency). Keys are
  * read from the environment only and never printed. Exits non-zero on the
  * first step that fails.
  */

@@ -4,7 +4,7 @@
  * Theme-00 is a consumer of the SDKs, not part of them. It installs them from the
  * npm registry like any third-party theme, and reaches them only through the
  * published entry points in each package's `exports` map. A deep import or a relative path into
- * `wocart-sdk/` would let Theme-00 depend on something another theme cannot have.
+ * the SDKs' source would let Theme-00 depend on something another theme cannot have.
  */
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";

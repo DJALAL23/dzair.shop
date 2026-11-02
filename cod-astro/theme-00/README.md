@@ -16,16 +16,16 @@ design system, and the production gotchas.
 | `cod-server` | Backend engine — REST API, `/store/*` storefront API, webhooks, MCP |
 | `cod-client-astro` | Merchant dashboard (Astro) |
 | `cod-astro/theme-00` | **This package** — the reference theme, built on the SDKs |
-| `wocart-sdk/storefront` | `@wocart/storefront` — the platform/data SDK it consumes |
-| `wocart-sdk/theme` | `@wocart/theme` — the composition contract + Astro renderer |
+| `@wocart/storefront` (npm) | The platform/data SDK it consumes |
+| `@wocart/theme` (npm) | The composition contract + Astro renderer |
 
 Theme-00 consumes the SDKs **from npm**, exactly as an outside theme does:
 `package.json` pins `@wocart/storefront` and `@wocart/theme` to exact
 published versions and Theme-00 keeps its own `package-lock.json` — it is not
 an npm workspace, so nothing links it to the SDK sources. Install it on its
-own with `npm ci` in this folder. `npm run verify:sdks` at the repo root runs
-this theme against freshly packed SDK tarballs before a release; after the
-release, bump the pins (`wocart-sdk/README.md` → Releasing).
+own with `npm ci` in this folder. Before an SDK release, its maintainers run
+this theme against freshly packed SDK tarballs; after the release, bump the
+pins here.
 
 ## What it does (today)
 
@@ -179,4 +179,4 @@ not a local `wrangler deploy`.
 - **[`src/theme/sdk.ts`](./src/theme/sdk.ts)** — the one platform read seam (SDK client factory)
 - **[`src/theme/utils/images.ts`](./src/theme/utils/images.ts)** — the image-URL binding (SDK helpers at the store's `config.media`)
 - **[`src/theme/README.md`](./src/theme/README.md)** — customizing the theme layer
-- **[`wocart-sdk/storefront/USAGE.md`](../../wocart-sdk/storefront/USAGE.md)** — what the SDK promises a theme author
+- **`node_modules/@wocart/storefront/USAGE.md`** — what the SDK promises a theme author (shipped in the package)

@@ -19,9 +19,10 @@ TypeScript, deployed on Cloudflare (Workers, D1, R2, KV).
 - `cod-shared/` — shared Drizzle schema, queries, RBAC scopes, error codes.
   Imported by the apps via relative path (`../../cod-shared/...`). **Not
   published.**
-- `wocart-sdk/` — the published SDKs: `@wocart/storefront` (`storefront/`)
-  and `@wocart/theme` (`theme/`), on npm under the `@wocart` org.
-  Maintainer guide and release procedure: `wocart-sdk/README.md`.
+- The SDKs, `@wocart/storefront` and `@wocart/theme`, are installed from npm.
+  Their source is maintained privately: in a maintainer's checkout it sits in
+  `wocart-sdk/` (gitignored, its own `package.json` and lockfile, its own
+  `README.md` with the release procedure). It is never committed here.
 - `cod-astro/theme-00/` — the storefront theme, the reference for new
   themes, and the SDKs' reference consumer. A swappable theme layer: engine
   logic belongs in `@wocart/storefront`, never here. **Not a workspace**: it
@@ -62,16 +63,15 @@ Same for `cod-client-astro` (`npm run typecheck`, `npm test`, `npm run dev`
 — astro dev on :4321). Admin bootstrap: `cd cod-client-astro &&
 npm run seed:admin` (sign-up is disabled by design).
 
-The SDKs (`wocart-sdk/storefront`, `wocart-sdk/theme`) and Theme-00 as their
-reference consumer are checked together by `npm run verify:sdks` at the repo
-root: both packages are packed, checked and installed into a clean consumer,
-then Theme-00 runs its tests, `astro check` and build against those exact
-tarballs before its locked install is restored. Theme-00 may import the SDKs
+Where `wocart-sdk/` is present, `npm run verify` inside it checks the SDKs and
+Theme-00 together: both packages are packed, checked and installed into a clean
+consumer, then Theme-00 runs its tests, `astro check` and build against those
+exact tarballs before its locked install is restored. Theme-00 may import the SDKs
 only through their published entry points; `sdk-boundary-contracts.test.ts`
 enforces it. An SDK change reaches Theme-00 only through a release: publish,
 then bump the exact pins in Theme-00 and in the editor (CodFlow Cloud's
 Studio), which must run the same versions — a theme release and an editor
-deploy refuse a drift. Releasing: `wocart-sdk/README.md`.
+deploy refuse a drift.
 
 Browser code never imports a schema: validation runs on the server, where data
 enters, and the browser reads what it checked by type or with the SDK's
@@ -112,8 +112,8 @@ other is how these drift.
 - After changing TypeScript: run `npm run typecheck` in the affected package.
 - After changing behavior: run `npm test` in the affected package.
 - Full CI runs typecheck + tests for cod-server and cod-client-astro, and
-  `npm run verify:sdks`, which runs Theme-00's tests, `astro check` and build
-  against the packed SDKs (`.github/workflows/ci.yml`).
+  Theme-00's tests, `astro check` and build against the published SDKs
+  (`.github/workflows/ci.yml`).
 
 ## Conventions
 

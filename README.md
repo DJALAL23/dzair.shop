@@ -89,14 +89,13 @@ Features, one page each:
 | `cod-server/` | The API: Hono on Cloudflare Workers, D1 through Drizzle |
 | `cod-client-astro/` | The merchant dashboard (Astro) |
 | `cod-shared/` | Schema, queries, permissions and error codes shared by both |
-| `wocart-sdk/` | The `@wocart/storefront` and `@wocart/theme` packages |
 | `cod-astro/theme-00/` | The reference storefront theme |
 | `cod-docs/` | The documentation site, in English, French and Arabic |
 
 ```sh
 npm ci                      # every workspace, from the repo root
 cd cod-server && npm test   # and the same in cod-client-astro
-npm run verify:sdks         # SDKs and Theme-00 together
+(cd cod-astro/theme-00 && npm ci && npm test)   # the theme, on the npm SDKs
 ```
 
 ## Contributing

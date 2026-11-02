@@ -21,4 +21,4 @@
 
 ## Areas affected
 
-<!-- cod-server / cod-client-astro / cod-astro/theme-00 / wocart-sdk / cod-shared / docs / CI -->
+<!-- cod-server / cod-client-astro / cod-astro/theme-00 / cod-shared / docs / CI -->

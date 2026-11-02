@@ -2,9 +2,8 @@
  * The root lockfile records every workspace as its package.json declares it.
  *
  * A version bumped in a workspace's package.json and never installed leaves
- * the lockfile naming the old one — the SDKs once sat two releases behind it.
- * `npm ci` installs from the lockfile, so the two must agree; `verify:sdks`
- * runs this before any SDK can be released.
+ * the lockfile naming the old one. `npm ci` installs from the lockfile, so the
+ * two must agree.
  *
  * Usage: node scripts/check-workspace-lock.mjs [path/to/package-lock.json]
  */

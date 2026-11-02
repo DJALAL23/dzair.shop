@@ -24,7 +24,7 @@
  *   before that, a client kept per isolate hung pages after a cancelled
  *   request.)
  *
- * A defect in SDK behavior is fixed in `wocart-sdk/storefront/` with a regression
+ * A defect in SDK behavior is fixed in `@wocart/storefront` with a regression
  * test there — never by growing this file into a second implementation.
  */
 import { createStoreClient, readPreviewRequest, readRevalidateRequest, type PreviewRequest, type RevalidateRequest, type StoreClient } from "@wocart/storefront/server";

@@ -65,7 +65,9 @@ partner-client-astro/
 !/.agents/skills/wocart-setup/
 !/.agents/skills/wocart-update/
 
-# Verified SDK tarballs (npm run verify:sdks)
+# The SDKs' source (@wocart/storefront, @wocart/theme): maintained privately,
+# published to npm, never committed here.
+/wocart-sdk/
 .sdk-packs/
 
 # Internal media plan: a local working document, never published.

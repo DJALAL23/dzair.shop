@@ -26,7 +26,7 @@ Every file read in full:
 |------|---------------|--------|
 | Variant | schema.ts:609-628 full column set (price, sku unique, barcode, inventory, threshold, weightKg, imageId, isDefault, active, position) | ✅ |
 | Variations | JSON record, parsed on read (shared queries:35-37); NO blueprint validation at create | ✅ |
-| Default Variant | storefront picks `find(v => v.isDefault) ?? variants[0]` (`wocart-sdk/storefront/src/product-view.ts`); flag not exclusive anywhere | ✅ |
+| Default Variant | storefront picks `find(v => v.isDefault) ?? variants[0]` (`@wocart/storefront`, `product-view`); flag not exclusive anywhere | ✅ |
 | Active Variant | active filter used in storefront stock totals and reward selection (store.ts:152, :703) | ✅ |
 
 ### Identity & Money

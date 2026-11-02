@@ -50,8 +50,8 @@ npm run validate    # string + style validators, then build
 There is no `typecheck` script; `npx astro check` is the typecheck here. The
 dashboard Worker also defaults to :4321 — run this theme on `--port 4322` when
 both are up. An SDK change reaches this theme only through a release: publish
-it, then pin the new exact version here (`npm run verify:sdks` at the repo
-root runs this theme against the packed SDKs before that).
+it, then pin the new exact version here (the SDK maintainers run this theme
+against the packed SDKs before that).
 
 ## Definition of done
 
@@ -87,7 +87,7 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
 - Keep engine logic out. New platform behavior must come from
   `@wocart/storefront`, imported by package name — never a repository-relative
   path — and theme code never imports `cod-shared`.
-- An SDK defect is fixed in `wocart-sdk/storefront/` with a regression test there;
+- An SDK defect is fixed in `@wocart/storefront`, with a regression test there;
   never solved by adding a second implementation in this copy.
 - All user-facing text needs AR/FR/EN translations and must keep RTL working.
 - The theme stays swappable: a new theme is a new folder, not edits to core.
@@ -173,7 +173,7 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
 - The same-origin proxies in `src/pages/api/*` validate with the **SDK's**
   schemas and **Zod strips unknown keys** — a field missing from an SDK schema
   never reaches cod-server, however correct the caller is. Fix the schema in
-  `wocart-sdk/storefront/`, never with a local copy.
+  `@wocart/storefront` (an SDK release), never with a local copy.
 - **Product Zero boundaries (2026-09-30).** The homepage owns its data graph —
   as of **Phase 5 (2026-10-01)** through the catalog's keyed `load`s
   (`src/theme/catalog/`) behind the ONE `createReadCache()` in

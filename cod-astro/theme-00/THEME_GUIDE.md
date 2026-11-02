@@ -66,7 +66,7 @@ src/pages/api/**             ← same-origin proxies (SDK bindings)
 
 If you want to change one of these it is a **platform change** (an SDK release),
 not a theme change — stop and ask. A missing capability is an SDK change in
-`wocart-sdk/storefront/`, never a local re-implementation. Reference data is part of
+`@wocart/storefront`, never a local re-implementation. Reference data is part of
 that line too: `WILAYAS` / `communesForWilaya` come from `@wocart/storefront`,
 there is no `src/theme/data/`, and the commune bundle is parity-checked against
 the server's seed rows. Everything under `components/`, `catalog/`, `content/`,
@@ -330,11 +330,11 @@ src/pages/api/**
 
 The data layer is platform-owned. If you think you need to change something
 there, that is a platform change, not a theme change. A missing capability is an
-SDK change in `wocart-sdk/storefront/`, never a local re-implementation.
+SDK change in `@wocart/storefront`, never a local re-implementation.
 
 Reference data is part of that line: `WILAYAS` and `communesForWilaya` come from
 `@wocart/storefront`, and there is no `src/theme/data/` to edit. The commune
-bundle is parity-checked against the server's seed rows (`npm run check:parity`),
+bundle is parity-checked against the server's seed rows before every SDK release,
 so a corrected commune is a platform change on both sides, never a theme-side
 patch.
 
@@ -583,7 +583,7 @@ A page is done when:
   `OrderForm.astro` are token-clean. Match that style.
 - **Need to add a composed section?** `src/theme/catalog/home/` — copy an
   existing `*.def.ts`, then register it in `theme.ts`.
-- **Need the platform contract?** `wocart-sdk/storefront/USAGE.md` and the SDK's
+- **Need the platform contract?** `USAGE.md` in the installed `@wocart/storefront` and its
   shipped types.
 
 ## 15. What "improving the theme" looks like

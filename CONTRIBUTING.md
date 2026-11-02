@@ -28,7 +28,6 @@ codflow-os/
 ├── cod-client-astro/  # Merchant dashboard — Astro (prerendered + auth worker)
 ├── cod-astro/         # Customer storefront — Astro, trilingual (AR/FR/EN)
 │   └── theme-00/      #   the default theme (theme layer is swappable)
-├── wocart-sdk/        # The published SDKs: @wocart/storefront, @wocart/theme
 └── cod-shared/        # Source-shared TS — D1 schema, RBAC scopes, read queries
 ```
 

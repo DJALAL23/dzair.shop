@@ -125,7 +125,7 @@ Each of these is off until you configure it, and the store works without it:
 ```bash
 cd cod-server && npm run typecheck && npm test
 cd cod-client-astro && npm run typecheck && npm test
-npm run verify:sdks    # at the root: the SDKs, and the storefront built against them
+(cd cod-astro/theme-00 && npm ci && npm test)   # the storefront theme
 ```
 
 The tests need no network and no credentials.

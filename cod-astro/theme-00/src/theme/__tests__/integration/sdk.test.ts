@@ -13,8 +13,7 @@
  * "One page reads store config + product data through the adapter; no API key
  * appears in the client bundle").
  *
- * The fixture is one product entry captured from a live cod-server
- * (wocart-sdk/storefront/fixtures/cod-server/products-list.json) so the shape is
+ * The fixture is one product entry captured from a live cod-server so the shape is
  * evidence, not a hand-written guess. `coverImage.position` is 0-based in live
  * data — that stays pinned here too.
  */

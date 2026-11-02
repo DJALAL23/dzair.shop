@@ -13,8 +13,8 @@
  * one isolate must produce ONE `/store/config` request. The legacy fetch had
  * no cache and made two.
  *
- * The config fixture is a live capture (wocart-sdk/storefront/fixtures/cod-server/
- * store-config.json) in its real `{ success, data }` envelope.
+ * The config fixture is a live capture from cod-server in its real
+ * `{ success, data }` envelope.
  */
 import type { ImageTransform } from "astro";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

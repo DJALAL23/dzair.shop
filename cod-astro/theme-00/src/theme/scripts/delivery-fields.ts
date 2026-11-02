@@ -183,7 +183,7 @@ async function loadCommunes(
 
   // 1. Zero-network instant resolution (Shopify-grade: 0ms latency, zero network failure)
   //    The rows are the SDK's bundled reference dataset, parity-checked against
-  //    the server's seed rows (`npm run check:parity`), so they are the same
+  //    the server's seed rows before every SDK release, so they are the same
   //    list the API would return — minus the round-trip.
   if (localCommunes.length > 0) {
     if (!isCurrent()) return;
