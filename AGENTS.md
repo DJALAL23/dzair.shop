@@ -1,344 +1,213 @@
-# CodFlow — repository instructions for coding agents
+# Wocart — repository instructions for coding agents
 
-CodFlow is a cash-on-delivery (COD) e-commerce platform for Algeria. Monorepo,
-TypeScript, deployed on Cloudflare (Workers, D1, R2, KV).
+Wocart (formerly CodFlow) is a cash-on-delivery e-commerce platform for
+Algeria: TypeScript, deployed on Cloudflare (Workers, D1, R2, KV). Package,
+folder, environment-variable and domain names still say CodFlow where
+renaming would break existing stores; keep them.
 
 ## Layout
 
-- `cod-server/` — Cloudflare Workers API (Hono). Merchant `/api/*`, public
-  `/store/*`, `/webhooks`, `/media`, `/mcp`. D1 via Drizzle.
-- `cod-client-astro/` — the merchant dashboard (Astro 7). Prerendered static
-  pages + a Worker surface for `/api/auth/*` and `/mcp/oauth/login`; React
-  islands fetch data from cod-server through `src/lib/api.ts` (the only module
-  allowed to call the API). UI strings come from `locales/{ar,en,fr}` via
-  `useT(namespace)` — the i18n guard test enforces three-locale parity.
-  Placeholders and counts go through `t(key, values)`: a count is a plural
-  message, one key per CLDR form (`total_one`, `total_few`, …), each language
-  carrying exactly its grammar's forms (Arabic six); never `.replace("{n}")`.
-  Relative times use `@/lib/relative-time` (`Intl.RelativeTimeFormat`).
-- `cod-shared/` — shared Drizzle schema, queries, RBAC scopes, error codes.
-  Imported by the apps via relative path (`../../cod-shared/...`). **Not
-  published.**
-- The SDKs, `@wocart/storefront` and `@wocart/theme`, are installed from npm.
-  Their source is maintained privately: in a maintainer's checkout it sits in
-  `wocart-sdk/` (gitignored, its own `package.json` and lockfile, its own
-  `README.md` with the release procedure). It is never committed here.
-- `cod-astro/theme-00/` — the storefront theme, the reference for new
-  themes, and the SDKs' reference consumer. A swappable theme layer: engine
-  logic belongs in `@wocart/storefront`, never here. **Not a workspace**: it
-  installs `@wocart/*` from the npm registry, exactly like an outside theme,
-  and has its own lockfile. Its commands and boundaries differ — read
-  `cod-astro/theme-00/AGENTS.md` before editing it.
-- `cod-docs/` — the published developer site (Zudoku): the OpenAPI reference
-  plus the `@wocart/storefront` and `@wocart/theme` guides in **English, French
-  and Arabic**. **Not a workspace** either: its own `package-lock.json`, its own
-  Zudoku toolchain, and the root `overrides` do not apply to it. Its guides are
-  hand-written MDX; `pages/sdk/*/reference/` and `openapi.json` are generated
-  (TypeDoc over the installed `.d.ts`, and a live `/api/openapi.json` fetch).
-  Read `cod-docs/README.md` before editing; `npm run check:i18n` and
-  `npm run typecheck` are the documentation gates.
+- `cod-server/` — the API (Hono on Workers, D1 through Drizzle): merchant
+  `/api/*`, public `/store/*`, `/webhooks`, `/media`, `/mcp`.
+- `cod-client-astro/` — the merchant dashboard (Astro 7): prerendered pages,
+  plus a Worker for `/api/auth/*` and the MCP OAuth login. React islands call
+  cod-server only through `src/lib/api.ts`.
+- `cod-shared/` — the D1 schema, queries, permission scopes and error codes,
+  imported by relative path (`../../cod-shared/...`). Not published.
+- `cod-astro/theme-00/` — the reference storefront theme. It installs
+  `@wocart/storefront` and `@wocart/theme` from npm like any outside theme and
+  has its own lockfile. Read `cod-astro/theme-00/AGENTS.md` before editing it.
+- `cod-docs/` — the developer site (Zudoku), in English, French and Arabic, with
+  its own lockfile. Read `cod-docs/README.md` before editing it.
 
-There is **one root `package.json` with npm workspaces** and ONE root
-`package-lock.json` for every workspace. The one exception is Theme-00, which
-is deliberately outside the workspaces with its own `package-lock.json` (see
-above); never add a lockfile to a workspace member. The root also carries the
-repo-wide npm `overrides`: the single-Vite pin (keeps one Vite major across
-astro/vitest; npm ignores `overrides` inside workspace members). Theme-00
-carries its own copy of that pin.
+The root `package.json` has three npm workspaces (`cod-shared`, `cod-server`,
+`cod-client-astro`) and the one root `package-lock.json`. Theme-00 and
+`cod-docs` are deliberately outside them. Never add a lockfile to a workspace.
 
 ## Commands
 
-One install at the repo root covers every package:
-
 ```sh
-npm ci                          # at repo root — installs all workspaces
-(cd cod-astro/theme-00 && npm ci)  # Theme-00 is standalone
+npm ci                              # repo root: every workspace
+cd cod-server && npm run typecheck && npm test
+cd cod-server && npm run dev        # wrangler dev on :8787
+cd cod-client-astro && npm run typecheck && npm test
+cd cod-client-astro && npm run dev  # astro dev on :4321
 
-cd cod-server && npm run typecheck
-cd cod-server && npm test
-cd cod-server && npm run dev   # wrangler dev :8787
+cd cod-astro/theme-00 && npm ci && npm test && npx astro check
+cd cod-docs && npm ci && npm run typecheck && npm run check:i18n
 ```
 
-Same for `cod-client-astro` (`npm run typecheck`, `npm test`, `npm run dev`
-— astro dev on :4321). Admin bootstrap: `cd cod-client-astro &&
-npm run seed:admin` (sign-up is disabled by design).
+First local run: `cd cod-server && npm run db:setup:local`, then
+`cd cod-client-astro && npm run seed:admin` (sign-up is disabled by design).
+Signing in against an unmigrated local D1 is the usual cause of a dashboard
+that "doesn't work" locally.
 
-Where `wocart-sdk/` is present, `npm run verify` inside it checks the SDKs and
-Theme-00 together: both packages are packed, checked and installed into a clean
-consumer, then Theme-00 runs its tests, `astro check` and build against those
-exact tarballs before its locked install is restored. Theme-00 may import the SDKs
-only through their published entry points; `sdk-boundary-contracts.test.ts`
-enforces it. An SDK change reaches Theme-00 only through a release: publish,
-then bump the exact pins in Theme-00 and in the editor (CodFlow Cloud's
-Studio), which must run the same versions — a theme release and an editor
-deploy refuse a drift.
+The dashboard and a storefront both default to port 4321; run one with
+`--port 4322` when developing both.
 
-Browser code never imports a schema: validation runs on the server, where data
-enters, and the browser reads what it checked by type or with the SDK's
-readers. The SDK's `browser-bundle.test.ts` and Theme-00's
-`no-validator-in-browser.test.ts` keep Zod out of shoppers' pages.
-
-Theme-00 has extra validators (`npm run validate:all`) — see
-`cod-astro/theme-00/AGENTS.md` for its commands and definition of done.
-
-The documentation site is installed and checked separately:
-
-```sh
-cd cod-docs && npm ci
-cd cod-docs && npm run typecheck
-cd cod-docs && npm run check:i18n   # en/fr/ar parity + navigation
-cd cod-docs && npm run dev          # zudoku dev :3000
-```
-
-A docs build fetches `/api/openapi.json`, so it needs `cod-server` running
-locally (or `COD_OPENAPI_URL` pointing at a saved spec).
-
-## Cloud resource configuration
-
-Resource names and URLs are **not** hardcoded in scripts. The seeders, the
-D1 migration wrapper (`cod-server/scripts/d1.mjs`), the R2 lifecycle rule and
-the storefront deploy helper all read `<repo-root>/.env` through
-`cod-server/scripts/cloud-env.mjs`. Precedence is
-**`process.env` > `.env` > built-in default**; the committed template is
-`<repo-root>/.env.example`.
-
-Keys: `COD_ACCOUNT_ID`, `COD_DB_NAME`, `COD_R2_BUCKET_NAME`,
-`COD_SERVER_URL`. Add a key to `DEFAULTS` in
-`cloud-env.mjs` and to `.env.example` together — a key in one and not the
-other is how these drift.
+A docs build fetches `/api/openapi.json` from a local cod-server, or from
+`COD_OPENAPI_URL` when set.
 
 ## Verification
 
-- After changing TypeScript: run `npm run typecheck` in the affected package.
-- After changing behavior: run `npm test` in the affected package.
-- Full CI runs typecheck + tests for cod-server and cod-client-astro, and
-  Theme-00's tests, `astro check` and build against the published SDKs
-  (`.github/workflows/ci.yml`).
+- After changing TypeScript, run `npm run typecheck` in the affected package.
+- After changing behavior, run `npm test` in the affected package.
+- CI (`.github/workflows/ci.yml`) runs typecheck and tests for cod-server and
+  the dashboard, and Theme-00's tests, `astro check` and build against the
+  published SDKs.
 
 ## Conventions
 
-- **README claims must be code-verified.** Never write a feature claim in the
-  README that is not actually implemented. Before editing README feature lists,
-  confirm the code exists.
-- **Never commit secrets.** No live API keys, carrier tokens, or credentials in
-  source, tests, or fixtures. Real secrets go in `wrangler secrets` /
-  `.dev.vars` (gitignored). Wrangler configs with real resource IDs are
-  gitignored too (`wrangler.toml` in cod-server/cod-client-astro) — commit
-  `.example` templates only.
+- **Claims are verified against the code.** Never write a feature into the
+  README or the docs that the code does not do.
+- **Never commit secrets.** No live keys, carrier tokens or credentials in
+  source, tests or fixtures. Secrets go in `wrangler secret` or `.dev.vars`
+  (gitignored). The real `wrangler.toml` files are gitignored; commit only the
+  `.example` templates.
 - No explanatory code comments unless asked.
-- **`docs/` is the maintainers' private notes** (ADRs, plans, reports in
-  `docs/report-md/`). It is gitignored and must never be committed, force-added
-  or pushed, and tracked files never link into it. Anything developers or
-  users need goes in `cod-docs`.
+- **Private folders are never committed.** `docs/`, `wocart-sdk/` and
+  `.agents/internal-skills/` are maintainers' local folders, gitignored; never
+  force-add them and never link to them from tracked files. Anything
+  developers or users need goes in `cod-docs`.
 
 ## Boundaries
 
-- `cod-shared` is the single source of truth for the D1 schema, queries, RBAC
-  scopes, and error codes. Do not duplicate schema or scope definitions in
-  cod-server or cod-client-astro.
+- `cod-shared` is the single source of truth for the schema, queries, scopes
+  and error codes. Never duplicate them in an app.
 - **A migration never loses a store's data.** Add a new migration; never
-  rewrite a released one. A migration runs on every live store — Cloud and
-  self-hosted — before the new server is deployed, so it keeps every row and
-  value, and keeps the running server working: add first, stop reading in
-  that release, drop in a later one. A statement that deletes or rewrites
-  rows names its table in `-- data-safety: <table>[.<column>] — <reason>` (or
-  `-- data-safety: rebuild <table> — <reason>`), and the file gets its own
-  `src/db/migration-<NNNN>-*.e2e.test.ts` proving it on data. Never rebuild
-  (DROP + RENAME) a table other tables reference: on D1 the drop deletes
-  their rows through `ON DELETE CASCADE` even with
-  `PRAGMA defer_foreign_keys`, and `PRAGMA foreign_keys` does nothing there.
-  `cod-server/src/db/migration-safety.e2e.test.ts` enforces this on a
-  database with a row in every table; the platform release runs it even with
-  `--skip-checks`.
+  rewrite a released one. Migrations run on live stores before the new server
+  is deployed, so each keeps every row and keeps the running server working:
+  add first, stop reading in the next release, drop in a later one. A
+  statement that deletes or rewrites rows declares it with
+  `-- data-safety: <table>[.<column>] — <reason>` (or
+  `-- data-safety: rebuild <table> — <reason>`), and the migration gets its
+  own `src/db/migration-<NNNN>-*.e2e.test.ts` proving it on data. Never
+  rebuild (DROP + RENAME) a table other tables reference: on D1 the drop
+  deletes their rows through `ON DELETE CASCADE`, whatever the pragmas.
+  `cod-server/src/db/migration-safety.e2e.test.ts` enforces this.
 - Ask before adding a production dependency or changing the D1 schema.
-- Keep engine logic out of `cod-astro/theme-00`; the theme layer is meant to be
-  swappable (see `cod-astro/theme-00/AGENTS.md`).
-- Dashboard data access goes through the API seam (`cod-client-astro/src/lib/api.ts`).
-  Components never call `fetch` directly, and the dashboard does not query D1
-  for business data — authorization lives in cod-server.
+- Theme-00 holds no engine logic: platform rules belong in
+  `@wocart/storefront`. It imports the SDKs only through their published
+  entry points (`sdk-boundary-contracts.test.ts`), and no validator reaches
+  shoppers' pages (`no-validator-in-browser.test.ts`).
+- The dashboard reads data only through `src/lib/api.ts`; components never call
+  `fetch`, and the dashboard never queries D1 for business data.
+- Theme editing (text edits, page documents, theme settings) is written by
+  Wocart Cloud's editor, which is closed source. This repository only reads
+  them; never add theme-writing endpoints or UI here.
+
+## Domain rules
+
+- **Delivery belongs to the shipment.** An order's status is its processing
+  only (`cod-shared/orders/lifecycle.ts`); carrier, driver, tracking and
+  delivery milestones live in `shipments` and `shipment_events`, driver
+  settlement in `driver_payment_lines`. `orders.driver_id`,
+  `orders.company_id` and `webhook_events.order_id` still exist in D1 but not
+  in the Drizzle schema; never read or write them.
+- **Business events are written with the change.** A `cod-shared` writer of
+  orders or shipments records its event with `recordEvent` in the same batch.
+  Never dispatch a side effect from a handler. A deployed cod-server needs the
+  `EVENTS_QUEUE` producer and consumer, and both crons
+  (`"0 * * * *"`, `"*/5 * * * *"`), as `wrangler.toml.example` declares.
+- **Carriers.** Only Yalidine and ZR Express send webhooks; they land in the
+  `webhook_events` inbox and are processed after the answer
+  (`cod-server/src/inbound`). NOEST, EcoTrack-platform companies and Guepex
+  are synced by the five-minute cron and on demand. Tell carriers apart by
+  `provider` and `capabilities`, never by company code.
+- **The dashboard never re-implements delivery rules.** It reads the lifecycle,
+  the stages and each shipment action's permission from cod-shared
+  (`shipments/actions.ts`), and offers only the actions a shipment's `actions`
+  list opens.
+- **Removal is real deletion.** A deleted product goes for good; order lines
+  keep what was sold. An order with a shipment can never be deleted (a trigger
+  raises `ORDER_HAS_SHIPMENT`); a finished one is archived. There is no soft
+  delete. A script that wipes orders deletes `shipments` first.
+- **Orders and the basket.** An order is a basket (`items[]`) or a single
+  product; `normalizeOrderLines` (`cod-shared/queries/cart.ts`) is the one
+  place the shapes meet. The basket lives in the shopper's browser, never in
+  D1, and every line is re-priced server-side: never trust a total from the
+  wire. The cart is off by default per store (`stores.cart_enabled`).
+- **Languages and translations.** `stores.lang` is the primary language;
+  `store_locales` lists the others, and only published ones reach
+  `/store/config`. The supported list lives once, in
+  `cod-shared/i18n/locales.ts`. Merchant data is translated in the
+  `translations` table; the resource's own columns hold the primary language.
+  A new translatable resource needs its own delete trigger. Order lines always
+  take the catalog's primary-language names.
+- **Theme text edits are keyed by theme** (`store_content_overrides`,
+  `defineTheme({ key })`); renaming a theme's key orphans its merchants' edits.
+- **Reviews.** A shopper proves a purchase with the order number and its
+  phone, for a delivered order, one review per product. Photos are kept only
+  as WebP from the Images binding, which drops EXIF and GPS. Review files are
+  deleted after their rows (`cod-server/src/lib/reviews/removal.ts`). `processing` reviews
+  belong to the system.
+- **Seed data has one source, `cod-shared/starter/`.** `storeDefaultsSql`
+  gives a store its default menus, collections, legal pages and, if it has
+  never taken an order, a shipping profile; `demoCatalogSql` adds the starter
+  catalog only to a store with no catalog of its own. Both are idempotent;
+  `cod-server/scripts/seed-store.ts` (`npm run db:setup:local` / `:remote`)
+  runs them. Never add seed data anywhere else.
 
 ## Known traps
 
-- Never create per-package `package-lock.json` files in a workspace (see
-  Layout). If a workspace's deps look stale, run `npm ci` at the repo root.
-  Theme-00's own lockfile is the deliberate exception.
-- Theme-00 pins `@cloudflare/vite-plugin` to 1.53.1 in its `overrides`.
-  1.63.x makes vitest fail at startup ("There is already a server associated
-  with the config") when the Cloudflare adapter loads through
-  `getViteConfig`. Lift the pin once a newer plugin passes `npm test` there.
-- Theme-00 uses TypeScript 6, not 7: `@astrojs/check` 0.9 accepts only
-  TypeScript 5–6 as its peer. The workspaces use TypeScript 7.
-- The Vite pin lives in the **root** `package.json`
-  (`"overrides": { "vite": "^8.2.2" }`) — npm ignores `overrides` inside
-  workspace members. It keeps a single Vite major across astro/vitest;
-  removing it reintroduces the dual-Vite boot crash
-  (`Missing field 'moduleType'`). Keep it in sync when astro bumps Vite.
-- `COD_SERVER_URL` defaults to `http://localhost:8787` so local dev works
-  untouched. A deployed Worker can never reach that, so
-  `cod-astro/theme-00/scripts/deploy.mjs` refuses to deploy a loopback value
-  unless `--force-local` is passed. Set the real origin in the root `.env`
-  before deploying the storefront.
-- Local D1 state is **shared** through `<repo-root>/.wrangler-shared`:
-  cod-server's dev/migrate scripts write there via `--persist-to`, and
-  cod-client-astro's astro dev reads the same files via the Cloudflare
-  adapter's `persistState`. Sign-in against an unmigrated local D1 is the
-  #1 "dashboard broken locally" cause — run `cod-server npm run db:setup:local`
-  first, then `cod-client-astro npm run seed:admin`.
-- `PUBLIC_API_URL` is a **build-time** client value: `astro:env/client` inlines
-  it into the browser bundle, so changing it requires a rebuild. It does **not**
-  go in `cod-client-astro/.env` — the Cloudflare adapter pushes wrangler values
-  and `.dev.vars` into `process.env`, and Astro reads env with an empty prefix,
-  so Vite's final `process.env` pass outranks the .env files:
-  `.dev.vars` > `wrangler.toml [vars]` > `process.env` > `.env`. A value in
-  `.env` is silently ignored, and `.dev.vars` — local-only by Cloudflare's
-  definition but still read during a build — once baked `http://localhost:8787`
-  into production. Set it in `.dev.vars` (local) and `wrangler.toml [vars]`
-  (production); `cod-client-astro npm run deploy` parks `.dev.vars` for the
-  build and refuses to upload a bundle containing a loopback URL. Runtime vars
-  (`PUBLIC_APP_URL`, `PUBLIC_TRUSTED_ORIGINS`) live in wrangler.toml `[vars]`.
-- `BETTER_AUTH_SECRET` and `MCP_LOGIN_TICKET_SECRET` must be **identical** on
-  cod-server and cod-client-astro (shared auth D1 + MCP login-ticket relay).
-- Better Auth 1.7 schema requirements live in migrations 0010/0011:
-  `accounts.issuer` ('local:credential', account_id = user id) and
-  `jwkss.alg/crv`. cod-client-astro ships its own KV `secondaryStorage` in
-  `src/lib/auth/server.ts` because better-auth-cloudflare@0.3.1 lacks the
-  `increment` method its rate limiter requires — do not swap back to `kv:`
+- **Dashboard i18n.** UI strings come from `locales/{ar,en,fr}` through
+  `useT(namespace)`, and the i18n guard test enforces parity. Placeholders and
+  counts go through `t(key, values)`: a count is a plural message with one key
+  per CLDR form its language has (Arabic has six); never `.replace("{n}")`.
+  Relative times use `@/lib/relative-time`.
+- **`PUBLIC_API_URL` is baked in at build time.** It does not go in
+  `cod-client-astro/.env`, which the build ignores
+  (`.dev.vars` > `wrangler.toml [vars]` > `process.env` > `.env`). Set it in
+  `.dev.vars` locally and in `wrangler.toml [vars]` for production;
+  `npm run deploy` refuses a bundle that contains a loopback URL.
+- `BETTER_AUTH_SECRET` and `MCP_LOGIN_TICKET_SECRET` must be identical on
+  cod-server and the dashboard.
+- The dashboard ships its own KV `secondaryStorage`
+  (`src/lib/auth/server.ts`) because `better-auth-cloudflare` 0.3.1 lacks the
+  `increment` its rate limiter needs; do not switch back to its `kv:`
   shortcut.
-- OAuth provider tables predate better-auth 1.7: `oauthClients`,
-  `oauthAccessTokens`, `oauthRefreshTokens`, `oauthConsents` are missing some
-  1.7 columns, and `oauthResource(s)`, `oauthClientResource(s)`,
-  `oauthClientAssertion(s)` do not exist yet. Core auth + dashboard work;
-  MCP client token flows may need that alignment before heavy use.
-- **Business Events are written with the change, never after it** (ADR
-  0016): a `cod-shared` writer of orders or shipments records its event with
-  `recordEvent` in its own batch, under its own claim, given an `Author`.
-  Never dispatch a side effect from a handler. The deployed `wrangler.toml`
-  must declare the `EVENTS_QUEUE` producer and consumer (ADR 0017), like the
-  crons; a release that requires it is not deployed without it.
-- The dashboard Worker and the storefront both default to port **4321** — run
-  one on `--port 4322` when developing both at once.
-- Inbound webhooks exist only for **Yalidine** and **ZR Express**; they are
-  stored in the `webhook_events` inbox, answered at once and processed after
-  (`cod-server/src/inbound`). NOEST, EcoTrack-platform companies and Guepex
-  send none: their shipments are synced every five minutes by the
-  `*/5 * * * *` cron (`src/inbound/cron.ts`) and on demand with
-  `POST /shipments/{id}/sync` or `POST /delivery-companies/{id}/sync-shipments`.
-  The deployed `wrangler.toml` must list that cron beside the hourly one.
-- **Delivery is the shipment's** (ADR 0006): an order's status is its
-  processing only (`cod-shared/orders/lifecycle.ts`); carrier, driver,
-  tracking and the delivery's milestones live in `shipments` and
-  `shipment_events`, driver settlement in `driver_payment_lines`.
-  `orders.driver_id`, `orders.company_id` and `webhook_events.order_id`
-  still exist in D1 but not in the Drizzle schema: SQLite cannot drop a
-  column a table `FOREIGN KEY` clause names, so migration 0041 emptied them.
-  Never read or write them.
-- **Removal is real deletion, kept consistent by the database** (migration
-  0042): a product goes for good and order lines keep what was sold (their
-  `product_id` becomes null); an order with a shipment can never be deleted —
-  a trigger raises `ORDER_HAS_SHIPMENT` even in raw SQL — and a finished one is
-  archived (`orders.archived_at`). There is no soft delete. A script that wipes
-  orders must delete `shipments` first.
-- **Reviews** (migration 0043, `cod-shared/reviews/`): a shopper proves a
-  purchase with the order number **and** its phone, for a delivered order,
-  one review per product of it. Photos and a voice note are uploaded first,
-  then prepared by `CodReviewMediaWorkflow` after the answer (photos only ever
-  kept as WebP from the Images binding — that is what drops EXIF/GPS). Review
-  files are deleted after their rows (`lib/reviews/removal.ts`), never by a
-  DB cascade alone. `processing` reviews belong to the system.
-- **The dashboard never re-implements delivery rules.** It reads them from
-  cod-shared — the lifecycle, the stages, the permission each shipment
-  action takes (`shipments/actions.ts`), the reports a kind allows — and
-  offers only the actions a shipment's `actions` list opens. A carrier is
-  told apart by its `provider` and `capabilities`, never by its company code
-  (`endsWith("_ecotrack")` and the like are the old way).
-- **Store languages are rows, not a column** (ADR 0005): `stores.lang` is
-  the primary, `store_locales` lists every added language with a `published`
-  flag, and only published ones reach `/store/config`. The supported list
-  lives once, in `cod-shared/i18n/locales.ts` — the SDKs never mirror it; the
-  server sends each language's code, name and direction.
-- **Merchant data is translated in one `translations` table** (resource,
-  language, key — `cod-shared/i18n/translations.ts`). The resource's own
-  columns hold the primary language; there is never a translation row for it.
-  It has no foreign keys: migration 0037's triggers delete a resource's rows
-  with it. A new translatable resource needs its own trigger. Variant options
-  are translated on their product, keyed by source text (`option:[…]`); a
-  language renames `variantOptions` and `variations` together
-  (`translateOptions`), and order lines and abandoned checkouts always take
-  the catalog's primary-language names, never the storefront's text.
-- **Theme text edits are keyed by theme** (`store_content_overrides`,
-  `defineTheme({ key })`), and a storefront only receives them when its SDK
-  client passes `theme`. Renaming a theme's key orphans its merchant edits.
-  This repo only reads them: theme editing (text edits, page documents) is
-  written by CodFlow Cloud's visual editor, which is closed source and lives
-  outside this repository — never add theme-writing endpoints or UI here.
-- The **shopping cart is off by default, per store** (`stores.cart_enabled`).
-  A store that never enables it ships no cart markup at all. Rollback for the
-  whole feature is `UPDATE stores SET cart_enabled = 0` — there is no data
-  migration to reverse, because a multi-line order is a valid CodFlow order the
-  dashboard and carriers already understand.
-- **An order is either a basket or a single product.** `items[]` supersedes the
-  flat `productId`/`productName`/`pricePerUnit`, which are optional only when
-  `items[]` is present. `cod-shared/queries/cart.ts` (`normalizeOrderLines`) is
-  the single place the shapes meet — do not branch on them anywhere else.
-- **The basket lives in the shopper's browser, never in D1.** The client's
-  `pricePerUnit` is display-only; every line is re-priced from the catalog
-  server-side. Never trust a cart total that arrived over the wire.
-- The mock db in cod-server's unit tests maps a full-table `select()`
-  **positionally by schema column order**. Adding a column to a table breaks
-  every fixture for it until the new field is inserted at the same position —
-  this is why those fixtures list columns in schema order with a comment.
-- cod-server tests run on miniflare + better-sqlite3 locally with no network
-  or credentials required.
-- **Seed data has one source: `cod-shared/starter/`.** `storeDefaultsSql`
-  gives a store what it lacks of the header and footer menus, the three
-  default collections, the four legal pages and — only for a store that has
-  never taken an order, since a store without a shipping profile delivers
-  free — a default shipping profile. `demoCatalogSql` adds the starter
-  catalog (six products, categories, variants, collections, offers, coupons,
-  menu links, in ar/fr/en; ids under `<storeId>:starter:`) only to a store
-  with no products or categories of its own. Both are idempotent. The one
-  script is `cod-server/scripts/seed-store.ts` (`npm run db:setup:local` /
-  `db:setup:remote`): it creates the store row and API key when missing, the
-  defaults always, the catalog with `--images=<dir>` (its pictures,
-  `starter-<name>.webp`, go to the store's media first, on its host). CodFlow Cloud runs the
-  same SQL from each platform release (`starterTemplates`). Never add seed
-  data anywhere else. The dashboard's Pages screen → "Add terms, privacy,
-  refund & shipping" (`POST /api/store-pages/seed-defaults`) writes the same
-  legal pages; without them Meta Ads rejects the store's ads
-  (https://docs.wocart.store/features/legal-pages).
+- The OAuth provider tables predate Better Auth 1.7 and lack some of its
+  columns and tables; MCP client token flows may need that alignment before
+  heavy use.
+- **Cloud configuration** comes from the root `.env` through
+  `cod-server/scripts/cloud-env.mjs` (`process.env` > `.env` > default). A new
+  key goes in its `DEFAULTS` and in `.env.example` together.
+  `COD_SERVER_URL` defaults to `http://localhost:8787`; Theme-00's deploy
+  refuses a loopback value unless `--force-local` is passed.
+- Local D1 state is shared through `.wrangler-shared/`: cod-server writes it,
+  and the dashboard's dev server reads it.
+- **Vite pins.** The root `overrides` pin Vite (`^8.2.2`) so astro and vitest
+  share one major; removing it brings back the `Missing field 'moduleType'`
+  crash. Theme-00 carries its own copy, plus `@cloudflare/vite-plugin` 1.53.1
+  (newer ones break vitest there), and uses TypeScript 6 because
+  `@astrojs/check` 0.9 accepts no newer.
+- cod-server's unit-test mock db maps a full-table `select()` by schema column
+  order: a new column breaks that table's fixtures until it is added at the
+  same position. Its tests need no network or credentials.
 
 ## Skills
 
-Two agent skills ship with the repository, in `.agents/skills/`:
+Two agent skills ship in `.agents/skills/`: `wocart-setup` (set up a
+self-hosted store on Cloudflare, with an optional Vercel storefront) and
+`wocart-update` (update one to the latest code). Nothing else belongs there.
 
-| Skill | When to use |
-|-------|-------------|
-| `wocart-setup` | Setting up a self-hosted store (Cloudflare + Vercel) |
-| `wocart-update` | Updating a self-hosted store to the latest code |
+## Endpoints
 
-Maintainers keep their own skills in `.agents/internal-skills/`, which is
-gitignored and never committed. Use one when it is present and fits the task.
-Only `wocart-setup` and `wocart-update` belong in `.agents/skills/`.
+Every endpoint is declared with `defineRoute()`:
 
-### Endpoints
-
-**Always use defineRoute() for new endpoints:**
 ```typescript
 import { defineRoute } from "@/lib/route-builder";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 
-const myRoute = defineRoute({
+const listRoute = defineRoute({
   method: "get",
-  path: "/my-resource",
-  auth: { scope: SCOPES.RESOURCE_READ },  // Always use SCOPES constants
+  path: "/",
+  auth: { scope: SCOPES.PRODUCTS_READ },
   handler: handlers.list,
 });
 
-router.openapi(myRoute.route, myRoute.handler);
+router.openapi(listRoute.route, listRoute.handler);
 ```
 
-**Migration workflow:**
-1. Create `routes.prototype.ts` 
-2. Convert routes using defineRoute()
-3. Run tests: `npm test -- <endpoint>`
-4. Verify no behavior changes
+Always take scopes from `SCOPES`, and reuse the shared response schemas in
+`cod-server/src/openapi/schemas.ts`.
