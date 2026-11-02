@@ -2,7 +2,7 @@
  * Store Page Schemas
  *
  * Merchant-owned content pages: Terms, Privacy, Refund/Return, Shipping, and
- * any custom page. See report-md/LEGAL_PAGES_PLAN.md.
+ * any custom page.
  */
 
 import { z } from "@hono/zod-openapi";

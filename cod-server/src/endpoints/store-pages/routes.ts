@@ -2,7 +2,7 @@
  * Store Pages Routes
  *
  * Merchant management of Terms/Privacy/Refund/Shipping and custom content
- * pages. See report-md/LEGAL_PAGES_PLAN.md. Built with defineRoute().
+ * pages. Built with defineRoute().
  */
 
 import { OpenAPIHono, z } from "@hono/zod-openapi";

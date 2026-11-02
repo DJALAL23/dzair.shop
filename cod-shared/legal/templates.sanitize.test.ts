@@ -1,6 +1,5 @@
 /**
- * Proves the templates survive the real sanitiser byte-for-byte — R5/R6 in
- * report-md/LEGAL_PAGES_PLAN.md.
+ * Proves the templates survive the real sanitiser byte-for-byte.
  *
  * HTMLRewriter does not exist in the Node vitest pool (established in
  * rich-text.test.ts), so `sanitizeRichText`/`toPlainText` run inside a real

@@ -126,6 +126,10 @@ other is how these drift.
   gitignored too (`wrangler.toml` in cod-server/cod-client-astro) — commit
   `.example` templates only.
 - No explanatory code comments unless asked.
+- **`docs/` is the maintainers' private notes** (ADRs, plans, reports in
+  `docs/report-md/`). It is gitignored and must never be committed, force-added
+  or pushed, and tracked files never link into it. Anything developers or
+  users need goes in `cod-docs`.
 
 ## Boundaries
 
@@ -298,10 +302,10 @@ other is how these drift.
   defaults always, the catalog with `--images=<dir>` (its pictures,
   `starter-<name>.webp`, go to the store's media first, on its host). CodFlow Cloud runs the
   same SQL from each platform release (`starterTemplates`). Never add seed
-  data anywhere else. The dashboard's Pages screen → "Add Terms, Privacy,
-  Refund & Shipping" (`POST /api/store-pages/seed-defaults`) writes the same
+  data anywhere else. The dashboard's Pages screen → "Add terms, privacy,
+  refund & shipping" (`POST /api/store-pages/seed-defaults`) writes the same
   legal pages; without them Meta Ads rejects the store's ads
-  (`report-md/LEGAL_PAGES_PLAN.md`).
+  (https://docs.wocart.store/features/legal-pages).
 
 ## Skills
 

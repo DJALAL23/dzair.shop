@@ -10,7 +10,6 @@ partner-client/
 codflow-main-lp/
 CLOUD_MASTER_PLAN.md
 cloud-backups/
-report-md/
 
 # Build artifacts
 .astro/

@@ -1,7 +1,7 @@
 /**
  * Checkout Form Policy routes — which fields the storefront order form asks
  * for, and how strictly each is enforced.
- * See report-md/STOREFRONT_FORM_CONTROL_PLAN.md. Built with defineRoute().
+ * Built with defineRoute().
  */
 
 import { OpenAPIHono, z } from "@hono/zod-openapi";

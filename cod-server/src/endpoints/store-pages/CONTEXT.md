@@ -1,6 +1,6 @@
 # Store Pages Context
 
-Merchant-owned content pages: the four legal documents Meta Ads requires before it will run a store's ads (Terms, Privacy, Refund/Return, Shipping), plus any custom page a merchant adds later. See report-md/LEGAL_PAGES_PLAN.md.
+Merchant-owned content pages: the four legal documents Meta Ads requires before it will run a store's ads (Terms, Privacy, Refund/Return, Shipping), plus any custom page a merchant adds later.
 
 ## Language
 
