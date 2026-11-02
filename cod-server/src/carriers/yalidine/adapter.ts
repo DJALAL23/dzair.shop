@@ -8,7 +8,7 @@
  * names its platform in its settings.
  *
  * Auth: `X-API-ID` + `X-API-TOKEN`. Facts that shape this adapter (official
- * docs, `.agents/skills/yalidine-integration-skill-main/`):
+ * docs):
  *   - Parcels are created by POSTing an array; the answer is keyed by our
  *     `order_id` and each parcel succeeds or fails on its own.
  *   - No validation step: a parcel is live at creation. It can be edited or

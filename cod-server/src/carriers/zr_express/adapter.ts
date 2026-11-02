@@ -1,8 +1,8 @@
 /**
  * ZR Express (https://api.zrexpress.app) — the carrier contract over its API.
  *
- * Auth: `X-Api-Key` + `X-Tenant`. Facts that shape this adapter (swagger in
- * `.agents/skills/zr-express/`, live-verified 2026-09-10):
+ * Auth: `X-Api-Key` + `X-Tenant`. Facts that shape this adapter (its swagger,
+ * live-verified 2026-09-10):
  *   - A parcel's stable id is its UUID; the tracking number can change
  *     (`oldTrackingNumber`), so CodFlow addresses parcels by UUID.
  *   - Creating a parcel takes a ZR customer, the city and district territories

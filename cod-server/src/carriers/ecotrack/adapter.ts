@@ -5,7 +5,7 @@
  * Auth: `Authorization: Bearer`, except `validate/token` and
  * `get/orders/status`, which take `api_token` as a query parameter. Each
  * company has its own base URL. Facts that shape this adapter (Postman
- * collection and API reference in `.agents/skills/Ecotrack/`):
+ * collection and API reference):
  *   - Single-order endpoints take query parameters, no body; bulk create and
  *     `valid/returns` take JSON.
  *   - Failures come three ways: HTTP 429 (50 requests/minute), HTTP 422

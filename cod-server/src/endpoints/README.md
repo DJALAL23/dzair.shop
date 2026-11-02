@@ -3,8 +3,8 @@
 Each subdirectory is one API domain. The standard pattern for all routes is
 `defineRoute()` from `@/lib/route-builder`. **All domains have completed this
 migration** — raw `createRoute()` from `@hono/zod-openapi` is no longer used
-anywhere. New endpoints must use `defineRoute()` (see
-`.agents/skills/route-builder/NEW-ENDPOINTS.md`).
+anywhere. New endpoints must use `defineRoute()` (see the
+Endpoints section of the root `AGENTS.md`).
 
 ---
 

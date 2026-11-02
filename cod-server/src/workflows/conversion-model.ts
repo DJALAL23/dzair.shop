@@ -7,10 +7,10 @@
  * - Courier logistics delivery (Yalidine / ZR Express webhooks)
  * - CAPI Workflow execution, validation, and idempotency claims
  *
- * Grounded in .agents/skills/meta-ads/SKILL.md and official Meta documentation:
- * - capi-deduplication.md (eventID === event_id, matching event_name)
- * - pixel-reference-standard-events.md (Purchase at checkout, Lead at sign-up)
- * - capi-offline-events.md (delayed COD delivery conversion)
+ * Grounded in official Meta documentation:
+ * - Conversions API deduplication (eventID === event_id, matching event_name)
+ * - the Pixel's standard events (Purchase at checkout, Lead at sign-up)
+ * - Conversions API offline events (delayed COD delivery conversion)
  */
 
 import { storefrontPath } from "../../../cod-shared/storefront/routes";

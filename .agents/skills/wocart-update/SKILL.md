@@ -1,5 +1,5 @@
 ---
-name: codflow-update
+name: wocart-update
 description: >-
   Update runbook for a self-hosted CodFlow install — an AI agent following it
   fetches the latest code from the CodFlow GitHub repo, merges it into an
@@ -11,7 +11,7 @@ description: >-
   never re-running the full setup, never regenerating secrets, never
   re-seeding a live store, and reporting every step to the user in plain
   language (they may be a non-developer). Use when the developer already set
-  CodFlow up (via the codflow-setup skill) and wants to update or upgrade to
+  CodFlow up (via the wocart-setup skill) and wants to update or upgrade to
   the latest version from https://github.com/bighadj22/codflow (branch main),
   pull the latest changes/release, apply new migrations after pulling, or
   asks how to get updates for their existing install.
@@ -20,13 +20,13 @@ description: >-
 # CodFlow Update — Agent Runbook
 
 CodFlow self-hosters cloned the repo and completed setup with the
-`codflow-setup` skill: their `wrangler.toml` files, root `.env`, and
+`wocart-setup` skill: their `wrangler.toml` files, root `.env`, and
 `.dev.vars` files are filled with THEIR resource IDs and secrets and are all
 **gitignored**. This runbook brings such an install to the latest upstream
 code **incrementally** — no re-running setup, no re-creating resources, no
 data loss.
 
-This skill ships inside the repo (`.agents/skills/codflow-update/`), so a
+This skill ships inside the repo (`.agents/skills/wocart-update/`), so a
 plain `git pull` delivers it. The very first time, the developer can pull once
 by hand (`git pull origin main`) and then ask their agent to run this skill;
 every update after that is fully agent-driven.
@@ -87,7 +87,7 @@ State this to the developer before running anything:
    test -f .env && test -f cod-server/wrangler.toml && test -f cod-client-astro/wrangler.toml && echo OK
    ```
    If any is missing, STOP — this is not a completed setup. Run the
-   `codflow-setup` skill instead.
+   `wocart-setup` skill instead.
 
 2. **Correct upstream remote.**
    ```bash
@@ -125,7 +125,7 @@ State this to the developer before running anything:
 
 5. **Record the rollback point (mandatory).**
    ```bash
-   git rev-parse --short HEAD | tee /tmp/codflow-update-old-head
+   git rev-parse --short HEAD | tee /tmp/wocart-update-old-head
    git describe --tags HEAD 2>/dev/null || echo "(untagged)"
    ```
    Keep this for Step 8. Cloudflare also keeps each worker's previous

@@ -1,5 +1,5 @@
 ---
-name: codflow-setup
+name: wocart-setup
 description: >-
   Setup runbook for CodFlow — an AI agent following it authenticates with Cloudflare,
   creates the required resources (D1, R2, KV) in the developer's account, binds their real
@@ -406,7 +406,7 @@ cd cod-astro/theme-00 && env -u CLOUDFLARE_ACCOUNT_ID npm run deploy     # astro
 
 #### Option B: Deploy Storefront to Vercel (Recommended when cod-server is on workers.dev)
 Deploying the storefront to Vercel bypasses Cloudflare Error 1042 completely and takes advantage of Vercel's global Edge network and instant preview branches.
-See the dedicated [`storefront-vercel` skill](.agents/skills/storefront-vercel/SKILL.md) for full details.
+Full details: https://docs.wocart.store/self-hosting/deploy.
 
 Using Vercel CLI:
 ```bash
@@ -487,7 +487,7 @@ Print a resource inventory:
 
 > **Tell the developer how to get future updates:** "When CodFlow publishes
 > an update, just ask your AI agent to *'update CodFlow'* — it will follow
-> the [`codflow-update` runbook](.agents/skills/codflow-update/SKILL.md)
+> the [`wocart-update` runbook](.agents/skills/wocart-update/SKILL.md)
 > (shipped in this repo), which pulls the latest code from
 > `https://github.com/bighadj22/codflow` main, merges it into this install
 > without re-running setup, keeps your resources, secrets, and data intact,
@@ -503,7 +503,7 @@ Print a resource inventory:
 
 **Credentials file delivery (mandatory):** Write credentials to a chmod-600
 markdown file OUTSIDE git-tracked directories (e.g. `~/codflow-credentials.md`
-or `/tmp/codflow-setup-<timestamp>.md`). Place every value inside a fenced code
+or `/tmp/wocart-setup-<timestamp>.md`). Place every value inside a fenced code
 block so humans can copy-paste them without trailing-space login failures. Extract values programmatically from `.dev.vars` or source files; never retype from memory. Delete temporary secret files afterward. Show credentials in chat output at most once.
 
 Example credentials file structure:

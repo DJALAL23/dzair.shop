@@ -97,7 +97,7 @@ Setup is a guided runbook — it creates the Cloudflare resources (D1, R2, KV),
 binds their real IDs into the `wrangler.toml` files, migrates and seeds the
 database, and verifies the deployment.
 
-> 🤖 **Working with an AI Coding Assistant?** CodFlow includes an autonomous setup skill. Instruct your agent: *"Set up CodFlow"* and it will follow the [`codflow-setup` runbook](./.agents/skills/codflow-setup/SKILL.md).
+> 🤖 **Working with an AI Coding Assistant?** CodFlow includes an autonomous setup skill. Instruct your agent: *"Set up CodFlow"* and it will follow the [`wocart-setup` runbook](./.agents/skills/wocart-setup/SKILL.md).
 
 ---
 

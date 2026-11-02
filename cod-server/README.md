@@ -216,8 +216,8 @@ An hourly cron sweeps pending orders older than 30 minutes to `abandoned`.
   `OpenAPIHono` router: the route definition is the single source of truth
   for both request validation and the OpenAPI spec — there are no
   hand-written spec files to keep in sync. Every domain is already on this
-  pattern; see `src/endpoints/README.md` for the current state and
-  `.agents/skills/route-builder/NEW-ENDPOINTS.md` for the how-to. Reuse
+  pattern; see `src/endpoints/README.md` for the current state and the
+  Endpoints section of the root `AGENTS.md` for the how-to. Reuse
   shared response schemas from `src/openapi/schemas.ts`.
 - Shared schema and read queries live in `cod-shared` — do not duplicate them
   in `cod-server/src/db`.

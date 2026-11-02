@@ -58,8 +58,11 @@ cod-server/OPENAPI_MIGRATION.md
 cod-server/NEXT_ENDPOINT.mdsendili.md
 partner-client-astro/
 
-# Closed-source cloud release runbook skill — local only.
-.opencode/skills/codflow-release/
+# Agent skills: only wocart-setup and wocart-update are public; the rest are
+# the maintainers' own, kept locally.
+/.agents/skills/*
+!/.agents/skills/wocart-setup/
+!/.agents/skills/wocart-update/
 
 # Verified SDK tarballs (npm run verify:sdks)
 .sdk-packs/
@@ -68,4 +71,4 @@ partner-client-astro/
 docs/media/PLAN.md
 
 # Internal notes: kept locally, never committed. Public docs live in cod-docs.
-docs/
+/docs/

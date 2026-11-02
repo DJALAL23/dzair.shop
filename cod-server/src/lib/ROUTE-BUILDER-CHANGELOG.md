@@ -152,5 +152,4 @@ Auth strategies now in use across the codebase: `"api-key"`, `"admin"`,
 deliberately (activity-logs' throw-based `adminOnly`, delivery-companies'
 `use()` patterns) — see their routes.ts docblocks.
 
-The migration guide (`.agents/skills/route-builder/MIGRATION.md`) is retained
-for reference; new endpoints follow NEW-ENDPOINTS.md directly.
+New endpoints follow the Endpoints section of the root `AGENTS.md`.

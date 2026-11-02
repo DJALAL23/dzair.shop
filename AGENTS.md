@@ -309,24 +309,17 @@ other is how these drift.
 
 ## Skills
 
-This project has custom skills for AI agents. When working on specific tasks, activate the relevant skill:
+Two agent skills ship with the repository, in `.agents/skills/`:
 
-### Route Builder (API Endpoints)
+| Skill | When to use |
+|-------|-------------|
+| `wocart-setup` | Setting up a self-hosted store (Cloudflare + Vercel) |
+| `wocart-update` | Updating a self-hosted store to the latest code |
 
-For creating or migrating API endpoints, use the **route-builder** skill:
+Maintainers may keep further skills of their own in `.agents/skills/`; they are
+gitignored and never committed. Use one when it is present and fits the task.
 
-```bash
-# Activate the skill (if using Kiro with skills)
-disclose_context: route-builder
-```
-
-This skill provides:
-- **SKILL.md** - Quick reference for the defineRoute() pattern
-- **MIGRATION.md** - Step-by-step guide for migrating existing endpoints
-- **NEW-ENDPOINTS.md** - Guide for creating new endpoints
-- **EXAMPLES.md** - Real-world examples from the codebase
-
-### Key Patterns
+### Endpoints
 
 **Always use defineRoute() for new endpoints:**
 ```typescript
@@ -348,28 +341,3 @@ router.openapi(myRoute.route, myRoute.handler);
 2. Convert routes using defineRoute()
 3. Run tests: `npm test -- <endpoint>`
 4. Verify no behavior changes
-
-### Available Skills
-
-| Skill | When to Use |
-|-------|-------------|
-| `route-builder` | Creating or migrating API endpoints |
-| `code-review` | Reviewing code changes |
-| `codebase-design` | Understanding architecture |
-| `prototype` | Building throwaway prototypes |
-| `improve-codebase-architecture` | Refactoring or architecture changes |
-| `tdd` | Test-driven development |
-| `wayfinder` | Navigating the codebase |
-| `codflow-setup` | Setting up the project (Cloudflare + Vercel) |
-| `storefront-vercel` | Deploying or configuring the customer storefront on Vercel |
-| `wocart-theme` | Building, changing, reviewing or documenting a theme on the `@wocart/*` SDKs (contract verification, architecture, quality gates, en/fr/ar docs) |
-| `whatsapp-otp` | WhatsApp OTP verification feature (dzverify) |
-| `Ecotrack` | EcoTrack carrier integration |
-| `zr-express` | ZR Express delivery platform integration (129 endpoints, organized per domain) |
-| **`diagnosing-bugs`** | **Debug production issues (orders, delivery, payments)** |
-| **`domain-modeling`** | **Design data models for complex domain** |
-| **`implement`** | **Turn specs into working code** |
-| **`to-spec`** | **Convert ideas into formal specifications** |
-| **`to-tickets`** | **Break features into GitHub issues** |
-
-For more details on any skill, see the `.agents/skills/` directory.

@@ -2,8 +2,7 @@
  * EcoTrack Tenant Catalog — 82 couriers on the EcoTrack platform
  *
  * One adapter (cod-server) serves every tenant: companies are DATA, not code.
- * Source of the courier list + keys: .agents/skills/Ecotrack/about.md
- * (dzship's EcoTrack guide). Keys must never drift from that table.
+ * Source of the courier list + keys: dzship's EcoTrack guide. Keys must never drift from that table.
  *
  * Consumed by BOTH apps (single source of truth — never duplicate this list):
  *   - cod-server: providers/ecotrack/seed-sql.ts + scripts/seed-ecotrack-companies.mjs

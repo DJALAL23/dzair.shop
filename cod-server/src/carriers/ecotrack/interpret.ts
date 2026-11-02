@@ -1,8 +1,7 @@
 /**
  * What EcoTrack's statuses mean to CodFlow (every EcoTrack-platform company).
  *
- * EcoTrack speaks two documented vocabularies (Postman collection,
- * `.agents/skills/Ecotrack/`):
+ * EcoTrack speaks two documented vocabularies (its Postman collection):
  *   - `activity` — a parcel's history (`get/tracking/info`), one key per event;
  *   - `status`   — the sender-dashboard buckets (`get/orders`, `get/orders/status`).
  *

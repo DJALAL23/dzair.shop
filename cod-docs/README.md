@@ -98,5 +98,5 @@ old slug in `pages/` and `src/i18n/navigation.ts`.
 - The SDK sources and tests are the contract; a page may not describe behavior
   they do not implement.
 - A contract change ships with its three pages, its examples and the
-  `.agents/skills/wocart-theme/` procedure.
+  public agent kit in `public/agents/`.
 - Theme-00 is an example, not the specification; where it differs, say so.
