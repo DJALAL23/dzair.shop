@@ -20,6 +20,7 @@ src/
     documents/        the layout each page starts with (JSON)
     content/          every word a shopper reads, ar/fr/en side by side
     labels.ts         what Studio calls each page, section, field and option
+    palette.ts        the starter's colors, written once (black and white)
     settings.ts       store-wide settings and the default color schemes
     fields.ts         fields several sections share (scheme, style, heading)
   components/         presentation
@@ -110,7 +111,7 @@ in `src/lib/store.ts`), and answer 404 without the key.
 
 | You want to… | Change |
 | --- | --- |
-| Restyle the store | `src/styles/tokens.css` (fonts, type, corners, shadows), the default color schemes in `src/theme/settings.ts`, the fonts in `public/fonts/` |
+| Restyle the store | `src/styles/tokens.css` (fonts, type, corners, shadows), the starter's colors in `src/theme/palette.ts`, the default color schemes in `src/theme/settings.ts`, the fonts in `public/fonts/` |
 | Change a word a shopper reads | Its key in `src/theme/content/`, in ar, fr and en |
 | Change what a page starts with | Its document in `src/theme/documents/` |
 | Let merchants change something new | A field in the section's definition, read by its component |
@@ -141,6 +142,8 @@ is checked by a test you can run on its own with `npx vitest run <file> -t
 | Colors come from color schemes; every brand value lives in `tokens.css` | `contract.test.ts` "colour scheme"; `guards.test.ts` "keeps every brand value in tokens.css", "scheme marker" |
 | A photo a merchant picks is an `image` field, never a URL | `contract.test.ts` "never type an image URL" |
 | Layout uses logical properties, so right to left needs no rule of its own | `guards.test.ts` "logical properties" |
+| No colour outside `tokens.css` and `palette.ts`: not in code, markup, a data URI or an SVG | `guards.test.ts` "holds no colour outside the tokens and the palette" |
+| Every section has a colour scheme and a style, and renders through `Section.astro` | `guards.test.ts` "gives every section a colour scheme and a style" |
 | Browser scripts bind through the SDK's lifecycle | `guards.test.ts` "binds every behaviour through the SDK's lifecycle" |
 | Browser code imports no Zod, no schema and no server-only module | `guards.test.ts` "the theme's browser code" |
 | Every order form posts to the `placeOrder` action, with its checkout key | `guards.test.ts` "gives every order form its checkout key" |

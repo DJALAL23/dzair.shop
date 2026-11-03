@@ -24,7 +24,8 @@ Three places restyle every page:
    else.
 2. **The fonts** in `public/fonts/`: one Arabic family and one Latin family,
    each limited to its script.
-3. **The default color schemes** in `src/theme/settings.ts`: what a store
+3. **The starter's colors** in `src/theme/palette.ts`, which the default color
+   schemes in `src/theme/settings.ts` use: what a store
    starts with before the merchant picks colors in Studio.
 
 A rounded, modern sans-serif look with soft pill buttons is only this in
@@ -81,8 +82,8 @@ section as `--wc-color-*` variables. In `tokens.css`, the rule
 `:root, .wc-scheme` turns them into the theme's tokens (`--bg`, `--ink`,
 `--accent`…), with the `light` scheme as the fallback values.
 
-To change the palette, edit the schemes' default colors in
-`src/theme/settings.ts` and the fallbacks in `tokens.css` together. Keep the
+To change the palette, edit the constants in `src/theme/palette.ts` and the fallbacks in
+`tokens.css` together. Keep the
 scheme ids: sections and documents name them. A merchant's own colors, picked
 in Studio, then replace yours store by store.
 
