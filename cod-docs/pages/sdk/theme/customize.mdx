@@ -6,43 +6,70 @@ import { Callout } from "zudoku/ui/Callout";
 
 # Make it your own
 
-The starter ([Quick start](/sdk/theme/starter)) is plain on purpose: its
-brand lives in a few files, and everything else reads from them. This page
-goes from the smallest change to the largest.
+The starter ([Quick start](/sdk/theme/starter)) has a look of its own: warm
+paper, an oxblood accent, a serif pair (Fraunces and Noto Naskh Arabic),
+crisp corners and letter-spaced buttons. All of it lives in a few files, and
+everything else reads from them, so it can take any brand. This page goes
+from the smallest change to the largest.
 
 ## Restyle the whole store
 
 Three places restyle every page:
 
-1. **`src/styles/tokens.css`**, the design system: fonts, type, corners,
-   shadows, motion, and the tints derived from the store's colors. Every
-   other stylesheet reads these tokens. A test fails on a color, font,
-   radius or shadow written anywhere else.
+1. **`src/styles/tokens.css`**, the design system: fonts, body size and
+   leading, font weights, heading and display type, button shape and
+   lettering, corners, shadows, the sale badge, motion, and the tints derived
+   from the store's colors. Every other stylesheet reads these tokens. A test
+   fails on a color, font, font weight, radius or shadow written anywhere
+   else.
 2. **The fonts** in `public/fonts/`: one Arabic family and one Latin family,
    each limited to its script.
 3. **The default color schemes** in `src/theme/settings.ts`: what a store
    starts with before the merchant picks colors in Studio.
 
-A rounder look with its own Latin font is only this in `tokens.css`, plus
-the font file, its preload and its license:
+A rounded, modern sans-serif look with soft pill buttons is only this in
+`tokens.css`, plus the font file, its preload and its license:
 
 ```css
 @font-face {
   font-family: "Brand";
   src: url("/fonts/brand-latin.woff2") format("woff2");
+  font-weight: 100 900;
   font-display: swap;
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC;
 }
 
 :root {
-  --font-latin: "Brand";  /* was "Inter" */
-  --r: 22px;              /* was 10px */
-  --r-lg: 30px;           /* was 14px */
+  --font-latin: "Brand";        /* was "Fraunces" */
+  --heading-weight: 800;        /* was 500 */
+  --display-weight: 800;        /* was 400 */
+  --weight-heavy: 800;          /* was 600 */
+  --btn-radius: var(--r-pill);  /* was var(--r-sm) */
+  --btn-case: none;             /* was uppercase */
+  --btn-tracking: 0;            /* was 0.09em */
+  --r: 16px;                    /* was 3px */
+  --r-lg: 22px;                 /* was 4px */
+  --r-pill: 999px;              /* was 2px */
 }
 ```
 
 Every page follows, in both directions, and the order form, Studio's preview
 and the merchant's own colors keep working.
+
+### Type and buttons
+
+| Tokens | What they set |
+| --- | --- |
+| `--body-size`, `--body-leading` | The text size and line height of the page |
+| `--weight-medium`, `--weight-semibold`, `--weight-bold`, `--weight-heavy` | The weights every stylesheet names: a theme never writes a number |
+| `--heading-weight`, `--heading-tracking` | Headings |
+| `--display-weight`, `--display-tracking` | The hero's large title |
+| `--btn-radius`, `--btn-weight`, `--btn-size`, `--btn-case`, `--btn-tracking`, `--btn-glow` | Every button |
+| `--sale`, `--sale-ink`, `--sticker-radius`, `--sticker-shadow`, `--sticker-rotate` | The saving badge on a card and the sticker on a product photo |
+
+The `[dir="rtl"]` block in `tokens.css` sets Arabic's own values: a larger
+body size and a taller line, its weights, and no letter-spacing or capitals,
+because Arabic letters join and spacing them apart breaks the word.
 
 ### Colors
 
