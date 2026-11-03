@@ -1,8 +1,10 @@
 /**
  * Store-context seam (Theme Zero S2).
  *
- * `resolveStoreRequest()` is the middleware's dependency: middleware runs once
- * per request and puts the result on `Astro.locals.store`; pages, layouts and
+ * The SDK's `createStorefrontMiddleware` resolves each request's store, and
+ * this theme's `storeContext()` (`theme/runtime/store.ts`) builds the context
+ * from it; middleware runs once per request and puts the result on
+ * `Astro.locals.store`; pages, layouts and
  * components read that — its language, links and SDK client included. These
  * guards keep the seam single so a new page (or a new theme) has exactly one
  * pattern to copy, and a second acquisition point fails here.
@@ -19,15 +21,18 @@ describe("Theme Zero — one store-context acquisition point", () => {
   });
 
   it("only middleware acquires the store context", () => {
-    for (const acquire of ["resolveStoreRequest(", "resolvePreviewStore("]) {
-      const owners = files
-        .filter((f) => f.content.includes(acquire))
+    const owners = (pattern: RegExp) =>
+      files
+        .filter((f) => pattern.test(f.content))
         .map((f) => f.relPath)
         .sort();
 
-      // store.ts defines it; middleware calls it. Anyone else is a second seam.
-      expect(owners, acquire).toEqual(["middleware.ts", "theme/runtime/store.ts"]);
-    }
+    // The SDK resolves the request in one place: the middleware.
+    expect(owners(/\bcreateStorefrontMiddleware\s*\(/)).toEqual(["middleware.ts"]);
+    // Nothing resolves a store by hand beside it.
+    expect(owners(/\b(resolveStoreRequest|resolvePreviewStore)\s*\(/)).toEqual([]);
+    // store.ts defines the context; middleware hands it to the SDK. Anyone else is a second seam.
+    expect(owners(/\bstoreContext\b/)).toEqual(["middleware.ts", "theme/runtime/store.ts"]);
   });
 
   it("only the adapter and the middleware's own store module create SDK clients; pages use the request's", () => {

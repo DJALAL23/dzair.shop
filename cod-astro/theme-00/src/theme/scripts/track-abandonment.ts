@@ -2,7 +2,7 @@
  * Abandoned Order Tracking
  *
  * Sends shopper contact details to the same-origin proxy
- * POST /api/abandoned (which forwards to cod-server with the server-side
+ * POST /api/abandoned/upsert (which forwards to cod-server with the server-side
  * store key) when the visitor has typed a valid name + phone and pauses for
  * 3 seconds without submitting. All updates use the same sessionId (UPSERT
  * on the server), so there is exactly one DB record per browser tab. The
@@ -27,12 +27,12 @@
  */
 
 import { createBrowserAbandonedCheckoutTracker, type AbandonedCheckoutSnapshot } from "@wocart/storefront";
-import { API_PATHS } from "./api-paths";
+import { STOREFRONT_API_PATHS } from "@wocart/storefront";
 import { getCart, cartSubtotal, subscribe } from "./cart";
 import { onEachPage } from "@wocart/theme/lifecycle";
 
 function initAbandonmentTracking(): () => void {
-  const tracker = createBrowserAbandonedCheckoutTracker({ endpoint: API_PATHS.abandonedUpsert });
+  const tracker = createBrowserAbandonedCheckoutTracker({ endpoint: STOREFRONT_API_PATHS.abandonedUpsert });
 
   function getWilayaName(wilayaId: number | undefined): string | undefined {
     if (!wilayaId) return undefined;

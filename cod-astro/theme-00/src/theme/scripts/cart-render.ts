@@ -15,7 +15,7 @@ import { embeddedMessage, embeddedTemplate } from "@/theme/content/messages";
 import { getCart, lineKey, setQuantity, removeLine, toOrderItems, type BasketLine } from "./cart";
 import { createQuoter, type CartValidation, type CartValidationLine, type DeliveryDestination } from "@wocart/storefront";
 import { formatAmount, formatCurrency } from "../utils/money";
-import { API_PATHS } from "./api-paths";
+import { STOREFRONT_API_PATHS } from "@wocart/storefront";
 
 /** The server's verdict on the basket — the SDK schema's types, not a mirror of them. */
 export type ValidatedLine = CartValidationLine;
@@ -48,7 +48,7 @@ export function moneyFormatter(currency: string): (n: number) => string {
  * still works from local state, and checkout re-checks everything); `null`
  * means the basket is known to be empty.
  */
-export function createValidator(endpoint: string = API_PATHS.cartValidate) {
+export function createValidator(endpoint: string = STOREFRONT_API_PATHS.cartValidate) {
   const quoter = createQuoter({ endpoint });
 
   return async function validate(

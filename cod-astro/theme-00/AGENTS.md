@@ -243,10 +243,11 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   provenance names another key, so the shipped default renders
   (`home-document.ts`, reason `other-theme`).
 - **An editor's preview is `/wocart-preview`** (`src/pages/wocart-preview.astro`,
-  ADR 0009). The middleware reads it first — `readThemePreview` in
-  `theme/sdk.ts` checks the editor's token with `WOCART_PREVIEW_KEY` (unset:
-  404) — and builds the draft's store context with `resolvePreviewStore`
-  (`runtime/store.ts`); a preview never runs a form action. The page renders
+  ADR 0009). The middleware is the SDK's `createStorefrontMiddleware`: given
+  `PREVIEW` from `theme/sdk.ts`, it checks the editor's token with
+  `WOCART_PREVIEW_KEY` (unset: 404) and builds the draft's store, which
+  `storeContext` (`runtime/store.ts`) turns into this theme's context; a
+  preview never runs a form action. The page renders
   surface the SDK's `previewTarget` picks — the template the draft names, for
   the resource its path names or the store's first of its kind, or the page an
   area is edited on — with `preview` set, so every section is marked and
@@ -256,10 +257,10 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   the bridge over its real markup.
 - **A publish shows at once through `/wocart-revalidate`**
   (`src/pages/wocart-revalidate.ts`). CodFlow Cloud posts a signed token
-  there after a publish (`readThemeRevalidation` in `theme/sdk.ts`, the same
-  `WOCART_PREVIEW_KEY`), and the route drops every cached page with
-  `context.cache.invalidate({ tags: ["pages"] })`. Every cached page route in
-  `astro.config.mjs` must carry the `"pages"` tag:
+  there after a publish, and the route — the SDK's `revalidateEndpoint`, as
+  `revalidateRoute` in `theme/sdk.ts`, with the same `WOCART_PREVIEW_KEY` —
+  drops every page cached under `PAGES_CACHE_TAG`. Every cached page route in
+  `astro.config.mjs` must carry `PAGES_CACHE_TAG`, never the literal:
   `revalidate-route.test.ts` fails on one that does not. The middleware lets
   the route through without resolving a store.
 - **The order form's outcome lives in `src/theme/pages/order-outcome.ts`.**
@@ -301,7 +302,10 @@ expect(validateThemeDefinition(theme, { contentKeys: Object.keys(pack) })).toEqu
   page by `convertAbandonedCheckout`; the review form runs on
   `createReviewSession`; an offer chosen piece by piece goes into the basket
   through `addSelections`, and AddToCart reports `addedLines`. The paths those
-  call are the routes in `src/theme/scripts/api-paths.ts`.
+  call are the SDK's `STOREFRONT_API_PATHS` (`storefrontApiPath` fills a
+  parameter), each mounted by one file under `src/pages/api/`;
+  `sdk-boundary.test.ts` checks both ways and that no other file writes an
+  `/api/` path.
 - **The store's WhatsApp is the App's, reached one way.** Every WhatsApp link
   — the launcher, the footer, the home band, the contact card, the thank-you
   and tracking buttons — comes from `storeWhatsApp` (`utils/whatsapp.ts`, the

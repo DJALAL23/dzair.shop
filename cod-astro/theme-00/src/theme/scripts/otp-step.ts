@@ -18,6 +18,7 @@
  */
 import { onEachPage } from "@wocart/theme/lifecycle";
 import {
+  STOREFRONT_API_PATHS,
   STOREFRONT_OPERATIONS,
   createOtpMachine,
   createOtpTransport,
@@ -51,9 +52,9 @@ async function postOtp<T>(
 
 const transport = createOtpTransport({
   send: (phone) =>
-    postOtp<OtpSendResult>("/api/otp/send", { phone }, STOREFRONT_OPERATIONS.ordersOtpSend, "OTP send failed"),
+    postOtp<OtpSendResult>(STOREFRONT_API_PATHS.otpSend, { phone }, STOREFRONT_OPERATIONS.ordersOtpSend, "OTP send failed"),
   verify: (phone, requestId, code) =>
-    postOtp<OtpVerifyResult>("/api/otp/verify", { phone, requestId, code }, STOREFRONT_OPERATIONS.ordersOtpVerify, "OTP verification failed"),
+    postOtp<OtpVerifyResult>(STOREFRONT_API_PATHS.otpVerify, { phone, requestId, code }, STOREFRONT_OPERATIONS.ordersOtpVerify, "OTP verification failed"),
 });
 
 export function initOtpStep(): () => void {

@@ -9,11 +9,11 @@
  * read itself goes through the theme adapter (`src/theme/sdk.ts`) — the one
  * place an SDK client is created.
  */
-import { getStoreClient, storeServerUrl, type PreviewDraft, type StoreClient } from "@/theme/sdk";
+import { getStoreClient, storeServerUrl, type StoreClient } from "@/theme/sdk";
 import { keepStoreMedia } from "@/theme/utils/image-service";
 import { resolveContent } from "@/theme/content";
 import { localizeHref, servedLanguage, unavailableStoreConfig, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
-import { resolvePreviewStore as resolvePreview, resolveStoreRequest as resolveRequest, type ResolvedStore } from "@wocart/storefront/astro";
+import type { ResolvedStore } from "@wocart/storefront/astro";
 import type { StoreFrontContent } from "@/theme/content";
 
 /** The store a page renders when its config cannot be read: the SDK's, in this theme's default language. */
@@ -44,37 +44,16 @@ export interface StoreContext {
 }
 
 /** What the SDK resolves a request with: this theme's one client factory, and the store it renders when the config cannot be read. */
-const STORE = { client: getStoreClient, fallback: UNAVAILABLE_STORE };
+export const STORE = { client: getStoreClient, fallback: UNAVAILABLE_STORE };
 
 /**
- * What a request resolves to: a page in one language — with the route to
- * render instead of the request's when its path carried a language prefix —
- * or a redirect, permanent for the primary's prefix, temporary for a language
- * the store stopped publishing. The rules are the SDK's
- * (`resolveStoreRequest`): a page takes its language from its path; a server
- * island or an `/api/*` endpoint from the page that asked for it, and is
- * never redirected or rewritten.
+ * The store context of a request the SDK resolved (`createStorefrontMiddleware`
+ * in `src/middleware.ts`): its language — a page's from its path, a server
+ * island's or an `/api/*` endpoint's from the page that asked — its client,
+ * and this theme's words and links in that language. A preview's store is the
+ * draft's, resolved the same way.
  */
-export type StoreRequest =
-  | { kind: "page"; store: StoreContext; rewrite: string | null }
-  | { kind: "redirect"; location: string; status: 301 | 302 };
-
-export async function resolveStoreRequest(url: URL, referer: string | null): Promise<StoreRequest> {
-  const request = await resolveRequest({ url, referer }, STORE);
-  return request.kind === "redirect" ? request : { kind: "page", store: storeContext(request), rewrite: request.rewrite };
-}
-
-/**
- * The store context of a preview: the language the draft asks for when the
- * store serves it (else the primary), and the store as the draft would leave
- * it — its theme settings and text edits over the saved ones. Only the
- * middleware calls this, for the preview route.
- */
-export async function resolvePreviewStore(draft: PreviewDraft): Promise<StoreContext> {
-  return storeContext(await resolvePreview(draft, STORE));
-}
-
-function storeContext({ config, client, routing, locale, pathname }: ResolvedStore): StoreContext {
+export function storeContext({ config, client, routing, locale, pathname }: ResolvedStore): StoreContext {
   if (config.id !== UNAVAILABLE_STORE.id) keepStoreMedia(config.media);
   // Only this language's overrides: another language's map would mix languages.
   const content = resolveContent(locale, config.contentOverrides[locale]);

@@ -14,7 +14,7 @@ import { canRecordVoice, createReviewSession, createVoiceRecorder, type VoiceRec
 import { onEachPage } from "@wocart/theme/lifecycle";
 import { embeddedMessage } from "@/theme/content/messages";
 import { reviewRefusalKey, type ReviewStep } from "@/theme/utils/review-refusals";
-import { API_PATHS } from "./api-paths";
+import { STOREFRONT_API_PATHS } from "@wocart/storefront";
 
 type Copy = Record<string, string>;
 type FileItem = {
@@ -46,7 +46,7 @@ function initReviewForm(): void | (() => void) {
   const stopButton = $<HTMLButtonElement>("[data-voice-stop]");
   const timer = $<HTMLElement>("[data-voice-timer]");
 
-  const session = createReviewSession({ routes: { eligibility: API_PATHS.reviewEligibility, upload: API_PATHS.reviewUpload, submit: API_PATHS.reviewSubmit } });
+  const session = createReviewSession({ routes: { eligibility: STOREFRONT_API_PATHS.reviewEligibility, upload: STOREFRONT_API_PATHS.reviewUpload, submit: STOREFRONT_API_PATHS.reviewSubmit } });
   /** Why the server refused, as the copy says it. */
   const refusal = (code: string | null, step: ReviewStep) => copy[reviewRefusalKey(code, step)] || copy.errorGeneric || "";
   let opened: ReviewEligibility | null = null;

@@ -7,7 +7,7 @@
 // only: a review is shopper-written, so none of it is ever parsed as markup.
 import { message } from "@/theme/content/messages";
 import VoicePlayer from "@/theme/components/product/VoicePlayer.astro";
-import type { Review, ReviewMedia } from "@wocart/storefront";
+import { STOREFRONT_API_PATHS, type Review, type ReviewMedia } from "@wocart/storefront";
 import type { ReviewsListCopy } from "@/theme/bridges/island-props";
 import { Icon } from "astro-icon/components";
 
@@ -213,7 +213,7 @@ const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.
   }
 </style>
 
-<script is:inline data-astro-rerun define:vars={{ loadMoreLabel: copy.loadMoreLabel, locale, starLabels: [1, 2, 3, 4, 5].map((n) => starLabel(n)), photoLabels: [1, 2, 3, 4, 5, 6].map((n) => photoLabel(n)) }}>
+<script is:inline data-astro-rerun define:vars={{ reviewsPath: STOREFRONT_API_PATHS.reviewsList, loadMoreLabel: copy.loadMoreLabel, locale, starLabels: [1, 2, 3, 4, 5].map((n) => starLabel(n)), photoLabels: [1, 2, 3, 4, 5, 6].map((n) => photoLabel(n)) }}>
   (function () {
     const section = document.querySelector(".reviews-section");
     if (!section) return;
@@ -328,7 +328,7 @@ const voice = (review: Review) => review.media.find((item: ReviewMedia) => item.
       btn.setAttribute("aria-busy", "true");
 
       try {
-        const res = await fetch(`/api/product-reviews/${encodeURIComponent(productId)}?offset=${offset}&limit=10`);
+        const res = await fetch(`${reviewsPath.replace(":productId", encodeURIComponent(productId))}?offset=${offset}&limit=10`);
         const json = await res.json();
         const rows = Array.isArray(json.data) ? json.data : [];
         rows.forEach((review) => list.appendChild(card(review)));

@@ -7,12 +7,12 @@
  */
 import { convertAbandonedCheckout } from "@wocart/storefront";
 import { onEachPage } from "@wocart/theme/lifecycle";
-import { API_PATHS } from "./api-paths";
+import { STOREFRONT_API_PATHS } from "@wocart/storefront";
 import { clearCart } from "./cart";
 
 onEachPage(() => {
   const placed = document.querySelector<HTMLElement>("[data-order-placed]");
   if (!placed) return;
-  convertAbandonedCheckout({ endpoint: API_PATHS.abandonedConvert, orderId: placed.dataset.orderId ?? "", orderNumber: placed.dataset.orderNumber ?? "" });
+  convertAbandonedCheckout({ endpoint: STOREFRONT_API_PATHS.abandonedConvert, orderId: placed.dataset.orderId ?? "", orderNumber: placed.dataset.orderNumber ?? "" });
   clearCart();
 });

@@ -133,11 +133,28 @@ function stubConfigServer(
   return calls;
 }
 
+/**
+ * What the middleware does for a request: the SDK resolves its store and
+ * language (`createStorefrontMiddleware` calls these), and this theme builds
+ * its context on the result.
+ */
+async function runtime() {
+  const { STORE, storeContext } = await import("@/theme/runtime/store");
+  const sdk = await import("@wocart/storefront/astro");
+  return {
+    resolveStoreRequest: async (url: URL, referer: string | null) => {
+      const request = await sdk.resolveStoreRequest({ url, referer }, STORE);
+      return request.kind === "redirect" ? request : { kind: "page" as const, store: storeContext(request), rewrite: request.rewrite };
+    },
+    resolvePreviewStore: async (draft: import("@/theme/sdk").PreviewDraft) => storeContext(await sdk.resolvePreviewStore(draft, STORE)),
+  };
+}
+
 /** The store context of a page request — failing the test if it redirects. */
 const shop = (path: string) => new URL(`https://shop.dz${path}`);
 
 async function storeFor(path: string, referer: string | null = null) {
-  const { resolveStoreRequest } = await import("@/theme/runtime/store");
+  const { resolveStoreRequest } = await runtime();
   const request = await resolveStoreRequest(shop(path), referer);
   if (request.kind !== "page") throw new Error(`${path} redirected to ${request.location}`);
   return request.store;
@@ -197,14 +214,14 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
     expect(ctx.href("/checkout")).toBe("/fr/checkout");
     expect(ctx.href("/")).toBe("/fr");
     expect(calls).toContain("https://api.example.test/store/config?theme=theme-00&locale=fr");
-    const { resolveStoreRequest } = await import("@/theme/runtime/store");
+    const { resolveStoreRequest } = await runtime();
     expect(await resolveStoreRequest(shop("/fr/products/phone?ref=ig"), null)).toMatchObject({ kind: "page", rewrite: "/products/phone?ref=ig" });
     expect(await resolveStoreRequest(shop("/products/phone"), null)).toMatchObject({ kind: "page", rewrite: null });
   });
 
   it("gives the primary language one address: /ar/… redirects permanently", async () => {
     stubConfigServer();
-    const { resolveStoreRequest } = await import("@/theme/runtime/store");
+    const { resolveStoreRequest } = await runtime();
     expect(await resolveStoreRequest(shop("/ar/products/phone"), null)).toEqual({
       kind: "redirect",
       location: "/products/phone",
@@ -221,7 +238,7 @@ describe("resolveStoreRequest() — through the S5 adapter", () => {
 
   it("sends a shopper to the primary URL when the server no longer serves the language", async () => {
     stubConfigServer({}, { fr: { locale: "ar" } });
-    const { resolveStoreRequest } = await import("@/theme/runtime/store");
+    const { resolveStoreRequest } = await runtime();
     expect(await resolveStoreRequest(shop("/fr/products/phone"), null)).toEqual({
       kind: "redirect",
       location: "/products/phone",
@@ -301,7 +318,7 @@ describe("resolvePreviewStore() — the store as an editor's draft would leave i
     vi.unstubAllGlobals();
   });
 
-  const preview = async (draft: import("@/theme/sdk").PreviewDraft) => (await import("@/theme/runtime/store")).resolvePreviewStore(draft);
+  const preview = async (draft: import("@/theme/sdk").PreviewDraft) => (await runtime()).resolvePreviewStore(draft);
 
   it("renders the draft's text edits and settings over the saved ones, without the pixel", async () => {
     stubConfigServer({ themeSettings: { primaryColor: "#7c3aed" } });
@@ -367,7 +384,7 @@ describe("where a request's language comes from", () => {
 
   it("a server island and an /api endpoint take it from the page that asked, never redirected or rewritten", async () => {
     stubConfigServer();
-    const { resolveStoreRequest } = await import("@/theme/runtime/store");
+    const { resolveStoreRequest } = await runtime();
     for (const path of ["/_server-islands/RelatedProducts?e=1", "/api/cart/validate"]) {
       const request = await resolveStoreRequest(shop(path), "https://shop.dz/fr/checkout");
       expect(request).toMatchObject({ kind: "page", rewrite: null });

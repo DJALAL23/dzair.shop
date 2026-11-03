@@ -17,6 +17,7 @@ import {
   communesForWilaya,
   isWilayaId,
   readShippingRates,
+  storefrontApiPath,
   type DeliveryDestination,
   type DeliverySelection,
   type ShippingRates,
@@ -200,7 +201,7 @@ async function loadCommunes(
   // 2. Graceful network fallback if an unknown / custom wilayaId is provided
   window.__selectSetLoading?.("f-commune", true, copy.communeLoading);
   try {
-    const res = await fetch(`/api/communes/${wilayaId}`);
+    const res = await fetch(storefrontApiPath("communes", { wilayaId }));
     const json = (await res.json()) as {
       data?: Array<{ id: string; name: string; nameAr: string }>;
     };

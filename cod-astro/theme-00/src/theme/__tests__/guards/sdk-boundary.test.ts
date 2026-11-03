@@ -21,7 +21,7 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { STOREFRONT_PAGE_PATHS } from "@wocart/storefront";
+import { STOREFRONT_API_PATHS, STOREFRONT_PAGE_PATHS } from "@wocart/storefront";
 
 import { type SourceFile, SRC_DIR, themeSourceFiles } from "./theme-source";
 
@@ -391,7 +391,7 @@ describe("S10 platform rule bindings", () => {
     expect(delivery?.content).toContain("commune.nameAr || commune.name");
     // The zero-network list is the first path and the API is the second, which
     // is what makes the row source replaceable without touching either.
-    expect(delivery?.content).toContain("/api/communes/");
+    expect(delivery?.content).toContain('storefrontApiPath("communes"');
   });
 });
 
@@ -416,6 +416,17 @@ describe("proxy input contracts", () => {
         /^import \{ routes \} from "@\/theme\/api-routes";\s+export const (GET|POST|PUT) = routes\.\w+;\s*$/,
       );
     }
+  });
+
+  it("mounts a route file at every SDK path the browser calls, none it does not, and no file writes a path of its own", () => {
+    // The SDK's `:wilayaId` is Astro's `[wilayaId]`: each path names exactly one route file.
+    const routeFiles = apiRoutes.map((file) => `/${file.relPath.replace(/^pages\//, "").replace(/\.ts$/, "")}`);
+    const expected = Object.values(STOREFRONT_API_PATHS).map((path) => path.replace(/:(\w+)/g, "[$1]"));
+    expect(expected.filter((path) => !routeFiles.includes(path))).toEqual([]);
+    expect(routeFiles.filter((route) => !expected.includes(route))).toEqual([]);
+    const code = (text: string) => text.split("\n").filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line)).join("\n");
+    const ownPaths = files.filter((f) => !f.relPath.startsWith("pages/api/") && /["'`]\/api\/[a-z]/.test(code(f.content))).map((f) => f.relPath);
+    expect(ownPaths).toEqual([]);
   });
 
   it("no route declares its own input contract", () => {

@@ -14,6 +14,7 @@
 import { ar } from "./ar";
 import { en } from "./en";
 import { fr } from "./fr";
+import { resolveThemeContent } from "@wocart/theme";
 import type { StoreFrontContent } from "./types";
 
 /**
@@ -28,36 +29,10 @@ const languages = {
 
 export type SupportedLanguage = keyof typeof languages;
 
+const packs = languages as unknown as Readonly<Record<string, Readonly<Record<string, string>>>>;
+
 /** The pack a store language without its own pack falls back to. */
 export const DEFAULT_LANGUAGE: SupportedLanguage = "ar";
-
-/**
- * Keep only the overrides the pack actually has a slot for, and only when the
- * value is a string.
- *
- * The overrides are the store language's entry in
- * `StoreConfig.contentOverrides`. They used to be one unvalidated blob, and a
- * live store carried `{"hero":{"title":"…"}}` — a nested shape that matches
- * none of the flat pack keys, so it silently did nothing; unknown keys
- * polluted the resolved object; and a non-string value could reach a
- * component that renders `string`. The override vocabulary IS the pack's key
- * set. Everything else is ignored, never thrown: a malformed entry degrades to
- * the pack instead of breaking the storefront.
- */
-function pickStringOverrides(
-  defaults: StoreFrontContent,
-  overrides: unknown,
-): Partial<StoreFrontContent> {
-  if (overrides == null || typeof overrides !== "object" || Array.isArray(overrides)) {
-    return {};
-  }
-  const picked: Partial<StoreFrontContent> = {};
-  for (const key of Object.keys(defaults) as Array<keyof StoreFrontContent>) {
-    const value = (overrides as Record<string, unknown>)[key];
-    if (typeof value === "string") picked[key] = value;
-  }
-  return picked;
-}
 
 /**
  * Resolve content for a given language with optional dashboard overrides
@@ -82,12 +57,10 @@ export function resolveContent(
   lang: string,
   overrides?: Readonly<Record<string, unknown>> | null
 ): StoreFrontContent {
-  const defaults = languages[isLanguageSupported(lang) ? lang : DEFAULT_LANGUAGE];
-  if (!overrides) {
-    return defaults;
-  }
-  // Only string values for keys the pack declares: the pack owns the vocabulary.
-  return { ...defaults, ...pickStringOverrides(defaults, overrides) };
+  // The SDK's one policy: only string values for keys the pack declares (the
+  // pack owns the vocabulary), so a nested, unknown or non-string edit — a
+  // live store once carried `{"hero":{"title":"…"}}` — degrades to the pack.
+  return resolveThemeContent({ content: packs }, lang, overrides, { defaultLocale: DEFAULT_LANGUAGE }) as unknown as StoreFrontContent;
 }
 
 /**

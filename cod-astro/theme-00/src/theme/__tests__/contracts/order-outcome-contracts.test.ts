@@ -14,7 +14,8 @@ vi.mock("astro:actions", () => ({
     typeof error === "object" && error !== null && (error as { type?: string }).type === "AstroActionInputError",
 }));
 
-const { orderOutcome, readThankYou, thankYouHref } = await import("@/theme/pages/order-outcome");
+const { orderOutcome } = await import("@/theme/pages/order-outcome");
+const { readThankYou, thankYouHref } = await import("@wocart/storefront");
 
 const absolute = (href: string) => new URL(href, "https://store.example");
 const COPY = {
@@ -36,8 +37,8 @@ describe("the thank-you query", () => {
           const href = thankYouHref(order);
           expect(href.startsWith("/thank-you?")).toBe(true);
           expect(readThankYou(absolute(href))).toEqual({
-            orderNumber: order.orderNumber,
-            orderId: order.orderId ?? "",
+            orderNumber: order.orderNumber.trim(),
+            orderId: (order.orderId ?? "").trim(),
             total: order.total,
           });
         },

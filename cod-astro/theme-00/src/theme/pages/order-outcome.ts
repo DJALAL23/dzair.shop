@@ -4,19 +4,14 @@
  * reads the result.
  *
  * A placed order answers with a single 303 to `/thank-you` (post/redirect/get),
- * so the form page never re-renders behind it. The thank-you query is a contract
- * between this theme's own pages: `thankYouHref` writes it and `readThankYou`
- * reads it, so the parameter names exist in exactly one place.
+ * so the form page never re-renders behind it. The thank-you query is the
+ * SDK's: `thankYouHref` writes it and the thank-you page reads it with
+ * `readThankYou`, so the parameter names exist in exactly one place.
  */
 import { isInputError } from "astro:actions";
-import type { CouponRefusal } from "@wocart/storefront";
+import { thankYouHref, type CouponRefusal } from "@wocart/storefront";
 import type { FieldErrors } from "@/theme/types";
 import type { OrderFormStrings } from "@/theme/content/types/order-form";
-import { storefrontPath } from "@wocart/storefront";
-
-const ORDER_NUMBER = "order";
-const TOTAL = "total";
-const ORDER_ID = "oid";
 
 /** The part of a placed order the thank-you page needs. */
 export interface PlacedOrder {
@@ -32,26 +27,6 @@ export interface PlacedOrder {
  */
 export interface RefusedForCoupon {
   couponRefusal: CouponRefusal;
-}
-
-export function thankYouHref(order: PlacedOrder): string {
-  const query = new URLSearchParams({
-    [ORDER_NUMBER]: order.orderNumber,
-    [TOTAL]: String(order.total),
-    [ORDER_ID]: order.orderId ?? "",
-  });
-  return `${storefrontPath("thankYou")}?${query.toString()}`;
-}
-
-/** The thank-you query, parsed. A missing or non-numeric total is `null`. */
-export function readThankYou(url: URL): { orderNumber: string; orderId: string; total: number | null } {
-  const rawTotal = url.searchParams.get(TOTAL);
-  const total = rawTotal === null ? Number.NaN : Number.parseInt(rawTotal, 10);
-  return {
-    orderNumber: url.searchParams.get(ORDER_NUMBER) ?? "",
-    orderId: url.searchParams.get(ORDER_ID) ?? "",
-    total: Number.isFinite(total) ? total : null,
-  };
 }
 
 /** The order form's state after a submit: where to go, or what to show. */

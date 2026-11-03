@@ -27,7 +27,9 @@
  * A defect in SDK behavior is fixed in `@wocart/storefront` with a regression
  * test there — never by growing this file into a second implementation.
  */
-import { createStoreClient, readPreviewRequest, readRevalidateRequest, type PreviewRequest, type RevalidateRequest, type StoreClient } from "@wocart/storefront/server";
+import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
+import { revalidateEndpoint } from "@wocart/storefront/astro";
+import { THEME_PREVIEW_PATH } from "@wocart/theme";
 
 export type { StoreClient };
 export { REVALIDATE_PATH, catalogPaths, previewResponseHeaders, sitemapXml } from "@wocart/storefront/server";
@@ -61,22 +63,19 @@ export function getStoreClient(locale?: string): StoreClient {
 }
 
 /**
- * An editor's preview request (`/wocart-preview`), checked with this
- * deployment's preview key: a token the editor's server signed, for this
- * storefront and this theme. Without a key (`WOCART_PREVIEW_KEY` unset)
- * preview is off and every such request answers 404. The middleware calls
- * this for the preview route only.
+ * An editor's preview (`/wocart-preview`), as the SDK's middleware opens it:
+ * a token the editor's server signed, for this storefront and this theme,
+ * checked with this deployment's preview key. Without a key
+ * (`WOCART_PREVIEW_KEY` unset) preview is off and every such request answers
+ * 404. The key is read on each request: a secret can be set after this
+ * module loads.
  */
-export function readThemePreview(request: Request): Promise<PreviewRequest> {
-  return readPreviewRequest(request, { publicKey: WOCART_PREVIEW_KEY, theme: THEME_KEY });
-}
+export const PREVIEW = { path: THEME_PREVIEW_PATH, publicKey: () => WOCART_PREVIEW_KEY, theme: THEME_KEY };
 
 /**
- * The platform's revalidation request (`/wocart-revalidate`): a publish
- * changed what this store's pages show. Checked with the same deployment key
- * as previews, for a token made for revalidation only; without a key it
- * answers 404.
+ * The platform's revalidation route (`/wocart-revalidate`): a publish changed
+ * what this store's pages show. Checked with the same deployment key as
+ * previews, for a token made for revalidation only; without a key it answers
+ * 404.
  */
-export function readThemeRevalidation(request: Request): Promise<RevalidateRequest> {
-  return readRevalidateRequest(request, { publicKey: WOCART_PREVIEW_KEY, theme: THEME_KEY });
-}
+export const revalidateRoute = revalidateEndpoint({ publicKey: () => WOCART_PREVIEW_KEY, theme: THEME_KEY });

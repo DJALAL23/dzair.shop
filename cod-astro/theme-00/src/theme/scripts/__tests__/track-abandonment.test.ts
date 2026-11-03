@@ -85,11 +85,11 @@ async function boot() {
   await import("../track-abandonment"); // self-runs on import, as in the browser
 }
 
-/** The payload of the Nth POST /api/abandoned, parsed. */
+/** The payload of the Nth POST /api/abandoned/upsert, parsed. */
 function sentPayloads(): Array<Record<string, any>> {
   const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
   return calls
-    .filter((call) => call[0] === "/api/abandoned")
+    .filter((call) => call[0] === "/api/abandoned/upsert")
     .map((call) => JSON.parse((call[1] as RequestInit).body as string));
 }
 

@@ -67,8 +67,8 @@ describe("resolveContent", () => {
     expect(resolveContent("ar", { heroSubtitle: "" }).heroSubtitle).toBe("");
   });
 
-  it("returns the pack itself when the language has no overrides", () => {
-    expect(resolveContent("ar", undefined)).toBe(ar);
-    expect(resolveContent("ar", null)).toBe(ar);
+  it("returns the pack when the language has no overrides", () => {
+    expect(resolveContent("ar", undefined)).toEqual(ar);
+    expect(resolveContent("ar", null)).toEqual(ar);
   });
 });

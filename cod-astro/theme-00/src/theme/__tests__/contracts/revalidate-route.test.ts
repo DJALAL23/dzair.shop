@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { APIContext } from "astro";
+import { PAGES_CACHE_TAG } from "@wocart/storefront/server";
 
 const env = vi.hoisted(() => ({ WOCART_PREVIEW_KEY: undefined as string | undefined }));
 vi.mock("astro:env/server", () => ({
@@ -55,7 +56,7 @@ describe("the revalidation route", () => {
     const { response, invalidate } = await call(`Bearer ${await sign(revalidation())}`);
     expect(response.status).toBe(204);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(invalidate).toHaveBeenCalledWith({ tags: [route.PAGES_CACHE_TAG] });
+    expect(invalidate).toHaveBeenCalledWith({ tags: [PAGES_CACHE_TAG] });
   });
 
   it("drops nothing for a preview pass, another store's or theme's token, or none", async () => {
@@ -83,8 +84,11 @@ describe("the revalidation route", () => {
     expect(invalidate).not.toHaveBeenCalled();
   });
 
-  it("is rendered on demand, never prerendered", () => {
+  it("is rendered on demand, never prerendered, and answers only POST", () => {
     expect(route.prerender).toBe(false);
+    const other = route.ALL();
+    expect(other.status).toBe(405);
+    expect(other.headers.get("Allow")).toBe("POST");
   });
 });
 
@@ -95,6 +99,7 @@ describe("the cache tag a publish drops", () => {
     const routes = [...rules.matchAll(/"([^"]+)":\s*\{[^}]*tags:\s*\[([^\]]*)\]/g)].map((match) => ({ route: match[1]!, tags: match[2]! }));
     expect(routes.length).toBeGreaterThan(5);
     const pages = routes.filter((rule) => !rule.route.startsWith("/api/"));
-    expect(pages.filter((rule) => !rule.tags.includes(`"${route.PAGES_CACHE_TAG}"`)).map((rule) => rule.route)).toEqual([]);
+    expect(pages.filter((rule) => !rule.tags.includes("PAGES_CACHE_TAG")).map((rule) => rule.route)).toEqual([]);
+    expect(rules).not.toContain('"pages"');
   });
 });

@@ -33,9 +33,9 @@ import { GET as communes } from "@/pages/api/communes/[wilayaId]";
 import { POST as otpSend } from "@/pages/api/otp/send";
 import { POST as otpVerify } from "@/pages/api/otp/verify";
 import { POST as cartValidate } from "@/pages/api/cart/validate";
-import { GET as productReviews } from "@/pages/api/product-reviews/[productId]";
-import { POST as submitReview } from "@/pages/api/submit-review";
-import { POST as abandonedUpsert } from "@/pages/api/abandoned/index";
+import { GET as productReviews } from "@/pages/api/reviews/[productId]";
+import { POST as submitReview } from "@/pages/api/reviews/submit";
+import { POST as abandonedUpsert } from "@/pages/api/abandoned/upsert";
 import { POST as abandonedConvert } from "@/pages/api/abandoned/convert";
 
 const ORIGIN = "https://shop.example";
@@ -261,7 +261,7 @@ describe("/api/cart/validate", () => {
   });
 });
 
-describe("/api/product-reviews/[productId]", () => {
+describe("/api/reviews/[productId]", () => {
   it("returns { data, total } and clamps limit to 50", async () => {
     mockStore.products.reviews.list.mockResolvedValue({
       rows: [{ id: "rev-1" }],
@@ -269,7 +269,7 @@ describe("/api/product-reviews/[productId]", () => {
     });
 
     const res = await productReviews(
-      ctx(get("/api/product-reviews/prod-1?limit=500&offset=10"), { productId: "prod-1" }),
+      ctx(get("/api/reviews/prod-1?limit=500&offset=10"), { productId: "prod-1" }),
     );
 
     expect(res.status).toBe(200);
@@ -284,7 +284,7 @@ describe("/api/product-reviews/[productId]", () => {
     mockStore.products.reviews.list.mockResolvedValue({ rows: [], total: 0 });
 
     const res = await productReviews(
-      ctx(get("/api/product-reviews/prod-1"), { productId: "prod-1" }),
+      ctx(get("/api/reviews/prod-1"), { productId: "prod-1" }),
     );
 
     expect(res.status).toBe(200);
@@ -295,7 +295,7 @@ describe("/api/product-reviews/[productId]", () => {
   });
 });
 
-describe("/api/submit-review", () => {
+describe("/api/reviews/submit", () => {
   const body = {
     orderNumber: "ORD-1",
     phone: "0551234567",
@@ -310,7 +310,7 @@ describe("/api/submit-review", () => {
       data: { id: "rev-1" },
     });
 
-    const res = await submitReview(ctx(post("/api/submit-review", body)));
+    const res = await submitReview(ctx(post("/api/reviews/submit", body)));
 
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ success: true, data: { id: "rev-1" } });
@@ -332,7 +332,7 @@ describe("/api/submit-review", () => {
       },
     });
 
-    const res = await submitReview(ctx(post("/api/submit-review", body)));
+    const res = await submitReview(ctx(post("/api/reviews/submit", body)));
 
     expect(res.status).toBe(422);
     expect(await res.json()).toMatchObject({ code: "ORDER_NOT_FOUND" });
@@ -340,7 +340,7 @@ describe("/api/submit-review", () => {
 
   it("rejects a cross-origin POST with 403", async () => {
     const res = await submitReview(
-      ctx(post("/api/submit-review", body, { Origin: "https://evil.example" })),
+      ctx(post("/api/reviews/submit", body, { Origin: "https://evil.example" })),
     );
 
     expect(res.status).toBe(403);
@@ -348,7 +348,7 @@ describe("/api/submit-review", () => {
   });
 });
 
-describe("/api/abandoned", () => {
+describe("/api/abandoned/upsert", () => {
   const payload = {
     sessionId: SESSION_ID,
     customerName: "Amina",
@@ -363,7 +363,7 @@ describe("/api/abandoned", () => {
 
     const res = await abandonedUpsert(
       ctx(
-        post("/api/abandoned", payload, {
+        post("/api/abandoned/upsert", payload, {
           "User-Agent": "Mozilla/5.0",
           "CF-Connecting-IP": "1.2.3.4",
           Referer: "https://shop.example/checkout",
@@ -382,7 +382,7 @@ describe("/api/abandoned", () => {
 
   it("rejects cross-origin tracking with 403", async () => {
     const res = await abandonedUpsert(
-      ctx(post("/api/abandoned", payload, { Origin: "https://evil.example" })),
+      ctx(post("/api/abandoned/upsert", payload, { Origin: "https://evil.example" })),
     );
 
     expect(res.status).toBe(403);
@@ -391,7 +391,7 @@ describe("/api/abandoned", () => {
 
   it("400s a payload without a valid name and phone", async () => {
     const res = await abandonedUpsert(
-      ctx(post("/api/abandoned", { ...payload, customerName: "A" })),
+      ctx(post("/api/abandoned/upsert", { ...payload, customerName: "A" })),
     );
 
     expect(res.status).toBe(400);
@@ -404,7 +404,7 @@ describe("/api/abandoned", () => {
       error: "Upstream down",
     });
 
-    const res = await abandonedUpsert(ctx(post("/api/abandoned", payload)));
+    const res = await abandonedUpsert(ctx(post("/api/abandoned/upsert", payload)));
 
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "Upstream down" });

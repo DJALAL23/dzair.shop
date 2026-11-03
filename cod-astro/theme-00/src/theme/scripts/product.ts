@@ -14,7 +14,7 @@ import {
   deliveryDestination,
   toggleAddressFields,
 } from "./delivery-fields";
-import { API_PATHS } from "./api-paths";
+import { STOREFRONT_API_PATHS } from "@wocart/storefront";
 import { initCouponField } from "./coupon-field";
 // fbq only exists when the merchant configured a pixel — one shared guard.
 import { trackProductInitiateCheckout, trackViewContent } from "./pixel";
@@ -93,7 +93,7 @@ export function initProductPage(): () => void {
   let variantOos          = false;
   /** The server's answer for one destination and one form; a newer form never shows an older answer. */
   let quote: { key: string; answer: CartValidation } | null = null;
-  const quoter = createQuoter({ endpoint: API_PATHS.cartValidate });
+  const quoter = createQuoter({ endpoint: STOREFRONT_API_PATHS.cartValidate });
   /** The code box: Apply asks the quote again with the code. */
   const coupon = initCouponField(document, refreshShipping);
 

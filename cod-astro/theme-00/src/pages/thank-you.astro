@@ -3,7 +3,7 @@ import { createReadCache } from "@wocart/theme/astro";
 import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import Sections from "@/theme/components/surface/Sections.astro";
 import { thankYouCatalog } from "@/theme/catalog/families/thank-you";
-import { readThankYou } from "@/theme/pages/order-outcome";
+import { readThankYou } from "@wocart/storefront";
 
 const { orderNumber, orderId, total } = readThankYou(Astro.url);
 

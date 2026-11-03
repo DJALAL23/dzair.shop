@@ -14,12 +14,11 @@
  * inside an Astro project, so they are mocked with the real signatures.
  */
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 
 const createOrder = vi.fn();
 const getActionContext = vi.fn();
-const readThemePreview = vi.fn();
-const resolvePreviewStore = vi.fn();
+const previewKey = vi.hoisted(() => ({ value: undefined as string | undefined }));
 
 /**
  * The store as the server answers it: Arabic first, French published too. The
@@ -39,7 +38,7 @@ const storeConfig = (locale?: string) => ({
 
 vi.mock("@/theme/sdk", () => ({
   getStoreClient: (locale?: string) => ({ orders: { create: createOrder }, config: { get: async () => storeConfig(locale) } }),
-  readThemePreview: (request: Request) => readThemePreview(request),
+  PREVIEW: { path: "/wocart-preview", publicKey: () => previewKey.value, theme: "theme-00" },
   storeServerUrl: () => "http://localhost:8787",
   REVALIDATE_PATH: "/wocart-revalidate",
 }));
@@ -57,19 +56,6 @@ vi.mock("astro:actions", () => ({
 }));
 
 vi.mock("astro:middleware", () => ({ defineMiddleware: (fn: unknown) => fn }));
-
-// The preview's store context is mocked with a sentinel, so where
-// `locals.store` comes from is observable on that route.
-const storeContext = {
-  config: { name: "test-store" },
-  content: { heroTitle: "test-title" },
-  isRTL: false,
-};
-
-vi.mock("@/theme/runtime/store", async (importOriginal) => ({
-  ...((await importOriginal()) as object),
-  resolvePreviewStore: (draft: unknown) => resolvePreviewStore(draft),
-}));
 
 const { server } = await import("@/actions/index");
 const { onRequest } = await import("@/middleware");
@@ -230,6 +216,28 @@ describe("onRequest binding (src/middleware.ts)", () => {
     });
     return setActionResult;
   };
+
+  it("keeps the store a rewritten request already has, so a page's 404 stays in the shopper's language", async () => {
+    const setActionResult = wireAction(undefined);
+    const french = { locale: "fr", pathname: "/products/missing" };
+    const context = makeContext(new Request("http://shop.example/404"));
+    context.locals.store = french;
+
+    const response = await middleware(context, next);
+
+    expect(await response.text()).toBe("page");
+    expect(context.locals.store).toBe(french);
+    expect(getActionContext).not.toHaveBeenCalled();
+    expect(setActionResult).not.toHaveBeenCalled();
+  });
+
+  it("sends a landing page asked for in another language to the primary one, its ad query kept", async () => {
+    wireAction(undefined);
+    const context = makeContext(new Request("http://shop.example/fr/lp/summer?fbclid=abc"));
+    const response = await middleware(context, next);
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe("/lp/summer?fbclid=abc");
+  });
 
   it("passes a prerendered page straight through: it has no request store", async () => {
     const setActionResult = wireAction(undefined);
@@ -418,18 +426,31 @@ describe("onRequest binding (src/middleware.ts)", () => {
 });
 
 describe("the preview route in the middleware (src/middleware.ts)", () => {
-  const claims = { aud: "http://shop.example", theme: "theme-00", editor: "https://cloud.codflow.store", iat: 1, exp: 2 };
-  const draft = { surface: "home", locale: "fr", content: { fr: { heroTitle: "Soldes" } } };
+  const ORIGIN = "http://shop.example";
+  let privateKey: CryptoKey;
+  const b64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const encodeJson = (value: unknown) => b64url(new TextEncoder().encode(JSON.stringify(value)));
+  async function sign(payload: Record<string, unknown>) {
+    const head = encodeJson({ alg: "EdDSA", typ: "JWT" });
+    const body = encodeJson(payload);
+    const signature = new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, privateKey, new TextEncoder().encode(`${head}.${body}`)));
+    return `${head}.${body}.${b64url(signature)}`;
+  }
+  const now = () => Math.floor(Date.now() / 1000);
+  const pass = () => sign({ aud: ORIGIN, theme: "theme-00", editor: "https://cloud.codflow.store", iat: now() - 10, exp: now() + 600 });
+
+  beforeAll(async () => {
+    const pair = (await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"])) as CryptoKeyPair;
+    privateKey = pair.privateKey;
+    previewKey.value = JSON.stringify(await crypto.subtle.exportKey("jwk", pair.publicKey));
+  });
 
   beforeEach(() => {
     getActionContext.mockReset();
-    readThemePreview.mockReset();
-    resolvePreviewStore.mockReset();
   });
 
   it("answers a refused preview with its status, before any store or action", async () => {
-    readThemePreview.mockResolvedValue({ ok: false, status: 403, reason: "the token is refused: expired" });
-    const context = makeContext(new Request("http://shop.example/wocart-preview?token=x&surface=home"));
+    const context = makeContext(new Request(`${ORIGIN}/wocart-preview?token=x&surface=home`));
 
     const response = await middleware(context, next);
 
@@ -437,42 +458,46 @@ describe("the preview route in the middleware (src/middleware.ts)", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(await response.text()).toBe("");
     expect(context.locals.store).toBeUndefined();
-    expect(resolvePreviewStore).not.toHaveBeenCalled();
     expect(getActionContext).not.toHaveBeenCalled();
   });
 
+  it("is a 404 on a store deployed without the preview key", async () => {
+    const key = previewKey.value;
+    previewKey.value = undefined;
+    const context = makeContext(new Request(`${ORIGIN}/wocart-preview?token=${await pass()}&surface=home`));
+    const response = await middleware(context, next);
+    previewKey.value = key;
+    expect(response.status).toBe(404);
+    expect(context.locals.store).toBeUndefined();
+  });
+
   it("renders a verified preview with the draft's store context, and never runs a form action", async () => {
-    const request = new Request("http://shop.example/wocart-preview", { method: "POST" });
-    readThemePreview.mockResolvedValue({ ok: true, claims, draft, token: "signed" });
-    resolvePreviewStore.mockResolvedValue({ ...storeContext, locale: "fr" });
-    const context = makeContext(request);
+    const token = await pass();
+    const context = makeContext(new Request(`${ORIGIN}/wocart-preview?${new URLSearchParams({ token, surface: "home", locale: "fr" })}`));
 
     const response = await middleware(context, next);
 
-    expect(readThemePreview).toHaveBeenCalledWith(request);
-    expect(resolvePreviewStore).toHaveBeenCalledWith(draft);
     expect(await response.text()).toBe("page");
-    expect(context.locals.store).toEqual({ ...storeContext, locale: "fr" });
-    expect(context.locals.preview).toEqual({ claims, draft, token: "signed" });
+    expect(context.locals.store).toMatchObject({ locale: "fr", pathname: "/" });
+    expect(context.locals.preview).toMatchObject({ draft: { surface: "home", locale: "fr" }, token });
     expect(getActionContext).not.toHaveBeenCalled();
   });
 
   it("lets the revalidation route through with no store, no preview and no form action", async () => {
-    const context = makeContext(new Request("http://shop.example/wocart-revalidate", { method: "POST" }));
+    const context = makeContext(new Request(`${ORIGIN}/wocart-revalidate`, { method: "POST" }));
     const response = await middleware(context, next);
     expect(await response.text()).toBe("page");
     expect(context.locals.store).toBeUndefined();
-    expect(readThemePreview).not.toHaveBeenCalled();
+    expect(context.locals.preview).toBeUndefined();
     expect(getActionContext).not.toHaveBeenCalled();
   });
 
   it("never reads a preview on any other route, nor under a language prefix", async () => {
     getActionContext.mockReturnValue({ action: undefined, setActionResult: vi.fn(), serializeActionResult: vi.fn() });
     for (const path of ["/", "/fr/wocart-preview", "/wocart-preview/x", "/products?wocart-preview"]) {
-      const context = makeContext(new Request(`http://shop.example${path}`));
+      const context = makeContext(new Request(`${ORIGIN}${path}`));
       await middleware(context, next);
       expect(context.locals.preview).toBeUndefined();
     }
-    expect(readThemePreview).not.toHaveBeenCalled();
   });
 });

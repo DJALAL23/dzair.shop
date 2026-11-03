@@ -34,15 +34,15 @@ describe("astro edge cache configuration", () => {
   });
 
   it("enforces SWR cache rules for high-traffic public catalog routes", () => {
-    expect(config).toContain('"/": { maxAge: 60, swr: 3600, tags: ["home", "pages"] }');
-    expect(config).toContain('"/products": { maxAge: 60, swr: 3600, tags: ["products", "pages"] }');
-    expect(config).toContain('"/products/[slug]": { maxAge: 60, swr: 86400, tags: ["products", "pages"] }');
-    expect(config).toContain('"/category/[slug]": { maxAge: 60, swr: 86400, tags: ["categories", "pages"] }');
-    expect(config).toContain('"/lp/[slug]": { maxAge: 60, swr: 86400, tags: ["landing-pages", "pages"] }');
+    expect(config).toContain('"/": { maxAge: 60, swr: 3600, tags: ["home", PAGES_CACHE_TAG] }');
+    expect(config).toContain('"/products": { maxAge: 60, swr: 3600, tags: ["products", PAGES_CACHE_TAG] }');
+    expect(config).toContain('"/products/[slug]": { maxAge: 60, swr: 86400, tags: ["products", PAGES_CACHE_TAG] }');
+    expect(config).toContain('"/category/[slug]": { maxAge: 60, swr: 86400, tags: ["categories", PAGES_CACHE_TAG] }');
+    expect(config).toContain('"/lp/[slug]": { maxAge: 60, swr: 86400, tags: ["landing-pages", PAGES_CACHE_TAG] }');
   });
 
   it("enforces long-lived cache for legal pages and immutable communes", () => {
-    expect(config).toContain('"/pages/[slug]": { maxAge: 3600, swr: 604800, tags: ["legal-pages", "pages"] }');
+    expect(config).toContain('"/pages/[slug]": { maxAge: 3600, swr: 604800, tags: ["legal-pages", PAGES_CACHE_TAG] }');
     expect(config).toContain('"/api/communes/[wilayaId]": { maxAge: 31536000, swr: 31536000, tags: ["communes"] }');
   });
 
@@ -55,7 +55,7 @@ describe("astro edge cache configuration", () => {
     expect(rules).not.toContain('"/checkout"');
     expect(rules).not.toContain('"/thank-you"');
     expect(rules).not.toContain('"/api/otp"');
-    expect(rules).not.toContain('"/api/abandoned"');
+    expect(rules).not.toContain('"/api/abandoned/upsert"');
     expect(rules).not.toContain('"/api/cart/validate"');
     expect(rules).not.toContain('"/wocart-preview"');
     expect(rules).not.toContain('"/wocart-revalidate"');
