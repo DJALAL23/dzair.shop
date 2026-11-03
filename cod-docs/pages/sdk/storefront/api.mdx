@@ -6,12 +6,12 @@ import { Callout } from "zudoku/ui/Callout";
 
 # Public API surface
 
-The curated map of `@wocart/storefront` 3.0.0. The
+The curated map of `@wocart/storefront` 3.1.0. The
 [generated reference](/sdk/storefront/reference/README) has every signature; this
 page groups the surface by entry point and says what runs where.
 
 ```sh
-npm install --save-exact @wocart/storefront@3.0.0
+npm install --save-exact @wocart/storefront@3.1.0
 npm install zod
 ```
 
@@ -60,6 +60,9 @@ server, where data enters.
 | `storefrontPath(type, params?)` | Build one; throws when a required parameter is missing |
 | `matchStorefrontPath(pathname)` | Which page type a pathname is, with its decoded parameter, or `null` |
 | `showsWidgetOn(surfaces, pathname)` | Whether the floating WhatsApp launcher belongs on this path |
+| `SINGLE_LANGUAGE_PAGE_TYPES`, `isSingleLanguagePage(pathname)` | The page types that exist in the primary language only (`["landing"]`), and whether a path is one |
+| `STOREFRONT_API_PATHS`, `storefrontApiPath(name, params?)` | Where each of `createStorefrontRoutes`' routes is mounted (`/api/communes/:wilayaId` …), and one path with its parameter filled |
+| `thankYouHref(order, language?)`, `readThankYou(url)` | The thank-you page's address for a placed order (`?order=&total=&oid=`), in the shopper's language, and its reading back |
 | `servedLanguage(config, code?)`, `localeRouting(config)`, `resolveLocalePath(pathname, routing)`, `localizeHref(href, locale, routing)`, `alternateLinks(pathname, routing, origin)` | Language-prefixed URLs: the primary language unprefixed, every other published language under its code |
 
 ## Basket and checkout
@@ -156,13 +159,15 @@ The types a theme names most: `StoreConfig`, `StorefrontLanguage`, `Product`,
 | `PreviewClaims`, `PreviewDraft`, `PreviewRequest`, `RevalidateClaims`, `RevalidateRequest` | What the preview and revalidation readers answer |
 | `StorefrontError`, `isStorefrontError(error)` | The error type, and the narrow check |
 | `readPreviewRequest(request, { publicKey, theme })`, `verifyPreviewToken(token, options)`, `previewConfig(config, draft)`, `previewResponseHeaders(claims)` | An editor's preview request: verified claims, the draft's config, and the headers that keep it out of a cache |
-| `REVALIDATE_PATH`, `readRevalidateRequest(request, options)` | The publish hook's path (`/wocart-revalidate`) and its verified request |
+| `REVALIDATE_PATH`, `readRevalidateRequest(request, options)`, `PAGES_CACHE_TAG` | The publish hook's path (`/wocart-revalidate`), its verified request, and the cache tag (`"pages"`) every cached page carries |
 | `catalogPaths(client, config)`, `sitemapXml(paths, routing, origin)` | Every page a sitemap lists, and the sitemap in every published language |
 
 ## `@wocart/storefront/astro`
 
 | Export | What it does |
 | --- | --- |
+| `createStorefrontMiddleware(options)` | A theme's whole middleware: store and language, redirects, a 404 that keeps the language, the editor's preview, the form action |
+| `revalidateEndpoint({ publicKey, theme })` | The `/wocart-revalidate` route, `{ POST, ALL }`: drops every page under `PAGES_CACHE_TAG` for a verified token |
 | `createStorefrontRoutes({ client })` | The same-origin routes: `otpSend`, `otpVerify`, `cartValidate`, `abandonedUpsert`, `abandonedConvert`, `communes`, `reviewsList`, `reviewEligibility`, `reviewUpload`, `reviewSubmit`, `orderStatus` |
 | `REVIEWS_PAGE_DEFAULT`, `REVIEWS_PAGE_MAX` | 20 and 50 — the reviews route's page bounds |
 | `createProxyEndpoint(config)` | A generic same-origin proxy for what the routes above do not cover |
@@ -173,7 +178,7 @@ The types a theme names most: `StoreConfig`, `StorefrontLanguage`, `Product`,
 | `resolveStoreRequest(request, options)`, `resolvePreviewStore(draft, options)` | Which store and language a request renders, and the redirects; an editor's draft's store |
 | `notFound(context, page?)` | A missing resource: the 404 page, status 404, never cached |
 | `lookupOrder(input, request, client)`, `orderLookupInput` | A shopper's order lookup for a track-order form, its outcome worded in a few cases |
-| `PlaceOrderInput`, `PlaceOrderResult`, `OrderLookup`, `OrderLookupInput`, `ResolvedStore`, `StoreRequestOptions`, `StoreRequestResolution`, `NotFoundContext`, `ActionDescriptor`, `ActionMiddlewareDeps`, `ProxyEndpointConfig`, `ProxyClientFn`, `AstroAPIContext`, `AstroAPIRoute`, `StorefrontApiRoute`, `StorefrontRoutes`, `StorefrontRoutesOptions` | The types those take and return |
+| `PlaceOrderInput`, `PlaceOrderResult`, `OrderLookup`, `OrderLookupInput`, `ResolvedStore`, `StoreRequestOptions`, `StoreRequestResolution`, `NotFoundContext`, `ActionDescriptor`, `ActionMiddlewareDeps`, `ProxyEndpointConfig`, `ProxyClientFn`, `AstroAPIContext`, `AstroAPIRoute`, `StorefrontApiRoute`, `StorefrontRoutes`, `StorefrontRoutesOptions`, `PreviewLocals`, `StorefrontMiddleware`, `StorefrontMiddlewareContext`, `StorefrontMiddlewareOptions`, `StorefrontActionContext`, `RevalidateEndpointContext`, `RevalidateEndpointOptions` | The types those take and return |
 
 ## `@wocart/storefront/review-media`
 
@@ -198,6 +203,6 @@ deep import.
 
 ## Version
 
-This guide follows `@wocart/storefront` 3.0.0 with `zod` 4.x (a peer), which
+This guide follows `@wocart/storefront` 3.1.0 with `zod` 4.x (a peer), which
 reads platform v7. Pin exact versions and read the package's `CHANGELOG.md`
 before upgrading; see [Testing a storefront](/sdk/storefront/testing#compatibility).

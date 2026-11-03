@@ -6,13 +6,13 @@ import { Callout } from "zudoku/ui/Callout";
 
 # Public API surface
 
-This page is the curated map of `@wocart/theme` 4.0.0: what each entry point
+This page is the curated map of `@wocart/theme` 4.1.0: what each entry point
 exports, what it is for, and what is not part of the contract. The
 [generated reference](/sdk/theme/reference/README) has every signature; this page
 tells you which ones to reach for.
 
 ```sh
-npm install --save-exact @wocart/theme@4.0.0 @wocart/storefront@3.0.0
+npm install --save-exact @wocart/theme@4.1.0 @wocart/storefront@3.1.0
 ```
 
 | Import | Runs in | Holds |
@@ -44,9 +44,10 @@ a shopper's page ships Zod to every visitor.
 | `validateThemeManifest(input)` | Boundary for JSON: serializability, structure, then the same relational rules. `{ manifest, issues }` |
 | `manifestCatalog(manifest)` | A `ThemeDefinition` with `component: null` — for editing and validation, never for rendering |
 | `diffThemeManifests(previous, next)` | `{ breaking, additive }` between two releases |
-| `THEME_SDK_VERSION` | The package version the manifest records (`"4.0.0"`) |
+| `THEME_SDK_VERSION` | The package version the manifest records (`"4.1.0"`) |
 | `THEME_MANIFEST_CONTRACT_VERSION` | Version of the manifest format (`1`) |
 | `THEME_MANIFEST_PATH` | `/wocart-theme.json` |
+| `THEME_KEY_PATTERN` | The rule a theme key follows: lowercase kebab-case, at most 64 characters |
 
 `validateThemeDefinition` takes one option: `contentKeys`, the key set every
 `contentKey` must exist in. Passing an empty array is meaningful — it enables
@@ -111,6 +112,7 @@ slot's required types or a block that must stay shown.
 | --- | --- |
 | `resolveThemeSettings(theme, stored, scope?)` | Effective settings: `{ values, issues }`, typed by `InferSettings` |
 | `checkThemeSettings(theme, values)` | Writer check: every key declared, every value accepted, each `colorScheme` naming a real scheme |
+| `resolveThemeContent(theme, locale, overrides, options?)` | The theme's words for one page: its pack for the language (else the default's), with the merchant's text edits of the pack's own keys for that language only |
 | `localize(value, locales)` | A `LocalizedText` in the first language that has one |
 | `formatMessage(pack, key, values, { locale, formatNumber? })` | Placeholders and CLDR plurals from a content pack; `locale` is required |
 | `pluralMessageKeys(pack)` | The base keys of every plural message in a pack |

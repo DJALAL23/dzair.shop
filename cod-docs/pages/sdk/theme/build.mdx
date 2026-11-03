@@ -30,7 +30,7 @@ gives you both; locally the API runs on `http://localhost:8787`.
 ```bash
 npm create astro@latest my-theme -- --template minimal --typescript strict --no-git
 cd my-theme
-npm install --save-exact @wocart/theme@4.0.0 @wocart/storefront@3.0.0
+npm install --save-exact @wocart/theme@4.1.0 @wocart/storefront@3.1.0
 npm install @astrojs/cloudflare @astrojs/vercel zod
 npm install -D wrangler @astrojs/check typescript vitest
 ```
@@ -72,8 +72,8 @@ Vitest at startup ("There is already a server associated with the config")
 when the Cloudflare adapter loads through `getViteConfig`, as the tests in
 step 15 do. The theme starter carries the same pin.
 
-The two packages move together. `@wocart/theme` 4.0.0 declares
-`@wocart/storefront` `^3.0.0` as its peer, and `@wocart/storefront` 3.0.0
+The two packages move together. `@wocart/theme` 4.1.0 declares
+`@wocart/storefront` `^3.0.0` as its peer, and `@wocart/storefront` 3.1.0
 reads the payloads of platform v7.0.0. A theme on `@wocart/storefront` 2.x
 cannot read a v7 store's config and renders every page as an unreadable
 store.
@@ -241,15 +241,12 @@ export const content = {
   fr: { heroTitle: "Bienvenue", heroSubtitle: "Découvrez nos produits" },
   en: { heroTitle: "Welcome", heroSubtitle: "Discover our products" },
 } satisfies Record<string, Record<string, string>>;
-
-export function packFor(locale: string): Record<string, string> {
-  return Object.hasOwn(content, locale) ? content[locale as keyof typeof content] : content.ar;
-}
 ```
 
 A **content pack** is one flat map of keys to text per language. A field can
 take its starting text from a pack key, and a merchant's edit for that key, in
-that language, replaces it. Every pack must have the same keys.
+that language, replaces it. Every pack must have the same keys. The SDK's
+`resolveThemeContent` merges them (next step).
 
 A pack holds the theme's words, never a fact about a store. "Delivered to
 all 58 wilayas", opening hours, a phone number or a return period is true of
@@ -261,16 +258,10 @@ merchant writes.
 
 ```ts title="src/lib/context.ts"
 import { localizeHref, servedLanguage, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
-import {
-  resolvePreviewStore as resolvePreview,
-  resolveStoreRequest as resolveRequest,
-  type ResolvedStore,
-} from "@wocart/storefront/astro";
-import type { PreviewDraft, StoreClient } from "@wocart/storefront/server";
-import type { ThemeRenderContext } from "@wocart/theme";
-import { packFor } from "../theme/content";
-import { FALLBACK_CONFIG } from "./fallback";
-import { createStore } from "./store";
+import type { ResolvedStore } from "@wocart/storefront/astro";
+import type { StoreClient } from "@wocart/storefront/server";
+import { resolveThemeContent, type ThemeRenderContext } from "@wocart/theme";
+import { content } from "../theme/content";
 
 export interface StoreContext {
   config: StoreConfig;
@@ -284,26 +275,14 @@ export interface StoreContext {
   href: (path: string) => string;
 }
 
-const STORE = { client: createStore, fallback: FALLBACK_CONFIG };
-
-export async function resolveStoreRequest(url: URL, referer: string | null) {
-  const request = await resolveRequest({ url, referer }, STORE);
-  if (request.kind === "redirect") return request;
-  return { kind: "page" as const, store: storeContext(request), rewrite: request.rewrite };
-}
-
-export async function resolvePreviewStore(draft: PreviewDraft): Promise<StoreContext> {
-  return storeContext(await resolvePreview(draft, STORE));
-}
-
-function storeContext({ config, client, routing, locale, pathname }: ResolvedStore): StoreContext {
+export function storeContext({ config, client, routing, locale, pathname }: ResolvedStore): StoreContext {
   return {
     config,
     client,
     locale,
     fallbackLocales: locale === routing.primary ? [] : [routing.primary],
     isRTL: servedLanguage(config, locale)?.direction === "rtl",
-    content: { ...packFor(locale), ...config.contentOverrides[locale] },
+    content: resolveThemeContent({ content }, locale, config.contentOverrides[locale], { defaultLocale: "ar" }),
     routing,
     pathname,
     href: (path) => localizeHref(path, locale, routing),
@@ -327,56 +306,69 @@ export function renderContext(
 ```
 
 `StoreContext` is **your** type: everything a page needs about the request,
-built once. The rules that decide it are the SDK's, in `resolveStoreRequest`:
+built once from the store the SDK resolves. The rules that decide that store
+are the SDK's:
 
 - The store's **primary language has no prefix** (`/products/robe`); another
   published language does (`/fr/products/robe`). The primary's own prefix
   redirects permanently to the unprefixed URL; a language the store stopped
   publishing redirects temporarily to the primary page.
+- A **landing page** (`/lp/…`) exists in the primary language only: `/fr/lp/…`
+  redirects permanently to `/lp/…`, its query kept, and `localizeHref` leaves
+  landing links unprefixed.
 - An **endpoint or server island** (`/api/…`, `/_server-islands/…`) takes the
   language of the page that asked for it, from its same-origin `Referer`, and
   is never redirected.
-- `content` merges the merchant's edits for **this language only** over your
-  pack. Merging another language's edits would show French text to an Arabic
-  shopper.
+- `resolveThemeContent` gives your pack for the language (else the default's)
+  with the merchant's edits for **this language only**, and only text edits
+  of keys your pack has. Merging another language's edits would show French
+  text to an Arabic shopper.
 - `href("/products")` gives `/fr/products` on a French page and `/products`
   on the primary language's. Use it for every internal link.
-
-`resolvePreviewStore` is used later, by the preview route.
 
 ## 8. The middleware
 
 ```ts title="src/middleware.ts"
-import { defineMiddleware } from "astro:middleware";
-import { resolveStoreRequest } from "./lib/context";
+import { getActionContext } from "astro:actions";
+import { WOCART_PREVIEW_KEY } from "astro:env/server";
+import { createStorefrontMiddleware } from "@wocart/storefront/astro";
+import { THEME_PREVIEW_PATH } from "@wocart/theme";
+import { FALLBACK_CONFIG } from "./lib/fallback";
+import { createStore } from "./lib/store";
+import { storeContext } from "./lib/context";
+import { THEME_KEY } from "./theme/key";
 
-export const onRequest = defineMiddleware(async (context, next) => {
-  if (context.isPrerendered) return next();
-
-  const request = await resolveStoreRequest(context.url, context.request.headers.get("Referer"));
-  if (request.kind === "redirect") return context.redirect(request.location, request.status);
-  context.locals.store = request.store;
-
-  return request.rewrite === null ? next() : next(request.rewrite);
+export const onRequest = createStorefrontMiddleware({
+  client: createStore,
+  fallback: FALLBACK_CONFIG,
+  preview: { path: THEME_PREVIEW_PATH, publicKey: () => WOCART_PREVIEW_KEY, theme: THEME_KEY },
+  context: storeContext,
+  getActionContext,
 });
 ```
 
-`/fr/products/robe` renders the route `src/pages/products/[handle].astro`: the
-SDK returns `rewrite: "/products/robe"`, and `next(rewrite)` renders it, so you
-never duplicate routes per language. A prerendered page (the manifest) has no
-request store, so it is skipped.
+`/fr/products/robe` renders the route `src/pages/products/[handle].astro`:
+the SDK rewrites to `/products/robe`, so you never duplicate routes per
+language. A prerendered page (the manifest) has no request store, so it is
+skipped. A page's `notFound()` rewrites to `/404` and the middleware keeps
+the store it already has, so the 404 stays in the shopper's language. The
+same call opens the editor's preview when `WOCART_PREVIEW_KEY` is set, and
+runs a form posted to the page before it renders. Pass the key as a
+function: a secret can be set after the module loads.
 
 Tell TypeScript what the middleware puts on `locals`:
 
 ```ts title="src/env.d.ts"
 /// <reference types="astro/client" />
 
+import type { PreviewLocals } from "@wocart/storefront/astro";
 import type { StoreContext } from "./lib/context";
 
 declare global {
   namespace App {
     interface Locals {
       store: StoreContext;
+      preview?: PreviewLocals;
     }
   }
 }

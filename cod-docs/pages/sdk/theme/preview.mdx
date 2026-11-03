@@ -63,20 +63,21 @@ part is optional and what is absent renders as saved:
 | `settings` | Draft theme settings, replacing the saved ones |
 | `content` | Draft text edits per language, replacing those languages' saved edits |
 
-In the middleware, read the request and build the draft's store with the SDK's
-`resolvePreviewStore`, which applies `settings` and `content` over the saved
-config and turns the Meta pixel off:
+The middleware reads the request and builds the draft's store.
+`createStorefrontMiddleware` does it when given the preview route and key:
+it checks the token, builds the store with `resolvePreviewStore` (the draft's
+`settings` and `content` over the saved config, the Meta pixel off), sets
+`locals.preview` to `{ claims, draft, token }`, and never runs a form action.
 
 ```ts
-if (context.url.pathname === THEME_PREVIEW_PATH) {
-  const preview = await readThemePreview(context.request);
-  if (!preview.ok) {
-    return new Response(null, { status: preview.status, headers: { "Cache-Control": "no-store" } });
-  }
-  context.locals.store = await resolvePreviewStore(preview.draft);
-  context.locals.preview = { claims: preview.claims, draft: preview.draft, token: preview.token };
-  return next();
-}
+// src/middleware.ts
+export const onRequest = createStorefrontMiddleware({
+  client: createStore,
+  fallback: unavailableStoreConfig({ serverUrl, locale: DEFAULT_LOCALE }),
+  preview: { path: THEME_PREVIEW_PATH, publicKey: () => WOCART_PREVIEW_KEY, theme: THEME_KEY },
+  context: (store) => buildStoreContext(store.config, store.locale, store.pathname, store.client),
+  getActionContext,
+});
 ```
 
 The route answers with `previewResponseHeaders(claims)`: only the token's

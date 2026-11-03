@@ -32,7 +32,7 @@ src/
   lib/                server-side glue; store.ts is the only SDK client
   scripts/            everything the browser runs; checkout/ holds the order form's parts
   styles/             tokens.css is the design system; one stylesheet per area
-  middleware.ts       the store, the language and redirects, from the SDK
+  middleware.ts       the store, the language, redirects and preview: one SDK call
   actions/            placing an order and looking one up, through the SDK
 tests/unit/           contract, guards, Studio, checkout, copy and more
 public/fonts/         the two self-hosted font families and their license
@@ -41,15 +41,18 @@ public/fonts/         the two self-hosted font families and their license
 
 ## How a request becomes a page
 
-1. **The middleware** (`src/middleware.ts`) asks the SDK which store,
-   language and redirect the request means (`resolveStoreRequest`), with
-   `src/lib/store.ts`'s `createStore` as the one client factory and
-   `unavailableStoreConfig` as the fallback. It builds the request's store
-   context once (`src/lib/context.ts`) and puts it on `Astro.locals.store`:
-   the client, the store's config, the language and direction, the theme's
-   words with the merchant's edits, the theme settings, and an `href()` that
-   keeps the shopper's language. A form posted to the page runs through the
-   SDK's `runFormAction`.
+1. **The middleware** (`src/middleware.ts`) is one call to the SDK's
+   `createStorefrontMiddleware`, given `src/lib/store.ts`'s `createStore` as
+   the one client factory, `unavailableStoreConfig` as the fallback, the
+   preview route and key, and the context builder. The SDK decides which
+   store, language and redirect the request means (a landing page has no
+   `/fr/…` address), and a page's `notFound()` keeps the shopper's
+   language. The context (`src/lib/context.ts`) is built once and put on
+   `Astro.locals.store`: the client, the store's config, the language and
+   direction, the theme's words with the merchant's edits
+   (`resolveThemeContent`), the theme settings, and an `href()` that keeps
+   the shopper's language. A form posted to the page runs its action before
+   the page renders.
 2. **The route** (`src/pages/…`) reads what its address names (a product, a
    collection, a landing page) and answers `notFound(Astro)` when it is
    missing. It reads the store's saved document for its surface
@@ -86,8 +89,10 @@ when Studio's preview swaps a section.
 The browser never calls the store's API with the key. It calls the theme's
 own routes under `src/pages/api/`, each a one-line file that mounts one of
 the SDK's same-origin routes (`createStorefrontRoutes` in
-`src/theme/api-routes.ts`). `src/lib/api-paths.ts` lists their paths, and a
-test checks that every listed path has its file and no file is unlisted.
+`src/theme/api-routes.ts`). Their paths are the SDK's
+`STOREFRONT_API_PATHS` (`storefrontApiPath` fills a parameter), and a test
+checks that every path has its file, no file is unlisted, and no other file
+writes an `/api/` path.
 
 Orders are placed with Astro actions (`src/actions/index.ts`): `placeOrder`
 runs the SDK's `executePlaceOrder` on `placeOrderInput`, and `orderStatus`
@@ -104,8 +109,10 @@ whether an order is valid. The store does.
 | `/wocart-revalidate` | `src/pages/wocart-revalidate.ts` | Drops every cached page after a publish |
 
 The preview and revalidation routes check a token signed by the platform
-against `WOCART_PREVIEW_KEY` (`readPreviewRequest`, `readRevalidateRequest`
-in `src/lib/store.ts`), and answer 404 without the key.
+against `WOCART_PREVIEW_KEY`, and answer 404 without the key. The middleware
+opens the preview; `src/pages/wocart-revalidate.ts` is the SDK's
+`revalidateEndpoint`, which drops every page cached under
+`PAGES_CACHE_TAG`.
 
 ## Where each change goes
 
@@ -148,7 +155,11 @@ is checked by a test you can run on its own with `npx vitest run <file> -t
 | Browser code imports no Zod, no schema and no server-only module | `guards.test.ts` "the theme's browser code" |
 | Every order form posts to the `placeOrder` action, with its checkout key | `guards.test.ts` "gives every order form its checkout key" |
 | A missing resource answers `notFound(Astro)` | `guards.test.ts` "through the SDK's notFound" |
-| Every cached page carries the `pages` tag | `studio.test.ts` "caches every composed route" |
+| Every cached page carries the `pages` tag, written as `PAGES_CACHE_TAG` | `studio.test.ts` "caches every composed route", "reaches every cached page" |
+| Every same-origin API path is the SDK's, mounted by exactly one file | `guards.test.ts` "mounts a route file at every API path" |
+| A 404 keeps the shopper's language; `/fr/lp/…` goes to `/lp/…` | `middleware.test.ts` |
+| A landing page offers no other language | `languages.test.ts` |
+| A merchant's text edit shows only in its language, for the theme's own words | `copy.test.ts` "the merchant's text edits" |
 | Preview and revalidation accept only the platform's signed tokens | `studio.test.ts` |
 | The theme builds for Cloudflare Workers and for Vercel | `guards.test.ts` "builds for Cloudflare Workers and for Vercel" |
 

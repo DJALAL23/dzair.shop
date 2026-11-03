@@ -172,10 +172,12 @@ cached for every shopper. For another phone the key fails with
 
 ## Thank-you and tracking
 
-After success, redirect to the thank-you page (`storefrontPath("thankYou")`,
-`/thank-you`) with the values it reads. The query is your theme's choice;
-the starter's is `/thank-you?order=<number>&total=<total>&oid=<orderId>`
-(`src/lib/order-outcome.ts`). In an editable theme the thank-you page is a
+After success, redirect to `thankYouHref(order, { locale, routing })`:
+`/thank-you?order=<number>&total=<total>&oid=<orderId>`, in the shopper's
+language, with nothing about the shopper in it. The thank-you page reads it
+back with `readThankYou(Astro.url)` (`{ orderNumber, orderId, total }`, each
+empty or `null` when missing), and an editor previews the page by building
+the same address with a sample order. In an editable theme the thank-you page is a
 Studio surface like any other page type, with the `thank-you-main` section in
 the starter.
 

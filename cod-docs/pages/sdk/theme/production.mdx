@@ -190,9 +190,9 @@ is marked `@deprecated` for at least one minor release before a major removes it
 
 | Fact | Value at the time of writing | Why it matters |
 | --- | --- | --- |
-| `@wocart/theme` | `4.0.0` | `THEME_SDK_VERSION` in every manifest |
+| `@wocart/theme` | `4.1.0` | `THEME_SDK_VERSION` in every manifest |
 | `@wocart/theme` peers | `@wocart/storefront ^3.0.0`, `astro ^7.0.0` (optional) | npm refuses an install outside the range |
-| `@wocart/storefront` | `3.0.0` | Reads platform v7; its root entry is browser-safe, `/server` and `/astro` are not |
+| `@wocart/storefront` | `3.1.0` | Reads platform v7; its root entry is browser-safe, `/server` and `/astro` are not |
 | `@wocart/storefront` peer | `zod ^4.4.3` | Its schemas are part of its public API |
 | Platform | v7 | A theme on `@wocart/storefront` 2.x reads a v7 store as unreadable: a store updates its platform and its theme together |
 | Manifest contract | `THEME_MANIFEST_CONTRACT_VERSION` = `1` | An editor reads manifests of this version |

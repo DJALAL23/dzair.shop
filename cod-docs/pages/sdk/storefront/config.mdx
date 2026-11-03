@@ -153,6 +153,7 @@ The primary language has no prefix. Every other published language has one:
 /products/robe          primary (Arabic, for example)
 /fr/products/robe       French
 /ar/products/robe       301 to /products/robe
+/fr/lp/summer           301 to /lp/summer (a landing page has one language)
 ```
 
 The helpers that implement this are pure:
@@ -180,31 +181,36 @@ alternateLinks("/products/robe", routing, "https://shop.example");
 `resolveLocalePath` only treats a first segment as a language when the store
 publishes it. An unknown prefix is an ordinary path and 404s normally.
 
+A landing page exists in the primary language only: it is one campaign,
+written once for the ads that point at it. `SINGLE_LANGUAGE_PAGE_TYPES`
+(`["landing"]`) names such page types and `isSingleLanguagePage(pathname)`
+tells one from any other page. `resolveLocalePath` redirects any prefix on
+it, `localizeHref` leaves its links unprefixed, and `alternateLinks` returns
+no alternates for it. A language menu should list no languages there.
+
 ### One request, one language
 
 `resolveStoreRequest` from `@wocart/storefront/astro` applies the whole
 language policy for a request: which store config, which language, which
-client, and whether to redirect.
+client, and whether to redirect. `createStorefrontMiddleware` calls it for
+every page, so a theme's middleware is one call
+([Astro integration](/sdk/storefront/astro#request-bound-services)):
 
 ```ts
 // src/middleware.ts
-import { defineMiddleware } from "astro:middleware";
-import { resolveStoreRequest } from "@wocart/storefront/astro";
-import { COD_SERVER_URL } from "astro:env/server";
+import { getActionContext } from "astro:actions";
+import { COD_SERVER_URL, WOCART_PREVIEW_KEY } from "astro:env/server";
 import { unavailableStoreConfig } from "@wocart/storefront";
+import { createStorefrontMiddleware } from "@wocart/storefront/astro";
+import { THEME_PREVIEW_PATH } from "@wocart/theme";
 import { createStore } from "./lib/store";
 
-const FALLBACK_CONFIG = unavailableStoreConfig({ serverUrl: COD_SERVER_URL ?? "", locale: "ar" });
-
-export const onRequest = defineMiddleware(async (context, next) => {
-  if (context.isPrerendered) return next();
-  const request = await resolveStoreRequest(
-    { url: context.url, referer: context.request.headers.get("Referer") },
-    { client: createStore, fallback: FALLBACK_CONFIG },
-  );
-  if (request.kind === "redirect") return context.redirect(request.location, request.status);
-  context.locals.store = request; // client, config, locale, routing, pathname
-  return request.rewrite === null ? next() : next(request.rewrite);
+export const onRequest = createStorefrontMiddleware({
+  client: createStore,
+  fallback: unavailableStoreConfig({ serverUrl: COD_SERVER_URL ?? "", locale: "ar" }),
+  preview: { path: THEME_PREVIEW_PATH, publicKey: () => WOCART_PREVIEW_KEY, theme: "my-theme" },
+  context: (store) => store, // client, config, locale, routing, pathname
+  getActionContext,
 });
 ```
 
@@ -212,10 +218,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 | --- | --- |
 | The language | From the path's first segment when the store publishes it (`/fr/…`); else the primary |
 | The primary's own prefix | `/ar/x` on an Arabic-primary store redirects **301** to `/x` |
+| A landing page under a prefix | `/fr/lp/x?fbclid=…` redirects **301** to `/lp/x?fbclid=…`, the query kept |
 | A language the store stopped publishing | Redirects **302** to the primary page — it may come back |
 | The route to render | `rewrite: "/products/robe"` for `/fr/products/robe`, so one route file serves every language |
 | The client | `client(locale)` for a non-primary language, `client()` for the primary — one client per language, each with its own caches |
 | An endpoint or server island | `/api/…` and `/_server-islands/…` take the language of the page that asked (its same-origin `Referer`), and are never redirected |
+| A rewrite to `/404` | `createStorefrontMiddleware` keeps the store the request already has, so the 404 is in the shopper's language |
 | An unreadable config | `fallback` renders instead |
 
 `config.locale` is the language that actually arrived. A page's links go

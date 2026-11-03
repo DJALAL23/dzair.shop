@@ -46,12 +46,13 @@ Start here when something looks wrong and no code is in front of you.
 | The page renders the unavailable store: no name, no menu, no products, nothing to buy (`config.id === ""`) | The config read failed: wrong URL or key, or the API is unreachable | Read the client's `onError` output (`operation`, `code`); a deployed server cannot reach `localhost` |
 | Merchant text edits or saved pages never appear | The client does not pass `theme` | `createStoreClient({ …, theme: THEME_KEY })` |
 | An Arabic page shows a French label | Another language's text edits were merged | Merge only `config.contentOverrides[locale]` over the pack for `locale` |
-| `/fr/products/x` answers 404 | The middleware ignores the rewrite | `return request.rewrite === null ? next() : next(request.rewrite)` |
+| `/fr/products/x` answers 404 | A middleware wired by hand ignores the rewrite | Use `createStorefrontMiddleware`, or `return request.rewrite === null ? next() : next(request.rewrite)` |
+| A 404 on `/fr/…` shows in the primary language | A middleware wired by hand resolves the store again for `/404` | Use `createStorefrontMiddleware`, which keeps the store a request already has |
 | An internal link drops the shopper's language | A raw path in an `href` | Pass it through the request store's `href` (`localizeHref`) |
 | The order form answers `403 Cross-site POST form submissions are forbidden` | The page's origin differs from the URL the server sees (locally: `127.0.0.1` vs `localhost`) | Open the site on the origin the server reports |
 | Every order is refused as malformed (`errorKind: "shape"`) | A single-product form without `pricePerUnit` (or a basket without `items`) | Post `productId`, `productName` and `pricePerUnit`, or `items` |
-| A placed order shows no thank-you page | The redirect was attempted in the middleware, or the page never reads the result | Run `runFormAction` in the middleware; redirect from the page with `Astro.getActionResult` |
-| `/wocart-preview` answers 404 | No `WOCART_PREVIEW_KEY`, or the surface is not one the theme declares | Set the deployment's preview key; declare the surface |
+| A placed order shows no thank-you page | The redirect was attempted in the middleware, or the page never reads the result | Use `createStorefrontMiddleware` (or `runFormAction`); redirect from the page with `Astro.getActionResult` and `thankYouHref` |
+| `/wocart-preview` answers 404 | No `WOCART_PREVIEW_KEY`, the key read once when the module loaded, or the surface is not one the theme declares | Set the deployment's preview key; pass it as `publicKey: () => WOCART_PREVIEW_KEY`; declare the surface |
 | `/wocart-preview` answers 403 | The token is for another storefront origin or another theme key, expired, or a draft was posted cross-origin | Open the preview from the store's own Wocart Studio |
 | A section's script stops working after a Studio edit | It bound once on import; a swapped section never re-runs scripts | Bind with `bindEach` from `@wocart/theme/lifecycle` |
 | A style choice has no effect | The theme gives that step or width no size, or the stylesheet is not linked | Add the size to `defineTheme({ style })`; render `<ThemeStyles>` and serve `wocart-styles.css` |

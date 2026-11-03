@@ -17,8 +17,8 @@
     "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
-    "@wocart/storefront": "3.0.0",
-    "@wocart/theme": "4.0.0",
+    "@wocart/storefront": "3.1.0",
+    "@wocart/theme": "4.1.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zudoku": "0.93.0"

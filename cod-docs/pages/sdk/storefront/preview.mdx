@@ -30,21 +30,15 @@ draft is never written to the database.
 
 ### Read the request
 
-`readPreviewRequest` lives on the server entry point and does all the checking:
+`readPreviewRequest` lives on the server entry point and does all the
+checking. `createStorefrontMiddleware` calls it for you on the preview path;
+call it yourself only in a middleware you wire by hand:
 
 ```ts
-// src/lib/store.ts
 import { readPreviewRequest } from "@wocart/storefront/server";
 import { WOCART_PREVIEW_KEY } from "astro:env/server";
 
-import { THEME_KEY } from "./key";
-
-export function readThemePreview(request: Request) {
-  return readPreviewRequest(request, {
-    publicKey: WOCART_PREVIEW_KEY,
-    theme: THEME_KEY,
-  });
-}
+const preview = await readPreviewRequest(request, { publicKey: WOCART_PREVIEW_KEY, theme: THEME_KEY });
 ```
 
 The result is either `{ ok: true, claims, draft, token }` or `{ ok: false,
@@ -103,20 +97,24 @@ hold.
 ### A preview route
 
 A preview is rendered by a normal Astro page that is never prerendered. The
-middleware lets the preview path through **before** resolving the request's
-store, because the draft's surface and language decide the store:
+middleware opens it **before** resolving the request's store, because the
+draft's surface and language decide the store. `createStorefrontMiddleware`
+does this when given the preview route and key:
 
 ```ts
-if (context.url.pathname === THEME_PREVIEW_PATH) {
-  const preview = await readThemePreview(context.request);
-  if (!preview.ok) {
-    return new Response(null, { status: preview.status, headers: { "Cache-Control": "no-store" } });
-  }
-  context.locals.preview = preview;
-  context.locals.store = await resolvePreviewStore(preview.draft, STORE);
-  return next();
-}
+// src/middleware.ts
+export const onRequest = createStorefrontMiddleware({
+  client: createStore,
+  fallback,
+  preview: { path: THEME_PREVIEW_PATH, publicKey: () => WOCART_PREVIEW_KEY, theme: THEME_KEY },
+  context: buildStoreContext,
+  getActionContext,
+});
 ```
+
+A refused token answers its status with `Cache-Control: no-store`; a
+verified one sets `locals.store` from `resolvePreviewStore` and
+`locals.preview` to `{ claims, draft, token }`, and never runs a form action.
 
 The page then renders the draft and sets the headers above:
 
@@ -137,8 +135,8 @@ for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims
 
 An editable theme completes the page with `previewTarget` and the preview
 bridge; the [theme starter](/sdk/theme/starter) has every file
-(`src/pages/wocart-preview.astro`, `src/pages/wocart-revalidate.ts`,
-`src/lib/store.ts`): a signed token opens the preview, a draft posted from the
+(`src/middleware.ts`, `src/pages/wocart-preview.astro`,
+`src/pages/wocart-revalidate.ts`): a signed token opens the preview, a draft posted from the
 page's own origin re-renders, a draft posted from another origin is refused
 with 403, and a revalidation token is refused on the preview route.
 
@@ -154,22 +152,22 @@ must do the rest. The token can only render a draft — it cannot write or purge
 ## Revalidation
 
 A publish changes the store's page data. The platform posts a signed token to
-the theme's revalidation route, and the theme drops its cached pages.
+the theme's revalidation route (`REVALIDATE_PATH`, `/wocart-revalidate`), and
+the theme drops its cached pages. `revalidateEndpoint` is the whole route:
 
 ```ts
-import { REVALIDATE_PATH, readRevalidateRequest } from "@wocart/storefront/server";
+// src/pages/wocart-revalidate.ts
 import { WOCART_PREVIEW_KEY } from "astro:env/server";
+import { revalidateEndpoint } from "@wocart/storefront/astro";
 
-// REVALIDATE_PATH is "/wocart-revalidate": serve this route there.
-const result = await readRevalidateRequest(request, {
-  publicKey: WOCART_PREVIEW_KEY,
-  theme: THEME_KEY,
-});
-
-if (!result.ok) {
-  return new Response(null, { status: result.status });
-}
+export const prerender = false;
+export const { POST, ALL } = revalidateEndpoint({ publicKey: () => WOCART_PREVIEW_KEY, theme: THEME_KEY });
 ```
+
+`POST` answers 204 after dropping every page cached under `PAGES_CACHE_TAG`
+for a verified token, and the token's refusal status otherwise, dropping
+nothing. `ALL` answers any other method 405. No answer is cached. A route
+wired by hand reads the request with `readRevalidateRequest`.
 
 The checks:
 
@@ -186,49 +184,17 @@ preview.
 
 ### Drop the pages
 
-With Astro's cache, invalidate the tag every cached page route carries:
-
-```ts
-// src/pages/wocart-revalidate.ts
-import type { APIRoute } from "astro";
-import { readRevalidateRequest } from "@wocart/storefront/server";
-import { WOCART_PREVIEW_KEY } from "astro:env/server";
-
-export const prerender = false;
-
-export const PAGES_CACHE_TAG = "pages";
-
-export const POST: APIRoute = async (context) => {
-  const result = await readRevalidateRequest(context.request, {
-    publicKey: WOCART_PREVIEW_KEY,
-    theme: THEME_KEY,
-  });
-
-  if (!result.ok) {
-    return new Response(null, {
-      status: result.status,
-      headers: { "Cache-Control": "no-store" },
-    });
-  }
-
-  await context.cache.invalidate({ tags: [PAGES_CACHE_TAG] });
-  return new Response(null, {
-    status: 204,
-    headers: { "Cache-Control": "no-store" },
-  });
-};
-```
-
-The tag must match every cached page route in `astro.config.mjs`'s `routeRules`.
-A route that omits it is not purged on publish.
+`PAGES_CACHE_TAG` (`"pages"`, from `@wocart/storefront/server`) is the tag
+the route drops. Every cached page route in `astro.config.mjs`'s
+`routeRules` must carry it; a route that omits it is not purged on publish.
 
 ```js
 // astro.config.mjs
-const PAGES_CACHE_TAG = "pages";
+import { PAGES_CACHE_TAG } from "@wocart/storefront/server";
 
 export default defineConfig({
   routeRules: {
-    "/products/[slug]": {
+    "/products/[handle]": {
       maxAge: 60,
       swr: 86400,
       tags: ["products", PAGES_CACHE_TAG],
@@ -237,8 +203,9 @@ export default defineConfig({
 });
 ```
 
-Do not wrap the revalidation path in the store middleware. It needs no store,
-and resolving one would make a purge depend on a store read.
+The revalidation path needs no store: `createStorefrontMiddleware` lets it
+through, and a middleware wired by hand must too, or a purge would depend on
+a store read.
 
 <Callout type="info" title="Where the token comes from">
 The platform signs preview and revalidation tokens with its own private key;
