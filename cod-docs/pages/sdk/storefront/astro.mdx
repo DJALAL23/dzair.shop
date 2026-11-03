@@ -25,7 +25,7 @@ The route's client must be the request's own, not a module singleton:
 import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
 import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
 
-export function getStoreClient(locale?: string): StoreClient {
+export function createStore(locale?: string): StoreClient {
   return createStoreClient({
     serverUrl: COD_SERVER_URL ?? "",
     apiKey: STORE_API_KEY ?? "",
@@ -105,7 +105,7 @@ stay identical:
 // src/pages/api/availability.ts
 import { z } from "zod";
 import { createProxyEndpoint } from "@wocart/storefront/astro";
-import { getStoreClient } from "../../lib/store";
+import { createStore } from "../../lib/store";
 
 const input = z.object({ handle: z.string().min(1).max(255) });
 
@@ -113,7 +113,7 @@ export const POST = createProxyEndpoint({
   method: "POST",
   inputSchema: input,
   client: async ({ handle }) => {
-    const product = await getStoreClient().products.get(handle);
+    const product = await createStore().products.get(handle);
     return { success: true, data: { available: product !== null && product.inventory > 0 } };
   },
 });
@@ -130,12 +130,12 @@ For a GET with path params:
 ```ts
 // src/pages/api/stock/[wilayaId].ts
 import { createProxyEndpoint } from "@wocart/storefront/astro";
-import { getStoreClient } from "../../../lib/store";
+import { createStore } from "../../../lib/store";
 
 export const GET = createProxyEndpoint<{ wilayaId: number }, unknown>({
   method: "GET",
   pathParams: { wilayaId: "number" },
-  client: async ({ wilayaId }) => ({ success: true, data: await getStoreClient().shipping.rate(wilayaId) }),
+  client: async ({ wilayaId }) => ({ success: true, data: await createStore().shipping.rate(wilayaId) }),
 });
 ```
 
@@ -213,7 +213,7 @@ if (placed?.data) {
 
 A refused order needs no code here: the page renders again from the same POST,
 and the form reads `Astro.getActionResult(actions.placeOrder)?.error` to show
-it. The [complete theme](/sdk/theme/tutorial#3-placing-the-order-and-confirming-it) has the whole
+it. The [theme starter](/sdk/theme/starter) has the whole
 flow.
 
 ## Request-bound services
@@ -233,10 +233,10 @@ import { getActionContext } from "astro:actions";
 import { COD_SERVER_URL } from "astro:env/server";
 import { unavailableStoreConfig } from "@wocart/storefront";
 import { resolveStoreRequest, runFormAction } from "@wocart/storefront/astro";
-import { getStoreClient } from "./lib/store";
+import { createStore } from "./lib/store";
 
 const STORE = {
-  client: getStoreClient,
+  client: createStore,
   fallback: unavailableStoreConfig({ serverUrl: COD_SERVER_URL ?? "", locale: "ar" }),
 };
 
@@ -328,9 +328,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
 Any other page you want listed (a collection, the contact page) you add to
 the paths yourself before calling `sitemapXml`. That choice is the theme's.
-Theme-00 lists exactly what `catalogPaths` returns, leaves landing pages out
-(they are ad destinations, often unlisted from the store), and marks its
-checkout, search, order tracking and thank-you pages `noindex`.
+The starter lists exactly what `catalogPaths` returns
+(`src/pages/sitemap.xml.ts`), and marks its checkout, search, order tracking,
+thank-you, landing and not-found pages `noindex`.
 
 ## A wiring checklist
 

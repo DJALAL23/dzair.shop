@@ -5,7 +5,7 @@ description: Build a Wocart storefront with typed catalog reads, a browser-safe 
 import { Callout } from "zudoku/ui/Callout";
 import { Card, CardDescription, CardHeader, CardTitle } from "zudoku/ui/Card";
 import { Link } from "zudoku/components";
-import { BotIcon, LayersIcon, RocketIcon, ShoppingCartIcon } from "zudoku/icons";
+import { LayersIcon, RocketIcon, ShoppingCartIcon } from "zudoku/icons";
 
 # Storefront SDK
 
@@ -64,29 +64,15 @@ preview.
       </CardHeader>
     </Card>
   </Link>
-  <Link to="/sdk/storefront/agents" className="group">
-    <Card className="h-full transition-colors group-hover:border-primary/40">
-      <CardHeader>
-        <div className="mb-2 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
-          <BotIcon className="size-4" />
-        </div>
-        <CardTitle>AI agent kit</CardTitle>
-        <CardDescription>
-          A safe workflow and the rules an assistant must not break.
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  </Link>
 </div>
 
 ## Who this is for
 
 | If you are… | Start with |
 | --- | --- |
-| New to Wocart, a vibe coder, or building with AI | [Quick start](/sdk/storefront/quickstart) |
+| New to Wocart | [Quick start](/sdk/storefront/quickstart) |
 | Building a custom Astro storefront for one store | [Quick start](/sdk/storefront/quickstart), then [Astro actions and routes](/sdk/storefront/astro) |
-| Making an editable theme | [Theme SDK](/sdk/theme), then this SDK for the commerce data |
-| An AI assistant working on a storefront | [AI agent kit](/sdk/storefront/agents) |
+| Making an editable theme | The [theme starter](/sdk/theme/starter), then this SDK for the commerce data |
 | Looking for one method or type | The [API reference](/sdk/storefront/reference/README) |
 
 The guide begins with one working page and adds one area at a time. You can
@@ -165,7 +151,6 @@ server contract first, then use it here.
 | --- | --- |
 | [Quick start](/sdk/storefront/quickstart) | Install, create the client, render a catalog and a product page |
 | [How it works](/sdk/storefront/how-it-works) | Layers, page types, results, caching and the security boundary |
-| [AI agent kit](/sdk/storefront/agents) | A safe workflow and the rules an assistant must not break |
 | [Store config and languages](/sdk/storefront/config) | Store settings, checkout policy, localization and theme text |
 | [Products and collections](/sdk/storefront/catalog) | Lists, detail, variants, offers, quantity pricing and categories |
 | [Reviews](/sdk/storefront/reviews) | Read reviews, prove a purchase, upload media and submit |

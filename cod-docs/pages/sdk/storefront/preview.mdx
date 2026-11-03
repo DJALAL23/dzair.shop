@@ -33,7 +33,7 @@ draft is never written to the database.
 `readPreviewRequest` lives on the server entry point and does all the checking:
 
 ```ts
-// src/theme/sdk.ts
+// src/lib/store.ts
 import { readPreviewRequest } from "@wocart/storefront/server";
 import { WOCART_PREVIEW_KEY } from "astro:env/server";
 
@@ -136,8 +136,9 @@ for (const [name, value] of Object.entries(previewResponseHeaders(preview.claims
 ```
 
 An editable theme completes the page with `previewTarget` and the preview
-bridge; the [complete theme](/sdk/theme/tutorial#7-preview-and-revalidation)
-has every file: a signed token opens the preview, a draft posted from the
+bridge; the [theme starter](/sdk/theme/starter) has every file
+(`src/pages/wocart-preview.astro`, `src/pages/wocart-revalidate.ts`,
+`src/lib/store.ts`): a signed token opens the preview, a draft posted from the
 page's own origin re-renders, a draft posted from another origin is refused
 with 403, and a revalidation token is refused on the preview route.
 

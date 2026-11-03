@@ -49,7 +49,10 @@ Rules:
 - The generated API reference (`pages/sdk/*/reference/`) is English only and is
   linked from all three locales by the navigation's reference link.
 - `architecture.mdx`, `self-hosting/` and `features/` are English only until
-  their French and Arabic translations. They are listed in `englishOnlyGroups`
+  their French and Arabic translations. So are the SDK guides
+  (`sdk/storefront/`, `sdk/theme/`, listed in `englishOnlySections`): they
+  were rewritten around the starter in English first, and have no French or
+  Arabic pages until they are translated again. They are listed in `englishOnlyGroups`
   in `src/i18n/navigation.ts`: the French and Arabic sidebars link to the
   English pages, marked as English, and `check:i18n` exempts them from parity.
 
@@ -97,6 +100,8 @@ old slug in `pages/` and `src/i18n/navigation.ts`.
 
 - The SDK sources and tests are the contract; a page may not describe behavior
   they do not implement.
-- A contract change ships with its three pages, its examples and the
-  public agent kit in `public/agents/`.
-- Theme-00 is an example, not the specification; where it differs, say so.
+- A contract change ships with its pages and its examples.
+- The theme guide is written around the theme starter
+  (`create-wocart-theme`): its files are the examples, and the agent skills a
+  theme ships live in the starter, never here. Theme-00 is not a reference.
+- The docs never carry instructions for AI agents.

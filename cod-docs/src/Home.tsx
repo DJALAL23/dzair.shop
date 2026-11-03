@@ -99,7 +99,7 @@ const copy: Record<Locale, Copy> = {
         icon: <PaletteIcon />,
         title: "Theme SDK",
         description:
-          "Themes merchants edit in Wocart Studio: component definitions, page documents, style, preview and an AI agent kit.",
+          "Themes merchants edit in Wocart Studio: component definitions, page documents, style and preview, with a starter that creates a complete theme.",
         href: "/sdk/theme",
         hint: "npm i @wocart/theme",
         cta: "Build a theme",
@@ -149,7 +149,7 @@ const copy: Record<Locale, Copy> = {
     asideNote: "Storefront config",
     ctaTitle: "Ship the storefront you want.",
     ctaBody:
-      "Build it with Wocart's two SDKs: the storefront SDK for the engine and the theme SDK for the layer merchants edit. Both ship an AI agent kit.",
+      "Build it with Wocart's two SDKs: the storefront SDK for the engine and the theme SDK for the layer merchants edit. The theme starter gives you a complete theme to start from.",
     storefrontSdk: "Storefront SDK",
     themeSdk: "Theme SDK",
     pageTitle: "Wocart Developers — API & SDK documentation",
@@ -202,7 +202,7 @@ const copy: Record<Locale, Copy> = {
         icon: <PaletteIcon />,
         title: "SDK Theme",
         description:
-          "Des thèmes que les marchands éditent dans Wocart Studio : définitions de composants, documents de page, style, aperçu et kit pour agents IA.",
+          "Des thèmes que les marchands éditent dans Wocart Studio : définitions de composants, documents de page, style et aperçu, avec un starter qui crée un thème complet.",
         href: "/sdk/theme",
         hint: "npm i @wocart/theme",
         cta: "Construire un thème",
@@ -252,7 +252,7 @@ const copy: Record<Locale, Copy> = {
     asideNote: "Configuration de la vitrine",
     ctaTitle: "Livrez la vitrine que vous voulez.",
     ctaBody:
-      "Construisez-la avec les deux SDK Wocart : le SDK Storefront pour le moteur et le SDK Theme pour la couche que les marchands éditent. Les deux livrent un kit pour agents IA.",
+      "Construisez-la avec les deux SDK Wocart : le SDK Storefront pour le moteur et le SDK Theme pour la couche que les marchands éditent. Le starter de thème vous donne un thème complet pour commencer.",
     storefrontSdk: "SDK Storefront",
     themeSdk: "SDK Theme",
     pageTitle: "Wocart Developers — Documentation API et SDK",
@@ -305,7 +305,7 @@ const copy: Record<Locale, Copy> = {
         icon: <PaletteIcon />,
         title: "SDK القوالب",
         description:
-          "قوالب يحرّرها التجار في Wocart Studio: تعريفات المكوّنات ومستندات الصفحات والتنسيق والمعاينة وحزمة أدوات للوكلاء.",
+          "قوالب يحرّرها التجار في Wocart Studio: تعريفات المكوّنات ومستندات الصفحات والتنسيق والمعاينة، مع قالب أساسي ينشئ قالبًا كاملًا.",
         href: "/sdk/theme",
         hint: "npm i @wocart/theme",
         cta: "ابنِ قالبًا",
@@ -354,7 +354,7 @@ const copy: Record<Locale, Copy> = {
     asideNote: "إعداد واجهة المتجر",
     ctaTitle: "أطلق واجهة المتجر التي تريدها.",
     ctaBody:
-      "ابنِها بحزمتَي Wocart: SDK واجهة المتجر للمحرك، وSDK القوالب للطبقة التي يحرّرها التجار. وكلتاهما تشحن حزمة أدوات للوكلاء.",
+      "ابنِها بحزمتَي Wocart: SDK واجهة المتجر للمحرك، وSDK القوالب للطبقة التي يحرّرها التجار. ويمنحك القالب الأساسي قالبًا كاملًا تبدأ منه.",
     storefrontSdk: "SDK واجهة المتجر",
     themeSdk: "SDK القوالب",
     pageTitle: "Wocart Developers — توثيق API وSDK",

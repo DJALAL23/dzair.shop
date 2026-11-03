@@ -9,9 +9,10 @@ can be saved and read back, its default pages pass validation, and those pages
 render. These four checks prove those promises in your own test suite. Add
 checks for your own behavior after these pass.
 
-The [complete theme](/sdk/theme/tutorial#8-tests-that-prove-the-promises) has
-all of them as runnable files, including the Vitest configuration Astro
-components need (`getViteConfig` from `astro/config`).
+The [theme starter](/sdk/theme/starter) has all of them as runnable files in
+`tests/unit/`, with the Vitest configuration Astro components need
+(`vitest.config.ts`, `getViteConfig` from `astro/config`), so a theme made
+with it runs them with `npm test`.
 
 ## 1. The theme definition is valid
 
@@ -215,17 +216,20 @@ The four checks do not execute browser scripts. Test separately:
 
 `@wocart/theme`'s root entry and Zod are server and build dependencies. A
 `<script>` may import only the browser entries — `@wocart/storefront` (its
-root), `@wocart/theme/lifecycle`, `@wocart/theme/messages` and, on the preview
-route, `@wocart/theme/preview` — never `@wocart/storefront/server`, the
-renderer or the validators. Both packages test their own browser entries for
-this; Theme-00 adds a guard over its built scripts
-(`no-validator-in-browser.test.ts`), worth copying.
+root), `@wocart/storefront/review-media`, `@wocart/theme/lifecycle`,
+`@wocart/theme/messages` and, on the preview route, `@wocart/theme/preview` —
+never `@wocart/storefront/server`, `@wocart/storefront/astro`, the renderer or
+the validators. Both packages test their own browser entries for this; the
+starter adds a guard that follows every browser script's imports
+(`tests/unit/guards.test.ts`, "the theme's browser code").
 
 ## Guard tests: the rules as failing tests
 
-The SDK checks the contract; it cannot see a theme's source. Theme-00 turns
-its rules into tests that read the theme's own files and fail on a break. They are worth copying as a pattern (adapt the paths to your
-layout):
+The SDK checks the contract; it cannot see a theme's source. The starter
+turns its rules into tests that read the theme's own files and fail on a break
+(`tests/unit/guards.test.ts` and `tests/unit/copy.test.ts`, which read the
+source through `tests/unit/source.ts`). A theme built from scratch copies them
+and adapts the paths:
 
 | Rule | What the guard asserts |
 | --- | --- |
@@ -238,9 +242,14 @@ layout):
 | Colours | Tokens are derived on `.wc-scheme`, and no element carries a scheme marker of its own |
 | Page types | The manifest carries a surface for every platform page type |
 | Not found | Every resource route answers a missing resource with `notFound` |
+| Store facts | No word, default, preset or document states a delivery reach, a period, a percentage, opening hours or a phone call |
+| Right to left | A physical `left`/`right` appears only in a rule for one direction |
+| Both hosts | The build scripts and `astro.config.mjs` keep the Cloudflare and Vercel adapters |
 
-Theme-00's are under `src/theme/__tests__/guards/`. Prove each guard once by breaking the code and
-watching it fail: a guard that never fails checks nothing.
+[The starter, file by file](/sdk/theme/project#the-rules-and-the-tests-that-keep-them)
+lists each test with the command that runs it. Prove each guard once by
+breaking the code and watching it fail: a guard that never fails checks
+nothing.
 
 ## Definition of done
 

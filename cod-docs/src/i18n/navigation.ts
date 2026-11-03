@@ -75,12 +75,6 @@ const storefrontGroups: Group[] = [
       { slug: "", en: "Overview", fr: "Vue d'ensemble", ar: "نظرة عامة" },
       { slug: "/quickstart", en: "Quick start", fr: "Démarrage rapide", ar: "البدء السريع" },
       { slug: "/how-it-works", en: "How it works", fr: "Fonctionnement", ar: "كيف يعمل" },
-      {
-        slug: "/agents",
-        en: "AI agent kit",
-        fr: "Kit pour agents IA",
-        ar: "حزمة وكلاء الذكاء الاصطناعي",
-      },
     ],
   },
   {
@@ -167,21 +161,10 @@ const themeGroups: Group[] = [
     label: { en: "Start here", fr: "Commencer ici", ar: "ابدأ من هنا" },
     pages: [
       { slug: "", en: "Overview", fr: "Vue d'ensemble", ar: "نظرة عامة" },
-      { slug: "/build", en: "Quick start", fr: "Démarrage rapide", ar: "البدء السريع" },
-      {
-        slug: "/tutorial",
-        en: "Build a complete theme",
-        fr: "Construire un thème complet",
-        ar: "ابنِ قالبًا كاملًا",
-      },
-      { slug: "/customize", en: "Customize a theme", fr: "Personnaliser un thème", ar: "تخصيص قالب" },
-      {
-        slug: "/agents",
-        en: "AI agent kit",
-        fr: "Kit pour agents IA",
-        ar: "حزمة وكلاء الذكاء الاصطناعي",
-      },
-      { slug: "/tools", en: "Tools", fr: "Outils et feuille de route", ar: "الأدوات وخارطة الطريق" },
+      { slug: "/starter", en: "Quick start with the starter", fr: "Démarrage rapide avec le starter", ar: "البدء السريع بالقالب الأساسي" },
+      { slug: "/project", en: "The starter, file by file", fr: "Le starter, fichier par fichier", ar: "القالب الأساسي ملفًا ملفًا" },
+      { slug: "/customize", en: "Make it your own", fr: "Le personnaliser", ar: "اجعله قالبك" },
+      { slug: "/build", en: "Build from scratch", fr: "Partir de zéro", ar: "البناء من الصفر" },
     ],
   },
   {
@@ -237,12 +220,6 @@ const themeGroups: Group[] = [
         ar: "واجهة API العامة",
       },
       {
-        slug: "/reference-implementation",
-        en: "Reference implementation (Theme-00)",
-        fr: "Implémentation de référence (Theme-00)",
-        ar: "التنفيذ المرجعي (Theme-00)",
-      },
-      {
         slug: "/troubleshooting",
         en: "Issues and fixes",
         fr: "Problèmes et solutions",
@@ -258,11 +235,18 @@ const referenceLabel: Label = {
   ar: "مرجع API (بالإنجليزية)",
 };
 
+/**
+ * Sections written in English first: their French and Arabic pages are
+ * translated from the English once it settles. Until then every locale reads
+ * the English pages, and `check:i18n` exempts them from parity.
+ */
+export const englishOnlySections = ["/sdk/storefront", "/sdk/theme"];
+
 const allPages: Array<{ base: string; pages: Page[] }> = [
   { base: "", pages: corePages },
   { base: "/sdk/storefront", pages: storefrontGroups.flatMap((group) => group.pages) },
   { base: "/sdk/theme", pages: themeGroups.flatMap((group) => group.pages) },
-];
+].filter((section) => !englishOnlySections.includes(section.base));
 
 const translatedSlugs = new Set<string>(["/"]);
 
@@ -335,18 +319,14 @@ export function localizedNavigation(pathname: string): NavigationItem[] {
     return [...navForGroups("en", "", [coreGroup], "/api"), ...englishOnlyNav("en")];
   }
 
+  const section = englishOnlySections.find((base) => path === base || path.startsWith(`${base}/`));
+  if (section === "/sdk/storefront") return navForGroups("en", section, storefrontGroups, "/sdk/storefront/reference/README");
+  if (section === "/sdk/theme") return navForGroups("en", section, themeGroups, "/sdk/theme/reference/README");
+
   if (path === "/" || !translatedSlugs.has(path)) return [];
 
   if (corePages.some((page) => page.slug === path)) {
     return [...navForGroups(locale, "", [coreGroup], "/api"), ...englishOnlyNav(locale)];
-  }
-
-  if (path === "/sdk/storefront" || path.startsWith("/sdk/storefront/")) {
-    return navForGroups(locale, "/sdk/storefront", storefrontGroups, "/sdk/storefront/reference/README");
-  }
-
-  if (path === "/sdk/theme" || path.startsWith("/sdk/theme/")) {
-    return navForGroups(locale, "/sdk/theme", themeGroups, "/sdk/theme/reference/README");
   }
 
   return [];

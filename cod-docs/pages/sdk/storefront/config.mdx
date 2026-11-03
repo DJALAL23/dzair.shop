@@ -10,9 +10,9 @@ import { Callout } from "zudoku/ui/Callout";
 settings or `null` when they cannot be read.
 
 ```ts
-import { getStoreClient } from "../lib/store";
+import { createStore } from "../lib/store";
 
-const config = await getStoreClient().config.get();
+const config = await createStore().config.get();
 ```
 
 A null config is a real failure — the API is unreachable, the key is wrong —
@@ -121,7 +121,7 @@ A store has a primary language (`lang`) and a list of published languages
 (`locales`):
 
 ```ts
-const config = await getStoreClient().config.get();
+const config = await createStore().config.get();
 
 config?.locales;
 // [
@@ -192,7 +192,7 @@ import { defineMiddleware } from "astro:middleware";
 import { resolveStoreRequest } from "@wocart/storefront/astro";
 import { COD_SERVER_URL } from "astro:env/server";
 import { unavailableStoreConfig } from "@wocart/storefront";
-import { getStoreClient } from "./lib/store";
+import { createStore } from "./lib/store";
 
 const FALLBACK_CONFIG = unavailableStoreConfig({ serverUrl: COD_SERVER_URL ?? "", locale: "ar" });
 
@@ -200,7 +200,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (context.isPrerendered) return next();
   const request = await resolveStoreRequest(
     { url: context.url, referer: context.request.headers.get("Referer") },
-    { client: getStoreClient, fallback: FALLBACK_CONFIG },
+    { client: createStore, fallback: FALLBACK_CONFIG },
   );
   if (request.kind === "redirect") return context.redirect(request.location, request.status);
   context.locals.store = request; // client, config, locale, routing, pathname
@@ -268,7 +268,7 @@ Two fields only hold data when the client is created with a theme key:
 const store = createStoreClient({
   serverUrl,
   apiKey,
-  theme: "theme-00",
+  theme: "my-theme",
 });
 
 const config = await store.config.get();

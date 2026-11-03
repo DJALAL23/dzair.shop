@@ -10,10 +10,11 @@ The order form is a normal HTML form. It posts to an Astro action, the action
 calls the server, and the browser lands on a thank-you page. The server prices
 the order; the browser only describes the choice.
 
-The [complete theme](/sdk/theme/tutorial#3-placing-the-order-and-confirming-it) has a working
-single-product form, its action, the product route and the thank-you redirect;
-this page explains every piece and adds the basket,
-OTP, bot protection and conversions.
+The [theme starter](/sdk/theme/starter) has all of it working: the product
+form and the basket checkout (`src/components/checkout/OrderForm.astro`,
+`src/scripts/order-form.ts` and its parts in `src/scripts/checkout/`), the
+action (`src/actions/index.ts`) and the thank-you redirect. This page explains
+every piece: the order, the basket, OTP, bot protection and conversions.
 
 ```text
 form → src/actions/index.ts → executePlaceOrder() → cod-server
@@ -33,7 +34,7 @@ whitelist and the submission.
 // src/actions/index.ts
 import { ActionError, defineAction } from "astro:actions";
 import { executePlaceOrder, placeOrderInput } from "@wocart/storefront/astro";
-import { getStoreClient } from "../lib/store";
+import { createStore } from "../lib/store";
 
 export const server = {
   placeOrder: defineAction({
@@ -43,7 +44,7 @@ export const server = {
       const result = await executePlaceOrder(
         input,
         context.request,
-        getStoreClient(),
+        createStore(),
       );
 
       if (!result.success) {
@@ -173,9 +174,10 @@ cached for every shopper. For another phone the key fails with
 
 After success, redirect to the thank-you page (`storefrontPath("thankYou")`,
 `/thank-you`) with the values it reads. The query is your theme's choice;
-Theme-00's is `/thank-you?order=<number>&total=<total>&oid=<orderId>`. In an
-editable theme the thank-you page is a Studio surface like any other page
-type: see the [complete theme](/sdk/theme/tutorial#the-thank-you-page-is-a-surface).
+the starter's is `/thank-you?order=<number>&total=<total>&oid=<orderId>`
+(`src/lib/order-outcome.ts`). In an editable theme the thank-you page is a
+Studio surface like any other page type, with the `thank-you-main` section in
+the starter.
 
 The page asks the server which pixel and event this order belongs to:
 

@@ -208,8 +208,6 @@ const config: ZudokuConfig = {
       llmsTxtFull: true,
       title: "Wocart Developers",
       description: "API and SDK documentation for the Wocart commerce platform.",
-      instructions:
-        "Use these docs when building on Wocart. To build a storefront or theme, start with the agent kit for it (/sdk/storefront/agents or /sdk/theme/agents): install its skill, then follow the quick start. For the API, start with getting started and authentication, then the API reference for request and response schemas. Every page is also Markdown at its URL plus .md. The installed @wocart packages' type declarations are the final authority.",
     },
     defaultOptions: {
       showLastModified: false,

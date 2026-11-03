@@ -39,7 +39,7 @@ go with the response.
 import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
 import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
 
-export function getStoreClient(locale?: string): StoreClient {
+export function createStore(locale?: string): StoreClient {
   return createStoreClient({
     serverUrl: COD_SERVER_URL ?? "",
     apiKey: STORE_API_KEY ?? "",
@@ -111,7 +111,7 @@ handler. “No products yet” and “the API is briefly down” look the same t
 reader. `onError` is how the operator tells them apart.
 
 ```ts
-const products = await getStoreClient().products.list();
+const products = await createStore().products.list();
 
 if (products.length === 0) {
   return renderEmptyCatalog();

@@ -49,25 +49,25 @@ URLs, as `STOREFRONT_PAGE_PATHS` in `@wocart/storefront`. A theme composes
 **each** of them as a surface with one required main section: a page type the
 theme declares no surface for cannot be composed in Studio, and its preview is
 a 404 (`previewTarget` answers `null`). The SDK accepts a theme with fewer
-surfaces; Theme-00 declares all twelve, and its tests fail on a missing
-one.
+surfaces; the [theme starter](/sdk/theme/starter) declares all twelve, and
+its contract test fails on a missing one.
 
-| `pageType` | Path | What the route reads and passes to its sections | Theme-00's surface and main section |
+| `pageType` | Path | What the route reads and passes to its sections | The starter's surface and main section |
 | --- | --- | --- | --- |
 | `home` | `/` | `pageData.get("home")` | `home`, no required section |
 | `catalog` | `/products` | `?page=`, `?sort=` (from `PRODUCT_SORTS`) | `catalog`, `listing-main` |
 | `category` | `/category/:slug` | The category by `slug`; `?page=`, `?sort=`; 404 when unknown | `category`, `listing-main` |
 | `collection` | `/collections/:handle` | `collections.get(handle)`; `?page=`, `?sort=`; 404 when unknown | `collection`, `listing-main` |
-| `product` | `/products/:handle` | `products.get(handle)`; 404 when unknown | `product`, `product-main` (with a fixed order form) |
+| `product` | `/products/:handle` | `products.get(handle)`; 404 when unknown | `product`, `product-main` (its `info` slot requires one `product-order` block) |
 | `page` | `/pages/:slug` | `pages.get(slug)`; 404 when unknown | `page`, `page-main` |
 | `landing` | `/lp/:slug` | `pages.landing(slug)` with its own `document`; 404 when unknown | `landing`, `landing-order` |
-| `checkout` | `/checkout` | The browser basket; only when `config.cartEnabled` (Theme-00 redirects to `/` otherwise) | `checkout`, `checkout-main` |
+| `checkout` | `/checkout` | The browser basket; only when `config.cartEnabled` (the starter redirects to the home page otherwise) | `checkout`, `checkout-main` |
 | `thankYou` | `/thank-you` | The order the query names (the theme's choice of keys) | `thank-you`, `thank-you-main` |
 | `trackOrder` | `/track-order` | `lookupOrder` from a posted form; `?order=<number>` fills the number in | `track-order`, `track-order-main` |
 | `search` | `/search` | `products.search(q)`; `?q=<words>`, `?page=`, `?sort=` | `search`, `search-main` |
 | `contact` | `/contact` | `config.contact` and `whatsAppContact` | `contact`, `contact-main` |
 
-The section names are Theme-00's choice; one required main section per page
+The section names are the starter's choice; one required main section per page
 type is the rule. On the product and landing surfaces the required section
 must always render an order form, or `validateThemeDefinition` reports
 `order-form-not-guaranteed` ([Composition](/sdk/theme/composition)).
@@ -178,8 +178,9 @@ import { isAreaShown } from "@wocart/theme";
 ```
 
 While Studio edits an area over a page, show that area even if the page hides
-it, so the merchant can see what they edit; Theme-00's landing page does
-(`area === "area:header" || isAreaShown(…)`).
+it, so the merchant can see what they edit; the starter's preview route does
+(`target.area === "area:header" || isAreaShown(…)` in
+`src/pages/wocart-preview.astro`).
 
 ## The document
 
@@ -300,11 +301,11 @@ throws is reported as `load-failed` and the base props still render.
 A route imports its catalog, and with it every component the catalog names.
 A theme with many sections can give each route a catalog of its own surface
 and the components that surface uses, so the thank-you page does not load the
-home page's sections. Theme-00 does this (`src/theme/catalog/families/`): each
-family is a `defineTheme` with the same `key` and `version`, one surface and
-its components, and a contract test checks that the families together are
-exactly the full catalog the manifest describes. That is a performance choice,
-not a rule; a small theme renders every route with its one catalog.
+home page's sections. Each family is a `defineTheme` with the same `key` and
+`version`, one surface and its components, and a contract test checks that
+the families together are exactly the full catalog the manifest describes.
+That is a performance choice, not a rule; the starter renders every route
+with its one catalog (`src/theme/theme.ts`).
 
 ## Issues
 

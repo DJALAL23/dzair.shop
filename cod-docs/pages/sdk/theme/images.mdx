@@ -82,8 +82,9 @@ const src = picture ? (mediaImageUrl(picture.src, { width: 1200, fit: "scale-dow
   delivery): keep `picture.src` then. The sizes, formats and `srcset` helpers
   are on [Money, images, WhatsApp and Meta events](/sdk/storefront/presentation#images).
 
-Theme-00 keeps every size it shows in one module (`src/theme/utils/images.ts`)
-that binds these helpers, so no component chooses a size of its own.
+The starter binds these helpers once, in `src/lib/images.ts`, and draws every
+photo through `src/components/ui/Photo.astro`, which asks for a `srcset` of
+widths so a phone downloads a phone-sized file.
 
 ## Astro's `<Image>` on any media host
 
@@ -114,7 +115,8 @@ export default mediaImageService(() => storeMedia);
 Call `keepStoreMedia(config.media)` where the request's store is built, for
 every config read from the server (not for the unavailable store, whose `id`
 is `""`). Before any delivery is known, every image passes through unchanged.
-This is how Theme-00 binds it (`src/theme/utils/image-service.ts`).
+The starter does not use this service: it keeps Astro's passthrough service
+and draws store images with the helpers above.
 
 In `astro.config.mjs`, the entrypoint replaces the quick start's passthrough
 service, on both hosts:

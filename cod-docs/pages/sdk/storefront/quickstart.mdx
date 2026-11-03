@@ -114,7 +114,7 @@ Never commit it: add `.dev.vars`, `.wrangler/` and `.vercel/` to
 import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
 import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
 
-export function getStoreClient(locale?: string): StoreClient {
+export function createStore(locale?: string): StoreClient {
   return createStoreClient({
     serverUrl: COD_SERVER_URL ?? "",
     apiKey: STORE_API_KEY ?? "",
@@ -144,9 +144,9 @@ export function getStoreClient(locale?: string): StoreClient {
 ```astro title="src/pages/index.astro"
 ---
 import { formatMoney, storefrontPath } from "@wocart/storefront";
-import { getStoreClient } from "../lib/store";
+import { createStore } from "../lib/store";
 
-const store = getStoreClient();
+const store = createStore();
 const [config, products] = await Promise.all([
   store.config.get(),
   store.products.list({ limit: 12 }),
@@ -192,9 +192,9 @@ const money = (amount: number) =>
 ---
 import { formatMoney } from "@wocart/storefront";
 import { notFound } from "@wocart/storefront/astro";
-import { getStoreClient } from "../../lib/store";
+import { createStore } from "../../lib/store";
 
-const store = getStoreClient();
+const store = createStore();
 const [config, product] = await Promise.all([
   store.config.get(),
   store.products.get(Astro.params.handle!),
@@ -263,8 +263,7 @@ its page. `/products/nope` answers 404.
 | Add the order form and the same-origin API routes | [Astro actions and routes](/sdk/storefront/astro), [Checkout and OTP](/sdk/storefront/checkout) |
 | Add a basket | [Basket and quotes](/sdk/storefront/basket) |
 | Show delivery prices per wilaya | [Delivery and geography](/sdk/storefront/delivery) |
-| Let merchants edit the design in Wocart Studio | The [Theme SDK quick start](/sdk/theme/build) |
-| Build it with an AI agent | [AI agent kit](/sdk/storefront/agents) |
+| Let merchants edit the design in Wocart Studio | The [theme starter](/sdk/theme/starter) |
 
 <Callout type="caution" title="The browser never gets the key">
 Browser scripts import only `@wocart/storefront` (its root entry) and

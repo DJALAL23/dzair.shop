@@ -279,4 +279,4 @@ What changed if you are coming from `@wocart/theme` 2.x and
 | Reading `Astro.locals.store` in a prerendered page | A build error, or an empty page |
 | One read cache per section | The same product is fetched once per section |
 | A theme route that saves a document | The theme has no authority to write; Wocart Studio owns writes |
-| Treating Theme-00's choices as contract | Its per-surface catalogs, content layout and design system are that theme's decisions — see [the reference analysis](/sdk/theme/reference-implementation) |
+| Treating a theme's own choices as contract | Section names, the content layout and the design system are each theme's decisions, the starter's included; the contract is what the SDKs declare and check |

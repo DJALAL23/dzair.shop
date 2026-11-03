@@ -59,14 +59,23 @@ function slugsOf(constName) {
 
 const englishOnly = new Set(slugsOf("englishOnlyGroups").map((slug) => slug.replace(/^\//, "")));
 
+const englishOnlySections = [...navigation.matchAll(/englishOnlySections = \[([^\]]*)\]/g)]
+  .flatMap((match) => [...match[1].matchAll(/"\/([^"]+)"/g)].map((section) => section[1]));
+
 function isEnglishOnly(slug) {
-  return englishOnly.has(slug);
+  return englishOnly.has(slug) || englishOnlySections.some((section) => slug === section || slug.startsWith(`${section}/`));
 }
+
+const englishOnlyPages = new Set();
 
 for (const file of files) {
   const rel = relative(file);
   const slug = stripLocale(rel).replace(/\.mdx?$/, "");
-  if (localeOf(rel) === "en" && isEnglishOnly(slug)) continue;
+  if (isEnglishOnly(slug)) {
+    if (localeOf(rel) === "en") englishOnlyPages.add(slug);
+    else problems.push(`pages/${rel}: a translation of an English-only page; English-only sections have no French or Arabic pages`);
+    continue;
+  }
   byLocale[localeOf(rel)].set(slug, file);
 }
 
@@ -121,6 +130,10 @@ for (const { base, slugs } of sections) {
     }
     const key = `${base}${slug}`.replace(/^\//, "");
     referenced.add(key);
+    if (isEnglishOnly(key)) {
+      if (!englishOnlyPages.has(key)) problems.push(`src/i18n/navigation.ts: "${base}${slug}" has no English page (${key}.mdx)`);
+      continue;
+    }
     for (const locale of locales) {
       const where = locale === "en" ? key : `${locale}/${key}`;
       if (!byLocale[locale].has(key)) {
@@ -130,8 +143,8 @@ for (const { base, slugs } of sections) {
   }
 }
 
-for (const slug of byLocale.en.keys()) {
-  if (!referenced.has(slug)) problems.push(`pages/${slug}: exists but is not listed in src/i18n/navigation.ts`);
+for (const slug of [...byLocale.en.keys(), ...englishOnlyPages]) {
+  if (!referenced.has(slug) && !englishOnly.has(slug)) problems.push(`pages/${slug}: exists but is not listed in src/i18n/navigation.ts`);
 }
 
 if (problems.length > 0) {

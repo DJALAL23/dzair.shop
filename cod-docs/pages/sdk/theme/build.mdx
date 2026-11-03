@@ -11,9 +11,13 @@ connects to a store, renders its home page from a page document, lets a
 merchant edit the hero's text in Wocart Studio, and publishes its manifest.
 Every file is shown in full. Copy them in order and the theme builds.
 
-When you finish, [Build a complete theme](/sdk/theme/tutorial) continues from
-this exact project: a shared header, a product page that takes orders, color
-schemes, preview and tests.
+<Callout type="tip" title="The faster way">
+The [theme starter](/sdk/theme/starter) creates a complete theme in one
+command: every page type, the order form and the basket, colors, preview,
+revalidation and tests, on both hosts. Build from scratch when you want to
+understand every piece, or need a structure of your own. The two SDKs are
+the same either way.
+</Callout>
 
 <Callout type="info" title="What you need">
 Node 22.12 or newer, and a store to read from: the URL of its API
@@ -66,7 +70,7 @@ Then set the scripts and one override in `package.json`, and run
 The override keeps `@cloudflare/vite-plugin` at 1.53.1. Newer releases stop
 Vitest at startup ("There is already a server associated with the config")
 when the Cloudflare adapter loads through `getViteConfig`, as the tests in
-step 15 do. Theme-00 carries the same pin.
+step 15 do. The theme starter carries the same pin.
 
 The two packages move together. `@wocart/theme` 4.0.0 declares
 `@wocart/storefront` `^3.0.0` as its peer, and `@wocart/storefront` 3.0.0
@@ -174,14 +178,14 @@ own small module so server code can import it without loading every component.
 
 ## 4. One place that creates the store client
 
-```ts title="src/theme/sdk.ts"
+```ts title="src/lib/store.ts"
 import { createStoreClient, type StoreClient } from "@wocart/storefront/server";
 import { COD_SERVER_URL, STORE_API_KEY } from "astro:env/server";
-import { THEME_KEY } from "./key";
+import { THEME_KEY } from "../theme/key";
 
 export const storeServerUrl = (): string => COD_SERVER_URL ?? "";
 
-export function getStoreClient(locale?: string): StoreClient {
+export function createStore(locale?: string): StoreClient {
   return createStoreClient({
     serverUrl: storeServerUrl(),
     apiKey: STORE_API_KEY ?? "",
@@ -206,9 +210,9 @@ A new client per call keeps one request's reads and caches out of another's.
 
 ## 5. The store that cannot be read
 
-```ts title="src/theme/fallback.ts"
+```ts title="src/lib/fallback.ts"
 import { unavailableStoreConfig } from "@wocart/storefront";
-import { storeServerUrl } from "./sdk";
+import { storeServerUrl } from "./store";
 
 export const FALLBACK_CONFIG = unavailableStoreConfig({ serverUrl: storeServerUrl(), locale: "ar" });
 ```
@@ -255,7 +259,7 @@ merchant writes.
 
 ## 7. The request's store
 
-```ts title="src/theme/store.ts"
+```ts title="src/lib/context.ts"
 import { localizeHref, servedLanguage, type LocaleRouting, type StoreConfig } from "@wocart/storefront";
 import {
   resolvePreviewStore as resolvePreview,
@@ -264,9 +268,9 @@ import {
 } from "@wocart/storefront/astro";
 import type { PreviewDraft, StoreClient } from "@wocart/storefront/server";
 import type { ThemeRenderContext } from "@wocart/theme";
-import { packFor } from "./content";
+import { packFor } from "../theme/content";
 import { FALLBACK_CONFIG } from "./fallback";
-import { getStoreClient } from "./sdk";
+import { createStore } from "./store";
 
 export interface StoreContext {
   config: StoreConfig;
@@ -280,7 +284,7 @@ export interface StoreContext {
   href: (path: string) => string;
 }
 
-const STORE = { client: getStoreClient, fallback: FALLBACK_CONFIG };
+const STORE = { client: createStore, fallback: FALLBACK_CONFIG };
 
 export async function resolveStoreRequest(url: URL, referer: string | null) {
   const request = await resolveRequest({ url, referer }, STORE);
@@ -344,7 +348,7 @@ built once. The rules that decide it are the SDK's, in `resolveStoreRequest`:
 
 ```ts title="src/middleware.ts"
 import { defineMiddleware } from "astro:middleware";
-import { resolveStoreRequest } from "./theme/store";
+import { resolveStoreRequest } from "./lib/context";
 
 export const onRequest = defineMiddleware(async (context, next) => {
   if (context.isPrerendered) return next();
@@ -367,7 +371,7 @@ Tell TypeScript what the middleware puts on `locals`:
 ```ts title="src/env.d.ts"
 /// <reference types="astro/client" />
 
-import type { StoreContext } from "./theme/store";
+import type { StoreContext } from "./lib/context";
 
 declare global {
   namespace App {
@@ -382,10 +386,10 @@ declare global {
 
 The component is ordinary Astro. Its props come from its definition.
 
-```astro title="src/theme/components/Hero.astro"
+```astro title="src/components/sections/Hero.astro"
 ---
 import type { InferProps } from "@wocart/theme";
-import type { hero } from "./hero.def";
+import type { hero } from "../../theme/sections/hero";
 
 type Props = InferProps<typeof hero>;
 const { title, subtitle, align } = Astro.props;
@@ -396,9 +400,9 @@ const { title, subtitle, align } = Astro.props;
 </section>
 ```
 
-```ts title="src/theme/components/hero.def.ts"
+```ts title="src/theme/sections/hero.ts"
 import { defineComponent } from "@wocart/theme";
-import Hero from "./Hero.astro";
+import Hero from "../../components/sections/Hero.astro";
 
 export const hero = defineComponent({
   type: "hero",
@@ -450,7 +454,7 @@ present (it has a default), and `title` and `subtitle` optional strings.
 
 ## 10. The home page's default document
 
-```json title="src/theme/documents/home.page.json"
+```json title="src/theme/documents/home.json"
 {
   "version": 1,
   "surface": "home",
@@ -466,9 +470,9 @@ unique in the document and stable: a merchant's edit is stored against it. No
 
 ```ts title="src/theme/theme.ts"
 import { defineTheme, type PageData } from "@wocart/theme";
-import { hero } from "./components/hero.def";
+import { hero } from "./sections/hero";
 import { content } from "./content";
-import homeDocument from "./documents/home.page.json";
+import homeDocument from "./documents/home.json";
 import { THEME_KEY, THEME_VERSION } from "./key";
 
 export const theme = defineTheme({
@@ -501,12 +505,12 @@ export const theme = defineTheme({
 One component renders any surface: it picks the document, then renders each
 section through the SDK's renderer.
 
-```astro title="src/theme/sections/Sections.astro"
+```astro title="src/components/surface/Sections.astro"
 ---
 import InstanceView from "@wocart/theme/astro/InstanceView.astro";
 import { createReadCache } from "@wocart/theme/astro";
 import { resolveSurfaceDocument, type ReadCache, type ThemeDefinition } from "@wocart/theme";
-import { renderContext } from "../store";
+import { renderContext } from "../../lib/context";
 
 interface Props {
   theme: ThemeDefinition;
@@ -548,7 +552,7 @@ sections that read the same resource share one request.
 
 ## 13. The layout and the page
 
-```astro title="src/theme/layouts/StoreLayout.astro"
+```astro title="src/layouts/StoreLayout.astro"
 ---
 interface Props {
   title?: string;
@@ -574,8 +578,8 @@ const { title = store.config.name } = Astro.props;
 
 ```astro title="src/pages/index.astro"
 ---
-import StoreLayout from "../theme/layouts/StoreLayout.astro";
-import Sections from "../theme/sections/Sections.astro";
+import StoreLayout from "../layouts/StoreLayout.astro";
+import Sections from "../components/surface/Sections.astro";
 import { theme } from "../theme/theme";
 
 const saved = await Astro.locals.store.client.pageData.get("home");
@@ -587,7 +591,7 @@ const saved = await Astro.locals.store.client.pageData.get("home");
 
 ```astro title="src/pages/404.astro"
 ---
-import StoreLayout from "../theme/layouts/StoreLayout.astro";
+import StoreLayout from "../layouts/StoreLayout.astro";
 ---
 <StoreLayout title="404">
   <h1>404</h1>
@@ -621,11 +625,11 @@ import { getViteConfig } from "astro/config";
 export default getViteConfig({ test: {} });
 ```
 
-```ts title="src/theme/__tests__/contract.test.ts"
+```ts title="tests/unit/contract.test.ts"
 import { describe, expect, it } from "vitest";
 import { themeManifest, validatePageData, validateThemeDefinition, validateThemeManifest } from "@wocart/theme";
-import { content } from "../content";
-import { theme } from "../theme";
+import { content } from "../../src/theme/content";
+import { theme } from "../../src/theme/theme";
 
 describe("the theme contract", () => {
   it("assembles without issues", () => {
@@ -669,15 +673,18 @@ the store's name in the tab and the hero in the store's primary language;
 
 | Piece | Where | Its job |
 | --- | --- | --- |
-| The platform seam | `src/theme/sdk.ts` | The only module that creates a store client |
-| The request store | `src/theme/store.ts`, `src/middleware.ts` | Language, redirects, the client and the text for each request |
-| A definition | `src/theme/components/hero.def.ts` | What a merchant may change on the hero |
-| A default document | `src/theme/documents/home.page.json` | The home page before the store saves one |
+| The platform seam | `src/lib/store.ts` | The only module that creates a store client |
+| The request store | `src/lib/context.ts`, `src/middleware.ts` | Language, redirects, the client and the text for each request |
+| A definition | `src/theme/sections/hero.ts`, rendered by `src/components/sections/Hero.astro` | What a merchant may change on the hero |
+| A default document | `src/theme/documents/home.json` | The home page before the store saves one |
 | The catalog | `src/theme/theme.ts` | Everything editable, under one theme key |
-| The renderer | `src/theme/sections/Sections.astro` | Saved or default document → your components |
+| The renderer | `src/components/surface/Sections.astro` | Saved or default document → your components |
 | The manifest | `/wocart-theme.json` | What Wocart Studio reads |
-| The checks | `src/theme/__tests__/contract.test.ts` | Proof the contract holds |
+| The checks | `tests/unit/contract.test.ts` | Proof the contract holds |
 
-Next: [Build a complete theme](/sdk/theme/tutorial) adds a header every page
-shares, a product page that takes cash-on-delivery orders, color schemes and
-spacing controls, Studio preview, publish revalidation and render tests.
+From here, a complete theme adds a header every page shares, every page
+type with its main section, a product page that takes cash-on-delivery
+orders, color schemes and spacing controls, Studio preview, publish
+revalidation and render tests. The [theme starter](/sdk/theme/starter) has
+all of them; [The starter, file by file](/sdk/theme/project) shows where each
+one lives, and the pages of this guide explain each piece.

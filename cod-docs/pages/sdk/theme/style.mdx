@@ -123,9 +123,9 @@ import ThemeStyles from "@wocart/theme/astro/ThemeStyles.astro";
 ```
 
 `ThemeStyles` defaults to `stylesheet` on and links `/wocart-styles.css`. A
-theme that bundles the classes itself passes `stylesheet={false}`; Theme-00
-does this, generating the same CSS with `themeStyleSheet(theme.style)` in its
-build script.
+theme that bundles the classes itself passes `stylesheet={false}` and
+generates the same CSS with `themeStyleSheet(theme.style)`. The starter keeps
+the default and serves the sheet from `src/pages/wocart-styles.css.ts`.
 
 `ThemeStyles` also writes the store's color schemes as one small inline sheet.
 On a page with a Content-Security-Policy, it adds that sheet's hash to the

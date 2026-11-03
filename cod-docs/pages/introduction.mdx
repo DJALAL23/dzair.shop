@@ -10,7 +10,7 @@ import { BracesIcon, CodeIcon, PaletteIcon, RocketIcon } from "zudoku/icons";
 
 Wocart is a cash-on-delivery commerce platform built for Algeria. Merchants get a dashboard, a themeable storefront, and a typed REST API for orders, delivery, catalog, customers, reviews and store settings.
 
-This site is the developer reference for that platform. Its API reference and SDK typings are generated from the API's own OpenAPI document and the published packages, so endpoints and types match the code that ships. The Storefront SDK and Theme SDK guides each come with an agent kit.
+This site is the developer reference for that platform. Its API reference and SDK typings are generated from the API's own OpenAPI document and the published packages, so endpoints and types match the code that ships. To build a theme, start from the theme starter (`npm create wocart-theme`), described in the [Theme SDK](/sdk/theme/starter) guide.
 
 <div className="not-prose my-10 grid gap-4 sm:grid-cols-2">
   <Link to="/getting-started" className="group">
@@ -72,7 +72,7 @@ This site is the developer reference for that platform. Its API reference and SD
 - **Guides** cover the concepts that are shared by every endpoint: authentication, errors, webhooks and the MCP server.
 - **API reference** is generated from the live OpenAPI document. Operations include their parameters or request body, response schema and — where the route declares one — a security requirement. Every operation has a playground.
 - **SDK references** are generated from the published TypeScript declarations. The Storefront SDK and Theme SDK guides explain them, with complete quick starts.
-- **For AI agents**: [`/llms.txt`](/llms.txt) indexes every page, each page is also Markdown at its URL plus `.md`, and the [Theme](/sdk/theme/agents) and [Storefront](/sdk/storefront/agents) agent kits install a skill that keeps an agent inside the contract.
+- **Every page is also Markdown** at its URL plus `.md`, and [`/llms.txt`](/llms.txt) indexes them all.
 
 ## What you can build
 

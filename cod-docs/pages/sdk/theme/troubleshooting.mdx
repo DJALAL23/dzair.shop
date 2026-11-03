@@ -149,7 +149,7 @@ test; `themeManifestEndpoint` runs the manifest check at build.
 | `invalid-placement` | `placement` is not `section`, `block` or `both` | Use one of the three |
 | `invalid-fixed` | A fixed block's name or type is malformed or repeated, its type is placed only as a section, or fixed and required blocks contain themselves or nest more than 6 levels | Correct the `fixed` list |
 | `invalid-role` | `role` is not `order-form` | Use `"order-form"` or omit it |
-| `order-form-not-guaranteed` | A surface whose `pageType` is `product` does not always render a component with `role: "order-form"` | Require a section on the surface that reaches the order form through a fixed block or a slot's `required` ([example](/sdk/theme/tutorial#2-the-product-template)) |
+| `order-form-not-guaranteed` | A surface whose `pageType` is `product` does not always render a component with `role: "order-form"` | Require a section on the surface that reaches the order form through a fixed block or a slot's `required` (the starter's `product-main` requires one `product-order` block in its `info` slot, `src/theme/sections/product.ts`) |
 
 ## Checking a manifest
 

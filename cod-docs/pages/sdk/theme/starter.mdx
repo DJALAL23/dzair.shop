@@ -1,0 +1,172 @@
+---
+description: Create a complete Wocart theme in one command with the theme starter (npm create wocart-theme), run it against your store, and deploy it to Cloudflare Workers or Vercel.
+---
+
+import { Callout } from "zudoku/ui/Callout";
+
+# Quick start with the starter
+
+The fastest way to a Wocart theme is the theme starter. One command creates a
+complete Astro project on `@wocart/storefront` 3.0.0 and `@wocart/theme`
+4.0.0:
+
+```bash
+npm create wocart-theme@latest my-theme
+```
+
+The project it creates is a working theme, not a skeleton:
+
+- **Every page a store has**: home, all products, category, collection,
+  product, text page, landing page, checkout, thank-you, order tracking,
+  search and contact, plus a shared header and footer. Each is composed of
+  sections a merchant edits in Wocart Studio.
+- **Every platform feature**: the product order form and the basket,
+  offers, discount codes, the phone check, the bot check, delivery fees quoted
+  by the store, reviews with photos and voice notes, the merchant's WhatsApp
+  button, and the Meta Pixel. Each shows only when the store turns it on.
+- **Three languages**: Arabic (right to left, the default), French and
+  English, with each language's plural forms.
+- **Both hosts**: the same code builds for Cloudflare Workers and for Vercel.
+- **Studio support**: the manifest, the preview route and the revalidation
+  route.
+- **Tests** that check the theme contract, the rules every theme keeps, the
+  Studio routes, the checkout and every word.
+
+It looks deliberately plain. Its brand lives in one stylesheet, so it can take
+any design ([Make it your own](/sdk/theme/customize)).
+
+You can also build a theme from an empty Astro project with the two SDKs
+([Build from scratch](/sdk/theme/build)). The starter does all of that for
+you, so start here unless you need to.
+
+<Callout type="info" title="What you need">
+Node.js 22.12 or newer, and a Wocart store to read on platform v7.0.0 or
+newer: the address of its API and a store API key. A self-hosted store's API
+runs on `http://localhost:8787` locally.
+</Callout>
+
+## Create the project
+
+```bash
+npm create wocart-theme@latest my-theme
+```
+
+`pnpm create wocart-theme`, `yarn create wocart-theme` and
+`bun create wocart-theme` work too; the project installs with the package
+manager you run it with. Without a directory, the starter asks for one.
+
+Pass options to `npm create` after `--`:
+
+```bash
+npm create wocart-theme@latest summer-shop -- --key summer-shop --yes
+```
+
+| Option | What it does |
+| --- | --- |
+| `[dir]` | Where the theme goes (asked when missing) |
+| `--name <name>` | The package name; the directory's name by default |
+| `--key <key>` | The theme key; made from the name by default |
+| `--no-install` | Write the files and install nothing |
+| `--git` | Run `git init` in the project |
+| `--yes`, `-y` | Ask nothing and take every default |
+| `--force` | Write into a directory that is not empty; an existing file is never overwritten |
+| `--template <name>` | The template to start from (`default`) |
+| `--help`, `--version` | |
+
+The starter only asks questions in a terminal, and never with `--yes`. It
+copies the template and stamps it with your package name, theme key, Worker
+name and README title. The new `package.json` has a `wocart` field that
+records the template, the starter's version and the platform version the
+project needs. The starter never overwrites or deletes a file, never writes
+outside the new directory, and sends no telemetry.
+
+<Callout type="caution" title="The theme key is permanent">
+The theme key names every edit merchants make to your theme: their page
+documents, settings and text. Once a store has edited the theme, renaming the
+key loses those edits. A key is lowercase words joined by single dashes,
+starts with a letter, and is at most 64 characters (`summer-shop`).
+`theme-00` and `theme-baby` belong to Wocart's own themes and are refused.
+</Callout>
+
+## Run it against your store
+
+```bash
+cd my-theme
+cp .dev.vars.example .dev.vars   # set COD_SERVER_URL and STORE_API_KEY
+npm run dev                      # http://localhost:4321
+```
+
+| Variable | Required | What it is |
+| --- | --- | --- |
+| `COD_SERVER_URL` | Yes | The store's API address. Unset, the theme reads `http://localhost:8787` |
+| `STORE_API_KEY` | Yes | The store API key. It stays on the server: no browser code can read it |
+| `WOCART_PREVIEW_KEY` | No | Wocart Studio's Ed25519 public key, a JWK on one line. Unset, `/wocart-preview` and `/wocart-revalidate` answer 404 |
+
+`.dev.vars` is read by `npm run dev` and `npm run preview`, and is never
+committed. In production, these are secrets on your host.
+
+When the store cannot be read (a wrong address or key, or a store that is
+down), every page still renders: the middleware falls back to the SDK's
+unavailable store (`unavailableStoreConfig`), which shows the theme's layout
+and words with nothing to buy.
+
+## Commands
+
+```bash
+npm run dev           # the dev server, against the store in .dev.vars
+npm run check         # astro check: 0 errors, 0 warnings
+npm test              # every test; no network needed
+npm run build         # the Cloudflare Workers build (dist/)
+npm run preview       # the Cloudflare build, served locally by Wrangler
+npm run build:vercel  # the Vercel build (.vercel/output/)
+```
+
+A change is done when `npm run check`, `npm test`, `npm run build` and
+`npm run build:vercel` all pass, and you have looked at every page you
+touched on a phone (390 px) and on a desktop, in Arabic and in a
+left-to-right language.
+
+## Deploy
+
+**Cloudflare Workers.** `npm run build`, then `npx wrangler deploy`.
+`wrangler.jsonc` holds the Worker's mechanics only. Add your own routes or
+custom domain there, and set each variable with
+`npx wrangler secret put <NAME>`.
+
+**Vercel.** `npm run build:vercel` writes `.vercel/output/`. Deploy it with
+the Vercel CLI (`vercel deploy --prebuilt`, from a project linked to Vercel;
+the CLI is not a dependency of the project), and set the variables in the
+project's environment variables.
+
+Each page route that can be cached has a cache rule with tags in
+`astro.config.mjs` (`routeRules`), and every one carries the `pages` tag.
+With `WOCART_PREVIEW_KEY` set, a publish in Wocart Studio sends a signed
+request to `/wocart-revalidate`, which drops that tag, so the change shows at
+once. Without the key, a page refreshes when its cache rule allows.
+
+## Work in it with a coding agent
+
+The project ships an `AGENTS.md` and two agent skills in `.agents/skills/`:
+one rebuilds a design from images on the starter, and one finds every answer
+in the starter's code, the installed SDK declarations and this
+documentation. Point your agent at `AGENTS.md`.
+
+## Upgrade
+
+Update `@wocart/storefront` and `@wocart/theme` together, to the versions a
+release pairs, as exact versions. Each package's `CHANGELOG.md`
+(`node_modules/@wocart/*/CHANGELOG.md`) says which platform it needs, and its
+"Theme migration" section says what a theme changes. Then run
+`npm run check`, `npm test` and both builds. A theme release that removes a
+section, a field or a word merchants may have edited is a new major version
+([Production and upgrades](/sdk/theme/production)).
+
+## Next
+
+| To… | Read |
+| --- | --- |
+| Find your way around the project | [The starter, file by file](/sdk/theme/project) |
+| Restyle it, change its words, add a section | [Make it your own](/sdk/theme/customize) |
+| Choose a field for a value | [Fields](/sdk/theme/fields) |
+| Understand surfaces, documents and rendering | [Pages and rendering](/sdk/theme/pages) |
+| Test and ship | [Testing a theme](/sdk/theme/testing) and [Production and upgrades](/sdk/theme/production) |

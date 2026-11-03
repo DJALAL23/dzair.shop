@@ -1,0 +1,153 @@
+---
+description: A tour of a theme made with the Wocart theme starter — what each folder holds, how a request becomes a page, where each kind of change goes, and the tests that keep the theme contract.
+---
+
+# The starter, file by file
+
+This page walks through a project created with
+`npm create wocart-theme` ([Quick start](/sdk/theme/starter)). The project's
+own `README.md` and `AGENTS.md` say the same things, next to the code.
+
+## The project map
+
+```text
+src/
+  theme/              what Wocart Studio reads
+    theme.ts          the theme: 12 pages, the header and footer, settings, sections
+    key.ts            the permanent theme key and the version
+    locales.ts        the theme's languages (ar, fr, en) and its default (ar)
+    sections/         one definition per section or family: fields, data (load), presets
+    documents/        the layout each page starts with (JSON)
+    content/          every word a shopper reads, ar/fr/en side by side
+    labels.ts         what Studio calls each page, section, field and option
+    settings.ts       store-wide settings and the default color schemes
+    fields.ts         fields several sections share (scheme, style, heading)
+  components/         presentation
+    surface/          Sections.astro, Area.astro, PreviewBridge.astro
+    sections/         one component per home-page section
+    ui/               Section.astro (every section's frame), Photo, ProductCard…
+  pages/              thin routes, plus the manifest, preview and revalidate routes
+  layouts/            StoreLayout.astro: <head>, header, footer, basket, WhatsApp
+  lib/                server-side glue; store.ts is the only SDK client
+  scripts/            everything the browser runs; checkout/ holds the order form's parts
+  styles/             tokens.css is the design system; one stylesheet per area
+  middleware.ts       the store, the language and redirects, from the SDK
+  actions/            placing an order and looking one up, through the SDK
+tests/unit/           contract, guards, Studio, checkout, copy and more
+public/fonts/         the two self-hosted font families and their license
+.agents/skills/       two skills for coding agents
+```
+
+## How a request becomes a page
+
+1. **The middleware** (`src/middleware.ts`) asks the SDK which store,
+   language and redirect the request means (`resolveStoreRequest`), with
+   `src/lib/store.ts`'s `createStore` as the one client factory and
+   `unavailableStoreConfig` as the fallback. It builds the request's store
+   context once (`src/lib/context.ts`) and puts it on `Astro.locals.store`:
+   the client, the store's config, the language and direction, the theme's
+   words with the merchant's edits, the theme settings, and an `href()` that
+   keeps the shopper's language. A form posted to the page runs through the
+   SDK's `runFormAction`.
+2. **The route** (`src/pages/…`) reads what its address names (a product, a
+   collection, a landing page) and answers `notFound(Astro)` when it is
+   missing. It reads the store's saved document for its surface
+   (`client.pageData.get("product")`) and renders the page with
+   `src/components/surface/Sections.astro`.
+3. **`Sections.astro`** picks the document that wins: the store's saved one,
+   or the theme's default from `src/theme/documents/`
+   (`resolveSurfaceDocument`). It renders each section through the SDK's
+   `InstanceView`, with one read cache for the page.
+4. **A section's definition** (`src/theme/sections/*.ts`) reads the data it
+   needs in `load`, through `reads.get(key, …)`, so two sections that need
+   the same product read it once.
+5. **A section's component** (`src/components/…`) renders the resolved field
+   values and the loaded data inside `src/components/ui/Section.astro`, which
+   applies the merchant's color scheme and spacing.
+6. **The layout** (`src/layouts/StoreLayout.astro`) adds the `<head>`, the
+   header and footer areas (`src/components/surface/Area.astro`), the basket
+   drawer, the WhatsApp widget and the data the browser scripts read.
+
+## The browser side
+
+Everything the browser runs is in `src/scripts/`. Each script binds through
+`bindEach` or `onEachPage` from `@wocart/theme/lifecycle`, so it works again
+when Studio's preview swaps a section.
+
+- `src/scripts/order-form.ts` binds every order form and wires its parts in
+  `src/scripts/checkout/`: delivery (wilaya, commune, delivery type), quote
+  (`createQuoter`, the store's price for the order), coupon, otp (the phone
+  check), submit and tracking (unfinished checkouts and the Meta Pixel).
+- `src/scripts/cart.ts` keeps the basket in the shopper's browser and has
+  each line re-priced by the store.
+- `src/scripts/reviews.ts` runs the review form (`createReviewSession`).
+
+The browser never calls the store's API with the key. It calls the theme's
+own routes under `src/pages/api/`, each a one-line file that mounts one of
+the SDK's same-origin routes (`createStorefrontRoutes` in
+`src/theme/api-routes.ts`). `src/lib/api-paths.ts` lists their paths, and a
+test checks that every listed path has its file and no file is unlisted.
+
+Orders are placed with Astro actions (`src/actions/index.ts`): `placeOrder`
+runs the SDK's `executePlaceOrder` on `placeOrderInput`, and `orderStatus`
+runs `lookupOrder`. The browser never decides a price, a fee, a discount or
+whether an order is valid. The store does.
+
+## Studio's routes
+
+| Route | File | What it does |
+| --- | --- | --- |
+| `/wocart-theme.json` | `src/pages/wocart-theme.json.ts` | The manifest, built once at build time (`themeManifestEndpoint`) |
+| `/wocart-styles.css` | `src/pages/wocart-styles.css.ts` | The style classes for the theme's spacing and widths (`themeStylesEndpoint`) |
+| `/wocart-preview` | `src/pages/wocart-preview.astro` | Renders an unsaved draft for Studio, never cached (`previewTarget`) |
+| `/wocart-revalidate` | `src/pages/wocart-revalidate.ts` | Drops every cached page after a publish |
+
+The preview and revalidation routes check a token signed by the platform
+against `WOCART_PREVIEW_KEY` (`readPreviewRequest`, `readRevalidateRequest`
+in `src/lib/store.ts`), and answer 404 without the key.
+
+## Where each change goes
+
+| You want to… | Change |
+| --- | --- |
+| Restyle the store | `src/styles/tokens.css` (fonts, type, corners, shadows), the default color schemes in `src/theme/settings.ts`, the fonts in `public/fonts/` |
+| Change a word a shopper reads | Its key in `src/theme/content/`, in ar, fr and en |
+| Change what a page starts with | Its document in `src/theme/documents/` |
+| Let merchants change something new | A field in the section's definition, read by its component |
+| Add a section | A definition in `src/theme/sections/`, registered in `sections/index.ts`; a component; its words; its Studio labels in `labels.ts` |
+| Add a store-wide choice | A field in `src/theme/settings.ts` |
+| Change what the browser does | `src/scripts/` |
+
+[Make it your own](/sdk/theme/customize) walks through each one.
+
+## The rules, and the tests that keep them
+
+The starter's tests run with `npm test` and need no network. Each rule below
+is checked by a test you can run on its own with `npx vitest run <file> -t
+"<name>"`.
+
+| Rule | Test |
+| --- | --- |
+| Import `@wocart/*` through published entry points only | `guards.test.ts` "published entry points only" |
+| Only `src/lib/store.ts` creates an SDK client | `guards.test.ts` "creates SDK clients in one place only" |
+| A store that cannot be read renders the SDK's unavailable store | `guards.test.ts` "unavailable store" |
+| Every platform page type is a surface, plus the header and footer areas | `contract.test.ts` "every page the platform defines" |
+| The product and landing pages always hold an order form (`validateThemeDefinition` checks both) | `contract.test.ts` "is a valid catalog", "guarantees an order form" |
+| Every page renders through the SDK, for a shopper and in Studio's preview | `contract.test.ts` "every page, rendered through the SDK" |
+| Every word is in ar, fr and en, with each language's plural forms, and every key is read | `copy.test.ts` |
+| No word states a fact about a store: delivery reach, periods, percentages, opening hours, phone calls | `copy.test.ts` "states no fact about a store" |
+| Platform links come from `storefrontPath` and `localizeHref` | `guards.test.ts` "storefrontPath" |
+| Every WhatsApp link comes from `storeWhatsApp()` in `src/lib/whatsapp.ts` | `guards.test.ts` "is reached one way" |
+| Colors come from color schemes; every brand value lives in `tokens.css` | `contract.test.ts` "colour scheme"; `guards.test.ts` "keeps every brand value in tokens.css", "scheme marker" |
+| A photo a merchant picks is an `image` field, never a URL | `contract.test.ts` "never type an image URL" |
+| Layout uses logical properties, so right to left needs no rule of its own | `guards.test.ts` "logical properties" |
+| Browser scripts bind through the SDK's lifecycle | `guards.test.ts` "binds every behaviour through the SDK's lifecycle" |
+| Browser code imports no Zod, no schema and no server-only module | `guards.test.ts` "the theme's browser code" |
+| Every order form posts to the `placeOrder` action, with its checkout key | `guards.test.ts` "gives every order form its checkout key" |
+| A missing resource answers `notFound(Astro)` | `guards.test.ts` "through the SDK's notFound" |
+| Every cached page carries the `pages` tag | `studio.test.ts` "caches every composed route" |
+| Preview and revalidation accept only the platform's signed tokens | `studio.test.ts` |
+| The theme builds for Cloudflare Workers and for Vercel | `guards.test.ts` "builds for Cloudflare Workers and for Vercel" |
+
+When you add a rule of your own, add a test for it, and prove the test by
+breaking the code once and watching it fail.
