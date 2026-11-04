@@ -206,8 +206,8 @@ port = 8787
 # Workers Logs: every line the server writes (its warnings and errors: a
 # failed wake, a schedule pass that failed, an unexpected error), kept for
 # the store's support. No line per request — the server writes none of its
-# own, and that is what would grow with traffic. The CodFlow Cloud deployer
-# sends the same (partner-server backend.ts, checked by binding-sync).
+# own, and that is what would grow with traffic. Wocart Cloud deploys
+# stores with the same setting.
 [observability]
 enabled = true
 head_sampling_rate = 1
