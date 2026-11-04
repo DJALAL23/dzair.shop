@@ -145,7 +145,7 @@ const copy: Record<Locale, Copy> = {
         command: "npm i @wocart/storefront",
       },
     ],
-    asideUrl: "api.codflow.store/store/config",
+    asideUrl: "api.yourstore.com/store/config",
     asideNote: "Storefront config",
     ctaTitle: "Ship the storefront you want.",
     ctaBody:
@@ -248,7 +248,7 @@ const copy: Record<Locale, Copy> = {
         command: "npm i @wocart/storefront",
       },
     ],
-    asideUrl: "api.codflow.store/store/config",
+    asideUrl: "api.yourstore.com/store/config",
     asideNote: "Configuration de la vitrine",
     ctaTitle: "Livrez la vitrine que vous voulez.",
     ctaBody:
@@ -350,7 +350,7 @@ const copy: Record<Locale, Copy> = {
         command: "npm i @wocart/storefront",
       },
     ],
-    asideUrl: "api.codflow.store/store/config",
+    asideUrl: "api.yourstore.com/store/config",
     asideNote: "إعداد واجهة المتجر",
     ctaTitle: "أطلق واجهة المتجر التي تريدها.",
     ctaBody:

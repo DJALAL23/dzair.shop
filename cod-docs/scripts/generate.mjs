@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const localUrl = process.env.CODFLOW_LOCAL_URL ?? "http://localhost:8787";
-const publicUrl = process.env.CODFLOW_PUBLIC_URL ?? "https://api.codflow.store";
+const publicUrl = process.env.CODFLOW_PUBLIC_URL ?? "https://api.wocart.store";
 const target = process.env.COD_DOCS_ENV === "production" ? "production" : "local";
 const openapiUrl = process.env.COD_OPENAPI_URL ?? `${localUrl}/api/openapi.json`;
 

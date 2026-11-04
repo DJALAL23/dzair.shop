@@ -10,7 +10,7 @@ The server is reachable at:
 
 | Environment | URL |
 | --- | --- |
-| Production | `https://api.codflow.store/mcp` |
+| Production | `https://api.yourstore.com/mcp` (your store's API domain) |
 | Local | `http://localhost:8787/mcp` |
 
 The endpoint is protected by OAuth. A client cannot call a tool without a valid access token, and the token carries the user's Wocart scopes.
@@ -61,7 +61,7 @@ The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing,
 {
   "mcpServers": {
     "wocart": {
-      "url": "https://api.codflow.store/mcp"
+      "url": "https://api.yourstore.com/mcp"
     }
   }
 }
@@ -72,7 +72,7 @@ The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing,
   "servers": {
     "wocart": {
       "type": "http",
-      "url": "https://api.codflow.store/mcp"
+      "url": "https://api.yourstore.com/mcp"
     }
   }
 }
@@ -83,7 +83,7 @@ The server derives its OAuth resource from `WORKER_SELF_URL`. For local testing,
   "mcpServers": {
     "wocart": {
       "type": "http",
-      "url": "https://api.codflow.store/mcp"
+      "url": "https://api.yourstore.com/mcp"
     }
   }
 }
