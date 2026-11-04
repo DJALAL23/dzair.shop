@@ -8,6 +8,7 @@ import {
 } from "./validation";
 import { getDb } from "@/db";
 import { toolOutput } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -17,24 +18,24 @@ import { toolOutput } from "@/lib/tool-output-schema";
  */
 export const listCustomerTagsSchema = customerTagFiltersSchema;
 export const getCustomerTagDetailsSchema = z.object({
-  tagId: z.string().uuid().describe("UUID of the customer tag"),
+  tagId: toolId().describe("ID of the customer tag"),
   withCustomers: z.boolean().optional().default(false).describe("Include full list of assigned customers"),
 });
 export const createCustomerTagToolSchema = createCustomerTagSchema;
 export const updateCustomerTagToolSchema = z.object({
-  tagId: z.string().uuid().describe("UUID of the tag to update"),
+  tagId: toolId().describe("ID of the tag to update"),
   updates: updateCustomerTagSchema,
 });
 export const deleteCustomerTagSchema = z.object({
-  tagId: z.string().uuid().describe("UUID of the customer tag to delete"),
+  tagId: toolId().describe("ID of the customer tag to delete"),
 });
 export const assignTagToCustomerSchema = z.object({
-  tagId: z.string().uuid().describe("UUID of the customer tag"),
-  customerId: z.string().uuid().describe("UUID of the customer to tag"),
+  tagId: toolId().describe("ID of the customer tag"),
+  customerId: toolId().describe("ID of the customer to tag"),
 });
 export const unassignTagFromCustomerSchema = z.object({
-  tagId: z.string().uuid().describe("UUID of the customer tag"),
-  customerId: z.string().uuid().describe("UUID of the customer to untag"),
+  tagId: toolId().describe("ID of the customer tag"),
+  customerId: toolId().describe("ID of the customer to untag"),
 });
 
 export const CUSTOMER_TAG_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -48,7 +49,7 @@ export const CUSTOMER_TAG_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const customerTagRowSchema = z.looseObject({
-  id: z.string().describe("Tag UUID"),
+  id: z.string().describe("Tag ID"),
   name: z.string().describe("Unique across the whole store"),
   color: z.string().optional().describe("Hex color for dashboards"),
   assignmentCount: z.number().int().optional().describe("Denormalized counter — doubles as the deletion guard"),
@@ -135,7 +136,7 @@ export const getCustomerTagTools = (db: ReturnType<typeof getDb>) => ({
       "Fetch a customer tag by ID. " +
       "Set withCustomers: true to include the full list of assigned customers " +
       "(each entry includes id, name, phone, wilaya, totalOrders, totalSpent, assignedAt). " +
-      "Required: tagId (UUID). Optional: withCustomers (boolean, default false).",
+      "Required: tagId (ID). Optional: withCustomers (boolean, default false).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       const validationSchema = getCustomerTagDetailsSchema;
@@ -146,7 +147,7 @@ export const getCustomerTagTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: tagId (UUID), withCustomers (boolean, optional)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: tagId (ID), withCustomers (boolean, optional)`,
         };
       }
       try {
@@ -207,7 +208,7 @@ export const getCustomerTagTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid update arguments: ${errorDetails}. Expected: tagId (UUID), updates with optional fields: name (1-50 chars), color (hex #RRGGBB)`,
+          error: `Invalid update arguments: ${errorDetails}. Expected: tagId (ID), updates with optional fields: name (1-50 chars), color (hex #RRGGBB)`,
         };
       }
       try {
@@ -237,7 +238,7 @@ export const getCustomerTagTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: tagId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: tagId (ID string)`,
         };
       }
       try {
@@ -265,7 +266,7 @@ export const getCustomerTagTools = (db: ReturnType<typeof getDb>) => ({
   assignTagToCustomer: tool({
     description:
       "Assigns a tag to a customer. Idempotent — assigning an already-tagged customer is silently ignored. " +
-      "Required: tagId (UUID), customerId (UUID). " +
+      "Required: tagId (ID), customerId (ID). " +
       "Both the tag and the customer must exist.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -277,7 +278,7 @@ export const getCustomerTagTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: tagId (UUID), customerId (UUID)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: tagId (ID), customerId (ID)`,
         };
       }
       try {
@@ -299,7 +300,7 @@ export const getCustomerTagTools = (db: ReturnType<typeof getDb>) => ({
   unassignTagFromCustomer: tool({
     description:
       "Removes a tag from a customer. " +
-      "Required: tagId (UUID), customerId (UUID). " +
+      "Required: tagId (ID), customerId (ID). " +
       "If the customer does not have this tag, the operation completes silently.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -311,7 +312,7 @@ export const getCustomerTagTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: tagId (UUID), customerId (UUID)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: tagId (ID), customerId (ID)`,
         };
       }
       try {

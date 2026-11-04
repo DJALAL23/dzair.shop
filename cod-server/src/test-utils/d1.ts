@@ -83,7 +83,7 @@ export async function replay(raw: D1Database, files: readonly string[]): Promise
  * routes inside workerd instead. `source` is TypeScript resolved from
  * `resolveDir`, with the `@/` alias of `src/`.
  */
-export async function bundleWorker(source: string, resolveDir: string): Promise<string> {
+export async function bundleWorker(source: string, resolveDir: string, options: { external?: string[] } = {}): Promise<string> {
   const { build } = await import("esbuild");
   const result = await build({
     stdin: { contents: source, resolveDir, sourcefile: "worker.ts", loader: "ts" },
@@ -93,7 +93,7 @@ export async function bundleWorker(source: string, resolveDir: string): Promise<
     target: "es2022",
     mainFields: ["module", "main"],
     conditions: ["workerd", "worker", "import"],
-    external: ["node:*", "cloudflare:*"],
+    external: ["node:*", "cloudflare:*", ...(options.external ?? [])],
     alias: { "@": resolve(__dirname, "..") },
     write: false,
     logLevel: "warning",

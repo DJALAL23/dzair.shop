@@ -6,6 +6,7 @@ import { createPaymentSchema } from "./validation";
 import type { AppDb } from "@/db";
 import { actorOf, type McpProps } from "@/mcp/props";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -14,10 +15,10 @@ import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
  * drift apart.
  */
 export const listDriverPaymentsSchema = z.object({
-  driverId: z.string().uuid().describe("The unique UUID of the driver to retrieve payments for"),
+  driverId: toolId().describe("The ID of the driver to retrieve payments for"),
 });
 export const getPendingSettlementsSchema = z.object({
-  driverId: z.string().uuid().describe("The unique UUID of the driver"),
+  driverId: toolId().describe("The ID of the driver"),
 });
 export const createDriverSettlementSchema = createPaymentSchema;
 
@@ -32,7 +33,7 @@ export const DRIVER_PAYMENT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     count: z.number().int(),
     payments: z.array(
       z.looseObject({
-        id: z.string().describe("Payment record UUID"),
+        id: z.string().describe("Payment record ID"),
         type: z.string().describe("Settlement type (COD remittance, fee payment, or net settlement)"),
         amount: z.number().describe("Server-computed settlement amount in DZD"),
         orderCount: z.number().int().describe("Shipments settled in this payment"),
@@ -46,7 +47,7 @@ export const DRIVER_PAYMENT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     count: z.number().int(),
     shipments: z.array(
       z.looseObject({
-        shipmentId: z.string().describe("Shipment UUID — what a settlement lists"),
+        shipmentId: z.string().describe("Shipment ID — what a settlement lists"),
         orderNumber: z.string(),
         codAmount: z.number().describe("Cash the driver collected (DZD)"),
         driverFee: z.number().describe("The driver's frozen fee (DZD)"),
@@ -94,7 +95,7 @@ export const getDriverPaymentTools = (db: AppDb, props: McpProps) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: driverId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: driverId (ID string)`,
         };
       }
 
@@ -137,7 +138,7 @@ export const getDriverPaymentTools = (db: AppDb, props: McpProps) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: driverId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: driverId (ID string)`,
         };
       }
 
@@ -166,7 +167,7 @@ export const getDriverPaymentTools = (db: AppDb, props: McpProps) => ({
   }),
 
   createDriverSettlement: tool({
-    description: "Records a payment settling a driver's delivered shipments. Required: driverId (UUID), type (cod_remittance: the driver hands over the cash | fee_payment: the store pays the fees | net_settlement: both), shipmentIds (from getPendingSettlements). Optional: notes. The amount is computed from the shipments; a part already settled refuses the whole payment. Recorded as made by the person who granted the access.",
+    description: "Records a payment settling a driver's delivered shipments. Required: driverId (ID), type (cod_remittance: the driver hands over the cash | fee_payment: the store pays the fees | net_settlement: both), shipmentIds (from getPendingSettlements). Optional: notes. The amount is computed from the shipments; a part already settled refuses the whole payment. Recorded as made by the person who granted the access.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -180,7 +181,7 @@ export const getDriverPaymentTools = (db: AppDb, props: McpProps) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid settlement data: ${errorDetails}. Required: driverId (UUID), type (cod_remittance|fee_payment|net_settlement), shipmentIds (array, min 1, no repeats). Optional: notes (string).`,
+          error: `Invalid settlement data: ${errorDetails}. Required: driverId (ID), type (cod_remittance|fee_payment|net_settlement), shipmentIds (array, min 1, no repeats). Optional: notes (string).`,
         };
       }
 

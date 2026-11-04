@@ -21,6 +21,7 @@ import {
   buildLandingPagePublicUrl,
   resolveStorefrontBaseUrl,
 } from "../../../../cod-shared/queries/landing-pages";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -32,7 +33,7 @@ import {
  * validation error — never a silently stripped key.
  */
 export const listLandingPagesSchema = z.strictObject({
-  productId: z.string().optional().describe("Filter by product UUID"),
+  productId: z.string().optional().describe("Filter by product ID"),
   status: z.enum(["draft", "published", "archived"]).optional().describe("Filter by lifecycle status"),
   limit: z
     .number()
@@ -49,21 +50,21 @@ export const listLandingPagesSchema = z.strictObject({
     .describe("Number of rows to skip — pair with limit for paging through large catalogs."),
 });
 export const getLandingPageDetailsSchema = z.strictObject({
-  landingPageId: z.string().uuid().describe("The UUID of the landing page to retrieve"),
+  landingPageId: toolId().describe("The ID of the landing page to retrieve"),
 });
 export const getLandingPageStatsSchema = z.strictObject({
-  landingPageId: z.string().uuid().describe("The UUID of the landing page to get stats for"),
+  landingPageId: toolId().describe("The ID of the landing page to get stats for"),
 });
 export const createLandingPageToolSchema = createLandingPageSchema.strict();
 export const updateLandingPageToolSchema = z.strictObject({
-  landingPageId: z.string().uuid().describe("The UUID of the landing page to update"),
+  landingPageId: toolId().describe("The ID of the landing page to update"),
   updates: updateLandingPageSchema.strict(),
 });
 export const publishLandingPageSchema = z.strictObject({
-  landingPageId: z.string().uuid().describe("The UUID of the landing page to publish"),
+  landingPageId: toolId().describe("The ID of the landing page to publish"),
 });
 export const deleteLandingPageSchema = z.strictObject({
-  landingPageId: z.string().uuid().describe("The UUID of the landing page to delete"),
+  landingPageId: toolId().describe("The ID of the landing page to delete"),
 });
 
 /** ChatGPT file-object input (openai/fileParams contract): the CLIENT fills
@@ -84,10 +85,8 @@ const chatgptFileObjectSchema = z.strictObject({
 
 export const uploadLandingPageImageSchema = z
   .strictObject({
-    landingPageId: z
-      .string()
-      .uuid()
-      .describe("The UUID of the landing page that receives the image"),
+    landingPageId: toolId()
+      .describe("The ID of the landing page that receives the image"),
     image: chatgptFileObjectSchema
       .optional()
       .describe(
@@ -166,7 +165,7 @@ export const LANDING_PAGE_TOOL_META: Record<string, Record<string, unknown>> = {
 
 /** One landing_page_images row — the ordered image stack entry. */
 const lpImageRowSchema = z.looseObject({
-  id: z.string().describe("Image row UUID — used by removeLandingPageImage and reorderLandingPageImages"),
+  id: z.string().describe("Image row ID — used by removeLandingPageImage and reorderLandingPageImages"),
   key: z.string().describe("The image's Media Key (landing/<hex>.<ext>)"),
   url: z.string().describe("Where browsers fetch the image"),
   altText: z.string().nullable().describe("Alt text, or null"),
@@ -178,7 +177,7 @@ const lpImageRowSchema = z.looseObject({
 
 /** A landing page detail aggregate (the shape getLandingPageById returns). */
 const lpDetailSchema = z.looseObject({
-  id: z.string().describe("Landing page UUID"),
+  id: z.string().describe("Landing page ID"),
   slug: z.string().describe("Public slug — the page lives at /lp/<slug>"),
   name: z.string(),
   status: z.enum(["draft", "published", "archived"]).describe("Lifecycle status"),
@@ -203,7 +202,7 @@ const lpDetailSchema = z.looseObject({
 });
 
 const lpListItemSchema = z.looseObject({
-  id: z.string().describe("Landing page UUID"),
+  id: z.string().describe("Landing page ID"),
   slug: z.string().describe("Public slug — the page lives at /lp/<slug>"),
   name: z.string(),
   status: z.enum(["draft", "published", "archived"]),
@@ -264,7 +263,7 @@ export const LANDING_PAGE_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
       .describe("processing → keep polling; complete → the image is in the stack; failed → see error; unknown → check the stack directly"),
     image: z
       .looseObject({
-        imageId: z.string().describe("The inserted image row's UUID — used by removeLandingPageImage and reorderLandingPageImages"),
+        imageId: z.string().describe("The inserted image row's ID — used by removeLandingPageImage and reorderLandingPageImages"),
         key: z.string().describe("The image's Media Key"),
         url: z.string().describe("Where browsers fetch the image"),
         position: z.number().int().nullable().describe("Stack position — 1 is the top of the page"),
@@ -307,22 +306,18 @@ export const LANDING_PAGE_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
 };
 
 export const removeLandingPageImageSchema = z.strictObject({
-  landingPageId: z
-    .string()
-    .uuid()
-    .describe("The UUID of the landing page that owns the image"),
-  imageId: z
-    .string()
-    .uuid()
+  landingPageId: toolId()
+    .describe("The ID of the landing page that owns the image"),
+  imageId: toolId()
     .describe(
-      "The UUID of the image row to remove — get the current stack and its IDs from getLandingPageDetails",
+      "The ID of the image row to remove — get the current stack and its IDs from getLandingPageDetails",
     ),
 });
 
 export const reorderLandingPageImagesSchema = z.strictObject({
-  landingPageId: z.string().uuid().describe("The UUID of the landing page"),
+  landingPageId: toolId().describe("The ID of the landing page"),
   imageIds: z
-    .array(z.string().uuid())
+    .array(toolId())
     .min(1)
     .describe(
       "The COMPLETE ordered list of ALL image IDs for this landing page — index 0 becomes position 1 (top of the page). " +
@@ -331,15 +326,15 @@ export const reorderLandingPageImagesSchema = z.strictObject({
 });
 
 export const duplicateLandingPageSchema = z.strictObject({
-  landingPageId: z.string().uuid().describe("The UUID of the landing page to duplicate"),
+  landingPageId: toolId().describe("The ID of the landing page to duplicate"),
 });
 
 export const unpublishLandingPageSchema = z.strictObject({
-  landingPageId: z.string().uuid().describe("The UUID of the landing page to unpublish"),
+  landingPageId: toolId().describe("The ID of the landing page to unpublish"),
 });
 
 export const archiveLandingPageSchema = z.strictObject({
-  landingPageId: z.string().uuid().describe("The UUID of the landing page to archive"),
+  landingPageId: toolId().describe("The ID of the landing page to archive"),
 });
 
 /** Workflow InstanceStatus → the shape the status tool reports to the model. */
@@ -465,7 +460,7 @@ export const getLandingPageTools = (
             success: false,
             error:
               `Invalid filter arguments: ${formatIssues(parsed.error)}. ` +
-              "Expected: productId (UUID, optional), status (draft|published|archived, optional), limit (1-200, default 50), offset (≥ 0). Unknown fields are rejected.",
+              "Expected: productId (ID, optional), status (draft|published|archived, optional), limit (1-200, default 50), offset (≥ 0). Unknown fields are rejected.",
           };
         }
 
@@ -513,7 +508,7 @@ export const getLandingPageTools = (
         if (!parsed.success) {
           return {
             success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (UUID). Unknown fields are rejected.`,
+            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID). Unknown fields are rejected.`,
           };
         }
 
@@ -540,7 +535,7 @@ export const getLandingPageTools = (
         if (!parsed.success) {
           return {
             success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (UUID). Unknown fields are rejected.`,
+            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID). Unknown fields are rejected.`,
           };
         }
 
@@ -569,7 +564,7 @@ export const getLandingPageTools = (
             success: false,
             error:
               `Invalid arguments: ${formatIssues(parsed.error)}. ` +
-              "Expected: name (2-200 chars), productId (UUID), optional slug ([a-z0-9-]{3,60}), optional imageGap (0-200 px). Unknown fields are rejected — images cannot be set at creation.",
+              "Expected: name (2-200 chars), productId (ID), optional slug ([a-z0-9-]{3,60}), optional imageGap (0-200 px). Unknown fields are rejected — images cannot be set at creation.",
           };
         }
 
@@ -602,7 +597,7 @@ export const getLandingPageTools = (
             success: false,
             error:
               `Invalid arguments: ${formatIssues(parsed.error)}. ` +
-              "Expected: landingPageId (UUID) and updates { name?, slug?, imageGap?, metaTitle?, metaDescription? }. Unknown fields are rejected — the image stack is not updatable here.",
+              "Expected: landingPageId (ID) and updates { name?, slug?, imageGap?, metaTitle?, metaDescription? }. Unknown fields are rejected — the image stack is not updatable here.",
           };
         }
 
@@ -627,7 +622,7 @@ export const getLandingPageTools = (
         if (!parsed.success) {
           return {
             success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (UUID). Unknown fields are rejected.`,
+            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID). Unknown fields are rejected.`,
           };
         }
 
@@ -672,7 +667,7 @@ export const getLandingPageTools = (
         if (!parsed.success) {
           return {
             success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (UUID). Unknown fields are rejected.`,
+            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID). Unknown fields are rejected.`,
           };
         }
 
@@ -718,7 +713,7 @@ export const getLandingPageTools = (
             success: false,
             error:
               `Invalid arguments: ${formatIssues(parsed.error)}. ` +
-              "Expected: landingPageId (UUID), contentType (image/png|jpeg|webp|gif), and exactly one of image (chat clients — file object), imageUrl (http(s) URL), or imageBase64 (programmatic clients only); " +
+              "Expected: landingPageId (ID), contentType (image/png|jpeg|webp|gif), and exactly one of image (chat clients — file object), imageUrl (http(s) URL), or imageBase64 (programmatic clients only); " +
               "optional: altText, position. Unknown fields are rejected.",
           };
         }
@@ -912,7 +907,7 @@ export const getLandingPageTools = (
         if (!parsed.success) {
           return {
             success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (UUID) and imageId (UUID). Unknown fields are rejected.`,
+            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID) and imageId (ID). Unknown fields are rejected.`,
           };
         }
         const { landingPageId, imageId } = parsed.data;
@@ -947,7 +942,7 @@ export const getLandingPageTools = (
         if (!parsed.success) {
           return {
             success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (UUID) and imageIds (the complete ordered array of all image UUIDs, index 1 = top of the page). Unknown fields are rejected.`,
+            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID) and imageIds (the complete ordered array of all image IDs, index 1 = top of the page). Unknown fields are rejected.`,
           };
         }
 
@@ -976,7 +971,7 @@ export const getLandingPageTools = (
         if (!parsed.success) {
           return {
             success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (UUID). Unknown fields are rejected.`,
+            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID). Unknown fields are rejected.`,
           };
         }
 
@@ -1014,7 +1009,7 @@ export const getLandingPageTools = (
         if (!parsed.success) {
           return {
             success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (UUID). Unknown fields are rejected.`,
+            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID). Unknown fields are rejected.`,
           };
         }
 
@@ -1050,7 +1045,7 @@ export const getLandingPageTools = (
         if (!parsed.success) {
           return {
             success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (UUID). Unknown fields are rejected.`,
+            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID). Unknown fields are rejected.`,
           };
         }
 

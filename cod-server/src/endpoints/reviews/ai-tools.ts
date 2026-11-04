@@ -6,6 +6,7 @@ import { getAllReviews, getReviewById, updateReviewStatus } from "../../../../co
 import { MODERATION_STATUSES, REVIEW_SOURCES } from "../../../../cod-shared/reviews/model";
 import { removeReview } from "@/lib/reviews/removal";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * AI Tools for Review Moderation
@@ -54,11 +55,11 @@ const reviewFiltersSchema = z.object({
  */
 export const listReviewsSchema = reviewFiltersSchema;
 export const moderateReviewSchema = z.object({
-  reviewId: z.string().uuid().describe("UUID of the review to moderate"),
+  reviewId: toolId().describe("ID of the review to moderate"),
   status: reviewStatusEnum.describe("New moderation status: approved | rejected | pending"),
 });
 export const deleteReviewSchema = z.object({
-  reviewId: z.string().uuid().describe("UUID of the review to delete"),
+  reviewId: toolId().describe("ID of the review to delete"),
 });
 
 export const REVIEW_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -68,7 +69,7 @@ export const REVIEW_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const reviewRowSchema = z.looseObject({
-  id: z.string().describe("Review UUID"),
+  id: z.string().describe("Review ID"),
   productId: z.string().optional(),
   rating: z.number().int().optional().describe("Whole stars 1–5"),
   status: z.string().optional().describe("pending | approved | rejected — only approved appear on the storefront"),
@@ -82,7 +83,7 @@ export const REVIEW_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     pendingCount: z.number().int().describe("Global pending count — returned regardless of filters (drives the moderation badge)"),
     reviews: z.array(
       z.looseObject({
-        id: z.string().describe("Review UUID"),
+        id: z.string().describe("Review ID"),
         productId: z.string(),
         productName: z.string(),
         orderId: z.string().nullable().describe("The order it rests on (one review per product of an order); null for a store review without one"),
@@ -116,7 +117,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>, env: Env) => ({
     description:
       "List product reviews with optional filters. Returns reviews ordered newest-first. " +
       "Response always includes pendingCount (total pending reviews across all products — used for the moderation badge). " +
-      "Optional filters: status (pending|approved|rejected), productId (UUID to see reviews for one product), " +
+      "Optional filters: status (pending|approved|rejected), productId (ID to see reviews for one product), " +
       "limit (1-100, default 20), offset (default 0). " +
       "Use status: 'pending' to find reviews awaiting moderation.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
@@ -131,7 +132,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>, env: Env) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid filter arguments: ${errorDetails}. Expected: status (pending|approved|rejected, optional), productId (UUID, optional), limit (1-100, default 20), offset (int >= 0, default 0)`,
+          error: `Invalid filter arguments: ${errorDetails}. Expected: status (pending|approved|rejected, optional), productId (ID, optional), limit (1-100, default 20), offset (int >= 0, default 0)`,
         };
       }
 
@@ -173,7 +174,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>, env: Env) => ({
   moderateReview: tool({
     description:
       "Approves, rejects, or resets a review back to pending. " +
-      "Required: reviewId (UUID), status (approved|rejected|pending). " +
+      "Required: reviewId (ID), status (approved|rejected|pending). " +
       "approved → review becomes visible on the storefront and counts toward the product's rating. " +
       "rejected → review is hidden from the storefront but kept in the CRM for audit. " +
       "pending  → resets a previously moderated review back to the queue.",
@@ -190,7 +191,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>, env: Env) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: reviewId (UUID), status (approved|rejected|pending)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: reviewId (ID), status (approved|rejected|pending)`,
         };
       }
 
@@ -233,7 +234,7 @@ export const getReviewTools = (db: ReturnType<typeof getDb>, env: Env) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: reviewId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: reviewId (ID string)`,
         };
       }
 

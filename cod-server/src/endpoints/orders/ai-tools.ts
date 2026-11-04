@@ -17,6 +17,7 @@ import {
 import type { AppDb } from "@/db";
 import { agentAuthorOf, type McpProps } from "@/mcp/props";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -26,26 +27,26 @@ import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
  */
 export const listOrdersSchema = orderFiltersSchema;
 export const getOrderDetailsSchema = z.object({
-  orderId: z.string().uuid().describe("UUID of the order"),
+  orderId: toolId().describe("ID of the order"),
 });
 export const createOrderToolSchema = createOrderSchema;
 export const updateOrderStatusToolSchema = z.object({
-  orderId: z.string().uuid().describe("UUID of the order"),
+  orderId: toolId().describe("ID of the order"),
   status: updateOrderStatusSchema.shape.status,
 });
 export const recordOrderProductReturnToolSchema = z.object({
-  orderId: z.string().uuid().describe("UUID of the order"),
-  productLineId: z.string().uuid().describe("UUID of the order product line (the id field in order.products array)"),
+  orderId: toolId().describe("ID of the order"),
+  productLineId: toolId().describe("ID of the order product line (the id field in order.products array)"),
   returnedQuantity: returnOrderProductSchema.shape.returnedQuantity,
 });
 export const deleteOrderSchema = z.object({
-  orderId: z.string().uuid().describe("UUID of the order to delete"),
+  orderId: toolId().describe("ID of the order to delete"),
 });
 export const archiveOrderSchema = z.object({
-  orderId: z.string().uuid().describe("UUID of the finished order (cancelled, or its shipment delivered, returned or cancelled)"),
+  orderId: toolId().describe("ID of the finished order (cancelled, or its shipment delivered, returned or cancelled)"),
 });
 export const unarchiveOrderSchema = z.object({
-  orderId: z.string().uuid().describe("UUID of the archived order"),
+  orderId: toolId().describe("ID of the archived order"),
 });
 
 export const ORDER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -60,7 +61,7 @@ export const ORDER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const orderRowSchema = z.looseObject({
-  id: z.string().describe("Order UUID"),
+  id: z.string().describe("Order ID"),
   orderNumber: z.string().describe("Human-readable number (ORD-YYYYMMDD-NNNN) — what the customer sees"),
   status: z.string().optional().describe("Processing status; cancelled is terminal"),
   customerName: z.string().optional(),
@@ -78,7 +79,7 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     count: z.number().int(),
     orders: z.array(
       z.looseObject({
-        id: z.string().describe("Order UUID"),
+        id: z.string().describe("Order ID"),
         orderNumber: z.string(),
         status: z.string().describe("Processing status"),
         customerName: z.string(),
@@ -108,7 +109,7 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
   }),
   createOrder: toolOutput({
     order: z.looseObject({
-      id: z.string().describe("Order UUID"),
+      id: z.string().describe("Order ID"),
       orderNumber: z.string(),
       status: z.literal("new").describe("Newly created — not yet confirmed"),
       deliveryFee: z.number().describe("Delivery charge (DZD)"),
@@ -249,7 +250,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
 
   getOrderDetails: tool({
     description:
-      "Fetch full details for a specific order by UUID. " +
+      "Fetch full details for a specific order by ID. " +
       "Returns the complete order including products array (with quantities, prices, returnedQuantity, status), " +
       "statusHistory (chronological list of status changes with timestamps and actor names), " +
       "wilaya/commune Arabic names, stage, needsAttention, and shipment: the order's delivery (carrier or driver, " +
@@ -265,7 +266,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: orderId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: orderId (ID string)`,
         };
       }
       try {
@@ -283,7 +284,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
   createOrder: tool({
     description:
       "Creates a new COD order. " +
-      "Required: customerId (UUID), customerName (string), phone (Algerian 0[5-7]XXXXXXXX), " +
+      "Required: customerId (ID), customerName (string), phone (Algerian 0[5-7]XXXXXXXX), " +
       "wilayaId (int 1-58), communeId (c-XX-YYY, from listWilayaCommunes), price (positive number, product total in DZD), " +
       "products (array, min 1 item — each needs productId, productName, quantity, pricePerUnit, lineTotal), " +
       "and address for a home delivery. " +
@@ -305,7 +306,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           success: false,
           error:
             `Invalid order data: ${errorDetails}. ` +
-            `Required: customerId (UUID), customerName (string), phone (0[5-7]XXXXXXXX), ` +
+            `Required: customerId (ID), customerName (string), phone (0[5-7]XXXXXXXX), ` +
             `wilayaId (int 1-58), communeId (c-XX-YYY), price (positive number DZD), ` +
             `products (array min 1: [{productId, productName, quantity (int > 0), pricePerUnit (positive), lineTotal (positive), variantId?, variantLabel?}]), ` +
             `address (home delivery). Optional: city, notes, ` +
@@ -404,7 +405,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
 
   updateOrderStatus: tool({
     description:
-      "Updates an order's processing status. Required: orderId (UUID), status. " +
+      "Updates an order's processing status. Required: orderId (ID), status. " +
       "Statuses: new, confirmed, unreachable, preparing, ready, cancelled. " +
       "Transitions: new → confirmed|unreachable|cancelled; confirmed → preparing|ready|unreachable|cancelled; " +
       "unreachable → confirmed|cancelled; preparing → ready|cancelled; ready → cancelled; cancelled is terminal. " +
@@ -420,7 +421,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: orderId (UUID), status (${ORDER_STATUSES.join("|")})`,
+          error: `Invalid arguments: ${errorDetails}. Expected: orderId (ID), status (${ORDER_STATUSES.join("|")})`,
         };
       }
 
@@ -462,7 +463,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
     description:
       "Records how many units on a single order line the customer refused at the door. " +
       "Used for the Algerian 'open the box at delivery' workflow. " +
-      "Required: orderId (UUID), productLineId (UUID of the order product line), returnedQuantity (int 0 to line.quantity). " +
+      "Required: orderId (ID), productLineId (ID of the order product line), returnedQuantity (int 0 to line.quantity). " +
       "returnedQuantity=0 → line status 'fulfilled'. " +
       "returnedQuantity=line.quantity → line status 'returned'. " +
       "0 < returnedQuantity < line.quantity → line status 'partially_returned'. " +
@@ -480,7 +481,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: orderId (UUID), productLineId (UUID), returnedQuantity (int >= 0, max = line quantity)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: orderId (ID), productLineId (ID), returnedQuantity (int >= 0, max = line quantity)`,
         };
       }
 
@@ -523,7 +524,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
       const parsed = deleteOrderSchema.safeParse(args);
       if (!parsed.success) {
         const errorDetails = parsed.error.issues.map((e: any) => `${e.path.join(".")}: ${e.message}`).join("; ");
-        return { success: false, error: `Invalid arguments: ${errorDetails}. Expected: orderId (UUID string)` };
+        return { success: false, error: `Invalid arguments: ${errorDetails}. Expected: orderId (ID string)` };
       }
 
       try {
@@ -547,7 +548,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       const parsed = archiveOrderSchema.safeParse(args);
-      if (!parsed.success) return { success: false, error: "Invalid arguments. Expected: orderId (UUID string)" };
+      if (!parsed.success) return { success: false, error: "Invalid arguments. Expected: orderId (ID string)" };
       const outcome = await queries.archiveOrder(db, parsed.data.orderId);
       if (!outcome.ok) return { success: false, error: refusalFor(outcome, parsed.data.orderId, "it cannot be archived").message };
       return { success: true, archivedAt: outcome.archivedAt, message: "Order archived" };
@@ -559,7 +560,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       const parsed = unarchiveOrderSchema.safeParse(args);
-      if (!parsed.success) return { success: false, error: "Invalid arguments. Expected: orderId (UUID string)" };
+      if (!parsed.success) return { success: false, error: "Invalid arguments. Expected: orderId (ID string)" };
       const outcome = await queries.unarchiveOrder(db, parsed.data.orderId);
       if (!outcome.ok) return { success: false, error: refusalFor(outcome, parsed.data.orderId, "it cannot be restored").message };
       return { success: true, message: "Order restored to the working lists" };

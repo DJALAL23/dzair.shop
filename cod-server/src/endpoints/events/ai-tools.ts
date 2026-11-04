@@ -15,7 +15,7 @@ const patterns = z
   .transform((parts) => parts as SubscriptionPattern[]);
 
 export const listBusinessEventsSchema = z.object({
-  orderId: z.string().min(1).optional().describe("Only the events of this order (its UUID)"),
+  orderId: z.string().min(1).optional().describe("Only the events of this order (its ID)"),
   type: patterns.optional().describe("Only these Event Types, comma-separated: order.confirmed, order.*, shipment.delivered…"),
   after: z.coerce.number().int().min(0).optional().describe("Read forward, oldest first, after this Sequence"),
   before: z.coerce.number().int().min(0).optional().describe("Read back, newest first, before this Sequence"),

@@ -13,6 +13,7 @@ import { getDb } from "@/db";
 import { mediaDeliveryOf } from "@/lib/media";
 import type { Env } from "@/types/env";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -22,19 +23,19 @@ import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
  */
 export const listProductsSchema = productFiltersSchema;
 export const getProductDetailsSchema = z.object({
-  productId: z.string().uuid().describe("The unique UUID of the product to retrieve"),
+  productId: toolId().describe("The ID of the product to retrieve"),
 });
 export const createNewProductSchema = createProductSchema;
 export const updateProductDetailsSchema = z.object({
-  productId: z.string().uuid().describe("The UUID of the product to update"),
+  productId: toolId().describe("The ID of the product to update"),
   updates: updateProductSchema,
 });
 export const updateProductStatusToolSchema = z.object({
-  productId: z.string().uuid().describe("The UUID of the product"),
+  productId: toolId().describe("The ID of the product"),
   status: updateStatusSchema.shape.status,
 });
 export const deleteProductSchema = z.object({
-  productId: z.string().uuid().describe("The UUID of the product to delete"),
+  productId: toolId().describe("The ID of the product to delete"),
 });
 
 export const PRODUCT_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -47,7 +48,7 @@ export const PRODUCT_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const productRowSchema = z.looseObject({
-  id: z.string().describe("Product UUID"),
+  id: z.string().describe("Product ID"),
   name: z.string(),
   handle: z.string().describe("Unique URL slug"),
   price: z.number().describe("Price in DZD (integer, smallest unit)"),
@@ -68,7 +69,7 @@ export const PRODUCT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     count: z.number().int(),
     products: z.array(
       z.looseObject({
-        id: z.string().describe("Product UUID"),
+        id: z.string().describe("Product ID"),
         name: z.string(),
         handle: z.string().describe("Unique URL slug"),
         sku: z.string().nullable().describe("Null on variant products (SKU lives on each variant)"),
@@ -195,7 +196,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env: Env) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: productId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: productId (ID string)`,
         };
       }
 
@@ -320,7 +321,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env: Env) => ({
           success: false,
           error:
             `Invalid update arguments: ${errorDetails}. ` +
-            `Expected: productId (UUID), updates object with optional fields: ` +
+            `Expected: productId (ID), updates object with optional fields: ` +
             `name, description, handle, price (int DZD), compareAtPrice, costPrice, ` +
             `type (PHYSICAL|DIGITAL), hasVariants, variantOptions (array or null), ` +
             `sku (non-empty string), inventory (int ≥ 0), lowStockThreshold, trackInventory, ` +
@@ -371,7 +372,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env: Env) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: productId (UUID), status (one of: DRAFT, ACTIVE, ARCHIVED)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: productId (ID), status (one of: DRAFT, ACTIVE, ARCHIVED)`,
         };
       }
 
@@ -410,7 +411,7 @@ export const getProductTools = (db: ReturnType<typeof getDb>, env: Env) => ({
       const parsed = deleteProductSchema.safeParse(args);
       if (!parsed.success) {
         const errorDetails = parsed.error.issues.map((e: any) => `${e.path.join(".")}: ${e.message}`).join("; ");
-        return { success: false, error: `Invalid arguments: ${errorDetails}. Expected: productId (UUID string)` };
+        return { success: false, error: `Invalid arguments: ${errorDetails}. Expected: productId (ID string)` };
       }
 
       try {

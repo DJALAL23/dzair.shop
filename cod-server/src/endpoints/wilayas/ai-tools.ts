@@ -73,8 +73,8 @@ export const WILAYA_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * Typical agent workflow:
  *   1. Call listWilayas (optionally with search) to find the right wilaya
  *      and get its integer ID.
- *   2. Call listWilayaCommunes with that ID to get communes and their UUIDs.
- *   3. Use wilayaId (int) and communeId (UUID) when creating/updating
+ *   2. Call listWilayaCommunes with that ID to get communes and their IDs.
+ *   3. Use wilayaId (int) and communeId (c-XX-YYY code) when creating/updating
  *      customers, drivers, or orders.
  *
  * Two-Layer Validation Pattern:

@@ -11,6 +11,7 @@ import { mediaDeliveryOf } from "@/lib/media";
 import { createProductGroup, deleteProductGroup, updateProductGroup } from "@/lib/product-groups";
 import type { Env } from "@/types/env";
 import { toolOutput } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -20,15 +21,15 @@ import { toolOutput } from "@/lib/tool-output-schema";
  */
 export const listProductGroupsSchema = groupFiltersSchema;
 export const getProductGroupDetailsSchema = z.object({
-  groupId: z.string().uuid().describe("The unique UUID of the product group to retrieve"),
+  groupId: toolId().describe("The ID of the product group to retrieve"),
 });
 export const createProductGroupToolSchema = createGroupSchema;
 export const updateProductGroupToolSchema = z.object({
-  groupId: z.string().uuid().describe("The UUID of the product group to update"),
+  groupId: toolId().describe("The ID of the product group to update"),
   updates: updateGroupSchema,
 });
 export const deleteProductGroupSchema = z.object({
-  groupId: z.string().uuid().describe("The UUID of the product group to delete"),
+  groupId: toolId().describe("The ID of the product group to delete"),
 });
 
 export const PRODUCT_GROUP_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -40,11 +41,11 @@ export const PRODUCT_GROUP_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const productGroupRowSchema = z.looseObject({
-  id: z.string().describe("Group UUID"),
+  id: z.string().describe("Group ID"),
   name: z.string(),
   slug: z.string().describe("Unique URL-safe identifier"),
   description: z.string().nullable().optional(),
-  parentId: z.string().nullable().optional().describe("Parent group UUID — null for top-level groups"),
+  parentId: z.string().nullable().optional().describe("Parent group ID — null for top-level groups"),
   image: z.object({ key: z.string(), url: z.string(), width: z.number().nullable(), height: z.number().nullable() }).nullable().optional(),
   position: z.number().int().optional().describe("Display order among siblings; lower sorts first"),
   productsCount: z.number().int().optional().describe("Non-deleted products filed under this group (any status) — doubles as the deletion guard"),
@@ -107,7 +108,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>, env: Env) => 
           .join("; ");
         return {
           success: false,
-          error: `Invalid filter arguments: ${errorDetails}. Expected: search (string, optional), parentId (string UUID, optional — pass to get only sub-groups of that parent)`,
+          error: `Invalid filter arguments: ${errorDetails}. Expected: search (string, optional), parentId (string ID, optional — pass to get only sub-groups of that parent)`,
         };
       }
 
@@ -156,7 +157,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>, env: Env) => 
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: groupId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: groupId (ID string)`,
         };
       }
 
@@ -183,7 +184,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>, env: Env) => 
       "Creates a new product group (category/collection). " +
       "Required: name (string). " +
       "Optional: slug (auto-generated from name if omitted — must be lowercase letters, numbers, hyphens only e.g. 'smart-phones'), " +
-      "description, parentId (UUID of parent group to nest this under), " +
+      "description, parentId (ID of parent group to nest this under), " +
       "imageKey (a Media Key from a completed upload), position (integer >= 0, controls display order, default 0), " +
       "metaTitle (SEO page title, max 60 chars), metaDescription (SEO description, max 160 chars), " +
       "metaKeywords (comma-separated keywords for search engines).",
@@ -202,7 +203,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>, env: Env) => 
             `Invalid group data: ${errorDetails}. ` +
             `Required: name (non-empty string). ` +
             `Optional: slug (lowercase letters/numbers/hyphens only, e.g. "smart-phones" — auto-generated if omitted), ` +
-            `description (string or null), parentId (UUID or null), ` +
+            `description (string or null), parentId (ID or null), ` +
             `imageKey (a Media Key from a completed upload, or null), position (integer >= 0, default 0), ` +
             `metaTitle (string max 60 chars or null), metaDescription (string max 160 chars or null), ` +
             `metaKeywords (comma-separated string or null).`,
@@ -247,9 +248,9 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>, env: Env) => 
           success: false,
           error:
             `Invalid update arguments: ${errorDetails}. ` +
-            `Expected: groupId (UUID), updates object with optional fields: ` +
+            `Expected: groupId (ID), updates object with optional fields: ` +
             `name (string), slug (lowercase/numbers/hyphens), description (string or null), ` +
-            `parentId (UUID or null), imageKey (a Media Key from a completed upload, or null), position (integer >= 0), ` +
+            `parentId (ID or null), imageKey (a Media Key from a completed upload, or null), position (integer >= 0), ` +
             `metaTitle (string max 60 chars or null), metaDescription (string max 160 chars or null), ` +
             `metaKeywords (comma-separated string or null).`,
         };
@@ -296,7 +297,7 @@ export const getProductGroupTools = (db: ReturnType<typeof getDb>, env: Env) => 
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: groupId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: groupId (ID string)`,
         };
       }
 

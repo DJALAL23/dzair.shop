@@ -5,6 +5,7 @@ import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 import { CreateCouponSchema, UpdateCouponSchema } from "@/openapi/schemas/coupons";
 import * as queries from "../../../../cod-shared/queries/coupons";
 import { couponWriteError } from "./handlers";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, exported so the MCP layer (src/mcp/schemas.ts)
@@ -12,15 +13,15 @@ import { couponWriteError } from "./handlers";
  */
 export const listCouponsSchema = z.object({});
 export const getCouponDetailsSchema = z.object({
-  couponId: z.string().uuid().describe("The UUID of the coupon"),
+  couponId: toolId().describe("The ID of the coupon"),
 });
 export const createCouponToolSchema = CreateCouponSchema;
 export const updateCouponToolSchema = z.object({
-  couponId: z.string().uuid().describe("The UUID of the coupon to update"),
+  couponId: toolId().describe("The ID of the coupon to update"),
   updates: UpdateCouponSchema,
 });
 export const deleteCouponSchema = z.object({
-  couponId: z.string().uuid().describe("The UUID of the coupon to delete"),
+  couponId: toolId().describe("The ID of the coupon to delete"),
 });
 
 export const COUPON_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -32,7 +33,7 @@ export const COUPON_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const couponRowSchema = z.looseObject({
-  id: z.string().describe("Coupon UUID"),
+  id: z.string().describe("Coupon ID"),
   code: z.string(),
   kind: z.string().describe("percentage | fixed_amount | free_shipping"),
   state: z.string().describe("live | inactive | scheduled | expired | used_up"),
@@ -103,11 +104,11 @@ export const getCouponTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   getCouponDetails: tool({
-    description: "Fetch one coupon by UUID, with the products, collections, customers and customer groups it names. Use it before updating a coupon.",
+    description: "Fetch one coupon by ID, with the products, collections, customers and customer groups it names. Use it before updating a coupon.",
     inputSchema: z.object({}).passthrough(),
     execute: async (args) => {
       const parsed = getCouponDetailsSchema.safeParse(args);
-      if (!parsed.success) return invalid(parsed.error, "Expected: couponId (UUID string)");
+      if (!parsed.success) return invalid(parsed.error, "Expected: couponId (ID string)");
       try {
         const coupon = await queries.getCouponById(db, parsed.data.couponId);
         return coupon ? { success: true, coupon } : { success: false, error: `Coupon not found with ID: ${parsed.data.couponId}` };
@@ -144,7 +145,7 @@ export const getCouponTools = (db: ReturnType<typeof getDb>) => ({
     inputSchema: z.object({}).passthrough(),
     execute: async (args) => {
       const parsed = updateCouponToolSchema.safeParse(args);
-      if (!parsed.success) return invalid(parsed.error, `Expected: couponId (UUID), updates object. ${SHAPE}`);
+      if (!parsed.success) return invalid(parsed.error, `Expected: couponId (ID), updates object. ${SHAPE}`);
       try {
         const updated = await queries.updateCoupon(db, parsed.data.couponId, parsed.data.updates);
         if (!updated.ok && updated.reason === "not_found") return { success: false, error: `Coupon not found with ID: ${parsed.data.couponId}` };
@@ -164,7 +165,7 @@ export const getCouponTools = (db: ReturnType<typeof getDb>) => ({
     inputSchema: z.object({}).passthrough(),
     execute: async (args) => {
       const parsed = deleteCouponSchema.safeParse(args);
-      if (!parsed.success) return invalid(parsed.error, "Expected: couponId (UUID string)");
+      if (!parsed.success) return invalid(parsed.error, "Expected: couponId (ID string)");
       try {
         const existing = await queries.getCouponById(db, parsed.data.couponId);
         if (!existing) return { success: false, error: `Coupon not found with ID: ${parsed.data.couponId}` };

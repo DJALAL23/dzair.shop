@@ -6,6 +6,7 @@ import { getDb } from "@/db";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 import { offerWriteError } from "./handlers";
 import type { OfferWriteProblem } from "../../../../cod-shared/queries/offers";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -15,15 +16,15 @@ import type { OfferWriteProblem } from "../../../../cod-shared/queries/offers";
  */
 export const listOffersSchema = z.object({});
 export const getOfferDetailsSchema = z.object({
-  offerId: z.string().uuid().describe("The unique UUID of the offer to retrieve"),
+  offerId: toolId().describe("The ID of the offer to retrieve"),
 });
 export const createOfferToolSchema = createOfferSchema;
 export const updateOfferToolSchema = z.object({
-  offerId: z.string().uuid().describe("The UUID of the offer to update"),
+  offerId: toolId().describe("The ID of the offer to update"),
   updates: updateOfferSchema,
 });
 export const deleteOfferSchema = z.object({
-  offerId: z.string().uuid().describe("The UUID of the offer to delete"),
+  offerId: toolId().describe("The ID of the offer to delete"),
 });
 
 export const OFFER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -43,7 +44,7 @@ const offerProductRefSchema = z
   .describe("The referenced product, or null");
 
 const offerRowSchema = z.looseObject({
-  id: z.string().describe("Offer UUID"),
+  id: z.string().describe("Offer ID"),
   name: z.string(),
   status: z.string().optional().describe("active | inactive — only active offers within schedule can qualify"),
 });
@@ -53,7 +54,7 @@ export const OFFER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     count: z.number().int(),
     offers: z.array(
       z.looseObject({
-        id: z.string().describe("Offer UUID"),
+        id: z.string().describe("Offer ID"),
         name: z.string(),
         status: z.string().describe("active | inactive"),
         discountType: z.string().describe("free (Buy X Get Y reward) | free_shipping (delivery fee waived) | quantity_price (price tiers by quantity)"),
@@ -153,7 +154,7 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
 
   getOfferDetails: tool({
     description:
-      "Fetch full details for a specific offer by its UUID. " +
+      "Fetch full details for a specific offer by its ID. " +
       "Returns the offer with fully resolved product and variant references. " +
       "Use this before updating an offer or to confirm its current configuration.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
@@ -169,7 +170,7 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: offerId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: offerId (ID string)`,
         };
       }
 
@@ -194,7 +195,7 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
   createOffer: tool({
     description:
       "Creates an offer, applied automatically at checkout (one offer per product per order). " +
-      "Required: name (2-200 chars), triggerProductId (UUID). " +
+      "Required: name (2-200 chars), triggerProductId (ID). " +
       "discountType rules: " +
       '  "free" (default, Buy X Get Y) → triggerQuantity (int 1-1000, default 2) and rewardProductId are REQUIRED; rewardQuantity defaults to 1; the gift is given once per order. ' +
       '  "free_shipping" (Buy X, free delivery) → triggerQuantity; omit every reward field. ' +
@@ -216,11 +217,11 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
           success: false,
           error:
             `Invalid offer data: ${errorDetails}. ` +
-            `Required: name (2-200 chars), triggerProductId (UUID). ` +
-            `discountType "free" (default): triggerQuantity and rewardProductId (UUID) are required, rewardQuantity defaults to 1. ` +
+            `Required: name (2-200 chars), triggerProductId (ID). ` +
+            `discountType "free" (default): triggerQuantity and rewardProductId (ID) are required, rewardQuantity defaults to 1. ` +
             `discountType "free_shipping": triggerQuantity; no reward fields. ` +
             `discountType "quantity_price": tiers [{ quantity, price, freeShipping? }]; no reward fields. ` +
-            `Optional: triggerVariantId (UUID), rewardVariantId (UUID), ` +
+            `Optional: triggerVariantId (ID), rewardVariantId (ID), ` +
             `startsAt (ISO-8601 datetime), endsAt (ISO-8601 datetime), ` +
             `status ("active" | "inactive", default "active").`,
         };
@@ -265,10 +266,10 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
           success: false,
           error:
             `Invalid update arguments: ${errorDetails}. ` +
-            `Expected: offerId (UUID), updates object with optional fields: ` +
+            `Expected: offerId (ID), updates object with optional fields: ` +
             `name (2-200 chars), discountType ("free" | "free_shipping" | "quantity_price"), tiers ([{ quantity, price, freeShipping? }]), ` +
-            `triggerProductId (UUID), triggerVariantId (UUID or null), triggerQuantity (int 1-1000), ` +
-            `rewardProductId (UUID or null), rewardVariantId (UUID or null), rewardQuantity (int 0-1000), ` +
+            `triggerProductId (ID), triggerVariantId (ID or null), triggerQuantity (int 1-1000), ` +
+            `rewardProductId (ID or null), rewardVariantId (ID or null), rewardQuantity (int 0-1000), ` +
             `startsAt (ISO-8601 or null), endsAt (ISO-8601 or null), status ("active" | "inactive").`,
         };
       }
@@ -316,7 +317,7 @@ export const getOfferTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: offerId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: offerId (ID string)`,
         };
       }
 

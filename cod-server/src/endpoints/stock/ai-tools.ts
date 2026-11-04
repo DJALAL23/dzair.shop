@@ -11,6 +11,7 @@ import {
 import type { AppDb } from "@/db";
 import { actorOf, type McpProps } from "@/mcp/props";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -21,31 +22,31 @@ import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 export const getStockOverviewSchema = z.object({});
 export const getStockAlertsSchema = stockAlertsFiltersSchema;
 export const getProductStockHistoryToolSchema = z.object({
-  productId: z.string().uuid().describe("UUID of the product"),
-  variantId: z.string().uuid().optional().describe("UUID of a specific variant to filter history"),
+  productId: toolId().describe("ID of the product"),
+  variantId: toolId().optional().describe("ID of a specific variant to filter history"),
   limit: z.coerce.number().int().positive().max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
 export const adjustProductStockToolSchema = z.object({
-  productId: z.string().uuid().describe("UUID of the simple product to adjust"),
+  productId: toolId().describe("ID of the simple product to adjust"),
   type: z.enum(MOVEMENT_TYPES),
   delta: z.number().int().refine((v) => v !== 0, "delta must be non-zero"),
   reason: z.string().min(1).max(500).optional(),
 });
 export const adjustVariantStockToolSchema = z.object({
-  productId: z.string().uuid().describe("UUID of the parent product"),
-  variantId: z.string().uuid().describe("UUID of the variant to adjust"),
+  productId: toolId().describe("ID of the parent product"),
+  variantId: toolId().describe("ID of the variant to adjust"),
   type: z.enum(MOVEMENT_TYPES),
   delta: z.number().int().refine((v) => v !== 0, "delta must be non-zero"),
   reason: z.string().min(1).max(500).optional(),
 });
 export const updateProductStockThresholdToolSchema = z.object({
-  productId: z.string().uuid().describe("UUID of the simple product"),
+  productId: toolId().describe("ID of the simple product"),
   lowStockThreshold: updateThresholdSchema.shape.lowStockThreshold,
 });
 export const updateVariantStockThresholdToolSchema = z.object({
-  productId: z.string().uuid().describe("UUID of the parent product"),
-  variantId: z.string().uuid().describe("UUID of the variant"),
+  productId: toolId().describe("ID of the parent product"),
+  variantId: toolId().describe("ID of the variant"),
   lowStockThreshold: updateThresholdSchema.shape.lowStockThreshold,
 });
 
@@ -213,8 +214,8 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
       "Paginated movement log for a product, ordered newest-first. " +
       "Each movement records: type, delta, qtyBefore, qtyAfter, reason, reference (orderId for ORDER_* types), " +
       "createdByName, and createdAt. " +
-      "Required: productId (UUID). " +
-      "Optional: variantId (UUID) to narrow to a specific variant's history, " +
+      "Required: productId (ID). " +
+      "Optional: variantId (ID) to narrow to a specific variant's history, " +
       "limit (1-100, default 20), offset (default 0).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -229,7 +230,7 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: productId (UUID), optional variantId (UUID), limit (1-100), offset (int >= 0)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: productId (ID), optional variantId (ID), limit (1-100), offset (int >= 0)`,
         };
       }
 
@@ -252,7 +253,7 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
   adjustProductStock: tool({
     description:
       "Applies a signed integer delta to a simple product's inventory and records a movement log entry. " +
-      "Required: productId (UUID), type (movement type), delta (non-zero integer — positive = stock in, negative = stock out). " +
+      "Required: productId (ID), type (movement type), delta (non-zero integer — positive = stock in, negative = stock out). " +
       "reason is REQUIRED for types: ADJUSTMENT_ADD, ADJUSTMENT_REMOVE, OFFLINE_SALE. " +
       "Movement types: PURCHASE (restock), ADJUSTMENT_ADD (manual correction up), ADJUSTMENT_REMOVE (manual correction down), " +
       "ORDER_RETURNED (returned stock), OFFLINE_SALE (sale outside platform). " +
@@ -273,7 +274,7 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
           success: false,
           error:
             `Invalid arguments: ${errorDetails}. ` +
-            `Required: productId (UUID), type (${MOVEMENT_TYPES.join("|")}), delta (non-zero integer). ` +
+            `Required: productId (ID), type (${MOVEMENT_TYPES.join("|")}), delta (non-zero integer). ` +
             `reason is required for ADJUSTMENT_ADD, ADJUSTMENT_REMOVE, OFFLINE_SALE.`,
         };
       }
@@ -334,7 +335,7 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
   adjustVariantStock: tool({
     description:
       "Applies a signed integer delta to a specific product variant's inventory and records a movement log entry. " +
-      "Required: productId (UUID), variantId (UUID), type (movement type), delta (non-zero integer). " +
+      "Required: productId (ID), variantId (ID), type (movement type), delta (non-zero integer). " +
       "reason is REQUIRED for types: ADJUSTMENT_ADD, ADJUSTMENT_REMOVE, OFFLINE_SALE. " +
       "Delta sign: positive = stock in, negative = stock out. " +
       "The server rejects adjustments that would result in negative inventory (INSUFFICIENT_STOCK). " +
@@ -354,7 +355,7 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
           success: false,
           error:
             `Invalid arguments: ${errorDetails}. ` +
-            `Required: productId (UUID), variantId (UUID), type (${MOVEMENT_TYPES.join("|")}), delta (non-zero integer). ` +
+            `Required: productId (ID), variantId (ID), type (${MOVEMENT_TYPES.join("|")}), delta (non-zero integer). ` +
             `reason is required for ADJUSTMENT_ADD, ADJUSTMENT_REMOVE, OFFLINE_SALE.`,
         };
       }
@@ -415,7 +416,7 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
     description:
       "Sets the low stock alert threshold for a simple (non-variant) product. " +
       "When inventory drops to or below this value, the product appears in stock alerts. " +
-      "Required: productId (UUID), lowStockThreshold (integer 0–9999). " +
+      "Required: productId (ID), lowStockThreshold (integer 0–9999). " +
       "Use updateVariantStockThreshold for variant products.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -430,7 +431,7 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: productId (UUID), lowStockThreshold (integer 0–9999)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: productId (ID), lowStockThreshold (integer 0–9999)`,
         };
       }
 
@@ -461,7 +462,7 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
     description:
       "Sets the low stock alert threshold for a specific product variant. " +
       "When the variant's inventory drops to or below this value, it appears in stock alerts. " +
-      "Required: productId (UUID), variantId (UUID), lowStockThreshold (integer 0–9999). " +
+      "Required: productId (ID), variantId (ID), lowStockThreshold (integer 0–9999). " +
       "Use updateProductStockThreshold for simple (non-variant) products.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -476,7 +477,7 @@ export const getStockTools = (db: AppDb, props: McpProps) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: productId (UUID), variantId (UUID), lowStockThreshold (integer 0–9999)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: productId (ID), variantId (ID), lowStockThreshold (integer 0–9999)`,
         };
       }
 

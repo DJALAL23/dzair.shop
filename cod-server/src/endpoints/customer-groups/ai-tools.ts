@@ -8,6 +8,7 @@ import {
 } from "./validation";
 import { getDb } from "@/db";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -17,24 +18,24 @@ import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
  */
 export const listCustomerGroupsSchema = customerGroupFiltersSchema;
 export const getCustomerGroupDetailsSchema = z.object({
-  groupId: z.string().uuid().describe("UUID of the customer group"),
+  groupId: toolId().describe("ID of the customer group"),
   withMembers: z.boolean().optional().default(false).describe("Include full member list"),
 });
 export const createCustomerGroupToolSchema = createCustomerGroupSchema;
 export const updateCustomerGroupToolSchema = z.object({
-  groupId: z.string().uuid().describe("UUID of the group to update"),
+  groupId: toolId().describe("ID of the group to update"),
   updates: updateCustomerGroupSchema,
 });
 export const deleteCustomerGroupSchema = z.object({
-  groupId: z.string().uuid().describe("UUID of the customer group to delete"),
+  groupId: toolId().describe("ID of the customer group to delete"),
 });
 export const addCustomerToGroupSchema = z.object({
-  groupId: z.string().uuid().describe("UUID of the customer group"),
-  customerId: z.string().uuid().describe("UUID of the customer to add"),
+  groupId: toolId().describe("ID of the customer group"),
+  customerId: toolId().describe("ID of the customer to add"),
 });
 export const removeCustomerFromGroupSchema = z.object({
-  groupId: z.string().uuid().describe("UUID of the customer group"),
-  customerId: z.string().uuid().describe("UUID of the customer to remove"),
+  groupId: toolId().describe("ID of the customer group"),
+  customerId: toolId().describe("ID of the customer to remove"),
 });
 
 export const CUSTOMER_GROUP_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -48,7 +49,7 @@ export const CUSTOMER_GROUP_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const customerGroupRowSchema = z.looseObject({
-  id: z.string().describe("Group UUID"),
+  id: z.string().describe("Group ID"),
   name: z.string().describe("Names are not unique — distinguish groups by color or description"),
   description: z.string().nullable().optional().describe("Internal policy note, never shown to shoppers"),
   color: z.string().optional().describe("Hex color for dashboard identification"),
@@ -135,7 +136,7 @@ export const getCustomerGroupTools = (db: ReturnType<typeof getDb>) => ({
     description:
       "Fetch a customer group by ID. " +
       "Set withMembers: true to include the full member list (each member includes id, name, phone, wilaya, totalOrders, totalSpent, assignedAt). " +
-      "Required: groupId (UUID). Optional: withMembers (boolean, default false).",
+      "Required: groupId (ID). Optional: withMembers (boolean, default false).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       const validationSchema = getCustomerGroupDetailsSchema;
@@ -146,7 +147,7 @@ export const getCustomerGroupTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: groupId (UUID), withMembers (boolean, optional)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: groupId (ID), withMembers (boolean, optional)`,
         };
       }
       try {
@@ -208,7 +209,7 @@ export const getCustomerGroupTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid update arguments: ${errorDetails}. Expected: groupId (UUID), updates with optional fields: name (1-100 chars), description (max 500 or null), color (hex #RRGGBB)`,
+          error: `Invalid update arguments: ${errorDetails}. Expected: groupId (ID), updates with optional fields: name (1-100 chars), description (max 500 or null), color (hex #RRGGBB)`,
         };
       }
       try {
@@ -238,7 +239,7 @@ export const getCustomerGroupTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: groupId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: groupId (ID string)`,
         };
       }
       try {
@@ -266,7 +267,7 @@ export const getCustomerGroupTools = (db: ReturnType<typeof getDb>) => ({
   addCustomerToGroup: tool({
     description:
       "Adds a customer to a customer group. Idempotent — adding an already-member customer is silently ignored. " +
-      "Required: groupId (UUID), customerId (UUID). " +
+      "Required: groupId (ID), customerId (ID). " +
       "Both the group and the customer must exist.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -278,7 +279,7 @@ export const getCustomerGroupTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: groupId (UUID), customerId (UUID)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: groupId (ID), customerId (ID)`,
         };
       }
       try {
@@ -300,7 +301,7 @@ export const getCustomerGroupTools = (db: ReturnType<typeof getDb>) => ({
   removeCustomerFromGroup: tool({
     description:
       "Removes a customer from a customer group. " +
-      "Required: groupId (UUID), customerId (UUID). " +
+      "Required: groupId (ID), customerId (ID). " +
       "If the customer is not a member, the operation completes silently.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -312,7 +313,7 @@ export const getCustomerGroupTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: groupId (UUID), customerId (UUID)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: groupId (ID), customerId (ID)`,
         };
       }
       try {

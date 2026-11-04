@@ -8,6 +8,7 @@ import {
 } from "./validation";
 import { getDb } from "@/db";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -17,24 +18,24 @@ import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
  */
 export const listCustomersSchema = customerFiltersSchema;
 export const getCustomerDetailsSchema = z.object({
-  customerId: z.string().uuid().describe("The unique UUID of the customer to retrieve"),
+  customerId: toolId().describe("The ID of the customer to retrieve"),
 });
 export const findCustomerByPhoneSchema = z.object({
   phone: z.string().regex(/^0[5-7]\d{8}$/, "Invalid Algerian phone number").describe("Algerian phone number starting with 05, 06, or 07"),
 });
 export const getCustomerOrderHistorySchema = z.object({
-  customerId: z.string().uuid().describe("The unique UUID of the customer"),
+  customerId: toolId().describe("The ID of the customer"),
 });
 export const getCustomerMembershipsSchema = z.object({
-  customerId: z.string().uuid().describe("The UUID of the customer"),
+  customerId: toolId().describe("The ID of the customer"),
 });
 export const createNewCustomerSchema = createCustomerSchema;
 export const updateCustomerProfileSchema = z.object({
-  customerId: z.string().uuid().describe("The UUID of the customer to update"),
+  customerId: toolId().describe("The ID of the customer to update"),
   updates: updateCustomerSchema,
 });
 export const deleteCustomerSchema = z.object({
-  customerId: z.string().uuid().describe("The UUID of the customer to delete"),
+  customerId: toolId().describe("The ID of the customer to delete"),
 });
 
 export const CUSTOMER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -49,7 +50,7 @@ export const CUSTOMER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const customerRowSchema = z.looseObject({
-  id: z.string().describe("Customer UUID"),
+  id: z.string().describe("Customer ID"),
   name: z.string(),
   phone: z.string().describe("Primary Algerian mobile (05/06/07) — the customer's identity anchor"),
   wilaya: z.string().optional().describe("Wilaya display-name snapshot"),
@@ -83,7 +84,7 @@ export const CUSTOMER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     orders: z
       .array(
         z.looseObject({
-          id: z.string().describe("Order UUID"),
+          id: z.string().describe("Order ID"),
           orderNumber: z.string().describe("Human-readable order number (ORD-YYYYMMDD-NNNN)"),
           status: z.string().describe("Order lifecycle status"),
           totalPrice: z.number().describe("Product subtotal excluding delivery fee (DZD)"),
@@ -133,7 +134,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid filter arguments: ${errorDetails}. Expected: wilayaId (1-58), search (string), groupId (UUID), tagId (UUID), limit (1-100), offset (number)`,
+          error: `Invalid filter arguments: ${errorDetails}. Expected: wilayaId (1-58), search (string), groupId (ID), tagId (ID), limit (1-100), offset (number)`,
         };
       }
 
@@ -163,7 +164,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   getCustomerDetails: tool({
-    description: "Fetch comprehensive profile data for a specific customer, including their address and recent order history. Requires a valid customer UUID.",
+    description: "Fetch comprehensive profile data for a specific customer, including their address and recent order history. Requires a valid customer ID.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -175,7 +176,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: customerId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: customerId (ID string)`,
         };
       }
 
@@ -233,7 +234,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   createNewCustomer: tool({
-    description: "Registers a new customer in the CRM. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, email, communeId (UUID), address (string). Note: wilayaId must be a number between 1 and 58.",
+    description: "Registers a new customer in the CRM. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, email, communeId (ID), address (string). Note: wilayaId must be a number between 1 and 58.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -245,7 +246,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid customer data: ${errorDetails}. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, email, communeId (UUID), address (string)`,
+          error: `Invalid customer data: ${errorDetails}. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, email, communeId (ID), address (string)`,
         };
       }
 
@@ -273,7 +274,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   updateCustomerProfile: tool({
-    description: "Updates an existing customer's information. Only provided fields will be modified. Required: customerId (UUID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1-58), communeId (UUID or null), address (string or null).",
+    description: "Updates an existing customer's information. Only provided fields will be modified. Required: customerId (ID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1-58), communeId (ID or null), address (string or null).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -285,7 +286,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid update arguments: ${errorDetails}. Expected: customerId (UUID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1-58), communeId (UUID or null), address (string or null)`,
+          error: `Invalid update arguments: ${errorDetails}. Expected: customerId (ID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1-58), communeId (ID or null), address (string or null)`,
         };
       }
 
@@ -331,7 +332,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: customerId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: customerId (ID string)`,
         };
       }
 
@@ -372,7 +373,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: customerId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: customerId (ID string)`,
         };
       }
 
@@ -410,7 +411,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: customerId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: customerId (ID string)`,
         };
       }
 

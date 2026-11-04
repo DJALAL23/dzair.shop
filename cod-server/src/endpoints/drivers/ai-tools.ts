@@ -9,6 +9,7 @@ import {
 } from "./validation";
 import { getDb } from "@/db";
 import { toolOutput } from "@/lib/tool-output-schema";
+import { toolId } from "@/lib/tool-input";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -18,19 +19,19 @@ import { toolOutput } from "@/lib/tool-output-schema";
  */
 export const listDriversSchema = driverFiltersSchema;
 export const getDriverDetailsSchema = z.object({
-  driverId: z.string().uuid().describe("The unique UUID of the driver to retrieve"),
+  driverId: toolId().describe("The ID of the driver to retrieve"),
 });
 export const createNewDriverSchema = createDriverSchema;
 export const updateDriverProfileSchema = z.object({
-  driverId: z.string().uuid().describe("The UUID of the driver to update"),
+  driverId: toolId().describe("The ID of the driver to update"),
   updates: updateDriverSchema,
 });
 export const updateDriverStatusSchema = z.object({
-  driverId: z.string().uuid().describe("The UUID of the driver"),
+  driverId: toolId().describe("The ID of the driver"),
   status: updateDriverStatusInputSchema.shape.status,
 });
 export const deleteDriverSchema = z.object({
-  driverId: z.string().uuid().describe("The UUID of the driver to delete"),
+  driverId: toolId().describe("The ID of the driver to delete"),
 });
 
 export const DRIVER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -43,7 +44,7 @@ export const DRIVER_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const driverRowSchema = z.looseObject({
-  id: z.string().describe("Driver UUID"),
+  id: z.string().describe("Driver ID"),
   firstName: z.string(),
   lastName: z.string(),
   phone: z.string().describe("Primary phone — uniquely identifies the driver"),
@@ -56,7 +57,7 @@ export const DRIVER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     count: z.number().int(),
     drivers: z.array(
       z.looseObject({
-        id: z.string().describe("Driver UUID"),
+        id: z.string().describe("Driver ID"),
         firstName: z.string(),
         lastName: z.string(),
         phone: z.string(),
@@ -158,7 +159,7 @@ export const getDriverTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: driverId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: driverId (ID string)`,
         };
       }
 
@@ -226,7 +227,7 @@ export const getDriverTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid update arguments: ${errorDetails}. Expected: driverId (UUID), updates object with optional fields: firstName, lastName, phone (0[5-7]XXXXXXXX), phone2, vehicleType (motorcycle|car|van), notes (string or null)`,
+          error: `Invalid update arguments: ${errorDetails}. Expected: driverId (ID), updates object with optional fields: firstName, lastName, phone (0[5-7]XXXXXXXX), phone2, vehicleType (motorcycle|car|van), notes (string or null)`,
         };
       }
 
@@ -265,7 +266,7 @@ export const getDriverTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: driverId (UUID), status (one of: available, busy, inactive)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: driverId (ID), status (one of: available, busy, inactive)`,
         };
       }
 
@@ -304,7 +305,7 @@ export const getDriverTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: driverId (UUID string)`,
+          error: `Invalid arguments: ${errorDetails}. Expected: driverId (ID string)`,
         };
       }
 
