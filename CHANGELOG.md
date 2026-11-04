@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- MCP tools take any record id. Seeded and imported rows carry ids such as
+  `store-1:starter:product:handbag`, and 73 tool inputs accepted only UUIDs,
+  so an AI agent could not read, change or delete those rows.
+
 ### Changed
+
+- The sign-in, password and AI-agent consent pages show no logo and name
+  Wocart.
 
 - The old permission rows go (migration 0066, after v4.0.0); the AI-agent
   consent page names every permission in en/fr/ar. The five-minute schedule
