@@ -3,27 +3,15 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import GateSpinner from "@/features/auth/components/GateSpinner";
 import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 import { SignInPageApp } from "@/features/auth/components/SignInPageApp";
-import darkLogoUrl from "@/images/logo-codflow.svg?url";
 ---
 
-<BaseLayout title="CodFlow">
+<BaseLayout title="Wocart">
   <main class="flex min-h-[100dvh] items-center justify-center bg-background p-4 sm:p-6 lg:p-10">
     <div
       class="grid w-full max-w-4xl overflow-hidden rounded-xl bg-card shadow-md lg:grid-cols-2 shadow-card"
     >
       <section class="flex flex-col p-6 sm:p-10 lg:p-12">
-        <header class="flex items-center justify-between gap-3">
-          <a href="/" class="flex items-center py-1" aria-label="CodFlow — home">
-            <img
-              src={darkLogoUrl}
-              alt="CodFlow"
-              height="30"
-              width="90"
-              class="h-[30px] w-auto"
-              decoding="async"
-              draggable="false"
-            />
-          </a>
+        <header class="flex items-center justify-end gap-3">
           <LanguageSwitcher client:only="react" />
         </header>
 
@@ -37,7 +25,7 @@ import darkLogoUrl from "@/images/logo-codflow.svg?url";
             class="flex justify-center py-10"
             aria-busy="true"
           >
-            <GateSpinner branded />
+            <GateSpinner />
           </div>
         </div>
       </section>

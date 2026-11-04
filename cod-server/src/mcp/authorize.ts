@@ -105,7 +105,6 @@ export function csrfTokensMatch(a: string | null, b: string): boolean {
 
 // ─── Consent + error pages (server-rendered, no external assets) ─────────────
 
-import { LOGO_FOR_DARK_BG, LOGO_FOR_LIGHT_BG } from "./brand";
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (ch) => {
@@ -117,14 +116,6 @@ function escapeHtml(value: string): string {
       default: return "&#39;";
     }
   });
-}
-
-/** Brand header carrying the REAL logo wordmark (dark/light variants, CSS-toggled). */
-function brandHeader(): string {
-  return `<header class="brand" role="img" aria-label="CodFlow">
-  <span class="logo logo-on-light">${LOGO_FOR_LIGHT_BG}</span>
-  <span class="logo logo-on-dark">${LOGO_FOR_DARK_BG}</span>
-</header>`;
 }
 
 /**
@@ -240,8 +231,8 @@ interface ConsentCopy {
 function consentCopy(lang: Lang): ConsentCopy {
   if (lang === "fr") {
     return {
-      title: "Autoriser l'accès à CodFlow",
-      appCardIntro: "demande l'accès à votre espace CodFlow",
+      title: "Autoriser l'accès à Wocart",
+      appCardIntro: "demande l'accès à votre espace Wocart",
       unknownApp: "Une application",
       approve: "Autoriser",
       deny: "Refuser",
@@ -255,8 +246,8 @@ function consentCopy(lang: Lang): ConsentCopy {
   }
   if (lang === "en") {
     return {
-      title: "Authorize access to CodFlow",
-      appCardIntro: "is requesting access to your CodFlow workspace",
+      title: "Authorize access to Wocart",
+      appCardIntro: "is requesting access to your Wocart workspace",
       unknownApp: "An application",
       approve: "Authorize",
       deny: "Deny",
@@ -269,8 +260,8 @@ function consentCopy(lang: Lang): ConsentCopy {
     };
   }
   return {
-    title: "السماح بالوصول إلى CodFlow",
-    appCardIntro: "يطلب الوصول إلى مساحة عملك في CodFlow",
+    title: "السماح بالوصول إلى Wocart",
+    appCardIntro: "يطلب الوصول إلى مساحة عملك في Wocart",
     unknownApp: "تطبيق",
     approve: "السماح",
     deny: "رفض",
@@ -298,7 +289,7 @@ export interface ConsentView {
 
 /**
  * Shared page shell for the consent/error screens — one visual identity
- * (CodFlow brand amethyst on charcoal, dark-mode aware, RTL-safe via logical
+ * (Wocart amethyst on charcoal, dark-mode aware, RTL-safe via logical
  * properties), zero external assets so the page renders offline-safe.
  */
 function pageShell(lang: Lang, dir: string, title: string, body: string): string {
@@ -327,14 +318,6 @@ function pageShell(lang: Lang, dir: string, title: string, body: string): string
     -webkit-font-smoothing:antialiased}
   main{width:min(460px,100%);background:var(--card);border:1px solid var(--border);
     border-radius:16px;box-shadow:0 12px 40px rgb(16 12 32/.10);overflow:hidden}
-  header.brand{display:flex;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border)}
-  header.brand .logo{display:block;line-height:0}
-  header.brand svg{height:22px;width:auto;display:block}
-  header.brand .logo-on-dark{display:none}
-  @media (prefers-color-scheme:dark){
-    header.brand .logo-on-light{display:none}
-    header.brand .logo-on-dark{display:block}
-  }
   .content{padding:1.5rem}
   h1{font-size:1.125rem;font-weight:700;margin:0 0 1rem;letter-spacing:-.01em}
   .appcard{display:flex;align-items:center;gap:.875rem;padding:.875rem 1rem;
@@ -416,8 +399,7 @@ export function renderConsentPage(view: ConsentView): string {
     view.lang,
     dir,
     copy.title,
-    `${brandHeader()}
-<div class="content">
+    `<div class="content">
   <h1>${escapeHtml(copy.title)}</h1>
   <div class="appcard">
     <div class="appavatar">${escapeHtml(avatarLetter)}</div>
@@ -452,8 +434,7 @@ export function renderNoPermissionsPage(lang: Lang): string {
     lang,
     dir,
     copy.noPermissions,
-    `${brandHeader()}
-<div class="content">
+    `<div class="content">
   <h1>${escapeHtml(copy.noPermissions)}</h1>
   <p class="scopehint" style="margin:0">${escapeHtml(copy.noPermissionsHint)}</p>
 </div>`,
@@ -467,8 +448,7 @@ export function renderOAuthErrorPage(description: string, lang: Lang): string {
     lang,
     dir,
     title,
-    `${brandHeader()}
-<div class="content">
+    `<div class="content">
   <h1 class="err">${escapeHtml(title)}</h1>
   <p class="scopehint" style="margin:0">${escapeHtml(description)}</p>
 </div>`,

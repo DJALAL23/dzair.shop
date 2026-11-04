@@ -49,7 +49,8 @@ describe("the root page", () => {
 
     expect(document.querySelector("[data-skeleton]")).toBeNull();
     expect(gate().hidden).toBe(false);
-    expect(document.querySelector('[data-auth-state="pending"]')?.textContent).toBe("CodFlow");
+    expect(document.querySelector('[data-auth-state="pending"] [role="status"]')).not.toBeNull();
+    expect(document.querySelector('[data-auth-state="pending"]')?.textContent).toBe("");
   });
 
   it("leaves a detail page's skeleton to that page's gate", async () => {

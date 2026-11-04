@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import GateSpinner from "@/features/auth/components/GateSpinner";
 import { fetchIdentity } from "@/lib/session";
 import { resolveGate } from "@/lib/gate";
 import { hideGateSpinner, revealGate } from "@/lib/reveal";
@@ -102,7 +103,7 @@ export function RootGate() {
   if (landingPageRoute.kind === "studio") return <LandingPageStudioApp landingPageId={landingPageRoute.id} />;
   return (
     <div data-auth-state={done ? "routing" : "pending"} className="flex justify-center py-24" aria-busy="true">
-      <span className="font-display text-2xl font-semibold tracking-tight text-foreground">CodFlow</span>
+      <GateSpinner />
     </div>
   );
 }

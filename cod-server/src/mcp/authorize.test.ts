@@ -187,7 +187,7 @@ describe("authorize helpers", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 
-  it("renders the real logo, app card, and grouped permission chips", () => {
+  it("renders no logo, the app card, and grouped permission chips", () => {
     const html = renderConsentPage({
       clientName: "ChatGPT",
       grantableScopes: ["landing_pages:manage", "orders:read", "orders:create", "mcp:view"],
@@ -199,10 +199,9 @@ describe("authorize helpers", () => {
       userName: "Ada",
       userEmail: "ada@example.com",
     });
-    // The real wordmark asset (both light/dark variants, CSS-toggled).
-    expect(html).toContain('class="logo logo-on-light"');
-    expect(html).toContain('class="logo logo-on-dark"');
-    expect(html).toContain("<svg");
+    expect(html).not.toContain('class="logo');
+    expect(html).not.toContain('<header class="brand"');
+    expect(html).toContain("Authorize access to Wocart");
     // App card with the client's initial.
     expect(html).toContain('class="appavatar">C<');
     // Domain groups with compact chips — not one full-width row per scope.
