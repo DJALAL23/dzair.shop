@@ -199,6 +199,17 @@ describe("store languages through the real routes", () => {
       ]);
     });
 
+    it("writes the dinar as each language does while the store keeps its usual symbol untranslated", async () => {
+      await harness.db.update(schema.stores).set({ currencySymbol: "DA" });
+      expect((await request("/store/config")).body.data.currencySymbol).toBe("DA");
+      expect((await request("/store/config?locale=ar")).body.data.currencySymbol).toBe("دج");
+      await harness.db.insert(schema.translations).values({ resourceType: "store", resourceId: STORE_ID, locale: "ar", key: "currencySymbol", value: "د.ج", sourceDigest: "x", updatedAt: now() });
+      expect((await request("/store/config?locale=ar")).body.data.currencySymbol).toBe("د.ج");
+      await harness.db.update(schema.stores).set({ currencySymbol: "DZD dinars" });
+      await harness.db.delete(schema.translations);
+      expect((await request("/store/config?locale=ar")).body.data.currencySymbol).toBe("DZD dinars");
+    });
+
     it("sends only the asking theme's edits, and only for published languages", async () => {
       const { body } = await request("/store/config?theme=theme-00");
       expect(body.data.contentOverrides).toEqual({

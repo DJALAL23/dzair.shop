@@ -5,6 +5,7 @@
  * No server-only error classes here; the handlers translate results to HTTP errors.
  */
 
+import { servedCurrencySymbol } from "../i18n/currency";
 import { MAX_ORDER_NUMBER_DRAWS, drawOrderNumber, isOrderNumberCollision } from "../lib/order-number";
 import { safeLikeTerm } from "./search";
 import {
@@ -247,7 +248,7 @@ export async function getStoreConfig(
     // never reach a shopper.
     locales: servedLanguageInfo(languages),
     currency: store.currency,
-    currencySymbol: translated!.currencySymbol,
+    currencySymbol: servedCurrencySymbol({ currency: store.currency, symbol: store.currencySymbol, translated: translated!.currencySymbol, primary: store.lang, locale: served.locale }),
     metaTitle: translated!.metaTitle,
     metaDescription: translated!.metaDescription,
     ogImage: imageOf(store.ogImageKey, delivery),
