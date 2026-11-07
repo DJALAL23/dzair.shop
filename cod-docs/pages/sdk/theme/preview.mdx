@@ -145,7 +145,7 @@ post with the other's exact origin, and check `event.origin` and
 
 | The editor sends | The page answers |
 | --- | --- |
-| — | `ready` with every instance: `{ id, type, parent, hidden, rect }` |
+| — | `ready` with every instance, `{ id, type, parent, hidden, rect }`, and `covered` |
 | `render` `{ draft, revision? }` | `rendered` `{ revision, instances }`, or `error` `{ revision, reason }` |
 | `patch` `{ patches }` | the change at once, then `layout` |
 | `mode` `"edit"` or `"interactive"` | in `edit`, clicks select the innermost instance; in `interactive`, links and forms work |
@@ -155,6 +155,14 @@ post with the other's exact origin, and check `event.origin` and
 
 A render answered after a newer render — or after a patch — is dropped. The
 newest draft always wins.
+
+An instance's `rect` joins the boxes of its nodes a shopper can see: a closed
+drawer or menu laid over the viewport is left out, and so is anything fixed
+to the viewport while the instance has boxes in the page. `ready`, `layout`
+and `rendered` also carry `covered: { top, bottom }`, how far the page's
+stuck elements (a sticky header, a fixed order bar) reach into the viewport,
+so Studio keeps its toolbar off them. Both come from `@wocart/theme` 4.2.0;
+an older page reports no `covered`.
 
 ## Patches
 

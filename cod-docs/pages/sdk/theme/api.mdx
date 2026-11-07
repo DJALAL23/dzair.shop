@@ -44,7 +44,7 @@ a shopper's page ships Zod to every visitor.
 | `validateThemeManifest(input)` | Boundary for JSON: serializability, structure, then the same relational rules. `{ manifest, issues }` |
 | `manifestCatalog(manifest)` | A `ThemeDefinition` with `component: null` — for editing and validation, never for rendering |
 | `diffThemeManifests(previous, next)` | `{ breaking, additive }` between two releases |
-| `THEME_SDK_VERSION` | The package version the manifest records (`"4.1.0"`) |
+| `THEME_SDK_VERSION` | The package version the manifest records (`"4.2.0"`) |
 | `THEME_MANIFEST_CONTRACT_VERSION` | Version of the manifest format (`1`) |
 | `THEME_MANIFEST_PATH` | `/wocart-theme.json` |
 | `THEME_KEY_PATTERN` | The rule a theme key follows: lowercase kebab-case, at most 64 characters |
@@ -119,6 +119,11 @@ slot's required types or a block that must stay shown.
 | `messageForms(pack, key)` | The CLDR forms a message key defines |
 | `pluralFormIssues(pack, locale)` | Forms the language needs but the pack lacks, or carries unused |
 | `PLURAL_CATEGORIES` | CLDR's six categories |
+| `contentGroupsOf(themeOrManifest)` | The groups an editor lists a theme's words in: its own `contentGroups`, else `STANDARD_CONTENT_GROUPS` |
+| `groupContentKeys(keys, groups)`, `contentGroupOf(key, groups)` | Keys by group, each in the group of its longest prefix, the unclaimed last |
+| `STANDARD_CONTENT_GROUPS` | The groups of `<part>.<name>` keys, labelled in Arabic, French and English |
+| `instanceSummary(definition, instance, { locales, content })` | The words that tell an instance from another of its type in an editor's list, as one line: the component's `summary` fields, else its first text, first list item's title or rich text |
+| `SUMMARY_FIELD_KINDS` | The field kinds `summary` may name: `text`, `textarea`, `richtext` |
 
 ## Rich text
 

@@ -254,6 +254,20 @@ one store and false of the next. Facts come from the store's data
 (`config.contact`, its pages, its shipping rates) or from a field the
 merchant writes.
 
+Wocart Studio lists a theme's words by the part of the store they belong to,
+named in the merchant's language. Keys written `<part>.<name>` (`checkout.submit`,
+`cart.empty`) fall into the SDK's standard groups by themselves. A theme with
+other keys declares its own groups on `defineTheme`: a label in each of its
+languages and the key prefixes each holds. A key belongs to the group of its
+longest matching prefix; keys no group claims are listed last.
+
+```ts
+contentGroups: [
+  { key: "hero", label: { ar: "الواجهة", fr: "Bannière", en: "Hero" }, prefixes: ["hero"] },
+  { key: "order", label: { ar: "الطلب", fr: "Commande", en: "Order" }, prefixes: ["order", "form"] },
+],
+```
+
 ## 7. The request's store
 
 ```ts title="src/lib/context.ts"
@@ -443,6 +457,13 @@ export const hero = defineComponent({
 
 `InferProps` makes `align` the literal union `"start" | "center"` and always
 present (it has a default), and `title` and `subtitle` optional strings.
+
+A page often holds several sections of one type. Studio tells them apart by
+their own words: by default the first text field (here `title`), else the
+title of the first list item, else the first rich text. Name the field with
+`summary: "title"` when another text field comes first, or name the fields a
+heading is made of, `summary: ["title", "accent"]`, joined by a space as the
+page shows them.
 
 ## 10. The home page's default document
 
