@@ -51,6 +51,24 @@ _Avoid_: Webhook log
 ZR tenants can rename their states. A name ZR's standard workflow does not know is mapped by the merchant to what it means for the delivery (out for delivery, delivered, returned…); a name nobody mapped is an unknown status, never guessed.
 _Avoid_: Status mapping to order statuses (orders have no delivery statuses)
 
+### Costs
+
+**Carrier Rate**:
+What a delivery company charges the store for one parcel, for a wilaya and a
+delivery type (home or stop desk). The store's cost, never the customer's
+price (that is a shipping profile).
+_Avoid_: Shipping rate, delivery fee, tariff (alone)
+
+**Return Fee**:
+What the company charges the store for a parcel that comes back.
+_Avoid_: Return cost, refusal fee
+
+**Shipping Cost**:
+What a shipment cost the store, frozen when it was handed off from its
+company's Carrier Rate (and its Return Fee when it came back), as a driver
+shipment freezes the driver's fee.
+_Avoid_: Delivery cost, carrier fee
+
 ### Stop Desks
 
 **Stop Desk Sync**:
