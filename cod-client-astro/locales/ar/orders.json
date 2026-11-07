@@ -180,9 +180,7 @@
     },
     "stats": {
       "abandoned": "متروكة",
-      "recovered": "مسترجعة",
-      "conversion_rate": "نسبة الاسترجاع",
-      "lost_revenue": "خسارة متوقعة"
+      "recovered": "مسترجعة"
     },
     "empty": {
       "title": "لا توجد عمليات متروكة",

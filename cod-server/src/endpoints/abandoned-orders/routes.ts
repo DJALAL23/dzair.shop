@@ -127,7 +127,7 @@ const statsRoute = defineRoute({
   tags: ["Abandoned Orders"],
   summary: "Abandoned order statistics",
   description:
-    "Summary metrics for the recovery workflow: counts of abandoned vs converted checkouts, the recovered percentage, and estimated lost revenue still on the table.",
+    "How many checkouts sit abandoned, and how many were recovered into an order.",
   operationId: "getAbandonedOrderStats",
   responses: {
     200: {

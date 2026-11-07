@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- One definition per metric. `GET /analytics/order-stages` answers the
+  `deliveryRate` (of the parcels whose delivery ended, delivered or returned,
+  the share delivered; archived orders included), so the dashboard no longer
+  computes it, and no longer counted a return under way as a failure. The
+  stage counts and attention come from one grouped query. The overview shows
+  delivered and returned counts beside it (it said "refused", a status
+  Wocart does not know).
+- `GET /analytics/order-activity` names its money `orderValue` (it was
+  `sales`): the value of placed orders, not money received. The dashboard
+  says "Order value".
+- `GET /abandoned-orders/stats` answers the two counts only: the
+  recovered percentage ignored pending checkouts, and "estimated lost
+  revenue" summed prices the shopper's browser reported.
+
 ### Removed
 
 - Landing pages count nothing of their own (migration 0074). The view

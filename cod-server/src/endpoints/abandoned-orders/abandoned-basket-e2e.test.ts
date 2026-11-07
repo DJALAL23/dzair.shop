@@ -26,7 +26,6 @@ import type { AppDb } from "@/db";
 import storeAbandonedRouter from "./store-routes";
 import {
   listAbandonedOrders,
-  getAbandonedOrderStats,
 } from "../../../../cod-shared/queries/abandoned-orders";
 
 const registry: Miniflare[] = [];
@@ -199,14 +198,6 @@ describe("a basket checkout", () => {
     await track(shopper({ sessionId, items: [hoodie, tshirt] }));
     // 2 × 2400 + 1 × 1000
     expect((await rowFor(sessionId))?.price).toBe(5800);
-
-    await db
-      .update(schema.abandonedOrders)
-      .set({ status: "abandoned" })
-      .where(eq(schema.abandonedOrders.sessionId, sessionId));
-
-    const stats = await getAbandonedOrderStats(db);
-    expect(stats.estimatedLostRevenue).toBe(5800);
   });
 
   it("replaces the basket as the shopper edits it, without duplicating the row", async () => {

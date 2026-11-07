@@ -176,9 +176,7 @@
     },
     "stats": {
       "abandoned": "Abandoned",
-      "recovered": "Recovered",
-      "conversion_rate": "Recovery rate",
-      "lost_revenue": "Estimated lost"
+      "recovered": "Recovered"
     },
     "empty": {
       "title": "No abandoned checkouts",

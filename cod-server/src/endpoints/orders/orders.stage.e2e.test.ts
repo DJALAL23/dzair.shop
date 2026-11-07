@@ -142,6 +142,16 @@ describe("orders by stage", () => {
       handoff_pending: 1,
     });
     expect(data.needsAttention).toBe(1);
+    expect(data.deliveryRate).toBe(100);
+  });
+
+  it("leaves archived orders out of the working counts, never out of the delivery rate", async () => {
+    await d1.db.update(schema.orders).set({ archivedAt: T0 }).where(eq(schema.orders.id, "driven"));
+    const { data } = await json(await call("GET", "/api/analytics/order-stages?archived=exclude"));
+    expect(data.stages.find((s: any) => s.stage === "delivered")).toBeUndefined();
+    expect(data.archived).toBe(1);
+    expect(data.needsAttention).toBe(1);
+    expect(data.deliveryRate).toBe(100);
   });
 
   it("is for whoever reads the orders or the dashboard", async () => {

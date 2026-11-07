@@ -70,18 +70,18 @@ describe("order activity", () => {
       from: "2026-10-10",
       to: "2026-10-16",
       days: [
-        { date: "2026-10-10", orders: 1, sales: 1900 },
-        { date: "2026-10-15", orders: 1, sales: 1900 },
-        { date: "2026-10-16", orders: 2, sales: 4900 },
+        { date: "2026-10-10", orders: 1, orderValue: 1900 },
+        { date: "2026-10-15", orders: 1, orderValue: 1900 },
+        { date: "2026-10-16", orders: 2, orderValue: 4900 },
       ],
-      previous: { orders: 1, sales: 1000 },
+      previous: { orders: 1, orderValue: 1000 },
     });
   });
 
   it("defaults to thirty days and refuses a window it does not offer", async () => {
     const { body } = await activity("");
     expect(body.data.from).toBe("2026-09-17");
-    expect(body.data.previous).toEqual({ orders: 0, sales: 0 });
+    expect(body.data.previous).toEqual({ orders: 0, orderValue: 0 });
     expect(body.data.days.reduce((sum: number, day: any) => sum + day.orders, 0)).toBe(6);
     expect((await activity("?days=12")).status).toBe(400);
   });

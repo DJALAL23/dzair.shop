@@ -7,8 +7,8 @@ import { EmptyState, LinkButton, Alert, PageHeader, Card, Select } from "@/compo
 import { useLocale, useT } from "@/i18n/react";
 import {
   ACTIVITY_WINDOWS,
-  deliverySuccessRate,
   queueBreakdown,
+  stageCount,
   summarizeActivity,
   type ActivityWindow,
   type OrderActivity,
@@ -19,7 +19,7 @@ import { getOrderStageCounts, listOrders } from "@/features/orders/api";
 import { formatMoney, orderTotal, viewCounts } from "@/features/orders/model";
 import type { OrderListItem, OrderStageCounts } from "@/features/orders/types";
 
-type Metric = "sales" | "orders";
+type Metric = "orderValue" | "orders";
 
 function Change({ value }: { value: number | null }) {
   const t = useT("dashboard");
@@ -41,18 +41,18 @@ function Change({ value }: { value: number | null }) {
 function Performance({ activity, range }: { activity: OrderActivity; range: ActivityWindow }) {
   const t = useT("dashboard");
   const locale = useLocale();
-  const [metric, setMetric] = useState<Metric>("sales");
+  const [metric, setMetric] = useState<Metric>("orderValue");
   const summary = summarizeActivity(activity);
   const tag = locale === "ar" ? "ar-DZ" : `${locale}-DZ`;
   const compact = new Intl.NumberFormat(tag, { notation: "compact", maximumFractionDigits: 1 });
   const formatDay = (date: string, style: "short" | "long") =>
     new Intl.DateTimeFormat(tag, style === "short" ? { day: "numeric", month: "short", timeZone: "UTC" } : { weekday: "short", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
   const cells: { key: Metric | "average"; label: string; value: string; change: number | null }[] = [
-    { key: "sales", label: t("performance.sales"), value: formatMoney(summary.sales, locale), change: summary.change.sales },
+    { key: "orderValue", label: t("performance.order_value"), value: formatMoney(summary.orderValue, locale), change: summary.change.orderValue },
     { key: "orders", label: t("performance.orders"), value: summary.orders.toLocaleString(tag), change: summary.change.orders },
     { key: "average", label: t("performance.average"), value: summary.average === null ? "—" : formatMoney(summary.average, locale), change: summary.change.average },
   ];
-  const label = metric === "sales" ? t("performance.sales") : t("performance.orders");
+  const label = metric === "orderValue" ? t("performance.order_value") : t("performance.orders");
 
   return (
     <section className="overflow-hidden rounded-xl bg-card shadow-card">
@@ -95,8 +95,8 @@ function Performance({ activity, range }: { activity: OrderActivity; range: Acti
         ) : (
           <TrendChart
             days={summary.days}
-            value={(day) => (metric === "sales" ? day.sales : day.orders)}
-            formatValue={(amount) => (metric === "sales" ? formatMoney(amount, locale) : amount.toLocaleString(tag))}
+            value={(day) => (metric === "orderValue" ? day.orderValue : day.orders)}
+            formatValue={(amount) => (metric === "orderValue" ? formatMoney(amount, locale) : amount.toLocaleString(tag))}
             formatTick={(amount) => compact.format(amount)}
             formatDay={formatDay}
             caption={t("performance.caption", { metric: label, range: t("performance.range", { count: range }) })}
@@ -232,7 +232,7 @@ function DashboardOverview() {
   }
 
   const queues = queueBreakdown(stats);
-  const successRate = deliverySuccessRate(stats);
+  const successRate = stats.deliveryRate;
 
   return (
     <div className="space-y-4">
@@ -302,7 +302,7 @@ function DashboardOverview() {
                 <span className="text-end">
                   <span className="block text-sm font-medium tabular-nums text-foreground">{successRate === null ? "—" : `${successRate}%`}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {t("stats.delivered_count", { count: views.delivered })}, {t("stats.refused_count", { count: views.returns })}
+                    {t("stats.delivered_count", { count: stageCount(stats, "delivered") })}, {t("stats.returned_count", { count: stageCount(stats, "returned") })}
                   </span>
                 </span>
               </div>

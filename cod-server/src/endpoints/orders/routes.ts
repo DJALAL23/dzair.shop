@@ -224,7 +224,7 @@ const archiveOrderRoute = defineRoute({
   tags: ["Orders"],
   summary: "Archive order",
   description:
-    "Takes a finished order — cancelled, or its shipment delivered, returned or cancelled — out of the working lists and their counts. It still counts in sales and the customer's history, and can be restored. Archiving it again keeps the first date. **409 ORDER_NOT_FINISHED** before then.",
+    "Takes a finished order — cancelled, or its shipment delivered, returned or cancelled — out of the working lists and their counts. It still counts in the analytics and the customer's history, and can be restored. Archiving it again keeps the first date. **409 ORDER_NOT_FINISHED** before then.",
   operationId: "archiveOrder",
   params: IdParamSchema,
   responses: {

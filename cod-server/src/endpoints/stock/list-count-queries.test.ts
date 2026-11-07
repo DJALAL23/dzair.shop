@@ -117,50 +117,15 @@ describe("listAbandonedOrders", () => {
 });
 
 describe("getAbandonedOrderStats", () => {
-  it("derives stats from three counts in one batch", async () => {
-    const db = makeMockDb([
-      f({ count: 3 }),
-      f({ count: 1 }),
-      f({ total: 7500 }),
-    ]);
+  it("counts the abandoned and the recovered checkouts in one batch", async () => {
+    const db = makeMockDb([f({ count: 3 }), f({ count: 1 })]);
 
-    const stats = await getAbandonedOrderStats(db);
-
-    expect(stats).toEqual({
-      totalAbandoned: 3,
-      totalConverted: 1,
-      conversionRate: 25,
-      estimatedLostRevenue: 7500,
-    });
+    expect(await getAbandonedOrderStats(db)).toEqual({ totalAbandoned: 3, totalConverted: 1 });
   });
 
-  it("conversion rate rounds; zero attempted → 0%", async () => {
-    const db = makeMockDb([
-      f({ count: 1 }),
-      f({ count: 2 }),
-      f({ total: 0 }),
-    ]);
+  it("an empty table counts zero of each", async () => {
+    const db = makeMockDb([f({ count: 0 }), f({ count: 0 })]);
 
-    const stats = await getAbandonedOrderStats(db);
-
-    expect(stats.conversionRate).toBe(67);
-    expect(stats.estimatedLostRevenue).toBe(0);
-  });
-
-  it("empty table → all zeros, no division by zero", async () => {
-    const db = makeMockDb([
-      f({ count: 0 }),
-      f({ count: 0 }),
-      f({ total: 0 }),
-    ]);
-
-    const stats = await getAbandonedOrderStats(db);
-
-    expect(stats).toEqual({
-      totalAbandoned: 0,
-      totalConverted: 0,
-      conversionRate: 0,
-      estimatedLostRevenue: 0,
-    });
+    expect(await getAbandonedOrderStats(db)).toEqual({ totalAbandoned: 0, totalConverted: 0 });
   });
 });

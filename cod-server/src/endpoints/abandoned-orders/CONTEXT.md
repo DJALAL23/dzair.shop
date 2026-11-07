@@ -42,12 +42,8 @@ The cron that ages pending sessions into abandoned using the original capture ti
 ### Measurement
 
 **Recovery Stats**:
-Three numbers computed live: how many checkouts sit abandoned, how many converted, and the recovered percentage across both.
-_Avoid_: Success metrics, funnel report
-
-**Estimated Lost Revenue**:
-The sum of self-reported basket prices across currently-abandoned sessions — an approximation built from what shoppers typed, not a verified sales figure.
-_Avoid_: Real revenue loss, exact figure
+Two counts computed live: how many checkouts sit abandoned, and how many were recovered into an order. No rate and no money: a basket's value is what the shopper's browser reported, never a figure to report.
+_Avoid_: Conversion rate, lost revenue, funnel report
 
 ## Boundaries
 
@@ -67,4 +63,4 @@ Terms owned by neighboring contexts — use them, don't redefine them here:
 
 **The sweep counts from first capture**: A shopper who types slowly for an hour is swept to abandoned mid-session even though their record keeps updating — a later conversion still wins.
 
-**Basket value is aspirational**: Estimated lost revenue inherits whatever price the shopper's browser reported, absent products, quantities, or fees.
+**Basket value is aspirational**: a captured basket keeps whatever price the shopper's browser reported, for the follow-up call; it is never summed into money.

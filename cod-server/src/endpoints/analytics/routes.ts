@@ -21,13 +21,13 @@ const orderStagesRoute = defineRoute({
   tags: ["Analytics"],
   summary: "Orders by stage",
   description:
-    "Orders counted by the stage the merchant sees — their processing, then their shipment's delivery (the same stage as `GET /api/orders/{id}`) — with only the stages that have orders, how many orders need the merchant's attention, and how many are archived; `archived=exclude` leaves archived orders out of the stages, as the working lists do (an unknown handoff, a parcel the carrier cancelled or flagged).",
+    "Orders counted by the stage the merchant sees — their processing, then their shipment's delivery (the same stage as `GET /api/orders/{id}`) — with only the stages that have orders, how many orders need the merchant's attention, how many are archived, and the delivery rate; `archived=exclude` leaves archived orders out of the stages, as the working lists do (an unknown handoff, a parcel the carrier cancelled or flagged).",
   operationId: "getOrderStageStats",
   query: z.object({
     archived: z
       .enum(["include", "exclude"])
       .default("include")
-      .describe("Count archived orders in the stages (include — every order, as sales do) or leave them out (exclude — the working lists' counts)"),
+      .describe("Count archived orders in the stages (include — every order) or leave them out (exclude — the working lists' counts)"),
   }),
   responses: {
     200: {
@@ -40,6 +40,10 @@ const orderStagesRoute = defineRoute({
               stages: z.array(z.object({ stage: z.enum(ORDER_STAGES), count: z.number().int().openapi({ example: 12 }) })),
               needsAttention: z.number().int().openapi({ example: 3 }),
               archived: z.number().int().openapi({ description: "Archived orders", example: 40 }),
+              deliveryRate: z.number().int().min(0).max(100).nullable().openapi({
+                description: "Of the parcels whose delivery ended — delivered or returned — the share delivered, a whole percent; null before any ended. A return under way and a parcel the carrier cancelled count for neither.",
+                example: 82,
+              }),
             }),
           }),
         },
@@ -52,7 +56,7 @@ const orderStagesRoute = defineRoute({
 const activityDay = z.object({
   date: z.string().openapi({ example: "2026-10-16" }),
   orders: z.number().int().openapi({ example: 14 }),
-  sales: z.number().openapi({ example: 52400 }),
+  orderValue: z.number().openapi({ example: 52400 }),
 });
 
 const orderActivityRoute = defineRoute({
@@ -73,7 +77,7 @@ const orderActivityRoute = defineRoute({
   }),
   responses: {
     200: {
-      description: "Orders and sales per day, and the previous window's totals",
+      description: "Orders and their value per day, and the previous window's totals",
       content: {
         "application/json": {
           schema: z.object({
@@ -82,7 +86,7 @@ const orderActivityRoute = defineRoute({
               from: z.string().openapi({ example: "2026-09-17" }),
               to: z.string().openapi({ example: "2026-10-16" }),
               days: z.array(activityDay),
-              previous: z.object({ orders: z.number().int(), sales: z.number() }),
+              previous: z.object({ orders: z.number().int(), orderValue: z.number() }),
             }),
           }),
         },

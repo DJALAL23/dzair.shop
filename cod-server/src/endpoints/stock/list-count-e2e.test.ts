@@ -227,13 +227,8 @@ describe("listAbandonedOrders — real D1", () => {
 });
 
 describe("getAbandonedOrderStats — real D1", () => {
-  it("computes stats from real rows (3 abandoned, 1 converted → 25%)", async () => {
+  it("counts the abandoned and the recovered checkouts from real rows", async () => {
     const stats = await getAbandonedOrderStats(db);
-    expect(stats).toEqual({
-      totalAbandoned: 2,
-      totalConverted: 1,
-      conversionRate: 33,
-      estimatedLostRevenue: 4000,
-    });
+    expect(stats).toEqual({ totalAbandoned: 2, totalConverted: 1 });
   });
 });

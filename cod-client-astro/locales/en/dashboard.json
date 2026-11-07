@@ -8,8 +8,8 @@
     "delivery_success": "Delivery success",
     "delivered_count_one": "{count} delivered",
     "delivered_count_other": "{count} delivered",
-    "refused_count_one": "{count} refused",
-    "refused_count_other": "{count} refused"
+    "returned_count_one": "{count} returned",
+    "returned_count_other": "{count} returned"
   },
   "recent_orders": {
     "title": "Recent orders",
@@ -33,7 +33,7 @@
     "clear": "Nothing is waiting for you right now"
   },
   "performance": {
-    "sales": "Sales",
+    "order_value": "Order value",
     "orders": "Orders",
     "average": "Average order",
     "period": "Period",

@@ -355,30 +355,13 @@ export async function listAbandonedOrders(
   return { rows: withItems, total: countRows[0]?.count ?? 0 };
 }
 
-export async function getAbandonedOrderStats(db: AppDb) {
-  const [totalRows, convertedRows, revenueRows] = await db.batch([
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(abandonedOrders)
-      .where(eq(abandonedOrders.status, "abandoned")),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(abandonedOrders)
-      .where(eq(abandonedOrders.status, "converted")),
-    db
-      .select({ total: sql<number>`coalesce(sum(price), 0)` })
-      .from(abandonedOrders)
-      .where(eq(abandonedOrders.status, "abandoned")),
+/** How many checkouts sit abandoned, and how many of them were recovered into an order. */
+export async function getAbandonedOrderStats(db: AppDb): Promise<{ totalAbandoned: number; totalConverted: number }> {
+  const [abandoned, converted] = await db.batch([
+    db.select({ count: sql<number>`count(*)` }).from(abandonedOrders).where(eq(abandonedOrders.status, "abandoned")),
+    db.select({ count: sql<number>`count(*)` }).from(abandonedOrders).where(eq(abandonedOrders.status, "converted")),
   ]);
-
-  const totalAbandoned = totalRows[0]?.count ?? 0;
-  const totalConverted = convertedRows[0]?.count ?? 0;
-  const totalAttempted = totalAbandoned + totalConverted;
-  const conversionRate =
-    totalAttempted > 0 ? Math.round((totalConverted / totalAttempted) * 100) : 0;
-  const estimatedLostRevenue = revenueRows[0]?.total ?? 0;
-
-  return { totalAbandoned, totalConverted, conversionRate, estimatedLostRevenue };
+  return { totalAbandoned: Number(abandoned[0]?.count ?? 0), totalConverted: Number(converted[0]?.count ?? 0) };
 }
 
 export async function updateAbandonedOrderStatus(

@@ -5,8 +5,6 @@ import {
   PackageX,
   RefreshCw,
   Trash2,
-  TrendingUp,
-  Wallet,
   X,
 } from "lucide-react";
 import {
@@ -476,7 +474,7 @@ function AbandonedOrdersView() {
         </Alert>
       )}
 
-      <StatGroup columns={4}>
+      <StatGroup columns={2}>
         <StatCard
           label={t("abandoned.stats.abandoned")}
           value={stats.totalAbandoned.toLocaleString(locale)}
@@ -488,17 +486,6 @@ function AbandonedOrdersView() {
           value={stats.totalConverted.toLocaleString(locale)}
           tone="success"
           icon={<CheckCircle2 size={20} />}
-        />
-        <StatCard
-          label={t("abandoned.stats.conversion_rate")}
-          value={`${stats.conversionRate}%`}
-          icon={<TrendingUp size={20} />}
-        />
-        <StatCard
-          label={t("abandoned.stats.lost_revenue")}
-          value={formatMoney(stats.estimatedLostRevenue, locale)}
-          tone="critical"
-          icon={<Wallet size={20} />}
         />
       </StatGroup>
 

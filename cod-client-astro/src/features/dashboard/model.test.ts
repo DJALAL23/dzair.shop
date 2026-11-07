@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deliverySuccessRate, queueBreakdown, summarizeActivity } from "./model";
+import { queueBreakdown, stageCount, summarizeActivity } from "./model";
 
 const counts = {
   stages: [
@@ -11,7 +11,8 @@ const counts = {
     { stage: "returning" as const, count: 1 },
   ],
   needsAttention: 1,
-    archived: 0,
+  archived: 0,
+  deliveryRate: 86,
 };
 
 describe("the overview", () => {
@@ -25,12 +26,12 @@ describe("the overview", () => {
       { key: "returns", count: 2, share: 14 },
       { key: "cancelled", count: 0, share: 0 },
     ]);
-    expect(queueBreakdown({ stages: [], needsAttention: 0, archived: 0 }).every((queue) => queue.count === 0 && queue.share === 0)).toBe(true);
+    expect(queueBreakdown({ stages: [], needsAttention: 0, archived: 0, deliveryRate: null }).every((queue) => queue.count === 0 && queue.share === 0)).toBe(true);
   });
 
-  it("measures delivery success over the parcels that reached their customer", () => {
-    expect(deliverySuccessRate(counts)).toBe(75);
-    expect(deliverySuccessRate({ stages: [{ stage: "in_transit", count: 4 }], needsAttention: 0, archived: 0 })).toBeNull();
+  it("reads one stage's orders, none when the stage is absent", () => {
+    expect(stageCount(counts, "delivered")).toBe(6);
+    expect(stageCount(counts, "cancelled")).toBe(0);
   });
 
   it("fills every day of the window and compares it with the window before", () => {
@@ -38,21 +39,21 @@ describe("the overview", () => {
       from: "2026-10-14",
       to: "2026-10-16",
       days: [
-        { date: "2026-10-14", orders: 2, sales: 3000 },
-        { date: "2026-10-16", orders: 1, sales: 3000 },
+        { date: "2026-10-14", orders: 2, orderValue: 3000 },
+        { date: "2026-10-16", orders: 1, orderValue: 3000 },
       ],
-      previous: { orders: 4, sales: 4000 },
+      previous: { orders: 4, orderValue: 4000 },
     });
     expect(summary.days.map((day) => [day.date, day.orders])).toEqual([
       ["2026-10-14", 2],
       ["2026-10-15", 0],
       ["2026-10-16", 1],
     ]);
-    expect(summary).toMatchObject({ orders: 3, sales: 6000, average: 2000, change: { orders: -25, sales: 50, average: 100 } });
+    expect(summary).toMatchObject({ orders: 3, orderValue: 6000, average: 2000, change: { orders: -25, orderValue: 50, average: 100 } });
   });
 
   it("gives no change against an empty window, and no average without orders", () => {
-    const summary = summarizeActivity({ from: "2026-10-16", to: "2026-10-16", days: [], previous: { orders: 0, sales: 0 } });
-    expect(summary).toMatchObject({ days: [{ date: "2026-10-16", orders: 0, sales: 0 }], orders: 0, average: null, change: { orders: null, sales: null, average: null } });
+    const summary = summarizeActivity({ from: "2026-10-16", to: "2026-10-16", days: [], previous: { orders: 0, orderValue: 0 } });
+    expect(summary).toMatchObject({ days: [{ date: "2026-10-16", orders: 0, orderValue: 0 }], orders: 0, average: null, change: { orders: null, orderValue: null, average: null } });
   });
 });

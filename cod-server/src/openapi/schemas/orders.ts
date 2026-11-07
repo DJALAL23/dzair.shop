@@ -363,14 +363,9 @@ export const AbandonedOrderStatsSchema = z
       description: "Orders currently in `abandoned` status",
       example: 34,
     }),
-    totalConverted: z.number().int().openapi({ example: 12 }),
-    conversionRate: z.number().int().openapi({
-      description: "Recovered percentage: converted / (abandoned + converted), rounded",
-      example: 26,
-    }),
-    estimatedLostRevenue: z.number().openapi({
-      description: "Sum of cart values still sitting in `abandoned` status, in DZD",
-      example: 306000,
+    totalConverted: z.number().int().openapi({
+      description: "Checkouts recovered: the shopper placed the order",
+      example: 12,
     }),
   })
   .openapi("AbandonedOrderStats");

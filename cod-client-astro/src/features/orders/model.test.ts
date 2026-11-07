@@ -102,7 +102,8 @@ describe("the order list's work queues", () => {
         { stage: "delivery_cancelled", count: 1 },
       ],
       needsAttention: 2,
-    archived: 0,
+      archived: 0,
+      deliveryRate: null,
     });
     expect(counts).toEqual({ all: 11, attention: 2, archived: 0, to_confirm: 5, to_prepare: 0, to_ship: 1, on_the_way: 5, delivered: 0, returns: 0, cancelled: 0 });
   });

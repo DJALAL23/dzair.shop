@@ -116,15 +116,13 @@ describe("Abandoned Orders routes (OpenAPIHono)", () => {
       vi.mocked(getAbandonedOrderStats).mockResolvedValue({
         totalAbandoned: 34,
         totalConverted: 12,
-        conversionRate: 26,
-        estimatedLostRevenue: 306000,
-      } as any);
+      });
 
       const res = await app.request("/api/abandoned-orders/stats");
 
       expect(res.status).toBe(200);
       const body: any = await res.json();
-      expect(body.data.conversionRate).toBe(26);
+      expect(body.data).toEqual({ totalAbandoned: 34, totalConverted: 12 });
     });
   });
 

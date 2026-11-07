@@ -12,12 +12,12 @@
     "delivered_count_few": "{count} طلبات مسلّمة",
     "delivered_count_many": "{count} طلبًا مسلّمًا",
     "delivered_count_other": "{count} طلب مسلّم",
-    "refused_count_zero": "لا طلبات مرفوضة",
-    "refused_count_one": "طلب مرفوض واحد",
-    "refused_count_two": "طلبان مرفوضان",
-    "refused_count_few": "{count} طلبات مرفوضة",
-    "refused_count_many": "{count} طلبًا مرفوضًا",
-    "refused_count_other": "{count} طلب مرفوض"
+    "returned_count_zero": "لا طلبات مرتجعة",
+    "returned_count_one": "طلب مرتجع واحد",
+    "returned_count_two": "طلبان مرتجعان",
+    "returned_count_few": "{count} طلبات مرتجعة",
+    "returned_count_many": "{count} طلبًا مرتجعًا",
+    "returned_count_other": "{count} طلب مرتجع"
   },
   "recent_orders": {
     "title": "آخر الطلبات",
@@ -57,7 +57,7 @@
     "clear": "لا شيء ينتظرك الآن"
   },
   "performance": {
-    "sales": "المبيعات",
+    "order_value": "قيمة الطلبات",
     "orders": "الطلبات",
     "average": "متوسط الطلب",
     "period": "الفترة",

@@ -5,7 +5,7 @@
  * database round-trip with no client-side aggregation.
  */
 
-import { and, count, eq, gte, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, count, eq, gte, ne, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { orders, shipments } from "../db/schema";
 import type { OrderStage } from "../orders/stage";
@@ -18,28 +18,56 @@ export interface OrderStageStats {
   needsAttention: number;
   /** Orders the merchant archived. */
   archived: number;
+  /** Of the parcels whose delivery ended, the share delivered (`deliveryRate`). */
+  deliveryRate: number | null;
 }
 
 /**
- * Orders by the stage the merchant sees, how many need attention, and how
- * many are archived. Every order counts, as sales do; `archived: "exclude"`
- * gives the working lists' counts instead, which leave archived orders out.
+ * Of the parcels whose delivery ended — delivered or returned — the share
+ * delivered, as a whole percent; null before any ended. A return under way
+ * can still end delivered, and a parcel the carrier cancelled never reached
+ * the customer: neither counts, for or against.
+ */
+export function deliveryRate(stages: ReadonlyArray<{ stage: OrderStage; count: number }>): number | null {
+  const count = (stage: OrderStage) => stages.find((entry) => entry.stage === stage)?.count ?? 0;
+  const delivered = count("delivered");
+  const ended = delivered + count("returned");
+  return ended === 0 ? null : Math.round((delivered / ended) * 100);
+}
+
+/**
+ * Orders by the stage the merchant sees, how many need attention, how many
+ * are archived, and the delivery rate. Every order counts;
+ * `archived: "exclude"` gives the working lists' counts instead, which leave
+ * archived orders out. The delivery rate always reads every order: archiving
+ * a finished order never changes how its delivery ended.
  */
 export async function getOrderStageStats(db: AppDb, options: { archived?: "include" | "exclude" } = {}): Promise<OrderStageStats> {
   const stage = orderStageSql();
-  const [rows, archivedRows] = await db.batch([
-    db
-      .select({ stage, count: count(), attention: sql<number>`sum(${orderNeedsAttentionSql()})` })
-      .from(orders)
-      .leftJoin(shipments, eq(shipments.orderId, orders.id))
-      .where(options.archived === "exclude" ? isNull(orders.archivedAt) : undefined)
-      .groupBy(stage),
-    db.select({ count: count() }).from(orders).where(isNotNull(orders.archivedAt)),
-  ]);
+  const attention = orderNeedsAttentionSql();
+  const isArchived = sql`(${orders.archivedAt} is not null)`;
+  const rows = await db
+    .select({
+      stage,
+      all: count(),
+      archived: sql<number>`sum(${isArchived})`,
+      attention: sql<number>`sum(${attention})`,
+      archivedAttention: sql<number>`sum(${attention} and ${isArchived})`,
+    })
+    .from(orders)
+    .leftJoin(shipments, eq(shipments.orderId, orders.id))
+    .groupBy(stage)
+    .all();
+  const exclude = options.archived === "exclude";
+  const every = rows.map((r) => ({ stage: r.stage, count: Number(r.all) }));
+  const stages = rows
+    .map((r) => ({ stage: r.stage, count: Number(r.all) - (exclude ? Number(r.archived ?? 0) : 0) }))
+    .filter((entry) => entry.count > 0);
   return {
-    stages: rows.map((r) => ({ stage: r.stage, count: Number(r.count) })),
-    needsAttention: rows.reduce((sum, r) => sum + Number(r.attention ?? 0), 0),
-    archived: Number(archivedRows[0]?.count ?? 0),
+    stages,
+    needsAttention: rows.reduce((sum, r) => sum + Number(r.attention ?? 0) - (exclude ? Number(r.archivedAttention ?? 0) : 0), 0),
+    archived: rows.reduce((sum, r) => sum + Number(r.archived ?? 0), 0),
+    deliveryRate: deliveryRate(every),
   };
 }
 
@@ -55,7 +83,7 @@ export interface OrderActivityDay {
   date: string;
   orders: number;
   /** What those orders are worth to the store: price plus delivery fee. */
-  sales: number;
+  orderValue: number;
 }
 
 export interface OrderActivity {
@@ -66,7 +94,7 @@ export interface OrderActivity {
   /** Days with at least one order, oldest first; a missing day had none. */
   days: OrderActivityDay[];
   /** The same number of days just before the window, for comparison. */
-  previous: { orders: number; sales: number };
+  previous: { orders: number; orderValue: number };
 }
 
 function storeDay(instant: Date, shiftDays = 0): string {
@@ -77,7 +105,7 @@ function storeDay(instant: Date, shiftDays = 0): string {
 /**
  * Orders placed per store day over the last `window` days (today included),
  * and the totals of the window before it. Cancelled orders are left out: they
- * never become sales.
+ * are worth nothing to the store.
  */
 export async function getOrderActivity(db: AppDb, window: ActivityWindow, now: Date = new Date()): Promise<OrderActivity> {
   const to = storeDay(now);
@@ -86,21 +114,21 @@ export async function getOrderActivity(db: AppDb, window: ActivityWindow, now: D
   const since = new Date(Date.parse(`${previousFrom}T00:00:00.000Z`) - STORE_UTC_OFFSET_HOURS * 3_600_000).toISOString();
   const day = sql<string>`date(${orders.createdAt}, ${`+${STORE_UTC_OFFSET_HOURS} hours`})`;
   const rows = await db
-    .select({ day, orders: count(), sales: sql<number>`coalesce(sum(${orders.price} + ${orders.deliveryFee}), 0)` })
+    .select({ day, orders: count(), orderValue: sql<number>`coalesce(sum(${orders.price} + ${orders.deliveryFee}), 0)` })
     .from(orders)
     .where(and(gte(orders.createdAt, since), ne(orders.status, "cancelled")))
     .groupBy(day)
     .orderBy(day)
     .all();
   const days: OrderActivityDay[] = [];
-  const previous = { orders: 0, sales: 0 };
+  const previous = { orders: 0, orderValue: 0 };
   for (const row of rows) {
     if (row.day > to) continue;
-    const entry = { date: row.day, orders: Number(row.orders), sales: Number(row.sales) };
+    const entry = { date: row.day, orders: Number(row.orders), orderValue: Number(row.orderValue) };
     if (row.day >= from) days.push(entry);
     else {
       previous.orders += entry.orders;
-      previous.sales += entry.sales;
+      previous.orderValue += entry.orderValue;
     }
   }
   return { from, to, days, previous };

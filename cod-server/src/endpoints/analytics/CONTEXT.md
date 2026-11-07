@@ -13,16 +13,20 @@ A published metric set (`GET /analytics/order-stages`): orders counted by stage 
 _Avoid_: KPIs, reports, status breakdown
 
 **Order Activity**:
-Orders placed per store day over the last 7, 30 or 90 days, today included (`GET /analytics/order-activity?days=`), each day's count and sales, and the totals of the same number of days just before for comparison. Powers the overview's trend.
+Orders placed per store day over the last 7, 30 or 90 days, today included (`GET /analytics/order-activity?days=`), each day's count and Order Value, and the totals of the same number of days just before for comparison. Powers the overview's trend.
 _Avoid_: Revenue, traffic
 
 **Store Day**:
 A calendar day in Algeria, which keeps UTC+1 all year: a day starts at 23:00 UTC the evening before. Order activity buckets by it, never by the UTC date.
 _Avoid_: UTC day, server day
 
-**Sales**:
-What placed orders are worth to the store — price plus delivery fee, the total the order list shows. Cancelled orders are left out; a placed order counts whether or not it was delivered yet.
-_Avoid_: Revenue, collected cash
+**Order Value**:
+What placed orders are worth to the store — price plus delivery fee, the total the order list shows. Cancelled orders are left out; a placed order counts whether or not it was delivered yet. It is not money received.
+_Avoid_: Sales, revenue, collected cash
+
+**Delivery Rate**:
+Of the parcels whose delivery ended — delivered or returned — the share delivered. A return under way can still end delivered, and a parcel the carrier cancelled never reached the customer: neither counts. Archiving an order never changes it.
+_Avoid_: Success rate, refusal rate
 
 **Sparse Results**:
 Only stages, or days, holding at least one order appear; a missing one means zero, and filling the gaps (or summing stages into queues) is the caller's job.
@@ -50,7 +54,7 @@ _Avoid_: Inline SQL in handlers, cross-module metric mixing
 Terms owned by neighboring contexts — use them, don't redefine them here:
 
 - **Stages, statuses and their rules**: Orders (`cod-shared/orders/stage.ts`, `lifecycle.ts`) — this module counts, never judges or moves
-- **Money metrics**: only Sales, the value of placed orders; collected cash and settlement belong to Payments
+- **Money metrics**: only Order Value, the value of placed orders; collected cash and settlement belong to Payments
 - **Product and stock health**: Products / Stock contexts own their own summaries
 
 ## Edge Cases

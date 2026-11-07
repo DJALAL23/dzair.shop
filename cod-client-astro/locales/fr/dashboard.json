@@ -9,9 +9,9 @@
     "delivered_count_one": "{count} livrée",
     "delivered_count_many": "{count} livrées",
     "delivered_count_other": "{count} livrées",
-    "refused_count_one": "{count} refusée",
-    "refused_count_many": "{count} refusées",
-    "refused_count_other": "{count} refusées"
+    "returned_count_one": "{count} retournée",
+    "returned_count_many": "{count} retournées",
+    "returned_count_other": "{count} retournées"
   },
   "recent_orders": {
     "title": "Commandes récentes",
@@ -39,7 +39,7 @@
     "clear": "Rien ne vous attend pour le moment"
   },
   "performance": {
-    "sales": "Ventes",
+    "order_value": "Valeur des commandes",
     "orders": "Commandes",
     "average": "Panier moyen",
     "period": "Période",

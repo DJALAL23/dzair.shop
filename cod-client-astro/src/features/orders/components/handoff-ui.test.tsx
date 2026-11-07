@@ -43,7 +43,7 @@ beforeEach(() => {
   geography.listWilayas.mockResolvedValue([]);
   api.listDeliveryCompanies.mockResolvedValue([]);
   api.listDrivers.mockResolvedValue([driver]);
-  api.getOrderStageCounts.mockResolvedValue({ stages: [], needsAttention: 0, archived: 0 });
+  api.getOrderStageCounts.mockResolvedValue({ stages: [], needsAttention: 0, archived: 0, deliveryRate: null });
 });
 
 afterEach(() => {

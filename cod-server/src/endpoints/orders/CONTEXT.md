@@ -61,7 +61,7 @@ _Avoid_: Closed, completed
 
 **Archived**:
 A Finished order the merchant put away: it leaves the working order lists and
-their counts, still counts in sales, analytics and the customer's history, and
+their counts, still counts in Order Value, analytics and the customer's history, and
 can be restored. Not a status — `orders.archived_at`.
 _Avoid_: Hidden, soft-deleted
 

@@ -177,9 +177,7 @@
     },
     "stats": {
       "abandoned": "Abandonnées",
-      "recovered": "Récupérées",
-      "conversion_rate": "Taux de récupération",
-      "lost_revenue": "Perte estimée"
+      "recovered": "Récupérées"
     },
     "empty": {
       "title": "Aucun panier abandonné",

@@ -175,6 +175,8 @@ export interface OrderStageCounts {
   stages: Array<{ stage: OrderStage; count: number }>;
   needsAttention: number;
   archived: number;
+  /** Of the parcels whose delivery ended, the share delivered, a whole percent; null before any ended. */
+  deliveryRate: number | null;
 }
 
 /** What can be done to clear an order away, as the server decides it. */
@@ -360,6 +362,4 @@ export interface AbandonedOrder {
 export interface AbandonedStats {
   totalAbandoned: number;
   totalConverted: number;
-  conversionRate: number;
-  estimatedLostRevenue: number;
 }
