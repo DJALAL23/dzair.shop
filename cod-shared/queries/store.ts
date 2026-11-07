@@ -270,7 +270,6 @@ export async function getStoreConfig(
       served.translate === null ? { primary: true } : { primary: false, translations: Object.fromEntries(widgetTranslations.map((row) => [row.key, row.value])) },
     ),
     pixelId: tracking.pixelId,
-    conversionEvent: tracking.conversionEvent,
     pages,
     contact,
     otpEnabled: otpRow?.enabled === true,

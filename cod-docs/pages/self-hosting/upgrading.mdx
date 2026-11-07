@@ -53,6 +53,12 @@ after the server, from the same checkout.
 Newest first. Only the entries for migrations your database has not applied
 concern you.
 
+### Storefront contract 4 (no migration)
+
+- `/store/config` and a landing page's `tracking` no longer send
+  `conversionEvent`; `GET /store/orders/{id}/tracking` adds `eventId`. A
+  storefront needs `@wocart/storefront` 4: deploy it right after the server.
+
 ### 0077: unread columns dropped
 
 - The store's old colours, font and `status`, and the URLs and R2 keys

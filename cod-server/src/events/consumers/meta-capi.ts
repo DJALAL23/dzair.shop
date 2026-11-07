@@ -24,7 +24,7 @@
 import { eq, sql } from "drizzle-orm";
 import { capiEventLog, communes, landingPages, orders, stores } from "@/db/schema";
 import { sendCapiEvent } from "@/lib/capi";
-import { conversionSourceUrl, isLongHaulWilaya, resolveCapiDispatch, resolveConversionForStage, type ConversionStage } from "@/lib/meta-conversions";
+import { conversionEventId, conversionSourceUrl, isLongHaulWilaya, resolveCapiDispatch, resolveConversionForStage, type ConversionStage } from "@/lib/meta-conversions";
 import { resolveTrackingConfig } from "../../../../cod-shared/queries/tracking-config";
 import type { BusinessEvent } from "../../../../cod-shared/events/log";
 import type { ConsumerKind } from "./kind";
@@ -106,7 +106,7 @@ export const metaCapi: ConsumerKind = {
       pixel.accessToken,
       {
         eventName: decision.eventName,
-        eventId: order.id,
+        eventId: conversionEventId(order.id),
         eventTime: Math.floor(Date.parse(event.occurredAt) / 1000),
         eventSourceUrl: conversionSourceUrl(store.domain, attribution.landingPageSlug),
         userData: {

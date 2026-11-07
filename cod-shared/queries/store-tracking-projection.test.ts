@@ -57,13 +57,13 @@ async function setTracking(overrides: Partial<typeof schema.storePixelConfig.$in
 }
 
 describe("getStoreConfig — the tracking projection", () => {
-  it("exposes the pixel id and the conversion event under the keys the theme reads", async () => {
+  it("exposes the pixel id, and never the conversion rule — the server answers each order's event", async () => {
     await setTracking({ pixelId: "7777777777", conversionEvent: "Lead" });
 
     const config = await getStoreConfig(harness.db, STORE_ID, TEST_DELIVERY);
 
     expect(config?.pixelId).toBe("7777777777");
-    expect(config?.conversionEvent).toBe("Lead");
+    expect(config).not.toHaveProperty("conversionEvent");
   });
 
   it("never carries the access token, in any form", async () => {
@@ -83,13 +83,11 @@ describe("getStoreConfig — the tracking projection", () => {
     const config = await getStoreConfig(harness.db, STORE_ID, TEST_DELIVERY);
 
     expect(config?.pixelId).toBeNull();
-    expect(config?.conversionEvent).toBe("Purchase");
   });
 
   it("loads no pixel when the store has never configured tracking", async () => {
     const config = await getStoreConfig(harness.db, STORE_ID, TEST_DELIVERY);
 
     expect(config?.pixelId).toBeNull();
-    expect(config?.conversionEvent).toBe("Purchase");
   });
 });

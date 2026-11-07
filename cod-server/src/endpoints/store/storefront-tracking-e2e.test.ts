@@ -260,16 +260,16 @@ describe("the landing page endpoint", () => {
 
     const { tracking } = await landingPageTracking(slug);
 
-    expect(tracking).toEqual({ pixelId: "1111111111", conversionEvent: "Purchase" });
+    expect(tracking).toEqual({ pixelId: "1111111111" });
   });
 
-  it("reports the page's own pixel and conversion event", async () => {
+  it("reports the page's own pixel", async () => {
     await setStoreTracking({ pixelId: "1111111111", conversionEvent: "Purchase" });
     const { slug } = await seedLandingPage({ pixelId: "8888888888", conversionEvent: "Lead" });
 
     const { tracking } = await landingPageTracking(slug);
 
-    expect(tracking).toEqual({ pixelId: "8888888888", conversionEvent: "Lead" });
+    expect(tracking).toEqual({ pixelId: "8888888888" });
   });
 
   it("reports the store pixel while the master switch is off", async () => {
@@ -278,7 +278,7 @@ describe("the landing page endpoint", () => {
 
     const { tracking } = await landingPageTracking(slug);
 
-    expect(tracking).toEqual({ pixelId: "1111111111", conversionEvent: "Purchase" });
+    expect(tracking).toEqual({ pixelId: "1111111111" });
   });
 
   it("reports no pixel when the store has tracking switched off", async () => {
@@ -287,7 +287,7 @@ describe("the landing page endpoint", () => {
 
     const { tracking } = await landingPageTracking(slug);
 
-    expect(tracking).toEqual({ pixelId: null, conversionEvent: "Purchase" });
+    expect(tracking).toEqual({ pixelId: null });
   });
 
   it("never carries either access token", async () => {
@@ -371,7 +371,8 @@ describe("the order tracking endpoint", () => {
 
     const { body, raw } = await orderTracking(orderId);
 
-    expect(Object.keys(body!.data).sort()).toEqual(["event", "pixelId"]);
+    expect(Object.keys(body!.data).sort()).toEqual(["event", "eventId", "pixelId"]);
+    expect(body!.data.eventId).toBe(orderId);
     expect(raw).not.toContain("Karim");
     expect(raw).not.toContain("EAAG");
   });

@@ -29,7 +29,7 @@ import {
 import { resolveStorefrontMenu } from "../../../../cod-shared/queries/menus";
 import { getStorefrontCollection } from "../../../../cod-shared/queries/collections";
 import { findShopperOrder } from "../../../../cod-shared/queries/store-order-status";
-import { resolveConversionForStage } from "@/lib/meta-conversions";
+import { conversionEventId, resolveConversionForStage } from "@/lib/meta-conversions";
 import { stores, orders } from "../../../../cod-shared/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -199,7 +199,7 @@ export async function getStoreOrderTracking(c: Context<AppContext>) {
   });
 
   if (!config?.enabled || !config.pixelId) {
-    return c.json({ success: true, data: { pixelId: null, event: null } }, 200);
+    return c.json({ success: true, data: { pixelId: null, event: null, eventId: conversionEventId(order.id) } }, 200);
   }
 
   const decision = resolveConversionForStage(config.conversionEvent, "checkout");
@@ -210,6 +210,7 @@ export async function getStoreOrderTracking(c: Context<AppContext>) {
       data: {
         pixelId: config.pixelId,
         event: decision.shouldFire ? decision.eventName ?? null : null,
+        eventId: conversionEventId(order.id),
       },
     },
     200,

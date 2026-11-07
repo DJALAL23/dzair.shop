@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- What a browser is told about tracking is the pixel only: `/store/config`
+  and a landing page's `tracking` no longer send `conversionEvent`, and
+  `GET /store/orders/{id}/tracking` adds `eventId`, the id the Conversions
+  API sends the same sale under (`conversionEventId`, one function for both).
+  Themes fire through `@wocart/storefront` 4's `storefrontTracking()`.
 - A customer's totals are read from their orders (migration 0076):
   `totalOrders` counts every order they placed, `lastOrderAt` is their
   newest, and **`totalSpent` is the goods of their delivered orders**, net of

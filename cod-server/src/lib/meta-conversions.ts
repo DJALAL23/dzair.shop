@@ -156,3 +156,11 @@ export function resolveCapiDispatch(
   }
   return { send: true, testEventCode: config.testMode ? config.testEventCode : null };
 }
+
+/**
+ * The id a sale carries to Meta, from the browser (`eventID`) and from the
+ * Conversions API (`event_id`) alike: the same id is how Meta counts it once.
+ */
+export function conversionEventId(orderId: string): string {
+  return orderId;
+}

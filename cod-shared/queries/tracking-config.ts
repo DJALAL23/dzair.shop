@@ -67,12 +67,12 @@ export interface EffectiveTrackingConfig {
  * off. `conversionEvent` is always a valid mode so callers never branch on
  * null; it is inert while `pixelId` is null.
  */
+/** What a browser is told: the pixel to load, never a rule. Which event a sale fires is the server's answer for that order. */
 export interface PublicTracking {
   pixelId: string | null;
-  conversionEvent: ConversionEvent;
 }
 
-const NO_TRACKING: PublicTracking = { pixelId: null, conversionEvent: "Purchase" };
+const NO_TRACKING: PublicTracking = { pixelId: null };
 
 /** The two config tables are deliberate mirrors, so one mapper serves both. */
 type ConfigRow = Pick<
@@ -159,7 +159,7 @@ export function publicTrackingFrom(
   const config = effectiveTrackingFrom(storeRow, pageRow);
   if (!config?.enabled || !config.pixelId) return NO_TRACKING;
 
-  return { pixelId: config.pixelId, conversionEvent: config.conversionEvent };
+  return { pixelId: config.pixelId };
 }
 
 export async function resolveTrackingConfig(
@@ -195,5 +195,5 @@ export async function resolvePublicTracking(
   const config = await resolveTrackingConfig(db, ctx);
   if (!config?.enabled || !config.pixelId) return NO_TRACKING;
 
-  return { pixelId: config.pixelId, conversionEvent: config.conversionEvent };
+  return { pixelId: config.pixelId };
 }

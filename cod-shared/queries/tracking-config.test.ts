@@ -214,7 +214,6 @@ describe("resolvePublicTracking — what a browser is allowed to know", () => {
 
     expect(await resolvePublicTracking(harness.db, { storeId })).toEqual({
       pixelId: null,
-      conversionEvent: "Purchase",
     });
   });
 
@@ -226,17 +225,15 @@ describe("resolvePublicTracking — what a browser is allowed to know", () => {
 
     expect(await resolvePublicTracking(harness.db, { storeId })).toEqual({
       pixelId: null,
-      conversionEvent: "Purchase",
     });
   });
 
-  it("reports the pixel and the merchant's conversion event when tracking is on", async () => {
+  it("reports the pixel, and never the merchant's conversion rule, when tracking is on", async () => {
     const storeId = await seedStore();
     await seedStorePixel(storeId, { pixelId: "3333333333", conversionEvent: "Purchase_Delivered" });
 
     expect(await resolvePublicTracking(harness.db, { storeId })).toEqual({
       pixelId: "3333333333",
-      conversionEvent: "Purchase_Delivered",
     });
   });
 
@@ -250,7 +247,6 @@ describe("resolvePublicTracking — what a browser is allowed to know", () => {
 
     expect(await resolvePublicTracking(harness.db, { storeId })).toEqual({
       pixelId: null,
-      conversionEvent: "Purchase",
     });
   });
 
@@ -263,7 +259,7 @@ describe("resolvePublicTracking — what a browser is allowed to know", () => {
     const publicTracking = await resolvePublicTracking(harness.db, { storeId });
 
     expect(JSON.stringify(publicTracking)).not.toContain("EAAG-must-never-ship");
-    expect(Object.keys(publicTracking).sort()).toEqual(["conversionEvent", "pixelId"]);
+    expect(Object.keys(publicTracking)).toEqual(["pixelId"]);
   });
 });
 
@@ -429,7 +425,6 @@ describe("the public projection under an override", () => {
 
     expect(await resolvePublicTracking(harness.db, { storeId, landingPageId })).toEqual({
       pixelId: "8888888888",
-      conversionEvent: "Lead",
     });
   });
 
@@ -443,7 +438,7 @@ describe("the public projection under an override", () => {
     const publicTracking = await resolvePublicTracking(harness.db, { storeId, landingPageId });
 
     expect(JSON.stringify(publicTracking)).not.toContain("EAAG-page-must-never-ship");
-    expect(Object.keys(publicTracking).sort()).toEqual(["conversionEvent", "pixelId"]);
+    expect(Object.keys(publicTracking)).toEqual(["pixelId"]);
   });
 })
 ;

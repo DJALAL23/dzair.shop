@@ -318,13 +318,6 @@ export const StorePublicTrackingSchema = z
         "The Meta Pixel to load, or null when no pixel should load at all. Public by definition — it appears in the page source. The Conversions API token is never included.",
       example: "1234567890123456",
     }),
-    conversionEvent: z
-      .enum(["Lead", "Purchase", "Purchase_Confirmed", "Purchase_Delivered"])
-      .openapi({
-        description:
-          "Which moment counts as a conversion here. Inert while pixelId is null.",
-        example: "Purchase",
-      }),
   })
   .openapi("StorePublicTracking");
 
@@ -386,6 +379,10 @@ export const StoreOrderTrackingSchema = z
           "The browser event the thank-you page should fire, or null when none should — tracking is off, or the merchant's conversion fires further down the funnel from the server only.",
         example: "Purchase",
       }),
+    eventId: z.string().openapi({
+      description: "The id the browser event carries (Meta's `eventID`): the Conversions API sends the same sale under the same id, so Meta counts it once.",
+      example: "3f2a8c1e-0b7d-4e5a-9c61-2d4f8b1a7e90",
+    }),
   })
   .openapi("StoreOrderTracking");
 
