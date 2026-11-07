@@ -61,7 +61,6 @@ export const TOOL_TITLES: Record<string, string> = {
   // ─── Landing pages ────────────────────────────────────────────────────────
   listLandingPages: "List landing pages",
   getLandingPageDetails: "Get landing page details",
-  getLandingPageStats: "Get landing page stats",
   createLandingPage: "Create landing page",
   updateLandingPage: "Update landing page",
   publishLandingPage: "Publish landing page",

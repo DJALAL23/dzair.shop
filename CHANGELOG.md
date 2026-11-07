@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Landing pages count nothing of their own (migration 0074). The view
+  counter measured the server's renders, not visits: the storefront caches a
+  landing page, so most visits never reached it, and the conversion rate
+  built on it was wrong. `views`, `orders`, `revenue` and `stats` leave the
+  landing-page API and its OpenAPI schemas; `GET /landing-pages/compare`,
+  the `getLandingPageStats` MCP tool and the dashboard's comparison page are
+  gone. An order still names the landing page it was placed from
+  (`orders.landing_page_id`), which the Meta pixel routing reads, and a page
+  with such orders still cannot be deleted.
+
 ### Fixed
 
 - MCP tools take any record id. Seeded and imported rows carry ids such as

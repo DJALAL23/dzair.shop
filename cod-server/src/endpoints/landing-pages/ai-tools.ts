@@ -52,9 +52,6 @@ export const listLandingPagesSchema = z.strictObject({
 export const getLandingPageDetailsSchema = z.strictObject({
   landingPageId: toolId().describe("The ID of the landing page to retrieve"),
 });
-export const getLandingPageStatsSchema = z.strictObject({
-  landingPageId: toolId().describe("The ID of the landing page to get stats for"),
-});
 export const createLandingPageToolSchema = createLandingPageSchema.strict();
 export const updateLandingPageToolSchema = z.strictObject({
   landingPageId: toolId().describe("The ID of the landing page to update"),
@@ -183,7 +180,6 @@ const lpDetailSchema = z.looseObject({
   status: z.enum(["draft", "published", "archived"]).describe("Lifecycle status"),
   productId: z.string().describe("The single product this page markets"),
   imageGap: z.number().int().describe("Gap in pixels between stacked images"),
-  views: z.number().int().describe("Render count (non-unique; refreshes and bots included)"),
   images: z.array(lpImageRowSchema).describe("The ordered image stack — index 0 renders at the top of the page"),
   product: z
     .looseObject({
@@ -194,11 +190,6 @@ const lpDetailSchema = z.looseObject({
     })
     .nullable()
     .describe("The linked product, or null when it was deleted"),
-  stats: z.looseObject({
-    views: z.number().int(),
-    orders: z.number().int().describe("Orders placed and attributed to this page (any status)"),
-    revenue: z.number().describe("Gross booked value of attributed orders (any status)"),
-  }),
 });
 
 const lpListItemSchema = z.looseObject({
@@ -209,17 +200,8 @@ const lpListItemSchema = z.looseObject({
   productId: z.string(),
   productName: z.string().nullable(),
   imageCount: z.number().int().describe("Images in the stack"),
-  views: z.number().int(),
-  orders: z.number().int().describe("Orders placed and attributed (any status)"),
-  revenue: z.number().describe("Gross booked value (any status)"),
   publicPath: z.string().describe("Relative public path /lp/<slug>"),
   publicUrl: z.string().describe("Absolute public URL when a storefront base resolves, else the relative path"),
-});
-
-const lpStatsSchema = z.looseObject({
-  views: z.number().int().describe("Render count (non-unique)"),
-  orders: z.number().int().describe("Orders placed and attributed (any status, cancelled/returned included)"),
-  revenue: z.number().describe("Gross booked value of attributed orders (any status)"),
 });
 
 export const LANDING_PAGE_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
@@ -228,10 +210,7 @@ export const LANDING_PAGE_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     landingPages: z.array(lpListItemSchema).describe("Landing pages, newest first"),
   }),
   getLandingPageDetails: toolOutput({
-    landingPage: lpDetailSchema.describe("Settings, the ordered image stack, the linked product, and stats"),
-  }),
-  getLandingPageStats: toolOutput({
-    stats: lpStatsSchema,
+    landingPage: lpDetailSchema.describe("Settings, the ordered image stack and the linked product"),
   }),
   createLandingPage: toolOutput({
     landingPage: lpDetailSchema.describe("The created draft — its image stack is EMPTY until images are added"),
@@ -289,7 +268,7 @@ export const LANDING_PAGE_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     count: z.number().int(),
   }),
   duplicateLandingPage: toolOutput({
-    landingPage: lpDetailSchema.describe("The fresh draft copy — views/orders/revenue start at zero"),
+    landingPage: lpDetailSchema.describe("The fresh draft copy"),
     publicPath: z.string(),
     publicUrl: z.string(),
     note: z.string(),
@@ -388,7 +367,6 @@ export function mapUploadJobStatus(raw: {
 export const LANDING_PAGE_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
   listLandingPages: listLandingPagesSchema.shape,
   getLandingPageDetails: getLandingPageDetailsSchema.shape,
-  getLandingPageStats: getLandingPageStatsSchema.shape,
   createLandingPage: createLandingPageToolSchema.shape,
   updateLandingPage: updateLandingPageToolSchema.shape,
   publishLandingPage: publishLandingPageSchema.shape,
@@ -445,8 +423,7 @@ export const getLandingPageTools = (
 
   listLandingPages: tool({
     description:
-      "List landing pages (newest first) with per-page stats: views, attributed orders, and revenue. " +
-      "Orders are counted as PLACED regardless of status (cancelled/returned included) — treat revenue as gross booked value, not realized sales. " +
+      "List landing pages (newest first). " +
       "Optionally filter by product or lifecycle status (draft | published | archived). " +
       "Returns up to `limit` rows (default 50) — page with offset when the result fills the page. " +
       "Each row includes the public slug — the link the merchant pastes into ad sets is /lp/<slug>.",
@@ -484,9 +461,6 @@ export const getLandingPageTools = (
             productId: p.productId,
             productName: p.productName,
             imageCount: p.imageCount,
-            views: p.views,
-            orders: p.orders,
-            revenue: p.revenue,
             publicPath: storefrontPath("landing", { slug: p.slug }),
             publicUrl: buildLandingPagePublicUrl(baseUrl, p.slug),
           })),
@@ -499,7 +473,7 @@ export const getLandingPageTools = (
 
   getLandingPageDetails: tool({
     description:
-      "Get full landing page details by ID: settings, the ordered image stack, the linked product, and stats. " +
+      "Get full landing page details by ID: settings, the ordered image stack and the linked product. " +
       "Use this to inspect a page's creatives and spacing before editing.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -519,33 +493,6 @@ export const getLandingPageTools = (
         return { success: true, landingPage: lp };
       } catch (error) {
         return { success: false, error: `Failed to get landing page: ${(error as Error).message}` };
-      }
-    },
-  }),
-
-  getLandingPageStats: tool({
-    description:
-      "Get a landing page's performance stats: views, attributed orders, and revenue. " +
-      "Orders are counted as PLACED regardless of status (cancelled/returned included) — treat revenue as gross booked value, not realized sales. " +
-      "Conversion rate = orders / views (compute it yourself; zero views means the rate is undefined).",
-    inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
-    execute: async (args) => {
-      try {
-        const parsed = getLandingPageStatsSchema.safeParse(args ?? {});
-        if (!parsed.success) {
-          return {
-            success: false,
-            error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID). Unknown fields are rejected.`,
-          };
-        }
-
-        const stats = await queries.getLandingPageStats(db, parsed.data.landingPageId);
-        if (!stats) {
-          return { success: false, error: `Landing page ${parsed.data.landingPageId} not found` };
-        }
-        return { success: true, stats };
-      } catch (error) {
-        return { success: false, error: `Failed to get stats: ${(error as Error).message}` };
       }
     },
   }),
@@ -612,7 +559,7 @@ export const getLandingPageTools = (
 
   publishLandingPage: tool({
     description:
-      "Publish a landing page — its link /lp/<slug> goes live and starts counting views. " +
+      "Publish a landing page — its link /lp/<slug> goes live. " +
       "The result carries a warning when the page's image stack is empty (the public page would render only the order form). " +
       "unpublishLandingPage returns it to draft later (the link stops resolving but history stays).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
@@ -668,17 +615,6 @@ export const getLandingPageTools = (
           return {
             success: false,
             error: `Invalid arguments: ${formatIssues(parsed.error)}. Expected: landingPageId (ID). Unknown fields are rejected.`,
-          };
-        }
-
-        const stats = await queries.getLandingPageStats(db, parsed.data.landingPageId);
-        if (!stats) {
-          return { success: false, error: `Landing page ${parsed.data.landingPageId} not found` };
-        }
-        if (stats.orders > 0) {
-          return {
-            success: false,
-            error: `Landing page has ${stats.orders} attributed order(s) — delete is refused. Archive it instead via archiveLandingPage.`,
           };
         }
 
@@ -962,7 +898,7 @@ export const getLandingPageTools = (
   duplicateLandingPage: tool({
     description:
       "Duplicate a landing page: a fresh DRAFT with a new slug, the same product, spacing, SEO meta, and image stack (copies share the original storage objects). " +
-      "Views, orders, revenue, and published state are NEVER copied — a duplicate is a fresh creative test, not a stats clone. " +
+      "Attributed orders and published state are NEVER copied — a duplicate is a fresh creative test. " +
       "Returns the new draft with its new slug and public link.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -990,7 +926,7 @@ export const getLandingPageTools = (
           landingPage: lp,
           publicPath: storefrontPath("landing", { slug: lp.slug }),
           publicUrl: buildLandingPagePublicUrl(baseUrl, lp.slug),
-          note: "Fresh draft created — views, orders, and revenue start at zero. Edit it, then publishLandingPage when ready.",
+          note: "Fresh draft created. Edit it, then publishLandingPage when ready.",
         };
       } catch (error) {
         return { success: false, error: `Failed to duplicate landing page: ${(error as Error).message}` };
@@ -1000,7 +936,7 @@ export const getLandingPageTools = (
 
   unpublishLandingPage: tool({
     description:
-      "Return a published landing page to draft — its /lp/<slug> link stops resolving (404) but views and order attribution history stay intact. " +
+      "Return a published landing page to draft — its /lp/<slug> link stops resolving (404) but its order attribution stays intact. " +
       "Publish again anytime with publishLandingPage.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -1037,7 +973,7 @@ export const getLandingPageTools = (
     description:
       "Retire a landing page: the link stops resolving and the page leaves the active lists, but its order attribution history stays intact. " +
       "This is the REQUIRED exit for a page with attributed orders — deleteLandingPage refuses those and tells you to archive instead. " +
-      "The page stays inspectable: its stats and attribution history remain queryable via getLandingPageDetails and getLandingPageStats.",
+      "The page stays inspectable via getLandingPageDetails.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       try {

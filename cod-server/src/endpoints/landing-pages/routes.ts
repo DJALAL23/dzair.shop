@@ -64,7 +64,7 @@ const listLandingPagesRoute = defineRoute({
   tags: ["Landing Pages"],
   summary: "List landing pages",
   description:
-    "List landing pages (newest first) with per-page stats: views, attributed orders, revenue — orders count as placed regardless of status (cancelled/returned included). Filter by product or status. limit/offset are opt-in pagination; omitting them returns the full list.",
+    "List landing pages (newest first). Filter by product or status. limit/offset are opt-in pagination; omitting them returns the full list.",
   operationId: "listLandingPages",
   query: listQuery,
   responses: {
@@ -76,27 +76,6 @@ const listLandingPagesRoute = defineRoute({
   handler: h.listLandingPages,
 });
 
-const compareLandingPagesRoute = defineRoute({
-  method: "get",
-  path: "/compare",
-  auth: { scope: SCOPES.LANDING_PAGES_READ },
-  tags: ["Landing Pages"],
-  summary: "Compare landing pages of one product",
-  description:
-    "The A/B view: every landing page of one product side by side with views, orders, revenue — orders count as placed regardless of status (cancelled/returned included). Conversion rate = orders / views (undefined on zero views — compute client-side).",
-  operationId: "compareLandingPages",
-  query: z.object({
-    productId: z.string().openapi({ description: "Product UUID to compare pages for" }),
-  }),
-  responses: {
-    200: {
-      description: "Landing pages of the product with stats",
-      content: jsonContent(ListResponseSchema(LandingPageListItemSchema)),
-    },
-  },
-  handler: h.compareLandingPages,
-});
-
 const getLandingPageRoute = defineRoute({
   method: "get",
   path: "/{id}",
@@ -104,7 +83,7 @@ const getLandingPageRoute = defineRoute({
   tags: ["Landing Pages"],
   summary: "Get landing page",
   description:
-    "Full landing page detail: settings, the ordered image stack, the linked product, and stats.",
+    "Full landing page detail: settings, the ordered image stack and the linked product.",
   operationId: "getLandingPage",
   params: idParams,
   responses: {
@@ -142,7 +121,7 @@ const duplicateLandingPageRoute = defineRoute({
   auth: { scope: SCOPES.LANDING_PAGES_MANAGE },
   tags: ["Landing Pages"],
   summary: "Duplicate landing page",
-  description: `Create a quick copy: a fresh DRAFT with a new slug, the same product, spacing, SEO meta, and image stack (images share the original immutable R2 objects — deleting an image elsewhere only removes the storage object when the last reference goes). Views, orders, revenue, and published state are never copied — a duplicate is a fresh creative test.`,
+  description: `Create a quick copy: a fresh DRAFT with a new slug, the same product, spacing, SEO meta, and image stack (images share the original immutable R2 objects — deleting an image elsewhere only removes the storage object when the last reference goes). Attributed orders and published state are never copied — a duplicate is a fresh creative test.`,
   operationId: "duplicateLandingPage",
   params: idParams,
   responses: {
@@ -200,7 +179,7 @@ const publishLandingPageRoute = defineRoute({
   auth: { scope: SCOPES.LANDING_PAGES_MANAGE },
   tags: ["Landing Pages"],
   summary: "Publish landing page",
-  description: "Make the page live at /lp/<slug> and start counting views.",
+  description: "Make the page live at /lp/<slug>.",
   operationId: "publishLandingPage",
   params: idParams,
   responses: {
@@ -432,7 +411,6 @@ const deleteLandingPageTrackingRoute = defineRoute({
 const router = new OpenAPIHono<AppContext>();
 
 router.openapi(listLandingPagesRoute.route, listLandingPagesRoute.handler);
-router.openapi(compareLandingPagesRoute.route, compareLandingPagesRoute.handler);
 router.openapi(getLandingPageRoute.route, getLandingPageRoute.handler);
 router.openapi(createLandingPageRoute.route, createLandingPageRoute.handler);
 router.openapi(duplicateLandingPageRoute.route, duplicateLandingPageRoute.handler);

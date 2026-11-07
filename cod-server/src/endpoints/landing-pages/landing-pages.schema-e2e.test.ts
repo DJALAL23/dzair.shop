@@ -75,7 +75,6 @@ describe("Slice 1 — landing pages schema on real D1", () => {
       imageGap: 0,
       sidePadding: 0,
       contentMaxWidth: 0,
-      views: 0,
       publishedAt: null,
       metaTitle: null,
       metaDescription: null,

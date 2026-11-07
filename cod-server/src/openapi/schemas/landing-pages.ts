@@ -9,17 +9,6 @@ import { MediaKeySchema } from "./media";
 
 export const LandingPageStatusEnum = z.enum(["draft", "published", "archived"]);
 
-export const LandingPageStatsSchema = z
-  .object({
-    views: z.number().int().min(0).openapi({ example: 1240 }),
-    orders: z.number().int().min(0).openapi({ example: 36 }),
-    revenue: z.number().min(0).openapi({
-      description: "Sum of attributed order prices in DZD",
-      example: 180000,
-    }),
-  })
-  .openapi("LandingPageStats");
-
 export const LandingPageImageSchema = z
   .object({
     id: z.string().openapi({ example: "lpimg_abc123" }),
@@ -84,7 +73,6 @@ export const LandingPageSchema = z
     }),
     metaTitle: z.string().nullable().openapi({ example: "Samsung A55 — عرض خاص" }),
     metaDescription: z.string().nullable().openapi({ example: "اطلب الآن — الدفع عند الاستلام" }),
-    views: z.number().int().min(0).openapi({ example: 1240 }),
     publicUrl: z.string().openapi({
       description:
         "The shareable storefront URL (from the store's domain, or the deployment's storefront fallback; relative /lp/<slug> when neither is set)",
@@ -99,7 +87,6 @@ export const LandingPageSchema = z
     product: productRef.openapi({
       description: "The single product this page sells",
     }),
-    stats: LandingPageStatsSchema,
   })
   .openapi("LandingPage");
 
@@ -113,9 +100,6 @@ export const LandingPageListItemSchema = z
     productName: z.string().nullable().openapi({ example: "Samsung Galaxy A55" }),
     productHandle: z.string().nullable().openapi({ example: "samsung-galaxy-a55" }),
     imageCount: z.number().int().min(0).openapi({ example: 7 }),
-    views: z.number().int().min(0).openapi({ example: 1240 }),
-    orders: z.number().int().min(0).openapi({ example: 36 }),
-    revenue: z.number().min(0).openapi({ example: 180000 }),
     publicUrl: z.string().openapi({
       description: "The shareable storefront URL for this page",
       example: "https://demo.wocart.store/lp/lp-9f3a2b1c",

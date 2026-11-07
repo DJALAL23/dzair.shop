@@ -320,20 +320,6 @@ export async function archiveLandingPage(c: Context<AppContext>) {
   return c.json({ success: true }, 200);
 }
 
-export async function compareLandingPages(c: Context<AppContext>) {
-  const db = getDb(c.env.DB);
-  const withPublicUrl = await publicUrlDecorator(c);
-  const productId = c.req.query("productId");
-  if (!productId) {
-    throw new ValidationError(
-      "productId query parameter is required",
-      ERROR_CODES.REQUIRED_FIELD_MISSING,
-    );
-  }
-  const data = await queries.compareLandingPages(db, productId);
-  return c.json({ success: true, data: data.map(withPublicUrl), count: data.length }, 200);
-}
-
 export async function listLandingPageImages(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const id = c.req.param("id")!;

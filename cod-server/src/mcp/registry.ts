@@ -243,7 +243,6 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     build: (db, env) => pick(getLandingPageTools(db, env), [
       "listLandingPages",
       "getLandingPageDetails",
-      "getLandingPageStats",
     ]),
   },
   {

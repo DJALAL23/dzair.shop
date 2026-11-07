@@ -16,7 +16,6 @@ import * as schema from "@/db/schema";
 import type { AppDb } from "@/db";
 import { createStoreOrder, findOrCreateCustomer } from "../../../../cod-shared/queries/store";
 import { findPublishedLandingPageIdBySlug } from "../../../../cod-shared/queries/landing-pages";
-import { TEST_DELIVERY } from "@/test-utils/media";
 
 let db: AppDb;
 let rawD1: D1Database;
@@ -140,16 +139,15 @@ describe("Slice 5 — landing page order attribution (real D1)", () => {
     expect(order?.landingPageId).toBeNull();
   });
 
-  it("stats follow attribution: attributed orders count, unattributed don't", async () => {
+  it("attribution is per order: only the orders placed from the page name it", async () => {
     const productId = await seedProduct();
-    await seedLp("attr-stats", productId, "published");
+    await seedLp("attr-count", productId, "published");
 
-    await placeOrder(productId, "attr-stats");
-    await placeOrder(productId, "attr-stats");
+    await placeOrder(productId, "attr-count");
+    await placeOrder(productId, "attr-count");
     await placeOrder(productId, null);
 
-    const { getLandingPageById } = await import("../../../../cod-shared/queries/landing-pages");
-    const lp = await getLandingPageById(db, "attr-stats", TEST_DELIVERY);
-    expect(lp?.stats).toMatchObject({ orders: 2, revenue: 10000, views: 0 });
+    const { countLandingPageOrders } = await import("../../../../cod-shared/queries/landing-pages");
+    expect(await countLandingPageOrders(db, "attr-count")).toBe(2);
   });
 });

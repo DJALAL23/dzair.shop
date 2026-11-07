@@ -1,16 +1,11 @@
 {
   "page_title": "Pages d'atterrissage",
-  "page_subtitle": "Pages marketing mono-produit — comparez, choisissez les gagnantes",
+  "page_subtitle": "Pages marketing mono-produit, chacune avec son lien pour vos publicités",
   "create_landing_page": "Créer une page",
-  "compare_title": "Comparer les pages",
   "list": {
     "name": "Page",
     "product": "Produit",
     "status": "Statut",
-    "views": "Vues",
-    "orders": "Commandes",
-    "cvr": "Conversion",
-    "revenue": "Revenu",
     "images": "Images",
     "link": "Lien",
     "copy_link": "Copier le lien",
@@ -22,7 +17,6 @@
   "status_draft": "Brouillon",
   "status_published": "Publiée",
   "status_archived": "Archivée",
-  "filter_all_products": "Tous les produits",
   "search_placeholder": "Rechercher par nom, slug ou produit…",
   "error_generic": "Une erreur s'est produite. Réessayez.",
   "error_validation": "Certains champs sont invalides",
@@ -106,8 +100,5 @@
   },
   "count_one": "{count} page de vente",
   "count_many": "{count} pages de vente",
-  "count_other": "{count} pages de vente",
-  "orders_count_one": "{count} commande",
-  "orders_count_many": "{count} commandes",
-  "orders_count_other": "{count} commandes"
+  "count_other": "{count} pages de vente"
 }

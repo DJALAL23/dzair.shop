@@ -44,14 +44,6 @@ export async function listLandingPages(filters: { productId?: string; status?: s
   ).data;
 }
 
-export async function compareLandingPages(productId: string) {
-  return (
-    await apiFetch<ListEnvelope<LandingPageListItem>>(
-      `/api/landing-pages/compare?productId=${encodeURIComponent(productId)}`,
-    )
-  ).data;
-}
-
 export async function getLandingPage(lpId: string) {
   return (await apiFetch<DataEnvelope<LandingPage>>(`/api/landing-pages/${id(lpId)}`)).data;
 }

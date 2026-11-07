@@ -25,7 +25,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const landingQueries = vi.hoisted(() => ({
   listLandingPages: vi.fn(),
   getLandingPageById: vi.fn(),
-  getLandingPageStats: vi.fn(),
   createLandingPage: vi.fn(),
   updateLandingPage: vi.fn(),
   publishLandingPage: vi.fn(),
@@ -93,7 +92,6 @@ const lpWithImages = {
   status: "draft",
   productId: "prod-1",
   imageGap: 0,
-  views: 0,
   publishedAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
@@ -124,7 +122,6 @@ const lpWithImages = {
     },
   ],
   product: null,
-  stats: { views: 0, orders: 0, revenue: 0 },
 };
 
 const lpEmptyStack = { ...lpWithImages, images: [] };
@@ -263,7 +260,7 @@ describe("listLandingPages — strict layer-2 + pagination (F5, Slice 5)", () =>
   });
 
   it("rejects unknown filter fields", async () => {
-    const res = await call("listLandingPages", { productId: UUID, sortBy: "views" });
+    const res = await call("listLandingPages", { productId: UUID, sortBy: "createdAt" });
 
     expect(res.success).toBe(false);
     expect(res.error).toContain("sortBy");
@@ -314,7 +311,19 @@ describe("deleteLandingPage — strict layer-2 (F5)", () => {
 
     expect(res.success).toBe(false);
     expect(res.error).toContain("force");
-    expect(landingQueries.getLandingPageStats).not.toHaveBeenCalled();
+    expect(landingQueries.deleteLandingPageWithGuard).not.toHaveBeenCalled();
+  });
+
+  it("refuses a page with attributed orders through the one delete guard", async () => {
+    landingQueries.deleteLandingPageWithGuard.mockRejectedValue(
+      new Error("Cannot delete a landing page with attributed orders — archive it instead so history stays intact"),
+    );
+
+    const res = await call("deleteLandingPage", { landingPageId: UUID });
+
+    expect(landingQueries.deleteLandingPageWithGuard).toHaveBeenCalledWith(db, UUID);
+    expect(res.success).toBe(false);
+    expect(res.error).toContain("attributed orders");
   });
 });
 
@@ -332,7 +341,6 @@ const LANDING_PAGE = {
   status: "draft",
   images: [],
   product: null,
-  stats: { views: 0, orders: 0, revenue: 0 },
 };
 
 interface WorkflowMock {
@@ -905,7 +913,7 @@ describe("duplicateLandingPage", () => {
 
     expect(res.success).toBe(true);
     expect(res.publicUrl).toBe("https://fallback.example.com/lp/lp-copy0001");
-    expect(res.note).toContain("zero");
+    expect(res.note).toContain("Fresh draft");
   });
 
   it("fails for a nonexistent landing page", async () => {
@@ -1001,9 +1009,6 @@ describe("output schemas match what the tools actually return (structuredContent
         productName: "Zinc",
         productHandle: "zinc",
         imageCount: 3,
-        views: 10,
-        orders: 2,
-        revenue: 9000,
         publishedAt: null,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",

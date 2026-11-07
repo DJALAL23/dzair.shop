@@ -9,7 +9,7 @@ describe("routes without the dashboard frame", () => {
   });
 
   it("leave every other page, detail pages included, inside the frame", () => {
-    for (const path of ["/dashboard", "/orders", "/orders/ord_1", "/orders/abandoned/", "/landing-pages", "/landing-pages/compare", "/landing-pages/new", "/landing-pages/lp_1", "/landing-pages/lp_1/studio/x", "/customers/c_1/edit"]) {
+    for (const path of ["/dashboard", "/orders", "/orders/ord_1", "/orders/abandoned/", "/landing-pages", "/landing-pages/new", "/landing-pages/lp_1", "/landing-pages/lp_1/studio/x", "/customers/c_1/edit"]) {
       expect(isFramelessPath(path), path).toBe(false);
     }
   });

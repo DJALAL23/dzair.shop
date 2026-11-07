@@ -1587,8 +1587,6 @@ export const landingPages = sqliteTable("landing_pages", {
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
 
-  /** Render count of the published page (non-unique in v1). */
-  views: integer("views").notNull().default(0),
   publishedAt: text("published_at"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),

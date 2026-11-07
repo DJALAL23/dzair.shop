@@ -137,17 +137,6 @@ export async function getStoreLandingPage(c: Context<AppContext>) {
     theme === undefined ? null : queries.getPageDocument(db, c.get("storeId")!, landingDocumentSurface(lp.id), theme),
   ]);
 
-  // One render = one view; an editor's preview is not a visit. Atomic single-row UPDATE, deferred via waitUntil
-  // so the write never blocks the render response (Cloudflare's documented
-  // pattern for analytics-after-response; same seam the CAPI trigger uses).
-  // A counting failure is logged and swallowed — it must never break a render.
-  if (!preview) {
-    c.executionCtx.waitUntil(
-      queries.incrementLandingPageViews(db, lp.id).catch((err) => {
-        console.error("[landing-pages] view increment failed:", err);
-      }),
-    );
-  }
 
   return c.json(
     {

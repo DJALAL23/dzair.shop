@@ -125,7 +125,6 @@ export {
 
 export {
   LandingPageStatusEnum,
-  LandingPageStatsSchema,
   LandingPageImageSchema,
   LandingPageSchema,
   LandingPageListItemSchema,

@@ -8,7 +8,7 @@
  * Covers: create (draft, slug default, 409 on taken slug, 404 on missing
  * product), update (slug change + 409), publish/unpublish/archive lifecycle,
  * delete guard (refused with orders, clean without), reorder validation,
- * stats math on real attributed orders, compare view.
+ * no analytics on the page itself.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { signIn } from "@/test-utils/sign-in";
@@ -109,13 +109,13 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
       imageGap: 0,
       sidePadding: 0,
       contentMaxWidth: 0,
-      views: 0,
       publishedAt: null,
     });
     expect(body.data.slug).toMatch(/^lp-[a-z0-9]{8}$/);
     expect(body.data.product.name).toBe(`LPM Product ${seq}`);
     expect(body.data.images).toEqual([]);
-    expect(body.data.stats).toMatchObject({ views: 0, orders: 0, revenue: 0 });
+    expect(body.data).not.toHaveProperty("views");
+    expect(body.data).not.toHaveProperty("stats");
   });
 
   it("refuses creation for a missing product (404) — no orphan LP", async () => {
@@ -237,41 +237,6 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
     expect(foreign.status).toBe(400);
   });
 
-  it("stats math: views + attributed orders + revenue join correctly", async () => {
-    const productId = await seedProduct();
-    const created = (await (await createLp({ name: "Stats LP", productId, slug: "stats-lp" })).json()) as any;
-    const id = created.data.id;
-
-    // Publish + 2 attributed orders (5000 each) + 1 unattributed order
-    await app.request(`/api/landing-pages/${id}/publish`, { method: "POST" });
-    for (const [n, cust] of [["a", await seedCustomer()], ["b", await seedCustomer()]] as const) {
-      await db.insert(schema.orders).values({
-        id: `ord-lpstats-${n}`, orderNumber: `ORD-LPSTAT-${n}`, customerId: cust,
-        customerName: "Stats", phone: "0555000001", price: 5000,
-        status: "new", deliveryType: "home",
-        deliveryFee: 0, codAmount: 5000, landingPageId: id,
-        createdAt: NOW(), updatedAt: NOW(),
-      });
-    }
-    const cust3 = await seedCustomer();
-    await db.insert(schema.orders).values({
-      id: "ord-lpstats-x", orderNumber: "ORD-LPSTAT-X", customerId: cust3,
-      customerName: "Other", phone: "0555000002", price: 9000,
-      status: "new", deliveryType: "home",
-      deliveryFee: 0, codAmount: 9000,
-      createdAt: NOW(), updatedAt: NOW(),
-    });
-
-    // Bump views like the public endpoint will (atomic increment)
-    await db.update(schema.landingPages)
-      .set({ views: 100 })
-      .where(eq(schema.landingPages.id, id));
-
-    const detail = (await (await app.request(`/api/landing-pages/${id}`)).json()) as any;
-    expect(detail.data.views).toBe(100);
-    expect(detail.data.stats).toMatchObject({ views: 100, orders: 2, revenue: 10000 });
-  });
-
   it("delete refused while orders exist (422 LANDING_PAGE_HAS_ORDERS); clean delete works", async () => {
     const productId = await seedProduct();
     const withOrders = (await (await createLp({ name: "Guarded", productId, slug: `guarded-${crypto.randomUUID().slice(0, 6)}` })).json()) as any;
@@ -300,7 +265,7 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
     expect(images).toHaveLength(0);
   });
 
-  it("list + compare: filter by product returns its LPs with stats", async () => {
+  it("list: filter by product returns its LPs, with no analytics", async () => {
     const productId = await seedProduct();
     const rnd = crypto.randomUUID().slice(0, 6);
     const slugA = `cmp-a-${rnd}`;
@@ -312,10 +277,11 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
     const list = (await (await app.request(`/api/landing-pages?productId=${productId}`)).json()) as any;
     expect(list.data.map((d: any) => d.id).sort()).toEqual([a.data.id, b.data.id].sort());
     expect(list.data[0]).toMatchObject({ productName: expect.any(String), imageCount: expect.any(Number) });
+    for (const field of ["views", "orders", "revenue"]) expect(list.data[0]).not.toHaveProperty(field);
+    expect(list.data.map((d: any) => d.slug).sort()).toEqual([slugA, slugB].sort());
 
-    const compare = (await (await app.request(`/api/landing-pages/compare?productId=${productId}`)).json()) as any;
-    expect(compare.data).toHaveLength(2);
-    expect(compare.data.map((d: any) => d.slug).sort()).toEqual([slugA, slugB].sort());
+    const compare = await app.request(`/api/landing-pages/compare?productId=${productId}`);
+    expect(compare.status).not.toBe(200);
   });
 
   it("list pagination: opt-in limit/offset; omitted → full list", async () => {
@@ -359,7 +325,7 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
     expect(bad.status).toBe(400);
   });
 
-  it("getLandingPageById detail carries images + product + stats together (batched read)", async () => {
+  it("getLandingPageById detail carries images + product together (batched read)", async () => {
     const productId = await seedProduct();
     const rnd = crypto.randomUUID().slice(0, 6);
     const created = (await (
@@ -372,11 +338,6 @@ describe("Slice 2 — landing pages management API (real D1 + real routes)", () 
     expect(detail.data.id).toBe(created.data.id);
     expect(Array.isArray(detail.data.images)).toBe(true);
     expect(detail.data.product).toMatchObject({ id: productId, price: expect.any(Number) });
-    expect(detail.data.stats).toMatchObject({
-      views: expect.any(Number),
-      orders: expect.any(Number),
-      revenue: expect.any(Number),
-    });
   });
 
   it("invalid slug format is a 400 validation error (not a 500)", async () => {
@@ -421,7 +382,7 @@ describe("publicUrl resolution — store domain wins, env falls back, relative l
 });
 
 describe("duplicate + shared file guard", () => {
-  it("duplicate: fresh draft, new slug, zeroed stats, images share their files", async () => {
+  it("duplicate: fresh draft, new slug, no attributed orders, images share their files", async () => {
     const productId = await seedProduct();
     const created: any = await (await createLp({ name: "Original Creative", productId, slug: `dup-src-${crypto.randomUUID().slice(0, 6)}` })).json();
     const sourceId = created.data.id;
@@ -429,8 +390,7 @@ describe("duplicate + shared file guard", () => {
     // Two images on the source
     await addImage(sourceId, `landing/dup-${crypto.randomUUID().slice(0, 6)}.jpg`);
     await addImage(sourceId, `landing/dup2-${crypto.randomUUID().slice(0, 6)}.jpg`);
-    // Views + attributed order on the source — must NOT copy
-    await db.update(schema.landingPages).set({ views: 77 }).where(eq(schema.landingPages.id, sourceId));
+    // An attributed order on the source — must NOT move to the copy
     const cust = await seedCustomer();
     await db.insert(schema.orders).values({
       id: `ord-dup-${crypto.randomUUID().slice(0, 6)}`, orderNumber: `ORD-DUP-${crypto.randomUUID().slice(0, 6)}`,
@@ -445,13 +405,11 @@ describe("duplicate + shared file guard", () => {
     const dup: any = await dupRes.json();
     expect(dup.data).toMatchObject({
       status: "draft",
-      views: 0,
       name: "Original Creative (copy)",
       productId,
     });
     expect(dup.data.slug).toMatch(/^lp-[a-z0-9]{8}$/);
     expect(dup.data.slug).not.toBe("dup-src"); // never the source slug
-    expect(dup.data.stats).toMatchObject({ views: 0, orders: 0, revenue: 0 });
     expect(dup.data.images).toHaveLength(2);
 
     // Images show the SAME files (immutable, shared)
@@ -460,10 +418,13 @@ describe("duplicate + shared file guard", () => {
     const dupImages = dup.data.images as Array<{ key: string }>;
     expect(dupImages.map((i) => i.key).sort()).toEqual(sourceImages.map((i) => i.mediaKey).sort());
 
-    // Source stats untouched
-    const srcDetail: any = await (await app.request(`/api/landing-pages/${sourceId}`)).json();
-    expect(srcDetail.data.views).toBe(77);
-    expect(srcDetail.data.stats.orders).toBe(1);
+    // The source keeps its attributed order; the copy has none
+    const attributed = await db.select({ landingPageId: schema.orders.landingPageId }).from(schema.orders)
+      .where(eq(schema.orders.landingPageId, dup.data.id));
+    expect(attributed).toHaveLength(0);
+    const kept = await db.select({ id: schema.orders.id }).from(schema.orders)
+      .where(eq(schema.orders.landingPageId, sourceId));
+    expect(kept).toHaveLength(1);
   });
 
   it("duplicate: copies the page's own documents for every theme, addressed to the copy", async () => {

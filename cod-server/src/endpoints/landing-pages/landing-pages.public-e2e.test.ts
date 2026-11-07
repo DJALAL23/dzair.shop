@@ -4,7 +4,7 @@
  * The real store router + real error handler + real store-auth middleware
  * against real migrations. Covers the public contract: published resolves
  * with the full store-product shape, draft/archived/unknown 404 identically,
- * and every render increments views atomically (proven with concurrent GETs).
+ * and a render writes nothing: a page counts no visits of its own.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Miniflare } from "miniflare";
@@ -72,9 +72,9 @@ let seq = 0;
 const STORE_HEADERS = { "X-Store-API-Key": STORE_KEY };
 
 /**
- * GET with an executionCtx stub so the handler's waitUntil (deferred view
- * increments) works under app.request — then settle the deferred writes
- * before returning. Pattern from store/otp-gate.test.ts.
+ * GET with an executionCtx stub so any work the handler defers with
+ * waitUntil runs under app.request — then settle it before returning, so a
+ * test sees everything a render did. Pattern from store/otp-gate.test.ts.
  */
 async function getAndSettle(path: string): Promise<Response> {
   const pending: Promise<unknown>[] = [];
@@ -185,20 +185,15 @@ describe("Slice 4 — public GET /store/landing-pages/{slug} (real D1 + store au
     }
   });
 
-  it("every GET increments views — 25 concurrent GETs count exactly 25", async () => {
+  it("a render writes nothing to the page", async () => {
     const { id } = await seedProduct();
-    await seedPublishedLp("counted-page", id);
+    await seedPublishedLp("rendered-page", id);
+    const before = await db.select().from(schema.landingPages).where(eq(schema.landingPages.slug, "rendered-page")).get();
 
-    // The view increment is deferred via waitUntil (docs: analytics writes
-    // never block the response) — getAndSettle settles every deferred write
-    // before the response is returned to the test.
-    await Promise.all(
-      Array.from({ length: 25 }, () => getAndSettle("/store/landing-pages/counted-page")),
-    );
+    await Promise.all(Array.from({ length: 5 }, () => getAndSettle("/store/landing-pages/rendered-page")));
 
-    const row = await db.select().from(schema.landingPages)
-      .where(eq(schema.landingPages.slug, "counted-page")).get();
-    expect(row?.views).toBe(25);
+    const after = await db.select().from(schema.landingPages).where(eq(schema.landingPages.slug, "rendered-page")).get();
+    expect(after).toEqual(before);
   });
 
   it("missing store key is rejected before anything renders", async () => {
@@ -236,19 +231,13 @@ describe("a landing page's own document, its language and an editor's preview", 
     expect(await name("")).toMatch(/^LPS Product /);
   });
 
-  it("shows an editor a draft page and counts no visit, while a shopper sees neither", async () => {
+  it("shows an editor a draft page, while a shopper does not see it", async () => {
     const { id } = await seedProduct();
     await db.insert(schema.landingPages).values({
       id: "being-designed", slug: "being-designed", name: "Draft", productId: id, status: "draft", createdAt: NOW(), updatedAt: NOW(),
     });
     expect((await getAndSettle("/store/landing-pages/being-designed")).status).toBe(404);
     expect((await getAndSettle("/store/landing-pages/being-designed?preview=1")).status).toBe(200);
-    await seedPublishedLp("popular", id);
-    await getAndSettle("/store/landing-pages/popular?preview=1");
-    await getAndSettle("/store/landing-pages/popular");
-    const views = async (slug: string) => (await db.select({ views: schema.landingPages.views }).from(schema.landingPages).where(eq(schema.landingPages.id, slug)).get())?.views;
-    expect(await views("being-designed")).toBe(0);
-    expect(await views("popular")).toBe(1);
   });
 
   it("keeps an archived page out of a preview too", async () => {

@@ -2,9 +2,9 @@
  * Landing Pages Queries
  *
  * Centralized database operations for landing pages: the one-product
- * marketing pages (image stack + COD form). Stats (views/orders/revenue)
- * join orders by attribution; the conversion rate is computed by the caller
- * because a zero-view page has an undefined rate, not zero.
+ * marketing pages (image stack + COD form). A page reports no analytics of
+ * its own: an order remembers the page it was placed from
+ * (`orders.landing_page_id`), and reporting reads that, nowhere else.
  */
 import type { MediaDelivery } from "../media/delivery";
 import { landingImageViews } from "../media/views";
@@ -29,12 +29,6 @@ import {
   type PageConfigRow,
 } from "./tracking-config";
 
-export interface LandingPageStats {
-  views: number;
-  orders: number;
-  revenue: number;
-}
-
 export interface LandingPageListItem {
   id: string;
   slug: string;
@@ -44,9 +38,6 @@ export interface LandingPageListItem {
   productName: string | null;
   productHandle: string | null;
   imageCount: number;
-  views: number;
-  orders: number;
-  revenue: number;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -88,17 +79,6 @@ export interface LandingPageImageInput {
   source?: "upload" | "ai";
 }
 
-const STATS_SELECT = {
-  orders: sql<number>`(
-    SELECT COUNT(*) FROM orders
-    WHERE orders.landing_page_id = landing_pages.id
-  )`,
-  revenue: sql<number>`(
-    SELECT COALESCE(SUM(orders.price), 0) FROM orders
-    WHERE orders.landing_page_id = landing_pages.id
-  )`,
-};
-
 /** Opt-in pagination — applied only when provided; omitted means unbounded
  *  (the dashboard list fetches everything). */
 export interface LandingPageListPagination {
@@ -129,7 +109,6 @@ async function resolveListRow(
         SELECT COUNT(*) FROM landing_page_images
         WHERE landing_page_images.landing_page_id = landing_pages.id
       )`,
-      views: landingPages.views,
       publishedAt: landingPages.publishedAt,
       createdAt: landingPages.createdAt,
       updatedAt: landingPages.updatedAt,
@@ -140,7 +119,6 @@ async function resolveListRow(
       trackingConversionEvent: landingPagePixelConfig.conversionEvent,
       trackingEnabled: landingPagePixelConfig.enabled,
       trackingTestMode: landingPagePixelConfig.testMode,
-      ...STATS_SELECT,
     })
     .from(landingPages)
     .leftJoin(products, eq(landingPages.productId, products.id))
@@ -169,9 +147,6 @@ async function resolveListRow(
     return {
       ...rest,
       imageCount: Number(rest.imageCount),
-      views: Number(rest.views),
-      orders: Number(rest.orders),
-      revenue: Number(rest.revenue),
       tracking: trackingPixelId
         ? {
             pixelId: trackingPixelId,
@@ -192,23 +167,6 @@ export async function listLandingPages(
   return resolveListRow(db, filters, pagination);
 }
 
-export async function getLandingPageStats(db: AppDb, id: string): Promise<LandingPageStats | null> {
-  const row = await db
-    .select({
-      views: landingPages.views,
-      ...STATS_SELECT,
-    })
-    .from(landingPages)
-    .where(eq(landingPages.id, id))
-    .get();
-  if (!row) return null;
-  return {
-    views: Number(row.views),
-    orders: Number(row.orders),
-    revenue: Number(row.revenue),
-  };
-}
-
 /** Generate the default slug: lp-<8 lowercase hex chars> — collision-checked by the caller. */
 export function generateLandingPageSlug(): string {
   return `lp-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
@@ -217,11 +175,11 @@ export function generateLandingPageSlug(): string {
 /**
  * Full LP detail by id in TWO round trips (mirrors the slug path's shape):
  *   1. the landing page row by id
- *   2. ONE db.batch carrying images + stats + product ref — a single HTTP
+ *   2. ONE db.batch carrying images + product ref — a single HTTP
  *      call to D1 instead of three parallel-but-separate queries. Used by
  *      every REST detail read and every MCP write tool's post-mutation read.
  */
-/** The page's own row, without its images, stats or product: for checks and names. */
+/** The page's own row, without its images or product: for checks and names. */
 export async function getLandingPageRow(db: StoreDb, id: string) {
   return (await db.select().from(landingPages).where(eq(landingPages.id, id)).get()) ?? null;
 }
@@ -241,21 +199,13 @@ export async function getLandingPageById(db: AppDb, id: string, delivery: MediaD
       .where(eq(landingPageImages.landingPageId, id))
       .orderBy(landingPageImages.position),
     db
-      .select({
-        views: landingPages.views,
-        ...STATS_SELECT,
-      })
-      .from(landingPages)
-      .where(eq(landingPages.id, id)),
-    db
       .select({ id: products.id, name: products.name, handle: products.handle, price: products.price })
       .from(products)
       .where(eq(products.id, row.productId)),
   ] as [BatchStatement, ...BatchStatement[]]);
 
   const images = (results[0] as unknown as typeof landingPageImages.$inferSelect[]) ?? [];
-  const statsRow = ((results[1] as unknown as Array<Record<string, unknown>>) ?? [])[0];
-  const productRow = ((results[2] as unknown as Array<Record<string, unknown>>) ?? [])[0];
+  const productRow = ((results[1] as unknown as Array<Record<string, unknown>>) ?? [])[0];
 
   return {
     ...row,
@@ -263,13 +213,6 @@ export async function getLandingPageById(db: AppDb, id: string, delivery: MediaD
     product: productRow
       ? (productRow as unknown as { id: string; name: string; handle: string; price: number })
       : null,
-    stats: statsRow
-      ? {
-          views: Number(statsRow.views),
-          orders: Number(statsRow.orders),
-          revenue: Number(statsRow.revenue),
-        }
-      : { views: 0, orders: 0, revenue: 0 },
   };
 }
 
@@ -278,7 +221,7 @@ type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 /**
  * Full LP detail by slug in TWO round trips (the public render path):
  *   1. the landing page row by slug
- *   2. ONE db.batch carrying images + stats + product ref — a single HTTP
+ *   2. ONE db.batch carrying images + product ref — a single HTTP
  *      call to D1 (batched statements), instead of re-selecting the row by
  *      id and issuing four more queries.
  */
@@ -297,13 +240,6 @@ export async function getLandingPageDetailBySlug(db: AppDb, slug: string, delive
       .where(eq(landingPageImages.landingPageId, row.id))
       .orderBy(landingPageImages.position),
     db
-      .select({
-        views: landingPages.views,
-        ...STATS_SELECT,
-      })
-      .from(landingPages)
-      .where(eq(landingPages.id, row.id)),
-    db
       .select({ id: products.id, name: products.name, handle: products.handle, price: products.price })
       .from(products)
       .where(eq(products.id, row.productId)),
@@ -318,10 +254,9 @@ export async function getLandingPageDetailBySlug(db: AppDb, slug: string, delive
   ] as [BatchStatement, ...BatchStatement[]]);
 
   const images = (results[0] as unknown as typeof landingPageImages.$inferSelect[]) ?? [];
-  const statsRow = ((results[1] as unknown as Array<Record<string, unknown>>) ?? [])[0];
-  const productRow = ((results[2] as unknown as Array<Record<string, unknown>>) ?? [])[0];
-  const storeTrackingRow = ((results[3] as unknown as StoreConfigRow[]) ?? [])[0];
-  const pageTrackingRow = ((results[4] as unknown as PageConfigRow[]) ?? [])[0];
+  const productRow = ((results[1] as unknown as Array<Record<string, unknown>>) ?? [])[0];
+  const storeTrackingRow = ((results[2] as unknown as StoreConfigRow[]) ?? [])[0];
+  const pageTrackingRow = ((results[3] as unknown as PageConfigRow[]) ?? [])[0];
 
   return {
     ...row,
@@ -329,13 +264,6 @@ export async function getLandingPageDetailBySlug(db: AppDb, slug: string, delive
     product: productRow
       ? (productRow as unknown as { id: string; name: string; handle: string; price: number })
       : null,
-    stats: statsRow
-      ? {
-          views: Number(statsRow.views),
-          orders: Number(statsRow.orders),
-          revenue: Number(statsRow.revenue),
-        }
-      : { views: 0, orders: 0, revenue: 0 },
     // Safe by construction: publicTrackingFrom cannot return the token.
     tracking: publicTrackingFrom(storeTrackingRow, pageTrackingRow),
   };
@@ -368,7 +296,6 @@ export async function createLandingPage(
     imageGap: data.imageGap ?? 0,
     metaTitle: data.metaTitle ?? null,
     metaDescription: data.metaDescription ?? null,
-    views: 0,
     createdAt: now,
     updatedAt: now,
   });
@@ -573,19 +500,14 @@ export async function findPublishedLandingPageIdBySlug(
   return row?.id ?? null;
 }
 
-/** Comparison view source: every LP of one product with its stats, newest first. */
-export async function compareLandingPages(db: AppDb, productId: string) {
-  return resolveListRow(db, { productId });
-}
-
 /**
- * Duplicate a landing page: new row (draft, fresh slug, zeroed views) plus
+ * Duplicate a landing page: new row (draft, fresh slug) plus
  * copies of every image row. Image rows SHARE the original R2 keys — R2
  * objects are immutable, so references are safe and cache-friendly; the
  * image-delete path reference-counts keys so a shared object is only
  * removed from R2 when the last row referencing it goes away.
- * Attribution, views, and published state are NEVER copied — a duplicate is
- * a fresh creative test, not a stats clone. The page's own documents (its
+ * Attributed orders and published state are NEVER copied — a duplicate is
+ * a fresh creative test. The page's own documents (its
  * composition, one per theme) are copied, addressed to the new page.
  */
 export async function duplicateLandingPage(db: AppDb, id: string): Promise<string | null> {
@@ -605,7 +527,7 @@ export async function duplicateLandingPage(db: AppDb, id: string): Promise<strin
 
   // A duplicate is a fresh creative test of the same product for the same
   // campaign, so it inherits the same pixel — like every other setting here,
-  // and unlike the scoreboard. The Studio shows it, so changing it is one
+  // and unlike its orders. The Studio shows it, so changing it is one
   // click; silently putting the copy on a different pixel would be the
   // surprising behaviour.
   const sourceTracking = await db
@@ -628,7 +550,6 @@ export async function duplicateLandingPage(db: AppDb, id: string): Promise<strin
       imageGap: source.imageGap,
       metaTitle: source.metaTitle,
       metaDescription: source.metaDescription,
-      views: 0,
       createdAt: now,
       updatedAt: now,
     }),
@@ -690,17 +611,6 @@ export async function slugExists(db: AppDb, slug: string): Promise<boolean> {
     .where(eq(landingPages.slug, slug))
     .get();
   return row !== undefined;
-}
-
-/**
- * Atomic view increment — one UPDATE per render, no read-modify-write race.
- * Called by the public store endpoint for published pages only.
- */
-export async function incrementLandingPageViews(db: AppDb, id: string): Promise<void> {
-  await db
-    .update(landingPages)
-    .set({ views: sql`${landingPages.views} + 1` })
-    .where(eq(landingPages.id, id));
 }
 
 /**

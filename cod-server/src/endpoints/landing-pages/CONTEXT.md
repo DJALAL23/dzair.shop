@@ -1,6 +1,6 @@
 # Landing Pages Context
 
-The marketing funnel: one-product ad pages built from an image stack, published to their own link, measured against each other. Everything the shopper does after the images — the form, the OTP gate, the offers — belongs to neighboring contexts and is reused, never rebuilt.
+The marketing funnel: one-product ad pages built from an image stack, published to their own link. Everything the shopper does after the images — the form, the OTP gate, the offers — belongs to neighboring contexts and is reused, never rebuilt.
 
 ## Language
 
@@ -26,17 +26,9 @@ _Avoid_: Page editor, block builder, designer
 The only adjustable page aesthetic: the gap between stacked images. Cosmetic, per page, deliberately singular.
 _Avoid_: Layout options, design settings
 
-**View**:
-One render of a published landing page. Non-unique in v1 — refreshes and bots count.
-_Avoid_: Visit, unique visitor, session
-
-**Conversion Rate**:
-Orders attributed to the page divided by its views. Directional in v1; the comparison against sibling pages matters more than the absolute number.
-_Avoid_: CTR, win rate
-
-**Comparison**:
-The dashboard view placing every landing page of one product side by side — views, orders, conversion rate, revenue — so the merchant picks the winning creative.
-_Avoid_: A/B test, experiment, split test
+**Attribution**:
+The landing page an order was placed from, kept on the order. It is the page's only link to what it sold: a landing page counts nothing of its own — no visits, no orders, no revenue — and reporting reads the orders' attribution.
+_Avoid_: Stats, scoreboard, views
 
 ### Lifecycle
 
@@ -45,7 +37,7 @@ The page exists but has no public link; the public endpoint answers 404. The Stu
 _Avoid_: Unpublished, hidden
 
 **Published**:
-The link is live and collecting views and orders.
+The link is live: shoppers can open it and order from it.
 _Avoid_: Active, live (ambiguous with product status)
 
 **Archived**:
@@ -59,18 +51,18 @@ Terms owned by neighboring contexts — use them, don't redefine them:
 - **The order form, OTP gate, offers, pricing, wilaya cascade**: Store context. The landing page renders the existing form via the established DOM contract; the charged price is always the catalog price (server-authoritative — no price override exists on landing pages)
 - **Image upload plumbing**: the Media Library (`cod-shared/media`, `/api/media`) owns uploads; landing pages upload into its `landing` folder and attach by key
 - **Product identity, variants, pricing**: Products context
-- **Pixel/CAPI attribution (fbc/fbp)**: orthogonal Meta-side tracking that already flows; landing page attribution is our internal analytics and never feeds Meta
+- **Meta tracking**: the store's tracking settings (Store Settings). A page with its own pixel reports to it, and the order's Attribution is how the Conversions API sends a sale to that pixel
 
 ## Edge Cases
 
 **Delete is earned by having no history**: a landing page referenced by any order cannot be deleted — archive instead. Attribution history outlives the page.
 
-**Attribution is best-effort**: an unknown, draft, or archived slug on an order payload leaves attribution empty and the order still succeeds. Revenue first, analytics second.
+**Attribution is best-effort**: an unknown, draft, or archived slug on an order payload leaves attribution empty and the order still succeeds. The order comes first.
 
 **Slugs stay Latin**: the slug charset is [a-z0-9-] even though every other merchant surface is Arabic; the auto-generated default keeps creation frictionless.
 
-**Views count everything**: refreshes and bots included, documented; conversion rate is shown alongside absolute orders so a merchant never judges a creative by rate alone. The increment is a deferred write (waitUntil) — a view is counted after the render responds, never blocking it.
+**A render writes nothing**: serving a page reads it and changes nothing — the storefront caches pages, so a count taken at render time would measure the cache, not the shoppers.
 
 **Duplicates share image objects**: duplicating a page copies the image rows but not the R2 objects — immutable keys are shared, and an image delete only removes the storage object when the last referencing row goes.
 
-**Duplication resets the scoreboard**: a duplicate starts as a fresh draft — views, orders, revenue, and published state never carry over.
+**A duplicate is a new page**: it starts as a fresh draft — attributed orders and published state never carry over.

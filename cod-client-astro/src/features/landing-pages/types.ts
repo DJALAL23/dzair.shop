@@ -24,12 +24,6 @@ export interface LandingPageImage {
 
 export type LandingPageStatus = "draft" | "published" | "archived";
 
-export interface LandingPageStats {
-  views: number;
-  orders: number;
-  revenue: number;
-}
-
 export interface LandingPageProductRef {
   id: string;
   name: string;
@@ -46,7 +40,6 @@ export interface LandingPage {
   imageGap: number;
   metaTitle: string | null;
   metaDescription: string | null;
-  views: number;
   /** Server-resolved shareable URL (store domain or deployment fallback). */
   publicUrl: string;
   publishedAt: string | null;
@@ -54,7 +47,6 @@ export interface LandingPage {
   updatedAt: string;
   images: LandingPageImage[];
   product: LandingPageProductRef | null;
-  stats: LandingPageStats;
 }
 
 export interface LandingPageListItem {
@@ -66,9 +58,6 @@ export interface LandingPageListItem {
   productName: string | null;
   productHandle: string | null;
   imageCount: number;
-  views: number;
-  orders: number;
-  revenue: number;
   publicUrl: string;
   publishedAt: string | null;
   createdAt: string;

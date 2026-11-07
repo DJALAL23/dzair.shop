@@ -26,7 +26,6 @@ export type LandingPageRoute =
   | { kind: "list" }
   | { kind: "new" }
   | { kind: "studio"; id: string }
-  | { kind: "compare" }
   | { kind: "unknown" };
 
 export const LANDING_PAGE_STATUSES: LandingPageStatus[] = ["draft", "published", "archived"];
@@ -41,7 +40,6 @@ export function parseLandingPageRoute(pathname: string): LandingPageRoute {
   const path = pathname.replace(/\/$/, "");
   if (path === "/landing-pages") return { kind: "list" };
   if (path === "/landing-pages/new") return { kind: "new" };
-  if (path === "/landing-pages/compare") return { kind: "compare" };
   const studioMatch = /^\/landing-pages\/([^/]+)\/studio$/.exec(path);
   if (studioMatch) return { kind: "studio", id: studioMatch[1] };
   return { kind: "unknown" };
@@ -61,11 +59,6 @@ export function filterLandingPages(pages: LandingPageListItem[], filters: Landin
     if (q && `${page.name} ${page.slug} ${page.productName ?? ""}`.toLocaleLowerCase().indexOf(q) === -1) return false;
     return true;
   });
-}
-
-export function landingPageCvr(page: Pick<LandingPageListItem, "views" | "orders">): number | null {
-  if (page.views === 0) return null; // undefined rate on zero views, not zero
-  return (page.orders / page.views) * 100;
 }
 
 export function landingPageErrorMessage(cause: unknown, t: Translate) {

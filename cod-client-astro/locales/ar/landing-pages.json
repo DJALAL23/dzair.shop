@@ -1,16 +1,11 @@
 {
   "page_title": "صفحات الهبوط",
-  "page_subtitle": "صفحات تسويقية لمنتج واحد — قارن الإبداعات واختر الرابحة",
+  "page_subtitle": "صفحات تسويقية لمنتج واحد، لكل منها رابطها الخاص لإعلاناتك",
   "create_landing_page": "إنشاء صفحة هبوط",
-  "compare_title": "مقارنة صفحات الهبوط",
   "list": {
     "name": "الصفحة",
     "product": "المنتج",
     "status": "الحالة",
-    "views": "المشاهدات",
-    "orders": "الطلبات",
-    "cvr": "نسبة التحويل",
-    "revenue": "الإيرادات",
     "images": "الصور",
     "link": "الرابط",
     "copy_link": "نسخ الرابط",
@@ -22,7 +17,6 @@
   "status_draft": "مسودة",
   "status_published": "منشورة",
   "status_archived": "مؤرشفة",
-  "filter_all_products": "كل المنتجات",
   "search_placeholder": "ابحث بالاسم أو الرابط أو المنتج…",
   "error_generic": "حدث خطأ ما. حاول مرة أخرى.",
   "error_validation": "بعض الحقول غير صالحة",
@@ -109,11 +103,5 @@
   "count_two": "صفحتان",
   "count_few": "{count} صفحات",
   "count_many": "{count} صفحةً",
-  "count_other": "{count} صفحة",
-  "orders_count_zero": "لا طلبات",
-  "orders_count_one": "طلب واحد",
-  "orders_count_two": "طلبان",
-  "orders_count_few": "{count} طلبات",
-  "orders_count_many": "{count} طلبًا",
-  "orders_count_other": "{count} طلب"
+  "count_other": "{count} صفحة"
 }

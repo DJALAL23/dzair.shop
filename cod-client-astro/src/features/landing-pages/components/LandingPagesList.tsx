@@ -24,12 +24,10 @@ import {
 } from "@/features/landing-pages/api";
 import {
   filterLandingPages,
-  landingPageCvr,
   landingPageErrorMessage,
   landingPagePublicUrl,
 } from "@/features/landing-pages/model";
 import type { LandingPageListItem } from "@/features/landing-pages/types";
-import { formatMoneyValue } from "@/features/products/model";
 import {
   Alert,
   Badge,
@@ -204,9 +202,6 @@ export function LandingPagesList() {
         productName: dup.data.product?.name ?? null,
         productHandle: dup.data.product?.handle ?? null,
         imageCount: dup.data.images.length,
-        views: dup.data.views,
-        orders: dup.data.stats.orders,
-        revenue: dup.data.stats.revenue,
         publicUrl: dup.data.publicUrl,
         publishedAt: dup.data.publishedAt,
         createdAt: dup.data.createdAt,
@@ -288,7 +283,6 @@ export function LandingPagesList() {
     </DropdownMenu>
   );
 
-  const rows = filtered.map((page) => ({ page, cvr: landingPageCvr(page) }));
   const hasFilters = deferredQuery.trim() !== "" || status !== "all";
 
   return (
@@ -310,7 +304,7 @@ export function LandingPagesList() {
           </FilterPill>
         </ListToolbar>
 
-        {rows.length === 0 ? (
+        {filtered.length === 0 ? (
           <EmptyState
             icon={<Megaphone size={28} />}
             title={hasFilters ? common("no_results_found") : t("list.empty")}
@@ -330,17 +324,15 @@ export function LandingPagesList() {
                   <TableRow>
                     <TableHead>{t("list.name")}</TableHead>
                     <TableHead>{t("list.status")}</TableHead>
-                    <TableHead numeric>{t("list.views")}</TableHead>
-                    <TableHead numeric>{t("list.orders")}</TableHead>
-                    <TableHead numeric>{t("list.cvr")}</TableHead>
-                    <TableHead numeric>{t("list.revenue")}</TableHead>
+                    <TableHead>{t("list.product")}</TableHead>
+                    <TableHead numeric>{t("list.images")}</TableHead>
                     <TableHead className="w-px">
                       <span className="sr-only">{common("table.actions")}</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map(({ page, cvr }) => (
+                  {filtered.map((page) => (
                     <TableRow key={page.id} onClick={openRowOnClick(studioHref(page))} className="cursor-pointer">
                       <TableCell className="max-w-72">
                         <RowTitle href={studioHref(page)}>{page.name}</RowTitle>
@@ -348,12 +340,8 @@ export function LandingPagesList() {
                       <TableCell>
                         <Badge tone={statusTone(page.status)}>{statusLabels[page.status]}</Badge>
                       </TableCell>
-                      <TableCell numeric>{page.views.toLocaleString(locale)}</TableCell>
-                      <TableCell numeric>{page.orders.toLocaleString(locale)}</TableCell>
-                      <TableCell numeric className="text-muted-foreground">
-                        {cvr === null ? <CellEmpty /> : `${cvr.toFixed(1)}%`}
-                      </TableCell>
-                      <TableCell numeric>{formatMoneyValue(page.revenue, locale)}</TableCell>
+                      <TableCell className="max-w-56 truncate text-muted-foreground">{page.productName ?? <CellEmpty />}</TableCell>
+                      <TableCell numeric>{page.imageCount.toLocaleString(locale)}</TableCell>
                       <TableCell className="w-px">
                         <RowActions>{actionsMenu(page)}</RowActions>
                       </TableCell>
@@ -364,7 +352,7 @@ export function LandingPagesList() {
             </div>
 
             <div className="divide-y divide-border md:hidden">
-              {rows.map(({ page }) => (
+              {filtered.map((page) => (
                 <article
                   key={page.id}
                   onClick={openRowOnClick(studioHref(page))}
@@ -376,12 +364,7 @@ export function LandingPagesList() {
                     </a>
                     <p className="truncate text-xs text-muted-foreground">{page.productName ?? "—"}</p>
                   </div>
-                  <span className="shrink-0 text-end">
-                    <span className="block text-sm font-medium tabular-nums text-foreground">
-                      {formatMoneyValue(page.revenue, locale)}
-                    </span>
-                    <span className="block text-xs text-muted-foreground">{t("orders_count", { count: page.orders })}</span>
-                  </span>
+                  <Badge tone={statusTone(page.status)}>{statusLabels[page.status]}</Badge>
                   {actionsMenu(page)}
                 </article>
               ))}

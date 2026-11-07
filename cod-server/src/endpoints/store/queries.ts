@@ -27,7 +27,6 @@ export {
 export {
   getLandingPageBySlug,
   getLandingPageDetailBySlug,
-  incrementLandingPageViews,
   findPublishedLandingPageIdBySlug,
 } from "../../../../cod-shared/queries/landing-pages";
 export { resolvePublishedPage } from "../../../../cod-shared/queries/store-pages";
