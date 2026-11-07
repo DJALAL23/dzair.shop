@@ -75,7 +75,6 @@ export interface ProductPageData {
   offers: ProductPageOffer[];
   /** Priced by quantity tiers: only the server's quote says what a quantity costs. */
   quantityPriced: boolean;
-  pixelId: string;
   phoneInvalid: string | null;
   outOfStock: string | null;
   qtyMaxStock: string | null;
@@ -95,7 +94,6 @@ export interface ProductPageDataInput {
   currencySymbol: string;
   isRTL: boolean;
   basePrice: number;
-  pixelId: string | null;
   copy: PageDataCopy;
 }
 
@@ -107,7 +105,7 @@ export interface ProductPageDataInput {
  * ```
  */
 export function buildProductPageData(input: ProductPageDataInput): Record<string, string> {
-  const { product, currencySymbol, isRTL, basePrice, pixelId, copy } = input;
+  const { product, currencySymbol, isRTL, basePrice, copy } = input;
 
   return {
     "data-product-id": product.id,
@@ -121,7 +119,6 @@ export function buildProductPageData(input: ProductPageDataInput): Record<string
     "data-variant-options": JSON.stringify((product.variantOptions ?? []).map((option) => ({ name: option.name, values: option.values.map(({ value }) => ({ value })) }))),
     "data-offers": JSON.stringify(product.offers),
     "data-quantity-priced": product.quantityPricing ? "1" : "0",
-    "data-pixel-id": pixelId ?? "",
     "data-phone-invalid": copy.formPhoneInvalid,
     "data-out-of-stock-label": copy.outOfStock,
     "data-qty-max-stock": messageData(copy, "qtyMaxStock"),
@@ -157,7 +154,6 @@ export function readProductPageData(root: ParentNode = document): ProductPageDat
     variantOptions: toOptions(parseJsonArray(d.variantOptions)),
     offers: toOffers(parseJsonArray(d.offers)),
     quantityPriced: d.quantityPriced === "1",
-    pixelId: d.pixelId ?? "",
     phoneInvalid: d.phoneInvalid ?? null,
     outOfStock: d.outOfStockLabel ?? null,
     qtyMaxStock: d.qtyMaxStock ?? null,

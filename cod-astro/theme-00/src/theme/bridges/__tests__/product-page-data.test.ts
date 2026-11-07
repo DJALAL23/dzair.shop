@@ -90,7 +90,6 @@ const build = (overrides: Partial<ProductDetail> = {}) =>
     currencySymbol: "دج",
     isRTL: true,
     basePrice: 4000,
-    pixelId: "pixel-123",
     copy: pageDataCopy(ar),
   });
 
@@ -116,7 +115,6 @@ describe("product page-data bridge", () => {
     expect(data?.basePrice).toBe(4000);
     expect(data?.trackInventory).toBe(true);
     expect(data?.inventory).toBe(7);
-    expect(data?.pixelId).toBe("pixel-123");
     expect(data?.variants).toHaveLength(1);
     expect(data?.variants[0]).toMatchObject({ id: "var_1", price: 4000, isDefault: true });
     expect(data?.offers).toHaveLength(1);

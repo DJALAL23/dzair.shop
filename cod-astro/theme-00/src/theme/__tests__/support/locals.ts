@@ -31,7 +31,6 @@ export const TEST_CONFIG: StoreConfig = {
   checkoutForm: { address: "optional", notes: "optional", email: "hidden", deliveryOptions: { home: true, stopDesk: true }, customFields: [] },
   whatsapp: null,
   pixelId: null,
-  conversionEvent: "Purchase",
   pages: [],
   contact: { phone: null, email: null, address: null },
   otpEnabled: false,

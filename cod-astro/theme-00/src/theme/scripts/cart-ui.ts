@@ -52,7 +52,7 @@ import {
   bindLineControls,
   type ValidationResult,
 } from "./cart-render";
-import { trackAddToCart } from "./pixel";
+import { storefrontTracking } from "@wocart/storefront";
 import { onEachPage } from "@wocart/theme/lifecycle";
 import { storefrontPath } from "@wocart/storefront";
 
@@ -449,8 +449,8 @@ export function initCart(): () => void {
       if (added.length === 0) {
         if (fullNote) fullNote.hidden = false;
       } else {
-        // What was just added, not the whole basket — see pixel.ts.
-        trackAddToCart(added);
+        // What was just added, not the whole basket.
+        storefrontTracking().addedToCart(added);
       }
       open();
     },

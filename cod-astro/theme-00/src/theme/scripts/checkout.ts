@@ -48,7 +48,7 @@ import {
   deliveryDestination,
   type ShippingRates,
 } from "./delivery-fields";
-import { trackInitiateCheckout } from "./pixel";
+import { storefrontTracking } from "@wocart/storefront";
 import { collectCustomFieldAnswers } from "./custom-fields";
 import { initRequiredSelects } from "./select-required";
 import { onEachPage } from "@wocart/theme/lifecycle";
@@ -271,14 +271,11 @@ export function initCheckout(): () => void {
   // the product page uses: arriving on a checkout page is not starting
   // checkout, typing into it is. Without this the basket journey reported
   // nothing to Meta while product pages reported every one.
-  let checkoutStarted = false;
   const fireInitiateCheckout = () => {
-    if (checkoutStarted) return;
-    checkoutStarted = true;
     const lines = getCart();
     // Prefer the price the server stands behind; the optimistic subtotal is
-    // only used if validation has not answered yet.
-    trackInitiateCheckout(lines, validated?.subtotal ?? cartSubtotal(lines));
+    // only used if validation has not answered yet. Reported once per page.
+    storefrontTracking().checkoutStarted({ lines, value: validated?.subtotal ?? cartSubtotal(lines) });
   };
   for (const event of ["focusin", "input", "change"] as const) {
     form?.addEventListener(event, fireInitiateCheckout, { signal });

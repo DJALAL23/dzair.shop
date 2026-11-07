@@ -426,5 +426,6 @@ describe("cart - properties", () => {
         expect(second.getCart()).toEqual(before);
       }),
     );
-  });
+    // A hundred fresh module loads: about 2 s alone, more beside the rest of the suite.
+  }, 30_000);
 });

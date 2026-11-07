@@ -614,16 +614,30 @@ describe("editing the basket here", () => {
 });
 
 describe("Meta Pixel", () => {
-  afterEach(() => Reflect.deleteProperty(window, "fbq"));
+  afterEach(() => {
+    Reflect.deleteProperty(window, "fbq");
+    document.head.querySelector('meta[name="wocart:pixel"]')?.remove();
+  });
 
+  /** A page whose head names a pixel (`trackingHead`), with Meta's function on it. */
   function installPixel() {
+    const meta = document.createElement("meta");
+    meta.setAttribute("name", "wocart:pixel");
+    meta.setAttribute("content", "1111111111");
+    document.head.append(meta);
     const fbq = vi.fn();
     (window as unknown as { fbq: unknown }).fbq = fbq;
     return fbq;
   }
 
+  /** The checkout events sent, each at the page's pixel alone: [trackSingle, pixel, event, params]. */
   function initiateEvents(fbq: ReturnType<typeof vi.fn>) {
-    return fbq.mock.calls.filter((call) => call[1] === "InitiateCheckout");
+    return fbq.mock.calls
+      .filter((call) => call[2] === "InitiateCheckout")
+      .map((call) => {
+        expect(call.slice(0, 2)).toEqual(["trackSingle", "1111111111"]);
+        return [call[0], call[2], call[3]];
+      });
   }
 
   it("does not report a checkout merely because the page was opened", async () => {

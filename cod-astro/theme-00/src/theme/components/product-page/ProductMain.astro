@@ -40,7 +40,7 @@ const view = product ? getProductView(product) : null;
     <div
       id={PRODUCT_PAGE_DATA_ID}
       class="sr-only"
-      {...buildProductPageData({ product, currencySymbol: config.currencySymbol, isRTL, basePrice: view.basePrice, pixelId: config.pixelId, copy: pageDataCopy(content) })}
+      {...buildProductPageData({ product, currencySymbol: config.currencySymbol, isRTL, basePrice: view.basePrice, copy: pageDataCopy(content) })}
     />
     <ShippingIsland server:defer />
 

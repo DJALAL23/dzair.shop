@@ -35,7 +35,7 @@ const { fieldErrors, serverError, couponRefusal } = orderOutcome(Astro.getAction
     <div
       id={PRODUCT_PAGE_DATA_ID}
       class="sr-only"
-      {...buildProductPageData({ product, currencySymbol: config.currencySymbol, isRTL, basePrice: view.basePrice, pixelId: landing.tracking.pixelId, copy: pageDataCopy(content) })}
+      {...buildProductPageData({ product, currencySymbol: config.currencySymbol, isRTL, basePrice: view.basePrice, copy: pageDataCopy(content) })}
     />
     {inline ? <ShippingIsland /> : <ShippingIsland server:defer />}
     <OrderForm

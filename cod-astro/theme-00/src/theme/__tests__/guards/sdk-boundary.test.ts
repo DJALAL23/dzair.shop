@@ -173,15 +173,6 @@ describe("browser policy bindings", () => {
     expect(otp?.content).not.toContain("inFlight");
   });
 
-  it("the Meta binding delegates payloads to the SDK", () => {
-    const pixel = scripts.find((f) => f.relPath === "theme/scripts/pixel.ts");
-
-    expect(pixel?.content).toContain("createMetaPixelTracker");
-    expect(pixel?.content).toContain("buildMetaAddToCartPayload");
-    expect(pixel?.content).toContain("buildMetaViewContentPayload");
-    expect(pixel?.content).not.toContain('currency: "DZD"');
-  });
-
   it("the abandonment binding delegates capture policy to the SDK", () => {
     const abandonment = scripts.find(
       (f) => f.relPath === "theme/scripts/track-abandonment.ts",

@@ -134,7 +134,8 @@ const fonts = { body: themeFont(settings.font, BODY_FONT), heading: themeFont(se
 
     {!hideMobileNav && <MobileNav content={content} />}
     <script>
-      import "@/theme/scripts/page-view";
+      import { storefrontTracking } from "@wocart/storefront";
+      storefrontTracking().start();
     </script>
   </body>
 </html>

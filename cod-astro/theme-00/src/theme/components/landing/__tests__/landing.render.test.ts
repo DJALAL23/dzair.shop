@@ -34,7 +34,7 @@ const landing = (overrides: Partial<LandingPage> = {}): LandingPage => ({
   images: [image("third", 3), image("first", 1), image("second", 2), image("fourth", 4)],
   product: productFixture({ name: "Robe kabyle", reviewStats: { avgRating: 4.8, reviewCount: 12 } }),
   document: null,
-  tracking: { pixelId: "1234567890", conversionEvent: "Purchase" },
+  tracking: { pixelId: "1234567890" },
   ...overrides,
 });
 

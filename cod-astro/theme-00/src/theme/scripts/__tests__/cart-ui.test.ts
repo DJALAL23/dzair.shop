@@ -926,7 +926,20 @@ describe("free-delivery progress", () => {
 });
 
 describe("Meta Pixel", () => {
-  afterEach(() => Reflect.deleteProperty(window, "fbq"));
+  afterEach(() => {
+    Reflect.deleteProperty(window, "fbq");
+    document.head.querySelector('meta[name="wocart:pixel"]')?.remove();
+  });
+  beforeEach(() => {
+    const meta = document.createElement("meta");
+    meta.setAttribute("name", "wocart:pixel");
+    meta.setAttribute("content", "1111111111");
+    document.head.append(meta);
+  });
+
+  /** The add-to-cart events, each at the page's pixel alone, as [event, params]. */
+  const addEventsOf = (fbq: ReturnType<typeof vi.fn>) =>
+    fbq.mock.calls.filter((call) => call[0] === "trackSingle" && call[1] === "1111111111" && call[2] === "AddToCart").map((call) => [call[2], call[3]]);
 
   it("reports an add to cart", async () => {
     const fbq = vi.fn();
@@ -936,9 +949,9 @@ describe("Meta Pixel", () => {
 
     click(addButton());
 
-    const addEvents = fbq.mock.calls.filter((call) => call[1] === "AddToCart");
+    const addEvents = addEventsOf(fbq);
     expect(addEvents).toHaveLength(1);
-    expect(addEvents[0][2]).toMatchObject({ content_ids: ["p1"], num_items: 2, currency: "DZD" });
+    expect(addEvents[0][1]).toMatchObject({ content_ids: ["p1"], num_items: 2, currency: "DZD" });
   });
 
   it("reports what each add put in, never the basket already there", async () => {
@@ -950,8 +963,8 @@ describe("Meta Pixel", () => {
     el<HTMLInputElement>("qty-input").value = "1";
     click(addButton());
 
-    const addEvents = fbq.mock.calls.filter((call) => call[1] === "AddToCart");
-    expect(addEvents.map((call) => call[2].num_items)).toEqual([2, 1]);
+    const addEvents = addEventsOf(fbq);
+    expect(addEvents.map((call) => call[1].num_items)).toEqual([2, 1]);
     expect(storedCart()).toEqual([expect.objectContaining({ quantity: 3 })]);
   });
 
@@ -967,7 +980,7 @@ describe("Meta Pixel", () => {
 
     expect(el("cart-full-note").hidden).toBe(false);
     expect(storedCart()).toHaveLength(20);
-    expect(fbq.mock.calls.filter((call) => call[1] === "AddToCart")).toEqual([]);
+    expect(addEventsOf(fbq)).toEqual([]);
 
     // Making room clears the note.
     click(document.querySelector("[data-cart-remove]")!);

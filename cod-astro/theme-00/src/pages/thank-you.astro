@@ -4,6 +4,7 @@ import StoreLayout from "@/theme/layouts/StoreLayout.astro";
 import Sections from "@/theme/components/surface/Sections.astro";
 import { thankYouCatalog } from "@/theme/catalog/families/thank-you";
 import { readThankYou } from "@wocart/storefront";
+import { conversionTag } from "@wocart/storefront/astro";
 
 const { orderNumber, orderId, total } = readThankYou(Astro.url);
 
@@ -25,19 +26,11 @@ if (!orderNumber) {
   return Astro.redirect(Astro.locals.store.href("/"));
 }
 
-// The server returns the DECISION, not the configuration — `event` is already
-// null when the merchant's conversion fires further down the funnel. Nothing
-// here re-derives that rule.
-const pixelId = tracking?.pixelId ?? null;
-const checkoutEvent = tracking?.event ?? null;
-const totalNum = total;
-
-// The head must load the pixel the sale is fired at, not the store's:
-// trackSingle at a pixel that was never fbq('init')-ed does nothing at all.
-// When the lookup failed, pixelId is null and no pixel loads here — a stray
-// PageView in the wrong ad account is the exact mixing this feature removes,
-// and the server mirror arrives either way.
-const pageConfig = { ...config, pixelId };
+// The server returns the DECISION, not the configuration: the order's pixel,
+// the event (null when the merchant's conversion fires further down the
+// funnel) and its id. The head loads the order's pixel, not the store's;
+// when the lookup failed none loads, and the server's copy arrives anyway.
+const pageConfig = { ...config, pixelId: tracking?.pixelId ?? null };
 
 ---
 
@@ -48,26 +41,9 @@ const pageConfig = { ...config, pixelId };
   softNavigation={false}
 >
   <Sections theme={thankYouCatalog} surface="thank-you" document={saved} params={{ orderNumber, total: total === null ? undefined : String(total), surface: "thank-you" }} reads={createReadCache()} />
+  <Fragment set:html={conversionTag(tracking, total)} />
 </StoreLayout>
 
-{pixelId && checkoutEvent && (
-  <script type="text/javascript" set:html={`
-(function() {
-  if (typeof fbq !== 'function') return;
-  var eventId = ${JSON.stringify(orderId)};
-  // No orderId means no server mirror to deduplicate against — firing
-  // with a different id would double-count the conversion. Skip instead.
-  if (!eventId) return;
-  var total   = ${JSON.stringify(totalNum)};
-  var eventName = ${JSON.stringify(checkoutEvent)};
-  // trackSingle, not track: this sale belongs to one pixel — the one the
-  // Conversions API will mirror it to. 'track' sends to every pixel on the
-  // page, so a second one initialised here later would silently report the
-  // same sale twice, into an ad account that has no server mirror behind it.
-  fbq('trackSingle', ${JSON.stringify(pixelId)}, eventName, total ? { value: total, currency: 'DZD' } : {}, { eventID: eventId });
-})();
-  `} />
-)}
 
 <div data-order-placed data-order-id={orderId} data-order-number={orderNumber} hidden></div>
 <script src="../theme/scripts/thank-you.ts"></script>

@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 const SRC = resolve(__dirname, "../../..");
@@ -33,19 +33,41 @@ function layoutConfigOf(source: string): string {
   return match![1];
 }
 
-/** The identifier behind data-pixel-id — what product.ts fires events at. */
-function pixelSourceOf(source: string): string {
-  // The page hands the builder `pixelId: pageConfig.pixelId`; the attribute
-  // name itself lives in `theme/bridges/product-page-data.ts` (Theme Zero S3).
-  const match = source.match(/pixelId:\s*([A-Za-z0-9_$]+)\.pixelId/);
-  expect(match, "page must set the builder's pixelId from a config object").not.toBeNull();
-  return match![1];
+/** Every file of the theme's source: no pixel call may live anywhere in it. */
+function themeSources(): Array<{ path: string; text: string }> {
+  const out: Array<{ path: string; text: string }> = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const full = resolve(dir, name);
+      if (statSync(full).isDirectory()) {
+        if (name !== "__tests__") walk(full);
+      } else if (/\.(ts|astro)$/.test(name)) out.push({ path: full.slice(SRC.length + 1), text: readFileSync(full, "utf8") });
+    }
+  };
+  walk(SRC);
+  return out;
 }
 
 const landingSurface = read("theme/pages/LandingSurface.astro");
-const landingOrder = read("theme/components/landing/LandingOrder.astro");
 const thankYou = read("pages/thank-you.astro");
-const productDetail = read("theme/components/product-page/ProductMain.astro");
+const baseHead = read("theme/components/layout/BaseHead.astro");
+const storeLayout = read("theme/layouts/StoreLayout.astro");
+
+describe("the theme calls no pixel itself", () => {
+  it("names fbq nowhere: the SDK's storefrontTracking is the only caller", () => {
+    for (const { path, text } of themeSources()) {
+      expect(text, path).not.toMatch(/\bfbq\b|trackSingle|connect\.facebook\.net/);
+    }
+  });
+
+  it("renders the head the SDK builds, from the pixel the layout is given", () => {
+    expect(baseHead).toMatch(/set:html=\{trackingHead\(config\.pixelId\)\}/);
+  });
+
+  it("starts the page's tracking once, from the layout", () => {
+    expect(storeLayout).toMatch(/storefrontTracking\(\)\.start\(\)/);
+  });
+});
 
 describe("the landing page", () => {
   it("renders the pixel the server resolved for it, not the store's", () => {
@@ -53,69 +75,24 @@ describe("the landing page", () => {
     // read runs. Falling back to `config.pixelId` would put a page with its
     // own pixel back on the store's.
     expect(landingSurface).toMatch(/const pageConfig = \{ \.\.\.config, pixelId: landing\.tracking\.pixelId \};/);
-  });
-
-  it("loads and fires at one and the same pixel", () => {
-    // The head initialises whatever config the layout gets; product.ts fires
-    // ViewContent and InitiateCheckout at data-pixel-id, which the order
-    // section writes. Both must name the page's resolved pixel.
     expect(layoutConfigOf(landingSurface)).toBe("pageConfig");
-    expect(landingOrder).toMatch(/pixelId: landing\.tracking\.pixelId/);
-  });
-
-  it("does not fall back to the bare store config for either", () => {
     expect(landingSurface).not.toMatch(/config\.pixelId/);
-    expect(landingOrder).not.toMatch(/config\.pixelId/);
   });
 });
 
 describe("the thank-you page", () => {
-  it("asks the server which pixel this order belongs to", () => {
+  it("asks the server which pixel this order belongs to, and loads that one", () => {
     // The page knows the order id and nothing else. Attribution is
     // best-effort server-side, so any slug it might read from the URL could
     // name a pixel the server never recorded against this order.
     expect(thankYou).toMatch(/orders\.tracking\(/);
-  });
-
-  it("does not decide the pixel from the store config", () => {
+    expect(thankYou).toMatch(/pixelId: tracking\?\.pixelId \?\? null/);
+    expect(layoutConfigOf(thankYou)).toBe("pageConfig");
     expect(thankYou).not.toMatch(/config\.pixelId/);
   });
 
-  it("does not re-implement the conversion-stage rule", () => {
-    // It used to map conversionEvent → the browser event inline, a second
-    // copy of resolveConversionForStage. The endpoint now returns the
-    // decision, so the copy is gone and cannot drift.
-    expect(thankYou).not.toMatch(/Purchase_Confirmed/);
-    expect(thankYou).not.toMatch(/config\.conversionEvent/);
-  });
-
-  it("fires the sale at one named pixel", () => {
-    // trackSingle rather than track: immune to a future change that
-    // initialises a second pixel on the page and silently double-reports.
-    //
-    // Asserted on the CALL, not on the file: a first attempt matched the word
-    // anywhere in the source, so the comment above the call kept it green
-    // after the call itself was changed back to `track`.
-    const call = thankYou.match(/fbq\(\s*'([a-zA-Z]+)'\s*,\s*([^,]+),/);
-    expect(call, "thank-you page must fire an fbq event").not.toBeNull();
-    expect(call![1]).toBe("trackSingle");
-    // trackSingle's second argument is the pixel — the resolved one, not a
-    // literal and not the store config.
-    expect(call![2]).toContain("pixelId");
-  });
-
-  it("still ties the browser event to the order id for deduplication", () => {
-    // capi-deduplication.md: browser eventID must equal the server event_id,
-    // and the names must match, or the conversion counts twice.
-    expect(thankYou).toMatch(/eventID/);
-  });
-});
-
-describe("the product page", () => {
-  it("keeps using the store pixel", () => {
-    // A product page belongs to no landing page. Per-page pixels are a
-    // campaign-level idea, and the catalogue is not a campaign.
-    expect(productDetail).toMatch(/config\.pixelId/);
-    expect(productDetail).not.toMatch(/tracking/);
+  it("renders the server's sale for the SDK to fire, never one of its own", () => {
+    expect(thankYou).toMatch(/set:html=\{conversionTag\(tracking, total\)\}/);
+    expect(thankYou).not.toMatch(/Purchase|eventID|conversionEvent/);
   });
 });

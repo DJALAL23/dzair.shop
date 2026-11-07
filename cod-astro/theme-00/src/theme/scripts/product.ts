@@ -16,8 +16,7 @@ import {
 } from "./delivery-fields";
 import { STOREFRONT_API_PATHS } from "@wocart/storefront";
 import { initCouponField } from "./coupon-field";
-// fbq only exists when the merchant configured a pixel — one shared guard.
-import { trackProductInitiateCheckout, trackViewContent } from "./pixel";
+import { storefrontTracking } from "@wocart/storefront";
 import { initCustomFields } from "./custom-fields";
 import { initRequiredSelects } from "./select-required";
 // One money formatter for the whole theme — see utils/money.ts.
@@ -760,8 +759,9 @@ export function initProductPage(): () => void {
   // Initialize address fields visibility based on default delivery type (home)
   toggleAddressFields();
 
-  // ── META PIXEL EVENTS ─────────────────────────────────────────────────────
-  const pixelId   = data.pixelId;
+  // ── TRACKING ──────────────────────────────────────────────────────────────
+  // The page's pixel is the head's (trackingHead); a page with none reports nothing.
+  const tracking = storefrontTracking();
 
   function getCookie(name: string): string | null {
     return (
@@ -772,30 +772,22 @@ export function initProductPage(): () => void {
     );
   }
 
-  // 1. ViewContent — fires once immediately after page init
-  if (pixelId) {
-    trackViewContent(pixelId, productId, currentPrice);
-  }
+  // 1. The product was seen, at the price shown.
+  tracking.productViewed({ productId, price: currentPrice });
 
-  // 2. InitiateCheckout — fires once when the shopper STARTS the checkout:
-  //    first focus, keystroke, or selection inside the order form. Seeing the
-  //    form is not starting checkout — Meta's event means the process began.
-  if (pixelId) {
-    const orderSection = document.getElementById("order-section");
-    if (orderSection) {
-      let checkoutStarted = false;
-      const fireInitiateCheckout = () => {
-        if (checkoutStarted) return;
-        checkoutStarted = true;
-        trackProductInitiateCheckout(pixelId, productId, currentPrice);
-        orderSection.removeEventListener("focusin", fireInitiateCheckout);
-        orderSection.removeEventListener("input", fireInitiateCheckout);
-        orderSection.removeEventListener("change", fireInitiateCheckout);
-      };
-      orderSection.addEventListener("focusin", fireInitiateCheckout);
-      orderSection.addEventListener("input", fireInitiateCheckout);
-      orderSection.addEventListener("change", fireInitiateCheckout);
-    }
+  // 2. Checking out began: the first focus, keystroke or selection inside the
+  //    order form — seeing the form is not starting checkout. Reported once.
+  const orderSection = document.getElementById("order-section");
+  if (orderSection) {
+    const fireCheckoutStarted = () => {
+      tracking.checkoutStarted({ lines: [{ productId, quantity: 1, unitPrice: currentPrice }], value: currentPrice });
+      orderSection.removeEventListener("focusin", fireCheckoutStarted);
+      orderSection.removeEventListener("input", fireCheckoutStarted);
+      orderSection.removeEventListener("change", fireCheckoutStarted);
+    };
+    orderSection.addEventListener("focusin", fireCheckoutStarted);
+    orderSection.addEventListener("input", fireCheckoutStarted);
+    orderSection.addEventListener("change", fireCheckoutStarted);
   }
 
   // 3. Populate fbc/fbp hidden inputs right before form submits so the values

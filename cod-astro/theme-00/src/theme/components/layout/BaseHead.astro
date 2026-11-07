@@ -6,6 +6,7 @@
 // every module chunk, so scripts loaded by a soft navigation pass the strict MIME check.
 
 import type { StoreConfig } from "@wocart/storefront";
+import { trackingHead } from "@wocart/storefront/astro";
 import { Font } from "astro:assets";
 import { ClientRouter } from "astro:transitions";
 import { openGraphLocale } from "@/theme/utils/seo";
@@ -99,34 +100,8 @@ const subset = isRTL ? "arabic" : "latin";
     <link rel="preload" as="image" href={src} fetchpriority={i === 0 ? "high" : undefined} />
   ))}
 
-  <!-- Meta Pixel — canonical base code, unmodified. fbevents.js ships its own
-       command queue: every fbq() call made before the library arrives (incl.
-       ViewContent/InitiateCheckout from product.ts) is buffered and flushed
-       automatically once it loads. Do not defer or custom-load it — a
-       hand-rolled loader delays or drops events whenever window.load or the
-       script fetch misbehaves. -->
-  {config.pixelId && (
-    <Fragment>
-      <script type="text/javascript" set:html={`
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${config.pixelId}');
-fbq('track', 'PageView');
-      `} />
-      <noscript>
-        <img height="1" width="1" style="display:none"
-          src={`https://www.facebook.com/tr?id=${config.pixelId}&ev=PageView&noscript=1`}
-          alt=""
-        />
-      </noscript>
-    </Fragment>
-  )}
+  <!-- The page's pixel and Meta's library: the SDK's start() reports the page. -->
+  <Fragment set:html={trackingHead(config.pixelId)} />
 
   {/* The faces and corners of the store; `html:root` outranks the defaults of the stylesheet. */}
   <style set:html={`
