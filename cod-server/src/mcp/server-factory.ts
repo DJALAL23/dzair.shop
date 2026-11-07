@@ -156,14 +156,16 @@ function registerTool(server: McpServer, registration: ToolRegistration): void {
  *
  * Identity is supplied by the OAuthProvider's verified context on each request
  * (`ctx.props` → `getMcpAuthContext()`); the handler is built per request to
- * capture `env`, and `legacy: "reject"` serves only stateless traffic.
+ * capture `env`. `legacy: "stateless"` also serves clients that still open
+ * with the 2025 `initialize` handshake (Manus): "reject" answered them 400.
+ * That lane cannot send server-to-client requests, and no tool makes one.
  */
 export function createCodMcpHandler(env: Env) {
   return createMcpHandler(
     () => createCodMcpServer(env),
     {
       route: "/mcp",
-      legacy: "reject",
+      legacy: "stateless",
       // Browser Origin validation is wired in Slice 9.
       allowedOriginHostnames: "*",
     } satisfies CreateMcpHandlerOptions,
