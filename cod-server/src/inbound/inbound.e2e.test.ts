@@ -44,7 +44,7 @@ beforeEach(async () => {
   dbModule.getDb.mockReturnValue(d1.db);
   pending = [];
   const db = d1.db;
-  for (const table of [schema.businessEvents, schema.shipmentEvents, schema.webhookEvents, schema.shipments, schema.orderProducts, schema.orderStatusHistory, schema.orders, schema.customers, schema.deliveryCompanies]) {
+  for (const table of [schema.businessEvents, schema.shipmentEvents, schema.webhookEvents, schema.shipments, schema.orderProducts, schema.orders, schema.customers, schema.deliveryCompanies]) {
     await db.delete(table);
   }
   await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T0 });

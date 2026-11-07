@@ -219,12 +219,12 @@ const listCustomerOrdersRoute = defineRoute({
   tags: ["Customers"],
   summary: "Get customer orders",
   description:
-    "Returns all orders for a customer in reverse chronological order, each with `statusHistory` included.",
+    "Returns all orders for a customer in reverse chronological order, each with its stage.",
   operationId: "getCustomerOrders",
   params: idParams,
   responses: {
     200: {
-      description: "List of customer orders (each includes statusHistory)",
+      description: "List of customer orders",
       content: jsonContent(ListResponseSchema(CustomerOrderSummarySchema)),
     },
   },

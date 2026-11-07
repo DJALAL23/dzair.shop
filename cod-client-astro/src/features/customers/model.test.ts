@@ -38,7 +38,6 @@ const order = (stage: CustomerOrderSummary["stage"]): CustomerOrderSummary => ({
   communeId: "c-16-001",
   wilaya: "الجزائر",
   commune: "باب الزوار",
-  statusHistory: [],
 });
 
 describe("customers model", () => {

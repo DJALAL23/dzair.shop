@@ -33,7 +33,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const db = d1.db;
   for (const table of [
-    schema.shipmentEvents, schema.shipments, schema.stockMovements, schema.orderProducts, schema.orderStatusHistory, schema.orders,
+    schema.businessEvents, schema.shipmentEvents, schema.shipments, schema.stockMovements, schema.orderProducts, schema.orders,
     schema.productVariants, schema.products, schema.customers, schema.drivers, schema.deliveryCompanies,
   ]) {
     await db.delete(table);
@@ -68,7 +68,9 @@ const stockOf = async (id: string) => (await db().select({ n: schema.products.in
 const variantStock = async () => (await db().select({ n: schema.productVariants.inventory }).from(schema.productVariants).where(eq(schema.productVariants.id, "v1")).get())!.n;
 const customer = () => db().select().from(schema.customers).where(eq(schema.customers.id, "c1")).get();
 const statusOf = async (id: string) => (await db().select({ s: schema.orders.status }).from(schema.orders).where(eq(schema.orders.id, id)).get())?.s;
-const historyOf = (id: string) => db().select().from(schema.orderStatusHistory).where(eq(schema.orderStatusHistory.orderId, id)).all();
+/** The order's status changes, as its Business Events recorded them: type and who. */
+const statusEventsOf = async (id: string) =>
+  (await db().select({ type: schema.businessEvents.type, by: schema.businessEvents.actorId }).from(schema.businessEvents).where(eq(schema.businessEvents.orderId, id)).orderBy(schema.businessEvents.seq).all()).filter((e) => e.type.startsWith("order.") && e.type !== "order.created");
 const movements = () => db().select().from(schema.stockMovements).all();
 
 async function shipment(orderId: string, state: "submitting" | "unknown" | "accepted") {
@@ -85,11 +87,11 @@ const SPEND_BEFORE = 3000;
 const interleaved = (meanwhile: () => Promise<unknown>) => interleavedDb(d1.db, meanwhile);
 
 describe("changing an order's status", () => {
-  it("moves the status and keeps its history", async () => {
+  it("moves the status and records who moved it", async () => {
     await seedOrder("o1", "new");
     expect(await updateOrderStatus(db(), "o1", "confirmed", staff("u1", "Staff"))).toEqual({ ok: true });
     expect(await statusOf("o1")).toBe("confirmed");
-    expect((await historyOf("o1")).map((h) => [h.status, h.by])).toEqual([["confirmed", "u1"]]);
+    expect((await statusEventsOf("o1")).map((e) => [e.type, e.by])).toEqual([["order.confirmed", "u1"]]);
   });
 
   it("an unknown order is not found", async () => {
@@ -139,7 +141,7 @@ describe("changing an order's status", () => {
     expect(outcomes.filter((o) => !o.ok).every((o) => !o.ok && o.reason === "changed")).toBe(true);
     expect(await stockOf("tracked")).toBe(12);
     expect((await customer())!.totalSpent).toBe(SPEND_BEFORE - 1500);
-    expect(await historyOf("o1")).toHaveLength(1);
+    expect(await statusEventsOf("o1")).toHaveLength(1);
     expect(await movements()).toHaveLength(1);
   });
 
@@ -158,7 +160,7 @@ describe("changing an order's status", () => {
     expect(await updateOrderStatus(db(), "o1", "cancelled", SYSTEM)).toEqual({ ok: false, reason: "has_shipment" });
     expect(await statusOf("o1")).toBe("ready");
     expect(await stockOf("tracked")).toBe(10);
-    expect(await historyOf("o1")).toHaveLength(0);
+    expect(await statusEventsOf("o1")).toHaveLength(0);
   });
 
   it("a handoff landing between the read and the write wins: the cancel applies nothing", async () => {

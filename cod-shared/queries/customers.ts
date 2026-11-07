@@ -8,7 +8,6 @@ import { eq, and, like, or, desc, exists, isNull, sql } from "drizzle-orm";
 import {
   customers,
   orders,
-  orderStatusHistory,
   customerGroups,
   customerGroupMembers,
   customerTags,
@@ -303,24 +302,7 @@ export async function getOrdersByCustomerId(db: AppDb, customerId: string) {
     .orderBy(desc(orders.createdAt))
     .all();
 
-  const ordersWithHistory = await Promise.all(
-    customerOrders.map(async (order) => {
-      const history = await db
-        .select()
-        .from(orderStatusHistory)
-        .where(eq(orderStatusHistory.orderId, order.id))
-        .all();
-
-      return {
-        ...order,
-        wilaya: order.wilayaName,
-        commune: order.communeName,
-        statusHistory: history,
-      };
-    }),
-  );
-
-  return ordersWithHistory;
+  return customerOrders.map((order) => ({ ...order, wilaya: order.wilayaName, commune: order.communeName }));
 }
 
 export async function getCustomerGroupMemberships(db: AppDb, customerId: string) {

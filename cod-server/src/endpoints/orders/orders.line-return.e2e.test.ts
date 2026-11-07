@@ -28,7 +28,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  for (const table of [schema.shipmentEvents, schema.shipments, schema.stockMovements, schema.orderStatusHistory, schema.orderProducts, schema.orders, schema.productVariants, schema.products, schema.customers]) {
+  for (const table of [schema.shipmentEvents, schema.shipments, schema.stockMovements, schema.orderProducts, schema.orders, schema.productVariants, schema.products, schema.customers]) {
     await d1.db.delete(table);
   }
   await d1.db.insert(schema.customers).values({ id: "c1", name: "K", phone: "0551234567", wilaya: "Alger", totalOrders: 1, totalSpent: 3000, createdAt: T });

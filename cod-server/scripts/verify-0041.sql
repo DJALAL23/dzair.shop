@@ -7,9 +7,6 @@
 SELECT 'orders_in_an_old_status' AS check_name, NULL AS k, count(*) AS n
 FROM orders WHERE status NOT IN ('new', 'confirmed', 'unreachable', 'preparing', 'ready', 'cancelled');
 
-SELECT 'history_in_an_old_status' AS check_name, NULL AS k, count(*) AS n
-FROM order_status_history WHERE status NOT IN ('new', 'confirmed', 'unreachable', 'preparing', 'ready', 'cancelled');
-
 -- Every shipment's order is ready (0).
 SELECT 'shipments_of_orders_not_ready' AS check_name, NULL AS k, count(*) AS n
 FROM shipments s JOIN orders o ON o.id = s.order_id WHERE o.status <> 'ready';

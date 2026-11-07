@@ -53,6 +53,16 @@ after the server, from the same checkout.
 Newest first. Only the entries for migrations your database has not applied
 concern you.
 
+### 0075: an order's timeline is its events
+
+- `order_status_history` is dropped: an order's `statusHistory`
+  (`GET /api/orders/{id}`) is read from its Business Events, with the name
+  the event recorded. Orders from before 0059 have no events, so their
+  timeline is empty.
+- `GET /api/orders` no longer sends `lastUpdatedBy`, and
+  `GET /api/customers/{id}/orders` no longer sends each order's
+  `statusHistory`.
+
 ### 0074: landing pages count nothing; one conversions path
 
 - `landing_pages.views` is dropped, and the landing-page API no longer sends

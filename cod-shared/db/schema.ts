@@ -525,21 +525,11 @@ export const orders = sqliteTable("orders", {
   checkoutKey: text("checkout_key"),
   /** The language it was placed in: the shopper's storefront language, the primary for a dashboard or agent order; null before migration 0063. */
   locale: text("locale", { enum: STORE_LOCALES }),
+  /** A fresh random token per status change: the claim that makes its effects apply once (migration 0075). */
+  revision: text("revision"),
 }, (t) => ({
   checkoutKeyUnique: uniqueIndex("orders_checkout_key").on(t.checkoutKey).where(sql`checkout_key IS NOT NULL`),
 }));
-
-export const orderStatusHistory = sqliteTable("order_status_history", {
-  id: text("id").primaryKey(),
-  orderId: text("order_id")
-    .notNull()
-    .references(() => orders.id, { onDelete: "cascade" }),
-  status: text("status", {
-    enum: ORDER_STATUSES,
-  }).notNull(),
-  timestamp: text("timestamp").notNull(),
-  by: text("by"),
-});
 
 // ─── Product Catalog ─────────────────────────────────────────────────────────
 
@@ -2178,6 +2168,7 @@ export const businessEvents = sqliteTable("business_events", {
   fannedOutAt: text("fanned_out_at"),
 }, (t) => ({
   unfanned: index("business_events_unfanned").on(t.seq).where(sql`fanned_out_at IS NULL`),
+  byOrder: index("business_events_order").on(t.orderId, t.seq),
 }));
 
 // ─── Event Deliveries (ADR 0017; migration 0060) ──────────────────────────────

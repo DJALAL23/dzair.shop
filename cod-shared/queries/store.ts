@@ -45,7 +45,6 @@ import {
   customers,
   orders,
   orderProducts,
-  orderStatusHistory,
   shippingProfiles,
   shippingRules,
   wilayas,
@@ -1165,13 +1164,6 @@ export async function createStoreOrder(
     }
 
     statements.push(
-      db.insert(orderStatusHistory).values({
-        id: crypto.randomUUID(),
-        orderId: id,
-        status: "new",
-        timestamp: now,
-        by: null,
-      }),
       db
         .update(customers)
         .set({

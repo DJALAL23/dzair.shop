@@ -90,7 +90,6 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await harness.db.delete(schema.orderProducts);
-  await harness.db.delete(schema.orderStatusHistory);
   await harness.db.delete(schema.stockMovements);
   await harness.db.delete(schema.orders);
   await harness.db.delete(schema.customers);

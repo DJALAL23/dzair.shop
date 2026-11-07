@@ -66,7 +66,6 @@ beforeAll(async () => {
 beforeEach(async () => {
   await db.delete(schema.orderProducts);
   await db.delete(schema.stockMovements);
-  await db.delete(schema.orderStatusHistory);
   await db.delete(schema.orders);
   await db.delete(schema.products);
   await db.delete(schema.stores);

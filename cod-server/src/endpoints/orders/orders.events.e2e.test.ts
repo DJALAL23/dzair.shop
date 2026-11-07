@@ -30,8 +30,7 @@ afterAll(async () => d1?.dispose());
 
 beforeEach(async () => {
   for (const table of [
-    schema.businessEvents, schema.shipmentEvents, schema.shipments, schema.stockMovements, schema.orderProducts, schema.orderStatusHistory,
-    schema.orders, schema.products, schema.customers, schema.deliveryCompanies,
+    schema.businessEvents, schema.shipmentEvents, schema.shipments, schema.stockMovements, schema.orderProducts,     schema.orders, schema.products, schema.customers, schema.deliveryCompanies,
   ]) {
     await db().delete(table);
   }
@@ -106,10 +105,10 @@ describe("order.created", () => {
     });
   });
 
-  it("credits the staff member in the order's history", async () => {
+  it("shows the order's timeline from its events, crediting the staff member", async () => {
     await placed("o1");
-    const [history] = await db().select().from(schema.orderStatusHistory).where(eq(schema.orderStatusHistory.orderId, "o1")).all();
-    expect(history!.by).toBe("u-samira");
+    const { getOrderById } = await import("../../../../cod-shared/queries/orders");
+    expect((await getOrderById(db(), "o1"))!.statusHistory).toMatchObject([{ status: "new", by: "u-samira", byName: "Samira" }]);
   });
 
   it("carries the number the order kept when its first draw was taken", async () => {

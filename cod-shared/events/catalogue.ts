@@ -47,6 +47,18 @@ export const ORDER_STATUS_EVENT = {
   cancelled: "order.cancelled",
 } as const satisfies Record<Exclude<OrderStatus, "new">, EventType>;
 
+/** The status each processing event leaves its order in: an order's timeline, read from the Event Log. */
+export const ORDER_STATUS_OF_EVENT = {
+  "order.created": "new",
+  "order.confirmed": "confirmed",
+  "order.unreachable": "unreachable",
+  "order.preparing": "preparing",
+  "order.ready": "ready",
+  "order.cancelled": "cancelled",
+} as const satisfies Record<string, OrderStatus>;
+
+export type OrderProcessingEvent = keyof typeof ORDER_STATUS_OF_EVENT;
+
 /** The Event Type each shipment Milestone records when it is first reached. */
 export const MILESTONE_EVENT = {
   out_for_delivery: "shipment.out_for_delivery",

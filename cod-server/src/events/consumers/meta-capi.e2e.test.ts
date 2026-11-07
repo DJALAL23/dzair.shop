@@ -33,7 +33,7 @@ afterAll(async () => d1?.dispose());
 beforeEach(async () => {
   for (const table of [
     schema.eventDeliveryAttempts, schema.eventDeliveries, schema.businessEvents, schema.capiEventLog, schema.shipmentEvents, schema.shipments,
-    schema.stockMovements, schema.orderProducts, schema.orderStatusHistory, schema.orders, schema.landingPagePixelConfig, schema.landingPages,
+    schema.stockMovements, schema.orderProducts, schema.orders, schema.landingPagePixelConfig, schema.landingPages,
     schema.storePixelConfig, schema.products, schema.customers, schema.drivers, schema.stores,
   ]) {
     await d1.db.delete(table);

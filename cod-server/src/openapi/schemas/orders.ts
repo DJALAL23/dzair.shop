@@ -188,10 +188,6 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
     description:
       "1 if a customer review exists for this order, 0 otherwise. Included in list responses only (GET /api/orders).",
   }),
-  lastUpdatedBy: z.string().nullable().optional().openapi({
-    description:
-      "User ID of the last status-change actor. Included in list responses only (GET /api/orders).",
-  }),
   shipmentId: z.string().nullable().optional().openapi({ description: "The order's shipment, or null before handoff. List responses only." }),
   shipmentKind: z.enum(["carrier", "driver"]).nullable().optional().openapi({ description: "Handed to a carrier, or to the store's driver; null before handoff. List responses only." }),
   carrierName: z.string().nullable().optional().openapi({ description: "The delivery company carrying it, for a carrier shipment. List responses only." }),
@@ -214,7 +210,7 @@ export const OrderDetailSchema = OrderBaseSchema.extend({
     description: "Order line items. Included in GET /api/orders/{id} (detail view only).",
   }),
   statusHistory: z.array(StatusHistoryItemSchema).optional().openapi({
-    description: "Full status change log. Included in GET /api/orders/{id} (detail view only).",
+    description: "The order's processing as its Business Events recorded it — placed, then each status change, newest first — with who did it (a staff member's or agent's name; null for the shopper and the system). Included in GET /api/orders/{id} (detail view only).",
   }),
   shipment: ShipmentSchema.nullable().optional().openapi({
     description: "The order's delivery, with its history and the actions available now; null before handoff. Detail view only.",

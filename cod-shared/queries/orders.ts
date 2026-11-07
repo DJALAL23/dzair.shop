@@ -9,12 +9,11 @@ import type { AppDb } from "../db/client";
 import {
   orders,
   orderProducts,
-  orderStatusHistory,
+  businessEvents,
   customers,
   productVariants,
   products,
   drivers,
-  users,
   wilayas,
   communes,
   stockMovements,
@@ -35,6 +34,7 @@ import {
   aliasedTable,
   isNull,
   isNotNull,
+  inArray,
 } from "drizzle-orm";
 
 const driversAlias = aliasedTable(drivers, "d");
@@ -45,11 +45,10 @@ import type { OrderStage } from "../orders/stage";
 import type { ShipmentKind } from "../shipments/model";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
-import { insertSelectRow } from "../db/insert-select";
 import { linesToRestock, restockStatements } from "../inventory/restock";
 import { getCustomerByPhone, updateCustomer, type UpdateCustomerData } from "./customers";
-import { creditOf, staffOf, type Author } from "../events/actor";
-import { ORDER_STATUS_EVENT, type OrderField } from "../events/catalogue";
+import { creditOf, type Author } from "../events/actor";
+import { ORDER_STATUS_EVENT, ORDER_STATUS_OF_EVENT, type OrderField, type OrderProcessingEvent } from "../events/catalogue";
 import { recordEvent } from "../events/record";
 import { orderSnapshot } from "../events/snapshots";
 
@@ -106,7 +105,7 @@ export function parseOrderCursor(
  * the server reports, and the checkout key only to place the order once;
  * neither is shown.
  */
-const { fbc: _fbc, fbp: _fbp, ipAddress: _ipAddress, userAgent: _userAgent, checkoutKey: _checkoutKey, ...orderResponseColumns } = getTableColumns(orders);
+const { fbc: _fbc, fbp: _fbp, ipAddress: _ipAddress, userAgent: _userAgent, checkoutKey: _checkoutKey, revision: _revision, ...orderResponseColumns } = getTableColumns(orders);
 
 /**
  * Get all orders with optional filtering.
@@ -175,9 +174,6 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
         string | null
       >`CASE WHEN ${driversAlias.firstName} IS NOT NULL THEN ${driversAlias.firstName} || ' ' || ${driversAlias.lastName} ELSE NULL END`,
       hasReview: sql<number>`EXISTS (SELECT 1 FROM reviews WHERE reviews.order_id = orders.id)`,
-      lastUpdatedBy: sql<
-        string | null
-      >`(SELECT by FROM order_status_history WHERE order_id = orders.id ORDER BY timestamp DESC LIMIT 1)`,
       shipmentId: sql<string | null>`${shipments.id}`,
       shipmentKind: sql<ShipmentKind | null>`${shipments.kind}`,
       carrierName: sql<string | null>`${deliveryCompanies.name}`,
@@ -218,33 +214,27 @@ export async function getOrderById(db: AppDb, orderId: string) {
 
   if (!order) return null;
 
-  const [orderProductsList, historyRows] = await db.batch([
+  const processing = Object.keys(ORDER_STATUS_OF_EVENT) as OrderProcessingEvent[];
+  const [orderProductsList, timeline] = await db.batch([
     db.select().from(orderProducts).where(eq(orderProducts.orderId, orderId)),
     db
-      .select({
-        id: orderStatusHistory.id,
-        orderId: orderStatusHistory.orderId,
-        status: orderStatusHistory.status,
-        timestamp: orderStatusHistory.timestamp,
-        by: orderStatusHistory.by,
-        byName: users.name,
-      })
-      .from(orderStatusHistory)
-      .leftJoin(users, eq(orderStatusHistory.by, users.id))
-      .where(eq(orderStatusHistory.orderId, orderId))
-      .orderBy(desc(orderStatusHistory.timestamp)),
+      .select({ id: businessEvents.id, type: businessEvents.type, occurredAt: businessEvents.occurredAt, actorId: businessEvents.actorId, actorName: businessEvents.actorName })
+      .from(businessEvents)
+      .where(and(eq(businessEvents.orderId, orderId), inArray(businessEvents.type, processing)))
+      .orderBy(desc(businessEvents.seq)),
   ]);
 
   return {
     ...order,
     products: orderProductsList,
-    statusHistory: historyRows.map((h) => ({
-      id: h.id,
-      orderId: h.orderId,
-      status: h.status,
-      timestamp: h.timestamp,
-      by: h.by,
-      byName: h.byName ?? null,
+    /** The order's processing as its Business Events recorded it, newest first. */
+    statusHistory: timeline.map((event) => ({
+      id: event.id,
+      orderId,
+      status: ORDER_STATUS_OF_EVENT[event.type as OrderProcessingEvent],
+      timestamp: event.occurredAt,
+      by: event.actorId,
+      byName: event.actorName,
     })),
   };
 }
@@ -275,16 +265,6 @@ export async function createOrder(
   if (productsData.length > 0) {
     statements.push(db.insert(orderProducts).values(productsData));
   }
-
-  statements.push(
-    db.insert(orderStatusHistory).values({
-      id: crypto.randomUUID(),
-      orderId: orderData.id!,
-      status: "new",
-      timestamp: orderData.createdAt!,
-      by: staffOf(author.actor)?.id ?? null,
-    }),
-  );
 
   statements.push(
     db
@@ -405,16 +385,17 @@ export async function createOrder(
 export type StatusChange = { ok: true } | { ok: false; reason: "not_found" | "has_shipment" | "changed" };
 
 /**
- * Move an order to a new status, with its effects: history, and on cancel the
+ * Move an order to a new status, with its effects: its Business Event, and on cancel the
  * customer's spend rolled back and the goods restocked. (Delivery and return
  * are the shipment's milestones, with their own effects — record-events.ts.)
  *
- * Exactly once, in one batch: the history row is written only while the
- * order still has the status it was read with and has no shipment — the
- * statements of one batch run as one transaction, so that check holds for
- * the whole batch — and every other statement applies only if that history
- * row exists. Two cancels at once apply their effects once; a cancel racing
- * a handoff loses to it (an order with a shipment has no status change).
+ * Exactly once, in one batch: the order takes the new status, with a fresh
+ * revision, only while it still has the status it was read with and has no
+ * shipment — the statements of one batch run as one transaction, so that
+ * check holds for the whole batch — and every other statement applies only
+ * while that revision stands. Two cancels at once apply their effects once;
+ * a cancel racing a handoff loses to it (an order with a shipment has no
+ * status change).
  */
 export async function updateOrderStatus(
   db: AppDb,
@@ -428,32 +409,20 @@ export async function updateOrderStatus(
   const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
   if (!order) return { ok: false, reason: "not_found" };
 
-  const historyId = crypto.randomUUID();
-  const unchanged = and(
-    sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.status} = ${order.status})`,
-    sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
-  )!;
-  const claimed = sql`exists (select 1 from ${orderStatusHistory} where ${orderStatusHistory.id} = ${historyId})`;
+  const revision = crypto.randomUUID();
+  const claimed = sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.revision} = ${revision})`;
 
   const statements: BatchStatement[] = [
-    db.insert(orderStatusHistory).select(
-      db
-        .select(
-          insertSelectRow(orderStatusHistory, {
-            id: sql`${historyId}`,
-            orderId: sql`${orderId}`,
-            status: sql`${newStatus}`,
-            timestamp: sql`${now}`,
-            by: sql`${staffOf(author.actor)?.id ?? null}`,
-          }) as never,
-        )
-        .from(sql`(select 1)`)
-        .where(unchanged),
-    ),
     db
       .update(orders)
-      .set({ status: newStatus, updatedAt: now })
-      .where(and(eq(orders.id, orderId), claimed)),
+      .set({ status: newStatus, revision, updatedAt: now })
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.status, order.status),
+          sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
+        ),
+      ),
   ];
 
   if (newStatus === "cancelled" && order.status !== "cancelled") {
@@ -486,8 +455,8 @@ export async function updateOrderStatus(
   );
 
   // Atomic: a mid-sequence failure leaves no partial state, so a retry is safe.
-  const [history] = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
-  if (((history as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0) return { ok: true };
+  const [claim] = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+  if (((claim as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0) return { ok: true };
   const shipment = await db.select({ id: shipments.id }).from(shipments).where(eq(shipments.orderId, orderId)).get();
   return { ok: false, reason: shipment ? "has_shipment" : "changed" };
 }

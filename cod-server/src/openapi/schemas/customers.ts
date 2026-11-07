@@ -68,16 +68,6 @@ export const CustomerSchema = z
     description: "Customer profile with denormalized purchase statistics",
   });
 
-export const CustomerOrderStatusSchema = z
-  .object({
-    id: z.string(),
-    orderId: z.string(),
-    status: z.string(),
-    timestamp: z.string().datetime(),
-    by: z.string().nullable(),
-  })
-  .openapi("CustomerOrderStatus");
-
 export const CustomerOrderSummarySchema = z
   .object({
     id: z.string(),
@@ -96,11 +86,9 @@ export const CustomerOrderSummarySchema = z
       example: "بئر مراد رايس",
     }),
     stage: z.enum(ORDER_STAGES).openapi({ description: "Where the order stands overall — delivered, returned… (the same stage as GET /api/orders)" }),
-    statusHistory: z.array(CustomerOrderStatusSchema),
   })
   .openapi("CustomerOrderSummary", {
-    description:
-      "Order summary returned by GET /api/customers/{id}/orders, each with its full statusHistory",
+    description: "Order summary returned by GET /api/customers/{id}/orders",
   });
 
 export const CustomerGroupMembershipSchema = z

@@ -50,7 +50,7 @@ afterAll(async () => {
 beforeEach(async () => {
   dbModule.getDb.mockReturnValue(d1.db);
   const db = d1.db;
-  for (const table of [schema.stockMovements, schema.orderStatusHistory, schema.orderProducts, schema.orders, schema.offers, schema.shippingRuleCommunes, schema.shippingRules, schema.products, schema.shippingProfiles, schema.customers, schema.activityLogs, schema.stores]) {
+  for (const table of [schema.stockMovements, schema.orderProducts, schema.orders, schema.offers, schema.shippingRuleCommunes, schema.shippingRules, schema.products, schema.shippingProfiles, schema.customers, schema.activityLogs, schema.stores]) {
     await db.delete(table);
   }
   await db.insert(schema.stores).values({ id: "s1", name: "Store", freeShippingThreshold: 10000, createdAt: T, updatedAt: T });

@@ -178,13 +178,12 @@ describe("createStoreOrder — atomic commit + guarded deduction (BC-2)", () => 
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({ quantity: 3, lineTotal: 4500 });
 
-    const history = await db
-      .select()
-      .from(schema.orderStatusHistory)
-      .where(eq(schema.orderStatusHistory.orderId, result.id))
+    const events = await db
+      .select({ type: schema.businessEvents.type, actorKind: schema.businessEvents.actorKind })
+      .from(schema.businessEvents)
+      .where(eq(schema.businessEvents.orderId, result.id))
       .all();
-    expect(history).toHaveLength(1);
-    expect(history[0].status).toBe("new");
+    expect(events).toEqual([{ type: "order.created", actorKind: "shopper" }]);
 
     const cust = await db.select().from(schema.customers).where(eq(schema.customers.id, customer.id)).get();
     expect(cust?.totalOrders).toBe(1);

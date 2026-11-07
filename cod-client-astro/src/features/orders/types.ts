@@ -85,7 +85,6 @@ export interface OrderBase {
 
 export interface OrderListItem extends OrderBase {
   hasReview?: number;
-  lastUpdatedBy?: string | null;
   shipmentId: string | null;
   shipmentKind: ShipmentKind | null;
   carrierName: string | null;

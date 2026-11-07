@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- An order's timeline is its Business Events (migration 0075):
+  `order_status_history` is dropped, `statusHistory` on an order is read
+  from the Event Log with the name each event recorded, and a status change
+  claims its order by a fresh revision, as shipments do. `lastUpdatedBy`
+  leaves the order list and `statusHistory` the customer's orders (nothing
+  read either; the latter cost a query per order).
 - One definition per metric. `GET /analytics/order-stages` answers the
   `deliveryRate` (of the parcels whose delivery ended, delivered or returned,
   the share delivered; archived orders included), so the dashboard no longer

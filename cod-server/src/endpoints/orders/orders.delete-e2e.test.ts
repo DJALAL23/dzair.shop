@@ -68,9 +68,6 @@ async function seedOrder(id: string, withCarrierActivity: boolean) {
     id: `op-${id}`, orderId: id, productId: "prod-e2e-del", productName: "E2E Product",
     quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: now,
   });
-  await db.insert(schema.orderStatusHistory).values({
-    id: `hist-${id}`, orderId: id, status: "ready", timestamp: now, by: null,
-  });
 
   if (withCarrierActivity) {
     await db.insert(schema.deliveryCompanies).values({
@@ -137,7 +134,6 @@ describe("deleteOrder — real D1 (E2E)", () => {
 
     expect(await db.select().from(schema.companyApiLogs).where(eq(schema.companyApiLogs.orderId, "ord-e2e-del-3")).all()).toHaveLength(0);
     expect(await db.select().from(schema.capiEventLog).where(eq(schema.capiEventLog.orderId, "ord-e2e-del-3")).all()).toHaveLength(0);
-    expect(await db.select().from(schema.orderStatusHistory).where(eq(schema.orderStatusHistory.orderId, "ord-e2e-del-3")).all()).toHaveLength(0);
   });
 
   it("deletes an order with no carrier activity", async () => {

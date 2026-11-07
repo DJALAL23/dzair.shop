@@ -46,7 +46,6 @@ afterAll(async () => {
 beforeEach(async () => {
   for (const table of [
     "order_products",
-    "order_status_history",
     "orders",
     "coupon_products",
     "coupon_collections",

@@ -7,7 +7,7 @@
  *     select + ONE read batch for lines and history
  *   • null branches: no driver / wilaya / commune / shipment / review
  *   • missing order → null (no batch executed)
- *   • getAllOrders: EXISTS hasReview 1/0, lastUpdatedBy from latest history,
+ *   • getAllOrders: EXISTS hasReview 1/0,
  *     status / wilayaId / search filters, limit+offset pagination over
  *     created_at DESC
  */
@@ -105,9 +105,9 @@ beforeAll(async () => {
     { id: "op-a1", orderId: "ord-e2e-a", productId: "prod-e2e", productName: "E2E Product", quantity: 1, pricePerUnit: 1500, lineTotal: 1500, createdAt: now },
     { id: "op-a2", orderId: "ord-e2e-a", productId: "prod-e2e", productName: "E2E Product", quantity: 1, pricePerUnit: 1500, lineTotal: 1500, createdAt: now },
   ]);
-  await db.insert(schema.orderStatusHistory).values([
-    { id: "h-a1", orderId: "ord-e2e-a", status: "new", timestamp: earlier, by: null },
-    { id: "h-a2", orderId: "ord-e2e-a", status: "confirmed", timestamp: now, by: "user-e2e" },
+  await db.insert(schema.businessEvents).values([
+    { id: "e-a1", type: "order.created", version: 1, subjectType: "order", subjectId: "ord-e2e-a", orderId: "ord-e2e-a", actorKind: "shopper", actorId: null, actorName: null, origin: "storefront", occurredAt: earlier, recordedAt: earlier, data: "{}" },
+    { id: "e-a2", type: "order.confirmed", version: 1, subjectType: "order", subjectId: "ord-e2e-a", orderId: "ord-e2e-a", actorKind: "staff", actorId: "user-e2e", actorName: "Sara Staff", origin: "dashboard", occurredAt: now, recordedAt: now, data: "{}" },
   ]);
   await db.insert(schema.shipments).values({
     id: "shp-a", orderId: "ord-e2e-a", kind: "driver", driverId: "drv-e2e", handoffState: "accepted",
@@ -132,9 +132,7 @@ beforeAll(async () => {
     id: "op-b1", orderId: "ord-e2e-b", productId: "prod-e2e", productName: "E2E Product",
     quantity: 1, pricePerUnit: 1500, lineTotal: 1500, createdAt: earlier,
   });
-  await db.insert(schema.orderStatusHistory).values({
-    id: "h-b1", orderId: "ord-e2e-b", status: "confirmed", timestamp: earlier, by: null,
-  });
+  await db.insert(schema.businessEvents).values({ id: "e-b1", type: "order.created", version: 1, subjectType: "order", subjectId: "ord-e2e-b", orderId: "ord-e2e-b", actorKind: "shopper", actorId: null, actorName: null, origin: "storefront", occurredAt: earlier, recordedAt: earlier, data: "{}" });
 }, 120_000);
 
 afterAll(async () => {
@@ -174,7 +172,7 @@ describe("getOrderById — real D1", () => {
 });
 
 describe("getAllOrders — real D1", () => {
-  it("lists newest-first with EXISTS hasReview and lastUpdatedBy", async () => {
+  it("lists newest-first with EXISTS hasReview", async () => {
     const rows = await getAllOrders(db);
 
     expect(rows).toHaveLength(2);
@@ -183,8 +181,6 @@ describe("getAllOrders — real D1", () => {
     expect(b.id).toBe("ord-e2e-b");
     expect(a.hasReview).toBe(1);
     expect(b.hasReview).toBe(0);
-    expect(a.lastUpdatedBy).toBe("user-e2e");
-    expect(b.lastUpdatedBy).toBeNull();
     expect(a.driverName).toBe("Karim Hammadi");
     expect(b.driverName).toBeNull();
   });

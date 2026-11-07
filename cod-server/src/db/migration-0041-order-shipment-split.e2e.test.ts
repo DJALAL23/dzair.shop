@@ -217,11 +217,6 @@ describe("orders", () => {
     expect((await orderOf("fresh"))!.status).toBe("new");
   });
 
-  it("history keeps only the order's own steps", async () => {
-    const steps = (await d1.db.select().from(schema.orderStatusHistory).all()).map((h) => h.status);
-    expect(new Set(steps)).toEqual(new Set(["new", "confirmed", "ready", "cancelled"]));
-  });
-
   it("no effect ran again: stock and the customer's spend are as they were", async () => {
     expect((await d1.db.select().from(schema.products).where(eq(schema.products.id, "p1")).get())!.inventory).toBe(7);
     expect(await d1.db.select().from(schema.customers).get()).toMatchObject({ totalOrders: 12, totalSpent: 30000 });
@@ -277,7 +272,6 @@ describe("the operator's scripts", () => {
   it("verify: what moved is what preflight said, and nothing is left behind", async () => {
     const verify = await runScript(d1, "verify-0041.sql");
     expect(verify.get("orders_in_an_old_status")).toBe(0);
-    expect(verify.get("history_in_an_old_status")).toBe(0);
     expect(verify.get("shipments_of_orders_not_ready")).toBe(0);
     expect(verify.get("shipments_by_kind:carrier")).toBe(preflight.get("carrier_shipments_to_create"));
     expect(verify.get("shipments_by_kind:driver")).toBe(preflight.get("driver_shipments_to_create"));

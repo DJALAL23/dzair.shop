@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { SYSTEM } from "@/test-utils/events";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import { buildToolsForUser } from "./registry";
@@ -36,7 +36,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   dbModule.getDb.mockReturnValue(d1.db);
-  for (const table of [schema.driverPaymentLines, schema.driverPayments, schema.shipmentEvents, schema.shipments, schema.stockMovements, schema.orderStatusHistory, schema.orderProducts, schema.orders, schema.products, schema.customers, schema.drivers]) {
+  for (const table of [schema.driverPaymentLines, schema.driverPayments, schema.shipmentEvents, schema.shipments, schema.stockMovements, schema.orderProducts, schema.orders, schema.products, schema.customers, schema.drivers]) {
     await d1.db.delete(table);
   }
   await d1.db.insert(schema.customers).values({ id: CUSTOMER, name: "Karim", phone: "0551234567", wilaya: "Alger", wilayaId: 16, createdAt: T });
@@ -62,8 +62,8 @@ const movements = () => d1.db.select().from(schema.stockMovements).all();
 describe("an agent's writes are the granting person's", () => {
   it("an order's status change and a line return", async () => {
     await run("updateOrderStatus", { orderId: ORDER, status: "ready" });
-    const history = await d1.db.select().from(schema.orderStatusHistory).where(eq(schema.orderStatusHistory.orderId, ORDER)).all();
-    expect(history.map((h) => [h.status, h.by])).toEqual([["ready", "u-ada"]]);
+    const changes = await d1.db.select({ type: schema.businessEvents.type, by: schema.businessEvents.actorId, kind: schema.businessEvents.actorKind }).from(schema.businessEvents).where(and(eq(schema.businessEvents.orderId, ORDER), eq(schema.businessEvents.type, "order.ready"))).all();
+    expect(changes).toEqual([{ type: "order.ready", by: "u-ada", kind: "agent" }]);
 
     // Units are refused at the door: the order is delivered first.
     const [handoff] = await handOffToDriver(d1.db, { orderIds: [ORDER], driverId: "dr1", author: SYSTEM });

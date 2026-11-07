@@ -25,10 +25,16 @@ _Avoid_: Total, amount due, collection amount
 The person receiving and paying for the order.
 _Avoid_: Client, buyer, end user
 
+**Processing Timeline**:
+The order's processing as its Business Events recorded it: placed, then each
+status change, with who made it and when. Read from the Event Log; nothing
+else keeps a copy.
+_Avoid_: Status history, audit trail (that is the Activity Log)
+
 ### Processing Statuses
 
 **New**:
-Placed, not yet confirmed by the merchant.
+Placed, not yet confirmed by the merchant. Every order starts here.
 _Avoid_: Pending, created, draft
 
 **Confirmed**:

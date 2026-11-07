@@ -69,7 +69,6 @@ export {
 export {
   CustomerSchema,
   CustomerGroupMemberSchema,
-  CustomerOrderStatusSchema,
   CustomerOrderSummarySchema,
   CustomerGroupMembershipSchema,
   CustomerTagMembershipSchema,

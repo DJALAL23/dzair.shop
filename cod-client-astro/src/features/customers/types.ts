@@ -18,14 +18,6 @@ export interface Customer {
   recentOrders?: Array<Record<string, unknown>>;
 }
 
-export interface CustomerOrderStatus {
-  id: string;
-  orderId: string;
-  status: string;
-  timestamp: string;
-  by: string | null;
-}
-
 export interface CustomerOrderSummary {
   id: string;
   orderNumber: string;
@@ -38,7 +30,6 @@ export interface CustomerOrderSummary {
   communeId: string | null;
   wilaya: string | null;
   commune: string | null;
-  statusHistory: CustomerOrderStatus[];
 }
 
 export interface CustomerGroup {

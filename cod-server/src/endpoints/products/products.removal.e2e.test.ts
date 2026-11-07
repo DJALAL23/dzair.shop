@@ -69,7 +69,7 @@ beforeEach(async () => {
   storageFails = false;
   const db = d1.db;
   for (const table of [
-    schema.media, schema.shipments, schema.reviews, schema.orderProducts, schema.orderStatusHistory, schema.orders, schema.abandonedOrders,
+    schema.media, schema.shipments, schema.reviews, schema.orderProducts, schema.orders, schema.abandonedOrders,
     schema.landingPageImages, schema.landingPages, schema.offers, schema.stockMovements, schema.productImages,
     schema.productVariants, schema.products, schema.productCategories, schema.customers, schema.deliveryCompanies, schema.stores,
   ]) {
