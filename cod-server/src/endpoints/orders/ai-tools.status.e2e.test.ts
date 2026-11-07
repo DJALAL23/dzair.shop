@@ -25,7 +25,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   for (const table of [schema.shipmentEvents, schema.shipments, schema.orders, schema.drivers, schema.customers]) await d1.db.delete(table);
-  await d1.db.insert(schema.customers).values({ id: "c1", name: "K", phone: "0551234567", wilaya: "Alger", totalOrders: 1, totalSpent: 1000, createdAt: T });
+  await d1.db.insert(schema.customers).values({ id: "c1", name: "K", phone: "0551234567", wilaya: "Alger", createdAt: T });
   await d1.db.insert(schema.drivers).values({ id: "dr1", firstName: "A", lastName: "B", phone: "0661111111", createdAt: T, updatedAt: T });
 });
 
@@ -45,7 +45,6 @@ describe("updateOrderStatus (AI tool)", () => {
     expect(await setStatus(ID, "ready")).toMatchObject({ success: true, newStatus: "ready" });
     expect(await statusOf(ID)).toBe("ready");
     expect(await setStatus(ID, "cancelled")).toMatchObject({ success: true });
-    expect((await d1.db.select().from(schema.customers).get())!.totalSpent).toBe(0);
   });
 
   it("refuses a move the lifecycle does not allow, naming the allowed ones", async () => {

@@ -28,7 +28,7 @@ beforeEach(async () => {
   for (const table of [schema.businessEvents, schema.shipmentEvents, schema.driverPaymentLines, schema.shipments, schema.stockMovements, schema.orderProducts, schema.orders, schema.productVariants, schema.products, schema.customers, schema.drivers, schema.deliveryCompanies]) {
     await db.delete(table);
   }
-  await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", totalOrders: 2, totalSpent: 2500, createdAt: T0 });
+  await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T0 });
   await db.insert(schema.products).values([
     { id: "p-tracked", name: "Tracked", handle: "tracked", price: 300, inventory: 10, trackInventory: true, createdAt: T0, updatedAt: T0 },
     { id: "p-variant", name: "Variant", handle: "variant", price: 400, inventory: 0, trackInventory: true, hasVariants: true, createdAt: T0, updatedAt: T0 },
@@ -71,7 +71,6 @@ const inventory = async () => ({
   variant: (await d1.db.select().from(schema.productVariants).where(eq(schema.productVariants.id, "v1")).get())!.inventory,
   untracked: (await d1.db.select().from(schema.products).where(eq(schema.products.id, "p-untracked")).get())!.inventory,
 });
-const spent = async () => (await d1.db.select().from(schema.customers).where(eq(schema.customers.id, "c1")).get())!.totalSpent;
 
 describe("recording", () => {
   it("stores each report raw and interpreted, and moves the shipment's facts", async () => {
@@ -142,7 +141,7 @@ describe("a driver's delivery", () => {
 });
 
 describe("a return", () => {
-  it("puts back exactly the units still out — once — and rolls back the customer's spend once", async () => {
+  it("puts back exactly the units still out — once", async () => {
     await recordShipmentEvents(d1.db, "s-driver", [ev("return started", milestone("return_started"), 10)], SYSTEM);
     expect(await inventory()).toEqual({ tracked: 10, variant: 5, untracked: 0 });
 
@@ -150,7 +149,6 @@ describe("a return", () => {
     await recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 25, { source: "merchant" })], SYSTEM);
 
     expect(await inventory()).toEqual({ tracked: 12, variant: 6, untracked: 0 });
-    expect(await spent()).toBe(1000);
     const lines = await d1.db.select().from(schema.orderProducts).where(eq(schema.orderProducts.orderId, "o1")).all();
     expect(Object.fromEntries(lines.map((l) => [l.id, [l.status, l.returnedQuantity]]))).toEqual({
       "l-tracked": ["returned", 3],
@@ -169,7 +167,6 @@ describe("a return", () => {
     await recordShipmentEvents(d1.db, "s-driver", [ev("delivered", milestone("delivered"), 10)], SYSTEM);
     await recordShipmentEvents(d1.db, "s-driver", [ev("returned", milestone("returned"), 20)], SYSTEM);
     expect(await inventory()).toEqual({ tracked: 10, variant: 5, untracked: 0 });
-    expect(await spent()).toBe(2500);
   });
 });
 
@@ -190,7 +187,6 @@ describe("racing writers", () => {
       recordShipmentEvents(d1.db, "s-driver", [ev("Retourné au vendeur", milestone("returned"), 21)], SYSTEM),
     ]);
     expect(await inventory()).toEqual({ tracked: 12, variant: 6, untracked: 0 });
-    expect(await spent()).toBe(1000);
   });
 
   it("a delivery racing a return: whichever wins, stock comes back only if the return did", async () => {
@@ -228,6 +224,5 @@ describe("all or nothing", () => {
     expect((await shipment("s-driver"))!.returnedAt).toBeNull();
     expect(await events("s-driver")).toHaveLength(0);
     expect(await inventory()).toEqual({ tracked: 10, variant: 5, untracked: 0 });
-    expect(await spent()).toBe(2500);
   });
 });

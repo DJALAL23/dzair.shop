@@ -57,10 +57,7 @@ export const customers = sqliteTable("customers", {
   wilaya: text("wilaya").notNull(),
   commune: text("commune"),
   address: text("address"),
-  totalOrders: integer("total_orders").notNull().default(0),
-  totalSpent: real("total_spent").notNull().default(0),
   createdAt: text("created_at").notNull(),
-  lastOrderAt: text("last_order_at"),
   /** Lower-cased. Typed by the merchant, or taken from the first order that brings one; never overwritten by a later order. Not unique (migration 0069). */
   email: text("email"),
 });

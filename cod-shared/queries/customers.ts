@@ -4,7 +4,7 @@
  * deleteCustomer stays in cod-server because it raises BusinessLogicError.
  */
 
-import { eq, and, like, or, desc, exists, isNull, sql } from "drizzle-orm";
+import { eq, and, like, or, desc, exists, isNull, sql, getTableColumns } from "drizzle-orm";
 import {
   customers,
   orders,
@@ -19,6 +19,28 @@ import {
 import type { AppDb } from "../db/client";
 import { safeLikeTerm } from "./search";
 import { orderStageSql } from "../orders/stage-sql";
+
+/**
+ * A customer's totals, read from their orders — never stored, so they cannot
+ * drift from them (Customers context: Orders, Spent, Last Order):
+ *   totalOrders — every order they placed;
+ *   totalSpent  — the goods of their delivered orders, net of the units they
+ *                 refused at the door (a line's total is already net of its
+ *                 coupon share);
+ *   lastOrderAt — when they placed their newest order.
+ */
+export const customerTotals = {
+  totalOrders: sql<number>`(select count(*) from orders o where o.customer_id = "customers"."id")`.mapWith(Number),
+  totalSpent: sql<number>`(select coalesce(sum(op.line_total * (op.quantity - op.returned_quantity) / op.quantity), 0)
+    from order_products op
+    join orders o on o.id = op.order_id
+    join shipments s on s.order_id = o.id
+    where o.customer_id = "customers"."id" and s.delivered_at is not null and op.quantity > 0)`.mapWith(Number),
+  lastOrderAt: sql<string | null>`(select max(o.created_at) from orders o where o.customer_id = "customers"."id")`,
+};
+
+/** A customer as every read answers it: the row and its totals. */
+export const customerColumns = { ...getTableColumns(customers), ...customerTotals };
 
 export interface CustomerFilters {
   wilayaId?: number;
@@ -102,21 +124,18 @@ export async function getAllCustomers(db: AppDb, filters?: CustomerFilters) {
   const limit = filters?.limit || 50;
   const offset = filters?.offset || 0;
 
-  if (conditions.length > 0) {
-    return await db
-      .select()
-      .from(customers)
-      .where(and(...conditions))
-      .limit(limit)
-      .offset(offset)
-      .all();
-  }
-  return await db.select().from(customers).limit(limit).offset(offset).all();
+  return await db
+    .select(customerColumns)
+    .from(customers)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .limit(limit)
+    .offset(offset)
+    .all();
 }
 
 export async function getCustomerById(db: AppDb, customerId: string) {
   const customer = await db
-    .select()
+    .select(customerColumns)
     .from(customers)
     .where(eq(customers.id, customerId))
     .get();
@@ -187,10 +206,7 @@ export async function orderCustomerId(
       wilaya: wilayaRow?.nameAr ?? String(data.wilayaId),
       commune: communeRow?.nameAr ?? null,
       address: data.address ?? null,
-      totalOrders: 0,
-      totalSpent: 0,
       createdAt: data.now,
-      lastOrderAt: null,
     })
     .onConflictDoNothing({ target: customers.phone })
     .returning({ id: customers.id });
@@ -236,10 +252,7 @@ export async function createCustomer(db: AppDb, customerData: CreateCustomerData
     wilaya: wilayaRow?.nameAr ?? String(customerData.wilayaId),
     commune: communeName,
     address: customerData.address || null,
-    totalOrders: 0,
-    totalSpent: 0,
     createdAt: now,
-    lastOrderAt: null,
   };
 
   await db.insert(customers).values(newCustomer);

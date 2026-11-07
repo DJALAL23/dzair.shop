@@ -38,7 +38,7 @@ beforeEach(async () => {
   ]) {
     await db.delete(table);
   }
-  await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", totalOrders: 2, totalSpent: 3000, createdAt: T0 });
+  await db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T0 });
   const product = { price: 1500, hasVariants: false, inventory: 10, lowStockThreshold: 1, status: "ACTIVE" as const, visibility: true, showInStore: true, createdAt: T0, updatedAt: T0 };
   await db.insert(schema.products).values({ ...product, id: "tracked", name: "Robe", handle: "robe", sku: "ROBE", trackInventory: true });
   await db.insert(schema.products).values({ ...product, id: "untracked", name: "Carte", handle: "carte", sku: "CARTE", trackInventory: false });
@@ -81,8 +81,6 @@ async function shipment(orderId: string, state: "submitting" | "unknown" | "acce
   return reserved.shipmentId;
 }
 
-/** The customer has another order of the same value, so a spend rolled back twice shows. */
-const SPEND_BEFORE = 3000;
 
 const interleaved = (meanwhile: () => Promise<unknown>) => interleavedDb(d1.db, meanwhile);
 
@@ -98,7 +96,7 @@ describe("changing an order's status", () => {
     expect(await updateOrderStatus(db(), "nope", "confirmed", SYSTEM)).toEqual({ ok: false, reason: "not_found" });
   });
 
-  it("cancelling puts back what is still out — tracked products and variants only — and rolls the spend back", async () => {
+  it("cancelling puts back what is still out — tracked products and variants only", async () => {
     await seedOrder("o1", "confirmed", [
       { product: "tracked", quantity: 3, returned: 1 },
       { product: "untracked", quantity: 2 },
@@ -109,7 +107,6 @@ describe("changing an order's status", () => {
     expect(await stockOf("untracked")).toBe(10);
     expect(await stockOf("varied")).toBe(10);
     expect(await variantStock()).toBe(7);
-    expect((await customer())!.totalSpent).toBe(SPEND_BEFORE - 1500);
     expect((await movements()).map((m) => [m.productId, m.variantId, m.type, m.delta, m.qtyBefore, m.qtyAfter, m.createdBy]).sort()).toEqual([
       ["tracked", null, "ORDER_CANCELLED", 2, 10, 12, "u1"],
       ["varied", "v1", "ORDER_CANCELLED", 2, 5, 7, "u1"],
@@ -131,7 +128,6 @@ describe("changing an order's status", () => {
     await updateOrderStatus(db(), "o1", "cancelled", SYSTEM);
     await updateOrderStatus(db(), "o1", "cancelled", SYSTEM);
     expect(await stockOf("tracked")).toBe(12);
-    expect((await customer())!.totalSpent).toBe(SPEND_BEFORE - 1500);
   });
 
   it("five cancels at once: one applies, the others are refused, everything happens once", async () => {
@@ -140,7 +136,6 @@ describe("changing an order's status", () => {
     expect(outcomes.filter((o) => o.ok)).toHaveLength(1);
     expect(outcomes.filter((o) => !o.ok).every((o) => !o.ok && o.reason === "changed")).toBe(true);
     expect(await stockOf("tracked")).toBe(12);
-    expect((await customer())!.totalSpent).toBe(SPEND_BEFORE - 1500);
     expect(await statusEventsOf("o1")).toHaveLength(1);
     expect(await movements()).toHaveLength(1);
   });
@@ -151,7 +146,6 @@ describe("changing an order's status", () => {
     expect(await updateOrderStatus(raced, "o1", "cancelled", SYSTEM)).toEqual({ ok: false, reason: "changed" });
     expect(await statusOf("o1")).toBe("preparing");
     expect(await stockOf("tracked")).toBe(10);
-    expect((await customer())!.totalSpent).toBe(SPEND_BEFORE);
   });
 
   it("an order with a shipment has no status change — not even cancelling", async () => {
@@ -169,7 +163,6 @@ describe("changing an order's status", () => {
     expect(await updateOrderStatus(raced, "o1", "cancelled", SYSTEM)).toEqual({ ok: false, reason: "has_shipment" });
     expect(await statusOf("o1")).toBe("ready");
     expect(await stockOf("tracked")).toBe(10);
-    expect((await customer())!.totalSpent).toBe(SPEND_BEFORE);
   });
 
   it("a cancel and a handoff at once: exactly one of them happens", async () => {
@@ -187,14 +180,13 @@ describe("changing an order's status", () => {
 });
 
 describe("deleting an order", () => {
-  it("removes it and undoes its stock and the customer's count and spend", async () => {
+  it("removes it and undoes its stock", async () => {
     await seedOrder("o1", "confirmed", [{ product: "tracked", quantity: 2 }, { product: "varied", quantity: 1, returned: 0 }, { product: "untracked", quantity: 4 }]);
     expect(await deleteOrder(db(), "o1", SYSTEM)).toEqual({ ok: true });
     expect(await statusOf("o1")).toBeUndefined();
     expect(await stockOf("tracked")).toBe(12);
     expect(await variantStock()).toBe(6);
     expect(await stockOf("untracked")).toBe(10);
-    expect(await customer()).toMatchObject({ totalOrders: 1, totalSpent: SPEND_BEFORE - 1500 });
     expect((await movements()).every((m) => m.reason === "Order deleted - inventory restored" && m.createdBy === "system")).toBe(true);
     expect(await db().select().from(schema.orderProducts).where(eq(schema.orderProducts.orderId, "o1")).all()).toHaveLength(0);
   });
@@ -206,11 +198,10 @@ describe("deleting an order", () => {
     expect(await variantStock()).toBe(5);
   });
 
-  it("a cancelled order's spend is not rolled back twice", async () => {
+  it("a cancelled order's stock is not put back twice", async () => {
     await seedOrder("o1", "new");
     await updateOrderStatus(db(), "o1", "cancelled", SYSTEM);
     await deleteOrder(db(), "o1", SYSTEM);
-    expect(await customer()).toMatchObject({ totalOrders: 1, totalSpent: SPEND_BEFORE - 1500 });
     expect(await stockOf("tracked")).toBe(12);
   });
 
@@ -227,7 +218,6 @@ describe("deleting an order", () => {
     expect(await deleteOrder(db(), "o1", SYSTEM)).toEqual({ ok: false, reason: "has_shipment" });
     expect(await statusOf("o1")).toBe("ready");
     expect(await stockOf("tracked")).toBe(10);
-    expect(await customer()).toMatchObject({ totalOrders: 2, totalSpent: SPEND_BEFORE });
   });
 
   it.each(["delivered", "returned", "cancelled"] as const)("is refused once its shipment ended too (%s): the order, its parcel and history stay", async (milestone) => {
@@ -249,11 +239,10 @@ describe("deleting an order", () => {
     expect((await movements()).map((m) => m.productId)).toEqual(["tracked"]);
   });
 
-  it("a cancel between the read and the write: the deletion is planned again and the spend rolls back once", async () => {
+  it("a cancel between the read and the write: the deletion is planned again and applies once", async () => {
     await seedOrder("o1", "confirmed");
     const raced = interleaved(() => updateOrderStatus(db(), "o1", "cancelled", SYSTEM));
     expect(await deleteOrder(raced, "o1", SYSTEM)).toEqual({ ok: true });
-    expect(await customer()).toMatchObject({ totalOrders: 1, totalSpent: SPEND_BEFORE - 1500 });
     expect(await stockOf("tracked")).toBe(12);
   });
 
@@ -263,7 +252,6 @@ describe("deleting an order", () => {
     expect(await deleteOrder(raced, "o1", SYSTEM)).toEqual({ ok: false, reason: "has_shipment" });
     expect(await statusOf("o1")).toBe("ready");
     expect(await db().select().from(schema.shipments).all()).toHaveLength(1);
-    expect(await customer()).toMatchObject({ totalOrders: 2, totalSpent: SPEND_BEFORE });
   });
 });
 

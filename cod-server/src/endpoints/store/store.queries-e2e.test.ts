@@ -90,11 +90,6 @@ describe("findOrCreateCustomer — race-free upsert (BC-1)", () => {
       name: "Original Name",
       wilayaId: 16,
     });
-    await db
-      .update(schema.customers)
-      .set({ totalOrders: 5, totalSpent: 9000 })
-      .where(eq(schema.customers.id, first.id));
-
     const second = await findOrCreateCustomer(db, {
       phone: "0777000002",
       name: "Updated Name",
@@ -103,7 +98,6 @@ describe("findOrCreateCustomer — race-free upsert (BC-1)", () => {
 
     expect(second.id).toBe(first.id);
     expect(second.name).toBe("Updated Name");
-    expect(second.totalOrders).toBe(5);
   });
 });
 
@@ -185,9 +179,9 @@ describe("createStoreOrder — atomic commit + guarded deduction (BC-2)", () => 
       .all();
     expect(events).toEqual([{ type: "order.created", actorKind: "shopper" }]);
 
-    const cust = await db.select().from(schema.customers).where(eq(schema.customers.id, customer.id)).get();
-    expect(cust?.totalOrders).toBe(1);
-    expect(cust?.totalSpent).toBe(4500);
+    const { getCustomerById } = await import("../../../../cod-shared/queries/customers");
+    // Placed, not delivered: an order to its name, nothing spent yet.
+    expect(await getCustomerById(db, customer.id)).toMatchObject({ totalOrders: 1, totalSpent: 0, lastOrderAt: expect.any(String) });
 
     const product = await db.select().from(schema.products).where(eq(schema.products.id, productId)).get();
     expect(product?.inventory).toBe(7);
@@ -250,9 +244,8 @@ describe("createStoreOrder — atomic commit + guarded deduction (BC-2)", () => 
     const product = await db.select().from(schema.products).where(eq(schema.products.id, productId)).get();
     expect(product?.inventory).toBe(1);
 
-    const cust = await db.select().from(schema.customers).where(eq(schema.customers.id, customer.id)).get();
-    expect(cust?.totalOrders).toBe(0);
-    expect(cust?.totalSpent).toBe(0);
+    const { getCustomerById } = await import("../../../../cod-shared/queries/customers");
+    expect(await getCustomerById(db, customer.id)).toMatchObject({ totalOrders: 0, totalSpent: 0, lastOrderAt: null });
   });
 });
 

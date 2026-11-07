@@ -1,6 +1,7 @@
 import { eq, and, like, sql } from "drizzle-orm";
 import { customerTags, customerTagAssignments, customers } from "../db/schema";
 import type { AppDb } from "../db/client";
+import { customerTotals } from "./customers";
 
 export interface CustomerTagFilters {
   search?: string;
@@ -57,8 +58,8 @@ export async function getTagWithCustomers(db: AppDb, tagId: string) {
       name: customers.name,
       phone: customers.phone,
       wilaya: customers.wilaya,
-      totalOrders: customers.totalOrders,
-      totalSpent: customers.totalSpent,
+      totalOrders: customerTotals.totalOrders,
+      totalSpent: customerTotals.totalSpent,
       assignedAt: customerTagAssignments.assignedAt,
     })
     .from(customerTagAssignments)

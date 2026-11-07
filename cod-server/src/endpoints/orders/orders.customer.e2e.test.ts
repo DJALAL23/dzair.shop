@@ -50,7 +50,7 @@ beforeEach(async () => {
     await db.delete(table);
   }
   await db.insert(schema.stores).values({ id: "s1", name: "Store", createdAt: T, updatedAt: T });
-  await db.insert(schema.customers).values({ id: "karim", name: "Karim", phone: "0551234567", wilaya: "الجزائر", wilayaId: 16, totalOrders: 3, totalSpent: 9000, createdAt: T });
+  await db.insert(schema.customers).values({ id: "karim", name: "Karim", phone: "0551234567", wilaya: "الجزائر", wilayaId: 16, createdAt: T });
   await db.insert(schema.products).values({ id: "robe", name: "Robe", handle: "robe", price: 2000, hasVariants: false, inventory: 100, trackInventory: false, status: "ACTIVE", visibility: true, showInStore: true, createdAt: T, updatedAt: T });
 });
 
@@ -81,7 +81,9 @@ describe("the customer an order the merchant enters belongs to", () => {
     expect(json.data.customerId).toBe("karim");
     const customers = await d1.db.select().from(schema.customers).all();
     expect(customers).toHaveLength(1);
-    expect(customers[0]).toMatchObject({ id: "karim", name: "Karim", totalOrders: 4, totalSpent: 11000 });
+    expect(customers[0]).toMatchObject({ id: "karim", name: "Karim" });
+    const { getCustomerById } = await import("../../../../cod-shared/queries/customers");
+    expect(await getCustomerById(d1.db, "karim")).toMatchObject({ totalOrders: 1, totalSpent: 0 });
   });
 
   it("is a new customer for a new phone", async () => {
@@ -89,7 +91,9 @@ describe("the customer an order the merchant enters belongs to", () => {
     const { status, row } = await order(entered(id, "0661234567", "Amina"));
     expect(status).toBe(201);
     expect(row?.customerId).toBe(id);
-    expect(await d1.db.select().from(schema.customers).where(eq(schema.customers.id, id)).get()).toMatchObject({ name: "Amina", phone: "0661234567", wilayaId: 16, communeId: commune16, address: "12 Rue Didouche", totalOrders: 1 });
+    expect(await d1.db.select().from(schema.customers).where(eq(schema.customers.id, id)).get()).toMatchObject({ name: "Amina", phone: "0661234567", wilayaId: 16, communeId: commune16, address: "12 Rue Didouche" });
+    const { getCustomerById } = await import("../../../../cod-shared/queries/customers");
+    expect((await getCustomerById(d1.db, id))!.totalOrders).toBe(1);
   });
 
   it("is one new customer when two orders for a new phone are entered at once", async () => {

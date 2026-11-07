@@ -121,7 +121,7 @@ describe("Slice 1 — landing pages schema on real D1", () => {
     });
     await db.insert(schema.customers).values({
       id: "cust-lp-s3", name: "LP Customer", phone: "0555000001",
-      wilaya: "الجزائر", totalOrders: 0, totalSpent: 0, createdAt: NOW(),
+      wilaya: "الجزائر", createdAt: NOW(),
     });
     await db.insert(schema.orders).values({
       id: "ord-lp-s3", orderNumber: "ORD-LP-S3", customerId: "cust-lp-s3",
@@ -147,7 +147,7 @@ describe("Slice 1 — landing pages schema on real D1", () => {
   it("unattributed order (NULL landingPageId) is the default best-effort shape", async () => {
     await db.insert(schema.customers).values({
       id: "cust-lp-s4", name: "LP Customer 2", phone: "0555000002",
-      wilaya: "الجزائر", totalOrders: 0, totalSpent: 0, createdAt: NOW(),
+      wilaya: "الجزائر", createdAt: NOW(),
     });
     await db.insert(schema.orders).values({
       id: "ord-lp-s4", orderNumber: "ORD-LP-S4", customerId: "cust-lp-s4",

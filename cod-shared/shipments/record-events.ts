@@ -8,7 +8,7 @@
  * commercial effects of a milestone reached for the first time:
  *   - delivered, by the store's driver → the driver's delivered count,
  *     earnings and the cash they now hold;
- *   - returned → the goods back in stock and the customer's spend rolled back.
+ *   - returned → the goods back in stock.
  *
  * Concurrency: D1 has no transaction API, so the batch claims the shipment by
  * replacing the `revision` it read with a fresh token, and every other
@@ -212,21 +212,8 @@ async function attemptRecord(
     );
   }
   if (reached.includes("returned")) {
-    const order = await db
-      .select({ customerId: orders.customerId, price: orders.price })
-      .from(orders)
-      .where(eq(orders.id, row.orderId))
-      .get();
     const lines = await linesToRestock(db, row.orderId);
     effects.push(...restockStatements(db, lines, "ORDER_RETURNED", row.orderId, creditOf(author.actor), now, guard));
-    if (order) {
-      effects.push(
-        db
-          .update(customers)
-          .set({ totalSpent: sql`MAX(0, ${customers.totalSpent} - ${order.price})` })
-          .where(and(eq(customers.id, order.customerId), guard)),
-      );
-    }
   }
 
   // The Business Events last, so each carries the shipment as this batch leaves it.

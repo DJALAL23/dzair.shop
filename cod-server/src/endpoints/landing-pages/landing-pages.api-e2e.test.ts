@@ -83,7 +83,7 @@ async function seedCustomer(): Promise<string> {
   const id = `cust-lpm-${++seq}`;
   await db.insert(schema.customers).values({
     id, name: "LPM Customer", phone: `0555${String(300000 + seq).slice(-6)}`,
-    wilaya: "الجزائر", totalOrders: 0, totalSpent: 0, createdAt: NOW(),
+    wilaya: "الجزائر", createdAt: NOW(),
   });
   return id;
 }

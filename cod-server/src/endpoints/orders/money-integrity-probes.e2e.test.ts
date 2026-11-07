@@ -71,7 +71,7 @@ async function seedCustomer() {
   const id = `cust-mi-${++seq}`;
   await db.insert(schema.customers).values({
     id, name: "MI Customer", phone: `0555${String(100000 + seq).slice(-6)}`,
-    wilaya: "الجزائر", totalOrders: 0, totalSpent: 0, createdAt: NOW(),
+    wilaya: "الجزائر", createdAt: NOW(),
   });
   return id;
 }
@@ -106,8 +106,8 @@ describe("P3: dashboard createOrder — oversell guard & race", () => {
     expect(await db.select().from(schema.orders).where(eq(schema.orders.id, oid)).get()).toBeUndefined();
     expect(await db.select().from(schema.orderProducts).where(eq(schema.orderProducts.orderId, oid)).all()).toHaveLength(0);
     expect(await db.select().from(schema.stockMovements).where(eq(schema.stockMovements.productId, productId)).all()).toHaveLength(0);
-    const cust = (await db.select().from(schema.customers).where(eq(schema.customers.id, customerId)).get())!;
-    expect(cust.totalOrders).toBe(0);
+    const { getCustomerById } = await import("../../../../cod-shared/queries/customers");
+    expect((await getCustomerById(db, customerId))!.totalOrders).toBe(0);
     const inv = (await db.select().from(schema.products).where(eq(schema.products.id, productId)).get())!;
     expect(inv.inventory).toBe(2);
   });
@@ -184,11 +184,6 @@ describe("P1: storefront price forging (server-authoritative pricing)", () => {
     // FIXED: the order persisted at the CATALOG price, not the forged 1 DZD
     expect(Number(forged!.price)).toBe(50000);
     expect(Number(forged!.codAmount)).toBe(50000);
-
-    // And the customer stats inherited the real price, not the forged one
-    const cust = (await db.select().from(schema.customers)
-      .where(eq(schema.customers.id, typeof customerId === "string" ? customerId : (customerId as any).id)).get())!;
-    expect(Number(cust.totalSpent)).toBe(50000);
 
     // The line too
     const line = (await db.select().from(schema.orderProducts)

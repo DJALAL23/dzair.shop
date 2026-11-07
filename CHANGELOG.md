@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A customer's totals are read from their orders (migration 0076):
+  `totalOrders` counts every order they placed, `lastOrderAt` is their
+  newest, and **`totalSpent` is the goods of their delivered orders**, net of
+  units refused at the door — it used to count an order the moment it was
+  placed. The three counters every order writer adjusted are dropped.
 - An order's timeline is its Business Events (migration 0075):
   `order_status_history` is dropped, `statusHistory` on an order is read
   from the Event Log with the name each event recorded, and a status change

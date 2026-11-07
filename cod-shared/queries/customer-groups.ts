@@ -1,6 +1,7 @@
 import { eq, and, like, sql } from "drizzle-orm";
 import { customerGroups, customerGroupMembers, customers } from "../db/schema";
 import type { AppDb } from "../db/client";
+import { customerTotals } from "./customers";
 
 export interface CustomerGroupFilters {
   search?: string;
@@ -59,8 +60,8 @@ export async function getGroupWithMembers(db: AppDb, groupId: string) {
       name: customers.name,
       phone: customers.phone,
       wilaya: customers.wilaya,
-      totalOrders: customers.totalOrders,
-      totalSpent: customers.totalSpent,
+      totalOrders: customerTotals.totalOrders,
+      totalSpent: customerTotals.totalSpent,
       assignedAt: customerGroupMembers.assignedAt,
     })
     .from(customerGroupMembers)

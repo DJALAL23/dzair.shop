@@ -31,7 +31,7 @@ beforeEach(async () => {
   for (const table of [schema.shipmentEvents, schema.shipments, schema.stockMovements, schema.orderProducts, schema.orders, schema.productVariants, schema.products, schema.customers]) {
     await d1.db.delete(table);
   }
-  await d1.db.insert(schema.customers).values({ id: "c1", name: "K", phone: "0551234567", wilaya: "Alger", totalOrders: 1, totalSpent: 3000, createdAt: T });
+  await d1.db.insert(schema.customers).values({ id: "c1", name: "K", phone: "0551234567", wilaya: "Alger", createdAt: T });
   const product = { price: 1000, hasVariants: false, lowStockThreshold: 1, status: "ACTIVE" as const, visibility: true, showInStore: true, createdAt: T, updatedAt: T };
   await d1.db.insert(schema.products).values([
     { ...product, id: "tracked", name: "Robe", handle: "robe", inventory: 10, trackInventory: true },

@@ -330,7 +330,7 @@ describe("createStoreOrder — a basket is all or nothing", () => {
     expect(await inventoryOf(short)).toBe(1);
   });
 
-  it("does not bump customer stats when the order is rejected", async () => {
+  it("leaves no order to the customer's name when the order is rejected", async () => {
     const short = await seedProduct({ price: 1000, inventory: 0 });
     const customer = await seedCustomer();
 
@@ -350,12 +350,8 @@ describe("createStoreOrder — a basket is all or nothing", () => {
       } as any),
     ).rejects.toThrow();
 
-    const after = await db
-      .select()
-      .from(schema.customers)
-      .where(eq(schema.customers.id, customer.id))
-      .get();
-    expect(after).toMatchObject({ totalOrders: 0, totalSpent: 0 });
+    const { getCustomerById } = await import("../../../../cod-shared/queries/customers");
+    expect(await getCustomerById(db, customer.id)).toMatchObject({ totalOrders: 0, totalSpent: 0, lastOrderAt: null });
   });
 
   it("refuses a basket over the line cap before touching the database", async () => {

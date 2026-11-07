@@ -1,6 +1,6 @@
 # Customers Context
 
-Who buys from the store: people identified by their phone number, their running purchase ledger, and the segments merchants sort them into.
+Who buys from the store: people identified by their phone number, what their orders add up to, and the segments merchants sort them into.
 
 ## Language
 
@@ -22,21 +22,23 @@ _Avoid_: Alternate contact ID
 The Arabic display names for wilaya and commune stored directly on the customer alongside their IDs. The IDs are authoritative; the names are refreshed only when this customer is written.
 _Avoid_: Live lookup, resolved location
 
-### Purchase Ledger
+### Customer Totals
+
+Read from the customer's orders every time — never stored, so they cannot
+drift from them.
 
 **Total Orders**:
-How many orders this customer has ever placed, minus deleted ones. Returned orders still count here.
+Every order this customer placed and that still exists, in any status.
 _Avoid_: Order count today, active orders
 
 **Total Spent**:
-Running value of kept orders. Cancelled and returned orders subtract back out (never below zero); deleted orders remove their value entirely.
-_Avoid_: Lifetime value, revenue
+The goods of the customer's delivered orders, net of the units refused at
+the door. A placed, travelling, returned or cancelled order spent nothing.
+_Avoid_: Lifetime value, revenue, running total
 
 **Last Order At**:
-Creation timestamp of the most recent order.
+When the customer placed their newest order.
 _Avoid_: Last activity, last login
-
-These three counters are maintained automatically by the Orders context at creation, cancellation, return, and deletion — this module never writes them by hand.
 
 ### Segmentation & History
 
@@ -63,13 +65,13 @@ Terms owned by neighboring contexts — use them, don't redefine them here:
 - **Creating customers from walk-in orders**: Orders context auto-creates a Customer when checkout names an unknown phone
 - **Group / Tag management**: `customer-groups/` and `customer-tags/` own those lifecycles
 - **Geography IDs and formats**: Wilayas context
-- **Ledger writes**: Orders context owns when Total Orders / Total Spent move; this module only initializes them at zero
+- **Delivered, refused units**: Shipments and Orders own when a parcel is delivered and which units came back; Customer Totals only read them
 
 ## Edge Cases
 
 **Customers with history are immortal**: One order — any status — permanently blocks deletion; there is no soft-delete escape hatch for customers.
 
-**Returned orders split the ledger**: They stay counted in Total Orders while their value exits Total Spent — the two numbers intentionally diverge.
+**Orders and spend diverge on purpose**: a returned or cancelled order counts in Total Orders and never in Total Spent.
 
 **Place Snapshots age independently**: Renaming or re-mapping reference geography never rewrites existing customers; snapshots refresh only when that customer is edited.
 

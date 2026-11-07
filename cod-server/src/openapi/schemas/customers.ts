@@ -49,13 +49,10 @@ export const CustomerSchema = z
       example: "بئر مراد رايس",
     }),
     address: z.string().nullable(),
-    totalOrders: z.number().int().openapi({
-      example: 5,
-      description: "Denormalized count, incremented on each order created",
-    }),
-    totalSpent: z.number().openapi({ example: 25000 }),
+    totalOrders: z.number().int().openapi({ example: 5, description: "Every order the customer placed that still exists, in any status — read from the orders" }),
+    totalSpent: z.number().openapi({ example: 25000, description: "The goods of their delivered orders, net of units refused at the door, in DZD — read from the orders" }),
     createdAt: z.string().datetime(),
-    lastOrderAt: z.string().datetime().nullable(),
+    lastOrderAt: z.string().datetime().nullable().openapi({ description: "When they placed their newest order; null before any" }),
     recentOrders: z
       .array(z.record(z.string(), z.unknown()))
       .optional()

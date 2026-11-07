@@ -266,17 +266,6 @@ export async function createOrder(
     statements.push(db.insert(orderProducts).values(productsData));
   }
 
-  statements.push(
-    db
-      .update(customers)
-      .set({
-        totalOrders: sql`${customers.totalOrders} + 1`,
-        totalSpent: sql`${customers.totalSpent} + ${orderData.price ?? 0}`,
-        lastOrderAt: orderData.createdAt,
-      })
-      .where(eq(customers.id, orderData.customerId)),
-  );
-
   for (const item of productsData) {
     const qty = item.quantity as number;
 
@@ -386,7 +375,7 @@ export type StatusChange = { ok: true } | { ok: false; reason: "not_found" | "ha
 
 /**
  * Move an order to a new status, with its effects: its Business Event, and on cancel the
- * customer's spend rolled back and the goods restocked. (Delivery and return
+ * goods restocked. (Delivery and return
  * are the shipment's milestones, with their own effects — record-events.ts.)
  *
  * Exactly once, in one batch: the order takes the new status, with a fresh
@@ -426,12 +415,6 @@ export async function updateOrderStatus(
   ];
 
   if (newStatus === "cancelled" && order.status !== "cancelled") {
-    statements.push(
-      db
-        .update(customers)
-        .set({ totalSpent: sql`MAX(0, ${customers.totalSpent} - ${order.price ?? 0})` })
-        .where(and(eq(customers.id, order.customerId), claimed)),
-    );
     const lines = await linesToRestock(db, orderId);
     statements.push(
       ...restockStatements(
@@ -771,18 +754,9 @@ async function attemptDelete(db: AppDb, orderId: string, author: Author): Promis
     sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
   )!;
 
-  // The event first: its snapshot is the order as it was, before anything is
-  // undone. totalOrders always drops; totalSpent only while the order still
-  // counted as spend — a cancelled order already rolled it back.
+  // The event first: its snapshot is the order as it was, before anything is undone.
   const statements: BatchStatement[] = [
     recordEvent(db, { type: "order.deleted", subjectId: orderId, orderId, occurredAt: now, ...author, data: { order: orderSnapshot(orderId) } }, asRead),
-    db
-      .update(customers)
-      .set({
-        totalOrders: sql`MAX(0, ${customers.totalOrders} - 1)`,
-        ...(read.status === "cancelled" ? {} : { totalSpent: sql`MAX(0, ${customers.totalSpent} - ${read.price ?? 0})` }),
-      })
-      .where(and(eq(customers.id, read.customerId), asRead)),
   ];
   const lines = await linesToRestock(db, orderId);
   statements.push(...restockStatements(db, lines, "ORDER_CANCELLED", orderId, creditOf(author.actor), now, asRead, "Order deleted - inventory restored"));

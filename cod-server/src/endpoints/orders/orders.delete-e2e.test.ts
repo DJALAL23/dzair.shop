@@ -56,7 +56,7 @@ async function seedOrder(id: string, withCarrierActivity: boolean) {
   const now = new Date().toISOString();
   await db.insert(schema.customers).values({
     id: `cust-${id}`, name: "E2E Customer", phone: `0555${id.slice(-6)}`,
-    wilaya: "الجزائر", totalOrders: 1, totalSpent: 2000, createdAt: now,
+    wilaya: "الجزائر", createdAt: now,
   });
   await db.insert(schema.orders).values({
     id, orderNumber: `ORD-${id}`, customerId: `cust-${id}`,

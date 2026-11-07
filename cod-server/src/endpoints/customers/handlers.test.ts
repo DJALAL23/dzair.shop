@@ -139,10 +139,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         wilaya: "Alger",
         commune: null,
         address: null,
-        totalOrders: 0,
-        totalSpent: 0,
         createdAt: new Date("2024-01-01").toISOString(),
-        lastOrderAt: null,
         email: null,
       });
 
@@ -261,10 +258,7 @@ describe("Customers Endpoint - Error Scenarios", () => {
         wilaya: "Alger",
         commune: null,
         address: null,
-        totalOrders: 0,
-        totalSpent: 0,
         createdAt: new Date("2024-01-01").toISOString(),
-        lastOrderAt: null,
         email: null,
       });
 

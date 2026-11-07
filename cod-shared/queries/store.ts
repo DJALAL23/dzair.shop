@@ -1163,17 +1163,6 @@ export async function createStoreOrder(
       statements.push(db.insert(orderProducts).values(line));
     }
 
-    statements.push(
-      db
-        .update(customers)
-        .set({
-          totalOrders: sql`${customers.totalOrders} + 1`,
-          totalSpent: sql`${customers.totalSpent} + ${price}`,
-          lastOrderAt: now,
-        })
-        .where(eq(customers.id, data.customerId)),
-    );
-
     for (const input of deductions) {
       statements.push(...buildDeductStatements(db, input));
     }

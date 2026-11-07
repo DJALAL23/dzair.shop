@@ -55,9 +55,9 @@ const customerRowSchema = z.looseObject({
   phone: z.string().describe("Primary Algerian mobile (05/06/07) — the customer's identity anchor"),
   wilaya: z.string().optional().describe("Wilaya display-name snapshot"),
   commune: z.string().optional().describe("Commune display-name snapshot"),
-  totalSpent: z.number().optional().describe("Running value of kept orders in DZD"),
-  totalOrders: z.number().optional().describe("Orders ever placed, minus deleted ones"),
-  lastOrderAt: timestampSchema.nullable().optional().describe("Creation time of the most recent order, or null"),
+  totalSpent: z.number().optional().describe("The goods of their delivered orders, net of units refused at the door, in DZD"),
+  totalOrders: z.number().optional().describe("Every order they placed that still exists, in any status"),
+  lastOrderAt: timestampSchema.nullable().optional().describe("When they placed their newest order, or null"),
 });
 
 export const CUSTOMER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {

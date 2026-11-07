@@ -6,8 +6,8 @@
  *
  * Invariants under test (senior-dev checklist):
  *   I1  inventory = initial - sold + restocked-from-terminal (never double)
- *   I2  customer.totalOrders tracks non-deleted orders
- *   I3  customer.totalSpent = spend of non-terminal, non-deleted orders
+ *   I2  the customer's totalOrders counts their non-deleted orders
+ *   I3  the customer's totalSpent counts delivered goods only (none here)
  *   I5  every multi-write flow is atomic — failure leaves NO partial state
  *   I6  stock_movements ledger deltas sum to the real inventory change
  *
@@ -72,12 +72,12 @@ let seq = 0;
 
 const INITIAL_INVENTORY = 10;
 
-async function seedCustomer(baseOrders = 0, baseSpent = 0) {
+async function seedCustomer() {
   const id = `cust-lc-${++seq}`;
   const now = new Date().toISOString();
   await db.insert(schema.customers).values({
     id, name: "LC Customer", phone: `0555${String(100000 + seq).slice(-6)}`,
-    wilaya: "الجزائر", totalOrders: baseOrders, totalSpent: baseSpent,
+    wilaya: "الجزائر",
     createdAt: now,
   });
   return id;
@@ -137,9 +137,10 @@ async function inventoryOf(productId: string) {
     .where(eq(schema.products.id, productId)).get())?.inv;
 }
 
+/** The customer as the API reads them: their row and the totals read from their orders. */
 async function customerOf(customerId: string) {
-  return (await db.select().from(schema.customers)
-    .where(eq(schema.customers.id, customerId)).get())!;
+  const { getCustomerById } = await import("../../../../cod-shared/queries/customers");
+  return (await getCustomerById(db, customerId))!;
 }
 
 async function lineOf(lineId: string) {
@@ -172,7 +173,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
 
     expect(await orderStatus(orderId)).toBe("new");
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY - 2); // I1
-    expect(await customerOf(customerId)).toMatchObject({ totalOrders: 1, totalSpent: 2000 }); // I2/I3
+    expect(await customerOf(customerId)).toMatchObject({ totalOrders: 1, totalSpent: 0 }); // I2/I3: placed, not delivered
     const mv = await movementsFor(productId);
     expect(mv).toHaveLength(1);
     expect(mv[0]).toMatchObject({ type: "ORDER_DEDUCTED", delta: -2, qtyBefore: 10, qtyAfter: 8 }); // I6
@@ -235,10 +236,8 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     expect(await db.select().from(schema.orders).where(eq(schema.orders.id, orderId)).get()).toBeUndefined();
   });
 
-  it("T10: cancel THEN delete — customer stats must return to the pre-order baseline", async () => {
-    // Customer with PRIOR spend so the MAX(0, …) floor cannot mask a
-    // double-decrement (the floor silently absorbs it at totalSpent=0).
-    const customerId = await seedCustomer(1, 5000);
+  it("T10: cancel THEN delete — the customer's totals are what their remaining orders say", async () => {
+    const customerId = await seedCustomer();
     const productId = await seedProduct();
     const orderId = `ord-lc-${++seq}`;
     const now = new Date().toISOString();
@@ -252,12 +251,11 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
       quantity: 2, pricePerUnit: 1000, lineTotal: 2000, createdAt: now,
     }], staff("u1", "A"));
 
-    await updateOrderStatus(db, orderId, "cancelled", SYSTEM); // totalSpent 7000 → 5000
+    await updateOrderStatus(db, orderId, "cancelled", SYSTEM);
     await deleteOrder(db, orderId, SYSTEM);
 
-    // I2/I3: the order is gone; its cancelled spend was already rolled back
-    // at cancel time. Deleting must not subtract it a second time.
-    expect(await customerOf(customerId)).toMatchObject({ totalOrders: 1, totalSpent: 5000 });
+    // I2/I3: the order is gone, so it counts for nothing.
+    expect(await customerOf(customerId)).toMatchObject({ totalOrders: 0, totalSpent: 0, lastOrderAt: null });
     expect(await inventoryOf(productId)).toBe(INITIAL_INVENTORY);
   });
 

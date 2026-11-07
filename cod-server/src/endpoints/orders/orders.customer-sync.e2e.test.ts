@@ -78,8 +78,6 @@ async function seedCustomer(
     wilaya: overrides.wilaya ?? "الجزائر الوسطى",
     commune: overrides.commune ?? "الجزائر الوسطى",
     address: overrides.address ?? null,
-    totalOrders: 0,
-    totalSpent: 0,
     createdAt: NOW(),
   });
   return { id, phone, name };

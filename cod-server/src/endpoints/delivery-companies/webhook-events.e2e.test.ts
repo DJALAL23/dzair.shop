@@ -83,7 +83,7 @@ beforeAll(async () => {
   });
   await realDb.insert(schema.customers).values({
     id: "cust-events", name: "Events Customer", phone: "0555000333",
-    wilaya: "الجزائر", totalOrders: 1, totalSpent: 1000, createdAt: now,
+    wilaya: "الجزائر", createdAt: now,
   });
   await realDb.insert(schema.orders).values({
     id: "ord-events-1", orderNumber: "ORD-EVT-1", customerId: "cust-events",

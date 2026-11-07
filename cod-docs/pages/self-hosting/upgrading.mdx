@@ -53,6 +53,14 @@ after the server, from the same checkout.
 Newest first. Only the entries for migrations your database has not applied
 concern you.
 
+### 0076: a customer's totals are read from their orders
+
+- `customers.total_orders`, `total_spent` and `last_order_at` are dropped;
+  the API still sends `totalOrders`, `totalSpent` and `lastOrderAt`, read
+  from the orders. **`totalSpent` now counts only the goods of delivered
+  orders**, net of units refused at the door: it used to count an order
+  from the moment it was placed.
+
 ### 0075: an order's timeline is its events
 
 - `order_status_history` is dropped: an order's `statusHistory`
