@@ -11,6 +11,7 @@
 import { defineTheme } from "@wocart/theme";
 import { ar } from "./content/ar";
 import { en } from "./content/en";
+import { CONTENT_GROUPS } from "./content/groups";
 import { fr } from "./content/fr";
 import { THEME_STYLE } from "./appearance";
 import { THEME_KEY } from "./key";
@@ -82,6 +83,8 @@ export const theme00 = defineTheme({
   // until the merchant edits it. Declared here, the SDK checks every
   // contentKey against each pack and the manifest carries them for the editor.
   content: { ar: { ...ar }, fr: { ...fr }, en: { ...en } },
+  // How the editor groups those words: one group per area of the store.
+  contentGroups: CONTENT_GROUPS,
   // The composed pages, each with the document it renders before the store
   // saves one (each page's own catalog declares it).
   surfaces: [homeSurface, productSurface, collectionSurface, categorySurface, catalogSurface, pageSurface, thankYouSurface, landingSurface, searchSurface, trackOrderSurface, checkoutSurface, contactSurface],
