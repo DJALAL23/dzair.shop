@@ -254,63 +254,52 @@ contact page, the order button. Never write a `wa.me` link or read
 has the module (`src/lib/whatsapp.ts`, `storeWhatsApp`) and a guard test that
 fails on any other WhatsApp link.
 
-## Meta browser events
+## Tracking
 
-The SDK builds Meta payloads and wraps the pixel function:
+A theme writes no pixel call of its own. The server decides which pixel a
+page reports to and which sale fires; the page carries the decision; the SDK
+executes it.
+
+```astro
+---
+import { trackingHead } from "@wocart/storefront/astro";
+const { config } = Astro.locals.store;
+---
+<head>
+  <Fragment set:html={trackingHead(config.pixelId)} />
+</head>
+<script>
+  import { storefrontTracking } from "@wocart/storefront";
+  storefrontTracking().start();
+</script>
+```
+
+`trackingHead(pixelId)` renders the `wocart:pixel` meta tag, Meta's library
+and the no-script page view, or nothing when the page reports to no pixel.
+Pass the pixel of the page: the store's `config.pixelId`, a landing page's
+`tracking.pixelId`, or on the thank-you page the order's (see
+[Checkout and OTP](/sdk/storefront/checkout)). `start()` initialises that
+pixel and reports the page and every page a soft navigation brings.
+
+Report the shopper's steps where they happen:
 
 ```ts
-import {
-  addedLines,
-  buildMetaAddToCartPayload,
-  buildMetaViewContentPayload,
-  createMetaPixelTracker,
-  type MetaPixelFunction,
-} from "@wocart/storefront";
+import { addedLines, storefrontTracking } from "@wocart/storefront";
 
-const pixel = createMetaPixelTracker({
-  getPixel: () => {
-    const fbq = (window as { fbq?: unknown }).fbq;
-    return typeof fbq === "function" ? (fbq as MetaPixelFunction) : null;
-  },
-});
-
-pixel.track(
-  "ViewContent",
-  buildMetaViewContentPayload(product.id, view.basePrice),
-);
+const tracking = storefrontTracking();
+tracking.productViewed({ productId: product.id, price: view.basePrice });
 
 const before = basket.getLines();
-const addToCart = buildMetaAddToCartPayload(addedLines(before, basket.addLine(line)));
-if (addToCart) pixel.track("AddToCart", addToCart);
+tracking.addedToCart(addedLines(before, basket.addLine(line)));
+
+tracking.checkoutStarted({ lines: basket.getLines(), value: quote.subtotal });
 ```
 
-A product payload carries `content_ids`, `content_type: "product"`, `value` and
-`currency: "DZD"`. A cart payload adds `contents` and `num_items`.
-
-The cart builders are pure and return `null` for no lines — for
-`AddToCart`, a tap that added nothing because the basket is full. When the
-shopper starts checkout, report the whole basket with its value:
-
-```ts
-import { buildMetaInitiateCheckoutPayload } from "@wocart/storefront";
-
-const checkout = buildMetaInitiateCheckoutPayload(basket.getLines(), quote.subtotal);
-if (checkout) pixel.track("InitiateCheckout", checkout);
-```
-
-Use `trackSingle(pixelId, event, params, { eventID })` when the sale belongs to
-one pixel. The **Purchase** event is different: its pixel and event are the
-server's decision. Read them from `orders.tracking` and send nothing when it
-returns `null` — see [Checkout and OTP](/sdk/storefront/checkout).
-
-<Callout type="caution" title="A browser event is not the conversion">
-The browser event and the server's Conversions API event are two halves of one
-conversion. They must carry the same `eventID` and go to the same pixel. Do not
-invent a pixel, an event name or an event ID on the thank-you page.
-</Callout>
-
-`AddToCart` reports what the tap put in — `addedLines(before, after)` — never the
-whole basket: a shopper adding one piece to a basket of five did not add six.
+Every event goes to the page's pixel alone (`trackSingle`), in Meta's
+catalog shape with `currency: "DZD"`. `addedToCart` reports what the tap put
+in — never the whole basket: a shopper adding one piece to a basket of five
+did not add six. `checkoutStarted` is reported once per page; send it on the
+first real interaction with the order form, with the value the server quoted.
 
 
 ## A presentation checklist

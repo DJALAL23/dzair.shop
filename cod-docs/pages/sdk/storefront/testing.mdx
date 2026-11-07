@@ -260,7 +260,7 @@ Use a staging store, not production, for:
 8. A store page and a menu.
 9. A review: wrong order number, correct order, a photo, a voice note.
 10. Checkout with OTP on and off.
-11. Thank-you: the order appears; the pixel fires once with `eventID = orderId`.
+11. Thank-you: the order appears; the sale fires once, at the order's pixel, with `eventID` the order's `eventId`.
 
 Do not run this suite in CI against a shared store; it writes orders.
 

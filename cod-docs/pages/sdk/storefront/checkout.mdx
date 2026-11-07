@@ -181,37 +181,28 @@ the same address with a sample order. In an editable theme the thank-you page is
 Studio surface like any other page type, with the `thank-you-main` section in
 the starter.
 
-The page asks the server which pixel and event this order belongs to:
+The page asks the server which pixel and sale this order belongs to, and
+renders both: the order's pixel in the head, and the sale for the SDK to fire.
 
-```ts
+```astro
+---
+import { conversionTag } from "@wocart/storefront/astro";
 const tracking = await Astro.locals.store.client.orders.tracking(orderId);
+const pageConfig = { ...config, pixelId: tracking?.pixelId ?? null };
+---
+<StoreLayout config={pageConfig}>
+  …
+  <Fragment set:html={conversionTag(tracking, total)} />
+</StoreLayout>
 ```
 
-`tracking` is `null` when the lookup fails. In that case fire **nothing**:
-
-```ts
-if (!tracking?.pixelId || !tracking.event) return;
-```
-
-The event is already resolved. If the merchant's conversion fires later in the
-funnel, `event` is `null`; do not fall back to `Purchase`.
-
-```js
-fbq(
-  "trackSingle",
-  pixelId,
-  tracking.event,
-  { value: total, currency: "DZD" },
-  { eventID: orderId },
-);
-```
-
-Use `trackSingle`, not `track`: the sale belongs to one pixel, the one the
-server's Conversions API mirrors. `eventID: orderId` is what deduplicates the
-browser event against the server event. A different ID double-counts.
-
-When tracking is unavailable, skip the browser event rather than guessing a
-pixel. The server-side event still exists.
+`tracking` is `{ pixelId, event, eventId }`, or `null` when the lookup fails:
+then no pixel loads and nothing fires — the server's Conversions API event
+still exists. `event` is already the server's decision: when the merchant's
+conversion fires later in the funnel it is `null`, and `conversionTag`
+renders nothing. `start()` fires the sale once per order in a session, at the
+order's pixel, with `eventId` as Meta's `eventID`: the server sends the same
+sale under the same id, so Meta counts it once.
 
 ## WhatsApp OTP
 
@@ -406,8 +397,8 @@ a newer server adds reads your general words.
 - `bindCheckoutKey` is bound to the checkout form.
 - The page that rendered the form redirects to the thank-you page on success
   (`Astro.getActionResult`); the middleware never redirects.
-- The thank-you page fires only the pixel and event `orders.tracking` returns.
-- `eventID` is the order id.
+- The thank-you page renders `trackingHead(tracking?.pixelId)` and
+  `conversionTag(tracking, total)` from `orders.tracking`, and fires nothing itself.
 - The abandoned session is marked converted after success.
 
 - The thank-you page calls `convertAbandonedCheckout`.

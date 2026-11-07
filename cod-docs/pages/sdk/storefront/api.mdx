@@ -49,7 +49,7 @@ server, where data enters.
 | `countdownTarget(mode, endsOn, endsAt)`, `countdownEnd(ends, now?)`, `timeLeft(end, now?)` | An offer countdown's end (every midnight, or a day the merchant names), in Algiers time, the same on the server and in the browser |
 | `whatsAppContact(config, page, words)` | The store's WhatsApp on one page: the `wa.me` link with the page's message, every text resolved; `null` when the store has none |
 | `MAX_RESOLVED_PREFILL_LENGTH`, `PREFILL_TOKENS` | The message's 900-character cap and its tokens (`product`, `url`, `order`, `store`) |
-| `META_CURRENCY`, `buildMetaViewContentPayload`, `buildMetaProductPayload`, `buildMetaAddToCartPayload`, `buildMetaInitiateCheckoutPayload`, `createMetaPixelTracker` | Meta browser events with the platform's currency and content ids |
+| `storefrontTracking()` | The page's tracking: `start()`, `productViewed`, `addedToCart`, `checkoutStarted` — every event at the page's one pixel; `trackingHead` and `conversionTag` (in `@wocart/storefront/astro`) render what it reads |
 
 ## The store, its pages and its languages
 

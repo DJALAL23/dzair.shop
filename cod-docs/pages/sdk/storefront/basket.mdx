@@ -133,17 +133,17 @@ basket.addSelections(
 ### What an add put in
 
 `addedLines(before, after)` is what one tap put in the basket: each line that
-grew, by what it grew. Report that as the Meta `AddToCart` event — never the
+grew, by what it grew. Report that with `storefrontTracking().addedToCart` — never the
 whole basket — and read an empty answer as a basket with no room left, which
 the shopper should be told.
 
 ```ts
-import { addedLines, buildMetaAddToCartPayload } from "@wocart/storefront";
+import { addedLines, storefrontTracking } from "@wocart/storefront";
 
 const before = basket.getLines();
 const added = addedLines(before, basket.addLine(line));
 if (added.length === 0) showBasketFull();
-else tracker.track("AddToCart", buildMetaAddToCartPayload(added));
+else storefrontTracking().addedToCart(added);
 ```
 
 ## Quote the basket
