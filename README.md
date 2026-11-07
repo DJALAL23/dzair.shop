@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="imgs/wocart_readme_banner.webp" alt="Wocart — open-source cash-on-delivery commerce for Algeria" width="100%">
+</p>
+
 # Wocart
 
 **The open-source, cash-on-delivery commerce platform for Algeria.**
@@ -14,6 +18,13 @@ Algeria's carriers or your own drivers, and send Meta the orders that were
 really delivered.
 
 **Documentation: [docs.wocart.store](https://docs.wocart.store)**
+
+> [!TIP]
+> **Rather not set it up yourself?** [Wocart Cloud](https://cloud.wocart.store)
+> deploys the same stores to your own Cloudflare account in a few clicks, with a
+> visual editor for their themes.
+>
+> [![Wocart Cloud](https://img.shields.io/badge/Wocart%20Cloud-Deploy%20a%20store-6D28D9?style=for-the-badge&logo=cloudflare&logoColor=white)](https://cloud.wocart.store)
 
 ---
 
