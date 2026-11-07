@@ -253,13 +253,14 @@ export async function getOrderById(db: AppDb, orderId: string) {
 export type NewOrderLine = typeof orderProducts.$inferInsert & { productId: string };
 
 /**
- * Create an order from the dashboard or an AI agent. It is placed in the
- * store's primary language; only a storefront checkout records the shopper's
- * own, and its checkout key.
+ * Create an order from the dashboard or an AI agent. Every order starts
+ * `new`: it moves on only through the lifecycle, so each later status has its
+ * Business Event. It is placed in the store's primary language; only a
+ * storefront checkout records the shopper's own, and its checkout key.
  */
 export async function createOrder(
   db: AppDb,
-  orderData: Omit<typeof orders.$inferInsert, "locale" | "checkoutKey">,
+  orderData: Omit<typeof orders.$inferInsert, "locale" | "checkoutKey" | "status">,
   productsData: Array<NewOrderLine>,
   author: Author,
 ) {
@@ -268,7 +269,7 @@ export async function createOrder(
 
   const primaryLanguage = sql<StoreLocale>`(select ${stores.lang} from ${stores} limit 1)`;
   const statements: BatchStatement[] = [
-    db.insert(orders).values({ ...orderData, locale: primaryLanguage }),
+    db.insert(orders).values({ ...orderData, status: "new", locale: primaryLanguage }),
   ];
 
   if (productsData.length > 0) {
@@ -279,7 +280,7 @@ export async function createOrder(
     db.insert(orderStatusHistory).values({
       id: crypto.randomUUID(),
       orderId: orderData.id!,
-      status: orderData.status!,
+      status: "new",
       timestamp: orderData.createdAt!,
       by: staffOf(author.actor)?.id ?? null,
     }),

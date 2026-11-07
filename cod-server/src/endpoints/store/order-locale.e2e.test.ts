@@ -100,7 +100,7 @@ describe("an order the dashboard or an agent creates", () => {
     await d1.db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0661234567", wilaya: "Alger", createdAt: T });
     await createOrder(
       d1.db,
-      { id: "o1", orderNumber: "ORD-1", customerId: "c1", customerName: "Karim", phone: "0661234567", wilayaId: 16, price: 3000, deliveryFee: 600, status: "new", createdAt: T, updatedAt: T },
+      { id: "o1", orderNumber: "ORD-1", customerId: "c1", customerName: "Karim", phone: "0661234567", wilayaId: 16, price: 3000, deliveryFee: 600, createdAt: T, updatedAt: T },
       [{ id: "l1", orderId: "o1", productId: "robe", productName: "Robe", quantity: 1, pricePerUnit: 3000, lineTotal: 3000, createdAt: T }],
       author,
     );

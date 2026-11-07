@@ -145,7 +145,7 @@ describe("the checkout stage", () => {
     const { createOrder } = await import("../../../../cod-shared/queries/orders");
     await createOrder(d1.db, {
       id: "manual", orderNumber: "ORD-MANUAL", customerId: "c1", customerName: "Amina", phone: "0551234567", wilayaId: 16, communeId: "c-16-001",
-      price: 2500, deliveryFee: 400, codAmount: 2900, status: "new", createdAt: T0, updatedAt: T0,
+      price: 2500, deliveryFee: 400, codAmount: 2900, createdAt: T0, updatedAt: T0,
     }, [], staff());
     await drain(env());
     expect(sent).toEqual([]);

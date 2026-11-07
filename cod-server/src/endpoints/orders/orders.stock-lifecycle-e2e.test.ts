@@ -112,7 +112,7 @@ async function seedOrder(opts: SeedOrderOpts = {}) {
     {
       id, orderNumber: `ORD-LC-${seq}`, customerId,
       customerName: "LC Customer", phone: "0555000001", price,
-      status: "new", deliveryType: "home", deliveryFee: 0, codAmount,
+      deliveryType: "home", deliveryFee: 0, codAmount,
       createdAt: now, updatedAt: now,
     },
     [{
@@ -245,7 +245,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     await createOrder(db, {
       id: orderId, orderNumber: `ORD-LC-${seq}`, customerId,
       customerName: "LC Customer", phone: "0555000001", price: 2000,
-      status: "new", deliveryType: "home",
+      deliveryType: "home",
       deliveryFee: 0, codAmount: 2000, createdAt: now, updatedAt: now,
     }, [{
       id: `op-lc-${seq}`, orderId, productId, productName: "LC Product",
@@ -271,7 +271,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
     await expect(createOrder(db, {
       id: orderId, orderNumber: `ORD-LC-${seq}`, customerId,
       customerName: "LC Customer", phone: "0555000001", price: 2000,
-      status: "new", deliveryType: "home",
+      deliveryType: "home",
       deliveryFee: 0, codAmount: 2000, createdAt: now, updatedAt: now,
     }, [{
       id: `op-lc-${seq}`, orderId, productId, productName: "LC Product",
@@ -315,7 +315,7 @@ describe("stock & customer stats — real D1 lifecycle matrix", () => {
       createOrder(faulty, {
         id: orderId, orderNumber: `ORD-LC-${seq}`, customerId,
         customerName: "LC Customer", phone: "0555000001", price: 2000,
-        status: "new", deliveryType: "home",
+        deliveryType: "home",
         deliveryFee: 0, codAmount: 2000, createdAt: now, updatedAt: now,
       }, [{
         id: `op-lc-${seq}`, orderId, productId, productName: "LC Product",

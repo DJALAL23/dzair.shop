@@ -352,7 +352,6 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           customerEmail: parsed.data.customerEmail ?? null,
           price: parsed.data.price,
           notes: parsed.data.notes || null,
-          status: "new" as const,
           orderType: parsed.data.orderType,
           deliveryType: parsed.data.deliveryType,
           deliveryFee,

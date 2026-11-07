@@ -111,7 +111,6 @@ export async function createOrder(c: Context<AppContext>) {
       customerEmail: validated.customerEmail ?? null,
       price: validated.price,
       notes: validated.notes || null,
-      status: "new" as const,
       orderType: validated.orderType,
       deliveryType: validated.deliveryType,
       deliveryFee,
