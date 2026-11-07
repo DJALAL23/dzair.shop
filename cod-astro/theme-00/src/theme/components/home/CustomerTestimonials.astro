@@ -2,12 +2,14 @@
 // Customer reviews as quotes: the stars, the words, who wrote them and the
 // product they bought, marked as a confirmed purchase. Real reviews only —
 // the section reads them, and shows nothing when the store has none or turned
-// reviews off. A row a phone swipes; three across on a wide screen.
+// reviews off; in the editor's preview it shows where the quotes will go. A
+// row a phone swipes; three across on a wide screen.
 import { message } from "@/theme/content/messages";
 import { Image } from "astro:assets";
 import type { Review } from "@wocart/storefront";
 import { storefrontPath } from "@wocart/storefront";
 import type { InferProps } from "@wocart/theme";
+import { isPreview, type BlocksHandle } from "@wocart/theme/astro";
 import { Icon } from "astro-icon/components";
 import type { StoreFrontContent } from "@/theme/content";
 import type { customerTestimonials } from "@/theme/catalog/home/customer-testimonials.def";
@@ -17,9 +19,10 @@ import SectionHead from "@/theme/components/ui/SectionHead.astro";
 type Props = Pick<InferProps<typeof customerTestimonials>, "headingAlign" | "scheme" | "style"> & {
   items: Array<{ review: Review; product: { name: string; handle: string; image: string | null } }>;
   content: StoreFrontContent;
+  blocks: BlocksHandle;
 };
 
-const { items, content, headingAlign, scheme, style } = Astro.props;
+const { items, content, headingAlign, scheme, style, blocks } = Astro.props;
 const store = Astro.locals.store;
 ---
 
@@ -53,9 +56,25 @@ const store = Astro.locals.store;
     </ul>
   </Section>
 )}
+{items.length === 0 && isPreview(blocks) && (
+  <Section scheme={scheme} style={style}>
+    <SectionHead title={content.testimonialsTitle} sub={content.testimonialsSub} center={headingAlign === "center"} />
+    <ul class="quotes swipe-row is-ghost" aria-hidden="true">
+      {[1, 2, 3].map(() => (
+        <li class="quote">
+          <span class="ghost-line" />
+          <span class="ghost-line" />
+          <span class="ghost-line is-short" />
+        </li>
+      ))}
+    </ul>
+  </Section>
+)}
 
 <style>
   .quotes { grid-auto-columns: 86%; list-style: none; }
+  .ghost-line { display: block; height: 0.75rem; border-radius: var(--radius-tag); background: var(--clr-plate); }
+  .ghost-line.is-short { width: 40%; }
   @media (min-width: 640px) { .quotes { grid-auto-columns: 46%; } }
   @media (min-width: 1024px) {
     .quotes { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin: 0; padding: 0; overflow: visible; }
