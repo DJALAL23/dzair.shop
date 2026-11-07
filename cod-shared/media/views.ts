@@ -50,9 +50,9 @@ export function productImageViews(rows: readonly ProductImageRow[], delivery: Me
 
 type CategoryRow = typeof productCategories.$inferSelect;
 
-/** A category as the API shows it: its image by key, never its old URL. */
-export function categoryView<T extends CategoryRow>(row: T, delivery: MediaDelivery): Omit<T, "imageUrl" | "imageKey"> & { image: MediaImage | null } {
-  const { imageUrl: _url, imageKey, ...rest } = row;
+/** A category as the API shows it: its image, resolved from its key. */
+export function categoryView<T extends CategoryRow>(row: T, delivery: MediaDelivery): Omit<T, "imageKey"> & { image: MediaImage | null } {
+  const { imageKey, ...rest } = row;
   return { ...rest, image: imageOf(imageKey, delivery) };
 }
 

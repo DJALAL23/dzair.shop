@@ -22,7 +22,8 @@ beforeAll(async () => {
     INSERT INTO stores (id, name, lang, font_family, font_url, created_at, updated_at)
     VALUES ('s1', 'Boutique', 'ar', 'Tajawal, sans-serif', 'https://fonts.googleapis.com/css2?family=Tajawal', ${T}, ${T})`);
   await d1.db.run(sql`INSERT INTO store_locales (store_id, locale, published, created_at) VALUES ('s1', 'ar', 1, ${T})`);
-  await d1.applyRemaining();
+  // Up to 0077, which drops font_family with the rest of the old branding.
+  await d1.applyRemaining({ until: "0077_drop_unread_columns.sql" });
 }, 120_000);
 
 afterAll(async () => {

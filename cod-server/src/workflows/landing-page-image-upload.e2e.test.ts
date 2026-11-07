@@ -139,7 +139,7 @@ describe("an image from the agent's URL", () => {
     expect(await held(key)).toBe(true);
     expect(await mediaRows()).toMatchObject([{ key, host: "r2", status: "ready", contentType: "image/png", width: 1, height: 1 }]);
     const [row] = await imageRows();
-    expect(row).toMatchObject({ mediaKey: key, source: "ai", altText: "Hero shot", position: 1, width: 1, height: 1, src: null, r2Key: null });
+    expect(row).toMatchObject({ mediaKey: key, source: "ai", altText: "Hero shot", position: 1, width: 1, height: 1 });
     expect(output).toEqual({ imageId: row!.id, key, url: `${TEST_DELIVERY.origin}/${key}`, position: 1, width: 1, height: 1, altText: "Hero shot", converted: false, storedContentType: "image/png" });
 
     const [audit] = await d1.db.select().from(schema.activityLogs).all();

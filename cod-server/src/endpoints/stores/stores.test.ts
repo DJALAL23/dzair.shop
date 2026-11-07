@@ -22,27 +22,20 @@ function storeRow(overrides: Record<string, any> = {}) {
     id: "store_1",
     name: "My Shop",
     domain: null,
-    logoUrl: "https://cdn.example.com/logo.png",
     themeId: "theme-00",
-    primaryColor: "#3b82f6",
-    accentColor: "#f97316",
-    bgColor: "#ffffff",
-    fontFamily: "Cairo",
     lang: "ar",
     currency: "DZD",
     currencySymbol: "دج",
     metaTitle: "My Shop — Best Products",
     metaDescription: "Find the best products at My Shop.",
-    ogImage: "https://cdn.example.com/og.png",
     reviewsEnabled: true,
     cartEnabled: false,
     // Position matters: the mock db maps a full-table select by schema column
     // order, so these sit exactly where the schema puts them — after
-    // reviewsEnabled and before status.
+    // reviewsEnabled.
     freeShippingThreshold: null,
     cartShippingMode: "highest",
-    status: "active",
-    // storeApiKey sits between status and createdAt in the schema. It was
+    // storeApiKey sits before createdAt in the schema. It was
     // missing here, which silently shifted every value after it by one slot.
     storeApiKey: "sk_store_abc123",
     createdAt: NOW,
@@ -73,7 +66,6 @@ describe("getStore", () => {
     expect(result?.id).toBe("store_1");
     expect(result?.name).toBe("My Shop");
     expect(result?.lang).toBe("ar");
-    expect(result?.status).toBe("active");
   });
 });
 

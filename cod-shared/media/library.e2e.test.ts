@@ -302,7 +302,7 @@ describe.each(SETUPS)("the Media Library, %s", (_name, makeRig, reach) => {
       const shown = (await uploaded(png())).image.key;
       const inTheme = (await uploaded(png())).image.key;
       const unused = (await uploaded(png())).image.key;
-      await run("INSERT INTO product_images (id, product_id, src, media_key, created_at, updated_at) VALUES (?1, 'p1', '', ?2, '2026-01-01', '2026-01-01')", crypto.randomUUID(), shown);
+      await run("INSERT INTO product_images (id, product_id, media_key, created_at, updated_at) VALUES (?1, 'p1', ?2, '2026-01-01', '2026-01-01')", crypto.randomUUID(), shown);
       await run(`INSERT OR REPLACE INTO store_theme_settings (store_id, theme_key, "values", updated_at) VALUES ('s1', 'theme-00', ?1, '2026-01-01')`, JSON.stringify({ banner: { key: inTheme } }));
 
       const result = await library.release([shown, inTheme, unused, "not a key", "products/never-stored.png"]);

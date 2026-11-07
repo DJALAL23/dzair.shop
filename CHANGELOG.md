@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Columns nothing read (migration 0077): the store's old colours, font and
+  `status`, and the URLs and R2 keys images had before Media Keys — the
+  logo, the share image, categories', products', landing pages' and review
+  media's. `review_media` is rebuilt without its old key, every row kept.
 - Landing pages count nothing of their own (migration 0074). The view
   counter measured the server's renders, not visits: the storefront caches a
   landing page, so most visits never reached it, and the conversion rate

@@ -94,7 +94,6 @@ describe("a product's images", () => {
 
     expect(res.status).toBe(201);
     expect(((await res.json()) as { data: unknown }).data).toMatchObject({ key: KEY("d"), url: url(KEY("d")), width: 1200, height: 900, altText: "Robe d'été", position: 4 });
-    expect(await d1.db.select({ src: schema.productImages.src }).from(schema.productImages).where(eq(schema.productImages.mediaKey, KEY("d"))).all()).toEqual([{ src: null }]);
   });
 
   it("refuses a URL, and a key the store's media does not hold ready", async () => {

@@ -97,17 +97,10 @@ export function toStoreSettings(
   delivery: MediaDelivery,
 ): StoreSettings {
   const {
-    primaryColor: _primary,
-    accentColor: _accent,
-    bgColor: _bg,
-    fontFamily: _font,
     reviewsEnabled: _reviewsEnabled,
     reviewMaxPhotos: _reviewMaxPhotos,
     reviewVoiceMaxSeconds: _reviewVoiceMaxSeconds,
     reviewAutoPublish: _reviewAutoPublish,
-    status: _status,
-    logoUrl: _logoUrl,
-    ogImage: _ogImage,
     logoKey,
     ogImageKey,
     ...settings

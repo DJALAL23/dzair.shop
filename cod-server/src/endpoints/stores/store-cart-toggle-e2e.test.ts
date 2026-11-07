@@ -73,12 +73,10 @@ const uid = () => `store-${crypto.randomUUID().slice(0, 8)}`;
 async function seedLegacyStore() {
   const id = uid();
   await db.run(sql`
-    INSERT INTO stores (id, name, theme_id, primary_color, accent_color, bg_color,
-                        font_family, lang, currency, currency_symbol,
-                        reviews_enabled, cart_shipping_mode, status, created_at, updated_at)
-    VALUES (${id}, 'Legacy Store', 'theme-00', '#7c3aed', '#f59e0b', '#f8f8f8',
-            'Cairo, sans-serif', 'ar', 'DZD', 'دج',
-            1, 'highest', 'active', ${now()}, ${now()})
+    INSERT INTO stores (id, name, theme_id, lang, currency, currency_symbol,
+                        reviews_enabled, cart_shipping_mode, created_at, updated_at)
+    VALUES (${id}, 'Legacy Store', 'theme-00', 'ar', 'DZD', 'دج',
+            1, 'highest', ${now()}, ${now()})
   `);
   return id;
 }
@@ -108,7 +106,6 @@ describe("cart switch — defaults to off", () => {
     const config = await db.select().from(schema.stores).where(eq(schema.stores.id, id)).get();
     expect(config).toMatchObject({
       reviewsEnabled: true,
-      status: "active",
       lang: "ar",
       freeShippingThreshold: null,
       cartShippingMode: "highest",

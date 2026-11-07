@@ -20,7 +20,7 @@ function listedRow(overrides: Record<string, unknown>, review: { avg_rating: num
 /** A product_images row, its columns in schema order: the mock db maps a full-table select by position. */
 function imageRow(id: string, mediaKey: string, position: number) {
   const at = "2024-01-01T00:00:00.000Z";
-  return { id, product_id: "prod_1", src: null, r2_key: null, src_sm: null, src_md: null, src_lg: null, alt_text: null, width: null, height: null, type: 1, position, created_at: at, updated_at: at, media_key: mediaKey };
+  return { id, product_id: "prod_1", alt_text: null, width: null, height: null, type: 1, position, created_at: at, updated_at: at, media_key: mediaKey };
 }
 
 describe("getStoreProducts", () => {

@@ -536,8 +536,6 @@ export const productCategories = sqliteTable("product_categories", {
   slug: text("slug").notNull().unique(),
   description: text("description"),
   parentId: text("parent_id"), // self-reference at app level
-  /** Not read: the image's URL before Media Keys (migration 0068); dropped by a later media clean-up migration. */
-  imageUrl: text("image_url"),
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
   metaKeywords: text("meta_keywords"),
@@ -621,12 +619,6 @@ export const productVariants = sqliteTable("product_variants", {
 export const productImages = sqliteTable("product_images", {
   id: text("id").primaryKey(),
   productId: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
-  /** Not read: the URL the image had before Media Keys (migration 0068); dropped by a later media clean-up migration, with `r2_key` and the `src_*` columns. */
-  src: text("src"),
-  r2Key: text("r2_key"),
-  srcSm: text("src_sm"),
-  srcMd: text("src_md"),
-  srcLg: text("src_lg"),
   altText: text("alt_text"),
   width: integer("width"),
   height: integer("height"),
@@ -840,20 +832,10 @@ export const stores = sqliteTable("stores", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   domain: text("domain"),
-  /** Not read: the logo's URL before Media Keys (migration 0068); dropped by a later media clean-up migration. */
-  logoUrl: text("logo_url"),
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   /** The storefront theme's slug, e.g. "theme-00". A label: nothing in the platform branches on it. */
   themeId: text("theme_id").notNull().default("theme-00"),
-  /** Primary CTA color (hex, e.g. "#7c3aed") */
-  primaryColor: text("primary_color").notNull().default("#7c3aed"),
-  /** Accent / highlight color */
-  accentColor: text("accent_color").notNull().default("#f59e0b"),
-  /** Background color */
-  bgColor: text("bg_color").notNull().default("#f8f8f8"),
-  /** CSS font-family string */
-  fontFamily: text("font_family").notNull().default("Cairo, sans-serif"),
 
   // ── Locale ────────────────────────────────────────────────────────────────
   /**
@@ -868,8 +850,6 @@ export const stores = sqliteTable("stores", {
   // ── SEO ───────────────────────────────────────────────────────────────────
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
-  /** Not read: the share image's URL before Media Keys (migration 0068); dropped by a later media clean-up migration. */
-  ogImage: text("og_image"),
 
   // ── Optional features ─────────────────────────────────────────────────────
   /** When false, reviews are hidden on the storefront and submission is disabled. */
@@ -898,7 +878,6 @@ export const stores = sqliteTable("stores", {
     .notNull()
     .default("highest"),
 
-  status: text("status", { enum: ["active", "inactive"] }).notNull().default("active"),
   /** Plaintext storefront API key — written on every provision so the merchant can view it in settings. */
   storeApiKey: text("store_api_key"),
   createdAt: text("created_at").notNull(),
@@ -1254,8 +1233,6 @@ export const reviewMedia = sqliteTable("review_media", {
     .notNull()
     .references(() => reviews.id, { onDelete: "cascade" }),
   kind: text("kind", { enum: REVIEW_MEDIA_KINDS }).notNull(),
-  /** Not read: the key before Media Keys (migration 0068); dropped by a later media clean-up migration. */
-  r2Key: text("r2_key").unique(),
   thumbKey: text("thumb_key").unique(),
   contentType: text("content_type").notNull(),
   bytes: integer("bytes").notNull(),
@@ -1592,9 +1569,6 @@ export const landingPageImages = sqliteTable("landing_page_images", {
   landingPageId: text("landing_page_id")
     .notNull()
     .references(() => landingPages.id, { onDelete: "cascade" }),
-  /** Not read: the key and URL before Media Keys (migration 0068); dropped by a later media clean-up migration. */
-  r2Key: text("r2_key"),
-  src: text("src"),
   altText: text("alt_text"),
   source: text("source", { enum: ["upload", "ai"] }).notNull().default("upload"),
   position: integer("position").notNull().default(1),

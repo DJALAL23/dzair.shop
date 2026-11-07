@@ -53,6 +53,12 @@ after the server, from the same checkout.
 Newest first. Only the entries for migrations your database has not applied
 concern you.
 
+### 0077: unread columns dropped
+
+- The store's old colours, font and `status`, and the URLs and R2 keys
+  images had before Media Keys (0068), are dropped; nothing read them.
+  `review_media` is rebuilt without its old key, keeping every row.
+
 ### 0076: a customer's totals are read from their orders
 
 - `customers.total_orders`, `total_spent` and `last_order_at` are dropped;

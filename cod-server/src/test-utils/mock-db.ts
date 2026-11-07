@@ -287,7 +287,7 @@ export function shippingProfileRow(overrides: Record<string, unknown> = {}): Rec
   };
 }
 
-// Schema: id, name, slug, description, parentId, imageUrl, metaTitle, metaDescription,
+// Schema: id, name, slug, description, parentId, metaTitle, metaDescription,
 //         metaKeywords, position, createdAt, updatedAt, imageKey
 export function categoryRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -296,7 +296,6 @@ export function categoryRow(overrides: Record<string, unknown> = {}): Record<str
     slug: "malbas-cat_1",
     description: null,
     parent_id: null,
-    image_url: null,
     meta_title: null,
     meta_description: null,
     meta_keywords: null,
