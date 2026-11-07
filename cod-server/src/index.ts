@@ -71,7 +71,6 @@ import { ALL_SCOPES } from "../../cod-shared/rbac/scopes";
 
 // Cloudflare Workflow classes — MUST be re-exported so Cloudflare can bind
 // them via wrangler.toml [[workflows]].
-export { CodCapiWorkflow } from "@/workflows/capi";
 export { CodLandingPageImageUploadWorkflow } from "@/workflows/landing-page-image-upload";
 export { CodReviewMediaWorkflow } from "@/workflows/review-media";
 

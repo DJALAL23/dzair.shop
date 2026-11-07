@@ -48,12 +48,6 @@ id = "00000000000000000000000000000000"
 binding = "OAUTH_KV"
 id = "00000000000000000000000000000000"
 
-# CodCapiWorkflow — fires Meta CAPI Purchase events at order delivery.
-[[workflows]]
-name       = "capi-workflow"
-binding    = "CAPI_WORKFLOW"
-class_name = "CodCapiWorkflow"
-
 # CodLandingPageImageUploadWorkflow — durable background upload of MCP-agent
 # images (ChatGPT & co.) into landing page image stacks.
 [[workflows]]
@@ -165,11 +159,6 @@ id = "00000000000000000000000000000000"
 [[env.production.kv_namespaces]]
 binding = "OAUTH_KV"
 id = "00000000000000000000000000000000"
-
-[[env.production.workflows]]
-name       = "capi-workflow"
-binding    = "CAPI_WORKFLOW"
-class_name = "CodCapiWorkflow"
 
 [[env.production.workflows]]
 name       = "lp-image-upload-workflow"

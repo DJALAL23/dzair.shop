@@ -82,13 +82,6 @@ export interface Env {
   /** OAuth helpers injected into `env` by the OAuthProvider before handlers run. */
   OAUTH_PROVIDER?: OAuthHelpers;
   /**
-   * CodCapiWorkflow's binding. Nothing starts it any more: Meta conversions
-   * are a Consumer of Business Events (`src/events/consumers/meta-capi.ts`).
-   * Kept bound so instances started before that release can finish; removed
-   * once none can remain.
-   */
-  CAPI_WORKFLOW: Workflow;
-  /**
    * The events queue (ADR 0017). It carries only "work is due" and wakes the
    * drain (`src/events/drain.ts`), which processes the carriers' webhook inbox
    * and delivers Business Events. Required: every store's deployment

@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  isLongHaulWilaya,
+  resolveCapiDispatch,
   resolveConversionForStage,
-  getCapiWorkflowId,
+  type CapiDispatchConfig,
   type ConversionMode,
   type ConversionStage,
-} from "./conversion-model";
+} from "./meta-conversions";
 
 describe("Conversion Model — resolveConversionForStage", () => {
   describe("Mode: Purchase (Instant Checkout)", () => {
@@ -123,19 +125,47 @@ describe("Conversion Model — resolveConversionForStage", () => {
   });
 });
 
-describe("Conversion Model — getCapiWorkflowId", () => {
-  it("generates deterministic workflow IDs per business event", () => {
-    expect(getCapiWorkflowId("ord-123", "checkout", "Purchase")).toBe(
-      "capi-ord-123-checkout-Purchase"
-    );
-    expect(getCapiWorkflowId("ord-123", "checkout", "Lead")).toBe(
-      "capi-ord-123-checkout-Lead"
-    );
-    expect(getCapiWorkflowId("ord-123", "confirmed", "Purchase")).toBe(
-      "capi-ord-123-confirmed-Purchase"
-    );
-    expect(getCapiWorkflowId("ord-123", "delivered", "Purchase")).toBe(
-      "capi-ord-123-delivered-Purchase"
-    );
+function config(overrides: Partial<CapiDispatchConfig> = {}): CapiDispatchConfig {
+  return { enabled: true, accessToken: "EAAG-token", conversionEvent: "Purchase", testMode: false, testEventCode: null, ...overrides };
+}
+
+describe("isLongHaulWilaya", () => {
+  it("names the southern wilayas whose delivery is sent on the way out", () => {
+    expect(isLongHaulWilaya(1)).toBe(true);
+    expect(isLongHaulWilaya(37)).toBe(true);
+    expect(isLongHaulWilaya(16)).toBe(false);
+    expect(isLongHaulWilaya(null)).toBe(false);
+  });
+});
+
+describe("resolveCapiDispatch", () => {
+  it("sends when tracking is enabled, the token is there, and the mode fires this event at this stage", () => {
+    expect(resolveCapiDispatch(config(), "Purchase", "checkout")).toEqual({ send: true, testEventCode: null });
+  });
+
+  it("skips when tracking is off or not set up", () => {
+    expect(resolveCapiDispatch(config({ enabled: false }), "Purchase", "checkout")).toMatchObject({ send: false, reason: "tracking-disabled" });
+    expect(resolveCapiDispatch(undefined, "Purchase", "checkout")).toMatchObject({ send: false, reason: "tracking-disabled" });
+  });
+
+  it("skips with an actionable reason when the token is missing", () => {
+    expect(resolveCapiDispatch(config({ accessToken: "" }), "Purchase", "checkout")).toEqual({
+      send: false,
+      reason: "no-access-token",
+      message: "No CAPI access token — set up the Meta App",
+    });
+  });
+
+  it("skips an event or a stage the merchant's mode does not fire", () => {
+    expect(resolveCapiDispatch(config({ conversionEvent: "Lead" }), "Purchase", "checkout")).toMatchObject({ send: false, reason: "conversion-event-mismatch" });
+    expect(resolveCapiDispatch(config({ conversionEvent: "Purchase_Confirmed" }), "Purchase", "checkout")).toMatchObject({ send: false, reason: "conversion-event-mismatch" });
+    expect(resolveCapiDispatch(config({ conversionEvent: "Purchase_Confirmed" }), "Purchase", "confirmed")).toEqual({ send: true, testEventCode: null });
+    expect(resolveCapiDispatch(config({ conversionEvent: "Purchase_Delivered" }), "Purchase", "delivered")).toEqual({ send: true, testEventCode: null });
+    expect(resolveCapiDispatch(config({ conversionEvent: "Lead" }), "Lead", "checkout")).toEqual({ send: true, testEventCode: null });
+  });
+
+  it("carries the test event code only while test mode is on", () => {
+    expect(resolveCapiDispatch(config({ testMode: true, testEventCode: "TEST123" }), "Purchase", "checkout")).toEqual({ send: true, testEventCode: "TEST123" });
+    expect(resolveCapiDispatch(config({ testMode: false, testEventCode: "TEST123" }), "Purchase", "checkout")).toEqual({ send: true, testEventCode: null });
   });
 });

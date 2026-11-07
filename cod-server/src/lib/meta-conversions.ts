@@ -1,11 +1,9 @@
 /**
- * Shared Meta Ads Conversion Model for CodFlow.
- *
- * Establishes one centralized business contract across:
- * - Storefront checkout (Pixel + CAPI)
- * - Merchant call-center phone confirmation (dashboard status update)
- * - Courier logistics delivery (Yalidine / ZR Express webhooks)
- * - CAPI Workflow execution, validation, and idempotency claims
+ * Meta conversions: the one place that decides which stage of an order is
+ * its conversion, whether the store's tracking lets it be sent, and where
+ * Meta is told it happened. The thank-you page's tracking answer and the
+ * Meta conversions Consumer both decide here, so the browser and the server
+ * cannot disagree.
  *
  * Grounded in official Meta documentation:
  * - Conversions API deduplication (eventID === event_id, matching event_name)
@@ -79,19 +77,6 @@ export function resolveConversionForStage(
 }
 
 /**
- * Centralized deterministic Workflow ID constructor.
- * Guarantees that any trigger source (dashboard, webhook, or checkout) targeting the
- * same business conversion event produces the exact same Cloudflare Workflow instance ID.
- */
-export function getCapiWorkflowId(
-  orderId: string,
-  stage: ConversionStage,
-  eventName: MetaEventName
-): string {
-  return `capi-${orderId}-${stage}-${eventName}`;
-}
-
-/**
  * The page Meta is told an event happened on.
  *
  * Meta matches `event_source_url` against the verified domain and shows it in
@@ -99,8 +84,7 @@ export function getCapiWorkflowId(
  * costs nothing — it is the same domain — and says which creative produced the
  * sale, where "/thank-you" says nothing at all.
  *
- * Built in one place because both senders need it: the checkout handler at
- * order time and the Workflow at every later stage. Two copies would drift,
+ * Built in one place so every stage's conversion names the same page. Two copies would drift,
  * and an event's source URL changing between the checkout and the delivery
  * mirror is the kind of inconsistency nobody notices until attribution is
  * already wrong.
@@ -112,4 +96,63 @@ export function conversionSourceUrl(
   if (!storeDomain) return undefined;
   const path = landingPageSlug ? storefrontPath("landing", { slug: landingPageSlug }) : storefrontPath("thankYou");
   return `https://${storeDomain}${path}`;
+}
+
+/**
+ * Southern wilayas whose deliveries take 5–10 days: their delivered stage is
+ * sent when the parcel goes out for delivery, so it stays inside Meta's
+ * 7-day window.
+ */
+const LONG_HAUL_WILAYA_IDS: ReadonlySet<number> = new Set([
+  1, // Adrar
+  8, // Béchar
+  11, // Tamanrasset
+  33, // Illizi
+  37, // Tindouf
+  44, // Aïn Guezzam
+]);
+
+export function isLongHaulWilaya(wilayaId: number | null | undefined): boolean {
+  return wilayaId != null && LONG_HAUL_WILAYA_IDS.has(wilayaId);
+}
+
+export interface CapiDispatchConfig {
+  enabled: boolean;
+  accessToken: string;
+  conversionEvent: ConversionMode;
+  testMode: boolean;
+  testEventCode: string | null;
+}
+
+export type CapiSkipReason = "tracking-disabled" | "no-access-token" | "conversion-event-mismatch";
+
+export type CapiDispatch =
+  | { send: true; testEventCode: string | null }
+  | { send: false; reason: CapiSkipReason; message: string };
+
+/**
+ * Single gate for every Conversions API send: the tracking must be enabled,
+ * carry an access token, and the merchant's conversion mode must fire
+ * `eventName` at `stage`.
+ */
+export function resolveCapiDispatch(
+  config: CapiDispatchConfig | null | undefined,
+  eventName: MetaEventName,
+  stage: ConversionStage,
+): CapiDispatch {
+  if (!config?.enabled) {
+    return { send: false, reason: "tracking-disabled", message: "Tracking disabled in store settings" };
+  }
+  if (!config.accessToken) {
+    return { send: false, reason: "no-access-token", message: "No CAPI access token — set up the Meta App" };
+  }
+  const decision = resolveConversionForStage(config.conversionEvent, stage);
+  if (!decision.shouldFire || decision.eventName !== eventName) {
+    return {
+      send: false,
+      reason: "conversion-event-mismatch",
+      message: decision.reason ?? `Conversion event is set to ${config.conversionEvent} — ${eventName} not sent at stage ${stage}`,
+    };
+  }
+  return { send: true, testEventCode: config.testMode ? config.testEventCode : null };
 }

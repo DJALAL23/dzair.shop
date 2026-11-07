@@ -18,8 +18,8 @@
  * (capi-deduplication.md — dedup is per pixel).
  *
  * So the browser asks, and the LAST test here is the one that matters: for
- * every combination, what this endpoint reports and what the CAPI Workflow
- * resolves must be the same string.
+ * every combination, what this endpoint reports and the pixel the Meta
+ * conversions Consumer sends the sale to must be the same string.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 
@@ -40,7 +40,10 @@ import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import storeRouter from "./routes";
-import { CodCapiWorkflow } from "@/workflows/capi";
+import { sql } from "drizzle-orm";
+import { metaCapi } from "@/events/consumers/meta-capi";
+import { orderSnapshot } from "../../../../cod-shared/events/snapshots";
+import type { BusinessEvent } from "../../../../cod-shared/events/log";
 import { TEST_MEDIA_VARS } from "@/test-utils/media";
 
 let harness: TestD1;
@@ -178,7 +181,7 @@ async function seedOrder(landingPageId: string | null) {
   return orderId;
 }
 
-/** The view counter is a deferred write, so this route needs an executionCtx. */
+/** The store routes may defer work with waitUntil, so a request needs an executionCtx. */
 function executionCtx(pending: Promise<unknown>[]) {
   return {
     waitUntil: (promise: Promise<unknown>) => pending.push(promise),
@@ -201,37 +204,45 @@ async function landingPageTracking(slug: string) {
 }
 
 /**
- * The pixel the real CAPI Workflow sends this order's sale to.
+ * The pixel the real Meta conversions Consumer sends this order's sale to.
  *
- * Runs `run()` against the same database, with the Meta client stubbed, and
- * reads the destination back off the event it produced. Deliberately not a
- * second call to the resolver: that would agree with the endpoint even if the
- * Workflow forgot to pass the landing page along, which is precisely the
- * mistake this property exists to catch.
+ * Delivers the order's `order.created` — its data the snapshot D1 builds, as
+ * the Event Log would hold it — with the Meta client stubbed, and reads the
+ * destination back off the event it sent. Deliberately not a second call to
+ * the resolver: that would agree with the endpoint even if the Consumer
+ * forgot to pass the landing page along, which is precisely the mistake this
+ * property exists to catch.
  */
 async function capiDestinationFor(orderId: string): Promise<string | null> {
   capiClient.sendCapiEvent.mockClear();
-  const workflow = new CodCapiWorkflow({} as never, { DB: harness.raw } as never);
-  const step = {
-    async do(_name: string, configOrCallback: unknown, maybeCallback?: unknown) {
-      const callback =
-        typeof configOrCallback === "function" ? configOrCallback : maybeCallback;
-      return (callback as () => unknown)();
-    },
-  };
+  const row = await harness.db.get<{ order: string }>(sql`select ${orderSnapshot(orderId).sql} as "order"`);
+  const now = new Date();
+  const event = {
+    seq: 1,
+    id: `evt-${orderId}`,
+    type: "order.created",
+    version: 1,
+    subjectType: "order",
+    subjectId: orderId,
+    orderId,
+    actor: { kind: "shopper", id: null, name: null },
+    origin: "storefront",
+    occurredAt: now.toISOString(),
+    recordedAt: now.toISOString(),
+    data: { order: JSON.parse(row!.order) },
+  } as unknown as BusinessEvent;
 
-  await workflow.run(
-    {
-      payload: {
-        orderId,
-        eventName: "Purchase",
-        stage: "checkout",
-        triggeredAt: Math.floor(Date.now() / 1000),
-        triggerStatus: "order_created",
-      },
-    } as never,
-    step as never,
-  );
+  const outcome = await metaCapi.deliver({
+    deliveryId: `delivery-${orderId}`,
+    event,
+    consumer: {} as never,
+    attempt: 1,
+    now,
+    db: harness.db,
+    fetch,
+    env: {} as never,
+  });
+  expect(outcome.kind, JSON.stringify(outcome)).toBe("delivered");
 
   return (capiClient.sendCapiEvent.mock.calls[0]?.[0] as string | undefined) ?? null;
 }
@@ -418,9 +429,9 @@ describe("the browser and the Conversions API cannot disagree", () => {
       const { body } = await orderTracking(orderId);
       const browserPixel = body?.data.pixelId ?? null;
 
-      // The pixel the REAL Workflow sends to — driven end to end, not the
+      // The pixel the REAL Consumer sends to — driven end to end, not the
       // resolver asked a second time. Comparing the resolver against itself
-      // would pass even if the Workflow forgot to pass the landing page.
+      // would pass even if the Consumer forgot to pass the landing page.
       const serverPixel = await capiDestinationFor(orderId);
 
       expect(browserPixel).toBe(serverPixel);

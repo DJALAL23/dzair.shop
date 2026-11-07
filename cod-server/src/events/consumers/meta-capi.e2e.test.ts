@@ -63,11 +63,12 @@ async function tracking(conversionEvent: "Lead" | "Purchase" | "Purchase_Confirm
 }
 
 /** A shopper's order at the storefront, with the ad click's cookies. */
-async function checkout(extra: { wilayaId?: number; communeId?: string; landingPageId?: string | null } = {}) {
+async function checkout(extra: { wilayaId?: number; communeId?: string; landingPageId?: string | null; customerEmail?: string } = {}) {
   const order = await createStoreOrder(d1.db, {
     customerName: "Amina Benali", phone: "0551234567", wilayaId: extra.wilayaId ?? 16, communeId: extra.communeId ?? "c-16-001", deliveryType: "home",
     productId: "robe", productName: "Robe", quantity: 2, pricePerUnit: 2500, customerId: "c1", deliveryFee: 400, locale: "ar",
     fbc: "fb.1.123.abc", fbp: "fb.1.456.def", ipAddress: "41.100.1.2", userAgent: "Mozilla/5.0", landingPageId: extra.landingPageId ?? null,
+    customerEmail: extra.customerEmail,
   });
   await d1.db.update(schema.orders).set({ address: "12 rue Didouche" }).where(eq(schema.orders.id, order.id));
   return order.id;
@@ -161,6 +162,19 @@ describe("the checkout stage", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]!.url).toContain("/999999/events?access_token=EAAG-page");
     expect(sent[0]!.event.event_source_url).toBe("https://maysa.example/lp/robe-promo");
+    expect(await d1.db.select({ pixelId: schema.capiEventLog.pixelId }).from(schema.capiEventLog).all()).toEqual([{ pixelId: "999999" }]);
+  });
+
+  it("sends the shopper's email, hashed, only for an order that carries one", async () => {
+    await tracking("Purchase");
+    await checkout({ customerEmail: "amina@example.com" });
+    await drain(env());
+    await d1.db.delete(schema.capiEventLog);
+    await checkout();
+    await drain(env());
+    expect(sent).toHaveLength(2);
+    expect(sent[0]!.event.user_data.em).toMatch(/^[0-9a-f]{64}$/);
+    expect(sent[1]!.event.user_data.em).toBeUndefined();
   });
 });
 
@@ -215,7 +229,7 @@ describe("the delivered stage", () => {
     expect((await skipReasons()).some((r) => r?.includes("outside Meta's 7-day window"))).toBe(true);
   });
 
-  it("is not sent twice when the old Workflow already sent it", async () => {
+  it("is not sent twice when the ledger already holds it", async () => {
     await tracking("Purchase_Delivered");
     const orderId = await checkout();
     await d1.db.insert(schema.capiEventLog).values({ id: `claim-${orderId}-delivered-Purchase`, orderId, eventName: "Purchase", stage: "delivered", status: "sent", sentAt: T0 });

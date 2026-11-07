@@ -15,17 +15,16 @@
  * the event itself; only the private attribution (the ad click's cookies, the
  * shopper's address and browser) is read from the order.
  *
- * `capi_event_log` stays Meta's sent-once ledger: a conversion is claimed by
+ * `capi_event_log` is Meta's sent-once ledger: a conversion is claimed by
  * the Delivery that sends it, so an order delivered after a long-haul
- * out-for-delivery already counted, or a conversion the old Workflow sent, is
- * never sent twice; a retry of the claiming Delivery may send again, and Meta
+ * out-for-delivery already counted is never sent twice; a retry of the claiming Delivery may send again, and Meta
  * deduplicates it by `event_id`.
  */
 
 import { eq, sql } from "drizzle-orm";
 import { capiEventLog, communes, landingPages, orders, stores } from "@/db/schema";
 import { sendCapiEvent } from "@/lib/capi";
-import { resolveCapiDispatch, resolveConversionForStage, conversionSourceUrl, shouldTriggerCapiPurchase, type ConversionStage } from "@/workflows/capi-helpers";
+import { conversionSourceUrl, isLongHaulWilaya, resolveCapiDispatch, resolveConversionForStage, type ConversionStage } from "@/lib/meta-conversions";
 import { resolveTrackingConfig } from "../../../../cod-shared/queries/tracking-config";
 import type { BusinessEvent } from "../../../../cod-shared/events/log";
 import type { ConsumerKind } from "./kind";
@@ -45,7 +44,7 @@ function stageOf(event: BusinessEvent): ConversionStage | null {
     case "shipment.delivered":
       return "delivered";
     case "shipment.out_for_delivery":
-      return shouldTriggerCapiPurchase("out_for_delivery", event.data.order.destination.wilaya?.id) ? "delivered" : null;
+      return isLongHaulWilaya(event.data.order.destination.wilaya?.id) ? "delivered" : null;
     default:
       return null;
   }

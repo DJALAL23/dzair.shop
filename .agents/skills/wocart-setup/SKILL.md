@@ -96,7 +96,7 @@ duplicate overwrites or breaks the other store.
 | D1 database | `<p>-db` |
 | R2 bucket | `<p>-media` |
 | Queue | `<p>-events` |
-| Workflows | `<p>-capi-workflow`, `<p>-lp-image-upload-workflow`, `<p>-review-media-workflow` |
+| Workflows | `<p>-lp-image-upload-workflow`, `<p>-review-media-workflow` |
 
 ## Step 3 — Create the resources
 
@@ -151,8 +151,8 @@ COD_SERVER_URL=https://api.<domain>        # the API's public address (step 8)
 - `[[r2_buckets]]`: `bucket_name = "<p>-media"`;
 - `[[kv_namespaces]]`: `RATE_LIMIT` and `OAUTH_KV` with their IDs;
 - the queue: `queue = "<p>-events"` in the producer **and** the consumer;
-- the three `[[workflows]]`: `name = "<p>-capi-workflow"` and so on, keeping
-  each `binding` and `class_name`;
+- the two `[[workflows]]`: `name = "<p>-lp-image-upload-workflow"` and
+  `name = "<p>-review-media-workflow"`, keeping each `binding` and `class_name`;
 - `[[ratelimits]]`: a `namespace_id` no other store in the account uses
   (any positive integer).
 
@@ -194,7 +194,7 @@ ignores.
 **Check that no example value is left:**
 
 ```bash
-grep -n "= \"codflow-server\"\|= \"codflow-dashboard\"\|00000000\|<your-\|your_\|your-store\|example\.com\|codflow-images\|codflow-os-db\|codflow-db\|codflow-events\|\"capi-workflow\|\"lp-image\|\"review-media" \
+grep -n "= \"codflow-server\"\|= \"codflow-dashboard\"\|00000000\|<your-\|your_\|your-store\|example\.com\|codflow-images\|codflow-os-db\|codflow-db\|codflow-events\|\"lp-image\|\"review-media" \
   cod-server/wrangler.toml cod-client-astro/wrangler.toml
 ```
 

@@ -8,6 +8,7 @@ Shared server-side utilities for auditing and external service integrations.
 lib/
 ├── activity.ts     # Centralized Audit Log System
 ├── capi.ts         # Meta Conversions API (CAPI) client
+├── meta-conversions.ts # Which stage is an order's conversion, and whether it is sent
 ├── errors/         # Shared error classes (BusinessLogicError, ConflictError, NotFoundError, …)
 └── README.md       # This file
 ```
@@ -36,9 +37,10 @@ await logActivity(db, actor, ACTIONS.ORDER_CREATED, {
 
 ### 2. Meta Conversions API (`capi.ts`)
 Client for sending CAPI events (e.g., `Purchase` at delivery) to
-`https://graph.facebook.com`, used by the `CodCapiWorkflow` in
-`src/workflows/capi.ts`. Per-store activation is gated by the `storePixelConfig`
-row (the Meta App: Apps → Meta in the dashboard).
+`https://graph.facebook.com`, used by the Meta conversions Consumer
+(`src/events/consumers/meta-capi.ts`). Which stage is the conversion, and
+whether the store's tracking lets it be sent, is decided in
+`meta-conversions.ts`, which the thank-you page's tracking answer reads too.
 
 ### 3. Shared errors (`errors/`)
 `BusinessLogicError`, `ConflictError`, `NotFoundError` — mapped to consistent

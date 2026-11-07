@@ -29,7 +29,7 @@ import {
 import { resolveStorefrontMenu } from "../../../../cod-shared/queries/menus";
 import { getStorefrontCollection } from "../../../../cod-shared/queries/collections";
 import { findShopperOrder } from "../../../../cod-shared/queries/store-order-status";
-import { resolveConversionForStage } from "@/workflows/capi-helpers";
+import { resolveConversionForStage } from "@/lib/meta-conversions";
 import { stores, orders } from "../../../../cod-shared/db/schema";
 import { eq } from "drizzle-orm";
 

@@ -40,13 +40,6 @@ vi.mock("@/lib/activity", () => ({
     STOCK_ADJUSTED: "stock.adjusted",
   },
 }));
-vi.mock("@/workflows/capi-helpers", () => ({
-  shouldTriggerCapiPurchase: vi.fn(() => false),
-  shouldTriggerCapiConfirmed: vi.fn(() => false),
-  getCapiWorkflowId: vi.fn((id: string, stage: string, event: string) => `capi-${id}-${stage}-${event}`),
-  resolveConversionForStage: vi.fn(() => ({ shouldFire: false })),
-  resolveCapiDispatch: vi.fn(() => ({ send: false, reason: "tracking-disabled", message: "mock skip" })),
-}));
 vi.mock("@/endpoints/delivery-companies/queries", () => ({
   getDeliveryCompanyById: vi.fn(async () => ({ id: "comp_1", name: "NOEST" })),
   getDeliveryCompanyRaw: vi.fn(async () => ({

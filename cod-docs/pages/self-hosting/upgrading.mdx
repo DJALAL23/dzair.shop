@@ -53,6 +53,21 @@ after the server, from the same checkout.
 Newest first. Only the entries for migrations your database has not applied
 concern you.
 
+### 0074: landing pages count nothing; one conversions path
+
+- `landing_pages.views` is dropped, and the landing-page API no longer sends
+  `views`, `orders`, `revenue` or `stats`; `GET /api/landing-pages/compare`
+  and the `getLandingPageStats` AI-agent tool are gone.
+- The old Meta conversions Workflow is gone: **delete both
+  `CAPI_WORKFLOW` `[[workflows]]` entries** (top level and
+  `[env.production]`) from `cod-server/wrangler.toml` before you deploy,
+  or the deploy fails on a class the server no longer has. Conversions are
+  sent by the Meta conversions Consumer, as they were since 0061.
+- `GET /api/analytics/order-activity` names its money `orderValue` (it was
+  `sales`); `GET /api/analytics/order-stages` adds `deliveryRate`;
+  `GET /api/abandoned-orders/stats` sends only `totalAbandoned` and
+  `totalConverted`.
+
 ### 0072–0073: storefront contract 3
 
 - `/store/config` no longer sends the store's colours, fonts, announcement,
