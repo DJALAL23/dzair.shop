@@ -230,9 +230,12 @@ export async function checkImageKitAccount(
   form.append(ticket.fileField, new Blob([CHECK_PNG], { type: "image/png" }), ticket.fields.fileName);
   // The token is signed with a private key the account just accepted, so silence names the public key:
   // ImageKit never answers an upload signed for a public key it does not have.
+  // The wait is raced on its own signal too: a Request follows its signal only weakly in some runtimes.
+  const wait = AbortSignal.timeout(options.uploadWaitMs ?? 15_000);
+  const waited = new Promise<never>((_, reject) => wait.addEventListener("abort", () => reject(wait.reason), { once: true }));
   let uploaded: Response;
   try {
-    uploaded = await reach(new Request(ticket.url, { method: "POST", body: form, signal: AbortSignal.timeout(options.uploadWaitMs ?? 15_000) }));
+    uploaded = await Promise.race([reach(new Request(ticket.url, { method: "POST", body: form, signal: wait })), waited]);
   } catch (error) {
     if (timedOut(error)) return { ok: false, problem: "public_key" };
     throw error;
