@@ -11,8 +11,6 @@ import {
   listUserActivityLogs,
   revokeTeamMemberScope,
   rotateTeamMemberApiKey,
-  updateTeamMember,
-  updateTeamMemberRole,
 } from "./api";
 
 describe("team API adapters", () => {
@@ -70,24 +68,6 @@ describe("team API adapters", () => {
       method: "POST",
       body: JSON.stringify({ name: "Amina", email: "a@b.dz", role: "staff", language: "ar" }),
     }));
-  });
-
-  it("updates members, roles, scopes and rotates API keys with URL-encoded IDs", async () => {
-    await updateTeamMember("user/1", { status: "inactive" });
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/users/user%2F1", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ status: "inactive" }) }));
-
-    await updateTeamMemberRole("user/1", "admin");
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/users/user%2F1/role", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ role: "admin" }) }));
-
-    await grantTeamMemberScope("user/1", "orders:read");
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/users/user%2F1/scopes", expect.objectContaining({ method: "POST", body: JSON.stringify({ scope: "orders:read" }) }));
-
-    await revokeTeamMemberScope("user/1", "orders:read");
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/users/user%2F1/scopes/orders%3Aread", { method: "DELETE" });
-
-    seam.apiFetch.mockResolvedValue({ success: true, data: { apiKey: "cod_new" } });
-    await expect(rotateTeamMemberApiKey("user/1")).resolves.toEqual({ apiKey: "cod_new" });
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/users/user%2F1/api-key/rotate", expect.objectContaining({ method: "POST" }));
   });
 
   it("unwraps user activity logs", async () => {

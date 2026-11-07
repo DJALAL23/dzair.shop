@@ -152,11 +152,6 @@ export function isDirty(draft: CheckoutFormDraft, saved: CheckoutFormPolicy): bo
   return JSON.stringify(toPayload(draft)) !== JSON.stringify(toPayload(toDraft(saved)));
 }
 
-/** True when the draft is the platform default — the storefront's original form. */
-export function isDefaultDraft(draft: CheckoutFormDraft): boolean {
-  return !isDirty(draft, DEFAULT_CHECKOUT_FORM_POLICY);
-}
-
 function isApiError(cause: unknown): cause is { message: string; context?: unknown } {
   return typeof cause === "object" && cause !== null && "message" in cause;
 }

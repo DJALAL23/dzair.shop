@@ -39,10 +39,6 @@ export interface DriverFilters {
 export const DRIVER_STATUSES: DriverStatus[] = ["available", "busy", "inactive"];
 export const VEHICLE_TYPES: VehicleType[] = ["motorcycle", "car", "van"];
 
-export function parseDriverStatus(value: string | undefined): DriverStatus | undefined {
-  return DRIVER_STATUSES.includes(value as DriverStatus) ? (value as DriverStatus) : undefined;
-}
-
 export function driverFullName(driver: Pick<Driver, "firstName" | "lastName">) {
   return `${driver.firstName} ${driver.lastName}`.trim();
 }
@@ -148,10 +144,6 @@ export function formatDeliveryDate(value: string, locale: "ar" | "en" | "fr") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`).format(date);
-}
-
-export function settlementLabel(type: DriverPaymentType, t: (key: string) => string) {
-  return t(`payments.type_${type}`);
 }
 
 export function parseDeliveryCompanyRoute(pathname: string): DeliveryCompanyRoute {

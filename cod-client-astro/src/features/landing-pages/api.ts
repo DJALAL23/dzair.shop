@@ -72,14 +72,6 @@ export function unpublishLandingPage(lpId: string) {
   return apiFetch<DataEnvelope<LandingPage>>(`/api/landing-pages/${id(lpId)}/unpublish`, { method: "POST" });
 }
 
-export function archiveLandingPage(lpId: string) {
-  return apiFetch<DataEnvelope<null>>(`/api/landing-pages/${id(lpId)}/archive`, { method: "POST" });
-}
-
-export async function listLandingPageImages(lpId: string) {
-  return (await apiFetch<ListEnvelope<LandingPageImage>>(`/api/landing-pages/${id(lpId)}/images`)).data;
-}
-
 export async function saveLandingPageImage(lpId: string, body: SaveLandingPageImageInput) {
   return (await apiFetch<ListEnvelope<LandingPageImage>>(`/api/landing-pages/${id(lpId)}/images`, json({ method: "POST", body: JSON.stringify(body) }))).data;
 }

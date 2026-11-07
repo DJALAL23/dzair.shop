@@ -82,14 +82,6 @@ export async function createTeamMember(body: CreateTeamMemberBody) {
   } satisfies CreateTeamMemberResult;
 }
 
-export function updateTeamMember(id: string, updates: { name?: string; email?: string; status?: TeamStatus }) {
-  return apiFetch<DataEnvelope<TeamMember>>(`/api/users/${encodeURIComponent(id)}`, json({ method: "PATCH", body: JSON.stringify(updates) }));
-}
-
-export function updateTeamMemberRole(id: string, role: TeamRole) {
-  return apiFetch<DataEnvelope<TeamMember>>(`/api/users/${encodeURIComponent(id)}/role`, json({ method: "PATCH", body: JSON.stringify({ role }) }));
-}
-
 export function grantTeamMemberScope(userId: string, scope: string) {
   return apiFetch<DataEnvelope<TeamMember>>(`/api/users/${encodeURIComponent(userId)}/scopes`, json({ method: "POST", body: JSON.stringify({ scope }) }));
 }

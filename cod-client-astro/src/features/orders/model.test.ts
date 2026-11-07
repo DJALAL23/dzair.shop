@@ -30,7 +30,6 @@ import {
   deliveryLabel,
   offerLineLabel,
   subtotalBeforeCoupon,
-  queueOf,
   reportsFor,
   statusMoves,
   viewCounts,
@@ -75,14 +74,6 @@ describe("the order list's work queues", () => {
     const placed = ORDER_QUEUES.flatMap((queue) => queue.stages);
     expect([...placed].sort()).toEqual([...ORDER_STAGES].sort());
     expect(new Set(placed).size).toBe(placed.length);
-  });
-
-  it("follows the merchant's day, and sends a parcel the carrier cancelled back to be shipped", () => {
-    expect(ORDER_QUEUES.map((queue) => queue.key)).toEqual(["to_confirm", "to_prepare", "to_ship", "on_the_way", "delivered", "returns", "cancelled"]);
-    expect(queueOf("unreachable")).toBe("to_confirm");
-    expect(queueOf("delivery_cancelled")).toBe("to_ship");
-    expect(queueOf("handoff_pending")).toBe("on_the_way");
-    expect(queueOf("returning")).toBe("returns");
   });
 
   it("asks the server for a queue's stages, or for what needs attention", () => {

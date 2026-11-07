@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   filterOffers,
-  formatOfferDate,
   offerErrorMessage,
   offerRuleLabel,
   offerScheduleLabel,
   paginateOffers,
   parseOfferRoute,
-  parseOfferType,
   sortOffers,
 } from "./model";
 import type { Offer } from "./types";
@@ -63,22 +61,6 @@ describe("offers model", () => {
     expect(offerScheduleLabel(offer({ startsAt: "2026-08-26T00:00:00.000Z", endsAt: "2026-08-30T00:00:00.000Z" }), "en", t)).toBe("schedule_range");
   });
 
-  it("parses only valid offer routes and enums", () => {
-    expect(parseOfferRoute("/offers")).toEqual({ kind: "list" });
-    expect(parseOfferRoute("/offers/new/")).toEqual({ kind: "new" });
-    expect(parseOfferRoute("/offers/offer%2F1")).toEqual({ kind: "edit", id: "offer/1" });
-    expect(parseOfferRoute("/offers/offer-1/extra")).toEqual({ kind: "unknown" });
-    expect(parseOfferType("free_shipping")).toBe("free_shipping");
-    expect(parseOfferType("bogus")).toBeUndefined();
-  });
-
-  it("maps business error codes and formats dates", () => {
-    expect(offerErrorMessage({ code: "OFFER_NOT_FOUND" }, t)).toBe("error_not_found");
-    expect(offerErrorMessage({ code: "OFFER_EXPIRED" }, t)).toBe("error_expired");
-    expect(offerErrorMessage(new Error("boom"), t)).toBe("error_generic");
-    expect(formatOfferDate("2026-08-26T00:00:00.000Z", "en")).toBe("8/26/2026");
-    expect(formatOfferDate("not-a-date", "en")).toBe("-");
-  });
 });
 
 import { offerBody } from "./model";

@@ -46,14 +46,6 @@ export function optionalDescription(value: string, editing: boolean): string | u
 
 export const PRODUCT_STATUSES: ProductStatus[] = ["ACTIVE", "DRAFT", "ARCHIVED"];
 
-export function parseProductStatus(value: string | undefined): ProductStatus | undefined {
-  return PRODUCT_STATUSES.includes(value as ProductStatus) ? (value as ProductStatus) : undefined;
-}
-
-export function productStatusLabel(status: ProductStatus, t: (key: string) => string) {
-  return t(`status_options.${status.toLocaleLowerCase()}`);
-}
-
 export function productStockTone(product: Pick<Product, "trackInventory" | "totalInventory" | "inventory">) {
   const total = product.totalInventory ?? product.inventory ?? 0;
   if (!product.trackInventory) return "none" as const;
@@ -207,10 +199,6 @@ export type StockSortKey = "inventory" | "name" | "updatedAt";
 
 export const STOCK_SORT_KEYS: StockSortKey[] = ["inventory", "name", "updatedAt"];
 
-export function parseStockSortKey(value: string | null | undefined): StockSortKey {
-  return STOCK_SORT_KEYS.includes(value as StockSortKey) ? (value as StockSortKey) : "inventory";
-}
-
 export function filterStockItems(items: StockAlertItem[], query: string) {
   const q = query.trim().toLocaleLowerCase();
   if (!q) return items;
@@ -246,18 +234,6 @@ export function stockGroupUpdatedAt(group: StockGroup) {
   return group.items.reduce((latest, item) => (item.updatedAt > latest ? item.updatedAt : latest), "");
 }
 
-/** Sorts the products and, inside each one, its variant rows by the same key. */
-export function sortStockGroups(groups: StockGroup[], key: StockSortKey, direction: "asc" | "desc") {
-  const sign = direction === "asc" ? 1 : -1;
-  return groups
-    .map((group) => ({ ...group, items: sortStockItems(group.items, key, direction) }))
-    .sort((left, right) => {
-      if (key === "inventory") return sign * (stockGroupInventory(left) - stockGroupInventory(right));
-      if (key === "updatedAt") return sign * compareText(stockGroupUpdatedAt(left), stockGroupUpdatedAt(right));
-      return sign * compareText(left.productName, right.productName);
-    });
-}
-
 export function movementIsStockIn(type: StockMovement["type"]) {
   return ["PURCHASE", "ADJUSTMENT_ADD", "ORDER_CANCELLED", "ORDER_RETURNED"].includes(type);
 }
@@ -267,12 +243,6 @@ export function formatStockDate(value: string, locale: "ar" | "en" | "fr") {
   const date = new Date(value);
   if (!value || Number.isNaN(date.getTime())) return null;
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`, { year: "numeric", month: "short", day: "numeric" }).format(date);
-}
-
-export function formatProductDate(value: string, locale: "ar" | "en" | "fr") {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`, { year: "numeric", month: "long", day: "numeric" }).format(date);
 }
 
 export function apiVariantOptions(options: VariantOptionFormState[]): VariantOption[] {

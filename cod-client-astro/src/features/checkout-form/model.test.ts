@@ -16,7 +16,6 @@ import {
   checkoutFormIssues,
   draftBlockers,
   emptyCustomField,
-  isDefaultDraft,
   isDirty,
   moveCustomField,
   toDraft,
@@ -194,10 +193,6 @@ describe("dirty tracking", () => {
     expect(isDirty(reordered, saved)).toBe(true);
   });
 
-  it("knows when the draft is the storefront's original form", () => {
-    expect(isDefaultDraft(draft())).toBe(true);
-    expect(isDefaultDraft(draft({ notes: "hidden" }))).toBe(false);
-  });
 });
 
 describe("server refusals", () => {

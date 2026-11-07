@@ -64,10 +64,6 @@ export function updateDriver(id: string, body: Partial<Driver>) {
   return apiFetch<DataEnvelope<Driver>>(`/api/drivers/${encodeURIComponent(id)}`, json({ method: "PATCH", body: JSON.stringify(body) }));
 }
 
-export function updateDriverStatus(id: string, status: DriverStatus) {
-  return apiFetch<DataEnvelope<Driver>>(`/api/drivers/${encodeURIComponent(id)}/status`, json({ method: "PATCH", body: JSON.stringify({ status }) }));
-}
-
 export function deleteDriver(id: string) {
   return apiFetch<DataEnvelope<null>>(`/api/drivers/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
@@ -96,7 +92,6 @@ export async function listPendingSettlements(driverId: string) {
   return (await apiFetch<ListEnvelope<PendingSettlement>>(`/api/driver-payments/${encodeURIComponent(driverId)}/pending`)).data;
 }
 
-
 // ─── Delivery Company API ─────────────────────────────────────────────────────
 
 export async function listDeliveryCompanies(params: { limit: number; offset: number; active?: boolean }) {
@@ -118,20 +113,12 @@ export async function listAllDeliveryCompanies() {
   }
 }
 
-export async function getDeliveryCompany(id: string) {
-  return (await apiFetch<DataEnvelope<DeliveryCompany>>(`/api/delivery-companies/${encodeURIComponent(id)}`)).data;
-}
-
 export function createDeliveryCompany(body: Partial<DeliveryCompany>) {
   return apiFetch<DataEnvelope<DeliveryCompany>>("/api/delivery-companies", json({ method: "POST", body: JSON.stringify(body) }));
 }
 
 export function updateDeliveryCompany(id: string, body: Partial<DeliveryCompany>) {
   return apiFetch<DataEnvelope<DeliveryCompany>>(`/api/delivery-companies/${encodeURIComponent(id)}`, json({ method: "PATCH", body: JSON.stringify(body) }));
-}
-
-export function deleteDeliveryCompany(id: string) {
-  return apiFetch<DataEnvelope<null>>(`/api/delivery-companies/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // ─── Stop Desks ───────────────────────────────────────────────────────────────
@@ -176,10 +163,6 @@ export interface ConnectionCheckResult {
   code: string;
   message: string;
   details?: { servedWilayaIds?: number[]; servedWilayaCount?: number } & Record<string, unknown>;
-}
-
-export async function testCompanyConnection(companyId: string) {
-  return (await apiFetch<DataEnvelope<ConnectionCheckResult>>(`/api/delivery-companies/${encodeURIComponent(companyId)}/test-connection`, { method: "POST" })).data;
 }
 
 export interface ShipmentSyncSummary {

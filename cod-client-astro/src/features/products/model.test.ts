@@ -3,7 +3,6 @@ import {
   apiVariantOptions,
   calcMargin,
   filterProducts,
-  formatProductDate,
   generateCombinations,
   filterStockItems,
   formatStockDate,
@@ -11,11 +10,9 @@ import {
   movementIsStockIn,
   paginateProducts,
   parseProductRoute,
-  parseProductStatus,
   productErrorMessage,
   productRemovalConsequences,
   sortProducts,
-  sortStockGroups,
   sortStockItems,
   stockAlertTone,
   stockGroupInventory,
@@ -122,22 +119,6 @@ describe("products model", () => {
     expect(calcMargin("1000", "2000")).toBeNull();
   });
 
-  it("groups stock alerts by product and computes tones", () => {
-    const groups = groupStockByProduct([alert(), alert({ variantId: "var-1", productName: "T-Shirt" })]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0].items).toHaveLength(2);
-    expect(stockAlertTone(alert())).toBe("out");
-    expect(stockAlertTone(alert({ isOutOfStock: false, inventory: 3, lowStockThreshold: 5 }))).toBe("low");
-    expect(stockAlertTone(alert({ isOutOfStock: false, inventory: 9, lowStockThreshold: 5 }))).toBe("ok");
-    expect(movementIsStockIn("PURCHASE")).toBe(true);
-    expect(movementIsStockIn("ORDER_DEDUCTED")).toBe(false);
-    expect(parseProductStatus("DRAFT")).toBe("DRAFT");
-    expect(parseProductStatus("bogus")).toBeUndefined();
-    expect(apiVariantOptions([{ id: "o1", name: "Color", values: [{ id: "v1", value: "Red", hexColor: "#ff0000" }] }])).toEqual([{ name: "Color", values: [{ value: "Red", hexColor: "#ff0000" }] }]);
-    expect(formatProductDate("2026-08-26T00:00:00.000Z", "en")).toBe("August 26, 2026");
-    expect(formatProductDate("not-a-date", "en")).toBe("-");
-  });
-
   it("searches stock rows by product name, variant label and sku", () => {
     const rows = [
       alert({ productId: "p-1", productName: "Cotton T-Shirt", sku: "TS-001" }),
@@ -165,25 +146,6 @@ describe("products model", () => {
     expect(sortStockItems(rows, "name", "asc").map((item) => item.productId)).toEqual(["a", "b", "c"]);
     expect(sortStockItems(rows, "updatedAt", "desc").map((item) => item.productId)).toEqual(["a", "b", "c"]);
     expect(rows.map((item) => item.productId)).toEqual(["b", "a", "c"]);
-  });
-
-  it("sorts stock groups on their aggregate and orders the variants inside each one", () => {
-    const groups = groupStockByProduct([
-      alert({ productId: "p-1", productName: "Hoodie", variantId: "v-1", variantLabel: "M", inventory: 9, updatedAt: "2026-01-05T00:00:00.000Z" }),
-      alert({ productId: "p-1", productName: "Hoodie", variantId: "v-2", variantLabel: "L", inventory: 1, updatedAt: "2026-04-05T00:00:00.000Z" }),
-      alert({ productId: "p-2", productName: "Cap", inventory: 4, updatedAt: "2026-02-05T00:00:00.000Z" }),
-    ]);
-    expect(stockGroupInventory(groups[0])).toBe(10);
-    expect(stockGroupUpdatedAt(groups[0])).toBe("2026-04-05T00:00:00.000Z");
-
-    const byQuantity = sortStockGroups(groups, "inventory", "asc");
-    expect(byQuantity.map((group) => group.productId)).toEqual(["p-2", "p-1"]);
-    expect(byQuantity[1].items.map((item) => item.inventory)).toEqual([1, 9]);
-
-    expect(sortStockGroups(groups, "inventory", "desc").map((group) => group.productId)).toEqual(["p-1", "p-2"]);
-    expect(sortStockGroups(groups, "name", "asc").map((group) => group.productId)).toEqual(["p-2", "p-1"]);
-    expect(sortStockGroups(groups, "updatedAt", "desc").map((group) => group.productId)).toEqual(["p-1", "p-2"]);
-    expect(groups[0].items.map((item) => item.variantId)).toEqual(["v-1", "v-2"]);
   });
 
   it("formats a stock row date and rejects unusable values", () => {

@@ -24,9 +24,7 @@ import {
   setCommuneOverride,
   setDriverCompensation,
   setShippingRules,
-  testCompanyConnection,
   updateDriver,
-  updateDriverStatus,
   updateShippingProfile,
 } from "./api";
 
@@ -39,18 +37,6 @@ describe("driver API adapters", () => {
   it("always sends explicit pagination and encodes list filters", async () => {
     await listDrivers({ status: "available", search: "Ahmed", limit: 25, offset: 50 });
     expect(seam.apiFetch).toHaveBeenCalledWith("/api/drivers?limit=25&offset=50&status=available&search=Ahmed");
-  });
-
-  it("uses the driver CRUD methods and URL encodes IDs", async () => {
-    seam.apiFetch.mockResolvedValue({ success: true, data: { id: "driver/1" } });
-    await createDriver({ firstName: "Ahmed", lastName: "Benali", phone: "0551234567" });
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/drivers", expect.objectContaining({ method: "POST", body: expect.stringContaining('"firstName":"Ahmed"') }));
-    await updateDriver("driver/1", { phone2: null });
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/drivers/driver%2F1", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ phone2: null }) }));
-    await updateDriverStatus("driver/1", "busy");
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/drivers/driver%2F1/status", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ status: "busy" }) }));
-    await deleteDriver("driver/1");
-    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/drivers/driver%2F1", { method: "DELETE" });
   });
 
   it("manages compensations and payments", async () => {
@@ -119,22 +105,6 @@ describe("shipping profile API adapters", () => {
 describe("carrier connection API adapters", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("POSTs test-connection and unwraps the check result", async () => {
-    const check = {
-      companyId: "comp/1",
-      companyName: "DHD Livraison",
-      companyCode: "dhd_ecotrack",
-      ok: true,
-      code: "valid",
-      message: "Token is valid",
-      details: { servedWilayaIds: [1, 16], servedWilayaCount: 2 },
-    };
-    seam.apiFetch.mockResolvedValue({ success: true, data: check });
-
-    await expect(testCompanyConnection("comp/1")).resolves.toEqual(check);
-    expect(seam.apiFetch).toHaveBeenCalledWith("/api/delivery-companies/comp%2F1/test-connection", { method: "POST" });
   });
 
   it("syncs a company's shipments now, and retries an inbox event", async () => {

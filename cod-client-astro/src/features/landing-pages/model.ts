@@ -30,12 +30,6 @@ export type LandingPageRoute =
 
 export const LANDING_PAGE_STATUSES: LandingPageStatus[] = ["draft", "published", "archived"];
 
-export function parseLandingPageStatus(value: string | undefined): LandingPageStatus | undefined {
-  return LANDING_PAGE_STATUSES.includes(value as LandingPageStatus)
-    ? (value as LandingPageStatus)
-    : undefined;
-}
-
 export function parseLandingPageRoute(pathname: string): LandingPageRoute {
   const path = pathname.replace(/\/$/, "");
   if (path === "/landing-pages") return { kind: "list" };

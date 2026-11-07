@@ -46,10 +46,6 @@ export type QueueKey = (typeof ORDER_QUEUES)[number]["key"];
 /** "all" shows every working order; "attention" those whose delivery needs the merchant; "archived" the finished ones put away. */
 export type OrderView = QueueKey | "all" | "attention" | "archived";
 
-export function queueOf(stage: OrderStage): QueueKey {
-  return ORDER_QUEUES.find((queue) => (queue.stages as readonly OrderStage[]).includes(stage))!.key;
-}
-
 /** The server query a view stands for. */
 export function viewQuery(view: OrderView): { stages?: readonly OrderStage[]; attention?: boolean; archived?: boolean } {
   if (view === "all") return {};

@@ -64,10 +64,6 @@ export function updateProduct(id: string, body: Partial<Product>) {
   return apiFetch<DataEnvelope<Product>>(`/api/products/${encodeURIComponent(id)}`, json({ method: "PATCH", body: JSON.stringify(body) }));
 }
 
-export function updateProductStatus(id: string, status: ProductStatus) {
-  return apiFetch<DataEnvelope<Product>>(`/api/products/${encodeURIComponent(id)}/status`, json({ method: "PATCH", body: JSON.stringify({ status }) }));
-}
-
 export function deleteProduct(id: string) {
   return apiFetch<DataEnvelope<null>>(`/api/products/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
@@ -145,10 +141,3 @@ export async function listShippingProfiles() {
   return (await apiFetch<ListEnvelope<ShippingProfile>>("/api/shipping-profiles?limit=100&offset=0")).data;
 }
 
-export async function listStockAlerts(filters: { limit?: number; offset?: number } = {}) {
-  const query = new URLSearchParams({
-    limit: String(filters.limit ?? 50),
-    offset: String(filters.offset ?? 0),
-  });
-  return (await apiFetch<DataEnvelope<{ items: StockAlertItem[]; total: number }>>(`/api/stock/alerts?${query}`)).data;
-}

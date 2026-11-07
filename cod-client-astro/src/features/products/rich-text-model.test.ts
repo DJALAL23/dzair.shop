@@ -10,7 +10,6 @@
  */
 import { describe, expect, it } from "vitest";
 import { generateHTML, generateJSON } from "@tiptap/html";
-import { richTextFromLegacy } from "./rich-text-model";
 import { descriptionEditorExtensions } from "@/components/tiptap-templates/simple/simple-editor-extensions";
 import { DEFAULT_HIGHLIGHT_COLORS } from "@/components/tiptap-ui/color-highlight-button";
 import { RICH_TEXT_STYLE_PATTERNS } from "../../../../cod-shared/lib/rich-text";
@@ -18,22 +17,6 @@ import { RICH_TEXT_STYLE_PATTERNS } from "../../../../cod-shared/lib/rich-text";
 const extensions = () => descriptionEditorExtensions(async () => "https://media.example/uploaded.jpg");
 const toJson = (html: string) => generateJSON(html, extensions());
 const toHtml = (json: object) => generateHTML(json as never, extensions());
-
-describe("richTextFromLegacy (text → rich upgrade)", () => {
-  it("turns each non-empty line into its own paragraph", () => {
-    expect(richTextFromLegacy("one\n\nthree")).toBe("<p>one</p><p>three</p>");
-  });
-
-  it("escapes the literal text: legacy markup must never become markup", () => {
-    expect(richTextFromLegacy("Size < 10cm & <script>alert(1)</script>")).toBe(
-      "<p>Size &lt; 10cm &amp; &lt;script&gt;alert(1)&lt;/script&gt;</p>",
-    );
-  });
-
-  it("trims surrounding whitespace and drops blank lines", () => {
-    expect(richTextFromLegacy("  a  \n   \n  b  ")).toBe("<p>a</p><p>b</p>");
-  });
-});
 
 
 describe("editor schema round-trip", () => {

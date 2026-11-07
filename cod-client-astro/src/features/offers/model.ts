@@ -28,10 +28,6 @@ export const OFFER_STATE_TONE: Record<OfferState, "success" | "neutral" | "info"
   inactive: "neutral",
 };
 
-export function parseOfferType(value: string | undefined): OfferDiscountType | undefined {
-  return OFFER_TYPES.includes(value as OfferDiscountType) ? (value as OfferDiscountType) : undefined;
-}
-
 export function filterOffers(offers: Offer[], filters: OfferFilters) {
   const q = filters.query.trim().toLocaleLowerCase();
   return offers.filter((offer) => {
@@ -101,12 +97,6 @@ export function offerErrorMessage(cause: unknown, t: Translate) {
   if (code === "OFFER_EXPIRED") return t("error_expired");
   if (code === "OFFER_NOT_ACTIVE") return t("error_not_active");
   return t("error_generic");
-}
-
-export function formatOfferDate(value: string, locale: "ar" | "en" | "fr") {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`).format(date);
 }
 
 /** The tiers the form holds, as numbers; null when one is not a whole number. */

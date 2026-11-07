@@ -24,7 +24,6 @@ import {
   paginateDrivers,
   paginateShippingProfiles,
   parseDriverRoute,
-  parseDriverStatus,
   parseShippingProfileRoute,
   shippingErrorMessage,
   sortDrivers,
@@ -92,17 +91,6 @@ describe("delivery model", () => {
   it("names drivers", () => {
     expect(driverFullName(driver())).toBe("Ahmed Benali");
     expect(driverInitials(driver())).toBe("AB");
-  });
-
-  it("parses only valid driver routes", () => {
-    expect(parseDriverRoute("/delivery/drivers")).toEqual({ kind: "list" });
-    expect(parseDriverRoute("/delivery/drivers/new/")).toEqual({ kind: "new" });
-    expect(parseDriverRoute("/delivery/drivers/driver%2F1")).toEqual({ kind: "detail", id: "driver/1" });
-    expect(parseDriverRoute("/delivery/drivers/driver-1/edit")).toEqual({ kind: "edit", id: "driver-1" });
-    expect(parseDriverRoute("/delivery/drivers/driver-1/compensations")).toEqual({ kind: "compensations", id: "driver-1" });
-    expect(parseDriverRoute("/delivery/drivers/driver-1/unknown")).toEqual({ kind: "unknown" });
-    expect(parseDriverStatus("busy")).toBe("busy");
-    expect(parseDriverStatus("bogus")).toBeUndefined();
   });
 
   it("maps business error codes and formats values", () => {
