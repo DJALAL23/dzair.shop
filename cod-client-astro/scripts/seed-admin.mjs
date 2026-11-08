@@ -16,7 +16,8 @@
  *
  * Local state is the repo-shared ../.wrangler-shared (same file cod-server
  * migrates to — persist-to is resolved relative to this package's cwd — and
- * astro dev reads via persistState).
+ * astro dev reads via persistState). Pass --persist-to=<dir> to seed another
+ * local state instead, e.g. --persist-to=../.wrangler-backpacks.
  *
  * Uses the same scrypt params as @better-auth/utils/password so the hash
  * is verifiable by better-auth at runtime (both Node.js and CF Workers).
@@ -61,6 +62,8 @@ function run(cmd, opts = {}) {
 async function main() {
   const args = process.argv.slice(2);
   const remote = args.includes("--remote");
+  const persistArg = args.find((a) => a.startsWith("--persist-to="));
+  const persistTo = persistArg ? persistArg.slice("--persist-to=".length) : "../.wrangler-shared";
   const passwordArg = args.find((a) => !a.startsWith("--"));
   const password = passwordArg ?? randomBytes(12).toString("base64url");
 
@@ -108,7 +111,7 @@ WHERE user_id = (SELECT id FROM users WHERE email = '${email}') AND provider_id 
 
   try {
     console.log("\n=== Seeding admin (local) ===");
-    run(`npx wrangler d1 execute ${dbName} --local --persist-to ../.wrangler-shared --file "${tmpFile}"`);
+    run(`npx wrangler d1 execute ${dbName} --local --persist-to ${persistTo} --file "${tmpFile}"`);
 
     if (remote) {
       console.log("\n=== Seeding admin (remote) ===");
