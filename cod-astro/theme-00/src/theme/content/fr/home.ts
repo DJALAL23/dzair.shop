@@ -8,7 +8,7 @@ export const frHome: HomeStrings = {
   heroTitle: "Achetez sereinement, payez à la porte",
   heroSubtitle: "Des produits choisis avec soin, livrés dans toutes les wilayas. Vous recevez, puis vous payez.",
   trust1Title: "Paiement à la livraison",
-  trust2Title: "Livraison dans les 58 wilayas",
+  trust2Title: "Livraison partout en Algérie",
   trust3Title: "Confirmation par téléphone",
   heroCtaPrimary: "Découvrir",
   heroCtaSecondary: "Meilleures ventes",

@@ -27,7 +27,7 @@
     "@astrojs/cloudflare": "^14.3.1",
     "@astrojs/vercel": "^11.0.10",
     "@iconify-json/heroicons": "^1.2.3",
-    "@wocart/storefront": "4.0.0",
+    "@wocart/storefront": "4.1.0",
     "@wocart/theme": "4.3.0",
     "astro": "^7.3.2",
     "astro-icon": "^1.1.5",

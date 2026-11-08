@@ -54,7 +54,7 @@ export const faq = defineComponent({
               ),
             },
           },
-          { id: "where", props: { question: { ar: "هل توصلون إلى ولايتي؟", fr: "Livrez-vous dans ma wilaya ?", en: "Do you deliver to my wilaya?" }, answer: paragraphs("نوصل إلى 58 ولاية، إلى باب المنزل أو إلى مكتب شركة التوصيل.", "Nous livrons dans les 58 wilayas, à domicile ou au bureau du transporteur.", "We deliver to all 58 wilayas, to your door or to the carrier's office.") } },
+          { id: "where", props: { question: { ar: "هل توصلون إلى ولايتي؟", fr: "Livrez-vous dans ma wilaya ?", en: "Do you deliver to my wilaya?" }, answer: paragraphs("نوصل عبر كامل الجزائر، إلى باب المنزل أو إلى مكتب شركة التوصيل.", "Nous livrons partout en Algérie, à domicile ou au bureau du transporteur.", "We deliver across Algeria, to your door or to the carrier's office.") } },
           { id: "exchange", props: { question: { ar: "وإذا لم يناسبني؟", fr: "Et si ça ne convient pas ?", en: "What if it does not suit me?" }, answer: paragraphs("تواصل معنا بعد الاستلام ونجد معك الحل المناسب.", "Contactez-nous après réception et nous trouvons ensemble une solution.", "Contact us after it arrives and we will find a solution together.") } },
         ],
       },

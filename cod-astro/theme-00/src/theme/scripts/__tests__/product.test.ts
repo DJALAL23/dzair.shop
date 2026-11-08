@@ -9,6 +9,7 @@
 /// <reference types="vitest/globals" />
 
 import * as fc from "fast-check";
+import { communesForWilaya } from "@wocart/storefront";
 import { initProductPage } from "../product.ts";
 import { serverQuote } from "@/theme/__tests__/support/quote";
 
@@ -508,7 +509,7 @@ describe("Commune loading race protection", () => {
 
     expect(requests).toHaveLength(0);
     expect(populateCalls).toHaveLength(1);
-    expect(populateCalls[0][0].value).toBe("c-16-001");
+    expect(populateCalls[0].map((option) => option.value)).toEqual(communesForWilaya(16).map((commune) => commune.id));
   });
 
   it("ignores a stale successful response for unbundled wilayas", async () => {

@@ -8,7 +8,7 @@ export const enHome: HomeStrings = {
   heroTitle: "Shop with ease, pay at your door",
   heroSubtitle: "Carefully chosen products delivered to every wilaya. You receive your order, then you pay.",
   trust1Title: "Cash on delivery",
-  trust2Title: "Delivery to all 58 wilayas",
+  trust2Title: "Delivery across Algeria",
   trust3Title: "We call to confirm your order",
   heroCtaPrimary: "Shop now",
   heroCtaSecondary: "Best sellers",

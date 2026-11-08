@@ -8,7 +8,7 @@ export const arHome: HomeStrings = {
   heroTitle: "تسوّق براحة، وادفع عند الباب",
   heroSubtitle: "منتجات مختارة بعناية تصلك إلى أي ولاية. تستلم طلبك ثم تدفع.",
   trust1Title: "الدفع عند الاستلام",
-  trust2Title: "توصيل إلى 58 ولاية",
+  trust2Title: "توصيل عبر كامل الجزائر",
   trust3Title: "نتصل بك لتأكيد طلبك",
   heroCtaPrimary: "تسوّق الآن",
   heroCtaSecondary: "الأكثر مبيعاً",
