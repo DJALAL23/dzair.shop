@@ -16,6 +16,7 @@ import {
   updateDriverStatusSchema,
   driverFiltersSchema,
 } from "./validation";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
@@ -122,8 +123,8 @@ describe("driverFiltersSchema", () => {
     expect(driverFiltersSchema.safeParse({ wilayaId: "0" }).success).toBe(false);
   });
 
-  it("rejects wilayaId = 59", () => {
-    expect(driverFiltersSchema.safeParse({ wilayaId: "59" }).success).toBe(false);
+  it("rejects a wilayaId past the last wilaya", () => {
+    expect(driverFiltersSchema.safeParse({ wilayaId: String(LAST_WILAYA_ID + 1) }).success).toBe(false);
   });
 
   it("defaults limit to 50 and offset to 0", () => {

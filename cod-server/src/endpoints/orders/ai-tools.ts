@@ -18,6 +18,7 @@ import type { AppDb } from "@/db";
 import { agentAuthorOf, type McpProps } from "@/mcp/props";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 import { toolId } from "@/lib/tool-input";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -118,7 +119,7 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
       customerId: z.string(),
       customerName: z.string(),
       phone: z.string(),
-      wilayaId: z.number().int().describe("Wilaya number 1–58"),
+      wilayaId: z.number().int().describe(`Wilaya number 1–${LAST_WILAYA_ID}`),
       communeId: z.string().nullable().describe("Commune ID (c-XX-YYY), or null"),
       deliveryType: z.enum(["home", "stop_desk"]),
       orderType: z.enum(["online", "offline"]),
@@ -197,7 +198,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
       "Optional filters: status (new|confirmed|unreachable|preparing|ready|cancelled), " +
       "stage — one or several comma-separated (new|confirmed|unreachable|preparing|ready_to_ship|handoff_pending|in_transit|out_for_delivery|delivered|returning|returned|delivery_cancelled|cancelled), " +
       "attention ('true'|'false'), kind (carrier|driver), orderType (online|offline), " +
-      "wilayaId (integer 1-58), search (matches orderNumber, customerName, phone, or the tracking number), " +
+      `wilayaId (integer 1–${LAST_WILAYA_ID}), search (matches orderNumber, customerName, phone, or the tracking number), ` +
       "archived (exclude — the default, only, include), limit (1-100, default 50), offset (default 0).",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -209,7 +210,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid filter arguments: ${errorDetails}. Expected (all optional): status (${ORDER_STATUSES.join("|")}), stage (one or several comma-separated), attention (true|false), kind (carrier|driver), orderType (online|offline), wilayaId (int 1-58), search (string), limit (1-100, default 50), offset (int >= 0, default 0)`,
+          error: `Invalid filter arguments: ${errorDetails}. Expected (all optional): status (${ORDER_STATUSES.join("|")}), stage (one or several comma-separated), attention (true|false), kind (carrier|driver), orderType (online|offline), wilayaId (int 1–${LAST_WILAYA_ID}), search (string), limit (1-100, default 50), offset (int >= 0, default 0)`,
         };
       }
       try {
@@ -285,7 +286,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
     description:
       "Creates a new COD order. " +
       "Required: customerId (ID), customerName (string), phone (Algerian 0[5-7]XXXXXXXX), " +
-      "wilayaId (int 1-58), communeId (c-XX-YYY, from listWilayaCommunes), price (positive number, product total in DZD), " +
+      `wilayaId (int 1–${LAST_WILAYA_ID}), communeId (c-XX-YYY, from listWilayaCommunes), price (positive number, product total in DZD), ` +
       "products (array, min 1 item — each needs productId, productName, quantity, pricePerUnit, lineTotal), " +
       "and address for a home delivery. " +
       "Optional: city, notes, " +
@@ -307,7 +308,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           error:
             `Invalid order data: ${errorDetails}. ` +
             `Required: customerId (ID), customerName (string), phone (0[5-7]XXXXXXXX), ` +
-            `wilayaId (int 1-58), communeId (c-XX-YYY), price (positive number DZD), ` +
+            `wilayaId (int 1–${LAST_WILAYA_ID}), communeId (c-XX-YYY), price (positive number DZD), ` +
             `products (array min 1: [{productId, productName, quantity (int > 0), pricePerUnit (positive), lineTotal (positive), variantId?, variantLabel?}]), ` +
             `address (home delivery). Optional: city, notes, ` +
             `orderType (online|offline, default online), deliveryType (home|stop_desk, default home), ` +

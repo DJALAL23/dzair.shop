@@ -108,7 +108,7 @@ async function shipmentAt(orderId: string, companyId: string, parcel: { carrierP
     id: orderId, orderNumber: `ORD-${orderId}`, customerId: "c1", customerName: "Karim", phone: "0551234567", wilayaId, address: "Rue 1",
     price: 1500, deliveryFee: 400, status: "ready", createdAt: T0, updatedAt: T0,
   });
-  const reserved = await reserveCarrierShipment(d1.db, { orderId, companyId, deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+  const reserved = await reserveCarrierShipment(d1.db, { orderId, companyId, deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
   if (!reserved.ok) throw new Error("reservation failed");
   if (parcel === "unknown") await markHandoffUnknown(d1.db, reserved.shipmentId, "timeout");
   else await acceptCarrierHandoff(d1.db, reserved.shipmentId, { ...parcel, carrierData: null, labelUrl: null }, { validated: true , author: SYSTEM });
@@ -247,7 +247,7 @@ describe("what an event means", () => {
 
   it("a status for a parcel still being handed off waits and is retried", async () => {
     await d1.db.insert(schema.orders).values({ id: "os", orderNumber: "ORD-os", customerId: "c1", customerName: "K", phone: "0551234567", price: 1, deliveryFee: 0, status: "ready", createdAt: T0, updatedAt: T0 });
-    await reserveCarrierShipment(d1.db, { orderId: "os", companyId: "zr", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+    await reserveCarrierShipment(d1.db, { orderId: "os", companyId: "zr", deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
     await zr("parcel.state.updated", { id: "uuid-s", externalId: "ORD-os", state: { name: "en_preparation" } });
     expect((await inbox())[0]).toMatchObject({ result: "error" });
     expect((await d1.db.select().from(schema.shipmentEvents).all()).filter((e) => e.source === "webhook")).toHaveLength(0);
@@ -255,7 +255,7 @@ describe("what an event means", () => {
 
   it("a creation for a parcel still being handed off waits and is retried", async () => {
     await d1.db.insert(schema.orders).values({ id: "os", orderNumber: "ORD-os", customerId: "c1", customerName: "K", phone: "0551234567", price: 1, deliveryFee: 0, status: "ready", createdAt: T0, updatedAt: T0 });
-    await reserveCarrierShipment(d1.db, { orderId: "os", companyId: "yal-a", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+    await reserveCarrierShipment(d1.db, { orderId: "os", companyId: "yal-a", deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
     await yalidine("parcel_created", [{ event_id: "cr-3", occurred_at: "2026-10-14 10:00:00", data: { order_id: "ORD-os", tracking: "yal-88" } }]);
     expect((await inbox())[0]).toMatchObject({ result: "error" });
   });

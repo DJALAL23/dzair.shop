@@ -24,6 +24,7 @@ import {
   MessageResponseSchema,
   ListResponseSchema,
 } from "@/openapi/schemas";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -45,8 +46,8 @@ const idParams = z.object({
 // ─── Request schemas ──────────────────────────────────────────────────────────
 
 const listQuerySchema = z.object({
-  wilayaId: z.coerce.number().int().min(1).max(58).optional().openapi({
-    description: "Filter by wilaya ID (1–58)",
+  wilayaId: z.coerce.number().int().min(1).max(LAST_WILAYA_ID).optional().openapi({
+    description: `Filter by wilaya ID (1–${LAST_WILAYA_ID})`,
   }),
   search: z.string().optional().openapi({ description: "Search by customer name, phone or email" }),
   groupId: z.string().optional().openapi({
@@ -71,8 +72,8 @@ const createBodySchema = z.object({
     z.string().regex(phoneRegex, "Invalid Algerian phone number").optional()
   ).openapi({ description: "Secondary phone number (optional)" }),
   email: newEmailField().openapi({ description: "Email address (optional); stored lower-cased", example: "amina@example.com" }),
-  wilayaId: z.number().int().min(1).max(58).openapi({
-    description: "Official wilaya number (1–58)",
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).openapi({
+    description: `Official wilaya number (1–${LAST_WILAYA_ID})`,
     example: 16,
   }),
   communeId: z.string().min(1, "Commune is required").openapi({
@@ -90,8 +91,8 @@ const updateBodySchema = z.object({
     z.string().regex(phoneRegex, "Invalid Algerian phone number").nullable().optional()
   ).openapi({ description: "Secondary phone. Set to null to clear it." }),
   email: editedEmailField().openapi({ description: "Email address. Set to null or empty to clear it." }),
-  wilayaId: z.number().int().min(1).max(58).optional().openapi({
-    description: "Official wilaya number (1–58)",
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).optional().openapi({
+    description: `Official wilaya number (1–${LAST_WILAYA_ID})`,
     example: 16,
   }),
   communeId: z.string().min(1, "Commune is required").nullable().optional().openapi({

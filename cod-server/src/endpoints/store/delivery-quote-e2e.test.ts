@@ -19,6 +19,7 @@ import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import storeRouter from "./routes";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 let harness: TestD1;
 let app: OpenAPIHono<AppContext>;
@@ -257,10 +258,10 @@ describe("POST /store/cart/validate — the delivery quote is what the order cha
     expect(quoted.json.data).not.toHaveProperty("delivery");
   });
 
-  it("refuses a destination outside the 58 wilayas", async () => {
+  it("refuses a destination past the last wilaya", async () => {
     const p = await seedProduct(2500);
 
-    const quoted = await quote([{ productId: p, quantity: 1 }], { wilayaId: 59, deliveryType: "home" });
+    const quoted = await quote([{ productId: p, quantity: 1 }], { wilayaId: LAST_WILAYA_ID + 1, deliveryType: "home" });
 
     expect(quoted.status).toBe(400);
   });

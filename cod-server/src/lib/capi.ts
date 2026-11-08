@@ -57,7 +57,6 @@ export interface CapiUserData {
   lastName?: string | null;
   externalId?: string | null;
   city?: string | null;
-  postalCode?: string | null;
   fbc?: string | null;
   fbp?: string | null;
   clientIpAddress?: string | null;
@@ -114,7 +113,6 @@ export async function sendCapiEvent(
   if (ud.lastName) userData.ln = await sha256hex(normaliseName(ud.lastName));
   if (ud.externalId) userData.external_id = await sha256hex(ud.externalId);
   if (ud.city) userData.ct = await sha256hex(normaliseAsciiText(ud.city));
-  if (ud.postalCode) userData.zp = await sha256hex(ud.postalCode);
   if (ud.fbc) userData.fbc = ud.fbc;
   if (ud.fbp) userData.fbp = ud.fbp;
   if (ud.clientIpAddress) userData.client_ip_address = ud.clientIpAddress;

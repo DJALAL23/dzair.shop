@@ -22,18 +22,16 @@ const call = (i: number) => {
 };
 
 const PARCEL = "11111111-2222-3333-4444-555555555555";
-const city = { id: "city-16", level: "wilaya", code: 16, name: "Alger" };
-const district = { id: "district-1", level: "commune", parentId: "city-16", name: "Alger Centre" };
 const ref = { carrierParcelId: PARCEL, trackingNumber: "16-ABC-ZR", carrierData: { parcelId: PARCEL } };
+/** Alger Centre as the company's map of places holds it: ZR's own territory ids. */
+const destination = { wilaya: { ref: "city-16", number: 16, name: "Alger" }, commune: { ref: "district-1", name: "Alger Centre" } };
 
 const input: CarrierShipmentInput = {
   reference: "ORD-001",
   customerName: "Karim Benali",
   phone: "0551234567",
   address: "Rue 1",
-  wilayaId: 16,
-  wilaya: "Alger",
-  commune: "Alger Centre",
+  destination,
   amount: 4500,
   productDescription: "T-shirt (ORD-001)",
   stopDesk: false,
@@ -49,11 +47,11 @@ async function failure(promise: Promise<unknown>): Promise<CarrierError> {
   throw new Error("expected a CarrierError");
 }
 
+const urls = () => fetchMock.mock.calls.map(([url]) => String(url));
+
 describe("createShipment", () => {
-  it("resolves territories, creates the customer and the parcel, then reads the tracking number", async () => {
+  it("creates the customer and the parcel at the map's territories, then reads the tracking number", async () => {
     fetchMock
-      .mockResolvedValueOnce(json({ items: [city] }))
-      .mockResolvedValueOnce(json({ items: [district] }))
       .mockResolvedValueOnce(json({ id: "cust-1" }))
       .mockResolvedValueOnce(json({ id: PARCEL }))
       .mockResolvedValueOnce(json({ id: PARCEL, trackingNumber: "16-ABC-ZR" }));
@@ -61,10 +59,9 @@ describe("createShipment", () => {
     const parcel = await carrier().createShipment({ ...input, phone2: "0661111111" });
 
     expect(call(0).init.headers).toMatchObject({ "X-Api-Key": "zr-key", "X-Tenant": "zr-tenant" });
-    expect(call(0).body).toMatchObject({ keyword: "Alger" });
-    expect(call(2)).toMatchObject({ url: "https://api.zrexpress.app/api/v1/customers/individual", body: { phone: { number1: "+213551234567", number2: "+213661111111" } } });
-    expect(call(3).url).toBe("https://api.zrexpress.app/api/v1/parcels");
-    expect(call(3).body).toMatchObject({
+    expect(call(0)).toMatchObject({ url: "https://api.zrexpress.app/api/v1/customers/individual", body: { phone: { number1: "+213551234567", number2: "+213661111111" } } });
+    expect(call(1).url).toBe("https://api.zrexpress.app/api/v1/parcels");
+    expect(call(1).body).toMatchObject({
       customer: { customerId: "cust-1" },
       deliveryAddress: { cityTerritoryId: "city-16", districtTerritoryId: "district-1", street: "Rue 1" },
       deliveryType: "home",
@@ -72,6 +69,12 @@ describe("createShipment", () => {
       externalId: "ORD-001",
     });
     expect(parcel).toEqual({ carrierParcelId: PARCEL, trackingNumber: "16-ABC-ZR", carrierData: { parcelId: PARCEL }, labelUrl: null });
+  });
+
+  it("never searches ZR's territories for a name: the ids come from the map", async () => {
+    fetchMock.mockResolvedValueOnce(json({ id: "cust-1" })).mockResolvedValueOnce(json({ id: PARCEL })).mockResolvedValueOnce(json({ id: PARCEL, trackingNumber: "T" }));
+    await carrier().createShipment(input);
+    expect(urls().some((u) => u.includes("/territories"))).toBe(false);
   });
 
   it("sends a pickup point's hub and takes its territories from the hub", async () => {
@@ -84,37 +87,27 @@ describe("createShipment", () => {
     expect(call(2).body).toMatchObject({ hubId: "hub-9", deliveryType: "pickup-point", deliveryAddress: { cityTerritoryId: "c", districtTerritoryId: "d" } });
   });
 
-  it("an unserved wilaya is rejected before anything is created", async () => {
-    fetchMock.mockImplementation(async () => json({ items: [] }));
-    const error = await failure(carrier().createShipment({ ...input, wilayaId: 33, wilaya: "Illizi" }));
-    expect(error.kind).toBe("rejected");
-    expect(fetchMock.mock.calls.every(([url]) => String(url).endsWith("/territories/search"))).toBe(true);
-  });
-
   it("a failure before the parcel call means nothing was shipped — unavailable, not ambiguous", async () => {
-    fetchMock
-      .mockResolvedValueOnce(json({ items: [city] }))
-      .mockResolvedValueOnce(json({ items: [district] }))
-      .mockResolvedValueOnce(json({}, 500));
+    fetchMock.mockResolvedValueOnce(json({}, 500));
     expect((await failure(carrier().createShipment(input))).kind).toBe("unavailable");
   });
 
   it("a server error on the parcel call itself is ambiguous", async () => {
-    fetchMock
-      .mockResolvedValueOnce(json({ items: [city] }))
-      .mockResolvedValueOnce(json({ items: [district] }))
-      .mockResolvedValueOnce(json({ id: "cust-1" }))
-      .mockResolvedValueOnce(json({}, 502));
+    fetchMock.mockResolvedValueOnce(json({ id: "cust-1" })).mockResolvedValueOnce(json({}, 502));
     expect((await failure(carrier().createShipment(input))).kind).toBe("ambiguous");
   });
 
-  it("keeps a created parcel even when its tracking number cannot be read yet", async () => {
+  it("ZR's refusal of a territory pair is the carrier's answer, not a guess of ours", async () => {
     fetchMock
-      .mockResolvedValueOnce(json({ items: [city] }))
-      .mockResolvedValueOnce(json({ items: [district] }))
       .mockResolvedValueOnce(json({ id: "cust-1" }))
-      .mockResolvedValueOnce(json({ id: PARCEL }))
-      .mockRejectedValue(new TypeError("down"));
+      .mockResolvedValueOnce(json({ title: "ParcelErrors.DistrictDoesNotBelongToCity", detail: "The district territory does not belong to the city territory." }, 400));
+    const error = await failure(carrier().createShipment(input));
+    expect(error.kind).toBe("rejected");
+    expect(error.message).toContain("DistrictDoesNotBelongToCity");
+  });
+
+  it("keeps a created parcel even when its tracking number cannot be read yet", async () => {
+    fetchMock.mockResolvedValueOnce(json({ id: "cust-1" })).mockResolvedValueOnce(json({ id: PARCEL })).mockRejectedValue(new TypeError("down"));
     expect(await carrier().createShipment(input)).toMatchObject({ carrierParcelId: PARCEL, trackingNumber: null });
   });
 });
@@ -122,7 +115,6 @@ describe("createShipment", () => {
 describe("createShipments", () => {
   it("maps ZR's per-index answer back to each order, joining every reason", async () => {
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.endsWith("/territories/search")) return json({ items: [city, district] });
       if (url.endsWith("/customers/individual")) return json({ id: "cust" });
       return json({
         successes: [{ index: 0, parcelId: "p-1", trackingNumber: "T-1" }],
@@ -141,61 +133,100 @@ describe("createShipments", () => {
     expect(items[1]).toMatchObject({ ok: false, error: { kind: "rejected", message: "Name is required; Description is required" } });
     expect(items[2]).toMatchObject({ ok: false, error: { kind: "ambiguous" } });
   });
-});
 
-describe("a bulk spares ZR's rate limit (200 requests a minute)", () => {
-  it("looks each city and commune up once, however many parcels go to it", async () => {
+  it("sends each parcel to its own commune's territories", async () => {
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.endsWith("/territories/search")) return json({ items: [city, district] });
-      if (url.endsWith("/customers/individual")) return json({ id: "cust" });
-      return json({ successes: [0, 1, 2, 3].map((index) => ({ index, parcelId: `p-${index}`, trackingNumber: `T-${index}` })), failures: [] });
-    });
-    const items = await carrier().createShipments!([0, 1, 2, 3].map((n) => ({ ...input, reference: `R${n}` })));
-    expect(items.every((item) => item.ok)).toBe(true);
-    const urls = fetchMock.mock.calls.map(([url]) => String(url));
-    expect(urls.filter((u) => u.endsWith("/territories/search"))).toHaveLength(2);
-    expect(urls.filter((u) => u.endsWith("/customers/individual"))).toHaveLength(4);
-  });
-
-  it("still tells two communes apart", async () => {
-    const other = { id: "district-2", level: "commune", parentId: "city-16", name: "Bab Ezzouar" };
-    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
-      if (url.endsWith("/territories/search")) {
-        const keyword = JSON.parse(String(init?.body)).keyword;
-        return json({ items: keyword === "Bab Ezzouar" ? [other] : keyword === "Alger Centre" ? [district] : [city] });
-      }
       if (url.endsWith("/customers/individual")) return json({ id: "cust" });
       return json({ successes: [{ index: 0, parcelId: "p-0", trackingNumber: "T-0" }, { index: 1, parcelId: "p-1", trackingNumber: "T-1" }], failures: [] });
     });
-    await carrier().createShipments!([{ ...input, reference: "A" }, { ...input, reference: "B", commune: "Bab Ezzouar" }]);
+    const babEzzouar = { ...destination, commune: { ref: "district-2", name: "Bab Ezzouar" } };
+    await carrier().createShipments!([{ ...input, reference: "A" }, { ...input, reference: "B", destination: babEzzouar }]);
     const bulk = fetchMock.mock.calls.map(([url, init]) => [String(url), init as RequestInit]).find(([url]) => (url as string).endsWith("/parcels/bulk"))!;
     const parcels = JSON.parse(String((bulk[1] as RequestInit).body)).parcels;
     expect(parcels.map((p: any) => p.deliveryAddress.districtTerritoryId)).toEqual(["district-1", "district-2"]);
+    expect(urls().some((u) => u.includes("/territories"))).toBe(false);
+  });
+});
+
+describe("places", () => {
+  const territories = [
+    [{ id: "city-51", level: "wilaya", code: 51, name: "Ouled Djellal" }, { id: "d-besbes", level: "commune", code: 232, name: "Besbes", parentId: "city-51", delivery: { hasHomeDelivery: true } }],
+    [
+      { id: "d-x", level: "commune", code: 9, name: "Doucen", parentId: "city-51", delivery: { hasHomeDelivery: false } },
+      { id: "city-03", level: "wilaya", code: 3, name: "Laghouat" },
+      { id: "d-aflou", level: "commune", code: 319, name: "Aflou", parentId: "city-03", delivery: { hasHomeDelivery: true } },
+    ],
+  ];
+  const prices = (home: number, desk: number, back: number, discountedHome: number | null = null) => [
+    { deliveryType: "home", price: home, discountedPrice: discountedHome },
+    { deliveryType: "pickup-point", price: desk, discountedPrice: null },
+    { deliveryType: "return", price: back, discountedPrice: null },
+  ];
+  beforeEach(() => {
+    fetchMock.mockImplementation(async (url: string, init: RequestInit) => {
+      if (url.endsWith("/delivery-pricing/rates")) {
+        return json({
+          rates: [
+            { toTerritoryId: "city-51", toTerritoryLevel: "wilaya", deliveryPrices: prices(750, 530, 200) },
+            { toTerritoryId: "d-besbes", toTerritoryLevel: "commune", deliveryPrices: prices(500, 380, 200, 450) },
+            { toTerritoryId: "unknown", toTerritoryLevel: "Unknown", deliveryPrices: prices(0, 10, 0) },
+          ],
+        });
+      }
+      const page = JSON.parse(String(init.body)).pageNumber as number;
+      return json({ items: territories[page - 1], totalPages: 2 });
+    });
+  });
+
+  it("lists every commune territory under the wilaya territory ZR files it in, across pages", async () => {
+    const places = await carrier().places();
+    expect(places.map((p) => [p.wilaya.ref, p.wilaya.number, p.commune.ref, p.commune.name, p.home])).toEqual([
+      ["city-51", 51, "d-besbes", "Besbes", true],
+      ["city-51", 51, "d-x", "Doucen", false],
+      ["city-03", 3, "d-aflou", "Aflou", true],
+    ]);
+    const searches = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/territories/search")).map(([, init]) => JSON.parse(String((init as RequestInit).body)));
+    expect(searches).toEqual([expect.objectContaining({ keyword: "", pageSize: 1000, pageNumber: 1 }), expect.objectContaining({ pageNumber: 2 })]);
+  });
+
+  it("prices a commune at its own rate where ZR sets one (its discount first), at its wilaya's otherwise, and not at all where ZR has none", async () => {
+    const [besbes, doucen, aflou] = await carrier().places();
+    expect(besbes.rate).toEqual({ home: 450, stopDesk: 380, homeReturn: 200, stopDeskReturn: 200 });
+    expect(doucen.rate).toEqual({ home: 750, stopDesk: 530, homeReturn: 200, stopDeskReturn: 200 });
+    expect(aflou.rate).toEqual({ home: null, stopDesk: null, homeReturn: null, stopDeskReturn: null });
   });
 });
 
 describe("update", () => {
   it("patches only what changed, each aspect on its own endpoint", async () => {
     fetchMock
-      .mockResolvedValueOnce(json({ id: PARCEL, amount: 4500, customer: { name: "Karim", phone: { number1: "+213551234567" } }, deliveryAddress: { street: "Rue 1", cityTerritoryCode: 16, district: "Alger Centre" } }))
+      .mockResolvedValueOnce(json({ id: PARCEL, amount: 4500, customer: { name: "Karim", phone: { number1: "+213551234567" } }, deliveryAddress: { street: "Rue 1", cityTerritoryId: "city-16", districtTerritoryId: "district-1" } }))
       .mockResolvedValueOnce(json({}))
       .mockResolvedValueOnce(json({}));
-    await carrier().update!(ref, { amount: 5000, customerName: "Karim", phone: "0551234567", address: "Rue 2" });
+    await carrier().update!(ref, { amount: 5000, customerName: "Karim", phone: "0551234567", address: "Rue 2", destination });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(call(1)).toMatchObject({ url: `https://api.zrexpress.app/api/v1/parcels/${PARCEL}/amount`, body: { amount: 5000 } });
-    expect(call(2)).toMatchObject({ url: expect.stringContaining("/deliveryAddress"), body: { deliveryAddress: { street: "Rue 2" } } });
+    expect(call(2)).toMatchObject({ url: expect.stringContaining("/deliveryAddress"), body: { deliveryAddress: { street: "Rue 2", cityTerritoryId: "city-16", districtTerritoryId: "district-1" } } });
     expect(call(2).init.method).toBe("PATCH");
+  });
+
+  it("moves a parcel to the map's territories of its new commune", async () => {
+    fetchMock
+      .mockResolvedValueOnce(json({ id: PARCEL, deliveryAddress: { street: "Rue 1", cityTerritoryId: "city-16", districtTerritoryId: "district-1" } }))
+      .mockResolvedValueOnce(json({}));
+    const besbes = { wilaya: { ref: "city-51", number: 51, name: "Ouled Djellal" }, commune: { ref: "d-besbes", name: "Besbes" } };
+    await carrier().update!(ref, { destination: besbes });
+    expect(call(1).body).toMatchObject({ deliveryAddress: { cityTerritoryId: "city-51", districtTerritoryId: "d-besbes" } });
+    expect(urls().some((u) => u.includes("/territories"))).toBe(false);
   });
 
   it("a pickup-point address change carries the hub serving the new district", async () => {
     fetchMock
-      .mockResolvedValueOnce(json({ id: PARCEL, deliveryType: "pickup-point", deliveryAddress: { cityTerritoryCode: 16, district: "X", cityTerritoryId: "city-16", districtTerritoryId: "old" } }))
-      .mockResolvedValueOnce(json({ items: [city] }))
-      .mockResolvedValueOnce(json({ items: [district] }))
+      .mockResolvedValueOnce(json({ id: PARCEL, deliveryType: "pickup-point", deliveryAddress: { cityTerritoryId: "city-16", districtTerritoryId: "old" } }))
       .mockResolvedValueOnce(json({ items: [{ id: "hub-1", address: { districtTerritoryId: "district-1" } }], totalPages: 1 }))
       .mockResolvedValueOnce(json({}));
-    await carrier().update!(ref, { wilayaId: 16, wilaya: "Alger", commune: "Alger Centre" });
-    expect(call(4).body).toMatchObject({ hubId: "hub-1", deliveryAddress: { cityTerritoryId: "city-16", districtTerritoryId: "district-1" } });
+    await carrier().update!(ref, { destination });
+    expect(call(2).body).toMatchObject({ hubId: "hub-1", deliveryAddress: { cityTerritoryId: "city-16", districtTerritoryId: "district-1" } });
   });
 
   it("a refusal is an error", async () => {
@@ -249,13 +280,11 @@ describe("label and stop desks", () => {
     expect((await failure(carrier().label!(ref))).kind).toBe("rejected");
   });
 
-  it("lists pickup-point hubs with their wilaya", async () => {
-    fetchMock.mockImplementation(async (url: string) =>
-      url.endsWith("/hubs/search")
-        ? json({ items: [{ id: "h1", name: "Hub Alger", isPickupPoint: true, address: { cityTerritoryId: "city-16" } }, { id: "h2", isPickupPoint: false }], totalPages: 1 })
-        : json({ items: [city], totalPages: 1 }),
+  it("lists pickup-point hubs by the district territory they stand in", async () => {
+    fetchMock.mockResolvedValueOnce(
+      json({ items: [{ id: "h1", name: "Hub Alger", isPickupPoint: true, address: { cityTerritoryId: "city-16", districtTerritoryId: "district-1" } }, { id: "h2", isPickupPoint: false }], totalPages: 1 }),
     );
-    expect(await carrier().stopDesks!()).toEqual([{ code: "h1", name: "Hub Alger", commune: null, address: null, phones: [], wilayaId: 16 }]);
+    expect(await carrier().stopDesks!()).toEqual([{ code: "h1", name: "Hub Alger", commune: null, communeRef: "district-1", address: null, phones: [], wilayaNumber: null }]);
   });
 
   it("an outage is an error, never an empty list that would wipe the synced desks", async () => {

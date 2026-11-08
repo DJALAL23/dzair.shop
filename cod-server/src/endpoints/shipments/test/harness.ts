@@ -8,7 +8,6 @@
  */
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { signIn } from "@/test-utils/sign-in";
-import { eq } from "drizzle-orm";
 import type { AppContext } from "@/types";
 import type { AppDb } from "@/db";
 import { errorHandler } from "@/middleware/error";
@@ -35,7 +34,14 @@ export function shipmentsApp(d1: TestD1, scopes: () => string[], more: Record<st
   return app;
 }
 
-/** Clears the tables and seeds the store; returns a commune of wilaya 16. */
+/**
+ * Two communes of Alger: the one orders go to, which every connected
+ * company's map of places holds, and one no map holds.
+ */
+export const ALGER_CENTRE = "c-16-001";
+export const NOT_SERVED = "c-16-002";
+
+/** Clears the tables and seeds the store; returns the commune orders go to (Alger Centre). */
 export async function seedStore(db: AppDb, ecotrack: { baseUrl: string; token: string }): Promise<string> {
   for (const table of [
     schema.businessEvents,
@@ -54,8 +60,8 @@ export async function seedStore(db: AppDb, ecotrack: { baseUrl: string; token: s
     schema.customers,
     schema.driverCompensations,
     schema.drivers,
-    schema.carrierCommunes,
-    schema.carrierWilayas,
+    schema.carrierPlaces,
+    schema.companyStopDesks,
     schema.deliveryCompanies,
   ]) {
     await db.delete(table);
@@ -65,7 +71,7 @@ export async function seedStore(db: AppDb, ecotrack: { baseUrl: string; token: s
     id: "p1", name: "Robe", handle: "robe", price: 1500, sku: "ROBE", hasVariants: false, inventory: 100, trackInventory: false,
     lowStockThreshold: 2, status: "ACTIVE", visibility: true, showInStore: true, createdAt: T0, updatedAt: T0,
   });
-  const company = { nameAr: "-", active: true, createdAt: T0, updatedAt: T0 };
+  const company = { nameAr: "-", active: true, createdAt: T0, updatedAt: T0, placesSyncedAt: T0, placesUnmatched: "[]" };
   const eco = { provider: "ecotrack" as const, apiEndpoint: ecotrack.baseUrl, apiToken: ecotrack.token };
   const companies: Array<typeof schema.deliveryCompanies.$inferInsert> = [
     { ...company, ...eco, id: "eco", name: "Packers", code: "packers_ecotrack", autoValidate: true },
@@ -73,14 +79,29 @@ export async function seedStore(db: AppDb, ecotrack: { baseUrl: string; token: s
     { ...company, ...eco, id: "eco-home-only", name: "Home only", code: "home_ecotrack", supportsStopDesk: false },
     { ...company, ...eco, id: "off", name: "Inactive", code: "off_ecotrack", active: false },
     { ...company, ...eco, id: "unconnected", name: "Unconnected", code: "new_ecotrack", apiToken: null },
+    { ...company, ...eco, id: "eco-unread", name: "Never read", code: "unread_ecotrack", placesSyncedAt: null, placesUnmatched: null },
     { ...company, id: "yal", name: "Yalidine", code: "yalidine", provider: "yalidine", apiToken: "yal-token", apiUserGuid: "yal-id" },
     { ...company, id: "zr", name: "ZR", code: "zr_express", provider: "zr_express", apiToken: "zr-key", apiUserGuid: "tenant" },
     { ...company, id: "noest", name: "NOEST", code: "noest", provider: "noest", apiToken: "noest-token", apiUserGuid: "noest-guid" },
   ];
   // D1 binds at most 100 variables per statement.
   for (const row of companies) await db.insert(schema.deliveryCompanies).values(row);
-  return (await db.select({ id: schema.communes.id }).from(schema.communes).where(eq(schema.communes.wilayaId, 16)).get())!.id;
+  // Each connected company's map holds Alger Centre under its own ids and spellings.
+  const places: Array<[string, string, string]> = [
+    ["eco", "16", "1601"], ["eco-manual", "16", "1601"], ["eco-home-only", "16", "1601"],
+    ["yal", "16", "1601"], ["zr", "city-16", "district-1601"], ["noest", "16", "1601"],
+  ];
+  for (const [companyId, wilayaRef, communeRef] of places) {
+    await db.insert(schema.carrierPlaces).values({
+      companyId, communeId: ALGER_CENTRE, wilayaRef, wilayaNumber: 16, wilayaName: `Alger (${companyId})`, communeRef, communeName: `Alger Centre (${companyId})`, home: true,
+      ...(companyId === "eco" ? ECO_ALGER_CENTRE_RATE : {}),
+    });
+  }
+  return ALGER_CENTRE;
 }
+
+/** What "eco" charges for Alger Centre; the other companies give no price there. */
+export const ECO_ALGER_CENTRE_RATE = { homeRate: 650, stopDeskRate: 400, homeReturnFee: 200, stopDeskReturnFee: 150 };
 
 export interface OrderSeed {
   id: string;

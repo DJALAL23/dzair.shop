@@ -90,8 +90,7 @@ export function CommuneOverridesDrawer({
     return items.filter(
       (commune) =>
         commune.communeName.toLocaleLowerCase().includes(q) ||
-        commune.communeNameAr.includes(search) ||
-        (commune.postalCode ?? "").includes(q),
+        commune.communeNameAr.includes(search),
     );
   }, [items, search]);
 

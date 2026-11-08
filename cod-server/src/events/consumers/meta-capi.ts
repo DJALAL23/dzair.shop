@@ -22,7 +22,7 @@
  */
 
 import { eq, sql } from "drizzle-orm";
-import { capiEventLog, communes, landingPages, orders, stores } from "@/db/schema";
+import { capiEventLog, landingPages, orders, stores } from "@/db/schema";
 import { sendCapiEvent } from "@/lib/capi";
 import { conversionEventId, conversionSourceUrl, isLongHaulWilaya, resolveCapiDispatch, resolveConversionForStage, type ConversionStage } from "@/lib/meta-conversions";
 import { resolveTrackingConfig } from "../../../../cod-shared/queries/tracking-config";
@@ -99,7 +99,6 @@ export const metaCapi: ConsumerKind = {
     if (claim?.id !== deliveryId) return { kind: "skipped", reason: `This order's ${stage} ${decision.eventName} was already sent to Meta` };
     if (claim.status === "sent") return { kind: "delivered" };
 
-    const commune = order.destination.commune ? await db.select({ postalCode: communes.postalCode }).from(communes).where(eq(communes.id, order.destination.commune.id)).get() : null;
     const { firstName, lastName } = splitName(order.customer.name);
     const result = await sendCapiEvent(
       pixel.pixelId,
@@ -116,7 +115,6 @@ export const metaCapi: ConsumerKind = {
           lastName,
           externalId: order.customer.id,
           city: order.destination.commune?.name ?? null,
-          postalCode: commune?.postalCode ?? null,
           fbc: attribution.fbc,
           fbp: attribution.fbp,
           clientIpAddress: attribution.ipAddress,

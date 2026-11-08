@@ -8,6 +8,7 @@ import { z } from "@hono/zod-openapi";
 import type { CarrierCapabilities } from "@/carriers/contract";
 import { CARRIER_PROVIDERS } from "../../../../cod-shared/carriers/providers";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 export const CarrierCapabilitiesSchema = z
   .object({
@@ -29,7 +30,6 @@ export const CarrierCapabilitiesSchema = z
     requestNewAttempt: z.boolean(),
     confirmReturn: z.boolean(),
     stopDeskList: z.boolean(),
-    geoNames: z.boolean(),
     verifyConnection: z.boolean(),
   })
   .openapi("CarrierCapabilities", { description: "What a company's carrier can do — known from its provider alone, without credentials" });
@@ -73,6 +73,38 @@ export const DeliveryCompanySchema = z
     description: "Third-party delivery company integration",
   });
 
+export const CarrierPlacesSummarySchema = z
+  .object({
+    syncedAt: z.string().datetime().nullable().openapi({ description: "When the carrier's list of places was last read; null = never, and every hand-off is refused until it is" }),
+    communes: z.number().int().openapi({ description: "Our communes the carrier's list names", example: 1531 }),
+    home: z.number().int().openapi({ description: "Of those, the ones it delivers to the door", example: 1429 }),
+    priced: z.number().int().openapi({ description: "Of those, the ones it gives a price for (its Carrier Rate, read with the list)", example: 1531 }),
+    total: z.number().int().openapi({ description: "Algeria's communes", example: 1541 }),
+    unmatched: z
+      .array(z.object({ wilaya: z.string(), commune: z.string() }))
+      .openapi({ description: "Places in the carrier's list that name no commune of ours: never sent to" }),
+  })
+  .openapi("CarrierPlacesSummary", { description: "A delivery company's map of places: where it delivers, in its own terms" });
+
+const PriceRangeSchema = z
+  .object({ min: z.number(), max: z.number() })
+  .nullable()
+  .openapi({ description: "The lowest and highest price (DZD) among the wilaya's communes; null when the company gives none" });
+
+export const WilayaRatesSchema = z
+  .object({
+    wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).openapi({ description: "Our wilaya of today (law 26-06)" }),
+    communes: z.number().int().openapi({ description: "Its communes on the company's map" }),
+    home: PriceRangeSchema,
+    stopDesk: PriceRangeSchema,
+    returnFee: PriceRangeSchema.openapi({ description: "What a parcel that comes back costs, whichever way it was sent" }),
+  })
+  .openapi("WilayaRates", { description: "What a delivery company charges the store for a parcel to one wilaya (ADR 0024): its Carrier Rate, never the customer's price" });
+
+export const DeliveryCompanyDetailSchema = z
+  .object({ ...DeliveryCompanySchema.shape, places: CarrierPlacesSummarySchema })
+  .openapi("DeliveryCompanyDetail", { description: "A delivery company with its map of places" });
+
 export const StopDeskSchema = z
   .object({
     id: z.string().openapi({ example: "desk_xyz789" }),
@@ -107,7 +139,7 @@ export const ShippingRuleSchema = z
   .object({
     id: z.string().openapi({ example: "rule_abc123" }),
     profileId: z.string().openapi({ example: "profile_123" }),
-    wilayaId: z.number().int().min(1).max(58).openapi({ example: 16 }),
+    wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).openapi({ example: 16 }),
     wilayaName: z.string().openapi({
       description: "Wilaya French/name — joined from reference table",
       example: "Alger",
@@ -162,7 +194,6 @@ export const CommuneOverrideSchema = z
     communeId: z.string().openapi({ example: "550e8400-e29b-41d4-a716-446655440000" }),
     communeName: z.string().openapi({ example: "Bab Ezzouar" }),
     communeNameAr: z.string().openapi({ example: "باب الزوار" }),
-    postalCode: z.string().nullable(),
     homeEnabled: z.boolean().nullable().openapi({
       description: "null = inherited from wilaya rule",
     }),
@@ -265,7 +296,7 @@ export const DriverSchema = z
 
 export const DriverCompensationRowSchema = z
   .object({
-    wilayaId: z.number().int().min(1).max(58).openapi({ example: 16 }),
+    wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).openapi({ example: 16 }),
     wilayaName: z.string().openapi({ example: "Alger" }),
     wilayaNameAr: z.string().openapi({ example: "الجزائر" }),
     feePerDelivery: z.number().nullable().openapi({
@@ -275,7 +306,7 @@ export const DriverCompensationRowSchema = z
   })
   .openapi("DriverCompensationRow", {
     description:
-      "Per-wilaya compensation entry. GET /{id}/compensations always returns all 58 wilayas; a null fee means no row is configured.",
+      "Per-wilaya compensation entry. GET /{id}/compensations always returns every wilaya; a null fee means no row is configured.",
   });
 
 export const DriverPaymentSchema = z

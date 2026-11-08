@@ -5,6 +5,7 @@
  */
 
 import { z } from "@hono/zod-openapi";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 export const WilayaSchema = z
   .object({
@@ -12,8 +13,8 @@ export const WilayaSchema = z
       .number()
       .int()
       .min(1)
-      .max(58)
-      .openapi({ example: 16, description: "Official wilaya number (1–58)" }),
+      .max(LAST_WILAYA_ID)
+      .openapi({ example: 16, description: `Official wilaya number (1–${LAST_WILAYA_ID})` }),
     name: z.string().openapi({ example: "Alger" }),
     nameAr: z.string().openapi({ example: "الجزائر" }),
   })
@@ -25,6 +26,5 @@ export const CommuneSchema = z
     wilayaId: z.number().int().openapi({ example: 16 }),
     name: z.string().openapi({ example: "Bir Mourad Raïs" }),
     nameAr: z.string().openapi({ example: "بئر مراد رايس" }),
-    postalCode: z.string().nullable().openapi({ example: "16012" }),
   })
   .openapi("Commune");

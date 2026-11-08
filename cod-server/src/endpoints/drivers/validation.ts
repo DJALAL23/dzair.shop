@@ -2,6 +2,7 @@
  * Drivers Validation Schemas
  */
 import { z } from "zod";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 export const createDriverSchema = z.object({
   firstName: z.string().min(1, "First name is required").describe("The driver's first name"),
@@ -39,7 +40,7 @@ export const updateDriverStatusSchema = z.object({
 });
 
 export const driverFiltersSchema = z.object({
-  wilayaId: z.coerce.number().int().min(1).max(58).optional().describe("Filter to drivers with a compensation row for this wilaya (1-58)"),
+  wilayaId: z.coerce.number().int().min(1).max(LAST_WILAYA_ID).optional().describe(`Filter to drivers with a compensation row for this wilaya (1–${LAST_WILAYA_ID})`),
   status: z.enum(["available", "busy", "inactive"]).optional().describe("Filter by driver availability status"),
   vehicleType: z.enum(["motorcycle", "car", "van"]).optional().describe("Filter by type of vehicle"),
   search: z.string().optional().describe("Search term for first name, last name, or phone number"),

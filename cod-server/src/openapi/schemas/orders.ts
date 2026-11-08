@@ -18,6 +18,7 @@ import { ShipmentSchema } from "./shipments";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
 import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 // ─── Enums & Constants ────────────────────────────────────────────────────────
 
@@ -100,7 +101,7 @@ const OrderBaseSchema = z.object({
   phone: z.string().openapi({ example: "0551234567" }),
   
   // Location (with joins)
-  wilayaId: z.number().int().min(1).max(58).nullable().openapi({ example: 16 }),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).nullable().openapi({ example: 16 }),
   wilaya: z.string().nullable().openapi({
     description: "Wilaya Arabic name, joined from reference table",
     example: "الجزائر",
@@ -311,7 +312,7 @@ export const AbandonedOrderSchema = z
     }),
     customerName: z.string().openapi({ example: "Ahmed Benali" }),
     phone: z.string().openapi({ example: "0551234567" }),
-    wilayaId: z.number().int().min(1).max(58).nullable().openapi({ example: 16 }),
+    wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).nullable().openapi({ example: 16 }),
     communeId: z.string().nullable(),
     wilayaName: z.string().nullable().openapi({ example: "الجزائر" }),
     communeName: z.string().nullable(),

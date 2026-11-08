@@ -281,6 +281,14 @@ export const FEES_FIXTURE = {
     { wilaya_id: 11, tarif: "1500", tarif_stopdesk: "0" },
     { wilaya_id: 25, tarif: "800", tarif_stopdesk: "550" },
   ],
+  retours: [
+    { wilaya_id: 1, tarif: "200", tarif_stopdesk: "200" },
+    { wilaya_id: 2, tarif: "150", tarif_stopdesk: "150" },
+    { wilaya_id: 5, tarif: "200", tarif_stopdesk: "200" },
+    { wilaya_id: 16, tarif: "200", tarif_stopdesk: "150" },
+    { wilaya_id: 11, tarif: "300", tarif_stopdesk: "300" },
+    { wilaya_id: 25, tarif: "200", tarif_stopdesk: "200" },
+  ],
 } as const;
 
 export const PRODUCTS_LIST_FIXTURE = {

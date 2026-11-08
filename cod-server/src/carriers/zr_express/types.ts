@@ -18,14 +18,15 @@ export interface ZrSearchTerritoriesRequest {
 
 export interface ZrTerritoryItem {
   id: string;
-  /** Integer code — matches Algeria wilaya ID (1–58) for wilaya-level territories. */
+  /** The wilaya number on ZR's map (the 2019 one) for wilaya-level territories; a commune's own number otherwise. */
   code: number;
   name: string | null;
-  /** Level string, e.g. "state", "city", "district". */
+  nameArabic?: string | null;
+  /** "wilaya" or "commune". */
   level: string | null;
   parentId: string | null;
   postalCode: string | null;
-  delivery?: { hasHomeDelivery: boolean; hasPickupPoint: boolean } | null;
+  delivery?: { hasHomeDelivery: boolean; hasPickupPoint: boolean; canSend?: boolean } | null;
 }
 
 export interface ZrPagedListTerritories {
@@ -35,6 +36,21 @@ export interface ZrPagedListTerritories {
   pageSize?: number;
   totalCount?: number;
   totalPages?: number;
+}
+
+// ─── Delivery pricing ─────────────────────────────────────────────────────────
+
+/** One delivery price of a territory: "home", "pickup-point" (a hub) or "return". */
+export interface ZrDeliveryPrice {
+  deliveryType: string;
+  price: number;
+  /** The tenant's discount applied, when it has one. */
+  discountedPrice: number | null;
+}
+
+/** GET /api/v1/delivery-pricing/rates — the tenant's effective prices, per wilaya or commune territory. */
+export interface ZrRatesResponse {
+  rates: Array<{ toTerritoryId: string; toTerritoryLevel: string; deliveryPrices: ZrDeliveryPrice[] }> | null;
 }
 
 // ─── Customer ─────────────────────────────────────────────────────────────────

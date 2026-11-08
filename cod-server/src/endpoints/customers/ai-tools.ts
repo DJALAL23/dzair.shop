@@ -9,6 +9,7 @@ import {
 import { getDb } from "@/db";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 import { toolId } from "@/lib/tool-input";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -134,7 +135,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid filter arguments: ${errorDetails}. Expected: wilayaId (1-58), search (string), groupId (ID), tagId (ID), limit (1-100), offset (number)`,
+          error: `Invalid filter arguments: ${errorDetails}. Expected: wilayaId (1–${LAST_WILAYA_ID}), search (string), groupId (ID), tagId (ID), limit (1-100), offset (number)`,
         };
       }
 
@@ -234,7 +235,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   createNewCustomer: tool({
-    description: "Registers a new customer in the CRM. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, email, communeId (ID), address (string). Note: wilayaId must be a number between 1 and 58.",
+    description: `Registers a new customer in the CRM. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1–${LAST_WILAYA_ID}). Optional: phone2, email, communeId (ID), address (string). Note: wilayaId must be a number between 1 and ${LAST_WILAYA_ID}.`,
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -246,7 +247,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid customer data: ${errorDetails}. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1-58). Optional: phone2, email, communeId (ID), address (string)`,
+          error: `Invalid customer data: ${errorDetails}. Required: name (string), phone (Algerian format: 0[5-7]XXXXXXXX), wilayaId (number 1–${LAST_WILAYA_ID}). Optional: phone2, email, communeId (ID), address (string)`,
         };
       }
 
@@ -274,7 +275,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
   }),
 
   updateCustomerProfile: tool({
-    description: "Updates an existing customer's information. Only provided fields will be modified. Required: customerId (ID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1-58), communeId (ID or null), address (string or null).",
+    description: `Updates an existing customer's information. Only provided fields will be modified. Required: customerId (ID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1–${LAST_WILAYA_ID}), communeId (ID or null), address (string or null).`,
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
       // Layer 2: Strict validation
@@ -286,7 +287,7 @@ export const getCustomerTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid update arguments: ${errorDetails}. Expected: customerId (ID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1-58), communeId (ID or null), address (string or null)`,
+          error: `Invalid update arguments: ${errorDetails}. Expected: customerId (ID), updates object with optional fields: name, phone (0[5-7]XXXXXXXX), phone2, email (string, or null to clear), wilayaId (1–${LAST_WILAYA_ID}), communeId (ID or null), address (string or null)`,
         };
       }
 

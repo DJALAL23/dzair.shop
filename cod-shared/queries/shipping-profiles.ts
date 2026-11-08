@@ -65,7 +65,6 @@ export interface CommuneWithOverride {
   communeId: string;
   communeName: string;
   communeNameAr: string;
-  postalCode: string | null;
   homeEnabled: boolean | null;
   stopDeskEnabled: boolean | null;
   homePrice: number | null;
@@ -318,7 +317,6 @@ export async function getCommunesWithOverrides(
       communeId: commune.id,
       communeName: commune.name,
       communeNameAr: commune.nameAr,
-      postalCode: commune.postalCode,
       homeEnabled,
       stopDeskEnabled,
       homePrice,

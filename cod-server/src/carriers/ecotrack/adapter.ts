@@ -36,9 +36,10 @@ import {
   type CarrierStatus,
   type CarrierStopDesk,
   type CarrierUpdate,
-  type CarrierGeoNames,
+  type CarrierPlace,
 } from "../contract";
 import { createCarrierHttp, flattenErrorBag, type CarrierHttp } from "../http";
+import { tarifRate } from "../price";
 import { carrierInstant } from "../time";
 import { ecotrackLabel, interpretEcotrack } from "./interpret";
 import type {
@@ -46,6 +47,7 @@ import type {
   EcotrackCommunesResponse,
   EcotrackCreateOrderResponse,
   EcotrackDeleteOrderResponse,
+  EcotrackFeesResponse,
   EcotrackGetMajResponse,
   EcotrackOrdersPage,
   EcotrackTrackingInfoResponse,
@@ -83,7 +85,6 @@ export const ECOTRACK_CAPABILITIES: CarrierCapabilities = {
   requestNewAttempt: false,
   confirmReturn: true,
   stopDeskList: true,
-  geoNames: true,
   verifyConnection: true,
 };
 
@@ -156,9 +157,9 @@ export class EcotrackCarrier implements CarrierAdapter {
       nom_client: input.customerName,
       telephone: input.phone,
       telephone_2: input.phone2,
-      adresse: addressOf(input.address, input.commune),
-      code_wilaya: input.wilayaId,
-      commune: input.commune,
+      adresse: addressOf(input.address, input.destination.commune.name),
+      code_wilaya: input.destination.wilaya.number,
+      commune: input.destination.commune.name,
       code_postal: input.stopDesk ? input.stationCode : undefined,
       montant: input.amount,
       remarque: input.remarks,
@@ -211,7 +212,7 @@ export class EcotrackCarrier implements CarrierAdapter {
 
   /** EcoTrack replaces the parcel's delivery details as a whole: every one must be sent. */
   async update(ref: CarrierRef, patch: CarrierShipmentPatch): Promise<void> {
-    const missing = (["phone", "address", "wilayaId", "commune", "amount"] as const).filter((k) => patch[k] === undefined);
+    const missing = (["phone", "address", "destination", "amount"] as const).filter((k) => patch[k] === undefined);
     if (missing.length > 0) {
       throw new CarrierError("ecotrack", "rejected", `EcoTrack needs the full delivery details to update a parcel (missing: ${missing.join(", ")})`);
     }
@@ -222,9 +223,9 @@ export class EcotrackCarrier implements CarrierAdapter {
       client: patch.customerName,
       tel: patch.phone,
       tel2: patch.phone2,
-      adresse: addressOf(patch.address, patch.commune),
-      wilaya: patch.wilayaId,
-      commune: patch.commune,
+      adresse: addressOf(patch.address, patch.destination?.commune.name),
+      wilaya: patch.destination?.wilaya.number,
+      commune: patch.destination?.commune.name,
       montant: patch.amount,
       remarque: patch.remarks,
       fragile: patch.fragile === undefined ? undefined : patch.fragile ? 1 : 0,
@@ -346,24 +347,37 @@ export class EcotrackCarrier implements CarrierAdapter {
     const res = await this.http.read<EcotrackCommunesResponse>("GET", "/get/communes");
     return Object.values(res ?? {})
       .filter((c) => c != null && c.has_stop_desk === 1)
-      .map((c) => ({ code: c.code_postal, name: c.nom, commune: c.nom, address: null, phones: [], wilayaId: c.wilaya_id }));
+      .map((c) => ({ code: c.code_postal, name: c.nom, commune: c.nom, communeRef: c.code_postal, address: null, phones: [], wilayaNumber: c.wilaya_id }));
   }
 
   /**
    * EcoTrack checks a parcel's commune by its own spelling, within the
-   * wilaya: its names, mapped once per company, are what parcels carry.
+   * wilaya. A company lists only the wilayas it serves; a commune outside
+   * them, or one it has switched off, is listed as not delivered to. Its
+   * prices are the account's, one per wilaya, for delivery and for a return.
    */
-  async geoNames(): Promise<CarrierGeoNames> {
-    const [wilayas, communes] = await Promise.all([
+  async places(): Promise<CarrierPlace[]> {
+    const [wilayaList, communes, fees] = await Promise.all([
       this.http.read<EcotrackWilayasResponse>("GET", "/get/wilayas"),
       this.http.read<EcotrackCommunesResponse>("GET", "/get/communes"),
+      this.http.read<EcotrackFeesResponse>("GET", "/get/fees"),
     ]);
-    return {
-      wilayas: (Array.isArray(wilayas) ? wilayas : []).map((w) => ({ id: w.wilaya_id, name: w.wilaya_name })),
-      communes: Object.values(communes ?? {})
-        .filter((c) => c != null && c.is_active !== 0)
-        .map((c, index) => ({ id: index + 1, name: c.nom, wilayaId: c.wilaya_id })),
-    };
+    const delivery = new Map((fees.livraison ?? []).map((t) => [t.wilaya_id, t]));
+    const returns = new Map((fees.retours ?? []).map((t) => [t.wilaya_id, t]));
+    const rateOf = (wilaya: number) => tarifRate(delivery.get(wilaya), returns.get(wilaya));
+    const served = new Map((Array.isArray(wilayaList) ? wilayaList : []).map((w) => [w.wilaya_id, w.wilaya_name]));
+    const places: CarrierPlace[] = [];
+    for (const c of Object.values(communes ?? {})) {
+      if (!c?.nom || !Number.isInteger(c.wilaya_id)) continue;
+      const wilayaName = served.get(c.wilaya_id);
+      places.push({
+        wilaya: { ref: String(c.wilaya_id), number: c.wilaya_id, name: wilayaName ?? String(c.wilaya_id) },
+        commune: { ref: c.code_postal || c.nom, name: c.nom },
+        home: wilayaName !== undefined && c.is_active !== 0,
+        rate: rateOf(c.wilaya_id),
+      });
+    }
+    return places;
   }
 
   /**

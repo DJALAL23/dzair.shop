@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { toLocalAlgerianMobile } from "../../../../cod-shared/lib/phone";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 export const variantSelectionSchema = z.object({
   variantId: z.string().min(1),
@@ -113,7 +114,7 @@ export const storeOrderSchema = z.object({
       "رقم الهاتف غير صحيح — أدخل رقماً جزائرياً يبدأ بـ 05 أو 06 أو 07"
     )
   ),
-  wilayaId: z.number().int().min(1).max(58),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID),
   communeId: z.string().min(1),
   address: z.string().max(300).optional(),
   deliveryType: z.enum(["home", "stop_desk"]).default("home"),
@@ -233,7 +234,7 @@ export const validateCartSchema = z
     pricePerUnit: z.number().nonnegative().optional(),
     destination: z
       .object({
-        wilayaId: z.number().int().min(1).max(58),
+        wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID),
         communeId: z.string().min(1).max(200).optional(),
         deliveryType: z.enum(["home", "stop_desk"]).default("home"),
       })

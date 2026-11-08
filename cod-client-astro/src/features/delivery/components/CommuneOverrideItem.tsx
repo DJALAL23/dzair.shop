@@ -53,11 +53,6 @@ export function CommuneOverrideItem({
           </p>
           <p className="truncate text-xs text-muted-foreground">
             {commune.communeName}
-            {commune.postalCode && (
-              <span className="ms-2 tabular-nums">
-                {commune.postalCode}
-              </span>
-            )}
           </p>
         </div>
         {commune.hasOverride ? (

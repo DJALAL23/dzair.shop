@@ -1,5 +1,4 @@
 import {
-  Globe,
   Lock,
   MapPin,
   RefreshCw,
@@ -24,8 +23,6 @@ export function CompanySettingsSection({
   onToggleAutoValidate,
   syncingDesks,
   onSyncDesks,
-  syncingGeo,
-  onSyncGeo,
   syncingShipments,
   onSyncShipments,
 }: {
@@ -38,8 +35,6 @@ export function CompanySettingsSection({
   onToggleAutoValidate: () => void;
   syncingDesks: boolean;
   onSyncDesks: () => void;
-  syncingGeo: boolean;
-  onSyncGeo: () => void;
   syncingShipments: boolean;
   onSyncShipments: () => void;
 }) {
@@ -49,9 +44,6 @@ export function CompanySettingsSection({
   const hasWebhook = webhook.kind !== "none" && webhook.ready;
   const supportsWebhook = webhook.kind !== "none";
   const isEcotrackProvider = config.provider === "ecotrack";
-  // Carriers that match a parcel's address by their own place names need
-  // the geo-name map; the others take reference names.
-  const matchesByName = company?.capabilities?.geoNames ?? false;
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -190,18 +182,6 @@ export function CompanySettingsSection({
               >
                 <Truck size={14} className={cn(syncingShipments && "shimmer")} />
                 {t("sync_shipments")}
-              </Button>
-            )}
-            {matchesByName && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onSyncGeo}
-                disabled={syncingGeo || !isConnected}
-                className="justify-start"
-              >
-                <Globe size={14} className={cn(syncingGeo && "animate-spin")} />
-                {t("sync_geo")}
               </Button>
             )}
             <a

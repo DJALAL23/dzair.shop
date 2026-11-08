@@ -182,7 +182,7 @@ export interface EcotrackCreateOrderParams {
   telephone_2?: string;
   /** Delivery address — required */
   adresse: string;
-  /** Wilaya code 1-58 — required */
+  /** The wilaya number on EcoTrack's map — required */
   code_wilaya: number;
   /** Commune name — required */
   commune: string;
@@ -396,3 +396,16 @@ export type EcotrackBulkCreateResult = {
     | Record<string, string[]>
   >;
 };
+
+/** A wilaya's price for home (`tarif`) and stop-desk (`tarif_stopdesk`) parcels, in DZD as strings; "0" where there is none. */
+export interface EcotrackTarif {
+  wilaya_id: number;
+  tarif: string | number | null;
+  tarif_stopdesk: string | number | null;
+}
+
+/** GET /get/fees — the account's prices per service, for the wilayas it serves; `retours` is a returned parcel's. */
+export interface EcotrackFeesResponse {
+  livraison?: EcotrackTarif[] | null;
+  retours?: EcotrackTarif[] | null;
+}

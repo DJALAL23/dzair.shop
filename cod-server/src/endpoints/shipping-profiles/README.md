@@ -1,6 +1,6 @@
 # Shipping Profiles API
 
-A robust configuration engine for managing multi-tier delivery pricing (Home & Stop-Desk) across Algeria's 58 wilayas.
+A robust configuration engine for managing multi-tier delivery pricing (Home & Stop-Desk) across Algeria's 69 wilayas.
 
 ## Structure
 

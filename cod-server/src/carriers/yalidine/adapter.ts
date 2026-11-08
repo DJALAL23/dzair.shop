@@ -13,7 +13,8 @@
  *     `order_id` and each parcel succeeds or fails on its own.
  *   - No validation step: a parcel is live at creation. It can be edited or
  *     deleted only while its status is `En préparation`.
- *   - Wilaya and commune are matched by name (the carrier's own spelling).
+ *   - Wilaya and commune are matched by name: a parcel carries the carrier's
+ *     own spelling, from the company's map of places (built from its lists).
  *   - `GET /parcels?order_id=` finds a parcel by our reference — what resolves
  *     a creation whose answer was lost.
  *   - GET/PATCH answers mask personal data; never copy it back into CodFlow.
@@ -29,7 +30,8 @@ import {
   type CarrierAdapter,
   type CarrierBulkItem,
   type CarrierCapabilities,
-  type CarrierGeoNames,
+  type CarrierPlace,
+  type CarrierRate,
   type CarrierLabel,
   type CarrierParcel,
   type CarrierRef,
@@ -42,16 +44,20 @@ import {
   type InboxEnvelope,
   type WebhookReading,
 } from "../contract";
+import { placeKey } from "../../../../cod-shared/places";
 import { createCarrierHttp, type CarrierHttp } from "../http";
+import { NO_RATE, amount, deliveryPrice } from "../price";
 import { carrierInstant } from "../time";
 import { interpretYalidine } from "./interpret";
 import { verifyYalidineSignature } from "./signature";
 import type {
   YalidineCenterList,
+  YalidineCommuneItem,
   YalidineCommuneList,
   YalidineCreateParcelData,
   YalidineCreateParcelResponse,
   YalidineDeleteParcelResponse,
+  YalidineFees,
   YalidineHistoryResponse,
   YalidineParcelList,
   YalidineUpdateParcelRequest,
@@ -68,6 +74,9 @@ export type YalidinePlatform = keyof typeof YALIDINE_PLATFORMS;
 /** The documented price and declared-value ceiling. */
 const MAX_AMOUNT = 150_000;
 const PAGE = "page_size=1000";
+/** Between two fees calls: 46 a minute at most, under Yalidine's 50, with room for the two list calls. */
+export const FEES_CALL_SPACING_MS = 1_300;
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export const yalidineConfigSchema = z
   .object({
@@ -107,7 +116,6 @@ export const YALIDINE_CAPABILITIES: CarrierCapabilities = {
   requestNewAttempt: false,
   confirmReturn: false,
   stopDeskList: true,
-  geoNames: true,
   verifyConnection: false,
 };
 
@@ -183,8 +191,8 @@ export class YalidineCarrier implements CarrierAdapter {
       ...splitName(input.customerName),
       contact_phone: input.phone2 ? `${input.phone},${input.phone2}` : input.phone,
       address: input.address,
-      to_commune_name: input.commune,
-      to_wilaya_name: input.wilaya,
+      to_commune_name: input.destination.commune.name,
+      to_wilaya_name: input.destination.wilaya.name,
       product_list: input.productDescription,
       price: amount,
       do_insurance: false,
@@ -254,8 +262,10 @@ export class YalidineCarrier implements CarrierAdapter {
     if (patch.customerName !== undefined) Object.assign(body, splitName(patch.customerName));
     if (patch.phone !== undefined) body.contact_phone = patch.phone2 ? `${patch.phone},${patch.phone2}` : patch.phone;
     if (patch.address !== undefined) body.address = patch.address;
-    if (patch.wilaya !== undefined) body.to_wilaya_name = patch.wilaya;
-    if (patch.commune !== undefined) body.to_commune_name = patch.commune;
+    if (patch.destination !== undefined) {
+      body.to_wilaya_name = patch.destination.wilaya.name;
+      body.to_commune_name = patch.destination.commune.name;
+    }
     if (patch.amount !== undefined) {
       body.price = Math.round(patch.amount);
       body.declared_value = Math.round(patch.amount);
@@ -347,9 +357,10 @@ export class YalidineCarrier implements CarrierAdapter {
           code: String(c.center_id),
           name: c.name,
           commune: c.commune_name || null,
+          communeRef: c.commune_id ? String(c.commune_id) : null,
           address: c.address || null,
           phones: [],
-          wilayaId: c.wilaya_id,
+          wilayaNumber: c.wilaya_id,
         });
       }
       if (!res.has_more || (res.data?.length ?? 0) === 0) break;
@@ -357,15 +368,47 @@ export class YalidineCarrier implements CarrierAdapter {
     return desks;
   }
 
-  async geoNames(): Promise<CarrierGeoNames> {
-    const wilayas = await this.http.read<YalidineWilayaList>("GET", `/wilayas/?${PAGE}`);
-    const communes: CarrierGeoNames["communes"] = [];
+  /**
+   * Yalidine's communes under its wilayas; one it marks undeliverable, or in
+   * an undeliverable wilaya, is not delivered to. Its express prices are the
+   * account's from the sender's wilaya, read one destination wilaya at a time
+   * (Yalidine prices no other way), paced under its quota of 50 calls a minute:
+   * a few calls over it, repeated, disable the account's API for a while.
+   */
+  async places(): Promise<CarrierPlace[]> {
+    const wilayas = ((await this.http.read<YalidineWilayaList>("GET", `/wilayas/?${PAGE}`)).data ?? []);
+    const from = wilayas.find((w) => placeKey(w.name) === placeKey(this.fromWilayaName));
+    if (!from) {
+      throw new CarrierError("yalidine", "misconfigured", `The sender's wilaya "${this.fromWilayaName}" is not one of Yalidine's wilayas; write it as Yalidine does`);
+    }
+    const byId = new Map(wilayas.map((w) => [w.id, w]));
+    const communes: YalidineCommuneItem[] = [];
     for (let page = 1; ; page++) {
       const res = await this.http.read<YalidineCommuneList>("GET", `/communes/?${PAGE}&page=${page}`);
-      for (const c of res.data ?? []) communes.push({ id: c.id, name: c.name, wilayaId: c.wilaya_id });
+      communes.push(...(res.data ?? []));
       if (!res.has_more || (res.data?.length ?? 0) === 0) break;
     }
-    return { wilayas: (wilayas.data ?? []).map((w) => ({ id: w.id, name: w.name })), communes };
+    const rates = new Map<number, CarrierRate>();
+    for (const [i, to] of wilayas.filter((w) => w.is_deliverable === 1).entries()) {
+      if (i > 0) await wait(FEES_CALL_SPACING_MS);
+      const fees = await this.http.read<YalidineFees>("GET", `/fees/?from_wilaya_id=${from.id}&to_wilaya_id=${to.id}`);
+      const returnFee = amount(fees.retour_fee);
+      for (const c of Object.values(fees.per_commune ?? {})) {
+        rates.set(c.commune_id, { home: deliveryPrice(c.express_home), stopDesk: deliveryPrice(c.express_desk), homeReturn: returnFee, stopDeskReturn: returnFee });
+      }
+    }
+    const places: CarrierPlace[] = [];
+    for (const c of communes) {
+      const wilaya = byId.get(c.wilaya_id);
+      if (!wilaya) continue;
+      places.push({
+        wilaya: { ref: String(wilaya.id), number: wilaya.id, name: wilaya.name },
+        commune: { ref: String(c.id), name: c.name },
+        home: c.is_deliverable === 1 && wilaya.is_deliverable === 1,
+        rate: rates.get(c.id) ?? NO_RATE,
+      });
+    }
+    return places;
   }
 
 }

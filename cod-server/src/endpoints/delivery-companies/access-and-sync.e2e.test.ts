@@ -117,7 +117,7 @@ describe("who may do what", () => {
     ["PATCH", "/comp-yal", { name: "Renamed" }],
     ["DELETE", "/comp-yal", undefined],
     ["POST", "/comp-yal/sync-stop-desks", undefined],
-    ["POST", "/comp-yal/sync-geo", undefined],
+    ["POST", "/comp-yal/sync-places", undefined],
     ["PATCH", "/comp-yal/webhook/secret", { secret: "x" }],
   ])("read access alone cannot %s %s", async (method, path, body) => {
     scopes = ["delivery:read"];

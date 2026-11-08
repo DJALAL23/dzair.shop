@@ -72,7 +72,7 @@ Retrieve a paginated list of drivers with optional filters.
 * **Query Parameters:**
   | Parameter | Type | Required | Default | Description |
   | :--- | :--- | :--- | :--- | :--- |
-  | `wilayaId` | `integer` (1–58) | No | — | Filter to drivers with a configured compensation row for this wilaya |
+  | `wilayaId` | `integer` (1–69) | No | — | Filter to drivers with a configured compensation row for this wilaya |
   | `status` | `string` | No | — | Filter by availability: `available`, `busy`, `inactive` |
   | `vehicleType` | `string` | No | — | Filter by vehicle type: `motorcycle`, `car`, `van` |
   | `search` | `string` | No | — | Case-insensitive substring search on `firstName`, `lastName`, or `phone` |
@@ -304,7 +304,7 @@ Permanently delete a driver. Deletion cascades to all associated `driver_compens
 ---
 
 ### 7. List Driver Compensations
-Returns all **58 Algerian wilayas** with the driver's configured per-delivery pay. Wilayas without a configured fee return `feePerDelivery: null`.
+Returns **every wilaya** with the driver's configured per-delivery pay. Wilayas without a configured fee return `feePerDelivery: null`.
 
 * **Route:** `GET /api/drivers/:id/compensations`
 * **Authorization:** Requires `delivery:read` scope
@@ -344,7 +344,7 @@ Set or update the delivery fee paid to the driver for a specific wilaya.
 * **Authorization:** Requires `delivery:manage` scope
 * **Path Parameters:**
   * `id`: Driver UUID
-  * `wilayaId`: Integer between `1` and `58`
+  * `wilayaId`: Integer between `1` and `69`
 * **Request Body:**
 ```json
 {
@@ -376,7 +376,7 @@ Remove a driver's configured compensation fee for a specific wilaya. Future deli
 * **Authorization:** Requires `delivery:manage` scope
 * **Path Parameters:**
   * `id`: Driver UUID
-  * `wilayaId`: Integer between `1` and `58`
+  * `wilayaId`: Integer between `1` and `69`
 * **Response (`200 OK`):**
 ```json
 {

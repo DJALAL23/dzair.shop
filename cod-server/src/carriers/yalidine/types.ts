@@ -184,6 +184,13 @@ export interface YalidineCommuneList {
   links?: { self: string; next?: string };
 }
 
+/** GET /v1/fees/?from_wilaya_id=…&to_wilaya_id=… — the account's prices from one wilaya to another. */
+export interface YalidineFees {
+  /** For a parcel that comes back, whichever way it was sent. */
+  retour_fee: number | string | null;
+  per_commune: Record<string, { commune_id: number; express_home: number | null; express_desk: number | null }> | null;
+}
+
 // ─── Parcels list ──────────────────────────────────────────────────────────────
 // GET /v1/parcels/?order_id=… | ?tracking=… — personal data comes back masked.
 export interface YalidineParcelItem {

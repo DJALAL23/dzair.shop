@@ -369,7 +369,6 @@ describe("Shipping Profiles routes (OpenAPIHono)", () => {
           communeId: "16001",
           communeName: "Bab Ezzouar",
           communeNameAr: "باب الزوار",
-          postalCode: "16111",
           homeEnabled: null,
           stopDeskEnabled: null,
           homePrice: null,

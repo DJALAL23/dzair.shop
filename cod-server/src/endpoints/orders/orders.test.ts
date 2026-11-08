@@ -49,7 +49,6 @@ vi.mock("@/lib/activity", () => ({
     STOCK_ADJUSTED: "stock.adjusted",
   },
 }));
-vi.mock("../../../../cod-shared/queries/carrier-geo");
 
 const NOW = new Date().toISOString();
 let mockDb: any;

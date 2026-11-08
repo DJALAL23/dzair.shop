@@ -92,6 +92,10 @@ export const ERROR_CODES = {
   MISSING_WILAYA_COMMUNE: "MISSING_WILAYA_COMMUNE",
   MISSING_STATION_CODE: "MISSING_STATION_CODE",
   MISSING_ADDRESS: "MISSING_ADDRESS",
+  /** The delivery company's list of places has never been read, so no parcel can be addressed to it yet. */
+  CARRIER_PLACES_NOT_READ: "CARRIER_PLACES_NOT_READ",
+  /** The delivery company does not deliver to the order's commune (or not to the door there). */
+  PLACE_NOT_SERVED: "PLACE_NOT_SERVED",
   INSUFFICIENT_STOCK: "INSUFFICIENT_STOCK",
 
   // ============================================================================

@@ -228,6 +228,12 @@ export function OrderShipmentCard({
           )}
           <Fact label={t("delivery.to_collect")}>{formatMoney(shipment.codAmount, locale)}</Fact>
           {shipment.kind === "driver" && <Fact label={t("delivery.driver_fee")}>{formatMoney(shipment.driverFee, locale)}</Fact>}
+          {shipment.kind === "carrier" && (
+            <>
+              <Fact label={t("delivery.shipping_cost")}>{shipment.shippingCost == null ? t("delivery.no_price") : formatMoney(shipment.shippingCost, locale)}</Fact>
+              <Fact label={t("delivery.return_fee")}>{shipment.returnFee == null ? t("delivery.no_price") : formatMoney(shipment.returnFee, locale)}</Fact>
+            </>
+          )}
           <Fact label={t("delivery.type")}>
             {t(`delivery_type.${shipment.deliveryType}`)}
             {shipment.stationCode ? ` · ${shipment.stationCode}` : ""}

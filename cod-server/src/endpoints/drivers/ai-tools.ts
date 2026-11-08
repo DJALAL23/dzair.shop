@@ -10,6 +10,7 @@ import {
 import { getDb } from "@/db";
 import { toolOutput } from "@/lib/tool-output-schema";
 import { toolId } from "@/lib/tool-input";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -116,7 +117,7 @@ export const getDriverTools = (db: ReturnType<typeof getDb>) => ({
           .join('; ');
         return {
           success: false,
-          error: `Invalid filter arguments: ${errorDetails}. Expected: wilayaId (1-58), status (available|busy|inactive), vehicleType (motorcycle|car|van), search (string), limit (1-100), offset (number)`,
+          error: `Invalid filter arguments: ${errorDetails}. Expected: wilayaId (1–${LAST_WILAYA_ID}), status (available|busy|inactive), vehicleType (motorcycle|car|van), search (string), limit (1-100), offset (number)`,
         };
       }
 

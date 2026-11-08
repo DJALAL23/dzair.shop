@@ -122,6 +122,10 @@ export interface Shipment {
   stationCode: string | null;
   codAmount: number;
   driverFee: number;
+  /** What the delivery company charges the store for this parcel, frozen at hand-off; null when it gives no price there. */
+  shippingCost: number | null;
+  /** What it charges if the parcel comes back, frozen with the cost. */
+  returnFee: number | null;
   weight: number | null;
   isFragile: boolean | null;
   providerStatus: string | null;
@@ -233,7 +237,6 @@ export interface CarrierCapabilities {
   requestNewAttempt: boolean;
   confirmReturn: boolean;
   stopDeskList: boolean;
-  geoNames: boolean;
   verifyConnection: boolean;
 }
 

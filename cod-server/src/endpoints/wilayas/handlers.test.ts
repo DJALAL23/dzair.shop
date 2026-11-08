@@ -120,8 +120,8 @@ describe("Wilayas Endpoint - Error Scenarios", () => {
         nameAr: "الجزائر",
       });
       vi.mocked(queries.getCommunesByWilaya).mockResolvedValue([
-        { id: "16001", wilayaId: 16, name: "Alger Centre", nameAr: "الجزائر الوسطى", postalCode: null },
-        { id: "16002", wilayaId: 16, name: "Bab El Oued", nameAr: "باب الواد", postalCode: null },
+        { id: "16001", wilayaId: 16, name: "Alger Centre", nameAr: "الجزائر الوسطى" },
+        { id: "16002", wilayaId: 16, name: "Bab El Oued", nameAr: "باب الواد" },
       ]);
 
       const res = await app.request("/wilayas/16/communes", {

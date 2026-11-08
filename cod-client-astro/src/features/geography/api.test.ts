@@ -5,7 +5,7 @@ vi.mock("@/lib/api", () => ({ apiFetch }));
 
 const alger = { id: 16, name: "Alger", nameAr: "الجزائر" };
 const oran = { id: 31, name: "Oran", nameAr: "وهران" };
-const centre = { id: "16001", wilayaId: 16, name: "Alger Centre", nameAr: "الجزائر الوسطى", postalCode: "16000" };
+const centre = { id: "c-16-001", wilayaId: 16, name: "Alger Centre", nameAr: "الجزائر الوسطى" };
 
 beforeEach(() => {
   vi.resetModules();

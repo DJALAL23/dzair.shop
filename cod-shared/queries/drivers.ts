@@ -302,7 +302,7 @@ export interface DriverCompensationRow {
 }
 
 /**
- * Return all 58 wilayas with the driver's configured fee (null when no row exists).
+ * Every wilaya with the driver's configured fee (null when no row exists).
  * This is the shape the admin grid needs — always 58 rows, sparse overlay.
  */
 export async function getCompensationsForDriver(

@@ -26,6 +26,7 @@ import {
   type Words,
 } from "./content";
 import { DEFAULT_SHIPPING_PROFILE, DEFAULT_SHIPPING_ZONES, defaultShippingSql } from "./shipping";
+import { WILAYAS } from "../places";
 
 const NOW = "2026-10-20T08:00:00.000Z";
 const STORE: StarterStore = { id: "store-1", name: "Boutique", lang: "ar" };
@@ -153,9 +154,9 @@ describe("starter content", () => {
 });
 
 describe("default shipping", () => {
-  it("prices each of the 58 wilayas in exactly one zone", () => {
+  it("prices every wilaya in exactly one zone", () => {
     const wilayas = DEFAULT_SHIPPING_ZONES.flatMap((zone) => zone.wilayas);
-    expect([...wilayas].sort((a, b) => a - b)).toEqual(Array.from({ length: 58 }, (_, i) => i + 1));
+    expect([...wilayas].sort((a, b) => a - b)).toEqual(WILAYAS.map((w) => w.id));
   });
 
   it("charges more the further from Algiers, stop desk below home", () => {

@@ -37,7 +37,7 @@ List customers with optional filtering, segmentation, and pagination.
 
 - **Authorization:** `customers:read`
 - **Query Parameters:**
-  - `wilayaId` — Filter by wilaya ID (1–58)
+  - `wilayaId` — Filter by wilaya ID (1–69)
   - `search` — Search by customer name or phone
   - `groupId` — Filter to customers in a specific customer group
   - `tagId` — Filter to customers with a specific tag
@@ -102,7 +102,7 @@ Register a new customer profile.
   - `phone2` — optional, same format; empty string is treated as absent.
   - `email` — optional, a valid email; stored trimmed and lower-cased; empty
     is treated as absent. Not unique: the phone is what identifies a customer.
-  - `wilayaId` — required, integer 1–58.
+  - `wilayaId` — required, integer 1–69.
   - `communeId` — required, non-empty string.
   - `address` — optional string.
 - **Response:** `201` with the created customer (`recentOrders: []`).

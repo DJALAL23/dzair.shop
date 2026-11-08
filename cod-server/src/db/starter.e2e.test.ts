@@ -13,6 +13,7 @@ import { TEST_DELIVERY, testMedia } from "@/test-utils/media";
 import { webp } from "../../../cod-shared/media/hosts/testing/files";
 import { demoCatalogSql, starterImageKey, starterPrefix, storeDefaultsSql, storeStarterPictures, type StarterStore } from "../../../cod-shared/starter";
 import { STARTER_CATEGORIES, STARTER_IMAGES, STARTER_PRODUCTS } from "../../../cod-shared/starter/content";
+import { LAST_WILAYA_ID } from "../../../cod-shared/places";
 
 const WORKER = `
 import { OpenAPIHono } from "@hono/zod-openapi";
@@ -186,7 +187,7 @@ describe("a new store, set up by a run cut short and retried", () => {
 
   it("quotes delivery to every wilaya, home and stop desk", async () => {
     const rates = await get<Record<string, { home: number; stopDesk: number }>>(d1, "/store/shipping-rates");
-    expect(Object.keys(rates)).toHaveLength(58);
+    expect(Object.keys(rates)).toHaveLength(LAST_WILAYA_ID);
     expect(rates["16"]).toEqual({ home: 400, stopDesk: 300 });
     expect(rates["11"]).toEqual({ home: 1200, stopDesk: 900 });
     const toTamanrasset = await quote(d1, { items: [line("lamp", 1)], destination: { wilayaId: 11, deliveryType: "stop_desk" } });
@@ -306,7 +307,7 @@ describe("a store that has its own data", () => {
     expect(await rows(d1, "SELECT handle FROM store_menus ORDER BY handle")).toEqual([{ handle: "footer" }, { handle: "main-menu" }]);
     expect(await rows(d1, "SELECT handle FROM collections ORDER BY handle")).toEqual([{ handle: "best-sellers" }, { handle: "featured" }, { handle: "new-arrivals" }]);
     expect(await rows(d1, "SELECT kind FROM store_pages ORDER BY position")).toEqual(["terms", "privacy", "refund", "shipping"].map((kind) => ({ kind })));
-    expect(await rows(d1, "SELECT COUNT(*) AS n FROM shipping_rules")).toEqual([{ n: 58 }]);
+    expect(await rows(d1, "SELECT COUNT(*) AS n FROM shipping_rules")).toEqual([{ n: LAST_WILAYA_ID }]);
   });
 
   it("keeps what the merchant set: their default shipping profile, their header menu, their pages", async () => {

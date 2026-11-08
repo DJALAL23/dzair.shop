@@ -14,7 +14,7 @@ the store's own drivers are [`/api/drivers`](../drivers/README.md).
 
 ```
 src/endpoints/delivery-companies/
-├── handlers.ts         # CRUD, stop desks, geo names, connection test, sync, inbox
+├── handlers.ts         # CRUD, stop desks, places, connection test, sync, inbox
 ├── webhook-handlers.ts # ZR webhook registration, Yalidine secret
 ├── view.ts             # A company as the API shows it, with its capabilities
 ├── routes.ts           # Route definitions and their permissions
@@ -74,14 +74,15 @@ last four characters). Each company carries its carrier's `capabilities`
 | Route | Permission | What it does |
 |---|---|---|
 | `GET /api/delivery-companies` | `delivery:read` | List (`active`, `search`, `limit`, `offset`) |
-| `GET /api/delivery-companies/{id}` | `delivery:read` | One company |
+| `GET /api/delivery-companies/{id}` | `delivery:read` | One company, with its map of places (`places`: communes, home, priced, unmatched, when read) |
 | `POST /api/delivery-companies` | `delivery:create` | Create — `provider`, `providerConfig`, credentials |
 | `PATCH /api/delivery-companies/{id}` | `delivery:update` | Update; `providerConfig` is merged into the stored settings and validated by the adapter |
 | `DELETE /api/delivery-companies/{id}` | `delivery:delete` | Refused once it carried a shipment: `COMPANY_HAS_ACTIVE_SHIPMENTS` while one is open, `COMPANY_HAS_SHIPMENTS` after — set it inactive instead |
 | `GET /api/delivery-companies/{id}/stop-desks` | `delivery:read` | The cached desks (`wilayaId`, `activeOnly`) — never calls the carrier |
 | `POST /api/delivery-companies/{id}/sync-stop-desks` | `delivery:manage` | Pull the carrier's desks; the merchant's on/off choice survives |
 | `PATCH /api/delivery-companies/{id}/stop-desks/{code}/toggle` | `delivery:manage` | Turn one desk on or off |
-| `POST /api/delivery-companies/{id}/sync-geo` | `delivery:manage` | Map the carrier's place names (Yalidine) |
+| `POST /api/delivery-companies/{id}/sync-places` | `delivery:manage` | Read the carrier's list of places and its prices into the company's map; the map is replaced only when both were read |
+| `GET /api/delivery-companies/{id}/rates` | `delivery:read` | What the company charges the store, by our wilaya: home, stop desk and return, each the lowest and highest price among the wilaya's communes |
 | `POST /api/delivery-companies/{id}/test-connection` | `delivery:read` | Check the stored credentials at the carrier (EcoTrack couriers) |
 | `POST /api/delivery-companies/{id}/sync-shipments` | `delivery:manage` | Read the history of up to 50 open shipments now, the longest unchecked first (`synced`, `recorded`, `reached`, `moreRemain`) |
 | `POST` / `DELETE /api/delivery-companies/{id}/webhook/register` | `delivery:manage` | Register / remove ZR's webhook endpoint (its secret is stored) |

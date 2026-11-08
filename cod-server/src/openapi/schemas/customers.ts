@@ -6,6 +6,7 @@
 
 import { z } from "@hono/zod-openapi";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 export const CustomerGroupMemberSchema = z
   .object({
@@ -32,8 +33,8 @@ export const CustomerSchema = z
       description: "Email, lower-cased: typed by the merchant, or taken from the first order that brought one",
       example: "amina@example.com",
     }),
-    wilayaId: z.number().int().min(1).max(58).nullable().openapi({
-      description: "Official wilaya number (1–58)",
+    wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).nullable().openapi({
+      description: `Official wilaya number (1–${LAST_WILAYA_ID})`,
       example: 16,
     }),
     communeId: z.string().nullable().openapi({

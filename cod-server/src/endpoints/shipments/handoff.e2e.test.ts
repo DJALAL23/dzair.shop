@@ -18,7 +18,7 @@ import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ec
 import { CREATE_WILAYA_REFUSED_RESPONSE } from "@/carriers/ecotrack/test/fixtures";
 import { getShipmentWithEvents } from "../../../../cod-shared/shipments/queries";
 import { markHandoffUnknown, reserveCarrierShipment } from "../../../../cod-shared/shipments/handoff";
-import { seedOrder as seedOrderIn, seedStore, shipmentsApp, T0, type OrderSeed } from "./test/harness";
+import { NOT_SERVED, seedOrder as seedOrderIn, seedStore, shipmentsApp, T0, type OrderSeed } from "./test/harness";
 
 const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
 vi.mock("@/db", () => dbModule);
@@ -127,9 +127,24 @@ describe("handing one order to a carrier", () => {
   it("the merchant's choices win over the order's: stop desk, weight, fragile, remarks", async () => {
     await seedOrder({ id: "o1", notes: "Appeler avant" });
     const { data } = (await (await handOff("o1", { deliveryType: "stop_desk", stationCode: "160101", weight: 2.5, fragile: true, remarks: "Fragile" })).json()) as any;
-    expect(data.shipment).toMatchObject({ deliveryType: "stop_desk", stationCode: "160101", weight: 2.5, isFragile: true, codAmount: 1900 });
+    expect(data.shipment).toMatchObject({ deliveryType: "stop_desk", stationCode: "160101", weight: 2.5, isFragile: true, codAmount: 1900, shippingCost: 400, returnFee: 150 });
     expect(server.parcel(data.shipment.trackingNumber)!.params).toMatchObject({ stop_desk: "1", code_postal: "160101", weight: "2.5", fragile: "1", remarque: "Fragile" });
     expect((await d1.db.select({ t: schema.orders.deliveryType }).from(schema.orders).where(eq(schema.orders.id, "o1")).get())!.t).toBe("home");
+  });
+
+  it("freezes what the parcel costs the store: the company's rate and return fee for the commune, for home delivery", async () => {
+    await seedOrder({ id: "o1" });
+    const { data } = (await (await handOff("o1")).json()) as any;
+    expect(data.shipment).toMatchObject({ deliveryType: "home", shippingCost: 650, returnFee: 200 });
+    await d1.db.update(schema.carrierPlaces).set({ homeRate: 900, homeReturnFee: 300 }).where(eq(schema.carrierPlaces.companyId, "eco"));
+    expect(await shipmentOf("o1")).toMatchObject({ shippingCost: 650, returnFee: 200 });
+  });
+
+  it("records no cost where the company gives no price, and still sends the parcel", async () => {
+    await seedOrder({ id: "o1" });
+    const res = await handOff("o1", { companyId: "eco-manual" });
+    expect(res.status).toBe(201);
+    expect(await shipmentOf("o1")).toMatchObject({ companyId: "eco-manual", handoffState: "accepted", shippingCost: null, returnFee: null });
   });
 
   it("the order's notes go to the courier when the merchant gives no remark", async () => {
@@ -177,18 +192,65 @@ describe("the parcel the carrier receives", () => {
     expect((await handOff("o1")).status).toBe(201);
   });
 
-  it("a carrier that matches addresses by name gets its own spelling, once synced", async () => {
+  it("addresses a parcel in the carrier's own terms, from its map of places", async () => {
     const sent: any[] = [];
     globalThis.fetch = (async (_url: string, init: RequestInit) => {
       const parcels = JSON.parse(String(init.body));
       sent.push(...parcels);
       return Response.json(Object.fromEntries(parcels.map((p: any) => [p.order_id, { success: true, tracking: `yal-${p.order_id}`, label: null, message: "" }])));
     }) as unknown as typeof fetch;
-    await d1.db.insert(schema.carrierWilayas).values({ carrierCode: "yalidine", wilayaId: 16, carrierName: "Alger (Yalidine)" });
-    await d1.db.insert(schema.carrierCommunes).values({ carrierCode: "yalidine", communeId: commune16, carrierName: "Commune (Yalidine)" });
     await seedOrder({ id: "o1" });
     expect((await handOff("o1", { companyId: "yal" })).status).toBe(201);
-    expect(sent[0]).toMatchObject({ to_wilaya_name: "Alger (Yalidine)", to_commune_name: "Commune (Yalidine)", price: 1900 });
+    expect(sent[0]).toMatchObject({ to_wilaya_name: "Alger (yal)", to_commune_name: "Alger Centre (yal)", price: 1900 });
+  });
+
+  it("sends ZR the territory ids its map holds, and never searches for a name", async () => {
+    const calls: Array<{ url: string; body: any }> = [];
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : undefined });
+      if (String(url).endsWith("/customers/individual")) return Response.json({ id: "cust-1" });
+      if (String(url).endsWith("/parcels")) return Response.json({ id: "zr-parcel-1" });
+      return Response.json({ id: "zr-parcel-1", trackingNumber: "16-ZR-1" });
+    }) as unknown as typeof fetch;
+    await seedOrder({ id: "o1" });
+    expect((await handOff("o1", { companyId: "zr" })).status).toBe(201);
+    const parcel = calls.find((c) => c.url.endsWith("/parcels"))!;
+    expect(parcel.body.deliveryAddress).toMatchObject({ cityTerritoryId: "city-16", districtTerritoryId: "district-1601" });
+    expect(calls.some((c) => c.url.includes("/territories"))).toBe(false);
+  });
+});
+
+describe("refused when the company's map of places cannot address the order — nothing reserved, nothing sent", () => {
+  it("a company whose list of places was never read refuses every order, saying how to read it", async () => {
+    await seedOrder({ id: "o1" });
+    const res = await handOff("o1", { companyId: "eco-unread" });
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as any;
+    expect(body.code).toBe("CARRIER_PLACES_NOT_READ");
+    expect(body.error).toContain("Never read");
+    expect(await shipmentOf("o1")).toBeUndefined();
+    expect(server.requests).toHaveLength(0);
+  });
+
+  it("a commune the carrier does not list is refused by name, never sent under ours", async () => {
+    await seedOrderIn(d1.db, NOT_SERVED, { id: "o1" });
+    const res = await handOff("o1");
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as any;
+    expect(body.code).toBe("PLACE_NOT_SERVED");
+    expect(body.error).toMatch(/^Packers does not deliver to .+ \(Alger\)$/);
+    expect(await shipmentOf("o1")).toBeUndefined();
+    expect(server.requests).toHaveLength(0);
+  });
+
+  it("a commune without door delivery refuses a home parcel and takes a stop-desk one", async () => {
+    await d1.db.update(schema.carrierPlaces).set({ home: false });
+    await seedOrder({ id: "o1" });
+    const home = await handOff("o1");
+    expect(home.status).toBe(422);
+    expect(((await home.json()) as any).code).toBe("PLACE_NOT_SERVED");
+    expect(server.requests).toHaveLength(0);
+    expect((await handOff("o1", { deliveryType: "stop_desk", stationCode: "16001" })).status).toBe(201);
   });
 });
 
@@ -388,7 +450,9 @@ describe("bulk is the same handoff", () => {
   it("one result per order, in request order; a refused order does not stop the others", async () => {
     await seedOrder({ id: "ok1" });
     await seedOrder({ id: "notReady", status: "preparing" });
-    await seedOrder({ id: "badWilaya", wilayaId: 12 });
+    await seedOrderIn(d1.db, NOT_SERVED, { id: "badWilaya" });
+    // The carrier's map files this commune in a wilaya the company does not serve: the carrier refuses it.
+    await d1.db.insert(schema.carrierPlaces).values({ companyId: "eco", communeId: NOT_SERVED, wilayaRef: "12", wilayaNumber: 12, wilayaName: "Tébessa", communeRef: "1201", communeName: "Tébessa", home: true });
     await seedOrder({ id: "ok2" });
     const res = await bulk(["ok1", "notReady", "missing", "badWilaya", "ok2", "ok1"]);
     expect(res.status).toBe(200);
@@ -510,7 +574,7 @@ describe("resolving an unknown outcome — never by sending again", () => {
 
   it("lookup is refused, without a call, for a carrier that cannot search by order number", async () => {
     await seedOrder({ id: "o1" });
-    const reserved = await reserveCarrierShipment(d1.db, { orderId: "o1", companyId: "zr", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+    const reserved = await reserveCarrierShipment(d1.db, { orderId: "o1", companyId: "zr", deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
     if (!reserved.ok) throw new Error("reservation failed");
     await markHandoffUnknown(d1.db, reserved.shipmentId, "timeout");
     const calls = vi.fn(realFetch);

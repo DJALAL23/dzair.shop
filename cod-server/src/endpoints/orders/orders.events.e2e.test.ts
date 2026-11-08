@@ -61,7 +61,7 @@ async function placed(id: string, extra: Partial<typeof schema.orders.$inferInse
 /** Handed to the carrier; an order goes out only once ready, so it is made ready first. */
 async function shipped(orderId: string) {
   await db().update(schema.orders).set({ status: "ready" }).where(eq(schema.orders.id, orderId));
-  const reserved = await reserveCarrierShipment(db(), { orderId, companyId: "co", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+  const reserved = await reserveCarrierShipment(db(), { orderId, companyId: "co", deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
   if (!reserved.ok) throw new Error(reserved.reason);
   await acceptCarrierHandoff(db(), reserved.shipmentId, { carrierParcelId: `P-${orderId}`, trackingNumber: `T-${orderId}`, carrierData: null, labelUrl: null }, { validated: true , author: SYSTEM });
   return reserved.shipmentId;

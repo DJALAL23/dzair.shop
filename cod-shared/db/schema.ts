@@ -131,19 +131,20 @@ export const customerTagAssignments = sqliteTable("customer_tag_assignments", {
 // ─── Algeria Reference Data ───────────────────────────────────────────────────
 
 /**
- * Algeria's 58 official wilayas.
- * Integer PK matches the official wilaya number (1–58) used by logistics APIs
- * like NOEST, Yalidine, and ZR Express.
+ * Algeria's 69 wilayas (law 26-06, 2026), numbered as the decrees number them.
+ * The list lives in cod-shared/places; these rows exist for foreign keys and
+ * are held to it by a test.
  */
 export const wilayas = sqliteTable("wilayas", {
-  id: integer("id").primaryKey(), // Official wilaya number 1-58
-  name: text("name").notNull(),   // "Alger"
-  nameAr: text("name_ar").notNull(), // "الجزائر"
+  id: integer("id").primaryKey(),
+  name: text("name").notNull(),
+  nameAr: text("name_ar").notNull(),
 });
 
 /**
- * Communes (municipalities) within each wilaya.
- * Seeded with major communes; postal codes for stop-desk lookups.
+ * Algeria's 1541 communes, each under its wilaya today. Same as `wilayas`:
+ * the list lives in cod-shared/places. An id names a place, not a wilaya — a
+ * commune keeps its id when the law moves it.
  */
 export const communes = sqliteTable("communes", {
   id: text("id").primaryKey(),
@@ -152,36 +153,39 @@ export const communes = sqliteTable("communes", {
     .references(() => wilayas.id),
   name: text("name").notNull(),
   nameAr: text("name_ar").notNull(),
-  postalCode: text("postal_code"),
 });
 
-// ─── Carrier geo names ─────────────────────────────────────────────────────────
-
 /**
- * Per-carrier exact wilaya name strings. Carriers that match addresses by
- * name (Yalidine) reject parcels whose strings differ from their own
- * spellings; these rows carry the carrier's exact string for our wilaya IDs.
- * Carriers absent here keep the reference-table name.
+ * Where a delivery company delivers, in its own terms: one row per commune
+ * of ours the carrier's list names, with the carrier's own ids and
+ * spellings, built from that list (cod-shared/places `communeNamed`) on
+ * connect, on demand and by the hourly sync. A parcel is addressed from this
+ * row alone; a commune without one is refused before anything is sent.
  */
-export const carrierWilayas = sqliteTable("carrier_wilayas", {
-  carrierCode: text("carrier_code").notNull(),
-  wilayaId: integer("wilaya_id")
+export const carrierPlaces = sqliteTable("carrier_places", {
+  companyId: text("company_id")
     .notNull()
-    .references(() => wilayas.id),
-  carrierName: text("carrier_name").notNull(),
-}, (t) => ({
-  pk: primaryKey({ columns: [t.carrierCode, t.wilayaId] }),
-}));
-
-/** Same contract as carrier_wilayas, one level down. */
-export const carrierCommunes = sqliteTable("carrier_communes", {
-  carrierCode: text("carrier_code").notNull(),
+    .references(() => deliveryCompanies.id, { onDelete: "cascade" }),
   communeId: text("commune_id")
     .notNull()
     .references(() => communes.id),
-  carrierName: text("carrier_name").notNull(),
+  /** The carrier's id for the wilaya it files the commune under (a number, or ZR's territory UUID). */
+  wilayaRef: text("wilaya_ref").notNull(),
+  /** That wilaya's number on the carrier's map (1–58 today; carriers have not moved to 2026). */
+  wilayaNumber: integer("wilaya_number").notNull(),
+  wilayaName: text("wilaya_name").notNull(),
+  communeRef: text("commune_ref").notNull(),
+  communeName: text("commune_name").notNull(),
+  /** The carrier delivers to the door in this commune (a stop-desk parcel goes to a desk the merchant picks). */
+  home: integer("home", { mode: "boolean" }).notNull(),
+  /** Its Carrier Rate here (DZD), as its API states it for the merchant's account: null where it gives none. */
+  homeRate: real("home_rate"),
+  stopDeskRate: real("stop_desk_rate"),
+  /** Its Return Fee here (DZD) for a parcel sent each way that comes back. */
+  homeReturnFee: real("home_return_fee"),
+  stopDeskReturnFee: real("stop_desk_return_fee"),
 }, (t) => ({
-  pk: primaryKey({ columns: [t.carrierCode, t.communeId] }),
+  pk: primaryKey({ columns: [t.companyId, t.communeId] }),
 }));
 
 // ─── Shipping Profiles ────────────────────────────────────────────────────────
@@ -415,6 +419,10 @@ export const deliveryCompanies = sqliteTable("delivery_companies", {
   provider: text("provider", { enum: CARRIER_PROVIDERS }),
   /** The adapter's own settings as JSON, validated by its schema. Secrets inside are masked in responses. */
   providerConfig: text("provider_config"),
+  /** When the carrier's list of places was last read into carrier_places. */
+  placesSyncedAt: text("places_synced_at"),
+  /** JSON: the carrier's places that name no commune of ours, from that sync — `[{ wilaya, commune }]`. */
+  placesUnmatched: text("places_unmatched"),
 });
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
@@ -427,7 +435,7 @@ export const orders = sqliteTable("orders", {
     .references(() => customers.id),
   customerName: text("customer_name").notNull(),
   phone: text("phone").notNull(),
-  /** Wilaya ID (integer 1-58) — authority for wilaya. Names derived at query/dispatch time. */
+  /** The wilaya (cod-shared/places) — authority for wilaya. Names derived at query/dispatch time. */
   wilayaId: integer("wilaya_id").references(() => wilayas.id),
   /** Commune FK — authority for commune. Names derived at query/dispatch time. */
   communeId: text("commune_id").references(() => communes.id),
@@ -704,6 +712,8 @@ export const companyStopDesks = sqliteTable("company_stop_desks", {
   /** Admin-controlled: false = hidden from dispatch dialog. Never reset by sync. */
   active:    integer("active", { mode: "boolean" }).notNull().default(true),
   syncedAt:  text("synced_at").notNull(),
+  /** Our commune for the desk, read through the company's carrier_places; its wilaya is the one shoppers know. */
+  communeId: text("commune_id").references(() => communes.id),
 }, (t) => ({
   companyCodeUnique: uniqueIndex("company_stop_desks_company_code_unique")
                        .on(t.companyId, t.code),
@@ -783,6 +793,10 @@ export const shipments = sqliteTable("shipments", {
   revision: text("revision").notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  /** A carrier shipment's Shipping Cost (DZD): its company's rate for where and how it went, frozen at handoff. Null when the company gives no price there; a driver shipment's cost is its driverFee. */
+  shippingCost: real("shipping_cost"),
+  /** What the company charges if the parcel comes back (DZD), frozen with the Shipping Cost. */
+  returnFee: real("return_fee"),
 });
 
 /** Every status reported for a shipment: raw, as interpreted, with its reason, time and source. */

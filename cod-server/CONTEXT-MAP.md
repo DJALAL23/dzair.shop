@@ -16,7 +16,7 @@ Convention: one `CONTEXT.md` per endpoint folder; cross-folder terms live in the
 | ✅ written | Payments | [./src/endpoints/driver-payments/CONTEXT.md](./src/endpoints/driver-payments/CONTEXT.md) | Settling drivers' delivered shipments (cash, fees), payment lines, driver ledger |
 | ✅ written | Drivers | [./src/endpoints/drivers/CONTEXT.md](./src/endpoints/drivers/CONTEXT.md) | In-house workforce: identity, availability, per-wilaya pay grid, deletion guards |
 | ✅ written | Shipping Profiles | [./src/endpoints/shipping-profiles/CONTEXT.md](./src/endpoints/shipping-profiles/CONTEXT.md) | Customer delivery pricing: rate cards, commune overrides, fee resolution |
-| ✅ written | Wilayas | [./src/endpoints/wilayas/CONTEXT.md](./src/endpoints/wilayas/CONTEXT.md) | Algeria's 58 wilayas + communes as read-only reference geography (IDs, postal codes, bilingual names) |
+| ✅ written | Wilayas | [./src/endpoints/wilayas/CONTEXT.md](./src/endpoints/wilayas/CONTEXT.md) | Algeria's 69 wilayas and 1541 communes (law 26-06) as read-only reference geography: IDs, bilingual names, every carrier spelling |
 | ✅ written | Offers | [./src/endpoints/offers/CONTEXT.md](./src/endpoints/offers/CONTEXT.md) | Automatic promotions: Buy X Get Y, free delivery, quantity pricing; one offer per product |
 | ✅ written | Coupons | [./src/endpoints/coupons/CONTEXT.md](./src/endpoints/coupons/CONTEXT.md) | Shopper-entered codes: kinds, scope, audience, usage limits, redemptions; applied after offers |
 | ✅ written | Reviews | [./src/endpoints/reviews/CONTEXT.md](./src/endpoints/reviews/CONTEXT.md) | Moderation of order-anchored product reviews; live rating aggregates |
@@ -53,6 +53,6 @@ All endpoint folders are now documented — no candidates remain. Future folders
 
 ## Shared Concepts
 
-- **Wilaya/Commune**: Algerian administrative divisions (58 wilayas, ~1500 communes)
+- **Wilaya/Commune**: Algerian administrative divisions (69 wilayas, 1541 communes; `cod-shared/places`)
 - **COD Amount**: Total to collect = product price + delivery fee
 - **Store**: One store per deployment — each merchant's store has its own Worker and its own D1, so its data is isolated by deployment, not by a `store_id` on every row

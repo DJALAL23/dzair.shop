@@ -23,7 +23,7 @@
 
 import { eq, inArray } from "drizzle-orm";
 import type { AppDb } from "@/db";
-import { communes, deliveryCompanies, orderProducts, orders, productVariants, shipments, wilayas } from "@/db/schema";
+import { deliveryCompanies, orderProducts, orders, productVariants, shipments } from "@/db/schema";
 import { AppError, BusinessLogicError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ACTIONS, logActivity } from "@/lib/activity";
 import type { Acting } from "@/lib/acting";
@@ -36,7 +36,8 @@ import { findCarrierShipment, getShipment } from "../../../../cod-shared/shipmen
 import { requireAction } from "./guard";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { checkHandoff, type OrderStatus } from "../../../../cod-shared/orders/lifecycle";
-import { resolveCarrierCommuneNames, resolveCarrierWilayaName } from "../../../../cod-shared/queries/carrier-geo";
+import { carrierPlacesOf, costAt, type MappedPlace } from "../../../../cod-shared/carriers/places";
+import { commune as placeCommune, wilaya as placeWilaya } from "../../../../cod-shared/places";
 import {
   acceptCarrierHandoff,
   discardReservation,
@@ -132,6 +133,8 @@ interface Prepared {
   stationCode: string | null;
   weight: number | null;
   fragile: boolean | null;
+  /** What the parcel costs the store, from the company's map: frozen on the shipment. */
+  cost: ReturnType<typeof costAt>;
 }
 
 type OrderLine = { productName: string; variantId: string | null; quantity: number };
@@ -140,14 +143,13 @@ interface HandoffData {
   orders: Map<string, OrderRow>;
   lines: Map<string, OrderLine[]>;
   withShipment: Set<string>;
-  wilayaNames: Map<number, string>;
-  communeNames: Map<string, string>;
-  carrierCommuneNames: Map<string, string>;
+  /** The company's map of places for the orders' communes. */
+  places: Map<string, MappedPlace>;
   variantWeights: Map<string, number | null>;
 }
 
-async function loadHandoffData(db: AppDb, company: DeliveryCompanyRow, carrier: CarrierAdapter, orderIds: string[]): Promise<HandoffData> {
-  const [orderRows, lineRows, shipmentRows, wilayaRows] = await db.batch([
+async function loadHandoffData(db: AppDb, company: DeliveryCompanyRow, orderIds: string[]): Promise<HandoffData> {
+  const [orderRows, lineRows, shipmentRows] = await db.batch([
     db
       .select({
         id: orders.id,
@@ -171,7 +173,6 @@ async function loadHandoffData(db: AppDb, company: DeliveryCompanyRow, carrier: 
       .from(orderProducts)
       .where(inArray(orderProducts.orderId, orderIds)),
     db.select({ orderId: shipments.orderId }).from(shipments).where(inArray(shipments.orderId, orderIds)),
-    db.select({ id: wilayas.id, name: wilayas.name }).from(wilayas),
   ]);
 
   const lines = new Map<string, OrderLine[]>();
@@ -179,8 +180,8 @@ async function loadHandoffData(db: AppDb, company: DeliveryCompanyRow, carrier: 
 
   const communeIds = [...new Set(orderRows.map((o) => o.communeId).filter((id): id is string => !!id))];
   const variantIds = [...new Set(lineRows.map((l) => l.variantId).filter((id): id is string => !!id))];
-  const [communeRows, variantRows] = await Promise.all([
-    communeIds.length ? db.select({ id: communes.id, name: communes.name }).from(communes).where(inArray(communes.id, communeIds)).all() : [],
+  const [places, variantRows] = await Promise.all([
+    carrierPlacesOf(db, company.id, communeIds),
     variantIds.length
       ? db.select({ id: productVariants.id, weightKg: productVariants.weightKg }).from(productVariants).where(inArray(productVariants.id, variantIds)).all()
       : [],
@@ -190,12 +191,39 @@ async function loadHandoffData(db: AppDb, company: DeliveryCompanyRow, carrier: 
     orders: new Map(orderRows.map((o) => [o.id, o])),
     lines,
     withShipment: new Set(shipmentRows.map((s) => s.orderId)),
-    wilayaNames: new Map(wilayaRows.map((w) => [w.id, w.name])),
-    communeNames: new Map(communeRows.map((c) => [c.id, c.name])),
-    // A carrier that matches addresses by name gets its own spelling, once synced.
-    carrierCommuneNames: carrier.capabilities.geoNames ? await resolveCarrierCommuneNames(db, company.code, communeIds) : new Map(),
+    places,
     variantWeights: new Map(variantRows.map((v) => [v.id, v.weightKg])),
   };
+}
+
+/**
+ * Why a parcel to this commune cannot be addressed at this company, or
+ * nothing. The company's map of places is the only source: a commune it does
+ * not hold is never sent under a name of ours.
+ */
+export function placeRefusal(
+  company: Pick<DeliveryCompanyRow, "name" | "placesSyncedAt">,
+  communeId: string,
+  place: MappedPlace | undefined,
+  deliveryType: DeliveryType,
+  context: Record<string, unknown>,
+): AppError | null {
+  const commune = placeCommune(communeId);
+  const where = commune ? `${commune.name} (${placeWilaya(commune.wilayaId)?.name ?? commune.wilayaId})` : communeId;
+  if (!company.placesSyncedAt) {
+    return new BusinessLogicError(
+      `${company.name}'s list of places has not been read yet; read it from the company's page under Delivery, then hand the order off again`,
+      ERROR_CODES.CARRIER_PLACES_NOT_READ,
+      { ...context, communeId },
+    );
+  }
+  if (!place) {
+    return new BusinessLogicError(`${company.name} does not deliver to ${where}`, ERROR_CODES.PLACE_NOT_SERVED, { ...context, communeId, deliveryType });
+  }
+  if (deliveryType === "home" && !place.home) {
+    return new BusinessLogicError(`${company.name} does not deliver to the door in ${where}; choose a stop desk or another company`, ERROR_CODES.PLACE_NOT_SERVED, { ...context, communeId, deliveryType });
+  }
+  return null;
 }
 
 function prepare(
@@ -203,7 +231,6 @@ function prepare(
   data: HandoffData,
   company: DeliveryCompanyRow,
   carrier: CarrierAdapter,
-  carrierWilayaNames: Map<number, string>,
 ): Prepared | AppError {
   const order = data.orders.get(request.orderId);
   if (!order) return new NotFoundError("Order", request.orderId);
@@ -216,9 +243,7 @@ function prepare(
       : new BusinessLogicError(`Order ${order.orderNumber} is "${order.status}"; only a ready order can be handed off`, ERROR_CODES.ORDER_NOT_READY_FOR_HANDOFF, { ...context, status: order.status });
   }
 
-  const wilayaName = order.wilayaId ? data.wilayaNames.get(order.wilayaId) : undefined;
-  const communeName = order.communeId ? data.communeNames.get(order.communeId) : undefined;
-  if (!order.wilayaId || !wilayaName || !communeName) {
+  if (!order.wilayaId || !order.communeId) {
     return new ValidationError(`Order ${order.orderNumber} needs a wilaya and a commune`, ERROR_CODES.MISSING_WILAYA_COMMUNE, context);
   }
 
@@ -229,6 +254,10 @@ function prepare(
     const what = deliveryType === "stop_desk" ? "stop-desk delivery" : "home delivery";
     return new BusinessLogicError(`${company.name} does not offer ${what}`, ERROR_CODES.DELIVERY_NOT_AVAILABLE, { ...context, deliveryType });
   }
+
+  const place = data.places.get(order.communeId);
+  const refusal = placeRefusal(company, order.communeId, place, deliveryType, context);
+  if (refusal) return refusal;
 
   const stationCode = deliveryType === "stop_desk" ? request.stationCode?.trim() || order.stationCode || null : null;
   if (deliveryType === "stop_desk" && !stationCode) {
@@ -260,14 +289,13 @@ function prepare(
     stationCode,
     weight: caps.parcelFields.weight ? weight : null,
     fragile: caps.parcelFields.fragile ? fragile : null,
+    cost: costAt(place!, deliveryType),
     input: {
       reference: order.orderNumber,
       customerName: order.customerName,
       phone: order.phone,
       address,
-      wilayaId: order.wilayaId,
-      wilaya: carrierWilayaNames.get(order.wilayaId) ?? wilayaName,
-      commune: data.carrierCommuneNames.get(order.communeId!) ?? communeName,
+      destination: { wilaya: place!.wilaya, commune: place!.commune },
       amount,
       productDescription: buildProductDescription(
         lines.map((l) => l.productName),
@@ -442,19 +470,12 @@ export async function handOffToCarrier(
   const distinct = [...new Map(requests.map((r) => [r.orderId, r])).values()];
   if (distinct.length === 0) return [];
 
-  const data = await loadHandoffData(db, company, carrier, distinct.map((r) => r.orderId));
-  const carrierWilayaNames = new Map<number, string>();
-  if (carrier.capabilities.geoNames) {
-    for (const wilayaId of new Set([...data.orders.values()].map((o) => o.wilayaId).filter((id): id is number => id != null))) {
-      const name = await resolveCarrierWilayaName(db, company.code, wilayaId);
-      if (name) carrierWilayaNames.set(wilayaId, name);
-    }
-  }
+  const data = await loadHandoffData(db, company, distinct.map((r) => r.orderId));
 
   const results = new Map<string, HandoffResult>();
   const reserved: Array<Prepared & { shipmentId: string }> = [];
   for (const request of distinct) {
-    const prepared = prepare(request, data, company, carrier, carrierWilayaNames);
+    const prepared = prepare(request, data, company, carrier);
     if (prepared instanceof AppError) {
       const order = data.orders.get(request.orderId);
       results.set(request.orderId, { orderId: request.orderId, orderNumber: order?.orderNumber ?? null, outcome: "refused", error: prepared });
@@ -467,6 +488,7 @@ export async function handOffToCarrier(
       stationCode: prepared.stationCode,
       weight: prepared.weight,
       isFragile: prepared.fragile,
+      ...prepared.cost,
       createdBy: acting.staff?.id ?? null,
     });
     if (!reservation.ok) {

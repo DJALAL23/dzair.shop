@@ -160,7 +160,7 @@ const CAPS: CarrierCapabilities = {
   homeDelivery: true, stopDesk: true, separateValidation: false, bulkCreate: 50,
   parcelFields: { weight: true, fragile: true, remarks: true }, limits: { maxAmount: null, maxDescription: null },
   update: true, cancel: true, remarks: { add: true, list: true }, history: true, historyBatch: 50, findByReference: true,
-  updates: "pull", label: true, askReturn: true, requestNewAttempt: false, confirmReturn: true, stopDeskList: true, geoNames: false, verifyConnection: true,
+  updates: "pull", label: true, askReturn: true, requestNewAttempt: false, confirmReturn: true, stopDeskList: true, verifyConnection: true,
 };
 
 const company = (overrides: Partial<DeliveryCompany>): DeliveryCompany => ({

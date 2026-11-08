@@ -65,7 +65,7 @@ async function parcelAtEcotrack(reference: string): Promise<string> {
 
 async function shipment(orderId: string, companyId: string, state: "submitting" | "unknown" | "accepted", tracking?: string) {
   await seedOrder(d1.db, commune16, { id: orderId });
-  const reserved = await reserveCarrierShipment(d1.db, { orderId, companyId, deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+  const reserved = await reserveCarrierShipment(d1.db, { orderId, companyId, deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
   if (!reserved.ok) throw new Error("reservation failed");
   if (state === "unknown") await markHandoffUnknown(d1.db, reserved.shipmentId, "timeout");
   if (state === "accepted") {

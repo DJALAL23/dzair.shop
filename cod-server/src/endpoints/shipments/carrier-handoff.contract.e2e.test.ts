@@ -44,7 +44,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  for (const table of [schema.shipmentEvents, schema.shipments, schema.companyApiLogs, schema.orders, schema.customers, schema.deliveryCompanies]) {
+  for (const table of [schema.shipmentEvents, schema.shipments, schema.companyApiLogs, schema.orders, schema.customers, schema.carrierPlaces, schema.deliveryCompanies]) {
     await d1.db.delete(table);
   }
   const commune = (await d1.db.select({ id: schema.communes.id }).from(schema.communes).where(eq(schema.communes.wilayaId, 16)).get())!.id;
@@ -55,7 +55,8 @@ beforeEach(async () => {
       address: "Rue 1", price: 1500, deliveryFee: 400, status: "ready" as const, createdAt: T0, updatedAt: T0,
     })),
   );
-  await d1.db.insert(schema.deliveryCompanies).values({ id: "co", name: "Stub", nameAr: "-", code: "stub_ecotrack", provider: "ecotrack", apiToken: "t", apiEndpoint: "https://stub", createdAt: T0, updatedAt: T0 });
+  await d1.db.insert(schema.deliveryCompanies).values({ id: "co", name: "Stub", nameAr: "-", code: "stub_ecotrack", provider: "ecotrack", apiToken: "t", apiEndpoint: "https://stub", placesSyncedAt: T0, createdAt: T0, updatedAt: T0 });
+  await d1.db.insert(schema.carrierPlaces).values({ companyId: "co", communeId: commune, wilayaRef: "16", wilayaNumber: 16, wilayaName: "Alger", communeRef: "1601", communeName: "Alger Centre", home: true });
   company = (await d1.db.select().from(schema.deliveryCompanies).where(eq(schema.deliveryCompanies.id, "co")).get())!;
 });
 

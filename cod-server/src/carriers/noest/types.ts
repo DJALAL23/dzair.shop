@@ -264,3 +264,15 @@ export interface NoestCommune {
 }
 
 export type NoestCommunesResponse = Record<string, NoestCommune> | NoestCommune[];
+
+/** A wilaya's price for home (`tarif`) and stop-desk (`tarif_stopdesk`) parcels, in DZD as strings. */
+export interface NoestTarif {
+  wilaya_id: number;
+  tarif: string | number | null;
+  tarif_stopdesk: string | number | null;
+}
+
+/** GET /fees — the account's grid: delivery and return prices per wilaya, keyed by its number. */
+export interface NoestFeesResponse {
+  tarifs: { delivery?: Record<string, NoestTarif> | null; return?: Record<string, NoestTarif> | null } | null;
+}

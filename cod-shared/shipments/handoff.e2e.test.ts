@@ -53,7 +53,7 @@ beforeEach(async () => {
 });
 
 const reservation = (over: Partial<CarrierReservation> = {}): CarrierReservation => ({
-  orderId: "ready", companyId: "co1", deliveryType: "home", stationCode: null, weight: 2, isFragile: true, createdBy: "u1", ...over,
+  orderId: "ready", companyId: "co1", deliveryType: "home", stationCode: null, weight: 2, isFragile: true, shippingCost: 650, returnFee: 200, createdBy: "u1", ...over,
 });
 const shipmentOf = (orderId: string) => getOrderShipment(d1.db, orderId);
 const steps = async (shipmentId: string) => (await getShipmentWithEvents(d1.db, shipmentId))!.events.map((e) => [e.source, e.providerStatus]);

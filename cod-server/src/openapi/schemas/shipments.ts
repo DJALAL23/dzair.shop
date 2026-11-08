@@ -45,6 +45,8 @@ export const ShipmentSchema = z
     stationCode: z.string().nullable(),
     codAmount: z.number().openapi({ description: "Cash the courier collects (price + delivery fee)" }),
     driverFee: z.number(),
+    shippingCost: z.number().nullable().openapi({ description: "What the delivery company charges the store for this parcel (DZD), frozen at handoff from its rate for the destination; null when it gives no price there, or for the store's driver (whose cost is driverFee)" }),
+    returnFee: z.number().nullable().openapi({ description: "What the delivery company charges if the parcel comes back (DZD), frozen with shippingCost" }),
     weight: z.number().nullable(),
     isFragile: z.boolean().nullable(),
     providerStatus: z.string().nullable().openapi({ description: "The carrier's latest status, as reported" }),

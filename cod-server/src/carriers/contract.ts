@@ -17,8 +17,10 @@ import type { Interpretation } from "../../../cod-shared/shipments/interpretatio
 import { eventKey } from "../../../cod-shared/shipments/model";
 
 import { CARRIER_PROVIDERS, type CarrierProvider } from "../../../cod-shared/carriers/providers";
+import type { CarrierDestination, CarrierPlace, CarrierRate } from "../../../cod-shared/carriers/places";
 
 export { CARRIER_PROVIDERS, type CarrierProvider };
+export type { CarrierDestination, CarrierPlace, CarrierRate };
 
 // ─── Errors ───────────────────────────────────────────────────────────────────
 
@@ -101,7 +103,6 @@ export interface CarrierCapabilities {
   /** The merchant confirms at the carrier that a return reached them. */
   confirmReturn: boolean;
   stopDeskList: boolean;
-  geoNames: boolean;
   verifyConnection: boolean;
 }
 
@@ -114,10 +115,8 @@ export interface CarrierShipmentInput {
   phone: string;
   phone2?: string;
   address: string;
-  wilayaId: number;
-  /** Wilaya and commune names, in the carrier's own spelling when it matches by name. */
-  wilaya: string;
-  commune: string;
+  /** The commune, as the company's map of places (carrier_places) names it — never a name the carrier did not give. */
+  destination: CarrierDestination;
   /** Cash the courier collects: price plus delivery fee. */
   amount: number;
   productDescription: string;
@@ -156,9 +155,8 @@ export interface CarrierShipmentPatch {
   phone?: string;
   phone2?: string;
   address?: string;
-  wilayaId?: number;
-  wilaya?: string;
-  commune?: string;
+  /** A new commune, from the company's map of places. */
+  destination?: CarrierDestination;
   amount?: number;
   remarks?: string;
   weight?: number;
@@ -208,21 +206,22 @@ export type CarrierLabel =
   | { kind: "url"; url: string }
   | { kind: "pdf"; body: ArrayBuffer };
 
+/**
+ * A stop desk as the carrier lists it. Its commune is read through the
+ * company's map of places: by the carrier's commune id when it gives one,
+ * otherwise by its commune's name under its wilaya number.
+ */
 export interface CarrierStopDesk {
   code: string;
   name: string;
   /** `null` when the carrier does not publish a distinct commune. */
   commune: string | null;
+  /** The carrier's id for the desk's commune, as its list of places has it. */
+  communeRef: string | null;
   address: string | null;
   phones: string[];
-  /** 1–58, or `null` when the carrier's data does not map to a wilaya. */
-  wilayaId: number | null;
-}
-
-export interface CarrierGeoNames {
-  wilayas: Array<{ id: number; name: string }>;
-  /** `postalCode` is optional corroboration for a close name, when the carrier shares our postal codes. */
-  communes: Array<{ id: number; name: string; wilayaId: number; postalCode?: string | null }>;
+  /** The wilaya number on the carrier's map, or `null` when its data gives none. */
+  wilayaNumber: number | null;
 }
 
 /** The outcome of checking credentials. A wrong token is a successful check with `ok: false`. */
@@ -269,6 +268,8 @@ export interface CarrierAdapter {
   readonly capabilities: CarrierCapabilities;
 
   createShipment(input: CarrierShipmentInput): Promise<CarrierParcel>;
+  /** Every place the carrier lists, on its own map, with its rate there: what its map of places (carrier_places) is built from. */
+  places(): Promise<CarrierPlace[]>;
   /** Interpret one of this carrier's statuses. Pure; unknown values are `{ kind: "unknown" }`. */
   interpret(status: CarrierStatus): Interpretation;
 
@@ -297,8 +298,6 @@ export interface CarrierAdapter {
   confirmReturn?(refs: CarrierRef[]): Promise<boolean>;
   /** capabilities.stopDeskList. */
   stopDesks?(): Promise<CarrierStopDesk[]>;
-  /** capabilities.geoNames. */
-  geoNames?(): Promise<CarrierGeoNames>;
   /** capabilities.verifyConnection. */
   verifyConnection?(): Promise<CarrierConnectionCheck>;
   /** capabilities.updates === "webhook". */
@@ -320,7 +319,6 @@ export const OPTIONAL_MEMBER_CAPABILITY = {
   requestNewAttempt: (c: CarrierCapabilities) => c.requestNewAttempt,
   confirmReturn: (c: CarrierCapabilities) => c.confirmReturn,
   stopDesks: (c: CarrierCapabilities) => c.stopDeskList,
-  geoNames: (c: CarrierCapabilities) => c.geoNames,
   verifyConnection: (c: CarrierCapabilities) => c.verifyConnection,
   webhook: (c: CarrierCapabilities) => c.updates === "webhook",
-} as const satisfies Record<Exclude<keyof CarrierAdapter, "provider" | "capabilities" | "createShipment" | "interpret">, (c: CarrierCapabilities) => boolean>;
+} as const satisfies Record<Exclude<keyof CarrierAdapter, "provider" | "capabilities" | "createShipment" | "places" | "interpret">, (c: CarrierCapabilities) => boolean>;

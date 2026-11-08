@@ -17,6 +17,7 @@ import {
 } from "./validation";
 import { deleteCustomer, getCustomerById, createCustomer } from "./queries";
 import { makeMockDb, f, a, customerRow, NOW } from "@/test-utils/mock-db";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
@@ -40,8 +41,8 @@ describe("createCustomerSchema", () => {
     expect(createCustomerSchema.safeParse({ ...validBase, wilayaId: 0 }).success).toBe(false);
   });
 
-  it("rejects wilayaId of 59 (out of range)", () => {
-    expect(createCustomerSchema.safeParse({ ...validBase, wilayaId: 59 }).success).toBe(false);
+  it("rejects a wilayaId past the last wilaya", () => {
+    expect(createCustomerSchema.safeParse({ ...validBase, wilayaId: LAST_WILAYA_ID + 1 }).success).toBe(false);
   });
 
   it("rejects phone with wrong prefix (03...)", () => {
@@ -96,7 +97,7 @@ describe("updateCustomerSchema", () => {
 
   it("rejects wilayaId out of range if provided", () => {
     expect(updateCustomerSchema.safeParse({ wilayaId: 0 }).success).toBe(false);
-    expect(updateCustomerSchema.safeParse({ wilayaId: 59 }).success).toBe(false);
+    expect(updateCustomerSchema.safeParse({ wilayaId: LAST_WILAYA_ID + 1 }).success).toBe(false);
   });
 
   it("accepts null phone2 to clear secondary number", () => {

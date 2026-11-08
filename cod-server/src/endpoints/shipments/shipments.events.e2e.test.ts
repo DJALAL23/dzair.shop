@@ -94,7 +94,7 @@ describe("shipment.handed_off", () => {
 
   it("is recorded once when a carrier's parcel is accepted, however often its acceptance arrives", async () => {
     await ready("o1");
-    const reserved = await reserveCarrierShipment(db(), { orderId: "o1", companyId: "eco", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+    const reserved = await reserveCarrierShipment(db(), { orderId: "o1", companyId: "eco", deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
     if (!reserved.ok) throw new Error(reserved.reason);
     expect(await eventsOf(db(), "o1")).toEqual([]);
 
@@ -180,7 +180,7 @@ describe("every surface records the same event", () => {
 
   it("what a pull sync reads back is the carrier's, through its sync", async () => {
     await ready("o1");
-    const reserved = await reserveCarrierShipment(db(), { orderId: "o1", companyId: "eco", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+    const reserved = await reserveCarrierShipment(db(), { orderId: "o1", companyId: "eco", deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
     if (!reserved.ok) throw new Error(reserved.reason);
     await acceptCarrierHandoff(db(), reserved.shipmentId, { carrierParcelId: "ECO-1", trackingNumber: "ECO-1", carrierData: null, labelUrl: null }, { validated: true, author: SYSTEM });
     const row = await db().select().from(schema.shipments).where(eq(schema.shipments.id, reserved.shipmentId)).get();

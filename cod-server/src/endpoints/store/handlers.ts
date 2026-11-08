@@ -31,6 +31,7 @@ import { getStorefrontCollection } from "../../../../cod-shared/queries/collecti
 import { findShopperOrder } from "../../../../cod-shared/queries/store-order-status";
 import { conversionEventId, resolveConversionForStage } from "@/lib/meta-conversions";
 import { stores, orders } from "../../../../cod-shared/db/schema";
+import { LAST_WILAYA_ID, isWilayaId } from "../../../../cod-shared/places";
 import { eq } from "drizzle-orm";
 
 /** `?name=` after route validation (or raw, when a test mounts the handler bare). */
@@ -279,11 +280,11 @@ export async function getShippingRates(c: Context<AppContext>) {
 
 export async function listStoreCommunes(c: Context<AppContext>) {
   const wilayaId = parseInt(c.req.param("wilayaId")!);
-  if (isNaN(wilayaId) || wilayaId < 1 || wilayaId > 58) {
+  if (!isWilayaId(wilayaId)) {
     throw new ValidationError(
-      "Invalid wilaya ID — must be an integer between 1 and 58",
+      `Invalid wilaya ID — must be an integer between 1 and ${LAST_WILAYA_ID}`,
       ERROR_CODES.VALUE_OUT_OF_RANGE,
-      { wilayaId, min: 1, max: 58 }
+      { wilayaId, min: 1, max: LAST_WILAYA_ID }
     );
   }
   const db = getDb(c.env.DB);

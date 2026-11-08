@@ -9,6 +9,7 @@ import {
 } from "./validation";
 import { getDb } from "@/db";
 import { toolOutput } from "@/lib/tool-output-schema";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -38,17 +39,17 @@ export const setShippingProfileRulesToolSchema = z.object({
 });
 export const listCommuneOverridesSchema = z.object({
   profileId: z.string().min(1).describe("ID of the shipping profile"),
-  wilayaId: z.number().int().min(1).max(58).describe("Wilaya integer ID (1–58)"),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).describe(`Wilaya integer ID (1–${LAST_WILAYA_ID})`),
 });
 export const setShippingCommuneOverrideToolSchema = z.object({
   profileId: z.string().min(1).describe("ID of the shipping profile"),
-  wilayaId: z.number().int().min(1).max(58).describe("Wilaya integer ID (1–58)"),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).describe(`Wilaya integer ID (1–${LAST_WILAYA_ID})`),
   communeId: z.string().regex(/^c-\d{2}-\d{3}$/, "communeId must match the communes table format c-XX-YYY (e.g. c-01-001)").describe("Commune ID in the communes table format c-XX-YYY (e.g. c-16-163)"),
   override: communeOverrideSchema,
 });
 export const resetShippingCommuneOverrideSchema = z.object({
   profileId: z.string().min(1).describe("ID of the shipping profile"),
-  wilayaId: z.number().int().min(1).max(58).describe("Wilaya integer ID (1–58)"),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).describe(`Wilaya integer ID (1–${LAST_WILAYA_ID})`),
   communeId: z.string().regex(/^c-\d{2}-\d{3}$/, "communeId must match the communes table format c-XX-YYY (e.g. c-01-001)").describe("Commune ID (c-XX-YYY) whose override should be reset"),
 });
 
@@ -66,7 +67,7 @@ export const SHIPPING_PROFILE_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
 };
 
 const shippingRuleSchema = z.looseObject({
-  wilayaId: z.number().int().optional().describe("Wilaya number 1–58"),
+  wilayaId: z.number().int().optional().describe(`Wilaya number 1–${LAST_WILAYA_ID}`),
   wilayaName: z.string().optional(),
   homePrice: z.number().optional().describe("Home delivery price in DZD"),
   stopDeskPrice: z.number().optional().describe("Stop-desk pickup price in DZD"),
@@ -146,7 +147,7 @@ export const SHIPPING_PROFILE_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  *
  * Data model:
  *   ShippingProfile
- *     └── ShippingRule[]  (one per wilaya, wilayaId 1–58)
+ *     └── ShippingRule[]  (one per wilaya, wilayaId 1–${LAST_WILAYA_ID})
  *           └── CommuneOverride[]  (optional per-commune price/mode overrides)
  *
  * Key invariants:
@@ -364,7 +365,7 @@ export const getShippingProfileTools = (db: ReturnType<typeof getDb>) => ({
       "Atomically replaces ALL wilaya rules for a shipping profile. " +
       "Existing rules (and their commune overrides) are deleted before new ones are inserted. " +
       "Required: profileId (string), rules (array of rule objects). " +
-      "Each rule: wilayaId (integer 1–58, required), homePrice (number >= 0, default 0), " +
+      `Each rule: wilayaId (integer 1–${LAST_WILAYA_ID}, required), homePrice (number >= 0, default 0), ` +
       "stopDeskPrice (number >= 0, default 0), homeEnabled (boolean, default true), " +
       "stopDeskEnabled (boolean, default false). " +
       "Each wilayaId may appear at most once — duplicates are rejected (DUPLICATE_WILAYA_RULE). " +
@@ -383,7 +384,7 @@ export const getShippingProfileTools = (db: ReturnType<typeof getDb>) => ({
           error:
             `Invalid rules data: ${errorDetails}. ` +
             `Expected: profileId (string), rules (array). ` +
-            `Each rule: wilayaId (int 1–58), homePrice (number >= 0), stopDeskPrice (number >= 0), ` +
+            `Each rule: wilayaId (int 1–${LAST_WILAYA_ID}), homePrice (number >= 0), stopDeskPrice (number >= 0), ` +
             `homeEnabled (boolean, default true), stopDeskEnabled (boolean, default false). ` +
             `Each wilayaId must be unique within the array.`,
         };
@@ -417,7 +418,7 @@ export const getShippingProfileTools = (db: ReturnType<typeof getDb>) => ({
       "Lists all communes in a wilaya with their current override status for a specific shipping profile rule. " +
       "Each commune shows raw override fields (null = inherits from wilaya rule) and effective values " +
       "(after applying wilaya defaults). hasOverride=true means a custom override row exists. " +
-      "Required: profileId (string), wilayaId (integer 1–58). " +
+      `Required: profileId (string), wilayaId (integer 1–${LAST_WILAYA_ID}). ` +
       "The profile must already have a rule for this wilaya — use setShippingProfileRules to add one first.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -430,7 +431,7 @@ export const getShippingProfileTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: profileId (string), wilayaId (integer 1–58).`,
+          error: `Invalid arguments: ${errorDetails}. Expected: profileId (string), wilayaId (integer 1–${LAST_WILAYA_ID}).`,
         };
       }
 
@@ -460,7 +461,7 @@ export const getShippingProfileTools = (db: ReturnType<typeof getDb>) => ({
   setShippingCommuneOverride: tool({
     description:
       "Sets or updates a commune-level delivery override on top of a wilaya rule. " +
-      "Required: profileId (string), wilayaId (integer 1–58), communeId (c-XX-YYY, e.g. c-16-163). " +
+      `Required: profileId (string), wilayaId (integer 1–${LAST_WILAYA_ID}), communeId (c-XX-YYY, e.g. c-16-163). ` +
       "Override fields (all optional, all nullable): homeEnabled (boolean or null), " +
       "stopDeskEnabled (boolean or null), homePrice (number >= 0 or null), stopDeskPrice (number >= 0 or null). " +
       "null = inherit from the wilaya rule at fee-resolution time. " +
@@ -479,7 +480,7 @@ export const getShippingProfileTools = (db: ReturnType<typeof getDb>) => ({
           success: false,
           error:
             `Invalid arguments: ${errorDetails}. ` +
-            `Expected: profileId (string), wilayaId (int 1–58), communeId (c-XX-YYY), ` +
+            `Expected: profileId (string), wilayaId (int 1–${LAST_WILAYA_ID}), communeId (c-XX-YYY), ` +
             `override object with optional nullable fields: homeEnabled (boolean|null), ` +
             `stopDeskEnabled (boolean|null), homePrice (number >= 0 | null), stopDeskPrice (number >= 0 | null).`,
         };
@@ -509,7 +510,7 @@ export const getShippingProfileTools = (db: ReturnType<typeof getDb>) => ({
   resetShippingCommuneOverride: tool({
     description:
       "Removes a commune-level override — the commune reverts to inheriting the wilaya rule defaults. " +
-      "Required: profileId (string), wilayaId (integer 1–58), communeId (c-XX-YYY, e.g. c-16-163). " +
+      `Required: profileId (string), wilayaId (integer 1–${LAST_WILAYA_ID}), communeId (c-XX-YYY, e.g. c-16-163). ` +
       "Returns an error if no override exists for this commune.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
@@ -522,7 +523,7 @@ export const getShippingProfileTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: profileId (string), wilayaId (int 1–58), communeId (c-XX-YYY).`,
+          error: `Invalid arguments: ${errorDetails}. Expected: profileId (string), wilayaId (int 1–${LAST_WILAYA_ID}), communeId (c-XX-YYY).`,
         };
       }
 

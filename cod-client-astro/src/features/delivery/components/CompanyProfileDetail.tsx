@@ -7,16 +7,18 @@ import {
 import { useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import {
+  getDeliveryCompany,
   listAllDeliveryCompanies,
-  syncCarrierGeoNames,
+  syncCompanyPlaces,
   syncCompanyShipments,
   syncCompanyStopDesks,
   updateDeliveryCompany,
 } from "@/features/delivery/api";
-import type { DeliveryCompany } from "@/features/delivery/types";
+import type { CarrierPlacesSummary, DeliveryCompany } from "@/features/delivery/types";
 import { getProviderConfig } from "@/features/delivery/types";
 import { Alert, Badge, LinkButton, PageHeader } from "@/components/ui";
 import { ExternalLink, Settings } from "lucide-react";
+import { CompanyPlacesCard } from "@/features/delivery/components/CompanyPlacesCard";
 import { CompanySettingsSection } from "@/features/delivery/components/CompanySettingsSection";
 import { CompanyWebhookEventsCard } from "@/features/delivery/components/CompanyWebhookEventsCard";
 import { isCompanyConnected } from "@/features/delivery/model";
@@ -72,7 +74,8 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
   const [loadError, setLoadError] = useState<unknown>(null);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [syncingDesks, setSyncingDesks] = useState(false);
-  const [syncingGeo, setSyncingGeo] = useState(false);
+  const [places, setPlaces] = useState<CarrierPlacesSummary | null>(null);
+  const [readingPlaces, setReadingPlaces] = useState(false);
   const [syncingShipments, setSyncingShipments] = useState(false);
   const [autoValidate, setAutoValidate] = useState(true);
   const [savingAutoValidate, setSavingAutoValidate] = useState(false);
@@ -86,6 +89,7 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
       const companies = await listAllDeliveryCompanies();
       const found = companies.find((item) => item.code === providerCode);
       setCompany(found ?? null);
+      setPlaces(found?.isConnected ? (await getDeliveryCompany(found.id)).places : null);
     } catch (cause) {
       setLoadError(cause);
     }
@@ -105,10 +109,11 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
     setSyncingDesks(true);
     try {
       const result = await syncCompanyStopDesks(company.id);
-      const detail =
-        result.removed > 0
-          ? `${result.total} ${t("desks")} · ${result.removed} ${t("removed")}`
-          : `${result.total} ${t("desks")}`;
+      const detail = [
+        `${result.total} ${t("desks")}`,
+        ...(result.removed > 0 ? [`${result.removed} ${t("removed")}`] : []),
+        ...(result.unplaced > 0 ? [t("desks_unplaced", { count: result.unplaced })] : []),
+      ].join(" · ");
       const message = `${t("sync_desks_success")} — ${detail}`;
       setNotice({ message, tone: "success" });
       notify.success(message);
@@ -122,25 +127,20 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
     }
   }
 
-  async function handleSyncGeo() {
+  async function handleReadPlaces() {
     if (!company) return;
     setNotice(null);
-    setSyncingGeo(true);
+    setReadingPlaces(true);
     try {
-      const result = await syncCarrierGeoNames(company.id);
-      const detail = `${result.wilayasMatched} ${t("geo_wilayas")} · ${result.communesMatched} ${t("geo_communes")}`;
-      const message =
-        result.communesUnmapped > 0
-          ? `${t("sync_geo_success")} — ${detail} · ${result.communesUnmapped} ${t("geo_unmapped")}`
-          : `${t("sync_geo_success")} — ${detail}`;
-      setNotice({ message, tone: result.communesUnmapped > 0 ? "success" : "success" });
-      notify.success(message);
+      const read = await syncCompanyPlaces(company.id);
+      setPlaces(read);
+      notify.success(t("places_read_done", { count: read.communes }));
     } catch {
-      const message = t("error_saving");
+      const message = t("places_read_failed", { company: company.name });
       setNotice({ message, tone: "error" });
       notify.error(message);
     } finally {
-      setSyncingGeo(false);
+      setReadingPlaces(false);
     }
   }
 
@@ -266,6 +266,10 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
         }
       />
 
+      {company && isCompanyConnected(company) && (
+        <CompanyPlacesCard companyId={company.id} companyName={company.name} places={places} canManage={canManage} reading={readingPlaces} onRead={() => void handleReadPlaces()} />
+      )}
+
       <CompanySettingsSection
         config={config}
         company={company}
@@ -276,8 +280,6 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
         onToggleAutoValidate={() => void handleToggleAutoValidate()}
         syncingDesks={syncingDesks}
         onSyncDesks={() => void handleSyncDesks()}
-        syncingGeo={syncingGeo}
-        onSyncGeo={() => void handleSyncGeo()}
         syncingShipments={syncingShipments}
         onSyncShipments={() => void handleSyncShipments()}
       />

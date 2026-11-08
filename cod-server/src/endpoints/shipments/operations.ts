@@ -7,7 +7,7 @@
 
 import { eq } from "drizzle-orm";
 import type { AppDb } from "@/db";
-import { communes, orders, wilayas } from "@/db/schema";
+import { orders } from "@/db/schema";
 import type { StaffActor } from "@/types";
 import { carrierAuthor, type Acting } from "@/lib/acting";
 import { ConflictError, NotFoundError, BusinessLogicError, ValidationError } from "@/lib/errors/classes";
@@ -19,14 +19,14 @@ import { CarrierError, type CarrierAdapter, type CarrierCapabilities, type Carri
 import { carrierCapabilities } from "@/carriers/registry";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { getDeliveryCompanyRaw } from "../../../../cod-shared/queries/delivery-companies";
-import { resolveCarrierCommuneName, resolveCarrierWilayaName } from "../../../../cod-shared/queries/carrier-geo";
+import { carrierPlacesOf, costAt } from "../../../../cod-shared/carriers/places";
 import { updateOrder } from "../../../../cod-shared/queries/orders";
 import { markValidated, noteShipmentStep, recordParcelEdit, voidShipment } from "../../../../cod-shared/shipments/handoff";
 import { checkMerchantReport, interpretMerchantReport, type MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
 import { carrierRefOf, deliveryFactsOf, getShipment, type ShipmentRow } from "../../../../cod-shared/shipments/queries";
 import { recordShipmentEvents, type RecordedEvents } from "../../../../cod-shared/shipments/record-events";
 import type { ShipmentAction } from "./actions";
-import { connectedCarrier, type DeliveryCompanyRow } from "./carrier-handoff";
+import { connectedCarrier, placeRefusal, type DeliveryCompanyRow } from "./carrier-handoff";
 import { actionRefusal, requireAction, requireKindScope } from "./guard";
 import { syncShipment } from "./sync";
 
@@ -131,22 +131,17 @@ export async function updateParcel(db: AppDb, shipmentId: string, changes: Parce
     throw new ValidationError("A home delivery needs a street address", ERROR_CODES.MISSING_ADDRESS, t.context);
   }
   if (!wilayaId || !communeId) throw new ValidationError("The order needs a wilaya and a commune", ERROR_CODES.MISSING_WILAYA_COMMUNE, t.context);
-  const [wilaya, commune] = await Promise.all([
-    db.select({ name: wilayas.name }).from(wilayas).where(eq(wilayas.id, wilayaId)).get(),
-    db.select({ name: communes.name }).from(communes).where(eq(communes.id, communeId)).get(),
-  ]);
-  const [carrierWilaya, carrierCommune] = caps.geoNames
-    ? await Promise.all([resolveCarrierWilayaName(db, t.company.code, wilayaId), resolveCarrierCommuneName(db, t.company.code, communeId)])
-    : [null, null];
+  const place = (await carrierPlacesOf(db, t.company.id, [communeId])).get(communeId);
+  const deliveryType = t.row.deliveryType === "stop_desk" ? "stop_desk" : "home";
+  const refusal = placeRefusal(t.company, communeId, place, deliveryType, t.context);
+  if (refusal) throw refusal;
 
   const patch: CarrierShipmentPatch = {
     reference: order.orderNumber,
     customerName: changes.customerName ?? order.customerName,
     phone: changes.phone ?? order.phone,
     address,
-    wilayaId,
-    wilaya: carrierWilaya ?? wilaya?.name ?? String(wilayaId),
-    commune: carrierCommune ?? commune?.name ?? communeId,
+    destination: { wilaya: place!.wilaya, commune: place!.commune },
     amount: changes.amount ?? t.row.codAmount,
     ...(changes.remarks !== undefined ? { remarks: changes.remarks } : {}),
     ...(caps.parcelFields.weight && (changes.weight ?? t.row.weight) != null ? { weight: (changes.weight ?? t.row.weight)! } : {}),
@@ -169,6 +164,7 @@ export async function updateParcel(db: AppDb, shipmentId: string, changes: Parce
       ...(changes.amount !== undefined ? { codAmount: changes.amount } : {}),
       ...(changes.weight !== undefined ? { weight: changes.weight } : {}),
       ...(changes.fragile !== undefined ? { isFragile: changes.fragile } : {}),
+      ...(changes.communeId !== undefined && changes.communeId !== order.communeId ? costAt(place!, deliveryType) : {}),
     },
     { fields, actorId: staffIdOf(acting) },
   );

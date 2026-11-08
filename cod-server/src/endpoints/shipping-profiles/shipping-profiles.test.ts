@@ -17,6 +17,7 @@ import {
 } from "./validation";
 import { getProfileById, createProfile, deleteProfile, setProfileRules } from "./queries";
 import { makeMockDb, f, a, shippingProfileRow, NOW } from "@/test-utils/mock-db";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 // ─── createProfileSchema ───────────────────────────────────────────────────────
 
@@ -87,8 +88,8 @@ describe("bulkRulesSchema", () => {
     expect(bulkRulesSchema.safeParse({ rules: [{ wilayaId: 0, homePrice: 300, stopDeskPrice: 250 }] }).success).toBe(false);
   });
 
-  it("rejects wilayaId = 59 (above range)", () => {
-    expect(bulkRulesSchema.safeParse({ rules: [{ wilayaId: 59, homePrice: 300, stopDeskPrice: 250 }] }).success).toBe(false);
+  it("rejects a wilayaId past the last wilaya", () => {
+    expect(bulkRulesSchema.safeParse({ rules: [{ wilayaId: LAST_WILAYA_ID + 1, homePrice: 300, stopDeskPrice: 250 }] }).success).toBe(false);
   });
 
   it("defaults homePrice to 0", () => {

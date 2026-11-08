@@ -71,7 +71,7 @@ async function handedOff(orderId: string, companyId = "eco-manual", seed: Partia
 /** An accepted shipment at a carrier whose create the test does not exercise. */
 async function accepted(orderId: string, companyId: string, carrierData: unknown = null) {
   await seedOrder({ id: orderId });
-  const reserved = await reserveCarrierShipment(d1.db, { orderId, companyId, deliveryType: "home", stationCode: null, weight: 1, isFragile: null, createdBy: null });
+  const reserved = await reserveCarrierShipment(d1.db, { orderId, companyId, deliveryType: "home", stationCode: null, weight: 1, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
   if (!reserved.ok) throw new Error("reservation failed");
   await acceptCarrierHandoff(d1.db, reserved.shipmentId, { carrierParcelId: `P-${orderId}`, trackingNumber: `T-${orderId}`, carrierData, labelUrl: null }, { validated: true , author: SYSTEM });
   return reserved.shipmentId;
@@ -145,6 +145,20 @@ describe("editing the parcel", () => {
     expect(await row(id)).toMatchObject({ codAmount: 2500, isFragile: true });
     const events = (await getShipmentWithEvents(d1.db, id))!.events;
     expect(events.at(-1)).toMatchObject({ source: "merchant", providerStatus: "parcel_updated", reason: "phone, address, amount, fragile", actorId: "staff_1" });
+  });
+
+  it("a parcel moved to another commune costs what the company charges there; an edit that does not move it keeps its cost", async () => {
+    await d1.db.insert(schema.carrierPlaces).values({
+      companyId: "eco-manual", communeId: "c-16-003", wilayaRef: "16", wilayaNumber: 16, wilayaName: "Alger", communeRef: "1603", communeName: "El Madania", home: true,
+      homeRate: 550, stopDeskRate: 350, homeReturnFee: 100, stopDeskReturnFee: 100,
+    });
+    const { id } = await handedOff("o1");
+    expect(await row(id)).toMatchObject({ shippingCost: null, returnFee: null });
+    expect((await req("PATCH", `/${id}`, { wilayaId: 16, communeId: "c-16-003" })).status).toBe(200);
+    expect(await row(id)).toMatchObject({ shippingCost: 550, returnFee: 100 });
+    await d1.db.update(schema.carrierPlaces).set({ homeRate: 800 }).where(eq(schema.carrierPlaces.communeId, "c-16-003"));
+    expect((await req("PATCH", `/${id}`, { phone: "0661112233", wilayaId: 16, communeId: "c-16-003" })).status).toBe(200);
+    expect(await row(id)).toMatchObject({ shippingCost: 550, returnFee: 100 });
   });
 
   it("keeps the parcel's reference at the carrier — EcoTrack clears what an update leaves out", async () => {
@@ -474,7 +488,7 @@ describe("what the merchant reports", () => {
 describe("a parcel the carrier has not accepted has nothing to act on", () => {
   it("every operation waits — and never calls the carrier", async () => {
     await seedOrder({ id: "o1" });
-    const reserved = await reserveCarrierShipment(d1.db, { orderId: "o1", companyId: "eco", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+    const reserved = await reserveCarrierShipment(d1.db, { orderId: "o1", companyId: "eco", deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
     if (!reserved.ok) throw new Error("reservation failed");
     await markHandoffUnknown(d1.db, reserved.shipmentId, "timeout");
     const calls = noCarrierCalls();

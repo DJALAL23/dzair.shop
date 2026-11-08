@@ -4,6 +4,7 @@ import * as queries from "./queries";
 import { wilayaFiltersSchema } from "./validation";
 import { getDb } from "@/db";
 import { toolOutput } from "@/lib/tool-output-schema";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 /**
  * Layer-2 validation schemas, hoisted to module level and exported so the MCP
@@ -17,8 +18,8 @@ export const listWilayaCommunesSchema = z.object({
     .number()
     .int()
     .min(1)
-    .max(58)
-    .describe("Integer ID of the wilaya (1–58, Algeria's official numbering)"),
+    .max(LAST_WILAYA_ID)
+    .describe(`Integer ID of the wilaya (1–${LAST_WILAYA_ID}, Algeria's official numbering)`),
 });
 
 export const WILAYA_TOOL_SCHEMAS: Record<string, z.ZodRawShape> = {
@@ -31,11 +32,11 @@ export const WILAYA_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
     count: z.number().int(),
     wilayas: z.array(
       z.looseObject({
-        id: z.number().int().describe("Official wilaya number (1–58) — used in orders, shipping rules, and driver pay grids; NOT a UUID"),
+        id: z.number().int().describe(`Official wilaya number (1–${LAST_WILAYA_ID}) — used in orders, shipping rules, and driver pay grids; NOT a UUID`),
         name: z.string().describe("French name"),
         nameAr: z.string().describe("Arabic name"),
       }),
-    ).describe("All 58 wilayas in official-number order"),
+    ).describe("Every wilaya in official-number order"),
   }),
   listWilayaCommunes: toolOutput({
     wilaya: z.looseObject({
@@ -61,7 +62,7 @@ export const WILAYA_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * coverage zones, and shipping profiles.
  *
  * Key domain facts:
- * - Wilaya IDs are integers 1–58 (NOT UUIDs) — they map to Algeria's
+ * - Wilaya IDs are integers 1–${LAST_WILAYA_ID} (NOT UUIDs) — they map to Algeria's
  *   official wilaya numbering system.
  * - Each wilaya has a French name (name) and an Arabic name (nameAr).
  *   Search works across both.
@@ -85,7 +86,7 @@ export const getWilayaTools = (db: ReturnType<typeof getDb>) => ({
 
   listWilayas: tool({
     description:
-      "List all 58 Algerian wilayas (administrative provinces), ordered by their official ID (1–58). " +
+      `List all Algeria's wilayas (administrative provinces), ordered by their official ID (1–${LAST_WILAYA_ID}). ` +
       "Each wilaya has an integer id, a French name, and an Arabic nameAr. " +
       "Optional: pass a search string to filter by name in either French or Arabic. " +
       "Use this to look up a wilaya's integer ID before creating or updating a customer, driver, or order.",
@@ -110,7 +111,7 @@ export const getWilayaTools = (db: ReturnType<typeof getDb>) => ({
           success: true,
           count: wilayaList.length,
           wilayas: wilayaList.map((w) => ({
-            id: w.id,       // integer 1–58
+            id: w.id,       // integer 1–${LAST_WILAYA_ID}
             name: w.name,   // French name
             nameAr: w.nameAr, // Arabic name
           })),
@@ -129,10 +130,10 @@ export const getWilayaTools = (db: ReturnType<typeof getDb>) => ({
       "List all communes (sub-districts) for a specific wilaya, ordered alphabetically by name. " +
       "Each commune has a text id in \"c-XX-YYY\" format (e.g. \"c-16-001\") and a name. " +
       "Use the commune id as communeId when creating or updating a customer or order for precise address targeting. " +
-      "wilayaId must be an integer between 1 and 58.",
+      `wilayaId must be an integer between 1 and ${LAST_WILAYA_ID}.`,
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
     execute: async (args) => {
-      // Layer 2: Strict validation — wilayaId is an integer 1–58, not a UUID
+      // Layer 2: Strict validation — wilayaId is an integer 1–${LAST_WILAYA_ID}, not a UUID
       const validationSchema = listWilayaCommunesSchema;
 
       const parsed = validationSchema.safeParse(args);
@@ -143,7 +144,7 @@ export const getWilayaTools = (db: ReturnType<typeof getDb>) => ({
           .join("; ");
         return {
           success: false,
-          error: `Invalid arguments: ${errorDetails}. Expected: wilayaId (integer between 1 and 58). Use listWilayas first to find the correct integer ID.`,
+          error: `Invalid arguments: ${errorDetails}. Expected: wilayaId (integer between 1 and ${LAST_WILAYA_ID}). Use listWilayas first to find the correct integer ID.`,
         };
       }
 
@@ -153,7 +154,7 @@ export const getWilayaTools = (db: ReturnType<typeof getDb>) => ({
         if (!wilaya) {
           return {
             success: false,
-            error: `Wilaya not found with ID: ${parsed.data.wilayaId}. Valid IDs are integers 1–58.`,
+            error: `Wilaya not found with ID: ${parsed.data.wilayaId}. Valid IDs are integers 1–${LAST_WILAYA_ID}.`,
           };
         }
 

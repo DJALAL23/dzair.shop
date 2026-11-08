@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import type { InboxResult } from "../../../../cod-shared/inbound/results";
-import type { Driver, DriverCompensation, DriverPayment, PendingSettlement, DriverPaymentType, DriverStatus, VehicleType, DeliveryCompany, StopDesk, ShippingProfile, ShippingProfileWithRules, CommuneOverride } from "./types";
+import type { Driver, DriverCompensation, DriverPayment, PendingSettlement, DriverPaymentType, DriverStatus, VehicleType, CarrierPlacesSummary, DeliveryCompany, StopDesk, ShippingProfile, ShippingProfileWithRules, CommuneOverride, WilayaRates } from "./types";
 
 interface ListEnvelope<T> {
   success: boolean;
@@ -132,21 +132,22 @@ export async function fetchCompanyStopDesks(companyId: string, opts?: { wilayaId
 }
 
 export async function syncCompanyStopDesks(companyId: string) {
-  return (await apiFetch<DataEnvelope<{ total: number; removed: number; syncedAt: string }>>(`/api/delivery-companies/${encodeURIComponent(companyId)}/sync-stop-desks`, json({ method: "POST", body: "{}" }))).data;
+  return (await apiFetch<DataEnvelope<{ total: number; removed: number; unplaced: number; syncedAt: string | null }>>(`/api/delivery-companies/${encodeURIComponent(companyId)}/sync-stop-desks`, json({ method: "POST", body: "{}" }))).data;
 }
 
-export interface CarrierGeoSyncResult {
-  wilayasMatched: number;
-  wilayasUnmapped: number;
-  communesMatched: number;
-  communesUnmapped: number;
-  unmappedCommunes: Array<{ communeId: string; ourName: string }>;
-  unmappedWilayas: Array<{ wilayaId: number; ourName: string }>;
-  syncedAt: string;
+/** The company with its map of places. */
+export async function getDeliveryCompany(companyId: string) {
+  return (await apiFetch<DataEnvelope<DeliveryCompany & { places: CarrierPlacesSummary }>>(`/api/delivery-companies/${encodeURIComponent(companyId)}`)).data;
 }
 
-export async function syncCarrierGeoNames(companyId: string) {
-  return (await apiFetch<DataEnvelope<CarrierGeoSyncResult>>(`/api/delivery-companies/${encodeURIComponent(companyId)}/sync-geo`, json({ method: "POST", body: "{}" }))).data;
+/** What the company charges the store, by wilaya, from its map of places. */
+export async function getCompanyRates(companyId: string) {
+  return (await apiFetch<DataEnvelope<WilayaRates[]>>(`/api/delivery-companies/${encodeURIComponent(companyId)}/rates`)).data;
+}
+
+/** Read the carrier's list of places again; answers the map as read now. */
+export async function syncCompanyPlaces(companyId: string) {
+  return (await apiFetch<DataEnvelope<CarrierPlacesSummary>>(`/api/delivery-companies/${encodeURIComponent(companyId)}/sync-places`, json({ method: "POST", body: "{}" }))).data;
 }
 
 export async function toggleCompanyStopDesk(companyId: string, code: string) {

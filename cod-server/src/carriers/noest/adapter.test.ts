@@ -31,9 +31,7 @@ const input: CarrierShipmentInput = {
   customerName: "Ahmed Ahmed",
   phone: "0550505050",
   address: "Rue des Martyrs, Bab Ezzouar",
-  wilayaId: 16,
-  wilaya: "Alger",
-  commune: "Bab Ezzouar",
+  destination: { wilaya: { ref: "16", number: 16, name: "Alger" }, commune: { ref: "1", name: "Bab Ezzouar" } },
   amount: 3500,
   productDescription: "Smartphone Samsung Galaxy",
   stopDesk: false,
@@ -204,23 +202,42 @@ describe("verifyConnection — proves the token and the partner GUID without cre
   });
 });
 
-describe("place names — NOEST's own wilaya and commune lists", () => {
-  it("lists active wilayas and communes with NOEST's ids and postal codes; a deactivated commune is not offered", async () => {
+describe("places — NOEST's own wilaya and commune lists", () => {
+  beforeEach(() => {
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.endsWith("/get/wilayas")) return json([{ code: 16, nom: "Alger", is_active: 1 }, { code: 10, nom: "Bouira", is_active: 0 }]);
+      if (url.endsWith("/get/wilayas")) return json([{ code: 16, nom: "Alger", is_active: 1 }, { code: 10, nom: "Bouira", is_active: 0 }, { code: 50, nom: "Bordj Badji Mokhtar", is_active: 1 }]);
+      if (url.endsWith("/fees")) {
+        return json({
+          tarifs: {
+            return: { 16: { tarif_id: 52, wilaya_id: 16, tarif: "300", tarif_stopdesk: "250" }, 10: { tarif_id: 52, wilaya_id: 10, tarif: "300", tarif_stopdesk: "300" } },
+            delivery: { 16: { tarif_id: 399, wilaya_id: 16, tarif: "700", tarif_stopdesk: "350" }, 10: { tarif_id: 399, wilaya_id: 10, tarif: "800", tarif_stopdesk: "0" } },
+          },
+        });
+      }
       return json({
         0: { id: 1, nom: "Bab Azzouar", wilaya_id: 16, code_postal: "16111", is_active: 1 },
-        1: { id: 2, nom: "Dar El Beida", wilaya_id: 16, code_postal: "16112", is_active: 1 },
-        2: { id: 3, nom: "Ghost", wilaya_id: 16, code_postal: "16999", is_active: 0 },
+        1: { id: 3, nom: "Ghost", wilaya_id: 16, code_postal: "16999", is_active: 0 },
+        2: { id: 4, nom: "Bouira", wilaya_id: 10, code_postal: "10001", is_active: 1 },
+        3: { id: 5, nom: "Bordj Badji Mokhtar", wilaya_id: 50, code_postal: "50001", is_active: 1 },
       });
     });
-    const names = await carrier().geoNames!();
-    expect(names.wilayas).toEqual([{ id: 16, name: "Alger" }]);
-    expect(names.communes).toEqual([
-      { id: 1, name: "Bab Azzouar", wilayaId: 16, postalCode: "16111" },
-      { id: 2, name: "Dar El Beida", wilayaId: 16, postalCode: "16112" },
+  });
+
+  it("lists every commune under its wilaya; one NOEST switched off, or in a switched-off wilaya, is not delivered to", async () => {
+    expect((await carrier().places()).map((p) => [p.wilaya.ref, p.wilaya.number, p.commune.ref, p.commune.name, p.home])).toEqual([
+      ["16", 16, "1", "Bab Azzouar", true],
+      ["16", 16, "3", "Ghost", false],
+      ["10", 10, "4", "Bouira", false],
+      ["50", 50, "5", "Bordj Badji Mokhtar", true],
     ]);
-    expect(carrier().capabilities.geoNames).toBe(true);
+  });
+
+  it("prices each commune at its wilaya's grid: delivery and return by how it is sent, no stop-desk price where NOEST writes 0, none where it lists no grid", async () => {
+    const rates = Object.fromEntries((await carrier().places()).map((p) => [p.commune.name, p.rate]));
+    expect(rates["Bab Azzouar"]).toEqual({ home: 700, stopDesk: 350, homeReturn: 300, stopDeskReturn: 250 });
+    expect(rates["Bouira"]).toEqual({ home: 800, stopDesk: null, homeReturn: 300, stopDeskReturn: 300 });
+    expect(rates["Bordj Badji Mokhtar"]).toEqual({ home: null, stopDesk: null, homeReturn: null, stopDeskReturn: null });
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain("https://app.noest-dz.com/api/public/fees");
   });
 });
 
@@ -251,9 +268,9 @@ describe("3. valid/order", () => {
 describe("5.1 update/order/before/expedition", () => {
   it("edits the order directly, sending only what changed", async () => {
     fetchMock.mockResolvedValueOnce(json({ success: true }));
-    await carrier().update!(ref("TRK1"), { customerName: "Ahmed Ahmed", phone: "0550000000", amount: 4500, address: "Rue des Martyrs, Bab Ezzouar", commune: "Bab Ezzouar", weight: 1.5 });
+    await carrier().update!(ref("TRK1"), { customerName: "Ahmed Ahmed", phone: "0550000000", amount: 4500, address: "Rue des Martyrs, Bab Ezzouar", destination: input.destination, weight: 1.5 });
     expect(call().url).toBe("https://app.noest-dz.com/api/public/update/order/before/expedition");
-    expect(call().body).toEqual({ tracking: "TRK1", client: "Ahmed Ahmed", tel: "0550000000", montant: 4500, adresse: "Rue des Martyrs, Bab Ezzouar", commune: "Bab Ezzouar", poids: "1.5" });
+    expect(call().body).toEqual({ tracking: "TRK1", client: "Ahmed Ahmed", tel: "0550000000", montant: 4500, adresse: "Rue des Martyrs, Bab Ezzouar", wilaya: 16, commune: "Bab Ezzouar", poids: "1.5" });
   });
 
   it("an order already shipped refuses the edit", async () => {
@@ -329,14 +346,14 @@ describe("11. get/trackings/info", () => {
 });
 
 describe("10 & 12. label and desks", () => {
-  it("lists desks from the documented answer, deriving the wilaya from the code", async () => {
+  it("lists desks from the documented answer, the wilaya from the code", async () => {
     fetchMock.mockResolvedValueOnce(json({
       "01A": { code: "1A", name: "Adrar", address: "Cité les palmier en face l'hopital", map: "", phones: { 0: "0550602181", 1: "0561623531", 2: "", 3: "" }, email: "adrar@noest-dz.com" },
       "02A": { code: "2A", name: "Chlef", address: "Rue Lac des Forêts (À côté du CNRC)", map: "", phones: { 0: "0770582116", 1: "", 2: "", 3: "" } },
     }));
     expect(await carrier().stopDesks!()).toEqual([
-      { code: "1A", name: "Adrar", commune: null, address: "Cité les palmier en face l'hopital", phones: ["0550602181", "0561623531"], wilayaId: 1 },
-      { code: "2A", name: "Chlef", commune: null, address: "Rue Lac des Forêts (À côté du CNRC)", phones: ["0770582116"], wilayaId: 2 },
+      { code: "1A", name: "Adrar", commune: null, communeRef: null, address: "Cité les palmier en face l'hopital", phones: ["0550602181", "0561623531"], wilayaNumber: 1 },
+      { code: "2A", name: "Chlef", commune: null, communeRef: null, address: "Rue Lac des Forêts (À côté du CNRC)", phones: ["0770582116"], wilayaNumber: 2 },
     ]);
   });
 

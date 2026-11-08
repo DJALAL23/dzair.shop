@@ -12,6 +12,7 @@ import * as validation from "./validation";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, ValidationError, SystemError, ConflictError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
+import { LAST_WILAYA_ID, isWilayaId } from "../../../../cod-shared/places";
 
 /**
  * GET /drivers
@@ -160,9 +161,9 @@ export async function deleteDriver(c: Context<AppContext>) {
 
 function parseWilayaId(raw: string | undefined): number {
   const id = Number(raw);
-  if (!Number.isInteger(id) || id < 1 || id > 58) {
+  if (!isWilayaId(id)) {
     throw new ValidationError(
-      `Invalid wilaya ID "${raw}" — must be an integer 1-58`,
+      `Invalid wilaya ID "${raw}" — must be an integer 1–${LAST_WILAYA_ID}`,
       ERROR_CODES.VALIDATION_FAILED,
       { field: "wilayaId", value: raw }
     );
@@ -172,7 +173,7 @@ function parseWilayaId(raw: string | undefined): number {
 
 /**
  * GET /drivers/:id/compensations
- * Return all 58 wilayas with the driver's configured fee (null if no row).
+ * Return every wilaya with the driver's configured fee (null if no row).
  */
 export async function listCompensations(c: Context<AppContext>) {
   const db = getDb(c.env.DB);

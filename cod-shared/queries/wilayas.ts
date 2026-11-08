@@ -1,7 +1,7 @@
 /**
  * Wilayas + Communes Queries
  *
- * Read-only reference data for Algeria's 58 wilayas and their communes.
+ * Read-only reference data for Algeria's wilayas and communes (cod-shared/places), read from their D1 rows.
  * Consumed by cod-server handlers and dashboard components.
  */
 

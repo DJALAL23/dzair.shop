@@ -6,6 +6,7 @@ import type {
   DriverPaymentType,
   DriverStatus,
   PendingSettlement,
+  PriceRange,
   ProviderConfig,
   ShippingProfile,
   ShippingRateEntry,
@@ -138,6 +139,14 @@ export function driverErrorMessage(cause: unknown, t: (key: string) => string) {
 export function formatDeliveryMoney(amount: number | null | undefined, locale: "ar" | "en" | "fr") {
   if (amount == null) return "-";
   return `${new Intl.NumberFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`).format(amount)} DA`;
+}
+
+/** A price range as one amount when it holds one price, as "min–max DA" otherwise; "-" when there is none. */
+export function formatPriceRange(range: PriceRange | null, locale: "ar" | "en" | "fr") {
+  if (!range) return "-";
+  if (range.min === range.max) return formatDeliveryMoney(range.min, locale);
+  const number = new Intl.NumberFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`);
+  return `${number.format(range.min)}–${number.format(range.max)} DA`;
 }
 
 export function formatDeliveryDate(value: string, locale: "ar" | "en" | "fr") {

@@ -103,7 +103,7 @@ _Avoid_: Item return, SKU return
 ### Algerian Specifics
 
 **Wilaya**:
-Algerian province (1–58); decides delivery zones and fees.
+Algerian province (1–69); decides delivery zones and fees.
 _Avoid_: State, region
 
 **Commune**:

@@ -68,7 +68,7 @@ _Avoid_: Shipping discount, free threshold
 
 Terms owned by neighboring contexts — use them, don't redefine them here:
 
-- **Wilaya / Commune reference data** (names, IDs 1–58): `wilayas/`
+- **Wilaya / Commune reference data** (names, IDs 1–69): `wilayas/`
 - **COD Amount composition**: Orders context — this context supplies only the Delivery Fee slice
 - **Driver pay**: `drivers/` Compensation Grid — what the shop charges customers and pays drivers never reconcile
 - **Carrier capabilities and stop desks**: Delivery context — carriers are never priced by profiles

@@ -13,6 +13,7 @@ import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { defineRoute } from "@/lib/route-builder";
 import * as handlers from "./handlers";
 import { wilayaFiltersSchema } from "./validation";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 // ─── Param schema ─────────────────────────────────────────────────────────────
 
@@ -22,7 +23,7 @@ import { wilayaFiltersSchema } from "./validation";
 const wilayaIdParam = z.preprocess(
   (v) =>
     typeof v === "string" && !isNaN(parseInt(v, 10)) ? parseInt(v, 10) : v,
-  z.number().int().min(1).max(58)
+  z.number().int().min(1).max(LAST_WILAYA_ID)
 );
 
 // Throws the same ValidationError the handler throws for bad IDs, so the
@@ -34,7 +35,7 @@ function invalidWilayaIdHook(
 ): undefined {
   if (result.success) return;
   throw new ValidationError(
-    "Invalid wilaya ID — must be an integer between 1 and 58",
+    `Invalid wilaya ID — must be an integer between 1 and ${LAST_WILAYA_ID}`,
     ERROR_CODES.INVALID_FORMAT,
     { wilayaId: c.req.param("id") }
   );

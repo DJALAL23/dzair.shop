@@ -21,6 +21,7 @@ import {
   filterShippingProfiles,
   formatDeliveryDate,
   formatDeliveryMoney,
+  formatPriceRange,
   paginateDrivers,
   paginateShippingProfiles,
   parseDriverRoute,
@@ -100,6 +101,9 @@ describe("delivery model", () => {
     expect(driverErrorMessage(new Error("boom"), t)).toBe("error_generic");
     expect(formatDeliveryMoney(9400, "en")).toBe("9,400 DA");
     expect(formatDeliveryMoney(null, "en")).toBe("-");
+    expect(formatPriceRange({ min: 500, max: 500 }, "en")).toBe("500 DA");
+    expect(formatPriceRange({ min: 500, max: 1050 }, "en")).toBe("500–1,050 DA");
+    expect(formatPriceRange(null, "en")).toBe("-");
     expect(formatDeliveryDate("2026-08-26T00:00:00.000Z", "en")).toBe("8/26/2026");
     expect(formatDeliveryDate("not-a-date", "en")).toBe("-");
   });

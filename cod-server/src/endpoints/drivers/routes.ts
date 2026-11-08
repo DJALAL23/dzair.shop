@@ -19,6 +19,7 @@ import {
   SuccessWithMessageSchema,
   ListResponseSchema,
 } from "@/openapi/schemas";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -39,8 +40,8 @@ const idParams = z.object({
 
 const compensationParams = z.object({
   ...idParams.shape,
-  wilayaId: z.coerce.number().int().min(1).max(58).openapi({
-    description: "Wilaya ID (1–58)",
+  wilayaId: z.coerce.number().int().min(1).max(LAST_WILAYA_ID).openapi({
+    description: `Wilaya ID (1–${LAST_WILAYA_ID})`,
     example: 16,
   }),
 });
@@ -48,8 +49,8 @@ const compensationParams = z.object({
 // ─── Request schemas ──────────────────────────────────────────────────────────
 
 const listQuerySchema = z.object({
-  wilayaId: z.coerce.number().int().min(1).max(58).optional().openapi({
-    description: "Filter to drivers with a configured compensation row for this wilaya (1–58)",
+  wilayaId: z.coerce.number().int().min(1).max(LAST_WILAYA_ID).optional().openapi({
+    description: `Filter to drivers with a configured compensation row for this wilaya (1–${LAST_WILAYA_ID})`,
   }),
   status: z.enum(["available", "busy", "inactive"]).optional().openapi({
     description: "Filter by availability status",
@@ -258,7 +259,7 @@ const listCompensationsRoute = defineRoute({
   tags: ["Drivers"],
   summary: "List driver compensations",
   description:
-    "Returns all 58 wilayas with the driver's configured per-delivery fee. `feePerDelivery` is `null` when no row has been configured for that wilaya (in which case the assigned order's driver fee defaults to 0).",
+    "Returns every wilaya with the driver's configured per-delivery fee. `feePerDelivery` is `null` when no row has been configured for that wilaya (in which case the assigned order's driver fee defaults to 0).",
   operationId: "listDriverCompensations",
   params: idParams,
   responses: {

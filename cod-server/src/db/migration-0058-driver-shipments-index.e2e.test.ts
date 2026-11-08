@@ -33,7 +33,9 @@ afterAll(async () => {
 
 describe("migration 0058", () => {
   it("keeps every shipment as it was", async () => {
-    expect(await all("select * from shipments")).toEqual(before);
+    const columns = Object.keys(before[0] as object);
+    const after = (await all("select * from shipments")).map((row) => Object.fromEntries(columns.map((c) => [c, row[c]])));
+    expect(after).toEqual(before);
   });
 
   it("reads a driver's recent deliveries in order, without a sort", async () => {

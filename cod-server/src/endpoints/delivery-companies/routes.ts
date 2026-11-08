@@ -22,6 +22,9 @@ import { INBOX_RESULTS } from "../../../../cod-shared/inbound/inbox";
 const INBOX_RESULT_FILTERS = [...INBOX_RESULTS, "unmapped"] as const;
 import {
   DeliveryCompanySchema,
+  DeliveryCompanyDetailSchema,
+  CarrierPlacesSummarySchema,
+  WilayaRatesSchema,
   StopDeskSchema,
   SuccessResponseSchema,
   ListResponseSchema,
@@ -156,12 +159,12 @@ const getRoute = defineRoute({
   auth: { scope: SCOPES.DELIVERY_READ },
   tags: ["Delivery Companies"],
   summary: "Get delivery company",
-  description: "Get a single delivery company by ID",
+  description: "Get a single delivery company by ID, with its map of places (where its carrier delivers).",
   params: idParams,
   responses: {
     200: {
       description: "Delivery company details",
-      content: jsonContent(SuccessResponseSchema(DeliveryCompanySchema)),
+      content: jsonContent(SuccessResponseSchema(DeliveryCompanyDetailSchema)),
     },
   },
   handler: handlers.getDeliveryCompany,
@@ -273,7 +276,8 @@ const syncStopDesksRoute = defineRoute({
           data: z.object({
             total: z.number().int().openapi({ description: "Total desks upserted", example: 1359 }),
             removed: z.number().int().openapi({ description: "Stale desks removed", example: 3 }),
-            syncedAt: z.string().datetime(),
+            unplaced: z.number().int().openapi({ description: "Desks whose commune the company's map of places does not hold: kept, but offered under no wilaya", example: 0 }),
+            syncedAt: z.string().datetime().nullable().openapi({ description: "null when the carrier listed no desk: the stored ones are kept" }),
           }),
         })
       ),
@@ -309,46 +313,40 @@ const toggleStopDeskRoute = defineRoute({
   handler: handlers.toggleCompanyStopDesk,
 });
 
-const syncGeoNamesRoute = defineRoute({
+const syncPlacesRoute = defineRoute({
   method: "post",
-  path: "/{id}/sync-geo",
+  path: "/{id}/sync-places",
   auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
-  summary: "Sync carrier geo names",
+  summary: "Read the carrier's places",
   description:
-    "Fetch the carrier's own wilaya/commune name lists and build the per-carrier name map " +
-    "(exact strings the carrier matches parcel addresses against). Yalidine-only for now — " +
-    "carriers that match by name. Response reports matched and unmapped reference rows. " +
- "Dispatch resolves our wilaya/commune IDs through this map before calling the carrier.",
+    "Read the carrier's own list of places again into the company's map — where it delivers, under its own ids and spellings. " +
+    "Connecting a company and an hourly job already do this. A parcel is addressed from this map alone: an order to a commune " +
+    "the map lacks is refused with PLACE_NOT_SERVED, and every order is refused with CARRIER_PLACES_NOT_READ while the list has never been read.",
   params: idParams,
   responses: {
-    200: {
-      description: "Geo names synced",
-      content: jsonContent(
-        z.object({
-          success: z.boolean(),
-          data: z.object({
-            wilayasMatched: z.number().int().openapi({ description: "Wilayas with a carrier string stored", example: 58 }),
-            wilayasUnmapped: z.number().int(),
-            communesMatched: z.number().int().openapi({ description: "Communes with a carrier string stored", example: 1497 }),
-            communesUnmapped: z.number().int(),
-            unmappedCommunes: z.array(z.object({
-              communeId: z.string(),
-              ourName: z.string().openapi({ example: "Aghabal" }),
-            })),
-            unmappedWilayas: z.array(z.object({
-              wilayaId: z.number().int(),
-              ourName: z.string(),
-            })),
-            syncedAt: z.string().datetime(),
-          }),
-        })
-      ),
-    },
-    422: { description: "Company not yalidine-style name-matching or not connected" },
+    200: { description: "The company's map of places, as read now", content: jsonContent(SuccessResponseSchema(CarrierPlacesSummarySchema)) },
+    422: { description: "Company not connected" },
     502: { description: "External API failure" },
   },
-  handler: handlers.syncGeoNames,
+  handler: handlers.syncCompanyPlaces,
+});
+
+const getRatesRoute = defineRoute({
+  method: "get",
+  path: "/{id}/rates",
+  auth: { scope: SCOPES.DELIVERY_READ },
+  tags: ["Delivery Companies"],
+  summary: "Get the company's rates",
+  description:
+    "What the company charges the store for a parcel, by our wilaya, read from its API with its list of places (POST .../sync-places). " +
+    "A shipment freezes the rate for its commune and delivery type, and the return fee, when it is handed off (shippingCost, returnFee).",
+  params: idParams,
+  responses: {
+    200: { description: "Each wilaya the company's map reaches, in wilaya order", content: jsonContent(SuccessResponseSchema(z.array(WilayaRatesSchema))) },
+    404: { description: "Company not found" },
+  },
+  handler: handlers.getCompanyRates,
 });
 
 const testConnectionRoute = defineRoute({
@@ -588,8 +586,11 @@ deliveryCompaniesRouter.openapi(getStopDesksRoute.route, getStopDesksRoute.handl
 // POST /delivery-companies/:id/sync-stop-desks — fetch from carrier API and upsert into DB
 deliveryCompaniesRouter.openapi(syncStopDesksRoute.route, syncStopDesksRoute.handler);
 
-// POST /delivery-companies/:id/sync-geo — build the per-carrier name map
-deliveryCompaniesRouter.openapi(syncGeoNamesRoute.route, syncGeoNamesRoute.handler);
+// POST /delivery-companies/:id/sync-places — read the carrier's list of places into the company's map
+deliveryCompaniesRouter.openapi(syncPlacesRoute.route, syncPlacesRoute.handler);
+
+// GET /delivery-companies/:id/rates — what the company charges, by wilaya, from its map of places
+deliveryCompaniesRouter.openapi(getRatesRoute.route, getRatesRoute.handler);
 
 // POST /delivery-companies/:id/test-connection — verify stored credentials at the carrier
 deliveryCompaniesRouter.openapi(testConnectionRoute.route, testConnectionRoute.handler);

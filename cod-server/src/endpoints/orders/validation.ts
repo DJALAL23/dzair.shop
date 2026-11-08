@@ -10,12 +10,13 @@ import { parseOrderCursor } from "../../../../cod-shared/queries/orders";
 import { ORDER_STAGES, type OrderStage } from "../../../../cod-shared/orders/stage";
 import { SHIPMENT_KINDS } from "../../../../cod-shared/shipments/model";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 export const createOrderSchema = z.object({
   customerId: z.string().min(1),
   customerName: z.string().min(1),
   phone: z.string().regex(/^0[5-7]\d{8}$/, "Invalid Algerian phone number"),
-  wilayaId: z.number().int().min(1).max(58),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID),
   communeId: z.string().min(1, "Commune is required"),
   city: z.string().nullish(),
   /**
@@ -76,7 +77,7 @@ export const updateOrderSchema = z.object({
     .regex(/^0[5-7]\d{8}$/, "Invalid Algerian phone number")
     .optional(),
   customerEmail: editedEmailField(),
-  wilayaId: z.number().int().min(1).max(58).optional(),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).optional(),
   communeId: z.string().min(1, "Commune is required").optional(),
   city: z.string().nullish(),
   address: z.preprocess(
@@ -157,7 +158,7 @@ export const deliveryQuoteSchema = z.object({
     .min(1)
     .max(100),
   subtotal: z.number().min(0),
-  wilayaId: z.number().int().min(1).max(58),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID),
   communeId: z.string().min(1).nullish(),
   deliveryType: z.enum(["home", "stop_desk"]),
 });

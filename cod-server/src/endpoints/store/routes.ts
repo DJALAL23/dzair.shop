@@ -32,6 +32,7 @@ import {
   ProductCategoryRowSchema,
   SuccessResponseSchema,
 } from "@/openapi/schemas";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -156,8 +157,8 @@ const pageDocumentQuerySchema = z.object({
 
 
 const wilayaIdParams = z.object({
-  wilayaId: z.coerce.number().int().min(1).max(58).openapi({
-    description: "Wilaya number (1–58).",
+  wilayaId: z.coerce.number().int().min(1).max(LAST_WILAYA_ID).openapi({
+    description: `Wilaya number (1–${LAST_WILAYA_ID}).`,
     example: 16,
   }),
 });
@@ -448,7 +449,7 @@ const communesRoute = defineRoute({
         })
       ),
     },
-    400: { description: "Invalid wilaya ID — must be 1–58 (VALUE_OUT_OF_RANGE)" },
+    400: { description: `Invalid wilaya ID — must be 1–${LAST_WILAYA_ID} (VALUE_OUT_OF_RANGE)` },
   },
   handler: h.listStoreCommunes,
 });

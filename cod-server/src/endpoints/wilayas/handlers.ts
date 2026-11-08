@@ -11,10 +11,11 @@ import { NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import * as queries from "./queries";
 import * as validation from "./validation";
+import { LAST_WILAYA_ID, isWilayaId } from "../../../../cod-shared/places";
 
 /**
  * GET /wilayas
- * List all 58 Algerian wilayas with optional search.
+ * List Algeria's wilayas, with an optional search.
  */
 export async function listWilayas(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -33,9 +34,9 @@ export async function listCommunes(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const wilayaId = parseInt(c.req.param("id")!, 10);
 
-  if (isNaN(wilayaId) || wilayaId < 1 || wilayaId > 58) {
+  if (!isWilayaId(wilayaId)) {
     throw new ValidationError(
-      "Invalid wilaya ID — must be an integer between 1 and 58",
+      `Invalid wilaya ID — must be an integer between 1 and ${LAST_WILAYA_ID}`,
       ERROR_CODES.INVALID_FORMAT,
       { wilayaId: c.req.param("id") }
     );

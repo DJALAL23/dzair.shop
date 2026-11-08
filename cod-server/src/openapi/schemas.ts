@@ -81,6 +81,9 @@ export {
 
 export {
   DeliveryCompanySchema,
+  DeliveryCompanyDetailSchema,
+  CarrierPlacesSummarySchema,
+  WilayaRatesSchema,
   StopDeskSchema,
   ShippingRuleSchema,
   ShippingProfileWithRulesSchema,

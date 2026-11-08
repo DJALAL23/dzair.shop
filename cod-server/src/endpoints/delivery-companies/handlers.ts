@@ -9,7 +9,7 @@ import { carrierAuthor } from "@/lib/acting";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import { eq, and, lt, sql, desc, asc, count, isNull } from "drizzle-orm";
-import { companyStopDesks, wilayas, webhookEvents, orders, shipments } from "@/db/schema";
+import { companyStopDesks, webhookEvents, orders, shipments } from "@/db/schema";
 import * as queries from "./queries";
 import * as validation from "./validation";
 import { companyView } from "./view";
@@ -23,7 +23,8 @@ import { processInboxEvent } from "@/inbound/process";
 import { requeueInboxEvent } from "../../../../cod-shared/inbound/inbox";
 import { NotFoundError, ValidationError, BusinessLogicError, ConflictError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-import { syncCarrierGeoNames } from "../../../../cod-shared/queries/carrier-geo";
+import { carrierPlacesSummary, carrierRatesByWilaya, syncCarrierPlaces } from "../../../../cod-shared/carriers/places";
+import { storeStopDesks } from "./stop-desks";
 
 /**
  * GET /delivery-companies
@@ -54,8 +55,8 @@ export async function getDeliveryCompany(c: Context<AppContext>) {
   if (!company) {
     throw new NotFoundError("Delivery company", id);
   }
-  
-  return c.json({ success: true, data: companyView(company) }, 200);
+
+  return c.json({ success: true, data: { ...companyView(company), places: await carrierPlacesSummary(db, id) } }, 200);
 }
 
 
@@ -76,23 +77,19 @@ async function assertCredentialsAccepted(company: CarrierCompany, context: { cod
 
 
 /**
- * The carrier's own spellings of our wilayas and communes, so a parcel is
- * addressed the way the carrier checks it. Runs as part of connecting — the
- * merchant has nothing to map — and never blocks it: without a map the
- * reference names are sent, as before.
+ * Read the carrier's list of places into the company's map, as part of
+ * connecting: the merchant has nothing to map. A list that cannot be read
+ * does not undo the connection; the company then has no map, the page says
+ * so, and every hand-off is refused until it is read (never sent under our
+ * own names).
  */
-async function mapCarrierPlaces(db: ReturnType<typeof getDb>, company: CarrierCompany & { code: string }): Promise<void> {
-  if (!company.apiToken?.trim()) return;
-  if (!providerCapabilities(company.provider, parseSettings(company.providerConfig))?.geoNames) return;
+async function readCarrierPlaces(db: ReturnType<typeof getDb>, companyId: string, company: CarrierCompany & { code: string }): Promise<void> {
+  if (!company.apiToken?.trim() || !company.provider) return;
   try {
-    const names = await buildCarrier(company).geoNames!();
-    const result = await syncCarrierGeoNames(db, company.code, names);
-    console.info(
-      `[delivery-companies] place names code=${company.code} ` +
-        `communes=${result.communesMatched}/${result.communesMatched + result.communesUnmapped}`,
-    );
+    const result = await syncCarrierPlaces(db, companyId, await buildCarrier(company).places());
+    console.info(`[delivery-companies] places code=${company.code} communes=${result.communes} home=${result.home} priced=${result.priced} unmatched=${result.unmatched.length}`);
   } catch (error) {
-    console.warn(`[delivery-companies] place names skipped for ${company.code}:`, error instanceof Error ? error.message : error);
+    console.warn(`[delivery-companies] places not read for ${company.code}:`, error instanceof Error ? error.message : error);
   }
 }
 
@@ -144,7 +141,7 @@ export async function createDeliveryCompany(c: Context<AppContext>) {
     throw new BusinessLogicError("Failed to create delivery company", ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
   if (parsed.active) {
-    await mapCarrierPlaces(db, { provider, providerConfig, apiToken: parsed.apiToken ?? null, apiUserGuid: parsed.apiUserGuid ?? null, apiEndpoint: parsed.apiEndpoint ?? null, code: parsed.code });
+    await readCarrierPlaces(db, company.id, { provider, providerConfig, apiToken: parsed.apiToken ?? null, apiUserGuid: parsed.apiUserGuid ?? null, apiEndpoint: parsed.apiEndpoint ?? null, code: parsed.code });
   }
   console.info(`[delivery-companies] created company=${company.id} code=${parsed.code} autoValidate=${autoValidate}`);
   return c.json({ success: true, data: companyView(company) }, 201);
@@ -204,7 +201,7 @@ export async function updateDeliveryCompany(c: Context<AppContext>) {
     throw new NotFoundError("Delivery company", id);
   }
 
-  if (connecting) await mapCarrierPlaces(db, { ...effective, code: company.code });
+  if (connecting) await readCarrierPlaces(db, id, { ...effective, code: company.code });
   console.info(`[delivery-companies] updated company=${id}`);
   return c.json({ success: true, data: companyView(company) }, 200);
 }
@@ -226,107 +223,9 @@ export async function syncCompanyStopDesks(c: Context<AppContext>) {
   requireCapability(carrier.capabilities.stopDeskList, "listing stop desks", context);
   const desks = await callCarrier(context, () => carrier.stopDesks!());
 
-  // An empty list from a carrier that had desks is far likelier an outage
-  // dressed as success than every desk closing at once; deleting on it would
-  // wipe the merchant's desks and their on/off choices.
-  if (desks.length === 0) {
-    console.warn(`[sync-stop-desks] company=${id} code=${company.code}: carrier listed no desks — kept the synced ones`);
-    return c.json({ success: true, data: { total: 0, removed: 0, syncedAt: null } }, 200);
-  }
-
-  const now = new Date().toISOString();
-
-  // ── wilayaId safety net ──────────────────────────────────────────────────
-  // The companyStopDesks.wilayaId FK points at wilayas.id. Carrier APIs
-  // sometimes hand back wilaya numbers we don't have (e.g. ZR pickup-point
-  // territories whose `code` isn't a 1–58 wilaya, or NOEST stop-desk codes
-  // that don't begin with a parseable wilaya prefix). Provider adapters now
-  // return null in those cases, but defend at the boundary too — one bad
-  // row would otherwise abort the whole batch with FK constraint failed.
-  const validWilayaRows = await db.select({ id: wilayas.id }).from(wilayas).all();
-  const validWilayas = new Set(validWilayaRows.map((r) => r.id));
-  const safeWilayaId = (wid: number | null | undefined) =>
-    wid != null && validWilayas.has(wid) ? wid : null;
-
-  // ── Upsert via D1 batch ──────────────────────────────────────────────────
-  // Every desk becomes one `INSERT ... ON CONFLICT DO UPDATE` statement.
-  // D1's native batch() groups them into a single round-trip per chunk,
-  // so a 1,359-desk Packers sync goes from ~10s → ~1s.
-  //
-  // Why not db.transaction()? D1 does not support Drizzle's transaction API
-  // (see feedback_d1_no_transactions memory). batch() is the D1-native
-  // atomic alternative and is fully supported.
-  //
-  // `active` is intentionally NOT in the `set` clause so admin toggles
-  // survive re-syncs. On a brand-new row we default active=true; on an
-  // existing row we leave the admin-chosen value alone.
-  const upsertStatements = desks.map((desk) =>
-    db
-      .insert(companyStopDesks)
-      .values({
-        id: crypto.randomUUID(),
-        companyId: id,
-        code: desk.code,
-        name: desk.name,
-        commune: desk.commune ?? null,
-        wilayaId: safeWilayaId(desk.wilayaId),
-        address: desk.address ?? null,
-        phones: desk.phones ? JSON.stringify(desk.phones) : null,
-        active: true,
-        syncedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [companyStopDesks.companyId, companyStopDesks.code],
-        set: {
-          name: sql`excluded.name`,
-          commune: sql`excluded.commune`,
-          wilayaId: sql`excluded.wilaya_id`,
-          address: sql`excluded.address`,
-          phones: sql`excluded.phones`,
-          syncedAt: sql`excluded.synced_at`,
-        },
-      })
-  );
-
-  const BATCH_SIZE = 50;
-  for (let i = 0; i < upsertStatements.length; i += BATCH_SIZE) {
-    const chunk = upsertStatements.slice(i, i + BATCH_SIZE);
-    // Drizzle's batch() requires a non-empty tuple; skip the call if empty
-    // (unreachable given the outer guard, but keeps TS happy).
-    if (chunk.length > 0) {
-      await db.batch(chunk as [typeof chunk[0], ...typeof chunk]);
-    }
-  }
-
-  // ── Stale-desk cleanup ──────────────────────────────────────────────────
-  // Rows whose syncedAt is older than this run's `now` correspond to desks
-  // the carrier no longer lists (either the desk was removed or its
-  // `has_stop_desk` flag flipped to 0). Hard-delete them: the admin's
-  // `active` toggle was for a row that no longer represents a real desk.
-  //
-  // Edge case accepted: a transient API hiccup that omits a desk would
-  // cause one false removal, re-appearing on the next sync with active=true
-  // (admin toggle lost for that desk). Simpler than a soft-flag column
-  // and matches the mental model "the sync list IS the source of truth".
-  const removedResult = await db
-    .delete(companyStopDesks)
-    .where(
-      and(
-        eq(companyStopDesks.companyId, id),
-        lt(companyStopDesks.syncedAt, now),
-      ),
-    )
-    .returning({ code: companyStopDesks.code });
-
-  const removedCount = removedResult.length;
-
-  console.info(
-    `[sync-stop-desks] company=${id} code=${company.code} total=${desks.length} removed=${removedCount}`,
-  );
-  return c.json({
-    success: true,
-    data: { total: desks.length, removed: removedCount, syncedAt: now },
-  }, 200);
+  const result = await storeStopDesks(db, id, desks);
+  console.info(`[sync-stop-desks] company=${id} code=${company.code} total=${result.total} removed=${result.removed} unplaced=${result.unplaced}`);
+  return c.json({ success: true, data: result }, 200);
 }
 
 /**
@@ -528,13 +427,12 @@ export async function deleteDeliveryCompany(c: Context<AppContext>) {
 }
 
 /**
- * POST /delivery-companies/:id/sync-geo
+ * POST /delivery-companies/:id/sync-places
  *
- * Builds the per-carrier wilaya/commune name map — the exact strings the
- * carrier matches parcel addresses against. Connecting a company already does
- * this; the route refreshes it. Carriers that cannot list their places get 422.
+ * Read the carrier's list of places again into the company's map. Connecting
+ * a company and the hourly job already do it; the route is for now.
  */
-export async function syncGeoNames(c: Context<AppContext>) {
+export async function syncCompanyPlaces(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const { id } = (c.req as any).valid?.("param") ?? { id: c.req.param("id")! };
 
@@ -543,17 +441,22 @@ export async function syncGeoNames(c: Context<AppContext>) {
 
   const context = { companyId: id, code: company.code };
   const carrier = await connectedCarrier(company, context);
-  requireCapability(carrier.capabilities.geoNames, "geo name sync (only carriers that match addresses by name need it)", context);
-  const geoNames = await callCarrier(context, () => carrier.geoNames!());
+  const result = await syncCarrierPlaces(db, id, await callCarrier(context, () => carrier.places()));
+  console.info(`[delivery-companies] places company=${id} code=${company.code} communes=${result.communes} home=${result.home} priced=${result.priced} unmatched=${result.unmatched.length}`);
+  return c.json({ success: true, data: await carrierPlacesSummary(db, id) }, 200);
+}
 
-  const result = await syncCarrierGeoNames(db, company.code, geoNames);
-
-  console.info(
-    `[delivery-companies] geo sync company=${id} code=${company.code} ` +
-    `wilayas=${result.wilayasMatched}/${result.wilayasMatched + result.wilayasUnmapped} ` +
-    `communes=${result.communesMatched}/${result.communesMatched + result.communesUnmapped}`
-  );
-  return c.json({ success: true, data: result }, 200);
+/**
+ * GET /delivery-companies/:id/rates
+ *
+ * What the company charges, by our wilaya, from its map of places.
+ */
+export async function getCompanyRates(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const { id } = (c.req as any).valid?.("param") ?? { id: c.req.param("id")! };
+  const company = await queries.getDeliveryCompanyRaw(db, id);
+  if (!company) throw new NotFoundError("Delivery company", id);
+  return c.json({ success: true, data: await carrierRatesByWilaya(db, id) }, 200);
 }
 
 /**

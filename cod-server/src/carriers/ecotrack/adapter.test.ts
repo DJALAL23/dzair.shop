@@ -24,9 +24,7 @@ const input: CarrierShipmentInput = {
   customerName: "Karim Benali",
   phone: "0551234567",
   address: "Rue 1",
-  wilayaId: 16,
-  wilaya: "Alger",
-  commune: "Alger Centre",
+  destination: { wilaya: { ref: "16", number: 16, name: "Alger" }, commune: { ref: "1601", name: "Alger Centre" } },
   amount: 4500,
   productDescription: "T-shirt (ORD-001)",
   stopDesk: false,
@@ -42,7 +40,7 @@ async function failure(promise: Promise<unknown>): Promise<CarrierError> {
   throw new Error("expected a CarrierError");
 }
 
-const fullDetails = { phone: "0551234567", address: "Rue 2", wilayaId: 16, commune: "Alger Centre", amount: 5000 };
+const fullDetails = { phone: "0551234567", address: "Rue 2", destination: input.destination, amount: 5000 };
 
 /** A time as EcoTrack writes it (Algiers, UTC+1), this far from now. */
 const algiersNow = (offsetMs = 0) => {
@@ -84,13 +82,13 @@ describe("createShipment", () => {
 
   it("always sends an address: a stop-desk parcel without one takes the desk's commune (EcoTrack requires it)", async () => {
     const desk = await carrier().createShipment({ ...input, address: "", stopDesk: true, stationCode: "16001" });
-    await carrier().update!(refOf(desk.carrierParcelId), { customerName: "K", phone: "0551234567", address: "  ", wilayaId: 16, commune: "Ain Benian", amount: 1000 });
+    await carrier().update!(refOf(desk.carrierParcelId), { customerName: "K", phone: "0551234567", address: "  ", destination: { wilaya: { ref: "16", number: 16, name: "Alger" }, commune: { ref: "1623", name: "Ain Benian" } }, amount: 1000 });
     expect(server.callsFor("/api/v1/create/order")[0].searchParams.get("adresse")).toBe("Alger Centre");
     expect(server.callsFor("/api/v1/update/order")[0].searchParams.get("adresse")).toBe("Ain Benian");
   });
 
   it("a wilaya the company does not serve is rejected with EcoTrack's code", async () => {
-    const error = await failure(carrier().createShipment({ ...input, wilayaId: 12 }));
+    const error = await failure(carrier().createShipment({ ...input, destination: { wilaya: { ref: "12", number: 12, name: "Tébessa" }, commune: { ref: "1201", name: "Tébessa" } } }));
     expect(error.kind).toBe("rejected");
     expect(error.carrierCode).toBe("10002");
   });
@@ -216,28 +214,56 @@ describe("label, desks, connection", () => {
   });
 });
 
-describe("place names", () => {
-  it("gives EcoTrack's own wilaya and commune spellings, each commune in its wilaya", async () => {
-    const names = await carrier().geoNames!();
-    expect(names.wilayas.length).toBeGreaterThan(0);
-    expect(names.wilayas[0]).toEqual({ id: expect.any(Number), name: expect.any(String) });
-    expect(names.communes.length).toBeGreaterThan(0);
-    for (const c of names.communes) expect(c).toEqual({ id: expect.any(Number), name: expect.any(String), wilayaId: expect.any(Number) });
-    expect(new Set(names.communes.map((c) => c.id)).size).toBe(names.communes.length);
-    expect(carrier().capabilities.geoNames).toBe(true);
+describe("places", () => {
+  it("lists each commune under its wilaya number, by EcoTrack's own spelling and code", async () => {
+    const places = await carrier().places();
+    expect(places.length).toBeGreaterThan(0);
+    for (const p of places) {
+      expect(p).toEqual({
+        wilaya: { ref: String(p.wilaya.number), number: expect.any(Number), name: expect.any(String) },
+        commune: { ref: expect.any(String), name: expect.any(String) },
+        home: expect.any(Boolean),
+        rate: { home: expect.toBeOneOf([expect.any(Number), null]), stopDesk: expect.toBeOneOf([expect.any(Number), null]), homeReturn: expect.toBeOneOf([expect.any(Number), null]), stopDeskReturn: expect.toBeOneOf([expect.any(Number), null]) },
+      });
+    }
   });
-});
 
-describe("place names — deactivated communes", () => {
-  it("does not offer a commune the company has deactivated: EcoTrack refuses it", async () => {
+  it("does not deliver to a commune the company switched off, or one in a wilaya it does not serve", async () => {
+    server.override("/api/v1/get/wilayas", () => Response.json([{ wilaya_id: 16, wilaya_name: "Alger" }]));
     server.override("/api/v1/get/communes", () =>
       Response.json({
         0: { nom: "Alger Centre", wilaya_id: 16, code_postal: "1601", has_stop_desk: 0, is_active: 1 },
         1: { nom: "Sleeping", wilaya_id: 16, code_postal: "1699", has_stop_desk: 0, is_active: 0 },
+        2: { nom: "Tébessa", wilaya_id: 12, code_postal: "1201", has_stop_desk: 0, is_active: 1 },
       }),
     );
-    const names = await carrier().geoNames!();
-    expect(names.communes.map((c) => c.name)).toEqual(["Alger Centre"]);
+    expect((await carrier().places()).map((p) => [p.wilaya.ref, p.wilaya.number, p.wilaya.name, p.commune.ref, p.commune.name, p.home])).toEqual([
+      ["16", 16, "Alger", "1601", "Alger Centre", true],
+      ["16", 16, "Alger", "1699", "Sleeping", false],
+      ["12", 12, "12", "1201", "Tébessa", false],
+    ]);
+  });
+
+  it("prices each commune at the account's tariff for its wilaya: delivery and the return (retours) by how it is sent, no stop desk where EcoTrack writes 0", async () => {
+    server.override("/api/v1/get/wilayas", () => Response.json([{ wilaya_id: 16, wilaya_name: "Alger" }, { wilaya_id: 12, wilaya_name: "Tébessa" }]));
+    server.override("/api/v1/get/communes", () =>
+      Response.json({
+        0: { nom: "Alger Centre", wilaya_id: 16, code_postal: "1601", has_stop_desk: 1, is_active: 1 },
+        1: { nom: "Tébessa", wilaya_id: 12, code_postal: "1201", has_stop_desk: 0, is_active: 1 },
+        2: { nom: "Djanet", wilaya_id: 56, code_postal: "5601", has_stop_desk: 0, is_active: 1 },
+      }),
+    );
+    server.override("/api/v1/get/fees", () =>
+      Response.json({
+        livraison: [{ wilaya_id: 16, tarif: "650", tarif_stopdesk: "400" }, { wilaya_id: 12, tarif: "900", tarif_stopdesk: "0" }],
+        pickup: [{ wilaya_id: 16, tarif: "650", tarif_stopdesk: "400" }],
+        retours: [{ wilaya_id: 16, tarif: "200", tarif_stopdesk: "150" }, { wilaya_id: 12, tarif: "250", tarif_stopdesk: "250" }],
+      }),
+    );
+    const rates = Object.fromEntries((await carrier().places()).map((p) => [p.commune.name, p.rate]));
+    expect(rates["Alger Centre"]).toEqual({ home: 650, stopDesk: 400, homeReturn: 200, stopDeskReturn: 150 });
+    expect(rates["Tébessa"]).toEqual({ home: 900, stopDesk: null, homeReturn: 250, stopDeskReturn: 250 });
+    expect(rates["Djanet"]).toEqual({ home: null, stopDesk: null, homeReturn: null, stopDeskReturn: null });
   });
 });
 
@@ -260,7 +286,7 @@ describe("failures", () => {
 
 describe("createShipments", () => {
   it("sends one indexed body and reads results by our reference", async () => {
-    const items = await carrier().createShipments!([input, { ...input, reference: "ORD-2", wilayaId: 12 }]);
+    const items = await carrier().createShipments!([input, { ...input, reference: "ORD-2", destination: { wilaya: { ref: "12", number: 12, name: "Tébessa" }, commune: { ref: "1201", name: "Tébessa" } } }]);
     expect(server.callsFor("/api/v1/create/orders")).toHaveLength(1);
     expect(items[0]).toMatchObject({ reference: "ORD-001", ok: true });
     expect(items[1]).toMatchObject({ reference: "ORD-2", ok: false });

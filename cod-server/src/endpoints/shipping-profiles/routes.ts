@@ -20,6 +20,7 @@ import {
   SuccessResponseSchema,
   ListResponseSchema,
 } from "@/openapi/schemas";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -33,8 +34,8 @@ const idParams = z.object({
 
 const ruleParams = z.object({
   ...idParams.shape,
-  wilayaId: z.coerce.number().int().min(1).max(58).openapi({
-    description: "Wilaya ID (1–58)",
+  wilayaId: z.coerce.number().int().min(1).max(LAST_WILAYA_ID).openapi({
+    description: `Wilaya ID (1–${LAST_WILAYA_ID})`,
     example: 16,
   }),
 });
@@ -61,7 +62,7 @@ const updateBodySchema = z.object({
 const setRulesBodySchema = z.object({
   rules: z.array(
     z.object({
-      wilayaId: z.number().int().min(1).max(58),
+      wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID),
       homePrice: z.number().min(0).default(0),
       stopDeskPrice: z.number().min(0).default(0),
       homeEnabled: z.boolean().default(true).optional(),

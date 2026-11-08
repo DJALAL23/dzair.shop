@@ -4,6 +4,7 @@
 
 import { z } from "@hono/zod-openapi";
 import { DRIVER_STATUSES } from "../../../../cod-shared/shipments/merchant-reports";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 const parcelChoices = {
   deliveryType: z.enum(["home", "stop_desk"]).optional().openapi({
@@ -68,7 +69,7 @@ export const updateParcelSchema = z.object({
   customerName: z.string().trim().min(1).optional(),
   phone: z.string().trim().min(9).optional(),
   address: z.string().trim().optional(),
-  wilayaId: z.number().int().min(1).max(58).optional(),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).optional(),
   communeId: z.string().min(1).optional(),
   amount: z.number().nonnegative().optional().openapi({ description: "The cash to collect" }),
   weight: z.number().positive().optional(),

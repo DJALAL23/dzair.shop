@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { CarrierError, type CarrierAdapter, type CarrierShipmentInput } from "../contract";
-import { YalidineCarrier, yalidineConfigSchema, yalidineWebhook } from "./adapter";
+import { FEES_CALL_SPACING_MS, YalidineCarrier, yalidineConfigSchema, yalidineWebhook } from "./adapter";
 import { interpretYalidine } from "./interpret";
 
 const realFetch = globalThis.fetch;
@@ -16,6 +16,7 @@ afterEach(() => {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 const carrier = (config: Record<string, unknown> = {}): CarrierAdapter =>
   new YalidineCarrier({ apiId: "yal-id", apiToken: "yal-token" }, yalidineConfigSchema.parse(config));
+const urls = () => fetchMock.mock.calls.map(([url]) => String(url));
 const call = (i = 0) => {
   const [url, init] = fetchMock.mock.calls[i] as [string, RequestInit];
   return { url, init, body: init.body ? JSON.parse(String(init.body)) : undefined };
@@ -26,9 +27,7 @@ const input: CarrierShipmentInput = {
   customerName: "Karim Ben Ali",
   phone: "0551234567",
   address: "Rue 1",
-  wilayaId: 16,
-  wilaya: "Alger",
-  commune: "Bordj El Kiffan",
+  destination: { wilaya: { ref: "16", number: 16, name: "Alger" }, commune: { ref: "1630", name: "Bordj El Kiffan" } },
   amount: 4500.4,
   productDescription: "T-shirt (ORD-001)",
   stopDesk: false,
@@ -137,8 +136,7 @@ describe("update", () => {
       customerName: "Amina Kaci",
       phone: "0550000000",
       address: "Cité 5",
-      wilaya: "Oran",
-      commune: "Bir El Djir",
+      destination: { wilaya: { ref: "31", number: 31, name: "Oran" }, commune: { ref: "3104", name: "Bir El Djir" } },
       amount: 3000,
       weight: 2,
     });
@@ -263,11 +261,11 @@ describe("label", () => {
 
 describe("stop desks and geo names", () => {
   it("lists every center across pages, with its commune and wilaya", async () => {
-    fetchMock.mockResolvedValueOnce(json({ has_more: true, total_data: 2, data: [{ center_id: 10101, name: "Centre de Adrar", address: "Cité", commune_name: "Adrar", wilaya_id: 1 }] }));
-    fetchMock.mockResolvedValueOnce(json({ has_more: false, total_data: 2, data: [{ center_id: 163001, name: "Bordj El Kiffan", address: "", commune_name: "Bordj El Kiffan", wilaya_id: 16 }] }));
+    fetchMock.mockResolvedValueOnce(json({ has_more: true, total_data: 2, data: [{ center_id: 10101, name: "Centre de Adrar", address: "Cité", commune_id: 101, commune_name: "Adrar", wilaya_id: 1 }] }));
+    fetchMock.mockResolvedValueOnce(json({ has_more: false, total_data: 2, data: [{ center_id: 163001, name: "Bordj El Kiffan", address: "", commune_id: 1630, commune_name: "Bordj El Kiffan", wilaya_id: 16 }] }));
     expect(await carrier().stopDesks!()).toEqual([
-      { code: "10101", name: "Centre de Adrar", commune: "Adrar", address: "Cité", phones: [], wilayaId: 1 },
-      { code: "163001", name: "Bordj El Kiffan", commune: "Bordj El Kiffan", address: null, phones: [], wilayaId: 16 },
+      { code: "10101", name: "Centre de Adrar", commune: "Adrar", communeRef: "101", address: "Cité", phones: [], wilayaNumber: 1 },
+      { code: "163001", name: "Bordj El Kiffan", commune: "Bordj El Kiffan", communeRef: "1630", address: null, phones: [], wilayaNumber: 16 },
     ]);
   });
 
@@ -278,10 +276,72 @@ describe("stop desks and geo names", () => {
     expect(error.message).toContain("API ID and/or Token are wrong");
   });
 
-  it("reads wilaya and commune names", async () => {
-    fetchMock.mockResolvedValueOnce(json({ has_more: false, data: [{ id: 16, name: "Alger" }] }));
-    fetchMock.mockResolvedValueOnce(json({ has_more: false, data: [{ id: 1630, name: "Bordj El Kiffan", wilaya_id: 16 }] }));
-    expect(await carrier().geoNames!()).toEqual({ wilayas: [{ id: 16, name: "Alger" }], communes: [{ id: 1630, name: "Bordj El Kiffan", wilayaId: 16 }] });
+  const yalidine = (fees: (to: number) => unknown) =>
+    fetchMock.mockImplementation(async (url: string) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith("/wilayas/")) return json({ has_more: false, data: [{ id: 16, name: "Alger", is_deliverable: 1 }, { id: 33, name: "Illizi", is_deliverable: 0 }, { id: 3, name: "Laghouat", is_deliverable: 1 }] });
+      if (u.pathname.endsWith("/fees/")) return json(fees(Number(u.searchParams.get("to_wilaya_id"))));
+      return u.searchParams.get("page") === "1"
+        ? json({ has_more: true, data: [{ id: 1630, name: "Bordj El Kiffan", wilaya_id: 16, is_deliverable: 1 }, { id: 1631, name: "Rouiba", wilaya_id: 16, is_deliverable: 0 }] })
+        : json({ has_more: false, data: [{ id: 3301, name: "Illizi", wilaya_id: 33, is_deliverable: 1 }, { id: 319, name: "Aflou", wilaya_id: 3, is_deliverable: 1 }] });
+    });
+  const FEES: Record<number, unknown> = {
+    16: { retour_fee: 150, per_commune: { 1630: { commune_id: 1630, express_home: 450, express_desk: 300 }, 1631: { commune_id: 1631, express_home: 500, express_desk: null } } },
+    3: { retour_fee: 0, per_commune: { 319: { commune_id: 319, express_home: 1050, express_desk: 1000 } } },
+  };
+
+  it("lists its communes under its wilayas, delivered to only where both are deliverable", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    yalidine((to) => FEES[to]);
+    const reading = carrier().places();
+    await vi.runAllTimersAsync();
+    const places = await reading;
+    vi.useRealTimers();
+    expect(places.map((p) => [p.wilaya.ref, p.wilaya.number, p.commune.ref, p.commune.name, p.home])).toEqual([
+      ["16", 16, "1630", "Bordj El Kiffan", true],
+      ["16", 16, "1631", "Rouiba", false],
+      ["33", 33, "3301", "Illizi", false],
+      ["3", 3, "319", "Aflou", true],
+    ]);
+    expect(urls().some((u) => u.includes("/communes/?page_size=1000&page=2"))).toBe(true);
+  });
+
+  it("prices each commune at the account's express rate from the sender's wilaya, its return at the zone's fee (0 is free), and leaves one Yalidine does not price unpriced", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    yalidine((to) => FEES[to]);
+    const reading = carrier().places();
+    await vi.runAllTimersAsync();
+    const rates = Object.fromEntries((await reading).map((p) => [p.commune.name, p.rate]));
+    vi.useRealTimers();
+    expect(rates["Bordj El Kiffan"]).toEqual({ home: 450, stopDesk: 300, homeReturn: 150, stopDeskReturn: 150 });
+    expect(rates["Rouiba"]).toEqual({ home: 500, stopDesk: null, homeReturn: 150, stopDeskReturn: 150 });
+    expect(rates["Aflou"]).toEqual({ home: 1050, stopDesk: 1000, homeReturn: 0, stopDeskReturn: 0 });
+    expect(rates["Illizi"]).toEqual({ home: null, stopDesk: null, homeReturn: null, stopDeskReturn: null });
+    const fees = urls().filter((u) => u.includes("/fees/"));
+    expect(fees).toEqual([expect.stringContaining("from_wilaya_id=16&to_wilaya_id=16"), expect.stringContaining("from_wilaya_id=16&to_wilaya_id=3")]);
+  });
+
+  it("spaces its fees calls under Yalidine's 50 a minute", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    yalidine((to) => FEES[to]);
+    const reading = carrier().places();
+    const feesCalls = () => urls().filter((u) => u.includes("/fees/")).length;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(feesCalls()).toBe(1);
+    await vi.advanceTimersByTimeAsync(FEES_CALL_SPACING_MS - 1);
+    expect(feesCalls()).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(feesCalls()).toBe(2);
+    await reading;
+    vi.useRealTimers();
+    expect(60_000 / FEES_CALL_SPACING_MS).toBeLessThanOrEqual(48);
+  });
+
+  it("refuses to read prices from a sender's wilaya Yalidine does not have", async () => {
+    yalidine((to) => FEES[to]);
+    const error = await failure(carrier({ fromWilayaName: "Atlantis" }).places());
+    expect(error.kind).toBe("misconfigured");
+    expect(error.message).toContain("Atlantis");
   });
 });
 

@@ -38,6 +38,7 @@ import abandonedOrdersRouter from "@/endpoints/abandoned-orders/routes";
 import storeAbandonedRouter from "@/endpoints/abandoned-orders/store-routes";
 import storeApiRouter from "@/endpoints/store/routes";
 import analyticsRouter from "@/endpoints/analytics/routes";
+import { LAST_WILAYA_ID } from "../../../cod-shared/places";
 
 function buildApp() {
   const app = new OpenAPIHono<AppContext>();
@@ -114,7 +115,7 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(communes.parameters[0].required).toBe(true);
     expect(communes.parameters[0].schema.type).toBe("integer");
     expect(communes.parameters[0].schema.minimum).toBe(1);
-    expect(communes.parameters[0].schema.maximum).toBe(58);
+    expect(communes.parameters[0].schema.maximum).toBe(LAST_WILAYA_ID);
   });
 
   it("documents the migrated activity-logs endpoints from Zod schemas", async () => {

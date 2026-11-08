@@ -9,5 +9,4 @@ export interface Commune {
   wilayaId: number;
   name: string;
   nameAr: string;
-  postalCode: string | null;
 }

@@ -3,6 +3,7 @@
  */
 
 import { z } from "zod";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 export const createProfileSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -17,7 +18,7 @@ export const updateProfileSchema = z.object({
 });
 
 const ruleEntrySchema = z.object({
-  wilayaId: z.number().int().min(1).max(58),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID),
   homePrice: z.number().min(0).default(0),
   stopDeskPrice: z.number().min(0).default(0),
   homeEnabled: z.boolean().optional().default(true),

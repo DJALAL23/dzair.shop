@@ -5,13 +5,15 @@
  * live-verified 2026-09-10):
  *   - A parcel's stable id is its UUID; the tracking number can change
  *     (`oldTrackingNumber`), so CodFlow addresses parcels by UUID.
- *   - Creating a parcel takes a ZR customer, the city and district territories
- *     (accent-free names; search is accent-sensitive), and for a pickup point a
- *     real hub id. A single create answers only the UUID; the tracking number
- *     is read back separately and may come later.
+ *   - Creating a parcel takes a ZR customer, the city (wilaya) and district
+ *     (commune) territory ids — read from the company's map of places, built
+ *     from ZR's own territory list — and, for a pickup point, a real hub id.
+ *     A single create answers only the UUID; the tracking number is read back
+ *     separately and may come later.
  *   - No validation step. Deletion is `DELETE /parcels/bulk/by-tracking-number`.
  *   - State history is per parcel and needs the UUID.
- *   - Four wilayas (33, 37, 50, 56) have no ZR territory at all.
+ *   - ZR's territories are the 2019 map (communes moved in 2026 are under the
+ *     wilaya they left). Four wilayas (33, 37, 50, 56) have no territory.
  *   - Updates arrive by Svix webhook; states are per-tenant (see interpret.ts).
  */
 
@@ -38,8 +40,8 @@ import { createCarrierHttp, flattenErrorBag, type CarrierHttp } from "../http";
 import { carrierInstant } from "../time";
 import { ZR_MAPPABLE_MEANINGS, zrInterpreter } from "./interpret";
 import { verifySvixSignature } from "./signature";
-import { stripAccents } from "./text";
-import type { CarrierConnectionCheck } from "../contract";
+import type { CarrierConnectionCheck, CarrierPlace, CarrierRate } from "../contract";
+import { NO_RATE, amount, deliveryPrice } from "../price";
 import type {
   ZrCreateBulkParcelsResponse,
   ZrCreateCustomerResponse,
@@ -50,7 +52,7 @@ import type {
   ZrHubItem,
   ZrPagedListHubs,
   ZrPagedListTerritories,
-  ZrSearchTerritoriesRequest,
+  ZrRatesResponse,
   ZrSingleParcelCreationRequest,
   ZrStateHistoryResponse,
   ZrTerritoryItem,
@@ -93,7 +95,6 @@ export const ZR_CAPABILITIES: CarrierCapabilities = {
   requestNewAttempt: false,
   confirmReturn: false,
   stopDeskList: true,
-  geoNames: false,
   verifyConnection: true,
 };
 
@@ -135,10 +136,7 @@ export class ZrExpressCarrier implements CarrierAdapter {
   readonly capabilities = ZR_CAPABILITIES;
   readonly interpret: (status: CarrierStatus) => Interpretation;
   private readonly http: CarrierHttp;
-  private readonly cities = new Map<number, ZrTerritoryItem>();
-  private readonly districts = new Map<string, ZrTerritoryItem>();
   private hubs: ZrHubItem[] | null = null;
-  private wilayaByTerritory: Map<string, number> | null = null;
 
   constructor(credentials: ZrCredentials, config: ZrConfig) {
     this.interpret = zrInterpreter(config.statusMap);
@@ -157,55 +155,50 @@ export class ZrExpressCarrier implements CarrierAdapter {
 
   // ─── Territories and hubs ───────────────────────────────────────────────────
 
-  private async searchTerritories(keyword: string, extra: Partial<ZrSearchTerritoriesRequest> = {}): Promise<ZrTerritoryItem[]> {
-    const res = await this.http.read<ZrPagedListTerritories>("POST", "/territories/search", {
-      keyword,
-      pageSize: 50,
-      pageNumber: 1,
-      ...extra,
-    });
-    return res.items ?? [];
-  }
-
-  /** The city (wilaya) territory: by accent-free name, then by number (live: 51/58 by name). */
-  private async city(wilayaId: number, wilayaName: string): Promise<ZrTerritoryItem> {
-    const cached = this.cities.get(wilayaId);
-    if (cached) return cached;
-    const isTarget = (t: ZrTerritoryItem) => t.code === wilayaId && t.level === "wilaya";
-    const found =
-      (await this.searchTerritories(stripAccents(wilayaName))).find(isTarget) ??
-      (await this.searchTerritories(String(wilayaId), { pageSize: 200 })).find(isTarget);
-    if (!found) {
-      throw new CarrierError(
-        "zr_express",
-        "rejected",
-        `ZR Express does not serve wilaya ${wilayaId} ("${wilayaName}") — unserved: 33 Illizi, 37 Tindouf, 50 Bordj Badji Mokhtar, 56 Djanet`,
-      );
+  /**
+   * Every commune territory, under the wilaya territory ZR files it in, with
+   * the tenant's effective prices: a commune's own when ZR sets one, its
+   * wilaya's otherwise (ZR's rates list both levels).
+   */
+  async places(): Promise<CarrierPlace[]> {
+    const [territories, prices] = await Promise.all([this.territories(), this.rates()]);
+    const wilayas = new Map(territories.filter((t) => t.level === "wilaya").map((t) => [t.id, t]));
+    const places: CarrierPlace[] = [];
+    for (const t of territories) {
+      const wilaya = t.level === "commune" && t.parentId ? wilayas.get(t.parentId) : undefined;
+      if (!wilaya || !t.name || !wilaya.name) continue;
+      places.push({
+        wilaya: { ref: wilaya.id, number: wilaya.code, name: wilaya.name },
+        commune: { ref: t.id, name: t.name },
+        home: t.delivery?.hasHomeDelivery === true,
+        rate: prices.get(t.id) ?? prices.get(wilaya.id) ?? NO_RATE,
+      });
     }
-    this.cities.set(wilayaId, found);
-    return found;
+    return places;
   }
 
-  /** The commune territory inside that city — never an arbitrary first result. */
-  private async district(communeName: string, city: ZrTerritoryItem): Promise<ZrTerritoryItem> {
-    const key = `${city.id}|${stripAccents(communeName).toLowerCase().trim()}`;
-    const cached = this.districts.get(key);
-    if (cached) return cached;
-    const found = await this.findDistrict(communeName, city);
-    this.districts.set(key, found);
-    return found;
-  }
-
-  private async findDistrict(communeName: string, city: ZrTerritoryItem): Promise<ZrTerritoryItem> {
-    const communes = (await this.searchTerritories(stripAccents(communeName))).filter((t) => t.level === "commune");
-    const needle = stripAccents(communeName).toLowerCase();
-    const found =
-      communes.find((t) => t.parentId === city.id) ??
-      communes.find((t) => stripAccents(t.name ?? "").toLowerCase() === needle);
-    if (!found) {
-      throw new CarrierError("zr_express", "rejected", `ZR Express has no commune "${communeName}" in ${city.name ?? city.id}`);
+  private async rates(): Promise<Map<string, CarrierRate>> {
+    const res = await this.http.read<ZrRatesResponse>("GET", "/delivery-pricing/rates");
+    const out = new Map<string, CarrierRate>();
+    for (const r of res.rates ?? []) {
+      const of = (type: string) => {
+        const p = r.deliveryPrices.find((d) => d.deliveryType === type);
+        return p ? (p.discountedPrice ?? p.price) : null;
+      };
+      const returnFee = amount(of("return"));
+      out.set(r.toTerritoryId, { home: deliveryPrice(of("home")), stopDesk: deliveryPrice(of("pickup-point")), homeReturn: returnFee, stopDeskReturn: returnFee });
     }
-    return found;
+    return out;
+  }
+
+  private async territories(): Promise<ZrTerritoryItem[]> {
+    const territories: ZrTerritoryItem[] = [];
+    for (let page = 1; page <= 10; page++) {
+      const res = await this.http.read<ZrPagedListTerritories>("POST", "/territories/search", { keyword: "", pageSize: 1000, pageNumber: page });
+      territories.push(...(res.items ?? []));
+      if ((res.items ?? []).length === 0 || page >= (res.totalPages ?? 1)) break;
+    }
+    return territories;
   }
 
   private async loadHubs(): Promise<ZrHubItem[]> {
@@ -247,9 +240,8 @@ export class ZrExpressCarrier implements CarrierAdapter {
         throw new CarrierError("zr_express", "rejected", `ZR Express hub ${hub.id} has no city/district territory`);
       }
     } else {
-      const city = await this.city(input.wilayaId, input.wilaya);
-      cityTerritoryId = city.id;
-      districtTerritoryId = (await this.district(input.commune, city)).id;
+      cityTerritoryId = input.destination.wilaya.ref;
+      districtTerritoryId = input.destination.commune.ref;
     }
     const customer = await this.http.write<ZrCreateCustomerResponse>("POST", "/customers/individual", { name: input.customerName, phone });
     if (!customer.id) throw new CarrierError("zr_express", "rejected", "ZR Express created no customer");
@@ -351,21 +343,15 @@ export class ZrExpressCarrier implements CarrierAdapter {
     }
 
     const address = current.deliveryAddress ?? {};
-    const moveTerritory =
-      (patch.wilayaId !== undefined && patch.wilayaId !== address.cityTerritoryCode) ||
-      (patch.commune !== undefined && patch.commune !== address.district);
+    const moveTerritory = patch.destination !== undefined && patch.destination.commune.ref !== address.districtTerritoryId;
     const moveStreet = patch.address !== undefined && patch.address !== (address.street ?? "");
     if (!moveTerritory && !moveStreet) return;
 
     let cityTerritoryId = address.cityTerritoryId ?? undefined;
     let districtTerritoryId = address.districtTerritoryId ?? undefined;
     if (moveTerritory) {
-      if (patch.wilayaId === undefined || patch.commune === undefined) {
-        throw new CarrierError("zr_express", "rejected", "ZR Express needs both the wilaya and the commune to move a parcel");
-      }
-      const city = await this.city(patch.wilayaId, patch.wilaya ?? String(patch.wilayaId));
-      cityTerritoryId = city.id;
-      districtTerritoryId = (await this.district(patch.commune, city)).id;
+      cityTerritoryId = patch.destination!.wilaya.ref;
+      districtTerritoryId = patch.destination!.commune.ref;
     }
     const body: ZrUpdateDeliveryAddressRequest = {
       parcelId: id,
@@ -434,31 +420,20 @@ export class ZrExpressCarrier implements CarrierAdapter {
     return { kind: "url", url };
   }
 
-  /** ZR stop desks are hubs marked as pickup points; their wilaya comes from the city territory. */
+  /** ZR stop desks are hubs marked as pickup points; a hub's commune is its district territory, as the map of places has it. */
   async stopDesks(): Promise<CarrierStopDesk[]> {
-    const [hubs, wilayas] = await Promise.all([this.loadHubs(), this.wilayaCodes()]);
+    const hubs = await this.loadHubs();
     return hubs
       .filter((h) => h.isPickupPoint)
       .map((h) => ({
         code: h.id,
         name: h.name ?? h.id,
         commune: null,
+        communeRef: h.address?.districtTerritoryId ?? null,
         address: null,
         phones: [],
-        wilayaId: h.address?.cityTerritoryId ? wilayas.get(h.address.cityTerritoryId) ?? null : null,
+        wilayaNumber: null,
       }));
-  }
-
-  private async wilayaCodes(): Promise<Map<string, number>> {
-    if (this.wilayaByTerritory) return this.wilayaByTerritory;
-    const map = new Map<string, number>();
-    for (let page = 1; page <= 5; page++) {
-      const res = await this.http.read<ZrPagedListTerritories>("POST", "/territories/search", { keyword: "", pageSize: 1000, pageNumber: page });
-      for (const t of res.items ?? []) if (t.level === "wilaya" && typeof t.code === "number") map.set(t.id, t.code);
-      if ((res.items ?? []).length === 0 || page >= (res.totalPages ?? 1)) break;
-    }
-    this.wilayaByTerritory = map;
-    return map;
   }
 
   /**

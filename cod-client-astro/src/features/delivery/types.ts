@@ -107,6 +107,33 @@ export interface DriverFormValues {
 // ─── Delivery Company Types ───────────────────────────────────────────────────
 
 /** Third-party delivery company (Yalidine, NOEST, ZR Express, etc.). */
+/** A delivery company's map of places — where it delivers, from its own list (GET /api/delivery-companies/:id). */
+export interface CarrierPlacesSummary {
+  /** null: the list has never been read, and no order can be handed to the company. */
+  syncedAt: string | null;
+  communes: number;
+  home: number;
+  /** Of its communes, the ones it gives a price for. */
+  priced: number;
+  total: number;
+  unmatched: Array<{ wilaya: string; commune: string }>;
+}
+
+/** The lowest and highest price among a wilaya's communes (DZD); equal when one price covers them. */
+export interface PriceRange {
+  min: number;
+  max: number;
+}
+
+/** What a delivery company charges the store for a parcel to one of our wilayas: its cost, never the customer's price. */
+export interface WilayaRates {
+  wilayaId: number;
+  communes: number;
+  home: PriceRange | null;
+  stopDesk: PriceRange | null;
+  returnFee: PriceRange | null;
+}
+
 export interface DeliveryCompany {
   id: string;
   name: string;
@@ -236,7 +263,6 @@ export interface CommuneOverride {
   communeId: string;
   communeName: string;
   communeNameAr: string;
-  postalCode: string | null;
   homeEnabled: boolean | null;
   stopDeskEnabled: boolean | null;
   homePrice: number | null;

@@ -14,7 +14,6 @@ const FN_MOHAMED = "575e500ddb529cc2e5b14dd6e7feb389a8b6e0d7c2b162b6bf31831c64d2
 const LN_BENALI = "cbf639d625d373b0cb767a553cd1a5e6c72a0224080f8187913d3067370db914";
 const FN_ARABIC = "0cb4c9b21062de4d2c0edd48efc9fa86b97fdc8a6a4e7fa7092544f84e121f61";
 const EXT_CUST123 = "fc3ce5a6986e1e0556c777fcaa0dfb75642361b8f7332c672a3799aa0e709127";
-const ZP_16000 = "2570901c76653e578fecf066b5fc3fa1619f1a051e928e39797bab1b1342bf40";
 const COUNTRY_DZ = "2a92270185a50d8020949f2cfb2125d1af1c2bd3dd92eada9210fcdb5c4310bf";
 const EM_SHOPPER = "a85e9ca18f34935ab9b0381b25bfad2455444112b0149270fd88e3da172fe196";
 
@@ -242,15 +241,15 @@ describe("sendCapiEvent — user_data hashing and normalisation", () => {
     expect(capturedAr.body.data[0].user_data.fn).toBe(FN_ARABIC);
   });
 
-  it("hashes external_id and postal code", async () => {
+  it("hashes external_id", async () => {
     const captured = stubFetch(metaOk);
     await sendCapiEvent(PIXEL, TOKEN, {
       ...basePayload(),
-      userData: { phone: "0555123456", externalId: "cust-123", postalCode: "16000" },
+      userData: { phone: "0555123456", externalId: "cust-123" },
     });
     const ud = captured.body.data[0].user_data;
     expect(ud.external_id).toBe(EXT_CUST123);
-    expect(ud.zp).toBe(ZP_16000);
+    expect(ud.zp).toBeUndefined();
   });
 
   it("omits optional user_data keys entirely when absent", async () => {

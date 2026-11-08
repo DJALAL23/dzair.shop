@@ -1,6 +1,6 @@
 ---
 name: customer-management
-description: Manage customer records in the COD CRM system. Use this skill when users want to search for customers, create new customer profiles, update customer information, look up customers by phone number, view customer order history, check customer groups and tags, or delete customer records. Also use when users mention Algerian phone numbers, wilayas (1-58), customer data, CRM operations, or need to find/modify customer information.
+description: Manage customer records in the COD CRM system. Use this skill when users want to search for customers, create new customer profiles, update customer information, look up customers by phone number, view customer order history, check customer groups and tags, or delete customer records. Also use when users mention Algerian phone numbers, wilayas (1–69), customer data, CRM operations, or need to find/modify customer information.
 ---
 
 # Customer Management Skill
@@ -24,13 +24,13 @@ Use this skill whenever the user needs to:
 This CRM is designed for Algerian e-commerce, so understanding the local context is important:
 
 - **Phone Numbers**: Algerian mobile numbers follow the format `0[5-7]XXXXXXXX` (10 digits starting with 05, 06, or 07)
-- **Wilayas**: Algeria has 58 administrative divisions (wilayas), numbered 1-58. Each customer must be assigned to a wilaya.
+- **Wilayas**: Algeria has 69 administrative divisions (wilayas), numbered 1–69 (law 26-06, 2026). Each customer must be assigned to a wilaya.
 - **Communes**: Subdivisions within wilayas. These are optional but help with delivery routing.
 
 ### Customer Data Structure
 Each customer record contains:
 - Basic info: name, phone (required), phone2 and email (optional)
-- Location: wilayaId (1-58, required), communeId (optional), address (optional)
+- Location: wilayaId (1–69, required), communeId (optional), address (optional)
 - Metrics: totalOrders, totalSpent, lastOrderAt (auto-calculated)
 - Relationships: groups (for segmentation), tags (for categorization)
 
@@ -49,7 +49,7 @@ Use this when the user wants to browse customers or find multiple matches.
 - "List customers with the 'high-value' tag"
 
 **Parameters:**
-- `wilayaId`: Filter by wilaya (1-58)
+- `wilayaId`: Filter by wilaya (1–69)
 - `search`: Search in name or phone (partial match works)
 - `groupId`: Filter by customer group UUID
 - `tagId`: Filter by customer tag UUID
@@ -104,7 +104,7 @@ Use this to register new customers in the system.
 **Required fields:**
 - `name`: Full name
 - `phone`: Primary phone (must be unique, format: 0[5-7]XXXXXXXX)
-- `wilayaId`: Number from 1-58
+- `wilayaId`: Number from 1–69
 
 **Optional fields:**
 - `phone2`: Secondary phone
@@ -114,7 +114,7 @@ Use this to register new customers in the system.
 
 **Important validations:**
 - Phone numbers must match the Algerian format exactly
-- wilayaId must be between 1 and 58
+- wilayaId must be between 1 and 69
 - The phone number must not already exist in the system
 
 **Error handling:**
@@ -143,7 +143,7 @@ Use this to update existing customer information. Only include fields you want t
 - `phone`: New primary phone
 - `phone2`: New secondary phone (or null to clear)
 - `email`: New email (or null to clear)
-- `wilayaId`: New wilaya (1-58)
+- `wilayaId`: New wilaya (1–69)
 - `communeId`: New commune UUID (or null to clear)
 - `address`: New address (or null to clear)
 
@@ -265,7 +265,7 @@ Phone numbers are critical identifiers. Always:
 
 ### Wilaya Management
 
-Wilayas are numbered 1-58. Common ones users might mention:
+Wilayas are numbered 1–69 (law 26-06, 2026). Common ones users might mention:
 - Algiers (Alger): 16
 - Oran: 31
 - Constantine: 25

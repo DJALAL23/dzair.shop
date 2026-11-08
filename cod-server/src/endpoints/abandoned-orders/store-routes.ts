@@ -20,6 +20,7 @@ import {
   markAbandonedOrderConverted,
 } from "../../../../cod-shared/queries/abandoned-orders";
 import { MAX_CART_LINES, MAX_LINE_QUANTITY } from "../../../../cod-shared/queries/cart";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -51,7 +52,7 @@ const upsertSchema = z.object({
     .min(9)
     .max(20)
     .regex(/^[0-9+\s-]+$/),
-  wilayaId: z.number().int().min(1).max(58).optional(),
+  wilayaId: z.number().int().min(1).max(LAST_WILAYA_ID).optional(),
   communeId: z.string().optional(),
   wilayaName: z.string().max(100).optional(),
   communeName: z.string().max(100).optional(),

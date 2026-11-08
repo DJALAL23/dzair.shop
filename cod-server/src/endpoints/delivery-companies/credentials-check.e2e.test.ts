@@ -149,36 +149,73 @@ describe("connecting a NOEST company", () => {
   });
 });
 
-describe("place names are mapped as part of connecting", () => {
-  const mapped = () => harness.db.select().from(schema.carrierCommunes).all();
+describe("the carrier's places are read as part of connecting", () => {
+  const mapped = () => harness.db.select().from(schema.carrierPlaces).all();
+  const synced = async (id: string) => (await harness.db.select({ at: schema.deliveryCompanies.placesSyncedAt }).from(schema.deliveryCompanies).where(eq(schema.deliveryCompanies.id, id)).get())?.at ?? null;
 
-  it("builds the carrier's commune map when the credentials are accepted — nothing for the merchant to run", async () => {
-    await harness.db.delete(schema.carrierCommunes);
-    expect((await send("POST", "/api/delivery-companies", newCompany())).status).toBe(201);
+  it("builds the company's map when the credentials are accepted — nothing for the merchant to run", async () => {
+    await harness.db.delete(schema.carrierPlaces);
+    const res = await send("POST", "/api/delivery-companies", newCompany());
+    expect(res.status).toBe(201);
+    const { data } = (await res.json()) as any;
     const rows = await mapped();
     expect(rows.length).toBeGreaterThan(0);
-    expect(new Set(rows.map((r) => r.carrierCode))).toEqual(new Set(["packers_ecotrack"]));
+    expect(new Set(rows.map((r) => r.companyId))).toEqual(new Set([data.id]));
+    expect(await synced(data.id)).not.toBeNull();
     expect(server.callsFor("/api/v1/get/communes")).toHaveLength(1);
   });
 
   it("builds it again when the credentials change", async () => {
     await seedCompany({ apiToken: "old" });
-    await harness.db.delete(schema.carrierCommunes);
+    await harness.db.delete(schema.carrierPlaces);
     expect((await send("PATCH", "/api/delivery-companies/eco1", { apiToken: TOKEN, active: true })).status).toBe(200);
     expect((await mapped()).length).toBeGreaterThan(0);
   });
 
-  it("a failure while mapping never stops the company being saved", async () => {
-    await harness.db.delete(schema.carrierCommunes);
+  it("a list that cannot be read never stops the company being saved, and leaves it without a map", async () => {
+    await harness.db.delete(schema.carrierPlaces);
     server.override("/api/v1/get/communes", () => new Response("down", { status: 503 }));
-    expect((await send("POST", "/api/delivery-companies", newCompany())).status).toBe(201);
+    const res = await send("POST", "/api/delivery-companies", newCompany());
+    expect(res.status).toBe(201);
     expect((await rows())[0].active).toBe(true);
     expect(await mapped()).toHaveLength(0);
+    expect(await synced(((await res.json()) as any).data.id)).toBeNull();
   });
 
-  it("does not map for an edit that touches no credential", async () => {
+  it("reads the company's rates with its places, and gives them by our wilaya: the store's cost, never the customer's price", async () => {
+    await harness.db.delete(schema.carrierPlaces);
+    const { data } = (await (await send("POST", "/api/delivery-companies", newCompany())).json()) as any;
+    expect(server.callsFor("/api/v1/get/fees")).toHaveLength(1);
+    const detail = (await (await send("GET", `/api/delivery-companies/${data.id}`, undefined)).json()) as any;
+    expect(detail.data.places).toMatchObject({ priced: expect.any(Number) });
+    expect(detail.data.places.priced).toBeGreaterThan(0);
+    const res = await send("GET", `/api/delivery-companies/${data.id}/rates`, undefined);
+    expect(res.status).toBe(200);
+    const rates = ((await res.json()) as any).data as Array<{ wilayaId: number }>;
+    expect(rates.map((r) => r.wilayaId)).toEqual([...rates.map((r) => r.wilayaId)].sort((a, b) => a - b));
+    expect(rates.find((r) => r.wilayaId === 16)).toEqual({
+      wilayaId: 16,
+      communes: 2,
+      home: { min: 650, max: 650 },
+      stopDesk: { min: 400, max: 400 },
+      returnFee: { min: 150, max: 200 },
+    });
+    expect(rates.find((r) => r.wilayaId === 11)).toMatchObject({ home: { min: 1500, max: 1500 }, stopDesk: null, returnFee: { min: 300, max: 300 } });
+    expect(rates.find((r) => r.wilayaId === 31)).toMatchObject({ home: null, stopDesk: null, returnFee: null });
+  });
+
+  it("a rate list that cannot be read leaves the map as it was: never places without their prices", async () => {
+    await harness.db.delete(schema.carrierPlaces);
+    server.override("/api/v1/get/fees", () => new Response("down", { status: 503 }));
+    const res = await send("POST", "/api/delivery-companies", newCompany());
+    expect(res.status).toBe(201);
+    expect(await mapped()).toHaveLength(0);
+    expect(await synced(((await res.json()) as any).data.id)).toBeNull();
+  });
+
+  it("does not read for an edit that touches no credential", async () => {
     await seedCompany();
-    await harness.db.delete(schema.carrierCommunes);
+    await harness.db.delete(schema.carrierPlaces);
     await send("PATCH", "/api/delivery-companies/eco1", { name: "Packers Algérie" });
     expect(server.requests).toHaveLength(0);
     expect(await mapped()).toHaveLength(0);

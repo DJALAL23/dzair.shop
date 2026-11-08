@@ -14,6 +14,7 @@ import { errorHandler } from "@/middleware/error";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
 import wilayasRouter from "./routes";
 import * as queries from "./queries";
+import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 const mockDb = {} as any;
 vi.mock("@/db", () => ({
@@ -84,7 +85,7 @@ describe("Wilayas routes (OpenAPIHono)", () => {
         nameAr: "الجزائر",
       });
       vi.mocked(queries.getCommunesByWilaya).mockResolvedValue([
-        { id: "16001", wilayaId: 16, name: "Alger Centre", nameAr: "الجزائر الوسطى", postalCode: null },
+        { id: "16001", wilayaId: 16, name: "Alger Centre", nameAr: "الجزائر الوسطى" },
       ]);
 
       const res = await app.request("/api/wilayas/16/communes");
@@ -101,7 +102,7 @@ describe("Wilayas routes (OpenAPIHono)", () => {
       expect(res.status).toBe(400);
       const body: any = await res.json();
       expect(body).toMatchObject({
-        error: "Invalid wilaya ID — must be an integer between 1 and 58",
+        error: `Invalid wilaya ID — must be an integer between 1 and ${LAST_WILAYA_ID}`,
         code: ERROR_CODES.INVALID_FORMAT,
         category: ERROR_CATEGORIES.VALIDATION,
         context: { wilayaId: "abc" },

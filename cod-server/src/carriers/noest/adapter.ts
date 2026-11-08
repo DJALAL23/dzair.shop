@@ -31,7 +31,7 @@ import {
   type CarrierBulkItem,
   type CarrierCapabilities,
   type CarrierConnectionCheck,
-  type CarrierGeoNames,
+  type CarrierPlace,
   type CarrierLabel,
   type CarrierParcel,
   type CarrierRef,
@@ -42,6 +42,7 @@ import {
   type CarrierUpdate,
 } from "../contract";
 import { createCarrierHttp, flattenErrorBag, type CarrierHttp } from "../http";
+import { tarifRate } from "../price";
 import { carrierInstant } from "../time";
 import { NOEST_ATTEMPT, interpretNoest } from "./interpret";
 import type {
@@ -50,6 +51,7 @@ import type {
   NoestWilaya,
   NoestCreateOrderRequest,
   NoestCreateOrderResponse,
+  NoestFeesResponse,
   NoestStopDesksResponse,
   NoestTrackingInfoResponse,
   NoestUpdateBeforeExpeditionRequest,
@@ -86,7 +88,6 @@ export const NOEST_CAPABILITIES: CarrierCapabilities = {
   requestNewAttempt: true,
   confirmReturn: false,
   stopDeskList: true,
-  geoNames: true,
   verifyConnection: true,
 };
 
@@ -149,9 +150,9 @@ export class NoestCarrier implements CarrierAdapter {
       client: input.customerName,
       phone: input.phone,
       ...(input.phone2 ? { phone_2: input.phone2 } : {}),
-      adresse: input.address.trim() || input.commune,
-      wilaya_id: input.wilayaId,
-      commune: input.commune,
+      adresse: input.address.trim() || input.destination.commune.name,
+      wilaya_id: input.destination.wilaya.number,
+      commune: input.destination.commune.name,
       montant: input.amount,
       produit: input.productDescription,
       type_id: 1,
@@ -231,8 +232,10 @@ export class NoestCarrier implements CarrierAdapter {
     if (patch.phone !== undefined) body.tel = patch.phone;
     if (patch.phone2 !== undefined) body.tel2 = patch.phone2;
     if (patch.address !== undefined) body.adresse = patch.address;
-    if (patch.wilayaId !== undefined) body.wilaya = patch.wilayaId;
-    if (patch.commune !== undefined) body.commune = patch.commune;
+    if (patch.destination !== undefined) {
+      body.wilaya = patch.destination.wilaya.number;
+      body.commune = patch.destination.commune.name;
+    }
     if (patch.amount !== undefined) body.montant = patch.amount;
     if (patch.remarks !== undefined) body.remarque = patch.remarks;
     if (patch.weight !== undefined) body.poids = String(patch.weight);
@@ -297,24 +300,40 @@ export class NoestCarrier implements CarrierAdapter {
   }
 
   /**
-   * NOEST checks a commune by its own spelling inside the wilaya. Switched-off
-   * wilayas and communes are left out: NOEST refuses parcels to them, so they
-   * stay unmapped rather than looking served.
+   * NOEST checks a commune by its own spelling inside the wilaya. A commune
+   * or wilaya NOEST has switched off is listed as not delivered to: NOEST
+   * refuses parcels there. Its prices are the account's grid, one per wilaya.
    */
-  async geoNames(): Promise<CarrierGeoNames> {
-    const [wilayas, communes] = await Promise.all([
+  async places(): Promise<CarrierPlace[]> {
+    const [wilayaList, communes, fees] = await Promise.all([
       this.http.read<NoestWilaya[]>("GET", "/get/wilayas"),
       this.http.read<NoestCommunesResponse>("GET", "/get/communes"),
+      this.http.read<NoestFeesResponse>("GET", "/fees"),
     ]);
-    return {
-      wilayas: (Array.isArray(wilayas) ? wilayas : []).filter((w) => w.is_active !== 0).map((w) => ({ id: w.code, name: w.nom })),
-      communes: Object.values(communes ?? {})
-        .filter((c) => c != null && c.is_active !== 0)
-        .map((c) => ({ id: c.id, name: c.nom, wilayaId: c.wilaya_id, postalCode: c.code_postal || null })),
-    };
+    const delivery = fees.tarifs?.delivery ?? {};
+    const returns = fees.tarifs?.return ?? {};
+    const rateOf = (wilaya: number) => tarifRate(delivery[String(wilaya)], returns[String(wilaya)]);
+    const wilayas = new Map((Array.isArray(wilayaList) ? wilayaList : []).map((w) => [w.code, w]));
+    const places: CarrierPlace[] = [];
+    for (const c of Object.values(communes ?? {})) {
+      const wilaya = c ? wilayas.get(c.wilaya_id) : undefined;
+      if (!c || !wilaya) continue;
+      places.push({
+        wilaya: { ref: String(wilaya.code), number: wilaya.code, name: wilaya.nom },
+        commune: { ref: String(c.id), name: c.nom },
+        home: c.is_active !== 0 && wilaya.is_active !== 0,
+        rate: rateOf(wilaya.code),
+      });
+    }
+    return places;
   }
 
-  /** NOEST publishes no wilaya per desk; its codes start with the wilaya number ("16A"). */
+  /**
+   * NOEST publishes no wilaya per desk: its codes start with the wilaya
+   * number ("16A"). Its commune field is free text (live, 2026-11-08: "Bordj
+   * Bou Arreridj «Ras El Oued»" for the desk named Ras El Oued), so a desk is
+   * placed by that or by its name, which is its town.
+   */
   async stopDesks(): Promise<CarrierStopDesk[]> {
     const res = await this.http.read<NoestStopDesksResponse>("GET", "/desks");
     return Object.values(res ?? {}).map((d) => {
@@ -322,10 +341,11 @@ export class NoestCarrier implements CarrierAdapter {
       return {
         code: d.code,
         name: d.name,
-        commune: d.commune ?? null,
+        commune: d.commune?.trim() || null,
+        communeRef: null,
         address: d.address ?? null,
         phones: d.phones ? Object.values(d.phones).filter(Boolean) : [],
-        wilayaId: Number.isInteger(wilaya) && wilaya >= 1 && wilaya <= 58 ? wilaya : null,
+        wilayaNumber: Number.isInteger(wilaya) && wilaya >= 1 ? wilaya : null,
       };
     });
   }

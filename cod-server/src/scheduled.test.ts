@@ -8,6 +8,7 @@ const jobs = vi.hoisted(() => ({
   inbound: vi.fn(async () => {}),
   abandoned: vi.fn(async () => {}),
   images: vi.fn(async () => {}),
+  places: vi.fn(async () => {}),
 }));
 vi.mock("@/inbound/cron", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/inbound/cron")>()),
@@ -15,6 +16,7 @@ vi.mock("@/inbound/cron", async (importOriginal) => ({
 }));
 vi.mock("@/cron/sweep-abandoned-orders", () => ({ sweepAbandonedOrders: jobs.abandoned }));
 vi.mock("@/cron/media-sweep", () => ({ runMediaSweep: jobs.images }));
+vi.mock("@/cron/refresh-carrier-places", () => ({ refreshCarrierPlaces: jobs.places }));
 vi.mock("@cloudflare/workers-oauth-provider", () => ({
   OAuthProvider: class {
     fetch() {
@@ -43,12 +45,14 @@ describe("the worker's schedule", () => {
     expect(jobs.inbound).toHaveBeenCalledTimes(1);
     expect(jobs.abandoned).not.toHaveBeenCalled();
     expect(jobs.images).not.toHaveBeenCalled();
+    expect(jobs.places).not.toHaveBeenCalled();
   });
 
   it("every hour: the hourly jobs, not the pipeline", async () => {
     await run("0 * * * *");
     expect(jobs.abandoned).toHaveBeenCalledTimes(1);
     expect(jobs.images).toHaveBeenCalledTimes(1);
+    expect(jobs.places).toHaveBeenCalledTimes(1);
     expect(jobs.inbound).not.toHaveBeenCalled();
   });
 });

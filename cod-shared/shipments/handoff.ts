@@ -111,13 +111,16 @@ export interface CarrierReservation {
   stationCode: string | null;
   weight: number | null;
   isFragile: boolean | null;
+  /** The company's rate and return fee for the destination and delivery type (`costAt`), frozen here. */
+  shippingCost: number | null;
+  returnFee: number | null;
   createdBy: string | null;
 }
 
 /**
  * Reserve a carrier shipment for a ready order, before the carrier is called.
  * The cash to collect is the order's price plus its delivery fee, read in
- * the same statement.
+ * the same statement; the store's cost is frozen with it.
  */
 export function reserveCarrierShipment(db: AppDb, input: CarrierReservation): Promise<Reserved> {
   return insertReservation(
@@ -132,6 +135,8 @@ export function reserveCarrierShipment(db: AppDb, input: CarrierReservation): Pr
       codAmount: sql`${orders.price} + ${orders.deliveryFee}`,
       weight: value(input.weight),
       isFragile: value(input.isFragile === null ? null : input.isFragile ? 1 : 0),
+      shippingCost: value(input.shippingCost),
+      returnFee: value(input.returnFee),
       createdBy: value(input.createdBy),
     },
     { refusal: () => orderRefusal(db, input.orderId) },
@@ -389,6 +394,9 @@ export interface ParcelEdit {
   codAmount?: number;
   weight?: number | null;
   isFragile?: boolean | null;
+  /** A parcel moved to another commune costs what the company charges there. */
+  shippingCost?: number | null;
+  returnFee?: number | null;
 }
 
 /**

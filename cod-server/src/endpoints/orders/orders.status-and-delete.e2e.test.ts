@@ -74,7 +74,7 @@ const statusEventsOf = async (id: string) =>
 const movements = () => db().select().from(schema.stockMovements).all();
 
 async function shipment(orderId: string, state: "submitting" | "unknown" | "accepted") {
-  const reserved = await reserveCarrierShipment(db(), { orderId, companyId: "co", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null });
+  const reserved = await reserveCarrierShipment(db(), { orderId, companyId: "co", deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null });
   if (!reserved.ok) throw new Error(`reservation failed: ${reserved.reason}`);
   if (state === "unknown") await markHandoffUnknown(db(), reserved.shipmentId, "timeout");
   if (state === "accepted") await acceptCarrierHandoff(db(), reserved.shipmentId, { carrierParcelId: `P-${orderId}`, trackingNumber: `T-${orderId}`, carrierData: null, labelUrl: null }, { validated: true , author: SYSTEM });
@@ -171,7 +171,7 @@ describe("changing an order's status", () => {
       await seedOrder(id, "ready");
       const [cancel, handoff] = await Promise.all([
         updateOrderStatus(db(), id, "cancelled", SYSTEM),
-        reserveCarrierShipment(db(), { orderId: id, companyId: "co", deliveryType: "home", stationCode: null, weight: null, isFragile: null, createdBy: null }),
+        reserveCarrierShipment(db(), { orderId: id, companyId: "co", deliveryType: "home", stationCode: null, weight: null, isFragile: null, shippingCost: null, returnFee: null, createdBy: null }),
       ]);
       expect(cancel.ok !== handoff.ok, id).toBe(true);
       expect(await statusOf(id)).toBe(cancel.ok ? "cancelled" : "ready");
