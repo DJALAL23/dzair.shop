@@ -265,7 +265,7 @@
     "driver_fee": "Driver's fee",
     "shipping_cost": "Shipping cost",
     "return_fee": "Return fee if it comes back",
-    "no_price": "Not priced by the company",
+    "cost_not_recorded": "Not recorded",
     "type": "Delivery",
     "attempts": "Delivery attempts",
     "latest": "Latest status",

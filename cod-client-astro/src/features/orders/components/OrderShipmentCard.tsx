@@ -230,8 +230,8 @@ export function OrderShipmentCard({
           {shipment.kind === "driver" && <Fact label={t("delivery.driver_fee")}>{formatMoney(shipment.driverFee, locale)}</Fact>}
           {shipment.kind === "carrier" && (
             <>
-              <Fact label={t("delivery.shipping_cost")}>{shipment.shippingCost == null ? t("delivery.no_price") : formatMoney(shipment.shippingCost, locale)}</Fact>
-              <Fact label={t("delivery.return_fee")}>{shipment.returnFee == null ? t("delivery.no_price") : formatMoney(shipment.returnFee, locale)}</Fact>
+              <Fact label={t("delivery.shipping_cost")}>{shipment.shippingCost == null ? t("delivery.cost_not_recorded") : formatMoney(shipment.shippingCost, locale)}</Fact>
+              <Fact label={t("delivery.return_fee")}>{shipment.returnFee == null ? t("delivery.cost_not_recorded") : formatMoney(shipment.returnFee, locale)}</Fact>
             </>
           )}
           <Fact label={t("delivery.type")}>

@@ -273,7 +273,7 @@
     "driver_fee": "أجرة السائق",
     "shipping_cost": "تكلفة الشحن",
     "return_fee": "رسوم الإرجاع إن عاد",
-    "no_price": "بلا سعر من الشركة",
+    "cost_not_recorded": "غير مسجّل",
     "type": "نوع التوصيل",
     "attempts": "محاولات التوصيل",
     "latest": "آخر حالة",

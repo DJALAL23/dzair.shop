@@ -267,7 +267,7 @@
     "driver_fee": "Frais du livreur",
     "shipping_cost": "Coût de livraison",
     "return_fee": "Frais de retour s'il revient",
-    "no_price": "Sans tarif de la société",
+    "cost_not_recorded": "Non enregistré",
     "type": "Livraison",
     "attempts": "Tentatives de livraison",
     "latest": "Dernier statut",

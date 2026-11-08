@@ -164,9 +164,9 @@ function CompanyRates({ companyId, companyName, readAt, priced }: { companyId: s
                   {rates.rows.map((row) => (
                     <tr key={row.wilayaId}>
                       <th scope="row" className="py-1.5 pe-2 text-start font-medium text-foreground">{wilayaName(row.wilayaId)}</th>
-                      <td className="px-2 py-1.5 text-end tabular-nums">{price(row.home)}</td>
-                      <td className="px-2 py-1.5 text-end tabular-nums">{price(row.stopDesk)}</td>
-                      <td className="ps-2 py-1.5 text-end tabular-nums">{price(row.returnFee)}</td>
+                      <td className="px-2 py-1.5 text-end tabular-nums whitespace-nowrap">{price(row.home)}</td>
+                      <td className="px-2 py-1.5 text-end tabular-nums whitespace-nowrap">{price(row.stopDesk)}</td>
+                      <td className="ps-2 py-1.5 text-end tabular-nums whitespace-nowrap">{price(row.returnFee)}</td>
                     </tr>
                   ))}
                 </tbody>
