@@ -21,12 +21,14 @@ and the handoff, sync and webhook paths run end to end on a real database.
   cancelling, history and status sync. Not yet seen live: a parcel delivered,
   refused or returned, so returns are verified only against EcoTrack's
   documented API.
-- **The 2019 wilayas (49–58)**: Wocart's commune list still files their
-  communes under their former wilaya, and each new wilaya holds only its
-  capital. Carriers on the 58-wilaya split (EcoTrack, Yalidine) refuse a
-  parcel to such a commune — about 60 of them. About 110 more communes are
-  spelled too differently from EcoTrack's list to be matched; **Sync delivery
-  zones** on the company lists them.
+- **Carriers are still on the 2019 map**: Wocart holds the 69 wilayas of law
+  26-06 (2026), while ZR Express, Yalidine and NOEST still list 58 (ZR has no
+  territory for Illizi, Tindouf, Bordj Badji Mokhtar or Djanet). A parcel goes
+  to the commune the company itself lists, under its own wilaya (Aflou under
+  Laghouat), and a commune the company does not list is refused before
+  anything is sent, naming the commune. Each company's list of places is read
+  from its API: matched in full for ZR Express, Yalidine and NOEST (November
+  2026); an EcoTrack company's list only against EcoTrack's documented answers.
 - **ZR Express** lets a company rename its states; a name ZR's standard
   workflow does not know is recorded as an unknown status until the merchant
   maps it in the company's settings.

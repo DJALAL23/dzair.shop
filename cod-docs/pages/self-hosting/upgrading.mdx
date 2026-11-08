@@ -59,6 +59,43 @@ concern you.
   `conversionEvent`; `GET /store/orders/{id}/tracking` adds `eventId`. A
   storefront needs `@wocart/storefront` 4: deploy it right after the server.
 
+### 0079: what each carrier charges, and what each shipment cost
+
+- A company's map of places also holds its prices for the merchant's account
+  (`home_rate`, `stop_desk_rate`, `home_return_fee`, `stop_desk_return_fee`),
+  read from its API with its places: ZR and Yalidine per commune, NOEST and
+  EcoTrack per wilaya. `GET /api/delivery-companies/{id}/rates` answers them
+  by wilaya, and the company's page under Delivery shows them.
+- A carrier shipment keeps its `shippingCost` and `returnFee` from the day it
+  was handed off. Shipments handed off before this release have none.
+- A Yalidine read takes about a minute and a half: its prices come one wilaya
+  at a time, paced under its quota of 50 calls a minute.
+
+### 0078: Algeria's 69 wilayas; one map of places per carrier
+
+- The wilayas and communes move to law 26-06 (2026): 69 wilayas, 1541
+  communes. Wilayas 59–69 are added; every commune is under its wilaya of
+  today, with corrected French and Arabic names; the ten placeholder copies
+  migration 0000 made of the 2019 capitals are merged into their communes.
+  A commune keeps its id when it moves (Besbes stays `c-07-007`, in Ouled
+  Djellal).
+- Every order, customer and abandoned checkout takes its commune's wilaya.
+  Each new wilaya's shipping prices and drivers' fees start as those of the
+  wilaya it was taken from, and a commune's price override follows the
+  commune.
+- `carrier_wilayas` and `carrier_communes` give way to `carrier_places`: each
+  delivery company's own list of places, read from its API. **Until a
+  company's list is read, every order handed to it is refused**
+  (`CARRIER_PLACES_NOT_READ`). The hourly cron reads it within the hour of the
+  upgrade; to read it at once, open the company under Delivery and choose
+  "Read its places". An order to a commune the carrier does not list is
+  refused by name (`PLACE_NOT_SERVED`) instead of being sent under a guessed
+  name.
+- `POST /api/delivery-companies/{id}/sync-geo` is now `…/sync-places`; the
+  capability `geoNames` is gone.
+- `communes.postal_code` is dropped: it was not a postal code. The commune
+  API no longer sends `postalCode`.
+
 ### 0077: unread columns dropped
 
 - The store's old colours, font and `status`, and the URLs and R2 keys

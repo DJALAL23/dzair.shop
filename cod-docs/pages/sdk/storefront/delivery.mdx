@@ -8,7 +8,7 @@ import { Callout } from "zudoku/ui/Callout";
 
 Delivery has two layers:
 
-- **Reference data** — the 58 wilayas and their communes.
+- **Reference data** — the 69 wilayas and their communes.
 - **Money** — the merchant's rates and, above both, the server's quote for the
   destination the shopper chose.
 
@@ -29,7 +29,7 @@ wilayas;
 // ]
 ```
 
-The list is Algeria's 58 wilayas, in official order. It is stable reference
+The list is Algeria's 69 wilayas (law 26-06, 2026), in official order. It is stable reference
 data, not merchant content, so it is not translated by the store.
 
 `isWilayaId(value)` checks an unknown value from a form or a URL:
@@ -75,9 +75,11 @@ async function loadCommunes(wilayaId: number) {
 
 When the wilaya changes, clear the selected commune before loading the new list.
 A commune id from the old wilaya is not valid in the new one.
+A commune id names a place, not a wilaya: Besbes is `c-07-007` and lies in
+Ouled Djellal (51), so read a commune's wilaya from the list, never from its id.
 
 In the browser, the same reference data ships with the SDK's root entry:
-`communesForWilaya(wilayaId)` answers from the bundled list (Algeria's 1,551
+`communesForWilaya(wilayaId)` answers from the bundled list (Algeria's 1,541
 communes, `ALGERIA_COMMUNES`) with no request at all, and accepts the string an
 `<select>` hands over. The [theme starter's](/sdk/theme/starter) order form
 (`src/scripts/checkout/delivery.ts`) fills its commune list this way. `WILAYAS` is the bundled wilaya list.
