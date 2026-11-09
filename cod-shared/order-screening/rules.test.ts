@@ -17,6 +17,12 @@ const FACTS: Facts = {
   blocked: { phone: false, ip: false },
   history: { delivered: 1, returned: 2 },
   burst: false,
+  deviceKey: "d1",
+  fillSeconds: 4,
+  visitSource: "meta",
+  appSource: "instagram",
+  networkCountry: "DZ",
+  networkOperator: "Algérie Télécom",
 };
 
 const parsed = (key: string, op: string, value: unknown): Condition => {
@@ -38,6 +44,18 @@ describe("each Condition on the facts of an attempt", () => {
     ["phone_orders", "at_least_in_window", { count: 4, windowHours: 24 }, false],
     ["ip_orders", "at_least_in_window", { count: 2, windowHours: 1 }, true],
     ["ip_orders", "at_least_in_window", { count: 3, windowHours: 1 }, false],
+    ["fill_seconds", "at_most", 4, true],
+    ["fill_seconds", "at_most", 3, false],
+    ["network_country", "one_of", ["dz"], true],
+    ["network_country", "one_of", ["FR"], false],
+    ["network_country", "not_one_of", ["FR"], true],
+    ["network_country", "not_one_of", ["DZ"], false],
+    ["network_operator", "contains_any", ["algérie"], true],
+    ["network_operator", "contains_any", ["djezzy"], false],
+    ["visit_source", "one_of", ["meta", "google"], true],
+    ["visit_source", "one_of", ["tiktok"], false],
+    ["app_source", "one_of", ["instagram"], true],
+    ["app_source", "one_of", ["browser"], false],
     ["phone", "one_of", ["+213551234567"], true],
     ["phone", "one_of", ["0661234567"], false],
     ["phone", "starts_with", ["055"], true],
@@ -99,6 +117,14 @@ describe("no data never holds", () => {
   it.each([
     ["phone_orders", "at_least_in_window", { count: 1, windowHours: 24 }],
     ["ip_orders", "at_least_in_window", { count: 1, windowHours: 24 }],
+    ["device_orders", "at_least_in_window", { count: 1, windowHours: 24 }],
+    ["device_phones", "at_least_in_window", { count: 1, windowHours: 24 }],
+    ["fill_seconds", "at_most", 100000],
+    ["network_country", "one_of", ["DZ"]],
+    ["network_country", "not_one_of", ["DZ"]],
+    ["network_operator", "contains_any", ["a"]],
+    ["visit_source", "one_of", ["meta", "tiktok", "google", "other"]],
+    ["app_source", "one_of", ["facebook", "instagram", "tiktok", "browser"]],
     ["ip_burst", "is_true", null],
     ["phone", "on_block_list", null],
     ["ip", "on_block_list", null],
@@ -117,6 +143,13 @@ describe("where a Condition's data comes from", () => {
   it.each([
     ["phone_orders", "at_least_in_window", { count: 1, windowHours: 1 }, "attempts"],
     ["ip_orders", "at_least_in_window", { count: 1, windowHours: 1 }, "attempts"],
+    ["device_orders", "at_least_in_window", { count: 1, windowHours: 1 }, "attempts"],
+    ["device_phones", "at_least_in_window", { count: 1, windowHours: 1 }, "attempts"],
+    ["fill_seconds", "at_most", 1, "submission"],
+    ["network_country", "one_of", ["DZ"], "submission"],
+    ["network_operator", "contains_any", ["a"], "submission"],
+    ["visit_source", "one_of", ["meta"], "submission"],
+    ["app_source", "one_of", ["browser"], "submission"],
     ["ip_burst", "is_true", null, "burst"],
     ["phone", "on_block_list", null, "block_list"],
     ["ip", "on_block_list", null, "block_list"],
@@ -130,6 +163,26 @@ describe("where a Condition's data comes from", () => {
 
   it("covers every Condition in the catalogue", () => {
     expect(Object.keys(CONDITIONS).sort()).toEqual([...CONDITION_KEYS].sort());
+  });
+});
+
+describe("Conditions on how an order was sent", () => {
+  it.each([
+    ["network_country", "one_of", ["Algeria"]],
+    ["network_country", "one_of", ["D"]],
+    ["visit_source", "one_of", ["radio"]],
+    ["app_source", "one_of", ["safari"]],
+    ["visit_source", "not_one_of", ["meta"]],
+    ["app_source", "not_one_of", ["browser"]],
+    ["fill_seconds", "at_least", 1],
+    ["network_operator", "one_of", ["djezzy"]],
+  ])("refuses %s %s %j", (key, op, value) => {
+    expect(parseCondition({ key, op, value }).ok).toBe(false);
+  });
+
+  it("keeps a country in capitals and a company in the form it is compared in", () => {
+    expect(parsed("network_country", "one_of", [" dz "]).value).toEqual(["DZ"]);
+    expect(parsed("network_operator", "contains_any", ["  Algérie   TÉLÉCOM "]).value).toEqual(["algérie télécom"]);
   });
 });
 
@@ -332,6 +385,18 @@ describe("Templates", () => {
   it("acts by default only on what the merchant blocked and on proven customers", () => {
     const active = TEMPLATES.recommended.filter((rule) => rule.mode === "active").map((rule) => rule.key);
     expect(active).toEqual(["blocked_phone", "blocked_ip", "good_customer"]);
+  });
+
+  it("never acts in the default on what only a browser says", () => {
+    for (const key of ["same_device", "many_numbers", "fast_fill"] as const) {
+      expect(TEMPLATES.recommended.find((rule) => rule.key === key)).toMatchObject({ action: "flag", mode: "trial" });
+    }
+  });
+
+  it("sends many numbers on one device to Spam under attack, and only flags the rest", () => {
+    expect(TEMPLATES.under_attack.find((rule) => rule.key === "many_numbers")).toMatchObject({ action: "spam", mode: "active" });
+    expect(TEMPLATES.under_attack.find((rule) => rule.key === "same_device")).toMatchObject({ action: "flag", mode: "active" });
+    expect(TEMPLATES.under_attack.find((rule) => rule.key === "fast_fill")).toMatchObject({ action: "flag", mode: "active" });
   });
 
   it("names rules in the store's language", () => {

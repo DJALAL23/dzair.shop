@@ -12,7 +12,6 @@ import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 
 const BACK = "/apps/order-protection";
 const ACTION_ICON = { spam: Ban, flag: Flag, accept: CheckCircle2 } satisfies Record<RuleAction, unknown>;
-const DELIVERY_OPTIONS = ["home", "stop_desk"] as const;
 
 async function searchProducts(query: string): Promise<PickerOption[]> {
   const { data } = await listProducts({ search: query || undefined, limit: 20 });
@@ -28,11 +27,11 @@ function ConditionValue({ form, onChange, readOnly }: { form: ConditionForm; onC
     case "none":
       return null;
     case "number":
-      return <Input type="number" inputMode="numeric" min={0} dir="ltr" className="w-28" aria-label={t("order_protection.editor.value")} disabled={readOnly} value={form.number} onChange={(event) => onChange({ ...form, number: event.currentTarget.value })} />;
+      return <div className="w-28"><Input type="number" inputMode="numeric" min={0} dir="ltr" aria-label={t("order_protection.editor.value")} disabled={readOnly} value={form.number} onChange={(event) => onChange({ ...form, number: event.currentTarget.value })} /></div>;
     case "window":
       return (
         <div className="flex flex-wrap items-center gap-2">
-          <Input type="number" inputMode="numeric" min={1} dir="ltr" className="w-24" aria-label={t("order_protection.editor.count")} disabled={readOnly} value={form.count} onChange={(event) => onChange({ ...form, count: event.currentTarget.value })} />
+          <div className="w-24"><Input type="number" inputMode="numeric" min={1} dir="ltr" aria-label={t("order_protection.editor.count")} disabled={readOnly} value={form.count} onChange={(event) => onChange({ ...form, count: event.currentTarget.value })} /></div>
           <Select aria-label={t("order_protection.editor.window")} disabled={readOnly} value={form.windowHours} onChange={(event) => onChange({ ...form, windowHours: Number(event.currentTarget.value) })}>
             {WINDOW_HOURS.map((hours) => (
               <option key={hours} value={hours}>
@@ -43,23 +42,26 @@ function ConditionValue({ form, onChange, readOnly }: { form: ConditionForm; onC
         </div>
       );
     case "text":
-      return <Textarea rows={2} aria-label={t("order_protection.editor.value")} placeholder={t("order_protection.editor.list_hint")} disabled={readOnly} value={form.text} onChange={(event) => onChange({ ...form, text: event.currentTarget.value })} />;
+      return <Textarea rows={2} aria-label={t("order_protection.editor.value")} placeholder={t(form.key === "network_country" ? "order_protection.editor.country_hint" : "order_protection.editor.list_hint")} disabled={readOnly} value={form.text} onChange={(event) => onChange({ ...form, text: event.currentTarget.value })} />;
     case "wilaya": {
       const options = wilayaOptions(locale);
       return <SearchPickList {...pickers} value={form.picked} onChange={(picked) => onChange({ ...form, picked })} search={async (query) => options.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()))} />;
     }
     case "product":
       return <SearchPickList {...pickers} value={form.picked} onChange={(picked) => onChange({ ...form, picked })} search={searchProducts} />;
-    case "delivery":
+    case "options":
       return (
-        <Select aria-label={t("order_protection.editor.value")} disabled={readOnly} value={form.picked[0]?.id ?? ""} onChange={(event) => onChange({ ...form, picked: event.currentTarget.value ? [{ id: event.currentTarget.value, label: t(`order_protection.delivery.${event.currentTarget.value}`) }] : [] })}>
-          <option value="">{t("order_protection.editor.choose")}</option>
-          {DELIVERY_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {t(`order_protection.delivery.${option}`)}
-            </option>
-          ))}
-        </Select>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 py-1.5">
+          {(CONDITIONS[form.key].options ?? []).map((option) => {
+            const label = t(`order_protection.options.${form.key}.${option}`);
+            return (
+              <label key={option} className="flex items-center gap-2 text-sm text-foreground">
+                <input type="checkbox" className="size-4 accent-[var(--primary)]" disabled={readOnly} checked={form.picked.some((picked) => picked.id === option)} onChange={(event) => onChange({ ...form, picked: event.currentTarget.checked ? [...form.picked, { id: option, label }] : form.picked.filter((picked) => picked.id !== option) })} />
+                {label}
+              </label>
+            );
+          })}
+        </div>
       );
   }
 }
@@ -152,7 +154,6 @@ function RuleEditor({ ruleId }: { ruleId: string | null }) {
       const wilayas = wilayaOptions(locale);
       const label = (key: ConditionKey, value: string | number) => {
         if (key === "wilaya") return wilayas.find((option) => option.id === String(value))?.label ?? String(value);
-        if (key === "delivery_type") return t(`order_protection.delivery.${value}`);
         return productIds.get(String(value)) ?? String(value);
       };
       setForm({ name: rule.name, mode: rule.mode, action: rule.action, conditions: rule.conditions.map((condition) => formFromCondition(condition, uid(), label)) });

@@ -3,7 +3,7 @@ import { toLocalAlgerianMobile } from "../lib/phone";
 export const ORDER_ATTEMPT_OUTCOMES = ["accepted", "flagged", "spam", "rescued"] as const;
 export type OrderAttemptOutcome = (typeof ORDER_ATTEMPT_OUTCOMES)[number];
 
-export const BLOCK_LIST_KINDS = ["phone", "ip", "device"] as const;
+export const BLOCK_LIST_KINDS = ["phone", "ip"] as const;
 export type BlockListKind = (typeof BLOCK_LIST_KINDS)[number];
 
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
@@ -50,8 +50,66 @@ export function phoneKey(raw: string): string | null {
 
 /** A Block List value in the form it is compared in, or null when it cannot be one. */
 export function blockListValue(kind: BlockListKind, raw: string): string | null {
-  if (kind === "phone") return phoneKey(raw);
-  if (kind === "ip") return ipKey(raw);
-  const device = raw.trim();
-  return device.length > 0 && device.length <= 64 ? device : null;
+  return kind === "phone" ? phoneKey(raw) : ipKey(raw);
+}
+
+export const VISIT_SOURCES = ["meta", "tiktok", "google", "other"] as const;
+export type VisitSource = (typeof VISIT_SOURCES)[number];
+
+export const APP_SOURCES = ["facebook", "instagram", "tiktok", "browser"] as const;
+export type AppSource = (typeof APP_SOURCES)[number];
+
+/** What the storefront said about one checkout. Each part is kept only when it is understood. */
+export interface CheckoutSignals {
+  deviceKey?: string;
+  fillSeconds?: number;
+  visitSource?: VisitSource;
+}
+
+export interface NetworkSignals {
+  networkCountry?: string;
+  networkOperator?: string;
+}
+
+const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const LONGEST_FILL_MS = 3_600_000;
+const LONGEST_SIGNAL = 512;
+const OPERATOR_LENGTH = 100;
+
+function jsonFields(raw: string | undefined, read: (text: string) => string = (text) => text): Record<string, unknown> {
+  if (!raw || raw.length > LONGEST_SIGNAL) return {};
+  try {
+    return (JSON.parse(read(raw)) ?? {}) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+export function readCheckoutSignals(raw: string | undefined): CheckoutSignals {
+  const { d: device, f: fill, s: source } = jsonFields(raw);
+  return {
+    ...(typeof device === "string" && UUID.test(device) ? { deviceKey: device.toLowerCase() } : {}),
+    ...(typeof fill === "number" && Number.isInteger(fill) && fill >= 0 && fill <= LONGEST_FILL_MS ? { fillSeconds: fill / 1000 } : {}),
+    ...((VISIT_SOURCES as readonly unknown[]).includes(source) ? { visitSource: source as VisitSource } : {}),
+  };
+}
+
+export function readNetworkSignals(header: string | undefined): NetworkSignals {
+  const { c: country, o: operator } = jsonFields(header, decodeURIComponent);
+  return {
+    ...(typeof country === "string" && /^[A-Z0-9]{2}$/i.test(country) ? { networkCountry: country.toUpperCase() } : {}),
+    ...(typeof operator === "string" && operator.trim().length > 0 ? { networkOperator: operator.trim().slice(0, OPERATOR_LENGTH) } : {}),
+  };
+}
+
+const IN_APP_BROWSERS: readonly (readonly [RegExp, AppSource])[] = [
+  [/Instagram/i, "instagram"],
+  [/FBAN|FBAV|FB_IAB|FBIOS/, "facebook"],
+  [/musical_ly|TikTok|BytedanceWebview|trill_/i, "tiktok"],
+];
+
+/** Which app's built-in browser sent the order, from its User-Agent. */
+export function appSourceOf(userAgent: string | undefined): AppSource | undefined {
+  if (!userAgent) return undefined;
+  return IN_APP_BROWSERS.find(([pattern]) => pattern.test(userAgent))?.[1] ?? "browser";
 }

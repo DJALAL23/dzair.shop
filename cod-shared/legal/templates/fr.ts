@@ -146,7 +146,7 @@ export const fr: LegalTemplatePack = {
           "Numéro de téléphone.",
           "Wilaya et commune, ainsi que l'adresse en cas de livraison à domicile.",
           "Le détail et l'historique de vos commandes.",
-          "Des données techniques sur votre visite (pages consultées, type d'appareil, adresse IP), utilisées aussi pour sécuriser la boutique et prévenir les abus.",
+          "Des données techniques sur votre visite (pages consultées, type d'appareil, un identifiant de navigateur, adresse IP), utilisées aussi pour sécuriser la boutique et prévenir les abus.",
         ),
         p("Aucune donnée bancaire n'est collectée, le paiement se faisant en espèces à la livraison."),
       ),

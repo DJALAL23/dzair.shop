@@ -1,3 +1,4 @@
+import type { AttemptSignals } from "../../../../../cod-shared/order-screening/facts";
 import { apiFetch } from "@/lib/api";
 import { appRequest } from "@/features/apps/api";
 import type { Condition, RuleAction, RuleMode } from "../../../../../cod-shared/order-screening/conditions";
@@ -42,6 +43,7 @@ export interface OrderAttempt {
   customerName: string | null;
   total: number | null;
   matches: RuleMatch[];
+  signals: AttemptSignals;
 }
 
 export interface Page<T> {

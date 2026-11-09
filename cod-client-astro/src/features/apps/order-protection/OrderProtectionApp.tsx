@@ -225,7 +225,7 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
           <div className="grid gap-3 sm:grid-cols-[10rem_1fr_1fr_auto] sm:items-end">
             <Field label={t("order_protection.block.kind")}>
               <Select value={kind} onChange={(event) => setKind(event.currentTarget.value as BlockListKind)}>
-                {BLOCK_LIST_KINDS.filter((option) => option !== "device").map((option) => (
+                {BLOCK_LIST_KINDS.map((option) => (
                   <option key={option} value={option}>
                     {t(`order_protection.block.kinds.${option}`)}
                   </option>

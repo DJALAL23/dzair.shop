@@ -53,8 +53,15 @@ A person turning a Spam Order into an Order.
 _Avoid_: Restore, approve
 
 **Block List**:
-The numbers, addresses and devices the merchant blocked by hand.
+The numbers and addresses the merchant blocked by hand.
 _Avoid_: Blacklist
+
+**Checkout Context**:
+What the storefront tells the server about one submission: which browser sent
+it, how long the form took and where the visit came from. It is read tolerantly:
+a part that is missing or not understood is simply no Signal, and never stops
+the order.
+_Avoid_: Fingerprint, telemetry
 
 **Template**:
 A ready set of rules, copied once into the store. After that they are ordinary

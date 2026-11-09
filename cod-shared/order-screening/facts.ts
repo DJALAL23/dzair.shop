@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { sourceOf, windowCountKey, type Condition, type ConditionKey, type Facts, type FactSource, type WindowValue } from "./conditions";
 import type { Rule } from "./rules";
-import { ipKey } from "./signals";
+import { appSourceOf, ipKey, readCheckoutSignals, readNetworkSignals } from "./signals";
 
 /** What Screening is told about a submission. */
 export interface OrderSubmission {
@@ -15,6 +15,9 @@ export interface OrderSubmission {
   productIds: readonly string[];
   pieces: number;
   deliveryType: "home" | "stop_desk";
+  checkoutContext?: string;
+  visitorNetwork?: string;
+  userAgent?: string;
 }
 
 export interface ScreeningPorts {
@@ -23,7 +26,11 @@ export interface ScreeningPorts {
 
 export function submissionFacts(submission: OrderSubmission): Facts {
   const key = submission.ip ? ipKey(submission.ip) : null;
+  const appSource = appSourceOf(submission.userAgent);
   return {
+    ...readCheckoutSignals(submission.checkoutContext),
+    ...readNetworkSignals(submission.visitorNetwork),
+    ...(appSource ? { appSource } : {}),
     phone: submission.phone,
     ...(key ? { ipKey: key } : {}),
     name: submission.name,
@@ -35,9 +42,17 @@ export function submissionFacts(submission: OrderSubmission): Facts {
   };
 }
 
-const COUNTED: Partial<Record<ConditionKey, { column: string; value: (facts: Facts) => string | undefined }>> = {
+interface Counted {
+  column: string;
+  value: (facts: Facts) => string | undefined;
+  otherPhones?: boolean;
+}
+
+const COUNTED: Partial<Record<ConditionKey, Counted>> = {
   phone_orders: { column: "phone", value: (facts) => facts.phone },
   ip_orders: { column: "ip_key", value: (facts) => facts.ipKey },
+  device_orders: { column: "device_key", value: (facts) => facts.deviceKey },
+  device_phones: { column: "device_key", value: (facts) => facts.deviceKey, otherPhones: true },
 };
 
 interface WantedCount {
@@ -46,6 +61,7 @@ interface WantedCount {
   column: string;
   value: string;
   since: string;
+  otherPhones: boolean;
 }
 
 function wantedCounts(conditions: readonly Condition[], facts: Facts, now: string): WantedCount[] {
@@ -56,15 +72,19 @@ function wantedCounts(conditions: readonly Condition[], facts: Facts, now: strin
     const value = counted.value(facts);
     if (value === undefined) continue;
     const { windowHours } = condition.value as WindowValue;
-    wanted.set(windowCountKey(condition.key, windowHours), { key: condition.key, windowHours, column: counted.column, value, since: new Date(Date.parse(now) - windowHours * 3_600_000).toISOString() });
+    wanted.set(windowCountKey(condition.key, windowHours), { key: condition.key, windowHours, column: counted.column, value, since: new Date(Date.parse(now) - windowHours * 3_600_000).toISOString(), otherPhones: counted.otherPhones === true });
   }
   return [...wanted.values()];
 }
 
-/** Each count over the attempts already saved, plus this one: "at least 3" holds on the third. */
-async function windowCounts(db: AppDb, wanted: readonly WantedCount[]): Promise<Record<string, number>> {
+/** Each count over the attempts already saved, plus this one: "at least 3" holds on the third order, or the third number. */
+async function windowCounts(db: AppDb, wanted: readonly WantedCount[], phone: string): Promise<Record<string, number>> {
   if (wanted.length === 0) return {};
-  const columns = wanted.map((count, index) => sql`COALESCE(SUM(CASE WHEN ${sql.identifier(count.column)} = ${count.value} AND created_at >= ${count.since} THEN 1 ELSE 0 END), 0) AS ${sql.identifier(`c${index}`)}`);
+  const columns = wanted.map((count, index) => {
+    const saved = sql`${sql.identifier(count.column)} = ${count.value} AND created_at >= ${count.since}`;
+    const tally = count.otherPhones ? sql`COUNT(DISTINCT CASE WHEN ${saved} AND phone <> ${phone} THEN phone END)` : sql`COALESCE(SUM(CASE WHEN ${saved} THEN 1 ELSE 0 END), 0)`;
+    return sql`${tally} AS ${sql.identifier(`c${index}`)}`;
+  });
   const oldest = wanted.map((count) => count.since).sort()[0];
   const anyOf = [...new Map(wanted.map((count) => [`${count.column}:${count.value}`, sql`${sql.identifier(count.column)} = ${count.value}`])).values()];
   const [row] = await db.all<Record<string, number>>(sql`SELECT ${sql.join(columns, sql`, `)} FROM order_attempts WHERE created_at >= ${oldest} AND (${sql.join(anyOf, sql` OR `)})`);
@@ -103,7 +123,7 @@ export async function loadFacts(db: AppDb, rules: readonly Rule[], submission: O
   const conditions = rules.flatMap((rule) => rule.conditions);
   const needed = new Set<FactSource>(conditions.map(sourceOf));
   const [counts, past, onList, burstFact] = await Promise.all([
-    needed.has("attempts") ? windowCounts(db, wantedCounts(conditions, facts, now)) : undefined,
+    needed.has("attempts") ? windowCounts(db, wantedCounts(conditions, facts, now), facts.phone) : undefined,
     needed.has("history") ? history(db, facts.phone) : undefined,
     needed.has("block_list") ? blocked(db, facts) : undefined,
     needed.has("burst") ? burst(ports, submission.storeId, facts) : undefined,
@@ -114,5 +134,19 @@ export async function loadFacts(db: AppDb, rules: readonly Rule[], submission: O
     ...(past ? { history: past } : {}),
     ...(onList ? { blocked: onList } : {}),
     ...(burstFact === undefined ? {} : { burst: burstFact }),
+  };
+}
+
+export type AttemptSignals = Pick<Facts, "fillSeconds" | "visitSource" | "appSource" | "networkCountry" | "networkOperator">;
+
+/** The Signals worth showing a person beside an attempt. */
+export function attemptSignals(facts: Facts): AttemptSignals {
+  const { fillSeconds, visitSource, appSource, networkCountry, networkOperator } = facts;
+  return {
+    ...(fillSeconds === undefined ? {} : { fillSeconds }),
+    ...(visitSource ? { visitSource } : {}),
+    ...(appSource ? { appSource } : {}),
+    ...(networkCountry ? { networkCountry } : {}),
+    ...(networkOperator ? { networkOperator } : {}),
   };
 }

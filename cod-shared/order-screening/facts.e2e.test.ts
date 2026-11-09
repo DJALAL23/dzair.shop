@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { drizzle } from "drizzle-orm/d1";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
+import type { AppDb } from "../db/client";
 import * as schema from "@/db/schema";
 import type { Condition } from "./conditions";
 import { loadFacts, type OrderSubmission } from "./facts";
@@ -90,6 +92,58 @@ describe("counting attempts", () => {
     expect(text).toContain("order_attempts_phone");
     expect(text).toContain("order_attempts_ip");
     expect(text).not.toMatch(/SCAN order_attempts\b(?! USING)/);
+  });
+});
+
+describe("counting by device", () => {
+  const DEVICE = "3f2b8c1e-7a4d-4e6f-9b1a-2c3d4e5f6a7b";
+  const onDevice = { ...submission, checkoutContext: JSON.stringify({ d: DEVICE }) };
+  const byDevice = (phone: string, deviceKey: string, createdAt: string) => d1.db.insert(schema.orderAttempts).values({ id: `d${(serial += 1)}`, createdAt, phone, deviceKey, outcome: "accepted" });
+  const deviceCount = (key: "device_orders" | "device_phones", windowHours: number): Condition => ({ key, op: "at_least_in_window", value: { count: 1, windowHours } });
+
+  it("counts every order of the device, this one too", async () => {
+    await byDevice(PHONE, DEVICE, hoursAgo(1));
+    await byDevice("0661234567", DEVICE, hoursAgo(2));
+    await byDevice(PHONE, "other", hoursAgo(1));
+    expect((await loadFacts(d1.db, rulesOf(deviceCount("device_orders", 24)), onDevice, {}, NOW)).windowCounts).toEqual({ "device_orders:24": 3 });
+  });
+
+  it("counts different numbers, once each, with this order's number", async () => {
+    await byDevice("0661234567", DEVICE, hoursAgo(1));
+    await byDevice("0661234567", DEVICE, hoursAgo(2));
+    await byDevice("0771234567", DEVICE, hoursAgo(3));
+    await byDevice("0550000000", "other", hoursAgo(1));
+    expect((await loadFacts(d1.db, rulesOf(deviceCount("device_phones", 24)), onDevice, {}, NOW)).windowCounts).toEqual({ "device_phones:24": 3 });
+  });
+
+  it("does not count this order's number twice", async () => {
+    await byDevice(PHONE, DEVICE, hoursAgo(1));
+    expect((await loadFacts(d1.db, rulesOf(deviceCount("device_phones", 24)), onDevice, {}, NOW)).windowCounts).toEqual({ "device_phones:24": 1 });
+  });
+
+  it("leaves numbers outside the window out", async () => {
+    await byDevice("0661234567", DEVICE, hoursAgo(25));
+    await byDevice("0771234567", DEVICE, hoursAgo(1));
+    expect((await loadFacts(d1.db, rulesOf(deviceCount("device_phones", 24)), onDevice, {}, NOW)).windowCounts).toEqual({ "device_phones:24": 2 });
+  });
+
+  it("has no count at all when the browser sent no key", async () => {
+    await byDevice(PHONE, DEVICE, hoursAgo(1));
+    expect((await loadFacts(d1.db, rulesOf(deviceCount("device_orders", 24), deviceCount("device_phones", 24)), submission, {}, NOW)).windowCounts).toEqual({});
+  });
+
+  it("holds every kind of count in one statement, within D1's limit of bound values", async () => {
+    const windows = [1, 6, 24, 72, 168, 720];
+    const every = (["phone_orders", "ip_orders", "device_orders", "device_phones"] as const).flatMap((key) => windows.map((hours) => ({ key, op: "at_least_in_window", value: { count: 1, windowHours: hours } }) as Condition));
+    await byDevice("0661234567", DEVICE, hoursAgo(2));
+    const statements: string[] = [];
+    const watched = drizzle({ prepare: (query: string) => (statements.push(query), d1.raw.prepare(query)) } as unknown as D1Database, { schema }) as unknown as AppDb;
+    const facts = await loadFacts(watched, rulesOf(...every), onDevice, {}, NOW);
+    expect(Object.keys(facts.windowCounts!)).toHaveLength(24);
+    expect(facts.windowCounts!["device_phones:1"]).toBe(1);
+    expect(facts.windowCounts!["device_phones:6"]).toBe(2);
+    expect(statements).toHaveLength(1);
+    expect(statements[0].match(/\?/g)!.length).toBeLessThanOrEqual(100);
   });
 });
 
@@ -216,7 +270,7 @@ describe("the store's rules and settings", () => {
     await setProtectionEnabled(d1.db, "s1", false, NOW);
     await applyTemplate(d1.db, "s1", "recommended", "fr", NOW);
     const rules = await listRules(d1.db);
-    expect(rules).toHaveLength(7);
+    expect(rules).toHaveLength(10);
     expect(rules.map((rule) => rule.name)).toEqual(templateRules("recommended", "fr").map((rule) => rule.name));
     expect(rules.every((rule) => rule.templateKey === "recommended" && rule.conditions !== null)).toBe(true);
     expect(await getProtectionConfig(d1.db, "s1")).toEqual({ enabled: true });

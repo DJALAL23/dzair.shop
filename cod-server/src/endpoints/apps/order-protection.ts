@@ -13,7 +13,7 @@ import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import { RULE_LIMITS, RULE_MODES } from "../../../../cod-shared/order-screening/conditions";
 import { parseRule } from "../../../../cod-shared/order-screening/rules";
-import { blockListValue, BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES } from "../../../../cod-shared/order-screening/signals";
+import { APP_SOURCES, blockListValue, BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES, VISIT_SOURCES } from "../../../../cod-shared/order-screening/signals";
 import { TEMPLATE_KEYS } from "../../../../cod-shared/order-screening/templates";
 import * as protection from "../../../../cod-shared/queries/order-protection";
 import { assertOrderable, commitOrder, orderLines, quoteOrder } from "../store/place-order";
@@ -166,6 +166,7 @@ const AttemptSchema = z.object({
   customerName: z.string().nullable(),
   total: z.number().nullable(),
   matches: z.array(z.object({ ruleId: z.string(), name: z.string(), mode: z.enum(["trial", "active"]), action: z.enum(["spam", "flag", "accept"]) })),
+  signals: z.object({ fillSeconds: z.number().optional(), visitSource: z.enum(VISIT_SOURCES).optional(), appSource: z.enum(APP_SOURCES).optional(), networkCountry: z.string().optional(), networkOperator: z.string().optional() }),
 });
 
 async function listAttempts(c: Context<AppContext>) {

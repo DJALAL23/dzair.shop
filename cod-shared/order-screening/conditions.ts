@@ -1,4 +1,4 @@
-import { ipKey, phoneKey } from "./signals";
+import { APP_SOURCES, ipKey, phoneKey, VISIT_SOURCES, type AppSource, type VisitSource } from "./signals";
 
 export const RULE_MODES = ["trial", "active", "off"] as const;
 export type RuleMode = (typeof RULE_MODES)[number];
@@ -13,7 +13,14 @@ export const RULE_LIMITS = { rules: 30, conditions: 5, nameLength: 80, listValue
 export const CONDITION_KEYS = [
   "phone_orders",
   "ip_orders",
+  "device_orders",
+  "device_phones",
   "ip_burst",
+  "fill_seconds",
+  "network_country",
+  "network_operator",
+  "visit_source",
+  "app_source",
   "phone",
   "ip",
   "name",
@@ -57,6 +64,12 @@ export interface Facts {
   blocked?: { phone: boolean; ip: boolean };
   history?: { delivered: number; returned: number };
   burst?: boolean;
+  deviceKey?: string;
+  fillSeconds?: number;
+  visitSource?: VisitSource;
+  appSource?: AppSource;
+  networkCountry?: string;
+  networkOperator?: string;
 }
 
 export type FactSource = "submission" | "attempts" | "history" | "block_list" | "burst";
@@ -114,6 +127,10 @@ const textItem: ListItem = (raw) => {
 };
 const wilayaItem: ListItem = (raw) => (typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= 69 ? raw : null);
 const idItem: ListItem = (raw) => trimmed(raw);
+const countryItem: ListItem = (raw) => {
+  const text = trimmed(raw)?.toUpperCase();
+  return text && /^[A-Z0-9]{2}$/.test(text) ? text : null;
+};
 
 const DELIVERY_TYPES = ["home", "stop_desk"] as const;
 
@@ -134,7 +151,14 @@ const wording = (fact: ConditionSpec["fact"]): ConditionSpec => ({ group: "typed
 export const CONDITIONS: Readonly<Record<ConditionKey, ConditionSpec>> = {
   phone_orders: counted("phone_orders"),
   ip_orders: counted("ip_orders"),
+  device_orders: counted("device_orders"),
+  device_phones: counted("device_phones"),
   ip_burst: { group: "who", operators: ["is_true"], source: "burst", fact: (facts) => facts.burst },
+  fill_seconds: { group: "who", operators: ["at_most"], source: "submission", fact: (facts) => facts.fillSeconds },
+  network_country: { group: "who", operators: ["one_of", "not_one_of"], source: "submission", fact: (facts) => facts.networkCountry, item: countryItem },
+  network_operator: { group: "who", operators: ["contains_any"], source: "submission", fact: (facts) => facts.networkOperator, item: textItem },
+  visit_source: { group: "who", operators: ["one_of"], source: "submission", fact: (facts) => facts.visitSource, options: VISIT_SOURCES },
+  app_source: { group: "who", operators: ["one_of"], source: "submission", fact: (facts) => facts.appSource, options: APP_SOURCES },
   phone: { group: "typed", operators: ["on_block_list", "one_of", "starts_with"], source: "submission", fact: onList((facts) => facts.phone, "phone"), item: phoneItem },
   ip: { group: "who", operators: ["on_block_list", "one_of"], source: "submission", fact: onList((facts) => facts.ipKey, "ip"), item: ipItem },
   name: wording((facts) => facts.name),

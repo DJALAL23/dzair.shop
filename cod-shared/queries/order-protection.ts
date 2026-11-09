@@ -3,6 +3,7 @@ import type { AppDb } from "../db/client";
 import { orderAttempts, orderBlockList, orderRules, storeOrderProtectionConfig } from "../db/schema";
 import type { StoreLocale } from "../i18n/locales";
 import type { RuleMode } from "../order-screening/conditions";
+import type { AttemptSignals } from "../order-screening/facts";
 import { readStoredConditions, type Rule, type RuleDraft, type RuleMatch } from "../order-screening/rules";
 import type { BlockListKind, OrderAttemptOutcome } from "../order-screening/signals";
 import { templateRules, type TemplateKey } from "../order-screening/templates";
@@ -119,6 +120,7 @@ export interface AttemptView {
   customerName: string | null;
   total: number | null;
   matches: RuleMatch[];
+  signals: AttemptSignals;
 }
 
 const ATTEMPT_COLUMNS = {
@@ -130,12 +132,13 @@ const ATTEMPT_COLUMNS = {
   orderId: orderAttempts.orderId,
   orderNumber: orderAttempts.orderNumber,
   matchesJson: orderAttempts.matchesJson,
+  signalsJson: orderAttempts.signalsJson,
   customerName: sql<string | null>`json_extract(${orderAttempts.submissionJson}, '$.data.customerName')`,
   total: sql<number | null>`json_extract(${orderAttempts.answerJson}, '$.price') + json_extract(${orderAttempts.answerJson}, '$.deliveryFee')`,
 };
 
-function attemptView({ matchesJson, ...row }: { matchesJson: string } & Omit<AttemptView, "matches">): AttemptView {
-  return { ...row, matches: JSON.parse(matchesJson) as RuleMatch[] };
+function attemptView({ matchesJson, signalsJson, ...row }: { matchesJson: string; signalsJson: string } & Omit<AttemptView, "matches" | "signals">): AttemptView {
+  return { ...row, matches: JSON.parse(matchesJson) as RuleMatch[], signals: JSON.parse(signalsJson) as AttemptSignals };
 }
 
 export async function listAttempts(db: AppDb, input: { outcome?: OrderAttemptOutcome; limit: number; offset: number }) {

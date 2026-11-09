@@ -27,8 +27,8 @@ export function ConditionSummary({ condition }: { condition: Condition }) {
       }
       case "product":
         return `(${(condition.value as ListValue).length})`;
-      case "delivery":
-        return (condition.value as ListValue).map((value) => t(`order_protection.delivery.${value}`)).join("، ");
+      case "options":
+        return (condition.value as ListValue).map((value) => t(`order_protection.options.${condition.key}.${value}`)).join("، ");
     }
   }
 

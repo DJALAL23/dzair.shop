@@ -343,9 +343,26 @@
       "spam": "Spam",
       "rescued": "Récupérée"
     },
-    "delivery": {
-      "home": "Livraison à domicile",
-      "stop_desk": "Point relais"
+    "options": {
+      "delivery_type": {
+        "home": "Livraison à domicile",
+        "stop_desk": "Point relais"
+      },
+      "visit_source": {
+        "meta": "Publicité Meta",
+        "tiktok": "Publicité TikTok",
+        "google": "Publicité Google",
+        "other": "Autre"
+      },
+      "app_source": {
+        "facebook": "Facebook",
+        "instagram": "Instagram",
+        "tiktok": "TikTok",
+        "browser": "Navigateur normal"
+      }
+    },
+    "signals": {
+      "filled_in": "Rempli en {seconds} s"
     },
     "groups": {
       "who": "Qui commande, et comment",
@@ -370,7 +387,8 @@
       "then": "Alors",
       "then_hint": "Choisissez ce que la règle fait de la commande.",
       "all_must_match": "Toutes ces conditions doivent être vraies.",
-      "add_condition": "Ajouter une condition"
+      "add_condition": "Ajouter une condition",
+      "country_hint": "Codes pays à deux lettres, par exemple DZ, FR"
     },
     "rule_error": {
       "name": "Donnez un nom à la règle.",
@@ -418,7 +436,14 @@
       "pieces": "Pièces dans la commande",
       "delivery_type": "Type de livraison",
       "delivered_before": "Commandes déjà livrées",
-      "returned_before": "Commandes déjà retournées"
+      "returned_before": "Commandes déjà retournées",
+      "device_orders": "Commandes du même appareil",
+      "device_phones": "Numéros différents sur le même appareil",
+      "fill_seconds": "Temps de remplissage du formulaire (secondes)",
+      "network_country": "Pays du réseau",
+      "network_operator": "Opérateur du réseau",
+      "visit_source": "Origine de la visite",
+      "app_source": "Application d'ouverture de la boutique"
     },
     "operators": {
       "at_least_in_window": "au moins",

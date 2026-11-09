@@ -339,9 +339,26 @@
       "spam": "Spam",
       "rescued": "Rescued"
     },
-    "delivery": {
-      "home": "Home delivery",
-      "stop_desk": "Stop desk"
+    "options": {
+      "delivery_type": {
+        "home": "Home delivery",
+        "stop_desk": "Stop desk"
+      },
+      "visit_source": {
+        "meta": "Meta ad",
+        "tiktok": "TikTok ad",
+        "google": "Google ad",
+        "other": "Other"
+      },
+      "app_source": {
+        "facebook": "Facebook",
+        "instagram": "Instagram",
+        "tiktok": "TikTok",
+        "browser": "Normal browser"
+      }
+    },
+    "signals": {
+      "filled_in": "Filled in {seconds} s"
     },
     "groups": {
       "who": "Who is ordering, and how",
@@ -366,7 +383,8 @@
       "then": "Then",
       "then_hint": "Choose what the rule does with the order.",
       "all_must_match": "All of these must be true.",
-      "add_condition": "Add a condition"
+      "add_condition": "Add a condition",
+      "country_hint": "Two-letter country codes, for example DZ, FR"
     },
     "rule_error": {
       "name": "Give the rule a name.",
@@ -414,7 +432,14 @@
       "pieces": "Pieces in the order",
       "delivery_type": "Delivery type",
       "delivered_before": "Orders delivered before",
-      "returned_before": "Orders returned before"
+      "returned_before": "Orders returned before",
+      "device_orders": "Orders from the same device",
+      "device_phones": "Different numbers on the same device",
+      "fill_seconds": "Time to fill the form (seconds)",
+      "network_country": "Network country",
+      "network_operator": "Network company",
+      "visit_source": "Where the visit came from",
+      "app_source": "App the store was opened in"
     },
     "operators": {
       "at_least_in_window": "at least",

@@ -170,6 +170,43 @@ describe("the rule builder", () => {
     expect(api.createRule).toHaveBeenCalledWith({ name: "Blocked", mode: "trial", action: "spam", conditions: [{ key: "phone", op: "on_block_list", value: null }] });
   });
 
+  it("offers the fixed choices of a Condition as boxes to tick", async () => {
+    api.createRule.mockResolvedValue({});
+    await mount(<RulePageApp />);
+    await type(nameInput(), "From apps");
+    await click("Add a condition");
+    await click("App the store was opened in");
+    for (const box of ["Facebook", "TikTok", "Normal browser", "Normal browser"]) {
+      await act(async () => byText(box, "label")!.querySelector("input")!.click());
+    }
+    await click("Flag as suspicious");
+    await click("Save");
+    expect(api.createRule).toHaveBeenCalledWith({ name: "From apps", mode: "trial", action: "flag", conditions: [{ key: "app_source", op: "one_of", value: ["facebook", "tiktok"] }] });
+  });
+
+  it("starts the form-speed Condition at a sensible number", async () => {
+    await mount(<RulePageApp />);
+    await click("Add a condition");
+    await click("Time to fill the form (seconds)");
+    expect(document.querySelector<HTMLInputElement>('input[type="number"]')!.value).toBe("5");
+  });
+
+  it("says what a country list wants", async () => {
+    await mount(<RulePageApp />);
+    await click("Add a condition");
+    await click("Network country");
+    expect(document.querySelector("textarea")!.placeholder).toContain("DZ, FR");
+  });
+
+  it("opens a rule with its boxes ticked", async () => {
+    window.history.replaceState(null, "", "/apps/order-protection/rule?id=r2");
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, id: "r2", conditions: [{ key: "visit_source", op: "one_of", value: ["tiktok"] }] }] });
+    api.updateRule.mockResolvedValue({});
+    await mount(<RulePageApp />);
+    expect(byText("TikTok ad", "label")!.querySelector("input")!.checked).toBe(true);
+    expect(byText("Meta ad", "label")!.querySelector("input")!.checked).toBe(false);
+  });
+
   it("says what is missing, and saves nothing", async () => {
     await mount(<RulePageApp />);
     await type(nameInput(), "Blocked");
@@ -202,8 +239,16 @@ describe("the rule builder", () => {
   });
 });
 
+describe("a rule in words", () => {
+  it("names the fixed choices it holds", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, conditions: [{ key: "app_source", op: "one_of", value: ["facebook", "browser"] }] }] });
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    expect(document.body.textContent).toContain("Facebook، Normal browser");
+  });
+});
+
 describe("the Spam page", () => {
-  const SPAM = { id: "s1", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "spam", orderId: null, orderNumber: "ORD-1", customerName: "Amel", total: 6600, matches: [{ ruleId: "r", name: "Blocked", mode: "active", action: "spam" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
+  const SPAM = { id: "s1", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "spam", orderId: null, orderNumber: "ORD-1", customerName: "Amel", total: 6600, signals: {}, matches: [{ ruleId: "r", name: "Blocked", mode: "active", action: "spam" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
 
   it("shows who, how much and why, naming only the rules that acted", async () => {
     api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
@@ -212,6 +257,19 @@ describe("the Spam page", () => {
     expect(document.body.textContent).toContain("Amel");
     expect(document.body.textContent).toContain("Because of: Blocked");
     expect(document.body.textContent).not.toContain("Only trying");
+  });
+
+  it("shows how the order was sent", async () => {
+    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, signals: { fillSeconds: 3.4, visitSource: "tiktok", appSource: "instagram", networkCountry: "DZ", networkOperator: "Djezzy" } }], total: 1 });
+    await mount(<SpamOrdersPageApp />);
+    expect(document.body.textContent).toContain("Instagram · TikTok ad · Filled in 3 s · DZ · Djezzy");
+  });
+
+  it("shows a form filled in no time, and no empty line when nothing is known", async () => {
+    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, id: "known", signals: { fillSeconds: 0 } }, { ...SPAM, id: "unknown", signals: {} }], total: 2 });
+    await mount(<SpamOrdersPageApp />);
+    expect(document.body.textContent).toContain("Filled in 0 s");
+    expect(document.querySelectorAll("li p.text-xs")).toHaveLength(3);
   });
 
   it("rescues and reloads", async () => {
@@ -256,13 +314,14 @@ describe("the Spam page", () => {
 });
 
 describe("the card on an order", () => {
-  const FLAGGED = { id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "flagged", orderId: "o", orderNumber: "ORD-1", customerName: null, total: null, matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
+  const FLAGGED = { id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "flagged", orderId: "o", orderNumber: "ORD-1", customerName: null, total: null, signals: {}, matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
 
   it("says why it was flagged and blocks the number or network", async () => {
-    api.attemptOfOrder.mockResolvedValue(FLAGGED);
+    api.attemptOfOrder.mockResolvedValue({ ...FLAGGED, signals: { appSource: "browser" } });
     api.addToBlockList.mockResolvedValue({});
     await mount(<RequireAuth><OrderProtectionCard orderId="o" /></RequireAuth>);
     expect(document.body.textContent).toContain("Flagged because of: Too many");
+    expect(document.body.textContent).toContain("Normal browser");
     expect(document.body.textContent).not.toContain("Only trying");
     await click("Block this number");
     expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567" });

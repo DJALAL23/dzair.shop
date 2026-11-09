@@ -43,7 +43,7 @@ beforeEach(async () => {
 async function spamOrder(quantity = 2, overrides: Record<string, unknown> = {}) {
   const held = await holdOrder(
     d1.db,
-    { verdict: "spam", matches: [{ ruleId: "r", name: "Bloqué", mode: "active", action: "spam" }], phone: PHONE, ipKey: "41.100.1.1" },
+    { verdict: "spam", matches: [{ ruleId: "r", name: "Bloqué", mode: "active", action: "spam" }], phone: PHONE, ipKey: "41.100.1.1", deviceKey: null, signals: { visitSource: "tiktok", fillSeconds: 2 } },
     {
       submission: { data: { customerName: "Amel Kaci", phone: PHONE, wilayaId: 16, communeId: "c-16-001", deliveryType: "home", address: "Rue", items: [{ productId: "robe", productName: "Robe", quantity }], ...overrides }, customFieldAnswers: [], locale: "fr", ipAddress: "41.100.1.1", userAgent: "UA" },
       answer: { price: 3000 * quantity, deliveryFee: 600, couponDiscount: 0, deliveryType: "home", lines: [{ name: "Robe", variantLabel: null, quantity }] },
@@ -92,7 +92,7 @@ describe("the App's state", () => {
     expect((await admin.put(BASE, { enabled: false })).body.data).toEqual({ enabled: false });
     const { body } = await admin.get(BASE);
     expect(body.data.enabled).toBe(false);
-    expect(body.data.rules).toHaveLength(7);
+    expect(body.data.rules).toHaveLength(10);
     expect((await admin.get("/api/apps")).body.data.find((app: any) => app.key === "order-protection").status).toBe("off");
   });
 
@@ -181,6 +181,7 @@ describe("the Spam page", () => {
     const held = await spamOrder();
     await d1.db.insert(schema.orderAttempts).values({ id: "other", createdAt: T, phone: PHONE, outcome: "accepted" });
     const { body } = await admin.get(`${BASE}/attempts?outcome=spam`);
+    expect(body.data[0].signals).toEqual({ visitSource: "tiktok", fillSeconds: 2 });
     expect(body.total).toBe(1);
     expect(body.data[0]).toMatchObject({ id: held.orderId, customerName: "Amel Kaci", total: 6600, phone: PHONE, outcome: "spam", matches: [{ name: "Bloqué" }] });
     expect(JSON.stringify(body)).not.toContain("submission");

@@ -2,7 +2,7 @@ import { and, count, eq, gte, ne } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { orderAttempts, orderRules, storeOrderProtectionConfig } from "../db/schema";
 import { MAX_ORDER_NUMBER_DRAWS, drawOrderNumber } from "../lib/order-number";
-import { loadFacts, type OrderSubmission, type ScreeningPorts } from "./facts";
+import { attemptSignals, loadFacts, type AttemptSignals, type OrderSubmission, type ScreeningPorts } from "./facts";
 import { decide, readStoredConditions, type Rule, type RuleMatch, type Verdict } from "./rules";
 
 /** Spam Orders saved in 24 hours, at most: a flood cannot fill the store's database. */
@@ -13,6 +13,8 @@ export interface Screening {
   matches: RuleMatch[];
   phone: string;
   ipKey: string | null;
+  deviceKey: string | null;
+  signals: AttemptSignals;
 }
 
 async function liveRules(db: AppDb): Promise<Rule[]> {
@@ -34,7 +36,7 @@ export async function screenOrderAttempt(db: AppDb, submission: OrderSubmission,
     const rules = await liveRules(db);
     if (rules.length === 0) return null;
     const facts = await loadFacts(db, rules, submission, ports, now);
-    return { ...decide(rules, facts), phone: facts.phone, ipKey: facts.ipKey ?? null };
+    return { ...decide(rules, facts), phone: facts.phone, ipKey: facts.ipKey ?? null, deviceKey: facts.deviceKey ?? null, signals: attemptSignals(facts) };
   } catch (error) {
     console.error("[order-screening] screening failed, the order goes through:", error instanceof Error ? error.message : String(error));
     return null;
@@ -49,6 +51,8 @@ export async function recordAttempt(db: AppDb, screening: Screening, order: { id
       createdAt: now,
       phone: screening.phone,
       ipKey: screening.ipKey,
+      deviceKey: screening.deviceKey,
+      signalsJson: JSON.stringify(screening.signals),
       outcome: screening.verdict === "flag" ? "flagged" : "accepted",
       orderId: order.id,
       orderNumber: order.orderNumber,
@@ -123,6 +127,8 @@ export async function holdOrder(db: AppDb, screening: Screening, held: { checkou
           createdAt: now,
           phone: screening.phone,
           ipKey: screening.ipKey,
+          deviceKey: screening.deviceKey,
+          signalsJson: JSON.stringify(screening.signals),
           outcome: "spam",
           orderNumber,
           checkoutKey: held.checkoutKey ?? null,

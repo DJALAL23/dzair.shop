@@ -4,14 +4,14 @@ import { CONDITION_KEYS, CONDITIONS, valueShape, type Condition, type ConditionK
 import { parseRule, type ParsedRule, type RuleIssueCode } from "../../../../../cod-shared/order-screening/rules";
 import { WILAYAS } from "../../../../../cod-shared/places";
 
-export type ValueInput = "none" | "number" | "window" | "text" | "wilaya" | "product" | "delivery";
+export type ValueInput = "none" | "number" | "window" | "text" | "wilaya" | "product" | "options";
 
 export function valueInputOf(key: ConditionKey, op: Operator): ValueInput {
   const shape = valueShape(op);
   if (shape !== "list") return shape;
   if (key === "wilaya") return "wilaya";
   if (key === "product") return "product";
-  if (key === "delivery_type") return "delivery";
+  if (CONDITIONS[key].options) return "options";
   return "text";
 }
 
@@ -31,7 +31,7 @@ export const CONDITION_GROUPS = (["who", "typed"] as const).map((group) => ({ gr
 const DEFAULT_WINDOW_HOURS = 24;
 
 export function blankCondition(key: ConditionKey, uid: string): ConditionForm {
-  return { uid, key, op: CONDITIONS[key].operators[0], count: "3", windowHours: DEFAULT_WINDOW_HOURS, number: "1", text: "", picked: [] };
+  return { uid, key, op: CONDITIONS[key].operators[0], count: "3", windowHours: DEFAULT_WINDOW_HOURS, number: key === "fill_seconds" ? "5" : "1", text: "", picked: [] };
 }
 
 export function withOperator(form: ConditionForm, op: Operator): ConditionForm {
@@ -54,7 +54,7 @@ function valueToSave(form: ConditionForm): unknown {
     case "wilaya":
       return form.picked.map((option) => Number(option.id));
     case "product":
-    case "delivery":
+    case "options":
       return form.picked.map((option) => option.id);
   }
 }

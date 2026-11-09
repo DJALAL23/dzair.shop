@@ -8,6 +8,7 @@ import { notify } from "@/lib/notify";
 import { relativeTime } from "@/lib/relative-time";
 import { formatMoney } from "@/features/orders/model";
 import { addToBlockList, deleteSpamOrder, listAttempts, rescueSpamOrder, type OrderAttempt } from "@/features/apps/order-protection/api";
+import { AttemptSignalsLine } from "@/features/apps/order-protection/AttemptSignals";
 import { rescueErrorKey } from "@/features/apps/order-protection/model";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 
@@ -98,6 +99,7 @@ function SpamOrders() {
                     <time dateTime={row.createdAt}>{relativeTime(row.createdAt, locale)}</time>
                   </p>
                   <p className="truncate text-xs text-muted-foreground">{t("order_protection.spam.because", { rules: row.matches.filter((match) => match.mode === "active").map((match) => match.name).join("، ") })}</p>
+                  <AttemptSignalsLine signals={row.signals} />
                 </div>
                 {canManage && (
                   <div className="flex shrink-0 items-center gap-2">

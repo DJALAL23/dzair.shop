@@ -435,8 +435,102 @@ describe("protection never costs a real order", () => {
   });
 });
 
+describe("what the storefront says about a checkout", () => {
+  const DEVICE = "3f2b8c1e-7a4d-4e6f-9b1a-2c3d4e5f6a7b";
+  const INSTAGRAM = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Instagram 307.0.0.34.111";
+  const context = (fields: Record<string, unknown> = {}) => JSON.stringify({ d: DEVICE, f: 3000, s: "meta", ...fields });
+  const network = encodeURIComponent(JSON.stringify({ c: "DZ", o: "Algérie Télécom" }));
+  const sent = { extra: { checkoutContext: context() }, headers: { "User-Agent": INSTAGRAM, "X-Visitor-Network": network } };
+  const signals = { fillSeconds: 3, visitSource: "meta", appSource: "instagram", networkCountry: "DZ", networkOperator: "Algérie Télécom" };
+  const flagOn = async (condition: Condition) => {
+    await turnOn();
+    await rule("flag", "active", [condition]);
+  };
+
+  it.each<[string, Condition]>([
+    ["fill time", { key: "fill_seconds", op: "at_most", value: 3 }],
+    ["visit source", { key: "visit_source", op: "one_of", value: ["meta"] }],
+    ["app", { key: "app_source", op: "one_of", value: ["instagram"] }],
+    ["country", { key: "network_country", op: "one_of", value: ["DZ"] }],
+    ["country left out", { key: "network_country", op: "not_one_of", value: ["FR"] }],
+    ["company", { key: "network_operator", op: "contains_any", value: ["télécom"] }],
+    ["device", { key: "device_orders", op: "at_least_in_window", value: { count: 1, windowHours: 24 } }],
+  ])("a rule on the %s acts", async (_name, condition) => {
+    await flagOn(condition);
+    expect((await order(sent)).status).toBe(201);
+    const [attempt] = await attempts();
+    expect(attempt.outcome).toBe("flagged");
+    expect(attempt.deviceKey).toBe(DEVICE);
+    expect(JSON.parse(attempt.signalsJson)).toEqual(signals);
+  });
+
+  it("sends the third number on one device to Spam, and no earlier one", async () => {
+    await turnOn();
+    await rule("spam", "active", [{ key: "device_phones", op: "at_least_in_window", value: { count: 3, windowHours: 24 } }]);
+    await order({ phone: "0551111111", extra: sent.extra });
+    await order({ phone: "0551111111", extra: sent.extra });
+    await order({ phone: "0662222222", extra: sent.extra });
+    expect(await count("orders")).toBe(3);
+    const third = await order({ phone: "0773333333", extra: sent.extra });
+    expect(third.status).toBe(201);
+    expect(await count("orders")).toBe(3);
+    expect((await attempts()).filter((attempt) => attempt.outcome === "spam")).toHaveLength(1);
+  });
+
+  it.each<[string, Condition]>([
+    ["fill time", { key: "fill_seconds", op: "at_most", value: 100000 }],
+    ["visit source", { key: "visit_source", op: "one_of", value: ["other"] }],
+    ["country left out", { key: "network_country", op: "not_one_of", value: ["FR"] }],
+    ["company", { key: "network_operator", op: "contains_any", value: ["a"] }],
+    ["device", { key: "device_orders", op: "at_least_in_window", value: { count: 1, windowHours: 24 } }],
+    ["numbers", { key: "device_phones", op: "at_least_in_window", value: { count: 1, windowHours: 24 } }],
+  ])("a storefront that sends nothing never matches a rule on the %s", async (_name, condition) => {
+    await turnOn();
+    await rule("spam", "active", [condition]);
+    expect((await order()).status).toBe(201);
+    expect(await count("orders")).toBe(1);
+    const [attempt] = await attempts();
+    expect(attempt.outcome).toBe("accepted");
+    expect(attempt.deviceKey).toBeNull();
+  });
+
+  it.each([["not json"], [""], [7], [{ d: DEVICE }], ["x".repeat(513)], [JSON.stringify({ d: "<script>", f: -5, s: "radio" })]])("still takes the order when the value is %j", async (checkoutContext) => {
+    await flagOn({ key: "fill_seconds", op: "at_most", value: 100000 });
+    expect((await order({ extra: { checkoutContext } })).status).toBe(201);
+    const [attempt] = await attempts();
+    expect(attempt.outcome).toBe("accepted");
+    expect(attempt.deviceKey).toBeNull();
+  });
+
+  it("still takes the order when the network header is broken", async () => {
+    await flagOn({ key: "network_country", op: "one_of", value: ["DZ"] });
+    expect((await order({ headers: { "X-Visitor-Network": "%E0%A4%A" } })).status).toBe(201);
+    expect((await attempts())[0].outcome).toBe("accepted");
+  });
+
+  it("keeps the Signals of a Spam Order, but not the raw value in what it would place", async () => {
+    await turnOn();
+    await rule("spam", "active", [{ key: "app_source", op: "one_of", value: ["instagram"] }]);
+    expect((await order(sent)).status).toBe(201);
+    const [attempt] = await attempts();
+    expect(attempt.outcome).toBe("spam");
+    expect(attempt.deviceKey).toBe(DEVICE);
+    expect(JSON.parse(attempt.signalsJson)).toEqual(signals);
+    expect(attempt.submissionJson).not.toContain("checkoutContext");
+  });
+
+  it("answers a Spam Order and a real one with the same fields", async () => {
+    await turnOn();
+    await rule("spam", "active", [phoneIs(SPAM_PHONE)]);
+    const real = await order(sent);
+    const spam = await order({ ...sent, phone: SPAM_PHONE });
+    expect(Object.keys(spam.json.data).sort()).toEqual(Object.keys(real.json.data).sort());
+    expect(JSON.stringify(spam.json)).not.toContain("meta");
+  });
+});
+
 describe("keeping a Spam Order", () => {
-  const screening = { verdict: "spam" as const, matches: [], phone: SPAM_PHONE, ipKey: SHOPPER_IP };
+  const screening = { verdict: "spam" as const, matches: [], phone: SPAM_PHONE, ipKey: SHOPPER_IP, deviceKey: null, signals: {} };
   const answer = { price: 100, deliveryFee: 50, couponDiscount: 0, deliveryType: "home" as const, lines: [] };
 
   it("answers with the one already kept when another request of the checkout got there first", async () => {

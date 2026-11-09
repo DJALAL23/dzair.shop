@@ -180,6 +180,10 @@ export const storeOrderSchema = z.object({
     (v) => (v === "" || v == null ? undefined : v),
     z.string().uuid().optional()
   ),
+  checkoutContext: z.preprocess(
+    (v) => (typeof v === "string" && v.length > 0 && v.length <= 512 ? v : undefined),
+    z.string().optional()
+  ),
 })
   /**
    * An order is either a basket or a single product — never neither.

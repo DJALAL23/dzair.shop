@@ -355,9 +355,26 @@
       "spam": "سبام",
       "rescued": "تم استرجاعه"
     },
-    "delivery": {
-      "home": "توصيل للمنزل",
-      "stop_desk": "مكتب التوصيل"
+    "options": {
+      "delivery_type": {
+        "home": "توصيل للمنزل",
+        "stop_desk": "مكتب التوصيل"
+      },
+      "visit_source": {
+        "meta": "إعلان Meta",
+        "tiktok": "إعلان TikTok",
+        "google": "إعلان Google",
+        "other": "أخرى"
+      },
+      "app_source": {
+        "facebook": "Facebook",
+        "instagram": "Instagram",
+        "tiktok": "TikTok",
+        "browser": "متصفح عادي"
+      }
+    },
+    "signals": {
+      "filled_in": "عُبّئ في {seconds} ث"
     },
     "groups": {
       "who": "من يطلب وكيف",
@@ -382,7 +399,8 @@
       "then": "إذن",
       "then_hint": "اختر ما تفعله القاعدة بالطلب.",
       "all_must_match": "يجب أن تتحقق كل هذه الشروط.",
-      "add_condition": "إضافة شرط"
+      "add_condition": "إضافة شرط",
+      "country_hint": "رموز الدول من حرفين، مثل DZ أو FR"
     },
     "rule_error": {
       "name": "أعطِ القاعدة اسمًا.",
@@ -430,7 +448,14 @@
       "pieces": "عدد القطع في الطلب",
       "delivery_type": "نوع التوصيل",
       "delivered_before": "طلبات سُلّمت من قبل",
-      "returned_before": "طلبات أُرجعت من قبل"
+      "returned_before": "طلبات أُرجعت من قبل",
+      "device_orders": "طلبات من نفس الجهاز",
+      "device_phones": "أرقام مختلفة على نفس الجهاز",
+      "fill_seconds": "مدة تعبئة النموذج (بالثواني)",
+      "network_country": "بلد الشبكة",
+      "network_operator": "شركة الشبكة",
+      "visit_source": "مصدر الزيارة",
+      "app_source": "التطبيق الذي فُتح منه المتجر"
     },
     "operators": {
       "at_least_in_window": "على الأقل",

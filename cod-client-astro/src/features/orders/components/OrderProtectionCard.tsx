@@ -5,6 +5,7 @@ import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { addToBlockList, attemptOfOrder, type OrderAttempt } from "@/features/apps/order-protection/api";
+import { AttemptSignalsLine } from "@/features/apps/order-protection/AttemptSignals";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 
 /** On an order the App screened: why it was flagged, and blocking who sent it. Nothing at all otherwise. */
@@ -47,6 +48,9 @@ export function OrderProtectionCard({ orderId }: { orderId: string }) {
           {t("order_protection.flag.because", { rules: reasons.join("، ") })}
         </p>
       )}
+      <div className="mb-3 empty:hidden">
+        <AttemptSignalsLine signals={attempt.signals} />
+      </div>
       {canManage && (
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => void block("phone", attempt.phone)}>

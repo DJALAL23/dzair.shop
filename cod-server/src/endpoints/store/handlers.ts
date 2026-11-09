@@ -383,13 +383,16 @@ export async function createStoreOrder(c: Context<AppContext>) {
       productIds: lines.map((line) => line.productId),
       pieces: lines.reduce((total, line) => total + line.quantity, 0),
       deliveryType: data.deliveryType,
+      checkoutContext: data.checkoutContext,
+      visitorNetwork: c.req.header("X-Visitor-Network"),
+      userAgent,
     },
     { limiter: c.env.REVIEW_RATE_LIMITER },
     now,
   );
 
   if (screening?.verdict === "spam") {
-    const { turnstileToken: _turnstile, otpToken: _otp, ...kept } = data;
+    const { turnstileToken: _turnstile, otpToken: _otp, checkoutContext: _context, ...kept } = data;
     const held = await holdOrder(
       db,
       screening,
