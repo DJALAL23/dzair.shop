@@ -11,6 +11,8 @@ variables and live domains still carry the old name where renaming would
 break existing stores.
 
 [![Telegram](https://img.shields.io/badge/Telegram-Join%20our%20group-2AABEE?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/codflow_dz)
+[![Facebook](https://img.shields.io/badge/Facebook-Follow%20us-1877F2?style=for-the-badge&logo=facebook&logoColor=white)](https://www.facebook.com/wocartdz/)
+[![Instagram](https://img.shields.io/badge/Instagram-Follow%20us-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://www.instagram.com/wocart_dz/)
 
 Run a whole store on your own Cloudflare account: storefront, merchant
 dashboard and API on Workers, D1, R2 and KV, with no transaction fees. Ship to
