@@ -1,6 +1,6 @@
 /**
- * NOEST adapter — against the official NOEST Public API v2.3
- * (`api_documentation_v2_3.pdf`). Response bodies below are the
+ * NOEST adapter — against the official NOEST Public API v2.3.
+ * Response bodies below are the
  * documentation's own examples wherever it gives one.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";

@@ -2,7 +2,7 @@
  * What NOEST's tracking events mean to CodFlow.
  *
  * Source: the official "Liste des événements" (NOEST Public API v2.3, May
- * 2026, `api_documentation_v2_3.pdf` beside this file). Events are keyed by
+ * 2026). Events are keyed by
  * `event_key`, but the documentation's own example shows events with only the
  * French `event` label, so both are recognized.
  *

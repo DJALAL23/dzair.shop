@@ -1,8 +1,7 @@
 /**
  * NOEST (https://app.noest-dz.com) — the carrier contract over its public API.
  *
- * Source: the official NOEST Public API v2.3 (May 2026,
- * `api_documentation_v2_3.pdf` beside this file). Facts that shape this adapter:
+ * Source: the official NOEST Public API v2.3 (May 2026). Facts that shape this adapter:
  *   - Auth: `Authorization: Bearer` plus `user_guid` in most POST bodies.
  *   - A created parcel waits for `valid/order`; after it, no deletion and no
  *     direct edit. Editing before shipment is `update/order/before/expedition`
