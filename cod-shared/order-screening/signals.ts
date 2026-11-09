@@ -1,5 +1,11 @@
 import { toLocalAlgerianMobile } from "../lib/phone";
 
+export const ORDER_ATTEMPT_OUTCOMES = ["accepted", "flagged", "spam", "rescued"] as const;
+export type OrderAttemptOutcome = (typeof ORDER_ATTEMPT_OUTCOMES)[number];
+
+export const BLOCK_LIST_KINDS = ["phone", "ip", "device"] as const;
+export type BlockListKind = (typeof BLOCK_LIST_KINDS)[number];
+
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 
 function ipv4Key(raw: string): string | null {
@@ -40,4 +46,12 @@ export function ipKey(raw: string): string | null {
 export function phoneKey(raw: string): string | null {
   const text = raw.trim();
   return toLocalAlgerianMobile(text) ?? (/^\+?\d{6,15}$/.test(text) ? text : null);
+}
+
+/** A Block List value in the form it is compared in, or null when it cannot be one. */
+export function blockListValue(kind: BlockListKind, raw: string): string | null {
+  if (kind === "phone") return phoneKey(raw);
+  if (kind === "ip") return ipKey(raw);
+  const device = raw.trim();
+  return device.length > 0 && device.length <= 64 ? device : null;
 }

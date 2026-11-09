@@ -10,6 +10,8 @@ import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
 import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
+import { RULE_ACTIONS, RULE_MODES } from "../order-screening/conditions";
+import { BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES } from "../order-screening/signals";
 import type { ActorKind, Origin } from "../events/actor";
 import type { EventSubject, EventType } from "../events/catalogue";
 import { ATTEMPT_OUTCOMES, CONSUMER_DISABLED_REASONS, DELIVERY_STATES } from "../events/deliveries-model";
@@ -2238,3 +2240,62 @@ export const storeTelegramConfig = sqliteTable("store_telegram_config", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+// ─── Order Protection (cod-shared/order-screening; migration 0080) ────────────
+
+export const storeOrderProtectionConfig = sqliteTable("store_order_protection_config", {
+  id: text("id").primaryKey(),
+  storeId: text("store_id")
+    .notNull()
+    .unique()
+    .references(() => stores.id, { onDelete: "cascade" }),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const orderRules = sqliteTable("order_rules", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  mode: text("mode", { enum: RULE_MODES }).notNull(),
+  action: text("action", { enum: RULE_ACTIONS }).notNull(),
+  conditionsJson: text("conditions_json").notNull(),
+  templateKey: text("template_key"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const orderBlockList = sqliteTable("order_block_list", {
+  id: text("id").primaryKey(),
+  kind: text("kind", { enum: BLOCK_LIST_KINDS }).notNull(),
+  value: text("value").notNull(),
+  note: text("note"),
+  createdAt: text("created_at").notNull(),
+}, (t) => ({
+  entry: uniqueIndex("order_block_list_entry").on(t.kind, t.value),
+}));
+
+/** One row per screened submission; counts read only from here. A Spam Order is a row with `outcome = 'spam'`. */
+export const orderAttempts = sqliteTable("order_attempts", {
+  id: text("id").primaryKey(),
+  createdAt: text("created_at").notNull(),
+  phone: text("phone").notNull(),
+  ipKey: text("ip_key"),
+  deviceKey: text("device_key"),
+  outcome: text("outcome", { enum: ORDER_ATTEMPT_OUTCOMES }).notNull(),
+  orderId: text("order_id").references(() => orders.id, { onDelete: "set null" }),
+  orderNumber: text("order_number"),
+  checkoutKey: text("checkout_key"),
+  matchesJson: text("matches_json").notNull().default("[]"),
+  signalsJson: text("signals_json").notNull().default("{}"),
+  submissionJson: text("submission_json"),
+  answerJson: text("answer_json"),
+}, (t) => ({
+  phone: index("order_attempts_phone").on(t.phone, t.createdAt),
+  ip: index("order_attempts_ip").on(t.ipKey, t.createdAt).where(sql`ip_key IS NOT NULL`),
+  device: index("order_attempts_device").on(t.deviceKey, t.createdAt).where(sql`device_key IS NOT NULL`),
+  outcome: index("order_attempts_outcome").on(t.outcome, t.createdAt),
+  order: index("order_attempts_order").on(t.orderId).where(sql`order_id IS NOT NULL`),
+  spamNumber: uniqueIndex("order_attempts_spam_number").on(t.orderNumber).where(sql`outcome = 'spam'`),
+  spamCheckout: uniqueIndex("order_attempts_spam_checkout").on(t.checkoutKey).where(sql`outcome = 'spam' AND checkout_key IS NOT NULL`),
+}));
