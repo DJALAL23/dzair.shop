@@ -340,6 +340,15 @@ export function connectErrorKey(cause: unknown): "error_token_refused" | "error_
   return "error_saving";
 }
 
+/** The message that explains why a company's places could not be read, with what the server said. */
+export function placesReadError(cause: unknown): { key: "places_read_keys_refused" | "places_read_busy" | "places_read_failed"; reason: string } {
+  const code = typeof cause === "object" && cause !== null ? (cause as { code?: unknown }).code : undefined;
+  const reason = cause instanceof Error ? cause.message : String(cause);
+  if (code === "CARRIER_AUTH_FAILED") return { key: "places_read_keys_refused", reason };
+  if (code === "CARRIER_RATE_LIMITED") return { key: "places_read_busy", reason };
+  return { key: "places_read_failed", reason };
+}
+
 /** A company is connected while it has credentials and is switched on; Disconnect only switches it off, so its parcels can still be tracked. */
 export function isCompanyConnected(company: Pick<DeliveryCompany, "isConnected" | "active"> | null | undefined): boolean {
   return !!company && company.isConnected && company.active;

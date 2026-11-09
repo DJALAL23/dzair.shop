@@ -4,6 +4,7 @@ import {
   canRetryEvent,
   carrierHostFrom,
   connectErrorKey,
+  placesReadError,
   companySettingsFor,
   fromWilayaOf,
   isCompanyConnected,
@@ -233,6 +234,21 @@ describe("why connecting a carrier failed", () => {
     expect(connectErrorKey(api(422, "CARRIER_REJECTED"))).toBe("error_host_refused");
     expect(connectErrorKey(api(409, "CARRIER_MISCONFIGURED"))).toBe("error_saving");
     expect(connectErrorKey(new Error("boom"))).toBe("error_saving");
+  });
+});
+
+describe("why a company's places could not be read", () => {
+  const api = (message: string, code: string) => Object.assign(new Error(message), { code });
+
+  it("says the server's own reason, never a bare 'did not answer'", () => {
+    expect(placesReadError(api("Carrier HTTP 403 (Access denied)", "CARRIER_UNAVAILABLE"))).toEqual({ key: "places_read_failed", reason: "Carrier HTTP 403 (Access denied)" });
+    expect(placesReadError(api("The sender's wilaya is unknown", "CARRIER_MISCONFIGURED"))).toEqual({ key: "places_read_failed", reason: "The sender's wilaya is unknown" });
+    expect(placesReadError(new Error("Failed to fetch"))).toEqual({ key: "places_read_failed", reason: "Failed to fetch" });
+  });
+
+  it("tells refused keys and a busy carrier apart", () => {
+    expect(placesReadError(api("x", "CARRIER_AUTH_FAILED")).key).toBe("places_read_keys_refused");
+    expect(placesReadError(api("x", "CARRIER_RATE_LIMITED")).key).toBe("places_read_busy");
   });
 });
 

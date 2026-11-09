@@ -21,7 +21,7 @@ import { ExternalLink, Settings } from "lucide-react";
 import { CompanyPlacesCard } from "@/features/delivery/components/CompanyPlacesCard";
 import { CompanySettingsSection } from "@/features/delivery/components/CompanySettingsSection";
 import { CompanyWebhookEventsCard } from "@/features/delivery/components/CompanyWebhookEventsCard";
-import { isCompanyConnected } from "@/features/delivery/model";
+import { isCompanyConnected, placesReadError } from "@/features/delivery/model";
 import { notify } from "@/lib/notify";
 
 function Loading() {
@@ -135,8 +135,9 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
       const read = await syncCompanyPlaces(company.id);
       setPlaces(read);
       notify.success(t("places_read_done", { count: read.communes }));
-    } catch {
-      const message = t("places_read_failed", { company: company.name });
+    } catch (cause) {
+      const { key, reason } = placesReadError(cause);
+      const message = t(key, { company: company.name, reason });
       setNotice({ message, tone: "error" });
       notify.error(message);
     } finally {
