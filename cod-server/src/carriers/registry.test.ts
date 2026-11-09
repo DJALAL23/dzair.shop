@@ -87,8 +87,13 @@ describe("building a company's adapter", () => {
   });
 
   it("stored settings that break the adapter's schema are misconfigured, never ignored", () => {
-    const company = { ...companies.yalidine, providerConfig: JSON.stringify({ proxyBaseUrl: "not a url" }) };
+    const company = { ...companies.yalidine, providerConfig: JSON.stringify({ platform: "maystro" }) };
     expect(refusal(() => buildCarrier(company)).kind).toBe("misconfigured");
+  });
+
+  it("a stored setting the adapter no longer has does not stop the company", () => {
+    const company = { ...companies.yalidine, providerConfig: JSON.stringify({ platform: "yalidine", retired: "old" }) };
+    expect(buildCarrier(company).provider).toBe("yalidine");
   });
 
   it("reads the platform from the settings: Guepex is pulled, Yalidine pushes", () => {
@@ -109,24 +114,24 @@ describe("building a company's adapter", () => {
 });
 
 describe("saving settings", () => {
-  const stored = JSON.stringify({ platform: "yalidine", fromWilayaName: "Batna", proxyBaseUrl: "https://relay.example", proxySecret: "relay-secret-1234" });
+  const stored = JSON.stringify({ platform: "guepex", fromWilayaName: "Batna" });
   const merged = (patch: Record<string, unknown>, from: string | null = stored) => {
     const result = mergeProviderConfig("yalidine", from, patch);
     if (!result.ok) throw new Error(result.message);
     return JSON.parse(result.json);
   };
 
-  it("changing one setting keeps every other — the relay survives a new sender wilaya", () => {
-    expect(merged({ fromWilayaName: "Oran" })).toEqual({ platform: "yalidine", fromWilayaName: "Oran", proxyBaseUrl: "https://relay.example", proxySecret: "relay-secret-1234" });
+  it("changing one setting keeps every other", () => {
+    expect(merged({ fromWilayaName: "Oran" })).toEqual({ platform: "guepex", fromWilayaName: "Oran" });
   });
 
-  it("a secret sent back masked keeps the stored secret", () => {
-    expect(merged({ proxySecret: "••••1234", fromWilayaName: "Oran" }).proxySecret).toBe("relay-secret-1234");
+  it("null removes a setting, which goes back to its default", () => {
+    expect(merged({ fromWilayaName: null })).toEqual({ platform: "guepex", fromWilayaName: "Alger" });
   });
 
-  it("a new secret replaces it; null removes a setting", () => {
-    expect(merged({ proxySecret: "new-secret" }).proxySecret).toBe("new-secret");
-    expect(merged({ proxyBaseUrl: null, proxySecret: null })).toEqual({ platform: "yalidine", fromWilayaName: "Batna" });
+  it("saving leaves out a stored setting the adapter no longer has", () => {
+    const old = JSON.stringify({ platform: "guepex", fromWilayaName: "Batna", retired: "old" });
+    expect(merged({ fromWilayaName: "Oran" }, old)).toEqual({ platform: "guepex", fromWilayaName: "Oran" });
   });
 
   it("starts from the adapter's defaults", () => {
@@ -134,9 +139,9 @@ describe("saving settings", () => {
   });
 
   it("refuses settings the adapter does not know, naming the problem", () => {
-    const result = mergeProviderConfig("yalidine", stored, { proxyBaseUrl: "nope" });
+    const result = mergeProviderConfig("yalidine", stored, { platform: "maystro" });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toContain("proxyBaseUrl");
+    if (!result.ok) expect(result.message).toContain("platform");
     expect(mergeProviderConfig("ecotrack", null, { anything: 1 }).ok).toBe(false);
   });
 });

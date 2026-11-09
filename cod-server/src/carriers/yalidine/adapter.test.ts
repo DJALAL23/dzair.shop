@@ -345,19 +345,12 @@ describe("stop desks and geo names", () => {
   });
 });
 
-describe("egress relay", () => {
-  it("routes calls through the relay with its secret", async () => {
-    fetchMock.mockResolvedValueOnce(json({ has_more: false, data: [] }));
-    await carrier({ proxyBaseUrl: "https://relay.example/yal/", proxySecret: "s3" }).stopDesks!();
-    expect(call().url).toBe("https://relay.example/yal/centers/?page_size=1000&page=1");
-    expect(call().init.headers).toMatchObject({ "X-Proxy-Secret": "s3" });
-  });
-
-  it("calls Yalidine directly without a relay header otherwise", async () => {
+describe("Yalidine's own address", () => {
+  it("is where every call goes, with the account's two headers", async () => {
     fetchMock.mockResolvedValueOnce(json({ has_more: false, data: [] }));
     await carrier().stopDesks!();
-    expect(call().url.startsWith("https://api.yalidine.app/v1/")).toBe(true);
-    expect(call().init.headers).not.toHaveProperty("X-Proxy-Secret");
+    expect(call().url).toBe("https://api.yalidine.app/v1/centers/?page_size=1000&page=1");
+    expect(call().init.headers).toMatchObject({ "X-API-ID": "yal-id", "X-API-TOKEN": "yal-token" });
   });
 });
 
@@ -392,11 +385,11 @@ describe("Guepex — the same API on its own host", () => {
 });
 
 describe("config", () => {
-  it("defaults the sender wilaya and refuses unknown keys", () => {
+  it("defaults the sender wilaya, refuses a bad value and leaves out a key it does not have", () => {
     expect(yalidineConfigSchema.parse({})).toEqual({ platform: "yalidine", fromWilayaName: "Alger" });
     expect(yalidineConfigSchema.safeParse({ platform: "maystro" }).success).toBe(false);
-    expect(yalidineConfigSchema.safeParse({ from_wilaya_name: "Oran" }).success).toBe(false);
-    expect(yalidineConfigSchema.safeParse({ proxyBaseUrl: "not a url" }).success).toBe(false);
+    expect(yalidineConfigSchema.safeParse({ fromWilayaName: "" }).success).toBe(false);
+    expect(yalidineConfigSchema.parse({ fromWilayaName: "Oran", retired: "old" })).toEqual({ platform: "yalidine", fromWilayaName: "Oran" });
   });
 });
 

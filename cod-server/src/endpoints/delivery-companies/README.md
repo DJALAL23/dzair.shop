@@ -30,7 +30,7 @@ The carrier adapters are in `src/carriers/` (one folder per provider, behind
 
 | Provider | Companies | Credentials | Settings (`providerConfig`) | Updates |
 |---|---|---|---|---|
-| `yalidine` | Yalidine, Guepex | `apiToken` (X-API-TOKEN), `apiUserGuid` (X-API-ID) | `platform` (`yalidine` \| `guepex`), `fromWilayaName`, optional relay (`proxyBaseUrl`, `proxySecret`) | Yalidine: webhook (pasted secret). Guepex: pulled every 5 minutes |
+| `yalidine` | Yalidine, Guepex | `apiToken` (X-API-TOKEN), `apiUserGuid` (X-API-ID) | `platform` (`yalidine` \| `guepex`), `fromWilayaName` | Yalidine: webhook (pasted secret). Guepex: pulled every 5 minutes |
 | `zr_express` | ZR Express | `apiToken` (X-Api-Key), `apiUserGuid` (X-Tenant) | `statusMap` — the tenant's own state names by meaning | Webhook (registered in one click) |
 | `noest` | NOEST | `apiToken`, `apiUserGuid` | — | Pulled every 5 minutes |
 | `ecotrack` | 82 EcoTrack couriers (`<name>_ecotrack`) | `apiToken`, `apiEndpoint` (the courier's host) | — | Pulled every 5 minutes |

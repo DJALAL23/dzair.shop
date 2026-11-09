@@ -7,7 +7,6 @@
  * companies share the `ecotrack` adapter, each with its own host and token.
  */
 
-import { isMasked, isSecretSetting } from "../../../cod-shared/carriers/providers";
 import { CarrierError, type CarrierAdapter, type CarrierCapabilities, type CarrierProvider, type CarrierWebhook } from "./contract";
 import { ECOTRACK_CAPABILITIES, EcotrackCarrier, ecotrackConfigSchema } from "./ecotrack/adapter";
 import { NOEST_CAPABILITIES, NoestCarrier, noestConfigSchema } from "./noest/adapter";
@@ -136,17 +135,14 @@ export type SettingsMerge = { ok: true; json: string } | { ok: false; message: s
 
 /**
  * Apply a settings change from the dashboard onto the stored settings.
- * Keys not mentioned keep their stored value; `null` removes a key; a secret
- * sent back still masked (or omitted) keeps the stored secret — the dashboard
- * only ever sees it masked and must never be able to overwrite it with that.
- * The result is validated by the provider's own schema.
+ * Keys not mentioned keep their stored value; `null` removes a key. The
+ * result is validated by the provider's own schema.
  */
 export function mergeProviderConfig(provider: CarrierProvider, stored: string | null, patch: Record<string, unknown>): SettingsMerge {
   const current = (parseJson(stored) as Record<string, unknown> | undefined) ?? {};
   const merged: Record<string, unknown> = { ...current };
   for (const [key, value] of Object.entries(patch)) {
     if (value === null) delete merged[key];
-    else if (isSecretSetting(key) && isMasked(value)) continue;
     else merged[key] = value;
   }
   const parsed = CONFIG_SCHEMAS[provider].safeParse(merged);

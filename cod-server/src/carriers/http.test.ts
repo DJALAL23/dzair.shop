@@ -83,10 +83,10 @@ describe("carrier HTTP — what a failure means", () => {
   });
 
   it("an HTML block page never reached the carrier: unavailable, even for a write", async () => {
-    fetchMock.mockResolvedValueOnce(respond(403, "<html>error code: 1106</html>"));
+    fetchMock.mockResolvedValueOnce(respond(403, "<html>Access denied</html>"));
     const error = await failure(http().write("POST", "/x"));
     expect(error.kind).toBe("unavailable");
-    expect(error.message).toContain("1106");
+    expect(error.message).toContain("Access denied");
   });
 
   it("a server error on a write may have happened: ambiguous", async () => {

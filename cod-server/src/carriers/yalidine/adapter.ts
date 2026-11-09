@@ -18,8 +18,6 @@
  *   - `GET /parcels?order_id=` finds a parcel by our reference — what resolves
  *     a creation whose answer was lost.
  *   - GET/PATCH answers mask personal data; never copy it back into CodFlow.
- *   - Yalidine's Cloudflare zone blocks Worker egress (403, error 1106), so an
- *     account may route every call through a relay (`proxyBaseUrl`).
  *   - Rate limits: 5/s, 50/min, 1000/h, 10000/day; 429 with Retry-After.
  */
 
@@ -78,17 +76,12 @@ const PAGE = "page_size=1000";
 export const FEES_CALL_SPACING_MS = 1_300;
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-export const yalidineConfigSchema = z
-  .object({
-    /** Which carrier on the platform this company is. */
-    platform: z.enum(["yalidine", "guepex"]).default("yalidine"),
-    /** The sender's wilaya, required on every parcel, in Yalidine's spelling. */
-    fromWilayaName: z.string().trim().min(1).default("Alger"),
-    /** A relay that mirrors Yalidine's paths, for Worker egress. */
-    proxyBaseUrl: z.string().url().optional(),
-    proxySecret: z.string().min(1).optional(),
-  })
-  .strict();
+export const yalidineConfigSchema = z.object({
+  /** Which carrier on the platform this company is. */
+  platform: z.enum(["yalidine", "guepex"]).default("yalidine"),
+  /** The sender's wilaya, required on every parcel, in Yalidine's spelling. */
+  fromWilayaName: z.string().trim().min(1).default("Alger"),
+});
 
 export type YalidineConfig = z.infer<typeof yalidineConfigSchema>;
 
@@ -151,17 +144,15 @@ export class YalidineCarrier implements CarrierAdapter {
     this.capabilities = yalidineCapabilities(config.platform);
     if (config.platform === "yalidine") this.webhook = yalidineWebhook;
     this.fromWilayaName = config.fromWilayaName;
-    const proxySecret = config.proxySecret;
     this.http = createCarrierHttp({
       provider: "yalidine",
       label: platform.label,
-      baseUrl: config.proxyBaseUrl ?? platform.baseUrl,
+      baseUrl: platform.baseUrl,
       headers: () => ({
         "X-API-ID": credentials.apiId,
         "X-API-TOKEN": credentials.apiToken,
         "Content-Type": "application/json",
         Accept: "application/json",
-        ...(proxySecret ? { "X-Proxy-Secret": proxySecret } : {}),
       }),
       describeError,
     });

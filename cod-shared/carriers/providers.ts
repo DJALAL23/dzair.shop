@@ -23,10 +23,6 @@ export function maskSecret(secret: string | null | undefined): string | null {
   return `${MASK}${secret.slice(-4)}`;
 }
 
-export function isMasked(value: unknown): boolean {
-  return typeof value === "string" && value.startsWith(MASK);
-}
-
 /** Stored provider settings as a response may show them: every secret masked. */
 export function maskedSettings(stored: string | null): Record<string, unknown> | null {
   if (!stored) return null;

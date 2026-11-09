@@ -85,7 +85,7 @@ const createBodySchema = z.object({
     description: "Which carrier adapter serves this company. When omitted it is derived from the code.",
   }),
   providerConfig: z.record(z.string(), z.unknown()).optional().openapi({
-    description: "The adapter's own settings (e.g. Yalidine: platform, fromWilayaName, proxyBaseUrl, proxySecret). Merged onto the stored settings; a secret sent back masked keeps the stored one; null removes a key.",
+    description: "The adapter's own settings (e.g. Yalidine: platform, fromWilayaName). Merged onto the stored settings; null removes a key.",
   }),
 });
 
@@ -110,7 +110,7 @@ const updateBodySchema = z.object({
     description: "Which carrier adapter serves this company. When omitted it is derived from the code.",
   }),
   providerConfig: z.record(z.string(), z.unknown()).optional().openapi({
-    description: "The adapter's own settings (e.g. Yalidine: platform, fromWilayaName, proxyBaseUrl, proxySecret). Merged onto the stored settings; a secret sent back masked keeps the stored one; null removes a key.",
+    description: "The adapter's own settings (e.g. Yalidine: platform, fromWilayaName). Merged onto the stored settings; null removes a key.",
   }),
 });
 

@@ -27,7 +27,7 @@ const realFetch = globalThis.fetch;
 const NOW = () => new Date().toISOString();
 
 const WEBHOOK_SECRET = "whsec_abcdefghij_sign";
-const RELAY_SECRET = "relay-secret-value-9876";
+const STORED_SECRET = "stored-secret-value-9876";
 const API_TOKEN = "yal-token-XYZ";
 
 beforeAll(async () => {
@@ -68,7 +68,7 @@ beforeEach(async () => {
     apiUserGuid: "yal-id",
     webhookSecret: WEBHOOK_SECRET,
     provider: "yalidine",
-    providerConfig: JSON.stringify({ platform: "yalidine", fromWilayaName: "Batna", proxyBaseUrl: "https://relay.example", proxySecret: RELAY_SECRET }),
+    providerConfig: JSON.stringify({ platform: "yalidine", fromWilayaName: "Batna", apiSecret: STORED_SECRET }),
     notes: JSON.stringify({ api_password: "legacy-pass-5555" }),
     createdAt: NOW(),
     updatedAt: NOW(),
@@ -92,11 +92,11 @@ describe("what a response may reveal", () => {
       const res = await request("GET", path);
       expect(res.status).toBe(200);
       const text = await res.text();
-      for (const secret of [WEBHOOK_SECRET, RELAY_SECRET, API_TOKEN, "yal-id", "legacy-pass-5555"]) expect(text).not.toContain(secret);
+      for (const secret of [WEBHOOK_SECRET, STORED_SECRET, API_TOKEN, "yal-id", "legacy-pass-5555"]) expect(text).not.toContain(secret);
     }
   });
 
-  it("still says what is configured: connected, a signing secret, the relay", async () => {
+  it("still says what is configured: connected, a signing secret, the settings", async () => {
     scopes = ["delivery:read"];
     const body: any = await (await request("GET", "/comp-yal")).json();
     expect(body.data).toMatchObject({ isConnected: true, webhookSecretSet: true });
@@ -104,7 +104,7 @@ describe("what a response may reveal", () => {
     expect(body.data).not.toHaveProperty("apiToken");
     expect(body.data).not.toHaveProperty("apiUserGuid");
     expect(body.data.provider).toBe("yalidine");
-    expect(body.data.providerConfig).toEqual({ platform: "yalidine", fromWilayaName: "Batna", proxyBaseUrl: "https://relay.example", proxySecret: "••••9876" });
+    expect(body.data.providerConfig).toEqual({ platform: "yalidine", fromWilayaName: "Batna", apiSecret: "••••9876" });
     expect(JSON.parse(body.data.notes)).toEqual({ api_password: "••••5555" });
   });
 });
@@ -145,18 +145,18 @@ describe("saving carrier settings", () => {
   const stored = async () =>
     JSON.parse((await harness.db.select().from(schema.deliveryCompanies).where(eq(schema.deliveryCompanies.id, "comp-yal")).get())!.providerConfig!);
 
-  it("changing the sender wilaya keeps the relay and its secret", async () => {
+  it("changing the sender wilaya keeps the platform and leaves out a setting the adapter no longer has", async () => {
     scopes = ["delivery:update"];
-    const res = await request("PATCH", "/comp-yal", { providerConfig: { fromWilayaName: "Oran", proxySecret: "••••9876" } });
+    const res = await request("PATCH", "/comp-yal", { providerConfig: { fromWilayaName: "Oran" } });
     expect(res.status).toBe(200);
-    expect(await stored()).toEqual({ platform: "yalidine", fromWilayaName: "Oran", proxyBaseUrl: "https://relay.example", proxySecret: RELAY_SECRET });
+    expect(await stored()).toEqual({ platform: "yalidine", fromWilayaName: "Oran" });
   });
 
   it("refuses settings the adapter does not accept, and stores nothing", async () => {
     scopes = ["delivery:update"];
-    const res = await request("PATCH", "/comp-yal", { providerConfig: { proxyBaseUrl: "not a url" } });
+    const res = await request("PATCH", "/comp-yal", { providerConfig: { platform: "maystro" } });
     expect(res.status).toBe(400);
-    expect((await stored()).proxyBaseUrl).toBe("https://relay.example");
+    expect((await stored()).platform).toBe("yalidine");
   });
 
   it("a new company takes the provider it is given, with the adapter's default settings", async () => {
@@ -232,13 +232,13 @@ describe("stop-desk sync keeps what the merchant set", () => {
     expect(await desks()).toEqual([["161", true]]);
   });
 
-  it("calls the company's relay with its secret", async () => {
+  it("calls Yalidine at its own address, even with an old setting stored", async () => {
     scopes = ["delivery:manage"];
     const fetchMock = vi.fn(async () => centers([161]));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     await request("POST", "/comp-yal/sync-stop-desks");
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url.startsWith("https://relay.example/")).toBe(true);
-    expect((init.headers as Record<string, string>)["X-Proxy-Secret"]).toBe(RELAY_SECRET);
+    expect(url.startsWith("https://api.yalidine.app/v1/")).toBe(true);
+    expect((init.headers as Record<string, string>)["X-API-ID"]).toBe("yal-id");
   });
 });

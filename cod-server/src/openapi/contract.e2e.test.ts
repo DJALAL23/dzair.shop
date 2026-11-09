@@ -38,7 +38,7 @@ const dbModule = vi.hoisted(() => ({ getDb: vi.fn() }));
 vi.mock("@/db", () => dbModule);
 
 const WEBHOOK_SECRET = "whsec_contract_signing_secret_9f2c";
-const PROXY_SECRET = "proxy-secret-7d41";
+const STORED_SECRET = "stored-secret-7d41";
 
 let d1: TestD1;
 let app: OpenAPIHono<AppContext>;
@@ -87,7 +87,7 @@ beforeEach(async () => {
   server = createEcotrackMockServer();
   globalThis.fetch = ((url: string | URL, init?: RequestInit) => server.fetch(url, init)) as typeof fetch;
   commune16 = await seedStore(d1.db, server);
-  await d1.db.update(schema.deliveryCompanies).set({ webhookSecret: WEBHOOK_SECRET, providerConfig: JSON.stringify({ platform: "yalidine", proxySecret: PROXY_SECRET }) }).where(eq(schema.deliveryCompanies.id, "yal"));
+  await d1.db.update(schema.deliveryCompanies).set({ webhookSecret: WEBHOOK_SECRET, providerConfig: JSON.stringify({ platform: "yalidine", apiSecret: STORED_SECRET }) }).where(eq(schema.deliveryCompanies.id, "yal"));
   await d1.db.insert(schema.drivers).values({ id: "dr1", firstName: "Amine", lastName: "B", phone: "0661111111", createdAt: T0, updatedAt: T0 });
   await d1.db.insert(schema.driverCompensations).values({ id: "comp1", driverId: "dr1", wilayaId: 16, feePerDelivery: 300, createdAt: T0, updatedAt: T0 });
 });
@@ -259,7 +259,7 @@ describe("the document is what the API answers", () => {
     await api("GET", "/api/delivery-companies/yal", "/api/delivery-companies/{id}", 200);
     const created = await api("POST", "/api/delivery-companies", "/api/delivery-companies", 201, {
       name: "Guepex", nameAr: "-", code: "guepex", provider: "yalidine", apiToken: "guepex-token-1234", apiUserGuid: "guepex-id-5678",
-      providerConfig: { platform: "guepex", proxySecret: "guepex-proxy-0042" },
+      providerConfig: { platform: "guepex" },
     });
     expect(created.data.capabilities).toEqual(yalidineCapabilities("guepex"));
     await api("PATCH", `/api/delivery-companies/${created.data.id}`, "/api/delivery-companies/{id}", 200, { apiToken: "guepex-token-9999" });
@@ -268,21 +268,21 @@ describe("the document is what the API answers", () => {
 });
 
 describe("no credential leaves the server", () => {
-  const credentials = [WEBHOOK_SECRET, PROXY_SECRET, "yal-token", "yal-id", "zr-key", "noest-token", "noest-guid", "guepex-token-1234", "guepex-token-9999", "guepex-id-5678", "guepex-proxy-0042"];
+  const credentials = [WEBHOOK_SECRET, STORED_SECRET, "yal-token", "yal-id", "zr-key", "noest-token", "noest-guid", "guepex-token-1234", "guepex-token-9999", "guepex-id-5678"];
 
   it("in any answer about the companies", async () => {
     await api("GET", "/api/delivery-companies", "/api/delivery-companies", 200);
     await api("GET", "/api/delivery-companies/yal", "/api/delivery-companies/{id}", 200);
     const created = await api("POST", "/api/delivery-companies", "/api/delivery-companies", 201, {
       name: "Guepex", nameAr: "-", code: "guepex", provider: "yalidine", apiToken: "guepex-token-1234", apiUserGuid: "guepex-id-5678",
-      providerConfig: { platform: "guepex", proxySecret: "guepex-proxy-0042" },
+      providerConfig: { platform: "guepex" },
     });
     await api("PATCH", `/api/delivery-companies/${created.data.id}`, "/api/delivery-companies/{id}", 200, { apiToken: "guepex-token-9999" });
     const all = answered.join("\n");
     for (const secret of [...credentials, server.token]) expect(all, secret).not.toContain(secret);
     const yal = (await api("GET", "/api/delivery-companies/yal", "/api/delivery-companies/{id}", 200)).data;
     expect(yal).toMatchObject({ isConnected: true, webhookSecretSet: true });
-    expect(yal.providerConfig.proxySecret).toBe(`••••${PROXY_SECRET.slice(-4)}`);
+    expect(yal.providerConfig.apiSecret).toBe(`••••${STORED_SECRET.slice(-4)}`);
     expect((await api("GET", "/api/delivery-companies/zr", "/api/delivery-companies/{id}", 200)).data.webhookSecretSet).toBe(false);
   });
 
