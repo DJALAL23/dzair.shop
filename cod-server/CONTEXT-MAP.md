@@ -23,6 +23,7 @@ Convention: one `CONTEXT.md` per endpoint folder; cross-folder terms live in the
 | ✅ written | Stock | [./src/endpoints/stock/CONTEXT.md](./src/endpoints/stock/CONTEXT.md) | Inventory ledger: movements, manual adjustments, health alerts & valuation |
 | ✅ written | Variants | [./src/endpoints/variants/CONTEXT.md](./src/endpoints/variants/CONTEXT.md) | Sellable combinations of variable products: pricing, SKUs, deletion semantics (routes mounted via products/) |
 | ✅ written | Analytics | [./src/endpoints/analytics/CONTEXT.md](./src/endpoints/analytics/CONTEXT.md) | Dashboard metrics: orders by stage and needing attention (read-only) |
+| ✅ written | Order Screening | [../cod-shared/order-screening/CONTEXT.md](../cod-shared/order-screening/CONTEXT.md) | The merchant's rules for incoming orders: Conditions, Rule Modes, Verdicts, Spam Orders and Rescue |
 | ✅ written | Abandoned Orders | [./src/endpoints/abandoned-orders/CONTEXT.md](./src/endpoints/abandoned-orders/CONTEXT.md) | Captured half-finished checkouts: session capture, 30-min sweep, recovery stats (storefront + dashboard surfaces) |
 | ✅ written | Media | [../cod-shared/media/CONTEXT.md](../cod-shared/media/CONTEXT.md) | Images and voice notes kept by key on the store's host (ImageKit or R2): upload tickets, confirmation, references, the sweep |
 | ✅ written | Activity Logs | [./src/endpoints/activity-logs/CONTEXT.md](./src/endpoints/activity-logs/CONTEXT.md) | Admin-only audit trail: who did what across every context (fire-and-forget writes) |
