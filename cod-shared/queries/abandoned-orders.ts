@@ -279,8 +279,8 @@ export async function markAbandonedOrderConverted(
     .update(abandonedOrders)
     .set({
       status: "converted",
-      convertedOrderId: orderId,
-      convertedOrderNumber: orderNumber,
+      convertedOrderId: sql`(SELECT id FROM orders WHERE id = ${orderId})`,
+      convertedOrderNumber: sql`(SELECT order_number FROM orders WHERE id = ${orderId})`,
       updatedAt: now,
     })
     .where(

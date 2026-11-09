@@ -13,6 +13,7 @@ import { asc, eq } from "drizzle-orm";
 import { deliveryCompanies, orderProducts, orders, shipments } from "../db/schema";
 import type { AppDb } from "../db/client";
 import { samePhone } from "../lib/phone";
+import { findHeldOrder } from "../order-screening/screening";
 import { orderStage } from "../orders/stage";
 import { shopperOrderStage, type ShopperOrderStage } from "../orders/shopper-stage";
 import type { OrderStatus } from "../orders/lifecycle";
@@ -34,6 +35,20 @@ export interface ShopperOrderStatus {
   total: number;
   /** The carrier's tracking number once the parcel is with it; null before, or with the store's own driver. */
   tracking: { number: string; carrier: string | null } | null;
+}
+
+async function heldOrderStatus(db: AppDb, orderNumber: string, phone: string): Promise<ShopperOrderStatus | null> {
+  const held = await findHeldOrder(db, orderNumber);
+  if (!held || !samePhone(held.phone, phone)) return null;
+  return {
+    orderNumber: held.orderNumber,
+    placedAt: held.placedAt,
+    stage: shopperOrderStage(orderStage("new", null)),
+    deliveryType: held.answer.deliveryType,
+    lines: [...held.answer.lines],
+    total: held.answer.price + held.answer.deliveryFee,
+    tracking: null,
+  };
 }
 
 export async function findShopperOrder(db: AppDb, proof: { orderNumber: string; phone: string }): Promise<ShopperOrderStatus | null> {
@@ -63,7 +78,8 @@ export async function findShopperOrder(db: AppDb, proof: { orderNumber: string; 
     .leftJoin(deliveryCompanies, eq(deliveryCompanies.id, shipments.companyId))
     .where(eq(orders.orderNumber, orderNumber))
     .get();
-  if (!found || !samePhone(found.phone, proof.phone)) return null;
+  if (!found) return heldOrderStatus(db, orderNumber, proof.phone);
+  if (!samePhone(found.phone, proof.phone)) return null;
 
   const shipment =
     found.handoffState === null

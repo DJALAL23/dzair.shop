@@ -75,6 +75,7 @@ import {
   settleDelivery,
   variantSelection,
   type CatalogSnapshot,
+  type PricedBasket,
   type PricedLine,
 } from "./catalog-snapshot";
 import { parseCheckoutFormPolicy } from "../checkout-form/policy";
@@ -149,15 +150,14 @@ export class CheckoutAlreadyPlacedError extends Error {
 const isCheckoutKeyCollision = (error: unknown) =>
   /UNIQUE constraint failed: orders\.checkout_key/.test(`${error instanceof Error ? error.message : String(error)} ${error instanceof Error ? String((error as { cause?: unknown }).cause ?? "") : ""}`);
 
-/** The order a checkout attempt placed, as its answer reported it, or null when none was. */
+/** What a checkout attempt placed, as its answer reported it, or null when nothing was. */
 export async function orderPlacedWith(db: AppDb, checkoutKey: string) {
-  return (
-    (await db
-      .select({ id: orders.id, orderNumber: orders.orderNumber, phone: orders.phone, price: orders.price, deliveryFee: orders.deliveryFee, couponDiscount: orders.couponDiscount })
-      .from(orders)
-      .where(eq(orders.checkoutKey, checkoutKey))
-      .get()) ?? null
-  );
+  const [placed] = await db.all<{ id: string; orderNumber: string; phone: string; price: number; deliveryFee: number; couponDiscount: number }>(sql`
+    SELECT id, order_number AS orderNumber, phone, price, delivery_fee AS deliveryFee, coupon_discount AS couponDiscount FROM orders WHERE checkout_key = ${checkoutKey}
+    UNION ALL
+    SELECT id, order_number, phone, json_extract(answer_json, '$.price'), json_extract(answer_json, '$.deliveryFee'), json_extract(answer_json, '$.couponDiscount') FROM order_attempts WHERE checkout_key = ${checkoutKey} AND outcome = 'spam'
+    LIMIT 1`);
+  return placed ?? null;
 }
 
 /**
@@ -996,6 +996,17 @@ function buildDeductStatements(
 /** Every storefront order is a shopper's, through the storefront. */
 const CHECKOUT: Author = { actor: { kind: "shopper", id: null, name: null }, origin: "storefront" };
 
+/** What an order would list: its priced lines, then the rewards offers placed. */
+export function orderLineNames(snapshot: CatalogSnapshot, basket: PricedBasket): { name: string; variantLabel: string | null; quantity: number }[] {
+  return [
+    ...basket.priced.map((entry) => ({ name: entry.productName, variantLabel: entry.variantLabel, quantity: entry.line.quantity })),
+    ...basket.rewards.map(({ offer, placement }) => {
+      const variant = placement.variantId ? snapshot.variants.get(placement.variantId) : undefined;
+      return { name: snapshot.products.get(placement.productId)!.name, variantLabel: variant ? variantLabel(variantSelection(variant)) : null, quantity: offer.rewardQuantity };
+    }),
+  ];
+}
+
 export async function createStoreOrder(
   db: AppDb,
   data: StoreOrderData & {
@@ -1005,6 +1016,8 @@ export async function createStoreOrder(
     deliveryFee: number;
     /** The coupon the order's code named (`findCheckoutCoupon`); it must apply, or the order is refused. */
     coupon?: CheckoutCoupon | null;
+    /** The number to try first, when the shopper already holds one. */
+    orderNumber?: string;
   },
   /**
    * Catalog rows already loaded by the caller. The storefront handler loads
@@ -1118,7 +1131,7 @@ export async function createStoreOrder(
   // The number is random, so two orders can draw the same one. The unique column
   // refuses the second and the batch rolls back whole, so the commit is built
   // again with a new number. Only that collision is retried.
-  let orderNumber = drawOrderNumber(now);
+  let orderNumber = data.orderNumber ?? drawOrderNumber(now);
   for (let attempt = 1; ; attempt += 1) {
     const statements: BatchStatement[] = [
       db.insert(orders).values({

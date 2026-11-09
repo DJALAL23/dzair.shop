@@ -13,6 +13,8 @@ import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { landingDocumentSurface } from "../../../../cod-shared/queries/page-document-surface";
 import { assertOtpVerification } from "./otp-gate";
 import { assertTurnstile } from "./turnstile-gate";
+import { assertOrderable, commitOrder, orderLines, quoteOrder } from "./place-order";
+import { holdOrder, recordAttempt, screenOrderAttempt } from "../../../../cod-shared/order-screening/screening";
 // Pure, like normalizeOrderLines: the whole Checkout Form Policy contract is a
 // function of (policy, submitted form), with nothing to stub.
 import { applyCheckoutPolicy } from "../../../../cod-shared/checkout-form/apply";
@@ -346,131 +348,83 @@ export async function createStoreOrder(c: Context<AppContext>) {
   };
   const customFieldAnswers = applied.value.customFieldAnswers;
 
-  // Normalise first: every request shape becomes one list, and a basket that
-  // breaks its own bounds is refused here with a 4xx rather than surfacing as
-  // an unhandled error deeper in the engine.
-  //
-  // Imported directly rather than through ./queries: this is a pure function
-  // and a plain error class, so there is nothing to stub, and routing them
-  // through the mockable module would only make `instanceof` fragile in tests.
-  let lines: CartLine[];
-  try {
-    lines = normalizeOrderLines(data);
-  } catch (err) {
-    if (err instanceof CartValidationError) {
-      throw new ValidationError(err.message, ERROR_CODES.VALUE_OUT_OF_RANGE, err.detail);
-    }
-    throw err;
-  }
+  const lines = orderLines(data);
 
   // ONE catalog read for the whole checkout. The SKU check, the stock check and
   // the order engine all answer their questions from this same snapshot, so a
   // product row is fetched once per order instead of once per question. The
   // language the storefront was served in is the one the order records.
   const now = new Date().toISOString();
+  const storeId = c.get("storeId")!;
   const [snapshot, locale] = await Promise.all([
     queries.loadCatalogSnapshot(db, lines, now),
-    queries.checkoutLocale(db, c.get("storeId")!, lang, queryParam(c, "locale")),
+    queries.checkoutLocale(db, storeId, lang, queryParam(c, "locale")),
   ]);
   c.header("Content-Language", locale);
 
-  const skuMissing = queries.findMissingSku(snapshot, lines);
-  if (skuMissing) {
-    throw new BusinessLogicError(
-      `SKU is missing on ${skuMissing.missing} ${skuMissing.id} — add a SKU before accepting orders`,
-      ERROR_CODES.REQUIRED_FIELD_MISSING,
-      { [skuMissing.missing === "variant" ? "variantId" : "productId"]: skuMissing.id }
-    );
-  }
-
-  const stockError = queries.findStockShortfall(snapshot, lines);
-  if (stockError) {
-    throw new BusinessLogicError(stockError, ERROR_CODES.INSUFFICIENT_STOCK);
-  }
+  assertOrderable(snapshot, lines);
 
   await assertOtpVerification(c, db, data);
 
-  // The same quote the cart answers before checkout, so what the shopper was
-  // shown — lines, coupon, delivery — is what the order charges.
-  const quote = await queries.quoteCheckout(db, {
-    storeId: c.get("storeId"),
-    now,
-    snapshot,
-    lines,
-    destination: { wilayaId: data.wilayaId, communeId: data.communeId, deliveryType: data.deliveryType },
-    couponCode: data.couponCode,
-    phone: data.phone,
-  });
-
-  if (!quote.delivery) {
-    // Delivery to this wilaya (or this delivery type) is not configured —
-    // refuse the order instead of silently shipping for free. Refusal must
-    // happen BEFORE the customer is created so no orphan customer rows.
-    throw new BusinessLogicError(
-      data.deliveryType === "home"
-        ? "Home delivery is not available to this wilaya"
-        : "Stop-desk delivery is not available to this wilaya",
-      ERROR_CODES.DELIVERY_NOT_AVAILABLE,
-      { wilayaId: data.wilayaId, deliveryType: data.deliveryType }
-    );
-  }
-
-  // A code that does not apply refuses the order — before the customer is
-  // created — rather than placing it without the discount the shopper expects.
-  if (quote.couponOutcome && !quote.couponOutcome.applied) throw couponNotApplicable(quote.couponOutcome.refusal);
-
-  const customer = await queries.findOrCreateCustomer(db, {
-    phone: data.phone,
-    name: data.customerName,
-    email: data.email,
-    wilayaId: data.wilayaId,
-    communeId: data.communeId,
-  });
+  const quote = await quoteOrder(db, { storeId, now, snapshot, lines, data });
 
   const ipAddress = storefrontClientIp(c);
   const userAgent = c.req.header("User-Agent") ?? undefined;
 
-  // Landing page attribution — resolve best-effort BEFORE the customer is
-  // created so a resolution failure leaves zero side effects. A bad slug
-  // never blocks the order; it just leaves it unattributed.
-  let landingPageId: string | null = null;
-  if (data.landingPageSlug) {
-    try {
-      landingPageId = await queries.findPublishedLandingPageIdBySlug(db, data.landingPageSlug);
-    } catch (err) {
-      console.error("[store] landing page attribution lookup failed:", err);
-    }
+  const screening = await screenOrderAttempt(
+    db,
+    {
+      storeId,
+      phone: data.phone,
+      ip: ipAddress,
+      name: data.customerName,
+      address: data.address,
+      wilayaId: data.wilayaId,
+      productIds: lines.map((line) => line.productId),
+      pieces: lines.reduce((total, line) => total + line.quantity, 0),
+      deliveryType: data.deliveryType,
+    },
+    { limiter: c.env.REVIEW_RATE_LIMITER },
+    now,
+  );
+
+  if (screening?.verdict === "spam") {
+    const { turnstileToken: _turnstile, otpToken: _otp, ...kept } = data;
+    const held = await holdOrder(
+      db,
+      screening,
+      {
+        checkoutKey: data.checkoutKey,
+        submission: { data: kept, customFieldAnswers, locale, ipAddress, userAgent },
+        answer: {
+          price: quote.basket.subtotal,
+          deliveryFee: quote.delivery.fee,
+          couponDiscount: quote.couponOutcome?.applied ? quote.couponOutcome.discount : 0,
+          deliveryType: data.deliveryType,
+          lines: queries.orderLineNames(snapshot, quote.basket),
+        },
+      },
+      now,
+    );
+    if (held) return c.json({ success: true, data: held }, 201);
   }
 
-  const order = await queries
-    .createStoreOrder(
-      db,
-      {
-        ...data,
-        customerId: customer.id,
-        customerName: customer.name,
-        deliveryFee: quote.delivery.rate,
-        coupon: quote.coupon,
-        landingPageId,
-        ipAddress,
-        userAgent,
-        customerEmail: data.email,
-        locale,
-        customFieldAnswers,
-      },
-      snapshot
-    )
-    .catch(async (error: unknown) => {
-      // The use was taken by another order since the code was checked.
-      if (error instanceof queries.CouponNotApplicableError) throw couponNotApplicable(error.refusal);
-      // Another request of this checkout placed it a moment earlier.
-      if (error instanceof queries.CheckoutAlreadyPlacedError) return { replay: await queries.orderPlacedWith(db, error.checkoutKey) };
-      throw error;
-    });
+  const order = await commitOrder(db, {
+    data,
+    customFieldAnswers,
+    rate: quote.delivery.rate,
+    coupon: quote.coupon,
+    snapshot,
+    locale,
+    ipAddress,
+    userAgent,
+  });
   if ("replay" in order) {
     if (!order.replay) throw new Error("The checkout's order was placed by another request, then removed before it could be read");
     return checkoutReplay(c, order.replay, submitted.phone);
   }
+
+  if (screening) await recordAttempt(db, screening, order, now);
 
   return c.json(
     {
@@ -507,11 +461,6 @@ function checkoutReplay(c: Context<AppContext>, placed: NonNullable<Awaited<Retu
     },
     201,
   );
-}
-
-/** A code the order carries that does not apply, as the shopper is told. */
-function couponNotApplicable(refusal: queries.CouponRefusal) {
-  return new BusinessLogicError("This coupon does not apply to the order", ERROR_CODES.COUPON_NOT_APPLICABLE, { ...refusal });
 }
 
 /** A code's outcome as the storefront reads it. */
