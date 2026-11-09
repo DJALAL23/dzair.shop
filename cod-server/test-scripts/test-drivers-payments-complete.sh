@@ -36,7 +36,7 @@
 #
 # Auth:
 #   Uses the admin user's API key from the local DB
-#   (users.api_key = 'cod_c4d0f6bd3e7f8039f40288548f072801').
+#   (users.api_key), passed in the API_KEY environment variable.
 #
 # Output:
 #   Every response saved to test-scripts/responses/drivers-payments/.
@@ -45,7 +45,7 @@
 
 set -u
 
-API_KEY="cod_c4d0f6bd3e7f8039f40288548f072801"
+API_KEY="${API_KEY:?Set API_KEY to the local admin API key}"
 BAD_KEY="cod_definitely_not_a_real_key_xxxxxxxxxxxxxxxxxxxxxxxx"
 BASE_URL="http://localhost:8787"
 OUTPUT_DIR="test-scripts/responses/drivers-payments"

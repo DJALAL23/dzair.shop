@@ -114,7 +114,7 @@ Create a bash script that:
 #!/bin/bash
 
 # Configuration
-API_KEY="cod_c4d0f6bd3e7f8039f40288548f072801"
+API_KEY="${API_KEY:?Set API_KEY to the local admin API key}"
 BASE_URL="http://localhost:8787"
 OUTPUT_DIR="test-scripts/responses/[resource-name]"
 
