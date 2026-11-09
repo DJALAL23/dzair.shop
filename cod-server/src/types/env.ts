@@ -50,7 +50,6 @@ export interface Env {
    * Origin of the Better Auth OAuth Authorization Server (dashboard URL).
    * Used as the `iss` claim when verifying MCP bearer tokens AND to derive
    * the JWKS URL (`${BETTER_AUTH_URL}/api/auth/jwks`).
-   * Partner-server sets this per-tenant during provisioning.
    */
   BETTER_AUTH_URL: string;
   /**
