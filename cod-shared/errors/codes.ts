@@ -228,6 +228,12 @@ export const ERROR_CODES = {
   COUPON_CODE_TAKEN: "COUPON_CODE_TAKEN",
   /** The code the order carries does not apply to it; `reason` says why (`CouponRefusal`), with `shortBy` or `startsAt` when there is one. */
   COUPON_NOT_APPLICABLE: "COUPON_NOT_APPLICABLE",
+  ORDER_RULE_NOT_FOUND: "ORDER_RULE_NOT_FOUND",
+  ORDER_RULE_LIMIT_REACHED: "ORDER_RULE_LIMIT_REACHED",
+  BLOCK_LIST_ENTRY_NOT_FOUND: "BLOCK_LIST_ENTRY_NOT_FOUND",
+  BLOCK_LIST_LIMIT_REACHED: "BLOCK_LIST_LIMIT_REACHED",
+  SPAM_ORDER_NOT_FOUND: "SPAM_ORDER_NOT_FOUND",
+  SPAM_ORDER_ALREADY_RESCUED: "SPAM_ORDER_ALREADY_RESCUED",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - REVIEWS

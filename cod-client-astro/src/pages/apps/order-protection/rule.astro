@@ -1,0 +1,12 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
+import RulePageApp from "@/features/apps/order-protection/RulePageApp";
+---
+
+<DashboardLayout>
+  <PageSkeleton gate="required" />
+  <div data-auth-gate="required" hidden>
+    <RulePageApp client:only="react" />
+  </div>
+</DashboardLayout>

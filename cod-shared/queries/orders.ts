@@ -60,6 +60,8 @@ export interface OrderFilters {
   attention?: boolean;
   /** Only orders handed to a carrier, or to the store's driver. */
   kind?: ShipmentKind;
+  /** Only orders Order Protection flagged. */
+  flagged?: boolean;
   /** Archived orders: left out (default), the only ones, or included. */
   archived?: "exclude" | "only" | "include";
   orderType?: (typeof orders.$inferSelect)["orderType"];
@@ -138,6 +140,10 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     conditions.push(filters.attention ? orderNeedsAttentionSql() : sql`not ${orderNeedsAttentionSql()}`);
   }
 
+  if (filters.flagged) {
+    conditions.push(sql`EXISTS (SELECT 1 FROM order_attempts WHERE order_attempts.order_id = orders.id AND order_attempts.outcome = 'flagged')`);
+  }
+
   if (filters.wilayaId) {
     conditions.push(eq(orders.wilayaId, filters.wilayaId));
   }
@@ -174,6 +180,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
         string | null
       >`CASE WHEN ${driversAlias.firstName} IS NOT NULL THEN ${driversAlias.firstName} || ' ' || ${driversAlias.lastName} ELSE NULL END`,
       hasReview: sql<number>`EXISTS (SELECT 1 FROM reviews WHERE reviews.order_id = orders.id)`,
+      flagged: sql<number>`EXISTS (SELECT 1 FROM order_attempts WHERE order_attempts.order_id = orders.id AND order_attempts.outcome = 'flagged')`,
       shipmentId: sql<string | null>`${shipments.id}`,
       shipmentKind: sql<ShipmentKind | null>`${shipments.kind}`,
       carrierName: sql<string | null>`${deliveryCompanies.name}`,

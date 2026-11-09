@@ -4,7 +4,7 @@ import { APP_CATALOG, APP_KEYS, appOf, consumerOwner, consumerPermissions, INTEG
 
 describe("the App catalog", () => {
   it("keys every App by lowercase words joined by hyphens, once", () => {
-    expect(APP_KEYS).toEqual(["meta", "dzverify", "turnstile", "sendili", "whatsapp-button", "telegram", "reviews"]);
+    expect(APP_KEYS).toEqual(["meta", "dzverify", "turnstile", "order-protection", "sendili", "whatsapp-button", "telegram", "reviews"]);
     for (const key of APP_KEYS) expect(key).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
     expect(new Set(APP_KEYS).size).toBe(APP_KEYS.length);
   });
@@ -35,8 +35,8 @@ describe("the App catalog", () => {
     expect(appOf("sendili").category).toBe("messaging");
   });
 
-  it("turns Reviews off rather than removing it, and removes every other App", () => {
-    expect(APP_CATALOG.filter((app) => !app.removable).map((app) => app.key)).toEqual(["reviews"]);
+  it("turns Reviews and Order Protection off rather than removing them, and removes every other App", () => {
+    expect(APP_CATALOG.filter((app) => !app.removable).map((app) => app.key)).toEqual(["order-protection", "reviews"]);
   });
 });
 

@@ -57,6 +57,7 @@ import { drainAndContinue, wake, type DrainMessage } from "@/events/drain";
 import { pruneEventLog } from "../../cod-shared/events/deliveries";
 import { getDb } from "@/db";
 import { sweepAbandonedOrders } from "@/cron/sweep-abandoned-orders";
+import { sweepOrderAttempts } from "../../cod-shared/queries/order-protection";
 import { runMediaSweep } from "@/cron/media-sweep";
 import { refreshCarrierPlaces } from "@/cron/refresh-carrier-places";
 import { runStuckReviewSweep } from "@/cron/settle-stuck-reviews";
@@ -246,6 +247,7 @@ export default {
     ctx.waitUntil(runStuckReviewSweep(env));
     ctx.waitUntil(getOAuthProvider(env).purgeExpiredData(env, { batchSize: 50 }));
     ctx.waitUntil(pruneEventLog(getDb(env.DB), new Date()));
+    ctx.waitUntil(sweepOrderAttempts(getDb(env.DB), new Date()));
     ctx.waitUntil(refreshCarrierPlaces(env));
   },
 };

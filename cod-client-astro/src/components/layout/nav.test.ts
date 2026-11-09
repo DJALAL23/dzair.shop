@@ -4,6 +4,8 @@ import { isCurrentPath } from "./nav";
 describe("the current page in the navigation", () => {
   it("reads a path with a trailing slash like the same path without it", () => {
     expect(isCurrentPath("/orders/abandoned/", "/orders")).toBe(false);
+    expect(isCurrentPath("/orders/spam/", "/orders")).toBe(false);
+    expect(isCurrentPath("/orders/spam/", "/orders/spam")).toBe(true);
     expect(isCurrentPath("/orders/abandoned/", "/orders/abandoned")).toBe(true);
     expect(isCurrentPath("/products/stock/", "/products")).toBe(false);
     expect(isCurrentPath("/products/stock/", "/products/stock")).toBe(true);

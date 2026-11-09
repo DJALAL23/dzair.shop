@@ -42,6 +42,7 @@ describe("App Status", () => {
       meta: "not_set_up",
       dzverify: "not_set_up",
       turnstile: "not_set_up",
+      "order-protection": "not_set_up",
       sendili: "not_set_up",
       "whatsapp-button": "not_set_up",
       telegram: "not_set_up",
@@ -53,6 +54,7 @@ describe("App Status", () => {
     await d1.db.insert(schema.storePixelConfig).values({ id: "p", storeId: STORE, pixelId: "1", accessToken: "t", enabled: true, ...at });
     await d1.db.insert(schema.storeOtpConfig).values({ id: "o", storeId: STORE, apiKey: "k", enabled: false, ...at });
     await d1.db.insert(schema.storeTurnstileConfig).values({ id: "t", storeId: STORE, siteKey: "s", secretKey: "x", enabled: true, ...at });
+    await d1.db.insert(schema.storeOrderProtectionConfig).values({ id: "op", storeId: STORE, enabled: true, ...at });
     await d1.db.insert(schema.storeEmailConfig).values({ id: "e", storeId: STORE, apiKey: "k", fromEmail: "a@b.dz", enabled: false, ...at });
     await d1.db.update(schema.stores).set({ whatsappWidgetJson: widget({ enabled: true, phone: "0551234567" }), reviewsEnabled: false }).where(eq(schema.stores.id, STORE));
 
@@ -60,6 +62,7 @@ describe("App Status", () => {
       meta: "on",
       dzverify: "off",
       turnstile: "on",
+      "order-protection": "on",
       sendili: "off",
       "whatsapp-button": "on",
       telegram: "not_set_up",

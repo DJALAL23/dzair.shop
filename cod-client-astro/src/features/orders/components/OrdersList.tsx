@@ -32,9 +32,10 @@ interface Filters {
   kind: "" | "carrier" | "driver";
   orderType: "" | "online" | "offline";
   wilayaId: string;
+  flagged: "" | "true";
 }
 
-const NO_FILTERS: Filters = { search: "", kind: "", orderType: "", wilayaId: "" };
+const NO_FILTERS: Filters = { search: "", kind: "", orderType: "", wilayaId: "", flagged: "" };
 
 function initialView(): OrderView {
   const view = new URLSearchParams(window.location.search).get("view");
@@ -87,6 +88,7 @@ export function OrdersList() {
       kind: deferredFilters.kind || undefined,
       orderType: deferredFilters.orderType || undefined,
       wilayaId: deferredFilters.wilayaId ? Number(deferredFilters.wilayaId) : undefined,
+      flagged: deferredFilters.flagged === "true" || undefined,
       limit: PAGE_SIZE,
       cursor,
     };
@@ -237,6 +239,10 @@ export function OrdersList() {
             <option value="">{t("filters.any_type")}</option>
             <option value="online">{t("type.online")}</option>
             <option value="offline">{t("type.offline")}</option>
+          </FilterPill>
+          <FilterPill label={t("filters.protection")} value={filters.flagged} onChange={(value) => setFilter("flagged", value as Filters["flagged"])}>
+            <option value="">{t("filters.any_protection")}</option>
+            <option value="true">{t("filters.flagged")}</option>
           </FilterPill>
           {wilayas.length > 0 && (
             <FilterPill label={t("filters.wilaya")} value={filters.wilayaId} onChange={(value) => setFilter("wilayaId", value)}>

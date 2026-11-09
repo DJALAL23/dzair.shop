@@ -134,6 +134,10 @@ export const SCOPES = {
   TURNSTILE_READ: "turnstile:read",
   /** Set up, turn on or off and remove the Turnstile App */
   TURNSTILE_MANAGE: "turnstile:manage",
+  /** See the Order Protection App: its rules, Block List and Spam Orders */
+  ORDER_PROTECTION_READ: "order-protection:read",
+  /** Change the Order Protection App's rules and Block List, and rescue or delete Spam Orders */
+  ORDER_PROTECTION_MANAGE: "order-protection:manage",
   /** See the Sendili App: whether the store sends email and from which address */
   SENDILI_READ: "sendili:read",
   /** Set up, test, turn on or off and remove the Sendili App */
@@ -321,6 +325,8 @@ export const SCOPE_CATEGORIES = {
       SCOPES.DZVERIFY_MANAGE,
       SCOPES.TURNSTILE_READ,
       SCOPES.TURNSTILE_MANAGE,
+      SCOPES.ORDER_PROTECTION_READ,
+      SCOPES.ORDER_PROTECTION_MANAGE,
       SCOPES.SENDILI_READ,
       SCOPES.SENDILI_MANAGE,
       SCOPES.WHATSAPP_BUTTON_READ,

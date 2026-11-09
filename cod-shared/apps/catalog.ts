@@ -23,8 +23,8 @@ export interface App {
   /** The Consumer Kinds whose Built-in Consumers this App creates and keeps. */
   consumerKinds: readonly string[];
   /**
-   * Whether removing it forgets something. Reviews holds no keys, only the
-   * store's rules for its customers' reviews, so it is turned off, never removed.
+   * Whether removing it forgets something. Reviews and Order Protection hold
+   * no keys, only the store's own rules, so they are turned off, never removed.
    */
   removable: boolean;
 }
@@ -50,6 +50,13 @@ export const APP_CATALOG = [
     permissions: { read: SCOPES.TURNSTILE_READ, manage: SCOPES.TURNSTILE_MANAGE },
     consumerKinds: [],
     removable: true,
+  },
+  {
+    key: "order-protection",
+    category: "checkout_protection",
+    permissions: { read: SCOPES.ORDER_PROTECTION_READ, manage: SCOPES.ORDER_PROTECTION_MANAGE },
+    consumerKinds: [],
+    removable: false,
   },
   {
     key: "sendili",

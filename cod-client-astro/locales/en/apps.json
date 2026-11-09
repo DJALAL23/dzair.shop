@@ -27,7 +27,8 @@
     "sendili": "Sendili",
     "whatsapp-button": "WhatsApp button",
     "telegram": "Telegram",
-    "reviews": "Reviews"
+    "reviews": "Reviews",
+    "order-protection": "Order Protection"
   },
   "descriptions": {
     "meta": "Your Meta pixel on the storefront and your orders sent to Meta, to measure and steer your ads.",
@@ -36,7 +37,8 @@
     "sendili": "Your store's emails, such as team invites and password resets, sent from your own domain.",
     "whatsapp-button": "A WhatsApp button on your storefront that opens a chat with you.",
     "telegram": "Your own Telegram bot tells you and your team about new orders and deliveries, as they happen.",
-    "reviews": "Customers rate the products they received on your product pages, with photos or a voice note if you allow them."
+    "reviews": "Customers rate the products they received on your product pages, with photos or a voice note if you allow them.",
+    "order-protection": "Your own rules for incoming orders: send fake ones to Spam, flag doubtful ones and always accept good customers."
   },
   "remove": {
     "title": "Remove the App",
@@ -261,5 +263,178 @@
     "moderation_title": "Your customers' reviews",
     "moderation_hint": "Approve or reject reviews, and add the ones customers gave you by phone or in person.",
     "moderation_open": "Open Reviews"
+  },
+  "order_protection": {
+    "load_failed": "This could not be loaded. Please try again.",
+    "save_failed": "This could not be saved. Please try again.",
+    "switch": "Check incoming orders",
+    "switch_hint": "When off, your rules are kept and every order goes through.",
+    "templates": {
+      "title": "Start with a template",
+      "subtitle": "Each template creates ordinary rules you can change at any time.",
+      "recommended": "Recommended",
+      "recommended_hint": "Acts only on what you block yourself. The other rules try themselves out and show what they would have caught.",
+      "under_attack": "Under attack",
+      "under_attack_hint": "For a store receiving many fake orders right now. Doubtful orders go straight to Spam.",
+      "empty": "Start empty",
+      "empty_hint": "No rules. You write your own.",
+      "recommended_badge": "Best to start",
+      "apply": "Use this template",
+      "use": "Use a template",
+      "replace_title": "Replace your rules?",
+      "replace_body": "The template takes the place of the rules you have now.",
+      "replace": "Continue"
+    },
+    "rules": {
+      "delete_title": "Delete \"{name}\"?",
+      "delete_body": "The rule is removed for good.",
+      "delete": "Delete rule",
+      "unavailable": "This rule can no longer be read, so it is skipped.",
+      "would_catch_one": "Would have caught {count} order in 7 days",
+      "would_catch_other": "Would have caught {count} orders in 7 days",
+      "mode": "Mode",
+      "new": "New rule",
+      "empty": "No rules yet",
+      "empty_hint": "Add a rule or use a template.",
+      "matched_one": "Matched {count} order in 7 days",
+      "matched_other": "Matched {count} orders in 7 days"
+    },
+    "actions": {
+      "spam": "To Spam",
+      "flag": "Flag as suspicious",
+      "accept": "Always accept"
+    },
+    "modes": {
+      "trial": "Trial",
+      "active": "Active",
+      "off": "Off"
+    },
+    "tabs": {
+      "rules": "Rules",
+      "block": "Block list",
+      "activity": "Activity"
+    },
+    "block": {
+      "kind": "Type",
+      "kinds": {
+        "phone": "Phone number",
+        "ip": "Network (IP)",
+        "device": "Device"
+      },
+      "value": "Value",
+      "note": "Note",
+      "add": "Block",
+      "add_failed": "This could not be blocked. Check the value and try again.",
+      "remove": "Remove from the Block List",
+      "empty": "Nothing is blocked"
+    },
+    "activity": {
+      "outcome": "Outcome",
+      "all": "All orders",
+      "empty": "Nothing to show yet"
+    },
+    "outcomes": {
+      "accepted": "Accepted",
+      "flagged": "Flagged",
+      "spam": "Spam",
+      "rescued": "Rescued"
+    },
+    "delivery": {
+      "home": "Home delivery",
+      "stop_desk": "Stop desk"
+    },
+    "groups": {
+      "who": "Who is ordering, and how",
+      "typed": "What the customer typed"
+    },
+    "editor": {
+      "search": "Search…",
+      "no_match": "Nothing found",
+      "value": "Value",
+      "count": "How many",
+      "window": "Period",
+      "list_hint": "One per line, or separated by commas",
+      "choose": "Choose…",
+      "remove_condition": "Remove condition",
+      "operator": "How to compare",
+      "picker_title": "What should the rule check?",
+      "not_found": "This rule could not be opened.",
+      "edit_title": "Edit rule",
+      "new_title": "New rule",
+      "name": "Rule name",
+      "if": "If",
+      "then": "Then",
+      "then_hint": "Choose what the rule does with the order.",
+      "all_must_match": "All of these must be true.",
+      "add_condition": "Add a condition"
+    },
+    "rule_error": {
+      "name": "Give the rule a name.",
+      "no_conditions": "Add at least one condition.",
+      "too_many_conditions": "A rule can have 5 conditions at most.",
+      "value": "Fill in every condition with a valid value.",
+      "action": "Choose what the rule does with the order.",
+      "unknown": "This rule cannot be saved."
+    },
+    "spam": {
+      "title": "Spam",
+      "subtitle": "Orders your rules kept out. Nothing happens to them until you rescue them.",
+      "empty": "No orders in Spam",
+      "empty_hint": "Orders sent here are deleted after 30 days.",
+      "rescue": "Rescue",
+      "rescued": "Rescued as order {number}",
+      "block": "Block number",
+      "blocked": "{phone} is blocked",
+      "delete": "Delete",
+      "delete_title": "Delete this order?",
+      "delete_body": "It is removed for good.",
+      "because": "Because of: {rules}",
+      "rescue_no_stock": "Not enough stock to place this order.",
+      "rescue_already": "This order was already rescued.",
+      "rescue_no_delivery": "You no longer deliver to this place.",
+      "rescue_coupon": "Its coupon no longer applies.",
+      "rescue_failed": "This order could not be rescued. Please try again."
+    },
+    "flag": {
+      "label": "Flagged as suspicious",
+      "because": "Flagged because of: {rules}",
+      "block_phone": "Block this number",
+      "block_ip": "Block this network"
+    },
+    "conditions": {
+      "phone_orders": "Orders from the same phone",
+      "ip_orders": "Orders from the same network (IP)",
+      "ip_burst": "Many orders from one network in a minute",
+      "phone": "Phone number",
+      "ip": "Network address (IP)",
+      "name": "Name",
+      "address": "Address",
+      "wilaya": "Wilaya",
+      "product": "Product",
+      "pieces": "Pieces in the order",
+      "delivery_type": "Delivery type",
+      "delivered_before": "Orders delivered before",
+      "returned_before": "Orders returned before"
+    },
+    "operators": {
+      "at_least_in_window": "at least",
+      "at_least": "at least",
+      "at_most": "at most",
+      "is_true": "is happening",
+      "on_block_list": "is on the Block List",
+      "one_of": "is one of",
+      "not_one_of": "is not one of",
+      "starts_with": "starts with",
+      "contains_any": "contains any of",
+      "shorter_than": "is shorter than"
+    },
+    "windows": {
+      "1": "in the last hour",
+      "6": "in the last 6 hours",
+      "24": "in the last 24 hours",
+      "72": "in the last 3 days",
+      "168": "in the last 7 days",
+      "720": "in the last 30 days"
+    }
   }
 }

@@ -14,6 +14,7 @@ import {
   PackageX,
   Settings,
   Shield,
+  ShieldAlert,
   Sparkles,
   Star,
   Printer,
@@ -86,6 +87,13 @@ export function useNavSections(): NavSection[] {
               label: tN("sidebar.orders_abandoned"),
               icon: PackageX,
               scope: "abandoned_orders:read",
+            },
+            {
+              kind: "leaf",
+              href: "/orders/spam",
+              label: tN("sidebar.orders_spam"),
+              icon: ShieldAlert,
+              scope: "order-protection:read",
             },
           ],
         },
@@ -298,7 +306,8 @@ export function isCurrentPath(pathname: string, href: string): boolean {
     return (
       currentPath === "/orders" ||
       (currentPath.startsWith("/orders/") &&
-        currentPath !== "/orders/abandoned")
+        currentPath !== "/orders/abandoned" &&
+        currentPath !== "/orders/spam")
     );
   }
   if (href === "/products") {

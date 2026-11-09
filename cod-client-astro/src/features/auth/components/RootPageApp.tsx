@@ -52,7 +52,7 @@ export function RootGate() {
   const shippingProfileRoute = parseShippingProfileRoute(pathname);
   const teamRoute = parseTeamRoute(pathname);
   const landingPageRoute = parseLandingPageRoute(pathname);
-  const orderId = pathname.startsWith("/orders/") && pathname !== "/orders/new" && pathname !== "/orders/abandoned"
+  const orderId = pathname.startsWith("/orders/") && pathname !== "/orders/new" && pathname !== "/orders/abandoned" && pathname !== "/orders/spam"
     ? pathname.slice("/orders/".length)
     : null;
   const dynamicRoute = orderId || customerRoute.kind === "detail" || customerRoute.kind === "edit" || customerGroupRoute.kind === "detail" || customerGroupRoute.kind === "edit" || customerTagRoute.kind === "detail" || customerTagRoute.kind === "edit" || productRoute.kind === "detail" || productRoute.kind === "edit" || productGroupRoute.kind === "edit" || offerRoute.kind === "edit" || couponRoute.kind === "edit" || driverRoute.kind === "detail" || driverRoute.kind === "edit" || driverRoute.kind === "compensations" || companyRoute.kind === "detail" || companyRoute.kind === "credentials" || companyRoute.kind === "stopDesks" || shippingProfileRoute.kind === "detail" || shippingProfileRoute.kind === "edit" || teamRoute.kind === "detail" || landingPageRoute.kind === "studio";

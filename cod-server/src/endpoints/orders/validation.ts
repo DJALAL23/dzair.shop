@@ -121,6 +121,11 @@ export const orderFiltersSchema = z.object({
     .enum(["exclude", "only", "include"])
     .default("exclude")
     .describe("Archived orders: left out (default), the only ones listed, or listed with the rest"),
+  flagged: z
+    .enum(["true"])
+    .transform(() => true)
+    .optional()
+    .describe("true: only orders Order Protection flagged"),
   orderType: z.enum(["online", "offline"]).optional(),
   wilayaId: z.coerce.number().int().optional(),
   search: z.string().optional().describe("Order number, customer name, phone, or the parcel's tracking number"),

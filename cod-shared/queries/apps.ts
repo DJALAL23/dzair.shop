@@ -7,7 +7,7 @@
 
 import { eq, inArray } from "drizzle-orm";
 import type { AppDb } from "../db/client";
-import { eventConsumers, landingPagePixelConfig, storeEmailConfig, storeOtpConfig, storePixelConfig, stores, storeTelegramConfig, storeTurnstileConfig } from "../db/schema";
+import { eventConsumers, landingPagePixelConfig, storeEmailConfig, storeOrderProtectionConfig, storeOtpConfig, storePixelConfig, stores, storeTelegramConfig, storeTurnstileConfig } from "../db/schema";
 import { APP_CATALOG, consumerOwner, type AppKey, type RemovableAppKey } from "../apps/catalog";
 import { parseWhatsAppWidgetConfig, toWhatsAppHref } from "../whatsapp-widget/config";
 import { forgetWidgetTranslations } from "./whatsapp-widget";
@@ -30,10 +30,11 @@ function whatsappButtonStatus(json: string | null | undefined): AppStatus {
 }
 
 export async function appStatuses(db: AppDb, storeId: string): Promise<Record<AppKey, AppStatus>> {
-  const [meta, dzverify, turnstile, sendili, store, consumers, telegramBots] = await Promise.all([
+  const [meta, dzverify, turnstile, orderProtection, sendili, store, consumers, telegramBots] = await Promise.all([
     db.select({ enabled: storePixelConfig.enabled }).from(storePixelConfig).where(eq(storePixelConfig.storeId, storeId)).get(),
     db.select({ enabled: storeOtpConfig.enabled }).from(storeOtpConfig).where(eq(storeOtpConfig.storeId, storeId)).get(),
     db.select({ enabled: storeTurnstileConfig.enabled }).from(storeTurnstileConfig).where(eq(storeTurnstileConfig.storeId, storeId)).get(),
+    db.select({ enabled: storeOrderProtectionConfig.enabled }).from(storeOrderProtectionConfig).where(eq(storeOrderProtectionConfig.storeId, storeId)).get(),
     db.select({ enabled: storeEmailConfig.enabled }).from(storeEmailConfig).where(eq(storeEmailConfig.storeId, storeId)).get(),
     db.select({ whatsappWidgetJson: stores.whatsappWidgetJson, reviewsEnabled: stores.reviewsEnabled }).from(stores).where(eq(stores.id, storeId)).get(),
     db
@@ -57,6 +58,7 @@ export async function appStatuses(db: AppDb, storeId: string): Promise<Record<Ap
     meta: statusOf(meta, troubled("meta")),
     dzverify: statusOf(dzverify, troubled("dzverify")),
     turnstile: statusOf(turnstile, troubled("turnstile")),
+    "order-protection": statusOf(orderProtection, false),
     sendili: statusOf(sendili, troubled("sendili")),
     "whatsapp-button": whatsappButtonStatus(store?.whatsappWidgetJson),
     telegram: statusOf(telegram && { enabled: telegram.enabled || telegram.disabledReason !== "merchant" }, troubled("telegram")),

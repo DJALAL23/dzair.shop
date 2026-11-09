@@ -133,6 +133,7 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     store_pages: "Store pages", collections: "Collections", navigation: "Navigation",
     meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
     "whatsapp-button": "WhatsApp button", integrations: "Integrations", telegram: "Telegram",
+    "order-protection": "Order Protection",
   },
   fr: {
     dashboard: "Tableau de bord", orders: "Commandes", customers: "Clients",
@@ -144,6 +145,7 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     store_pages: "Pages de la boutique", collections: "Collections", navigation: "Navigation",
     meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
     "whatsapp-button": "Bouton WhatsApp", integrations: "Intégrations", telegram: "Telegram",
+    "order-protection": "Protection des commandes",
   },
   ar: {
     dashboard: "لوحة التحكم", orders: "الطلبات", customers: "العملاء",
@@ -155,6 +157,7 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     store_pages: "صفحات المتجر", collections: "المجموعات", navigation: "التنقل",
     meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
     "whatsapp-button": "زر واتساب", integrations: "التكاملات", telegram: "تيليغرام",
+    "order-protection": "حماية الطلبات",
   },
 };
 

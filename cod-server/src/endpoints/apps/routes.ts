@@ -20,6 +20,7 @@ import sendili from "./sendili";
 import whatsappButton from "./whatsapp-button";
 import telegram from "./telegram";
 import reviews from "./reviews";
+import orderProtection from "./order-protection";
 
 /** Apps whose removal also tells an outside service, through their own route. */
 const REMOVED_BY_THEIR_OWN_ROUTE: readonly AppKey[] = ["telegram"];
@@ -79,6 +80,6 @@ const removeRoutes = APP_CATALOG.filter((app): app is RemovableApp => app.remova
 const router = new OpenAPIHono<AppContext>();
 router.openapi(listRoute.route, listRoute.handler);
 for (const remove of removeRoutes) router.openapi(remove.route, remove.handler);
-for (const app of [meta, dzverify, turnstile, sendili, whatsappButton, telegram, reviews]) router.route("/", app);
+for (const app of [meta, dzverify, turnstile, sendili, whatsappButton, telegram, reviews, orderProtection]) router.route("/", app);
 
 export default router;

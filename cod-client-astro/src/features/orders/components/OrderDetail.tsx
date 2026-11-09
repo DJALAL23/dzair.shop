@@ -9,6 +9,7 @@ import { canEditOrder, canHandOff, canRecordRefusedUnits, handoffKinds, orderDel
 import type { DeliveryCompany, Driver, OrderDetail as OrderDetailType, OrderRemoval, OrderStatus } from "@/features/orders/types";
 import { StageBadge } from "@/features/orders/components/StageBadge";
 import { OrderCustomerCard } from "@/features/orders/components/OrderCustomerCard";
+import { OrderProtectionCard } from "@/features/orders/components/OrderProtectionCard";
 import { OrderCustomAnswersCard } from "@/features/orders/components/OrderCustomAnswersCard";
 import { OrderProductsCard } from "@/features/orders/components/OrderProductsCard";
 import { OrderShipmentCard } from "@/features/orders/components/OrderShipmentCard";
@@ -211,6 +212,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         </div>
 
         <div className="space-y-5 lg:sticky lg:top-5 lg:self-start">
+          <OrderProtectionCard orderId={order.id} />
           {order.shipment ? (
             <OrderShipmentCard order={order} shipment={order.shipment} companies={companies} onChanged={load} />
           ) : (

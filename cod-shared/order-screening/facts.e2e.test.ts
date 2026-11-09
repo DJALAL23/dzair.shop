@@ -4,6 +4,7 @@ import * as schema from "@/db/schema";
 import type { Condition } from "./conditions";
 import { loadFacts, type OrderSubmission } from "./facts";
 import type { Rule } from "./rules";
+import { templateRules } from "./templates";
 import { addToBlockList, applyTemplate, countBlockList, countRules, createRule, deleteRule, getProtectionConfig, getRule, listBlockList, listRules, removeFromBlockList, ruleMatchCounts, setProtectionEnabled, setRuleMode, updateRule } from "../queries/order-protection";
 
 let d1: TestD1;
@@ -216,7 +217,7 @@ describe("the store's rules and settings", () => {
     await applyTemplate(d1.db, "s1", "recommended", "fr", NOW);
     const rules = await listRules(d1.db);
     expect(rules).toHaveLength(7);
-    expect(rules.map((rule) => rule.name)).toContain("Numéros bloqués");
+    expect(rules.map((rule) => rule.name)).toEqual(templateRules("recommended", "fr").map((rule) => rule.name));
     expect(rules.every((rule) => rule.templateKey === "recommended" && rule.conditions !== null)).toBe(true);
     expect(await getProtectionConfig(d1.db, "s1")).toEqual({ enabled: true });
   });

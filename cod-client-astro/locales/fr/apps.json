@@ -27,7 +27,8 @@
     "sendili": "Sendili",
     "whatsapp-button": "Bouton WhatsApp",
     "telegram": "Telegram",
-    "reviews": "Avis"
+    "reviews": "Avis",
+    "order-protection": "Protection des commandes"
   },
   "descriptions": {
     "meta": "Votre pixel Meta sur la vitrine et vos commandes envoyées à Meta, pour mesurer et piloter vos publicités.",
@@ -36,7 +37,8 @@
     "sendili": "Les e-mails de votre boutique, comme les invitations d'équipe et les réinitialisations de mot de passe, envoyés depuis votre propre domaine.",
     "whatsapp-button": "Un bouton WhatsApp sur votre vitrine qui ouvre une discussion avec vous.",
     "telegram": "Votre propre bot Telegram vous prévient, vous et votre équipe, des nouvelles commandes et des livraisons, au fil de l'eau.",
-    "reviews": "Vos clients notent les produits reçus sur vos pages produits, avec photos ou note vocale si vous le permettez."
+    "reviews": "Vos clients notent les produits reçus sur vos pages produits, avec photos ou note vocale si vous le permettez.",
+    "order-protection": "Vos propres règles pour les commandes reçues : envoyez les fausses en spam, signalez les douteuses et acceptez toujours les bons clients."
   },
   "remove": {
     "title": "Retirer l'application",
@@ -263,5 +265,180 @@
     "moderation_title": "Les avis de vos clients",
     "moderation_hint": "Approuvez ou refusez les avis, et ajoutez ceux reçus par téléphone ou en personne.",
     "moderation_open": "Ouvrir Avis"
+  },
+  "order_protection": {
+    "load_failed": "Chargement impossible. Veuillez réessayer.",
+    "save_failed": "Enregistrement impossible. Veuillez réessayer.",
+    "switch": "Vérifier les commandes reçues",
+    "switch_hint": "Désactivé, vos règles sont conservées et toutes les commandes passent.",
+    "templates": {
+      "title": "Commencer avec un modèle",
+      "subtitle": "Chaque modèle crée des règles normales que vous pouvez changer à tout moment.",
+      "recommended": "Recommandé",
+      "recommended_hint": "Agit seulement sur ce que vous bloquez vous-même. Les autres règles s'essaient et montrent ce qu'elles auraient bloqué.",
+      "under_attack": "Sous attaque",
+      "under_attack_hint": "Pour une boutique qui reçoit beaucoup de fausses commandes en ce moment. Les commandes douteuses vont directement en spam.",
+      "empty": "Partir de zéro",
+      "empty_hint": "Aucune règle. Vous écrivez les vôtres.",
+      "recommended_badge": "Idéal pour débuter",
+      "apply": "Utiliser ce modèle",
+      "use": "Utiliser un modèle",
+      "replace_title": "Remplacer vos règles ?",
+      "replace_body": "Le modèle prend la place de vos règles actuelles.",
+      "replace": "Continuer"
+    },
+    "rules": {
+      "delete_title": "Supprimer « {name} » ?",
+      "delete_body": "La règle est supprimée définitivement.",
+      "delete": "Supprimer la règle",
+      "unavailable": "Cette règle ne peut plus être lue, elle est ignorée.",
+      "would_catch_one": "Aurait bloqué {count} commande en 7 jours",
+      "would_catch_many": "Aurait bloqué {count} de commandes en 7 jours",
+      "would_catch_other": "Aurait bloqué {count} commandes en 7 jours",
+      "mode": "Mode",
+      "new": "Nouvelle règle",
+      "empty": "Aucune règle pour le moment",
+      "empty_hint": "Ajoutez une règle ou utilisez un modèle.",
+      "matched_one": "{count} commande concernée en 7 jours",
+      "matched_many": "{count} de commandes concernées en 7 jours",
+      "matched_other": "{count} commandes concernées en 7 jours"
+    },
+    "actions": {
+      "spam": "En spam",
+      "flag": "Signaler comme suspecte",
+      "accept": "Toujours accepter"
+    },
+    "modes": {
+      "trial": "Essai",
+      "active": "Active",
+      "off": "Désactivée"
+    },
+    "tabs": {
+      "rules": "Règles",
+      "block": "Liste de blocage",
+      "activity": "Activité"
+    },
+    "block": {
+      "kind": "Type",
+      "kinds": {
+        "phone": "Numéro de téléphone",
+        "ip": "Réseau (IP)",
+        "device": "Appareil"
+      },
+      "value": "Valeur",
+      "note": "Note",
+      "add": "Bloquer",
+      "add_failed": "Blocage impossible. Vérifiez la valeur et réessayez.",
+      "remove": "Retirer de la liste de blocage",
+      "empty": "Rien n'est bloqué"
+    },
+    "activity": {
+      "outcome": "Résultat",
+      "all": "Toutes les commandes",
+      "empty": "Rien à afficher pour le moment"
+    },
+    "outcomes": {
+      "accepted": "Acceptée",
+      "flagged": "Signalée",
+      "spam": "Spam",
+      "rescued": "Récupérée"
+    },
+    "delivery": {
+      "home": "Livraison à domicile",
+      "stop_desk": "Point relais"
+    },
+    "groups": {
+      "who": "Qui commande, et comment",
+      "typed": "Ce que le client a saisi"
+    },
+    "editor": {
+      "search": "Rechercher…",
+      "no_match": "Aucun résultat",
+      "value": "Valeur",
+      "count": "Combien",
+      "window": "Période",
+      "list_hint": "Un par ligne, ou séparés par des virgules",
+      "choose": "Choisir…",
+      "remove_condition": "Retirer la condition",
+      "operator": "Comment comparer",
+      "picker_title": "Que doit vérifier la règle ?",
+      "not_found": "Cette règle n'a pas pu être ouverte.",
+      "edit_title": "Modifier la règle",
+      "new_title": "Nouvelle règle",
+      "name": "Nom de la règle",
+      "if": "Si",
+      "then": "Alors",
+      "then_hint": "Choisissez ce que la règle fait de la commande.",
+      "all_must_match": "Toutes ces conditions doivent être vraies.",
+      "add_condition": "Ajouter une condition"
+    },
+    "rule_error": {
+      "name": "Donnez un nom à la règle.",
+      "no_conditions": "Ajoutez au moins une condition.",
+      "too_many_conditions": "Une règle peut avoir 5 conditions au maximum.",
+      "value": "Remplissez chaque condition avec une valeur valide.",
+      "action": "Choisissez ce que la règle fait de la commande.",
+      "unknown": "Cette règle ne peut pas être enregistrée."
+    },
+    "spam": {
+      "title": "Spam",
+      "subtitle": "Les commandes écartées par vos règles. Rien ne leur arrive tant que vous ne les récupérez pas.",
+      "empty": "Aucune commande en spam",
+      "empty_hint": "Les commandes envoyées ici sont supprimées après 30 jours.",
+      "rescue": "Récupérer",
+      "rescued": "Récupérée comme commande {number}",
+      "block": "Bloquer le numéro",
+      "blocked": "{phone} est bloqué",
+      "delete": "Supprimer",
+      "delete_title": "Supprimer cette commande ?",
+      "delete_body": "Elle est supprimée définitivement.",
+      "because": "À cause de : {rules}",
+      "rescue_no_stock": "Stock insuffisant pour passer cette commande.",
+      "rescue_already": "Cette commande a déjà été récupérée.",
+      "rescue_no_delivery": "Vous ne livrez plus à cet endroit.",
+      "rescue_coupon": "Son code promo ne s'applique plus.",
+      "rescue_failed": "Cette commande n'a pas pu être récupérée. Veuillez réessayer."
+    },
+    "flag": {
+      "label": "Signalée comme suspecte",
+      "because": "Signalée à cause de : {rules}",
+      "block_phone": "Bloquer ce numéro",
+      "block_ip": "Bloquer ce réseau"
+    },
+    "conditions": {
+      "phone_orders": "Commandes du même numéro",
+      "ip_orders": "Commandes du même réseau (IP)",
+      "ip_burst": "Beaucoup de commandes d'un réseau en une minute",
+      "phone": "Numéro de téléphone",
+      "ip": "Adresse réseau (IP)",
+      "name": "Nom",
+      "address": "Adresse",
+      "wilaya": "Wilaya",
+      "product": "Produit",
+      "pieces": "Pièces dans la commande",
+      "delivery_type": "Type de livraison",
+      "delivered_before": "Commandes déjà livrées",
+      "returned_before": "Commandes déjà retournées"
+    },
+    "operators": {
+      "at_least_in_window": "au moins",
+      "at_least": "au moins",
+      "at_most": "au plus",
+      "is_true": "est en cours",
+      "on_block_list": "est sur la liste de blocage",
+      "one_of": "est parmi",
+      "not_one_of": "n'est pas parmi",
+      "starts_with": "commence par",
+      "contains_any": "contient l'un de",
+      "shorter_than": "est plus court que"
+    },
+    "windows": {
+      "1": "dans la dernière heure",
+      "6": "dans les 6 dernières heures",
+      "24": "dans les 24 dernières heures",
+      "72": "dans les 3 derniers jours",
+      "168": "dans les 7 derniers jours",
+      "720": "dans les 30 derniers jours"
+    }
   }
 }

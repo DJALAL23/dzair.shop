@@ -57,7 +57,10 @@
     "by_carrier": "Une société de livraison",
     "by_driver": "Nos livreurs",
     "any_type": "En ligne et hors ligne",
-    "clear": "Effacer les filtres"
+    "clear": "Effacer les filtres",
+    "protection": "Protection",
+    "any_protection": "Toutes les commandes",
+    "flagged": "Signalées"
   },
   "type": {
     "online": "En ligne",

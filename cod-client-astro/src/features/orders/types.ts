@@ -85,6 +85,7 @@ export interface OrderBase {
 
 export interface OrderListItem extends OrderBase {
   hasReview?: number;
+  flagged?: number;
   shipmentId: string | null;
   shipmentKind: ShipmentKind | null;
   carrierName: string | null;

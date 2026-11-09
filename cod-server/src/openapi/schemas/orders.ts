@@ -189,6 +189,9 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
     description:
       "1 if a customer review exists for this order, 0 otherwise. Included in list responses only (GET /api/orders).",
   }),
+  flagged: z.number().int().optional().openapi({
+    description: "1 if Order Protection flagged this order, 0 otherwise. List responses only (GET /api/orders).",
+  }),
   shipmentId: z.string().nullable().optional().openapi({ description: "The order's shipment, or null before handoff. List responses only." }),
   shipmentKind: z.enum(["carrier", "driver"]).nullable().optional().openapi({ description: "Handed to a carrier, or to the store's driver; null before handoff. List responses only." }),
   carrierName: z.string().nullable().optional().openapi({ description: "The delivery company carrying it, for a carrier shipment. List responses only." }),

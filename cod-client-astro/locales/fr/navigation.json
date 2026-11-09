@@ -28,7 +28,8 @@
     "online_store": "Boutique en ligne",
     "delivery_labels": "Étiquettes",
     "integrations": "Intégrations",
-    "apps": "Applications"
+    "apps": "Applications",
+    "orders_spam": "Spam"
   },
   "navbar": {
     "search_placeholder": "Rechercher commandes, clients, suivi…"

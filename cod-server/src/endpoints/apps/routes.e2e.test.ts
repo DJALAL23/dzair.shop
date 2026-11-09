@@ -63,6 +63,7 @@ describe("the list of Apps", () => {
       { key: "meta", category: "marketing", status: "on" },
       { key: "dzverify", category: "checkout_protection", status: "off" },
       { key: "turnstile", category: "checkout_protection", status: "on" },
+      { key: "order-protection", category: "checkout_protection", status: "not_set_up" },
       { key: "sendili", category: "messaging", status: "on" },
       { key: "whatsapp-button", category: "storefront", status: "on" },
       { key: "telegram", category: "messaging", status: "not_set_up" },

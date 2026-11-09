@@ -57,7 +57,10 @@
     "by_carrier": "شركة توصيل",
     "by_driver": "سائقونا",
     "any_type": "عبر الإنترنت وخارجها",
-    "clear": "مسح الفلاتر"
+    "clear": "مسح الفلاتر",
+    "protection": "الحماية",
+    "any_protection": "كل الطلبات",
+    "flagged": "المشبوهة"
   },
   "type": {
     "online": "أونلاين",

@@ -28,7 +28,8 @@
     "online_store": "Online store",
     "delivery_labels": "Labels",
     "integrations": "Integrations",
-    "apps": "Apps"
+    "apps": "Apps",
+    "orders_spam": "Spam"
   },
   "navbar": {
     "search_placeholder": "Search orders, customers, tracking…"

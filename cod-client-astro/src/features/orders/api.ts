@@ -49,6 +49,7 @@ export interface OrderQuery {
   /** One stage or several (a work queue). */
   stages?: readonly OrderStage[];
   attention?: boolean;
+  flagged?: boolean;
   kind?: ShipmentKind;
   orderType?: "online" | "offline";
   wilayaId?: number;
@@ -63,6 +64,7 @@ export async function listOrders(params: OrderQuery = {}): Promise<OrderPage> {
   const query = new URLSearchParams({ limit: String(params.limit ?? 25) });
   if (params.stages?.length) query.set("stage", params.stages.join(","));
   if (params.attention !== undefined) query.set("attention", String(params.attention));
+  if (params.flagged) query.set("flagged", "true");
   if (params.kind) query.set("kind", params.kind);
   if (params.orderType) query.set("orderType", params.orderType);
   if (params.wilayaId) query.set("wilayaId", String(params.wilayaId));

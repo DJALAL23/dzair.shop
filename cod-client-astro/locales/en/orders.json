@@ -57,7 +57,10 @@
     "by_carrier": "A delivery company",
     "by_driver": "Our drivers",
     "any_type": "Online & offline",
-    "clear": "Clear filters"
+    "clear": "Clear filters",
+    "protection": "Protection",
+    "any_protection": "Any order",
+    "flagged": "Flagged"
   },
   "type": {
     "online": "Online",

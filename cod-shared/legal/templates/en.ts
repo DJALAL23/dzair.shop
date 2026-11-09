@@ -145,7 +145,7 @@ export const en: LegalTemplatePack = {
           "Phone number.",
           "Wilaya and commune, plus the street address for home delivery.",
           "Your order details and order history with us.",
-          "Technical data about your visit (pages viewed, device type).",
+          "Technical data about your visit (pages viewed, device type, IP address), also used to keep the store secure and prevent abuse.",
         ),
         p("We collect no bank details, because payment is in cash on delivery."),
       ),

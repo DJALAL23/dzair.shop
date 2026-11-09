@@ -1,5 +1,5 @@
-import { Star } from "lucide-react";
-import { useLocale } from "@/i18n/react";
+import { Flag, Star } from "lucide-react";
+import { useLocale, useT } from "@/i18n/react";
 import { relativeTime } from "@/lib/relative-time";
 import { RowActions, TableCell, TableRow, openRowOnClick } from "@/components/ui";
 import { formatMoney, orderTotal } from "@/features/orders/model";
@@ -32,12 +32,14 @@ function Pick({ order, selection }: Pick<RowProps, "order" | "selection">) {
 }
 
 function OrderNumber({ order, className = "" }: { order: OrderListItem; className?: string }) {
+  const flagLabel = useT("apps")("order_protection.flag.label");
   return (
     <a
       href={`/orders/${order.id}`}
       className={`inline-flex items-center gap-1 font-medium text-foreground underline-offset-2 hover:underline ${className}`}
     >
       {order.orderNumber}
+      {(order.flagged ?? 0) > 0 && <Flag size={12} aria-label={flagLabel} className="text-[var(--tone-warning-text)]" />}
       {(order.hasReview ?? 0) > 0 && <Star size={12} aria-hidden="true" className="fill-[var(--tone-warning-text)] text-[var(--tone-warning-text)]" />}
     </a>
   );

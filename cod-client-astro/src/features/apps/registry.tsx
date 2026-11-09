@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from "react";
-import { BarChart2, Loader2, Mail, MessageCircle, Send, Shield, ShieldCheck, Star, type LucideIcon } from "lucide-react";
+import { BarChart2, Loader2, Mail, MessageCircle, Send, Shield, ShieldAlert, ShieldCheck, Star, type LucideIcon } from "lucide-react";
 import { Alert, ErrorBoundary } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import type { AppBodyProps, AppKey } from "./types";
@@ -15,6 +15,7 @@ export const APP_REGISTRY: Record<AppKey, AppEntry> = {
   meta: { icon: BarChart2, Body: lazy(() => import("./meta/MetaApp")) },
   dzverify: { icon: ShieldCheck, Body: lazy(() => import("./dzverify/DZVerifyApp")) },
   turnstile: { icon: Shield, Body: lazy(() => import("./turnstile/TurnstileApp")) },
+  "order-protection": { icon: ShieldAlert, Body: lazy(() => import("./order-protection/OrderProtectionApp")) },
   sendili: { icon: Mail, Body: lazy(() => import("./sendili/SendiliApp")) },
   "whatsapp-button": { icon: MessageCircle, Body: lazy(() => import("./whatsapp-button/WhatsAppButtonApp")) },
   telegram: { icon: Send, Body: lazy(() => import("./telegram/TelegramApp")) },
