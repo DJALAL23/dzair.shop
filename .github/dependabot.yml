@@ -3,37 +3,42 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 10
+      interval: monthly
+    open-pull-requests-limit: 3
     commit-message:
       prefix: chore(deps)
       prefix-development: chore(deps-dev)
     labels:
       - dependencies
     groups:
-      tiptap:
-        patterns:
-          - "@tiptap/*"
-      model-context-protocol:
-        patterns:
-          - "@modelcontextprotocol/*"
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: npm
     directory: /cod-astro/theme-00
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 2
     commit-message:
       prefix: chore(deps)
     labels:
       - dependencies
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
+    open-pull-requests-limit: 2
     labels:
       - dependencies
+    groups:
+      actions:
+        patterns:
+          - "*"
