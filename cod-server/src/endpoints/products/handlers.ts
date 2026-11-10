@@ -113,6 +113,14 @@ export async function updateProduct(c: Context<AppContext>) {
   const { collectionIds, ...validated } = jsonData ?? validation.updateProductSchema.parse(await c.req.json());
   const applyCollections = await checkedCollections(db, collectionIds);
 
+  // A product without options is ordered by its own SKU: turning its options
+  // off, or leaving them off, without one would make it unorderable.
+  if ((await queries.keepsItsSku(db, productId, validated)) === false) {
+    throw new ValidationError("A product without options needs a SKU", ERROR_CODES.VALIDATION_FAILED, {
+      fields: [{ path: "sku", message: "A product without options needs a SKU", code: "custom" }],
+    });
+  }
+
   // Renaming onto another product's handle or SKU.
   if (validated.handle !== undefined || validated.sku !== undefined) {
     const conflict = await queries.findProductIdentityConflict(db, {

@@ -11,6 +11,7 @@
   "error_validation": "بعض الحقول غير صالحة",
   "error_unexpected_id": "حدث خطأ غير متوقع. حاول مرة أخرى — وإذا استمر، أذكر الرقم {id} للدعم.",
   "error_duplicate_sku_named": "رمز SKU {sku} مستخدم بالفعل في متغير آخر",
+  "detail_no_sku": "هذا المنتج بلا خيارات ولا رمز SKU، لذلك يرفض المتجر طلباته. عدّله وأضف رمز SKU.",
   "search_placeholder": "بحث بالاسم أو الرمز...",
   "table": {
     "name": "المنتج",
@@ -39,7 +40,8 @@
     "available": "متاح",
     "out_of_stock": "غير متوفر",
     "low_stock": "مخزون منخفض",
-    "hidden_from_store": "مخفي من المتجر"
+    "hidden_from_store": "مخفي من المتجر",
+    "no_sku": "بلا SKU، لا يمكن طلبه"
   },
   "stock": {
     "in_stock": "في المخزون",

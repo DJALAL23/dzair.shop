@@ -108,6 +108,11 @@ function asApiError(cause: unknown): ApiLikeError | null {
   return typeof candidate.code === "string" ? candidate : null;
 }
 
+/** A product without options is ordered by its own SKU: without one, the store refuses its orders. */
+export function needsSku(product: Pick<Product, "hasVariants" | "sku">): boolean {
+  return !product.hasVariants && !product.sku;
+}
+
 export function productErrorMessage(cause: unknown, t: Translate) {
   const api = asApiError(cause);
   const code = api?.code ?? "";
@@ -125,6 +130,7 @@ export function productErrorMessage(cause: unknown, t: Translate) {
 
   if (code === "VALIDATION_FAILED") {
     const fields = Array.isArray(context?.fields) ? context!.fields : [];
+    if (fields.some((field) => (field as { path?: string }).path === "sku")) return t("form.error_sku_required");
     const lines = fields
       .map((field) => {
         const entry = field as { path?: string; message?: string };

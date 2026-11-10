@@ -11,6 +11,7 @@
   "error_validation": "Certains champs sont invalides",
   "error_unexpected_id": "Une erreur inattendue s'est produite. Réessayez — si elle persiste, communiquez la référence {id} au support.",
   "error_duplicate_sku_named": "Le SKU {sku} est déjà utilisé par une autre variante",
+  "detail_no_sku": "Ce produit n'a ni options ni SKU : la boutique refuse ses commandes. Modifiez-le et ajoutez un SKU.",
   "search_placeholder": "Rechercher par nom, SKU...",
   "table": {
     "name": "Produit",
@@ -39,7 +40,8 @@
     "available": "Disponible",
     "out_of_stock": "Rupture de stock",
     "low_stock": "Stock faible",
-    "hidden_from_store": "Masqué de la boutique"
+    "hidden_from_store": "Masqué de la boutique",
+    "no_sku": "Sans SKU, non commandable"
   },
   "stock": {
     "in_stock": "En stock",

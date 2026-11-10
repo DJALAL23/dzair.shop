@@ -31,6 +31,7 @@ import {
 } from "@/features/products/api";
 import {
   formatMoneyValue,
+  needsSku,
   productErrorMessage,
 } from "@/features/products/model";
 import type {
@@ -182,6 +183,7 @@ export function ProductDetail({ productId }: { productId: string }) {
           </button>
         </Alert>
       )}
+      {needsSku(product) && <Alert tone="warning">{t("detail_no_sku")}</Alert>}
       <div className="flex items-start gap-2">
       <StatGroup columns={3} compact className="flex-1">
         <StatCard

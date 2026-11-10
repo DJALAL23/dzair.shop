@@ -1,14 +1,15 @@
 import { Package, Pencil, Trash2 } from "lucide-react";
 import { Badge, CellEmpty, IconButton, RowActions, RowTitle, TableCell, TableRow, openRowOnClick } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
-import { formatMoneyValue, productStockTone } from "@/features/products/model";
+import { formatMoneyValue, needsSku, productStockTone } from "@/features/products/model";
 import type { Product, ProductCategory } from "@/features/products/types";
 
 /** One status per product: what a shopper can do with it right now. */
-function ProductStatusBadge({ product }: { product: Product }) {
+export function ProductStatusBadge({ product }: { product: Product }) {
   const t = useT("products");
   if (product.status === "ARCHIVED") return <Badge tone="critical">{t("status_options.archived")}</Badge>;
   if (product.status === "DRAFT") return <Badge tone="neutral">{t("status_options.draft")}</Badge>;
+  if (needsSku(product)) return <Badge tone="critical">{t("status.no_sku")}</Badge>;
   if (product.showInStore === false) return <Badge tone="neutral">{t("status.hidden_from_store")}</Badge>;
   return <Badge tone="success">{t("status_options.active")}</Badge>;
 }

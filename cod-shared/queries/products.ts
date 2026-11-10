@@ -454,6 +454,17 @@ export async function deleteProduct(db: AppDb, productId: string): Promise<{ nam
  * hold this handle or SKU? Answers before the unique index would, so the
  * merchant gets a 409 that names the field instead of a raw constraint error.
  */
+/**
+ * Whether a product, once changed as asked, can still be ordered for its SKU:
+ * a product without options orders by its own SKU, one with options by each
+ * option's. Null when the product does not exist.
+ */
+export async function keepsItsSku(db: AppDb, productId: string, change: { hasVariants?: boolean; sku?: string }): Promise<boolean | null> {
+  const current = await db.select({ hasVariants: products.hasVariants, sku: products.sku }).from(products).where(eq(products.id, productId)).get();
+  if (!current) return null;
+  return (change.hasVariants ?? current.hasVariants) || Boolean(change.sku ?? current.sku);
+}
+
 export async function findProductIdentityConflict(
   db: AppDb,
   identity: { handle?: string; sku?: string },

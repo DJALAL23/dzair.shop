@@ -10,6 +10,7 @@ import {
   movementIsStockIn,
   paginateProducts,
   parseProductRoute,
+  needsSku,
   productErrorMessage,
   productRemovalConsequences,
   sortProducts,
@@ -117,6 +118,17 @@ describe("products model", () => {
     expect(toSlug("Cotton T-Shirt!")).toBe("cotton-t-shirt");
     expect(calcMargin("2000", "1200")).toBe(40);
     expect(calcMargin("1000", "2000")).toBeNull();
+  });
+
+  it("says a refused SKU in the merchant's language, never the server's English", () => {
+    expect(productErrorMessage({ code: "VALIDATION_FAILED", context: { fields: [{ path: "sku", message: "A product without options needs a SKU" }] } }, t)).toBe("form.error_sku_required");
+  });
+
+  it("knows a product the store cannot order for want of a SKU", () => {
+    expect(needsSku({ hasVariants: false, sku: null })).toBe(true);
+    expect(needsSku({ hasVariants: false, sku: "" })).toBe(true);
+    expect(needsSku({ hasVariants: false, sku: "TS-001" })).toBe(false);
+    expect(needsSku({ hasVariants: true, sku: null })).toBe(false);
   });
 
   it("searches stock rows by product name, variant label and sku", () => {

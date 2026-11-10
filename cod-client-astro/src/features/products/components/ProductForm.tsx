@@ -253,7 +253,7 @@ export function ProductForm({ productId }: { productId?: string }) {
       next.price = t("form.error_name_price_required");
     else if (!Number.isInteger(Number(price)))
       next.price = t("form.error_price_integer");
-    if (!editing && !hasVariantsSwitch && !sku.trim())
+    if (!hasVariantsSwitch && !sku.trim())
       next.sku = t("form.error_sku_required");
     if (hasVariantsSwitch && variantRows.some((row) => !row.sku.trim()))
       next.variantRowsSku = t("form.error_required_variant_sku");

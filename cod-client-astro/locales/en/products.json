@@ -11,6 +11,7 @@
   "error_validation": "Some fields are invalid",
   "error_unexpected_id": "An unexpected error occurred. Please try again — if it persists, quote reference {id} to support.",
   "error_duplicate_sku_named": "SKU {sku} is already used by another variant",
+  "detail_no_sku": "This product has no options and no SKU, so the store refuses its orders. Edit it and add a SKU.",
   "search_placeholder": "Search by name, SKU...",
   "table": {
     "name": "Product",
@@ -39,7 +40,8 @@
     "available": "Available",
     "out_of_stock": "Out of stock",
     "low_stock": "Low stock",
-    "hidden_from_store": "Hidden from store"
+    "hidden_from_store": "Hidden from store",
+    "no_sku": "No SKU, can't be ordered"
   },
   "stock": {
     "in_stock": "In stock",

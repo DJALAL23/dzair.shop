@@ -349,3 +349,27 @@ describe("editing a product's variants", () => {
     expect(assign).toHaveBeenCalledWith("/products");
   });
 });
+
+describe("turning a product's options off", () => {
+  async function turnOptionsOff() {
+    server.product = { ...server.product, hasVariants: true, sku: null, variantOptions: [{ name: "Size", values: [{ value: "M" }] }] };
+    server.variants = [variant("variant-m", "M", "KAF-M")];
+    await mountEditor();
+    await click(host.querySelector<HTMLButtonElement>('[role="switch"][aria-checked="true"]')!);
+    await click(Array.from(document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')).find((b) => b.textContent?.trim() === "Yes, remove variants")!);
+  }
+
+  it("asks for the product's own SKU before saving, since the store orders it by that SKU", async () => {
+    await turnOptionsOff();
+    await save();
+    expect(host.textContent).toContain("Enter a SKU for this product");
+    expect(api.updateProduct).not.toHaveBeenCalled();
+  });
+
+  it("saves once the SKU is typed", async () => {
+    await turnOptionsOff();
+    type(host.querySelector<HTMLInputElement>('input[placeholder="e.g., PROD-001"]')!, "KAF");
+    await save();
+    expect(api.updateProduct).toHaveBeenCalledWith(PRODUCT_ID, expect.objectContaining({ hasVariants: false, sku: "KAF" }));
+  });
+});
