@@ -8,6 +8,7 @@ import { notify } from "@/lib/notify";
 import { relativeTime } from "@/lib/relative-time";
 import { communeLabel, wilayaLabel } from "@/lib/places";
 import { formatMoney } from "@/features/orders/model";
+import { useOffsetPage } from "@/hooks/use-offset-page";
 import { addToBlockList, deleteSpamOrder, listAttempts, rescueSpamOrder, type OrderAttempt } from "@/features/apps/order-protection/api";
 import { AttemptSignalsLine } from "@/features/apps/order-protection/AttemptSignals";
 import { rescueErrorKey } from "@/features/apps/order-protection/model";
@@ -65,22 +66,15 @@ function SpamOrders() {
   const confirm = useConfirmDialog();
   const canRead = canScope(identity, SCOPES.ORDER_PROTECTION_READ);
   const canManage = canScope(identity, SCOPES.ORDER_PROTECTION_MANAGE);
-  const [rows, setRows] = useState<OrderAttempt[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const fetchPage = useCallback((page: { limit: number; offset: number }) => (canRead ? listAttempts({ outcome: "spam", ...page }) : Promise.resolve({ data: [], total: 0 })), [canRead]);
+  const { rows, total, page, setPage, pageCount, reload: load } = useOffsetPage(fetchPage, PAGE_SIZE, () => notify.error(t("order_protection.load_failed")));
   const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
 
-  const load = useCallback(async () => {
-    const result = await listAttempts({ outcome: "spam", limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
-    setRows(result.data);
-    setTotal(result.total);
-    setPicked((current) => new Set([...current].filter((id) => result.data.some((row) => row.id === id))));
-  }, [page]);
-
+  // What was picked and is no longer listed (rescued, deleted, on another page) is no longer picked.
   useEffect(() => {
-    if (canRead) void load().catch(() => notify.error(t("order_protection.load_failed")));
-  }, [canRead, load]);
+    setPicked((current) => new Set([...current].filter((id) => rows?.some((row) => row.id === id))));
+  }, [rows]);
 
   if (!canRead) return <Alert tone="critical">{auth("no_access")}</Alert>;
 
@@ -201,7 +195,7 @@ function SpamOrders() {
           </ul>
         </Card>
       )}
-      {total > PAGE_SIZE && <Pagination className="mt-3" page={page} totalPages={Math.ceil(total / PAGE_SIZE)} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />}
+      {total > PAGE_SIZE && <Pagination className="mt-3" page={page} totalPages={pageCount} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />}
     </>
   );
 }

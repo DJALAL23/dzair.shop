@@ -15,6 +15,10 @@
     "actions": "Actions",
     "showing": "Showing {from} to {to} of {total}",
     "page": "Page",
+    "first_page": "First page",
+    "previous_page": "Previous page",
+    "next_page": "Next page",
+    "last_page": "Last page",
     "of": "of"
   },
   "statuses": {

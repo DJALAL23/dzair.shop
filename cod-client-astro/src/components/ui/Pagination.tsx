@@ -38,7 +38,7 @@ export function Pagination({
           disabled={safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
           className="grid size-7 place-items-center rounded-lg bg-card text-foreground shadow-button transition-colors hover:bg-subtle active:translate-y-px disabled:pointer-events-none disabled:opacity-40 pointer-coarse:size-10"
-          aria-label={common("table.page")}
+          aria-label={common("table.previous_page")}
         >
           <ChevronLeft size={15} className="rtl:rotate-180" />
         </button>
@@ -54,7 +54,7 @@ export function Pagination({
           disabled={safePage >= totalPages}
           onClick={() => onPageChange(safePage + 1)}
           className="grid size-7 place-items-center rounded-lg bg-card text-foreground shadow-button transition-colors hover:bg-subtle active:translate-y-px disabled:pointer-events-none disabled:opacity-40 pointer-coarse:size-10"
-          aria-label={common("table.page")}
+          aria-label={common("table.next_page")}
         >
           <ChevronRight size={15} className="rtl:rotate-180" />
         </button>

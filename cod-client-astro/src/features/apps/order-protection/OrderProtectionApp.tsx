@@ -5,10 +5,11 @@ import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { relativeTime } from "@/lib/relative-time";
 import type { AppBodyProps } from "@/features/apps/types";
-import { addToBlockList, chooseTemplate, deleteRule, getProtection, listAttempts, listBlockList, removeFromBlockList, setProtectionEnabled, setRuleMode, type BlockEntry, type OrderAttempt, type ProtectionRule, type ProtectionState } from "@/features/apps/order-protection/api";
+import { addToBlockList, chooseTemplate, deleteRule, getProtection, listAttempts, listBlockList, removeFromBlockList, setProtectionEnabled, setRuleMode, type ProtectionRule, type ProtectionState } from "@/features/apps/order-protection/api";
 import { ConditionSummary } from "@/features/apps/order-protection/RuleSummary";
 import { listOf, ruleName, useMatchName } from "@/features/apps/order-protection/words";
 import { formatMoney } from "@/features/orders/model";
+import { useOffsetPage } from "@/hooks/use-offset-page";
 import { wilayaLabel } from "@/lib/places";
 import { RULE_MODES, type RuleAction, type RuleMode } from "../../../../../cod-shared/order-screening/conditions";
 import { BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES, type BlockListKind, type OrderAttemptOutcome } from "../../../../../cod-shared/order-screening/signals";
@@ -188,23 +189,11 @@ function RulesTab({ state, canManage, reload, onChosen }: { state: ProtectionSta
 function BlockListTab({ canManage }: { canManage: boolean }) {
   const t = useT("apps");
   const locale = useLocale();
-  const [entries, setEntries] = useState<BlockEntry[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const { rows: entries, total, page, setPage, pageCount, reload } = useOffsetPage(listBlockList, PAGE_SIZE, () => notify.error(t("order_protection.load_failed")));
   const [kind, setKind] = useState<BlockListKind>("phone");
   const [value, setValue] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    const result = await listBlockList({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
-    setEntries(result.data);
-    setTotal(result.total);
-  }, [page]);
-
-  useEffect(() => {
-    void load().catch(() => notify.error(t("order_protection.load_failed")));
-  }, [load]);
 
   async function add() {
     setBusy(true);
@@ -212,7 +201,7 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
       await addToBlockList({ kind, value, ...(note.trim() ? { note: note.trim() } : {}) });
       setValue("");
       setNote("");
-      await load();
+      await reload();
     } catch {
       notify.error(t("order_protection.block.add_failed"));
     } finally {
@@ -223,7 +212,7 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
   async function remove(id: string) {
     try {
       await removeFromBlockList(id);
-      await load();
+      await reload();
     } catch {
       notify.error(t("order_protection.save_failed"));
     }
@@ -254,7 +243,7 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
           </div>
         </Card>
       )}
-      {entries.length === 0 ? (
+      {entries === null ? null : entries.length === 0 ? (
         <EmptyState icon={<Ban size={20} aria-hidden="true" />} title={t("order_protection.block.empty")} />
       ) : (
         <Card className="p-0">
@@ -285,7 +274,7 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
           </ul>
         </Card>
       )}
-      {total > PAGE_SIZE && <Pagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />}
+      {total > PAGE_SIZE && <Pagination page={page} totalPages={pageCount} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />}
     </div>
   );
 }
@@ -294,24 +283,14 @@ function ActivityTab() {
   const t = useT("apps");
   const locale = useLocale();
   const matchName = useMatchName();
-  const [attempts, setAttempts] = useState<OrderAttempt[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [outcome, setOutcome] = useState<OrderAttemptOutcome | "">("");
-
-  useEffect(() => {
-    listAttempts({ outcome: outcome || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })
-      .then((result) => {
-        setAttempts(result.data);
-        setTotal(result.total);
-      })
-      .catch(() => notify.error(t("order_protection.load_failed")));
-  }, [outcome, page]);
+  const fetchPage = useCallback((page: { limit: number; offset: number }) => listAttempts({ outcome: outcome || undefined, ...page }), [outcome]);
+  const { rows: attempts, total, page, setPage, pageCount } = useOffsetPage(fetchPage, PAGE_SIZE, () => notify.error(t("order_protection.load_failed")));
 
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <Select variant="pill" aria-label={t("order_protection.activity.outcome")} value={outcome} onChange={(event) => { setPage(1); setOutcome(event.currentTarget.value as OrderAttemptOutcome | ""); }}>
+        <Select variant="pill" aria-label={t("order_protection.activity.outcome")} value={outcome} onChange={(event) => setOutcome(event.currentTarget.value as OrderAttemptOutcome | "")}>
           <option value="">{t("order_protection.activity.all")}</option>
           {ORDER_ATTEMPT_OUTCOMES.map((option) => (
             <option key={option} value={option}>
@@ -320,7 +299,7 @@ function ActivityTab() {
           ))}
         </Select>
       </div>
-      {attempts.length === 0 ? (
+      {attempts === null ? null : attempts.length === 0 ? (
         <EmptyState icon={<ShieldCheck size={20} aria-hidden="true" />} title={t("order_protection.activity.empty")} />
       ) : (
         <Card className="p-0">
@@ -357,7 +336,7 @@ function ActivityTab() {
           </ul>
         </Card>
       )}
-      {total > PAGE_SIZE && <Pagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />}
+      {total > PAGE_SIZE && <Pagination page={page} totalPages={pageCount} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />}
     </div>
   );
 }

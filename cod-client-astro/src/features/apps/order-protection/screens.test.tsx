@@ -72,6 +72,14 @@ async function click(text: string) {
   await act(async () => element.click());
   await settle();
 }
+/** Opens the dropdown named `label` and picks `option`, as a merchant does. */
+async function choose(label: string, option: string) {
+  await act(async () => document.querySelector<HTMLElement>(`button[aria-haspopup="listbox"][aria-label="${label}"]`)!.click());
+  const item = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((element) => element.textContent?.trim() === option);
+  if (!item) throw new Error(`no ${option} in ${label}`);
+  await act(async () => item.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
+  await settle();
+}
 async function type(input: HTMLInputElement | HTMLTextAreaElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value")!.set!;
   await act(async () => {
@@ -190,6 +198,32 @@ describe("the App page", () => {
     expect(row.textContent).toContain("Amel");
     expect(row.textContent).toContain("Alger");
     expect(row.textContent).toContain("Matched: Too many and Trying (Trial)");
+  });
+
+  it("shows only the filter last chosen in Activity, however slowly the earlier one answers", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [] });
+    const row = (id: string, outcome: string, customerName: string) => ({ ...ATTEMPT, id, createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: null, outcome, orderId: null, orderNumber: id, customerName, total: null, signals: {}, matches: [] });
+    let answerAll: (value: unknown) => void = () => undefined;
+    api.listAttempts.mockImplementation(({ outcome }: { outcome?: string }) => (outcome ? Promise.resolve({ data: [row("S-1", "spam", "Only spam")], total: 1 }) : new Promise((resolve) => (answerAll = resolve))));
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    await click("Activity");
+    await choose("Outcome", "Spam");
+    await act(async () => answerAll({ data: [row("A-1", "accepted", "Late answer")], total: 1 }));
+    await settle();
+    expect(document.body.textContent).toContain("Only spam");
+    expect(document.body.textContent).not.toContain("Late answer");
+  });
+
+  it("starts a new filter on its first page", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [] });
+    api.listAttempts.mockResolvedValue({ data: [{ ...ATTEMPT, id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: null, outcome: "accepted", orderId: null, orderNumber: "A", customerName: "Amel", total: null, signals: {}, matches: [] }], total: 45 });
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    await click("Activity");
+    await act(async () => document.querySelector<HTMLElement>('[aria-label="Next page"]')!.click());
+    await settle();
+    expect(api.listAttempts).toHaveBeenLastCalledWith({ outcome: undefined, limit: 20, offset: 20 });
+    await choose("Outcome", "Flagged");
+    expect(api.listAttempts).toHaveBeenLastCalledWith({ outcome: "flagged", limit: 20, offset: 0 });
   });
 
   it("says when a rule can no longer be read", async () => {
@@ -351,6 +385,7 @@ describe("a rule in words", () => {
 });
 
 describe("the Spam page", () => {
+  const EMPTY_SPAM = "No orders in Spam";
   const SPAM = { ...ATTEMPT, id: "s1", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "spam", orderId: null, orderNumber: "ORD-1", customerName: "Amel", total: 6600, signals: {}, matches: [{ ruleId: "r", name: "Blocked", mode: "active", action: "spam" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
 
   it("shows who, how much and why, naming only the rules that acted", async () => {
@@ -432,6 +467,35 @@ describe("the Spam page", () => {
     await mount(<SpamOrdersPageApp />);
     await click("Block number");
     expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567", note: "ORD-1" });
+  });
+
+  it("says nothing is there only once the list has answered", async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    api.listAttempts.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    await mount(<SpamOrdersPageApp />);
+    expect(document.body.textContent).not.toContain(EMPTY_SPAM);
+    await act(async () => answer({ data: [], total: 0 }));
+    await settle();
+    expect(document.body.textContent).toContain(EMPTY_SPAM);
+  });
+
+  it("goes back a page when the last order of the last page is deleted, instead of saying there are none", async () => {
+    const many = Array.from({ length: 20 }, (_, index) => ({ ...SPAM, id: `p${index}`, orderNumber: `ORD-P${index}` }));
+    let remaining = 21;
+    api.listAttempts.mockImplementation(({ offset }: { offset: number }) => Promise.resolve({ data: offset === 0 ? many : remaining > 20 ? [{ ...SPAM, id: "last", customerName: "Last one" }] : [], total: remaining }));
+    api.deleteSpamOrder.mockImplementation(async () => void (remaining = 20));
+    await mount(<SpamOrdersPageApp />);
+    await act(async () => document.querySelector<HTMLElement>('[aria-label="Next page"]')!.click());
+    await settle();
+    expect(document.body.textContent).toContain("Last one");
+    await act(async () => document.querySelector<HTMLElement>('[aria-label="Delete"]')!.click());
+    await settle();
+    const dialog = document.querySelector<HTMLElement>("[role=alertdialog]")!;
+    await act(async () => [...dialog.querySelectorAll("button")].find((button) => button.textContent === "Delete")!.click());
+    await settle();
+    expect(api.listAttempts).toHaveBeenLastCalledWith({ outcome: "spam", limit: 20, offset: 0 });
+    expect(document.body.textContent).toContain("ORD-P0");
+    expect(document.body.textContent).not.toContain(EMPTY_SPAM);
   });
 
   it("offers no action to a reader, and nothing at all without permission", async () => {

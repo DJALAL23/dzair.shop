@@ -85,7 +85,7 @@ export function ConnectionsList({
               className="h-8 w-8 rounded-lg"
               onClick={() => setPage(1)}
               disabled={safePage === 1}
-              aria-label={common("table.page")}
+              aria-label={common("table.first_page")}
             >
               <FirstIcon size={15} />
             </Button>
@@ -96,7 +96,7 @@ export function ConnectionsList({
               className="h-8 w-8 rounded-lg"
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               disabled={safePage === 1}
-              aria-label={common("table.page")}
+              aria-label={common("table.previous_page")}
             >
               <PrevIcon size={15} />
             </Button>
@@ -116,7 +116,7 @@ export function ConnectionsList({
               className="h-8 w-8 rounded-lg"
               onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
               disabled={safePage === totalPages}
-              aria-label={common("table.page")}
+              aria-label={common("table.next_page")}
             >
               <NextIcon size={15} />
             </Button>
@@ -127,7 +127,7 @@ export function ConnectionsList({
               className="h-8 w-8 rounded-lg"
               onClick={() => setPage(totalPages)}
               disabled={safePage === totalPages}
-              aria-label={common("table.page")}
+              aria-label={common("table.last_page")}
             >
               <LastIcon size={15} />
             </Button>
