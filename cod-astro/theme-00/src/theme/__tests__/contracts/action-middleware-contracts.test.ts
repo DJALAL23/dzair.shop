@@ -107,25 +107,22 @@ describe("placeOrder binding (src/actions/index.ts)", () => {
     expect(action.input).toBe(placeOrderInput);
   });
 
-  it("turns a shape failure into a BAD_REQUEST field error and never calls cod-server", async () => {
+  it("answers an order with neither a basket nor a product as failed, and never calls cod-server", async () => {
     await expect(
       action.handler(
         { customerName: "Ahmed Benali", phone: "0551234567", wilayaId: 16, communeId: "c-16-001" },
         { request: orderRequest() },
       ),
-    ).rejects.toMatchObject({
-      code: "BAD_REQUEST",
-      message: "An order needs either a basket or a product.",
-    });
+    ).resolves.toEqual({ status: "failed", reference: null });
     expect(createOrder).not.toHaveBeenCalled();
   });
 
-  it("turns cod-server's refusal into a 422 ActionError, so the page reads it as a refusal", async () => {
-    createOrder.mockResolvedValueOnce({ success: false, error: "المنتج غير متوفر", domainError: refusal("INSUFFICIENT_STOCK") });
+  it("answers cod-server's refusal as what the page words, never the server's text", async () => {
+    createOrder.mockResolvedValueOnce({ success: false, error: "المنتج غير متوفر", domainError: refusal("INSUFFICIENT_STOCK"), productId: "prod_1" });
 
     await expect(
       action.handler(parsedSingleProductOrder, { request: orderRequest() }),
-    ).rejects.toMatchObject({ code: "UNPROCESSABLE_CONTENT", message: "المنتج غير متوفر" });
+    ).resolves.toEqual({ status: "out-of-stock", productName: "Galaxy A54" });
   });
 
   it("answers an order refused for its code with the refusal, for the code box to show", async () => {
@@ -139,7 +136,7 @@ describe("placeOrder binding (src/actions/index.ts)", () => {
 
     await expect(
       action.handler({ ...parsedSingleProductOrder, couponCode: "TROIS" }, { request: orderRequest() }),
-    ).resolves.toEqual({ couponRefusal: { reason: "below_minimum_quantity", shortBy: 1 } });
+    ).resolves.toEqual({ status: "coupon-refused", couponRefusal: { reason: "below_minimum_quantity", shortBy: 1 } });
     expect(createOrder).toHaveBeenLastCalledWith(expect.objectContaining({ couponCode: "TROIS" }), expect.anything());
   });
 
@@ -157,7 +154,7 @@ describe("placeOrder binding (src/actions/index.ts)", () => {
 
     await expect(
       action.handler(parsedSingleProductOrder, { request }),
-    ).resolves.toEqual({ orderNumber: "ORD-1", total: 7500 });
+    ).resolves.toEqual({ status: "placed", order: { orderNumber: "ORD-1", total: 7500 } });
 
     expect(createOrder).toHaveBeenCalledWith(
       expect.objectContaining({

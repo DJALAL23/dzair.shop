@@ -24,7 +24,8 @@ interface Props {
   product: ProductDetail;
   content: StoreFrontContent;
   fieldErrors: FieldErrors;
-  serverError: string | null;
+  /** Why the last post was refused, in the store's words. */
+  notice: string | null;
   /** The order was refused for its code: the code box says why. */
   couponRefusal?: CouponRefusal | null;
   basePrice: number;
@@ -53,7 +54,7 @@ interface Props {
   scheme?: string | undefined;
 }
 
-const { product, content, fieldErrors, serverError, couponRefusal = null, basePrice, defaultVariant, cur, isRTL, offers, defaultVariantId, isOutOfStock = false, otpEnabled = false, turnstileEnabled = false, turnstileSiteKey = null, landingPageSlug = null, formPolicy, buttonOrder = "order-first", showAssurance = true, scheme } = Astro.props;
+const { product, content, fieldErrors, notice, couponRefusal = null, basePrice, defaultVariant, cur, isRTL, offers, defaultVariantId, isOutOfStock = false, otpEnabled = false, turnstileEnabled = false, turnstileSiteKey = null, landingPageSlug = null, formPolicy, buttonOrder = "order-first", showAssurance = true, scheme } = Astro.props;
 
 const comparePrice = getProductView(product).comparePrice;
 ---
@@ -102,10 +103,10 @@ const comparePrice = getProductView(product).comparePrice;
         <span class="cod-chip"><Icon name="heroicons:banknotes" aria-hidden="true" />{content.orderCtaSubtext}</span>
       </div>
 
-      {serverError && (
+      {notice && (
         <div class="order-error" role="alert">
           <Icon name="heroicons:exclamation-triangle" aria-hidden="true" />
-          <p>{serverError}</p>
+          <p>{notice}</p>
         </div>
       )}
 

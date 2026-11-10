@@ -27,7 +27,7 @@ const { landing, content, showAssurance = true, stickyCta = true, scheme, style,
 const { config, isRTL } = Astro.locals.store;
 const product = landing?.product ?? null;
 const view = product ? getProductView(product) : null;
-const { fieldErrors, serverError, couponRefusal } = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
+const { fieldErrors, notice, couponRefusal } = orderOutcome(Astro.getActionResult(actions.placeOrder), content, Astro.locals.store.locale);
 ---
 
 {landing && product && view && (
@@ -42,7 +42,7 @@ const { fieldErrors, serverError, couponRefusal } = orderOutcome(Astro.getAction
       product={product}
       content={content}
       fieldErrors={fieldErrors}
-      serverError={serverError}
+      notice={notice}
       couponRefusal={couponRefusal}
       basePrice={view.basePrice}
       defaultVariant={view.defaultVariant ?? null}

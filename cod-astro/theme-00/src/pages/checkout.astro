@@ -20,7 +20,7 @@ if (!config.cartEnabled) return Astro.redirect(Astro.locals.store.href("/"), 302
 // Same single PRG redirect the product form uses: the browser follows the 303
 // straight to the thank-you page, so this page never re-renders behind it and
 // the abandonment-conversion signal fires there.
-const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
+const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content, Astro.locals.store.locale);
 if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
 
 const saved = await client.pageData.get("checkout");

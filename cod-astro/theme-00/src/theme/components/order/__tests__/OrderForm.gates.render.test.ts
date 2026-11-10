@@ -28,7 +28,7 @@ async function render(gates: { otpEnabled?: boolean; turnstileEnabled?: boolean;
       product: productFixture(),
       content: enContent,
       fieldErrors: {},
-      serverError: null,
+      notice: null,
       basePrice: 4500,
       defaultVariant: null,
       cur: "DZD",
@@ -83,5 +83,27 @@ describe("OrderForm — the OTP step and the bot gate", () => {
 
     expect(html).not.toContain('id="turnstile-field"');
     expect(scriptTags(html, "TurnstileField")).toEqual([]);
+  });
+});
+
+describe("OrderForm — a refused order", () => {
+  async function refused(notice: string | null, fieldErrors: Record<string, string[]> = {}): Promise<string> {
+    const container = await AstroContainer.create();
+    return container.renderToString(OrderForm, {
+      locals: testLocals(),
+      props: { product: productFixture(), content: enContent, fieldErrors, notice, basePrice: 4500, defaultVariant: null, cur: "DZD", isRTL: false, offers: [], defaultVariantId: null },
+    });
+  }
+
+  it("says why above the form, as an alert, and marks the field to fix", async () => {
+    const html = await refused(enContent.formFixFields, { phone: [enContent.formFieldInvalid] });
+    expect(html.slice(html.indexOf('role="alert"'))).toContain(enContent.formFixFields);
+    expect(html).toMatch(/name="phone"[^>]*aria-invalid="true"[^>]*aria-describedby="f-phone-error"/);
+    expect(html).toContain(`id="f-phone-error" class="field-error"`);
+    expect(html).not.toMatch(/name="customerName"[^>]*aria-invalid/);
+  });
+
+  it("shows no alert before the shopper sends the form", async () => {
+    expect(await refused(null)).not.toContain('class="order-error"');
   });
 });

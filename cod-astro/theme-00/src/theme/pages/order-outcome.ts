@@ -1,76 +1,83 @@
 /**
  * What happens after the order form posts — one definition for every page that
- * renders the form (product, landing, checkout) and for the thank-you page that
- * reads the result.
+ * renders the form (product, landing, checkout).
  *
- * A placed order answers with a single 303 to `/thank-you` (post/redirect/get),
- * so the form page never re-renders behind it. The thank-you query is the
- * SDK's: `thankYouHref` writes it and the thank-you page reads it with
- * `readThankYou`, so the parameter names exist in exactly one place.
+ * The SDK reads what the post came to (`orderPlacementOf`); this file only
+ * words it. A placed order answers with a single 303 to `/thank-you`
+ * (post/redirect/get), so the form page never re-renders behind it. The
+ * thank-you query is the SDK's: `thankYouHref` writes it and the thank-you
+ * page reads it with `readThankYou`.
  */
 import { isInputError } from "astro:actions";
-import { thankYouHref, type CouponRefusal } from "@wocart/storefront";
+import { orderPlacementOf, thankYouHref, type CouponRefusal, type OrderPlacement } from "@wocart/storefront";
+import { message } from "@/theme/content/messages";
 import type { FieldErrors } from "@/theme/types";
 import type { OrderFormStrings } from "@/theme/content/types/order-form";
-
-/** The part of a placed order the thank-you page needs. */
-export interface PlacedOrder {
-  orderNumber: string;
-  total: number;
-  orderId?: string | null;
-}
-
-/**
- * An order not placed because of its code: the action answers this rather
- * than failing — a refusal the shopper can fix in the form, as a checkout's
- * user errors are — and the code box says why.
- */
-export interface RefusedForCoupon {
-  couponRefusal: CouponRefusal;
-}
 
 /** The order form's state after a submit: where to go, or what to show. */
 export interface OrderOutcome {
   redirect: string | null;
   fieldErrors: FieldErrors;
-  serverError: string | null;
+  /** Why the order was not placed, in the store's words; null when nothing was refused or the code box says why. */
+  notice: string | null;
   /** The order was refused for its code: the code box says why. */
   couponRefusal: CouponRefusal | null;
 }
 
 /** The order form's words for a refused order. Only these are ever shown to a shopper. */
-export type OrderOutcomeCopy = Pick<OrderFormStrings, "formSubmitFailed" | "formFieldInvalid" | "formRequiredField">;
+export type OrderOutcomeCopy = Pick<
+  OrderFormStrings,
+  | "formRequiredField"
+  | "formFieldInvalid"
+  | "formFixFields"
+  | "formOutOfStock"
+  | "formOutOfStockNamed"
+  | "formProductUnavailable"
+  | "formProductUnavailableNamed"
+  | "formDeliveryUnavailable"
+  | "formBotCheckFailed"
+  | "formPhoneNotVerified"
+  | "formSubmitFailed"
+  | "formSubmitFailedReference"
+>;
 
-/** The dropdowns: a missing answer there is a choice to make, not a value to check. */
-const CHOICE_FIELDS = new Set(["wilayaId", "communeId", "deliveryType"]);
+const NOT_POSTED: OrderOutcome = { redirect: null, fieldErrors: {}, notice: null, couponRefusal: null };
 
-/** The server's own messages are English and written for the merchant; the form says its own. */
-function shopperFieldErrors(fields: FieldErrors, copy: OrderOutcomeCopy): FieldErrors {
-  return Object.fromEntries(
-    Object.keys(fields).map((name) => [name, [CHOICE_FIELDS.has(name) ? copy.formRequiredField : copy.formFieldInvalid]]),
-  );
+type Refusal = Exclude<OrderPlacement, { status: "placed" }>;
+
+/** Each refusal in the store's words; the server's own text is for the merchant. */
+function refusalNotice(refusal: Refusal, copy: OrderOutcomeCopy, locale: string): string | null {
+  switch (refusal.status) {
+    case "coupon-refused":
+      return null;
+    case "out-of-stock":
+      return refusal.productName ? message(copy, "formOutOfStockNamed", { product: refusal.productName }, locale) : copy.formOutOfStock;
+    case "product-unavailable":
+      return refusal.productName ? message(copy, "formProductUnavailableNamed", { product: refusal.productName }, locale) : copy.formProductUnavailable;
+    case "delivery-unavailable":
+      return copy.formDeliveryUnavailable;
+    case "bot-check-failed":
+      return copy.formBotCheckFailed;
+    case "phone-not-verified":
+      return copy.formPhoneNotVerified;
+    case "invalid-fields":
+      return copy.formFixFields;
+    case "failed":
+      return refusal.reference ? message(copy, "formSubmitFailedReference", { reference: refusal.reference }, locale) : copy.formSubmitFailed;
+  }
 }
 
-export function orderOutcome(
-  result: { data?: PlacedOrder | RefusedForCoupon | undefined; error?: unknown } | undefined,
-  copy: OrderOutcomeCopy,
-): OrderOutcome {
-  const data = result?.data;
-  if (data && "couponRefusal" in data) return { redirect: null, fieldErrors: {}, serverError: null, couponRefusal: data.couponRefusal };
-  if (data?.orderNumber) {
-    return { redirect: thankYouHref(data), fieldErrors: {}, serverError: null, couponRefusal: null };
-  }
-  const error = result?.error;
-  if (isInputError(error)) {
-    return { redirect: null, fieldErrors: shopperFieldErrors(error.fields, copy), serverError: null, couponRefusal: null };
-  }
-  // The server's message is written for the merchant (an SKU is missing, an
-  // item is out of stock). The shopper gets the store's own sentence, and the
-  // detail stays in the server's logs.
+export function orderOutcome(result: { data?: unknown; error?: unknown } | undefined, copy: OrderOutcomeCopy, locale: string): OrderOutcome {
+  const placement = orderPlacementOf(result, isInputError);
+  if (!placement) return NOT_POSTED;
+  if (placement.status === "placed") return { ...NOT_POSTED, redirect: thankYouHref(placement.order) };
   return {
     redirect: null,
-    fieldErrors: {},
-    serverError: error ? copy.formSubmitFailed : null,
-    couponRefusal: null,
+    fieldErrors:
+      placement.status === "invalid-fields"
+        ? Object.fromEntries(Object.entries(placement.fields).map(([name, problem]) => [name, [problem === "choose" ? copy.formRequiredField : copy.formFieldInvalid]]))
+        : {},
+    notice: refusalNotice(placement, copy, locale),
+    couponRefusal: placement.status === "coupon-refused" ? placement.couponRefusal : null,
   };
 }

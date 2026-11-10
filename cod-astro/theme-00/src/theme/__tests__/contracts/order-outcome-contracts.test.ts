@@ -15,14 +15,12 @@ vi.mock("astro:actions", () => ({
 }));
 
 const { orderOutcome } = await import("@/theme/pages/order-outcome");
+const { resolveContent } = await import("@/theme/content");
 const { readThankYou, thankYouHref } = await import("@wocart/storefront");
 
 const absolute = (href: string) => new URL(href, "https://store.example");
-const COPY = {
-  formSubmitFailed: "We could not place your order.",
-  formFieldInvalid: "Check this field",
-  formRequiredField: "Please choose an option",
-};
+const COPY = resolveContent("en");
+const outcomeOf = (result: Parameters<typeof orderOutcome>[0]) => orderOutcome(result, COPY, "en");
 
 describe("the thank-you query", () => {
   it("round-trips any order the server can return", () => {
@@ -56,41 +54,61 @@ describe("the thank-you query", () => {
 });
 
 describe("orderOutcome", () => {
+  const order = { orderId: "ord_1", orderNumber: "CF-1001", price: 4000, deliveryFee: 500, total: 4500, couponDiscount: 0 };
+
   it("redirects a placed order to the thank-you page", () => {
-    const outcome = orderOutcome({ data: { orderNumber: "CF-1001", total: 4500, orderId: "ord_1" } }, COPY);
-    expect(outcome.redirect).toBe(thankYouHref({ orderNumber: "CF-1001", total: 4500, orderId: "ord_1" }));
-    expect(outcome.fieldErrors).toEqual({});
-    expect(outcome.serverError).toBeNull();
+    const outcome = outcomeOf({ data: { status: "placed", order } });
+    expect(outcome).toEqual({ redirect: thankYouHref(order), fieldErrors: {}, notice: null, couponRefusal: null });
   });
 
-  it("returns field errors for invalid input and keeps the shopper on the form", () => {
-    const outcome = orderOutcome({
-      error: { type: "AstroActionInputError", fields: { phone: ["Invalid phone"] } },
-    }, COPY);
-    expect(outcome).toEqual({ redirect: null, fieldErrors: { phone: [COPY.formFieldInvalid] }, serverError: null, couponRefusal: null });
+  it("is quiet before any submit", () => {
+    expect(outcomeOf(undefined)).toEqual({ redirect: null, fieldErrors: {}, notice: null, couponRefusal: null });
   });
 
   it("says the store's own words under each field, never the server's English", () => {
-    const outcome = orderOutcome({
-      error: { type: "AstroActionInputError", fields: { wilayaId: ["Invalid input: expected number, received NaN"], customerName: ["Too short"] } },
-    }, COPY);
-    expect(outcome.fieldErrors).toEqual({
-      wilayaId: [COPY.formRequiredField],
-      customerName: [COPY.formFieldInvalid],
-    });
+    const outcome = outcomeOf({ error: { type: "AstroActionInputError", fields: { wilayaId: ["Invalid input: expected number, received NaN"], customerName: ["Too short"] } } });
+    expect(outcome).toEqual({ redirect: null, fieldErrors: { wilayaId: [COPY.formRequiredField], customerName: [COPY.formFieldInvalid] }, notice: COPY.formFixFields, couponRefusal: null });
   });
 
-  it("shows the store's own sentence for any refused order, never the server's detail", () => {
-    const outcome = orderOutcome({ error: new Error("SKU is missing on product prod-2") }, COPY);
-    expect(outcome).toEqual({ redirect: null, fieldErrors: {}, serverError: COPY.formSubmitFailed, couponRefusal: null });
+  it("puts a field the server refused on that field", () => {
+    expect(outcomeOf({ data: { status: "invalid-fields", fields: { communeId: "choose", address: "invalid" } } }).fieldErrors).toEqual({ communeId: [COPY.formRequiredField], address: [COPY.formFieldInvalid] });
+  });
+
+  it("names the product that ran out or can no longer be ordered", () => {
+    expect(outcomeOf({ data: { status: "out-of-stock", productName: "Robe" } }).notice).toBe("“Robe” isn't available in the quantity you asked for. Lower the quantity or pick another option.");
+    expect(outcomeOf({ data: { status: "out-of-stock", productName: null } }).notice).toBe(COPY.formOutOfStock);
+    expect(outcomeOf({ data: { status: "product-unavailable", productName: "Sac" } }).notice).toBe("“Sac” can no longer be ordered.");
+  });
+
+  it("gives the reference to quote when the order could not be sent, never the server's detail", () => {
+    expect(outcomeOf({ data: { status: "failed", reference: "req-42" } }).notice).toContain("req-42");
+    expect(outcomeOf({ error: new Error("SKU is missing on product prod-2") })).toEqual({ redirect: null, fieldErrors: {}, notice: COPY.formSubmitFailed, couponRefusal: null });
   });
 
   it("hands an order refused for its code to the code box, with what the refusal carries", () => {
     const refusal = { reason: "below_minimum_subtotal", shortBy: 2000 };
-    expect(orderOutcome({ data: { couponRefusal: refusal } }, COPY)).toEqual({ redirect: null, fieldErrors: {}, serverError: null, couponRefusal: refusal });
+    expect(outcomeOf({ data: { status: "coupon-refused", couponRefusal: refusal } })).toEqual({ redirect: null, fieldErrors: {}, notice: null, couponRefusal: refusal });
   });
 
-  it("is quiet before any submit", () => {
-    expect(orderOutcome(undefined, COPY)).toEqual({ redirect: null, fieldErrors: {}, serverError: null, couponRefusal: null });
-  });
+  /** Every refusal the SDK names: each its own sentence in every language, never a key or a placeholder. */
+  const refusals = [
+    { status: "out-of-stock", productName: null },
+    { status: "out-of-stock", productName: "Robe" },
+    { status: "product-unavailable", productName: null },
+    { status: "product-unavailable", productName: "Robe" },
+    { status: "delivery-unavailable" },
+    { status: "bot-check-failed" },
+    { status: "phone-not-verified" },
+    { status: "invalid-fields", fields: { phone: "invalid" } },
+    { status: "failed", reference: null },
+    { status: "failed", reference: "req-42" },
+  ] as const;
+
+  for (const locale of ["ar", "fr", "en"] as const) {
+    it(`words every refused order in its own sentence, in ${locale}`, () => {
+      const notices = refusals.map((data) => orderOutcome({ data }, resolveContent(locale), locale).notice ?? "");
+      for (const notice of notices) expect(notice).toMatch(/^(?!form[A-Z])[^{}]+$/);
+      expect(new Set(notices).size).toBe(refusals.length);
+    });
+  }
 });

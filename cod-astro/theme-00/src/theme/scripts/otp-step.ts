@@ -14,7 +14,7 @@
  * `terminal`, which is what the machine reads).
  *
  * No-JS reality: the form POSTs directly and the server's
- * OTP_VERIFICATION_REQUIRED error renders in the existing serverError alert.
+ * OTP_VERIFICATION_REQUIRED error renders as the form's notice.
  */
 import { onEachPage } from "@wocart/theme/lifecycle";
 import {

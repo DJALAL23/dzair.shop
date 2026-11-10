@@ -13,7 +13,7 @@ const turnstileOn = config.turnstileEnabled === true && Boolean(config.turnstile
 // A placed order answers with one redirect to the thank-you page (303): the
 // browser follows the POST response, so the form page never renders again.
 // A refused one renders the page with its reasons (the order block reads them).
-const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
+const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content, Astro.locals.store.locale);
 if (outcome.redirect) return Astro.redirect(Astro.locals.store.href(outcome.redirect), 303);
 
 // The product first: an unknown handle is a real 404, never an empty 200.

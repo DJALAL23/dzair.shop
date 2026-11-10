@@ -79,9 +79,11 @@ const wilayaOptions = WILAYAS.map((w) => ({
         required autocomplete="name"
         placeholder={`${content.formNameLabel} *`}
         class:list={["form-input", fieldErrors.customerName && "error"]}
+        aria-invalid={fieldErrors.customerName ? "true" : undefined}
+        aria-describedby={fieldErrors.customerName ? "f-name-error" : undefined}
       />
       {fieldErrors.customerName && (
-        <p class="field-error">{fieldErrors.customerName[0]}</p>
+        <p id="f-name-error" class="field-error">{fieldErrors.customerName[0]}</p>
       )}
     </div>
 
@@ -96,9 +98,11 @@ const wilayaOptions = WILAYAS.map((w) => ({
         required autocomplete="tel" inputmode="tel"
         placeholder={`${content.formPhoneLabel} *`}
         class:list={["form-input", fieldErrors.phone && "error"]}
+        aria-invalid={fieldErrors.phone ? "true" : undefined}
+        aria-describedby={fieldErrors.phone ? "f-phone-error" : undefined}
       />
       {fieldErrors.phone && (
-        <p class="field-error">{fieldErrors.phone[0]}</p>
+        <p id="f-phone-error" class="field-error">{fieldErrors.phone[0]}</p>
       )}
     </div>
   </div>
@@ -118,9 +122,11 @@ const wilayaOptions = WILAYAS.map((w) => ({
           ? `${content.formEmailLabel} *`
           : content.formEmailPlaceholder}
         class:list={["form-input", fieldErrors.email && "error"]}
+        aria-invalid={fieldErrors.email ? "true" : undefined}
+        aria-describedby={fieldErrors.email ? "f-email-error" : undefined}
       />
       {fieldErrors.email && (
-        <p class="field-error">{fieldErrors.email[0]}</p>
+        <p id="f-email-error" class="field-error">{fieldErrors.email[0]}</p>
       )}
     </div>
   )}

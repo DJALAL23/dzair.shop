@@ -11,7 +11,7 @@ import { orderOutcome } from "@/theme/pages/order-outcome";
 const { config, content, client, href } = Astro.locals.store;
 const landing = await client.pages.landing(Astro.params.slug ?? "");
 
-const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
+const outcome = orderOutcome(Astro.getActionResult(actions.placeOrder), content, Astro.locals.store.locale);
 if (outcome.redirect) return Astro.redirect(href(outcome.redirect), 303);
 if (!landing) return notFound(Astro);
 

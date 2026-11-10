@@ -26,7 +26,7 @@ type Props = Pick<InferProps<typeof checkoutMain>, "scheme" | "style"> & {
 
 const { content, scheme, style } = Astro.props;
 const { config, isRTL } = Astro.locals.store;
-const { fieldErrors, serverError, couponRefusal } = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
+const { fieldErrors, notice, couponRefusal } = orderOutcome(Astro.getActionResult(actions.placeOrder), content, Astro.locals.store.locale);
 const otpEnabled = config.otpEnabled === true;
 const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turnstileSiteKey);
 ---
@@ -51,14 +51,14 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
       {content.checkoutTitle}
     </h1>
 
-    {serverError && (
+    {notice && (
       <div
         class="mb-5 flex items-start gap-3 rounded-[var(--radius-card)] px-4 py-3 text-[0.875rem] font-bold"
         style="background: var(--clr-error-bg); color: var(--clr-error)"
         role="alert"
       >
         <Icon name="heroicons:exclamation-triangle" class="h-5 w-5 shrink-0" />
-        <p>{serverError}</p>
+        <p>{notice}</p>
       </div>
     )}
 

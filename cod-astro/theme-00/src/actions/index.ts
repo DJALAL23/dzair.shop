@@ -1,48 +1,18 @@
 // Astro requires actions in src/actions/index.ts. This file is framework
-// wiring only: the action name, the form acceptance, the SDK's input
-// whitelist, and turning the SDK engine's result into an ActionError (shape
-// failures) or an Error (upstream refusals). Everything decision-bearing —
-// the whitelist, the basket-or-product rule, attribution forwarding, the wire
-// body — lives in @wocart/storefront/astro (S8).
-import { ActionError, defineAction } from "astro:actions";
-import { executePlaceOrder, lookupOrder, orderLookupInput, placeOrderInput } from "@wocart/storefront/astro";
+// wiring only: the action name, the form acceptance and the SDK's input
+// whitelist. Everything decision-bearing — the whitelist, the
+// basket-or-product rule, attribution forwarding, the wire body and what each
+// answer means — lives in @wocart/storefront/astro. A refused order is an
+// answer the page words (theme/pages/order-outcome.ts), not a failure.
+import { defineAction } from "astro:actions";
+import { lookupOrder, orderLookupInput, placeOrder, placeOrderInput } from "@wocart/storefront/astro";
 import { getStoreClient } from "@/theme/sdk";
-import type { RefusedForCoupon } from "@/theme/pages/order-outcome";
 
 export const server = {
   placeOrder: defineAction({
     accept: "form",
     input: placeOrderInput,
-    handler: async (input, context) => {
-      const result = await executePlaceOrder(
-        input,
-        context.request,
-        getStoreClient(),
-      );
-
-      if (!result.success) {
-        // "shape" — neither a basket nor a product — is a field error the
-        // form can render. Anything else is the store refusing the order: a
-        // 422, so the page reads as a refusal and not a crash. The message is
-        // cod-server's, written for the merchant; the form shows the store's own
-        // sentence instead (see orderOutcome).
-        if (result.errorKind === "shape") {
-          throw new ActionError({
-            code: "BAD_REQUEST",
-            message: result.error,
-          });
-        }
-        // Refused for its code: an answer the form shows on the code box, not
-        // a failure — the shopper fixes it there (order-outcome.ts).
-        if (result.couponRefusal) return { couponRefusal: result.couponRefusal } satisfies RefusedForCoupon;
-        throw new ActionError({
-          code: "UNPROCESSABLE_CONTENT",
-          message: result.error,
-        });
-      }
-
-      return result.data;
-    },
+    handler: (input, context) => placeOrder(input, context.request, getStoreClient()),
   }),
 
   // A shopper following an order: the SDK words the outcome, and what was

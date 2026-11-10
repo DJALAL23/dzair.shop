@@ -18,7 +18,7 @@ import type { productOrder } from "@/theme/catalog/product/product-main.def";
 type Props = InferProps<typeof productOrder> & { product: Product | null };
 const { product, buttonOrder, showAssurance, scheme } = Astro.props;
 const { config, content, isRTL } = Astro.locals.store;
-const { fieldErrors, serverError, couponRefusal } = orderOutcome(Astro.getActionResult(actions.placeOrder), content);
+const { fieldErrors, notice, couponRefusal } = orderOutcome(Astro.getActionResult(actions.placeOrder), content, Astro.locals.store.locale);
 const view = product ? getProductView(product) : null;
 // Thumbnail for the cart drawer and the checkout summary, at the size it renders.
 const cartImageSrc = product ? productImageSource(product) : null;
@@ -30,7 +30,7 @@ const cartImage = cartImageSrc ? thumbnailImage(cartImageSrc, config.media) : nu
     product={product}
     content={content}
     fieldErrors={fieldErrors}
-    serverError={serverError}
+    notice={notice}
     couponRefusal={couponRefusal}
     basePrice={view.basePrice}
     defaultVariant={view.defaultVariant ?? null}

@@ -79,7 +79,7 @@ async function render(slots?: Record<string, string>): Promise<string> {
       product: product(),
       content: enContent,
       fieldErrors: {},
-      serverError: null,
+      notice: null,
       basePrice: 4500,
       defaultVariant: null,
       cur: "DZD",

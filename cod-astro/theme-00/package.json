@@ -2,7 +2,7 @@
   "name": "cod-astro-theme-00",
   "private": true,
   "type": "module",
-  "version": "5.5.0",
+  "version": "5.6.0",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -27,7 +27,7 @@
     "@astrojs/cloudflare": "^14.3.1",
     "@astrojs/vercel": "^11.0.10",
     "@iconify-json/heroicons": "^1.2.3",
-    "@wocart/storefront": "4.2.1",
+    "@wocart/storefront": "4.3.0",
     "@wocart/theme": "4.3.0",
     "astro": "^7.3.2",
     "astro-icon": "^1.1.5",
