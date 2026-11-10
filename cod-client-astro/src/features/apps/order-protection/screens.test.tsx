@@ -80,6 +80,13 @@ async function choose(label: string, option: string) {
   await act(async () => item.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
   await settle();
 }
+/** Opens the attempt shown as `name` in its sheet, and returns the sheet. */
+async function openSheet(name: string) {
+  await click(name);
+  const sheet = document.querySelector<HTMLElement>("[role=dialog]");
+  if (!sheet) throw new Error(`no sheet for ${name}`);
+  return sheet;
+}
 async function type(input: HTMLInputElement | HTMLTextAreaElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value")!.set!;
   await act(async () => {
@@ -185,19 +192,78 @@ describe("the App page", () => {
     await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
     await click("Block list");
     expect(document.body.textContent).toContain("Your Block List always applies");
-    expect(document.body.textContent).toContain("added");
-    expect(document.body.textContent).toContain("ORD-1");
+    const row = document.querySelector("tbody tr")!;
+    expect(row.textContent).toContain("0551234567");
+    expect(row.textContent).toContain("Phone number");
+    expect(row.textContent).toContain("ORD-1");
+    expect(row.textContent).toContain("added");
   });
 
-  it("shows who, where and how much in Activity, and opens the order from the whole row", async () => {
+  it("adds to the Block List from its own dialog, and closes it once added", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [] });
+    api.addToBlockList.mockResolvedValue({});
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    await click("Block list");
+    await click("Add");
+    const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+    expect(dialog.textContent).toContain("Add to the Block List");
+    const [value, note] = [...dialog.querySelectorAll<HTMLInputElement>("input")];
+    await type(value, " 0551234567 ");
+    await type(note, "Fake orders");
+    await act(async () => [...dialog.querySelectorAll("button")].find((button) => button.textContent === "Block")!.click());
+    await settle();
+    expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567", note: "Fake orders" });
+    expect(api.listBlockList).toHaveBeenCalledTimes(2);
+    expect(document.querySelector("[role=dialog]")).toBeNull();
+  });
+
+  it("keeps the dialog open and says so when an entry cannot be added", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [] });
+    api.addToBlockList.mockRejectedValue(new Error("bad"));
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    await click("Block list");
+    await click("Add");
+    const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+    await type(dialog.querySelector("input")!, "nope");
+    await act(async () => [...dialog.querySelectorAll("button")].find((button) => button.textContent === "Block")!.click());
+    await settle();
+    expect(notifications.error).toHaveBeenCalledWith("This could not be blocked. Check the value and try again.");
+    expect(document.querySelector("[role=dialog]")).not.toBeNull();
+  });
+
+  it("offers no way to change the Block List to a reader", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [] });
+    api.listBlockList.mockResolvedValue({ data: [{ id: "b", kind: "phone", value: "0551234567", note: null, createdAt: new Date().toISOString() }], total: 1 });
+    await mount(<OrderProtectionApp canManage={false} onSaved={onSaved} />);
+    await click("Block list");
+    expect(byText("Add")).toBeUndefined();
+    expect(document.querySelector('[aria-label="Remove from the Block List"]')).toBeNull();
+  });
+
+  it("lists who and how much in Activity, and opens one in a sheet with where it goes with its order and every rule it matched", async () => {
     api.getProtection.mockResolvedValue({ enabled: true, rules: [] });
     api.listAttempts.mockResolvedValue({ data: [{ ...ATTEMPT, id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: null, outcome: "flagged", orderId: "o1", orderNumber: "ORD-1", customerName: "Amel", total: 6600, wilayaId: 16, signals: {}, matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "t", name: "Trying", mode: "trial", action: "spam" }] }], total: 1 });
     await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
     await click("Activity");
-    const row = document.querySelector<HTMLAnchorElement>('a[href="/orders/o1"]')!;
+    const row = document.querySelector("tbody tr")!;
     expect(row.textContent).toContain("Amel");
-    expect(row.textContent).toContain("Alger");
-    expect(row.textContent).toContain("Matched: Too many and Trying (Trial)");
+    expect(row.textContent).toContain("ORD-1");
+    expect(row.textContent).toContain("Flagged");
+    expect(document.body.textContent).toContain("1 order");
+    const sheet = await openSheet("Amel");
+    expect(sheet.textContent).toContain("Alger");
+    expect(sheet.textContent).toContain("Too many");
+    expect(sheet.textContent).toContain("Also matched: Trying (Trial)");
+    expect(sheet.querySelector('a[href="/orders/o1"]')!.textContent).toBe("Open order");
+  });
+
+  it("opens Spam from an attempt sent there, which has no order yet", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [] });
+    api.listAttempts.mockResolvedValue({ data: [{ ...ATTEMPT, id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: null, outcome: "spam", orderId: null, orderNumber: "ORD-2", customerName: "Amel", total: null, signals: {}, matches: [] }], total: 1 });
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    await click("Activity");
+    const sheet = await openSheet("Amel");
+    expect(sheet.querySelector('a[href="/orders/spam"]')!.textContent).toBe("Open Spam");
   });
 
   it("shows only the filter last chosen in Activity, however slowly the earlier one answers", async () => {
@@ -388,24 +454,41 @@ describe("the Spam page", () => {
   const EMPTY_SPAM = "No orders in Spam";
   const SPAM = { ...ATTEMPT, id: "s1", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "spam", orderId: null, orderNumber: "ORD-1", customerName: "Amel", total: 6600, signals: {}, matches: [{ ruleId: "r", name: "Blocked", mode: "active", action: "spam" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
 
-  it("shows who, how much and why, naming only the rules that acted", async () => {
+  it("lists who, how much and the rule that acted, and opens the order in a sheet naming only the rules that acted", async () => {
     api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
     await mount(<SpamOrdersPageApp />);
     expect(api.listAttempts).toHaveBeenCalledWith({ outcome: "spam", limit: 20, offset: 0 });
-    expect(document.body.textContent).toContain("Amel");
-    expect(document.body.textContent).toContain("Sent to Spam by: Blocked");
+    const row = document.querySelector("tbody tr")!;
+    expect(row.textContent).toContain("Amel");
+    expect(row.textContent).toContain("0551234567");
+    expect(row.textContent).toContain("Blocked");
     expect(document.body.textContent).not.toContain("Only trying");
+    const sheet = await openSheet("Amel");
+    expect(sheet.textContent).toContain("Why it went to Spam");
+    expect(sheet.textContent).toContain("Blocked");
+    expect(sheet.textContent).not.toContain("Only trying");
   });
 
-  it("shows what was ordered, where to and how, and what else matched", async () => {
+  it("names the first rule that acted in the list, and how many more", async () => {
+    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, matches: [{ ruleId: "a", name: "Fast", mode: "active", action: "spam" }, { ruleId: "b", name: "Abroad", mode: "active", action: "spam" }] }], total: 1 });
+    await mount(<SpamOrdersPageApp />);
+    expect(document.querySelector("tbody tr")!.textContent).toContain("Fast +1");
+    expect((await openSheet("Amel")).textContent).toContain("Fast and Abroad");
+  });
+
+  it("shows what was ordered and where in the list, and how it is delivered and what else matched in the sheet", async () => {
     api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, wilayaId: 16, communeId: "c-16-055", deliveryType: "stop_desk", lines: [{ name: "Robe", variantLabel: "Rouge", quantity: 2 }, { name: "Sac", variantLabel: null, quantity: 1 }], phoneBlocked: true, matches: [{ ruleId: "block-list:phone", name: "Block List", mode: "active", action: "spam", blockList: "phone" }, { ruleId: "f", name: "Fast", mode: "active", action: "flag" }] }], total: 1 });
     await mount(<SpamOrdersPageApp />);
-    const text = document.body.textContent!;
-    expect(text).toContain("Robe (Rouge) × 2 and Sac × 1");
-    expect(text).toContain("Alger · Baba Hassen · Stop desk");
-    expect(text).toContain("Sent to Spam by: Number on your Block List");
-    expect(text).toContain("Also matched: Fast");
-    expect(text).toContain("Number blocked");
+    const row = document.querySelector("tbody tr")!;
+    expect(row.textContent).toContain("Robe (Rouge) × 2 and Sac × 1");
+    expect(row.textContent).toContain("Alger · Baba Hassen");
+    expect(row.querySelector('[aria-label="Number blocked"]')).not.toBeNull();
+    const sheet = await openSheet("Amel");
+    expect(sheet.textContent).toContain("Robe (Rouge) × 2");
+    expect(sheet.textContent).toContain("Stop desk");
+    expect(sheet.textContent).toContain("Number on your Block List");
+    expect(sheet.textContent).toContain("Also matched: Fast");
+    expect(sheet.textContent).toContain("Number blocked");
     expect(byText("Block number")).toBeUndefined();
   });
 
@@ -430,41 +513,63 @@ describe("the Spam page", () => {
     expect(api.deleteSpamOrder).toHaveBeenCalledWith("s2");
   });
 
+  it("opens a row from anywhere on it, but ticking its box only picks it", async () => {
+    api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
+    await mount(<SpamOrdersPageApp />);
+    const row = document.querySelector<HTMLElement>("tbody tr")!;
+    await act(async () => row.querySelector<HTMLInputElement>("input[type=checkbox]")!.click());
+    await settle();
+    expect(document.querySelector("[role=dialog]")).toBeNull();
+    expect(document.body.textContent).toContain("1 selected");
+    await act(async () => row.querySelector<HTMLElement>("time")!.click());
+    await settle();
+    expect(document.querySelector("[role=dialog]")!.textContent).toContain("Why it went to Spam");
+  });
+
   it("shows how the order was sent", async () => {
     api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, signals: { fillSeconds: 3.4, visitSource: "tiktok", appSource: "instagram", networkCountry: "DZ" } }], total: 1 });
     await mount(<SpamOrdersPageApp />);
-    expect(document.body.textContent).toContain("Instagram · TikTok ad · Filled in 3 s · Network: Algeria");
+    const sheet = await openSheet("Amel");
+    expect(sheet.textContent).toContain("How it was sent");
+    for (const signal of ["Instagram", "TikTok ad", "Filled in 3 s", "Network: Algeria"]) expect(sheet.textContent).toContain(signal);
   });
 
-  it("shows a form filled in no time, and no empty line when nothing is known", async () => {
-    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, id: "known", signals: { fillSeconds: 0 } }, { ...SPAM, id: "unknown", signals: {} }], total: 2 });
+  it("shows a form filled in no time, and no section when nothing is known", async () => {
+    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, id: "known", customerName: "Known", signals: { fillSeconds: 0 } }, { ...SPAM, id: "unknown", customerName: "Unknown", signals: {} }], total: 2 });
     await mount(<SpamOrdersPageApp />);
-    expect(document.body.textContent).toContain("Filled in 0 s");
-    expect(document.querySelectorAll("li p.text-xs")).toHaveLength(3);
+    expect((await openSheet("Known")).textContent).toContain("Filled in 0 s");
+    await act(async () => document.querySelector<HTMLElement>('[role=dialog] [aria-label="Close"]')!.click());
+    await settle();
+    expect((await openSheet("Unknown")).textContent).not.toContain("How it was sent");
   });
 
-  it("rescues and reloads", async () => {
-    api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
+  it("rescues from the sheet, reloads and closes it", async () => {
+    api.listAttempts.mockResolvedValueOnce({ data: [SPAM], total: 1 }).mockResolvedValue({ data: [], total: 0 });
     api.rescueSpamOrder.mockResolvedValue({ orderId: "o", orderNumber: "ORD-1" });
     await mount(<SpamOrdersPageApp />);
+    await openSheet("Amel");
     await click("Rescue");
     expect(api.rescueSpamOrder).toHaveBeenCalledWith("s1");
-    expect(notifications.success).toHaveBeenCalled();
+    expect(notifications.success).toHaveBeenCalledWith("Rescued as order ORD-1");
     expect(api.listAttempts).toHaveBeenCalledTimes(2);
+    expect(document.querySelector("[role=dialog]")).toBeNull();
   });
 
-  it("says why a Rescue was refused", async () => {
+  it("says why a Rescue was refused, and keeps the sheet open", async () => {
     api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
     api.rescueSpamOrder.mockRejectedValue({ code: "INSUFFICIENT_STOCK" });
     await mount(<SpamOrdersPageApp />);
+    await openSheet("Amel");
     await click("Rescue");
     expect(notifications.error).toHaveBeenCalledWith("Not enough stock to place this order.");
+    expect(document.querySelector("[role=dialog]")).not.toBeNull();
   });
 
-  it("blocks the number", async () => {
+  it("blocks the number from the sheet", async () => {
     api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
     api.addToBlockList.mockResolvedValue({});
     await mount(<SpamOrdersPageApp />);
+    await openSheet("Amel");
     await click("Block number");
     expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567", note: "ORD-1" });
   });
@@ -480,21 +585,20 @@ describe("the Spam page", () => {
   });
 
   it("goes back a page when the last order of the last page is deleted, instead of saying there are none", async () => {
-    const many = Array.from({ length: 20 }, (_, index) => ({ ...SPAM, id: `p${index}`, orderNumber: `ORD-P${index}` }));
+    const many = Array.from({ length: 20 }, (_, index) => ({ ...SPAM, id: `p${index}`, orderNumber: `ORD-P${index}`, customerName: `Client ${index}` }));
     let remaining = 21;
     api.listAttempts.mockImplementation(({ offset }: { offset: number }) => Promise.resolve({ data: offset === 0 ? many : remaining > 20 ? [{ ...SPAM, id: "last", customerName: "Last one" }] : [], total: remaining }));
     api.deleteSpamOrder.mockImplementation(async () => void (remaining = 20));
     await mount(<SpamOrdersPageApp />);
     await act(async () => document.querySelector<HTMLElement>('[aria-label="Next page"]')!.click());
     await settle();
-    expect(document.body.textContent).toContain("Last one");
-    await act(async () => document.querySelector<HTMLElement>('[aria-label="Delete"]')!.click());
-    await settle();
+    await openSheet("Last one");
+    await click("Delete");
     const dialog = document.querySelector<HTMLElement>("[role=alertdialog]")!;
     await act(async () => [...dialog.querySelectorAll("button")].find((button) => button.textContent === "Delete")!.click());
     await settle();
     expect(api.listAttempts).toHaveBeenLastCalledWith({ outcome: "spam", limit: 20, offset: 0 });
-    expect(document.body.textContent).toContain("ORD-P0");
+    expect(document.body.textContent).toContain("Client 0");
     expect(document.body.textContent).not.toContain(EMPTY_SPAM);
   });
 
@@ -503,7 +607,10 @@ describe("the Spam page", () => {
     api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
     await mount(<SpamOrdersPageApp />);
     expect(document.body.textContent).toContain("Amel");
+    expect(document.querySelector("input[type=checkbox]")).toBeNull();
+    const sheet = await openSheet("Amel");
     expect(byText("Rescue")).toBeUndefined();
+    expect(sheet.textContent).not.toContain("Block number");
     await act(async () => root.unmount());
     root = createRoot(host);
     api.listAttempts.mockClear();

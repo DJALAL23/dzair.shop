@@ -126,14 +126,27 @@ export function Initial({ name, className = "" }: { name: string; className?: st
 
 const INTERACTIVE = "a, button, input, select, textarea, label, [role='menu'], [role='dialog']";
 
-/** Lets a whole row open its record, while the row's own links and controls keep their click. */
-export function openRowOnClick(href: string) {
-  return (event: { target: EventTarget; currentTarget: EventTarget; metaKey: boolean; ctrlKey: boolean }) => {
+type RowClick = { target: EventTarget; currentTarget: EventTarget; metaKey: boolean; ctrlKey: boolean };
+
+function onRowClick(act: (event: RowClick) => void) {
+  return (event: RowClick) => {
     if (!(event.target instanceof Node) || !(event.currentTarget instanceof Node)) return;
     if (!event.currentTarget.contains(event.target)) return;
     if (event.target instanceof Element && event.target.closest(INTERACTIVE)) return;
     if (window.getSelection()?.toString()) return;
+    act(event);
+  };
+}
+
+/** Lets a whole row open its record, while the row's own links and controls keep their click. */
+export function openRowOnClick(href: string) {
+  return onRowClick((event) => {
     if (event.metaKey || event.ctrlKey) window.open(href, "_blank", "noopener");
     else window.location.assign(href);
-  };
+  });
+}
+
+/** Lets a whole row open what it shows in place, such as a sheet, while its own links and controls keep their click. */
+export function showRowOnClick(show: () => void) {
+  return onRowClick(() => show());
 }

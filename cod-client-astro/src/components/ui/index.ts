@@ -34,6 +34,7 @@ export {
   RowTitle,
   Initial,
   openRowOnClick,
+  showRowOnClick,
 } from "./table";
 export { Dialog } from "./dialog";
 export {

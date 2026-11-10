@@ -348,14 +348,20 @@
         "phone": "0550 12 34 56",
         "ip": "41.100.1.1"
       },
-      "added": "ajouté {when}"
+      "added": "ajouté {when}",
+      "new": "Ajouter",
+      "add_title": "Ajouter à la liste de blocage",
+      "add_hint": "Ses commandes vont directement en Spam."
     },
     "activity": {
       "outcome": "Résultat",
       "all": "Toutes les commandes",
       "empty": "Rien à afficher pour le moment",
       "trial_match": "{rule} (Essai)",
-      "matched": "Correspond à : {rules}"
+      "matched": "Correspond à : {rules}",
+      "count_one": "{count} commande",
+      "count_many": "{count} de commandes",
+      "count_other": "{count} commandes"
     },
     "outcomes": {
       "accepted": "Acceptée",
@@ -435,7 +441,6 @@
       "blocked": "{phone} est bloqué",
       "delete": "Supprimer",
       "delete_body": "Une commande supprimée ne peut pas être récupérée.",
-      "because": "Envoyée en spam par : {rules}",
       "rescue_no_stock": "Stock insuffisant pour passer cette commande.",
       "rescue_already": "Cette commande a déjà été récupérée.",
       "rescue_no_delivery": "Vous ne livrez plus à cet endroit.",
@@ -522,6 +527,33 @@
       "trial": "Observe seulement : compte les commandes qu'elle attraperait, sans y toucher.",
       "active": "Agit sur chaque commande qui correspond.",
       "off": "En pause : ne vérifie rien."
+    },
+    "table": {
+      "customer": "Client",
+      "order": "Commande",
+      "products": "Produits",
+      "place": "Wilaya",
+      "total": "Total",
+      "reason": "Raison",
+      "reason_more": "{rule} +{more}",
+      "when": "Reçue",
+      "blocked": "Bloqué",
+      "added": "Ajouté"
+    },
+    "sheet": {
+      "why_spam": "Pourquoi elle est en Spam",
+      "why": "Pourquoi",
+      "order": "Commande",
+      "customer": "Client",
+      "phone": "Téléphone",
+      "place": "Livraison à",
+      "network": "Réseau",
+      "delivery": "Livraison",
+      "total": "Total",
+      "sent": "Comment elle a été envoyée",
+      "open_order": "Ouvrir la commande",
+      "open_spam": "Ouvrir le Spam",
+      "unknown_customer": "Aucun nom donné"
     }
   }
 }

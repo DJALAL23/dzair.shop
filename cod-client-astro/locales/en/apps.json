@@ -341,14 +341,19 @@
         "phone": "0550 12 34 56",
         "ip": "41.100.1.1"
       },
-      "added": "added {when}"
+      "added": "added {when}",
+      "new": "Add",
+      "add_title": "Add to the Block List",
+      "add_hint": "Orders from it go straight to Spam."
     },
     "activity": {
       "outcome": "Outcome",
       "all": "All orders",
       "empty": "Nothing to show yet",
       "trial_match": "{rule} (Trial)",
-      "matched": "Matched: {rules}"
+      "matched": "Matched: {rules}",
+      "count_one": "{count} order",
+      "count_other": "{count} orders"
     },
     "outcomes": {
       "accepted": "Accepted",
@@ -427,7 +432,6 @@
       "blocked": "{phone} is blocked",
       "delete": "Delete",
       "delete_body": "A deleted order cannot be brought back.",
-      "because": "Sent to Spam by: {rules}",
       "rescue_no_stock": "Not enough stock to place this order.",
       "rescue_already": "This order was already rescued.",
       "rescue_no_delivery": "You no longer deliver to this place.",
@@ -511,6 +515,33 @@
       "trial": "Watches only: counts the orders it would catch and does nothing to them.",
       "active": "Acts on every order that matches.",
       "off": "Paused: checks nothing."
+    },
+    "table": {
+      "customer": "Customer",
+      "order": "Order",
+      "products": "Products",
+      "place": "Wilaya",
+      "total": "Total",
+      "reason": "Reason",
+      "reason_more": "{rule} +{more}",
+      "when": "Received",
+      "blocked": "Blocked",
+      "added": "Added"
+    },
+    "sheet": {
+      "why_spam": "Why it went to Spam",
+      "why": "Why",
+      "order": "Order",
+      "customer": "Customer",
+      "phone": "Phone",
+      "place": "Delivery to",
+      "network": "Network",
+      "delivery": "Delivery",
+      "total": "Total",
+      "sent": "How it was sent",
+      "open_order": "Open order",
+      "open_spam": "Open Spam",
+      "unknown_customer": "No name given"
     }
   }
 }

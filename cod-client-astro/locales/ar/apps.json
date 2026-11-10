@@ -369,14 +369,23 @@
         "phone": "0550 12 34 56",
         "ip": "41.100.1.1"
       },
-      "added": "أُضيف {when}"
+      "added": "أُضيف {when}",
+      "new": "إضافة",
+      "add_title": "إضافة إلى قائمة الحظر",
+      "add_hint": "تذهب طلباته مباشرة إلى السبام."
     },
     "activity": {
       "outcome": "النتيجة",
       "all": "كل الطلبات",
       "empty": "لا يوجد ما يُعرض بعد",
       "trial_match": "{rule} (تجربة)",
-      "matched": "طابقت: {rules}"
+      "matched": "طابقت: {rules}",
+      "count_zero": "لا طلبات",
+      "count_one": "طلب واحد",
+      "count_two": "طلبان",
+      "count_few": "{count} طلبات",
+      "count_many": "{count} طلبًا",
+      "count_other": "{count} طلب"
     },
     "outcomes": {
       "accepted": "مقبول",
@@ -459,7 +468,6 @@
       "blocked": "تم حظر {phone}",
       "delete": "حذف",
       "delete_body": "لا يمكن استعادة الطلب بعد حذفه.",
-      "because": "أُرسل إلى السبام بسبب: {rules}",
       "rescue_no_stock": "المخزون غير كافٍ لهذا الطلب.",
       "rescue_already": "تم استرجاع هذا الطلب من قبل.",
       "rescue_no_delivery": "لم تعد توصّل إلى هذا المكان.",
@@ -555,6 +563,33 @@
       "trial": "مراقبة فقط: تحسب الطلبات التي كانت ستكشفها دون أن تغيّر فيها شيئًا.",
       "active": "تطبَّق على كل طلب يطابقها.",
       "off": "متوقفة مؤقتًا: لا تتحقق من شيء."
+    },
+    "table": {
+      "customer": "الزبون",
+      "order": "الطلب",
+      "products": "المنتجات",
+      "place": "الولاية",
+      "total": "المجموع",
+      "reason": "السبب",
+      "reason_more": "{rule} +{more}",
+      "when": "وصل",
+      "blocked": "المحظور",
+      "added": "أُضيف"
+    },
+    "sheet": {
+      "why_spam": "لماذا ذهب إلى السبام",
+      "why": "السبب",
+      "order": "الطلب",
+      "customer": "الزبون",
+      "phone": "الهاتف",
+      "place": "التوصيل إلى",
+      "network": "الشبكة",
+      "delivery": "التوصيل",
+      "total": "المجموع",
+      "sent": "كيف أُرسل",
+      "open_order": "فتح الطلب",
+      "open_spam": "فتح السبام",
+      "unknown_customer": "بدون اسم"
     }
   }
 }

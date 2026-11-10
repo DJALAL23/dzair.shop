@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { Ban, CheckCircle2, Flag, Loader2, Plus, ShieldCheck, Trash2 } from "lucide-react";
-import { Alert, Badge, Button, Card, EmptyState, Field, IconButton, Input, LinkButton, Pagination, Select, Switch, Tabs, useConfirmDialog, type BadgeTone } from "@/components/ui";
+import { Alert, Badge, Button, Card, CellEmpty, Dialog, EmptyState, Field, FilterPill, IconButton, Input, LinkButton, ListToolbar, Pagination, RowActions, Select, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableSkeleton, Tabs, showRowOnClick, useConfirmDialog } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { relativeTime } from "@/lib/relative-time";
 import type { AppBodyProps } from "@/features/apps/types";
 import { addToBlockList, chooseTemplate, deleteRule, getProtection, listAttempts, listBlockList, removeFromBlockList, setProtectionEnabled, setRuleMode, type ProtectionRule, type ProtectionState } from "@/features/apps/order-protection/api";
 import { ConditionSummary } from "@/features/apps/order-protection/RuleSummary";
-import { listOf, ruleName, useMatchName } from "@/features/apps/order-protection/words";
+import { AttemptCustomer, AttemptSheet, OUTCOME_TONE } from "@/features/apps/order-protection/AttemptSheet";
+import { ruleName } from "@/features/apps/order-protection/words";
 import { formatMoney } from "@/features/orders/model";
 import { useOffsetPage } from "@/hooks/use-offset-page";
-import { wilayaLabel } from "@/lib/places";
 import { RULE_MODES, type RuleAction, type RuleMode } from "../../../../../cod-shared/order-screening/conditions";
 import { BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES, type BlockListKind, type OrderAttemptOutcome } from "../../../../../cod-shared/order-screening/signals";
 import { DEFAULT_TEMPLATE, TEMPLATE_KEYS, type TemplateKey } from "../../../../../cod-shared/order-screening/templates";
@@ -20,7 +20,6 @@ const RULE_PAGE = "/apps/order-protection/rule";
 const SPAM_PAGE = "/orders/spam";
 
 const ACTION_ICON = { spam: Ban, flag: Flag, accept: CheckCircle2 } satisfies Record<RuleAction, unknown>;
-const OUTCOME_TONE: Record<OrderAttemptOutcome, BadgeTone> = { accepted: "neutral", flagged: "warning", spam: "critical", rescued: "info" };
 
 function TemplatePicker({ canManage, onChosen, onCancel, replacing = 0 }: { canManage: boolean; onChosen: (state: ProtectionState) => void; onCancel?: () => void; replacing?: number }) {
   const t = useT("apps");
@@ -186,10 +185,8 @@ function RulesTab({ state, canManage, reload, onChosen }: { state: ProtectionSta
   );
 }
 
-function BlockListTab({ canManage }: { canManage: boolean }) {
+function AddToBlockList({ onClose, onAdded }: { onClose: () => void; onAdded: () => Promise<void> }) {
   const t = useT("apps");
-  const locale = useLocale();
-  const { rows: entries, total, page, setPage, pageCount, reload } = useOffsetPage(listBlockList, PAGE_SIZE, () => notify.error(t("order_protection.load_failed")));
   const [kind, setKind] = useState<BlockListKind>("phone");
   const [value, setValue] = useState("");
   const [note, setNote] = useState("");
@@ -198,16 +195,58 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
   async function add() {
     setBusy(true);
     try {
-      await addToBlockList({ kind, value, ...(note.trim() ? { note: note.trim() } : {}) });
-      setValue("");
-      setNote("");
-      await reload();
+      await addToBlockList({ kind, value: value.trim(), ...(note.trim() ? { note: note.trim() } : {}) });
+      await onAdded();
+      onClose();
     } catch {
       notify.error(t("order_protection.block.add_failed"));
     } finally {
       setBusy(false);
     }
   }
+
+  return (
+    <Dialog
+      onClose={onClose}
+      icon={<Ban size={17} aria-hidden="true" />}
+      title={t("order_protection.block.add_title")}
+      description={t("order_protection.block.add_hint")}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={busy}>{t("order_protection.templates.cancel")}</Button>
+          <Button onClick={() => void add()} disabled={busy || !value.trim()}>
+            {busy && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+            {t("order_protection.block.add")}
+          </Button>
+        </>
+      }
+    >
+      <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (value.trim()) void add(); }}>
+        <Field label={t("order_protection.block.kind")}>
+          <Select value={kind} onChange={(event) => setKind(event.currentTarget.value as BlockListKind)}>
+            {BLOCK_LIST_KINDS.map((option) => (
+              <option key={option} value={option}>
+                {t(`order_protection.block.kinds.${option}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t("order_protection.block.value")} hint={kind === "ip" ? t("order_protection.block.ip_warning") : undefined}>
+          <Input dir="ltr" placeholder={t(`order_protection.block.placeholders.${kind}`)} value={value} onChange={(event) => setValue(event.currentTarget.value)} />
+        </Field>
+        <Field label={t("order_protection.block.note")}>
+          <Input value={note} maxLength={200} onChange={(event) => setNote(event.currentTarget.value)} />
+        </Field>
+      </form>
+    </Dialog>
+  );
+}
+
+function BlockListTab({ canManage }: { canManage: boolean }) {
+  const t = useT("apps");
+  const locale = useLocale();
+  const { rows: entries, total, page, setPage, pageCount, reload } = useOffsetPage(listBlockList, PAGE_SIZE, () => notify.error(t("order_protection.load_failed")));
+  const [adding, setAdding] = useState(false);
 
   async function remove(id: string) {
     try {
@@ -218,125 +257,175 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
     }
   }
 
+  const removeButton = (id: string) =>
+    canManage && (
+      <IconButton aria-label={t("order_protection.block.remove")} title={t("order_protection.block.remove")} variant="danger" onClick={() => void remove(id)}>
+        <Trash2 size={15} aria-hidden="true" />
+      </IconButton>
+    );
+  const added = (createdAt: string) => <time dateTime={createdAt}>{t("order_protection.block.added", { when: relativeTime(createdAt, locale) })}</time>;
+
   return (
     <div className="space-y-3">
       <Alert tone="info">{t("order_protection.block.always")}</Alert>
-      {canManage && (
-        <Card>
-          <div className="grid gap-3 sm:grid-cols-[10rem_1fr_1fr_auto] sm:items-start">
-            <Field label={t("order_protection.block.kind")}>
-              <Select value={kind} onChange={(event) => setKind(event.currentTarget.value as BlockListKind)}>
-                {BLOCK_LIST_KINDS.map((option) => (
-                  <option key={option} value={option}>
-                    {t(`order_protection.block.kinds.${option}`)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label={t("order_protection.block.value")} hint={kind === "ip" ? t("order_protection.block.ip_warning") : undefined}>
-              <Input dir="ltr" placeholder={t(`order_protection.block.placeholders.${kind}`)} value={value} onChange={(event) => setValue(event.currentTarget.value)} />
-            </Field>
-            <Field label={t("order_protection.block.note")}>
-              <Input value={note} maxLength={200} onChange={(event) => setNote(event.currentTarget.value)} />
-            </Field>
-            <Button className="sm:mt-6" onClick={() => void add()} disabled={busy || !value.trim()}>{t("order_protection.block.add")}</Button>
+      <Card flush className="overflow-hidden">
+        {canManage && (
+          <div className="flex justify-end p-2">
+            <Button size="sm" onClick={() => setAdding(true)}>
+              <Plus size={14} aria-hidden="true" />
+              {t("order_protection.block.new")}
+            </Button>
           </div>
-        </Card>
-      )}
-      {entries === null ? null : entries.length === 0 ? (
-        <EmptyState icon={<Ban size={20} aria-hidden="true" />} title={t("order_protection.block.empty")} />
-      ) : (
-        <Card className="p-0">
-          <ul className="divide-y divide-border">
-            {entries.map((entry) => (
-              <li key={entry.id} className="flex items-center justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground" dir="ltr">{entry.value}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {t(`order_protection.block.kinds.${entry.kind}`)}
-                    {" · "}
-                    <time dateTime={entry.createdAt}>{t("order_protection.block.added", { when: relativeTime(entry.createdAt, locale) })}</time>
-                    {entry.note && (
-                      <>
-                        {" · "}
-                        <bdi>{entry.note}</bdi>
-                      </>
+        )}
+        {entries === null ? (
+          <TableSkeleton rows={4} columns={4} />
+        ) : entries.length === 0 ? (
+          <EmptyState icon={<Ban size={20} aria-hidden="true" />} title={t("order_protection.block.empty")} />
+        ) : (
+          <>
+            <ul className="divide-y divide-border border-t border-border md:hidden">
+              {entries.map((entry) => (
+                <li key={entry.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground" dir="ltr">{entry.value}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {t(`order_protection.block.kinds.${entry.kind}`)}
+                      {" · "}
+                      {added(entry.createdAt)}
+                      {entry.note && <>{" · "}<bdi>{entry.note}</bdi></>}
+                    </p>
+                  </div>
+                  {removeButton(entry.id)}
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>{t("order_protection.table.blocked")}</TableHead>
+                    <TableHead>{t("order_protection.block.kind")}</TableHead>
+                    <TableHead>{t("order_protection.block.note")}</TableHead>
+                    <TableHead className="text-end">{t("order_protection.table.added")}</TableHead>
+                    {canManage && (
+                      <TableHead className="w-px">
+                        <span className="sr-only">{t("order_protection.block.remove")}</span>
+                      </TableHead>
                     )}
-                  </p>
-                </div>
-                {canManage && (
-                  <IconButton aria-label={t("order_protection.block.remove")} onClick={() => void remove(entry.id)}>
-                    <Trash2 size={15} aria-hidden="true" />
-                  </IconButton>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium" dir="ltr">{entry.value}</TableCell>
+                      <TableCell className="text-muted-foreground">{t(`order_protection.block.kinds.${entry.kind}`)}</TableCell>
+                      <TableCell className="max-w-64 truncate text-muted-foreground">{entry.note ? <bdi>{entry.note}</bdi> : <CellEmpty />}</TableCell>
+                      <TableCell className="whitespace-nowrap text-end text-muted-foreground">{added(entry.createdAt)}</TableCell>
+                      {canManage && (
+                        <TableCell className="w-px">
+                          <RowActions>{removeButton(entry.id)}</RowActions>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </Card>
       {total > PAGE_SIZE && <Pagination page={page} totalPages={pageCount} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />}
+      {adding && <AddToBlockList onClose={() => setAdding(false)} onAdded={reload} />}
     </div>
   );
 }
 
 function ActivityTab() {
   const t = useT("apps");
+  const common = useT("common");
   const locale = useLocale();
-  const matchName = useMatchName();
   const [outcome, setOutcome] = useState<OrderAttemptOutcome | "">("");
+  const [openId, setOpenId] = useState<string | null>(null);
   const fetchPage = useCallback((page: { limit: number; offset: number }) => listAttempts({ outcome: outcome || undefined, ...page }), [outcome]);
   const { rows: attempts, total, page, setPage, pageCount } = useOffsetPage(fetchPage, PAGE_SIZE, () => notify.error(t("order_protection.load_failed")));
+  const opened = attempts?.find((attempt) => attempt.id === openId) ?? null;
+  const link = opened?.orderId ? { href: `/orders/${opened.orderId}`, label: t("order_protection.sheet.open_order") } : opened?.outcome === "spam" ? { href: SPAM_PAGE, label: t("order_protection.sheet.open_spam") } : null;
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Select variant="pill" aria-label={t("order_protection.activity.outcome")} value={outcome} onChange={(event) => setOutcome(event.currentTarget.value as OrderAttemptOutcome | "")}>
-          <option value="">{t("order_protection.activity.all")}</option>
-          {ORDER_ATTEMPT_OUTCOMES.map((option) => (
-            <option key={option} value={option}>
-              {t(`order_protection.outcomes.${option}`)}
-            </option>
-          ))}
-        </Select>
-      </div>
-      {attempts === null ? null : attempts.length === 0 ? (
-        <EmptyState icon={<ShieldCheck size={20} aria-hidden="true" />} title={t("order_protection.activity.empty")} />
-      ) : (
-        <Card className="p-0">
-          <ul className="divide-y divide-border">
-            {attempts.map((attempt) => {
-              const href = attempt.orderId ? `/orders/${attempt.orderId}` : attempt.outcome === "spam" ? SPAM_PAGE : null;
-              const place = wilayaLabel(attempt.wilayaId, null, locale);
-              const details = [attempt.customerName, place, attempt.total !== null ? formatMoney(attempt.total, locale) : null].filter((part): part is string => Boolean(part));
-              const reasons = attempt.matches.map((match) => (match.mode === "trial" ? t("order_protection.activity.trial_match", { rule: matchName(match) }) : matchName(match)));
-              const body = (
-                <>
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="text-sm font-medium text-foreground">
-                      {attempt.orderNumber}
-                      {" · "}
-                      <span dir="ltr">{attempt.phone}</span>
-                    </p>
-                    {details.length > 0 && <p className="truncate text-sm text-muted-foreground"><bdi>{details.join(" · ")}</bdi></p>}
-                    {reasons.length > 0 && <p className="truncate text-xs text-muted-foreground">{t("order_protection.activity.matched", { rules: listOf(reasons, locale) })}</p>}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Badge tone={OUTCOME_TONE[attempt.outcome]}>{t(`order_protection.outcomes.${attempt.outcome}`)}</Badge>
-                    <time className="text-xs text-muted-foreground" dateTime={attempt.createdAt}>{relativeTime(attempt.createdAt, locale)}</time>
-                  </div>
-                </>
-              );
-              const row = "flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between";
-              return (
-                <li key={attempt.id}>
-                  {href ? <a href={href} className={`${row} transition-colors hover:bg-foreground/[0.02]`}>{body}</a> : <div className={row}>{body}</div>}
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
-      )}
+      <Card flush className="overflow-hidden">
+        <ListToolbar count={attempts && total > 0 ? t("order_protection.activity.count", { count: total }) : undefined}>
+          <FilterPill label={t("order_protection.activity.outcome")} value={outcome} onChange={(value) => setOutcome(value as OrderAttemptOutcome | "")}>
+            <option value="">{t("order_protection.activity.all")}</option>
+            {ORDER_ATTEMPT_OUTCOMES.map((option) => (
+              <option key={option} value={option}>
+                {t(`order_protection.outcomes.${option}`)}
+              </option>
+            ))}
+          </FilterPill>
+        </ListToolbar>
+        {attempts === null ? (
+          <TableSkeleton columns={6} />
+        ) : attempts.length === 0 ? (
+          <EmptyState icon={<ShieldCheck size={20} aria-hidden="true" />} title={t("order_protection.activity.empty")} />
+        ) : (
+          <>
+            <div className="divide-y divide-border border-t border-border md:hidden">
+              {attempts.map((attempt) => (
+                <button key={attempt.id} type="button" onClick={() => setOpenId(attempt.id)} className="block w-full space-y-1 px-4 py-3 text-start">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="truncate text-sm font-medium text-foreground"><bdi>{attempt.customerName ?? attempt.phone}</bdi></span>
+                    <Badge tone={OUTCOME_TONE[attempt.outcome]} size="sm">{t(`order_protection.outcomes.${attempt.outcome}`)}</Badge>
+                  </span>
+                  <span className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span className="truncate">{[attempt.orderNumber, attempt.total !== null ? formatMoney(attempt.total, locale) : null].filter(Boolean).join(" · ")}</span>
+                    <time className="shrink-0" dateTime={attempt.createdAt}>{relativeTime(attempt.createdAt, locale)}</time>
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>{t("order_protection.table.customer")}</TableHead>
+                    <TableHead>{t("order_protection.table.order")}</TableHead>
+                    <TableHead numeric>{t("order_protection.table.total")}</TableHead>
+                    <TableHead>{t("order_protection.activity.outcome")}</TableHead>
+                    <TableHead className="text-end">{t("order_protection.table.when")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {attempts.map((attempt) => (
+                      <TableRow key={attempt.id} onClick={showRowOnClick(() => setOpenId(attempt.id))} className="cursor-pointer">
+                        <TableCell className="max-w-56">
+                          <AttemptCustomer attempt={attempt} onOpen={() => setOpenId(attempt.id)} />
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{attempt.orderNumber ?? <CellEmpty />}</TableCell>
+                        <TableCell numeric>{attempt.total !== null ? formatMoney(attempt.total, locale) : <CellEmpty />}</TableCell>
+                        <TableCell>
+                          <Badge tone={OUTCOME_TONE[attempt.outcome]} size="sm">{t(`order_protection.outcomes.${attempt.outcome}`)}</Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-end text-muted-foreground">
+                          <time dateTime={attempt.createdAt}>{relativeTime(attempt.createdAt, locale)}</time>
+                        </TableCell>
+                      </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </Card>
       {total > PAGE_SIZE && <Pagination page={page} totalPages={pageCount} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />}
+      {opened && (
+        <AttemptSheet
+          attempt={opened}
+          withTrials
+          onClose={() => setOpenId(null)}
+          footer={link ? <LinkButton href={link.href}>{link.label}</LinkButton> : <Button variant="secondary" onClick={() => setOpenId(null)}>{common("close")}</Button>}
+        />
+      )}
     </div>
   );
 }
