@@ -270,12 +270,12 @@
     "load_failed": "Chargement impossible. Veuillez réessayer.",
     "save_failed": "Enregistrement impossible. Veuillez réessayer.",
     "switch": "Vérifier les commandes reçues",
-    "switch_hint": "Désactivé, vos règles sont conservées et toutes les commandes passent.",
+    "switch_hint": "Désactivé, vos règles et votre liste de blocage sont conservées, et toutes les commandes passent.",
     "templates": {
       "title": "Commencer avec un modèle",
       "subtitle": "Chaque modèle crée des règles normales que vous pouvez changer à tout moment.",
       "recommended": "Recommandé",
-      "recommended_hint": "Agit seulement sur ce que vous bloquez vous-même. Les autres règles s'essaient et montrent ce qu'elles auraient bloqué.",
+      "recommended_hint": "Les clients déjà livrés passent toujours. Les autres règles sont en essai : elles n'agissent sur rien et montrent ce qu'elles auraient attrapé.",
       "under_attack": "Sous attaque",
       "under_attack_hint": "Pour une boutique qui reçoit beaucoup de fausses commandes en ce moment. Les commandes douteuses vont directement en spam.",
       "empty": "Partir de zéro",
@@ -283,25 +283,36 @@
       "recommended_badge": "Idéal pour débuter",
       "apply": "Utiliser ce modèle",
       "use": "Utiliser un modèle",
-      "replace_title": "Remplacer vos règles ?",
-      "replace_body": "Le modèle prend la place de vos règles actuelles.",
-      "replace": "Continuer"
+      "replace_body": "Les règles de « {template} » prennent leur place, et le compteur de chaque règle repart de 0.",
+      "replace": "Remplacer",
+      "cancel": "Annuler",
+      "replace_title_one": "Remplacer votre règle ?",
+      "replace_title_many": "Remplacer vos {count} de règles ?",
+      "replace_title_other": "Remplacer vos {count} règles ?"
     },
     "rules": {
       "delete_title": "Supprimer « {name} » ?",
       "delete_body": "La règle est supprimée définitivement.",
       "delete": "Supprimer la règle",
       "unavailable": "Cette règle ne peut plus être lue, elle est ignorée.",
-      "would_catch_one": "Aurait bloqué {count} commande en 7 jours",
-      "would_catch_many": "Aurait bloqué {count} de commandes en 7 jours",
-      "would_catch_other": "Aurait bloqué {count} commandes en 7 jours",
       "mode": "Mode",
       "new": "Nouvelle règle",
       "empty": "Aucune règle pour le moment",
       "empty_hint": "Ajoutez une règle ou utilisez un modèle.",
       "matched_one": "{count} commande concernée en 7 jours",
       "matched_many": "{count} de commandes concernées en 7 jours",
-      "matched_other": "{count} commandes concernées en 7 jours"
+      "matched_other": "{count} commandes concernées en 7 jours",
+      "would": {
+        "spam_one": "Aurait envoyé {count} commande en spam en 7 jours",
+        "spam_many": "Aurait envoyé {count} de commandes en spam en 7 jours",
+        "spam_other": "Aurait envoyé {count} commandes en spam en 7 jours",
+        "flag_one": "Aurait signalé {count} commande en 7 jours",
+        "flag_many": "Aurait signalé {count} de commandes en 7 jours",
+        "flag_other": "Aurait signalé {count} commandes en 7 jours",
+        "accept_one": "Aurait accepté {count} commande en 7 jours",
+        "accept_many": "Aurait accepté {count} de commandes en 7 jours",
+        "accept_other": "Aurait accepté {count} commandes en 7 jours"
+      }
     },
     "actions": {
       "spam": "En spam",
@@ -330,12 +341,21 @@
       "add": "Bloquer",
       "add_failed": "Blocage impossible. Vérifiez la valeur et réessayez.",
       "remove": "Retirer de la liste de blocage",
-      "empty": "Rien n'est bloqué"
+      "empty": "Rien n'est bloqué",
+      "always": "Votre liste de blocage s'applique toujours tant que « Vérifier les commandes reçues » est activé : une commande venant d'un numéro ou d'un réseau bloqué va en spam, quelles que soient vos règles.",
+      "ip_warning": "Les clients sur données mobiles partagent souvent la même adresse réseau. Bloquer un réseau peut aussi arrêter de vrais clients.",
+      "placeholders": {
+        "phone": "0550 12 34 56",
+        "ip": "41.100.1.1"
+      },
+      "added": "ajouté {when}"
     },
     "activity": {
       "outcome": "Résultat",
       "all": "Toutes les commandes",
-      "empty": "Rien à afficher pour le moment"
+      "empty": "Rien à afficher pour le moment",
+      "trial_match": "{rule} (Essai)",
+      "matched": "Correspond à : {rules}"
     },
     "outcomes": {
       "accepted": "Acceptée",
@@ -362,11 +382,13 @@
       }
     },
     "signals": {
-      "filled_in": "Rempli en {seconds} s"
+      "filled_in": "Rempli en {seconds} s",
+      "network_in": "Réseau : {country}"
     },
     "groups": {
       "who": "Qui commande, et comment",
-      "typed": "Ce que le client a saisi"
+      "typed": "Ce que le client a saisi",
+      "history": "Historique du client"
     },
     "editor": {
       "search": "Rechercher…",
@@ -385,10 +407,14 @@
       "name": "Nom de la règle",
       "if": "Si",
       "then": "Alors",
-      "then_hint": "Choisissez ce que la règle fait de la commande.",
+      "then_hint": "Ce qui arrive à une commande qui remplit toutes les conditions.",
       "all_must_match": "Toutes ces conditions doivent être vraies.",
       "add_condition": "Ajouter une condition",
-      "country_hint": "Codes pays à deux lettres, par exemple DZ, FR"
+      "mode_hint": "Essayez d'abord une nouvelle règle en mode Essai, puis activez-la.",
+      "max_conditions": "Une règle peut avoir jusqu'à 5 conditions.",
+      "products_count_one": "{count} produit",
+      "products_count_many": "{count} de produits",
+      "products_count_other": "{count} produits"
     },
     "rule_error": {
       "name": "Donnez un nom à la règle.",
@@ -408,25 +434,42 @@
       "block": "Bloquer le numéro",
       "blocked": "{phone} est bloqué",
       "delete": "Supprimer",
-      "delete_title": "Supprimer cette commande ?",
-      "delete_body": "Elle est supprimée définitivement.",
-      "because": "À cause de : {rules}",
+      "delete_body": "Une commande supprimée ne peut pas être récupérée.",
+      "because": "Envoyée en spam par : {rules}",
       "rescue_no_stock": "Stock insuffisant pour passer cette commande.",
       "rescue_already": "Cette commande a déjà été récupérée.",
       "rescue_no_delivery": "Vous ne livrez plus à cet endroit.",
       "rescue_coupon": "Son code promo ne s'applique plus.",
-      "rescue_failed": "Cette commande n'a pas pu être récupérée. Veuillez réessayer."
+      "rescue_failed": "Cette commande n'a pas pu être récupérée. Veuillez réessayer.",
+      "line": "{name} × {quantity}",
+      "also": "Correspond aussi à : {rules}",
+      "number_blocked": "Numéro bloqué",
+      "network_blocked": "Réseau bloqué",
+      "pick_all": "Tout sélectionner",
+      "block_picked": "Bloquer les numéros",
+      "delete_picked": "Supprimer",
+      "blocked_count_one": "{count} numéro bloqué",
+      "blocked_count_many": "{count} de numéros bloqués",
+      "blocked_count_other": "{count} numéros bloqués",
+      "delete_title_one": "Supprimer cette commande ?",
+      "delete_title_many": "Supprimer {count} de commandes ?",
+      "delete_title_other": "Supprimer {count} commandes ?",
+      "picked_one": "{count} sélectionnée",
+      "picked_many": "{count} de sélectionnées",
+      "picked_other": "{count} sélectionnées"
     },
     "flag": {
       "label": "Signalée comme suspecte",
       "because": "Signalée à cause de : {rules}",
       "block_phone": "Bloquer ce numéro",
-      "block_ip": "Bloquer ce réseau"
+      "block_ip": "Bloquer ce réseau",
+      "label_because": "Signalée comme suspecte : {rules}",
+      "block_ip_title": "Bloquer le réseau {value} ?"
     },
     "conditions": {
       "phone_orders": "Commandes du même numéro",
       "ip_orders": "Commandes du même réseau (IP)",
-      "ip_burst": "Beaucoup de commandes d'un réseau en une minute",
+      "ip_burst": "Environ 10 commandes ou plus d'un même réseau en une minute",
       "phone": "Numéro de téléphone",
       "ip": "Adresse réseau (IP)",
       "name": "Nom",
@@ -463,6 +506,20 @@
       "72": "dans les 3 derniers jours",
       "168": "dans les 7 derniers jours",
       "720": "dans les 30 derniers jours"
+    },
+    "block_list_match": {
+      "phone": "Numéro dans votre liste de blocage",
+      "ip": "Réseau dans votre liste de blocage"
+    },
+    "action_hints": {
+      "spam": "La commande est écartée de vos commandes. Vous pouvez la récupérer depuis le Spam.",
+      "flag": "La commande est passée et marquée comme suspecte, pour que vous la vérifiiez avant l'expédition.",
+      "accept": "La commande passe toujours, quoi que disent les autres règles. Votre liste de blocage s'applique quand même."
+    },
+    "mode_hints": {
+      "trial": "Observe seulement : compte les commandes qu'elle attraperait, sans y toucher.",
+      "active": "Agit sur chaque commande qui correspond.",
+      "off": "En pause : ne vérifie rien."
     }
   }
 }

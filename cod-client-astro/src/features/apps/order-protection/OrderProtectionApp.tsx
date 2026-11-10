@@ -7,22 +7,31 @@ import { relativeTime } from "@/lib/relative-time";
 import type { AppBodyProps } from "@/features/apps/types";
 import { addToBlockList, chooseTemplate, deleteRule, getProtection, listAttempts, listBlockList, removeFromBlockList, setProtectionEnabled, setRuleMode, type BlockEntry, type OrderAttempt, type ProtectionRule, type ProtectionState } from "@/features/apps/order-protection/api";
 import { ConditionSummary } from "@/features/apps/order-protection/RuleSummary";
+import { listOf, ruleName, useMatchName } from "@/features/apps/order-protection/words";
+import { formatMoney } from "@/features/orders/model";
+import { wilayaLabel } from "@/lib/places";
 import { RULE_MODES, type RuleAction, type RuleMode } from "../../../../../cod-shared/order-screening/conditions";
 import { BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES, type BlockListKind, type OrderAttemptOutcome } from "../../../../../cod-shared/order-screening/signals";
 import { DEFAULT_TEMPLATE, TEMPLATE_KEYS, type TemplateKey } from "../../../../../cod-shared/order-screening/templates";
 
 const PAGE_SIZE = 20;
 const RULE_PAGE = "/apps/order-protection/rule";
+const SPAM_PAGE = "/orders/spam";
 
 const ACTION_ICON = { spam: Ban, flag: Flag, accept: CheckCircle2 } satisfies Record<RuleAction, unknown>;
 const OUTCOME_TONE: Record<OrderAttemptOutcome, BadgeTone> = { accepted: "neutral", flagged: "warning", spam: "critical", rescued: "info" };
 
-function TemplatePicker({ canManage, onChosen }: { canManage: boolean; onChosen: (state: ProtectionState) => void }) {
+function TemplatePicker({ canManage, onChosen, onCancel, replacing = 0 }: { canManage: boolean; onChosen: (state: ProtectionState) => void; onCancel?: () => void; replacing?: number }) {
   const t = useT("apps");
+  const confirm = useConfirmDialog();
   const [selected, setSelected] = useState<TemplateKey>(DEFAULT_TEMPLATE);
   const [busy, setBusy] = useState(false);
 
   async function apply() {
+    if (replacing > 0) {
+      const sure = await confirm({ title: t("order_protection.templates.replace_title", { count: replacing }), description: t("order_protection.templates.replace_body", { template: t(`order_protection.templates.${selected}`) }), confirmLabel: t("order_protection.templates.replace") });
+      if (!sure) return;
+    }
     setBusy(true);
     try {
       onChosen(await chooseTemplate(selected));
@@ -55,7 +64,12 @@ function TemplatePicker({ canManage, onChosen }: { canManage: boolean; onChosen:
         ))}
       </div>
       {canManage && (
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end gap-2">
+          {onCancel && (
+            <Button variant="secondary" onClick={onCancel} disabled={busy}>
+              {t("order_protection.templates.cancel")}
+            </Button>
+          )}
           <Button onClick={() => void apply()} disabled={busy}>
             {busy && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
             {t("order_protection.templates.apply")}
@@ -68,6 +82,8 @@ function TemplatePicker({ canManage, onChosen }: { canManage: boolean; onChosen:
 
 function RuleRow({ rule, canManage, onChanged }: { rule: ProtectionRule; canManage: boolean; onChanged: () => Promise<void> }) {
   const t = useT("apps");
+  const locale = useLocale();
+  const name = ruleName(rule, locale);
   const confirm = useConfirmDialog();
   const Icon = ACTION_ICON[rule.action];
 
@@ -81,7 +97,7 @@ function RuleRow({ rule, canManage, onChanged }: { rule: ProtectionRule; canMana
   }
 
   async function remove() {
-    const sure = await confirm({ title: t("order_protection.rules.delete_title", { name: rule.name }), description: t("order_protection.rules.delete_body"), confirmLabel: t("order_protection.rules.delete") });
+    const sure = await confirm({ title: t("order_protection.rules.delete_title", { name }), description: t("order_protection.rules.delete_body"), confirmLabel: t("order_protection.rules.delete") });
     if (!sure) return;
     try {
       await deleteRule(rule.id);
@@ -95,7 +111,7 @@ function RuleRow({ rule, canManage, onChanged }: { rule: ProtectionRule; canMana
     <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0 space-y-1">
         <a href={`${RULE_PAGE}?id=${rule.id}`} className="block truncate text-sm font-semibold text-foreground underline-offset-2 hover:underline">
-          {rule.name}
+          <bdi>{name}</bdi>
         </a>
         {rule.conditions ? (
           <ul className="space-y-0.5 text-sm text-muted-foreground">
@@ -112,7 +128,7 @@ function RuleRow({ rule, canManage, onChanged }: { rule: ProtectionRule; canMana
           <Icon size={13} aria-hidden="true" />
           {t(`order_protection.actions.${rule.action}`)}
           <span aria-hidden="true">·</span>
-          {t(rule.mode === "trial" ? "order_protection.rules.would_catch" : "order_protection.rules.matched", { count: rule.matchesLastWeek })}
+          {rule.mode === "off" ? t("order_protection.mode_hints.off") : t(rule.mode === "trial" ? `order_protection.rules.would.${rule.action}` : "order_protection.rules.matched", { count: rule.matchesLastWeek })}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -139,21 +155,15 @@ function RuleRow({ rule, canManage, onChanged }: { rule: ProtectionRule; canMana
 
 function RulesTab({ state, canManage, reload, onChosen }: { state: ProtectionState; canManage: boolean; reload: () => Promise<void>; onChosen: (state: ProtectionState) => void }) {
   const t = useT("apps");
-  const confirm = useConfirmDialog();
   const [choosing, setChoosing] = useState(false);
 
-  async function startChoosing() {
-    const sure = state.rules.length === 0 || (await confirm({ title: t("order_protection.templates.replace_title"), description: t("order_protection.templates.replace_body"), confirmLabel: t("order_protection.templates.replace") }));
-    if (sure) setChoosing(true);
-  }
-
-  if (choosing) return <TemplatePicker canManage={canManage} onChosen={(next) => { setChoosing(false); onChosen(next); }} />;
+  if (choosing) return <TemplatePicker canManage={canManage} replacing={state.rules.length} onCancel={() => setChoosing(false)} onChosen={(next) => { setChoosing(false); onChosen(next); }} />;
 
   return (
     <div className="space-y-3">
       {canManage && (
         <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="secondary" onClick={() => void startChoosing()}>{t("order_protection.templates.use")}</Button>
+          <Button variant="secondary" onClick={() => setChoosing(true)}>{t("order_protection.templates.use")}</Button>
           <LinkButton href={RULE_PAGE}>
             <Plus size={14} aria-hidden="true" />
             {t("order_protection.rules.new")}
@@ -177,6 +187,7 @@ function RulesTab({ state, canManage, reload, onChosen }: { state: ProtectionSta
 
 function BlockListTab({ canManage }: { canManage: boolean }) {
   const t = useT("apps");
+  const locale = useLocale();
   const [entries, setEntries] = useState<BlockEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -220,9 +231,10 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
 
   return (
     <div className="space-y-3">
+      <Alert tone="info">{t("order_protection.block.always")}</Alert>
       {canManage && (
         <Card>
-          <div className="grid gap-3 sm:grid-cols-[10rem_1fr_1fr_auto] sm:items-end">
+          <div className="grid gap-3 sm:grid-cols-[10rem_1fr_1fr_auto] sm:items-start">
             <Field label={t("order_protection.block.kind")}>
               <Select value={kind} onChange={(event) => setKind(event.currentTarget.value as BlockListKind)}>
                 {BLOCK_LIST_KINDS.map((option) => (
@@ -232,13 +244,13 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
                 ))}
               </Select>
             </Field>
-            <Field label={t("order_protection.block.value")}>
-              <Input dir="ltr" value={value} onChange={(event) => setValue(event.currentTarget.value)} />
+            <Field label={t("order_protection.block.value")} hint={kind === "ip" ? t("order_protection.block.ip_warning") : undefined}>
+              <Input dir="ltr" placeholder={t(`order_protection.block.placeholders.${kind}`)} value={value} onChange={(event) => setValue(event.currentTarget.value)} />
             </Field>
             <Field label={t("order_protection.block.note")}>
               <Input value={note} maxLength={200} onChange={(event) => setNote(event.currentTarget.value)} />
             </Field>
-            <Button onClick={() => void add()} disabled={busy || !value.trim()}>{t("order_protection.block.add")}</Button>
+            <Button className="sm:mt-6" onClick={() => void add()} disabled={busy || !value.trim()}>{t("order_protection.block.add")}</Button>
           </div>
         </Card>
       )}
@@ -253,7 +265,14 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
                   <p className="truncate text-sm font-medium text-foreground" dir="ltr">{entry.value}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {t(`order_protection.block.kinds.${entry.kind}`)}
-                    {entry.note ? ` · ${entry.note}` : ""}
+                    {" · "}
+                    <time dateTime={entry.createdAt}>{t("order_protection.block.added", { when: relativeTime(entry.createdAt, locale) })}</time>
+                    {entry.note && (
+                      <>
+                        {" · "}
+                        <bdi>{entry.note}</bdi>
+                      </>
+                    )}
                   </p>
                 </div>
                 {canManage && (
@@ -274,6 +293,7 @@ function BlockListTab({ canManage }: { canManage: boolean }) {
 function ActivityTab() {
   const t = useT("apps");
   const locale = useLocale();
+  const matchName = useMatchName();
   const [attempts, setAttempts] = useState<OrderAttempt[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -305,26 +325,35 @@ function ActivityTab() {
       ) : (
         <Card className="p-0">
           <ul className="divide-y divide-border">
-            {attempts.map((attempt) => (
-              <li key={attempt.id} className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">
-                    {attempt.orderId ? <a className="underline-offset-2 hover:underline" href={`/orders/${attempt.orderId}`}>{attempt.orderNumber}</a> : attempt.orderNumber}
-                    {" · "}
-                    <span dir="ltr">{attempt.phone}</span>
-                  </p>
-                  {attempt.matches.length > 0 && (
-                    <p className="truncate text-xs text-muted-foreground">
-                      {attempt.matches.map((match) => (match.mode === "trial" ? `${match.name} (${t("order_protection.modes.trial")})` : match.name)).join("، ")}
+            {attempts.map((attempt) => {
+              const href = attempt.orderId ? `/orders/${attempt.orderId}` : attempt.outcome === "spam" ? SPAM_PAGE : null;
+              const place = wilayaLabel(attempt.wilayaId, null, locale);
+              const details = [attempt.customerName, place, attempt.total !== null ? formatMoney(attempt.total, locale) : null].filter((part): part is string => Boolean(part));
+              const reasons = attempt.matches.map((match) => (match.mode === "trial" ? t("order_protection.activity.trial_match", { rule: matchName(match) }) : matchName(match)));
+              const body = (
+                <>
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-sm font-medium text-foreground">
+                      {attempt.orderNumber}
+                      {" · "}
+                      <span dir="ltr">{attempt.phone}</span>
                     </p>
-                  )}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Badge tone={OUTCOME_TONE[attempt.outcome]}>{t(`order_protection.outcomes.${attempt.outcome}`)}</Badge>
-                  <time className="text-xs text-muted-foreground" dateTime={attempt.createdAt}>{relativeTime(attempt.createdAt, locale)}</time>
-                </div>
-              </li>
-            ))}
+                    {details.length > 0 && <p className="truncate text-sm text-muted-foreground"><bdi>{details.join(" · ")}</bdi></p>}
+                    {reasons.length > 0 && <p className="truncate text-xs text-muted-foreground">{t("order_protection.activity.matched", { rules: listOf(reasons, locale) })}</p>}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge tone={OUTCOME_TONE[attempt.outcome]}>{t(`order_protection.outcomes.${attempt.outcome}`)}</Badge>
+                    <time className="text-xs text-muted-foreground" dateTime={attempt.createdAt}>{relativeTime(attempt.createdAt, locale)}</time>
+                  </div>
+                </>
+              );
+              const row = "flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between";
+              return (
+                <li key={attempt.id}>
+                  {href ? <a href={href} className={`${row} transition-colors hover:bg-foreground/[0.02]`}>{body}</a> : <div className={row}>{body}</div>}
+                </li>
+              );
+            })}
           </ul>
         </Card>
       )}

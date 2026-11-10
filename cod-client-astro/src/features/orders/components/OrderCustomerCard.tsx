@@ -1,17 +1,23 @@
 import { Mail, MapPin, Phone, UserRound } from "lucide-react";
 import { Card } from "@/components/ui";
-import { useT } from "@/i18n/react";
+import { useLocale, useT } from "@/i18n/react";
+import { communeLabel, wilayaLabel } from "@/lib/places";
 import type { OrderDetail } from "@/features/orders/types";
 
 interface OrderCustomerCardProps {
   order: Pick<
     OrderDetail,
     "customerName" | "phone" | "wilaya" | "commune" | "address" | "customerEmail"
+  > &
+    Partial<Pick<OrderDetail, "wilayaId" | "communeId">
   >;
 }
 
 export function OrderCustomerCard({ order }: OrderCustomerCardProps) {
   const t = useT("orders");
+  const locale = useLocale();
+  const wilaya = wilayaLabel(order.wilayaId, order.wilaya, locale);
+  const commune = communeLabel(order.communeId, order.commune, locale);
 
   return (
     <Card title={t("detail.customer_info")}>
@@ -54,11 +60,11 @@ export function OrderCustomerCard({ order }: OrderCustomerCardProps) {
               {t("detail.destination")}
             </p>
             <p className="mt-1 text-sm font-medium">
-              {order.wilaya ?? "-"}
+              {wilaya ?? "-"}
             </p>
             {/* A wilaya's capital shares its name (Adrar, Adrar): say it once. */}
-            {order.commune && order.commune !== order.wilaya && (
-              <p className="text-sm text-muted-foreground">{order.commune}</p>
+            {commune && commune !== wilaya && (
+              <p className="text-sm text-muted-foreground">{commune}</p>
             )}
             <p className="mt-1 text-sm text-foreground">
               {order.address ?? "-"}

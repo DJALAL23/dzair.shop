@@ -1,17 +1,43 @@
-import { useEffect, useRef, useState } from "react";
-import { Ban, CheckCircle2, Flag, Plus, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Ban, CheckCircle2, Flag, Plus, Trash2, X } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardPage } from "@/components/layout/page";
-import { Alert, Card, Dialog, Field, FormPage, IconButton, Input, SearchPickList, Select, Textarea, type PickerOption } from "@/components/ui";
+import { Alert, Button, Card, Dialog, Field, FormPage, IconButton, Input, SearchPickList, Select, Textarea, useConfirmDialog, type PickerOption } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { listProducts } from "@/features/products/api";
-import { createRule, getProtection, updateRule } from "@/features/apps/order-protection/api";
-import { blankCondition, CONDITION_GROUPS, formFromCondition, ruleFromForm, ruleIssueKey, valueInputOf, wilayaOptions, withOperator, type ConditionForm, type RuleForm } from "@/features/apps/order-protection/model";
-import { CONDITIONS, RULE_ACTIONS, RULE_LIMITS, RULE_MODES, WINDOW_HOURS, type ConditionKey, type Operator, type RuleAction } from "../../../../../cod-shared/order-screening/conditions";
+import { createRule, deleteRule, getProtection, updateRule } from "@/features/apps/order-protection/api";
+import { blankCondition, CONDITION_GROUPS, formFromCondition, operatorsOf, ruleFromForm, ruleIssueKey, valueInputOf, wilayaOptions, withOperator, type ConditionForm, type RuleForm } from "@/features/apps/order-protection/model";
+import { COUNTRY_CODES, countryName, ruleName } from "@/features/apps/order-protection/words";
+import type { Locale } from "@/i18n/config";
+import type { RuleIssueCode } from "../../../../../cod-shared/order-screening/rules";
+import { CONDITIONS, RULE_ACTIONS, RULE_LIMITS, RULE_MODES, WINDOW_HOURS, type ConditionKey, type Operator, type RuleAction, type RuleMode } from "../../../../../cod-shared/order-screening/conditions";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 
 const BACK = "/apps/order-protection";
+const SHOWN_IN_PLACE: readonly RuleIssueCode[] = ["INVALID_NAME", "NO_CONDITIONS", "INVALID_VALUE", "INVALID_ACTION"];
 const ACTION_ICON = { spam: Ban, flag: Flag, accept: CheckCircle2 } satisfies Record<RuleAction, unknown>;
+
+function Choice({ selected, disabled, onClick, title, hint, icon }: { selected: boolean; disabled: boolean; onClick: () => void; title: string; hint: string; icon?: ReactNode }) {
+  return (
+    <button type="button" role="radio" aria-checked={selected} disabled={disabled} onClick={onClick} className={`flex flex-col gap-1 rounded-xl border p-4 text-start transition-colors ${selected ? "border-foreground bg-foreground/[0.03]" : "border-border hover:bg-foreground/[0.02]"}`}>
+      <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        {icon}
+        {title}
+      </span>
+      <span className="text-sm text-muted-foreground">{hint}</span>
+    </button>
+  );
+}
+
+function countryOptions(locale: Locale): PickerOption[] {
+  const collator = new Intl.Collator(locale);
+  return COUNTRY_CODES.map((code) => ({ id: code, label: countryName(code, locale), detail: code })).sort((a, b) => collator.compare(a.label, b.label));
+}
+
+const matches = (option: PickerOption, query: string) => {
+  const q = query.trim().toLowerCase();
+  return option.label.toLowerCase().includes(q) || (option.detail ?? "").toLowerCase().includes(q);
+};
 
 async function searchProducts(query: string): Promise<PickerOption[]> {
   const { data } = await listProducts({ search: query || undefined, limit: 20 });
@@ -42,10 +68,14 @@ function ConditionValue({ form, onChange, readOnly }: { form: ConditionForm; onC
         </div>
       );
     case "text":
-      return <Textarea rows={2} aria-label={t("order_protection.editor.value")} placeholder={t(form.key === "network_country" ? "order_protection.editor.country_hint" : "order_protection.editor.list_hint")} disabled={readOnly} value={form.text} onChange={(event) => onChange({ ...form, text: event.currentTarget.value })} />;
+      return <Textarea rows={2} aria-label={t("order_protection.editor.value")} placeholder={t("order_protection.editor.list_hint")} disabled={readOnly} value={form.text} onChange={(event) => onChange({ ...form, text: event.currentTarget.value })} />;
     case "wilaya": {
       const options = wilayaOptions(locale);
-      return <SearchPickList {...pickers} value={form.picked} onChange={(picked) => onChange({ ...form, picked })} search={async (query) => options.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()))} />;
+      return <SearchPickList {...pickers} value={form.picked} onChange={(picked) => onChange({ ...form, picked })} search={async (query) => options.filter((option) => matches(option, query))} />;
+    }
+    case "country": {
+      const options = countryOptions(locale);
+      return <SearchPickList {...pickers} value={form.picked} onChange={(picked) => onChange({ ...form, picked })} search={async (query) => options.filter((option) => matches(option, query))} />;
     }
     case "product":
       return <SearchPickList {...pickers} value={form.picked} onChange={(picked) => onChange({ ...form, picked })} search={searchProducts} />;
@@ -68,7 +98,7 @@ function ConditionValue({ form, onChange, readOnly }: { form: ConditionForm; onC
 
 function ConditionRow({ form, onChange, onRemove, readOnly }: { form: ConditionForm; onChange: (next: ConditionForm) => void; onRemove: () => void; readOnly: boolean }) {
   const t = useT("apps");
-  const operators = CONDITIONS[form.key].operators;
+  const operators = operatorsOf(form.key, form.op);
   return (
     <div className="space-y-2 rounded-xl border border-border p-3">
       <div className="flex items-center justify-between gap-2">
@@ -137,6 +167,8 @@ function RuleEditor({ ruleId }: { ruleId: string | null }) {
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [issue, setIssue] = useState<RuleIssueCode | null>(null);
+  const confirm = useConfirmDialog();
 
   useEffect(() => {
     if (!ruleId) return;
@@ -154,9 +186,10 @@ function RuleEditor({ ruleId }: { ruleId: string | null }) {
       const wilayas = wilayaOptions(locale);
       const label = (key: ConditionKey, value: string | number) => {
         if (key === "wilaya") return wilayas.find((option) => option.id === String(value))?.label ?? String(value);
+        if (key === "network_country") return countryName(String(value), locale);
         return productIds.get(String(value)) ?? String(value);
       };
-      setForm({ name: rule.name, mode: rule.mode, action: rule.action, conditions: rule.conditions.map((condition) => formFromCondition(condition, uid(), label)) });
+      setForm({ name: ruleName(rule, locale), mode: rule.mode, action: rule.action, conditions: rule.conditions.map((condition) => formFromCondition(condition, uid(), label)) });
     })()
       .catch(() => alive && setNotFound(true))
       .finally(() => alive && setLoading(false));
@@ -175,10 +208,12 @@ function RuleEditor({ ruleId }: { ruleId: string | null }) {
   async function save() {
     const parsed = ruleFromForm(form);
     if (!parsed.ok) {
-      setError(t(`order_protection.${ruleIssueKey(parsed.code)}`));
+      setIssue(parsed.code);
+      setError(SHOWN_IN_PLACE.includes(parsed.code) ? null : t(`order_protection.${ruleIssueKey(parsed.code)}`));
       return;
     }
     setSaving(true);
+    setIssue(null);
     setError(null);
     try {
       if (ruleId) await updateRule(ruleId, parsed.rule);
@@ -190,6 +225,20 @@ function RuleEditor({ ruleId }: { ruleId: string | null }) {
     }
   }
 
+  async function remove() {
+    if (!ruleId) return;
+    const sure = await confirm({ title: t("order_protection.rules.delete_title", { name: form.name }), description: t("order_protection.rules.delete_body"), confirmLabel: t("order_protection.rules.delete") });
+    if (!sure) return;
+    try {
+      await deleteRule(ruleId);
+      window.location.href = BACK;
+    } catch {
+      setError(t("order_protection.save_failed"));
+    }
+  }
+
+  const inline = (code: RuleIssueCode) => (issue === code ? <p role="alert" className="mt-2 text-sm text-[var(--tone-critical-text)]">{t(`order_protection.${ruleIssueKey(code)}`)}</p> : null);
+
   return (
     <FormPage
       title={ruleId ? form.name || t("order_protection.editor.edit_title") : t("order_protection.editor.new_title")}
@@ -198,20 +247,12 @@ function RuleEditor({ ruleId }: { ruleId: string | null }) {
       onSave={() => void save()}
       saving={saving}
       canSave={canManage}
-      badges={
-        <Select variant="pill" aria-label={t("order_protection.rules.mode")} disabled={!canManage} value={form.mode} onChange={(event) => update({ mode: event.currentTarget.value })}>
-          {RULE_MODES.map((mode) => (
-            <option key={mode} value={mode}>
-              {t(`order_protection.modes.${mode}`)}
-            </option>
-          ))}
-        </Select>
-      }
     >
       <Card>
         <Field label={t("order_protection.editor.name")}>
           <Input value={form.name} maxLength={RULE_LIMITS.nameLength} disabled={!canManage} onChange={(event) => update({ name: event.currentTarget.value })} />
         </Field>
+        {inline("INVALID_NAME")}
       </Card>
 
       <Card title={t("order_protection.editor.if")} subtitle={form.conditions.length > 1 ? t("order_protection.editor.all_must_match") : undefined}>
@@ -225,6 +266,9 @@ function RuleEditor({ ruleId }: { ruleId: string | null }) {
               {t("order_protection.editor.add_condition")}
             </button>
           )}
+          {canManage && form.conditions.length >= RULE_LIMITS.conditions && <p className="text-sm text-muted-foreground">{t("order_protection.editor.max_conditions")}</p>}
+          {inline("NO_CONDITIONS")}
+          {inline("INVALID_VALUE")}
         </div>
       </Card>
 
@@ -233,15 +277,28 @@ function RuleEditor({ ruleId }: { ruleId: string | null }) {
           {RULE_ACTIONS.map((action) => {
             const Icon = ACTION_ICON[action];
             const selected = form.action === action;
-            return (
-              <button key={action} type="button" role="radio" aria-checked={selected} disabled={!canManage} onClick={() => update({ action })} className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-sm font-medium text-foreground transition-colors ${selected ? "border-foreground bg-foreground/[0.03]" : "border-border hover:bg-foreground/[0.02]"}`}>
-                <Icon size={20} aria-hidden="true" />
-                {t(`order_protection.actions.${action}`)}
-              </button>
-            );
+            return <Choice key={action} selected={selected} disabled={!canManage} onClick={() => update({ action })} icon={<Icon size={16} aria-hidden="true" />} title={t(`order_protection.actions.${action}`)} hint={t(`order_protection.action_hints.${action}`)} />;
           })}
         </div>
+        {inline("INVALID_ACTION")}
       </Card>
+
+      <Card title={t("order_protection.rules.mode")} subtitle={t("order_protection.editor.mode_hint")}>
+        <div role="radiogroup" aria-label={t("order_protection.rules.mode")} className="grid gap-2 sm:grid-cols-3">
+          {RULE_MODES.map((mode: RuleMode) => (
+            <Choice key={mode} selected={form.mode === mode} disabled={!canManage} onClick={() => update({ mode })} title={t(`order_protection.modes.${mode}`)} hint={t(`order_protection.mode_hints.${mode}`)} />
+          ))}
+        </div>
+      </Card>
+
+      {ruleId && canManage && (
+        <div className="flex justify-end">
+          <Button variant="ghost" onClick={() => void remove()}>
+            <Trash2 size={14} aria-hidden="true" />
+            {t("order_protection.rules.delete")}
+          </Button>
+        </div>
+      )}
 
       {picking && (
         <ConditionPicker

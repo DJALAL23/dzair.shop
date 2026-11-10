@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CONDITION_KEYS, CONDITIONS, type ConditionKey } from "../../../../../cod-shared/order-screening/conditions";
 import { templateRules } from "../../../../../cod-shared/order-screening/templates";
-import { CONDITION_GROUPS, blankCondition, formFromCondition, rescueErrorKey, ruleFromForm, ruleIssueKey, valueInputOf, wilayaOptions, withOperator, type ConditionForm, type RuleForm } from "./model";
+import { CONDITION_GROUPS, blankCondition, formFromCondition, operatorsOf, rescueErrorKey, ruleFromForm, ruleIssueKey, valueInputOf, wilayaOptions, withOperator, type ConditionForm, type RuleForm } from "./model";
 
 const rule = (conditions: ConditionForm[], extra: Partial<RuleForm> = {}): RuleForm => ({ name: "R", mode: "trial", action: "flag", conditions, ...extra });
 const saved = (form: ConditionForm) => {
@@ -33,7 +33,18 @@ describe("the form of a Condition", () => {
   it("starts valid where it can, on the first operator", () => {
     expect(saved(blankCondition("phone_orders", "u"))).toEqual({ key: "phone_orders", op: "at_least_in_window", value: { count: 3, windowHours: 24 } });
     expect(saved(blankCondition("pieces", "u"))).toEqual({ key: "pieces", op: "at_least", value: 1 });
-    expect(saved(blankCondition("phone", "u"))).toEqual({ key: "phone", op: "on_block_list", value: null });
+  });
+
+  it("never offers the Block List, which applies by itself, except to a rule that already uses it", () => {
+    expect(blankCondition("phone", "u").op).toBe("one_of");
+    expect(blankCondition("ip", "u").op).toBe("one_of");
+    expect(operatorsOf("phone")).toEqual(["one_of", "starts_with"]);
+    expect(operatorsOf("phone", "on_block_list")).toEqual(["on_block_list", "one_of", "starts_with"]);
+  });
+
+  it("sends picked countries as their codes", () => {
+    expect(valueInputOf("network_country", "one_of")).toBe("country");
+    expect(saved({ ...blankCondition("network_country", "u"), picked: [{ id: "DZ", label: "Algeria" }] }).value).toEqual(["DZ"]);
   });
 
   it("splits lists on new lines and both commas", () => {

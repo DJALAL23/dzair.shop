@@ -98,7 +98,8 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-const RULE = { id: "r1", name: "Too many", mode: "trial", action: "flag", conditions: [{ key: "pieces", op: "at_least", value: 5 }], templateKey: null, matchesLastWeek: 4 };
+const RULE = { id: "r1", name: "Too many", mode: "trial", action: "flag", conditions: [{ key: "pieces", op: "at_least", value: 5 }], templateKey: null, templateRule: null, matchesLastWeek: 4 };
+const ATTEMPT = { wilayaId: null, communeId: null, deliveryType: null, lines: null, phoneBlocked: false, ipBlocked: false };
 
 describe("the App page", () => {
   it("offers the Templates first, with Recommended already chosen", async () => {
@@ -131,7 +132,64 @@ describe("the App page", () => {
     await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
     expect(document.body.textContent).toContain("Too many");
     expect(document.body.textContent).toContain("Pieces in the order at least 5");
-    expect(document.body.textContent).toContain("Would have caught 4 orders in 7 days");
+    expect(document.body.textContent).toContain("Would have flagged 4 orders in 7 days");
+  });
+
+  it("says what a Trial rule would have done, by what it does", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, action: "spam", matchesLastWeek: 1 }, { ...RULE, id: "r2", action: "accept", matchesLastWeek: 2 }, { ...RULE, id: "r3", mode: "active", matchesLastWeek: 3 }] });
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    expect(document.body.textContent).toContain("Would have sent 1 order to Spam in 7 days");
+    expect(document.body.textContent).toContain("Would have accepted 2 orders in 7 days");
+    expect(document.body.textContent).toContain("Matched 3 orders in 7 days");
+  });
+
+  it("names a template rule in the reader's language, and the merchant's own as written", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, name: "زبائن استلموا طلبًا", templateRule: "good_customer" }, { ...RULE, id: "r2", name: "Mes VIP", templateRule: null }] });
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    expect(document.body.textContent).toContain("Customers who received an order");
+    expect(document.body.textContent).not.toContain("زبائن");
+    expect(document.body.textContent).toContain("Mes VIP");
+  });
+
+  it("shows the Templates first, and asks before replacing the rules, saying the counts start again", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [RULE] });
+    api.chooseTemplate.mockResolvedValue({ enabled: true, rules: [] });
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    await click("Use a template");
+    expect(document.querySelector("[role=alertdialog]")).toBeNull();
+    await click("Cancel");
+    expect(document.body.textContent).toContain("Too many");
+    await click("Use a template");
+    await click("Under attack");
+    await click("Use this template");
+    const dialog = document.querySelector<HTMLElement>("[role=alertdialog]")!;
+    expect(dialog.textContent).toContain("Replace your rule?");
+    expect(dialog.textContent).toContain("starts again at 0");
+    expect(api.chooseTemplate).not.toHaveBeenCalled();
+    await act(async () => [...dialog.querySelectorAll("button")].find((button) => button.textContent === "Replace")!.click());
+    await settle();
+    expect(api.chooseTemplate).toHaveBeenCalledWith("under_attack");
+  });
+
+  it("says the Block List always applies, and when each entry was added and why", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [] });
+    api.listBlockList.mockResolvedValue({ data: [{ id: "b", kind: "phone", value: "0551234567", note: "ORD-1", createdAt: new Date().toISOString() }], total: 1 });
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    await click("Block list");
+    expect(document.body.textContent).toContain("Your Block List always applies");
+    expect(document.body.textContent).toContain("added");
+    expect(document.body.textContent).toContain("ORD-1");
+  });
+
+  it("shows who, where and how much in Activity, and opens the order from the whole row", async () => {
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [] });
+    api.listAttempts.mockResolvedValue({ data: [{ ...ATTEMPT, id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: null, outcome: "flagged", orderId: "o1", orderNumber: "ORD-1", customerName: "Amel", total: 6600, wilayaId: 16, signals: {}, matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "t", name: "Trying", mode: "trial", action: "spam" }] }], total: 1 });
+    await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
+    await click("Activity");
+    const row = document.querySelector<HTMLAnchorElement>('a[href="/orders/o1"]')!;
+    expect(row.textContent).toContain("Amel");
+    expect(row.textContent).toContain("Alger");
+    expect(row.textContent).toContain("Matched: Too many and Trying (Trial)");
   });
 
   it("says when a rule can no longer be read", async () => {
@@ -165,9 +223,11 @@ describe("the rule builder", () => {
     await click("Add a condition");
     expect(document.body.textContent).toContain("Who is ordering, and how");
     await click("Phone number");
+    expect(byText("is on the Block List", "option")).toBeUndefined();
+    await type(document.querySelector("textarea")!, "0551234567");
     await click("To Spam");
     await click("Save");
-    expect(api.createRule).toHaveBeenCalledWith({ name: "Blocked", mode: "trial", action: "spam", conditions: [{ key: "phone", op: "on_block_list", value: null }] });
+    expect(api.createRule).toHaveBeenCalledWith({ name: "Blocked", mode: "trial", action: "spam", conditions: [{ key: "phone", op: "one_of", value: ["0551234567"] }] });
   });
 
   it("offers the fixed choices of a Condition as boxes to tick", async () => {
@@ -191,11 +251,51 @@ describe("the rule builder", () => {
     expect(document.querySelector<HTMLInputElement>('input[type="number"]')!.value).toBe("5");
   });
 
-  it("says what a country list wants", async () => {
+  it("picks countries by name, and keeps their codes", async () => {
+    window.history.replaceState(null, "", "/apps/order-protection/rule?id=r1");
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, conditions: [{ key: "network_country", op: "not_one_of", value: ["DZ"] }] }] });
+    api.updateRule.mockResolvedValue({});
     await mount(<RulePageApp />);
+    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.body.textContent).toContain("Algeria");
+    await click("Save");
+    expect(api.updateRule).toHaveBeenCalledWith("r1", { name: "Too many", mode: "trial", action: "flag", conditions: [{ key: "network_country", op: "not_one_of", value: ["DZ"] }] });
+  });
+
+  it("explains each mode and each action where they are chosen", async () => {
+    await mount(<RulePageApp />);
+    expect(document.body.textContent).toContain("Watches only");
+    expect(document.body.textContent).toContain("You can rescue it from Spam");
+    await click("Active");
+    await type(nameInput(), "R");
     await click("Add a condition");
-    await click("Network country");
-    expect(document.querySelector("textarea")!.placeholder).toContain("DZ, FR");
+    await click("Pieces in the order");
+    await click("Flag as suspicious");
+    api.createRule.mockResolvedValue({});
+    await click("Save");
+    expect(api.createRule).toHaveBeenCalledWith(expect.objectContaining({ mode: "active" }));
+  });
+
+  it("says when a rule holds as many conditions as it can", async () => {
+    await mount(<RulePageApp />);
+    for (let i = 0; i < 5; i += 1) {
+      await click("Add a condition");
+      await click("Pieces in the order");
+    }
+    expect(byText("Add a condition")).toBeUndefined();
+    expect(document.body.textContent).toContain("A rule can have up to 5 conditions.");
+  });
+
+  it("deletes a rule from its own page", async () => {
+    window.history.replaceState(null, "", "/apps/order-protection/rule?id=r1");
+    api.getProtection.mockResolvedValue({ enabled: true, rules: [RULE] });
+    api.deleteRule.mockResolvedValue({});
+    await mount(<RulePageApp />);
+    await click("Delete rule");
+    const dialog = document.querySelector<HTMLElement>("[role=alertdialog]")!;
+    await act(async () => [...dialog.querySelectorAll("button")].find((button) => button.textContent === "Delete rule")!.click());
+    await settle();
+    expect(api.deleteRule).toHaveBeenCalledWith("r1");
   });
 
   it("opens a rule with its boxes ticked", async () => {
@@ -212,9 +312,11 @@ describe("the rule builder", () => {
     await type(nameInput(), "Blocked");
     await click("Save");
     expect(document.body.textContent).toContain("Choose what the rule does with the order.");
+    expect(document.querySelectorAll("[role=alert]")).toHaveLength(1);
     await click("To Spam");
     await click("Save");
     expect(document.body.textContent).toContain("Add at least one condition");
+    expect(document.body.textContent).not.toContain("Choose what the rule does with the order.");
     expect(api.createRule).not.toHaveBeenCalled();
   });
 
@@ -243,26 +345,60 @@ describe("a rule in words", () => {
   it("names the fixed choices it holds", async () => {
     api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, conditions: [{ key: "app_source", op: "one_of", value: ["facebook", "browser"] }] }] });
     await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
-    expect(document.body.textContent).toContain("Facebook، Normal browser");
+    expect(document.body.textContent).toContain("App the store was opened in is one of Facebook or Normal browser");
+    expect(document.body.textContent).not.toContain("،");
   });
 });
 
 describe("the Spam page", () => {
-  const SPAM = { id: "s1", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "spam", orderId: null, orderNumber: "ORD-1", customerName: "Amel", total: 6600, signals: {}, matches: [{ ruleId: "r", name: "Blocked", mode: "active", action: "spam" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
+  const SPAM = { ...ATTEMPT, id: "s1", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "spam", orderId: null, orderNumber: "ORD-1", customerName: "Amel", total: 6600, signals: {}, matches: [{ ruleId: "r", name: "Blocked", mode: "active", action: "spam" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
 
   it("shows who, how much and why, naming only the rules that acted", async () => {
     api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
     await mount(<SpamOrdersPageApp />);
     expect(api.listAttempts).toHaveBeenCalledWith({ outcome: "spam", limit: 20, offset: 0 });
     expect(document.body.textContent).toContain("Amel");
-    expect(document.body.textContent).toContain("Because of: Blocked");
+    expect(document.body.textContent).toContain("Sent to Spam by: Blocked");
     expect(document.body.textContent).not.toContain("Only trying");
+  });
+
+  it("shows what was ordered, where to and how, and what else matched", async () => {
+    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, wilayaId: 16, communeId: "c-16-055", deliveryType: "stop_desk", lines: [{ name: "Robe", variantLabel: "Rouge", quantity: 2 }, { name: "Sac", variantLabel: null, quantity: 1 }], phoneBlocked: true, matches: [{ ruleId: "block-list:phone", name: "Block List", mode: "active", action: "spam", blockList: "phone" }, { ruleId: "f", name: "Fast", mode: "active", action: "flag" }] }], total: 1 });
+    await mount(<SpamOrdersPageApp />);
+    const text = document.body.textContent!;
+    expect(text).toContain("Robe (Rouge) × 2 and Sac × 1");
+    expect(text).toContain("Alger · Baba Hassen · Stop desk");
+    expect(text).toContain("Sent to Spam by: Number on your Block List");
+    expect(text).toContain("Also matched: Fast");
+    expect(text).toContain("Number blocked");
+    expect(byText("Block number")).toBeUndefined();
+  });
+
+  it("deletes or blocks several at once", async () => {
+    api.listAttempts.mockResolvedValue({ data: [SPAM, { ...SPAM, id: "s2", phone: "0661111111", orderNumber: "ORD-2" }], total: 2 });
+    api.addToBlockList.mockResolvedValue({});
+    api.deleteSpamOrder.mockResolvedValue({});
+    await mount(<SpamOrdersPageApp />);
+    await act(async () => byText("Select all", "label")!.querySelector("input")!.click());
+    await settle();
+    expect(document.body.textContent).toContain("2 selected");
+    await click("Block numbers");
+    expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567", note: "ORD-1" });
+    expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0661111111", note: "ORD-2" });
+    expect(document.body.textContent).toContain("2 selected");
+    await click("Delete");
+    const dialog = document.querySelector<HTMLElement>("[role=alertdialog]")!;
+    expect(dialog.textContent).toContain("Delete 2 orders?");
+    await act(async () => [...dialog.querySelectorAll("button")].find((button) => button.textContent === "Delete")!.click());
+    await settle();
+    expect(api.deleteSpamOrder).toHaveBeenCalledWith("s1");
+    expect(api.deleteSpamOrder).toHaveBeenCalledWith("s2");
   });
 
   it("shows how the order was sent", async () => {
     api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, signals: { fillSeconds: 3.4, visitSource: "tiktok", appSource: "instagram", networkCountry: "DZ" } }], total: 1 });
     await mount(<SpamOrdersPageApp />);
-    expect(document.body.textContent).toContain("Instagram · TikTok ad · Filled in 3 s · DZ");
+    expect(document.body.textContent).toContain("Instagram · TikTok ad · Filled in 3 s · Network: Algeria");
   });
 
   it("shows a form filled in no time, and no empty line when nothing is known", async () => {
@@ -295,7 +431,7 @@ describe("the Spam page", () => {
     api.addToBlockList.mockResolvedValue({});
     await mount(<SpamOrdersPageApp />);
     await click("Block number");
-    expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567" });
+    expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567", note: "ORD-1" });
   });
 
   it("offers no action to a reader, and nothing at all without permission", async () => {
@@ -314,7 +450,7 @@ describe("the Spam page", () => {
 });
 
 describe("the card on an order", () => {
-  const FLAGGED = { id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "flagged", orderId: "o", orderNumber: "ORD-1", customerName: null, total: null, signals: {}, matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
+  const FLAGGED = { ...ATTEMPT, id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "flagged", orderId: "o", orderNumber: "ORD-1", customerName: null, total: null, signals: {}, matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
 
   it("says why it was flagged and blocks the number or network", async () => {
     api.attemptOfOrder.mockResolvedValue({ ...FLAGGED, signals: { appSource: "browser" } });
@@ -324,9 +460,14 @@ describe("the card on an order", () => {
     expect(document.body.textContent).toContain("Normal browser");
     expect(document.body.textContent).not.toContain("Only trying");
     await click("Block this number");
-    expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567" });
+    expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567", note: "ORD-1" });
     await click("Block this network");
-    expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "ip", value: "41.100.1.1" });
+    const dialog = document.querySelector<HTMLElement>("[role=alertdialog]")!;
+    expect(dialog.textContent).toContain("share one network address");
+    expect(api.addToBlockList).toHaveBeenCalledTimes(1);
+    await act(async () => [...dialog.querySelectorAll("button")].find((button) => button.textContent === "Block this network")!.click());
+    await settle();
+    expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "ip", value: "41.100.1.1", note: "ORD-1" });
   });
 
   it("shows nothing for an order the App did not screen, or without permission", async () => {

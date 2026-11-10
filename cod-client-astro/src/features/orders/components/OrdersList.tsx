@@ -1,7 +1,8 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Archive, PackageOpen, Send } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
-import { useT } from "@/i18n/react";
+import { useLocale, useT } from "@/i18n/react";
+import { placeLabel } from "@/lib/places";
 import { getOrderStageCounts, listDeliveryCompanies, listDrivers, listOrders, type OrderQuery } from "@/features/orders/api";
 import { listWilayas } from "@/features/geography/api";
 import { BULK_HANDOFF_LIMIT, bulkSelection, handoffKinds, ORDER_QUEUES, viewCounts, viewQuery, type OrderView } from "@/features/orders/model";
@@ -57,6 +58,7 @@ function rememberView(view: OrderView) {
  */
 export function OrdersList() {
   const t = useT("orders");
+  const locale = useLocale();
   const common = useT("common");
   const identity = useIdentity();
   const may = (scope: string) => canScope(identity, scope);
@@ -249,7 +251,7 @@ export function OrdersList() {
               <option value="">{t("filters.all_wilayas")}</option>
               {wilayas.map((wilaya) => (
                 <option key={wilaya.id} value={String(wilaya.id)}>
-                  {wilaya.id} · {wilaya.nameAr}
+                  {wilaya.id} · {placeLabel(wilaya, locale)}
                 </option>
               ))}
             </FilterPill>

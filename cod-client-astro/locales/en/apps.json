@@ -268,12 +268,12 @@
     "load_failed": "This could not be loaded. Please try again.",
     "save_failed": "This could not be saved. Please try again.",
     "switch": "Check incoming orders",
-    "switch_hint": "When off, your rules are kept and every order goes through.",
+    "switch_hint": "When off, your rules and Block List are kept, and every order goes through.",
     "templates": {
       "title": "Start with a template",
       "subtitle": "Each template creates ordinary rules you can change at any time.",
       "recommended": "Recommended",
-      "recommended_hint": "Acts only on what you block yourself. The other rules try themselves out and show what they would have caught.",
+      "recommended_hint": "Customers who already received an order always go through. The other rules run in Trial: they act on nothing and show what they would have caught.",
       "under_attack": "Under attack",
       "under_attack_hint": "For a store receiving many fake orders right now. Doubtful orders go straight to Spam.",
       "empty": "Start empty",
@@ -281,23 +281,31 @@
       "recommended_badge": "Best to start",
       "apply": "Use this template",
       "use": "Use a template",
-      "replace_title": "Replace your rules?",
-      "replace_body": "The template takes the place of the rules you have now.",
-      "replace": "Continue"
+      "replace_body": "The rules of “{template}” take their place, and every rule's count starts again at 0.",
+      "replace": "Replace",
+      "cancel": "Cancel",
+      "replace_title_one": "Replace your rule?",
+      "replace_title_other": "Replace your {count} rules?"
     },
     "rules": {
       "delete_title": "Delete \"{name}\"?",
       "delete_body": "The rule is removed for good.",
       "delete": "Delete rule",
       "unavailable": "This rule can no longer be read, so it is skipped.",
-      "would_catch_one": "Would have caught {count} order in 7 days",
-      "would_catch_other": "Would have caught {count} orders in 7 days",
       "mode": "Mode",
       "new": "New rule",
       "empty": "No rules yet",
       "empty_hint": "Add a rule or use a template.",
       "matched_one": "Matched {count} order in 7 days",
-      "matched_other": "Matched {count} orders in 7 days"
+      "matched_other": "Matched {count} orders in 7 days",
+      "would": {
+        "spam_one": "Would have sent {count} order to Spam in 7 days",
+        "spam_other": "Would have sent {count} orders to Spam in 7 days",
+        "flag_one": "Would have flagged {count} order in 7 days",
+        "flag_other": "Would have flagged {count} orders in 7 days",
+        "accept_one": "Would have accepted {count} order in 7 days",
+        "accept_other": "Would have accepted {count} orders in 7 days"
+      }
     },
     "actions": {
       "spam": "To Spam",
@@ -326,12 +334,21 @@
       "add": "Block",
       "add_failed": "This could not be blocked. Check the value and try again.",
       "remove": "Remove from the Block List",
-      "empty": "Nothing is blocked"
+      "empty": "Nothing is blocked",
+      "always": "Your Block List always applies while “Check incoming orders” is on: an order from a blocked number or network goes to Spam, whatever your rules say.",
+      "ip_warning": "Customers on mobile data often share one network address. Blocking a network can also stop real customers.",
+      "placeholders": {
+        "phone": "0550 12 34 56",
+        "ip": "41.100.1.1"
+      },
+      "added": "added {when}"
     },
     "activity": {
       "outcome": "Outcome",
       "all": "All orders",
-      "empty": "Nothing to show yet"
+      "empty": "Nothing to show yet",
+      "trial_match": "{rule} (Trial)",
+      "matched": "Matched: {rules}"
     },
     "outcomes": {
       "accepted": "Accepted",
@@ -358,11 +375,13 @@
       }
     },
     "signals": {
-      "filled_in": "Filled in {seconds} s"
+      "filled_in": "Filled in {seconds} s",
+      "network_in": "Network: {country}"
     },
     "groups": {
       "who": "Who is ordering, and how",
-      "typed": "What the customer typed"
+      "typed": "What the customer typed",
+      "history": "Customer history"
     },
     "editor": {
       "search": "Search…",
@@ -381,10 +400,13 @@
       "name": "Rule name",
       "if": "If",
       "then": "Then",
-      "then_hint": "Choose what the rule does with the order.",
+      "then_hint": "What happens to an order that meets every condition.",
       "all_must_match": "All of these must be true.",
       "add_condition": "Add a condition",
-      "country_hint": "Two-letter country codes, for example DZ, FR"
+      "mode_hint": "Try a new rule in Trial first, then make it Active.",
+      "max_conditions": "A rule can have up to 5 conditions.",
+      "products_count_one": "{count} product",
+      "products_count_other": "{count} products"
     },
     "rule_error": {
       "name": "Give the rule a name.",
@@ -404,25 +426,39 @@
       "block": "Block number",
       "blocked": "{phone} is blocked",
       "delete": "Delete",
-      "delete_title": "Delete this order?",
-      "delete_body": "It is removed for good.",
-      "because": "Because of: {rules}",
+      "delete_body": "A deleted order cannot be brought back.",
+      "because": "Sent to Spam by: {rules}",
       "rescue_no_stock": "Not enough stock to place this order.",
       "rescue_already": "This order was already rescued.",
       "rescue_no_delivery": "You no longer deliver to this place.",
       "rescue_coupon": "Its coupon no longer applies.",
-      "rescue_failed": "This order could not be rescued. Please try again."
+      "rescue_failed": "This order could not be rescued. Please try again.",
+      "line": "{name} × {quantity}",
+      "also": "Also matched: {rules}",
+      "number_blocked": "Number blocked",
+      "network_blocked": "Network blocked",
+      "pick_all": "Select all",
+      "block_picked": "Block numbers",
+      "delete_picked": "Delete",
+      "blocked_count_one": "{count} number blocked",
+      "blocked_count_other": "{count} numbers blocked",
+      "delete_title_one": "Delete this order?",
+      "delete_title_other": "Delete {count} orders?",
+      "picked_one": "{count} selected",
+      "picked_other": "{count} selected"
     },
     "flag": {
       "label": "Flagged as suspicious",
       "because": "Flagged because of: {rules}",
       "block_phone": "Block this number",
-      "block_ip": "Block this network"
+      "block_ip": "Block this network",
+      "label_because": "Flagged as suspicious: {rules}",
+      "block_ip_title": "Block the network {value}?"
     },
     "conditions": {
       "phone_orders": "Orders from the same phone",
       "ip_orders": "Orders from the same network (IP)",
-      "ip_burst": "Many orders from one network in a minute",
+      "ip_burst": "About 10 or more orders from one network in a minute",
       "phone": "Phone number",
       "ip": "Network address (IP)",
       "name": "Name",
@@ -459,6 +495,20 @@
       "72": "in the last 3 days",
       "168": "in the last 7 days",
       "720": "in the last 30 days"
+    },
+    "block_list_match": {
+      "phone": "Number on your Block List",
+      "ip": "Network on your Block List"
+    },
+    "action_hints": {
+      "spam": "The order is kept out of your orders. You can rescue it from Spam.",
+      "flag": "The order is placed and marked as suspicious, so you can check it before shipping.",
+      "accept": "The order always goes through, whatever the other rules say. Your Block List still applies."
+    },
+    "mode_hints": {
+      "trial": "Watches only: counts the orders it would catch and does nothing to them.",
+      "active": "Acts on every order that matches.",
+      "off": "Paused: checks nothing."
     }
   }
 }

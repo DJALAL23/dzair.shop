@@ -4,7 +4,8 @@ import { appRequest } from "@/features/apps/api";
 import type { Condition, RuleAction, RuleMode } from "../../../../../cod-shared/order-screening/conditions";
 import type { RuleDraft, RuleMatch } from "../../../../../cod-shared/order-screening/rules";
 import type { BlockListKind, OrderAttemptOutcome } from "../../../../../cod-shared/order-screening/signals";
-import type { TemplateKey } from "../../../../../cod-shared/order-screening/templates";
+import type { TemplateKey, TemplateRuleKey } from "../../../../../cod-shared/order-screening/templates";
+import type { HeldLine } from "../../../../../cod-shared/order-screening/screening";
 
 const KEY = "order-protection";
 const BASE = `/api/apps/${KEY}`;
@@ -16,6 +17,7 @@ export interface ProtectionRule {
   action: RuleAction;
   conditions: Condition[] | null;
   templateKey: string | null;
+  templateRule: TemplateRuleKey | null;
   matchesLastWeek: number;
 }
 
@@ -42,6 +44,12 @@ export interface OrderAttempt {
   orderNumber: string | null;
   customerName: string | null;
   total: number | null;
+  wilayaId: number | null;
+  communeId: string | null;
+  deliveryType: "home" | "stop_desk" | null;
+  lines: HeldLine[] | null;
+  phoneBlocked: boolean;
+  ipBlocked: boolean;
   matches: RuleMatch[];
   signals: AttemptSignals;
 }

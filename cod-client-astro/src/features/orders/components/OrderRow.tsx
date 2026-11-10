@@ -1,5 +1,6 @@
 import { Flag, Star } from "lucide-react";
 import { useLocale, useT } from "@/i18n/react";
+import { listOf, useMatchName } from "@/features/apps/order-protection/words";
 import { relativeTime } from "@/lib/relative-time";
 import { RowActions, TableCell, TableRow, openRowOnClick } from "@/components/ui";
 import { formatMoney, orderTotal } from "@/features/orders/model";
@@ -32,14 +33,22 @@ function Pick({ order, selection }: Pick<RowProps, "order" | "selection">) {
 }
 
 function OrderNumber({ order, className = "" }: { order: OrderListItem; className?: string }) {
-  const flagLabel = useT("apps")("order_protection.flag.label");
+  const t = useT("apps");
+  const locale = useLocale();
+  const matchName = useMatchName();
+  const reasons = (order.flagReasons ?? []).map(matchName);
+  const flagLabel = reasons.length > 0 ? t("order_protection.flag.label_because", { rules: listOf(reasons, locale) }) : t("order_protection.flag.label");
   return (
     <a
       href={`/orders/${order.id}`}
       className={`inline-flex items-center gap-1 font-medium text-foreground underline-offset-2 hover:underline ${className}`}
     >
       {order.orderNumber}
-      {(order.flagged ?? 0) > 0 && <Flag size={12} aria-label={flagLabel} className="text-[var(--tone-warning-text)]" />}
+      {(order.flagged ?? 0) > 0 && (
+        <span role="img" aria-label={flagLabel} title={flagLabel} className="inline-flex">
+          <Flag size={12} aria-hidden="true" className="text-[var(--tone-warning-text)]" />
+        </span>
+      )}
       {(order.hasReview ?? 0) > 0 && <Star size={12} aria-hidden="true" className="fill-[var(--tone-warning-text)] text-[var(--tone-warning-text)]" />}
     </a>
   );

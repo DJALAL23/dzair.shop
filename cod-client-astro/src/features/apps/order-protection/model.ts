@@ -4,12 +4,13 @@ import { CONDITION_KEYS, CONDITIONS, valueShape, type Condition, type ConditionK
 import { parseRule, type ParsedRule, type RuleIssueCode } from "../../../../../cod-shared/order-screening/rules";
 import { WILAYAS } from "../../../../../cod-shared/places";
 
-export type ValueInput = "none" | "number" | "window" | "text" | "wilaya" | "product" | "options";
+export type ValueInput = "none" | "number" | "window" | "text" | "wilaya" | "country" | "product" | "options";
 
 export function valueInputOf(key: ConditionKey, op: Operator): ValueInput {
   const shape = valueShape(op);
   if (shape !== "list") return shape;
   if (key === "wilaya") return "wilaya";
+  if (key === "network_country") return "country";
   if (key === "product") return "product";
   if (CONDITIONS[key].options) return "options";
   return "text";
@@ -26,12 +27,17 @@ export interface ConditionForm {
   picked: PickerOption[];
 }
 
-export const CONDITION_GROUPS = (["who", "typed"] as const).map((group) => ({ group, keys: CONDITION_KEYS.filter((key) => CONDITIONS[key].group === group) }));
+export const CONDITION_GROUPS = (["who", "typed", "history"] as const).map((group) => ({ group, keys: CONDITION_KEYS.filter((key) => CONDITIONS[key].group === group) }));
 
 const DEFAULT_WINDOW_HOURS = 24;
 
+/** The comparisons offered for a condition. The Block List always applies by itself, so "is on the Block List" is offered only to a rule that already uses it. */
+export function operatorsOf(key: ConditionKey, current?: Operator): readonly Operator[] {
+  return CONDITIONS[key].operators.filter((op) => op !== "on_block_list" || op === current);
+}
+
 export function blankCondition(key: ConditionKey, uid: string): ConditionForm {
-  return { uid, key, op: CONDITIONS[key].operators[0], count: "3", windowHours: DEFAULT_WINDOW_HOURS, number: key === "fill_seconds" ? "5" : "1", text: "", picked: [] };
+  return { uid, key, op: operatorsOf(key)[0], count: "3", windowHours: DEFAULT_WINDOW_HOURS, number: key === "fill_seconds" ? "5" : "1", text: "", picked: [] };
 }
 
 export function withOperator(form: ConditionForm, op: Operator): ConditionForm {
@@ -53,6 +59,7 @@ function valueToSave(form: ConditionForm): unknown {
       return textValues(form.text);
     case "wilaya":
       return form.picked.map((option) => Number(option.id));
+    case "country":
     case "product":
     case "options":
       return form.picked.map((option) => option.id);

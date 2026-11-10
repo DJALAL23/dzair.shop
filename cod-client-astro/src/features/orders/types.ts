@@ -1,3 +1,4 @@
+import type { RuleMatch } from "../../../../cod-shared/order-screening/rules";
 import type { OrderStatus } from "../../../../cod-shared/orders/lifecycle";
 import type { OrderStage } from "../../../../cod-shared/orders/stage";
 import type { HandoffState, ShipmentEventSource, ShipmentKind } from "../../../../cod-shared/shipments/model";
@@ -86,6 +87,8 @@ export interface OrderBase {
 export interface OrderListItem extends OrderBase {
   hasReview?: number;
   flagged?: number;
+  /** The Active Flag rules that flagged it. */
+  flagReasons?: RuleMatch[];
   shipmentId: string | null;
   shipmentKind: ShipmentKind | null;
   carrierName: string | null;
