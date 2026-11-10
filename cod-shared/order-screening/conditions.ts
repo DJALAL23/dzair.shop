@@ -18,7 +18,6 @@ export const CONDITION_KEYS = [
   "ip_burst",
   "fill_seconds",
   "network_country",
-  "network_operator",
   "visit_source",
   "app_source",
   "phone",
@@ -69,7 +68,6 @@ export interface Facts {
   visitSource?: VisitSource;
   appSource?: AppSource;
   networkCountry?: string;
-  networkOperator?: string;
 }
 
 export type FactSource = "submission" | "attempts" | "history" | "block_list" | "burst";
@@ -156,7 +154,6 @@ export const CONDITIONS: Readonly<Record<ConditionKey, ConditionSpec>> = {
   ip_burst: { group: "who", operators: ["is_true"], source: "burst", fact: (facts) => facts.burst },
   fill_seconds: { group: "who", operators: ["at_most"], source: "submission", fact: (facts) => facts.fillSeconds },
   network_country: { group: "who", operators: ["one_of", "not_one_of"], source: "submission", fact: (facts) => facts.networkCountry, item: countryItem },
-  network_operator: { group: "who", operators: ["contains_any"], source: "submission", fact: (facts) => facts.networkOperator, item: textItem },
   visit_source: { group: "who", operators: ["one_of"], source: "submission", fact: (facts) => facts.visitSource, options: VISIT_SOURCES },
   app_source: { group: "who", operators: ["one_of"], source: "submission", fact: (facts) => facts.appSource, options: APP_SOURCES },
   phone: { group: "typed", operators: ["on_block_list", "one_of", "starts_with"], source: "submission", fact: onList((facts) => facts.phone, "phone"), item: phoneItem },

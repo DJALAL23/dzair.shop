@@ -40,21 +40,17 @@ describe("what a checkout says about itself", () => {
 });
 
 describe("where the visitor connects from", () => {
-  it("reads the country in capitals and the company", () => {
-    expect(readNetworkSignals(network({ c: "dz", o: "  Algérie Télécom " }))).toEqual({ networkCountry: "DZ", networkOperator: "Algérie Télécom" });
+  it("reads the country in capitals, and nothing else", () => {
+    expect(readNetworkSignals(network({ c: "dz", o: "Algérie Télécom" }))).toEqual({ networkCountry: "DZ" });
   });
 
   it("takes the codes the host uses for no country", () => {
     expect(readNetworkSignals(network({ c: "T1" }))).toEqual({ networkCountry: "T1" });
   });
 
-  it("cuts a long company name", () => {
-    expect(readNetworkSignals(network({ o: "O".repeat(150) })).networkOperator).toHaveLength(100);
-  });
-
   it("drops what it cannot use", () => {
-    expect(readNetworkSignals(network({ c: "Algeria", o: "   " }))).toEqual({});
-    expect(readNetworkSignals(network({ c: 12, o: 7 }))).toEqual({});
+    expect(readNetworkSignals(network({ c: "Algeria" }))).toEqual({});
+    expect(readNetworkSignals(network({ c: 12 }))).toEqual({});
   });
 
   it.each([[undefined], [""], ["%E0%A4%A"], ["{broken"], [encodeURIComponent("[1]")], [network({ c: "DZ", pad: "x".repeat(600) })], ["null"]])("knows nothing from %j", (raw) => {

@@ -166,7 +166,7 @@ const AttemptSchema = z.object({
   customerName: z.string().nullable(),
   total: z.number().nullable(),
   matches: z.array(z.object({ ruleId: z.string(), name: z.string(), mode: z.enum(["trial", "active"]), action: z.enum(["spam", "flag", "accept"]) })),
-  signals: z.object({ fillSeconds: z.number().optional(), visitSource: z.enum(VISIT_SOURCES).optional(), appSource: z.enum(APP_SOURCES).optional(), networkCountry: z.string().optional(), networkOperator: z.string().optional() }),
+  signals: z.object({ fillSeconds: z.number().optional(), visitSource: z.enum(VISIT_SOURCES).optional(), appSource: z.enum(APP_SOURCES).optional(), networkCountry: z.string().optional() }),
 });
 
 async function listAttempts(c: Context<AppContext>) {

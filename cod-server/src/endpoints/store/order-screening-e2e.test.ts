@@ -439,9 +439,9 @@ describe("what the storefront says about a checkout", () => {
   const DEVICE = "3f2b8c1e-7a4d-4e6f-9b1a-2c3d4e5f6a7b";
   const INSTAGRAM = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Instagram 307.0.0.34.111";
   const context = (fields: Record<string, unknown> = {}) => JSON.stringify({ d: DEVICE, f: 3000, s: "meta", ...fields });
-  const network = encodeURIComponent(JSON.stringify({ c: "DZ", o: "Algérie Télécom" }));
+  const network = encodeURIComponent(JSON.stringify({ c: "DZ" }));
   const sent = { extra: { checkoutContext: context() }, headers: { "User-Agent": INSTAGRAM, "X-Visitor-Network": network } };
-  const signals = { fillSeconds: 3, visitSource: "meta", appSource: "instagram", networkCountry: "DZ", networkOperator: "Algérie Télécom" };
+  const signals = { fillSeconds: 3, visitSource: "meta", appSource: "instagram", networkCountry: "DZ" };
   const flagOn = async (condition: Condition) => {
     await turnOn();
     await rule("flag", "active", [condition]);
@@ -453,7 +453,6 @@ describe("what the storefront says about a checkout", () => {
     ["app", { key: "app_source", op: "one_of", value: ["instagram"] }],
     ["country", { key: "network_country", op: "one_of", value: ["DZ"] }],
     ["country left out", { key: "network_country", op: "not_one_of", value: ["FR"] }],
-    ["company", { key: "network_operator", op: "contains_any", value: ["télécom"] }],
     ["device", { key: "device_orders", op: "at_least_in_window", value: { count: 1, windowHours: 24 } }],
   ])("a rule on the %s acts", async (_name, condition) => {
     await flagOn(condition);
@@ -481,7 +480,6 @@ describe("what the storefront says about a checkout", () => {
     ["fill time", { key: "fill_seconds", op: "at_most", value: 100000 }],
     ["visit source", { key: "visit_source", op: "one_of", value: ["other"] }],
     ["country left out", { key: "network_country", op: "not_one_of", value: ["FR"] }],
-    ["company", { key: "network_operator", op: "contains_any", value: ["a"] }],
     ["device", { key: "device_orders", op: "at_least_in_window", value: { count: 1, windowHours: 24 } }],
     ["numbers", { key: "device_phones", op: "at_least_in_window", value: { count: 1, windowHours: 24 } }],
   ])("a storefront that sends nothing never matches a rule on the %s", async (_name, condition) => {

@@ -9,7 +9,6 @@ export function AttemptSignalsLine({ signals }: { signals: AttemptSignals }) {
     signals.visitSource && t(`order_protection.options.visit_source.${signals.visitSource}`),
     signals.fillSeconds !== undefined && t("order_protection.signals.filled_in", { seconds: Math.round(signals.fillSeconds) }),
     signals.networkCountry,
-    signals.networkOperator,
   ].filter(Boolean);
   if (parts.length === 0) return null;
   return <p className="text-xs text-muted-foreground"><bdi>{parts.join(" · ")}</bdi></p>;

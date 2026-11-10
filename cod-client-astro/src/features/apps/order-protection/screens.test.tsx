@@ -260,9 +260,9 @@ describe("the Spam page", () => {
   });
 
   it("shows how the order was sent", async () => {
-    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, signals: { fillSeconds: 3.4, visitSource: "tiktok", appSource: "instagram", networkCountry: "DZ", networkOperator: "Djezzy" } }], total: 1 });
+    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, signals: { fillSeconds: 3.4, visitSource: "tiktok", appSource: "instagram", networkCountry: "DZ" } }], total: 1 });
     await mount(<SpamOrdersPageApp />);
-    expect(document.body.textContent).toContain("Instagram · TikTok ad · Filled in 3 s · DZ · Djezzy");
+    expect(document.body.textContent).toContain("Instagram · TikTok ad · Filled in 3 s · DZ");
   });
 
   it("shows a form filled in no time, and no empty line when nothing is known", async () => {

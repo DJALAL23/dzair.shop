@@ -437,7 +437,6 @@
       "device_phones": "Different numbers on the same device",
       "fill_seconds": "Time to fill the form (seconds)",
       "network_country": "Network country",
-      "network_operator": "Network company",
       "visit_source": "Where the visit came from",
       "app_source": "App the store was opened in"
     },

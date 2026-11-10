@@ -22,7 +22,6 @@ const FACTS: Facts = {
   visitSource: "meta",
   appSource: "instagram",
   networkCountry: "DZ",
-  networkOperator: "Algérie Télécom",
 };
 
 const parsed = (key: string, op: string, value: unknown): Condition => {
@@ -50,8 +49,6 @@ describe("each Condition on the facts of an attempt", () => {
     ["network_country", "one_of", ["FR"], false],
     ["network_country", "not_one_of", ["FR"], true],
     ["network_country", "not_one_of", ["DZ"], false],
-    ["network_operator", "contains_any", ["algérie"], true],
-    ["network_operator", "contains_any", ["djezzy"], false],
     ["visit_source", "one_of", ["meta", "google"], true],
     ["visit_source", "one_of", ["tiktok"], false],
     ["app_source", "one_of", ["instagram"], true],
@@ -122,7 +119,6 @@ describe("no data never holds", () => {
     ["fill_seconds", "at_most", 100000],
     ["network_country", "one_of", ["DZ"]],
     ["network_country", "not_one_of", ["DZ"]],
-    ["network_operator", "contains_any", ["a"]],
     ["visit_source", "one_of", ["meta", "tiktok", "google", "other"]],
     ["app_source", "one_of", ["facebook", "instagram", "tiktok", "browser"]],
     ["ip_burst", "is_true", null],
@@ -147,7 +143,6 @@ describe("where a Condition's data comes from", () => {
     ["device_phones", "at_least_in_window", { count: 1, windowHours: 1 }, "attempts"],
     ["fill_seconds", "at_most", 1, "submission"],
     ["network_country", "one_of", ["DZ"], "submission"],
-    ["network_operator", "contains_any", ["a"], "submission"],
     ["visit_source", "one_of", ["meta"], "submission"],
     ["app_source", "one_of", ["browser"], "submission"],
     ["ip_burst", "is_true", null, "burst"],
@@ -175,14 +170,13 @@ describe("Conditions on how an order was sent", () => {
     ["visit_source", "not_one_of", ["meta"]],
     ["app_source", "not_one_of", ["browser"]],
     ["fill_seconds", "at_least", 1],
-    ["network_operator", "one_of", ["djezzy"]],
+    ["network_operator", "contains_any", ["djezzy"]],
   ])("refuses %s %s %j", (key, op, value) => {
     expect(parseCondition({ key, op, value }).ok).toBe(false);
   });
 
-  it("keeps a country in capitals and a company in the form it is compared in", () => {
+  it("keeps a country in capitals", () => {
     expect(parsed("network_country", "one_of", [" dz "]).value).toEqual(["DZ"]);
-    expect(parsed("network_operator", "contains_any", ["  Algérie   TÉLÉCOM "]).value).toEqual(["algérie télécom"]);
   });
 });
 

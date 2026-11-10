@@ -137,16 +137,15 @@ export async function loadFacts(db: AppDb, rules: readonly Rule[], submission: O
   };
 }
 
-export type AttemptSignals = Pick<Facts, "fillSeconds" | "visitSource" | "appSource" | "networkCountry" | "networkOperator">;
+export type AttemptSignals = Pick<Facts, "fillSeconds" | "visitSource" | "appSource" | "networkCountry">;
 
 /** The Signals worth showing a person beside an attempt. */
 export function attemptSignals(facts: Facts): AttemptSignals {
-  const { fillSeconds, visitSource, appSource, networkCountry, networkOperator } = facts;
+  const { fillSeconds, visitSource, appSource, networkCountry } = facts;
   return {
     ...(fillSeconds === undefined ? {} : { fillSeconds }),
     ...(visitSource ? { visitSource } : {}),
     ...(appSource ? { appSource } : {}),
     ...(networkCountry ? { networkCountry } : {}),
-    ...(networkOperator ? { networkOperator } : {}),
   };
 }

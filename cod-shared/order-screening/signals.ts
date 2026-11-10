@@ -68,13 +68,11 @@ export interface CheckoutSignals {
 
 export interface NetworkSignals {
   networkCountry?: string;
-  networkOperator?: string;
 }
 
 const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const LONGEST_FILL_MS = 3_600_000;
 const LONGEST_SIGNAL = 512;
-const OPERATOR_LENGTH = 100;
 
 function jsonFields(raw: string | undefined, read: (text: string) => string = (text) => text): Record<string, unknown> {
   if (!raw || raw.length > LONGEST_SIGNAL) return {};
@@ -95,11 +93,8 @@ export function readCheckoutSignals(raw: string | undefined): CheckoutSignals {
 }
 
 export function readNetworkSignals(header: string | undefined): NetworkSignals {
-  const { c: country, o: operator } = jsonFields(header, decodeURIComponent);
-  return {
-    ...(typeof country === "string" && /^[A-Z0-9]{2}$/i.test(country) ? { networkCountry: country.toUpperCase() } : {}),
-    ...(typeof operator === "string" && operator.trim().length > 0 ? { networkOperator: operator.trim().slice(0, OPERATOR_LENGTH) } : {}),
-  };
+  const { c: country } = jsonFields(header, decodeURIComponent);
+  return typeof country === "string" && /^[A-Z0-9]{2}$/i.test(country) ? { networkCountry: country.toUpperCase() } : {};
 }
 
 const IN_APP_BROWSERS: readonly (readonly [RegExp, AppSource])[] = [

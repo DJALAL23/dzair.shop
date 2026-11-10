@@ -76,7 +76,6 @@ describe("back and forth", () => {
     { key: "app_source", op: "one_of", value: ["facebook", "tiktok"] },
     { key: "visit_source", op: "one_of", value: ["meta"] },
     { key: "network_country", op: "not_one_of", value: ["DZ"] },
-    { key: "network_operator", op: "contains_any", value: ["djezzy"] },
     { key: "fill_seconds", op: "at_most", value: 5 },
     { key: "device_orders", op: "at_least_in_window", value: { count: 3, windowHours: 24 } },
     { key: "device_phones", op: "at_least_in_window", value: { count: 2, windowHours: 1 } },

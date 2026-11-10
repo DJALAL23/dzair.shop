@@ -441,7 +441,6 @@
       "device_phones": "Numéros différents sur le même appareil",
       "fill_seconds": "Temps de remplissage du formulaire (secondes)",
       "network_country": "Pays du réseau",
-      "network_operator": "Opérateur du réseau",
       "visit_source": "Origine de la visite",
       "app_source": "Application d'ouverture de la boutique"
     },
