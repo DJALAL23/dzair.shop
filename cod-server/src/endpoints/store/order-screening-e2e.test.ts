@@ -381,7 +381,7 @@ describe("protection never costs a real order", () => {
   it("places the order when the rules cannot be read", async () => {
     silence();
     await spamRuleOn();
-    binding = failing((query) => /from "order_rules"/i.test(query));
+    binding = failing((query) => /join "order_rules"/i.test(query));
     expect((await order({ phone: SPAM_PHONE })).status).toBe(201);
     expect(await count("orders")).toBe(1);
   });
@@ -398,7 +398,7 @@ describe("protection never costs a real order", () => {
   it("places the order when a Spam Order cannot be kept", async () => {
     silence();
     await spamRuleOn();
-    binding = failing((query) => /insert into "order_attempts"/i.test(query));
+    binding = failing((query) => /insert into "?order_attempts/i.test(query));
     expect((await order({ phone: SPAM_PHONE })).status).toBe(201);
     expect(await count("orders")).toBe(1);
   });
@@ -407,7 +407,7 @@ describe("protection never costs a real order", () => {
     silence();
     await turnOn();
     await rule("flag", "active", [phoneIs(REAL_PHONE)]);
-    binding = failing((query) => /insert into "order_attempts"/i.test(query));
+    binding = failing((query) => /insert into "?order_attempts/i.test(query));
     expect((await order()).status).toBe(201);
     expect(await count("orders")).toBe(1);
   });
@@ -432,6 +432,69 @@ describe("protection never costs a real order", () => {
     expect(second.json.data.orderNumber).not.toBe(first.json.data.orderNumber);
     expect(await count("orders")).toBe(0);
     expect((await attempts()).filter((row) => row.outcome === "spam")).toHaveLength(2);
+  });
+
+  it("never gives a Spam Order the number of a real order", async () => {
+    await spamRuleOn();
+    const random = vi.spyOn(Math, "random");
+    random.mockReturnValueOnce(0.5);
+    const real = await order({ phone: REAL_PHONE });
+    random.mockReturnValueOnce(0.5).mockReturnValueOnce(0.25);
+    const spam = await order({ phone: SPAM_PHONE });
+    expect(spam.status).toBe(201);
+    expect(spam.json.data.orderNumber).not.toBe(real.json.data.orderNumber);
+    expect(await count("orders")).toBe(1);
+  });
+
+  it("never gives a real order the number of a Spam Order", async () => {
+    await spamRuleOn();
+    const random = vi.spyOn(Math, "random");
+    random.mockReturnValueOnce(0.5);
+    const spam = await order({ phone: SPAM_PHONE });
+    random.mockReturnValueOnce(0.5).mockReturnValueOnce(0.25);
+    const real = await order({ phone: REAL_PHONE });
+    expect(real.status).toBe(201);
+    expect(real.json.data.orderNumber).not.toBe(spam.json.data.orderNumber);
+    expect(await count("orders")).toBe(1);
+  });
+});
+
+describe("the Block List", () => {
+  const block = (kind: "phone" | "ip", value: string) => d1.db.insert(schema.orderBlockList).values({ id: `b-${kind}`, kind, value, createdAt: T });
+
+  it("sends a blocked number to Spam with no rule at all", async () => {
+    await turnOn();
+    await block("phone", SPAM_PHONE);
+    expect((await order({ phone: SPAM_PHONE })).status).toBe(201);
+    expect(await count("orders")).toBe(0);
+    const [attempt] = await attempts();
+    expect(attempt.outcome).toBe("spam");
+    expect(JSON.parse(attempt.matchesJson!)).toEqual([{ ruleId: "block-list:phone", name: "Block List", mode: "active", action: "spam", blockList: "phone" }]);
+  });
+
+  it("sends a blocked network to Spam, before an Always accept rule", async () => {
+    await turnOn();
+    await block("ip", SHOPPER_IP);
+    await rule("accept", "active", [phoneIs(REAL_PHONE)]);
+    await order({ phone: REAL_PHONE });
+    expect(await count("orders")).toBe(0);
+    expect((await attempts())[0].outcome).toBe("spam");
+  });
+
+  it("does nothing while the App is off", async () => {
+    await d1.db.insert(schema.storeOrderProtectionConfig).values({ id: "cfg", storeId: STORE, enabled: false, createdAt: T, updatedAt: T });
+    await block("phone", SPAM_PHONE);
+    await order({ phone: SPAM_PHONE });
+    expect(await count("orders")).toBe(1);
+    expect(await attempts()).toEqual([]);
+  });
+
+  it("leaves a number that is not on it alone", async () => {
+    await turnOn();
+    await block("phone", SPAM_PHONE);
+    await order({ phone: REAL_PHONE });
+    expect(await count("orders")).toBe(1);
+    expect(await attempts()).toEqual([]);
   });
 });
 
@@ -575,14 +638,23 @@ describe("what it costs the checkout", () => {
     binding = recorded;
     await order();
     expect(touching(log, /"order_rules"/)).toHaveLength(1);
-    expect(touching(log, /insert into "order_attempts"/i)).toHaveLength(0);
+    expect(touching(log, /insert into "?order_attempts/i)).toHaveLength(0);
     expect(touching(log, /order_block_list|SUM\(CASE/)).toHaveLength(0);
+  });
+
+  it("is two reads and no write with the App on, no rules and nothing blocked", async () => {
+    await turnOn();
+    const { binding: recorded, log } = recording();
+    binding = recorded;
+    await order();
+    expect(touching(log, /"order_rules"/)).toHaveLength(1);
+    expect(touching(log, /order_block_list/)).toHaveLength(1);
+    expect(touching(log, /order_attempts/)).toHaveLength(0);
   });
 
   it("is at most four reads and one write with every source in use", async () => {
     await turnOn();
     await rule("flag", "active", [{ key: "phone_orders", op: "at_least_in_window", value: { count: 1, windowHours: 24 } }, { key: "ip_orders", op: "at_least_in_window", value: { count: 1, windowHours: 1 } }]);
-    await rule("flag", "active", [{ key: "phone", op: "on_block_list", value: null }, { key: "ip", op: "on_block_list", value: null }]);
     await rule("flag", "active", [{ key: "delivered_before", op: "at_least", value: 1 }, { key: "returned_before", op: "at_least", value: 1 }]);
     const { binding: recorded, log } = recording();
     binding = recorded;
@@ -591,7 +663,7 @@ describe("what it costs the checkout", () => {
     expect(touching(log, /SUM\(CASE/)).toHaveLength(1);
     expect(touching(log, /order_block_list/)).toHaveLength(1);
     expect(touching(log, /COUNT\(s\.delivered_at\)/)).toHaveLength(1);
-    expect(touching(log, /insert into "order_attempts"/i)).toHaveLength(1);
+    expect(touching(log, /insert into "?order_attempts/i)).toHaveLength(1);
   });
 });
 

@@ -142,8 +142,9 @@ describe("counting by device", () => {
     expect(Object.keys(facts.windowCounts!)).toHaveLength(24);
     expect(facts.windowCounts!["device_phones:1"]).toBe(1);
     expect(facts.windowCounts!["device_phones:6"]).toBe(2);
-    expect(statements).toHaveLength(1);
-    expect(statements[0].match(/\?/g)!.length).toBeLessThanOrEqual(100);
+    const counting = statements.filter((statement) => /order_attempts/.test(statement));
+    expect(counting).toHaveLength(1);
+    expect(counting[0].match(/\?/g)!.length).toBeLessThanOrEqual(100);
   });
 });
 
@@ -171,7 +172,7 @@ describe("what a customer did before", () => {
 });
 
 describe("the Block List", () => {
-  const onList = rulesOf({ key: "phone", op: "on_block_list", value: null });
+  const onList: Rule[] = [];
 
   it("finds a phone and an IP separately", async () => {
     await addToBlockList(d1.db, { kind: "phone", value: PHONE, note: null }, NOW);
@@ -215,12 +216,16 @@ describe("bursts", () => {
 });
 
 describe("only what the rules need is read", () => {
-  it("touches nothing for a rule on what was typed", async () => {
+  it("reads only the Block List for a rule on what was typed", async () => {
     const limit = vi.fn(async () => ({ success: true }));
-    const facts = await loadFacts(d1.db, rulesOf({ key: "pieces", op: "at_least", value: 1 }), submission, { limiter: { limit } }, NOW);
+    const statements: string[] = [];
+    const watched = drizzle({ prepare: (query: string) => (statements.push(query), d1.raw.prepare(query)) } as unknown as D1Database, { schema }) as unknown as AppDb;
+    const facts = await loadFacts(watched, rulesOf({ key: "pieces", op: "at_least", value: 1 }), submission, { limiter: { limit } }, NOW);
     expect(facts).not.toHaveProperty("windowCounts");
     expect(facts).not.toHaveProperty("history");
-    expect(facts).not.toHaveProperty("blocked");
+    expect(facts.blocked).toEqual({ phone: false, ip: false });
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toMatch(/order_block_list/);
     expect(limit).not.toHaveBeenCalled();
   });
 
@@ -270,10 +275,38 @@ describe("the store's rules and settings", () => {
     await setProtectionEnabled(d1.db, "s1", false, NOW);
     await applyTemplate(d1.db, "s1", "recommended", "fr", NOW);
     const rules = await listRules(d1.db);
-    expect(rules).toHaveLength(10);
+    expect(rules).toHaveLength(8);
     expect(rules.map((rule) => rule.name)).toEqual(templateRules("recommended", "fr").map((rule) => rule.name));
+    expect(rules.map((rule) => rule.templateRule)).toEqual(templateRules("recommended", "fr").map((rule) => rule.templateRule));
     expect(rules.every((rule) => rule.templateKey === "recommended" && rule.conditions !== null)).toBe(true);
     expect(await getProtectionConfig(d1.db, "s1")).toEqual({ enabled: true });
+  });
+
+  it("keeps a template rule's name while it is sent back unchanged, in any language, and makes it the merchant's own once renamed", async () => {
+    await applyTemplate(d1.db, "s1", "recommended", "ar", NOW);
+    const [rule] = await listRules(d1.db);
+    expect(rule).toMatchObject({ templateRule: "good_customer", name: "زبائن استلموا طلبًا" });
+    const edit = { mode: rule.mode, action: rule.action, conditions: [{ key: "delivered_before" as const, op: "at_least" as const, value: 2 }] };
+    expect(await updateRule(d1.db, rule.id, { ...edit, name: "Customers who received an order" }, NOW)).toMatchObject({ templateRule: "good_customer", name: "زبائن استلموا طلبًا", conditions: edit.conditions });
+    expect(await updateRule(d1.db, rule.id, { ...edit, name: "My regulars" }, NOW)).toMatchObject({ templateRule: null, name: "My regulars" });
+    expect(await updateRule(d1.db, rule.id, { ...edit, name: "Customers who received an order" }, NOW)).toMatchObject({ templateRule: null, name: "Customers who received an order" });
+    expect(await setRuleMode(d1.db, (await listRules(d1.db))[1].id, "active", NOW)).toMatchObject({ templateRule: "same_phone" });
+  });
+
+  it("gives a rule a person made no template rule", async () => {
+    expect((await createRule(d1.db, draft, NOW)).templateRule).toBeNull();
+    await d1.db.insert(schema.orderRules).values({ id: "odd", name: "Odd", mode: "active", action: "flag", conditionsJson: JSON.stringify(draft.conditions), templateRule: "not_a_rule", createdAt: NOW, updatedAt: NOW });
+    expect((await getRule(d1.db, "odd"))?.templateRule).toBeNull();
+  });
+
+  it("no longer shows or counts an old rule that only asks the Block List", async () => {
+    const blockOnly = JSON.stringify([{ key: "phone", op: "on_block_list", value: null }]);
+    await d1.db.insert(schema.orderRules).values({ id: "old", name: "Blocked numbers", mode: "active", action: "spam", conditionsJson: blockOnly, createdAt: NOW, updatedAt: NOW });
+    const mine = await createRule(d1.db, draft, NOW);
+    expect((await listRules(d1.db)).map((rule) => rule.id)).toEqual([mine.id]);
+    expect(await countRules(d1.db)).toBe(1);
+    expect(await getRule(d1.db, "old")).toBeNull();
+    expect(await updateRule(d1.db, "old", draft, NOW)).toBeNull();
   });
 
   it("leaves no rules after Start empty, and the App on", async () => {

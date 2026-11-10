@@ -192,6 +192,18 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
   flagged: z.number().int().optional().openapi({
     description: "1 if Order Protection flagged this order, 0 otherwise. List responses only (GET /api/orders).",
   }),
+  flagReasons: z
+    .array(
+      z.object({
+        ruleId: z.string(),
+        name: z.string(),
+        mode: z.enum(["trial", "active"]),
+        action: z.enum(["spam", "flag", "accept"]),
+        template: z.string().optional().openapi({ description: "The template rule it came from, unrenamed; clients name it in the reader's language" }),
+      }),
+    )
+    .optional()
+    .openapi({ description: "The Active Flag rules that flagged this order; empty when it was not flagged. List responses only." }),
   shipmentId: z.string().nullable().optional().openapi({ description: "The order's shipment, or null before handoff. List responses only." }),
   shipmentKind: z.enum(["carrier", "driver"]).nullable().optional().openapi({ description: "Handed to a carrier, or to the store's driver; null before handoff. List responses only." }),
   carrierName: z.string().nullable().optional().openapi({ description: "The delivery company carrying it, for a carrier shipment. List responses only." }),

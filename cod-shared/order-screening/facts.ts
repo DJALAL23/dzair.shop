@@ -117,7 +117,7 @@ async function burst(ports: ScreeningPorts, storeId: string, facts: Facts): Prom
   }
 }
 
-/** Loads each source the rules need, once; a source no rule reads is never touched. */
+/** Loads the Block List, which always applies, and each source the rules need, once; a source no rule reads is never touched. */
 export async function loadFacts(db: AppDb, rules: readonly Rule[], submission: OrderSubmission, ports: ScreeningPorts, now: string): Promise<Facts> {
   const facts = submissionFacts(submission);
   const conditions = rules.flatMap((rule) => rule.conditions);
@@ -125,14 +125,14 @@ export async function loadFacts(db: AppDb, rules: readonly Rule[], submission: O
   const [counts, past, onList, burstFact] = await Promise.all([
     needed.has("attempts") ? windowCounts(db, wantedCounts(conditions, facts, now), facts.phone) : undefined,
     needed.has("history") ? history(db, facts.phone) : undefined,
-    needed.has("block_list") ? blocked(db, facts) : undefined,
+    blocked(db, facts),
     needed.has("burst") ? burst(ports, submission.storeId, facts) : undefined,
   ]);
   return {
     ...facts,
     ...(counts ? { windowCounts: counts } : {}),
     ...(past ? { history: past } : {}),
-    ...(onList ? { blocked: onList } : {}),
+    blocked: onList,
     ...(burstFact === undefined ? {} : { burst: burstFact }),
   };
 }

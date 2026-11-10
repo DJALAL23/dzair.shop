@@ -1,12 +1,13 @@
 import { and, asc, count, desc, eq, isNull, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
-import { orderAttempts, orderBlockList, orderRules, storeOrderProtectionConfig } from "../db/schema";
+import { orderAttempts, orderBlockList, orderRules, orders, storeOrderProtectionConfig } from "../db/schema";
 import type { StoreLocale } from "../i18n/locales";
 import type { RuleMode } from "../order-screening/conditions";
 import type { AttemptSignals } from "../order-screening/facts";
-import { readStoredConditions, type Rule, type RuleDraft, type RuleMatch } from "../order-screening/rules";
+import { readsOnlyBlockList, readStoredConditions, type Rule, type RuleDraft, type RuleMatch } from "../order-screening/rules";
 import type { BlockListKind, OrderAttemptOutcome } from "../order-screening/signals";
-import { templateRules, type TemplateKey } from "../order-screening/templates";
+import type { HeldLine } from "../order-screening/screening";
+import { isTemplateName, isTemplateRuleKey, templateRules, type TemplateKey, type TemplateRuleKey } from "../order-screening/templates";
 
 export async function getProtectionConfig(db: AppDb, storeId: string) {
   return db.select({ enabled: storeOrderProtectionConfig.enabled }).from(storeOrderProtectionConfig).where(eq(storeOrderProtectionConfig.storeId, storeId)).get();
@@ -23,39 +24,51 @@ export async function setProtectionEnabled(db: AppDb, storeId: string, enabled: 
 }
 
 /** Stored rule, as the merchant sees it. `conditions` is null when it can no longer be read. */
-export interface StoredRule extends Omit<Rule, "conditions"> {
+export interface StoredRule extends Omit<Rule, "conditions" | "templateRule"> {
   conditions: Rule["conditions"] | null;
   templateKey: string | null;
+  /** The template rule it came from while unrenamed: its name is shown in the reader's language. */
+  templateRule: TemplateRuleKey | null;
   createdAt: string;
   updatedAt: string;
 }
 
 function storedRule(row: typeof orderRules.$inferSelect): StoredRule {
-  return { id: row.id, name: row.name, mode: row.mode, action: row.action, conditions: readStoredConditions(row.conditionsJson), templateKey: row.templateKey, createdAt: row.createdAt, updatedAt: row.updatedAt };
+  const templateRule = isTemplateRuleKey(row.templateRule) ? row.templateRule : null;
+  return { id: row.id, name: row.name, mode: row.mode, action: row.action, conditions: readStoredConditions(row.conditionsJson), templateKey: row.templateKey, templateRule, createdAt: row.createdAt, updatedAt: row.updatedAt };
 }
+
+/** A rule that only asks the Block List no longer runs, since the Block List acts on its own; it is not shown either. */
+const retired = (rule: StoredRule) => rule.conditions !== null && readsOnlyBlockList(rule.conditions);
 
 export async function listRules(db: AppDb): Promise<StoredRule[]> {
   const rows = await db.select().from(orderRules).orderBy(asc(orderRules.createdAt), asc(orderRules.id)).all();
-  return rows.map(storedRule);
+  return rows.map(storedRule).filter((rule) => !retired(rule));
 }
 
 export async function getRule(db: AppDb, id: string): Promise<StoredRule | null> {
   const row = await db.select().from(orderRules).where(eq(orderRules.id, id)).get();
-  return row ? storedRule(row) : null;
+  const rule = row ? storedRule(row) : null;
+  return rule && !retired(rule) ? rule : null;
 }
 
 export async function countRules(db: AppDb): Promise<number> {
-  return (await db.select({ total: count() }).from(orderRules).get())?.total ?? 0;
+  return (await listRules(db)).length;
 }
 
 export async function createRule(db: AppDb, draft: RuleDraft, now: string): Promise<StoredRule> {
-  const row = { id: crypto.randomUUID(), name: draft.name, mode: draft.mode, action: draft.action, conditionsJson: JSON.stringify(draft.conditions), templateKey: null, createdAt: now, updatedAt: now };
+  const row = { id: crypto.randomUUID(), name: draft.name, mode: draft.mode, action: draft.action, conditionsJson: JSON.stringify(draft.conditions), templateKey: null, createdAt: now, updatedAt: now, templateRule: null };
   await db.insert(orderRules).values(row);
   return storedRule(row);
 }
 
+/** Saves a rule. Sent back under its template name, in any language, it keeps that name; renamed, it becomes the merchant's own. */
 export async function updateRule(db: AppDb, id: string, draft: RuleDraft, now: string): Promise<StoredRule | null> {
-  const row = await db.update(orderRules).set({ name: draft.name, mode: draft.mode, action: draft.action, conditionsJson: JSON.stringify(draft.conditions), updatedAt: now }).where(eq(orderRules.id, id)).returning().get();
+  const current = await getRule(db, id);
+  if (!current) return null;
+  const keepsTemplateName = current.templateRule !== null && isTemplateName(current.templateRule, draft.name);
+  const naming = keepsTemplateName ? {} : { name: draft.name, templateRule: null };
+  const row = await db.update(orderRules).set({ ...naming, mode: draft.mode, action: draft.action, conditionsJson: JSON.stringify(draft.conditions), updatedAt: now }).where(eq(orderRules.id, id)).returning().get();
   return row ? storedRule(row) : null;
 }
 
@@ -71,7 +84,7 @@ export async function deleteRule(db: AppDb, id: string): Promise<boolean> {
 /** Replaces the store's rules with a Template's, and turns the App on, as one change. */
 export async function applyTemplate(db: AppDb, storeId: string, key: TemplateKey, locale: StoreLocale, now: string): Promise<void> {
   const inserts = templateRules(key, locale).map((rule, position) =>
-    db.insert(orderRules).values({ id: crypto.randomUUID(), name: rule.name, mode: rule.mode, action: rule.action, conditionsJson: JSON.stringify(rule.conditions), templateKey: key, createdAt: new Date(Date.parse(now) + position).toISOString(), updatedAt: now }),
+    db.insert(orderRules).values({ id: crypto.randomUUID(), name: rule.name, mode: rule.mode, action: rule.action, conditionsJson: JSON.stringify(rule.conditions), templateKey: key, templateRule: rule.templateRule, createdAt: new Date(Date.parse(now) + position).toISOString(), updatedAt: now }),
   );
   await db.batch([db.delete(orderRules), upsertConfig(db, storeId, true, now), ...inserts]);
 }
@@ -119,9 +132,18 @@ export interface AttemptView {
   orderNumber: string | null;
   customerName: string | null;
   total: number | null;
+  wilayaId: number | null;
+  communeId: string | null;
+  deliveryType: "home" | "stop_desk" | null;
+  /** What a Spam Order asked for; an order's own lines are on the order. */
+  lines: HeldLine[] | null;
+  phoneBlocked: boolean;
+  ipBlocked: boolean;
   matches: RuleMatch[];
   signals: AttemptSignals;
 }
+
+const submitted = (path: string) => sql.raw(`json_extract(${"order_attempts"}.submission_json, '$.data.${path}')`);
 
 const ATTEMPT_COLUMNS = {
   id: orderAttempts.id,
@@ -133,25 +155,35 @@ const ATTEMPT_COLUMNS = {
   orderNumber: orderAttempts.orderNumber,
   matchesJson: orderAttempts.matchesJson,
   signalsJson: orderAttempts.signalsJson,
-  customerName: sql<string | null>`json_extract(${orderAttempts.submissionJson}, '$.data.customerName')`,
-  total: sql<number | null>`json_extract(${orderAttempts.answerJson}, '$.price') + json_extract(${orderAttempts.answerJson}, '$.deliveryFee')`,
+  customerName: sql<string | null>`COALESCE(${submitted("customerName")}, ${orders.customerName})`,
+  total: sql<number | null>`COALESCE(json_extract(${orderAttempts.answerJson}, '$.price') + json_extract(${orderAttempts.answerJson}, '$.deliveryFee'), ${orders.codAmount})`,
+  wilayaId: sql<number | null>`COALESCE(${submitted("wilayaId")}, ${orders.wilayaId})`,
+  communeId: sql<string | null>`COALESCE(${submitted("communeId")}, ${orders.communeId})`,
+  deliveryType: sql<"home" | "stop_desk" | null>`COALESCE(json_extract(${orderAttempts.answerJson}, '$.deliveryType'), ${orders.deliveryType})`,
+  linesJson: sql<string | null>`json_extract(${orderAttempts.answerJson}, '$.lines')`,
+  phoneBlocked: sql<number>`EXISTS (SELECT 1 FROM order_block_list WHERE kind = 'phone' AND value = ${orderAttempts.phone})`,
+  ipBlocked: sql<number>`EXISTS (SELECT 1 FROM order_block_list WHERE kind = 'ip' AND value = ${orderAttempts.ipKey})`,
 };
 
-function attemptView({ matchesJson, signalsJson, ...row }: { matchesJson: string; signalsJson: string } & Omit<AttemptView, "matches" | "signals">): AttemptView {
-  return { ...row, matches: JSON.parse(matchesJson) as RuleMatch[], signals: JSON.parse(signalsJson) as AttemptSignals };
+type AttemptRow = { matchesJson: string; signalsJson: string; linesJson: string | null; phoneBlocked: number; ipBlocked: number } & Omit<AttemptView, "matches" | "signals" | "lines" | "phoneBlocked" | "ipBlocked">;
+
+function attemptView({ matchesJson, signalsJson, linesJson, phoneBlocked, ipBlocked, ...row }: AttemptRow): AttemptView {
+  return { ...row, lines: linesJson ? (JSON.parse(linesJson) as HeldLine[]) : null, phoneBlocked: Boolean(phoneBlocked), ipBlocked: Boolean(ipBlocked), matches: JSON.parse(matchesJson) as RuleMatch[], signals: JSON.parse(signalsJson) as AttemptSignals };
 }
+
+const attempts = (db: AppDb) => db.select(ATTEMPT_COLUMNS).from(orderAttempts).leftJoin(orders, eq(orders.id, orderAttempts.orderId));
 
 export async function listAttempts(db: AppDb, input: { outcome?: OrderAttemptOutcome; limit: number; offset: number }) {
   const where = input.outcome ? eq(orderAttempts.outcome, input.outcome) : undefined;
   const [rows, total] = await Promise.all([
-    db.select(ATTEMPT_COLUMNS).from(orderAttempts).where(where).orderBy(desc(orderAttempts.createdAt), desc(orderAttempts.id)).limit(input.limit).offset(input.offset).all(),
+    attempts(db).where(where).orderBy(desc(orderAttempts.createdAt), desc(orderAttempts.id)).limit(input.limit).offset(input.offset).all(),
     db.select({ total: count() }).from(orderAttempts).where(where).get(),
   ]);
   return { items: rows.map(attemptView), total: total?.total ?? 0 };
 }
 
 export async function attemptOfOrder(db: AppDb, orderId: string): Promise<AttemptView | null> {
-  const row = await db.select(ATTEMPT_COLUMNS).from(orderAttempts).where(eq(orderAttempts.orderId, orderId)).get();
+  const row = await attempts(db).where(eq(orderAttempts.orderId, orderId)).get();
   return row ? attemptView(row) : null;
 }
 

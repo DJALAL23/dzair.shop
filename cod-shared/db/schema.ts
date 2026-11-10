@@ -2263,6 +2263,8 @@ export const orderRules = sqliteTable("order_rules", {
   templateKey: text("template_key"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  /** The template rule this rule came from while it keeps the template's name: shown in each reader's language. */
+  templateRule: text("template_rule"),
 });
 
 export const orderBlockList = sqliteTable("order_block_list", {

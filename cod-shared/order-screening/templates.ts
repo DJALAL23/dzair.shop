@@ -7,8 +7,6 @@ export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 export const DEFAULT_TEMPLATE: TemplateKey = "recommended";
 
 const CONDITIONS_OF = {
-  blocked_phone: [{ key: "phone", op: "on_block_list", value: null }],
-  blocked_ip: [{ key: "ip", op: "on_block_list", value: null }],
   good_customer: [{ key: "delivered_before", op: "at_least", value: 1 }],
   same_phone: [{ key: "phone_orders", op: "at_least_in_window", value: { count: 3, windowHours: 24 } }],
   same_ip: [{ key: "ip_orders", op: "at_least_in_window", value: { count: 20, windowHours: 24 } }],
@@ -26,8 +24,6 @@ export type TemplateRuleKey = keyof typeof CONDITIONS_OF;
 
 const NAMES: Readonly<Record<StoreLocale, Record<TemplateRuleKey, string>>> = {
   en: {
-    blocked_phone: "Blocked phone numbers",
-    blocked_ip: "Blocked networks",
     good_customer: "Customers who received an order",
     same_phone: "Several orders from one phone",
     same_ip: "Many orders from one network",
@@ -38,8 +34,6 @@ const NAMES: Readonly<Record<StoreLocale, Record<TemplateRuleKey, string>>> = {
     returner: "Returned before, never delivered",
   },
   fr: {
-    blocked_phone: "Numéros bloqués",
-    blocked_ip: "Réseaux bloqués",
     good_customer: "Clients déjà livrés",
     same_phone: "Plusieurs commandes d'un même numéro",
     same_ip: "Beaucoup de commandes d'un même réseau",
@@ -50,8 +44,6 @@ const NAMES: Readonly<Record<StoreLocale, Record<TemplateRuleKey, string>>> = {
     returner: "Retours sans aucune livraison",
   },
   ar: {
-    blocked_phone: "الأرقام المحظورة",
-    blocked_ip: "الشبكات المحظورة",
     good_customer: "زبائن استلموا طلبًا",
     same_phone: "عدة طلبات من نفس الرقم",
     same_ip: "طلبات كثيرة من نفس الشبكة",
@@ -71,8 +63,6 @@ export interface TemplateRule {
 
 export const TEMPLATES: Readonly<Record<TemplateKey, readonly TemplateRule[]>> = {
   recommended: [
-    { key: "blocked_phone", action: "spam", mode: "active" },
-    { key: "blocked_ip", action: "spam", mode: "active" },
     { key: "good_customer", action: "accept", mode: "active" },
     { key: "same_phone", action: "flag", mode: "trial" },
     { key: "same_ip", action: "flag", mode: "trial" },
@@ -83,8 +73,6 @@ export const TEMPLATES: Readonly<Record<TemplateKey, readonly TemplateRule[]>> =
     { key: "returner", action: "flag", mode: "trial" },
   ],
   under_attack: [
-    { key: "blocked_phone", action: "spam", mode: "active" },
-    { key: "blocked_ip", action: "spam", mode: "active" },
     { key: "good_customer", action: "accept", mode: "active" },
     { key: "same_phone", action: "spam", mode: "active" },
     { key: "same_ip", action: "flag", mode: "active" },
@@ -97,7 +85,23 @@ export const TEMPLATES: Readonly<Record<TemplateKey, readonly TemplateRule[]>> =
   empty: [],
 };
 
+export const TEMPLATE_RULE_KEYS = Object.keys(CONDITIONS_OF) as TemplateRuleKey[];
+
+export function isTemplateRuleKey(value: unknown): value is TemplateRuleKey {
+  return typeof value === "string" && (TEMPLATE_RULE_KEYS as readonly string[]).includes(value);
+}
+
+/** A template rule's name, in the language a person reads it in. */
+export function templateRuleName(key: TemplateRuleKey, locale: StoreLocale): string {
+  return NAMES[locale][key];
+}
+
+/** Whether a name is the one a template gave this rule, in any language: the rule was not renamed. */
+export function isTemplateName(key: TemplateRuleKey, name: string): boolean {
+  return Object.values(NAMES).some((names) => names[key] === name.trim());
+}
+
 /** A Template's rules as a person would have written them, named in the store's language. */
 export function templateRules(key: TemplateKey, locale: StoreLocale) {
-  return TEMPLATES[key].map((rule) => ({ name: NAMES[locale][rule.key], mode: rule.mode, action: rule.action, conditions: CONDITIONS_OF[rule.key] as readonly Condition[] }));
+  return TEMPLATES[key].map((rule) => ({ templateRule: rule.key, name: NAMES[locale][rule.key], mode: rule.mode, action: rule.action, conditions: CONDITIONS_OF[rule.key] as readonly Condition[] }));
 }

@@ -101,7 +101,7 @@ export const windowCountKey = (key: ConditionKey, windowHours: number) => `${key
 type ListItem = (raw: unknown, op: Operator) => string | number | null;
 
 export interface ConditionSpec {
-  group: "who" | "typed";
+  group: "who" | "typed" | "history";
   operators: readonly Operator[];
   source: FactSource;
   fact(facts: Facts, condition: Condition): unknown;
@@ -139,7 +139,7 @@ const counted = (key: ConditionKey): ConditionSpec => ({
   fact: (facts, condition) => facts.windowCounts?.[windowCountKey(key, (condition.value as WindowValue).windowHours)],
 });
 
-const quantity = (fact: ConditionSpec["fact"], source: FactSource): ConditionSpec => ({ group: "typed", operators: ["at_least", "at_most"], source, fact });
+const quantity = (fact: ConditionSpec["fact"], source: FactSource, group: ConditionSpec["group"] = "typed"): ConditionSpec => ({ group, operators: ["at_least", "at_most"], source, fact });
 
 const onList = (fact: ConditionSpec["fact"], blocked: "phone" | "ip"): ConditionSpec["fact"] => (facts, condition) =>
   condition.op === "on_block_list" ? facts.blocked?.[blocked] : fact(facts, condition);
@@ -164,8 +164,8 @@ export const CONDITIONS: Readonly<Record<ConditionKey, ConditionSpec>> = {
   product: { group: "typed", operators: ["one_of"], source: "submission", fact: (facts) => facts.productIds, item: idItem },
   pieces: quantity((facts) => facts.pieces, "submission"),
   delivery_type: { group: "typed", operators: ["one_of"], source: "submission", fact: (facts) => facts.deliveryType, options: DELIVERY_TYPES },
-  delivered_before: quantity((facts) => facts.history?.delivered, "history"),
-  returned_before: quantity((facts) => facts.history?.returned, "history"),
+  delivered_before: quantity((facts) => facts.history?.delivered, "history", "history"),
+  returned_before: quantity((facts) => facts.history?.returned, "history", "history"),
 };
 
 /** Where a Condition's data comes from: a Block List operator reads the list, whatever the Condition. */

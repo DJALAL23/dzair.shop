@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CONDITION_KEYS, CONDITIONS, RULE_LIMITS, conditionHolds, parseCondition, sourceOf, type Condition, type Facts, type RuleAction, type RuleMode } from "./conditions";
-import { decide, parseRule, readStoredConditions, type Rule } from "./rules";
+import { decide, parseRule, readsOnlyBlockList, readStoredConditions, type Rule } from "./rules";
 import { ipKey } from "./signals";
-import { DEFAULT_TEMPLATE, TEMPLATE_KEYS, TEMPLATES, templateRules } from "./templates";
+import { DEFAULT_TEMPLATE, isTemplateName, isTemplateRuleKey, TEMPLATE_KEYS, TEMPLATE_RULE_KEYS, TEMPLATES, templateRuleName, templateRules } from "./templates";
 
 const FACTS: Facts = {
   phone: "0551234567",
@@ -305,7 +305,6 @@ describe("decide", () => {
   });
 
   describe("precedence, whatever the order of the rules", () => {
-    const onList: Facts = { ...FACTS, blocked: { phone: true, ip: false } };
     const both = <T>(a: T, b: T) => [[a, b], [b, a]];
 
     it.each(both("accept", "spam"))("Always accept beats To Spam (%s, %s)", (a, b) => {
@@ -320,20 +319,51 @@ describe("decide", () => {
       expect(decide([rule(a as RuleAction, "active", [yes]), rule(b as RuleAction, "active", [yes])], FACTS).verdict).toBe("accept");
     });
 
-    it("a hand-blocked number stays blocked, even when another rule accepts it", () => {
-      const block = rule("spam", "active", [blockedPhone]);
+  });
+
+  describe("the Block List, which needs no rule", () => {
+    const onList = (blocked: Facts["blocked"]): Facts => ({ ...FACTS, blocked });
+    const PHONE = { ruleId: "block-list:phone", name: "Block List", mode: "active", action: "spam", blockList: "phone" };
+    const IP = { ruleId: "block-list:ip", name: "Block List", mode: "active", action: "spam", blockList: "ip" };
+
+    it("sends a blocked number to Spam with no rule at all", () => {
+      expect(decide([], onList({ phone: true, ip: false }))).toEqual({ verdict: "spam", matches: [PHONE] });
+    });
+
+    it("sends a blocked network to Spam, and says which of the two was blocked", () => {
+      expect(decide([], onList({ phone: false, ip: true }))).toEqual({ verdict: "spam", matches: [IP] });
+      expect(decide([], onList({ phone: true, ip: true })).matches).toEqual([PHONE, IP]);
+    });
+
+    it("beats Always accept, and still records every rule that matched", () => {
       const accept = rule("accept", "active", [yes]);
-      expect(decide([accept, block], onList).verdict).toBe("spam");
-      expect(decide([block, accept], onList).verdict).toBe("spam");
+      const trial = rule("flag", "trial", [yes]);
+      const decision = decide([accept, trial], onList({ phone: true, ip: false }));
+      expect(decision.verdict).toBe("spam");
+      expect(decision.matches.map((match) => match.ruleId)).toEqual(["block-list:phone", accept.id, trial.id]);
     });
 
-    it("a Block List rule that only flags does not outrank Always accept", () => {
-      expect(decide([rule("flag", "active", [blockedPhone]), rule("accept", "active", [yes])], onList).verdict).toBe("accept");
+    it("does nothing for a number that is not on it", () => {
+      expect(decide([], onList({ phone: false, ip: false }))).toEqual({ verdict: "accept", matches: [] });
+      expect(decide([], FACTS)).toEqual({ verdict: "accept", matches: [] });
     });
 
-    it("a Trial Block List rule does not decide", () => {
-      expect(decide([rule("spam", "trial", [blockedPhone]), rule("accept", "active", [yes])], onList).verdict).toBe("accept");
+    it("no longer runs an old rule that only asks the Block List", () => {
+      expect(readsOnlyBlockList([blockedPhone])).toBe(true);
+      expect(readsOnlyBlockList([blockedPhone, yes])).toBe(false);
+      expect(readsOnlyBlockList([])).toBe(false);
+      expect(decide([rule("spam", "active", [blockedPhone])], onList({ phone: true, ip: false })).matches).toEqual([PHONE]);
+      expect(decide([rule("accept", "active", [blockedPhone])], onList({ phone: false, ip: false })).matches).toEqual([]);
     });
+  });
+
+  it("names the template rule a match came from, so it reads in each language", () => {
+    const fromTemplate = { ...rule("flag", "active", [yes]), templateRule: "same_phone" as const };
+    const ownRule = { ...rule("flag", "active", [yes]), templateRule: null };
+    expect(decide([fromTemplate, ownRule], FACTS).matches).toEqual([
+      { ruleId: fromTemplate.id, name: fromTemplate.name, mode: "active", action: "flag", template: "same_phone" },
+      { ruleId: ownRule.id, name: ownRule.name, mode: "active", action: "flag" },
+    ]);
   });
 });
 
@@ -366,7 +396,8 @@ describe("Templates", () => {
   });
 
   it.each(TEMPLATE_KEYS.flatMap((key) => (["en", "fr", "ar"] as const).map((locale) => [key, locale] as const)))("%s in %s is made of rules a person could write", (key, locale) => {
-    for (const draft of templateRules(key, locale)) {
+    for (const { templateRule, ...draft } of templateRules(key, locale)) {
+      expect(isTemplateRuleKey(templateRule)).toBe(true);
       expect(parseRule(JSON.parse(JSON.stringify(draft)))).toEqual({ ok: true, rule: JSON.parse(JSON.stringify(draft)) });
     }
   });
@@ -376,9 +407,10 @@ describe("Templates", () => {
     expect(TEMPLATES.under_attack.find((rule) => rule.key === "same_ip")).toMatchObject({ action: "flag" });
   });
 
-  it("acts by default only on what the merchant blocked and on proven customers", () => {
+  it("acts by default only on proven customers: the Block List needs no rule", () => {
     const active = TEMPLATES.recommended.filter((rule) => rule.mode === "active").map((rule) => rule.key);
-    expect(active).toEqual(["blocked_phone", "blocked_ip", "good_customer"]);
+    expect(active).toEqual(["good_customer"]);
+    for (const key of TEMPLATE_KEYS) expect(templateRules(key, "en").some((draft) => readsOnlyBlockList(draft.conditions))).toBe(false);
   });
 
   it("never acts in the default on what only a browser says", () => {
@@ -393,9 +425,21 @@ describe("Templates", () => {
     expect(TEMPLATES.under_attack.find((rule) => rule.key === "fast_fill")).toMatchObject({ action: "flag", mode: "active" });
   });
 
-  it("names rules in the store's language", () => {
-    expect(templateRules("recommended", "ar")[0].name).toBe("الأرقام المحظورة");
-    expect(templateRules("recommended", "fr")[0].name).toBe("Numéros bloqués");
+  it("names rules in the store's language, and knows each name in every language", () => {
+    expect(templateRules("recommended", "ar")[0]).toMatchObject({ templateRule: "good_customer", name: "زبائن استلموا طلبًا" });
+    expect(templateRules("recommended", "fr")[0].name).toBe("Clients déjà livrés");
+    expect(templateRuleName("good_customer", "en")).toBe("Customers who received an order");
+    expect(isTemplateName("good_customer", " Clients déjà livrés ")).toBe(true);
+    expect(isTemplateName("good_customer", "زبائن استلموا طلبًا")).toBe(true);
+    expect(isTemplateName("good_customer", "My good customers")).toBe(false);
+    expect(isTemplateName("same_phone", "Clients déjà livrés")).toBe(false);
+  });
+
+  it("knows exactly its own rule keys", () => {
+    expect(TEMPLATE_RULE_KEYS).toEqual(["good_customer", "same_phone", "same_ip", "burst", "same_device", "many_numbers", "fast_fill", "returner"]);
+    expect(isTemplateRuleKey("same_phone")).toBe(true);
+    expect(isTemplateRuleKey("blocked_phone")).toBe(false);
+    expect(isTemplateRuleKey(7)).toBe(false);
   });
 
   it("adds nothing for Start empty", () => {

@@ -43,6 +43,7 @@ import { safeLikeTerm } from "./search";
 import { orderNeedsAttentionSql, orderStageSql } from "../orders/stage-sql";
 import type { OrderStage } from "../orders/stage";
 import type { ShipmentKind } from "../shipments/model";
+import type { RuleMatch } from "../order-screening/rules";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 import { linesToRestock, restockStatements } from "../inventory/restock";
@@ -171,7 +172,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     }
   }
 
-  return db
+  const rows = await db
     .select({
       ...orderResponseColumns,
       wilaya: wilayas.nameAr,
@@ -187,6 +188,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
       trackingNumber: sql<string | null>`${shipments.trackingNumber}`,
       stage: orderStageSql(),
       needsAttention: orderNeedsAttentionSql(),
+      flagMatchesJson: sql<string | null>`(SELECT order_attempts.matches_json FROM order_attempts WHERE order_attempts.order_id = orders.id AND order_attempts.outcome = 'flagged' LIMIT 1)`,
     })
     .from(orders)
     .leftJoin(wilayas, eq(orders.wilayaId, wilayas.id))
@@ -199,6 +201,18 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     .limit(filters.limit ?? 50)
     .offset(offset)
     .all();
+  return rows.map(({ flagMatchesJson, ...row }) => ({ ...row, flagReasons: flagReasonsOf(flagMatchesJson) }));
+}
+
+/** The Active Flag rules that flagged an order: what its flag says when pointed at. */
+function flagReasonsOf(matchesJson: string | null): RuleMatch[] {
+  if (!matchesJson) return [];
+  try {
+    const matches: unknown = JSON.parse(matchesJson);
+    return Array.isArray(matches) ? (matches as RuleMatch[]).filter((match) => match?.mode === "active" && match.action === "flag") : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getOrderById(db: AppDb, orderId: string) {

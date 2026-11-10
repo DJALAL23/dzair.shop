@@ -83,7 +83,8 @@ describe("the App's state", () => {
     const { status, body } = await admin.post(`${BASE}/template`, { key: "recommended" });
     expect(status).toBe(200);
     expect(body.data.enabled).toBe(true);
-    expect(body.data.rules.map((rule: any) => rule.name)).toContain("Numéros bloqués");
+    expect(body.data.rules).toHaveLength(8);
+    expect(body.data.rules[0]).toMatchObject({ name: "Clients déjà livrés", templateRule: "good_customer" });
     expect((await admin.get("/api/apps")).body.data.find((app: any) => app.key === "order-protection").status).toBe("on");
   });
 
@@ -92,7 +93,7 @@ describe("the App's state", () => {
     expect((await admin.put(BASE, { enabled: false })).body.data).toEqual({ enabled: false });
     const { body } = await admin.get(BASE);
     expect(body.data.enabled).toBe(false);
-    expect(body.data.rules).toHaveLength(10);
+    expect(body.data.rules).toHaveLength(8);
     expect((await admin.get("/api/apps")).body.data.find((app: any) => app.key === "order-protection").status).toBe("off");
   });
 
@@ -184,6 +185,9 @@ describe("the Spam page", () => {
     expect(body.data[0].signals).toEqual({ visitSource: "tiktok", fillSeconds: 2 });
     expect(body.total).toBe(1);
     expect(body.data[0]).toMatchObject({ id: held.orderId, customerName: "Amel Kaci", total: 6600, phone: PHONE, outcome: "spam", matches: [{ name: "Bloqué" }] });
+    expect(body.data[0]).toMatchObject({ wilayaId: 16, communeId: "c-16-001", deliveryType: "home", lines: [{ name: "Robe", variantLabel: null, quantity: 2 }], phoneBlocked: false, ipBlocked: false });
+    await admin.post(`${BASE}/block-list`, { kind: "phone", value: PHONE });
+    expect((await admin.get(`${BASE}/attempts?outcome=spam`)).body.data[0]).toMatchObject({ phoneBlocked: true, ipBlocked: false });
     expect(JSON.stringify(body)).not.toContain("submission");
   });
 
@@ -272,6 +276,8 @@ describe("a flagged order", () => {
     const all = (await admin.get("/api/orders")).body.data;
     expect(all.find((order: any) => order.id === "10").flagged).toBe(1);
     expect(all.find((order: any) => order.id === "11").flagged).toBe(0);
+    expect(all.find((order: any) => order.id === "10").flagReasons).toEqual([{ ruleId: "r", name: "Trop", mode: "active", action: "flag" }]);
+    expect(all.find((order: any) => order.id === "11").flagReasons).toEqual([]);
     const only = (await admin.get("/api/orders?flagged=true")).body.data;
     expect(only.map((order: any) => order.id)).toEqual(["10"]);
   });

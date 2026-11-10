@@ -14,7 +14,7 @@ import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import { RULE_LIMITS, RULE_MODES } from "../../../../cod-shared/order-screening/conditions";
 import { parseRule } from "../../../../cod-shared/order-screening/rules";
 import { APP_SOURCES, blockListValue, BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES, VISIT_SOURCES } from "../../../../cod-shared/order-screening/signals";
-import { TEMPLATE_KEYS } from "../../../../cod-shared/order-screening/templates";
+import { TEMPLATE_KEYS, TEMPLATE_RULE_KEYS } from "../../../../cod-shared/order-screening/templates";
 import * as protection from "../../../../cod-shared/queries/order-protection";
 import { assertOrderable, commitOrder, orderLines, quoteOrder } from "../store/place-order";
 import * as storeQueries from "../store/queries";
@@ -37,6 +37,7 @@ const RuleSchema = z.object({
   action: z.enum(["spam", "flag", "accept"]),
   conditions: z.array(ConditionSchema).nullable().openapi({ description: "Null when this version can no longer read the rule; it is then skipped." }),
   templateKey: z.string().nullable(),
+  templateRule: z.enum(TEMPLATE_RULE_KEYS).nullable().openapi({ description: "The template rule it came from while it keeps the template's name; clients show that name in the reader's language" }),
   matchesLastWeek: z.number().int().openapi({ description: "Attempts this rule matched in the last 7 days" }),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -155,6 +156,15 @@ async function removeFromBlockList(c: Context<AppContext>) {
 
 const ActivityQuery = PageQuery.extend({ outcome: z.enum(ORDER_ATTEMPT_OUTCOMES).optional() });
 
+export const RuleMatchSchema = z.object({
+  ruleId: z.string(),
+  name: z.string(),
+  mode: z.enum(["trial", "active"]),
+  action: z.enum(["spam", "flag", "accept"]),
+  template: z.enum(TEMPLATE_RULE_KEYS).optional().openapi({ description: "The template rule it came from, unrenamed" }),
+  blockList: z.enum(BLOCK_LIST_KINDS).optional().openapi({ description: "Set on the match the Block List itself makes: the phone number or the network is blocked" }),
+});
+
 const AttemptSchema = z.object({
   id: z.string(),
   createdAt: z.string(),
@@ -165,7 +175,13 @@ const AttemptSchema = z.object({
   orderNumber: z.string().nullable(),
   customerName: z.string().nullable(),
   total: z.number().nullable(),
-  matches: z.array(z.object({ ruleId: z.string(), name: z.string(), mode: z.enum(["trial", "active"]), action: z.enum(["spam", "flag", "accept"]) })),
+  wilayaId: z.number().int().nullable(),
+  communeId: z.string().nullable(),
+  deliveryType: z.enum(["home", "stop_desk"]).nullable(),
+  lines: z.array(z.object({ name: z.string(), variantLabel: z.string().nullable(), quantity: z.number().int() })).nullable().openapi({ description: "What a Spam Order asked for; an order's own lines are on the order" }),
+  phoneBlocked: z.boolean(),
+  ipBlocked: z.boolean(),
+  matches: z.array(RuleMatchSchema),
   signals: z.object({ fillSeconds: z.number().optional(), visitSource: z.enum(VISIT_SOURCES).optional(), appSource: z.enum(APP_SOURCES).optional(), networkCountry: z.string().optional() }),
 });
 
