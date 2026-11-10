@@ -60,14 +60,14 @@ const config: ZudokuConfig = {
               href: "https://www.npmjs.com/package/@wocart/storefront",
             },
             { label: "@wocart/theme", href: "https://www.npmjs.com/package/@wocart/theme" },
-            { label: "GitHub", href: "https://github.com/bighadj22/codflow" },
+            { label: "GitHub", href: "https://github.com/bighadj22/Wocart" },
           ],
         },
       ],
       social: [
         {
           icon: "github",
-          href: "https://github.com/bighadj22/codflow",
+          href: "https://github.com/bighadj22/Wocart",
         },
       ],
       copyright: `© ${new Date().getFullYear()} Wocart. Built for Algerian commerce.`,

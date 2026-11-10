@@ -3,7 +3,7 @@ name: wocart-update
 description: >-
   Update runbook for a self-hosted Wocart store (formerly CodFlow) that is
   already set up. An AI agent following it brings the existing checkout to the
-  latest code from https://github.com/bighadj22/codflow (branch main): it backs
+  latest code from https://github.com/bighadj22/Wocart (branch main): it backs
   up the database and the configuration, merges the code, adds what the new
   templates need to the gitignored configuration while keeping the store's
   resource IDs, names, domains and secrets, creates only the resources and
@@ -24,7 +24,7 @@ gitignored and holds the store's own IDs and domains. This runbook brings it
 to the latest code **without** re-running setup, re-creating resources,
 regenerating secrets or re-seeding the store.
 
-**Source:** `https://github.com/bighadj22/codflow`, branch `main`. Never a
+**Source:** `https://github.com/bighadj22/Wocart`, branch `main`. Never a
 fork, never another branch.
 
 **What each release asks for** is listed, newest first, in
@@ -62,8 +62,8 @@ for the migrations this store has not applied yet.
 
    Anything missing: stop, this is not a finished setup; use `wocart-setup`.
 2. **The right repository:** `git remote get-url origin` should end in
-   `bighadj22/codflow.git`. If not, ask where they take updates from, or add
-   it: `git remote add upstream https://github.com/bighadj22/codflow.git` and
+   `bighadj22/Wocart.git`. If not, ask where they take updates from, or add
+   it: `git remote add upstream https://github.com/bighadj22/Wocart.git` and
    use `upstream` instead of `origin` below.
 3. **Signed in:** `npx wrangler whoami`.
 4. **No local edits in the way:** `git status --porcelain`. The gitignored

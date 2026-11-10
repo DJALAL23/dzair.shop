@@ -20,7 +20,7 @@ issues, discussions, or pull requests.
 Instead, report them privately through **GitHub private vulnerability
 reporting** for this repository:
 
-`https://github.com/bighadj22/codflow/security/advisories/new`
+`https://github.com/bighadj22/Wocart/security/advisories/new`
 
 If private vulnerability reporting is unavailable for the report, email the
 maintainers at `124762008+bighadj22@users.noreply.github.com`.
