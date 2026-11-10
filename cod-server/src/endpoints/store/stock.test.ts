@@ -172,8 +172,7 @@ describe("checkStoreOrderStock — simple product (no variants)", () => {
   it("blocks when stock = 0", async () => {
     await seedProduct("prod_1", true, 0);
     const result = await check({ quantity: 1 });
-    expect(result).not.toBeNull();
-    expect(typeof result).toBe("string");
+    expect(result).toMatchObject({ productId: "prod_1", variantId: null, message: expect.any(String) });
   });
 
   it("blocks when quantity > stock", async () => {
@@ -200,8 +199,7 @@ describe("checkStoreOrderStock — single variant", () => {
     await seedProduct("prod_1", true, 0);
     await seedVariant("prod_1", "var_1", 0);
     const result = await check({ variantId: "var_1", quantity: 1 });
-    expect(result).not.toBeNull();
-    expect(typeof result).toBe("string");
+    expect(result).toMatchObject({ productId: "prod_1", variantId: "var_1", message: expect.any(String) });
   });
 
   it("blocks when quantity > variant stock", async () => {
@@ -228,8 +226,7 @@ describe("checkStoreOrderStock — single variant", () => {
       variantId: "var-004-6",
       quantity: 1,
     });
-    expect(result).not.toBeNull();
-    expect(typeof result).toBe("string");
+    expect(result).toMatchObject({ productId: "prod-004", variantId: "var-004-6" });
   });
 });
 
@@ -323,7 +320,8 @@ describe("checkStoreOrderStock — baskets", () => {
       ],
     });
     // The shopper must be told WHICH item failed, not just that something did.
-    expect(result).toContain("Mug");
+    expect(result).toMatchObject({ productId: "prod_b", variantId: null });
+    expect(result?.message).toContain("Mug");
   });
 
   it("checks a product's lines independently, not by its total", async () => {
@@ -366,7 +364,7 @@ describe("checkStoreOrderStock — baskets", () => {
           { productId: "prod_short", productName: "Tracked", quantity: 2 },
         ],
       }),
-    ).toContain("Tracked");
+    ).toMatchObject({ productId: "prod_short", message: expect.stringContaining("Tracked") });
   });
 
   it("refuses a basket that breaks its own bounds before any stock lookup", async () => {

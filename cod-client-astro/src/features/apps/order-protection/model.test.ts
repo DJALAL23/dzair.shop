@@ -117,6 +117,9 @@ describe("what the merchant is told", () => {
     ["SPAM_ORDER_ALREADY_RESCUED", "spam.rescue_already"],
     ["DELIVERY_NOT_AVAILABLE", "spam.rescue_no_delivery"],
     ["COUPON_NOT_APPLICABLE", "spam.rescue_coupon"],
+    ["PRODUCT_NOT_FOUND", "spam.rescue_unavailable"],
+    ["VARIANT_NOT_FOUND", "spam.rescue_unavailable"],
+    ["REQUIRED_FIELD_MISSING", "spam.rescue_no_sku"],
     ["OTHER", "spam.rescue_failed"],
   ])("a refused Rescue with %s reads %s", (code, key) => {
     expect(rescueErrorKey({ code })).toBe(key);

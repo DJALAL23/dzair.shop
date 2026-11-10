@@ -272,9 +272,7 @@ describe("Store API routes (OpenAPIHono)", () => {
         products: new Map(), variants: new Map(), offers: [],
       } as any);
       vi.mocked(queries.findMissingSku).mockReturnValue(null as any);
-      vi.mocked(queries.findStockShortfall).mockReturnValue(
-        "Not enough stock — available: 1"
-      );
+      vi.mocked(queries.findStockShortfall).mockReturnValue({ message: "Not enough stock", productId: "prod_1", variantId: null });
 
       const res = await app.request("/store/orders", {
         method: "POST",
@@ -285,6 +283,7 @@ describe("Store API routes (OpenAPIHono)", () => {
       expect(res.status).toBe(422);
       const body: any = await res.json();
       expect(body.code).toBe(ERROR_CODES.INSUFFICIENT_STOCK);
+      expect(body.context).toEqual({ productId: "prod_1" });
     });
 
     it("rejects a cart over the line cap with 4xx, not a 500", async () => {

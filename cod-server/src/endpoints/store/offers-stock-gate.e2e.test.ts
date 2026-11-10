@@ -133,8 +133,7 @@ describe("checkStoreOrderStock — stock × offer", () => {
     await seedProduct();
     await seedVariant("var-001-1", 0);
     const error = await check({ variantId: "var-001-1", quantity: 2 });
-    expect(error).not.toBeNull();
-    expect(typeof error).toBe("string");
+    expect(error).toMatchObject({ productId: "prod-001", variantId: "var-001-1" });
   });
 
   it("E3: qty exactly equals variant stock → passes (stock gate uses >=, not >)", async () => {

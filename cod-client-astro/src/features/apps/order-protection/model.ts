@@ -116,5 +116,7 @@ export function rescueErrorKey(cause: unknown): string {
   if (code === ERROR_CODES.SPAM_ORDER_ALREADY_RESCUED) return "spam.rescue_already";
   if (code === ERROR_CODES.DELIVERY_NOT_AVAILABLE) return "spam.rescue_no_delivery";
   if (code === ERROR_CODES.COUPON_NOT_APPLICABLE) return "spam.rescue_coupon";
+  if (code === ERROR_CODES.PRODUCT_NOT_FOUND || code === ERROR_CODES.VARIANT_NOT_FOUND) return "spam.rescue_unavailable";
+  if (code === ERROR_CODES.REQUIRED_FIELD_MISSING) return "spam.rescue_no_sku";
   return "spam.rescue_failed";
 }

@@ -432,6 +432,8 @@
       "rescue_already": "This order was already rescued.",
       "rescue_no_delivery": "You no longer deliver to this place.",
       "rescue_coupon": "Its coupon no longer applies.",
+      "rescue_unavailable": "A product or option in this order can no longer be ordered: it is a draft, archived, deleted or turned off.",
+      "rescue_no_sku": "A product in this order has no SKU. Add one, then rescue it again.",
       "rescue_failed": "This order could not be rescued. Please try again.",
       "line": "{name} × {quantity}",
       "also": "Also matched: {rules}",

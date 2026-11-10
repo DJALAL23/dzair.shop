@@ -440,6 +440,8 @@
       "rescue_already": "Cette commande a déjà été récupérée.",
       "rescue_no_delivery": "Vous ne livrez plus à cet endroit.",
       "rescue_coupon": "Son code promo ne s'applique plus.",
+      "rescue_unavailable": "Un produit ou une option de cette commande ne peut plus être commandé : brouillon, archivé, supprimé ou désactivé.",
+      "rescue_no_sku": "Un produit de cette commande n'a pas de SKU. Ajoutez-en un, puis récupérez-la à nouveau.",
       "rescue_failed": "Cette commande n'a pas pu être récupérée. Veuillez réessayer.",
       "line": "{name} × {quantity}",
       "also": "Correspond aussi à : {rules}",

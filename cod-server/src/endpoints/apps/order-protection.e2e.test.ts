@@ -249,6 +249,16 @@ describe("Rescue", () => {
     expect((await attempt(held.orderId)).submissionJson).not.toBeNull();
   });
 
+  it("refuses with the reason when its product can no longer be ordered, and the order waits in Spam", async () => {
+    const held = await spamOrder();
+    await d1.db.update(schema.products).set({ status: "DRAFT" });
+    const { status, body } = await admin.post(`${BASE}/spam/${held.orderId}/rescue`);
+    expect(status).toBe(422);
+    expect(body.code).toBe(ERROR_CODES.PRODUCT_NOT_FOUND);
+    expect(await count("orders")).toBe(0);
+    expect(await attempt(held.orderId)).toMatchObject({ outcome: "spam", orderId: null });
+  });
+
   it("can be tried again once the stock is back", async () => {
     const held = await spamOrder(6);
     await admin.post(`${BASE}/spam/${held.orderId}/rescue`);

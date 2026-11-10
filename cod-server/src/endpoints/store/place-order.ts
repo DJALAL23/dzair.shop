@@ -17,8 +17,14 @@ export function orderLines(data: StoreOrderInput): CartLine[] {
   }
 }
 
-/** Every line has a SKU and the stock to cover it. */
+/** Every line can be ordered, has a SKU, and has the stock to cover it. Each refusal names its line. */
 export function assertOrderable(snapshot: queries.CatalogSnapshot, lines: CartLine[]): void {
+  const unorderable = queries.findUnorderableLine(snapshot, lines);
+  if (unorderable) {
+    throw unorderable.variantId
+      ? new BusinessLogicError(`Variant ${unorderable.variantId} can no longer be ordered`, ERROR_CODES.VARIANT_NOT_FOUND, { ...unorderable })
+      : new BusinessLogicError(`Product ${unorderable.productId} can no longer be ordered`, ERROR_CODES.PRODUCT_NOT_FOUND, { ...unorderable });
+  }
   const skuMissing = queries.findMissingSku(snapshot, lines);
   if (skuMissing) {
     throw new BusinessLogicError(
@@ -27,9 +33,10 @@ export function assertOrderable(snapshot: queries.CatalogSnapshot, lines: CartLi
       { [skuMissing.missing === "variant" ? "variantId" : "productId"]: skuMissing.id }
     );
   }
-  const stockError = queries.findStockShortfall(snapshot, lines);
-  if (stockError) {
-    throw new BusinessLogicError(stockError, ERROR_CODES.INSUFFICIENT_STOCK);
+  const shortfall = queries.findStockShortfall(snapshot, lines);
+  if (shortfall) {
+    const { message, productId, variantId } = shortfall;
+    throw new BusinessLogicError(message, ERROR_CODES.INSUFFICIENT_STOCK, variantId ? { productId, variantId } : { productId });
   }
 }
 

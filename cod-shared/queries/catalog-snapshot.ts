@@ -250,6 +250,30 @@ async function extendSnapshot(
 
 // ─── Pure questions over the snapshot ────────────────────────────────────────
 
+/** A product orders when it is active and visible. One hidden from the store still sells: a landing page links it deliberately. */
+function productSells(product: CatalogProduct | undefined): product is CatalogProduct {
+  return product != null && product.status === "ACTIVE" && product.visibility;
+}
+
+/** A line's variant, when it names one, is an active option of the line's product. */
+function variantSells(snapshot: CatalogSnapshot, line: CartLine): boolean {
+  if (line.variantId == null) return true;
+  const variant = snapshot.variants.get(line.variantId);
+  return variant != null && variant.productId === line.productId && variant.active;
+}
+
+/** The first line that can no longer be ordered, in basket order: its product, or its variant when only the variant is the reason. */
+export function findUnorderableLine(
+  snapshot: CatalogSnapshot,
+  lines: CartLine[],
+): { productId: string; variantId?: string } | null {
+  for (const line of lines) {
+    if (!productSells(snapshot.products.get(line.productId))) return { productId: line.productId };
+    if (!variantSells(snapshot, line)) return { productId: line.productId, variantId: line.variantId! };
+  }
+  return null;
+}
+
 /**
  * The first line whose SKU is missing, in basket order.
  *
@@ -272,22 +296,29 @@ export function findMissingSku(
   return null;
 }
 
+/** A line the stock cannot cover: the shopper's sentence, and which line it is. */
+export interface StockShortfall {
+  message: string;
+  productId: string;
+  variantId: string | null;
+}
+
 /**
- * A customer-facing Arabic message naming the first line that cannot be
- * satisfied, or null when the whole basket can.
+ * The first line the stock cannot cover, or null when the whole basket can:
+ * an Arabic sentence naming it, and the line, so a theme can name it in the
+ * shopper's language.
  *
  * This is a *pre-flight* courtesy so the shopper gets a clear message instead
  * of a rollback. It is NOT the safety net: two shoppers can pass it at the
  * same instant for the last unit. The real guarantee is the guarded deduction
  * in the commit batch, which is race-free.
  *
- * A product the snapshot does not know is passed over rather than blocked —
- * the order engine refuses it for real, with a precise error code.
+ * A line that cannot be ordered at all is `findUnorderableLine`'s to refuse.
  */
 export function findStockShortfall(
   snapshot: CatalogSnapshot,
   lines: CartLine[],
-): string | null {
+): StockShortfall | null {
   const basket = lines.length > 1;
 
   for (const line of lines) {
@@ -299,14 +330,16 @@ export function findStockShortfall(
     if (line.variantId) {
       const available = snapshot.variants.get(line.variantId)?.inventory ?? 0;
       if (available < line.quantity) {
-        return basket
+        const message = basket
           ? `"${product.name}" غير متوفر بالكمية المطلوبة بالخيار المحدد.`
           : "هذا المنتج غير متوفر بالخيار المطلوب. يرجى اختيار خياراً آخر.";
+        return { message, productId: line.productId, variantId: line.variantId };
       }
     } else if (product.inventory < line.quantity) {
-      return basket
+      const message = basket
         ? `"${product.name}" غير متوفر بالكمية المطلوبة.`
         : "هذا المنتج غير متوفر حالياً.";
+      return { message, productId: line.productId, variantId: null };
     }
   }
 
@@ -540,12 +573,7 @@ export function resolveCartLines(
     const product = snapshot.products.get(line.productId);
     const variant = line.variantId ? snapshot.variants.get(line.variantId) : undefined;
 
-    const sellable =
-      product != null &&
-      product.status === "ACTIVE" &&
-      product.visibility &&
-      product.showInStore &&
-      (line.variantId == null || (variant != null && variant.active));
+    const sellable = productSells(product) && product.showInStore && variantSells(snapshot, line);
 
     const maxQuantity = !product?.trackInventory
       ? null

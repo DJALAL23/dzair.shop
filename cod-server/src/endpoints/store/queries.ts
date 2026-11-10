@@ -10,6 +10,7 @@ export { getPageDocument } from "../../../../cod-shared/queries/page-documents";
 export {
   loadCatalogSnapshot,
   findMissingSku,
+  findUnorderableLine,
   findStockShortfall,
   priceCartLines,
   resolveCartLines,
