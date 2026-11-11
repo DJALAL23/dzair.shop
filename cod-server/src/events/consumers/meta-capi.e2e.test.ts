@@ -211,6 +211,24 @@ describe("the delivered stage", () => {
     expect(await skipReasons()).toContain("This order's delivered Purchase was already sent to Meta");
   });
 
+  it("waits for the delivery itself in Aïn Defla, a northern wilaya", async () => {
+    await tracking("Purchase_Delivered");
+    const [ainDefla] = await d1.db.select({ id: schema.communes.id }).from(schema.communes).where(eq(schema.communes.wilayaId, 44)).limit(1).all();
+    const orderId = await checkout({ wilayaId: 44, communeId: ainDefla!.id });
+    await delivered(orderId, new Date().toISOString(), ["out_for_delivery"]);
+    await drain(env());
+    expect(sent).toEqual([]);
+  });
+
+  it("sends it on the way out for Djanet, a deep-south wilaya", async () => {
+    await tracking("Purchase_Delivered");
+    const [djanet] = await d1.db.select({ id: schema.communes.id }).from(schema.communes).where(eq(schema.communes.wilayaId, 56)).limit(1).all();
+    const orderId = await checkout({ wilayaId: 56, communeId: djanet!.id });
+    await delivered(orderId, new Date().toISOString(), ["out_for_delivery"]);
+    await drain(env());
+    expect(sent).toHaveLength(1);
+  });
+
   it("waits for the delivery itself in Algiers", async () => {
     await tracking("Purchase_Delivered");
     const orderId = await checkout();

@@ -131,10 +131,13 @@ function config(overrides: Partial<CapiDispatchConfig> = {}): CapiDispatchConfig
 
 describe("isLongHaulWilaya", () => {
   it("names the southern wilayas whose delivery is sent on the way out", () => {
-    expect(isLongHaulWilaya(1)).toBe(true);
-    expect(isLongHaulWilaya(37)).toBe(true);
+    for (const id of [1, 8, 11, 33, 37, 49, 50, 52, 53, 54, 56]) expect(isLongHaulWilaya(id), `wilaya ${id}`).toBe(true);
     expect(isLongHaulWilaya(16)).toBe(false);
     expect(isLongHaulWilaya(null)).toBe(false);
+  });
+
+  it("keeps the northern wilayas waiting for the delivery itself", () => {
+    for (const id of [44, 9, 31, 25, 58, 69]) expect(isLongHaulWilaya(id), `wilaya ${id}`).toBe(false);
   });
 });
 
