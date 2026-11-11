@@ -21,6 +21,7 @@ import {
 } from "../../../../cod-shared/queries/abandoned-orders";
 import { MAX_CART_LINES, MAX_LINE_QUANTITY } from "../../../../cod-shared/queries/cart";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
+import { metaBrowserIdField, metaClickIdField } from "../store/validation";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -68,8 +69,8 @@ const upsertSchema = z.object({
    */
   items: z.array(abandonedItemSchema).min(1).max(MAX_CART_LINES).optional(),
   deliveryType: z.enum(["home", "stop_desk"]).optional(),
-  fbc: z.string().max(500).optional(),
-  fbp: z.string().max(500).optional(),
+  fbc: metaClickIdField,
+  fbp: metaBrowserIdField,
 });
 
 const convertSchema = z.object({

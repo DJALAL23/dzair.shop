@@ -67,7 +67,7 @@ async function checkout(extra: { wilayaId?: number; communeId?: string; landingP
   const order = await createStoreOrder(d1.db, {
     customerName: "Amina Benali", phone: "0551234567", wilayaId: extra.wilayaId ?? 16, communeId: extra.communeId ?? "c-16-001", deliveryType: "home",
     productId: "robe", productName: "Robe", quantity: 2, pricePerUnit: 2500, customerId: "c1", deliveryFee: 400, locale: "ar",
-    fbc: "fb.1.123.abc", fbp: "fb.1.456.def", ipAddress: "41.100.1.2", userAgent: "Mozilla/5.0", landingPageId: extra.landingPageId ?? null,
+    fbc: "fb.1.1709136167115.IwAR2F4abc", fbp: "fb.1.1596403881668.1116446470", ipAddress: "41.100.1.2", userAgent: "Mozilla/5.0", landingPageId: extra.landingPageId ?? null,
     customerEmail: extra.customerEmail,
   });
   await d1.db.update(schema.orders).set({ address: "12 rue Didouche" }).where(eq(schema.orders.id, order.id));
@@ -125,7 +125,7 @@ describe("the checkout stage", () => {
       event_source_url: "https://maysa.example/thank-you",
       custom_data: { value: 5400, currency: "DZD", content_ids: ["robe"], content_type: "product" },
     });
-    expect(event.user_data).toMatchObject({ fbc: "fb.1.123.abc", fbp: "fb.1.456.def", client_ip_address: "41.100.1.2", client_user_agent: "Mozilla/5.0" });
+    expect(event.user_data).toMatchObject({ fbc: "fb.1.1709136167115.IwAR2F4abc", fbp: "fb.1.1596403881668.1116446470", client_ip_address: "41.100.1.2", client_user_agent: "Mozilla/5.0" });
     expect(event.user_data.ph).toMatch(/^[0-9a-f]{64}$/);
     expect(await deliveriesOfMeta()).toEqual([{ state: "delivered", type: "order.created", lastError: null }]);
     expect(await d1.db.select({ stage: schema.capiEventLog.stage, status: schema.capiEventLog.status, metaEventId: schema.capiEventLog.metaEventId }).from(schema.capiEventLog).all()).toEqual([

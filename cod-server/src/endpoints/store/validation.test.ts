@@ -132,3 +132,28 @@ describe("storeOrderSchema — basket orders", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("storeOrderSchema Meta cookies", () => {
+  const order = orderWith("0551234567");
+
+  it("keeps a well-formed _fbc and _fbp, Parameter Builder appendix included", () => {
+    const parsed = storeOrderSchema.parse({
+      ...order,
+      fbc: "fb.1.1709136167115.IwAR2F4-dbP0l7Mn1IawQQGCINEz7PYXQvwjNwB.ABcDEFGh",
+      fbp: "fb.1.1596403881668.1116446470.ABcDEFGh",
+    });
+    expect(parsed.fbc).toBe("fb.1.1709136167115.IwAR2F4-dbP0l7Mn1IawQQGCINEz7PYXQvwjNwB.ABcDEFGh");
+    expect(parsed.fbp).toBe("fb.1.1596403881668.1116446470.ABcDEFGh");
+  });
+
+  it("takes the order and drops a malformed cookie instead of refusing it", () => {
+    for (const [fbc, fbp] of [["IwAR2F4abc", "1116446470"], ["", ""], [42, { a: 1 }], ["fb.1.1700000000.abc", "fb.1.1700000001.123"]] as const) {
+      const result = storeOrderSchema.safeParse({ ...order, fbc, fbp });
+      expect(result.success, JSON.stringify([fbc, fbp])).toBe(true);
+      if (result.success) {
+        expect(result.data.fbc).toBeUndefined();
+        expect(result.data.fbp).toBeUndefined();
+      }
+    }
+  });
+});

@@ -183,8 +183,8 @@ describe("sendCapiEvent — user_data hashing and normalisation", () => {
       ...basePayload(),
       userData: {
         phone: "0555123456",
-        fbc: "fb.1.1700000000.abc",
-        fbp: "fb.1.1700000001.123",
+        fbc: "fb.1.1700000000123.IwAR2F4abc",
+        fbp: "fb.1.1700000001456.1116446470",
         clientIpAddress: "41.100.1.1",
         clientUserAgent: "Mozilla/5.0",
       },
@@ -192,10 +192,21 @@ describe("sendCapiEvent — user_data hashing and normalisation", () => {
     const ud = captured.body.data[0].user_data;
     expect(ud.ph).toBe(PH_213555123456);
     expect(ud.country).toBe(COUNTRY_DZ);
-    expect(ud.fbc).toBe("fb.1.1700000000.abc");
-    expect(ud.fbp).toBe("fb.1.1700000001.123");
+    expect(ud.fbc).toBe("fb.1.1700000000123.IwAR2F4abc");
+    expect(ud.fbp).toBe("fb.1.1700000001456.1116446470");
     expect(ud.client_ip_address).toBe("41.100.1.1");
     expect(ud.client_user_agent).toBe("Mozilla/5.0");
+  });
+
+  it("never sends a stored fbc or fbp Meta would fail to match", async () => {
+    const captured = stubFetch(metaOk);
+    await sendCapiEvent(PIXEL, TOKEN, {
+      ...basePayload(),
+      userData: { phone: "0555123456", fbc: "IwAR2F4abc", fbp: "fb.1.1700000001.123" },
+    });
+    const ud = captured.body.data[0].user_data;
+    expect(ud).not.toHaveProperty("fbc");
+    expect(ud).not.toHaveProperty("fbp");
   });
 
   it.each(["0555123456", "00213555123456", "+213 555 12 34 56", "213555123456"])(
