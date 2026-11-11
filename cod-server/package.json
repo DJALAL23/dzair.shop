@@ -30,10 +30,10 @@
   "dependencies": {
     "@better-auth/oauth-provider": "^1.7.20",
     "@cloudflare/workers-oauth-provider": "^0.10.3",
-    "@modelcontextprotocol/client": "2.0.0",
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/client": "2.4.0",
+    "@modelcontextprotocol/server": "2.4.0",
     "@noble/hashes": "^2.3.0",
-    "agents": "^0.22.0",
+    "agents": "^0.33.0",
     "ai": "^7.0.70",
     "better-auth": "^1.7.20",
     "drizzle-orm": "^0.45.2",
