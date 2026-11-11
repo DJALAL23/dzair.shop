@@ -11,6 +11,7 @@ import { StageBadge } from "@/features/orders/components/StageBadge";
 import { OrderCustomerCard } from "@/features/orders/components/OrderCustomerCard";
 import { OrderProtectionCard } from "@/features/orders/components/OrderProtectionCard";
 import { OrderCustomAnswersCard } from "@/features/orders/components/OrderCustomAnswersCard";
+import { OrderSourceCard } from "@/features/orders/components/OrderSourceCard";
 import { OrderProductsCard } from "@/features/orders/components/OrderProductsCard";
 import { OrderShipmentCard } from "@/features/orders/components/OrderShipmentCard";
 import { OrderNextStepCard } from "@/features/orders/components/OrderNextStepCard";
@@ -200,6 +201,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         <div className="space-y-5">
           <OrderCustomerCard order={order} />
           <OrderCustomAnswersCard customFieldsJson={order.customFieldsJson} />
+          <OrderSourceCard key={`${order.attribution?.method ?? ""}-${order.attribution?.source ?? ""}`} order={order} locale={locale} canEdit={may("orders:update")} onChanged={load} />
           <OrderProductsCard order={order} locale={locale} canRecordRefused={may("orders:update") && canRecordRefusedUnits(order.stage)} onChanged={load} />
           {order.notes && (
             <Card title={t("detail.notes")}>

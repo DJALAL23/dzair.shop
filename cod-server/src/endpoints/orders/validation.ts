@@ -11,6 +11,17 @@ import { ORDER_STAGES, type OrderStage } from "../../../../cod-shared/orders/sta
 import { SHIPMENT_KINDS } from "../../../../cod-shared/shipments/model";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
+import { ORDER_SOURCES } from "../../../../cod-shared/attribution/source";
+
+const AD_OBJECT_ID = z.string().regex(/^\d{1,32}$/, "A Meta id is digits only");
+
+/** The source a merchant names for an order taken outside the storefront: a message, a call, an ad. */
+export const orderSourceSchema = z
+  .object({
+    source: z.enum(ORDER_SOURCES),
+    campaignId: AD_OBJECT_ID.nullish(),
+    adId: AD_OBJECT_ID.nullish(),
+  });
 
 export const createOrderSchema = z.object({
   customerId: z.string().min(1),
@@ -49,6 +60,7 @@ export const createOrderSchema = z.object({
       lineTotal: z.number().positive(),
     })
   ).min(1, "At least one product is required"),
+  source: orderSourceSchema.optional(),
 }).superRefine((data, ctx) => {
   if (data.deliveryType === "home" && !data.address?.trim()) {
     ctx.addIssue({ code: "custom", path: ["address"], message: "Address is required for home delivery" });
@@ -86,6 +98,8 @@ export const updateOrderSchema = z.object({
   ),
   deliveryType: z.enum(["home", "stop_desk"]).optional(),
   notes: z.string().nullish(),
+  /** null clears the source the merchant named. */
+  source: orderSourceSchema.nullable().optional(),
 });
 
 /**

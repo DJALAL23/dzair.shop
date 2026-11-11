@@ -469,5 +469,35 @@
     "error_has_shipment": "This order has been handed to delivery, so it can no longer be deleted. Archive it once its delivery has ended.",
     "error_not_finished": "Only a finished order can be archived: cancel it, or wait until its delivery has ended.",
     "error_changed": "The order changed meanwhile. Reload it and try again."
+  },
+  "source": {
+    "title": "Source",
+    "label": "Where did this order come from?",
+    "hint": "Count orders from messages and calls for the ads that brought them.",
+    "none": "Not set",
+    "save": "Save source",
+    "saved": "Source saved",
+    "captured_note": "Captured from the shopper's visit. It cannot be changed.",
+    "merchant_note": "Named by your team.",
+    "name": {
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "messenger": "Messenger",
+      "whatsapp": "WhatsApp",
+      "tiktok": "TikTok",
+      "phone": "Phone call",
+      "other": "Other",
+      "google": "Google",
+      "referral": "Another website",
+      "direct": "Direct visit"
+    },
+    "fact": {
+      "campaign": "Campaign",
+      "ad": "Ad",
+      "placement": "Placement",
+      "landing": "Landing page",
+      "referrer": "Came from",
+      "clicked_at": "Clicked on"
+    }
   }
 }

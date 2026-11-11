@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { SHIPMENT_ACTIONS } from "../../../../cod-shared/shipments/actions";
+import type { OrderAttributionView } from "../../../../cod-shared/attribution/source";
 import {
+  attributionFacts,
+  canNameSource,
   abandonedBasketView,
   attentionReason,
   eventLabel,
@@ -429,5 +432,39 @@ describe("an order's items before its coupon", () => {
     expect(lineBeforeCoupon({ lineTotal: 3600, quantity: 2, discount: 400 })).toEqual({ unit: 2000, total: 4000 });
     expect(lineBeforeCoupon({ lineTotal: 3600, quantity: 2 })).toEqual({ unit: 1800, total: 3600 });
     expect(lineBeforeCoupon({ lineTotal: 0, quantity: 0, discount: 0 })).toEqual({ unit: 0, total: 0 });
+  });
+});
+
+describe("an order's source", () => {
+  const view = (overrides: Partial<OrderAttributionView> = {}): OrderAttributionView => ({
+    method: "captured", source: "instagram", platform: "meta", capturedAt: "2026-11-10T09:30:00.000Z", clickIdType: "fbclid",
+    campaignId: "120200000000000001", campaignName: "Robe été", adsetId: null, adId: "120200000000000003", adName: null,
+    placement: "Instagram_Stories", siteSource: "ig", utmSource: "facebook", utmMedium: null, utmCampaign: null, utmTerm: null, utmContent: null,
+    landingPath: "/lp/robe-ete", landingPageType: "landing", referrerHost: null, firstTouchAt: null, ...overrides,
+  });
+
+  it("is named by the merchant unless it was captured from the shopper's visit", () => {
+    expect(canNameSource(null)).toBe(true);
+    expect(canNameSource(undefined)).toBe(true);
+    expect(canNameSource(view({ method: "merchant" }))).toBe(true);
+    expect(canNameSource(view())).toBe(false);
+  });
+
+  it("shows the facts an attribution has, in reading order, a name with its id", () => {
+    expect(attributionFacts(view(), "en")).toEqual([
+      { key: "campaign", value: "Robe été (120200000000000001)" },
+      { key: "ad", value: "120200000000000003" },
+      { key: "placement", value: "Instagram_Stories" },
+      { key: "landing", value: "/lp/robe-ete" },
+      { key: "clicked_at", value: new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date("2026-11-10T09:30:00.000Z")) },
+    ]);
+  });
+
+  it("shows nothing beyond the source for one the merchant named", () => {
+    expect(attributionFacts(view({ method: "merchant", capturedAt: null, campaignId: null, campaignName: null, adId: null, placement: null, landingPath: null, referrerHost: "l.instagram.com" }), "ar")).toEqual([{ key: "referrer", value: "l.instagram.com" }]);
+    expect(attributionFacts(view({ campaignName: "Soldes", campaignId: null, adName: "Vidéo", adId: null, capturedAt: null, placement: null, landingPath: null }), "fr")).toEqual([
+      { key: "campaign", value: "Soldes" },
+      { key: "ad", value: "Vidéo" },
+    ]);
   });
 });

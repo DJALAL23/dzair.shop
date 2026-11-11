@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { OrderSourceSelect } from "@/features/orders/components/OrderSourceCard";
+import type { OrderSource } from "../../../../../cod-shared/attribution/source";
 import {
   canScope,
   useIdentity,
@@ -19,7 +21,7 @@ import type {
   Product,
   Wilaya,
 } from "@/features/orders/types";
-import { Alert, FormPage } from "@/components/ui";
+import { Alert, Card, FormPage } from "@/components/ui";
 import { NewOrderCustomerCard } from "@/features/orders/components/NewOrderCustomerCard";
 import { NewOrderDeliveryCard } from "@/features/orders/components/NewOrderDeliveryCard";
 import {
@@ -54,6 +56,7 @@ export function NewOrderForm() {
   const [feeTyped, setFeeTyped] = useState(false);
   const quoteRequest = useRef(0);
   const [notes, setNotes] = useState("");
+  const [source, setSource] = useState<OrderSource | "">("");
   const [lines, setLines] = useState<LineItem[]>([]);
   const [productId, setProductId] = useState("");
   const [variantId, setVariantId] = useState("");
@@ -270,6 +273,7 @@ export function NewOrderForm() {
         deliveryType,
         ...(feeTyped ? { deliveryFee } : {}),
         products: lines.map(({ id: _id, ...line }) => line),
+        ...(source ? { source: { source } } : {}),
       });
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : String(cause));
@@ -363,6 +367,9 @@ export function NewOrderForm() {
             setNotes={setNotes}
             errors={errors}
           />
+          <Card title={t("source.title")}>
+            <OrderSourceSelect value={source} onChange={setSource} disabled={busy} />
+          </Card>
     </FormPage>
   );
 }

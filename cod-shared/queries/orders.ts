@@ -20,6 +20,7 @@ import {
   deliveryCompanies,
   shipments,
   stores,
+  orderAttribution,
 } from "../db/schema";
 import type { OrderStatus } from "../orders/lifecycle";
 import type { StoreLocale } from "../i18n/locales";
@@ -52,6 +53,8 @@ import { creditOf, type Author } from "../events/actor";
 import { ORDER_STATUS_EVENT, ORDER_STATUS_OF_EVENT, type OrderField, type OrderProcessingEvent } from "../events/catalogue";
 import { recordEvent } from "../events/record";
 import { orderSnapshot } from "../events/snapshots";
+import { insertSelectRow } from "../db/insert-select";
+import { merchantAttributionRow, orderAttributionView, type MerchantSourceChoice } from "../attribution/source";
 
 export interface OrderFilters {
   status?: (typeof orders.$inferSelect)["status"] | "all";
@@ -236,18 +239,21 @@ export async function getOrderById(db: AppDb, orderId: string) {
   if (!order) return null;
 
   const processing = Object.keys(ORDER_STATUS_OF_EVENT) as OrderProcessingEvent[];
-  const [orderProductsList, timeline] = await db.batch([
+  const [orderProductsList, timeline, attribution] = await db.batch([
     db.select().from(orderProducts).where(eq(orderProducts.orderId, orderId)),
     db
       .select({ id: businessEvents.id, type: businessEvents.type, occurredAt: businessEvents.occurredAt, actorId: businessEvents.actorId, actorName: businessEvents.actorName })
       .from(businessEvents)
       .where(and(eq(businessEvents.orderId, orderId), inArray(businessEvents.type, processing)))
       .orderBy(desc(businessEvents.seq)),
+    db.select().from(orderAttribution).where(eq(orderAttribution.orderId, orderId)),
   ]);
 
   return {
     ...order,
     products: orderProductsList,
+    /** Where the order came from (ADR 0026); null when nothing is known. */
+    attribution: attribution[0] ? orderAttributionView(attribution[0]) : null,
     /** The order's processing as its Business Events recorded it, newest first. */
     statusHistory: timeline.map((event) => ({
       id: event.id,
@@ -274,6 +280,7 @@ export async function createOrder(
   orderData: Omit<typeof orders.$inferInsert, "locale" | "checkoutKey" | "status">,
   productsData: Array<NewOrderLine>,
   author: Author,
+  source?: MerchantSourceChoice | null,
 ) {
   const now = orderData.createdAt ?? new Date().toISOString();
   const credit = creditOf(author.actor);
@@ -286,6 +293,8 @@ export async function createOrder(
   if (productsData.length > 0) {
     statements.push(db.insert(orderProducts).values(productsData));
   }
+
+  if (source) statements.push(db.insert(orderAttribution).values(merchantAttributionRow(orderData.id!, source, now)));
 
   for (const item of productsData) {
     const qty = item.quantity as number;
@@ -477,6 +486,8 @@ export interface UpdateOrderData {
   address?: string | null;
   deliveryType?: "home" | "stop_desk";
   notes?: string | null;
+  /** The source the merchant names; null clears it. Never replaces a captured attribution. */
+  source?: MerchantSourceChoice | null;
 }
 
 /**
@@ -587,6 +598,7 @@ export async function updateOrder(
     ...(changedFields.length
       ? [recordEvent(db, { type: "order.updated", subjectId: orderId, orderId, occurredAt: now, ...author, data: { order: orderSnapshot(orderId), changedFields } }, sql`changes() > 0`)]
       : []),
+    ...(updates.source === undefined ? [] : [merchantSourceStatement(db, orderId, updates.source, now, locked)]),
   ]);
   if (((result as { meta?: { changes?: number } }).meta?.changes ?? 0) === 0) return { ok: false, reason: "has_shipment" };
 
@@ -595,6 +607,43 @@ export async function updateOrder(
     await updateCustomer(db, customerTarget, customerUpdates);
   }
   return { ok: true };
+}
+
+/**
+ * Sets or clears the source the merchant names, in the edit's batch and under
+ * its guard: an edit refused for the order's shipment changes no source. A
+ * captured attribution is never replaced or removed (`method = 'merchant'`).
+ */
+function merchantSourceStatement(db: AppDb, orderId: string, source: MerchantSourceChoice | null, now: string, locked: boolean) {
+  const applies = locked ? sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})` : sql`1`;
+  if (!source) {
+    return db.delete(orderAttribution).where(and(eq(orderAttribution.orderId, orderId), eq(orderAttribution.method, "merchant"), applies));
+  }
+  const row = merchantAttributionRow(orderId, source, now);
+  return db
+    .insert(orderAttribution)
+    .select(
+      db
+        .select(
+          insertSelectRow(orderAttribution, {
+            orderId: orders.id,
+            method: sql`${row.method}`,
+            platform: sql`${row.platform}`,
+            siteSource: sql`${row.siteSource}`,
+            campaignId: sql`${row.campaignId}`,
+            adId: sql`${row.adId}`,
+            createdAt: sql`${now}`,
+            updatedAt: sql`${now}`,
+          }) as never,
+        )
+        .from(orders)
+        .where(and(eq(orders.id, orderId), applies)),
+    )
+    .onConflictDoUpdate({
+      target: orderAttribution.orderId,
+      set: { platform: row.platform, siteSource: row.siteSource, campaignId: row.campaignId, adId: row.adId, updatedAt: now },
+      setWhere: eq(orderAttribution.method, "merchant"),
+    });
 }
 
 /** The parts of the order this edit changes, as `order.updated` names them. */

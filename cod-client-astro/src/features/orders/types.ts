@@ -1,3 +1,4 @@
+import type { OrderAttributionView } from "../../../../cod-shared/attribution/source";
 import type { RuleMatch } from "../../../../cod-shared/order-screening/rules";
 import type { OrderStatus } from "../../../../cod-shared/orders/lifecycle";
 import type { OrderStage } from "../../../../cod-shared/orders/stage";
@@ -154,6 +155,8 @@ export interface Shipment {
 }
 
 export interface OrderDetail extends OrderBase {
+  /** Where the order came from (ADR 0026); null when nothing is known. */
+  attribution?: OrderAttributionView | null;
   /** The code the order was placed with; null without one. */
   couponCode: string | null;
   /** What the coupon took off, carried by the lines; `price` is already net of it. */

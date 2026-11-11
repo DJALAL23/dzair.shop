@@ -87,6 +87,8 @@ export const ERROR_CODES = {
   ORDER_HAS_SHIPMENT: "ORDER_HAS_SHIPMENT",
   ORDER_NOT_FINISHED: "ORDER_NOT_FINISHED",
   ORDER_CHANGED: "ORDER_CHANGED",
+  /** The order's source was captured from the shopper's visit: the merchant cannot replace it. */
+  ORDER_SOURCE_CAPTURED: "ORDER_SOURCE_CAPTURED",
   /** A checkout key already placed an order for another phone: it is never merged into it. */
   CHECKOUT_KEY_IN_USE: "CHECKOUT_KEY_IN_USE",
   MISSING_WILAYA_COMMUNE: "MISSING_WILAYA_COMMUNE",

@@ -4,6 +4,7 @@ import { allowedTransitions } from "../../../../cod-shared/orders/lifecycle";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { SCOPE_FOR_KIND, scopeForShipmentAction } from "../../../../cod-shared/shipments/actions";
 import { reportsAllowedFor, type MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
+import type { OrderAttributionView } from "../../../../cod-shared/attribution/source";
 import type {
   AbandonedOrder,
   AbandonedOrderStatus,
@@ -467,4 +468,25 @@ export function offerLineLabel(line: { reward: boolean; offerId: string | null; 
 export function lineBeforeCoupon(line: { lineTotal: number; quantity: number; discount?: number | null }): { unit: number; total: number } {
   const total = line.lineTotal + (line.discount ?? 0);
   return { unit: line.quantity > 0 ? total / line.quantity : 0, total };
+}
+
+/** The merchant names an order's source unless it was captured from the shopper's visit. */
+export function canNameSource(attribution: OrderAttributionView | null | undefined): boolean {
+  return attribution?.method !== "captured";
+}
+
+export type AttributionFactKey = "campaign" | "ad" | "placement" | "landing" | "referrer" | "clicked_at";
+
+/** What an attribution says beyond its source, in reading order; only the facts it has. */
+export function attributionFacts(attribution: OrderAttributionView, locale: Locale): Array<{ key: AttributionFactKey; value: string }> {
+  const named = (name: string | null, id: string | null) => (name && id ? `${name} (${id})` : name ?? id);
+  const facts: Array<{ key: AttributionFactKey; value: string | null }> = [
+    { key: "campaign", value: named(attribution.campaignName, attribution.campaignId) },
+    { key: "ad", value: named(attribution.adName, attribution.adId) },
+    { key: "placement", value: attribution.placement },
+    { key: "landing", value: attribution.landingPath },
+    { key: "referrer", value: attribution.referrerHost },
+    { key: "clicked_at", value: attribution.capturedAt ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(attribution.capturedAt)) : null },
+  ];
+  return facts.filter((fact): fact is { key: AttributionFactKey; value: string } => Boolean(fact.value));
 }

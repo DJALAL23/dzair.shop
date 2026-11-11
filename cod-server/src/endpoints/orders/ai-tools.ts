@@ -294,6 +294,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
       "deliveryType ('home'|'stop_desk', default 'home'), " +
       "deliveryFee (number >= 0 — kept as given on an offline order; otherwise the store decides it as its checkout does: shipping profiles, free above the store's free-delivery amount, free by an offer for a basket of its product alone). " +
       "variantId and variantLabel are optional per product line. " +
+      "source ({ source: 'facebook'|'instagram'|'messenger'|'whatsapp'|'tiktok'|'phone'|'other', campaignId?, adId? }) names where an order taken from a message or a call came from; ids are the ad platform's, digits only. " +
       "codAmount = price + deliveryFee (auto-computed). " +
       "Stock is deducted automatically on creation for tracked products.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input
@@ -312,7 +313,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
             `products (array min 1: [{productId, productName, quantity (int > 0), pricePerUnit (positive), lineTotal (positive), variantId?, variantLabel?}]), ` +
             `address (home delivery). Optional: city, notes, ` +
             `orderType (online|offline, default online), deliveryType (home|stop_desk, default home), ` +
-            `deliveryFee (number >= 0, offline only).`,
+            `deliveryFee (number >= 0, offline only), source ({ source, campaignId?, adId? }).`,
         };
       }
 
@@ -376,7 +377,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
           createdAt: now,
         }));
 
-        const { orderNumber } = await queries.createOrder(db, orderData, productsData, agentAuthorOf(props));
+        const { orderNumber } = await queries.createOrder(db, orderData, productsData, agentAuthorOf(props), parsed.data.source);
 
         return {
           success: true,
