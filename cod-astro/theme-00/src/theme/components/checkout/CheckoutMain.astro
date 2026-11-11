@@ -105,9 +105,6 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
         {/* The basket, serialised at submit time so it always matches what the
             summary above is showing. */}
         <input type="hidden" name="items" value="" id="cart-items-input" />
-        {/* Meta Pixel tracking (populated by JS at submit time) */}
-        <input type="hidden" name="fbc" id="fbc-input" value="" />
-        <input type="hidden" name="fbp" id="fbp-input" value="" />
         {/* WhatsApp OTP proof — set by the OTP step script after verification */}
         <input type="hidden" name="otpToken" id="otp-token-input" value="" />
 

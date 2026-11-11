@@ -36,7 +36,6 @@ import {
   type ProductQuoteInput,
 } from "@wocart/storefront";
 import { onEachPage } from "@wocart/theme/lifecycle";
-import { bindMetaCookies } from "./meta-cookies";
 
 export function initProductPage(): () => void {
   // ── DATA BRIDGE ────────────────────────────────────────────────────────────
@@ -781,10 +780,6 @@ export function initProductPage(): () => void {
     orderSection.addEventListener("input", fireCheckoutStarted);
     orderSection.addEventListener("change", fireCheckoutStarted);
   }
-
-  // The Meta cookies travel with the order (see meta-cookies.ts).
-  const orderForm = document.querySelector<HTMLFormElement>("form[method=POST]");
-  if (orderForm) bindMetaCookies(orderForm);
 
   return () => {
     unbindCustomFields();

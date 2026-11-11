@@ -64,9 +64,6 @@ const comparePrice = getProductView(product).comparePrice;
   <form method="POST" action={actions.placeOrder} class="order-form" data-checkout data-astro-reload>
     <!-- Hidden product fields -->
     <input type="hidden" name="productId"          value={product.id} />
-    <!-- Meta Pixel tracking (populated by JS at submit time) -->
-    <input type="hidden" name="fbc" id="fbc-input" value="" />
-    <input type="hidden" name="fbp" id="fbp-input" value="" />
     <input type="hidden" name="productName"        value={product.name} />
     <input type="hidden" name="pricePerUnit"       value={basePrice} id="price-input" />
     <input type="hidden" name="variantId"          value={defaultVariant?.id ?? ""} id="variant-id-input" />
