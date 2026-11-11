@@ -10,6 +10,7 @@ import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
 import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
+import { ATTRIBUTION_PLATFORMS, CLICK_ID_TYPES } from "../attribution/model";
 import { RULE_ACTIONS, RULE_MODES } from "../order-screening/conditions";
 import { BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES } from "../order-screening/signals";
 import type { ActorKind, Origin } from "../events/actor";
@@ -681,6 +682,52 @@ export const orderProducts = sqliteTable("order_products", {
   discount: integer("discount").notNull().default(0),
   /** The name `offerId` had when the order was placed — kept when the offer is renamed or deleted (migration 0053). */
   offerName: text("offer_name"),
+});
+
+// ─── Order attribution (migration 0083) ──────────────────────────────────────
+
+/**
+ * Where an order came from: the ad, the click and the landing page, captured
+ * from the shopper's visit (`captured`) or chosen by the merchant on a
+ * dashboard order (`merchant`). One row per attributed order; no row means
+ * nothing is known. Written in the order's own batch, never after it.
+ *
+ * `captured_at` is when the credited touch happened (the last ad click, else
+ * the first visit), so a report can apply its click window to it. The values
+ * are kept as the storefront sent them, already validated
+ * (`cod-shared/attribution`); an id that is not digits never becomes `ad_id`
+ * and stays readable in `utm_content`. No CHECK on `platform` or `method`: a
+ * new ad platform is a new value, not a table rebuild.
+ */
+export const orderAttribution = sqliteTable("order_attribution", {
+  orderId: text("order_id")
+    .primaryKey()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  method: text("method", { enum: ["captured", "merchant"] }).notNull(),
+  capturedAt: text("captured_at"),
+  platform: text("platform", { enum: ATTRIBUTION_PLATFORMS }).notNull(),
+  clickId: text("click_id"),
+  clickIdType: text("click_id_type", { enum: CLICK_ID_TYPES }),
+  campaignId: text("campaign_id"),
+  adsetId: text("adset_id"),
+  adId: text("ad_id"),
+  placement: text("placement"),
+  siteSource: text("site_source"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  utmTerm: text("utm_term"),
+  utmContent: text("utm_content"),
+  /** The readable names the ad URL carried (`wc_cn`, `wc_an`), shown until a sync names the ids. */
+  namesJson: text("names_json"),
+  landingPath: text("landing_path"),
+  landingPageType: text("landing_page_type"),
+  referrerHost: text("referrer_host"),
+  firstTouchAt: text("first_touch_at"),
+  /** The first touch as captured, kept whole for other attribution models. */
+  firstTouchJson: text("first_touch_json"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
 
 // ─── Delivery Provider Integration ───────────────────────────────────────────
@@ -2120,6 +2167,9 @@ export const abandonedOrders = sqliteTable("abandoned_orders", {
 
   createdAt:             text("created_at").notNull(),
   updatedAt:             text("updated_at").notNull(),
+
+  /** The visit's touches as captured (`cod-shared/attribution`), for the order a recovery creates (migration 0083). */
+  attributionJson:       text("attribution_json"),
 }, (t) => ({
   statusIdx:    index("abandoned_orders_status_idx").on(t.status),
   phoneIdx:     index("abandoned_orders_phone_idx").on(t.phone),

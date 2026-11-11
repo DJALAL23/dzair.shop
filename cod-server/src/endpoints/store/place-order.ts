@@ -2,6 +2,7 @@ import type { AppDb } from "@/db";
 import { BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { normalizeOrderLines, CartValidationError, type CartLine } from "../../../../cod-shared/queries/cart";
+import { creditedTouch, landingOf } from "../../../../cod-shared/attribution/resolve";
 import * as queries from "./queries";
 import type { StoreOrderInput } from "./validation";
 
@@ -96,10 +97,12 @@ export async function commitOrder(db: AppDb, input: OrderToCommit) {
   });
 
   // Best-effort: a bad slug never blocks the order; it just leaves it unattributed.
+  // A form with no slug (a basket) takes the landing page its visit landed on.
   let landingPageId: string | null = null;
-  if (data.landingPageSlug) {
+  const landingPageSlug = data.landingPageSlug ?? landingOf(creditedTouch(data.attribution ?? null)?.path ?? null).landingSlug;
+  if (landingPageSlug) {
     try {
-      landingPageId = await queries.findPublishedLandingPageIdBySlug(db, data.landingPageSlug);
+      landingPageId = await queries.findPublishedLandingPageIdBySlug(db, landingPageSlug);
     } catch (err) {
       console.error("[store] landing page attribution lookup failed:", err);
     }

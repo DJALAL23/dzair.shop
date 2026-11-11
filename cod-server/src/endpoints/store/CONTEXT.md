@@ -61,6 +61,26 @@ _Avoid_: Catalog requirement, setup warning
 A server-side Meta "Lead" event fired alongside each order — only when the merchant chose Lead as the Conversion Event — using the same event ID as the browser pixel, so Meta deduplicates instead of double-counting. Failure is logged and ignored — it can never block an order.
 _Avoid_: Tracking pixel, analytics event
 
+### Attribution
+
+**Touch**:
+One visit worth crediting: the touch parameters of its URL (`utm_*`, `wc_*`, `fbclid`, `ttclid`, `gclid`), the path it landed on and the other site that referred it. The storefront keeps two in a first-party cookie: the **First Touch** and the **Last Ad Touch**, the latest one whose URL carried a touch parameter.
+_Avoid_: Session, hit, source
+
+**Ad Click**:
+A Touch whose URL carried an ad platform's click id (`fbclid` for Meta, `ttclid` for TikTok, `gclid` for Google). The click id is kept byte for byte.
+_Avoid_: Click-through, conversion
+
+**Order Attribution**:
+Where an order came from, one `order_attribution` row per attributed order, written in the order's own batch. It credits the Last Ad Touch, else the First Touch; with neither, a well-formed `_fbc` still names the Meta click and its time. No row means nothing is known. `captured_at` is when the credited Touch happened, so a report applies its click window to it, not to the order's time.
+_Avoid_: Conversion source, UTM record
+
+**Attribution Method**:
+How an Order Attribution was set: `captured` from the shopper's visit, or `merchant` when the merchant names the source of a dashboard order.
+_Avoid_: Attribution model (that is a report's choice of which touch to credit)
+
+The touches come from a cookie the shopper holds, so the server trusts none of it (`cod-shared/attribution/touch.ts`): unknown keys are never read, each value is checked and capped, an id that is not digits never becomes `ad_id`, and an unreadable part is dropped without refusing the order. A basket order with no landing-page slug takes the landing page its visit landed on.
+
 ### Form Policy
 
 **Checkout Form Policy**:

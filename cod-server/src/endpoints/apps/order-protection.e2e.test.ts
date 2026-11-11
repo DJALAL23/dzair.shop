@@ -215,6 +215,14 @@ describe("Rescue", () => {
     expect(await attempt(held.orderId)).toMatchObject({ outcome: "rescued", orderId: order.id, orderNumber: held.orderNumber, submissionJson: null });
   });
 
+  it("keeps the attribution of the submission it holds", async () => {
+    const last = { at: "2026-11-09T07:00:00.000Z", params: { utm_source: "facebook", utm_content: "120200000000000003", fbclid: "IwAR2F4" }, path: "/lp/robe-ete", ref: null };
+    const held = await spamOrder(2, { attribution: { first: null, last } });
+    const { status, body } = await admin.post(`${BASE}/spam/${held.orderId}/rescue`);
+    expect(status).toBe(201);
+    expect(await d1.db.select().from(schema.orderAttribution).get()).toMatchObject({ orderId: body.data.orderId, method: "captured", capturedAt: last.at, platform: "meta", adId: "120200000000000003", clickId: "IwAR2F4", landingPath: "/lp/robe-ete" });
+  });
+
   it("uses today's price, not the one kept", async () => {
     const held = await spamOrder();
     await d1.db.update(schema.products).set({ price: 4000 });

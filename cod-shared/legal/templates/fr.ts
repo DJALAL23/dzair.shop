@@ -175,6 +175,9 @@ export const fr: LegalTemplatePack = {
         p(
           "Le site utilise des cookies nécessaires à son fonctionnement (par exemple la mémorisation du panier) et peut utiliser des outils de mesure pour connaître la performance de nos pages et de nos publicités. Vous pouvez supprimer ou bloquer les cookies depuis votre navigateur, étant entendu que certaines fonctions du site peuvent en être affectées.",
         ),
+        p(
+          "Lorsque vous arrivez depuis une publicité ou un lien suivi, un cookie propre au site garde pendant 90 jours la publicité ou le lien qui vous a amené et la page où vous êtes arrivé, afin de savoir quelles publicités mènent à des commandes. Il ne contient ni votre nom, ni votre téléphone, ni votre adresse.",
+        ),
       ),
       section(
         "Durée de conservation",

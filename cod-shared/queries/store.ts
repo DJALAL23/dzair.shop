@@ -45,6 +45,7 @@ import {
   customers,
   orders,
   orderProducts,
+  orderAttribution,
   shippingProfiles,
   shippingRules,
   wilayas,
@@ -63,6 +64,8 @@ import { orderSnapshot } from "../events/snapshots";
 import { deriveDescriptionPlain } from "./products";
 import { resolveDeliveryFee } from "./shipping-resolution";
 import { normalizeOrderLines } from "./cart";
+import { capturedAttributionRow } from "../attribution/resolve";
+import type { CapturedTouches } from "../attribution/model";
 import { resolvePublicTracking } from "./tracking-config";
 import { chunkIds } from "./d1-limits";
 import type { MediaDelivery } from "../media/delivery";
@@ -131,6 +134,8 @@ export interface StoreOrderData {
   customFieldAnswers?: CustomFieldAnswer[];
   fbc?: string;
   fbp?: string;
+  /** The visit's touches, already read by `parseCapturedTouches`: the order's `order_attribution` row comes from them. */
+  attribution?: CapturedTouches | null;
   ipAddress?: string;
   userAgent?: string;
   /** The checkout attempt's key: an order already placed with it is never placed again (migration 0062). */
@@ -1066,6 +1071,7 @@ export async function createStoreOrder(
   }));
 
   const finalDeliveryFee = delivery.fee;
+  const attribution = capturedAttributionRow(id, data.attribution ?? null, { fbc: data.fbc, now });
 
   // ── Reward lines ───────────────────────────────────────────────────────────
   //
@@ -1178,6 +1184,8 @@ export async function createStoreOrder(
     for (const input of deductions) {
       statements.push(...buildDeductStatements(db, input));
     }
+
+    if (attribution) statements.push(db.insert(orderAttribution).values(attribution));
 
     statements.push(recordEvent(db, { type: "order.created", subjectId: id, orderId: id, occurredAt: now, ...CHECKOUT, data: { order: orderSnapshot(id) } }));
 

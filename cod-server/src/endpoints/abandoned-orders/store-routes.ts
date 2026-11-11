@@ -21,7 +21,7 @@ import {
 } from "../../../../cod-shared/queries/abandoned-orders";
 import { MAX_CART_LINES, MAX_LINE_QUANTITY } from "../../../../cod-shared/queries/cart";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
-import { metaBrowserIdField, metaClickIdField } from "../store/validation";
+import { capturedTouchesField, metaBrowserIdField, metaClickIdField } from "../store/validation";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -71,6 +71,7 @@ const upsertSchema = z.object({
   deliveryType: z.enum(["home", "stop_desk"]).optional(),
   fbc: metaClickIdField,
   fbp: metaBrowserIdField,
+  attribution: capturedTouchesField,
 });
 
 const convertSchema = z.object({
