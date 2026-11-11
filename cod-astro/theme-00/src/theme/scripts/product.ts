@@ -36,6 +36,7 @@ import {
   type ProductQuoteInput,
 } from "@wocart/storefront";
 import { onEachPage } from "@wocart/theme/lifecycle";
+import { bindMetaCookies } from "./meta-cookies";
 
 export function initProductPage(): () => void {
   // ── DATA BRIDGE ────────────────────────────────────────────────────────────
@@ -763,15 +764,6 @@ export function initProductPage(): () => void {
   // The page's pixel is the head's (trackingHead); a page with none reports nothing.
   const tracking = storefrontTracking();
 
-  function getCookie(name: string): string | null {
-    return (
-      document.cookie
-        .split("; ")
-        .find((r) => r.startsWith(name + "="))
-        ?.split("=")[1] ?? null
-    );
-  }
-
   // 1. The product was seen, at the price shown.
   tracking.productViewed({ productId, price: currentPrice });
 
@@ -790,17 +782,9 @@ export function initProductPage(): () => void {
     orderSection.addEventListener("change", fireCheckoutStarted);
   }
 
-  // 3. Populate fbc/fbp hidden inputs right before form submits so the values
-  //    travel with the order payload to cod-server for CAPI attribution.
+  // The Meta cookies travel with the order (see meta-cookies.ts).
   const orderForm = document.querySelector<HTMLFormElement>("form[method=POST]");
-  const fbcInput = document.getElementById("fbc-input") as HTMLInputElement | null;
-  const fbpInput = document.getElementById("fbp-input") as HTMLInputElement | null;
-  if (orderForm && (fbcInput || fbpInput)) {
-    orderForm.addEventListener("submit", () => {
-      if (fbcInput) fbcInput.value = getCookie("_fbc") ?? "";
-      if (fbpInput) fbpInput.value = getCookie("_fbp") ?? "";
-    });
-  }
+  if (orderForm) bindMetaCookies(orderForm);
 
   return () => {
     unbindCustomFields();

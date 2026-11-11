@@ -51,6 +51,7 @@ import {
 import { storefrontTracking } from "@wocart/storefront";
 import { collectCustomFieldAnswers } from "./custom-fields";
 import { initRequiredSelects } from "./select-required";
+import { bindMetaCookies } from "./meta-cookies";
 import { onEachPage } from "@wocart/theme/lifecycle";
 
 /** One controller per page, so a second call is a no-op rather than a duplicate. */
@@ -304,6 +305,9 @@ export function initCheckout(): () => void {
     },
     { signal },
   );
+
+  // The Meta cookies travel with the basket order too (see meta-cookies.ts).
+  if (form) bindMetaCookies(form, signal);
 
   // Another tab — or the drawer on this page — changing the basket.
   const unsubscribe = subscribe(() => {
