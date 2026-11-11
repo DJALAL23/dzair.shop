@@ -3,7 +3,7 @@
 ✅ **SAFE TO CUSTOMIZE** ✅
 
 This directory contains all UI components, styling, and content you can
-customize without breaking the CodFlow integration. Platform behavior comes
+customize without breaking the Wocart integration. Platform behavior comes
 from `@wocart/storefront`, bound in `src/theme/sdk.ts` (reads) and
 `src/theme/utils/images.ts` (image URLs). There is no local core layer any more
 — `src/core/` was deleted; do not add one.

@@ -1,11 +1,11 @@
-# theme-00 — the CodFlow reference theme
+# theme-00 — the Wocart reference theme
 
-theme-00 is CodFlow's **reference theme**: the complete, working storefront that
-shows how a CodFlow theme is built on the platform's SDKs. It is multi-language
+theme-00 is Wocart's **reference theme**: the complete, working storefront that
+shows how a Wocart theme is built on the platform's SDKs. It is multi-language
 (Arabic / French / English), RTL-first, conversion-focused, and neutral enough to
 fit any store — beauty, electronics, supplements, home goods, general retail.
 
-Read it as the answer to *"what does a correct CodFlow theme look like?"* A new
+Read it as the answer to *"what does a correct Wocart theme look like?"* A new
 theme starts from this one; the platform underneath never changes per theme.
 
 > **Two SDKs, two jobs.** `@wocart/storefront` is how a theme talks to
@@ -357,7 +357,7 @@ patch.
 
 ## 8. Briefing for a contributor (or an AI agent)
 
-You are working on **theme-00**, CodFlow's reference theme. Its job is to be
+You are working on **theme-00**, Wocart's reference theme. Its job is to be
 **broadly useful** — a starting point any store can ship, and the worked example
 other themes copy. That rules out styling choices that only suit one niche.
 

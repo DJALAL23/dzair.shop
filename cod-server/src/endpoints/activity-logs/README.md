@@ -1,6 +1,6 @@
 # Activity Logs API
 
-The Activity Logs endpoint provides an immutable, centralized audit trail for the CodFlow system. It records administrative operations, order lifecycle transitions, customer updates, inventory modifications, driver management actions, and AI/MCP agent interactions.
+The Activity Logs endpoint provides an immutable, centralized audit trail for the Wocart system. It records administrative operations, order lifecycle transitions, customer updates, inventory modifications, driver management actions, and AI/MCP agent interactions.
 
 All activity log endpoints are strictly **Admin-Only** (`role === "admin"`).
 

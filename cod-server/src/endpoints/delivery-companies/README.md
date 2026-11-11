@@ -2,7 +2,7 @@
 
 The carrier companies a store ships with — Yalidine, Guepex, ZR Express,
 NOEST and the EcoTrack-platform couriers: their credentials and settings,
-what their carrier can do, how their updates reach CodFlow, their stop desks,
+what their carrier can do, how their updates reach Wocart, their stop desks,
 and their webhook inbox.
 
 Handing an order to a carrier, and everything done to its parcel after, is

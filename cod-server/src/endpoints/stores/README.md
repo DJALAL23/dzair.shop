@@ -50,7 +50,7 @@ Update store configuration. Partial updates are supported; set nullable fields t
 }
 ```
 
-Field rules: `lang` takes `"ar"`, `"fr"` or `"en"` — set alone, it also adds and publishes that language; `languages` (`[{ "locale", "published" }]`) replaces the store's list, must publish the primary (the new one when `lang` changes in the same save), and removing a language removes its theme text edits (those edits are written by CodFlow Cloud's visual editor, not by this API); URLs are validated; `metaTitle` ≤ 200, `metaDescription` ≤ 500 chars. Colors, the font and an announcement bar are not store fields: they are a theme's settings (migrations 0047, 0048).
+Field rules: `lang` takes `"ar"`, `"fr"` or `"en"` — set alone, it also adds and publishes that language; `languages` (`[{ "locale", "published" }]`) replaces the store's list, must publish the primary (the new one when `lang` changes in the same save), and removing a language removes its theme text edits (those edits are written by Wocart Cloud's visual editor, not by this API); URLs are validated; `metaTitle` ≤ 200, `metaDescription` ≤ 500 chars. Colors, the font and an announcement bar are not store fields: they are a theme's settings (migrations 0047, 0048).
 
 The Meta pixel and conversions setup is no longer a store route: it is the
 Meta App, `GET` / `PUT` / `DELETE /api/apps/meta` (`src/endpoints/apps/`), like

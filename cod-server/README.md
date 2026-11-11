@@ -1,13 +1,13 @@
-# CodFlow Server
+# Wocart Server
 
-The backend engine for CodFlow — a COD-first e-commerce platform for Algeria
+The backend engine for Wocart, a COD-first e-commerce platform for Algeria
 that is **agentic-ready**. It exposes the merchant REST API, the public
 storefront API, delivery-carrier webhooks, and a complete **MCP remote server**
 (RFC 9728) so AI agents can operate the store with RBAC-scoped tools. Built on
 Cloudflare Workers, Hono, and Drizzle ORM, with D1, Queues and Cloudflare
 Workflows under the hood.
 
-This package is part of the [CodFlow monorepo](../README.md). The dashboard
+This package is part of the [Wocart repository](../README.md). The dashboard
 (`cod-client-astro`) and storefront (`cod-astro`) live in sibling folders and
 share database schema + query logic via `cod-shared`.
 

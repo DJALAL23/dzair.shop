@@ -1,6 +1,6 @@
 # cod-client-astro
 
-The CodFlow merchant dashboard, rebuilt with Astro 7 as a prerendered static
+The Wocart merchant dashboard, rebuilt with Astro 7 as a prerendered static
 app. Page serving consumes **zero Worker CPU** on Cloudflare's free plan; the
 only server surface is `/api/auth/*` (better-auth).
 

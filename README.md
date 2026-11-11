@@ -95,6 +95,20 @@ Features, one page each:
 [legal pages](https://docs.wocart.store/features/legal-pages) ·
 [email](https://docs.wocart.store/features/email)
 
+## npm packages
+
+Build your own storefront or theme on the same SDKs Theme-00 uses.
+
+| Package | What it is |
+| :--- | :--- |
+| [![@wocart/storefront](https://img.shields.io/npm/v/@wocart/storefront?label=%40wocart%2Fstorefront&color=6D28D9)](https://www.npmjs.com/package/@wocart/storefront) | The storefront SDK: typed catalog reads, basket, checkout, phone verification and order tracking, with Astro adapters |
+| [![@wocart/theme](https://img.shields.io/npm/v/@wocart/theme?label=%40wocart%2Ftheme&color=6D28D9)](https://www.npmjs.com/package/@wocart/theme) | The theme contract: component definitions, JSON page documents, and a reference Astro renderer |
+| [![create-wocart-theme](https://img.shields.io/npm/v/create-wocart-theme?label=create-wocart-theme&color=6D28D9)](https://www.npmjs.com/package/create-wocart-theme) | Starts a new theme on both SDKs |
+
+```sh
+npm create wocart-theme@latest my-theme
+```
+
 ## Repository
 
 | Folder | What it is |
