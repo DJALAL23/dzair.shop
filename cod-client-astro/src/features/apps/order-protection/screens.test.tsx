@@ -365,7 +365,7 @@ describe("the rule builder", () => {
   it("explains each mode and each action where they are chosen", async () => {
     await mount(<RulePageApp />);
     expect(document.body.textContent).toContain("Watches only");
-    expect(document.body.textContent).toContain("You can rescue it from Spam");
+    expect(document.body.textContent).toContain("You can accept it from Spam");
     await click("Active");
     await type(nameInput(), "R");
     await click("Add a condition");
@@ -543,24 +543,24 @@ describe("the Spam page", () => {
     expect((await openSheet("Unknown")).textContent).not.toContain("How it was sent");
   });
 
-  it("rescues from the sheet, reloads and closes it", async () => {
+  it("accepts from the sheet, reloads and closes it", async () => {
     api.listAttempts.mockResolvedValueOnce({ data: [SPAM], total: 1 }).mockResolvedValue({ data: [], total: 0 });
     api.rescueSpamOrder.mockResolvedValue({ orderId: "o", orderNumber: "ORD-1" });
     await mount(<SpamOrdersPageApp />);
     await openSheet("Amel");
-    await click("Rescue");
+    await click("Accept order");
     expect(api.rescueSpamOrder).toHaveBeenCalledWith("s1");
-    expect(notifications.success).toHaveBeenCalledWith("Rescued as order ORD-1");
+    expect(notifications.success).toHaveBeenCalledWith("Accepted as order ORD-1");
     expect(api.listAttempts).toHaveBeenCalledTimes(2);
     expect(document.querySelector("[role=dialog]")).toBeNull();
   });
 
-  it("says why a Rescue was refused, and keeps the sheet open", async () => {
+  it("says why an accept was refused, and keeps the sheet open", async () => {
     api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
     api.rescueSpamOrder.mockRejectedValue({ code: "INSUFFICIENT_STOCK" });
     await mount(<SpamOrdersPageApp />);
     await openSheet("Amel");
-    await click("Rescue");
+    await click("Accept order");
     expect(notifications.error).toHaveBeenCalledWith("Not enough stock to place this order.");
     expect(document.querySelector("[role=dialog]")).not.toBeNull();
   });
@@ -609,7 +609,7 @@ describe("the Spam page", () => {
     expect(document.body.textContent).toContain("Amel");
     expect(document.querySelector("input[type=checkbox]")).toBeNull();
     const sheet = await openSheet("Amel");
-    expect(byText("Rescue")).toBeUndefined();
+    expect(byText("Accept order")).toBeUndefined();
     expect(sheet.textContent).not.toContain("Block number");
     await act(async () => root.unmount());
     root = createRoot(host);

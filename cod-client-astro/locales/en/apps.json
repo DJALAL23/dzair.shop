@@ -359,7 +359,7 @@
       "accepted": "Accepted",
       "flagged": "Flagged",
       "spam": "Spam",
-      "rescued": "Rescued"
+      "rescued": "Accepted"
     },
     "options": {
       "delivery_type": {
@@ -423,22 +423,22 @@
     },
     "spam": {
       "title": "Spam",
-      "subtitle": "Orders your rules kept out. Nothing happens to them until you rescue them.",
+      "subtitle": "Orders your rules held back. They are not processed until you accept them.",
       "empty": "No orders in Spam",
       "empty_hint": "Orders sent here are deleted after 30 days.",
-      "rescue": "Rescue",
-      "rescued": "Rescued as order {number}",
+      "rescue": "Accept order",
+      "rescued": "Accepted as order {number}",
       "block": "Block number",
       "blocked": "{phone} is blocked",
       "delete": "Delete",
       "delete_body": "A deleted order cannot be brought back.",
       "rescue_no_stock": "Not enough stock to place this order.",
-      "rescue_already": "This order was already rescued.",
+      "rescue_already": "This order was already accepted.",
       "rescue_no_delivery": "You no longer deliver to this place.",
       "rescue_coupon": "Its coupon no longer applies.",
       "rescue_unavailable": "A product or option in this order can no longer be ordered: it is a draft, archived, deleted or turned off.",
-      "rescue_no_sku": "A product in this order has no SKU. Add one, then rescue it again.",
-      "rescue_failed": "This order could not be rescued. Please try again.",
+      "rescue_no_sku": "A product in this order has no SKU. Add one, then accept the order again.",
+      "rescue_failed": "This order could not be accepted. Please try again.",
       "line": "{name} × {quantity}",
       "also": "Also matched: {rules}",
       "number_blocked": "Number blocked",
@@ -507,7 +507,7 @@
       "ip": "Network on your Block List"
     },
     "action_hints": {
-      "spam": "The order is kept out of your orders. You can rescue it from Spam.",
+      "spam": "The order is held back from your orders. You can accept it from Spam.",
       "flag": "The order is placed and marked as suspicious, so you can check it before shipping.",
       "accept": "The order always goes through, whatever the other rules say. Your Block List still applies."
     },

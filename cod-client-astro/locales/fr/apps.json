@@ -367,7 +367,7 @@
       "accepted": "Acceptée",
       "flagged": "Signalée",
       "spam": "Spam",
-      "rescued": "Récupérée"
+      "rescued": "Acceptée"
     },
     "options": {
       "delivery_type": {
@@ -432,22 +432,22 @@
     },
     "spam": {
       "title": "Spam",
-      "subtitle": "Les commandes écartées par vos règles. Rien ne leur arrive tant que vous ne les récupérez pas.",
+      "subtitle": "Commandes mises de côté par vos règles. Elles ne sont traitées qu'après votre acceptation.",
       "empty": "Aucune commande en spam",
       "empty_hint": "Les commandes envoyées ici sont supprimées après 30 jours.",
-      "rescue": "Récupérer",
-      "rescued": "Récupérée comme commande {number}",
+      "rescue": "Accepter la commande",
+      "rescued": "Acceptée comme commande {number}",
       "block": "Bloquer le numéro",
       "blocked": "{phone} est bloqué",
       "delete": "Supprimer",
       "delete_body": "Une commande supprimée ne peut pas être récupérée.",
       "rescue_no_stock": "Stock insuffisant pour passer cette commande.",
-      "rescue_already": "Cette commande a déjà été récupérée.",
+      "rescue_already": "Cette commande a déjà été acceptée.",
       "rescue_no_delivery": "Vous ne livrez plus à cet endroit.",
       "rescue_coupon": "Son code promo ne s'applique plus.",
       "rescue_unavailable": "Un produit ou une option de cette commande ne peut plus être commandé : brouillon, archivé, supprimé ou désactivé.",
-      "rescue_no_sku": "Un produit de cette commande n'a pas de SKU. Ajoutez-en un, puis récupérez-la à nouveau.",
-      "rescue_failed": "Cette commande n'a pas pu être récupérée. Veuillez réessayer.",
+      "rescue_no_sku": "Un produit de cette commande n'a pas de SKU. Ajoutez-en un, puis acceptez la commande à nouveau.",
+      "rescue_failed": "Cette commande n'a pas pu être acceptée. Veuillez réessayer.",
       "line": "{name} × {quantity}",
       "also": "Correspond aussi à : {rules}",
       "number_blocked": "Numéro bloqué",
@@ -519,7 +519,7 @@
       "ip": "Réseau dans votre liste de blocage"
     },
     "action_hints": {
-      "spam": "La commande est écartée de vos commandes. Vous pouvez la récupérer depuis le Spam.",
+      "spam": "La commande est mise de côté, hors de vos commandes. Vous pouvez l’accepter depuis le Spam.",
       "flag": "La commande est passée et marquée comme suspecte, pour que vous la vérifiiez avant l'expédition.",
       "accept": "La commande passe toujours, quoi que disent les autres règles. Votre liste de blocage s'applique quand même."
     },

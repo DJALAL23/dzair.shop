@@ -473,7 +473,7 @@
   "source": {
     "title": "Source",
     "column": "Source",
-    "unknown": "Not known",
+    "unknown": "Source unknown",
     "unknown_hint": "Placed before tracking started, or from a theme that doesn't send where shoppers come from yet.",
     "legacy_note": "Recorded before the current tracking, so how the shopper came this time isn't known.",
     "entered_note": "Entered by your team, so there is no shopper visit to show.",
@@ -527,11 +527,12 @@
       "any": "Any source",
       "ads": "Ads",
       "social": "Social, not ads",
-      "search": "Search",
-      "direct": "Direct",
+      "search": "Search engines",
+      "direct": "Direct visit",
       "other": "Other websites and links",
       "team": "Added by the team",
-      "unknown": "Not known"
-    }
+      "unknown": "Source unknown"
+    },
+    "same_visit": "The same visit as the ad above."
   }
 }

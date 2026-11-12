@@ -26,8 +26,8 @@ export function OrderSource({ order, compact = false }: { order: OrderListItem; 
     <span className={`flex min-w-0 flex-col ${compact ? "text-xs" : "text-sm"}`}>
       <span className={`truncate ${order.source ? "text-foreground" : "text-muted-foreground"}`}>{headline}</span>
       {detail && !compact && (
-        <span className="truncate text-xs text-muted-foreground" dir="auto">
-          {detail}
+        <span className="truncate text-xs text-muted-foreground">
+          <bdi>{detail}</bdi>
         </span>
       )}
     </span>
@@ -41,8 +41,8 @@ function Facts({ facts }: { facts: SourceFact[] }) {
       {facts.map((fact) => (
         <div key={fact.key} className="min-w-0">
           <dt className="text-xs font-semibold text-muted-foreground">{t(`source.fact.${fact.key}`)}</dt>
-          <dd className="text-sm break-words" dir="auto">
-            {fact.value}
+          <dd className="text-sm break-words">
+            <bdi>{fact.value}</bdi>
           </dd>
         </div>
       ))}
@@ -108,7 +108,7 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
           <Block icon={<Footprints size={15} className="text-muted-foreground" aria-hidden="true" />} title={t("source.visit_title")} hint={t("source.visit_hint")}>
             <p className="text-sm font-semibold">{label(visit)}</p>
             {visit.channel === "direct" && <p className="text-xs text-muted-foreground">{t("source.direct_hint")}</p>}
-            <Facts facts={visitFacts(visit, locale)} />
+            {ad && visit.at === ad.clickedAt ? <p className="text-xs text-muted-foreground">{t("source.same_visit")}</p> : <Facts facts={visitFacts(visit, locale)} />}
           </Block>
         )}
 

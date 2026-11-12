@@ -489,7 +489,7 @@
   "source": {
     "title": "Source",
     "column": "Source",
-    "unknown": "Inconnue",
+    "unknown": "Source inconnue",
     "unknown_hint": "Commande passée avant le début du suivi, ou depuis un thème qui n'envoie pas encore la provenance des clients.",
     "legacy_note": "Enregistrée avant le suivi actuel : on ne sait pas comment le client est venu cette fois.",
     "entered_note": "Saisie par votre équipe : il n'y a pas de visite du client à afficher.",
@@ -546,11 +546,12 @@
       "any": "Toutes les sources",
       "ads": "Pubs",
       "social": "Réseaux, hors pub",
-      "search": "Recherche",
-      "direct": "Directe",
+      "search": "Moteurs de recherche",
+      "direct": "Visite directe",
       "other": "Autres sites et liens",
       "team": "Ajoutées par l'équipe",
-      "unknown": "Inconnue"
-    }
+      "unknown": "Source inconnue"
+    },
+    "same_visit": "La même visite que la pub ci-dessus."
   }
 }
