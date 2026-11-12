@@ -405,15 +405,15 @@
         "other": "مصدر آخر أو مباشر"
       },
       "app_source": {
-        "facebook": "Facebook",
-        "instagram": "Instagram",
-        "tiktok": "TikTok",
-        "browser": "متصفح عادي"
+        "facebook": "تطبيق فيسبوك",
+        "instagram": "تطبيق إنستغرام",
+        "tiktok": "تطبيق تيك توك",
+        "browser": "متصفح ويب"
       }
     },
     "signals": {
-      "filled_in": "عُبّئ في {seconds} ث",
-      "network_in": "الشبكة: {country}"
+      "filled_in": "مُلئ النموذج في {seconds} ث",
+      "network_in": "متصل من {country}"
     },
     "groups": {
       "who": "من يطلب وكيف",
@@ -574,7 +574,8 @@
       "reason_more": "{rule} +{more}",
       "when": "وصل",
       "blocked": "المحظور",
-      "added": "أُضيف"
+      "added": "أُضيف",
+      "source": "المصدر"
     },
     "sheet": {
       "why_spam": "لماذا ذهب إلى السبام",
@@ -589,7 +590,8 @@
       "sent": "كيف أُرسل",
       "open_order": "فتح الطلب",
       "open_spam": "فتح السبام",
-      "unknown_customer": "بدون اسم"
+      "unknown_customer": "بدون اسم",
+      "source": "من أين جاء"
     }
   }
 }

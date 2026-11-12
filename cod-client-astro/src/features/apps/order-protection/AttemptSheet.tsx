@@ -7,6 +7,7 @@ import { communeLabel, wilayaLabel } from "@/lib/places";
 import { formatMoney } from "@/features/orders/model";
 import type { OrderAttempt } from "@/features/apps/order-protection/api";
 import { useAttemptSignals } from "@/features/apps/order-protection/AttemptSignals";
+import { OrderSource } from "@/features/orders/components/OrderSourceCard";
 import { decidingFirst, listOf, useMatchName } from "@/features/apps/order-protection/words";
 import type { OrderAttemptOutcome } from "../../../../../cod-shared/order-screening/signals";
 
@@ -146,6 +147,10 @@ export function AttemptSheet({ attempt, onClose, footer, withTrials = false }: {
             )}
           </Section>
         )}
+
+        <Section title={t("order_protection.sheet.source")}>
+          <OrderSource order={attempt} />
+        </Section>
 
         {(lines.length > 0 || order.length > 0) && (
           <Section title={t("order_protection.sheet.order")}>

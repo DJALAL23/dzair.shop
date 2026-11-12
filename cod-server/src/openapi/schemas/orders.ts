@@ -185,6 +185,17 @@ export const OrderRemovalSchema = z
 /**
  * Order list item - includes joins but not heavy nested arrays
  */
+/** Where an order came from, in short: what an order list and an Order Protection attempt show. */
+export const OrderSourceSchema = z
+  .object({
+    channel: z.enum(ORDER_CHANNELS),
+    platform: z.enum(ATTRIBUTION_PLATFORMS),
+    app: z.string().nullable().openapi({ description: "The Meta app: `fb`, `ig`, `msg`, `an`, `th`, `wa`" }),
+    adName: z.string().nullable().openapi({ description: "The credited ad's name, when the ad URL carried one" }),
+    campaignName: z.string().nullable().openapi({ description: "The credited campaign's name, when the ad URL carried one" }),
+  })
+  .openapi("OrderSource");
+
 export const OrderListItemSchema = OrderBaseSchema.extend({
   hasReview: z.number().int().optional().openapi({
     description:
@@ -213,15 +224,7 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
     description: "Where the order stands overall — its processing, then its shipment's delivery. List responses only.",
   }),
   needsAttention: z.boolean().optional().openapi({ description: "Whether the order's delivery needs the merchant. List responses only." }),
-  source: z
-    .object({
-      channel: z.enum(ORDER_CHANNELS),
-      platform: z.enum(ATTRIBUTION_PLATFORMS),
-      app: z.string().nullable().openapi({ description: "The Meta app: `fb`, `ig`, `msg`, `an`, `th`, `wa`" }),
-      adName: z.string().nullable().openapi({ description: "The credited ad's name, when the ad URL carried one" }),
-      campaignName: z.string().nullable().openapi({ description: "The credited campaign's name, when the ad URL carried one" }),
-    })
-    .nullable()
+  source: OrderSourceSchema.nullable()
     .optional()
     .openapi({ description: "Where the order came from (the detail's `attribution`, in short); null when it is not known. List responses only." }),
 }).openapi("OrderListItem", {
@@ -242,7 +245,7 @@ export const OrderAttributionSchema = z
     channel: z.enum(ORDER_CHANNELS).nullable().openapi({ description: "Null when nothing is known. Where the order came from: the credited ad's channel (`paid_social`, `paid_search`, `paid_other`), else this visit's (`organic_social`, `organic_search`, `email`, `referral`, `tagged`, `direct`), else who entered it (`dashboard`, `api`, `agent`)" }),
     platform: z.enum(ATTRIBUTION_PLATFORMS),
     app: nullableText("The Meta app: `fb`, `ig`, `msg`, `an`, `th`, `wa`; null when unknown or not Meta"),
-    legacy: z.boolean().openapi({ description: "Recorded before attribution v2: this visit is not known, and the channel is read from what was stored" }),
+    legacy: z.boolean().openapi({ description: "Written with no channel: before attribution v2, or by a storefront that sent no visit. Its source is unknown (a source a merchant chose before v2 is `dashboard`)" }),
     ad: z
       .object({
         platform: z.enum(ATTRIBUTION_PLATFORMS),

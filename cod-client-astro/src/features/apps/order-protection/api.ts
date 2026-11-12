@@ -6,6 +6,7 @@ import type { RuleDraft, RuleMatch } from "../../../../../cod-shared/order-scree
 import type { BlockListKind, OrderAttemptOutcome } from "../../../../../cod-shared/order-screening/signals";
 import type { TemplateKey, TemplateRuleKey } from "../../../../../cod-shared/order-screening/templates";
 import type { HeldLine } from "../../../../../cod-shared/order-screening/screening";
+import type { OrderSourceSummary } from "../../../../../cod-shared/attribution/view";
 
 const KEY = "order-protection";
 const BASE = `/api/apps/${KEY}`;
@@ -52,6 +53,8 @@ export interface OrderAttempt {
   ipBlocked: boolean;
   matches: RuleMatch[];
   signals: AttemptSignals;
+  /** Where it came from, as its order shows it; null when not known. */
+  source: OrderSourceSummary | null;
 }
 
 export interface Page<T> {

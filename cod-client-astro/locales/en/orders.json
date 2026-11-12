@@ -474,8 +474,7 @@
     "title": "Source",
     "column": "Source",
     "unknown": "Source unknown",
-    "unknown_hint": "Placed before tracking started, or from a theme that doesn't send where shoppers come from yet.",
-    "legacy_note": "Recorded before the current tracking, so how the shopper came this time isn't known.",
+    "unknown_hint": "Placed before the current tracking, or from a theme that doesn't send where shoppers come from yet.",
     "entered_note": "Entered by your team, so there is no shopper visit to show.",
     "headline": {
       "paid": "{network} ad",

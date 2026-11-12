@@ -373,15 +373,15 @@
         "other": "Other or direct"
       },
       "app_source": {
-        "facebook": "Facebook",
-        "instagram": "Instagram",
-        "tiktok": "TikTok",
-        "browser": "Normal browser"
+        "facebook": "Facebook app",
+        "instagram": "Instagram app",
+        "tiktok": "TikTok app",
+        "browser": "Web browser"
       }
     },
     "signals": {
-      "filled_in": "Filled in {seconds} s",
-      "network_in": "Network: {country}"
+      "filled_in": "Form filled in {seconds} s",
+      "network_in": "Connected from {country}"
     },
     "groups": {
       "who": "Who is ordering, and how",
@@ -526,7 +526,8 @@
       "reason_more": "{rule} +{more}",
       "when": "Received",
       "blocked": "Blocked",
-      "added": "Added"
+      "added": "Added",
+      "source": "Source"
     },
     "sheet": {
       "why_spam": "Why it went to Spam",
@@ -541,7 +542,8 @@
       "sent": "How it was sent",
       "open_order": "Open order",
       "open_spam": "Open Spam",
-      "unknown_customer": "No name given"
+      "unknown_customer": "No name given",
+      "source": "Where it came from"
     }
   }
 }

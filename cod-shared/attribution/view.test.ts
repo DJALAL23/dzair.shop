@@ -79,14 +79,14 @@ describe("orderAttributionView", () => {
     expect(view).toMatchObject({ method: "entered", channel: "agent", ad: null, visit: null });
   });
 
-  it("reads a row written before v2 by today's rules: an _fbc-only click is Facebook, not an ad", () => {
+  it("says a row written before v2 has an unknown source: an _fbc-only click is not read again as Facebook", () => {
     const view = orderAttributionView({ ...EMPTY, capturedAt: "2026-11-10T03:30:00.000Z", platform: "meta", clickId: "IwAR2F4", clickIdType: "fbclid" });
-    expect(view).toMatchObject({ channel: "organic_social", platform: "meta", ad: null, visit: null, legacy: true });
+    expect(view).toMatchObject({ channel: null, ad: null, visit: null, legacy: true });
   });
 
-  it("reads a pre-v2 ad click as the ad it was", () => {
+  it("does not credit an ad from a row written before v2, whatever it stored", () => {
     const view = orderAttributionView({ ...EMPTY, capturedAt: NOW, platform: "meta", utmSource: "facebook", utmMedium: "paid_social", adId: "120200000000000003", utmContent: "120200000000000003" });
-    expect(view).toMatchObject({ channel: "paid_social", ad: { adId: "120200000000000003" }, legacy: true });
+    expect(view).toMatchObject({ channel: null, ad: null, legacy: true });
   });
 
   it("reads a source a merchant chose before v2 as entered in the dashboard", () => {
@@ -99,6 +99,6 @@ describe("orderAttributionView", () => {
   });
 
   it("survives names that are not JSON", () => {
-    expect(orderAttributionView({ ...EMPTY, utmMedium: "cpc", namesJson: "{oops" })).toMatchObject({ channel: "paid_other", ad: { campaignName: null, adName: null } });
+    expect(orderAttributionView({ ...EMPTY, channel: "paid_other", utmMedium: "cpc", namesJson: "{oops" })).toMatchObject({ channel: "paid_other", ad: { campaignName: null, adName: null } });
   });
 });

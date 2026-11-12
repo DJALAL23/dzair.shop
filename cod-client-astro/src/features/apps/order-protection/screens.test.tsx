@@ -336,7 +336,7 @@ describe("the rule builder", () => {
     await type(nameInput(), "From apps");
     await click("Add a condition");
     await click("App the store was opened in");
-    for (const box of ["Facebook", "TikTok", "Normal browser", "Normal browser"]) {
+    for (const box of ["Facebook app", "TikTok app", "Web browser", "Web browser"]) {
       await act(async () => byText(box, "label")!.querySelector("input")!.click());
     }
     await click("Flag as suspicious");
@@ -445,7 +445,7 @@ describe("a rule in words", () => {
   it("names the fixed choices it holds", async () => {
     api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, conditions: [{ key: "app_source", op: "one_of", value: ["facebook", "browser"] }] }] });
     await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
-    expect(document.body.textContent).toContain("App the store was opened in is one of Facebook or Normal browser");
+    expect(document.body.textContent).toContain("App the store was opened in is one of Facebook app or Web browser");
     expect(document.body.textContent).not.toContain("،");
   });
 });
@@ -526,18 +526,30 @@ describe("the Spam page", () => {
     expect(document.querySelector("[role=dialog]")!.textContent).toContain("Why it went to Spam");
   });
 
+  it("shows where each Spam Order came from, in the list and in the sheet", async () => {
+    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, source: { channel: "paid_social", platform: "meta", app: "ig", adName: "Robe rouge", campaignName: "Été" } }, { ...SPAM, id: "s2", customerName: "Nadia", source: null }], total: 2 });
+    await mount(<SpamOrdersPageApp />);
+    const [ad, unknown] = [...document.querySelectorAll("tbody tr")];
+    expect(ad!.textContent).toContain("Instagram ad");
+    expect(ad!.textContent).toContain("Robe rouge");
+    expect(unknown!.textContent).toContain("Source unknown");
+    const sheet = await openSheet("Amel");
+    expect(sheet.textContent).toContain("Where it came from");
+    expect(sheet.textContent).toContain("Instagram ad");
+  });
+
   it("shows how the order was sent", async () => {
     api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, signals: { fillSeconds: 3.4, visitSource: "tiktok", appSource: "instagram", networkCountry: "DZ" } }], total: 1 });
     await mount(<SpamOrdersPageApp />);
     const sheet = await openSheet("Amel");
     expect(sheet.textContent).toContain("How it was sent");
-    for (const signal of ["Instagram", "From TikTok", "Filled in 3 s", "Network: Algeria"]) expect(sheet.textContent).toContain(signal);
+    for (const signal of ["Instagram app", "From TikTok", "Form filled in 3 s", "Connected from Algeria"]) expect(sheet.textContent).toContain(signal);
   });
 
   it("shows a form filled in no time, and no section when nothing is known", async () => {
     api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, id: "known", customerName: "Known", signals: { fillSeconds: 0 } }, { ...SPAM, id: "unknown", customerName: "Unknown", signals: {} }], total: 2 });
     await mount(<SpamOrdersPageApp />);
-    expect((await openSheet("Known")).textContent).toContain("Filled in 0 s");
+    expect((await openSheet("Known")).textContent).toContain("Form filled in 0 s");
     await act(async () => document.querySelector<HTMLElement>('[role=dialog] [aria-label="Close"]')!.click());
     await settle();
     expect((await openSheet("Unknown")).textContent).not.toContain("How it was sent");
@@ -628,7 +640,7 @@ describe("the card on an order", () => {
     api.addToBlockList.mockResolvedValue({});
     await mount(<RequireAuth><OrderProtectionCard orderId="o" /></RequireAuth>);
     expect(document.body.textContent).toContain("Flagged because of: Too many");
-    expect(document.body.textContent).toContain("Normal browser");
+    expect(document.body.textContent).toContain("Web browser");
     expect(document.body.textContent).not.toContain("Only trying");
     await click("Block this number");
     expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567", note: "ORD-1" });

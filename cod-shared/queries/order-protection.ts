@@ -1,6 +1,9 @@
 import { and, asc, count, desc, eq, isNull, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
-import { orderAttempts, orderBlockList, orderRules, orders, storeOrderProtectionConfig } from "../db/schema";
+import { orderAttempts, orderAttribution, orderBlockList, orderRules, orders, storeOrderProtectionConfig } from "../db/schema";
+import { capturedAttributionRow } from "../attribution/resolve";
+import { parseCapturedTouches } from "../attribution/touch";
+import { orderSourceSummary, type OrderSourceColumns, type OrderSourceSummary } from "../attribution/view";
 import type { StoreLocale } from "../i18n/locales";
 import type { RuleMode } from "../order-screening/conditions";
 import type { AttemptSignals } from "../order-screening/facts";
@@ -141,6 +144,8 @@ export interface AttemptView {
   ipBlocked: boolean;
   matches: RuleMatch[];
   signals: AttemptSignals;
+  /** Where it came from, read as its order reads it: the order's own source once there is one, else the touches it was submitted with. */
+  source: OrderSourceSummary | null;
 }
 
 const submitted = (path: string) => sql.raw(`json_extract(${"order_attempts"}.submission_json, '$.data.${path}')`);
@@ -163,15 +168,75 @@ const ATTEMPT_COLUMNS = {
   linesJson: sql<string | null>`json_extract(${orderAttempts.answerJson}, '$.lines')`,
   phoneBlocked: sql<number>`EXISTS (SELECT 1 FROM order_block_list WHERE kind = 'phone' AND value = ${orderAttempts.phone})`,
   ipBlocked: sql<number>`EXISTS (SELECT 1 FROM order_block_list WHERE kind = 'ip' AND value = ${orderAttempts.ipKey})`,
+  submittedTouches: sql<string | null>`json_extract(${orderAttempts.submissionJson}, '$.data.attribution')`,
+  orderSource: {
+    orderId: orderAttribution.orderId,
+    method: orderAttribution.method,
+    channel: orderAttribution.channel,
+    platform: orderAttribution.platform,
+    siteSource: orderAttribution.siteSource,
+    clickId: orderAttribution.clickId,
+    clickIdType: orderAttribution.clickIdType,
+    utmSource: orderAttribution.utmSource,
+    utmMedium: orderAttribution.utmMedium,
+    utmCampaign: orderAttribution.utmCampaign,
+    utmTerm: orderAttribution.utmTerm,
+    utmContent: orderAttribution.utmContent,
+    namesJson: orderAttribution.namesJson,
+    referrerHost: orderAttribution.referrerHost,
+  },
 };
 
-type AttemptRow = { matchesJson: string; signalsJson: string; linesJson: string | null; phoneBlocked: number; ipBlocked: number } & Omit<AttemptView, "matches" | "signals" | "lines" | "phoneBlocked" | "ipBlocked">;
+type AttemptRow = {
+  matchesJson: string;
+  signalsJson: string;
+  linesJson: string | null;
+  phoneBlocked: number;
+  ipBlocked: number;
+  submittedTouches: string | null;
+  orderSource: (OrderSourceColumns & { orderId: string | null }) | null;
+} & Omit<AttemptView, "matches" | "signals" | "lines" | "phoneBlocked" | "ipBlocked" | "source">;
 
-function attemptView({ matchesJson, signalsJson, linesJson, phoneBlocked, ipBlocked, ...row }: AttemptRow): AttemptView {
-  return { ...row, lines: linesJson ? (JSON.parse(linesJson) as HeldLine[]) : null, phoneBlocked: Boolean(phoneBlocked), ipBlocked: Boolean(ipBlocked), matches: JSON.parse(matchesJson) as RuleMatch[], signals: JSON.parse(signalsJson) as AttemptSignals };
+/** The source of an attempt: its order's row, else the row its submitted touches would write, counted from when it was submitted. */
+function attemptSource(row: Pick<AttemptRow, "orderSource" | "submittedTouches" | "createdAt">): OrderSourceSummary | null {
+  if (row.orderSource?.orderId) return orderSourceSummary(row.orderSource as OrderSourceColumns);
+  if (!row.submittedTouches) return null;
+  const touches = parseCapturedTouches(row.submittedTouches, new Date(row.createdAt));
+  const captured = capturedAttributionRow("", touches, { now: row.createdAt });
+  return captured ? orderSourceSummary({ ...UNSET_SOURCE, ...captured }) : null;
 }
 
-const attempts = (db: AppDb) => db.select(ATTEMPT_COLUMNS).from(orderAttempts).leftJoin(orders, eq(orders.id, orderAttempts.orderId));
+const UNSET_SOURCE: OrderSourceColumns = {
+  orderId: "",
+  method: "captured",
+  channel: null,
+  platform: "direct",
+  siteSource: null,
+  clickId: null,
+  clickIdType: null,
+  utmSource: null,
+  utmMedium: null,
+  utmCampaign: null,
+  utmTerm: null,
+  utmContent: null,
+  namesJson: null,
+  referrerHost: null,
+};
+
+function attemptView({ matchesJson, signalsJson, linesJson, phoneBlocked, ipBlocked, submittedTouches, orderSource, ...row }: AttemptRow): AttemptView {
+  return {
+    ...row,
+    lines: linesJson ? (JSON.parse(linesJson) as HeldLine[]) : null,
+    phoneBlocked: Boolean(phoneBlocked),
+    ipBlocked: Boolean(ipBlocked),
+    matches: JSON.parse(matchesJson) as RuleMatch[],
+    signals: JSON.parse(signalsJson) as AttemptSignals,
+    source: attemptSource({ orderSource, submittedTouches, createdAt: row.createdAt }),
+  };
+}
+
+const attempts = (db: AppDb) =>
+  db.select(ATTEMPT_COLUMNS).from(orderAttempts).leftJoin(orders, eq(orders.id, orderAttempts.orderId)).leftJoin(orderAttribution, eq(orderAttribution.orderId, orderAttempts.orderId));
 
 export async function listAttempts(db: AppDb, input: { outcome?: OrderAttemptOutcome; limit: number; offset: number }) {
   const where = input.outcome ? eq(orderAttempts.outcome, input.outcome) : undefined;

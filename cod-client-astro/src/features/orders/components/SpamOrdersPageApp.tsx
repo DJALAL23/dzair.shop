@@ -30,6 +30,7 @@ import { addToBlockList, deleteSpamOrder, listAttempts, rescueSpamOrder, type Or
 import { AttemptCustomer, AttemptSheet, attemptPlace, useAttemptLines, useAttemptReasons } from "@/features/apps/order-protection/AttemptSheet";
 import { rescueErrorKey } from "@/features/apps/order-protection/model";
 import { listOf } from "@/features/apps/order-protection/words";
+import { OrderSource } from "@/features/orders/components/OrderSourceCard";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 
 const PAGE_SIZE = 20;
@@ -73,6 +74,9 @@ function SpamDesktopRow({ row, onOpen, pick }: RowProps) {
       </TableCell>
       <TableCell className="max-w-64 truncate text-muted-foreground">{lines.length > 0 ? <bdi>{listOf(lines, locale)}</bdi> : <CellEmpty />}</TableCell>
       <TableCell className="max-w-44 truncate text-muted-foreground">{place ? <bdi>{place}</bdi> : <CellEmpty />}</TableCell>
+      <TableCell className="max-w-44">
+        <OrderSource order={row} />
+      </TableCell>
       <TableCell numeric>{row.total !== null ? formatMoney(row.total, locale) : <CellEmpty />}</TableCell>
       <TableCell>
         <Reason row={row} />
@@ -100,6 +104,7 @@ function SpamMobileCard({ row, onOpen, pick }: RowProps) {
           {row.total !== null && <span className="shrink-0 text-sm font-medium tabular-nums text-foreground">{formatMoney(row.total, locale)}</span>}
         </span>
         {lines.length > 0 && <span className="block truncate text-xs text-muted-foreground"><bdi>{listOf(lines, locale)}</bdi></span>}
+        <OrderSource order={row} compact />
         <span className="flex items-center justify-between gap-3">
           <Reason row={row} />
           <time className="shrink-0 text-xs text-muted-foreground" dateTime={row.createdAt}>{relativeTime(row.createdAt, locale)}</time>
@@ -224,7 +229,7 @@ function SpamOrders() {
             </div>
           )}
           {rows === null ? (
-            <TableSkeleton columns={6} />
+            <TableSkeleton columns={7} />
           ) : (
             <>
               <div className="divide-y divide-border border-t border-border md:hidden">
@@ -244,6 +249,7 @@ function SpamOrders() {
                       <TableHead>{t("order_protection.table.customer")}</TableHead>
                       <TableHead>{t("order_protection.table.products")}</TableHead>
                       <TableHead>{t("order_protection.table.place")}</TableHead>
+                      <TableHead>{t("order_protection.table.source")}</TableHead>
                       <TableHead numeric>{t("order_protection.table.total")}</TableHead>
                       <TableHead>{t("order_protection.table.reason")}</TableHead>
                       <TableHead className="text-end">{t("order_protection.table.when")}</TableHead>

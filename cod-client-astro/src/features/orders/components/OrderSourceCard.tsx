@@ -17,7 +17,7 @@ export function useSourceLabel() {
 }
 
 /** The order's source in a list: its headline, and the ad's name under it when it credits one. */
-export function OrderSource({ order, compact = false }: { order: OrderListItem; compact?: boolean }) {
+export function OrderSource({ order, compact = false }: { order: Pick<OrderListItem, "source">; compact?: boolean }) {
   const t = useT("orders");
   const label = useSourceLabel();
   const headline = label(order.source ?? null) ?? t("source.unknown");
@@ -112,7 +112,6 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
           </Block>
         )}
 
-        {!entered && attribution!.legacy && <p className="text-xs text-muted-foreground">{t("source.legacy_note")}</p>}
       </div>
     </Card>
   );

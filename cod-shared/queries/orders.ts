@@ -36,6 +36,7 @@ import {
   isNull,
   isNotNull,
   inArray,
+  ne,
 } from "drizzle-orm";
 
 const driversAlias = aliasedTable(drivers, "d");
@@ -157,9 +158,12 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
 
   if (filters.channel?.length) {
     const known = filters.channel.filter((channel): channel is OrderChannel => channel !== "unknown");
+    // As `orderAttributionView` reads a row: a source a merchant chose before v2 is the dashboard's, and an order with no channel is unknown.
+    const merchantChosen = and(isNull(orderAttribution.channel), eq(orderAttribution.method, "merchant"))!;
     const parts = [
       ...(known.length ? [inArray(orderAttribution.channel, known)] : []),
-      ...(filters.channel.includes("unknown") ? [isNull(orderAttribution.channel)] : []),
+      ...(known.includes("dashboard") ? [merchantChosen] : []),
+      ...(filters.channel.includes("unknown") ? [and(isNull(orderAttribution.channel), or(isNull(orderAttribution.method), ne(orderAttribution.method, "merchant")))!] : []),
     ];
     conditions.push(parts.length === 1 ? parts[0]! : or(...parts)!);
   }

@@ -490,8 +490,7 @@
     "title": "Source",
     "column": "Source",
     "unknown": "Source inconnue",
-    "unknown_hint": "Commande passée avant le début du suivi, ou depuis un thème qui n'envoie pas encore la provenance des clients.",
-    "legacy_note": "Enregistrée avant le suivi actuel : on ne sait pas comment le client est venu cette fois.",
+    "unknown_hint": "Commande passée avant le suivi actuel, ou depuis un thème qui n'envoie pas encore la provenance des clients.",
     "entered_note": "Saisie par votre équipe : il n'y a pas de visite du client à afficher.",
     "headline": {
       "paid": "Pub {network}",

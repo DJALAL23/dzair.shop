@@ -111,6 +111,7 @@ describe("the orders list", () => {
     await storefrontOrder("direct", "2026-11-12T06:10:00.000Z", { channel: "direct", visitChannel: "direct", visitPlatform: "direct" });
     await storefrontOrder("legacy", "2026-11-12T05:00:00.000Z", { platform: "meta", clickId: "IwAR2F4", clickIdType: "fbclid", capturedAt: "2026-11-10T03:30:00.000Z" });
     await storefrontOrder("before", "2026-11-01T05:00:00.000Z", null);
+    await storefrontOrder("chosen", "2026-11-11T05:00:00.000Z", { method: "merchant", platform: "meta", siteSource: "wa" });
   });
 
   const listed = async (query = "") => {
@@ -119,23 +120,25 @@ describe("the orders list", () => {
     return Object.fromEntries((json.data as Array<{ id: string; source: unknown }>).map((order) => [order.id, order.source]));
   };
 
-  it("shows each order's source: the ad, direct, a pre-v2 Facebook click read as social, and unknown", async () => {
+  it("shows each order's source: the ad, direct, the team's, and unknown for a row written before v2", async () => {
     const id = await create();
     expect(await listed()).toEqual({
       ad: { channel: "paid_social", platform: "meta", app: "fb", adName: "TEST2-ad", campaignName: "TEST2-campaign" },
       direct: { channel: "direct", platform: "direct", app: null, adName: null, campaignName: null },
-      legacy: { channel: "organic_social", platform: "meta", app: null, adName: null, campaignName: null },
+      legacy: null,
       before: null,
+      chosen: { channel: "dashboard", platform: "meta", app: "wa", adName: null, campaignName: null },
       [id]: { channel: "dashboard", platform: "none", app: null, adName: null, campaignName: null },
     });
   });
 
-  it("filters by channel, several at once, and by unknown", async () => {
-    await create();
+  it("filters by channel, several at once, and by unknown, as each order shows", async () => {
+    const id = await create();
     expect(Object.keys(await listed("&channel=paid_social"))).toEqual(["ad"]);
     expect(Object.keys(await listed("&channel=paid_social,direct")).sort()).toEqual(["ad", "direct"]);
     expect(Object.keys(await listed("&channel=unknown")).sort()).toEqual(["before", "legacy"]);
-    expect(Object.keys(await listed("&channel=dashboard"))).toHaveLength(1);
+    expect(Object.keys(await listed("&channel=dashboard")).sort()).toEqual(["chosen", id].sort());
+    expect(Object.keys(await listed("&channel=unknown,dashboard")).sort()).toEqual(["before", "chosen", "legacy", id].sort());
   });
 
   it("refuses a channel it does not know", async () => {
