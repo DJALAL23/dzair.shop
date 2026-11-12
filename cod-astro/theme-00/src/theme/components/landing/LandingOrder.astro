@@ -9,7 +9,6 @@ import { getProductView, type LandingPage } from "@wocart/storefront";
 import { actions } from "astro:actions";
 import { Icon } from "astro-icon/components";
 import OrderForm from "@/theme/components/order/OrderForm.astro";
-import ShippingIsland from "@/theme/components/product/ShippingIsland.astro";
 import Section from "@/theme/components/ui/Section.astro";
 import { pageDataCopy } from "@/theme/bridges/island-props";
 import { PRODUCT_PAGE_DATA_ID, buildProductPageData } from "@/theme/bridges/product-page-data";
@@ -20,10 +19,8 @@ import type { landingOrder } from "@/theme/catalog/landing/landing.def";
 type Props = Pick<InferProps<typeof landingOrder>, "showAssurance" | "stickyCta" | "scheme" | "style"> & {
   landing: LandingPage | null;
   content: StoreFrontContent;
-  /** In the editor's preview the delivery island renders inline, where it is placed. */
-  inline?: boolean;
 };
-const { landing, content, showAssurance = true, stickyCta = true, scheme, style, inline = false } = Astro.props;
+const { landing, content, showAssurance = true, stickyCta = true, scheme, style } = Astro.props;
 const { config, isRTL } = Astro.locals.store;
 const product = landing?.product ?? null;
 const view = product ? getProductView(product) : null;
@@ -37,7 +34,6 @@ const { fieldErrors, notice, couponRefusal } = orderOutcome(Astro.getActionResul
       class="sr-only"
       {...buildProductPageData({ product, currencySymbol: config.currencySymbol, isRTL, basePrice: view.basePrice, copy: pageDataCopy(content) })}
     />
-    {inline ? <ShippingIsland /> : <ShippingIsland server:defer />}
     <OrderForm
       product={product}
       content={content}

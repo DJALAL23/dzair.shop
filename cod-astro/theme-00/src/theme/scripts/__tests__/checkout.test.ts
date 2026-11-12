@@ -24,11 +24,6 @@ const OUT_OF_STOCK = messageData(en, "cartLineOutOfStock");
 
 const CART_KEY = "cod_cart_v1";
 
-const RATES = JSON.stringify({
-  "16": { home: 400, stopDesk: 250 },
-  "31": { home: 600, stopDesk: 350 },
-});
-
 /** Mirrors checkout.astro + CheckoutSummary.astro + CustomerFields.astro. */
 function buildDom(): void {
   document.body.innerHTML = `
@@ -112,7 +107,6 @@ function buildDom(): void {
       </li>
     </template>
 
-    <div id="shipping-rates-data" data-rates='${RATES}'></div>
   `;
 }
 
@@ -260,36 +254,15 @@ describe("delivery", () => {
     expect(el("checkout-total").textContent).toBe(money(1000));
   });
 
-  it("charges the home rate for the chosen wilaya", async () => {
+  it("shows no fee of its own for a chosen wilaya: it is to be calculated until the server quotes it", async () => {
+    // A product may ship on its own profile, a commune at its own price: only the quote knows.
     seedCart([line()]);
     await boot();
 
     chooseWilaya("16");
 
-    expect(el("checkout-delivery").textContent).toBe("400\u00A0DA");
-    expect(el("checkout-total").textContent).toBe(money(1400));
-  });
-
-  it("charges the stop-desk rate when the shopper picks a stop desk", async () => {
-    seedCart([line()]);
-    await boot();
-    chooseWilaya("16");
-
-    chooseDelivery("stop_desk");
-
-    expect(el("checkout-delivery").textContent).toBe("250\u00A0DA");
-    expect(el("checkout-total").textContent).toBe(money(1250));
-  });
-
-  it("follows the shopper to another wilaya", async () => {
-    seedCart([line()]);
-    await boot();
-
-    chooseWilaya("16");
-    chooseWilaya("31");
-
-    expect(el("checkout-delivery").textContent).toBe("600\u00A0DA");
-    expect(el("checkout-total").textContent).toBe(money(1600));
+    expect(el("checkout-delivery").textContent).toBe("Calculated after selecting wilaya");
+    expect(el("checkout-total").textContent).toBe(money(1000));
   });
 
   it("is free, and says so, once the basket qualifies", async () => {
@@ -457,9 +430,29 @@ describe("the server's delivery quote", () => {
     await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("900\u00A0DA"));
 
     // Wilaya 31's answer carries no quote (an older server): the 900 for wilaya
-    // 16 must not stand — the rate table's 600 for 31 is shown instead.
+    // 16 must not stand, and no figure stands in for the quote either.
     chooseWilaya("31");
 
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("Calculated after selecting wilaya"));
+    expect(el("checkout-total").textContent).toBe(money(1000));
+  });
+
+  it("follows the shopper's choices, each at the fee the server quotes for it", async () => {
+    seedCart([line()]);
+    const fees: Record<string, number> = { "16:home": 400, "16:stop_desk": 250, "31:home": 600 };
+    serverQuotes((d) => {
+      const fee = fees[`${d.wilayaId}:${d.deliveryType}`]!;
+      return { available: true, fee, total: 1000 + fee };
+    });
+    await boot();
+
+    chooseWilaya("16");
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("400\u00A0DA"));
+    chooseDelivery("stop_desk");
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("250\u00A0DA"));
+    expect(el("checkout-total").textContent).toBe(money(1250));
+    chooseDelivery("home");
+    chooseWilaya("31");
     await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("600\u00A0DA"));
     expect(el("checkout-total").textContent).toBe(money(1600));
   });
@@ -601,15 +594,30 @@ describe("editing the basket here", () => {
     expect(el("checkout-main").hidden).toBe(true);
   });
 
-  it("keeps the delivery fee across an edit", async () => {
+  it("keeps the quoted delivery fee across an edit", async () => {
     seedCart([line()]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body));
+        const subtotal = body.items.reduce((sum: number, item: { quantity: number }) => sum + item.quantity * 1000, 0);
+        return validationResponse({
+          lines: [],
+          subtotal,
+          rewards: [],
+          freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+          ...(body.destination ? { delivery: { available: true, fee: 400, total: subtotal + 400 } } : {}),
+        });
+      }),
+    );
     await boot();
     chooseWilaya("16");
+    await vi.waitFor(() => expect(el("checkout-delivery").textContent).toBe("400\u00A0DA"));
 
     click(document.querySelector("[data-cart-increase]")!);
 
+    await vi.waitFor(() => expect(el("checkout-total").textContent).toBe(money(2400)));
     expect(el("checkout-delivery").textContent).toBe("400\u00A0DA");
-    expect(el("checkout-total").textContent).toBe(money(2400));
   });
 });
 

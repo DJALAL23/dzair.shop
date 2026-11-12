@@ -50,7 +50,7 @@ export const landingOrder = defineComponent({
     schemeField(SCHEME_OF.stone),
     styleField({ spacing: { paddingBlockStart: { base: "s7" }, paddingBlockEnd: { base: "s7" } }, size: { width: { base: "narrow" } } }),
   ],
-  load: async (input) => ({ landing: await routeLanding(input), content: copyOverrides(input.context.content, input.props), inline: input.context.params?.preview === "true" }),
+  load: async (input) => ({ landing: await routeLanding(input), content: copyOverrides(input.context.content, input.props) }),
 });
 
 /** The product a landing page sells, in a line: its name, its price, its stars. For a page whose images do not say it. */

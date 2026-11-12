@@ -16,6 +16,23 @@ import { serverQuote } from "@/theme/__tests__/support/quote";
 /** A quote as the server sends it (`serverQuote`). */
 const served = (data: Record<string, unknown>) => serverQuote(data);
 
+/** A server that quotes a product form's delivery: `feeFor` prices each destination asked about. */
+function quotingServer(feeFor: (destination: { wilayaId: number; deliveryType: string }) => number) {
+  const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    const subtotal = 2500;
+    const data = served({
+      subtotal,
+      lines: [],
+      freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 },
+      ...(body.destination ? { delivery: { available: true, fee: feeFor(body.destination), total: subtotal + feeFor(body.destination) } } : {}),
+    });
+    return { ok: true, json: async () => ({ success: true, data }) } as unknown as Response;
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) }) as unknown as Response));
 });
@@ -662,7 +679,7 @@ describe("Shipping rates bridge", () => {
     container?.parentNode?.removeChild(container);
   });
 
-  it("initializes cleanly when rates are already on the page", async () => {
+  it("initializes cleanly, and asks for the first quote for a wilaya already chosen", async () => {
     container.innerHTML = `
       <div id="page-data"
         data-variants="[]"
@@ -675,11 +692,11 @@ describe("Shipping rates bridge", () => {
         data-commune-loading="Loading"
         data-commune-disabled="Pick a wilaya"
         data-offers="[]"></div>
-      <div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div>
       <div id="summary-shipping"></div>
       <div id="summary-total"></div>
       <input id="f-wilaya" value="16" />
     `;
+    const fetchMock = quotingServer(() => 400);
 
     let initError: unknown = null;
     try {
@@ -689,10 +706,10 @@ describe("Shipping rates bridge", () => {
     }
     expect(initError).toBeNull();
 
-    // The deferred first delivery re-prices against the bridge's rates for
-    // the pre-selected wilaya (16 → home 400).
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(document.getElementById("summary-shipping")!.textContent).toContain("400");
+    // The first quote goes out once init has finished, for the wilaya already
+    // on the form (a returning shopper's autofill), and its fee is shown.
+    await vi.waitFor(() => expect(document.getElementById("summary-shipping")!.textContent).toContain("400"));
+    expect(JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body)).destination).toEqual({ wilayaId: 16, deliveryType: "home" });
   });
 });
 
@@ -722,7 +739,6 @@ describe("Delivery quote for the product form", () => {
         data-commune-loading="Loading"
         data-commune-disabled="Pick a wilaya"
         data-offers="[]"></div>
-      <div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div>
       <div id="summary-item-price"></div>
       <div id="summary-coupon-row" data-label-template="Coupon {code}" hidden><span data-coupon-label></span><span data-coupon-amount></span></div>
       <div id="summary-shipping"></div>
@@ -1026,13 +1042,13 @@ describe("Delivery quote for the product form", () => {
     expect(JSON.parse(String((fetchMock.mock.calls.at(-1) as unknown as [string, RequestInit])[1].body))).toMatchObject({ couponCode: "VIP", phone: "0551000002" });
   });
 
-  it("keeps the rate table's figure when the server predates quotes", async () => {
+  it("shows no figure of its own when the server predates quotes, and still lets the order go", async () => {
     build();
     quoteServer(() => ({ subtotal: 2500, lines: [], freeDelivery: { fromOffer: false, threshold: null, qualified: false, remaining: 0 } }));
     initProductPage();
     await settle();
 
-    expect(shipping()).toContain("400");
+    expect(shipping()).toContain("Calculated at checkout");
     expect(submit().disabled).toBe(false);
   });
 });
@@ -1042,7 +1058,7 @@ describe("Delivery quote for the product form", () => {
  *
  * The product page is the other checkout: no basket, one native POST. These
  * tests pin what the migration must not have changed — a delivery change
- * re-prices the summary from the server's rate table, the posted price follows
+ * re-prices the summary from the server's quote, the posted price follows
  * the selected variant, and the script never builds or sends an order body
  * (the native submit carries it; the action whitelist and cod-server price it).
  */
@@ -1063,7 +1079,6 @@ describe("Direct checkout form (S9)", () => {
         data-commune-disabled="Pick a wilaya"
         data-offers="[]"></div>
 
-      <div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div>
       <div id="summary-shipping"></div>
       <div id="summary-total"></div>
       <input id="f-wilaya" value="16" />
@@ -1101,11 +1116,11 @@ describe("Direct checkout form (S9)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("a delivery-type change re-prices the summary from the rate table", async () => {
+  it("a delivery-type change re-prices the summary from the server's quote", async () => {
     buildDirectCheckoutDom();
+    quotingServer((d) => (d.deliveryType === "stop_desk" ? 250 : 400));
     initProductPage();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(document.getElementById("summary-shipping")!.textContent).toContain("400");
+    await vi.waitFor(() => expect(document.getElementById("summary-shipping")!.textContent).toContain("400"));
 
     const stopDesk = document.querySelector<HTMLInputElement>(
       ".delivery-radio-input[value='stop_desk']"
@@ -1113,7 +1128,7 @@ describe("Direct checkout form (S9)", () => {
     stopDesk.checked = true;
     stopDesk.dispatchEvent(new Event("change", { bubbles: true }));
 
-    expect(document.getElementById("summary-shipping")!.textContent).toContain("250");
+    await vi.waitFor(() => expect(document.getElementById("summary-shipping")!.textContent).toContain("250"));
   });
 
   it("the posted price follows the selected variant, not a stale one", () => {
@@ -1347,7 +1362,7 @@ describe("Option buttons and the variant ordered", () => {
   it("a sold-out product without variants keeps its order button held when the quote answers", async () => {
     build({ variants: [], inventory: 0, tiers: " " });
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ success: true, data: served({ subtotal: 2800, lines: [], delivery: { available: true, fee: 400, total: 3200 } }) }) }) as unknown as Response));
-    container.insertAdjacentHTML("beforeend", `<div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div><input id="f-wilaya" value="16" />`);
+    container.insertAdjacentHTML("beforeend", `<input id="f-wilaya" value="16" />`);
     initProductPage();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(submit().disabled).toBe(true);

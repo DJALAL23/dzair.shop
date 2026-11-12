@@ -44,7 +44,6 @@ catalog/category read.
 - `ReviewsList.astro` - Customer reviews display
 - `ReviewForm.astro` - Review submission form
 - `ReviewsIsland.astro` - Client-side reviews island
-- `ShippingIsland.astro` - Client-side shipping calculator island
 
 #### `product-page/`
 The product template's sections and blocks (`catalog/product/`): `ProductMain`
