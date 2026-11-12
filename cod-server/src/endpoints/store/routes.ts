@@ -397,7 +397,8 @@ const getShippingRatesRoute = defineRoute({
   tags: ["Store API"],
   summary: "Get shipping rates",
   description:
-    "Per-wilaya shipping rates for the order form. Returns wilayas that have a rule in the default shipping profile; absent wilayas should be treated as unknown/unsupported.",
+    "The default shipping profile's price per wilaya, for a page that lists delivery prices. A wilaya it does not deliver to is left out. " +
+    "Never a product's or an order's price: a product may have its own shipping profile and a commune its own price, so a product page, a basket and a checkout show the fee POST /store/cart/validate quotes for them.",
   operationId: "getShippingRates",
   responses: {
     200: {

@@ -460,3 +460,16 @@ describe("a product on its own shipping profile is quoted and charged that profi
     expect((await quoteForm({ productId: product, productName: "Robe" }, HOME)).json.data.delivery.fee).toBe(600);
   });
 });
+
+describe("GET /store/shipping-rates — the default profile's list of prices", () => {
+  it("leaves out a wilaya the default profile does not deliver to, and lists the others with their prices", async () => {
+    const { profileId } = await seedProfile(true, 600, 300);
+    await harness.db.insert(schema.shippingRules).values([
+      { id: uid("rule"), profileId, wilayaId: 31, homePrice: 700, stopDeskPrice: 400, homeEnabled: false, stopDeskEnabled: false, createdAt: NOW() },
+      { id: uid("rule"), profileId, wilayaId: 9, homePrice: 500, stopDeskPrice: 350, homeEnabled: false, stopDeskEnabled: true, createdAt: NOW() },
+    ]);
+    const res = await app.request("/store/shipping-rates");
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as any).data).toEqual({ "9": { home: 500, stopDesk: 350 }, "16": { home: 600, stopDesk: 300 } });
+  });
+});

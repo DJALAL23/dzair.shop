@@ -903,6 +903,13 @@ export async function getDeliveryFee(
   });
 }
 
+/**
+ * The default profile's price per wilaya, for a page that lists delivery
+ * prices. Never a product's or an order's price: a product may have its own
+ * profile and a commune its own price, so a theme prices from the quote
+ * (`resolveDeliveryFee` behind /store/cart/validate). A wilaya the default
+ * profile does not deliver to is left out.
+ */
 export async function getShippingRates(db: AppDb) {
   const profile = await db
     .select()
@@ -918,7 +925,9 @@ export async function getShippingRates(db: AppDb) {
     .all();
 
   return Object.fromEntries(
-    rules.map((r) => [r.wilayaId, { home: r.homePrice, stopDesk: r.stopDeskPrice }]),
+    rules
+      .filter((r) => r.homeEnabled || r.stopDeskEnabled)
+      .map((r) => [r.wilayaId, { home: r.homePrice, stopDesk: r.stopDeskPrice }]),
   );
 }
 
