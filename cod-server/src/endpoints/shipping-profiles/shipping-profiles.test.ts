@@ -216,12 +216,13 @@ describe("setProfileRules", () => {
 
   it("returns updated profile after setting rules", async () => {
     // 1. existing check → shippingProfiles.get()
-    // 2. delete rules (run), insert rules (run), update profile updatedAt (run)
+    // 2. writeProfileRules: the current rules (all), then one batch
     // 3. getProfileById internally:
     //    - shippingProfiles.get() → entry 2
     //    - Promise.all[rules.all, products.all] → entries 3, 4
     const db = makeMockDb([
       f(shippingProfileRow()),  // existing check
+      a([]),                    // writeProfileRules → the profile's current rules
       f(shippingProfileRow()),  // getProfileById → profile.get()
       a([]),                    // getProfileById → rules.all() (Promise.all[0])
       a([]),                    // getProfileById → products.all() (Promise.all[1])
@@ -236,6 +237,7 @@ describe("setProfileRules", () => {
   it("inserts all rules including zero-price (homeEnabled/stopDeskEnabled control availability)", async () => {
     const db = makeMockDb([
       f(shippingProfileRow()),  // existing check
+      a([]),                    // writeProfileRules → the profile's current rules
       f(shippingProfileRow()),  // getProfileById → profile.get()
       a([]),                    // rules (Promise.all[0])
       a([]),                    // products (Promise.all[1])

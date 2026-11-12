@@ -217,7 +217,7 @@ const setProfileRulesRoute = defineRoute({
   tags: ["Shipping Profiles"],
   summary: "Replace wilaya rules",
   description:
-    "Atomically replaces the full rules list for a profile — prior rules are deleted (commune overrides cascade) before new ones are inserted.\n\n" +
+    "Sets the profile's rules to exactly this list, in one transaction. A wilaya that stays keeps its commune overrides (only its prices and switches change); a wilaya left out is removed with its overrides.\n\n" +
     "**Constraints:**\n" +
     "- Each `wilayaId` may appear **at most once** per profile. Duplicates are rejected with `DUPLICATE_WILAYA_RULE`.\n" +
     "- Setting both `homeEnabled: false` and `stopDeskEnabled: false` on a wilaya effectively disables delivery for that wilaya under this profile.\n" +
