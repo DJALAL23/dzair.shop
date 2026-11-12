@@ -94,6 +94,8 @@ export const ERROR_CODES = {
   MISSING_ADDRESS: "MISSING_ADDRESS",
   /** The delivery company's list of places has never been read, so no parcel can be addressed to it yet. */
   CARRIER_PLACES_NOT_READ: "CARRIER_PLACES_NOT_READ",
+  /** The delivery company's places were read, but it gives no price for any of them: there is nothing to build a profile from. */
+  CARRIER_RATES_MISSING: "CARRIER_RATES_MISSING",
   /** The delivery company does not deliver to the order's commune (or not to the door there). */
   PLACE_NOT_SERVED: "PLACE_NOT_SERVED",
   INSUFFICIENT_STOCK: "INSUFFICIENT_STOCK",
