@@ -403,8 +403,8 @@ describe("the rule builder", () => {
     api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, id: "r2", conditions: [{ key: "visit_source", op: "one_of", value: ["tiktok"] }] }] });
     api.updateRule.mockResolvedValue({});
     await mount(<RulePageApp />);
-    expect(byText("TikTok ad", "label")!.querySelector("input")!.checked).toBe(true);
-    expect(byText("Meta ad", "label")!.querySelector("input")!.checked).toBe(false);
+    expect(byText("From TikTok", "label")!.querySelector("input")!.checked).toBe(true);
+    expect(byText("From Meta (Facebook, Instagram)", "label")!.querySelector("input")!.checked).toBe(false);
   });
 
   it("says what is missing, and saves nothing", async () => {
@@ -531,7 +531,7 @@ describe("the Spam page", () => {
     await mount(<SpamOrdersPageApp />);
     const sheet = await openSheet("Amel");
     expect(sheet.textContent).toContain("How it was sent");
-    for (const signal of ["Instagram", "TikTok ad", "Filled in 3 s", "Network: Algeria"]) expect(sheet.textContent).toContain(signal);
+    for (const signal of ["Instagram", "From TikTok", "Filled in 3 s", "Network: Algeria"]) expect(sheet.textContent).toContain(signal);
   });
 
   it("shows a form filled in no time, and no section when nothing is known", async () => {

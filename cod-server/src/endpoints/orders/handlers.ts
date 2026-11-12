@@ -18,7 +18,7 @@ import { orderDelivery } from "./delivery";
 import { quoteOrderDelivery } from "../../../../cod-shared/queries/delivery-quote";
 import { orderCustomerId } from "../../../../cod-shared/queries/customers";
 import { logActivity, ACTIONS } from "@/lib/activity";
-import { NotFoundError, ValidationError, BusinessLogicError, ConflictError } from "@/lib/errors/classes";
+import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 
 /**
@@ -136,7 +136,7 @@ export async function createOrder(c: Context<AppContext>) {
     }));
 
     const actor = c.get("user");
-    const { orderNumber } = await queries.createOrder(db, orderData, productsData, c.get("author"), validated.source);
+    const { orderNumber } = await queries.createOrder(db, orderData, productsData, c.get("author"));
     await logActivity(db, actor, ACTIONS.ORDER_CREATED, {
       type: "order", id: orderId, label: orderNumber,
     });
@@ -221,14 +221,6 @@ export async function updateOrder(c: Context<AppContext>) {
     }
   }
 
-  if (validated.source !== undefined && order.attribution?.method === "captured") {
-    throw new ConflictError(
-      "This order's source was captured from the shopper's visit and cannot be replaced",
-      ERROR_CODES.ORDER_SOURCE_CAPTURED,
-      { orderId }
-    );
-  }
-
   const edit = await queries.updateOrder(db, orderId, {
     customerName: validated.customerName,
     phone: validated.phone,
@@ -239,7 +231,6 @@ export async function updateOrder(c: Context<AppContext>) {
     address: validated.address,
     deliveryType: validated.deliveryType,
     notes: validated.notes,
-    source: validated.source,
   }, c.get("author"));
   if (!edit.ok) throw refusalFor(edit, orderId, "its address, phone, wilaya, commune and delivery type are the parcel's");
 

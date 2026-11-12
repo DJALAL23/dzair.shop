@@ -2,7 +2,7 @@ import type { AppDb } from "@/db";
 import { BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { normalizeOrderLines, CartValidationError, type CartLine } from "../../../../cod-shared/queries/cart";
-import { creditedTouch, landingOf } from "../../../../cod-shared/attribution/resolve";
+import { landingOf, landingTouch } from "../../../../cod-shared/attribution/resolve";
 import * as queries from "./queries";
 import type { StoreOrderInput } from "./validation";
 
@@ -83,6 +83,8 @@ export interface OrderToCommit {
   userAgent: string | undefined;
   /** Keeps the number the shopper already holds, when one exists. */
   orderNumber?: string;
+  /** When the shopper submitted it, for an order placed later (a Rescue). */
+  submittedAt?: string;
 }
 
 /** Writes the customer and the order. A concurrent request of the same checkout answers with `replay`. */
@@ -99,7 +101,7 @@ export async function commitOrder(db: AppDb, input: OrderToCommit) {
   // Best-effort: a bad slug never blocks the order; it just leaves it unattributed.
   // A form with no slug (a basket) takes the landing page its visit landed on.
   let landingPageId: string | null = null;
-  const landingPageSlug = data.landingPageSlug ?? landingOf(creditedTouch(data.attribution ?? null)?.path ?? null).landingSlug;
+  const landingPageSlug = data.landingPageSlug ?? landingOf(landingTouch(data.attribution ?? null, input.submittedAt ?? new Date().toISOString())?.path ?? null).landingSlug;
   if (landingPageSlug) {
     try {
       landingPageId = await queries.findPublishedLandingPageIdBySlug(db, landingPageSlug);
@@ -113,6 +115,7 @@ export async function commitOrder(db: AppDb, input: OrderToCommit) {
       db,
       {
         ...data,
+        submittedAt: input.submittedAt,
         customerId: customer.id,
         customerName: customer.name,
         deliveryFee: input.rate,

@@ -375,10 +375,10 @@
         "stop_desk": "Point relais"
       },
       "visit_source": {
-        "meta": "Publicité Meta",
-        "tiktok": "Publicité TikTok",
-        "google": "Publicité Google",
-        "other": "Autre"
+        "meta": "Depuis Meta (Facebook, Instagram)",
+        "tiktok": "Depuis TikTok",
+        "google": "Depuis Google",
+        "other": "Autre ou direct"
       },
       "app_source": {
         "facebook": "Facebook",

@@ -1,9 +1,10 @@
 /**
- * Order attribution on real D1: a storefront order writes the ad, the click
- * and the landing page its visit captured, in the order's own batch; a basket
- * order after a landing page names that page; what is unreadable is dropped
- * and the order is taken all the same; an abandoned checkout keeps its
- * touches.
+ * Order attribution on real D1 (attribution v2): a storefront order writes
+ * its channel, the ad it credits (the last ad click within seven days) and
+ * this visit, in the order's own batch; an old `_fbc` never credits an ad; a
+ * basket order after a landing page names that page; what is unreadable is
+ * dropped and the order is taken all the same; an abandoned checkout keeps
+ * its touches.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { OpenAPIHono } from "@hono/zod-openapi";
@@ -43,6 +44,7 @@ const adTouch = () => ({
 });
 
 const firstTouch = () => ({ at: recently(30), params: {}, path: "/", ref: "google.com" });
+const directVisit = () => ({ at: recently(0.1), params: {}, path: "/products/robe", ref: null });
 
 beforeAll(async () => {
   d1 = await createTestD1();
@@ -84,13 +86,15 @@ async function place(extra: Record<string, unknown>) {
 }
 
 describe("a storefront order's attribution", () => {
-  it("is written with the order: the ad, the click and the landing page its visit captured", async () => {
+  it("is written with the order: its channel, the ad it credits, and this visit apart", async () => {
     const last = adTouch();
     const first = firstTouch();
-    const { orderId, attribution } = await place({ attribution: { first, last } });
+    const visit = directVisit();
+    const { orderId, attribution } = await place({ attribution: { first, last, visit } });
     expect(attribution).toMatchObject({
       orderId,
       method: "captured",
+      channel: "paid_social",
       capturedAt: last.at,
       platform: "meta",
       clickId: "IwAR2F4-dbP0l7Mn1",
@@ -107,7 +111,31 @@ describe("a storefront order's attribution", () => {
       referrerHost: "l.instagram.com",
       firstTouchAt: first.at,
       firstTouchJson: JSON.stringify(first),
+      visitAt: visit.at,
+      visitChannel: "direct",
+      visitPlatform: "direct",
+      visitLandingPath: "/products/robe",
+      visitLandingPageType: "product",
+      visitReferrerHost: null,
     });
+  });
+
+  it("is direct for a visit that came with nothing, even with an old _fbc in the browser", async () => {
+    const { attribution } = await place({ fbc: "fb.1.1794297000000.IwAR2F4", attribution: { first: null, last: null, visit: directVisit() } });
+    expect(attribution).toMatchObject({ channel: "direct", platform: "direct", clickId: null, adId: null, visitChannel: "direct" });
+  });
+
+  it("credits no ad clicked more than seven days before the order", async () => {
+    const stale = { ...adTouch(), at: recently(7 * 24 + 1) };
+    expect((await place({ attribution: { first: null, last: stale, visit: directVisit() } })).attribution).toMatchObject({ channel: "direct", adId: null });
+    const recent = { ...adTouch(), at: recently(7 * 24 - 1) };
+    expect((await place({ attribution: { first: null, last: recent, visit: directVisit() } })).attribution).toMatchObject({ channel: "paid_social", adId: "120200000000000003" });
+  });
+
+  it("names a Facebook link that is not an ad as social, never as an ad", async () => {
+    const link = { at: recently(0.2), params: { fbclid: "IwAR2F4" }, path: "/", ref: "m.facebook.com" };
+    const { attribution } = await place({ attribution: { first: link, last: link, visit: link } });
+    expect(attribution).toMatchObject({ channel: "organic_social", platform: "meta", siteSource: "fb", adId: null, visitChannel: "organic_social" });
   });
 
   it("names the landing page a basket order's visit landed on", async () => {
@@ -126,12 +154,9 @@ describe("a storefront order's attribution", () => {
     expect(attribution?.landingPath).toBe("/lp/robe-ete");
   });
 
-  it("names the Meta click of an _fbc when the visit sent no touch", async () => {
-    expect((await place({ fbc: "fb.1.1709136167115.IwAR2F4" })).attribution).toMatchObject({ method: "captured", platform: "meta", clickId: "IwAR2F4", capturedAt: new Date(1709136167115).toISOString() });
-  });
-
-  it("is absent when the visit left nothing to credit", async () => {
+  it("is absent when the storefront sent nothing, whatever _fbc the browser holds", async () => {
     expect((await place({})).attribution).toBeNull();
+    expect((await place({ fbc: "fb.1.1709136167115.IwAR2F4" })).attribution).toBeNull();
   });
 
   it("drops what is unreadable, and the order is taken all the same", async () => {
@@ -143,9 +168,9 @@ describe("a storefront order's attribution", () => {
   });
 
   it("keeps only the touch parameters a visit carried, never another key", async () => {
-    const last = { ...adTouch(), params: { utm_source: "tiktok", phone: "0551234567" } };
+    const last = { ...adTouch(), params: { utm_source: "tiktok", utm_medium: "paid", phone: "0551234567" } };
     const { attribution } = await place({ attribution: { first: null, last } });
-    expect(attribution).toMatchObject({ platform: "tiktok", utmSource: "tiktok" });
+    expect(attribution).toMatchObject({ channel: "paid_social", platform: "tiktok", utmSource: "tiktok" });
     expect(JSON.stringify(attribution)).not.toContain("0551234567");
   });
 
@@ -166,7 +191,7 @@ describe("a storefront order's attribution", () => {
         deliveryFee: 600,
         checkoutKey,
         locale: "ar",
-        attribution: { first: firstTouch(), last: adTouch() },
+        attribution: { first: firstTouch(), last: adTouch(), visit: null },
       }),
     ).rejects.toBeInstanceOf(CheckoutAlreadyPlacedError);
     expect(await d1.db.select({ orderId: schema.orderAttribution.orderId, firstTouchAt: schema.orderAttribution.firstTouchAt }).from(schema.orderAttribution)).toEqual([{ orderId: first.orderId, firstTouchAt: null }]);
@@ -197,8 +222,9 @@ describe("an abandoned checkout's attribution", () => {
 
   it("keeps the touches it was saved with, and a later save without them keeps them", async () => {
     const last = adTouch();
-    expect(JSON.parse((await save({ attribution: { first: null, last } }))!)).toEqual({ first: null, last });
-    expect(JSON.parse((await save({ customerName: "Amel K." }))!)).toEqual({ first: null, last });
+    const visit = directVisit();
+    expect(JSON.parse((await save({ attribution: { first: null, last, visit } }))!)).toEqual({ first: null, last, visit });
+    expect(JSON.parse((await save({ customerName: "Amel K." }))!)).toEqual({ first: null, last, visit });
   });
 
   it("stores nothing it could not read", async () => {

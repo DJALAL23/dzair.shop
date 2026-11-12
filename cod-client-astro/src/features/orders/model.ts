@@ -4,7 +4,8 @@ import { allowedTransitions } from "../../../../cod-shared/orders/lifecycle";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { SCOPE_FOR_KIND, scopeForShipmentAction } from "../../../../cod-shared/shipments/actions";
 import { reportsAllowedFor, type MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
-import type { OrderAttributionView } from "../../../../cod-shared/attribution/source";
+import type { OrderAttributionView } from "../../../../cod-shared/attribution/view";
+import { PAID_CHANNELS, type OrderChannel } from "../../../../cod-shared/attribution/model";
 import type {
   AbandonedOrder,
   AbandonedOrderStatus,
@@ -470,23 +471,78 @@ export function lineBeforeCoupon(line: { lineTotal: number; quantity: number; di
   return { unit: line.quantity > 0 ? total / line.quantity : 0, total };
 }
 
-/** The merchant names an order's source unless it was captured from the shopper's visit. */
-export function canNameSource(attribution: OrderAttributionView | null | undefined): boolean {
-  return attribution?.method !== "captured";
+/** What an order's source says first: the i18n key of its headline under `source.headline`, and the network it names. Null when it is not known. */
+export function sourceHeadline(source: { channel: OrderChannel | null; platform: string | null; app: string | null } | null | undefined): { key: string; network: string | null } | null {
+  if (!source?.channel) return null;
+  const { channel } = source;
+  if ((PAID_CHANNELS as readonly string[]).includes(channel)) return { key: "paid", network: networkOf(source.platform, source.app) };
+  if (channel === "organic_social" || channel === "organic_search") return { key: channel, network: networkOf(source.platform, source.app) };
+  return { key: channel, network: null };
 }
 
-export type AttributionFactKey = "campaign" | "ad" | "placement" | "landing" | "referrer" | "clicked_at";
-
-/** What an attribution says beyond its source, in reading order; only the facts it has. */
-export function attributionFacts(attribution: OrderAttributionView, locale: Locale): Array<{ key: AttributionFactKey; value: string }> {
-  const named = (name: string | null, id: string | null) => (name && id ? `${name} (${id})` : name ?? id);
-  const facts: Array<{ key: AttributionFactKey; value: string | null }> = [
-    { key: "campaign", value: named(attribution.campaignName, attribution.campaignId) },
-    { key: "ad", value: named(attribution.adName, attribution.adId) },
-    { key: "placement", value: attribution.placement },
-    { key: "landing", value: attribution.landingPath },
-    { key: "referrer", value: attribution.referrerHost },
-    { key: "clicked_at", value: attribution.capturedAt ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(attribution.capturedAt)) : null },
-  ];
-  return facts.filter((fact): fact is { key: AttributionFactKey; value: string } => Boolean(fact.value));
+/** The network a source names, as a key under `source.network`: the Meta app when known. */
+export function networkOf(platform: string | null, app: string | null): string {
+  if (platform === "meta") return app ?? "meta";
+  return platform === "tiktok" || platform === "google" || platform === "bing" ? platform : "other";
 }
+
+const META_PLACEMENT_APPS = ["Facebook", "Instagram", "Messenger", "Threads", "WhatsApp"];
+
+/** Meta's placement as a person reads it: `Facebook_Mobile_Feed` is "Facebook · Mobile Feed". */
+export function readablePlacement(placement: string): string {
+  const words = placement.split(/[_\s]+/).filter(Boolean);
+  if (words[0] === "Audience" && words[1] === "Network") return ["Audience Network", words.slice(2).join(" ")].filter(Boolean).join(" · ");
+  if (words[0] && META_PLACEMENT_APPS.includes(words[0]) && words.length > 1) return `${words[0]} · ${words.slice(1).join(" ")}`;
+  return words.join(" ");
+}
+
+/** How long before the order the shopper clicked: the i18n key under `source` and its count. */
+export function beforeOrder(clickedAt: string, orderedAt: string): { key: string; count?: number } {
+  const ms = Date.parse(orderedAt) - Date.parse(clickedAt);
+  if (!Number.isFinite(ms) || ms < 60_000) return { key: "just_before" };
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 60) return { key: "minutes_before", count: minutes };
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return { key: "hours_before", count: hours };
+  return { key: "days_before", count: Math.floor(hours / 24) };
+}
+
+export type SourceFactKey = "campaign" | "ad" | "placement" | "landing" | "referrer" | "clicked_at" | "arrived_at";
+export type SourceFact = { key: SourceFactKey; value: string };
+
+const when = (at: string, locale: Locale) => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(at));
+const kept = (facts: Array<{ key: SourceFactKey; value: string | null | undefined }>) => facts.filter((fact): fact is SourceFact => Boolean(fact.value));
+
+/** What the credited ad says, in reading order; only the facts it has. Names before ids. */
+export function adFacts(ad: NonNullable<OrderAttributionView["ad"]>, locale: Locale): SourceFact[] {
+  return kept([
+    { key: "campaign", value: ad.campaignName ?? ad.campaignId ?? ad.utmCampaign },
+    { key: "ad", value: ad.adName ?? ad.adId },
+    { key: "placement", value: ad.placement ? readablePlacement(ad.placement) : null },
+    { key: "landing", value: ad.landingPath },
+    { key: "clicked_at", value: ad.clickedAt ? when(ad.clickedAt, locale) : null },
+  ]);
+}
+
+/** What this visit says, in reading order; only the facts it has. */
+export function visitFacts(visit: NonNullable<OrderAttributionView["visit"]>, locale: Locale): SourceFact[] {
+  return kept([
+    { key: "referrer", value: visit.referrerHost },
+    { key: "campaign", value: visit.utmCampaign },
+    { key: "landing", value: visit.landingPath },
+    { key: "arrived_at", value: visit.at ? when(visit.at, locale) : null },
+  ]);
+}
+
+/** The source filter of the orders list: each choice and the channels it shows. */
+export const SOURCE_FILTERS = {
+  ads: ["paid_social", "paid_search", "paid_other"],
+  social: ["organic_social"],
+  search: ["organic_search"],
+  direct: ["direct"],
+  other: ["referral", "tagged", "email"],
+  team: ["dashboard", "api", "agent"],
+  unknown: ["unknown"],
+} as const satisfies Record<string, readonly (OrderChannel | "unknown")[]>;
+
+export type SourceFilter = keyof typeof SOURCE_FILTERS;

@@ -1,4 +1,4 @@
-import type { OrderAttributionView } from "../../../../cod-shared/attribution/source";
+import type { OrderAttributionView, OrderSourceSummary } from "../../../../cod-shared/attribution/view";
 import type { RuleMatch } from "../../../../cod-shared/order-screening/rules";
 import type { OrderStatus } from "../../../../cod-shared/orders/lifecycle";
 import type { OrderStage } from "../../../../cod-shared/orders/stage";
@@ -94,6 +94,8 @@ export interface OrderListItem extends OrderBase {
   shipmentKind: ShipmentKind | null;
   carrierName: string | null;
   trackingNumber: string | null;
+  /** Where the order came from, in short; null when it is not known. */
+  source?: OrderSourceSummary | null;
 }
 
 export interface ShipmentEvent {

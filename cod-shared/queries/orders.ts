@@ -53,8 +53,9 @@ import { creditOf, type Author } from "../events/actor";
 import { ORDER_STATUS_EVENT, ORDER_STATUS_OF_EVENT, type OrderField, type OrderProcessingEvent } from "../events/catalogue";
 import { recordEvent } from "../events/record";
 import { orderSnapshot } from "../events/snapshots";
-import { insertSelectRow } from "../db/insert-select";
-import { merchantAttributionRow, orderAttributionView, type MerchantSourceChoice } from "../attribution/source";
+import { enteredAttributionRow } from "../attribution/resolve";
+import { orderAttributionView, orderSourceSummary } from "../attribution/view";
+import type { OrderChannel } from "../attribution/model";
 
 export interface OrderFilters {
   status?: (typeof orders.$inferSelect)["status"] | "all";
@@ -66,6 +67,8 @@ export interface OrderFilters {
   kind?: ShipmentKind;
   /** Only orders Order Protection flagged. */
   flagged?: boolean;
+  /** Only orders from these channels; `unknown` is an order whose source is not known. */
+  channel?: readonly (OrderChannel | "unknown")[];
   /** Archived orders: left out (default), the only ones, or included. */
   archived?: "exclude" | "only" | "include";
   orderType?: (typeof orders.$inferSelect)["orderType"];
@@ -152,6 +155,15 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     conditions.push(eq(orders.wilayaId, filters.wilayaId));
   }
 
+  if (filters.channel?.length) {
+    const known = filters.channel.filter((channel): channel is OrderChannel => channel !== "unknown");
+    const parts = [
+      ...(known.length ? [inArray(orderAttribution.channel, known)] : []),
+      ...(filters.channel.includes("unknown") ? [isNull(orderAttribution.channel)] : []),
+    ];
+    conditions.push(parts.length === 1 ? parts[0]! : or(...parts)!);
+  }
+
   if (filters.search) {
     const term = `%${safeLikeTerm(filters.search)}%`;
     conditions.push(
@@ -192,6 +204,22 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
       stage: orderStageSql(),
       needsAttention: orderNeedsAttentionSql(),
       flagMatchesJson: sql<string | null>`(SELECT order_attempts.matches_json FROM order_attempts WHERE order_attempts.order_id = orders.id AND order_attempts.outcome = 'flagged' LIMIT 1)`,
+      sourceRow: {
+        orderId: orderAttribution.orderId,
+        method: orderAttribution.method,
+        channel: orderAttribution.channel,
+        platform: orderAttribution.platform,
+        siteSource: orderAttribution.siteSource,
+        clickId: orderAttribution.clickId,
+        clickIdType: orderAttribution.clickIdType,
+        utmSource: orderAttribution.utmSource,
+        utmMedium: orderAttribution.utmMedium,
+        utmCampaign: orderAttribution.utmCampaign,
+        utmTerm: orderAttribution.utmTerm,
+        utmContent: orderAttribution.utmContent,
+        namesJson: orderAttribution.namesJson,
+        referrerHost: orderAttribution.referrerHost,
+      },
     })
     .from(orders)
     .leftJoin(wilayas, eq(orders.wilayaId, wilayas.id))
@@ -199,12 +227,18 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     .leftJoin(shipments, eq(shipments.orderId, orders.id))
     .leftJoin(driversAlias, eq(shipments.driverId, driversAlias.id))
     .leftJoin(deliveryCompanies, eq(shipments.companyId, deliveryCompanies.id))
+    .leftJoin(orderAttribution, eq(orderAttribution.orderId, orders.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(orders.createdAt), desc(orders.id))
     .limit(filters.limit ?? 50)
     .offset(offset)
     .all();
-  return rows.map(({ flagMatchesJson, ...row }) => ({ ...row, flagReasons: flagReasonsOf(flagMatchesJson) }));
+  return rows.map(({ flagMatchesJson, sourceRow, ...row }) => ({
+    ...row,
+    flagReasons: flagReasonsOf(flagMatchesJson),
+    /** Where the order came from (ADR 0026); null when it is not known. */
+    source: orderSourceSummary(sourceRow?.orderId ? sourceRow : null),
+  }));
 }
 
 /** The Active Flag rules that flagged an order: what its flag says when pointed at. */
@@ -280,7 +314,6 @@ export async function createOrder(
   orderData: Omit<typeof orders.$inferInsert, "locale" | "checkoutKey" | "status">,
   productsData: Array<NewOrderLine>,
   author: Author,
-  source?: MerchantSourceChoice | null,
 ) {
   const now = orderData.createdAt ?? new Date().toISOString();
   const credit = creditOf(author.actor);
@@ -294,7 +327,8 @@ export async function createOrder(
     statements.push(db.insert(orderProducts).values(productsData));
   }
 
-  if (source) statements.push(db.insert(orderAttribution).values(merchantAttributionRow(orderData.id!, source, now)));
+  const entered = enteredAttributionRow(orderData.id!, author.origin, now);
+  if (entered) statements.push(db.insert(orderAttribution).values(entered));
 
   for (const item of productsData) {
     const qty = item.quantity as number;
@@ -486,8 +520,6 @@ export interface UpdateOrderData {
   address?: string | null;
   deliveryType?: "home" | "stop_desk";
   notes?: string | null;
-  /** The source the merchant names; null clears it. Never replaces a captured attribution. */
-  source?: MerchantSourceChoice | null;
 }
 
 /**
@@ -598,7 +630,6 @@ export async function updateOrder(
     ...(changedFields.length
       ? [recordEvent(db, { type: "order.updated", subjectId: orderId, orderId, occurredAt: now, ...author, data: { order: orderSnapshot(orderId), changedFields } }, sql`changes() > 0`)]
       : []),
-    ...(updates.source === undefined ? [] : [merchantSourceStatement(db, orderId, updates.source, now, locked)]),
   ]);
   if (((result as { meta?: { changes?: number } }).meta?.changes ?? 0) === 0) return { ok: false, reason: "has_shipment" };
 
@@ -607,43 +638,6 @@ export async function updateOrder(
     await updateCustomer(db, customerTarget, customerUpdates);
   }
   return { ok: true };
-}
-
-/**
- * Sets or clears the source the merchant names, in the edit's batch and under
- * its guard: an edit refused for the order's shipment changes no source. A
- * captured attribution is never replaced or removed (`method = 'merchant'`).
- */
-function merchantSourceStatement(db: AppDb, orderId: string, source: MerchantSourceChoice | null, now: string, locked: boolean) {
-  const applies = locked ? sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})` : sql`1`;
-  if (!source) {
-    return db.delete(orderAttribution).where(and(eq(orderAttribution.orderId, orderId), eq(orderAttribution.method, "merchant"), applies));
-  }
-  const row = merchantAttributionRow(orderId, source, now);
-  return db
-    .insert(orderAttribution)
-    .select(
-      db
-        .select(
-          insertSelectRow(orderAttribution, {
-            orderId: orders.id,
-            method: sql`${row.method}`,
-            platform: sql`${row.platform}`,
-            siteSource: sql`${row.siteSource}`,
-            campaignId: sql`${row.campaignId}`,
-            adId: sql`${row.adId}`,
-            createdAt: sql`${now}`,
-            updatedAt: sql`${now}`,
-          }) as never,
-        )
-        .from(orders)
-        .where(and(eq(orders.id, orderId), applies)),
-    )
-    .onConflictDoUpdate({
-      target: orderAttribution.orderId,
-      set: { platform: row.platform, siteSource: row.siteSource, campaignId: row.campaignId, adId: row.adId, updatedAt: now },
-      setWhere: eq(orderAttribution.method, "merchant"),
-    });
 }
 
 /** The parts of the order this edit changes, as `order.updated` names them. */

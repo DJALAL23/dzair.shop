@@ -8,6 +8,7 @@ import type { DeliveryCompany, Driver, OrderListItem } from "@/features/orders/t
 import { StageBadge } from "@/features/orders/components/StageBadge";
 import { OrderDelivery } from "@/features/orders/components/OrderDelivery";
 import { OrderRowActions } from "@/features/orders/components/OrderRowActions";
+import { OrderSource } from "@/features/orders/components/OrderSourceCard";
 
 interface RowProps {
   order: OrderListItem;
@@ -81,6 +82,9 @@ export function OrderDesktopRow({ order, selection, selectable = false, ...actio
       <TableCell>
         <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
       </TableCell>
+      <TableCell className="max-w-44">
+        <OrderSource order={order} />
+      </TableCell>
       <TableCell className="max-w-48">
         <OrderDelivery order={order} />
       </TableCell>
@@ -120,6 +124,9 @@ export function OrderMobileCard({ order, selection }: Pick<RowProps, "order" | "
         <div className="mt-2 flex min-w-0 items-center gap-3">
           <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
           {order.shipmentKind && <OrderDelivery order={order} />}
+          <span className="min-w-0 max-w-32">
+            <OrderSource order={order} compact />
+          </span>
           <time dateTime={order.createdAt} className="ms-auto shrink-0 text-xs text-muted-foreground">
             {relativeTime(order.createdAt, locale)}
           </time>

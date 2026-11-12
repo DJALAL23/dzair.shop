@@ -5,7 +5,7 @@ import { useLocale, useT } from "@/i18n/react";
 import { placeLabel } from "@/lib/places";
 import { getOrderStageCounts, listDeliveryCompanies, listDrivers, listOrders, type OrderQuery } from "@/features/orders/api";
 import { listWilayas } from "@/features/geography/api";
-import { BULK_HANDOFF_LIMIT, bulkSelection, handoffKinds, ORDER_QUEUES, viewCounts, viewQuery, type OrderView } from "@/features/orders/model";
+import { BULK_HANDOFF_LIMIT, bulkSelection, handoffKinds, ORDER_QUEUES, viewCounts, viewQuery, SOURCE_FILTERS, type OrderView, type SourceFilter } from "@/features/orders/model";
 import type { DeliveryCompany, Driver, OrderListItem, Wilaya } from "@/features/orders/types";
 import {
   Alert,
@@ -34,9 +34,10 @@ interface Filters {
   orderType: "" | "online" | "offline";
   wilayaId: string;
   flagged: "" | "true";
+  source: "" | SourceFilter;
 }
 
-const NO_FILTERS: Filters = { search: "", kind: "", orderType: "", wilayaId: "", flagged: "" };
+const NO_FILTERS: Filters = { search: "", kind: "", orderType: "", wilayaId: "", flagged: "", source: "" };
 
 function initialView(): OrderView {
   const view = new URLSearchParams(window.location.search).get("view");
@@ -91,6 +92,7 @@ export function OrdersList() {
       orderType: deferredFilters.orderType || undefined,
       wilayaId: deferredFilters.wilayaId ? Number(deferredFilters.wilayaId) : undefined,
       flagged: deferredFilters.flagged === "true" || undefined,
+      channels: deferredFilters.source ? SOURCE_FILTERS[deferredFilters.source] : undefined,
       limit: PAGE_SIZE,
       cursor,
     };
@@ -246,6 +248,14 @@ export function OrdersList() {
             <option value="">{t("filters.any_protection")}</option>
             <option value="true">{t("filters.flagged")}</option>
           </FilterPill>
+          <FilterPill label={t("source.column")} value={filters.source} onChange={(value) => setFilter("source", value as Filters["source"])}>
+            <option value="">{t("source.filter.any")}</option>
+            {(Object.keys(SOURCE_FILTERS) as SourceFilter[]).map((key) => (
+              <option key={key} value={key}>
+                {t(`source.filter.${key}`)}
+              </option>
+            ))}
+          </FilterPill>
           {wilayas.length > 0 && (
             <FilterPill label={t("filters.wilaya")} value={filters.wilayaId} onChange={(value) => setFilter("wilayaId", value)}>
               <option value="">{t("filters.all_wilayas")}</option>
@@ -279,7 +289,7 @@ export function OrdersList() {
         </div>
 
         {orders === null ? (
-          <TableSkeleton columns={6} />
+          <TableSkeleton columns={7} />
         ) : orders.length === 0 ? (
           <EmptyState
             icon={<PackageOpen />}
@@ -297,7 +307,7 @@ export function OrdersList() {
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
-              <Table className="min-w-[960px]">
+              <Table className="min-w-[1080px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     {selectable && (
@@ -314,6 +324,7 @@ export function OrdersList() {
                     <TableHead>{t("table.customer")}</TableHead>
                     <TableHead>{t("table.phone")}</TableHead>
                     <TableHead>{t("table.stage")}</TableHead>
+                    <TableHead>{t("source.column")}</TableHead>
                     <TableHead>{t("table.delivery")}</TableHead>
                     <TableHead numeric>{t("table.total")}</TableHead>
                     <TableHead className="w-px">

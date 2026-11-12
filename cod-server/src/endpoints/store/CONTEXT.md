@@ -63,20 +63,36 @@ _Avoid_: Tracking pixel, analytics event
 
 ### Attribution
 
+**Arrival**:
+A page the shopper reached from outside the store: a typed address or a bookmark (`Sec-Fetch-Site: none`), another site or app (`cross-site`, `same-site`), or, without fetch metadata, a `Referer` that is not the store. A click inside the store or a prefetch is not an Arrival.
+_Avoid_: Session start, landing
+
 **Touch**:
-One visit worth crediting: the touch parameters of its URL (`utm_*`, `wc_*`, `fbclid`, `ttclid`, `gclid`), the path it landed on and the other site that referred it. The storefront keeps two in a first-party cookie: the **First Touch** and the **Last Ad Touch**, the latest one whose URL carried a touch parameter.
+What one Arrival carried: the touch parameters of its URL (`utm_*`, `wc_*`, `fbclid`, `ttclid`, `gclid`, `gbraid`, `wbraid`), the path it landed on and the other site that referred it. A direct Arrival has only its path. The storefront keeps three in a first-party cookie: the **First Touch**, the **Last Ad Touch** and **This Visit**.
 _Avoid_: Session, hit, source
 
 **Ad Click**:
-A Touch whose URL carried an ad platform's click id (`fbclid` for Meta, `ttclid` for TikTok, `gclid` for Google). The click id is kept byte for byte.
+A Touch an ad made: a click id only ads carry (`ttclid`, `gclid`, `gbraid`, `wbraid`), a `utm_medium` matching Google Analytics' paid rule, or Wocart's ad template names (`wc_cn`, `wc_an`). A bare `fbclid` is not an Ad Click: Meta adds it to every link leaving Facebook and Instagram. Click ids are kept byte for byte, up to 1,000 characters.
 _Avoid_: Click-through, conversion
 
+**This Visit**:
+The shopper's latest Arrival before ordering, an ad or not, a direct one included. A direct Arrival within 30 minutes of This Visit continues it.
+_Avoid_: Session, last touch
+
+**Ad Credited**:
+The Ad Click an order credits: the latest one at most seven days (Meta's default click window) before the shopper submitted the order. None when no Ad Click is that recent.
+_Avoid_: Attributed ad, conversion ad
+
+**Channel**:
+Where an order came from, as one word: the Ad Credited's (`paid_social`, `paid_search`, `paid_other`), else This Visit's (`organic_social`, `organic_search`, `email`, `referral`, `tagged`, `direct`), else the staff surface that entered it (`dashboard`, `api`, `agent`). Google Analytics' default channel group, plus Wocart's rules above. Null when nothing is known.
+_Avoid_: Source label, medium
+
 **Order Attribution**:
-Where an order came from, one `order_attribution` row per attributed order, written in the order's own batch. It credits the Last Ad Touch, else the First Touch; with neither, a well-formed `_fbc` still names the Meta click and its time. No row means nothing is known. `captured_at` is when the credited Touch happened, so a report applies its click window to it, not to the order's time.
+Where an order came from, one `order_attribution` row per order the storefront tracked or staff entered, written in the order's own batch: its Channel, the Ad Credited (else This Visit) in the touch columns, and This Visit in the `visit_*` columns. `_fbc` never decides it; it is only passed on to Meta. No row means nothing is known.
 _Avoid_: Conversion source, UTM record
 
 **Attribution Method**:
-How an Order Attribution was set: `captured` from the shopper's visit, or `merchant` when the merchant names the source of a dashboard order.
+How an Order Attribution was made: `captured` from the shopper's visit, or `entered` for an order staff, the API or the AI agent created. Rows from before attribution v2 may say `merchant`, a source chosen by hand; they read as entered in the dashboard. Nobody names a source by hand any more.
 _Avoid_: Attribution model (that is a report's choice of which touch to credit)
 
 The touches come from a cookie the shopper holds, so the server trusts none of it (`cod-shared/attribution/touch.ts`): unknown keys are never read, each value is checked and capped, an id that is not digits never becomes `ad_id`, and an unreadable part is dropped without refusing the order. A basket order with no landing-page slug takes the landing page its visit landed on.

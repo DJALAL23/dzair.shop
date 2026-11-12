@@ -386,6 +386,7 @@ export async function createStoreOrder(c: Context<AppContext>) {
       checkoutContext: data.checkoutContext,
       visitorNetwork: c.req.header("X-Visitor-Network"),
       userAgent,
+      attribution: data.attribution ?? null,
     },
     { limiter: c.env.REVIEW_RATE_LIMITER },
     now,

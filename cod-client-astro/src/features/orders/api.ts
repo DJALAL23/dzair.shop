@@ -50,6 +50,8 @@ export interface OrderQuery {
   stages?: readonly OrderStage[];
   attention?: boolean;
   flagged?: boolean;
+  /** Only orders from these channels (`unknown`: not known). */
+  channels?: readonly string[];
   kind?: ShipmentKind;
   orderType?: "online" | "offline";
   wilayaId?: number;
@@ -65,6 +67,7 @@ export async function listOrders(params: OrderQuery = {}): Promise<OrderPage> {
   if (params.stages?.length) query.set("stage", params.stages.join(","));
   if (params.attention !== undefined) query.set("attention", String(params.attention));
   if (params.flagged) query.set("flagged", "true");
+  if (params.channels?.length) query.set("channel", params.channels.join(","));
   if (params.kind) query.set("kind", params.kind);
   if (params.orderType) query.set("orderType", params.orderType);
   if (params.wilayaId) query.set("wilayaId", String(params.wilayaId));

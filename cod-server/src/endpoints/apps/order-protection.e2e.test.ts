@@ -216,11 +216,20 @@ describe("Rescue", () => {
   });
 
   it("keeps the attribution of the submission it holds", async () => {
-    const last = { at: "2026-11-09T07:00:00.000Z", params: { utm_source: "facebook", utm_content: "120200000000000003", fbclid: "IwAR2F4" }, path: "/lp/robe-ete", ref: null };
-    const held = await spamOrder(2, { attribution: { first: null, last } });
+    const last = { at: new Date(Date.now() - 2 * 86_400_000).toISOString(), params: { utm_source: "facebook", utm_medium: "paid_social", utm_content: "120200000000000003", fbclid: "IwAR2F4" }, path: "/lp/robe-ete", ref: null };
+    const held = await spamOrder(2, { attribution: { first: null, last, visit: null } });
     const { status, body } = await admin.post(`${BASE}/spam/${held.orderId}/rescue`);
     expect(status).toBe(201);
-    expect(await d1.db.select().from(schema.orderAttribution).get()).toMatchObject({ orderId: body.data.orderId, method: "captured", capturedAt: last.at, platform: "meta", adId: "120200000000000003", clickId: "IwAR2F4", landingPath: "/lp/robe-ete" });
+    expect(await d1.db.select().from(schema.orderAttribution).get()).toMatchObject({ orderId: body.data.orderId, method: "captured", channel: "paid_social", capturedAt: last.at, platform: "meta", adId: "120200000000000003", clickId: "IwAR2F4", landingPath: "/lp/robe-ete" });
+  });
+
+  it("counts the ad's seven days from when the shopper submitted, not from the Rescue", async () => {
+    const day = 86_400_000;
+    const last = { at: new Date(Date.now() - 9 * day).toISOString(), params: { utm_source: "facebook", utm_medium: "paid_social", utm_content: "120200000000000003" }, path: "/", ref: null };
+    const held = await spamOrder(2, { attribution: { first: null, last, visit: null } });
+    await d1.db.update(schema.orderAttempts).set({ createdAt: new Date(Date.now() - 8 * day).toISOString() }).where(eq(schema.orderAttempts.id, held.orderId));
+    expect((await admin.post(`${BASE}/spam/${held.orderId}/rescue`)).status).toBe(201);
+    expect(await d1.db.select().from(schema.orderAttribution).get()).toMatchObject({ channel: "paid_social", adId: "120200000000000003" });
   });
 
   it("uses today's price, not the one kept", async () => {

@@ -399,10 +399,10 @@
         "stop_desk": "مكتب التوصيل"
       },
       "visit_source": {
-        "meta": "إعلان Meta",
-        "tiktok": "إعلان TikTok",
-        "google": "إعلان Google",
-        "other": "أخرى"
+        "meta": "من Meta (فيسبوك، إنستغرام)",
+        "tiktok": "من TikTok",
+        "google": "من Google",
+        "other": "مصدر آخر أو مباشر"
       },
       "app_source": {
         "facebook": "Facebook",

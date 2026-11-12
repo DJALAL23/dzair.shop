@@ -136,6 +136,8 @@ export interface StoreOrderData {
   fbp?: string;
   /** The visit's touches, already read by `parseCapturedTouches`: the order's `order_attribution` row comes from them. */
   attribution?: CapturedTouches | null;
+  /** When the shopper submitted the order, for one placed later (a Rescue): the ad credit window counts from it. Never from the wire. */
+  submittedAt?: string;
   ipAddress?: string;
   userAgent?: string;
   /** The checkout attempt's key: an order already placed with it is never placed again (migration 0062). */
@@ -1071,7 +1073,7 @@ export async function createStoreOrder(
   }));
 
   const finalDeliveryFee = delivery.fee;
-  const attribution = capturedAttributionRow(id, data.attribution ?? null, { fbc: data.fbc, now });
+  const attribution = capturedAttributionRow(id, data.attribution ?? null, { now, orderedAt: data.submittedAt });
 
   // ── Reward lines ───────────────────────────────────────────────────────────
   //

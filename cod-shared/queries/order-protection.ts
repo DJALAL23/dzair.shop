@@ -190,9 +190,9 @@ export async function attemptOfOrder(db: AppDb, orderId: string): Promise<Attemp
 const isSpamOrder = (id: string) => and(eq(orderAttempts.id, id), eq(orderAttempts.outcome, "spam"));
 
 /** Takes a Spam Order for Rescue, once: a second click finds nothing to take. */
-export async function claimSpamOrder(db: AppDb, id: string): Promise<{ submissionJson: string; orderNumber: string } | null> {
-  const claimed = await db.update(orderAttempts).set({ outcome: "rescued" }).where(isSpamOrder(id)).returning({ submissionJson: orderAttempts.submissionJson, orderNumber: orderAttempts.orderNumber }).get();
-  return claimed?.submissionJson && claimed.orderNumber ? { submissionJson: claimed.submissionJson, orderNumber: claimed.orderNumber } : null;
+export async function claimSpamOrder(db: AppDb, id: string): Promise<{ submissionJson: string; orderNumber: string; submittedAt: string } | null> {
+  const claimed = await db.update(orderAttempts).set({ outcome: "rescued" }).where(isSpamOrder(id)).returning({ submissionJson: orderAttempts.submissionJson, orderNumber: orderAttempts.orderNumber, submittedAt: orderAttempts.createdAt }).get();
+  return claimed?.submissionJson && claimed.orderNumber ? { submissionJson: claimed.submissionJson, orderNumber: claimed.orderNumber, submittedAt: claimed.submittedAt } : null;
 }
 
 export async function spamOrderWasRescued(db: AppDb, id: string): Promise<boolean> {

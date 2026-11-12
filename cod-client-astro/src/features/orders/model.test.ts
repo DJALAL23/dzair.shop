@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { SHIPMENT_ACTIONS } from "../../../../cod-shared/shipments/actions";
-import type { OrderAttributionView } from "../../../../cod-shared/attribution/source";
+import type { OrderAttributionView } from "../../../../cod-shared/attribution/view";
 import {
-  attributionFacts,
-  canNameSource,
+  adFacts,
+  beforeOrder,
+  readablePlacement,
+  SOURCE_FILTERS,
+  sourceHeadline,
+  visitFacts,
   abandonedBasketView,
   attentionReason,
   eventLabel,
@@ -436,35 +440,85 @@ describe("an order's items before its coupon", () => {
 });
 
 describe("an order's source", () => {
-  const view = (overrides: Partial<OrderAttributionView> = {}): OrderAttributionView => ({
-    method: "captured", source: "instagram", platform: "meta", capturedAt: "2026-11-10T09:30:00.000Z", clickIdType: "fbclid",
-    campaignId: "120200000000000001", campaignName: "Robe été", adsetId: null, adId: "120200000000000003", adName: null,
-    placement: "Instagram_Stories", siteSource: "ig", utmSource: "facebook", utmMedium: null, utmCampaign: null, utmTerm: null, utmContent: null,
-    landingPath: "/lp/robe-ete", landingPageType: "landing", referrerHost: null, firstTouchAt: null, ...overrides,
+  type Ad = NonNullable<OrderAttributionView["ad"]>;
+  type Visit = NonNullable<OrderAttributionView["visit"]>;
+  const AD: Ad = {
+    platform: "meta",
+    app: "fb",
+    clickedAt: "2026-11-12T06:18:00.000Z",
+    clickIdType: "fbclid",
+    campaignId: "120200000000000001",
+    campaignName: "TEST2-campaign",
+    adsetId: null,
+    adId: "120200000000000003",
+    adName: "TEST2-ad",
+    placement: "Facebook_Mobile_Feed",
+    utmSource: "facebook",
+    utmCampaign: "120200000000000001",
+    landingPath: "/products/insulated-bottle",
+    landingPageType: "product",
+  };
+  const VISIT: Visit = { at: "2026-11-12T06:19:00.000Z", channel: "direct", platform: "direct", app: null, referrerHost: null, landingPath: "/", landingPageType: "home", utmSource: null, utmMedium: null, utmCampaign: null };
+
+  it("heads with the ad and its app, the social network or search engine, or what the order was", () => {
+    expect(sourceHeadline({ channel: "paid_social", platform: "meta", app: "ig" })).toEqual({ key: "paid", network: "ig" });
+    expect(sourceHeadline({ channel: "paid_social", platform: "meta", app: null })).toEqual({ key: "paid", network: "meta" });
+    expect(sourceHeadline({ channel: "paid_search", platform: "google", app: null })).toEqual({ key: "paid", network: "google" });
+    expect(sourceHeadline({ channel: "paid_other", platform: "other", app: null })).toEqual({ key: "paid", network: "other" });
+    expect(sourceHeadline({ channel: "organic_social", platform: "meta", app: "fb" })).toEqual({ key: "organic_social", network: "fb" });
+    expect(sourceHeadline({ channel: "organic_social", platform: "tiktok", app: null })).toEqual({ key: "organic_social", network: "tiktok" });
+    expect(sourceHeadline({ channel: "organic_search", platform: "bing", app: null })).toEqual({ key: "organic_search", network: "bing" });
+    for (const channel of ["direct", "referral", "tagged", "email", "dashboard", "api", "agent"] as const) {
+      expect(sourceHeadline({ channel, platform: "direct", app: null }), channel).toEqual({ key: channel, network: null });
+    }
+    expect(sourceHeadline({ channel: null, platform: "direct", app: null })).toBeNull();
+    expect(sourceHeadline(null)).toBeNull();
   });
 
-  it("is named by the merchant unless it was captured from the shopper's visit", () => {
-    expect(canNameSource(null)).toBe(true);
-    expect(canNameSource(undefined)).toBe(true);
-    expect(canNameSource(view({ method: "merchant" }))).toBe(true);
-    expect(canNameSource(view())).toBe(false);
+  it("reads Meta's placement as words", () => {
+    expect(readablePlacement("Facebook_Mobile_Feed")).toBe("Facebook · Mobile Feed");
+    expect(readablePlacement("Instagram_Stories")).toBe("Instagram · Stories");
+    expect(readablePlacement("Audience_Network_Rewarded_Video")).toBe("Audience Network · Rewarded Video");
+    expect(readablePlacement("Audience_Network")).toBe("Audience Network");
+    expect(readablePlacement("Facebook")).toBe("Facebook");
+    expect(readablePlacement("Other_Placement")).toBe("Other Placement");
   });
 
-  it("shows the facts an attribution has, in reading order, a name with its id", () => {
-    expect(attributionFacts(view(), "en")).toEqual([
-      { key: "campaign", value: "Robe été (120200000000000001)" },
+  it("says how long before the order the ad was clicked", () => {
+    const at = "2026-11-12T12:00:00.000Z";
+    expect(beforeOrder("2026-11-12T11:59:30.000Z", at)).toEqual({ key: "just_before" });
+    expect(beforeOrder("2026-11-12T11:59:00.000Z", at)).toEqual({ key: "minutes_before", count: 1 });
+    expect(beforeOrder("2026-11-12T11:00:01.000Z", at)).toEqual({ key: "minutes_before", count: 59 });
+    expect(beforeOrder("2026-11-12T11:00:00.000Z", at)).toEqual({ key: "hours_before", count: 1 });
+    expect(beforeOrder("2026-11-10T12:00:01.000Z", at)).toEqual({ key: "hours_before", count: 47 });
+    expect(beforeOrder("2026-11-10T12:00:00.000Z", at)).toEqual({ key: "days_before", count: 2 });
+    expect(beforeOrder("2026-11-12T12:05:00.000Z", at)).toEqual({ key: "just_before" });
+    expect(beforeOrder("not a date", at)).toEqual({ key: "just_before" });
+  });
+
+  it("shows the ad by its names, its placement in words, its landing page and click time", () => {
+    expect(adFacts(AD, "en")).toEqual([
+      { key: "campaign", value: "TEST2-campaign" },
+      { key: "ad", value: "TEST2-ad" },
+      { key: "placement", value: "Facebook · Mobile Feed" },
+      { key: "landing", value: "/products/insulated-bottle" },
+      { key: "clicked_at", value: new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(AD.clickedAt!)) },
+    ]);
+    expect(adFacts({ ...AD, campaignName: null, adName: null, placement: null, landingPath: null, clickedAt: null }, "ar")).toEqual([
+      { key: "campaign", value: "120200000000000001" },
       { key: "ad", value: "120200000000000003" },
-      { key: "placement", value: "Instagram_Stories" },
-      { key: "landing", value: "/lp/robe-ete" },
-      { key: "clicked_at", value: new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date("2026-11-10T09:30:00.000Z")) },
     ]);
+    expect(adFacts({ ...AD, campaignName: null, campaignId: null, utmCampaign: "soldes", adName: null, adId: null, placement: null, landingPath: null, clickedAt: null }, "fr")).toEqual([{ key: "campaign", value: "soldes" }]);
   });
 
-  it("shows nothing beyond the source for one the merchant named", () => {
-    expect(attributionFacts(view({ method: "merchant", capturedAt: null, campaignId: null, campaignName: null, adId: null, placement: null, landingPath: null, referrerHost: "l.instagram.com" }), "ar")).toEqual([{ key: "referrer", value: "l.instagram.com" }]);
-    expect(attributionFacts(view({ campaignName: "Soldes", campaignId: null, adName: "Vidéo", adId: null, capturedAt: null, placement: null, landingPath: null }), "fr")).toEqual([
-      { key: "campaign", value: "Soldes" },
-      { key: "ad", value: "Vidéo" },
-    ]);
+  it("shows this visit by where it came from, its landing page and time", () => {
+    expect(visitFacts({ ...VISIT, referrerHost: "l.instagram.com", utmCampaign: "été" }, "en").map((fact) => fact.key)).toEqual(["referrer", "campaign", "landing", "arrived_at"]);
+    expect(visitFacts({ ...VISIT, at: null, landingPath: null }, "en")).toEqual([]);
+  });
+
+  it("filters by groups that cover every channel once, and the unknown", () => {
+    const all = Object.values(SOURCE_FILTERS).flat();
+    expect(new Set(all).size).toBe(all.length);
+    expect([...all].sort()).toEqual(["agent", "api", "dashboard", "direct", "email", "organic_search", "organic_social", "paid_other", "paid_search", "paid_social", "referral", "tagged", "unknown"]);
   });
 });

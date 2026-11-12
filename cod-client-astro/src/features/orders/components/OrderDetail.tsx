@@ -201,7 +201,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         <div className="space-y-5">
           <OrderCustomerCard order={order} />
           <OrderCustomAnswersCard customFieldsJson={order.customFieldsJson} />
-          <OrderSourceCard key={`${order.attribution?.method ?? ""}-${order.attribution?.source ?? ""}`} order={order} locale={locale} canEdit={may("orders:update")} onChanged={load} />
+          <OrderSourceCard order={order} locale={locale} />
           <OrderProductsCard order={order} locale={locale} canRecordRefused={may("orders:update") && canRecordRefusedUnits(order.stage)} onChanged={load} />
           {order.notes && (
             <Card title={t("detail.notes")}>

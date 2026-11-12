@@ -18,8 +18,7 @@ import { ShipmentSchema } from "./shipments";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
 import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
-import { ATTRIBUTION_METHODS, ATTRIBUTION_PLATFORMS, CLICK_ID_TYPES } from "../../../../cod-shared/attribution/model";
-import { ORDER_SOURCE_LABELS } from "../../../../cod-shared/attribution/source";
+import { ATTRIBUTION_METHODS, ATTRIBUTION_PLATFORMS, CLICK_ID_TYPES, ORDER_CHANNELS } from "../../../../cod-shared/attribution/model";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 // ─── Enums & Constants ────────────────────────────────────────────────────────
@@ -214,6 +213,17 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
     description: "Where the order stands overall — its processing, then its shipment's delivery. List responses only.",
   }),
   needsAttention: z.boolean().optional().openapi({ description: "Whether the order's delivery needs the merchant. List responses only." }),
+  source: z
+    .object({
+      channel: z.enum(ORDER_CHANNELS),
+      platform: z.enum(ATTRIBUTION_PLATFORMS),
+      app: z.string().nullable().openapi({ description: "The Meta app: `fb`, `ig`, `msg`, `an`, `th`, `wa`" }),
+      adName: z.string().nullable().openapi({ description: "The credited ad's name, when the ad URL carried one" }),
+      campaignName: z.string().nullable().openapi({ description: "The credited campaign's name, when the ad URL carried one" }),
+    })
+    .nullable()
+    .optional()
+    .openapi({ description: "Where the order came from (the detail's `attribution`, in short); null when it is not known. List responses only." }),
 }).openapi("OrderListItem", {
   description: "Order summary for list view - includes joins but not nested arrays",
 });
@@ -225,29 +235,48 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
  */
 const nullableText = (description: string) => z.string().nullable().openapi({ description });
 
-/** Where an order came from (ADR 0026). */
+/** Where an order came from (ADR 0026, attribution v2). */
 export const OrderAttributionSchema = z
   .object({
-    method: z.enum(ATTRIBUTION_METHODS).openapi({ description: "`captured` from the shopper's visit, or `merchant` when the merchant named the source" }),
-    source: z.enum(ORDER_SOURCE_LABELS).openapi({ description: "The source as a person reads it" }),
+    method: z.enum(ATTRIBUTION_METHODS).openapi({ description: "`captured` from the shopper's visit; `entered` for an order staff, the API or the AI agent created; `merchant` only on orders before attribution v2" }),
+    channel: z.enum(ORDER_CHANNELS).nullable().openapi({ description: "Null when nothing is known. Where the order came from: the credited ad's channel (`paid_social`, `paid_search`, `paid_other`), else this visit's (`organic_social`, `organic_search`, `email`, `referral`, `tagged`, `direct`), else who entered it (`dashboard`, `api`, `agent`)" }),
     platform: z.enum(ATTRIBUTION_PLATFORMS),
-    capturedAt: nullableText("When the credited visit landed (the last ad click, else the first visit); null for a source the merchant named"),
-    clickIdType: z.enum(CLICK_ID_TYPES).nullable().openapi({ description: "The ad platform's click id the visit carried" }),
-    campaignId: nullableText("The ad platform's campaign id, from `utm_campaign` when it is digits"),
-    campaignName: nullableText("The campaign name the ad URL carried (`wc_cn`)"),
-    adsetId: nullableText("The ad set id, from `utm_term` when it is digits"),
-    adId: nullableText("The ad id, from `utm_content` when it is digits"),
-    adName: nullableText("The ad name the ad URL carried (`wc_an`)"),
-    placement: nullableText("Meta's placement (`wc_pl`)"),
-    siteSource: nullableText("Meta's site source: `fb`, `ig`, `msg`, `an`, `th`, or `wa` for a WhatsApp order the merchant named"),
-    utmSource: nullableText("As received"),
-    utmMedium: nullableText("As received"),
-    utmCampaign: nullableText("As received"),
-    utmTerm: nullableText("As received"),
-    utmContent: nullableText("As received"),
-    landingPath: nullableText("The storefront path the visit landed on"),
-    landingPageType: nullableText("The page type of that path: `landing`, `product`, `home`…"),
-    referrerHost: nullableText("The other site that linked to the store"),
+    app: nullableText("The Meta app: `fb`, `ig`, `msg`, `an`, `th`, `wa`; null when unknown or not Meta"),
+    legacy: z.boolean().openapi({ description: "Recorded before attribution v2: this visit is not known, and the channel is read from what was stored" }),
+    ad: z
+      .object({
+        platform: z.enum(ATTRIBUTION_PLATFORMS),
+        app: nullableText("The Meta app the ad ran in"),
+        clickedAt: nullableText("When the shopper clicked the ad"),
+        clickIdType: z.enum(CLICK_ID_TYPES).nullable(),
+        campaignId: nullableText("The campaign id, from `utm_campaign` when it is digits"),
+        campaignName: nullableText("The campaign name the ad URL carried (`wc_cn`)"),
+        adsetId: nullableText("The ad set id, from `utm_term` when it is digits"),
+        adId: nullableText("The ad id, from `utm_content` when it is digits"),
+        adName: nullableText("The ad name the ad URL carried (`wc_an`)"),
+        placement: nullableText("Meta's placement (`wc_pl`), as Meta sends it"),
+        utmSource: nullableText("As received"),
+        utmCampaign: nullableText("As received"),
+        landingPath: nullableText("The storefront path the ad click landed on"),
+        landingPageType: nullableText("The page type of that path: `landing`, `product`, `home`…"),
+      })
+      .nullable()
+      .openapi({ description: "The ad the order credits: the last ad click at most 7 days before the order. Null when there is none." }),
+    visit: z
+      .object({
+        at: nullableText("When the shopper arrived"),
+        channel: z.enum(ORDER_CHANNELS),
+        platform: z.enum(ATTRIBUTION_PLATFORMS).nullable(),
+        app: nullableText("The Meta app, when known"),
+        referrerHost: nullableText("The other site that linked to the store"),
+        landingPath: nullableText("The storefront path the visit landed on"),
+        landingPageType: nullableText("The page type of that path"),
+        utmSource: nullableText("As received"),
+        utmMedium: nullableText("As received"),
+        utmCampaign: nullableText("As received"),
+      })
+      .nullable()
+      .openapi({ description: "This visit: how the shopper came to the store the time they ordered, an ad or not. Null for an entered order, or one recorded before attribution v2." }),
     firstTouchAt: nullableText("When the shopper first arrived from an ad or another site"),
   })
   .openapi("OrderAttribution");
@@ -266,7 +295,7 @@ export const OrderDetailSchema = OrderBaseSchema.extend({
     description: "Where the order stands overall — its processing, then its shipment's delivery.",
   }),
   attribution: OrderAttributionSchema.nullable().optional().openapi({
-    description: "Where the order came from: the ad, the click and the landing page its visit captured, or the source the merchant named. Null when nothing is known. Detail view only.",
+    description: "Where the order came from: its channel, the ad it credits and this visit. Null when nothing is known (an order before tracking, or from a theme on an older SDK). Detail view only.",
   }),
   needsAttention: z.boolean().optional().openapi({
     description: "The merchant must act on the delivery: the carrier flagged it, the handoff outcome is unknown, or the carrier cancelled it",

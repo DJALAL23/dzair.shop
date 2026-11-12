@@ -125,8 +125,6 @@ const createOrderRoute = defineRoute({
 
 **Inventory:** Products with \`trackInventory\` enabled will have their stock decremented automatically.
 
-**Source:** \`source\` (\`{ source: "facebook" | "instagram" | "messenger" | "whatsapp" | "tiktok" | "phone" | "other", campaignId?, adId? }\`) names where an order taken from a message or a call came from, so it counts for its ad. It is written with the order.
-
 **Delivery fee:** decided as the storefront checkout decides it (\`POST /orders/delivery-quote\` shows it): every product's shipping profile, the dearest winning; a commune's own price; free at the store's free-delivery amount; free by an offer for a basket of its product alone, which the order records (\`deliveryOfferId\`). An offline order may pass an explicit \`deliveryFee\`, which is then kept as typed. Where the store does not deliver, an online order is refused (422 DELIVERY_NOT_AVAILABLE).
 
 **Delivery** is chosen later, when the ready order is handed to a carrier or a driver (\`POST /orders/{id}/shipment\`).`,
@@ -147,9 +145,7 @@ const updateOrderRoute = defineRoute({
   auth: { scope: SCOPES.ORDERS_UPDATE },
   tags: ["Orders"],
   summary: "Update order",
-  description: `Partially edits an order's customer and destination fields: \`customerName\`, \`phone\`, \`customerEmail\`, \`wilayaId\`, \`communeId\`, \`city\`, \`address\`, \`deliveryType\`, \`notes\`, \`source\`. All fields optional — omitted fields stay untouched.
-
-\`source\` names where an order taken outside the storefront came from (\`{ source, campaignId?, adId? }\`); \`null\` clears it. **Rejected with 409 ORDER_SOURCE_CAPTURED** when the order's source was captured from the shopper's visit: that record stays as it was.
+  description: `Partially edits an order's customer and destination fields: \`customerName\`, \`phone\`, \`customerEmail\`, \`wilayaId\`, \`communeId\`, \`city\`, \`address\`, \`deliveryType\`, \`notes\`. All fields optional — omitted fields stay untouched.
 
 This is how a merchant records an address collected over the phone when the checkout hid the address field.
 

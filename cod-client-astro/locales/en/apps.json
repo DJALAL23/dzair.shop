@@ -367,10 +367,10 @@
         "stop_desk": "Stop desk"
       },
       "visit_source": {
-        "meta": "Meta ad",
-        "tiktok": "TikTok ad",
-        "google": "Google ad",
-        "other": "Other"
+        "meta": "From Meta (Facebook, Instagram)",
+        "tiktok": "From TikTok",
+        "google": "From Google",
+        "other": "Other or direct"
       },
       "app_source": {
         "facebook": "Facebook",

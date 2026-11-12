@@ -4,11 +4,13 @@
  * checked and capped, an unreadable part is dropped, and the order is never
  * refused for it.
  */
-import { TOUCH_PARAMS, type CapturedTouches, type Touch, type TouchParam } from "./model";
+import { isPaidTouch } from "./channel";
+import { CLICK_ID_TYPES, TOUCH_PARAMS, type CapturedTouches, type Touch, type TouchParam } from "./model";
 
-const MAX_WIRE_LENGTH = 8000;
+const MAX_WIRE_LENGTH = 12000;
 const MAX_PARAM_LENGTH = 255;
-const MAX_CLICK_ID_LENGTH = 500;
+/** TikTok's `ttclid` runs up to 1,000 characters. */
+const MAX_CLICK_ID_LENGTH = 1000;
 const MAX_PATH_LENGTH = 512;
 const FUTURE_SKEW_MS = 5 * 60 * 1000;
 const OLDEST_MS = 180 * 24 * 60 * 60 * 1000;
@@ -30,7 +32,7 @@ function text(value: unknown, max: number): string | null {
 }
 
 function param(name: TouchParam, value: unknown): string | null {
-  if (name === "fbclid" || name === "ttclid" || name === "gclid") {
+  if ((CLICK_ID_TYPES as readonly string[]).includes(name)) {
     const id = typeof value === "string" ? value.trim() : null;
     return id && id.length <= MAX_CLICK_ID_LENGTH && CLICK_ID.test(id) ? id : null;
   }
@@ -75,15 +77,10 @@ export function parseTouch(raw: unknown, now: Date): Touch | null {
   return { at, params, path, ref };
 }
 
-/** Whether a touch came from an ad or a tagged link: its URL carried one of the touch parameters. */
-export function isAdTouch(touch: Touch): boolean {
-  return Object.keys(touch.params).length > 0;
-}
-
 /**
  * The touches an order carries, from the storefront's JSON (an object, or the
- * same as a string), or null when nothing usable is in it. A last touch with
- * no ad parameter is not an ad touch and is dropped.
+ * same as a string), or null when nothing usable is in it. A last touch that
+ * is not an ad click is dropped: only a paid touch can be credited.
  */
 export function parseCapturedTouches(raw: unknown, now: Date): CapturedTouches | null {
   let value = raw;
@@ -98,7 +95,8 @@ export function parseCapturedTouches(raw: unknown, now: Date): CapturedTouches |
   if (!isRecord(value)) return null;
   const first = parseTouch(value.first, now);
   const lastTouch = parseTouch(value.last, now);
-  const last = lastTouch && isAdTouch(lastTouch) ? lastTouch : null;
-  if (!first && !last) return null;
-  return { first, last };
+  const last = lastTouch && isPaidTouch(lastTouch) ? lastTouch : null;
+  const visit = parseTouch(value.visit, now);
+  if (!first && !last && !visit) return null;
+  return { first, last, visit };
 }

@@ -31,12 +31,6 @@ status change, with who made it and when. Read from the Event Log; nothing
 else keeps a copy.
 _Avoid_: Status history, audit trail (that is the Activity Log)
 
-### Source
-
-**Order Source**:
-Where an order came from, as a person reads it: Facebook, Instagram, Messenger, WhatsApp, TikTok, a phone call, another site. A storefront order's source is **captured** from the shopper's visit (see the store context's Order Attribution) and never changes. For any other order the merchant names one, with the ad platform's campaign or ad id when known (`merchant`). It is written with the order or by `PATCH /orders/{id}` under that edit's guard, so an edit the shipment refuses changes no source. One list, `cod-shared/attribution/source.ts`.
-_Avoid_: Channel, origin (an Origin is the surface a Business Event came through)
-
 ### Processing Statuses
 
 **New**:

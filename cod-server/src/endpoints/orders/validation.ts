@@ -5,23 +5,13 @@
  */
 
 import { z } from "zod";
+import { ORDER_CHANNELS, type OrderChannel } from "../../../../cod-shared/attribution/model";
 import { editedEmailField, newEmailField } from "@/lib/email-field";
 import { parseOrderCursor } from "../../../../cod-shared/queries/orders";
 import { ORDER_STAGES, type OrderStage } from "../../../../cod-shared/orders/stage";
 import { SHIPMENT_KINDS } from "../../../../cod-shared/shipments/model";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
-import { ORDER_SOURCES } from "../../../../cod-shared/attribution/source";
-
-const AD_OBJECT_ID = z.string().regex(/^\d{1,32}$/, "A Meta id is digits only");
-
-/** The source a merchant names for an order taken outside the storefront: a message, a call, an ad. */
-export const orderSourceSchema = z
-  .object({
-    source: z.enum(ORDER_SOURCES),
-    campaignId: AD_OBJECT_ID.nullish(),
-    adId: AD_OBJECT_ID.nullish(),
-  });
 
 export const createOrderSchema = z.object({
   customerId: z.string().min(1),
@@ -60,7 +50,6 @@ export const createOrderSchema = z.object({
       lineTotal: z.number().positive(),
     })
   ).min(1, "At least one product is required"),
-  source: orderSourceSchema.optional(),
 }).superRefine((data, ctx) => {
   if (data.deliveryType === "home" && !data.address?.trim()) {
     ctx.addIssue({ code: "custom", path: ["address"], message: "Address is required for home delivery" });
@@ -98,8 +87,6 @@ export const updateOrderSchema = z.object({
   ),
   deliveryType: z.enum(["home", "stop_desk"]).optional(),
   notes: z.string().nullish(),
-  /** null clears the source the merchant named. */
-  source: orderSourceSchema.nullable().optional(),
 });
 
 /**
@@ -140,6 +127,18 @@ export const orderFiltersSchema = z.object({
     .transform(() => true)
     .optional()
     .describe("true: only orders Order Protection flagged"),
+  channel: z
+    .string()
+    .optional()
+    .transform((value, ctx) => {
+      if (!value) return undefined;
+      const channels = value.split(",").map((channel) => channel.trim());
+      const allowed: readonly string[] = [...ORDER_CHANNELS, "unknown"];
+      const unknown = channels.filter((channel) => !allowed.includes(channel));
+      if (unknown.length) ctx.addIssue({ code: "custom", message: `Unknown channel: ${unknown.join(", ")}. Expected: ${allowed.join(", ")}` });
+      return channels as (OrderChannel | "unknown")[];
+    })
+    .describe("Where the order came from: one channel, or several separated by commas (paid_social,paid_search). `unknown`: orders whose source is not known"),
   orderType: z.enum(["online", "offline"]).optional(),
   wilayaId: z.coerce.number().int().optional(),
   search: z.string().optional().describe("Order number, customer name, phone, or the parcel's tracking number"),

@@ -213,7 +213,7 @@ async function placeRescued(db: Parameters<typeof protection.claimSpamOrder>[0],
   const snapshot = await storeQueries.loadCatalogSnapshot(db, lines, now);
   assertOrderable(snapshot, lines);
   const quote = await quoteOrder(db, { storeId, now, snapshot, lines, data });
-  const order = await commitOrder(db, { data, customFieldAnswers, rate: quote.delivery.rate, coupon: quote.coupon, snapshot, locale, ipAddress, userAgent, orderNumber: claim.orderNumber });
+  const order = await commitOrder(db, { data, submittedAt: claim.submittedAt, customFieldAnswers, rate: quote.delivery.rate, coupon: quote.coupon, snapshot, locale, ipAddress, userAgent, orderNumber: claim.orderNumber });
   if (!("replay" in order)) return order;
   if (!order.replay) throw new Error("The checkout's order was removed before it could be read");
   return order.replay;

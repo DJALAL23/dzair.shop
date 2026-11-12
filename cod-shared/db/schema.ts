@@ -10,7 +10,7 @@ import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
 import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
-import { ATTRIBUTION_PLATFORMS, CLICK_ID_TYPES } from "../attribution/model";
+import { ATTRIBUTION_METHODS, ATTRIBUTION_PLATFORMS, CLICK_ID_TYPES, ORDER_CHANNELS } from "../attribution/model";
 import { RULE_ACTIONS, RULE_MODES } from "../order-screening/conditions";
 import { BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES } from "../order-screening/signals";
 import type { ActorKind, Origin } from "../events/actor";
@@ -687,13 +687,15 @@ export const orderProducts = sqliteTable("order_products", {
 // ─── Order attribution (migration 0083) ──────────────────────────────────────
 
 /**
- * Where an order came from: the ad, the click and the landing page, captured
- * from the shopper's visit (`captured`) or chosen by the merchant on a
- * dashboard order (`merchant`). One row per attributed order; no row means
- * nothing is known. Written in the order's own batch, never after it.
+ * Where an order came from (ADR 0026, attribution v2): captured from the
+ * shopper's visit (`captured`), or the staff surface that entered it
+ * (`entered`). `merchant` rows were chosen by hand before v2 and are only
+ * read. Written in the order's own batch, never after it; no row means
+ * nothing is known (an order before tracking, a theme on an older SDK).
  *
- * `captured_at` is when the credited touch happened (the last ad click, else
- * the first visit), so a report can apply its click window to it. The values
+ * The touch columns describe the credited ad (the last ad click at most seven
+ * days before the order), else this visit; `captured_at` is that touch's
+ * time. The `visit_*` columns always describe this visit. The values
  * are kept as the storefront sent them, already validated
  * (`cod-shared/attribution`); an id that is not digits never becomes `ad_id`
  * and stays readable in `utm_content`. No CHECK on `platform` or `method`: a
@@ -703,7 +705,9 @@ export const orderAttribution = sqliteTable("order_attribution", {
   orderId: text("order_id")
     .primaryKey()
     .references(() => orders.id, { onDelete: "cascade" }),
-  method: text("method", { enum: ["captured", "merchant"] }).notNull(),
+  method: text("method", { enum: ATTRIBUTION_METHODS }).notNull(),
+  /** Where the order came from: the credited ad's channel, else this visit's, else the staff surface that entered it. Null when nothing is known (rows before v2). */
+  channel: text("channel", { enum: ORDER_CHANNELS }),
   capturedAt: text("captured_at"),
   platform: text("platform", { enum: ATTRIBUTION_PLATFORMS }).notNull(),
   clickId: text("click_id"),
@@ -728,7 +732,18 @@ export const orderAttribution = sqliteTable("order_attribution", {
   firstTouchJson: text("first_touch_json"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-});
+  /** This visit: the latest arrival before the order, an ad or not, direct included. */
+  visitAt: text("visit_at"),
+  visitChannel: text("visit_channel", { enum: ORDER_CHANNELS }),
+  visitPlatform: text("visit_platform", { enum: ATTRIBUTION_PLATFORMS }),
+  visitSiteSource: text("visit_site_source"),
+  visitReferrerHost: text("visit_referrer_host"),
+  visitLandingPath: text("visit_landing_path"),
+  visitLandingPageType: text("visit_landing_page_type"),
+  visitUtmSource: text("visit_utm_source"),
+  visitUtmMedium: text("visit_utm_medium"),
+  visitUtmCampaign: text("visit_utm_campaign"),
+}, (table) => [index("order_attribution_channel_idx").on(table.channel)]);
 
 // ─── Delivery Provider Integration ───────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { TOUCH_PARAMS } from "./model";
-import { isAdTouch, parseCapturedTouches, parseTouch } from "./touch";
+import { parseCapturedTouches, parseTouch } from "./touch";
 
 const NOW = new Date("2026-11-11T12:00:00.000Z");
 const AT = "2026-11-10T09:30:00.000Z";
@@ -44,10 +44,12 @@ describe("parseTouch", () => {
 
   it("keeps a click id byte for byte, and drops one Meta could not have made", () => {
     expect(parseTouch({ at: AT, params: { fbclid: "IwAR2F4_Ab-c.D" } }, NOW)?.params).toEqual({ fbclid: "IwAR2F4_Ab-c.D" });
-    for (const fbclid of ["IwAR 2F4", "IwAR<script>", "", "x".repeat(501), 42]) {
+    for (const fbclid of ["IwAR 2F4", "IwAR<script>", "", "x".repeat(1001), 42]) {
       expect(parseTouch({ at: AT, params: { fbclid }, path: "/" }, NOW)?.params, String(fbclid)).toEqual({});
     }
-    expect(parseTouch({ at: AT, params: { gclid: "x".repeat(500) } }, NOW)?.params.gclid).toHaveLength(500);
+    expect(parseTouch({ at: AT, params: { ttclid: "E.C.P." + "x".repeat(994) } }, NOW)?.params.ttclid).toHaveLength(1000);
+    expect(parseTouch({ at: AT, params: { gbraid: "0AAAAA-x_y", wbraid: "Cj0KCQ" } }, NOW)?.params).toEqual({ gbraid: "0AAAAA-x_y", wbraid: "Cj0KCQ" });
+    expect(parseTouch({ at: AT, params: { wbraid: "a b" }, path: "/" }, NOW)?.params).toEqual({});
     expect(parseTouch({ at: AT, params: { fbclid: " IwAR2F4 " } }, NOW)?.params).toEqual({ fbclid: "IwAR2F4" });
   });
 
@@ -97,29 +99,30 @@ describe("parseTouch", () => {
   });
 });
 
-describe("isAdTouch", () => {
-  it("is a touch whose URL carried a touch parameter", () => {
-    expect(isAdTouch(parseTouch(AD_TOUCH, NOW)!)).toBe(true);
-    expect(isAdTouch(parseTouch({ at: AT, path: "/", ref: "google.com" }, NOW)!)).toBe(false);
-  });
-});
-
 describe("parseCapturedTouches", () => {
   const FIRST = { at: "2026-11-01T08:00:00.000Z", params: {}, path: "/", ref: "google.com" };
 
-  it("reads both touches, from an object or its JSON", () => {
-    const expected = { first: FIRST, last: AD_TOUCH };
-    expect(parseCapturedTouches({ first: FIRST, last: AD_TOUCH }, NOW)).toEqual(expected);
-    expect(parseCapturedTouches(JSON.stringify({ first: FIRST, last: AD_TOUCH }), NOW)).toEqual(expected);
+  const DIRECT = { at: "2026-11-11T11:00:00.000Z", params: {}, path: "/products/robe", ref: null };
+
+  it("reads the three touches, from an object or its JSON", () => {
+    const expected = { first: FIRST, last: AD_TOUCH, visit: DIRECT };
+    expect(parseCapturedTouches({ first: FIRST, last: AD_TOUCH, visit: DIRECT }, NOW)).toEqual(expected);
+    expect(parseCapturedTouches(JSON.stringify({ first: FIRST, last: AD_TOUCH, visit: DIRECT }), NOW)).toEqual(expected);
   });
 
-  it("drops a last touch that carries no ad parameter", () => {
-    expect(parseCapturedTouches({ first: FIRST, last: FIRST }, NOW)).toEqual({ first: FIRST, last: null });
+  it("drops a last touch that is not an ad click: a referrer, or a bare fbclid Meta adds to every link", () => {
+    expect(parseCapturedTouches({ first: FIRST, last: FIRST }, NOW)).toEqual({ first: FIRST, last: null, visit: null });
+    const facebookLink = { at: AT, params: { fbclid: "IwAR2F4" }, path: "/", ref: "l.facebook.com" };
+    expect(parseCapturedTouches({ last: facebookLink, visit: facebookLink }, NOW)).toEqual({ first: null, last: null, visit: facebookLink });
   });
 
-  it("keeps either touch alone", () => {
-    expect(parseCapturedTouches({ last: AD_TOUCH }, NOW)).toEqual({ first: null, last: AD_TOUCH });
-    expect(parseCapturedTouches({ first: FIRST }, NOW)).toEqual({ first: FIRST, last: null });
+  it("keeps a direct visit: a landing page with no parameter and no referrer", () => {
+    expect(parseCapturedTouches({ visit: DIRECT }, NOW)).toEqual({ first: null, last: null, visit: DIRECT });
+  });
+
+  it("keeps any touch alone", () => {
+    expect(parseCapturedTouches({ last: AD_TOUCH }, NOW)).toEqual({ first: null, last: AD_TOUCH, visit: null });
+    expect(parseCapturedTouches({ first: FIRST }, NOW)).toEqual({ first: FIRST, last: null, visit: null });
   });
 
   it("answers null when nothing usable is in it", () => {
@@ -128,11 +131,11 @@ describe("parseCapturedTouches", () => {
     }
   });
 
-  it("refuses a JSON string past 8,000 characters without parsing it", () => {
-    const padded = JSON.stringify({ first: FIRST, pad: "x".repeat(8000) });
+  it("refuses a JSON string past 12,000 characters without parsing it", () => {
+    const padded = JSON.stringify({ first: FIRST, pad: "x".repeat(12000) });
     expect(parseCapturedTouches(padded, NOW)).toBeNull();
-    const fits = JSON.stringify({ first: FIRST, pad: "x".repeat(8000 - JSON.stringify({ first: FIRST, pad: "" }).length) });
-    expect(fits).toHaveLength(8000);
-    expect(parseCapturedTouches(fits, NOW)).toEqual({ first: FIRST, last: null });
+    const fits = JSON.stringify({ first: FIRST, pad: "x".repeat(12000 - JSON.stringify({ first: FIRST, pad: "" }).length) });
+    expect(fits).toHaveLength(12000);
+    expect(parseCapturedTouches(fits, NOW)).toEqual({ first: FIRST, last: null, visit: null });
   });
 });
