@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
-import { DollarSign, Edit } from "lucide-react";
+import { DollarSign, Edit, Truck } from "lucide-react";
 import {
   canScope,
   RequireAuth,
   useIdentity,
 } from "@/features/auth/components/RequireAuth";
 import { DashboardPage } from "@/components/layout/page";
-import { Alert, Badge, Card, CellEmpty, EmptyState, LinkButton, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui";
+import { Alert, Badge, Button, Card, CellEmpty, EmptyState, LinkButton, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui";
 import { formatMoney } from "@/features/orders/model";
 import { useLocale, useT } from "@/i18n/react";
 import { SCOPES } from "../../../../../cod-shared/rbac/scopes";
 import { getShippingProfile } from "@/features/delivery/api";
 import type { ShippingProfileWithRules } from "@/features/delivery/types";
+import { CarrierCopyDialog } from "@/features/delivery/components/CarrierCopyDialog";
 
 function Loading() {
   return (
@@ -31,6 +32,7 @@ function ShippingProfileDetail({ profileId }: { profileId: string }) {
   const identity = useIdentity();
   const [profile, setProfile] = useState<ShippingProfileWithRules | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
+  const [copying, setCopying] = useState(false);
 
   async function load() {
     setLoadError(null);
@@ -83,13 +85,29 @@ function ShippingProfileDetail({ profileId }: { profileId: string }) {
         backLabel={common("back")}
         actions={
           canManage ? (
-            <LinkButton href={`/delivery/shipping-profiles/${encodeURIComponent(profile.id)}/edit`}>
-              <Edit size={15} aria-hidden="true" />
-              {t("shipping.edit_action")}
-            </LinkButton>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" onClick={() => setCopying(true)}>
+                <Truck size={15} aria-hidden="true" />
+                {t("shipping.copy.action")}
+              </Button>
+              <LinkButton href={`/delivery/shipping-profiles/${encodeURIComponent(profile.id)}/edit`}>
+                <Edit size={15} aria-hidden="true" />
+                {t("shipping.edit_action")}
+              </LinkButton>
+            </div>
           ) : undefined
         }
       />
+      {copying && (
+        <CarrierCopyDialog
+          profile={profile}
+          onClose={() => setCopying(false)}
+          onCopied={(updated) => {
+            setProfile(updated);
+            setCopying(false);
+          }}
+        />
+      )}
       {profile.notes && (
         <Card title={t("shipping.notes_label")}>
           <p className="text-sm text-foreground">{profile.notes}</p>
