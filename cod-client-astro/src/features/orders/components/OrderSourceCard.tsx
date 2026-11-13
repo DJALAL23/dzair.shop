@@ -1,4 +1,4 @@
-import { Footprints, History, Megaphone, Sprout, UserRound } from "lucide-react";
+import { Footprints, History, Megaphone, Signpost, Sprout, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui";
 import { useT } from "@/i18n/react";
@@ -109,7 +109,13 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
     <Card title={t("source.title")}>
       <div className="space-y-4">
         <div className="flex items-start gap-3">
-          {entered ? <UserRound size={18} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" /> : <Megaphone size={18} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+          {entered ? (
+            <UserRound size={18} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          ) : ad ? (
+            <Megaphone size={18} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          ) : (
+            <Signpost size={18} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
           <div className="min-w-0">
             <p className="text-base font-semibold">{headline}</p>
             {before && <p className="text-xs text-muted-foreground">{t(`source.${before.key}`, before.count === undefined ? undefined : { count: before.count })}</p>}
