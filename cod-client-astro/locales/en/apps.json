@@ -380,7 +380,7 @@
       }
     },
     "signals": {
-      "filled_in": "Form filled in {seconds} s",
+      "filled_in": "Form filled in {seconds} s",
       "network_in": "Connected from {country}"
     },
     "groups": {

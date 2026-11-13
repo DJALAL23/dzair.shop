@@ -412,7 +412,7 @@
       }
     },
     "signals": {
-      "filled_in": "مُلئ النموذج في {seconds} ث",
+      "filled_in": "مُلئ النموذج في {seconds} ث",
       "network_in": "متصل من {country}"
     },
     "groups": {

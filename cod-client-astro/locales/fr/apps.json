@@ -388,7 +388,7 @@
       }
     },
     "signals": {
-      "filled_in": "Formulaire rempli en {seconds} s",
+      "filled_in": "Formulaire rempli en {seconds} s",
       "network_in": "Connecté depuis {country}"
     },
     "groups": {

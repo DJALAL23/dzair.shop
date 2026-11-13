@@ -543,13 +543,14 @@ describe("the Spam page", () => {
     await mount(<SpamOrdersPageApp />);
     const sheet = await openSheet("Amel");
     expect(sheet.textContent).toContain("How it was sent");
-    for (const signal of ["Instagram app", "From TikTok", "Form filled in 3 s", "Connected from Algeria"]) expect(sheet.textContent).toContain(signal);
+    for (const signal of ["Instagram app", "Form filled in 3\u00a0s", "Connected from Algeria"]) expect(sheet.textContent).toContain(signal);
+    expect(sheet.textContent).not.toContain("From TikTok");
   });
 
   it("shows a form filled in no time, and no section when nothing is known", async () => {
     api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, id: "known", customerName: "Known", signals: { fillSeconds: 0 } }, { ...SPAM, id: "unknown", customerName: "Unknown", signals: {} }], total: 2 });
     await mount(<SpamOrdersPageApp />);
-    expect((await openSheet("Known")).textContent).toContain("Form filled in 0 s");
+    expect((await openSheet("Known")).textContent).toContain("Form filled in 0\u00a0s");
     await act(async () => document.querySelector<HTMLElement>('[role=dialog] [aria-label="Close"]')!.click());
     await settle();
     expect((await openSheet("Unknown")).textContent).not.toContain("How it was sent");
