@@ -36,7 +36,7 @@ export function copySummary(preview: CarrierCopyPreview) {
     stopDesk: served.filter((w) => w.after!.stopDeskEnabled).length,
     communes: served.reduce((sum, w) => sum + w.after!.communes, 0),
     removed: preview.wilayas.filter((w) => w.before && !w.after).length,
-    changed: preview.wilayas.filter((w) => changes(w.before, w.after)),
+    changed: preview.wilayas.filter((w) => changes(w.before, w.after)).sort((a, b) => Number(!a.after) - Number(!b.after)),
   };
 }
 
@@ -135,7 +135,7 @@ export function CarrierCopyDialog({ profile, onClose, onCopied }: { profile: Shi
     <Dialog
       onClose={onClose}
       placement="end"
-      className="sm:w-[640px]"
+      width="xl"
       icon={<Truck size={17} aria-hidden="true" />}
       title={t("shipping.copy.title")}
       description={t("shipping.copy.description", { profile: profile.name })}

@@ -9,6 +9,8 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useT } from "@/i18n/react";
 
+const DRAWER_WIDTH = { md: "sm:w-[440px]", lg: "sm:w-[520px]", xl: "sm:w-[640px]" } as const;
+
 export function Dialog({
   open = true,
   onClose,
@@ -23,6 +25,7 @@ export function Dialog({
   preventClose = false,
   showClose = true,
   placement = "center",
+  width = "md",
 }: {
   open?: boolean;
   onClose: () => void;
@@ -37,6 +40,8 @@ export function Dialog({
   preventClose?: boolean;
   showClose?: boolean;
   placement?: "center" | "end";
+  /** The side panel's width from the sm breakpoint (placement "end" only). */
+  width?: keyof typeof DRAWER_WIDTH;
 }) {
   const common = useT("common");
   const titleId = useId();
@@ -108,7 +113,7 @@ export function Dialog({
         tabIndex={-1}
         className={`relative w-full overflow-y-auto bg-card shadow-2xl ${
           placement === "end"
-            ? "flex max-h-[85dvh] animate-sheet flex-col rounded-t-2xl p-4 sm:h-full sm:max-h-full sm:w-[440px] sm:animate-drawer sm:rounded-none sm:p-5 sm:[--drawer-from:1] rtl:sm:[--drawer-from:-1]"
+            ? `flex max-h-[85dvh] animate-sheet flex-col rounded-t-2xl p-4 sm:h-full sm:max-h-full ${DRAWER_WIDTH[width]} sm:animate-drawer sm:rounded-none sm:p-5 sm:[--drawer-from:1] rtl:sm:[--drawer-from:-1]`
             : "max-h-[calc(100dvh-1.5rem)] max-w-lg animate-sheet rounded-xl p-4 sm:max-h-[calc(100dvh-2rem)] sm:p-5"
         } ${className}`}
       >

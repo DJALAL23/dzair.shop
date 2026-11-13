@@ -220,7 +220,7 @@ export function CommuneOverridesDrawer({
       open={open}
       onClose={onClose}
       placement="end"
-      className="sm:w-[520px]"
+      width="lg"
       title={sp("communes_drawer_title")}
       description={sp("communes_drawer_subtitle")}
     >

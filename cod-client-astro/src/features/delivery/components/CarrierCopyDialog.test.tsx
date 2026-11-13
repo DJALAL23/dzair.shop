@@ -18,7 +18,7 @@ vi.mock("@/features/delivery/api", () => api);
 vi.mock("@/lib/notify", () => ({ notify }));
 
 import { ApiError } from "@/lib/api";
-import { CarrierCopyDialog } from "./CarrierCopyDialog";
+import { CarrierCopyDialog, copySummary } from "./CarrierCopyDialog";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -148,6 +148,19 @@ describe("copying a delivery company's prices into a profile", () => {
     await settle();
     expect(api.syncCompanyPlaces).toHaveBeenCalledWith("zr");
     expect(text()).toContain("Delivers to 2 wilayas");
+  });
+
+  it("lists the wilayas that get new prices before the ones the company does not serve", () => {
+    const { changed } = copySummary({
+      ...PREVIEW,
+      wilayas: [
+        { wilayaId: 1, before: prices(500, 700), after: null },
+        { wilayaId: 16, before: prices(600, 400), after: prices(550, 400) },
+        { wilayaId: 2, before: prices(500, 700), after: null },
+        { wilayaId: 9, before: prices(500, 700), after: prices(650, 450) },
+      ],
+    });
+    expect(changed.map((w) => w.wilayaId)).toEqual([16, 9, 1, 2]);
   });
 
   it("says when the company gives no price", async () => {
