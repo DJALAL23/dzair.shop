@@ -171,3 +171,82 @@ describe("the sites a visit comes from, after Google Analytics and Snowplow", ()
     expect(classifyTouch(t({ utm_source: "wa" })).app).toBe("wa");
   });
 });
+
+describe("the signals a URL carries, one table for every platform", () => {
+  it("reads every ad's signal as an ad on its platform", () => {
+    expect(classifyTouch(t({ gclid: "Cj0" }))).toEqual({ channel: "paid_search", platform: "google", app: null });
+    expect(classifyTouch(t({ gbraid: "0AA" }))).toEqual({ channel: "paid_search", platform: "google", app: null });
+    expect(classifyTouch(t({ wbraid: "Cj1" }))).toEqual({ channel: "paid_search", platform: "google", app: null });
+    expect(classifyTouch(t({ ttclid: "E.C.P" }))).toEqual({ channel: "paid_social", platform: "tiktok", app: null });
+    expect(classifyTouch(t({ msclkid: "a1b2" }))).toEqual({ channel: "paid_search", platform: "bing", app: null });
+    expect(classifyTouch(t({ ScCid: "f00" }))).toEqual({ channel: "paid_social", platform: "snapchat", app: null });
+    expect(classifyTouch(t({ sccid: "f00" }))).toEqual({ channel: "paid_social", platform: "snapchat", app: null });
+  });
+
+  it("reads Google's gad_source alone as a Google ad, a search ad when it is 1, as Google and PostHog do", () => {
+    expect(isPaidTouch(t({ gad_source: "1" }))).toBe(true);
+    expect(classifyTouch(t({ gad_source: "1" }))).toEqual({ channel: "paid_search", platform: "google", app: null });
+    expect(classifyTouch(t({ gad_source: "5" }))).toEqual({ channel: "paid_other", platform: "google", app: null });
+    expect(classifyTouch(t({ gad_campaignid: "21000000001" }))).toEqual({ channel: "paid_other", platform: "google", app: null });
+    expect(classifyTouch(t({ gad_source: "1", gad_campaignid: "21000000001" }, "www.google.com"))).toEqual({ channel: "paid_search", platform: "google", app: null });
+  });
+
+  it("reads Merchant Center's srsltid as Google, never as an ad", () => {
+    expect(isPaidTouch(t({ srsltid: "AfmBOo" }))).toBe(false);
+    expect(classifyTouch(t({ srsltid: "AfmBOo" }))).toEqual({ channel: "organic_search", platform: "google", app: null });
+  });
+
+  it("credits the ad's platform over a fbclid the same link carries", () => {
+    expect(classifyTouch(t({ fbclid: "IwAR", ttclid: "E.C" })).platform).toBe("tiktok");
+    expect(classifyTouch(t({ fbclid: "IwAR", gclid: "Cj0" })).platform).toBe("google");
+    expect(classifyTouch(t({ fbclid: "IwAR", srsltid: "Af" })).platform).toBe("meta");
+  });
+
+  it("keeps utm_id and utm_source_platform as touch parameters, as Google Analytics reads them", () => {
+    expect(TOUCH_PARAMS).toEqual(expect.arrayContaining(["utm_id", "utm_source_platform", "gad_source", "gad_campaignid", "msclkid", "ScCid", "sccid", "srsltid"]));
+    expect(classifyTouch(t({ utm_id: "spring" })).channel).toBe("tagged");
+  });
+
+  it("reads a utm_source that is a host as that site", () => {
+    expect(classifyTouch(t({ utm_source: "chatgpt.com" }))).toEqual({ channel: "ai_assistant", platform: "other", app: null });
+    expect(classifyTouch(t({ utm_source: "l.instagram.com" }))).toEqual({ channel: "organic_social", platform: "meta", app: "ig" });
+    expect(classifyTouch(t({ utm_source: "newsletter" })).channel).toBe("tagged");
+  });
+
+  it("reads Snapchat as its own platform, an ad or not", () => {
+    expect(classifyTouch(t({}, "www.snapchat.com"))).toEqual({ channel: "organic_social", platform: "snapchat", app: null });
+    expect(classifyTouch(t({ utm_source: "snapchat", utm_medium: "paid" }))).toEqual({ channel: "paid_social", platform: "snapchat", app: null });
+    expect(classifyTouch(t({}, "com.snapchat.android")).platform).toBe("snapchat");
+  });
+});
+
+describe("AI assistants, Google Analytics' AI Assistant channel", () => {
+  it("counts a visit from an AI assistant apart from other sites", () => {
+    for (const host of ["chatgpt.com", "chat.openai.com", "gemini.google.com", "copilot.microsoft.com", "www.perplexity.ai", "claude.ai", "chat.deepseek.com", "grok.com"]) {
+      expect(classifyTouch(t({}, host)), host).toEqual({ channel: "ai_assistant", platform: "other", app: null });
+    }
+    for (const source of ["chatgpt", "perplexity", "gemini", "copilot", "claude"]) expect(classifyTouch(t({ utm_source: source })).channel, source).toBe("ai_assistant");
+    expect(classifyTouch(t({}, "com.openai.chatgpt")).channel).toBe("ai_assistant");
+    expect(androidAppName("com.openai.chatgpt")).toBe("ChatGPT");
+  });
+
+  it("keeps Google's own search Google search, and an assistant's ad an ad", () => {
+    expect(classifyTouch(t({}, "www.google.com")).channel).toBe("organic_search");
+    expect(classifyTouch(t({ utm_source: "chatgpt", utm_medium: "cpc" })).channel).toBe("paid_other");
+  });
+});
+
+describe("a touch read without its ad", () => {
+  it("reads an ad clicked too long ago as what it is without the ad, never as a paid source", () => {
+    expect(classifyTouch(t(META_TEMPLATE), { ad: false })).toEqual({ channel: "organic_social", platform: "meta", app: "ig" });
+    expect(classifyTouch(t({ gclid: "Cj0" }), { ad: false })).toEqual({ channel: "organic_search", platform: "google", app: null });
+    expect(classifyTouch(t({ ttclid: "E.C" }), { ad: false })).toEqual({ channel: "organic_social", platform: "tiktok", app: null });
+    expect(classifyTouch(t({ utm_source: "partner", utm_medium: "cpc" }), { ad: false }).channel).toBe("tagged");
+  });
+
+  it("reads a touch that was no ad the same either way", () => {
+    for (const touch of [t({}, "www.google.com"), t({ fbclid: "IwAR" }), t({}, "chatgpt.com"), t({ utm_medium: "email" }), t({})]) {
+      expect(classifyTouch(touch, { ad: false })).toEqual(classifyTouch(touch));
+    }
+  });
+});

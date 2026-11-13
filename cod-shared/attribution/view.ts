@@ -1,10 +1,14 @@
 /**
  * An order's attribution as the API shows it (ADR 0026, attribution v2): the
- * order's channel, the ad it credits, and this visit, kept apart. The
+ * order's channel, the ad it credits, the earlier visit it comes from when
+ * that is not this visit, this visit, and the first visit, kept apart. The
  * stored channel decides: a row written before v2 has none, and its source
  * is unknown.
  */
-import { PAID_CHANNELS, type OrderChannel } from "./model";
+import { classifyTouch } from "./channel";
+import { PAID_CHANNELS, type OrderChannel, type Touch } from "./model";
+import { landingOf } from "./resolve";
+import { parseTouch } from "./touch";
 import type { orderAttribution } from "../db/schema";
 
 type Row = typeof orderAttribution.$inferSelect;
@@ -28,9 +32,41 @@ function channelOf(row: Pick<Row, "channel" | "method">): OrderChannel | null {
   return row.channel ?? (row.method === "merchant" ? "dashboard" : null);
 }
 
+/** The first touch a row keeps, read back. Its age was checked when the order was written, so it is read as of its own time. */
+function storedTouch(json: string | null): Touch | null {
+  if (!json) return null;
+  try {
+    const raw: unknown = JSON.parse(json);
+    const at = typeof raw === "object" && raw !== null ? (raw as { at?: unknown }).at : null;
+    return typeof at === "string" ? parseTouch(raw, new Date(at)) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The first visit, as the API shows a visit. */
+function firstVisit(row: Pick<Row, "firstTouchJson">) {
+  const touch = storedTouch(row.firstTouchJson);
+  if (!touch) return null;
+  const { channel, platform, app } = classifyTouch(touch);
+  return {
+    at: touch.at,
+    channel,
+    platform,
+    app,
+    referrerHost: touch.ref,
+    landingPath: touch.path,
+    landingPageType: landingOf(touch.path).type,
+    utmSource: touch.params.utm_source ?? null,
+    utmMedium: touch.params.utm_medium ?? null,
+    utmCampaign: touch.params.utm_campaign ?? null,
+  };
+}
+
 export function orderAttributionView(row: Row) {
   const channel = channelOf(row);
   const isAd = row.method === "captured" && channel !== null && PAID_CHANNELS.includes(channel);
+  const earlier = row.method === "captured" && channel !== null && !isAd && row.capturedAt !== null && row.visitAt !== null && row.capturedAt !== row.visitAt;
   const { campaign, ad } = names(row);
   return {
     method: row.method,
@@ -72,6 +108,21 @@ export function orderAttributionView(row: Row) {
             utmCampaign: row.visitUtmCampaign,
           }
         : null,
+    earlier: earlier
+      ? {
+          at: row.capturedAt,
+          channel: channel!,
+          platform: row.platform,
+          app: row.siteSource,
+          referrerHost: row.referrerHost,
+          landingPath: row.landingPath,
+          landingPageType: row.landingPageType,
+          utmSource: row.utmSource,
+          utmMedium: row.utmMedium,
+          utmCampaign: row.utmCampaign,
+        }
+      : null,
+    first: firstVisit(row),
     firstTouchAt: row.firstTouchAt,
   };
 }

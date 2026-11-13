@@ -77,10 +77,16 @@ export function parseTouch(raw: unknown, now: Date): Touch | null {
   return { at, params, path, ref };
 }
 
+/** Whether a touch says nothing about where it came from: no parameter, no referring site. */
+export function isDirectTouch(touch: Pick<Touch, "params" | "ref">): boolean {
+  return Object.keys(touch.params).length === 0 && !touch.ref;
+}
+
 /**
  * The touches an order carries, from the storefront's JSON (an object, or the
  * same as a string), or null when nothing usable is in it. A last touch that
- * is not an ad click is dropped: only a paid touch can be credited.
+ * is not an ad click is dropped, since only a paid touch can be credited; a
+ * last source that is direct or an ad is dropped, since it is neither.
  */
 export function parseCapturedTouches(raw: unknown, now: Date): CapturedTouches | null {
   let value = raw;
@@ -96,7 +102,9 @@ export function parseCapturedTouches(raw: unknown, now: Date): CapturedTouches |
   const first = parseTouch(value.first, now);
   const lastTouch = parseTouch(value.last, now);
   const last = lastTouch && isPaidTouch(lastTouch) ? lastTouch : null;
+  const sourceTouch = parseTouch(value.source, now);
+  const source = sourceTouch && !isPaidTouch(sourceTouch) && !isDirectTouch(sourceTouch) ? sourceTouch : null;
   const visit = parseTouch(value.visit, now);
-  if (!first && !last && !visit) return null;
-  return { first, last, visit };
+  if (!first && !last && !source && !visit) return null;
+  return { first, last, source, visit };
 }

@@ -149,6 +149,42 @@ describe("a storefront order's attribution", () => {
     expect((await place({ attribution: { first: fromGmail, last: null, visit: fromGmail } })).attribution).toMatchObject({ channel: "email", platform: "other" });
   });
 
+  it("keeps a Google search the order's source when the shopper came back typing the address, for 30 days", async () => {
+    const search = (hoursAgo: number) => ({ at: recently(hoursAgo), params: {}, path: "/products/robe", ref: "www.google.com" });
+    expect((await place({ attribution: { first: search(48), last: null, source: search(48), visit: directVisit() } })).attribution).toMatchObject({
+      channel: "organic_search",
+      platform: "google",
+      referrerHost: "www.google.com",
+      visitChannel: "direct",
+    });
+    expect((await place({ attribution: { first: null, last: null, source: search(31 * 24), visit: directVisit() } })).attribution).toMatchObject({ channel: "direct", visitChannel: "direct" });
+  });
+
+  it("credits the ad within seven days over a later search, and never an ad clicked earlier", async () => {
+    const search = { at: recently(24), params: {}, path: "/", ref: "www.google.com" };
+    expect((await place({ attribution: { first: null, last: adTouch(), source: search, visit: directVisit() } })).attribution).toMatchObject({ channel: "paid_social", adId: "120200000000000003" });
+    const stale = { ...adTouch(), at: recently(8 * 24) };
+    expect((await place({ attribution: { first: null, last: stale, source: search, visit: directVisit() } })).attribution).toMatchObject({ channel: "organic_search", adId: null, visitChannel: "direct" });
+    expect((await place({ attribution: { first: null, last: stale, visit: stale } })).attribution?.channel).toBe("organic_social");
+  });
+
+  it("names a Google ad by its gad_source when Safari removed the gclid, with the campaign from gad_campaignid", async () => {
+    const ad = { at: recently(1), params: { gad_source: "1", gad_campaignid: "21000000001" }, path: "/products/robe", ref: "www.google.com" };
+    expect((await place({ attribution: { first: ad, last: ad, visit: ad } })).attribution).toMatchObject({ channel: "paid_search", platform: "google", campaignId: "21000000001", visitChannel: "paid_search" });
+  });
+
+  it("names Microsoft's and Snapchat's ads, and Merchant Center's free listings", async () => {
+    const at = (params: Record<string, string>, ref: string | null = null) => ({ at: recently(1), params, path: "/", ref });
+    expect((await place({ attribution: { first: null, last: at({ msclkid: "ab12" }), visit: at({ msclkid: "ab12" }) } })).attribution).toMatchObject({ channel: "paid_search", platform: "bing", clickIdType: "msclkid", clickId: "ab12" });
+    expect((await place({ attribution: { first: null, last: at({ ScCid: "f00" }), visit: at({ ScCid: "f00" }) } })).attribution).toMatchObject({ channel: "paid_social", platform: "snapchat", clickIdType: "ScCid" });
+    expect((await place({ attribution: { first: null, last: null, visit: at({ srsltid: "AfmBOo" }, "www.google.com") } })).attribution).toMatchObject({ channel: "organic_search", platform: "google" });
+  });
+
+  it("names a visit from an AI assistant apart from other sites", async () => {
+    const fromChatGpt = { at: recently(0.1), params: { utm_source: "chatgpt.com" }, path: "/products/robe", ref: "chatgpt.com" };
+    expect((await place({ attribution: { first: fromChatGpt, last: null, source: fromChatGpt, visit: fromChatGpt } })).attribution).toMatchObject({ channel: "ai_assistant", visitChannel: "ai_assistant", referrerHost: "chatgpt.com" });
+  });
+
   it("names the landing page a basket order's visit landed on", async () => {
     expect((await place({ attribution: { first: null, last: adTouch() } })).landingPageId).toBe("lp-robe");
   });
@@ -234,8 +270,9 @@ describe("an abandoned checkout's attribution", () => {
   it("keeps the touches it was saved with, and a later save without them keeps them", async () => {
     const last = adTouch();
     const visit = directVisit();
-    expect(JSON.parse((await save({ attribution: { first: null, last, visit } }))!)).toEqual({ first: null, last, visit });
-    expect(JSON.parse((await save({ customerName: "Amel K." }))!)).toEqual({ first: null, last, visit });
+    const source = { at: recently(30), params: {}, path: "/", ref: "www.google.com" };
+    expect(JSON.parse((await save({ attribution: { first: null, last, source, visit } }))!)).toEqual({ first: null, last, source, visit });
+    expect(JSON.parse((await save({ customerName: "Amel K." }))!)).toEqual({ first: null, last, source, visit });
   });
 
   it("stores nothing it could not read", async () => {

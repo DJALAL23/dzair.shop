@@ -4,13 +4,13 @@
  *
  * The channels follow Google Analytics' default channel group: paid when the
  * medium matches `^(.*cp.*|ppc|retargeting|paid.*)$`, social and search by the
- * source's site, direct when nothing is known. Two Wocart rules on top:
- * a click id only ad clicks carry (`ttclid`, `gclid`, `gbraid`, `wbraid`) or
- * Wocart's ad template names (`wc_cn`, `wc_an`) make a touch paid; Meta's
- * `fbclid` alone never does, because Meta adds it to every link leaving
- * Facebook and Instagram.
+ * source's site, AI assistants apart, direct when nothing is known. On top,
+ * the signals table (`signals.ts`): a parameter only an ad's URL carries (a
+ * TikTok, Google, Microsoft or Snapchat click id, Google's `gad_*`, Wocart's
+ * ad template names) makes a touch paid; Meta's `fbclid` alone never does,
+ * because Meta adds it to every link leaving Facebook and Instagram.
  */
-import { AD_ONLY_CLICK_IDS, type AttributionPlatform, type OrderChannel, type Touch } from "./model";
+import { AD_PARAMS, TOUCH_PARAMS, signalOf, type AttributionPlatform, type OrderChannel, type Touch } from "./model";
 
 /** Meta's `{{site_source_name}}`: Facebook, Instagram, Messenger, Audience Network, Threads; `wa` is WhatsApp. */
 export const META_APPS = ["fb", "ig", "msg", "an", "th", "wa"] as const;
@@ -23,7 +23,7 @@ const REFERRAL_MEDIUMS = new Set(["referral", "app", "link"]);
 
 interface Site {
   readonly platform: AttributionPlatform;
-  readonly kind: "social" | "search" | "email";
+  readonly kind: "social" | "search" | "email" | "ai";
   readonly app?: MetaApp;
   /** An Android app's name as people know it, for an `android-app://` referrer. */
   readonly appName?: string;
@@ -33,15 +33,29 @@ const META = (app: MetaApp): Site => ({ platform: "meta", kind: "social", app })
 const SOCIAL: Site = { platform: "other", kind: "social" };
 const SEARCH: Site = { platform: "other", kind: "search" };
 const EMAIL: Site = { platform: "other", kind: "email" };
+const AI: Site = { platform: "other", kind: "ai" };
+const SNAPCHAT: Site = { platform: "snapchat", kind: "social" };
 const GOOGLE_SEARCH: Site = { platform: "google", kind: "search" };
 
 /**
  * Sites by registered domain: a host is the domain or one of its subdomains
  * (`l.facebook.com` is Facebook). The first match wins, so a webmail or a
  * Google site that is not its search comes before the rest of its domain.
- * After Google Analytics' source categories and Snowplow's referer list.
+ * After Google Analytics' source categories and Snowplow's referer list; the
+ * AI assistants are Google Analytics' "AI Assistant" channel, by the hosts
+ * Plausible names.
  */
 const SITES: ReadonlyArray<readonly [string, Site]> = [
+  ["chatgpt.com", AI],
+  ["chat.openai.com", AI],
+  ["gemini.google.com", AI],
+  ["bard.google.com", AI],
+  ["copilot.microsoft.com", AI],
+  ["perplexity.ai", AI],
+  ["claude.ai", AI],
+  ["chat.deepseek.com", AI],
+  ["deepseek.com", AI],
+  ["grok.com", AI],
   ["mail.google.com", EMAIL],
   ["mail.yahoo.com", EMAIL],
   ["outlook.live.com", EMAIL],
@@ -68,7 +82,7 @@ const SITES: ReadonlyArray<readonly [string, Site]> = [
   ["t.co", SOCIAL],
   ["linkedin.com", SOCIAL],
   ["lnkd.in", SOCIAL],
-  ["snapchat.com", SOCIAL],
+  ["snapchat.com", SNAPCHAT],
   ["pinterest.com", SOCIAL],
   ["reddit.com", SOCIAL],
   ["t.me", SOCIAL],
@@ -121,7 +135,12 @@ const ANDROID_APPS: Readonly<Record<string, Site>> = {
   "org.telegram.messenger.web": { ...SOCIAL, appName: "Telegram" },
   "com.twitter.android": { ...SOCIAL, appName: "X" },
   "com.linkedin.android": { ...SOCIAL, appName: "LinkedIn" },
-  "com.snapchat.android": { ...SOCIAL, appName: "Snapchat" },
+  "com.snapchat.android": { ...SNAPCHAT, appName: "Snapchat" },
+  "com.openai.chatgpt": { ...AI, appName: "ChatGPT" },
+  "com.google.android.apps.bard": { ...AI, appName: "Gemini" },
+  "ai.perplexity.app.android": { ...AI, appName: "Perplexity" },
+  "com.microsoft.copilot": { ...AI, appName: "Copilot" },
+  "com.anthropic.claude": { ...AI, appName: "Claude" },
   "com.pinterest": { ...SOCIAL, appName: "Pinterest" },
   "com.reddit.frontpage": { ...SOCIAL, appName: "Reddit" },
 };
@@ -141,7 +160,16 @@ const SOURCES: Readonly<Record<string, Site>> = {
   wa: META("wa"),
   tiktok: { platform: "tiktok", kind: "social" },
   youtube: SOCIAL,
-  snapchat: SOCIAL,
+  snapchat: SNAPCHAT,
+  snap: SNAPCHAT,
+  chatgpt: AI,
+  openai: AI,
+  gemini: AI,
+  copilot: AI,
+  perplexity: AI,
+  claude: AI,
+  deepseek: AI,
+  grok: AI,
   twitter: SOCIAL,
   x: SOCIAL,
   linkedin: SOCIAL,
@@ -186,9 +214,8 @@ function metaApp(value: string | undefined): MetaApp | null {
 /** Whether a touch is an ad click. */
 export function isPaidTouch(touch: Pick<Touch, "params">): boolean {
   const { params } = touch;
-  if (AD_ONLY_CLICK_IDS.some((id) => params[id])) return true;
-  if (params.utm_medium && PAID_MEDIUM.test(params.utm_medium.trim())) return true;
-  return Boolean(params.wc_cn || params.wc_an);
+  if (AD_PARAMS.some((param) => params[param])) return true;
+  return Boolean(params.utm_medium && PAID_MEDIUM.test(params.utm_medium.trim()));
 }
 
 /** What a touch is, as an order shows it. */
@@ -199,30 +226,61 @@ export interface TouchClass {
   readonly app: MetaApp | null;
 }
 
-/** The channel, platform and app of a touch, or of no touch at all (direct). */
-export function classifyTouch(touch: Pick<Touch, "params" | "ref"> | null): TouchClass {
+/** The site a `utm_source` names: a known name (`facebook`, `chatgpt`), or a host (`chatgpt.com`, `l.instagram.com`). */
+function sourceSite(source: string | undefined): Site | null {
+  const name = source?.trim().toLowerCase();
+  if (!name) return null;
+  return SOURCES[name] ?? (name.includes(".") ? siteOfHost(name) : null);
+}
+
+/**
+ * The platform the touch's URL signals name, and the channel family of its
+ * click: an ad's signal first (in the table's order), else any other that
+ * names a platform (`fbclid`, `srsltid`). Google's `gad_source=1` is a search
+ * ad, as PostHog reads it; another value leaves the family to the source.
+ */
+interface Signalled {
+  readonly platform: AttributionPlatform;
+  readonly kind: Site["kind"] | null;
+  readonly ad: boolean;
+}
+
+function signalled(params: Touch["params"]): Signalled | null {
+  let other: Signalled | null = null;
+  for (const param of TOUCH_PARAMS) {
+    const { platform, means, kind } = signalOf(param);
+    if (!params[param] || !platform) continue;
+    const found = { platform, kind: kind ?? (param === "gad_source" && params.gad_source === "1" ? "search" : null), ad: means === "ad" };
+    if (found.ad) return found;
+    other ??= found;
+  }
+  return other;
+}
+
+/**
+ * The channel, platform and app of a touch, or of no touch at all (direct).
+ * With `{ ad: false }`, a touch that was an ad is read as what it is without
+ * the ad: an ad clicked too long ago to be credited is no paid source.
+ */
+export function classifyTouch(touch: Pick<Touch, "params" | "ref"> | null, options: { ad?: boolean } = {}): TouchClass {
   if (!touch) return { channel: "direct", platform: "direct", app: null };
   const { params } = touch;
   const medium = params.utm_medium?.trim().toLowerCase();
-  const bySource = params.utm_source ? (SOURCES[params.utm_source.trim().toLowerCase()] ?? null) : null;
+  const bySource = sourceSite(params.utm_source);
   const byHost = siteOfHost(touch.ref);
   const templateApp = metaApp(params.wc_ss);
-  const clickPlatform: AttributionPlatform | null = params.ttclid
-    ? "tiktok"
-    : params.gclid || params.gbraid || params.wbraid
-      ? "google"
-      : params.fbclid || templateApp
-        ? "meta"
-        : null;
+  const signal = signalled(params);
+  const clicked = signal?.ad ? signal : templateApp ? { platform: "meta" as const, kind: "social" as const } : signal;
   const platform: AttributionPlatform =
-    clickPlatform ?? bySource?.platform ?? byHost?.platform ?? (touch.ref ? "referral" : Object.keys(params).length > 0 ? "other" : "direct");
+    clicked?.platform ?? bySource?.platform ?? byHost?.platform ?? (touch.ref ? "referral" : Object.keys(params).length > 0 ? "other" : "direct");
   const app = platform === "meta" ? (templateApp ?? bySource?.app ?? byHost?.app ?? null) : null;
-  const kind = clickPlatform === "google" ? "search" : clickPlatform ? "social" : (bySource?.kind ?? byHost?.kind ?? null);
+  const kind = clicked ? clicked.kind : (bySource?.kind ?? byHost?.kind ?? null);
 
-  if (isPaidTouch(touch)) {
+  if (options.ad !== false && isPaidTouch(touch)) {
     return { channel: kind === "social" ? "paid_social" : kind === "search" ? "paid_search" : "paid_other", platform, app };
   }
   if (kind === "email" || (medium && EMAIL_MEDIUMS.has(medium))) return { channel: "email", platform, app };
+  if (kind === "ai") return { channel: "ai_assistant", platform, app };
   if (kind === "social" || (medium && SOCIAL_MEDIUMS.has(medium))) return { channel: "organic_social", platform, app };
   if (kind === "search" || medium === "organic") return { channel: "organic_search", platform, app };
   if (touch.ref || (medium && REFERRAL_MEDIUMS.has(medium))) return { channel: "referral", platform, app };

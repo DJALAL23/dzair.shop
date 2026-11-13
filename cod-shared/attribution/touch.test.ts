@@ -105,24 +105,32 @@ describe("parseCapturedTouches", () => {
   const DIRECT = { at: "2026-11-11T11:00:00.000Z", params: {}, path: "/products/robe", ref: null };
 
   it("reads the three touches, from an object or its JSON", () => {
-    const expected = { first: FIRST, last: AD_TOUCH, visit: DIRECT };
-    expect(parseCapturedTouches({ first: FIRST, last: AD_TOUCH, visit: DIRECT }, NOW)).toEqual(expected);
-    expect(parseCapturedTouches(JSON.stringify({ first: FIRST, last: AD_TOUCH, visit: DIRECT }), NOW)).toEqual(expected);
+    const expected = { first: FIRST, last: AD_TOUCH, source: null, visit: DIRECT };
+    expect(parseCapturedTouches({ first: FIRST, last: AD_TOUCH, source: null, visit: DIRECT }, NOW)).toEqual(expected);
+    expect(parseCapturedTouches(JSON.stringify({ first: FIRST, last: AD_TOUCH, source: null, visit: DIRECT }), NOW)).toEqual(expected);
   });
 
   it("drops a last touch that is not an ad click: a referrer, or a bare fbclid Meta adds to every link", () => {
-    expect(parseCapturedTouches({ first: FIRST, last: FIRST }, NOW)).toEqual({ first: FIRST, last: null, visit: null });
+    expect(parseCapturedTouches({ first: FIRST, last: FIRST }, NOW)).toEqual({ first: FIRST, last: null, source: null, visit: null });
     const facebookLink = { at: AT, params: { fbclid: "IwAR2F4" }, path: "/", ref: "l.facebook.com" };
-    expect(parseCapturedTouches({ last: facebookLink, visit: facebookLink }, NOW)).toEqual({ first: null, last: null, visit: facebookLink });
+    expect(parseCapturedTouches({ last: facebookLink, visit: facebookLink }, NOW)).toEqual({ first: null, last: null, source: null, visit: facebookLink });
+  });
+
+  it("reads the last source, and drops one that is direct or an ad, since it is neither", () => {
+    const SEARCH = { at: "2026-11-09T10:00:00.000Z", params: {}, path: "/", ref: "www.google.com" };
+    expect(parseCapturedTouches({ source: SEARCH, visit: DIRECT }, NOW)).toEqual({ first: null, last: null, source: SEARCH, visit: DIRECT });
+    expect(parseCapturedTouches({ source: DIRECT, visit: DIRECT }, NOW)).toEqual({ first: null, last: null, source: null, visit: DIRECT });
+    expect(parseCapturedTouches({ source: AD_TOUCH, visit: DIRECT }, NOW)).toEqual({ first: null, last: null, source: null, visit: DIRECT });
+    expect(parseCapturedTouches({ source: SEARCH }, NOW)).toEqual({ first: null, last: null, source: SEARCH, visit: null });
   });
 
   it("keeps a direct visit: a landing page with no parameter and no referrer", () => {
-    expect(parseCapturedTouches({ visit: DIRECT }, NOW)).toEqual({ first: null, last: null, visit: DIRECT });
+    expect(parseCapturedTouches({ visit: DIRECT }, NOW)).toEqual({ first: null, last: null, source: null, visit: DIRECT });
   });
 
   it("keeps any touch alone", () => {
-    expect(parseCapturedTouches({ last: AD_TOUCH }, NOW)).toEqual({ first: null, last: AD_TOUCH, visit: null });
-    expect(parseCapturedTouches({ first: FIRST }, NOW)).toEqual({ first: FIRST, last: null, visit: null });
+    expect(parseCapturedTouches({ last: AD_TOUCH }, NOW)).toEqual({ first: null, last: AD_TOUCH, source: null, visit: null });
+    expect(parseCapturedTouches({ first: FIRST }, NOW)).toEqual({ first: FIRST, last: null, source: null, visit: null });
   });
 
   it("answers null when nothing usable is in it", () => {
@@ -136,6 +144,6 @@ describe("parseCapturedTouches", () => {
     expect(parseCapturedTouches(padded, NOW)).toBeNull();
     const fits = JSON.stringify({ first: FIRST, pad: "x".repeat(12000 - JSON.stringify({ first: FIRST, pad: "" }).length) });
     expect(fits).toHaveLength(12000);
-    expect(parseCapturedTouches(fits, NOW)).toEqual({ first: FIRST, last: null, visit: null });
+    expect(parseCapturedTouches(fits, NOW)).toEqual({ first: FIRST, last: null, source: null, visit: null });
   });
 });

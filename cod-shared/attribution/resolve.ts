@@ -9,22 +9,28 @@ import { STORE_LOCALES } from "../i18n/locales";
 import { matchStorefrontPath } from "../storefront/routes";
 import type { Origin } from "../events/actor";
 import { classifyTouch, isPaidTouch } from "./channel";
-import { AD_CREDIT_WINDOW_DAYS, CLICK_ID_TYPES, type CapturedTouches, type ClickIdType, type OrderChannel, type Touch } from "./model";
+import { AD_CREDIT_WINDOW_DAYS, CLICK_ID_TYPES, SOURCE_LOOKBACK_DAYS, signalOf, type AttributionPlatform, type CapturedTouches, type ClickIdType, type OrderChannel, type Touch } from "./model";
+import { isDirectTouch } from "./touch";
 import type { orderAttribution } from "../db/schema";
 
 export type OrderAttributionRow = typeof orderAttribution.$inferInsert;
 
 const AD_ID = /^\d{1,32}$/;
 const MAX_PLACEMENT_LENGTH = 64;
-const WINDOW_MS = AD_CREDIT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const FUTURE_SKEW_MS = 5 * 60 * 1000;
 
-function clickOf(touch: Touch): { type: ClickIdType; id: string } | null {
-  for (const type of CLICK_ID_TYPES) {
-    const id = touch.params[type];
-    if (id) return { type, id };
-  }
-  return null;
+/** The click id a touch carries, the one of the platform it is credited to first. */
+function clickOf(touch: Touch, platform: AttributionPlatform): { type: ClickIdType; id: string } | null {
+  const present = CLICK_ID_TYPES.filter((type) => touch.params[type]);
+  const type = present.find((candidate) => signalOf(candidate).platform === platform) ?? present[0];
+  return type ? { type, id: touch.params[type]! } : null;
+}
+
+/** Whether a touch landed at most `days` before `nowMs`, allowing five minutes of clock skew. */
+function within(touch: Touch, nowMs: number, days: number): boolean {
+  const age = nowMs - Date.parse(touch.at);
+  return age >= -FUTURE_SKEW_MS && age <= days * DAY_MS;
 }
 
 function adId(value: string | undefined): string | null {
@@ -53,11 +59,32 @@ export function landingOf(path: string | null): { type: string | null; landingSl
 export function creditedTouch(touches: CapturedTouches | null, now: string): Touch | null {
   const nowMs = Date.parse(now);
   const candidates = [touches?.last, touches?.visit].filter((touch): touch is Touch => Boolean(touch && isPaidTouch(touch)));
-  const recent = candidates.filter((touch) => {
-    const age = nowMs - Date.parse(touch.at);
-    return age >= -FUTURE_SKEW_MS && age <= WINDOW_MS;
-  });
+  const recent = candidates.filter((touch) => within(touch, nowMs, AD_CREDIT_WINDOW_DAYS));
   return recent.sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0] ?? null;
+}
+
+/** An order's source: the touch it comes from, and whether that touch is the ad the order credits. */
+export interface OrderSource {
+  readonly touch: Touch | null;
+  readonly ad: boolean;
+}
+
+/**
+ * Where an order comes from: the ad it credits; else this visit, when it came
+ * from somewhere (neither direct nor an ad); else the last such visit, at
+ * most `SOURCE_LOOKBACK_DAYS` before the order; else this visit as it is. A
+ * direct return never erases where the shopper came from, as Google
+ * Analytics, Shopify and WooCommerce rule; an ad clicked too long ago to be
+ * credited is no source either.
+ */
+export function orderSource(touches: CapturedTouches | null, now: string): OrderSource {
+  const ad = creditedTouch(touches, now);
+  if (ad) return { touch: ad, ad: true };
+  const visit = touches?.visit ?? null;
+  if (visit && !isDirectTouch(visit) && !isPaidTouch(visit)) return { touch: visit, ad: false };
+  const earlier = touches?.source ?? null;
+  if (earlier && !isDirectTouch(earlier) && !isPaidTouch(earlier) && within(earlier, Date.parse(now), SOURCE_LOOKBACK_DAYS)) return { touch: earlier, ad: false };
+  return { touch: visit, ad: false };
 }
 
 /** The page a touch landed on, for an order's landing-page fallback: the credited ad's, else this visit's. */
@@ -67,15 +94,15 @@ export function landingTouch(touches: CapturedTouches | null, now: string): Touc
 
 function touchColumns(touch: Touch) {
   const { params } = touch;
-  const click = clickOf(touch);
   const { platform, app } = classifyTouch(touch);
+  const click = clickOf(touch, platform);
   const names = { campaign: params.wc_cn, ad: params.wc_an };
   return {
     capturedAt: touch.at,
     platform,
     clickId: click?.id ?? null,
     clickIdType: click?.type ?? null,
-    campaignId: adId(params.utm_campaign),
+    campaignId: adId(params.utm_campaign) ?? adId(params.gad_campaignid),
     adsetId: adId(params.utm_term),
     adId: adId(params.utm_content),
     placement: params.wc_pl && params.wc_pl.length <= MAX_PLACEMENT_LENGTH ? params.wc_pl : null,
@@ -112,17 +139,18 @@ function visitColumns(visit: Touch | null) {
 /**
  * The `order_attribution` row of a storefront order, or null when its
  * storefront sent nothing (a theme on an older SDK, cookies off). The touch
- * columns describe the credited ad, else this visit; `channel` is the ad's,
- * else this visit's, else unknown. The credit window counts back from
- * `orderedAt` (when the shopper submitted it), else `now`.
+ * columns describe the order's source (`orderSource`); `channel` is its
+ * channel, paid only for the ad the order credits, else unknown. The `visit_*`
+ * columns describe this visit. The windows count back from `orderedAt` (when
+ * the shopper submitted it), else `now`.
  */
 export function capturedAttributionRow(orderId: string, touches: CapturedTouches | null, context: { now: string; orderedAt?: string }): OrderAttributionRow | null {
   if (!touches) return null;
-  const ad = creditedTouch(touches, context.orderedAt ?? context.now);
+  const source = orderSource(touches, context.orderedAt ?? context.now);
   const visit = touches.visit;
-  const shown = ad ?? visit;
+  const shown = source.touch;
   const first = touches.first;
-  const channel: OrderChannel | null = ad ? classifyTouch(ad).channel : visit ? classifyTouch(visit).channel : null;
+  const channel: OrderChannel | null = shown ? classifyTouch(shown, { ad: source.ad }).channel : null;
   return {
     orderId,
     method: "captured",

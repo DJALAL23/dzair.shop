@@ -68,27 +68,31 @@ A page the shopper reached from outside the store: a typed address or a bookmark
 _Avoid_: Session start, landing
 
 **Touch**:
-What one Arrival carried: the touch parameters of its URL (`utm_*`, `wc_*`, `fbclid`, `ttclid`, `gclid`, `gbraid`, `wbraid`), the path it landed on and the other site that referred it. A direct Arrival has only its path. The storefront keeps three in a first-party cookie: the **First Touch**, the **Last Ad Touch** and **This Visit**.
+What one Arrival carried: the touch parameters of its URL (one table, `cod-shared/attribution/signals.ts`: `utm_*`, `wc_*` and the platforms' click ids), the path it landed on and the other site (or Android app) that referred it. A direct Arrival has only its path. The storefront keeps four in a first-party cookie: the **First Touch**, the **Last Ad Touch**, the **Last Source** and **This Visit**.
 _Avoid_: Session, hit, source
 
 **Ad Click**:
-A Touch an ad made: a click id only ads carry (`ttclid`, `gclid`, `gbraid`, `wbraid`), a `utm_medium` matching Google Analytics' paid rule, or Wocart's ad template names (`wc_cn`, `wc_an`). A bare `fbclid` is not an Ad Click: Meta adds it to every link leaving Facebook and Instagram. Click ids are kept byte for byte, up to 1,000 characters.
+A Touch an ad made: a parameter only an ad's URL carries (`ttclid`; Google's `gclid`, `gbraid`, `wbraid`, `gad_source`, `gad_campaignid`; `msclkid`; Snapchat's `ScCid`; Wocart's ad template names `wc_cn`, `wc_an`), or a `utm_medium` matching Google Analytics' paid rule. A bare `fbclid` is not an Ad Click: Meta adds it to every link leaving Facebook and Instagram. Click ids are kept byte for byte, up to 1,000 characters.
 _Avoid_: Click-through, conversion
 
 **This Visit**:
 The shopper's latest Arrival before ordering, an ad or not, a direct one included. A direct Arrival within 30 minutes of This Visit continues it.
 _Avoid_: Session, last touch
 
+**Last Source**:
+The latest Arrival that was neither direct nor an Ad Click: a search engine, a social network, an email, an AI assistant, another site or a tagged link. A shopper who comes back by typing the address keeps it.
+_Avoid_: Last non-direct click (that names the report model it follows)
+
 **Ad Credited**:
 The Ad Click an order credits: the latest one at most seven days (Meta's default click window) before the shopper submitted the order. None when no Ad Click is that recent.
 _Avoid_: Attributed ad, conversion ad
 
 **Channel**:
-Where an order came from, as one word: the Ad Credited's (`paid_social`, `paid_search`, `paid_other`), else This Visit's (`organic_social`, `organic_search`, `email`, `referral`, `tagged`, `direct`), else the staff surface that entered it (`dashboard`, `api`, `agent`). Google Analytics' default channel group, plus Wocart's rules above. Null when nothing is known.
+Where an order came from, as one word: the Ad Credited's (`paid_social`, `paid_search`, `paid_other`); else This Visit's when it came from somewhere; else the Last Source's, at most 30 days old; else This Visit's (`organic_social`, `organic_search`, `ai_assistant`, `email`, `referral`, `tagged`, `direct`); or the staff surface that entered it (`dashboard`, `api`, `agent`). A channel is paid only for the Ad Credited: an Ad Click too old to credit counts as what it is without the ad. Google Analytics' default channel group, plus Wocart's rules above. Null when nothing is known.
 _Avoid_: Source label, medium
 
 **Order Attribution**:
-Where an order came from, one `order_attribution` row per order the storefront tracked or staff entered, written in the order's own batch: its Channel, the Ad Credited (else This Visit) in the touch columns, and This Visit in the `visit_*` columns. `_fbc` never decides it; it is only passed on to Meta. No row means nothing is known.
+Where an order came from, one `order_attribution` row per order the storefront tracked or staff entered, written in the order's own batch: its Channel, the touch the Channel comes from (the Ad Credited, the Last Source or This Visit) in the touch columns, and This Visit in the `visit_*` columns. `_fbc` never decides it; it is only passed on to Meta. No row means nothing is known.
 _Avoid_: Conversion source, UTM record
 
 **Attribution Method**:

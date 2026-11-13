@@ -238,11 +238,25 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
  */
 const nullableText = (description: string) => z.string().nullable().openapi({ description });
 
+/** One visit an order's attribution describes. */
+const AttributionVisitSchema = z.object({
+  at: nullableText("When the shopper arrived"),
+  channel: z.enum(ORDER_CHANNELS),
+  platform: z.enum(ATTRIBUTION_PLATFORMS).nullable(),
+  app: nullableText("The Meta app, when known"),
+  referrerHost: nullableText("The other site that linked to the store, or the Android app that opened it"),
+  landingPath: nullableText("The storefront path the visit landed on"),
+  landingPageType: nullableText("The page type of that path"),
+  utmSource: nullableText("As received"),
+  utmMedium: nullableText("As received"),
+  utmCampaign: nullableText("As received"),
+});
+
 /** Where an order came from (ADR 0026, attribution v2). */
 export const OrderAttributionSchema = z
   .object({
     method: z.enum(ATTRIBUTION_METHODS).openapi({ description: "`captured` from the shopper's visit; `entered` for an order staff, the API or the AI agent created; `merchant` only on orders before attribution v2" }),
-    channel: z.enum(ORDER_CHANNELS).nullable().openapi({ description: "Null when nothing is known. Where the order came from: the credited ad's channel (`paid_social`, `paid_search`, `paid_other`), else this visit's (`organic_social`, `organic_search`, `email`, `referral`, `tagged`, `direct`), else who entered it (`dashboard`, `api`, `agent`)" }),
+    channel: z.enum(ORDER_CHANNELS).nullable().openapi({ description: "Null when nothing is known. Where the order came from: the credited ad's channel (`paid_social`, `paid_search`, `paid_other`); else the channel of this visit, or of the last visit within 30 days that was neither direct nor an ad (`organic_social`, `organic_search`, `ai_assistant`, `email`, `referral`, `tagged`), else `direct`; or who entered it (`dashboard`, `api`, `agent`)" }),
     platform: z.enum(ATTRIBUTION_PLATFORMS),
     app: nullableText("The Meta app: `fb`, `ig`, `msg`, `an`, `th`, `wa`; null when unknown or not Meta"),
     legacy: z.boolean().openapi({ description: "Written with no channel: before attribution v2, or by a storefront that sent no visit. Its source is unknown (a source a merchant chose before v2 is `dashboard`)" }),
@@ -265,21 +279,9 @@ export const OrderAttributionSchema = z
       })
       .nullable()
       .openapi({ description: "The ad the order credits: the last ad click at most 7 days before the order. Null when there is none." }),
-    visit: z
-      .object({
-        at: nullableText("When the shopper arrived"),
-        channel: z.enum(ORDER_CHANNELS),
-        platform: z.enum(ATTRIBUTION_PLATFORMS).nullable(),
-        app: nullableText("The Meta app, when known"),
-        referrerHost: nullableText("The other site that linked to the store"),
-        landingPath: nullableText("The storefront path the visit landed on"),
-        landingPageType: nullableText("The page type of that path"),
-        utmSource: nullableText("As received"),
-        utmMedium: nullableText("As received"),
-        utmCampaign: nullableText("As received"),
-      })
-      .nullable()
-      .openapi({ description: "This visit: how the shopper came to the store the time they ordered, an ad or not. Null for an entered order, or one recorded before attribution v2." }),
+    visit: AttributionVisitSchema.nullable().openapi({ description: "This visit: how the shopper came to the store the time they ordered, an ad or not. Null for an entered order, or one recorded before attribution v2." }),
+    earlier: AttributionVisitSchema.nullable().openapi({ description: "The earlier visit the order's source comes from, when this visit was direct (or an ad too old to credit): the last visit within 30 days that was neither direct nor an ad. Null otherwise." }),
+    first: AttributionVisitSchema.nullable().openapi({ description: "The shopper's first visit, as the storefront kept it. Null when not kept." }),
     firstTouchAt: nullableText("When the shopper first arrived from an ad or another site"),
   })
   .openapi("OrderAttribution");

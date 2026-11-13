@@ -69,6 +69,33 @@ describe("orderAttributionView", () => {
     });
   });
 
+  it("shows the earlier visit an order's source comes from when the shopper came back directly", () => {
+    const SEARCH = { at: "2026-11-10T09:00:00.000Z", params: {}, path: "/products/insulated-bottle", ref: "www.google.com" };
+    const view = orderAttributionView(stored(capturedAttributionRow("o1", { first: SEARCH, last: null, source: SEARCH, visit: DIRECT }, { now: NOW })));
+    expect(view).toMatchObject({
+      channel: "organic_search",
+      ad: null,
+      earlier: { at: SEARCH.at, channel: "organic_search", platform: "google", referrerHost: "www.google.com", landingPath: "/products/insulated-bottle", landingPageType: "product" },
+      visit: { at: DIRECT.at, channel: "direct" },
+    });
+  });
+
+  it("shows no earlier visit when this visit is the source, or the source is the ad", () => {
+    const SEARCH = { at: "2026-11-12T06:16:00.000Z", params: {}, path: "/", ref: "www.google.com" };
+    expect(orderAttributionView(stored(capturedAttributionRow("o1", { first: null, last: null, source: SEARCH, visit: SEARCH }, { now: NOW }))).earlier).toBeNull();
+    expect(orderAttributionView(stored(capturedAttributionRow("o1", { first: AD, last: AD, visit: DIRECT }, { now: NOW }))).earlier).toBeNull();
+    expect(orderAttributionView(stored(capturedAttributionRow("o1", { first: null, last: null, visit: DIRECT }, { now: NOW }))).earlier).toBeNull();
+  });
+
+  it("shows the first visit, read back as it was kept", () => {
+    const FIRST = { at: "2026-10-20T08:00:00.000Z", params: { utm_source: "ig", utm_medium: "social", utm_content: "link_in_bio" }, path: "/", ref: "l.instagram.com" };
+    const view = orderAttributionView(stored(capturedAttributionRow("o1", { first: FIRST, last: null, visit: DIRECT }, { now: NOW })));
+    expect(view.first).toEqual({ at: FIRST.at, channel: "organic_social", platform: "meta", app: "ig", referrerHost: "l.instagram.com", landingPath: "/", landingPageType: "home", utmSource: "ig", utmMedium: "social", utmCampaign: null });
+    expect(orderAttributionView({ ...EMPTY, firstTouchJson: "{not json" }).first).toBeNull();
+    expect(orderAttributionView({ ...EMPTY, firstTouchJson: JSON.stringify({ params: {} }) }).first).toBeNull();
+    expect(orderAttributionView(stored(enteredAttributionRow("o1", "dashboard", NOW))).first).toBeNull();
+  });
+
   it("shows a direct order with no ad", () => {
     const view = orderAttributionView(stored(capturedAttributionRow("o1", { first: null, last: null, visit: DIRECT }, { now: NOW })));
     expect(view).toMatchObject({ channel: "direct", ad: null, visit: { channel: "direct" }, legacy: false });

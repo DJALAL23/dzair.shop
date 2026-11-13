@@ -16,13 +16,14 @@ const touchSchema = z.object({
 });
 
 /**
- * The visit's first touch, last ad touch and latest arrival, as the storefront captured them
- * (`cod-shared/attribution`). Read from a cookie the shopper holds: what is
- * unreadable is dropped, never the reason an order is refused.
+ * The visit's first touch, last ad touch, last source (the latest arrival that
+ * was neither direct nor an ad) and latest arrival, as the storefront captured
+ * them (`cod-shared/attribution`). Read from a cookie the shopper holds: what
+ * is unreadable is dropped, never the reason an order is refused.
  */
 export const capturedTouchesField = z.preprocess(
   (v) => parseCapturedTouches(v, new Date()) ?? undefined,
-  z.object({ first: touchSchema.nullable(), last: touchSchema.nullable(), visit: touchSchema.nullable() }).optional(),
+  z.object({ first: touchSchema.nullable(), last: touchSchema.nullable(), source: touchSchema.nullable().optional(), visit: touchSchema.nullable() }).optional(),
 );
 
 export const variantSelectionSchema = z.object({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CapturedTouches, Touch } from "./model";
-import { capturedAttributionRow, creditedTouch, enteredAttributionRow, landingOf, landingTouch } from "./resolve";
+import { capturedAttributionRow, creditedTouch, enteredAttributionRow, landingOf, landingTouch, orderSource } from "./resolve";
 
 const NOW = "2026-11-11T12:00:00.000Z";
 const DAY = 24 * 60 * 60 * 1000;
@@ -159,5 +159,67 @@ describe("creditedTouch and landingTouch", () => {
     expect(landingTouch(touches({ last: recent, visit: DIRECT }), NOW)).toBe(recent);
     expect(landingTouch(touches({ visit: DIRECT }), NOW)).toBe(DIRECT);
     expect(landingTouch(null, NOW)).toBeNull();
+  });
+});
+
+describe("orderSource: a direct return never erases where the shopper came from", () => {
+  const search = (daysAgo: number) => touch({}, { at: ago(daysAgo * DAY), path: "/", ref: "www.google.com" });
+  const ad = (daysAgo: number) => ({ ...TEMPLATE, at: ago(daysAgo * DAY) });
+  const typed = touch({}, { at: ago(60_000), path: "/products/robe" });
+  const source = (t: Partial<CapturedTouches>) => orderSource(touches(t), NOW);
+  const channel = (t: Partial<CapturedTouches>) => row(touches(t))!.channel;
+
+  it("keeps a Google search the source when the shopper comes back typing the address, up to 30 days later", () => {
+    expect(source({ source: search(2), visit: typed })).toEqual({ touch: search(2), ad: false });
+    expect(channel({ source: search(2), visit: typed })).toBe("organic_search");
+    expect(channel({ source: search(30), visit: typed })).toBe("organic_search");
+    expect(channel({ source: search(31), visit: typed })).toBe("direct");
+  });
+
+  it("takes this visit when it came from somewhere, over an older source", () => {
+    const facebook = touch({ fbclid: "IwAR" }, { at: ago(60_000), ref: "l.facebook.com" });
+    expect(source({ source: search(2), visit: facebook })).toEqual({ touch: facebook, ad: false });
+    expect(channel({ source: search(2), visit: facebook })).toBe("organic_social");
+  });
+
+  it("credits an ad within seven days over any later visit, the way ad credit works", () => {
+    expect(source({ last: ad(3), source: search(1), visit: typed })).toEqual({ touch: ad(3), ad: true });
+    expect(channel({ last: ad(3), source: search(1), visit: search(1) })).toBe("paid_social");
+  });
+
+  it("never lets an ad clicked more than seven days ago be the source, as an ad or as a visit", () => {
+    expect(channel({ last: ad(8), visit: typed })).toBe("direct");
+    expect(channel({ last: ad(8), source: search(20), visit: typed })).toBe("organic_search");
+    expect(channel({ last: ad(8), visit: ad(8) })).toBe("organic_social");
+    expect(row(touches({ last: ad(8), visit: ad(8) }))!.channel).not.toMatch(/^paid_/);
+  });
+
+  it("reads a storefront that sends no last source as before: this visit decides", () => {
+    expect(channel({ visit: typed })).toBe("direct");
+    expect(channel({ visit: search(0) })).toBe("organic_search");
+  });
+
+  it("describes the source in the row's touch columns and this visit in its visit columns", () => {
+    const written = row(touches({ source: search(2), visit: typed }))!;
+    expect(written).toMatchObject({ channel: "organic_search", platform: "google", referrerHost: "www.google.com", capturedAt: search(2).at, visitChannel: "direct", visitAt: typed.at });
+  });
+
+  it("is paid only for the ad it credits, whatever touches it is sent", () => {
+    for (const t of [{ last: ad(8), visit: ad(8) }, { source: search(2), visit: typed }, { visit: typed }, { last: ad(9), source: search(3), visit: ad(9) }]) {
+      const written = row(touches(t))!;
+      expect(written.channel?.startsWith("paid_") ?? false).toBe(creditedTouch(touches(t), NOW) !== null);
+    }
+  });
+});
+
+describe("the click id a row keeps", () => {
+  it("keeps the click id of the platform the touch is credited to", () => {
+    expect(row(touches({ visit: touch({ fbclid: "IwAR", ttclid: "E.C" }, { at: ago(60_000) }) }))).toMatchObject({ platform: "tiktok", clickIdType: "ttclid", clickId: "E.C" });
+    expect(row(touches({ visit: touch({ fbclid: "IwAR", gclid: "Cj0" }, { at: ago(60_000) }) }))).toMatchObject({ platform: "google", clickIdType: "gclid", clickId: "Cj0" });
+    expect(row(touches({ visit: touch({ msclkid: "ms1" }, { at: ago(60_000) }) }))).toMatchObject({ platform: "bing", channel: "paid_search", clickIdType: "msclkid" });
+  });
+
+  it("takes a Google ad's campaign id from gad_campaignid when the campaign is not an id", () => {
+    expect(row(touches({ visit: touch({ gad_source: "1", gad_campaignid: "21000000001", utm_campaign: "spring" }, { at: ago(60_000) }) }))).toMatchObject({ channel: "paid_search", campaignId: "21000000001", utmCampaign: "spring" });
   });
 });
