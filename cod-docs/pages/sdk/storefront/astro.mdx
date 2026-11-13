@@ -276,7 +276,9 @@ In order, it:
    `locals.preview` to `{ claims, draft, token }`, and never runs an action;
 4. resolves any other request (`resolveStoreRequest`), answers its redirect,
    sets `locals.store` to `context(store)`, runs a form-called action
-   (`runFormAction`), and renders the unprefixed route.
+   (`runFormAction`), and renders the unprefixed route;
+5. on a page the shopper reached from outside the store, records where they
+   came from (below).
 
 Pass the preview key as a function: a secret from `astro:env/server` can be
 set after the module loads. `astro:actions` exists only inside an Astro
@@ -308,6 +310,29 @@ direction, a link helper — as the
 A route that reads `context.locals.store` relies on the middleware having
 run: without it the read fails with an undefined access, not a useful
 error.
+
+### Where a visit came from
+
+Every order gets its source from the visits the middleware records; the
+theme writes no code for it. On a page request that arrives from outside the
+store (a typed address, another site, an app, an ad; `Sec-Fetch-Site` is not
+`same-origin`), the middleware reads the URL's campaign parameters and click
+ids and the referring site, and sets one cookie on the response:
+
+- `wc_touch`: first-party, `HttpOnly`, `SameSite=Lax`, 90 days. It keeps the
+  first visit, the last ad click, the last visit that came from somewhere,
+  and this visit.
+- `_fbc`, when the URL carries a Meta `fbclid` and the cookie names another
+  click, in Meta's format.
+
+Such a response is sent `Cache-Control: private, no-store`. A click inside the
+store and the store's own prefetches write nothing, so those pages keep their
+caching. `placeOrder` and the abandoned-checkout save send the visits with
+the order; the server checks every value and decides the source, as
+[Where an order comes from](/features/order-source) describes.
+
+A page served from a static cache, without the middleware, records nothing:
+keep landing, product and home pages rendered on request.
 
 ## A missing resource
 
