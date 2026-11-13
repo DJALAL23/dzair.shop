@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Printer } from "lucide-react";
+import { Package, Printer } from "lucide-react";
 import { Button, Dialog, LinkButton } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { handOffToDriver, listOrders } from "@/features/orders/api";
@@ -63,6 +63,7 @@ export function AssignOrdersDialog({ driver, onClose, onDone }: { driver: Driver
     <Dialog
       onClose={close}
       placement="end"
+      icon={<Package size={17} aria-hidden="true" />}
       title={t("assign_dialog.title")}
       description={driverFullName(driver)}
       footer={

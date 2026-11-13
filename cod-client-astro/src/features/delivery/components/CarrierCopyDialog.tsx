@@ -135,7 +135,6 @@ export function CarrierCopyDialog({ profile, onClose, onCopied }: { profile: Shi
     <Dialog
       onClose={onClose}
       placement="end"
-      width="xl"
       icon={<Truck size={17} aria-hidden="true" />}
       title={t("shipping.copy.title")}
       description={t("shipping.copy.description", { profile: profile.name })}
@@ -211,7 +210,7 @@ export function CarrierCopyDialog({ profile, onClose, onCopied }: { profile: Shi
             {summary.changed.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("shipping.copy.no_change")}</p>
             ) : (
-              <div className="max-h-80 overflow-auto rounded-lg border border-border">
+              <div className="overflow-x-auto rounded-lg border border-border">
                 <Table>
                   <TableHeader>
                     <TableRow>

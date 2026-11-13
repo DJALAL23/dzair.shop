@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { History } from "lucide-react";
-import { useT } from "@/i18n/react";
+import { useLocale, useT } from "@/i18n/react";
 import { getStockHistory } from "@/features/products/api";
 import { movementIsStockIn } from "@/features/products/model";
 import type {
@@ -30,6 +30,7 @@ function MovementTypeBadge({ type }: { type: StockMovementType }) {
 }
 
 function MovementRow({ movement }: { movement: StockMovement }) {
+  const locale = useLocale();
   const isIn = movementIsStockIn(movement.type);
   return (
     <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
@@ -37,12 +38,13 @@ function MovementRow({ movement }: { movement: StockMovement }) {
         <MovementTypeBadge type={movement.type} />
         <div className="flex shrink-0 items-center gap-2">
           <span
+            dir="ltr"
             className={`text-sm font-semibold tabular-nums ${isIn ? "text-tone-success-text" : "text-destructive"}`}
           >
             {isIn ? "+" : ""}
             {movement.delta}
           </span>
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span dir="ltr" className="text-xs tabular-nums text-muted-foreground">
             {movement.qtyBefore} → {movement.qtyAfter}
           </span>
         </div>
@@ -54,7 +56,9 @@ function MovementRow({ movement }: { movement: StockMovement }) {
       )}
       <div className="flex items-center justify-between text-[11px] text-muted-foreground/70">
         <span>{movement.createdByName}</span>
-        <span dir="ltr">{new Date(movement.createdAt).toLocaleString()}</span>
+        <time dateTime={movement.createdAt}>
+          {new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`, { dateStyle: "medium", timeStyle: "short" }).format(new Date(movement.createdAt))}
+        </time>
       </div>
     </div>
   );
@@ -127,7 +131,7 @@ export function StockHistoryDrawer({
           )}
         </>
       }
-      icon={<History size={18} aria-hidden="true" />}
+      icon={<History size={17} aria-hidden="true" />}
     >
       <div className="space-y-2">
         {error && (
