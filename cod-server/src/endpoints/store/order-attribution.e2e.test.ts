@@ -138,6 +138,17 @@ describe("a storefront order's attribution", () => {
     expect(attribution).toMatchObject({ channel: "organic_social", platform: "meta", siteSource: "fb", adId: null, visitChannel: "organic_social" });
   });
 
+  it("names a search from the Google app on Android as Google search, and keeps the app as where the visit came from", async () => {
+    const fromApp = { at: recently(0.1), params: {}, path: "/products/robe", ref: "com.google.android.googlequicksearchbox" };
+    const { attribution } = await place({ attribution: { first: fromApp, last: null, visit: fromApp } });
+    expect(attribution).toMatchObject({ channel: "organic_search", platform: "google", visitChannel: "organic_search", visitReferrerHost: "com.google.android.googlequicksearchbox" });
+  });
+
+  it("names a link opened from Gmail as email, never as Google search", async () => {
+    const fromGmail = { at: recently(0.1), params: {}, path: "/", ref: "mail.google.com" };
+    expect((await place({ attribution: { first: fromGmail, last: null, visit: fromGmail } })).attribution).toMatchObject({ channel: "email", platform: "other" });
+  });
+
   it("names the landing page a basket order's visit landed on", async () => {
     expect((await place({ attribution: { first: null, last: adTouch() } })).landingPageId).toBe("lp-robe");
   });

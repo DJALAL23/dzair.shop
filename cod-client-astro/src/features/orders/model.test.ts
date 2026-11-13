@@ -459,6 +459,7 @@ describe("an order's source", () => {
     landingPageType: "product",
   };
   const VISIT: Visit = { at: "2026-11-12T06:19:00.000Z", channel: "direct", platform: "direct", app: null, referrerHost: null, landingPath: "/", landingPageType: "home", utmSource: null, utmMedium: null, utmCampaign: null };
+  const APP = (app: string) => `${app} app on Android`;
 
   it("heads with the ad and its app, the social network or search engine, or what the order was", () => {
     expect(sourceHeadline({ channel: "paid_social", platform: "meta", app: "ig" })).toEqual({ key: "paid", network: "ig" });
@@ -512,8 +513,16 @@ describe("an order's source", () => {
   });
 
   it("shows this visit by where it came from, its landing page and time", () => {
-    expect(visitFacts({ ...VISIT, referrerHost: "l.instagram.com", utmCampaign: "été" }, "en").map((fact) => fact.key)).toEqual(["referrer", "campaign", "landing", "arrived_at"]);
-    expect(visitFacts({ ...VISIT, at: null, landingPath: null }, "en")).toEqual([]);
+    expect(visitFacts({ ...VISIT, referrerHost: "l.instagram.com", utmCampaign: "été" }, "en", APP).map((fact) => fact.key)).toEqual(["referrer", "campaign", "landing", "arrived_at"]);
+    expect(visitFacts({ ...VISIT, at: null, landingPath: null }, "en", APP)).toEqual([]);
+  });
+
+  it("names the Android app a visit came from, and a website by its host", () => {
+    const referrer = (referrerHost: string) => visitFacts({ ...VISIT, referrerHost }, "en", APP)[0];
+    expect(referrer("com.google.android.googlequicksearchbox")).toEqual({ key: "referrer", value: "Google app on Android" });
+    expect(referrer("com.facebook.katana")).toEqual({ key: "referrer", value: "Facebook app on Android" });
+    expect(referrer("com.example.unknownapp")).toEqual({ key: "referrer", value: "com.example.unknownapp" });
+    expect(referrer("www.google.dz")).toEqual({ key: "referrer", value: "www.google.dz" });
   });
 
   it("filters by groups that cover every channel once, and the unknown", () => {

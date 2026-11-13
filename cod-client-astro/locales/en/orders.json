@@ -474,7 +474,7 @@
     "title": "Source",
     "column": "Source",
     "unknown": "Source unknown",
-    "unknown_hint": "Placed before the current tracking, or from a theme that doesn't send where shoppers come from yet.",
+    "unknown_hint": "The shopper's browser kept no record of the visit (cookies blocked or cleared, or a private window), the order was placed before the current tracking, or the theme doesn't send where shoppers come from yet.",
     "entered_note": "Entered by your team, so there is no shopper visit to show.",
     "headline": {
       "paid": "{network} ad",
@@ -515,6 +515,7 @@
       "clicked_at": "Clicked",
       "arrived_at": "Arrived"
     },
+    "android_app": "{app} app on Android",
     "just_before": "just before ordering",
     "minutes_before_one": "{count} minute before ordering",
     "minutes_before_other": "{count} minutes before ordering",

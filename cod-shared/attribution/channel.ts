@@ -23,73 +23,159 @@ const REFERRAL_MEDIUMS = new Set(["referral", "app", "link"]);
 
 interface Site {
   readonly platform: AttributionPlatform;
-  readonly kind: "social" | "search";
+  readonly kind: "social" | "search" | "email";
   readonly app?: MetaApp;
+  /** An Android app's name as people know it, for an `android-app://` referrer. */
+  readonly appName?: string;
 }
 
+const META = (app: MetaApp): Site => ({ platform: "meta", kind: "social", app });
+const SOCIAL: Site = { platform: "other", kind: "social" };
+const SEARCH: Site = { platform: "other", kind: "search" };
+const EMAIL: Site = { platform: "other", kind: "email" };
+const GOOGLE_SEARCH: Site = { platform: "google", kind: "search" };
+
+/**
+ * Sites by registered domain: a host is the domain or one of its subdomains
+ * (`l.facebook.com` is Facebook). The first match wins, so a webmail or a
+ * Google site that is not its search comes before the rest of its domain.
+ * After Google Analytics' source categories and Snowplow's referer list.
+ */
 const SITES: ReadonlyArray<readonly [string, Site]> = [
-  ["facebook.com", { platform: "meta", kind: "social", app: "fb" }],
-  ["fb.com", { platform: "meta", kind: "social", app: "fb" }],
-  ["fb.me", { platform: "meta", kind: "social", app: "fb" }],
-  ["instagram.com", { platform: "meta", kind: "social", app: "ig" }],
-  ["messenger.com", { platform: "meta", kind: "social", app: "msg" }],
-  ["m.me", { platform: "meta", kind: "social", app: "msg" }],
-  ["threads.net", { platform: "meta", kind: "social", app: "th" }],
-  ["threads.com", { platform: "meta", kind: "social", app: "th" }],
-  ["whatsapp.com", { platform: "meta", kind: "social", app: "wa" }],
-  ["wa.me", { platform: "meta", kind: "social", app: "wa" }],
+  ["mail.google.com", EMAIL],
+  ["mail.yahoo.com", EMAIL],
+  ["outlook.live.com", EMAIL],
+  ["outlook.office.com", EMAIL],
+  ["outlook.office365.com", EMAIL],
+  ["groups.google.com", SOCIAL],
+  ["sites.google.com", SOCIAL],
+  ["messages.google.com", SOCIAL],
+  ["facebook.com", META("fb")],
+  ["fb.com", META("fb")],
+  ["fb.me", META("fb")],
+  ["instagram.com", META("ig")],
+  ["messenger.com", META("msg")],
+  ["m.me", META("msg")],
+  ["threads.net", META("th")],
+  ["threads.com", META("th")],
+  ["whatsapp.com", META("wa")],
+  ["wa.me", META("wa")],
   ["tiktok.com", { platform: "tiktok", kind: "social" }],
-  ["youtube.com", { platform: "other", kind: "social" }],
-  ["youtu.be", { platform: "other", kind: "social" }],
-  ["x.com", { platform: "other", kind: "social" }],
-  ["twitter.com", { platform: "other", kind: "social" }],
-  ["t.co", { platform: "other", kind: "social" }],
-  ["linkedin.com", { platform: "other", kind: "social" }],
-  ["lnkd.in", { platform: "other", kind: "social" }],
-  ["snapchat.com", { platform: "other", kind: "social" }],
-  ["pinterest.com", { platform: "other", kind: "social" }],
-  ["reddit.com", { platform: "other", kind: "social" }],
-  ["t.me", { platform: "other", kind: "social" }],
-  ["telegram.org", { platform: "other", kind: "social" }],
+  ["youtube.com", SOCIAL],
+  ["youtu.be", SOCIAL],
+  ["x.com", SOCIAL],
+  ["twitter.com", SOCIAL],
+  ["t.co", SOCIAL],
+  ["linkedin.com", SOCIAL],
+  ["lnkd.in", SOCIAL],
+  ["snapchat.com", SOCIAL],
+  ["pinterest.com", SOCIAL],
+  ["reddit.com", SOCIAL],
+  ["t.me", SOCIAL],
+  ["telegram.org", SOCIAL],
   ["bing.com", { platform: "bing", kind: "search" }],
-  ["yahoo.com", { platform: "other", kind: "search" }],
-  ["duckduckgo.com", { platform: "other", kind: "search" }],
-  ["ecosia.org", { platform: "other", kind: "search" }],
-  ["qwant.com", { platform: "other", kind: "search" }],
-  ["baidu.com", { platform: "other", kind: "search" }],
+  ["search.yahoo.com", SEARCH],
+  ["duckduckgo.com", SEARCH],
+  ["ecosia.org", SEARCH],
+  ["qwant.com", SEARCH],
+  ["baidu.com", SEARCH],
+  ["naver.com", SEARCH],
+  ["seznam.cz", SEARCH],
+  ["sogou.com", SEARCH],
+  ["so.com", SEARCH],
+  ["search.brave.com", SEARCH],
+  ["kagi.com", SEARCH],
+  ["startpage.com", SEARCH],
+  ["petalsearch.com", SEARCH],
+  ["ask.com", SEARCH],
+  ["search.aol.com", SEARCH],
 ];
 
+/** Sites by exact host only: their domain's other hosts are something else (`mail.yahoo.com` is a webmail). */
+const HOSTS: Readonly<Record<string, Site>> = {
+  "yahoo.com": SEARCH,
+  "www.yahoo.com": SEARCH,
+  "ya.ru": SEARCH,
+};
+
+/** Android apps by package, as an `android-app://` referrer names them (Snowplow's list, and the stores' own ids). */
+const ANDROID_APPS: Readonly<Record<string, Site>> = {
+  "com.google.android.googlequicksearchbox": { ...GOOGLE_SEARCH, appName: "Google" },
+  "com.google.android.gm": { ...EMAIL, appName: "Gmail" },
+  "com.microsoft.office.outlook": { ...EMAIL, appName: "Outlook" },
+  "com.yahoo.mobile.client.android.mail": { ...EMAIL, appName: "Yahoo Mail" },
+  "com.facebook.katana": { ...META("fb"), appName: "Facebook" },
+  "com.facebook.lite": { ...META("fb"), appName: "Facebook Lite" },
+  "com.facebook.orca": { ...META("msg"), appName: "Messenger" },
+  "com.facebook.mlite": { ...META("msg"), appName: "Messenger Lite" },
+  "com.instagram.android": { ...META("ig"), appName: "Instagram" },
+  "com.instagram.lite": { ...META("ig"), appName: "Instagram Lite" },
+  "com.instagram.barcelona": { ...META("th"), appName: "Threads" },
+  "com.whatsapp": { ...META("wa"), appName: "WhatsApp" },
+  "com.whatsapp.w4b": { ...META("wa"), appName: "WhatsApp Business" },
+  "com.zhiliaoapp.musically": { platform: "tiktok", kind: "social", appName: "TikTok" },
+  "com.ss.android.ugc.trill": { platform: "tiktok", kind: "social", appName: "TikTok" },
+  "com.zhiliaoapp.musically.go": { platform: "tiktok", kind: "social", appName: "TikTok Lite" },
+  "com.google.android.youtube": { ...SOCIAL, appName: "YouTube" },
+  "org.telegram.messenger": { ...SOCIAL, appName: "Telegram" },
+  "org.telegram.messenger.web": { ...SOCIAL, appName: "Telegram" },
+  "com.twitter.android": { ...SOCIAL, appName: "X" },
+  "com.linkedin.android": { ...SOCIAL, appName: "LinkedIn" },
+  "com.snapchat.android": { ...SOCIAL, appName: "Snapchat" },
+  "com.pinterest": { ...SOCIAL, appName: "Pinterest" },
+  "com.reddit.frontpage": { ...SOCIAL, appName: "Reddit" },
+};
+
 const SOURCES: Readonly<Record<string, Site>> = {
-  facebook: { platform: "meta", kind: "social", app: "fb" },
-  fb: { platform: "meta", kind: "social", app: "fb" },
+  facebook: META("fb"),
+  fb: META("fb"),
   meta: { platform: "meta", kind: "social" },
-  instagram: { platform: "meta", kind: "social", app: "ig" },
-  ig: { platform: "meta", kind: "social", app: "ig" },
-  messenger: { platform: "meta", kind: "social", app: "msg" },
-  threads: { platform: "meta", kind: "social", app: "th" },
-  whatsapp: { platform: "meta", kind: "social", app: "wa" },
+  instagram: META("ig"),
+  ig: META("ig"),
+  messenger: META("msg"),
+  msg: META("msg"),
+  an: META("an"),
+  threads: META("th"),
+  th: META("th"),
+  whatsapp: META("wa"),
+  wa: META("wa"),
   tiktok: { platform: "tiktok", kind: "social" },
-  youtube: { platform: "other", kind: "social" },
-  snapchat: { platform: "other", kind: "social" },
-  twitter: { platform: "other", kind: "social" },
-  x: { platform: "other", kind: "social" },
-  linkedin: { platform: "other", kind: "social" },
-  pinterest: { platform: "other", kind: "social" },
-  telegram: { platform: "other", kind: "social" },
-  google: { platform: "google", kind: "search" },
+  youtube: SOCIAL,
+  snapchat: SOCIAL,
+  twitter: SOCIAL,
+  x: SOCIAL,
+  linkedin: SOCIAL,
+  pinterest: SOCIAL,
+  telegram: SOCIAL,
+  google: GOOGLE_SEARCH,
   bing: { platform: "bing", kind: "search" },
 };
 
-/** The site a host belongs to, by its registered domain (`l.facebook.com` is Facebook, `google.fr` is Google). */
+/** Google's search, by any of its country domains (`google.fr`, `google.com.dz`): the hosts Google Analytics counts as search. */
+const GOOGLE_SEARCH_HOST = /^(?:(?:www|search|news|lens|play|images|encrypted)\.)?google\.[a-z]{2,3}(?:\.[a-z]{2})?$/;
+const YANDEX_MAIL_HOST = /^mail\.yandex\.[a-z]{2,3}$/;
+const YANDEX_HOST = /(^|\.)yandex\.[a-z]{2,3}$/;
+
+/** The site a host belongs to: a website by its domain (`l.facebook.com` is Facebook), or an Android app by its package. Null for any other site. */
 export function siteOfHost(host: string | null | undefined): Site | null {
   if (!host) return null;
   const name = host.toLowerCase();
+  const app = ANDROID_APPS[name];
+  if (app) return app;
+  const exact = HOSTS[name];
+  if (exact) return exact;
   for (const [domain, site] of SITES) {
     if (name === domain || name.endsWith(`.${domain}`)) return site;
   }
-  if (/(^|\.)google\.[a-z]{2,3}(\.[a-z]{2})?$/.test(name)) return { platform: "google", kind: "search" };
-  if (/(^|\.)yandex\.[a-z]{2,3}$/.test(name)) return { platform: "other", kind: "search" };
+  if (GOOGLE_SEARCH_HOST.test(name)) return GOOGLE_SEARCH;
+  if (YANDEX_MAIL_HOST.test(name)) return EMAIL;
+  if (YANDEX_HOST.test(name)) return SEARCH;
   return null;
+}
+
+/** The name of the Android app a referrer names, or null for a website or an app not listed. */
+export function androidAppName(host: string | null | undefined): string | null {
+  return (host && ANDROID_APPS[host.toLowerCase()]?.appName) || null;
 }
 
 function metaApp(value: string | undefined): MetaApp | null {
@@ -136,7 +222,7 @@ export function classifyTouch(touch: Pick<Touch, "params" | "ref"> | null): Touc
   if (isPaidTouch(touch)) {
     return { channel: kind === "social" ? "paid_social" : kind === "search" ? "paid_search" : "paid_other", platform, app };
   }
-  if (medium && EMAIL_MEDIUMS.has(medium)) return { channel: "email", platform, app };
+  if (kind === "email" || (medium && EMAIL_MEDIUMS.has(medium))) return { channel: "email", platform, app };
   if (kind === "social" || (medium && SOCIAL_MEDIUMS.has(medium))) return { channel: "organic_social", platform, app };
   if (kind === "search" || medium === "organic") return { channel: "organic_search", platform, app };
   if (touch.ref || (medium && REFERRAL_MEDIUMS.has(medium))) return { channel: "referral", platform, app };

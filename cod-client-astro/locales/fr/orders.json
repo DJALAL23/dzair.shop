@@ -490,7 +490,7 @@
     "title": "Source",
     "column": "Source",
     "unknown": "Source inconnue",
-    "unknown_hint": "Commande passée avant le suivi actuel, ou depuis un thème qui n'envoie pas encore la provenance des clients.",
+    "unknown_hint": "Le navigateur du client n'a gardé aucune trace de la visite (cookies bloqués ou effacés, ou navigation privée), la commande date d'avant le suivi actuel, ou le thème n'envoie pas encore la provenance des clients.",
     "entered_note": "Saisie par votre équipe : il n'y a pas de visite du client à afficher.",
     "headline": {
       "paid": "Pub {network}",
@@ -531,6 +531,7 @@
       "clicked_at": "Cliquée",
       "arrived_at": "Arrivé"
     },
+    "android_app": "Appli {app} sur Android",
     "just_before": "juste avant la commande",
     "minutes_before_one": "{count} minute avant la commande",
     "minutes_before_many": "{count} de minutes avant la commande",

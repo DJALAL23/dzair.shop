@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { classifyTouch, isPaidTouch, siteOfHost } from "./channel";
+import { androidAppName, classifyTouch, isPaidTouch, siteOfHost } from "./channel";
 import { ORDER_CHANNELS, TOUCH_PARAMS } from "./model";
 
 const t = (params: Record<string, string>, ref: string | null = null) => ({ params, ref });
@@ -106,5 +106,68 @@ describe("classifyTouch", () => {
         expect(ORDER_CHANNELS).toContain(classifyTouch({ params, ref }).channel);
       }),
     );
+  });
+});
+
+describe("the sites a visit comes from, after Google Analytics and Snowplow", () => {
+  const channelOf = (ref: string, params: Record<string, string> = {}) => classifyTouch(t(params, ref));
+
+  it("counts Google's search, on any of its country domains, as Google search", () => {
+    for (const host of ["google.com", "www.google.com", "www.google.dz", "google.com.dz", "news.google.com", "lens.google.com", "play.google.com", "images.google.fr", "search.google.com"]) {
+      expect(channelOf(host), host).toEqual({ channel: "organic_search", platform: "google", app: null });
+    }
+  });
+
+  it("never counts Gmail or another Google site as Google search", () => {
+    expect(channelOf("mail.google.com")).toEqual({ channel: "email", platform: "other", app: null });
+    for (const host of ["groups.google.com", "sites.google.com", "messages.google.com"]) expect(channelOf(host).channel, host).toBe("organic_social");
+    for (const host of ["docs.google.com", "accounts.google.com", "maps.google.com", "googleusercontent.com", "notgoogle.com"]) {
+      expect(channelOf(host), host).toEqual({ channel: "referral", platform: "referral", app: null });
+    }
+  });
+
+  it("counts a webmail as email, never as its company's search", () => {
+    for (const host of ["mail.google.com", "mail.yahoo.com", "outlook.live.com", "outlook.office.com", "outlook.office365.com", "mail.yandex.ru"]) {
+      expect(channelOf(host).channel, host).toBe("email");
+    }
+  });
+
+  it("counts the search engines shoppers use, Yahoo and Yandex by their search hosts only", () => {
+    for (const host of ["bing.com", "cn.bing.com", "search.yahoo.com", "fr.search.yahoo.com", "yahoo.com", "www.yahoo.com", "duckduckgo.com", "yandex.ru", "ya.ru", "search.naver.com", "seznam.cz", "search.brave.com", "petalsearch.com", "www.ecosia.org"]) {
+      expect(channelOf(host).channel, host).toBe("organic_search");
+    }
+    expect(channelOf("answers.yahoo.com").channel).toBe("referral");
+  });
+
+  it("reads the app that opened the store on Android by its package", () => {
+    expect(channelOf("com.google.android.googlequicksearchbox")).toEqual({ channel: "organic_search", platform: "google", app: null });
+    expect(channelOf("com.google.android.gm").channel).toBe("email");
+    expect(channelOf("com.facebook.katana")).toEqual({ channel: "organic_social", platform: "meta", app: "fb" });
+    expect(channelOf("com.facebook.orca")).toEqual({ channel: "organic_social", platform: "meta", app: "msg" });
+    expect(channelOf("com.instagram.android")).toEqual({ channel: "organic_social", platform: "meta", app: "ig" });
+    expect(channelOf("com.whatsapp")).toEqual({ channel: "organic_social", platform: "meta", app: "wa" });
+    expect(channelOf("com.zhiliaoapp.musically")).toEqual({ channel: "organic_social", platform: "tiktok", app: null });
+    expect(channelOf("org.telegram.messenger")).toEqual({ channel: "organic_social", platform: "other", app: null });
+    expect(channelOf("com.example.unknownapp")).toEqual({ channel: "referral", platform: "referral", app: null });
+  });
+
+  it("keeps an ad from an app an ad, credited to the ad's platform", () => {
+    expect(channelOf("com.facebook.katana", { utm_medium: "paid", wc_cn: "Robe" })).toEqual({ channel: "paid_social", platform: "meta", app: "fb" });
+    expect(channelOf("com.google.android.googlequicksearchbox", { gclid: "abc" })).toEqual({ channel: "paid_search", platform: "google", app: null });
+  });
+
+  it("names the Android apps it knows, and nothing else", () => {
+    expect(androidAppName("com.google.android.googlequicksearchbox")).toBe("Google");
+    expect(androidAppName("COM.FACEBOOK.KATANA")).toBe("Facebook");
+    expect(androidAppName("com.example.unknownapp")).toBeNull();
+    expect(androidAppName("google.com")).toBeNull();
+    expect(androidAppName(null)).toBeNull();
+  });
+
+  it("reads Meta's site_source_name codes as utm_source", () => {
+    expect(classifyTouch(t({ utm_source: "msg" }))).toEqual({ channel: "organic_social", platform: "meta", app: "msg" });
+    expect(classifyTouch(t({ utm_source: "an", utm_medium: "paid" }))).toEqual({ channel: "paid_social", platform: "meta", app: "an" });
+    expect(classifyTouch(t({ utm_source: "th" })).app).toBe("th");
+    expect(classifyTouch(t({ utm_source: "wa" })).app).toBe("wa");
   });
 });

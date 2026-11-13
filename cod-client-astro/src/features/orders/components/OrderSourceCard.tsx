@@ -108,7 +108,7 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
           <Block icon={<Footprints size={15} className="text-muted-foreground" aria-hidden="true" />} title={t("source.visit_title")} hint={t("source.visit_hint")}>
             <p className="text-sm font-semibold">{label(visit)}</p>
             {visit.channel === "direct" && <p className="text-xs text-muted-foreground">{t("source.direct_hint")}</p>}
-            {ad && visit.at === ad.clickedAt ? <p className="text-xs text-muted-foreground">{t("source.same_visit")}</p> : <Facts facts={visitFacts(visit, locale)} />}
+            {ad && visit.at === ad.clickedAt ? <p className="text-xs text-muted-foreground">{t("source.same_visit")}</p> : <Facts facts={visitFacts(visit, locale, (app) => t("source.android_app", { app }))} />}
           </Block>
         )}
 

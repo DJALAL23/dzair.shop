@@ -6,6 +6,7 @@ import { SCOPE_FOR_KIND, scopeForShipmentAction } from "../../../../cod-shared/s
 import { reportsAllowedFor, type MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
 import type { OrderAttributionView } from "../../../../cod-shared/attribution/view";
 import { PAID_CHANNELS, type OrderChannel } from "../../../../cod-shared/attribution/model";
+import { androidAppName } from "../../../../cod-shared/attribution/channel";
 import type {
   AbandonedOrder,
   AbandonedOrderStatus,
@@ -524,10 +525,16 @@ export function adFacts(ad: NonNullable<OrderAttributionView["ad"]>, locale: Loc
   ]);
 }
 
+/** Where a visit came from as a person reads it: the Android app by its name ("Google app on Android"), else the site. */
+export function referrerLabel(host: string | null, appLabel: (app: string) => string): string | null {
+  const app = androidAppName(host);
+  return app ? appLabel(app) : host;
+}
+
 /** What this visit says, in reading order; only the facts it has. */
-export function visitFacts(visit: NonNullable<OrderAttributionView["visit"]>, locale: Locale): SourceFact[] {
+export function visitFacts(visit: NonNullable<OrderAttributionView["visit"]>, locale: Locale, appLabel: (app: string) => string): SourceFact[] {
   return kept([
-    { key: "referrer", value: visit.referrerHost },
+    { key: "referrer", value: referrerLabel(visit.referrerHost, appLabel) },
     { key: "campaign", value: visit.utmCampaign },
     { key: "landing", value: visit.landingPath },
     { key: "arrived_at", value: visit.at ? when(visit.at, locale) : null },
