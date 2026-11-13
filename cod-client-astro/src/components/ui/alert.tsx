@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import { useT } from "@/i18n/react";
 
 export type AlertTone = "info" | "critical" | "warning" | "success";
 
@@ -34,12 +35,16 @@ export function Alert({
   tone = "info",
   role,
   className = "",
+  onDismiss,
 }: {
   children: ReactNode;
   tone?: AlertTone;
   role?: "alert" | "status";
   className?: string;
+  /** Shows a close button that calls it. */
+  onDismiss?: () => void;
 }) {
+  const common = useT("common");
   const config = tones[tone];
   const Icon = config.icon;
   return (
@@ -53,6 +58,11 @@ export function Alert({
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1 leading-relaxed">{children}</div>
+      {onDismiss && (
+        <button type="button" onClick={onDismiss} aria-label={common("close")} className="-m-1 shrink-0 rounded-md p-1 opacity-70 transition-opacity hover:opacity-100">
+          <X size={16} aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }

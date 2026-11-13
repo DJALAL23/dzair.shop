@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -34,34 +33,6 @@ function Loading() {
         <div className="h-64 shimmer rounded-xl" />
       </div>
     </div>
-  );
-}
-
-function Notice({
-  message,
-  tone,
-  onDismiss,
-}: {
-  message: string;
-  tone: "success" | "error";
-  onDismiss: () => void;
-}) {
-  const common = useT("common");
-  return (
-    <Alert
-      role={tone === "error" ? "alert" : "status"}
-      tone={tone === "error" ? "critical" : "info"}
-    >
-      {tone === "error" ? (
-        <AlertCircle size={18} className="shrink-0" />
-      ) : (
-        <CheckCircle2 size={18} className="shrink-0" />
-      )}
-      <span className="flex-1">{message}</span>
-      <button type="button" onClick={onDismiss} aria-label={common("cancel")}>
-        <X size={16} />
-      </button>
-    </Alert>
   );
 }
 
@@ -238,11 +209,9 @@ export function CompanyCredentialsDetail({ providerCode }: { providerCode: strin
   return (
     <div className="space-y-5">
       {notice && (
-        <Notice
-          message={notice.message}
-          tone={notice.tone}
-          onDismiss={() => setNotice(null)}
-        />
+        <Alert role={notice.tone === "error" ? "alert" : "status"} tone={notice.tone === "error" ? "critical" : "success"} onDismiss={() => setNotice(null)}>
+          {notice.message}
+        </Alert>
       )}
 
       <PageHeader

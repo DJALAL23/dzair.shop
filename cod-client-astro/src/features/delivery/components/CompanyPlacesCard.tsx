@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, MapPinned, RefreshCw } from "lucide-react";
-import { Alert, Button } from "@/components/ui";
+import { ChevronDown, MapPinned, Receipt, RefreshCw } from "lucide-react";
+import { Alert, Button, Dialog, LinkButton } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import { relativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
@@ -69,7 +69,9 @@ export function CompanyPlacesCard({
             </p>
           </div>
           <p className="text-xs leading-relaxed text-muted-foreground">{t("places_explain", { company: companyName })}</p>
-          <CompanyRates companyId={companyId} companyName={companyName} readAt={places.syncedAt!} priced={places.priced} />
+          <div>
+            <CompanyRates companyId={companyId} companyName={companyName} readAt={places.syncedAt!} priced={places.priced} />
+          </div>
           {places.unmatched.length > 0 && (
             <div className="rounded-lg border border-border">
               <button
@@ -100,9 +102,11 @@ export function CompanyPlacesCard({
 }
 
 /**
- * What the company charges the store, by our wilaya: loaded when opened, and
- * again after each read of the map. A range is the lowest and highest price
- * among the wilaya's communes.
+ * What the company charges the store, by our wilaya: a button that opens the
+ * whole table in a side panel, loaded when opened and again after each read
+ * of the map. A range is the lowest and highest price among the wilaya's
+ * communes. The panel leads to the shipping profiles, where these prices can
+ * be copied into what customers pay.
  */
 function CompanyRates({ companyId, companyName, readAt, priced }: { companyId: string; companyName: string; readAt: string; priced: number }) {
   const t = useT("delivery_companies");
@@ -130,51 +134,61 @@ function CompanyRates({ companyId, companyName, readAt, priced }: { companyId: s
   };
 
   return (
-    <div className="rounded-lg border border-border">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start text-xs font-semibold text-foreground"
-      >
-        {t("rates_title", { company: companyName })}
-        <ChevronDown size={14} className={cn("shrink-0 transition-transform", open && "rotate-180")} aria-hidden="true" />
-      </button>
+    <>
+      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        <Receipt size={14} aria-hidden="true" />
+        {t("rates_open")}
+      </Button>
       {open && (
-        <div className="space-y-2 border-t border-border p-3">
-          <p className="text-xs leading-relaxed text-muted-foreground">{t("rates_explain", { company: companyName })}</p>
+        <Dialog
+          onClose={() => setOpen(false)}
+          placement="end"
+          icon={<Receipt size={17} aria-hidden="true" />}
+          title={t("rates_title", { company: companyName })}
+          description={t("rates_explain", { company: companyName })}
+          footer={
+            <div className="flex w-full items-center justify-between gap-2">
+              <LinkButton href="/delivery/shipping-profiles" variant="secondary">
+                {t("rates_to_profiles")}
+              </LinkButton>
+              <Button type="button" onClick={() => setOpen(false)}>
+                {t("rates_close")}
+              </Button>
+            </div>
+          }
+        >
           {priced === 0 ? (
             <Alert tone="info">{t("rates_none", { company: companyName })}</Alert>
           ) : failed ? (
             <Alert tone="critical">{t("rates_failed")}</Alert>
           ) : !rates || rates.readAt !== readAt ? (
-            <div className="h-24 animate-pulse rounded-md bg-muted" aria-busy="true" />
+            <div className="h-48 animate-pulse rounded-lg bg-muted" aria-busy="true" />
           ) : (
-            <div className="max-h-80 overflow-auto">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-card text-muted-foreground">
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/60 text-xs text-muted-foreground">
                   <tr>
-                    <th scope="col" className="py-1.5 pe-2 text-start font-medium">{t("rates_wilaya")}</th>
-                    <th scope="col" className="px-2 py-1.5 text-end font-medium">{t("rates_home")}</th>
-                    <th scope="col" className="px-2 py-1.5 text-end font-medium">{t("rates_stop_desk")}</th>
-                    <th scope="col" className="ps-2 py-1.5 text-end font-medium">{t("rates_return")}</th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">{t("rates_wilaya")}</th>
+                    <th scope="col" className="px-3 py-2 text-end font-medium">{t("rates_home")}</th>
+                    <th scope="col" className="px-3 py-2 text-end font-medium">{t("rates_stop_desk")}</th>
+                    <th scope="col" className="px-3 py-2 text-end font-medium">{t("rates_return")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {rates.rows.map((row) => (
                     <tr key={row.wilayaId}>
-                      <th scope="row" className="py-1.5 pe-2 text-start font-medium text-foreground">{wilayaName(row.wilayaId)}</th>
-                      <td className="px-2 py-1.5 text-end tabular-nums whitespace-nowrap">{price(row.home)}</td>
-                      <td className="px-2 py-1.5 text-end tabular-nums whitespace-nowrap">{price(row.stopDesk)}</td>
-                      <td className="ps-2 py-1.5 text-end tabular-nums whitespace-nowrap">{price(row.returnFee)}</td>
+                      <th scope="row" className="px-3 py-2 text-start font-medium text-foreground">{wilayaName(row.wilayaId)}</th>
+                      <td className="px-3 py-2 text-end tabular-nums whitespace-nowrap">{price(row.home)}</td>
+                      <td className="px-3 py-2 text-end tabular-nums whitespace-nowrap">{price(row.stopDesk)}</td>
+                      <td className="px-3 py-2 text-end tabular-nums whitespace-nowrap">{price(row.returnFee)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-        </div>
+        </Dialog>
       )}
-    </div>
+    </>
   );
 }
