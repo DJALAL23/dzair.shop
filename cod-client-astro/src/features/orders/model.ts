@@ -484,7 +484,7 @@ export function sourceHeadline(source: { channel: OrderChannel | null; platform:
 /** The network a source names, as a key under `source.network`: the Meta app when known. */
 export function networkOf(platform: string | null, app: string | null): string {
   if (platform === "meta") return app ?? "meta";
-  return platform === "tiktok" || platform === "google" || platform === "bing" ? platform : "other";
+  return platform === "tiktok" || platform === "google" || platform === "bing" || platform === "snapchat" ? platform : "other";
 }
 
 const META_PLACEMENT_APPS = ["Facebook", "Instagram", "Messenger", "Threads", "WhatsApp"];
@@ -511,16 +511,49 @@ export function beforeOrder(clickedAt: string, orderedAt: string): { key: string
 export type SourceFactKey = "campaign" | "ad" | "placement" | "landing" | "referrer" | "clicked_at" | "arrived_at";
 export type SourceFact = { key: SourceFactKey; value: string };
 
+/** How the source card words what only translations know: an Android app's name, a storefront page. */
+export interface SourceLabels {
+  app: (app: string) => string;
+  page: (page: StorePage) => string;
+}
+
+/** The storefront page types whose path names one thing (a product, a landing page…). */
+const NAMED_PAGES = new Set(["category", "collection", "product", "page", "landing"]);
+
+/** A storefront page a visit landed on: its type and, for a page about one thing, its slug. */
+export interface StorePage {
+  type: string;
+  name: string | null;
+}
+
+/** The page a landing path is, as the source card names it: "Product · robe-qa", "Home page"; a path no page type has is kept as it is. */
+export function storePage(path: string | null, type: string | null): StorePage | null {
+  if (!path) return null;
+  if (!type) return { type: "other", name: path };
+  const slug = path.split("/").filter(Boolean).at(-1) ?? null;
+  if (!NAMED_PAGES.has(type) || !slug) return { type, name: null };
+  try {
+    return { type, name: decodeURIComponent(slug) };
+  } catch {
+    return { type, name: slug };
+  }
+}
+
+const pageValue = (path: string | null, type: string | null, labels: SourceLabels) => {
+  const page = storePage(path, type);
+  return page ? labels.page(page) : null;
+};
+
 const when = (at: string, locale: Locale) => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(at));
 const kept = (facts: Array<{ key: SourceFactKey; value: string | null | undefined }>) => facts.filter((fact): fact is SourceFact => Boolean(fact.value));
 
 /** What the credited ad says, in reading order; only the facts it has. Names before ids. */
-export function adFacts(ad: NonNullable<OrderAttributionView["ad"]>, locale: Locale): SourceFact[] {
+export function adFacts(ad: NonNullable<OrderAttributionView["ad"]>, locale: Locale, labels: SourceLabels): SourceFact[] {
   return kept([
     { key: "campaign", value: ad.campaignName ?? ad.campaignId ?? ad.utmCampaign },
     { key: "ad", value: ad.adName ?? ad.adId },
     { key: "placement", value: ad.placement ? readablePlacement(ad.placement) : null },
-    { key: "landing", value: ad.landingPath },
+    { key: "landing", value: pageValue(ad.landingPath, ad.landingPageType, labels) },
     { key: "clicked_at", value: ad.clickedAt ? when(ad.clickedAt, locale) : null },
   ]);
 }
@@ -531,12 +564,12 @@ export function referrerLabel(host: string | null, appLabel: (app: string) => st
   return app ? appLabel(app) : host;
 }
 
-/** What this visit says, in reading order; only the facts it has. */
-export function visitFacts(visit: NonNullable<OrderAttributionView["visit"]>, locale: Locale, appLabel: (app: string) => string): SourceFact[] {
+/** What a visit says (this one, the earlier one the source comes from, or the first), in reading order; only the facts it has. */
+export function visitFacts(visit: NonNullable<OrderAttributionView["visit"]>, locale: Locale, labels: SourceLabels): SourceFact[] {
   return kept([
-    { key: "referrer", value: referrerLabel(visit.referrerHost, appLabel) },
+    { key: "referrer", value: referrerLabel(visit.referrerHost, labels.app) },
     { key: "campaign", value: visit.utmCampaign },
-    { key: "landing", value: visit.landingPath },
+    { key: "landing", value: pageValue(visit.landingPath, visit.landingPageType, labels) },
     { key: "arrived_at", value: visit.at ? when(visit.at, locale) : null },
   ]);
 }
@@ -546,6 +579,7 @@ export const SOURCE_FILTERS = {
   ads: ["paid_social", "paid_search", "paid_other"],
   social: ["organic_social"],
   search: ["organic_search"],
+  ai: ["ai_assistant"],
   direct: ["direct"],
   other: ["referral", "tagged", "email"],
   team: ["dashboard", "api", "agent"],

@@ -502,7 +502,8 @@
       "direct": "Visite directe",
       "dashboard": "Ajoutée dans le tableau de bord",
       "api": "Ajoutée par l'API",
-      "agent": "Ajoutée par un agent IA"
+      "agent": "Ajoutée par un agent IA",
+      "ai_assistant": "Assistant IA"
     },
     "network": {
       "fb": "Facebook",
@@ -515,7 +516,8 @@
       "tiktok": "TikTok",
       "google": "Google",
       "bing": "Bing",
-      "other": "Autre"
+      "other": "Autre",
+      "snapchat": "Snapchat"
     },
     "ad_title": "Pub créditée",
     "ad_hint": "La dernière pub cliquée par le client, au plus 7 jours avant la commande.",
@@ -550,8 +552,28 @@
       "direct": "Visite directe",
       "other": "Autres sites et liens",
       "team": "Ajoutées par l'équipe",
-      "unknown": "Source inconnue"
+      "unknown": "Source inconnue",
+      "ai": "Assistants IA"
     },
-    "same_visit": "La même visite que la pub ci-dessus."
+    "same_visit": "La même visite que la pub ci-dessus.",
+    "earlier_title": "Visite précédente",
+    "earlier_hint": "D'où venait le client avant de revenir directement. Un retour direct ne lui retire pas le crédit pendant 30 jours.",
+    "first_title": "Première visite",
+    "first_hint": "Comment le client a découvert la boutique.",
+    "page": {
+      "home": "Page d'accueil",
+      "catalog": "Tous les produits",
+      "category": "Catégorie · {name}",
+      "collection": "Collection · {name}",
+      "product": "Produit · {name}",
+      "page": "Page · {name}",
+      "landing": "Page de vente · {name}",
+      "checkout": "Paiement",
+      "thankYou": "Page de remerciement",
+      "trackOrder": "Suivi de commande",
+      "search": "Recherche",
+      "contact": "Page contact",
+      "other": "{name}"
+    }
   }
 }

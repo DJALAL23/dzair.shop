@@ -486,7 +486,8 @@
       "direct": "Direct visit",
       "dashboard": "Added in the dashboard",
       "api": "Added through the API",
-      "agent": "Added by an AI agent"
+      "agent": "Added by an AI agent",
+      "ai_assistant": "AI assistant"
     },
     "network": {
       "fb": "Facebook",
@@ -499,7 +500,8 @@
       "tiktok": "TikTok",
       "google": "Google",
       "bing": "Bing",
-      "other": "Other"
+      "other": "Other",
+      "snapchat": "Snapchat"
     },
     "ad_title": "Ad credited",
     "ad_hint": "The last ad the shopper clicked, at most 7 days before ordering.",
@@ -531,8 +533,28 @@
       "direct": "Direct visit",
       "other": "Other websites and links",
       "team": "Added by the team",
-      "unknown": "Source unknown"
+      "unknown": "Source unknown",
+      "ai": "AI assistants"
     },
-    "same_visit": "The same visit as the ad above."
+    "same_visit": "The same visit as the ad above.",
+    "earlier_title": "Earlier visit",
+    "earlier_hint": "Where the shopper came from before coming back directly. A direct return never takes the credit from it for 30 days.",
+    "first_title": "First visit",
+    "first_hint": "How the shopper first found the store.",
+    "page": {
+      "home": "Home page",
+      "catalog": "All products",
+      "category": "Category · {name}",
+      "collection": "Collection · {name}",
+      "product": "Product · {name}",
+      "page": "Page · {name}",
+      "landing": "Landing page · {name}",
+      "checkout": "Checkout",
+      "thankYou": "Thank-you page",
+      "trackOrder": "Order tracking",
+      "search": "Search",
+      "contact": "Contact page",
+      "other": "{name}"
+    }
   }
 }

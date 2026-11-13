@@ -1,9 +1,9 @@
-import { Footprints, Megaphone, UserRound } from "lucide-react";
+import { Footprints, History, Megaphone, Sprout, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import type { Locale } from "@/i18n/config";
-import { adFacts, beforeOrder, sourceHeadline, visitFacts, type SourceFact } from "@/features/orders/model";
+import { adFacts, beforeOrder, sourceHeadline, visitFacts, type SourceFact, type SourceLabels } from "@/features/orders/model";
 import type { OrderDetail, OrderListItem } from "@/features/orders/types";
 
 /** An order's source as a person reads it: "Instagram ad", "Direct visit". */
@@ -63,13 +63,25 @@ function Block({ icon, title, hint, children }: { icon: ReactNode; title: string
   );
 }
 
+/** How the card words an Android app and a storefront page, in the dashboard's language. */
+function useSourceLabels(): SourceLabels {
+  const t = useT("orders");
+  return {
+    app: (app) => t("source.android_app", { app }),
+    page: (page) => t(`source.page.${page.type}`, page.name === null ? undefined : { name: page.name }),
+  };
+}
+
 /**
- * Where the order came from, read-only: the headline, then the ad it credits
- * and this visit, kept apart. Nothing here is chosen by hand.
+ * Where the order came from, read-only: the headline, then the ad it credits,
+ * the earlier visit its source comes from when the shopper came back
+ * directly, this visit and the first visit, kept apart. Nothing here is
+ * chosen by hand.
  */
 export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale: Locale }) {
   const t = useT("orders");
   const label = useSourceLabel();
+  const labels = useSourceLabels();
   const attribution = order.attribution ?? null;
   const headline = attribution ? label(attribution) : null;
 
@@ -82,8 +94,15 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
     );
   }
 
-  const { ad, visit } = attribution!;
-  const before = ad?.clickedAt ? beforeOrder(ad.clickedAt, order.createdAt) : null;
+  const { ad, visit, earlier, first } = attribution!;
+  const sourceAt = ad?.clickedAt ?? earlier?.at ?? null;
+  const before = sourceAt ? beforeOrder(sourceAt, order.createdAt) : null;
+  const shownAt = new Set([ad?.clickedAt, earlier?.at, visit?.at].filter(Boolean));
+  const firstApart = first && first.at && !shownAt.has(first.at) ? first : null;
+  const ago = (at: string) => {
+    const span = beforeOrder(at, order.createdAt);
+    return t(`source.${span.key}`, span.count === undefined ? undefined : { count: span.count });
+  };
   const entered = attribution!.method === "entered" || attribution!.method === "merchant";
 
   return (
@@ -100,7 +119,14 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
 
         {ad && (
           <Block icon={<Megaphone size={15} className="text-muted-foreground" aria-hidden="true" />} title={t("source.ad_title")} hint={t("source.ad_hint")}>
-            <Facts facts={adFacts(ad, locale)} />
+            <Facts facts={adFacts(ad, locale, labels)} />
+          </Block>
+        )}
+
+        {earlier && (
+          <Block icon={<History size={15} className="text-muted-foreground" aria-hidden="true" />} title={t("source.earlier_title")} hint={t("source.earlier_hint")}>
+            <p className="text-sm font-semibold">{label(earlier)}</p>
+            <Facts facts={visitFacts(earlier, locale, labels)} />
           </Block>
         )}
 
@@ -108,7 +134,16 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
           <Block icon={<Footprints size={15} className="text-muted-foreground" aria-hidden="true" />} title={t("source.visit_title")} hint={t("source.visit_hint")}>
             <p className="text-sm font-semibold">{label(visit)}</p>
             {visit.channel === "direct" && <p className="text-xs text-muted-foreground">{t("source.direct_hint")}</p>}
-            {ad && visit.at === ad.clickedAt ? <p className="text-xs text-muted-foreground">{t("source.same_visit")}</p> : <Facts facts={visitFacts(visit, locale, (app) => t("source.android_app", { app }))} />}
+            {ad && visit.at === ad.clickedAt ? <p className="text-xs text-muted-foreground">{t("source.same_visit")}</p> : <Facts facts={visitFacts(visit, locale, labels)} />}
+          </Block>
+        )}
+
+        {firstApart && (
+          <Block icon={<Sprout size={15} className="text-muted-foreground" aria-hidden="true" />} title={t("source.first_title")} hint={t("source.first_hint")}>
+            <p className="text-sm font-semibold">
+              {label(firstApart)} <span className="font-normal text-muted-foreground">· {ago(firstApart.at!)}</span>
+            </p>
+            <Facts facts={visitFacts({ ...firstApart, at: null }, locale, labels)} />
           </Block>
         )}
 

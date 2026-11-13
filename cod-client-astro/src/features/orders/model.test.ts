@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { SHIPMENT_ACTIONS } from "../../../../cod-shared/shipments/actions";
 import type { OrderAttributionView } from "../../../../cod-shared/attribution/view";
+import { ORDER_CHANNELS } from "../../../../cod-shared/attribution/model";
 import {
   adFacts,
   beforeOrder,
   readablePlacement,
   SOURCE_FILTERS,
   sourceHeadline,
+  storePage,
   visitFacts,
+  type SourceLabels,
+  type StorePage,
   abandonedBasketView,
   attentionReason,
   eventLabel,
@@ -459,7 +463,9 @@ describe("an order's source", () => {
     landingPageType: "product",
   };
   const VISIT: Visit = { at: "2026-11-12T06:19:00.000Z", channel: "direct", platform: "direct", app: null, referrerHost: null, landingPath: "/", landingPageType: "home", utmSource: null, utmMedium: null, utmCampaign: null };
-  const APP = (app: string) => `${app} app on Android`;
+  const APP_NAME = (app: string) => `${app} app on Android`;
+const PAGE = (page: StorePage) => (page.name === null ? `[${page.type}]` : `[${page.type}] ${page.name}`);
+const APP: SourceLabels = { app: APP_NAME, page: PAGE };
 
   it("heads with the ad and its app, the social network or search engine, or what the order was", () => {
     expect(sourceHeadline({ channel: "paid_social", platform: "meta", app: "ig" })).toEqual({ key: "paid", network: "ig" });
@@ -498,18 +504,18 @@ describe("an order's source", () => {
   });
 
   it("shows the ad by its names, its placement in words, its landing page and click time", () => {
-    expect(adFacts(AD, "en")).toEqual([
+    expect(adFacts(AD, "en", APP)).toEqual([
       { key: "campaign", value: "TEST2-campaign" },
       { key: "ad", value: "TEST2-ad" },
       { key: "placement", value: "Facebook · Mobile Feed" },
-      { key: "landing", value: "/products/insulated-bottle" },
+      { key: "landing", value: "[product] insulated-bottle" },
       { key: "clicked_at", value: new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(AD.clickedAt!)) },
     ]);
-    expect(adFacts({ ...AD, campaignName: null, adName: null, placement: null, landingPath: null, clickedAt: null }, "ar")).toEqual([
+    expect(adFacts({ ...AD, campaignName: null, adName: null, placement: null, landingPath: null, clickedAt: null }, "ar", APP)).toEqual([
       { key: "campaign", value: "120200000000000001" },
       { key: "ad", value: "120200000000000003" },
     ]);
-    expect(adFacts({ ...AD, campaignName: null, campaignId: null, utmCampaign: "soldes", adName: null, adId: null, placement: null, landingPath: null, clickedAt: null }, "fr")).toEqual([{ key: "campaign", value: "soldes" }]);
+    expect(adFacts({ ...AD, campaignName: null, campaignId: null, utmCampaign: "soldes", adName: null, adId: null, placement: null, landingPath: null, clickedAt: null }, "fr", APP)).toEqual([{ key: "campaign", value: "soldes" }]);
   });
 
   it("shows this visit by where it came from, its landing page and time", () => {
@@ -528,6 +534,23 @@ describe("an order's source", () => {
   it("filters by groups that cover every channel once, and the unknown", () => {
     const all = Object.values(SOURCE_FILTERS).flat();
     expect(new Set(all).size).toBe(all.length);
-    expect([...all].sort()).toEqual(["agent", "api", "dashboard", "direct", "email", "organic_search", "organic_social", "paid_other", "paid_search", "paid_social", "referral", "tagged", "unknown"]);
+    expect([...all].sort()).toEqual([...ORDER_CHANNELS, "unknown"].sort());
+  });
+
+  it("names the storefront page a visit landed on by its type and slug, never as a raw path", () => {
+    expect(storePage("/products/robe-qa", "product")).toEqual({ type: "product", name: "robe-qa" });
+    expect(storePage("/fr/lp/robe-%C3%A9t%C3%A9", "landing")).toEqual({ type: "landing", name: "robe-été" });
+    expect(storePage("/lp/%E0%A4%A", "landing")).toEqual({ type: "landing", name: "%E0%A4%A" });
+    expect(storePage("/", "home")).toEqual({ type: "home", name: null });
+    expect(storePage("/checkout", "checkout")).toEqual({ type: "checkout", name: null });
+    expect(storePage("/old-page", null)).toEqual({ type: "other", name: "/old-page" });
+    expect(storePage(null, "home")).toBeNull();
+    expect(visitFacts({ ...VISIT, landingPath: "/lp/robe-ete", landingPageType: "landing" }, "en", APP).find((fact) => fact.key === "landing")).toEqual({ key: "landing", value: "[landing] robe-ete" });
+  });
+
+  it("names Snapchat as its own network, and an AI assistant by its own headline and filter", () => {
+    expect(sourceHeadline({ channel: "paid_social", platform: "snapchat", app: null })).toEqual({ key: "paid", network: "snapchat" });
+    expect(sourceHeadline({ channel: "ai_assistant", platform: "other", app: null })).toEqual({ key: "ai_assistant", network: null });
+    expect(SOURCE_FILTERS.ai).toEqual(["ai_assistant"]);
   });
 });
