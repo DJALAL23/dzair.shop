@@ -40,7 +40,7 @@ import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import OrderProtectionApp from "./OrderProtectionApp";
 import RulePageApp from "./RulePageApp";
 import SpamOrdersPageApp from "@/features/orders/components/SpamOrdersPageApp";
-import { OrderProtectionCard } from "@/features/orders/components/OrderProtectionCard";
+import { OrderProtectionCard, useOrderAttempt } from "@/features/orders/components/OrderProtectionCard";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -633,13 +633,18 @@ describe("the Spam page", () => {
   });
 });
 
+function OnOrder() {
+  const attempt = useOrderAttempt("o");
+  return attempt && <OrderProtectionCard attempt={attempt} />;
+}
+
 describe("the card on an order", () => {
   const FLAGGED = { ...ATTEMPT, id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "flagged", orderId: "o", orderNumber: "ORD-1", customerName: null, total: null, signals: {}, matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
 
   it("says why it was flagged and blocks the number or network", async () => {
     api.attemptOfOrder.mockResolvedValue({ ...FLAGGED, signals: { appSource: "browser" } });
     api.addToBlockList.mockResolvedValue({});
-    await mount(<RequireAuth><OrderProtectionCard orderId="o" /></RequireAuth>);
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
     expect(document.body.textContent).toContain("Flagged because of: Too many");
     expect(document.body.textContent).toContain("Web browser");
     expect(document.body.textContent).not.toContain("Only trying");
@@ -654,15 +659,29 @@ describe("the card on an order", () => {
     expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "ip", value: "41.100.1.1", note: "ORD-1" });
   });
 
+  it("says why an order accepted from Spam was held", async () => {
+    api.attemptOfOrder.mockResolvedValue({ ...FLAGGED, outcome: "rescued", matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "s", name: "Blocked area", mode: "active", action: "spam" }] });
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
+    expect(document.body.textContent).toContain("Accepted from Spam. Held because of: Blocked area");
+    expect(document.body.textContent).not.toContain("Too many");
+  });
+
+  it("gives no reason for an order it simply let through", async () => {
+    api.attemptOfOrder.mockResolvedValue({ ...FLAGGED, outcome: "accepted", matches: [] });
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
+    expect(document.body.textContent).not.toContain("because");
+    expect(document.body.textContent).toContain("Block this number");
+  });
+
   it("shows nothing for an order the App did not screen, or without permission", async () => {
     api.attemptOfOrder.mockResolvedValue(null);
-    await mount(<RequireAuth><OrderProtectionCard orderId="o" /></RequireAuth>);
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
     expect(host.textContent).toBe("");
     await act(async () => root.unmount());
     root = createRoot(host);
     api.attemptOfOrder.mockClear();
     signIn(member(["orders:read"]));
-    await mount(<RequireAuth><OrderProtectionCard orderId="o" /></RequireAuth>);
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
     expect(api.attemptOfOrder).not.toHaveBeenCalled();
   });
 });

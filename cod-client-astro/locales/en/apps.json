@@ -456,6 +456,7 @@
     "flag": {
       "label": "Flagged as suspicious",
       "because": "Flagged because of: {rules}",
+      "rescued_because": "Accepted from Spam. Held because of: {rules}",
       "block_phone": "Block this number",
       "block_ip": "Block this network",
       "label_because": "Flagged as suspicious: {rules}",

@@ -468,6 +468,7 @@
     "flag": {
       "label": "Signalée comme suspecte",
       "because": "Signalée à cause de : {rules}",
+      "rescued_because": "Acceptée depuis le Spam. Retenue à cause de : {rules}",
       "block_phone": "Bloquer ce numéro",
       "block_ip": "Bloquer ce réseau",
       "label_because": "Signalée comme suspecte : {rules}",

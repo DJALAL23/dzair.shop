@@ -29,7 +29,7 @@ export function OrderCustomerCard({ order }: OrderCustomerCardProps) {
               {t("detail.name")}
             </p>
             <p className="mt-1 text-sm font-medium">
-              {order.customerName}
+              <bdi>{order.customerName}</bdi>
             </p>
             <a
               href={`tel:${order.phone}`}
@@ -67,7 +67,7 @@ export function OrderCustomerCard({ order }: OrderCustomerCardProps) {
               <p className="text-sm text-muted-foreground">{commune}</p>
             )}
             <p className="mt-1 text-sm text-foreground">
-              {order.address ?? "-"}
+              <bdi>{order.address ?? "-"}</bdi>
             </p>
           </div>
         </div>

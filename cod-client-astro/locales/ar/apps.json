@@ -504,6 +504,7 @@
     "flag": {
       "label": "طلب مشبوه",
       "because": "مشبوه بسبب: {rules}",
+      "rescued_because": "قُبل من السبام. احتُجز بسبب: {rules}",
       "block_phone": "حظر هذا الرقم",
       "block_ip": "حظر هذه الشبكة",
       "label_because": "طلب مشبوه: {rules}",
