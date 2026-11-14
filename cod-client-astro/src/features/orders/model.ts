@@ -574,6 +574,40 @@ export function visitFacts(visit: NonNullable<OrderAttributionView["visit"]>, lo
   ]);
 }
 
+/** One visit on an order's journey: the first visit, the credited ad or earlier visit, or the visit the shopper ordered in. */
+export interface JourneyStep {
+  kind: "first" | "ad" | "earlier" | "visit";
+  at: string | null;
+  source: { channel: OrderChannel; platform: string | null; app: string | null };
+  /** The order's source. */
+  credited: boolean;
+  /** The visit the shopper ordered in. */
+  ordered: boolean;
+}
+
+/**
+ * The visits that led to an order, oldest first: the first visit when it is
+ * not another step, the credited ad or earlier visit, then the visit the
+ * shopper ordered in. One visit is one step: an ad clicked in the visit that
+ * ordered is a single credited, ordered step. Empty when no visit is known.
+ */
+export function sourceJourney(view: Pick<OrderAttributionView, "channel" | "platform" | "app" | "ad" | "visit" | "earlier" | "first">): JourneyStep[] {
+  const { channel, ad, earlier, visit, first } = view;
+  if (!channel) return [];
+  const steps: JourneyStep[] = [];
+  if (ad || earlier) {
+    const at = ad ? ad.clickedAt : earlier!.at;
+    steps.push({ kind: ad ? "ad" : "earlier", at, source: { channel, platform: view.platform, app: view.app }, credited: true, ordered: visit !== null && visit.at === at });
+  }
+  if (visit && !steps[0]?.ordered) {
+    steps.push({ kind: "visit", at: visit.at, source: { channel: visit.channel, platform: visit.platform, app: visit.app }, credited: steps.length === 0, ordered: true });
+  }
+  if (first?.at && steps.length > 0 && !steps.some((step) => step.at === first.at)) {
+    steps.unshift({ kind: "first", at: first.at, source: { channel: first.channel, platform: first.platform, app: first.app }, credited: false, ordered: false });
+  }
+  return steps;
+}
+
 /** The source filter of the orders list: each choice and the channels it shows. */
 export const SOURCE_FILTERS = {
   ads: ["paid_social", "paid_search", "paid_other"],

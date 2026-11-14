@@ -555,7 +555,7 @@
       "unknown": "Source inconnue",
       "ai": "Assistants IA"
     },
-    "same_visit": "La même visite que la pub ci-dessus.",
+    "same_visit": "Le client a commandé pendant cette même visite.",
     "earlier_title": "Visite précédente",
     "earlier_hint": "D'où venait le client avant de revenir directement. Un retour direct ne lui retire pas le crédit pendant 30 jours.",
     "first_title": "Première visite",
@@ -574,6 +574,13 @@
       "search": "Recherche",
       "contact": "Page contact",
       "other": "{name}"
-    }
+    },
+    "journey": "Le parcours du client",
+    "credited": "Créditée",
+    "ordered": "Commande",
+    "details": "Voir les détails",
+    "details_title": "D’où vient cette commande",
+    "how_title": "Comment la source est choisie",
+    "how_body": "La source est la dernière pub cliquée, jusqu’à 7 jours avant la commande. Sans pub, c’est la visite de la commande, sauf si le client est venu directement : c’est alors la dernière visite venue d’ailleurs, jusqu’à 30 jours avant."
   }
 }

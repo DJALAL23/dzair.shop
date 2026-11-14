@@ -536,7 +536,7 @@
       "unknown": "Source unknown",
       "ai": "AI assistants"
     },
-    "same_visit": "The same visit as the ad above.",
+    "same_visit": "The shopper ordered in this same visit.",
     "earlier_title": "Earlier visit",
     "earlier_hint": "Where the shopper came from before coming back directly. A direct return never takes the credit from it for 30 days.",
     "first_title": "First visit",
@@ -555,6 +555,13 @@
       "search": "Search",
       "contact": "Contact page",
       "other": "{name}"
-    }
+    },
+    "journey": "How the shopper got here",
+    "credited": "Credited",
+    "ordered": "Ordered",
+    "details": "View details",
+    "details_title": "Where this order came from",
+    "how_title": "How the source is decided",
+    "how_body": "The last ad the shopper clicked, up to 7 days before ordering, is the source. Without one, it is the visit they ordered in, unless they came directly: then it is the last visit that came from somewhere, up to 30 days before."
   }
 }

@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { SHIPMENT_ACTIONS } from "../../../../cod-shared/shipments/actions";
 import type { OrderAttributionView } from "../../../../cod-shared/attribution/view";
-import { ORDER_CHANNELS } from "../../../../cod-shared/attribution/model";
+import { ORDER_CHANNELS, type AttributionPlatform } from "../../../../cod-shared/attribution/model";
 import {
   adFacts,
   beforeOrder,
   readablePlacement,
   SOURCE_FILTERS,
   sourceHeadline,
+  sourceJourney,
   storePage,
   visitFacts,
   type SourceLabels,
@@ -552,5 +553,78 @@ const APP: SourceLabels = { app: APP_NAME, page: PAGE };
     expect(sourceHeadline({ channel: "paid_social", platform: "snapchat", app: null })).toEqual({ key: "paid", network: "snapchat" });
     expect(sourceHeadline({ channel: "ai_assistant", platform: "other", app: null })).toEqual({ key: "ai_assistant", network: null });
     expect(SOURCE_FILTERS.ai).toEqual(["ai_assistant"]);
+  });
+});
+
+describe("an order's journey: the visits that led to it, oldest first", () => {
+  type View = Parameters<typeof sourceJourney>[0];
+  const visit = (at: string, channel: NonNullable<View["visit"]>["channel"], platform: AttributionPlatform = "direct") => ({
+    at,
+    channel,
+    platform,
+    app: null,
+    referrerHost: null,
+    landingPath: "/",
+    landingPageType: "home",
+    utmSource: null,
+    utmMedium: null,
+    utmCampaign: null,
+  });
+  const ad = (clickedAt: string) => ({
+    platform: "meta" as const,
+    app: "ig",
+    clickedAt,
+    clickIdType: null,
+    campaignId: null,
+    campaignName: "Summer",
+    adsetId: null,
+    adId: null,
+    adName: "Reel 1",
+    placement: "Instagram_Reels",
+    utmSource: "facebook",
+    utmCampaign: null,
+    landingPath: "/products/robe",
+    landingPageType: "product",
+  });
+  const view = (over: Partial<View>): View => ({ channel: "direct", platform: "direct", app: null, ad: null, visit: null, earlier: null, first: null, ...over });
+  const steps = (v: View) => sourceJourney(v).map((step) => `${step.kind}:${step.source.channel}${step.credited ? ":credited" : ""}${step.ordered ? ":ordered" : ""}`);
+
+  it("is one credited step when the shopper ordered in the visit that is the source", () => {
+    const search = visit("2026-11-13T10:00:00.000Z", "organic_search", "google");
+    expect(steps(view({ channel: "organic_search", platform: "google", visit: search, first: search }))).toEqual(["visit:organic_search:credited:ordered"]);
+  });
+
+  it("merges the ad and the visit the shopper ordered in when they are one visit", () => {
+    const at = "2026-11-13T10:00:00.000Z";
+    expect(steps(view({ channel: "paid_social", platform: "meta", app: "ig", ad: ad(at), visit: visit(at, "paid_social", "meta"), first: visit(at, "paid_social", "meta") }))).toEqual(["ad:paid_social:credited:ordered"]);
+  });
+
+  it("keeps the credited ad, then a later visit, apart", () => {
+    const steps_ = sourceJourney(view({ channel: "paid_social", platform: "meta", app: "ig", ad: ad("2026-11-11T10:00:00.000Z"), visit: visit("2026-11-13T10:00:00.000Z", "organic_search", "google") }));
+    expect(steps_.map((s) => [s.kind, s.source.channel, s.source.platform, s.credited, s.ordered])).toEqual([
+      ["ad", "paid_social", "meta", true, false],
+      ["visit", "organic_search", "google", false, true],
+    ]);
+    expect(steps_.map((s) => s.at)).toEqual(["2026-11-11T10:00:00.000Z", "2026-11-13T10:00:00.000Z"]);
+  });
+
+  it("credits the earlier visit a direct return comes from, and starts with the first visit when it is another", () => {
+    const first = visit("2026-11-01T10:00:00.000Z", "referral");
+    const email = visit("2026-11-13T10:00:00.000Z", "email");
+    expect(steps(view({ channel: "email", platform: "other", earlier: email, visit: visit("2026-11-13T11:00:00.000Z", "direct"), first }))).toEqual([
+      "first:referral",
+      "earlier:email:credited",
+      "visit:direct:ordered",
+    ]);
+  });
+
+  it("leaves out a first visit that is already a step", () => {
+    const email = visit("2026-11-13T10:00:00.000Z", "email");
+    expect(steps(view({ channel: "email", platform: "other", earlier: email, visit: visit("2026-11-13T11:00:00.000Z", "direct"), first: email }))).toEqual(["earlier:email:credited", "visit:direct:ordered"]);
+  });
+
+  it("has no steps for an order entered by the team or one whose source is unknown", () => {
+    expect(sourceJourney(view({ channel: "dashboard", platform: "none" }))).toEqual([]);
+    expect(sourceJourney(view({ channel: null }))).toEqual([]);
   });
 });
