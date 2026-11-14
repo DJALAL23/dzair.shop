@@ -39,12 +39,15 @@ export function GiveOrdersDialog({ orderIds, currentAssigneeId, onClose, onDone 
       const results = await assignOrders(orderIds, to);
       const given = results.filter((r) => r.ok && r.changed).length;
       const notMoved = results.filter((r) => !r.ok && r.reason === "changed").length;
+      const decided = results.filter((r) => !r.ok && r.reason === "decided").length;
       if (single) {
-        if (notMoved) notify.error(t("order.changed"));
+        if (decided) notify.error(t("order.decided"));
+        else if (notMoved) notify.error(t("order.changed"));
         else notify.success(to === null ? t("order.given_nobody") : t("order.given", { name: members?.find((m) => m.userId === to)?.name ?? "" }));
       } else {
         notify.success(t("list.given", { count: given }));
         if (notMoved) notify.error(t("list.not_moved", { count: notMoved }));
+        if (decided) notify.error(t("list.decided", { count: decided }));
       }
       onDone();
       onClose();

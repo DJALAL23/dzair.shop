@@ -5,7 +5,7 @@ import { useT } from "@/i18n/react";
 import type { Locale } from "@/i18n/config";
 import { adFacts, beforeOrder, readablePlacement, referrerLabel, sourceHeadline, sourceJourney, storePage, visitFacts, type JourneyStep, type SourceFact, type SourceLabels } from "@/features/orders/model";
 import type { OrderDetail, OrderListItem } from "@/features/orders/types";
-import type { OrderChannel } from "../../../../../cod-shared/attribution/model";
+import { AD_CREDIT_WINDOW_DAYS, SOURCE_LOOKBACK_DAYS, type OrderChannel } from "../../../../../cod-shared/attribution/model";
 
 /** An order's source as a person reads it: "Instagram ad", "Direct visit". */
 export function useSourceLabel() {
@@ -102,38 +102,105 @@ function stepDetail(step: JourneyStep, attribution: Attribution, labels: SourceL
   return referrerLabel(visit.referrerHost, labels.app) ?? visit.utmCampaign ?? (page ? labels.page(page) : null);
 }
 
-const STEP_TITLES = { first: "source.first_title", ad: "source.ad_title", earlier: "source.earlier_title", visit: "source.visit_title" } as const;
-const STEP_HINTS = { first: "source.first_hint", ad: "source.ad_hint", earlier: "source.earlier_hint", visit: "source.visit_hint" } as const;
+/** "1 minute before ordering": how long before the order a step happened. */
+function useBeforeOrdering(orderedAt: string) {
+  const t = useT("orders");
+  return (at: string | null) => {
+    if (!at) return null;
+    const span = beforeOrder(at, orderedAt);
+    return t(`source.${span.key}`, span.count === undefined ? undefined : { count: span.count });
+  };
+}
 
-/** Every fact of every step, and how the source is decided, in the side panel. */
-function SourceDetails({ open, onClose, steps, attribution, locale, labels }: { open: boolean; onClose: () => void; steps: JourneyStep[]; attribution: Attribution; locale: Locale; labels: SourceLabels }) {
+/** Why the credited step is the source, in one sentence. */
+function useWhyCredited(orderedAt: string) {
+  const t = useT("orders");
+  const before = useBeforeOrdering(orderedAt);
+  return (step: JourneyStep) => {
+    if (step.kind === "ad") return step.ordered ? t("source.why_ad_same_visit") : t("source.why_ad", { when: before(step.at) ?? "" });
+    if (step.kind === "earlier") return t("source.why_earlier", { when: before(step.at) ?? "" });
+    return step.source.channel === "direct" ? t("source.why_direct") : t("source.why_visit");
+  };
+}
+
+/**
+ * Where the order came from, answer first: the source and why it gets the
+ * credit, then every visit that led to the order in time order, then the
+ * rule that decides, with the windows the code uses.
+ */
+function SourceDetails({ open, onClose, steps, attribution, orderedAt, locale, labels }: { open: boolean; onClose: () => void; steps: JourneyStep[]; attribution: Attribution; orderedAt: string; locale: Locale; labels: SourceLabels }) {
   const t = useT("orders");
   const label = useSourceLabel();
+  const before = useBeforeOrdering(orderedAt);
+  const why = useWhyCredited(orderedAt);
+  const credited = steps.find((step) => step.credited) ?? steps[steps.length - 1]!;
+  const factsOf = (step: JourneyStep) => {
+    const { ad, visit } = stepData(step, attribution);
+    return ad ? adFacts(ad, locale, labels) : visitFacts(visit, locale, labels);
+  };
+  const isDirect = (step: JourneyStep) => step.kind !== "ad" && step.source.channel === "direct";
+
   return (
     <Dialog open={open} onClose={onClose} placement="end" title={t("source.details_title")} icon={<Signpost size={17} aria-hidden="true" />}>
-      <div className="space-y-5">
-        {steps.map((step) => {
-          const { ad, visit } = stepData(step, attribution);
-          return (
-            <section key={step.kind} className="space-y-2 border-b border-border pb-5 last:border-b-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-xs font-semibold text-muted-foreground">{t(STEP_TITLES[step.kind])}</h3>
-                {step.credited && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{t("source.credited")}</span>}
-              </div>
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <ChannelIcon channel={step.source.channel} size={15} />
-                {label(step.source)}
-              </p>
-              <p className="text-xs text-muted-foreground">{t(STEP_HINTS[step.kind])}</p>
-              {step.kind !== "ad" && step.source.channel === "direct" && <p className="text-xs text-muted-foreground">{t("source.direct_hint")}</p>}
-              <Facts facts={ad ? adFacts(ad, locale, labels) : visitFacts(visit, locale, labels)} />
-              {step.kind !== "visit" && step.ordered && <p className="text-xs text-muted-foreground">{t("source.same_visit")}</p>}
-            </section>
-          );
-        })}
-        <section className="rounded-lg bg-muted/60 p-3">
-          <h3 className="text-xs font-semibold">{t("source.how_title")}</h3>
-          <p className="mt-1 text-xs text-muted-foreground">{t("source.how_body")}</p>
+      <div className="space-y-6">
+        <section aria-labelledby="source-answer" className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4">
+          <h3 id="source-answer" className="text-xs font-semibold text-muted-foreground">
+            {t("source.title")}
+          </h3>
+          <p className="mt-1.5 flex items-center gap-2 text-base font-semibold">
+            <ChannelIcon channel={credited.source.channel} size={17} />
+            {label(credited.source)}
+          </p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{why(credited)}</p>
+          {isDirect(credited) && <p className="mt-1.5 text-xs text-muted-foreground">{t("source.direct_hint")}</p>}
+          <div className="mt-4 border-t border-primary/10 pt-4">
+            <Facts facts={factsOf(credited)} />
+          </div>
+        </section>
+
+        {steps.length > 1 && (
+          <section aria-labelledby="source-path">
+            <h3 id="source-path" className="text-sm font-semibold">
+              {t("source.journey")}
+            </h3>
+            <ol className="mt-3">
+              {steps.map((step, index) => {
+                const tags = [step.kind === "first" ? t("source.first_title") : null, step.ordered ? t("source.ordered") : null].filter(Boolean).join(" · ");
+                return (
+                  <li key={step.kind} className="relative ps-6 pb-5 last:pb-0">
+                    {index < steps.length - 1 && <span className="absolute start-[4.5px] top-4 bottom-0 w-px bg-border" aria-hidden="true" />}
+                    <span className={`absolute start-0 top-1.5 size-2.5 rounded-full ${step.credited ? "bg-primary" : "border border-muted-foreground/50 bg-card"}`} aria-hidden="true" />
+                    <p className="flex flex-wrap items-center gap-2">
+                      <span className={`text-sm ${step.credited ? "font-semibold" : "font-medium"}`}>{label(step.source)}</span>
+                      {step.credited && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{t("source.credited")}</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{[tags, step.ordered ? null : before(step.at)].filter(Boolean).join(" · ")}</p>
+                    {!step.credited && (
+                      <>
+                        {isDirect(step) && <p className="mt-1 text-xs text-muted-foreground">{t("source.direct_hint")}</p>}
+                        <div className="mt-2">
+                          <Facts facts={factsOf(step)} />
+                        </div>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        )}
+
+        <section aria-labelledby="source-how" className="rounded-lg bg-muted/60 p-4">
+          <h3 id="source-how" className="text-xs font-semibold">
+            {t("source.how_title")}
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">{t("source.how_intro")}</p>
+          <ol className="mt-2 list-decimal space-y-1 ps-4 text-xs text-muted-foreground">
+            <li>{t("source.how_ad", { count: AD_CREDIT_WINDOW_DAYS })}</li>
+            <li>{t("source.how_visit")}</li>
+            <li>{t("source.how_earlier", { count: SOURCE_LOOKBACK_DAYS })}</li>
+            <li>{t("source.how_direct")}</li>
+          </ol>
         </section>
       </div>
     </Dialog>
@@ -149,6 +216,7 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
   const t = useT("orders");
   const label = useSourceLabel();
   const labels = useSourceLabels();
+  const ago = useBeforeOrdering(order.createdAt);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const attribution = order.attribution ?? null;
   const headline = attribution ? label(attribution) : null;
@@ -169,11 +237,6 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
 
   const steps = sourceJourney(attribution);
   const credited = steps.find((step) => step.credited) ?? null;
-  const ago = (at: string | null) => {
-    if (!at) return null;
-    const span = beforeOrder(at, order.createdAt);
-    return t(`source.${span.key}`, span.count === undefined ? undefined : { count: span.count });
-  };
   const entered = attribution.method === "entered" || attribution.method === "merchant";
   const summary = [credited ? stepDetail(credited, attribution, labels) : null, credited && !credited.ordered ? ago(credited.at) : null].filter(Boolean).join(" · ");
 
@@ -230,7 +293,7 @@ export function OrderSourceCard({ order, locale }: { order: OrderDetail; locale:
             {t("source.details")}
             <ChevronRight size={14} className="rtl:rotate-180" aria-hidden="true" />
           </button>
-          <SourceDetails open={detailsOpen} onClose={() => setDetailsOpen(false)} steps={steps} attribution={attribution} locale={locale} labels={labels} />
+          <SourceDetails open={detailsOpen} onClose={() => setDetailsOpen(false)} steps={steps} attribution={attribution} orderedAt={order.createdAt} locale={locale} labels={labels} />
         </>
       )}
     </Card>

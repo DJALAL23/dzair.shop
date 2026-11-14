@@ -89,5 +89,5 @@ export interface AssignmentResult {
   orderId: string;
   ok: boolean;
   changed?: boolean;
-  reason?: "order_not_found" | "changed";
+  reason?: "order_not_found" | "decided" | "changed";
 }

@@ -495,7 +495,7 @@
     "title": "Source",
     "column": "Source",
     "unknown": "Source inconnue",
-    "unknown_hint": "Le navigateur du client n'a gardé aucune trace de la visite (cookies bloqués ou effacés, ou navigation privée), la commande date d'avant le suivi actuel, ou le thème n'envoie pas encore la provenance des clients.",
+    "unknown_hint": "Nous n'avons aucune trace de l'arrivée du client. Le plus souvent, son navigateur l'a bloquée ou effacée, ou il était en navigation privée. Il peut aussi s'agir d'une commande antérieure au suivi des sources, ou d'un thème qui ne la transmet pas encore.",
     "entered_note": "Saisie par votre équipe : il n'y a pas de visite du client à afficher.",
     "headline": {
       "paid": "Pub {network}",
@@ -524,10 +524,6 @@
       "other": "Autre",
       "snapchat": "Snapchat"
     },
-    "ad_title": "Pub créditée",
-    "ad_hint": "La dernière pub cliquée par le client, au plus 7 jours avant la commande.",
-    "visit_title": "Cette visite",
-    "visit_hint": "Comment le client est arrivé sur la boutique quand il a commandé.",
     "direct_hint": "Adresse tapée, favori, ou lien ouvert depuis une appli qui n'indique pas sa provenance (souvent WhatsApp).",
     "fact": {
       "campaign": "Campagne",
@@ -560,11 +556,7 @@
       "unknown": "Source inconnue",
       "ai": "Assistants IA"
     },
-    "same_visit": "Le client a commandé pendant cette même visite.",
-    "earlier_title": "Visite précédente",
-    "earlier_hint": "D'où venait le client avant de revenir directement. Un retour direct ne lui retire pas le crédit pendant 30 jours.",
     "first_title": "Première visite",
-    "first_hint": "Comment le client a découvert la boutique.",
     "page": {
       "home": "Page d'accueil",
       "catalog": "Tous les produits",
@@ -586,6 +578,19 @@
     "details": "Voir les détails",
     "details_title": "D’où vient cette commande",
     "how_title": "Comment la source est choisie",
-    "how_body": "La source est la dernière pub cliquée, jusqu’à 7 jours avant la commande. Sans pub, c’est la visite de la commande, sauf si le client est venu directement : c’est alors la dernière visite venue d’ailleurs, jusqu’à 30 jours avant."
+    "why_ad": "Le client a cliqué sur cette publicité {when}, elle reçoit donc le crédit.",
+    "why_ad_same_visit": "Le client a cliqué sur cette publicité et a commandé lors de la même visite, elle reçoit donc le crédit.",
+    "why_earlier": "C'est d'ici que venait le client, {when}. Il est revenu directement pour commander, et un retour direct ne retire jamais le crédit.",
+    "why_visit": "C'est ce qui a amené le client sur la boutique lors de la visite où il a commandé.",
+    "why_direct": "Aucune publicité ni aucun autre site récent n'a amené le client : il est venu directement sur la boutique.",
+    "how_intro": "La source est la première de ces règles qui s'applique :",
+    "how_ad_one": "La dernière publicité cliquée par le client, si c'était au plus {count} jour avant la commande.",
+    "how_ad_many": "La dernière publicité cliquée par le client, si c'était au plus {count} de jours avant la commande.",
+    "how_ad_other": "La dernière publicité cliquée par le client, si c'était au plus {count} jours avant la commande.",
+    "how_visit": "Sinon, le site ou l'application qui l'a amené lors de la visite où il a commandé.",
+    "how_earlier_one": "S'il est revenu directement, le dernier site ou la dernière application qui l'a amené, au plus {count} jour avant.",
+    "how_earlier_many": "S'il est revenu directement, le dernier site ou la dernière application qui l'a amené, au plus {count} de jours avant.",
+    "how_earlier_other": "S'il est revenu directement, le dernier site ou la dernière application qui l'a amené, au plus {count} jours avant.",
+    "how_direct": "Si rien ne l'a amené, une visite directe."
   }
 }

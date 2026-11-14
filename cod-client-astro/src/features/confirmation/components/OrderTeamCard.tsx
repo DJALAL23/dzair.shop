@@ -14,8 +14,8 @@ import type { OrderDetail } from "@/features/orders/types";
 /**
  * Who works the order: the team member it is with, since when and how it
  * came to them, who confirmed it, and — while the customer has not been
- * confirmed — when to call them back, picked in one tap. A manager gives it
- * to someone else here.
+ * confirmed — when to call them back, picked in one tap. While it waits to
+ * be confirmed, a manager gives it to someone else here.
  */
 export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { order: OrderDetail; canUpdate: boolean; canManage: boolean; onChanged: () => void }) {
   const t = useT("confirmation");
@@ -54,7 +54,7 @@ export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { orde
           ? t("order.way_manual", { name: step.byName ?? "" })
           : t("order.way_automatic");
 
-  if (!order.assigneeId && !canManage && !waiting && !order.confirmedByName) return null;
+  if (!order.assigneeId && !waiting && !order.confirmedByName) return null;
 
   return (
     <Card title={t("order.title")}>
@@ -74,7 +74,7 @@ export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { orde
               )}
             </div>
           </div>
-          {canManage && (
+          {canManage && waiting && (
             <Button type="button" variant="secondary" size="sm" onClick={() => setGiving(true)}>
               {t("order.give")}
             </Button>

@@ -132,14 +132,16 @@ function moveStatements(
 
 const changed = (result: unknown) => ((result as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0;
 
-export type AssignmentResult = { orderId: string; ok: true; changed: boolean } | { orderId: string; ok: false; reason: "order_not_found" | "changed" };
+export type AssignmentResult = { orderId: string; ok: true; changed: boolean } | { orderId: string; ok: false; reason: "order_not_found" | "decided" | "changed" };
 export type AssignRefusal = { ok: false; reason: "member_not_found" | "member_inactive" | "not_member" | "no_order_access" };
 
 /**
  * A manager gives orders to a member who can see them, or to nobody
- * (`to: null`), or shares them out by the store's rule (`to: "rule"`). Each order is moved only while
- * it is still with whoever it was with when read; one already with that
- * member is left as it is. One result per order id, in the order given.
+ * (`to: null`), or shares them out by the store's rule (`to: "rule"`). Only
+ * an order still waiting to be confirmed moves: once confirmed or cancelled,
+ * who handled it stays the record. Each order is moved only while it is
+ * still with whoever it was with when read; one already with that member is
+ * left as it is. One result per order id, in the order given.
  */
 export async function assignOrders(
   db: AppDb,
@@ -156,13 +158,17 @@ export async function assignOrders(
   }
   const distinct = [...new Set(orderIds)];
   const found = new Map<string, string | null>();
+  const decided = new Set<string>();
   for (const chunk of chunkIds(distinct)) {
-    for (const row of await db.select({ id: orders.id, assigneeId: orders.assigneeId }).from(orders).where(inArray(orders.id, chunk)).all()) found.set(row.id, row.assigneeId);
+    for (const row of await db.select({ id: orders.id, assigneeId: orders.assigneeId, status: orders.status }).from(orders).where(inArray(orders.id, chunk)).all()) {
+      found.set(row.id, row.assigneeId);
+      if (!(WAITING_STATUSES as readonly string[]).includes(row.status)) decided.add(row.id);
+    }
   }
   const now = new Date().toISOString();
-  const moves = distinct.filter((id) => found.has(id) && (to === "rule" || found.get(id) !== to));
+  const moves = distinct.filter((id) => found.has(id) && !decided.has(id) && (to === "rule" || found.get(id) !== to));
   const statements = moves.flatMap((orderId) =>
-    moveStatements(db, { orderId, from: found.get(orderId) ?? null, to: to === "rule" ? nextAssigneeSql(found.get(orderId)) : to, way: to === "rule" ? "automatic" : "manual", now, author }),
+    moveStatements(db, { orderId, from: found.get(orderId) ?? null, to: to === "rule" ? nextAssigneeSql(found.get(orderId)) : to, way: to === "rule" ? "automatic" : "manual", now, author, when: inArray(orders.status, WAITING_STATUSES) }),
   );
   const results = statements.length ? await db.batch(statements as [BatchStatement, ...BatchStatement[]]) : [];
   const moved = new Map(moves.map((orderId, i) => [orderId, changed(results[i * 2])]));
@@ -170,6 +176,7 @@ export async function assignOrders(
     ok: true,
     results: orderIds.map((orderId): AssignmentResult => {
       if (!found.has(orderId)) return { orderId, ok: false, reason: "order_not_found" };
+      if (decided.has(orderId)) return { orderId, ok: false, reason: "decided" };
       if (!moved.has(orderId)) return { orderId, ok: true, changed: false };
       return moved.get(orderId) ? { orderId, ok: true, changed: true } : to === "rule" ? { orderId, ok: true, changed: false } : { orderId, ok: false, reason: "changed" };
     }),

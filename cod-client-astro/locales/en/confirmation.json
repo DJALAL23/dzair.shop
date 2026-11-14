@@ -240,6 +240,7 @@
     },
     "history": "Assignment history",
     "changed": "This order was reassigned in the meantime. Reload to see who has it.",
+    "decided": "This order is already confirmed or cancelled, so it stays with whoever handled it.",
     "error": "Couldn't save. Try again.",
     "today_at": "today at {time}",
     "tomorrow_at": "tomorrow at {time}"
@@ -257,6 +258,8 @@
     "given_other": "{count} orders assigned",
     "not_moved_one": "{count} order was reassigned by someone else in the meantime and was skipped",
     "not_moved_other": "{count} orders were reassigned by someone else in the meantime and were skipped",
+    "decided_one": "{count} order was already confirmed or cancelled, so it stays with whoever handled it",
+    "decided_other": "{count} orders were already confirmed or cancelled, so they stay with whoever handled them",
     "queue_filters": {
       "unassigned": "New orders not assigned yet",
       "needs_manager": "Orders skipped too many times",

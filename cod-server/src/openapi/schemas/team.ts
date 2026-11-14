@@ -90,6 +90,6 @@ export const AssignmentResultSchema = z
     orderId: z.string(),
     ok: z.boolean(),
     changed: z.boolean().optional().openapi({ description: "False when the order was already there (or the rule found nobody else)" }),
-    reason: z.enum(["order_not_found", "changed"]).optional().openapi({ description: "`changed`: the order changed hands meanwhile; read it again" }),
+    reason: z.enum(["order_not_found", "decided", "changed"]).optional().openapi({ description: "`decided`: the order was already confirmed or cancelled, so who handled it stays as it is. `changed`: the order changed hands or was decided meanwhile; read it again" }),
   })
   .openapi("AssignmentResult");

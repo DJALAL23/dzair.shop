@@ -48,6 +48,8 @@ async function render(attr: Record<string, unknown>) {
   return host.textContent ?? "";
 }
 
+const sheetSection = (title: string) => [...document.querySelectorAll('[role="dialog"] section')].find((section) => section.querySelector("h3")?.textContent === title)?.textContent ?? "";
+
 async function openDetails() {
   const button = [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("View details"));
   expect(button, "the View details button").toBeTruthy();
@@ -68,10 +70,26 @@ describe("where an order came from, on the order page", () => {
     expect(text).not.toContain("Earlier visit");
 
     const panel = await openDetails();
-    expect(panel).toContain("Earlier visit");
-    expect(panel).toContain("Product · robe-qa");
-    expect(panel).toContain("This visit");
-    expect(panel).toContain("How the source is decided");
+    const answer = sheetSection("Source");
+    expect(answer).toContain("Google search");
+    expect(answer).toContain("This is where the shopper came from, 2 days before ordering. They came back directly to order, and coming back directly never takes the credit away.");
+    expect(answer).toContain("Product · robe-qa");
+    const path = sheetSection("How the shopper got here");
+    expect(path).toContain("Direct visit");
+    expect(path).toContain("Ordered");
+    expect(path).not.toContain("robe-qa");
+    expect(panel.indexOf("Google search")).toBeLessThan(panel.indexOf("How the shopper got here"));
+    expect(sheetSection("How the source is decided")).toContain("The last ad the shopper clicked, if it was at most 7 days before ordering.");
+    expect(sheetSection("How the source is decided")).toContain("the last site or app that brought them, at most 30 days before.");
+  });
+
+  it("says plainly why a direct visit is the source when nothing recent brought the shopper", async () => {
+    await render(attribution({}));
+    await openDetails();
+    const answer = sheetSection("Source");
+    expect(answer).toContain("Direct visit");
+    expect(answer).toContain("No recent ad or other site brought the shopper: they came straight to the store.");
+    expect(answer).toContain("Typed the address");
   });
 
   it("starts the journey with the first visit when it is another visit", async () => {
@@ -103,10 +121,12 @@ describe("where an order came from, on the order page", () => {
     expect(text).toContain("Reel 1 · Instagram · Reels");
     expect(text).not.toContain("Credited");
 
-    const panel = await openDetails();
-    expect(panel).toContain("Ad credited");
-    expect(panel).toContain("Summer");
-    expect(panel).toContain("The shopper ordered in this same visit.");
+    await openDetails();
+    const answer = sheetSection("Source");
+    expect(answer).toContain("Instagram ad");
+    expect(answer).toContain("The shopper clicked this ad and ordered in the same visit, so it gets the credit.");
+    expect(answer).toContain("Summer");
+    expect(document.body.textContent).not.toContain("How the shopper got here");
   });
 
   it("names a visit from an AI assistant", async () => {

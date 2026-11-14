@@ -256,6 +256,7 @@
     },
     "history": "Historique d'attribution",
     "changed": "Cette commande a été réattribuée entre-temps. Rechargez pour voir qui l'a.",
+    "decided": "Cette commande est déjà confirmée ou annulée : elle reste à la personne qui l'a traitée.",
     "error": "Impossible d'enregistrer. Réessayez.",
     "today_at": "aujourd'hui à {time}",
     "tomorrow_at": "demain à {time}"
@@ -277,6 +278,9 @@
     "not_moved_one": "{count} commande a été réattribuée par quelqu'un d'autre entre-temps et a été ignorée",
     "not_moved_many": "{count} commandes ont été réattribuées par quelqu'un d'autre entre-temps et ont été ignorées",
     "not_moved_other": "{count} commandes ont été réattribuées par quelqu'un d'autre entre-temps et ont été ignorées",
+    "decided_one": "{count} commande était déjà confirmée ou annulée : elle reste à la personne qui l'a traitée",
+    "decided_many": "{count} commandes étaient déjà confirmées ou annulées : elles restent aux personnes qui les ont traitées",
+    "decided_other": "{count} commandes étaient déjà confirmées ou annulées : elles restent aux personnes qui les ont traitées",
     "queue_filters": {
       "unassigned": "Nouvelles commandes pas encore attribuées",
       "needs_manager": "Commandes sautées trop de fois",

@@ -478,7 +478,7 @@
     "title": "Source",
     "column": "Source",
     "unknown": "Source unknown",
-    "unknown_hint": "The shopper's browser kept no record of the visit (cookies blocked or cleared, or a private window), the order was placed before the current tracking, or the theme doesn't send where shoppers come from yet.",
+    "unknown_hint": "We have no record of how the shopper arrived. Usually their browser blocked or cleared it, or they used a private window. It can also be an order from before source tracking, or a theme that doesn't share it yet.",
     "entered_note": "Entered by your team, so there is no shopper visit to show.",
     "headline": {
       "paid": "{network} ad",
@@ -507,10 +507,6 @@
       "other": "Other",
       "snapchat": "Snapchat"
     },
-    "ad_title": "Ad credited",
-    "ad_hint": "The last ad the shopper clicked, at most 7 days before ordering.",
-    "visit_title": "This visit",
-    "visit_hint": "How the shopper came to the store when they ordered.",
     "direct_hint": "Typed the address, used a bookmark, or opened a link from an app that doesn't say where it came from (WhatsApp often doesn't).",
     "fact": {
       "campaign": "Campaign",
@@ -540,11 +536,7 @@
       "unknown": "Source unknown",
       "ai": "AI assistants"
     },
-    "same_visit": "The shopper ordered in this same visit.",
-    "earlier_title": "Earlier visit",
-    "earlier_hint": "Where the shopper came from before coming back directly. A direct return never takes the credit from it for 30 days.",
     "first_title": "First visit",
-    "first_hint": "How the shopper first found the store.",
     "page": {
       "home": "Home page",
       "catalog": "All products",
@@ -566,6 +558,17 @@
     "details": "View details",
     "details_title": "Where this order came from",
     "how_title": "How the source is decided",
-    "how_body": "The last ad the shopper clicked, up to 7 days before ordering, is the source. Without one, it is the visit they ordered in, unless they came directly: then it is the last visit that came from somewhere, up to 30 days before."
+    "why_ad": "The shopper clicked this ad {when}, so it gets the credit.",
+    "why_ad_same_visit": "The shopper clicked this ad and ordered in the same visit, so it gets the credit.",
+    "why_earlier": "This is where the shopper came from, {when}. They came back directly to order, and coming back directly never takes the credit away.",
+    "why_visit": "This brought the shopper to the store on the visit they ordered in.",
+    "why_direct": "No recent ad or other site brought the shopper: they came straight to the store.",
+    "how_intro": "The source is the first of these that applies:",
+    "how_ad_one": "The last ad the shopper clicked, if it was at most {count} day before ordering.",
+    "how_ad_other": "The last ad the shopper clicked, if it was at most {count} days before ordering.",
+    "how_visit": "Otherwise, the site or app that brought them on the visit they ordered in.",
+    "how_earlier_one": "If they came back directly, the last site or app that brought them, at most {count} day before.",
+    "how_earlier_other": "If they came back directly, the last site or app that brought them, at most {count} days before.",
+    "how_direct": "If nothing brought them, a direct visit."
   }
 }

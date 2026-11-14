@@ -7,6 +7,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { drizzle } from "drizzle-orm/d1";
 import { eq, sql } from "drizzle-orm";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
@@ -175,6 +176,51 @@ describe("a manager gives orders out", () => {
     await assignOrders(d1.db, [id], "u-karim", MANAGER);
     const again = await assignOrders(d1.db, [id, "o-missing"], "u-karim", MANAGER);
     expect(again).toEqual({ ok: true, results: [{ orderId: id, ok: true, changed: false }, { orderId: "o-missing", ok: false, reason: "order_not_found" }] });
+    expect(await assignments(id)).toHaveLength(1);
+  });
+
+  it("keeps who handled an order once it is confirmed or cancelled, and still gives one whose customer did not answer", async () => {
+    await rule("in_turn");
+    await team(["u-samira", false, null], ["u-karim", true, null]);
+    const samira = staff("u-samira", "Samira");
+    const [confirmed, cancelled, unreachable] = [await dashboardOrder(), await dashboardOrder(), await dashboardOrder()];
+    await assignOrders(d1.db, [confirmed, cancelled, unreachable], "u-samira", MANAGER);
+    await updateOrderStatus(d1.db, confirmed, "confirmed", samira);
+    await updateOrderStatus(d1.db, cancelled, "cancelled", samira);
+    await updateOrderStatus(d1.db, unreachable, "unreachable", samira);
+    const handovers = (await assignments(confirmed)).length;
+
+    expect(await assignOrders(d1.db, [confirmed, cancelled, unreachable], "u-karim", MANAGER)).toEqual({
+      ok: true,
+      results: [
+        { orderId: confirmed, ok: false, reason: "decided" },
+        { orderId: cancelled, ok: false, reason: "decided" },
+        { orderId: unreachable, ok: true, changed: true },
+      ],
+    });
+    for (const to of [null, "rule"] as const) expect(await assignOrders(d1.db, [confirmed], to, MANAGER)).toEqual({ ok: true, results: [{ orderId: confirmed, ok: false, reason: "decided" }] });
+    expect([await assignee(confirmed), await assignee(cancelled), await assignee(unreachable)]).toEqual(["u-samira", "u-samira", "u-karim"]);
+    expect(await assignments(confirmed)).toHaveLength(handovers);
+  });
+
+  it("leaves an order confirmed while it was being given with whoever confirmed it", async () => {
+    await team(["u-samira", false, null], ["u-karim", false, null]);
+    const id = await dashboardOrder();
+    await assignOrders(d1.db, [id], "u-samira", MANAGER);
+    const confirmedMeanwhile = new Proxy(d1.raw, {
+      get(target, key) {
+        if (key === "batch")
+          return async (statements: D1PreparedStatement[]) => {
+            await target.prepare("UPDATE orders SET status = 'confirmed' WHERE id = ?").bind(id).run();
+            return target.batch(statements);
+          };
+        const value = (target as never)[key] as unknown;
+        return typeof value === "function" ? (value as (...a: unknown[]) => unknown).bind(target) : value;
+      },
+    });
+
+    expect(await assignOrders(drizzle(confirmedMeanwhile as D1Database, { schema }), [id], "u-karim", MANAGER)).toEqual({ ok: true, results: [{ orderId: id, ok: false, reason: "changed" }] });
+    expect(await assignee(id)).toBe("u-samira");
     expect(await assignments(id)).toHaveLength(1);
   });
 
