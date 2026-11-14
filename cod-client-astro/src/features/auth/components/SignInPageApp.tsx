@@ -11,7 +11,8 @@ import GateSpinner from "@/features/auth/components/GateSpinner";
  */
 export function SignInPageApp() {
   const [state, setState] = useState<"pending" | "anonymous">("pending");
-  const next = new URLSearchParams(window.location.search).get("next");
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next");
 
   useEffect(() => {
     let alive = true;
@@ -35,5 +36,5 @@ export function SignInPageApp() {
       <GateSpinner />
     );
   }
-  return <SignInForm next={next} />;
+  return <SignInForm next={next} turnedOff={params.has("turned_off")} />;
 }

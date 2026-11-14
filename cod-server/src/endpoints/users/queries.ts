@@ -1,14 +1,13 @@
 /**
  * Users Database Queries
  *
- * Pure reads + API-key rotation are re-exported from cod-shared.
- * Writes that invoke the scope cache (createUser, updateUser, grantScope,
- * revokeScope) stay here because `clearScopeCache` is server-only.
+ * Pure reads + API-key rotation are re-exported from cod-shared; the writes
+ * live here. Every request reads the caller's role, status and permissions
+ * afresh, so a change applies from their next request.
  */
 
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne, or, sql } from "drizzle-orm";
 import { users, userScopes, accounts } from "@/db/schema";
-import { clearScopeCache } from "@/rbac/permissions";
 import { getDb } from "@/db";
 
 import {
@@ -20,6 +19,19 @@ import {
 export { getAllUsers, getUserById, rotateApiKey };
 
 type Database = ReturnType<typeof getDb>;
+type BatchStatement = Parameters<Database["batch"]>[0][number];
+
+/** Five values a row; D1 binds at most 100 per statement. */
+const SCOPE_ROWS_PER_INSERT = 19;
+
+/** The inserts that give a member these permissions, each under D1's limit. */
+function insertScopes(db: Database, rows: ReadonlyArray<typeof userScopes.$inferInsert>): BatchStatement[] {
+  const statements: BatchStatement[] = [];
+  for (let start = 0; start < rows.length; start += SCOPE_ROWS_PER_INSERT) {
+    statements.push(db.insert(userScopes).values(rows.slice(start, start + SCOPE_ROWS_PER_INSERT)));
+  }
+  return statements;
+}
 
 /**
  * Create new user with credential account + initial scope assignment.
@@ -43,8 +55,6 @@ export async function createUser(
 ) {
   const nowDate = new Date();
   const nowIso = nowDate.toISOString();
-
-  type BatchStatement = Parameters<Database["batch"]>[0][number];
 
   // Batch all inserts together (1 round-trip instead of 3)
   const statements: BatchStatement[] = [
@@ -75,19 +85,8 @@ export async function createUser(
     }),
   ];
 
-  if (userData.role !== "admin" && initialScopes.length > 0) {
-    statements.push(
-      db.insert(userScopes).values(
-        initialScopes.map(scope => ({
-          id: crypto.randomUUID(),
-          userId: userData.id,
-          scope,
-          grantedBy,
-          grantedAt: nowIso,
-        }))
-      )
-    );
-  }
+  const scopes = userData.role === "admin" ? [] : [...new Set(initialScopes)];
+  statements.push(...insertScopes(db, scopes.map((scope) => ({ id: crypto.randomUUID(), userId: userData.id, scope, grantedBy, grantedAt: nowIso }))));
 
   await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
 
@@ -98,7 +97,7 @@ export async function createUser(
     name: userData.name,
     role: userData.role,
     status: userData.status,
-    scopes: userData.role === "admin" ? ["*"] : initialScopes,
+    scopes: userData.role === "admin" ? ["*"] : scopes,
     emailVerified: true,
     language: userData.language ?? "en",
     apiKey: userData.apiKey,
@@ -108,7 +107,10 @@ export async function createUser(
 }
 
 /**
- * Update user information
+ * Changes a member. A change that would leave the store without an active
+ * admin changes nothing and returns null; it is decided in the same
+ * statement as the write, so two admins turning each other off at once
+ * cannot both succeed.
  */
 export async function updateUser(
   db: Database,
@@ -120,19 +122,34 @@ export async function updateUser(
     status?: "active" | "inactive";
   }
 ) {
-  await db
+  const takesAdminAway = updates.role === "staff" || updates.status === "inactive";
+  const anotherAdmin = sql`exists (select 1 from users o where o.id <> ${userId} and o.role = 'admin' and o.status = 'active')`;
+  const changed = await db
     .update(users)
-    .set({
-      ...updates,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, userId));
+    .set({ ...updates, updatedAt: new Date() })
+    .where(takesAdminAway ? and(eq(users.id, userId), or(ne(users.role, "admin"), ne(users.status, "active"), anotherAdmin)) : eq(users.id, userId))
+    .returning({ id: users.id });
+  return changed.length > 0 ? getUserById(db, userId) : null;
+}
 
-  if (updates.role) {
-    clearScopeCache(userId);
-  }
-
-  return getUserById(db, userId);
+/**
+ * Gives a member exactly these permissions, in one transaction: the ones
+ * not listed are taken away, the ones they kept keep who granted them and
+ * when. Says which were granted and which revoked.
+ */
+export async function setScopes(db: Database, userId: string, scopes: readonly string[], grantedBy: string) {
+  const wanted = [...new Set(scopes)];
+  const current = await db
+    .select({ scope: userScopes.scope, grantedBy: userScopes.grantedBy, grantedAt: userScopes.grantedAt })
+    .from(userScopes)
+    .where(eq(userScopes.userId, userId));
+  const held = new Map(current.map((row) => [row.scope, row]));
+  const granted = wanted.filter((scope) => !held.has(scope));
+  const revoked = [...held.keys()].filter((scope) => !wanted.includes(scope));
+  const now = new Date().toISOString();
+  const rows = wanted.map((scope) => ({ id: crypto.randomUUID(), userId, scope, grantedBy: held.get(scope)?.grantedBy ?? grantedBy, grantedAt: held.get(scope)?.grantedAt ?? now }));
+  await db.batch([db.delete(userScopes).where(eq(userScopes.userId, userId)), ...insertScopes(db, rows)] as [BatchStatement, ...BatchStatement[]]);
+  return { granted, revoked };
 }
 
 /**
@@ -162,7 +179,6 @@ export async function grantScope(
     grantedAt: new Date(Date.now()).toISOString(),
   });
 
-  clearScopeCache(userId);
   return getUserById(db, userId);
 }
 
@@ -178,6 +194,5 @@ export async function revokeScope(
     .delete(userScopes)
     .where(and(eq(userScopes.userId, userId), eq(userScopes.scope, scope)));
 
-  clearScopeCache(userId);
   return getUserById(db, userId);
 }

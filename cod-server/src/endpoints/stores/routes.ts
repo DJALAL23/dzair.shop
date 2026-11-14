@@ -3,7 +3,8 @@
  *
  * Dashboard endpoints for reading and updating the store's own settings.
  * Single-tenant: the store is resolved from the D1 database, not from the
- * path. All routes are admin-only. What an App sets up is under /api/apps.
+ * path. Admin-only, except the summary every signed-in member sees in the
+ * dashboard frame. What an App sets up is under /api/apps.
  *
  * Not to be confused with /api/store/* — the public storefront API.
  * Built with defineRoute() — the standard route-builder pattern.
@@ -16,7 +17,7 @@ import * as handlers from "./handlers";
 import { registerTranslationRoutes } from "../translations/routes";
 import { getStore } from "../../../../cod-shared/queries/stores";
 import { updateStoreSchema } from "./validation";
-import { StoreSchema, SuccessResponseSchema } from "@/openapi/schemas";
+import { StoreSchema, StoreSummarySchema, SuccessResponseSchema } from "@/openapi/schemas";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -54,6 +55,24 @@ const getMyStoreRoute = defineRoute({
   handler: handlers.getMyStore,
 });
 
+const getStoreSummaryRoute = defineRoute({
+  method: "get",
+  path: "/me/summary",
+  auth: "api-key",
+  tags: ["Store Settings"],
+  summary: "Get the store's name and logo",
+  description:
+    "The store's name, storefront domain and logo, for anyone signed in, whatever their permissions: what the dashboard frame shows every member.",
+  operationId: "getStoreSummary",
+  responses: {
+    200: {
+      description: "The store's name, domain and logo",
+      content: jsonContent(SuccessResponseSchema(StoreSummarySchema)),
+    },
+  },
+  handler: handlers.getStoreSummary,
+});
+
 const updateMyStoreRoute = defineRoute({
   method: "patch",
   path: "/me",
@@ -78,6 +97,7 @@ const updateMyStoreRoute = defineRoute({
 const router = new OpenAPIHono<AppContext>();
 
 router.openapi(getMyStoreRoute.route, getMyStoreRoute.handler);
+router.openapi(getStoreSummaryRoute.route, getStoreSummaryRoute.handler);
 router.openapi(updateMyStoreRoute.route, updateMyStoreRoute.handler);
 
 // The store's own translatable text (SEO, the currency symbol) — ADR 0005.

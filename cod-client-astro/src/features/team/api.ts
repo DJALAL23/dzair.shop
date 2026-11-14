@@ -82,12 +82,14 @@ export async function createTeamMember(body: CreateTeamMemberBody) {
   } satisfies CreateTeamMemberResult;
 }
 
-export function grantTeamMemberScope(userId: string, scope: string) {
-  return apiFetch<DataEnvelope<TeamMember>>(`/api/users/${encodeURIComponent(userId)}/scopes`, json({ method: "POST", body: JSON.stringify({ scope }) }));
+/** Gives the member exactly these permissions, all in one save. */
+export async function setTeamMemberScopes(userId: string, scopes: readonly string[]) {
+  return (await apiFetch<DataEnvelope<TeamMember>>(`/api/users/${encodeURIComponent(userId)}/scopes`, json({ method: "PUT", body: JSON.stringify({ scopes }) }))).data;
 }
 
-export function revokeTeamMemberScope(userId: string, scope: string) {
-  return apiFetch<DataEnvelope<TeamMember>>(`/api/users/${encodeURIComponent(userId)}/scopes/${encodeURIComponent(scope)}`, { method: "DELETE" });
+/** Turns the member's access off, or back on. */
+export async function setTeamMemberStatus(userId: string, status: TeamStatus) {
+  return (await apiFetch<DataEnvelope<TeamMember>>(`/api/users/${encodeURIComponent(userId)}`, json({ method: "PATCH", body: JSON.stringify({ status }) }))).data;
 }
 
 export async function rotateTeamMemberApiKey(userId: string) {

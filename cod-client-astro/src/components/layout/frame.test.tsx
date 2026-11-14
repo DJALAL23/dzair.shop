@@ -18,7 +18,7 @@ const session = vi.hoisted(() => {
 });
 vi.mock("@/lib/session", () => session);
 
-const settings = vi.hoisted(() => ({ getMyStore: vi.fn() }));
+const settings = vi.hoisted(() => ({ getStoreSummary: vi.fn() }));
 vi.mock("@/features/settings/api", () => settings);
 
 let FrameSidebar: typeof import("./frame").FrameSidebar;
@@ -28,7 +28,7 @@ let storeSummaryChanged: typeof import("@/features/settings/store-summary").stor
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const admin = { user: { id: "u1", name: "Amina", email: "amina@example.com" }, role: "admin" as const, scopes: [] };
-const store = { id: "s1", name: "Maysa", domain: "maysashop.online", logo: null };
+const store = { name: "Maysa", domain: "maysashop.online", logo: null };
 
 let root: Root;
 let host: HTMLDivElement;
@@ -42,7 +42,7 @@ beforeEach(async () => {
   session.fetchIdentity.mockReset().mockResolvedValue(admin);
   session.knownIdentity.mockReset().mockReturnValue(admin);
   session.watchers.clear();
-  settings.getMyStore.mockReset().mockResolvedValue(store);
+  settings.getStoreSummary.mockReset().mockResolvedValue(store);
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -129,8 +129,34 @@ describe("the dashboard frame", () => {
     root = createRoot(host);
     await mount(<FrameSidebar />, "/orders");
 
-    expect(settings.getMyStore).toHaveBeenCalledTimes(1);
+    expect(settings.getStoreSummary).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain("Maysa");
+  });
+
+  it("shows every member the store they work in, its settings opening for admins only", async () => {
+    const staff = { ...admin, role: "staff" as const, scopes: ["orders:read_assigned"] };
+    session.knownIdentity.mockReturnValue(staff);
+    session.fetchIdentity.mockResolvedValue(staff);
+    await mount(<FrameSidebar />, "/orders");
+
+    expect(host.textContent).toContain("Maysa");
+    expect(host.textContent).toContain("maysashop.online");
+    expect(host.querySelector('img[alt="CodFlow"], a[aria-label="CodFlow"]')).toBeNull();
+    expect(host.querySelector('a[href="/settings"]')).toBeNull();
+
+    act(() => root.unmount());
+    root = createRoot(host);
+    session.knownIdentity.mockReturnValue(admin);
+    session.fetchIdentity.mockResolvedValue(admin);
+    await mount(<FrameSidebar />, "/orders");
+    expect(host.querySelector('a[href="/settings"][aria-label="Maysa"]')).not.toBeNull();
+  });
+
+  it("holds the store's place while it is read, and shows no other brand", async () => {
+    settings.getStoreSummary.mockReturnValue(new Promise(() => {}));
+    await mount(<FrameSidebar />, "/orders");
+    expect(host.querySelector("img")).toBeNull();
+    expect(host.textContent).not.toMatch(/codflow/i);
   });
 
   it("shows a store saved in Settings without reading it again", async () => {

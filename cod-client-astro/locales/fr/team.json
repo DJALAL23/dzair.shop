@@ -55,7 +55,7 @@
   "api_key_revoked": "Clé API révoquée avec succès",
   "api_key_revoke_failed": "Échec de la révocation de la clé API",
   "invite_dialog": {
-    "title": "Inviter un nouvel utilisateur",
+    "title": "Inviter un membre de l'équipe",
     "name": "Nom",
     "name_placeholder": "Entrez le nom de l'utilisateur",
     "email": "E-mail",
@@ -64,10 +64,10 @@
     "cancel": "Annuler",
     "send_invite": "Envoyer l'invitation",
     "sending": "Envoi en cours...",
-    "success": "Invitation envoyée avec succès",
+    "success": "Invitation envoyée",
     "error": "Échec de l'envoi de l'invitation",
     "validation_error": "Veuillez remplir tous les champs obligatoires",
-    "description": "Intégration d'un nouveau membre",
+    "description": "Ajoutez quelqu'un à votre équipe et choisissez ce qu'il peut faire.",
     "role_help": "Un administrateur peut tout faire. Un employé n’a que les permissions cochées ci-dessous.",
     "language_help": "La langue de l’e-mail d’invitation. Elle ne change pas la langue du tableau de bord."
   },
@@ -139,7 +139,9 @@
       "team.receiving_changed": "A activé ou arrêté les nouvelles commandes d'un membre",
       "team.settings_updated": "A changé la répartition des nouvelles commandes",
       "team.pay_set": "A fixé la paie d'un membre",
-      "team.pay_removed": "A supprimé un taux de paie"
+      "team.pay_removed": "A supprimé un taux de paie",
+      "user.deactivated": "A désactivé un membre",
+      "user.reactivated": "A réactivé un membre"
     },
     "table": {
       "action": "Action",
@@ -152,15 +154,17 @@
   },
   "scope_dialog": {
     "title": "Gérer les permissions",
-    "security_warning": "L'octroi de permissions étendues peut affecter la sécurité du système",
+    "security_warning": "Ne donnez à chacun que ce dont son travail a besoin.",
     "cancel": "Annuler",
     "save_changes": "Enregistrer les modifications",
     "saving": "Enregistrement...",
-    "success": "Permissions mises à jour avec succès",
+    "success": "Permissions enregistrées",
     "error": "Échec de la mise à jour des permissions",
-    "will_grant": "Accordera",
-    "will_revoke": "Révoquera",
-    "admin_full_access": "Les administrateurs disposent de toutes les permissions par défaut"
+    "will_grant": "Sera ajoutée",
+    "will_revoke": "Sera retirée",
+    "admin_full_access": "Les administrateurs peuvent tout faire dans la boutique : il n'y a rien à choisir.",
+    "select_all": "Tout sélectionner",
+    "clear_all": "Tout retirer"
   },
   "scope_categories": {
     "dashboard": "Tableau de bord",
@@ -205,7 +209,7 @@
     "n_selected_one": "{count} sélectionnée",
     "n_selected_many": "{count} sélectionnées",
     "n_selected_other": "{count} sélectionnées",
-    "admin_full_access": "Les administrateurs ont accès à toutes les fonctionnalités — aucune sélection de permissions nécessaire.",
+    "admin_full_access": "Les administrateurs peuvent tout faire dans la boutique : il n'y a rien à choisir.",
     "api_key_label": "Clé API",
     "temp_password_label": "Mot de passe temporaire",
     "api_key_warning": "Cette clé API ne sera plus affichée. Copiez-la maintenant et partagez-la de manière sécurisée avec le membre.",
@@ -224,5 +228,21 @@
   "count_one": "{count} membre",
   "count_many": "{count} membres",
   "count_other": "{count} membres",
-  "scope_app": "{app} · {action}"
+  "scope_app": "{app} · {action}",
+  "member": {
+    "admin_everything": "Les administrateurs peuvent tout faire dans la boutique.",
+    "no_permissions": "Aucune permission pour l'instant. Ce membre peut se connecter, mais ne voit rien tant que vous ne lui en donnez pas.",
+    "access_title": "Accès",
+    "access_on": "Peut se connecter, et sa clé API fonctionne.",
+    "access_off": "Ne peut plus se connecter, et sa clé API est refusée. Ses commandes, son activité et sa paie sont conservées.",
+    "you": "C'est votre compte.",
+    "deactivate": "Désactiver",
+    "reactivate": "Réactiver",
+    "deactivate_title": "Désactiver {name} ?",
+    "deactivate_body": "Ce membre est déconnecté immédiatement et ne peut plus se connecter, et sa clé API cesse de fonctionner. Les commandes encore chez lui passent au reste de votre équipe de confirmation, ou attendent que vous les attribuiez. Son activité et sa paie sont conservées, et vous pouvez le réactiver à tout moment.",
+    "deactivated": "{name} est désactivé",
+    "reactivated": "{name} est de nouveau actif"
+  },
+  "error_own_account": "Vous ne pouvez pas désactiver votre propre compte ni retirer votre propre accès administrateur.",
+  "error_last_admin": "Votre boutique a besoin d'au moins un administrateur actif."
 }

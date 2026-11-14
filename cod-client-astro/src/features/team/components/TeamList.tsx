@@ -29,7 +29,7 @@ import {
   type TeamFilters,
   type TeamSortKey,
 } from "@/features/team/model";
-import { listAllTeamMembers, rotateTeamMemberApiKey } from "@/features/team/api";
+import { listAllTeamMembers, rotateTeamMemberApiKey, setTeamMemberStatus } from "@/features/team/api";
 import type { TeamMember } from "@/features/team/types";
 import { InviteDialog } from "@/features/team/components/InviteDialog";
 import { ScopeAssignmentDialog } from "@/features/team/components/ScopeAssignmentDialog";
@@ -162,11 +162,34 @@ export function TeamList() {
     }
   }
 
+  async function onAccess(member: TeamMember, status: TeamMember["status"]) {
+    if (
+      status === "inactive" &&
+      !(await confirm({
+        title: t("member.deactivate_title", { name: member.name }),
+        description: t("member.deactivate_body"),
+        confirmLabel: t("member.deactivate"),
+        tone: "danger",
+      }))
+    )
+      return;
+    try {
+      const updated = await setTeamMemberStatus(member.id, status);
+      setMembers((current) => current?.map((row) => (row.id === updated.id ? updated : row)) ?? current);
+      notify.success(t(status === "inactive" ? "member.deactivated" : "member.reactivated", { name: member.name }));
+    } catch (cause) {
+      setActionError(teamErrorMessage(cause, t));
+      notify.error(teamErrorMessage(cause, t));
+    }
+  }
+
   const rowActions = {
+    meId: identity?.user.id,
     onView: (item: TeamMember) =>
       window.location.assign(`/team/${encodeURIComponent(item.id)}`),
     onManageScopes: setScopeUser,
     onRotateApiKey: (item: TeamMember) => void onRotateApiKey(item),
+    onAccess: (item: TeamMember, status: TeamMember["status"]) => void onAccess(item, status),
   };
 
   return withHeader(

@@ -40,6 +40,24 @@ describe("apiFetch", () => {
     });
   });
 
+  it("sends a member an admin turned off to sign-in, which says why, and still fails the call", async () => {
+    const replace = vi.fn();
+    vi.stubGlobal("window", { location: { hostname: "localhost", replace } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "User account is inactive", code: "USER_INACTIVE" }), { status: 403 })));
+
+    await expect(apiFetch("/api/orders")).rejects.toMatchObject({ status: 403, code: "USER_INACTIVE" });
+    expect(replace).toHaveBeenCalledWith("/sign-in?turned_off=1");
+  });
+
+  it("leaves a member who only lacks a permission where they are", async () => {
+    const replace = vi.fn();
+    vi.stubGlobal("window", { location: { hostname: "localhost", replace } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "Insufficient permissions" }), { status: 403 })));
+
+    await expect(apiFetch("/api/orders")).rejects.toMatchObject({ status: 403 });
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("answers nothing for a 204, which has no body to read", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
 

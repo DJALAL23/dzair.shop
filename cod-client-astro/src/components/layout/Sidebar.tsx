@@ -4,7 +4,6 @@ import type { LucideIcon } from "lucide-react";
 import { useIdentity } from "@/features/auth/components/RequireAuth";
 import { cachedStoreSummary, readStoreSummary, watchStoreSummary, type StoreSummary } from "@/features/settings/store-summary";
 import { useT } from "@/i18n/react";
-import { Logo } from "@/components/brand/Logo";
 import { NewBadge } from "@/components/ui/new-badge";
 import {
   isCurrentPath,
@@ -13,35 +12,34 @@ import {
   type NavNode,
 } from "@/components/layout/nav";
 
-/** The store the merchant runs, and a way to open its storefront. Admins only: the store's record is theirs. */
+/** The store everyone on the team works in, and a way to open its storefront. Its settings open for admins. */
 function StoreBlock() {
   const identity = useIdentity();
-  const isAdmin = identity?.role === "admin";
-  const [store, setStore] = useState<StoreSummary | null>(() => (isAdmin ? cachedStoreSummary() : null));
+  const [store, setStore] = useState<StoreSummary | null>(() => cachedStoreSummary());
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) return;
     let alive = true;
     readStoreSummary().then(
       (summary) => {
         if (alive) setStore(summary);
       },
-      () => undefined,
+      () => {
+        if (alive) setFailed(true);
+      },
     );
     const stop = watchStoreSummary(setStore);
     return () => {
       alive = false;
       stop();
     };
-  }, [isAdmin]);
+  }, []);
 
-  if (!isAdmin || !store) {
+  if (!store) {
     return (
-      <div className="flex h-14 shrink-0 items-center px-5">
-        <a href="/" aria-label="CodFlow" className="rounded-md">
-          <Logo variant="dark" height={22} className="dark:hidden" />
-          <Logo variant="light" height={22} className="hidden dark:block" />
-        </a>
+      <div className="flex shrink-0 flex-col items-center gap-2 px-4 pb-4 pt-6" aria-hidden="true">
+        <span className={`size-12 rounded-2xl ${failed ? "" : "shimmer"}`} />
+        <span className={`h-5 w-24 rounded-md ${failed ? "" : "shimmer"}`} />
       </div>
     );
   }
@@ -49,18 +47,23 @@ function StoreBlock() {
   const words = store.name.split(/\s+/).filter(Boolean);
   const latin = /^[A-Za-z]/.test(store.name.trim());
   const initials = (latin ? words.slice(0, 2) : words.slice(0, 1)).map((word) => word.charAt(0).toUpperCase()).join("");
+  const mark = store.logo ? (
+    <img src={store.logo.url} alt="" className="size-12 rounded-2xl bg-card object-contain shadow-card" />
+  ) : (
+    <span className="grid size-12 place-items-center rounded-2xl bg-[var(--tone-magic-bg)] text-base font-semibold text-[var(--tone-magic-text)] shadow-[inset_0_0_0_1px_var(--tone-magic-border)]">
+      {initials || "·"}
+    </span>
+  );
 
   return (
     <div className="flex shrink-0 flex-col items-center gap-2 px-4 pb-4 pt-6 text-center">
-      <a href="/settings" className="rounded-2xl" aria-label={store.name}>
-        {store.logo ? (
-          <img src={store.logo.url} alt="" className="size-12 rounded-2xl bg-card object-contain shadow-card" />
-        ) : (
-          <span className="grid size-12 place-items-center rounded-2xl bg-[var(--tone-magic-bg)] text-base font-semibold text-[var(--tone-magic-text)] shadow-[inset_0_0_0_1px_var(--tone-magic-border)]">
-            {initials || "·"}
-          </span>
-        )}
-      </a>
+      {identity?.role === "admin" ? (
+        <a href="/settings" className="rounded-2xl" aria-label={store.name}>
+          {mark}
+        </a>
+      ) : (
+        mark
+      )}
       <p className="max-w-full truncate text-sm font-semibold text-foreground">{store.name}</p>
       {store.domain && (
         <a

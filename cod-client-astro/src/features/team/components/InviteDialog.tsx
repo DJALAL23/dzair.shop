@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
-import { Check, ChevronDown, ChevronUp, Copy, MailCheck, UserPlus } from "lucide-react";
+import { Check, Copy, MailCheck, UserPlus } from "lucide-react";
 import { Alert, Button, Dialog, Field, Input, Select } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
-import { SCOPE_CATEGORIES } from "../../../../../cod-shared/rbac/scopes";
 import { createTeamMember } from "@/features/team/api";
-import { scopeLabel, teamErrorMessage } from "@/features/team/model";
+import { teamErrorMessage } from "@/features/team/model";
 import type { TeamMemberFormValues, TeamRole } from "@/features/team/types";
+import { PermissionDialogFooter, PermissionPicker, TeamDialogTitle } from "@/features/team/components/PermissionPicker";
 
 interface Props {
   open: boolean;
@@ -16,8 +16,6 @@ interface Props {
 
 type DialogState = "form" | "success";
 
-const FORM_ID = "invite-member-form";
-
 const EMPTY_FORM: TeamMemberFormValues = {
   name: "",
   email: "",
@@ -25,33 +23,6 @@ const EMPTY_FORM: TeamMemberFormValues = {
   scopes: [],
   language: "en",
 };
-
-function GroupCheckbox({
-  checked,
-  indeterminate,
-  disabled,
-  onChange,
-}: {
-  checked: boolean;
-  indeterminate: boolean;
-  disabled?: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = indeterminate && !checked;
-  }, [indeterminate, checked]);
-  return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      onChange={(event) => onChange(event.currentTarget.checked)}
-      disabled={disabled}
-      className="size-4 accent-primary"
-    />
-  );
-}
 
 export function InviteDialog({ open, onClose, onSuccess }: Props) {
   const t = useT("team");
@@ -68,7 +39,6 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
   const [copied, setCopied] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [form, setForm] = useState<TeamMemberFormValues>(EMPTY_FORM);
-  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -77,7 +47,6 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
   useEffect(() => {
     if (open) {
       setForm(EMPTY_FORM);
-      setExpandedGroups([]);
       setCreatedApiKey("");
       setCreatedTempPassword("");
       setCreatedName("");
@@ -93,30 +62,6 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
 
   function update<K extends keyof TeamMemberFormValues>(key: K, value: TeamMemberFormValues[K]) {
     setForm((current) => ({ ...current, [key]: value }));
-  }
-
-  function toggleGroup(key: string) {
-    setExpandedGroups((current) =>
-      current.includes(key) ? current.filter((k) => k !== key) : [...current, key],
-    );
-  }
-
-  function toggleScope(scope: string, checked: boolean) {
-    setForm((current) => ({
-      ...current,
-      scopes: checked
-        ? [...current.scopes, scope]
-        : current.scopes.filter((s) => s !== scope),
-    }));
-  }
-
-  function toggleAllInGroup(scopes: readonly string[], allChecked: boolean) {
-    setForm((current) => ({
-      ...current,
-      scopes: allChecked
-        ? current.scopes.filter((s) => !scopes.includes(s))
-        : [...new Set([...current.scopes, ...scopes])],
-    }));
   }
 
   async function copyText(value: string, setter: (v: boolean) => void, successMessage: string) {
@@ -160,7 +105,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
       setEmailSent(result.emailSent);
       setEmailError(result.emailError);
       setDialogState("success");
-      notify.success(t("invite_dialog.success"));
+      notify.success(result.emailSent ? t("invite_dialog.success") : t("invite_dialog_extra.success_title"));
     } catch (cause) {
       setError(teamErrorMessage(cause, t));
       notify.error(t("invite_dialog.error"));
@@ -176,25 +121,22 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
       open={open}
       onClose={onClose}
       preventClose={loading}
-      icon={succeeded ? <MailCheck size={18} aria-hidden="true" /> : <UserPlus size={18} aria-hidden="true" />}
-      title={succeeded ? t("invite_dialog_extra.success_title") : t("invite_dialog.title")}
-      description={succeeded ? createdName : t("invite_dialog.description")}
+      title={
+        <TeamDialogTitle
+          icon={succeeded ? <MailCheck size={16} aria-hidden="true" /> : <UserPlus size={16} aria-hidden="true" />}
+          title={succeeded ? t("invite_dialog_extra.success_title") : t("invite_dialog.title")}
+          about={succeeded ? createdName : undefined}
+        />
+      }
+      description={succeeded ? undefined : t("invite_dialog.description")}
       initialFocusRef={nameRef}
+      className="max-w-2xl"
       footer={
         succeeded ? (
           <Button type="button" onClick={handleDone}>
             {t("rotate_key_dialog.done")}
           </Button>
-        ) : (
-          <>
-            <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
-              {t("invite_dialog.cancel")}
-            </Button>
-            <Button type="submit" form={FORM_ID} disabled={loading}>
-              {loading ? t("invite_dialog.sending") : t("invite_dialog.send_invite")}
-            </Button>
-          </>
-        )
+        ) : undefined
       }
     >
       {succeeded ? (
@@ -244,7 +186,7 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
           </Alert>
         </div>
       ) : (
-        <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <Alert tone="critical" role="alert">
               {error}
@@ -300,86 +242,22 @@ export function InviteDialog({ open, onClose, onSuccess }: Props) {
           {isAdmin ? (
             <Alert tone="info">{t("invite_dialog_extra.admin_full_access")}</Alert>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-foreground">{t("invite_dialog_extra.permissions_label")}</p>
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {t("invite_dialog_extra.n_selected", { count: form.scopes.length })}
-                </span>
+                <span className="text-xs font-semibold text-muted-foreground">{t("invite_dialog_extra.n_selected", { count: form.scopes.length })}</span>
               </div>
-              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-                {Object.entries(SCOPE_CATEGORIES).map(([key, group]) => {
-                  const isExpanded = expandedGroups.includes(key);
-                  const groupScopes = group.scopes as readonly string[];
-                  const checkedCount = groupScopes.filter((s) => form.scopes.includes(s)).length;
-                  const allChecked = checkedCount === groupScopes.length;
-                  const someChecked = checkedCount > 0 && !allChecked;
-                  return (
-                    <div key={key}>
-                      <div className="flex w-full items-center gap-2 px-4 py-3">
-                        <GroupCheckbox
-                          checked={allChecked}
-                          indeterminate={someChecked}
-                          disabled={loading}
-                          onChange={(checked) => toggleAllInGroup(groupScopes, checked)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => toggleGroup(key)}
-                          disabled={loading}
-                          className="flex min-h-8 flex-1 items-center justify-between gap-2 text-start"
-                        >
-                          <span className="text-sm font-semibold text-foreground">
-                            {t(`scope_categories.${key}`)}
-                          </span>
-                          <span className="inline-flex items-center gap-1.5">
-                            {checkedCount > 0 && (
-                              <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
-                                {checkedCount}/{groupScopes.length}
-                              </span>
-                            )}
-                            {isExpanded ? (
-                              <ChevronUp size={14} className="text-muted-foreground/60" />
-                            ) : (
-                              <ChevronDown size={14} className="text-muted-foreground/60" />
-                            )}
-                          </span>
-                        </button>
-                      </div>
-                      {isExpanded && (
-                        <div className="space-y-1 bg-muted/20 px-4 pb-3 pt-1">
-                          {groupScopes.map((scope) => {
-                                        return (
-                              <label
-                                key={scope}
-                                className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={form.scopes.includes(scope)}
-                                  onChange={(event) => toggleScope(scope, event.currentTarget.checked)}
-                                  disabled={loading}
-                                  className="size-4 accent-primary"
-                                />
-                                <span className="min-w-0">
-                                  <span className="block truncate text-sm font-medium text-foreground/90">
-                                    {scopeLabel(scope, t, apps)}
-                                  </span>
-                                  <span className="block truncate text-[11px] font-mono text-muted-foreground/50" dir="ltr">
-                                    {scope}
-                                  </span>
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <PermissionPicker selected={form.scopes} onChange={(scopes) => update("scopes", scopes)} disabled={loading} />
             </div>
           )}
+          <PermissionDialogFooter>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+              {t("invite_dialog.cancel")}
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? t("invite_dialog.sending") : t("invite_dialog.send_invite")}
+            </Button>
+          </PermissionDialogFooter>
         </form>
       )}
     </Dialog>

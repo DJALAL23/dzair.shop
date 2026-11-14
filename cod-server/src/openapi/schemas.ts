@@ -157,6 +157,7 @@ export {
   StoreLanguageSchema,
   StorefrontLanguageSchema,
   StoreSchema,
+  StoreSummarySchema,
   StorePixelConfigSchema,
   StoreProductImageSchema,
   StoreReviewStatsSchema,

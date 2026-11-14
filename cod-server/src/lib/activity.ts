@@ -125,6 +125,8 @@ export const ACTIONS = {
   USER_CREATED:            "user.created",
   USER_UPDATED:            "user.updated",
   USER_ROLE_CHANGED:       "user.role_changed",
+  USER_DEACTIVATED:        "user.deactivated",
+  USER_REACTIVATED:        "user.reactivated",
   USER_SCOPE_GRANTED:      "user.scope_granted",
   USER_SCOPE_REVOKED:      "user.scope_revoked",
 

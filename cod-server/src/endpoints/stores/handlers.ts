@@ -8,6 +8,7 @@ import { NotFoundError, SystemError, ValidationError } from "@/lib/errors/classe
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import type { z } from "@hono/zod-openapi";
 import { mediaDeliveryOf, mediaOf, releaseShown } from "@/lib/media";
+import { imageOf } from "../../../../cod-shared/media/views";
 
 export async function getMyStore(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
@@ -19,6 +20,12 @@ export async function getMyStore(c: Context<AppContext>) {
 
   const localeRows = await queries.listStoreLocales(db, store.id);
   return c.json({ success: true, data: toStoreSettings(store, localeRows, mediaDeliveryOf(c.env)) }, 200);
+}
+
+export async function getStoreSummary(c: Context<AppContext>) {
+  const store = await queries.getStore(getDb(c.env.DB));
+  if (!store) throw new NotFoundError("Store");
+  return c.json({ success: true, data: { name: store.name, domain: store.domain, logo: imageOf(store.logoKey, mediaDeliveryOf(c.env)) } }, 200);
 }
 
 export async function updateMyStore(c: Context<AppContext>) {

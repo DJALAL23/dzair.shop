@@ -1,4 +1,4 @@
-import { getMyStore, updateMyStore } from "./api";
+import { getStoreSummary, updateMyStore } from "./api";
 import type { MediaImage } from "../../../../cod-shared/media/model";
 import type { StoreConfig, UpdateStoreData } from "./types";
 
@@ -39,7 +39,7 @@ export function cachedStoreSummary(): StoreSummary | null {
  */
 export function readStoreSummary(): Promise<StoreSummary> {
   if (!read) {
-    const pending = getMyStore().then(remember);
+    const pending = getStoreSummary().then(remember);
     read = pending;
     pending.catch(() => {
       if (read === pending) read = null;

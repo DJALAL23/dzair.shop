@@ -44,9 +44,13 @@ _Avoid_: Superuser flag
 The two levers of staff power, recorded with who granted them. Revoking a scope nobody had succeeds silently.
 _Avoid_: Role editing (role is separate)
 
-**Scope Cache Invalidation**:
-Permission checks are cached for speed; every role or scope change clears that user's cache so new powers apply immediately.
+**Fresh Every Request**:
+Every request reads the caller's role, status and permissions from the database, so a change applies from their next request. Nothing is cached.
 _Avoid_: Eventual permissions, propagation delay
+
+**Permission Set**:
+`PUT /users/:id/scopes` gives a member exactly the listed permissions in one transaction; the dashboard saves this way. Only permissions the platform defines are accepted, never the `*` wildcard.
+_Avoid_: Bulk grant
 
 ### Credentials
 
@@ -81,6 +85,8 @@ Terms owned by neighboring contexts — use them, don't redefine them here:
 
 **Creation outranks the email**: A failing invite email (missing config, out of credits, provider outage) never fails or delays user creation — the outcome is reported, not raised.
 
-**Inactive Kills Access Instantly**: Flipping a member to `inactive` makes their API key rejected at the authentication gate before any scope check runs — the key remains valid-looking but is dead in practice.
+**Inactive Kills Access Instantly**: Flipping a member to `inactive` makes their API key and their dashboard token rejected at the authentication gate before any scope check runs (403 `USER_INACTIVE`). The dashboard's auth server refuses them a new session, and ends the one they have the next time it is checked. The key remains valid-looking but is dead in practice. Turning them back on restores the same key and permissions.
+
+**Never Locked Out**: An admin cannot turn off or demote their own account (`OWN_ACCOUNT`), and a change that would leave no active admin is refused (`LAST_ADMIN`), decided in the same statement as the write.
 
 **Self-service stops at identity, not power**: The auth server's own update-user endpoint accepts only `name`, `image`, and `language` — privileged additionalFields (`role`, `status`, `apiKey`) are `input: false`, so even a valid session cannot grant itself power. (Before that flag existed, a staff member could self-promote with `{"role":"admin"}` — fixed and regression-verified.)

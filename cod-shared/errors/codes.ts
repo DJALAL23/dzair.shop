@@ -209,6 +209,10 @@ export const ERROR_CODES = {
   USER_NOT_FOUND: "USER_NOT_FOUND",
   DUPLICATE_EMAIL: "DUPLICATE_EMAIL",
   INVALID_ROLE: "INVALID_ROLE",
+  /** An admin cannot turn off their own account or take away their own admin access. */
+  OWN_ACCOUNT: "OWN_ACCOUNT",
+  /** The store must keep at least one active admin. */
+  LAST_ADMIN: "LAST_ADMIN",
 
   // ============================================================================
   // BUSINESS LOGIC ERRORS - CONFIRMATION TEAM
