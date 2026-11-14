@@ -60,6 +60,7 @@ import {
 import type { AppDb } from "../db/client";
 import type { Author } from "../events/actor";
 import { recordEvent } from "../events/record";
+import { assignedOnCreate, assignmentOnCreate } from "../team/assign";
 import { orderSnapshot } from "../events/snapshots";
 import { deriveDescriptionPlain } from "./products";
 import { resolveDeliveryFee } from "./shipping-resolution";
@@ -1185,6 +1186,7 @@ export async function createStoreOrder(
         checkoutKey: data.checkoutKey ?? null,
         locale: data.locale,
         customFieldsJson: serializeCustomFieldAnswers(data.customFieldAnswers ?? []),
+        ...assignmentOnCreate(CHECKOUT, now),
       }),
     ];
 
@@ -1199,6 +1201,7 @@ export async function createStoreOrder(
     if (attribution) statements.push(db.insert(orderAttribution).values(attribution));
 
     statements.push(recordEvent(db, { type: "order.created", subjectId: id, orderId: id, occurredAt: now, ...CHECKOUT, data: { order: orderSnapshot(id) } }));
+    statements.push(assignedOnCreate(db, id, now, CHECKOUT));
 
     try {
       await db.batch(statements as [BatchStatement, ...BatchStatement[]]);

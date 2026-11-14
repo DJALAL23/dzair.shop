@@ -133,7 +133,7 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     store_pages: "Store pages", collections: "Collections", navigation: "Navigation",
     meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
     "whatsapp-button": "WhatsApp button", integrations: "Integrations", telegram: "Telegram",
-    "order-protection": "Order Protection",
+    "order-protection": "Order Protection", team: "Confirmation team", finance: "Finance",
   },
   fr: {
     dashboard: "Tableau de bord", orders: "Commandes", customers: "Clients",
@@ -145,7 +145,7 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     store_pages: "Pages de la boutique", collections: "Collections", navigation: "Navigation",
     meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
     "whatsapp-button": "Bouton WhatsApp", integrations: "Intégrations", telegram: "Telegram",
-    "order-protection": "Protection des commandes",
+    "order-protection": "Protection des commandes", team: "Équipe de confirmation", finance: "Finances",
   },
   ar: {
     dashboard: "لوحة التحكم", orders: "الطلبات", customers: "العملاء",
@@ -157,7 +157,7 @@ const DOMAIN_LABELS: Record<Lang, Record<string, string>> = {
     store_pages: "صفحات المتجر", collections: "المجموعات", navigation: "التنقل",
     meta: "Meta", dzverify: "DZVerify", turnstile: "Turnstile", sendili: "Sendili",
     "whatsapp-button": "زر واتساب", integrations: "التكاملات", telegram: "تيليغرام",
-    "order-protection": "حماية الطلبات",
+    "order-protection": "حماية الطلبات", team: "فريق التأكيد", finance: "المالية",
   },
 };
 
@@ -166,17 +166,18 @@ const ACTION_LABELS: Record<Lang, Record<string, string>> = {
     view: "view", read: "view", create: "create", update: "edit",
     delete: "delete", assign: "assign drivers", manage: "full control",
     dispatch: "dispatch to carriers", team: "team management",
+    read_assigned: "view their own only",
   },
   fr: {
     view: "consultation", read: "consultation", create: "création",
     update: "modification", delete: "suppression", assign: "attribution des livreurs",
     manage: "contrôle total", dispatch: "expédition vers transporteurs",
-    team: "gestion d'équipe",
+    team: "gestion d'équipe", read_assigned: "consultation des siennes seulement",
   },
   ar: {
     view: "عرض", read: "عرض", create: "إنشاء", update: "تعديل",
     delete: "حذف", assign: "تعيين سائقين", manage: "تحكم كامل",
-    dispatch: "إرسال لشركات التوصيل", team: "إدارة الفريق",
+    dispatch: "إرسال لشركات التوصيل", team: "إدارة الفريق", read_assigned: "عرض المسندة إليه فقط",
   },
 };
 

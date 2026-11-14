@@ -1,4 +1,4 @@
-import { Flag, Star } from "lucide-react";
+import { AlarmClock, Flag, Star, UserRound } from "lucide-react";
 import { useLocale, useT } from "@/i18n/react";
 import { listOf, useMatchName } from "@/features/apps/order-protection/words";
 import { relativeTime } from "@/lib/relative-time";
@@ -9,6 +9,7 @@ import { StageBadge } from "@/features/orders/components/StageBadge";
 import { OrderDelivery } from "@/features/orders/components/OrderDelivery";
 import { OrderRowActions } from "@/features/orders/components/OrderRowActions";
 import { OrderSource } from "@/features/orders/components/OrderSourceCard";
+import { callbackState, dayFromNow, storeClock } from "@/features/confirmation/model";
 
 interface RowProps {
   order: OrderListItem;
@@ -33,6 +34,51 @@ function Pick({ order, selection }: Pick<RowProps, "order" | "selection">) {
   );
 }
 
+const isWaiting = (order: OrderListItem) => order.status === "new" || order.status === "unreachable";
+
+/** When to call the customer back, on an order still waiting, in a few words: red once the time has come. */
+function CallbackChip({ order }: { order: OrderListItem }) {
+  const team = useT("confirmation");
+  const locale = useLocale();
+  if (!order.callbackAt || !isWaiting(order)) return null;
+  const due = callbackState(order.callbackAt) === "due";
+  const day = dayFromNow(order.callbackAt);
+  const when = due
+    ? team("order.callback_due")
+    : day === "today"
+      ? team("list.callback_today", { time: storeClock(order.callbackAt, locale) })
+      : day === "tomorrow"
+        ? team("list.callback_tomorrow", { time: storeClock(order.callbackAt, locale) })
+        : storeClock(order.callbackAt, locale, true);
+  return (
+    <span
+      title={team("order.callback")}
+      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
+        due ? "bg-[var(--tone-critical-bg)] text-[var(--tone-critical-text)]" : "bg-muted text-muted-foreground"
+      }`}
+    >
+      <AlarmClock size={11} aria-hidden="true" />
+      <span className="sr-only">{team("order.callback")}: </span>
+      {when}
+    </span>
+  );
+}
+
+/** Who on the confirmation team has the order, in one short line; "With nobody" while a waiting order is with no one. */
+function OrderAssignee({ order }: { order: OrderListItem }) {
+  const team = useT("confirmation");
+  if (order.assigneeName) {
+    return (
+      <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+        <UserRound size={12} className="shrink-0" aria-hidden="true" />
+        <span className="truncate">{team("order.with", { name: order.assigneeName })}</span>
+      </span>
+    );
+  }
+  if (!isWaiting(order)) return null;
+  return <span className="block text-xs font-medium text-[var(--tone-warning-text)]">{team("order.nobody")}</span>;
+}
+
 function OrderNumber({ order, className = "" }: { order: OrderListItem; className?: string }) {
   const t = useT("apps");
   const locale = useLocale();
@@ -55,7 +101,7 @@ function OrderNumber({ order, className = "" }: { order: OrderListItem; classNam
   );
 }
 
-export function OrderDesktopRow({ order, selection, selectable = false, ...actions }: RowProps & { selectable?: boolean }) {
+export function OrderDesktopRow({ order, selection, selectable = false, showAssignee = false, ...actions }: RowProps & { selectable?: boolean; showAssignee?: boolean }) {
   const locale = useLocale();
   return (
     <TableRow
@@ -75,12 +121,18 @@ export function OrderDesktopRow({ order, selection, selectable = false, ...actio
           {relativeTime(order.createdAt, locale)}
         </time>
       </TableCell>
-      <TableCell className="max-w-52 truncate">{order.customerName}</TableCell>
+      <TableCell className="max-w-52">
+        <span className="block truncate">{order.customerName}</span>
+        {showAssignee && <OrderAssignee order={order} />}
+      </TableCell>
       <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
         <span dir="ltr">{order.phone}</span>
       </TableCell>
       <TableCell>
-        <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
+        <span className="flex flex-wrap items-center gap-1.5">
+          <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
+          <CallbackChip order={order} />
+        </span>
       </TableCell>
       <TableCell className="max-w-44">
         <OrderSource order={order} />
@@ -98,7 +150,7 @@ export function OrderDesktopRow({ order, selection, selectable = false, ...actio
   );
 }
 
-export function OrderMobileCard({ order, selection }: Pick<RowProps, "order" | "selection">) {
+export function OrderMobileCard({ order, selection, showAssignee = false }: Pick<RowProps, "order" | "selection"> & { showAssignee?: boolean }) {
   const locale = useLocale();
   return (
     <article
@@ -131,6 +183,12 @@ export function OrderMobileCard({ order, selection }: Pick<RowProps, "order" | "
             {relativeTime(order.createdAt, locale)}
           </time>
         </div>
+        {((showAssignee && (order.assigneeName || isWaiting(order))) || (order.callbackAt && isWaiting(order))) && (
+          <div className="mt-1.5 flex min-w-0 items-center gap-2">
+            <CallbackChip order={order} />
+            {showAssignee && <OrderAssignee order={order} />}
+          </div>
+        )}
       </div>
     </article>
   );

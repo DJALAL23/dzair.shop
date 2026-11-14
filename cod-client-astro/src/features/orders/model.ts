@@ -46,13 +46,18 @@ export const ORDER_QUEUES = [
 ] as const satisfies ReadonlyArray<{ key: string; stages: readonly OrderStage[] }>;
 
 export type QueueKey = (typeof ORDER_QUEUES)[number]["key"];
-/** "all" shows every working order; "attention" those whose delivery needs the merchant; "archived" the finished ones put away. */
-export type OrderView = QueueKey | "all" | "attention" | "archived";
+/**
+ * "all" shows every working order; "attention" those whose delivery needs
+ * the merchant; "callbacks" the customers to call back, soonest first;
+ * "archived" the finished ones put away.
+ */
+export type OrderView = QueueKey | "all" | "attention" | "callbacks" | "archived";
 
 /** The server query a view stands for. */
-export function viewQuery(view: OrderView): { stages?: readonly OrderStage[]; attention?: boolean; archived?: boolean } {
+export function viewQuery(view: OrderView): { stages?: readonly OrderStage[]; attention?: boolean; callbacks?: boolean; archived?: boolean } {
   if (view === "all") return {};
   if (view === "attention") return { attention: true };
+  if (view === "callbacks") return { callbacks: true };
   if (view === "archived") return { archived: true };
   return { stages: ORDER_QUEUES.find((queue) => queue.key === view)!.stages };
 }
@@ -64,7 +69,7 @@ export function viewCounts(counts: OrderStageCounts): Record<OrderView, number> 
   const queues = Object.fromEntries(
     ORDER_QUEUES.map((queue) => [queue.key, queue.stages.reduce((sum, stage) => sum + (byStage.get(stage) ?? 0), 0)]),
   ) as Record<QueueKey, number>;
-  return { all: total, attention: counts.needsAttention, archived: counts.archived, ...queues };
+  return { all: total, attention: counts.needsAttention, callbacks: counts.callbacks, archived: counts.archived, ...queues };
 }
 
 // ─── What the stage looks like ───────────────────────────────────────────────

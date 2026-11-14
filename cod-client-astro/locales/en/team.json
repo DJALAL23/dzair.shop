@@ -132,7 +132,14 @@
       "event_consumer.updated": "Edited a webhook",
       "event_consumer.deleted": "Deleted a webhook",
       "event_consumer.secret_rotated": "Changed a webhook's signing secret",
-      "event_consumer.tested": "Sent a test event to a webhook"
+      "event_consumer.tested": "Sent a test event to a webhook",
+      "order.callback_set": "Set when to call a customer back",
+      "team.member_added": "Added someone to the confirmation team",
+      "team.member_removed": "Took someone off the confirmation team",
+      "team.receiving_changed": "Turned a member's new orders on or off",
+      "team.settings_updated": "Changed how new orders are shared",
+      "team.pay_set": "Set a member's pay",
+      "team.pay_removed": "Removed a pay rate"
     },
     "table": {
       "action": "Action",
@@ -177,6 +184,8 @@
     "mcp": "AI agents (MCP)",
     "apps": "Apps",
     "integrations": "Integrations",
+    "team": "Confirmation team",
+    "finance": "Finance",
     "settings": "Settings"
   },
   "scope_actions": {
@@ -188,7 +197,8 @@
     "assign": "Assign",
     "manage": "Manage",
     "dispatch": "Dispatch",
-    "team": "Team"
+    "team": "Team",
+    "read_assigned": "Only their own"
   },
   "invite_dialog_extra": {
     "permissions_label": "Permissions",

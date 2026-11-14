@@ -190,7 +190,10 @@ describe("reading an order's delivery", () => {
 
     const route = ((await (await app.request(`/api/orders/${id}`)).json()) as any).data;
     expect(route).toMatchObject({ stage: "out_for_delivery", needsAttention: false, shipment: { id: handoff.shipment.id, carrierName: null } });
-    expect((await call(assigner, "getOrderDetails", { orderId: id })).order).toEqual(route);
+    expect((await call(grant([SCOPES.ORDERS_READ, SCOPES.FINANCE_READ]), "getOrderDetails", { orderId: id })).order).toEqual(route);
+    const withoutCosts = (await call(assigner, "getOrderDetails", { orderId: id })).order;
+    expect(withoutCosts.products.length).toBeGreaterThan(0);
+    expect(withoutCosts.products.every((item: any) => !("unitCost" in item) && !("unitCostSource" in item))).toBe(true);
 
     const shipment = await call(assigner, "getShipment", { shipmentId: handoff.shipment.id });
     expect(shipment.shipment).toEqual(route.shipment);

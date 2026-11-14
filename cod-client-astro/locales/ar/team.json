@@ -132,7 +132,14 @@
       "event_consumer.updated": "عدّل webhook",
       "event_consumer.deleted": "حذف webhook",
       "event_consumer.secret_rotated": "غيّر مفتاح توقيع webhook",
-      "event_consumer.tested": "أرسل حدثًا تجريبيًا إلى webhook"
+      "event_consumer.tested": "أرسل حدثًا تجريبيًا إلى webhook",
+      "order.callback_set": "حدّد موعد معاودة الاتصال بزبون",
+      "team.member_added": "أضاف شخصًا إلى فريق التأكيد",
+      "team.member_removed": "أخرج شخصًا من فريق التأكيد",
+      "team.receiving_changed": "شغّل أو أوقف استقبال عضو للطلبات الجديدة",
+      "team.settings_updated": "غيّر طريقة توزيع الطلبات الجديدة",
+      "team.pay_set": "حدّد أجر عضو",
+      "team.pay_removed": "حذف معدّل أجر"
     },
     "table": {
       "action": "الإجراء",
@@ -177,6 +184,8 @@
     "mcp": "وكلاء الذكاء الاصطناعي (MCP)",
     "apps": "التطبيقات",
     "integrations": "التكاملات",
+    "team": "فريق التأكيد",
+    "finance": "المالية",
     "settings": "الإعدادات"
   },
   "scope_actions": {
@@ -188,7 +197,8 @@
     "assign": "تعيين",
     "manage": "إدارة",
     "dispatch": "إرسال",
-    "team": "الفريق"
+    "team": "الفريق",
+    "read_assigned": "المسندة إليه فقط"
   },
   "invite_dialog_extra": {
     "permissions_label": "الصلاحيات",

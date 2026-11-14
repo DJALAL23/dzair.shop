@@ -14,6 +14,8 @@
  * and inside the carriers' rate limits; whatever is left waits for the next.
  */
 
+import { shareOutWaiting, takeBackUntouched } from "../../../cod-shared/team/assign";
+import type { Author } from "../../../cod-shared/events/actor";
 import { and, asc, eq, isNull, lt, or } from "drizzle-orm";
 import { SYSTEM_ACTING, carrierAuthor } from "@/lib/acting";
 import { getDb, type AppDb } from "@/db";
@@ -123,12 +125,18 @@ export async function syncPullCarriers(env: Env, now = new Date()): Promise<{ sy
 }
 
 /** One scheduled run of the inbound pipeline; a failing pass never stops the others. */
+/** The schedule as the author of what the team's rule does on its own. */
+const SCHEDULE: Author = { actor: { kind: "system", id: null, name: null }, origin: "schedule" };
+
 export async function runInboundCron(env: Env, now = new Date()): Promise<void> {
   const db = getDb(env.DB);
   const passes: Array<[string, () => Promise<unknown>]> = [
     ["stale reservations", () => expireStaleReservations(db, now)],
     ["unknown handoffs", () => lookUpUnknownHandoffs(db, now)],
     ["pull sync", () => syncPullCarriers(env, now)],
+    // The confirmation team: untouched orders move on, then the orders that waited for someone are shared out.
+    ["team take-back", () => takeBackUntouched(db, now, SCHEDULE)],
+    ["team share-out", () => shareOutWaiting(db, now, SCHEDULE)],
     // Last, so what the passes above recorded is delivered in this run.
     ["drain", () => drainAndContinue(env, { budget: SCHEDULED_DRAIN_BUDGET })],
   ];

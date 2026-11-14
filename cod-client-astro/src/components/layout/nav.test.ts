@@ -7,6 +7,8 @@ describe("the current page in the navigation", () => {
     expect(isCurrentPath("/orders/spam/", "/orders")).toBe(false);
     expect(isCurrentPath("/orders/spam/", "/orders/spam")).toBe(true);
     expect(isCurrentPath("/orders/abandoned/", "/orders/abandoned")).toBe(true);
+    expect(isCurrentPath("/orders/team/", "/orders")).toBe(false);
+    expect(isCurrentPath("/orders/team/", "/orders/team")).toBe(true);
     expect(isCurrentPath("/products/stock/", "/products")).toBe(false);
     expect(isCurrentPath("/products/stock/", "/products/stock")).toBe(true);
     expect(isCurrentPath("/customers/", "/customers")).toBe(true);

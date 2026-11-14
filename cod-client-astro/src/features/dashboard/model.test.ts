@@ -12,6 +12,8 @@ const counts = {
   ],
   needsAttention: 1,
   archived: 0,
+  callbacks: 0,
+  callbacksDue: 0,
   deliveryRate: 86,
 };
 
@@ -26,7 +28,7 @@ describe("the overview", () => {
       { key: "returns", count: 2, share: 14 },
       { key: "cancelled", count: 0, share: 0 },
     ]);
-    expect(queueBreakdown({ stages: [], needsAttention: 0, archived: 0, deliveryRate: null }).every((queue) => queue.count === 0 && queue.share === 0)).toBe(true);
+    expect(queueBreakdown({ stages: [], needsAttention: 0, archived: 0, callbacks: 0, callbacksDue: 0, deliveryRate: null }).every((queue) => queue.count === 0 && queue.share === 0)).toBe(true);
   });
 
   it("reads one stage's orders, none when the stage is absent", () => {

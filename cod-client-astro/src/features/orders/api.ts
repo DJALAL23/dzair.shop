@@ -58,6 +58,12 @@ export interface OrderQuery {
   search?: string;
   /** The archived orders alone, instead of the working list. */
   archived?: boolean;
+  /** Only orders with this team member, or `none`: with nobody. */
+  assignee?: string;
+  /** Only orders whose customer asked to be called back, still waiting; soonest first. */
+  callbacks?: boolean;
+  /** One of the confirmation team's queues. */
+  team?: "unassigned" | "needs_manager" | "former";
   limit?: number;
   cursor?: string | null;
 }
@@ -73,6 +79,9 @@ export async function listOrders(params: OrderQuery = {}): Promise<OrderPage> {
   if (params.wilayaId) query.set("wilayaId", String(params.wilayaId));
   if (params.search?.trim()) query.set("search", params.search.trim());
   if (params.archived) query.set("archived", "only");
+  if (params.assignee) query.set("assignee", params.assignee);
+  if (params.callbacks) query.set("callback", "set");
+  if (params.team) query.set("team", params.team);
   if (params.cursor) query.set("cursor", params.cursor);
   const page = await apiFetch<ListEnvelope<OrderListItem> & { nextCursor: string | null }>(`/api/orders?${query}`);
   return { orders: page.data, nextCursor: page.nextCursor };

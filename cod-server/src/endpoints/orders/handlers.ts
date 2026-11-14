@@ -20,6 +20,9 @@ import { orderCustomerId } from "../../../../cod-shared/queries/customers";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, ValidationError, BusinessLogicError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
+import { ownOrdersOf } from "@/lib/order-visibility";
+import { hasPermission } from "../../../../cod-shared/rbac/utils";
+import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 
 /**
  * GET /orders
@@ -30,16 +33,18 @@ export async function listOrders(c: Context<AppContext>) {
     const db = getDb(c.env.DB);
 
     const queryData: any = (c.req as any).valid?.("query");
-    const filters = queryData ?? validation.orderFiltersSchema.parse(c.req.query());
+    const { assignee, team, ...filters } = queryData ?? validation.orderFiltersSchema.parse(c.req.query());
+    const own = ownOrdersOf(c);
+    const assigneeId = own ?? (assignee === undefined ? undefined : assignee === "none" ? null : assignee);
 
-    const orders = await queries.getAllOrders(db, filters);
+    const orders = await queries.getAllOrders(db, { ...filters, assigneeId, teamQueue: team });
     const last = orders.at(-1);
 
     return c.json({
       success: true,
       data: orders,
       count: orders.length,
-      nextCursor: last && orders.length === filters.limit ? queries.encodeOrderCursor(last.createdAt, last.id) : null,
+      nextCursor: last && orders.length === filters.limit ? queries.nextOrderCursor(filters, last) : null,
     }, 200);
   } catch (error) {
     throw error;
@@ -58,7 +63,7 @@ export async function getOrder(c: Context<AppContext>) {
     throw new ValidationError("Order ID is required", ERROR_CODES.REQUIRED_FIELD_MISSING);
   }
 
-  const order = await loadOrderDetail(db, orderId);
+  const order = await loadOrderDetail(db, orderId, { withCosts: hasPermission(c.get("user").scopes, SCOPES.FINANCE_READ) });
   if (!order) throw new NotFoundError("Order", orderId);
   return c.json({ success: true, data: order }, 200);
 }

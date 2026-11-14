@@ -9,8 +9,8 @@ import { loadShipmentView } from "../shipments/view";
 import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
 import { orderNeedsAttention, orderStage } from "../../../../cod-shared/orders/stage";
 
-export async function loadOrderDetail(db: AppDb, orderId: string) {
-  const order = await queries.getOrderById(db, orderId);
+export async function loadOrderDetail(db: AppDb, orderId: string, options: { withCosts?: boolean } = {}) {
+  const order = await queries.getOrderById(db, orderId, options);
   if (!order) return null;
   const shipment = (await getOrderShipment(db, orderId)) ?? null;
   return {

@@ -8,6 +8,7 @@ import { REVIEW_AUTO_PUBLISH, REVIEW_MEDIA_KINDS, REVIEW_SOURCES, REVIEW_STATUSE
 import { MEDIA_HOSTS, MEDIA_KINDS, MEDIA_STATUSES } from "../media/model";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
+import { DISTRIBUTIONS, PAY_KINDS } from "../team/model";
 import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
 import { ATTRIBUTION_METHODS, ATTRIBUTION_PLATFORMS, CLICK_ID_TYPES, ORDER_CHANNELS } from "../attribution/model";
@@ -535,6 +536,21 @@ export const orders = sqliteTable("orders", {
   locale: text("locale", { enum: STORE_LOCALES }),
   /** A fresh random token per status change: the claim that makes its effects apply once (migration 0075). */
   revision: text("revision"),
+  // ── Confirmation team (appended by migration 0086 — keep last) ───────────
+  /** The team member the order is with now; null while it is with nobody. */
+  assigneeId: text("assignee_id").references((): AnySQLiteColumn => users.id, { onDelete: "set null" }),
+  /** When it was given to that member. */
+  assignedAt: text("assigned_at"),
+  /** How many times it was taken back from a member who did not act on it in time. */
+  takeBacks: integer("take_backs").notNull().default(0),
+  /** When the customer asked to be called back; cleared once the order is confirmed or cancelled. */
+  callbackAt: text("callback_at"),
+  /** Its first move away from `new`, and the member who made it (null for the system). Kept on the order: the Event Log is pruned. */
+  decidedAt: text("decided_at"),
+  decidedBy: text("decided_by"),
+  /** Its first confirmation, and the member credited with it. */
+  confirmedAt: text("confirmed_at"),
+  confirmedBy: text("confirmed_by"),
 }, (t) => ({
   checkoutKeyUnique: uniqueIndex("orders_checkout_key").on(t.checkoutKey).where(sql`checkout_key IS NOT NULL`),
 }));
@@ -2317,6 +2333,44 @@ export const storeTelegramConfig = sqliteTable("store_telegram_config", {
 });
 
 // ─── Order Protection (cod-shared/order-screening; migration 0080) ────────────
+
+/** A member of the confirmation team: takes orders, and receives new ones automatically while `receiving` (migration 0086). */
+export const teamAgents = sqliteTable("team_agents", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  receiving: integer("receiving", { mode: "boolean" }).notNull().default(false),
+  /** Their place in turn: grows each time any member gets an order, so the lowest (or none) is next. Kept by a trigger. */
+  turn: integer("turn"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** A member's pay, each rate from a date: a past month keeps the rates it had (migration 0086). */
+export const teamPay = sqliteTable("team_pay", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: PAY_KINDS }).notNull(),
+  /** In DZD: a month's salary, or the amount per order. */
+  amount: integer("amount").notNull(),
+  /** YYYY-MM-DD; a salary from the first of a month. */
+  validFrom: text("valid_from").notNull(),
+  createdAt: text("created_at").notNull(),
+  createdBy: text("created_by"),
+}, (t) => ({
+  from: uniqueIndex("team_pay_from").on(t.userId, t.kind, t.validFrom),
+}));
+
+/** How the store shares its orders out; no row is `DEFAULT_TEAM_CONFIG` (migration 0086). */
+export const storeTeamConfig = sqliteTable("store_team_config", {
+  id: text("id").primaryKey(),
+  storeId: text("store_id").notNull().unique().references(() => stores.id, { onDelete: "cascade" }),
+  distribution: text("distribution", { enum: DISTRIBUTIONS }).notNull().default("manual"),
+  /** Minutes a member has to act on a new order before it moves on; null = never. */
+  takeBackMinutes: integer("take_back_minutes"),
+  /** How many times an order moves on before it waits for a manager. */
+  takeBackLimit: integer("take_back_limit").notNull().default(2),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
 
 export const storeOrderProtectionConfig = sqliteTable("store_order_protection_config", {
   id: text("id").primaryKey(),

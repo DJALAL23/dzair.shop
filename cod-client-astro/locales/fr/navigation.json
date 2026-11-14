@@ -29,7 +29,8 @@
     "delivery_labels": "Étiquettes",
     "integrations": "Intégrations",
     "apps": "Applications",
-    "orders_spam": "Spam"
+    "orders_spam": "Spam",
+    "orders_team": "Équipe de confirmation"
   },
   "navbar": {
     "search_placeholder": "Rechercher commandes, clients, suivi…"

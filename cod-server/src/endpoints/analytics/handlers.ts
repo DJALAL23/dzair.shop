@@ -7,6 +7,7 @@
 import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
+import { ownOrdersOf } from "@/lib/order-visibility";
 import { getOrderActivity, getOrderStageStats, type ActivityWindow } from "../../../../cod-shared/queries/analytics";
 
 /**
@@ -16,7 +17,7 @@ import { getOrderActivity, getOrderStageStats, type ActivityWindow } from "../..
 export async function getOrderStages(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const { archived } = (c.req as unknown as { valid: (target: "query") => { archived: "include" | "exclude" } }).valid("query");
-  return c.json({ success: true, data: await getOrderStageStats(db, { archived }) }, 200);
+  return c.json({ success: true, data: await getOrderStageStats(db, { archived, assigneeId: ownOrdersOf(c) }) }, 200);
 }
 
 /**

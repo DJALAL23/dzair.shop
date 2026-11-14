@@ -35,7 +35,8 @@ afterAll(async () => {
 
 describe("migration 0083", () => {
   it("keeps every order as it was", async () => {
-    expect(await all("SELECT * FROM orders ORDER BY id")).toEqual(ordersBefore);
+    const columns = Object.keys(ordersBefore[0] ?? {});
+    expect((await all("SELECT * FROM orders ORDER BY id")).map((row) => Object.fromEntries(columns.map((column) => [column, (row as Record<string, unknown>)[column]])))).toEqual(ordersBefore);
   });
 
   it("keeps every abandoned checkout, with no attribution yet", async () => {

@@ -214,6 +214,10 @@
     "delivered": "Livrées",
     "returns": "Retours",
     "cancelled": "Annulées",
+    "callbacks": "Rappels",
+    "callbacks_due_one": "{count} à appeler",
+    "callbacks_due_many": "{count} à appeler",
+    "callbacks_due_other": "{count} à appeler",
     "attention": "À traiter",
     "attention_count_one": "{count} à traiter",
     "attention_count_many": "{count} à traiter",
@@ -230,6 +234,7 @@
     "returns": "Aucun retour — bonne nouvelle",
     "cancelled": "Aucune commande annulée",
     "attention": "Rien à traiter pour le moment",
+    "callbacks": "Aucun client à rappeler",
     "archived": "Aucune commande archivée"
   },
   "search_placeholder": "N° de commande, client, téléphone ou n° de suivi…",

@@ -67,6 +67,9 @@ Scopes follow the form `resource:action`, for example:
 | `orders:create` | Create orders |
 | `orders:update` | Change order processing status and details |
 | `orders:delete` | Delete or cancel orders |
+| `orders:read_assigned` | Read only the orders given to you on the confirmation team. Any other order answers `404`, and lists and counts hold only yours. `orders:read` takes precedence |
+| `team:read`, `team:manage` | See the confirmation team and each member's results; choose who is on it, how new orders are shared out, and give orders out or take them back |
+| `finance:read`, `finance:manage` | See or set what sales cost: product costs on orders, and the team's pay and payroll |
 | `products:read` | Read the catalog |
 | `products:manage` | Manage variants and inventory |
 | `delivery:dispatch` | Create shipments with a carrier |

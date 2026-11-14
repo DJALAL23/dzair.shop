@@ -4,6 +4,7 @@
  * HTTP handlers for customer management CRUD operations.
  */
 
+import { ownOrdersOf } from "@/lib/order-visibility";
 import { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
@@ -163,7 +164,7 @@ export async function listCustomerOrders(c: Context<AppContext>) {
     throw new ValidationError("Customer ID is required", ERROR_CODES.REQUIRED_FIELD_MISSING, { field: "id" });
   }
 
-  const orders = await queries.getOrdersByCustomerId(db, customerId);
+  const orders = await queries.getOrdersByCustomerId(db, customerId, ownOrdersOf(c));
 
   return c.json({
     success: true,

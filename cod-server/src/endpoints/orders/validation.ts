@@ -4,6 +4,7 @@
  * Zod schemas for request validation.
  */
 
+import { TEAM_QUEUES } from "../../../../cod-shared/team/queue";
 import { z } from "zod";
 import { ORDER_CHANNELS, type OrderChannel } from "../../../../cod-shared/attribution/model";
 import { editedEmailField, newEmailField } from "@/lib/email-field";
@@ -140,6 +141,19 @@ export const orderFiltersSchema = z.object({
     })
     .describe("Where the order came from: one channel, or several separated by commas (paid_social,paid_search). `unknown`: orders whose source is not known"),
   orderType: z.enum(["online", "offline"]).optional(),
+  assignee: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Only orders with this confirmation team member (their user id), or `none`: only orders with nobody. A member who sees only their own orders always gets only theirs"),
+  callback: z
+    .enum(["set"])
+    .optional()
+    .describe("`set`: only orders whose customer asked to be called back, still waiting (new or unreachable), the soonest callback first"),
+  team: z
+    .enum(TEAM_QUEUES)
+    .optional()
+    .describe("One of the confirmation team's queues, among orders still waiting: `unassigned` (new, with nobody), `needs_manager` (moved on as often as the store allows), `former` (with someone who left the team or whose account is inactive)"),
   wilayaId: z.coerce.number().int().optional(),
   search: z.string().optional().describe("Order number, customer name, phone, or the parcel's tracking number"),
   limit: z.coerce.number().int().positive().max(100).default(50),

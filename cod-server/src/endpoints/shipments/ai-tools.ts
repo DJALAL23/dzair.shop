@@ -2,7 +2,9 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { AppDb } from "@/db";
 import type { Env } from "@/types/env";
-import { agentActingOf, type McpProps } from "@/mcp/props";
+import { actorOf, agentActingOf, type McpProps } from "@/mcp/props";
+import { ownOrdersOnly } from "@/lib/order-visibility";
+import { orderVisibility } from "../../../../cod-shared/team/visibility";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 import { handOffOne } from "./handoff-results";
 import { reportShipmentEvent } from "./operations";
@@ -85,7 +87,9 @@ const failure = (error: unknown) => ({ success: false as const, error: error ins
  * granted the access: a carrier's shipment is dispatch work, a driver's is
  * assignment work.
  */
-export const getShipmentTools = (db: AppDb, env: Env, props: McpProps) => ({
+export const getShipmentTools = (db: AppDb, env: Env, props: McpProps) => ownOrdersOnly(shipmentTools(db, env, props), db, orderVisibility(actorOf(props)));
+
+const shipmentTools = (db: AppDb, env: Env, props: McpProps) => ({
   getShipment: tool({
     description:
       "Fetch a shipment: its carrier or driver, tracking number, cash to collect, every status the carrier or the merchant " +

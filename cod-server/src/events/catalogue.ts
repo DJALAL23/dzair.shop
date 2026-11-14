@@ -12,6 +12,7 @@ import { SHIPMENT_KINDS } from "../../../cod-shared/shipments/model";
 import { STORE_LOCALES } from "../../../cod-shared/i18n/locales";
 import { ORDER_FIELDS, EVENT_CATALOGUE, EVENT_TYPES, type EventData, type EventType } from "../../../cod-shared/events/catalogue";
 import { ORIGINS } from "../../../cod-shared/events/actor";
+import { ASSIGNMENT_WAYS } from "../../../cod-shared/team/model";
 
 const money = z.object({
   amount: z.string().regex(/^\d+\.\d{2}$/),
@@ -89,6 +90,8 @@ const shipment = z.object({
   deliveryAttempts: z.number().int(),
 });
 
+const teamMember = z.object({ id: z.string(), name: z.string() });
+
 const statusChange = z.object({ order, previousStatus: z.enum(ORDER_STATUSES) });
 const shipmentChange = z.object({ shipment, order });
 const shipmentReport = shipmentChange.extend({ reason: z.string().nullable() });
@@ -103,6 +106,8 @@ export const EVENT_DATA_SCHEMAS = {
   "order.cancelled": statusChange,
   "order.line_returned": z.object({ order, lineId: z.string(), previousReturnedQuantity: z.number().int() }),
   "order.deleted": z.object({ order }),
+  "order.assigned": z.object({ order, assignee: teamMember, previousAssignee: teamMember.nullable(), way: z.enum(ASSIGNMENT_WAYS) }),
+  "order.unassigned": z.object({ order, previousAssignee: teamMember }),
   "shipment.handed_off": shipmentChange,
   "shipment.out_for_delivery": shipmentReport,
   "shipment.delivery_failed": shipmentReport.extend({ attempt: z.number().int() }),

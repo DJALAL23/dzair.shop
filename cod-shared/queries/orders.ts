@@ -27,6 +27,7 @@ import type { StoreLocale } from "../i18n/locales";
 import {
   eq,
   desc,
+  asc,
   and,
   like,
   or,
@@ -50,7 +51,10 @@ import type { RuleMatch } from "../order-screening/rules";
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 import { linesToRestock, restockStatements } from "../inventory/restock";
 import { getCustomerByPhone, updateCustomer, type UpdateCustomerData } from "./customers";
-import { creditOf, type Author } from "../events/actor";
+import { creditOf, staffOf, type Author } from "../events/actor";
+import { assignedOnCreate, assignmentOnCreate } from "../team/assign";
+import { WAITING_STATUSES, type AssignmentWay } from "../team/model";
+import { inTeamQueue, type TeamQueue } from "../team/queue";
 import { ORDER_STATUS_EVENT, ORDER_STATUS_OF_EVENT, type OrderField, type OrderProcessingEvent } from "../events/catalogue";
 import { recordEvent } from "../events/record";
 import { orderSnapshot } from "../events/snapshots";
@@ -73,15 +77,26 @@ export interface OrderFilters {
   /** Archived orders: left out (default), the only ones, or included. */
   archived?: "exclude" | "only" | "include";
   orderType?: (typeof orders.$inferSelect)["orderType"];
+  /** Only orders with this team member; null: only orders with nobody. */
+  assigneeId?: string | null;
+  /** Only orders whose customer asked to be called back and that still wait, the soonest callback first. */
+  callback?: "set";
+  /** Only the orders in one of the confirmation team's queues (team/queue.ts). */
+  teamQueue?: TeamQueue;
   wilayaId?: number;
   search?: string;
   limit?: number;
   offset?: number;
   /**
-   * Opaque keyset cursor (encodeOrderCursor output): return rows strictly
-   * before (createdAt, id). Takes precedence over offset when set.
+   * Opaque keyset cursor (`nextOrderCursor` output): return the rows after
+   * it in the list's order. Takes precedence over offset when set.
    */
   cursor?: string;
+}
+
+/** The cursor of the page after `last`, in the list's order: newest first, or for callbacks the soonest first. */
+export function nextOrderCursor(filters: Pick<OrderFilters, "callback">, last: { createdAt: string; callbackAt: string | null; id: string }): string {
+  return encodeOrderCursor(filters.callback === "set" && last.callbackAt ? last.callbackAt : last.createdAt, last.id);
 }
 
 export function encodeOrderCursor(createdAt: string, id: string): string {
@@ -144,6 +159,19 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     conditions.push(eq(orders.orderType, filters.orderType));
   }
 
+  if (filters.assigneeId !== undefined) {
+    conditions.push(filters.assigneeId === null ? isNull(orders.assigneeId) : eq(orders.assigneeId, filters.assigneeId));
+  }
+
+  const byCallback = filters.callback === "set";
+  if (byCallback) {
+    conditions.push(isNotNull(orders.callbackAt), inArray(orders.status, WAITING_STATUSES));
+  }
+
+  if (filters.teamQueue) {
+    conditions.push(inTeamQueue(filters.teamQueue));
+  }
+
   if (filters.attention !== undefined) {
     conditions.push(filters.attention ? orderNeedsAttentionSql() : sql`not ${orderNeedsAttentionSql()}`);
   }
@@ -185,7 +213,9 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     const after = parseOrderCursor(filters.cursor);
     if (after) {
       conditions.push(
-        sql`(orders.created_at, orders.id) < (${after.createdAt}, ${after.id})`,
+        byCallback
+          ? sql`(orders.callback_at, orders.id) > (${after.createdAt}, ${after.id})`
+          : sql`(orders.created_at, orders.id) < (${after.createdAt}, ${after.id})`,
       );
       offset = 0;
     }
@@ -199,6 +229,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
       driverName: sql<
         string | null
       >`CASE WHEN ${driversAlias.firstName} IS NOT NULL THEN ${driversAlias.firstName} || ' ' || ${driversAlias.lastName} ELSE NULL END`,
+      assigneeName: sql<string | null>`(SELECT users.name FROM users WHERE users.id = orders.assignee_id)`,
       hasReview: sql<number>`EXISTS (SELECT 1 FROM reviews WHERE reviews.order_id = orders.id)`,
       flagged: sql<number>`EXISTS (SELECT 1 FROM order_attempts WHERE order_attempts.order_id = orders.id AND order_attempts.outcome = 'flagged')`,
       shipmentId: sql<string | null>`${shipments.id}`,
@@ -233,7 +264,7 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
     .leftJoin(deliveryCompanies, eq(shipments.companyId, deliveryCompanies.id))
     .leftJoin(orderAttribution, eq(orderAttribution.orderId, orders.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(orders.createdAt), desc(orders.id))
+    .orderBy(...(byCallback ? [asc(orders.callbackAt), asc(orders.id)] : [desc(orders.createdAt), desc(orders.id)]))
     .limit(filters.limit ?? 50)
     .offset(offset)
     .all();
@@ -256,7 +287,8 @@ function flagReasonsOf(matchesJson: string | null): RuleMatch[] {
   }
 }
 
-export async function getOrderById(db: AppDb, orderId: string) {
+/** `withCosts`: what each line cost the merchant, for a member who may see finance. */
+export async function getOrderById(db: AppDb, orderId: string, options: { withCosts?: boolean } = {}) {
   const order = await db
     .select({
       ...orderResponseColumns,
@@ -265,6 +297,9 @@ export async function getOrderById(db: AppDb, orderId: string) {
       driverName: sql<
         string | null
       >`CASE WHEN ${driversAlias.firstName} IS NOT NULL THEN ${driversAlias.firstName} || ' ' || ${driversAlias.lastName} ELSE NULL END`,
+      assigneeName: sql<string | null>`(SELECT users.name FROM users WHERE users.id = orders.assignee_id)`,
+      decidedByName: sql<string | null>`(SELECT users.name FROM users WHERE users.id = orders.decided_by)`,
+      confirmedByName: sql<string | null>`(SELECT users.name FROM users WHERE users.id = orders.confirmed_by)`,
     })
     .from(orders)
     .leftJoin(wilayas, eq(orders.wilayaId, wilayas.id))
@@ -277,7 +312,7 @@ export async function getOrderById(db: AppDb, orderId: string) {
   if (!order) return null;
 
   const processing = Object.keys(ORDER_STATUS_OF_EVENT) as OrderProcessingEvent[];
-  const [orderProductsList, timeline, attribution] = await db.batch([
+  const [orderProductsList, timeline, attribution, handovers] = await db.batch([
     db.select().from(orderProducts).where(eq(orderProducts.orderId, orderId)),
     db
       .select({ id: businessEvents.id, type: businessEvents.type, occurredAt: businessEvents.occurredAt, actorId: businessEvents.actorId, actorName: businessEvents.actorName })
@@ -285,12 +320,19 @@ export async function getOrderById(db: AppDb, orderId: string) {
       .where(and(eq(businessEvents.orderId, orderId), inArray(businessEvents.type, processing)))
       .orderBy(desc(businessEvents.seq)),
     db.select().from(orderAttribution).where(eq(orderAttribution.orderId, orderId)),
+    db
+      .select({ id: businessEvents.id, type: businessEvents.type, occurredAt: businessEvents.occurredAt, actorName: businessEvents.actorName, data: businessEvents.data })
+      .from(businessEvents)
+      .where(and(eq(businessEvents.orderId, orderId), inArray(businessEvents.type, ["order.assigned", "order.unassigned"])))
+      .orderBy(desc(businessEvents.seq)),
   ]);
 
   return {
     ...order,
-    /** What each line cost stays on the server until the finance permission exists. */
-    products: orderProductsList.map(({ unitCost: _unitCost, unitCostSource: _unitCostSource, ...line }) => line),
+    /** What each line cost the merchant, only for a member who may see finance. */
+    products: orderProductsList.map(({ unitCost, unitCostSource, ...line }) => (options.withCosts ? { ...line, unitCost, unitCostSource } : line)),
+    /** Who the order was given to, newest first, as its Business Events recorded it. */
+    assignmentHistory: handovers.map((event) => assignmentStep(event)),
     /** Where the order came from (ADR 0026); null when nothing is known. */
     attribution: attribution[0] ? orderAttributionView(attribution[0]) : null,
     /** The order's processing as its Business Events recorded it, newest first. */
@@ -302,6 +344,21 @@ export async function getOrderById(db: AppDb, orderId: string) {
       by: event.actorId,
       byName: event.actorName,
     })),
+  };
+}
+
+type TeamMemberRef = { id: string; name: string } | null;
+
+/** One handover of an order, as its `order.assigned` or `order.unassigned` event says it. */
+function assignmentStep(event: { id: string; type: string; occurredAt: string; actorName: string | null; data: string }) {
+  const data = JSON.parse(event.data) as { assignee?: TeamMemberRef; previousAssignee?: TeamMemberRef; way?: AssignmentWay };
+  return {
+    id: event.id,
+    at: event.occurredAt,
+    to: event.type === "order.assigned" ? (data.assignee ?? null) : null,
+    from: data.previousAssignee ?? null,
+    way: event.type === "order.assigned" ? (data.way ?? "manual") : ("manual" as AssignmentWay),
+    byName: event.actorName,
   };
 }
 
@@ -324,8 +381,9 @@ export async function createOrder(
   const credit = creditOf(author.actor);
 
   const primaryLanguage = sql<StoreLocale>`(select ${stores.lang} from ${stores} limit 1)`;
+  const assignment = assignmentOnCreate(author, now);
   const statements: BatchStatement[] = [
-    db.insert(orders).values({ ...orderData, status: "new", locale: primaryLanguage }),
+    db.insert(orders).values({ ...orderData, status: "new", locale: primaryLanguage, ...assignment }),
   ];
 
   if (productsData.length > 0) {
@@ -418,6 +476,7 @@ export async function createOrder(
 
   statements.push(
     recordEvent(db, { type: "order.created", subjectId: orderData.id!, orderId: orderData.id!, occurredAt: now, ...author, data: { order: orderSnapshot(orderData.id!) } }),
+    assignedOnCreate(db, orderData.id!, now, author),
   );
 
   // Atomic: order row, lines, history, customer stats, stock deduction,
@@ -427,7 +486,7 @@ export async function createOrder(
   // the same way, so the order row is drawn again and the batch retried.
   let orderNumber = orderData.orderNumber;
   for (let attempt = 1; ; attempt += 1) {
-    statements[0] = db.insert(orders).values({ ...orderData, orderNumber, locale: primaryLanguage });
+    statements[0] = db.insert(orders).values({ ...orderData, orderNumber, locale: primaryLanguage, ...assignment });
     try {
       await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
       break;
@@ -441,6 +500,24 @@ export async function createOrder(
 }
 
 export type StatusChange = { ok: true } | { ok: false; reason: "not_found" | "has_shipment" | "changed" };
+
+/**
+ * What a status change tells about who handled the order, kept on it: its
+ * first move away from `new` and its first confirmation, each with the member
+ * behind it (null for the system); a callback ends once the order is
+ * confirmed or cancelled. Read from the row as it was before the change.
+ */
+function handlingOf(newStatus: OrderStatus, author: Author, now: string) {
+  const member = staffOf(author.actor)?.id ?? null;
+  return {
+    decidedAt: sql`case when ${orders.status} = 'new' then ${now} else ${orders.decidedAt} end`,
+    decidedBy: sql`case when ${orders.status} = 'new' then ${member} else ${orders.decidedBy} end`,
+    ...(newStatus === "confirmed"
+      ? { confirmedAt: sql`coalesce(${orders.confirmedAt}, ${now})`, confirmedBy: sql`case when ${orders.confirmedAt} is null then ${member} else ${orders.confirmedBy} end` }
+      : {}),
+    ...(newStatus === "confirmed" || newStatus === "cancelled" ? { callbackAt: null } : {}),
+  };
+}
 
 /**
  * Move an order to a new status, with its effects: its Business Event, and on cancel the
@@ -473,7 +550,7 @@ export async function updateOrderStatus(
   const statements: BatchStatement[] = [
     db
       .update(orders)
-      .set({ status: newStatus, revision, updatedAt: now })
+      .set({ status: newStatus, revision, updatedAt: now, ...handlingOf(newStatus, author, now) })
       .where(
         and(
           eq(orders.id, orderId),

@@ -398,6 +398,14 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
       "getOrderDetails",
     ]),
   },
+  // A confirmation team member who sees only their own orders reads them the same way; the tools hold them to theirs.
+  {
+    requires: [SCOPES.ORDERS_READ_ASSIGNED],
+    build: (db, _env, props) => pick(getOrderTools(db, props), [
+      "listOrders",
+      "getOrderDetails",
+    ]),
+  },
   {
     requires: [SCOPES.ORDERS_CREATE],
     build: (db, _env, props) => pick(getOrderTools(db, props), ["createOrder"]),
@@ -423,6 +431,10 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // under both and checks the shipment's kind when it runs.
   {
     requires: [SCOPES.ORDERS_READ],
+    build: (db, env, props) => pick(getShipmentTools(db, env, props), ["getShipment"]),
+  },
+  {
+    requires: [SCOPES.ORDERS_READ_ASSIGNED],
     build: (db, env, props) => pick(getShipmentTools(db, env, props), ["getShipment"]),
   },
   {

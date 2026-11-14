@@ -15,7 +15,11 @@ import {
   ORDER_STATUSES,
 } from "./validation";
 import type { AppDb } from "@/db";
-import { agentAuthorOf, type McpProps } from "@/mcp/props";
+import { actorOf, agentAuthorOf, type McpProps } from "@/mcp/props";
+import { ownOrdersOnly } from "@/lib/order-visibility";
+import { SCOPES } from "../../../../cod-shared/rbac/scopes";
+import { hasPermission } from "../../../../cod-shared/rbac/utils";
+import { orderVisibility } from "../../../../cod-shared/team/visibility";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 import { toolId } from "@/lib/tool-input";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
@@ -188,7 +192,9 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * - Layer 1 (LLM-level): Permissive input schema accepts any object to prevent SDK crashes
  * - Layer 2 (App-level): Strict validation inside execute() with graceful error handling
  */
-export const getOrderTools = (db: AppDb, props: McpProps) => ({
+export const getOrderTools = (db: AppDb, props: McpProps) => ownOrdersOnly(orderTools(db, props), db, orderVisibility(actorOf(props)));
+
+const orderTools = (db: AppDb, props: McpProps) => ({
 
   listOrders: tool({
     description:
@@ -214,7 +220,8 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
         };
       }
       try {
-        const orders = await queries.getAllOrders(db, parsed.data);
+        const own = orderVisibility(actorOf(props));
+        const orders = await queries.getAllOrders(db, own.kind === "assigned" ? { ...parsed.data, assigneeId: own.userId } : parsed.data);
         return {
           success: true,
           count: orders.length,
@@ -271,7 +278,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
         };
       }
       try {
-        const order = await loadOrderDetail(db, parsed.data.orderId);
+        const order = await loadOrderDetail(db, parsed.data.orderId, { withCosts: hasPermission(actorOf(props).scopes, SCOPES.FINANCE_READ) });
         if (!order) {
           return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
         }

@@ -13,6 +13,7 @@
  * - endpoints/orders/routes.ts: OpenAPI route definitions
  */
 
+import { ASSIGNMENT_WAYS } from "../../../../cod-shared/team/model";
 import { z } from "@hono/zod-openapi";
 import { ShipmentSchema } from "./shipments";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
@@ -86,6 +87,8 @@ export const OrderProductSchema = z
     }),
     reward: z.boolean().openapi({ description: "A gift, given by `offerId` at no charge" }),
     discount: z.number().int().openapi({ description: "The line's share of the order's coupon discount; `lineTotal` is already net of it" }),
+    unitCost: z.number().int().nullable().optional().openapi({ description: "What one unit cost the merchant, frozen when the order was written (the variant's cost, else the product's); null when not known. Only for a member with finance:read" }),
+    unitCostSource: z.enum(["catalog", "manual"]).nullable().optional().openapi({ description: "Where `unitCost` came from: the catalog when the order was written, or set by hand. Only with finance:read" }),
   })
   .openapi("OrderProduct");
 
@@ -164,6 +167,15 @@ const OrderBaseSchema = z.object({
     description: "The language the order was placed in — the shopper's storefront language, the store's primary for a dashboard or agent order — and the one its customer messages are written in; null for an order placed before it was recorded",
     example: "fr",
   }),
+  assigneeId: z.string().nullable().openapi({ description: "The confirmation team member the order is with now; null while it is with nobody" }),
+  assigneeName: z.string().nullable().optional().openapi({ description: "That member's name" }),
+  assignedAt: z.string().nullable().openapi({ description: "When it was given to them" }),
+  takeBacks: z.number().int().openapi({ description: "How many times it was taken back from a member who did not act on it in time. At the store's limit it waits for a manager" }),
+  callbackAt: z.string().nullable().openapi({ description: "When the customer asked to be called back; cleared once the order is confirmed or cancelled" }),
+  decidedAt: z.string().nullable().openapi({ description: "Its first move away from new (confirmed, not reached or cancelled); null while new, or for an order older than the store's 90-day event log when the team arrived" }),
+  decidedBy: z.string().nullable().openapi({ description: "The member who made that first move; null when the system did" }),
+  confirmedAt: z.string().nullable().openapi({ description: "When it was first confirmed" }),
+  confirmedBy: z.string().nullable().openapi({ description: "The member credited with confirming it" }),
 });
 
 export const OrderRemovalSchema = z
@@ -305,6 +317,21 @@ export const OrderDetailSchema = OrderBaseSchema.extend({
   needsAttention: z.boolean().optional().openapi({
     description: "The merchant must act on the delivery: the carrier flagged it, the handoff outcome is unknown, or the carrier cancelled it",
   }),
+  decidedByName: z.string().nullable().optional().openapi({ description: "The name of the member who first decided it" }),
+  confirmedByName: z.string().nullable().optional().openapi({ description: "The name of the member credited with confirming it" }),
+  assignmentHistory: z
+    .array(
+      z.object({
+        id: z.string(),
+        at: z.string(),
+        to: z.object({ id: z.string(), name: z.string() }).nullable().openapi({ description: "Who it was given to; null when it was taken back to nobody" }),
+        from: z.object({ id: z.string(), name: z.string() }).nullable().openapi({ description: "Who had it before" }),
+        way: z.enum(ASSIGNMENT_WAYS).openapi({ description: "`automatic` by the store's rule, `manual` by a manager, `take_back` from a member who did not act in time" }),
+        byName: z.string().nullable().openapi({ description: "The manager's name for a manual change; null for the store's rule" }),
+      }),
+    )
+    .optional()
+    .openapi({ description: "Who the order was given to, newest first, as its Business Events recorded it. Detail view only." }),
 }).openapi("Order", {
   description: "Complete order record with products and status history",
 });

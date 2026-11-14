@@ -132,7 +132,14 @@
       "event_consumer.updated": "A modifié un webhook",
       "event_consumer.deleted": "A supprimé un webhook",
       "event_consumer.secret_rotated": "A changé le secret de signature d'un webhook",
-      "event_consumer.tested": "A envoyé un événement de test à un webhook"
+      "event_consumer.tested": "A envoyé un événement de test à un webhook",
+      "order.callback_set": "A fixé quand rappeler un client",
+      "team.member_added": "A ajouté quelqu'un à l'équipe de confirmation",
+      "team.member_removed": "A retiré quelqu'un de l'équipe de confirmation",
+      "team.receiving_changed": "A activé ou arrêté les nouvelles commandes d'un membre",
+      "team.settings_updated": "A changé la répartition des nouvelles commandes",
+      "team.pay_set": "A fixé la paie d'un membre",
+      "team.pay_removed": "A supprimé un taux de paie"
     },
     "table": {
       "action": "Action",
@@ -177,6 +184,8 @@
     "mcp": "Agents IA (MCP)",
     "apps": "Applications",
     "integrations": "Intégrations",
+    "team": "Équipe de confirmation",
+    "finance": "Finances",
     "settings": "Paramètres"
   },
   "scope_actions": {
@@ -188,7 +197,8 @@
     "assign": "Assigner",
     "manage": "Gérer",
     "dispatch": "Expédier",
-    "team": "Équipe"
+    "team": "Équipe",
+    "read_assigned": "Les siennes seulement"
   },
   "invite_dialog_extra": {
     "permissions_label": "Permissions",

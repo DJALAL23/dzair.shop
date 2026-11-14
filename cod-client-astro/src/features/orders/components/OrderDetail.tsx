@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { OrderTeamCard } from "@/features/confirmation/components/OrderTeamCard";
 import { Archive, ArchiveRestore, Pencil, StickyNote, Trash2 } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useLocale, useT } from "@/i18n/react";
@@ -117,7 +118,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   }
 
 
-  if (!may("orders:read")) {
+  if (!may("orders:read") && !may("orders:read_assigned")) {
     return (
       <Alert role="alert" tone="critical">
         {auth("no_access")}
@@ -220,6 +221,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           ) : (
             <OrderNextStepCard moves={moves} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
           )}
+          <OrderTeamCard order={order} canUpdate={may("orders:update")} canManage={may("team:manage")} onChanged={load} />
           <OrderProgressCard history={order.statusHistory} action={<OrderEventsButton orderId={order.id} {...orderEventsAccess(may)} />} />
         </div>
       </div>

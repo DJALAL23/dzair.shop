@@ -67,6 +67,9 @@ Les scopes suivent la forme `resource:action`, par exemple :
 | `orders:create` | Créer des commandes |
 | `orders:update` | Modifier le statut de traitement et les détails d'une commande |
 | `orders:delete` | Supprimer ou annuler des commandes |
+| `orders:read_assigned` | Lire seulement les commandes confiées à soi dans l'équipe de confirmation. Toute autre commande répond `404`, et les listes et les comptes ne contiennent que les siennes. `orders:read` l'emporte |
+| `team:read`, `team:manage` | Voir l'équipe de confirmation et les résultats de chaque membre ; choisir qui en fait partie, comment les nouvelles commandes sont réparties, et confier ou reprendre des commandes |
+| `finance:read`, `finance:manage` | Voir ou fixer ce que coûtent les ventes : le coût des produits sur les commandes, la paie de l'équipe |
 | `products:read` | Lire le catalogue |
 | `products:manage` | Gérer les variantes et l'inventaire |
 | `delivery:dispatch` | Créer des expéditions avec un transporteur |

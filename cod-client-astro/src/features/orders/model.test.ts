@@ -92,6 +92,7 @@ describe("the order list's work queues", () => {
     expect(viewQuery("all")).toEqual({});
     expect(viewQuery("attention")).toEqual({ attention: true });
     expect(viewQuery("archived")).toEqual({ archived: true });
+    expect(viewQuery("callbacks")).toEqual({ callbacks: true });
     expect(viewQuery("on_the_way")).toEqual({ stages: ["handoff_pending", "in_transit", "out_for_delivery"] });
   });
 
@@ -106,9 +107,11 @@ describe("the order list's work queues", () => {
       ],
       needsAttention: 2,
       archived: 0,
+      callbacks: 3,
+      callbacksDue: 1,
       deliveryRate: null,
     });
-    expect(counts).toEqual({ all: 11, attention: 2, archived: 0, to_confirm: 5, to_prepare: 0, to_ship: 1, on_the_way: 5, delivered: 0, returns: 0, cancelled: 0 });
+    expect(counts).toEqual({ all: 11, attention: 2, callbacks: 3, archived: 0, to_confirm: 5, to_prepare: 0, to_ship: 1, on_the_way: 5, delivered: 0, returns: 0, cancelled: 0 });
   });
 });
 

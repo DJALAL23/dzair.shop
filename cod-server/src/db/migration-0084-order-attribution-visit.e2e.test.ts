@@ -58,7 +58,8 @@ describe("migration 0084", () => {
   });
 
   it("keeps every order as it was", async () => {
-    expect(await all("SELECT * FROM orders ORDER BY id")).toEqual(ordersBefore);
+    const columns = Object.keys(ordersBefore[0] ?? {});
+    expect((await all("SELECT * FROM orders ORDER BY id")).map((row) => Object.fromEntries(columns.map((column) => [column, (row as Record<string, unknown>)[column]])))).toEqual(ordersBefore);
   });
 
   it("stores a row's channel and visit through the schema, and finds rows by channel", async () => {

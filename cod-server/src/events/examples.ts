@@ -108,6 +108,13 @@ const EXAMPLES: { [T in EventType]: Example<T> } = {
     data: { order: { ...order("ready"), lines: order("ready").lines.map((line) => ({ ...line, returnedQuantity: 1 })) }, lineId: "b2d4f6a8-1c3e-4a5b-8d7f-9e0a1b2c3d4e", previousReturnedQuantity: 0 },
   },
   "order.deleted": { occurredAt: "2026-10-25T12:30:00.000Z", actor: STAFF, origin: "dashboard", data: { order: order("cancelled") } },
+  "order.assigned": {
+    occurredAt: "2026-10-25T09:14:03.120Z",
+    actor: { kind: "system", id: null, name: null },
+    origin: "storefront",
+    data: { order: order("new"), assignee: { id: "7b9d1f3a-5c7e-4a9b-8d1f-3a5c7e9b1d3f", name: "Karim" }, previousAssignee: null, way: "automatic" },
+  },
+  "order.unassigned": { occurredAt: "2026-10-25T09:30:00.000Z", actor: STAFF, origin: "dashboard", data: { order: order("new"), previousAssignee: { id: "7b9d1f3a-5c7e-4a9b-8d1f-3a5c7e9b1d3f", name: "Karim" } } },
   "shipment.handed_off": { occurredAt: "2026-10-25T11:02:40.000Z", actor: STAFF, origin: "dashboard", data: { shipment: shipment(), order: order("ready") } },
   "shipment.out_for_delivery": { occurredAt: "2026-10-26T08:31:00.000Z", actor: CARRIER, origin: "carrier_webhook", data: { shipment: shipment(outForDelivery), order: order("ready"), reason: null } },
   "shipment.delivery_failed": {

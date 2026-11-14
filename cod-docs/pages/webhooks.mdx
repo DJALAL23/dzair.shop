@@ -324,6 +324,8 @@ An event delivered again keeps its id, so your endpoint recognises it.
 | `order.cancelled` | The order was cancelled. |
 | `order.line_returned` | Units of an order line were refused at the door and came back. |
 | `order.deleted` | The order was deleted; the event carries it as it was. |
+| `order.assigned` | The order was given to a member of the confirmation team: by the store's rule, by a manager, or taken back from a member who did not act on it in time. |
+| `order.unassigned` | A manager took the order back from its team member; it is with nobody now. |
 | `shipment.handed_off` | The order was handed to a carrier or to one of the store's drivers. |
 | `shipment.out_for_delivery` | The parcel left for the customer. |
 | `shipment.delivery_failed` | An attempt to deliver the parcel failed. |

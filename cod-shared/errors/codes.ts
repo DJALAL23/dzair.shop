@@ -209,6 +209,18 @@ export const ERROR_CODES = {
   USER_NOT_FOUND: "USER_NOT_FOUND",
   DUPLICATE_EMAIL: "DUPLICATE_EMAIL",
   INVALID_ROLE: "INVALID_ROLE",
+
+  // ============================================================================
+  // BUSINESS LOGIC ERRORS - CONFIRMATION TEAM
+  // ============================================================================
+  /** The member is already on the confirmation team. */
+  ALREADY_TEAM_MEMBER: "ALREADY_TEAM_MEMBER",
+  /** The person is not on the confirmation team. */
+  NOT_TEAM_MEMBER: "NOT_TEAM_MEMBER",
+  /** A callback is set only on an order still waiting: new, or the customer not reached. */
+  ORDER_NOT_WAITING: "ORDER_NOT_WAITING",
+  /** That pay rate does not exist. */
+  PAY_RATE_NOT_FOUND: "PAY_RATE_NOT_FOUND",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - OFFERS

@@ -18,6 +18,10 @@ export interface OrderStageStats {
   needsAttention: number;
   /** Orders the merchant archived. */
   archived: number;
+  /** Orders still waiting (new, or the customer not reached) with a callback set. */
+  callbacks: number;
+  /** Of those, the ones whose callback time has come. */
+  callbacksDue: number;
   /** Of the parcels whose delivery ended, the share delivered (`deliveryRate`). */
   deliveryRate: number | null;
 }
@@ -42,10 +46,13 @@ export function deliveryRate(stages: ReadonlyArray<{ stage: OrderStage; count: n
  * archived orders out. The delivery rate always reads every order: archiving
  * a finished order never changes how its delivery ended.
  */
-export async function getOrderStageStats(db: AppDb, options: { archived?: "include" | "exclude" } = {}): Promise<OrderStageStats> {
+/** `assigneeId`: only the orders with that team member — for a member who sees only their own. */
+export async function getOrderStageStats(db: AppDb, options: { archived?: "include" | "exclude"; assigneeId?: string } = {}): Promise<OrderStageStats> {
   const stage = orderStageSql();
   const attention = orderNeedsAttentionSql();
   const isArchived = sql`(${orders.archivedAt} is not null)`;
+  const callback = sql`(${orders.callbackAt} is not null and ${orders.status} in ('new', 'unreachable') and ${orders.archivedAt} is null)`;
+  const now = new Date().toISOString();
   const rows = await db
     .select({
       stage,
@@ -53,9 +60,12 @@ export async function getOrderStageStats(db: AppDb, options: { archived?: "inclu
       archived: sql<number>`sum(${isArchived})`,
       attention: sql<number>`sum(${attention})`,
       archivedAttention: sql<number>`sum(${attention} and ${isArchived})`,
+      callbacks: sql<number>`sum(${callback})`,
+      callbacksDue: sql<number>`sum(${callback} and ${orders.callbackAt} <= ${now})`,
     })
     .from(orders)
     .leftJoin(shipments, eq(shipments.orderId, orders.id))
+    .where(options.assigneeId === undefined ? undefined : eq(orders.assigneeId, options.assigneeId))
     .groupBy(stage)
     .all();
   const exclude = options.archived === "exclude";
@@ -67,6 +77,8 @@ export async function getOrderStageStats(db: AppDb, options: { archived?: "inclu
     stages,
     needsAttention: rows.reduce((sum, r) => sum + Number(r.attention ?? 0) - (exclude ? Number(r.archivedAttention ?? 0) : 0), 0),
     archived: rows.reduce((sum, r) => sum + Number(r.archived ?? 0), 0),
+    callbacks: rows.reduce((sum, r) => sum + Number(r.callbacks ?? 0), 0),
+    callbacksDue: rows.reduce((sum, r) => sum + Number(r.callbacksDue ?? 0), 0),
     deliveryRate: deliveryRate(every),
   };
 }
@@ -76,7 +88,7 @@ export const ACTIVITY_WINDOWS = [7, 30, 90] as const;
 export type ActivityWindow = (typeof ACTIVITY_WINDOWS)[number];
 
 /** Algeria keeps UTC+1 all year: a store's day starts at 23:00 UTC the evening before. */
-const STORE_UTC_OFFSET_HOURS = 1;
+export const STORE_UTC_OFFSET_HOURS = 1;
 
 export interface OrderActivityDay {
   /** The store's calendar day, YYYY-MM-DD. */

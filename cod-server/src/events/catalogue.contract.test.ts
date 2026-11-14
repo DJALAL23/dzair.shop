@@ -93,6 +93,8 @@ const SAMPLE: EventDataMap = {
   "order.cancelled": { order: { ...order, status: "cancelled" }, previousStatus: "confirmed" },
   "order.line_returned": { order, lineId: "l-1", previousReturnedQuantity: 0 },
   "order.deleted": { order },
+  "order.assigned": { order: { ...order, status: "new" }, assignee: { id: "u2", name: "Karim" }, previousAssignee: { id: "u3", name: "Amina" }, way: "take_back" },
+  "order.unassigned": { order: { ...order, status: "new" }, previousAssignee: { id: "u2", name: "Karim" } },
   "shipment.handed_off": { shipment: { ...shipment, outForDeliveryAt: null, providerStatus: null }, order },
   "shipment.out_for_delivery": report,
   "shipment.delivery_failed": { ...report, reason: "Client injoignable", attempt: 1 },

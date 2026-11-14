@@ -213,6 +213,9 @@
     "delivered": "Delivered",
     "returns": "Returns",
     "cancelled": "Cancelled",
+    "callbacks": "Callbacks",
+    "callbacks_due_one": "{count} due",
+    "callbacks_due_other": "{count} due",
     "attention": "Needs attention",
     "attention_count_one": "{count} needs you",
     "attention_count_other": "{count} need you",
@@ -228,6 +231,7 @@
     "returns": "No returns — good news",
     "cancelled": "No cancelled order",
     "attention": "Nothing needs you right now",
+    "callbacks": "No customer to call back",
     "archived": "No archived orders"
   },
   "search_placeholder": "Order number, customer, phone or tracking number…",

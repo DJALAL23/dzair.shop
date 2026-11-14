@@ -11,6 +11,7 @@ import type { OrderStatus } from "../orders/lifecycle";
 import type { Milestone } from "../shipments/interpretation";
 import type { Actor, Origin } from "./actor";
 import type { OrderSnapshot, ShipmentSnapshot, SqlJson } from "./snapshots";
+import type { AssignmentWay } from "../team/model";
 
 export type EventSubject = "order" | "shipment";
 
@@ -25,6 +26,8 @@ export const EVENT_CATALOGUE = {
   "order.cancelled": { subject: "order", version: 1, summary: "The order was cancelled." },
   "order.line_returned": { subject: "order", version: 1, summary: "Units of an order line were refused at the door and came back." },
   "order.deleted": { subject: "order", version: 1, summary: "The order was deleted; the event carries it as it was." },
+  "order.assigned": { subject: "order", version: 1, summary: "The order was given to a member of the confirmation team: by the store's rule, by a manager, or taken back from a member who did not act on it in time." },
+  "order.unassigned": { subject: "order", version: 1, summary: "A manager took the order back from its team member; it is with nobody now." },
   "shipment.handed_off": { subject: "shipment", version: 1, summary: "The order was handed to a carrier or to one of the store's drivers." },
   "shipment.out_for_delivery": { subject: "shipment", version: 1, summary: "The parcel left for the customer." },
   "shipment.delivery_failed": { subject: "shipment", version: 1, summary: "An attempt to deliver the parcel failed." },
@@ -72,6 +75,12 @@ export const MILESTONE_EVENT = {
 export const ORDER_FIELDS = ["customerName", "customerPhone", "customerEmail", "destination", "notes"] as const;
 export type OrderField = (typeof ORDER_FIELDS)[number];
 
+/** A member of the confirmation team, as an event names them. */
+interface TeamMember {
+  id: string;
+  name: string;
+}
+
 interface OrderStatusChange {
   order: OrderSnapshot;
   previousStatus: OrderStatus;
@@ -102,6 +111,8 @@ export interface EventDataMap {
   "order.cancelled": OrderStatusChange;
   "order.line_returned": { order: OrderSnapshot; lineId: string; previousReturnedQuantity: number };
   "order.deleted": { order: OrderSnapshot };
+  "order.assigned": { order: OrderSnapshot; assignee: TeamMember; previousAssignee: TeamMember | null; way: AssignmentWay };
+  "order.unassigned": { order: OrderSnapshot; previousAssignee: TeamMember };
   "shipment.handed_off": ShipmentChange;
   "shipment.out_for_delivery": ShipmentReport;
   "shipment.delivery_failed": FailedAttempt;

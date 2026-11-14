@@ -29,7 +29,8 @@
     "delivery_labels": "الملصقات",
     "integrations": "التكاملات",
     "apps": "التطبيقات",
-    "orders_spam": "السبام"
+    "orders_spam": "السبام",
+    "orders_team": "فريق التأكيد"
   },
   "navbar": {
     "search_placeholder": "ابحث عن طلب، عميل أو رقم تتبع…"

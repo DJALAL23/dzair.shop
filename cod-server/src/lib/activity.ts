@@ -25,6 +25,15 @@ export const ACTIONS = {
   ORDER_DELETED:           "order.deleted",
   ORDER_ARCHIVED:          "order.archived",
   ORDER_UNARCHIVED:        "order.unarchived",
+  ORDER_CALLBACK_SET:      "order.callback_set",
+
+  // Confirmation team
+  TEAM_MEMBER_ADDED:       "team.member_added",
+  TEAM_MEMBER_REMOVED:     "team.member_removed",
+  TEAM_RECEIVING_CHANGED:  "team.receiving_changed",
+  TEAM_SETTINGS_UPDATED:   "team.settings_updated",
+  TEAM_PAY_SET:            "team.pay_set",
+  TEAM_PAY_REMOVED:        "team.pay_removed",
 
   // Shipments
   SHIPMENT_VOIDED:         "shipment.voided",

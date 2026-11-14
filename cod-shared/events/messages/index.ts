@@ -90,6 +90,8 @@ function facts(language: MessageLanguage, event: BusinessEvent): string[] {
     case "order.ready":
     case "order.cancelled":
     case "order.deleted":
+    case "order.assigned":
+    case "order.unassigned":
       return [customer(order), total];
     case "shipment.handed_off":
     case "shipment.voided":

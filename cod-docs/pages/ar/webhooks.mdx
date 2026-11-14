@@ -324,6 +324,8 @@ def verify_webhook(secret: str, headers: dict, raw_body: bytes) -> bool:
 | `order.cancelled` | أُلغي الطلب. |
 | `order.line_returned` | رُفضت وحدات من سطر في الطلب عند الباب وعادت. |
 | `order.deleted` | حُذف الطلب؛ ويحمله الحدث كما كان. |
+| `order.assigned` | أُسند الطلب إلى عضو في فريق التأكيد: بقاعدة المتجر، أو من قِبل مسؤول، أو استُرجع من عضو لم يعالجه في الوقت المحدد. |
+| `order.unassigned` | استرجع مسؤول الطلب من عضو الفريق؛ ولم يعد مُسندًا إلى أحد. |
 | `shipment.handed_off` | سُلّم الطلب إلى شركة توصيل أو إلى أحد سائقي المتجر. |
 | `shipment.out_for_delivery` | خرج الطرد نحو الزبون. |
 | `shipment.delivery_failed` | فشلت محاولة لتوصيل الطرد. |

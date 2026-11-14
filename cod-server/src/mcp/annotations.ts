@@ -58,7 +58,7 @@ const IDEMPOTENT_WRITE_TOOLS: ReadonlySet<string> = new Set([
 
 /** A registry entry gates read-only access when every required scope is a read scope. */
 function isReadScopeEntry(entry: (typeof TOOL_REGISTRY)[number]): boolean {
-  return entry.requires.every((scope) => scope.endsWith(":read"));
+  return entry.requires.every((scope) => scope.endsWith(":read") || scope.endsWith(":read_assigned"));
 }
 
 /** Tools selected by at least one write-scope entry — everything the read set does not cover. */
